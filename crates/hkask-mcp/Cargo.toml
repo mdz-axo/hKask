@@ -1,0 +1,16 @@
+[package]
+name = "hkask-mcp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "MCP runtime and dispatch for hKask"
+
+[dependencies]
+hkask-types = { path = "../hkask-types" }
+hkask-templates = { path = "../hkask-templates" }
+rmcp.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tokio.workspace = true

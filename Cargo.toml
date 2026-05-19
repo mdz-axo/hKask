@@ -1,0 +1,101 @@
+[workspace]
+resolver = "2"
+members = [
+    # Core crates (11 — ≤30k lines total)
+    "crates/hkask-types",
+    "crates/hkask-storage",
+    "crates/hkask-memory",
+    "crates/hkask-cns",
+    "crates/hkask-templates",
+    "crates/hkask-agents",
+    "crates/hkask-ensemble",
+    "crates/hkask-keystore",
+    "crates/hkask-mcp",
+    "crates/hkask-cli",
+    "crates/hkask-api",
+    # MCP servers (10 — excluded from budget)
+    "mcp-servers/hkask-mcp-inference",
+    "mcp-servers/hkask-mcp-storage",
+    "mcp-servers/hkask-mcp-memory",
+    "mcp-servers/hkask-mcp-embedding",
+    "mcp-servers/hkask-mcp-condenser",
+    "mcp-servers/hkask-mcp-ensemble",
+    "mcp-servers/hkask-mcp-web",
+    "mcp-servers/hkask-mcp-scholar",
+    "mcp-servers/hkask-mcp-spandrel",
+    "mcp-servers/hkask-mcp-doc-knowledge",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/mdz-axolotl/hKask"
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1.51", features = ["full"] }
+tokio-util = "0.7"
+
+# HTTP / API
+axum = "0.8"
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+utoipa = { version = "5.5", features = ["axum_extras", "uuid", "chrono"] }
+utoipa-axum = "0.2"
+
+# ACP protocol (agent communication)
+acp-runtime = "0.1"
+
+# MCP protocol (tool protocol)
+rmcp = "1"
+
+# Storage
+rusqlite = { version = "0.39", features = ["bundled-sqlcipher-vendored-openssl", "blob"] }
+sqlite-vec = "0.1"
+
+# Cryptography / Hashing
+blake3 = "1"
+aes-gcm = "0.10"
+argon2 = "0.5"
+
+# Git
+gix = "0.81"
+
+# Templating
+minijinja = { version = "2", features = ["loader", "serde", "json"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+
+# Error handling
+thiserror = "2"
+anyhow = "1"
+
+# Logging / Tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# CLI
+clap = { version = "4", features = ["derive", "env"] }
+
+# Utilities
+uuid = { version = "1", features = ["v4", "serde", "fast-rng"] }
+chrono = { version = "0.4", features = ["serde"] }
+once_cell = "1"
+parking_lot = "0.12"
+hex = "0.4"
+base64 = "0.22"
+
+# Keychain / Secrets
+secret-service = "4"
+keyring = "3"
+
+# HTTP client (for MCP servers)
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+
+# Embeddings / Vector ops
+ndarray = "0.16"
+nalgebra = "0.33"

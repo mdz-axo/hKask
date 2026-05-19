@@ -1,0 +1,16 @@
+[package]
+name = "hkask-keystore"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "OS keychain integration and AES-256-GCM encryption for hKask"
+
+[dependencies]
+hkask-types = { path = "../hkask-types" }
+keyring.workspace = true
+aes-gcm.workspace = true
+argon2.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+base64.workspace = true

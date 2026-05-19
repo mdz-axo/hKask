@@ -1,0 +1,16 @@
+[package]
+name = "hkask-mcp-scholar"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Academic research MCP server"
+
+[dependencies]
+hkask-types = { path = "../../crates/hkask-types" }
+rmcp.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tokio.workspace = true

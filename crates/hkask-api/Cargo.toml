@@ -1,0 +1,22 @@
+[package]
+name = "hkask-api"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "HTTP API with utoipa OpenAPI for hKask"
+
+[dependencies]
+hkask-types = { path = "../hkask-types" }
+hkask-agents = { path = "../hkask-agents" }
+hkask-templates = { path = "../hkask-templates" }
+hkask-mcp = { path = "../hkask-mcp" }
+axum.workspace = true
+utoipa.workspace = true
+utoipa-axum.workspace = true
+tower.workspace = true
+tower-http.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tokio.workspace = true

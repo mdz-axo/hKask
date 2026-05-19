@@ -1,0 +1,16 @@
+[package]
+name = "hkask-mcp-condenser"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Template condensation MCP server"
+
+[dependencies]
+hkask-types = { path = "../../crates/hkask-types" }
+hkask-templates = { path = "../../crates/hkask-templates" }
+rmcp.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tokio.workspace = true
