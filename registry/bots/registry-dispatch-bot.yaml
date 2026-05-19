@@ -1,0 +1,21 @@
+# File: registry/bots/registry-dispatch-bot.yaml
+# Bot manifest for registry dispatch bot
+
+bot:
+  name: registry-dispatch-bot
+  type: Bot
+  binding_contract: true
+  editor: curator-or-human-admin
+
+capabilities:
+  - tool:inference:call
+  - tool:template:render
+  - tool:registry:index
+
+responsibilities:
+  - respond_to: template_dispatch_requests
+  - emit: cns.prompt.select
+  - emit: cns.prompt.render
+  - emit: cns.prompt.outcome
+
+process_manifest: registry/manifests/dispatch.yaml

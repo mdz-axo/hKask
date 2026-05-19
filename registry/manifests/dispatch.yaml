@@ -1,0 +1,38 @@
+# File: registry/manifests/dispatch.yaml
+# Bootstrap process for all registry resolution.
+# Selects, populates, and executes a template from the unified registry.
+
+manifest:
+  name: registry-dispatch
+  description: >
+    Bootstrap process for all registry resolution.
+    Selects, populates, and executes a template from the unified registry.
+
+steps:
+  - ordinal: 1
+    action: select
+    description: "Render selector template with raw input + registry index; call fast model to choose best-fit template"
+    renderer: minijinja
+    template_ref: prompt/selector
+    model_tier: fast_local
+    mcp: hkask-mcp-inference
+    output_schema:
+      selected_template_id: string
+      rationale: string
+      confidence: float
+
+  - ordinal: 2
+    action: populate
+    description: "Bind raw prompt into selected template's Jinja2 fields"
+    renderer: minijinja
+    template_ref: "{{ selected_template_id }}"
+    output_schema:
+      rendered_document: string
+
+  - ordinal: 3
+    action: execute
+    description: "Submit rendered document to model/tool per template contract"
+    target: from_template_contract
+    mcp: from_template_contract
+    output_schema:
+      result: any

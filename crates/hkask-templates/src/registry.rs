@@ -5,8 +5,11 @@
 
 use crate::ports::{Action, ManifestStep};
 use crate::ports::{ProcessManifest, RegistryEntry, RegistryIndex};
+use crate::ports::{Result, TemplateError};
 use hkask_types::TemplateType;
 use std::collections::HashMap;
+use std::env;
+use std::path::{Path, PathBuf};
 
 /// Template registry entry
 #[derive(Debug, Clone)]
@@ -79,6 +82,68 @@ impl Registry {
         }
     }
 
+    /// Get the templates directory path
+    ///
+    /// Resolution order:
+    /// 1. HKASK_TEMPLATES_PATH environment variable (if set)
+    /// 2. <executable_dir>/registry/templates/ (default)
+    /// 3. Fallback to ./registry/templates/ (development mode)
+    pub fn get_templates_path() -> PathBuf {
+        env::var("HKASK_TEMPLATES_PATH")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| {
+                // Try executable-relative path
+                env::current_exe()
+                    .ok()
+                    .and_then(|p| p.parent().map(|p| p.join("registry/templates")))
+                    .filter(|p| p.exists())
+                    .unwrap_or_else(|| PathBuf::from("registry/templates"))
+            })
+    }
+
+    /// Get full path to a template file
+    pub fn get_template_path(template_id: &str) -> PathBuf {
+        let base_path = Self::get_templates_path();
+        // Convert template ID to filename (e.g., "prompt/selector" -> "prompt_selector.j2")
+        let filename = template_id.replace('/', "_");
+        base_path.join(format!("{}.j2", filename))
+    }
+
+    /// Validate that a template path is safe (no path traversal)
+    pub fn validate_template_path(template_id: &str) -> Result<()> {
+        // Reject absolute paths
+        if template_id.starts_with('/') || template_id.starts_with('\\') {
+            return Err(TemplateError::PathTraversal(format!(
+                "Absolute path not allowed: {}",
+                template_id
+            )));
+        }
+
+        // Reject path traversal attempts
+        if template_id.contains("..") {
+            return Err(TemplateError::PathTraversal(format!(
+                "Path traversal not allowed: {}",
+                template_id
+            )));
+        }
+
+        // Reject paths with null bytes
+        if template_id.contains('\0') {
+            return Err(TemplateError::PathTraversal(format!(
+                "Null byte not allowed: {}",
+                template_id
+            )));
+        }
+
+        // Ensure path is normalized (no leading/trailing slashes)
+        let normalized = template_id.trim_matches(|c| c == '/' || c == '\\');
+        if normalized.is_empty() {
+            return Err(TemplateError::PathTraversal("Empty path not allowed".to_string()));
+        }
+
+        Ok(())
+    }
+
     pub fn register(&mut self, entry: TemplateEntry) {
         self.templates.insert(entry.id.clone(), entry);
     }
@@ -123,7 +188,29 @@ impl Registry {
                 "Selects best-fit template for input context",
             )
             .with_lexicon(vec!["recognize", "classify", "match", "discriminate"])
-            .with_source("registry/templates/prompt_selector.j2"),
+            .with_source(&Self::get_template_path("prompt/selector").to_string_lossy()),
+        );
+
+        registry.register(
+            TemplateEntry::new(
+                "prompt/render",
+                TemplateType::Prompt,
+                "Prompt Render",
+                "Renders prompt with context binding",
+            )
+            .with_lexicon(vec!["render", "compose", "format"])
+            .with_source(&Self::get_template_path("prompt/render").to_string_lossy()),
+        );
+
+        registry.register(
+            TemplateEntry::new(
+                "prompt/execute",
+                TemplateType::Prompt,
+                "Prompt Execute",
+                "Executes rendered prompt via inference",
+            )
+            .with_lexicon(vec!["execute", "respond", "complete"])
+            .with_source(&Self::get_template_path("prompt/execute").to_string_lossy()),
         );
 
         registry.register(
@@ -157,7 +244,7 @@ impl Registry {
                 "Detects cognitive drift in agent behavior",
             )
             .with_lexicon(vec!["detect", "drift", "calibrate"])
-            .with_source("registry/templates/cognition_detect.j2"),
+            .with_source(&Self::get_template_path("cognition/detect").to_string_lossy()),
         );
 
         registry.register(
@@ -168,7 +255,7 @@ impl Registry {
                 "Calibrates agent responses to baseline",
             )
             .with_lexicon(vec!["calibrate", "baseline", "adjust"])
-            .with_source("registry/templates/cognition_calibrate.j2"),
+            .with_source(&Self::get_template_path("cognition/calibrate").to_string_lossy()),
         );
 
         // Core process templates (FlowDef - what to do)
@@ -180,7 +267,7 @@ impl Registry {
                 "Recalls semantic/episodic memory triples",
             )
             .with_lexicon(vec!["recall", "retrieve", "remember"])
-            .with_source("registry/templates/process_recall.j2"),
+            .with_source(&Self::get_template_path("process/memory/recall").to_string_lossy()),
         );
 
         registry.register(
@@ -191,7 +278,7 @@ impl Registry {
                 "Dispatches tool calls via ACP/MCP",
             )
             .with_lexicon(vec!["dispatch", "route", "invoke"])
-            .with_source("registry/templates/process_dispatch.j2"),
+            .with_source(&Self::get_template_path("process/dispatch").to_string_lossy()),
         );
 
         registry
@@ -220,8 +307,15 @@ impl RegistryIndex for Registry {
         }
     }
 
-    fn get(&self, id: &str) -> Option<RegistryEntry> {
-        self.templates.get(id).map(|e| e.as_registry_entry())
+    fn get(&self, id: &str) -> Result<RegistryEntry> {
+        // Validate path first (security)
+        Self::validate_template_path(id)?;
+        
+        // Then check if template exists
+        self.templates
+            .get(id)
+            .map(|e| e.as_registry_entry())
+            .ok_or_else(|| TemplateError::NotFound(format!("Template '{}' not found", id)))
     }
 
     fn bootstrap_manifest(&self) -> Option<ProcessManifest> {
@@ -289,8 +383,32 @@ mod tests {
         registry.register(entry);
 
         let retrieved = registry.get("test-1");
-        assert!(retrieved.is_some());
+        assert!(retrieved.is_ok());
         assert_eq!(retrieved.unwrap().name, "Test");
+    }
+
+    #[test]
+    fn test_registry_get_not_found() {
+        let registry = Registry::new();
+        let result = registry.get("nonexistent");
+        assert!(result.is_err());
+        assert!(format!("{:?}", result.unwrap_err()).contains("not found"));
+    }
+
+    #[test]
+    fn test_registry_get_path_traversal() {
+        let registry = Registry::new();
+        let result = registry.get("../etc/passwd");
+        assert!(result.is_err());
+        assert!(format!("{:?}", result.unwrap_err()).contains("Path traversal"));
+    }
+
+    #[test]
+    fn test_registry_get_absolute_path() {
+        let registry = Registry::new();
+        let result = registry.get("/etc/passwd");
+        assert!(result.is_err());
+        assert!(format!("{:?}", result.unwrap_err()).contains("Path traversal"));
     }
 
     #[test]
@@ -353,7 +471,7 @@ mod tests {
         assert!(!prompt_entries.is_empty());
 
         let entry = registry.get("prompt/selector");
-        assert!(entry.is_some());
+        assert!(entry.is_ok());
     }
 
     #[test]
@@ -365,5 +483,19 @@ mod tests {
         assert_eq!(manifest.steps[0].action, Action::Select);
         assert_eq!(manifest.steps[1].action, Action::Populate);
         assert_eq!(manifest.steps[2].action, Action::Execute);
+    }
+
+    #[test]
+    fn test_get_templates_path() {
+        // Test that path resolution returns something
+        let path = Registry::get_templates_path();
+        assert!(!path.as_os_str().is_empty());
+    }
+
+    #[test]
+    fn test_get_template_path() {
+        // Test template path construction
+        let path = Registry::get_template_path("prompt/selector");
+        assert!(path.ends_with("prompt_selector.j2"));
     }
 }

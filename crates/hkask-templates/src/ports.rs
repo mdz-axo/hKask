@@ -12,6 +12,10 @@ use std::path::Path;
 pub enum TemplateError {
     #[error("Template not found: {0}")]
     NotFound(String),
+    #[error("Template exists but is not wired: {0}")]
+    Unwired(String),
+    #[error("Template entry is corrupt: {0}")]
+    CorruptEntry(String),
     #[error("Render error: {0}")]
     Render(String),
     #[error("Manifest error: {0}")]
@@ -24,6 +28,16 @@ pub enum TemplateError {
     RecursionLimit { max: u8 },
     #[error("Validation error: {0}")]
     Validation(String),
+    #[error("Path traversal attempt: {0}")]
+    PathTraversal(String),
+    #[error("Sandbox violation: {0}")]
+    SandboxViolation(String),
+    #[error("Rate limit exceeded: {0}")]
+    RateLimitExceeded(String),
+    #[error("Capability denied: {0}")]
+    CapabilityDenied(String),
+    #[error("Timeout: {0}")]
+    Timeout(String),
 }
 
 pub type Result<T> = std::result::Result<T, TemplateError>;
@@ -119,7 +133,7 @@ pub struct RegistryEntry {
 /// Registry index port
 pub trait RegistryIndex {
     fn list(&self, domain_hint: Option<TemplateType>) -> Vec<RegistryEntry>;
-    fn get(&self, id: &str) -> Option<RegistryEntry>;
+    fn get(&self, id: &str) -> Result<RegistryEntry>;
     fn bootstrap_manifest(&self) -> Option<ProcessManifest>;
 }
 

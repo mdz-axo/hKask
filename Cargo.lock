@@ -2423,11 +2423,14 @@ name = "hkask-agents"
 version = "0.1.0"
 dependencies = [
  "acp-runtime",
+ "hex",
  "hkask-templates",
  "hkask-types",
+ "hmac",
  "serde",
  "serde_json",
  "serde_yaml",
+ "sha2",
  "thiserror",
  "tokio",
  "tracing",

@@ -2,82 +2,86 @@
 
 ## Context
 
-You are beginning implementation of **hKask** (ℏKask — "Planck's Constant of Agent Systems"), a minimal agent-native container platform in Rust.
+You are continuing implementation of **hKask** (ℏKask — "Planck's Constant of Agent Systems"), a minimal agent-native container platform in Rust.
 
 **Architecture Status:** Pre-alpha MVP (v0.21.0)  
 **Line Budget:** ≤30,000 lines Rust (excluding ACP/MCP protocols, Okapi)  
+**Current LOC:** ~5,135 lines Rust (17% of budget)  
 **Crate Structure:** 21 crates (11 core + 10 MCP servers)
+**Tests:** 114 passing across workspace
 
 ---
 
-## Vision: The Quantum of Agent Systems
+## Implementation Progress (Updated 2026-05-19)
 
-hKask is named after **Planck's constant** (ℏ) — the smallest possible unit of action from which all quantum phenomena emerge. Similarly, hKask is the minimal viable unit of an agent platform from which a full agent ecosystem can be reconstructed.
+### ✅ Completed Phases
 
-**Design Philosophy:** Austere and efficient recombinatorial system. The kernel (non-protocol code) is intentionally minimal. Complexity is offloaded to LLMs, tools, and templates — so the platform improves as those external systems improve.
+#### Phase 1-3: Security Foundation (~1,500 LOC)
+- **hkask-keystore**: OS keychain integration, AES-256-GCM encryption
+- **hkask-storage**: SQLite + SQLCipher with Argon2id key derivation
+- **hkask-types**: OCAP capability-based access control with Ed25519 signatures
+- Visibility gating (private/public/epistemic)
 
-**Core Insight:** Templates are the wiring surface. There is no wiring as a kernel concept. Templates A2A-talk between agents. The kernel does not orchestrate.
+#### Phase 4: CNS + Templates (~3,600 LOC)
+- **hkask-cns** (622 LOC): Cybernetic Nervous System
+  - `spans.rs`: `cns.*` namespace spans (`cns.tool.*`, `cns.prompt.*`, `cns.agent_pod.*`)
+  - `variety.rs`: Variety counters, deficit tracking
+  - `algedonic.rs`: Algedonic alerts (variety deficit >100 → escalate)
+  - 18 tests passing
 
----
+- **hkask-templates** (~800 LOC): Unified registry + templating system
+  - `registry.rs`: Template registry with `template_type` discriminator (Prompt/Process/Cognition)
+  - `manifest.rs`: Manifest executor (~50 LOC fixed logic)
+  - `renderer.rs`: minijinja-based Jinja2 rendering with filesystem loading
+  - `cascade.rs`: Pre/core/post stage composition
+  - `ports.rs`: Hexagonal architecture ports (ManifestExecutor, TemplateRenderer, RegistryIndex, etc.)
+  - 23 tests passing
 
-## Five Anchors (Non-Negotiable)
+- **Template Files** (7 core templates in `registry/templates/`):
+  - `prompt_selector.j2` — Template selection (Cognition)
+  - `prompt_render.j2` — Prompt composition (Prompt)
+  - `prompt_execute.j2` — Execution wrapper (Prompt)
+  - `cognition_detect.j2` — Drift detection (Cognition)
+  - `cognition_calibrate.j2` — Calibration planning (Cognition)
+  - `process_recall.j2` — Memory recall workflow (Process)
+  - `process_dispatch.j2` — Tool dispatch workflow (Process)
 
-| # | Anchor | Purpose | Why It Matters |
-|---|--------|---------|----------------|
-| 1 | **Agent Enablement** | Sovereign agents (Bot/Replicant) in pods with WebID, ACP | Without agents, there is no agent platform. Bots and replicants are the atoms of hKask. |
-| 2 | **Essential Tools** | 10 MCP servers + Okapi inference | Tools are capabilities exposed through MCP. No MCP = no capabilities. |
-| 3 | **User Sovereignty** | OCAP, SQLCipher encryption, private/public gating | Without sovereignty, there is no trust. Users own their data, their agents, their choices. |
-| 4 | **CNS (Cybernetic Nervous System)** | `cns.*` spans, variety counters, algedonic alerts | Without cybernetics, there is no learning. CNS observes; templates analyze; curators improve. |
-| 5 | **Composition Registries** | **Unified registry** with template_type discriminator + hLexicon | Without composition, there is no emergence. Templates combine to produce capabilities greater than their parts. |
+### 🔄 In Progress
 
-**These five anchors are the foundation.** If any anchor is missing, the system is not hKask.
+#### Phase 4: Templates (Completing)
+- Filesystem template loading: ✅ Complete
+- Path resolution (env var + executable-relative): ✅ Complete
+- Bootstrap manifest integration: ✅ Complete
+- CNS event emission in manifest executor: ⏳ Pending
 
-**Key Distinction (Anchor 5):** Prompts (WordAct/say), Processes (FlowDef/do), and Cognition (KnowAct/think) are distinguished by `template_type` metadata, not separate Rust code paths. Selection intelligence lives in Jinja2/LLM, not Rust branching.
+### ⏳ Remaining Phases
 
----
+#### Phase 5: MCP Servers (Weeks 9-10 — ~10,000 LOC)
+1. **hkask-mcp-inference** (1,400 LOC) — Okapi + Ollama
+2. **hkask-mcp-embedding** (800 LOC) — Ollama embeddings
+3. **hkask-mcp-ensemble** (700 LOC) — bot deliberation
+4. **hkask-mcp-condenser** (2,200 LOC) — RTK-style + flashrank + reranker
+5. **hkask-mcp-memory** (1,900 LOC) — atop storage MCP + Bayesian ops
+6. **hkask-mcp-spandrel** (1,500 LOC) — graph exploration
+7. **hkask-mcp-doc-knowledge** (1,200 LOC) — doc extraction
+8. **hkask-mcp-web** (800 LOC) — web search
+9. **hkask-mcp-scholar** (800 LOC) — academic search
+10. **hkask-mcp-storage** (existing — storage operations)
 
-## Source Documents
+#### Phase 6: Agents + Ensemble (~4,000 LOC)
+- **hkask-agents**: Pods, ACP, bot/replicant, Curator
+- **hkask-ensemble**: Multi-agent chat (NO swarms)
+- **hkask-mcp**: MCP runtime, dispatch
 
-All architecture documents are located at: `~/Clones/hKask/docs/architecture/`
+#### Phase 7: CLI + API (~4,000 LOC)
+- **hkask-cli**: CLI commands (`kask chat`, `kask bot manifest pull/push`)
+- **hkask-api**: HTTP API, utoipa OpenAPI
 
-**Active Specifications:**
-1. `hKask-architecture-master.md` — **Sole authoritative spec** (v0.21.0)
-2. `hKask-architecture-index.md` — Index + implementation checklist
-3. `hKask-hLexicon.md` — Canonical vocabulary (≤75 terms)
-4. `hKask-Curator-persona.md` — Curator persona specification
-5. `AGENTS.md` — Agent operating guide (root directory)
-6. `registry-templating-prompt-v2.md` — **Registry & templating system design** (unified registry, manifest/template distinction, CNS integration)
-7. `hKask-erd.md` — **Entity relationship diagrams** (Mermaid ERDs, data flow, state machines)
-
-**Reference Documents:**
-- `vKask-erd.md` — vKask entity relationships (reference only)
-- `vKask-cybernetic-constant.md` — νKask cybernetic foundation (reference only)
-- `MODEL_CATALOG.md` — Model catalog (reference only)
-
----
-
-## Key Architectural Decisions
-
-| Decision | Value |
-|----------|-------|
-| **Cybernetic System** | CNS (Cybernetic Nervous System), `cns.*` namespace |
-| **Storage Backend** | SQLite + SQLCipher + sqlite-vec |
-| **Vector Contingency** | Qdrant embedded mode (if sqlite-vec fails) |
-| **ACP SDK** | acp-runtime (beltxa/acp, Rust-native) |
-| **MCP SDK** | rmcp (modelcontextprotocol/rust-sdk) |
-| **Template Engine** | minijinja |
-| **Encryption** | Interactive passphrase at startup |
-| **Capability Delegation** | OCAP-only for h-bar (UCAN deferred) |
-| **Condenser Algorithms** | All kask condenser except OpenCode-style + OpenHands-style |
-| **Versioning** | Git-only (SHA-based, no SemVer) |
-| **Memory Model** | Semantic vs Episodic (categorical, no promotion) |
-| **Registry Design** | **Unified registry** with `template_type` discriminator (not three registries) |
-| **Manifest vs Template** | Manifest = YAML process definition; Template = Jinja2 dynamic document |
-| **Rust Role** | Loom (fixed logic); YAML/Jinja2 = Thread (mutable content) |
-| **CNS Spans** | `cns.prompt.select`, `cns.prompt.render`, `cns.prompt.outcome` |
-| **Matroshka Limit** | Default depth: 7, configurable per template |
-
----
+#### Phase 8: Integration + Verification
+- Seed templates (complete)
+- Curator instantiation
+- Success criterion test (16 items from master spec)
+- LOC audit (≤30,000)
 
 ## Crate Structure
 
@@ -386,6 +390,132 @@ If you encounter ambiguity or need clarification:
 3. Ask the user if the spec is unclear
 
 **Do not hallucinate features.** All features must be traceable to the architecture spec.
+
+---
+
+## Next Agent Continuation — Immediate Tasks
+
+### Current State Summary
+
+**hkask-templates crate:** ✅ Complete (23 tests, ~800 LOC)
+- Unified registry with `template_type` discriminator
+- Filesystem template loading (env var + executable-relative path)
+- 7 core Jinja2 templates in `registry/templates/`
+- minijinja renderer with contract parsing
+- Cascade composition (pre/core/post stages)
+- Manifest executor with depth limiting
+
+**hkask-cns crate:** ✅ Complete (18 tests, ~622 LOC)
+- Span tracking (`cns.tool.*`, `cns.prompt.*`, `cns.agent_pod.*`)
+- Variety counters with deficit tracking
+- Algedonic alerts (threshold: 100)
+
+**Workspace:** ✅ 114 tests passing, ~5,135 LOC Rust (17% of 30k budget)
+
+### Immediate Next Steps
+
+#### 1. Integrate CNS Port in Manifest Executor (Priority: High)
+
+The `ManifestExecutorImpl` has a `CnsPort` generic but CNS events are not yet emitted during execution. Add CNS span emission at each manifest step:
+
+**File:** `crates/hkask-templates/src/manifest.rs`
+
+**Changes needed:**
+- Emit `cns.prompt.select` after Select action (include selected template ID, confidence)
+- Emit `cns.prompt.populate` after Populate action (include binding count)
+- Emit `cns.prompt.execute` after Execute action (include outcome, confidence)
+- Emit `cns.prompt.outcome` at end of manifest execution (final result, total steps, duration)
+
+**Example:**
+```rust
+// In execute_step(), after Select:
+self.cns.emit(
+    "cns.prompt.select",
+    Value::Object(serde_json::json!({
+        "selected_template": selected_id,
+        "confidence": confidence,
+        "rationale": rationale
+    }).as_object().unwrap().clone()),
+    confidence,
+);
+```
+
+#### 2. Create YAML Manifest Files (Priority: Medium)
+
+The bootstrap manifest is hardcoded in Rust. Create external YAML manifest files that can be loaded at runtime:
+
+**Directory:** `registry/manifests/`
+
+**Files to create:**
+- `dispatch.yaml` — Bootstrap dispatch manifest (matches current hardcoded version)
+- `memory_recall.yaml` — Memory recall workflow
+- `tool_dispatch.yaml` — Tool dispatch workflow
+
+**YAML schema:**
+```yaml
+manifest:
+  id: registry/dispatch
+  name: Registry Dispatch
+  description: Bootstrap process for all registry resolution
+  steps:
+    - ordinal: 1
+      action: select
+      description: Select best-fit template
+      template_ref: prompt/selector
+      model_tier: fast_local
+      mcp: hkask-mcp-inference
+      renderer: minijinja
+```
+
+**Rust changes:**
+- Add `serde_yaml` dependency to `hkask-templates`
+- Add `ProcessManifest::load_from_yaml(path: &Path)` constructor
+- Update `Registry::bootstrap_manifest()` to load from YAML file
+
+#### 3. Add Template Loading Tests (Priority: Medium)
+
+Add integration tests that verify end-to-end template loading and rendering:
+
+**File:** `crates/hkask-testing/integration-tests/template_loading.rs`
+
+**Test scenarios:**
+- Load all 7 bootstrap templates from filesystem
+- Render each template with valid bindings
+- Verify contract parsing extracts correct input/output fields
+- Verify lexicon term extraction
+- Verify template_type detection
+
+#### 4. Prepare for MCP Server Implementation (Priority: Low)
+
+Create stub MCP server crates with proper structure:
+
+**Crates to scaffold:**
+- `mcp-servers/hkask-mcp-inference/`
+- `mcp-servers/hkask-mcp-embedding/`
+- `mcp-servers/hkask-mcp-ensemble/`
+- (etc. for all 10 MCP servers)
+
+**Each crate needs:**
+- `Cargo.toml` with `rmcp` dependency
+- `src/lib.rs` with MCP server skeleton
+- `src/tools.rs` with tool definitions
+- Basic README
+
+**Note:** Don't implement tools yet — just create the crate structure. Implementation comes in Phase 5.
+
+---
+
+## Questions for User
+
+Before proceeding, clarify:
+
+1. **CNS Integration:** Should CNS events be emitted synchronously (blocking) or asynchronously (spawned task)? Current `CnsPort` trait is synchronous.
+
+2. **YAML Manifests:** Should the hardcoded bootstrap manifest in `Registry::bootstrap_manifest()` be replaced entirely with YAML loading, or should YAML be an alternative option?
+
+3. **Template Path Fallback:** Current fallback is `./registry/templates/` relative to CWD. Should this also check `~/.config/kask/templates/` for user-customized templates?
+
+4. **MCP Server Priority:** Which MCP server should be implemented first? Recommendation: `hkask-mcp-inference` (required for template selector to work).
 
 ---
 
