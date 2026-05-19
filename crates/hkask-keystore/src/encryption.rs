@@ -9,6 +9,24 @@ use rand::RngCore;
 use thiserror::Error;
 use zeroize::Zeroizing;
 
+/// Salt size for Argon2 (16 bytes = 128 bits)
+pub const SALT_SIZE: usize = 16;
+
+/// Nonce size for AES-GCM (12 bytes = 96 bits)
+pub const NONCE_SIZE: usize = 12;
+
+/// Argon2id memory cost: 64 MiB (OWASP recommendation for high-security)
+/// This is the amount of memory used in KiB.
+pub const ARGON2_MEMORY_COST: u32 = 65536;
+
+/// Argon2id iteration count: 3 (balanced for interactive use)
+/// Higher values increase security but also latency.
+pub const ARGON2_TIME_COST: u32 = 3;
+
+/// Argon2id parallelism: 4 lanes
+/// Should match the number of CPU cores available.
+pub const ARGON2_PARALLELISM: u32 = 4;
+
 #[derive(Error, Debug)]
 pub enum EncryptionError {
     #[error("Key derivation failed: {0}")]
@@ -20,12 +38,6 @@ pub enum EncryptionError {
     #[error("Invalid passphrase")]
     InvalidPassphrase,
 }
-
-/// Salt size for Argon2
-pub const SALT_SIZE: usize = 16;
-
-/// Nonce size for AES-GCM
-pub const NONCE_SIZE: usize = 12;
 
 /// Encryption service using AES-256-GCM
 pub struct EncryptionService {
@@ -91,10 +103,24 @@ impl EncryptionService {
 }
 
 /// Derive a 32-byte key from a passphrase using Argon2id with secure parameters
-fn derive_key(passphrase: &str, salt: &[u8]) -> Result<Zeroizing<[u8; 32]>, EncryptionError> {
+///
+/// **Security Parameters:**
+/// - Algorithm: Argon2id (hybrid, resistant to side-channel and GPU attacks)
+/// - Memory: 64 MiB (65536 KiB)
+/// - Iterations: 3
+/// - Parallelism: 4 lanes
+/// - Output: 32 bytes (256 bits for AES-256)
+///
+/// These parameters follow OWASP recommendations for high-security applications.
+pub fn derive_key(passphrase: &str, salt: &[u8]) -> Result<Zeroizing<[u8; 32]>, EncryptionError> {
     let mut key = Zeroizing::new([0u8; 32]);
-    let params = Params::new(65536, 3, 4, Some(32))
-        .map_err(|e| EncryptionError::KeyDerivation(e.to_string()))?;
+    let params = Params::new(
+        ARGON2_MEMORY_COST,
+        ARGON2_TIME_COST,
+        ARGON2_PARALLELISM,
+        Some(32),
+    )
+    .map_err(|e| EncryptionError::KeyDerivation(e.to_string()))?;
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
     argon2
         .hash_password_into(passphrase.as_bytes(), salt, &mut *key)

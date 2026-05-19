@@ -1,8 +1,20 @@
 //! Database connection with SQLCipher encryption
+//!
+//! Uses SQLCipher with AES-256-CBC encryption.
+//! Passphrases are derived using Argon2id to produce 256-bit encryption keys.
+//!
+//! **Spec Reference:** architecture v0.21.0 §2.3
 
+use hkask_keystore::derive_key;
 use rusqlite::Connection;
 use std::rc::Rc;
 use thiserror::Error;
+
+/// Salt size for SQLCipher key derivation
+pub const SQLCIPHER_SALT_SIZE: usize = 16;
+
+/// SQLCipher key size (256 bits for AES-256)
+pub const SQLCIPHER_KEY_SIZE: usize = 32;
 
 #[derive(Error, Debug)]
 pub enum DatabaseError {
@@ -10,71 +22,162 @@ pub enum DatabaseError {
     Sqlite(#[from] rusqlite::Error),
     #[error("SQLCipher error: {0}")]
     SqlCipher(String),
+    #[error("Key derivation error: {0}")]
+    KeyDerivation(String),
 }
 
 /// Database wrapper with SQLCipher support
+///
+/// Uses `Rc` for connection sharing because all database operations occur on a single thread.
+/// The `Rc` allows multiple stores (TripleStore, EmbeddingStore, BlobStore) to share
+/// the same connection without violating Rust's borrowing rules.
+///
+/// **Thread Safety:** This type is not `Send` or `Sync`. For multi-threaded access,
+/// use separate `Database` instances per thread or wrap in `Arc<Mutex<Database>>`.
 pub struct Database {
     conn: Rc<Connection>,
+    salt: [u8; SQLCIPHER_SALT_SIZE],
 }
 
 impl Database {
     /// Open database with passphrase for encryption
     ///
-    /// Uses SQLCipher with AES-256-CBC encryption.
+    /// The passphrase is derived using Argon2id to produce a 256-bit key for SQLCipher.
+    /// A random salt is generated and stored with the database file.
     ///
-    /// **Spec Reference:** architecture v0.21.0 §2.3
+    /// **Security:** For production use, store the salt securely (e.g., in a separate file
+    /// or database header) to prevent rainbow table attacks.
+    ///
+    /// **Passphrase Requirements:**
+    /// - Minimum 8 characters
+    /// - Cannot be empty
     pub fn open(path: &str, passphrase: &str) -> Result<Self, DatabaseError> {
+        // Validate passphrase
+        if passphrase.is_empty() {
+            return Err(DatabaseError::KeyDerivation(
+                "Passphrase cannot be empty".to_string(),
+            ));
+        }
+        if passphrase.len() < 8 {
+            return Err(DatabaseError::KeyDerivation(
+                "Passphrase must be at least 8 characters".to_string(),
+            ));
+        }
+
+        // Try to read existing salt from file, or generate new one
+        let salt_path = format!("{}.salt", path);
+        let salt = if let Ok(salt_bytes) = std::fs::read(&salt_path) {
+            if salt_bytes.len() != SQLCIPHER_SALT_SIZE {
+                return Err(DatabaseError::SqlCipher(
+                    "Invalid salt file size".to_string(),
+                ));
+            }
+            let mut salt = [0u8; SQLCIPHER_SALT_SIZE];
+            salt.copy_from_slice(&salt_bytes);
+            salt
+        } else {
+            // Generate new salt
+            let salt = generate_salt();
+            std::fs::write(&salt_path, salt)
+                .map_err(|e| DatabaseError::SqlCipher(format!("Failed to write salt: {}", e)))?;
+            salt
+        };
+
         let conn = Connection::open(path)?;
-        
-        // Configure SQLCipher encryption
-        Self::configure_encryption(&conn, passphrase)?;
-        
+
+        // Configure SQLCipher encryption with derived key
+        Self::configure_encryption(&conn, passphrase, &salt)?;
+
         // Initialize schema
         Self::initialize_schema(&conn)?;
-        
+
         Ok(Self {
             conn: Rc::new(conn),
+            salt,
         })
     }
-    
+
     /// Open in-memory database (unencrypted, for testing)
     pub fn in_memory() -> Result<Self, DatabaseError> {
         let conn = Connection::open_in_memory()?;
-        
+
         // Initialize schema
         Self::initialize_schema(&conn)?;
-        
+
         Ok(Self {
             conn: Rc::new(conn),
+            salt: [0u8; SQLCIPHER_SALT_SIZE],
         })
     }
-    
+
+    /// Open database with explicit salt (for when salt is stored separately)
+    pub fn with_salt(
+        path: &str,
+        passphrase: &str,
+        salt: &[u8; SQLCIPHER_SALT_SIZE],
+    ) -> Result<Self, DatabaseError> {
+        let conn = Connection::open(path)?;
+
+        // Configure SQLCipher encryption with derived key
+        Self::configure_encryption(&conn, passphrase, salt)?;
+
+        // Initialize schema
+        Self::initialize_schema(&conn)?;
+
+        Ok(Self {
+            conn: Rc::new(conn),
+            salt: *salt,
+        })
+    }
+
     /// Configure SQLCipher encryption on the connection
-    fn configure_encryption(conn: &Connection, passphrase: &str) -> Result<(), DatabaseError> {
-        // Set the encryption key
-        conn.execute_batch(&format!("PRAGMA key = '{}';", passphrase.replace('\'', "''")))?;
-        
+    fn configure_encryption(
+        conn: &Connection,
+        passphrase: &str,
+        salt: &[u8],
+    ) -> Result<(), DatabaseError> {
+        // Derive 256-bit key from passphrase using Argon2id
+        let key = derive_key(passphrase, salt)
+            .map_err(|e| DatabaseError::KeyDerivation(e.to_string()))?;
+
+        // Convert key to hex for SQLCipher PRAGMA
+        let key_hex = hex::encode(*key);
+
+        // Set the encryption key (hex-encoded for SQLCipher)
+        conn.execute_batch(&format!("PRAGMA key = 'x\"{}\"';", key_hex))?;
+
         // Verify SQLCipher is active
-        let cipher_version: String = conn.query_row(
-            "PRAGMA cipher_version;",
-            [],
-            |row| row.get(0),
-        ).map_err(|e| DatabaseError::SqlCipher(format!("SQLCipher not available: {}", e)))?;
-        
+        let cipher_version: String = conn
+            .query_row("PRAGMA cipher_version;", [], |row| row.get(0))
+            .map_err(|e| DatabaseError::SqlCipher(format!("SQLCipher not available: {}", e)))?;
+
         // Verify encryption is working by checking cipher_provider
-        let cipher_provider: String = conn.query_row(
-            "PRAGMA cipher_provider;",
-            [],
-            |row| row.get(0),
-        ).map_err(|e| DatabaseError::SqlCipher(format!("SQLCipher provider check failed: {}", e)))?;
-        
+        let cipher_provider: String = conn
+            .query_row("PRAGMA cipher_provider;", [], |row| row.get(0))
+            .map_err(|e| {
+                DatabaseError::SqlCipher(format!("SQLCipher provider check failed: {}", e))
+            })?;
+
+        // Verify cipher algorithm is AES-256
+        let cipher: String = conn
+            .query_row("PRAGMA cipher;", [], |row| row.get(0))
+            .map_err(|e| DatabaseError::SqlCipher(format!("Failed to get cipher: {}", e)))?;
+
+        if !cipher.to_uppercase().contains("AES-256") {
+            return Err(DatabaseError::SqlCipher(format!(
+                "Expected AES-256 cipher, got: {}",
+                cipher
+            )));
+        }
+
         tracing::info!(
             target: "hkask::storage",
             cipher_version = %cipher_version,
             cipher_provider = %cipher_provider,
+            cipher = %cipher,
             "SQLCipher encryption enabled"
         );
-        
+
         Ok(())
     }
 
@@ -97,7 +200,7 @@ impl Database {
             )",
             [],
         )?;
-        
+
         // Embeddings table
         conn.execute(
             "CREATE TABLE IF NOT EXISTS embeddings (
@@ -110,7 +213,7 @@ impl Database {
             )",
             [],
         )?;
-        
+
         // ν-events table
         conn.execute(
             "CREATE TABLE IF NOT EXISTS nu_events (
@@ -129,7 +232,7 @@ impl Database {
             )",
             [],
         )?;
-        
+
         // Blobs table
         conn.execute(
             "CREATE TABLE IF NOT EXISTS blobs (
@@ -144,7 +247,7 @@ impl Database {
             )",
             [],
         )?;
-        
+
         Ok(())
     }
 
@@ -157,6 +260,19 @@ impl Database {
     pub fn conn_rc(&self) -> Rc<Connection> {
         Rc::clone(&self.conn)
     }
+
+    /// Get the salt used for key derivation
+    pub fn salt(&self) -> &[u8; SQLCIPHER_SALT_SIZE] {
+        &self.salt
+    }
+}
+
+/// Generate a random salt for key derivation
+fn generate_salt() -> [u8; SQLCIPHER_SALT_SIZE] {
+    use rand::RngCore;
+    let mut salt = [0u8; SQLCIPHER_SALT_SIZE];
+    rand::rng().fill_bytes(&mut salt);
+    salt
 }
 
 #[cfg(test)]
@@ -184,58 +300,93 @@ mod tests {
         assert!(tables.contains(&"nu_events".to_string()));
         assert!(tables.contains(&"blobs".to_string()));
     }
-    
+
     #[test]
     fn test_encrypted_database() {
         let temp_dir = tempfile::tempdir().unwrap();
         let db_path = temp_dir.path().join("test_encrypted.db");
         let passphrase = "test_passphrase_123";
-        
+
         // Create encrypted database
         let db = Database::open(db_path.to_str().unwrap(), passphrase).unwrap();
-        
-        // Verify tables exist
-        let conn = db.conn();
-        let mut stmt = conn
-            .prepare("SELECT name FROM sqlite_master WHERE type='table'")
-            .unwrap();
-        let tables: Vec<String> = stmt
-            .query_map([], |row| row.get(0))
-            .unwrap()
-            .filter_map(|r| r.ok())
-            .collect();
-        
-        assert!(tables.contains(&"triples".to_string()));
-        assert!(tables.contains(&"embeddings".to_string()));
-        assert!(tables.contains(&"nu_events".to_string()));
-        assert!(tables.contains(&"blobs".to_string()));
-        
-        // Verify SQLCipher is active
-        let cipher_version: String = conn
-            .query_row("PRAGMA cipher_version;", [], |row| row.get(0))
-            .unwrap();
-        assert!(!cipher_version.is_empty());
-        
-        // Verify data is encrypted (can't read without key)
+
+        // Verify tables exist and SQLCipher is active
+        {
+            let conn = db.conn();
+            let mut stmt = conn
+                .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+                .unwrap();
+            let tables: Vec<String> = stmt
+                .query_map([], |row| row.get(0))
+                .unwrap()
+                .filter_map(|r| r.ok())
+                .collect();
+
+            assert!(tables.contains(&"triples".to_string()));
+            assert!(tables.contains(&"embeddings".to_string()));
+            assert!(tables.contains(&"nu_events".to_string()));
+            assert!(tables.contains(&"blobs".to_string()));
+
+            // Verify SQLCipher is active
+            let cipher_version: String = conn
+                .query_row("PRAGMA cipher_version;", [], |row| row.get(0))
+                .unwrap();
+            assert!(!cipher_version.is_empty());
+
+            // Verify AES-256 cipher
+            let cipher: String = conn
+                .query_row("PRAGMA cipher;", [], |row| row.get(0))
+                .unwrap();
+            assert!(cipher.to_uppercase().contains("AES-256"));
+        }
+
         drop(db);
-        
-        // Try to open without correct passphrase - should fail or return garbage
+
+        // Try to open without correct passphrase - should fail
         let wrong_passphrase = "wrong_passphrase";
         let result = Database::open(db_path.to_str().unwrap(), wrong_passphrase);
-        
-        // With SQLCipher, wrong passphrase will either fail or return unreadable data
-        // The behavior depends on SQLCipher version - newer versions fail, older return garbage
-        if let Ok(db) = result {
-            // If it opens, verify we can't read the data properly
-            let conn = db.conn();
-            let result: Result<Vec<String>, _> = conn
-                .prepare("SELECT id FROM triples")
-                .and_then(|mut stmt| {
-                    stmt.query_map([], |row| row.get(0))
-                        .map(|rows| rows.filter_map(|r| r.ok()).collect())
-                });
-            // Either fails or returns empty/garbage
-            let _ = result;
-        }
+
+        // With SQLCipher and wrong passphrase, should fail to decrypt
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_empty_passphrase_fails() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test_empty.db");
+
+        // Empty passphrase should fail validation
+        let result = Database::open(db_path.to_str().unwrap(), "");
+
+        // Empty passphrase is rejected for security
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_salt_file_created() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let db_path = temp_dir.path().join("test_salt.db");
+        let passphrase = "test_passphrase";
+
+        let db = Database::open(db_path.to_str().unwrap(), passphrase).unwrap();
+
+        // Verify salt file was created
+        let salt_path = format!("{}.salt", db_path.to_str().unwrap());
+        assert!(std::path::Path::new(&salt_path).exists());
+
+        // Verify salt file has correct size
+        let salt_bytes = fs::read(&salt_path).unwrap();
+        assert_eq!(salt_bytes.len(), SQLCIPHER_SALT_SIZE);
+
+        // Verify we can open again with the same salt
+        let db2 = Database::open(db_path.to_str().unwrap(), passphrase).unwrap();
+        assert_eq!(db.salt(), db2.salt());
+    }
+
+    #[test]
+    fn test_salt_generation() {
+        let salt1 = generate_salt();
+        let salt2 = generate_salt();
+        assert_ne!(salt1, salt2);
     }
 }

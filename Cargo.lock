@@ -2678,12 +2678,15 @@ dependencies = [
 name = "hkask-storage"
 version = "0.1.0"
 dependencies = [
+ "argon2",
  "blake3",
  "chrono",
  "gix",
+ "hex",
  "hkask-keystore",
  "hkask-types",
  "parking_lot",
+ "rand 0.9.4",
  "rusqlite",
  "serde",
  "serde_json",
@@ -2692,6 +2695,7 @@ dependencies = [
  "thiserror",
  "tracing",
  "uuid",
+ "zeroize",
 ]
 
 [[package]]
@@ -2714,8 +2718,12 @@ name = "hkask-types"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "ed25519-dalek",
+ "hmac",
+ "secrecy",
  "serde",
  "serde_json",
+ "sha2",
  "thiserror",
  "tracing",
  "uuid",
@@ -4311,6 +4319,15 @@ dependencies = [
  "pbkdf2",
  "salsa20",
  "sha2",
+]
+
+[[package]]
+name = "secrecy"
+version = "0.10.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e891af845473308773346dc847b2c23ee78fe442e0472ac50e22a18a93d3ae5a"
+dependencies = [
+ "zeroize",
 ]
 
 [[package]]
