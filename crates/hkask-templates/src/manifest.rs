@@ -4,8 +4,8 @@
 //! Per architecture v0.21.0: ~50 lines of Rust that never changes when templates are added/edited.
 
 use crate::ports::{
-    Action, CnsPort, InferencePort, ManifestExecutor, ManifestStep, McpPort, ProcessManifest,
-    Result, TemplateError, TemplateRenderer, DEFAULT_MATROSHKA_LIMIT,
+    Action, CnsPort, DEFAULT_MATROSHKA_LIMIT, InferencePort, ManifestExecutor, ManifestStep,
+    McpPort, ProcessManifest, Result, TemplateError, TemplateRenderer,
 };
 use serde_json::Value;
 use tracing::info;
@@ -57,10 +57,8 @@ where
             Action::Select => {
                 // Render selector template and call fast model
                 let prompt = format!("Select template for: {:?}", state);
-                self.inference.call(
-                    step.model_tier.as_deref().unwrap_or("fast_local"),
-                    &prompt,
-                )?
+                self.inference
+                    .call(step.model_tier.as_deref().unwrap_or("fast_local"), &prompt)?
             }
             Action::Populate => {
                 // Bind input into selected template's fields
@@ -155,7 +153,9 @@ impl ManifestExecutor for SimpleExecutor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ports::{CnsPort, InferencePort, McpPort, Result, TemplateRenderer, CompositionTemplate};
+    use crate::ports::{
+        CnsPort, CompositionTemplate, InferencePort, McpPort, Result, TemplateRenderer,
+    };
     use serde_json::Value;
     use std::path::Path;
 
@@ -198,11 +198,10 @@ mod tests {
     }
     impl CnsPort for MockCns {
         fn emit(&self, span: &str, outcome: Value, confidence: f64) {
-            self.events.lock().unwrap().push((
-                span.to_string(),
-                outcome,
-                confidence,
-            ));
+            self.events
+                .lock()
+                .unwrap()
+                .push((span.to_string(), outcome, confidence));
         }
     }
 
@@ -245,13 +244,8 @@ mod tests {
     #[test]
     fn test_manifest_executor_depth_limit() {
         let cns = MockCns::new();
-        let executor = ManifestExecutorImpl::new(
-            MockRenderer,
-            MockInference,
-            MockMcp,
-            cns,
-        )
-        .with_max_depth(2);
+        let executor =
+            ManifestExecutorImpl::new(MockRenderer, MockInference, MockMcp, cns).with_max_depth(2);
 
         // Create a manifest that would exceed depth if recursive
         let manifest = ProcessManifest {

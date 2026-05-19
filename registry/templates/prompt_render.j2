@@ -1,0 +1,26 @@
+[inference]
+template_type: Prompt
+lexicon: render, compose, format
+
+[contract]
+input: {raw_prompt: string, context: object|null, style: string|null}
+output: {rendered_prompt: string}
+
+---
+{% if style == "concise" %}
+Provide a concise, direct response.
+{% elif style == "detailed" %}
+Provide a thorough, detailed response with explanations.
+{% elif style == "technical" %}
+Provide a technical response with precise terminology.
+{% endif %}
+
+{% if context %}
+Context:
+{% for key, value in context %}
+{{ key }}: {{ value }}
+{% endfor %}
+{% endif %}
+
+User request:
+{{ raw_prompt }}

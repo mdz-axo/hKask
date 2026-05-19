@@ -1,0 +1,44 @@
+[inference]
+template_type: Process
+lexicon: dispatch, route, invoke, coordinate
+
+[contract]
+input: {tool_name: string, input_data: object, mcp_server: string|null}
+output: {result: any, execution_time: float, mcp_server: string}
+
+---
+Tool Dispatch Process
+
+Tool: {{ tool_name }}
+MCP Server: {{ mcp_server | default("auto-discover") }}
+Input Data:
+{{ input_data | tojson(indent=2) }}
+
+Execute the following steps:
+
+1. DISCOVERY:
+   - Query MCP registry for tool capabilities
+   - Resolve tool_name to specific MCP server
+   - Validate input schema against tool contract
+
+2. ROUTING:
+   - Route request to appropriate MCP server
+   - Apply OCAP capability check
+   - Log dispatch event to CNS (cns.tool.dispatch)
+
+3. EXECUTION:
+   - Invoke tool via MCP protocol
+   - Monitor execution time
+   - Handle errors gracefully
+
+4. RESPONSE:
+   Return JSON:
+   {
+     "result": <tool output>,
+     "execution_time": <seconds>,
+     "mcp_server": "<server name>"
+   }
+
+{% if mcp_server %}
+Preferred MCP Server: {{ mcp_server }}
+{% endif %}

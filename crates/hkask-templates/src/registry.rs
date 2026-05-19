@@ -3,8 +3,8 @@
 //! Unified registry with template_type discriminator per architecture v0.21.0.
 //! Supports Prompt (WordAct), Process (FlowDef), and Cognition (KnowAct) templates.
 
-use crate::ports::{ProcessManifest, RegistryEntry, RegistryIndex};
 use crate::ports::{Action, ManifestStep};
+use crate::ports::{ProcessManifest, RegistryEntry, RegistryIndex};
 use hkask_types::TemplateType;
 use std::collections::HashMap;
 
@@ -207,8 +207,16 @@ impl Default for Registry {
 impl RegistryIndex for Registry {
     fn list(&self, domain_hint: Option<TemplateType>) -> Vec<RegistryEntry> {
         match domain_hint {
-            Some(t) => self.by_type(t).into_iter().map(|e| e.as_registry_entry()).collect(),
-            None => self.templates.values().map(|e| e.as_registry_entry()).collect(),
+            Some(t) => self
+                .by_type(t)
+                .into_iter()
+                .map(|e| e.as_registry_entry())
+                .collect(),
+            None => self
+                .templates
+                .values()
+                .map(|e| e.as_registry_entry())
+                .collect(),
         }
     }
 
@@ -288,9 +296,24 @@ mod tests {
     #[test]
     fn test_registry_by_type() {
         let mut registry = Registry::new();
-        registry.register(TemplateEntry::new("p1", TemplateType::Prompt, "P1", "Prompt 1"));
-        registry.register(TemplateEntry::new("p2", TemplateType::Prompt, "P2", "Prompt 2"));
-        registry.register(TemplateEntry::new("c1", TemplateType::Cognition, "C1", "Cognition 1"));
+        registry.register(TemplateEntry::new(
+            "p1",
+            TemplateType::Prompt,
+            "P1",
+            "Prompt 1",
+        ));
+        registry.register(TemplateEntry::new(
+            "p2",
+            TemplateType::Prompt,
+            "P2",
+            "Prompt 2",
+        ));
+        registry.register(TemplateEntry::new(
+            "c1",
+            TemplateType::Cognition,
+            "C1",
+            "Cognition 1",
+        ));
 
         let prompts = registry.by_type(TemplateType::Prompt);
         assert_eq!(prompts.len(), 2);

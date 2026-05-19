@@ -121,7 +121,7 @@ mod tests {
     fn test_cascade_executor() {
         let executor = CascadeExecutor::new();
         let cascade = Cascade::new("test");
-        
+
         let result = executor.execute(&cascade, Value::Null).unwrap();
         assert_eq!(result, Value::Null);
     }
