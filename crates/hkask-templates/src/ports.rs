@@ -3,7 +3,8 @@
 //! Defines the hexagonal architecture ports for template dispatch system.
 //! Per architecture v0.21.0: Rust is the loom, YAML/Jinja2 is the thread.
 
-use hkask_types::{TemplateType, Value};
+use hkask_types::TemplateType;
+use serde_json::Value;
 use std::path::Path;
 
 /// Error type for template operations
@@ -36,6 +37,7 @@ pub enum Action {
 }
 
 impl Action {
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "select" => Some(Action::Select),

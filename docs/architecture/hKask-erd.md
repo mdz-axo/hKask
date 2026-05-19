@@ -104,6 +104,10 @@ graph TB
         HKASK_MCP[hkask-mcp<br/>MCP runtime]
     end
     
+    subgraph "Testing (Single Crate — Outside LOC Budget)"
+        HKASK_TESTING[hkask-testing<br/>Unit/Integration Tests<br/>Test Harnesses]
+    end
+    
     subgraph "External (Outside LOC Budget)"
         OKAPI[Okapi<br/>Inference orchestration]
         ACP[ACP Protocol<br/>acp-runtime]
@@ -120,6 +124,12 @@ graph TB
     HKASK_MCP --> OKAPI
     HKASK_AGENTS --> ACP
     HKASK_AGENTS --> HKASK_TEMPLATES
+    
+    HKASK_TESTING -. verifies .- HKASK_TYPES
+    HKASK_TESTING -. verifies .- HKASK_STORAGE
+    HKASK_TESTING -. verifies .- HKASK_TEMPLATES
+    HKASK_TESTING -. verifies .- HKASK_CNS
+    HKASK_TESTING -. verifies .- HKASK_AGENTS
 ```
 
 ---

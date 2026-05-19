@@ -9,7 +9,15 @@
 |----------------|-----------------|--------------|----------------------|
 | Hard (Kernel)  | Rust            | ≤30,000 LOC  | Fixed, stable        |
 | Soft (Material)| YAML, Jinja2, MD| Unlimited    | Mutable, evolving    |
+| Testing        | Rust (tests)    | Unlimited    | Verification edge    |
 ```
+
+**Budget Policy:**
+- Production code in `hkask-*` crates counts toward 30,000 line limit
+- Only `hkask-testing` crate is excluded from budget
+- Test code in functional crates counts toward budget
+- Inline unit tests should be minimized; prefer `hkask-testing` as budget pressure increases
+- Tests have no dependencies from production code (edge of dependency graph)
 
 **Rust owns:** Parsing YAML steps, rendering Jinja2 via minijinja, enforcing matroshka depth, validating hLexicon terms, routing MCP/LLM calls.
 

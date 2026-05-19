@@ -145,9 +145,77 @@ Before editing:
 
 ---
 
-## Tests
+## Code Budget & Testing Policy
 
-Test public behavior, integration boundaries, and critical invariants. Avoid tests that mirror implementation structure or exist for coverage decoration.
+**Line Budget:** ≤30,000 lines Rust in production crates (excluding protocols: ACP, MCP, Okapi).
+
+### What Counts Toward Budget
+
+All code in `hkask-*` crates counts toward the 30,000 line limit:
+- Production code in `src/` directories
+- Inline unit tests (`#[cfg(test)]` modules within source files)
+- Integration tests in `tests/` directories within functional crates
+
+### What Is Excluded From Budget
+
+**Single test crate:** `hkask-testing` — the only crate whose code is excluded from the budget.
+
+**Rationale:** Test code in a separate test crate can be excluded from production builds. This creates no pressure to minimize verification—only pressure to minimize the production system itself. The 30k limit pressures the *system* to be minimal, not the *verification* of the system.
+
+**Policy:**
+- Only ONE test crate is excluded (`hkask-testing`)
+- Multiple test crates are not authorized—if more test space is needed, use top-level directories within `hkask-testing` (e.g., `unit-tests/`, `integration-tests/`, `test-harnesses/`)
+- Test code in functional/feature crates (`hkask-storage`, `hkask-cns`, etc.) counts toward budget
+- Inline unit tests should be minimized; prefer moving substantial test code to `hkask-testing` as budget pressure increases
+- CNS is separate from testing—CNS monitors production system health; tests verify correctness
+- Tests must have no dependencies on them from production code (tests are at the edge of the dependency graph)
+
+### Workspace Structure (Updated)
+
+```
+hkask-workspace/
+├── hkask-types         # ID types, ν-event, hLexicon
+├── hkask-storage       # SQLite + SQLCipher + sqlite-vec
+├── hkask-memory        # Semantic/episodic pipelines
+├── hkask-cns           # Cybernetic Nervous System
+├── hkask-templates     # Registry, hLexicon, cascade
+├── hkask-agents        # Pods, ACP, bot/replicant
+├── hkask-ensemble      # Multi-agent chat (NO swarms)
+├── hkask-keystore      # OS keychain, AES-256-GCM
+├── hkask-mcp           # MCP runtime, dispatch
+├── hkask-cli           # CLI commands
+├── hkask-api           # HTTP API, utoipa
+│
+├── hkask-mcp-inference     # Okapi-backed LLM
+├── hkask-mcp-storage       # Storage operations
+├── hkask-mcp-memory        # Memory operations
+├── hkask-mcp-embedding     # Embeddings, similarity
+├── hkask-mcp-condenser     # Condensation, summarization
+├── hkask-mcp-ensemble      # Multi-agent coordination
+├── hkask-mcp-web           # Web search, scrape
+├── hkask-mcp-scholar       # Academic research
+├── hkask-mcp-spandrel      # Graph analysis
+└── hkask-mcp-doc-knowledge # Document extraction
+│
+├── hkask-testing           # EXCLUDED FROM BUDGET — single test crate
+│   ├── unit-tests/         # Unit tests moved from inline modules
+│   ├── integration-tests/  # Cross-crate integration tests
+│   └── test-harnesses/     # Test utilities, fixtures, mocks
+│
+└── External (excluded from budget)
+    ├── Okapi (mdz-axo/Okapi)
+    ├── ACP (acp-runtime)
+    └── MCP (rmcp)
+```
+
+### Agent Guidance
+
+When approaching the 30,000 line limit:
+1. First priority: delete, consolidate, simplify production code
+2. Second priority: move inline unit tests to `hkask-testing`
+3. Never: create additional test crates (only `hkask-testing` is excluded)
+
+The CNS monitors production system health (variety counters, algedonic alerts). Tests verify correctness. These are separate concerns.
 
 ---
 

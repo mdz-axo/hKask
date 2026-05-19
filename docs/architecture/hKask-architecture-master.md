@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-18  
 **Status:** Pre-alpha MVP in progress  
-**Line Budget:** ≤30,000 lines Rust (excluding ACP/MCP protocols, Okapi)
+**Line Budget:** ≤30,000 lines Rust (excluding ACP/MCP protocols, Okapi, and `hkask-testing` crate)
 
 ---
 
@@ -79,7 +79,7 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-na
 
 ## Part II: Technical Architecture
 
-### 2.1 Crate Structure (21 crates total)
+### 2.1 Crate Structure (21 crates + 1 test crate)
 
 ```
 hkask-workspace/
@@ -89,7 +89,7 @@ hkask-workspace/
 │   ├── hkask-memory          # ~3,000 — Semantic/episodic pipelines (analytic distinction)
 │   ├── hkask-cns             # ~2,000 — Cybernetic Nervous System, variety counters, algedonic alerts
 │   ├── hkask-templates       # ~5,000 — Registry, hLexicon, cascade, resolver
-│   ├── hkask-agents          # ~2,500 — Pods, UCAN, bot/replicant, Curator, manifests
+│   ├── hkask-agents          # ~2,500 — Pods, UCAN, bot/replicant, manifests
 │   ├── hkask-ensemble        # ~1,500 — Multi-agent chat (NO swarms, NO consensus)
 │   ├── hkask-keystore        # ~1,000 — OS keychain, AES-256-GCM
 │   ├── hkask-mcp             # ~2,500 — MCP runtime, dispatch, security
@@ -108,11 +108,24 @@ hkask-workspace/
 │   ├── hkask-mcp-spandrel        # Graph analysis
 │   └── hkask-mcp-doc-knowledge   # Document extraction
 │
+├── Testing (1 crate — excluded from budget)
+│   └── hkask-testing             # Unit tests, integration tests, test harnesses
+│       ├── unit-tests/           # Unit tests moved from inline modules
+│       ├── integration-tests/    # Cross-crate integration tests
+│       └── test-harnesses/       # Test utilities, fixtures, mocks
+│
 └── External (excluded from budget)
     ├── Okapi (mdz-axo/Okapi) # Inference orchestration
     ├── ACP Protocol          # Agent communication
     └── MCP Protocol          # Tool protocol
 ```
+
+**Budget Policy:**
+- Production code in `hkask-*` crates counts toward 30,000 line limit
+- Only `hkask-testing` crate is excluded from budget
+- Test code in functional crates counts toward budget
+- Inline unit tests should be minimized; prefer `hkask-testing` as budget pressure increases
+- Tests must have no dependencies from production code (edge of dependency graph)
 
 **Removed (Hallucinations):**
 - `hkask-mcp-feedback` → CNS handles all feedback

@@ -3,11 +3,10 @@
 //! Unified registry with template_type discriminator per architecture v0.21.0.
 //! Supports Prompt (WordAct), Process (FlowDef), and Cognition (KnowAct) templates.
 
-use crate::ports::{ProcessManifest, RegistryEntry, RegistryIndex, TemplateError};
+use crate::ports::{ProcessManifest, RegistryEntry, RegistryIndex};
 use crate::ports::{Action, ManifestStep};
 use hkask_types::TemplateType;
 use std::collections::HashMap;
-use std::path::Path;
 
 /// Template registry entry
 #[derive(Debug, Clone)]

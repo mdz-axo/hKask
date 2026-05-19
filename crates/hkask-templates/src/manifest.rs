@@ -5,9 +5,9 @@
 
 use crate::ports::{
     Action, CnsPort, InferencePort, ManifestExecutor, ManifestStep, McpPort, ProcessManifest,
-    RegistryIndex, Result, TemplateError, TemplateRenderer, DEFAULT_MATROSHKA_LIMIT,
+    Result, TemplateError, TemplateRenderer, DEFAULT_MATROSHKA_LIMIT,
 };
-use hkask_types::Value;
+use serde_json::Value;
 use tracing::info;
 
 /// Core manifest execution loop — fixed logic, applies to ANY manifest
@@ -16,6 +16,7 @@ use tracing::info;
 /// It doesn't change when templates are added, edited, or removed.
 /// Only changes if the grammar of steps themselves changes.
 pub struct ManifestExecutorImpl<R, I, M, C> {
+    #[allow(dead_code)]
     renderer: R,
     inference: I,
     mcp: M,
@@ -154,13 +155,24 @@ impl ManifestExecutor for SimpleExecutor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ports::{CnsPort, InferencePort, McpPort, Result, TemplateError};
-    use hkask_types::Value;
+    use crate::ports::{CnsPort, InferencePort, McpPort, Result, TemplateRenderer, CompositionTemplate};
+    use serde_json::Value;
+    use std::path::Path;
 
     struct MockInference;
     impl InferencePort for MockInference {
         fn call(&self, _model_tier: &str, _prompt: &str) -> Result<Value> {
             Ok(Value::String("mock inference result".to_string()))
+        }
+    }
+
+    struct MockRenderer;
+    impl TemplateRenderer for MockRenderer {
+        fn load(&self, _path: &Path) -> Result<CompositionTemplate> {
+            Err(TemplateError::NotFound("mock".to_string()))
+        }
+        fn render(&self, _template: &CompositionTemplate, _bindings: Value) -> Result<String> {
+            Ok("mock rendered".to_string())
         }
     }
 
@@ -234,7 +246,7 @@ mod tests {
     fn test_manifest_executor_depth_limit() {
         let cns = MockCns::new();
         let executor = ManifestExecutorImpl::new(
-            MockInference,
+            MockRenderer,
             MockInference,
             MockMcp,
             cns,
