@@ -10,6 +10,7 @@ hkask-types = { path = "../hkask-types" }
 keyring.workspace = true
 aes-gcm.workspace = true
 argon2.workspace = true
+rand.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 tracing.workspace = true

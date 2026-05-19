@@ -58,6 +58,11 @@ impl NuEvent {
         self.parent_event = Some(parent);
         self
     }
+
+    pub fn with_visibility(mut self, visibility: &str) -> Self {
+        self.visibility = visibility.to_string();
+        self
+    }
 }
 
 /// Span namespace for CNS events
@@ -91,13 +96,108 @@ impl Span {
     pub fn pipeline(path: &str) -> Self {
         Span::Pipeline(format!("cns.pipeline.{}", path))
     }
+
+    pub fn as_str(&self) -> &str {
+        match self {
+            Span::Prompt(s) => s,
+            Span::Tool(s) => s,
+            Span::AgentPod(s) => s,
+            Span::Connector(s) => s,
+            Span::Pipeline(s) => s,
+        }
+    }
 }
 
 /// Phase of cybernetic cycle
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Phase {
     Observe,
     Regulate,
     Outcome,
+}
+
+impl Phase {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Phase::Observe => "observe",
+            Phase::Regulate => "regulate",
+            Phase::Outcome => "outcome",
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_nu_event_new() {
+        let event = NuEvent::new(
+            WebID::new(),
+            Span::prompt("select"),
+            Phase::Observe,
+            json!({"test": "data"}),
+            0,
+        );
+
+        assert_eq!(event.recursion_depth, 0);
+        assert_eq!(event.visibility, "private");
+        assert!(event.outcome.is_none());
+    }
+
+    #[test]
+    fn test_nu_event_with_outcome() {
+        let event = NuEvent::new(
+            WebID::new(),
+            Span::prompt("select"),
+            Phase::Observe,
+            json!({"test": "data"}),
+            0,
+        )
+        .with_outcome(json!({"result": "success"}));
+
+        assert!(event.outcome.is_some());
+    }
+
+    #[test]
+    fn test_nu_event_with_parent() {
+        let parent_id = EventID::new();
+        let event = NuEvent::new(
+            WebID::new(),
+            Span::prompt("select"),
+            Phase::Observe,
+            json!({"test": "data"}),
+            0,
+        )
+        .with_parent(parent_id);
+
+        assert_eq!(event.parent_event, Some(parent_id));
+    }
+
+    #[test]
+    fn test_span_prompt() {
+        let span = Span::prompt("select");
+        assert_eq!(span.as_str(), "cns.prompt.select");
+    }
+
+    #[test]
+    fn test_span_tool() {
+        let span = Span::tool("invocation");
+        assert_eq!(span.as_str(), "cns.tool.invocation");
+    }
+
+    #[test]
+    fn test_span_agent_pod() {
+        let span = Span::agent_pod("populated");
+        assert_eq!(span.as_str(), "cns.agent_pod.populated");
+    }
+
+    #[test]
+    fn test_phase_as_str() {
+        assert_eq!(Phase::Observe.as_str(), "observe");
+        assert_eq!(Phase::Regulate.as_str(), "regulate");
+        assert_eq!(Phase::Outcome.as_str(), "outcome");
+    }
 }

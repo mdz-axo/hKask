@@ -6,7 +6,8 @@ pub mod embeddings;
 pub mod git_cas;
 pub mod triples;
 
-pub use blobs::BlobStore;
+pub use blobs::{Blob, BlobError, BlobStore};
 pub use database::Database;
-pub use embeddings::EmbeddingStore;
-pub use triples::TripleStore;
+pub use embeddings::{Embedding, EmbeddingError, EmbeddingStore};
+pub use git_cas::GitCas;
+pub use triples::{Triple, TripleError, TripleStore};

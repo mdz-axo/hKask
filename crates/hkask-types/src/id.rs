@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// WebID — Unique identifier for agents (bots and replicants)
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct WebID(pub Uuid);
 
 impl WebID {
@@ -19,8 +19,14 @@ impl Default for WebID {
     }
 }
 
+impl std::fmt::Display for WebID {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 /// TemplateID — Unique identifier for templates
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TemplateID(pub Uuid);
 
 impl TemplateID {
@@ -35,8 +41,14 @@ impl Default for TemplateID {
     }
 }
 
+impl std::fmt::Display for TemplateID {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 /// BotID — Unique identifier for bots
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct BotID(pub Uuid);
 
 impl BotID {
@@ -51,8 +63,14 @@ impl Default for BotID {
     }
 }
 
+impl std::fmt::Display for BotID {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 /// ManifestID — Unique identifier for manifests
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ManifestID(pub Uuid);
 
 impl ManifestID {
@@ -67,8 +85,14 @@ impl Default for ManifestID {
     }
 }
 
+impl std::fmt::Display for ManifestID {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 /// TripleID — Unique identifier for bitemporal triples
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TripleID(pub Uuid);
 
 impl TripleID {
@@ -83,8 +107,14 @@ impl Default for TripleID {
     }
 }
 
+impl std::fmt::Display for TripleID {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 /// EventID — Unique identifier for ν-events
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct EventID(pub Uuid);
 
 impl EventID {
@@ -96,5 +126,60 @@ impl EventID {
 impl Default for EventID {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl std::fmt::Display for EventID {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_webid_new() {
+        let id1 = WebID::new();
+        let id2 = WebID::new();
+        assert_ne!(id1, id2);
+    }
+
+    #[test]
+    fn test_webid_display() {
+        let id = WebID::new();
+        let display = format!("{}", id);
+        assert_eq!(display.len(), 36); // UUID string length
+    }
+
+    #[test]
+    fn test_template_id() {
+        let id = TemplateID::new();
+        assert_eq!(id.0.get_version(), Some(uuid::Version::Random));
+    }
+
+    #[test]
+    fn test_bot_id() {
+        let id = BotID::new();
+        assert_eq!(id.0.get_version(), Some(uuid::Version::Random));
+    }
+
+    #[test]
+    fn test_manifest_id() {
+        let id = ManifestID::new();
+        assert_eq!(id.0.get_version(), Some(uuid::Version::Random));
+    }
+
+    #[test]
+    fn test_triple_id() {
+        let id = TripleID::new();
+        assert_eq!(id.0.get_version(), Some(uuid::Version::Random));
+    }
+
+    #[test]
+    fn test_event_id() {
+        let id = EventID::new();
+        assert_eq!(id.0.get_version(), Some(uuid::Version::Random));
     }
 }

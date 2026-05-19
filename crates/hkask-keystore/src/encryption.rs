@@ -1,5 +1,11 @@
-//! AES-256-GCM encryption
+//! AES-256-GCM encryption with Argon2 key derivation
 
+use aes_gcm::{
+    Aes256Gcm, Nonce,
+    aead::{Aead, KeyInit},
+};
+use argon2::Argon2;
+use rand::RngCore;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -8,21 +14,150 @@ pub enum EncryptionError {
     Encryption(String),
     #[error("Decryption failed: {0}")]
     Decryption(String),
+    #[error("Invalid passphrase")]
+    InvalidPassphrase,
 }
 
-/// Encryption service
-pub struct EncryptionService;
+/// Salt size for Argon2
+pub const SALT_SIZE: usize = 16;
+
+/// Nonce size for AES-GCM
+pub const NONCE_SIZE: usize = 12;
+
+/// Encryption service using AES-256-GCM
+pub struct EncryptionService {
+    cipher: Aes256Gcm,
+}
 
 impl EncryptionService {
-    pub fn new(_passphrase: &str, _salt: &[u8]) -> Result<Self, EncryptionError> {
-        Ok(Self)
+    /// Create a new encryption service from a passphrase
+    pub fn new(passphrase: &str, salt: &[u8]) -> Result<Self, EncryptionError> {
+        if passphrase.is_empty() {
+            return Err(EncryptionError::InvalidPassphrase);
+        }
+
+        let key = derive_key(passphrase, salt);
+        let cipher = Aes256Gcm::new_from_slice(&key)
+            .map_err(|e| EncryptionError::Encryption(e.to_string()))?;
+
+        Ok(Self { cipher })
     }
 
+    /// Generate a random salt
+    pub fn generate_salt() -> [u8; SALT_SIZE] {
+        let mut salt = [0u8; SALT_SIZE];
+        rand::rng().fill_bytes(&mut salt);
+        salt
+    }
+
+    /// Encrypt plaintext data
     pub fn encrypt(&self, plaintext: &[u8]) -> Result<Vec<u8>, EncryptionError> {
-        Ok(plaintext.to_vec())
+        let mut nonce_bytes = [0u8; NONCE_SIZE];
+        rand::rng().fill_bytes(&mut nonce_bytes);
+        let nonce = Nonce::from_slice(&nonce_bytes);
+
+        let ciphertext = self
+            .cipher
+            .encrypt(nonce, plaintext)
+            .map_err(|e| EncryptionError::Encryption(e.to_string()))?;
+
+        // Prepend nonce to ciphertext
+        let mut result = nonce_bytes.to_vec();
+        result.extend_from_slice(&ciphertext);
+
+        Ok(result)
     }
 
+    /// Decrypt ciphertext data
     pub fn decrypt(&self, ciphertext: &[u8]) -> Result<Vec<u8>, EncryptionError> {
-        Ok(ciphertext.to_vec())
+        if ciphertext.len() < NONCE_SIZE {
+            return Err(EncryptionError::Decryption(
+                "Ciphertext too short".to_string(),
+            ));
+        }
+
+        let nonce_bytes = &ciphertext[..NONCE_SIZE];
+        let data = &ciphertext[NONCE_SIZE..];
+
+        let nonce = Nonce::from_slice(nonce_bytes);
+
+        self.cipher
+            .decrypt(nonce, data)
+            .map_err(|e| EncryptionError::Decryption(e.to_string()))
+    }
+}
+
+/// Derive a 32-byte key from a passphrase using Argon2
+fn derive_key(passphrase: &str, salt: &[u8]) -> [u8; 32] {
+    let mut key = [0u8; 32];
+    let argon2 = Argon2::default();
+    let _ = argon2.hash_password_into(passphrase.as_bytes(), salt, &mut key);
+    key
+}
+
+/// Prompt user for encryption passphrase interactively
+pub fn prompt_passphrase(prompt: &str) -> Result<String, std::io::Error> {
+    use std::io::{self, Write};
+
+    print!("{}", prompt);
+    io::stdout().flush()?;
+
+    let mut passphrase = String::new();
+    io::stdin().read_line(&mut passphrase)?;
+
+    Ok(passphrase.trim().to_string())
+}
+
+/// Read passphrase from environment or prompt
+pub fn get_passphrase(env_var: &str, prompt: &str) -> Result<String, std::io::Error> {
+    if let Ok(passphrase) = std::env::var(env_var) {
+        Ok(passphrase)
+    } else {
+        prompt_passphrase(prompt)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_encrypt_decrypt() {
+        let salt = EncryptionService::generate_salt();
+        let service = EncryptionService::new("test-passphrase", &salt).unwrap();
+
+        let plaintext = b"Hello, World!";
+        let ciphertext = service.encrypt(plaintext).unwrap();
+        let decrypted = service.decrypt(&ciphertext).unwrap();
+
+        assert_eq!(plaintext.to_vec(), decrypted);
+    }
+
+    #[test]
+    fn test_different_passphrases() {
+        let salt = EncryptionService::generate_salt();
+        let service1 = EncryptionService::new("passphrase1", &salt).unwrap();
+        let service2 = EncryptionService::new("passphrase2", &salt).unwrap();
+
+        let plaintext = b"Secret data";
+        let ciphertext = service1.encrypt(plaintext).unwrap();
+
+        // Different passphrase should fail to decrypt
+        let result = service2.decrypt(&ciphertext);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_empty_passphrase() {
+        let salt = EncryptionService::generate_salt();
+        let result = EncryptionService::new("", &salt);
+        assert!(matches!(result, Err(EncryptionError::InvalidPassphrase)));
+    }
+
+    #[test]
+    fn test_salt_generation() {
+        let salt1 = EncryptionService::generate_salt();
+        let salt2 = EncryptionService::generate_salt();
+        assert_ne!(salt1, salt2);
     }
 }
