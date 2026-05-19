@@ -16,6 +16,8 @@ pub mod algedonic;
 pub mod spans;
 pub mod variety;
 
-pub use algedonic::{AlgedonicAlert, AlgedonicManager, AlertSeverity, CnsHealth, DEFAULT_THRESHOLD};
+pub use algedonic::{
+    AlertSeverity, AlgedonicAlert, AlgedonicManager, CnsHealth, DEFAULT_THRESHOLD,
+};
 pub use spans::{SpanCategory, SpanEmitter};
 pub use variety::{VarietyCounter, VarietyMonitor};

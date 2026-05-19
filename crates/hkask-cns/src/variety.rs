@@ -127,9 +127,7 @@ impl VarietyMonitor {
 
     /// Get or create a counter for a domain
     pub fn counter(&mut self, domain: &str) -> &mut VarietyCounter {
-        self.counters
-            .entry(domain.to_string())
-            .or_insert_with(VarietyCounter::new)
+        self.counters.entry(domain.to_string()).or_default()
     }
 
     /// Get all domain names

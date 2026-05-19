@@ -30,7 +30,7 @@ impl SpanCategory {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse_str(s: &str) -> Option<Self> {
         match s {
             "connector" | "cns.connector" => Some(SpanCategory::Connector),
             "pipeline" | "cns.pipeline" => Some(SpanCategory::Pipeline),
@@ -96,10 +96,9 @@ impl SpanEmitter {
     pub fn emit_prompt(&self, phase: &str, observation: Value) {
         let span = Span::Prompt(phase.to_string());
         let event_phase = match phase {
-            "select" => hkask_types::Phase::Observe,
-            "render" => hkask_types::Phase::Orient,
-            "execute" => hkask_types::Phase::Decide,
-            "outcome" => hkask_types::Phase::Act,
+            "select" | "render" => hkask_types::Phase::Observe,
+            "execute" => hkask_types::Phase::Regulate,
+            "outcome" => hkask_types::Phase::Outcome,
             _ => hkask_types::Phase::Observe,
         };
         self.emit(span, event_phase, observation);
@@ -131,14 +130,14 @@ mod tests {
     #[test]
     fn test_span_category_from_str() {
         assert_eq!(
-            SpanCategory::from_str("connector"),
+            SpanCategory::parse_str("connector"),
             Some(SpanCategory::Connector)
         );
         assert_eq!(
-            SpanCategory::from_str("cns.pipeline"),
+            SpanCategory::parse_str("cns.pipeline"),
             Some(SpanCategory::Pipeline)
         );
-        assert_eq!(SpanCategory::from_str("invalid"), None);
+        assert_eq!(SpanCategory::parse_str("invalid"), None);
     }
 
     #[test]

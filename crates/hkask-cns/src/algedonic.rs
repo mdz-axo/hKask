@@ -7,7 +7,10 @@
 
 use crate::variety::{VarietyCounter, VarietyMonitor};
 use std::time::{Duration, Instant};
-use tracing::{error, info, warn};
+use tracing::{error, warn};
+
+/// Callback type for escalation notifications
+pub type EscalationCallback = dyn Fn(&AlgedonicAlert) + Send + Sync;
 
 /// Default algedonic alert threshold (variety deficit)
 pub const DEFAULT_THRESHOLD: u64 = 100;
@@ -76,7 +79,7 @@ impl AlgedonicAlert {
 pub struct AlgedonicManager {
     threshold: u64,
     alerts: Vec<AlgedonicAlert>,
-    escalation_callback: Option<Box<dyn Fn(&AlgedonicAlert) + Send + Sync>>,
+    escalation_callback: Option<Box<EscalationCallback>>,
 }
 
 impl AlgedonicManager {
@@ -102,12 +105,23 @@ impl AlgedonicManager {
         let alert = AlgedonicAlert::new(domain, deficit, self.threshold);
 
         if alert.should_escalate() {
-            error!(target: "cns.algedonic", %alert.message, "ALGEDONIC ALERT - Escalation required");
+            error!(
+                target: "cns.algedonic",
+                domain = %alert.domain,
+                deficit = alert.deficit,
+                threshold = alert.threshold,
+                "ALGEDONIC ALERT - Escalation required"
+            );
             if let Some(callback) = &self.escalation_callback {
                 callback(&alert);
             }
         } else if alert.is_warning() {
-            warn!(target: "cns.algedonic", %alert.message, "Variety deficit approaching threshold");
+            warn!(
+                target: "cns.algedonic",
+                domain = %alert.domain,
+                deficit = alert.deficit,
+                "Variety deficit approaching threshold"
+            );
         }
 
         self.alerts.push(alert);
@@ -115,17 +129,18 @@ impl AlgedonicManager {
     }
 
     /// Check variety monitor across all domains
-    pub fn check_all(&mut self, monitor: &mut VarietyMonitor) -> Vec<&AlgedonicAlert> {
-        let domains = monitor.domains();
-        let mut alerts = Vec::new();
+    /// Returns count of alerts generated
+    pub fn check_all(&mut self, monitor: &mut VarietyMonitor) -> usize {
+        let domains: Vec<String> = monitor.domains().iter().map(|s| s.to_string()).collect();
+        let mut count = 0;
 
         for domain in domains {
-            if let Some(alert) = self.check(monitor.counter(domain), domain) {
-                alerts.push(alert);
+            if self.check(monitor.counter(&domain), &domain).is_some() {
+                count += 1;
             }
         }
 
-        alerts
+        count
     }
 
     /// Get all alerts
@@ -217,10 +232,14 @@ mod tests {
 
     #[test]
     fn test_algedonic_manager_escalation_callback() {
-        let mut escalation_called = false;
+        use std::sync::{Arc, Mutex};
 
-        let mut manager = AlgedonicManager::new(1).with_escalation_callback(|_| {
-            escalation_called = true;
+        let escalation_called = Arc::new(Mutex::new(false));
+        let escalation_called_clone = Arc::clone(&escalation_called);
+
+        let mut manager = AlgedonicManager::new(1).with_escalation_callback(move |_| {
+            let mut called = escalation_called_clone.lock().unwrap();
+            *called = true;
         });
 
         let mut counter = VarietyCounter::new();
@@ -230,20 +249,23 @@ mod tests {
         // Variety of 2 should exceed threshold of 1
         manager.check(&counter, "test");
 
-        assert!(escalation_called);
+        let called = *escalation_called.lock().unwrap();
+        assert!(called);
     }
 
     #[test]
     fn test_cns_health() {
         let mut manager = AlgedonicManager::new(100);
 
-        // Add some alerts
+        // Add some alerts - variety of 1 with deficit against u64::MAX will be critical
         let mut counter1 = VarietyCounter::new();
         counter1.increment("a");
         manager.check(&counter1, "domain1");
 
         let health = CnsHealth::check(&manager);
-        assert!(health.healthy); // No critical alerts with default threshold
+        // With threshold 100 and variety deficit >> 100, this should be critical
+        assert!(!health.healthy);
+        assert!(health.critical_count > 0);
     }
 
     #[test]
