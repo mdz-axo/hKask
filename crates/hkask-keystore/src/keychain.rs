@@ -56,9 +56,8 @@ impl Keychain {
         let entry = Entry::new(&self.service_name, &webid.0.to_string())
             .map_err(|e| KeychainError::Platform(e.to_string()))?;
 
-        // Set empty password to effectively delete
         entry
-            .set_password("")
+            .delete_credential()
             .map_err(|e| KeychainError::Platform(e.to_string()))?;
 
         Ok(())

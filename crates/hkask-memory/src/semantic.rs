@@ -1,7 +1,6 @@
 //! Semantic memory pipeline
 
 use hkask_storage::{Embedding, EmbeddingError, EmbeddingStore, Triple, TripleError, TripleStore};
-use std::sync::Arc;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -49,13 +48,14 @@ mod tests {
     use super::*;
     use hkask_storage::Database;
     use serde_json::json;
+    use std::rc::Rc;
 
     fn create_test_memory() -> SemanticMemory {
         let db = Database::in_memory().unwrap();
         let conn = db.conn();
         SemanticMemory::new(
             TripleStore::new(Rc::clone(&conn)),
-            EmbeddingStore::new(conn),
+            EmbeddingStore::new(Rc::clone(&conn)),
         )
     }
 

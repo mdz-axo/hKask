@@ -4,12 +4,15 @@ use aes_gcm::{
     Aes256Gcm, Nonce,
     aead::{Aead, KeyInit},
 };
-use argon2::Argon2;
+use argon2::{Algorithm, Argon2, Params, Version};
 use rand::RngCore;
 use thiserror::Error;
+use zeroize::Zeroizing;
 
 #[derive(Error, Debug)]
 pub enum EncryptionError {
+    #[error("Key derivation failed: {0}")]
+    KeyDerivation(String),
     #[error("Encryption failed: {0}")]
     Encryption(String),
     #[error("Decryption failed: {0}")]
@@ -36,8 +39,8 @@ impl EncryptionService {
             return Err(EncryptionError::InvalidPassphrase);
         }
 
-        let key = derive_key(passphrase, salt);
-        let cipher = Aes256Gcm::new_from_slice(&key)
+        let key = derive_key(passphrase, salt)?;
+        let cipher = Aes256Gcm::new_from_slice(&*key)
             .map_err(|e| EncryptionError::Encryption(e.to_string()))?;
 
         Ok(Self { cipher })
@@ -87,12 +90,16 @@ impl EncryptionService {
     }
 }
 
-/// Derive a 32-byte key from a passphrase using Argon2
-fn derive_key(passphrase: &str, salt: &[u8]) -> [u8; 32] {
-    let mut key = [0u8; 32];
-    let argon2 = Argon2::default();
-    let _ = argon2.hash_password_into(passphrase.as_bytes(), salt, &mut key);
-    key
+/// Derive a 32-byte key from a passphrase using Argon2id with secure parameters
+fn derive_key(passphrase: &str, salt: &[u8]) -> Result<Zeroizing<[u8; 32]>, EncryptionError> {
+    let mut key = Zeroizing::new([0u8; 32]);
+    let params = Params::new(65536, 3, 4, Some(32))
+        .map_err(|e| EncryptionError::KeyDerivation(e.to_string()))?;
+    let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
+    argon2
+        .hash_password_into(passphrase.as_bytes(), salt, &mut *key)
+        .map_err(|e| EncryptionError::KeyDerivation(e.to_string()))?;
+    Ok(key)
 }
 
 /// Prompt user for encryption passphrase interactively
@@ -109,11 +116,11 @@ pub fn prompt_passphrase(prompt: &str) -> Result<String, std::io::Error> {
 }
 
 /// Read passphrase from environment or prompt
-pub fn get_passphrase(env_var: &str, prompt: &str) -> Result<String, std::io::Error> {
+pub fn get_passphrase(env_var: &str, prompt: &str) -> Result<Zeroizing<String>, std::io::Error> {
     if let Ok(passphrase) = std::env::var(env_var) {
-        Ok(passphrase)
+        Ok(Zeroizing::new(passphrase))
     } else {
-        prompt_passphrase(prompt)
+        prompt_passphrase(prompt).map(Zeroizing::new)
     }
 }
 
@@ -159,5 +166,21 @@ mod tests {
         let salt1 = EncryptionService::generate_salt();
         let salt2 = EncryptionService::generate_salt();
         assert_ne!(salt1, salt2);
+    }
+
+    #[test]
+    fn test_decrypt_invalid_ciphertext() {
+        let salt = EncryptionService::generate_salt();
+        let service = EncryptionService::new("passphrase", &salt).unwrap();
+        let result = service.decrypt(&[0u8; 5]); // Too short
+        assert!(matches!(result, Err(EncryptionError::Decryption(_))));
+    }
+
+    #[test]
+    fn test_decrypt_empty_ciphertext() {
+        let salt = EncryptionService::generate_salt();
+        let service = EncryptionService::new("passphrase", &salt).unwrap();
+        let result = service.decrypt(&[]);
+        assert!(matches!(result, Err(EncryptionError::Decryption(_))));
     }
 }

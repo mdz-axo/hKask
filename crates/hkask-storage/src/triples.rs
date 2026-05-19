@@ -46,16 +46,19 @@ impl Triple {
         }
     }
 
+    #[must_use = "builder methods must be chained or assigned"]
     pub fn with_confidence(mut self, confidence: f64) -> Self {
         self.confidence = confidence;
         self
     }
 
+    #[must_use = "builder methods must be chained or assigned"]
     pub fn with_perspective(mut self, perspective: WebID) -> Self {
         self.perspective = Some(perspective);
         self
     }
 
+    #[must_use = "builder methods must be chained or assigned"]
     pub fn with_visibility(mut self, visibility: Visibility) -> Self {
         self.visibility = visibility;
         self
@@ -78,6 +81,7 @@ pub struct TripleStore {
 impl TripleStore {
     pub fn new(conn: Rc<Connection>) -> Self {
         Self { conn }
+    }
     }
 
     /// Insert a triple

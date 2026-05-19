@@ -17,7 +17,21 @@ pub struct Database {
 
 impl Database {
     /// Open database with passphrase for encryption
+    ///
+    /// **SECURITY NOTICE:** This is a stub implementation. For production use,
+    /// SQLCipher must be properly integrated:
+    ///
+    /// ```rust,no_run
+    /// // Production implementation should:
+    /// // 1. Open Connection with SQLCipher-enabled rusqlite
+    /// // 2. Execute: PRAGMA key = 'passphrase'
+    /// // 3. Execute: PRAGMA cipher = 'aes-256-cbc'
+    /// // 4. Verify encryption with: PRAGMA cipher_version
+    /// ```
+    ///
+    /// **Spec Reference:** architecture v0.21.0 §2.3
     pub fn open(_path: &str, _passphrase: &str) -> Result<Self, DatabaseError> {
+        // TODO: Implement actual SQLCipher integration
         // Stub - returns in-memory for now
         Self::in_memory()
     }
@@ -105,8 +119,8 @@ impl Database {
     }
 
     /// Get database connection
-    pub fn conn(&self) -> Rc<Connection> {
-        Rc::clone(&self.conn)
+    pub fn conn(&self) -> &Connection {
+        &self.conn
     }
 }
 

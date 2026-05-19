@@ -44,21 +44,25 @@ impl NuEvent {
         }
     }
 
+    #[must_use = "builder methods must be chained or assigned"]
     pub fn with_outcome(mut self, outcome: Value) -> Self {
         self.outcome = Some(outcome);
         self
     }
 
+    #[must_use = "builder methods must be chained or assigned"]
     pub fn with_regulation(mut self, regulation: Value) -> Self {
         self.regulation = Some(regulation);
         self
     }
 
+    #[must_use = "builder methods must be chained or assigned"]
     pub fn with_parent(mut self, parent: EventID) -> Self {
         self.parent_event = Some(parent);
         self
     }
 
+    #[must_use = "builder methods must be chained or assigned"]
     pub fn with_visibility(mut self, visibility: &str) -> Self {
         self.visibility = visibility.to_string();
         self

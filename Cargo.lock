@@ -2500,13 +2500,13 @@ version = "0.1.0"
 dependencies = [
  "aes-gcm",
  "argon2",
- "base64",
  "hkask-types",
  "keyring",
  "rand 0.9.4",
  "serde",
  "thiserror",
  "tracing",
+ "zeroize",
 ]
 
 [[package]]

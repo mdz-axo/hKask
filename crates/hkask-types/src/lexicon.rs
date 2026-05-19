@@ -201,12 +201,15 @@ mod tests {
 
     #[test]
     fn test_template_type_from_str() {
-        assert_eq!(TemplateType::from_str("Prompt"), Some(TemplateType::Prompt));
         assert_eq!(
-            TemplateType::from_str("process"),
+            TemplateType::parse_str("Prompt"),
+            Some(TemplateType::Prompt)
+        );
+        assert_eq!(
+            TemplateType::parse_str("process"),
             Some(TemplateType::Process)
         );
-        assert_eq!(TemplateType::from_str("COGNITION"), None);
+        assert_eq!(TemplateType::parse_str("COGNITION"), None);
     }
 
     #[test]

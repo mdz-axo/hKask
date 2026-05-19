@@ -32,6 +32,7 @@ impl Embedding {
         }
     }
 
+    #[must_use = "builder methods must be chained or assigned"]
     pub fn with_entity_ref(mut self, entity_ref: TripleID) -> Self {
         self.entity_ref = Some(entity_ref);
         self
@@ -77,7 +78,6 @@ impl EmbeddingStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Database;
 
     #[test]
     fn test_embedding_new() {

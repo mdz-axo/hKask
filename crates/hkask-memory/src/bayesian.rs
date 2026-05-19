@@ -24,7 +24,7 @@ impl BayesianOps {
     /// Subtract confidence (retraction)
     pub fn retract(conf1: f64, conf2: f64) -> f64 {
         // Simplified retraction: reduce confidence proportionally
-        (conf1 * (1.0 - conf2)).max(0.0).min(1.0)
+        (conf1 * (1.0 - conf2)).clamp(0.0, 1.0)
     }
 
     /// Join multiple confidence values
@@ -123,6 +123,36 @@ mod tests {
     #[test]
     fn test_join_empty() {
         let result = BayesianOps::join(&[]);
+        assert_eq!(result, 0.5);
+    }
+
+    #[test]
+    fn test_combine_extreme_values() {
+        let result = BayesianOps::combine(1.0, 1.0);
+        assert_eq!(result, 1.0);
+    }
+
+    #[test]
+    fn test_combine_zero() {
+        let result = BayesianOps::combine(0.0, 0.0);
+        assert_eq!(result, 0.0);
+    }
+
+    #[test]
+    fn test_decay_zero_time() {
+        let result = BayesianOps::decay(1.0, 0.1, 0.0);
+        assert_eq!(result, 1.0);
+    }
+
+    #[test]
+    fn test_weighted_average_empty() {
+        let result = BayesianOps::weighted_average(&[]);
+        assert_eq!(result, 0.5);
+    }
+
+    #[test]
+    fn test_weighted_average_zero_weights() {
+        let result = BayesianOps::weighted_average(&[(0.5, 0.0), (1.0, 0.0)]);
         assert_eq!(result, 0.5);
     }
 }

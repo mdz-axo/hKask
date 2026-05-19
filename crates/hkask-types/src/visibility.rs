@@ -1,8 +1,17 @@
 //! Visibility types — OCAP-enforced access control
+//!
+//! **DEPRECATION NOTICE:** Per architecture v0.21.0 §3.1 §3.2, visibility should be
+//! enforced through OCAP capabilities only not a typed enum. This enum is retained
+//! temporarily for Phase 1 compatibility but will be removed in Phase 2.
+//!
+//! **Migration path:** Replace `Visibility` checks with capability delegation verification.
 
 use serde::{Deserialize, Serialize};
 
 /// Visibility level for artifacts
+///
+/// **Note:** This enum is a temporary placeholder. Per spec visibility should be
+/// capability-based only not an enum. See architecture v0.21.0 §3.1.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Visibility {
@@ -112,6 +121,10 @@ pub enum AccessDecision {
 }
 
 /// Evaluate access based on visibility and capabilities
+///
+/// **Security Note:** This function uses string comparison for owner/requester.
+/// For production use, replace with WebID-based comparison and cryptographic
+/// capability signature verification. See architecture v0.21.0 §1.2.
 pub fn evaluate_access(
     visibility: Visibility,
     owner: &str,
@@ -130,6 +143,7 @@ pub fn evaluate_access(
         Visibility::Private => AccessDecision::Deny,
         Visibility::Shared => {
             // Check if requester has capability
+            // **TODO:** Verify capability signatures and delegation chains
             if capabilities
                 .iter()
                 .any(|cap| cap.matches(resource, action) && cap.granted_to == requester)
