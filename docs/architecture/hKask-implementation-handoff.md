@@ -4,7 +4,7 @@
 
 You are beginning implementation of **hKask** (ℏKask — "Planck's Constant of Agent Systems"), a minimal agent-native container platform in Rust.
 
-**Architecture Status:** Complete (v2.2)  
+**Architecture Status:** Pre-alpha MVP (v0.21.0)  
 **Line Budget:** ≤30,000 lines Rust (excluding ACP/MCP protocols, Okapi)  
 **Crate Structure:** 21 crates (11 core + 10 MCP servers)
 
@@ -28,9 +28,11 @@ hKask is named after **Planck's constant** (ℏ) — the smallest possible unit 
 | 2 | **Essential Tools** | 10 MCP servers + Okapi inference | Tools are capabilities exposed through MCP. No MCP = no capabilities. |
 | 3 | **User Sovereignty** | OCAP, SQLCipher encryption, private/public gating | Without sovereignty, there is no trust. Users own their data, their agents, their choices. |
 | 4 | **CNS (Cybernetic Nervous System)** | `cns.*` spans, variety counters, algedonic alerts | Without cybernetics, there is no learning. CNS observes; templates analyze; curators improve. |
-| 5 | **Composition Registries** | 3 registries (Prompts, Processes, Cognition) with hLexicon | Without composition, there is no emergence. Templates combine to produce capabilities greater than their parts. |
+| 5 | **Composition Registries** | **Unified registry** with template_type discriminator + hLexicon | Without composition, there is no emergence. Templates combine to produce capabilities greater than their parts. |
 
 **These five anchors are the foundation.** If any anchor is missing, the system is not hKask.
+
+**Key Distinction (Anchor 5):** Prompts (WordAct/say), Processes (FlowDef/do), and Cognition (KnowAct/think) are distinguished by `template_type` metadata, not separate Rust code paths. Selection intelligence lives in Jinja2/LLM, not Rust branching.
 
 ---
 
@@ -38,17 +40,19 @@ hKask is named after **Planck's constant** (ℏ) — the smallest possible unit 
 
 All architecture documents are located at: `~/Clones/hKask/docs/architecture/`
 
-**Active Specifications (5):**
-1. `hKask-architecture-master.md` — **Sole authoritative spec** (v2.2)
+**Active Specifications:**
+1. `hKask-architecture-master.md` — **Sole authoritative spec** (v0.21.0)
 2. `hKask-architecture-index.md` — Index + implementation checklist
 3. `hKask-hLexicon.md` — Canonical vocabulary (≤75 terms)
 4. `hKask-Curator-persona.md` — Curator persona specification
-5. `AGENTS.md` — Agent operating guide
+5. `AGENTS.md` — Agent operating guide (root directory)
+6. `registry-templating-prompt-v2.md` — **Registry & templating system design** (unified registry, manifest/template distinction, CNS integration)
+7. `hKask-erd.md` — **Entity relationship diagrams** (Mermaid ERDs, data flow, state machines)
 
-**Reference Documents (3):**
-- `vKask-erd.md` — vKask entity relationships
-- `vKask-cybernetic-constant.md` — νKask cybernetic foundation
-- `MODEL_CATALOG.md` — Model catalog
+**Reference Documents:**
+- `vKask-erd.md` — vKask entity relationships (reference only)
+- `vKask-cybernetic-constant.md` — νKask cybernetic foundation (reference only)
+- `MODEL_CATALOG.md` — Model catalog (reference only)
 
 ---
 
@@ -67,6 +71,11 @@ All architecture documents are located at: `~/Clones/hKask/docs/architecture/`
 | **Condenser Algorithms** | All kask condenser except OpenCode-style + OpenHands-style |
 | **Versioning** | Git-only (SHA-based, no SemVer) |
 | **Memory Model** | Semantic vs Episodic (categorical, no promotion) |
+| **Registry Design** | **Unified registry** with `template_type` discriminator (not three registries) |
+| **Manifest vs Template** | Manifest = YAML process definition; Template = Jinja2 dynamic document |
+| **Rust Role** | Loom (fixed logic); YAML/Jinja2 = Thread (mutable content) |
+| **CNS Spans** | `cns.prompt.select`, `cns.prompt.render`, `cns.prompt.outcome` |
+| **Matroshka Limit** | Default depth: 7, configurable per template |
 
 ---
 
@@ -104,6 +113,48 @@ hkask-workspace/
     ├── ACP (acp-runtime)
     └── MCP (rmcp)
 ```
+
+---
+
+## Registry & Templating System Design
+
+**Reference:** `~/Clones/hKask/docs/registry-templating-prompt-v2.md` — Complete design specification.
+
+**Core Invariant:** Rust is the loom (fixed logic). YAML/Jinja2 is the thread (mutable content).
+
+### Unified Registry (Not Three)
+
+**Decision:** Single registry with `template_type` discriminator (`Prompt`, `Process`, `Cognition`).
+
+**Rationale:**
+- P1 (No trait without two consumers): No distinct consumers for separate registries
+- C4 (Repetition is missing primitive): Three registries would be repetition, not genuine distinction
+- Selection intelligence lives in Jinja2/LLM, not Rust branching
+
+### Manifest vs Template
+
+| Entity | Technology | Purpose | Mutability |
+|--------|------------|---------|------------|
+| **Manifest** | YAML | Process definition with steps (`select`, `populate`, `execute`) | Edited over time |
+| **Template** | Jinja2 | Dynamic document form with fields | Rendered per invocation |
+
+**Dispatch Pattern:**
+1. `registry-dispatch-bot` executes `dispatch.yaml` manifest
+2. Step 1 (`select`): Render `selector.j2` → fast local model → best-fit template
+3. Step 2 (`populate`): Bind input into selected template's Jinja2 fields
+4. Step 3 (`execute`): Submit rendered document to model/tool per contract
+
+### CNS Integration
+
+- `cns.prompt.select` — template selection event
+- `cns.prompt.render` — Jinja2 render event
+- `cns.prompt.outcome` — execution result with confidence
+
+### Matroshka Limits
+
+- Default depth: 7
+- Configurable per template
+- Enforced by Rust executor
 
 ---
 
@@ -193,6 +244,9 @@ hKask is "done" when a single user can:
 - OpenCode-style condenser (deleted)
 - OpenHands-style condenser (deleted)
 - UCAN for h-bar (OCAP-only, UCAN deferred)
+- **Three separate registries** (unified registry with `template_type` discriminator)
+- **Rust-based template selection** (selection intelligence in Jinja2/LLM)
+- **Hard-coded process logic** (processes defined in YAML manifests)
 
 ---
 
@@ -226,10 +280,12 @@ chrono = "0.4"
 ## Next Actions (Your First Session)
 
 1. **Review architecture documents:**
-   - Read `hKask-architecture-master.md` (sole authoritative spec, v2.2)
+   - Read `hKask-architecture-master.md` (sole authoritative spec, v0.21.0)
    - Read `AGENTS.md` (operating guide, Coco Chanel principles)
    - Read `hKask-hLexicon.md` (canonical vocabulary, ≤75 terms)
    - Read `hKask-Curator-persona.md` (persona specification)
+   - Read `registry-templating-prompt-v2.md` (**Registry & templating system** — unified registry, manifest/template distinction, dispatch pattern)
+   - Read `hKask-erd.md` (**Entity diagrams** — Mermaid ERDs, data flow, state machines)
 
 2. **Create workspace skeleton:**
    ```bash
@@ -240,7 +296,7 @@ chrono = "0.4"
 
 3. **Set up virtual workspace:**
    - Create `Cargo.toml` with `[workspace]` and `[workspace.dependencies]`
-   - Create empty crate stubs for all 11 Stack crates
+   - Create empty crate stubs for all 11 Core crates
    - Set up CI: `cargo check`, `test`, `clippy -D warnings`, `fmt --check`, `tokei`
 
 4. **Begin Phase 1:**
@@ -248,11 +304,14 @@ chrono = "0.4"
    - Then `hkask-types` (foundation for all other crates, 2,000 LOC)
    - Then `hkask-storage` (SQLite + SQLCipher schema, 4,000 LOC)
 
-5. **Remember:**
+5. **Phase 2 Priority:** `hkask-templates` (5,000 LOC) — registry, hLexicon, minijinja, manifest executor
+
+6. **Remember:**
    - At 30,001 lines, the agent is fired and another tries again
    - No silent draws on reserve
    - No hallucinations
    - As simple as possible, but no simpler
+   - Rust is the loom; YAML/Jinja2 is the thread
 
 ---
 
@@ -278,6 +337,19 @@ chrono = "0.4"
 
 **hKask is a study in restraint.** Every feature, every crate, every line of code must justify its existence.
 
+### The Loom and the Thread
+
+**Rust is the loom.** YAML/Jinja2 is the thread. The loom doesn't change when you weave a different pattern.
+
+| Layer | Technology | Budget | Mutability |
+|-------|------------|--------|------------|
+| **Hard (Kernel)** | Rust | ≤30,000 LOC | Fixed, stable |
+| **Soft (Material)** | YAML, Jinja2, MD | Unlimited | Mutable, evolving |
+
+**Rust owns:** Parsing YAML steps, rendering Jinja2 via minijinja, enforcing matroshka depth, validating hLexicon terms, routing MCP/LLM calls.
+
+**Rust does NOT own:** Which templates exist, what they say, how selection logic is phrased, what steps a manifest contains, what a prompt looks like.
+
 ### Questions to Ask Before Adding Anything
 
 1. **Is this one of the Five Anchors?** If not, what anchor does it serve?
@@ -286,6 +358,7 @@ chrono = "0.4"
 4. **Is this unwired code?** (C2, C3) If yes, does it have a named owner and timeline?
 5. **Can this be simpler?** Is there a concrete shape that serves the actual callsite?
 6. **Does this belong in the kernel or a template?** Templates evolve; kernel endures.
+7. **Is this Rust logic that should be YAML?** If the behavior can be expressed as a manifest step, do it in YAML.
 
 ### The hKask Commitment
 
@@ -298,9 +371,10 @@ chrono = "0.4"
 ### When in Doubt
 
 1. Read the architecture spec (`hKask-architecture-master.md`)
-2. Ask: "What is the simplest thing that could possibly work?"
-3. Implement that. Test it. Ship it.
-4. Iterate only when pressure demands it.
+2. Read the registry/templating design (`registry-templating-prompt-v2.md`)
+3. Ask: "What is the simplest thing that could possibly work?"
+4. Implement that. Test it. Ship it.
+5. Iterate only when pressure demands it.
 
 ---
 
@@ -315,6 +389,7 @@ If you encounter ambiguity or need clarification:
 
 ---
 
-*ℏKask — Planck's Constant of Agent Systems — v2.2*
+*ℏKask — Planck's Constant of Agent Systems — v0.21.0*
 *As simple as possible, but no simpler.*
-*Begin implementation.*
+*Rust is the loom. YAML/Jinja2 is the thread.*
+*MVP in progress.*

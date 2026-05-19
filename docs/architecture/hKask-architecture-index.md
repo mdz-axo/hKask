@@ -1,11 +1,9 @@
 # hKask Architecture — Complete Specification Index
 
-## Executive Summary
+**Master Specification:** `hKask-architecture-master.md` — Consolidated authoritative spec (v0.21.0)
 
-**Master Specification:** `hKask-architecture-master.md` — Consolidated authoritative spec (v2.1)
-
-**Total Documents:** 7 (4 active + 3 reference)  
-**Design Status:** Complete (ready for implementation)  
+**Total Documents:** 8 (5 active + 3 reference)  
+**Design Status:** Pre-alpha — MVP in progress  
 **Line Budget:** ≤30,000 lines Rust (excluding ACP/MCP protocols, Okapi)
 
 ---
@@ -14,10 +12,11 @@
 
 | # | Document | Purpose | Status |
 |---|----------|---------|--------|
-| 1 | hKask-architecture-master.md | Consolidated authoritative specification | **CURRENT — v2.1** |
+| 1 | hKask-architecture-master.md | Consolidated authoritative specification | **CURRENT — v0.21.0** |
 | 2 | hKask-architecture-index.md | This index | **CURRENT** |
 | 3 | hKask-hLexicon.md | Minimal composition vocabulary (≤75 terms) | **CURRENT** |
 | 4 | hKask-Curator-persona.md | Curator replicant persona specification | **CURRENT** |
+| 5 | hKask-erd.md | Entity relationship diagrams (Mermaid) | **CURRENT — v0.21.0** |
 
 ---
 
@@ -116,7 +115,7 @@ hkask-workspace/
 
 ### Pre-Implementation (Complete Before Coding)
 
-- [ ] Review `hKask-architecture-master.md` (authoritative spec v2.1)
+- [ ] Review `hKask-architecture-master.md` (authoritative spec v0.21.0)
 - [ ] Confirm Okapi integration plan (mdz-axo/Okapi)
 - [ ] Set up Git repository structure
 - [ ] Configure SQLite + SQLCipher for encryption
@@ -222,11 +221,8 @@ hKask implementation is successful when:
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 1.0 | 2026-05-18 | Initial complete specification |
-| 2.0 | 2026-05-18 | Consolidated master spec created |
-| 2.1 | 2026-05-18 | CNS naming, Qdrant contingency, all condenser algorithms except OpenCode/OpenHands |
-| 2.2 | 2026-05-18 | Consolidated to 7 documents (deleted claude-architecture-hkask.md + 10 superseded) |
+| 0.21.0 | 2026-05-18 | Pre-alpha MVP: unified registry, manifest/template distinction, CNS integration, ERD complete |
 
 ---
 
-*hKask Architecture Index — 11 Stack crates + 10 MCP servers, all questions resolved (v2.2)*
+*hKask Architecture Index — 11 Core crates + 10 MCP servers, pre-alpha MVP (v0.21.0)*

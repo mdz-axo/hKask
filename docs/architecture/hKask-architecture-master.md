@@ -1,7 +1,7 @@
-# hKask Architecture — Master Specification v2.0
+# hKask Architecture — Master Specification v0.21.0
 
 **Date:** 2026-05-18  
-**Status:** Consolidated Master Specification  
+**Status:** Pre-alpha MVP in progress  
 **Line Budget:** ≤30,000 lines Rust (excluding ACP/MCP protocols, Okapi)
 
 ---
@@ -26,7 +26,7 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-na
 | **2. Essential Tools** | MCP servers + Okapi inference | 10 MCP servers (all hkask-) |
 | **3. User Sovereignty** | OCAP, privacy, encryption | UCAN delegation, visibility gating, SQLCipher |
 | **4. Cybernetic Nervous System** | νKask monitoring, variety counters | ν-events, algedonic alerts (REPLACES OKH + feedback) |
-| **5. Composition Registries** | Templates, hLexicon, self-wiring | Prompt/Process/Cognition templates (unified substrate) |
+| **5. Composition Registries** | Templates, hLexicon, self-wiring | **Unified registry** with template_type discriminator |
 
 ### 1.2 Agent Taxonomy
 
@@ -246,26 +246,43 @@ CREATE TABLE nu_events (
 - Episodic memory is incidental, not load-bearing for Curator function
 - Curators run on charters and templates from first boot
 
-### 2.5 Composition Registries (Three Template Types)
+### 2.5 Composition Registries (Unified with Template Type Discriminator)
 
-| Registry | Purpose | Academic Grounding |
-|----------|---------|-------------------|
-| **Prompts** | Word acts (LLM/tool calls) | Speech-act theory (Austin/Searle) |
-| **Processes** | Multi-step workflows | Process algebra / workflow patterns |
-| **Cognition** | Knowing, learning, thinking | Cognitive science / epistemology |
+**Decision:** Single unified registry with `template_type` discriminator (not three separate registries).
+
+| Template Type | Purpose | Academic Grounding |
+|---------------|---------|-------------------|
+| **Prompt (WordAct)** | What to say — LLM/tool calls | Speech-act theory (Austin/Searle) |
+| **Process (FlowDef)** | What to do — multi-step workflows | Process algebra / workflow patterns |
+| **Cognition (KnowAct)** | How to think — knowing, learning, thinking | Cognitive science / epistemology |
 
 **Unified Abstract Structure:**
 - Same templating language (Jinja2 + LLM)
 - Same storage and call mechanism
 - Same registry shape
-- Differences: DSL words and intended use, NOT output type
+- Differences: `template_type` metadata and lexicon terms, NOT Rust code paths
 
-**Cognition Templates:** Prompt templates of particular form. Produce rendered prompts (same as prompt templates). Recursion produces meta-cognition (not separate output type).
+**Key Invariant:** Rust is the loom (fixed logic). YAML/Jinja2 is the thread (mutable content). Selection intelligence lives in Jinja2/LLM, not Rust branching.
+
+**Manifest vs Template:**
+- **Manifest (YAML):** Immutable process definition with steps (`select`, `populate`, `execute`). Bot's charter.
+- **Template (Jinja2):** Dynamic document form with fields. Bot's tool. Composes into varying documents based on input.
+
+**Dispatch Pattern:**
+1. `registry-dispatch-bot` executes `dispatch.yaml` manifest
+2. Step 1 (`select`): Render `selector.j2` → call fast local model → choose best-fit template
+3. Step 2 (`populate`): Bind input into selected template's Jinja2 fields
+4. Step 3 (`execute`): Submit rendered document to model/tool per template contract
+
+**CNS Integration:**
+- `cns.prompt.select` — template selection event
+- `cns.prompt.render` — Jinja2 render event
+- `cns.prompt.outcome` — execution result with confidence
 
 **Matroshka Limits:**
 - Root template has matroshka number 0
 - Templates called by root have matroshka number 1
-- Hard limit: matroshka number ≤ 7 (configurable via CLI/API)
+- Hard limit: matroshka number ≤ 7 (configurable per template)
 
 ### 2.6 CNS (Cybernetic Nervous System)
 
@@ -431,22 +448,24 @@ process_template:
 
 ## Document Lineage
 
-- **v1.0:** Initial hKask architecture spec
-- **v1.1:** Corrections for hallucinations (reputation, swarms, sync, marketplace, customization)
-- **v2.0:** Consolidated master spec with 10 MCP servers, bot manifest decisions, CNS cybernetics
-- **v2.1:** CNS naming (replaces νKask), Qdrant contingency, all condenser algorithms except OpenCode/OpenHands
-- **v2.2:** Sole authoritative document (claude-architecture-hkask.md insights incorporated, 11 superseded docs deleted)
+**Current Version:** v0.21.0 (Pre-alpha MVP)
+
+**Lineage:**
+- **v0.21.0:** Pre-alpha MVP baseline — unified registry (template_type discriminator), manifest/template distinction, CNS integration, ERD complete, loom/thread metaphor
 
 **Source Documents:**
+- `registry-templating-prompt-v2.md` — Registry & templating system design (unified registry, dispatch pattern, CNS integration)
 - `claude-architecture-hkask.md` — Insights incorporated into this spec (revision 2)
 - `claude-says-hkask-corrections.md` — Claude's correction analysis
 - `hKask-architecture-corrections-v1.1.md` — Hallucination removals
 - `hKask-architecture-corrections-v1.2.md` — MCP server count, bot manifest decisions
 
-**Current Document Set:** 7 total (4 active + 3 reference)
-- Active: `hKask-architecture-master.md`, `hKask-architecture-index.md`, `hKask-hLexicon.md`, `hKask-Curator-persona.md`
+**Current Document Set:** 8 total (5 active + 3 reference)
+- Active: `hKask-architecture-master.md`, `hKask-architecture-index.md`, `hKask-hLexicon.md`, `hKask-Curator-persona.md`, `hKask-erd.md`, `hKask-implementation-handoff.md`, `registry-templating-prompt-v2.md`
 - Reference: `vKask-erd.md`, `vKask-cybernetic-constant.md`, `MODEL_CATALOG.md`
 
 ---
 
-*ℏKask — Planck's Constant of Agent Systems — v2.2 (Sole authoritative document)*
+*ℏKask — Planck's Constant of Agent Systems — v0.21.0*
+*Unified registry. Manifest/template distinction. Rust = loom, YAML/Jinja2 = thread.*
+*MVP in progress.*

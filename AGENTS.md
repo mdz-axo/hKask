@@ -19,7 +19,7 @@
 | 2 | **Essential Tools** | 10 MCP servers + Okapi |
 | 3 | **User Sovereignty** | OCAP, SQLCipher, private/public gating |
 | 4 | **CNS** | `cns.*` spans, variety counters, algedonic alerts |
-| 5 | **Composition** | 3 registries (Prompts, Processes, Cognition) |
+| 5 | **Composition** | **Unified registry** with template_type discriminator |
 
 ---
 
@@ -100,6 +100,8 @@ hkask-workspace/
 - OpenCode-style condenser
 - OpenHands-style condenser
 - UCAN for h-bar (OCAP-only)
+- **Three separate registries** (unified registry with `template_type` discriminator)
+- **Rust-based template selection** (selection intelligence in Jinja2/LLM)
 
 ---
 
@@ -161,11 +163,15 @@ Before claiming completion:
 
 ## Starting Point
 
-1. Read `docs/architecture/hKask-architecture-master.md` (sole authoritative spec)
-2. Read `docs/architecture/hKask-implementation-handoff.md` (agent handoff)
-3. Begin Phase 0: Workspace skeleton
+1. Read `docs/architecture/hKask-architecture-master.md` (sole authoritative spec, v0.21.0)
+2. Read `docs/architecture/hKask-erd.md` (entity relationship diagrams)
+3. Read `docs/architecture/registry-templating-prompt-v2.md` (registry & templating design)
+4. Read `AGENTS.md` (this operating guide)
+5. Begin Phase 0: Workspace skeleton
 
 ---
 
-*ℏKask — Planck's Constant of Agent Systems — v2.2*
+*ℏKask — Planck's Constant of Agent Systems — v0.21.0*
 *As simple as possible, but no simpler.*
+*Rust is the loom. YAML/Jinja2 is the thread.*
+*MVP in progress.*
