@@ -54,7 +54,7 @@ mod tests {
 
     fn create_test_memory() -> EpisodicMemory {
         let db = Database::in_memory().unwrap();
-        EpisodicMemory::new(TripleStore::new(db.conn().clone()))
+        EpisodicMemory::new(TripleStore::new(db.conn_rc()))
     }
 
     #[test]

@@ -122,6 +122,11 @@ impl Database {
     pub fn conn(&self) -> &Connection {
         &self.conn
     }
+
+    /// Get database connection as Rc for shared ownership
+    pub fn conn_rc(&self) -> Rc<Connection> {
+        Rc::clone(&self.conn)
+    }
 }
 
 #[cfg(test)]

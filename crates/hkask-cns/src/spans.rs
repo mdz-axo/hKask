@@ -15,7 +15,7 @@ impl SpanEmitter {
     }
 
     pub fn emit(&self, span: Span, phase: hkask_types::Phase, observation: Value) {
-        let event = NuEvent::new(self.observer_webid.clone(), span, phase, observation, 0);
+        let event = NuEvent::new(self.observer_webid, span, phase, observation, 0);
 
         info!(target: "cns", event = ?event.id, span = ?event.span, "CNS event emitted");
     }

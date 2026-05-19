@@ -52,7 +52,7 @@ mod tests {
 
     fn create_test_memory() -> SemanticMemory {
         let db = Database::in_memory().unwrap();
-        let conn = db.conn();
+        let conn = db.conn_rc();
         SemanticMemory::new(
             TripleStore::new(Rc::clone(&conn)),
             EmbeddingStore::new(Rc::clone(&conn)),

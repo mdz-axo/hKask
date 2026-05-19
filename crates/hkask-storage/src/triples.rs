@@ -82,7 +82,6 @@ impl TripleStore {
     pub fn new(conn: Rc<Connection>) -> Self {
         Self { conn }
     }
-    }
 
     /// Insert a triple
     pub fn insert(&self, triple: &Triple) -> Result<(), TripleError> {
