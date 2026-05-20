@@ -394,8 +394,14 @@ mod tests {
         let sorted = sorted.unwrap();
         assert_eq!(sorted.len(), 3);
         // a should come before b, b should come before c
-        assert!(sorted.iter().position(|x| x == "a").unwrap() < sorted.iter().position(|x| x == "b").unwrap());
-        assert!(sorted.iter().position(|x| x == "b").unwrap() < sorted.iter().position(|x| x == "c").unwrap());
+        assert!(
+            sorted.iter().position(|x| x == "a").unwrap()
+                < sorted.iter().position(|x| x == "b").unwrap()
+        );
+        assert!(
+            sorted.iter().position(|x| x == "b").unwrap()
+                < sorted.iter().position(|x| x == "c").unwrap()
+        );
     }
 
     #[test]

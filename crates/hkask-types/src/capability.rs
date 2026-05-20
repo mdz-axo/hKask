@@ -292,6 +292,39 @@ impl CapabilityToken {
     pub fn grants_resource(&self, resource: CapabilityResource) -> bool {
         self.resource == resource
     }
+
+    /// Validate context nonce matches expected execution context
+    pub fn validate_context_nonce(&self, expected_context: &str) -> bool {
+        // Context nonce must start with expected context (allows attenuation chain)
+        self.context_nonce.starts_with(expected_context)
+    }
+
+    /// Get the root context nonce (before any attenuation)
+    pub fn root_context_nonce(&self) -> &str {
+        // Extract root nonce from attenuation chain (format: "root-attenuated-uuid-attenuated-uuid...")
+        self.context_nonce.split("-attenuated-").next().unwrap_or(&self.context_nonce)
+    }
+
+    /// Verify attenuation chain from root nonce to expected level
+    /// 
+    /// Returns true if:
+    /// - Root nonce matches expected_root
+    /// - attenuation_level <= expected_level
+    /// - Nonce format is valid (root-attenuated-uuid-attenuated-uuid...)
+    pub fn verify_attenuation_chain(&self, expected_root: &str, expected_level: u8) -> bool {
+        let root = self.root_context_nonce();
+        if root != expected_root {
+            return false;
+        }
+        
+        // Count attenuation levels in nonce
+        let actual_level = self.context_nonce.matches("-attenuated-").count() as u8;
+        if actual_level != self.attenuation_level {
+            return false; // Nonce doesn't match attenuation level
+        }
+        
+        self.attenuation_level <= expected_level
+    }
 }
 
 /// Capability checker for composition operations
@@ -569,5 +602,47 @@ mod tests {
         assert!(caps.has_capability("inference:call"));
         assert!(caps.has_capability("storage:read"));
         assert!(!caps.has_capability("memory:write"));
+    }
+
+    #[test]
+    fn test_attenuation_chain_verification() {
+        let secret = b"test-secret-key";
+        let from = WebID::new();
+        let to = WebID::new();
+        let new_to = WebID::new();
+
+        // Create root token with known context nonce
+        let root_nonce = "test-execution-context";
+        let mut token = CapabilityToken::new_with_attenuation(
+            CapabilityResource::Template,
+            "prompt/test".to_string(),
+            CapabilityAction::Render,
+            from.clone(),
+            to.clone(),
+            secret,
+            None,
+            0,
+            7,
+            Some(root_nonce.to_string()),
+        );
+
+        // Verify root nonce
+        assert_eq!(token.root_context_nonce(), root_nonce);
+        assert!(token.verify_attenuation_chain(root_nonce, 0));
+
+        // Attenuate once
+        let attenuated1 = token.attenuate(new_to.clone(), secret, 1000).unwrap();
+        assert_eq!(attenuated1.attenuation_level, 1);
+        assert!(attenuated1.verify_attenuation_chain(root_nonce, 1));
+        assert!(!attenuated1.verify_attenuation_chain(root_nonce, 0)); // Level too high
+
+        // Attenuate twice more
+        let attenuated2 = attenuated1.attenuate(new_to.clone(), secret, 1000).unwrap();
+        assert_eq!(attenuated2.attenuation_level, 2);
+        assert!(attenuated2.verify_attenuation_chain(root_nonce, 2));
+        assert!(attenuated2.verify_attenuation_chain(root_nonce, 3)); // Level within bound
+
+        // Wrong root should fail
+        assert!(!attenuated2.verify_attenuation_chain("wrong-root", 2));
     }
 }

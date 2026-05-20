@@ -1,0 +1,203 @@
+# hKask Alerting Rules for Prometheus
+
+groups:
+  - name: hkask_alerts
+    interval: 30s
+    rules:
+      # ========================================================================
+      # Circuit Breaker Alerts
+      # ========================================================================
+      - alert: OkapiCircuitBreakerOpen
+        expr: hkask_circuit_breaker_state == 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Circuit breaker open for {{ $labels.name }}"
+          description: "Circuit breaker {{ $labels.name }} for instance {{ $labels.instance }} has been open for more than 1 minute. Requests are being rejected."
+
+      - alert: OkapiCircuitBreakerFrequentTrips
+        expr: rate(hkask_circuit_breaker_state_changes_total[1h]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Frequent circuit breaker trips"
+          description: "Circuit breaker has tripped {{ $value }} times in the last hour. This indicates instability in the Okapi cluster."
+
+      - alert: OkapiCircuitBreakerHalfOpen
+        expr: hkask_circuit_breaker_state == 2
+        for: 5m
+        labels:
+          severity: info
+        annotations:
+          summary: "Circuit breaker in half-open state"
+          description: "Circuit breaker {{ $labels.name }} is testing if the service has recovered."
+
+      # ========================================================================
+      # Instance Health Alerts
+      # ========================================================================
+      - alert: OkapiInstanceUnhealthy
+        expr: hkask_okapi_instances_unhealthy > 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Okapi instance unhealthy"
+          description: "{{ $value }} Okapi instance(s) have been unhealthy for more than 2 minutes. Failover may be occurring."
+
+      - alert: OkapiInstanceDegraded
+        expr: hkask_okapi_instances_degraded > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Okapi instance degraded"
+          description: "{{ $value }} Okapi instance(s) are in degraded state. Performance may be impacted."
+
+      - alert: OkapiAllInstancesDown
+        expr: hkask_okapi_instances_healthy == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "All Okapi instances down"
+          description: "CRITICAL: No healthy Okapi instances available. The system cannot process inference requests."
+
+      - alert: OkapiInstanceFlapping
+        expr: rate(hkask_okapi_health_check_failures_total[5m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Okapi instance health flapping"
+          description: "Instance {{ $labels.instance }} is flapping between healthy and unhealthy states."
+
+      # ========================================================================
+      # Retry Alerts
+      # ========================================================================
+      - alert: OkapiRetryRateHigh
+        expr: rate(hkask_retry_attempts_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High retry rate"
+          description: "Retry rate is {{ $value }} per second. This indicates transient failures in the system."
+
+      - alert: OkapiRetryExhausted
+        expr: rate(hkask_retry_exhausted_total[5m]) > 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Retry exhausted"
+          description: "Operations are exhausting retry attempts. Permanent failures are occurring."
+
+      # ========================================================================
+      # Latency Alerts
+      # ========================================================================
+      - alert: OkapiLatencyHigh
+        expr: histogram_quantile(0.99, rate(hkask_okapi_request_duration_seconds_bucket[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High request latency"
+          description: "P99 latency is {{ $value }} seconds. User experience may be impacted."
+
+      - alert: OkapiLatencyCritical
+        expr: histogram_quantile(0.99, rate(hkask_okapi_request_duration_seconds_bucket[5m])) > 10
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical request latency"
+          description: "P99 latency is {{ $value }} seconds. This is critically high."
+
+      - alert: OkapiHealthCheckSlow
+        expr: histogram_quantile(0.95, rate(hkask_okapi_health_check_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow health checks"
+          description: "P95 health check latency is {{ $value }} seconds. Health monitoring may be impacted."
+
+      # ========================================================================
+      # Resource Alerts
+      # ========================================================================
+      - alert: OkapiMemoryHigh
+        expr: okapi_memory_bytes / (1024 * 1024 * 1024) > 8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Okapi memory usage high"
+          description: "Memory usage is {{ $value }} GB. Consider scaling or investigating memory leaks."
+
+      - alert: OkapiMemoryCritical
+        expr: okapi_memory_bytes / (1024 * 1024 * 1024) > 14
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Okapi memory usage critical"
+          description: "Memory usage is {{ $value }} GB. Instance may become unresponsive soon."
+
+      - alert: OkapiGPUUtilizationHigh
+        expr: okapi_gpu_utilization > 90
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "GPU utilization high"
+          description: "GPU utilization is {{ $value }}%. Performance may be impacted."
+
+      - alert: OkapiGPUUtilizationCritical
+        expr: okapi_gpu_utilization > 98
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "GPU utilization critical"
+          description: "GPU utilization is {{ $value }}%. Instance is saturated."
+
+      - alert: OkapiGPUHigh
+        expr: okapi_gpu_memory_bytes / (1024 * 1024 * 1024) > 14
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "GPU memory usage high"
+          description: "GPU memory usage is {{ $value }} GB."
+
+      - alert: OkapiContextWindowExhaustion
+        expr: (okapi_context_tokens_used / okapi_context_tokens_available) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Context window near exhaustion"
+          description: "Context window utilization is {{ $value | humanizePercentage }}. Large prompts may fail."
+
+      # ========================================================================
+      # Routing Alerts
+      # ========================================================================
+      - alert: OkapiRoutingFailures
+        expr: rate(hkask_capability_routing_failures_total[5m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Capability routing failures"
+          description: "Routing is failing to find instances with required capabilities."
+
+      - alert: OkapiLoadImbalance
+        expr: (max(hkask_okapi_load_factor) - min(hkask_okapi_load_factor)) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Load imbalance detected"
+          description: "Load factor difference between instances is {{ $value }}. Consider rebalancing."

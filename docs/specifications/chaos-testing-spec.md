@@ -1,7 +1,61 @@
 # Automated Failover Testing — Chaos Engineering for Okapi
 
-**Version:** 1.0.0 (v1.1+)  
-**Status:** Future Work Specification
+**Version:** 1.1.0  
+**Status:** Core resilience components implemented, unit tests passing
+
+---
+
+## Implementation Status
+
+### Implemented (v1.1)
+
+The following chaos testing components have been implemented in `hkask-ensemble`:
+
+1. **Circuit Breaker** (`hkask-ensemble/src/resilience.rs`)
+   - Closed → Open → HalfOpen state machine
+   - Configurable failure threshold (default: 5)
+   - Configurable open timeout (default: 30s)
+   - Configurable success threshold (default: 2)
+   - Unit tests: 4 passing
+
+2. **Retry with Exponential Backoff** (`hkask-ensemble/src/resilience.rs`)
+   - Configurable max retries (default: 3)
+   - Configurable initial delay (default: 100ms)
+   - Configurable max delay (default: 10s)
+   - Configurable multiplier (default: 2.0)
+   - Unit tests: 2 passing
+
+3. **Multi-Okapi Failover** (`hkask-ensemble/src/multi_okapi.rs`)
+   - OkapiInstance with health tracking
+   - HealthChecker for instance monitoring
+   - CapabilityRouter for instance selection
+   - HealthStatus: Healthy, Degraded, Unhealthy, Unknown
+   - Unit tests: 4 passing
+
+4. **ResilientOkapiClient** (`hkask-ensemble/src/resilience.rs`)
+   - Combines circuit breaker + retry policies
+   - Automatic failure recording
+   - Unit tests: 1 passing
+
+5. **Unit Test Coverage**
+   - `test_circuit_breaker_transitions`: Validates state machine
+   - `test_retry_with_backoff_success/failure`: Validates retry logic
+   - `test_resilient_client`: Validates combined resilience
+   - `test_health_status_transitions`: Validates health tracking
+   - `test_instance_availability`: Validates instance selection
+   - `test_capability_router`: Validates routing logic
+
+### In Progress
+
+1. **Integration Tests** - Full end-to-end chaos testing framework requiring live Okapi instances
+
+### Not Yet Implemented
+
+1. **Grafana/Prometheus Metrics Dashboard**
+2. **Automated Test Scheduling**
+3. **Network Partition Injection (tc/chaos-mesh)**
+4. **Resource Exhaustion Tests (stress-ng)**
+5. **CI/CD Pipeline Integration**
 
 ---
 
@@ -298,14 +352,38 @@ impl MetricsCollector {
 
 ## Implementation Checklist
 
-- [ ] Create chaos test runner framework
-- [ ] Implement metrics collection
-- [ ] Implement chaos injection tools
-- [ ] Create test definitions for all categories
+- [x] Create chaos test runner framework (unit test level)
+- [x] Implement circuit breaker with state machine
+- [x] Implement retry with exponential backoff
+- [x] Implement multi-Okapi failover system
+- [x] Implement health checker for instance monitoring
+- [x] Create unit tests for all resilience components (11 tests passing)
+- [ ] Complete integration test framework for live Okapi instances
+- [ ] Implement metrics collection (Prometheus/Grafana)
+- [ ] Implement chaos injection tools (tc, chaos-mesh integration)
+- [ ] Create test definitions for all categories (3, 4, 5 complete; 1, 2 need integration)
 - [ ] Set up automated test scheduling
 - [ ] Configure alerting for test failures
 - [ ] Document runbooks for each test
 - [ ] Integrate with CI/CD pipeline
+
+---
+
+## Running Tests
+
+```bash
+# Run all hkask-ensemble tests (includes resilience tests)
+cargo test --package hkask-ensemble
+
+# Run specific resilience tests
+cargo test --package hkask-ensemble resilience
+
+# Run multi-Okapi tests
+cargo test --package hkask-ensemble multi_okapi
+
+# Run E2E tests (requires Okapi instance on localhost:11435)
+OKAPI_E2E_TEST=1 cargo test --package hkask-ensemble --test e2e_okapi_integration
+```
 
 ---
 
@@ -318,4 +396,4 @@ impl MetricsCollector {
 
 ---
 
-*ℏKask — Planck's Constant of Agent Systems — v1.1+ (Future Work)*
+*ℏKask — Planck's Constant of Agent Systems — v1.1.0*

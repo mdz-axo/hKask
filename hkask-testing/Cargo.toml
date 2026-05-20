@@ -31,5 +31,5 @@ name = "integration_tests"
 path = "integration-tests/mod.rs"
 
 [[test]]
-name = "chaos_tests"
-path = "integration-tests/chaos_tests.rs"
+name = "chaos_integration"
+path = "integration-tests/chaos_integration.rs"

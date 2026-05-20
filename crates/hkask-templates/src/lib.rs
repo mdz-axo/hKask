@@ -17,8 +17,8 @@ pub mod adapters;
 pub mod audit;
 pub mod capability_validator;
 pub mod cascade;
-pub mod contracts;
 pub mod contract_validator;
+pub mod contracts;
 pub mod csp;
 pub mod dependency;
 pub mod error;
@@ -35,28 +35,27 @@ pub mod skill_translation;
 pub use adapters::{MockRegistryAdapter, RegistryAdapter, RegistryResult, SkillRegistryPort};
 pub use audit::{AuditStats, AuditTrail, ExecutionAudit};
 pub use capability_validator::{
-    CapabilityAwareValidator, CapabilityAwareValidationError,
-    ValidationWithCapabilities,
+    CapabilityAwareValidationError, CapabilityAwareValidator, ValidationWithCapabilities,
 };
 pub use cascade::{Cascade, CascadeBuilder, CascadeContext, CascadeExecutor, MAX_CASCADE_DEPTH};
+pub use contract_validator::{
+    ContractValidator, OkapiCapabilities, OkapiRequirements, RegistrationFrontmatter,
+    ValidationError, ValidatorError, fetch_okapi_capabilities,
+};
 pub use contracts::{
     InferenceConfig as InferenceConfigParsed, ParsedContract, ParsedInference, TemplateFrontmatter,
     parse_frontmatter, validate_lexicon_terms,
-};
-pub use contract_validator::{
-    ContractValidator, OkapiCapabilities, OkapiRequirements, RegistrationFrontmatter, ValidationError, ValidatorError,
-    fetch_okapi_capabilities,
 };
 pub use csp::{
     CspPipelineExecutor, CspStageConfig, IsolatedStageRunner, StageExecutor, StageMessage,
     StageResult,
 };
-pub use dependency::{parse_dependencies, DependencyGraph};
+pub use dependency::{DependencyGraph, parse_dependencies};
 pub use error::{CompositionError, RetryConfig};
 pub use manifest::SelectorConfig;
 pub use ports::{
-    Action, CnsPort, CompositionTemplate, DEFAULT_MATROSHKA_LIMIT, FAST_LOCAL_MODEL,
-    DependencyProvider, InMemoryDependencyProvider, InferenceConfig, InferencePort, ManifestExecutor,
+    Action, CnsPort, CompositionTemplate, DEFAULT_MATROSHKA_LIMIT, DependencyProvider,
+    FAST_LOCAL_MODEL, InMemoryDependencyProvider, InferenceConfig, InferencePort, ManifestExecutor,
     ManifestStep, McpPort, MockSecurityPort, ProcessManifest, RegistryEntry, RegistryIndex, Result,
     SecurityPort, TemplateContract, TemplateError, TemplateRenderer,
 };

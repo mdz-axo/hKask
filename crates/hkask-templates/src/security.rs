@@ -83,34 +83,56 @@ impl SecurityAdapter {
         self.allowed_paths.insert(path.to_string());
     }
 
-    /// Validate template/manifest path (prevent path traversal)
+    /// Get the templates directory path (delegates to Registry)
+    fn get_templates_path() -> std::path::PathBuf {
+        use crate::registry::Registry;
+        Registry::get_templates_path()
+    }
+
+    /// Validate template/manifest path (defense in depth)
+    /// 
+    /// **Layer 1**: Reject obvious attacks (null bytes, obvious traversal)
+    /// **Layer 2**: URL decode and re-check (blocks %2e%2e attacks)
+    /// **Layer 3**: Double-decode and normalize (blocks %252e%252e attacks)
+    /// **Layer 4**: Pattern matching against known traversal patterns
+    /// **Layer 5**: Canonical path verification (blocks symlink attacks)
     pub fn validate_template_path(&self, path: &str) -> Result<()> {
-        // URL decode the path first (blocks %2e%2e/etc/passwd attacks)
+        // Layer 1: Reject obvious attacks
+        if path.contains('\0') {
+            return Err(TemplateError::PathTraversal("Null byte not allowed".to_string()));
+        }
+        if path.contains("..") {
+            return Err(TemplateError::PathTraversal("Path traversal pattern '..' not allowed".to_string()));
+        }
+        if path.starts_with('/') || path.starts_with('\\') {
+            return Err(TemplateError::PathTraversal("Absolute path not allowed".to_string()));
+        }
+        
+        // Layer 2: URL decode and re-check
         let decoded = percent_decode_str(path)
             .decode_utf8()
-            .map_err(|_| {
-                TemplateError::PathTraversal("Invalid UTF-8 in path".to_string())
-            })?;
+            .map_err(|_| TemplateError::PathTraversal("Invalid UTF-8 in path".to_string()))?;
         
-        // Double-decode to catch %252e%252e attacks
+        if decoded.contains("..") || decoded.starts_with('/') {
+            return Err(TemplateError::PathTraversal("Encoded path traversal detected".to_string()));
+        }
+        
+        // Layer 3: Double-decode to catch %252e%252e attacks
         let fully_decoded = percent_decode_str(decoded.as_ref())
             .decode_utf8()
             .unwrap_or_else(|_| decoded.clone());
-
-        let path = fully_decoded.as_ref();
-
-        // Normalize path: remove redundant slashes, resolve . components
-        let normalized = self.normalize_path(path);
-
-        // Reject absolute paths
-        if normalized.starts_with('/') || normalized.starts_with('\\') {
-            return Err(TemplateError::PathTraversal(format!(
-                "Absolute path not allowed: {}",
-                path
-            )));
+        
+        if fully_decoded.contains("..") || fully_decoded.starts_with('/') {
+            return Err(TemplateError::PathTraversal("Double-encoded path traversal detected".to_string()));
         }
-
-        // Reject path traversal patterns
+        
+        // Layer 4: Normalize and validate patterns
+        let normalized = self.normalize_path(&fully_decoded);
+        
+        if normalized.starts_with('/') || normalized.starts_with('\\') {
+            return Err(TemplateError::PathTraversal("Normalized absolute path not allowed".to_string()));
+        }
+        
         for pattern in PATH_TRAVERSAL_PATTERNS {
             if normalized.contains(pattern) {
                 return Err(TemplateError::PathTraversal(format!(
@@ -119,15 +141,33 @@ impl SecurityAdapter {
                 )));
             }
         }
-
-        // Reject null bytes
-        if normalized.contains('\0') {
-            return Err(TemplateError::PathTraversal(
-                "Null byte not allowed".to_string(),
-            ));
+        
+        // Layer 5: Canonical path verification (blocks symlink attacks)
+        // Only perform if path exists (skip for new templates)
+        let base_path = Self::get_templates_path();
+        let full_path = base_path.join(&normalized);
+        
+        if full_path.exists() {
+            match full_path.canonicalize() {
+                Ok(canonical) => {
+                    if !canonical.starts_with(&base_path) {
+                        return Err(TemplateError::PathTraversal(
+                            "Canonical path escapes template directory (symlink attack?)".to_string()
+                        ));
+                    }
+                }
+                Err(_) => {
+                    // canonicalize failed, but path exists - suspicious, allow but log
+                    tracing::warn!(
+                        target: "hkask.security",
+                        "Failed to canonicalize path: {}",
+                        full_path.display()
+                    );
+                }
+            }
         }
-
-        // Check against allowed paths if configured
+        
+        // Check against allowed paths if configured (allowlist override)
         if !self.allowed_paths.is_empty() {
             if !self
                 .allowed_paths
@@ -136,11 +176,11 @@ impl SecurityAdapter {
             {
                 return Err(TemplateError::PathTraversal(format!(
                     "Path not in allowed set: {}",
-                    path
+                    normalized
                 )));
             }
         }
-
+        
         Ok(())
     }
 
@@ -148,18 +188,18 @@ impl SecurityAdapter {
     fn normalize_path(&self, path: &str) -> String {
         // Check if path is absolute before normalization
         let is_absolute = path.starts_with('/') || path.starts_with('\\');
-        
+
         // Remove redundant slashes (replace // with /)
         let mut normalized = path.replace("//", "/");
         while normalized.contains("//") {
             normalized = normalized.replace("//", "/");
         }
-        
+
         // Remove trailing slashes (except for root)
         if normalized.len() > 1 {
             normalized = normalized.trim_end_matches('/').to_string();
         }
-        
+
         // Remove . components and empty parts
         let parts: Vec<&str> = normalized.split('/').collect();
         let mut result = Vec::new();
@@ -168,9 +208,9 @@ impl SecurityAdapter {
                 result.push(part);
             }
         }
-        
+
         let normalized = result.join("/");
-        
+
         // If original was absolute, preserve that information
         if is_absolute && normalized.is_empty() {
             "/".to_string()
@@ -189,13 +229,13 @@ impl SecurityAdapter {
         for pattern in JINJA2_DANGEROUS_PATTERNS {
             // Match pattern with or without {{ }} wrapper and flexible whitespace
             let patterns_to_check = vec![
-                format!("{{{{{}}}}}", pattern),           // {{config}}
-                format!("{{{{ {} }}}}", pattern),         // {{ config }}
-                format!("{{{{\t{}\t}}}}", pattern),       // {{	tab	}}
-                format!("{{{{\n{}\n}}}}", pattern),       // {{\nconfig\n}}
-                pattern.to_string(),                       // Direct pattern match
+                format!("{{{{{}}}}}", pattern),     // {{config}}
+                format!("{{{{ {} }}}}", pattern),   // {{ config }}
+                format!("{{{{\t{}\t}}}}", pattern), // {{	tab	}}
+                format!("{{{{\n{}\n}}}}", pattern), // {{\nconfig\n}}
+                pattern.to_string(),                // Direct pattern match
             ];
-            
+
             for p in patterns_to_check {
                 if sanitized.contains(&p) {
                     sanitized = sanitized.replace(&p, "{{ BLOCKED }}");
@@ -231,6 +271,10 @@ impl SecurityAdapter {
     }
 
     /// Emit CNS span for security event
+    /// 
+    /// Note: CNS span emission is asynchronous (best-effort audit trail).
+    /// Security decisions are NOT dependent on CNS emission success.
+    /// This is by design: audit should not block authorization decisions.
     fn emit_security_span(&self, event_type: &str, outcome: &str, _details: serde_json::Value) {
         if let Some(ref cns) = self.cns_runtime {
             // Use variety tracking for security events
@@ -242,6 +286,7 @@ impl SecurityAdapter {
                 _ => "security",
             };
             let state = format!("{}_{}", event_type, outcome);
+            // Spawn async task - audit is best-effort, never blocks security
             tokio::spawn({
                 let cns = Arc::clone(cns);
                 async move {
@@ -262,7 +307,10 @@ impl SecurityAdapter {
         use hkask_types::CapabilityResource;
 
         let result = (|| -> Result<()> {
-            if !self.capability_checker.verify_with_time(token, current_time) {
+            if !self
+                .capability_checker
+                .verify_with_time(token, current_time)
+            {
                 return Err(TemplateError::CapabilityDenied(
                     "Token expired or invalid".to_string(),
                 ));
@@ -447,8 +495,11 @@ impl crate::ports::SecurityPort for SecurityAdapter {
         current_time: i64,
     ) -> crate::ports::Result<()> {
         use hkask_types::CapabilityResource;
-        
-        if !self.capability_checker.verify_with_time(token, current_time) {
+
+        if !self
+            .capability_checker
+            .verify_with_time(token, current_time)
+        {
             return Err(crate::ports::TemplateError::CapabilityDenied(
                 "Token expired or invalid".to_string(),
             ));
@@ -551,7 +602,11 @@ mod tests {
         assert!(adapter.validate_template_path("%2e%2e/etc/passwd").is_err());
         assert!(adapter.validate_template_path("..%2fetc%2fpasswd").is_err());
         // Double-encoded should also be blocked
-        assert!(adapter.validate_template_path("%252e%252e/etc/passwd").is_err());
+        assert!(
+            adapter
+                .validate_template_path("%252e%252e/etc/passwd")
+                .is_err()
+        );
     }
 
     #[test]
@@ -776,6 +831,30 @@ mod tests {
                 } else {
                     prop_assert!(result.is_ok());
                 }
+            }
+
+            #[test]
+            fn test_security_composition(
+                path in "[a-zA-Z0-9/_-]{1,50}",
+                depth in 0u8..=10,
+                max_depth in 0u8..=10,
+                energy_req in 0u64..=2000,
+                energy_rem in 0u64..=2000
+            ) {
+                let adapter = SecurityAdapter::new(b"test-secret");
+                
+                // All security checks should work independently
+                let path_ok = adapter.validate_template_path(&path).is_ok() 
+                    || path.contains("..") || path.starts_with('/');
+                let depth_ok = adapter.check_recursion_depth(depth, max_depth).is_ok() 
+                    == (depth <= max_depth);
+                let energy_ok = adapter.check_energy_budget(energy_req, energy_rem).is_ok()
+                    == (energy_req <= energy_rem);
+                
+                // Composition: all checks should be consistent
+                prop_assert!(path_ok);
+                prop_assert!(depth_ok);
+                prop_assert!(energy_ok);
             }
         }
     }

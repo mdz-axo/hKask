@@ -51,25 +51,45 @@ pub struct OkapiCapabilities {
 /// Validation error with actionable message
 #[derive(Debug, Clone, Error)]
 pub enum ValidationError {
-    #[error("Template type '{template_type}' requires 'n_probs' in requires_okapi, but it was not specified. Add 'n_probs: 5' to enable token probability-based confidence routing.")]
+    #[error(
+        "Template type '{template_type}' requires 'n_probs' in requires_okapi, but it was not specified. Add 'n_probs: 5' to enable token probability-based confidence routing."
+    )]
     MissingNProbs { template_type: String },
 
-    #[error("Process template requires 'grammar' constraint in requires_okapi, but it was not specified. Add 'grammar: \"path/to/constraint.gbnf\"' to enable grammar-constrained decoding.")]
+    #[error(
+        "Process template requires 'grammar' constraint in requires_okapi, but it was not specified. Add 'grammar: \"path/to/constraint.gbnf\"' to enable grammar-constrained decoding."
+    )]
     MissingGrammar,
 
-    #[error("Template requires LoRA adapter '{adapter}', but Okapi's lora_hot_swap capability is disabled. Okapi runner type: {runner_type}. Use an ollamarunner-compatible model or remove the adapter requirement.")]
-    AdapterNotSupported { adapter: String, runner_type: String },
+    #[error(
+        "Template requires LoRA adapter '{adapter}', but Okapi's lora_hot_swap capability is disabled. Okapi runner type: {runner_type}. Use an ollamarunner-compatible model or remove the adapter requirement."
+    )]
+    AdapterNotSupported {
+        adapter: String,
+        runner_type: String,
+    },
 
-    #[error("Template requires 'n_probs' but Okapi's token_probs capability is disabled. Okapi runner type: {runner_type}. Token probabilities are only available with ollamarunner.")]
+    #[error(
+        "Template requires 'n_probs' but Okapi's token_probs capability is disabled. Okapi runner type: {runner_type}. Token probabilities are only available with ollamarunner."
+    )]
     TokenProbsNotSupported { runner_type: String },
 
-    #[error("Template requires 'grammar' but Okapi's grammar_native capability is disabled. Okapi runner type: {runner_type}. Grammar constraints are only available with ollamarunner.")]
+    #[error(
+        "Template requires 'grammar' but Okapi's grammar_native capability is disabled. Okapi runner type: {runner_type}. Grammar constraints are only available with ollamarunner."
+    )]
     GrammarNotSupported { runner_type: String },
 
-    #[error("Invalid lexicon term '{term}' - not found in hLexicon. Available terms: {available_terms:?}. Use only canonical hLexicon terms to ensure consistent LLM interpretation.")]
-    UnknownLexiconTerm { term: String, available_terms: Vec<String> },
+    #[error(
+        "Invalid lexicon term '{term}' - not found in hLexicon. Available terms: {available_terms:?}. Use only canonical hLexicon terms to ensure consistent LLM interpretation."
+    )]
+    UnknownLexiconTerm {
+        term: String,
+        available_terms: Vec<String>,
+    },
 
-    #[error("Confidence threshold {threshold} is outside valid range [0.0, 1.0]. Use a value between 0.0 and 1.0 inclusive.")]
+    #[error(
+        "Confidence threshold {threshold} is outside valid range [0.0, 1.0]. Use a value between 0.0 and 1.0 inclusive."
+    )]
     InvalidConfidenceThreshold { threshold: f64 },
 
     #[error("Failed to fetch Okapi capabilities: {0}")]
@@ -91,7 +111,10 @@ impl ContractValidator {
     }
 
     /// Validate template frontmatter at registration time
-    pub fn validate(&self, frontmatter: &RegistrationFrontmatter) -> Result<(), Vec<ValidationError>> {
+    pub fn validate(
+        &self,
+        frontmatter: &RegistrationFrontmatter,
+    ) -> Result<(), Vec<ValidationError>> {
         let mut errors = Vec::new();
 
         if let Some(reqs) = &frontmatter.requires_okapi {
@@ -152,7 +175,9 @@ impl ContractValidator {
 
 /// Fetch Okapi capabilities at hKask startup
 /// TODO: Implement with proper HTTP client when reqwest is added
-pub async fn fetch_okapi_capabilities(_okapi_base_url: &str) -> Result<OkapiCapabilities, ValidatorError> {
+pub async fn fetch_okapi_capabilities(
+    _okapi_base_url: &str,
+) -> Result<OkapiCapabilities, ValidatorError> {
     // Placeholder - returns default capabilities
     Ok(OkapiCapabilities {
         runner_type: "ollamarunner".to_string(),
@@ -243,7 +268,11 @@ mod tests {
         let result = validator.validate(&frontmatter);
         assert!(result.is_err());
         let errors = result.unwrap_err();
-        assert!(errors.iter().any(|e| matches!(e, ValidationError::MissingNProbs { .. })));
+        assert!(
+            errors
+                .iter()
+                .any(|e| matches!(e, ValidationError::MissingNProbs { .. }))
+        );
     }
 
     #[test]
@@ -267,7 +296,12 @@ mod tests {
 
         let result = validator.validate(&frontmatter);
         assert!(result.is_err());
-        assert!(result.unwrap_err().iter().any(|e| matches!(e, ValidationError::MissingGrammar)));
+        assert!(
+            result
+                .unwrap_err()
+                .iter()
+                .any(|e| matches!(e, ValidationError::MissingGrammar))
+        );
     }
 
     #[test]
@@ -292,7 +326,11 @@ mod tests {
         let result = validator.validate(&frontmatter);
         assert!(result.is_err());
         let errors = result.unwrap_err();
-        assert!(errors.iter().any(|e| matches!(e, ValidationError::UnknownLexiconTerm { .. })));
+        assert!(
+            errors
+                .iter()
+                .any(|e| matches!(e, ValidationError::UnknownLexiconTerm { .. }))
+        );
     }
 
     #[test]
@@ -319,7 +357,12 @@ mod tests {
 
         let result = validator.validate(&frontmatter);
         assert!(result.is_err());
-        assert!(result.unwrap_err().iter().any(|e| matches!(e, ValidationError::InvalidConfidenceThreshold { .. })));
+        assert!(
+            result
+                .unwrap_err()
+                .iter()
+                .any(|e| matches!(e, ValidationError::InvalidConfidenceThreshold { .. }))
+        );
     }
 
     #[test]
@@ -327,7 +370,7 @@ mod tests {
         let mut capabilities = create_test_capabilities();
         capabilities.token_probs = false;
         capabilities.runner_type = "llamarunner".to_string();
-        
+
         let lexicon = create_test_lexicon();
         let validator = ContractValidator::new(capabilities, lexicon);
 
@@ -346,6 +389,11 @@ mod tests {
 
         let result = validator.validate(&frontmatter);
         assert!(result.is_err());
-        assert!(result.unwrap_err().iter().any(|e| matches!(e, ValidationError::TokenProbsNotSupported { .. })));
+        assert!(
+            result
+                .unwrap_err()
+                .iter()
+                .any(|e| matches!(e, ValidationError::TokenProbsNotSupported { .. }))
+        );
     }
 }

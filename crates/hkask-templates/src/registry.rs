@@ -202,7 +202,138 @@ impl Registry {
     pub fn bootstrap() -> Self {
         let mut registry = Self::new();
 
-        // Core prompt templates (WordAct - what to say)
+        // ─── DCT Pipeline Templates (migrated from kask/stack) ──────────────
+        registry.register(
+            TemplateEntry::new(
+                "dct-pipeline/decimation",
+                TemplateType::Prompt,
+                "Linguistic Decimation",
+                "Decomposes natural language into atomic SVO sentences with semantic relations",
+            )
+            .with_lexicon(vec![
+                "decimate",
+                "decompose",
+                "atomic",
+                "relation",
+                "semantic",
+            ])
+            .with_source("registry/registries/dct-pipeline/decimation.jinja2"),
+        );
+
+        registry.register(
+            TemplateEntry::new(
+                "dct-pipeline/classification",
+                TemplateType::Prompt,
+                "Semantic Classification",
+                "Classifies sentences into goal/constraint/task with ontological/epistemic tagging",
+            )
+            .with_lexicon(vec![
+                "classify",
+                "discriminate",
+                "categorize",
+                "parent",
+                "ontological",
+                "epistemic",
+            ])
+            .with_source("registry/registries/dct-pipeline/classification.jinja2"),
+        );
+
+        // ─── Reasoning Templates (migrated from kask/stack) ─────────────────
+        registry.register(
+            TemplateEntry::new(
+                "reasoning/reason_constrained",
+                TemplateType::Prompt,
+                "Constrained Reasoning",
+                "Applies reasoning with evidence, constraints, and tool verification",
+            )
+            .with_lexicon(vec![
+                "reason",
+                "converge",
+                "diverge",
+                "evidence",
+                "constraint",
+                "tool",
+                "verify",
+            ])
+            .with_source("registry/registries/reasoning/reason_constrained.jinja2"),
+        );
+
+        registry.register(
+            TemplateEntry::new(
+                "reasoning/reasoning",
+                TemplateType::Prompt,
+                "Atomic Fact Extraction",
+                "Derives atomic SPO triples with confidence scores from evidence",
+            )
+            .with_lexicon(vec![
+                "reason",
+                "derive",
+                "fact",
+                "atomic",
+                "confidence",
+                "evidence",
+            ])
+            .with_source("registry/registries/reasoning/reasoning.jinja2"),
+        );
+
+        // ─── Review Templates ───────────────────────────────────────────────
+        registry.register(
+            TemplateEntry::new(
+                "review/self_critique",
+                TemplateType::Prompt,
+                "Self-Critique Review",
+                "Evaluates derived knowledge for gaps, contradictions, and unsupported claims",
+            )
+            .with_lexicon(vec![
+                "critique",
+                "evaluate",
+                "contradiction",
+                "gap",
+                "confidence",
+                "calibration",
+                "verify",
+            ])
+            .with_source("registry/registries/review/self_critique.jinja2"),
+        );
+
+        // ─── Composition Templates ──────────────────────────────────────────
+        registry.register(
+            TemplateEntry::new(
+                "composition/answer_composition",
+                TemplateType::Prompt,
+                "Answer Composition",
+                "Synthesizes final answer from cycle-derived facts with LLM supplementation",
+            )
+            .with_lexicon(vec![
+                "compose",
+                "synthesize",
+                "answer",
+                "evidence",
+                "supplement",
+            ])
+            .with_source("registry/registries/composition/answer_composition.jinja2"),
+        );
+
+        // ─── Metacognition Templates ────────────────────────────────────────
+        registry.register(
+            TemplateEntry::new(
+                "metacognition/meta_decompose",
+                TemplateType::Process,
+                "Goal Decomposition",
+                "Breaks high-level goals into subgoals with dependencies and effort estimates",
+            )
+            .with_lexicon(vec![
+                "decompose",
+                "subgoal",
+                "dependency",
+                "strategy",
+                "effort",
+                "calibrate",
+            ])
+            .with_source("registry/registries/metacognition/meta_decompose.jinja2"),
+        );
+
+        // ─── Core prompt templates (WordAct - what to say) ──────────────────
         registry.register(
             TemplateEntry::new(
                 "prompt/selector",
@@ -236,29 +367,7 @@ impl Registry {
             .with_source(&Self::get_template_path("prompt/execute").to_string_lossy()),
         );
 
-        registry.register(
-            TemplateEntry::new(
-                "prompt/render",
-                TemplateType::Prompt,
-                "Template Renderer",
-                "Renders Jinja2 template with bound variables",
-            )
-            .with_lexicon(vec!["compose", "bind", "render"])
-            .with_source("registry/templates/prompt_render.j2"),
-        );
-
-        registry.register(
-            TemplateEntry::new(
-                "prompt/execute",
-                TemplateType::Prompt,
-                "Template Executor",
-                "Executes rendered template via model/tool",
-            )
-            .with_lexicon(vec!["invoke", "dispatch", "execute"])
-            .with_source("registry/templates/prompt_execute.j2"),
-        );
-
-        // Core cognition templates (KnowAct - how to think)
+        // ─── Core cognition templates (KnowAct - how to think) ──────────────
         registry.register(
             TemplateEntry::new(
                 "cognition/detect",
@@ -281,7 +390,7 @@ impl Registry {
             .with_source(&Self::get_template_path("cognition/calibrate").to_string_lossy()),
         );
 
-        // Core process templates (FlowDef - what to do)
+        // ─── Core process templates (FlowDef - what to do) ──────────────────
         registry.register(
             TemplateEntry::new(
                 "process/memory/recall",

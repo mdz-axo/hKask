@@ -1,0 +1,52 @@
+# Prometheus Configuration for hKask Okapi Monitoring
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'hkask-okapi-cluster'
+
+scrape_configs:
+  # hKask application metrics
+  - job_name: 'hkask'
+    static_configs:
+      - targets: ['localhost:8080']
+    metrics_path: '/metrics'
+    scrape_timeout: 10s
+
+  # Okapi instance metrics
+  - job_name: 'okapi'
+    static_configs:
+      - targets:
+        - 'localhost:11435'
+        - 'localhost:11436'
+        - 'localhost:11437'
+    metrics_path: '/api/metrics'
+    scrape_timeout: 10s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: port
+        regex: '.*:(\\d+)'
+        replacement: '${1}'
+
+  # Node exporter for system metrics
+  - job_name: 'node'
+    static_configs:
+      - targets: ['localhost:9100']
+    scrape_timeout: 10s
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+# Alerting rules
+rule_files:
+  - 'alerts/hkask_alerts.yml'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+      - targets:
+        - 'localhost:9093'

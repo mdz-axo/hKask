@@ -5,6 +5,7 @@
 
 use hkask_types::TemplateType;
 use hkask_types::{CapabilityToken, WebID};
+use percent_encoding::percent_decode_str;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::Path;
@@ -69,6 +70,114 @@ pub enum TemplateError {
     CapabilityDenied(String),
     #[error("Timeout: {0}")]
     Timeout(String),
+}
+
+/// Manifest execution error with precise recovery semantics
+#[derive(Debug, thiserror::Error)]
+pub enum ManifestExecutionError {
+    #[error("Step {ordinal} failed: {reason}")]
+    StepFailure { ordinal: u32, reason: String },
+    
+    #[error("State transition invalid: {from} -> {to}")]
+    InvalidTransition { from: String, to: String },
+    
+    #[error("CNS event emission failed at step {ordinal}")]
+    CnsEmissionFailure { ordinal: u32 },
+    
+    #[error("Recursion depth {current} exceeded limit {max}")]
+    DepthExceeded { current: u8, max: u8 },
+    
+    #[error("Capability check failed: {capability}")]
+    CapabilityDenied { capability: String },
+    
+    #[error("Template selection failed: {reason}")]
+    SelectionFailed { reason: String },
+    
+    #[error("Template population failed: {template_ref}: {reason}")]
+    PopulationFailed { template_ref: String, reason: String },
+    
+    #[error("Template execution failed: {mcp_target}: {reason}")]
+    ExecutionFailed { mcp_target: String, reason: String },
+    
+    #[error("Manifest validation failed: {field}: {reason}")]
+    ValidationFailed { field: String, reason: String },
+    
+    #[error("Manifest not found: {manifest_id}")]
+    ManifestNotFound { manifest_id: String },
+    
+    #[error("YAML parse error: {reason}")]
+    YamlParseError { reason: String },
+    
+    #[error("I/O error: {reason}")]
+    IoError { reason: String },
+}
+
+impl ManifestExecutionError {
+    /// Check if error is retryable
+    pub fn is_retryable(&self) -> bool {
+        match self {
+            ManifestExecutionError::StepFailure { .. } => false,
+            ManifestExecutionError::InvalidTransition { .. } => false,
+            ManifestExecutionError::CnsEmissionFailure { .. } => true,
+            ManifestExecutionError::DepthExceeded { .. } => false,
+            ManifestExecutionError::CapabilityDenied { .. } => false,
+            ManifestExecutionError::SelectionFailed { .. } => true,
+            ManifestExecutionError::PopulationFailed { .. } => true,
+            ManifestExecutionError::ExecutionFailed { .. } => true,
+            ManifestExecutionError::ValidationFailed { .. } => false,
+            ManifestExecutionError::ManifestNotFound { .. } => false,
+            ManifestExecutionError::YamlParseError { .. } => false,
+            ManifestExecutionError::IoError { .. } => true,
+        }
+    }
+    
+    /// Get error category for CNS monitoring
+    pub fn category(&self) -> &'static str {
+        match self {
+            ManifestExecutionError::StepFailure { .. } => "step_failure",
+            ManifestExecutionError::InvalidTransition { .. } => "invalid_transition",
+            ManifestExecutionError::CnsEmissionFailure { .. } => "cns_failure",
+            ManifestExecutionError::DepthExceeded { .. } => "depth_exceeded",
+            ManifestExecutionError::CapabilityDenied { .. } => "capability_denied",
+            ManifestExecutionError::SelectionFailed { .. } => "selection_failed",
+            ManifestExecutionError::PopulationFailed { .. } => "population_failed",
+            ManifestExecutionError::ExecutionFailed { .. } => "execution_failed",
+            ManifestExecutionError::ValidationFailed { .. } => "validation_failed",
+            ManifestExecutionError::ManifestNotFound { .. } => "manifest_not_found",
+            ManifestExecutionError::YamlParseError { .. } => "yaml_parse_error",
+            ManifestExecutionError::IoError { .. } => "io_error",
+        }
+    }
+    
+    /// Convert to TemplateError for backward compatibility
+    pub fn to_template_error(&self) -> TemplateError {
+        match self {
+            ManifestExecutionError::StepFailure { reason, .. } => TemplateError::Manifest(reason.clone()),
+            ManifestExecutionError::InvalidTransition { .. } => TemplateError::Validation("Invalid state transition".to_string()),
+            ManifestExecutionError::CnsEmissionFailure { .. } => TemplateError::Manifest("CNS emission failed".to_string()),
+            ManifestExecutionError::DepthExceeded { max, .. } => TemplateError::RecursionLimit { max: *max },
+            ManifestExecutionError::CapabilityDenied { capability } => TemplateError::CapabilityDenied(capability.clone()),
+            ManifestExecutionError::SelectionFailed { reason } => TemplateError::Manifest(reason.clone()),
+            ManifestExecutionError::PopulationFailed { reason, .. } => TemplateError::Render(reason.clone()),
+            ManifestExecutionError::ExecutionFailed { reason, .. } => TemplateError::Mcp(reason.clone()),
+            ManifestExecutionError::ValidationFailed { reason, .. } => TemplateError::Validation(reason.clone()),
+            ManifestExecutionError::ManifestNotFound { manifest_id } => TemplateError::NotFound(format!("Manifest {}", manifest_id)),
+            ManifestExecutionError::YamlParseError { reason } => TemplateError::Manifest(reason.clone()),
+            ManifestExecutionError::IoError { reason } => TemplateError::Manifest(reason.clone()),
+        }
+    }
+}
+
+impl From<std::io::Error> for ManifestExecutionError {
+    fn from(err: std::io::Error) -> Self {
+        ManifestExecutionError::IoError { reason: err.to_string() }
+    }
+}
+
+impl From<serde_yaml::Error> for ManifestExecutionError {
+    fn from(err: serde_yaml::Error) -> Self {
+        ManifestExecutionError::YamlParseError { reason: err.to_string() }
+    }
 }
 
 pub type Result<T> = std::result::Result<T, TemplateError>;
@@ -139,7 +248,14 @@ impl<'de> serde::Deserialize<'de> for Action {
         D: serde::Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        Action::from_str(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &["Select", "Populate", "Execute", "select", "populate", "execute"]))
+        Action::from_str(&s).ok_or_else(|| {
+            serde::de::Error::unknown_variant(
+                &s,
+                &[
+                    "Select", "Populate", "Execute", "select", "populate", "execute",
+                ],
+            )
+        })
     }
 }
 
@@ -191,12 +307,15 @@ impl ProcessManifest {
     /// Load manifest from YAML file
     pub fn load_from_yaml(path: &Path) -> Result<Self> {
         let yaml_content = std::fs::read_to_string(path).map_err(|e| {
-            TemplateError::Manifest(format!("Failed to read manifest file {}: {}", path.display(), e))
+            TemplateError::Manifest(format!(
+                "Failed to read manifest file {}: {}",
+                path.display(),
+                e
+            ))
         })?;
-        
-        serde_yaml::from_str(&yaml_content).map_err(|e| {
-            TemplateError::Manifest(format!("Failed to parse manifest YAML: {}", e))
-        })
+
+        serde_yaml::from_str(&yaml_content)
+            .map_err(|e| TemplateError::Manifest(format!("Failed to parse manifest YAML: {}", e)))
     }
 }
 
@@ -307,6 +426,25 @@ pub trait SecurityPort: Send + Sync {
         stage_name: &str,
         current_time: i64,
     ) -> Result<()>;
+
+    /// Check capability for stage operation with context nonce validation
+    fn check_stage_capability_with_context(
+        &self,
+        token: &CapabilityToken,
+        holder: &WebID,
+        stage_name: &str,
+        current_time: i64,
+        expected_context: &str,
+    ) -> Result<()> {
+        // Default implementation: check stage capability and validate context nonce
+        self.check_stage_capability(token, holder, stage_name, current_time)?;
+        if !token.validate_context_nonce(expected_context) {
+            return Err(TemplateError::CapabilityDenied(
+                "Context nonce does not match execution context".to_string(),
+            ));
+        }
+        Ok(())
+    }
 
     /// Create attenuated capability for delegation
     fn attenuate_capability(
@@ -446,7 +584,7 @@ impl SecurityPort for MockSecurityPort {
         }
     }
 
-        fn attenuate_capability(
+    fn attenuate_capability(
         &self,
         token: &CapabilityToken,
         new_to: WebID,
@@ -454,7 +592,6 @@ impl SecurityPort for MockSecurityPort {
     ) -> Option<CapabilityToken> {
         if self.should_attenuate {
             // Create a simple attenuated token for testing
-            use hkask_types::CapabilityAction;
             Some(CapabilityToken {
                 id: format!("{}-attenuated", token.id),
                 resource: token.resource,
@@ -475,15 +612,49 @@ impl SecurityPort for MockSecurityPort {
 
     fn validate_path(&self, path: &str) -> Result<()> {
         if self.should_validate_path {
-            // Simple validation: reject absolute paths and traversal
-            if path.starts_with('/') || path.starts_with('\\') || path.contains("..") {
-                Err(TemplateError::PathTraversal(format!(
-                    "Invalid path: {}",
+            // Match SecurityAdapter validation: URL decode, double-decode, normalize
+            
+            // URL decode the path first
+            let decoded = percent_decode_str(path)
+                .decode_utf8()
+                .map_err(|_| {
+                    TemplateError::PathTraversal("Invalid UTF-8 in path".to_string())
+                })?;
+            
+            // Double-decode to catch %252e%252e attacks
+            let fully_decoded = percent_decode_str(decoded.as_ref())
+                .decode_utf8()
+                .unwrap_or_else(|_| decoded.clone());
+
+            let normalized_path = fully_decoded.as_ref();
+
+            // Reject absolute paths
+            if normalized_path.starts_with('/') || normalized_path.starts_with('\\') {
+                return Err(TemplateError::PathTraversal(format!(
+                    "Absolute path not allowed: {}",
                     path
-                )))
-            } else {
-                Ok(())
+                )));
             }
+
+            // Reject path traversal patterns
+            const PATH_TRAVERSAL_PATTERNS: &[&str] = &["..", "/etc/", "/proc/", "/sys/", "//", "\\..", "/.."];
+            for pattern in PATH_TRAVERSAL_PATTERNS {
+                if normalized_path.contains(pattern) {
+                    return Err(TemplateError::PathTraversal(format!(
+                        "Path traversal pattern detected: {}",
+                        pattern
+                    )));
+                }
+            }
+
+            // Reject null bytes
+            if normalized_path.contains('\0') {
+                return Err(TemplateError::PathTraversal(
+                    "Null byte not allowed".to_string(),
+                ));
+            }
+
+            Ok(())
         } else {
             Err(TemplateError::PathTraversal(
                 "Mock path validation failed".to_string(),
@@ -560,8 +731,14 @@ mod tests {
             .with_dependency("key1", serde_json::json!("value1"))
             .with_dependency("key2", serde_json::json!("value2"));
 
-        assert_eq!(provider.get_dependency("key1"), Some(serde_json::json!("value1")));
-        assert_eq!(provider.get_dependency("key2"), Some(serde_json::json!("value2")));
+        assert_eq!(
+            provider.get_dependency("key1"),
+            Some(serde_json::json!("value1"))
+        );
+        assert_eq!(
+            provider.get_dependency("key2"),
+            Some(serde_json::json!("value2"))
+        );
         assert_eq!(provider.get_dependency("key3"), None);
     }
 
@@ -580,21 +757,61 @@ mod tests {
     #[test]
     fn test_process_manifest_load_from_yaml() {
         use std::path::PathBuf;
-        
+
         let yaml_path = PathBuf::from("registry/manifests/dispatch.yaml");
         if yaml_path.exists() {
             let manifest = ProcessManifest::load_from_yaml(&yaml_path).unwrap();
-            
+
             assert_eq!(manifest.id, "registry/dispatch");
             assert_eq!(manifest.name, "Registry Dispatch");
             assert_eq!(manifest.steps.len(), 3);
-            
+
             assert_eq!(manifest.steps[0].action, Action::Select);
             assert_eq!(manifest.steps[0].template_ref, "prompt/selector");
-            
+
             assert_eq!(manifest.steps[1].action, Action::Populate);
-            
+
             assert_eq!(manifest.steps[2].action, Action::Execute);
         }
+    }
+
+    #[test]
+    fn test_manifest_execution_error_retryable() {
+        let err = ManifestExecutionError::StepFailure {
+            ordinal: 1,
+            reason: "test".to_string(),
+        };
+        assert!(!err.is_retryable());
+        assert_eq!(err.category(), "step_failure");
+    }
+
+    #[test]
+    fn test_manifest_execution_error_retryable_cases() {
+        // Retryable errors
+        assert!(ManifestExecutionError::CnsEmissionFailure { ordinal: 1 }.is_retryable());
+        assert!(ManifestExecutionError::SelectionFailed { reason: "test".to_string() }.is_retryable());
+        assert!(ManifestExecutionError::PopulationFailed { template_ref: "test".to_string(), reason: "test".to_string() }.is_retryable());
+        assert!(ManifestExecutionError::ExecutionFailed { mcp_target: "test".to_string(), reason: "test".to_string() }.is_retryable());
+        assert!(ManifestExecutionError::IoError { reason: "test".to_string() }.is_retryable());
+        
+        // Non-retryable errors
+        assert!(!ManifestExecutionError::DepthExceeded { current: 10, max: 7 }.is_retryable());
+        assert!(!ManifestExecutionError::CapabilityDenied { capability: "test".to_string() }.is_retryable());
+        assert!(!ManifestExecutionError::ValidationFailed { field: "test".to_string(), reason: "test".to_string() }.is_retryable());
+    }
+
+    #[test]
+    fn test_manifest_execution_error_from_io() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "file not found");
+        let manifest_err: ManifestExecutionError = io_err.into();
+        assert!(matches!(manifest_err, ManifestExecutionError::IoError { .. }));
+        assert!(manifest_err.is_retryable());
+    }
+
+    #[test]
+    fn test_manifest_execution_error_to_template_error() {
+        let err = ManifestExecutionError::DepthExceeded { current: 10, max: 7 };
+        let template_err = err.to_template_error();
+        assert!(matches!(template_err, TemplateError::RecursionLimit { max: 7 }));
     }
 }

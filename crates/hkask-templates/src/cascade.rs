@@ -263,7 +263,7 @@ impl CascadeExecutor {
         security.allow_path("prompt/");
         security.allow_path("process/");
         security.allow_path("cognition/");
-        
+
         Self {
             max_depth: MAX_CASCADE_DEPTH,
             cycle_detection: true,
@@ -299,7 +299,8 @@ impl CascadeExecutor {
         input: Value,
         registry: &dyn RegistryIndex,
     ) -> Result<Value> {
-        let mut context = CascadeContext::new(&self.security.get_secret()).with_depth(cascade.max_depth);
+        let mut context =
+            CascadeContext::new(&self.security.get_secret()).with_depth(cascade.max_depth);
         let mut state = input;
 
         // Execute pre stages (context enrichment, validation)
@@ -743,7 +744,7 @@ mod tests {
         let secret = [0u8; 32];
         let from = WebID::new();
         let to = WebID::new();
-        
+
         let token = CapabilityToken::new(
             CapabilityResource::Cascade,
             "test".to_string(),
@@ -752,17 +753,17 @@ mod tests {
             to,
             &secret,
         );
-        
+
         let context = CascadeContext::new(&secret)
             .with_depth(3)
             .with_capability(token.clone());
-        
+
         let new_holder = WebID::new();
         let child = context.child_context(new_holder);
 
         assert_eq!(child.current_depth, 4);
         assert_eq!(child.energy_remaining, context.energy_remaining);
-        
+
         // Verify attenuation occurred
         assert!(child.capability_token.is_some());
         let child_token = child.capability_token.unwrap();
@@ -774,7 +775,7 @@ mod tests {
         let secret = [0u8; 32];
         let from = WebID::new();
         let to = WebID::new();
-        
+
         // Create token at max attenuation
         let token = CapabilityToken::new_with_attenuation(
             CapabilityResource::Cascade,
@@ -784,15 +785,15 @@ mod tests {
             to,
             &secret,
             None,
-            7, // max_attenuation
-            7, // attenuation_level at max
+            7,    // max_attenuation
+            7,    // attenuation_level at max
             None, // context_nonce
         );
-        
+
         let context = CascadeContext::new(&secret)
             .with_depth(3)
             .with_capability(token);
-        
+
         let new_holder = WebID::new();
         let child = context.child_context(new_holder);
 
@@ -805,7 +806,7 @@ mod tests {
         let secret = [0u8; 32];
         let from = WebID::new();
         let to = WebID::new();
-        
+
         let token = CapabilityToken::new(
             CapabilityResource::Template,
             "test-template".to_string(),
@@ -814,10 +815,9 @@ mod tests {
             to,
             &secret,
         );
-        
-        let context = CascadeContext::new(&secret)
-            .with_capability(token);
-        
+
+        let context = CascadeContext::new(&secret).with_capability(token);
+
         // Valid capability
         let result = context.check_capability(
             CapabilityResource::Template,
@@ -825,7 +825,7 @@ mod tests {
             CapabilityAction::Read,
         );
         assert!(result.is_ok());
-        
+
         // Wrong resource
         let result = context.check_capability(
             CapabilityResource::Manifest,
@@ -833,7 +833,7 @@ mod tests {
             CapabilityAction::Read,
         );
         assert!(result.is_err());
-        
+
         // Wrong action
         let result = context.check_capability(
             CapabilityResource::Template,
@@ -885,7 +885,10 @@ mod tests {
 
         let result = executor.execute(&cascade, Value::Null, &registry);
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), TemplateError::PathTraversal(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            TemplateError::PathTraversal(_)
+        ));
     }
 
     #[test]
@@ -898,7 +901,10 @@ mod tests {
 
         let result = executor.execute(&cascade, Value::Null, &registry);
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), TemplateError::PathTraversal(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            TemplateError::PathTraversal(_)
+        ));
     }
 
     #[test]
@@ -906,7 +912,7 @@ mod tests {
         let secret = [42u8; 32];
         let executor = CascadeExecutor::new(&secret);
         let registry = MockRegistry::new();
-        
+
         // Create initial capability for the template resource
         let from = WebID::new();
         let to = WebID::new();
@@ -918,9 +924,9 @@ mod tests {
             to,
             &secret,
         );
-        
+
         assert_eq!(token.attenuation_level, 0);
-        
+
         // Execute with capability - context should attenuate on each recursive call
         let cascade = CascadeBuilder::new("test")
             .pre("enrich", vec!["prompt/test"])

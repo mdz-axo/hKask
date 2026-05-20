@@ -119,7 +119,7 @@ where
                             );
                             obj.insert("fallback_applied".to_string(), Value::Bool(true));
                         }
-                        
+
                         // Emit select event with fallback info
                         self.cns.emit(
                             "cns.prompt.select",
@@ -131,7 +131,7 @@ where
                             }).as_object().unwrap().clone()),
                             confidence,
                         );
-                        
+
                         fallback_result
                     } else {
                         // Emit select event with normal confidence
@@ -140,7 +140,7 @@ where
                             .and_then(|v| v.as_str())
                             .unwrap_or("unknown")
                             .to_string();
-                        
+
                         self.cns.emit(
                             "cns.prompt.select",
                             Value::Object(serde_json::json!({
@@ -151,22 +151,27 @@ where
                             }).as_object().unwrap().clone()),
                             confidence,
                         );
-                        
+
                         selection_result
                     }
                 } else {
                     // No confidence field; pass through with default
                     self.cns.emit(
                         "cns.prompt.select",
-                        Value::Object(serde_json::json!({
-                            "selected_template": "unknown",
-                            "confidence": 0.0,
-                            "fallback_applied": false,
-                            "rationale": "No confidence provided"
-                        }).as_object().unwrap().clone()),
+                        Value::Object(
+                            serde_json::json!({
+                                "selected_template": "unknown",
+                                "confidence": 0.0,
+                                "fallback_applied": false,
+                                "rationale": "No confidence provided"
+                            })
+                            .as_object()
+                            .unwrap()
+                            .clone(),
+                        ),
                         0.5,
                     );
-                    
+
                     selection_result
                 }
             }
@@ -178,17 +183,22 @@ where
                 } else {
                     1.0
                 };
-                
+
                 // Emit CNS event for populate
                 self.cns.emit(
                     "cns.prompt.populate",
-                    Value::Object(serde_json::json!({
-                        "binding_count": binding_count,
-                        "template_ref": step.template_ref
-                    }).as_object().unwrap().clone()),
+                    Value::Object(
+                        serde_json::json!({
+                            "binding_count": binding_count,
+                            "template_ref": step.template_ref
+                        })
+                        .as_object()
+                        .unwrap()
+                        .clone(),
+                    ),
                     0.9,
                 );
-                
+
                 Value::String(format!("Populated: {:?}", state))
             }
             Action::Execute => {
@@ -203,17 +213,22 @@ where
                 } else {
                     Value::String(format!("Executed: {:?}", state))
                 };
-                
+
                 // Emit CNS event for execute
                 self.cns.emit(
                     "cns.prompt.execute",
-                    Value::Object(serde_json::json!({
-                        "mcp_target": step.mcp.clone().unwrap_or_else(|| "none".to_string()),
-                        "outcome": "success"
-                    }).as_object().unwrap().clone()),
+                    Value::Object(
+                        serde_json::json!({
+                            "mcp_target": step.mcp.clone().unwrap_or_else(|| "none".to_string()),
+                            "outcome": "success"
+                        })
+                        .as_object()
+                        .unwrap()
+                        .clone(),
+                    ),
                     0.95,
                 );
-                
+
                 result
             }
         };
@@ -251,13 +266,18 @@ where
         // Emit final outcome event with execution summary
         self.cns.emit(
             "cns.prompt.outcome",
-            Value::Object(serde_json::json!({
-                "manifest_id": manifest.id,
-                "total_steps": manifest.steps.len(),
-                "duration_ms": duration.as_millis() as u64,
-                "outcome": "success",
-                "result": state
-            }).as_object().unwrap().clone()),
+            Value::Object(
+                serde_json::json!({
+                    "manifest_id": manifest.id,
+                    "total_steps": manifest.steps.len(),
+                    "duration_ms": duration.as_millis() as u64,
+                    "outcome": "success",
+                    "result": state
+                })
+                .as_object()
+                .unwrap()
+                .clone(),
+            ),
             1.0,
         );
 

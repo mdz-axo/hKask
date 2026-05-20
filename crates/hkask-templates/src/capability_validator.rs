@@ -3,7 +3,7 @@
 //! Integrates template contract validation with Okapi capability-based security.
 
 use crate::contract_validator::{
-    OkapiCapabilities, OkapiRequirements, RegistrationFrontmatter, ValidationError, ValidatorError,
+    OkapiCapabilities, OkapiRequirements, RegistrationFrontmatter, ValidationError,
 };
 use hkask_ensemble::ports;
 use hkask_types::TemplateType;
@@ -25,7 +25,10 @@ impl CapabilityAwareValidator {
     }
 
     /// Create from port capability provider
-    pub async fn from_provider<CP>(provider: &CP, hlexicon_terms: Vec<String>) -> Result<Self, CP::Error>
+    pub async fn from_provider<CP>(
+        provider: &CP,
+        hlexicon_terms: Vec<String>,
+    ) -> Result<Self, CP::Error>
     where
         CP: ports::CapabilityProvider,
         CP::Capabilities: Into<OkapiCapabilities>,
@@ -142,11 +145,7 @@ impl ValidationWithCapabilities {
         self
     }
 
-    pub fn with_capabilities(
-        mut self,
-        required: Vec<String>,
-        available: Vec<String>,
-    ) -> Self {
+    pub fn with_capabilities(mut self, required: Vec<String>, available: Vec<String>) -> Self {
         self.required_capabilities = required;
         self.available_capabilities = available;
         self
@@ -166,6 +165,7 @@ pub enum CapabilityAwareValidationError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::contract_validator::OkapiRequirements;
     use hkask_ensemble::ports::OkapiCapabilities as EnsembleOkapiCapabilities;
 
     #[test]
@@ -177,7 +177,10 @@ mod tests {
             grammar_native: true,
             advanced_sampling: true,
         };
-        let validator = CapabilityAwareValidator::new(capabilities, vec!["classify".to_string(), "recognize".to_string()]);
+        let validator = CapabilityAwareValidator::new(
+            capabilities,
+            vec!["classify".to_string(), "recognize".to_string()],
+        );
 
         let frontmatter = RegistrationFrontmatter {
             template_type: TemplateType::Prompt,
@@ -223,8 +226,10 @@ mod tests {
         let result = validator.validate(&frontmatter);
         assert!(result.is_err());
         let errors = result.unwrap_err();
-        assert!(errors
-            .iter()
-            .any(|e| matches!(e, ValidationError::TokenProbsNotSupported { .. })));
+        assert!(
+            errors
+                .iter()
+                .any(|e| matches!(e, ValidationError::TokenProbsNotSupported { .. }))
+        );
     }
 }

@@ -17,10 +17,12 @@
 //! 4. Propagate errors via channel
 
 use crate::error::{CompositionError, RetryConfig};
+use crate::ports::SecurityPort;
 use crate::security::SecurityAdapter;
 use crate::skill_translation::{PipelineStage, StageOutput};
 use hkask_types::{CapabilityToken, WebID};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio::time::timeout;
@@ -183,14 +185,14 @@ impl CspStageConfig {
 /// CSP Pipeline Executor
 pub struct CspPipelineExecutor {
     stages: Vec<CspStageConfig>,
-    security: SecurityAdapter,
+    security: Arc<dyn SecurityPort>,
     capability_token: Option<CapabilityToken>,
     holder: Option<WebID>,
 }
 
 impl CspPipelineExecutor {
-    pub fn new(stages: Vec<CspStageConfig>, security: SecurityAdapter) -> Self {
-        Self { 
+    pub fn new(stages: Vec<CspStageConfig>, security: Arc<dyn SecurityPort>) -> Self {
+        Self {
             stages,
             security,
             capability_token: None,
@@ -201,7 +203,7 @@ impl CspPipelineExecutor {
     /// Create executor with capability-based security
     pub fn with_capability(
         stages: Vec<CspStageConfig>,
-        security: SecurityAdapter,
+        security: Arc<dyn SecurityPort>,
         token: CapabilityToken,
         holder: WebID,
     ) -> Self {
@@ -210,6 +212,16 @@ impl CspPipelineExecutor {
             security,
             capability_token: Some(token),
             holder: Some(holder),
+        }
+    }
+
+    /// Create executor with SecurityAdapter (convenience)
+    pub fn with_security_adapter(stages: Vec<CspStageConfig>, adapter: SecurityAdapter) -> Self {
+        Self {
+            stages,
+            security: Arc::new(adapter),
+            capability_token: None,
+            holder: None,
         }
     }
 
@@ -298,24 +310,24 @@ impl CspPipelineExecutor {
         // Security validation: check capability if provided
         if let (Some(token), Some(holder)) = (&self.capability_token, &self.holder) {
             let current_time = chrono::Utc::now().timestamp();
-            
-            // Validate stage access based on stage name
-            let resource_id = format!("stage/{}", config.stage.name);
-            if !self.security.checker().verify_with_time(token, current_time) {
+
+            // Use SecurityPort trait method for stage capability check
+            if let Err(e) = self.security.check_stage_capability(
+                token,
+                holder,
+                &config.stage.name,
+                current_time,
+            ) {
                 return Err(CompositionError::permanent(
-                    &format!("Capability token expired or invalid for stage: {}", config.stage.name),
-                    None,
-                ));
-            }
-            
-            if token.delegated_to != *holder {
-                return Err(CompositionError::permanent(
-                    &format!("Capability token not delegated to holder for stage: {}", config.stage.name),
+                    &format!(
+                        "Security check failed for stage {}: {}",
+                        config.stage.name, e
+                    ),
                     None,
                 ));
             }
         }
-        
+
         // Create appropriate executor based on stage name
         match config.stage.name.as_str() {
             "parse" => {
@@ -670,7 +682,7 @@ mod tests {
     #[tokio::test]
     async fn test_csp_pipeline_executor_new() {
         use crate::security::SecurityAdapter;
-        
+
         let stages = vec![
             CspStageConfig::new(PipelineStage {
                 stage_number: 1,
@@ -689,7 +701,7 @@ mod tests {
         ];
 
         let security = SecurityAdapter::new(b"test-secret");
-        let executor = CspPipelineExecutor::new(stages, security);
+        let executor = CspPipelineExecutor::new(stages, Arc::new(security));
         assert_eq!(executor.stages().len(), 2);
     }
 }
