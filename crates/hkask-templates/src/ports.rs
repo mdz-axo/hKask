@@ -4,6 +4,7 @@
 //! Per architecture v0.21.0: Rust is the loom, YAML/Jinja2 is the thread.
 
 use hkask_types::TemplateType;
+use hkask_types::{CapabilityToken, WebID};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::Path;
@@ -247,11 +248,249 @@ pub trait CnsPort {
     fn emit(&self, span: &str, outcome: Value, confidence: f64);
 }
 
+/// Security port for capability-based security checks
+pub trait SecurityPort: Send + Sync {
+    /// Verify capability token signature and delegation
+    fn verify_signature(&self, token: &CapabilityToken, holder: &WebID) -> bool;
+
+    /// Check capability for template operation
+    fn check_template_capability(
+        &self,
+        token: &CapabilityToken,
+        holder: &WebID,
+        template_id: &str,
+        current_time: i64,
+    ) -> Result<()>;
+
+    /// Check capability for manifest operation
+    fn check_manifest_capability(
+        &self,
+        token: &CapabilityToken,
+        holder: &WebID,
+        manifest_id: &str,
+        current_time: i64,
+    ) -> Result<()>;
+
+    /// Check capability for cascade operation
+    fn check_cascade_capability(
+        &self,
+        token: &CapabilityToken,
+        holder: &WebID,
+        cascade_id: &str,
+        current_time: i64,
+    ) -> Result<()>;
+
+    /// Check capability for stage operation
+    fn check_stage_capability(
+        &self,
+        token: &CapabilityToken,
+        holder: &WebID,
+        stage_name: &str,
+        current_time: i64,
+    ) -> Result<()>;
+
+    /// Create attenuated capability for delegation
+    fn attenuate_capability(
+        &self,
+        token: &CapabilityToken,
+        new_to: WebID,
+        current_time: i64,
+    ) -> Option<CapabilityToken>;
+
+    /// Validate template/manifest path (prevent path traversal)
+    fn validate_path(&self, path: &str) -> Result<()>;
+
+    /// Check recursion depth (prevent DoS via infinite recursion)
+    fn check_recursion_depth(&self, current_depth: u8, max_depth: u8) -> Result<()>;
+
+    /// Check energy budget (prevent resource exhaustion)
+    fn check_energy_budget(&self, requested: u64, remaining: u64) -> Result<()>;
+}
+
 /// Maximum Matroshka nesting depth (configurable per template)
 pub const DEFAULT_MATROSHKA_LIMIT: u8 = 7;
 
 /// Default model tier for fast local inference
 pub const FAST_LOCAL_MODEL: &str = "fast_local";
+
+/// Mock security port for testing
+#[derive(Default)]
+pub struct MockSecurityPort {
+    pub should_verify: bool,
+    pub should_check_template: bool,
+    pub should_check_manifest: bool,
+    pub should_check_cascade: bool,
+    pub should_check_stage: bool,
+    pub should_attenuate: bool,
+    pub should_validate_path: bool,
+    pub should_check_depth: bool,
+    pub should_check_energy: bool,
+}
+
+impl MockSecurityPort {
+    pub fn new() -> Self {
+        Self {
+            should_verify: true,
+            should_check_template: true,
+            should_check_manifest: true,
+            should_check_cascade: true,
+            should_check_stage: true,
+            should_attenuate: true,
+            should_validate_path: true,
+            should_check_depth: true,
+            should_check_energy: true,
+        }
+    }
+
+    pub fn with_verification(mut self, should_verify: bool) -> Self {
+        self.should_verify = should_verify;
+        self
+    }
+
+    pub fn with_template_check(mut self, should_check: bool) -> Self {
+        self.should_check_template = should_check;
+        self
+    }
+
+    pub fn with_path_validation(mut self, should_validate: bool) -> Self {
+        self.should_validate_path = should_validate;
+        self
+    }
+}
+
+impl SecurityPort for MockSecurityPort {
+    fn verify_signature(&self, _token: &CapabilityToken, _holder: &WebID) -> bool {
+        self.should_verify
+    }
+
+    fn check_template_capability(
+        &self,
+        _token: &CapabilityToken,
+        _holder: &WebID,
+        _template_id: &str,
+        _current_time: i64,
+    ) -> Result<()> {
+        if self.should_check_template {
+            Ok(())
+        } else {
+            Err(TemplateError::CapabilityDenied(
+                "Mock security check failed".to_string(),
+            ))
+        }
+    }
+
+    fn check_manifest_capability(
+        &self,
+        _token: &CapabilityToken,
+        _holder: &WebID,
+        _manifest_id: &str,
+        _current_time: i64,
+    ) -> Result<()> {
+        if self.should_check_manifest {
+            Ok(())
+        } else {
+            Err(TemplateError::CapabilityDenied(
+                "Mock security check failed".to_string(),
+            ))
+        }
+    }
+
+    fn check_cascade_capability(
+        &self,
+        _token: &CapabilityToken,
+        _holder: &WebID,
+        _cascade_id: &str,
+        _current_time: i64,
+    ) -> Result<()> {
+        if self.should_check_cascade {
+            Ok(())
+        } else {
+            Err(TemplateError::CapabilityDenied(
+                "Mock security check failed".to_string(),
+            ))
+        }
+    }
+
+    fn check_stage_capability(
+        &self,
+        _token: &CapabilityToken,
+        _holder: &WebID,
+        _stage_name: &str,
+        _current_time: i64,
+    ) -> Result<()> {
+        if self.should_check_stage {
+            Ok(())
+        } else {
+            Err(TemplateError::CapabilityDenied(
+                "Mock security check failed".to_string(),
+            ))
+        }
+    }
+
+        fn attenuate_capability(
+        &self,
+        token: &CapabilityToken,
+        new_to: WebID,
+        _current_time: i64,
+    ) -> Option<CapabilityToken> {
+        if self.should_attenuate {
+            // Create a simple attenuated token for testing
+            use hkask_types::CapabilityAction;
+            Some(CapabilityToken {
+                id: format!("{}-attenuated", token.id),
+                resource: token.resource,
+                resource_id: token.resource_id.clone(),
+                action: token.action,
+                delegated_from: token.delegated_to.clone(),
+                delegated_to: new_to,
+                signature: token.signature.clone(),
+                expires_at: token.expires_at,
+                attenuation_level: token.attenuation_level + 1,
+                max_attenuation: token.max_attenuation,
+                context_nonce: format!("{}-attenuated", token.context_nonce),
+            })
+        } else {
+            None
+        }
+    }
+
+    fn validate_path(&self, path: &str) -> Result<()> {
+        if self.should_validate_path {
+            // Simple validation: reject absolute paths and traversal
+            if path.starts_with('/') || path.starts_with('\\') || path.contains("..") {
+                Err(TemplateError::PathTraversal(format!(
+                    "Invalid path: {}",
+                    path
+                )))
+            } else {
+                Ok(())
+            }
+        } else {
+            Err(TemplateError::PathTraversal(
+                "Mock path validation failed".to_string(),
+            ))
+        }
+    }
+
+    fn check_recursion_depth(&self, current_depth: u8, max_depth: u8) -> Result<()> {
+        if self.should_check_depth && current_depth > max_depth {
+            Err(TemplateError::RecursionLimit { max: max_depth })
+        } else {
+            Ok(())
+        }
+    }
+
+    fn check_energy_budget(&self, requested: u64, remaining: u64) -> Result<()> {
+        if self.should_check_energy && requested > remaining {
+            Err(TemplateError::Manifest(format!(
+                "Energy budget exceeded: requested {}, remaining {}",
+                requested, remaining
+            )))
+        } else {
+            Ok(())
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {

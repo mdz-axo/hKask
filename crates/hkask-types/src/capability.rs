@@ -111,6 +111,8 @@ pub struct CapabilityToken {
     pub attenuation_level: u8,
     /// Maximum attenuation level allowed (prevents infinite delegation)
     pub max_attenuation: u8,
+    /// Context nonce for binding token to specific execution context
+    pub context_nonce: String,
 }
 
 impl CapabilityToken {
@@ -133,6 +135,7 @@ impl CapabilityToken {
             None,
             0,
             7,
+            None,
         )
     }
 
@@ -148,6 +151,7 @@ impl CapabilityToken {
         expires_at: Option<i64>,
         attenuation_level: u8,
         max_attenuation: u8,
+        context_nonce: Option<String>,
     ) -> Self {
         let id = Self::generate_id(
             &resource,
@@ -165,6 +169,7 @@ impl CapabilityToken {
             &delegated_to,
             secret,
         );
+        let context_nonce = context_nonce.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
         Self {
             id,
@@ -177,6 +182,7 @@ impl CapabilityToken {
             expires_at,
             attenuation_level,
             max_attenuation,
+            context_nonce,
         }
     }
 
@@ -257,6 +263,7 @@ impl CapabilityToken {
         }
 
         // Attenuate: reduce max_attenuation and increase attenuation_level
+        // Preserve parent's context nonce for traceability
         Some(CapabilityToken::new_with_attenuation(
             self.resource,
             self.resource_id.clone(),
@@ -267,6 +274,7 @@ impl CapabilityToken {
             Some(current_time + 3600), // 1 hour expiry for attenuated tokens
             self.attenuation_level + 1,
             self.max_attenuation,
+            Some(format!("{}-attenuated-{}", self.context_nonce, uuid::Uuid::new_v4())),
         ))
     }
 

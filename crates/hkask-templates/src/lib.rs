@@ -15,6 +15,7 @@
 
 pub mod adapters;
 pub mod audit;
+pub mod capability_validator;
 pub mod cascade;
 pub mod contracts;
 pub mod contract_validator;
@@ -33,6 +34,10 @@ pub mod skill_translation;
 
 pub use adapters::{MockRegistryAdapter, RegistryAdapter, RegistryResult, SkillRegistryPort};
 pub use audit::{AuditStats, AuditTrail, ExecutionAudit};
+pub use capability_validator::{
+    CapabilityAwareValidator, CapabilityAwareValidationError,
+    ValidationWithCapabilities,
+};
 pub use cascade::{Cascade, CascadeBuilder, CascadeContext, CascadeExecutor, MAX_CASCADE_DEPTH};
 pub use contracts::{
     InferenceConfig as InferenceConfigParsed, ParsedContract, ParsedInference, TemplateFrontmatter,
@@ -52,8 +57,8 @@ pub use manifest::SelectorConfig;
 pub use ports::{
     Action, CnsPort, CompositionTemplate, DEFAULT_MATROSHKA_LIMIT, FAST_LOCAL_MODEL,
     DependencyProvider, InMemoryDependencyProvider, InferenceConfig, InferencePort, ManifestExecutor,
-    ManifestStep, McpPort, ProcessManifest, RegistryEntry, RegistryIndex, Result, TemplateContract,
-    TemplateError, TemplateRenderer,
+    ManifestStep, McpPort, MockSecurityPort, ProcessManifest, RegistryEntry, RegistryIndex, Result,
+    SecurityPort, TemplateContract, TemplateError, TemplateRenderer,
 };
 pub use provenance::{ProvenanceManager, TemplateProvenance};
 pub use registry::{Registry, TemplateEntry};

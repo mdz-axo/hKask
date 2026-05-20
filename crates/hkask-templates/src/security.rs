@@ -20,9 +20,12 @@
 
 use crate::ports::Result;
 use crate::ports::TemplateError;
+use hkask_cns::CnsRuntime;
 use hkask_types::{CapabilityChecker, CapabilityToken, WebID};
 use percent_encoding::percent_decode_str;
+use serde_json::json;
 use std::collections::HashSet;
+use std::sync::Arc;
 
 /// Jinja2 dangerous patterns to block
 const JINJA2_DANGEROUS_PATTERNS: &[&str] = &[
@@ -46,6 +49,7 @@ pub struct SecurityAdapter {
     capability_checker: CapabilityChecker,
     allowed_paths: HashSet<String>,
     secret: Vec<u8>,
+    cns_runtime: Option<Arc<CnsRuntime>>,
 }
 
 impl SecurityAdapter {
@@ -55,6 +59,17 @@ impl SecurityAdapter {
             capability_checker: CapabilityChecker::new(secret),
             allowed_paths: HashSet::new(),
             secret: secret.to_vec(),
+            cns_runtime: None,
+        }
+    }
+
+    /// Create security adapter with CNS runtime for span emission
+    pub fn with_cns(secret: &[u8], cns_runtime: Arc<CnsRuntime>) -> Self {
+        Self {
+            capability_checker: CapabilityChecker::new(secret),
+            allowed_paths: HashSet::new(),
+            secret: secret.to_vec(),
+            cns_runtime: Some(cns_runtime),
         }
     }
 
@@ -190,6 +205,19 @@ impl SecurityAdapter {
             )));
         }
         Ok(())
+    }
+
+    /// Emit CNS span for security event
+    fn emit_security_span(&self, event_type: &str, outcome: &str, details: serde_json::Value) {
+        if let Some(ref cns) = self.cns_runtime {
+            let span = format!("cns.security.{}", event_type);
+            cns.emit_span(
+                &span,
+                outcome,
+                details,
+                1.0, // confidence
+            );
+        }
     }
 
     /// Verify capability for template operation
@@ -329,6 +357,102 @@ impl SecurityAdapter {
     /// Get capability checker reference
     pub fn checker(&self) -> &CapabilityChecker {
         &self.capability_checker
+    }
+}
+
+impl crate::ports::SecurityPort for SecurityAdapter {
+    fn verify_signature(&self, token: &CapabilityToken, holder: &WebID) -> bool {
+        self.verify_signature(token, holder)
+    }
+
+    fn check_template_capability(
+        &self,
+        token: &CapabilityToken,
+        holder: &WebID,
+        template_id: &str,
+        current_time: i64,
+    ) -> crate::ports::Result<()> {
+        self.check_template_capability(token, holder, template_id, current_time)
+    }
+
+    fn check_manifest_capability(
+        &self,
+        token: &CapabilityToken,
+        holder: &WebID,
+        manifest_id: &str,
+        current_time: i64,
+    ) -> crate::ports::Result<()> {
+        self.check_manifest_capability(token, holder, manifest_id, current_time)
+    }
+
+    fn check_cascade_capability(
+        &self,
+        token: &CapabilityToken,
+        holder: &WebID,
+        cascade_id: &str,
+        current_time: i64,
+    ) -> crate::ports::Result<()> {
+        self.check_cascade_capability(token, holder, cascade_id, current_time)
+    }
+
+    fn check_stage_capability(
+        &self,
+        token: &CapabilityToken,
+        holder: &WebID,
+        stage_name: &str,
+        current_time: i64,
+    ) -> crate::ports::Result<()> {
+        use hkask_types::CapabilityResource;
+        
+        if !self.capability_checker.verify_with_time(token, current_time) {
+            return Err(crate::ports::TemplateError::CapabilityDenied(
+                "Token expired or invalid".to_string(),
+            ));
+        }
+
+        if token.delegated_to != *holder {
+            return Err(crate::ports::TemplateError::CapabilityDenied(
+                "Token not delegated to holder".to_string(),
+            ));
+        }
+
+        // Stages are considered template resources
+        if !token.grants_resource(CapabilityResource::Template) {
+            return Err(crate::ports::TemplateError::CapabilityDenied(
+                "Token does not grant template/stage access".to_string(),
+            ));
+        }
+
+        // Allow wildcard or specific stage access
+        if token.resource_id != format!("stage/{}", stage_name) && token.resource_id != "*" {
+            return Err(crate::ports::TemplateError::CapabilityDenied(format!(
+                "Token does not grant access to stage: {}",
+                stage_name
+            )));
+        }
+
+        Ok(())
+    }
+
+    fn attenuate_capability(
+        &self,
+        token: &CapabilityToken,
+        new_to: WebID,
+        current_time: i64,
+    ) -> Option<CapabilityToken> {
+        self.attenuate_capability(token, new_to, current_time)
+    }
+
+    fn validate_path(&self, path: &str) -> crate::ports::Result<()> {
+        self.validate_template_path(path)
+    }
+
+    fn check_recursion_depth(&self, current_depth: u8, max_depth: u8) -> crate::ports::Result<()> {
+        self.check_recursion_depth(current_depth, max_depth)
+    }
+
+    fn check_energy_budget(&self, requested: u64, remaining: u64) -> crate::ports::Result<()> {
+        self.check_energy_budget(requested, remaining)
     }
 }
 

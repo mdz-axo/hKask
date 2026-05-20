@@ -363,6 +363,7 @@ mod tests {
             None,
             6,
             7,
+            None, // context_nonce
         );
 
         // Should be able to attenuate once more (6 < 7)

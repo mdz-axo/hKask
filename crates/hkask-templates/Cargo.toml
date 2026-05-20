@@ -9,6 +9,7 @@ description = "Registry, hLexicon, and template execution for hKask"
 hkask-types = { path = "../hkask-types" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-cns = { path = "../hkask-cns" }
+hkask-ensemble = { path = "../hkask-ensemble" }
 minijinja.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -19,7 +20,6 @@ chrono.workspace = true
 uuid.workspace = true
 sha2.workspace = true
 hex.workspace = true
-hmac.workspace = true
 rusqlite.workspace = true
 tempfile.workspace = true
 tokio.workspace = true

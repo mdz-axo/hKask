@@ -58,15 +58,24 @@ impl<C: InferenceClient> ConfidenceRouter<C> {
         }
     }
 
-    /// Generate response with confidence-based escalation
+/// Generate response with confidence-based escalation
+    #[tracing::instrument(
+        skip(self),
+        fields(
+            model = %request.model,
+            threshold = self.config.threshold,
+            escalate_to = %self.config.escalate_to_model
+        )
+    )]
     pub async fn generate_with_escalation(
         &self,
         request: &GenerateRequest,
     ) -> Result<GenerateResponse, RouterError<C::Error>> {
         tracing::debug!(
-            "Generating with confidence threshold: {:.2}, escalate to: {}",
-            self.config.threshold,
-            self.config.escalate_to_model
+            target: "hkask.ensemble.confidence",
+            confidence_threshold = self.config.threshold,
+            escalate_to_model = %self.config.escalate_to_model,
+            "Starting confidence-based generation"
         );
 
         let mut current_request = request.clone();
@@ -92,17 +101,20 @@ impl<C: InferenceClient> ConfidenceRouter<C> {
             let confidence = compute_confidence(probs);
 
             tracing::debug!(
-                "Calculated confidence: {:.3} (threshold: {:.3})",
-                confidence,
-                self.config.threshold
+                target: "hkask.ensemble.confidence",
+                confidence = %confidence,
+                threshold = %self.config.threshold,
+                "Confidence calculated"
             );
 
             if confidence < self.config.threshold {
                 tracing::info!(
-                    "Low confidence ({:.3} < {:.3}), escalating to {}",
-                    confidence,
-                    self.config.threshold,
-                    self.config.escalate_to_model
+                    target: "hkask.ensemble.confidence.escalation",
+                    confidence = %confidence,
+                    threshold = %self.config.threshold,
+                    primary_model = %current_request.model,
+                    escalated_model = %self.config.escalate_to_model,
+                    "Low confidence detected, escalating to larger model"
                 );
 
                 let mut escalate_request = current_request.clone();

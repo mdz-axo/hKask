@@ -786,6 +786,7 @@ mod tests {
             None,
             7, // max_attenuation
             7, // attenuation_level at max
+            None, // context_nonce
         );
         
         let context = CascadeContext::new(&secret)

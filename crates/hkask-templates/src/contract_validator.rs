@@ -49,7 +49,7 @@ pub struct OkapiCapabilities {
 }
 
 /// Validation error with actionable message
-#[derive(Debug, Error)]
+#[derive(Debug, Clone, Error)]
 pub enum ValidationError {
     #[error("Template type '{template_type}' requires 'n_probs' in requires_okapi, but it was not specified. Add 'n_probs: 5' to enable token probability-based confidence routing.")]
     MissingNProbs { template_type: String },
@@ -71,6 +71,9 @@ pub enum ValidationError {
 
     #[error("Confidence threshold {threshold} is outside valid range [0.0, 1.0]. Use a value between 0.0 and 1.0 inclusive.")]
     InvalidConfidenceThreshold { threshold: f64 },
+
+    #[error("Failed to fetch Okapi capabilities: {0}")]
+    CapabilityFetchError(String),
 }
 
 /// Contract validator for template registration
