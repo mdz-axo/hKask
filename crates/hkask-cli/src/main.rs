@@ -6,12 +6,17 @@
 //! - `kask template register` — Register a new template
 //! - `kask bot capabilities` — Show bot capabilities
 //! - `kask bot grant` — Grant capability to bot
+//! - `kask pod create` — Create agent pod from template crate
+//! - `kask pod activate` — Activate agent pod
+//! - `kask pod deactivate` — Deactivate agent pod
+//! - `kask pod status` — Show agent pod status
 //! - `kask mcp servers` — List MCP servers
 //! - `kask mcp tools` — List available tools
+//! - `kask cns health` — CNS monitoring
 
 use clap::{Parser, Subcommand};
 use hkask_mcp::runtime::McpRuntime;
-use hkask_templates::{RegistryEntry, RegistryIndex, SqliteRegistry, TemplateError};
+use hkask_templates::{RegistryIndex, SqliteRegistry};
 use hkask_types::TemplateType as Type;
 use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
@@ -64,6 +69,12 @@ enum Commands {
     Bot {
         #[command(subcommand)]
         action: BotAction,
+    },
+
+    /// Agent pod management
+    Pod {
+        #[command(subcommand)]
+        action: PodAction,
     },
 
     /// MCP server/tool management
@@ -145,6 +156,52 @@ enum BotAction {
         #[arg(short, long)]
         capability: String,
     },
+}
+
+#[derive(Subcommand)]
+enum PodAction {
+    /// Create agent pod from template crate
+    Create {
+        /// Template crate name
+        #[arg(short, long)]
+        template: String,
+
+        /// Agent persona YAML file path
+        #[arg(short, long)]
+        persona: PathBuf,
+
+        /// Pod name (optional, defaults to UUID)
+        #[arg(short, long)]
+        name: Option<String>,
+    },
+
+    /// Activate agent pod for A2A communication
+    Activate {
+        /// Pod ID or name
+        #[arg()]
+        pod_id: String,
+    },
+
+    /// Deactivate agent pod
+    Deactivate {
+        /// Pod ID or name
+        #[arg()]
+        pod_id: String,
+    },
+
+    /// Show agent pod status
+    Status {
+        /// Pod ID or name
+        #[arg()]
+        pod_id: String,
+
+        /// Show verbose details
+        #[arg(short, long)]
+        verbose: bool,
+    },
+
+    /// List all agent pods
+    List,
 }
 
 #[derive(Subcommand)]
@@ -399,6 +456,42 @@ fn main() {
             BotAction::Grant { bot_id, capability } => {
                 println!("Grant capability: {} to bot: {}", capability, bot_id);
                 println!("Note: Capability granting requires ACP runtime integration.");
+            }
+        },
+
+        Commands::Pod { action } => match action {
+            PodAction::Create {
+                template,
+                persona,
+                name,
+            } => {
+                println!("Creating agent pod from template: {}", template);
+                println!("Persona file: {}", persona.display());
+                if let Some(n) = &name {
+                    println!("Pod name: {}", n);
+                }
+                println!("\nNote: Full pod creation requires pod manager implementation.");
+                println!("This is a placeholder for Phase 3 CLI integration.");
+            }
+            PodAction::Activate { pod_id } => {
+                println!("Activating agent pod: {}", pod_id);
+                println!("\nNote: Full pod activation requires pod manager implementation.");
+            }
+            PodAction::Deactivate { pod_id } => {
+                println!("Deactivating agent pod: {}", pod_id);
+                println!("\nNote: Full pod deactivation requires pod manager implementation.");
+            }
+            PodAction::Status { pod_id, verbose } => {
+                println!("Agent pod status: {}", pod_id);
+                if verbose {
+                    println!("  Verbose mode enabled (details pending implementation)");
+                }
+                println!("\nNote: Full status requires pod manager implementation.");
+            }
+            PodAction::List => {
+                println!("Agent pods:");
+                println!("  (no pods registered)");
+                println!("\nNote: Pod listing requires pod manager implementation.");
             }
         },
 

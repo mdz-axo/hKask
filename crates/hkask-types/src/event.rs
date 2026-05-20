@@ -79,6 +79,7 @@ pub enum Span {
     Connector(String),
     Pipeline(String),
     Energy(String),
+    Review(String),
 }
 
 impl Span {
@@ -106,6 +107,10 @@ impl Span {
         Span::Energy(format!("cns.energy.{}", path))
     }
 
+    pub fn review(path: &str) -> Self {
+        Span::Review(format!("cns.review.{}", path))
+    }
+
     pub fn as_str(&self) -> &str {
         match self {
             Span::Prompt(s) => s,
@@ -114,6 +119,7 @@ impl Span {
             Span::Connector(s) => s,
             Span::Pipeline(s) => s,
             Span::Energy(s) => s,
+            Span::Review(s) => s,
         }
     }
 }

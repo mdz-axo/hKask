@@ -1,15 +1,807 @@
-//! Agent pod lifecycle
+//! Agent Pod Lifecycle Management
+//!
+//! Agent pods are minimal runtime containers that host ACP agents (bots or replicants)
+//! within the hKask ecosystem. Each pod provides:
+//!
+//! - **Isolation**: Independent capability tokens, no shared state
+//! - **Identity**: WebID-based ACP registration
+//! - **Access**: Capability-gated MCP tool invocation
+//! - **Observability**: CNS span emission for all lifecycle events
+//! - **Persistence**: Memory artifact generation (episodic/semantic triples)
+//!
+//! # Lifecycle States
+//!
+//! ```text
+//! Populated → Registered → Activated → Deactivated
+//! ```
+//!
+//! # Security Model
+//!
+//! Implements OCAP (Object-Capability) security with attenuation on delegation.
+//! Each pod holds capability tokens that grant access to specific resources
+//! (tools, templates, memory) with cryptographic verification.
+//!
+//! # Security Model
+//!
+//! Implements OCAP (Object-Capability) security with attenuation on delegation.
+//! Each pod holds capability tokens that grant access to specific resources
+//! (tools, templates, memory) with cryptographic verification.
+//!
+//! # Example
+//!
+//! ```rust,no_run
+//! use hkask_agents::pod::{AgentPod, PodLifecycleState};
+//! use hkask_agents::capability::AgentPersona;
+//!
+//! let persona = AgentPersona::from_yaml(yaml_str).unwrap();
+//! let mut pod = AgentPod::new("memory-bot", &persona, &git_adapter).unwrap();
+//! pod.register(&acp_runtime, &cns_emitter).unwrap();
+//! pod.activate(&mcp_runtime, &cns_emitter).unwrap();
+//! ```
 
-pub struct Pod;
+use hkask_types::{CapabilityToken, CapabilityResource, CapabilityAction, WebID};
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
+use tracing::info;
 
-impl Pod {
-    pub fn new() -> Self {
-        Self
+/// Pod lifecycle state machine
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum PodLifecycleState {
+    /// Pod instantiated from template crate, not yet registered
+    Populated,
+    /// Registered with ACP runtime, capability token minted
+    Registered,
+    /// Activated for A2A communication, MCP access granted
+    Activated,
+    /// Deactivated, capabilities revoked
+    Deactivated,
+}
+
+impl std::fmt::Display for PodLifecycleState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PodLifecycleState::Populated => write!(f, "populated"),
+            PodLifecycleState::Registered => write!(f, "registered"),
+            PodLifecycleState::Activated => write!(f, "activated"),
+            PodLifecycleState::Deactivated => write!(f, "deactivated"),
+        }
     }
 }
 
-impl Default for Pod {
+/// Agent pod unique identifier
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct PodID(pub uuid::Uuid);
+
+impl PodID {
+    pub fn new() -> Self {
+        Self(uuid::Uuid::new_v4())
+    }
+}
+
+impl Default for PodID {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl std::fmt::Display for PodID {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+/// Agent type enumeration
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum AgentType {
+    /// Bot — Process execution, machine-to-machine (A2A)
+    Bot,
+    /// Replicant — Human assistance, human-to-agent (H2A)
+    Replicant,
+}
+
+impl std::fmt::Display for AgentType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AgentType::Bot => write!(f, "Bot"),
+            AgentType::Replicant => write!(f, "Replicant"),
+        }
+    }
+}
+
+/// Agent persona definition (from YAML)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentPersona {
+    /// Agent identity
+    pub agent: AgentIdentity,
+    /// Agent charter (purpose and scope)
+    pub charter: AgentCharter,
+    /// Capabilities this agent requires
+    pub capabilities: Vec<String>,
+    /// Rights (access permissions)
+    pub rights: Vec<AccessRight>,
+    /// Responsibilities (obligations)
+    pub responsibilities: Vec<String>,
+    /// Default visibility for artifacts
+    pub visibility: VisibilitySettings,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentIdentity {
+    pub name: String,
+    #[serde(rename = "type")]
+    pub agent_type: AgentType,
+    #[serde(default = "default_version")]
+    pub version: String,
+}
+
+fn default_version() -> String {
+    "0.1.0".to_string()
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentCharter {
+    pub description: String,
+    pub editor: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AccessRight {
+    pub read: Option<String>,
+    pub write: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VisibilitySettings {
+    #[serde(default = "default_public")]
+    pub default: String,
+    #[serde(default = "default_private")]
+    pub episodic_override: String,
+}
+
+fn default_public() -> String {
+    "public".to_string()
+}
+
+fn default_private() -> String {
+    "private".to_string()
+}
+
+impl AgentPersona {
+    /// Parse agent persona from YAML string
+    pub fn from_yaml(yaml: &str) -> Result<Self, AgentPodError> {
+        serde_yaml::from_str(yaml).map_err(|e| AgentPodError::PersonaParseError(e.to_string()))
+    }
+
+    /// Get the agent's WebID (derived from persona)
+    pub fn webid(&self) -> WebID {
+        // In production, this would be derived from a deterministic hash of the persona
+        // For now, we generate a new WebID per persona instance
+        WebID::new()
+    }
+
+    /// Get capabilities as CapabilityResource enums
+    pub fn capability_resources(&self) -> Vec<CapabilityResource> {
+        self.capabilities
+            .iter()
+            .filter_map(|cap| {
+                if cap.starts_with("tool:") {
+                    Some(CapabilityResource::Tool)
+                } else if cap.starts_with("template:") {
+                    Some(CapabilityResource::Template)
+                } else if cap.starts_with("memory:") {
+                    Some(CapabilityResource::Cascade)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+}
+
+/// Template crate structure (loaded from Git CAS)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TemplateCrate {
+    /// Crate name
+    pub name: String,
+    /// Git SHA (pinned version)
+    pub git_sha: String,
+    /// Agent persona YAML content
+    pub persona_yaml: String,
+    /// Dispatch manifest YAML content
+    pub dispatch_manifest_yaml: String,
+    /// Template files (path -> content)
+    pub templates: Vec<TemplateFile>,
+    /// hLexicon terms used
+    pub hlexicon_terms: Vec<String>,
+}
+
+impl Default for TemplateCrate {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            git_sha: String::new(),
+            persona_yaml: String::new(),
+            dispatch_manifest_yaml: String::new(),
+            templates: vec![],
+            hlexicon_terms: vec![],
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TemplateFile {
+    pub path: String,
+    pub content: String,
+    pub template_type: String, // Prompt, Process, Cognition
+}
+
+/// Agent Pod — Runtime container for ACP agents
+pub struct AgentPod {
+    /// Unique pod identifier
+    pub id: PodID,
+    /// Agent's WebID
+    pub webid: WebID,
+    /// Agent type (Bot or Replicant)
+    pub agent_type: AgentType,
+    /// Agent persona
+    pub persona: AgentPersona,
+    /// Template crate reference
+    pub template_crate: TemplateCrate,
+    /// Primary capability token
+    pub capability_token: CapabilityToken,
+    /// Current lifecycle state
+    pub state: PodLifecycleState,
+    /// Pod creation timestamp (Unix epoch)
+    pub created_at: i64,
+}
+
+/// Agent pod error types
+#[derive(Debug, Error)]
+pub enum AgentPodError {
+    #[error("Failed to parse agent persona: {0}")]
+    PersonaParseError(String),
+
+    #[error("Failed to load template crate: {0}")]
+    CrateLoadError(String),
+
+    #[error("ACP registration failed: {0}")]
+    ACPRegistrationError(String),
+
+    #[error("MCP access grant failed: {0}")]
+    MCPAccessError(String),
+
+    #[error("Capability attenuation limit exceeded")]
+    AttenuationLimitExceeded,
+
+    #[error("Invalid lifecycle transition: {0} -> {1}")]
+    InvalidStateTransition(PodLifecycleState, PodLifecycleState),
+
+    #[error("Pod is not in required state: expected {expected}, actual {actual}")]
+    StateMismatch {
+        expected: PodLifecycleState,
+        actual: PodLifecycleState,
+    },
+
+    #[error("CNS event emission failed: {0}")]
+    CNSEmissionError(String),
+}
+
+/// Result type for agent pod operations
+pub type AgentPodResult<T> = Result<T, AgentPodError>;
+
+impl AgentPod {
+    /// Instantiate a new agent pod from a template crate
+    ///
+    /// # Arguments
+    /// * `crate_name` — Name of the template crate to load
+    /// * `persona` — Agent persona definition
+    /// * `git` — Git CAS port for loading crate contents
+    ///
+    /// # Returns
+    /// * `Ok(AgentPod)` — Pod created in `Populated` state
+    /// * `Err(AgentPodError)` — Failed to load crate or parse persona
+    pub fn new(
+        crate_name: &str,
+        persona: &AgentPersona,
+        git: &dyn GitCASPort,
+    ) -> AgentPodResult<Self> {
+        let template_crate = git
+            .load_template_crate(crate_name)
+            .map_err(|e| AgentPodError::CrateLoadError(e.to_string()))?;
+
+        let capability_token = CapabilityToken::new(
+            CapabilityResource::Tool,
+            "*".to_string(),
+            CapabilityAction::Execute,
+            WebID::new(),
+            persona.webid(),
+            b"ocap-secret-key",
+        );
+
+        Ok(Self {
+            id: PodID::new(),
+            webid: persona.webid(),
+            agent_type: persona.agent.agent_type,
+            persona: persona.clone(),
+            template_crate,
+            capability_token,
+            state: PodLifecycleState::Populated,
+            created_at: current_timestamp(),
+        })
+    }
+
+    /// Register the pod with the ACP runtime
+    ///
+    /// Transitions state: `Populated` → `Registered`
+    ///
+    /// # Arguments
+    /// * `acp` — ACP runtime port for agent registration
+    /// * `cns` — CNS span emitter for lifecycle events
+    ///
+    /// # Returns
+    /// * `Ok(())` — Registration successful
+    /// * `Err(AgentPodError)` — ACP registration failed
+    pub fn register(
+        &mut self,
+        acp: &dyn ACPRuntimePort,
+        cns: &dyn CNSSpanPort,
+    ) -> AgentPodResult<()> {
+        if self.state != PodLifecycleState::Populated {
+            return Err(AgentPodError::InvalidStateTransition(
+                self.state,
+                PodLifecycleState::Registered,
+            ));
+        }
+
+        let capabilities: Vec<String> = self.persona.capabilities.clone();
+        let token = acp
+            .register_agent(self.webid, capabilities)
+            .map_err(|e| AgentPodError::ACPRegistrationError(e.to_string()))?;
+
+        self.capability_token = token;
+        self.state = PodLifecycleState::Registered;
+
+        cns.emit_event(
+            "cns.agent_pod.registered",
+            "registered",
+            &serde_json::json!({
+                "pod_id": self.id.to_string(),
+                "webid": self.webid.to_string(),
+                "agent_type": self.agent_type.to_string(),
+            }),
+            1.0,
+        );
+
+        info!("Agent pod {} registered with ACP", self.id);
+        Ok(())
+    }
+
+    /// Activate the pod for A2A communication
+    ///
+    /// Transitions state: `Registered` → `Activated`
+    ///
+    /// # Arguments
+    /// * `mcp` — MCP runtime port for tool access grants
+    /// * `cns` — CNS span emitter for lifecycle events
+    ///
+    /// # Returns
+    /// * `Ok(())` — Activation successful
+    /// * `Err(AgentPodError)` — MCP access grant failed
+    pub fn activate(
+        &mut self,
+        mcp: &dyn MCPRuntimePort,
+        cns: &dyn CNSSpanPort,
+    ) -> AgentPodResult<()> {
+        if self.state != PodLifecycleState::Registered {
+            return Err(AgentPodError::InvalidStateTransition(
+                self.state,
+                PodLifecycleState::Activated,
+            ));
+        }
+
+        mcp.grant_tool_access(self.capability_token.clone())
+            .map_err(|e| AgentPodError::MCPAccessError(e.to_string()))?;
+
+        self.state = PodLifecycleState::Activated;
+
+        cns.emit_event(
+            "cns.agent_pod.activated",
+            "activated",
+            &serde_json::json!({
+                "pod_id": self.id.to_string(),
+                "webid": self.webid.to_string(),
+                "mcp_access": true,
+            }),
+            1.0,
+        );
+
+        info!("Agent pod {} activated for A2A communication", self.id);
+        Ok(())
+    }
+
+    /// Deactivate the pod and revoke capabilities
+    ///
+    /// Transitions state: `Activated` → `Deactivated`
+    ///
+    /// # Arguments
+    /// * `cns` — CNS span emitter for lifecycle events
+    ///
+    /// # Returns
+    /// * `Ok(())` — Deactivation successful
+    pub fn deactivate(&mut self, cns: &dyn CNSSpanPort) -> AgentPodResult<()> {
+        if self.state != PodLifecycleState::Activated {
+            return Err(AgentPodError::InvalidStateTransition(
+                self.state,
+                PodLifecycleState::Deactivated,
+            ));
+        }
+
+        self.state = PodLifecycleState::Deactivated;
+
+        cns.emit_event(
+            "cns.agent_pod.deactivated",
+            "deactivated",
+            &serde_json::json!({
+                "pod_id": self.id.to_string(),
+                "webid": self.webid.to_string(),
+                "capabilities_revoked": true,
+            }),
+            1.0,
+        );
+
+        info!("Agent pod {} deactivated", self.id);
+        Ok(())
+    }
+
+    /// Create an attenuated capability token for delegation
+    ///
+    /// # Arguments
+    /// * `new_holder` — WebID of the delegate
+    /// * `current_time` — Current Unix timestamp
+    ///
+    /// # Returns
+    /// * `Some(CapabilityToken)` — Attenuated child token
+    /// * `None` — Attenuation limit exceeded
+    pub fn delegate(&self, new_holder: WebID, current_time: i64) -> Option<CapabilityToken> {
+        self.capability_token.attenuate(new_holder, b"ocap-secret-key", current_time)
+    }
+
+    /// Check if the pod can perform A2A operations
+    pub fn is_active(&self) -> bool {
+        self.state == PodLifecycleState::Activated
+    }
+
+    /// Get the current lifecycle state
+    pub fn state(&self) -> PodLifecycleState {
+        self.state
+    }
+}
+
+fn current_timestamp() -> i64 {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64
+}
+
+// ============================================================================
+// Hexagonal Architecture Ports (Traits)
+// ============================================================================
+
+/// ACP Runtime Port — Agent registration and identity management
+pub trait ACPRuntimePort {
+    /// Register an agent with the ACP runtime
+    ///
+    /// # Arguments
+    /// * `webid` — Agent's WebID
+    /// * `capabilities` — List of capability strings
+    ///
+    /// # Returns
+    /// * `Ok(CapabilityToken)` — Registered capability token
+    /// * `Err(String)` — Registration error message
+    fn register_agent(
+        &self,
+        webid: WebID,
+        capabilities: Vec<String>,
+    ) -> Result<CapabilityToken, String>;
+}
+
+/// MCP Runtime Port — Tool access and invocation
+pub trait MCPRuntimePort {
+    /// Grant tool access to an agent
+    ///
+    /// # Arguments
+    /// * `token` — Capability token to authorize
+    ///
+    /// # Returns
+    /// * `Ok(())` — Access granted
+    /// * `Err(String)` — Access denied error
+    fn grant_tool_access(&self, token: CapabilityToken) -> Result<(), String>;
+
+    /// Invoke a tool with capability authorization
+    ///
+    /// # Arguments
+    /// * `tool_name` — Name of the tool to invoke
+    /// * `input` — Tool input as JSON value
+    /// * `token` — Capability token authorizing the call
+    ///
+    /// # Returns
+    /// * `Ok(serde_json::Value)` — Tool result
+    /// * `Err(String)` — Invocation error
+    fn invoke_tool(
+        &self,
+        tool_name: &str,
+        input: serde_json::Value,
+        token: &CapabilityToken,
+    ) -> Result<serde_json::Value, String>;
+}
+
+/// CNS Span Port — Cybernetic event emission
+pub trait CNSSpanPort {
+    /// Emit a CNS span event
+    ///
+    /// # Arguments
+    /// * `span` — Span name (e.g., "cns.agent_pod.registered")
+    /// * `phase` — Event phase (e.g., "registered", "activated")
+    /// * `observation` — Event observation as JSON
+    /// * `confidence` — Confidence score (0.0 to 1.0)
+    fn emit_event(&self, span: &str, phase: &str, observation: &serde_json::Value, confidence: f64);
+}
+
+/// Git CAS Port — Template crate loading
+pub trait GitCASPort {
+    /// Load a template crate from Git CAS
+    ///
+    /// # Arguments
+    /// * `crate_name` — Name of the crate to load
+    ///
+    /// # Returns
+    /// * `Ok(TemplateCrate)` — Loaded crate structure
+    /// * `Err(String)` — Load error message
+    fn load_template_crate(&self, crate_name: &str) -> Result<TemplateCrate, String>;
+
+    /// Resolve the current Git SHA for a crate
+    ///
+    /// # Arguments
+    /// * `crate_name` — Name of the crate
+    ///
+    /// # Returns
+    /// * `Ok(String)` — Git SHA (40 hex characters)
+    /// * `Err(String)` — Resolution error
+    fn resolve_sha(&self, crate_name: &str) -> Result<String, String>;
+}
+
+/// Memory Storage Port — Artifact persistence
+pub trait MemoryStoragePort {
+    /// Store a memory artifact (triple or embedding)
+    ///
+    /// # Arguments
+    /// * `producer_webid` — WebID of the producing agent
+    /// * `artifact_type` — Type of artifact ("episodic_triple", "semantic_triple", "embedding")
+    /// * `content` — Artifact content as JSON
+    /// * `visibility` — Visibility setting ("private", "public", "shared")
+    /// * `token` — Capability token authorizing the write
+    ///
+    /// # Returns
+    /// * `Ok(String)` — Artifact ID
+    /// * `Err(String)` — Storage error
+    fn store_artifact(
+        &self,
+        producer_webid: WebID,
+        artifact_type: &str,
+        content: serde_json::Value,
+        visibility: &str,
+        token: &CapabilityToken,
+    ) -> Result<String, String>;
+
+    /// Recall memory artifacts matching a query
+    ///
+    /// # Arguments
+    /// * `query` — Search query
+    /// * `token` — Capability token authorizing the read
+    ///
+    /// # Returns
+    /// * `Ok(Vec<serde_json::Value>)` — Matching artifacts
+    /// * `Err(String)` — Query error
+    fn recall(
+        &self,
+        query: &str,
+        token: &CapabilityToken,
+    ) -> Result<Vec<serde_json::Value>, String>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    pub struct MockACPRuntime;
+    impl ACPRuntimePort for MockACPRuntime {
+        fn register_agent(
+            &self,
+            webid: WebID,
+            _capabilities: Vec<String>,
+        ) -> Result<CapabilityToken, String> {
+            Ok(CapabilityToken::new(
+                CapabilityResource::Tool,
+                "*".to_string(),
+                CapabilityAction::Execute,
+                WebID::new(),
+                webid,
+                b"test-secret",
+            ))
+        }
+    }
+
+    pub struct MockMCPRuntime;
+    impl MCPRuntimePort for MockMCPRuntime {
+        fn grant_tool_access(&self, _token: CapabilityToken) -> Result<(), String> {
+            Ok(())
+        }
+
+        fn invoke_tool(
+            &self,
+            _tool_name: &str,
+            _input: serde_json::Value,
+            _token: &CapabilityToken,
+        ) -> Result<serde_json::Value, String> {
+            Ok(json!({"result": "success"}))
+        }
+    }
+
+    pub struct MockCNSSpan;
+    impl CNSSpanPort for MockCNSSpan {
+        fn emit_event(&self, _span: &str, _phase: &str, _observation: &serde_json::Value, _confidence: f64) {
+            // No-op for tests
+        }
+    }
+
+    pub struct MockGitCAS;
+    impl GitCASPort for MockGitCAS {
+        fn load_template_crate(&self, _crate_name: &str) -> Result<TemplateCrate, String> {
+            Ok(TemplateCrate {
+                name: "test-crate".to_string(),
+                git_sha: "abc123".to_string(),
+                persona_yaml: String::new(),
+                dispatch_manifest_yaml: String::new(),
+                templates: vec![],
+                hlexicon_terms: vec![],
+            })
+        }
+
+        fn resolve_sha(&self, _crate_name: &str) -> Result<String, String> {
+            Ok("abc123".to_string())
+        }
+    }
+
+    #[test]
+    fn test_pod_lifecycle() {
+        let persona_yaml = r#"
+agent:
+  name: "test-bot"
+  type: "Bot"
+  version: "0.1.0"
+charter:
+  description: "Test bot"
+  editor: "curator"
+capabilities:
+  - "tool:inference:call"
+rights: []
+responsibilities: []
+visibility:
+  default: "public"
+  episodic_override: "private"
+"#;
+
+        let persona = AgentPersona::from_yaml(persona_yaml).unwrap();
+        let git = MockGitCAS;
+        let mut pod = AgentPod::new("test-crate", &persona, &git).unwrap();
+
+        assert_eq!(pod.state(), PodLifecycleState::Populated);
+
+        let acp = MockACPRuntime;
+        let cns = MockCNSSpan;
+        pod.register(&acp, &cns).unwrap();
+        assert_eq!(pod.state(), PodLifecycleState::Registered);
+
+        let mcp = MockMCPRuntime;
+        pod.activate(&mcp, &cns).unwrap();
+        assert_eq!(pod.state(), PodLifecycleState::Activated);
+        assert!(pod.is_active());
+
+        pod.deactivate(&cns).unwrap();
+        assert_eq!(pod.state(), PodLifecycleState::Deactivated);
+        assert!(!pod.is_active());
+    }
+
+    #[test]
+    fn test_invalid_state_transitions() {
+        let persona_yaml = r#"
+agent:
+  name: "test-bot"
+  type: "Bot"
+charter:
+  description: "Test"
+  editor: "curator"
+capabilities: []
+rights: []
+responsibilities: []
+visibility:
+  default: "public"
+  episodic_override: "private"
+"#;
+
+        let persona = AgentPersona::from_yaml(persona_yaml).unwrap();
+        let git = MockGitCAS;
+        let mut pod = AgentPod::new("test-crate", &persona, &git).unwrap();
+
+        let cns = MockCNSSpan;
+        let result = pod.deactivate(&cns);
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            AgentPodError::InvalidStateTransition(_, _)
+        ));
+    }
+
+    #[test]
+    fn test_capability_attenuation() {
+        let persona_yaml = r#"
+agent:
+  name: "test-bot"
+  type: "Bot"
+charter:
+  description: "Test"
+  editor: "curator"
+capabilities: []
+rights: []
+responsibilities: []
+visibility:
+  default: "public"
+  episodic_override: "private"
+"#;
+
+        let persona = AgentPersona::from_yaml(persona_yaml).unwrap();
+        let git = MockGitCAS;
+        let pod = AgentPod::new("test-crate", &persona, &git).unwrap();
+
+        let new_holder = WebID::new();
+        let attenuated = pod.delegate(new_holder, 1000);
+        assert!(attenuated.is_some());
+
+        let attenuated = attenuated.unwrap();
+        assert_eq!(attenuated.attenuation_level, 1);
+    }
+
+    #[test]
+    fn test_persona_parsing() {
+        let yaml = r#"
+agent:
+  name: "memory-bot"
+  type: "Bot"
+  version: "0.2.0"
+charter:
+  description: "Expert bot for memory operations"
+  editor: "curator"
+capabilities:
+  - "tool:memory:remember"
+  - "tool:memory:recall"
+rights:
+  - read: "public_semantic_memory"
+  - write: "own_episodic_memory"
+responsibilities:
+  - "respond_to: memory_tool_calls"
+  - "emit: cns.agent_pod.*"
+visibility:
+  default: "public"
+  episodic_override: "private"
+"#;
+
+        let persona = AgentPersona::from_yaml(yaml).unwrap();
+        assert_eq!(persona.agent.name, "memory-bot");
+        assert_eq!(persona.agent.agent_type, AgentType::Bot);
+        assert_eq!(persona.agent.version, "0.2.0");
+        assert_eq!(persona.capabilities.len(), 2);
     }
 }

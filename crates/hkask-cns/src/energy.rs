@@ -15,7 +15,7 @@
 //! - Every registry write → energy cost
 //! - Default cost: 1 energy unit per 4 tokens (configurable)
 
-use hkask_types::{CapabilityToken, NuEvent, Span, WebID};
+use hkask_types::{NuEvent, Span, WebID};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::info;

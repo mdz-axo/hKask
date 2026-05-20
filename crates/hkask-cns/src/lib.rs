@@ -16,6 +16,7 @@ pub mod algedonic;
 pub mod energy;
 pub mod observers;
 pub mod rate_limit;
+pub mod review_queue;
 pub mod spans;
 pub mod variety;
 
@@ -30,5 +31,9 @@ pub use observers::composition::{
     CompositionMetrics, CompositionObserver, CompositionObserverState,
 };
 pub use rate_limit::{RateLimitConfig, RateLimiter};
+pub use review_queue::{
+    ReviewDecision, ReviewQueue, ReviewQueueObserver, ReviewQueueStats, TemporaryBlock,
+    Violation, ViolationSeverity,
+};
 pub use spans::{SpanCategory, SpanEmitter};
 pub use variety::{VarietyCounter, VarietyMonitor};

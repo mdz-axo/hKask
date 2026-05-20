@@ -6,6 +6,7 @@ use hkask_mcp::runtime::{McpRuntime, McpServer, McpTool};
 use hkask_templates::{RegistryEntry, RegistryIndex, SqliteRegistry, TemplateError};
 use hkask_types::TemplateType;
 use serde_json::Value;
+use std::path::PathBuf;
 
 /// Template list command
 pub fn list_templates(
@@ -85,6 +86,44 @@ pub async fn register_mcp_server(
     };
 
     runtime.register_server(server).await;
+}
+
+/// Pod status information
+pub struct PodStatus {
+    pub pod_id: String,
+    pub name: Option<String>,
+    pub state: String,
+    pub webid: String,
+    pub created_at: String,
+}
+
+/// Get pod status (placeholder - requires pod manager implementation)
+pub fn get_pod_status(_pod_id: &str) -> Result<PodStatus, String> {
+    Err("Pod manager not yet implemented. This is a placeholder for Phase 3.".to_string())
+}
+
+/// List all pods (placeholder - requires pod manager implementation)
+pub fn list_pods() -> Vec<PodStatus> {
+    vec![]
+}
+
+/// Create pod from template crate (placeholder - requires pod manager implementation)
+pub fn create_pod(
+    _template_name: &str,
+    _persona_path: &PathBuf,
+    _pod_name: Option<&str>,
+) -> Result<String, String> {
+    Err("Pod manager not yet implemented. This is a placeholder for Phase 3.".to_string())
+}
+
+/// Activate pod (placeholder - requires pod manager implementation)
+pub fn activate_pod(_pod_id: &str) -> Result<(), String> {
+    Err("Pod manager not yet implemented. This is a placeholder for Phase 3.".to_string())
+}
+
+/// Deactivate pod (placeholder - requires pod manager implementation)
+pub fn deactivate_pod(_pod_id: &str) -> Result<(), String> {
+    Err("Pod manager not yet implemented. This is a placeholder for Phase 3.".to_string())
 }
 
 #[cfg(test)]
