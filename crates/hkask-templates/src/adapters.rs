@@ -364,3 +364,4 @@ impl SkillRegistryPort for MockRegistryAdapter {
         assert_eq!(no_results.len(), 0);
     }
 }
+}
