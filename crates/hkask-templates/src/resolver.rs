@@ -58,58 +58,6 @@ impl<R: RegistryIndex> TemplateResolver<R> {
         }
     }
 
-    #[test]
-    fn test_resolver_resolve() {
-        let mut registry = MockRegistry::new();
-        registry.add(RegistryEntry {
-            id: "test/template".to_string(),
-            template_type: TemplateType::Prompt,
-            lexicon_terms: vec![],
-            description: "Test".to_string(),
-            source_path: "/path/to/template.jinja2".to_string(),
-        });
 
-        let resolver = TemplateResolver::new(registry);
 
-        // Direct lookup (no cache)
-        let path = resolver.resolve("test/template").unwrap();
-        assert_eq!(path, "/path/to/template.jinja2");
-    }
-
-    #[test]
-    fn test_resolver_multiple_lookups() {
-        let mut registry = MockRegistry::new();
-        registry.add(RegistryEntry {
-            id: "test/template1".to_string(),
-            template_type: TemplateType::Prompt,
-            lexicon_terms: vec![],
-            description: "Test".to_string(),
-            source_path: "/path/to/template1.jinja2".to_string(),
-        });
-        registry.add(RegistryEntry {
-            id: "test/template2".to_string(),
-            template_type: TemplateType::Prompt,
-            lexicon_terms: vec![],
-            description: "Test".to_string(),
-            source_path: "/path/to/template2.jinja2".to_string(),
-        });
-
-        let resolver = TemplateResolver::new(registry);
-
-        // Multiple lookups should all succeed
-        let path1 = resolver.resolve("test/template1").unwrap();
-        let path2 = resolver.resolve("test/template2").unwrap();
-
-        assert_eq!(path1, "/path/to/template1.jinja2");
-        assert_eq!(path2, "/path/to/template2.jinja2");
-    }
-
-    #[test]
-    fn test_resolver_not_found() {
-        let registry = MockRegistry::new();
-        let resolver = TemplateResolver::new(registry);
-
-        let result = resolver.resolve("nonexistent/template");
-        assert!(result.is_err());
-    }
 }

@@ -399,7 +399,7 @@ impl OkapiCapability {
         self.visibility
     }
 
-    /// Create capability with custom visibility (for testing)
+    // Create capability with custom visibility (for testing)
 }
 
 impl std::str::FromStr for OkapiOperation {

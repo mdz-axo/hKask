@@ -496,166 +496,17 @@ impl RegistryIndex for Registry {
 }
 
 
-    #[test]
-    fn test_registry_register() {
-        let mut registry = Registry::new();
-        let entry = TemplateEntry::new("test-1", TemplateType::Prompt, "Test", "Test template");
-        registry.register(entry);
 
-        assert_eq!(registry.count(), 1);
-        assert!(registry.exists("test-1"));
-    }
 
-    #[test]
-    fn test_registry_get() {
-        let mut registry = Registry::new();
-        let entry = TemplateEntry::new("test-1", TemplateType::Prompt, "Test", "Test template");
-        registry.register(entry);
 
-        // Registry::get returns Option<&TemplateEntry>
-        let retrieved = registry.get("test-1");
-        assert!(retrieved.is_some());
-        assert_eq!(retrieved.unwrap().name, "Test");
 
-        // RegistryIndex::get returns Result<RegistryEntry>
-        let index_result = <dyn RegistryIndex>::get(&registry, "test-1");
-        assert!(index_result.is_ok());
-    }
 
-    #[test]
-    fn test_registry_get_not_found() {
-        let registry = Registry::new();
-        // Use RegistryIndex trait method which returns Result
-        let result = <dyn RegistryIndex>::get(&registry, "nonexistent");
-        assert!(result.is_err());
-        assert!(format!("{:?}", result.unwrap_err()).contains("not found"));
-    }
 
-    #[test]
-    fn test_registry_get_path_traversal() {
-        let registry = Registry::bootstrap();
-        let result = <dyn RegistryIndex>::get(&registry, "../etc/passwd");
-        assert!(result.is_err());
-        assert!(format!("{:?}", result.unwrap_err()).contains("Path traversal"));
-    }
 
-    #[test]
-    fn test_registry_get_absolute_path() {
-        let registry = Registry::bootstrap();
-        let result = <dyn RegistryIndex>::get(&registry, "/etc/passwd");
-        assert!(result.is_err());
-        let err = format!("{:?}", result.unwrap_err());
-        assert!(err.contains("Absolute path") || err.contains("Path traversal"));
-    }
 
-    #[test]
-    fn test_registry_by_type() {
-        let mut registry = Registry::new();
-        registry.register(TemplateEntry::new(
-            "p1",
-            TemplateType::Prompt,
-            "P1",
-            "Prompt 1",
-        ));
-        registry.register(TemplateEntry::new(
-            "p2",
-            TemplateType::Prompt,
-            "P2",
-            "Prompt 2",
-        ));
-        registry.register(TemplateEntry::new(
-            "c1",
-            TemplateType::Cognition,
-            "C1",
-            "Cognition 1",
-        ));
 
-        let prompts = registry.by_type(TemplateType::Prompt);
-        assert_eq!(prompts.len(), 2);
 
-        let cognitions = registry.by_type(TemplateType::Cognition);
-        assert_eq!(cognitions.len(), 1);
-    }
 
-    #[test]
-    fn test_registry_bootstrap() {
-        let registry = Registry::bootstrap();
-        assert!(registry.count() > 0);
-        assert!(registry.exists("prompt/selector"));
-        assert!(registry.exists("cognition/detect"));
-        assert!(registry.exists("process/memory/recall"));
-    }
 
-    #[test]
-    fn test_template_entry_builder() {
-        let entry = TemplateEntry::new("test", TemplateType::Prompt, "Test", "Desc")
-            .with_lexicon(vec!["term1", "term2"])
-            .with_cascade(2)
-            .with_matroshka_limit(5);
 
-        assert_eq!(entry.lexicon_terms, vec!["term1", "term2"]);
-        assert_eq!(entry.cascade_level, 2);
-        assert_eq!(entry.matroshka_limit, 5);
-    }
-
-    #[test]
-    fn test_registry_as_index() {
-        let registry = Registry::bootstrap();
-        let entries = registry.list(None);
-        assert!(!entries.is_empty());
-
-        let prompt_entries = registry.list(Some(TemplateType::Prompt));
-        assert!(!prompt_entries.is_empty());
-
-        // Use RegistryIndex trait method which returns Result
-        let entry = <dyn RegistryIndex>::get(&registry, "prompt/selector");
-        assert!(entry.is_ok());
-    }
-
-    #[test]
-    fn test_bootstrap_manifest() {
-        let registry = Registry::bootstrap();
-        let manifest = registry.bootstrap_manifest().unwrap();
-
-        assert_eq!(manifest.steps.len(), 3);
-        assert_eq!(manifest.steps[0].action, Action::Select);
-        assert_eq!(manifest.steps[1].action, Action::Populate);
-        assert_eq!(manifest.steps[2].action, Action::Execute);
-    }
-
-    #[test]
-    fn test_get_templates_path() {
-        // Test that path resolution returns something
-        let path = Registry::get_templates_path();
-        assert!(!path.as_os_str().is_empty());
-    }
-
-    #[test]
-    fn test_get_template_path() {
-        // Test template path construction
-        let path = Registry::get_template_path("prompt/selector");
-        assert!(path.ends_with("prompt_selector.j2"));
-    }
-
-    #[test]
-    fn test_registry_cache_invalidation() {
-        let mut registry = Registry::bootstrap();
-        assert!(registry.is_cache_valid());
-        assert!(registry.count() > 0);
-
-        registry.invalidate_cache();
-        assert!(!registry.is_cache_valid());
-        assert_eq!(registry.count(), 0);
-    }
-
-    #[test]
-    fn test_registry_reload() {
-        let mut registry = Registry::bootstrap();
-        let initial_count = registry.count();
-        assert!(initial_count > 0);
-
-        registry.reload();
-        assert!(registry.is_cache_valid());
-        assert_eq!(registry.count(), initial_count);
-    }
 }

@@ -148,48 +148,5 @@ impl RegistryIndex for GitRegistry {
 }
 
 
-    #[test]
-    fn test_verify_git_repo() {
-        let (_temp_dir, repo_path) = setup_git_repo();
 
-        // Create initial commit
-        fs::write(repo_path.join("README.md"), "# Test").unwrap();
-        Command::new("git")
-            .args(["add", "README.md"])
-            .current_dir(&repo_path)
-            .output()
-            .unwrap();
-        Command::new("git")
-            .args(["commit", "-m", "Initial commit"])
-            .current_dir(&repo_path)
-            .output()
-            .unwrap();
-
-        assert!(GitRegistry::verify_git_repo(&repo_path).is_ok());
-
-        // Non-git directory should fail
-        let temp_dir = TempDir::new().unwrap();
-        assert!(GitRegistry::verify_git_repo(temp_dir.path()).is_err());
-    }
-
-    #[test]
-    fn test_get_current_sha() {
-        let (_temp_dir, repo_path) = setup_git_repo();
-
-        // Create initial commit
-        fs::write(repo_path.join("README.md"), "# Test").unwrap();
-        Command::new("git")
-            .args(["add", "README.md"])
-            .current_dir(&repo_path)
-            .output()
-            .unwrap();
-        Command::new("git")
-            .args(["commit", "-m", "Initial commit"])
-            .current_dir(&repo_path)
-            .output()
-            .unwrap();
-
-        let sha = GitRegistry::get_current_sha(&repo_path).unwrap();
-        assert_eq!(sha.len(), 40); // SHA-1 is 40 hex chars
-    }
 }

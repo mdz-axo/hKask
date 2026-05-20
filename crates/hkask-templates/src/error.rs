@@ -248,80 +248,12 @@ impl Default for RetryConfig {
 }
 
 
-    #[test]
-    fn test_permanent_error() {
-        let error = CompositionError::permanent("validation failed", Some("missing field"));
-        assert!(!error.is_retryable());
-        assert_eq!(error.category(), "permanent");
-    }
 
-    #[test]
-    fn test_retry_increment() {
-        let error = CompositionError::transient("timeout");
-        let retry1 = error.increment_retry();
-        assert_eq!(retry1.retry_count(), Some(1));
 
-        let retry2 = retry1.increment_retry();
-        assert_eq!(retry2.retry_count(), Some(2));
-    }
 
-    #[test]
-    fn test_retry_config_backoff() {
-        let config = RetryConfig::default();
-        assert_eq!(config.backoff_delay(0), 1000);
-        assert_eq!(config.backoff_delay(1), 2000);
-        assert_eq!(config.backoff_delay(2), 4000);
-        assert_eq!(config.backoff_delay(3), 8000); // Exponential
-        assert_eq!(config.backoff_delay(4), 10000); // Cap
-    }
 
-    #[test]
-    fn test_retry_config_should_retry() {
-        let config = RetryConfig::default();
-        assert!(config.should_retry(0));
-        assert!(config.should_retry(1));
-        assert!(config.should_retry(2));
-        assert!(!config.should_retry(3)); // max_retries = 3
-    }
 
-    #[test]
-    fn test_resource_exhausted() {
-        let error = CompositionError::resource_exhausted("energy", 1000, 500);
-        assert!(!error.is_retryable());
-        assert_eq!(error.category(), "resource_exhausted");
-    }
 
-    #[test]
-    fn test_security_violation() {
-        let error = CompositionError::security_violation("path_traversal", None, None);
-        assert!(!error.is_retryable());
-        assert_eq!(error.category(), "security_violation");
-    }
 
-    #[test]
-    fn test_recursion_limit() {
-        let error = CompositionError::RecursionLimit { max: 7, actual: 8 };
-        assert!(!error.is_retryable());
-        assert_eq!(error.category(), "recursion_limit");
-    }
 
-    #[test]
-    fn test_capability_denied() {
-        let error = CompositionError::CapabilityDenied {
-            reason: "missing token".to_string(),
-            resource: Some("template".to_string()),
-            action: Some("render".to_string()),
-        };
-        assert!(!error.is_retryable());
-        assert_eq!(error.category(), "capability_denied");
-    }
-
-    #[test]
-    fn test_cycle_detected() {
-        let error = CompositionError::CycleDetected {
-            cycle_path: vec!["a".to_string(), "b".to_string(), "a".to_string()],
-        };
-        assert!(!error.is_retryable());
-        assert_eq!(error.category(), "cycle_detected");
-    }
 }

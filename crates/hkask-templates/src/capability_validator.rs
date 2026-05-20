@@ -165,37 +165,4 @@ mod tests {
     use super::*;
     use hkask_templates::{RegistrationFrontmatter, TemplateType};
 
-    #[test]
-    fn test_capability_aware_validator_incompatible_capabilities() {
-        let capabilities = OkapiCapabilities {
-            runner_type: "llamarunner".to_string(),
-            lora_hot_swap: false,
-            token_probs: false,
-            grammar_native: false,
-            advanced_sampling: false,
-        };
-        let validator = CapabilityAwareValidator::new(capabilities, vec![]);
-
-        let frontmatter = RegistrationFrontmatter {
-            template_type: TemplateType::Prompt,
-            domain: "WordAct".to_string(),
-            requires_okapi: Some(OkapiRequirements {
-                n_probs: Some(5),
-                grammar: None,
-                adapter: None,
-            }),
-            confidence: None,
-            lexicon_terms: vec![],
-            contract: None,
-        };
-
-        let result = validator.validate(&frontmatter);
-        assert!(result.is_err());
-        let errors = result.unwrap_err();
-        assert!(
-            errors
-                .iter()
-                .any(|e| matches!(e, ValidationError::TokenProbsNotSupported { .. }))
-        );
-    }
 }

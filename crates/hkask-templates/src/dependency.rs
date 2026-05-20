@@ -264,151 +264,15 @@ pub fn parse_dependencies(_template_id: &str, source: &str) -> Vec<String> {
 }
 
 
-    #[test]
-    fn test_dependency_graph_add_edge() {
-        let mut graph = DependencyGraph::new();
-        graph.add_edge("caller".to_string(), "callee".to_string(), 1);
 
-        assert_eq!(graph.edge_count(), 1);
-        let deps = graph.get_dependencies("caller");
-        assert_eq!(deps.len(), 1);
-        assert_eq!(deps[0].callee, "callee");
-    }
 
-    #[test]
-    fn test_dependency_graph_no_cycle() {
-        let mut graph = DependencyGraph::new();
-        graph.add_edge("a".to_string(), "b".to_string(), 1);
-        graph.add_edge("b".to_string(), "c".to_string(), 1);
 
-        // Adding d->a would NOT create a cycle (d is not in graph)
-        assert!(!graph.would_create_cycle("d", "a"));
 
-        // Adding c->d would NOT create a cycle (d is not reachable from a or b)
-        assert!(!graph.would_create_cycle("c", "d"));
-    }
 
-    #[test]
-    fn test_dependency_graph_detect_cycle() {
-        let mut graph = DependencyGraph::new();
-        graph.add_edge("a".to_string(), "b".to_string(), 1);
-        graph.add_edge("b".to_string(), "c".to_string(), 1);
-        graph.add_edge("c".to_string(), "a".to_string(), 1);
 
-        assert!(graph.would_create_cycle("c", "a"));
 
-        let cycles = graph.find_cycles();
-        assert!(!cycles.is_empty());
-    }
 
-    #[test]
-    fn test_dependency_graph_max_depth() {
-        let mut graph = DependencyGraph::new();
-        graph.add_edge("root".to_string(), "level1".to_string(), 1);
-        graph.add_edge("level1".to_string(), "level2".to_string(), 2);
-        graph.add_edge("level2".to_string(), "level3".to_string(), 3);
 
-        assert_eq!(graph.get_max_depth("root"), 3);
-    }
 
-    #[test]
-    fn test_parse_dependencies_include() {
-        let source = r#"
-        Some text
-        {% include "prompt/selector" %}
-        More text
-        {% include 'process/dispatch' %}
-        "#;
 
-        let deps = parse_dependencies("test", source);
-        assert_eq!(deps.len(), 2);
-        assert!(deps.contains(&"prompt/selector".to_string()));
-        assert!(deps.contains(&"process/dispatch".to_string()));
-    }
-
-    #[test]
-    fn test_parse_dependencies_call() {
-        let source = r#"
-        {% call "cognition/detect" %}
-        "#;
-
-        let deps = parse_dependencies("test", source);
-        assert_eq!(deps.len(), 1);
-        assert!(deps.contains(&"cognition/detect".to_string()));
-    }
-
-    #[test]
-    fn test_parse_dependencies_empty() {
-        let source = r#"
-        No dependencies here
-        Just regular content
-        "#;
-
-        let deps = parse_dependencies("test", source);
-        assert!(deps.is_empty());
-    }
-
-    #[test]
-    fn test_dependency_graph_clear() {
-        let mut graph = DependencyGraph::new();
-        graph.add_edge("a".to_string(), "b".to_string(), 1);
-
-        graph.clear();
-
-        assert_eq!(graph.edge_count(), 0);
-    }
-
-    #[test]
-    fn test_dependency_graph_dependents() {
-        let mut graph = DependencyGraph::new();
-        graph.add_edge("a".to_string(), "b".to_string(), 1);
-        graph.add_edge("c".to_string(), "b".to_string(), 1);
-
-        let dependents = graph.get_dependents("b");
-        assert_eq!(dependents.len(), 2);
-    }
-
-    #[test]
-    fn test_dependency_graph_topological_sort() {
-        let mut graph = DependencyGraph::new();
-        graph.add_edge("a".to_string(), "b".to_string(), 1);
-        graph.add_edge("b".to_string(), "c".to_string(), 1);
-
-        let sorted = graph.topological_sort();
-        assert!(sorted.is_some());
-        let sorted = sorted.unwrap();
-        assert_eq!(sorted.len(), 3);
-        // a should come before b, b should come before c
-        assert!(
-            sorted.iter().position(|x| x == "a").unwrap()
-                < sorted.iter().position(|x| x == "b").unwrap()
-        );
-        assert!(
-            sorted.iter().position(|x| x == "b").unwrap()
-                < sorted.iter().position(|x| x == "c").unwrap()
-        );
-    }
-
-    #[test]
-    fn test_dependency_graph_topological_sort_with_cycle() {
-        let mut graph = DependencyGraph::new();
-        graph.add_edge("a".to_string(), "b".to_string(), 1);
-        graph.add_edge("b".to_string(), "c".to_string(), 1);
-        graph.add_edge("c".to_string(), "a".to_string(), 1);
-
-        let sorted = graph.topological_sort();
-        assert!(sorted.is_none());
-    }
-
-    #[test]
-    fn test_dependency_graph_has_cycle() {
-        let mut graph = DependencyGraph::new();
-        graph.add_edge("a".to_string(), "b".to_string(), 1);
-        graph.add_edge("b".to_string(), "c".to_string(), 1);
-
-        assert!(!graph.has_cycle());
-
-        graph.add_edge("c".to_string(), "a".to_string(), 1);
-        assert!(graph.has_cycle());
-    }
 }

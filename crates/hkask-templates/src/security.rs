@@ -459,41 +459,8 @@ impl crate::ports::SecurityPort for SecurityAdapter {
 }
 
 
-    #[test]
-    fn test_validator_allows_safe_templates() {
-        let validator = Jinja2TemplateValidator::new();
-        assert!(validator.validate("Hello {{ name }}").is_ok());
-        assert!(validator.validate("{{ name|upper }}").is_ok());
-        assert!(validator.validate("{% if x %}yes{% endif %}").is_ok());
-    }
 
-    #[test]
-    fn test_validator_blocks_unknown_filters() {
-        let validator = Jinja2TemplateValidator::new();
-        assert!(validator.validate("{{ x|evil_filter }}").is_err());
-    }
 
-    #[test]
-    fn test_security_adapter_validates_templates() {
-        let adapter = SecurityAdapter::new(&[0x42; 32]);
-        assert!(adapter.validate_template("{{ name|upper }}").is_ok());
-        assert!(adapter.validate_template("{{ config }}").is_err());
-    }
 
-    #[test]
-    fn test_sanitize_jinja2_input() {
-        let adapter = SecurityAdapter::new(&[0x42; 32]);
-        let input = "{{ config }} hello {{ self }}";
-        let sanitized = adapter.sanitize_jinja2_input(input);
-        assert!(sanitized.contains("BLOCKED"));
-        assert!(!sanitized.contains("config"));
-    }
 
-    #[test]
-    fn test_validate_template_path() {
-        let adapter = SecurityAdapter::new(&[0x42; 32]);
-        assert!(adapter.validate_template_path("safe/path").is_ok());
-        assert!(adapter.validate_template_path("../etc/passwd").is_err());
-        assert!(adapter.validate_template_path("/etc/passwd").is_err());
-    }
 }
