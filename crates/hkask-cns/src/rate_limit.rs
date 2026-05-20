@@ -123,4 +123,3 @@ impl Default for RateLimiter {
         Self::new(RateLimitConfig::default())
     }
 }
-

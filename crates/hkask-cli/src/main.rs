@@ -194,7 +194,11 @@ fn parse_template_type(type_str: &str) -> Option<Type> {
     }
 }
 
-fn run_chat_interactive(registry: &SqliteRegistry, _runtime: &McpRuntime, template_id: Option<&str>) {
+fn run_chat_interactive(
+    registry: &SqliteRegistry,
+    _runtime: &McpRuntime,
+    template_id: Option<&str>,
+) {
     println!("ℏKask Curator Chat - Interactive Mode");
     println!("Template: {}", template_id.unwrap_or("auto-select"));
     println!("Type 'quit' or 'exit' to end session\n");
@@ -230,17 +234,16 @@ fn run_chat_interactive(registry: &SqliteRegistry, _runtime: &McpRuntime, templa
 fn process_chat_input(registry: &SqliteRegistry, input: &str, template_id: Option<&str>) -> String {
     // Simple echo/response for now - TODO: Implement actual template processing
     match template_id {
-        Some(id) => {
-            match registry.get(id) {
-                Ok(_entry) => format!("Processing with template '{}': {}", id, input),
-                Err(_) => format!("Template '{}' not found. Using default response.", id),
-            }
-        }
+        Some(id) => match registry.get(id) {
+            Ok(_entry) => format!("Processing with template '{}': {}", id, input),
+            Err(_) => format!("Template '{}' not found. Using default response.", id),
+        },
         None => {
             // Auto-select template based on input
             if input.contains('?') || input.contains("what") || input.contains("how") {
                 "I'll help answer your question. (Question template would process this)".to_string()
-            } else if input.contains("create") || input.contains("make") || input.contains("build") {
+            } else if input.contains("create") || input.contains("make") || input.contains("build")
+            {
                 "I'll help you create that. (Action template would process this)".to_string()
             } else {
                 format!("Received: {}. (Default template response)", input)
@@ -271,7 +274,11 @@ fn main() {
     let runtime = McpRuntime::new();
 
     match cli.command {
-        Commands::Chat { template, input, interactive } => {
+        Commands::Chat {
+            template,
+            input,
+            interactive,
+        } => {
             if interactive {
                 run_chat_interactive(&registry, &runtime, template.as_deref());
             } else if let Some(input_path) = input {
@@ -296,98 +303,104 @@ fn main() {
             }
         }
 
-        Commands::Template { action } => {
-            match action {
-                TemplateAction::List { r#type } => {
-                    let template_type = r#type.as_deref().and_then(parse_template_type);
-                    let entries = commands::list_templates(&registry, template_type);
-                    
-                    if entries.is_empty() {
-                        println!("No templates registered.");
-                    } else {
-                        println!("Registered templates ({}):\n", entries.len());
-                        for entry in entries {
-                            println!("  {} ({})", entry.id, entry.template_type.as_str());
-                            println!("    Description: {}", entry.description);
-                            println!("    Path: {}", entry.source_path);
-                            if !entry.lexicon_terms.is_empty() {
-                                println!("    Lexicon: {}", entry.lexicon_terms.join(", "));
-                            }
-                            println!();
-                        }
-                    }
-                }
-                TemplateAction::Register { id, path, r#type, lexicon, description } => {
-                    let template_type = match parse_template_type(&r#type) {
-                        Some(t) => t,
-                        None => {
-                            eprintln!("Invalid template type: {}. Valid types: prompt, cognition, process", r#type);
-                            std::process::exit(1);
-                        }
-                    };
+        Commands::Template { action } => match action {
+            TemplateAction::List { r#type } => {
+                let template_type = r#type.as_deref().and_then(parse_template_type);
+                let entries = commands::list_templates(&registry, template_type);
 
-                    let lexicon_terms: Vec<String> = lexicon
-                        .map(|l| l.split(',').map(|s| s.trim().to_string()).collect())
-                        .unwrap_or_default();
-
-                    let desc = description.unwrap_or_else(|| format!("Template {}", id));
-
-                    match commands::register_template(
-                        &mut registry,
-                        id.clone(),
-                        template_type,
-                        path.to_string_lossy().to_string(),
-                        lexicon_terms,
-                        desc,
-                    ) {
-                        Ok(()) => println!("Registered template: {}", id),
-                        Err(e) => {
-                            eprintln!("Failed to register template: {}", e);
-                            std::process::exit(1);
+                if entries.is_empty() {
+                    println!("No templates registered.");
+                } else {
+                    println!("Registered templates ({}):\n", entries.len());
+                    for entry in entries {
+                        println!("  {} ({})", entry.id, entry.template_type.as_str());
+                        println!("    Description: {}", entry.description);
+                        println!("    Path: {}", entry.source_path);
+                        if !entry.lexicon_terms.is_empty() {
+                            println!("    Lexicon: {}", entry.lexicon_terms.join(", "));
                         }
-                    }
-                }
-                TemplateAction::Get { id } => {
-                    match commands::get_template(&registry, &id) {
-                        Ok(entry) => {
-                            println!("Template: {}", entry.id);
-                            println!("  Type: {}", entry.template_type.as_str());
-                            println!("  Description: {}", entry.description);
-                            println!("  Path: {}", entry.source_path);
-                            println!("  Lexicon: {}", entry.lexicon_terms.join(", "));
-                        }
-                        Err(e) => {
-                            eprintln!("Template not found: {}", e);
-                            std::process::exit(1);
-                        }
-                    }
-                }
-                TemplateAction::Search { term } => {
-                    let results = commands::search_templates(&registry, &term);
-                    if results.is_empty() {
-                        println!("No templates found with lexicon term: {}", term);
-                    } else {
-                        println!("Templates matching '{}':\n", term);
-                        for entry in results {
-                            println!("  {} ({})", entry.id, entry.template_type.as_str());
-                        }
+                        println!();
                     }
                 }
             }
-        }
+            TemplateAction::Register {
+                id,
+                path,
+                r#type,
+                lexicon,
+                description,
+            } => {
+                let template_type = match parse_template_type(&r#type) {
+                    Some(t) => t,
+                    None => {
+                        eprintln!(
+                            "Invalid template type: {}. Valid types: prompt, cognition, process",
+                            r#type
+                        );
+                        std::process::exit(1);
+                    }
+                };
 
-        Commands::Bot { action } => {
-            match action {
-                BotAction::List { bot_id } => {
-                    println!("Bot capabilities (bot: {})", bot_id.unwrap_or("all".to_string()));
-                    println!("Note: Bot capability management requires ACP runtime integration.");
-                }
-                BotAction::Grant { bot_id, capability } => {
-                    println!("Grant capability: {} to bot: {}", capability, bot_id);
-                    println!("Note: Capability granting requires ACP runtime integration.");
+                let lexicon_terms: Vec<String> = lexicon
+                    .map(|l| l.split(',').map(|s| s.trim().to_string()).collect())
+                    .unwrap_or_default();
+
+                let desc = description.unwrap_or_else(|| format!("Template {}", id));
+
+                match commands::register_template(
+                    &mut registry,
+                    id.clone(),
+                    template_type,
+                    path.to_string_lossy().to_string(),
+                    lexicon_terms,
+                    desc,
+                ) {
+                    Ok(()) => println!("Registered template: {}", id),
+                    Err(e) => {
+                        eprintln!("Failed to register template: {}", e);
+                        std::process::exit(1);
+                    }
                 }
             }
-        }
+            TemplateAction::Get { id } => match commands::get_template(&registry, &id) {
+                Ok(entry) => {
+                    println!("Template: {}", entry.id);
+                    println!("  Type: {}", entry.template_type.as_str());
+                    println!("  Description: {}", entry.description);
+                    println!("  Path: {}", entry.source_path);
+                    println!("  Lexicon: {}", entry.lexicon_terms.join(", "));
+                }
+                Err(e) => {
+                    eprintln!("Template not found: {}", e);
+                    std::process::exit(1);
+                }
+            },
+            TemplateAction::Search { term } => {
+                let results = commands::search_templates(&registry, &term);
+                if results.is_empty() {
+                    println!("No templates found with lexicon term: {}", term);
+                } else {
+                    println!("Templates matching '{}':\n", term);
+                    for entry in results {
+                        println!("  {} ({})", entry.id, entry.template_type.as_str());
+                    }
+                }
+            }
+        },
+
+        Commands::Bot { action } => match action {
+            BotAction::List { bot_id } => {
+                println!(
+                    "Bot capabilities (bot: {})",
+                    bot_id.unwrap_or("all".to_string())
+                );
+                println!("Note: Bot capability management requires ACP runtime integration.");
+            }
+            BotAction::Grant { bot_id, capability } => {
+                println!("Grant capability: {} to bot: {}", capability, bot_id);
+                println!("Note: Capability granting requires ACP runtime integration.");
+            }
+        },
 
         Commands::Mcp { action } => {
             match action {
@@ -407,24 +420,22 @@ fn main() {
             }
         }
 
-        Commands::Cns { action } => {
-            match action {
-                CnsAction::Health => {
-                    println!("CNS health status:");
-                    println!("  Overall deficit: 0");
-                    println!("  Critical alerts: 0");
-                    println!("  Warning alerts: 0");
-                    println!("  Status: HEALTHY");
-                }
-                CnsAction::Alerts => {
-                    println!("Algedonic alerts:");
-                    println!("  (no active alerts)");
-                }
-                CnsAction::Variety => {
-                    println!("Variety counters:");
-                    println!("  (no variety data)");
-                }
+        Commands::Cns { action } => match action {
+            CnsAction::Health => {
+                println!("CNS health status:");
+                println!("  Overall deficit: 0");
+                println!("  Critical alerts: 0");
+                println!("  Warning alerts: 0");
+                println!("  Status: HEALTHY");
             }
-        }
+            CnsAction::Alerts => {
+                println!("Algedonic alerts:");
+                println!("  (no active alerts)");
+            }
+            CnsAction::Variety => {
+                println!("Variety counters:");
+                println!("  (no variety data)");
+            }
+        },
     }
 }

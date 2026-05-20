@@ -378,4 +378,3 @@ impl RegistryIndex for Registry {
         })
     }
 }
-

@@ -192,4 +192,3 @@ pub const DEFAULT_MATROSHKA_LIMIT: u8 = 7;
 
 /// Default model tier for fast local inference
 pub const FAST_LOCAL_MODEL: &str = "fast_local";
-

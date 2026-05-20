@@ -183,4 +183,3 @@ impl Default for AuditTrail {
         Self::new(10000) // Default: keep last 10,000 records
     }
 }
-

@@ -8,7 +8,10 @@ use hkask_types::TemplateType;
 use serde_json::Value;
 
 /// Template list command
-pub fn list_templates(registry: &dyn RegistryIndex, template_type: Option<TemplateType>) -> Vec<RegistryEntry> {
+pub fn list_templates(
+    registry: &dyn RegistryIndex,
+    template_type: Option<TemplateType>,
+) -> Vec<RegistryEntry> {
     registry.list(template_type)
 }
 
@@ -33,7 +36,10 @@ pub fn register_template(
 }
 
 /// Get template command
-pub fn get_template(registry: &dyn RegistryIndex, id: &str) -> Result<RegistryEntry, TemplateError> {
+pub fn get_template(
+    registry: &dyn RegistryIndex,
+    id: &str,
+) -> Result<RegistryEntry, TemplateError> {
     registry.get(id)
 }
 

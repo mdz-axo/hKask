@@ -15,7 +15,7 @@
 //! - Every registry write → energy cost
 //! - Default cost: 1 energy unit per 4 tokens (configurable)
 
-use hkask_types::{NuEvent, Span, WebID, CapabilityToken};
+use hkask_types::{CapabilityToken, NuEvent, Span, WebID};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::info;
@@ -355,7 +355,7 @@ pub fn recommended_cleanup_interval() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_types::{CapabilityResource, CapabilityAction};
+    use hkask_types::{CapabilityAction, CapabilityResource};
 
     #[test]
     fn test_energy_span_type_as_str() {

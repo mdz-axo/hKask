@@ -16,6 +16,7 @@
 //! - No central authority required — capabilities verified cryptographically
 
 use crate::WebID;
+use hex;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 

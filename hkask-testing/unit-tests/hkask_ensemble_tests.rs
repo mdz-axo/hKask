@@ -1,1 +1,7 @@
-// Stub test file for hkask_ensemble_tests.rs\n// Tests are in the individual crates\n\n#[test]\nfn test_stub() {\n    assert!(true);\n}
+// Stub test file for hkask_ensemble_tests.rs
+// Full integration tests require running Okapi instances
+
+#[test]
+fn test_stub() {
+    assert!(true);
+}

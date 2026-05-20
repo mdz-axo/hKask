@@ -509,4 +509,3 @@ impl CascadeBuilder {
         self.cascade
     }
 }
-

@@ -238,4 +238,3 @@ pub fn validate_lexicon(template: &CompositionTemplate, valid_terms: &[&str]) ->
     }
     Ok(())
 }
-

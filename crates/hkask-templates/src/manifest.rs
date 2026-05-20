@@ -217,4 +217,3 @@ impl ManifestExecutor for SimpleExecutor {
         Ok(state)
     }
 }
-

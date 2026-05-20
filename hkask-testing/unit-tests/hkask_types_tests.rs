@@ -1,13 +1,13 @@
+use hkask_types::capability::BotCapabilities;
+use hkask_types::capability::CapabilityChecker;
+use hkask_types::visibility::AccessDecision;
+use hkask_types::visibility::AccessEvaluator;
+use hkask_types::{BotID, ManifestID, TemplateID, TripleID};
 use hkask_types::{
     Capability, CapabilityAction, CapabilityResource, CapabilitySignature, CapabilityToken,
     Delegation, DelegationStore, Domain, EventID, HLexicon, LexiconTerm, NuEvent, Phase,
     RevocationList, SignatureAlgorithm, Span, TemplateType, Visibility, WebID,
 };
-use hkask_types::capability::BotCapabilities;
-use hkask_types::capability::CapabilityChecker;
-use hkask_types::{BotID, ManifestID, TripleID, TemplateID};
-use hkask_types::visibility::AccessDecision;
-use hkask_types::visibility::AccessEvaluator;
 use serde_json::json;
 use std::collections::HashMap;
 

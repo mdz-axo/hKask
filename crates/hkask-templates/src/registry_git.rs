@@ -146,4 +146,3 @@ impl RegistryIndex for GitRegistry {
         self.inner.bootstrap_manifest()
     }
 }
-
