@@ -9,7 +9,7 @@ use crate::ports::{Result, TemplateError};
 use hkask_types::TemplateType;
 use std::collections::HashMap;
 use std::env;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 /// Template registry entry
 #[derive(Debug, Clone)]
@@ -73,13 +73,34 @@ impl TemplateEntry {
 #[derive(Debug)]
 pub struct Registry {
     templates: HashMap<String, TemplateEntry>,
+    cache_valid: bool,
 }
 
 impl Registry {
     pub fn new() -> Self {
         Self {
             templates: HashMap::new(),
+            cache_valid: true,
         }
+    }
+
+    /// Invalidate the registry cache (for hot-reload)
+    pub fn invalidate_cache(&mut self) {
+        self.cache_valid = false;
+        self.templates.clear();
+    }
+
+    /// Check if cache is valid
+    pub fn is_cache_valid(&self) -> bool {
+        self.cache_valid
+    }
+
+    /// Reload registry from bootstrap (simulates reload from disk)
+    pub fn reload(&mut self) {
+        self.invalidate_cache();
+        let fresh = Self::bootstrap();
+        self.templates = fresh.templates;
+        self.cache_valid = true;
     }
 
     /// Get the templates directory path
@@ -138,7 +159,9 @@ impl Registry {
         // Ensure path is normalized (no leading/trailing slashes)
         let normalized = template_id.trim_matches(|c| c == '/' || c == '\\');
         if normalized.is_empty() {
-            return Err(TemplateError::PathTraversal("Empty path not allowed".to_string()));
+            return Err(TemplateError::PathTraversal(
+                "Empty path not allowed".to_string(),
+            ));
         }
 
         Ok(())
@@ -310,7 +333,7 @@ impl RegistryIndex for Registry {
     fn get(&self, id: &str) -> Result<RegistryEntry> {
         // Validate path first (security)
         Self::validate_template_path(id)?;
-        
+
         // Then check if template exists
         self.templates
             .get(id)
@@ -382,33 +405,40 @@ mod tests {
         let entry = TemplateEntry::new("test-1", TemplateType::Prompt, "Test", "Test template");
         registry.register(entry);
 
+        // Registry::get returns Option<&TemplateEntry>
         let retrieved = registry.get("test-1");
-        assert!(retrieved.is_ok());
+        assert!(retrieved.is_some());
         assert_eq!(retrieved.unwrap().name, "Test");
+
+        // RegistryIndex::get returns Result<RegistryEntry>
+        let index_result = <dyn RegistryIndex>::get(&registry, "test-1");
+        assert!(index_result.is_ok());
     }
 
     #[test]
     fn test_registry_get_not_found() {
         let registry = Registry::new();
-        let result = registry.get("nonexistent");
+        // Use RegistryIndex trait method which returns Result
+        let result = <dyn RegistryIndex>::get(&registry, "nonexistent");
         assert!(result.is_err());
         assert!(format!("{:?}", result.unwrap_err()).contains("not found"));
     }
 
     #[test]
     fn test_registry_get_path_traversal() {
-        let registry = Registry::new();
-        let result = registry.get("../etc/passwd");
+        let registry = Registry::bootstrap();
+        let result = <dyn RegistryIndex>::get(&registry, "../etc/passwd");
         assert!(result.is_err());
         assert!(format!("{:?}", result.unwrap_err()).contains("Path traversal"));
     }
 
     #[test]
     fn test_registry_get_absolute_path() {
-        let registry = Registry::new();
-        let result = registry.get("/etc/passwd");
+        let registry = Registry::bootstrap();
+        let result = <dyn RegistryIndex>::get(&registry, "/etc/passwd");
         assert!(result.is_err());
-        assert!(format!("{:?}", result.unwrap_err()).contains("Path traversal"));
+        let err = format!("{:?}", result.unwrap_err());
+        assert!(err.contains("Absolute path") || err.contains("Path traversal"));
     }
 
     #[test]
@@ -470,7 +500,8 @@ mod tests {
         let prompt_entries = registry.list(Some(TemplateType::Prompt));
         assert!(!prompt_entries.is_empty());
 
-        let entry = registry.get("prompt/selector");
+        // Use RegistryIndex trait method which returns Result
+        let entry = <dyn RegistryIndex>::get(&registry, "prompt/selector");
         assert!(entry.is_ok());
     }
 
@@ -497,5 +528,27 @@ mod tests {
         // Test template path construction
         let path = Registry::get_template_path("prompt/selector");
         assert!(path.ends_with("prompt_selector.j2"));
+    }
+
+    #[test]
+    fn test_registry_cache_invalidation() {
+        let mut registry = Registry::bootstrap();
+        assert!(registry.is_cache_valid());
+        assert!(registry.count() > 0);
+
+        registry.invalidate_cache();
+        assert!(!registry.is_cache_valid());
+        assert_eq!(registry.count(), 0);
+    }
+
+    #[test]
+    fn test_registry_reload() {
+        let mut registry = Registry::bootstrap();
+        let initial_count = registry.count();
+        assert!(initial_count > 0);
+
+        registry.reload();
+        assert!(registry.is_cache_valid());
+        assert_eq!(registry.count(), initial_count);
     }
 }

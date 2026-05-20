@@ -7,6 +7,11 @@ use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+/// Helper to convert WebID to string
+fn to_string(webid: &WebID) -> String {
+    webid.to_string()
+}
+
 /// Capability token for tool access
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CapabilityToken {
@@ -46,27 +51,21 @@ impl CapabilityToken {
     fn generate_id(tool_name: &str, from: &WebID, to: &WebID) -> String {
         let mut hasher = Sha256::new();
         hasher.update(tool_name.as_bytes());
-        hasher.update(from.as_str().as_bytes());
-        hasher.update(to.as_str().as_bytes());
+        hasher.update(to_string(from).as_bytes());
+        hasher.update(to_string(to).as_bytes());
         hex::encode(hasher.finalize())
     }
 
     /// Sign the token
-    fn sign(
-        id: &str,
-        tool_name: &str,
-        from: &WebID,
-        to: &WebID,
-        secret: &[u8],
-    ) -> String {
+    fn sign(id: &str, tool_name: &str, from: &WebID, to: &WebID, secret: &[u8]) -> String {
         use hmac::{Hmac, Mac};
         type HmacSha256 = Hmac<Sha256>;
 
         let mut mac = HmacSha256::new_from_slice(secret).expect("HMAC can take key of any size");
         mac.update(id.as_bytes());
         mac.update(tool_name.as_bytes());
-        mac.update(from.as_str().as_bytes());
-        mac.update(to.as_str().as_bytes());
+        mac.update(to_string(from).as_bytes());
+        mac.update(to_string(to).as_bytes());
         hex::encode(mac.finalize().into_bytes())
     }
 
@@ -75,8 +74,13 @@ impl CapabilityToken {
         use hmac::{Hmac, Mac};
         type HmacSha256 = Hmac<Sha256>;
 
-        let expected_signature =
-            Self::sign(&self.id, &self.tool_name, &self.delegated_from, &self.delegated_to, secret);
+        let expected_signature = Self::sign(
+            &self.id,
+            &self.tool_name,
+            &self.delegated_from,
+            &self.delegated_to,
+            secret,
+        );
 
         // Constant-time comparison
         let result = HmacSha256::new_from_slice(secret);
@@ -159,7 +163,12 @@ mod tests {
         let from = WebID::new();
         let to = WebID::new();
 
-        let token = CapabilityToken::new("inference:call".to_string(), from.clone(), to.clone(), secret);
+        let token = CapabilityToken::new(
+            "inference:call".to_string(),
+            from.clone(),
+            to.clone(),
+            secret,
+        );
 
         assert!(!token.id.is_empty());
         assert_eq!(token.tool_name, "inference:call");
@@ -174,7 +183,12 @@ mod tests {
         let from = WebID::new();
         let to = WebID::new();
 
-        let token = CapabilityToken::new("inference:call".to_string(), from.clone(), to.clone(), secret);
+        let token = CapabilityToken::new(
+            "inference:call".to_string(),
+            from.clone(),
+            to.clone(),
+            secret,
+        );
 
         assert!(token.verify(secret));
     }
@@ -186,7 +200,12 @@ mod tests {
         let from = WebID::new();
         let to = WebID::new();
 
-        let token = CapabilityToken::new("inference:call".to_string(), from.clone(), to.clone(), secret);
+        let token = CapabilityToken::new(
+            "inference:call".to_string(),
+            from.clone(),
+            to.clone(),
+            secret,
+        );
 
         assert!(!token.verify(wrong_secret));
     }

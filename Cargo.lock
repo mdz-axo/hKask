@@ -2478,6 +2478,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "hkask-types",
+ "parking_lot",
  "serde",
  "serde_json",
  "thiserror",
@@ -2705,6 +2706,8 @@ dependencies = [
 name = "hkask-templates"
 version = "0.1.0"
 dependencies = [
+ "chrono",
+ "hex",
  "hkask-cns",
  "hkask-storage",
  "hkask-types",
@@ -2712,8 +2715,10 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "sha2",
  "thiserror",
  "tracing",
+ "uuid",
 ]
 
 [[package]]

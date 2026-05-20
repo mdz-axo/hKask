@@ -12,14 +12,6 @@ use serde_json::Value;
 use std::path::Path;
 use std::sync::{Arc, RwLock};
 
-/// Whitelisted Jinja2 filters for sandboxed rendering
-const ALLOWED_FILTERS: &[&str] = &[
-    "upper", "lower", "title", "capitalize", "trim",
-    "join", "split", "replace", "length", "first", "last",
-    "slice", "reverse", "sort", "unique", "default",
-    "escape", "e", "safe", "tojson",
-];
-
 /// Jinja2 template renderer using minijinja sandbox
 pub struct TemplateRendererImpl {
     env: Arc<RwLock<Environment<'static>>>,
@@ -32,7 +24,7 @@ impl TemplateRendererImpl {
         // Configure sandbox mode for security
         env.set_auto_escape_callback(|_| minijinja::AutoEscape::None);
         env.set_undefined_behavior(UndefinedBehavior::Strict);
-        
+
         // Note: minijinja sandbox is enabled by default in recent versions
         // Additional hardening can be done via custom functions/filters
 
@@ -390,7 +382,7 @@ Content here
     #[test]
     fn test_renderer_path_traversal_protection() {
         let renderer = TemplateRendererImpl::new();
-        
+
         // Test path traversal in add_template
         let result = renderer.add_template("../etc/passwd", "content");
         assert!(result.is_err());
@@ -410,7 +402,7 @@ Content here
     #[test]
     fn test_renderer_valid_template_name() {
         let renderer = TemplateRendererImpl::new();
-        
+
         // Valid template names should work
         let result = renderer.add_template("prompt/selector", "Hello {{ name }}");
         assert!(result.is_ok());

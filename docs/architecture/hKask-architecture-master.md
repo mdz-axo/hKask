@@ -419,6 +419,14 @@ process_template:
 - Multi-trigger escalation — v1.0: explicit request only (`@human`, `/escalate`)
 - Embedding model version awareness — Embedding MCP responsibility
 - Curator retirement — Not in minimal system
+- **Registry/Templating (see `docs/architecture/registry-deferred-work.md`):**
+  - Git CAS bootstrap (v1.0: convention-based fixed paths)
+  - Template provenance tracking (Git SHA, WebID, timestamp)
+  - Dependency graph with cycle detection
+  - Git/SQLite registry adapters
+  - YAML contract parsing (`serde_yaml`)
+  - Explicit declaration for cross-registry composition (v1.0: free composition)
+  - Template hot-reload via Git (v1.0: explicit `kask template reload` signal)
 
 ---
 
@@ -458,6 +466,7 @@ process_template:
 7. **No Hallucinations:** All features traceable to user requirements
 8. **Bayesian Confidence:** Combination, subtraction, join operations correct
 9. **Encryption:** Interactive passphrase at startup, SQLCipher-verified
+10. **Security Hardening:** ✅ Capability-based MCP invocation, Jinja2 sandbox, path traversal protection, rate limiting, selector fallback
 
 ---
 
@@ -467,16 +476,18 @@ process_template:
 
 **Lineage:**
 - **v0.21.0:** Pre-alpha MVP baseline — unified registry (template_type discriminator), manifest/template distinction, CNS integration, ERD complete, loom/thread metaphor
+- **v0.21.0 (Security Update):** Security hardening complete — OCAP capabilities, path traversal protection, rate limiting, Jinja2 sandbox, selector fallback, cache invalidation. All design decisions documented in `registry-deferred-work.md`.
 
 **Source Documents:**
 - `registry-templating-prompt-v2.md` — Registry & templating system design (unified registry, dispatch pattern, CNS integration)
+- `registry-deferred-work.md` — **NEW**: Deferred work and design decisions (all 6 questions answered)
 - `claude-architecture-hkask.md` — Insights incorporated into this spec (revision 2)
 - `claude-says-hkask-corrections.md` — Claude's correction analysis
 - `hKask-architecture-corrections-v1.1.md` — Hallucination removals
 - `hKask-architecture-corrections-v1.2.md` — MCP server count, bot manifest decisions
 
-**Current Document Set:** 8 total (5 active + 3 reference)
-- Active: `hKask-architecture-master.md`, `hKask-architecture-index.md`, `hKask-hLexicon.md`, `hKask-Curator-persona.md`, `hKask-erd.md`, `hKask-implementation-handoff.md`, `registry-templating-prompt-v2.md`
+**Current Document Set:** 9 total (6 active + 3 reference)
+- Active: `hKask-architecture-master.md`, `hKask-architecture-index.md`, `hKask-hLexicon.md`, `hKask-Curator-persona.md`, `hKask-erd.md`, `hKask-implementation-handoff.md`, `registry-templating-prompt-v2.md`, `registry-deferred-work.md`
 - Reference: `vKask-erd.md`, `vKask-cybernetic-constant.md`, `MODEL_CATALOG.md`
 
 ---

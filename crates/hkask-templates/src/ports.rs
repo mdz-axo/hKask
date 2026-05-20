@@ -6,6 +6,35 @@
 use hkask_types::TemplateType;
 use serde_json::Value;
 use std::path::Path;
+use std::time::Duration;
+
+/// Configuration for inference calls with timeout and retry
+#[derive(Debug, Clone)]
+pub struct InferenceConfig {
+    /// Timeout for each inference call
+    pub timeout: Duration,
+    /// Maximum number of retries on transient failure
+    pub max_retries: u32,
+    /// Base delay for exponential backoff
+    pub backoff_base: Duration,
+}
+
+impl Default for InferenceConfig {
+    fn default() -> Self {
+        Self {
+            timeout: Duration::from_secs(30),
+            max_retries: 3,
+            backoff_base: Duration::from_secs(1),
+        }
+    }
+}
+
+impl InferenceConfig {
+    /// Calculate backoff delay for given attempt (exponential: 1s, 2s, 4s, ...)
+    pub fn backoff_delay(&self, attempt: u32) -> Duration {
+        self.backoff_base * 2u32.pow(attempt)
+    }
+}
 
 /// Error type for template operations
 #[derive(Debug, thiserror::Error)]
@@ -137,9 +166,14 @@ pub trait RegistryIndex {
     fn bootstrap_manifest(&self) -> Option<ProcessManifest>;
 }
 
-/// Inference port for LLM calls
+/// Inference port for LLM calls with timeout/retry support
 pub trait InferencePort {
-    fn call(&self, model_tier: &str, prompt: &str) -> Result<Value>;
+    fn call(&self, model_tier: &str, prompt: &str, config: &InferenceConfig) -> Result<Value>;
+
+    /// Call with default configuration
+    fn call_default(&self, model_tier: &str, prompt: &str) -> Result<Value> {
+        self.call(model_tier, prompt, &InferenceConfig::default())
+    }
 }
 
 /// MCP port for tool invocation
@@ -158,3 +192,41 @@ pub const DEFAULT_MATROSHKA_LIMIT: u8 = 7;
 
 /// Default model tier for fast local inference
 pub const FAST_LOCAL_MODEL: &str = "fast_local";
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_inference_config_default() {
+        let config = InferenceConfig::default();
+
+        assert_eq!(config.timeout, Duration::from_secs(30));
+        assert_eq!(config.max_retries, 3);
+        assert_eq!(config.backoff_base, Duration::from_secs(1));
+    }
+
+    #[test]
+    fn test_inference_config_backoff() {
+        let config = InferenceConfig::default();
+
+        // Exponential backoff: 1s, 2s, 4s, 8s, ...
+        assert_eq!(config.backoff_delay(0), Duration::from_secs(1));
+        assert_eq!(config.backoff_delay(1), Duration::from_secs(2));
+        assert_eq!(config.backoff_delay(2), Duration::from_secs(4));
+        assert_eq!(config.backoff_delay(3), Duration::from_secs(8));
+    }
+
+    #[test]
+    fn test_inference_config_custom() {
+        let config = InferenceConfig {
+            timeout: Duration::from_secs(60),
+            max_retries: 5,
+            backoff_base: Duration::from_millis(500),
+        };
+
+        assert_eq!(config.backoff_delay(0), Duration::from_millis(500));
+        assert_eq!(config.backoff_delay(1), Duration::from_secs(1));
+        assert_eq!(config.backoff_delay(2), Duration::from_secs(2));
+    }
+}

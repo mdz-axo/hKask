@@ -8,15 +8,24 @@
 //! - Process (FlowDef) — What to do
 //! - Cognition (KnowAct) — How to think
 
+pub mod audit;
 pub mod cascade;
+pub mod contracts;
+pub mod dependency;
 pub mod manifest;
 pub mod ports;
+pub mod provenance;
 pub mod registry;
 pub mod renderer;
 
+pub use audit::{AuditStats, AuditTrail, ExecutionAudit};
+pub use contracts::{parse_frontmatter, validate_lexicon_terms, InferenceConfig as FrontmatterInferenceConfig, ParsedContract, ParsedInference, TemplateFrontmatter};
+pub use dependency::{parse_dependencies, DependencyGraph};
+pub use manifest::SelectorConfig;
 pub use ports::{
-    Action, CnsPort, CompositionTemplate, DEFAULT_MATROSHKA_LIMIT, FAST_LOCAL_MODEL, InferencePort,
-    ManifestExecutor, ManifestStep, McpPort, ProcessManifest, RegistryEntry, RegistryIndex, Result,
-    TemplateContract, TemplateError, TemplateRenderer,
+    Action, CnsPort, CompositionTemplate, DEFAULT_MATROSHKA_LIMIT, FAST_LOCAL_MODEL, InferenceConfig,
+    InferencePort, ManifestExecutor, ManifestStep, McpPort, ProcessManifest, RegistryEntry,
+    RegistryIndex, Result, TemplateContract, TemplateError, TemplateRenderer,
 };
+pub use provenance::{ProvenanceManager, TemplateProvenance};
 pub use registry::{Registry, TemplateEntry};

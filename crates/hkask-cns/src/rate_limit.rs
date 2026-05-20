@@ -47,7 +47,7 @@ impl TokenBucket {
     /// Try to consume a token. Returns true if successful.
     pub fn try_consume(&mut self) -> bool {
         self.refill();
-        
+
         if self.tokens > 0 {
             self.tokens -= 1;
             true
@@ -60,9 +60,9 @@ impl TokenBucket {
     fn refill(&mut self) {
         let now = Instant::now();
         let elapsed = now.duration_since(self.last_refill);
-        
+
         let tokens_to_add = (elapsed.as_millis() / self.config.refill_interval.as_millis()) as u32;
-        
+
         if tokens_to_add > 0 {
             self.tokens = (self.tokens + tokens_to_add).min(self.config.max_tokens);
             self.last_refill = now;
@@ -92,29 +92,29 @@ impl RateLimiter {
     /// Check if a bot can dispatch. Returns true if allowed.
     pub fn check(&self, bot_id: &WebID) -> bool {
         let mut buckets = self.buckets.lock();
-        
+
         let bucket = buckets
-            .entry(bot_id.clone())
+            .entry(*bot_id)
             .or_insert_with(|| TokenBucket::new(self.config.clone()));
-        
+
         bucket.try_consume()
     }
 
     /// Get remaining tokens for a bot
     pub fn remaining(&self, bot_id: &WebID) -> u32 {
         let mut buckets = self.buckets.lock();
-        
+
         let bucket = buckets
-            .entry(bot_id.clone())
+            .entry(*bot_id)
             .or_insert_with(|| TokenBucket::new(self.config.clone()));
-        
+
         bucket.tokens()
     }
 
     /// Update rate limit config for a specific bot
     pub fn configure_bot(&self, bot_id: &WebID, config: RateLimitConfig) {
         let mut buckets = self.buckets.lock();
-        buckets.insert(bot_id.clone(), TokenBucket::new(config));
+        buckets.insert(*bot_id, TokenBucket::new(config));
     }
 }
 
@@ -136,7 +136,7 @@ mod tests {
             refill_interval: Duration::from_millis(100),
         };
         let bucket = TokenBucket::new(config.clone());
-        
+
         assert_eq!(bucket.tokens(), 10);
     }
 
@@ -147,12 +147,12 @@ mod tests {
             refill_interval: Duration::from_millis(100),
         };
         let mut bucket = TokenBucket::new(config);
-        
+
         // Consume all tokens
         for _ in 0..5 {
             assert!(bucket.try_consume());
         }
-        
+
         // Should be empty
         assert!(!bucket.try_consume());
     }
@@ -164,16 +164,16 @@ mod tests {
             refill_interval: Duration::from_millis(50),
         };
         let mut bucket = TokenBucket::new(config);
-        
+
         // Consume all tokens
         for _ in 0..5 {
             bucket.try_consume();
         }
         assert_eq!(bucket.tokens(), 0);
-        
+
         // Wait for refill
         thread::sleep(Duration::from_millis(60));
-        
+
         // Should have refilled at least one token
         assert!(bucket.try_consume());
     }
@@ -182,15 +182,15 @@ mod tests {
     fn test_rate_limiter_check() {
         let limiter = RateLimiter::default();
         let bot_id = WebID::new();
-        
+
         // First check should succeed
         assert!(limiter.check(&bot_id));
-        
+
         // Exhaust tokens
         for _ in 0..100 {
             limiter.check(&bot_id);
         }
-        
+
         // Should be rate limited
         assert!(!limiter.check(&bot_id));
     }
@@ -199,11 +199,11 @@ mod tests {
     fn test_rate_limiter_remaining() {
         let limiter = RateLimiter::default();
         let bot_id = WebID::new();
-        
+
         let initial = limiter.remaining(&bot_id);
         limiter.check(&bot_id);
         let after = limiter.remaining(&bot_id);
-        
+
         assert_eq!(initial - after, 1);
     }
 
@@ -211,14 +211,14 @@ mod tests {
     fn test_rate_limiter_configure_bot() {
         let limiter = RateLimiter::default();
         let bot_id = WebID::new();
-        
+
         // Configure with custom limit
         let custom_config = RateLimitConfig {
             max_tokens: 10,
             refill_interval: Duration::from_millis(1000),
         };
         limiter.configure_bot(&bot_id, custom_config.clone());
-        
+
         assert_eq!(limiter.remaining(&bot_id), 10);
     }
 }
