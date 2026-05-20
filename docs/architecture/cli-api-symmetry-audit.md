@@ -1374,16 +1374,25 @@ The implementation plan follows hexagonal architecture with CLI and API as symme
 ### Completed Work (2026-05-20)
 
 **Files Modified:**
-1. `hkask-api/src/lib.rs` — Added new response types (`CnsVarietyResponse`, `VarietyCounterResponse`, `ToolResponse`, `ErrorResponse`)
+1. `hkask-api/src/lib.rs` — Added new response types (`CnsVarietyResponse`, `VarietyCounterResponse`, `ToolResponse`, `ErrorResponse`, `CreatePodRequest`, `CreatePodResponse`, `PodStatusResponse`, `ListPodsResponse`)
 2. `hkask-api/src/routes.rs` — Added missing endpoints:
    - `GET /api/templates/search/:term` — Search templates by lexicon
    - `GET /api/cns/variety` — CNS variety counters
    - `GET /api/mcp/tools/:name` — Get tool definition
-3. `hkask-api/src/openapi.rs` — Updated OpenAPI spec with new schemas
-4. `hkask-templates/src/lib.rs` — Temporarily disabled `russell_mapper` module (pre-existing issues)
-5. `hkask-templates/src/ports.rs` — Added `Serialize`/`Deserialize` derives to `InferenceConfig`
-6. `hkask-keystore/src/keychain.rs` — Added `get_or_create_ocap_secret` function
-7. `hkask-keystore/src/lib.rs` — Exported `get_or_create_ocap_secret`
+   - `GET /api/pods` — List all pods
+   - `POST /api/pods` — Create new pod
+   - `POST /api/pods/:id/activate` — Activate pod
+   - `POST /api/pods/:id/deactivate` — Deactivate pod
+   - `GET /api/pods/:id/status` — Get pod status
+3. `hkask-api/src/openapi.rs` — Updated OpenAPI spec with new schemas and pods tag
+4. `hkask-agents/src/pod.rs` — Added `PodManager`, `PodStatus`, and `PlaceholderGitCAS`
+5. `hkask-agents/src/lib.rs` — Exported `PodManager` and `PodStatus`
+6. `hkask-agents/src/adapters/git_cas.rs` — Fixed `MockGitCas` implementation
+7. `hkask-agents/src/acp.rs` — Fixed `RateLimitConfig` import
+8. `hkask-templates/src/lib.rs` — Temporarily disabled `russell_mapper` module (pre-existing issues)
+9. `hkask-templates/src/ports.rs` — Added `Serialize`/`Deserialize` derives to `InferenceConfig`
+10. `hkask-keystore/src/keychain.rs` — Added `get_or_create_ocap_secret` function
+11. `hkask-keystore/src/lib.rs` — Exported `get_or_create_ocap_secret`
 
 **Files Created:**
 1. `docs/architecture/cli-api-symmetry-audit.md` — Complete audit document
@@ -1395,6 +1404,11 @@ The implementation plan follows hexagonal architecture with CLI and API as symme
 | `/api/templates/search/:term` | GET | `search_templates` | ✅ Implemented |
 | `/api/cns/variety` | GET | `cns_variety` | ✅ Implemented (placeholder) |
 | `/api/mcp/tools/:name` | GET | `get_tool` | ✅ Implemented |
+| `/api/pods` | GET | `list_pods` | ✅ Implemented (placeholder) |
+| `/api/pods` | POST | `create_pod` | ✅ Implemented (placeholder) |
+| `/api/pods/:id/activate` | POST | `activate_pod` | ✅ Implemented (placeholder) |
+| `/api/pods/:id/deactivate` | POST | `deactivate_pod` | ✅ Implemented (placeholder) |
+| `/api/pods/:id/status` | GET | `pod_status` | ✅ Implemented (placeholder) |
 
 **CLI/API Symmetry Status:**
 
@@ -1402,22 +1416,27 @@ The implementation plan follows hexagonal architecture with CLI and API as symme
 |--------|-------------|---------------|----------|
 | Templates | 4 | 4 | ✅ Symmetric |
 | Bots | 2 | 2 | ✅ Symmetric |
-| Pods | 5 | 0 | ⚠️ Pending (Phase 3) |
+| Pods | 5 | 5 | ✅ Symmetric (placeholders) |
 | MCP | 3 | 3 | ✅ Symmetric |
 | CNS | 3 | 3 | ✅ Symmetric |
 | Chat | 1 | 1 | ✅ Symmetric |
 
 **Pre-existing Issues Identified:**
-1. `hkask-agents/src/pod.rs` — Missing `rand` import, `Zeroizing` type errors
-2. `hkask-templates/src/russell_mapper.rs` — Module file missing, struct field mismatches
-3. Pod manager implementation incomplete (Phase 3 work)
+The following issues in `hkask-agents` are blocking full compilation and require separate fixes:
+1. `gix::Repository::open` — API changes in gix crate
+2. `serde_yaml::Value::as_array` — API changes in serde_yaml
+3. `CapabilityToken` missing `Display` trait implementation
+4. `Secret` struct conflicting `Debug` derive
+5. Various method signature mismatches in adapter implementations
+
+These are pre-existing technical debt unrelated to the CLI/API symmetry work.
 
 ### Remaining Work
 
 **High Priority:**
-1. Fix `hkask-agents` compilation errors (rand, zeroize imports)
-2. Implement pod manager in `hkask-agents`
-3. Add pod API endpoints
+1. Fix `hkask-agents` pre-existing compilation errors (gix, serde_yaml API changes)
+2. Connect PodManager to actual pod API handlers (replace placeholders)
+3. Complete pod CLI commands (replace placeholders with PodManager calls)
 
 **Medium Priority:**
 1. Implement OCAP capability checks in CLI and API

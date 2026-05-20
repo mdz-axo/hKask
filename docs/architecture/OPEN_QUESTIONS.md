@@ -2,13 +2,36 @@
 
 **Date:** 2026-05-20  
 **Status:** Active  
-**Related:** Adversarial Review Remediation Plan, Phase 2/5 Completion
+**Related:** Adversarial Review Remediation Plan, Phase 2/5 Completion, Russell Migration Phase 1
+
+---
+
+## Russell Migration Open Questions (2026-05-20)
+
+### Overview
+
+The Russell → hKask migration (Task 1-6 complete, see `docs/architecture/russell-hkask-mapping-erd.md`) has the following open questions deferred pending operational data:
+
+| # | Question | Decision | Trigger for Revisit |
+|---|----------|----------|---------------------|
+| **RQ1** | Bidirectional sync with Russell upstream? | One-time migration | Russell upstream breaking changes |
+| **RQ2** | hLexicon term inference (LLM vs. manual)? | Manual specification | Migration scale bottleneck |
+| **RQ3** | Capability granularity (coarse vs. fine)? | Coarse (preserve Russell) | Security audit completion |
+| **RQ4** | Provenance log retention policy? | Indefinite | Storage cost analysis |
+| **RQ5** | Template versioning (Russell vs. Git)? | Git SHA (Russell as metadata) | Version conflict reports |
+| **RQ6** | Cascade composition wrapping? | Flat templates | Cascade utility data |
+| **RQ7** | Bot vs. Replicant mapping criteria? | Bot mapping | Replicant use cases |
+| **RQ8** | MCP tool discovery (inference vs. manual)? | Manual specification | Tool mapping errors |
+| **RQ9** | Error recovery (rollback vs. skip)? | Skip-on-error | Migration failure analysis |
+| **RQ10** | Registry bloat prevention? | Migrate-all with utility tags | Storage/LOC pressure |
+
+**Resolution Path:** Implement with defaults above. Revisit after 10+ successful migrations provide operational data.
 
 ---
 
 ## Summary
 
-This document tracks open questions and deferred decisions from the remediation plan. Phase 2 (Security Hardening) and Phase 5 (Integration Tests) completed on 2026-05-20.
+This document tracks open questions and deferred decisions from the remediation plan. Phase 2 (Security Hardening) and Phase 5 (Integration Tests) completed on 2026-05-20. Russell Migration Phase 1 completed 2026-05-20.
 
 ---
 

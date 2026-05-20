@@ -6,6 +6,70 @@
 
 ---
 
+## Russell Migration Completed Work (2026-05-20)
+
+### Implementation Summary
+
+**Date Completed:** 2026-05-20  
+**Rust LOC:** 574 lines (`crates/hkask-templates/src/russell_mapper.rs`)  
+**Tests:** 4 unit tests (all passing)  
+**Migrated Assets:** 4 Priority 1 items
+
+### Completed Tasks
+
+| Task | Description | Status |
+|------|-------------|--------|
+| **Task 1:** Semantic Root Cause Analysis | RDF triples, driver analysis, security considerations | ✅ Complete |
+| **Task 2:** Entity Relationship Model | Mermaid ERD, data flow diagrams | ✅ Complete |
+| **Task 3:** Hexagonal Architecture Mapping | Ports & adapters, soft layer separation | ✅ Complete |
+| **Task 4:** Migration Implementation | `RussellMapper` module with YAML/Jinja2 parsing | ✅ Complete |
+| **Task 5:** CLI Command | `kask registry import-russell` with dry-run support | ✅ Complete |
+| **Task 6:** Priority 1 Asset Migration | web-search, pragmatic-semantics, pragmatic-cybernetics, soap | ✅ Complete |
+
+### Migrated Assets
+
+#### Skill Manifests (Process Type)
+
+| Russell Origin | hKask Destination | Lexicon Terms | Steps |
+|----------------|-------------------|---------------|-------|
+| `russell/skills/web-search` | `registry/registries/skills/web-search.yaml` | search, fetch, browse, discover | 2 |
+| `russell/skills/pragmatic-semantics` | `registry/registries/skills/pragmatic-semantics.yaml` | observe, assess, classify, discriminate, validate | 1 |
+| `russell/skills/pragmatic-cybernetics` | `registry/registries/skills/pragmatic-cybernetics.yaml` | monitor, observe, assess, discriminate, validate | 1 |
+
+#### Prompt Templates
+
+| Russell Origin | hKask Destination | Lexicon Terms | Variables |
+|----------------|-------------------|---------------|-----------|
+| `russell/crates/russell-meta/prompts/templates/soap.md.j2` | `registry/registries/prompt/soap.j2` | observe, assess, plan, act, monitor, recall, discover | 10 |
+
+### Deferred Work
+
+See `docs/architecture/registry-deferred-work.md#russell-migration-deferred-work-2026-05-20` for details on:
+1. CNS integration for migration spans
+2. OCAP capability enforcement
+3. Bidirectional sync strategy
+4. hLexicon term inference
+5. Cascade composition wrapping
+
+### Verification
+
+```bash
+# Tests
+cargo test -p hkask-templates
+# running 4 tests
+# test result: ok. 4 passed; 0 failed
+
+# Compilation
+cargo check -p hkask-templates
+# Finished `dev` profile [unoptimized + debuginfo]
+
+# Line budget
+wc -l crates/hkask-templates/src/russell_mapper.rs
+# 574 lines (within 2,000 LOC target)
+```
+
+---
+
 ## Question 1: Lexicon Binding Intelligence
 
 **Question:** Should lexicon term selection be LLM-driven (semantic similarity) or rule-based (exact match)?

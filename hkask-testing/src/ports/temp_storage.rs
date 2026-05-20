@@ -4,7 +4,7 @@
 //! Provides isolated, disposable storage for test scenarios.
 
 use hkask_storage::{Blob, BlobStore, Embedding, EmbeddingStore, Triple, TripleStore};
-use hkask_types::{TripleID, Visibility, WebID};
+use hkask_types::WebID;
 use rusqlite::Connection;
 use std::cell::RefCell;
 use std::collections::HashMap;

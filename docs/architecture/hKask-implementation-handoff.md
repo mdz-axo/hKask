@@ -6,13 +6,13 @@ You are continuing implementation of **hKask** (ℏKask — "Planck's Constant o
 
 **Architecture Status:** Pre-alpha MVP (v0.21.0)  
 **Line Budget:** ≤30,000 lines Rust (excluding ACP/MCP protocols, Okapi)  
-**Current LOC:** ~5,135 lines Rust (17% of budget)  
+**Current LOC:** ~5,709 lines Rust (19% of budget) — includes +574 LOC Russell migration  
 **Crate Structure:** 21 crates (11 core + 10 MCP servers)
-**Tests:** 114 passing across workspace
+**Tests:** 118 passing across workspace (includes 4 Russell migration tests)
 
 ---
 
-## Implementation Progress (Updated 2026-05-19)
+## Implementation Progress (Updated 2026-05-20)
 
 ### ✅ Completed Phases
 
@@ -22,37 +22,62 @@ You are continuing implementation of **hKask** (ℏKask — "Planck's Constant o
 - **hkask-types**: OCAP capability-based access control with Ed25519 signatures
 - Visibility gating (private/public/epistemic)
 
-#### Phase 4: CNS + Templates (~3,600 LOC)
+#### Phase 4: CNS + Templates + Russell Migration (~4,174 LOC)
 - **hkask-cns** (622 LOC): Cybernetic Nervous System
   - `spans.rs`: `cns.*` namespace spans (`cns.tool.*`, `cns.prompt.*`, `cns.agent_pod.*`)
   - `variety.rs`: Variety counters, deficit tracking
   - `algedonic.rs`: Algedonic alerts (variety deficit >100 → escalate)
   - 18 tests passing
 
-- **hkask-templates** (~800 LOC): Unified registry + templating system
+- **hkask-templates** (~1,374 LOC): Unified registry + templating system + Russell migration
   - `registry.rs`: Template registry with `template_type` discriminator (Prompt/Process/Cognition)
   - `manifest.rs`: Manifest executor (~50 LOC fixed logic)
   - `renderer.rs`: minijinja-based Jinja2 rendering with filesystem loading
   - `cascade.rs`: Pre/core/post stage composition
   - `ports.rs`: Hexagonal architecture ports (ManifestExecutor, TemplateRenderer, RegistryIndex, etc.)
-  - 23 tests passing
+  - `russell_mapper.rs`: **NEW** Russell → hKask semantic migration (574 LOC, 4 tests)
+  - 27 tests passing (23 base + 4 migration)
 
-- **Template Files** (7 core templates in `registry/templates/`):
-  - `prompt_selector.j2` — Template selection (Cognition)
-  - `prompt_render.j2` — Prompt composition (Prompt)
-  - `prompt_execute.j2` — Execution wrapper (Prompt)
-  - `cognition_detect.j2` — Drift detection (Cognition)
-  - `cognition_calibrate.j2` — Calibration planning (Cognition)
-  - `process_recall.j2` — Memory recall workflow (Process)
-  - `process_dispatch.j2` — Tool dispatch workflow (Process)
+- **russell_mapper.rs** (574 LOC) — Russell Migration Module:
+  - `RussellSkillManifest` — Russell skill YAML parser
+  - `RussellPromptTemplate` — Russell Jinja2 template parser
+  - `RussellMapper` — Semantic transformation engine
+  - hLexicon term inference (keyword-based)
+  - Provenance tracking (SHA-256 hashes)
+  - 4 unit tests passing
+
+- **Template Files** (11 total in `registry/registries/`):
+  - **Core Templates** (7 in `registry/templates/`):
+    - `prompt_selector.j2` — Template selection (Cognition)
+    - `prompt_render.j2` — Prompt composition (Prompt)
+    - `prompt_execute.j2` — Execution wrapper (Prompt)
+    - `cognition_detect.j2` — Drift detection (Cognition)
+    - `cognition_calibrate.j2` — Calibration planning (Cognition)
+    - `process_recall.j2` — Memory recall workflow (Process)
+    - `process_dispatch.j2` — Tool dispatch workflow (Process)
+  - **Migrated from Russell** (4 in `registry/registries/`):
+    - `skills/web-search.yaml` — Web search knowledge skill
+    - `skills/pragmatic-semantics.yaml` — Semantic perspective skill
+    - `skills/pragmatic-cybernetics.yaml` — Cybernetic perspective skill
+    - `prompt/soap.j2` — SOAP one-shot prompt template
+
+- **CLI Commands**:
+  - `kask registry import-russell --source <path> --dry-run --verbose` — Russell migration
+  - `kask template list` — List registered templates
+  - `kask template register` — Register new template
 
 ### 🔄 In Progress
 
-#### Phase 4: Templates (Completing)
-- Filesystem template loading: ✅ Complete
-- Path resolution (env var + executable-relative): ✅ Complete
-- Bootstrap manifest integration: ✅ Complete
-- CNS event emission in manifest executor: ⏳ Pending
+#### Russell Migration Phase 1 (Complete 2026-05-20)
+- ✅ Semantic mapper module (`russell_mapper.rs`)
+- ✅ CLI import command
+- ✅ Priority 1 asset migration (4 assets)
+- ✅ Unit tests (4 tests passing)
+- ✅ Documentation (`docs/architecture/russell-hkask-mapping-erd.md`)
+- ⏳ CNS integration for migration spans (deferred)
+- ⏳ OCAP capability enforcement (deferred)
+
+See `docs/architecture/russell-hkask-mapping-erd.md` for full migration specification and `docs/architecture/registry-deferred-work.md#russell-migration-deferred-work-2026-05-20` for deferred items.
 
 ### ⏳ Remaining Phases
 

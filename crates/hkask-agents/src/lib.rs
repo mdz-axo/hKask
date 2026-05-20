@@ -25,6 +25,7 @@
 //! ```
 
 pub mod acp;
+pub mod adapters;
 pub mod bot;
 pub mod capability;
 pub mod curator;
@@ -36,5 +37,6 @@ pub use acp::{A2AMessage, AcpAgent, AcpRuntime, TemplateDispatchHandler};
 pub use capability::{BotCapabilities, CapabilityChecker, CapabilityToken};
 pub use pod::{
     AgentPersona, AgentPod, AgentPodError, AgentPodResult, AgentType, CNSSpanPort, GitCASPort,
-    MCPRuntimePort, MemoryStoragePort, PodID, PodLifecycleState, TemplateCrate,
+    MCPRuntimePort, MemoryStoragePort, PodID, PodLifecycleState, PodManager, PodStatus,
+    TemplateCrate,
 };

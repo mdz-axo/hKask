@@ -9,7 +9,8 @@ use std::collections::HashMap;
 
 use crate::{
     ApiState, ChatRequest, ChatResponse, CnsHealthResponse, CnsVarietyResponse,
-    GrantCapabilityRequest, TemplateResponse, ToolResponse,
+    CreatePodRequest, CreatePodResponse, GrantCapabilityRequest, ListPodsResponse,
+    PodStatusResponse, TemplateResponse, ToolResponse,
 };
 
 /// Create templates router
@@ -165,6 +166,58 @@ async fn grant_capability(
 ) -> StatusCode {
     // TODO: Implement capability granting
     StatusCode::OK
+}
+
+/// Create pods router
+pub fn pods_router() -> Router<ApiState> {
+    Router::new()
+        .route("/api/pods", axum::routing::get(list_pods))
+        .route("/api/pods", axum::routing::post(create_pod))
+        .route("/api/pods/:id/activate", axum::routing::post(activate_pod))
+        .route("/api/pods/:id/deactivate", axum::routing::post(deactivate_pod))
+        .route("/api/pods/:id/status", axum::routing::get(pod_status))
+}
+
+/// List all pods
+async fn list_pods(State(_state): State<ApiState>) -> Json<ListPodsResponse> {
+    // TODO: Implement pod listing with PodManager
+    Json(ListPodsResponse { pods: vec![] })
+}
+
+/// Create a new pod
+async fn create_pod(
+    State(_state): State<ApiState>,
+    Json(_req): Json<CreatePodRequest>,
+) -> Result<Json<CreatePodResponse>, StatusCode> {
+    // TODO: Implement pod creation with PodManager
+    Err(StatusCode::NOT_IMPLEMENTED)
+}
+
+/// Activate a pod
+async fn activate_pod(
+    State(_state): State<ApiState>,
+    Path(_id): Path<String>,
+) -> StatusCode {
+    // TODO: Implement pod activation with PodManager
+    StatusCode::NOT_IMPLEMENTED
+}
+
+/// Deactivate a pod
+async fn deactivate_pod(
+    State(_state): State<ApiState>,
+    Path(_id): Path<String>,
+) -> StatusCode {
+    // TODO: Implement pod deactivation with PodManager
+    StatusCode::NOT_IMPLEMENTED
+}
+
+/// Get pod status
+async fn pod_status(
+    State(_state): State<ApiState>,
+    Path(_id): Path<String>,
+) -> Result<Json<PodStatusResponse>, StatusCode> {
+    // TODO: Implement pod status with PodManager
+    Err(StatusCode::NOT_IMPLEMENTED)
 }
 
 /// Create MCP router

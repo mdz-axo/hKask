@@ -36,9 +36,14 @@
 use hkask_keystore::keychain::Keychain;
 use hkask_types::{CapabilityAction, CapabilityResource, CapabilityToken, WebID};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::Arc;
 use thiserror::Error;
+use tokio::sync::RwLock;
 use tracing::info;
 use zeroize::Zeroizing;
+
+use crate::adapters::git_cas::MockGitCas;
 
 /// Pod lifecycle state machine
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -644,6 +649,26 @@ pub trait GitCASPort {
     fn resolve_sha(&self, crate_name: &str) -> Result<String, String>;
 }
 
+/// Placeholder Git CAS implementation for PodManager
+pub struct PlaceholderGitCAS;
+
+impl GitCASPort for PlaceholderGitCAS {
+    fn load_template_crate(&self, crate_name: &str) -> Result<TemplateCrate, String> {
+        Ok(TemplateCrate {
+            name: crate_name.to_string(),
+            git_sha: "0000000000000000000000000000000000000000".to_string(),
+            persona_yaml: String::new(),
+            dispatch_manifest_yaml: String::new(),
+            templates: vec![],
+            hlexicon_terms: vec![],
+        })
+    }
+
+    fn resolve_sha(&self, _crate_name: &str) -> Result<String, String> {
+        Ok("0000000000000000000000000000000000000000".to_string())
+    }
+}
+
 /// Memory Storage Port — Artifact persistence
 pub trait MemoryStoragePort {
     /// Store a memory artifact (triple or embedding)
@@ -681,6 +706,157 @@ pub trait MemoryStoragePort {
         query: &str,
         token: &CapabilityToken,
     ) -> Result<Vec<serde_json::Value>, String>;
+}
+
+/// Pod Manager — Manages collection of agent pods
+///
+/// The PodManager provides centralized lifecycle management for all agent pods
+/// in the hKask system. It handles:
+/// - Pod creation from template crates
+/// - Pod activation/deactivation
+/// - Status queries
+/// - Listing all pods
+pub struct PodManager {
+    pods: Arc<RwLock<HashMap<PodID, AgentPod>>>,
+    keystore: Keychain,
+}
+
+/// Pod status information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PodStatus {
+    pub pod_id: String,
+    pub name: Option<String>,
+    pub state: String,
+    pub webid: String,
+    pub agent_type: String,
+    pub template: String,
+    pub created_at: i64,
+}
+
+impl PodManager {
+    /// Create a new pod manager
+    pub fn new() -> Self {
+        Self {
+            pods: Arc::new(RwLock::new(HashMap::new())),
+            keystore: Keychain::default(),
+        }
+    }
+
+    /// Create a new pod from a template crate
+    ///
+    /// # Arguments
+    /// * `template_name` — Name of the template crate
+    /// * `persona` — Agent persona definition
+    /// * `name` — Optional pod name (defaults to UUID)
+    ///
+    /// # Returns
+    /// * `Ok(PodID)` — Pod created successfully
+    /// * `Err(AgentPodError)` — Failed to create pod
+pub async fn create_pod(
+        &self,
+        template_name: &str,
+        persona: &AgentPersona,
+        name: Option<String>,
+    ) -> AgentPodResult<PodID> {
+        let git = MockGitCas;
+        let pod = AgentPod::new(template_name, persona, &git)?;
+        let pod_id = pod.id;
+
+        let mut pods = self.pods.write().await;
+        pods.insert(pod_id, pod);
+
+        info!(
+            target: "hkask.pod",
+            pod_id = %pod_id,
+            template = %template_name,
+            name = ?name,
+            "Pod created"
+        );
+
+        Ok(pod_id)
+    }
+
+    /// Activate a pod for A2A communication
+    pub async fn activate_pod(&self, pod_id: &PodID) -> AgentPodResult<()> {
+        let mut pods = self.pods.write().await;
+        let _pod = pods
+            .get_mut(pod_id)
+            .ok_or_else(|| AgentPodError::ACPRegistrationError("Pod not found".to_string()))?;
+
+        // Placeholder - needs actual MCP runtime and CNS emitter
+        info!(
+            target: "hkask.pod",
+            pod_id = %pod_id,
+            "Pod activated"
+        );
+
+        Ok(())
+    }
+
+    /// Deactivate a pod
+    pub async fn deactivate_pod(&self, pod_id: &PodID) -> AgentPodResult<()> {
+        let mut pods = self.pods.write().await;
+        let _pod = pods
+            .get_mut(pod_id)
+            .ok_or_else(|| AgentPodError::ACPRegistrationError("Pod not found".to_string()))?;
+
+        info!(
+            target: "hkask.pod",
+            pod_id = %pod_id,
+            "Pod deactivated"
+        );
+
+        Ok(())
+    }
+
+    /// Get pod status
+    pub async fn get_pod_status(&self, pod_id: &PodID) -> AgentPodResult<PodStatus> {
+        let pods = self.pods.read().await;
+        let pod = pods
+            .get(pod_id)
+            .ok_or_else(|| AgentPodError::ACPRegistrationError("Pod not found".to_string()))?;
+
+        Ok(PodStatus {
+            pod_id: pod.id.to_string(),
+            name: Some(pod.persona.agent.name.clone()),
+            state: pod.state.to_string(),
+            webid: pod.webid.to_string(),
+            agent_type: match pod.agent_type {
+                AgentType::Bot => "bot".to_string(),
+                AgentType::Replicant => "replicant".to_string(),
+            },
+            template: pod.template_crate.name.clone(),
+            created_at: pod.created_at,
+        })
+    }
+
+    /// List all pods
+    pub async fn list_pods(&self) -> AgentPodResult<Vec<PodStatus>> {
+        let pods = self.pods.read().await;
+        let statuses = pods
+            .values()
+            .map(|pod| PodStatus {
+                pod_id: pod.id.to_string(),
+                name: Some(pod.persona.agent.name.clone()),
+                state: pod.state.to_string(),
+                webid: pod.webid.to_string(),
+                agent_type: match pod.agent_type {
+                    AgentType::Bot => "bot".to_string(),
+                    AgentType::Replicant => "replicant".to_string(),
+                },
+                template: pod.template_crate.name.clone(),
+                created_at: pod.created_at,
+            })
+            .collect();
+
+        Ok(statuses)
+    }
+}
+
+impl Default for PodManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[cfg(test)]

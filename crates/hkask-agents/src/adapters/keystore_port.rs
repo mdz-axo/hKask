@@ -27,7 +27,7 @@ pub trait KeystorePort {
 }
 
 /// Secret wrapper for type safety
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Secret<T> {
     inner: T,
 }

@@ -162,3 +162,36 @@ mod tests {
         assert!(adapter.is_err());
     }
 }
+
+/// Mock Git CAS for testing
+pub struct MockGitCas;
+
+impl MockGitCas {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Default for MockGitCas {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl GitCASPort for MockGitCas {
+    fn load_template_crate(&self, _crate_name: &str) -> Result<TemplateCrate, String> {
+        // Stub implementation for testing
+        Ok(TemplateCrate {
+            name: "mock".to_string(),
+            git_sha: "0000000000000000000000000000000000000000".to_string(),
+            persona_yaml: String::new(),
+            dispatch_manifest_yaml: String::new(),
+            templates: vec![],
+            hlexicon_terms: vec![],
+        })
+    }
+
+    fn resolve_sha(&self, _crate_name: &str) -> Result<String, String> {
+        Ok("0000000000000000000000000000000000000000".to_string())
+    }
+}

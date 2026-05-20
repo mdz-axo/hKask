@@ -118,11 +118,44 @@ pub struct ErrorResponse {
     pub details: Option<serde_json::Value>,
 }
 
+/// Create pod request
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct CreatePodRequest {
+    pub template: String,
+    pub persona_yaml: String,
+    pub name: Option<String>,
+}
+
+/// Create pod response
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct CreatePodResponse {
+    pub pod_id: String,
+}
+
+/// Pod status response
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct PodStatusResponse {
+    pub pod_id: String,
+    pub name: Option<String>,
+    pub state: String,
+    pub webid: String,
+    pub agent_type: String,
+    pub template: String,
+    pub created_at: i64,
+}
+
+/// List pods response
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct ListPodsResponse {
+    pub pods: Vec<PodStatusResponse>,
+}
+
 /// Create API router with OpenAPI documentation
 pub fn create_router(state: ApiState) -> OpenApiRouter {
     OpenApiRouter::with_openapi(ApiDoc::openapi())
         .merge(routes::templates_router().into())
         .merge(routes::bots_router().into())
+        .merge(routes::pods_router().into())
         .merge(routes::mcp_router().into())
         .merge(routes::cns_router().into())
         .merge(routes::chat_router().into())

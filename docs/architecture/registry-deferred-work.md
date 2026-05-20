@@ -1,8 +1,117 @@
 # hKask Registry & Templating System — Deferred Work & Open Questions
 
-**Date:** 2026-05-19  
-**Status:** Security hardening complete (P0 tasks). Decisions made for all open questions.  
+**Date:** 2026-05-20  
+**Status:** Security hardening complete (P0 tasks). Russell migration Phase 1 complete.  
 **Version:** v0.21.0
+
+---
+
+## Russell Migration Deferred Work (2026-05-20)
+
+### Overview
+
+The Russell → hKask migration (Task 1-5 complete) has deferred the following work pending operational data:
+
+### Deferred Item 1: CNS Integration for Migration Spans
+
+**Status:** DEFERRED  
+**Priority:** Medium  
+**Decision Date:** 2026-05-20
+
+**Context:** The migration specification calls for CNS spans at each stage (`cns.migration.analyze`, `cns.migration.transform`, `cns.migration.validate`, `cns.migration.register`, `cns.migration.outcome`).
+
+**Decision:** Defer CNS integration until operational data from initial migrations informs:
+- Which spans provide actionable insights vs. noise
+- Appropriate confidence thresholds for algedonic alerts
+- Variety counter definitions (templates migrated, lexicon terms extracted, etc.)
+
+**Implementation (when activated):**
+```rust
+// In RussellMapper::migrate_skill_manifest()
+if let Some(cns) = &self.cns_port {
+    cns.emit(CnsSpan::new("cns.migration.analyze"), Value::Null, 0.9);
+    cns.emit(CnsSpan::new("cns.migration.transform"), Value::Null, 0.9);
+    cns.emit(CnsSpan::new("cns.migration.outcome"), json!({"success": true}), 1.0);
+}
+```
+
+**Trigger for Revisit:** After 10+ successful migrations with manual verification.
+
+---
+
+### Deferred Item 2: OCAP Capability Enforcement
+
+**Status:** DEFERRED  
+**Priority:** Medium  
+**Decision Date:** 2026-05-20
+
+**Context:** Russell's `safety.max_auto_risk` field maps to hKask OCAP capability tokens. The migration currently preserves this metadata but doesn't enforce capability boundaries.
+
+**Decision:** Defer fine-grained OCAP enforcement until:
+- Security review of migrated assets completes
+- Capability token granularity (coarse vs. fine) is decided
+- Human consent gates for interventions are implemented
+
+**Current State:** Migrated manifests include `russell_origin.safety` metadata for manual review.
+
+**Trigger for Revisit:** After security audit of Priority 1 & 2 migrated assets.
+
+---
+
+### Deferred Item 3: Bidirectional Sync Strategy
+
+**Status:** DEFERRED  
+**Priority:** Low  
+**Decision Date:** 2026-05-20
+
+**Context:** Russell upstream may evolve independently. Question: should migrated assets remain synchronized?
+
+**Decision:** **One-time migration** for MVP. Sync strategy deferred pending:
+- Russell project evolution velocity
+- hKask registry stability requirements
+- Operational cost of sync automation
+
+**Current State:** Migrated assets carry `russell_origin` metadata for provenance tracking.
+
+**Trigger for Revisit:** If Russell upstream releases breaking changes affecting migrated assets.
+
+---
+
+### Deferred Item 4: hLexicon Term Inference
+
+**Status:** DEFERRED  
+**Priority:** Low  
+**Decision Date:** 2026-05-20
+
+**Context:** Russell templates lack explicit hLexicon terms. Migration uses simple keyword-based inference.
+
+**Decision:** **Manual specification** for Priority 1 assets. LLM-based inference deferred pending:
+- Validation of current inference quality
+- Energy budget for LLM calls
+- hLexicon term ontology stabilization
+
+**Current State:** `RussellMapper::infer_lexicon_terms()` uses keyword matching (Subjective→observe, Plan→act, etc.).
+
+**Trigger for Revisit:** If manual lexicon specification becomes bottleneck for migration scale.
+
+---
+
+### Deferred Item 5: Cascade Composition Wrapping
+
+**Status:** DEFERRED  
+**Priority:** Low  
+**Decision Date:** 2026-05-20
+
+**Context:** Russell templates are flat; hKask supports `pre/core/post` cascade compositions.
+
+**Decision:** **Flat templates** for migrated assets. Cascade wrapping deferred pending:
+- Operational data on cascade utility
+- Migration of Russell cascade compositions (if any exist)
+- Editor tooling for cascade authoring
+
+**Current State:** All migrated templates use flat structure.
+
+**Trigger for Revisit:** After cascade composition patterns are established for native hKask templates.
 
 ---
 

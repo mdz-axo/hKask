@@ -1,0 +1,245 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "hKask API",
+    "description": "Planck's Constant of Agent Systems - HTTP API",
+    "license": {
+      "name": "MIT",
+      "identifier": "MIT"
+    },
+    "version": "0.1.0"
+  },
+  "servers": [
+    {
+      "url": "/api",
+      "description": "hKask API server"
+    }
+  ],
+  "paths": {},
+  "components": {
+    "schemas": {
+      "ChatRequest": {
+        "type": "object",
+        "description": "Chat request",
+        "required": [
+          "input"
+        ],
+        "properties": {
+          "input": {
+            "type": "string"
+          },
+          "template_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "ChatResponse": {
+        "type": "object",
+        "description": "Chat response",
+        "required": [
+          "output",
+          "template_id"
+        ],
+        "properties": {
+          "output": {
+            "type": "string"
+          },
+          "template_id": {
+            "type": "string"
+          }
+        }
+      },
+      "CnsHealthResponse": {
+        "type": "object",
+        "description": "CNS health response",
+        "required": [
+          "overall_deficit",
+          "critical_count",
+          "warning_count",
+          "healthy"
+        ],
+        "properties": {
+          "critical_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "healthy": {
+            "type": "boolean"
+          },
+          "overall_deficit": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "warning_count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "CnsVarietyResponse": {
+        "type": "object",
+        "description": "CNS variety response",
+        "required": [
+          "domains",
+          "total_deficit",
+          "counters"
+        ],
+        "properties": {
+          "counters": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/VarietyCounterResponse"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "domains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "total_deficit": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "description": "Error response",
+        "required": [
+          "error",
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "details": {},
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "GrantCapabilityRequest": {
+        "type": "object",
+        "description": "Capability request",
+        "required": [
+          "capability"
+        ],
+        "properties": {
+          "capability": {
+            "type": "string"
+          }
+        }
+      },
+      "TemplateResponse": {
+        "type": "object",
+        "description": "Template response",
+        "required": [
+          "id",
+          "template_type",
+          "description",
+          "source_path",
+          "lexicon_terms"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "lexicon_terms": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "source_path": {
+            "type": "string"
+          },
+          "template_type": {
+            "type": "string"
+          }
+        }
+      },
+      "ToolResponse": {
+        "type": "object",
+        "description": "Tool response",
+        "required": [
+          "name",
+          "description",
+          "input_schema",
+          "server_id"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "input_schema": {},
+          "name": {
+            "type": "string"
+          },
+          "server_id": {
+            "type": "string"
+          }
+        }
+      },
+      "VarietyCounterResponse": {
+        "type": "object",
+        "description": "CNS variety counter response",
+        "required": [
+          "variety",
+          "total",
+          "entropy"
+        ],
+        "properties": {
+          "entropy": {
+            "type": "number",
+            "format": "double"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "variety": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "templates",
+      "description": "Template management"
+    },
+    {
+      "name": "bots",
+      "description": "Bot capability management"
+    },
+    {
+      "name": "mcp",
+      "description": "MCP servers and tools"
+    },
+    {
+      "name": "cns",
+      "description": "CNS monitoring"
+    },
+    {
+      "name": "chat",
+      "description": "Curator chat interface"
+    }
+  ]
+}

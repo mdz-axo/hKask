@@ -3,8 +3,9 @@
 use utoipa::OpenApi;
 
 use crate::{
-    ChatRequest, ChatResponse, CnsHealthResponse, CnsVarietyResponse, ErrorResponse,
-    GrantCapabilityRequest, TemplateResponse, ToolResponse,
+    ChatRequest, ChatResponse, CnsHealthResponse, CnsVarietyResponse, CreatePodRequest,
+    CreatePodResponse, ErrorResponse, GrantCapabilityRequest, ListPodsResponse, PodStatusResponse,
+    TemplateResponse, ToolResponse,
 };
 
 /// API documentation
@@ -17,12 +18,17 @@ use crate::{
         CnsVarietyResponse,
         ToolResponse,
         ErrorResponse,
+        CreatePodRequest,
+        CreatePodResponse,
+        PodStatusResponse,
+        ListPodsResponse,
         ChatRequest,
         ChatResponse,
     )),
     tags(
         (name = "templates", description = "Template management"),
         (name = "bots", description = "Bot capability management"),
+        (name = "pods", description = "Agent pod lifecycle management"),
         (name = "mcp", description = "MCP servers and tools"),
         (name = "cns", description = "CNS monitoring"),
         (name = "chat", description = "Curator chat interface"),

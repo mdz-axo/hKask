@@ -4,15 +4,14 @@
 //! Provides deterministic, testable implementations of external dependencies.
 
 use async_trait::async_trait;
-use hkask_templates::ports::{
-    CnsPort, InferencePort, McpPort, Result as TemplateResult, TemplateError,
-};
+use hkask_templates::ports::{InferencePort, McpPort, CnsPort, Result as TemplateResult, TemplateError};
 use serde_json::Value;
+use std::cell::Cell;
 
 /// Mock inference adapter for testing
 pub struct MockInferenceAdapter {
     responses: Vec<Value>,
-    call_count: usize,
+    call_count: Cell<usize>,
     should_fail: bool,
     failure_message: Option<String>,
 }
@@ -21,7 +20,7 @@ impl MockInferenceAdapter {
     pub fn new() -> Self {
         Self {
             responses: Vec::new(),
-            call_count: 0,
+            call_count: Cell::new(0),
             should_fail: false,
             failure_message: None,
         }
@@ -44,11 +43,11 @@ impl MockInferenceAdapter {
     }
 
     pub fn call_count(&self) -> usize {
-        self.call_count
+        self.call_count.get()
     }
 
-    pub fn reset(&mut self) {
-        self.call_count = 0;
+    pub fn reset(&self) {
+        self.call_count.set(0);
     }
 }
 
@@ -72,11 +71,14 @@ impl InferencePort for MockInferenceAdapter {
             ));
         }
 
-        if self.call_count >= self.responses.len() {
+        let count = self.call_count.get();
+        self.call_count.set(count + 1);
+
+        if count >= self.responses.len() {
             return Ok(Value::Null);
         }
 
-        Ok(self.responses[self.call_count].clone())
+        Ok(self.responses[count].clone())
     }
 }
 
@@ -84,7 +86,7 @@ impl InferencePort for MockInferenceAdapter {
 pub struct MockMcpAdapter {
     tools: Vec<String>,
     responses: Vec<Value>,
-    invoke_count: usize,
+    invoke_count: Cell<usize>,
     should_fail: bool,
 }
 
@@ -93,7 +95,7 @@ impl MockMcpAdapter {
         Self {
             tools: Vec::new(),
             responses: Vec::new(),
-            invoke_count: 0,
+            invoke_count: Cell::new(0),
             should_fail: false,
         }
     }
@@ -119,7 +121,7 @@ impl MockMcpAdapter {
     }
 
     pub fn invoke_count(&self) -> usize {
-        self.invoke_count
+        self.invoke_count.get()
     }
 }
 
@@ -139,41 +141,35 @@ impl McpPort for MockMcpAdapter {
             return Err(TemplateError::Mcp("Mock MCP failure".to_string()));
         }
 
-        self.invoke_count += 1;
+        let count = self.invoke_count.get();
+        self.invoke_count.set(count + 1);
 
-        if self.invoke_count > self.responses.len() {
+        if count >= self.responses.len() {
             return Ok(Value::Null);
         }
 
-        Ok(self.responses[self.invoke_count - 1].clone())
+        Ok(self.responses[count].clone())
     }
 }
 
 /// Mock CNS adapter for testing
 pub struct MockCnsAdapter {
-    events: Vec<(String, Value, f64)>,
-    emit_count: usize,
+    emit_count: Cell<usize>,
 }
 
 impl MockCnsAdapter {
     pub fn new() -> Self {
         Self {
-            events: Vec::new(),
-            emit_count: 0,
+            emit_count: Cell::new(0),
         }
     }
 
-    pub fn events(&self) -> &[(String, Value, f64)] {
-        &self.events
-    }
-
     pub fn emit_count(&self) -> usize {
-        self.emit_count
+        self.emit_count.get()
     }
 
-    pub fn clear(&mut self) {
-        self.events.clear();
-        self.emit_count = 0;
+    pub fn clear(&self) {
+        self.emit_count.set(0);
     }
 }
 
@@ -184,30 +180,25 @@ impl Default for MockCnsAdapter {
 }
 
 impl CnsPort for MockCnsAdapter {
-    fn emit(&self, span: &str, outcome: Value, confidence: f64) {
-        self.emit_count += 1;
-        // In tests, we can't mutate self, so we skip storing
-        // Use MockCnsAdapterMut for tests that need to verify emissions
-        let _ = (span, outcome, confidence);
+    fn emit(&self, _span: &str, _outcome: Value, _confidence: f64) {
+        self.emit_count.set(self.emit_count.get() + 1);
     }
 }
 
-/// Mutable mock CNS adapter for tests that need to verify emissions
+/// Mock CNS adapter for tests that need to verify emissions
 pub struct MockCnsAdapterMut {
-    events: Vec<(String, Value, f64)>,
+    emit_count: Cell<usize>,
 }
 
 impl MockCnsAdapterMut {
     pub fn new() -> Self {
-        Self { events: Vec::new() }
-    }
-
-    pub fn events(&self) -> &[(String, Value, f64)] {
-        &self.events
+        Self { 
+            emit_count: Cell::new(0),
+        }
     }
 
     pub fn event_count(&self) -> usize {
-        self.events.len()
+        self.emit_count.get()
     }
 }
 
@@ -218,8 +209,8 @@ impl Default for MockCnsAdapterMut {
 }
 
 impl CnsPort for MockCnsAdapterMut {
-    fn emit(&mut self, span: &str, outcome: Value, confidence: f64) {
-        self.events.push((span.to_string(), outcome, confidence));
+    fn emit(&self, _span: &str, _outcome: Value, _confidence: f64) {
+        self.emit_count.set(self.emit_count.get() + 1);
     }
 }
 
@@ -264,7 +255,7 @@ mod tests {
 
     #[test]
     fn test_mock_mcp_adapter_invoke() {
-        let mut adapter = MockMcpAdapter::new().with_response(json!({"status": "ok"}));
+        let adapter = MockMcpAdapter::new().with_response(json!({"status": "ok"}));
         let result = adapter.invoke("test_tool", json!({}));
         assert!(result.is_ok());
         assert_eq!(adapter.invoke_count(), 1);
@@ -272,7 +263,7 @@ mod tests {
 
     #[test]
     fn test_mock_cns_adapter_emit() {
-        let mut adapter = MockCnsAdapterMut::new();
+        let adapter = MockCnsAdapterMut::new();
         adapter.emit("cns.tool", json!({"action": "test"}), 0.95);
         assert_eq!(adapter.event_count(), 1);
     }
