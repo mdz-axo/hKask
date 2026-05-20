@@ -235,5 +235,3 @@ pub enum ValidatorError {
     #[error("JSON parse error: {0}")]
     ParseError(String),
 }
-
-    }

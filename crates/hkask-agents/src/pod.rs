@@ -1047,7 +1047,6 @@ visibility:
         let git = MockGitCAS;
         let mut pod = AgentPod::new("test-crate", &persona, &git).unwrap();
 
-        // Create a token with attenuation level at the limit
         let mut token = pod.capability_token.clone();
         token.attenuation_level = MAX_ATTENUATION_LEVEL;
         pod.capability_token = token;
@@ -1118,7 +1117,6 @@ visibility:
         let cns = MockCNSSpan;
         pod.register(&acp, &cns).unwrap();
 
-        // Second registration should fail
         let result = pod.register(&acp, &cns);
         assert!(result.is_err());
         assert!(matches!(
@@ -1155,7 +1153,6 @@ visibility:
         let mcp = MockMCPRuntime;
         pod.activate(&mcp, &cns).unwrap();
 
-        // Second activation should fail
         let result = pod.activate(&mcp, &cns);
         assert!(result.is_err());
         assert!(matches!(

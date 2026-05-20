@@ -59,7 +59,7 @@ impl MCPRuntimePort for McpRuntimeAdapter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_types::{CapabilityResource, CapabilityAction};
+    use hkask_types::{CapabilityResource, CapabilityAction, WebID};
     
     #[test]
     fn test_mcp_runtime_adapter_new() {

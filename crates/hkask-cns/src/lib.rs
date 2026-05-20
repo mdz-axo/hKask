@@ -17,6 +17,7 @@ pub mod energy;
 pub mod observers;
 pub mod rate_limit;
 pub mod review_queue;
+pub mod runtime;
 pub mod spans;
 pub mod variety;
 
@@ -35,5 +36,6 @@ pub use review_queue::{
     ReviewDecision, ReviewQueue, ReviewQueueObserver, ReviewQueueStats, TemporaryBlock, Violation,
     ViolationSeverity,
 };
+pub use runtime::CnsRuntime;
 pub use spans::{SpanCategory, SpanEmitter};
 pub use variety::{VarietyCounter, VarietyMonitor};

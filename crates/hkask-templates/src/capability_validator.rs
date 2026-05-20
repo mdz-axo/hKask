@@ -3,10 +3,17 @@
 //! Integrates template contract validation with Okapi capability-based security.
 
 use crate::contract_validator::{OkapiCapabilities, RegistrationFrontmatter, ValidationError};
-use hkask_ensemble::ports;
 use hkask_types::TemplateType;
 use std::collections::HashSet;
 use thiserror::Error;
+
+/// Trait for capability providers (mirrors hkask_ensemble::ports::CapabilityProvider)
+pub trait CapabilityProviderPort {
+    type Capabilities: Into<OkapiCapabilities>;
+    type Error: std::error::Error;
+
+    fn get_capabilities(&self) -> impl std::future::Future<Output = Result<Self::Capabilities, Self::Error>>;
+}
 
 /// Enhanced contract validator with capability checking
 pub struct CapabilityAwareValidator {
@@ -28,7 +35,7 @@ impl CapabilityAwareValidator {
         hlexicon_terms: Vec<String>,
     ) -> Result<Self, CP::Error>
     where
-        CP: ports::CapabilityProvider,
+        CP: CapabilityProviderPort,
         CP::Capabilities: Into<OkapiCapabilities>,
     {
         let caps = provider.get_capabilities().await?;
@@ -99,19 +106,6 @@ impl CapabilityAwareValidator {
             Ok(())
         } else {
             Err(errors)
-        }
-    }
-}
-
-/// Convert hkask_ensemble OkapiCapabilities to contract_validator OkapiCapabilities
-impl From<hkask_ensemble::OkapiCapabilities> for crate::contract_validator::OkapiCapabilities {
-    fn from(caps: hkask_ensemble::OkapiCapabilities) -> Self {
-        crate::contract_validator::OkapiCapabilities {
-            runner_type: caps.runner_type,
-            lora_hot_swap: caps.lora_hot_swap,
-            token_probs: caps.token_probs,
-            grammar_native: caps.grammar_native,
-            advanced_sampling: caps.advanced_sampling,
         }
     }
 }

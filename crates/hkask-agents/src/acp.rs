@@ -38,6 +38,25 @@ use tokio::sync::RwLock;
 use tracing::info;
 use zeroize::Zeroizing;
 
+/// Parse a capability string into resource and action
+///
+/// Examples:
+/// - "tool:execute" -> (CapabilityResource::Tool, CapabilityAction::Execute)
+/// - "template:render" -> (CapabilityResource::Template, CapabilityAction::Render)
+/// - "agent:basic" -> (CapabilityResource::Tool, CapabilityAction::Execute) [default fallback]
+fn parse_capability(capability: &str) -> Option<(CapabilityResource, CapabilityAction)> {
+    let parts: Vec<&str> = capability.split(':').collect();
+    
+    if parts.len() != 2 {
+        return None;
+    }
+    
+    let resource = CapabilityResource::parse_str(parts[0])?;
+    let action = CapabilityAction::parse_str(parts[1])?;
+    
+    Some((resource, action))
+}
+
 /// ACP error types for security and validation
 #[derive(Debug, Error)]
 pub enum AcpError {
@@ -350,14 +369,12 @@ impl AcpRuntime {
     }
 
     /// Check if agent has capability for tool
-    pub async fn has_capability(&self, webid: &WebID, tool_name: &str) -> bool {
-        let tokens = self.capability_tokens.read().await;
-        if let Some(agent_tokens) = tokens.get(webid) {
-            agent_tokens.iter().any(|token| {
-                token.resource == CapabilityResource::Tool
-                    && (token.resource_id == "*" || token.resource_id == tool_name)
-                    && token.action == CapabilityAction::Execute
-                    && token.verify(&self.secret)
+    pub async fn has_capability(&self, webid: &WebID, capability: &str) -> bool {
+        let agents = self.agents.read().await;
+        if let Some(agent) = agents.get(webid) {
+            // Check if agent has the exact capability registered
+            agent.capabilities.iter().any(|cap| {
+                cap == capability || cap == "*"
             })
         } else {
             false

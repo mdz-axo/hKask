@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 /// Variety counter for tracking state diversity in a domain
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct VarietyCounter {
     counts: HashMap<String, u64>,
     window_start: Instant,
@@ -130,9 +130,19 @@ impl VarietyMonitor {
         self.counters.entry(domain.to_string()).or_default()
     }
 
+    /// Get variety count for a specific domain
+    pub fn variety_for_domain(&self, domain: &str) -> u64 {
+        self.counters.get(domain).map(|c| c.variety()).unwrap_or(0)
+    }
+
     /// Get all domain names
     pub fn domains(&self) -> Vec<&str> {
         self.counters.keys().map(|s| s.as_str()).collect()
+    }
+
+    /// Get all counters (public accessor)
+    pub fn counters(&self) -> &HashMap<String, VarietyCounter> {
+        &self.counters
     }
 
     /// Get total variety deficit across all domains

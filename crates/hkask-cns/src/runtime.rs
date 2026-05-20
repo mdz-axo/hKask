@@ -107,7 +107,7 @@ impl CnsRuntime {
             let state = self.state.read().await;
             state
                 .variety
-                .counters
+                .counters()
                 .get(domain)
                 .cloned()
                 .unwrap_or_else(VarietyCounter::new)
@@ -133,7 +133,7 @@ impl CnsRuntime {
         for domain in domains {
             let counter = {
                 let state = self.state.read().await;
-                state.variety.counters.get(&domain).cloned()
+                state.variety.counters().get(&domain).cloned()
             };
 
             if let Some(counter) = counter {

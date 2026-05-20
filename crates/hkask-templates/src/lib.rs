@@ -14,7 +14,9 @@
 //! - `SqliteRegistry` — SQLite-backed registry (production with search)
 
 pub mod audit;
+pub mod capability_validator;
 pub mod cascade;
+pub mod contract_validator;
 pub mod contracts;
 pub mod dependency;
 pub mod manifest;
@@ -27,12 +29,14 @@ pub mod renderer;
 pub mod russell_mapper;
 
 pub use audit::{AuditStats, AuditTrail, ExecutionAudit};
+pub use capability_validator::CapabilityAwareValidator;
+pub use contract_validator::{OkapiRequirements, RegistrationFrontmatter};
 pub use contracts::{
     InferenceConfig as InferenceConfigParsed, ParsedContract, ParsedInference, TemplateFrontmatter,
     parse_frontmatter, validate_lexicon_terms,
 };
 pub use dependency::{DependencyGraph, parse_dependencies};
-pub use manifest::SelectorConfig;
+pub use manifest::{ManifestExecutorImpl, SelectorConfig, SimpleExecutor};
 pub use ports::{
     Action, CnsPort, CompositionTemplate, DEFAULT_MATROSHKA_LIMIT, FAST_LOCAL_MODEL,
     InferenceConfig, InferencePort, ManifestExecutor, ManifestStep, McpPort, ProcessManifest,

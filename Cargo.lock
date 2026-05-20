@@ -2540,13 +2540,24 @@ dependencies = [
 name = "hkask-ensemble"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
+ "chrono",
+ "hex",
  "hkask-agents",
+ "hkask-cns",
+ "hkask-keystore",
+ "hkask-templates",
  "hkask-types",
+ "hmac",
+ "reqwest",
  "serde",
  "serde_json",
+ "serde_yaml",
+ "sha2",
  "thiserror",
  "tokio",
  "tracing",
+ "uuid",
 ]
 
 [[package]]
@@ -2956,6 +2967,7 @@ dependencies = [
  "hkask-types",
  "minijinja",
  "regex",
+ "reqwest",
  "rusqlite",
  "serde",
  "serde_json",

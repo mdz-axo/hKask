@@ -97,17 +97,31 @@ mod e2e_tests {
 
         use hkask_templates::{
             capability_validator::CapabilityAwareValidator,
-            contract_validator::{OkapiRequirements, RegistrationFrontmatter},
+            contract_validator::{OkapiCapabilities as TemplateOkapiCapabilities, OkapiRequirements, RegistrationFrontmatter},
         };
         use hkask_types::TemplateType;
 
+        // Fetch capabilities directly
         let fetcher = OkapiCapabilityFetcher::new(&okapi_base_url());
-        let validator = CapabilityAwareValidator::from_provider(
-            &fetcher,
+        let capabilities = fetcher
+            .get_capabilities()
+            .await
+            .expect("Failed to get capabilities");
+
+        // Convert hkask_ensemble capabilities to hkask_templates capabilities
+        let template_capabilities = TemplateOkapiCapabilities {
+            runner_type: capabilities.runner_type,
+            lora_hot_swap: capabilities.lora_hot_swap,
+            token_probs: capabilities.token_probs,
+            grammar_native: capabilities.grammar_native,
+            advanced_sampling: capabilities.advanced_sampling,
+        };
+
+        // Create validator with fetched capabilities
+        let validator = CapabilityAwareValidator::new(
+            template_capabilities,
             vec!["classify".to_string(), "recognize".to_string()],
-        )
-        .await
-        .expect("Failed to create validator");
+        );
 
         let frontmatter = RegistrationFrontmatter {
             template_type: TemplateType::Prompt,
@@ -126,10 +140,6 @@ mod e2e_tests {
         println!("Validation result: {:?}", result);
 
         // Should succeed if Okapi has token_probs capability
-        let capabilities = fetcher
-            .get_capabilities()
-            .await
-            .expect("Failed to get capabilities");
         if capabilities.token_probs {
             assert!(
                 result.is_ok(),
