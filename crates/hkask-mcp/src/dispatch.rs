@@ -198,7 +198,7 @@ mod tests {
         assert_eq!(dispatcher.list_tools().await.len(), 0);
     }
 
-#[tokio::test]
+    #[tokio::test]
     async fn test_mcp_dispatcher_capability_check() {
         let runtime = McpRuntime::new();
         let dispatcher = McpDispatcher::new(runtime, b"test-secret");
@@ -222,10 +222,7 @@ mod tests {
         let dispatcher = McpDispatcher::new(runtime, b"test-secret");
 
         let bot_id = WebID::new();
-        let caps: HashSet<String> = ["inference:call"]
-            .iter()
-            .map(|s| s.to_string())
-            .collect();
+        let caps: HashSet<String> = ["inference:call"].iter().map(|s| s.to_string()).collect();
 
         dispatcher.register_bot_capabilities(bot_id, caps).await;
 
@@ -243,10 +240,7 @@ mod tests {
         let dispatcher = McpDispatcher::new(runtime, b"test-secret");
 
         let bot_id = WebID::new();
-        let caps: HashSet<String> = ["nonexistent:tool"]
-            .iter()
-            .map(|s| s.to_string())
-            .collect();
+        let caps: HashSet<String> = ["nonexistent:tool"].iter().map(|s| s.to_string()).collect();
 
         dispatcher.register_bot_capabilities(bot_id, caps).await;
 
@@ -275,10 +269,7 @@ mod tests {
             },
         );
 
-        let caps: HashSet<String> = ["test:tool"]
-            .iter()
-            .map(|s| s.to_string())
-            .collect();
+        let caps: HashSet<String> = ["test:tool"].iter().map(|s| s.to_string()).collect();
         dispatcher.register_bot_capabilities(bot_id, caps).await;
 
         // Register a tool

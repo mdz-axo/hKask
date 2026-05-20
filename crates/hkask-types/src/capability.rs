@@ -148,8 +148,22 @@ impl CapabilityToken {
         attenuation_level: u8,
         max_attenuation: u8,
     ) -> Self {
-        let id = Self::generate_id(&resource, &resource_id, &action, &delegated_from, &delegated_to);
-        let signature = Self::sign(&id, &resource, &resource_id, &action, &delegated_from, &delegated_to, secret);
+        let id = Self::generate_id(
+            &resource,
+            &resource_id,
+            &action,
+            &delegated_from,
+            &delegated_to,
+        );
+        let signature = Self::sign(
+            &id,
+            &resource,
+            &resource_id,
+            &action,
+            &delegated_from,
+            &delegated_to,
+            secret,
+        );
 
         Self {
             id,
@@ -220,7 +234,9 @@ impl CapabilityToken {
 
     /// Check if token is expired
     pub fn is_expired(&self, current_time: i64) -> bool {
-        self.expires_at.map(|exp| current_time > exp).unwrap_or(false)
+        self.expires_at
+            .map(|exp| current_time > exp)
+            .unwrap_or(false)
     }
 
     /// Check if attenuation allows further delegation
@@ -229,7 +245,12 @@ impl CapabilityToken {
     }
 
     /// Create attenuated child token for delegation
-    pub fn attenuate(&self, new_to: WebID, secret: &[u8], current_time: i64) -> Option<CapabilityToken> {
+    pub fn attenuate(
+        &self,
+        new_to: WebID,
+        secret: &[u8],
+        current_time: i64,
+    ) -> Option<CapabilityToken> {
         if !self.can_attenuate() {
             return None;
         }
@@ -249,7 +270,12 @@ impl CapabilityToken {
     }
 
     /// Check if this token is valid for a given resource and action
-    pub fn is_valid_for(&self, resource: CapabilityResource, resource_id: &str, action: CapabilityAction) -> bool {
+    pub fn is_valid_for(
+        &self,
+        resource: CapabilityResource,
+        resource_id: &str,
+        action: CapabilityAction,
+    ) -> bool {
         self.resource == resource && self.resource_id == resource_id && self.action == action
     }
 
@@ -297,7 +323,12 @@ impl CapabilityChecker {
     }
 
     /// Check if holder has any capability for a resource type
-    pub fn check_resource(&self, token: &CapabilityToken, holder: &WebID, resource: CapabilityResource) -> bool {
+    pub fn check_resource(
+        &self,
+        token: &CapabilityToken,
+        holder: &WebID,
+        resource: CapabilityResource,
+    ) -> bool {
         self.verify(token) && token.delegated_to == *holder && token.grants_resource(resource)
     }
 
@@ -350,7 +381,12 @@ impl CapabilityChecker {
     }
 
     /// Create a capability token for registry operations
-    pub fn grant_registry(&self, action: CapabilityAction, from: WebID, to: WebID) -> CapabilityToken {
+    pub fn grant_registry(
+        &self,
+        action: CapabilityAction,
+        from: WebID,
+        to: WebID,
+    ) -> CapabilityToken {
         CapabilityToken::new(
             CapabilityResource::Registry,
             "*".to_string(),
@@ -380,7 +416,12 @@ impl CapabilityChecker {
     }
 
     /// Create an attenuated token for delegation
-    pub fn attenuate(&self, token: &CapabilityToken, new_to: WebID, current_time: i64) -> Option<CapabilityToken> {
+    pub fn attenuate(
+        &self,
+        token: &CapabilityToken,
+        new_to: WebID,
+        current_time: i64,
+    ) -> Option<CapabilityToken> {
         token.attenuate(new_to, &self.secret, current_time)
     }
 }
@@ -487,9 +528,27 @@ mod tests {
 
         let token = checker.grant_tool("inference:call".to_string(), from.clone(), to.clone());
 
-        assert!(checker.check(&token, &to, CapabilityResource::Tool, "inference:call", CapabilityAction::Execute));
-        assert!(!checker.check(&token, &to, CapabilityResource::Tool, "storage:read", CapabilityAction::Execute));
-        assert!(!checker.check(&token, &from, CapabilityResource::Tool, "inference:call", CapabilityAction::Execute));
+        assert!(checker.check(
+            &token,
+            &to,
+            CapabilityResource::Tool,
+            "inference:call",
+            CapabilityAction::Execute
+        ));
+        assert!(!checker.check(
+            &token,
+            &to,
+            CapabilityResource::Tool,
+            "storage:read",
+            CapabilityAction::Execute
+        ));
+        assert!(!checker.check(
+            &token,
+            &from,
+            CapabilityResource::Tool,
+            "inference:call",
+            CapabilityAction::Execute
+        ));
     }
 
     #[test]

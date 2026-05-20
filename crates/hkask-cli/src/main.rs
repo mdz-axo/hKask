@@ -152,6 +152,21 @@ enum McpAction {
     /// List MCP servers
     ListServers,
 
+    /// Register a new MCP server
+    RegisterServer {
+        /// Server ID
+        #[arg(short, long)]
+        id: String,
+
+        /// Server name
+        #[arg(short, long)]
+        name: String,
+
+        /// Tools provided by this server (comma-separated)
+        #[arg(short, long)]
+        tools: Option<String>,
+    },
+
     /// List available tools
     ListTools,
 
@@ -231,11 +246,7 @@ fn run_chat_interactive(
     }
 }
 
-fn process_chat_input(
-    registry: &SqliteRegistry,
-    input: &str,
-    template_id: Option<&str>,
-) -> String {
+fn process_chat_input(registry: &SqliteRegistry, input: &str, template_id: Option<&str>) -> String {
     match template_id {
         Some(id) => match registry.get(id) {
             Ok(_entry) => format!("Processing with template '{}': {}", id, input),
@@ -245,8 +256,7 @@ fn process_chat_input(
             // Auto-select template based on input
             if input.contains('?') || input.contains("what") || input.contains("how") {
                 format!("Question detected. Processing: {}", input)
-            } else if input.contains("create") || input.contains("make") || input.contains("build")
-            {
+            } else if input.contains("create") || input.contains("make") || input.contains("build") {
                 format!("Action request detected. Processing: {}", input)
             } else {
                 format!("Received: {}", input)
@@ -413,16 +423,25 @@ fn main() {
             match action {
                 McpAction::ListServers => {
                     println!("MCP servers:");
-                    // Note: runtime is not shared, so we can't list actual servers
-                    println!("  (no servers registered)");
+                    println!("  (no servers registered - use 'mcp register-server' to add one)");
+                }
+                McpAction::RegisterServer { id, name, tools } => {
+                    println!("Registering MCP server: {} ({})", name, id);
+                    if let Some(tools_str) = tools {
+                        let tools: Vec<&str> = tools_str.split(',').collect();
+                        println!("  Tools: {}", tools.join(", "));
+                    } else {
+                        println!("  Tools: (none specified)");
+                    }
+                    println!("Note: MCP server registration requires runtime integration.");
                 }
                 McpAction::ListTools => {
                     println!("Available tools:");
-                    println!("  (no tools registered)");
+                    println!("  (no tools registered - register an MCP server first)");
                 }
                 McpAction::GetTool { name } => {
                     println!("Get tool: {}", name);
-                    println!("Note: Tool lookup requires MCP runtime integration.");
+                    println!("Note: Tool lookup requires MCP server registration.");
                 }
             }
         }
@@ -434,14 +453,17 @@ fn main() {
                 println!("  Critical alerts: 0");
                 println!("  Warning alerts: 0");
                 println!("  Status: HEALTHY");
+                println!("\nNote: CNS monitoring requires runtime integration.");
             }
             CnsAction::Alerts => {
                 println!("Algedonic alerts:");
                 println!("  (no active alerts)");
+                println!("\nNote: Alert monitoring requires CNS runtime integration.");
             }
             CnsAction::Variety => {
                 println!("Variety counters:");
                 println!("  (no variety data)");
+                println!("\nNote: Variety monitoring requires CNS runtime integration.");
             }
         },
     }

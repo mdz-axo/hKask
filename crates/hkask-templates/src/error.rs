@@ -24,10 +24,7 @@ use thiserror::Error;
 pub enum CompositionError {
     /// Transient error — retryable
     #[error("Transient error: {message}")]
-    Transient {
-        message: String,
-        retry_count: u32,
-    },
+    Transient { message: String, retry_count: u32 },
 
     /// Permanent error — not retryable
     #[error("Permanent error: {message}")]
@@ -54,10 +51,7 @@ pub enum CompositionError {
 
     /// Recursion limit exceeded
     #[error("Recursion limit exceeded (max depth: {max})")]
-    RecursionLimit {
-        max: u8,
-        actual: u8,
-    },
+    RecursionLimit { max: u8, actual: u8 },
 
     /// Capability denied
     #[error("Capability denied: {reason}")]
@@ -76,41 +70,27 @@ pub enum CompositionError {
 
     /// Path traversal attempt
     #[error("Path traversal attempt: {path}")]
-    PathTraversal {
-        path: String,
-    },
+    PathTraversal { path: String },
 
     /// Jinja2 injection attempt
     #[error("Jinja2 injection attempt: {pattern}")]
-    Jinja2Injection {
-        pattern: String,
-    },
+    Jinja2Injection { pattern: String },
 
     /// Energy budget exceeded
     #[error("Energy budget exceeded: requested {requested}, remaining {remaining}")]
-    EnergyBudgetExceeded {
-        requested: u64,
-        remaining: u64,
-    },
+    EnergyBudgetExceeded { requested: u64, remaining: u64 },
 
     /// Cycle detected in composition graph
-    #[error("Cycle detected in composition: {cycle_path}")]
-    CycleDetected {
-        cycle_path: Vec<String>,
-    },
+    #[error("Cycle detected in composition: {cycle_path:?}")]
+    CycleDetected { cycle_path: Vec<String> },
 
     /// Stage communication failure (CSP channel error)
     #[error("Stage communication failed: {stage_name}")]
-    StageCommunicationFailed {
-        stage_name: String,
-    },
+    StageCommunicationFailed { stage_name: String },
 
     /// Stage timeout
     #[error("Stage timeout: {stage_name} exceeded {timeout_ms}ms")]
-    StageTimeout {
-        stage_name: String,
-        timeout_ms: u64,
-    },
+    StageTimeout { stage_name: String, timeout_ms: u64 },
 }
 
 impl CompositionError {
@@ -164,7 +144,11 @@ impl CompositionError {
     }
 
     /// Create security violation error
-    pub fn security_violation(violation_type: &str, holder: Option<WebID>, details: Option<&str>) -> Self {
+    pub fn security_violation(
+        violation_type: &str,
+        holder: Option<WebID>,
+        details: Option<&str>,
+    ) -> Self {
         CompositionError::SecurityViolation {
             violation_type: violation_type.to_string(),
             holder,
@@ -175,12 +159,13 @@ impl CompositionError {
     /// Increment retry count
     pub fn increment_retry(&self) -> Self {
         match self {
-            CompositionError::Transient { message, retry_count } => {
-                CompositionError::Transient {
-                    message: message.clone(),
-                    retry_count: retry_count + 1,
-                }
-            }
+            CompositionError::Transient {
+                message,
+                retry_count,
+            } => CompositionError::Transient {
+                message: message.clone(),
+                retry_count: retry_count + 1,
+            },
             _ => self.clone(),
         }
     }

@@ -138,7 +138,7 @@ impl SecurityGateway {
         bot_id: &WebID,
         tool_name: &str,
     ) -> bool {
-        use hkask_types::{CapabilityResource, CapabilityAction};
+        use hkask_types::{CapabilityAction, CapabilityResource};
         self.capability_checker.check(
             token,
             bot_id,
@@ -296,7 +296,7 @@ mod tests {
 
         let token = gateway.issue_capability("inference:call".to_string(), from, to);
 
-        assert_eq!(token.tool_name, "inference:call");
+        assert_eq!(token.resource_id, "inference:call");
         assert!(gateway.verify_capability(&token, &to, "inference:call"));
         assert!(!gateway.verify_capability(&token, &from, "inference:call")); // Wrong recipient
     }

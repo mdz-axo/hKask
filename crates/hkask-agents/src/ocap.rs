@@ -8,7 +8,9 @@
 //! - Attenuation: delegation reduces authority (max 7 levels)
 //! - Verification: all capabilities cryptographically signed
 
-use hkask_types::{CapabilityAction, CapabilityChecker, CapabilityResource, CapabilityToken, WebID};
+use hkask_types::{
+    CapabilityAction, CapabilityChecker, CapabilityResource, CapabilityToken, WebID,
+};
 use serde::{Deserialize, Serialize};
 
 /// OCAP verification result
@@ -164,7 +166,12 @@ impl OCAP {
     }
 
     /// Create attenuated token for delegation
-    pub fn attenuate(&self, token: &CapabilityToken, new_to: WebID, current_time: i64) -> Option<CapabilityToken> {
+    pub fn attenuate(
+        &self,
+        token: &CapabilityToken,
+        new_to: WebID,
+        current_time: i64,
+    ) -> Option<CapabilityToken> {
         self.checker.attenuate(token, new_to, current_time)
     }
 
@@ -236,7 +243,7 @@ mod tests {
             CapabilityAction::Execute,
             WebID::new(),
             WebID::new(),
-            b"wrong-secret"
+            b"wrong-secret",
         );
         assert!(!OCAP::default().checker().verify(&token));
     }
@@ -255,7 +262,16 @@ mod tests {
         );
 
         assert!(ocap.verify(&token));
-        assert!(ocap.check_template(&token, &to, "prompt/test", CapabilityAction::Render, current_time()).allowed);
+        assert!(
+            ocap.check_template(
+                &token,
+                &to,
+                "prompt/test",
+                CapabilityAction::Render,
+                current_time()
+            )
+            .allowed
+        );
     }
 
     #[test]
@@ -272,7 +288,13 @@ mod tests {
             to,
         );
 
-        let result = ocap.check_template(&token, &wrong_holder, "prompt/test", CapabilityAction::Render, current_time());
+        let result = ocap.check_template(
+            &token,
+            &wrong_holder,
+            "prompt/test",
+            CapabilityAction::Render,
+            current_time(),
+        );
         assert!(!result.allowed);
         assert!(result.reason.unwrap().contains("holder"));
     }
@@ -290,7 +312,13 @@ mod tests {
             to,
         );
 
-        let result = ocap.check_template(&token, &to, "prompt/test", CapabilityAction::Write, current_time());
+        let result = ocap.check_template(
+            &token,
+            &to,
+            "prompt/test",
+            CapabilityAction::Write,
+            current_time(),
+        );
         assert!(!result.allowed);
     }
 
@@ -343,7 +371,7 @@ mod tests {
         assert!(attenuated.is_some());
         let attenuated = attenuated.unwrap();
         assert_eq!(attenuated.attenuation_level, 7);
-        
+
         // Now at max, cannot attenuate further
         assert!(!attenuated.can_attenuate());
         let further = ocap.attenuate(&attenuated, WebID::new(), current_time());

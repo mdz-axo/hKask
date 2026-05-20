@@ -105,7 +105,7 @@ pub struct ManifestStep {
 }
 
 /// Validated artifact (post-validation stage)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValidatedArtifact {
     pub template: Option<GeneratedTemplate>,
     pub manifest: Option<GeneratedManifest>,
@@ -115,7 +115,7 @@ pub struct ValidatedArtifact {
 }
 
 /// Registered artifact (post-registration stage)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RegisteredArtifact {
     pub registry_entry_id: String,
     pub cns_event_id: String,
@@ -123,7 +123,7 @@ pub struct RegisteredArtifact {
 }
 
 /// Pipeline stage output
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum StageOutput {
     Parse(ParsedSkill),
     Map(Vec<RdfTriple>),
@@ -136,7 +136,7 @@ pub enum StageOutput {
 }
 
 /// Pipeline stage definition
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PipelineStage {
     pub stage_number: u32,
     pub name: String,
@@ -235,10 +235,7 @@ impl SkillTranslationPipeline {
             .ok_or_else(|| TemplateError::Manifest("Missing skill name".to_string()))?
             .to_string();
 
-        let description = value["description"]
-            .as_str()
-            .unwrap_or("")
-            .to_string();
+        let description = value["description"].as_str().unwrap_or("").to_string();
 
         let prompts = value["prompts"]
             .as_array()
@@ -250,7 +247,11 @@ impl SkillTranslationPipeline {
                             text: p["text"].as_str()?.to_string(),
                             variables: p["variables"]
                                 .as_array()
-                                .map(|v| v.iter().filter_map(|s| s.as_str().map(String::from)).collect())
+                                .map(|v| {
+                                    v.iter()
+                                        .filter_map(|s| s.as_str().map(String::from))
+                                        .collect()
+                                })
                                 .unwrap_or(vec![]),
                             output_schema: p["output_schema"].clone(),
                         })
@@ -367,12 +368,15 @@ impl SkillTranslationPipeline {
             RdfTriple {
                 subject: parsed_skill.id.clone(),
                 predicate: "hkask:sourceFormat".to_string(),
-                object: Value::String(match parsed_skill.format {
-                    SkillFormat::ClaudeSkill => "claude_skill",
-                    SkillFormat::ZapierAction => "zapier_action",
-                    SkillFormat::LangChainTool => "langchain_tool",
-                    SkillFormat::CrewAIAgent => "crewai_agent",
-                }.to_string()),
+                object: Value::String(
+                    match parsed_skill.format {
+                        SkillFormat::ClaudeSkill => "claude_skill",
+                        SkillFormat::ZapierAction => "zapier_action",
+                        SkillFormat::LangChainTool => "langchain_tool",
+                        SkillFormat::CrewAIAgent => "crewai_agent",
+                    }
+                    .to_string(),
+                ),
             },
         ];
 
@@ -393,7 +397,11 @@ impl SkillTranslationPipeline {
     }
 
     /// Execute stage 3: Generate (emit templates and manifests)
-    pub async fn generate(&self, _triples: &[RdfTriple], parsed_skill: &ParsedSkill) -> Result<(Vec<GeneratedTemplate>, Vec<GeneratedManifest>)> {
+    pub async fn generate(
+        &self,
+        _triples: &[RdfTriple],
+        parsed_skill: &ParsedSkill,
+    ) -> Result<(Vec<GeneratedTemplate>, Vec<GeneratedManifest>)> {
         let mut templates = vec![];
         let mut manifests = vec![];
 
@@ -417,17 +425,15 @@ impl SkillTranslationPipeline {
                 id: format!("{}-manifest", parsed_skill.id),
                 name: parsed_skill.name.clone(),
                 description: parsed_skill.description.clone(),
-                steps: vec![
-                    ManifestStep {
-                        ordinal: 1,
-                        action: "execute".to_string(),
-                        description: "Execute skill".to_string(),
-                        template_ref: None,
-                        model_tier: Some("fast_local".to_string()),
-                        mcp: Some("hkask-mcp-inference".to_string()),
-                        energy_cap: 500,
-                    },
-                ],
+                steps: vec![ManifestStep {
+                    ordinal: 1,
+                    action: "execute".to_string(),
+                    description: "Execute skill".to_string(),
+                    template_ref: None,
+                    model_tier: Some("fast_local".to_string()),
+                    mcp: Some("hkask-mcp-inference".to_string()),
+                    energy_cap: 500,
+                }],
                 energy_cap: 1000,
                 visibility: parsed_skill.visibility.clone(),
             };
@@ -522,7 +528,10 @@ impl SkillTranslationPipeline {
     }
 
     /// Execute stage 5: Register (persist to registry)
-    pub async fn register(&self, validated: &[ValidatedArtifact]) -> Result<Vec<RegisteredArtifact>> {
+    pub async fn register(
+        &self,
+        validated: &[ValidatedArtifact],
+    ) -> Result<Vec<RegisteredArtifact>> {
         let mut registered = vec![];
 
         for artifact in validated {
@@ -555,7 +564,11 @@ impl SkillTranslationPipeline {
     }
 
     /// Execute full pipeline
-    pub async fn execute(&self, raw_skill: &str, format: SkillFormat) -> Result<Vec<RegisteredArtifact>> {
+    pub async fn execute(
+        &self,
+        raw_skill: &str,
+        format: SkillFormat,
+    ) -> Result<Vec<RegisteredArtifact>> {
         let parsed = self.parse(raw_skill, format).await?;
         let triples = self.map(&parsed).await?;
         let (templates, manifests) = self.generate(&triples, &parsed).await?;
@@ -602,7 +615,10 @@ mod tests {
             "visibility": "Shared"
         }"#;
 
-        let parsed = pipeline.parse(raw_skill, SkillFormat::ClaudeSkill).await.unwrap();
+        let parsed = pipeline
+            .parse(raw_skill, SkillFormat::ClaudeSkill)
+            .await
+            .unwrap();
         assert_eq!(parsed.name, "Test Skill");
         assert_eq!(parsed.prompts.len(), 1);
         assert_eq!(parsed.prompts[0].variables, vec!["name"]);

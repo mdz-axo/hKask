@@ -38,15 +38,7 @@ const JINJA2_DANGEROUS_PATTERNS: &[&str] = &[
 ];
 
 /// Path traversal patterns to block
-const PATH_TRAVERSAL_PATTERNS: &[&str] = &[
-    "..",
-    "/etc/",
-    "/proc/",
-    "/sys/",
-    "//",
-    "\\..",
-    "/..",
-];
+const PATH_TRAVERSAL_PATTERNS: &[&str] = &["..", "/etc/", "/proc/", "/sys/", "//", "\\..", "/.."];
 
 /// Maximum recursion depth (Miller's law: 7 ± 2)
 const MAX_RECURSION_DEPTH: u8 = 7;
@@ -93,13 +85,19 @@ impl SecurityAdapter {
 
         // Reject null bytes
         if path.contains('\0') {
-            return Err(TemplateError::PathTraversal("Null byte not allowed".to_string()));
+            return Err(TemplateError::PathTraversal(
+                "Null byte not allowed".to_string(),
+            ));
         }
 
         // Check against allowed paths if configured
         if !self.allowed_paths.is_empty() {
             let normalized = path.trim_matches(|c| c == '/' || c == '\\');
-            if !self.allowed_paths.iter().any(|allowed| normalized.starts_with(allowed)) {
+            if !self
+                .allowed_paths
+                .iter()
+                .any(|allowed| normalized.starts_with(allowed))
+            {
                 return Err(TemplateError::PathTraversal(format!(
                     "Path not in allowed set: {}",
                     path
@@ -127,8 +125,7 @@ impl SecurityAdapter {
 
     /// Verify capability token signature
     pub fn verify_signature(&self, token: &CapabilityToken, holder: &WebID) -> bool {
-        self.capability_checker.verify(token)
-            && token.delegated_to == *holder
+        self.capability_checker.verify(token) && token.delegated_to == *holder
     }
 
     /// Check recursion depth (prevent DoS via infinite recursion)
@@ -158,18 +155,27 @@ impl SecurityAdapter {
         template_id: &str,
         current_time: i64,
     ) -> Result<()> {
-        use hkask_types::{CapabilityAction, CapabilityResource};
+        use hkask_types::CapabilityResource;
 
-        if !self.capability_checker.verify_with_time(token, current_time) {
-            return Err(TemplateError::CapabilityDenied("Token expired or invalid".to_string()));
+        if !self
+            .capability_checker
+            .verify_with_time(token, current_time)
+        {
+            return Err(TemplateError::CapabilityDenied(
+                "Token expired or invalid".to_string(),
+            ));
         }
 
         if token.delegated_to != *holder {
-            return Err(TemplateError::CapabilityDenied("Token not delegated to holder".to_string()));
+            return Err(TemplateError::CapabilityDenied(
+                "Token not delegated to holder".to_string(),
+            ));
         }
 
         if !token.grants_resource(CapabilityResource::Template) {
-            return Err(TemplateError::CapabilityDenied("Token does not grant template access".to_string()));
+            return Err(TemplateError::CapabilityDenied(
+                "Token does not grant template access".to_string(),
+            ));
         }
 
         if token.resource_id != template_id && token.resource_id != "*" {
@@ -190,18 +196,27 @@ impl SecurityAdapter {
         manifest_id: &str,
         current_time: i64,
     ) -> Result<()> {
-        use hkask_types::{CapabilityAction, CapabilityResource};
+        use hkask_types::CapabilityResource;
 
-        if !self.capability_checker.verify_with_time(token, current_time) {
-            return Err(TemplateError::CapabilityDenied("Token expired or invalid".to_string()));
+        if !self
+            .capability_checker
+            .verify_with_time(token, current_time)
+        {
+            return Err(TemplateError::CapabilityDenied(
+                "Token expired or invalid".to_string(),
+            ));
         }
 
         if token.delegated_to != *holder {
-            return Err(TemplateError::CapabilityDenied("Token not delegated to holder".to_string()));
+            return Err(TemplateError::CapabilityDenied(
+                "Token not delegated to holder".to_string(),
+            ));
         }
 
         if !token.grants_resource(CapabilityResource::Manifest) {
-            return Err(TemplateError::CapabilityDenied("Token does not grant manifest access".to_string()));
+            return Err(TemplateError::CapabilityDenied(
+                "Token does not grant manifest access".to_string(),
+            ));
         }
 
         if token.resource_id != manifest_id && token.resource_id != "*" {
@@ -222,18 +237,27 @@ impl SecurityAdapter {
         cascade_id: &str,
         current_time: i64,
     ) -> Result<()> {
-        use hkask_types::{CapabilityAction, CapabilityResource};
+        use hkask_types::CapabilityResource;
 
-        if !self.capability_checker.verify_with_time(token, current_time) {
-            return Err(TemplateError::CapabilityDenied("Token expired or invalid".to_string()));
+        if !self
+            .capability_checker
+            .verify_with_time(token, current_time)
+        {
+            return Err(TemplateError::CapabilityDenied(
+                "Token expired or invalid".to_string(),
+            ));
         }
 
         if token.delegated_to != *holder {
-            return Err(TemplateError::CapabilityDenied("Token not delegated to holder".to_string()));
+            return Err(TemplateError::CapabilityDenied(
+                "Token not delegated to holder".to_string(),
+            ));
         }
 
         if !token.grants_resource(CapabilityResource::Cascade) {
-            return Err(TemplateError::CapabilityDenied("Token does not grant cascade access".to_string()));
+            return Err(TemplateError::CapabilityDenied(
+                "Token does not grant cascade access".to_string(),
+            ));
         }
 
         if token.resource_id != cascade_id && token.resource_id != "*" {
@@ -253,7 +277,8 @@ impl SecurityAdapter {
         new_to: WebID,
         current_time: i64,
     ) -> Option<CapabilityToken> {
-        self.capability_checker.attenuate(token, new_to, current_time)
+        self.capability_checker
+            .attenuate(token, new_to, current_time)
     }
 
     /// Get capability checker reference
@@ -271,7 +296,7 @@ impl Default for SecurityAdapter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_types::{CapabilityAction, CapabilityResource};
+    use hkask_types::CapabilityAction;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn current_time() -> i64 {
@@ -285,7 +310,11 @@ mod tests {
     fn test_validate_template_path_ok() {
         let adapter = SecurityAdapter::new(b"test-secret");
         assert!(adapter.validate_template_path("prompt/test").is_ok());
-        assert!(adapter.validate_template_path("process/memory/recall").is_ok());
+        assert!(
+            adapter
+                .validate_template_path("process/memory/recall")
+                .is_ok()
+        );
     }
 
     #[test]
@@ -353,10 +382,23 @@ mod tests {
         let adapter = SecurityAdapter::new(b"test-secret");
         let from = WebID::new();
         let to = WebID::new();
-        let token = adapter.checker().grant_template("prompt/test".to_string(), CapabilityAction::Render, from, to);
+        let token = adapter.checker().grant_template(
+            "prompt/test".to_string(),
+            CapabilityAction::Render,
+            from,
+            to,
+        );
 
-        assert!(adapter.check_template_capability(&token, &to, "prompt/test", current_time()).is_ok());
-        assert!(adapter.check_template_capability(&token, &from, "prompt/test", current_time()).is_err());
+        assert!(
+            adapter
+                .check_template_capability(&token, &to, "prompt/test", current_time())
+                .is_ok()
+        );
+        assert!(
+            adapter
+                .check_template_capability(&token, &from, "prompt/test", current_time())
+                .is_err()
+        );
     }
 
     #[test]
@@ -366,7 +408,12 @@ mod tests {
         let to = WebID::new();
         let new_to = WebID::new();
 
-        let token = adapter.checker().grant_template("prompt/test".to_string(), CapabilityAction::Render, from, to);
+        let token = adapter.checker().grant_template(
+            "prompt/test".to_string(),
+            CapabilityAction::Render,
+            from,
+            to,
+        );
         assert!(token.can_attenuate());
 
         let attenuated = adapter.attenuate_capability(&token, new_to, current_time());

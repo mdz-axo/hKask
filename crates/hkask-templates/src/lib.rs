@@ -13,9 +13,11 @@
 //! - `GitRegistry` — Git CAS-backed registry (production)
 //! - `SqliteRegistry` — SQLite-backed registry (production with search)
 
+pub mod adapters;
 pub mod audit;
 pub mod cascade;
 pub mod contracts;
+pub mod csp;
 pub mod dependency;
 pub mod error;
 pub mod manifest;
@@ -28,12 +30,17 @@ pub mod renderer;
 pub mod security;
 pub mod skill_translation;
 
+pub use adapters::{
+    MockRegistryAdapter, RegistryAdapter, RegistryResult, SkillRegistryPort,
+};
 pub use audit::{AuditStats, AuditTrail, ExecutionAudit};
 pub use contracts::{
     InferenceConfig as InferenceConfigParsed, ParsedContract, ParsedInference, TemplateFrontmatter,
     parse_frontmatter, validate_lexicon_terms,
 };
+pub use csp::{CspPipelineExecutor, CspStageConfig, IsolatedStageRunner, StageExecutor, StageMessage, StageResult};
 pub use dependency::{DependencyGraph, parse_dependencies};
+pub use error::{CompositionError, RetryConfig};
 pub use manifest::SelectorConfig;
 pub use ports::{
     Action, CnsPort, CompositionTemplate, DEFAULT_MATROSHKA_LIMIT, FAST_LOCAL_MODEL,
@@ -46,8 +53,7 @@ pub use registry_git::GitRegistry;
 pub use registry_sqlite::SqliteRegistry;
 pub use security::SecurityAdapter;
 pub use skill_translation::{
-    GeneratedManifest, GeneratedTemplate, ManifestStep as SkillManifestStep,
-    ParsedPrompt, ParsedSkill, PipelineStage, RdfTriple, RegisteredArtifact,
-    SkillFormat, SkillTranslationPipeline, StageOutput, TemplateContract as SkillContract,
-    ValidatedArtifact,
+    GeneratedManifest, GeneratedTemplate, ManifestStep as SkillManifestStep, ParsedPrompt,
+    ParsedSkill, PipelineStage, RdfTriple, RegisteredArtifact, SkillFormat,
+    SkillTranslationPipeline, StageOutput, TemplateContract as SkillContract, ValidatedArtifact,
 };
