@@ -30,6 +30,7 @@ use crate::ports::{
     ManifestStep, McpPort, ProcessManifest, Result, TemplateError, TemplateRenderer,
 };
 use serde_json::Value;
+use std::sync::atomic::{AtomicU32, Ordering};
 use tracing::info;
 use uuid::Uuid;
 
@@ -71,9 +72,9 @@ impl ManifestState {
     /// 2. Execute operation
     /// 3. On success: commit new state
     /// 4. On failure: rollback to snapshot
-    pub fn transition<F, E>(&mut self, step: u32, operation: F) -> std::result::Result<(), E>
+    pub fn transition<F>(&mut self, step: u32, operation: F) -> Result<Value>
     where
-        F: FnOnce(&Value) -> std::result::Result<Value, E>,
+        F: FnOnce(&Value) -> Result<Value>,
     {
         // Snapshot for potential rollback
         let snapshot = self.accumulated_state.clone();
@@ -84,7 +85,7 @@ impl ManifestState {
                 self.current_step = step;
                 self.accumulated_state = new_state;
                 self.steps_completed += 1;
-                Ok(())
+                Ok(self.accumulated_state.clone())
             }
             Err(e) => {
                 // Rollback: restore snapshot, do not advance step counter
@@ -107,6 +108,94 @@ impl ManifestState {
     /// Get steps completed count
     pub fn steps_completed(&self) -> u32 {
         self.steps_completed
+    }
+}
+
+/// Encapsulated CNS event emission for manifest execution
+///
+/// Ensures consistent event structure and ordering across all manifest steps.
+pub struct CnsEventEmitter {
+    cns: Box<dyn CnsPort>,
+    execution_id: Uuid,
+    step_counter: AtomicU32,
+}
+
+impl CnsEventEmitter {
+    /// Create new CNS event emitter
+    pub fn new(cns: Box<dyn CnsPort>) -> Self {
+        Self {
+            cns,
+            execution_id: Uuid::new_v4(),
+            step_counter: AtomicU32::new(0),
+        }
+    }
+
+    /// Emit select event
+    pub fn emit_select(&self, template_id: &str, confidence: f64, fallback_applied: bool, rationale: &str) {
+        let step = self.step_counter.fetch_add(1, Ordering::SeqCst);
+        self.cns.emit(
+            "cns.prompt.select",
+            Value::Object(serde_json::json!({
+                "execution_id": self.execution_id.to_string(),
+                "step": step,
+                "selected_template": template_id,
+                "confidence": confidence,
+                "fallback_applied": fallback_applied,
+                "rationale": rationale,
+            }).as_object().unwrap().clone()),
+            confidence,
+        );
+    }
+
+    /// Emit populate event
+    pub fn emit_populate(&self, binding_count: usize, template_ref: &str) {
+        let step = self.step_counter.fetch_add(1, Ordering::SeqCst);
+        self.cns.emit(
+            "cns.prompt.populate",
+            Value::Object(serde_json::json!({
+                "execution_id": self.execution_id.to_string(),
+                "step": step,
+                "binding_count": binding_count,
+                "template_ref": template_ref,
+            }).as_object().unwrap().clone()),
+            0.9,
+        );
+    }
+
+    /// Emit execute event
+    pub fn emit_execute(&self, mcp_target: &str, outcome: &str) {
+        let step = self.step_counter.fetch_add(1, Ordering::SeqCst);
+        self.cns.emit(
+            "cns.prompt.execute",
+            Value::Object(serde_json::json!({
+                "execution_id": self.execution_id.to_string(),
+                "step": step,
+                "mcp_target": mcp_target,
+                "outcome": outcome,
+            }).as_object().unwrap().clone()),
+            0.95,
+        );
+    }
+
+    /// Emit outcome event
+    pub fn emit_outcome(&self, manifest_id: &str, steps: u32, duration: std::time::Duration, result: &Value) {
+        self.cns.emit(
+            "cns.prompt.outcome",
+            Value::Object(serde_json::json!({
+                "execution_id": self.execution_id.to_string(),
+                "manifest_id": manifest_id,
+                "total_steps": steps,
+                "duration_ms": duration.as_millis() as u64,
+                "outcome": "success",
+                "result": result,
+            }).as_object().unwrap().clone()),
+            1.0,
+        );
+    }
+
+    /// Get execution ID for correlation
+    pub fn execution_id(&self) -> Uuid {
+        self.execution_id
     }
 }
 
@@ -133,30 +222,29 @@ impl Default for SelectorConfig {
 /// This is the "loom" that weaves the "thread" (YAML/Jinja2 templates).
 /// It doesn't change when templates are added, edited, or removed.
 /// Only changes if the grammar of steps themselves changes.
-pub struct ManifestExecutorImpl<R, I, M, C> {
+pub struct ManifestExecutorImpl<R, I, M> {
     #[allow(dead_code)]
     renderer: R,
     inference: I,
     mcp: M,
-    cns: C,
+    cns_emitter: CnsEventEmitter,
     max_depth: u8,
     selector_config: SelectorConfig,
     inference_config: InferenceConfig,
 }
 
-impl<R, I, M, C> ManifestExecutorImpl<R, I, M, C>
+impl<R, I, M> ManifestExecutorImpl<R, I, M>
 where
     R: TemplateRenderer,
     I: InferencePort,
     M: McpPort,
-    C: CnsPort,
 {
-    pub fn new(renderer: R, inference: I, mcp: M, cns: C) -> Self {
+    pub fn new<C: CnsPort + 'static>(renderer: R, inference: I, mcp: M, cns: C) -> Self {
         Self {
             renderer,
             inference,
             mcp,
-            cns,
+            cns_emitter: CnsEventEmitter::new(Box::new(cns)),
             max_depth: DEFAULT_MATROSHKA_LIMIT,
             selector_config: SelectorConfig::default(),
             inference_config: InferenceConfig::default(),
@@ -201,13 +289,11 @@ where
                 {
                     if confidence < self.selector_config.confidence_threshold {
                         // Emit CNS event for fallback
-                        self.cns.emit(
-                            "cns.prompt.selector_fallback",
-                            Value::String(format!(
-                                "Confidence {} below threshold {}",
-                                confidence, self.selector_config.confidence_threshold
-                            )),
+                        self.cns_emitter.emit_select(
+                            &self.selector_config.fallback_template_id,
                             confidence,
+                            true,
+                            &format!("Confidence {} below threshold {}", confidence, self.selector_config.confidence_threshold)
                         );
 
                         // Use fallback template
@@ -220,18 +306,6 @@ where
                             obj.insert("fallback_applied".to_string(), Value::Bool(true));
                         }
 
-                        // Emit select event with fallback info
-                        self.cns.emit(
-                            "cns.prompt.select",
-                            Value::Object(serde_json::json!({
-                                "selected_template": self.selector_config.fallback_template_id.clone(),
-                                "confidence": confidence,
-                                "fallback_applied": true,
-                                "rationale": format!("Confidence {} below threshold {}", confidence, self.selector_config.confidence_threshold)
-                            }).as_object().unwrap().clone()),
-                            confidence,
-                        );
-
                         fallback_result
                     } else {
                         // Emit select event with normal confidence
@@ -241,35 +315,22 @@ where
                             .unwrap_or("unknown")
                             .to_string();
 
-                        self.cns.emit(
-                            "cns.prompt.select",
-                            Value::Object(serde_json::json!({
-                                "selected_template": selected_id,
-                                "confidence": confidence,
-                                "fallback_applied": false,
-                                "rationale": format!("Confidence {} above threshold {}", confidence, self.selector_config.confidence_threshold)
-                            }).as_object().unwrap().clone()),
+                        self.cns_emitter.emit_select(
+                            &selected_id,
                             confidence,
+                            false,
+                            &format!("Confidence {} above threshold {}", confidence, self.selector_config.confidence_threshold)
                         );
 
                         selection_result
                     }
                 } else {
                     // No confidence field; pass through with default
-                    self.cns.emit(
-                        "cns.prompt.select",
-                        Value::Object(
-                            serde_json::json!({
-                                "selected_template": "unknown",
-                                "confidence": 0.0,
-                                "fallback_applied": false,
-                                "rationale": "No confidence provided"
-                            })
-                            .as_object()
-                            .unwrap()
-                            .clone(),
-                        ),
-                        0.5,
+                    self.cns_emitter.emit_select(
+                        "unknown",
+                        0.0,
+                        false,
+                        "No confidence provided",
                     );
 
                     selection_result
@@ -285,18 +346,9 @@ where
                 };
 
                 // Emit CNS event for populate
-                self.cns.emit(
-                    "cns.prompt.populate",
-                    Value::Object(
-                        serde_json::json!({
-                            "binding_count": binding_count,
-                            "template_ref": step.template_ref
-                        })
-                        .as_object()
-                        .unwrap()
-                        .clone(),
-                    ),
-                    0.9,
+                self.cns_emitter.emit_populate(
+                    binding_count as usize,
+                    &step.template_ref
                 );
 
                 Value::String(format!("Populated: {:?}", state))
@@ -315,18 +367,9 @@ where
                 };
 
                 // Emit CNS event for execute
-                self.cns.emit(
-                    "cns.prompt.execute",
-                    Value::Object(
-                        serde_json::json!({
-                            "mcp_target": step.mcp.clone().unwrap_or_else(|| "none".to_string()),
-                            "outcome": "success"
-                        })
-                        .as_object()
-                        .unwrap()
-                        .clone(),
-                    ),
-                    0.95,
+                self.cns_emitter.emit_execute(
+                    &step.mcp.clone().unwrap_or_else(|| "none".to_string()),
+                    "success"
                 );
 
                 result
@@ -337,12 +380,11 @@ where
     }
 }
 
-impl<R, I, M, C> ManifestExecutor for ManifestExecutorImpl<R, I, M, C>
+impl<R, I, M> ManifestExecutor for ManifestExecutorImpl<R, I, M>
 where
     R: TemplateRenderer,
     I: InferencePort,
     M: McpPort,
-    C: CnsPort,
 {
     fn load(&self, path: &std::path::Path) -> Result<ProcessManifest> {
         ProcessManifest::load_from_yaml(path)
@@ -758,7 +800,7 @@ mod tests {
     fn test_manifest_state_transition_success() {
         let mut state = ManifestState::new(Value::String("initial".to_string()));
         
-        let result = state.transition(1, |current| {
+        let result: Result<Value> = state.transition(1, |current| {
             Ok(Value::String(format!("updated_from_{}", current.as_str().unwrap())))
         });
         
@@ -774,8 +816,8 @@ mod tests {
         let original_state = state.accumulated_state.clone();
         
         // Transition that fails
-        let result = state.transition(1, |_current| {
-            Err("error")  // Simulated failure
+        let result: Result<Value> = state.transition(1, |_current| {
+            Err(TemplateError::Manifest("simulated failure".to_string()))
         });
         
         assert!(result.is_err());
@@ -789,15 +831,24 @@ mod tests {
         let mut state = ManifestState::new(Value::String("step0".to_string()));
         
         // First transition
-        assert!(state.transition(1, |_| Ok(Value::String("step1".to_string())).into()).is_ok());
+        let r1: Result<Value> = state.transition(1, |_| {
+            Ok(Value::String("step1".to_string()))
+        });
+        assert!(r1.is_ok());
         assert_eq!(state.steps_completed(), 1);
         
         // Second transition
-        assert!(state.transition(2, |_| Ok(Value::String("step2".to_string())).into()).is_ok());
+        let r2: Result<Value> = state.transition(2, |_| {
+            Ok(Value::String("step2".to_string()))
+        });
+        assert!(r2.is_ok());
         assert_eq!(state.steps_completed(), 2);
         
         // Third transition fails - should rollback
-        assert!(state.transition(3, |_| Err::<Value, String>("fail")).is_err());
+        let r3: Result<Value> = state.transition(3, |_| {
+            Err(TemplateError::Manifest("fail".to_string()))
+        });
+        assert!(r3.is_err());
         assert_eq!(state.steps_completed(), 2);  // Not incremented
         assert_eq!(state.accumulated_state.as_str().unwrap(), "step2");  // Rolled back to step2
     }

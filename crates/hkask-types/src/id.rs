@@ -11,6 +11,18 @@ impl WebID {
     pub fn new() -> Self {
         Self(Uuid::new_v4())
     }
+
+    pub fn from_string(s: &str) -> Self {
+        Self(Uuid::parse_str(s).unwrap_or_else(|_| Uuid::new_v4()))
+    }
+}
+
+impl std::str::FromStr for WebID {
+    type Err = uuid::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Uuid::from_str(s).map(Self)
+    }
 }
 
 impl Default for WebID {
@@ -32,6 +44,18 @@ pub struct TemplateID(pub Uuid);
 impl TemplateID {
     pub fn new() -> Self {
         Self(Uuid::new_v4())
+    }
+
+    pub fn from_string(s: &str) -> Self {
+        Self(Uuid::parse_str(s).unwrap_or_else(|_| Uuid::new_v4()))
+    }
+}
+
+impl std::str::FromStr for TemplateID {
+    type Err = uuid::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Uuid::from_str(s).map(Self)
     }
 }
 

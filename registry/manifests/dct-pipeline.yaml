@@ -27,9 +27,9 @@ steps:
       Render decimation template with raw user query.
       Decompose natural language into atomic SVO sentences.
     renderer: minijinja
-    template_ref: registry/registries/dct-pipeline/decimation
+    template_ref: dct-pipeline/decimation
     model_tier: fast_local
-    mcp: hkask-mcp-inference
+    mcp: null
     energy_cap: 2000
     timeout_seconds: 30
     output_schema:
@@ -42,9 +42,9 @@ steps:
       Render classification template with decimated sentences.
       Classify each sentence as goal/constraint/task with ontological/epistemic tagging.
     renderer: minijinja
-    template_ref: registry/registries/dct-pipeline/classification
+    template_ref: dct-pipeline/classification
     model_tier: fast_local
-    mcp: hkask-mcp-inference
+    mcp: null
     energy_cap: 2000
     timeout_seconds: 30
     output_schema:

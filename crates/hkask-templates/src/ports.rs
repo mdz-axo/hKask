@@ -8,8 +8,9 @@ use hkask_types::{CapabilityToken, WebID};
 use percent_encoding::percent_decode_str;
 use serde_json::Value;
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
+use url::Url;
 
 /// Configuration for inference calls with timeout and retry
 #[derive(Debug, Clone)]
@@ -352,6 +353,91 @@ impl ProcessManifest {
 pub trait ManifestExecutor {
     fn load(&self, path: &Path) -> Result<ProcessManifest>;
     fn execute(&self, manifest: &ProcessManifest, input: Value) -> Result<Value>;
+}
+
+/// Manifest location abstraction (decouples file system from registry from network)
+#[derive(Debug, Clone)]
+pub enum ManifestLocation {
+    /// Load from filesystem path
+    FileSystem(PathBuf),
+    /// Load from registry by template ID
+    Registry(String),
+    /// Load from URI (HTTP, IPFS, etc.)
+    Uri(Url),
+}
+
+/// Manifest execution outcome (structured, not raw Value)
+#[derive(Debug, Clone)]
+pub struct ManifestOutcome {
+    /// Unique execution ID for audit correlation
+    pub execution_id: uuid::Uuid,
+    /// Manifest ID that was executed
+    pub manifest_id: String,
+    /// Final state after execution
+    pub final_state: Value,
+    /// Number of steps completed
+    pub steps_completed: u32,
+    /// Execution duration
+    pub duration: std::time::Duration,
+    /// CNS events emitted during execution
+    pub cns_events: Vec<(String, Value, f64)>,
+}
+
+impl ManifestOutcome {
+    /// Create new manifest outcome
+    pub fn new(
+        execution_id: uuid::Uuid,
+        manifest_id: String,
+        final_state: Value,
+        steps_completed: u32,
+        duration: std::time::Duration,
+    ) -> Self {
+        Self {
+            execution_id,
+            manifest_id,
+            final_state,
+            steps_completed,
+            duration,
+            cns_events: vec![],
+        }
+    }
+
+    /// Check if execution was successful (all steps completed)
+    pub fn is_success(&self, total_steps: usize) -> bool {
+        self.steps_completed as usize == total_steps
+    }
+
+    /// Get execution ID for correlation
+    pub fn execution_id(&self) -> uuid::Uuid {
+        self.execution_id
+    }
+}
+
+/// Enhanced manifest executor port with structured outcomes
+pub trait ManifestExecutorPort {
+    /// Load manifest from abstract location
+    fn load(&self, location: &ManifestLocation) -> Result<ProcessManifest>;
+    
+    /// Execute manifest with input state
+    fn execute(&self, manifest: &ProcessManifest, input: Value) -> Result<ManifestOutcome>;
+    
+    /// Get execution trace for audit (by execution ID)
+    fn get_trace(&self, execution_id: &uuid::Uuid) -> Option<ManifestOutcome>;
+}
+
+/// Manifest repository port (persistence abstraction)
+pub trait ManifestRepository {
+    /// Load manifest by ID
+    fn load(&self, id: &str) -> Result<ProcessManifest>;
+    
+    /// Save manifest
+    fn save(&self, manifest: &ProcessManifest) -> Result<()>;
+    
+    /// Delete manifest by ID
+    fn delete(&self, id: &str) -> Result<()>;
+    
+    /// List all manifest IDs
+    fn list(&self) -> Result<Vec<String>>;
 }
 
 /// Template composition definition

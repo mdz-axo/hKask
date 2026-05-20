@@ -27,7 +27,7 @@ steps:
       Render reasoning template with context, evidence, and constraints.
       Apply reasoning skill to derive new knowledge.
     renderer: minijinja
-    template_ref: registry/registries/reasoning/reason_constrained
+    template_ref: reasoning/reason_constrained
     model_tier: reasoning_local
     mcp: hkask-mcp-inference
     energy_cap: 8192
@@ -43,7 +43,7 @@ steps:
       Render self-critique template to evaluate derived knowledge.
       Identify gaps, contradictions, and unsupported claims.
     renderer: minijinja
-    template_ref: registry/registries/review/self_critique
+    template_ref: review/self_critique
     model_tier: reasoning_local
     mcp: hkask-mcp-inference
     energy_cap: 8192

@@ -6,6 +6,7 @@
 use chrono::{DateTime, Utc};
 use hkask_types::{WebID, TemplateID};
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use thiserror::Error;
 
 use crate::macaroon::{Macaroon, MacaroonBuilder, MacaroonError};
@@ -257,14 +258,15 @@ impl OkapiCapability {
             .caveats
             .iter()
             .filter(|c| c.caveat_id == "operation")
-            .filter_map(|c| OkapiOperation::try_from(c.data.as_str()).ok())
+            .filter_map(|c| OkapiOperation::from_str(c.data.as_str()).ok())
             .collect()
     }
 }
 
-impl OkapiOperation {
-    /// Try to parse operation from string
-    fn try_from(s: &str) -> Result<Self, ()> {
+impl std::str::FromStr for OkapiOperation {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "generate" => Ok(Self::Generate),
             "chat" => Ok(Self::Chat),

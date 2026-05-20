@@ -27,7 +27,7 @@ steps:
       Render goal decomposition template.
       Break high-level goal into subgoals with dependencies and effort estimates.
     renderer: minijinja
-    template_ref: registry/registries/metacognition/meta_decompose
+    template_ref: metacognition/meta_decompose
     model_tier: reasoning_local
     mcp: hkask-mcp-inference
     energy_cap: 6000

@@ -23,12 +23,14 @@ pub mod csp;
 pub mod dependency;
 pub mod error;
 pub mod manifest;
+pub mod manifest_repository;
 pub mod ports;
 pub mod provenance;
 pub mod registry;
 pub mod registry_git;
 pub mod registry_sqlite;
 pub mod renderer;
+pub mod resolver;
 pub mod security;
 pub mod skill_translation;
 pub mod step_capability;
@@ -54,16 +56,21 @@ pub use csp::{
 pub use dependency::{DependencyGraph, parse_dependencies};
 pub use error::{CompositionError, RetryConfig};
 pub use manifest::SelectorConfig;
+pub use manifest_repository::{
+    FileSystemManifestRepository, InMemoryManifestRepository,
+};
 pub use ports::{
     Action, CnsPort, CompositionTemplate, DEFAULT_MATROSHKA_LIMIT, DependencyProvider,
     FAST_LOCAL_MODEL, InMemoryDependencyProvider, InferenceConfig, InferencePort, ManifestExecutor,
-    ManifestStep, McpPort, MockSecurityPort, ProcessManifest, RegistryEntry, RegistryIndex, Result,
+    ManifestExecutorPort, ManifestLocation, ManifestOutcome, ManifestRepository, ManifestStep,
+    McpPort, MockSecurityPort, ProcessManifest, RegistryEntry, RegistryIndex, Result,
     SecurityPort, TemplateContract, TemplateError, TemplateRenderer,
 };
 pub use provenance::{ProvenanceManager, TemplateProvenance};
 pub use registry::{Registry, TemplateEntry};
 pub use registry_git::GitRegistry;
 pub use registry_sqlite::SqliteRegistry;
+pub use resolver::TemplateResolver;
 pub use security::SecurityAdapter;
 pub use skill_translation::{
     GeneratedManifest, GeneratedTemplate, ManifestStep as SkillManifestStep, ParsedPrompt,

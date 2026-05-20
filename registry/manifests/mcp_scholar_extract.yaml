@@ -1,20 +1,19 @@
-# File: registry/manifests/composition.yaml
-# Answer Composition Process Manifest
+# MCP Scholar — Academic Research Manifest
 # ℏKask v0.21.0 — Planck's Constant of Agent Systems
 
 manifest:
-  id: composition
-  name: Answer Composition
+  id: mcp/scholar_extract
+  name: MCP Scholar Extractor
   description: >
-    Synthesize final answer from cycle-derived facts.
-    Supplements with LLM knowledge only when facts are insufficient.
+    Search and extract academic papers from scholarly databases.
+    Supports database selection, year filtering, and citation tracking.
   version: 0.21.0
   editor: curator-or-human-admin
   visibility: Shared
 
 # Energy Budget Configuration
 energy:
-  cap: 8000
+  cap: 6000
   cost_per_token: 0.25
   alert_threshold: 0.8
   hard_limit: true
@@ -24,41 +23,37 @@ steps:
   - ordinal: 1
     action: populate
     description: >
-      Render answer composition template with derived facts.
-      Synthesize concise answer grounded in cycle evidence.
+      Render scholar extraction template with query and parameters.
     renderer: minijinja
-    template_ref: composition/answer_composition
-    model_tier: balanced
-    mcp: hkask-mcp-inference
-    energy_cap: 4096
-    timeout_seconds: 30
+    template_ref: registry/registries/mcp/scholar_extract
+    model_tier: null
+    mcp: null
+    energy_cap: 1000
+    timeout_seconds: 10
     output_schema:
-      answer: string
+      rendered_prompt: string
 
   - ordinal: 2
-    action: validate
+    action: execute
     description: >
-      Validate answer contains required elements.
-      Check [LLM] markers are present for supplemental content.
+      Execute academic search and extraction via MCP.
+      Call scholarly APIs (arXiv, PubMed, etc.).
     renderer: null
     template_ref: null
-    model_tier: null
-    mcp: hkask-mcp-storage
-    energy_cap: 500
-    timeout_seconds: 5
-    validation_rules:
-      - answer_non_empty
-      - llm_marker_check
-      - fact_grounding_check
+    model_tier: reasoning_local
+    mcp: hkask-mcp-scholar
+    energy_cap: 6000
+    timeout_seconds: 60
     output_schema:
-      validated: boolean
-      error_reason: string|null
+      papers: array
+      total_found: integer
+      search_metadata: object
 
   - ordinal: 3
     action: feedback
     description: >
-      Emit outcome to CNS for quality tracking.
-      Record answer completeness and user satisfaction signals.
+      Emit search outcome to CNS.
+      Track paper quality and database coverage.
     renderer: null
     template_ref: null
     model_tier: null
@@ -67,7 +62,7 @@ steps:
     timeout_seconds: 5
     feedback:
       variety_delta: integer
-      completeness_score: float
+      paper_count: integer
     output_schema:
       cns_event_id: string
       outcome_recorded: boolean
@@ -78,15 +73,16 @@ error_handling:
   on_timeout: retry
   max_retries: 2
   retry_backoff_seconds: 1
-  on_validation_failure: abort
+  on_capability_denied: escalate
+  on_database_unavailable: fallback
 
 # OCAP Configuration
 ocap:
   required_capabilities:
     - resource: template
       action: render
-    - resource: manifest
-      action: execute
+    - resource: scholar
+      action: search
     - resource: cns
       action: emit
   delegation_chain_required: true
@@ -96,7 +92,7 @@ ocap:
 # CNS Monitoring
 cns:
   emit_spans: true
-  span_namespace: cns.prompt
+  span_namespace: cns.scholar.search
   variety_monitoring: true
   algedonic_threshold: 100
   escalation_target: Curator
@@ -109,3 +105,4 @@ audit:
   include_output: true
   include_energy_cost: true
   include_cns_events: true
+  include_search_metrics: true
