@@ -412,11 +412,12 @@ where
     }
 }
 
-impl<R, I, M> ManifestExecutor for ManifestExecutorImpl<R, I, M>
+impl<R, I, M, A> ManifestExecutor for ManifestExecutorImpl<R, I, M, A>
 where
     R: TemplateRenderer,
     I: InferencePort,
     M: McpPort,
+    A: CapabilityAttenuator,
 {
     fn load(&self, path: &std::path::Path) -> Result<ProcessManifest> {
         ProcessManifest::load_from_yaml(path)

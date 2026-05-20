@@ -1,0 +1,218 @@
+# hKask Macaroon Issuer Configuration
+# 
+# This configuration enables hKask to issue macaroons to Russell ACP agents
+# and manage third-party discharge for Okapi access.
+#
+# Location: ~/.config/hkask/macaroon.yaml
+
+macaroon:
+  issuer:
+    enabled: true
+    
+    # Root keys for macaroon signing
+    # These must be generated and synced with Okapi
+    root_keys:
+      # Skill registration macaroons
+      rk_hkask_skill_registry:
+        key: "${HKASK_SKILL_REGISTRY_KEY}"  # Set via environment or generate
+        purpose: "Skill registration macaroons for Russell agents"
+        rotation_days: 90
+      
+      # MCP tool access macaroons
+      rk_hkask_mcp:
+        key: "${HKASK_MCP_KEY}"
+        purpose: "MCP tool access macaroons"
+        rotation_days: 90
+      
+      # Okapi third-party discharge
+      # MUST match Okapi's rk_okapi_discharge key
+      rk_hkask_okapi_discharge:
+        key: "${HKASK_OKAPI_DISCHARGE_KEY}"
+        purpose: "Third-party discharge for Okapi access"
+        rotation_days: 90
+        matches_okapi_key: rk_okapi_discharge
+    
+    # Default caveats applied to all issued macaroons
+    default_caveats:
+      # Macaroon expiration (relative duration)
+      before: 24h
+      
+      # Token quota per day
+      quota: 1000000-tokens/day
+      
+      # Requests per minute rate limit
+      rpm: 100
+      
+      # Network confinement (optional, uncomment for production)
+      # ip: 192.168.1.0/24
+    
+    # Skill-specific configurations
+    skills:
+      # Evolution watcher skill
+      evolution-watcher:
+        description: "Monitors upstream changes and proposes evolution actions"
+        endpoints:
+          - /api/evolution/scan
+          - /api/evolution/propose
+          - /api/evolution/execute
+        models:
+          - qwen3:8b
+          - qwen3:14b
+          - qwen3:70b
+        quota:
+          tokens_per_day: 5000000
+          requests_per_minute: 50
+        okapi_access: true
+      
+      # RDF embedding skill
+      rdf-embedding:
+        description: "Converts RDF/markdown to embedding-linked knowledge graphs"
+        endpoints:
+          - /api/embed/rdf
+          - /api/embed/sentences
+        models:
+          - qwen3-embedding:0.6b
+          - qwen3-embedding:1.8b
+        quota:
+          tokens_per_day: 10000000
+          requests_per_minute: 20
+        okapi_access: true
+      
+      # Performance benchmark skill
+      perf-benchmark:
+        description: "Benchmarks inference performance across models"
+        endpoints:
+          - /api/generate
+          - /api/chat
+        models:
+          - "*"  # All available models
+        quota:
+          tokens_per_day: 100000000
+          requests_per_minute: 100
+        okapi_access: true
+      
+      # System diagnoser skill
+      system-diagnoser:
+        description: "Diagnoses system health and performance issues"
+        endpoints:
+          - /api/generate
+          - /api/engine/status
+        models:
+          - qwen3:8b
+        quota:
+          tokens_per_day: 1000000
+          requests_per_minute: 30
+        okapi_access: false
+      
+      # Okapi watcher skill
+      okapi-watcher:
+        description: "Monitors Okapi health and model status"
+        endpoints:
+          - /api/tags
+          - /api/engine/status
+          - /metrics
+        models: []
+        quota:
+          tokens_per_day: 100000
+          requests_per_minute: 10
+        okapi_access: false
+    
+    # Discharge service configuration
+    discharge:
+      enabled: true
+      endpoint: /mcp/v1/discharge
+      
+      # Third-party locations that can be discharged
+      locations:
+        okapi-access:
+          root_key: rk_hkask_okapi_discharge
+          default_caveats:
+            okapi_access: "true"
+            before: 1h  # Short-lived discharge tokens
+    
+    # Audit logging configuration
+    audit:
+      enabled: true
+      log_file: ~/.config/hkask/logs/macaroon_audit.log
+      retention_days: 90
+      
+      # Events to log
+      events:
+        - macaroon_issued
+        - macaroon_refreshed
+        - macaroon_revoked
+        - discharge_issued
+        - mcp_tool_invoked
+        - auth_failure
+    
+    # Metrics configuration (Prometheus)
+    metrics:
+      enabled: true
+      endpoint: /metrics
+      
+      # Metrics to expose
+      counters:
+        - hkask_macaroon_issued_total
+        - hkask_discharge_issued_total
+        - hkask_mcp_invocations_total
+        - hkask_auth_failures_total
+      
+      gauges:
+        - hkask_quota_remaining
+        - hkask_active_agents
+    
+    # Auto-refresh configuration
+    refresh:
+      enabled: true
+      # Refresh macaroons before expiry (relative duration)
+      before_expiry: 1h
+      
+      # Retry configuration for failed refreshes
+      retry:
+        max_attempts: 3
+        backoff_seconds: 30
+
+# Okapi connection configuration
+okapi:
+  endpoint: http://127.0.0.1:11435
+  
+  auth:
+    mode: macaroon
+    # This macaroon is issued by Okapi to hKask (not the other way around)
+    macaroon_file: ~/.config/hkask/okapi_macaroon.json
+  
+  # Connection pool settings
+  pool:
+    max_connections: 10
+    idle_timeout: 5m
+    connection_timeout: 30s
+
+# Russell ACP agent configuration
+russell:
+  enabled: true
+  
+  # Agent registration
+  agents:
+    - agent_id: russell-prod-1
+      skills:
+        - evolution-watcher
+        - rdf-embedding
+        - perf-benchmark
+        - system-diagnoser
+      auto_register: true
+    
+    - agent_id: russell-dev-1
+      skills:
+        - evolution-watcher
+      auto_register: false
+  
+  # MCP server configuration
+  mcp:
+    endpoint: http://127.0.0.1:8080/mcp
+    version: v1
+    
+    # Tool authorization
+    authorization:
+      mode: macaroon
+      require_skill_caveat: true
+      require_endpoint_caveat: true

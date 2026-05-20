@@ -3,7 +3,7 @@
 //! Decouples manifests from filesystem paths, enabling registry abstraction.
 //! Per architecture v0.21.0: Loose coupling via indirection.
 
-use crate::ports::{RegistryIndex, Result, TemplateError};
+use crate::ports::{RegistryIndex, Result};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 

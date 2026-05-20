@@ -183,13 +183,20 @@ impl Macaroon {
     ///
     /// Checks each caveat against the provided context:
     /// - expiration: current time must be before expiry
-    /// - operation: requested operation must be in allowed list
+    /// - operation: at least one requested operation must match a granted operation caveat
     /// - template: context template must match caveat template
     /// - visibility: context visibility must match caveat visibility
     ///
     /// # Arguments
     /// * `ctx` - The context in which to verify caveats
+    ///
+    /// # Invariants
+    /// - All non-operation caveats must be satisfied
+    /// - At least one operation caveat must match a requested operation (if operations provided)
+    /// - Empty `allowed_operations` means operation caveats are skipped (for backward compatibility)
     pub fn verify_caveats(&self, ctx: &CaveatContext) -> Result<(), MacaroonError> {
+        let mut has_matching_operation = ctx.allowed_operations.is_empty();
+
         for caveat in &self.caveats {
             match caveat.caveat_id.as_str() {
                 "expiration" => {
@@ -199,6 +206,12 @@ impl Macaroon {
                         .map_err(|_| MacaroonError::InvalidCaveat)?;
                     if ctx.current_time > expiry {
                         return Err(MacaroonError::Expired);
+                    }
+                }
+                "operation" => {
+                    // Check if this operation caveat matches any requested operation
+                    if !has_matching_operation && ctx.allowed_operations.contains(&caveat.data) {
+                        has_matching_operation = true;
                     }
                 }
                 "template" => {
@@ -211,13 +224,15 @@ impl Macaroon {
                         return Err(MacaroonError::Unauthorized);
                     }
                 }
-                "operation" => {
-                    // Operation caveats are checked separately in OkapiCapability::verify
-                    // This method only checks expiration, template, and visibility
-                }
                 _ => return Err(MacaroonError::UnknownCaveat),
             }
         }
+
+        // If operations were requested, at least one must match
+        if !ctx.allowed_operations.is_empty() && !has_matching_operation {
+            return Err(MacaroonError::Unauthorized);
+        }
+
         Ok(())
     }
 
@@ -399,10 +414,20 @@ mod tests {
         // Verify signature first
         assert!(mac.verify(&key).is_ok());
 
-        // Operation caveats are checked in OkapiCapability::verify, not in verify_caveats
-        // verify_caveats only checks expiration, template, and visibility caveats
-        let ctx = CaveatContext::new();
-        assert!(mac.verify_caveats(&ctx).is_ok());
+        // Context with matching operation - should pass
+        let ctx_match = CaveatContext::new().with_operations(vec!["generate".to_string()]);
+        assert!(mac.verify_caveats(&ctx_match).is_ok());
+
+        // Context with non-matching operation - should fail
+        let ctx_unauthorized = CaveatContext::new().with_operations(vec!["embed".to_string()]);
+        assert_eq!(
+            mac.verify_caveats(&ctx_unauthorized),
+            Err(MacaroonError::Unauthorized)
+        );
+
+        // Empty operations list - skips operation check (backward compatibility)
+        let ctx_empty = CaveatContext::new();
+        assert!(mac.verify_caveats(&ctx_empty).is_ok());
     }
 
     #[test]

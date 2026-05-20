@@ -234,6 +234,38 @@ impl SecurityAdapter {
         }
     }
 
+    /// Validate Jinja2 template source against security constraints
+    ///
+    /// Performs three-phase validation:
+    /// 1. Static pattern analysis (blocks obvious attacks)
+    /// 2. Restricted compilation test (validates syntax + sandbox)
+    /// 3. Allowlist enforcement (only permitted filters/tests)
+    ///
+    /// # Arguments
+    /// * `template_source` - Template source code to validate
+    ///
+    /// # Returns
+    /// * `Ok(())` if template passes all checks
+    /// * `Err(TemplateError)` if template violates security constraints
+    pub fn validate_template(&self, template_source: &str) -> Result<()> {
+        let result = self.template_validator.validate(template_source);
+
+        // Emit CNS span on validation failure
+        if let Err(e) = &result {
+            if let Some(cns) = &self.cns_runtime {
+                let span = hkask_types::Span::Connector("cns.security.jinja2.violation".to_string());
+                let observation = json!({
+                    "error": format!("{}", e),
+                    "source_length": template_source.len(),
+                });
+                let span_emitter = hkask_cns::spans::SpanEmitter::new(WebID::new());
+                span_emitter.emit(span, hkask_types::Phase::Observe, observation);
+            }
+        }
+
+        result
+    }
+
     /// Sanitize Jinja2 input (prevent injection attacks)
     pub fn sanitize_jinja2_input(&self, input: &str) -> String {
         let mut sanitized = input.to_string();

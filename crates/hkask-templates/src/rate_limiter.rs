@@ -130,6 +130,7 @@ impl RateLimitExceededError {
 /// Rate-limited manifest repository wrapper
 pub struct RateLimitedRepository<R> {
     inner: R,
+    #[allow(dead_code)]
     rate_limiter: RateLimiter,
 }
 

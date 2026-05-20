@@ -199,6 +199,11 @@ impl OkapiCapability {
     /// # Arguments
     /// * `key` - 32-byte HMAC key for verification
     /// * `operations` - Operations to check against operation caveats
+    ///
+    /// # Invariants
+    /// - Signature must be valid
+    /// - All caveats must be satisfied (expiration, template, visibility)
+    /// - At least one requested operation must match a granted operation caveat
     pub fn verify(
         &self,
         key: &[u8; 32],
@@ -207,31 +212,12 @@ impl OkapiCapability {
         // Verify macaroon signature
         self.macaroon.verify(key)?;
 
-        // Build caveat context with current time
-        let ctx = crate::macaroon::CaveatContext::new();
-
-        // Verify caveats
-        self.macaroon.verify_caveats(&ctx)?;
-
-        // Check if at least one of the requested operations is granted by this capability
-        let granted_ops: Vec<String> = self
-            .macaroon
-            .caveats
-            .iter()
-            .filter(|c| c.caveat_id == "operation")
-            .map(|c| c.data.clone())
-            .collect();
-
+        // Build caveat context with requested operations
         let requested_ops: Vec<String> = operations.iter().map(|o| o.to_string()).collect();
+        let ctx = crate::macaroon::CaveatContext::new().with_operations(requested_ops);
 
-        // At least one requested operation must be granted
-        let has_matching_op = requested_ops.iter().any(|op| granted_ops.contains(op));
-
-        if !has_matching_op {
-            return Err(AuthorizationError::Unauthorized(
-                "Capability does not grant any of the requested operations".to_string(),
-            ));
-        }
+        // Verify all caveats (including operations)
+        self.macaroon.verify_caveats(&ctx)?;
 
         Ok(())
     }

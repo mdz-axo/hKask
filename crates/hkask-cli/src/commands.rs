@@ -76,7 +76,7 @@ pub fn render_template(
 
 /// Execute manifest command
 pub fn execute_manifest(
-    registry: &dyn RegistryIndex,
+    _registry: &dyn RegistryIndex,
     manifest_id: &str,
     input: Value,
 ) -> Result<Value, TemplateError> {
@@ -100,6 +100,7 @@ pub fn execute_manifest(
 ///
 /// Analyzes manifest energy budgets and provides calibration recommendations
 /// based on actual consumption patterns.
+#[allow(dead_code)]
 pub fn calibrate_energy_caps(
     manifest_path: &Path,
 ) -> Result<EnergyCalibrationReport, TemplateError> {
@@ -188,6 +189,7 @@ pub fn calibrate_energy_caps(
 
 /// Energy calibration report
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[allow(dead_code)]
 pub struct EnergyCalibrationReport {
     pub manifest_id: String,
     pub current_cap: u64,
