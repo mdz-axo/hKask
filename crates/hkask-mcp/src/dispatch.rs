@@ -4,8 +4,8 @@
 //! and rate limiting integration.
 
 use hkask_agents::{BotCapabilities, CapabilityChecker, CapabilityToken};
-use hkask_cns::{CnsPort, RateLimiter};
-use hkask_templates::{McpPort, Result, TemplateError};
+use hkask_cns::RateLimiter;
+use hkask_templates::{CnsPort, McpPort, Result, TemplateError};
 use hkask_types::WebID;
 use serde_json::Value;
 use std::sync::Arc;
@@ -50,19 +50,14 @@ impl McpDispatcher {
     }
 
     /// Issue capability token to a bot
-    pub fn issue_capability(
-        &self,
-        tool_name: String,
-        from: WebID,
-        to: WebID,
-    ) -> CapabilityToken {
+    pub fn issue_capability(&self, tool_name: String, from: WebID, to: WebID) -> CapabilityToken {
         self.capability_checker.grant(tool_name, from, to)
     }
 
     /// Check if bot has capability for tool
     pub async fn check_capability(&self, bot_id: &WebID, tool_name: &str) -> bool {
         let capabilities = self.bot_capabilities.read().await;
-        
+
         if let Some(caps) = capabilities.get(bot_id) {
             caps.has_capability(tool_name)
         } else {
@@ -88,7 +83,7 @@ impl McpPort for McpDispatcher {
         vec![]
     }
 
-    fn invoke(&self, tool_name: &str, input: Value) -> Result<Value> {
+    fn invoke(&self, tool_name: &str, _input: Value) -> Result<Value> {
         // Synchronous invoke - for async, use invoke_async
         warn!(
             target: "hkask.mcp",
@@ -97,7 +92,7 @@ impl McpPort for McpDispatcher {
         );
 
         Err(TemplateError::Mcp(
-            "Use invoke_async for MCP tool invocation".to_string()
+            "Use invoke_async for MCP tool invocation".to_string(),
         ))
     }
 }
@@ -160,7 +155,10 @@ impl McpDispatcher {
 
         // TODO: Actual MCP tool invocation via rmcp
         // For now, return placeholder
-        Ok(Value::String(format!("Tool {} invoked (placeholder)", tool_name)))
+        Ok(Value::String(format!(
+            "Tool {} invoked (placeholder)",
+            tool_name
+        )))
     }
 
     /// Get tool definition
@@ -205,8 +203,8 @@ mod tests {
         let dispatcher = McpDispatcher::new(runtime, b"test-secret");
 
         let bot_id = WebID::new();
-        let caps = BotCapabilities::new(bot_id)
-            .with_capabilities(vec!["inference:call", "storage:read"]);
+        let caps =
+            BotCapabilities::new(bot_id).with_capabilities(vec!["inference:call", "storage:read"]);
 
         dispatcher.register_bot_capabilities(caps).await;
 
@@ -221,13 +219,14 @@ mod tests {
         let dispatcher = McpDispatcher::new(runtime, b"test-secret");
 
         let bot_id = WebID::new();
-        let caps = BotCapabilities::new(bot_id)
-            .with_capabilities(vec!["inference:call"]);
+        let caps = BotCapabilities::new(bot_id).with_capabilities(vec!["inference:call"]);
 
         dispatcher.register_bot_capabilities(caps).await;
 
-        let result = dispatcher.invoke_async(&bot_id, "memory:write", Value::Null, &MockCns).await;
-        
+        let result = dispatcher
+            .invoke_async(&bot_id, "memory:write", Value::Null, &MockCns)
+            .await;
+
         assert!(result.is_err());
         assert!(format!("{:?}", result.unwrap_err()).contains("CapabilityDenied"));
     }
@@ -238,13 +237,14 @@ mod tests {
         let dispatcher = McpDispatcher::new(runtime, b"test-secret");
 
         let bot_id = WebID::new();
-        let caps = BotCapabilities::new(bot_id)
-            .with_capabilities(vec!["nonexistent:tool"]);
+        let caps = BotCapabilities::new(bot_id).with_capabilities(vec!["nonexistent:tool"]);
 
         dispatcher.register_bot_capabilities(caps).await;
 
-        let result = dispatcher.invoke_async(&bot_id, "nonexistent:tool", Value::Null, &MockCns).await;
-        
+        let result = dispatcher
+            .invoke_async(&bot_id, "nonexistent:tool", Value::Null, &MockCns)
+            .await;
+
         assert!(result.is_err());
         assert!(format!("{:?}", result.unwrap_err()).contains("not found"));
     }
@@ -252,40 +252,44 @@ mod tests {
     #[tokio::test]
     async fn test_mcp_dispatcher_rate_limit() {
         use hkask_cns::rate_limit::{RateLimitConfig, RateLimiter};
-        
+
         let runtime = McpRuntime::new();
         let mut dispatcher = McpDispatcher::new(runtime, b"test-secret");
-        
+
         // Set very low rate limit for testing
         let bot_id = WebID::new();
-        dispatcher.rate_limiter.configure_bot(&bot_id, RateLimitConfig {
-            max_tokens: 2,
-            refill_interval: std::time::Duration::from_secs(60),
-        });
+        dispatcher.rate_limiter.configure_bot(
+            &bot_id,
+            RateLimitConfig {
+                max_tokens: 2,
+                refill_interval: std::time::Duration::from_secs(60),
+            },
+        );
 
-        let caps = BotCapabilities::new(bot_id)
-            .with_capabilities(vec!["test:tool"]);
+        let caps = BotCapabilities::new(bot_id).with_capabilities(vec!["test:tool"]);
         dispatcher.register_bot_capabilities(caps).await;
 
         // Register a tool
         use crate::runtime::McpServer;
-        dispatcher.runtime().register_server(McpServer {
-            id: "test".to_string(),
-            name: "Test".to_string(),
-            tools: vec![crate::runtime::McpTool {
-                name: "test:tool".to_string(),
-                description: "Test".to_string(),
-                input_schema: serde_json::json!({"type": "object"}),
-                server_id: "test".to_string(),
-            }],
-            connected: true,
-        }).await;
+        dispatcher
+            .runtime()
+            .register_server(McpServer {
+                id: "test".to_string(),
+                name: "Test".to_string(),
+                tools: vec![crate::runtime::McpTool {
+                    name: "test:tool".to_string(),
+                    description: "Test".to_string(),
+                    input_schema: serde_json::json!({"type": "object"}),
+                    server_id: "test".to_string(),
+                }],
+                connected: true,
+            })
+            .await;
 
         // First two calls should succeed
         assert!(dispatcher.check_rate_limit(&bot_id));
-        dispatcher.check_rate_limit(&bot_id); // consume 1
-        assert!(dispatcher.check_rate_limit(&bot_id)); // consume 1
-        
+        assert!(dispatcher.check_rate_limit(&bot_id));
+
         // Third call should fail (rate limited)
         assert!(!dispatcher.check_rate_limit(&bot_id));
     }

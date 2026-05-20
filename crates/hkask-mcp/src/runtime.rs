@@ -3,12 +3,11 @@
 //! Manages MCP server connections, tool discovery, and lifecycle.
 //! Integrates with capability security and rate limiting.
 
-use hkask_templates::McpPort;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{info, warn};
+use tracing::info;
 
 /// MCP tool definition
 #[derive(Debug, Clone)]
@@ -154,7 +153,7 @@ mod tests {
     #[tokio::test]
     async fn test_mcp_runtime_register_server() {
         let runtime = McpRuntime::new();
-        
+
         let server = McpServer {
             id: "test-server".to_string(),
             name: "Test Server".to_string(),
@@ -171,7 +170,7 @@ mod tests {
 
         assert_eq!(runtime.tool_count().await, 1);
         assert!(runtime.tool_exists("test_tool").await);
-        
+
         let tool = runtime.get_tool("test_tool").await;
         assert!(tool.is_some());
         assert_eq!(tool.unwrap().name, "test_tool");
@@ -180,26 +179,28 @@ mod tests {
     #[tokio::test]
     async fn test_mcp_runtime_discover_tools() {
         let runtime = McpRuntime::new();
-        
-        runtime.register_server(McpServer {
-            id: "server1".to_string(),
-            name: "Server 1".to_string(),
-            tools: vec![
-                McpTool {
-                    name: "tool1".to_string(),
-                    description: "Tool 1".to_string(),
-                    input_schema: serde_json::json!({"type": "object"}),
-                    server_id: "server1".to_string(),
-                },
-                McpTool {
-                    name: "tool2".to_string(),
-                    description: "Tool 2".to_string(),
-                    input_schema: serde_json::json!({"type": "object"}),
-                    server_id: "server1".to_string(),
-                },
-            ],
-            connected: true,
-        }).await;
+
+        runtime
+            .register_server(McpServer {
+                id: "server1".to_string(),
+                name: "Server 1".to_string(),
+                tools: vec![
+                    McpTool {
+                        name: "tool1".to_string(),
+                        description: "Tool 1".to_string(),
+                        input_schema: serde_json::json!({"type": "object"}),
+                        server_id: "server1".to_string(),
+                    },
+                    McpTool {
+                        name: "tool2".to_string(),
+                        description: "Tool 2".to_string(),
+                        input_schema: serde_json::json!({"type": "object"}),
+                        server_id: "server1".to_string(),
+                    },
+                ],
+                connected: true,
+            })
+            .await;
 
         let tools = runtime.discover_tools().await;
         assert_eq!(tools.len(), 2);
@@ -210,18 +211,20 @@ mod tests {
     #[tokio::test]
     async fn test_mcp_runtime_unregister_server() {
         let runtime = McpRuntime::new();
-        
-        runtime.register_server(McpServer {
-            id: "server1".to_string(),
-            name: "Server 1".to_string(),
-            tools: vec![McpTool {
-                name: "tool1".to_string(),
-                description: "Tool 1".to_string(),
-                input_schema: serde_json::json!({"type": "object"}),
-                server_id: "server1".to_string(),
-            }],
-            connected: true,
-        }).await;
+
+        runtime
+            .register_server(McpServer {
+                id: "server1".to_string(),
+                name: "Server 1".to_string(),
+                tools: vec![McpTool {
+                    name: "tool1".to_string(),
+                    description: "Tool 1".to_string(),
+                    input_schema: serde_json::json!({"type": "object"}),
+                    server_id: "server1".to_string(),
+                }],
+                connected: true,
+            })
+            .await;
 
         assert_eq!(runtime.tool_count().await, 1);
 
@@ -234,20 +237,24 @@ mod tests {
     #[tokio::test]
     async fn test_mcp_runtime_list_servers() {
         let runtime = McpRuntime::new();
-        
-        runtime.register_server(McpServer {
-            id: "server1".to_string(),
-            name: "Server 1".to_string(),
-            tools: vec![],
-            connected: true,
-        }).await;
 
-        runtime.register_server(McpServer {
-            id: "server2".to_string(),
-            name: "Server 2".to_string(),
-            tools: vec![],
-            connected: true,
-        }).await;
+        runtime
+            .register_server(McpServer {
+                id: "server1".to_string(),
+                name: "Server 1".to_string(),
+                tools: vec![],
+                connected: true,
+            })
+            .await;
+
+        runtime
+            .register_server(McpServer {
+                id: "server2".to_string(),
+                name: "Server 2".to_string(),
+                tools: vec![],
+                connected: true,
+            })
+            .await;
 
         let servers = runtime.list_servers().await;
         assert_eq!(servers.len(), 2);

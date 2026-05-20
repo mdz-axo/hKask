@@ -15,7 +15,7 @@
 //! - Cycle detection in registry (graph traversal)
 //! - Capability attenuation on recursive calls
 
-use crate::ports::{ProcessManifest, RegistryIndex, Result, TemplateError};
+use crate::ports::{RegistryIndex, Result, TemplateError};
 use hkask_types::TemplateType;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -125,7 +125,7 @@ impl CascadeContext {
 
     /// Check if recursion depth limit exceeded
     pub fn check_depth(&self, max: u8) -> Result<()> {
-        if self.current_depth >= max {
+        if self.current_depth > max {
             return Err(TemplateError::RecursionLimit { max });
         }
         Ok(())
@@ -235,7 +235,7 @@ impl CascadeExecutor {
         input: Value,
         registry: &dyn RegistryIndex,
     ) -> Result<Value> {
-        let mut context = CascadeContext::new().with_max_depth(cascade.max_depth);
+        let mut context = CascadeContext::new().with_depth(cascade.max_depth);
         let mut state = input;
 
         // Execute pre stages (context enrichment, validation)
@@ -307,7 +307,11 @@ impl CascadeExecutor {
     }
 
     /// Execute prompt template (WordAct)
-    fn execute_prompt_template(&self, entry: &crate::ports::RegistryEntry, input: Value) -> Result<Value> {
+    fn execute_prompt_template(
+        &self,
+        entry: &crate::ports::RegistryEntry,
+        input: Value,
+    ) -> Result<Value> {
         // Placeholder: actual implementation would render Jinja2 template
         Ok(serde_json::json!({
             "template_id": entry.id,
@@ -336,7 +340,11 @@ impl CascadeExecutor {
     }
 
     /// Execute cognition template (KnowAct)
-    fn execute_cognition_template(&self, entry: &crate::ports::RegistryEntry, input: Value) -> Result<Value> {
+    fn execute_cognition_template(
+        &self,
+        entry: &crate::ports::RegistryEntry,
+        input: Value,
+    ) -> Result<Value> {
         // Placeholder: actual implementation would run ReAct loop
         Ok(serde_json::json!({
             "template_id": entry.id,
@@ -363,7 +371,13 @@ impl CascadeExecutor {
         let mut path = vec![];
         let mut cycle_path = vec![];
 
-        self.detect_cycles_dfs(start_template, registry, &mut visited, &mut path, &mut cycle_path)?;
+        self.detect_cycles_dfs(
+            start_template,
+            registry,
+            &mut visited,
+            &mut path,
+            &mut cycle_path,
+        )?;
 
         Ok(CycleDetectionResult {
             has_cycle: !cycle_path.is_empty(),
@@ -413,7 +427,11 @@ impl CascadeExecutor {
         let mut resolved_templates = HashMap::new();
 
         // Collect all template IDs from cascade stages
-        let all_stages = cascade.pre.iter().chain(cascade.core.iter()).chain(cascade.post.iter());
+        let all_stages = cascade
+            .pre
+            .iter()
+            .chain(cascade.core.iter())
+            .chain(cascade.post.iter());
 
         for stage in all_stages {
             for template_id in &stage.templates {
@@ -495,7 +513,7 @@ impl CascadeBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ports::{Action, ManifestStep, RegistryEntry};
+    use crate::ports::{Action, ManifestStep, ProcessManifest, RegistryEntry};
 
     struct MockRegistry {
         entries: HashMap<String, crate::ports::RegistryEntry>,
@@ -583,7 +601,7 @@ mod tests {
 
     #[test]
     fn test_cascade_context_depth_check() {
-        let context = CascadeContext::new().with_depth(7);
+        let context = CascadeContext::new().with_depth(8);
         let result = context.check_depth(7);
         assert!(result.is_err());
 

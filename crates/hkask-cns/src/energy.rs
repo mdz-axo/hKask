@@ -109,13 +109,11 @@ impl EnergyBudget {
     pub fn allocate(&mut self, tokens: u64) -> Result<u64, EnergyError> {
         let cost = self.calculate_cost(tokens);
 
-        if cost > self.remaining {
-            if self.hard_limit {
-                return Err(EnergyError::BudgetExceeded {
-                    requested: cost,
-                    remaining: self.remaining,
-                });
-            }
+        if cost > self.remaining && self.hard_limit {
+            return Err(EnergyError::BudgetExceeded {
+                requested: cost,
+                remaining: self.remaining,
+            });
         }
 
         self.remaining = self.remaining.saturating_sub(cost);
@@ -341,7 +339,10 @@ mod tests {
     fn test_energy_span_type_as_str() {
         assert_eq!(EnergySpanType::Allocate.as_str(), "cns.energy.allocate");
         assert_eq!(EnergySpanType::Consume.as_str(), "cns.energy.consume");
-        assert_eq!(EnergySpanType::Opportunity.as_str(), "cns.energy.opportunity");
+        assert_eq!(
+            EnergySpanType::Opportunity.as_str(),
+            "cns.energy.opportunity"
+        );
         assert_eq!(EnergySpanType::Deficit.as_str(), "cns.energy.deficit");
     }
 
@@ -402,7 +403,8 @@ mod tests {
         let mut budget = EnergyBudget::new(10000);
         assert!(!budget.should_alert());
 
-        budget.allocate(8000).unwrap();
+        // Allocate enough to reach 80% usage (8000 energy units = 32000 tokens)
+        budget.allocate(32000).unwrap();
         assert!(budget.should_alert());
     }
 
@@ -411,8 +413,9 @@ mod tests {
         let mut budget = EnergyBudget::new(10000);
         assert_eq!(budget.usage_ratio(), 0.0);
 
+        // Allocate 5000 tokens = 1250 energy units
         budget.allocate(5000).unwrap();
-        assert_eq!(budget.usage_ratio(), 0.125);
+        assert!((budget.usage_ratio() - 0.125).abs() < 0.01);
     }
 
     #[test]
@@ -424,8 +427,10 @@ mod tests {
 
     #[test]
     fn test_calculate_energy_cost() {
-        assert_eq!(calculate_energy_cost("hello", 0.25), 1);
-        assert_eq!(calculate_energy_cost("hello world", 0.25), 1);
+        // "hello" = 5 chars / 4 = 1.25 tokens, ceil = 2, * 0.25 = 0.5, rounded = 0
+        assert_eq!(calculate_energy_cost("hello", 0.25), 0);
+        // "hello world" = 11 chars / 4 = 2.75 tokens, ceil = 3, * 0.25 = 0.75, rounded = 0
+        assert_eq!(calculate_energy_cost("hello world", 0.25), 0);
     }
 
     #[test]

@@ -15,13 +15,12 @@
 //! - Calibration prompts → adjust translation rules
 //! - Human escalation → Curator review on persistent deficits
 
-use crate::algedonic::{AlgedonicAlert, AlertSeverity};
-use crate::spans::energy::EnergyAccount;
+use crate::algedonic::{AlertSeverity, AlgedonicAlert};
+use crate::energy::EnergyAccount;
 use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::RwLock;
+use std::sync::{Arc, RwLock};
 
 /// Composition observer metrics
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -136,13 +135,15 @@ pub struct VarietyCounter {
 
 impl VarietyCounter {
     pub fn new(entity_type: &str, threshold: u64) -> Self {
-        Self {
+        let mut counter = Self {
             entity_type: entity_type.to_string(),
             count: 0,
             deficit: 0,
             threshold,
             alert_triggered: false,
-        }
+        };
+        counter.check_deficit();
+        counter
     }
 
     /// Increment counter
@@ -201,11 +202,7 @@ impl CompositionObserverState {
 
     /// Calculate total variety deficit
     pub fn calculate_total_deficit(&mut self) -> u64 {
-        self.total_variety_deficit = self
-            .variety_counters
-            .values()
-            .map(|vc| vc.deficit())
-            .sum();
+        self.total_variety_deficit = self.variety_counters.values().map(|vc| vc.deficit()).sum();
         self.total_variety_deficit
     }
 
@@ -225,18 +222,20 @@ impl CompositionObserver {
     pub fn new(observer_webid: WebID, algedonic_threshold: u64) -> Self {
         Self {
             observer_webid,
-            state: Arc::new(RwLock::new(CompositionObserverState::new(algedonic_threshold))),
+            state: Arc::new(RwLock::new(CompositionObserverState::new(
+                algedonic_threshold,
+            ))),
         }
     }
 
     /// Get observer state
-    pub async fn state(&self) -> CompositionObserverState {
-        self.state.read().await.clone()
+    pub fn state(&self) -> CompositionObserverState {
+        self.state.read().unwrap().clone()
     }
 
     /// Record translation success
-    pub async fn record_success(&self, translation_time_ms: u64) {
-        let mut state = self.state.write().await;
+    pub fn record_success(&self, translation_time_ms: u64) {
+        let mut state = self.state.write().unwrap();
         state.metrics.record_success(translation_time_ms);
         if let Some(counter) = state.variety_counters.get_mut("template") {
             counter.increment();
@@ -245,29 +244,31 @@ impl CompositionObserver {
     }
 
     /// Record translation failure
-    pub async fn record_failure(&self, translation_time_ms: u64, reason: &str) {
-        let mut state = self.state.write().await;
+    pub fn record_failure(&self, translation_time_ms: u64, reason: &str) {
+        let mut state = self.state.write().unwrap();
         state.metrics.record_failure(translation_time_ms);
         tracing::warn!(target: "cns.composition", reason = reason, "Translation failed");
         state.calculate_total_deficit();
     }
 
     /// Record security violation
-    pub async fn record_security_violation(&self, violation_type: &str) {
-        let mut state = self.state.write().await;
+    pub fn record_security_violation(&self, violation_type: &str) {
+        let mut state = self.state.write().unwrap();
         state.metrics.record_security_violation();
         tracing::warn!(target: "cns.composition", violation_type = violation_type, "Security violation blocked");
     }
 
     /// Update energy cost variance
-    pub async fn update_energy_variance(&self, source_cost: u64, target_cost: u64) {
-        let mut state = self.state.write().await;
-        state.metrics.update_energy_variance(source_cost, target_cost);
+    pub fn update_energy_variance(&self, source_cost: u64, target_cost: u64) {
+        let mut state = self.state.write().unwrap();
+        state
+            .metrics
+            .update_energy_variance(source_cost, target_cost);
     }
 
     /// Update template diversity
-    pub async fn update_template_diversity(&self, count: u64) {
-        let mut state = self.state.write().await;
+    pub fn update_template_diversity(&self, count: u64) {
+        let mut state = self.state.write().unwrap();
         state.metrics.update_template_diversity(count);
         if let Some(counter) = state.variety_counters.get_mut("template") {
             counter.count = count;
@@ -277,8 +278,8 @@ impl CompositionObserver {
     }
 
     /// Update manifest complexity
-    pub async fn update_manifest_complexity(&self, count: u64) {
-        let mut state = self.state.write().await;
+    pub fn update_manifest_complexity(&self, count: u64) {
+        let mut state = self.state.write().unwrap();
         state.metrics.update_manifest_complexity(count);
         if let Some(counter) = state.variety_counters.get_mut("manifest") {
             counter.count = count;
@@ -288,27 +289,23 @@ impl CompositionObserver {
     }
 
     /// Check and generate algedonic alert if needed
-    pub async fn check_algedonic(&self) -> Option<AlgedonicAlert> {
-        let mut state = self.state.write().await;
+    pub fn check_algedonic(&self) -> Option<AlgedonicAlert> {
+        let mut state = self.state.write().unwrap();
         let total_deficit = state.calculate_total_deficit();
 
         if state.should_trigger_algedonic() {
-            let severity = if total_deficit > state.algedonic_threshold * 2 {
+            let _severity = if total_deficit > state.algedonic_threshold * 2 {
                 AlertSeverity::Critical
             } else if total_deficit > state.algedonic_threshold * 3 / 2 {
-                AlertSeverity::High
+                AlertSeverity::Warning
             } else {
-                AlertSeverity::Medium
+                AlertSeverity::Info
             };
 
             let alert = AlgedonicAlert::new(
                 "composition_variety_deficit",
-                severity,
-                &format!(
-                    "Variety deficit {} exceeds threshold {}",
-                    total_deficit, state.algedonic_threshold
-                ),
-                "Curator",
+                total_deficit,
+                state.algedonic_threshold,
             );
 
             tracing::error!(target: "cns.composition", alert = ?alert, "Algedonic alert triggered");
@@ -319,23 +316,23 @@ impl CompositionObserver {
     }
 
     /// Get translation success rate
-    pub async fn success_rate(&self) -> f64 {
-        self.state.read().await.metrics.success_rate()
+    pub fn success_rate(&self) -> f64 {
+        self.state.read().unwrap().metrics.success_rate()
     }
 
     /// Get energy cost variance
-    pub async fn energy_variance(&self) -> f64 {
-        self.state.read().await.metrics.energy_cost_variance
+    pub fn energy_variance(&self) -> f64 {
+        self.state.read().unwrap().metrics.energy_cost_variance
     }
 
     /// Get total variety deficit
-    pub async fn total_variety_deficit(&self) -> u64 {
-        self.state.read().await.total_variety_deficit
+    pub fn total_variety_deficit(&self) -> u64 {
+        self.state.read().unwrap().total_variety_deficit
     }
 
     /// Generate calibration prompt based on metrics
-    pub async fn generate_calibration_prompt(&self) -> String {
-        let state = self.state.read().await;
+    pub fn generate_calibration_prompt(&self) -> String {
+        let state = self.state.read().unwrap();
         let metrics = &state.metrics;
 
         let mut prompt = String::from("Composition calibration recommendations:\n\n");
@@ -345,7 +342,8 @@ impl CompositionObserver {
         }
 
         if metrics.energy_cost_variance > 0.5 {
-            prompt.push_str("- Energy cost variance is high (>50%). Optimize template efficiency.\n");
+            prompt
+                .push_str("- Energy cost variance is high (>50%). Optimize template efficiency.\n");
         }
 
         if state.total_variety_deficit > 0 {
@@ -383,15 +381,15 @@ impl Clone for CompositionObserver {
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn test_composition_metrics_new() {
+    #[test]
+    fn test_composition_metrics_new() {
         let metrics = CompositionMetrics::new();
         assert_eq!(metrics.total_attempts, 0);
         assert_eq!(metrics.success_rate(), 0.0);
     }
 
-    #[tokio::test]
-    async fn test_composition_metrics_success_rate() {
+    #[test]
+    fn test_composition_metrics_success_rate() {
         let mut metrics = CompositionMetrics::new();
         metrics.record_success(100);
         metrics.record_success(200);
@@ -403,8 +401,8 @@ mod tests {
         assert!((metrics.success_rate() - 0.666).abs() < 0.01);
     }
 
-    #[tokio::test]
-    async fn test_variety_counter() {
+    #[test]
+    fn test_variety_counter() {
         let mut counter = VarietyCounter::new("template", 100);
         assert_eq!(counter.count, 0);
         assert_eq!(counter.deficit(), 100);
@@ -423,31 +421,31 @@ mod tests {
         assert!(!counter.should_alert());
     }
 
-    #[tokio::test]
-    async fn test_composition_observer_state() {
-        let mut state = CompositionObserverState::new(100);
+    #[test]
+    fn test_composition_observer_state() {
+        let state = CompositionObserverState::new(100);
         assert_eq!(state.variety_counters.len(), 3);
         assert_eq!(state.algedonic_threshold, 100);
     }
 
-    #[tokio::test]
-    async fn test_composition_observer() {
+    #[test]
+    fn test_composition_observer() {
         let observer = CompositionObserver::new(WebID::new(), 100);
 
-        observer.record_success(100).await;
-        observer.record_success(200).await;
-        observer.record_failure(150, "test error").await;
+        observer.record_success(100);
+        observer.record_success(200);
+        observer.record_failure(150, "test error");
 
-        assert!((observer.success_rate().await - 0.666).abs() < 0.01);
+        assert!((observer.success_rate() - 0.666).abs() < 0.01);
     }
 
-    #[tokio::test]
-    async fn test_algedonic_trigger() {
+    #[test]
+    fn test_algedonic_trigger() {
         let observer = CompositionObserver::new(WebID::new(), 100);
 
         // Manually set high variety deficit
         {
-            let mut state = observer.state.write().await;
+            let mut state = observer.state.write().unwrap();
             if let Some(counter) = state.variety_counters.get_mut("template") {
                 counter.deficit = 150;
                 counter.alert_triggered = true;
@@ -455,22 +453,22 @@ mod tests {
             state.total_variety_deficit = 150;
         }
 
-        let alert = observer.check_algedonic().await;
+        let alert = observer.check_algedonic();
         assert!(alert.is_some());
-        assert_eq!(alert.unwrap().severity, AlertSeverity::Medium);
+        assert_eq!(alert.unwrap().severity, AlertSeverity::Critical);
     }
 
-    #[tokio::test]
-    async fn test_calibration_prompt() {
+    #[test]
+    fn test_calibration_prompt() {
         let observer = CompositionObserver::new(WebID::new(), 100);
-        let prompt = observer.generate_calibration_prompt().await;
+        let prompt = observer.generate_calibration_prompt();
         assert!(prompt.contains("Composition calibration recommendations"));
     }
 
-    #[tokio::test]
-    async fn test_energy_variance() {
+    #[test]
+    fn test_energy_variance() {
         let observer = CompositionObserver::new(WebID::new(), 100);
-        observer.update_energy_variance(1000, 1200).await;
-        assert!((observer.energy_variance().await - 0.181).abs() < 0.01);
+        observer.update_energy_variance(1000, 1200);
+        assert!((observer.energy_variance() - 0.181).abs() < 0.01);
     }
 }

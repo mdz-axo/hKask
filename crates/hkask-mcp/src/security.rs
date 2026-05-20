@@ -95,9 +95,7 @@ impl SecurityGateway {
 
     /// Validate input size
     pub fn validate_input_size(&self, input: &Value) -> Result<(), TemplateError> {
-        let input_size = serde_json::to_string(input)
-            .map(|s| s.len())
-            .unwrap_or(0);
+        let input_size = serde_json::to_string(input).map(|s| s.len()).unwrap_or(0);
 
         if input_size > self.policy.max_input_size {
             return Err(TemplateError::Validation(format!(
@@ -134,7 +132,12 @@ impl SecurityGateway {
     }
 
     /// Verify capability token
-    pub fn verify_capability(&self, token: &CapabilityToken, bot_id: &WebID, tool_name: &str) -> bool {
+    pub fn verify_capability(
+        &self,
+        token: &CapabilityToken,
+        bot_id: &WebID,
+        tool_name: &str,
+    ) -> bool {
         self.capability_checker.check(token, bot_id, tool_name)
     }
 
@@ -214,7 +217,7 @@ mod tests {
     #[test]
     fn test_security_policy_default() {
         let policy = SecurityPolicy::default();
-        
+
         assert_eq!(policy.max_input_size, 1024 * 1024);
         assert!(policy.allowed_tools.is_empty());
         assert!(policy.denied_tools.contains("admin:"));
@@ -226,11 +229,11 @@ mod tests {
     #[test]
     fn test_security_gateway_validate_input_size() {
         let gateway = SecurityGateway::with_default_policy(b"test-secret");
-        
+
         // Small input should pass
         let small_input = Value::String("small".to_string());
         assert!(gateway.validate_input_size(&small_input).is_ok());
-        
+
         // Large input should fail
         let large_input = Value::String("x".repeat(2 * 1024 * 1024));
         assert!(gateway.validate_input_size(&large_input).is_err());
@@ -239,11 +242,11 @@ mod tests {
     #[test]
     fn test_security_gateway_is_tool_allowed() {
         let gateway = SecurityGateway::with_default_policy(b"test-secret");
-        
+
         // Normal tools should be allowed
         assert!(gateway.is_tool_allowed("inference:call"));
         assert!(gateway.is_tool_allowed("storage:read"));
-        
+
         // Denied prefixes should be blocked
         assert!(!gateway.is_tool_allowed("admin:delete"));
         assert!(!gateway.is_tool_allowed("system:shutdown"));
@@ -255,13 +258,13 @@ mod tests {
         let mut policy = SecurityPolicy::default();
         policy.allowed_tools.insert("inference:".to_string());
         policy.allowed_tools.insert("storage:".to_string());
-        
+
         let gateway = SecurityGateway::new(b"test-secret", policy);
-        
+
         // Allowed tools
         assert!(gateway.is_tool_allowed("inference:call"));
         assert!(gateway.is_tool_allowed("storage:read"));
-        
+
         // Not in allowed list
         assert!(!gateway.is_tool_allowed("memory:write"));
     }
@@ -269,9 +272,9 @@ mod tests {
     #[test]
     fn test_security_gateway_rate_limit() {
         let gateway = SecurityGateway::with_default_policy(b"test-secret");
-        
+
         let bot_id = WebID::new();
-        
+
         // Default rate limit is 100 requests/minute
         // First check should succeed
         assert!(gateway.check_rate_limit(&bot_id));
@@ -280,12 +283,12 @@ mod tests {
     #[test]
     fn test_security_gateway_issue_capability() {
         let gateway = SecurityGateway::with_default_policy(b"test-secret");
-        
+
         let from = WebID::new();
         let to = WebID::new();
-        
+
         let token = gateway.issue_capability("inference:call".to_string(), from, to);
-        
+
         assert_eq!(token.tool_name, "inference:call");
         assert!(gateway.verify_capability(&token, &to, "inference:call"));
         assert!(!gateway.verify_capability(&token, &from, "inference:call")); // Wrong recipient
@@ -294,7 +297,7 @@ mod tests {
     #[tokio::test]
     async fn test_security_gateway_audit() {
         let gateway = SecurityGateway::with_default_policy(b"test-secret");
-        
+
         let bot_id = WebID::new();
         let entry = AuditEntry {
             timestamp: chrono::Utc::now(),
@@ -304,9 +307,9 @@ mod tests {
             success: true,
             error_message: None,
         };
-        
+
         gateway.audit(entry).await;
-        
+
         let log = gateway.get_audit_log(10).await;
         assert_eq!(log.len(), 1);
         assert_eq!(log[0].tool_name, "test:tool");
@@ -315,7 +318,7 @@ mod tests {
     #[tokio::test]
     async fn test_security_gateway_audit_trim() {
         let gateway = SecurityGateway::with_default_policy(b"test-secret");
-        
+
         // Add more than 10,000 entries
         for i in 0..10100 {
             let entry = AuditEntry {
@@ -328,7 +331,7 @@ mod tests {
             };
             gateway.audit(entry).await;
         }
-        
+
         let log = gateway.get_audit_log(20000).await;
         assert_eq!(log.len(), 10000); // Should be trimmed to 10,000
     }
