@@ -4,9 +4,10 @@ use rmcp::{
     ServerHandler, ServiceExt,
     handler::server::{router::tool::ToolRouter},
     model::*,
+    transport::stdio,
     schemars, tool, tool_router, tool_handler,
 };
-use rmcp::handler::server::wrapper::parameters::Parameters;
+use rmcp::handler::server::wrapper::Parameters;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
@@ -84,7 +85,7 @@ impl CnsServer {
     }
 }
 
-#[tool_router]
+#[tool_router(server_handler)]
 impl CnsServer {
     #[tool(description = "Emit a ν-event span to the CNS")]
     async fn cns_emit(&self, Parameters(req): Parameters<EmitSpanRequest>) -> String {
@@ -225,8 +226,7 @@ impl CnsServer {
     }
 }
 
-#[tool_handler]
-impl ServerHandler for CnsServer {}
+impl CnsServer {}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -235,7 +235,7 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let server = CnsServer::new();
-    let service = server.serve_stdio();
+    let service = server.serve(stdio());
     tracing::info!("hkask-mcp-cns MCP server started (v{})", SERVER_VERSION);
     service.await?;
     Ok(())

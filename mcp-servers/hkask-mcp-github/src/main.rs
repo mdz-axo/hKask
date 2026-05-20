@@ -4,9 +4,10 @@ use rmcp::{
     ServerHandler, ServiceExt,
     handler::server::{router::tool::ToolRouter},
     model::*,
+    transport::stdio,
     schemars, tool, tool_router, tool_handler,
 };
-use rmcp::handler::server::wrapper::parameters::Parameters;
+use rmcp::handler::server::wrapper::Parameters;
 use serde::{Deserialize, Serialize};
 use reqwest::Client;
 use std::collections::HashMap;
@@ -77,7 +78,7 @@ impl GitHubServer {
     }
 }
 
-#[tool_router]
+#[tool_router(server_handler)]
 impl GitHubServer {
     #[tool(description = "Get repository information")]
     async fn github_get_repo(&self, owner: String, repo: String) -> String {
@@ -251,8 +252,7 @@ impl GitHubServer {
     }
 }
 
-#[tool_handler]
-impl ServerHandler for GitHubServer {}
+impl GitHubServer {}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -261,7 +261,7 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let server = GitHubServer::new();
-    let service = server.serve_stdio();
+    let service = server.serve(stdio());
     tracing::info!("hkask-mcp-github MCP server started (v{})", SERVER_VERSION);
     service.await?;
     Ok(())

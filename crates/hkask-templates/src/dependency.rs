@@ -41,9 +41,15 @@ impl DependencyGraph {
             depth,
         };
 
-        self.edges.entry(caller.clone()).or_default().push(edge);
+        self.edges
+            .entry(caller.clone())
+            .or_insert_with(Vec::new)
+            .push(edge);
 
-        self.reverse_edges.entry(callee).or_default().push(caller);
+        self.reverse_edges
+            .entry(callee)
+            .or_insert_with(Vec::new)
+            .push(caller);
     }
 
     /// Get all templates called by a template
@@ -177,44 +183,6 @@ impl DependencyGraph {
     pub fn edge_count(&self) -> usize {
         self.edges.values().map(|v| v.len()).sum()
     }
-
-    /// Get topological order (if acyclic)
-    pub fn topological_sort(&self) -> Option<Vec<String>> {
-        if self.has_cycle() {
-            return None;
-        }
-
-        let mut visited = HashSet::new();
-        let mut result = Vec::new();
-
-        for node in self.edges.keys() {
-            if !visited.contains(node) {
-                self.topo_dfs(node, &mut visited, &mut result);
-            }
-        }
-
-        result.reverse();
-        Some(result)
-    }
-
-    fn topo_dfs(&self, node: &str, visited: &mut HashSet<String>, result: &mut Vec<String>) {
-        visited.insert(node.to_string());
-
-        if let Some(edges) = self.edges.get(node) {
-            for edge in edges {
-                if !visited.contains(&edge.callee) {
-                    self.topo_dfs(&edge.callee, visited, result);
-                }
-            }
-        }
-
-        result.push(node.to_string());
-    }
-
-    /// Check if graph has any cycles
-    pub fn has_cycle(&self) -> bool {
-        !self.find_cycles().is_empty()
-    }
 }
 
 impl Default for DependencyGraph {
@@ -263,17 +231,3 @@ pub fn parse_dependencies(_template_id: &str, source: &str) -> Vec<String> {
     dependencies
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-}
-}

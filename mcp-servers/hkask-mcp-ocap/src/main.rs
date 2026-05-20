@@ -4,9 +4,10 @@ use rmcp::{
     ServerHandler, ServiceExt,
     handler::server::{router::tool::ToolRouter},
     model::*,
-    schemars, tool, tool_router, tool_handler,
+    transport::stdio,
+    schemars, tool, tool_router,
 };
-use rmcp::handler::server::wrapper::parameters::Parameters;
+use rmcp::handler::server::wrapper::Parameters;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
@@ -62,10 +63,10 @@ impl OcapServer {
     }
 }
 
-#[tool_router]
+#[tool_router(server_handler)]
 impl OcapServer {
     #[tool(description = "Create a delegated capability token")]
-    async fn ocap_delegate(&self, Parameters(req): Parameters<DelegateRequest>) -> String {
+    async fn ocap_delegate(&self, Parameters(req): Parameters<DelegateRequest>) -> Result<String, ErrorData> {
         let token = CapabilityToken {
             id: Uuid::new_v4().to_string(),
             issuer: req.issuer.clone(),
@@ -78,15 +79,15 @@ impl OcapServer {
         let mut tokens = self.tokens.write().await;
         tokens.push(token.clone());
 
-        serde_json::to_string_pretty(&token).unwrap_or_else(|_| "error serializing token".to_string())
+        Ok(serde_json::to_string_pretty(&token).unwrap_or_else(|_| "error serializing token".to_string()))
     }
 
     #[tool(description = "Verify a capability token has a specific capability")]
-    async fn ocap_verify(&self, Parameters(req): Parameters<VerifyRequest>) -> String {
+    async fn ocap_verify(&self, Parameters(req): Parameters<VerifyRequest>) -> Result<String, ErrorData> {
         let tokens = self.tokens.read().await;
         let token = tokens.iter().find(|t| t.id == req.token_id);
         
-        match token {
+        let result = match token {
             Some(t) => {
                 if t.expires_at.map_or(true, |exp| exp > Utc::now()) {
                     let has_cap = t.capabilities.contains(&req.capability);
@@ -106,25 +107,27 @@ impl OcapServer {
                 "valid": false,
                 "reason": "token not found"
             }).to_string()
-        }
+        };
+        Ok(result)
     }
 
     #[tool(description = "Revoke a capability token")]
-    async fn ocap_revoke(&self, Parameters(req): Parameters<RevokeRequest>) -> String {
+    async fn ocap_revoke(&self, Parameters(req): Parameters<RevokeRequest>) -> Result<String, ErrorData> {
         let mut tokens = self.tokens.write().await;
         let initial_len = tokens.len();
         tokens.retain(|t| t.id != req.token_id);
         
-        if tokens.len() < initial_len {
+        let result = if tokens.len() < initial_len {
             tracing::info!(token_id = %req.token_id, reason = ?req.reason, "revoked capability token");
             serde_json::json!({ "success": true, "token_id": req.token_id }).to_string()
         } else {
             serde_json::json!({ "success": false, "reason": "token not found" }).to_string()
-        }
+        };
+        Ok(result)
     }
 
     #[tool(description = "Enumerate all capabilities held by a subject")]
-    async fn ocap_enumerate(&self, subject: String) -> String {
+    async fn ocap_enumerate(&self, subject: String) -> Result<String, ErrorData> {
         let tokens = self.tokens.read().await;
         let caps: Vec<&String> = tokens
             .iter()
@@ -132,30 +135,27 @@ impl OcapServer {
             .flat_map(|t| &t.capabilities)
             .collect();
         
-        serde_json::json!({
+        Ok(serde_json::json!({
             "subject": subject,
             "capabilities": caps,
             "count": caps.len()
-        }).to_string()
+        }).to_string())
     }
 
     #[tool(description = "List all active capability tokens")]
-    async fn ocap_list_tokens(&self) -> String {
+    async fn ocap_list_tokens(&self) -> Result<String, ErrorData> {
         let tokens = self.tokens.read().await;
         let active: Vec<&CapabilityToken> = tokens
             .iter()
             .filter(|t| t.expires_at.map_or(true, |exp| exp > Utc::now()))
             .collect();
         
-        serde_json::to_string_pretty(&serde_json::json!({
+        Ok(serde_json::to_string_pretty(&serde_json::json!({
             "tokens": active,
             "count": active.len()
-        })).unwrap_or_else(|_| "error serializing".to_string())
+        })).unwrap_or_else(|_| "error serializing".to_string()))
     }
 }
-
-#[tool_handler]
-impl ServerHandler for OcapServer {}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -164,7 +164,7 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let server = OcapServer::new();
-    let service = server.serve_stdio();
+    let service = server.serve(stdio());
     tracing::info!("hkask-mcp-ocap MCP server started (v{})", SERVER_VERSION);
     service.await?;
     Ok(())

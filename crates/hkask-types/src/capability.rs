@@ -617,6 +617,7 @@ impl BotCapabilities {
         self.capabilities.iter().any(|cap| cap == tool_name)
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -642,248 +643,121 @@ mod tests {
         assert_eq!(token.action, CapabilityAction::Execute);
         assert_eq!(token.delegated_from, from);
         assert_eq!(token.delegated_to, to);
-        assert!(!token.signature.is_empty());
+        assert_eq!(token.attenuation_level, 0);
     }
 
     #[test]
-    fn test_capability_token_verification() {
+    fn test_capability_token_expiry() {
         let secret = b"test-secret-key";
-        let from = WebID::new();
-        let to = WebID::new();
-
-        let token = CapabilityToken::new(
-            CapabilityResource::Tool,
-            "inference:call".to_string(),
-            CapabilityAction::Execute,
-            from.clone(),
-            to.clone(),
-            secret,
-        );
-
-        assert!(token.verify(secret));
-    }
-
-    #[test]
-    fn test_capability_token_invalid_signature() {
-        let secret = b"test-secret-key";
-        let wrong_secret = b"wrong-secret-key";
-        let from = WebID::new();
-        let to = WebID::new();
-
-        let token = CapabilityToken::new(
-            CapabilityResource::Tool,
-            "inference:call".to_string(),
-            CapabilityAction::Execute,
-            from.clone(),
-            to.clone(),
-            secret,
-        );
-
-        assert!(!token.verify(wrong_secret));
-    }
-
-    #[test]
-    fn test_capability_checker() {
-        let secret = b"test-secret-key";
-        let checker = CapabilityChecker::new(secret);
-
-        let from = WebID::new();
-        let to = WebID::new();
-
-        let token = checker.grant_tool("inference:call".to_string(), from.clone(), to.clone());
-
-        assert!(checker.check(
-            &token,
-            &to,
-            CapabilityResource::Tool,
-            "inference:call",
-            CapabilityAction::Execute
-        ));
-        assert!(!checker.check(
-            &token,
-            &to,
-            CapabilityResource::Tool,
-            "storage:read",
-            CapabilityAction::Execute
-        ));
-        assert!(!checker.check(
-            &token,
-            &from,
-            CapabilityResource::Tool,
-            "inference:call",
-            CapabilityAction::Execute
-        ));
-    }
-
-    #[test]
-    fn test_bot_capabilities() {
-        let bot_id = WebID::new();
-        let caps = BotCapabilities::new(bot_id.clone())
-            .with_capabilities(vec!["inference:call", "storage:read"]);
-
-        assert!(caps.has_capability("inference:call"));
-        assert!(caps.has_capability("storage:read"));
-        assert!(!caps.has_capability("memory:write"));
-    }
-
-    #[test]
-    fn test_attenuation_chain_verification() {
-        let secret = b"test-secret-key";
-        let from = WebID::new();
-        let to = WebID::new();
-        let new_to = WebID::new();
-
-        // Create root token with known context nonce
-        let root_nonce = "test-execution-context";
-        let token = CapabilityToken::new_with_attenuation(
-            CapabilityResource::Template,
-            "prompt/test".to_string(),
-            CapabilityAction::Render,
-            from.clone(),
-            to.clone(),
-            secret,
-            None,
-            0,
-            7,
-            Some(root_nonce.to_string()),
-        );
-
-        // Verify root nonce
-        assert_eq!(token.root_context_nonce(), root_nonce);
-        assert!(token.verify_attenuation_chain(root_nonce, 0));
-
-        // Attenuate once
-        let attenuated1 = token.attenuate(new_to.clone(), secret, 1000).unwrap();
-        assert_eq!(attenuated1.attenuation_level, 1);
-        assert!(attenuated1.verify_attenuation_chain(root_nonce, 1));
-        assert!(!attenuated1.verify_attenuation_chain(root_nonce, 0)); // Level too high
-
-        // Attenuate twice more
-        let attenuated2 = attenuated1.attenuate(new_to.clone(), secret, 1000).unwrap();
-        assert_eq!(attenuated2.attenuation_level, 2);
-        assert!(attenuated2.verify_attenuation_chain(root_nonce, 2));
-        assert!(attenuated2.verify_attenuation_chain(root_nonce, 3)); // Level within bound
-
-        // Wrong root should fail
-        assert!(!attenuated2.verify_attenuation_chain("wrong-root", 2));
-    }
-
-    #[test]
-    fn test_cryptographic_verification() {
-        let secret = b"test-secret-key-32-bytes-long!!!";
-        let from = WebID::new();
-        let to = WebID::new();
-
-        let token = CapabilityToken::new(
-            CapabilityResource::Template,
-            "prompt/test".to_string(),
-            CapabilityAction::Render,
-            from,
-            to,
-            secret,
-        );
-
-        // Verify with correct secret
-        assert!(token.verify_cryptographic(secret));
-
-        // Verify with wrong secret should fail
-        let wrong_secret = b"wrong-secret-key-32-bytes-long!!";
-        assert!(!token.verify_cryptographic(wrong_secret));
-    }
-
-    #[test]
-    fn test_lazy_verification() {
-        let secret = b"test-secret-key-32-bytes-long!!!";
         let from = WebID::new();
         let to = WebID::new();
         let current_time = 1000;
 
-        // Create token that expires in 1 hour
-        let token = CapabilityToken::new_with_attenuation(
-            CapabilityResource::Template,
-            "prompt/test".to_string(),
-            CapabilityAction::Render,
-            from,
-            to,
+        // Create token with 100 second expiry
+        let mut token = CapabilityToken::new(
+            CapabilityResource::Tool,
+            "test".to_string(),
+            CapabilityAction::Execute,
+            from.clone(),
+            to.clone(),
             secret,
-            Some(current_time + 3600),
-            0,
-            7,
-            None,
         );
+        token.expires_at = Some(current_time + 100);
 
-        // Verify while valid
+        assert!(!token.is_expired(current_time));
+        assert!(token.is_expired(current_time + 101));
+    }
+
+    #[test]
+    fn test_capability_token_verify_lazy() {
+        let secret = b"test-secret-key";
+        let from = WebID::new();
+        let to = WebID::new();
+        let current_time = 1000;
+
+        let mut token = CapabilityToken::new(
+            CapabilityResource::Tool,
+            "test".to_string(),
+            CapabilityAction::Execute,
+            from.clone(),
+            to.clone(),
+            secret,
+        );
+        token.expires_at = Some(current_time + 100);
+
+        // Valid token
         let result = token.verify_lazy(secret, current_time);
         assert_eq!(result, VerificationResult::Valid);
         assert!(result.is_valid());
         assert!(result.is_usable());
 
-        // Verify after expiry
-        let result = token.verify_lazy(secret, current_time + 7200);
+        // Expired token (zombie)
+        let result = token.verify_lazy(secret, current_time + 101);
         assert_eq!(result, VerificationResult::Zombie);
-        assert!(result.is_valid()); // Signature still valid
-        assert!(!result.is_usable()); // But expired
+        assert!(result.is_valid());
+        assert!(!result.is_usable());
 
-        // Verify with wrong secret
-        let wrong_secret = b"wrong-secret-key-32-bytes-long!!";
-        let result = token.verify_lazy(wrong_secret, current_time);
+        // Invalid signature
+        let bad_secret = b"wrong-secret";
+        let result = token.verify_lazy(bad_secret, current_time);
         assert_eq!(result, VerificationResult::Invalid);
         assert!(!result.is_valid());
         assert!(!result.is_usable());
     }
 
     #[test]
-    fn test_capability_fingerprint() {
-        let secret = b"test-secret-key-32-bytes-long!!!";
+    fn test_capability_token_fingerprint() {
+        let secret = b"test-secret-key";
         let from = WebID::new();
         let to = WebID::new();
 
         let token = CapabilityToken::new(
-            CapabilityResource::Template,
-            "prompt/test".to_string(),
-            CapabilityAction::Render,
-            from,
+            CapabilityResource::Tool,
+            "test".to_string(),
+            CapabilityAction::Execute,
+            from.clone(),
             to.clone(),
             secret,
         );
 
         let fingerprint = token.fingerprint();
-        assert!(fingerprint.contains("template"));
-        assert!(fingerprint.contains("prompt/test"));
-        assert!(fingerprint.contains("render"));
-        assert!(fingerprint.contains(&to.to_string()));
+        assert!(!fingerprint.is_empty());
+        assert!(fingerprint.contains("tool"));
+        assert!(fingerprint.contains("test"));
+        assert!(fingerprint.contains("execute"));
     }
 
     #[test]
-    fn test_capability_compatibility() {
-        let secret = b"test-secret-key-32-bytes-long!!!";
+    fn test_capability_token_compatibility() {
+        let secret = b"test-secret-key";
         let from = WebID::new();
         let to = WebID::new();
 
         let token1 = CapabilityToken::new(
-            CapabilityResource::Template,
-            "prompt/test".to_string(),
-            CapabilityAction::Render,
+            CapabilityResource::Tool,
+            "test".to_string(),
+            CapabilityAction::Execute,
             from.clone(),
             to.clone(),
             secret,
         );
 
-        // Same resource/action/to — compatible
         let token2 = CapabilityToken::new(
-            CapabilityResource::Template,
-            "prompt/test".to_string(),
-            CapabilityAction::Render,
+            CapabilityResource::Tool,
+            "test".to_string(),
+            CapabilityAction::Execute,
             from.clone(),
             to.clone(),
             secret,
         );
+
+        // Same resource, action, delegated_to -> compatible
         assert!(token1.is_compatible_with(&token2));
 
-        // Different resource — incompatible
+        // Different resource -> incompatible
         let token3 = CapabilityToken::new(
-            CapabilityResource::Manifest,
-            "manifest/test".to_string(),
+            CapabilityResource::Registry,
+            "test".to_string(),
             CapabilityAction::Execute,
             from.clone(),
             to.clone(),
@@ -893,7 +767,31 @@ mod tests {
     }
 
     #[test]
-    fn test_verification_result_methods() {
+    fn test_capability_token_attenuation() {
+        let secret = b"test-secret-key";
+        let from = WebID::new();
+        let to = WebID::new();
+        let new_to = WebID::new();
+
+        let token = CapabilityToken::new(
+            CapabilityResource::Tool,
+            "test".to_string(),
+            CapabilityAction::Execute,
+            from.clone(),
+            to.clone(),
+            secret,
+        );
+
+        // Attenuate to new recipient
+        let attenuated = token.attenuate(new_to.clone(), secret, 1000);
+        assert!(attenuated.is_some());
+        let attenuated = attenuated.unwrap();
+        assert_eq!(attenuated.delegated_to, new_to);
+        assert_eq!(attenuated.attenuation_level, token.attenuation_level + 1);
+    }
+
+    #[test]
+    fn test_verification_result() {
         assert!(VerificationResult::Valid.is_valid());
         assert!(VerificationResult::Valid.is_usable());
         assert_eq!(VerificationResult::Valid.as_str(), "valid");

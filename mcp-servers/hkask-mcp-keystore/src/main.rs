@@ -4,9 +4,10 @@ use rmcp::{
     ServerHandler, ServiceExt,
     handler::server::{router::tool::ToolRouter},
     model::*,
+    transport::stdio,
     schemars, tool, tool_router, tool_handler,
 };
-use rmcp::handler::server::wrapper::parameters::Parameters;
+use rmcp::handler::server::wrapper::Parameters;
 use serde::{Deserialize, Serialize};
 use secrecy::{Secret, ExposeSecret};
 use std::collections::HashMap;
@@ -61,7 +62,7 @@ impl KeystoreServer {
     }
 }
 
-#[tool_router]
+#[tool_router(server_handler)]
 impl KeystoreServer {
     #[tool(description = "Store a credential securely in the OS keychain")]
     async fn keystore_set(&self, Parameters(req): Parameters<StoreRequest>) -> String {
@@ -165,8 +166,7 @@ impl KeystoreServer {
     }
 }
 
-#[tool_handler]
-impl ServerHandler for KeystoreServer {}
+impl KeystoreServer {}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -175,7 +175,7 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let server = KeystoreServer::new();
-    let service = server.serve_stdio();
+    let service = server.serve(stdio());
     tracing::info!("hkask-mcp-keystore MCP server started (v{})", SERVER_VERSION);
     service.await?;
     Ok(())

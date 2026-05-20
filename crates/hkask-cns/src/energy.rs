@@ -424,3 +424,117 @@ pub fn calculate_energy_cost(text: &str, cost_per_token: f64) -> u64 {
     ((tokens as f64) * cost_per_token) as u64
 }
 
+
+/// Hybrid expiry cleanup for capability tokens
+///
+/// Implements Q5 decision: lazy verification + periodic cleanup.
+/// Lazy verification happens on every capability use (verify_lazy).
+/// Periodic cleanup removes expired capabilities from the registry.
+///
+/// # Arguments
+/// * `capabilities` — List of capability tokens to clean
+/// * `current_time` — Current Unix timestamp
+///
+/// # Returns
+/// Tuple of (kept, removed) counts
+pub fn cleanup_expired_capabilities(
+    capabilities: &[hkask_types::CapabilityToken],
+    current_time: i64,
+) -> (usize, usize) {
+    let mut kept = 0;
+    let mut removed = 0;
+
+    for cap in capabilities {
+        if cap.is_expired(current_time) {
+            removed += 1;
+            // Emit cleanup span for observability
+            let event = NuEvent::new(
+                "cns.energy.cleanup",
+                serde_json::json!({
+                    "capability_id": cap.id,
+                    "resource": cap.resource.as_str(),
+                    "resource_id": cap.resource_id,
+                    "expired_at": cap.expires_at,
+                    "current_time": current_time,
+                }),
+            );
+            info!(
+                target: "cns.energy.cleanup",
+                event = ?event.id,
+                "Expired capability cleaned up"
+            );
+        } else {
+            kept += 1;
+        }
+    }
+
+    (kept, removed)
+}
+
+/// Schedule periodic cleanup job
+///
+/// In production, this would be scheduled via cron or similar.
+/// For now, returns the recommended cleanup interval.
+///
+/// # Returns
+/// Recommended cleanup interval in seconds (default: 300 = 5 minutes)
+pub fn recommended_cleanup_interval() -> u64 {
+    300 // 5 minutes
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_types::{CapabilityResource, CapabilityAction, WebID};
+
+    #[test]
+    fn test_cleanup_expired_capabilities() {
+        let secret = b"test-secret";
+        let from = WebID::new();
+        let to = WebID::new();
+
+        // Create valid capability
+        let mut valid_cap = hkask_types::CapabilityToken::new(
+            CapabilityResource::Tool,
+            "test".to_string(),
+            CapabilityAction::Execute,
+            from.clone(),
+            to.clone(),
+            secret,
+        );
+        valid_cap.expires_at = Some(2000); // Expires at 2000
+
+        // Create expired capability
+        let mut expired_cap = hkask_types::CapabilityToken::new(
+            CapabilityResource::Tool,
+            "test2".to_string(),
+            CapabilityAction::Execute,
+            from.clone(),
+            to.clone(),
+            secret,
+        );
+        expired_cap.expires_at = Some(500); // Expires at 500
+
+        let capabilities = vec![valid_cap, expired_cap];
+
+        // Cleanup at time 1000 - should keep valid, remove expired
+        let (kept, removed) = cleanup_expired_capabilities(&capabilities, 1000);
+        assert_eq!(kept, 1);
+        assert_eq!(removed, 1);
+
+        // Cleanup at time 100 - both should be kept
+        let (kept, removed) = cleanup_expired_capabilities(&capabilities, 100);
+        assert_eq!(kept, 2);
+        assert_eq!(removed, 0);
+
+        // Cleanup at time 3000 - both should be removed
+        let (kept, removed) = cleanup_expired_capabilities(&capabilities, 3000);
+        assert_eq!(kept, 0);
+        assert_eq!(removed, 2);
+    }
+
+    #[test]
+    fn test_recommended_cleanup_interval() {
+        assert_eq!(recommended_cleanup_interval(), 300);
+    }
+}

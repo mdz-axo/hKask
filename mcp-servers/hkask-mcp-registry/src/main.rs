@@ -4,9 +4,10 @@ use rmcp::{
     ServerHandler, ServiceExt,
     handler::server::{router::tool::ToolRouter},
     model::*,
+    transport::stdio,
     schemars, tool, tool_router, tool_handler,
 };
-use rmcp::handler::server::wrapper::parameters::Parameters;
+use rmcp::handler::server::wrapper::Parameters;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use std::path::PathBuf;
@@ -107,7 +108,7 @@ impl RegistryServer {
     }
 }
 
-#[tool_router]
+#[tool_router(server_handler)]
 impl RegistryServer {
     #[tool(description = "List available templates in the registry index")]
     async fn registry_index(&self, Parameters(req): Parameters<IndexRequest>) -> String {
@@ -263,8 +264,7 @@ impl RegistryServer {
     }
 }
 
-#[tool_handler]
-impl ServerHandler for RegistryServer {}
+impl RegistryServer {}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -273,7 +273,7 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let server = RegistryServer::new();
-    let service = server.serve_stdio();
+    let service = server.serve(stdio());
     tracing::info!("hkask-mcp-registry MCP server started (v{})", SERVER_VERSION);
     service.await?;
     Ok(())

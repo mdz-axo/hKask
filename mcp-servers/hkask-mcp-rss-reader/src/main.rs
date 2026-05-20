@@ -4,9 +4,10 @@ use rmcp::{
     ServerHandler, ServiceExt,
     handler::server::{router::tool::ToolRouter},
     model::*,
+    transport::stdio,
     schemars, tool, tool_router, tool_handler,
 };
-use rmcp::handler::server::wrapper::parameters::Parameters;
+use rmcp::handler::server::wrapper::Parameters;
 use serde::{Deserialize, Serialize};
 use reqwest::Client;
 use uuid::Uuid;
@@ -60,7 +61,7 @@ impl RssServer {
     }
 }
 
-#[tool_router]
+#[tool_router(server_handler)]
 impl RssServer {
     #[tool(description = "Subscribe to an RSS/Atom feed")]
     async fn rss_subscribe(&self, url: String, label: Option<String>, folder: Option<String>) -> String {
@@ -311,8 +312,7 @@ impl RssServer {
     }
 }
 
-#[tool_handler]
-impl ServerHandler for RssServer {}
+impl RssServer {}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -321,7 +321,7 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let server = RssServer::new();
-    let service = server.serve_stdio();
+    let service = server.serve(stdio());
     tracing::info!("hkask-mcp-rss-reader MCP server started (v{})", SERVER_VERSION);
     service.await?;
     Ok(())

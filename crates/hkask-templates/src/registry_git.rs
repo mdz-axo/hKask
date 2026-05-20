@@ -147,5 +147,3 @@ impl RegistryIndex for GitRegistry {
     }
 }
 
-
-

@@ -60,7 +60,7 @@ impl ProvenanceManager {
     pub fn record(&mut self, provenance: TemplateProvenance) {
         self.records
             .entry(provenance.template_id.clone())
-            .or_default()
+            .or_insert_with(Vec::new)
             .push(provenance);
     }
 
@@ -92,9 +92,4 @@ impl Default for ProvenanceManager {
         Self::new()
     }
 }
-
-
-
-
-
 

@@ -19,6 +19,7 @@ use crate::ports::{Result, TemplateError};
 use hkask_types::TemplateType;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashMap;
 
 /// Skill source format
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -105,7 +106,7 @@ pub struct ManifestStep {
 }
 
 /// Validated artifact (post-validation stage)
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct ValidatedArtifact {
     pub template: Option<GeneratedTemplate>,
     pub manifest: Option<GeneratedManifest>,
@@ -115,7 +116,7 @@ pub struct ValidatedArtifact {
 }
 
 /// Registered artifact (post-registration stage)
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct RegisteredArtifact {
     pub registry_entry_id: String,
     pub cns_event_id: String,
@@ -123,8 +124,7 @@ pub struct RegisteredArtifact {
 }
 
 /// Pipeline stage output
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "variant", content = "data")]
+#[derive(Debug, Clone)]
 pub enum StageOutput {
     Parse(ParsedSkill),
     Map(Vec<RdfTriple>),
@@ -137,7 +137,7 @@ pub enum StageOutput {
 }
 
 /// Pipeline stage definition
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct PipelineStage {
     pub stage_number: u32,
     pub name: String,
@@ -150,12 +150,13 @@ pub struct PipelineStage {
 pub struct SkillTranslationPipeline {
     stages: Vec<PipelineStage>,
     channel_tx: tokio::sync::mpsc::Sender<StageOutput>,
+    channel_rx: tokio::sync::mpsc::Receiver<StageOutput>,
 }
 
 impl SkillTranslationPipeline {
     /// Create new pipeline with default stages
     pub fn new() -> Self {
-        let (tx, _rx) = tokio::sync::mpsc::channel(32);
+        let (tx, rx) = tokio::sync::mpsc::channel(32);
 
         let stages = vec![
             PipelineStage {
@@ -198,6 +199,7 @@ impl SkillTranslationPipeline {
         Self {
             stages,
             channel_tx: tx,
+            channel_rx: rx,
         }
     }
 
@@ -234,7 +236,10 @@ impl SkillTranslationPipeline {
             .ok_or_else(|| TemplateError::Manifest("Missing skill name".to_string()))?
             .to_string();
 
-        let description = value["description"].as_str().unwrap_or("").to_string();
+        let description = value["description"]
+            .as_str()
+            .unwrap_or("")
+            .to_string();
 
         let prompts = value["prompts"]
             .as_array()
@@ -246,11 +251,7 @@ impl SkillTranslationPipeline {
                             text: p["text"].as_str()?.to_string(),
                             variables: p["variables"]
                                 .as_array()
-                                .map(|v| {
-                                    v.iter()
-                                        .filter_map(|s| s.as_str().map(String::from))
-                                        .collect()
-                                })
+                                .map(|v| v.iter().filter_map(|s| s.as_str().map(String::from)).collect())
                                 .unwrap_or(vec![]),
                             output_schema: p["output_schema"].clone(),
                         })
@@ -271,7 +272,7 @@ impl SkillTranslationPipeline {
         let visibility = value["visibility"].as_str().unwrap_or("Shared").to_string();
 
         Ok(ParsedSkill {
-            id: format!("skill-{}", name.to_lowercase().replace(' ', "-")),
+            id: format!("skill-{}", name.to_lowercase().replace(' ', '-')),
             name,
             description,
             format: SkillFormat::ClaudeSkill,
@@ -294,7 +295,7 @@ impl SkillTranslationPipeline {
             .to_string();
 
         Ok(ParsedSkill {
-            id: format!("zapier-{}", name.to_lowercase().replace(' ', "-")),
+            id: format!("zapier-{}", name.to_lowercase().replace(' ', '-')),
             name,
             description: value["description"].as_str().unwrap_or("").to_string(),
             format: SkillFormat::ZapierAction,
@@ -317,7 +318,7 @@ impl SkillTranslationPipeline {
             .to_string();
 
         Ok(ParsedSkill {
-            id: format!("langchain-{}", name.to_lowercase().replace(' ', "-")),
+            id: format!("langchain-{}", name.to_lowercase().replace(' ', '-')),
             name,
             description: value["description"].as_str().unwrap_or("").to_string(),
             format: SkillFormat::LangChainTool,
@@ -340,7 +341,7 @@ impl SkillTranslationPipeline {
             .to_string();
 
         Ok(ParsedSkill {
-            id: format!("crewai-{}", name.to_lowercase().replace(' ', "-")),
+            id: format!("crewai-{}", name.to_lowercase().replace(' ', '-')),
             name,
             description: value["goal"].as_str().unwrap_or("").to_string(),
             format: SkillFormat::CrewAIAgent,
@@ -353,7 +354,7 @@ impl SkillTranslationPipeline {
 
     /// Execute stage 2: Map (semantic translation to RDF triples)
     pub async fn map(&self, parsed_skill: &ParsedSkill) -> Result<Vec<RdfTriple>> {
-        let mut triples = vec![
+        let triples = vec![
             RdfTriple {
                 subject: parsed_skill.id.clone(),
                 predicate: "rdf:type".to_string(),
@@ -367,15 +368,12 @@ impl SkillTranslationPipeline {
             RdfTriple {
                 subject: parsed_skill.id.clone(),
                 predicate: "hkask:sourceFormat".to_string(),
-                object: Value::String(
-                    match parsed_skill.format {
-                        SkillFormat::ClaudeSkill => "claude_skill",
-                        SkillFormat::ZapierAction => "zapier_action",
-                        SkillFormat::LangChainTool => "langchain_tool",
-                        SkillFormat::CrewAIAgent => "crewai_agent",
-                    }
-                    .to_string(),
-                ),
+                object: Value::String(match parsed_skill.format {
+                    SkillFormat::ClaudeSkill => "claude_skill",
+                    SkillFormat::ZapierAction => "zapier_action",
+                    SkillFormat::LangChainTool => "langchain_tool",
+                    SkillFormat::CrewAIAgent => "crewai_agent",
+                }.to_string()),
             },
         ];
 
@@ -396,11 +394,7 @@ impl SkillTranslationPipeline {
     }
 
     /// Execute stage 3: Generate (emit templates and manifests)
-    pub async fn generate(
-        &self,
-        _triples: &[RdfTriple],
-        parsed_skill: &ParsedSkill,
-    ) -> Result<(Vec<GeneratedTemplate>, Vec<GeneratedManifest>)> {
+    pub async fn generate(&self, _triples: &[RdfTriple], parsed_skill: &ParsedSkill) -> Result<(Vec<GeneratedTemplate>, Vec<GeneratedManifest>)> {
         let mut templates = vec![];
         let mut manifests = vec![];
 
@@ -424,15 +418,17 @@ impl SkillTranslationPipeline {
                 id: format!("{}-manifest", parsed_skill.id),
                 name: parsed_skill.name.clone(),
                 description: parsed_skill.description.clone(),
-                steps: vec![ManifestStep {
-                    ordinal: 1,
-                    action: "execute".to_string(),
-                    description: "Execute skill".to_string(),
-                    template_ref: None,
-                    model_tier: Some("fast_local".to_string()),
-                    mcp: Some("hkask-mcp-inference".to_string()),
-                    energy_cap: 500,
-                }],
+                steps: vec![
+                    ManifestStep {
+                        ordinal: 1,
+                        action: "execute".to_string(),
+                        description: "Execute skill".to_string(),
+                        template_ref: None,
+                        model_tier: Some("fast_local".to_string()),
+                        mcp: Some("hkask-mcp-inference".to_string()),
+                        energy_cap: 500,
+                    },
+                ],
                 energy_cap: 1000,
                 visibility: parsed_skill.visibility.clone(),
             };
@@ -527,10 +523,7 @@ impl SkillTranslationPipeline {
     }
 
     /// Execute stage 5: Register (persist to registry)
-    pub async fn register(
-        &self,
-        validated: &[ValidatedArtifact],
-    ) -> Result<Vec<RegisteredArtifact>> {
+    pub async fn register(&self, validated: &[ValidatedArtifact]) -> Result<Vec<RegisteredArtifact>> {
         let mut registered = vec![];
 
         for artifact in validated {
@@ -547,7 +540,7 @@ impl SkillTranslationPipeline {
             };
 
             let registered_artifact = RegisteredArtifact {
-                registry_entry_id: registry_id.clone(),
+                registry_entry_id: registry_id,
                 cns_event_id: format!("cns-{}", registry_id),
                 audit_path: format!("registry/audits/skill_translation/{}", registry_id),
             };
@@ -563,11 +556,7 @@ impl SkillTranslationPipeline {
     }
 
     /// Execute full pipeline
-    pub async fn execute(
-        &self,
-        raw_skill: &str,
-        format: SkillFormat,
-    ) -> Result<Vec<RegisteredArtifact>> {
+    pub async fn execute(&self, raw_skill: &str, format: SkillFormat) -> Result<Vec<RegisteredArtifact>> {
         let parsed = self.parse(raw_skill, format).await?;
         let triples = self.map(&parsed).await?;
         let (templates, manifests) = self.generate(&triples, &parsed).await?;
@@ -614,10 +603,7 @@ mod tests {
             "visibility": "Shared"
         }"#;
 
-        let parsed = pipeline
-            .parse(raw_skill, SkillFormat::ClaudeSkill)
-            .await
-            .unwrap();
+        let parsed = pipeline.parse(raw_skill, SkillFormat::ClaudeSkill).await.unwrap();
         assert_eq!(parsed.name, "Test Skill");
         assert_eq!(parsed.prompts.len(), 1);
         assert_eq!(parsed.prompts[0].variables, vec!["name"]);

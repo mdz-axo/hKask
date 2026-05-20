@@ -237,19 +237,3 @@ pub enum ValidatorError {
 }
 
     }
-
-    fn create_test_lexicon() -> Vec<String> {
-        vec![
-            "classify".to_string(),
-            "discriminate".to_string(),
-            "route".to_string(),
-            "recognize".to_string(),
-        ]
-    }
-
-
-
-
-
-
-}

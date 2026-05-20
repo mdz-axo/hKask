@@ -4,9 +4,10 @@ use rmcp::{
     ServerHandler, ServiceExt,
     handler::server::{router::tool::ToolRouter},
     model::*,
+    transport::stdio,
     schemars, tool, tool_router, tool_handler,
 };
-use rmcp::handler::server::wrapper::parameters::Parameters;
+use rmcp::handler::server::wrapper::Parameters;
 use serde::{Deserialize, Serialize};
 use reqwest::Client;
 use secrecy::Secret;
@@ -40,7 +41,7 @@ impl FalServer {
     }
 }
 
-#[tool_router]
+#[tool_router(server_handler)]
 impl FalServer {
     #[tool(description = "Ping the Fal.ai server")]
     async fn fal_ping(&self) -> String {
@@ -331,8 +332,7 @@ impl FalServer {
     }
 }
 
-#[tool_handler]
-impl ServerHandler for FalServer {}
+impl FalServer {}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -341,7 +341,7 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let server = FalServer::new();
-    let service = server.serve_stdio();
+    let service = server.serve(stdio());
     tracing::info!("hkask-mcp-fal MCP server started (v{})", SERVER_VERSION);
     service.await?;
     Ok(())

@@ -4,9 +4,10 @@ use rmcp::{
     ServerHandler, ServiceExt,
     handler::server::{router::tool::ToolRouter},
     model::*,
+    transport::stdio,
     schemars, tool, tool_router, tool_handler,
 };
-use rmcp::handler::server::wrapper::parameters::Parameters;
+use rmcp::handler::server::wrapper::Parameters;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -85,7 +86,7 @@ impl GitServer {
     }
 }
 
-#[tool_router]
+#[tool_router(server_handler)]
 impl GitServer {
     #[tool(description = "Resolve a Git SHA, branch, or tag reference")]
     async fn git_resolve(&self, git_ref: String) -> String {
@@ -180,8 +181,7 @@ impl GitServer {
     }
 }
 
-#[tool_handler]
-impl ServerHandler for GitServer {}
+impl GitServer {}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -190,7 +190,7 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let server = GitServer::new();
-    let service = server.serve_stdio();
+    let service = server.serve(stdio());
     tracing::info!("hkask-mcp-git MCP server started (v{})", SERVER_VERSION);
     service.await?;
     Ok(())
