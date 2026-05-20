@@ -26,7 +26,7 @@ steps:
       Render inference call template with prompt and parameters.
       Apply safety mode if enabled.
     renderer: minijinja
-    template_ref: registry/registries/mcp/inference_call
+    template_ref: mcp/inference_call
     model_tier: null
     mcp: null
     energy_cap: 1000
@@ -83,13 +83,17 @@ ocap:
   required_capabilities:
     - resource: template
       action: render
+      template_id: mcp/inference_call
     - resource: inference
       action: call
+      template_id: mcp/inference_call
     - resource: cns
       action: emit
+      template_id: mcp/inference_call
   delegation_chain_required: true
   signature_algorithm: ed25519
   capability_expiry_seconds: 3600
+  template_scoped: true
 
 # CNS Monitoring
 cns:

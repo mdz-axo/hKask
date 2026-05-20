@@ -27,6 +27,7 @@ pub enum EnergySpanType {
     Consume,
     Opportunity,
     Deficit,
+    Actual,
 }
 
 impl EnergySpanType {
@@ -36,6 +37,7 @@ impl EnergySpanType {
             EnergySpanType::Consume => "cns.energy.consume",
             EnergySpanType::Opportunity => "cns.energy.opportunity",
             EnergySpanType::Deficit => "cns.energy.deficit",
+            EnergySpanType::Actual => "cns.energy.actual",
         }
     }
 
@@ -45,6 +47,7 @@ impl EnergySpanType {
             "consume" | "cns.energy.consume" => Some(EnergySpanType::Consume),
             "opportunity" | "cns.energy.opportunity" => Some(EnergySpanType::Opportunity),
             "deficit" | "cns.energy.deficit" => Some(EnergySpanType::Deficit),
+            "actual" | "cns.energy.actual" => Some(EnergySpanType::Actual),
             _ => None,
         }
     }
@@ -300,6 +303,22 @@ impl EnergyEmitter {
         self.emit(EnergySpanType::Deficit, observation);
     }
 
+    /// Emit energy actual span (actual energy consumption measurement)
+    pub fn emit_actual(&mut self, operation: &str, tokens_actual: u64, energy_actual: u64) {
+        self.account.consume(energy_actual);
+
+        let observation = serde_json::json!({
+            "operation": operation,
+            "tokens_actual": tokens_actual,
+            "energy_actual": energy_actual,
+            "total_consumed": self.account.total_consumed,
+            "remaining": self.account.budget.remaining,
+            "usage_ratio": self.account.budget.usage_ratio(),
+        });
+
+        self.emit(EnergySpanType::Actual, observation);
+    }
+
     /// Emit energy span
     fn emit(&self, span_type: EnergySpanType, observation: Value) {
         let span = Span::Energy(span_type.as_str().to_string());
@@ -344,6 +363,7 @@ mod tests {
             "cns.energy.opportunity"
         );
         assert_eq!(EnergySpanType::Deficit.as_str(), "cns.energy.deficit");
+        assert_eq!(EnergySpanType::Actual.as_str(), "cns.energy.actual");
     }
 
     #[test]
@@ -355,6 +375,10 @@ mod tests {
         assert_eq!(
             EnergySpanType::parse_str("cns.energy.consume"),
             Some(EnergySpanType::Consume)
+        );
+        assert_eq!(
+            EnergySpanType::parse_str("cns.energy.actual"),
+            Some(EnergySpanType::Actual)
         );
         assert_eq!(EnergySpanType::parse_str("invalid"), None);
     }

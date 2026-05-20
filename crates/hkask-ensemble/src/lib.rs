@@ -9,6 +9,7 @@ pub mod deliberation;
 pub mod macaroon;
 pub mod metrics;
 pub mod multi_okapi;
+pub mod ocap_enforcement;
 pub mod okapi_integration;
 pub mod ports;
 pub mod resilience;
@@ -29,6 +30,9 @@ pub use confidence_router::{
 };
 pub use multi_okapi::{
     CapabilityRouter, HealthChecker, HealthStatus, MultiOkapiClient, OkapiInstance,
+};
+pub use ocap_enforcement::{
+    OcapEnforcer, OcapEnforcementResult, OcapContext, enforce_okapi_ocap,
 };
 pub use okapi_integration::{OkapiIntegration, OkapiIntegrationError};
 pub use ports::{

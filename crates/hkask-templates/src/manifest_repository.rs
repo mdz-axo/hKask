@@ -5,6 +5,7 @@
 
 use crate::ports::{ManifestRepository, ProcessManifest, Result, TemplateError};
 use std::path::PathBuf;
+use crate::rate_limiter::RateLimiter;
 
 /// YAML file system manifest repository
 ///
@@ -12,18 +13,31 @@ use std::path::PathBuf;
 /// File naming convention: `{manifest_id}.yaml`
 pub struct FileSystemManifestRepository {
     base_path: PathBuf,
+    rate_limiter: RateLimiter,
 }
 
 impl FileSystemManifestRepository {
     /// Create new repository with base path
     pub fn new(base_path: PathBuf) -> Self {
-        Self { base_path }
+        Self {
+            base_path,
+            rate_limiter: RateLimiter::with_defaults(),
+        }
+    }
+
+    /// Create repository with custom rate limiting
+    pub fn with_rate_limit(base_path: PathBuf, max_tokens: u64, refill_rate: u64) -> Self {
+        Self {
+            base_path,
+            rate_limiter: RateLimiter::new(max_tokens, refill_rate),
+        }
     }
 
     /// Create repository with default path (./registry/manifests)
     pub fn with_default_path() -> Self {
         Self {
             base_path: PathBuf::from("registry/manifests"),
+            rate_limiter: RateLimiter::with_defaults(),
         }
     }
 
@@ -37,6 +51,13 @@ impl FileSystemManifestRepository {
 
 impl ManifestRepository for FileSystemManifestRepository {
     fn load(&self, id: &str) -> Result<ProcessManifest> {
+        // Check rate limit first
+        if !self.rate_limiter.try_acquire() {
+            return Err(TemplateError::RateLimitExceeded(
+                "Manifest load rate limit exceeded".to_string(),
+            ));
+        }
+        
         let path = self.manifest_path(id);
         
         if !path.exists() {
@@ -47,6 +68,13 @@ impl ManifestRepository for FileSystemManifestRepository {
     }
 
     fn save(&self, manifest: &ProcessManifest) -> Result<()> {
+        // Check rate limit first
+        if !self.rate_limiter.try_acquire() {
+            return Err(TemplateError::RateLimitExceeded(
+                "Manifest save rate limit exceeded".to_string(),
+            ));
+        }
+        
         let path = self.manifest_path(&manifest.id);
         
         // Ensure parent directory exists
@@ -68,6 +96,13 @@ impl ManifestRepository for FileSystemManifestRepository {
     }
 
     fn delete(&self, id: &str) -> Result<()> {
+        // Check rate limit first
+        if !self.rate_limiter.try_acquire() {
+            return Err(TemplateError::RateLimitExceeded(
+                "Manifest delete rate limit exceeded".to_string(),
+            ));
+        }
+        
         let path = self.manifest_path(id);
         
         if !path.exists() {
@@ -82,6 +117,13 @@ impl ManifestRepository for FileSystemManifestRepository {
     }
 
     fn list(&self) -> Result<Vec<String>> {
+        // Check rate limit first
+        if !self.rate_limiter.try_acquire() {
+            return Err(TemplateError::RateLimitExceeded(
+                "Manifest list rate limit exceeded".to_string(),
+            ));
+        }
+        
         if !self.base_path.exists() {
             return Ok(vec![]);
         }
@@ -293,6 +335,30 @@ mod tests {
         // Delete
         repo.delete("test").unwrap();
         assert!(matches!(repo.load("test"), Err(TemplateError::NotFound(_))));
+    }
+
+    #[test]
+    fn test_file_system_repository_rate_limiting() {
+        use crate::rate_limiter::RateLimiter;
+        
+        let temp_dir = TempDir::new().unwrap();
+        // Create repo with very low rate limit (2 tokens, no refill for test duration)
+        let repo = FileSystemManifestRepository::with_rate_limit(temp_dir.path().to_path_buf(), 2, 0);
+
+        // First two operations should succeed
+        let manifest = ProcessManifest {
+            id: "rate-test".to_string(),
+            name: "Rate Test".to_string(),
+            description: "Test".to_string(),
+            steps: vec![],
+        };
+        
+        assert!(repo.save(&manifest).is_ok());
+        assert!(repo.load("rate-test").is_ok());
+
+        // Third operation should fail due to rate limit
+        let result = repo.load("rate-test");
+        assert!(matches!(result, Err(TemplateError::RateLimitExceeded(_))));
     }
 
     #[test]

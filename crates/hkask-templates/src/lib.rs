@@ -26,11 +26,12 @@ pub mod manifest;
 pub mod manifest_repository;
 pub mod ports;
 pub mod provenance;
+pub mod rate_limiter;
 pub mod registry;
+pub mod resolver;
 pub mod registry_git;
 pub mod registry_sqlite;
 pub mod renderer;
-pub mod resolver;
 pub mod security;
 pub mod skill_translation;
 pub mod step_capability;
@@ -66,6 +67,7 @@ pub use ports::{
     McpPort, MockSecurityPort, ProcessManifest, RegistryEntry, RegistryIndex, Result,
     SecurityPort, TemplateContract, TemplateError, TemplateRenderer,
 };
+pub use rate_limiter::{RateLimiter, RateLimitExceededError, RateLimitedRepository};
 pub use provenance::{ProvenanceManager, TemplateProvenance};
 pub use registry::{Registry, TemplateEntry};
 pub use registry_git::GitRegistry;

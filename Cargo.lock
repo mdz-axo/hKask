@@ -2759,6 +2759,7 @@ dependencies = [
  "hkask-storage",
  "hkask-types",
  "minijinja",
+ "parking_lot",
  "percent-encoding",
  "proptest",
  "reqwest",

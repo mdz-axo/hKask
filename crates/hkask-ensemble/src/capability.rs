@@ -4,7 +4,7 @@
 //! Follows principle of least authority (Mark Miller / Bruce Schneier).
 
 use chrono::{DateTime, Utc};
-use hkask_types::{WebID, TemplateID};
+use hkask_types::{WebID, TemplateID, Visibility};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use thiserror::Error;
@@ -73,6 +73,8 @@ pub struct OkapiCapability {
     pub template_id: Option<TemplateID>,
     /// Expiration time (for convenience, also in macaroon caveat)
     pub expires_at: Option<DateTime<Utc>>,
+    /// Visibility level required to use this capability
+    pub visibility: Visibility,
 }
 
 /// Authorization error
@@ -151,6 +153,7 @@ impl OkapiCapability {
             holder,
             macaroon,
             template_id: None,
+            visibility: Visibility::Private,
             expires_at,
         }
     }
@@ -187,6 +190,7 @@ impl OkapiCapability {
             macaroon,
             template_id: Some(template_id),
             expires_at,
+            visibility: Visibility::Private,
         }
     }
 
@@ -199,12 +203,31 @@ impl OkapiCapability {
         // Verify macaroon signature
         self.macaroon.verify(key)?;
 
-        // Build caveat context
-        let op_strings = operations.iter().map(|o| o.to_string()).collect();
-        let ctx = crate::macaroon::CaveatContext::new().with_operations(op_strings);
+        // Build caveat context with current time
+        let ctx = crate::macaroon::CaveatContext::new();
 
         // Verify caveats
         self.macaroon.verify_caveats(&ctx)?;
+
+        // Check if at least one of the requested operations is granted by this capability
+        let granted_ops: Vec<String> = self
+            .macaroon
+            .caveats
+            .iter()
+            .filter(|c| c.caveat_id == "operation")
+            .map(|c| c.data.clone())
+            .collect();
+
+        let requested_ops: Vec<String> = operations.iter().map(|o| o.to_string()).collect();
+
+        // At least one requested operation must be granted
+        let has_matching_op = requested_ops.iter().any(|op| granted_ops.contains(op));
+
+        if !has_matching_op {
+            return Err(AuthorizationError::Unauthorized(
+                "Capability does not grant any of the requested operations".to_string(),
+            ));
+        }
 
         Ok(())
     }
@@ -212,9 +235,9 @@ impl OkapiCapability {
     /// Check if capability has a specific operation
     pub fn has_operation(&self, operation: OkapiOperation) -> bool {
         self.macaroon
-            .get_caveat_data("operation")
-            .map(|data| data == operation.to_string())
-            .unwrap_or(false)
+            .caveats
+            .iter()
+            .any(|c| c.caveat_id == "operation" && c.data == operation.to_string())
     }
 
     /// Check if capability is expired
@@ -242,14 +265,69 @@ impl OkapiCapability {
                 key,
             );
 
-        Self {
+Self {
             id: CapabilityId::new(), // New ID for attenuated capability
             issuer: self.issuer,
             holder: self.holder,
             macaroon: attenuated_macaroon,
             template_id: Some(template_id),
             expires_at: self.expires_at,
+            visibility: self.visibility,
         }
+    }
+
+    /// Create capability from existing macaroon (for deserialization)
+    pub fn from_macaroon(
+        macaroon: Macaroon,
+        _operations: Vec<OkapiOperation>,
+        issuer: WebID,
+        holder: WebID,
+        expires_at_timestamp: Option<i64>,
+        template_id: Option<TemplateID>,
+        _visibility_str: &str,
+    ) -> Self {
+        let visibility = Visibility::parse_str(_visibility_str).unwrap_or(Visibility::Private);
+        let expires_at = expires_at_timestamp.and_then(|ts| DateTime::from_timestamp(ts, 0));
+
+        Self {
+            id: CapabilityId::new(),
+            issuer,
+            holder,
+            macaroon,
+            template_id,
+            expires_at,
+            visibility,
+        }
+    }
+
+    /// Get macaroon for serialization
+    pub fn macaroon(&self) -> &Macaroon {
+        &self.macaroon
+    }
+
+    /// Get issuer WebID
+    pub fn issuer(&self) -> WebID {
+        self.issuer
+    }
+
+    /// Get holder/subject WebID
+    pub fn subject(&self) -> WebID {
+        self.holder
+    }
+
+    /// Get template ID
+    pub fn template_id(&self) -> Option<TemplateID> {
+        self.template_id
+    }
+
+    /// Get expiration time
+    pub fn expires_at(&self) -> Option<DateTime<Utc>> {
+        self.expires_at
+    }
+
+    /// Get visibility
+    pub fn visibility(&self) -> Visibility {
+        self.visibility
     }
 
     /// Get operations from macaroon caveats
@@ -321,16 +399,17 @@ mod tests {
     fn test_capability_creation() {
         let key = test_key();
         let holder = WebID::new();
+        let issuer = WebID::new();
 
         let cap = OkapiCapability::new(
             vec![OkapiOperation::Generate, OkapiOperation::Chat],
-            WebID::new(),
+            issuer,
             holder,
             chrono::Duration::days(30),
             &key,
         );
 
-        assert_eq!(cap.issuer, WebID::new());
+        assert_eq!(cap.issuer, issuer);
         assert_eq!(cap.holder, holder);
         assert!(cap.expires_at.is_some());
         assert!(!cap.is_expired());

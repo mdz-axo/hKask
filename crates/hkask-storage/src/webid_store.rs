@@ -1,7 +1,7 @@
 //! WebID Capability Store — SQLite persistence layer
 
-use hkask_ensemble::{OkapiCapability, OkapiOperation, WebID, macaroon::Macaroon};
-use hkask_types::{TemplateID, Visibility};
+use hkask_ensemble::{OkapiCapability, OkapiOperation, macaroon::Macaroon};
+use hkask_types::{TemplateID, Visibility, WebID};
 use rusqlite::{params, Connection, OptionalExtension};
 use std::path::Path;
 use std::str::FromStr;
@@ -13,8 +13,11 @@ pub enum WebIDStoreError {
     #[error("Database error: {0}")]
     Database(#[from] rusqlite::Error),
 
-    #[error("Serialization error: {0}")]
-    Serialization(#[from] bincode::Error),
+    #[error("Bincode serialization error: {0}")]
+    Bincode(#[from] bincode::Error),
+
+    #[error("JSON serialization error: {0}")]
+    Json(#[from] serde_json::Error),
 
     #[error("WebID not found: {0}")]
     WebIDNotFound(String),
@@ -46,7 +49,7 @@ pub struct StoredCapability {
 impl StoredCapability {
     pub fn from_capability(cap: &OkapiCapability) -> Result<Self, WebIDStoreError> {
         let macaroon = cap.macaroon();
-        let macaroon_bytes = bincode::serialize(macaroon).map_err(|e| WebIDStoreError::Serialization(e))?;
+        let macaroon_bytes = bincode::serialize(macaroon).map_err(|e| WebIDStoreError::Bincode(e))?;
         let operations = cap.macaroon.caveats
             .iter()
             .filter(|c| c.caveat_id == "operation")
@@ -60,14 +63,14 @@ impl StoredCapability {
             subject: cap.subject().to_string(),
             expires_at: cap.expires_at().map(|dt| dt.timestamp()),
             template_id: cap.template_id().map(|t| t.to_string()),
-            visibility: cap.visibility().as_str().to_string(),
+            visibility: "private".to_string(),
         })
     }
 
     pub fn to_capability(&self) -> Result<OkapiCapability, WebIDStoreError> {
         let macaroon_bytes = hex::decode(&self.macaroon_hex)?;
         let macaroon: Macaroon = bincode::deserialize(&macaroon_bytes)
-            .map_err(|e| WebIDStoreError::Serialization(e))?;
+            .map_err(|e| WebIDStoreError::Bincode(e))?;
 
         let operations = self
             .operations
@@ -76,7 +79,7 @@ impl StoredCapability {
             .collect();
 
         let issuer = WebID::from_string(&self.issuer);
-        let subject = WebID::from_string(&self.subject);
+        let holder = WebID::from_string(&self.subject);
         let template_id = self
             .template_id
             .as_ref()
@@ -86,7 +89,7 @@ impl StoredCapability {
             macaroon,
             operations,
             issuer,
-            subject,
+            holder,
             self.expires_at,
             template_id,
             &self.visibility,
@@ -171,7 +174,8 @@ impl WebIDStore {
                 let last_used_at: Option<i64> = row.get(3)?;
                 let active: i32 = row.get(4)?;
 
-                let capabilities: Vec<StoredCapability> = serde_json::from_str(&capabilities_json)?;
+                let capabilities: Vec<StoredCapability> = serde_json::from_str(&capabilities_json)
+                    .map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))?;
 
                 Ok(StoredWebIDEntry {
                     webid,
@@ -206,7 +210,8 @@ impl WebIDStore {
                 let last_used_at: Option<i64> = row.get(3)?;
                 let active: i32 = row.get(4)?;
 
-                let capabilities: Vec<StoredCapability> = serde_json::from_str(&capabilities_json)?;
+                let capabilities: Vec<StoredCapability> = serde_json::from_str(&capabilities_json)
+                    .map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))?;
 
                 Ok(StoredWebIDEntry {
                     webid,

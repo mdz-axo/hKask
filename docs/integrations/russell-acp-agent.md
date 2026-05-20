@@ -126,28 +126,43 @@ POST http://127.0.0.1:11435/api/generate
 
 ## Authentication
 
-All requests are authenticated:
+All requests are authenticated with **Macaroons**:
 
 | Layer | Authentication |
 |-------|---------------|
-| Russell → hKask | MCP protocol auth (capability tokens) |
-| hKask → Okapi | API key or JWT token (multi-tenant tracking) |
+| Russell → hKask | Macaroon with skill caveat |
+| hKask → Okapi | Macaroon with discharge (delegated access) |
+
+### Macaroon Structure
+
+```
+Russell Macaroon:
+  iid: russell-prod-1
+  skill: evolution-watcher
+  before: 2026-05-21T00:00:00Z
+  third_party: okapi-access
+
+Discharge Macaroon (from hKask MCP):
+  okapi_access: true
+  models: [qwen3:8b, qwen3:70b]
+  before: 2026-05-20T12:00:00Z
+```
 
 ### hKask → Okapi Auth
 
-hKask includes authentication in all requests to Okapi:
+hKask includes bound macaroon in all requests to Okapi:
 
 ```http
 POST /api/generate
-Authorization: Bearer okapi_sk_abc123...
-# OR for JWT:
-Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+Authorization: Bearer <primary-macaroon>
+X-Macaroon-Discharge: <discharge-macaroon>
 ```
 
 This enables Okapi to:
-- Track per-client usage and quotas
-- Audit requests by hKask instance
+- Track per-client usage and quotas (by `iid` caveat)
+- Audit requests with full caveat context
 - Support multiple hKask instances per Okapi deployment
+- Enforce capability isolation (per-skill macaroons)
 
 ## Observability
 

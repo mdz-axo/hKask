@@ -94,9 +94,8 @@ pub struct TemplateResolverStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ports::{RegistryEntry, RegistryIndex, TemplateType};
-    use hkask_types::TemplateType as Type;
-    use std::path::Path;
+    use crate::ports::{RegistryEntry, RegistryIndex};
+    use hkask_types::TemplateType;
 
     struct MockRegistry {
         entries: HashMap<String, RegistryEntry>,
@@ -122,16 +121,12 @@ mod tests {
                 .ok_or_else(|| TemplateError::NotFound(id.to_string()))
         }
 
-        fn list(&self, _template_type: Option<Type>) -> Vec<RegistryEntry> {
+        fn list(&self, _template_type: Option<TemplateType>) -> Vec<RegistryEntry> {
             self.entries.values().cloned().collect()
         }
 
-        fn search_by_lexicon(&self, _term: &str) -> Vec<RegistryEntry> {
-            vec![]
-        }
-
-        fn exists(&self, id: &str) -> bool {
-            self.entries.contains_key(id)
+        fn bootstrap_manifest(&self) -> Option<crate::ports::ProcessManifest> {
+            None
         }
     }
 
@@ -140,7 +135,7 @@ mod tests {
         let mut registry = MockRegistry::new();
         registry.add(RegistryEntry {
             id: "test/template".to_string(),
-            template_type: Type::Prompt,
+            template_type: TemplateType::Prompt,
             lexicon_terms: vec!["test".to_string()],
             description: "Test template".to_string(),
             source_path: "/path/to/template.jinja2".to_string(),
@@ -162,16 +157,13 @@ mod tests {
         let mut registry = MockRegistry::new();
         registry.add(RegistryEntry {
             id: "test/template".to_string(),
-            template_type: Type::Prompt,
+            template_type: TemplateType::Prompt,
             lexicon_terms: vec![],
             description: "Test".to_string(),
             source_path: "/path/to/template.jinja2".to_string(),
         });
 
-        let mut resolver = TemplateResolver::with_ttl(
-            MockRegistry::new(),
-            Duration::from_millis(100),
-        );
+        let mut resolver = TemplateResolver::new(registry).with_ttl(Duration::from_millis(100));
 
         // First lookup
         resolver.resolve("test/template").unwrap();
@@ -189,14 +181,14 @@ mod tests {
         let mut registry = MockRegistry::new();
         registry.add(RegistryEntry {
             id: "test/template1".to_string(),
-            template_type: Type::Prompt,
+            template_type: TemplateType::Prompt,
             lexicon_terms: vec![],
             description: "Test".to_string(),
             source_path: "/path/to/template1.jinja2".to_string(),
         });
         registry.add(RegistryEntry {
             id: "test/template2".to_string(),
-            template_type: Type::Prompt,
+            template_type: TemplateType::Prompt,
             lexicon_terms: vec![],
             description: "Test".to_string(),
             source_path: "/path/to/template2.jinja2".to_string(),
@@ -219,7 +211,7 @@ mod tests {
         let mut registry = MockRegistry::new();
         registry.add(RegistryEntry {
             id: "test/template".to_string(),
-            template_type: Type::Prompt,
+            template_type: TemplateType::Prompt,
             lexicon_terms: vec![],
             description: "Test".to_string(),
             source_path: "/path/to/template.jinja2".to_string(),

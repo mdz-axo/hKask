@@ -25,7 +25,7 @@ steps:
     description: >
       Render extraction template with document content and schema.
     renderer: minijinja
-    template_ref: registry/registries/mcp/doc_extract
+    template_ref: mcp/doc_extract
     model_tier: null
     mcp: null
     energy_cap: 1000
@@ -81,13 +81,17 @@ ocap:
   required_capabilities:
     - resource: template
       action: render
+      template_id: mcp/doc_extract
     - resource: document
       action: extract
+      template_id: mcp/doc_extract
     - resource: cns
       action: emit
+      template_id: mcp/doc_extract
   delegation_chain_required: true
   signature_algorithm: ed25519
   capability_expiry_seconds: 3600
+  template_scoped: true
 
 # CNS Monitoring
 cns:

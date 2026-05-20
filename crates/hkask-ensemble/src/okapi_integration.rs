@@ -58,6 +58,56 @@ impl OkapiIntegration {
         &self.capability
     }
 
+    /// Verify OCAP for generate operation
+    pub async fn verify_generate_ocap(
+        &self,
+        requester: WebID,
+    ) -> Result<(), OkapiIntegrationError> {
+        use crate::capability::AuthorizationError;
+
+        // Check if requester has generate capability
+        let key = [0x42; 32]; // TODO: Load from secure keystore
+        if let Err(e) = self.capability.verify(&key, &[crate::OkapiOperation::Generate]) {
+            return Err(OkapiIntegrationError::CapabilityError(format!(
+                "Capability verification failed: {:?}",
+                e
+            )));
+        }
+
+        // Check if capability holder matches requester
+        if self.capability.holder != requester {
+            return Err(OkapiIntegrationError::CapabilityError(
+                "Capability holder does not match requester".to_string()
+            ));
+        }
+
+        Ok(())
+    }
+
+    /// Verify OCAP for chat operation
+    pub async fn verify_chat_ocap(
+        &self,
+        requester: WebID,
+    ) -> Result<(), OkapiIntegrationError> {
+        use crate::capability::AuthorizationError;
+
+        let key = [0x42; 32];
+        if let Err(e) = self.capability.verify(&key, &[crate::OkapiOperation::Chat]) {
+            return Err(OkapiIntegrationError::CapabilityError(format!(
+                "Capability verification failed: {:?}",
+                e
+            )));
+        }
+
+        if self.capability.holder != requester {
+            return Err(OkapiIntegrationError::CapabilityError(
+                "Capability holder does not match requester".to_string()
+            ));
+        }
+
+        Ok(())
+    }
+
     /// Start metrics translation to CNS
     #[instrument(skip(self), fields(okapi_url = %self.base_url))]
     pub async fn start_metrics_translation(&self) -> Result<(), OkapiIntegrationError> {

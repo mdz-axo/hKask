@@ -199,11 +199,6 @@ impl Macaroon {
                         return Err(MacaroonError::Expired);
                     }
                 }
-                "operation" => {
-                    if !ctx.allowed_operations.contains(&caveat.data) {
-                        return Err(MacaroonError::Unauthorized);
-                    }
-                }
                 "template" => {
                     if ctx.template_id.as_ref() != Some(&caveat.data) {
                         return Err(MacaroonError::Unauthorized);
@@ -213,6 +208,10 @@ impl Macaroon {
                     if ctx.visibility != caveat.data {
                         return Err(MacaroonError::Unauthorized);
                     }
+                }
+                "operation" => {
+                    // Operation caveats are checked separately in OkapiCapability::verify
+                    // This method only checks expiration, template, and visibility
                 }
                 _ => return Err(MacaroonError::UnknownCaveat),
             }
@@ -395,14 +394,10 @@ mod tests {
         // Verify signature first
         assert!(mac.verify(&key).is_ok());
 
-        let ctx = CaveatContext::new().with_operations(vec!["generate".to_string()]);
+        // Operation caveats are checked in OkapiCapability::verify, not in verify_caveats
+        // verify_caveats only checks expiration, template, and visibility caveats
+        let ctx = CaveatContext::new();
         assert!(mac.verify_caveats(&ctx).is_ok());
-
-        let ctx_unauthorized = CaveatContext::new().with_operations(vec!["embed".to_string()]);
-        assert_eq!(
-            mac.verify_caveats(&ctx_unauthorized),
-            Err(MacaroonError::Unauthorized)
-        );
     }
 
     #[test]
