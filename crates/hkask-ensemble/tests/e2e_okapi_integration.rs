@@ -8,7 +8,7 @@ mod e2e_tests {
     use hkask_ensemble::{
         adapters::{OkapiCapabilityFetcher, OkapiHttpClient},
         capability::{default_system_capability, OkapiCapability},
-        ports::{InferenceClient, MetricsSource},
+        ports::{CapabilityProvider, InferenceClient, MetricsSource},
         GenerateOptions, GenerateRequest,
     };
 

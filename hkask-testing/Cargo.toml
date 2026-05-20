@@ -23,7 +23,13 @@ tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 tempfile.workspace = true
+async-trait.workspace = true
+rand = "0.9"
 
 [[test]]
 name = "integration_tests"
 path = "integration-tests/mod.rs"
+
+[[test]]
+name = "chaos_tests"
+path = "integration-tests/chaos_tests.rs"

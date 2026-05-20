@@ -5,3 +5,6 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc 551e461e19699650617a6080e56f9919d1758ab76e78fe21de81c7793ebb8e3b # shrinks to input = "{{config}}"
+cc 8c38ddd67fe8f9257c11ee34bd5c4063ff93895e1f1c052da8a339c51e76967c # shrinks to path = "/."
+cc 1a3198636caf607706b9c28ac51df98bb15d04a163d67ce8c425a2fa60294741 # shrinks to path = "/A"
+cc 93b99f0d0615244a5f24808531f48b03d1a48af1d52062743805d8b3113d82b5 # shrinks to input = "{{config}}"

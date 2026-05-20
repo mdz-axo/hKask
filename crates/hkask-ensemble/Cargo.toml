@@ -17,3 +17,6 @@ reqwest.workspace = true
 async-trait.workspace = true
 chrono.workspace = true
 uuid.workspace = true
+
+[dev-dependencies]
+hkask-templates = { path = "../hkask-templates" }

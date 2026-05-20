@@ -2511,6 +2511,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "hkask-cns",
+ "hkask-templates",
  "hkask-types",
  "reqwest",
  "serde",
@@ -2765,6 +2766,7 @@ dependencies = [
 name = "hkask-testing"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "hkask-agents",
  "hkask-cns",
  "hkask-ensemble",
@@ -2774,6 +2776,7 @@ dependencies = [
  "hkask-storage",
  "hkask-templates",
  "hkask-types",
+ "rand 0.9.4",
  "serde",
  "serde_json",
  "serde_yaml",

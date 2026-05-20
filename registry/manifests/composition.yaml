@@ -1,0 +1,111 @@
+# File: registry/manifests/composition.yaml
+# Answer Composition Process Manifest
+# ℏKask v0.21.0 — Planck's Constant of Agent Systems
+
+manifest:
+  id: composition
+  name: Answer Composition
+  description: >
+    Synthesize final answer from cycle-derived facts.
+    Supplements with LLM knowledge only when facts are insufficient.
+  version: 0.21.0
+  editor: curator-or-human-admin
+  visibility: Shared
+
+# Energy Budget Configuration
+energy:
+  cap: 8000
+  cost_per_token: 0.25
+  alert_threshold: 0.8
+  hard_limit: true
+
+# Process Steps
+steps:
+  - ordinal: 1
+    action: populate
+    description: >
+      Render answer composition template with derived facts.
+      Synthesize concise answer grounded in cycle evidence.
+    renderer: minijinja
+    template_ref: registry/registries/composition/answer_composition
+    model_tier: balanced
+    mcp: hkask-mcp-inference
+    energy_cap: 4096
+    timeout_seconds: 30
+    output_schema:
+      answer: string
+
+  - ordinal: 2
+    action: validate
+    description: >
+      Validate answer contains required elements.
+      Check [LLM] markers are present for supplemental content.
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: hkask-mcp-storage
+    energy_cap: 500
+    timeout_seconds: 5
+    validation_rules:
+      - answer_non_empty
+      - llm_marker_check
+      - fact_grounding_check
+    output_schema:
+      validated: boolean
+      error_reason: string|null
+
+  - ordinal: 3
+    action: feedback
+    description: >
+      Emit outcome to CNS for quality tracking.
+      Record answer completeness and user satisfaction signals.
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: hkask-cns
+    energy_cap: 500
+    timeout_seconds: 5
+    feedback:
+      variety_delta: integer
+      completeness_score: float
+    output_schema:
+      cns_event_id: string
+      outcome_recorded: boolean
+
+# Error Handling
+error_handling:
+  on_energy_exceeded: abort
+  on_timeout: retry
+  max_retries: 2
+  retry_backoff_seconds: 1
+  on_validation_failure: abort
+
+# OCAP Configuration
+ocap:
+  required_capabilities:
+    - resource: template
+      action: render
+    - resource: manifest
+      action: execute
+    - resource: cns
+      action: emit
+  delegation_chain_required: true
+  signature_algorithm: ed25519
+  capability_expiry_seconds: 3600
+
+# CNS Monitoring
+cns:
+  emit_spans: true
+  span_namespace: cns.prompt
+  variety_monitoring: true
+  algedonic_threshold: 100
+  escalation_target: Curator
+
+# Audit Trail
+audit:
+  enabled: true
+  log_level: info
+  include_input: true
+  include_output: true
+  include_energy_cost: true
+  include_cns_events: true

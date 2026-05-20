@@ -9,6 +9,7 @@ pub mod deliberation;
 pub mod multi_okapi;
 pub mod okapi_integration;
 pub mod ports;
+pub mod resilience;
 
 pub use adapters::{
     MockCapabilityProvider, MockInferenceClient, MockMetricsSource, OkapiAdapterError,
@@ -30,4 +31,8 @@ pub use okapi_integration::{OkapiIntegration, OkapiIntegrationError};
 pub use ports::{
     CapabilityProvider, GenerateRequest, GenerateOptions, GenerateResponse, InferenceClient,
     MetricsSource, OkapiCapabilities, OkapiMetrics, TokenProb, TokenProbability,
+};
+pub use resilience::{
+    CircuitBreaker, CircuitBreakerConfig, CircuitState, CircuitBreakerStats,
+    RetryConfig, RetryError, ResilientOkapiClient, retry_with_backoff,
 };

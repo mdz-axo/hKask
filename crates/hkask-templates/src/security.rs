@@ -27,18 +27,18 @@ use serde_json::json;
 use std::collections::HashSet;
 use std::sync::Arc;
 
-/// Jinja2 dangerous patterns to block
+/// Jinja2 dangerous patterns to block (base patterns without whitespace variations)
 const JINJA2_DANGEROUS_PATTERNS: &[&str] = &[
     "{% set %}",
     "{% import %}",
     "{% from %}",
     "{% include %}",
-    "{{ config }}",
-    "{{ self }}",
-    "{{ globals }}",
-    "{{ dict.__mro__ }}",
-    "{{ ''.__class__ }}",
-    "{{ ().__class__ }}",
+    "config",
+    "self",
+    "globals",
+    "dict.__mro__",
+    "''.__class__",
+    "().__class__",
 ];
 
 /// Path traversal patterns to block
@@ -146,6 +146,9 @@ impl SecurityAdapter {
 
     /// Normalize path by removing redundant components
     fn normalize_path(&self, path: &str) -> String {
+        // Check if path is absolute before normalization
+        let is_absolute = path.starts_with('/') || path.starts_with('\\');
+        
         // Remove redundant slashes (replace // with /)
         let mut normalized = path.replace("//", "/");
         while normalized.contains("//") {
@@ -157,26 +160,46 @@ impl SecurityAdapter {
             normalized = normalized.trim_end_matches('/').to_string();
         }
         
-        // Remove . components
+        // Remove . components and empty parts
         let parts: Vec<&str> = normalized.split('/').collect();
         let mut result = Vec::new();
         for part in parts {
-            if part != "." {
+            if part != "." && !part.is_empty() {
                 result.push(part);
             }
         }
-        result.join("/")
+        
+        let normalized = result.join("/");
+        
+        // If original was absolute, preserve that information
+        if is_absolute && normalized.is_empty() {
+            "/".to_string()
+        } else if is_absolute && !normalized.starts_with('/') {
+            format!("/{}", normalized)
+        } else {
+            normalized
+        }
     }
 
     /// Sanitize Jinja2 input (prevent injection attacks)
     pub fn sanitize_jinja2_input(&self, input: &str) -> String {
         let mut sanitized = input.to_string();
 
-        // Block dangerous patterns
+        // Block dangerous patterns (with flexible whitespace matching)
         for pattern in JINJA2_DANGEROUS_PATTERNS {
-            if sanitized.contains(pattern) {
-                // Replace with safe placeholder
-                sanitized = sanitized.replace(pattern, "{{ BLOCKED }}");
+            // Match pattern with or without {{ }} wrapper and flexible whitespace
+            let patterns_to_check = vec![
+                format!("{{{{{}}}}}", pattern),           // {{config}}
+                format!("{{{{ {} }}}}", pattern),         // {{ config }}
+                format!("{{{{\t{}\t}}}}", pattern),       // {{	tab	}}
+                format!("{{{{\n{}\n}}}}", pattern),       // {{\nconfig\n}}
+                pattern.to_string(),                       // Direct pattern match
+            ];
+            
+            for p in patterns_to_check {
+                if sanitized.contains(&p) {
+                    sanitized = sanitized.replace(&p, "{{ BLOCKED }}");
+                }
             }
         }
 

@@ -266,7 +266,7 @@ where
     }
 
     /// Execute operation with circuit breaker and retry
-    pub async fn execute<F, Fut, T>(&self, operation: F) -> Result<T, RetryError>
+    pub async fn execute<F, Fut, T>(&self, mut operation: F) -> Result<T, RetryError>
     where
         F: FnMut(C) -> Fut,
         Fut: std::future::Future<Output = Result<T, RetryError>>,
@@ -278,7 +278,7 @@ where
         retry_with_backoff(retry_config, || {
             let cb = Arc::clone(&cb);
             let inner = inner.clone();
-            let mut op = operation(inner);
+            let op = operation(inner);
 
             async move {
                 if !cb.allow_request().await {

@@ -101,6 +101,7 @@ impl HealthStatus {
 }
 
 /// Health checker for Okapi instances
+#[derive(Clone)]
 pub struct HealthChecker {
     check_interval: Duration,
     timeout: Duration,
