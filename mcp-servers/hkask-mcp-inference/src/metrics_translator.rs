@@ -173,7 +173,7 @@ mod tests {
     async fn test_delta_only_emission() {
         use hkask_ensemble::ports::OkapiMetrics;
 
-        let (tx, mut rx) = mpsc::channel(100);
+        let (tx, _rx) = mpsc::channel(100);
         let webid = WebID::new();
 
         let metrics = vec![

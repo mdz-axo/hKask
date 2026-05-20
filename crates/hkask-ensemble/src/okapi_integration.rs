@@ -371,6 +371,6 @@ mod tests {
             cns_runtime,
         );
 
-        assert_eq!(integration.capability().id, capability.id);
+        assert_eq!(integration.capability().id(), capability.id());
     }
 }

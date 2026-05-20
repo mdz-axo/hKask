@@ -164,7 +164,6 @@ pub enum CapabilityAwareValidationError {
 mod tests {
     use super::*;
     use crate::contract_validator::OkapiRequirements;
-    use hkask_ensemble::ports::OkapiCapabilities as EnsembleOkapiCapabilities;
 
     #[test]
     fn test_capability_aware_validator_valid_template() {

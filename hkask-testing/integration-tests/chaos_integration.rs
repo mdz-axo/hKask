@@ -13,7 +13,6 @@ use hkask_ensemble::{
 use std::env;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::RwLock;
 use tracing::{error, info, warn};
 
 /// Check if E2E tests are enabled

@@ -271,8 +271,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_high_confidence_no_escalation() {
-        use crate::adapters::OkapiAdapterError;
-
         let config = ConfidenceConfig::default();
         let client = MockInferenceClient::new(vec![Ok(GenerateResponse {
             response: "Paris".to_string(),
@@ -309,8 +307,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_low_confidence_escalation() {
-        use crate::adapters::OkapiAdapterError;
-
         let config = ConfidenceConfig::default();
         let client = MockInferenceClient::new(vec![
             Ok(GenerateResponse {

@@ -50,13 +50,7 @@ impl StoredCapability {
     pub fn from_capability(cap: &OkapiCapability) -> Result<Self, WebIDStoreError> {
         let macaroon = cap.macaroon();
         let macaroon_bytes = bincode::serialize(macaroon).map_err(WebIDStoreError::Bincode)?;
-        let operations = cap
-            .macaroon
-            .caveats
-            .iter()
-            .filter(|c| c.caveat_id == "operation")
-            .map(|c| c.data.clone())
-            .collect();
+        let operations = cap.granted_operations();
 
         Ok(Self {
             macaroon_hex: hex::encode(macaroon_bytes),
@@ -330,7 +324,7 @@ mod tests {
     fn test_list_active() {
         let store = WebIDStore::in_memory().unwrap();
 
-        for i in 0..3 {
+        for _ in 0..3 {
             let webid = WebID::new();
             let entry = StoredWebIDEntry {
                 webid: webid.to_string(),

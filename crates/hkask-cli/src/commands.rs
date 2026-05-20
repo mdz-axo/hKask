@@ -119,8 +119,6 @@ pub fn calibrate_all_energy_caps(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_list_templates() {
         // Test would require a mock registry

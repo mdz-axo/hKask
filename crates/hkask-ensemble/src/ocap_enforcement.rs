@@ -9,6 +9,22 @@ use hkask_types::{Visibility, WebID};
 use std::sync::Arc;
 use tracing::{debug, info, warn};
 
+/// Port for capability queries (hexagonal architecture)
+#[async_trait::async_trait]
+pub trait CapabilityQueryPort: Send + Sync {
+    /// Check if WebID has capability for operation
+    async fn has_capability(&self, webid: WebID, operation: OkapiOperation) -> bool;
+
+    /// Get all capabilities for WebID
+    async fn get_capabilities(&self, webid: WebID) -> Option<Vec<OkapiCapability>>;
+}
+
+/// Port for security metrics (hexagonal architecture)
+pub trait SecurityMetricPort: Send + Sync {
+    /// Record OCAP enforcement metric
+    fn record_ocap_event(&self, granted: bool, requester: &str, operation: &str, error: Option<&str>);
+}
+
 /// OCAP enforcement result
 #[derive(Debug, Clone)]
 pub struct OcapEnforcementResult {
@@ -61,26 +77,26 @@ impl OcapContext {
 /// OCAP enforcement engine with CNS metrics
 pub struct OcapEnforcer {
     registry: Arc<WebIDCapabilityRegistry>,
-    cns_runtime: Option<Arc<hkask_cns::CnsRuntime>>,
+    metrics: Option<Arc<dyn SecurityMetricPort>>,
 }
 
 impl OcapEnforcer {
-    /// Create new enforcer without CNS
+    /// Create new enforcer without metrics
     pub fn new(registry: Arc<WebIDCapabilityRegistry>) -> Self {
         Self {
             registry,
-            cns_runtime: None,
+            metrics: None,
         }
     }
 
-    /// Create new enforcer with CNS runtime for metrics
-    pub fn with_cns(
+    /// Create new enforcer with metrics adapter
+    pub fn with_metrics(
         registry: Arc<WebIDCapabilityRegistry>,
-        cns_runtime: Arc<hkask_cns::CnsRuntime>,
+        metrics: Arc<dyn SecurityMetricPort>,
     ) -> Self {
         Self {
             registry,
-            cns_runtime: Some(cns_runtime),
+            metrics: Some(metrics),
         }
     }
 
@@ -116,7 +132,7 @@ impl OcapEnforcer {
                     context.operation
                 )),
             };
-            self.record_ocap_metric(&result).await;
+            self.record_ocap_metric(&result);
             return Ok(result);
         }
 
@@ -172,26 +188,15 @@ impl OcapEnforcer {
         })
     }
 
-    /// Record OCAP enforcement metric in CNS
-    async fn record_ocap_metric(&self, result: &OcapEnforcementResult) {
-        if let Some(_cns) = &self.cns_runtime {
-            let span = if result.granted {
-                hkask_types::Span::Connector("cns.ocap.granted".to_string())
-            } else {
-                hkask_types::Span::Connector("cns.ocap.denied".to_string())
-            };
-
-            let observation = serde_json::json!({
-                "requester": result.requester.to_string(),
-                "operation": format!("{:?}", result.operation),
-                "granted": result.granted,
-                "error": result.error,
-            });
-
-            // Emit CNS span event
-            let span_emitter = hkask_cns::spans::SpanEmitter::new(result.requester);
-            span_emitter.emit(span, hkask_types::Phase::Observe, observation);
-
+    /// Record OCAP enforcement metric
+    fn record_ocap_metric(&self, result: &OcapEnforcementResult) {
+        if let Some(metrics) = &self.metrics {
+            metrics.record_ocap_event(
+                result.granted,
+                &result.requester.to_string(),
+                &format!("{:?}", result.operation),
+                result.error.as_deref(),
+            );
             info!(
                 target: "cns",
                 granted = result.granted,
@@ -257,6 +262,7 @@ pub async fn enforce_okapi_ocap(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::webid_registry::WebIDCapabilityRegistry;
     use chrono::Duration;
 
     fn test_key() -> [u8; 32] {
@@ -307,15 +313,13 @@ mod tests {
         let enforcer = OcapEnforcer::new(Arc::clone(&registry));
 
         let webid = WebID::new();
-        let mut capability = OkapiCapability::new(
+        let capability = OkapiCapability::new(
             vec![OkapiOperation::Generate],
             WebID::new(),
             webid,
             Duration::days(30),
             &test_key(),
-        );
-        // Set capability to private
-        capability.visibility = Visibility::Private;
+        ).with_visibility(Visibility::Private);
 
         registry.register(webid, vec![capability]).await.unwrap();
 

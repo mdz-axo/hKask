@@ -341,8 +341,6 @@ mod tests {
 
     #[test]
     fn test_file_system_repository_rate_limiting() {
-        use crate::rate_limiter::RateLimiter;
-
         let temp_dir = TempDir::new().unwrap();
         // Create repo with very low rate limit (2 tokens, no refill for test duration)
         let repo =

@@ -8,7 +8,6 @@ mod e2e_tests {
     use hkask_ensemble::{
         GenerateOptions, GenerateRequest,
         adapters::{OkapiCapabilityFetcher, OkapiHttpClient},
-        capability::{OkapiCapability, default_system_capability},
         ports::{CapabilityProvider, InferenceClient, MetricsSource},
     };
 
@@ -209,7 +208,7 @@ mod e2e_tests {
         let integration = OkapiIntegration::new(okapi_base_url(), cns_runtime);
 
         println!("Okapi Integration created: {}", integration.base_url());
-        println!("Capability: {:?}", integration.capability().id);
+        println!("Capability: {:?}", integration.capability().id());
 
         // Note: start_metrics_translation() will run until stream ends
         // For testing, we just verify creation works

@@ -181,7 +181,6 @@ impl McpDispatcher {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_cns::spans::SpanEmitter;
 
     struct MockCns;
     impl CnsPort for MockCns {
@@ -254,7 +253,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_mcp_dispatcher_rate_limit() {
-        use hkask_cns::rate_limit::{RateLimitConfig, RateLimiter};
+        use hkask_cns::rate_limit::RateLimitConfig;
 
         let runtime = McpRuntime::new();
         let mut dispatcher = McpDispatcher::new(runtime, b"test-secret");

@@ -9,6 +9,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::capability::{OkapiCapability, OkapiOperation};
+use crate::ocap_enforcement::CapabilityQueryPort;
 
 /// WebID-to-capability mapping entry
 #[derive(Debug, Clone)]
@@ -401,5 +402,23 @@ mod tests {
                 .has_capability(webid, OkapiOperation::Generate)
                 .await
         );
+    }
+}
+
+#[async_trait::async_trait]
+impl CapabilityQueryPort for WebIDCapabilityRegistry {
+    async fn has_capability(&self, webid: WebID, operation: OkapiOperation) -> bool {
+        // Call inherent method explicitly
+        let entries = self.entries.read().await;
+        entries
+            .get(&webid)
+            .map(|entry| entry.has_capability(operation))
+            .unwrap_or(false)
+    }
+
+    async fn get_capabilities(&self, webid: WebID) -> Option<Vec<OkapiCapability>> {
+        // Call inherent method explicitly
+        let entries = self.entries.read().await;
+        entries.get(&webid).map(|entry| entry.capabilities.clone())
     }
 }

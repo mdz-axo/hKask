@@ -171,6 +171,7 @@ impl<R> RateLimitedRepository<R> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
     use std::thread;
     use std::time::Duration;
 
@@ -231,7 +232,7 @@ mod tests {
         let mut handles = vec![];
 
         // Spawn 20 threads trying to acquire tokens concurrently
-        for i in 0..20 {
+        for _ in 0..20 {
             let limiter = Arc::clone(&limiter);
             handles.push(thread::spawn(move || {
                 limiter.try_acquire()
@@ -266,18 +267,6 @@ mod tests {
         }
         assert_eq!(limiter.tokens_available(), 0);
     }
-}
-
-    #[test]
-    fn test_rate_limiter_max_cap() {
-        let limiter = RateLimiter::new(5, 100);
-
-        // Wait for potential over-refill
-        thread::sleep(Duration::from_millis(100));
-
-        // Should still be capped at max
-        assert_eq!(limiter.tokens_available(), 5);
-    }
 
     #[test]
     fn test_rate_limit_exceeded_error() {
@@ -286,5 +275,62 @@ mod tests {
         assert_eq!(err.message, "test error");
         assert_eq!(err.retry_after, Duration::from_secs(1));
         assert!(err.to_string().contains("Rate limit exceeded"));
+    }
+
+    #[test]
+    fn test_rate_limiter_concurrent_refill() {
+        let limiter = Arc::new(RateLimiter::new(5, 50));
+        let mut handles = vec![];
+
+        // Exhaust tokens
+        for _ in 0..5 {
+            limiter.try_acquire();
+        }
+        assert_eq!(limiter.tokens_available(), 0);
+
+        // Spawn threads that wait and try to acquire again
+        for i in 0..5 {
+            let limiter = Arc::clone(&limiter);
+            handles.push(thread::spawn(move || {
+                thread::sleep(Duration::from_millis(60 + i * 10));
+                limiter.try_acquire()
+            }));
+        }
+
+        let mut success_count = 0;
+        for handle in handles {
+            if handle.join().unwrap() {
+                success_count += 1;
+            }
+        }
+
+        assert_eq!(success_count, 5, "All threads should succeed after refill");
+    }
+
+    #[test]
+    fn test_rate_limiter_zero_burst() {
+        let limiter = RateLimiter::new(0, 10);
+
+        assert!(!limiter.try_acquire());
+        assert_eq!(limiter.tokens_available(), 0);
+
+        thread::sleep(Duration::from_millis(20));
+        assert_eq!(limiter.tokens_available(), 0);
+    }
+
+    #[test]
+    fn test_rate_limiter_high_refill_rate() {
+        let limiter = RateLimiter::new(10, 10);
+
+        for _ in 0..10 {
+            limiter.try_acquire();
+        }
+        assert_eq!(limiter.tokens_available(), 0);
+
+        thread::sleep(Duration::from_millis(100));
+        assert_eq!(limiter.tokens_available(), 10);
+
+        thread::sleep(Duration::from_millis(100));
+        assert_eq!(limiter.tokens_available(), 10);
     }
 }

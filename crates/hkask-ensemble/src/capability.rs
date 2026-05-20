@@ -7,7 +7,6 @@ use chrono::{DateTime, Utc};
 use hkask_types::{TemplateID, Visibility, WebID};
 use hkask_keystore::KeyRing;
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
 use thiserror::Error;
 
 use crate::macaroon::{Macaroon, MacaroonBuilder, MacaroonError};
@@ -171,10 +170,12 @@ impl OkapiCapability {
         let identifier = format!("{}->{}", issuer, holder);
         let expires_at = Some(Utc::now() + expires_in);
         let expiry_timestamp = (Utc::now() + expires_in).timestamp();
+        let visibility = Visibility::Private;
 
         // Build macaroon with caveats
         let mut builder = MacaroonBuilder::new("hkask-ensemble", &identifier);
         builder = builder.expires_at(expiry_timestamp);
+        builder = builder.with_visibility(visibility.as_str());
 
         for op in &operations {
             builder = builder.allows_operation(&op.to_string());
@@ -188,7 +189,7 @@ impl OkapiCapability {
             holder,
             macaroon,
             template_id: None,
-            visibility: Visibility::Private,
+            visibility,
             expires_at,
         }
     }
@@ -249,11 +250,13 @@ impl OkapiCapability {
             AuthorizationError::MacaroonInvalid(format!("Signature verification failed: {:?}", e))
         })?;
 
-        // Build caveat context with requested operations
+        // Build caveat context with requested operations and visibility
         let requested_ops: Vec<String> = operations.iter().map(|o| o.to_string()).collect();
-        let ctx = crate::macaroon::CaveatContext::new().with_operations(requested_ops.clone());
+        let ctx = crate::macaroon::CaveatContext::new()
+            .with_operations(requested_ops.clone())
+            .with_visibility(self.visibility.as_str().to_string());
 
-        // Verify all caveats (including operations)
+        // Verify all caveats (including operations and visibility)
         self.macaroon.verify_caveats(&ctx).map_err(|e| {
             // Extract granted operations for error message
             let granted_ops: Vec<String> = self
@@ -285,6 +288,16 @@ impl OkapiCapability {
             .caveats
             .iter()
             .any(|c| c.caveat_id == "operation" && c.data == operation.to_string())
+    }
+
+    /// Get all granted operations from this capability
+    pub fn granted_operations(&self) -> Vec<String> {
+        self.macaroon
+            .caveats
+            .iter()
+            .filter(|c| c.caveat_id == "operation")
+            .map(|c| c.data.clone())
+            .collect()
     }
 
     /// Check if capability is expired
@@ -378,6 +391,13 @@ impl OkapiCapability {
     /// Get visibility level
     pub fn visibility(&self) -> Visibility {
         self.visibility
+    }
+
+    /// Create capability with custom visibility (for testing)
+    #[cfg(test)]
+    pub fn with_visibility(mut self, visibility: Visibility) -> Self {
+        self.visibility = visibility;
+        self
     }
 
 
@@ -475,8 +495,9 @@ impl OkapiCapabilityBuilder {
     /// Build capability with key
     pub fn build(self, key: &[u8; 32]) -> OkapiCapability {
         let visibility = self.visibility.unwrap_or(Visibility::Private);
-        let expires_at = Some(Utc::now() + self.expires_in);
-        let expiry_timestamp = expires_at.unwrap().timestamp();
+        let expires_in = self.expires_in;
+        let expires_at = Some(Utc::now() + expires_in);
+        let expiry_timestamp = (Utc::now() + expires_in).timestamp();
 
         let identifier = if let Some(tid) = self.template_id {
             format!("{}->{}->{}", self.issuer, self.holder, tid)
@@ -520,6 +541,7 @@ impl OkapiCapability {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
 
     fn test_key() -> [u8; 32] {
         [0x42; 32]
@@ -636,7 +658,6 @@ mod tests {
 
     #[test]
     fn test_default_system_capability() {
-        let key = test_key();
         let holder = WebID::new();
 
         let cap = default_system_capability(holder, &[0x42; 32]);
@@ -649,7 +670,6 @@ mod tests {
 
     #[test]
     fn test_read_only_capability() {
-        let key = test_key();
         let holder = WebID::new();
 
         let cap = read_only_capability(holder, &[0x42; 32]);
@@ -727,6 +747,94 @@ mod tests {
             assert!(granted.contains(&"generate".to_string()));
         } else {
             panic!("Expected Unauthorized error with requested/granted fields");
+        }
+    }
+
+    #[test]
+    fn test_capability_attenuation_chain_verification() {
+        let key = test_key();
+        let holder = WebID::new();
+        let template1 = TemplateID::new();
+        let template2 = TemplateID::new();
+
+        let cap = OkapiCapability::new(
+            vec![OkapiOperation::Generate, OkapiOperation::Chat],
+            WebID::new(),
+            holder,
+            chrono::Duration::days(30),
+            &key,
+        );
+
+        let attenuated1 = cap.attenuate_for_template(template1, &key);
+        let attenuated2 = attenuated1.attenuate_for_template(template2, &key);
+
+        assert!(attenuated2.verify(&key, &[OkapiOperation::Generate]).is_ok());
+        assert!(attenuated2.verify(&key, &[OkapiOperation::Chat]).is_ok());
+        assert!(attenuated2.verify(&key, &[OkapiOperation::Embed]).is_err());
+
+        assert!(attenuated2.macaroon.has_caveat_type("template"));
+        assert_eq!(attenuated2.template_id(), Some(template2));
+    }
+
+    #[test]
+    fn test_capability_builder_with_visibility() {
+        let key = test_key();
+        let holder = WebID::new();
+        let issuer = WebID::new();
+
+        let cap = OkapiCapability::builder(
+            vec![OkapiOperation::Generate],
+            issuer,
+            holder,
+        )
+        .expires_in(chrono::Duration::days(30))
+        .visibility(Visibility::Public)
+        .build(&key);
+
+        assert_eq!(cap.visibility(), Visibility::Public);
+        assert!(cap.verify(&key, &[OkapiOperation::Generate]).is_ok());
+    }
+
+    #[test]
+    fn test_capability_builder_requires_visibility() {
+        let key = test_key();
+        let holder = WebID::new();
+
+        let cap = OkapiCapability::builder(
+            vec![OkapiOperation::Generate],
+            WebID::new(),
+            holder,
+        )
+        .expires_in(chrono::Duration::days(30))
+        .build(&key);
+
+        assert_eq!(cap.visibility(), Visibility::Private);
+    }
+
+    #[test]
+    fn test_concurrent_capability_verification() {
+        let key = test_key();
+        let holder = WebID::new();
+        let cap = OkapiCapability::new(
+            vec![OkapiOperation::Generate],
+            WebID::new(),
+            holder,
+            chrono::Duration::days(30),
+            &key,
+        );
+
+        let cap = Arc::new(cap);
+        let mut handles = vec![];
+
+        for _ in 0..10 {
+            let cap = Arc::clone(&cap);
+            handles.push(std::thread::spawn(move || {
+                cap.verify(&key, &[OkapiOperation::Generate])
+            }));
+        }
+
+        for handle in handles {
+            assert!(handle.join().unwrap().is_ok());
         }
     }
 }
