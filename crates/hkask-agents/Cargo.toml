@@ -8,6 +8,7 @@ description = "Agent pods, ACP, and bot/replicant management for hKask"
 [dependencies]
 hkask-types = { path = "../hkask-types" }
 hkask-cns = { path = "../hkask-cns" }
+hkask-keystore = { path = "../hkask-keystore" }
 hkask-templates = { path = "../hkask-templates" }
 acp-runtime.workspace = true
 rmcp.workspace = true
@@ -22,3 +23,5 @@ sha2.workspace = true
 hmac.workspace = true
 hex.workspace = true
 uuid.workspace = true
+zeroize.workspace = true
+rand.workspace = true

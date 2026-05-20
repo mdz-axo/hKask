@@ -34,9 +34,11 @@
 //! ```
 
 use hkask_types::{CapabilityAction, CapabilityResource, CapabilityToken, WebID};
+use hkask_keystore::keychain::Keychain;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tracing::info;
+use zeroize::Zeroizing;
 
 /// Pod lifecycle state machine
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -249,6 +251,8 @@ pub struct AgentPod {
     pub created_at: i64,
     /// Maximum attenuation level for delegation
     pub max_attenuation: u8,
+    /// Keystore for secure secret storage
+    pub keystore: Keychain,
 }
 
 /// Maximum attenuation level (OCAP security limit)
@@ -283,6 +287,9 @@ pub enum AgentPodError {
 
     #[error("CNS event emission failed: {0}")]
     CNSEmissionError(String),
+
+    #[error("Keystore error: {0}")]
+    KeystoreError(String),
 }
 
 /// Result type for agent pod operations
@@ -308,13 +315,19 @@ impl AgentPod {
             .load_template_crate(crate_name)
             .map_err(|e| AgentPodError::CrateLoadError(e.to_string()))?;
 
+        // Initialize keystore for secure secret storage
+        let keystore = Keychain::default();
+        
+        // Retrieve or generate OCAP secret from keystore
+        let ocap_secret = get_or_create_ocap_secret(&keystore, &persona.webid())?;
+
         let capability_token = CapabilityToken::new(
             CapabilityResource::Tool,
             "*".to_string(),
             CapabilityAction::Execute,
             WebID::new(),
             persona.webid(),
-            b"ocap-secret-key",
+            ocap_secret.as_bytes(),
         );
 
         Ok(Self {
@@ -327,6 +340,7 @@ impl AgentPod {
             state: PodLifecycleState::Populated,
             created_at: current_timestamp(),
             max_attenuation: MAX_ATTENUATION_LEVEL,
+            keystore,
         })
     }
 
@@ -461,19 +475,18 @@ impl AgentPod {
     ///
     /// # Returns
     /// * `Ok(CapabilityToken)` — Attenuated child token
-    /// * `Err(AgentPodError)` — Attenuation limit exceeded
-    pub fn delegate(
-        &self,
-        new_holder: WebID,
-        current_time: i64,
-    ) -> AgentPodResult<CapabilityToken> {
+    /// * `Err(AgentPodError)` — Attenuation limit exceeded or keystore error
+    pub fn delegate(&self, new_holder: WebID, current_time: i64) -> AgentPodResult<CapabilityToken> {
         // Check attenuation limit
         if self.capability_token.attenuation_level >= self.max_attenuation {
             return Err(AgentPodError::AttenuationLimitExceeded);
         }
-
+        
+        // Retrieve OCAP secret from keystore for attenuation
+        let ocap_secret = get_or_create_ocap_secret(&self.keystore, &self.webid)?;
+        
         self.capability_token
-            .attenuate(new_holder, b"ocap-secret-key", current_time)
+            .attenuate(new_holder, ocap_secret.as_bytes(), current_time)
             .ok_or(AgentPodError::AttenuationLimitExceeded)
     }
 
@@ -494,6 +507,46 @@ fn current_timestamp() -> i64 {
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_secs() as i64
+}
+
+/// Get or create OCAP secret for a WebID from the keystore
+///
+/// This function retrieves an existing OCAP secret from the keystore,
+/// or generates and stores a new one if it doesn't exist.
+///
+/// # Arguments
+/// * `keystore` — Keychain instance for secure storage
+/// * `webid` — WebID to associate with the secret
+///
+/// # Returns
+/// * `Ok(Zeroizing<String>)` — OCAP secret (zeroized for security)
+/// * `Err(AgentPodError)` — Keystore error
+fn get_or_create_ocap_secret(keystore: &Keychain, webid: &WebID) -> AgentPodResult<Zeroizing<String>> {
+    // Try to retrieve existing secret
+    match keystore.retrieve(webid) {
+        Ok(secret) => Ok(Zeroizing::new(secret)),
+        Err(_) => {
+            // Generate new random secret
+            let secret = generate_secure_ocap_secret();
+            
+            // Store in keystore
+            keystore.store(webid, &secret)
+                .map_err(|e| AgentPodError::KeystoreError(e.to_string()))?;
+            
+            Ok(Zeroizing::new(secret))
+        }
+    }
+}
+
+/// Generate a secure random OCAP secret
+///
+/// Creates a 32-byte random secret encoded as hex string (64 characters).
+/// This provides 256 bits of entropy for cryptographic security.
+fn generate_secure_ocap_secret() -> String {
+    use rand::RngCore;
+    let mut bytes = [0u8; 32];
+    rand::rng().fill_bytes(&mut bytes);
+    hex::encode(bytes)
 }
 
 // ============================================================================

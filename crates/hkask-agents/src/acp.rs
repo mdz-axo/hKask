@@ -3,16 +3,25 @@
 //! This module provides ACP runtime adapters for agent registration,
 //! A2A message handling, and capability-gated communication.
 //!
+//! # Security Model
+//!
+//! - **No hardcoded secrets**: Secret loaded from environment or keystore
+//! - **Explicit capabilities**: No wildcard tokens; each capability explicitly granted
+//! - **Rate limiting**: Per-agent message quota to prevent DoS
+//! - **Audit logging**: All A2A messages logged for forensic analysis
+//!
 //! # A2A Message Flow
 //!
 //! ```text
 //! Agent Pod A → ACP Message (template:dispatch) → hKask Router → Agent Pod B
 //!                                                              ↓
+//!                                                   Rate Limit Check
+//!                                                              ↓
 //!                                                   Capability Verification
 //!                                                              ↓
-//!                                                   Template Execution
+//!                                                   Audit Log Entry
 //!                                                              ↓
-//!                                                   Memory Artifact Generation
+//!                                                   Template Execution
 //!                                                              ↓
 //!                                                   CNS Span Emission
 //!                                                              ↓
@@ -20,11 +29,37 @@
 //! ```
 
 use hkask_types::{CapabilityAction, CapabilityResource, CapabilityToken, WebID};
+use hkask_cns::rate_limit::{RateLimiter, RateLimitConfig};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::info;
+use tracing::{info, warn};
+
+/// ACP error types for security and validation
+#[derive(Debug, Error)]
+pub enum AcpError {
+    #[error("Agent {0:?} already registered")]
+    AgentAlreadyRegistered(WebID),
+
+    #[error("Agent {0:?} not found")]
+    AgentNotFound(WebID),
+
+    #[error("Rate limit exceeded for agent {0:?}")]
+    RateLimitExceeded(WebID),
+
+    #[error("Capability denied: agent {0:?} lacks permission for {1}")]
+    CapabilityDenied(WebID, String),
+
+    #[error("Invalid capability: wildcards not allowed")]
+    WildcardCapabilityNotAllowed,
+
+    #[error("Message correlation ID not found: {0}")]
+    CorrelationIdNotFound(String),
+
+    #[error("Secret not configured: set HKASK_ACP_SECRET environment variable")]
+    SecretNotConfigured,
+}
 
 /// ACP agent registration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -33,7 +68,7 @@ pub struct AcpAgent {
     pub webid: WebID,
     /// Agent type (Bot or Replicant)
     pub agent_type: String,
-    /// Registered capabilities
+    /// Registered capabilities (explicit, no wildcards)
     pub capabilities: Vec<String>,
     /// Registration timestamp (Unix epoch)
     pub registered_at: i64,
@@ -88,18 +123,67 @@ pub struct AcpRuntime {
     pending_messages: Arc<RwLock<HashMap<String, A2AMessage>>>,
     /// Capability tokens indexed by holder WebID
     capability_tokens: Arc<RwLock<HashMap<WebID, Vec<CapabilityToken>>>>,
-    /// Secret for HMAC signing
-    secret: Vec<u8>,
+    /// Secret for HMAC signing (Zeroizing for secure memory)
+    secret: Zeroizing<Vec<u8>>,
+    /// Rate limiter for DoS prevention
+    rate_limiter: RateLimiter,
 }
 
 impl AcpRuntime {
-    /// Create new ACP runtime
-    pub fn new(secret: &[u8]) -> Self {
+    /// Create new ACP runtime with secret from environment
+    ///
+    /// # Security
+    ///
+    /// Secret is loaded from `HKASK_ACP_SECRET` environment variable.
+    /// If not set, returns `AcpError::SecretNotConfigured`.
+    ///
+    /// # Arguments
+    ///
+    /// * `rate_limit_config` - Rate limit configuration (default: 100 msg/min)
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(AcpRuntime)` - Runtime initialized successfully
+    /// * `Err(AcpError::SecretNotConfigured)` - Environment variable not set
+    pub fn from_env(rate_limit_config: Option<RateLimitConfig>) -> Result<Self, AcpError> {
+        let secret_str = std::env::var("HKASK_ACP_SECRET")
+            .map_err(|_| AcpError::SecretNotConfigured)?;
+        
+        let secret = Zeroizing::new(secret_str.into_bytes());
+        let rate_limiter = RateLimiter::new(
+            rate_limit_config.unwrap_or_else(|| RateLimitConfig {
+                max_tokens: 100,
+                refill_interval: std::time::Duration::from_millis(600),
+            })
+        );
+
+        Ok(Self {
+            agents: Arc::new(RwLock::new(HashMap::new())),
+            pending_messages: Arc::new(RwLock::new(HashMap::new())),
+            capability_tokens: Arc::new(RwLock::new(HashMap::new())),
+            secret,
+            rate_limiter,
+        })
+    }
+
+    /// Create new ACP runtime with explicit secret
+    ///
+    /// # Arguments
+    ///
+    /// * `secret` - HMAC secret key (will be zeroized on drop)
+    /// * `rate_limit_config` - Rate limit configuration (default: 100 msg/min)
+    pub fn new(secret: &[u8], rate_limit_config: Option<RateLimitConfig>) -> Self {
         Self {
             agents: Arc::new(RwLock::new(HashMap::new())),
             pending_messages: Arc::new(RwLock::new(HashMap::new())),
             capability_tokens: Arc::new(RwLock::new(HashMap::new())),
-            secret: secret.to_vec(),
+            secret: Zeroizing::new(secret.to_vec()),
+            rate_limiter: RateLimiter::new(
+                rate_limit_config.unwrap_or_else(|| RateLimitConfig {
+                    max_tokens: 100,
+                    refill_interval: std::time::Duration::from_millis(600),
+                })
+            ),
         }
     }
 

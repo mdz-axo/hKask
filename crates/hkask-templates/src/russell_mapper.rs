@@ -8,11 +8,10 @@ use crate::provenance::ProvenanceManager;
 use chrono::Utc;
 use hkask_types::TemplateType;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use thiserror::Error;
-use tracing::{debug, warn};
+use tracing::debug;
 
 #[derive(Error, Debug)]
 pub enum MapperError {
@@ -28,9 +27,6 @@ pub enum MapperError {
 
     #[error("Invalid Russell manifest: missing required field '{field}'")]
     MissingField { field: String },
-
-    #[error("Migration failed for asset '{asset}': {reason}")]
-    MigrationFailed { asset: String, reason: String },
 }
 
 pub type Result<T> = std::result::Result<T, MapperError>;
@@ -160,6 +156,7 @@ pub enum OutputFormat {
 }
 
 pub struct RussellMapper {
+    #[allow(dead_code)]
     provenance: ProvenanceManager,
 }
 
@@ -198,7 +195,7 @@ impl RussellMapper {
             source: e,
         })?;
 
-        let (inference_section, body) = self.parse_jinja2_frontmatter(&content)?;
+        let (temperature, max_tokens, body) = Self::parse_jinja2_frontmatter(&content);
 
         let template = RussellPromptTemplate {
             name: j2_path
@@ -206,9 +203,10 @@ impl RussellMapper {
                 .and_then(|s| s.to_str())
                 .unwrap_or("unknown")
                 .to_string(),
-            inference: inference_section,
+            temperature,
+            max_tokens,
             body,
-            variables: self.extract_jinja2_variables(&content),
+            variables: Self::extract_jinja2_variables(&content),
         };
 
         debug!("Analyzed Russell prompt template: {}", template.name);
@@ -216,7 +214,7 @@ impl RussellMapper {
         Ok(template)
     }
 
-    fn parse_jinja2_frontmatter(&self, content: &str) -> Result<(Option<f64>, Option<u32>, String)> {
+    fn parse_jinja2_frontmatter(content: &str) -> (Option<f64>, Option<u32>, String) {
         let mut temperature: Option<f64> = None;
         let mut max_tokens: Option<u32> = None;
         let mut body_start = 0;
@@ -253,40 +251,10 @@ impl RussellMapper {
             content.to_string()
         };
 
-        Ok((temperature, max_tokens, body))
+        (temperature, max_tokens, body)
     }
 
-            if in_frontmatter {
-                if line.trim().is_empty() && i > 0 {
-                    body_start = content
-                        .find(content.lines().nth(i).unwrap_or(""))
-                        .unwrap_or(0);
-                    break;
-                } else if line.starts_with("temperature") {
-                    if let Some(val) = line.split('=').nth(1) {
-                        inference.temperature = val.trim().parse().unwrap_or(0.7);
-                    }
-                } else if line.starts_with("max_tokens") {
-                    if let Some(val) = line.split('=').nth(1) {
-                        inference.max_tokens = val.trim().parse().unwrap_or(4096);
-                    }
-                } else if line.trim() == "---" {
-                    body_start = content.find(line).unwrap_or(0) + line.len();
-                    break;
-                }
-            }
-        }
-
-        let body = if body_start > 0 {
-            content[body_start..].trim().to_string()
-        } else {
-            content.to_string()
-        };
-
-        Ok((inference, body))
-    }
-
-    fn extract_jinja2_variables(&self, content: &str) -> Vec<String> {
+    fn extract_jinja2_variables(content: &str) -> Vec<String> {
         let mut variables = Vec::new();
         let re = regex::Regex::new(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)").unwrap();
 
@@ -313,32 +281,23 @@ impl RussellMapper {
                 ordinal,
                 action: crate::ports::Action::Execute,
                 description: format!("Execute probe: {}", probe.id),
-                renderer: "shell".to_string(),
                 template_ref: format!("probes/{}", probe.id),
                 model_tier: None,
                 mcp: Some("hkask-mcp-storage".to_string()),
-                output_schema: Some(serde_json::json!({
-                    "probe_result": "string"
-                })),
-                risk_level: "none".to_string(),
+                renderer: Some("shell".to_string()),
             });
             ordinal += 1;
         }
 
         for intervention in &russell.interventions {
-            let risk_level = self.map_risk_level(&intervention.risk);
             steps.push(crate::ports::ManifestStep {
                 ordinal,
                 action: crate::ports::Action::Execute,
                 description: format!("Execute intervention: {}", intervention.id),
-                renderer: "shell".to_string(),
                 template_ref: format!("interventions/{}", intervention.id),
                 model_tier: None,
                 mcp: Some("hkask-mcp-storage".to_string()),
-                output_schema: Some(serde_json::json!({
-                    "intervention_result": "string"
-                })),
-                risk_level,
+                renderer: Some("shell".to_string()),
             });
             ordinal += 1;
         }
@@ -348,14 +307,10 @@ impl RussellMapper {
                 ordinal: 1,
                 action: crate::ports::Action::Populate,
                 description: "Load knowledge into context".to_string(),
-                renderer: "minijinja".to_string(),
                 template_ref: format!("skills/{}/knowledge", russell.id),
                 model_tier: None,
                 mcp: Some("hkask-mcp-memory".to_string()),
-                output_schema: Some(serde_json::json!({
-                    "knowledge_block": "string"
-                })),
-                risk_level: "none".to_string(),
+                renderer: Some("minijinja".to_string()),
             });
         }
 
@@ -364,7 +319,6 @@ impl RussellMapper {
             name: russell.id.clone(),
             description: format!("Russell skill: {}", russell.id),
             steps,
-            bootstrap_path: None,
         };
 
         debug!(
@@ -379,26 +333,21 @@ impl RussellMapper {
     pub fn transform_to_hkask_template(
         &self,
         russell: &RussellPromptTemplate,
-        origin: &str,
+        _origin: &str,
     ) -> Result<CompositionTemplate> {
-        let lexicon_terms = self.infer_lexicon_terms(&russell.body);
+        let lexicon_terms = Self::infer_lexicon_terms(&russell.body);
 
         let contract = TemplateContract {
-            input: russell
-                .variables
-                .iter()
-                .map(|v| (v.clone(), "any".to_string()))
-                .collect(),
-            output: vec![("rendered_document".to_string(), "string".to_string())],
+            input_fields: russell.variables.clone(),
+            output_fields: vec!["rendered_document".to_string()],
         };
 
         let template = CompositionTemplate {
             id: format!("prompt/{}", russell.name),
-            template_type: "Prompt".to_string(),
+            template_type: TemplateType::Prompt,
             lexicon_terms,
-            contract,
             source: russell.body.clone(),
-            inference: russell.inference.clone(),
+            contract,
         };
 
         debug!(
@@ -410,17 +359,7 @@ impl RussellMapper {
         Ok(template)
     }
 
-    fn map_risk_level(&self, russell_risk: &str) -> String {
-        match russell_risk.to_lowercase().as_str() {
-            "none" => "none".to_string(),
-            "low" => "low".to_string(),
-            "medium" => "medium".to_string(),
-            "high" => "high".to_string(),
-            _ => "low".to_string(),
-        }
-    }
-
-    fn infer_lexicon_terms(&self, template_body: &str) -> Vec<String> {
+    fn infer_lexicon_terms(template_body: &str) -> Vec<String> {
         let mut terms = Vec::new();
 
         if template_body.contains("Subjective") || template_body.contains("Objective") {
@@ -523,77 +462,6 @@ impl RussellMapper {
 
         Ok(asset)
     }
-
-    pub fn export_asset(&self, asset: &MappedAsset, format: &OutputFormat) -> Result<String> {
-        match format {
-            OutputFormat::Json => {
-                let json = serde_json::to_string_pretty(asset).map_err(|e| {
-                    MapperError::MigrationFailed {
-                        asset: asset.origin.clone(),
-                        reason: format!("JSON serialization failed: {}", e),
-                    }
-                })?;
-                Ok(json)
-            }
-            OutputFormat::Yaml => {
-                let yaml =
-                    serde_yaml::to_string(asset).map_err(|e| MapperError::MigrationFailed {
-                        asset: asset.origin.clone(),
-                        reason: format!("YAML serialization failed: {}", e),
-                    })?;
-                Ok(yaml)
-            }
-            OutputFormat::Mermaid => {
-                let mermaid = self.generate_mermaid_erd(asset);
-                Ok(mermaid)
-            }
-        }
-    }
-
-    fn generate_mermaid_erd(&self, asset: &MappedAsset) -> String {
-        format!(
-            r#"erDiagram
-    RUSSELL_ASSET ||--|| HKASK_ASSET : transforms_to
-    
-    RUSSELL_ASSET {{
-        string origin "{origin}"
-        string type "{asset_type}"
-        string provenance "{provenance}"
-    }}
-    
-    HKASK_ASSET {{
-        string id "{id}"
-        string type "{hkask_type}"
-        timestamp migrated "{timestamp}"
-    }}"#,
-            origin = asset.origin,
-            asset_type = match asset.asset_type {
-                MappedAssetType::SkillManifest => "SkillManifest",
-                MappedAssetType::PromptTemplate => "PromptTemplate",
-                MappedAssetType::BotManifest => "BotManifest",
-            },
-            provenance = asset.provenance_hash,
-            id = match &asset.asset_type {
-                MappedAssetType::SkillManifest => asset
-                    .hkask_manifest
-                    .as_ref()
-                    .map(|m| m.id.as_str())
-                    .unwrap_or("pending"),
-                MappedAssetType::PromptTemplate => asset
-                    .hkask_template
-                    .as_ref()
-                    .map(|t| t.id.as_str())
-                    .unwrap_or("pending"),
-                MappedAssetType::BotManifest => "pending",
-            },
-            hkask_type = match asset.asset_type {
-                MappedAssetType::SkillManifest => "Process",
-                MappedAssetType::PromptTemplate => "Prompt",
-                MappedAssetType::BotManifest => "Bot",
-            },
-            timestamp = asset.migration_timestamp
-        )
-    }
 }
 
 #[cfg(test)]
@@ -667,8 +535,7 @@ safety:
 {{ nested.object.field }}
 "#;
 
-        let mapper = RussellMapper::new();
-        let vars = mapper.extract_jinja2_variables(content);
+        let vars = RussellMapper::extract_jinja2_variables(content);
 
         assert!(vars.contains(&"variable1".to_string()));
         assert!(vars.contains(&"variable2".to_string()));
@@ -688,8 +555,7 @@ Based on observation.
 ACTION: skill/probe
 "#;
 
-        let mapper = RussellMapper::new();
-        let terms = mapper.infer_lexicon_terms(body);
+        let terms = RussellMapper::infer_lexicon_terms(body);
 
         assert!(terms.contains(&"observe".to_string()));
         assert!(terms.contains(&"assess".to_string()));
