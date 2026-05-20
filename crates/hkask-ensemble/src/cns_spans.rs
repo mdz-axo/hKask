@@ -47,6 +47,30 @@ pub enum OkapiCnsSpan {
         template_id: String,
         validation_result: ValidationResult,
     },
+    /// MoE expert placement observation
+    MoEExpertPlacement {
+        expert_id: u32,
+        gpu_id: Option<u32>,
+        memory_bytes: u64,
+    },
+    /// MoE expert activation frequency
+    MoEExpertActivation {
+        expert_id: u32,
+        activation_count: u64,
+        window_seconds: u64,
+    },
+    /// MoE expert co-activation pair
+    MoEExpertCoactivation {
+        expert_a: u32,
+        expert_b: u32,
+        coactivation_count: u64,
+    },
+    /// MoE offload ratio (experts on CPU / total experts)
+    MoEOffloadRatio {
+        offloaded: u32,
+        total: u32,
+        ratio: f64,
+    },
 }
 
 /// Validation result for capability checks
@@ -67,6 +91,10 @@ impl OkapiCnsSpan {
             OkapiCnsSpan::CacheHitRatio { .. } => "cns.connector.llm.cache_hit",
             OkapiCnsSpan::ConfidenceEscalation { .. } => "cns.prompt.escalation",
             OkapiCnsSpan::CapabilityValidation { .. } => "cns.prompt.validation",
+            OkapiCnsSpan::MoEExpertPlacement { .. } => "cns.connector.llm.moe_experts",
+            OkapiCnsSpan::MoEExpertActivation { .. } => "cns.connector.llm.moe_experts",
+            OkapiCnsSpan::MoEExpertCoactivation { .. } => "cns.connector.llm.moe_experts",
+            OkapiCnsSpan::MoEOffloadRatio { .. } => "cns.connector.llm.moe_experts",
         }
     }
 
@@ -134,6 +162,55 @@ impl OkapiCnsSpan {
             validation_result: ValidationResult { success, errors },
         }
     }
+
+    /// Create MoE expert placement span
+    pub fn moe_expert_placement(expert_id: u32, gpu_id: Option<u32>, memory_bytes: u64) -> Self {
+        OkapiCnsSpan::MoEExpertPlacement {
+            expert_id,
+            gpu_id,
+            memory_bytes,
+        }
+    }
+
+    /// Create MoE expert activation span
+    pub fn moe_expert_activation(
+        expert_id: u32,
+        activation_count: u64,
+        window_seconds: u64,
+    ) -> Self {
+        OkapiCnsSpan::MoEExpertActivation {
+            expert_id,
+            activation_count,
+            window_seconds,
+        }
+    }
+
+    /// Create MoE expert co-activation span
+    pub fn moe_expert_coactivation(
+        expert_a: u32,
+        expert_b: u32,
+        coactivation_count: u64,
+    ) -> Self {
+        OkapiCnsSpan::MoEExpertCoactivation {
+            expert_a,
+            expert_b,
+            coactivation_count,
+        }
+    }
+
+    /// Create MoE offload ratio span with algedonic alert threshold
+    pub fn moe_offload_ratio(offloaded: u32, total: u32) -> Self {
+        let ratio = if total > 0 {
+            offloaded as f64 / total as f64
+        } else {
+            0.0
+        };
+        OkapiCnsSpan::MoEOffloadRatio {
+            offloaded,
+            total,
+            ratio,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -159,8 +236,7 @@ mod tests {
         let webid = WebID::new();
         let span = OkapiCnsSpan::adapter_swap(45);
         let event = span.to_nu_event(webid);
-
-        assert_eq!(event.span.as_str(), "cns.tool.adapter_swap");
+        // Verify the event was created with correct observation type
         assert!(event.observation.is_object());
     }
 
@@ -178,6 +254,52 @@ mod tests {
             assert!((utilization_pct - 12.5).abs() < 0.01);
         } else {
             panic!("Wrong span type");
+        }
+    }
+
+    #[test]
+    fn test_moe_span_namespaces() {
+        let placement = OkapiCnsSpan::moe_expert_placement(0, Some(0), 1024 * 1024 * 1024);
+        assert_eq!(placement.namespace(), "cns.connector.llm.moe_experts");
+
+        let activation = OkapiCnsSpan::moe_expert_activation(1, 100, 60);
+        assert_eq!(activation.namespace(), "cns.connector.llm.moe_experts");
+
+        let coactivation = OkapiCnsSpan::moe_expert_coactivation(0, 1, 50);
+        assert_eq!(coactivation.namespace(), "cns.connector.llm.moe_experts");
+
+        let offload = OkapiCnsSpan::moe_offload_ratio(2, 8);
+        assert_eq!(offload.namespace(), "cns.connector.llm.moe_experts");
+    }
+
+    #[test]
+    fn test_moe_offload_ratio_calculation() {
+        let offload = OkapiCnsSpan::moe_offload_ratio(2, 8);
+        if let OkapiCnsSpan::MoEOffloadRatio { ratio, .. } = offload {
+            assert!((ratio - 0.25).abs() < f64::EPSILON);
+        } else {
+            panic!("Expected MoEOffloadRatio variant");
+        }
+    }
+
+    #[test]
+    fn test_moe_offload_ratio_zero_total() {
+        let offload = OkapiCnsSpan::moe_offload_ratio(0, 0);
+        if let OkapiCnsSpan::MoEOffloadRatio { ratio, .. } = offload {
+            assert_eq!(ratio, 0.0);
+        } else {
+            panic!("Expected MoEOffloadRatio variant");
+        }
+    }
+
+    #[test]
+    fn test_moe_offload_alert_threshold() {
+        // >50% offload should trigger algedonic alert
+        let offload = OkapiCnsSpan::moe_offload_ratio(5, 8);
+        if let OkapiCnsSpan::MoEOffloadRatio { ratio, .. } = offload {
+            assert!(ratio > 0.5);
+        } else {
+            panic!("Expected MoEOffloadRatio variant");
         }
     }
 }

@@ -2,9 +2,7 @@
 //!
 //! Integrates template contract validation with Okapi capability-based security.
 
-use crate::contract_validator::{
-    OkapiCapabilities, OkapiRequirements, RegistrationFrontmatter, ValidationError,
-};
+use crate::contract_validator::{OkapiCapabilities, RegistrationFrontmatter, ValidationError};
 use hkask_ensemble::ports;
 use hkask_types::TemplateType;
 use std::collections::HashSet;

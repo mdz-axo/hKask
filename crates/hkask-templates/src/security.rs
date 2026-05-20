@@ -90,7 +90,7 @@ impl SecurityAdapter {
     }
 
     /// Validate template/manifest path (defense in depth)
-    /// 
+    ///
     /// **Layer 1**: Reject obvious attacks (null bytes, obvious traversal)
     /// **Layer 2**: URL decode and re-check (blocks %2e%2e attacks)
     /// **Layer 3**: Double-decode and normalize (blocks %252e%252e attacks)
@@ -99,40 +99,52 @@ impl SecurityAdapter {
     pub fn validate_template_path(&self, path: &str) -> Result<()> {
         // Layer 1: Reject obvious attacks
         if path.contains('\0') {
-            return Err(TemplateError::PathTraversal("Null byte not allowed".to_string()));
+            return Err(TemplateError::PathTraversal(
+                "Null byte not allowed".to_string(),
+            ));
         }
         if path.contains("..") {
-            return Err(TemplateError::PathTraversal("Path traversal pattern '..' not allowed".to_string()));
+            return Err(TemplateError::PathTraversal(
+                "Path traversal pattern '..' not allowed".to_string(),
+            ));
         }
         if path.starts_with('/') || path.starts_with('\\') {
-            return Err(TemplateError::PathTraversal("Absolute path not allowed".to_string()));
+            return Err(TemplateError::PathTraversal(
+                "Absolute path not allowed".to_string(),
+            ));
         }
-        
+
         // Layer 2: URL decode and re-check
         let decoded = percent_decode_str(path)
             .decode_utf8()
             .map_err(|_| TemplateError::PathTraversal("Invalid UTF-8 in path".to_string()))?;
-        
+
         if decoded.contains("..") || decoded.starts_with('/') {
-            return Err(TemplateError::PathTraversal("Encoded path traversal detected".to_string()));
+            return Err(TemplateError::PathTraversal(
+                "Encoded path traversal detected".to_string(),
+            ));
         }
-        
+
         // Layer 3: Double-decode to catch %252e%252e attacks
         let fully_decoded = percent_decode_str(decoded.as_ref())
             .decode_utf8()
             .unwrap_or_else(|_| decoded.clone());
-        
+
         if fully_decoded.contains("..") || fully_decoded.starts_with('/') {
-            return Err(TemplateError::PathTraversal("Double-encoded path traversal detected".to_string()));
+            return Err(TemplateError::PathTraversal(
+                "Double-encoded path traversal detected".to_string(),
+            ));
         }
-        
+
         // Layer 4: Normalize and validate patterns
         let normalized = self.normalize_path(&fully_decoded);
-        
+
         if normalized.starts_with('/') || normalized.starts_with('\\') {
-            return Err(TemplateError::PathTraversal("Normalized absolute path not allowed".to_string()));
+            return Err(TemplateError::PathTraversal(
+                "Normalized absolute path not allowed".to_string(),
+            ));
         }
-        
+
         for pattern in PATH_TRAVERSAL_PATTERNS {
             if normalized.contains(pattern) {
                 return Err(TemplateError::PathTraversal(format!(
@@ -141,18 +153,19 @@ impl SecurityAdapter {
                 )));
             }
         }
-        
+
         // Layer 5: Canonical path verification (blocks symlink attacks)
         // Only perform if path exists (skip for new templates)
         let base_path = Self::get_templates_path();
         let full_path = base_path.join(&normalized);
-        
+
         if full_path.exists() {
             match full_path.canonicalize() {
                 Ok(canonical) => {
                     if !canonical.starts_with(&base_path) {
                         return Err(TemplateError::PathTraversal(
-                            "Canonical path escapes template directory (symlink attack?)".to_string()
+                            "Canonical path escapes template directory (symlink attack?)"
+                                .to_string(),
                         ));
                     }
                 }
@@ -166,7 +179,7 @@ impl SecurityAdapter {
                 }
             }
         }
-        
+
         // Check against allowed paths if configured (allowlist override)
         if !self.allowed_paths.is_empty() {
             if !self
@@ -180,7 +193,7 @@ impl SecurityAdapter {
                 )));
             }
         }
-        
+
         Ok(())
     }
 
@@ -271,7 +284,7 @@ impl SecurityAdapter {
     }
 
     /// Emit CNS span for security event
-    /// 
+    ///
     /// Note: CNS span emission is asynchronous (best-effort audit trail).
     /// Security decisions are NOT dependent on CNS emission success.
     /// This is by design: audit should not block authorization decisions.
@@ -842,15 +855,15 @@ mod tests {
                 energy_rem in 0u64..=2000
             ) {
                 let adapter = SecurityAdapter::new(b"test-secret");
-                
+
                 // All security checks should work independently
-                let path_ok = adapter.validate_template_path(&path).is_ok() 
+                let path_ok = adapter.validate_template_path(&path).is_ok()
                     || path.contains("..") || path.starts_with('/');
-                let depth_ok = adapter.check_recursion_depth(depth, max_depth).is_ok() 
+                let depth_ok = adapter.check_recursion_depth(depth, max_depth).is_ok()
                     == (depth <= max_depth);
                 let energy_ok = adapter.check_energy_budget(energy_req, energy_rem).is_ok()
                     == (energy_req <= energy_rem);
-                
+
                 // Composition: all checks should be consistent
                 prop_assert!(path_ok);
                 prop_assert!(depth_ok);

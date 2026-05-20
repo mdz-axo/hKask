@@ -1,11 +1,11 @@
 //! Integration tests for hKask template loading and rendering
 
+use hkask_templates::Registry;
+use hkask_templates::manifest::ManifestExecutorImpl;
 use hkask_templates::ports::{
     Action, CnsPort, InferenceConfig, InferencePort, ManifestExecutor, ManifestStep, McpPort,
     ProcessManifest, RegistryIndex, TemplateRenderer,
 };
-use hkask_templates::Registry;
-use hkask_templates::manifest::ManifestExecutorImpl;
 use serde_json::Value;
 use std::path::Path;
 
@@ -29,7 +29,10 @@ impl InferencePort for MockInference {
 /// Mock renderer for testing
 struct MockRenderer;
 impl TemplateRenderer for MockRenderer {
-    fn load(&self, _path: &Path) -> hkask_templates::ports::Result<hkask_templates::ports::CompositionTemplate> {
+    fn load(
+        &self,
+        _path: &Path,
+    ) -> hkask_templates::ports::Result<hkask_templates::ports::CompositionTemplate> {
         Ok(hkask_templates::ports::CompositionTemplate {
             id: "test".to_string(),
             template_type: hkask_types::TemplateType::Prompt,
@@ -93,7 +96,7 @@ impl CnsPort for MockCns {
 #[test]
 fn test_load_all_bootstrap_templates_from_filesystem() {
     let registry = Registry::bootstrap();
-    
+
     // Verify all 7 core templates are registered
     assert!(registry.exists("prompt/selector"));
     assert!(registry.exists("prompt/render"));
@@ -108,34 +111,35 @@ fn test_load_all_bootstrap_templates_from_filesystem() {
 fn test_bootstrap_manifest_from_yaml() {
     let registry = Registry::bootstrap();
     let manifest = registry.bootstrap_manifest();
-    
-    assert!(manifest.is_some(), "Bootstrap manifest should load from YAML");
-    
+
+    assert!(
+        manifest.is_some(),
+        "Bootstrap manifest should load from YAML"
+    );
+
     let manifest = manifest.unwrap();
     assert_eq!(manifest.id, "registry/dispatch");
     assert_eq!(manifest.name, "Registry Dispatch");
     assert_eq!(manifest.steps.len(), 3);
-    
+
     // Verify step structure
     assert_eq!(manifest.steps[0].action, Action::Select);
     assert_eq!(manifest.steps[0].template_ref, "prompt/selector");
     assert_eq!(manifest.steps[0].model_tier, Some("fast_local".to_string()));
-    
+
     assert_eq!(manifest.steps[1].action, Action::Populate);
-    
+
     assert_eq!(manifest.steps[2].action, Action::Execute);
-    assert_eq!(manifest.steps[2].mcp, Some("from_template_contract".to_string()));
+    assert_eq!(
+        manifest.steps[2].mcp,
+        Some("from_template_contract".to_string())
+    );
 }
 
 #[test]
 fn test_manifest_executor_emits_cns_events() {
     let cns = MockCns::new();
-    let executor = ManifestExecutorImpl::new(
-        MockRenderer,
-        MockInference,
-        MockMcp,
-        cns.clone(),
-    );
+    let executor = ManifestExecutorImpl::new(MockRenderer, MockInference, MockMcp, cns.clone());
 
     let manifest = ProcessManifest {
         id: "test".to_string(),
@@ -178,13 +182,13 @@ fn test_manifest_executor_emits_cns_events() {
     // Verify CNS events were emitted
     let events = cns.get_events();
     assert!(!events.is_empty(), "CNS events should be emitted");
-    
+
     // Check for expected span types
     let has_select = events.iter().any(|(span, _, _)| span.contains("select"));
     let has_populate = events.iter().any(|(span, _, _)| span.contains("populate"));
     let has_execute = events.iter().any(|(span, _, _)| span.contains("execute"));
     let has_outcome = events.iter().any(|(span, _, _)| span.contains("outcome"));
-    
+
     assert!(has_select, "Should emit cns.prompt.select event");
     assert!(has_populate, "Should emit cns.prompt.populate event");
     assert!(has_execute, "Should emit cns.prompt.execute event");
@@ -196,13 +200,17 @@ fn test_yaml_manifest_files_exist() {
     // Verify YAML manifest files exist (use workspace root)
     let workspace_root = std::env::var("CARGO_MANIFEST_DIR")
         .ok()
-        .and_then(|p| std::path::PathBuf::from(p).parent().map(|p| p.to_path_buf()))
+        .and_then(|p| {
+            std::path::PathBuf::from(p)
+                .parent()
+                .map(|p| p.to_path_buf())
+        })
         .unwrap_or_else(|| std::path::PathBuf::from("."));
-    
+
     let dispatch_path = workspace_root.join("registry/manifests/dispatch.yaml");
     let recall_path = workspace_root.join("registry/manifests/memory_recall.yaml");
     let tool_path = workspace_root.join("registry/manifests/tool_dispatch.yaml");
-    
+
     assert!(
         dispatch_path.exists(),
         "dispatch.yaml should exist at {:?}",
@@ -224,15 +232,36 @@ fn test_yaml_manifest_files_exist() {
 fn test_load_yaml_manifests() {
     let workspace_root = std::env::var("CARGO_MANIFEST_DIR")
         .ok()
-        .and_then(|p| std::path::PathBuf::from(p).parent().map(|p| p.to_path_buf()))
+        .and_then(|p| {
+            std::path::PathBuf::from(p)
+                .parent()
+                .map(|p| p.to_path_buf())
+        })
         .unwrap_or_else(|| std::path::PathBuf::from("."));
-    
-    let dispatch = ProcessManifest::load_from_yaml(&workspace_root.join("registry/manifests/dispatch.yaml"));
-    assert!(dispatch.is_ok(), "Should load dispatch.yaml: {:?}", dispatch.err());
-    
-    let recall = ProcessManifest::load_from_yaml(&workspace_root.join("registry/manifests/memory_recall.yaml"));
-    assert!(recall.is_ok(), "Should load memory_recall.yaml: {:?}", recall.err());
-    
-    let tool_dispatch = ProcessManifest::load_from_yaml(&workspace_root.join("registry/manifests/tool_dispatch.yaml"));
-    assert!(tool_dispatch.is_ok(), "Should load tool_dispatch.yaml: {:?}", tool_dispatch.err());
+
+    let dispatch =
+        ProcessManifest::load_from_yaml(&workspace_root.join("registry/manifests/dispatch.yaml"));
+    assert!(
+        dispatch.is_ok(),
+        "Should load dispatch.yaml: {:?}",
+        dispatch.err()
+    );
+
+    let recall = ProcessManifest::load_from_yaml(
+        &workspace_root.join("registry/manifests/memory_recall.yaml"),
+    );
+    assert!(
+        recall.is_ok(),
+        "Should load memory_recall.yaml: {:?}",
+        recall.err()
+    );
+
+    let tool_dispatch = ProcessManifest::load_from_yaml(
+        &workspace_root.join("registry/manifests/tool_dispatch.yaml"),
+    );
+    assert!(
+        tool_dispatch.is_ok(),
+        "Should load tool_dispatch.yaml: {:?}",
+        tool_dispatch.err()
+    );
 }

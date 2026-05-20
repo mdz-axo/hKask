@@ -31,7 +31,9 @@ where
     }
 
     /// Subscribe to metrics stream and translate to CNS spans
-    pub async fn subscribe_and_translate(&mut self) -> Result<(), MetricsTranslatorError<M::Error>> {
+    pub async fn subscribe_and_translate(
+        &mut self,
+    ) -> Result<(), MetricsTranslatorError<M::Error>> {
         info!("Starting CNS span translator for Okapi metrics");
 
         loop {

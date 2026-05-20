@@ -45,17 +45,54 @@ The following chaos testing components have been implemented in `hkask-ensemble`
    - `test_instance_availability`: Validates instance selection
    - `test_capability_router`: Validates routing logic
 
+### Implemented (v1.2)
+
+6. **Integration Tests** (`hkask-testing/integration-tests/chaos_integration.rs`)
+   - `integration_circuit_breaker_with_okapi`: Tests CB with real Okapi
+   - `integration_multi_okapi_failover`: Tests failover behavior
+   - `integration_retry_with_network_calls`: Tests retry with network
+   - `integration_health_check_detection`: Tests health detection
+   - `integration_load_balancing_under_failure`: Tests load balancing
+   - `integration_circuit_breaker_and_retry`: Tests combined resilience
+
+7. **Chaos Injection Scripts** (`scripts/chaos-injection.sh`)
+   - Test 1.1: Single Instance Termination
+   - Test 1.2: Cascading Instance Failures
+   - Test 2.1: Network Partition (requires tc)
+   - Test 2.2: High Latency Injection (requires tc)
+   - Test 3.1: Memory Exhaustion (requires stress-ng)
+   - Test 4.1: Circuit Breaker Trip
+   - Test 4.2: Circuit Breaker Recovery
+   - Test 5.1: Retry with Exponential Backoff
+   - Test 5.2: Retry Exhaustion
+
+8. **CI/CD Pipeline** (`.github/workflows/chaos-testing.yml`)
+   - Unit tests on every push/PR
+   - Integration tests with Okapi cluster
+   - Daily automated chaos tests
+   - Weekly full chaos suite
+   - Artifact collection and reporting
+
+9. **Metrics Dashboard** (`docs/specifications/metrics-dashboard-spec.md`)
+   - Prometheus metrics specification
+   - Grafana dashboard JSON structure
+   - Alerting rules for all components
+   - Quick start guide for Prometheus/Grafana
+
+10. **Monitoring Configuration** (`monitoring/`)
+    - `prometheus.yml`: Prometheus scrape configuration
+    - `alerts/hkask_alerts.yml`: Comprehensive alerting rules
+
 ### In Progress
 
-1. **Integration Tests** - Full end-to-end chaos testing framework requiring live Okapi instances
+1. **Grafana Dashboard JSON** - Complete dashboard export for provisioning
+2. **Alertmanager Integration** - Email/Slack notification configuration
 
 ### Not Yet Implemented
 
-1. **Grafana/Prometheus Metrics Dashboard**
-2. **Automated Test Scheduling**
-3. **Network Partition Injection (tc/chaos-mesh)**
-4. **Resource Exhaustion Tests (stress-ng)**
-5. **CI/CD Pipeline Integration**
+1. **Kubernetes Chaos Mesh Integration** - Native K8s chaos injection
+2. **AWS FIS Integration** - AWS Fault Injection Simulator support
+3. **Automated Root Cause Analysis** - ML-based anomaly detection
 
 ---
 
@@ -371,6 +408,8 @@ impl MetricsCollector {
 
 ## Running Tests
 
+### Unit Tests
+
 ```bash
 # Run all hkask-ensemble tests (includes resilience tests)
 cargo test --package hkask-ensemble
@@ -380,9 +419,53 @@ cargo test --package hkask-ensemble resilience
 
 # Run multi-Okapi tests
 cargo test --package hkask-ensemble multi_okapi
+```
 
-# Run E2E tests (requires Okapi instance on localhost:11435)
-OKAPI_E2E_TEST=1 cargo test --package hkask-ensemble --test e2e_okapi_integration
+### Integration Tests
+
+```bash
+# Requires running Okapi instance on localhost:11435
+OKAPI_E2E_TEST=1 OKAPI_BASE_URL=http://localhost:11435 \
+  cargo test --package hkask-testing --test chaos_integration
+```
+
+### Chaos Injection Scripts
+
+```bash
+# Run all chaos tests
+./scripts/chaos-injection.sh all
+
+# Run specific test
+./scripts/chaos-injection.sh 1.1    # Single instance termination
+./scripts/chaos-injection.sh 2.1    # Network partition
+./scripts/chaos-injection.sh 4.1    # Circuit breaker trip
+
+# View available tests
+./scripts/chaos-injection.sh --help
+```
+
+### CI/CD Pipeline
+
+```bash
+# The pipeline runs automatically on:
+# - Every push to main/develop branches
+# - Pull requests
+# - Daily at 2 AM UTC (scheduled chaos tests)
+# - Weekly on Sundays (full chaos suite)
+
+# Trigger manually via GitHub Actions UI:
+# Actions > Chaos Testing > Run workflow
+```
+
+### Monitoring Stack
+
+```bash
+# Start monitoring stack
+cd monitoring
+docker-compose up -d
+
+# Access Grafana at http://localhost:3000 (admin/admin)
+# Access Prometheus at http://localhost:9090
 ```
 
 ---
@@ -396,4 +479,4 @@ OKAPI_E2E_TEST=1 cargo test --package hkask-ensemble --test e2e_okapi_integratio
 
 ---
 
-*ℏKask — Planck's Constant of Agent Systems — v1.1.0*
+*ℏKask — Planck's Constant of Agent Systems — v1.2.0*

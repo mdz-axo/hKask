@@ -61,6 +61,12 @@ enum Commands {
         action: TemplateAction,
     },
 
+    /// Manifest management
+    Manifest {
+        #[command(subcommand)]
+        action: ManifestAction,
+    },
+
     /// Bot capability management
     Bot {
         #[command(subcommand)]
@@ -124,6 +130,49 @@ enum TemplateAction {
         /// Lexicon term
         #[arg()]
         term: String,
+    },
+
+    /// Render template with bindings
+    Render {
+        /// Template ID
+        #[arg()]
+        id: String,
+
+        /// Input JSON
+        #[arg(short, long)]
+        input: Option<String>,
+
+        /// Input file
+        #[arg(short = 'f', long)]
+        input_file: Option<PathBuf>,
+    },
+}
+
+#[derive(Subcommand)]
+enum ManifestAction {
+    /// List all registered manifests
+    List,
+
+    /// Get manifest details
+    Get {
+        /// Manifest ID
+        #[arg()]
+        id: String,
+    },
+
+    /// Execute manifest
+    Execute {
+        /// Manifest ID
+        #[arg()]
+        id: String,
+
+        /// Input JSON
+        #[arg(short, long)]
+        input: Option<String>,
+
+        /// Input file
+        #[arg(short = 'f', long)]
+        input_file: Option<PathBuf>,
     },
 }
 
@@ -409,6 +458,127 @@ fn main() {
                     }
                 }
             }
+            TemplateAction::Render { id, input, input_file } => {
+                // Read input
+                let input_json = if let Some(json) = input {
+                    json
+                } else if let Some(path) = input_file {
+                    match std::fs::read_to_string(&path) {
+                        Ok(content) => content,
+                        Err(e) => {
+                            eprintln!("Failed to read input file: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                } else {
+                    // Read from stdin
+                    let mut buf = String::new();
+                    if io::stdin().read_line(&mut buf).is_err() {
+                        eprintln!("Failed to read input from stdin");
+                        std::process::exit(1);
+                    }
+                    buf
+                };
+
+                // Parse input JSON
+                let bindings: serde_json::Value = match serde_json::from_str(&input_json) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        eprintln!("Invalid JSON input: {}", e);
+                        std::process::exit(1);
+                    }
+                };
+
+                // Render template
+                match commands::render_template(&registry, &id, bindings) {
+                    Ok(rendered) => {
+                        println!("{}", rendered);
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to render template: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+        },
+
+        Commands::Manifest { action } => match action {
+            ManifestAction::List => {
+                let manifest_dir = std::path::PathBuf::from("registry/manifests");
+                if manifest_dir.exists() {
+                    println!("Registered manifests:\n");
+                    for entry in std::fs::read_dir(&manifest_dir).unwrap() {
+                        let entry = entry.unwrap();
+                        let path = entry.path();
+                        if path.extension().and_then(|s| s.to_str()) == Some("yaml") {
+                            let id = path.file_stem().unwrap().to_str().unwrap();
+                            println!("  {}", id);
+                        }
+                    }
+                } else {
+                    println!("No manifests directory found at: {:?}", manifest_dir);
+                }
+            }
+            ManifestAction::Get { id } => {
+                let manifest_path = format!("registry/manifests/{}.yaml", id);
+                if std::path::Path::new(&manifest_path).exists() {
+                    match std::fs::read_to_string(&manifest_path) {
+                        Ok(content) => {
+                            println!("Manifest: {}\n", id);
+                            println!("{}", content);
+                        }
+                        Err(e) => {
+                            eprintln!("Failed to read manifest: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                } else {
+                    eprintln!("Manifest not found: {}", id);
+                    std::process::exit(1);
+                }
+            }
+            ManifestAction::Execute { id, input, input_file } => {
+                // Read input
+                let input_json = if let Some(json) = input {
+                    json
+                } else if let Some(path) = input_file {
+                    match std::fs::read_to_string(&path) {
+                        Ok(content) => content,
+                        Err(e) => {
+                            eprintln!("Failed to read input file: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                } else {
+                    // Read from stdin
+                    let mut buf = String::new();
+                    if io::stdin().read_line(&mut buf).is_err() {
+                        eprintln!("Failed to read input from stdin");
+                        std::process::exit(1);
+                    }
+                    buf
+                };
+
+                // Parse input JSON
+                let input_value: serde_json::Value = match serde_json::from_str(&input_json) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        eprintln!("Invalid JSON input: {}", e);
+                        std::process::exit(1);
+                    }
+                };
+
+                // Execute manifest
+                match commands::execute_manifest(&registry, &id, input_value) {
+                    Ok(result) => {
+                        println!("{}", serde_json::to_string_pretty(&result).unwrap());
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to execute manifest: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
         },
 
         Commands::Bot { action } => match action {
@@ -506,7 +676,11 @@ fn main() {
                 println!("  Warning alerts: {}", health.warning_count);
                 println!(
                     "  Status: {}",
-                    if health.healthy { "HEALTHY" } else { "DEGRADED" }
+                    if health.healthy {
+                        "HEALTHY"
+                    } else {
+                        "DEGRADED"
+                    }
                 );
             }
             CnsAction::Alerts => {

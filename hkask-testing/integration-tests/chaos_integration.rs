@@ -3,16 +3,18 @@
 //! These tests require a running Okapi instance and OKAPI_E2E_TEST=1 environment variable.
 //! Run with: OKAPI_E2E_TEST=1 cargo test --package hkask-testing --test chaos_integration
 
+use hkask_ensemble::{
+    multi_okapi::{CapabilityRouter, HealthChecker, HealthStatus, OkapiInstance},
+    ports::OkapiCapabilities,
+    resilience::{
+        CircuitBreaker, CircuitBreakerConfig, RetryConfig, RetryError, retry_with_backoff,
+    },
+};
 use std::env;
 use std::sync::Arc;
 use std::time::Duration;
-use hkask_ensemble::{
-    multi_okapi::{OkapiInstance, CapabilityRouter, HealthChecker, HealthStatus},
-    resilience::{CircuitBreaker, CircuitBreakerConfig, RetryConfig, retry_with_backoff, RetryError},
-    ports::OkapiCapabilities,
-};
 use tokio::sync::RwLock;
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 
 /// Check if E2E tests are enabled
 fn is_e2e_enabled() -> bool {
@@ -43,12 +45,8 @@ impl ChaosIntegrationContext {
 
         let instance = OkapiInstance::new(okapi_url.clone(), capabilities);
 
-        let health_checker = HealthChecker::new(
-            Duration::from_secs(10),
-            Duration::from_secs(5),
-            3,
-            3,
-        );
+        let health_checker =
+            HealthChecker::new(Duration::from_secs(10), Duration::from_secs(5), 3, 3);
 
         let router = Arc::new(CapabilityRouter::new(
             vec![instance],
@@ -77,7 +75,10 @@ async fn integration_circuit_breaker_with_okapi() {
     let okapi_url = get_okapi_base_url();
     let ctx = ChaosIntegrationContext::new(okapi_url.clone());
 
-    info!("Starting circuit breaker integration test with Okapi at {}", okapi_url);
+    info!(
+        "Starting circuit breaker integration test with Okapi at {}",
+        okapi_url
+    );
 
     // Create circuit breaker
     let config = CircuitBreakerConfig {
@@ -95,7 +96,10 @@ async fn integration_circuit_breaker_with_okapi() {
     }
 
     // Verify circuit is open
-    assert!(matches!(cb.state().await, hkask_ensemble::resilience::CircuitState::Open));
+    assert!(matches!(
+        cb.state().await,
+        hkask_ensemble::resilience::CircuitState::Open
+    ));
     assert!(!cb.allow_request().await);
 
     info!("Circuit breaker opened after 3 failures");
@@ -105,7 +109,10 @@ async fn integration_circuit_breaker_with_okapi() {
 
     // Should transition to half-open
     assert!(cb.allow_request().await);
-    assert!(matches!(cb.state().await, hkask_ensemble::resilience::CircuitState::HalfOpen));
+    assert!(matches!(
+        cb.state().await,
+        hkask_ensemble::resilience::CircuitState::HalfOpen
+    ));
 
     info!("Circuit breaker transitioned to half-open");
 
@@ -114,7 +121,10 @@ async fn integration_circuit_breaker_with_okapi() {
     cb.record_success().await;
 
     // Should be closed now
-    assert!(matches!(cb.state().await, hkask_ensemble::resilience::CircuitState::Closed));
+    assert!(matches!(
+        cb.state().await,
+        hkask_ensemble::resilience::CircuitState::Closed
+    ));
 
     info!("Circuit breaker recovered to closed state");
 }
@@ -178,7 +188,10 @@ async fn integration_multi_okapi_failover() {
     let selected = ctx.router.select_instance(&required_caps).await;
     assert!(selected.is_some(), "Should select available instance");
 
-    info!("Failover successful: selected {:?}", selected.map(|i| i.endpoint));
+    info!(
+        "Failover successful: selected {:?}",
+        selected.map(|i| i.endpoint)
+    );
 }
 
 // ============================================================================
@@ -193,7 +206,10 @@ async fn integration_retry_with_network_calls() {
     }
 
     let okapi_url = get_okapi_base_url();
-    info!("Starting retry integration test with Okapi at {}", okapi_url);
+    info!(
+        "Starting retry integration test with Okapi at {}",
+        okapi_url
+    );
 
     let config = RetryConfig {
         max_retries: 3,
@@ -213,7 +229,9 @@ async fn integration_retry_with_network_calls() {
         async move {
             if attempt < max_attempts {
                 // Simulate transient network failure
-                Err(RetryError::OperationFailed("transient network error".to_string()))
+                Err(RetryError::OperationFailed(
+                    "transient network error".to_string(),
+                ))
             } else {
                 // Simulate successful connection
                 Ok(format!("Connected to {}", url))
@@ -223,7 +241,11 @@ async fn integration_retry_with_network_calls() {
     .await;
 
     assert!(result.is_ok(), "Should succeed after retry");
-    assert_eq!(attempt, max_attempts, "Should take {} attempts", max_attempts);
+    assert_eq!(
+        attempt, max_attempts,
+        "Should take {} attempts",
+        max_attempts
+    );
 
     info!("Retry succeeded after {} attempts: {:?}", attempt, result);
 }
@@ -254,10 +276,15 @@ async fn integration_health_check_detection() {
             // If Okapi is running, should be healthy or degraded
             // If not running, will be unhealthy
             match health {
-                HealthStatus::Healthy { response_time_ms, .. } => {
+                HealthStatus::Healthy {
+                    response_time_ms, ..
+                } => {
                     info!("Okapi is healthy ({}ms response time)", response_time_ms);
                 }
-                HealthStatus::Degraded { response_time_ms, reason } => {
+                HealthStatus::Degraded {
+                    response_time_ms,
+                    reason,
+                } => {
                     warn!("Okapi is degraded ({}ms): {}", response_time_ms, reason);
                 }
                 HealthStatus::Unhealthy { last_error, .. } => {
@@ -301,10 +328,8 @@ async fn integration_load_balancing_under_failure() {
     };
 
     for i in 2..=3 {
-        let instance = OkapiInstance::new(
-            format!("http://127.0.0.1:1143{}", i),
-            capabilities.clone(),
-        );
+        let instance =
+            OkapiInstance::new(format!("http://127.0.0.1:1143{}", i), capabilities.clone());
         ctx.router.add_instance(instance).await;
     }
 
@@ -329,7 +354,7 @@ async fn integration_load_balancing_under_failure() {
     };
 
     let selected = ctx.router.select_instance(&required_caps).await;
-    
+
     if let Some(instance) = selected {
         assert!(
             !instance.endpoint.contains("11435"),
@@ -395,5 +420,8 @@ async fn integration_circuit_breaker_and_retry() {
     info!("Combined test result: {:?}, attempts: {}", result, attempt);
 
     // Circuit should have opened and request rejected
-    assert!(matches!(cb.state().await, hkask_ensemble::resilience::CircuitState::Open));
+    assert!(matches!(
+        cb.state().await,
+        hkask_ensemble::resilience::CircuitState::Open
+    ));
 }

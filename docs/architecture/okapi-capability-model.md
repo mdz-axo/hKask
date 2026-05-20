@@ -1,6 +1,6 @@
 # Okapi Capability Model for Template Authors
 
-**Version:** 1.0.0  
+**Version:** 1.1.0  
 **Date:** 2026-05-20  
 **Status:** MVP v0.21.0
 
@@ -9,6 +9,19 @@
 ## Overview
 
 hKask templates can declare required Okapi capabilities in their YAML frontmatter. The capability system ensures templates are only registered when the underlying Okapi instance supports the required features.
+
+## Architecture: Russell → hKask → Okapi
+
+Russell (ACP agent) accesses Okapi through hKask's MCP infrastructure:
+
+```
+Russell → hKask (MCP) → Okapi (HTTP)
+```
+
+hKask MCP servers wrap Okapi APIs:
+- `hkask-mcp-inference` → `/api/generate`, `/api/chat`
+- `hkask-mcp-embedding` → `/api/embed`
+- `hkask-mcp-rerank` → `/api/rerank`
 
 ---
 

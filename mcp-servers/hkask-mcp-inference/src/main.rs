@@ -27,8 +27,9 @@ impl InferenceMcpServer {
         }
     }
 
-    pub async fn start_cns_translator(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>>
-    {
+    pub async fn start_cns_translator(
+        &self,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let (cns_tx, mut cns_rx) = mpsc::channel(100);
         let observer_webid = WebID::new();
 
@@ -36,8 +37,7 @@ impl InferenceMcpServer {
         let metrics_source = OkapiSseAdapter::new(&self.okapi_base_url);
 
         // Create translator with injected dependencies
-        let mut translator =
-            MetricsTranslator::new(metrics_source, cns_tx, observer_webid);
+        let mut translator = MetricsTranslator::new(metrics_source, cns_tx, observer_webid);
 
         let cns_runtime = Arc::clone(&self.cns_runtime);
 
@@ -79,8 +79,8 @@ impl InferenceMcpServer {
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     tracing_subscriber::fmt::init();
 
-    let okapi_base_url = std::env::var("OKAPI_BASE_URL")
-        .unwrap_or_else(|_| "http://127.0.0.1:11435".to_string());
+    let okapi_base_url =
+        std::env::var("OKAPI_BASE_URL").unwrap_or_else(|_| "http://127.0.0.1:11435".to_string());
 
     let cns_runtime = Arc::new(CnsRuntime::new());
     let server = InferenceMcpServer::new(okapi_base_url.clone(), Arc::clone(&cns_runtime));
@@ -88,7 +88,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     info!("Starting CNS span translator for Okapi metrics");
     server.start_cns_translator().await?;
 
-    info!("hKask MCP Inference server initialized for Okapi: {}", okapi_base_url);
+    info!(
+        "hKask MCP Inference server initialized for Okapi: {}",
+        okapi_base_url
+    );
     info!("CNS translator running - metrics will be emitted on delta");
 
     // Keep the runtime alive

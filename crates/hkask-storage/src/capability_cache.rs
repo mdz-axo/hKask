@@ -5,7 +5,7 @@
 
 use chrono::{DateTime, Utc};
 use hkask_ensemble::ports::OkapiCapabilities;
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use thiserror::Error;
@@ -27,9 +27,14 @@ pub struct CapabilityCacheEntry {
 
 impl CapabilityCacheEntry {
     /// Create new cache entry from Okapi capabilities
-    pub fn from_capabilities(capabilities: OkapiCapabilities, okapi_url: String, ttl: Duration) -> Self {
+    pub fn from_capabilities(
+        capabilities: OkapiCapabilities,
+        okapi_url: String,
+        ttl: Duration,
+    ) -> Self {
         let now = Utc::now();
-        let expires_at = now + chrono::Duration::from_std(ttl).unwrap_or(chrono::Duration::hours(1));
+        let expires_at =
+            now + chrono::Duration::from_std(ttl).unwrap_or(chrono::Duration::hours(1));
 
         Self {
             id: Uuid::new_v4(),
@@ -137,7 +142,8 @@ impl CapabilityCache {
         let entry: CapabilityCacheEntry = stmt
             .query_row(params![okapi_url], |row| {
                 Ok(CapabilityCacheEntry {
-                    id: Uuid::parse_str(row.get::<_, String>(0)?.as_str()).unwrap_or(Uuid::new_v4()),
+                    id: Uuid::parse_str(row.get::<_, String>(0)?.as_str())
+                        .unwrap_or(Uuid::new_v4()),
                     runner_type: row.get(1)?,
                     lora_hot_swap: row.get(2)?,
                     token_probs: row.get(3)?,
@@ -242,11 +248,11 @@ impl CapabilityCache {
 
     /// Get cache statistics
     pub fn stats(&self) -> Result<CacheStats, CapabilityCacheError> {
-        let total: i64 = self.conn.query_row(
-            "SELECT COUNT(*) FROM okapi_capabilities",
-            [],
-            |row| row.get(0),
-        )?;
+        let total: i64 =
+            self.conn
+                .query_row("SELECT COUNT(*) FROM okapi_capabilities", [], |row| {
+                    row.get(0)
+                })?;
 
         let expired: i64 = self.conn.query_row(
             "SELECT COUNT(*) FROM okapi_capabilities WHERE expires_at < ?",
@@ -355,8 +361,12 @@ mod tests {
             advanced_sampling: true,
         };
 
-        cache.cache(capabilities.clone(), "http://localhost:11435").unwrap();
-        cache.cache(capabilities.clone(), "http://localhost:11436").unwrap();
+        cache
+            .cache(capabilities.clone(), "http://localhost:11435")
+            .unwrap();
+        cache
+            .cache(capabilities.clone(), "http://localhost:11436")
+            .unwrap();
 
         // Check stats
         let stats = cache.stats().unwrap();
@@ -381,7 +391,9 @@ mod tests {
             advanced_sampling: true,
         };
 
-        cache.cache(capabilities.clone(), "http://localhost:11435").unwrap();
+        cache
+            .cache(capabilities.clone(), "http://localhost:11435")
+            .unwrap();
 
         let stats = cache.stats().unwrap();
         assert_eq!(stats.total_entries, 1);

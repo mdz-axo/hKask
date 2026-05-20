@@ -274,7 +274,11 @@ impl CapabilityToken {
             Some(current_time + 3600), // 1 hour expiry for attenuated tokens
             self.attenuation_level + 1,
             self.max_attenuation,
-            Some(format!("{}-attenuated-{}", self.context_nonce, uuid::Uuid::new_v4())),
+            Some(format!(
+                "{}-attenuated-{}",
+                self.context_nonce,
+                uuid::Uuid::new_v4()
+            )),
         ))
     }
 
@@ -302,11 +306,14 @@ impl CapabilityToken {
     /// Get the root context nonce (before any attenuation)
     pub fn root_context_nonce(&self) -> &str {
         // Extract root nonce from attenuation chain (format: "root-attenuated-uuid-attenuated-uuid...")
-        self.context_nonce.split("-attenuated-").next().unwrap_or(&self.context_nonce)
+        self.context_nonce
+            .split("-attenuated-")
+            .next()
+            .unwrap_or(&self.context_nonce)
     }
 
     /// Verify attenuation chain from root nonce to expected level
-    /// 
+    ///
     /// Returns true if:
     /// - Root nonce matches expected_root
     /// - attenuation_level <= expected_level
@@ -316,13 +323,13 @@ impl CapabilityToken {
         if root != expected_root {
             return false;
         }
-        
+
         // Count attenuation levels in nonce
         let actual_level = self.context_nonce.matches("-attenuated-").count() as u8;
         if actual_level != self.attenuation_level {
             return false; // Nonce doesn't match attenuation level
         }
-        
+
         self.attenuation_level <= expected_level
     }
 }

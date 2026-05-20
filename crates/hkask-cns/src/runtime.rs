@@ -5,7 +5,7 @@
 //!
 //! Uses shared state with RwLock for compatibility with sync and async contexts.
 
-use crate::algedonic::{AlgedonicManager, AlgedonicAlert, CnsHealth, DEFAULT_THRESHOLD};
+use crate::algedonic::{AlgedonicAlert, AlgedonicManager, CnsHealth, DEFAULT_THRESHOLD};
 use crate::variety::{VarietyCounter, VarietyMonitor};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -59,15 +59,25 @@ impl CnsRuntime {
     /// Get critical alerts only
     pub async fn critical_alerts(&self) -> Vec<AlgedonicAlert> {
         let state = self.state.read().await;
-        state.algedonic.critical_alerts().into_iter().cloned().collect()
+        state
+            .algedonic
+            .critical_alerts()
+            .into_iter()
+            .cloned()
+            .collect()
     }
 
     /// Get variety counters for all domains
     pub async fn variety(&self) -> Vec<(String, u64)> {
         let state = self.state.read().await;
-        let domains: Vec<String> = state.variety.domains().iter().map(|s| s.to_string()).collect();
+        let domains: Vec<String> = state
+            .variety
+            .domains()
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
         drop(state);
-        
+
         let mut results = Vec::new();
         for domain in &domains {
             let state = self.state.read().await;
@@ -111,16 +121,21 @@ impl CnsRuntime {
     pub async fn check_all(&self) -> usize {
         let domains = {
             let state = self.state.read().await;
-            state.variety.domains().iter().map(|s| s.to_string()).collect::<Vec<_>>()
+            state
+                .variety
+                .domains()
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>()
         };
-        
+
         let mut count = 0;
         for domain in domains {
             let counter = {
                 let state = self.state.read().await;
                 state.variety.counters.get(&domain).cloned()
             };
-            
+
             if let Some(counter) = counter {
                 let mut state = self.state.write().await;
                 if state.algedonic.check(&counter, &domain).is_some() {

@@ -31,6 +31,7 @@ pub mod registry_sqlite;
 pub mod renderer;
 pub mod security;
 pub mod skill_translation;
+pub mod step_capability;
 
 pub use adapters::{MockRegistryAdapter, RegistryAdapter, RegistryResult, SkillRegistryPort};
 pub use audit::{AuditStats, AuditTrail, ExecutionAudit};
@@ -69,3 +70,4 @@ pub use skill_translation::{
     ParsedSkill, PipelineStage, RdfTriple, RegisteredArtifact, SkillFormat,
     SkillTranslationPipeline, StageOutput, TemplateContract as SkillContract, ValidatedArtifact,
 };
+pub use step_capability::{AtomicCapability, AuthorizationError, StepAction, StepCapability};

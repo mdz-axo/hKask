@@ -174,17 +174,56 @@ impl ContractValidator {
 }
 
 /// Fetch Okapi capabilities at hKask startup
-/// TODO: Implement with proper HTTP client when reqwest is added
 pub async fn fetch_okapi_capabilities(
-    _okapi_base_url: &str,
+    okapi_base_url: &str,
 ) -> Result<OkapiCapabilities, ValidatorError> {
-    // Placeholder - returns default capabilities
+    let url = format!("{}/api/engine/status", okapi_base_url);
+
+    let response = reqwest::get(&url)
+        .await
+        .map_err(|e| ValidatorError::HttpError(e.to_string()))?;
+
+    if !response.status().is_success() {
+        return Err(ValidatorError::HttpError(format!(
+            "Okapi returned status {}",
+            response.status()
+        )));
+    }
+
+    let json: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| ValidatorError::ParseError(e.to_string()))?;
+
+    // Extract capabilities from the response
+    let capabilities = json
+        .get("capabilities")
+        .ok_or_else(|| ValidatorError::ParseError("missing 'capabilities' field".to_string()))?;
+
+    let runner_type = capabilities
+        .get("runner_type")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown")
+        .to_string();
+
     Ok(OkapiCapabilities {
-        runner_type: "ollamarunner".to_string(),
-        lora_hot_swap: true,
-        token_probs: true,
-        grammar_native: true,
-        advanced_sampling: true,
+        runner_type,
+        lora_hot_swap: capabilities
+            .get("lora_hot_swap")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false),
+        token_probs: capabilities
+            .get("token_probs")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false),
+        grammar_native: capabilities
+            .get("grammar_native")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false),
+        advanced_sampling: capabilities
+            .get("advanced_sampling")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false),
     })
 }
 

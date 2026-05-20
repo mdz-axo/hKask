@@ -77,37 +77,40 @@ pub enum TemplateError {
 pub enum ManifestExecutionError {
     #[error("Step {ordinal} failed: {reason}")]
     StepFailure { ordinal: u32, reason: String },
-    
+
     #[error("State transition invalid: {from} -> {to}")]
     InvalidTransition { from: String, to: String },
-    
+
     #[error("CNS event emission failed at step {ordinal}")]
     CnsEmissionFailure { ordinal: u32 },
-    
+
     #[error("Recursion depth {current} exceeded limit {max}")]
     DepthExceeded { current: u8, max: u8 },
-    
+
     #[error("Capability check failed: {capability}")]
     CapabilityDenied { capability: String },
-    
+
     #[error("Template selection failed: {reason}")]
     SelectionFailed { reason: String },
-    
+
     #[error("Template population failed: {template_ref}: {reason}")]
-    PopulationFailed { template_ref: String, reason: String },
-    
+    PopulationFailed {
+        template_ref: String,
+        reason: String,
+    },
+
     #[error("Template execution failed: {mcp_target}: {reason}")]
     ExecutionFailed { mcp_target: String, reason: String },
-    
+
     #[error("Manifest validation failed: {field}: {reason}")]
     ValidationFailed { field: String, reason: String },
-    
+
     #[error("Manifest not found: {manifest_id}")]
     ManifestNotFound { manifest_id: String },
-    
+
     #[error("YAML parse error: {reason}")]
     YamlParseError { reason: String },
-    
+
     #[error("I/O error: {reason}")]
     IoError { reason: String },
 }
@@ -130,7 +133,7 @@ impl ManifestExecutionError {
             ManifestExecutionError::IoError { .. } => true,
         }
     }
-    
+
     /// Get error category for CNS monitoring
     pub fn category(&self) -> &'static str {
         match self {
@@ -148,21 +151,43 @@ impl ManifestExecutionError {
             ManifestExecutionError::IoError { .. } => "io_error",
         }
     }
-    
+
     /// Convert to TemplateError for backward compatibility
     pub fn to_template_error(&self) -> TemplateError {
         match self {
-            ManifestExecutionError::StepFailure { reason, .. } => TemplateError::Manifest(reason.clone()),
-            ManifestExecutionError::InvalidTransition { .. } => TemplateError::Validation("Invalid state transition".to_string()),
-            ManifestExecutionError::CnsEmissionFailure { .. } => TemplateError::Manifest("CNS emission failed".to_string()),
-            ManifestExecutionError::DepthExceeded { max, .. } => TemplateError::RecursionLimit { max: *max },
-            ManifestExecutionError::CapabilityDenied { capability } => TemplateError::CapabilityDenied(capability.clone()),
-            ManifestExecutionError::SelectionFailed { reason } => TemplateError::Manifest(reason.clone()),
-            ManifestExecutionError::PopulationFailed { reason, .. } => TemplateError::Render(reason.clone()),
-            ManifestExecutionError::ExecutionFailed { reason, .. } => TemplateError::Mcp(reason.clone()),
-            ManifestExecutionError::ValidationFailed { reason, .. } => TemplateError::Validation(reason.clone()),
-            ManifestExecutionError::ManifestNotFound { manifest_id } => TemplateError::NotFound(format!("Manifest {}", manifest_id)),
-            ManifestExecutionError::YamlParseError { reason } => TemplateError::Manifest(reason.clone()),
+            ManifestExecutionError::StepFailure { reason, .. } => {
+                TemplateError::Manifest(reason.clone())
+            }
+            ManifestExecutionError::InvalidTransition { .. } => {
+                TemplateError::Validation("Invalid state transition".to_string())
+            }
+            ManifestExecutionError::CnsEmissionFailure { .. } => {
+                TemplateError::Manifest("CNS emission failed".to_string())
+            }
+            ManifestExecutionError::DepthExceeded { max, .. } => {
+                TemplateError::RecursionLimit { max: *max }
+            }
+            ManifestExecutionError::CapabilityDenied { capability } => {
+                TemplateError::CapabilityDenied(capability.clone())
+            }
+            ManifestExecutionError::SelectionFailed { reason } => {
+                TemplateError::Manifest(reason.clone())
+            }
+            ManifestExecutionError::PopulationFailed { reason, .. } => {
+                TemplateError::Render(reason.clone())
+            }
+            ManifestExecutionError::ExecutionFailed { reason, .. } => {
+                TemplateError::Mcp(reason.clone())
+            }
+            ManifestExecutionError::ValidationFailed { reason, .. } => {
+                TemplateError::Validation(reason.clone())
+            }
+            ManifestExecutionError::ManifestNotFound { manifest_id } => {
+                TemplateError::NotFound(format!("Manifest {}", manifest_id))
+            }
+            ManifestExecutionError::YamlParseError { reason } => {
+                TemplateError::Manifest(reason.clone())
+            }
             ManifestExecutionError::IoError { reason } => TemplateError::Manifest(reason.clone()),
         }
     }
@@ -170,13 +195,17 @@ impl ManifestExecutionError {
 
 impl From<std::io::Error> for ManifestExecutionError {
     fn from(err: std::io::Error) -> Self {
-        ManifestExecutionError::IoError { reason: err.to_string() }
+        ManifestExecutionError::IoError {
+            reason: err.to_string(),
+        }
     }
 }
 
 impl From<serde_yaml::Error> for ManifestExecutionError {
     fn from(err: serde_yaml::Error) -> Self {
-        ManifestExecutionError::YamlParseError { reason: err.to_string() }
+        ManifestExecutionError::YamlParseError {
+            reason: err.to_string(),
+        }
     }
 }
 
@@ -613,14 +642,12 @@ impl SecurityPort for MockSecurityPort {
     fn validate_path(&self, path: &str) -> Result<()> {
         if self.should_validate_path {
             // Match SecurityAdapter validation: URL decode, double-decode, normalize
-            
+
             // URL decode the path first
             let decoded = percent_decode_str(path)
                 .decode_utf8()
-                .map_err(|_| {
-                    TemplateError::PathTraversal("Invalid UTF-8 in path".to_string())
-                })?;
-            
+                .map_err(|_| TemplateError::PathTraversal("Invalid UTF-8 in path".to_string()))?;
+
             // Double-decode to catch %252e%252e attacks
             let fully_decoded = percent_decode_str(decoded.as_ref())
                 .decode_utf8()
@@ -637,7 +664,8 @@ impl SecurityPort for MockSecurityPort {
             }
 
             // Reject path traversal patterns
-            const PATH_TRAVERSAL_PATTERNS: &[&str] = &["..", "/etc/", "/proc/", "/sys/", "//", "\\..", "/.."];
+            const PATH_TRAVERSAL_PATTERNS: &[&str] =
+                &["..", "/etc/", "/proc/", "/sys/", "//", "\\..", "/.."];
             for pattern in PATH_TRAVERSAL_PATTERNS {
                 if normalized_path.contains(pattern) {
                     return Err(TemplateError::PathTraversal(format!(
@@ -789,29 +817,77 @@ mod tests {
     fn test_manifest_execution_error_retryable_cases() {
         // Retryable errors
         assert!(ManifestExecutionError::CnsEmissionFailure { ordinal: 1 }.is_retryable());
-        assert!(ManifestExecutionError::SelectionFailed { reason: "test".to_string() }.is_retryable());
-        assert!(ManifestExecutionError::PopulationFailed { template_ref: "test".to_string(), reason: "test".to_string() }.is_retryable());
-        assert!(ManifestExecutionError::ExecutionFailed { mcp_target: "test".to_string(), reason: "test".to_string() }.is_retryable());
-        assert!(ManifestExecutionError::IoError { reason: "test".to_string() }.is_retryable());
-        
+        assert!(
+            ManifestExecutionError::SelectionFailed {
+                reason: "test".to_string()
+            }
+            .is_retryable()
+        );
+        assert!(
+            ManifestExecutionError::PopulationFailed {
+                template_ref: "test".to_string(),
+                reason: "test".to_string()
+            }
+            .is_retryable()
+        );
+        assert!(
+            ManifestExecutionError::ExecutionFailed {
+                mcp_target: "test".to_string(),
+                reason: "test".to_string()
+            }
+            .is_retryable()
+        );
+        assert!(
+            ManifestExecutionError::IoError {
+                reason: "test".to_string()
+            }
+            .is_retryable()
+        );
+
         // Non-retryable errors
-        assert!(!ManifestExecutionError::DepthExceeded { current: 10, max: 7 }.is_retryable());
-        assert!(!ManifestExecutionError::CapabilityDenied { capability: "test".to_string() }.is_retryable());
-        assert!(!ManifestExecutionError::ValidationFailed { field: "test".to_string(), reason: "test".to_string() }.is_retryable());
+        assert!(
+            !ManifestExecutionError::DepthExceeded {
+                current: 10,
+                max: 7
+            }
+            .is_retryable()
+        );
+        assert!(
+            !ManifestExecutionError::CapabilityDenied {
+                capability: "test".to_string()
+            }
+            .is_retryable()
+        );
+        assert!(
+            !ManifestExecutionError::ValidationFailed {
+                field: "test".to_string(),
+                reason: "test".to_string()
+            }
+            .is_retryable()
+        );
     }
 
     #[test]
     fn test_manifest_execution_error_from_io() {
         let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "file not found");
         let manifest_err: ManifestExecutionError = io_err.into();
-        assert!(matches!(manifest_err, ManifestExecutionError::IoError { .. }));
+        assert!(matches!(
+            manifest_err,
+            ManifestExecutionError::IoError { .. }
+        ));
         assert!(manifest_err.is_retryable());
     }
 
     #[test]
     fn test_manifest_execution_error_to_template_error() {
-        let err = ManifestExecutionError::DepthExceeded { current: 10, max: 7 };
+        let err = ManifestExecutionError::DepthExceeded {
+            current: 10,
+            max: 7,
+        };
         let template_err = err.to_template_error();
-        assert!(matches!(template_err, TemplateError::RecursionLimit { max: 7 }));
+        assert!(matches!(
+            template_err,
+            TemplateError::RecursionLimit { max: 7 }
+        ));
     }
 }
