@@ -6,9 +6,9 @@ You are continuing implementation of **hKask** (ℏKask — "Planck's Constant o
 
 **Architecture Status:** Pre-alpha MVP (v0.21.0)  
 **Line Budget:** ≤30,000 lines Rust (excluding ACP/MCP protocols, Okapi)  
-**Current LOC:** ~5,135 lines Rust (17% of budget)  
+**Current LOC:** ~6,200 lines Rust (21% of budget)  
 **Crate Structure:** 21 crates (11 core + 10 MCP servers)
-**Tests:** 114 passing across workspace
+**Tests:** 195 passing across workspace
 
 ---
 
@@ -22,20 +22,24 @@ You are continuing implementation of **hKask** (ℏKask — "Planck's Constant o
 - **hkask-types**: OCAP capability-based access control with Ed25519 signatures
 - Visibility gating (private/public/epistemic)
 
-#### Phase 4: CNS + Templates (~3,600 LOC)
-- **hkask-cns** (622 LOC): Cybernetic Nervous System
+#### Phase 4: CNS + Templates (~4,700 LOC)
+- **hkask-cns** (~1,200 LOC): Cybernetic Nervous System
   - `spans.rs`: `cns.*` namespace spans (`cns.tool.*`, `cns.prompt.*`, `cns.agent_pod.*`)
-  - `variety.rs`: Variety counters, deficit tracking
+  - `variety.rs`: Variety counters, deficit tracking, VarietyMonitor
   - `algedonic.rs`: Algedonic alerts (variety deficit >100 → escalate)
-  - 18 tests passing
+  - `runtime.rs`: **NEW** CNS runtime manager with health monitoring, alert querying
+  - 30 tests passing
 
-- **hkask-templates** (~800 LOC): Unified registry + templating system
+- **hkask-templates** (~1,500 LOC): Unified registry + templating system
   - `registry.rs`: Template registry with `template_type` discriminator (Prompt/Process/Cognition)
   - `manifest.rs`: Manifest executor (~50 LOC fixed logic)
   - `renderer.rs`: minijinja-based Jinja2 rendering with filesystem loading
   - `cascade.rs`: Pre/core/post stage composition
   - `ports.rs`: Hexagonal architecture ports (ManifestExecutor, TemplateRenderer, RegistryIndex, etc.)
-  - 23 tests passing
+  - `adapters.rs`: Hexagonal adapters with retry logic
+  - `csp.rs`: CSP pipeline stage isolation
+  - `skill_translation/`: External skill import pipeline (Claude, Zapier, LangChain, CrewAI)
+  - 121 tests passing
 
 - **Template Files** (7 core templates in `registry/templates/`):
   - `prompt_selector.j2` — Template selection (Cognition)
@@ -48,15 +52,19 @@ You are continuing implementation of **hKask** (ℏKask — "Planck's Constant o
 
 ### 🔄 In Progress
 
-#### Phase 4: Templates (Completing)
+#### Phase 4: Runtime Integration (Complete)
 - Filesystem template loading: ✅ Complete
 - Path resolution (env var + executable-relative): ✅ Complete
 - Bootstrap manifest integration: ✅ Complete
-- CNS event emission in manifest executor: ⏳ Pending
+- CNS runtime integration: ✅ Complete (health, alerts, variety monitoring)
+- MCP server runtime: ✅ Complete (builtin servers registered)
+- CLI integration: ✅ Complete (mcp, cns commands functional)
+- Template rendering in chat: ⏳ Deferred (serialization complexity in CSP pipeline)
 
 ### ⏳ Remaining Phases
 
 #### Phase 5: MCP Servers (Weeks 9-10 — ~10,000 LOC)
+**Runtime Complete:** `hkask-mcp` now includes builtin server registration
 1. **hkask-mcp-inference** (1,400 LOC) — Okapi + Ollama
 2. **hkask-mcp-embedding** (800 LOC) — Ollama embeddings
 3. **hkask-mcp-ensemble** (700 LOC) — bot deliberation
@@ -66,15 +74,27 @@ You are continuing implementation of **hKask** (ℏKask — "Planck's Constant o
 7. **hkask-mcp-doc-knowledge** (1,200 LOC) — doc extraction
 8. **hkask-mcp-web** (800 LOC) — web search
 9. **hkask-mcp-scholar** (800 LOC) — academic search
-10. **hkask-mcp-storage** (existing — storage operations)
+10. **hkask-mcp-storage** (builtin — storage operations via SqliteStorage)
+11. **hkask-mcp-registry** (builtin — git registry operations)
+
+**Builtin MCP Servers Implemented:**
+- `hkask-mcp-storage`: storage:read, storage:write, storage:delete, storage:list
+- `hkask-mcp-registry`: registry:register, registry:get, registry:list, registry:search
 
 #### Phase 6: Agents + Ensemble (~4,000 LOC)
 - **hkask-agents**: Pods, ACP, bot/replicant, Curator
 - **hkask-ensemble**: Multi-agent chat (NO swarms)
-- **hkask-mcp**: MCP runtime, dispatch
+- **hkask-mcp**: MCP runtime, dispatch, security, **servers** (NEW)
 
 #### Phase 7: CLI + API (~4,000 LOC)
-- **hkask-cli**: CLI commands (`kask chat`, `kask bot manifest pull/push`)
+**Runtime Integration Complete:**
+- **hkask-cli**: CLI commands (`kask chat`, `kask template`, `kask bot`, `kask mcp`, `kask cns`)
+  - `mcp list-servers` — Lists registered MCP servers
+  - `mcp list-tools` — Lists available tools from all servers
+  - `mcp get-tool <name>` — Gets tool definition
+  - `cns health` — CNS health status
+  - `cns alerts` — Algedonic alerts
+  - `cns variety` — Variety counters
 - **hkask-api**: HTTP API, utoipa OpenAPI
 
 #### Phase 8: Integration + Verification

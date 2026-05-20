@@ -19,7 +19,7 @@
 
 use crate::error::{CompositionError, RetryConfig};
 use crate::ports::RegistryIndex;
-use crate::skill_translation::{GeneratedManifest, GeneratedTemplate};
+use crate::skill_translation::{GeneratedManifest, GeneratedTemplate, TemplateContract};
 use hkask_types::TemplateType;
 use std::sync::Arc;
 
@@ -71,39 +71,69 @@ impl<R: RegistryIndex + Send + Sync + 'static> RegistryAdapter<R> {
     /// Register template with retry
     pub fn register_template(&self, template: GeneratedTemplate) -> RegistryResult<String> {
         let registry_id = format!("template-{}", template.id);
-        // Placeholder - actual implementation would call registry
+        // In production, this would persist to the actual registry
+        // For now, return the generated ID
         Ok(registry_id)
     }
 
     /// Register manifest with retry
     pub fn register_manifest(&self, manifest: GeneratedManifest) -> RegistryResult<String> {
         let registry_id = format!("manifest-{}", manifest.id);
-        // Placeholder - actual implementation would call registry
+        // In production, this would persist to the actual registry
         Ok(registry_id)
     }
 
     /// Get template with retry
     pub fn get_template(&self, id: &str) -> RegistryResult<GeneratedTemplate> {
-        // Placeholder - actual implementation would call registry
-        Err(CompositionError::permanent("Template not found", Some(id)))
+        // Try to find in registry
+        let entry = self.registry.get(id).map_err(|_| {
+            CompositionError::permanent(&format!("Template not found: {}", id), None)
+        })?;
+
+        // In production, would load full template from storage
+        // For now, return a placeholder
+        Ok(GeneratedTemplate {
+            id: entry.id,
+            template_type: entry.template_type,
+            source: entry.source_path,
+            lexicon_terms: entry.lexicon_terms,
+            contract: TemplateContract {
+                input_fields: vec![],
+                output_fields: vec![],
+            },
+            energy_cap: 1000,
+        })
     }
 
     /// Get manifest with retry
     pub fn get_manifest(&self, id: &str) -> RegistryResult<GeneratedManifest> {
-        // Placeholder - actual implementation would call registry
-        Err(CompositionError::permanent("Manifest not found", Some(id)))
+        // Try to find in registry
+        let _entry = self.registry.get(id).map_err(|_| {
+            CompositionError::permanent(&format!("Manifest not found: {}", id), None)
+        })?;
+
+        // In production, would load full manifest from storage
+        Err(CompositionError::permanent(
+            "Manifest loading not yet implemented",
+            None,
+        ))
     }
 
     /// List templates with retry
-    pub fn list_templates(&self, _template_type: TemplateType) -> RegistryResult<Vec<String>> {
-        // Placeholder - actual implementation would call registry
-        Ok(vec![])
+    pub fn list_templates(&self, template_type: TemplateType) -> RegistryResult<Vec<String>> {
+        let entries = self.registry.list(Some(template_type));
+        Ok(entries.iter().map(|e| e.id.clone()).collect())
     }
 
     /// Search by lexicon with retry
-    pub fn search_by_lexicon(&self, _term: &str) -> RegistryResult<Vec<String>> {
-        // Placeholder - actual implementation would call registry
-        Ok(vec![])
+    pub fn search_by_lexicon(&self, term: &str) -> RegistryResult<Vec<String>> {
+        // Search all templates and filter by lexicon term
+        let entries = self.registry.list(None);
+        Ok(entries
+            .iter()
+            .filter(|e| e.lexicon_terms.iter().any(|t| t == term))
+            .map(|e| e.id.clone())
+            .collect())
     }
 }
 

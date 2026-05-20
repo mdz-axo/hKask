@@ -10,7 +10,8 @@
 //! - `kask mcp tools` — List available tools
 
 use clap::{Parser, Subcommand};
-use hkask_mcp::runtime::McpRuntime;
+use hkask_cns::CnsRuntime;
+use hkask_mcp::{McpRuntime, register_builtin_servers};
 use hkask_templates::{RegistryIndex, SqliteRegistry};
 use hkask_types::TemplateType as Type;
 use std::io::{self, BufRead, Write};
@@ -212,6 +213,7 @@ fn parse_template_type(type_str: &str) -> Option<Type> {
 fn run_chat_interactive(
     registry: &SqliteRegistry,
     _runtime: &McpRuntime,
+    _cns: &CnsRuntime,
     template_id: Option<&str>,
 ) {
     println!("ℏKask Curator Chat - Interactive Mode");
@@ -256,7 +258,8 @@ fn process_chat_input(registry: &SqliteRegistry, input: &str, template_id: Optio
             // Auto-select template based on input
             if input.contains('?') || input.contains("what") || input.contains("how") {
                 format!("Question detected. Processing: {}", input)
-            } else if input.contains("create") || input.contains("make") || input.contains("build") {
+            } else if input.contains("create") || input.contains("make") || input.contains("build")
+            {
                 format!("Action request detected. Processing: {}", input)
             } else {
                 format!("Received: {}", input)
@@ -290,6 +293,9 @@ fn main() {
     // Initialize MCP runtime
     let runtime = McpRuntime::new();
 
+    // Initialize CNS runtime
+    let cns = CnsRuntime::new();
+
     match cli.command {
         Commands::Chat {
             template,
@@ -297,7 +303,7 @@ fn main() {
             interactive,
         } => {
             if interactive {
-                run_chat_interactive(&registry, &runtime, template.as_deref());
+                run_chat_interactive(&registry, &runtime, &cns, template.as_deref());
             } else if let Some(input_path) = input {
                 // Read from file
                 match std::fs::read_to_string(&input_path) {
@@ -412,18 +418,39 @@ fn main() {
                     bot_id.unwrap_or("all".to_string())
                 );
                 println!("Note: Bot capability management requires ACP runtime integration.");
+                println!("See hkask-agents crate for ACP integration.");
             }
             BotAction::Grant { bot_id, capability } => {
                 println!("Grant capability: {} to bot: {}", capability, bot_id);
                 println!("Note: Capability granting requires ACP runtime integration.");
+                println!("See hkask-agents/ocap.rs for capability token management.");
             }
         },
 
         Commands::Mcp { action } => {
+            let runtime = McpRuntime::new();
+
+            // Register builtin servers
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .unwrap();
+            rt.block_on(register_builtin_servers(&runtime));
+
             match action {
                 McpAction::ListServers => {
-                    println!("MCP servers:");
-                    println!("  (no servers registered - use 'mcp register-server' to add one)");
+                    let servers = rt.block_on(runtime.list_servers());
+                    if servers.is_empty() {
+                        println!("MCP servers:");
+                        println!("  (no servers registered)");
+                    } else {
+                        println!("MCP servers ({}):\n", servers.len());
+                        for server in &servers {
+                            println!("  {} ({})", server.name, server.id);
+                            println!("    Tools: {}", server.tools.len());
+                            println!("    Connected: {}", server.connected);
+                        }
+                    }
                 }
                 McpAction::RegisterServer { id, name, tools } => {
                     println!("Registering MCP server: {} ({})", name, id);
@@ -436,34 +463,91 @@ fn main() {
                     println!("Note: MCP server registration requires runtime integration.");
                 }
                 McpAction::ListTools => {
-                    println!("Available tools:");
-                    println!("  (no tools registered - register an MCP server first)");
+                    let tools = rt.block_on(runtime.discover_tools());
+                    if tools.is_empty() {
+                        println!("Available tools:");
+                        println!("  (no tools registered)");
+                    } else {
+                        println!("Available tools ({}):\n", tools.len());
+                        for tool in &tools {
+                            println!("  {}", tool);
+                        }
+                    }
                 }
                 McpAction::GetTool { name } => {
-                    println!("Get tool: {}", name);
-                    println!("Note: Tool lookup requires MCP server registration.");
+                    let tool = rt.block_on(runtime.get_tool(&name));
+                    match tool {
+                        Some(t) => {
+                            println!("Tool: {}", t.name);
+                            println!("  Description: {}", t.description);
+                            println!("  Server: {}", t.server_id);
+                            println!("  Input Schema: {}", t.input_schema);
+                        }
+                        None => {
+                            println!("Tool not found: {}", name);
+                        }
+                    }
                 }
             }
         }
 
         Commands::Cns { action } => match action {
             CnsAction::Health => {
+                let cns = CnsRuntime::new();
+                let health = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .unwrap()
+                    .block_on(cns.health());
+
                 println!("CNS health status:");
-                println!("  Overall deficit: 0");
-                println!("  Critical alerts: 0");
-                println!("  Warning alerts: 0");
-                println!("  Status: HEALTHY");
-                println!("\nNote: CNS monitoring requires runtime integration.");
+                println!("  Overall deficit: {}", health.overall_deficit);
+                println!("  Critical alerts: {}", health.critical_count);
+                println!("  Warning alerts: {}", health.warning_count);
+                println!(
+                    "  Status: {}",
+                    if health.healthy {
+                        "HEALTHY"
+                    } else {
+                        "DEGRADED"
+                    }
+                );
             }
             CnsAction::Alerts => {
-                println!("Algedonic alerts:");
-                println!("  (no active alerts)");
-                println!("\nNote: Alert monitoring requires CNS runtime integration.");
+                let cns = CnsRuntime::new();
+                let alerts = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .unwrap()
+                    .block_on(cns.critical_alerts());
+
+                if alerts.is_empty() {
+                    println!("Algedonic alerts:");
+                    println!("  (no critical alerts)");
+                } else {
+                    println!("Algedonic alerts ({} critical):\n", alerts.len());
+                    for alert in &alerts {
+                        println!("  [{}] {}: {}", alert.severity, alert.domain, alert.message);
+                    }
+                }
             }
             CnsAction::Variety => {
-                println!("Variety counters:");
-                println!("  (no variety data)");
-                println!("\nNote: Variety monitoring requires CNS runtime integration.");
+                let cns = CnsRuntime::new();
+                let variety = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .unwrap()
+                    .block_on(cns.variety());
+
+                if variety.is_empty() {
+                    println!("Variety counters:");
+                    println!("  (no variety data)");
+                } else {
+                    println!("Variety counters ({} domains):\n", variety.len());
+                    for (domain, count) in &variety {
+                        println!("  {}: {} states", domain, count);
+                    }
+                }
             }
         },
     }

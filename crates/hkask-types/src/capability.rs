@@ -137,6 +137,7 @@ impl CapabilityToken {
     }
 
     /// Create a new capability token with attenuation settings
+    #[allow(clippy::too_many_arguments)]
     pub fn new_with_attenuation(
         resource: CapabilityResource,
         resource_id: String,

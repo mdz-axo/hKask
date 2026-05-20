@@ -9,7 +9,9 @@
 pub mod dispatch;
 pub mod runtime;
 pub mod security;
+pub mod servers;
 
 pub use dispatch::McpDispatcher;
 pub use runtime::{McpRuntime, McpServer, McpTool};
 pub use security::{AuditAction, AuditEntry, SecurityGateway, SecurityPolicy};
+pub use servers::register_builtin_servers;
