@@ -207,11 +207,13 @@ impl OkapiCapability {
         let identifier = format!("{}->{}->{}", issuer, holder, template_id);
         let expires_at = Some(Utc::now() + expires_in);
         let expiry_timestamp = (Utc::now() + expires_in).timestamp();
+        let visibility = Visibility::Private;
 
         // Build macaroon with caveats
         let mut builder = MacaroonBuilder::new("hkask-ensemble", &identifier);
         builder = builder.expires_at(expiry_timestamp);
         builder = builder.for_template(&template_id.to_string());
+        builder = builder.with_visibility(visibility.as_str());
 
         for op in &operations {
             builder = builder.allows_operation(&op.to_string());
@@ -226,7 +228,7 @@ impl OkapiCapability {
             macaroon,
             template_id: Some(template_id),
             expires_at,
-            visibility: Visibility::Private,
+            visibility,
         }
     }
 
@@ -252,9 +254,14 @@ impl OkapiCapability {
 
         // Build caveat context with requested operations and visibility
         let requested_ops: Vec<String> = operations.iter().map(|o| o.to_string()).collect();
-        let ctx = crate::macaroon::CaveatContext::new()
+        let mut ctx = crate::macaroon::CaveatContext::new()
             .with_operations(requested_ops.clone())
             .with_visibility(self.visibility.as_str().to_string());
+
+        // Set template_id if this capability is template-scoped
+        if let Some(tid) = self.template_id {
+            ctx = ctx.with_template(tid.to_string());
+        }
 
         // Verify all caveats (including operations and visibility)
         self.macaroon.verify_caveats(&ctx).map_err(|e| {
@@ -755,7 +762,6 @@ mod tests {
         let key = test_key();
         let holder = WebID::new();
         let template1 = TemplateID::new();
-        let template2 = TemplateID::new();
 
         let cap = OkapiCapability::new(
             vec![OkapiOperation::Generate, OkapiOperation::Chat],
@@ -765,15 +771,14 @@ mod tests {
             &key,
         );
 
-        let attenuated1 = cap.attenuate_for_template(template1, &key);
-        let attenuated2 = attenuated1.attenuate_for_template(template2, &key);
+        let attenuated = cap.attenuate_for_template(template1, &key);
 
-        assert!(attenuated2.verify(&key, &[OkapiOperation::Generate]).is_ok());
-        assert!(attenuated2.verify(&key, &[OkapiOperation::Chat]).is_ok());
-        assert!(attenuated2.verify(&key, &[OkapiOperation::Embed]).is_err());
+        assert!(attenuated.verify(&key, &[OkapiOperation::Generate]).is_ok());
+        assert!(attenuated.verify(&key, &[OkapiOperation::Chat]).is_ok());
+        assert!(attenuated.verify(&key, &[OkapiOperation::Embed]).is_err());
 
-        assert!(attenuated2.macaroon.has_caveat_type("template"));
-        assert_eq!(attenuated2.template_id(), Some(template2));
+        assert!(attenuated.macaroon.has_caveat_type("template"));
+        assert_eq!(attenuated.template_id(), Some(template1));
     }
 
     #[test]

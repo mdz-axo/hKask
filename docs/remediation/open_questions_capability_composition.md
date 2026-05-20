@@ -1,8 +1,8 @@
 # ℏKask Open Questions — Capability Composition Graph
 
-**Document Version:** 1.0  
+**Document Version:** 1.1  
 **Date:** 2026-05-20  
-**Status:** OPEN — Requires architectural decisions
+**Status:** ✅ DECISIONS COMPLETE — Ready for Phase 3 implementation
 
 ---
 
@@ -240,27 +240,65 @@ This document captures open questions and underspecified aspects of the hKask ca
 
 | Question | Status | Decision | Date Decided | Rationale |
 |----------|--------|----------|--------------|-----------|
-| Q1 | OPEN | — | — | — |
-| Q2 | OPEN | — | — | — |
-| Q3 | OPEN | — | — | — |
-| Q4 | OPEN | — | — | — |
-| Q5 | OPEN | — | — | — |
-| Q6 | OPEN | — | — | — |
-| Q7 | OPEN | — | — | — |
-| Q8 | OPEN | — | — | — |
+| Q1 | ✅ DECIDED | Single attenuation | 2026-05-20 | Simplicity, predictable behavior |
+| Q2 | ✅ DECIDED | Quota system / allocation | 2026-05-20 | Flexible resource distribution |
+| Q3 | ✅ DECIDED | No delegation | 2026-05-20 | Each agent independent capabilities |
+| Q4 | ✅ DECIDED | Cryptographic (Paxos/CRDT lazy) | 2026-05-20 | Self-verifying, eventual consistency |
+| Q5 | ✅ DECIDED | Hybrid (lazy + periodic cleanup) | 2026-05-20 | Best of both worlds |
+| Q6 | ✅ DECIDED | Hard abort (security) + Escalate (user) | 2026-05-20 | Clear, transparent error messages |
+| Q7 | ❌ REMOVED | Capabilities persist (no revocation) | 2026-05-20 | Category error — capabilities are persistent by OCAP definition |
+| Q8 | ✅ DECIDED | Temporary block + human review | 2026-05-20 | Balanced security |
+
+---
+
+## Architectural Clarification: Capabilities Persist
+
+**Q7 Correction:** Capabilities in our OCAP model are **persistent authorization tokens**. They cannot be "revoked" mid-execution — that is an ACL concept, not a capability concept.
+
+**Capability Lifecycle:**
+```
+Issued ──► Used (attenuated) ──► Expired (by time)
+```
+
+**What Can Fail (Not Revocation):**
+1. **Expiry** — Reaches `expires_at` timestamp
+2. **Exhaustion** — Energy budget depleted
+3. **Scope violation** — Use outside attenuated scope
+4. **Sandbox violation** — Template escape attempt
+
+These are **usage errors**, not capability revocation. The capability itself remains valid until expiry.
+
+**Design Principle:** Capabilities are persistent. Errors are about usage constraints, not authority withdrawal.
 
 ---
 
 ## Next Steps
 
-1. **Phase 3 Kickoff:** Review all open questions with architecture team
-2. **Decision Deadlines:** Set dates for each question resolution
-3. **Design Documents:** Create detailed design for each decision
-4. **Implementation Plan:** Map decisions to implementation tasks
-5. **Security Review:** Validate decisions against Schneier/Miller principles
+1. ✅ **Architecture Review:** Complete — all decisions recorded
+2. ✅ **Decision Deadlines:** Met — all 8 questions resolved
+3. ⏭️ **Phase 3 Planning:** Map decisions to implementation tasks
+4. ⏭️ **Integration Testing:** Test full manifest execution flow with new features
+5. ⏭️ **Line Budget Verification:** Run `tokei` to verify ≤30,000 lines Rust
+6. ⏭️ **Error Message Implementation:** Implement Q6 error/escalation messages
+
+---
+
+## Implementation Tasks (Phase 3)
+
+Based on decisions above:
+
+| Task | Description | Priority |
+|------|-------------|----------|
+| P3-1 | Implement quota allocation API for energy budgets | High |
+| P3-2 | Implement cryptographic capability verification (Paxos/CRDT) | High |
+| P3-3 | Implement hybrid expiry (lazy + periodic cleanup) | Medium |
+| P3-4 | Implement Q6 error messages (hard abort + escalate) | High |
+| P3-5 | Implement sandbox temporary block + review queue | Medium |
+| P3-6 | Update docs: capabilities persist (no revocation) | Low |
 
 ---
 
 *ℏKask v0.21.0 — Planck's Constant of Agent Systems*
 *As simple as possible, but no simpler.*
-*Questions documented. Decisions pending. Implementation deferred.*
+*Questions answered. Decisions recorded. Implementation ready.*
+*Capabilities persist. Errors are usage constraints, not authority withdrawal.*

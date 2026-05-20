@@ -256,7 +256,7 @@ mod tests {
         use hkask_cns::rate_limit::RateLimitConfig;
 
         let runtime = McpRuntime::new();
-        let mut dispatcher = McpDispatcher::new(runtime, b"test-secret");
+        let dispatcher = McpDispatcher::new(runtime, b"test-secret");
 
         // Set very low rate limit for testing
         let bot_id = WebID::new();

@@ -620,7 +620,7 @@ mod tests {
 
         // Create root token with known context nonce
         let root_nonce = "test-execution-context";
-        let mut token = CapabilityToken::new_with_attenuation(
+        let token = CapabilityToken::new_with_attenuation(
             CapabilityResource::Template,
             "prompt/test".to_string(),
             CapabilityAction::Render,

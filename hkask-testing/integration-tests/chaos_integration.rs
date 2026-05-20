@@ -65,6 +65,7 @@ impl ChaosIntegrationContext {
 // ============================================================================
 
 #[tokio::test]
+#[allow(unused_variables)]
 async fn integration_circuit_breaker_with_okapi() {
     if !is_e2e_enabled() {
         println!("Skipping integration test (set OKAPI_E2E_TEST=1 to run)");
@@ -376,7 +377,6 @@ async fn integration_circuit_breaker_and_retry() {
         return;
     }
 
-    let okapi_url = get_okapi_base_url();
     info!("Starting combined circuit breaker + retry test");
 
     let cb_config = CircuitBreakerConfig {
