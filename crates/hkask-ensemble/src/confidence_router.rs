@@ -42,7 +42,7 @@ impl Default for ConfidenceConfig {
 }
 
 /// Confidence-based router with escalation
-/// 
+///
 /// Uses dependency injection: receives InferenceClient trait object,
 /// allowing test mocks and different infrastructure implementations.
 pub struct ConfidenceRouter<C: InferenceClient> {
@@ -58,7 +58,7 @@ impl<C: InferenceClient> ConfidenceRouter<C> {
         }
     }
 
-/// Generate response with confidence-based escalation
+    /// Generate response with confidence-based escalation
     #[tracing::instrument(
         skip(self),
         fields(
@@ -85,10 +85,10 @@ impl<C: InferenceClient> ConfidenceRouter<C> {
                 temperature: None,
                 max_tokens: None,
             });
-        } else if let Some(ref mut opts) = current_request.options {
-            if opts.n_probs.is_none() {
-                opts.n_probs = Some(self.config.n_probs);
-            }
+        } else if let Some(ref mut opts) = current_request.options
+            && opts.n_probs.is_none()
+        {
+            opts.n_probs = Some(self.config.n_probs);
         }
 
         let response = self
@@ -166,7 +166,8 @@ pub enum LegacyRouterError {
 /// Legacy client trait for backward compatibility
 #[async_trait::async_trait]
 pub trait OkapiClientTrait {
-    async fn generate(&self, request: &GenerateRequest) -> Result<OkapiResponse, LegacyRouterError>;
+    async fn generate(&self, request: &GenerateRequest)
+    -> Result<OkapiResponse, LegacyRouterError>;
 }
 
 /// Wrapper for legacy client implementations
@@ -188,7 +189,10 @@ impl<C: InferenceClient> OkapiClientTrait for OkapiClient<C>
 where
     C::Error: std::fmt::Display + 'static,
 {
-    async fn generate(&self, request: &GenerateRequest) -> Result<OkapiResponse, LegacyRouterError> {
+    async fn generate(
+        &self,
+        request: &GenerateRequest,
+    ) -> Result<OkapiResponse, LegacyRouterError> {
         let response = self
             .inner
             .generate(request)

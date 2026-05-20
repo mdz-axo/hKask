@@ -3,11 +3,10 @@
 //! Provides capability-based authorization at Okapi and MCP boundaries.
 //! Enforces principle of least authority (Mark Miller / Bruce Schneier).
 
-use crate::capability::{OkapiCapability, OkapiOperation, AuthorizationError};
-use crate::webid_registry::{WebIDCapabilityRegistry, authorize_operation};
-use hkask_types::{WebID, Visibility};
+use crate::capability::{AuthorizationError, OkapiCapability, OkapiOperation};
+use crate::webid_registry::WebIDCapabilityRegistry;
+use hkask_types::{Visibility, WebID};
 use std::sync::Arc;
-use tokio::sync::RwLock;
 use tracing::{debug, info, warn};
 
 /// OCAP enforcement result
@@ -75,7 +74,10 @@ impl OcapEnforcer {
     }
 
     /// Create new enforcer with CNS runtime for metrics
-    pub fn with_cns(registry: Arc<WebIDCapabilityRegistry>, cns_runtime: Arc<hkask_cns::CnsRuntime>) -> Self {
+    pub fn with_cns(
+        registry: Arc<WebIDCapabilityRegistry>,
+        cns_runtime: Arc<hkask_cns::CnsRuntime>,
+    ) -> Self {
         Self {
             registry,
             cns_runtime: Some(cns_runtime),
@@ -83,14 +85,20 @@ impl OcapEnforcer {
     }
 
     /// Enforce capability for an operation
-    pub async fn enforce(&self, context: OcapContext) -> Result<OcapEnforcementResult, AuthorizationError> {
+    pub async fn enforce(
+        &self,
+        context: OcapContext,
+    ) -> Result<OcapEnforcementResult, AuthorizationError> {
         debug!(
             "Enforcing OCAP: requester={}, operation={:?}, visibility={:?}",
             context.requester, context.operation, context.required_visibility
         );
 
         // Check if requester has capability
-        let has_cap = self.registry.has_capability(context.requester, context.operation).await;
+        let has_cap = self
+            .registry
+            .has_capability(context.requester, context.operation)
+            .await;
 
         if !has_cap {
             warn!(
@@ -103,7 +111,10 @@ impl OcapEnforcer {
                 requester: context.requester,
                 operation: context.operation,
                 capability: None,
-                error: Some(format!("Capability not found for operation {:?}", context.operation)),
+                error: Some(format!(
+                    "Capability not found for operation {:?}",
+                    context.operation
+                )),
             };
             self.record_ocap_metric(&result).await;
             return Ok(result);
@@ -112,44 +123,44 @@ impl OcapEnforcer {
         // Get the capability
         let capabilities = self.registry.get_capabilities(context.requester).await;
 
-        if let Some(caps) = capabilities {
-            if let Some(cap) = caps.into_iter().find(|c| {
-                c.has_operation(context.operation) && !c.is_expired()
-            }) {
-                // Verify visibility
-                if cap.visibility() != context.required_visibility {
-                    warn!(
-                        "OCAP denied: visibility mismatch. Required={:?}, Capability={:?}",
-                        context.required_visibility,
-                        cap.visibility()
-                    );
-
-                    return Ok(OcapEnforcementResult {
-                        granted: false,
-                        requester: context.requester,
-                        operation: context.operation,
-                        capability: None,
-                        error: Some(format!(
-                            "Visibility mismatch: required {:?}, capability has {:?}",
-                            context.required_visibility,
-                            cap.visibility()
-                        )),
-                    });
-                }
-
-                info!(
-                    "OCAP granted: requester={}, operation={:?}",
-                    context.requester, context.operation
+        if let Some(caps) = capabilities
+            && let Some(cap) = caps
+                .into_iter()
+                .find(|c| c.has_operation(context.operation) && !c.is_expired())
+        {
+            // Verify visibility
+            if cap.visibility() != context.required_visibility {
+                warn!(
+                    "OCAP denied: visibility mismatch. Required={:?}, Capability={:?}",
+                    context.required_visibility,
+                    cap.visibility()
                 );
 
                 return Ok(OcapEnforcementResult {
-                    granted: true,
+                    granted: false,
                     requester: context.requester,
                     operation: context.operation,
-                    capability: Some(cap),
-                    error: None,
+                    capability: None,
+                    error: Some(format!(
+                        "Visibility mismatch: required {:?}, capability has {:?}",
+                        context.required_visibility,
+                        cap.visibility()
+                    )),
                 });
             }
+
+            info!(
+                "OCAP granted: requester={}, operation={:?}",
+                context.requester, context.operation
+            );
+
+            return Ok(OcapEnforcementResult {
+                granted: true,
+                requester: context.requester,
+                operation: context.operation,
+                capability: Some(cap),
+                error: None,
+            });
         }
 
         Ok(OcapEnforcementResult {
@@ -162,34 +173,64 @@ impl OcapEnforcer {
     }
 
     /// Record OCAP enforcement metric in CNS
-    pub async fn record_ocap_metric(&self, result: &OcapEnforcementResult) {
-        if let Some(cns) = &self.cns_runtime {
-            let domain = if result.granted { "ocap.granted" } else { "ocap.denied" };
-            let event_id = format!("{}-{:?}", result.requester, result.operation);
-            cns.increment_variety(domain, &event_id).await;
+    async fn record_ocap_metric(&self, result: &OcapEnforcementResult) {
+        if let Some(_cns) = &self.cns_runtime {
+            let span = if result.granted {
+                hkask_types::Span::Connector("cns.ocap.granted".to_string())
+            } else {
+                hkask_types::Span::Connector("cns.ocap.denied".to_string())
+            };
+
+            let observation = serde_json::json!({
+                "requester": result.requester.to_string(),
+                "operation": format!("{:?}", result.operation),
+                "granted": result.granted,
+                "error": result.error,
+            });
+
+            // Emit CNS span event
+            let span_emitter = hkask_cns::spans::SpanEmitter::new(result.requester);
+            span_emitter.emit(span, hkask_types::Phase::Observe, observation);
+
+            info!(
+                target: "cns",
+                granted = result.granted,
+                "OCAP enforcement event recorded"
+            );
         }
     }
-
     /// Authorize Okapi generate operation
-    pub async fn authorize_generate(&self, requester: WebID) -> Result<OcapEnforcementResult, AuthorizationError> {
+    pub async fn authorize_generate(
+        &self,
+        requester: WebID,
+    ) -> Result<OcapEnforcementResult, AuthorizationError> {
         let context = OcapContext::new(requester, OkapiOperation::Generate);
         self.enforce(context).await
     }
 
     /// Authorize Okapi chat operation
-    pub async fn authorize_chat(&self, requester: WebID) -> Result<OcapEnforcementResult, AuthorizationError> {
+    pub async fn authorize_chat(
+        &self,
+        requester: WebID,
+    ) -> Result<OcapEnforcementResult, AuthorizationError> {
         let context = OcapContext::new(requester, OkapiOperation::Chat);
         self.enforce(context).await
     }
 
     /// Authorize Okapi embed operation
-    pub async fn authorize_embed(&self, requester: WebID) -> Result<OcapEnforcementResult, AuthorizationError> {
+    pub async fn authorize_embed(
+        &self,
+        requester: WebID,
+    ) -> Result<OcapEnforcementResult, AuthorizationError> {
         let context = OcapContext::new(requester, OkapiOperation::Embed);
         self.enforce(context).await
     }
 
     /// Authorize metrics read operation
-    pub async fn authorize_read_metrics(&self, requester: WebID) -> Result<OcapEnforcementResult, AuthorizationError> {
+    pub async fn authorize_read_metrics(
+        &self,
+        requester: WebID,
+    ) -> Result<OcapEnforcementResult, AuthorizationError> {
         let context = OcapContext::new(requester, OkapiOperation::ReadMetrics);
         self.enforce(context).await
     }
@@ -205,7 +246,9 @@ pub async fn enforce_okapi_ocap(
     let result = enforcer.enforce(context).await?;
 
     if result.granted {
-        result.capability.ok_or(AuthorizationError::CapabilityNotFound)
+        result
+            .capability
+            .ok_or(AuthorizationError::CapabilityNotFound)
     } else {
         Err(AuthorizationError::CapabilityNotFound)
     }
@@ -277,8 +320,8 @@ mod tests {
         registry.register(webid, vec![capability]).await.unwrap();
 
         // Request with public visibility requirement
-        let context = OcapContext::new(webid, OkapiOperation::Generate)
-            .with_visibility(Visibility::Public);
+        let context =
+            OcapContext::new(webid, OkapiOperation::Generate).with_visibility(Visibility::Public);
         let result = enforcer.enforce(context).await.unwrap();
 
         assert!(!result.granted);

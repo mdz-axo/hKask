@@ -14,4 +14,6 @@ pub use database::Database;
 pub use embeddings::{Embedding, EmbeddingError, EmbeddingStore};
 pub use git_cas::GitCas;
 pub use triples::{Triple, TripleError, TripleStore};
-pub use webid_store::{StoredCapability, StoredWebIDEntry, WebIDStore, WebIDStoreError, WebIDStoreStats};
+pub use webid_store::{
+    StoredCapability, StoredWebIDEntry, WebIDStore, WebIDStoreError, WebIDStoreStats,
+};

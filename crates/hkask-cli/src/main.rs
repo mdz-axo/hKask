@@ -458,7 +458,11 @@ fn main() {
                     }
                 }
             }
-            TemplateAction::Render { id, input, input_file } => {
+            TemplateAction::Render {
+                id,
+                input,
+                input_file,
+            } => {
                 // Read input
                 let input_json = if let Some(json) = input {
                     json
@@ -537,7 +541,11 @@ fn main() {
                     std::process::exit(1);
                 }
             }
-            ManifestAction::Execute { id, input, input_file } => {
+            ManifestAction::Execute {
+                id,
+                input,
+                input_file,
+            } => {
                 // Read input
                 let input_json = if let Some(json) = input {
                     json

@@ -6,10 +6,10 @@
 #[cfg(test)]
 mod e2e_tests {
     use hkask_ensemble::{
-        adapters::{OkapiCapabilityFetcher, OkapiHttpClient},
-        capability::{default_system_capability, OkapiCapability},
-        ports::{CapabilityProvider, InferenceClient, MetricsSource},
         GenerateOptions, GenerateRequest,
+        adapters::{OkapiCapabilityFetcher, OkapiHttpClient},
+        capability::{OkapiCapability, default_system_capability},
+        ports::{CapabilityProvider, InferenceClient, MetricsSource},
     };
 
     fn is_e2e_enabled() -> bool {
@@ -30,13 +30,18 @@ mod e2e_tests {
         }
 
         let fetcher = OkapiCapabilityFetcher::new(&okapi_base_url());
-        let capabilities = fetcher.get_capabilities().await.expect("Failed to get capabilities");
+        let capabilities = fetcher
+            .get_capabilities()
+            .await
+            .expect("Failed to get capabilities");
 
         println!("Okapi Capabilities: {:?}", capabilities);
 
         // Verify basic capabilities
         assert!(!capabilities.runner_type.is_empty());
-        assert!(capabilities.runner_type == "ollamarunner" || capabilities.runner_type == "llamarunner");
+        assert!(
+            capabilities.runner_type == "ollamarunner" || capabilities.runner_type == "llamarunner"
+        );
     }
 
     #[tokio::test]
@@ -98,10 +103,10 @@ mod e2e_tests {
         use hkask_types::TemplateType;
 
         let fetcher = OkapiCapabilityFetcher::new(&okapi_base_url());
-        let validator = CapabilityAwareValidator::from_provider(&fetcher, vec![
-            "classify".to_string(),
-            "recognize".to_string(),
-        ])
+        let validator = CapabilityAwareValidator::from_provider(
+            &fetcher,
+            vec!["classify".to_string(), "recognize".to_string()],
+        )
         .await
         .expect("Failed to create validator");
 
@@ -122,9 +127,15 @@ mod e2e_tests {
         println!("Validation result: {:?}", result);
 
         // Should succeed if Okapi has token_probs capability
-        let capabilities = fetcher.get_capabilities().await.expect("Failed to get capabilities");
+        let capabilities = fetcher
+            .get_capabilities()
+            .await
+            .expect("Failed to get capabilities");
         if capabilities.token_probs {
-            assert!(result.is_ok(), "Validation should succeed with token_probs capability");
+            assert!(
+                result.is_ok(),
+                "Validation should succeed with token_probs capability"
+            );
         }
     }
 
@@ -171,9 +182,15 @@ mod e2e_tests {
             options: None,
         };
 
-        let response = router.generate_with_escalation(&request).await.expect("Failed to generate");
+        let response = router
+            .generate_with_escalation(&request)
+            .await
+            .expect("Failed to generate");
 
-        println!("Routed response: {} (model: {})", response.response, response.model);
+        println!(
+            "Routed response: {} (model: {})",
+            response.response, response.model
+        );
         assert!(!response.response.is_empty());
     }
 

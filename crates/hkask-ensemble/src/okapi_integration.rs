@@ -63,11 +63,12 @@ impl OkapiIntegration {
         &self,
         requester: WebID,
     ) -> Result<(), OkapiIntegrationError> {
-        use crate::capability::AuthorizationError;
-
         // Check if requester has generate capability
         let key = [0x42; 32]; // TODO: Load from secure keystore
-        if let Err(e) = self.capability.verify(&key, &[crate::OkapiOperation::Generate]) {
+        if let Err(e) = self
+            .capability
+            .verify(&key, &[crate::OkapiOperation::Generate])
+        {
             return Err(OkapiIntegrationError::CapabilityError(format!(
                 "Capability verification failed: {:?}",
                 e
@@ -77,7 +78,7 @@ impl OkapiIntegration {
         // Check if capability holder matches requester
         if self.capability.holder != requester {
             return Err(OkapiIntegrationError::CapabilityError(
-                "Capability holder does not match requester".to_string()
+                "Capability holder does not match requester".to_string(),
             ));
         }
 
@@ -85,12 +86,7 @@ impl OkapiIntegration {
     }
 
     /// Verify OCAP for chat operation
-    pub async fn verify_chat_ocap(
-        &self,
-        requester: WebID,
-    ) -> Result<(), OkapiIntegrationError> {
-        use crate::capability::AuthorizationError;
-
+    pub async fn verify_chat_ocap(&self, requester: WebID) -> Result<(), OkapiIntegrationError> {
         let key = [0x42; 32];
         if let Err(e) = self.capability.verify(&key, &[crate::OkapiOperation::Chat]) {
             return Err(OkapiIntegrationError::CapabilityError(format!(
@@ -101,7 +97,7 @@ impl OkapiIntegration {
 
         if self.capability.holder != requester {
             return Err(OkapiIntegrationError::CapabilityError(
-                "Capability holder does not match requester".to_string()
+                "Capability holder does not match requester".to_string(),
             ));
         }
 
@@ -113,7 +109,8 @@ impl OkapiIntegration {
     pub async fn start_metrics_translation(&self) -> Result<(), OkapiIntegrationError> {
         info!("Starting Okapi metrics translation to CNS");
 
-        let (cns_tx, mut cns_rx): (mpsc::Sender<NuEvent>, mpsc::Receiver<NuEvent>) = mpsc::channel(100);
+        let (cns_tx, mut cns_rx): (mpsc::Sender<NuEvent>, mpsc::Receiver<NuEvent>) =
+            mpsc::channel(100);
         let observer_webid = WebID::new();
 
         let metrics_source = OkapiSseAdapter::new(&self.base_url);
@@ -148,11 +145,7 @@ impl OkapiIntegration {
         });
 
         // Spawn metrics translator
-        let mut translator = MetricsTranslator::new(
-            metrics_source,
-            cns_tx,
-            observer_webid,
-        );
+        let mut translator = MetricsTranslator::new(metrics_source, cns_tx, observer_webid);
 
         tokio::spawn(async move {
             if let Err(e) = translator.subscribe_and_translate().await {
@@ -204,7 +197,9 @@ where
     }
 
     /// Subscribe to metrics stream and translate to CNS spans
-    pub async fn subscribe_and_translate(&mut self) -> Result<(), MetricsTranslatorError<M::Error>> {
+    pub async fn subscribe_and_translate(
+        &mut self,
+    ) -> Result<(), MetricsTranslatorError<M::Error>> {
         info!("Starting CNS span translator for Okapi metrics");
 
         loop {
@@ -282,16 +277,16 @@ where
             .await?;
         }
 
-        if current.prompt_cache_hit_ratio != last.prompt_cache_hit_ratio {
-            if let Some(ratio) = current.prompt_cache_hit_ratio {
-                self.emit_span(
-                    Span::Connector("cns.connector.llm.cache_hit".to_string()),
-                    serde_json::json!({
-                        "hit_ratio": ratio,
-                    }),
-                )
-                .await?;
-            }
+        if current.prompt_cache_hit_ratio != last.prompt_cache_hit_ratio
+            && let Some(ratio) = current.prompt_cache_hit_ratio
+        {
+            self.emit_span(
+                Span::Connector("cns.connector.llm.cache_hit".to_string()),
+                serde_json::json!({
+                    "hit_ratio": ratio,
+                }),
+            )
+            .await?;
         }
 
         Ok(())

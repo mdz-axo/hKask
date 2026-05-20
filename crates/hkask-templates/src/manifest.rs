@@ -131,18 +131,29 @@ impl CnsEventEmitter {
     }
 
     /// Emit select event
-    pub fn emit_select(&self, template_id: &str, confidence: f64, fallback_applied: bool, rationale: &str) {
+    pub fn emit_select(
+        &self,
+        template_id: &str,
+        confidence: f64,
+        fallback_applied: bool,
+        rationale: &str,
+    ) {
         let step = self.step_counter.fetch_add(1, Ordering::SeqCst);
         self.cns.emit(
             "cns.prompt.select",
-            Value::Object(serde_json::json!({
-                "execution_id": self.execution_id.to_string(),
-                "step": step,
-                "selected_template": template_id,
-                "confidence": confidence,
-                "fallback_applied": fallback_applied,
-                "rationale": rationale,
-            }).as_object().unwrap().clone()),
+            Value::Object(
+                serde_json::json!({
+                    "execution_id": self.execution_id.to_string(),
+                    "step": step,
+                    "selected_template": template_id,
+                    "confidence": confidence,
+                    "fallback_applied": fallback_applied,
+                    "rationale": rationale,
+                })
+                .as_object()
+                .unwrap()
+                .clone(),
+            ),
             confidence,
         );
     }
@@ -152,12 +163,17 @@ impl CnsEventEmitter {
         let step = self.step_counter.fetch_add(1, Ordering::SeqCst);
         self.cns.emit(
             "cns.prompt.populate",
-            Value::Object(serde_json::json!({
-                "execution_id": self.execution_id.to_string(),
-                "step": step,
-                "binding_count": binding_count,
-                "template_ref": template_ref,
-            }).as_object().unwrap().clone()),
+            Value::Object(
+                serde_json::json!({
+                    "execution_id": self.execution_id.to_string(),
+                    "step": step,
+                    "binding_count": binding_count,
+                    "template_ref": template_ref,
+                })
+                .as_object()
+                .unwrap()
+                .clone(),
+            ),
             0.9,
         );
     }
@@ -167,28 +183,44 @@ impl CnsEventEmitter {
         let step = self.step_counter.fetch_add(1, Ordering::SeqCst);
         self.cns.emit(
             "cns.prompt.execute",
-            Value::Object(serde_json::json!({
-                "execution_id": self.execution_id.to_string(),
-                "step": step,
-                "mcp_target": mcp_target,
-                "outcome": outcome,
-            }).as_object().unwrap().clone()),
+            Value::Object(
+                serde_json::json!({
+                    "execution_id": self.execution_id.to_string(),
+                    "step": step,
+                    "mcp_target": mcp_target,
+                    "outcome": outcome,
+                })
+                .as_object()
+                .unwrap()
+                .clone(),
+            ),
             0.95,
         );
     }
 
     /// Emit outcome event
-    pub fn emit_outcome(&self, manifest_id: &str, steps: u32, duration: std::time::Duration, result: &Value) {
+    pub fn emit_outcome(
+        &self,
+        manifest_id: &str,
+        steps: u32,
+        duration: std::time::Duration,
+        result: &Value,
+    ) {
         self.cns.emit(
             "cns.prompt.outcome",
-            Value::Object(serde_json::json!({
-                "execution_id": self.execution_id.to_string(),
-                "manifest_id": manifest_id,
-                "total_steps": steps,
-                "duration_ms": duration.as_millis() as u64,
-                "outcome": "success",
-                "result": result,
-            }).as_object().unwrap().clone()),
+            Value::Object(
+                serde_json::json!({
+                    "execution_id": self.execution_id.to_string(),
+                    "manifest_id": manifest_id,
+                    "total_steps": steps,
+                    "duration_ms": duration.as_millis() as u64,
+                    "outcome": "success",
+                    "result": result,
+                })
+                .as_object()
+                .unwrap()
+                .clone(),
+            ),
             1.0,
         );
     }
@@ -293,7 +325,10 @@ where
                             &self.selector_config.fallback_template_id,
                             confidence,
                             true,
-                            &format!("Confidence {} below threshold {}", confidence, self.selector_config.confidence_threshold)
+                            &format!(
+                                "Confidence {} below threshold {}",
+                                confidence, self.selector_config.confidence_threshold
+                            ),
                         );
 
                         // Use fallback template
@@ -319,19 +354,18 @@ where
                             &selected_id,
                             confidence,
                             false,
-                            &format!("Confidence {} above threshold {}", confidence, self.selector_config.confidence_threshold)
+                            &format!(
+                                "Confidence {} above threshold {}",
+                                confidence, self.selector_config.confidence_threshold
+                            ),
                         );
 
                         selection_result
                     }
                 } else {
                     // No confidence field; pass through with default
-                    self.cns_emitter.emit_select(
-                        "unknown",
-                        0.0,
-                        false,
-                        "No confidence provided",
-                    );
+                    self.cns_emitter
+                        .emit_select("unknown", 0.0, false, "No confidence provided");
 
                     selection_result
                 }
@@ -346,10 +380,8 @@ where
                 };
 
                 // Emit CNS event for populate
-                self.cns_emitter.emit_populate(
-                    binding_count as usize,
-                    &step.template_ref
-                );
+                self.cns_emitter
+                    .emit_populate(binding_count as usize, &step.template_ref);
 
                 Value::String(format!("Populated: {:?}", state))
             }
@@ -369,7 +401,7 @@ where
                 // Emit CNS event for execute
                 self.cns_emitter.emit_execute(
                     &step.mcp.clone().unwrap_or_else(|| "none".to_string()),
-                    "success"
+                    "success",
                 );
 
                 result
@@ -399,20 +431,20 @@ where
         );
 
         let start_time = std::time::Instant::now();
-        
+
         // Create atomic state with transaction ID
         let mut state = ManifestState::new(input);
-        
+
         // Execute each step atomically
         for step in &manifest.steps {
             let step_ordinal = step.ordinal;
-            
+
             // Atomic transition: rollback on failure
             state.transition(step_ordinal, |current_state| {
                 self.execute_step(step, current_state.clone(), 0)
             })?;
         }
-        
+
         let duration = start_time.elapsed();
 
         // Emit final outcome event with execution summary
@@ -554,8 +586,8 @@ mod tests {
     #[test]
     fn test_manifest_executor_depth_limit() {
         let cns = MockCns::new();
-        let executor =
-            ManifestExecutorImpl::new(MockRenderer, MockInference, MockMcp, cns.clone()).with_max_depth(2);
+        let executor = ManifestExecutorImpl::new(MockRenderer, MockInference, MockMcp, cns.clone())
+            .with_max_depth(2);
 
         // Create a manifest that would exceed depth if recursive
         let manifest = ProcessManifest {
@@ -735,7 +767,7 @@ mod tests {
     fn test_invariant_4_depth_precheck() {
         let cns = MockCns::new();
         let executor = ManifestExecutorImpl::new(MockRenderer, MockInference, MockMcp, cns.clone())
-            .with_max_depth(0);  // Set max depth to 0
+            .with_max_depth(0); // Set max depth to 0
 
         let manifest = ProcessManifest {
             id: "test".to_string(),
@@ -765,21 +797,43 @@ mod tests {
         use crate::ports::ManifestExecutionError;
 
         // Transient errors (retryable)
-        let io_err = ManifestExecutionError::IoError { reason: "test".to_string() };
+        let io_err = ManifestExecutionError::IoError {
+            reason: "test".to_string(),
+        };
         assert!(io_err.is_retryable(), "IoError should be retryable");
 
         let cns_err = ManifestExecutionError::CnsEmissionFailure { ordinal: 1 };
-        assert!(cns_err.is_retryable(), "CnsEmissionFailure should be retryable");
+        assert!(
+            cns_err.is_retryable(),
+            "CnsEmissionFailure should be retryable"
+        );
 
         // Permanent errors (not retryable)
-        let capability_err = ManifestExecutionError::CapabilityDenied { capability: "test".to_string() };
-        assert!(!capability_err.is_retryable(), "CapabilityDenied should not be retryable");
+        let capability_err = ManifestExecutionError::CapabilityDenied {
+            capability: "test".to_string(),
+        };
+        assert!(
+            !capability_err.is_retryable(),
+            "CapabilityDenied should not be retryable"
+        );
 
-        let validation_err = ManifestExecutionError::ValidationFailed { field: "test".to_string(), reason: "test".to_string() };
-        assert!(!validation_err.is_retryable(), "ValidationFailed should not be retryable");
+        let validation_err = ManifestExecutionError::ValidationFailed {
+            field: "test".to_string(),
+            reason: "test".to_string(),
+        };
+        assert!(
+            !validation_err.is_retryable(),
+            "ValidationFailed should not be retryable"
+        );
 
-        let depth_err = ManifestExecutionError::DepthExceeded { current: 10, max: 7 };
-        assert!(!depth_err.is_retryable(), "DepthExceeded should not be retryable");
+        let depth_err = ManifestExecutionError::DepthExceeded {
+            current: 10,
+            max: 7,
+        };
+        assert!(
+            !depth_err.is_retryable(),
+            "DepthExceeded should not be retryable"
+        );
 
         // Invariant: error type determines recovery path
     }
@@ -789,75 +843,82 @@ mod tests {
     #[test]
     fn test_manifest_state_new() {
         let state = ManifestState::new(Value::String("initial".to_string()));
-        
-        assert!(state.transaction_id().as_bytes().len() == 16);  // UUID is 16 bytes
+
+        assert!(state.transaction_id().as_bytes().len() == 16); // UUID is 16 bytes
         assert_eq!(state.current_step(), 0);
         assert_eq!(state.steps_completed(), 0);
-        assert_eq!(state.accumulated_state, Value::String("initial".to_string()));
+        assert_eq!(
+            state.accumulated_state,
+            Value::String("initial".to_string())
+        );
     }
 
     #[test]
     fn test_manifest_state_transition_success() {
         let mut state = ManifestState::new(Value::String("initial".to_string()));
-        
+
         let result: Result<Value> = state.transition(1, |current| {
-            Ok(Value::String(format!("updated_from_{}", current.as_str().unwrap())))
+            Ok(Value::String(format!(
+                "updated_from_{}",
+                current.as_str().unwrap()
+            )))
         });
-        
+
         assert!(result.is_ok());
         assert_eq!(state.current_step(), 1);
         assert_eq!(state.steps_completed(), 1);
-        assert!(state.accumulated_state.as_str().unwrap().starts_with("updated_from_"));
+        assert!(
+            state
+                .accumulated_state
+                .as_str()
+                .unwrap()
+                .starts_with("updated_from_")
+        );
     }
 
     #[test]
     fn test_manifest_state_transition_rollback() {
         let mut state = ManifestState::new(Value::String("initial".to_string()));
         let original_state = state.accumulated_state.clone();
-        
+
         // Transition that fails
         let result: Result<Value> = state.transition(1, |_current| {
             Err(TemplateError::Manifest("simulated failure".to_string()))
         });
-        
+
         assert!(result.is_err());
-        assert_eq!(state.current_step(), 0);  // Step counter not advanced
+        assert_eq!(state.current_step(), 0); // Step counter not advanced
         assert_eq!(state.steps_completed(), 0);
-        assert_eq!(state.accumulated_state, original_state);  // Rolled back
+        assert_eq!(state.accumulated_state, original_state); // Rolled back
     }
 
     #[test]
     fn test_manifest_state_multiple_transitions() {
         let mut state = ManifestState::new(Value::String("step0".to_string()));
-        
+
         // First transition
-        let r1: Result<Value> = state.transition(1, |_| {
-            Ok(Value::String("step1".to_string()))
-        });
+        let r1: Result<Value> = state.transition(1, |_| Ok(Value::String("step1".to_string())));
         assert!(r1.is_ok());
         assert_eq!(state.steps_completed(), 1);
-        
+
         // Second transition
-        let r2: Result<Value> = state.transition(2, |_| {
-            Ok(Value::String("step2".to_string()))
-        });
+        let r2: Result<Value> = state.transition(2, |_| Ok(Value::String("step2".to_string())));
         assert!(r2.is_ok());
         assert_eq!(state.steps_completed(), 2);
-        
+
         // Third transition fails - should rollback
-        let r3: Result<Value> = state.transition(3, |_| {
-            Err(TemplateError::Manifest("fail".to_string()))
-        });
+        let r3: Result<Value> =
+            state.transition(3, |_| Err(TemplateError::Manifest("fail".to_string())));
         assert!(r3.is_err());
-        assert_eq!(state.steps_completed(), 2);  // Not incremented
-        assert_eq!(state.accumulated_state.as_str().unwrap(), "step2");  // Rolled back to step2
+        assert_eq!(state.steps_completed(), 2); // Not incremented
+        assert_eq!(state.accumulated_state.as_str().unwrap(), "step2"); // Rolled back to step2
     }
 
     #[test]
     fn test_manifest_state_transaction_id_unique() {
         let state1 = ManifestState::new(Value::Null);
         let state2 = ManifestState::new(Value::Null);
-        
+
         // Each state should have unique transaction ID
         assert_ne!(state1.transaction_id(), state2.transaction_id());
     }

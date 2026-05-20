@@ -4,7 +4,7 @@
 //! Follows principle of least authority (Mark Miller / Bruce Schneier).
 
 use chrono::{DateTime, Utc};
-use hkask_types::{WebID, TemplateID, Visibility};
+use hkask_types::{TemplateID, Visibility, WebID};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use thiserror::Error;
@@ -99,9 +99,9 @@ pub enum AuthorizationError {
 impl From<MacaroonError> for AuthorizationError {
     fn from(err: MacaroonError) -> Self {
         match err {
-            MacaroonError::InvalidSignature => {
-                AuthorizationError::MacaroonInvalid("Signature invalid - may have been tampered with".to_string())
-            }
+            MacaroonError::InvalidSignature => AuthorizationError::MacaroonInvalid(
+                "Signature invalid - may have been tampered with".to_string(),
+            ),
             MacaroonError::Expired => AuthorizationError::CapabilityExpired,
             MacaroonError::Unauthorized => {
                 AuthorizationError::Unauthorized("Caveat prohibits this operation".to_string())
@@ -135,7 +135,7 @@ impl OkapiCapability {
         let id = CapabilityId::new();
         let identifier = format!("{}->{}", issuer, holder);
         let expires_at = Some(Utc::now() + expires_in);
-        let expiry_timestamp = expires_at.unwrap().timestamp();
+        let expiry_timestamp = (Utc::now() + expires_in).timestamp();
 
         // Build macaroon with caveats
         let mut builder = MacaroonBuilder::new("hkask-ensemble", &identifier);
@@ -170,7 +170,7 @@ impl OkapiCapability {
         let id = CapabilityId::new();
         let identifier = format!("{}->{}->{}", issuer, holder, template_id);
         let expires_at = Some(Utc::now() + expires_in);
-        let expiry_timestamp = expires_at.unwrap().timestamp();
+        let expiry_timestamp = (Utc::now() + expires_in).timestamp();
 
         // Build macaroon with caveats
         let mut builder = MacaroonBuilder::new("hkask-ensemble", &identifier);
@@ -199,7 +199,11 @@ impl OkapiCapability {
     /// # Arguments
     /// * `key` - 32-byte HMAC key for verification
     /// * `operations` - Operations to check against operation caveats
-    pub fn verify(&self, key: &[u8; 32], operations: &[OkapiOperation]) -> Result<(), AuthorizationError> {
+    pub fn verify(
+        &self,
+        key: &[u8; 32],
+        operations: &[OkapiOperation],
+    ) -> Result<(), AuthorizationError> {
         // Verify macaroon signature
         self.macaroon.verify(key)?;
 
@@ -249,23 +253,16 @@ impl OkapiCapability {
     ///
     /// Creates a new capability with additional template caveat.
     /// The attenuated capability is more restricted than the original.
-    pub fn attenuate_for_template(
-        &self,
-        template_id: TemplateID,
-        key: &[u8; 32],
-    ) -> Self {
-        let attenuated_macaroon = self
-            .macaroon
-            .clone()
-            .add_caveat(
-                crate::macaroon::Caveat {
-                    caveat_id: "template".to_string(),
-                    data: template_id.to_string(),
-                },
-                key,
-            );
+    pub fn attenuate_for_template(&self, template_id: TemplateID, key: &[u8; 32]) -> Self {
+        let attenuated_macaroon = self.macaroon.clone().add_caveat(
+            crate::macaroon::Caveat {
+                caveat_id: "template".to_string(),
+                data: template_id.to_string(),
+            },
+            key,
+        );
 
-Self {
+        Self {
             id: CapabilityId::new(), // New ID for attenuated capability
             issuer: self.issuer,
             holder: self.holder,
@@ -525,7 +522,10 @@ mod tests {
         let cap = read_only_capability(holder, &key);
 
         assert!(cap.verify(&key, &[OkapiOperation::ReadMetrics]).is_ok());
-        assert!(cap.verify(&key, &[OkapiOperation::ReadCapabilities]).is_ok());
+        assert!(
+            cap.verify(&key, &[OkapiOperation::ReadCapabilities])
+                .is_ok()
+        );
         assert!(cap.verify(&key, &[OkapiOperation::Generate]).is_err());
     }
 }

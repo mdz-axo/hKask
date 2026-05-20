@@ -417,10 +417,10 @@ impl ManifestOutcome {
 pub trait ManifestExecutorPort {
     /// Load manifest from abstract location
     fn load(&self, location: &ManifestLocation) -> Result<ProcessManifest>;
-    
+
     /// Execute manifest with input state
     fn execute(&self, manifest: &ProcessManifest, input: Value) -> Result<ManifestOutcome>;
-    
+
     /// Get execution trace for audit (by execution ID)
     fn get_trace(&self, execution_id: &uuid::Uuid) -> Option<ManifestOutcome>;
 }
@@ -429,13 +429,13 @@ pub trait ManifestExecutorPort {
 pub trait ManifestRepository {
     /// Load manifest by ID
     fn load(&self, id: &str) -> Result<ProcessManifest>;
-    
+
     /// Save manifest
     fn save(&self, manifest: &ProcessManifest) -> Result<()>;
-    
+
     /// Delete manifest by ID
     fn delete(&self, id: &str) -> Result<()>;
-    
+
     /// List all manifest IDs
     fn list(&self) -> Result<Vec<String>>;
 }

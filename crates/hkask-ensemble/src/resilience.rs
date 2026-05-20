@@ -255,7 +255,12 @@ where
     C: Clone,
 {
     /// Create new resilient client
-    pub fn new(inner: C, name: String, circuit_config: CircuitBreakerConfig, retry_config: RetryConfig) -> Self {
+    pub fn new(
+        inner: C,
+        name: String,
+        circuit_config: CircuitBreakerConfig,
+        retry_config: RetryConfig,
+    ) -> Self {
         let circuit_breaker = Arc::new(CircuitBreaker::new(name, circuit_config));
 
         Self {
@@ -387,12 +392,8 @@ mod tests {
         let circuit_config = CircuitBreakerConfig::default();
         let retry_config = RetryConfig::default();
 
-        let client = ResilientOkapiClient::new(
-            (),
-            "test".to_string(),
-            circuit_config,
-            retry_config,
-        );
+        let client =
+            ResilientOkapiClient::new((), "test".to_string(), circuit_config, retry_config);
 
         // Successful operation
         let result = client

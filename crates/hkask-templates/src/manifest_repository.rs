@@ -4,8 +4,8 @@
 //! Per hexagonal architecture: this is an adapter that implements the repository port.
 
 use crate::ports::{ManifestRepository, ProcessManifest, Result, TemplateError};
-use std::path::PathBuf;
 use crate::rate_limiter::RateLimiter;
+use std::path::PathBuf;
 
 /// YAML file system manifest repository
 ///
@@ -57,13 +57,13 @@ impl ManifestRepository for FileSystemManifestRepository {
                 "Manifest load rate limit exceeded".to_string(),
             ));
         }
-        
+
         let path = self.manifest_path(id);
-        
+
         if !path.exists() {
             return Err(TemplateError::NotFound(format!("Manifest {}", id)));
         }
-        
+
         ProcessManifest::load_from_yaml(&path)
     }
 
@@ -74,24 +74,23 @@ impl ManifestRepository for FileSystemManifestRepository {
                 "Manifest save rate limit exceeded".to_string(),
             ));
         }
-        
+
         let path = self.manifest_path(&manifest.id);
-        
+
         // Ensure parent directory exists
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent).map_err(|e| {
                 TemplateError::Manifest(format!("Failed to create directory: {}", e))
             })?;
         }
-        
-        let yaml_content = serde_yaml::to_string(manifest).map_err(|e| {
-            TemplateError::Manifest(format!("Failed to serialize manifest: {}", e))
-        })?;
-        
+
+        let yaml_content = serde_yaml::to_string(manifest)
+            .map_err(|e| TemplateError::Manifest(format!("Failed to serialize manifest: {}", e)))?;
+
         std::fs::write(&path, yaml_content).map_err(|e| {
             TemplateError::Manifest(format!("Failed to write manifest file: {}", e))
         })?;
-        
+
         Ok(())
     }
 
@@ -102,17 +101,17 @@ impl ManifestRepository for FileSystemManifestRepository {
                 "Manifest delete rate limit exceeded".to_string(),
             ));
         }
-        
+
         let path = self.manifest_path(id);
-        
+
         if !path.exists() {
             return Err(TemplateError::NotFound(format!("Manifest {}", id)));
         }
-        
+
         std::fs::remove_file(&path).map_err(|e| {
             TemplateError::Manifest(format!("Failed to delete manifest file: {}", e))
         })?;
-        
+
         Ok(())
     }
 
@@ -123,24 +122,24 @@ impl ManifestRepository for FileSystemManifestRepository {
                 "Manifest list rate limit exceeded".to_string(),
             ));
         }
-        
+
         if !self.base_path.exists() {
             return Ok(vec![]);
         }
-        
+
         let mut manifests = Vec::new();
-        
+
         let entries = std::fs::read_dir(&self.base_path).map_err(|e| {
             TemplateError::Manifest(format!("Failed to read manifest directory: {}", e))
         })?;
-        
+
         for entry in entries {
             let entry = entry.map_err(|e| {
                 TemplateError::Manifest(format!("Failed to read directory entry: {}", e))
             })?;
-            
+
             let path = entry.path();
-            
+
             // Only process .yaml files
             if path.extension().and_then(|s| s.to_str()) == Some("yaml") {
                 if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
@@ -148,7 +147,7 @@ impl ManifestRepository for FileSystemManifestRepository {
                 }
             }
         }
-        
+
         Ok(manifests)
     }
 }
@@ -299,7 +298,10 @@ mod tests {
         assert!(repo.load("to-delete").is_ok());
 
         repo.delete("to-delete").unwrap();
-        assert!(matches!(repo.load("to-delete"), Err(TemplateError::NotFound(_))));
+        assert!(matches!(
+            repo.load("to-delete"),
+            Err(TemplateError::NotFound(_))
+        ));
     }
 
     #[test]
@@ -340,10 +342,11 @@ mod tests {
     #[test]
     fn test_file_system_repository_rate_limiting() {
         use crate::rate_limiter::RateLimiter;
-        
+
         let temp_dir = TempDir::new().unwrap();
         // Create repo with very low rate limit (2 tokens, no refill for test duration)
-        let repo = FileSystemManifestRepository::with_rate_limit(temp_dir.path().to_path_buf(), 2, 0);
+        let repo =
+            FileSystemManifestRepository::with_rate_limit(temp_dir.path().to_path_buf(), 2, 0);
 
         // First two operations should succeed
         let manifest = ProcessManifest {
@@ -352,7 +355,7 @@ mod tests {
             description: "Test".to_string(),
             steps: vec![],
         };
-        
+
         assert!(repo.save(&manifest).is_ok());
         assert!(repo.load("rate-test").is_ok());
 

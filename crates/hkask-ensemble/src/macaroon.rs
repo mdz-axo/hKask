@@ -4,8 +4,8 @@
 //! Macaroons provide tamper-evident authorization without UCAN chain complexity.
 
 use hmac::{Hmac, Mac};
-use sha2::Sha256;
 use serde::{Deserialize, Serialize};
+use sha2::Sha256;
 use thiserror::Error;
 
 type HmacSha256 = Hmac<Sha256>;
@@ -153,7 +153,9 @@ impl Macaroon {
             mac.update(c.data.as_bytes());
         }
 
-        new_mac.signature.copy_from_slice(&mac.finalize().into_bytes());
+        new_mac
+            .signature
+            .copy_from_slice(&mac.finalize().into_bytes());
         new_mac
     }
 
@@ -380,7 +382,10 @@ mod tests {
             current_time: far_future,
             ..CaveatContext::new()
         };
-        assert_eq!(mac.verify_caveats(&ctx_expired), Err(MacaroonError::Expired));
+        assert_eq!(
+            mac.verify_caveats(&ctx_expired),
+            Err(MacaroonError::Expired)
+        );
     }
 
     #[test]

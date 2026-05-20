@@ -3,7 +3,6 @@
 //! Subscribes to Okapi's SSE metrics stream and emits CNS spans on delta.
 //! Uses hexagonal architecture: depends on MetricsSource port, not concrete HTTP client.
 
-use hkask_cns::spans::SpanCategory;
 use hkask_types::{NuEvent, Span, WebID};
 use serde_json::json;
 use tokio::sync::mpsc;
@@ -57,8 +56,6 @@ where
         current: &hkask_ensemble::ports::OkapiMetrics,
         last: &hkask_ensemble::ports::OkapiMetrics,
     ) -> Result<(), MetricsTranslatorError<M::Error>> {
-        use hkask_ensemble::ports::OkapiMetrics;
-
         if current.tokens_generated_total != last.tokens_generated_total {
             self.emit_span(
                 Span::Connector("cns.connector.llm.tokens".to_string()),
@@ -113,16 +110,16 @@ where
             .await?;
         }
 
-        if current.prompt_cache_hit_ratio != last.prompt_cache_hit_ratio {
-            if let Some(ratio) = current.prompt_cache_hit_ratio {
-                self.emit_span(
-                    Span::Connector("cns.connector.llm.cache_hit".to_string()),
-                    json!({
-                        "hit_ratio": ratio,
-                    }),
-                )
-                .await?;
-            }
+        if current.prompt_cache_hit_ratio != last.prompt_cache_hit_ratio
+            && let Some(ratio) = current.prompt_cache_hit_ratio
+        {
+            self.emit_span(
+                Span::Connector("cns.connector.llm.cache_hit".to_string()),
+                json!({
+                    "hit_ratio": ratio,
+                }),
+            )
+            .await?;
         }
 
         Ok(())

@@ -2,7 +2,6 @@
 //!
 //! Defines a consistent ontology for CNS spans emitted by Okapi integration components.
 
-use chrono::{DateTime, Utc};
 use hkask_types::{NuEvent, Span, WebID};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -12,10 +11,7 @@ use serde_json::json;
 #[serde(tag = "type", content = "data")]
 pub enum OkapiCnsSpan {
     /// Token throughput observation
-    TokenThroughput {
-        total: i64,
-        delta: i64,
-    },
+    TokenThroughput { total: i64, delta: i64 },
     /// Context utilization observation
     ContextUtilization {
         kv_cache_tokens: i64,
@@ -23,18 +19,11 @@ pub enum OkapiCnsSpan {
         utilization_pct: f64,
     },
     /// Adapter swap event
-    AdapterSwap {
-        latency_ms: i64,
-    },
+    AdapterSwap { latency_ms: i64 },
     /// GPU memory observation
-    GpuMemory {
-        used_bytes: u64,
-        delta: i64,
-    },
+    GpuMemory { used_bytes: u64, delta: i64 },
     /// Prompt cache hit ratio
-    CacheHitRatio {
-        hit_ratio: f64,
-    },
+    CacheHitRatio { hit_ratio: f64 },
     /// Confidence escalation event
     ConfidenceEscalation {
         initial_confidence: f64,
@@ -186,11 +175,7 @@ impl OkapiCnsSpan {
     }
 
     /// Create MoE expert co-activation span
-    pub fn moe_expert_coactivation(
-        expert_a: u32,
-        expert_b: u32,
-        coactivation_count: u64,
-    ) -> Self {
+    pub fn moe_expert_coactivation(expert_a: u32, expert_b: u32, coactivation_count: u64) -> Self {
         OkapiCnsSpan::MoEExpertCoactivation {
             expert_a,
             expert_b,

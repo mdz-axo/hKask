@@ -13,8 +13,8 @@ use std::time::Duration;
 use tokio::sync::RwLock;
 use tracing::{error, info, warn};
 
-use crate::ports::{CapabilityProvider, InferenceClient, OkapiCapabilities};
 use crate::adapters::OkapiHttpClient;
+use crate::ports::OkapiCapabilities;
 
 /// Okapi instance with health and capability tracking
 #[derive(Clone)]
@@ -105,8 +105,6 @@ impl HealthStatus {
 pub struct HealthChecker {
     check_interval: Duration,
     timeout: Duration,
-    healthy_threshold: u32,
-    unhealthy_threshold: u32,
 }
 
 impl HealthChecker {
@@ -114,14 +112,12 @@ impl HealthChecker {
     pub fn new(
         check_interval: Duration,
         timeout: Duration,
-        healthy_threshold: u32,
-        unhealthy_threshold: u32,
+        _healthy_threshold: u32,
+        _unhealthy_threshold: u32,
     ) -> Self {
         Self {
             check_interval,
             timeout,
-            healthy_threshold,
-            unhealthy_threshold,
         }
     }
 
@@ -135,7 +131,7 @@ impl HealthChecker {
         let start = std::time::Instant::now();
 
         match client
-            .get(&format!("{}/api/engine/status", endpoint))
+            .get(format!("{}/api/engine/status", endpoint))
             .send()
             .await
         {
@@ -212,7 +208,11 @@ impl CapabilityRouter {
         }
 
         // Sort by load (prefer less loaded instances)
-        candidates.sort_by(|a, b| a.load.partial_cmp(&b.load).unwrap_or(std::cmp::Ordering::Equal));
+        candidates.sort_by(|a, b| {
+            a.load
+                .partial_cmp(&b.load)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         // Return best candidate
         candidates.first().cloned().cloned()
@@ -260,17 +260,17 @@ impl CapabilityRouter {
                                 info!(
                                     "Okapi instance {} is healthy ({}ms)",
                                     instance.endpoint,
-                                    if let HealthStatus::Healthy { response_time_ms, .. } = health {
+                                    if let HealthStatus::Healthy {
+                                        response_time_ms, ..
+                                    } = health
+                                    {
                                         response_time_ms
                                     } else {
                                         0
                                     }
                                 );
                             } else {
-                                warn!(
-                                    "Okapi instance {} is unhealthy",
-                                    instance.endpoint
-                                );
+                                warn!("Okapi instance {} is unhealthy", instance.endpoint);
                             }
                         }
                         Err(e) => {
@@ -284,7 +284,10 @@ impl CapabilityRouter {
 
                     // Update instance in the list
                     let mut instances = self.instances.write().await;
-                    if let Some(existing) = instances.iter_mut().find(|i| i.endpoint == instance.endpoint) {
+                    if let Some(existing) = instances
+                        .iter_mut()
+                        .find(|i| i.endpoint == instance.endpoint)
+                    {
                         *existing = instance;
                     }
                 }
@@ -310,7 +313,11 @@ impl MultiOkapiClient {
 
     /// Create HTTP client for selected instance
     pub async fn get_client(&self) -> Option<OkapiHttpClient> {
-        if let Some(instance) = self.router.select_instance(&self.default_capabilities).await {
+        if let Some(instance) = self
+            .router
+            .select_instance(&self.default_capabilities)
+            .await
+        {
             Some(OkapiHttpClient::new(&instance.endpoint))
         } else {
             None
@@ -388,12 +395,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_capability_router() {
-        let health_checker = HealthChecker::new(
-            Duration::from_secs(30),
-            Duration::from_secs(5),
-            3,
-            3,
-        );
+        let health_checker =
+            HealthChecker::new(Duration::from_secs(30), Duration::from_secs(5), 3, 3);
 
         let capabilities = OkapiCapabilities {
             runner_type: "ollamarunner".to_string(),
@@ -403,7 +406,8 @@ mod tests {
             advanced_sampling: true,
         };
 
-        let instance1 = OkapiInstance::new("http://localhost:11435".to_string(), capabilities.clone());
+        let instance1 =
+            OkapiInstance::new("http://localhost:11435".to_string(), capabilities.clone());
         let instance2 = OkapiInstance::new("http://localhost:11436".to_string(), capabilities);
 
         let router = CapabilityRouter::new(vec![instance1, instance2], health_checker);

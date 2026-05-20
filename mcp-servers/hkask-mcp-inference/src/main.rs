@@ -6,7 +6,7 @@
 mod metrics_translator;
 
 use hkask_cns::CnsRuntime;
-use hkask_ensemble::adapters::{OkapiHttpClient, OkapiSseAdapter};
+use hkask_ensemble::adapters::OkapiSseAdapter;
 use hkask_types::WebID;
 use metrics_translator::MetricsTranslator;
 use std::sync::Arc;

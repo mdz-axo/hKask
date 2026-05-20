@@ -219,9 +219,7 @@ impl CapabilityCache {
         }
 
         // Fetch from source
-        let capabilities = fetch_fn()
-            .await
-            .map_err(|e| CapabilityCacheError::FetchError(e))?;
+        let capabilities = fetch_fn().await.map_err(CapabilityCacheError::FetchError)?;
 
         // Cache the result
         self.cache(capabilities.clone(), okapi_url)?;

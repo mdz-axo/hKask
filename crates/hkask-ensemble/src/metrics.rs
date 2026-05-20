@@ -120,7 +120,11 @@ impl CounterMetric {
 
     pub fn export(&self) -> String {
         let value = self.value.try_read().map(|v| *v).unwrap_or(0);
-        let labels = self.labels.try_read().map(|l| l.clone()).unwrap_or_default();
+        let labels = self
+            .labels
+            .try_read()
+            .map(|l| l.clone())
+            .unwrap_or_default();
 
         let label_str = labels
             .iter()
@@ -185,7 +189,11 @@ impl GaugeMetric {
 
     pub fn export(&self) -> String {
         let value = self.value.try_read().map(|v| *v).unwrap_or(0.0);
-        let labels = self.labels.try_read().map(|l| l.clone()).unwrap_or_default();
+        let labels = self
+            .labels
+            .try_read()
+            .map(|l| l.clone())
+            .unwrap_or_default();
 
         let label_str = labels
             .iter()
@@ -247,7 +255,11 @@ impl HistogramMetric {
     }
 
     pub fn export(&self) -> String {
-        let buckets = self.buckets.try_read().map(|b| b.clone()).unwrap_or_default();
+        let buckets = self
+            .buckets
+            .try_read()
+            .map(|b| b.clone())
+            .unwrap_or_default();
         let sum = self.sum.try_read().map(|s| *s).unwrap_or(0.0);
         let count = self.count.try_read().map(|c| *c).unwrap_or(0);
 
@@ -265,10 +277,7 @@ impl HistogramMetric {
             ));
         }
 
-        output.push_str(&format!(
-            "{}_bucket{{le=\"+Inf\"}} {}\n",
-            self.name, count
-        ));
+        output.push_str(&format!("{}_bucket{{le=\"+Inf\"}} {}\n", self.name, count));
         output.push_str(&format!("{}_sum {}\n", self.name, sum));
         output.push_str(&format!("{}_count {}\n", self.name, count));
 
@@ -290,21 +299,58 @@ impl OkapiMetricsCollector {
             let registry = Arc::clone(&collector.registry);
             async move {
                 // Circuit breaker metrics
-                let _ = registry.counter("hkask_circuit_breaker_state_changes_total", "Total circuit breaker state changes").await;
-                let _ = registry.gauge("hkask_circuit_breaker_state", "Current circuit breaker state (0=closed, 1=open, 2=half-open)").await;
-                
+                let _ = registry
+                    .counter(
+                        "hkask_circuit_breaker_state_changes_total",
+                        "Total circuit breaker state changes",
+                    )
+                    .await;
+                let _ = registry
+                    .gauge(
+                        "hkask_circuit_breaker_state",
+                        "Current circuit breaker state (0=closed, 1=open, 2=half-open)",
+                    )
+                    .await;
+
                 // Retry metrics
-                let _ = registry.counter("hkask_retry_attempts_total", "Total retry attempts").await;
-                let _ = registry.counter("hkask_retry_exhausted_total", "Total exhausted retries").await;
-                
+                let _ = registry
+                    .counter("hkask_retry_attempts_total", "Total retry attempts")
+                    .await;
+                let _ = registry
+                    .counter("hkask_retry_exhausted_total", "Total exhausted retries")
+                    .await;
+
                 // Okapi instance metrics
-                let _ = registry.gauge("hkask_okapi_instances_total", "Total configured Okapi instances").await;
-                let _ = registry.gauge("hkask_okapi_instances_healthy", "Number of healthy Okapi instances").await;
-                let _ = registry.gauge("hkask_okapi_instances_unhealthy", "Number of unhealthy Okapi instances").await;
-                
+                let _ = registry
+                    .gauge(
+                        "hkask_okapi_instances_total",
+                        "Total configured Okapi instances",
+                    )
+                    .await;
+                let _ = registry
+                    .gauge(
+                        "hkask_okapi_instances_healthy",
+                        "Number of healthy Okapi instances",
+                    )
+                    .await;
+                let _ = registry
+                    .gauge(
+                        "hkask_okapi_instances_unhealthy",
+                        "Number of unhealthy Okapi instances",
+                    )
+                    .await;
+
                 // Request metrics
-                let _ = registry.counter("hkask_okapi_requests_total", "Total requests to Okapi").await;
-                let _ = registry.histogram("hkask_okapi_request_duration_seconds", "Okapi request duration", vec![0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0]).await;
+                let _ = registry
+                    .counter("hkask_okapi_requests_total", "Total requests to Okapi")
+                    .await;
+                let _ = registry
+                    .histogram(
+                        "hkask_okapi_request_duration_seconds",
+                        "Okapi request duration",
+                        vec![0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0],
+                    )
+                    .await;
             }
         });
 
@@ -313,7 +359,13 @@ impl OkapiMetricsCollector {
 
     /// Record circuit breaker state change
     pub async fn record_circuit_breaker_change(&self, from: &str, to: &str) {
-        let counter = self.registry.counter("hkask_circuit_breaker_state_changes_total", "Total circuit breaker state changes").await;
+        let counter = self
+            .registry
+            .counter(
+                "hkask_circuit_breaker_state_changes_total",
+                "Total circuit breaker state changes",
+            )
+            .await;
         counter.with_label("from_state", from).await;
         counter.with_label("to_state", to).await;
         counter.inc().await;
@@ -321,7 +373,13 @@ impl OkapiMetricsCollector {
 
     /// Record circuit breaker state
     pub async fn record_circuit_breaker_state(&self, state: u8, name: &str, instance: &str) {
-        let gauge = self.registry.gauge("hkask_circuit_breaker_state", "Current circuit breaker state").await;
+        let gauge = self
+            .registry
+            .gauge(
+                "hkask_circuit_breaker_state",
+                "Current circuit breaker state",
+            )
+            .await;
         gauge.with_label("name", name).await;
         gauge.with_label("instance", instance).await;
         gauge.set(state as f64).await;
@@ -329,23 +387,47 @@ impl OkapiMetricsCollector {
 
     /// Record retry attempt
     pub async fn record_retry_attempt(&self, outcome: &str) {
-        let counter = self.registry.counter("hkask_retry_attempts_total", "Total retry attempts").await;
+        let counter = self
+            .registry
+            .counter("hkask_retry_attempts_total", "Total retry attempts")
+            .await;
         counter.with_label("outcome", outcome).await;
         counter.inc().await;
     }
 
     /// Record retry exhausted
     pub async fn record_retry_exhausted(&self, operation: &str) {
-        let counter = self.registry.counter("hkask_retry_exhausted_total", "Total exhausted retries").await;
+        let counter = self
+            .registry
+            .counter("hkask_retry_exhausted_total", "Total exhausted retries")
+            .await;
         counter.with_label("operation", operation).await;
         counter.inc().await;
     }
 
     /// Record Okapi instance count
     pub async fn record_instance_count(&self, total: usize, healthy: usize, unhealthy: usize) {
-        let total_gauge = self.registry.gauge("hkask_okapi_instances_total", "Total configured Okapi instances").await;
-        let healthy_gauge = self.registry.gauge("hkask_okapi_instances_healthy", "Number of healthy Okapi instances").await;
-        let unhealthy_gauge = self.registry.gauge("hkask_okapi_instances_unhealthy", "Number of unhealthy Okapi instances").await;
+        let total_gauge = self
+            .registry
+            .gauge(
+                "hkask_okapi_instances_total",
+                "Total configured Okapi instances",
+            )
+            .await;
+        let healthy_gauge = self
+            .registry
+            .gauge(
+                "hkask_okapi_instances_healthy",
+                "Number of healthy Okapi instances",
+            )
+            .await;
+        let unhealthy_gauge = self
+            .registry
+            .gauge(
+                "hkask_okapi_instances_unhealthy",
+                "Number of unhealthy Okapi instances",
+            )
+            .await;
 
         total_gauge.set(total as f64).await;
         healthy_gauge.set(healthy as f64).await;
@@ -354,15 +436,25 @@ impl OkapiMetricsCollector {
 
     /// Record request
     pub async fn record_request(&self, instance: &str, status: &str) {
-        let counter = self.registry.counter("hkask_okapi_requests_total", "Total requests to Okapi").await;
+        let counter = self
+            .registry
+            .counter("hkask_okapi_requests_total", "Total requests to Okapi")
+            .await;
         counter.with_label("instance", instance).await;
         counter.with_label("status", status).await;
         counter.inc().await;
     }
 
     /// Record request duration
-    pub async fn record_request_duration(&self, instance: &str, duration: f64) {
-        let histogram = self.registry.histogram("hkask_okapi_request_duration_seconds", "Okapi request duration", vec![0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0]).await;
+    pub async fn record_request_duration(&self, _instance: &str, duration: f64) {
+        let histogram = self
+            .registry
+            .histogram(
+                "hkask_okapi_request_duration_seconds",
+                "Okapi request duration",
+                vec![0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0],
+            )
+            .await;
         histogram.observe(duration).await;
     }
 
@@ -425,7 +517,9 @@ mod tests {
         let collector = OkapiMetricsCollector::new(Arc::clone(&registry));
 
         collector.record_retry_attempt("success").await;
-        collector.record_circuit_breaker_state(0, "test", "localhost:11435").await;
+        collector
+            .record_circuit_breaker_state(0, "test", "localhost:11435")
+            .await;
         collector.record_instance_count(3, 2, 1).await;
 
         let export = collector.export().await;

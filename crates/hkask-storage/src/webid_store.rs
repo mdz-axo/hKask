@@ -1,8 +1,8 @@
 //! WebID Capability Store — SQLite persistence layer
 
 use hkask_ensemble::{OkapiCapability, OkapiOperation, macaroon::Macaroon};
-use hkask_types::{TemplateID, Visibility, WebID};
-use rusqlite::{params, Connection, OptionalExtension};
+use hkask_types::{TemplateID, WebID};
+use rusqlite::{Connection, OptionalExtension, params};
 use std::path::Path;
 use std::str::FromStr;
 use thiserror::Error;
@@ -49,8 +49,10 @@ pub struct StoredCapability {
 impl StoredCapability {
     pub fn from_capability(cap: &OkapiCapability) -> Result<Self, WebIDStoreError> {
         let macaroon = cap.macaroon();
-        let macaroon_bytes = bincode::serialize(macaroon).map_err(|e| WebIDStoreError::Bincode(e))?;
-        let operations = cap.macaroon.caveats
+        let macaroon_bytes = bincode::serialize(macaroon).map_err(WebIDStoreError::Bincode)?;
+        let operations = cap
+            .macaroon
+            .caveats
             .iter()
             .filter(|c| c.caveat_id == "operation")
             .map(|c| c.data.clone())
@@ -69,8 +71,8 @@ impl StoredCapability {
 
     pub fn to_capability(&self) -> Result<OkapiCapability, WebIDStoreError> {
         let macaroon_bytes = hex::decode(&self.macaroon_hex)?;
-        let macaroon: Macaroon = bincode::deserialize(&macaroon_bytes)
-            .map_err(|e| WebIDStoreError::Bincode(e))?;
+        let macaroon: Macaroon =
+            bincode::deserialize(&macaroon_bytes).map_err(WebIDStoreError::Bincode)?;
 
         let operations = self
             .operations
@@ -191,7 +193,10 @@ impl WebIDStore {
     }
 
     pub fn delete(&self, webid: &str) -> Result<(), WebIDStoreError> {
-        self.conn.execute("DELETE FROM webid_capabilities WHERE webid = ?1", params![webid])?;
+        self.conn.execute(
+            "DELETE FROM webid_capabilities WHERE webid = ?1",
+            params![webid],
+        )?;
         debug!("Deleted capabilities for WebID: {}", webid);
         Ok(())
     }
@@ -199,7 +204,7 @@ impl WebIDStore {
     pub fn list_active(&self) -> Result<Vec<StoredWebIDEntry>, WebIDStoreError> {
         let mut stmt = self.conn.prepare(
             "SELECT webid, capabilities_json, created_at, last_used_at, active
-             FROM webid_capabilities WHERE active = 1 ORDER BY created_at DESC"
+             FROM webid_capabilities WHERE active = 1 ORDER BY created_at DESC",
         )?;
 
         let entries = stmt
@@ -237,8 +242,16 @@ impl WebIDStore {
     }
 
     pub fn stats(&self) -> Result<WebIDStoreStats, WebIDStoreError> {
-        let total: i64 = self.conn.query_row("SELECT COUNT(*) FROM webid_capabilities", [], |row| row.get(0))?;
-        let active: i64 = self.conn.query_row("SELECT COUNT(*) FROM webid_capabilities WHERE active = 1", [], |row| row.get(0))?;
+        let total: i64 =
+            self.conn
+                .query_row("SELECT COUNT(*) FROM webid_capabilities", [], |row| {
+                    row.get(0)
+                })?;
+        let active: i64 = self.conn.query_row(
+            "SELECT COUNT(*) FROM webid_capabilities WHERE active = 1",
+            [],
+            |row| row.get(0),
+        )?;
 
         Ok(WebIDStoreStats {
             total_entries: total as usize,

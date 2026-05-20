@@ -3,9 +3,9 @@
 //! Implements token bucket rate limiting to prevent DoS attacks and resource exhaustion.
 //! Per architecture v0.21.0: rate limits are configurable per deployment.
 
+use parking_lot::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
-use parking_lot::Mutex;
 
 /// Token bucket rate limiter
 ///

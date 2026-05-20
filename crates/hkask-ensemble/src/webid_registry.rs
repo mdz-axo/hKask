@@ -3,7 +3,7 @@
 //! Integrates Okapi capability management with hKask agent WebID registry.
 //! This allows capability-based authorization to be tied to specific agent identities.
 
-use hkask_types::{WebID, TemplateID};
+use hkask_types::{TemplateID, WebID};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -44,18 +44,16 @@ impl WebIDCapabilityEntry {
 
     /// Check if entry has capability for operation
     pub fn has_capability(&self, operation: OkapiOperation) -> bool {
-        self.capabilities.iter().any(|cap| {
-            cap.has_operation(operation) && !cap.is_expired()
-        })
+        self.capabilities
+            .iter()
+            .any(|cap| cap.has_operation(operation) && !cap.is_expired())
     }
 
     /// Get best capability for operation
     pub fn get_capability(&self, operation: OkapiOperation) -> Option<&OkapiCapability> {
         self.capabilities
             .iter()
-            .find(|cap| {
-                cap.has_operation(operation) && !cap.is_expired()
-            })
+            .find(|cap| cap.has_operation(operation) && !cap.is_expired())
     }
 }
 
@@ -130,7 +128,10 @@ impl WebIDCapabilityRegistry {
     /// Get all WebIDs with template scope
     pub async fn get_template_scoped_webids(&self, template_id: TemplateID) -> Vec<WebID> {
         let template_scoped = self.template_scoped.read().await;
-        template_scoped.get(&template_id).cloned().unwrap_or_default()
+        template_scoped
+            .get(&template_id)
+            .cloned()
+            .unwrap_or_default()
     }
 
     /// Revoke capabilities for a WebID
@@ -155,11 +156,7 @@ impl WebIDCapabilityRegistry {
     /// Get all active entries
     pub async fn get_active_entries(&self) -> Vec<WebIDCapabilityEntry> {
         let entries = self.entries.read().await;
-        entries
-            .values()
-            .filter(|e| e.active)
-            .cloned()
-            .collect()
+        entries.values().filter(|e| e.active).cloned().collect()
     }
 
     /// Get registry statistics
@@ -226,11 +223,11 @@ pub async fn authorize_operation(
         .await
         .ok_or(AuthorizationError::WebIDNotFound)?;
 
-capabilities
+    capabilities
         .into_iter()
         .find(|cap| cap.has_operation(operation) && !cap.is_expired())
         .ok_or(AuthorizationError::CapabilityNotFound)
-    }
+}
 
 /// Authorization error
 #[derive(Debug, thiserror::Error)]
@@ -278,7 +275,11 @@ mod tests {
             .unwrap();
 
         // Check capability
-        assert!(registry.has_capability(webid, OkapiOperation::Generate).await);
+        assert!(
+            registry
+                .has_capability(webid, OkapiOperation::Generate)
+                .await
+        );
         assert!(registry.has_capability(webid, OkapiOperation::Chat).await);
         assert!(!registry.has_capability(webid, OkapiOperation::Embed).await);
 
@@ -336,7 +337,11 @@ mod tests {
         registry.register(webid, vec![capability]).await.unwrap();
 
         // Verify capability exists
-        assert!(registry.has_capability(webid, OkapiOperation::Generate).await);
+        assert!(
+            registry
+                .has_capability(webid, OkapiOperation::Generate)
+                .await
+        );
 
         // Revoke
         registry.revoke(webid).await.unwrap();
@@ -360,12 +365,10 @@ mod tests {
             &key,
         );
 
-        registry
-            .register(webid, vec![capability])
-            .await
-            .unwrap();
+        registry.register(webid, vec![capability]).await.unwrap();
 
-        let result = authorize_operation(Arc::clone(&registry), webid, OkapiOperation::Generate).await;
+        let result =
+            authorize_operation(Arc::clone(&registry), webid, OkapiOperation::Generate).await;
         assert!(result.is_ok());
 
         let result = authorize_operation(Arc::clone(&registry), webid, OkapiOperation::Chat).await;
@@ -393,6 +396,10 @@ mod tests {
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
         // Expired capability should not authorize
-        assert!(!registry.has_capability(webid, OkapiOperation::Generate).await);
+        assert!(
+            !registry
+                .has_capability(webid, OkapiOperation::Generate)
+                .await
+        );
     }
 }

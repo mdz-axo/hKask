@@ -29,8 +29,6 @@ pub enum OkapiAdapterError {
 pub struct OkapiSseAdapter {
     client: reqwest::Client,
     sse_url: String,
-    current_stream: Option<String>,
-    current_line: usize,
 }
 
 impl OkapiSseAdapter {
@@ -38,18 +36,7 @@ impl OkapiSseAdapter {
         Self {
             client: reqwest::Client::new(),
             sse_url: format!("{}/api/metrics/stream?interval=5", okapi_base_url),
-            current_stream: None,
-            current_line: 0,
         }
-    }
-
-    async fn ensure_stream(&mut self) -> Result<(), OkapiAdapterError> {
-        if self.current_stream.is_none() {
-            let response = self.client.get(&self.sse_url).send().await?;
-            self.current_stream = Some(response.text().await?);
-            self.current_line = 0;
-        }
-        Ok(())
     }
 }
 
@@ -64,9 +51,9 @@ impl MetricsSource for OkapiSseAdapter {
 
         for line in stream.lines() {
             if line.starts_with("data: ") {
-                let data = line
-                    .strip_prefix("data: ")
-                    .ok_or_else(|| OkapiAdapterError::InvalidSseEvent("Missing data prefix".into()))?;
+                let data = line.strip_prefix("data: ").ok_or_else(|| {
+                    OkapiAdapterError::InvalidSseEvent("Missing data prefix".into())
+                })?;
 
                 let metrics: OkapiMetrics = serde_json::from_str(data)
                     .map_err(|e| OkapiAdapterError::ParseError(e.to_string()))?;
@@ -101,7 +88,7 @@ impl InferenceClient for OkapiHttpClient {
     async fn generate(&self, request: &GenerateRequest) -> Result<GenerateResponse, Self::Error> {
         let response = self
             .client
-            .post(&format!("{}/api/generate", self.base_url))
+            .post(format!("{}/api/generate", self.base_url))
             .json(request)
             .send()
             .await?;
@@ -126,7 +113,7 @@ impl InferenceClient for OkapiHttpClient {
 
         let response = self
             .client
-            .post(&format!("{}/api/chat", self.base_url))
+            .post(format!("{}/api/chat", self.base_url))
             .json(&request)
             .send()
             .await?;
@@ -163,7 +150,7 @@ impl CapabilityProvider for OkapiCapabilityFetcher {
     async fn get_capabilities(&self) -> Result<Self::Capabilities, Self::Error> {
         let response = self
             .client
-            .get(&format!("{}/api/engine/status", self.base_url))
+            .get(format!("{}/api/engine/status", self.base_url))
             .send()
             .await?;
 
@@ -226,9 +213,7 @@ impl InferenceClient for MockInferenceClient {
 
     async fn generate(&self, _request: &GenerateRequest) -> Result<GenerateResponse, Self::Error> {
         let mut responses = self.responses.lock().await;
-        responses
-            .pop()
-            .ok_or(OkapiAdapterError::SseStreamEnded)?
+        responses.pop().ok_or(OkapiAdapterError::SseStreamEnded)?
     }
 
     async fn chat(

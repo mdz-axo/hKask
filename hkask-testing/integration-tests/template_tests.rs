@@ -258,3 +258,149 @@ fn test_ocap_configuration() {
         }
     }
 }
+
+/// Test Jinja2 sandbox escape attempts — SECURITY CRITICAL
+#[test]
+fn test_jinja2_sandbox_escape_prevention() {
+    use hkask_templates::TemplateRendererImpl;
+    
+    let renderer = TemplateRendererImpl::new();
+    
+    // Test 1: Attempt to access filesystem via path traversal
+    let malicious_template_1 = "{{ ''.__class__.__mro__[2].__subclasses__() }}";
+    let result = renderer.add_template("malicious1", malicious_template_1);
+    // Should either fail to add or fail to render
+    if result.is_ok() {
+        let render_result = renderer.render_by_name("malicious1", &json!({}));
+        // Render should fail or return safe output
+        assert!(
+            render_result.is_err() || !render_result.as_ref().unwrap().contains("__class__"),
+            "Sandbox escape via __class__ not prevented"
+        );
+    }
+    
+    // Test 2: Attempt to use Python builtins
+    let malicious_template_2 = "{{ globals() }}";
+    let result = renderer.add_template("malicious2", malicious_template_2);
+    if result.is_ok() {
+        let render_result = renderer.render_by_name("malicious2", &json!({}));
+        // Should not expose globals
+        assert!(
+            render_result.is_err() || render_result.as_ref().unwrap().is_empty(),
+            "Sandbox escape via globals() not prevented"
+        );
+    }
+    
+    // Test 3: Attempt to read files
+    let malicious_template_3 = "{{ ''.__class__.__mro__[1].__subclasses__() }}";
+    let result = renderer.add_template("malicious3", malicious_template_3);
+    if result.is_ok() {
+        let render_result = renderer.render_by_name("malicious3", &json!({}));
+        assert!(
+            render_result.is_err(),
+            "Sandbox escape via subclass enumeration not prevented"
+        );
+    }
+    
+    // Test 4: Verify path traversal in template names is blocked
+    let path_traversal_names = [
+        "../../../etc/passwd",
+        "..\\..\\..\\windows\\system32\\config\\sam",
+        "/etc/shadow",
+        "templates/../../../secret",
+    ];
+    
+    for name in &path_traversal_names {
+        let result = renderer.add_template(name, "test");
+        assert!(
+            result.is_err(),
+            "Path traversal not blocked in template name: {}",
+            name
+        );
+    }
+}
+
+/// Test template resolver with TTL caching
+#[test]
+fn test_template_resolver_caching() {
+    use hkask_templates::{Registry, TemplateResolver};
+    use std::time::Duration;
+    
+    let registry = Registry::bootstrap();
+    let resolver = TemplateResolver::new(&registry, Duration::from_secs(5));
+    
+    // First lookup - cache miss
+    let result1 = resolver.resolve("prompt/selector");
+    assert!(result1.is_ok(), "Template should resolve");
+    
+    // Second lookup - cache hit
+    let result2 = resolver.resolve("prompt/selector");
+    assert!(result2.is_ok(), "Cached template should resolve");
+    
+    // Verify cache statistics
+    let stats = resolver.stats();
+    assert!(stats.cache_hits >= 1, "Should have at least 1 cache hit");
+    assert!(stats.cache_misses >= 1, "Should have at least 1 cache miss");
+    assert_eq!(stats.total_lookups, 2, "Should have 2 total lookups");
+}
+
+/// Test energy cap calibration CLI command
+#[test]
+fn test_energy_cap_calibration() {
+    use hkask_cli::commands::calibrate_energy_caps;
+    
+    let manifest_path = Path::new("registry/manifests/dct-pipeline.yaml");
+    if manifest_path.exists() {
+        let report = calibrate_energy_caps(manifest_path)
+            .expect("Failed to calibrate energy caps");
+        
+        assert_eq!(report.manifest_id, "dct-pipeline");
+        assert_eq!(report.current_cap, 10000);
+        assert!(report.cap_utilization > 0.0);
+        assert!(!report.recommendation.is_empty());
+        
+        // Verify report structure
+        assert!(report.steps_count > 0);
+        assert!(report.cost_per_token > 0.0);
+        assert!(report.alert_threshold > 0.0);
+        assert!(report.alert_threshold <= 1.0);
+    }
+}
+
+/// Test all manifest OCAP template_scoped configurations
+#[test]
+fn test_ocap_template_scoped_configuration() {
+    let manifest_paths = [
+        "registry/manifests/dct-pipeline.yaml",
+        "registry/manifests/mcp_inference_call.yaml",
+        "registry/manifests/composition.yaml",
+        "registry/manifests/mcp_condense_session.yaml",
+        "registry/manifests/mcp_doc_extract.yaml",
+        "registry/manifests/mcp_scholar_extract.yaml",
+        "registry/manifests/mcp_web_extract.yaml",
+        "registry/manifests/metacognition.yaml",
+        "registry/manifests/reasoning-cycle.yaml",
+    ];
+    
+    for path_str in &manifest_paths {
+        let path = Path::new(path_str);
+        if path.exists() {
+            let content = std::fs::read_to_string(path)
+                .expect(&format!("Failed to read manifest: {}", path_str));
+            
+            // Verify template_scoped flag
+            assert!(
+                content.contains("template_scoped: true"),
+                "Manifest missing template_scoped flag: {}",
+                path_str
+            );
+            
+            // Verify template_id fields in capabilities
+            assert!(
+                content.contains("template_id:"),
+                "Manifest missing template_id in capabilities: {}",
+                path_str
+            );
+        }
+    }
+}
