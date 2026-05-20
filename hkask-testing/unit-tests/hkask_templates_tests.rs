@@ -5,11 +5,12 @@ use hkask_templates::{
     audit::{AuditTrail, ExecutionAudit},
     cascade::{Cascade, CascadeBuilder, CascadeContext, CascadeExecutor, MAX_CASCADE_DEPTH},
     contracts::{parse_frontmatter, validate_lexicon_terms},
-    dependency::{DependencyGraph, parse_dependencies},
+    dependency::{parse_dependencies, DependencyGraph},
+    manifest::{ManifestExecutorImpl, SimpleExecutor},
     ports::{
-        Action, CnsPort, CompositionTemplate, InferenceConfig, InferencePort, ManifestExecutorImpl,
+        Action, CnsPort, CompositionTemplate, InferenceConfig, InferencePort, ManifestExecutor,
         ManifestStep, McpPort, ProcessManifest, RegistryEntry, RegistryIndex, Result,
-        SimpleExecutor, TemplateRenderer,
+        TemplateRenderer,
     },
 };
 use hkask_types::{TemplateType, WebID};

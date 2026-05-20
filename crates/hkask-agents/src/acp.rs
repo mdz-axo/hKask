@@ -146,7 +146,8 @@ pub struct AcpRuntime {
     capability_tokens: Arc<RwLock<HashMap<WebID, Vec<CapabilityToken>>>>,
     /// Secret for HMAC signing (Zeroizing for secure memory)
     secret: Zeroizing<Vec<u8>>,
-    /// Rate limiter for DoS prevention
+    /// Rate limiter for DoS prevention (future: integrate with message processing)
+    #[allow(dead_code)]
     rate_limiter: RateLimiter,
 }
 
@@ -443,10 +444,10 @@ impl TemplateDispatchHandler {
         }
 
         // Verify recipient if specified
-        if let Some(recipient) = to {
-            if !self.acp_runtime.is_registered(&recipient).await {
-                return Err(format!("Recipient {:?} not registered", recipient));
-            }
+        if let Some(recipient) = to
+            && !self.acp_runtime.is_registered(&recipient).await
+        {
+            return Err(format!("Recipient {:?} not registered", recipient));
         }
 
         let correlation_id = uuid::Uuid::new_v4().to_string();

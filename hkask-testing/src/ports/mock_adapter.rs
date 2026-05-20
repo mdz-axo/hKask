@@ -218,6 +218,7 @@ impl CnsPort for MockCnsAdapterMut {
 mod tests {
     use super::*;
     use hkask_templates::ports::InferenceConfig;
+    use serde_json::json;
 
     #[test]
     fn test_mock_inference_adapter_new() {

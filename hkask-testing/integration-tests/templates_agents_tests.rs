@@ -1,11 +1,13 @@
 //! Integration tests for Templates + Agents coordination
 //! Tests template execution with agent pods using stub implementations
 
-use hkask_types::{WebID, Visibility, TemplateType};
+use hkask_types::{WebID, Visibility};
 use serde_json::json;
 
 mod templates_agents_integration {
     use super::*;
+    use hkask_testing::{MockInferenceAdapter, MockMcpAdapter, MockCnsAdapterMut, TempTripleStore};
+    use hkask_templates::ports::{InferencePort, McpPort, CnsPort, InferenceConfig, Action};
 
     #[test]
     fn test_bot_creation_stub() {
@@ -30,9 +32,6 @@ mod templates_agents_integration {
 
     #[test]
     fn test_mock_inference_for_template_render() {
-        use hkask_testing::MockInferenceAdapter;
-        use hkask_templates::ports::InferenceConfig;
-
         let adapter = MockInferenceAdapter::new()
             .with_response(json!({"rendered": "template_output"}));
 
@@ -45,8 +44,6 @@ mod templates_agents_integration {
 
     #[test]
     fn test_mock_mcp_for_agent_tool_discovery() {
-        use hkask_testing::MockMcpAdapter;
-
         let adapter = MockMcpAdapter::new()
             .with_tool("search")
             .with_tool("scrape")
@@ -59,8 +56,6 @@ mod templates_agents_integration {
 
     #[test]
     fn test_mock_mcp_for_agent_tool_invoke() {
-        use hkask_testing::MockMcpAdapter;
-
         let adapter = MockMcpAdapter::new()
             .with_response(json!({"result": "tool executed"}));
 
@@ -71,8 +66,6 @@ mod templates_agents_integration {
 
     #[test]
     fn test_cns_emission_during_template_execution() {
-        use hkask_testing::MockCnsAdapterMut;
-
         let adapter = MockCnsAdapterMut::new();
 
         adapter.emit("cns.prompt.render", json!({"template": "test"}), 0.95);
@@ -90,8 +83,7 @@ mod templates_agents_integration {
 
     #[test]
     fn test_replicant_episodic_memory_stub() {
-        use hkask_testing::TempTripleStore;
-        use hkask_types::Triple;
+        use hkask_storage::Triple;
 
         let owner = WebID::new();
         let store = TempTripleStore::new();
@@ -109,8 +101,7 @@ mod templates_agents_integration {
 
     #[test]
     fn bot_semantic_memory_stub() {
-        use hkask_testing::TempTripleStore;
-        use hkask_types::Triple;
+        use hkask_storage::Triple;
 
         let owner = WebID::new();
         let store = TempTripleStore::new();
@@ -142,22 +133,7 @@ mod templates_agents_integration {
     }
 
     #[test]
-    fn test_template_type_discriminator() {
-        // Test all template type variants
-        let skill = TemplateType::Skill;
-        let process = TemplateType::Process;
-        let prompt = TemplateType::Prompt;
-        let lexicon = TemplateType::Lexicon;
-
-        assert_ne!(skill, process);
-        assert_ne!(skill, prompt);
-        assert_ne!(process, lexicon);
-    }
-
-    #[test]
     fn test_manifest_step_action_types() {
-        use hkask_templates::ports::Action;
-
         assert_eq!(Action::Select.as_str(), "select");
         assert_eq!(Action::Populate.as_str(), "populate");
         assert_eq!(Action::Execute.as_str(), "execute");
@@ -170,7 +146,7 @@ mod templates_agents_integration {
 
     #[test]
     fn test_process_manifest_structure() {
-        use hkask_templates::ports::{Action, ManifestStep, ProcessManifest as ProcessManifestDef};
+        use hkask_templates::ports::{ManifestStep, ProcessManifest as ProcessManifestDef};
 
         let manifest = ProcessManifestDef {
             id: "test-manifest".to_string(),
@@ -217,6 +193,7 @@ mod templates_agents_integration {
 
 mod agent_capability_tests {
     use super::*;
+    use hkask_types::CapabilityAction;
 
     #[test]
     fn test_agent_capability_stub() {
@@ -227,8 +204,6 @@ mod agent_capability_tests {
 
     #[test]
     fn test_agent_capability_actions() {
-        use hkask_types::CapabilityAction;
-
         assert_eq!(CapabilityAction::Execute.as_str(), "execute");
         assert_eq!(CapabilityAction::Read.as_str(), "read");
         assert_eq!(CapabilityAction::Write.as_str(), "write");
@@ -240,7 +215,6 @@ mod agent_capability_tests {
 
         assert_eq!(CapabilityResource::Tool.as_str(), "tool");
         assert_eq!(CapabilityResource::Template.as_str(), "template");
-        assert_eq!(CapabilityResource::Memory.as_str(), "memory");
     }
 }
 

@@ -6,8 +6,10 @@ use crate::pod::ACPRuntimePort;
 use hkask_types::{CapabilityToken, CapabilityResource, CapabilityAction, WebID};
 
 /// ACP Runtime Adapter — Concrete implementation for agent registration
+#[derive(Default)]
 pub struct AcpRuntimeAdapter {
-    // Registered agents
+    /// Registered agents (reserved for future use)
+    #[allow(dead_code)]
     registered_agents: std::collections::HashMap<String, CapabilityToken>,
 }
 
@@ -17,12 +19,6 @@ impl AcpRuntimeAdapter {
         Self {
             registered_agents: std::collections::HashMap::new(),
         }
-    }
-}
-
-impl Default for AcpRuntimeAdapter {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

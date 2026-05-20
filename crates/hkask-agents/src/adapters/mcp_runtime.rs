@@ -6,8 +6,10 @@ use crate::pod::MCPRuntimePort;
 use hkask_types::CapabilityToken;
 
 /// MCP Runtime Adapter — Concrete implementation for tool access
+#[derive(Default)]
 pub struct McpRuntimeAdapter {
-    // Runtime state for MCP tool access
+    /// Granted tokens (reserved for future use)
+    #[allow(dead_code)]
     granted_tokens: std::collections::HashSet<String>,
 }
 
@@ -17,12 +19,6 @@ impl McpRuntimeAdapter {
         Self {
             granted_tokens: std::collections::HashSet::new(),
         }
-    }
-}
-
-impl Default for McpRuntimeAdapter {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

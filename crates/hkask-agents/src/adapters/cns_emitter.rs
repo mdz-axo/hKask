@@ -9,13 +9,15 @@ use hkask_types::{Phase, Span, WebID};
 /// CNS Emitter Adapter — Concrete implementation for span emission
 pub struct CnsEmitterAdapter {
     emitter: SpanEmitter,
+    /// Observer WebID (reserved for future contextual emission)
+    #[allow(dead_code)]
     observer_webid: WebID,
 }
 
 impl CnsEmitterAdapter {
     pub fn new(observer_webid: WebID) -> Self {
         Self {
-            emitter: SpanEmitter::new(observer_webid.clone()),
+            emitter: SpanEmitter::new(observer_webid),
             observer_webid,
         }
     }

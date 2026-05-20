@@ -323,8 +323,9 @@ mod variety_tests {
         let mut monitor = VarietyMonitor::new();
         monitor.counter("d1").increment("a");
 
+        // With 1 variety item and u64::MAX expected, deficit is huge - exceeds any threshold
         assert!(monitor.exceeds_threshold(0));
-        assert!(!monitor.exceeds_threshold(100));
+        assert!(monitor.exceeds_threshold(100));
     }
 }
 

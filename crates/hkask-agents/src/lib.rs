@@ -11,15 +11,14 @@
 //!
 //! ```rust,no_run
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! use hkask_agents::pod::{AgentPod, AgentPersona};
-//! use hkask_agents::acp::{AcpRuntime, TemplateDispatchHandler};
-//! use std::sync::Arc;
+//! use hkask_agents::pod::PodManager;
+//! use hkask_agents::adapters::acp_runtime::AcpRuntimeAdapter;
 //!
-//! // Create ACP runtime
-//! let acp = Arc::new(AcpRuntime::new(b"secret-key"));
+//! // Create ACP runtime adapter
+//! let acp_adapter = AcpRuntimeAdapter::new();
 //!
-//! // Create dispatch handler
-//! let handler = TemplateDispatchHandler::new(acp.clone());
+//! // Create pod manager
+//! let manager = PodManager::new();
 //! # Ok(())
 //! # }
 //! ```

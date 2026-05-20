@@ -44,15 +44,20 @@ As part of the code remediation session on 2026-05-20, inline test code was remo
 
 ## Migration Status
 
-### Tests Already in hkask-testing
+### Tests Migrated to hkask-testing
 
 | Test File | Status | Coverage |
 |-----------|--------|----------|
 | `hkask_types_tests.rs` | ✅ Complete | 135 lines, ID types, visibility, lexicon |
-| `hkask_templates_tests.rs` | ⚠️ Stub | 6 lines, placeholder only |
-| `hkask_cns_tests.rs` | ⚠️ Stub | 1 line, placeholder only |
+| `hkask_templates_tests.rs` | ✅ Complete | 38 tests: audit (9), cascade (10), contracts (7), dependency (9), manifest (3) |
+| `hkask_cns_tests.rs` | ✅ Complete | 64 tests: algedonic (5), energy (7), rate_limit (12), spans (10), variety (30) |
+
+### Tests Still Stubs
+
+| Test File | Status | Coverage |
+|-----------|--------|----------|
 | `hkask_storage_tests.rs` | ⚠️ Stub | 1 line, placeholder only |
-| `hkask_memory_tests.rs` | ⚠️ Stub | 1 line, placeholder only |
+| `hkask_memory_tests.rs` | ⚠️ Stub | 1 line, placeholder only (has compilation errors) |
 | `hkask_ensemble_tests.rs` | ⚠️ Stub | 1 line, placeholder only |
 | `hkask_keystore_tests.rs` | ⚠️ Stub | 1 line, placeholder only |
 | `hkask_agents_tests.rs` | ⚠️ Stub | 1 line, placeholder only |
@@ -96,6 +101,17 @@ cargo check -p hkask-types -p hkask-cns -p hkask-templates \
   -p hkask-cli -p hkask-api
 # ✅ Finished dev profile
 ```
+
+Test suite passes:
+```bash
+cargo test -p hkask-testing --test hkask_templates_tests
+# test result: ok. 38 passed; 0 failed
+
+cargo test -p hkask-testing --test hkask_cns_tests
+# test result: ok. 64 passed; 0 failed
+```
+
+**Total: 102 tests migrated and passing**
 
 ---
 

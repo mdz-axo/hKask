@@ -391,9 +391,9 @@ mod git_cas_tests {
 
     #[test]
     fn test_visibility_parse() {
-        assert_eq!(Visibility::from_str("private"), Some(Visibility::Private));
-        assert_eq!(Visibility::from_str("public"), Some(Visibility::Public));
-        assert_eq!(Visibility::from_str("shared"), Some(Visibility::Shared));
-        assert_eq!(Visibility::from_str("invalid"), None);
+        assert_eq!(Visibility::parse_str("private"), Some(Visibility::Private));
+        assert_eq!(Visibility::parse_str("public"), Some(Visibility::Public));
+        assert_eq!(Visibility::parse_str("shared"), Some(Visibility::Shared));
+        assert_eq!(Visibility::parse_str("invalid"), None);
     }
 }

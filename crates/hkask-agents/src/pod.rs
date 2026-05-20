@@ -24,13 +24,33 @@
 //! # Example
 //!
 //! ```rust,no_run
-//! use hkask_agents::pod::{AgentPod, PodLifecycleState};
-//! use hkask_agents::capability::AgentPersona;
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! use hkask_agents::pod::{AgentPod, AgentPersona, PodLifecycleState};
+//! use hkask_agents::adapters::git_cas::MockGitCas;
+//! use hkask_agents::adapters::acp_runtime::AcpRuntimeAdapter;
+//! use hkask_agents::adapters::cns_emitter::CnsEmitterAdapter;
+//! use hkask_agents::adapters::mcp_runtime::McpRuntimeAdapter;
+//! use hkask_types::WebID;
 //!
-//! let persona = AgentPersona::from_yaml(yaml_str).unwrap();
-//! let mut pod = AgentPod::new("memory-bot", &persona, &git_adapter).unwrap();
-//! pod.register(&acp_runtime, &cns_emitter).unwrap();
-//! pod.activate(&mcp_runtime, &cns_emitter).unwrap();
+//! // Create adapters
+//! let git_adapter = MockGitCas::new();
+//! let acp_adapter = AcpRuntimeAdapter::new();
+//! let cns_emitter = CnsEmitterAdapter::new(WebID::new());
+//! let mcp_runtime = McpRuntimeAdapter::new();
+//!
+//! // Create a simple persona YAML
+//! let yaml_str = r#"
+//! name: test-bot
+//! type: bot
+//! persona: A test bot
+//! "#;
+//!
+//! let persona = AgentPersona::from_yaml(yaml_str)?;
+//! let mut pod = AgentPod::new("test-bot", &persona, &git_adapter)?;
+//! pod.register(&acp_adapter, &cns_emitter)?;
+//! pod.activate(&mcp_runtime, &cns_emitter)?;
+//! # Ok(())
+//! # }
 //! ```
 
 use hkask_keystore::keychain::Keychain;
@@ -718,6 +738,7 @@ pub trait MemoryStoragePort {
 /// - Listing all pods
 pub struct PodManager {
     pods: Arc<RwLock<HashMap<PodID, AgentPod>>>,
+    #[allow(dead_code)]
     keystore: Keychain,
 }
 

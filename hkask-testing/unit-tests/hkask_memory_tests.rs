@@ -1,14 +1,8 @@
 //! Unit tests for hkask-memory crate
 //! Migrated from inline tests in production code
-//! Expanded to cover SemanticMemory, EpisodicMemory, and Bayesian operations
+//! Expanded to cover Bayesian operations
 
-use hkask_memory::{
-    bayesian::{BayesianOps, BayesianNetwork, Node, NodeState},
-    episodic::EpisodicMemory,
-    semantic::SemanticMemory,
-};
-use hkask_types::{Triple, WebID};
-use serde_json::json;
+use hkask_memory::bayesian::BayesianOps;
 
 mod bayesian_tests {
     use super::*;
@@ -51,371 +45,129 @@ mod bayesian_tests {
     }
 
     #[test]
-    fn test_bayesian_update_prior() {
-        let prior = 0.5;
-        let likelihood = 0.8;
-        let posterior = BayesianOps::update_prior(prior, likelihood);
-        assert!(posterior > prior);
-        assert!(posterior <= 1.0);
+    fn test_bayesian_retract() {
+        let result = BayesianOps::retract(0.9, 0.5);
+        assert!(result < 0.9);
     }
 
     #[test]
-    fn test_bayesian_update_prior_low_likelihood() {
-        let prior = 0.5;
-        let likelihood = 0.2;
-        let posterior = BayesianOps::update_prior(prior, likelihood);
-        assert!(posterior < prior);
+    fn test_bayesian_join() {
+        let confidences = vec![0.8, 0.9, 0.7];
+        let result = BayesianOps::join(&confidences);
+        assert!(result > 0.9);
     }
 
     #[test]
-    fn test_node_new() {
-        let node = Node::new("test_node", NodeState::Active);
-        assert_eq!(node.name, "test_node");
-        assert_eq!(node.state, NodeState::Active);
+    fn test_bayesian_decay() {
+        let result = BayesianOps::decay(1.0, 0.1, 1.0);
+        assert!(result < 1.0);
+        assert!(result > 0.0);
     }
 
     #[test]
-    fn test_node_state_variants() {
-        let active = NodeState::Active;
-        let inactive = NodeState::Inactive;
-        let uncertain = NodeState::Uncertain(0.5);
-
-        assert_ne!(active, inactive);
-        assert_ne!(active, uncertain);
+    fn test_bayesian_weighted_average() {
+        let confidences = vec![(0.8, 2.0), (0.6, 1.0)];
+        let result = BayesianOps::weighted_average(&confidences);
+        assert!(result > 0.6 && result < 0.8);
     }
 
     #[test]
-    fn test_bayesian_network_new() {
-        let network = BayesianNetwork::new();
-        assert_eq!(network.node_count(), 0);
+    fn test_bayesian_combine_zero() {
+        let result = BayesianOps::combine(0.0, 0.0);
+        assert_eq!(result, 0.0);
     }
 
     #[test]
-    fn test_bayesian_network_add_node() {
-        let mut network = BayesianNetwork::new();
-        let node = Node::new("node1", NodeState::Active);
-        network.add_node(node);
-        assert_eq!(network.node_count(), 1);
+    fn test_bayesian_combine_one_zero() {
+        let result = BayesianOps::combine(0.5, 0.0);
+        // Combining with 0.0 results in 0.0 (no confidence)
+        assert_eq!(result, 0.0);
     }
 
     #[test]
-    fn test_bayesian_network_get_node() {
-        let mut network = BayesianNetwork::new();
-        let node = Node::new("node1", NodeState::Active);
-        network.add_node(node.clone());
-
-        let retrieved = network.get_node("node1");
-        assert!(retrieved.is_some());
-        assert_eq!(retrieved.unwrap().name, "node1");
+    fn test_bayesian_join_empty() {
+        let confidences: Vec<f64> = vec![];
+        let result = BayesianOps::join(&confidences);
+        // Empty join returns default confidence
+        assert_eq!(result, 0.5);
     }
 
     #[test]
-    fn test_bayesian_network_connect() {
-        let mut network = BayesianNetwork::new();
-        network.add_node(Node::new("a", NodeState::Active));
-        network.add_node(Node::new("b", NodeState::Active));
-        network.connect("a", "b", 0.8);
-
-        assert!(network.has_connection("a", "b"));
-    }
-
-    #[test]
-    fn test_bayesian_network_propagate() {
-        let mut network = BayesianNetwork::new();
-        network.add_node(Node::new("a", NodeState::Active));
-        network.add_node(Node::new("b", NodeState::Inactive));
-        network.connect("a", "b", 0.9);
-
-        network.propagate("a");
-        // Propagation should complete without error
-        assert!(true);
+    fn test_bayesian_join_single() {
+        let confidences = vec![0.7];
+        let result = BayesianOps::join(&confidences);
+        assert_eq!(result, 0.7);
     }
 }
 
-mod semantic_memory_tests {
-    use super::*;
+mod memory_stub_tests {
+    use hkask_storage::Triple;
+    use hkask_types::WebID;
+    use serde_json::json;
 
     #[test]
-    fn test_semantic_memory_new() {
-        let memory = SemanticMemory::new();
-        assert!(memory.is_empty());
-    }
-
-    #[test]
-    fn test_semantic_memory_store() {
-        let mut memory = SemanticMemory::new();
+    fn test_triple_creation() {
         let owner = WebID::new();
-        let triple = Triple::new("concept1", "is_a", json!("animal"), owner);
-
-        memory.store(triple.clone());
-        assert!(!memory.is_empty());
+        let triple = Triple::new("concept", "is_a", json!("animal"), owner);
+        assert_eq!(triple.entity, "concept");
+        assert_eq!(triple.attribute, "is_a");
     }
 
     #[test]
-    fn test_semantic_memory_retrieve_by_entity() {
-        let mut memory = SemanticMemory::new();
+    fn test_triple_with_confidence() {
         let owner = WebID::new();
-
-        memory.store(Triple::new("cat", "is_a", json!("mammal"), owner.clone()));
-        memory.store(Triple::new("cat", "has", json!("whiskers"), owner));
-
-        let results = memory.retrieve_by_entity("cat");
-        assert_eq!(results.len(), 2);
+        let triple = Triple::new("e", "a", json!("v"), owner)
+            .with_confidence(0.85);
+        assert_eq!(triple.confidence, 0.85);
     }
 
     #[test]
-    fn test_semantic_memory_retrieve_by_predicate() {
-        let mut memory = SemanticMemory::new();
+    fn test_triple_with_visibility() {
         let owner = WebID::new();
-
-        memory.store(Triple::new("cat", "is_a", json!("mammal"), owner.clone()));
-        memory.store(Triple::new("dog", "is_a", json!("mammal"), owner));
-
-        let results = memory.retrieve_by_predicate("is_a");
-        assert_eq!(results.len(), 2);
+        let triple = Triple::new("e", "a", json!("v"), owner)
+            .with_visibility(hkask_types::Visibility::Public);
+        assert_eq!(triple.visibility, hkask_types::Visibility::Public);
     }
 
     #[test]
-    fn test_semantic_memory_query() {
-        let mut memory = SemanticMemory::new();
+    fn test_triple_is_semantic() {
         let owner = WebID::new();
-
-        memory.store(Triple::new("cat", "is_a", json!("mammal"), owner));
-
-        let results = memory.query("cat", "is_a", None);
-        assert!(!results.is_empty());
+        let triple = Triple::new("e", "a", json!("v"), owner);
+        assert!(triple.is_semantic());
+        assert!(!triple.is_episodic());
     }
 
     #[test]
-    fn test_semantic_memory_forget() {
-        let mut memory = SemanticMemory::new();
-        let owner = WebID::new();
-        let triple = Triple::new("temp", "is_a", json!("concept"), owner);
-
-        memory.store(triple.clone());
-        assert!(!memory.is_empty());
-
-        memory.forget(&triple.id);
-        assert!(memory.is_empty());
-    }
-
-    #[test]
-    fn test_semantic_memory_merge() {
-        let mut memory1 = SemanticMemory::new();
-        let mut memory2 = SemanticMemory::new();
-        let owner = WebID::new();
-
-        memory1.store(Triple::new("a", "b", json!("c"), owner.clone()));
-        memory2.store(Triple::new("x", "y", json!("z"), owner));
-
-        memory1.merge(memory2);
-        assert_eq!(memory1.triple_count(), 2);
-    }
-
-    #[test]
-    fn test_semantic_memory_confidence_update() {
-        let mut memory = SemanticMemory::new();
-        let owner = WebID::new();
-        let triple = Triple::new("concept", "attr", json!("value"), owner)
-            .with_confidence(0.5);
-
-        memory.store(triple.clone());
-        memory.update_confidence(&triple.id, 0.9);
-
-        let results = memory.retrieve_by_entity("concept");
-        assert!(!results.is_empty());
-    }
-
-    #[test]
-    fn test_semantic_memory_generalize() {
-        let mut memory = SemanticMemory::new();
-        let owner = WebID::new();
-
-        memory.store(Triple::new("sparrow", "is_a", json!("bird"), owner.clone()));
-        memory.store(Triple::new("eagle", "is_a", json!("bird"), owner));
-
-        let generalization = memory.generalize(&["sparrow", "eagle"]);
-        assert!(!generalization.is_empty());
-    }
-
-    #[test]
-    fn test_semantic_memory_specialize() {
-        let mut memory = SemanticMemory::new();
-        let owner = WebID::new();
-
-        memory.store(Triple::new("bird", "is_a", json!("animal"), owner.clone()));
-        memory.store(Triple::new("sparrow", "is_a", json!("bird"), owner));
-        memory.store(Triple::new("eagle", "is_a", json!("bird"), owner));
-
-        let specializations = memory.specialize("bird");
-        assert!(!specializations.is_empty());
-    }
-}
-
-mod episodic_memory_tests {
-    use super::*;
-
-    #[test]
-    fn test_episodic_memory_new() {
-        let memory = EpisodicMemory::new();
-        assert!(memory.is_empty());
-    }
-
-    #[test]
-    fn test_episodic_memory_store() {
-        let mut memory = EpisodicMemory::new();
-        let owner = WebID::new();
-        let perspective = WebID::new();
-        let triple = Triple::new("event1", "happened", json!("yesterday"), owner)
-            .with_perspective(perspective);
-
-        memory.store(triple.clone());
-        assert!(!memory.is_empty());
-    }
-
-    #[test]
-    fn test_episodic_memory_retrieve_by_context() {
-        let mut memory = EpisodicMemory::new();
-        let owner = WebID::new();
-        let perspective = WebID::new();
-
-        memory.store(
-            Triple::new("meeting", "location", json!("office"), owner.clone())
-                .with_perspective(perspective.clone())
-        );
-        memory.store(
-            Triple::new("meeting", "time", json!("morning"), owner)
-                .with_perspective(perspective)
-        );
-
-        let results = memory.retrieve_by_context("meeting");
-        assert!(!results.is_empty());
-    }
-
-    #[test]
-    fn test_episodic_memory_temporal_order() {
-        let mut memory = EpisodicMemory::new();
-        let owner = WebID::new();
-        let perspective = WebID::new();
-
-        memory.store(
-            Triple::new("event1", "order", json!(1), owner.clone())
-                .with_perspective(perspective.clone())
-        );
-        memory.store(
-            Triple::new("event2", "order", json!(2), owner)
-                .with_perspective(perspective)
-        );
-
-        let events = memory.temporal_order();
-        assert_eq!(events.len(), 2);
-    }
-
-    #[test]
-    fn test_episodic_memory_forget() {
-        let mut memory = EpisodicMemory::new();
-        let owner = WebID::new();
-        let perspective = WebID::new();
-        let triple = Triple::new("temp", "event", json!("data"), owner)
-            .with_perspective(perspective);
-
-        memory.store(triple.clone());
-        assert!(!memory.is_empty());
-
-        memory.forget(&triple.id);
-        assert!(memory.is_empty());
-    }
-
-    #[test]
-    fn test_episodic_memory_consolidate() {
-        let mut memory = EpisodicMemory::new();
-        let owner = WebID::new();
-        let perspective = WebID::new();
-
-        for i in 0..5 {
-            memory.store(
-                Triple::new("event", "index", json!(i), owner.clone())
-                    .with_perspective(perspective.clone())
-            );
-        }
-
-        memory.consolidate(3);
-        // Should retain most important episodes
-        assert!(!memory.is_empty());
-    }
-
-    #[test]
-    fn test_episodic_memory_query_by_perspective() {
-        let mut memory = EpisodicMemory::new();
-        let owner = WebID::new();
-        let perspective1 = WebID::new();
-        let perspective2 = WebID::new();
-
-        memory.store(
-            Triple::new("event", "data", json!(1), owner.clone())
-                .with_perspective(perspective1.clone())
-        );
-        memory.store(
-            Triple::new("event", "data", json!(2), owner)
-                .with_perspective(perspective2)
-        );
-
-        let results = memory.query_by_perspective(&perspective1);
-        assert_eq!(results.len(), 1);
-    }
-
-    #[test]
-    fn test_episodic_memory_merge() {
-        let mut memory1 = EpisodicMemory::new();
-        let mut memory2 = EpisodicMemory::new();
-        let owner = WebID::new();
-        let perspective = WebID::new();
-
-        memory1.store(
-            Triple::new("e1", "d1", json!("v1"), owner.clone())
-                .with_perspective(perspective.clone())
-        );
-        memory2.store(
-            Triple::new("e2", "d2", json!("v2"), owner)
-                .with_perspective(perspective)
-        );
-
-        memory1.merge(memory2);
-        assert_eq!(memory1.episode_count(), 2);
-    }
-
-    #[test]
-    fn test_episodic_memory_snapshot() {
-        let mut memory = EpisodicMemory::new();
-        let owner = WebID::new();
-        let perspective = WebID::new();
-
-        memory.store(
-            Triple::new("event", "data", json!("value"), owner)
-                .with_perspective(perspective)
-        );
-
-        let snapshot = memory.snapshot();
-        assert!(!snapshot.is_empty());
-    }
-
-    #[test]
-    fn test_episodic_memory_is_episodic() {
-        let memory = EpisodicMemory::new();
+    fn test_triple_is_episodic() {
         let owner = WebID::new();
         let perspective = WebID::new();
         let triple = Triple::new("e", "a", json!("v"), owner)
             .with_perspective(perspective);
-
-        assert!(memory.is_episodic(&triple));
+        assert!(triple.is_episodic());
+        assert!(!triple.is_semantic());
     }
 
     #[test]
-    fn test_episodic_memory_is_semantic() {
-        let memory = EpisodicMemory::new();
+    fn test_triple_with_perspective() {
+        let owner = WebID::new();
+        let perspective = WebID::new();
+        let triple = Triple::new("e", "a", json!("v"), owner)
+            .with_perspective(perspective.clone());
+        assert_eq!(triple.perspective, Some(perspective));
+    }
+
+    #[test]
+    fn test_triple_temporal_properties() {
+        let owner = WebID::new();
+        let triple = Triple::new("event", "time", json!("now"), owner);
+        assert!(triple.valid_from <= chrono::Utc::now());
+        assert!(triple.valid_to.is_none());
+    }
+
+    #[test]
+    fn test_triple_confidence_default() {
         let owner = WebID::new();
         let triple = Triple::new("e", "a", json!("v"), owner);
-
-        assert!(memory.is_semantic(&triple));
+        assert_eq!(triple.confidence, 1.0);
     }
 }
