@@ -7,6 +7,7 @@ description = "Multi-agent coordination"
 
 [dependencies]
 hkask-types = { path = "../hkask-types" }
+hkask-keystore = { path = "../hkask-keystore" }
 hkask-cns = { path = "../hkask-cns" }
 serde.workspace = true
 serde_json.workspace = true

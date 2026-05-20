@@ -71,6 +71,7 @@ impl Default for Keychain {
 }
 
 /// Key ring for macaroon key rotation
+#[derive(Debug, Clone)]
 pub struct KeyRing {
     current_key: [u8; 32],
     previous_keys: Vec<[u8; 32]>,

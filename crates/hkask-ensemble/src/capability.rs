@@ -5,6 +5,7 @@
 
 use chrono::{DateTime, Utc};
 use hkask_types::{TemplateID, Visibility, WebID};
+use hkask_keystore::KeyRing;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use thiserror::Error;
@@ -400,8 +401,8 @@ pub fn read_only_capability(holder: WebID, key: &[u8; 32]) -> OkapiCapability {
 mod tests {
     use super::*;
 
-    fn test_key() -> [u8; 32] {
-        [0x42; 32]
+    fn test_key_ring() -> KeyRing {
+        KeyRing::new([0x42; 32])
     }
 
     #[test]
@@ -415,7 +416,7 @@ mod tests {
             issuer,
             holder,
             chrono::Duration::days(30),
-            &key,
+            &key_ring,
         );
 
         assert_eq!(cap.issuer, issuer);
@@ -434,14 +435,14 @@ mod tests {
             WebID::new(),
             holder,
             chrono::Duration::days(30),
-            &key,
+            &key_ring,
         );
 
         // Should verify successfully
-        assert!(cap.verify(&key, &[OkapiOperation::Generate]).is_ok());
+        assert!(cap.verify(&key_ring, &[OkapiOperation::Generate]).is_ok());
 
         // Should fail for unauthorized operation
-        assert!(cap.verify(&key, &[OkapiOperation::Embed]).is_err());
+        assert!(cap.verify(&key_ring, &[OkapiOperation::Embed]).is_err());
     }
 
     #[test]
@@ -456,7 +457,7 @@ mod tests {
             holder,
             template_id,
             chrono::Duration::days(30),
-            &key,
+            &key_ring,
         );
 
         assert_eq!(cap.template_id, Some(template_id));
@@ -478,7 +479,7 @@ mod tests {
             WebID::new(),
             holder,
             chrono::Duration::days(30),
-            &key,
+            &key_ring,
         );
 
         let attenuated = cap.attenuate_for_template(template_id, &key);
@@ -500,7 +501,7 @@ mod tests {
             WebID::new(),
             holder,
             chrono::Duration::seconds(1),
-            &key,
+            &key_ring,
         );
 
         // Should not be expired initially
@@ -520,10 +521,10 @@ mod tests {
 
         let cap = default_system_capability(holder, &key);
 
-        assert!(cap.verify(&key, &[OkapiOperation::Generate]).is_ok());
-        assert!(cap.verify(&key, &[OkapiOperation::Chat]).is_ok());
-        assert!(cap.verify(&key, &[OkapiOperation::ReadMetrics]).is_ok());
-        assert!(cap.verify(&key, &[OkapiOperation::Embed]).is_err());
+        assert!(cap.verify(&key_ring, &[OkapiOperation::Generate]).is_ok());
+        assert!(cap.verify(&key_ring, &[OkapiOperation::Chat]).is_ok());
+        assert!(cap.verify(&key_ring, &[OkapiOperation::ReadMetrics]).is_ok());
+        assert!(cap.verify(&key_ring, &[OkapiOperation::Embed]).is_err());
     }
 
     #[test]
@@ -533,11 +534,11 @@ mod tests {
 
         let cap = read_only_capability(holder, &key);
 
-        assert!(cap.verify(&key, &[OkapiOperation::ReadMetrics]).is_ok());
+        assert!(cap.verify(&key_ring, &[OkapiOperation::ReadMetrics]).is_ok());
         assert!(
-            cap.verify(&key, &[OkapiOperation::ReadCapabilities])
+            cap.verify(&key_ring, &[OkapiOperation::ReadCapabilities])
                 .is_ok()
         );
-        assert!(cap.verify(&key, &[OkapiOperation::Generate]).is_err());
+        assert!(cap.verify(&key_ring, &[OkapiOperation::Generate]).is_err());
     }
 }

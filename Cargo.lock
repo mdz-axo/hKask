@@ -2521,6 +2521,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "hkask-cns",
+ "hkask-keystore",
  "hkask-templates",
  "hkask-types",
  "hmac",
