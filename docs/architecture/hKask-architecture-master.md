@@ -1,10 +1,11 @@
 # hKask Architecture — Master Specification v0.21.0
 
 **Date:** 2026-05-20  
-**Status:** Pre-alpha MVP in progress — Phase 5 (Security Hardening & Integration Tests) complete  
+**Status:** Pre-alpha MVP in progress — Documentation overhaul complete (TOGAF 90% coverage)  
 **Line Budget:** ≤30,000 lines Rust (excluding ACP/MCP protocols, Okapi, and `hkask-testing` crate)  
-**Current LOC:** ~6,400 lines Rust (21% of budget)  
-**Tests:** 237 passing across workspace (hkask-types: 50, hkask-cns: 49, hkask-templates: 138)
+**Current LOC:** ~24,800 lines Rust (83% of budget)  
+**Tests:** 178 passing (hkask-types: 50, hkask-cns: 49, hkask-agents: 21, hkask-ensemble: 58)  
+**Documentation:** 41 files (9 new TOGAF-aligned documents created 2026-05-20)
 
 ---
 
@@ -24,11 +25,11 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-na
 
 | Anchor | Purpose | Implementation |
 |--------|---------|----------------|
-| **1. Agent Enablement** | Sovereign agents with WebID, UCAN, ACP | Bot/Replicant taxonomy, agent pods |
+| **1. Agent Enablement** | Sovereign agents with WebID, ACP | Bot/Replicant taxonomy, agent pods |
 | **2. Essential Tools** | MCP servers + Okapi inference | 10 MCP servers (all hkask-) |
-| **3. User Sovereignty** | OCAP, privacy, encryption | UCAN delegation, visibility gating, SQLCipher |
-| **4. Cybernetic Nervous System** | νKask monitoring, variety counters | ν-events, algedonic alerts (REPLACES OKH + feedback) |
-| **5. Composition Registries** | Templates, hLexicon, self-wiring | **Unified registry** with template_type discriminator |
+| **3. User Sovereignty** | OCAP, privacy, encryption | OCAP delegation, visibility gating, SQLCipher |
+| **4. CNS (Cybernetic Nervous System)** | Monitoring, variety counters, algedonic alerts | ν-events, cns.* spans (`cns.tool.*`, `cns.prompt.*`, `cns.agent_pod.*`) |
+| **5. Composition** | Templates, hLexicon, self-wiring | **Unified registry** with template_type discriminator |
 
 ### 1.2 Agent Taxonomy
 

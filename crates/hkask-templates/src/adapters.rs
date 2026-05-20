@@ -255,6 +255,11 @@ impl SkillRegistryPort for MockRegistryAdapter {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_templates::GeneratedTemplate;
+    use hkask_templates::TemplateType;
 
     #[tokio::test]
     async fn test_mock_registry_adapter_register_template() {
@@ -363,5 +368,4 @@ impl SkillRegistryPort for MockRegistryAdapter {
         let no_results = adapter.search_by_lexicon("nonexistent").unwrap();
         assert_eq!(no_results.len(), 0);
     }
-}
 }

@@ -160,6 +160,10 @@ pub enum CapabilityAwareValidationError {
     ValidationFailed(Vec<ValidationError>),
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_templates::{RegistrationFrontmatter, TemplateType};
 
     #[test]
     fn test_capability_aware_validator_incompatible_capabilities() {

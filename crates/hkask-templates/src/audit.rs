@@ -184,6 +184,9 @@ impl Default for AuditTrail {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
 
     #[test]
     fn test_execution_audit_with_outcome_event() {

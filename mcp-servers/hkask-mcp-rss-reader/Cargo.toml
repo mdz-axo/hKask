@@ -1,0 +1,19 @@
+[package]
+name = "hkask-mcp-rss-reader"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "RSS/Atom feed reader MCP server with Google Reader API compatibility"
+
+[dependencies]
+hkask-types = { path = "../../crates/hkask-types" }
+rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+reqwest.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+parking_lot.workspace = true

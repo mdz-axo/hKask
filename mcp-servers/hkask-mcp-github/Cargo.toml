@@ -1,0 +1,18 @@
+[package]
+name = "hkask-mcp-github"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "GitHub MCP server for repository, issue, and PR operations"
+
+[dependencies]
+hkask-types = { path = "../../crates/hkask-types" }
+rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+reqwest.workspace = true
+chrono.workspace = true
+url.workspace = true

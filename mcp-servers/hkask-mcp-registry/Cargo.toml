@@ -1,0 +1,18 @@
+[package]
+name = "hkask-mcp-registry"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Template registry index, discovery, and validation MCP server"
+
+[dependencies]
+hkask-types = { path = "../../crates/hkask-types" }
+hkask-templates = { path = "../../crates/hkask-templates" }
+rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+uuid.workspace = true
