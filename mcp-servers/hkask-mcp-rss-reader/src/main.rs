@@ -2,10 +2,11 @@
 
 use rmcp::{
     ServerHandler, ServiceExt,
-    handler::server::{router::tool::ToolRouter, tool::Parameters},
+    handler::server::{router::tool::ToolRouter},
     model::*,
     schemars, tool, tool_router, tool_handler,
 };
+use rmcp::handler::server::wrapper::parameters::Parameters;
 use serde::{Deserialize, Serialize};
 use reqwest::Client;
 use uuid::Uuid;

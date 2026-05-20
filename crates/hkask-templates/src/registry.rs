@@ -509,4 +509,3 @@ impl RegistryIndex for Registry {
 
 
 
-}

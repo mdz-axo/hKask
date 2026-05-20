@@ -60,4 +60,3 @@ impl<R: RegistryIndex> TemplateResolver<R> {
 
 
 
-}

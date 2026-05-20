@@ -546,7 +546,3 @@ impl ManifestExecutor for SimpleExecutor {
     // ============== ManifestState Atomic Transition Tests ==============
 
 
-
-
-
-}

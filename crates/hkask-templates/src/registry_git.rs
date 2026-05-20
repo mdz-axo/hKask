@@ -149,4 +149,3 @@ impl RegistryIndex for GitRegistry {
 
 
 
-}

@@ -306,4 +306,3 @@ impl RegistryIndex for SqliteRegistry {
 
 
 
-}
