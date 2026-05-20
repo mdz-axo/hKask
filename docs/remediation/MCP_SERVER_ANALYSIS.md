@@ -256,7 +256,12 @@ User Request
 cargo check --workspace
 # Finished dev profile [unoptimized + debuginfo]
 # ✅ All MCP servers compile without errors
+# ✅ Dead code warnings resolved in hkask-agents
 ```
+
+**Remediation applied:**
+- Added `#[allow(dead_code)]` to stub fields intended for future implementation
+- Fields preserved for architectural completeness (ACPRuntimeAdapter, McpRuntimeAdapter, CnsEmitterAdapter, PodManager, AcpRuntime)
 
 ---
 
