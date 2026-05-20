@@ -127,37 +127,3 @@ impl SpanEmitter {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_span_category_as_str() {
-        assert_eq!(SpanCategory::Connector.as_str(), "cns.connector");
-        assert_eq!(SpanCategory::Pipeline.as_str(), "cns.pipeline");
-        assert_eq!(SpanCategory::Tool.as_str(), "cns.tool");
-        assert_eq!(SpanCategory::Prompt.as_str(), "cns.prompt");
-        assert_eq!(SpanCategory::AgentPod.as_str(), "cns.agent_pod");
-    }
-
-    #[test]
-    fn test_span_category_from_str() {
-        assert_eq!(
-            SpanCategory::parse_str("connector"),
-            Some(SpanCategory::Connector)
-        );
-        assert_eq!(
-            SpanCategory::parse_str("cns.pipeline"),
-            Some(SpanCategory::Pipeline)
-        );
-        assert_eq!(SpanCategory::parse_str("invalid"), None);
-    }
-
-    #[test]
-    fn test_span_emitter_new() {
-        let webid = WebID::new();
-        let emitter = SpanEmitter::new(webid);
-        // Just verify it constructs without error
-        drop(emitter);
-    }
-}

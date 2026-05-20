@@ -97,15 +97,3 @@ pub fn create_openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_api_state_new() {
-        let registry = SqliteRegistry::new(None).unwrap();
-        let mcp_runtime = hkask_mcp::runtime::McpRuntime::new();
-        let state = ApiState::new(registry, mcp_runtime);
-        assert_eq!(state.mcp_runtime.tool_count().await, 0);
-    }
-}

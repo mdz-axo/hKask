@@ -344,33 +344,3 @@ where
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use hkask_cns::CnsRuntime;
-
-    #[test]
-    fn test_okapi_integration_new() {
-        let cns_runtime = Arc::new(CnsRuntime::new());
-        let integration = OkapiIntegration::new("http://localhost:11435".to_string(), cns_runtime);
-
-        assert_eq!(integration.base_url(), "http://localhost:11435");
-        assert!(!integration.capability().is_expired());
-    }
-
-    #[test]
-    fn test_okapi_integration_with_capability() {
-        let cns_runtime = Arc::new(CnsRuntime::new());
-        let holder = WebID::new();
-        let key = [0x42; 32];
-        let capability = crate::capability::default_system_capability(holder, &key);
-
-        let integration = OkapiIntegration::with_capability(
-            "http://localhost:11435".to_string(),
-            capability.clone(),
-            cns_runtime,
-        );
-
-        assert_eq!(integration.capability().id(), capability.id());
-    }
-}

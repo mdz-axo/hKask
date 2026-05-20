@@ -117,10 +117,3 @@ pub fn calibrate_all_energy_caps(
     calibrator.calibrate_all_manifests(manifest_dir)
 }
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn test_list_templates() {
-        // Test would require a mock registry
-    }
-}

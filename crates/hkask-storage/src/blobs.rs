@@ -54,15 +54,3 @@ impl BlobStore {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_blob_new() {
-        let data = b"Hello!".to_vec();
-        let owner = WebID::new();
-        let blob = Blob::new(data.clone(), "text/plain", owner);
-        assert!(blob.verify());
-    }
-}

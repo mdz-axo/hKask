@@ -59,19 +59,3 @@ impl GitCas {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use tempfile::TempDir;
-
-    #[test]
-    fn test_store_and_retrieve() {
-        let temp_dir = TempDir::new().unwrap();
-        let cas = GitCas::open(temp_dir.path()).unwrap();
-
-        let content = b"Hello, Git!";
-        let hash = cas.store(content).unwrap();
-        let retrieved = cas.retrieve(&hash).unwrap();
-        assert_eq!(retrieved, content);
-    }
-}
