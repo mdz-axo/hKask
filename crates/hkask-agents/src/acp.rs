@@ -19,7 +19,7 @@
 //!                                                   Response to Agent A
 //! ```
 
-use hkask_types::{CapabilityToken, CapabilityResource, CapabilityAction, WebID};
+use hkask_types::{CapabilityAction, CapabilityResource, CapabilityToken, WebID};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -148,7 +148,10 @@ impl AcpRuntime {
 
         // Store capability token
         let mut tokens = self.capability_tokens.write().await;
-        tokens.entry(webid).or_insert_with(Vec::new).push(token.clone());
+        tokens
+            .entry(webid)
+            .or_insert_with(Vec::new)
+            .push(token.clone());
 
         info!(
             target: "hkask.acp",
@@ -387,7 +390,7 @@ impl TemplateDispatchHandler {
     ) -> Result<(), String> {
         let artifact_id_clone = artifact_id.clone();
         let artifact_type_clone = artifact_type.clone();
-        
+
         let message = A2AMessage::MemoryArtifact {
             producer,
             artifact_type,
@@ -485,7 +488,12 @@ mod tests {
         let handler = TemplateDispatchHandler::new(Arc::new(runtime));
 
         let correlation_id = handler
-            .dispatch(from, Some(to), "test/template".to_string(), serde_json::json!({"test": "data"}))
+            .dispatch(
+                from,
+                Some(to),
+                "test/template".to_string(),
+                serde_json::json!({"test": "data"}),
+            )
             .await
             .unwrap();
 
@@ -506,7 +514,7 @@ mod tests {
         // Wildcard token allows any tool
         assert!(runtime.has_capability(&webid, "inference:call").await);
         assert!(runtime.has_capability(&webid, "memory:write").await);
-        
+
         // Unregistered agent has no capabilities
         let other_webid = WebID::new();
         assert!(!runtime.has_capability(&other_webid, "inference:call").await);
@@ -548,7 +556,12 @@ mod tests {
 
         // Dispatch
         let correlation_id = handler
-            .dispatch(from, Some(to), "test/template".to_string(), serde_json::json!({"input": "test"}))
+            .dispatch(
+                from,
+                Some(to),
+                "test/template".to_string(),
+                serde_json::json!({"input": "test"}),
+            )
             .await
             .unwrap();
 
@@ -558,7 +571,11 @@ mod tests {
 
         // Respond
         handler
-            .respond(correlation_id.clone(), serde_json::json!({"result": "success"}), None)
+            .respond(
+                correlation_id.clone(),
+                serde_json::json!({"result": "success"}),
+                None,
+            )
             .await
             .unwrap();
 

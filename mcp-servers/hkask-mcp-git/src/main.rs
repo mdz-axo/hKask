@@ -1,10 +1,6 @@
 //! hKask MCP Git — Git operations with gix
 
-use rmcp::{
-    tool, tool_router, ServiceExt,
-    handler::server::wrapper::Parameters,
-    transport::stdio,
-};
+use rmcp::{ServiceExt, handler::server::wrapper::Parameters, tool, tool_router, transport::stdio};
 use schemars::JsonSchema;
 use serde::Deserialize;
 
@@ -59,37 +55,84 @@ impl GitServer {
 #[tool_router(server_handler)]
 impl GitServer {
     #[tool(description = "Resolve a git reference to a SHA")]
-    async fn git_resolve(&self, Parameters(ResolveRequest { git_ref }): Parameters<ResolveRequest>) -> String {
+    async fn git_resolve(
+        &self,
+        Parameters(ResolveRequest { git_ref }): Parameters<ResolveRequest>,
+    ) -> String {
         let fake_sha = format!("abc123def456_{}", git_ref);
-        format!(r#"{{"ref":"{}","sha":"{}","resolved":true}}"#, git_ref, fake_sha)
+        format!(
+            r#"{{"ref":"{}","sha":"{}","resolved":true}}"#,
+            git_ref, fake_sha
+        )
     }
 
     #[tool(description = "Create a git snapshot (commit)")]
-    async fn git_snapshot(&self, Parameters(SnapshotRequest { message, branch }): Parameters<SnapshotRequest>) -> String {
+    async fn git_snapshot(
+        &self,
+        Parameters(SnapshotRequest { message, branch }): Parameters<SnapshotRequest>,
+    ) -> String {
         let sha = format!("snap_{}", message.replace(' ', "_"));
-        format!(r#"{{"sha":"{}","message":"{}","branch":"{}","committed":true}}"#, sha, message, branch.unwrap_or_else(|| "main".to_string()))
+        format!(
+            r#"{{"sha":"{}","message":"{}","branch":"{}","committed":true}}"#,
+            sha,
+            message,
+            branch.unwrap_or_else(|| "main".to_string())
+        )
     }
 
     #[tool(description = "Clone a git repository")]
-    async fn git_clone(&self, Parameters(CloneRequest { url, target_path, branch }): Parameters<CloneRequest>) -> String {
-        format!(r#"{{"url":"{}","path":"{}","branch":"{}","cloned":true}}"#, url, target_path, branch.unwrap_or_else(|| "main".to_string()))
+    async fn git_clone(
+        &self,
+        Parameters(CloneRequest {
+            url,
+            target_path,
+            branch,
+        }): Parameters<CloneRequest>,
+    ) -> String {
+        format!(
+            r#"{{"url":"{}","path":"{}","branch":"{}","cloned":true}}"#,
+            url,
+            target_path,
+            branch.unwrap_or_else(|| "main".to_string())
+        )
     }
 
     #[tool(description = "Fork a git repository")]
-    async fn git_fork(&self, Parameters(ForkRequest { source_url, target_name, organization }): Parameters<ForkRequest>) -> String {
+    async fn git_fork(
+        &self,
+        Parameters(ForkRequest {
+            source_url,
+            target_name,
+            organization,
+        }): Parameters<ForkRequest>,
+    ) -> String {
         let org = organization.unwrap_or_else(|| "forked".to_string());
-        format!(r#"{{"source":"{}","target":"{}/{}","forked":true}}"#, source_url, org, target_name)
+        format!(
+            r#"{{"source":"{}","target":"{}/{}","forked":true}}"#,
+            source_url, org, target_name
+        )
     }
 
     #[tool(description = "Show diff between two commits")]
-    async fn git_diff(&self, Parameters(DiffRequest { sha1, sha2, path }): Parameters<DiffRequest>) -> String {
-        format!(r#"{{"sha1":"{}","sha2":"{}","path":"{}","diff":"simulated diff output"}}"#, sha1, sha2, path.unwrap_or_else(|| "all".to_string()))
+    async fn git_diff(
+        &self,
+        Parameters(DiffRequest { sha1, sha2, path }): Parameters<DiffRequest>,
+    ) -> String {
+        format!(
+            r#"{{"sha1":"{}","sha2":"{}","path":"{}","diff":"simulated diff output"}}"#,
+            sha1,
+            sha2,
+            path.unwrap_or_else(|| "all".to_string())
+        )
     }
 
     #[tool(description = "List files in a git path")]
     async fn git_list(&self, Parameters(ListRequest { path }): Parameters<ListRequest>) -> String {
         let p = path.unwrap_or_else(|| ".".to_string());
-        format!(r#"{{"path":"{}","files":["file1.rs","file2.rs","Cargo.toml"]}}"#, p)
+        format!(
+            r#"{{"path":"{}","files":["file1.rs","file2.rs","Cargo.toml"]}}"#,
+            p
+        )
     }
 }
 
@@ -98,7 +141,7 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
-    
+
     let server = GitServer::new();
     let service = server.serve(stdio());
     tracing::info!("hkask-mcp-git started (v{})", SERVER_VERSION);

@@ -1,10 +1,6 @@
 //! hKask MCP OCAP — Capability-based access control and delegation
 
-use rmcp::{
-    tool, tool_router, ServiceExt,
-    handler::server::wrapper::Parameters,
-    transport::stdio,
-};
+use rmcp::{ServiceExt, handler::server::wrapper::Parameters, tool, tool_router, transport::stdio};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use std::sync::Arc;
@@ -35,57 +31,93 @@ pub struct EnumerateRequest {
     pub subject: String,
 }
 
+#[derive(Debug, Default)]
 pub struct OcapServer {
     tokens: Arc<RwLock<Vec<String>>>,
 }
 
 impl OcapServer {
     pub fn new() -> Self {
-        Self {
-            tokens: Arc::new(RwLock::new(Vec::new())),
-        }
+        Self::default()
     }
 }
 
 #[tool_router(server_handler)]
 impl OcapServer {
     #[tool(description = "Create a delegated capability token")]
-    async fn ocap_delegate(&self, Parameters(DelegateRequest { issuer, subject, capabilities }): Parameters<DelegateRequest>) -> String {
+    async fn ocap_delegate(
+        &self,
+        Parameters(DelegateRequest {
+            issuer,
+            subject,
+            capabilities,
+        }): Parameters<DelegateRequest>,
+    ) -> String {
         let mut tokens = self.tokens.write().await;
         let token_id = format!("token_{}", tokens.len());
         tokens.push(token_id.clone());
-        format!(r#"{{"id":"{}","issuer":"{}","subject":"{}","capabilities":{}}}"#, token_id, issuer, subject, capabilities)
+        format!(
+            r#"{{"id":"{}","issuer":"{}","subject":"{}","capabilities":{}}}"#,
+            token_id, issuer, subject, capabilities
+        )
     }
 
     #[tool(description = "Verify a capability token")]
-    async fn ocap_verify(&self, Parameters(VerifyRequest { token_id, capability }): Parameters<VerifyRequest>) -> String {
+    async fn ocap_verify(
+        &self,
+        Parameters(VerifyRequest {
+            token_id,
+            capability,
+        }): Parameters<VerifyRequest>,
+    ) -> String {
         let tokens = self.tokens.read().await;
         let valid = tokens.contains(&token_id);
-        format!(r#"{{"token_id":"{}","valid":{},"capability":"{}"}}"#, token_id, valid, capability)
+        format!(
+            r#"{{"token_id":"{}","valid":{},"capability":"{}"}}"#,
+            token_id, valid, capability
+        )
     }
 
     #[tool(description = "Revoke a capability token")]
-    async fn ocap_revoke(&self, Parameters(RevokeRequest { token_id }): Parameters<RevokeRequest>) -> String {
+    async fn ocap_revoke(
+        &self,
+        Parameters(RevokeRequest { token_id }): Parameters<RevokeRequest>,
+    ) -> String {
         let mut tokens = self.tokens.write().await;
         if let Some(pos) = tokens.iter().position(|t| t == &token_id) {
             tokens.remove(pos);
             format!(r#"{{"token_id":"{}","revoked":true}}"#, token_id)
         } else {
-            format!(r#"{{"token_id":"{}","revoked":false,"error":"Token not found"}}"#, token_id)
+            format!(
+                r#"{{"token_id":"{}","revoked":false,"error":"Token not found"}}"#,
+                token_id
+            )
         }
     }
 
     #[tool(description = "Enumerate capabilities for a subject")]
-    async fn ocap_enumerate(&self, Parameters(EnumerateRequest { subject }): Parameters<EnumerateRequest>) -> String {
+    async fn ocap_enumerate(
+        &self,
+        Parameters(EnumerateRequest { subject }): Parameters<EnumerateRequest>,
+    ) -> String {
         let tokens = self.tokens.read().await;
         let count = tokens.len();
-        format!(r#"{{"subject":"{}","token_count":{},"tokens":{}}}"#, subject, count, serde_json::to_string(&*tokens).unwrap())
+        format!(
+            r#"{{"subject":"{}","token_count":{},"tokens":{}}}"#,
+            subject,
+            count,
+            serde_json::to_string(&*tokens).unwrap()
+        )
     }
 
     #[tool(description = "List all capability tokens")]
     async fn ocap_list_tokens(&self) -> String {
         let tokens = self.tokens.read().await;
-        format!(r#"{{"token_count":{},"tokens":{}}}"#, tokens.len(), serde_json::to_string(&*tokens).unwrap())
+        format!(
+            r#"{{"token_count":{},"tokens":{}}}"#,
+            tokens.len(),
+            serde_json::to_string(&*tokens).unwrap()
+        )
     }
 }
 
@@ -94,7 +126,7 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
-    
+
     let server = OcapServer::new();
     let service = server.serve(stdio());
     tracing::info!("hkask-mcp-ocap started (v{})", SERVER_VERSION);

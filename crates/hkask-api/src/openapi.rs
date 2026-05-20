@@ -3,7 +3,8 @@
 use utoipa::OpenApi;
 
 use crate::{
-    ChatRequest, ChatResponse, CnsHealthResponse, GrantCapabilityRequest, TemplateResponse,
+    ChatRequest, ChatResponse, CnsHealthResponse, CnsVarietyResponse, ErrorResponse,
+    GrantCapabilityRequest, TemplateResponse, ToolResponse,
 };
 
 /// API documentation
@@ -13,6 +14,9 @@ use crate::{
         TemplateResponse,
         GrantCapabilityRequest,
         CnsHealthResponse,
+        CnsVarietyResponse,
+        ToolResponse,
+        ErrorResponse,
         ChatRequest,
         ChatResponse,
     )),

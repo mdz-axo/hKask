@@ -32,9 +32,9 @@ pub mod ocap;
 pub mod pod;
 pub mod replicant;
 
-pub use acp::{AcpRuntime, AcpAgent, A2AMessage, TemplateDispatchHandler};
+pub use acp::{A2AMessage, AcpAgent, AcpRuntime, TemplateDispatchHandler};
 pub use capability::{BotCapabilities, CapabilityChecker, CapabilityToken};
 pub use pod::{
-    AgentPersona, AgentPod, AgentPodError, AgentPodResult, AgentType, GitCASPort, MCPRuntimePort,
-    MemoryStoragePort, CNSSpanPort, PodID, PodLifecycleState, TemplateCrate,
+    AgentPersona, AgentPod, AgentPodError, AgentPodResult, AgentType, CNSSpanPort, GitCASPort,
+    MCPRuntimePort, MemoryStoragePort, PodID, PodLifecycleState, TemplateCrate,
 };

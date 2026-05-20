@@ -4,12 +4,13 @@
 //! Per architecture v0.21.0: Rust is the loom, YAML/Jinja2 is the thread.
 
 use hkask_types::TemplateType;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::Path;
 use std::time::Duration;
 
 /// Configuration for inference calls with timeout and retry
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InferenceConfig {
     /// Timeout for each inference call
     pub timeout: Duration,

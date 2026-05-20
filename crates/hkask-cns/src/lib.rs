@@ -32,8 +32,8 @@ pub use observers::composition::{
 };
 pub use rate_limit::{RateLimitConfig, RateLimiter};
 pub use review_queue::{
-    ReviewDecision, ReviewQueue, ReviewQueueObserver, ReviewQueueStats, TemporaryBlock,
-    Violation, ViolationSeverity,
+    ReviewDecision, ReviewQueue, ReviewQueueObserver, ReviewQueueStats, TemporaryBlock, Violation,
+    ViolationSeverity,
 };
 pub use spans::{SpanCategory, SpanEmitter};
 pub use variety::{VarietyCounter, VarietyMonitor};

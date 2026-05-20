@@ -33,7 +33,7 @@
 //! pod.activate(&mcp_runtime, &cns_emitter).unwrap();
 //! ```
 
-use hkask_types::{CapabilityToken, CapabilityResource, CapabilityAction, WebID};
+use hkask_types::{CapabilityAction, CapabilityResource, CapabilityToken, WebID};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tracing::info;
@@ -462,12 +462,16 @@ impl AgentPod {
     /// # Returns
     /// * `Ok(CapabilityToken)` — Attenuated child token
     /// * `Err(AgentPodError)` — Attenuation limit exceeded
-    pub fn delegate(&self, new_holder: WebID, current_time: i64) -> AgentPodResult<CapabilityToken> {
+    pub fn delegate(
+        &self,
+        new_holder: WebID,
+        current_time: i64,
+    ) -> AgentPodResult<CapabilityToken> {
         // Check attenuation limit
         if self.capability_token.attenuation_level >= self.max_attenuation {
             return Err(AgentPodError::AttenuationLimitExceeded);
         }
-        
+
         self.capability_token
             .attenuate(new_holder, b"ocap-secret-key", current_time)
             .ok_or(AgentPodError::AttenuationLimitExceeded)
@@ -659,7 +663,13 @@ mod tests {
 
     pub struct MockCNSSpan;
     impl CNSSpanPort for MockCNSSpan {
-        fn emit_event(&self, _span: &str, _phase: &str, _observation: &serde_json::Value, _confidence: f64) {
+        fn emit_event(
+            &self,
+            _span: &str,
+            _phase: &str,
+            _observation: &serde_json::Value,
+            _confidence: f64,
+        ) {
             // No-op for tests
         }
     }
@@ -807,7 +817,7 @@ visibility:
 
         let new_holder = WebID::new();
         let result = pod.delegate(new_holder, 1000);
-        
+
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err(),
@@ -870,7 +880,7 @@ visibility:
         let acp = MockACPRuntime;
         let cns = MockCNSSpan;
         pod.register(&acp, &cns).unwrap();
-        
+
         // Second registration should fail
         let result = pod.register(&acp, &cns);
         assert!(result.is_err());
@@ -904,10 +914,10 @@ visibility:
         let acp = MockACPRuntime;
         let cns = MockCNSSpan;
         pod.register(&acp, &cns).unwrap();
-        
+
         let mcp = MockMCPRuntime;
         pod.activate(&mcp, &cns).unwrap();
-        
+
         // Second activation should fail
         let result = pod.activate(&mcp, &cns);
         assert!(result.is_err());

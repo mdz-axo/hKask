@@ -2,7 +2,7 @@
 //! Migrated from inline tests in production code (git commit f9ed608)
 
 use hkask_cns::{
-    algedonic::{AlgedonicAlert, AlgedonicManager, AlertSeverity, CnsHealth},
+    algedonic::{AlertSeverity, AlgedonicAlert, AlgedonicManager, CnsHealth},
     variety::VarietyCounter,
 };
 use std::sync::{Arc, Mutex};

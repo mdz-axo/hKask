@@ -2505,6 +2505,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "hkask-agents",
+ "hkask-api",
  "hkask-cns",
  "hkask-mcp",
  "hkask-templates",
@@ -2656,18 +2657,18 @@ name = "hkask-mcp-fal"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "base64",
+ "chrono",
  "hkask-types",
  "reqwest",
  "rmcp",
- "secrecy",
+ "schemars",
  "serde",
  "serde_json",
  "thiserror",
  "tokio",
  "tracing",
  "tracing-subscriber",
- "url",
+ "uuid",
 ]
 
 [[package]]
@@ -2679,13 +2680,14 @@ dependencies = [
  "hkask-types",
  "reqwest",
  "rmcp",
- "secrecy",
+ "schemars",
  "serde",
  "serde_json",
  "thiserror",
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]
@@ -2716,13 +2718,14 @@ dependencies = [
  "hkask-types",
  "reqwest",
  "rmcp",
+ "schemars",
  "serde",
  "serde_json",
  "thiserror",
  "tokio",
  "tracing",
  "tracing-subscriber",
- "url",
+ "uuid",
 ]
 
 [[package]]
@@ -2795,9 +2798,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
- "hkask-templates",
  "hkask-types",
  "rmcp",
+ "schemars",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -2815,9 +2818,8 @@ dependencies = [
  "anyhow",
  "chrono",
  "hkask-types",
- "parking_lot",
- "reqwest",
  "rmcp",
+ "schemars",
  "serde",
  "serde_json",
  "thiserror",
@@ -2874,19 +2876,18 @@ name = "hkask-mcp-telnyx"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "axum",
- "base64",
- "ed25519-dalek",
+ "chrono",
  "hkask-types",
  "reqwest",
  "rmcp",
- "secrecy",
+ "schemars",
  "serde",
  "serde_json",
  "thiserror",
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]
@@ -2950,6 +2951,7 @@ dependencies = [
  "hkask-storage",
  "hkask-types",
  "minijinja",
+ "regex",
  "rusqlite",
  "serde",
  "serde_json",

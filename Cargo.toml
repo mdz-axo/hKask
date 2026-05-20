@@ -129,3 +129,6 @@ async-trait = "0.1"
 pretty_assertions = "1.4"
 insta = { version = "1.42", features = ["yaml", "json"] }
 proptest = "1.6"
+
+# Pattern matching (for migration)
+regex = "1"

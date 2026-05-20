@@ -5,11 +5,11 @@ use hkask_templates::{
     audit::{AuditTrail, ExecutionAudit},
     cascade::{Cascade, CascadeBuilder, CascadeContext, CascadeExecutor, MAX_CASCADE_DEPTH},
     contracts::{parse_frontmatter, validate_lexicon_terms},
-    dependency::{parse_dependencies, DependencyGraph},
+    dependency::{DependencyGraph, parse_dependencies},
     ports::{
         Action, CnsPort, CompositionTemplate, InferenceConfig, InferencePort, ManifestExecutorImpl,
-        ManifestStep, McpPort, ProcessManifest, RegistryEntry, RegistryIndex, Result, SimpleExecutor,
-        TemplateRenderer,
+        ManifestStep, McpPort, ProcessManifest, RegistryEntry, RegistryIndex, Result,
+        SimpleExecutor, TemplateRenderer,
     },
 };
 use hkask_types::{TemplateType, WebID};
@@ -256,10 +256,9 @@ mod cascade_tests {
         }
 
         fn get(&self, id: &str) -> hkask_templates::Result<RegistryEntry> {
-            self.entries
-                .get(id)
-                .cloned()
-                .ok_or_else(|| hkask_templates::TemplateError::NotFound(format!("Template '{}' not found", id)))
+            self.entries.get(id).cloned().ok_or_else(|| {
+                hkask_templates::TemplateError::NotFound(format!("Template '{}' not found", id))
+            })
         }
 
         fn bootstrap_manifest(&self) -> Option<ProcessManifest> {

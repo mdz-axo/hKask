@@ -24,6 +24,7 @@ pub mod registry;
 pub mod registry_git;
 pub mod registry_sqlite;
 pub mod renderer;
+pub mod russell_mapper;
 
 pub use audit::{AuditStats, AuditTrail, ExecutionAudit};
 pub use contracts::{
@@ -41,3 +42,7 @@ pub use provenance::{ProvenanceManager, TemplateProvenance};
 pub use registry::{Registry, TemplateEntry};
 pub use registry_git::GitRegistry;
 pub use registry_sqlite::SqliteRegistry;
+pub use russell_mapper::{
+    MappedAsset, MappedAssetType, MigrationConfig, OutputFormat, RussellMapper,
+    RussellSkillManifest,
+};

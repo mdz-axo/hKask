@@ -4,20 +4,24 @@
 //! - `GET /api/templates` — List templates
 //! - `GET /api/templates/:id` — Get template
 //! - `POST /api/templates` — Register template
+//! - `GET /api/templates/search/:term` — Search templates by lexicon
 //! - `GET /api/bots/:id/capabilities` — List bot capabilities
 //! - `POST /api/bots/:id/grant` — Grant capability
 //! - `GET /api/mcp/servers` — List MCP servers
 //! - `GET /api/mcp/tools` — List tools
+//! - `GET /api/mcp/tools/:name` — Get tool definition
 //! - `GET /api/cns/health` — CNS health status
 //! - `GET /api/cns/alerts` — Algedonic alerts
+//! - `GET /api/cns/variety` — CNS variety counters
 //! - `POST /api/chat` — Curator chat
 
-use axum::routing::Router;
 use hkask_templates::SqliteRegistry;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::Arc;
 use utoipa::OpenApi;
 use utoipa::ToSchema;
+use utoipa_axum::router::OpenApiRouter;
 
 pub mod openapi;
 pub mod routes;
@@ -81,14 +85,47 @@ pub struct ChatResponse {
     pub template_id: String,
 }
 
-/// Create API router
-pub fn create_router(state: ApiState) -> Router {
-    Router::new()
-        .merge(routes::templates_router())
-        .merge(routes::bots_router())
-        .merge(routes::mcp_router())
-        .merge(routes::cns_router())
-        .merge(routes::chat_router())
+/// CNS variety counter response
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct VarietyCounterResponse {
+    pub variety: u64,
+    pub total: u64,
+    pub entropy: f64,
+}
+
+/// CNS variety response
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct CnsVarietyResponse {
+    pub domains: Vec<String>,
+    pub total_deficit: u64,
+    pub counters: HashMap<String, VarietyCounterResponse>,
+}
+
+/// Tool response
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct ToolResponse {
+    pub name: String,
+    pub description: String,
+    pub input_schema: serde_json::Value,
+    pub server_id: String,
+}
+
+/// Error response
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct ErrorResponse {
+    pub error: String,
+    pub code: String,
+    pub details: Option<serde_json::Value>,
+}
+
+/// Create API router with OpenAPI documentation
+pub fn create_router(state: ApiState) -> OpenApiRouter {
+    OpenApiRouter::with_openapi(ApiDoc::openapi())
+        .merge(routes::templates_router().into())
+        .merge(routes::bots_router().into())
+        .merge(routes::mcp_router().into())
+        .merge(routes::cns_router().into())
+        .merge(routes::chat_router().into())
         .with_state(state)
 }
 

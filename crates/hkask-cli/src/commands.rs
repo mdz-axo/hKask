@@ -3,10 +3,13 @@
 //! This module contains the actual command handlers.
 
 use hkask_mcp::runtime::{McpRuntime, McpServer, McpTool};
-use hkask_templates::{RegistryEntry, RegistryIndex, SqliteRegistry, TemplateError};
+use hkask_templates::{
+    MappedAsset, MigrationConfig, RegistryEntry, RegistryIndex, RussellMapper, SqliteRegistry,
+    TemplateError,
+};
 use hkask_types::TemplateType;
 use serde_json::Value;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Template list command
 pub fn list_templates(
@@ -124,6 +127,143 @@ pub fn activate_pod(_pod_id: &str) -> Result<(), String> {
 /// Deactivate pod (placeholder - requires pod manager implementation)
 pub fn deactivate_pod(_pod_id: &str) -> Result<(), String> {
     Err("Pod manager not yet implemented. This is a placeholder for Phase 3.".to_string())
+}
+
+/// Import Russell assets into hKask registry
+pub fn import_russell(
+    source_path: &Path,
+    config: &MigrationConfig,
+    verbose: bool,
+) -> Result<Vec<MappedAsset>, String> {
+    let mapper = RussellMapper::new(None);
+    let mut assets = Vec::new();
+
+    if source_path.is_file() {
+        let extension = source_path
+            .extension()
+            .and_then(|s| s.to_str())
+            .unwrap_or("");
+
+        match extension {
+            "yaml" | "yml" => match mapper.migrate_skill_manifest(source_path, config) {
+                Ok(asset) => {
+                    if verbose {
+                        println!("Analyzed skill manifest: {}", asset.origin);
+                    }
+                    assets.push(asset);
+                }
+                Err(e) => {
+                    eprintln!("Failed to analyze {}: {}", source_path.display(), e);
+                    if !config.dry_run {
+                        return Err(format!("Migration failed: {}", e));
+                    }
+                }
+            },
+            "j2" => match mapper.migrate_prompt_template(source_path, config) {
+                Ok(asset) => {
+                    if verbose {
+                        println!("Analyzed prompt template: {}", asset.origin);
+                    }
+                    assets.push(asset);
+                }
+                Err(e) => {
+                    eprintln!("Failed to analyze {}: {}", source_path.display(), e);
+                    if !config.dry_run {
+                        return Err(format!("Migration failed: {}", e));
+                    }
+                }
+            },
+            _ => {
+                return Err(format!("Unsupported file type: {}", extension));
+            }
+        }
+    } else if source_path.is_dir() {
+        for entry in std::fs::read_dir(source_path).map_err(|e| e.to_string())? {
+            let entry = entry.map_err(|e| e.to_string())?;
+            let path = entry.path();
+
+            if path.is_file() {
+                let extension = path.extension().and_then(|s| s.to_str()).unwrap_or("");
+
+                match extension {
+                    "yaml" | "yml" => match mapper.migrate_skill_manifest(&path, config) {
+                        Ok(asset) => {
+                            if verbose {
+                                println!("Analyzed skill manifest: {}", asset.origin);
+                            }
+                            assets.push(asset);
+                        }
+                        Err(e) => {
+                            eprintln!("Failed to analyze {}: {}", path.display(), e);
+                            if !config.dry_run {
+                                return Err(format!("Migration failed: {}", e));
+                            }
+                        }
+                    },
+                    "j2" => match mapper.migrate_prompt_template(&path, config) {
+                        Ok(asset) => {
+                            if verbose {
+                                println!("Analyzed prompt template: {}", asset.origin);
+                            }
+                            assets.push(asset);
+                        }
+                        Err(e) => {
+                            eprintln!("Failed to analyze {}: {}", path.display(), e);
+                            if !config.dry_run {
+                                return Err(format!("Migration failed: {}", e));
+                            }
+                        }
+                    },
+                    _ => {}
+                }
+            } else if path.is_dir() {
+                for sub_entry in std::fs::read_dir(&path).map_err(|e| e.to_string())? {
+                    let sub_entry = sub_entry.map_err(|e| e.to_string())?;
+                    let sub_path = sub_entry.path();
+
+                    if sub_path.is_file() {
+                        let extension = sub_path.extension().and_then(|s| s.to_str()).unwrap_or("");
+
+                        if extension == "yaml" || extension == "yml" {
+                            if sub_path.file_name().and_then(|s| s.to_str())
+                                == Some("manifest.yaml")
+                            {
+                                match mapper.migrate_skill_manifest(&sub_path, config) {
+                                    Ok(asset) => {
+                                        if verbose {
+                                            println!("Analyzed skill manifest: {}", asset.origin);
+                                        }
+                                        assets.push(asset);
+                                    }
+                                    Err(e) => {
+                                        eprintln!(
+                                            "Failed to analyze {}: {}",
+                                            sub_path.display(),
+                                            e
+                                        );
+                                        if !config.dry_run {
+                                            return Err(format!("Migration failed: {}", e));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        return Err(format!(
+            "Source path does not exist: {}",
+            source_path.display()
+        ));
+    }
+
+    if config.dry_run {
+        println!("\nDry run complete - no assets written to registry");
+    }
+
+    Ok(assets)
 }
 
 #[cfg(test)]

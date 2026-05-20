@@ -3,9 +3,9 @@
 //! This port provides standardized fixture builders for hKask test infrastructure.
 //! Each fixture builder implements the corresponding production port trait.
 
-use hkask_types::{WebID, TemplateType, NuEvent, Span, Phase};
-use serde_json::Value;
 use chrono::{DateTime, Utc};
+use hkask_types::{NuEvent, Phase, Span, TemplateType, WebID};
+use serde_json::Value;
 
 /// Fixture builder for WebID entities
 pub struct WebIDFixture {

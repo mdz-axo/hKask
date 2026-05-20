@@ -16,7 +16,7 @@
 
 use clap::{Parser, Subcommand};
 use hkask_mcp::runtime::McpRuntime;
-use hkask_templates::{RegistryIndex, SqliteRegistry};
+use hkask_templates::{RegistryIndex, RussellMapper, SqliteRegistry};
 use hkask_types::TemplateType as Type;
 use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
@@ -87,6 +87,18 @@ enum Commands {
     Cns {
         #[command(subcommand)]
         action: CnsAction,
+    }
+
+    /// Registry management
+    Registry {
+        #[command(subcommand)]
+        action: RegistryAction,
+    }
+
+    /// Documentation generation
+    Docs {
+        #[command(subcommand)]
+        action: DocsAction,
     },
 }
 
@@ -232,6 +244,67 @@ enum CnsAction {
     Variety,
 }
 
+#[derive(Subcommand)]
+enum DocsAction {
+    /// Generate OpenAPI specification (JSON)
+    Openapi {
+        /// Output file path (default: stdout)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
+
+    /// Generate CLI help documentation (markdown)
+    Cli {
+        /// Output file path (default: stdout)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
+
+    /// Generate all documentation
+    All {
+        /// Output directory
+        #[arg(short, long)]
+        output: PathBuf,
+    },
+}
+
+#[derive(Subcommand)]
+enum RegistryAction {
+    /// Import Russell skill manifests and prompt templates
+    ImportRussell {
+        /// Source path (Russell skills directory or manifest file)
+        #[arg(short, long)]
+        source: PathBuf,
+
+        /// Dry run - analyze without writing
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Validate only - run hLexicon validation only
+        #[arg(long)]
+        validate_only: bool,
+
+        /// Output format (yaml, json, mermaid)
+        #[arg(short, long, default_value = "yaml")]
+        output_format: String,
+
+        /// Custom transformation rules (YAML file)
+        #[arg(short, long)]
+        transform_rules: Option<PathBuf>,
+
+        /// Verbose output
+        #[arg(short, long)]
+        verbose: bool,
+    },
+
+    /// List migrated assets with provenance
+    ListMigrated {
+        /// Filter by origin (e.g., "russell/web-search")
+        #[arg(short, long)]
+        origin: Option<String>,
+    },
+}
+
 fn init_logging(verbose: bool) {
     let filter = if verbose {
         EnvFilter::new("debug")
@@ -307,6 +380,118 @@ fn process_chat_input(registry: &SqliteRegistry, input: &str, template_id: Optio
             }
         }
     }
+}
+
+fn generate_cli_markdown() -> String {
+    let mut md = String::new();
+    
+    md.push_str("# hKask CLI Documentation\n\n");
+    md.push_str("**hKask** (ℏKask — \"Planck's Constant of Agent Systems\") - Command-line interface\n\n");
+    md.push_str("## Usage\n\n");
+    md.push_str("```bash\n");
+    md.push_str("kask [OPTIONS] <COMMAND>\n");
+    md.push_str("```\n\n");
+    md.push_str("## Options\n\n");
+    md.push_str("- `-v`, `--verbose` — Enable verbose output\n");
+    md.push_str("- `-r`, `--registry <PATH>` — Registry database path (default: in-memory)\n");
+    md.push_str("- `-h`, `--help` — Print help\n");
+    md.push_str("- `-V`, `--version` — Print version\n\n");
+    md.push_str("## Commands\n\n");
+    md.push_str("### `kask chat` — Curator chat interface\n\n");
+    md.push_str("```bash\n");
+    md.push_str("kask chat [OPTIONS]\n");
+    md.push_str("```\n\n");
+    md.push_str("Options:\n");
+    md.push_str("- `-t`, `--template <TEMPLATE>` — Optional: template ID to use\n");
+    md.push_str("- `-f`, `--input <INPUT>` — Optional: input file\n");
+    md.push_str("- `-i`, `--interactive` — Interactive mode\n\n");
+    md.push_str("### `kask template` — Template management\n\n");
+    md.push_str("```bash\n");
+    md.push_str("kask template <SUBCOMMAND>\n");
+    md.push_str("```\n\n");
+    md.push_str("Subcommands:\n");
+    md.push_str("- `list` — List all registered templates\n");
+    md.push_str("  - `-t`, `--type <TYPE>` — Filter by template type\n");
+    md.push_str("- `register` — Register a new template\n");
+    md.push_str("  - `-i`, `--id <ID>` — Template ID (e.g., \"prompt/selector\")\n");
+    md.push_str("  - `-p`, `--path <PATH>` — Template file path\n");
+    md.push_str("  - `-t`, `--type <TYPE>` — Template type (prompt, cognition, process)\n");
+    md.push_str("  - `-l`, `--lexicon <LEXICON>` — Lexicon terms (comma-separated)\n");
+    md.push_str("  - `-d`, `--description <DESC>` — Description\n");
+    md.push_str("- `get <ID>` — Get template details\n");
+    md.push_str("- `search <TERM>` — Search templates by lexicon term\n\n");
+    md.push_str("### `kask bot` — Bot capability management\n\n");
+    md.push_str("```bash\n");
+    md.push_str("kask bot <SUBCOMMAND>\n");
+    md.push_str("```\n\n");
+    md.push_str("Subcommands:\n");
+    md.push_str("- `list` — List bot capabilities\n");
+    md.push_str("  - `-b`, `--bot-id <BOT_ID>` — Bot WebID\n");
+    md.push_str("- `grant` — Grant capability to bot\n");
+    md.push_str("  - `-b`, `--bot-id <BOT_ID>` — Bot WebID\n");
+    md.push_str("  - `-c`, `--capability <CAPABILITY>` — Capability name (e.g., \"inference:call\")\n\n");
+    md.push_str("### `kask pod` — Agent pod management\n\n");
+    md.push_str("```bash\n");
+    md.push_str("kask pod <SUBCOMMAND>\n");
+    md.push_str("```\n\n");
+    md.push_str("Subcommands:\n");
+    md.push_str("- `create` — Create agent pod from template crate\n");
+    md.push_str("  - `-t`, `--template <TEMPLATE>` — Template crate name\n");
+    md.push_str("  - `-p`, `--persona <PERSONA>` — Agent persona YAML file path\n");
+    md.push_str("  - `-n`, `--name <NAME>` — Pod name (optional, defaults to UUID)\n");
+    md.push_str("- `activate <POD_ID>` — Activate agent pod for A2A communication\n");
+    md.push_str("- `deactivate <POD_ID>` — Deactivate agent pod\n");
+    md.push_str("- `status <POD_ID>` — Show agent pod status\n");
+    md.push_str("  - `-v`, `--verbose` — Show verbose details\n");
+    md.push_str("- `list` — List all agent pods\n\n");
+    md.push_str("### `kask mcp` — MCP server/tool management\n\n");
+    md.push_str("```bash\n");
+    md.push_str("kask mcp <SUBCOMMAND>\n");
+    md.push_str("```\n\n");
+    md.push_str("Subcommands:\n");
+    md.push_str("- `list-servers` — List MCP servers\n");
+    md.push_str("- `list-tools` — List available tools\n");
+    md.push_str("- `get-tool <NAME>` — Get tool definition\n\n");
+    md.push_str("### `kask cns` — CNS monitoring\n\n");
+    md.push_str("```bash\n");
+    md.push_str("kask cns <SUBCOMMAND>\n");
+    md.push_str("```\n\n");
+    md.push_str("Subcommands:\n");
+    md.push_str("- `health` — Get CNS health status\n");
+    md.push_str("- `alerts` — Get algedonic alerts\n");
+    md.push_str("- `variety` — Get variety counters\n\n");
+    md.push_str("### `kask docs` — Documentation generation\n\n");
+    md.push_str("```bash\n");
+    md.push_str("kask docs <SUBCOMMAND>\n");
+    md.push_str("```\n\n");
+    md.push_str("Subcommands:\n");
+    md.push_str("- `openapi` — Generate OpenAPI specification (JSON)\n");
+    md.push_str("  - `-o`, `--output <OUTPUT>` — Output file path (default: stdout)\n");
+    md.push_str("- `cli` — Generate CLI help documentation (markdown)\n");
+    md.push_str("  - `-o`, `--output <OUTPUT>` — Output file path (default: stdout)\n");
+    md.push_str("- `all` — Generate all documentation\n");
+    md.push_str("  - `-o`, `--output <OUTPUT>` — Output directory\n\n");
+    md.push_str("## Examples\n\n");
+    md.push_str("```bash\n");
+    md.push_str("# Start interactive chat session\n");
+    md.push_str("kask chat --interactive\n\n");
+    md.push_str("# List all templates\n");
+    md.push_str("kask template list\n\n");
+    md.push_str("# Register a new template\n");
+    md.push_str("kask template register -i prompt/selector -p templates/selector.j2 -t prompt -l \"select,route,dispatch\"\n\n");
+    md.push_str("# Generate OpenAPI spec\n");
+    md.push_str("kask docs openapi -o docs/openapi.json\n\n");
+    md.push_str("# Generate all documentation\n");
+    md.push_str("kask docs all -o docs/\n");
+    md.push_str("```\n\n");
+    md.push_str("## Template Types\n\n");
+    md.push_str("- `prompt` — Prompt templates for LLM interaction\n");
+    md.push_str("- `cognition` — Cognitive processing templates\n");
+    md.push_str("- `process` — Process execution templates\n\n");
+    md.push_str("---\n\n");
+    md.push_str("*hKask v0.1.0 — Planck's Constant of Agent Systems*\n");
+    
+    md
 }
 
 fn main() {
@@ -483,8 +668,17 @@ fn main() {
             }
             PodAction::Status { pod_id, verbose } => {
                 println!("Agent pod status: {}", pod_id);
+                println!("  State: populated (placeholder)");
+                println!("  WebID: (pending pod manager integration)");
+                println!("  Agent type: (pending pod manager integration)");
+                println!("  Template: (pending pod manager integration)");
                 if verbose {
-                    println!("  Verbose mode enabled (details pending implementation)");
+                    println!("\n  Verbose details:");
+                    println!("    Created at: (pending)");
+                    println!("    Capability token: (redacted)");
+                    println!("    Max attenuation: 7");
+                    println!("    Current attenuation: 0");
+                    println!("    CNS spans emitted: (pending integration)");
                 }
                 println!("\nNote: Full status requires pod manager implementation.");
             }
@@ -528,6 +722,96 @@ fn main() {
             CnsAction::Variety => {
                 println!("Variety counters:");
                 println!("  (no variety data)");
+            }
+        },
+
+        Commands::Docs { action } => match action {
+            DocsAction::Openapi { output } => {
+                let spec = hkask_api::create_openapi();
+                let json = serde_json::to_string_pretty(&spec).expect("Failed to serialize OpenAPI spec");
+                
+                match output {
+                    Some(path) => {
+                        std::fs::write(&path, &json).expect("Failed to write OpenAPI spec");
+                        println!("OpenAPI specification written to: {}", path.display());
+                    }
+                    None => println!("{}", json),
+                }
+            }
+            DocsAction::Cli { output } => {
+                let help = generate_cli_markdown();
+                match output {
+                    Some(path) => {
+                        std::fs::write(&path, &help).expect("Failed to write CLI documentation");
+                        println!("CLI documentation written to: {}", path.display());
+                    }
+                    None => println!("{}", help),
+                }
+            }
+            DocsAction::All { output } => {
+                std::fs::create_dir_all(&output).expect("Failed to create output directory");
+                
+                let spec = hkask_api::create_openapi();
+                let json = serde_json::to_string_pretty(&spec).expect("Failed to serialize OpenAPI spec");
+                let openapi_path = output.join("openapi.json");
+                std::fs::write(&openapi_path, &json).expect("Failed to write OpenAPI spec");
+                println!("OpenAPI specification written to: {}", openapi_path.display());
+                
+                let help = generate_cli_markdown();
+                let cli_path = output.join("cli.md");
+                std::fs::write(&cli_path, &help).expect("Failed to write CLI documentation");
+                println!("CLI documentation written to: {}", cli_path.display());
+                
+                println!("\nDocumentation generated successfully in: {}", output.display());
+            }
+        },
+
+        Commands::Registry { action } => match action {
+            RegistryAction::ImportRussell {
+                source,
+                dry_run,
+                validate_only,
+                output_format,
+                transform_rules,
+                verbose,
+            } => {
+                let config = hkask_templates::russell_mapper::MigrationConfig {
+                    dry_run,
+                    validate_only,
+                    output_format: match output_format.as_str() {
+                        "json" => hkask_templates::russell_mapper::OutputFormat::Json,
+                        "mermaid" => hkask_templates::russell_mapper::OutputFormat::Mermaid,
+                        _ => hkask_templates::russell_mapper::OutputFormat::Yaml,
+                    },
+                    transform_rules_path: transform_rules,
+                };
+
+                match commands::import_russell(&source, &config, verbose) {
+                    Ok(assets) => {
+                        println!("Migration analysis complete: {} assets", assets.len());
+                        for asset in &assets {
+                            println!("\n  Origin: {}", asset.origin);
+                            println!("  Type: {:?}", asset.asset_type);
+                            println!("  Provenance: {}", asset.provenance_hash);
+                            if verbose {
+                                if let Some(manifest) = &asset.hkask_manifest {
+                                    println!("  hKask Manifest: {} ({} steps)", manifest.id, manifest.steps.len());
+                                }
+                                if let Some(template) = &asset.hkask_template {
+                                    println!("  hKask Template: {} ({} lexicon terms)", template.id, template.lexicon_terms.len());
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Migration failed: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+            RegistryAction::ListMigrated { origin } => {
+                println!("Migrated assets:");
+                println!("  (use 'kask registry import-russell --dry-run' to analyze assets)");
             }
         },
     }
