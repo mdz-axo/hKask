@@ -147,12 +147,42 @@ erDiagram
         array core_stages
         array post_stages
         u8 max_depth "7"
+        SecurityAdapter security
     }
     
     STAGE {
         string name
         array templates
         string condition
+    }
+    
+    CASCADE_CONTEXT {
+        u8 current_depth
+        HashSet visited_templates
+        HashSet visited_manifests
+        u64 energy_remaining
+        Option CapabilityToken capability_token
+        Vec u8 secret
+        i64 current_time
+    }
+    
+    SECURITY_ADAPTER {
+        CapabilityChecker capability_checker
+        HashSet allowed_paths
+        Vec u8 secret
+    }
+    
+    CAPABILITY_TOKEN {
+        string id
+        CapabilityResource resource
+        string resource_id
+        CapabilityAction action
+        WebID delegated_from
+        WebID delegated_to
+        string signature
+        Option i64 expires_at
+        u8 attenuation_level
+        u8 max_attenuation "7"
     }
 ```
 
@@ -242,11 +272,53 @@ graph TB
 
 | Threat | Mitigation | Implementation |
 |--------|------------|----------------|
-| **Path Traversal** | Input validation | `Registry::validate_template_path()` |
+| **Path Traversal** | Input validation | `SecurityAdapter::validate_template_path()` blocks `..`, `/etc/`, absolute paths |
 | **Template Injection** | Sandboxed Jinja2 | `minijinja` with restricted builtins |
-| **Capability Forgery** | Cryptographic signatures | Ed25519/SHA256-HMAC |
-| **Recursion Overflow** | Depth limiting | `MAX_MATROSHKA_DEPTH = 7` |
-| **Energy Exhaustion** | Budget caps | `energy_cap` per manifest |
+| **Capability Forgery** | HMAC-SHA256 signatures | `CapabilityToken::sign()`, `CapabilityToken::verify()` |
+| **Capability Escalation** | Attenuation on delegation | `CapabilityToken::attenuate()` increases level, reduces max |
+| **Recursion Overflow** | Depth limiting | `MAX_CASCADE_DEPTH = 7`, `CascadeContext::check_depth()` |
+| **Energy Exhaustion** | Budget caps | `CascadeContext::check_energy()`, `consume_energy()` |
+| **Cycle Detection** | Visited set tracking | `CascadeContext::check_template_cycle()`, `check_manifest_cycle()` |
+| **Unauthorized Access** | Capability validation | `CascadeContext::check_capability(resource, id, action)` |
+
+### Security Integration Points
+
+```rust
+// CascadeExecutor integrates SecurityAdapter
+pub struct CascadeExecutor {
+    max_depth: u8,
+    cycle_detection: bool,
+    energy_tracking: bool,
+    security: SecurityAdapter,  // Injected security
+}
+
+// Security checks on template resolution
+for template_id in &stage.templates {
+    self.security.validate_template_path(template_id)?;  // Path traversal check
+    context.check_template_cycle(template_id)?;          // Cycle detection
+    
+    // Capability check if token present
+    if context.capability_token.is_some() {
+        context.check_capability(
+            CapabilityResource::Template,
+            &entry.id,
+            CapabilityAction::Read,
+        )?;
+    }
+}
+
+// Capability attenuation on recursive calls
+pub fn child_context(&self, new_holder: WebID) -> Self {
+    let attenuated_token = self.capability_token.as_ref().and_then(|token| {
+        if token.can_attenuate() {
+            token.attenuate(new_holder, &self.secret, self.current_time)
+        } else {
+            None  // Max attenuation reached
+        }
+    });
+    // ...
+}
+```
 | **OCAP Bypass** | Runtime checks | `AccessEvaluator::evaluate()` |
 | **Variety Deficit** | Algedonic alerts | `VarietyMonitor::check_threshold()` |
 | **Data Exfiltration** | Visibility gating | `Visibility::Private|Shared|Public` |

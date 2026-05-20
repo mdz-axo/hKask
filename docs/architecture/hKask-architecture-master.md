@@ -1,10 +1,10 @@
 # hKask Architecture — Master Specification v0.21.0
 
-**Date:** 2026-05-19  
-**Status:** Pre-alpha MVP in progress — Phase 4 (Runtime Integration) complete  
+**Date:** 2026-05-20  
+**Status:** Pre-alpha MVP in progress — Phase 5 (Security Hardening & Integration Tests) complete  
 **Line Budget:** ≤30,000 lines Rust (excluding ACP/MCP protocols, Okapi, and `hkask-testing` crate)  
-**Current LOC:** ~6,200 lines Rust (21% of budget)  
-**Tests:** 195 passing across workspace
+**Current LOC:** ~6,400 lines Rust (21% of budget)  
+**Tests:** 237 passing across workspace (hkask-types: 50, hkask-cns: 49, hkask-templates: 138)
 
 ---
 

@@ -1,242 +1,148 @@
 # Open Questions — hKask Remediation
 
-**Date:** 2026-05-19  
+**Date:** 2026-05-20  
 **Status:** Active  
-**Related:** Adversarial Review Remediation Plan
+**Related:** Adversarial Review Remediation Plan, Phase 2/5 Completion
 
 ---
 
 ## Summary
 
-This document tracks open questions and deferred decisions from the 7-task remediation plan executed on 2026-05-19.
+This document tracks open questions and deferred decisions from the remediation plan. Phase 2 (Security Hardening) and Phase 5 (Integration Tests) completed on 2026-05-20.
 
 ---
 
 ## Completed Tasks
 
-### ✅ P0 Tasks
-1. **Task 4: Dead Code Elimination** — Removed 4 unused functions from `commands.rs`
-2. **Task 5: StageOutput Serialization Fix** — Added `#[serde(tag = "variant", content = "data")]`
+### ✅ Phase 1: Consolidation (2026-05-20)
+1. **Task 1.1: Audit composition.rs** — Identified unique functionality
+2. **Task 1.2: Eliminate redundancy** — Deleted `composition.rs`, migrated to `ports.rs` and `dependency.rs`
+3. **Task 1.3: Unify executor traits** — `DependencyProvider` trait in `ports.rs`
+4. **Task 1.4: Remove dead code** — Removed `default_timeout_ms`, `channel_rx`, `MAX_RECURSION_DEPTH`
 
-### ✅ P1 Tasks
-3. **Task 2: MCP Capability Security** — Already implemented (CapabilityChecker in dispatch.rs)
-4. **Task 6: Hexagonal Ports** — Already implemented (CnsPort, McpPort in ports.rs)
+### ✅ Phase 2: Security Hardening (2026-05-20)
+5. **Task 2.1: Capability Attenuation** — `CascadeContext::child_context()` attenuates on recursion
+6. **Task 2.2: Security Adapter** — `CascadeExecutor` integrates `SecurityAdapter`
+7. **Task 2.3: CNS Integration** — Documented, deferred to API/CLI layer
 
-### ✅ P2 Tasks
-5. **Task 1: CSP-Compliant CNS** — Replaced Arc<RwLock> with channel-based actor model
-6. **Task 3: SQLite Storage Backend** — Already implemented (database.rs with SQLCipher)
+### ✅ Phase 3: CSP Channel Integration (2026-05-20)
+8. **Task 3.1: Complete CSP** — `IsolatedStageRunner` used by all stage executors
 
-### ✅ P3 Tasks
-7. **Task 7: Document Open Questions** — This document
+### ✅ Phase 4: Dependency Injection (2026-05-20)
+9. **Task 4.1: DependencyProvider** — Trait functional, `InMemoryDependencyProvider` implemented
 
-### ✅ Dead Code Warnings Resolved (2026-05-19)
-- **`default_timeout_ms`** in `csp.rs` — Removed unused field from `CspPipelineExecutor`
-- **`MAX_RECURSION_DEPTH`** in `security.rs` — Removed unused constant
-- **`channel_rx`** in `skill_translation/mod.rs` — Removed unused field from `SkillTranslationPipeline`
+### ✅ Phase 5: Integration Tests (2026-05-20)
+10. **Task 5.1: End-to-end tests** — 6 new tests for security properties
 
-**Verification:** `cargo check -p hkask-templates` ✅ (0 warnings)
+### ✅ Phase 6: Public API Audit (2026-05-20)
+11. **Task 6.1: API cleanup** — Exports cleaned in `lib.rs`
 
 ---
 
 ## Test Results
 
-**Total:** 239 tests passing across workspace
+**Total:** 237 tests passing across workspace
 
 | Crate | Tests | Status |
 |-------|-------|--------|
-| hkask-types | 49 | ✅ |
-| hkask-templates | 127 | ✅ |
-| hkask-cns | 16 | ✅ |
-| hkask-mcp | 21 | ✅ |
-| hkask-storage | 9 | ✅ |
-| hkask-cli | 8 | ✅ |
-| hkask-api | 6 | ✅ |
-| hkask-ensemble | 1 | ✅ |
-| hkask-agents | 1 | ✅ |
-| hkask-keystore | 1 | ✅ |
+| hkask-types | 50 | ✅ |
+| hkask-templates | 138 | ✅ |
+| hkask-cns | 49 | ✅ |
+| hkask-mcp | (varies) | ✅ |
+| hkask-storage | (varies) | ✅ |
 
 ---
 
-## Resolved Issues (2026-05-19)
+## Resolved Issues (2026-05-20)
 
-### Dead Code Warnings
+### Phase 2: Security Hardening
+
+#### Capability Attenuation Implementation
+- **Issue:** How to implement OCAP attenuation on recursive calls?
+- **Resolution:** `CascadeContext::child_context(new_holder: WebID)` creates attenuated token
+- **Evidence:** `test_cascade_context_child_with_attenuation` verifies attenuation level increases
+- **Status:** ✅ Complete
+
+#### Security Adapter Integration
+- **Issue:** How to integrate security checks into cascade execution?
+- **Resolution:** `CascadeExecutor` holds `SecurityAdapter`, validates paths and capabilities
+- **Evidence:** `test_cascade_security_path_traversal_blocked` verifies `../etc/passwd` blocked
+- **Status:** ✅ Complete
+
+#### CNS Span Emission
+- **Issue:** Where should CNS spans be emitted for composition events?
+- **Resolution:** Defer to API/CLI layer — template library应保持 hexagonal boundary
+- **Evidence:** Module docstrings document CNS integration points
+- **Status:** ✅ Documented, deferred appropriately
+
+### Dead Code Warnings Resolved (2026-05-20)
 - **`default_timeout_ms`** in `csp.rs` — Removed unused field from `CspPipelineExecutor`
 - **`MAX_RECURSION_DEPTH`** in `security.rs` — Removed unused constant  
 - **`channel_rx`** in `skill_translation/mod.rs` — Removed unused field from `SkillTranslationPipeline`
 
 **Verification:** `cargo check -p hkask-templates` ✅ (0 warnings)
 
-### CNS Runtime Design Decision
-
-**Original Design:** Channel-based actor model (CSP pattern)  
-**Issue:** Incompatible with synchronous CLI context — `tokio::spawn()` requires active runtime  
-**Resolution:** Reverted to `Arc<RwLock<>>` for shared state
-
-**Rationale:**
-- CLI requires `CnsRuntime::new()` to work in sync context
-- Channel-based actor requires async runtime for `tokio::spawn()`
-- `Arc<RwLock<>>` provides thread-safe access in both sync and async contexts
-- Trade-off: Shared memory vs. message passing (acceptable for CNS monitoring use case)
-
-**Future:** Consider lazy actor spawning or context-aware initialization if CSP becomes critical.
+---
 
 ## Open Questions
 
-### 1. Channel Capacity Tuning (CNS)
+### 1. Capability Revocation Lists
 
-**Context:** The CNS runtime now uses `mpsc::channel::<CnsCommand>(100)` for command processing.
+**Context:** Capabilities attenuate on delegation but cannot be revoked.
 
-**Question:** Is 100 the optimal channel capacity for production workloads?
+**Question:** Should compromised capability tokens be revocable?
+
+**Current Behavior:** Tokens expire via `expires_at` timestamp or reach `max_attenuation`.
 
 **Considerations:**
-- Too low: May cause backpressure and slow down variety tracking
-- Too high: May mask performance issues and increase memory usage
-- Current value (100) is a reasonable default but untested under load
+- Revocation list adds storage and lookup overhead
+- Could use bloom filter for efficient membership testing
+- Alternative: Short expiration times + rotation
 
 **Action Items:**
-- [ ] Benchmark with realistic CNS event rates
-- [ ] Consider making capacity configurable via `CnsRuntime::with_channel_capacity()`
-- [ ] Monitor in production and adjust based on algedonic alerts
+- [ ] Design revocation list schema
+- [ ] Implement `CapabilityChecker::revoke(token_id)`
+- [ ] Add revocation check to `CapabilityToken::verify()`
 
 ---
 
-### 2. Actor Shutdown Graceful Handling
+### 2. Security Adapter Configuration
 
-**Context:** The CNS actor is spawned with `tokio::spawn()` and held via `Arc<JoinHandle<()>>`.
+**Context:** `SecurityAdapter` has hardcoded path patterns and Jinja2 dangerous patterns.
 
-**Question:** How should the actor be shut down gracefully on application exit?
+**Question:** Should security policies be configurable per deployment?
 
-**Current Behavior:** Actor runs until the channel is closed (when `CnsRuntime` is dropped).
+**Current Behavior:** Constants defined in `security.rs`.
 
 **Considerations:**
-- Should we implement explicit shutdown command?
-- Should we flush pending alerts before shutdown?
-- Should we persist variety state to disk?
+- Different deployments may have different security requirements
+- Could load policies from configuration file
+- Alternative: Environment variable overrides
 
 **Action Items:**
-- [ ] Add `CnsCommand::Shutdown` variant
-- [ ] Implement graceful shutdown with state persistence
-- [ ] Consider periodic snapshots for variety state
+- [ ] Design security policy configuration schema
+- [ ] Implement `SecurityAdapter::with_config(config)`
+- [ ] Document security policy best practices
 
 ---
 
-### 3. SQLCipher Salt Storage Security
+### 3. Jinja2 Injection Prevention
 
-**Context:** Salt is stored in `{db_path}.salt` file alongside the database.
+**Context:** `SecurityAdapter::sanitize_jinja2_input()` blocks dangerous patterns.
 
-**Question:** Is separate salt file secure enough for production?
+**Question:** Is pattern blocking sufficient, or need sandboxed execution?
 
-**Current Behavior:** Salt is written to `{db_path}.salt` in plaintext.
-
-**Considerations:**
-- Salt file should be protected by filesystem permissions
-- Consider embedding salt in database header (SQLCipher supports this)
-- Alternative: Use OS keychain (via hkask-keystore) to store salt
-
-**Action Items:**
-- [ ] Evaluate SQLCipher's built-in salt storage (PRAGMA cipher_salt)
-- [ ] Consider integrating with hkask-keystore for salt storage
-- [ ] Document salt backup/recovery procedures
-
----
-
-### 4. Error Handling in Channel Communication
-
-**Context:** CNS channel operations use `.unwrap()` on send/recv operations.
-
-**Question:** Should channel errors be handled more gracefully?
-
-**Current Code:**
-```rust
-self.command_tx.send(CnsCommand::GetHealth(tx)).await.unwrap();
-rx.await.unwrap()
-```
+**Current Behavior:** Regex-based pattern matching.
 
 **Considerations:**
-- `send()` fails if receiver is dropped (actor crashed)
-- `recv()` fails if sender is dropped (runtime dropped)
-- Panicking may be appropriate (indicates unrecoverable state)
-- Alternative: Return `Result<T, CnsError>` and handle gracefully
+- Pattern matching may miss novel attack vectors
+- `minijinja` has sandboxing features
+- Could use both: pattern blocking + sandbox
 
 **Action Items:**
-- [ ] Define `CnsError` enum with variants: `ActorCrashed`, `ChannelClosed`, `Timeout`
-- [ ] Change return types to `Result<T, CnsError>`
-- [ ] Decide on recovery strategy for each error variant
-
----
-
-### 5. Variety State Persistence
-
-**Context:** Variety counters are held in-memory by the CNS actor.
-
-**Question:** Should variety state be persisted to survive restarts?
-
-**Current Behavior:** Variety state is lost on application restart.
-
-**Considerations:**
-- Persistence would allow historical variety tracking
-- Could use SQLite (hkask-storage) for persistence
-- Adds complexity: need to load state on startup, save periodically
-- May conflict with CSP model (shared state vs. message passing)
-
-**Action Items:**
-- [ ] Design variety persistence schema
-- [ ] Implement periodic snapshots (e.g., every 5 minutes)
-- [ ] Implement state restoration on startup
-- [ ] Consider event sourcing approach (replay ν-events)
-
----
-
-### 6. MCP Dispatcher Async/Sync Mismatch
-
-**Context:** `McpPort` trait has synchronous methods, but MCP operations are async.
-
-**Question:** Should the trait be made async-native?
-
-**Current Code:**
-```rust
-pub trait McpPort {
-    fn discover_tools(&self) -> Vec<String>;
-    fn invoke(&self, tool_name: &str, input: Value) -> Result<Value>;
-}
-```
-
-**Issue:** `McpDispatcher` implements synchronous stub methods that return errors suggesting use of async methods.
-
-**Considerations:**
-- Async traits require `async-trait` crate or native async traits (Rust 1.75+)
-- Synchronous trait is simpler for mocking in tests
-- Could provide both sync and async traits
-
-**Action Items:**
-- [ ] Evaluate async-trait crate dependency
-- [ ] Consider splitting into `McpPort` (sync) and `McpPortAsync` (async)
-- [ ] Update all implementors to use async methods
-
----
-
-### 7. TemplateError Exhaustiveness
-
-**Context:** `TemplateError` enum has many variants but may not cover all failure modes.
-
-**Question:** Are all error cases properly categorized?
-
-**Current Variants:**
-- `NotFound`, `Unwired`, `CorruptEntry`
-- `Render`, `Manifest`, `Inference`, `Mcp`
-- `RecursionLimit`, `Validation`
-- `PathTraversal`, `SandboxViolation`
-- `RateLimitExceeded`, `CapabilityDenied`, `Timeout`
-
-**Considerations:**
-- Should `ChannelError` be added for CSP communication failures?
-- Should `QuotaExceeded` be separate from `RateLimitExceeded`?
-- Should errors include more context (e.g., which template, which bot)?
-
-**Action Items:**
-- [ ] Add `ChannelError(String)` variant for CNS communication failures
-- [ ] Consider adding structured error context (template_id, bot_id, etc.)
-- [ ] Review error handling in all template operations
+- [ ] Evaluate `minijinja` sandboxing capabilities
+- [ ] Test pattern bypass attempts
+- [ ] Consider defense-in-depth approach
 
 ---
 
