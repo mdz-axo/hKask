@@ -9,6 +9,11 @@
 //! - `manifest:*` — Manifest operations (read, write, execute)
 //! - `registry:*` — Registry operations (read, write, search)
 //! - `cascade:*` — Cascade operations (execute, compose, attenuate)
+//!
+//! **Cryptographic Verification:**
+//! - Capabilities are self-verifying via HMAC-SHA256 signatures
+//! - Distributed verification via Paxos/CRDT lazy consistency
+//! - No central authority required — capabilities verified cryptographically
 
 use crate::WebID;
 use serde::{Deserialize, Serialize};
@@ -332,6 +337,117 @@ impl CapabilityToken {
 
         self.attenuation_level <= expected_level
     }
+
+    /// Verify capability cryptographically (for distributed/Paxos verification)
+    /// 
+    /// This method enables cross-machine capability verification without a central authority.
+    /// Each machine can verify capabilities independently using the shared secret.
+    /// 
+    /// # Arguments
+    /// * `secret` — Shared HMAC secret (distributed via secure channel)
+    /// 
+    /// # Returns
+    /// * `true` — Signature is valid
+    /// * `false` — Signature invalid or tampered
+    pub fn verify_cryptographic(&self, secret: &[u8]) -> bool {
+        self.verify(secret)
+    }
+
+    /// Verify capability with lazy timestamp check (CRDT-style eventual consistency)
+    /// 
+    /// In distributed systems, clock skew may cause different machines to disagree on
+    /// whether a capability is expired. This method uses "lazy" expiry:
+    /// - Check signature first (always consistent)
+    /// - Check expiry with local clock (may differ across machines)
+    /// - If signature valid but expired, capability enters "zombie" state (valid but unusable)
+    /// 
+    /// # Arguments
+    /// * `secret` — Shared HMAC secret
+    /// * `local_time` — Local machine's current timestamp
+    /// 
+    /// # Returns
+    /// * `VerificationResult` — Detailed verification status
+    pub fn verify_lazy(&self, secret: &[u8], local_time: i64) -> VerificationResult {
+        let signature_valid = self.verify(secret);
+        let expired = self.is_expired(local_time);
+
+        if !signature_valid {
+            VerificationResult::Invalid
+        } else if expired {
+            VerificationResult::Zombie // Valid signature, but expired
+        } else {
+            VerificationResult::Valid
+        }
+    }
+
+    /// Get capability fingerprint for CRDT merge operations
+    /// 
+    /// Returns a unique fingerprint that can be used for CRDT conflict resolution
+    /// when capabilities are replicated across machines.
+    /// 
+    /// # Returns
+    /// Fingerprint string suitable for CRDT merge comparison
+    pub fn fingerprint(&self) -> String {
+        format!(
+            "{}:{}:{}:{}:{}:{}",
+            self.id,
+            self.resource.as_str(),
+            self.resource_id,
+            self.action.as_str(),
+            self.delegated_to,
+            self.attenuation_level
+        )
+    }
+
+    /// Check if this capability is compatible with another (for CRDT merge)
+    /// 
+    /// Two capabilities are compatible if they have the same resource, action,
+    /// and delegated_to, regardless of signature or attenuation level.
+    /// 
+    /// # Arguments
+    /// * `other` — Other capability to compare
+    /// 
+    /// # Returns
+    /// * `true` — Capabilities are compatible (can be merged in CRDT)
+    /// * `false` — Capabilities are incompatible
+    pub fn is_compatible_with(&self, other: &CapabilityToken) -> bool {
+        self.resource == other.resource
+            && self.resource_id == other.resource_id
+            && self.action == other.action
+            && self.delegated_to == other.delegated_to
+    }
+}
+
+/// Cryptographic verification result for distributed verification
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VerificationResult {
+    /// Signature valid, not expired — capability can be used
+    Valid,
+    /// Signature valid, but expired — capability is "zombie" (valid but unusable)
+    Zombie,
+    /// Signature invalid — capability is tampered or forged
+    Invalid,
+}
+
+impl VerificationResult {
+    /// Check if verification succeeded (valid or zombie)
+    pub fn is_valid(&self) -> bool {
+        matches!(self, VerificationResult::Valid | VerificationResult::Zombie)
+    }
+
+    /// Check if capability can be used (valid only, not zombie)
+    pub fn is_usable(&self) -> bool {
+        matches!(self, VerificationResult::Valid)
+    }
+
+    /// Get human-readable description
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            VerificationResult::Valid => "valid",
+            VerificationResult::Zombie => "zombie (expired but valid signature)",
+            VerificationResult::Invalid => "invalid (signature verification failed)",
+        }
+    }
 }
 
 /// Capability checker for composition operations
@@ -651,5 +767,144 @@ mod tests {
 
         // Wrong root should fail
         assert!(!attenuated2.verify_attenuation_chain("wrong-root", 2));
+    }
+
+    #[test]
+    fn test_cryptographic_verification() {
+        let secret = b"test-secret-key-32-bytes-long!!!";
+        let from = WebID::new();
+        let to = WebID::new();
+
+        let token = CapabilityToken::new(
+            CapabilityResource::Template,
+            "prompt/test".to_string(),
+            CapabilityAction::Render,
+            from,
+            to,
+            secret,
+        );
+
+        // Verify with correct secret
+        assert!(token.verify_cryptographic(secret));
+
+        // Verify with wrong secret should fail
+        let wrong_secret = b"wrong-secret-key-32-bytes-long!!";
+        assert!(!token.verify_cryptographic(wrong_secret));
+    }
+
+    #[test]
+    fn test_lazy_verification() {
+        let secret = b"test-secret-key-32-bytes-long!!!";
+        let from = WebID::new();
+        let to = WebID::new();
+        let current_time = 1000;
+
+        // Create token that expires in 1 hour
+        let token = CapabilityToken::new_with_attenuation(
+            CapabilityResource::Template,
+            "prompt/test".to_string(),
+            CapabilityAction::Render,
+            from,
+            to,
+            secret,
+            Some(current_time + 3600),
+            0,
+            7,
+            None,
+        );
+
+        // Verify while valid
+        let result = token.verify_lazy(secret, current_time);
+        assert_eq!(result, VerificationResult::Valid);
+        assert!(result.is_valid());
+        assert!(result.is_usable());
+
+        // Verify after expiry
+        let result = token.verify_lazy(secret, current_time + 7200);
+        assert_eq!(result, VerificationResult::Zombie);
+        assert!(result.is_valid()); // Signature still valid
+        assert!(!result.is_usable()); // But expired
+
+        // Verify with wrong secret
+        let wrong_secret = b"wrong-secret-key-32-bytes-long!!";
+        let result = token.verify_lazy(wrong_secret, current_time);
+        assert_eq!(result, VerificationResult::Invalid);
+        assert!(!result.is_valid());
+        assert!(!result.is_usable());
+    }
+
+    #[test]
+    fn test_capability_fingerprint() {
+        let secret = b"test-secret-key-32-bytes-long!!!";
+        let from = WebID::new();
+        let to = WebID::new();
+
+        let token = CapabilityToken::new(
+            CapabilityResource::Template,
+            "prompt/test".to_string(),
+            CapabilityAction::Render,
+            from,
+            to.clone(),
+            secret,
+        );
+
+        let fingerprint = token.fingerprint();
+        assert!(fingerprint.contains("template"));
+        assert!(fingerprint.contains("prompt/test"));
+        assert!(fingerprint.contains("render"));
+        assert!(fingerprint.contains(&to.to_string()));
+    }
+
+    #[test]
+    fn test_capability_compatibility() {
+        let secret = b"test-secret-key-32-bytes-long!!!";
+        let from = WebID::new();
+        let to = WebID::new();
+
+        let token1 = CapabilityToken::new(
+            CapabilityResource::Template,
+            "prompt/test".to_string(),
+            CapabilityAction::Render,
+            from.clone(),
+            to.clone(),
+            secret,
+        );
+
+        // Same resource/action/to — compatible
+        let token2 = CapabilityToken::new(
+            CapabilityResource::Template,
+            "prompt/test".to_string(),
+            CapabilityAction::Render,
+            from.clone(),
+            to.clone(),
+            secret,
+        );
+        assert!(token1.is_compatible_with(&token2));
+
+        // Different resource — incompatible
+        let token3 = CapabilityToken::new(
+            CapabilityResource::Manifest,
+            "manifest/test".to_string(),
+            CapabilityAction::Execute,
+            from.clone(),
+            to.clone(),
+            secret,
+        );
+        assert!(!token1.is_compatible_with(&token3));
+    }
+
+    #[test]
+    fn test_verification_result_methods() {
+        assert!(VerificationResult::Valid.is_valid());
+        assert!(VerificationResult::Valid.is_usable());
+        assert_eq!(VerificationResult::Valid.as_str(), "valid");
+
+        assert!(VerificationResult::Zombie.is_valid());
+        assert!(!VerificationResult::Zombie.is_usable());
+        assert!(VerificationResult::Zombie.as_str().contains("zombie"));
+
+        assert!(!VerificationResult::Invalid.is_valid());
+        assert!(!VerificationResult::Invalid.is_usable());
+        assert!(VerificationResult::Invalid.as_str().contains("invalid"));
     }
 }

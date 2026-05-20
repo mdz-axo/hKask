@@ -2817,7 +2817,6 @@ dependencies = [
  "hkask-ensemble",
  "hkask-keystore",
  "hkask-mcp",
- "hkask-mcp-inference",
  "hkask-memory",
  "hkask-storage",
  "hkask-templates",

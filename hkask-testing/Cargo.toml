@@ -97,7 +97,3 @@ path = "unit-tests/hkask_api_tests.rs"
 [[test]]
 name = "hkask_cli_tests"
 path = "unit-tests/hkask_cli_tests.rs"
-
-[[test]]
-name = "hkask_mcp_inference_tests"
-path = "unit-tests/hkask_mcp_inference_tests.rs"
