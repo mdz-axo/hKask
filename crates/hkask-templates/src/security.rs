@@ -1,4 +1,3 @@
-//! Security Adapter for Pragmatic Composition
 
 use crate::ports::Result;
 use crate::ports::TemplateError;
@@ -261,7 +260,7 @@ impl crate::ports::SecurityPort for SecurityAdapter {
         }
         Ok(())
     }
-    fn attenuate_capability(&self, token: &CapabilityToken, new_to: WebID, current_time: i64) -> Option<CapabilityToken> {
+    fn attenuate_capability(&self, _token: &CapabilityToken, _new_to: WebID, _current_time: i64) -> Option<CapabilityToken> {
         // Stub implementation - attenuation handled by capability system
         None
     }

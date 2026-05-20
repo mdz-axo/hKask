@@ -82,12 +82,15 @@ ocap:
     - resource: template
       action: render
       template_id: mcp/doc_extract
+      energy_budget: 2000
     - resource: document
       action: extract
       template_id: mcp/doc_extract
+      energy_budget: 8000
     - resource: cns
       action: emit
       template_id: mcp/doc_extract
+      energy_budget: 500
   delegation_chain_required: true
   signature_algorithm: ed25519
   capability_expiry_seconds: 3600

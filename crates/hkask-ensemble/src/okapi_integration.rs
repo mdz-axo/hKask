@@ -76,7 +76,7 @@ impl OkapiIntegration {
         }
 
         // Check if capability holder matches requester
-        if self.capability.holder != requester {
+        if self.capability.holder() != requester {
             return Err(OkapiIntegrationError::CapabilityError(
                 "Capability holder does not match requester".to_string(),
             ));
@@ -95,7 +95,7 @@ impl OkapiIntegration {
             )));
         }
 
-        if self.capability.holder != requester {
+        if self.capability.holder() != requester {
             return Err(OkapiIntegrationError::CapabilityError(
                 "Capability holder does not match requester".to_string(),
             ));

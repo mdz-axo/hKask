@@ -60,22 +60,24 @@ impl std::fmt::Display for OkapiOperation {
 }
 
 /// Capability token — Macaroon-backed unforgeable authorization
+/// 
+/// Fields are private to enforce encapsulation. Use getter methods for access.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OkapiCapability {
     /// Unique capability identifier
-    pub id: CapabilityId,
+    id: CapabilityId,
     /// Issuer of this capability
-    pub issuer: WebID,
+    issuer: WebID,
     /// Holder of this capability
-    pub holder: WebID,
+    holder: WebID,
     /// The macaroon token that proves authorization
-    pub macaroon: Macaroon,
+    macaroon: Macaroon,
     /// Template scope (if any)
-    pub template_id: Option<TemplateID>,
+    template_id: Option<TemplateID>,
     /// Expiration time (for convenience, also in macaroon caveat)
-    pub expires_at: Option<DateTime<Utc>>,
+    expires_at: Option<DateTime<Utc>>,
     /// Visibility level required to use this capability
-    pub visibility: Visibility,
+    visibility: Visibility,
 }
 
 /// Capability configuration with key ring for rotation
@@ -113,8 +115,11 @@ pub enum AuthorizationError {
     #[error("Capability expired")]
     CapabilityExpired,
 
-    #[error("Unauthorized operation: {0}")]
-    Unauthorized(String),
+    #[error("Unauthorized operation: requested {requested:?}, granted {granted:?}")]
+    Unauthorized {
+        requested: String,
+        granted: Vec<String>,
+    },
 
     #[error("Macaroon invalid: {0}")]
     MacaroonInvalid(String),
@@ -131,7 +136,10 @@ impl From<MacaroonError> for AuthorizationError {
             ),
             MacaroonError::Expired => AuthorizationError::CapabilityExpired,
             MacaroonError::Unauthorized => {
-                AuthorizationError::Unauthorized("Caveat prohibits this operation".to_string())
+                AuthorizationError::Unauthorized {
+                    requested: "unknown".to_string(),
+                    granted: vec![],
+                }
             }
             MacaroonError::UnknownCaveat => {
                 AuthorizationError::MacaroonInvalid("Unknown caveat type".to_string())
@@ -237,14 +245,36 @@ impl OkapiCapability {
         operations: &[OkapiOperation],
     ) -> Result<(), AuthorizationError> {
         // Verify macaroon signature
-        self.macaroon.verify(key)?;
+        self.macaroon.verify(key).map_err(|e| {
+            AuthorizationError::MacaroonInvalid(format!("Signature verification failed: {:?}", e))
+        })?;
 
         // Build caveat context with requested operations
         let requested_ops: Vec<String> = operations.iter().map(|o| o.to_string()).collect();
-        let ctx = crate::macaroon::CaveatContext::new().with_operations(requested_ops);
+        let ctx = crate::macaroon::CaveatContext::new().with_operations(requested_ops.clone());
 
         // Verify all caveats (including operations)
-        self.macaroon.verify_caveats(&ctx)?;
+        self.macaroon.verify_caveats(&ctx).map_err(|e| {
+            // Extract granted operations for error message
+            let granted_ops: Vec<String> = self
+                .macaroon
+                .caveats
+                .iter()
+                .filter(|c| c.caveat_id == "operation")
+                .map(|c| c.data.clone())
+                .collect();
+
+            match e {
+                crate::macaroon::MacaroonError::Unauthorized => {
+                    AuthorizationError::Unauthorized {
+                        requested: requested_ops.join(", "),
+                        granted: granted_ops,
+                    }
+                }
+                crate::macaroon::MacaroonError::Expired => AuthorizationError::CapabilityExpired,
+                _ => AuthorizationError::MacaroonInvalid(format!("Caveat verification failed: {:?}", e)),
+            }
+        })?;
 
         Ok(())
     }
@@ -277,12 +307,12 @@ impl OkapiCapability {
 
         Self {
             id: CapabilityId::new(), // New ID for attenuated capability
-            issuer: self.issuer,
-            holder: self.holder,
+            issuer: self.issuer(),
+            holder: self.holder(),
             macaroon: attenuated_macaroon,
             template_id: Some(template_id),
-            expires_at: self.expires_at,
-            visibility: self.visibility,
+            expires_at: self.expires_at(),
+            visibility: self.visibility(),
         }
     }
 
@@ -310,7 +340,12 @@ impl OkapiCapability {
         }
     }
 
-    /// Get macaroon for serialization
+    /// Get capability ID
+    pub fn id(&self) -> CapabilityId {
+        self.id
+    }
+
+    /// Get macaroon reference for serialization
     pub fn macaroon(&self) -> &Macaroon {
         &self.macaroon
     }
@@ -321,34 +356,31 @@ impl OkapiCapability {
     }
 
     /// Get holder/subject WebID
+    pub fn holder(&self) -> WebID {
+        self.holder
+    }
+
+    /// Get holder/subject WebID (alias for holder())
     pub fn subject(&self) -> WebID {
         self.holder
     }
 
-    /// Get template ID
+    /// Get template ID reference
     pub fn template_id(&self) -> Option<TemplateID> {
         self.template_id
     }
 
-    /// Get expiration time
+    /// Get expiration time reference
     pub fn expires_at(&self) -> Option<DateTime<Utc>> {
         self.expires_at
     }
 
-    /// Get visibility
+    /// Get visibility level
     pub fn visibility(&self) -> Visibility {
         self.visibility
     }
 
-    /// Get operations from macaroon caveats
-    pub fn operations(&self) -> Vec<OkapiOperation> {
-        self.macaroon
-            .caveats
-            .iter()
-            .filter(|c| c.caveat_id == "operation")
-            .filter_map(|c| OkapiOperation::from_str(c.data.as_str()).ok())
-            .collect()
-    }
+
 }
 
 impl std::str::FromStr for OkapiOperation {
@@ -397,6 +429,94 @@ pub fn read_only_capability(holder: WebID, key: &[u8; 32]) -> OkapiCapability {
     )
 }
 
+/// Builder for constructing OkapiCapability with explicit parameters
+/// 
+/// Enforces explicit visibility and expiration, following least authority principle.
+pub struct OkapiCapabilityBuilder {
+    operations: Vec<OkapiOperation>,
+    issuer: WebID,
+    holder: WebID,
+    expires_in: chrono::Duration,
+    visibility: Option<Visibility>,
+    template_id: Option<TemplateID>,
+}
+
+impl OkapiCapabilityBuilder {
+    /// Create new builder with required parameters
+    pub fn new(operations: Vec<OkapiOperation>, issuer: WebID, holder: WebID) -> Self {
+        Self {
+            operations,
+            issuer,
+            holder,
+            expires_in: chrono::Duration::days(30), // Default, but can be overridden
+            visibility: None,
+            template_id: None,
+        }
+    }
+
+    /// Set expiration duration (required - no silent defaults)
+    pub fn expires_in(mut self, duration: chrono::Duration) -> Self {
+        self.expires_in = duration;
+        self
+    }
+
+    /// Set visibility level (required - no silent defaults)
+    pub fn visibility(mut self, visibility: Visibility) -> Self {
+        self.visibility = Some(visibility);
+        self
+    }
+
+    /// Set template scope (optional)
+    pub fn for_template(mut self, template_id: TemplateID) -> Self {
+        self.template_id = Some(template_id);
+        self
+    }
+
+    /// Build capability with key
+    pub fn build(self, key: &[u8; 32]) -> OkapiCapability {
+        let visibility = self.visibility.unwrap_or(Visibility::Private);
+        let expires_at = Some(Utc::now() + self.expires_in);
+        let expiry_timestamp = expires_at.unwrap().timestamp();
+
+        let identifier = if let Some(tid) = self.template_id {
+            format!("{}->{}->{}", self.issuer, self.holder, tid)
+        } else {
+            format!("{}->{}", self.issuer, self.holder)
+        };
+
+        let mut builder = MacaroonBuilder::new("hkask-ensemble", &identifier);
+        builder = builder.expires_at(expiry_timestamp);
+        builder = builder.with_visibility(visibility.as_str());
+
+        if let Some(tid) = self.template_id {
+            builder = builder.for_template(&tid.to_string());
+        }
+
+        for op in &self.operations {
+            builder = builder.allows_operation(&op.to_string());
+        }
+
+        let macaroon = builder.build(key);
+
+        OkapiCapability {
+            id: CapabilityId::new(),
+            issuer: self.issuer,
+            holder: self.holder,
+            macaroon,
+            template_id: self.template_id,
+            expires_at,
+            visibility,
+        }
+    }
+}
+
+impl OkapiCapability {
+    /// Create builder for explicit capability construction
+    pub fn builder(operations: Vec<OkapiOperation>, issuer: WebID, holder: WebID) -> OkapiCapabilityBuilder {
+        OkapiCapabilityBuilder::new(operations, issuer, holder)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -419,9 +539,9 @@ mod tests {
             &key,
         );
 
-        assert_eq!(cap.issuer, issuer);
-        assert_eq!(cap.holder, holder);
-        assert!(cap.expires_at.is_some());
+        assert_eq!(cap.issuer(), issuer);
+        assert_eq!(cap.holder(), holder);
+        assert!(cap.expires_at().is_some());
         assert!(!cap.is_expired());
     }
 
@@ -460,10 +580,10 @@ mod tests {
             &key,
         );
 
-        assert_eq!(cap.template_id, Some(template_id));
-        assert!(cap.macaroon.has_caveat_type("template"));
+        assert_eq!(cap.template_id(), Some(template_id));
+        assert!(cap.macaroon().has_caveat_type("template"));
         assert_eq!(
-            cap.macaroon.get_caveat_data("template"),
+            cap.macaroon().get_caveat_data("template"),
             Some(template_id.to_string().as_str())
         );
     }
@@ -484,8 +604,8 @@ mod tests {
 
         let attenuated = cap.attenuate_for_template(template_id, &[0x42; 32]);
 
-        assert_eq!(attenuated.issuer, cap.issuer);
-        assert_eq!(attenuated.holder, cap.holder);
+        assert_eq!(attenuated.issuer, cap.issuer());
+        assert_eq!(attenuated.holder, cap.holder());
         assert_eq!(attenuated.template_id, Some(template_id));
         assert!(attenuated.macaroon.has_caveat_type("template"));
     }
@@ -540,5 +660,73 @@ mod tests {
                 .is_ok()
         );
         assert!(cap.verify(&test_key(), &[OkapiOperation::Generate]).is_err());
+    }
+
+    #[test]
+    fn test_capability_triple_attenuation() {
+        let key = test_key();
+        let holder = WebID::new();
+        let template1 = TemplateID::new();
+        let template2 = TemplateID::new();
+        let template3 = TemplateID::new();
+
+        let cap = OkapiCapability::for_template(
+            vec![OkapiOperation::Generate],
+            WebID::new(),
+            holder,
+            template1,
+            chrono::Duration::days(30),
+            &key,
+        );
+
+        let attenuated1 = cap.attenuate_for_template(template2, &key);
+        let attenuated2 = attenuated1.attenuate_for_template(template3, &key);
+
+        assert_eq!(attenuated2.template_id, Some(template3));
+        assert!(attenuated2.macaroon.has_caveat_type("template"));
+        assert!(!attenuated2.is_expired());
+    }
+
+    #[test]
+    fn test_ocap_visibility_attenuation() {
+        let key = test_key();
+        let holder = WebID::new();
+
+        let cap = OkapiCapability::new(
+            vec![OkapiOperation::Generate],
+            WebID::new(),
+            holder,
+            chrono::Duration::days(30),
+            &key,
+        );
+
+        assert_eq!(cap.visibility(), Visibility::Private);
+
+        let result = cap.verify(&key, &[OkapiOperation::Generate]);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_error_message_specificity() {
+        let key = test_key();
+        let holder = WebID::new();
+
+        let cap = OkapiCapability::new(
+            vec![OkapiOperation::Generate],
+            WebID::new(),
+            holder,
+            chrono::Duration::days(30),
+            &key,
+        );
+
+        let result = cap.verify(&key, &[OkapiOperation::Embed]);
+        assert!(result.is_err());
+
+        if let AuthorizationError::Unauthorized { requested, granted } = result.unwrap_err() {
+            assert!(!requested.is_empty());
+            assert!(granted.contains(&"generate".to_string()));
+        } else {
+            panic!("Expected Unauthorized error with requested/granted fields");
+        }
     }
 }

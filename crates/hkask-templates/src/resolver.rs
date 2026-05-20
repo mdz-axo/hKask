@@ -5,7 +5,6 @@
 //! Per Planck minimalism: No cache — registry lookups are O(1) SQLite queries.
 
 use crate::ports::{RegistryIndex, Result};
-use std::collections::HashMap;
 
 /// Template resolver — direct registry lookup without caching
 /// 
@@ -34,6 +33,7 @@ mod tests {
     use super::*;
     use crate::ports::{RegistryEntry, RegistryIndex, Result, TemplateError};
     use hkask_types::TemplateType;
+    use std::collections::HashMap;
 
     struct MockRegistry {
         entries: HashMap<String, RegistryEntry>,

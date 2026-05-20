@@ -304,13 +304,20 @@ impl EnergyEmitter {
     }
 
     /// Emit energy actual span (actual energy consumption measurement)
-    pub fn emit_actual(&mut self, operation: &str, tokens_actual: u64, energy_actual: u64) {
+    /// 
+    /// # Arguments
+    /// * `operation` - Operation name
+    /// * `tokens_actual` - Actual tokens consumed
+    /// * `energy_actual` - Actual energy cost
+    /// * `capability_id` - Optional capability ID used for authorization (for audit trail)
+    pub fn emit_actual(&mut self, operation: &str, tokens_actual: u64, energy_actual: u64, capability_id: Option<&str>) {
         self.account.consume(energy_actual);
 
         let observation = serde_json::json!({
             "operation": operation,
             "tokens_actual": tokens_actual,
             "energy_actual": energy_actual,
+            "capability_id": capability_id,
             "total_consumed": self.account.total_consumed,
             "remaining": self.account.budget.remaining,
             "usage_ratio": self.account.budget.usage_ratio(),

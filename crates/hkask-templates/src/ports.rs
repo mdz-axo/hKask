@@ -831,6 +831,116 @@ impl EnergyCalibrator for DefaultEnergyCalibrator {
     }
 }
 
+/// Jinja2 sandbox runtime monitor for security enforcement
+/// 
+/// Monitors template execution for sandbox escape attempts at runtime.
+/// Per Schneier: Security must be monitored, not assumed from configuration.
+/// Per Miller: Sandbox boundary violations are unauthorized operations.
+pub trait SandboxMonitor: Send + Sync {
+    /// Check template source for dangerous patterns
+    /// 
+    /// # Arguments
+    /// * `source` - Template source code to check
+    /// 
+    /// # Returns
+    /// * `Ok(SandboxStatus)` - Status indicating safety level
+    /// * `Err(TemplateError)` - If check fails
+    fn check_template(&self, source: &str) -> Result<SandboxStatus>;
+
+    /// Emit CNS span on sandbox violation detection
+    /// 
+    /// # Arguments
+    /// * `violation_type` - Type of violation detected
+    /// * `source` - Source code that triggered violation
+    fn emit_violation_span(&self, violation_type: &str, source: &str);
+}
+
+/// Sandbox check status
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SandboxStatus {
+    /// Template is safe
+    Safe,
+    /// Template has warnings but is allowed
+    Warning { reason: String },
+    /// Template violates sandbox rules
+    Violation { reason: String, severity: Severity },
+}
+
+/// Violation severity
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Severity {
+    Low,
+    Medium,
+    High,
+    Critical,
+}
+
+/// Default Jinja2 sandbox monitor implementation
+pub struct DefaultSandboxMonitor;
+
+impl DefaultSandboxMonitor {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Default for DefaultSandboxMonitor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl SandboxMonitor for DefaultSandboxMonitor {
+    fn check_template(&self, source: &str) -> Result<SandboxStatus> {
+        // Dangerous patterns that indicate sandbox escape attempts
+        const DANGEROUS_PATTERNS: &[&str] = &[
+            "__class__",
+            "__mro__",
+            "__subclasses__",
+            "__globals__",
+            "__builtins__",
+            "globals()",
+            "locals()",
+            "eval(",
+            "exec(",
+            "compile(",
+            "__import__",
+            "open(",
+            "importlib",
+            "sys.modules",
+        ];
+
+        for pattern in DANGEROUS_PATTERNS {
+            if source.contains(pattern) {
+                return Ok(SandboxStatus::Violation {
+                    reason: format!("Dangerous pattern detected: {}", pattern),
+                    severity: Severity::High,
+                });
+            }
+        }
+
+        // Check for {% set %} blocks that might define dangerous variables
+        if source.contains("{% set") && (source.contains("__") || source.contains("config")) {
+            return Ok(SandboxStatus::Warning {
+                reason: "Set block with potential dangerous variable".to_string(),
+            });
+        }
+
+        Ok(SandboxStatus::Safe)
+    }
+
+    fn emit_violation_span(&self, violation_type: &str, source: &str) {
+        // In production, this would emit a CNS span
+        // For now, just log the violation
+        tracing::warn!(
+            target: "hkask.security.sandbox",
+            violation_type = violation_type,
+            source_length = source.len(),
+            "Sandbox violation detected"
+        );
+    }
+}
+
 /// Maximum Matroshka nesting depth (configurable per template)
 pub const DEFAULT_MATROSHKA_LIMIT: u8 = 7;
 

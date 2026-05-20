@@ -62,7 +62,7 @@ pub use ports::{
     Action, CnsPort, CompositionTemplate, DEFAULT_MATROSHKA_LIMIT, DependencyProvider,
     EnergyCalibrator, EnergyCalibrationReport, FAST_LOCAL_MODEL, InMemoryDependencyProvider, InferenceConfig, InferencePort, ManifestExecutor,
     ManifestExecutorPort, ManifestLocation, ManifestOutcome, ManifestRepository, ManifestStep,
-    McpPort, MockSecurityPort, ProcessManifest, RegistryEntry, RegistryIndex, Result, SecurityPort,
+    McpPort, MockSecurityPort, ProcessManifest, RegistryEntry, RegistryIndex, Result, SandboxMonitor, SandboxStatus, SecurityPort,
     TemplateContract, TemplateError, TemplateRenderer,
 };
 pub use provenance::{ProvenanceManager, TemplateProvenance};
