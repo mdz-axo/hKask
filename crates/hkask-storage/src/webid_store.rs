@@ -259,4 +259,3 @@ pub struct WebIDStoreStats {
     pub total_entries: usize,
     pub active_entries: usize,
 }
-

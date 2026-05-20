@@ -343,4 +343,3 @@ where
         OkapiIntegrationError::MetricsError(err.to_string())
     }
 }
-

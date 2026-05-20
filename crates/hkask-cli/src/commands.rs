@@ -81,3 +81,26 @@ pub async fn register_mcp_server(
     runtime.register_server(server).await;
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_list_templates() {
+        // Test would require a mock registry
+    }
+
+    #[tokio::test]
+    async fn test_list_mcp_servers() {
+        let runtime = McpRuntime::new();
+        let servers = list_mcp_servers(&runtime).await;
+        assert!(servers.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_list_mcp_tools() {
+        let runtime = McpRuntime::new();
+        let tools = list_mcp_tools(&runtime).await;
+        assert!(tools.is_empty());
+    }
+}

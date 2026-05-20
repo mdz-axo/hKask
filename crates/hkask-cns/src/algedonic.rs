@@ -26,16 +26,6 @@ pub enum AlertSeverity {
     Critical,
 }
 
-impl std::fmt::Display for AlertSeverity {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            AlertSeverity::Info => write!(f, "INFO"),
-            AlertSeverity::Warning => write!(f, "WARNING"),
-            AlertSeverity::Critical => write!(f, "CRITICAL"),
-        }
-    }
-}
-
 /// Algedonic alert
 #[derive(Debug, Clone)]
 pub struct AlgedonicAlert {

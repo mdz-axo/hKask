@@ -1,7 +1,12 @@
 //! HTTP routes implementation
 
 use axum::{
-    Json, extract::Path, extract::State, http::StatusCode, response::IntoResponse, routing::Router,
+    extract::Path,
+    extract::State,
+    http::StatusCode,
+    response::IntoResponse,
+    routing::Router,
+    Json,
 };
 use hkask_templates::RegistryIndex;
 use serde_json::Value;
@@ -39,7 +44,10 @@ async fn list_templates(State(state): State<ApiState>) -> Json<Vec<TemplateRespo
 }
 
 /// Get template by ID
-async fn get_template(State(state): State<ApiState>, Path(id): Path<String>) -> impl IntoResponse {
+async fn get_template(
+    State(state): State<ApiState>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
     let registry = state.registry.lock().await;
 
     match registry.get(&id) {
@@ -145,7 +153,10 @@ pub fn chat_router() -> Router<ApiState> {
 }
 
 /// Curator chat endpoint
-async fn chat(State(_state): State<ApiState>, Json(req): Json<ChatRequest>) -> Json<ChatResponse> {
+async fn chat(
+    State(_state): State<ApiState>,
+    Json(req): Json<ChatRequest>,
+) -> Json<ChatResponse> {
     // TODO: Implement actual chat processing
     Json(ChatResponse {
         output: format!("Received: {}", req.input),

@@ -34,9 +34,9 @@ blake3.workspace = true
 ed25519-dalek.workspace = true
 
 [dev-dependencies]
-pretty_assertions = "1.4"
-insta = { version = "1.42", features = ["yaml", "json"] }
-proptest = "1.6"
+pretty_assertions.workspace = true
+insta = { workspace = true, features = ["yaml", "json"] }
+proptest.workspace = true
 
 [[test]]
 name = "integration_tests"

@@ -8,9 +8,6 @@
 //! - `cns.energy.consume` — Operation cost debit
 //! - `cns.energy.opportunity` — Alternative cost analysis
 //! - `cns.energy.deficit` — Algedonic alert trigger (variety deficit)
-//! - `cns.energy.actual` — Actual energy consumption with capability context
-//! - `cns.energy.quota` — Quota allocation from parent to child
-//! - `cns.energy.overflow` — Energy budget exceeded (hard abort or escalate)
 //!
 //! **Integration:**
 //! - Every template render → energy cost
@@ -18,7 +15,7 @@
 //! - Every registry write → energy cost
 //! - Default cost: 1 energy unit per 4 tokens (configurable)
 
-use hkask_types::{NuEvent, Span, WebID};
+use hkask_types::{NuEvent, Span, WebID, CapabilityToken};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::info;
@@ -30,9 +27,6 @@ pub enum EnergySpanType {
     Consume,
     Opportunity,
     Deficit,
-    Actual,
-    Quota,
-    Overflow,
 }
 
 impl EnergySpanType {
@@ -42,9 +36,6 @@ impl EnergySpanType {
             EnergySpanType::Consume => "cns.energy.consume",
             EnergySpanType::Opportunity => "cns.energy.opportunity",
             EnergySpanType::Deficit => "cns.energy.deficit",
-            EnergySpanType::Actual => "cns.energy.actual",
-            EnergySpanType::Quota => "cns.energy.quota",
-            EnergySpanType::Overflow => "cns.energy.overflow",
         }
     }
 
@@ -54,9 +45,6 @@ impl EnergySpanType {
             "consume" | "cns.energy.consume" => Some(EnergySpanType::Consume),
             "opportunity" | "cns.energy.opportunity" => Some(EnergySpanType::Opportunity),
             "deficit" | "cns.energy.deficit" => Some(EnergySpanType::Deficit),
-            "actual" | "cns.energy.actual" => Some(EnergySpanType::Actual),
-            "quota" | "cns.energy.quota" => Some(EnergySpanType::Quota),
-            "overflow" | "cns.energy.overflow" => Some(EnergySpanType::Overflow),
             _ => None,
         }
     }
@@ -312,87 +300,6 @@ impl EnergyEmitter {
         self.emit(EnergySpanType::Deficit, observation);
     }
 
-    /// Emit energy actual span (actual energy consumption measurement)
-    ///
-    /// # Arguments
-    /// * `operation` - Operation name
-    /// * `tokens_actual` - Actual tokens consumed
-    /// * `energy_actual` - Actual energy cost
-    /// * `capability_id` - Optional capability ID used for authorization (for audit trail)
-    pub fn emit_actual(
-        &mut self,
-        operation: &str,
-        tokens_actual: u64,
-        energy_actual: u64,
-        capability_id: Option<&str>,
-    ) {
-        self.account.consume(energy_actual);
-
-        let observation = serde_json::json!({
-            "operation": operation,
-            "tokens_actual": tokens_actual,
-            "energy_actual": energy_actual,
-            "capability_id": capability_id,
-            "total_consumed": self.account.total_consumed,
-            "remaining": self.account.budget.remaining,
-            "usage_ratio": self.account.budget.usage_ratio(),
-        });
-
-        self.emit(EnergySpanType::Actual, observation);
-    }
-
-    /// Emit quota allocation span (parent allocates quota to child)
-    ///
-    /// # Arguments
-    /// * `from_manifest` - Parent manifest ID
-    /// * `to_manifest` - Child manifest ID receiving quota
-    /// * `quota_amount` - Energy quota allocated
-    pub fn emit_quota(&self, from_manifest: &str, to_manifest: &str, quota_amount: u64) {
-        let observation = serde_json::json!({
-            "from_manifest": from_manifest,
-            "to_manifest": to_manifest,
-            "quota_allocated": quota_amount,
-        });
-
-        self.emit(EnergySpanType::Quota, observation);
-    }
-
-    /// Emit energy overflow span (budget exceeded)
-    ///
-    /// # Arguments
-    /// * `manifest_id` - Manifest that exceeded budget
-    /// * `capability_id` - Capability that was being used
-    /// * `budget_allocated` - Original budget allocation
-    /// * `budget_consumed` - Actual consumption
-    /// * `overflow_action` - Action taken: "hard_abort" or "escalate"
-    pub fn emit_overflow(
-        &self,
-        manifest_id: &str,
-        capability_id: &str,
-        budget_allocated: u64,
-        budget_consumed: u64,
-        overflow_action: &str,
-    ) {
-        let overage = budget_consumed.saturating_sub(budget_allocated);
-        let overage_percent = if budget_allocated > 0 {
-            (overage as f64 / budget_allocated as f64) * 100.0
-        } else {
-            0.0
-        };
-
-        let observation = serde_json::json!({
-            "manifest_id": manifest_id,
-            "capability_id": capability_id,
-            "budget_allocated": budget_allocated,
-            "budget_consumed": budget_consumed,
-            "overage": overage,
-            "overage_percent": overage_percent,
-            "overflow_action": overflow_action,
-        });
-
-        self.emit(EnergySpanType::Overflow, observation);
-    }
-
     /// Emit energy span
     fn emit(&self, span_type: EnergySpanType, observation: Value) {
         let span = Span::Energy(span_type.as_str().to_string());
@@ -424,76 +331,175 @@ pub fn calculate_energy_cost(text: &str, cost_per_token: f64) -> u64 {
     ((tokens as f64) * cost_per_token) as u64
 }
 
-
 /// Hybrid expiry cleanup for capability tokens
-///
-/// Implements Q5 decision: lazy verification + periodic cleanup.
-/// Lazy verification happens on every capability use (verify_lazy).
-/// Periodic cleanup removes expired capabilities from the registry.
-///
-/// # Arguments
-/// * `capabilities` — List of capability tokens to clean
-/// * `current_time` — Current Unix timestamp
-///
-/// # Returns
-/// Tuple of (kept, removed) counts
 pub fn cleanup_expired_capabilities(
     capabilities: &[hkask_types::CapabilityToken],
     current_time: i64,
 ) -> (usize, usize) {
     let mut kept = 0;
     let mut removed = 0;
-
     for cap in capabilities {
         if cap.is_expired(current_time) {
             removed += 1;
-            // Emit cleanup span for observability
-            let event = NuEvent::new(
-                "cns.energy.cleanup",
-                serde_json::json!({
-                    "capability_id": cap.id,
-                    "resource": cap.resource.as_str(),
-                    "resource_id": cap.resource_id,
-                    "expired_at": cap.expires_at,
-                    "current_time": current_time,
-                }),
-            );
-            info!(
-                target: "cns.energy.cleanup",
-                event = ?event.id,
-                "Expired capability cleaned up"
-            );
         } else {
             kept += 1;
         }
     }
-
     (kept, removed)
 }
 
-/// Schedule periodic cleanup job
-///
-/// In production, this would be scheduled via cron or similar.
-/// For now, returns the recommended cleanup interval.
-///
-/// # Returns
-/// Recommended cleanup interval in seconds (default: 300 = 5 minutes)
 pub fn recommended_cleanup_interval() -> u64 {
-    300 // 5 minutes
+    300
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_types::{CapabilityResource, CapabilityAction, WebID};
+    use hkask_types::{CapabilityResource, CapabilityAction};
+
+    #[test]
+    fn test_energy_span_type_as_str() {
+        assert_eq!(EnergySpanType::Allocate.as_str(), "cns.energy.allocate");
+        assert_eq!(EnergySpanType::Consume.as_str(), "cns.energy.consume");
+        assert_eq!(
+            EnergySpanType::Opportunity.as_str(),
+            "cns.energy.opportunity"
+        );
+        assert_eq!(EnergySpanType::Deficit.as_str(), "cns.energy.deficit");
+    }
+
+    #[test]
+    fn test_energy_span_type_parse() {
+        assert_eq!(
+            EnergySpanType::parse_str("allocate"),
+            Some(EnergySpanType::Allocate)
+        );
+        assert_eq!(
+            EnergySpanType::parse_str("cns.energy.consume"),
+            Some(EnergySpanType::Consume)
+        );
+        assert_eq!(EnergySpanType::parse_str("invalid"), None);
+    }
+
+    #[test]
+    fn test_energy_budget_new() {
+        let budget = EnergyBudget::new(10000);
+        assert_eq!(budget.cap, 10000);
+        assert_eq!(budget.remaining, 10000);
+        assert_eq!(budget.cost_per_token, 0.25);
+        assert_eq!(budget.alert_threshold, 0.8);
+        assert!(budget.hard_limit);
+    }
+
+    #[test]
+    fn test_energy_budget_calculate_cost() {
+        let budget = EnergyBudget::new(10000);
+        assert_eq!(budget.calculate_cost(100), 25);
+        assert_eq!(budget.calculate_cost(1000), 250);
+    }
+
+    #[test]
+    fn test_energy_budget_calculate_tokens() {
+        let budget = EnergyBudget::new(10000);
+        assert_eq!(budget.calculate_tokens(25), 100);
+        assert_eq!(budget.calculate_tokens(250), 1000);
+    }
+
+    #[test]
+    fn test_energy_budget_allocate() {
+        let mut budget = EnergyBudget::new(10000);
+        let cost = budget.allocate(1000).unwrap();
+        assert_eq!(cost, 250);
+        assert_eq!(budget.remaining, 9750);
+    }
+
+    #[test]
+    fn test_energy_budget_allocate_exceeded() {
+        let mut budget = EnergyBudget::new(100);
+        let result = budget.allocate(1000);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_energy_budget_should_alert() {
+        let mut budget = EnergyBudget::new(10000);
+        assert!(!budget.should_alert());
+
+        // Allocate enough to reach 80% usage (8000 energy units = 32000 tokens)
+        budget.allocate(32000).unwrap();
+        assert!(budget.should_alert());
+    }
+
+    #[test]
+    fn test_energy_budget_usage_ratio() {
+        let mut budget = EnergyBudget::new(10000);
+        assert_eq!(budget.usage_ratio(), 0.0);
+
+        // Allocate 5000 tokens = 1250 energy units
+        budget.allocate(5000).unwrap();
+        assert!((budget.usage_ratio() - 0.125).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_estimate_tokens() {
+        assert_eq!(estimate_tokens("hello"), 2);
+        assert_eq!(estimate_tokens("hello world"), 3);
+        assert_eq!(estimate_tokens(""), 0);
+    }
+
+    #[test]
+    fn test_calculate_energy_cost() {
+        // "hello" = 5 chars / 4 = 1.25 tokens, ceil = 2, * 0.25 = 0.5, rounded = 0
+        assert_eq!(calculate_energy_cost("hello", 0.25), 0);
+        // "hello world" = 11 chars / 4 = 2.75 tokens, ceil = 3, * 0.25 = 0.75, rounded = 0
+        assert_eq!(calculate_energy_cost("hello world", 0.25), 0);
+    }
+
+    #[test]
+    fn test_energy_account_new() {
+        let account = EnergyAccount::new("test", 10000);
+        assert_eq!(account.id, "test");
+        assert_eq!(account.budget.cap, 10000);
+        assert_eq!(account.total_allocated, 0);
+        assert_eq!(account.total_consumed, 0);
+    }
+
+    #[test]
+    fn test_energy_account_allocate() {
+        let mut account = EnergyAccount::new("test", 10000);
+        let cost = account.allocate(1000).unwrap();
+        assert_eq!(cost, 250);
+        assert_eq!(account.total_allocated, 250);
+    }
+
+    #[test]
+    fn test_energy_account_consume() {
+        let mut account = EnergyAccount::new("test", 10000);
+        account.consume(100);
+        assert_eq!(account.total_consumed, 100);
+    }
+
+    #[test]
+    fn test_opportunity_cost() {
+        let cost = OpportunityCost::new("test", 100, 150);
+        assert_eq!(cost.operation, "test");
+        assert_eq!(cost.actual_cost, 100);
+        assert_eq!(cost.alternative_cost, 150);
+        assert_eq!(cost.cost, 50);
+    }
+
+    #[test]
+    fn test_energy_account_opportunity() {
+        let mut account = EnergyAccount::new("test", 10000);
+        account.record_opportunity(OpportunityCost::new("test", 100, 150));
+        assert_eq!(account.total_opportunity_cost(), 50);
+    }
 
     #[test]
     fn test_cleanup_expired_capabilities() {
         let secret = b"test-secret";
         let from = WebID::new();
         let to = WebID::new();
-
-        // Create valid capability
         let mut valid_cap = hkask_types::CapabilityToken::new(
             CapabilityResource::Tool,
             "test".to_string(),
@@ -502,9 +508,7 @@ mod tests {
             to.clone(),
             secret,
         );
-        valid_cap.expires_at = Some(2000); // Expires at 2000
-
-        // Create expired capability
+        valid_cap.expires_at = Some(2000);
         let mut expired_cap = hkask_types::CapabilityToken::new(
             CapabilityResource::Tool,
             "test2".to_string(),
@@ -513,21 +517,14 @@ mod tests {
             to.clone(),
             secret,
         );
-        expired_cap.expires_at = Some(500); // Expires at 500
-
+        expired_cap.expires_at = Some(500);
         let capabilities = vec![valid_cap, expired_cap];
-
-        // Cleanup at time 1000 - should keep valid, remove expired
         let (kept, removed) = cleanup_expired_capabilities(&capabilities, 1000);
         assert_eq!(kept, 1);
         assert_eq!(removed, 1);
-
-        // Cleanup at time 100 - both should be kept
         let (kept, removed) = cleanup_expired_capabilities(&capabilities, 100);
         assert_eq!(kept, 2);
         assert_eq!(removed, 0);
-
-        // Cleanup at time 3000 - both should be removed
         let (kept, removed) = cleanup_expired_capabilities(&capabilities, 3000);
         assert_eq!(kept, 0);
         assert_eq!(removed, 2);

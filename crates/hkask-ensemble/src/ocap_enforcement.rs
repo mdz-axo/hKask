@@ -264,4 +264,3 @@ pub async fn enforce_okapi_ocap(
         Err(AuthorizationError::CapabilityNotFound)
     }
 }
-

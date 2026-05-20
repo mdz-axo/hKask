@@ -310,4 +310,3 @@ where
         self.circuit_breaker.stats().await
     }
 }
-

@@ -269,4 +269,3 @@ impl CapabilityProvider for MockCapabilityProvider {
         Ok(self.capabilities.clone())
     }
 }
-

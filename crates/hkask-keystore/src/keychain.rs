@@ -70,47 +70,19 @@ impl Default for Keychain {
     }
 }
 
-/// Key ring for macaroon key rotation
-#[derive(Debug, Clone)]
-pub struct KeyRing {
-    current_key: [u8; 32],
-    previous_keys: Vec<[u8; 32]>,
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-impl KeyRing {
-    pub fn new(current_key: [u8; 32]) -> Self {
-        Self {
-            current_key,
-            previous_keys: Vec::new(),
-        }
+    #[test]
+    fn test_keychain_new() {
+        let keychain = Keychain::new("test-service");
+        assert_eq!(keychain.service_name, "test-service");
     }
 
-    pub fn current_key(&self) -> &[u8; 32] {
-        &self.current_key
-    }
-
-    pub fn previous_keys(&self) -> &[[u8; 32]] {
-        &self.previous_keys
-    }
-
-    pub fn rotate(&mut self, new_key: [u8; 32]) {
-        self.previous_keys.push(self.current_key);
-        self.current_key = new_key;
-    }
-
-    pub fn verify_with_rotation(&self, key_to_check: &[u8; 32]) -> bool {
-        if key_to_check == &self.current_key {
-            return true;
-        }
-        self.previous_keys.contains(key_to_check)
+    #[test]
+    fn test_keychain_default() {
+        let keychain = Keychain::default();
+        assert_eq!(keychain.service_name, "hkask");
     }
 }
-
-/// Generate secure random key for macaroons
-pub fn generate_macaroon_key() -> [u8; 32] {
-    use rand::RngCore;
-    let mut key = [0u8; 32];
-    rand::rng().fill_bytes(&mut key);
-    key
-}
-

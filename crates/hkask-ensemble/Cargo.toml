@@ -3,23 +3,13 @@ name = "hkask-ensemble"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Multi-agent coordination"
+description = "Multi-agent chat coordination for hKask"
 
 [dependencies]
 hkask-types = { path = "../hkask-types" }
-hkask-keystore = { path = "../hkask-keystore" }
-hkask-cns = { path = "../hkask-cns" }
+hkask-agents = { path = "../hkask-agents" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 tokio.workspace = true
-reqwest.workspace = true
-async-trait.workspace = true
-chrono.workspace = true
-uuid.workspace = true
-hmac = "0.12"
-sha2 = "0.10"
-
-[dev-dependencies]
-hkask-templates = { path = "../hkask-templates" }

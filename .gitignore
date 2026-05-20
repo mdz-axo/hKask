@@ -16,6 +16,3 @@ Cargo.lock
 # OS
 .DS_Store
 Thumbs.db
-
-# Documentation archive (local maintainer reference only)
-docs/archive/

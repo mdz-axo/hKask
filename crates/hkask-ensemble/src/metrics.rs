@@ -463,4 +463,3 @@ impl OkapiMetricsCollector {
         self.registry.export().await
     }
 }
-

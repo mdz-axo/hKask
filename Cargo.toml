@@ -116,8 +116,6 @@ keyring = "3"
 
 # HTTP client (for MCP servers)
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
-
-# URL parsing
 url = "2"
 
 # Embeddings / Vector ops
@@ -127,3 +125,6 @@ nalgebra = "0.33"
 # Testing
 tempfile = "3"
 async-trait = "0.1"
+pretty_assertions = "1.4"
+insta = { version = "1.42", features = ["yaml", "json"] }
+proptest = "1.6"

@@ -11,18 +11,6 @@ impl WebID {
     pub fn new() -> Self {
         Self(Uuid::new_v4())
     }
-
-    pub fn from_string(s: &str) -> Self {
-        Self(Uuid::parse_str(s).unwrap_or_else(|_| Uuid::new_v4()))
-    }
-}
-
-impl std::str::FromStr for WebID {
-    type Err = uuid::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Uuid::from_str(s).map(Self)
-    }
 }
 
 impl Default for WebID {
@@ -44,18 +32,6 @@ pub struct TemplateID(pub Uuid);
 impl TemplateID {
     pub fn new() -> Self {
         Self(Uuid::new_v4())
-    }
-
-    pub fn from_string(s: &str) -> Self {
-        Self(Uuid::parse_str(s).unwrap_or_else(|_| Uuid::new_v4()))
-    }
-}
-
-impl std::str::FromStr for TemplateID {
-    type Err = uuid::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Uuid::from_str(s).map(Self)
     }
 }
 
@@ -156,5 +132,54 @@ impl Default for EventID {
 impl std::fmt::Display for EventID {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_webid_new() {
+        let id1 = WebID::new();
+        let id2 = WebID::new();
+        assert_ne!(id1, id2);
+    }
+
+    #[test]
+    fn test_webid_display() {
+        let id = WebID::new();
+        let display = format!("{}", id);
+        assert_eq!(display.len(), 36); // UUID string length
+    }
+
+    #[test]
+    fn test_template_id() {
+        let id = TemplateID::new();
+        assert_eq!(id.0.get_version(), Some(uuid::Version::Random));
+    }
+
+    #[test]
+    fn test_bot_id() {
+        let id = BotID::new();
+        assert_eq!(id.0.get_version(), Some(uuid::Version::Random));
+    }
+
+    #[test]
+    fn test_manifest_id() {
+        let id = ManifestID::new();
+        assert_eq!(id.0.get_version(), Some(uuid::Version::Random));
+    }
+
+    #[test]
+    fn test_triple_id() {
+        let id = TripleID::new();
+        assert_eq!(id.0.get_version(), Some(uuid::Version::Random));
+    }
+
+    #[test]
+    fn test_event_id() {
+        let id = EventID::new();
+        assert_eq!(id.0.get_version(), Some(uuid::Version::Random));
     }
 }

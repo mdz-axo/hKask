@@ -75,3 +75,14 @@ impl EmbeddingStore {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_embedding_new() {
+        let vector = vec![0.1, 0.2, 0.3];
+        let embedding = Embedding::new(vector.clone(), "test-model");
+        assert_eq!(embedding.dimensions, 3);
+    }
+}

@@ -79,28 +79,19 @@ This ADR documents design decisions for the Pragmatic Composition Skill implemen
 
 **Question:** Fine-grained OCAP on recursive calls, or coarse-grained per-manifest?
 
-**Decision:** **Fine-grained per recursive call** — implemented in `CascadeContext::child_context()`.
+**Decision:** **Coarse-grained per-manifest** for MVP.
 
 **Rationale:**
-- True OCAP requires attenuation on every delegation (Mark Miller principle)
-- `CapabilityToken::attenuate()` reduces authority on each recursive call
-- Maximum attenuation level (7) prevents infinite delegation chains
-- Security adapter validates capability at template resolution time
+- Simpler capability token management
+- Attenuation at cascade stage boundaries
+- Reduced overhead for recursive calls
 
 **Implementation:**
-- `CascadeContext` holds `Option<CapabilityToken>` and `secret: Vec<u8>`
-- `child_context(new_holder: WebID)` creates attenuated child token
-- `check_capability(resource, resource_id, action)` validates before template access
-- `CascadeExecutor::execute_with_capability()` initiates capability chain
-- Tests verify attenuation: `test_cascade_context_child_with_attenuation`, `test_cascade_context_child_max_attenuation`
+- `CascadeContext::capability_token` passed through stages
+- No fine-gr attenuation within stage execution
+- OCAP check at manifest entry point only
 
-**Security Properties:**
-- Attenuation level increases by 1 on each delegation
-- When `attenuation_level >= max_attenuation`, further delegation fails
-- Expired tokens rejected via `is_expired(current_time)`
-- Wrong resource/action rejected via `is_valid_for()`
-
-**Future Consideration:** Capability revocation lists for compromised token invalidation.
+**Future Consideration:** Fine-gr attenuation with capability chaining.
 
 ---
 

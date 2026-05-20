@@ -329,4 +329,3 @@ impl MultiOkapiClient {
         Arc::clone(&self.router)
     }
 }
-

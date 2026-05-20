@@ -111,3 +111,17 @@ impl TripleStore {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_triple_new() {
+        let owner = WebID::new();
+        let triple = Triple::new("entity1", "attribute1", json!("value1"), owner);
+        assert_eq!(triple.entity, "entity1");
+        assert_eq!(triple.confidence, 1.0);
+        assert!(triple.is_semantic());
+    }
+}

@@ -246,7 +246,6 @@ pub enum AuthorizationError {
     RegistryError(#[from] RegistryError),
 }
 
-
 #[async_trait::async_trait]
 impl CapabilityQueryPort for WebIDCapabilityRegistry {
     async fn has_capability(&self, webid: WebID, operation: OkapiOperation) -> bool {

@@ -540,4 +540,3 @@ impl OkapiCapability {
         OkapiCapabilityBuilder::new(operations, issuer, holder)
     }
 }
-

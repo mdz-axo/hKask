@@ -275,4 +275,3 @@ pub struct CacheStats {
     pub valid_entries: usize,
     pub expired_entries: usize,
 }
-

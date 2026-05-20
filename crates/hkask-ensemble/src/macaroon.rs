@@ -326,4 +326,3 @@ impl MacaroonBuilder {
         mac
     }
 }
-
