@@ -135,7 +135,7 @@ pub fn import_russell(
     config: &MigrationConfig,
     verbose: bool,
 ) -> Result<Vec<MappedAsset>, String> {
-    let mapper = RussellMapper::new(None);
+    let mapper = RussellMapper::new();
     let mut assets = Vec::new();
 
     if source_path.is_file() {

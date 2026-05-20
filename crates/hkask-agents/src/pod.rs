@@ -33,8 +33,8 @@
 //! pod.activate(&mcp_runtime, &cns_emitter).unwrap();
 //! ```
 
-use hkask_types::{CapabilityAction, CapabilityResource, CapabilityToken, WebID};
 use hkask_keystore::keychain::Keychain;
+use hkask_types::{CapabilityAction, CapabilityResource, CapabilityToken, WebID};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tracing::info;
@@ -317,7 +317,7 @@ impl AgentPod {
 
         // Initialize keystore for secure secret storage
         let keystore = Keychain::default();
-        
+
         // Retrieve or generate OCAP secret from keystore
         let ocap_secret = get_or_create_ocap_secret(&keystore, &persona.webid())?;
 
@@ -476,15 +476,19 @@ impl AgentPod {
     /// # Returns
     /// * `Ok(CapabilityToken)` — Attenuated child token
     /// * `Err(AgentPodError)` — Attenuation limit exceeded or keystore error
-    pub fn delegate(&self, new_holder: WebID, current_time: i64) -> AgentPodResult<CapabilityToken> {
+    pub fn delegate(
+        &self,
+        new_holder: WebID,
+        current_time: i64,
+    ) -> AgentPodResult<CapabilityToken> {
         // Check attenuation limit
         if self.capability_token.attenuation_level >= self.max_attenuation {
             return Err(AgentPodError::AttenuationLimitExceeded);
         }
-        
+
         // Retrieve OCAP secret from keystore for attenuation
         let ocap_secret = get_or_create_ocap_secret(&self.keystore, &self.webid)?;
-        
+
         self.capability_token
             .attenuate(new_holder, ocap_secret.as_bytes(), current_time)
             .ok_or(AgentPodError::AttenuationLimitExceeded)
@@ -521,18 +525,22 @@ fn current_timestamp() -> i64 {
 /// # Returns
 /// * `Ok(Zeroizing<String>)` — OCAP secret (zeroized for security)
 /// * `Err(AgentPodError)` — Keystore error
-fn get_or_create_ocap_secret(keystore: &Keychain, webid: &WebID) -> AgentPodResult<Zeroizing<String>> {
+fn get_or_create_ocap_secret(
+    keystore: &Keychain,
+    webid: &WebID,
+) -> AgentPodResult<Zeroizing<String>> {
     // Try to retrieve existing secret
     match keystore.retrieve(webid) {
         Ok(secret) => Ok(Zeroizing::new(secret)),
         Err(_) => {
             // Generate new random secret
             let secret = generate_secure_ocap_secret();
-            
+
             // Store in keystore
-            keystore.store(webid, &secret)
+            keystore
+                .store(webid, &secret)
                 .map_err(|e| AgentPodError::KeystoreError(e.to_string()))?;
-            
+
             Ok(Zeroizing::new(secret))
         }
     }

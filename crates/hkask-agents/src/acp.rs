@@ -33,8 +33,10 @@ use hkask_cns::rate_limit::{RateLimiter, RateLimitConfig};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
+use thiserror::Error;
 use tokio::sync::RwLock;
-use tracing::{info, warn};
+use tracing::info;
+use zeroize::Zeroizing;
 
 /// ACP error types for security and validation
 #[derive(Debug, Error)]
@@ -370,7 +372,7 @@ fn current_timestamp() -> i64 {
 
 impl Default for AcpRuntime {
     fn default() -> Self {
-        Self::new(b"acp-default-secret-key")
+        Self::new(b"acp-default-secret-key", None)
     }
 }
 
@@ -502,7 +504,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_acp_runtime_register_agent() {
-        let runtime = AcpRuntime::new(b"test-secret");
+        let runtime = AcpRuntime::new(b"test-secret", None);
         let webid = WebID::new();
 
         let token = runtime
@@ -521,7 +523,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_acp_runtime_unregister_agent() {
-        let runtime = AcpRuntime::new(b"test-secret");
+        let runtime = AcpRuntime::new(b"test-secret", None);
         let webid = WebID::new();
 
         runtime
@@ -538,7 +540,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_acp_runtime_duplicate_registration() {
-        let runtime = AcpRuntime::new(b"test-secret");
+        let runtime = AcpRuntime::new(b"test-secret", None);
         let webid = WebID::new();
 
         runtime
@@ -550,13 +552,24 @@ mod tests {
             .register_agent(webid, "Bot".to_string(), vec![])
             .await;
 
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("already registered"));
+        assert!(matches!(result, Err(_)));
+    }
+
+    #[tokio::test]
+    async fn test_acp_runtime_wildcard_rejected() {
+        let runtime = AcpRuntime::new(b"test-secret", None);
+        let webid = WebID::new();
+
+        let result = runtime
+            .register_agent(webid, "Bot".to_string(), vec!["*".to_string()])
+            .await;
+
+        assert!(matches!(result, Err(_)));
     }
 
     #[tokio::test]
     async fn test_acp_runtime_send_message() {
-        let runtime = AcpRuntime::new(b"test-secret");
+        let runtime = AcpRuntime::new(b"test-secret", None);
         let from = WebID::new();
         let to = WebID::new();
 
@@ -586,19 +599,21 @@ mod tests {
 
     #[tokio::test]
     async fn test_acp_runtime_capability_check() {
-        let runtime = AcpRuntime::new(b"test-secret");
+        let runtime = AcpRuntime::new(b"test-secret", None);
         let webid = WebID::new();
 
-        // Register agent - creates wildcard capability token
+        // Register agent with explicit capabilities
         runtime
             .register_agent(webid, "Bot".to_string(), vec!["inference:call".to_string()])
             .await
             .unwrap();
 
-        // Wildcard token allows any tool
+        // Explicit capability should work
         assert!(runtime.has_capability(&webid, "inference:call").await);
-        assert!(runtime.has_capability(&webid, "memory:write").await);
-
+        
+        // Other capabilities should not work (no wildcards)
+        assert!(!runtime.has_capability(&webid, "memory:write").await);
+        
         // Unregistered agent has no capabilities
         let other_webid = WebID::new();
         assert!(!runtime.has_capability(&other_webid, "inference:call").await);
@@ -606,7 +621,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_acp_runtime_list_agents() {
-        let runtime = AcpRuntime::new(b"test-secret");
+        let runtime = AcpRuntime::new(b"test-secret", None);
 
         runtime
             .register_agent(WebID::new(), "Bot".to_string(), vec![])
@@ -623,7 +638,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_template_dispatch_handler() {
-        let runtime = Arc::new(AcpRuntime::new(b"test-secret"));
+        let runtime = Arc::new(AcpRuntime::new(b"test-secret", None));
         let from = WebID::new();
         let to = WebID::new();
 

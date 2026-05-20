@@ -87,13 +87,13 @@ enum Commands {
     Cns {
         #[command(subcommand)]
         action: CnsAction,
-    }
+    },
 
     /// Registry management
     Registry {
         #[command(subcommand)]
         action: RegistryAction,
-    }
+    },
 
     /// Documentation generation
     Docs {
@@ -384,9 +384,11 @@ fn process_chat_input(registry: &SqliteRegistry, input: &str, template_id: Optio
 
 fn generate_cli_markdown() -> String {
     let mut md = String::new();
-    
+
     md.push_str("# hKask CLI Documentation\n\n");
-    md.push_str("**hKask** (ℏKask — \"Planck's Constant of Agent Systems\") - Command-line interface\n\n");
+    md.push_str(
+        "**hKask** (ℏKask — \"Planck's Constant of Agent Systems\") - Command-line interface\n\n",
+    );
     md.push_str("## Usage\n\n");
     md.push_str("```bash\n");
     md.push_str("kask [OPTIONS] <COMMAND>\n");
@@ -429,7 +431,9 @@ fn generate_cli_markdown() -> String {
     md.push_str("  - `-b`, `--bot-id <BOT_ID>` — Bot WebID\n");
     md.push_str("- `grant` — Grant capability to bot\n");
     md.push_str("  - `-b`, `--bot-id <BOT_ID>` — Bot WebID\n");
-    md.push_str("  - `-c`, `--capability <CAPABILITY>` — Capability name (e.g., \"inference:call\")\n\n");
+    md.push_str(
+        "  - `-c`, `--capability <CAPABILITY>` — Capability name (e.g., \"inference:call\")\n\n",
+    );
     md.push_str("### `kask pod` — Agent pod management\n\n");
     md.push_str("```bash\n");
     md.push_str("kask pod <SUBCOMMAND>\n");
@@ -490,7 +494,7 @@ fn generate_cli_markdown() -> String {
     md.push_str("- `process` — Process execution templates\n\n");
     md.push_str("---\n\n");
     md.push_str("*hKask v0.1.0 — Planck's Constant of Agent Systems*\n");
-    
+
     md
 }
 
@@ -728,8 +732,9 @@ fn main() {
         Commands::Docs { action } => match action {
             DocsAction::Openapi { output } => {
                 let spec = hkask_api::create_openapi();
-                let json = serde_json::to_string_pretty(&spec).expect("Failed to serialize OpenAPI spec");
-                
+                let json =
+                    serde_json::to_string_pretty(&spec).expect("Failed to serialize OpenAPI spec");
+
                 match output {
                     Some(path) => {
                         std::fs::write(&path, &json).expect("Failed to write OpenAPI spec");
@@ -750,19 +755,26 @@ fn main() {
             }
             DocsAction::All { output } => {
                 std::fs::create_dir_all(&output).expect("Failed to create output directory");
-                
+
                 let spec = hkask_api::create_openapi();
-                let json = serde_json::to_string_pretty(&spec).expect("Failed to serialize OpenAPI spec");
+                let json =
+                    serde_json::to_string_pretty(&spec).expect("Failed to serialize OpenAPI spec");
                 let openapi_path = output.join("openapi.json");
                 std::fs::write(&openapi_path, &json).expect("Failed to write OpenAPI spec");
-                println!("OpenAPI specification written to: {}", openapi_path.display());
-                
+                println!(
+                    "OpenAPI specification written to: {}",
+                    openapi_path.display()
+                );
+
                 let help = generate_cli_markdown();
                 let cli_path = output.join("cli.md");
                 std::fs::write(&cli_path, &help).expect("Failed to write CLI documentation");
                 println!("CLI documentation written to: {}", cli_path.display());
-                
-                println!("\nDocumentation generated successfully in: {}", output.display());
+
+                println!(
+                    "\nDocumentation generated successfully in: {}",
+                    output.display()
+                );
             }
         },
 
@@ -795,10 +807,18 @@ fn main() {
                             println!("  Provenance: {}", asset.provenance_hash);
                             if verbose {
                                 if let Some(manifest) = &asset.hkask_manifest {
-                                    println!("  hKask Manifest: {} ({} steps)", manifest.id, manifest.steps.len());
+                                    println!(
+                                        "  hKask Manifest: {} ({} steps)",
+                                        manifest.id,
+                                        manifest.steps.len()
+                                    );
                                 }
                                 if let Some(template) = &asset.hkask_template {
-                                    println!("  hKask Template: {} ({} lexicon terms)", template.id, template.lexicon_terms.len());
+                                    println!(
+                                        "  hKask Template: {} ({} lexicon terms)",
+                                        template.id,
+                                        template.lexicon_terms.len()
+                                    );
                                 }
                             }
                         }

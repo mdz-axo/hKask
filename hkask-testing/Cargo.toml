@@ -97,3 +97,11 @@ path = "unit-tests/hkask_api_tests.rs"
 [[test]]
 name = "hkask_cli_tests"
 path = "unit-tests/hkask_cli_tests.rs"
+
+[[test]]
+name = "cns_ensemble_tests"
+path = "integration-tests/cns_ensemble_tests.rs"
+
+[[test]]
+name = "templates_agents_tests"
+path = "integration-tests/templates_agents_tests.rs"

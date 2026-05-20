@@ -5,4 +5,4 @@
 
 pub mod ports;
 
-pub use ports::test_fixture::*;
+pub use ports::*;

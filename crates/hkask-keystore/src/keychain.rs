@@ -71,7 +71,10 @@ impl Default for Keychain {
 }
 
 /// Get or create OCAP secret for a WebID
-pub fn get_or_create_ocap_secret(keychain: &Keychain, webid: &WebID) -> Result<String, KeychainError> {
+pub fn get_or_create_ocap_secret(
+    keychain: &Keychain,
+    webid: &WebID,
+) -> Result<String, KeychainError> {
     // Try to retrieve existing secret
     match keychain.retrieve(webid) {
         Ok(secret) => Ok(secret),

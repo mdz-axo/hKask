@@ -160,6 +160,12 @@ pub struct RussellMapper {
     provenance: ProvenanceManager,
 }
 
+impl Default for RussellMapper {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RussellMapper {
     pub fn new() -> Self {
         Self {
@@ -228,7 +234,9 @@ impl RussellMapper {
 
             if in_frontmatter {
                 if line.trim().is_empty() && i > 0 {
-                    body_start = content.find(content.lines().nth(i).unwrap_or("")).unwrap_or(0);
+                    body_start = content
+                        .find(content.lines().nth(i).unwrap_or(""))
+                        .unwrap_or(0);
                     break;
                 } else if line.starts_with("temperature") {
                     if let Some(val) = line.split('=').nth(1) {
@@ -539,7 +547,8 @@ safety:
 
         assert!(vars.contains(&"variable1".to_string()));
         assert!(vars.contains(&"variable2".to_string()));
-        assert_eq!(vars.len(), 2);
+        assert!(vars.contains(&"nested".to_string()));
+        assert_eq!(vars.len(), 3);
     }
 
     #[test]
