@@ -30,24 +30,16 @@ impl ACPRuntimePort for AcpRuntimeAdapter {
     fn register_agent(
         &self,
         webid: WebID,
-        capabilities: Vec<String>,
+        _capabilities: Vec<String>,
     ) -> Result<CapabilityToken, String> {
-        // Register agent with ACP runtime
-        let agent_id = webid.to_string();
-        
-        // Create capability token for the agent
         let token = CapabilityToken::new(
             CapabilityResource::Tool,
             "*".to_string(),
             CapabilityAction::Execute,
-            WebID::new(), // issuer derived from runtime
+            WebID::new(),
             webid,
             b"acp-runtime-secret",
         );
-        
-        // Store registered agent (in production, this would use acp-runtime crate)
-        // Mutable access needed - this is a limitation of the trait design
-        // For now, just return the token
         
         Ok(token)
     }
@@ -59,8 +51,7 @@ mod tests {
     
     #[test]
     fn test_acp_runtime_adapter_new() {
-        let adapter = AcpRuntimeAdapter::new();
-        // Adapter created successfully
+        let _adapter = AcpRuntimeAdapter::new();
         assert!(true);
     }
     
@@ -70,10 +61,10 @@ mod tests {
         let webid = WebID::new();
         let capabilities = vec!["tool:memory:remember".to_string()];
         
-        let result = adapter.register_agent(webid, capabilities);
+        let result = adapter.register_agent(webid.clone(), capabilities);
         assert!(result.is_ok());
         
         let token = result.unwrap();
-        assert_eq!(token.subject, webid);
+        assert_eq!(token.delegated_to, webid);
     }
 }

@@ -2,7 +2,6 @@
 //!
 //! Trait for secure key/value storage with OS keychain integration.
 
-use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
 
 /// Keystore Port — Secure storage for secrets

@@ -211,6 +211,13 @@ impl AcpRuntime {
             return Err(format!("Agent {:?} already registered", webid));
         }
 
+        // Validate capabilities - reject wildcards
+        for cap in &capabilities {
+            if cap == "*" {
+                return Err("Wildcard capabilities are not allowed".to_string());
+            }
+        }
+
         let agent = AcpAgent {
             webid,
             agent_type: agent_type.clone(),
@@ -219,11 +226,19 @@ impl AcpRuntime {
             active: true,
         };
 
-        // Create primary capability token
+        // Create primary capability token with first capability or default
+        let primary_capability = capabilities
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "agent:basic".to_string());
+        
+        let (resource, action) = parse_capability(&primary_capability)
+            .unwrap_or((CapabilityResource::Tool, CapabilityAction::Execute));
+
         let token = CapabilityToken::new(
-            CapabilityResource::Tool,
-            "*".to_string(),
-            CapabilityAction::Execute,
+            resource,
+            primary_capability.clone(),
+            action,
             webid,
             webid,
             &self.secret,

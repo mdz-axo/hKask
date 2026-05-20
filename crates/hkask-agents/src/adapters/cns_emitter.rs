@@ -4,7 +4,7 @@
 
 use crate::pod::CNSSpanPort;
 use hkask_cns::spans::SpanEmitter;
-use hkask_types::{NuEvent, Phase, Span, WebID};
+use hkask_types::{Phase, Span, WebID};
 
 /// CNS Emitter Adapter — Concrete implementation for span emission
 pub struct CnsEmitterAdapter {
@@ -13,38 +13,24 @@ pub struct CnsEmitterAdapter {
 }
 
 impl CnsEmitterAdapter {
-    /// Create new CNS emitter adapter
     pub fn new(observer_webid: WebID) -> Self {
         Self {
-            emitter: SpanEmitter::new(),
+            emitter: SpanEmitter::new(observer_webid.clone()),
             observer_webid,
         }
     }
 
-    /// Create from existing emitter
     pub fn from_emitter(emitter: SpanEmitter, observer_webid: WebID) -> Self {
         Self { emitter, observer_webid }
     }
 }
 
 impl CNSSpanPort for CnsEmitterAdapter {
-    fn emit_event(&self, span: &str, phase: &str, observation: &serde_json::Value, confidence: f64) {
-        // Create CNS span from string
+    fn emit_event(&self, span: &str, phase: &str, observation: &serde_json::Value, _confidence: f64) {
         let span = parse_span(span);
-        
-        // Create phase from string
         let phase = parse_phase(phase);
         
-        // Create and emit NuEvent
-        let event = NuEvent::new(
-            self.observer_webid.clone(),
-            span,
-            phase,
-            observation.clone(),
-            confidence,
-        );
-        
-        self.emitter.emit(event);
+        self.emitter.emit(span, phase, observation.clone());
     }
 }
 
@@ -87,8 +73,7 @@ mod tests {
     #[test]
     fn test_cns_emitter_adapter_new() {
         let webid = WebID::new();
-        let adapter = CnsEmitterAdapter::new(webid);
-        // Adapter created successfully
+        let _adapter = CnsEmitterAdapter::new(webid);
         assert!(true);
     }
     
@@ -100,7 +85,7 @@ mod tests {
         let observation = serde_json::json!({"test": "event"});
         adapter.emit_event("cns.agent_pod.test", "observe", &observation, 1.0);
         
-        // Event emitted (no return value to check)
+        // CNS event emitted (no return value to check)
         assert!(true);
     }
     

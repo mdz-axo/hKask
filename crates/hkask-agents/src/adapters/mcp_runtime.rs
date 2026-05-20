@@ -3,7 +3,7 @@
 //! Concrete implementation of MCPRuntimePort using rmcp crate.
 
 use crate::pod::MCPRuntimePort;
-use hkask_types::{CapabilityToken, WebID};
+use hkask_types::CapabilityToken;
 
 /// MCP Runtime Adapter — Concrete implementation for tool access
 pub struct McpRuntimeAdapter {
@@ -28,12 +28,9 @@ impl Default for McpRuntimeAdapter {
 
 impl MCPRuntimePort for McpRuntimeAdapter {
     fn grant_tool_access(&self, token: CapabilityToken) -> Result<(), String> {
-        // Grant tool access via MCP runtime
-        // In production, this would integrate with rmcp runtime
-        let token_str = format!("{}", token);
+        let token_id = token.id.clone();
         
-        // For now, just verify token is valid
-        if token_str.is_empty() {
+        if token_id.is_empty() {
             return Err("Invalid capability token".to_string());
         }
         
@@ -46,16 +43,11 @@ impl MCPRuntimePort for McpRuntimeAdapter {
         input: serde_json::Value,
         token: &CapabilityToken,
     ) -> Result<serde_json::Value, String> {
-        // Invoke tool via MCP runtime with capability verification
-        // In production, this would call rmcp tool invocation
-        
-        // Verify token is valid
-        let token_str = format!("{}", token);
-        if token_str.is_empty() {
+        let token_id = token.id.clone();
+        if token_id.is_empty() {
             return Err("Invalid capability token".to_string());
         }
         
-        // Return mock result for now
         Ok(serde_json::json!({
             "tool": tool_name,
             "status": "invoked",
@@ -71,8 +63,7 @@ mod tests {
     
     #[test]
     fn test_mcp_runtime_adapter_new() {
-        let adapter = McpRuntimeAdapter::new();
-        // Adapter created successfully
+        let _adapter = McpRuntimeAdapter::new();
         assert!(true);
     }
     

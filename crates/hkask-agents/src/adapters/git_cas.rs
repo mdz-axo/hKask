@@ -100,22 +100,23 @@ impl GitCASPort for GitCasAdapter {
     }
 
     fn resolve_sha(&self, _crate_name: &str) -> Result<String, String> {
-        // Resolve Git SHA for crate
-        // Use gix to get current HEAD SHA
-        match gix::Repository::open(&self.base_path) {
-            Ok(repo) => {
-                let head = repo.head()
-                    .map_err(|e| format!("Failed to get head: {}", e))?;
-                
-                let sha = head.peel_to_commit()
-                    .map_err(|e| format!("Failed to peel commit: {}", e))?
-                    .id()
-                    .to_string();
-                
-                Ok(sha)
+        use std::process::Command;
+        
+        let output = Command::new("git")
+            .args(["rev-parse", "HEAD"])
+            .current_dir(&self.base_path)
+            .output();
+        
+        match output {
+            Ok(out) => {
+                if out.status.success() {
+                    let sha = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                    Ok(sha)
+                } else {
+                    Ok("0000000000000000000000000000000000000000".to_string())
+                }
             }
             Err(_) => {
-                // Not a git repo, return placeholder
                 Ok("0000000000000000000000000000000000000000".to_string())
             }
         }
@@ -123,17 +124,21 @@ impl GitCASPort for GitCasAdapter {
 }
 
 fn parse_hlexicon_terms(content: &str) -> Vec<String> {
-    // Simple YAML parsing for hlexicon terms
     let mut terms = Vec::new();
     
-    // Parse YAML structure
     if let Ok(value) = serde_yaml::from_str::<serde_yaml::Value>(content) {
-        if let Some(array) = value.as_array() {
-            for item in array {
-                if let Some(term) = item.as_str() {
-                    terms.push(term.to_string());
+        match value {
+            serde_yaml::Value::Sequence(seq) => {
+                for item in seq {
+                    if let serde_yaml::Value::String(term) = item {
+                        terms.push(term);
+                    }
                 }
             }
+            serde_yaml::Value::String(term) => {
+                terms.push(term);
+            }
+            _ => {}
         }
     }
     
@@ -147,19 +152,20 @@ mod tests {
     
     #[test]
     fn test_git_cas_adapter_new() {
-        // Create temp dir for test
         let temp_dir = std::env::temp_dir().join("hkask_git_test");
         fs::create_dir_all(&temp_dir).unwrap();
         
         let adapter = GitCasAdapter::new(&temp_dir);
         assert!(adapter.is_ok());
+        
+        fs::remove_dir_all(&temp_dir).ok();
     }
     
     #[test]
     fn test_git_cas_adapter_nonexistent_path() {
         let nonexistent = std::path::PathBuf::from("/nonexistent/path/that/does/not/exist");
-        let adapter = GitCasAdapter::new(&nonexistent);
-        assert!(adapter.is_err());
+        let result = GitCasAdapter::new(&nonexistent);
+        assert!(result.is_err());
     }
 }
 
