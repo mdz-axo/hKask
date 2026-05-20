@@ -401,8 +401,8 @@ pub fn read_only_capability(holder: WebID, key: &[u8; 32]) -> OkapiCapability {
 mod tests {
     use super::*;
 
-    fn test_key() -> KeyRing {
-        KeyRing::new([0x42; 32])
+    fn test_key() -> [u8; 32] {
+        [0x42; 32]
     }
 
     #[test]
