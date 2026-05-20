@@ -16,8 +16,8 @@ use axum::routing::Router;
 use hkask_templates::SqliteRegistry;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use utoipa::ToSchema;
 use utoipa::OpenApi;
+use utoipa::ToSchema;
 
 pub mod openapi;
 pub mod routes;

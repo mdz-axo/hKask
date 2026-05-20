@@ -17,6 +17,7 @@ pub mod audit;
 pub mod cascade;
 pub mod contracts;
 pub mod dependency;
+pub mod error;
 pub mod manifest;
 pub mod ports;
 pub mod provenance;
@@ -24,6 +25,8 @@ pub mod registry;
 pub mod registry_git;
 pub mod registry_sqlite;
 pub mod renderer;
+pub mod security;
+pub mod skill_translation;
 
 pub use audit::{AuditStats, AuditTrail, ExecutionAudit};
 pub use contracts::{
@@ -41,3 +44,10 @@ pub use provenance::{ProvenanceManager, TemplateProvenance};
 pub use registry::{Registry, TemplateEntry};
 pub use registry_git::GitRegistry;
 pub use registry_sqlite::SqliteRegistry;
+pub use security::SecurityAdapter;
+pub use skill_translation::{
+    GeneratedManifest, GeneratedTemplate, ManifestStep as SkillManifestStep,
+    ParsedPrompt, ParsedSkill, PipelineStage, RdfTriple, RegisteredArtifact,
+    SkillFormat, SkillTranslationPipeline, StageOutput, TemplateContract as SkillContract,
+    ValidatedArtifact,
+};

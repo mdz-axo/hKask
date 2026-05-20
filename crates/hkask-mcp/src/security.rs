@@ -138,7 +138,14 @@ impl SecurityGateway {
         bot_id: &WebID,
         tool_name: &str,
     ) -> bool {
-        self.capability_checker.check(token, bot_id, tool_name)
+        use hkask_types::{CapabilityResource, CapabilityAction};
+        self.capability_checker.check(
+            token,
+            bot_id,
+            CapabilityResource::Tool,
+            tool_name,
+            CapabilityAction::Execute,
+        )
     }
 
     /// Check rate limit
@@ -200,7 +207,7 @@ impl SecurityGateway {
 
     /// Issue capability token
     pub fn issue_capability(&self, tool_name: String, from: WebID, to: WebID) -> CapabilityToken {
-        self.capability_checker.grant(tool_name, from, to)
+        self.capability_checker.grant_tool(tool_name, from, to)
     }
 }
 

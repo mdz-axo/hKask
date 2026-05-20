@@ -19,7 +19,6 @@ use crate::ports::{Result, TemplateError};
 use hkask_types::TemplateType;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
 
 /// Skill source format
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -272,7 +271,7 @@ impl SkillTranslationPipeline {
         let visibility = value["visibility"].as_str().unwrap_or("Shared").to_string();
 
         Ok(ParsedSkill {
-            id: format!("skill-{}", name.to_lowercase().replace(' ', '-')),
+            id: format!("skill-{}", name.to_lowercase().replace(' ', "-")),
             name,
             description,
             format: SkillFormat::ClaudeSkill,
@@ -295,7 +294,7 @@ impl SkillTranslationPipeline {
             .to_string();
 
         Ok(ParsedSkill {
-            id: format!("zapier-{}", name.to_lowercase().replace(' ', '-')),
+            id: format!("zapier-{}", name.to_lowercase().replace(' ', "-")),
             name,
             description: value["description"].as_str().unwrap_or("").to_string(),
             format: SkillFormat::ZapierAction,
@@ -318,7 +317,7 @@ impl SkillTranslationPipeline {
             .to_string();
 
         Ok(ParsedSkill {
-            id: format!("langchain-{}", name.to_lowercase().replace(' ', '-')),
+            id: format!("langchain-{}", name.to_lowercase().replace(' ', "-")),
             name,
             description: value["description"].as_str().unwrap_or("").to_string(),
             format: SkillFormat::LangChainTool,
@@ -341,7 +340,7 @@ impl SkillTranslationPipeline {
             .to_string();
 
         Ok(ParsedSkill {
-            id: format!("crewai-{}", name.to_lowercase().replace(' ', '-')),
+            id: format!("crewai-{}", name.to_lowercase().replace(' ', "-")),
             name,
             description: value["goal"].as_str().unwrap_or("").to_string(),
             format: SkillFormat::CrewAIAgent,
@@ -354,7 +353,7 @@ impl SkillTranslationPipeline {
 
     /// Execute stage 2: Map (semantic translation to RDF triples)
     pub async fn map(&self, parsed_skill: &ParsedSkill) -> Result<Vec<RdfTriple>> {
-        let triples = vec![
+        let mut triples = vec![
             RdfTriple {
                 subject: parsed_skill.id.clone(),
                 predicate: "rdf:type".to_string(),
@@ -540,7 +539,7 @@ impl SkillTranslationPipeline {
             };
 
             let registered_artifact = RegisteredArtifact {
-                registry_entry_id: registry_id,
+                registry_entry_id: registry_id.clone(),
                 cns_event_id: format!("cns-{}", registry_id),
                 audit_path: format!("registry/audits/skill_translation/{}", registry_id),
             };

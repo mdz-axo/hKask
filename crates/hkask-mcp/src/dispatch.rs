@@ -3,11 +3,12 @@
 //! Dispatches tool calls through MCP with OCAP capability verification
 //! and rate limiting integration.
 
-use hkask_agents::{BotCapabilities, CapabilityChecker, CapabilityToken};
+use hkask_agents::{CapabilityChecker, CapabilityToken};
 use hkask_cns::RateLimiter;
 use hkask_templates::{CnsPort, McpPort, Result, TemplateError};
 use hkask_types::WebID;
 use serde_json::Value;
+use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{info, warn};
@@ -22,8 +23,8 @@ pub struct McpDispatcher {
     capability_checker: Arc<CapabilityChecker>,
     /// Rate limiter for DoS prevention
     rate_limiter: RateLimiter,
-    /// Bot capabilities registry
-    bot_capabilities: Arc<RwLock<std::collections::HashMap<WebID, BotCapabilities>>>,
+    /// Bot capabilities registry (set of tool names per bot)
+    bot_capabilities: Arc<RwLock<std::collections::HashMap<WebID, HashSet<String>>>>,
 }
 
 impl McpDispatcher {
@@ -38,20 +39,20 @@ impl McpDispatcher {
     }
 
     /// Register bot capabilities
-    pub async fn register_bot_capabilities(&self, caps: BotCapabilities) {
-        let mut capabilities = self.bot_capabilities.write().await;
-        capabilities.insert(caps.bot_id, caps);
+    pub async fn register_bot_capabilities(&self, bot_id: WebID, capabilities: HashSet<String>) {
+        let mut caps = self.bot_capabilities.write().await;
+        caps.insert(bot_id, capabilities);
     }
 
     /// Get bot capabilities
-    pub async fn get_bot_capabilities(&self, bot_id: &WebID) -> Option<BotCapabilities> {
+    pub async fn get_bot_capabilities(&self, bot_id: &WebID) -> Option<HashSet<String>> {
         let capabilities = self.bot_capabilities.read().await;
         capabilities.get(bot_id).cloned()
     }
 
     /// Issue capability token to a bot
     pub fn issue_capability(&self, tool_name: String, from: WebID, to: WebID) -> CapabilityToken {
-        self.capability_checker.grant(tool_name, from, to)
+        self.capability_checker.grant_tool(tool_name, from, to)
     }
 
     /// Check if bot has capability for tool
@@ -59,7 +60,7 @@ impl McpDispatcher {
         let capabilities = self.bot_capabilities.read().await;
 
         if let Some(caps) = capabilities.get(bot_id) {
-            caps.has_capability(tool_name)
+            caps.contains(tool_name)
         } else {
             // No capabilities registered = no access
             false
@@ -197,16 +198,18 @@ mod tests {
         assert_eq!(dispatcher.list_tools().await.len(), 0);
     }
 
-    #[tokio::test]
+#[tokio::test]
     async fn test_mcp_dispatcher_capability_check() {
         let runtime = McpRuntime::new();
         let dispatcher = McpDispatcher::new(runtime, b"test-secret");
 
         let bot_id = WebID::new();
-        let caps =
-            BotCapabilities::new(bot_id).with_capabilities(vec!["inference:call", "storage:read"]);
+        let caps: HashSet<String> = ["inference:call", "storage:read"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
 
-        dispatcher.register_bot_capabilities(caps).await;
+        dispatcher.register_bot_capabilities(bot_id, caps).await;
 
         assert!(dispatcher.check_capability(&bot_id, "inference:call").await);
         assert!(dispatcher.check_capability(&bot_id, "storage:read").await);
@@ -219,9 +222,12 @@ mod tests {
         let dispatcher = McpDispatcher::new(runtime, b"test-secret");
 
         let bot_id = WebID::new();
-        let caps = BotCapabilities::new(bot_id).with_capabilities(vec!["inference:call"]);
+        let caps: HashSet<String> = ["inference:call"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
 
-        dispatcher.register_bot_capabilities(caps).await;
+        dispatcher.register_bot_capabilities(bot_id, caps).await;
 
         let result = dispatcher
             .invoke_async(&bot_id, "memory:write", Value::Null, &MockCns)
@@ -237,9 +243,12 @@ mod tests {
         let dispatcher = McpDispatcher::new(runtime, b"test-secret");
 
         let bot_id = WebID::new();
-        let caps = BotCapabilities::new(bot_id).with_capabilities(vec!["nonexistent:tool"]);
+        let caps: HashSet<String> = ["nonexistent:tool"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
 
-        dispatcher.register_bot_capabilities(caps).await;
+        dispatcher.register_bot_capabilities(bot_id, caps).await;
 
         let result = dispatcher
             .invoke_async(&bot_id, "nonexistent:tool", Value::Null, &MockCns)
@@ -266,8 +275,11 @@ mod tests {
             },
         );
 
-        let caps = BotCapabilities::new(bot_id).with_capabilities(vec!["test:tool"]);
-        dispatcher.register_bot_capabilities(caps).await;
+        let caps: HashSet<String> = ["test:tool"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        dispatcher.register_bot_capabilities(bot_id, caps).await;
 
         // Register a tool
         use crate::runtime::McpServer;
@@ -304,7 +316,7 @@ mod tests {
 
         let token = dispatcher.issue_capability("inference:call".to_string(), from, to);
 
-        assert_eq!(token.tool_name, "inference:call");
+        assert_eq!(token.resource_id, "inference:call");
         assert!(dispatcher.capability_checker.verify(&token));
     }
 }
