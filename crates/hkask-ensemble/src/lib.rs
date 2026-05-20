@@ -1,16 +1,27 @@
 //! hKask Ensemble — Multi-agent chat coordination
 
+pub mod adapters;
+pub mod capability;
 pub mod chat;
+pub mod cns_spans;
 pub mod confidence_router;
 pub mod deliberation;
 pub mod ports;
 
+pub use adapters::{
+    MockCapabilityProvider, MockInferenceClient, MockMetricsSource, OkapiAdapterError,
+    OkapiCapabilityFetcher, OkapiHttpClient, OkapiSseAdapter,
+};
+pub use capability::{
+    default_system_capability, read_only_capability, AuthorizationError, CapabilityId,
+    CapabilityProtectedClient, OkapiCapability, OkapiOperation,
+};
+pub use cns_spans::{OkapiCnsSpan, ValidationResult};
 pub use confidence_router::{
-    ConfidenceConfig, ConfidenceRouter, GenerateRequest, GenerateOptions,
-    OkapiClient, OkapiClientTrait, OkapiResponse, RouterError, TokenProbability, TokenProb,
-    compute_confidence,
+    ConfidenceConfig, ConfidenceRouter, LegacyRouterError, OkapiClient, OkapiClientTrait,
+    OkapiResponse, RouterError, compute_confidence,
 };
 pub use ports::{
-    CapabilityProvider, GenerateResponse, InferenceClient, MetricsSource, OkapiCapabilities,
-    OkapiMetrics, TokenProb,
+    CapabilityProvider, GenerateRequest, GenerateOptions, GenerateResponse, InferenceClient,
+    MetricsSource, OkapiCapabilities, OkapiMetrics, TokenProb, TokenProbability,
 };

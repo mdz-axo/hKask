@@ -342,40 +342,47 @@ impl RegistryIndex for Registry {
     }
 
     fn bootstrap_manifest(&self) -> Option<ProcessManifest> {
-        Some(ProcessManifest {
-            id: "registry/dispatch".to_string(),
-            name: "Registry Dispatch".to_string(),
-            description: "Bootstrap process for all registry resolution".to_string(),
-            steps: vec![
-                ManifestStep {
-                    ordinal: 1,
-                    action: Action::Select,
-                    description: "Select best-fit template".to_string(),
-                    template_ref: "prompt/selector".to_string(),
-                    model_tier: Some("fast_local".to_string()),
-                    mcp: Some("hkask-mcp-inference".to_string()),
-                    renderer: Some("minijinja".to_string()),
-                },
-                ManifestStep {
-                    ordinal: 2,
-                    action: Action::Populate,
-                    description: "Bind input to selected template".to_string(),
-                    template_ref: "{{selected_template_id}}".to_string(),
-                    model_tier: None,
-                    mcp: None,
-                    renderer: Some("minijinja".to_string()),
-                },
-                ManifestStep {
-                    ordinal: 3,
-                    action: Action::Execute,
-                    description: "Execute template via model/tool".to_string(),
-                    template_ref: "".to_string(),
-                    model_tier: None,
-                    mcp: Some("from_template_contract".to_string()),
-                    renderer: None,
-                },
-            ],
-        })
+        // Load from YAML file in registry/manifests/dispatch.yaml
+        let manifest_path = PathBuf::from("registry/manifests/dispatch.yaml");
+        if manifest_path.exists() {
+            ProcessManifest::load_from_yaml(&manifest_path).ok()
+        } else {
+            // Fallback to hardcoded bootstrap manifest
+            Some(ProcessManifest {
+                id: "registry/dispatch".to_string(),
+                name: "Registry Dispatch".to_string(),
+                description: "Bootstrap process for all registry resolution".to_string(),
+                steps: vec![
+                    ManifestStep {
+                        ordinal: 1,
+                        action: Action::Select,
+                        description: "Select best-fit template".to_string(),
+                        template_ref: "prompt/selector".to_string(),
+                        model_tier: Some("fast_local".to_string()),
+                        mcp: Some("hkask-mcp-inference".to_string()),
+                        renderer: Some("minijinja".to_string()),
+                    },
+                    ManifestStep {
+                        ordinal: 2,
+                        action: Action::Populate,
+                        description: "Bind input to selected template".to_string(),
+                        template_ref: "{{selected_template_id}}".to_string(),
+                        model_tier: None,
+                        mcp: None,
+                        renderer: Some("minijinja".to_string()),
+                    },
+                    ManifestStep {
+                        ordinal: 3,
+                        action: Action::Execute,
+                        description: "Execute template via model/tool".to_string(),
+                        template_ref: "".to_string(),
+                        model_tier: None,
+                        mcp: Some("from_template_contract".to_string()),
+                        renderer: None,
+                    },
+                ],
+            })
+        }
     }
 }
 

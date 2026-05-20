@@ -21,6 +21,7 @@
 use crate::ports::Result;
 use crate::ports::TemplateError;
 use hkask_types::{CapabilityChecker, CapabilityToken, WebID};
+use percent_encoding::percent_decode_str;
 use std::collections::HashSet;
 
 /// Jinja2 dangerous patterns to block
@@ -69,8 +70,25 @@ impl SecurityAdapter {
 
     /// Validate template/manifest path (prevent path traversal)
     pub fn validate_template_path(&self, path: &str) -> Result<()> {
+        // URL decode the path first (blocks %2e%2e/etc/passwd attacks)
+        let decoded = percent_decode_str(path)
+            .decode_utf8()
+            .map_err(|_| {
+                TemplateError::PathTraversal("Invalid UTF-8 in path".to_string())
+            })?;
+        
+        // Double-decode to catch %252e%252e attacks
+        let fully_decoded = percent_decode_str(decoded.as_ref())
+            .decode_utf8()
+            .unwrap_or_else(|_| decoded.clone());
+
+        let path = fully_decoded.as_ref();
+
+        // Normalize path: remove redundant slashes, resolve . components
+        let normalized = self.normalize_path(path);
+
         // Reject absolute paths
-        if path.starts_with('/') || path.starts_with('\\') {
+        if normalized.starts_with('/') || normalized.starts_with('\\') {
             return Err(TemplateError::PathTraversal(format!(
                 "Absolute path not allowed: {}",
                 path
@@ -79,7 +97,7 @@ impl SecurityAdapter {
 
         // Reject path traversal patterns
         for pattern in PATH_TRAVERSAL_PATTERNS {
-            if path.contains(pattern) {
+            if normalized.contains(pattern) {
                 return Err(TemplateError::PathTraversal(format!(
                     "Path traversal pattern detected: {}",
                     pattern
@@ -88,7 +106,7 @@ impl SecurityAdapter {
         }
 
         // Reject null bytes
-        if path.contains('\0') {
+        if normalized.contains('\0') {
             return Err(TemplateError::PathTraversal(
                 "Null byte not allowed".to_string(),
             ));
@@ -96,7 +114,6 @@ impl SecurityAdapter {
 
         // Check against allowed paths if configured
         if !self.allowed_paths.is_empty() {
-            let normalized = path.trim_matches(|c| c == '/' || c == '\\');
             if !self
                 .allowed_paths
                 .iter()
@@ -110,6 +127,30 @@ impl SecurityAdapter {
         }
 
         Ok(())
+    }
+
+    /// Normalize path by removing redundant components
+    fn normalize_path(&self, path: &str) -> String {
+        // Remove redundant slashes (replace // with /)
+        let mut normalized = path.replace("//", "/");
+        while normalized.contains("//") {
+            normalized = normalized.replace("//", "/");
+        }
+        
+        // Remove trailing slashes (except for root)
+        if normalized.len() > 1 {
+            normalized = normalized.trim_end_matches('/').to_string();
+        }
+        
+        // Remove . components
+        let parts: Vec<&str> = normalized.split('/').collect();
+        let mut result = Vec::new();
+        for part in parts {
+            if part != "." {
+                result.push(part);
+            }
+        }
+        result.join("/")
     }
 
     /// Sanitize Jinja2 input (prevent injection attacks)
@@ -333,6 +374,51 @@ mod tests {
         let adapter = SecurityAdapter::new(b"test-secret");
         assert!(adapter.validate_template_path("../etc/passwd").is_err());
         assert!(adapter.validate_template_path("test/../../../etc").is_err());
+    }
+
+    #[test]
+    fn test_validate_template_path_url_encoded() {
+        let adapter = SecurityAdapter::new(b"test-secret");
+        // URL-encoded path traversal should be blocked
+        assert!(adapter.validate_template_path("%2e%2e/etc/passwd").is_err());
+        assert!(adapter.validate_template_path("..%2fetc%2fpasswd").is_err());
+        // Double-encoded should also be blocked
+        assert!(adapter.validate_template_path("%252e%252e/etc/passwd").is_err());
+    }
+
+    #[test]
+    fn test_validate_template_path_normalized() {
+        let adapter = SecurityAdapter::new(b"test-secret");
+        // Redundant slashes should be normalized
+        assert!(adapter.validate_template_path("prompt//test").is_ok());
+        // Dot components should be removed
+        assert!(adapter.validate_template_path("prompt/./test").is_ok());
+        // Trailing slashes should be removed
+        assert!(adapter.validate_template_path("prompt/test/").is_ok());
+    }
+
+    #[test]
+    fn test_normalize_path_redundant_slashes() {
+        let adapter = SecurityAdapter::new(b"test-secret");
+        assert_eq!(adapter.normalize_path("a//b"), "a/b");
+        assert_eq!(adapter.normalize_path("a///b"), "a/b");
+        assert_eq!(adapter.normalize_path("a/b//c//d"), "a/b/c/d");
+    }
+
+    #[test]
+    fn test_normalize_path_dot_components() {
+        let adapter = SecurityAdapter::new(b"test-secret");
+        assert_eq!(adapter.normalize_path("a/./b"), "a/b");
+        assert_eq!(adapter.normalize_path("./a/b"), "a/b");
+        assert_eq!(adapter.normalize_path("a/b/."), "a/b");
+    }
+
+    #[test]
+    fn test_normalize_path_trailing_slashes() {
+        let adapter = SecurityAdapter::new(b"test-secret");
+        assert_eq!(adapter.normalize_path("a/b/"), "a/b");
+        assert_eq!(adapter.normalize_path("a/b//"), "a/b");
+        assert_eq!(adapter.normalize_path("/"), "/");
     }
 
     #[test]

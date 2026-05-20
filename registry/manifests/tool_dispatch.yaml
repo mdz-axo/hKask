@@ -1,0 +1,27 @@
+# File: registry/manifests/tool_dispatch.yaml
+# Tool dispatch workflow for MCP tool invocation
+
+id: process/dispatch
+name: Tool Dispatch
+description: Dispatches tool calls via ACP/MCP with capability resolution
+
+steps:
+  - ordinal: 1
+    action: select
+    description: Select target tool based on request
+    template_ref: process/dispatch
+    model_tier: fast_local
+    mcp: hkask-mcp-inference
+    renderer: minijinja
+
+  - ordinal: 2
+    action: populate
+    description: Bind tool arguments to dispatch template
+    template_ref: "{{selected_template_id}}"
+    renderer: minijinja
+
+  - ordinal: 3
+    action: execute
+    description: Invoke tool via MCP runtime
+    template_ref: ""
+    mcp: from_template_contract

@@ -1,44 +1,26 @@
 //! Confidence-Based Router for Okapi inference
 //!
 //! Calculates confidence from token probabilities and escalates to larger models when confidence is below threshold.
+//! Uses hexagonal architecture: depends on InferenceClient port, not concrete HTTP client.
 
+use crate::ports::{GenerateRequest, GenerateResponse, InferenceClient, TokenProbability};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-/// Token probability from Okapi response
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct TokenProbability {
-    pub token: String,
-    pub prob: f64,
-    pub top_k: Vec<TokenProb>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct TokenProb {
-    pub token: String,
-    pub prob: f64,
-}
-
-/// Okapi generate/chat response
+/// Okapi generate/chat response (legacy compatibility)
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct OkapiResponse {
     pub response: String,
     pub completion_probabilities: Option<Vec<TokenProbability>>,
 }
 
-/// Generate request for Okapi
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GenerateRequest {
-    pub model: String,
-    pub prompt: String,
-    pub options: Option<GenerateOptions>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GenerateOptions {
-    pub n_probs: Option<i32>,
-    pub temperature: Option<f64>,
-    pub max_tokens: Option<i32>,
+impl From<crate::ports::GenerateResponse> for OkapiResponse {
+    fn from(response: crate::ports::GenerateResponse) -> Self {
+        Self {
+            response: response.response,
+            completion_probabilities: response.completion_probabilities,
+        }
+    }
 }
 
 /// Confidence configuration (from template frontmatter or default)
@@ -59,61 +41,28 @@ impl Default for ConfidenceConfig {
     }
 }
 
-/// Okapi client trait for mocking
-#[async_trait::async_trait]
-pub trait OkapiClientTrait {
-    async fn generate(&self, request: &GenerateRequest) -> Result<OkapiResponse, RouterError>;
-}
-
-/// HTTP-based Okapi client
-pub struct OkapiClient {
-    base_url: String,
-}
-
-impl OkapiClient {
-    pub fn new(base_url: &str) -> Self {
-        Self {
-            base_url: base_url.to_string(),
-        }
-    }
-}
-
-#[async_trait::async_trait]
-impl OkapiClientTrait for OkapiClient {
-    async fn generate(&self, request: &GenerateRequest) -> Result<OkapiResponse, RouterError> {
-        let client = reqwest::Client::new();
-        let response = client
-            .post(&format!("{}/api/generate", self.base_url))
-            .json(request)
-            .send()
-            .await
-            .map_err(|e| RouterError::OkapiError(e.to_string()))?;
-
-        let result: OkapiResponse = response
-            .json()
-            .await
-            .map_err(|e| RouterError::OkapiError(e.to_string()))?;
-
-        Ok(result)
-    }
-}
-
 /// Confidence-based router with escalation
-pub struct ConfidenceRouter<C: OkapiClientTrait> {
+/// 
+/// Uses dependency injection: receives InferenceClient trait object,
+/// allowing test mocks and different infrastructure implementations.
+pub struct ConfidenceRouter<C: InferenceClient> {
     config: ConfidenceConfig,
-    okapi_client: C,
+    inference_client: C,
 }
 
-impl<C: OkapiClientTrait> ConfidenceRouter<C> {
-    pub fn new(config: ConfidenceConfig, okapi_client: C) -> Self {
-        Self { config, okapi_client }
+impl<C: InferenceClient> ConfidenceRouter<C> {
+    pub fn new(config: ConfidenceConfig, inference_client: C) -> Self {
+        Self {
+            config,
+            inference_client,
+        }
     }
 
     /// Generate response with confidence-based escalation
     pub async fn generate_with_escalation(
         &self,
         request: &GenerateRequest,
-    ) -> Result<OkapiResponse, RouterError> {
+    ) -> Result<GenerateResponse, RouterError<C::Error>> {
         tracing::debug!(
             "Generating with confidence threshold: {:.2}, escalate to: {}",
             self.config.threshold,
@@ -122,7 +71,7 @@ impl<C: OkapiClientTrait> ConfidenceRouter<C> {
 
         let mut current_request = request.clone();
         if current_request.options.is_none() {
-            current_request.options = Some(GenerateOptions {
+            current_request.options = Some(crate::ports::GenerateOptions {
                 n_probs: Some(self.config.n_probs),
                 temperature: None,
                 max_tokens: None,
@@ -133,7 +82,11 @@ impl<C: OkapiClientTrait> ConfidenceRouter<C> {
             }
         }
 
-        let response = self.okapi_client.generate(&current_request).await?;
+        let response = self
+            .inference_client
+            .generate(&current_request)
+            .await
+            .map_err(RouterError::InferenceError)?;
 
         if let Some(probs) = &response.completion_probabilities {
             let confidence = compute_confidence(probs);
@@ -155,7 +108,11 @@ impl<C: OkapiClientTrait> ConfidenceRouter<C> {
                 let mut escalate_request = current_request.clone();
                 escalate_request.model = self.config.escalate_to_model.clone();
 
-                return self.okapi_client.generate(&escalate_request).await;
+                return self
+                    .inference_client
+                    .generate(&escalate_request)
+                    .await
+                    .map_err(RouterError::InferenceError);
             }
         }
 
@@ -170,38 +127,89 @@ pub fn compute_confidence(probs: &[TokenProbability]) -> f64 {
         return 0.0;
     }
 
-    let avg_prob: f64 = probs.iter()
-        .map(|p| p.prob)
-        .sum::<f64>() / probs.len() as f64;
+    let avg_prob: f64 = probs.iter().map(|p| p.prob).sum::<f64>() / probs.len() as f64;
 
-    let variance: f64 = probs.iter()
+    let variance: f64 = probs
+        .iter()
         .map(|p| (p.prob - avg_prob).powi(2))
-        .sum::<f64>() / probs.len() as f64;
+        .sum::<f64>()
+        / probs.len() as f64;
 
     avg_prob * (1.0 - variance.sqrt())
 }
 
 #[derive(Debug, Error)]
-pub enum RouterError {
-    #[error("Okapi client error: {0}")]
-    OkapiError(String),
+pub enum RouterError<E: std::error::Error + Send + Sync> {
+    #[error("Inference error: {0}")]
+    InferenceError(E),
+}
 
-    #[error("Escalation failed: {0}")]
-    EscalationFailed(String),
+/// Legacy error type for backward compatibility
+#[derive(Debug, Error)]
+pub enum LegacyRouterError {
+    #[error("Inference error: {0}")]
+    InferenceError(String),
+}
+
+/// Legacy client trait for backward compatibility
+#[async_trait::async_trait]
+pub trait OkapiClientTrait {
+    async fn generate(&self, request: &GenerateRequest) -> Result<OkapiResponse, LegacyRouterError>;
+}
+
+/// Wrapper for legacy client implementations
+pub struct OkapiClient<C: InferenceClient> {
+    inner: C,
+}
+
+impl<C: InferenceClient> OkapiClient<C>
+where
+    C::Error: std::fmt::Display + 'static,
+{
+    pub fn new(inner: C) -> Self {
+        Self { inner }
+    }
+}
+
+#[async_trait::async_trait]
+impl<C: InferenceClient> OkapiClientTrait for OkapiClient<C>
+where
+    C::Error: std::fmt::Display + 'static,
+{
+    async fn generate(&self, request: &GenerateRequest) -> Result<OkapiResponse, LegacyRouterError> {
+        let response = self
+            .inner
+            .generate(request)
+            .await
+            .map_err(|e| LegacyRouterError::InferenceError(e.to_string()))?;
+
+        Ok(OkapiResponse::from(response))
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Arc;
-    use tokio::sync::Mutex;
+    use crate::adapters::MockInferenceClient;
 
     #[test]
     fn test_confidence_formula_high_confidence() {
         let probs = vec![
-            TokenProbability { token: "a".to_string(), prob: 0.95, top_k: vec![] },
-            TokenProbability { token: "b".to_string(), prob: 0.92, top_k: vec![] },
-            TokenProbability { token: "c".to_string(), prob: 0.94, top_k: vec![] },
+            TokenProbability {
+                token: "a".to_string(),
+                prob: 0.95,
+                top_k: vec![],
+            },
+            TokenProbability {
+                token: "b".to_string(),
+                prob: 0.92,
+                top_k: vec![],
+            },
+            TokenProbability {
+                token: "c".to_string(),
+                prob: 0.94,
+                top_k: vec![],
+            },
         ];
         let confidence = compute_confidence(&probs);
         assert!(confidence > 0.85);
@@ -210,9 +218,21 @@ mod tests {
     #[test]
     fn test_confidence_formula_low_confidence() {
         let probs = vec![
-            TokenProbability { token: "a".to_string(), prob: 0.60, top_k: vec![] },
-            TokenProbability { token: "b".to_string(), prob: 0.35, top_k: vec![] },
-            TokenProbability { token: "c".to_string(), prob: 0.50, top_k: vec![] },
+            TokenProbability {
+                token: "a".to_string(),
+                prob: 0.60,
+                top_k: vec![],
+            },
+            TokenProbability {
+                token: "b".to_string(),
+                prob: 0.35,
+                top_k: vec![],
+            },
+            TokenProbability {
+                token: "c".to_string(),
+                prob: 0.50,
+                top_k: vec![],
+            },
         ];
         let confidence = compute_confidence(&probs);
         assert!(confidence < 0.60);
@@ -233,39 +253,32 @@ mod tests {
         assert_eq!(config.n_probs, 5);
     }
 
-    struct MockClient {
-        responses: Arc<Mutex<Vec<Result<OkapiResponse, RouterError>>>>,
-    }
-
-    impl MockClient {
-        fn new(responses: Vec<Result<OkapiResponse, RouterError>>) -> Self {
-            Self {
-                responses: Arc::new(Mutex::new(responses)),
-            }
-        }
-    }
-
-    #[async_trait::async_trait]
-    impl OkapiClientTrait for MockClient {
-        async fn generate(&self, _request: &GenerateRequest) -> Result<OkapiResponse, RouterError> {
-            let mut responses = self.responses.lock().await;
-            responses.remove(0)
-        }
-    }
-
     #[tokio::test]
     async fn test_high_confidence_no_escalation() {
+        use crate::adapters::OkapiAdapterError;
+
         let config = ConfidenceConfig::default();
-        let client = MockClient::new(vec![
-            Ok(OkapiResponse {
-                response: "Paris".to_string(),
-                completion_probabilities: Some(vec![
-                    TokenProbability { token: "Paris".to_string(), prob: 0.95, top_k: vec![] },
-                    TokenProbability { token: " is".to_string(), prob: 0.92, top_k: vec![] },
-                    TokenProbability { token: " the".to_string(), prob: 0.94, top_k: vec![] },
-                ]),
-            }),
-        ]);
+        let client = MockInferenceClient::new(vec![Ok(GenerateResponse {
+            response: "Paris".to_string(),
+            model: "qwen3:8b".to_string(),
+            completion_probabilities: Some(vec![
+                TokenProbability {
+                    token: "Paris".to_string(),
+                    prob: 0.95,
+                    top_k: vec![],
+                },
+                TokenProbability {
+                    token: " is".to_string(),
+                    prob: 0.92,
+                    top_k: vec![],
+                },
+                TokenProbability {
+                    token: " the".to_string(),
+                    prob: 0.94,
+                    top_k: vec![],
+                },
+            ]),
+        })]);
 
         let router = ConfidenceRouter::new(config, client);
         let request = GenerateRequest {
@@ -280,20 +293,34 @@ mod tests {
 
     #[tokio::test]
     async fn test_low_confidence_escalation() {
+        use crate::adapters::OkapiAdapterError;
+
         let config = ConfidenceConfig::default();
-        let client = MockClient::new(vec![
-            Ok(OkapiResponse {
+        let client = MockInferenceClient::new(vec![
+            Ok(GenerateResponse {
                 response: "Maybe Paris".to_string(),
+                model: "qwen3:8b".to_string(),
                 completion_probabilities: Some(vec![
-                    TokenProbability { token: "Maybe".to_string(), prob: 0.60, top_k: vec![] },
-                    TokenProbability { token: " Paris".to_string(), prob: 0.50, top_k: vec![] },
+                    TokenProbability {
+                        token: "Maybe".to_string(),
+                        prob: 0.60,
+                        top_k: vec![],
+                    },
+                    TokenProbability {
+                        token: " Paris".to_string(),
+                        prob: 0.50,
+                        top_k: vec![],
+                    },
                 ]),
             }),
-            Ok(OkapiResponse {
+            Ok(GenerateResponse {
                 response: "Paris".to_string(),
-                completion_probabilities: Some(vec![
-                    TokenProbability { token: "Paris".to_string(), prob: 0.98, top_k: vec![] },
-                ]),
+                model: "qwen3:70b".to_string(),
+                completion_probabilities: Some(vec![TokenProbability {
+                    token: "Paris".to_string(),
+                    prob: 0.98,
+                    top_k: vec![],
+                }]),
             }),
         ]);
 
@@ -306,5 +333,6 @@ mod tests {
 
         let response = router.generate_with_escalation(&request).await.unwrap();
         assert_eq!(response.response, "Paris");
+        assert_eq!(response.model, "qwen3:70b");
     }
 }

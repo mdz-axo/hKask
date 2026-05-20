@@ -119,23 +119,80 @@ where
                             );
                             obj.insert("fallback_applied".to_string(), Value::Bool(true));
                         }
+                        
+                        // Emit select event with fallback info
+                        self.cns.emit(
+                            "cns.prompt.select",
+                            Value::Object(serde_json::json!({
+                                "selected_template": self.selector_config.fallback_template_id.clone(),
+                                "confidence": confidence,
+                                "fallback_applied": true,
+                                "rationale": format!("Confidence {} below threshold {}", confidence, self.selector_config.confidence_threshold)
+                            }).as_object().unwrap().clone()),
+                            confidence,
+                        );
+                        
                         fallback_result
                     } else {
+                        // Emit select event with normal confidence
+                        let selected_id = selection_result
+                            .get("selected_template_id")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("unknown")
+                            .to_string();
+                        
+                        self.cns.emit(
+                            "cns.prompt.select",
+                            Value::Object(serde_json::json!({
+                                "selected_template": selected_id,
+                                "confidence": confidence,
+                                "fallback_applied": false,
+                                "rationale": format!("Confidence {} above threshold {}", confidence, self.selector_config.confidence_threshold)
+                            }).as_object().unwrap().clone()),
+                            confidence,
+                        );
+                        
                         selection_result
                     }
                 } else {
-                    // No confidence field; pass through
+                    // No confidence field; pass through with default
+                    self.cns.emit(
+                        "cns.prompt.select",
+                        Value::Object(serde_json::json!({
+                            "selected_template": "unknown",
+                            "confidence": 0.0,
+                            "fallback_applied": false,
+                            "rationale": "No confidence provided"
+                        }).as_object().unwrap().clone()),
+                        0.5,
+                    );
+                    
                     selection_result
                 }
             }
             Action::Populate => {
                 // Bind input into selected template's fields
                 // State should contain selected_template_id from previous step
+                let binding_count = if let Value::Object(obj) = &state {
+                    obj.len() as f64
+                } else {
+                    1.0
+                };
+                
+                // Emit CNS event for populate
+                self.cns.emit(
+                    "cns.prompt.populate",
+                    Value::Object(serde_json::json!({
+                        "binding_count": binding_count,
+                        "template_ref": step.template_ref
+                    }).as_object().unwrap().clone()),
+                    0.9,
+                );
+                
                 Value::String(format!("Populated: {:?}", state))
             }
             Action::Execute => {
-                // Execute via MCP tool or inference
-                if let Some(mcp) = &step.mcp {
+                let result = if let Some(mcp) = &step.mcp {
                     if mcp == "from_template_contract" {
                         // Target determined by template contract
                         Value::String(format!("Executed via contract: {:?}", state))
@@ -145,16 +202,21 @@ where
                     }
                 } else {
                     Value::String(format!("Executed: {:?}", state))
-                }
+                };
+                
+                // Emit CNS event for execute
+                self.cns.emit(
+                    "cns.prompt.execute",
+                    Value::Object(serde_json::json!({
+                        "mcp_target": step.mcp.clone().unwrap_or_else(|| "none".to_string()),
+                        "outcome": "success"
+                    }).as_object().unwrap().clone()),
+                    0.95,
+                );
+                
+                result
             }
         };
-
-        // Emit CNS event for this step
-        self.cns.emit(
-            &format!("cns.prompt.{}", step.action.as_str()),
-            result.clone(),
-            1.0,
-        );
 
         Ok(result)
     }
@@ -167,12 +229,8 @@ where
     M: McpPort,
     C: CnsPort,
 {
-    fn load(&self, _path: &std::path::Path) -> Result<ProcessManifest> {
-        // In production, this would load from YAML file
-        // For now, return bootstrap manifest from registry
-        Err(TemplateError::Manifest(
-            "Use RegistryIndex::bootstrap_manifest() instead".to_string(),
-        ))
+    fn load(&self, path: &std::path::Path) -> Result<ProcessManifest> {
+        ProcessManifest::load_from_yaml(path)
     }
 
     fn execute(&self, manifest: &ProcessManifest, input: Value) -> Result<Value> {
@@ -183,13 +241,25 @@ where
             "Executing manifest"
         );
 
+        let start_time = std::time::Instant::now();
         let mut state = input;
         for step in &manifest.steps {
             state = self.execute_step(step, state, 0)?;
         }
+        let duration = start_time.elapsed();
 
-        // Emit final outcome event
-        self.cns.emit("cns.prompt.outcome", state.clone(), 1.0);
+        // Emit final outcome event with execution summary
+        self.cns.emit(
+            "cns.prompt.outcome",
+            Value::Object(serde_json::json!({
+                "manifest_id": manifest.id,
+                "total_steps": manifest.steps.len(),
+                "duration_ms": duration.as_millis() as u64,
+                "outcome": "success",
+                "result": state
+            }).as_object().unwrap().clone()),
+            1.0,
+        );
 
         Ok(state)
     }

@@ -116,7 +116,7 @@ impl DependencyProvider for InMemoryDependencyProvider {
 }
 
 /// Manifest step action types
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Action {
     Select,
     Populate,
@@ -144,24 +144,40 @@ impl Action {
 }
 
 /// Manifest step definition
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ManifestStep {
     pub ordinal: u32,
     pub action: Action,
     pub description: String,
     pub template_ref: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub model_tier: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub mcp: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub renderer: Option<String>,
 }
 
 /// Process manifest (YAML-based workflow definition)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ProcessManifest {
     pub id: String,
     pub name: String,
     pub description: String,
     pub steps: Vec<ManifestStep>,
+}
+
+impl ProcessManifest {
+    /// Load manifest from YAML file
+    pub fn load_from_yaml(path: &Path) -> Result<Self> {
+        let yaml_content = std::fs::read_to_string(path).map_err(|e| {
+            TemplateError::Manifest(format!("Failed to read manifest file {}: {}", path.display(), e))
+        })?;
+        
+        serde_yaml::from_str(&yaml_content).map_err(|e| {
+            TemplateError::Manifest(format!("Failed to parse manifest YAML: {}", e))
+        })
+    }
 }
 
 /// Manifest executor port
@@ -301,5 +317,26 @@ mod tests {
         assert_eq!(deps.len(), 2);
         assert!(deps.contains(&"a"));
         assert!(deps.contains(&"b"));
+    }
+
+    #[test]
+    fn test_process_manifest_load_from_yaml() {
+        use std::path::PathBuf;
+        
+        let yaml_path = PathBuf::from("registry/manifests/dispatch.yaml");
+        if yaml_path.exists() {
+            let manifest = ProcessManifest::load_from_yaml(&yaml_path).unwrap();
+            
+            assert_eq!(manifest.id, "registry/dispatch");
+            assert_eq!(manifest.name, "Registry Dispatch");
+            assert_eq!(manifest.steps.len(), 3);
+            
+            assert_eq!(manifest.steps[0].action, Action::Select);
+            assert_eq!(manifest.steps[0].template_ref, "prompt/selector");
+            
+            assert_eq!(manifest.steps[1].action, Action::Populate);
+            
+            assert_eq!(manifest.steps[2].action, Action::Execute);
+        }
     }
 }

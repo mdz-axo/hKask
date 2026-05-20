@@ -1,15 +1,17 @@
 //! hKask MCP Inference — Okapi-backed LLM inference
 //!
 //! Provides LLM inference via Okapi with CNS span integration.
+//! Uses hexagonal architecture with explicit ports and adapters.
 
 mod metrics_translator;
 
 use hkask_cns::CnsRuntime;
+use hkask_ensemble::adapters::{OkapiHttpClient, OkapiSseAdapter};
 use hkask_types::WebID;
 use metrics_translator::MetricsTranslator;
 use std::sync::Arc;
 use tokio::sync::mpsc;
-use tracing::{info, error};
+use tracing::{error, info};
 
 #[derive(Clone)]
 pub struct InferenceMcpServer {
@@ -25,34 +27,44 @@ impl InferenceMcpServer {
         }
     }
 
-    pub async fn start_cns_translator(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn start_cns_translator(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>>
+    {
         let (cns_tx, mut cns_rx) = mpsc::channel(100);
         let observer_webid = WebID::new();
 
-        let mut translator = MetricsTranslator::new(
-            &self.okapi_base_url,
-            cns_tx,
-            observer_webid,
-        );
+        // Create metrics source adapter (hexagonal port implementation)
+        let metrics_source = OkapiSseAdapter::new(&self.okapi_base_url);
+
+        // Create translator with injected dependencies
+        let mut translator =
+            MetricsTranslator::new(metrics_source, cns_tx, observer_webid);
 
         let cns_runtime = Arc::clone(&self.cns_runtime);
 
+        // Spawn CNS span consumer
         tokio::spawn(async move {
             while let Some(event) = cns_rx.recv().await {
                 info!(target: "cns", "Received CNS event: {:?}", event.id);
-                
+
                 let domain = match &event.span {
                     hkask_types::Span::Connector(s) => {
-                        if s.contains("llm") { "llm" } else { "connector" }
+                        if s.contains("llm") {
+                            "llm"
+                        } else {
+                            "connector"
+                        }
                     }
                     hkask_types::Span::Tool(_) => "tool",
                     _ => "general",
                 };
 
-                cns_runtime.increment_variety(domain, &event.id.to_string()).await;
+                cns_runtime
+                    .increment_variety(domain, &event.id.to_string())
+                    .await;
             }
         });
 
+        // Spawn metrics translator (runs until stream ends)
         tokio::spawn(async move {
             if let Err(e) = translator.subscribe_and_translate().await {
                 error!("CNS translator error: {}", e);
@@ -83,40 +95,4 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     loop {
         tokio::time::sleep(std::time::Duration::from_secs(60)).await;
     }
-}
-
-/// Generate request for Okapi
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct GenerateRequest {
-    pub model: String,
-    pub prompt: String,
-    pub options: Option<GenerateOptions>,
-}
-
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct GenerateOptions {
-    pub n_probs: Option<i32>,
-    pub temperature: Option<f64>,
-    pub max_tokens: Option<i32>,
-}
-
-/// Generate response from Okapi
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct GenerateResponse {
-    pub response: String,
-    pub model: String,
-    pub completion_probabilities: Option<Vec<TokenProbability>>,
-}
-
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct TokenProbability {
-    pub token: String,
-    pub prob: f64,
-    pub top_k: Vec<TokenProb>,
-}
-
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct TokenProb {
-    pub token: String,
-    pub prob: f64,
 }

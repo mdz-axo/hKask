@@ -110,7 +110,7 @@ impl CascadeContext {
             energy_remaining: 10000,
             capability_token: None,
             secret: secret.to_vec(),
-            current_time: 0,
+            current_time: chrono::Utc::now().timestamp(),
         }
     }
 

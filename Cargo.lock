@@ -2494,6 +2494,7 @@ name = "hkask-ensemble"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "chrono",
  "hkask-cns",
  "hkask-types",
  "reqwest",
@@ -2502,6 +2503,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
+ "uuid",
 ]
 
 [[package]]
@@ -2598,6 +2600,7 @@ name = "hkask-mcp-inference"
 version = "0.1.0"
 dependencies = [
  "hkask-cns",
+ "hkask-ensemble",
  "hkask-types",
  "reqwest",
  "rmcp",
@@ -2725,7 +2728,9 @@ dependencies = [
  "hkask-cns",
  "hkask-storage",
  "hkask-types",
+ "hmac",
  "minijinja",
+ "percent-encoding",
  "reqwest",
  "rusqlite",
  "serde",
