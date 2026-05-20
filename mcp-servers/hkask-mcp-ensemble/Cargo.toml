@@ -8,9 +8,11 @@ description = "Multi-agent coordination MCP server"
 [dependencies]
 hkask-types = { path = "../../crates/hkask-types" }
 hkask-ensemble = { path = "../../crates/hkask-ensemble" }
+hkask-cns = { path = "../../crates/hkask-cns" }
 rmcp.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 tokio.workspace = true
+reqwest.workspace = true

@@ -124,6 +124,7 @@ pub struct RegisteredArtifact {
 
 /// Pipeline stage output
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "variant", content = "data")]
 pub enum StageOutput {
     Parse(ParsedSkill),
     Map(Vec<RdfTriple>),
@@ -149,13 +150,12 @@ pub struct PipelineStage {
 pub struct SkillTranslationPipeline {
     stages: Vec<PipelineStage>,
     channel_tx: tokio::sync::mpsc::Sender<StageOutput>,
-    channel_rx: tokio::sync::mpsc::Receiver<StageOutput>,
 }
 
 impl SkillTranslationPipeline {
     /// Create new pipeline with default stages
     pub fn new() -> Self {
-        let (tx, rx) = tokio::sync::mpsc::channel(32);
+        let (tx, _rx) = tokio::sync::mpsc::channel(32);
 
         let stages = vec![
             PipelineStage {
@@ -198,7 +198,6 @@ impl SkillTranslationPipeline {
         Self {
             stages,
             channel_tx: tx,
-            channel_rx: rx,
         }
     }
 

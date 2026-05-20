@@ -13,10 +13,12 @@
 //! **Safety:**
 //! - Maximum recursion depth: 7 (Miller's law + energy budget)
 //! - Cycle detection in registry (graph traversal)
-//! - Capability attenuation on recursive calls
+//! - Capability attenuation on recursive calls (OCAP security)
+//! - Security validation on all template paths (Schneier threat model)
 
 use crate::ports::{RegistryIndex, Result, TemplateError};
-use hkask_types::TemplateType;
+use crate::security::SecurityAdapter;
+use hkask_types::{CapabilityToken, TemplateType, WebID};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
@@ -94,17 +96,21 @@ pub struct CascadeContext {
     pub visited_templates: HashSet<String>,
     pub visited_manifests: HashSet<String>,
     pub energy_remaining: u64,
-    pub capability_token: Option<String>,
+    pub capability_token: Option<CapabilityToken>,
+    pub secret: Vec<u8>,
+    pub current_time: i64,
 }
 
 impl CascadeContext {
-    pub fn new() -> Self {
+    pub fn new(secret: &[u8]) -> Self {
         Self {
             current_depth: 0,
             visited_templates: HashSet::new(),
             visited_manifests: HashSet::new(),
             energy_remaining: 10000,
             capability_token: None,
+            secret: secret.to_vec(),
+            current_time: 0,
         }
     }
 
@@ -118,8 +124,13 @@ impl CascadeContext {
         self
     }
 
-    pub fn with_capability(mut self, token: &str) -> Self {
-        self.capability_token = Some(token.to_string());
+    pub fn with_capability(mut self, token: CapabilityToken) -> Self {
+        self.capability_token = Some(token);
+        self
+    }
+
+    pub fn with_current_time(mut self, time: i64) -> Self {
+        self.current_time = time;
         self
     }
 
@@ -180,20 +191,60 @@ impl CascadeContext {
     }
 
     /// Create child context for recursive call with capability attenuation
-    pub fn child_context(&self) -> Self {
+    /// Per Mark Miller OCAP: capabilities must be attenuated on delegation
+    pub fn child_context(&self, new_holder: WebID) -> Self {
+        let attenuated_token = self.capability_token.as_ref().and_then(|token| {
+            if token.can_attenuate() {
+                token.attenuate(new_holder, &self.secret, self.current_time)
+            } else {
+                None
+            }
+        });
+
         Self {
             current_depth: self.current_depth + 1,
             visited_templates: self.visited_templates.clone(),
             visited_manifests: self.visited_manifests.clone(),
             energy_remaining: self.energy_remaining,
-            capability_token: self.capability_token.clone(),
+            capability_token: attenuated_token,
+            secret: self.secret.clone(),
+            current_time: self.current_time,
+        }
+    }
+
+    /// Check if current capability grants access to a resource
+    pub fn check_capability(
+        &self,
+        resource: hkask_types::CapabilityResource,
+        resource_id: &str,
+        action: hkask_types::CapabilityAction,
+    ) -> Result<()> {
+        match &self.capability_token {
+            Some(token) => {
+                if token.is_expired(self.current_time) {
+                    return Err(TemplateError::CapabilityDenied(
+                        "Capability token expired".to_string(),
+                    ));
+                }
+                if token.is_valid_for(resource, resource_id, action) {
+                    Ok(())
+                } else {
+                    Err(TemplateError::CapabilityDenied(format!(
+                        "Capability does not grant {:?} on {}",
+                        action, resource_id
+                    )))
+                }
+            }
+            None => Err(TemplateError::CapabilityDenied(
+                "No capability token present".to_string(),
+            )),
         }
     }
 }
 
 impl Default for CascadeContext {
     fn default() -> Self {
-        Self::new()
+        Self::new(&[0u8; 32])
     }
 }
 
@@ -202,14 +253,22 @@ pub struct CascadeExecutor {
     max_depth: u8,
     cycle_detection: bool,
     energy_tracking: bool,
+    security: SecurityAdapter,
 }
 
 impl CascadeExecutor {
-    pub fn new() -> Self {
+    pub fn new(secret: &[u8]) -> Self {
+        let mut security = SecurityAdapter::new(secret);
+        // Allow standard template paths
+        security.allow_path("prompt/");
+        security.allow_path("process/");
+        security.allow_path("cognition/");
+        
         Self {
             max_depth: MAX_CASCADE_DEPTH,
             cycle_detection: true,
             energy_tracking: true,
+            security,
         }
     }
 
@@ -228,6 +287,11 @@ impl CascadeExecutor {
         self
     }
 
+    pub fn with_security(mut self, security: SecurityAdapter) -> Self {
+        self.security = security;
+        self
+    }
+
     /// Execute cascade stages in order: pre → core → post
     pub fn execute(
         &self,
@@ -235,7 +299,7 @@ impl CascadeExecutor {
         input: Value,
         registry: &dyn RegistryIndex,
     ) -> Result<Value> {
-        let mut context = CascadeContext::new().with_depth(cascade.max_depth);
+        let mut context = CascadeContext::new(&self.security.get_secret()).with_depth(cascade.max_depth);
         let mut state = input;
 
         // Execute pre stages (context enrichment, validation)
@@ -256,7 +320,36 @@ impl CascadeExecutor {
         Ok(state)
     }
 
-    /// Execute a single cascade stage
+    /// Execute cascade with initial capability token
+    pub fn execute_with_capability(
+        &self,
+        cascade: &Cascade,
+        input: Value,
+        registry: &dyn RegistryIndex,
+        token: CapabilityToken,
+    ) -> Result<Value> {
+        let mut context = CascadeContext::new(&self.security.get_secret())
+            .with_depth(cascade.max_depth)
+            .with_capability(token)
+            .with_current_time(chrono::Utc::now().timestamp());
+        let mut state = input;
+
+        for stage in &cascade.pre {
+            state = self.execute_stage(stage, state, registry, &mut context)?;
+        }
+
+        for stage in &cascade.core {
+            state = self.execute_stage(stage, state, registry, &mut context)?;
+        }
+
+        for stage in &cascade.post {
+            state = self.execute_stage(stage, state, registry, &mut context)?;
+        }
+
+        Ok(state)
+    }
+
+    /// Execute a single cascade stage with security checks
     fn execute_stage(
         &self,
         stage: &CascadeStage,
@@ -278,6 +371,9 @@ impl CascadeExecutor {
 
         // Execute each template in the stage
         for template_id in &stage.templates {
+            // Security: Validate template path
+            self.security.validate_template_path(template_id)?;
+
             // Cycle detection
             if self.cycle_detection {
                 context.check_template_cycle(template_id)?;
@@ -288,6 +384,15 @@ impl CascadeExecutor {
 
             // Resolve template from registry
             let entry = registry.get(template_id)?;
+
+            // Security: Check capability if present
+            if context.capability_token.is_some() {
+                context.check_capability(
+                    hkask_types::CapabilityResource::Template,
+                    &entry.id,
+                    hkask_types::CapabilityAction::Read,
+                )?;
+            }
 
             // Check template type compatibility
             match entry.template_type {
@@ -450,7 +555,7 @@ impl CascadeExecutor {
 
 impl Default for CascadeExecutor {
     fn default() -> Self {
-        Self::new()
+        Self::new(&[0u8; 32])
     }
 }
 
@@ -514,6 +619,7 @@ impl CascadeBuilder {
 mod tests {
     use super::*;
     use crate::ports::{Action, ManifestStep, ProcessManifest, RegistryEntry};
+    use hkask_types::{CapabilityAction, CapabilityResource, WebID};
 
     struct MockRegistry {
         entries: HashMap<String, crate::ports::RegistryEntry>,
@@ -601,18 +707,18 @@ mod tests {
 
     #[test]
     fn test_cascade_context_depth_check() {
-        let context = CascadeContext::new().with_depth(8);
+        let context = CascadeContext::new(&[0u8; 32]).with_depth(8);
         let result = context.check_depth(7);
         assert!(result.is_err());
 
-        let context = CascadeContext::new().with_depth(6);
+        let context = CascadeContext::new(&[0u8; 32]).with_depth(6);
         let result = context.check_depth(7);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_cascade_context_cycle_detection() {
-        let mut context = CascadeContext::new();
+        let mut context = CascadeContext::new(&[0u8; 32]);
         context.visit_template("template-1");
 
         let result = context.check_template_cycle("template-1");
@@ -624,7 +730,7 @@ mod tests {
 
     #[test]
     fn test_cascade_context_energy() {
-        let mut context = CascadeContext::new().with_energy(1000);
+        let mut context = CascadeContext::new(&[0u8; 32]).with_energy(1000);
         assert!(context.check_energy(500).is_ok());
         assert!(context.check_energy(1500).is_err());
 
@@ -633,17 +739,112 @@ mod tests {
     }
 
     #[test]
-    fn test_cascade_context_child() {
-        let context = CascadeContext::new().with_depth(3);
-        let child = context.child_context();
+    fn test_cascade_context_child_with_attenuation() {
+        let secret = [0u8; 32];
+        let from = WebID::new();
+        let to = WebID::new();
+        
+        let token = CapabilityToken::new(
+            CapabilityResource::Cascade,
+            "test".to_string(),
+            CapabilityAction::Execute,
+            from,
+            to,
+            &secret,
+        );
+        
+        let context = CascadeContext::new(&secret)
+            .with_depth(3)
+            .with_capability(token.clone());
+        
+        let new_holder = WebID::new();
+        let child = context.child_context(new_holder);
 
         assert_eq!(child.current_depth, 4);
         assert_eq!(child.energy_remaining, context.energy_remaining);
+        
+        // Verify attenuation occurred
+        assert!(child.capability_token.is_some());
+        let child_token = child.capability_token.unwrap();
+        assert_eq!(child_token.attenuation_level, token.attenuation_level + 1);
+    }
+
+    #[test]
+    fn test_cascade_context_child_max_attenuation() {
+        let secret = [0u8; 32];
+        let from = WebID::new();
+        let to = WebID::new();
+        
+        // Create token at max attenuation
+        let token = CapabilityToken::new_with_attenuation(
+            CapabilityResource::Cascade,
+            "test".to_string(),
+            CapabilityAction::Execute,
+            from,
+            to,
+            &secret,
+            None,
+            7, // max_attenuation
+            7, // attenuation_level at max
+        );
+        
+        let context = CascadeContext::new(&secret)
+            .with_depth(3)
+            .with_capability(token);
+        
+        let new_holder = WebID::new();
+        let child = context.child_context(new_holder);
+
+        // Attenuation should fail (already at max)
+        assert!(child.capability_token.is_none());
+    }
+
+    #[test]
+    fn test_cascade_context_capability_check() {
+        let secret = [0u8; 32];
+        let from = WebID::new();
+        let to = WebID::new();
+        
+        let token = CapabilityToken::new(
+            CapabilityResource::Template,
+            "test-template".to_string(),
+            CapabilityAction::Read,
+            from,
+            to,
+            &secret,
+        );
+        
+        let context = CascadeContext::new(&secret)
+            .with_capability(token);
+        
+        // Valid capability
+        let result = context.check_capability(
+            CapabilityResource::Template,
+            "test-template",
+            CapabilityAction::Read,
+        );
+        assert!(result.is_ok());
+        
+        // Wrong resource
+        let result = context.check_capability(
+            CapabilityResource::Manifest,
+            "test-template",
+            CapabilityAction::Read,
+        );
+        assert!(result.is_err());
+        
+        // Wrong action
+        let result = context.check_capability(
+            CapabilityResource::Template,
+            "test-template",
+            CapabilityAction::Write,
+        );
+        assert!(result.is_err());
     }
 
     #[test]
     fn test_cascade_executor_new() {
-        let executor = CascadeExecutor::new();
+        let executor = CascadeExecutor::new(&[0u8; 32]);
         assert_eq!(executor.max_depth, MAX_CASCADE_DEPTH);
         assert!(executor.cycle_detection);
         assert!(executor.energy_tracking);
@@ -652,7 +853,7 @@ mod tests {
     #[test]
     fn test_cascade_executor_execute() {
         let registry = MockRegistry::new();
-        let executor = CascadeExecutor::new();
+        let executor = CascadeExecutor::new(&[0u8; 32]);
         let cascade = CascadeBuilder::new("test")
             .pre("enrich", vec!["prompt/test"])
             .core("compose", vec!["process/test"])
@@ -671,5 +872,60 @@ mod tests {
     fn test_cascade_max_depth_limit() {
         let cascade = Cascade::new("test").with_max_depth(10);
         assert_eq!(cascade.max_depth, 7); // Capped at MAX_CASCADE_DEPTH
+    }
+
+    #[test]
+    fn test_cascade_security_path_traversal_blocked() {
+        let executor = CascadeExecutor::new(&[0u8; 32]);
+        let registry = MockRegistry::new();
+        let cascade = CascadeBuilder::new("test")
+            .pre("enrich", vec!["../etc/passwd"])
+            .build();
+
+        let result = executor.execute(&cascade, Value::Null, &registry);
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), TemplateError::PathTraversal(_)));
+    }
+
+    #[test]
+    fn test_cascade_security_absolute_path_blocked() {
+        let executor = CascadeExecutor::new(&[0u8; 32]);
+        let registry = MockRegistry::new();
+        let cascade = CascadeBuilder::new("test")
+            .pre("enrich", vec!["/etc/passwd"])
+            .build();
+
+        let result = executor.execute(&cascade, Value::Null, &registry);
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), TemplateError::PathTraversal(_)));
+    }
+
+    #[test]
+    fn test_cascade_with_capability_attenuation_chain() {
+        let secret = [42u8; 32];
+        let executor = CascadeExecutor::new(&secret);
+        let registry = MockRegistry::new();
+        
+        // Create initial capability for the template resource
+        let from = WebID::new();
+        let to = WebID::new();
+        let token = CapabilityToken::new(
+            CapabilityResource::Template,
+            "prompt/test".to_string(),
+            CapabilityAction::Read,
+            from,
+            to,
+            &secret,
+        );
+        
+        assert_eq!(token.attenuation_level, 0);
+        
+        // Execute with capability - context should attenuate on each recursive call
+        let cascade = CascadeBuilder::new("test")
+            .pre("enrich", vec!["prompt/test"])
+            .build();
+
+        let result = executor.execute_with_capability(&cascade, Value::Null, &registry, token);
+        assert!(result.is_ok());
     }
 }

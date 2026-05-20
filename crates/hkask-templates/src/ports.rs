@@ -5,6 +5,7 @@
 
 use hkask_types::TemplateType;
 use serde_json::Value;
+use std::collections::HashMap;
 use std::path::Path;
 use std::time::Duration;
 
@@ -70,6 +71,49 @@ pub enum TemplateError {
 }
 
 pub type Result<T> = std::result::Result<T, TemplateError>;
+
+/// Dependency injection provider port trait
+pub trait DependencyProvider: Send + Sync {
+    /// Get a dependency by name
+    fn get_dependency(&self, name: &str) -> Option<Value>;
+
+    /// List all registered dependencies
+    fn list_dependencies(&self) -> Vec<&str>;
+}
+
+/// In-memory dependency provider (default implementation)
+pub struct InMemoryDependencyProvider {
+    dependencies: HashMap<String, Value>,
+}
+
+impl InMemoryDependencyProvider {
+    pub fn new() -> Self {
+        Self {
+            dependencies: HashMap::new(),
+        }
+    }
+
+    pub fn with_dependency(mut self, name: &str, value: Value) -> Self {
+        self.dependencies.insert(name.to_string(), value);
+        self
+    }
+}
+
+impl Default for InMemoryDependencyProvider {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl DependencyProvider for InMemoryDependencyProvider {
+    fn get_dependency(&self, name: &str) -> Option<Value> {
+        self.dependencies.get(name).cloned()
+    }
+
+    fn list_dependencies(&self) -> Vec<&str> {
+        self.dependencies.keys().map(|s| s.as_str()).collect()
+    }
+}
 
 /// Manifest step action types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -228,5 +272,34 @@ mod tests {
         assert_eq!(config.backoff_delay(0), Duration::from_millis(500));
         assert_eq!(config.backoff_delay(1), Duration::from_secs(1));
         assert_eq!(config.backoff_delay(2), Duration::from_secs(2));
+    }
+
+    #[test]
+    fn test_dependency_provider_new() {
+        let provider = InMemoryDependencyProvider::new();
+        assert!(provider.list_dependencies().is_empty());
+    }
+
+    #[test]
+    fn test_dependency_provider_with_dependency() {
+        let provider = InMemoryDependencyProvider::new()
+            .with_dependency("key1", serde_json::json!("value1"))
+            .with_dependency("key2", serde_json::json!("value2"));
+
+        assert_eq!(provider.get_dependency("key1"), Some(serde_json::json!("value1")));
+        assert_eq!(provider.get_dependency("key2"), Some(serde_json::json!("value2")));
+        assert_eq!(provider.get_dependency("key3"), None);
+    }
+
+    #[test]
+    fn test_dependency_provider_list() {
+        let provider = InMemoryDependencyProvider::new()
+            .with_dependency("a", serde_json::json!(1))
+            .with_dependency("b", serde_json::json!(2));
+
+        let deps = provider.list_dependencies();
+        assert_eq!(deps.len(), 2);
+        assert!(deps.contains(&"a"));
+        assert!(deps.contains(&"b"));
     }
 }

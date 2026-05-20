@@ -183,6 +183,44 @@ impl DependencyGraph {
     pub fn edge_count(&self) -> usize {
         self.edges.values().map(|v| v.len()).sum()
     }
+
+    /// Get topological order (if acyclic)
+    pub fn topological_sort(&self) -> Option<Vec<String>> {
+        if self.has_cycle() {
+            return None;
+        }
+
+        let mut visited = HashSet::new();
+        let mut result = Vec::new();
+
+        for node in self.edges.keys() {
+            if !visited.contains(node) {
+                self.topo_dfs(node, &mut visited, &mut result);
+            }
+        }
+
+        result.reverse();
+        Some(result)
+    }
+
+    fn topo_dfs(&self, node: &str, visited: &mut HashSet<String>, result: &mut Vec<String>) {
+        visited.insert(node.to_string());
+
+        if let Some(edges) = self.edges.get(node) {
+            for edge in edges {
+                if !visited.contains(&edge.callee) {
+                    self.topo_dfs(&edge.callee, visited, result);
+                }
+            }
+        }
+
+        result.push(node.to_string());
+    }
+
+    /// Check if graph has any cycles
+    pub fn has_cycle(&self) -> bool {
+        !self.find_cycles().is_empty()
+    }
 }
 
 impl Default for DependencyGraph {
@@ -343,5 +381,43 @@ mod tests {
 
         let dependents = graph.get_dependents("b");
         assert_eq!(dependents.len(), 2);
+    }
+
+    #[test]
+    fn test_dependency_graph_topological_sort() {
+        let mut graph = DependencyGraph::new();
+        graph.add_edge("a".to_string(), "b".to_string(), 1);
+        graph.add_edge("b".to_string(), "c".to_string(), 1);
+
+        let sorted = graph.topological_sort();
+        assert!(sorted.is_some());
+        let sorted = sorted.unwrap();
+        assert_eq!(sorted.len(), 3);
+        // a should come before b, b should come before c
+        assert!(sorted.iter().position(|x| x == "a").unwrap() < sorted.iter().position(|x| x == "b").unwrap());
+        assert!(sorted.iter().position(|x| x == "b").unwrap() < sorted.iter().position(|x| x == "c").unwrap());
+    }
+
+    #[test]
+    fn test_dependency_graph_topological_sort_with_cycle() {
+        let mut graph = DependencyGraph::new();
+        graph.add_edge("a".to_string(), "b".to_string(), 1);
+        graph.add_edge("b".to_string(), "c".to_string(), 1);
+        graph.add_edge("c".to_string(), "a".to_string(), 1);
+
+        let sorted = graph.topological_sort();
+        assert!(sorted.is_none());
+    }
+
+    #[test]
+    fn test_dependency_graph_has_cycle() {
+        let mut graph = DependencyGraph::new();
+        graph.add_edge("a".to_string(), "b".to_string(), 1);
+        graph.add_edge("b".to_string(), "c".to_string(), 1);
+
+        assert!(!graph.has_cycle());
+
+        graph.add_edge("c".to_string(), "a".to_string(), 1);
+        assert!(graph.has_cycle());
     }
 }

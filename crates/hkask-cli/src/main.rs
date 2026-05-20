@@ -494,11 +494,11 @@ fn main() {
         Commands::Cns { action } => match action {
             CnsAction::Health => {
                 let cns = CnsRuntime::new();
-                let health = tokio::runtime::Builder::new_current_thread()
+                let rt = tokio::runtime::Builder::new_current_thread()
                     .enable_all()
                     .build()
-                    .unwrap()
-                    .block_on(cns.health());
+                    .unwrap();
+                let health = rt.block_on(cns.health());
 
                 println!("CNS health status:");
                 println!("  Overall deficit: {}", health.overall_deficit);
@@ -506,20 +506,16 @@ fn main() {
                 println!("  Warning alerts: {}", health.warning_count);
                 println!(
                     "  Status: {}",
-                    if health.healthy {
-                        "HEALTHY"
-                    } else {
-                        "DEGRADED"
-                    }
+                    if health.healthy { "HEALTHY" } else { "DEGRADED" }
                 );
             }
             CnsAction::Alerts => {
                 let cns = CnsRuntime::new();
-                let alerts = tokio::runtime::Builder::new_current_thread()
+                let rt = tokio::runtime::Builder::new_current_thread()
                     .enable_all()
                     .build()
-                    .unwrap()
-                    .block_on(cns.critical_alerts());
+                    .unwrap();
+                let alerts = rt.block_on(cns.critical_alerts());
 
                 if alerts.is_empty() {
                     println!("Algedonic alerts:");
@@ -533,11 +529,11 @@ fn main() {
             }
             CnsAction::Variety => {
                 let cns = CnsRuntime::new();
-                let variety = tokio::runtime::Builder::new_current_thread()
+                let rt = tokio::runtime::Builder::new_current_thread()
                     .enable_all()
                     .build()
-                    .unwrap()
-                    .block_on(cns.variety());
+                    .unwrap();
+                let variety = rt.block_on(cns.variety());
 
                 if variety.is_empty() {
                     println!("Variety counters:");

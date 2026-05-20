@@ -16,8 +16,8 @@
 pub mod adapters;
 pub mod audit;
 pub mod cascade;
-pub mod composition;
 pub mod contracts;
+pub mod contract_validator;
 pub mod csp;
 pub mod dependency;
 pub mod error;
@@ -34,26 +34,26 @@ pub mod skill_translation;
 pub use adapters::{MockRegistryAdapter, RegistryAdapter, RegistryResult, SkillRegistryPort};
 pub use audit::{AuditStats, AuditTrail, ExecutionAudit};
 pub use cascade::{Cascade, CascadeBuilder, CascadeContext, CascadeExecutor, MAX_CASCADE_DEPTH};
-pub use composition::{
-    CompositionContext, CompositionExecutor, CompositionGraph, CompositionStage,
-    CompositionStageExecutor, DependencyProvider, InMemoryDependencyProvider,
-    MAX_COMPOSITION_DEPTH, PipelineConfig,
-};
 pub use contracts::{
     InferenceConfig as InferenceConfigParsed, ParsedContract, ParsedInference, TemplateFrontmatter,
     parse_frontmatter, validate_lexicon_terms,
+};
+pub use contract_validator::{
+    ContractValidator, OkapiCapabilities, OkapiRequirements, RegistrationFrontmatter, ValidationError, ValidatorError,
+    fetch_okapi_capabilities,
 };
 pub use csp::{
     CspPipelineExecutor, CspStageConfig, IsolatedStageRunner, StageExecutor, StageMessage,
     StageResult,
 };
-pub use dependency::{DependencyGraph, parse_dependencies};
+pub use dependency::{parse_dependencies, DependencyGraph};
 pub use error::{CompositionError, RetryConfig};
 pub use manifest::SelectorConfig;
 pub use ports::{
     Action, CnsPort, CompositionTemplate, DEFAULT_MATROSHKA_LIMIT, FAST_LOCAL_MODEL,
-    InferenceConfig, InferencePort, ManifestExecutor, ManifestStep, McpPort, ProcessManifest,
-    RegistryEntry, RegistryIndex, Result, TemplateContract, TemplateError, TemplateRenderer,
+    DependencyProvider, InMemoryDependencyProvider, InferenceConfig, InferencePort, ManifestExecutor,
+    ManifestStep, McpPort, ProcessManifest, RegistryEntry, RegistryIndex, Result, TemplateContract,
+    TemplateError, TemplateRenderer,
 };
 pub use provenance::{ProvenanceManager, TemplateProvenance};
 pub use registry::{Registry, TemplateEntry};

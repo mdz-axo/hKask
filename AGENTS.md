@@ -149,6 +149,8 @@ Before editing:
 
 **Line Budget:** ≤30,000 lines Rust in production crates (excluding protocols: ACP, MCP, Okapi).
 
+**Line Count Definition:** Only actual Rust code lines are counted. Comments (single-line `//`, multi-line `/* */`, and doc comments `///`, `//!`) are explicitly excluded from the budget calculation. Use `tokei` with its default behavior which separates code from comments.
+
 ### What Counts Toward Budget
 
 All code in `hkask-*` crates counts toward the 30,000 line limit:

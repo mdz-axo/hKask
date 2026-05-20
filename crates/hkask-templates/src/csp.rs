@@ -181,17 +181,11 @@ impl CspStageConfig {
 /// CSP Pipeline Executor
 pub struct CspPipelineExecutor {
     stages: Vec<CspStageConfig>,
-    default_timeout_ms: u64,
 }
 
 impl CspPipelineExecutor {
     pub fn new(stages: Vec<CspStageConfig>) -> Self {
-        let default_timeout_ms = stages.iter().map(|s| s.timeout_ms).max().unwrap_or(30000);
-
-        Self {
-            stages,
-            default_timeout_ms,
-        }
+        Self { stages }
     }
 
     /// Get stage configurations

@@ -40,13 +40,11 @@ const JINJA2_DANGEROUS_PATTERNS: &[&str] = &[
 /// Path traversal patterns to block
 const PATH_TRAVERSAL_PATTERNS: &[&str] = &["..", "/etc/", "/proc/", "/sys/", "//", "\\..", "/.."];
 
-/// Maximum recursion depth (Miller's law: 7 ± 2)
-const MAX_RECURSION_DEPTH: u8 = 7;
-
 /// Security adapter for composition operations
 pub struct SecurityAdapter {
     capability_checker: CapabilityChecker,
     allowed_paths: HashSet<String>,
+    secret: Vec<u8>,
 }
 
 impl SecurityAdapter {
@@ -55,7 +53,13 @@ impl SecurityAdapter {
         Self {
             capability_checker: CapabilityChecker::new(secret),
             allowed_paths: HashSet::new(),
+            secret: secret.to_vec(),
         }
+    }
+
+    /// Get the secret key (for cascade context)
+    pub fn get_secret(&self) -> &[u8] {
+        &self.secret
     }
 
     /// Allow specific path prefix
