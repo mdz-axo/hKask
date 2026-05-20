@@ -373,7 +373,7 @@ impl CascadeExecutor {
         // Execute each template in the stage
         for template_id in &stage.templates {
             // Security: Validate template path
-            self.security.validate_template_path(template_id)?;
+            self.security.validate_path(template_id)?;
 
             // Cycle detection
             if self.cycle_detection {

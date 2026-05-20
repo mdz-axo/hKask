@@ -579,6 +579,97 @@ pub trait SecurityPort: Send + Sync {
     fn check_energy_budget(&self, requested: u64, remaining: u64) -> Result<()>;
 }
 
+/// Capability attenuator port for runtime OCAP enforcement
+/// 
+/// Attenuates capabilities at template render time, following principle of least authority.
+/// Per Miller: capabilities must be attenuated at use, not just declared at configuration.
+pub trait CapabilityAttenuator: Send + Sync {
+    /// Attenuate capability for specific template
+    /// 
+    /// Creates a more restrictive capability scoped to the template being rendered.
+    /// The attenuated capability can only be used for that specific template.
+    /// 
+    /// # Arguments
+    /// * `capability` - Original capability to attenuate
+    /// * `template_id` - Template ID to scope capability to
+    /// 
+    /// # Returns
+    /// * `Ok(attenuated_capability)` - New capability with template caveat added
+    /// * `Err(TemplateError::CapabilityDenied)` - If attenuation not permitted
+    fn attenuate_for_template(
+        &self,
+        capability: &hkask_types::CapabilityToken,
+        template_id: &str,
+    ) -> Result<hkask_types::CapabilityToken>;
+
+    /// Verify attenuated capability has required template caveat
+    fn verify_template_attenuation(
+        &self,
+        capability: &hkask_types::CapabilityToken,
+        template_id: &str,
+    ) -> bool;
+}
+
+/// Mock capability attenuator for testing
+pub struct MockCapabilityAttenuator {
+    pub should_attenuate: bool,
+    pub should_verify: bool,
+}
+
+impl MockCapabilityAttenuator {
+    pub fn new() -> Self {
+        Self {
+            should_attenuate: true,
+            should_verify: true,
+        }
+    }
+}
+
+impl Default for MockCapabilityAttenuator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl CapabilityAttenuator for MockCapabilityAttenuator {
+    fn attenuate_for_template(
+        &self,
+        capability: &hkask_types::CapabilityToken,
+        template_id: &str,
+    ) -> Result<hkask_types::CapabilityToken> {
+        if !self.should_attenuate {
+            return Err(TemplateError::CapabilityDenied(
+                "Attenuation disabled in mock".to_string(),
+            ));
+        }
+
+        // Mock attenuation: create new token scoped to template
+        // In production, this would use macaroon attenuation with template caveat
+        Ok(hkask_types::CapabilityToken::new(
+            hkask_types::CapabilityResource::Template,
+            template_id.to_string(),
+            hkask_types::CapabilityAction::Render,
+            capability.delegated_from,
+            capability.delegated_to,
+            &capability.signature.as_bytes(), // Use existing signature as key
+        ))
+    }
+
+    fn verify_template_attenuation(
+        &self,
+        capability: &hkask_types::CapabilityToken,
+        template_id: &str,
+    ) -> bool {
+        if !self.should_verify {
+            return false;
+        }
+
+        // Verify capability is scoped to template
+        capability.resource == hkask_types::CapabilityResource::Template
+            && capability.resource_id == template_id
+    }
+}
+
 /// Maximum Matroshka nesting depth (configurable per template)
 pub const DEFAULT_MATROSHKA_LIMIT: u8 = 7;
 
