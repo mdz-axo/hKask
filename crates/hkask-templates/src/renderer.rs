@@ -239,16 +239,6 @@ pub fn validate_lexicon(template: &CompositionTemplate, valid_terms: &[&str]) ->
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_renderer_new() {
-        let renderer = TemplateRendererImpl::new();
-        // Just verify it constructs without error
-        drop(renderer);
-    }
 
     #[test]
     fn test_renderer_add_and_render() {

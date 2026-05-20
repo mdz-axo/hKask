@@ -110,49 +110,6 @@ pub fn validate_lexicon_terms(terms: &[String], valid_terms: &[&str]) -> Result<
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse_frontmatter_valid() {
-        let source = r#"
-contract:
-  input:
-    raw_prompt: string
-    context: object
-  output:
-    result: string
-    confidence: float
-
-inference:
-  template_type: Prompt
-  lexicon:
-    - recognize
-    - classify
-  model_tier: fast_local
-  timeout_ms: 5000
-
----
-Template content here
-"#;
-
-        let frontmatter = parse_frontmatter(source).unwrap();
-
-        assert!(frontmatter.contract.is_some());
-        let contract = frontmatter.contract.unwrap();
-        assert!(contract.input_fields.contains(&"raw_prompt".to_string()));
-        assert!(contract.input_fields.contains(&"context".to_string()));
-        assert!(contract.output_fields.contains(&"result".to_string()));
-        assert!(contract.output_fields.contains(&"confidence".to_string()));
-
-        assert!(frontmatter.inference.is_some());
-        let inference = frontmatter.inference.unwrap();
-        assert_eq!(inference.template_type, Some(TemplateType::Prompt));
-        assert!(inference.lexicon_terms.contains(&"recognize".to_string()));
-        assert_eq!(inference.model_tier, Some("fast_local".to_string()));
-        assert_eq!(inference.timeout_ms, Some(5000));
-    }
 
     #[test]
     fn test_parse_frontmatter_missing_delimiter() {

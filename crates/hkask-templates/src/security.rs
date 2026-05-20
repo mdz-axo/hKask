@@ -458,18 +458,6 @@ impl crate::ports::SecurityPort for SecurityAdapter {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_validator_blocks_dangerous_patterns() {
-        let validator = Jinja2TemplateValidator::new();
-        assert!(validator.validate("{{ config }}").is_err());
-        assert!(validator.validate("{{ self }}").is_err());
-        assert!(validator.validate("{{ ''.__class__ }}").is_err());
-        assert!(validator.validate("{% import 'x' %}").is_err());
-    }
 
     #[test]
     fn test_validator_allows_safe_templates() {

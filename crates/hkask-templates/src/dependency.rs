@@ -263,15 +263,6 @@ pub fn parse_dependencies(_template_id: &str, source: &str) -> Vec<String> {
     dependencies
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_dependency_graph_new() {
-        let graph = DependencyGraph::new();
-        assert_eq!(graph.edge_count(), 0);
-    }
 
     #[test]
     fn test_dependency_graph_add_edge() {

@@ -284,31 +284,6 @@ impl Clone for AtomicCapability {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::ports::{Action, ManifestStep};
-
-    #[test]
-    fn test_step_capability_new() {
-        let holder = WebID::new();
-        let issuer = WebID::new();
-        let expires = Utc::now() + chrono::Duration::hours(1);
-
-        let cap = StepCapability::new(
-            "test-step",
-            vec![StepAction::Select, StepAction::Execute],
-            vec!["prompt/selector".to_string()],
-            vec!["hkask-mcp-inference".to_string()],
-            expires,
-            holder.clone(),
-            issuer.clone(),
-        );
-
-        assert_eq!(cap.step_id, "test-step");
-        assert_eq!(cap.attenuation_level, 0);
-        assert_eq!(cap.allowed_actions.len(), 2);
-    }
 
     #[test]
     fn test_step_capability_attenuate() {

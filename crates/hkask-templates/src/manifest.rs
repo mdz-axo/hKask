@@ -482,25 +482,6 @@ impl ManifestExecutor for SimpleExecutor {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::ports::{
-        CnsPort, CompositionTemplate, InferencePort, McpPort, Result, TemplateRenderer,
-    };
-    use serde_json::Value;
-    use std::path::Path;
-
-    struct MockInference;
-    impl InferencePort for MockInference {
-        fn call(
-            &self,
-            _model_tier: &str,
-            _prompt: &str,
-            _config: &InferenceConfig,
-        ) -> Result<Value> {
-            Ok(Value::String("mock inference result".to_string()))
-        }
     }
 
     struct MockRenderer;

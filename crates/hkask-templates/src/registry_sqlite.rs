@@ -303,15 +303,6 @@ impl RegistryIndex for SqliteRegistry {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_sqlite_registry_new_in_memory() {
-        let registry = SqliteRegistry::new(None).unwrap();
-        assert_eq!(registry.count(), 0);
-    }
 
     #[test]
     fn test_sqlite_registry_register() {

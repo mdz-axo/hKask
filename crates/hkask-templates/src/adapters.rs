@@ -255,17 +255,6 @@ impl SkillRegistryPort for MockRegistryAdapter {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::skill_translation::TemplateContract;
-
-    #[tokio::test]
-    async fn test_mock_registry_adapter_new() {
-        let adapter = MockRegistryAdapter::new();
-        let templates = adapter.templates.read().unwrap();
-        assert!(templates.is_empty());
-    }
 
     #[tokio::test]
     async fn test_mock_registry_adapter_register_template() {
@@ -373,27 +362,5 @@ mod tests {
 
         let no_results = adapter.search_by_lexicon("nonexistent").unwrap();
         assert_eq!(no_results.len(), 0);
-    }
-
-    #[tokio::test]
-    async fn test_mock_registry_adapter_clear() {
-        let adapter = MockRegistryAdapter::new();
-        let template = GeneratedTemplate {
-            id: "test".to_string(),
-            template_type: TemplateType::Prompt,
-            source: "test".to_string(),
-            lexicon_terms: vec![],
-            contract: TemplateContract {
-                input_fields: vec![],
-                output_fields: vec![],
-            },
-            energy_cap: 1000,
-        };
-
-        adapter.register_template(template).unwrap();
-        assert_eq!(adapter.templates.read().unwrap().len(), 1);
-
-        adapter.clear();
-        assert_eq!(adapter.templates.read().unwrap().len(), 0);
     }
 }

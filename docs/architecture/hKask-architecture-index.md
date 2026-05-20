@@ -2,52 +2,53 @@
 
 **Master Specification:** `hKask-architecture-master.md` — Consolidated authoritative spec (v0.21.0)
 
-**Total Documents:** 8 (5 active + 3 reference)  
+**Total Documents:** 40 (see [`SEMANTIC_INVENTORY.md`](SEMANTIC_INVENTORY.md))  
 **Design Status:** Pre-alpha — MVP in progress  
-**Line Budget:** ≤30,000 lines Rust (excluding ACP/MCP protocols, Okapi)
+**Line Budget:** ≤30,000 lines Rust (excluding ACP/MCP protocols, Okapi)  
+**TOGAF Coverage:** 9 of 10 phases (90%)
 
 ---
 
-## Active Specifications
+## Active Specifications (TOGAF-Aligned)
 
-| # | Document | Purpose | Status |
-|---|----------|---------|--------|
-| 1 | hKask-architecture-master.md | Consolidated authoritative specification | **CURRENT — v0.21.0** |
-| 2 | hKask-architecture-index.md | This index | **CURRENT** |
-| 3 | hKask-hLexicon.md | Minimal composition vocabulary (≤75 terms) | **CURRENT** |
-| 4 | hKask-Curator-persona.md | Curator replicant persona specification | **CURRENT** |
-| 5 | hKask-erd.md | Entity relationship diagrams (Mermaid) | **CURRENT — v0.21.0** |
-
----
-
-## Reference Documents
-
-| # | Document | Purpose | Status |
-|---|----------|---------|--------|
-| 5 | vKask-erd.md | vKask entity relationships | Reference only |
-| 6 | vKask-cybernetic-constant.md | νKask cybernetic foundation | Reference only |
-| 7 | MODEL_CATALOG.md | Model catalog | Reference only |
+| # | Document | TOGAF Phase | Purpose |
+|---|----------|-------------|---------|
+| 1 | [`PRINCIPLES.md`](PRINCIPLES.md) | Preliminary | Five Anchors, P1-P7, C1-C7 constraints |
+| 2 | [`business-architecture.md`](business-architecture.md) | B | Stakeholders, OCAP flows, agent taxonomy |
+| 3 | [`data-architecture.md`](data-architecture.md) | C-Data | Bitemporal triples, vectors, ν-events |
+| 4 | [`application-architecture.md`](application-architecture.md) | C-App | Crate graph, MCP dispatch, registry |
+| 5 | [`security-architecture.md`](security-architecture.md) | D | Capability model, STRIDE, adapters |
+| 6 | [`roadmap.md`](../plans/roadmap.md) | E | Phase 1-4 timeline, deferred work |
+| 7 | [`migration/strategy.md`](../migration/strategy.md) | F | Terminology migration, lifecycle |
+| 8 | [`GOVERNANCE.md`](../standards/GOVERNANCE.md) | G/H | Quality gates, CNS monitoring |
+| 9 | [`hKask-architecture-master.md`](hKask-architecture-master.md) | A | Consolidated specification (v0.21.0) |
+| 10 | [`hKask-erd.md`](hKask-erd.md) | C-Data | Entity relationship diagrams |
+| 11 | [`hKask-hLexicon.md`](hKask-hLexicon.md) | B | Minimal composition vocabulary |
+| 12 | [`hKask-Curator-persona.md`](hKask-Curator-persona.md) | A | Curator replicant specification |
 
 ---
 
-## Deleted (Superseded)
+## Standards & Quality
 
-The following documents were deleted during consolidation:
+| Document | Purpose |
+|----------|---------|
+| [`DOCUMENTATION_STANDARDS.md`](../standards/DOCUMENTATION_STANDARDS.md) | Six-field headers, citations, diagrams |
+| [`WRITING_EXCELLENCE.md`](../standards/WRITING_EXCELLENCE.md) | Hopper/Lovelace/Schriver/Gentle rubric |
+| [`WRITING_EXCELLENCE_AUDIT.md`](../standards/WRITING_EXCELLENCE_AUDIT.md) | 26-document audit scores |
+| [`SEMANTIC_INVENTORY.md`](SEMANTIC_INVENTORY.md) | RDF graph, TOGAF classification |
 
-| Document | Reason |
-|----------|--------|
-| claude-architecture-hkask.md | Insights incorporated into master spec |
-| hKask-storage-spec.md | Wrong backend (Redb vs SQLite + SQLCipher) |
-| hKask-memory-spec.md | Wrong terminology (νKask vs CNS) |
-| hKask-ensemble.md | Contains removed swarm/consensus code |
-| hKask-implementation-roadmap.md | Wrong crate names, outdated |
-| hKask-pre-implementation-decisions.md | Superseded by master spec Part III |
-| hKask-data-ownership-privacy.md | Superseded by master spec §10 |
-| hKask-okapi-integration.md | Superseded by master spec §12 |
-| hKask-acp-mcp-integration.md | Superseded by master spec §13 |
-| hKask-cli-api-surface.md | Superseded by master spec §11 |
-| hKask-agent-taxonomy.md | Superseded by master spec §1.2 |
-| hKask-erd.md | Contains removed components |
+---
+
+## Archived Documents
+
+The following documents were archived (Git history preserved):
+
+| Document | Replaced By | Date |
+|----------|-------------|------|
+| `vKask-cybernetic-constant.md` | `security-architecture.md`, `data-architecture.md` | 2026-05-20 |
+| `vKask-erd.md` | `hKask-erd.md`, `data-architecture.md` | 2026-05-20 |
+
+**Recovery:** `git log --diff-filter=D -- docs/architecture/vKask-*.md`
 
 ---
 
@@ -61,7 +62,7 @@ The following documents were deleted during consolidation:
 | **2. Essential Tools** | 10 MCP servers + Okapi | `hkask-mcp-*`, Okapi |
 | **3. User Sovereignty** | OCAP, encrypted keystore, privacy guarantees | `hkask-keystore`, `hkask-agents` |
 | **4. CNS (Cybernetic Nervous System)** | ν-events, variety counters, algedonic alerts | `hkask-cns` |
-| **5. Composition Registries** | Templates with hLexicon, self-wiring via ACP/MCP | `hkask-templates` |
+| **5. Composition** | Templates with hLexicon, self-wiring via ACP/MCP | `hkask-templates` |
 
 ### Crate Structure (21 crates total)
 

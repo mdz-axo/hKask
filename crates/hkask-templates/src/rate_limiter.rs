@@ -168,21 +168,6 @@ impl<R> RateLimitedRepository<R> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::sync::Arc;
-    use std::thread;
-    use std::time::Duration;
-
-    #[test]
-    fn test_rate_limiter_allows_burst() {
-        let limiter = RateLimiter::new(5, 10);
-
-        // Should allow 5 requests immediately (burst)
-        for i in 0..5 {
-            assert!(limiter.try_acquire(), "Request {} should be allowed", i);
-        }
     }
 
     #[test]

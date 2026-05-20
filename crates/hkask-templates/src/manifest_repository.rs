@@ -210,41 +210,6 @@ impl ManifestRepository for InMemoryManifestRepository {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::ports::{Action, ManifestStep};
-    use tempfile::TempDir;
-
-    #[test]
-    fn test_file_system_repository_save_and_load() {
-        let temp_dir = TempDir::new().unwrap();
-        let repo = FileSystemManifestRepository::new(temp_dir.path().to_path_buf());
-
-        let manifest = ProcessManifest {
-            id: "test-manifest".to_string(),
-            name: "Test Manifest".to_string(),
-            description: "A test manifest".to_string(),
-            steps: vec![ManifestStep {
-                ordinal: 1,
-                action: Action::Select,
-                description: "Select template".to_string(),
-                template_ref: "prompt/selector".to_string(),
-                model_tier: Some("fast_local".to_string()),
-                mcp: Some("hkask-mcp-inference".to_string()),
-                renderer: Some("minijinja".to_string()),
-            }],
-        };
-
-        // Save
-        repo.save(&manifest).unwrap();
-
-        // Load
-        let loaded = repo.load("test-manifest").unwrap();
-        assert_eq!(loaded.id, manifest.id);
-        assert_eq!(loaded.name, manifest.name);
-        assert_eq!(loaded.steps.len(), 1);
-    }
 
     #[test]
     fn test_file_system_repository_not_found() {

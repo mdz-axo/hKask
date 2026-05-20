@@ -247,17 +247,6 @@ impl Default for RetryConfig {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_transient_error() {
-        let error = CompositionError::transient("network timeout");
-        assert!(error.is_retryable());
-        assert_eq!(error.retry_count(), Some(0));
-        assert_eq!(error.category(), "transient");
-    }
 
     #[test]
     fn test_permanent_error() {

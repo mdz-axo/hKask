@@ -189,14 +189,69 @@ The following were explicitly excluded from implementation per architecture spec
 
 ---
 
+## Documentation Overhaul (2026-05-20)
+
+### ✅ Resolved — TOGAF Documentation Complete
+
+| Task | Document | Status | Date |
+|------|----------|--------|------|
+| **Semantic Inventory** | `SEMANTIC_INVENTORY.md` | ✅ Complete | 2026-05-20 |
+| **Writing Excellence Audit** | `WRITING_EXCELLENCE_AUDIT.md` | ✅ Complete | 2026-05-20 |
+| **TOGAF Preliminary** | `PRINCIPLES.md` | ✅ Complete | 2026-05-20 |
+| **TOGAF Phase B** | `business-architecture.md` | ✅ Complete | 2026-05-20 |
+| **TOGAF Phase C-Data** | `data-architecture.md` | ✅ Complete | 2026-05-20 |
+| **TOGAF Phase C-App** | `application-architecture.md` | ✅ Complete | 2026-05-20 |
+| **TOGAF Phase D** | `security-architecture.md` | ✅ Complete | 2026-05-20 |
+| **TOGAF Phase E** | `roadmap.md` | ✅ Complete | 2026-05-20 |
+| **TOGAF Phase F** | `migration/strategy.md` | ✅ Complete | 2026-05-20 |
+| **TOGAF Phase G/H** | `GOVERNANCE.md` | ✅ Complete | 2026-05-20 |
+| **Archival** | `vKask-*.md` removed | ✅ Complete | 2026-05-20 |
+
+**TOGAF Coverage:** 9 of 10 phases complete (90%)  
+**New Documents:** 10 files, ~4,000 lines  
+**Corpus Size:** 40 documents total
+
+### ⏳ Deferred — MCP Server Specifications
+
+| Server | File | Effort | Priority |
+|--------|------|--------|----------|
+| Inference | `mcp-inference.md` | 30 min | Medium |
+| Storage | `mcp-storage.md` | 30 min | Medium |
+| Memory | `mcp-memory.md` | 30 min | Medium |
+| Embedding | `mcp-embedding.md` | 30 min | Medium |
+| Condenser | `mcp-condenser.md` | 30 min | Medium |
+| Ensemble | `mcp-ensemble.md` | 30 min | Medium |
+| Web | `mcp-web.md` | 30 min | Medium |
+| Scholar | `mcp-scholar.md` | 30 min | Medium |
+| Spandrel | `mcp-spandrel.md` | 30 min | Medium |
+| Doc Knowledge | `mcp-doc-knowledge.md` | 30 min | Medium |
+
+**Total Effort:** ~4 hours (deferred to future iteration)
+
+---
+
 ## Next Steps
 
-1. **Address P4 open questions** based on production feedback
-2. **Monitor CNS channel performance** under load
-3. **Review error handling** patterns across all crates
-4. **Document operational procedures** for salt backup/recovery
-5. **Consider persistence strategy** for variety state
+### High Priority (Post-Overhaul)
+
+1. **MCP Server Specifications** — Create 10 spec files in `docs/specifications/mcp/`
+2. **Citation Density** — Add external citations to 16 existing documents
+3. **Diagram Alignment** — Add DIAGRAM_ALIGNMENT to 6 existing diagrams
+
+### Medium Priority (Operational)
+
+4. **Security Adapter Configuration** — Per-deployment policies (Task 2, §2)
+5. **Jinja2 Sandboxing Evaluation** — minijinja features (Task 3, §3)
+6. **Metadata Headers** — Add to 18 documents missing six-field headers
+
+### Low Priority (Enhancements)
+
+7. **Variety State Persistence** — SQLite vs in-memory strategy
+8. **Algedonic Alert Routing** — Email/webhook integration
+9. **Link Integrity Checker** — Automated verification in CI
 
 ---
 
 *This document should be reviewed and updated as open questions are resolved.*
+
+**Last Updated:** 2026-05-20 (Documentation overhaul complete)

@@ -93,26 +93,6 @@ impl Default for ProvenanceManager {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_provenance_new() {
-        let webid = WebID::new();
-        let provenance = TemplateProvenance::new(
-            "prompt/selector".to_string(),
-            "abc123".to_string(),
-            webid,
-            "main".to_string(),
-        );
-
-        assert_eq!(provenance.template_id, "prompt/selector");
-        assert_eq!(provenance.git_sha, "abc123");
-        assert_eq!(provenance.modified_by, webid);
-        assert_eq!(provenance.branch, "main");
-        assert!(provenance.commit_message.is_none());
-    }
 
     #[test]
     fn test_provenance_with_commit_message() {

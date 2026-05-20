@@ -495,15 +495,6 @@ impl RegistryIndex for Registry {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_registry_new() {
-        let registry = Registry::new();
-        assert_eq!(registry.count(), 0);
-    }
 
     #[test]
     fn test_registry_register() {

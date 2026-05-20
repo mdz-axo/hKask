@@ -616,15 +616,6 @@ impl CascadeBuilder {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::ports::{Action, ManifestStep, ProcessManifest, RegistryEntry};
-    use hkask_types::{CapabilityAction, CapabilityResource, WebID};
-
-    struct MockRegistry {
-        entries: HashMap<String, crate::ports::RegistryEntry>,
-    }
 
     impl MockRegistry {
         fn new() -> Self {

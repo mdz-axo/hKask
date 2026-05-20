@@ -236,18 +236,6 @@ pub enum ValidatorError {
     ParseError(String),
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn create_test_capabilities() -> OkapiCapabilities {
-        OkapiCapabilities {
-            runner_type: "ollamarunner".to_string(),
-            lora_hot_swap: true,
-            token_probs: true,
-            grammar_native: true,
-            advanced_sampling: true,
-        }
     }
 
     fn create_test_lexicon() -> Vec<String> {

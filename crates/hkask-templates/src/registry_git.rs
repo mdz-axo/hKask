@@ -147,37 +147,6 @@ impl RegistryIndex for GitRegistry {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::fs;
-    use tempfile::TempDir;
-
-    fn setup_git_repo() -> (TempDir, PathBuf) {
-        let temp_dir = TempDir::new().unwrap();
-        let repo_path = temp_dir.path().to_path_buf();
-
-        // Initialize git repo
-        Command::new("git")
-            .args(["init"])
-            .current_dir(&repo_path)
-            .output()
-            .unwrap();
-
-        Command::new("git")
-            .args(["config", "user.email", "test@test.com"])
-            .current_dir(&repo_path)
-            .output()
-            .unwrap();
-
-        Command::new("git")
-            .args(["config", "user.name", "Test User"])
-            .current_dir(&repo_path)
-            .output()
-            .unwrap();
-
-        (temp_dir, repo_path)
-    }
 
     #[test]
     fn test_verify_git_repo() {

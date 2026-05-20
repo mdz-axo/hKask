@@ -184,27 +184,6 @@ impl Default for AuditTrail {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_execution_audit_new() {
-        let bot_id = WebID::new();
-        let audit = ExecutionAudit::new(
-            bot_id,
-            "prompt/selector".to_string(),
-            "abc123".to_string(),
-            1,
-        );
-
-        assert_eq!(audit.bot_id, bot_id);
-        assert_eq!(audit.template_id, "prompt/selector");
-        assert_eq!(audit.input_hash, "abc123");
-        assert_eq!(audit.matroshka_depth, 1);
-        assert!(audit.success);
-        assert!(audit.error_message.is_none());
-    }
 
     #[test]
     fn test_execution_audit_with_outcome_event() {

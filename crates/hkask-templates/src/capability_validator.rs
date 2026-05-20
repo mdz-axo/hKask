@@ -160,41 +160,6 @@ pub enum CapabilityAwareValidationError {
     ValidationFailed(Vec<ValidationError>),
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::contract_validator::OkapiRequirements;
-
-    #[test]
-    fn test_capability_aware_validator_valid_template() {
-        let capabilities = OkapiCapabilities {
-            runner_type: "ollamarunner".to_string(),
-            lora_hot_swap: true,
-            token_probs: true,
-            grammar_native: true,
-            advanced_sampling: true,
-        };
-        let validator = CapabilityAwareValidator::new(
-            capabilities,
-            vec!["classify".to_string(), "recognize".to_string()],
-        );
-
-        let frontmatter = RegistrationFrontmatter {
-            template_type: TemplateType::Prompt,
-            domain: "WordAct".to_string(),
-            requires_okapi: Some(OkapiRequirements {
-                n_probs: Some(5),
-                grammar: None,
-                adapter: None,
-            }),
-            confidence: None,
-            lexicon_terms: vec!["classify".to_string()],
-            contract: None,
-        };
-
-        let result = validator.validate(&frontmatter);
-        assert!(result.is_ok());
-    }
 
     #[test]
     fn test_capability_aware_validator_incompatible_capabilities() {

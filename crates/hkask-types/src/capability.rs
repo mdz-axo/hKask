@@ -339,13 +339,13 @@ impl CapabilityToken {
     }
 
     /// Verify capability cryptographically (for distributed/Paxos verification)
-    /// 
+    ///
     /// This method enables cross-machine capability verification without a central authority.
     /// Each machine can verify capabilities independently using the shared secret.
-    /// 
+    ///
     /// # Arguments
     /// * `secret` — Shared HMAC secret (distributed via secure channel)
-    /// 
+    ///
     /// # Returns
     /// * `true` — Signature is valid
     /// * `false` — Signature invalid or tampered
@@ -354,17 +354,17 @@ impl CapabilityToken {
     }
 
     /// Verify capability with lazy timestamp check (CRDT-style eventual consistency)
-    /// 
+    ///
     /// In distributed systems, clock skew may cause different machines to disagree on
     /// whether a capability is expired. This method uses "lazy" expiry:
     /// - Check signature first (always consistent)
     /// - Check expiry with local clock (may differ across machines)
     /// - If signature valid but expired, capability enters "zombie" state (valid but unusable)
-    /// 
+    ///
     /// # Arguments
     /// * `secret` — Shared HMAC secret
     /// * `local_time` — Local machine's current timestamp
-    /// 
+    ///
     /// # Returns
     /// * `VerificationResult` — Detailed verification status
     pub fn verify_lazy(&self, secret: &[u8], local_time: i64) -> VerificationResult {
@@ -381,10 +381,10 @@ impl CapabilityToken {
     }
 
     /// Get capability fingerprint for CRDT merge operations
-    /// 
+    ///
     /// Returns a unique fingerprint that can be used for CRDT conflict resolution
     /// when capabilities are replicated across machines.
-    /// 
+    ///
     /// # Returns
     /// Fingerprint string suitable for CRDT merge comparison
     pub fn fingerprint(&self) -> String {
@@ -400,13 +400,13 @@ impl CapabilityToken {
     }
 
     /// Check if this capability is compatible with another (for CRDT merge)
-    /// 
+    ///
     /// Two capabilities are compatible if they have the same resource, action,
     /// and delegated_to, regardless of signature or attenuation level.
-    /// 
+    ///
     /// # Arguments
     /// * `other` — Other capability to compare
-    /// 
+    ///
     /// # Returns
     /// * `true` — Capabilities are compatible (can be merged in CRDT)
     /// * `false` — Capabilities are incompatible
@@ -617,7 +617,6 @@ impl BotCapabilities {
         self.capabilities.iter().any(|cap| cap == tool_name)
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;

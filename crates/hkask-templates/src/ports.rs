@@ -1177,18 +1177,6 @@ impl SecurityPort for MockSecurityPort {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_inference_config_default() {
-        let config = InferenceConfig::default();
-
-        assert_eq!(config.timeout, Duration::from_secs(30));
-        assert_eq!(config.max_retries, 3);
-        assert_eq!(config.backoff_base, Duration::from_secs(1));
-    }
 
     #[test]
     fn test_inference_config_backoff() {

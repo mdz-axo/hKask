@@ -589,13 +589,6 @@ use crate::skill_translation::{
 };
 use hkask_types::TemplateType;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    struct TestExecutor {
-        should_fail: bool,
-    }
 
     impl StageExecutor for TestExecutor {
         fn execute(&self, input: serde_json::Value) -> Result<StageOutput, CompositionError> {

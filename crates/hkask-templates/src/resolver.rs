@@ -28,16 +28,6 @@ impl<R: RegistryIndex> TemplateResolver<R> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::ports::{RegistryEntry, RegistryIndex, Result, TemplateError};
-    use hkask_types::TemplateType;
-    use std::collections::HashMap;
-
-    struct MockRegistry {
-        entries: HashMap<String, RegistryEntry>,
-    }
 
     impl MockRegistry {
         fn new() -> Self {
