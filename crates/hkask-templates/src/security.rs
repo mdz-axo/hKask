@@ -208,15 +208,23 @@ impl SecurityAdapter {
     }
 
     /// Emit CNS span for security event
-    fn emit_security_span(&self, event_type: &str, outcome: &str, details: serde_json::Value) {
+    fn emit_security_span(&self, event_type: &str, outcome: &str, _details: serde_json::Value) {
         if let Some(ref cns) = self.cns_runtime {
-            let span = format!("cns.security.{}", event_type);
-            cns.emit_span(
-                &span,
-                outcome,
-                details,
-                1.0, // confidence
-            );
+            // Use variety tracking for security events
+            let domain = match event_type {
+                "template_capability_check" => "security.template",
+                "manifest_capability_check" => "security.manifest",
+                "cascade_capability_check" => "security.cascade",
+                "path_validation" => "security.path",
+                _ => "security",
+            };
+            let state = format!("{}_{}", event_type, outcome);
+            tokio::spawn({
+                let cns = Arc::clone(cns);
+                async move {
+                    cns.increment_variety(domain, &state).await;
+                }
+            });
         }
     }
 
@@ -230,35 +238,48 @@ impl SecurityAdapter {
     ) -> Result<()> {
         use hkask_types::CapabilityResource;
 
-        if !self
-            .capability_checker
-            .verify_with_time(token, current_time)
-        {
-            return Err(TemplateError::CapabilityDenied(
-                "Token expired or invalid".to_string(),
-            ));
-        }
+        let result = (|| -> Result<()> {
+            if !self.capability_checker.verify_with_time(token, current_time) {
+                return Err(TemplateError::CapabilityDenied(
+                    "Token expired or invalid".to_string(),
+                ));
+            }
 
-        if token.delegated_to != *holder {
-            return Err(TemplateError::CapabilityDenied(
-                "Token not delegated to holder".to_string(),
-            ));
-        }
+            if token.delegated_to != *holder {
+                return Err(TemplateError::CapabilityDenied(
+                    "Token not delegated to holder".to_string(),
+                ));
+            }
 
-        if !token.grants_resource(CapabilityResource::Template) {
-            return Err(TemplateError::CapabilityDenied(
-                "Token does not grant template access".to_string(),
-            ));
-        }
+            if !token.grants_resource(CapabilityResource::Template) {
+                return Err(TemplateError::CapabilityDenied(
+                    "Token does not grant template access".to_string(),
+                ));
+            }
 
-        if token.resource_id != template_id && token.resource_id != "*" {
-            return Err(TemplateError::CapabilityDenied(format!(
-                "Token does not grant access to template: {}",
-                template_id
-            )));
-        }
+            if token.resource_id != template_id && token.resource_id != "*" {
+                return Err(TemplateError::CapabilityDenied(format!(
+                    "Token does not grant access to template: {}",
+                    template_id
+                )));
+            }
 
-        Ok(())
+            Ok(())
+        })();
+
+        // Emit CNS span for security audit
+        self.emit_security_span(
+            "template_capability_check",
+            if result.is_ok() { "allowed" } else { "denied" },
+            json!({
+                "template_id": template_id,
+                "holder": holder.to_string(),
+                "token_id": token.id,
+                "context_nonce": token.context_nonce,
+            }),
+        );
+
+        result
     }
 
     /// Verify capability for manifest operation
@@ -633,5 +654,106 @@ mod tests {
         let attenuated = adapter.attenuate_capability(&token, new_to, current_time());
         assert!(attenuated.is_some());
         assert_eq!(attenuated.unwrap().attenuation_level, 1);
+    }
+
+    #[cfg(test)]
+    mod proptest_tests {
+        use super::*;
+        use proptest::prelude::*;
+
+        proptest! {
+            #[test]
+            fn test_validate_path_no_traversal(path in "[a-zA-Z0-9/_-]{1,50}") {
+                let adapter = SecurityAdapter::new(b"test-secret");
+                // Valid paths without traversal should always pass
+                if !path.contains("..") && !path.starts_with('/') && !path.contains("/etc") {
+                    prop_assert!(adapter.validate_template_path(&path).is_ok());
+                }
+            }
+
+            #[test]
+            fn test_validate_path_blocks_traversal(path in ".*\\..*") {
+                let adapter = SecurityAdapter::new(b"test-secret");
+                // Paths with .. should be blocked
+                if path.contains("..") {
+                    prop_assert!(adapter.validate_template_path(&path).is_err());
+                }
+            }
+
+            #[test]
+            fn test_validate_path_blocks_absolute(path in "/.*") {
+                let adapter = SecurityAdapter::new(b"test-secret");
+                // Absolute paths should be blocked
+                prop_assert!(adapter.validate_template_path(&path).is_err());
+            }
+
+            #[test]
+            fn test_normalize_path_preserves_valid_segments(
+                base in "[a-zA-Z][a-zA-Z0-9]{0,20}",
+                mid in "[a-zA-Z][a-zA-Z0-9]{0,20}",
+                end in "[a-zA-Z][a-zA-Z0-9]{0,20}"
+            ) {
+                let adapter = SecurityAdapter::new(b"test-secret");
+                let path = format!("{}/{}/{}", base, mid, end);
+                let normalized = adapter.normalize_path(&path);
+                // Valid paths should be unchanged
+                prop_assert_eq!(normalized, path);
+            }
+
+            #[test]
+            fn test_normalize_path_removes_redundant_slashes(
+                a in "[a-z]+",
+                b in "[a-z]+",
+                slashes in 2..=5usize
+            ) {
+                let adapter = SecurityAdapter::new(b"test-secret");
+                let slashes_str = "/".repeat(slashes);
+                let path = format!("{}{}{}", a, slashes_str, b);
+                let normalized = adapter.normalize_path(&path);
+                // Should normalize to single slash
+                let expected = format!("{}/{}", a, b);
+                prop_assert!(normalized.contains(&expected));
+                prop_assert!(!normalized.contains(&slashes_str));
+            }
+
+            #[test]
+            fn test_sanitize_jinja2_blocks_dangerous_patterns(input in ".*\\{\\{.*config.*\\}\\}.*") {
+                let adapter = SecurityAdapter::new(b"test-secret");
+                let sanitized = adapter.sanitize_jinja2_input(&input);
+                // Should block config patterns (with or without spaces)
+                let has_config = sanitized.contains("{{ config }}") || sanitized.contains("{{config}}");
+                prop_assert!(!has_config);
+            }
+
+            #[test]
+            fn test_check_recursion_depth_property(
+                current in 0u8..=10,
+                max in 0u8..=10
+            ) {
+                let adapter = SecurityAdapter::new(b"test-secret");
+                let result = adapter.check_recursion_depth(current, max);
+                // Should fail only if current > max
+                if current > max {
+                    prop_assert!(result.is_err());
+                } else {
+                    prop_assert!(result.is_ok());
+                }
+            }
+
+            #[test]
+            fn test_check_energy_budget_property(
+                requested in 0u64..=2000,
+                remaining in 0u64..=2000
+            ) {
+                let adapter = SecurityAdapter::new(b"test-secret");
+                let result = adapter.check_energy_budget(requested, remaining);
+                // Should fail only if requested > remaining
+                if requested > remaining {
+                    prop_assert!(result.is_err());
+                } else {
+                    prop_assert!(result.is_ok());
+                }
+            }
+        }
     }
 }

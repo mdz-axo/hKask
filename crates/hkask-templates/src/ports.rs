@@ -117,11 +117,30 @@ impl DependencyProvider for InMemoryDependencyProvider {
 }
 
 /// Manifest step action types
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Action {
     Select,
     Populate,
     Execute,
+}
+
+impl serde::Serialize for Action {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Action {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Action::from_str(&s).ok_or_else(|| serde::de::Error::unknown_variant(&s, &["Select", "Populate", "Execute", "select", "populate", "execute"]))
+    }
 }
 
 impl Action {

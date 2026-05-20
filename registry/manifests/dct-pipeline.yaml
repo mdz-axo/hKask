@@ -1,0 +1,108 @@
+# File: registry/manifests/dct-pipeline.yaml
+# DCT (Decimation-Classification-Tree) Pipeline Process Manifest
+# ℏKask v0.21.0 — Planck's Constant of Agent Systems
+
+manifest:
+  id: dct-pipeline
+  name: DCT Pipeline
+  description: >
+    Multi-stage pipeline for semantic decomposition and classification.
+    Converts natural language input into structured goal/constraint/task hierarchies.
+  version: 0.21.0
+  editor: curator-or-human-admin
+  visibility: Shared
+
+# Energy Budget Configuration
+energy:
+  cap: 10000
+  cost_per_token: 0.25
+  alert_threshold: 0.8
+  hard_limit: true
+
+# Process Steps
+steps:
+  - ordinal: 1
+    action: populate
+    description: >
+      Render decimation template with raw user query.
+      Decompose natural language into atomic SVO sentences.
+    renderer: minijinja
+    template_ref: registry/registries/dct-pipeline/decimation
+    model_tier: fast_local
+    mcp: hkask-mcp-inference
+    energy_cap: 2000
+    timeout_seconds: 30
+    output_schema:
+      sentences: array
+      relations: array
+
+  - ordinal: 2
+    action: populate
+    description: >
+      Render classification template with decimated sentences.
+      Classify each sentence as goal/constraint/task with ontological/epistemic tagging.
+    renderer: minijinja
+    template_ref: registry/registries/dct-pipeline/classification
+    model_tier: fast_local
+    mcp: hkask-mcp-inference
+    energy_cap: 2000
+    timeout_seconds: 30
+    output_schema:
+      classifications: array
+
+  - ordinal: 3
+    action: execute
+    description: >
+      Validate classification output and emit CNS spans.
+      Return structured intent hierarchy to caller.
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: hkask-mcp-storage
+    energy_cap: 500
+    timeout_seconds: 10
+    cns_spans:
+      - cns.prompt.select
+      - cns.prompt.render
+      - cns.prompt.outcome
+    output_schema:
+      validated: boolean
+      cns_event_id: string
+
+# Error Handling
+error_handling:
+  on_energy_exceeded: abort
+  on_timeout: retry
+  max_retries: 2
+  retry_backoff_seconds: 1
+  on_validation_failure: abort
+
+# OCAP Configuration
+ocap:
+  required_capabilities:
+    - resource: template
+      action: render
+    - resource: manifest
+      action: execute
+    - resource: cns
+      action: emit
+  delegation_chain_required: true
+  signature_algorithm: ed25519
+  capability_expiry_seconds: 3600
+
+# CNS Monitoring
+cns:
+  emit_spans: true
+  span_namespace: cns.prompt
+  variety_monitoring: true
+  algedonic_threshold: 100
+  escalation_target: Curator
+
+# Audit Trail
+audit:
+  enabled: true
+  log_level: info
+  include_input: true
+  include_output: true
+  include_energy_cost: true
+  include_cns_events: true

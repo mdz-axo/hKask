@@ -24,6 +24,8 @@ members = [
     "mcp-servers/hkask-mcp-scholar",
     "mcp-servers/hkask-mcp-spandrel",
     "mcp-servers/hkask-mcp-doc-knowledge",
+    # Test crate (excluded from LOC budget)
+    "hkask-testing",
 ]
 
 [workspace.package]

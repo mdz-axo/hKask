@@ -1,0 +1,29 @@
+[package]
+name = "hkask-testing"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Test harnesses and integration tests for hKask (excluded from LOC budget)"
+publish = false
+
+[dev-dependencies]
+hkask-types = { path = "../crates/hkask-types" }
+hkask-storage = { path = "../crates/hkask-storage" }
+hkask-memory = { path = "../crates/hkask-memory" }
+hkask-cns = { path = "../crates/hkask-cns" }
+hkask-templates = { path = "../crates/hkask-templates" }
+hkask-agents = { path = "../crates/hkask-agents" }
+hkask-ensemble = { path = "../crates/hkask-ensemble" }
+hkask-keystore = { path = "../crates/hkask-keystore" }
+hkask-mcp = { path = "../crates/hkask-mcp" }
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tempfile.workspace = true
+
+[[test]]
+name = "integration_tests"
+path = "integration-tests/mod.rs"
