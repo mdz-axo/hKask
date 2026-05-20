@@ -670,6 +670,167 @@ impl CapabilityAttenuator for MockCapabilityAttenuator {
     }
 }
 
+/// Energy calibrator port for manifest energy budget analysis
+/// 
+/// Analyzes manifest energy budgets and provides calibration recommendations.
+/// Per Cockburn: CLI is an adapter that calls this port, not direct implementation.
+pub trait EnergyCalibrator: Send + Sync {
+    /// Calibrate energy for a single manifest
+    /// 
+    /// # Arguments
+    /// * `manifest_path` - Path to manifest YAML file
+    /// 
+    /// # Returns
+    /// * `Ok(EnergyCalibrationReport)` - Calibration results with recommendations
+    /// * `Err(TemplateError)` - If manifest cannot be loaded or analyzed
+    fn calibrate_manifest(&self, manifest_path: &std::path::Path) -> Result<EnergyCalibrationReport>;
+
+    /// Calibrate energy for all manifests in a directory
+    /// 
+    /// # Arguments
+    /// * `manifest_dir` - Directory containing manifest YAML files
+    /// 
+    /// # Returns
+    /// * `Ok(Vec<EnergyCalibrationReport>)` - Calibration results for all manifests
+    /// * `Err(TemplateError)` - If directory cannot be read
+    fn calibrate_all_manifests(&self, manifest_dir: &std::path::Path) -> Result<Vec<EnergyCalibrationReport>>;
+}
+
+/// Energy calibration report
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct EnergyCalibrationReport {
+    /// Manifest identifier
+    pub manifest_id: String,
+    /// Current energy cap from manifest
+    pub current_cap: u64,
+    /// Recommended energy cap based on analysis
+    pub recommended_cap: u64,
+    /// Cap utilization percentage (0-100)
+    pub cap_utilization: f64,
+    /// Estimated energy cost for manifest execution
+    pub estimated_cost: u64,
+    /// Number of steps in manifest
+    pub steps_count: usize,
+    /// Cost per token configuration
+    pub cost_per_token: f64,
+    /// Alert threshold configuration (0-1)
+    pub alert_threshold: f64,
+    /// Calibration recommendation
+    pub recommendation: String,
+}
+
+/// Default energy calibrator implementation
+pub struct DefaultEnergyCalibrator;
+
+impl DefaultEnergyCalibrator {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Default for DefaultEnergyCalibrator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl EnergyCalibrator for DefaultEnergyCalibrator {
+    fn calibrate_manifest(&self, manifest_path: &std::path::Path) -> Result<EnergyCalibrationReport> {
+        use serde_yaml::Value as YamlValue;
+        
+        let content = std::fs::read_to_string(manifest_path)
+            .map_err(|e| TemplateError::Manifest(format!("Failed to read manifest: {}", e)))?;
+        
+        let yaml: YamlValue = serde_yaml::from_str(&content)
+            .map_err(|e| TemplateError::Manifest(format!("Failed to parse YAML: {}", e)))?;
+        
+        // Extract energy configuration
+        let energy_config = yaml.get("energy")
+            .ok_or_else(|| TemplateError::Manifest("No energy configuration found".to_string()))?;
+        
+        let cap = energy_config.get("cap")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(10000);
+        
+        let cost_per_token = energy_config.get("cost_per_token")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.25);
+        
+        let alert_threshold = energy_config.get("alert_threshold")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.8);
+        
+        // Analyze steps for energy requirements
+        let steps = yaml.get("steps")
+            .and_then(|v| v.as_sequence())
+            .map(|s| s.len())
+            .unwrap_or(0);
+        
+        let estimated_cost_per_step = 500; // Default estimate
+        let total_estimated_cost = (steps * estimated_cost_per_step) as u64;
+        
+        // Calculate recommended cap (20% buffer above estimated)
+        let recommended_cap = (total_estimated_cost as f64 * 1.2) as u64;
+        let cap_utilization = if cap > 0 {
+            (total_estimated_cost as f64 / cap as f64) * 100.0
+        } else {
+            0.0
+        };
+        
+        let recommendation = if cap_utilization < 50.0 {
+            "Cap is oversized - consider reducing"
+        } else if cap_utilization > 90.0 {
+            "Cap is too tight - consider increasing"
+        } else {
+            "Cap is well-calibrated"
+        };
+        
+        Ok(EnergyCalibrationReport {
+            manifest_id: manifest_path.file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("unknown").to_string(),
+            current_cap: cap,
+            recommended_cap,
+            cap_utilization,
+            estimated_cost: total_estimated_cost,
+            steps_count: steps,
+            cost_per_token,
+            alert_threshold,
+            recommendation: recommendation.to_string(),
+        })
+    }
+
+    fn calibrate_all_manifests(&self, manifest_dir: &std::path::Path) -> Result<Vec<EnergyCalibrationReport>> {
+        let mut reports = Vec::new();
+        
+        if !manifest_dir.exists() {
+            return Err(TemplateError::Manifest(format!(
+                "Manifest directory does not exist: {:?}",
+                manifest_dir
+            )));
+        }
+        
+        let entries = std::fs::read_dir(manifest_dir)
+            .map_err(|e| TemplateError::Manifest(format!("Failed to read directory: {}", e)))?;
+        
+        for entry in entries {
+            let entry = entry.map_err(|e| {
+                TemplateError::Manifest(format!("Failed to read directory entry: {}", e))
+            })?;
+            
+            let path = entry.path();
+            
+            // Only process .yaml files
+            if path.extension().and_then(|s| s.to_str()) == Some("yaml") {
+                let report = self.calibrate_manifest(&path)?;
+                reports.push(report);
+            }
+        }
+        
+        Ok(reports)
+    }
+}
+
 /// Maximum Matroshka nesting depth (configurable per template)
 pub const DEFAULT_MATROSHKA_LIMIT: u8 = 7;
 

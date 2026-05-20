@@ -401,7 +401,7 @@ pub fn read_only_capability(holder: WebID, key: &[u8; 32]) -> OkapiCapability {
 mod tests {
     use super::*;
 
-    fn test_key_ring() -> KeyRing {
+    fn test_key() -> KeyRing {
         KeyRing::new([0x42; 32])
     }
 
@@ -416,7 +416,7 @@ mod tests {
             issuer,
             holder,
             chrono::Duration::days(30),
-            &key_ring,
+            &key,
         );
 
         assert_eq!(cap.issuer, issuer);
@@ -435,14 +435,14 @@ mod tests {
             WebID::new(),
             holder,
             chrono::Duration::days(30),
-            &key_ring,
+            &key,
         );
 
         // Should verify successfully
-        assert!(cap.verify(&key_ring, &[OkapiOperation::Generate]).is_ok());
+        assert!(cap.verify(&key, &[OkapiOperation::Generate]).is_ok());
 
         // Should fail for unauthorized operation
-        assert!(cap.verify(&key_ring, &[OkapiOperation::Embed]).is_err());
+        assert!(cap.verify(&key, &[OkapiOperation::Embed]).is_err());
     }
 
     #[test]
@@ -457,7 +457,7 @@ mod tests {
             holder,
             template_id,
             chrono::Duration::days(30),
-            &key_ring,
+            &key,
         );
 
         assert_eq!(cap.template_id, Some(template_id));
@@ -479,10 +479,10 @@ mod tests {
             WebID::new(),
             holder,
             chrono::Duration::days(30),
-            &key_ring,
+            &key,
         );
 
-        let attenuated = cap.attenuate_for_template(template_id, &key);
+        let attenuated = cap.attenuate_for_template(template_id, &[0x42; 32]);
 
         assert_eq!(attenuated.issuer, cap.issuer);
         assert_eq!(attenuated.holder, cap.holder);
@@ -501,7 +501,7 @@ mod tests {
             WebID::new(),
             holder,
             chrono::Duration::seconds(1),
-            &key_ring,
+            &key,
         );
 
         // Should not be expired initially
@@ -519,12 +519,12 @@ mod tests {
         let key = test_key();
         let holder = WebID::new();
 
-        let cap = default_system_capability(holder, &key);
+        let cap = default_system_capability(holder, &[0x42; 32]);
 
-        assert!(cap.verify(&key_ring, &[OkapiOperation::Generate]).is_ok());
-        assert!(cap.verify(&key_ring, &[OkapiOperation::Chat]).is_ok());
-        assert!(cap.verify(&key_ring, &[OkapiOperation::ReadMetrics]).is_ok());
-        assert!(cap.verify(&key_ring, &[OkapiOperation::Embed]).is_err());
+        assert!(cap.verify(&test_key(), &[OkapiOperation::Generate]).is_ok());
+        assert!(cap.verify(&test_key(), &[OkapiOperation::Chat]).is_ok());
+        assert!(cap.verify(&test_key(), &[OkapiOperation::ReadMetrics]).is_ok());
+        assert!(cap.verify(&test_key(), &[OkapiOperation::Embed]).is_err());
     }
 
     #[test]
@@ -532,13 +532,13 @@ mod tests {
         let key = test_key();
         let holder = WebID::new();
 
-        let cap = read_only_capability(holder, &key);
+        let cap = read_only_capability(holder, &[0x42; 32]);
 
-        assert!(cap.verify(&key_ring, &[OkapiOperation::ReadMetrics]).is_ok());
+        assert!(cap.verify(&test_key(), &[OkapiOperation::ReadMetrics]).is_ok());
         assert!(
-            cap.verify(&key_ring, &[OkapiOperation::ReadCapabilities])
+            cap.verify(&test_key(), &[OkapiOperation::ReadCapabilities])
                 .is_ok()
         );
-        assert!(cap.verify(&key_ring, &[OkapiOperation::Generate]).is_err());
+        assert!(cap.verify(&test_key(), &[OkapiOperation::Generate]).is_err());
     }
 }

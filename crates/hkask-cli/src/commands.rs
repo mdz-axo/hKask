@@ -2,9 +2,8 @@
 //!
 //! This module contains the actual command handlers.
 
-use hkask_cns::EnergyAccount;
 use hkask_templates::{
-    ProcessManifest, RegistryEntry, RegistryIndex, SqliteRegistry, TemplateError,
+    EnergyCalibrator, ProcessManifest, RegistryEntry, RegistryIndex, SqliteRegistry, TemplateError,
 };
 use hkask_types::TemplateType;
 use serde_json::Value;
