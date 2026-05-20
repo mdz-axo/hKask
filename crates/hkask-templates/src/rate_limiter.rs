@@ -154,7 +154,7 @@ impl<R> RateLimitedRepository<R> {
     }
 
     /// Check rate limit before operation
-#[allow(dead_code)]
+    #[allow(dead_code)]
     fn check_rate_limit(&self) -> Result<(), RateLimitExceededError> {
         if !self.rate_limiter.try_acquire() {
             // Calculate retry-after based on refill rate
@@ -224,9 +224,7 @@ mod tests {
         // Spawn 20 threads trying to acquire tokens concurrently
         for _ in 0..20 {
             let limiter = Arc::clone(&limiter);
-            handles.push(thread::spawn(move || {
-                limiter.try_acquire()
-            }));
+            handles.push(thread::spawn(move || limiter.try_acquire()));
         }
 
         // Count successful acquisitions
@@ -238,7 +236,10 @@ mod tests {
         }
 
         // Should have allowed exactly burst_size (10) requests
-        assert_eq!(success_count, 10, "Only burst_size requests should succeed under concurrent load");
+        assert_eq!(
+            success_count, 10,
+            "Only burst_size requests should succeed under concurrent load"
+        );
     }
 
     #[test]
@@ -284,9 +285,7 @@ mod tests {
         // Spawn threads that try to acquire
         for _ in 0..5 {
             let limiter = Arc::clone(&limiter);
-            handles.push(thread::spawn(move || {
-                limiter.try_acquire()
-            }));
+            handles.push(thread::spawn(move || limiter.try_acquire()));
         }
 
         let mut success_count = 0;
@@ -321,11 +320,18 @@ mod tests {
 
         // Wait for refill (100 tokens/sec = 5+ tokens in 100ms)
         thread::sleep(Duration::from_millis(100));
-        
+
         // Trigger refill and verify we can acquire again
-        assert!(limiter.try_acquire(), "Should be able to acquire after refill");
+        assert!(
+            limiter.try_acquire(),
+            "Should be able to acquire after refill"
+        );
         // After refill and consume, should have ~4 left (capped at max 5)
         let tokens = limiter.tokens_available();
-        assert!(tokens >= 3 && tokens <= 5, "Expected 3-5 tokens after refill, got {}", tokens);
+        assert!(
+            tokens >= 3 && tokens <= 5,
+            "Expected 3-5 tokens after refill, got {}",
+            tokens
+        );
     }
 }

@@ -44,7 +44,7 @@ impl FileSystemManifestRepository {
     /// Get path for manifest ID
     fn manifest_path(&self, id: &str) -> PathBuf {
         // Sanitize ID to prevent path traversal
-        let safe_id = id.replace('/', "_").replace('\\', "_").replace("..", "_");
+        let safe_id = id.replace(['/', '\\'], "_").replace("..", "_");
         self.base_path.join(format!("{}.yaml", safe_id))
     }
 }
@@ -141,10 +141,10 @@ impl ManifestRepository for FileSystemManifestRepository {
             let path = entry.path();
 
             // Only process .yaml files
-            if path.extension().and_then(|s| s.to_str()) == Some("yaml") {
-                if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                    manifests.push(stem.to_string());
-                }
+            if path.extension().and_then(|s| s.to_str()) == Some("yaml")
+                && let Some(stem) = path.file_stem().and_then(|s| s.to_str())
+            {
+                manifests.push(stem.to_string());
             }
         }
 

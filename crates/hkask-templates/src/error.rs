@@ -76,9 +76,29 @@ pub enum CompositionError {
     #[error("Jinja2 injection attempt: {pattern}")]
     Jinja2Injection { pattern: String },
 
-    /// Energy budget exceeded
-    #[error("Energy budget exceeded: requested {requested}, remaining {remaining}")]
-    EnergyBudgetExceeded { requested: u64, remaining: u64 },
+    /// Energy budget exceeded — hard abort (security-critical)
+    #[error("Energy budget exceeded: {manifest_id}/{capability_id} allocated {budget_allocated} tokens, consumed {budget_consumed} tokens ({}% over budget)",
+        if *budget_allocated > 0 { ((budget_consumed.saturating_sub(*budget_allocated)) as f64 / *budget_allocated as f64 * 100.0) as u64 } else { 0 }
+    )]
+    EnergyBudgetHardAbort {
+        manifest_id: String,
+        capability_id: String,
+        budget_allocated: u64,
+        budget_consumed: u64,
+    },
+
+    /// Energy budget exceeded — escalate to curator (user-facing)
+    #[error(
+        "Energy budget exhausted: {manifest_id}/{capability_id} requires {additional_tokens} additional tokens to complete (allocated: {budget_allocated}, consumed: {budget_consumed})"
+    )]
+    EnergyBudgetEscalate {
+        manifest_id: String,
+        capability_id: String,
+        budget_allocated: u64,
+        budget_consumed: u64,
+        additional_tokens: u64,
+        remaining_work: String,
+    },
 
     /// Cycle detected in composition graph
     #[error("Cycle detected in composition: {cycle_path:?}")]
@@ -96,18 +116,12 @@ pub enum CompositionError {
 impl CompositionError {
     /// Check if error is retryable (transient)
     pub fn is_retryable(&self) -> bool {
-        match self {
-            CompositionError::Transient { .. } => true,
-            _ => false,
-        }
+        matches!(self, CompositionError::Transient { .. })
     }
 
     /// Check if error is permanent (not retryable)
     pub fn is_permanent(&self) -> bool {
-        match self {
-            CompositionError::Transient { .. } => false,
-            _ => true,
-        }
+        !matches!(self, CompositionError::Transient { .. })
     }
 
     /// Get retry count if transient
@@ -182,7 +196,8 @@ impl CompositionError {
             CompositionError::ValidationFailure { .. } => "validation_failure",
             CompositionError::PathTraversal { .. } => "path_traversal",
             CompositionError::Jinja2Injection { .. } => "jinja2_injection",
-            CompositionError::EnergyBudgetExceeded { .. } => "energy_budget_exceeded",
+            CompositionError::EnergyBudgetHardAbort { .. } => "energy_budget_hard_abort",
+            CompositionError::EnergyBudgetEscalate { .. } => "energy_budget_escalate",
             CompositionError::CycleDetected { .. } => "cycle_detected",
             CompositionError::StageCommunicationFailed { .. } => "stage_communication_failed",
             CompositionError::StageTimeout { .. } => "stage_timeout",

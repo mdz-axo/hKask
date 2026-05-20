@@ -363,7 +363,8 @@ impl CascadeExecutor {
 
         // Check condition if present
         if let Some(condition) = &stage.condition
-            && !self.evaluate_condition(condition, &input) {
+            && !self.evaluate_condition(condition, &input)
+        {
             return Ok(input);
         }
 

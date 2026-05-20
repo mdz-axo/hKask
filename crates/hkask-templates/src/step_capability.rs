@@ -145,10 +145,11 @@ impl StepCapability {
         }
 
         // Verify MCP is in allowed_mcps (if allowlist is non-empty)
-        if let Some(mcp) = &step.mcp {
-            if !self.allowed_mcps.is_empty() && !self.allowed_mcps.contains(mcp) {
-                return Err(AuthorizationError::McpNotAuthorized { mcp: mcp.clone() });
-            }
+        if let Some(mcp) = &step.mcp
+            && !self.allowed_mcps.is_empty()
+            && !self.allowed_mcps.contains(mcp)
+        {
+            return Err(AuthorizationError::McpNotAuthorized { mcp: mcp.clone() });
         }
 
         // Create attenuated capability with minimal authority
@@ -162,7 +163,7 @@ impl StepCapability {
             attenuation_level: self.attenuation_level + 1,
             max_attenuation: self.max_attenuation,
             holder: new_holder,
-            issuer: self.issuer.clone(),
+            issuer: self.issuer,
         })
     }
 
@@ -193,10 +194,11 @@ impl StepCapability {
         }
 
         // Verify MCP (if allowlist is non-empty)
-        if let Some(mcp) = &step.mcp {
-            if !self.allowed_mcps.is_empty() && !self.allowed_mcps.contains(mcp) {
-                return Err(AuthorizationError::McpNotAuthorized { mcp: mcp.clone() });
-            }
+        if let Some(mcp) = &step.mcp
+            && !self.allowed_mcps.is_empty()
+            && !self.allowed_mcps.contains(mcp)
+        {
+            return Err(AuthorizationError::McpNotAuthorized { mcp: mcp.clone() });
         }
 
         Ok(())
@@ -206,8 +208,8 @@ impl StepCapability {
     pub fn verify_holder(&self, holder: &WebID) -> Result<(), AuthorizationError> {
         if &self.holder != holder {
             return Err(AuthorizationError::HolderMismatch {
-                expected: self.holder.clone(),
-                actual: holder.clone(),
+                expected: self.holder,
+                actual: *holder,
             });
         }
         Ok(())

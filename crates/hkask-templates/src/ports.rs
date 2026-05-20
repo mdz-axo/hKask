@@ -580,19 +580,19 @@ pub trait SecurityPort: Send + Sync {
 }
 
 /// Capability attenuator port for runtime OCAP enforcement
-/// 
+///
 /// Attenuates capabilities at template render time, following principle of least authority.
 /// Per Miller: capabilities must be attenuated at use, not just declared at configuration.
 pub trait CapabilityAttenuator: Send + Sync {
     /// Attenuate capability for specific template
-    /// 
+    ///
     /// Creates a more restrictive capability scoped to the template being rendered.
     /// The attenuated capability can only be used for that specific template.
-    /// 
+    ///
     /// # Arguments
     /// * `capability` - Original capability to attenuate
     /// * `template_id` - Template ID to scope capability to
-    /// 
+    ///
     /// # Returns
     /// * `Ok(attenuated_capability)` - New capability with template caveat added
     /// * `Err(TemplateError::CapabilityDenied)` - If attenuation not permitted
@@ -651,7 +651,7 @@ impl CapabilityAttenuator for MockCapabilityAttenuator {
             hkask_types::CapabilityAction::Render,
             capability.delegated_from,
             capability.delegated_to,
-            &capability.signature.as_bytes(), // Use existing signature as key
+            capability.signature.as_bytes(), // Use existing signature as key
         ))
     }
 
@@ -671,29 +671,35 @@ impl CapabilityAttenuator for MockCapabilityAttenuator {
 }
 
 /// Energy calibrator port for manifest energy budget analysis
-/// 
+///
 /// Analyzes manifest energy budgets and provides calibration recommendations.
 /// Per Cockburn: CLI is an adapter that calls this port, not direct implementation.
 pub trait EnergyCalibrator: Send + Sync {
     /// Calibrate energy for a single manifest
-    /// 
+    ///
     /// # Arguments
     /// * `manifest_path` - Path to manifest YAML file
-    /// 
+    ///
     /// # Returns
     /// * `Ok(EnergyCalibrationReport)` - Calibration results with recommendations
     /// * `Err(TemplateError)` - If manifest cannot be loaded or analyzed
-    fn calibrate_manifest(&self, manifest_path: &std::path::Path) -> Result<EnergyCalibrationReport>;
+    fn calibrate_manifest(
+        &self,
+        manifest_path: &std::path::Path,
+    ) -> Result<EnergyCalibrationReport>;
 
     /// Calibrate energy for all manifests in a directory
-    /// 
+    ///
     /// # Arguments
     /// * `manifest_dir` - Directory containing manifest YAML files
-    /// 
+    ///
     /// # Returns
     /// * `Ok(Vec<EnergyCalibrationReport>)` - Calibration results for all manifests
     /// * `Err(TemplateError)` - If directory cannot be read
-    fn calibrate_all_manifests(&self, manifest_dir: &std::path::Path) -> Result<Vec<EnergyCalibrationReport>>;
+    fn calibrate_all_manifests(
+        &self,
+        manifest_dir: &std::path::Path,
+    ) -> Result<Vec<EnergyCalibrationReport>>;
 }
 
 /// Energy calibration report
@@ -735,40 +741,48 @@ impl Default for DefaultEnergyCalibrator {
 }
 
 impl EnergyCalibrator for DefaultEnergyCalibrator {
-    fn calibrate_manifest(&self, manifest_path: &std::path::Path) -> Result<EnergyCalibrationReport> {
+    fn calibrate_manifest(
+        &self,
+        manifest_path: &std::path::Path,
+    ) -> Result<EnergyCalibrationReport> {
         use serde_yaml::Value as YamlValue;
-        
+
         let content = std::fs::read_to_string(manifest_path)
             .map_err(|e| TemplateError::Manifest(format!("Failed to read manifest: {}", e)))?;
-        
+
         let yaml: YamlValue = serde_yaml::from_str(&content)
             .map_err(|e| TemplateError::Manifest(format!("Failed to parse YAML: {}", e)))?;
-        
+
         // Extract energy configuration
-        let energy_config = yaml.get("energy")
+        let energy_config = yaml
+            .get("energy")
             .ok_or_else(|| TemplateError::Manifest("No energy configuration found".to_string()))?;
-        
-        let cap = energy_config.get("cap")
+
+        let cap = energy_config
+            .get("cap")
             .and_then(|v| v.as_u64())
             .unwrap_or(10000);
-        
-        let cost_per_token = energy_config.get("cost_per_token")
+
+        let cost_per_token = energy_config
+            .get("cost_per_token")
             .and_then(|v| v.as_f64())
             .unwrap_or(0.25);
-        
-        let alert_threshold = energy_config.get("alert_threshold")
+
+        let alert_threshold = energy_config
+            .get("alert_threshold")
             .and_then(|v| v.as_f64())
             .unwrap_or(0.8);
-        
+
         // Analyze steps for energy requirements
-        let steps = yaml.get("steps")
+        let steps = yaml
+            .get("steps")
             .and_then(|v| v.as_sequence())
             .map(|s| s.len())
             .unwrap_or(0);
-        
+
         let estimated_cost_per_step = 500; // Default estimate
         let total_estimated_cost = (steps * estimated_cost_per_step) as u64;
-        
+
         // Calculate recommended cap (20% buffer above estimated)
         let recommended_cap = (total_estimated_cost as f64 * 1.2) as u64;
         let cap_utilization = if cap > 0 {
@@ -776,7 +790,7 @@ impl EnergyCalibrator for DefaultEnergyCalibrator {
         } else {
             0.0
         };
-        
+
         let recommendation = if cap_utilization < 50.0 {
             "Cap is oversized - consider reducing"
         } else if cap_utilization > 90.0 {
@@ -784,11 +798,13 @@ impl EnergyCalibrator for DefaultEnergyCalibrator {
         } else {
             "Cap is well-calibrated"
         };
-        
+
         Ok(EnergyCalibrationReport {
-            manifest_id: manifest_path.file_stem()
+            manifest_id: manifest_path
+                .file_stem()
                 .and_then(|s| s.to_str())
-                .unwrap_or("unknown").to_string(),
+                .unwrap_or("unknown")
+                .to_string(),
             current_cap: cap,
             recommended_cap,
             cap_utilization,
@@ -800,55 +816,58 @@ impl EnergyCalibrator for DefaultEnergyCalibrator {
         })
     }
 
-    fn calibrate_all_manifests(&self, manifest_dir: &std::path::Path) -> Result<Vec<EnergyCalibrationReport>> {
+    fn calibrate_all_manifests(
+        &self,
+        manifest_dir: &std::path::Path,
+    ) -> Result<Vec<EnergyCalibrationReport>> {
         let mut reports = Vec::new();
-        
+
         if !manifest_dir.exists() {
             return Err(TemplateError::Manifest(format!(
                 "Manifest directory does not exist: {:?}",
                 manifest_dir
             )));
         }
-        
+
         let entries = std::fs::read_dir(manifest_dir)
             .map_err(|e| TemplateError::Manifest(format!("Failed to read directory: {}", e)))?;
-        
+
         for entry in entries {
             let entry = entry.map_err(|e| {
                 TemplateError::Manifest(format!("Failed to read directory entry: {}", e))
             })?;
-            
+
             let path = entry.path();
-            
+
             // Only process .yaml files
             if path.extension().and_then(|s| s.to_str()) == Some("yaml") {
                 let report = self.calibrate_manifest(&path)?;
                 reports.push(report);
             }
         }
-        
+
         Ok(reports)
     }
 }
 
 /// Jinja2 sandbox runtime monitor for security enforcement
-/// 
+///
 /// Monitors template execution for sandbox escape attempts at runtime.
 /// Per Schneier: Security must be monitored, not assumed from configuration.
 /// Per Miller: Sandbox boundary violations are unauthorized operations.
 pub trait SandboxMonitor: Send + Sync {
     /// Check template source for dangerous patterns
-    /// 
+    ///
     /// # Arguments
     /// * `source` - Template source code to check
-    /// 
+    ///
     /// # Returns
     /// * `Ok(SandboxStatus)` - Status indicating safety level
     /// * `Err(TemplateError)` - If check fails
     fn check_template(&self, source: &str) -> Result<SandboxStatus>;
 
     /// Emit CNS span on sandbox violation detection
-    /// 
+    ///
     /// # Arguments
     /// * `violation_type` - Type of violation detected
     /// * `source` - Source code that triggered violation
@@ -1074,7 +1093,7 @@ impl SecurityPort for MockSecurityPort {
                 resource: token.resource,
                 resource_id: token.resource_id.clone(),
                 action: token.action,
-                delegated_from: token.delegated_to.clone(),
+                delegated_from: token.delegated_to,
                 delegated_to: new_to,
                 signature: token.signature.clone(),
                 expires_at: token.expires_at,

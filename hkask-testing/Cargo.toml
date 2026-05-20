@@ -6,7 +6,7 @@ license.workspace = true
 description = "Test harnesses and integration tests for hKask (excluded from LOC budget)"
 publish = false
 
-[dev-dependencies]
+[dependencies]
 hkask-types = { path = "../crates/hkask-types" }
 hkask-storage = { path = "../crates/hkask-storage" }
 hkask-memory = { path = "../crates/hkask-memory" }
@@ -16,6 +16,8 @@ hkask-agents = { path = "../crates/hkask-agents" }
 hkask-ensemble = { path = "../crates/hkask-ensemble" }
 hkask-keystore = { path = "../crates/hkask-keystore" }
 hkask-mcp = { path = "../crates/hkask-mcp" }
+hkask-api = { path = "../crates/hkask-api" }
+hkask-cli = { path = "../crates/hkask-cli" }
 serde.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true
@@ -24,7 +26,17 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 tempfile.workspace = true
 async-trait.workspace = true
-rand = "0.9"
+rand.workspace = true
+rusqlite.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+blake3.workspace = true
+ed25519-dalek.workspace = true
+
+[dev-dependencies]
+pretty_assertions = "1.4"
+insta = { version = "1.42", features = ["yaml", "json"] }
+proptest = "1.6"
 
 [[test]]
 name = "integration_tests"
@@ -33,3 +45,59 @@ path = "integration-tests/mod.rs"
 [[test]]
 name = "chaos_integration"
 path = "integration-tests/chaos_integration.rs"
+
+[[test]]
+name = "template_tests"
+path = "integration-tests/template_tests.rs"
+
+[[test]]
+name = "cli_tests"
+path = "integration-tests/cli_tests.rs"
+
+[[test]]
+name = "hkask_types_tests"
+path = "unit-tests/hkask_types_tests.rs"
+
+[[test]]
+name = "hkask_storage_tests"
+path = "unit-tests/hkask_storage_tests.rs"
+
+[[test]]
+name = "hkask_memory_tests"
+path = "unit-tests/hkask_memory_tests.rs"
+
+[[test]]
+name = "hkask_cns_tests"
+path = "unit-tests/hkask_cns_tests.rs"
+
+[[test]]
+name = "hkask_templates_tests"
+path = "unit-tests/hkask_templates_tests.rs"
+
+[[test]]
+name = "hkask_agents_tests"
+path = "unit-tests/hkask_agents_tests.rs"
+
+[[test]]
+name = "hkask_ensemble_tests"
+path = "unit-tests/hkask_ensemble_tests.rs"
+
+[[test]]
+name = "hkask_keystore_tests"
+path = "unit-tests/hkask_keystore_tests.rs"
+
+[[test]]
+name = "hkask_mcp_tests"
+path = "unit-tests/hkask_mcp_tests.rs"
+
+[[test]]
+name = "hkask_api_tests"
+path = "unit-tests/hkask_api_tests.rs"
+
+[[test]]
+name = "hkask_cli_tests"
+path = "unit-tests/hkask_cli_tests.rs"
+
+[[test]]
+name = "hkask_mcp_inference_tests"
+path = "unit-tests/hkask_mcp_inference_tests.rs"

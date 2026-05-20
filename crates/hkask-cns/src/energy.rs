@@ -8,6 +8,9 @@
 //! - `cns.energy.consume` — Operation cost debit
 //! - `cns.energy.opportunity` — Alternative cost analysis
 //! - `cns.energy.deficit` — Algedonic alert trigger (variety deficit)
+//! - `cns.energy.actual` — Actual energy consumption with capability context
+//! - `cns.energy.quota` — Quota allocation from parent to child
+//! - `cns.energy.overflow` — Energy budget exceeded (hard abort or escalate)
 //!
 //! **Integration:**
 //! - Every template render → energy cost
@@ -28,6 +31,8 @@ pub enum EnergySpanType {
     Opportunity,
     Deficit,
     Actual,
+    Quota,
+    Overflow,
 }
 
 impl EnergySpanType {
@@ -38,6 +43,8 @@ impl EnergySpanType {
             EnergySpanType::Opportunity => "cns.energy.opportunity",
             EnergySpanType::Deficit => "cns.energy.deficit",
             EnergySpanType::Actual => "cns.energy.actual",
+            EnergySpanType::Quota => "cns.energy.quota",
+            EnergySpanType::Overflow => "cns.energy.overflow",
         }
     }
 
@@ -48,6 +55,8 @@ impl EnergySpanType {
             "opportunity" | "cns.energy.opportunity" => Some(EnergySpanType::Opportunity),
             "deficit" | "cns.energy.deficit" => Some(EnergySpanType::Deficit),
             "actual" | "cns.energy.actual" => Some(EnergySpanType::Actual),
+            "quota" | "cns.energy.quota" => Some(EnergySpanType::Quota),
+            "overflow" | "cns.energy.overflow" => Some(EnergySpanType::Overflow),
             _ => None,
         }
     }
@@ -304,13 +313,19 @@ impl EnergyEmitter {
     }
 
     /// Emit energy actual span (actual energy consumption measurement)
-    /// 
+    ///
     /// # Arguments
     /// * `operation` - Operation name
     /// * `tokens_actual` - Actual tokens consumed
     /// * `energy_actual` - Actual energy cost
     /// * `capability_id` - Optional capability ID used for authorization (for audit trail)
-    pub fn emit_actual(&mut self, operation: &str, tokens_actual: u64, energy_actual: u64, capability_id: Option<&str>) {
+    pub fn emit_actual(
+        &mut self,
+        operation: &str,
+        tokens_actual: u64,
+        energy_actual: u64,
+        capability_id: Option<&str>,
+    ) {
         self.account.consume(energy_actual);
 
         let observation = serde_json::json!({
@@ -324,6 +339,58 @@ impl EnergyEmitter {
         });
 
         self.emit(EnergySpanType::Actual, observation);
+    }
+
+    /// Emit quota allocation span (parent allocates quota to child)
+    ///
+    /// # Arguments
+    /// * `from_manifest` - Parent manifest ID
+    /// * `to_manifest` - Child manifest ID receiving quota
+    /// * `quota_amount` - Energy quota allocated
+    pub fn emit_quota(&self, from_manifest: &str, to_manifest: &str, quota_amount: u64) {
+        let observation = serde_json::json!({
+            "from_manifest": from_manifest,
+            "to_manifest": to_manifest,
+            "quota_allocated": quota_amount,
+        });
+
+        self.emit(EnergySpanType::Quota, observation);
+    }
+
+    /// Emit energy overflow span (budget exceeded)
+    ///
+    /// # Arguments
+    /// * `manifest_id` - Manifest that exceeded budget
+    /// * `capability_id` - Capability that was being used
+    /// * `budget_allocated` - Original budget allocation
+    /// * `budget_consumed` - Actual consumption
+    /// * `overflow_action` - Action taken: "hard_abort" or "escalate"
+    pub fn emit_overflow(
+        &self,
+        manifest_id: &str,
+        capability_id: &str,
+        budget_allocated: u64,
+        budget_consumed: u64,
+        overflow_action: &str,
+    ) {
+        let overage = budget_consumed.saturating_sub(budget_allocated);
+        let overage_percent = if budget_allocated > 0 {
+            (overage as f64 / budget_allocated as f64) * 100.0
+        } else {
+            0.0
+        };
+
+        let observation = serde_json::json!({
+            "manifest_id": manifest_id,
+            "capability_id": capability_id,
+            "budget_allocated": budget_allocated,
+            "budget_consumed": budget_consumed,
+            "overage": overage,
+            "overage_percent": overage_percent,
+            "overflow_action": overflow_action,
+        });
+
+        self.emit(EnergySpanType::Overflow, observation);
     }
 
     /// Emit energy span

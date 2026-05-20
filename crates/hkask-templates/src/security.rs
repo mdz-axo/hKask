@@ -1,4 +1,3 @@
-
 use crate::ports::Result;
 use crate::ports::TemplateError;
 use hkask_cns::CnsRuntime;
@@ -11,25 +10,96 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 const JINJA2_DANGEROUS_PATTERNS: &[&str] = &[
-    "{% set %}", "{% import %}", "{% from %}", "{% include %}",
-    "config", "self", "globals", "dict.__mro__", "''.__class__", "().__class__",
+    "{% set %}",
+    "{% import %}",
+    "{% from %}",
+    "{% include %}",
+    "config",
+    "self",
+    "globals",
+    "dict.__mro__",
+    "''.__class__",
+    "().__class__",
 ];
 
 const PATH_TRAVERSAL_PATTERNS: &[&str] = &["..", "/etc/", "/proc/", "/sys/", "//", "\\..", "/.."];
 
 const ALLOWED_FILTERS: &[&str] = &[
-    "abs", "attr", "batch", "capitalize", "center", "count", "default", "dictsort",
-    "escape", "filesizeformat", "first", "float", "forceescape", "format", "groupby",
-    "indent", "int", "join", "last", "length", "list", "lower", "map", "max", "min",
-    "pprint", "random", "reject", "rejectattr", "replace", "reverse", "round", "safe",
-    "select", "selectattr", "slice", "sort", "string", "striptags", "sum", "title",
-    "trim", "truncate", "unique", "upper", "urlencode", "wordcount", "wordwrap", "xmlattr",
+    "abs",
+    "attr",
+    "batch",
+    "capitalize",
+    "center",
+    "count",
+    "default",
+    "dictsort",
+    "escape",
+    "filesizeformat",
+    "first",
+    "float",
+    "forceescape",
+    "format",
+    "groupby",
+    "indent",
+    "int",
+    "join",
+    "last",
+    "length",
+    "list",
+    "lower",
+    "map",
+    "max",
+    "min",
+    "pprint",
+    "random",
+    "reject",
+    "rejectattr",
+    "replace",
+    "reverse",
+    "round",
+    "safe",
+    "select",
+    "selectattr",
+    "slice",
+    "sort",
+    "string",
+    "striptags",
+    "sum",
+    "title",
+    "trim",
+    "truncate",
+    "unique",
+    "upper",
+    "urlencode",
+    "wordcount",
+    "wordwrap",
+    "xmlattr",
 ];
 
 const ALLOWED_TESTS: &[&str] = &[
-    "defined", "undefined", "divisibleby", "equalto", "escaped", "even", "ge", "gt",
-    "in", "iterable", "le", "lt", "mapping", "none", "number", "odd", "sameas",
-    "sequence", "string", "lower", "upper", "true", "false",
+    "defined",
+    "undefined",
+    "divisibleby",
+    "equalto",
+    "escaped",
+    "even",
+    "ge",
+    "gt",
+    "in",
+    "iterable",
+    "le",
+    "lt",
+    "mapping",
+    "none",
+    "number",
+    "odd",
+    "sameas",
+    "sequence",
+    "string",
+    "lower",
+    "upper",
+    "true",
+    "false",
 ];
 
 pub struct Jinja2TemplateValidator {
@@ -66,21 +136,34 @@ impl Jinja2TemplateValidator {
             ];
             for p in &patterns_to_check {
                 if source.contains(p) {
-                    return Err(TemplateError::Validation(format!("Template contains dangerous pattern: {}", pattern)));
+                    return Err(TemplateError::Validation(format!(
+                        "Template contains dangerous pattern: {}",
+                        pattern
+                    )));
                 }
             }
         }
-        for attr in &["__class__", "__mro__", "__subclasses__", "__globals__", "__builtins__"] {
+        for attr in &[
+            "__class__",
+            "__mro__",
+            "__subclasses__",
+            "__globals__",
+            "__builtins__",
+        ] {
             if source.contains(*attr) {
-                return Err(TemplateError::Validation(format!("Template contains dangerous attribute access: {}", attr)));
+                return Err(TemplateError::Validation(format!(
+                    "Template contains dangerous attribute access: {}",
+                    attr
+                )));
             }
         }
         Ok(())
     }
 
     fn try_compile(&self, source: &str) -> Result<()> {
-        self.env.template_from_str(source)
-            .map_err(|e| TemplateError::Validation(format!("Template compilation failed: {}", e)))?;
+        self.env.template_from_str(source).map_err(|e| {
+            TemplateError::Validation(format!("Template compilation failed: {}", e))
+        })?;
         Ok(())
     }
 
@@ -89,7 +172,10 @@ impl Jinja2TemplateValidator {
             if let Some(filter_name) = cap.get(1) {
                 let name = filter_name.as_str();
                 if !ALLOWED_FILTERS.contains(&name) && !name.starts_with('_') {
-                    return Err(TemplateError::Validation(format!("Filter '{}' is not in allowed filter set", name)));
+                    return Err(TemplateError::Validation(format!(
+                        "Filter '{}' is not in allowed filter set",
+                        name
+                    )));
                 }
             }
         }
@@ -97,7 +183,10 @@ impl Jinja2TemplateValidator {
             if let Some(test_name) = cap.get(1) {
                 let name = test_name.as_str();
                 if !ALLOWED_TESTS.contains(&name) && !name.starts_with('_') {
-                    return Err(TemplateError::Validation(format!("Test '{}' is not in allowed test set", name)));
+                    return Err(TemplateError::Validation(format!(
+                        "Test '{}' is not in allowed test set",
+                        name
+                    )));
                 }
             }
         }
@@ -106,7 +195,9 @@ impl Jinja2TemplateValidator {
 }
 
 impl Default for Jinja2TemplateValidator {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 pub struct SecurityAdapter {
@@ -138,38 +229,53 @@ impl SecurityAdapter {
         }
     }
 
-    pub fn get_secret(&self) -> &[u8] { &self.secret }
+    pub fn get_secret(&self) -> &[u8] {
+        &self.secret
+    }
 
-    pub fn allow_path(&mut self, path: &str) { self.allowed_paths.insert(path.to_string()); }
+    pub fn allow_path(&mut self, path: &str) {
+        self.allowed_paths.insert(path.to_string());
+    }
 
-    pub fn validate_path(&self, path: &str) -> Result<()> { self.validate_template_path(path) }
+    pub fn validate_path(&self, path: &str) -> Result<()> {
+        self.validate_template_path(path)
+    }
 
     pub fn validate_template_path(&self, path: &str) -> Result<()> {
         if path.contains('\0') {
-            return Err(TemplateError::PathTraversal("Null byte not allowed".to_string()));
+            return Err(TemplateError::PathTraversal(
+                "Null byte not allowed".to_string(),
+            ));
         }
         for pattern in PATH_TRAVERSAL_PATTERNS {
             if path.contains(pattern) {
-                return Err(TemplateError::PathTraversal(format!("Path traversal pattern detected: {}", pattern)));
+                return Err(TemplateError::PathTraversal(format!(
+                    "Path traversal pattern detected: {}",
+                    pattern
+                )));
             }
         }
-        let decoded = percent_decode_str(path).decode_utf8()
+        let decoded = percent_decode_str(path)
+            .decode_utf8()
             .map_err(|_| TemplateError::PathTraversal("Invalid UTF-8 in path".to_string()))?;
         if decoded.contains("..") || decoded.starts_with('/') {
-            return Err(TemplateError::PathTraversal("Encoded path traversal detected".to_string()));
+            return Err(TemplateError::PathTraversal(
+                "Encoded path traversal detected".to_string(),
+            ));
         }
         Ok(())
     }
 
     pub fn validate_template(&self, template_source: &str) -> Result<()> {
         let result = self.template_validator.validate(template_source);
-        if let Err(e) = &result {
-            if let Some(_cns) = &self.cns_runtime {
-                let span = hkask_types::Span::Connector("cns.security.jinja2.violation".to_string());
-                let observation = json!({"error": format!("{}", e), "source_length": template_source.len()});
-                let span_emitter = hkask_cns::spans::SpanEmitter::new(WebID::new());
-                span_emitter.emit(span, hkask_types::Phase::Observe, observation);
-            }
+        if let Err(e) = &result
+            && let Some(_cns) = &self.cns_runtime
+        {
+            let span = hkask_types::Span::Connector("cns.security.jinja2.violation".to_string());
+            let observation =
+                json!({"error": format!("{}", e), "source_length": template_source.len()});
+            let span_emitter = hkask_cns::spans::SpanEmitter::new(WebID::new());
+            span_emitter.emit(span, hkask_types::Phase::Observe, observation);
         }
         result
     }
@@ -193,38 +299,82 @@ impl SecurityAdapter {
         sanitized
     }
 
-    fn check_capability_scope(&self, token: &CapabilityToken, holder: &WebID, resource_id: &str, current_time: i64) -> Result<()> {
+    fn check_capability_scope(
+        &self,
+        token: &CapabilityToken,
+        holder: &WebID,
+        resource_id: &str,
+        current_time: i64,
+    ) -> Result<()> {
         if !self.verify_signature(token, holder) {
-            return Err(TemplateError::CapabilityDenied("Capability signature invalid or holder mismatch".to_string()));
+            return Err(TemplateError::CapabilityDenied(
+                "Capability signature invalid or holder mismatch".to_string(),
+            ));
         }
-        if let Some(exp) = token.expires_at {
-            if current_time > exp {
-                return Err(TemplateError::CapabilityDenied("Capability expired".to_string()));
-            }
+        if let Some(exp) = token.expires_at
+            && current_time > exp
+        {
+            return Err(TemplateError::CapabilityDenied(
+                "Capability expired".to_string(),
+            ));
         }
         if token.resource_id.as_str() != resource_id {
-            return Err(TemplateError::CapabilityDenied(format!("Capability not scoped: expected {}, got {:?}", resource_id, token.resource_id)));
+            return Err(TemplateError::CapabilityDenied(format!(
+                "Capability not scoped: expected {}, got {:?}",
+                resource_id, token.resource_id
+            )));
         }
         Ok(())
     }
 
-    pub fn check_template_capability(&self, token: &CapabilityToken, holder: &WebID, template_id: &str, current_time: i64) -> Result<()> {
+    pub fn check_template_capability(
+        &self,
+        token: &CapabilityToken,
+        holder: &WebID,
+        template_id: &str,
+        current_time: i64,
+    ) -> Result<()> {
         self.check_capability_scope(token, holder, template_id, current_time)
     }
 
-    pub fn check_manifest_capability(&self, token: &CapabilityToken, holder: &WebID, manifest_id: &str, current_time: i64) -> Result<()> {
+    pub fn check_manifest_capability(
+        &self,
+        token: &CapabilityToken,
+        holder: &WebID,
+        manifest_id: &str,
+        current_time: i64,
+    ) -> Result<()> {
         self.check_capability_scope(token, holder, manifest_id, current_time)
     }
 
-    pub fn check_cascade_capability(&self, token: &CapabilityToken, holder: &WebID, cascade_id: &str, current_time: i64) -> Result<()> {
+    pub fn check_cascade_capability(
+        &self,
+        token: &CapabilityToken,
+        holder: &WebID,
+        cascade_id: &str,
+        current_time: i64,
+    ) -> Result<()> {
         self.check_capability_scope(token, holder, cascade_id, current_time)
     }
 
-    pub fn check_stage_capability(&self, token: &CapabilityToken, holder: &WebID, stage_name: &str, current_time: i64) -> Result<()> {
+    pub fn check_stage_capability(
+        &self,
+        token: &CapabilityToken,
+        holder: &WebID,
+        stage_name: &str,
+        current_time: i64,
+    ) -> Result<()> {
         self.check_capability_scope(token, holder, stage_name, current_time)
     }
 
-    fn check_stage_capability_with_context(&self, token: &CapabilityToken, holder: &WebID, stage_name: &str, current_time: i64, _nonce: &str) -> Result<()> {
+    fn check_stage_capability_with_context(
+        &self,
+        token: &CapabilityToken,
+        holder: &WebID,
+        stage_name: &str,
+        current_time: i64,
+        _nonce: &str,
+    ) -> Result<()> {
         self.check_stage_capability(token, holder, stage_name, current_time)
     }
 }
@@ -233,19 +383,50 @@ impl crate::ports::SecurityPort for SecurityAdapter {
     fn verify_signature(&self, token: &CapabilityToken, holder: &WebID) -> bool {
         self.verify_signature(token, holder)
     }
-    fn check_template_capability(&self, token: &CapabilityToken, holder: &WebID, template_id: &str, current_time: i64) -> Result<()> {
+    fn check_template_capability(
+        &self,
+        token: &CapabilityToken,
+        holder: &WebID,
+        template_id: &str,
+        current_time: i64,
+    ) -> Result<()> {
         self.check_template_capability(token, holder, template_id, current_time)
     }
-    fn check_manifest_capability(&self, token: &CapabilityToken, holder: &WebID, manifest_id: &str, current_time: i64) -> Result<()> {
+    fn check_manifest_capability(
+        &self,
+        token: &CapabilityToken,
+        holder: &WebID,
+        manifest_id: &str,
+        current_time: i64,
+    ) -> Result<()> {
         self.check_manifest_capability(token, holder, manifest_id, current_time)
     }
-    fn check_cascade_capability(&self, token: &CapabilityToken, holder: &WebID, cascade_id: &str, current_time: i64) -> Result<()> {
+    fn check_cascade_capability(
+        &self,
+        token: &CapabilityToken,
+        holder: &WebID,
+        cascade_id: &str,
+        current_time: i64,
+    ) -> Result<()> {
         self.check_cascade_capability(token, holder, cascade_id, current_time)
     }
-    fn check_stage_capability(&self, token: &CapabilityToken, holder: &WebID, stage_name: &str, current_time: i64) -> Result<()> {
+    fn check_stage_capability(
+        &self,
+        token: &CapabilityToken,
+        holder: &WebID,
+        stage_name: &str,
+        current_time: i64,
+    ) -> Result<()> {
         self.check_stage_capability(token, holder, stage_name, current_time)
     }
-    fn check_stage_capability_with_context(&self, token: &CapabilityToken, holder: &WebID, stage_name: &str, current_time: i64, nonce: &str) -> Result<()> {
+    fn check_stage_capability_with_context(
+        &self,
+        token: &CapabilityToken,
+        holder: &WebID,
+        stage_name: &str,
+        current_time: i64,
+        nonce: &str,
+    ) -> Result<()> {
         self.check_stage_capability_with_context(token, holder, stage_name, current_time, nonce)
     }
     fn check_recursion_depth(&self, current_depth: u8, max_depth: u8) -> Result<()> {
@@ -256,11 +437,19 @@ impl crate::ports::SecurityPort for SecurityAdapter {
     }
     fn check_energy_budget(&self, requested: u64, remaining: u64) -> Result<()> {
         if requested > remaining {
-            return Err(TemplateError::CapabilityDenied(format!("Energy budget exceeded: requested {}, remaining {}", requested, remaining)));
+            return Err(TemplateError::CapabilityDenied(format!(
+                "Energy budget exceeded: requested {}, remaining {}",
+                requested, remaining
+            )));
         }
         Ok(())
     }
-    fn attenuate_capability(&self, _token: &CapabilityToken, _new_to: WebID, _current_time: i64) -> Option<CapabilityToken> {
+    fn attenuate_capability(
+        &self,
+        _token: &CapabilityToken,
+        _new_to: WebID,
+        _current_time: i64,
+    ) -> Option<CapabilityToken> {
         // Stub implementation - attenuation handled by capability system
         None
     }

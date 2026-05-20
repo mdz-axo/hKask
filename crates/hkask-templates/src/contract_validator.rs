@@ -158,7 +158,8 @@ impl ContractValidator {
         }
 
         if let Some(conf) = &frontmatter.confidence
-            && (conf.threshold < 0.0 || conf.threshold > 1.0) {
+            && (conf.threshold < 0.0 || conf.threshold > 1.0)
+        {
             errors.push(ValidationError::InvalidConfidenceThreshold {
                 threshold: conf.threshold,
             });

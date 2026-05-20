@@ -7,7 +7,7 @@
 use crate::ports::{RegistryIndex, Result};
 
 /// Template resolver — direct registry lookup without caching
-/// 
+///
 /// Following Planck's constant minimalism: remove state when function can be computed directly.
 /// Registry lookups are O(1) SQLite queries — caching adds complexity without measurable benefit.
 pub struct TemplateResolver<R> {

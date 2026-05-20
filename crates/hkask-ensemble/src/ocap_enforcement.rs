@@ -22,7 +22,13 @@ pub trait CapabilityQueryPort: Send + Sync {
 /// Port for security metrics (hexagonal architecture)
 pub trait SecurityMetricPort: Send + Sync {
     /// Record OCAP enforcement metric
-    fn record_ocap_event(&self, granted: bool, requester: &str, operation: &str, error: Option<&str>);
+    fn record_ocap_event(
+        &self,
+        granted: bool,
+        requester: &str,
+        operation: &str,
+        error: Option<&str>,
+    );
 }
 
 /// OCAP enforcement result
@@ -319,7 +325,8 @@ mod tests {
             webid,
             Duration::days(30),
             &test_key(),
-        ).with_visibility(Visibility::Private);
+        )
+        .with_visibility(Visibility::Private);
 
         registry.register(webid, vec![capability]).await.unwrap();
 

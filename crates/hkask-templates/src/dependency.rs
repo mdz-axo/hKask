@@ -41,15 +41,9 @@ impl DependencyGraph {
             depth,
         };
 
-        self.edges
-            .entry(caller.clone())
-            .or_insert_with(Vec::new)
-            .push(edge);
+        self.edges.entry(caller.clone()).or_default().push(edge);
 
-        self.reverse_edges
-            .entry(callee)
-            .or_insert_with(Vec::new)
-            .push(caller);
+        self.reverse_edges.entry(callee).or_default().push(caller);
     }
 
     /// Get all templates called by a template
