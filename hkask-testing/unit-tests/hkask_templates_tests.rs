@@ -11,9 +11,8 @@ use hkask_templates::{
         ManifestStep, McpPort, ProcessManifest, RegistryEntry, RegistryIndex, Result, SimpleExecutor,
         TemplateRenderer,
     },
-    TemplateType,
 };
-use hkask_types::WebID;
+use hkask_types::{TemplateType, WebID};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::Path;

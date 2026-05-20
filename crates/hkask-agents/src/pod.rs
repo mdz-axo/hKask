@@ -21,12 +21,6 @@
 //! Each pod holds capability tokens that grant access to specific resources
 //! (tools, templates, memory) with cryptographic verification.
 //!
-//! # Security Model
-//!
-//! Implements OCAP (Object-Capability) security with attenuation on delegation.
-//! Each pod holds capability tokens that grant access to specific resources
-//! (tools, templates, memory) with cryptographic verification.
-//!
 //! # Example
 //!
 //! ```rust,no_run
@@ -253,7 +247,12 @@ pub struct AgentPod {
     pub state: PodLifecycleState,
     /// Pod creation timestamp (Unix epoch)
     pub created_at: i64,
+    /// Maximum attenuation level for delegation
+    pub max_attenuation: u8,
 }
+
+/// Maximum attenuation level (OCAP security limit)
+pub const MAX_ATTENUATION_LEVEL: u8 = 7;
 
 /// Agent pod error types
 #[derive(Debug, Error)]
@@ -327,6 +326,7 @@ impl AgentPod {
             capability_token,
             state: PodLifecycleState::Populated,
             created_at: current_timestamp(),
+            max_attenuation: MAX_ATTENUATION_LEVEL,
         })
     }
 
@@ -460,10 +460,17 @@ impl AgentPod {
     /// * `current_time` — Current Unix timestamp
     ///
     /// # Returns
-    /// * `Some(CapabilityToken)` — Attenuated child token
-    /// * `None` — Attenuation limit exceeded
-    pub fn delegate(&self, new_holder: WebID, current_time: i64) -> Option<CapabilityToken> {
-        self.capability_token.attenuate(new_holder, b"ocap-secret-key", current_time)
+    /// * `Ok(CapabilityToken)` — Attenuated child token
+    /// * `Err(AgentPodError)` — Attenuation limit exceeded
+    pub fn delegate(&self, new_holder: WebID, current_time: i64) -> AgentPodResult<CapabilityToken> {
+        // Check attenuation limit
+        if self.capability_token.attenuation_level >= self.max_attenuation {
+            return Err(AgentPodError::AttenuationLimitExceeded);
+        }
+        
+        self.capability_token
+            .attenuate(new_holder, b"ocap-secret-key", current_time)
+            .ok_or(AgentPodError::AttenuationLimitExceeded)
     }
 
     /// Check if the pod can perform A2A operations
@@ -767,11 +774,45 @@ visibility:
         let pod = AgentPod::new("test-crate", &persona, &git).unwrap();
 
         let new_holder = WebID::new();
-        let attenuated = pod.delegate(new_holder, 1000);
-        assert!(attenuated.is_some());
+        let attenuated = pod.delegate(new_holder, 1000).unwrap();
 
-        let attenuated = attenuated.unwrap();
         assert_eq!(attenuated.attenuation_level, 1);
+    }
+
+    #[test]
+    fn test_attenuation_limit_enforcement() {
+        let persona_yaml = r#"
+agent:
+  name: "test-bot"
+  type: "Bot"
+charter:
+  description: "Test"
+  editor: "curator"
+capabilities: []
+rights: []
+responsibilities: []
+visibility:
+  default: "public"
+  episodic_override: "private"
+"#;
+
+        let persona = AgentPersona::from_yaml(persona_yaml).unwrap();
+        let git = MockGitCAS;
+        let mut pod = AgentPod::new("test-crate", &persona, &git).unwrap();
+
+        // Create a token with attenuation level at the limit
+        let mut token = pod.capability_token.clone();
+        token.attenuation_level = MAX_ATTENUATION_LEVEL;
+        pod.capability_token = token;
+
+        let new_holder = WebID::new();
+        let result = pod.delegate(new_holder, 1000);
+        
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            AgentPodError::AttenuationLimitExceeded
+        ));
     }
 
     #[test]
@@ -803,5 +844,106 @@ visibility:
         assert_eq!(persona.agent.agent_type, AgentType::Bot);
         assert_eq!(persona.agent.version, "0.2.0");
         assert_eq!(persona.capabilities.len(), 2);
+    }
+
+    #[test]
+    fn test_double_registration_fails() {
+        let persona_yaml = r#"
+agent:
+  name: "test-bot"
+  type: "Bot"
+charter:
+  description: "Test"
+  editor: "curator"
+capabilities: []
+rights: []
+responsibilities: []
+visibility:
+  default: "public"
+  episodic_override: "private"
+"#;
+
+        let persona = AgentPersona::from_yaml(persona_yaml).unwrap();
+        let git = MockGitCAS;
+        let mut pod = AgentPod::new("test-crate", &persona, &git).unwrap();
+
+        let acp = MockACPRuntime;
+        let cns = MockCNSSpan;
+        pod.register(&acp, &cns).unwrap();
+        
+        // Second registration should fail
+        let result = pod.register(&acp, &cns);
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            AgentPodError::InvalidStateTransition(_, _)
+        ));
+    }
+
+    #[test]
+    fn test_double_activation_fails() {
+        let persona_yaml = r#"
+agent:
+  name: "test-bot"
+  type: "Bot"
+charter:
+  description: "Test"
+  editor: "curator"
+capabilities: []
+rights: []
+responsibilities: []
+visibility:
+  default: "public"
+  episodic_override: "private"
+"#;
+
+        let persona = AgentPersona::from_yaml(persona_yaml).unwrap();
+        let git = MockGitCAS;
+        let mut pod = AgentPod::new("test-crate", &persona, &git).unwrap();
+
+        let acp = MockACPRuntime;
+        let cns = MockCNSSpan;
+        pod.register(&acp, &cns).unwrap();
+        
+        let mcp = MockMCPRuntime;
+        pod.activate(&mcp, &cns).unwrap();
+        
+        // Second activation should fail
+        let result = pod.activate(&mcp, &cns);
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            AgentPodError::InvalidStateTransition(_, _)
+        ));
+    }
+
+    #[test]
+    fn test_deactivate_from_populated_fails() {
+        let persona_yaml = r#"
+agent:
+  name: "test-bot"
+  type: "Bot"
+charter:
+  description: "Test"
+  editor: "curator"
+capabilities: []
+rights: []
+responsibilities: []
+visibility:
+  default: "public"
+  episodic_override: "private"
+"#;
+
+        let persona = AgentPersona::from_yaml(persona_yaml).unwrap();
+        let git = MockGitCAS;
+        let mut pod = AgentPod::new("test-crate", &persona, &git).unwrap();
+
+        let cns = MockCNSSpan;
+        let result = pod.deactivate(&cns);
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            AgentPodError::InvalidStateTransition(_, _)
+        ));
     }
 }

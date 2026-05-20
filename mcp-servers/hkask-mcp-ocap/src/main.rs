@@ -1,76 +1,100 @@
 //! hKask MCP OCAP — Capability-based access control and delegation
 
 use rmcp::{
-    ServerHandler, ServiceExt,
-    handler::server::{router::tool::ToolRouter, tool::ToolRoute},
-    model::*,
+    tool, tool_router, ServiceExt,
+    handler::server::wrapper::Parameters,
     transport::stdio,
 };
+use schemars::JsonSchema;
+use serde::Deserialize;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use std::borrow::Cow;
 
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct DelegateRequest {
+    pub issuer: String,
+    pub subject: String,
+    pub capabilities: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct VerifyRequest {
+    pub token_id: String,
+    pub capability: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct RevokeRequest {
+    pub token_id: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct EnumerateRequest {
+    pub subject: String,
+}
+
 pub struct OcapServer {
-    tool_router: ToolRouter<Self>,
     tokens: Arc<RwLock<Vec<String>>>,
 }
 
 impl OcapServer {
     pub fn new() -> Self {
-        let mut tool_router = ToolRouter::new();
-        
-        tool_router.add_route(ToolRoute::new(
-            Tool::new(
-                "ocap_delegate",
-                "Create a delegated capability token",
-                serde_json::json!({
-                    "type": "object",
-                    "properties": {
-                        "issuer": {"type": "string"},
-                        "subject": {"type": "string"},
-                        "capabilities": {"type": "string"}
-                    },
-                    "required": ["issuer", "subject", "capabilities"]
-                })
-            ),
-            |server, ctx| {
-                let params = ctx.arguments;
-                let issuer = params.get("issuer").and_then(|v| v.as_str()).unwrap_or("").to_string();
-                let subject = params.get("subject").and_then(|v| v.as_str()).unwrap_or("").to_string();
-                let capabilities = params.get("capabilities").and_then(|v| v.as_str()).unwrap_or("").to_string();
-                let tokens = Arc::clone(&server.tokens);
-                Box::pin(async move {
-                    let mut tokens = tokens.write().await;
-                    let token_id = format!("token_{}", tokens.len());
-                    tokens.push(token_id.clone());
-                    let result = format!(r#"{{"id":"{}","issuer":"{}","subject":"{}","capabilities":{}}}"#, token_id, issuer, subject, capabilities);
-                    Ok(CallToolResult::success(vec![Content::text(result)])
-                    )
-                })
-            }
-        ));
-        
         Self {
-            tool_router,
             tokens: Arc::new(RwLock::new(Vec::new())),
         }
     }
 }
 
-impl ServerHandler for OcapServer {
-    fn call_tool(&self, req: CallToolRequest) -> impl std::future::Future<Output = Result<CallToolResult, ErrorData>> + Send + 'static {
-        self.tool_router.call_tool(req)
+#[tool_router(server_handler)]
+impl OcapServer {
+    #[tool(description = "Create a delegated capability token")]
+    async fn ocap_delegate(&self, Parameters(DelegateRequest { issuer, subject, capabilities }): Parameters<DelegateRequest>) -> String {
+        let mut tokens = self.tokens.write().await;
+        let token_id = format!("token_{}", tokens.len());
+        tokens.push(token_id.clone());
+        format!(r#"{{"id":"{}","issuer":"{}","subject":"{}","capabilities":{}}}"#, token_id, issuer, subject, capabilities)
     }
-    fn list_tools(&self) -> impl std::future::Future<Output = Vec<Tool>> + Send + 'static {
-        self.tool_router.list_tools()
+
+    #[tool(description = "Verify a capability token")]
+    async fn ocap_verify(&self, Parameters(VerifyRequest { token_id, capability }): Parameters<VerifyRequest>) -> String {
+        let tokens = self.tokens.read().await;
+        let valid = tokens.contains(&token_id);
+        format!(r#"{{"token_id":"{}","valid":{},"capability":"{}"}}"#, token_id, valid, capability)
+    }
+
+    #[tool(description = "Revoke a capability token")]
+    async fn ocap_revoke(&self, Parameters(RevokeRequest { token_id }): Parameters<RevokeRequest>) -> String {
+        let mut tokens = self.tokens.write().await;
+        if let Some(pos) = tokens.iter().position(|t| t == &token_id) {
+            tokens.remove(pos);
+            format!(r#"{{"token_id":"{}","revoked":true}}"#, token_id)
+        } else {
+            format!(r#"{{"token_id":"{}","revoked":false,"error":"Token not found"}}"#, token_id)
+        }
+    }
+
+    #[tool(description = "Enumerate capabilities for a subject")]
+    async fn ocap_enumerate(&self, Parameters(EnumerateRequest { subject }): Parameters<EnumerateRequest>) -> String {
+        let tokens = self.tokens.read().await;
+        let count = tokens.len();
+        format!(r#"{{"subject":"{}","token_count":{},"tokens":{}}}"#, subject, count, serde_json::to_string(&*tokens).unwrap())
+    }
+
+    #[tool(description = "List all capability tokens")]
+    async fn ocap_list_tokens(&self) -> String {
+        let tokens = self.tokens.read().await;
+        format!(r#"{{"token_count":{},"tokens":{}}}"#, tokens.len(), serde_json::to_string(&*tokens).unwrap())
     }
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt().with_env_filter(tracing_subscriber::EnvFilter::from_default_env()).init();
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .init();
+    
     let server = OcapServer::new();
     let service = server.serve(stdio());
     tracing::info!("hkask-mcp-ocap started (v{})", SERVER_VERSION);
