@@ -3,9 +3,9 @@
 //! Logs bot ID, template ID, input hash, and outcome event ID for each dispatch.
 //! Stored in SQLite for correlation with CNS ν-events.
 
+use chrono::{DateTime, Utc};
 use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 /// Execution audit record
@@ -100,7 +100,7 @@ impl AuditTrail {
     /// Record an execution
     pub fn record(&mut self, audit: ExecutionAudit) {
         self.records.push(audit);
-        
+
         // Trim old records if exceeding limit
         if self.records.len() > self.max_records {
             let drain_count = self.records.len() - self.max_records;
@@ -131,10 +131,7 @@ impl AuditTrail {
 
     /// Get recent failed executions
     pub fn get_failures(&self) -> Vec<&ExecutionAudit> {
-        self.records
-            .iter()
-            .filter(|r| !r.success)
-            .collect()
+        self.records.iter().filter(|r| !r.success).collect()
     }
 
     /// Get all audit records
@@ -243,12 +240,12 @@ mod tests {
     fn test_execution_audit_hash_input() {
         let input = "test input";
         let hash = ExecutionAudit::hash_input(input);
-        
+
         assert_eq!(hash.len(), 64); // SHA-256 produces 64 hex chars
-        
+
         // Same input produces same hash
         assert_eq!(hash, ExecutionAudit::hash_input(input));
-        
+
         // Different input produces different hash
         assert_ne!(hash, ExecutionAudit::hash_input("different input"));
     }
@@ -257,16 +254,16 @@ mod tests {
     fn test_audit_trail_record() {
         let mut trail = AuditTrail::new(100);
         let bot_id = WebID::new();
-        
+
         let audit = ExecutionAudit::new(
             bot_id,
             "prompt/selector".to_string(),
             "abc123".to_string(),
             1,
         );
-        
+
         trail.record(audit);
-        
+
         assert_eq!(trail.count(), 1);
     }
 
@@ -275,7 +272,7 @@ mod tests {
         let mut trail = AuditTrail::new(100);
         let bot_id = WebID::new();
         let other_bot = WebID::new();
-        
+
         trail.record(ExecutionAudit::new(
             bot_id,
             "prompt/selector".to_string(),
@@ -288,7 +285,7 @@ mod tests {
             "def".to_string(),
             1,
         ));
-        
+
         let by_bot = trail.get_by_bot(&bot_id);
         assert_eq!(by_bot.len(), 1);
         assert_eq!(by_bot[0].bot_id, bot_id);
@@ -298,7 +295,7 @@ mod tests {
     fn test_audit_trail_get_by_template() {
         let mut trail = AuditTrail::new(100);
         let bot_id = WebID::new();
-        
+
         trail.record(ExecutionAudit::new(
             bot_id,
             "prompt/selector".to_string(),
@@ -311,7 +308,7 @@ mod tests {
             "def".to_string(),
             1,
         ));
-        
+
         let by_template = trail.get_by_template("prompt/selector");
         assert_eq!(by_template.len(), 1);
         assert_eq!(by_template[0].template_id, "prompt/selector");
@@ -321,7 +318,7 @@ mod tests {
     fn test_audit_trail_trim_old_records() {
         let mut trail = AuditTrail::new(5);
         let bot_id = WebID::new();
-        
+
         for i in 0..10 {
             trail.record(ExecutionAudit::new(
                 bot_id,
@@ -330,7 +327,7 @@ mod tests {
                 1,
             ));
         }
-        
+
         assert_eq!(trail.count(), 5);
         // Oldest records should be trimmed
         assert!(trail.get_by_template("template/0").is_empty());
@@ -341,20 +338,18 @@ mod tests {
     fn test_audit_trail_get_failures() {
         let mut trail = AuditTrail::new(100);
         let bot_id = WebID::new();
-        
+
         trail.record(ExecutionAudit::new(
             bot_id,
             "prompt/success".to_string(),
             "abc".to_string(),
             1,
         ));
-        trail.record(ExecutionAudit::new(
-            bot_id,
-            "prompt/fail".to_string(),
-            "def".to_string(),
-            1,
-        ).with_error("Failed".to_string()));
-        
+        trail.record(
+            ExecutionAudit::new(bot_id, "prompt/fail".to_string(), "def".to_string(), 1)
+                .with_error("Failed".to_string()),
+        );
+
         let failures = trail.get_failures();
         assert_eq!(failures.len(), 1);
         assert!(!failures[0].success);
@@ -364,28 +359,23 @@ mod tests {
     fn test_audit_trail_get_stats() {
         let mut trail = AuditTrail::new(100);
         let bot_id = WebID::new();
-        
-        trail.record(ExecutionAudit::new(
-            bot_id,
-            "prompt/success".to_string(),
-            "abc".to_string(),
-            1,
-        ).with_duration_ms(100));
-        
-        trail.record(ExecutionAudit::new(
-            bot_id,
-            "prompt/success2".to_string(),
-            "def".to_string(),
-            1,
-        ).with_duration_ms(200));
-        
-        trail.record(ExecutionAudit::new(
-            bot_id,
-            "prompt/fail".to_string(),
-            "ghi".to_string(),
-            1,
-        ).with_error("Failed".to_string()).with_duration_ms(50));
-        
+
+        trail.record(
+            ExecutionAudit::new(bot_id, "prompt/success".to_string(), "abc".to_string(), 1)
+                .with_duration_ms(100),
+        );
+
+        trail.record(
+            ExecutionAudit::new(bot_id, "prompt/success2".to_string(), "def".to_string(), 1)
+                .with_duration_ms(200),
+        );
+
+        trail.record(
+            ExecutionAudit::new(bot_id, "prompt/fail".to_string(), "ghi".to_string(), 1)
+                .with_error("Failed".to_string())
+                .with_duration_ms(50),
+        );
+
         let stats = trail.get_stats();
         assert_eq!(stats.total, 3);
         assert_eq!(stats.successes, 2);
@@ -397,16 +387,16 @@ mod tests {
     fn test_audit_trail_clear() {
         let mut trail = AuditTrail::new(100);
         let bot_id = WebID::new();
-        
+
         trail.record(ExecutionAudit::new(
             bot_id,
             "prompt/selector".to_string(),
             "abc".to_string(),
             1,
         ));
-        
+
         trail.clear();
-        
+
         assert_eq!(trail.count(), 0);
     }
 }

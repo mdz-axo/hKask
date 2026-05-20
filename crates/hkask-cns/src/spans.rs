@@ -17,6 +17,8 @@ pub enum SpanCategory {
     Prompt,
     /// Agent lifecycle (populated, registered, activated, delegation)
     AgentPod,
+    /// Energy cost tracking (allocate, consume, opportunity, deficit)
+    Energy,
 }
 
 impl SpanCategory {
@@ -27,6 +29,7 @@ impl SpanCategory {
             SpanCategory::Tool => "cns.tool",
             SpanCategory::Prompt => "cns.prompt",
             SpanCategory::AgentPod => "cns.agent_pod",
+            SpanCategory::Energy => "cns.energy",
         }
     }
 
@@ -37,6 +40,7 @@ impl SpanCategory {
             "tool" | "cns.tool" => Some(SpanCategory::Tool),
             "prompt" | "cns.prompt" => Some(SpanCategory::Prompt),
             "agent_pod" | "cns.agent_pod" => Some(SpanCategory::AgentPod),
+            "energy" | "cns.energy" => Some(SpanCategory::Energy),
             _ => None,
         }
     }
@@ -108,6 +112,15 @@ impl SpanEmitter {
     pub fn emit_agent_pod(&self, lifecycle_event: &str, observation: Value) {
         self.emit(
             Span::AgentPod(lifecycle_event.to_string()),
+            hkask_types::Phase::Observe,
+            observation,
+        );
+    }
+
+    /// Emit energy span (cost tracking)
+    pub fn emit_energy(&self, energy_event: &str, observation: Value) {
+        self.emit(
+            Span::Energy(energy_event.to_string()),
             hkask_types::Phase::Observe,
             observation,
         );

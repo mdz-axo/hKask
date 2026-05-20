@@ -2517,6 +2517,9 @@ dependencies = [
 name = "hkask-mcp"
 version = "0.1.0"
 dependencies = [
+ "chrono",
+ "hkask-agents",
+ "hkask-cns",
  "hkask-templates",
  "hkask-types",
  "rmcp",
@@ -2712,10 +2715,12 @@ dependencies = [
  "hkask-storage",
  "hkask-types",
  "minijinja",
+ "rusqlite",
  "serde",
  "serde_json",
  "serde_yaml",
  "sha2",
+ "tempfile",
  "thiserror",
  "tracing",
  "uuid",

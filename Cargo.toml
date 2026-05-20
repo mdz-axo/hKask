@@ -108,3 +108,4 @@ nalgebra = "0.33"
 
 # Testing
 tempfile = "3"
+async-trait = "0.1"

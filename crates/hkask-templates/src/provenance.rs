@@ -3,9 +3,9 @@
 //! Tracks Git SHA, creator WebID, and modification timestamp for each template.
 //! Stored in SQLite alongside registry index for audit trail.
 
+use chrono::{DateTime, Utc};
 use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
 
 /// Provenance record for a template
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -125,14 +125,17 @@ mod tests {
         )
         .with_commit_message("Add selector template".to_string());
 
-        assert_eq!(provenance.commit_message, Some("Add selector template".to_string()));
+        assert_eq!(
+            provenance.commit_message,
+            Some("Add selector template".to_string())
+        );
     }
 
     #[test]
     fn test_provenance_manager_record() {
         let _manager = ProvenanceManager::new();
         let webid = WebID::new();
-        
+
         let provenance = TemplateProvenance::new(
             "prompt/selector".to_string(),
             "abc123".to_string(),

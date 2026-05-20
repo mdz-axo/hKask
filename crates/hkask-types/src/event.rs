@@ -78,6 +78,7 @@ pub enum Span {
     AgentPod(String),
     Connector(String),
     Pipeline(String),
+    Energy(String),
 }
 
 impl Span {
@@ -101,6 +102,10 @@ impl Span {
         Span::Pipeline(format!("cns.pipeline.{}", path))
     }
 
+    pub fn energy(path: &str) -> Self {
+        Span::Energy(format!("cns.energy.{}", path))
+    }
+
     pub fn as_str(&self) -> &str {
         match self {
             Span::Prompt(s) => s,
@@ -108,6 +113,7 @@ impl Span {
             Span::AgentPod(s) => s,
             Span::Connector(s) => s,
             Span::Pipeline(s) => s,
+            Span::Energy(s) => s,
         }
     }
 }

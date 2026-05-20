@@ -1,0 +1,248 @@
+# Pragmatic Composition — Skill Translation Manifest
+# ℏKask v0.21.0 — Planck's Constant of Agent Systems
+# Claude Skill → hKask Registry Conversion Rules
+
+manifest:
+  id: pragmatic-composition/skill-translation
+  name: Skill Translation Pipeline
+  description: >
+    Pipeline for converting external skill definitions (Claude Skills, etc.)
+    into hKask registry templates and manifests with CNS tracking.
+  version: 0.21.0
+  editor: curator-or-human-admin
+  visibility: Shared
+
+# Source Skill Formats
+source_formats:
+  - format: claude_skill
+    schema_url: https://docs.anthropic.com/claude/docs/skills-schema
+    parser: claude_skill_parser
+  - format: zapier_action
+    schema_url: https://zapier.com/developer/documentation/v2/
+    parser: zapier_action_parser
+  - format: langchain_tool
+    schema_url: https://python.langchain.com/docs/tools/
+    parser: langchain_tool_parser
+  - format: crewai_agent
+    schema_url: https://docs.crewai.com/
+    parser: crewai_agent_parser
+
+# Translation Pipeline Stages
+pipeline_stages:
+  - stage: 1
+    name: parse
+    description: Extract skill metadata, prompts, and process logic
+    input: raw_skill_definition
+    output: parsed_skill_ast
+    energy_cap: 500
+    cns_span: cns.tool.parse
+    patterns:
+      - Gordon_Hoare_CSP: channels for stage communication
+
+  - stage: 2
+    name: map
+    description: Translate to hKask semantic primitives (RDF triples)
+    input: parsed_skill_ast
+    output: rdf_triples
+    energy_cap: 1000
+    cns_span: cns.tool.map
+    patterns:
+      - RDF_mapping: skill → template/manifest/cognition
+      - lexicon_binding: extract hLexicon terms
+
+  - stage: 3
+    name: generate
+    description: Emit Jinja2 templates and YAML manifests
+    input: rdf_triples
+    output:
+      - jinja2_templates
+      - yaml_manifests
+    energy_cap: 2000
+    cns_span: cns.tool.generate
+    patterns:
+      - Martin_Fowler_repository: registry access pattern
+      - template_type_discriminator: Prompt|Process|Cognition
+
+  - stage: 4
+    name: validate
+    description: Schema check, energy cap assignment, security review
+    input:
+      - jinja2_templates
+      - yaml_manifests
+    output: validated_artifacts
+    energy_cap: 500
+    cns_span: cns.tool.validate
+    validation_rules:
+      - schema_validation: jinja2_syntax, yaml_schema
+      - energy_cap_assignment: estimate_token_cost
+      - security_review: OCAP, sandbox, path_traversal
+    patterns:
+      - Mark_Miller_OCAP: capability tokens for stage transitions
+
+  - stage: 5
+    name: register
+    description: Persist to hKask registry with CNS tracking
+    input: validated_artifacts
+    output:
+      - registry_entry_ids
+      - cns_event_ids
+    energy_cap: 500
+    cns_span: cns.tool.register
+    persistence:
+      - registry_write: templates/, manifests/
+      - cns_emit: cns.tool.register
+      - audit_log: translation_audit.json
+
+# Translation Rules
+translation_rules:
+  # Claude Skill → hKask Template
+  claude_skill_to_template:
+    skill_name: template.name
+    skill_description: template.description
+    skill_prompts:
+      - prompt_text: template.source
+      - prompt_variables: contract.input_fields
+      - prompt_output: contract.output_fields
+    skill_capabilities:
+      - capability: template.lexicon_terms
+      - capability: template.visibility
+    skill_process:
+      - process_steps: manifest.steps
+      - process_energy: manifest.energy_cap
+
+  # Skill Prompt → Jinja2 Template
+  skill_prompt_to_jinja2:
+    prompt_text: template_source
+    prompt_variables: "{{ variable_name }}"
+    prompt_conditionals: "{% if condition %}...{% endif %}"
+    prompt_loops: "{% for item in collection %}...{% endfor %}"
+    frontmatter:
+      - template_type: Prompt|Process|Cognition
+      - lexicon_terms: [term1, term2, ...]
+      - contract: {input: {...}, output: {...}}
+
+  # Skill Process → YAML Manifest
+  skill_process_to_manifest:
+    process_name: manifest.name
+    process_steps: manifest.steps[]
+    step_action: action (select|populate|execute)
+    step_template: template_ref
+    step_model: model_tier
+    step_mcp: mcp
+    energy_cap: manifest.energy.cap
+    visibility: manifest.visibility
+
+  # Skill Cognition → Cognition Manifest
+  skill_cognition_to_manifest:
+    reasoning_pattern: reasoning_patterns[]
+    react_phases: react_loop.phases
+    feedback_loop: cybernetic_feedback
+    algedonic_config: cybernetic_feedback.algedonic_alerts
+
+# Semantic Mapping (RDF Triples)
+semantic_mapping:
+  skill_entity:
+    - rdf_type: :Skill
+    - rdfs_label: skill.name
+    - source_format: skill.format
+  template_entity:
+    - rdf_type: :Template
+    - rdfs_label: template.name
+    - template_type: template.template_type
+    - lexicon_terms: template.lexicon_terms
+  manifest_entity:
+    - rdf_type: :Manifest
+    - rdfs_label: manifest.name
+    - step_sequence: manifest.steps
+    - energy_cap: manifest.energy.cap
+  cognition_entity:
+    - rdf_type: :Cognition
+    - rdfs_label: reasoning_pattern.name
+    - react_loop: reasoning_pattern.phases
+  energy_entity:
+    - rdf_type: :EnergyCost
+    - allocate: energy.cap
+    - consume: energy.cost_per_token
+    - opportunity: energy.opportunity_cost_tracking
+
+# Security Configuration
+security:
+  # OCAP Enforcement
+  ocap:
+    required_capabilities:
+      - resource: skill
+        action: import
+      - resource: template
+        action: create
+      - resource: manifest
+        action: create
+      - resource: registry
+        action: write
+    capability_tokens:
+      - stage_transition: parse → map
+      - stage_transition: map → generate
+      - stage_transition: generate → validate
+      - stage_transition: validate → register
+    attenuation_on_recursive: true
+
+  # Sandboxed Execution
+  sandbox:
+    jinja2_execution: true
+    filesystem_access: false
+    network_access: false
+    environment_variables: false
+    max_recursion_depth: 7
+
+  # Threat Mitigations
+  threat_mitigations:
+    - threat: path_traversal
+      mitigation: validate_template_path()
+    - threat: template_injection
+      mitigation: minijinja_sandbox
+    - threat: capability_forgery
+      mitigation: ed25519_signatures
+    - threat: recursion_overflow
+      mitigation: depth_limit_7
+    - threat: energy_exhaustion
+      mitigation: energy_caps_per_stage
+
+# CNS Integration
+cns:
+  emit_spans: true
+  span_types:
+    - cns.tool.parse
+    - cns.tool.map
+    - cns.tool.generate
+    - cns.tool.validate
+    - cns.tool.register
+    - cns.energy.allocate
+    - cns.energy.consume
+  variety_monitoring: true
+  translation_metrics:
+    - success_rate: float
+    - energy_cost_variance: float
+    - template_diversity: integer
+    - manifest_complexity: integer
+    - security_violations_blocked: integer
+
+# Calibration Feedback
+calibration:
+  enabled: true
+  metrics:
+    - translation_success_rate
+    - energy_cost_variance
+    - cns_variety_counters
+  feedback_loop:
+    - monitor: cns_variety
+    - alert: algedonic_on_deficit_100
+    - adjust: translation_rules
+    - escalate: curator_on_persistent_deficits
+
+# Audit Trail
+audit:
+  enabled: true
+  log_all_stages: true
+  log_energy_costs: true
+  log_security_decisions: true
+  log_cns_events: true
+  output_path: registry/audits/skill_translation/

@@ -260,7 +260,7 @@ mod tests {
 
         // Adding d->a would NOT create a cycle (d is not in graph)
         assert!(!graph.would_create_cycle("d", "a"));
-        
+
         // Adding c->d would NOT create a cycle (d is not reachable from a or b)
         assert!(!graph.would_create_cycle("c", "d"));
     }
@@ -273,7 +273,7 @@ mod tests {
         graph.add_edge("c".to_string(), "a".to_string(), 1);
 
         assert!(graph.would_create_cycle("c", "a"));
-        
+
         let cycles = graph.find_cycles();
         assert!(!cycles.is_empty());
     }
@@ -329,9 +329,9 @@ mod tests {
     fn test_dependency_graph_clear() {
         let mut graph = DependencyGraph::new();
         graph.add_edge("a".to_string(), "b".to_string(), 1);
-        
+
         graph.clear();
-        
+
         assert_eq!(graph.edge_count(), 0);
     }
 

@@ -7,6 +7,11 @@
 //! - Prompt (WordAct) — What to say
 //! - Process (FlowDef) — What to do
 //! - Cognition (KnowAct) — How to think
+//!
+//! **Registry Adapters:**
+//! - `Registry` — In-memory filesystem-based registry (MVP default)
+//! - `GitRegistry` — Git CAS-backed registry (production)
+//! - `SqliteRegistry` — SQLite-backed registry (production with search)
 
 pub mod audit;
 pub mod cascade;
@@ -16,16 +21,23 @@ pub mod manifest;
 pub mod ports;
 pub mod provenance;
 pub mod registry;
+pub mod registry_git;
+pub mod registry_sqlite;
 pub mod renderer;
 
 pub use audit::{AuditStats, AuditTrail, ExecutionAudit};
-pub use contracts::{parse_frontmatter, validate_lexicon_terms, InferenceConfig as FrontmatterInferenceConfig, ParsedContract, ParsedInference, TemplateFrontmatter};
-pub use dependency::{parse_dependencies, DependencyGraph};
+pub use contracts::{
+    InferenceConfig as InferenceConfigParsed, ParsedContract, ParsedInference, TemplateFrontmatter,
+    parse_frontmatter, validate_lexicon_terms,
+};
+pub use dependency::{DependencyGraph, parse_dependencies};
 pub use manifest::SelectorConfig;
 pub use ports::{
-    Action, CnsPort, CompositionTemplate, DEFAULT_MATROSHKA_LIMIT, FAST_LOCAL_MODEL, InferenceConfig,
-    InferencePort, ManifestExecutor, ManifestStep, McpPort, ProcessManifest, RegistryEntry,
-    RegistryIndex, Result, TemplateContract, TemplateError, TemplateRenderer,
+    Action, CnsPort, CompositionTemplate, DEFAULT_MATROSHKA_LIMIT, FAST_LOCAL_MODEL,
+    InferenceConfig, InferencePort, ManifestExecutor, ManifestStep, McpPort, ProcessManifest,
+    RegistryEntry, RegistryIndex, Result, TemplateContract, TemplateError, TemplateRenderer,
 };
 pub use provenance::{ProvenanceManager, TemplateProvenance};
 pub use registry::{Registry, TemplateEntry};
+pub use registry_git::GitRegistry;
+pub use registry_sqlite::SqliteRegistry;
