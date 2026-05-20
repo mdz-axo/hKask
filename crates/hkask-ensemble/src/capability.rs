@@ -77,6 +77,32 @@ pub struct OkapiCapability {
     pub visibility: Visibility,
 }
 
+/// Capability configuration with key ring for rotation
+#[derive(Debug, Clone)]
+pub struct CapabilityConfig {
+    key_ring: KeyRing,
+}
+
+impl CapabilityConfig {
+    pub fn new(key: [u8; 32]) -> Self {
+        Self {
+            key_ring: KeyRing::new(key),
+        }
+    }
+
+    pub fn with_key_ring(key_ring: KeyRing) -> Self {
+        Self { key_ring }
+    }
+
+    pub fn key_ring(&self) -> &KeyRing {
+        &self.key_ring
+    }
+
+    pub fn rotate_key(&mut self, new_key: [u8; 32]) {
+        self.key_ring.rotate(new_key);
+    }
+}
+
 /// Authorization error
 #[derive(Debug, Error)]
 pub enum AuthorizationError {

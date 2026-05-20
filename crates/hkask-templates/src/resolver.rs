@@ -2,104 +2,122 @@
 //!
 //! Decouples manifests from filesystem paths, enabling registry abstraction.
 //! Per architecture v0.21.0: Loose coupling via indirection.
+//! Per Planck minimalism: No cache — registry lookups are O(1) SQLite queries.
 
 use crate::ports::{RegistryIndex, Result};
-use std::collections::HashMap;
-use std::time::{Duration, Instant};
 
-/// Cache entry with TTL
-struct CacheEntry {
-    path: String,
-    expires_at: Instant,
-}
-
-/// Template resolver with TTL caching
+/// Template resolver — direct registry lookup without caching
+/// 
+/// Following Planck's constant minimalism: remove state when function can be computed directly.
+/// Registry lookups are O(1) SQLite queries — caching adds complexity without measurable benefit.
 pub struct TemplateResolver<R> {
     registry: R,
-    cache: HashMap<String, CacheEntry>,
-    ttl: Duration,
 }
 
 impl<R: RegistryIndex> TemplateResolver<R> {
-    /// Create new resolver with default TTL (5 minutes)
+    /// Create new resolver
     pub fn new(registry: R) -> Self {
-        Self {
-            registry,
-            cache: HashMap::new(),
-            ttl: Duration::from_secs(300),
-        }
+        Self { registry }
     }
 
-    /// Create with custom TTL
-    pub fn with_ttl(mut self, ttl: Duration) -> Self {
-        self.ttl = ttl;
-        self
-    }
-
-    /// Resolve template ID to path
-    pub fn resolve(&mut self, template_id: &str) -> Result<String> {
-        // Check cache first
-        if let Some(entry) = self.cache.get(template_id) {
-            if entry.expires_at > Instant::now() {
-                return Ok(entry.path.clone());
-            }
-            // TTL expired, remove from cache
-            self.cache.remove(template_id);
-        }
-
-        // Lookup in registry
+    /// Resolve template ID to path via direct registry lookup
+    pub fn resolve(&self, template_id: &str) -> Result<String> {
+        // Direct registry lookup — O(1) SQLite query
         let entry = self.registry.get(template_id)?;
-        let path = entry.source_path;
-
-        // Cache the result
-        self.cache.insert(
-            template_id.to_string(),
-            CacheEntry {
-                path: path.clone(),
-                expires_at: Instant::now() + self.ttl,
-            },
-        );
-
-        Ok(path)
+        Ok(entry.source_path)
     }
-
-    /// Clear cache (e.g., on registry reload)
-    pub fn clear_cache(&mut self) {
-        self.cache.clear();
-    }
-
-    /// Get cache statistics
-    pub fn cache_stats(&self) -> TemplateResolverStats {
-        let now = Instant::now();
-        let total = self.cache.len();
-        let expired = self.cache.values().filter(|e| e.expires_at <= now).count();
-        let valid = total - expired;
-
-        TemplateResolverStats {
-            total_entries: total,
-            valid_entries: valid,
-            expired_entries: expired,
-        }
-    }
-}
-
-/// Cache statistics
-#[derive(Debug, Clone)]
-pub struct TemplateResolverStats {
-    pub total_entries: usize,
-    pub valid_entries: usize,
-    pub expired_entries: usize,
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ports::{RegistryEntry, RegistryIndex};
+    use crate::ports::{RegistryEntry, RegistryIndex, Result, TemplateError};
     use hkask_types::TemplateType;
 
     struct MockRegistry {
         entries: HashMap<String, RegistryEntry>,
     }
+
+    impl MockRegistry {
+        fn new() -> Self {
+            Self {
+                entries: HashMap::new(),
+            }
+        }
+
+        fn add(&mut self, entry: RegistryEntry) {
+            self.entries.insert(entry.id.clone(), entry);
+        }
+    }
+
+    impl RegistryIndex for MockRegistry {
+        fn get(&self, id: &str) -> Result<RegistryEntry> {
+            self.entries
+                .get(id)
+                .cloned()
+                .ok_or_else(|| TemplateError::NotFound(id.to_string()))
+        }
+
+        fn list(&self, _template_type: Option<TemplateType>) -> Vec<RegistryEntry> {
+            self.entries.values().cloned().collect()
+        }
+    }
+
+    #[test]
+    fn test_resolver_resolve() {
+        let mut registry = MockRegistry::new();
+        registry.add(RegistryEntry {
+            id: "test/template".to_string(),
+            template_type: TemplateType::Prompt,
+            lexicon_terms: vec![],
+            description: "Test".to_string(),
+            source_path: "/path/to/template.jinja2".to_string(),
+        });
+
+        let resolver = TemplateResolver::new(registry);
+
+        // Direct lookup (no cache)
+        let path = resolver.resolve("test/template").unwrap();
+        assert_eq!(path, "/path/to/template.jinja2");
+    }
+
+    #[test]
+    fn test_resolver_multiple_lookups() {
+        let mut registry = MockRegistry::new();
+        registry.add(RegistryEntry {
+            id: "test/template1".to_string(),
+            template_type: TemplateType::Prompt,
+            lexicon_terms: vec![],
+            description: "Test".to_string(),
+            source_path: "/path/to/template1.jinja2".to_string(),
+        });
+        registry.add(RegistryEntry {
+            id: "test/template2".to_string(),
+            template_type: TemplateType::Prompt,
+            lexicon_terms: vec![],
+            description: "Test".to_string(),
+            source_path: "/path/to/template2.jinja2".to_string(),
+        });
+
+        let resolver = TemplateResolver::new(registry);
+
+        // Multiple lookups should all succeed
+        let path1 = resolver.resolve("test/template1").unwrap();
+        let path2 = resolver.resolve("test/template2").unwrap();
+
+        assert_eq!(path1, "/path/to/template1.jinja2");
+        assert_eq!(path2, "/path/to/template2.jinja2");
+    }
+
+    #[test]
+    fn test_resolver_not_found() {
+        let registry = MockRegistry::new();
+        let resolver = TemplateResolver::new(registry);
+
+        let result = resolver.resolve("nonexistent/template");
+        assert!(result.is_err());
+    }
+}
 
     impl MockRegistry {
         fn new() -> Self {
