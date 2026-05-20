@@ -13,7 +13,8 @@ members = [
     "crates/hkask-mcp",
     "crates/hkask-cli",
     "crates/hkask-api",
-    # MCP servers (10 — excluded from budget)
+    # MCP servers (20 — excluded from budget)
+    # Original 10
     "mcp-servers/hkask-mcp-inference",
     "mcp-servers/hkask-mcp-storage",
     "mcp-servers/hkask-mcp-memory",
@@ -24,6 +25,18 @@ members = [
     "mcp-servers/hkask-mcp-scholar",
     "mcp-servers/hkask-mcp-spandrel",
     "mcp-servers/hkask-mcp-doc-knowledge",
+    # New: Core infrastructure (5)
+    "mcp-servers/hkask-mcp-ocap",
+    "mcp-servers/hkask-mcp-keystore",
+    "mcp-servers/hkask-mcp-cns",
+    "mcp-servers/hkask-mcp-git",
+    "mcp-servers/hkask-mcp-registry",
+    # New: External integrations (5)
+    "mcp-servers/hkask-mcp-github",
+    "mcp-servers/hkask-mcp-fmp",
+    "mcp-servers/hkask-mcp-telnyx",
+    "mcp-servers/hkask-mcp-fal",
+    "mcp-servers/hkask-mcp-rss-reader",
     # Test crate (excluded from LOC budget)
     "hkask-testing",
 ]

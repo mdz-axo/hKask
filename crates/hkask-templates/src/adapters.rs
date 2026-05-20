@@ -255,13 +255,3 @@ impl SkillRegistryPort for MockRegistryAdapter {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use hkask_templates::GeneratedTemplate;
-    use hkask_templates::TemplateType;
-
-
-
-
-}

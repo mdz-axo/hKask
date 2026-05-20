@@ -184,17 +184,3 @@ impl Default for AuditTrail {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-
-
-
-
-
-
-
-
-
-}

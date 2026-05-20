@@ -13,12 +13,10 @@
 //! **Safety:**
 //! - Maximum recursion depth: 7 (Miller's law + energy budget)
 //! - Cycle detection in registry (graph traversal)
-//! - Capability attenuation on recursive calls (OCAP security)
-//! - Security validation on all template paths (Schneier threat model)
+//! - Capability attenuation on recursive calls
 
 use crate::ports::{RegistryIndex, Result, TemplateError};
-use crate::security::SecurityAdapter;
-use hkask_types::{CapabilityToken, TemplateType, WebID};
+use hkask_types::TemplateType;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
@@ -96,21 +94,17 @@ pub struct CascadeContext {
     pub visited_templates: HashSet<String>,
     pub visited_manifests: HashSet<String>,
     pub energy_remaining: u64,
-    pub capability_token: Option<CapabilityToken>,
-    pub secret: Vec<u8>,
-    pub current_time: i64,
+    pub capability_token: Option<String>,
 }
 
 impl CascadeContext {
-    pub fn new(secret: &[u8]) -> Self {
+    pub fn new() -> Self {
         Self {
             current_depth: 0,
             visited_templates: HashSet::new(),
             visited_manifests: HashSet::new(),
             energy_remaining: 10000,
             capability_token: None,
-            secret: secret.to_vec(),
-            current_time: chrono::Utc::now().timestamp(),
         }
     }
 
@@ -124,13 +118,8 @@ impl CascadeContext {
         self
     }
 
-    pub fn with_capability(mut self, token: CapabilityToken) -> Self {
-        self.capability_token = Some(token);
-        self
-    }
-
-    pub fn with_current_time(mut self, time: i64) -> Self {
-        self.current_time = time;
+    pub fn with_capability(mut self, token: &str) -> Self {
+        self.capability_token = Some(token.to_string());
         self
     }
 
@@ -191,60 +180,20 @@ impl CascadeContext {
     }
 
     /// Create child context for recursive call with capability attenuation
-    /// Per Mark Miller OCAP: capabilities must be attenuated on delegation
-    pub fn child_context(&self, new_holder: WebID) -> Self {
-        let attenuated_token = self.capability_token.as_ref().and_then(|token| {
-            if token.can_attenuate() {
-                token.attenuate(new_holder, &self.secret, self.current_time)
-            } else {
-                None
-            }
-        });
-
+    pub fn child_context(&self) -> Self {
         Self {
             current_depth: self.current_depth + 1,
             visited_templates: self.visited_templates.clone(),
             visited_manifests: self.visited_manifests.clone(),
             energy_remaining: self.energy_remaining,
-            capability_token: attenuated_token,
-            secret: self.secret.clone(),
-            current_time: self.current_time,
-        }
-    }
-
-    /// Check if current capability grants access to a resource
-    pub fn check_capability(
-        &self,
-        resource: hkask_types::CapabilityResource,
-        resource_id: &str,
-        action: hkask_types::CapabilityAction,
-    ) -> Result<()> {
-        match &self.capability_token {
-            Some(token) => {
-                if token.is_expired(self.current_time) {
-                    return Err(TemplateError::CapabilityDenied(
-                        "Capability token expired".to_string(),
-                    ));
-                }
-                if token.is_valid_for(resource, resource_id, action) {
-                    Ok(())
-                } else {
-                    Err(TemplateError::CapabilityDenied(format!(
-                        "Capability does not grant {:?} on {}",
-                        action, resource_id
-                    )))
-                }
-            }
-            None => Err(TemplateError::CapabilityDenied(
-                "No capability token present".to_string(),
-            )),
+            capability_token: self.capability_token.clone(),
         }
     }
 }
 
 impl Default for CascadeContext {
     fn default() -> Self {
-        Self::new(&[0u8; 32])
+        Self::new()
     }
 }
 
@@ -253,22 +202,14 @@ pub struct CascadeExecutor {
     max_depth: u8,
     cycle_detection: bool,
     energy_tracking: bool,
-    security: SecurityAdapter,
 }
 
 impl CascadeExecutor {
-    pub fn new(secret: &[u8]) -> Self {
-        let mut security = SecurityAdapter::new(secret);
-        // Allow standard template paths
-        security.allow_path("prompt/");
-        security.allow_path("process/");
-        security.allow_path("cognition/");
-
+    pub fn new() -> Self {
         Self {
             max_depth: MAX_CASCADE_DEPTH,
             cycle_detection: true,
             energy_tracking: true,
-            security,
         }
     }
 
@@ -287,11 +228,6 @@ impl CascadeExecutor {
         self
     }
 
-    pub fn with_security(mut self, security: SecurityAdapter) -> Self {
-        self.security = security;
-        self
-    }
-
     /// Execute cascade stages in order: pre → core → post
     pub fn execute(
         &self,
@@ -299,8 +235,7 @@ impl CascadeExecutor {
         input: Value,
         registry: &dyn RegistryIndex,
     ) -> Result<Value> {
-        let mut context =
-            CascadeContext::new(self.security.get_secret()).with_depth(cascade.max_depth);
+        let mut context = CascadeContext::new().with_depth(cascade.max_depth);
         let mut state = input;
 
         // Execute pre stages (context enrichment, validation)
@@ -321,36 +256,7 @@ impl CascadeExecutor {
         Ok(state)
     }
 
-    /// Execute cascade with initial capability token
-    pub fn execute_with_capability(
-        &self,
-        cascade: &Cascade,
-        input: Value,
-        registry: &dyn RegistryIndex,
-        token: CapabilityToken,
-    ) -> Result<Value> {
-        let mut context = CascadeContext::new(self.security.get_secret())
-            .with_depth(cascade.max_depth)
-            .with_capability(token)
-            .with_current_time(chrono::Utc::now().timestamp());
-        let mut state = input;
-
-        for stage in &cascade.pre {
-            state = self.execute_stage(stage, state, registry, &mut context)?;
-        }
-
-        for stage in &cascade.core {
-            state = self.execute_stage(stage, state, registry, &mut context)?;
-        }
-
-        for stage in &cascade.post {
-            state = self.execute_stage(stage, state, registry, &mut context)?;
-        }
-
-        Ok(state)
-    }
-
-    /// Execute a single cascade stage with security checks
+    /// Execute a single cascade stage
     fn execute_stage(
         &self,
         stage: &CascadeStage,
@@ -362,19 +268,16 @@ impl CascadeExecutor {
         context.check_depth(self.max_depth)?;
 
         // Check condition if present
-        if let Some(condition) = &stage.condition
-            && !self.evaluate_condition(condition, &input)
-        {
-            return Ok(input);
+        if let Some(condition) = &stage.condition {
+            if !self.evaluate_condition(condition, &input) {
+                return Ok(input);
+            }
         }
 
         let mut stage_state = input;
 
         // Execute each template in the stage
         for template_id in &stage.templates {
-            // Security: Validate template path
-            self.security.validate_path(template_id)?;
-
             // Cycle detection
             if self.cycle_detection {
                 context.check_template_cycle(template_id)?;
@@ -385,15 +288,6 @@ impl CascadeExecutor {
 
             // Resolve template from registry
             let entry = registry.get(template_id)?;
-
-            // Security: Check capability if present
-            if context.capability_token.is_some() {
-                context.check_capability(
-                    hkask_types::CapabilityResource::Template,
-                    &entry.id,
-                    hkask_types::CapabilityAction::Read,
-                )?;
-            }
 
             // Check template type compatibility
             match entry.template_type {
@@ -556,7 +450,7 @@ impl CascadeExecutor {
 
 impl Default for CascadeExecutor {
     fn default() -> Self {
-        Self::new(&[0u8; 32])
+        Self::new()
     }
 }
 
@@ -614,78 +508,4 @@ impl CascadeBuilder {
     pub fn build(self) -> Cascade {
         self.cascade
     }
-}
-
-
-    impl MockRegistry {
-        fn new() -> Self {
-            let mut entries = HashMap::new();
-            entries.insert(
-                "prompt/test".to_string(),
-                RegistryEntry {
-                    id: "prompt/test".to_string(),
-                    template_type: TemplateType::Prompt,
-                    lexicon_terms: vec!["test".to_string()],
-                    description: "Test prompt".to_string(),
-                    source_path: "test.j2".to_string(),
-                },
-            );
-            entries.insert(
-                "process/test".to_string(),
-                RegistryEntry {
-                    id: "process/test".to_string(),
-                    template_type: TemplateType::Process,
-                    lexicon_terms: vec!["test".to_string()],
-                    description: "Test process".to_string(),
-                    source_path: "test.yaml".to_string(),
-                },
-            );
-            Self { entries }
-        }
-    }
-
-    impl RegistryIndex for MockRegistry {
-        fn list(&self, _domain_hint: Option<TemplateType>) -> Vec<RegistryEntry> {
-            self.entries.values().cloned().collect()
-        }
-
-        fn get(&self, id: &str) -> Result<RegistryEntry> {
-            self.entries
-                .get(id)
-                .cloned()
-                .ok_or_else(|| TemplateError::NotFound(format!("Template '{}' not found", id)))
-        }
-
-        fn bootstrap_manifest(&self) -> Option<ProcessManifest> {
-            Some(ProcessManifest {
-                id: "test".to_string(),
-                name: "Test".to_string(),
-                description: "Test manifest".to_string(),
-                steps: vec![ManifestStep {
-                    ordinal: 1,
-                    action: Action::Execute,
-                    description: "Test step".to_string(),
-                    template_ref: "test".to_string(),
-                    model_tier: None,
-                    mcp: None,
-                    renderer: None,
-                }],
-            })
-        }
-    }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 }

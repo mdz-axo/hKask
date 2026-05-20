@@ -2591,6 +2591,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "hkask-mcp-cns"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "hkask-cns",
+ "hkask-types",
+ "rmcp",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "hkask-mcp-condenser"
 version = "0.1.0"
 dependencies = [
@@ -2648,6 +2664,69 @@ dependencies = [
 ]
 
 [[package]]
+name = "hkask-mcp-fal"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "hkask-types",
+ "reqwest",
+ "rmcp",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "hkask-mcp-fmp"
+version = "0.1.0"
+dependencies = [
+ "hkask-types",
+ "reqwest",
+ "rmcp",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "hkask-mcp-git"
+version = "0.1.0"
+dependencies = [
+ "gix",
+ "hkask-types",
+ "rmcp",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "hkask-mcp-github"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "hkask-types",
+ "reqwest",
+ "rmcp",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "url",
+]
+
+[[package]]
 name = "hkask-mcp-inference"
 version = "0.1.0"
 dependencies = [
@@ -2665,6 +2744,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "hkask-mcp-keystore"
+version = "0.1.0"
+dependencies = [
+ "hkask-keystore",
+ "hkask-types",
+ "rmcp",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "zeroize",
+]
+
+[[package]]
 name = "hkask-mcp-memory"
 version = "0.1.0"
 dependencies = [
@@ -2676,6 +2771,56 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "hkask-mcp-ocap"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "hkask-types",
+ "rmcp",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
+name = "hkask-mcp-registry"
+version = "0.1.0"
+dependencies = [
+ "hkask-templates",
+ "hkask-types",
+ "rmcp",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "hkask-mcp-rss-reader"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "hkask-types",
+ "parking_lot",
+ "reqwest",
+ "rmcp",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]
@@ -2713,6 +2858,24 @@ dependencies = [
  "hkask-storage",
  "hkask-types",
  "rmcp",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "hkask-mcp-telnyx"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "base64",
+ "ed25519-dalek",
+ "hkask-types",
+ "reqwest",
+ "rmcp",
+ "secrecy",
  "serde",
  "serde_json",
  "thiserror",
