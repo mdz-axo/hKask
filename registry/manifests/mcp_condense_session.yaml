@@ -1,0 +1,108 @@
+# MCP Condenser — Session Condensation Manifest
+# ℏKask v0.21.0 — Planck's Constant of Agent Systems
+
+manifest:
+  id: mcp/condense_session
+  name: MCP Session Condenser
+  description: >
+    Condense conversation sessions into summaries with key decisions and action items.
+    Supports configurable compression ratio and selective extraction.
+  version: 0.21.0
+  editor: curator-or-human-admin
+  visibility: Shared
+
+# Energy Budget Configuration
+energy:
+  cap: 4096
+  cost_per_token: 0.25
+  alert_threshold: 0.8
+  hard_limit: true
+
+# Process Steps
+steps:
+  - ordinal: 1
+    action: populate
+    description: >
+      Render condensation template with session transcript and parameters.
+    renderer: minijinja
+    template_ref: registry/registries/mcp/condense_session
+    model_tier: null
+    mcp: null
+    energy_cap: 1000
+    timeout_seconds: 10
+    output_schema:
+      rendered_prompt: string
+
+  - ordinal: 2
+    action: execute
+    description: >
+      Execute condensation via inference.
+      Extract summary, decisions, and action items.
+    renderer: null
+    template_ref: null
+    model_tier: balanced
+    mcp: hkask-mcp-inference
+    energy_cap: 4096
+    timeout_seconds: 60
+    output_schema:
+      summary: string
+      key_decisions: array
+      action_items: array
+      compression_ratio: float
+
+  - ordinal: 3
+    action: feedback
+    description: >
+      Emit condensation outcome to CNS.
+      Track compression efficiency and quality.
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: hkask-cns
+    energy_cap: 500
+    timeout_seconds: 5
+    feedback:
+      variety_delta: integer
+      compression_achieved: float
+    output_schema:
+      cns_event_id: string
+      outcome_recorded: boolean
+
+# Error Handling
+error_handling:
+  on_energy_exceeded: abort
+  on_timeout: retry
+  max_retries: 2
+  retry_backoff_seconds: 1
+  on_capability_denied: escalate
+
+# OCAP Configuration
+ocap:
+  required_capabilities:
+    - resource: template
+      action: render
+    - resource: inference
+      action: call
+    - resource: cns
+      action: emit
+  delegation_chain_required: true
+  signature_algorithm: ed25519
+  capability_expiry_seconds: 3600
+
+# CNS Monitoring
+cns:
+  emit_spans: true
+  span_namespace: cns.prompt.condense
+  variety_monitoring: true
+  algedonic_threshold: 100
+  escalation_target: Curator
+
+# Audit Trail
+audit:
+  enabled: true
+  log_level: info
+  include_input: true
+  include_output: true
+  include_energy_cost: true
+  include_cns_events: true
+  include_compression_metrics: true

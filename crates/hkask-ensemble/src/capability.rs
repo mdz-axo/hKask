@@ -1,21 +1,22 @@
 //! Capability-Based Security for Okapi Access
 //!
-//! Implements unforgeable capability tokens that gate access to Okapi operations.
+//! Implements Macaroon-backed capability tokens for unforgeable authorization.
 //! Follows principle of least authority (Mark Miller / Bruce Schneier).
 
 use chrono::{DateTime, Utc};
 use hkask_types::{WebID, TemplateID};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use uuid::Uuid;
+
+use crate::macaroon::{Macaroon, MacaroonBuilder, MacaroonError};
 
 /// Capability ID — unforgeable authorization token
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct CapabilityId(pub Uuid);
+pub struct CapabilityId(pub uuid::Uuid);
 
 impl CapabilityId {
     pub fn new() -> Self {
-        Self(Uuid::new_v4())
+        Self(uuid::Uuid::new_v4())
     }
 }
 
@@ -43,41 +44,113 @@ pub enum OkapiOperation {
     SwapAdapter,
 }
 
-/// Capability token — unforgeable authorization
+impl std::fmt::Display for OkapiOperation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            OkapiOperation::Generate => write!(f, "generate"),
+            OkapiOperation::Chat => write!(f, "chat"),
+            OkapiOperation::Embed => write!(f, "embed"),
+            OkapiOperation::ReadMetrics => write!(f, "read_metrics"),
+            OkapiOperation::ReadCapabilities => write!(f, "read_capabilities"),
+            OkapiOperation::SwapAdapter => write!(f, "swap_adapter"),
+        }
+    }
+}
+
+/// Capability token — Macaroon-backed unforgeable authorization
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OkapiCapability {
+    /// Unique capability identifier
     pub id: CapabilityId,
-    pub operations: Vec<OkapiOperation>,
-    pub expires_at: Option<DateTime<Utc>>,
+    /// Issuer of this capability
     pub issuer: WebID,
+    /// Holder of this capability
     pub holder: WebID,
+    /// The macaroon token that proves authorization
+    pub macaroon: Macaroon,
+    /// Template scope (if any)
     pub template_id: Option<TemplateID>,
-    /// Attenuation level (0 = root, max 7) — Mark Miller OCAP principle
-    pub attenuation_level: u8,
-    /// Maximum attenuation depth allowed (prevents infinite delegation chains)
-    pub max_attenuation: u8,
-    /// Parent capability ID (None for root capabilities)
-    pub attenuated_from: Option<CapabilityId>,
+    /// Expiration time (for convenience, also in macaroon caveat)
+    pub expires_at: Option<DateTime<Utc>>,
+}
+
+/// Authorization error
+#[derive(Debug, Error)]
+pub enum AuthorizationError {
+    #[error("Capability not found")]
+    CapabilityNotFound,
+
+    #[error("Capability expired")]
+    CapabilityExpired,
+
+    #[error("Unauthorized operation: {0}")]
+    Unauthorized(String),
+
+    #[error("Macaroon invalid: {0}")]
+    MacaroonInvalid(String),
+
+    #[error("Registry error: {0}")]
+    Registry(String),
+}
+
+impl From<MacaroonError> for AuthorizationError {
+    fn from(err: MacaroonError) -> Self {
+        match err {
+            MacaroonError::InvalidSignature => {
+                AuthorizationError::MacaroonInvalid("Signature invalid - may have been tampered with".to_string())
+            }
+            MacaroonError::Expired => AuthorizationError::CapabilityExpired,
+            MacaroonError::Unauthorized => {
+                AuthorizationError::Unauthorized("Caveat prohibits this operation".to_string())
+            }
+            MacaroonError::UnknownCaveat => {
+                AuthorizationError::MacaroonInvalid("Unknown caveat type".to_string())
+            }
+            MacaroonError::InvalidCaveat => {
+                AuthorizationError::MacaroonInvalid("Invalid caveat data".to_string())
+            }
+        }
+    }
 }
 
 impl OkapiCapability {
     /// Create new capability with specified operations
+    ///
+    /// # Arguments
+    /// * `operations` - Operations this capability permits
+    /// * `issuer` - WebID that issued this capability
+    /// * `holder` - WebID that holds this capability
+    /// * `expires_in` - Duration until expiration (e.g., Duration::days(30))
+    /// * `key` - 32-byte HMAC key for macaroon signing
     pub fn new(
         operations: Vec<OkapiOperation>,
         issuer: WebID,
         holder: WebID,
-        expires_at: Option<DateTime<Utc>>,
+        expires_in: chrono::Duration,
+        key: &[u8; 32],
     ) -> Self {
+        let id = CapabilityId::new();
+        let identifier = format!("{}->{}", issuer, holder);
+        let expires_at = Some(Utc::now() + expires_in);
+        let expiry_timestamp = expires_at.unwrap().timestamp();
+
+        // Build macaroon with caveats
+        let mut builder = MacaroonBuilder::new("hkask-ensemble", &identifier);
+        builder = builder.expires_at(expiry_timestamp);
+
+        for op in &operations {
+            builder = builder.allows_operation(&op.to_string());
+        }
+
+        let macaroon = builder.build(key);
+
         Self {
-            id: CapabilityId::new(),
-            operations,
-            expires_at,
+            id,
             issuer,
             holder,
+            macaroon,
             template_id: None,
-            attenuation_level: 0,
-            max_attenuation: 7,
-            attenuated_from: None,
+            expires_at,
         }
     }
 
@@ -87,149 +160,125 @@ impl OkapiCapability {
         issuer: WebID,
         holder: WebID,
         template_id: TemplateID,
-        expires_at: Option<DateTime<Utc>>,
+        expires_in: chrono::Duration,
+        key: &[u8; 32],
     ) -> Self {
+        let id = CapabilityId::new();
+        let identifier = format!("{}->{}->{}", issuer, holder, template_id);
+        let expires_at = Some(Utc::now() + expires_in);
+        let expiry_timestamp = expires_at.unwrap().timestamp();
+
+        // Build macaroon with caveats
+        let mut builder = MacaroonBuilder::new("hkask-ensemble", &identifier);
+        builder = builder.expires_at(expiry_timestamp);
+        builder = builder.for_template(&template_id.to_string());
+
+        for op in &operations {
+            builder = builder.allows_operation(&op.to_string());
+        }
+
+        let macaroon = builder.build(key);
+
         Self {
-            id: CapabilityId::new(),
-            operations,
-            expires_at,
+            id,
             issuer,
             holder,
+            macaroon,
             template_id: Some(template_id),
-            attenuation_level: 0,
-            max_attenuation: 7,
-            attenuated_from: None,
-        }
-    }
-
-    /// Create attenuated capability from parent (Mark Miller OCAP principle)
-    /// Attenuation is monotonic: can only remove permissions, never add
-    pub fn attenuate(
-        &self,
-        operations: Vec<OkapiOperation>,
-        new_holder: WebID,
-        expires_at: Option<DateTime<Utc>>,
-    ) -> Result<Self, AuthorizationError> {
-        if self.attenuation_level >= self.max_attenuation {
-            return Err(AuthorizationError::MaxAttenuationReached);
-        }
-
-        // Attenuation: subset of parent operations only (monotonic reduction)
-        let attenuated_ops: Vec<OkapiOperation> = self
-            .operations
-            .iter()
-            .filter(|op| operations.contains(op))
-            .copied()
-            .collect();
-
-        if attenuated_ops.is_empty() {
-            return Err(AuthorizationError::NoValidOperations);
-        }
-
-        Ok(Self {
-            id: CapabilityId::new(),
-            operations: attenuated_ops,
             expires_at,
-            issuer: self.issuer.clone(),
-            holder: new_holder,
-            template_id: self.template_id.clone(),
-            attenuation_level: self.attenuation_level + 1,
-            max_attenuation: self.max_attenuation,
-            attenuated_from: Some(self.id),
-        })
-    }
-
-    /// Check if further attenuation is allowed
-    pub fn can_attenuate(&self) -> bool {
-        self.attenuation_level < self.max_attenuation
-    }
-
-    /// Get attenuation chain depth (0 = root)
-    pub fn attenuation_depth(&self) -> u8 {
-        self.attenuation_level
-    }
-
-    /// Check if operation is authorized
-    pub fn authorize(&self, operation: OkapiOperation) -> Result<(), AuthorizationError> {
-        if !self.operations.contains(&operation) {
-            return Err(AuthorizationError::OperationNotAuthorized);
         }
+    }
 
-        if let Some(expires) = self.expires_at {
-            if Utc::now() > expires {
-                return Err(AuthorizationError::CapabilityExpired);
-            }
-        }
+    /// Verify capability macaroon signature and caveats
+    ///
+    /// # Arguments
+    /// * `key` - 32-byte HMAC key for verification
+    /// * `operations` - Operations to check against operation caveats
+    pub fn verify(&self, key: &[u8; 32], operations: &[OkapiOperation]) -> Result<(), AuthorizationError> {
+        // Verify macaroon signature
+        self.macaroon.verify(key)?;
+
+        // Build caveat context
+        let op_strings = operations.iter().map(|o| o.to_string()).collect();
+        let ctx = crate::macaroon::CaveatContext::new().with_operations(op_strings);
+
+        // Verify caveats
+        self.macaroon.verify_caveats(&ctx)?;
 
         Ok(())
     }
 
+    /// Check if capability has a specific operation
+    pub fn has_operation(&self, operation: OkapiOperation) -> bool {
+        self.macaroon
+            .get_caveat_data("operation")
+            .map(|data| data == operation.to_string())
+            .unwrap_or(false)
+    }
+
     /// Check if capability is expired
     pub fn is_expired(&self) -> bool {
-        if let Some(expires) = self.expires_at {
-            Utc::now() > expires
-        } else {
-            false
+        self.expires_at.map(|exp| Utc::now() > exp).unwrap_or(false)
+    }
+
+    /// Attenuate capability for template-scoped access
+    ///
+    /// Creates a new capability with additional template caveat.
+    /// The attenuated capability is more restricted than the original.
+    pub fn attenuate_for_template(
+        &self,
+        template_id: TemplateID,
+        key: &[u8; 32],
+    ) -> Self {
+        let attenuated_macaroon = self
+            .macaroon
+            .clone()
+            .add_caveat(
+                crate::macaroon::Caveat {
+                    caveat_id: "template".to_string(),
+                    data: template_id.to_string(),
+                },
+                key,
+            );
+
+        Self {
+            id: CapabilityId::new(), // New ID for attenuated capability
+            issuer: self.issuer,
+            holder: self.holder,
+            macaroon: attenuated_macaroon,
+            template_id: Some(template_id),
+            expires_at: self.expires_at,
         }
     }
 
-    /// Add operation to capability (returns new capability)
-    #[must_use = "builder methods must be chained or assigned"]
-    pub fn with_operation(mut self, operation: OkapiOperation) -> Self {
-        if !self.operations.contains(&operation) {
-            self.operations.push(operation);
+    /// Get operations from macaroon caveats
+    pub fn operations(&self) -> Vec<OkapiOperation> {
+        self.macaroon
+            .caveats
+            .iter()
+            .filter(|c| c.caveat_id == "operation")
+            .filter_map(|c| OkapiOperation::try_from(c.data.as_str()).ok())
+            .collect()
+    }
+}
+
+impl OkapiOperation {
+    /// Try to parse operation from string
+    fn try_from(s: &str) -> Result<Self, ()> {
+        match s {
+            "generate" => Ok(Self::Generate),
+            "chat" => Ok(Self::Chat),
+            "embed" => Ok(Self::Embed),
+            "read_metrics" => Ok(Self::ReadMetrics),
+            "read_capabilities" => Ok(Self::ReadCapabilities),
+            "swap_adapter" => Ok(Self::SwapAdapter),
+            _ => Err(()),
         }
-        self
-    }
-
-    /// Set template scope
-    #[must_use = "builder methods must be chained or assigned"]
-    pub fn with_template(mut self, template_id: TemplateID) -> Self {
-        self.template_id = Some(template_id);
-        self
     }
 }
 
-/// Authorization error types
-#[derive(Debug, Error)]
-pub enum AuthorizationError {
-    #[error("Operation not authorized by capability")]
-    OperationNotAuthorized,
-
-    #[error("Capability has expired")]
-    CapabilityExpired,
-
-    #[error("Capability holder mismatch")]
-    HolderMismatch,
-
-    #[error("Capability template scope mismatch")]
-    TemplateScopeMismatch,
-
-    #[error("Maximum attenuation depth reached (Mark Miller OCAP limit)")]
-    MaxAttenuationReached,
-
-    #[error("No valid operations for attenuation (subset must be non-empty)")]
-    NoValidOperations,
-}
-
-/// Capability-aware Okapi client wrapper
-pub struct CapabilityProtectedClient<C> {
-    inner: C,
-    capability: OkapiCapability,
-}
-
-impl<C> CapabilityProtectedClient<C> {
-    pub fn new(inner: C, capability: OkapiCapability) -> Self {
-        Self { inner, capability }
-    }
-
-    pub fn capability(&self) -> &OkapiCapability {
-        &self.capability
-    }
-}
-
-/// Default capability for system operations
-pub fn default_system_capability(holder: WebID) -> OkapiCapability {
+/// Create capability for system default access
+pub fn default_system_capability(holder: WebID, key: &[u8; 32]) -> OkapiCapability {
     OkapiCapability::new(
         vec![
             OkapiOperation::Generate,
@@ -239,17 +288,22 @@ pub fn default_system_capability(holder: WebID) -> OkapiCapability {
         ],
         WebID::new(), // System issuer
         holder,
-        None, // No expiration for system capability
+        chrono::Duration::days(30),
+        key,
     )
 }
 
-/// Minimal capability for read-only operations
-pub fn read_only_capability(holder: WebID) -> OkapiCapability {
+/// Create read-only capability
+pub fn read_only_capability(holder: WebID, key: &[u8; 32]) -> OkapiCapability {
     OkapiCapability::new(
-        vec![OkapiOperation::ReadMetrics, OkapiOperation::ReadCapabilities],
+        vec![
+            OkapiOperation::ReadMetrics,
+            OkapiOperation::ReadCapabilities,
+        ],
         WebID::new(),
         holder,
-        None,
+        chrono::Duration::days(30),
+        key,
     )
 }
 
@@ -257,258 +311,140 @@ pub fn read_only_capability(holder: WebID) -> OkapiCapability {
 mod tests {
     use super::*;
 
+    fn test_key() -> [u8; 32] {
+        [0x42; 32]
+    }
+
     #[test]
-    fn test_capability_authorize_success() {
+    fn test_capability_creation() {
+        let key = test_key();
         let holder = WebID::new();
-        let capability = OkapiCapability::new(
+
+        let cap = OkapiCapability::new(
             vec![OkapiOperation::Generate, OkapiOperation::Chat],
             WebID::new(),
             holder,
-            None,
+            chrono::Duration::days(30),
+            &key,
         );
 
-        assert!(capability.authorize(OkapiOperation::Generate).is_ok());
-        assert!(capability.authorize(OkapiOperation::Chat).is_ok());
+        assert_eq!(cap.issuer, WebID::new());
+        assert_eq!(cap.holder, holder);
+        assert!(cap.expires_at.is_some());
+        assert!(!cap.is_expired());
     }
 
     #[test]
-    fn test_capability_authorize_failure() {
+    fn test_capability_verification() {
+        let key = test_key();
         let holder = WebID::new();
-        let capability = OkapiCapability::new(
+
+        let cap = OkapiCapability::new(
             vec![OkapiOperation::Generate],
             WebID::new(),
             holder,
-            None,
+            chrono::Duration::days(30),
+            &key,
         );
 
-        let result = capability.authorize(OkapiOperation::Chat);
-        assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err(),
-            AuthorizationError::OperationNotAuthorized
-        ));
+        // Should verify successfully
+        assert!(cap.verify(&key, &[OkapiOperation::Generate]).is_ok());
+
+        // Should fail for unauthorized operation
+        assert!(cap.verify(&key, &[OkapiOperation::Embed]).is_err());
     }
 
     #[test]
-    fn test_capability_expired() {
+    fn test_template_scoped_capability() {
+        let key = test_key();
         let holder = WebID::new();
-        let expires_at = Utc::now() - chrono::Duration::hours(1);
+        let template_id = TemplateID::new();
 
-        let capability = OkapiCapability::new(
+        let cap = OkapiCapability::for_template(
             vec![OkapiOperation::Generate],
             WebID::new(),
             holder,
-            Some(expires_at),
+            template_id,
+            chrono::Duration::days(30),
+            &key,
         );
 
-        assert!(capability.is_expired());
-        let result = capability.authorize(OkapiOperation::Generate);
-        assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), AuthorizationError::CapabilityExpired));
+        assert_eq!(cap.template_id, Some(template_id));
+        assert!(cap.macaroon.has_caveat_type("template"));
+        assert_eq!(
+            cap.macaroon.get_caveat_data("template"),
+            Some(template_id.to_string().as_str())
+        );
     }
 
     #[test]
-    fn test_capability_not_expired() {
+    fn test_capability_attenuation() {
+        let key = test_key();
         let holder = WebID::new();
-        let expires_at = Utc::now() + chrono::Duration::hours(1);
+        let template_id = TemplateID::new();
 
-        let capability = OkapiCapability::new(
+        let cap = OkapiCapability::new(
             vec![OkapiOperation::Generate],
             WebID::new(),
             holder,
-            Some(expires_at),
+            chrono::Duration::days(30),
+            &key,
         );
 
-        assert!(!capability.is_expired());
-        assert!(capability.authorize(OkapiOperation::Generate).is_ok());
+        let attenuated = cap.attenuate_for_template(template_id, &key);
+
+        assert_eq!(attenuated.issuer, cap.issuer);
+        assert_eq!(attenuated.holder, cap.holder);
+        assert_eq!(attenuated.template_id, Some(template_id));
+        assert!(attenuated.macaroon.has_caveat_type("template"));
     }
 
     #[test]
-    fn test_capability_builder() {
+    fn test_capability_expiration() {
+        let key = test_key();
         let holder = WebID::new();
-        let capability = OkapiCapability::new(
+
+        // Create capability that expires in 1 second
+        let cap = OkapiCapability::new(
             vec![OkapiOperation::Generate],
             WebID::new(),
             holder,
-            None,
-        )
-        .with_operation(OkapiOperation::Chat)
-        .with_operation(OkapiOperation::Embed);
+            chrono::Duration::seconds(1),
+            &key,
+        );
 
-        assert!(capability.authorize(OkapiOperation::Generate).is_ok());
-        assert!(capability.authorize(OkapiOperation::Chat).is_ok());
-        assert!(capability.authorize(OkapiOperation::Embed).is_ok());
+        // Should not be expired initially
+        assert!(!cap.is_expired());
+
+        // Wait for expiration
+        std::thread::sleep(std::time::Duration::from_secs(2));
+
+        // Should now be expired
+        assert!(cap.is_expired());
     }
 
     #[test]
     fn test_default_system_capability() {
+        let key = test_key();
         let holder = WebID::new();
-        let capability = default_system_capability(holder);
 
-        assert!(capability.authorize(OkapiOperation::Generate).is_ok());
-        assert!(capability.authorize(OkapiOperation::Chat).is_ok());
-        assert!(capability.authorize(OkapiOperation::ReadMetrics).is_ok());
-        assert!(capability.authorize(OkapiOperation::ReadCapabilities).is_ok());
-        assert!(!capability.is_expired());
+        let cap = default_system_capability(holder, &key);
+
+        assert!(cap.verify(&key, &[OkapiOperation::Generate]).is_ok());
+        assert!(cap.verify(&key, &[OkapiOperation::Chat]).is_ok());
+        assert!(cap.verify(&key, &[OkapiOperation::ReadMetrics]).is_ok());
+        assert!(cap.verify(&key, &[OkapiOperation::Embed]).is_err());
     }
 
     #[test]
     fn test_read_only_capability() {
+        let key = test_key();
         let holder = WebID::new();
-        let capability = read_only_capability(holder);
 
-        assert!(capability.authorize(OkapiOperation::ReadMetrics).is_ok());
-        assert!(capability.authorize(OkapiOperation::ReadCapabilities).is_ok());
-        assert!(capability
-            .authorize(OkapiOperation::Generate)
-            .is_err());
-    }
+        let cap = read_only_capability(holder, &key);
 
-    #[test]
-    fn test_capability_attenuation_success() {
-        let holder = WebID::new();
-        let parent = OkapiCapability::new(
-            vec![
-                OkapiOperation::Generate,
-                OkapiOperation::Chat,
-                OkapiOperation::ReadMetrics,
-            ],
-            WebID::new(),
-            holder,
-            None,
-        );
-
-        // Attenuate to read-only subset
-        let new_holder = WebID::new();
-        let child = parent
-            .attenuate(
-                vec![OkapiOperation::ReadMetrics],
-                new_holder,
-                None,
-            )
-            .expect("attenuation should succeed");
-
-        // Child has reduced permissions
-        assert!(child.authorize(OkapiOperation::ReadMetrics).is_ok());
-        assert!(child.authorize(OkapiOperation::Generate).is_err());
-        assert!(child.authorize(OkapiOperation::Chat).is_err());
-
-        // Attenuation metadata
-        assert_eq!(child.attenuation_level, 1);
-        assert_eq!(child.max_attenuation, 7);
-        assert!(child.attenuated_from.is_some());
-        assert_eq!(child.attenuated_from.unwrap(), parent.id);
-    }
-
-    #[test]
-    fn test_capability_attenuation_max_depth() {
-        let holder = WebID::new();
-        let mut capability = OkapiCapability::new(
-            vec![OkapiOperation::Generate, OkapiOperation::ReadMetrics],
-            WebID::new(),
-            holder,
-            None,
-        );
-
-        // Set max attenuation to 2 for testing
-        capability.max_attenuation = 2;
-        capability.attenuation_level = 2;
-
-        let new_holder = WebID::new();
-        let result = capability.attenuate(
-            vec![OkapiOperation::ReadMetrics],
-            new_holder,
-            None,
-        );
-
-        assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err(),
-            AuthorizationError::MaxAttenuationReached
-        ));
-    }
-
-    #[test]
-    fn test_capability_attenuation_no_valid_operations() {
-        let holder = WebID::new();
-        let parent = OkapiCapability::new(
-            vec![OkapiOperation::Generate],
-            WebID::new(),
-            holder,
-            None,
-        );
-
-        // Try to attenuate with operation not in parent
-        let new_holder = WebID::new();
-        let result = parent.attenuate(
-            vec![OkapiOperation::Chat],
-            new_holder,
-            None,
-        );
-
-        assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err(),
-            AuthorizationError::NoValidOperations
-        ));
-    }
-
-    #[test]
-    fn test_capability_can_attenuate() {
-        let holder = WebID::new();
-        let mut capability = OkapiCapability::new(
-            vec![OkapiOperation::Generate],
-            WebID::new(),
-            holder,
-            None,
-        );
-
-        assert!(capability.can_attenuate());
-
-        capability.attenuation_level = 7;
-        assert!(!capability.can_attenuate());
-    }
-
-    #[test]
-    fn test_capability_attenuation_chain() {
-        let holder = WebID::new();
-        let root = OkapiCapability::new(
-            vec![
-                OkapiOperation::Generate,
-                OkapiOperation::Chat,
-                OkapiOperation::ReadMetrics,
-                OkapiOperation::ReadCapabilities,
-            ],
-            WebID::new(),
-            holder,
-            None,
-        );
-
-        // Create attenuation chain
-        let level1 = root
-            .attenuate(
-                vec![OkapiOperation::Generate, OkapiOperation::ReadMetrics],
-                WebID::new(),
-                None,
-            )
-            .expect("level 1 attenuation");
-
-        let level2 = level1
-            .attenuate(vec![OkapiOperation::ReadMetrics], WebID::new(), None)
-            .expect("level 2 attenuation");
-
-        let level3 = level2
-            .attenuate(vec![OkapiOperation::ReadMetrics], WebID::new(), None)
-            .expect("level 3 attenuation");
-
-        // Verify chain depth
-        assert_eq!(level1.attenuation_level, 1);
-        assert_eq!(level2.attenuation_level, 2);
-        assert_eq!(level3.attenuation_level, 3);
-
-        // Verify permissions are monotonically reduced
-        assert!(level1.authorize(OkapiOperation::Generate).is_ok());
-        assert!(level2.authorize(OkapiOperation::Generate).is_err());
-        assert!(level3.authorize(OkapiOperation::ReadMetrics).is_ok());
+        assert!(cap.verify(&key, &[OkapiOperation::ReadMetrics]).is_ok());
+        assert!(cap.verify(&key, &[OkapiOperation::ReadCapabilities]).is_ok());
+        assert!(cap.verify(&key, &[OkapiOperation::Generate]).is_err());
     }
 }

@@ -25,7 +25,8 @@ impl OkapiIntegration {
     /// Create new Okapi integration with default system capability
     pub fn new(base_url: String, cns_runtime: Arc<CnsRuntime>) -> Self {
         let holder = WebID::new();
-        let capability = crate::capability::default_system_capability(holder);
+        let key = [0x42; 32]; // TODO: Load from secure keystore
+        let capability = crate::capability::default_system_capability(holder, &key);
 
         Self {
             base_url,
@@ -316,7 +317,8 @@ mod tests {
     fn test_okapi_integration_with_capability() {
         let cns_runtime = Arc::new(CnsRuntime::new());
         let holder = WebID::new();
-        let capability = crate::capability::default_system_capability(holder);
+        let key = [0x42; 32];
+        let capability = crate::capability::default_system_capability(holder, &key);
 
         let integration = OkapiIntegration::with_capability(
             "http://localhost:11435".to_string(),

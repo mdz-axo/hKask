@@ -1,0 +1,64 @@
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: 'localhost:587'
+  smtp_from: 'alertmanager@hkask.local'
+
+route:
+  receiver: 'default-receiver'
+  group_by: ['alertname', 'severity']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      continue: true
+    - match:
+        severity: warning
+      receiver: 'warning-alerts'
+
+receivers:
+  - name: 'default-receiver'
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook'
+        send_resolved: true
+
+  - name: 'critical-alerts'
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook/critical'
+        send_resolved: true
+
+  - name: 'warning-alerts'
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook/warning'
+        send_resolved: true
+
+  # Slack integration (uncomment and configure when ready)
+  # - name: 'slack'
+  #   slack_configs:
+  #     - api_url: 'YOUR_SLACK_WEBHOOK_URL'
+  #       channel: '#hkask-alerts'
+  #       send_resolved: true
+  #       title: '{{ template "slack.default.title" . }}'
+  #       text: '{{ template "slack.default.text" . }}'
+
+  # Email integration (uncomment and configure when ready)
+  # - name: 'email'
+  #   email_configs:
+  #     - to: 'team@hkask.local'
+  #       send_resolved: true
+  #       html: '{{ template "email.default.html" . }}'
+
+# Inhibition rules
+inhibit_rules:
+  # If instance is down, suppress other alerts from same instance
+  - source_match:
+      alertname: 'OkapiInstanceUnhealthy'
+    target_match:
+      alertname: 'OkapiLatencyHigh'
+    equal: ['instance']
+
+# Templates
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'

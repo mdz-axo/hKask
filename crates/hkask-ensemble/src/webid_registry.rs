@@ -45,7 +45,7 @@ impl WebIDCapabilityEntry {
     /// Check if entry has capability for operation
     pub fn has_capability(&self, operation: OkapiOperation) -> bool {
         self.capabilities.iter().any(|cap| {
-            cap.operations.contains(&operation) && !cap.is_expired()
+            cap.has_operation(operation) && !cap.is_expired()
         })
     }
 
@@ -54,7 +54,7 @@ impl WebIDCapabilityEntry {
         self.capabilities
             .iter()
             .find(|cap| {
-                cap.operations.contains(&operation) && !cap.is_expired()
+                cap.has_operation(operation) && !cap.is_expired()
             })
     }
 }
@@ -226,11 +226,11 @@ pub async fn authorize_operation(
         .await
         .ok_or(AuthorizationError::WebIDNotFound)?;
 
-    capabilities
+capabilities
         .into_iter()
-        .find(|cap| cap.operations.contains(&operation) && !cap.is_expired())
+        .find(|cap| cap.has_operation(operation) && !cap.is_expired())
         .ok_or(AuthorizationError::CapabilityNotFound)
-}
+    }
 
 /// Authorization error
 #[derive(Debug, thiserror::Error)]
@@ -253,16 +253,22 @@ mod tests {
     use super::*;
     use chrono::Duration;
 
+    fn test_key() -> [u8; 32] {
+        [0x42; 32]
+    }
+
     #[tokio::test]
     async fn test_webid_capability_registry() {
         let registry = WebIDCapabilityRegistry::new();
         let webid = WebID::new();
+        let key = test_key();
 
         let capability = OkapiCapability::new(
             vec![OkapiOperation::Generate, OkapiOperation::Chat],
             WebID::new(),
             webid,
-            None,
+            Duration::days(30),
+            &key,
         );
 
         // Register capability
@@ -291,13 +297,15 @@ mod tests {
         let registry = WebIDCapabilityRegistry::new();
         let webid = WebID::new();
         let template_id = TemplateID::new();
+        let key = test_key();
 
         let capability = OkapiCapability::for_template(
             vec![OkapiOperation::Generate],
             WebID::new(),
             webid,
             template_id,
-            None,
+            Duration::days(30),
+            &key,
         );
 
         registry
@@ -315,12 +323,14 @@ mod tests {
     async fn test_revoke_capability() {
         let registry = WebIDCapabilityRegistry::new();
         let webid = WebID::new();
+        let key = test_key();
 
         let capability = OkapiCapability::new(
             vec![OkapiOperation::Generate],
             WebID::new(),
             webid,
-            None,
+            Duration::days(30),
+            &key,
         );
 
         registry.register(webid, vec![capability]).await.unwrap();
@@ -340,12 +350,14 @@ mod tests {
     async fn test_authorize_operation() {
         let registry = Arc::new(WebIDCapabilityRegistry::new());
         let webid = WebID::new();
+        let key = test_key();
 
         let capability = OkapiCapability::new(
             vec![OkapiOperation::Generate],
             WebID::new(),
             webid,
-            None,
+            Duration::days(30),
+            &key,
         );
 
         registry
@@ -364,16 +376,21 @@ mod tests {
     async fn test_expired_capability() {
         let registry = WebIDCapabilityRegistry::new();
         let webid = WebID::new();
+        let key = test_key();
 
-        let expires_at = chrono::Utc::now() - Duration::hours(1);
+        // Create capability that's already expired (1 second duration, then wait)
         let capability = OkapiCapability::new(
             vec![OkapiOperation::Generate],
             WebID::new(),
             webid,
-            Some(expires_at),
+            Duration::seconds(1),
+            &key,
         );
 
         registry.register(webid, vec![capability]).await.unwrap();
+
+        // Wait for expiration
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
         // Expired capability should not authorize
         assert!(!registry.has_capability(webid, OkapiOperation::Generate).await);

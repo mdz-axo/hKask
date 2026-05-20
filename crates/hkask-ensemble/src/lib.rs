@@ -6,10 +6,13 @@ pub mod chat;
 pub mod cns_spans;
 pub mod confidence_router;
 pub mod deliberation;
+pub mod macaroon;
+pub mod metrics;
 pub mod multi_okapi;
 pub mod okapi_integration;
 pub mod ports;
 pub mod resilience;
+pub mod webid_registry;
 
 pub use adapters::{
     MockCapabilityProvider, MockInferenceClient, MockMetricsSource, OkapiAdapterError,
@@ -17,7 +20,7 @@ pub use adapters::{
 };
 pub use capability::{
     default_system_capability, read_only_capability, AuthorizationError, CapabilityId,
-    CapabilityProtectedClient, OkapiCapability, OkapiOperation,
+    OkapiCapability, OkapiOperation,
 };
 pub use cns_spans::{OkapiCnsSpan, ValidationResult};
 pub use confidence_router::{
@@ -36,3 +39,6 @@ pub use resilience::{
     CircuitBreaker, CircuitBreakerConfig, CircuitState, CircuitBreakerStats,
     RetryConfig, RetryError, ResilientOkapiClient, retry_with_backoff,
 };
+pub use metrics::{MetricsRegistry, CounterMetric, GaugeMetric, HistogramMetric, OkapiMetricsCollector};
+pub use webid_registry::{WebIDCapabilityRegistry, WebIDCapabilityEntry, RegistryError, authorize_operation};
+pub use macaroon::{Macaroon, MacaroonBuilder, Caveat, CaveatContext, MacaroonError};

@@ -126,12 +126,28 @@ POST http://127.0.0.1:11435/api/generate
 
 ## Authentication
 
-Russell inherits hKask's authentication model:
+All requests are authenticated:
 
 | Layer | Authentication |
 |-------|---------------|
 | Russell → hKask | MCP protocol auth (capability tokens) |
-| hKask → Okapi | Internal network trust (localhost) |
+| hKask → Okapi | API key or JWT token (multi-tenant tracking) |
+
+### hKask → Okapi Auth
+
+hKask includes authentication in all requests to Okapi:
+
+```http
+POST /api/generate
+Authorization: Bearer okapi_sk_abc123...
+# OR for JWT:
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+```
+
+This enables Okapi to:
+- Track per-client usage and quotas
+- Audit requests by hKask instance
+- Support multiple hKask instances per Okapi deployment
 
 ## Observability
 

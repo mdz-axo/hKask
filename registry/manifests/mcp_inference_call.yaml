@@ -1,0 +1,110 @@
+# MCP Inference — Inference Call Manifest
+# ℏKask v0.21.0 — Planck's Constant of Agent Systems
+
+manifest:
+  id: mcp/inference_call
+  name: MCP Inference Call
+  description: >
+    LLM inference call via MCP with capability validation and CNS monitoring.
+    Supports model tier selection, temperature control, and token budgeting.
+  version: 0.21.0
+  editor: curator-or-human-admin
+  visibility: Shared
+
+# Energy Budget Configuration
+energy:
+  cap: 8192
+  cost_per_token: 0.25
+  alert_threshold: 0.8
+  hard_limit: true
+
+# Process Steps
+steps:
+  - ordinal: 1
+    action: populate
+    description: >
+      Render inference call template with prompt and parameters.
+      Apply safety mode if enabled.
+    renderer: minijinja
+    template_ref: registry/registries/mcp/inference_call
+    model_tier: null
+    mcp: null
+    energy_cap: 1000
+    timeout_seconds: 10
+    output_schema:
+      rendered_prompt: string
+
+  - ordinal: 2
+    action: execute
+    description: >
+      Execute inference via MCP with capability validation.
+      Route to appropriate model based on model_tier.
+    renderer: null
+    template_ref: null
+    model_tier: from_input
+    mcp: hkask-mcp-inference
+    energy_cap: 8192
+    timeout_seconds: 60
+    output_schema:
+      completion: string
+      tokens_used: integer
+      model_used: string
+      finish_reason: string
+
+  - ordinal: 3
+    action: feedback
+    description: >
+      Emit outcome to CNS for monitoring.
+      Track token usage and model performance.
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: hkask-cns
+    energy_cap: 500
+    timeout_seconds: 5
+    feedback:
+      variety_delta: integer
+      tokens_consumed: integer
+    output_schema:
+      cns_event_id: string
+      outcome_recorded: boolean
+
+# Error Handling
+error_handling:
+  on_energy_exceeded: abort
+  on_timeout: retry
+  max_retries: 2
+  retry_backoff_seconds: 1
+  on_capability_denied: escalate
+  on_model_unavailable: fallback
+
+# OCAP Configuration
+ocap:
+  required_capabilities:
+    - resource: template
+      action: render
+    - resource: inference
+      action: call
+    - resource: cns
+      action: emit
+  delegation_chain_required: true
+  signature_algorithm: ed25519
+  capability_expiry_seconds: 3600
+
+# CNS Monitoring
+cns:
+  emit_spans: true
+  span_namespace: cns.connector.llm
+  variety_monitoring: true
+  algedonic_threshold: 100
+  escalation_target: Curator
+
+# Audit Trail
+audit:
+  enabled: true
+  log_level: info
+  include_input: true
+  include_output: true
+  include_energy_cost: true
+  include_cns_events: true
+  include_model_metrics: true
