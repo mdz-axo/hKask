@@ -113,7 +113,7 @@ impl<E: StageExecutor + 'static> IsolatedStageRunner<E> {
 
         // Await with timeout
         let timeout_duration = Duration::from_millis(self.timeout_ms);
-        let result = match timeout(timeout_duration, rx.recv()).await {
+        match timeout(timeout_duration, rx.recv()).await {
             Ok(Some(Ok(output))) => StageResult {
                 stage_number,
                 stage_name: stage_name.clone(),
@@ -141,9 +141,7 @@ impl<E: StageExecutor + 'static> IsolatedStageRunner<E> {
                     }),
                 }
             }
-        };
-
-        result
+        }
     }
 }
 

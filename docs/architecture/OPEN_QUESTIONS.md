@@ -37,16 +37,22 @@ This document tracks open questions and deferred decisions from the remediation 
 ### ✅ Phase 6: Public API Audit (2026-05-20)
 11. **Task 6.1: API cleanup** — Exports cleaned in `lib.rs`
 
+### ✅ Phase 7: Hexagonal Architecture (2026-05-20)
+12. **Task 7.1: Extract ports** — `CapabilityQueryPort` and `SecurityMetricPort` traits
+13. **Task 7.2: Test coverage** — 6 new tests for capability attenuation and rate limiting
+14. **Task 7.3: Error specificity** — `AuthorizationError::Unauthorized` includes requested/granted fields
+
 ---
 
 ## Test Results
 
-**Total:** 237 tests passing across workspace
+**Total:** 425 tests passing across workspace
 
 | Crate | Tests | Status |
 |-------|-------|--------|
 | hkask-types | 50 | ✅ |
-| hkask-templates | 138 | ✅ |
+| hkask-templates | 176 | ✅ |
+| hkask-ensemble | 64 | ✅ |
 | hkask-cns | 49 | ✅ |
 | hkask-mcp | (varies) | ✅ |
 | hkask-storage | (varies) | ✅ |
@@ -84,25 +90,37 @@ This document tracks open questions and deferred decisions from the remediation 
 
 ---
 
+## Architectural Decisions (2026-05-20)
+
+### Capability Composition Model
+
+All open questions from `docs/remediation/open_questions_capability_composition.md` resolved:
+
+| Question | Decision | Rationale |
+|----------|----------|-----------|
+| Q1: Chain Attenuation | Single attenuation at outermost manifest | Simplicity, predictable behavior |
+| Q2: Energy Budget | Quota system / allocation | Flexible resource distribution |
+| Q3: Delegation | No delegation between WebIDs | Each agent has independent capabilities |
+| Q4: Cross-Machine | Cryptographic (HMAC signatures) | Self-verifying, scalable |
+| Q5: Expiry at Scale | Hybrid (lazy check + periodic cleanup) | Best of both worlds |
+| Q6: Budget Overflow | Hard abort (security) + Escalate (user-facing) | Clear error messages |
+| Q7: Revocation | ❌ REMOVED — Capabilities persist by OCAP definition | Category error |
+| Q8: Sandbox Violation | Temporary block + human review | Balanced security |
+
+**Key Principle:** Capabilities are persistent authorization tokens. Errors are usage constraints (expiry, exhaustion, scope violation), not authority withdrawal.
+
+---
+
 ## Open Questions
 
 ### 1. Capability Revocation Lists
 
-**Context:** Capabilities attenuate on delegation but cannot be revoked.
+**Status:** ❌ **CLOSED** — Capabilities persist by OCAP definition (see Q7 above)
 
-**Question:** Should compromised capability tokens be revocable?
-
-**Current Behavior:** Tokens expire via `expires_at` timestamp or reach `max_attenuation`.
-
-**Considerations:**
-- Revocation list adds storage and lookup overhead
-- Could use bloom filter for efficient membership testing
-- Alternative: Short expiration times + rotation
-
-**Action Items:**
-- [ ] Design revocation list schema
-- [ ] Implement `CapabilityChecker::revoke(token_id)`
-- [ ] Add revocation check to `CapabilityToken::verify()`
+**Resolution:** No revocation lists needed. Capabilities expire via:
+- `expires_at` timestamp
+- Energy budget exhaustion
+- Scope violation (attenuation boundary)
 
 ---
 

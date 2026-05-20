@@ -300,7 +300,7 @@ impl CascadeExecutor {
         registry: &dyn RegistryIndex,
     ) -> Result<Value> {
         let mut context =
-            CascadeContext::new(&self.security.get_secret()).with_depth(cascade.max_depth);
+            CascadeContext::new(self.security.get_secret()).with_depth(cascade.max_depth);
         let mut state = input;
 
         // Execute pre stages (context enrichment, validation)
@@ -329,7 +329,7 @@ impl CascadeExecutor {
         registry: &dyn RegistryIndex,
         token: CapabilityToken,
     ) -> Result<Value> {
-        let mut context = CascadeContext::new(&self.security.get_secret())
+        let mut context = CascadeContext::new(self.security.get_secret())
             .with_depth(cascade.max_depth)
             .with_capability(token)
             .with_current_time(chrono::Utc::now().timestamp());
@@ -362,10 +362,9 @@ impl CascadeExecutor {
         context.check_depth(self.max_depth)?;
 
         // Check condition if present
-        if let Some(condition) = &stage.condition {
-            if !self.evaluate_condition(condition, &input) {
-                return Ok(input);
-            }
+        if let Some(condition) = &stage.condition
+            && !self.evaluate_condition(condition, &input) {
+            return Ok(input);
         }
 
         let mut stage_state = input;
