@@ -37,25 +37,25 @@ impl SovereigntyChecker {
     }
 
     /// Check if data category is accessible
-    pub fn can_access(&self, data_category: &str, requester: &WebID) -> bool {
-        let boundary = &self.state.boundary;
+    pub fn can_access(&self, data_category: &DataCategory, requester: &WebID) -> bool {
+        let category_str = data_category.as_str();
 
         // Sovereign data requires explicit consent and owner
-        if boundary.is_sovereign(data_category) {
+        if self.state.boundary.is_sovereign_str(category_str) {
             return self.state.explicit_consent && requester == &self.owner_webid;
         }
 
         // Shared data requires consent
-        if boundary.shared_data.contains(&data_category.to_string()) {
+        if self.state.boundary.is_shared_str(category_str) {
             return self.state.explicit_consent;
         }
 
         // Public data is always accessible
-        boundary.public_data.contains(&data_category.to_string())
+        self.state.boundary.is_public_str(category_str)
     }
 
     /// Check if operation respects sovereignty
-    pub fn check_operation(&self, operation: &str, data_category: &str) -> bool {
+    pub fn check_operation(&self, operation: &str, data_category: &DataCategory) -> bool {
         // Check acquisition resistance
         if operation == "acquisition" {
             return !self
@@ -156,8 +156,7 @@ impl SovereigntyPort for SovereigntyChecker {
         }
 
         // Check data category sovereignty
-        let category_str = data_category.as_str();
-        if self.state.boundary.is_sovereign(category_str) {
+        if self.state.boundary.is_sovereign(&data_category) {
             // Sovereign data requires explicit consent and must be owner
             if self.state.explicit_consent && requester == &self.owner_webid {
                 SovereigntyCheckResult::allowed(data_category, operation)
@@ -168,12 +167,7 @@ impl SovereigntyPort for SovereigntyChecker {
                     "Sovereign data requires owner consent",
                 )
             }
-        } else if self
-            .state
-            .boundary
-            .shared_data
-            .contains(&category_str.to_string())
-        {
+        } else if self.state.boundary.is_shared(&data_category) {
             // Shared data requires consent
             if self.state.explicit_consent {
                 SovereigntyCheckResult::allowed(data_category, operation)
@@ -191,19 +185,12 @@ impl SovereigntyPort for SovereigntyChecker {
     }
 
     fn can_access(&self, data_category: DataCategory, requester: &WebID) -> bool {
-        let category_str = data_category.as_str();
-
-        if self.state.boundary.is_sovereign(category_str) {
+        if self.state.boundary.is_sovereign(&data_category) {
             self.state.explicit_consent && requester == &self.owner_webid
-        } else if self
-            .state
-            .boundary
-            .shared_data
-            .contains(&category_str.to_string())
-        {
+        } else if self.state.boundary.is_shared(&data_category) {
             self.state.explicit_consent
         } else {
-            self.state.boundary.public_data.contains(&category_str.to_string())
+            self.state.boundary.is_public(&data_category)
         }
     }
 
@@ -260,6 +247,7 @@ impl SovereigntyPort for SovereigntyChecker {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ports::sovereignty::SovereigntyOperation;
 
     #[test]
     fn test_sovereignty_checker_new() {
@@ -273,28 +261,31 @@ mod tests {
         let owner = WebID::new();
         let mut checker = SovereigntyChecker::new(owner);
         // Sovereign data requires consent
-        assert!(!checker.can_access("episodic_memory", &owner));
+        assert!(!checker.can_access(&DataCategory::EpisodicMemory, &owner));
 
         // Grant consent
         checker.grant_consent();
         // Now accessible to owner
-        assert!(checker.can_access("episodic_memory", &owner));
+        assert!(checker.can_access(&DataCategory::EpisodicMemory, &owner));
         // But not to others
-        assert!(!checker.can_access("episodic_memory", &WebID::new()));
+        assert!(!checker.can_access(
+            &DataCategory::EpisodicMemory,
+            &WebID::new()
+        ));
     }
 
     #[test]
     fn test_can_access_public_data() {
         let checker = SovereigntyChecker::new(WebID::new());
         // Public data is always accessible
-        assert!(checker.can_access("hlexicon_terms", &WebID::new()));
+        assert!(checker.can_access(&DataCategory::HLexiconTerms, &WebID::new()));
     }
 
     #[test]
     fn test_acquisition_resistance() {
         let checker = SovereigntyChecker::new(WebID::new());
-        // Default resistance is Maximum, which prevents passive acquisition
-        assert!(!checker.check_operation("acquisition", "test"));
+        // Default resistance is High, which prevents passive acquisition
+        assert!(!checker.check_operation("acquisition", &DataCategory::SemanticMemory));
     }
 
     #[test]
@@ -314,5 +305,43 @@ mod tests {
         assert!(checker.get_state().explicit_consent);
         checker.revoke_consent();
         assert!(!checker.get_state().explicit_consent);
+    }
+
+    #[test]
+    fn test_sovereignty_port_check() {
+        let owner = WebID::new();
+        let mut checker = SovereigntyChecker::new(owner);
+
+        // Sovereign data without consent should be denied
+        let result = checker.check(
+            DataCategory::EpisodicMemory,
+            SovereigntyOperation::Read,
+            &checker.owner_webid(),
+        );
+        assert!(!result.allowed);
+        assert!(result.denial_reason.is_some());
+
+        // Grant consent and retry
+        let mut checker = SovereigntyChecker::new(owner);
+        checker.grant_consent();
+        let result = checker.check(
+            DataCategory::EpisodicMemory,
+            SovereigntyOperation::Read,
+            &checker.owner_webid(),
+        );
+        assert!(result.allowed);
+        assert!(result.denial_reason.is_none());
+    }
+
+    #[test]
+    fn test_sovereignty_port_acquisition_denied() {
+        let checker = SovereigntyChecker::new(WebID::new());
+        let result = checker.check(
+            DataCategory::SemanticMemory,
+            SovereigntyOperation::Acquisition,
+            &WebID::new(),
+        );
+        assert!(!result.allowed);
+        assert!(result.denial_reason.is_some());
     }
 }

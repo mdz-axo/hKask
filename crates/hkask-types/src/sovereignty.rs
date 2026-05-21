@@ -208,6 +208,16 @@ impl DataSovereigntyBoundary {
     pub fn is_sovereign(&self, category: &str) -> bool {
         self.sovereign_data.contains(&category.to_string())
     }
+
+    /// Check if data category is in shared set
+    pub fn is_shared(&self, category: &str) -> bool {
+        self.shared_data.contains(&category.to_string())
+    }
+
+    /// Check if data category is public
+    pub fn is_public(&self, category: &str) -> bool {
+        self.public_data.contains(&category.to_string())
+    }
 }
 
 impl Default for DataSovereigntyBoundary {

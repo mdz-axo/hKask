@@ -31,6 +31,9 @@ pub use energy::{
 pub use observers::composition::{
     CompositionMetrics, CompositionObserver, CompositionObserverState,
 };
+pub use observers::sovereignty::{
+    SovereigntyEvent, SovereigntyEventType, SovereigntyObserver, SovereigntyObserverState,
+};
 pub use rate_limit::{RateLimitConfig, RateLimiter};
 pub use review_queue::{ReviewQueue, Violation};
 pub use runtime::CnsRuntime;

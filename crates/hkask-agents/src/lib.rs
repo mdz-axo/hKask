@@ -39,6 +39,7 @@ pub mod capability;
 pub mod curator;
 pub mod ocap;
 pub mod pod;
+pub mod ports;
 pub mod replicant;
 pub mod security;
 pub mod sovereignty;

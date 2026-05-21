@@ -1,5 +1,5 @@
 # CNS Carbon Tracking Configuration
-# ℏKask v0.21.0 — GHG Protocol Scope 2 aligned
+# ℏKask v0.21.2 — GHG Protocol Scope 2 aligned
 
 cns_carbon:
   framework: GHG-Protocol-Scope-2-2024

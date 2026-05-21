@@ -37,5 +37,5 @@ Files modified:
 
 ---
 
-*ℏKask — Toyota Kata System v0.3.2*
+*ℏKask — Toyota Kata System v0.21.2*
 *Open Question 5 resolved: 3 primary + 2 secondary capability metrics*

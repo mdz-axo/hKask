@@ -4,4 +4,4 @@
 
 pub mod sovereignty;
 
-pub use sovereignty::SovereigntyPort;
+pub use sovereignty::{SovereigntyCheckResult, SovereigntyOperation, SovereigntyPort};

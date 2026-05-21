@@ -1,0 +1,392 @@
+# Kata Pattern Manifest
+# ℏKask v0.21.2 — Unified Kata execution with pattern selection
+
+manifest:
+  id: kata-pattern
+  name: Kata Pattern
+  description: >
+    Unified Kata execution pattern. Selects and executes one of three
+    Kata patterns: Improvement (4-step), Coaching (5-question), or Starter
+    (practice routine). All Kata outcomes recorded to memory and CNS.
+  editor: Curator
+  visibility: public
+
+energy:
+  accounting:
+    framework: GHG-Protocol-Scope-2
+    version: 2024-edition
+    reporting_method: dual
+
+  grid_intensity:
+    source: IEA-Emission-Factors-2026
+    default_location_based: 0.370
+    market_based: null
+
+  inference_energy:
+    source: LLMCO2-AAAI-2026
+    model_tier_factors:
+      fast_local: 0.0003
+      balanced: 0.0008
+      reasoning_local: 0.0015
+
+  pue: 1.15
+
+  token_budget: 100000
+  cost_per_token: 0.0008
+  alert_threshold: 0.7
+  hard_limit: true
+
+  carbon_accounting:
+    location_based_co2e: (energy_wh × pue × grid_intensity_location)
+    market_based_co2e: (energy_wh × pue × grid_intensity_market)
+    unit: kg-CO₂e
+
+  audit_trail:
+    required_disclosures:
+      - methodology_version
+      - grid_intensity_source
+      - pue_assumption
+      - model_tier_used
+      - uncertainty_range
+    verification_standard: ISO-14064-3
+    base_year: 2026
+
+steps:
+  - ordinal: 1
+    action: select
+    description: Select Kata pattern based on capability development need
+    renderer: minijinja
+    template_ref: kata/kata-selector.j2
+    model_tier: fast_local
+    mcp: hkask-mcp-inference
+    token_cap: 2000
+    timeout_seconds: 15
+    output_schema:
+      type: object
+      properties:
+        kata_type:
+          type: string
+          enum: [improvement, coaching, starter]
+        learner_bot:
+          type: string
+        rationale:
+          type: string
+        confidence:
+          type: number
+
+  - ordinal: 2
+    action: populate
+    description: Execute selected Kata pattern
+    renderer: minijinja
+    template_ref: kata/{{ kata_type }}-cycle.j2
+    model_tier: balanced
+    mcp: hkask-mcp-inference
+    token_cap: 70000
+    timeout_seconds: 60
+    output_schema:
+      type: object
+      properties:
+        kata_outcome:
+          type: object
+        learner_response:
+          type: string
+        next_step:
+          type: string
+
+  - ordinal: 3
+    action: populate
+    description: Synthesize Kata outcome into structured result
+    renderer: minijinja
+    template_ref: kata/kata-outcome.j2
+    model_tier: fast_local
+    mcp: hkask-mcp-inference
+    token_cap: 5000
+    timeout_seconds: 20
+    output_schema:
+      type: object
+      properties:
+        capability_delta:
+          type: string
+        obstacle_addressed:
+          type: string
+        experiment_result:
+          type: object
+
+  - ordinal: 4
+    action: populate
+    description: Assess automaticity score (habit formation tracking)
+    renderer: minijinja
+    template_ref: kata/habit-automaticity-classifier.j2
+    model_tier: fast_local
+    mcp: hkask-mcp-inference
+    token_cap: 5000
+    timeout_seconds: 20
+    output_schema:
+      type: object
+      properties:
+        automaticity_score:
+          type: number
+        evidence:
+          type: array
+        trend:
+          type: string
+        intervention_needed:
+          type: boolean
+
+  - ordinal: 5
+    action: populate
+    description: Update streak tracker and milestone progress
+    renderer: minijinja
+    template_ref: kata/habit-streak-tracker.j2
+    model_tier: fast_local
+    mcp: hkask-mcp-inference
+    token_cap: 5000
+    timeout_seconds: 15
+    output_schema:
+      type: object
+      properties:
+        current_streak:
+          type: integer
+        best_streak:
+          type: integer
+        next_milestone:
+          type: integer
+        days_to_milestone:
+          type: integer
+        status:
+          type: string
+
+  - ordinal: 6
+    action: execute
+    description: Record practice to episodic memory (mandatory)
+    renderer: null
+    template_ref: null
+    target: record_kata_practice
+    mcp: hkask-mcp-memory
+    tool: memory_remember
+    token_cap: 2000
+    timeout_seconds: 10
+    required: true
+    output_schema:
+      type: object
+      properties:
+        triple_id:
+          type: string
+        memory_visibility:
+          type: string
+
+  - ordinal: 7
+    action: execute
+    description: Emit CNS span with carbon accounting and habit data
+    renderer: null
+    template_ref: null
+    target: emit_kata_cns_span
+    mcp: hkask-mcp-cns
+    tool: cns_emit
+    token_cap: 2000
+    timeout_seconds: 10
+    output_schema:
+      type: object
+      properties:
+        cns_event_id:
+          type: string
+        span_type:
+          type: string
+        energy_wh:
+          type: number
+        co2e_kg:
+          type: number
+        automaticity_score:
+          type: number
+        streak_days:
+          type: integer
+
+  - ordinal: 8
+    action: select
+    description: Check if intervention is needed (habit at risk)
+    renderer: minijinja
+    template_ref: kata/habit-intervention-selector.j2
+    model_tier: fast_local
+    mcp: hkask-mcp-inference
+    token_cap: 3000
+    timeout_seconds: 15
+    condition: intervention_needed OR days_since_practice_gt_3
+    output_schema:
+      type: object
+      properties:
+        intervention_type:
+          type: string
+        message:
+          type: string
+        action_required:
+          type: string
+
+  - ordinal: 9
+    action: execute
+    description: Execute intervention if triggered
+    renderer: null
+    template_ref: null
+    target: execute_habit_intervention
+    mcp: hkask-mcp-ensemble
+    tool: send_message
+    token_cap: 2000
+    timeout_seconds: 10
+    condition: intervention_selected
+    output_schema:
+      type: object
+      properties:
+        message_sent:
+          type: boolean
+        follow_up_scheduled:
+          type: boolean
+
+error_handling:
+  on_token_exceeded: abort_and_escalate
+  on_timeout: retry
+  max_retries: 2
+  retry_backoff_seconds: 1
+  on_memory_failure: escalate_to_curator
+  on_cns_failure: retry_once_then_escalate
+
+cns:
+  emit_spans: true
+  span_namespace: cns.prompt.kata
+  
+  capability_metrics:
+    primary:
+      - metric_id: task.success_rate
+        unit: percent
+        source: bot_execution_logs
+      - metric_id: response.latency
+        unit: ms_per_token
+        source: cns_tool_spans
+      - metric_id: thinking.automaticity
+        unit: score_0_to_1
+        source: kata_classifier
+    secondary:
+      - metric_id: coordination.handoff_success
+        unit: percent
+        source: ensemble_session_logs
+      - metric_id: energy.efficiency
+        unit: wh_per_task
+        source: cns_carbon_tracking
+  
+  habit_formation:
+    streak:
+      current: 0
+      best: 0
+      milestone_days: [7, 21, 66, 100]
+    
+    automaticity:
+      method: template-classifier
+      model_tier: fast_local
+      baseline: 0.3
+      target: 0.75
+      graduation_threshold: 0.75
+    
+    intensity_tiers:
+      intensive:
+        automaticity_range: [0.0, 0.5]
+        frequency: daily
+        curator_attention: full_coaching
+      maintenance:
+        automaticity_range: [0.5, 0.75]
+        frequency: weekly
+        curator_attention: check_in
+      graduated:
+        automaticity_range: [0.75, 1.0]
+        frequency: monthly
+        curator_attention: spot_check
+    
+    graduation_criteria:
+      - automaticity_ge: 0.75
+      - consecutive_days: 21
+      - no_alerts_days: 30
+    
+    re_entry_triggers:
+      - automaticity_below: 0.5
+      - variety_stagnation_days: 14
+      - bot_requests_coaching: true
+      - curator_detects_degradation: true
+    
+    decay:
+      trigger: no_practice_3d
+      action: send_encouragement
+      critical: no_practice_7d
+      critical_action: algedonic_alert
+    
+    cns_span: cns.prompt.kata.habit
+    report_interval: weekly
+  
+  carbon_tracking:
+    enabled: true
+    counter_id: kata.carbon.cumulative
+    unit: kg-CO₂e
+  variety_counters:
+    - counter_id: kata.practices.completed
+      increment_on: kata_execution_success
+    - counter_id: kata.habit.formation
+      increment_on: practice_streak_milestone
+    - counter_id: kata.automaticity.score
+      increment_on: automaticity_measurement
+  algedonic_alerts:
+    - trigger: kata_practices_missed_3d
+      threshold: 3
+      escalate_to: Curator
+      action: send_encouragement
+    - trigger: kata_practices_missed_7d
+      threshold: 7
+      escalate_to: hKask-Administrator
+      action: habit_decay_alert
+    - trigger: capability_stagnation
+      condition: no_improvement_in_14d
+      escalate_to: Curator
+    - trigger: carbon_budget_exceeded
+      condition: tokens_exceed_100k
+      escalate_to: Curator
+    - trigger: automaticity_decline
+      condition: automaticity_score_drop_0.2
+      escalate_to: Curator
+
+security:
+  authentication:
+    required: true
+    method: webid_signature
+  authorization:
+    kata:improvement:
+      requires: Curator-consent
+    kata:coaching:
+      requires: learner-consent OR Curator-consent
+    kata:starter:
+      requires: self-consent
+  audit:
+    enabled: true
+    log:
+      - kata_invocation
+      - consent_granted
+      - outcome_recorded
+      - energy_wh
+      - co2e_kg
+      - automaticity_score
+      - streak_days
+  rate_limiting:
+    per_bot_per_day: 10
+    per_session: 3
+    on_exceed: queue_not_drop
+
+audit:
+  enabled: true
+  log_level: info
+  include_input: true
+  include_output: true
+  include_token_count: true
+  include_energy_wh: true
+  include_co2e_kg: true
+  include_automaticity_score: true
+  include_streak_days: true
+  methodology_disclosure:
+    framework: GHG-Protocol-Scope-2-2024
+    grid_intensity_source: IEA-Emission-Factors-2026
+    pue_assumption: 1.15
+    model_tier: balanced
+    uncertainty_range: ±50%
