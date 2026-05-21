@@ -2491,6 +2491,7 @@ dependencies = [
  "hkask-agents",
  "hkask-cns",
  "hkask-mcp",
+ "hkask-storage",
  "hkask-templates",
  "hkask-types",
  "parking_lot",

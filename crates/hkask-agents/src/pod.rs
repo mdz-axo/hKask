@@ -68,7 +68,7 @@ use crate::adapters::cns_emitter::CnsEmitterAdapter;
 use crate::adapters::git_cas::GitCasAdapter;
 use crate::adapters::mcp_runtime::McpRuntimeAdapter;
 use crate::adapters::memory_storage::MemoryStorageAdapter;
-use crate::security::{SecurityContext, AgentPersonaInput, InputValidator};
+use crate::security::{AgentPersonaInput, InputValidator, SecurityContext};
 use crate::sovereignty::SovereigntyChecker;
 use std::path::PathBuf;
 
@@ -550,17 +550,17 @@ impl AgentPod {
         requester: &WebID,
     ) -> Result<bool, AgentPodError> {
         let checker = &self.sovereignty_checker;
-        
+
         // Check if operation is permitted
         if !checker.check_operation(action, data_category) {
             return Ok(false);
         }
-        
+
         // Check if requester can access the data category
         if !checker.can_access(data_category, requester) {
             return Ok(false);
         }
-        
+
         Ok(true)
     }
 
@@ -1196,7 +1196,14 @@ mod tests {
     #[tokio::test]
     async fn test_pod_manager_security_context() {
         let manager = PodManager::new_mock();
-        assert!(manager.security_context().rate_limiter.get_available("test").await > 0.0);
+        assert!(
+            manager
+                .security_context()
+                .rate_limiter
+                .get_available("test")
+                .await
+                > 0.0
+        );
     }
 
     #[tokio::test]
@@ -1217,7 +1224,7 @@ visibility:
   episodic_override: private
 "#;
         let persona = AgentPersona::from_yaml(persona_yaml).unwrap();
-        
+
         // Validate persona input
         let input = AgentPersonaInput {
             name: persona.agent.name.clone(),
@@ -1227,7 +1234,7 @@ visibility:
             editor: persona.charter.editor.clone(),
             capabilities: persona.capabilities.clone(),
         };
-        
+
         assert!(input.validate(&input).is_ok());
     }
 }

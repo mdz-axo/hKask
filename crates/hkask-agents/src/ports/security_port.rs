@@ -26,8 +26,34 @@ pub trait ExpiryPort {
 }
 
 /// Security Policy Port — Unified security interface
-pub trait SecurityPolicyPort {
-    fn validation(&self) -> &dyn InputValidationPort;
+pub trait SecurityPolicyPort: Sized {
     fn rate_limit(&self) -> &dyn RateLimitPort;
     fn expiry(&self) -> &dyn ExpiryPort;
+}
+
+/// Sovereignty result type
+pub type SovereigntyResult<T> = Result<T, SovereigntyError>;
+
+/// Sovereignty error types
+#[derive(Debug, thiserror::Error)]
+pub enum SovereigntyError {
+    #[error("Sovereignty boundary violation: {0}")]
+    BoundaryViolation(String),
+
+    #[error("Acquisition attempt detected: {0}")]
+    AcquisitionAttempt(String),
+
+    #[error("Kill zone active: {0}")]
+    KillZoneActive(String),
+
+    #[error("Consent required: {0}")]
+    ConsentRequired(String),
+}
+
+/// Sovereignty Port — User sovereignty interface
+pub trait SovereigntyPort {
+    fn check_access(&self, user_webid: &str, category: &str) -> SovereigntyResult<bool>;
+    fn grant_consent(&self, user_webid: &str, category: &str) -> SovereigntyResult<()>;
+    fn revoke_consent(&self, user_webid: &str, category: &str) -> SovereigntyResult<()>;
+    fn is_kill_zone_active(&self, user_webid: &str) -> bool;
 }

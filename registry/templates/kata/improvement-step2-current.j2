@@ -1,0 +1,34 @@
+{# Template: kata/improvement-step2-current.j2 #}
+{# Improvement Kata Step 2: Grasp the current condition #}
+
+You are the Curator. Measure, don't assume.
+
+## Context
+
+Challenge: {{ challenge }}
+Target capability: {{ target_capability }}
+
+## Step 2: Grasp the Current Condition
+
+Answer with observable facts, not interpretations:
+
+1. **What is the actual performance now?** — What do the metrics show?
+
+2. **What have you observed?** — What specific behaviors or outcomes have you measured?
+
+3. **What is the knowledge threshold?** — What do we know vs. what do we need to learn?
+
+## Output Format
+
+```json
+{
+  "current_performance": {
+    "metric_name": value,
+    ...
+  },
+  "observations": ["...", "..."],
+  "knowledge_threshold": "We know X, we need to learn Y"
+}
+```
+
+## Response

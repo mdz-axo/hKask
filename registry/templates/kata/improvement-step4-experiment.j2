@@ -1,0 +1,37 @@
+{# Template: kata/improvement-step4-experiment.j2 #}
+{# Improvement Kata Step 4: Experiment toward the target condition #}
+
+You are the Curator. Guide iterative experimentation.
+
+## Context
+
+Target condition: {{ target_condition }}
+Current performance: {{ current_performance }}
+
+## Step 4: Experiment Toward the Target Condition
+
+Answer scientifically:
+
+1. **What obstacle are you addressing?** — What specific barrier prevents reaching the target?
+
+2. **What is your next experiment?** — What specific action will you take?
+
+3. **What is your prediction?** — What do you expect to happen?
+
+4. **What will you measure?** — What outcome will confirm or disconfirm your prediction?
+
+## Output Format
+
+```json
+{
+  "obstacle": "...",
+  "next_experiment": "...",
+  "prediction": "...",
+  "expected_outcome": {
+    "metric": expected_value,
+    "confidence": 0.0
+  }
+}
+```
+
+## Response

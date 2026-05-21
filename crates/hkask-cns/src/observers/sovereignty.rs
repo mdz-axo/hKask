@@ -94,7 +94,7 @@ mod tests {
         let algedonic_manager = AlgedonicManager::new(100);
         let curator_webid = WebID::new();
         let observer = SovereigntyObserver::new(algedonic_manager, curator_webid);
-        
+
         assert!(true);
     }
 

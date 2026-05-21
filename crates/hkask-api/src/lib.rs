@@ -45,6 +45,7 @@ use utoipa_axum::router::OpenApiRouter;
 
 pub mod openapi;
 pub mod routes;
+pub mod services;
 
 use openapi::ApiDoc;
 

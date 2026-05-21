@@ -7,16 +7,16 @@
 //! - **Context Management**: Conversation history and state tracking
 //! - **OCAP Enforcement**: Capability-gated participation and tool access
 
-use hkask_agents::acp::{AcpRuntime, A2AMessage, TemplateDispatchHandler};
-use hkask_agents::pod::{PodManager, PodID, AgentType};
+use chrono::{DateTime, Utc};
+use hkask_agents::acp::AcpRuntime;
+use hkask_agents::pod::{AgentType, PodID, PodManager};
 use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use thiserror::Error;
-use tokio::sync::{RwLock, Mutex};
+use tokio::sync::{Mutex, RwLock};
 use tracing::info;
-use chrono::{DateTime, Utc};
 
 /// Chat session unique identifier
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -167,14 +167,14 @@ pub struct ChatSession {
     pub id: ChatID,
     pub name: String,
     pub config: ChatConfig,
-    pub state: ChatState,
+    pub state: Arc<RwLock<ChatState>>,
     pub participants: Arc<RwLock<HashMap<WebID, ChatParticipant>>>,
     pub context: Arc<Mutex<Vec<ChatMessage>>>,
     pub turn_state: Arc<RwLock<TurnState>>,
     pub acp_runtime: Option<Arc<AcpRuntime>>,
     pub pod_manager: Option<Arc<PodManager>>,
     pub created_at: DateTime<Utc>,
-    pub last_activity: DateTime<Utc>,
+    pub last_activity: Arc<RwLock<DateTime<Utc>>>,
 }
 
 impl ChatSession {
@@ -184,7 +184,7 @@ impl ChatSession {
             id: ChatID::new(),
             name: name.to_string(),
             config,
-            state: ChatState::Created,
+            state: Arc::new(RwLock::new(ChatState::Created)),
             participants: Arc::new(RwLock::new(HashMap::new())),
             context: Arc::new(Mutex::new(Vec::new())),
             turn_state: Arc::new(RwLock::new(TurnState {
@@ -197,7 +197,7 @@ impl ChatSession {
             acp_runtime: None,
             pod_manager: None,
             created_at: now,
-            last_activity: now,
+            last_activity: Arc::new(RwLock::new(now)),
         }
     }
 
@@ -213,6 +213,18 @@ impl ChatSession {
         session
     }
 
+    pub fn with_full_integration(
+        name: &str,
+        config: ChatConfig,
+        acp_runtime: Arc<AcpRuntime>,
+        pod_manager: Arc<PodManager>,
+    ) -> Self {
+        let mut session = Self::new(name, config);
+        session.acp_runtime = Some(acp_runtime);
+        session.pod_manager = Some(pod_manager);
+        session
+    }
+
     pub async fn add_participant(
         &self,
         webid: WebID,
@@ -221,12 +233,12 @@ impl ChatSession {
         is_moderator: bool,
         pod_id: Option<PodID>,
     ) -> ChatResult<()> {
-        if self.state == ChatState::Ended {
+        if *self.state.read().await == ChatState::Ended {
             return Err(ChatError::SessionEnded);
         }
 
         let mut participants = self.participants.write().await;
-        
+
         if participants.contains_key(&webid) {
             return Ok(());
         }
@@ -247,7 +259,8 @@ impl ChatSession {
         let mut turn_state = self.turn_state.write().await;
         turn_state.turn_order.push(webid);
 
-        self.add_system_message(format!("{} joined the chat", name)).await;
+        self.add_system_message(format!("{} joined the chat", name))
+            .await;
 
         info!(
             target: "hkask.ensemble.chat",
@@ -261,7 +274,8 @@ impl ChatSession {
     }
 
     pub async fn start(&self) -> ChatResult<()> {
-        if self.state != ChatState::Created {
+        let current_state = *self.state.read().await;
+        if current_state != ChatState::Created {
             return Err(ChatError::SessionAlreadyStarted);
         }
 
@@ -279,8 +293,9 @@ impl ChatSession {
         drop(participants);
         drop(turn_state);
 
-        self.state = ChatState::Active;
-        self.add_system_message("Chat session started".to_string()).await;
+        *self.state.write().await = ChatState::Active;
+        self.add_system_message("Chat session started".to_string())
+            .await;
 
         info!(target: "hkask.ensemble.chat", chat_id = %self.id, "Session started");
 
@@ -288,7 +303,8 @@ impl ChatSession {
     }
 
     pub async fn send_message(&self, from: WebID, content: String) -> ChatResult<ChatMessage> {
-        if self.state != ChatState::Active {
+        let current_state = *self.state.read().await;
+        if current_state != ChatState::Active {
             return Err(ChatError::SessionNotStarted);
         }
 
@@ -296,13 +312,15 @@ impl ChatSession {
         let participant = participants
             .get(&from)
             .ok_or(ChatError::ParticipantNotFound(from))?;
-        
+
         if participant.status != ParticipantStatus::Active {
             return Err(ChatError::ParticipantNotAuthorized(from));
         }
 
         if participant.status == ParticipantStatus::Muted {
-            return Err(ChatError::TurnManagementError("Participant is muted".to_string()));
+            return Err(ChatError::TurnManagementError(
+                "Participant is muted".to_string(),
+            ));
         }
 
         drop(participants);
@@ -327,9 +345,9 @@ impl ChatSession {
             context.drain(0..drain_count);
         }
 
-        self.last_activity = Utc::now();
+        *self.last_activity.write().await = Utc::now();
         let mut turn_state = self.turn_state.write().await;
-        turn_state.last_activity = self.last_activity;
+        turn_state.last_activity = *self.last_activity.read().await;
         self.advance_turn(from).await?;
 
         info!(
@@ -345,13 +363,13 @@ impl ChatSession {
 
     async fn advance_turn(&self, current_speaker: WebID) -> ChatResult<()> {
         let mut turn_state = self.turn_state.write().await;
-        
+
         let current_index = turn_state
             .turn_order
             .iter()
             .position(|w| *w == current_speaker)
             .unwrap_or(0);
-        
+
         let next_index = (current_index + 1) % turn_state.turn_order.len();
         turn_state.current_speaker = Some(turn_state.turn_order[next_index]);
         turn_state.turn_number += 1;
@@ -361,7 +379,7 @@ impl ChatSession {
 
     pub async fn get_context(&self, limit: Option<usize>) -> Vec<ChatMessage> {
         let context = self.context.lock().await;
-        
+
         match limit {
             Some(n) => context.iter().rev().take(n).cloned().collect(),
             None => context.clone(),
@@ -383,11 +401,11 @@ impl ChatSession {
 
     pub async fn mute_participant(&self, moderator: WebID, target: WebID) -> ChatResult<()> {
         let mut participants = self.participants.write().await;
-        
+
         let mod_participant = participants
             .get(&moderator)
             .ok_or(ChatError::ParticipantNotFound(moderator))?;
-        
+
         if !mod_participant.is_moderator {
             return Err(ChatError::ParticipantNotAuthorized(moderator));
         }
@@ -395,7 +413,7 @@ impl ChatSession {
         let target_participant = participants
             .get_mut(&target)
             .ok_or(ChatError::ParticipantNotFound(target))?;
-        
+
         target_participant.status = ParticipantStatus::Muted;
 
         self.add_system_message(format!("{} was muted", target_participant.name))
@@ -406,11 +424,11 @@ impl ChatSession {
 
     pub async fn unmute_participant(&self, moderator: WebID, target: WebID) -> ChatResult<()> {
         let mut participants = self.participants.write().await;
-        
+
         let mod_participant = participants
             .get(&moderator)
             .ok_or(ChatError::ParticipantNotFound(moderator))?;
-        
+
         if !mod_participant.is_moderator {
             return Err(ChatError::ParticipantNotAuthorized(moderator));
         }
@@ -418,7 +436,7 @@ impl ChatSession {
         let target_participant = participants
             .get_mut(&target)
             .ok_or(ChatError::ParticipantNotFound(target))?;
-        
+
         target_participant.status = ParticipantStatus::Active;
 
         self.add_system_message(format!("{} was unmuted", target_participant.name))
@@ -447,8 +465,9 @@ impl ChatSession {
     }
 
     pub async fn end(&self) -> ChatResult<()> {
-        self.state = ChatState::Ended;
-        self.add_system_message("Chat session ended".to_string()).await;
+        *self.state.write().await = ChatState::Ended;
+        self.add_system_message("Chat session ended".to_string())
+            .await;
 
         let mut participants = self.participants.write().await;
         for participant in participants.values_mut() {
@@ -545,7 +564,7 @@ impl ChatManager {
         let session = sessions
             .get(chat_id)
             .ok_or_else(|| ChatError::SessionNotFound(chat_id.to_string()))?;
-        
+
         session.end().await?;
         sessions.remove(chat_id);
 
@@ -572,21 +591,23 @@ mod tests {
     async fn test_chat_session_creation() {
         let session = ChatSession::new("test-chat", ChatConfig::default());
         assert_eq!(session.name, "test-chat");
-        assert_eq!(session.state, ChatState::Created);
+        assert_eq!(*session.state.read().await, ChatState::Created);
     }
 
     #[tokio::test]
     async fn test_add_participants() {
         let session = ChatSession::new("test-chat", ChatConfig::default());
-        
+
         let curator = WebID::new();
         let bot = WebID::new();
-        
-        session.add_participant(curator, "curator", AgentType::Replicant, true, None)
+
+        session
+            .add_participant(curator, "curator", AgentType::Replicant, true, None)
             .await
             .unwrap();
-        
-        session.add_participant(bot, "memory-bot", AgentType::Bot, false, None)
+
+        session
+            .add_participant(bot, "memory-bot", AgentType::Bot, false, None)
             .await
             .unwrap();
 
@@ -597,16 +618,18 @@ mod tests {
     #[tokio::test]
     async fn test_chat_lifecycle() {
         let session = ChatSession::new("test-chat", ChatConfig::default());
-        
+
         let curator = WebID::new();
-        session.add_participant(curator, "curator", AgentType::Replicant, true, None)
+        session
+            .add_participant(curator, "curator", AgentType::Replicant, true, None)
             .await
             .unwrap();
 
         session.start().await.unwrap();
-        assert_eq!(session.state, ChatState::Active);
+        assert_eq!(*session.state.read().await, ChatState::Active);
 
-        session.send_message(curator, "Hello!".to_string())
+        session
+            .send_message(curator, "Hello!".to_string())
             .await
             .unwrap();
 
@@ -614,33 +637,35 @@ mod tests {
         assert!(!context.is_empty());
 
         session.end().await.unwrap();
-        assert_eq!(session.state, ChatState::Ended);
+        assert_eq!(*session.state.read().await, ChatState::Ended);
     }
 
     #[tokio::test]
     async fn test_moderator_actions() {
         let session = ChatSession::new("test-chat", ChatConfig::default());
-        
+
         let curator = WebID::new();
         let bot = WebID::new();
-        
-        session.add_participant(curator, "curator", AgentType::Replicant, true, None)
+
+        session
+            .add_participant(curator, "curator", AgentType::Replicant, true, None)
             .await
             .unwrap();
-        
-        session.add_participant(bot, "memory-bot", AgentType::Bot, false, None)
+
+        session
+            .add_participant(bot, "memory-bot", AgentType::Bot, false, None)
             .await
             .unwrap();
 
         session.start().await.unwrap();
 
         session.mute_participant(curator, bot).await.unwrap();
-        
+
         let result = session.send_message(bot, "Hello!".to_string()).await;
         assert!(result.is_err());
 
         session.unmute_participant(curator, bot).await.unwrap();
-        
+
         let result = session.send_message(bot, "Hello!".to_string()).await;
         assert!(result.is_ok());
     }
@@ -648,20 +673,23 @@ mod tests {
     #[tokio::test]
     async fn test_turn_management() {
         let session = ChatSession::new("test-chat", ChatConfig::default());
-        
+
         let curator = WebID::new();
         let bot1 = WebID::new();
         let bot2 = WebID::new();
-        
-        session.add_participant(curator, "curator", AgentType::Replicant, true, None)
+
+        session
+            .add_participant(curator, "curator", AgentType::Replicant, true, None)
             .await
             .unwrap();
-        
-        session.add_participant(bot1, "bot1", AgentType::Bot, false, None)
+
+        session
+            .add_participant(bot1, "bot1", AgentType::Bot, false, None)
             .await
             .unwrap();
-        
-        session.add_participant(bot2, "bot2", AgentType::Bot, false, None)
+
+        session
+            .add_participant(bot2, "bot2", AgentType::Bot, false, None)
             .await
             .unwrap();
 
@@ -670,8 +698,11 @@ mod tests {
         let turn_state = session.get_turn_state().await;
         assert_eq!(turn_state.turn_number, 0);
 
-        session.send_message(curator, "First".to_string()).await.unwrap();
-        
+        session
+            .send_message(curator, "First".to_string())
+            .await
+            .unwrap();
+
         let turn_state = session.get_turn_state().await;
         assert_eq!(turn_state.turn_number, 1);
     }
@@ -682,18 +713,20 @@ mod tests {
             max_context_messages: 5,
             ..ChatConfig::default()
         };
-        
+
         let session = ChatSession::new("test-chat", config);
-        
+
         let curator = WebID::new();
-        session.add_participant(curator, "curator", AgentType::Replicant, true, None)
+        session
+            .add_participant(curator, "curator", AgentType::Replicant, true, None)
             .await
             .unwrap();
 
         session.start().await.unwrap();
 
         for i in 0..10 {
-            session.send_message(curator, format!("Message {}", i))
+            session
+                .send_message(curator, format!("Message {}", i))
                 .await
                 .unwrap();
         }

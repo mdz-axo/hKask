@@ -3,8 +3,8 @@
 //! Ensures agent operations respect user sovereignty boundaries.
 //! Integrates with CNS for sovereignty event emission.
 
-use hkask_types::{UserSovereigntyState, WebID};
 use hkask_cns::spans::SpanEmitter;
+use hkask_types::{UserSovereigntyState, WebID};
 use serde_json::Value;
 
 /// Sovereignty checker for agent pods
@@ -55,7 +55,11 @@ impl SovereigntyChecker {
     pub fn check_operation(&self, operation: &str, data_category: &str) -> bool {
         // Check acquisition resistance
         if operation == "acquisition" {
-            return !self.state.boundary.resistance.prevents_passive_acquisition();
+            return !self
+                .state
+                .boundary
+                .resistance
+                .prevents_passive_acquisition();
         }
 
         // Check data access
@@ -65,7 +69,8 @@ impl SovereigntyChecker {
     /// Mark acquisition attempt and emit CNS event
     pub fn mark_acquisition_attempt(&mut self, details: &Value) {
         self.state.mark_acquisition_attempt();
-        self.span_emitter.emit_sovereignty("acquisition_attempt", details.clone());
+        self.span_emitter
+            .emit_sovereignty("acquisition_attempt", details.clone());
     }
 
     /// Update VC investment and check for kill zone
@@ -73,11 +78,14 @@ impl SovereigntyChecker {
         self.state.update_vc_investment(vc_investment);
 
         if self.state.is_compromised() {
-            self.span_emitter.emit_sovereignty_alert("killzone", serde_json::json!({
-                "vc_investment": vc_investment,
-                "threshold": self.state.detector.threshold,
-                "compromised": true
-            }));
+            self.span_emitter.emit_sovereignty_alert(
+                "killzone",
+                serde_json::json!({
+                    "vc_investment": vc_investment,
+                    "threshold": self.state.detector.threshold,
+                    "compromised": true
+                }),
+            );
         }
     }
 
@@ -89,17 +97,23 @@ impl SovereigntyChecker {
     /// Grant explicit consent
     pub fn grant_consent(&mut self) {
         self.state.grant_consent();
-        self.span_emitter.emit_sovereignty("consent_granted", serde_json::json!({
-            "consent": true
-        }));
+        self.span_emitter.emit_sovereignty(
+            "consent_granted",
+            serde_json::json!({
+                "consent": true
+            }),
+        );
     }
 
     /// Revoke explicit consent
     pub fn revoke_consent(&mut self) {
         self.state.revoke_consent();
-        self.span_emitter.emit_sovereignty("consent_revoked", serde_json::json!({
-            "consent": false
-        }));
+        self.span_emitter.emit_sovereignty(
+            "consent_revoked",
+            serde_json::json!({
+                "consent": false
+            }),
+        );
     }
 
     /// Check if sovereignty is compromised
@@ -130,7 +144,7 @@ mod tests {
         let mut checker = SovereigntyChecker::new(owner);
         // Sovereign data requires consent
         assert!(!checker.can_access("episodic_memory", &owner));
-        
+
         // Grant consent
         checker.grant_consent();
         // Now accessible to owner

@@ -39,15 +39,17 @@ pub mod capability;
 pub mod curator;
 pub mod ocap;
 pub mod pod;
+pub mod ports;
 pub mod replicant;
 pub mod security;
 pub mod sovereignty;
 
-pub use acp::{A2AMessage, AcpAgent, AcpRuntime, TemplateDispatchHandler};
+pub use crate::acp::{A2AMessage, AcpAgent, AcpRuntime, TemplateDispatchHandler};
 pub use capability::{BotCapabilities, CapabilityChecker, CapabilityToken};
 pub use pod::{
     AgentPersona, AgentPod, AgentPodError, AgentPodResult, AgentType, CNSSpanPort, GitCASPort,
     MCPRuntimePort, MemoryStoragePort, PodID, PodLifecycleState, PodManager, PodStatus,
     TemplateCrate,
 };
+pub use ports::{SovereigntyError, SovereigntyPort, SovereigntyResult};
 pub use sovereignty::SovereigntyChecker;

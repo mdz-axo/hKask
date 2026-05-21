@@ -346,7 +346,7 @@ impl CascadeEngine {
             if !context.can_recurse(&self.config.cascade_limits) {
                 break;
             }
-            
+
             context.descend(&stage.name, None);
             current = self.execute_stage(stage, current, context).await?;
         }
@@ -356,7 +356,7 @@ impl CascadeEngine {
             if !context.can_recurse(&self.config.cascade_limits) {
                 break;
             }
-            
+
             context.descend(&stage.name, None);
             current = self.execute_stage(stage, current, context).await?;
         }
@@ -366,7 +366,7 @@ impl CascadeEngine {
             if !context.can_recurse(&self.config.cascade_limits) {
                 break;
             }
-            
+
             context.descend(&stage.name, None);
             current = self.execute_stage(stage, current, context).await?;
         }
@@ -397,7 +397,7 @@ impl CascadeEngine {
 pub fn load_cascade_config(yaml_path: &str) -> Result<CascadeConfig, TemplateError> {
     let content = std::fs::read_to_string(yaml_path)
         .map_err(|e| TemplateError::Validation(format!("Failed to read cascade config: {}", e)))?;
-    
+
     serde_yaml::from_str(&content)
         .map_err(|e| TemplateError::Validation(format!("Failed to parse cascade config: {}", e)))
 }

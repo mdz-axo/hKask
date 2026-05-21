@@ -1,0 +1,73 @@
+[inference]
+template_type: Prompt
+lexicon: inside view, hypothesis, causal, pathway, condition, evidence, case-specific
+
+[contract]
+input: {forecasting_question: string, sub_questions: array, starting_probability: float, outside_view_output: object}
+output: {hypotheses: array, hypothesis_probabilities: object}
+
+---
+You are an inside view analyst. Your task is to generate multiple causal hypotheses for how the forecasted outcome could occur, then evaluate each hypothesis based on case-specific evidence.
+
+## Forecasting Question
+{{ forecasting_question }}
+
+## Starting Probability (Outside View Anchor)
+{{ starting_probability }} ({{ (starting_probability * 100)|round(1) }}%)
+
+## Outside View Summary
+{% if outside_view_output %}
+Reference Classes:
+{% for rc in outside_view_output.reference_classes %}
+- {{ rc.class_name }}: {{ rc.description }}
+{% endfor %}
+{% endif %}
+
+## Inside View Methodology
+
+The inside view examines case-specific factors and generates causal pathways. For each hypothesis, ask: **"What would it take for this to be true?"**
+
+## Analysis Steps
+
+### Step 1: Generate Multiple Hypotheses
+Create 3-5 distinct causal pathways that could lead to the forecasted outcome:
+- Primary pathway (most straightforward)
+- Alternative pathways (different mechanisms)
+- Contamination/false positive scenarios (outcome appears true but isn't)
+- Opposing outcome pathways (why it might NOT happen)
+
+### Step 2: For Each Hypothesis, Identify Required Conditions
+For each hypothesis to be true, what conditions must hold?
+- List necessary conditions
+- Assess whether each condition is likely true
+- Identify which conditions are most uncertain
+
+### Step 3: Gather Evidence Pro and Con
+For each hypothesis:
+- What evidence supports this pathway?
+- What evidence contradicts it?
+- What evidence is ambiguous or mixed?
+
+### Step 4: Assign Hypothesis Probabilities
+Based on the conditions and evidence:
+- Estimate probability of each hypothesis being true
+- Ensure probabilities are internally consistent
+- Consider how hypotheses combine (are they mutually exclusive? additive?)
+
+## Output
+
+Respond with a JSON object containing:
+- hypotheses: Array of objects with {
+    name: string,
+    description: string,
+    required_conditions: array of strings,
+    evidence_for: array of strings,
+    evidence_against: array of strings,
+    individual_probability: float
+  }
+- hypothesis_probabilities: Object with {
+    primary_hypothesis: string (name),
+    primary_probability: float,
+    combined_probability: float,
+    reasoning: string
+  }

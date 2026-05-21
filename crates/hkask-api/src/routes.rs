@@ -8,14 +8,13 @@ use hkask_cns::algedonic::{AlgedonicManager, CnsHealth};
 use hkask_cns::variety::VarietyMonitor;
 use hkask_templates::RegistryIndex;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::collections::HashMap;
 use utoipa::ToSchema;
 
 use crate::{
     ApiState, ChatRequest, ChatResponse, CnsHealthResponse, CnsVarietyResponse, CreatePodRequest,
     CreatePodResponse, GrantCapabilityRequest, ListPodsResponse, PodStatusResponse,
-    TemplateResponse, ToolResponse, VarietyCounterResponse,
+    TemplateResponse, VarietyCounterResponse,
 };
 
 /// Create templates router
@@ -24,7 +23,10 @@ pub fn templates_router() -> Router<ApiState> {
         .route("/api/templates", axum::routing::get(list_templates))
         .route("/api/templates/:id", axum::routing::get(get_template))
         .route("/api/templates", axum::routing::post(register_template))
-        .route("/api/templates/search/:term", axum::routing::get(search_templates))
+        .route(
+            "/api/templates/search/:term",
+            axum::routing::get(search_templates),
+        )
 }
 
 /// List templates
@@ -476,24 +478,24 @@ async fn list_tools(State(state): State<ApiState>) -> Json<Vec<String>> {
     Json(tools)
 }
 
-/// Get tool definition
-async fn get_tool(
-    State(state): State<ApiState>,
-    Path(name): Path<String>,
-) -> Result<Json<ToolResponse>, StatusCode> {
-    let tool = state
-        .mcp_runtime
-        .get_tool(&name)
-        .await
-        .ok_or(StatusCode::NOT_FOUND)?;
-
-    Ok(Json(ToolResponse {
-        name: tool.name,
-        description: tool.description,
-        input_schema: tool.input_schema,
-        server_id: tool.server_id,
-    }))
-}
+// TODO: Get tool definition - currently unused
+// async fn get_tool(
+//     State(state): State<ApiState>,
+//     Path(name): Path<String>,
+// ) -> Result<Json<ToolResponse>, StatusCode> {
+//     let tool = state
+//         .mcp_runtime
+//         .get_tool(&name)
+//         .await
+//         .ok_or(StatusCode::NOT_FOUND)?;
+//
+//     Ok(Json(ToolResponse {
+//         name: tool.name,
+//         description: tool.description,
+//         input_schema: tool.input_schema,
+//         server_id: tool.server_id,
+//     }))
+// }
 
 /// CNS health endpoint
 #[utoipa::path(
@@ -514,7 +516,7 @@ async fn cns_health(State(state): State<ApiState>) -> Json<CnsHealthResponse> {
     );
 
     let health = CnsHealth::check(&AlgedonicManager::new(100));
-    
+
     Json(CnsHealthResponse {
         overall_deficit: health.overall_deficit,
         critical_count: health.critical_count,
@@ -540,17 +542,17 @@ async fn cns_alerts(State(_state): State<ApiState>) -> Json<Vec<String>> {
 )]
 async fn cns_variety(State(_state): State<ApiState>) -> Json<CnsVarietyResponse> {
     let mut monitor = VarietyMonitor::new();
-    
+
     let domains: Vec<String> = vec![
         "tool.invocation".to_string(),
         "template.render".to_string(),
         "agent.pod".to_string(),
     ];
-    
+
     for domain in &domains {
         monitor.counter(domain).increment("state_active");
     }
-    
+
     let counters: HashMap<String, VarietyCounterResponse> = domains
         .iter()
         .map(|d| {
@@ -565,9 +567,9 @@ async fn cns_variety(State(_state): State<ApiState>) -> Json<CnsVarietyResponse>
             )
         })
         .collect();
-    
+
     let total_deficit: u64 = counters.values().map(|c| c.variety).sum();
-    
+
     Json(CnsVarietyResponse {
         domains,
         total_deficit,
@@ -586,11 +588,26 @@ pub fn cns_router() -> Router<ApiState> {
 /// Create sovereignty router
 pub fn sovereignty_router() -> Router<ApiState> {
     Router::new()
-        .route("/api/sovereignty/status", axum::routing::get(sovereignty_status))
-        .route("/api/sovereignty/consent/grant", axum::routing::post(sovereignty_grant_consent))
-        .route("/api/sovereignty/consent/revoke", axum::routing::post(sovereignty_revoke_consent))
-        .route("/api/sovereignty/killzone", axum::routing::get(sovereignty_killzone))
-        .route("/api/sovereignty/access/check", axum::routing::get(sovereignty_check_access))
+        .route(
+            "/api/sovereignty/status",
+            axum::routing::get(sovereignty_status),
+        )
+        .route(
+            "/api/sovereignty/consent/grant",
+            axum::routing::post(sovereignty_grant_consent),
+        )
+        .route(
+            "/api/sovereignty/consent/revoke",
+            axum::routing::post(sovereignty_revoke_consent),
+        )
+        .route(
+            "/api/sovereignty/killzone",
+            axum::routing::get(sovereignty_killzone),
+        )
+        .route(
+            "/api/sovereignty/access/check",
+            axum::routing::get(sovereignty_check_access),
+        )
 }
 
 /// Sovereignty status response
@@ -669,7 +686,7 @@ async fn chat(State(_state): State<ApiState>, Json(req): Json<ChatRequest>) -> J
 async fn sovereignty_status(State(_state): State<ApiState>) -> Json<SovereigntyStatusResponse> {
     use hkask_types::UserSovereigntyState;
     let state = UserSovereigntyState::new();
-    
+
     Json(SovereigntyStatusResponse {
         explicit_consent: state.explicit_consent,
         sovereignty_compromised: state.is_compromised(),
@@ -684,15 +701,20 @@ async fn sovereignty_status(State(_state): State<ApiState>) -> Json<SovereigntyS
 }
 
 /// Grant consent endpoint
-async fn sovereignty_grant_consent(State(_state): State<ApiState>) -> Json<SovereigntyConsentResponse> {
+async fn sovereignty_grant_consent(
+    State(_state): State<ApiState>,
+) -> Json<SovereigntyConsentResponse> {
     Json(SovereigntyConsentResponse {
         consent: true,
-        message: "Explicit consent granted. Data sharing enabled for shared categories.".to_string(),
+        message: "Explicit consent granted. Data sharing enabled for shared categories."
+            .to_string(),
     })
 }
 
 /// Revoke consent endpoint
-async fn sovereignty_revoke_consent(State(_state): State<ApiState>) -> Json<SovereigntyConsentResponse> {
+async fn sovereignty_revoke_consent(
+    State(_state): State<ApiState>,
+) -> Json<SovereigntyConsentResponse> {
     Json(SovereigntyConsentResponse {
         consent: false,
         message: "Explicit consent revoked. Only public data accessible.".to_string(),
@@ -712,7 +734,7 @@ async fn sovereignty_revoke_consent(State(_state): State<ApiState>) -> Json<Sove
 async fn sovereignty_killzone(State(_state): State<ApiState>) -> Json<KillZoneResponse> {
     use hkask_types::UserSovereigntyState;
     let state = UserSovereigntyState::new();
-    
+
     Json(KillZoneResponse {
         active: state.detector.kill_zone_active,
         acquisition_attempt: state.detector.acquisition_attempt,
@@ -740,20 +762,26 @@ async fn sovereignty_check_access(
     Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Json<AccessCheckResponse> {
     use hkask_types::UserSovereigntyState;
-    
+
     let category = params.get("category").map(|s| s.as_str()).unwrap_or("");
     let state = UserSovereigntyState::new();
-    
+
     let (classification, access_required) = if state.boundary.is_sovereign(category) {
-        ("SOVEREIGN".to_string(), "Requires explicit consent AND owner".to_string())
+        (
+            "SOVEREIGN".to_string(),
+            "Requires explicit consent AND owner".to_string(),
+        )
     } else if state.boundary.shared_data.contains(&category.to_string()) {
-        ("SHARED".to_string(), "Requires explicit consent".to_string())
+        (
+            "SHARED".to_string(),
+            "Requires explicit consent".to_string(),
+        )
     } else if state.boundary.public_data.contains(&category.to_string()) {
         ("PUBLIC".to_string(), "Always accessible".to_string())
     } else {
         ("UNKNOWN".to_string(), "Denied by default".to_string())
     };
-    
+
     Json(AccessCheckResponse {
         category: category.to_string(),
         classification,

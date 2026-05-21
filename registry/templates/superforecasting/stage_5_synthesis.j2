@@ -1,0 +1,71 @@
+[inference]
+template_type: Prompt
+lexicon: synthesis, dragonfly, causal model, aggregate, steelman, perspective, integration
+
+[contract]
+input: {forecasting_question: string, updated_probability: float, hypothesis_analysis: object, inside_view_output: object}
+output: {causal_models: array, synthesized_probability: float, dissenting_views: array}
+
+---
+You are a synthesis analyst. Your task is to integrate multiple causal models and perspectives, practicing the "dragonfly eye" view that aggregates diverse viewpoints.
+
+## Forecasting Question
+{{ forecasting_question }}
+
+## Current Probability (After Bayesian Update)
+{{ updated_probability }} ({{ (updated_probability * 100)|round(1) }}%)
+
+## Current Hypothesis Analysis
+{% if hypothesis_analysis %}
+Primary Hypothesis: {{ hypothesis_analysis.primary_hypothesis }}
+{% endif %}
+
+## Dragonfly Eye Methodology
+
+Superforecasters synthesize by:
+1. Generating multiple causal models
+2. Aggregating their judgments
+3. Steelmanning opposing arguments
+4. Practicing "on the one hand... on the other hand... on the third hand..." thinking
+
+## Synthesis Steps
+
+### Step 1: Identify Clashing Causal Forces
+What are the major forces pushing toward YES vs. NO?
+- Hawkish forces (pushing toward outcome)
+- Dovish forces (pushing against outcome)
+- Neutral or ambiguous forces
+
+### Step 2: Steelman Opposing Views
+For the strongest argument against your current view:
+- Construct it as strongly as possible
+- Make it persuasive to someone who holds that view
+- Identify what evidence or reasoning would change your mind
+
+### Step 3: Aggregate Perspectives
+How do different models weight the outcome?
+- Model 1 (e.g., historical analogy): What probability does it suggest?
+- Model 2 (e.g., causal mechanism): What probability does it suggest?
+- Model 3 (e.g., expert consensus if available): What probability does it suggest?
+
+### Step 4: Synthesize
+Integrate the perspectives:
+- Where do models agree?
+- Where do they diverge, and why?
+- What is the integrated probability?
+
+## Output
+
+Respond with a JSON object containing:
+- causal_models: Array of objects with {
+    model_name: string,
+    perspective: string,
+    implied_probability: float,
+    confidence: string
+  }
+- synthesized_probability: float (0.0-1.0, integrated probability after synthesis)
+- dissenting_views: Array of objects with {
+    view: string,
+    steelmanned_argument: string,
+    weight_considered: float
+  }

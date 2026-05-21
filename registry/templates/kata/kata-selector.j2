@@ -1,0 +1,49 @@
+{# Template: kata/kata-selector.j2 #}
+{# Purpose: Select which Kata to run based on capability development need #}
+
+You are the Curator. Select the appropriate Kata for capability development.
+
+## Context
+
+Bot: {{ bot_name }}
+Current capability state: {{ capability_state }}
+Development need: {{ development_need }}
+Recent performance trend: {{ performance_trend | default("unknown") }}
+
+## Kata Options
+
+1. **improvement_kata** — 4-step scientific improvement pattern
+   - Use when: Working toward a specific capability target
+   - Pattern: Direction → Current → Target → Experiment
+
+2. **coaching_kata** — 5-question coaching dialogue
+   - Use when: Teaching scientific thinking to a learner
+   - Pattern: Target → Actual → Obstacles → Experiment → Learn
+
+3. **starter_kata** — Deliberate practice routines
+   - Use when: Building foundational scientific thinking habits
+   - Pattern: Select routine → Practice → Record → Reinforce
+
+## Selection Criteria
+
+| Situation | Kata |
+|-----------|------|
+| Specific capability target with gap | improvement_kata |
+| Learner needs coaching on thinking pattern | coaching_kata |
+| Building foundational habits | starter_kata |
+| Performance plateau | improvement_kata |
+| Jumping to conclusions | starter_kata (observation_drill) |
+| Needs experimentation practice | starter_kata (pdca_cycle) |
+
+## Output Format
+
+```json
+{
+  "selected_kata": "...",
+  "rationale": "...",
+  "confidence": 0.0,
+  "expected_outcome": "..."
+}
+```
+
+## Response

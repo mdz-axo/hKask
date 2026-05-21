@@ -1,331 +1,128 @@
-//! Multi-Okapi Failover System (v1.1+ Future Work)
+//! Multi-Okapi Failover — Simplified
 //!
-//! This module provides multi-Okapi instance support with:
-//! - Capability-based routing
-//! - Health checking
-//! - Automatic failover
-//! - Load balancing
-//!
-//! **Status:** STUB - For v1.1+ implementation
+//! Minimal stub for multi-Okapi support. Full implementation deferred to v1.1.
+//! Configuration-driven via multi-okapi.yaml manifest.
+//! ℏKask v0.21.2
 
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::sync::RwLock;
-use tracing::{error, info, warn};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
-use crate::adapters::OkapiHttpClient;
-use crate::ports::OkapiCapabilities;
+/// Multi-Okapi configuration (loaded from YAML)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MultiOkapiConfig {
+    pub instances: Vec<OkapiInstanceConfig>,
+    #[serde(default)]
+    pub routing: RoutingConfig,
+    #[serde(default)]
+    pub health_check: HealthCheckConfig,
+    #[serde(default)]
+    pub failover: FailoverConfig,
+}
 
-/// Okapi instance with health and capability tracking
-#[derive(Clone)]
-pub struct OkapiInstance {
-    /// Instance endpoint URL
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OkapiInstanceConfig {
+    pub id: String,
     pub endpoint: String,
-    /// Current capabilities
-    pub capabilities: OkapiCapabilities,
-    /// Health status
-    pub health: HealthStatus,
-    /// Current load (0.0 - 1.0)
-    pub load: f64,
-    /// Last health check timestamp
-    pub last_health_check: chrono::DateTime<chrono::Utc>,
+    #[serde(default)]
+    pub capabilities: Vec<String>,
+    #[serde(default)]
+    pub priority: u8,
 }
 
-impl OkapiInstance {
-    /// Create new Okapi instance
-    pub fn new(endpoint: String, capabilities: OkapiCapabilities) -> Self {
-        Self {
-            endpoint,
-            capabilities,
-            health: HealthStatus::Unknown,
-            load: 0.0,
-            last_health_check: chrono::Utc::now(),
-        }
-    }
-
-    /// Check if instance is healthy and available
-    pub fn is_available(&self) -> bool {
-        matches!(self.health, HealthStatus::Healthy { .. }) && self.load < 1.0
-    }
-
-    /// Update health status
-    pub fn update_health(&mut self, health: HealthStatus) {
-        self.health = health;
-        self.last_health_check = chrono::Utc::now();
-    }
-
-    /// Update load
-    pub fn update_load(&mut self, load: f64) {
-        self.load = load.clamp(0.0, 1.0);
-    }
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct RoutingConfig {
+    #[serde(default)]
+    pub strategy: String,
+    #[serde(default)]
+    pub load_balance: bool,
 }
 
-/// Health status for Okapi instances
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct HealthCheckConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_interval")]
+    pub interval_seconds: u64,
+}
+
+fn default_interval() -> u64 {
+    30
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct FailoverConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub max_retries: u32,
+}
+
+/// Health status (simplified)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HealthStatus {
-    /// Instance is healthy
-    Healthy {
-        /// Response time in milliseconds
-        response_time_ms: u64,
-        /// Consecutive successful health checks
-        consecutive_successes: u32,
-    },
-    /// Instance is degraded (slow but responding)
-    Degraded {
-        /// Response time in milliseconds
-        response_time_ms: u64,
-        /// Reason for degraded status
-        reason: String,
-    },
-    /// Instance is unhealthy
-    Unhealthy {
-        /// Last error message
-        last_error: String,
-        /// Consecutive failed health checks
-        consecutive_failures: u32,
-    },
-    /// Health status unknown (not yet checked)
+    Healthy,
+    Unhealthy,
     Unknown,
 }
 
-impl HealthStatus {
-    /// Check if status is healthy
-    pub fn is_healthy(&self) -> bool {
-        matches!(self, HealthStatus::Healthy { .. })
-    }
-
-    /// Check if status is unhealthy
-    pub fn is_unhealthy(&self) -> bool {
-        matches!(self, HealthStatus::Unhealthy { .. })
-    }
+/// Okapi instance (simplified)
+#[derive(Debug, Clone)]
+pub struct OkapiInstance {
+    pub id: String,
+    pub endpoint: String,
+    pub health: HealthStatus,
 }
 
-/// Health checker for Okapi instances
-#[derive(Clone)]
-pub struct HealthChecker {
-    check_interval: Duration,
-    timeout: Duration,
-}
-
-impl HealthChecker {
-    /// Create new health checker
-    pub fn new(
-        check_interval: Duration,
-        timeout: Duration,
-        _healthy_threshold: u32,
-        _unhealthy_threshold: u32,
-    ) -> Self {
+impl OkapiInstance {
+    pub fn new(id: String, endpoint: String) -> Self {
         Self {
-            check_interval,
-            timeout,
+            id,
+            endpoint,
+            health: HealthStatus::Unknown,
         }
     }
 
-    /// Check health of an Okapi instance
-    pub async fn check_health(&self, endpoint: &str) -> Result<HealthStatus, String> {
-        let client = reqwest::Client::builder()
-            .timeout(self.timeout)
-            .build()
-            .map_err(|e| e.to_string())?;
-
-        let start = std::time::Instant::now();
-
-        match client
-            .get(format!("{}/api/engine/status", endpoint))
-            .send()
-            .await
-        {
-            Ok(response) => {
-                let response_time_ms = start.elapsed().as_millis() as u64;
-
-                if response.status().is_success() {
-                    Ok(HealthStatus::Healthy {
-                        response_time_ms,
-                        consecutive_successes: 1,
-                    })
-                } else {
-                    Ok(HealthStatus::Degraded {
-                        response_time_ms,
-                        reason: format!("HTTP {}", response.status()),
-                    })
-                }
-            }
-            Err(e) => Ok(HealthStatus::Unhealthy {
-                last_error: e.to_string(),
-                consecutive_failures: 1,
-            }),
-        }
+    pub fn is_available(&self) -> bool {
+        matches!(self.health, HealthStatus::Healthy)
     }
 }
 
-/// Capability-based router for multi-Okapi setup
-pub struct CapabilityRouter {
-    instances: Arc<RwLock<Vec<OkapiInstance>>>,
-    health_checker: HealthChecker,
+/// Multi-Okapi manager (stub)
+pub struct MultiOkapiManager {
+    config: MultiOkapiConfig,
+    instances: HashMap<String, OkapiInstance>,
 }
 
-impl CapabilityRouter {
-    /// Create new capability router
-    pub fn new(instances: Vec<OkapiInstance>, health_checker: HealthChecker) -> Self {
-        Self {
-            instances: Arc::new(RwLock::new(instances)),
-            health_checker,
-        }
-    }
-
-    /// Add new Okapi instance
-    pub async fn add_instance(&self, instance: OkapiInstance) {
-        let mut instances = self.instances.write().await;
-        instances.push(instance);
-        info!("Added Okapi instance to router");
-    }
-
-    /// Remove instance by endpoint
-    pub async fn remove_instance(&self, endpoint: &str) {
-        let mut instances = self.instances.write().await;
-        instances.retain(|inst| inst.endpoint != endpoint);
-        info!("Removed Okapi instance from router: {}", endpoint);
-    }
-
-    /// Select best instance for required capabilities
-    pub async fn select_instance(
-        &self,
-        required_capabilities: &OkapiCapabilities,
-    ) -> Option<OkapiInstance> {
-        let instances = self.instances.read().await;
-
-        // Filter instances that have required capabilities and are healthy
-        let mut candidates: Vec<&OkapiInstance> = instances
+impl MultiOkapiManager {
+    pub fn new(config: MultiOkapiConfig) -> Self {
+        let instances = config
+            .instances
             .iter()
-            .filter(|inst| {
-                inst.is_available()
-                    && self.has_required_capabilities(&inst.capabilities, required_capabilities)
+            .map(|c| {
+                (
+                    c.id.clone(),
+                    OkapiInstance::new(c.id.clone(), c.endpoint.clone()),
+                )
             })
             .collect();
+        Self { config, instances }
+    }
 
-        if candidates.is_empty() {
-            return None;
+    pub fn get_healthy_instance(&self) -> Option<&OkapiInstance> {
+        self.instances.values().find(|i| i.is_available())
+    }
+
+    pub fn update_health(&mut self, id: &str, health: HealthStatus) {
+        if let Some(instance) = self.instances.get_mut(id) {
+            instance.health = health;
         }
-
-        // Sort by load (prefer less loaded instances)
-        candidates.sort_by(|a, b| {
-            a.load
-                .partial_cmp(&b.load)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
-
-        // Return best candidate
-        candidates.first().cloned().cloned()
-    }
-
-    /// Check if instance has required capabilities
-    fn has_required_capabilities(
-        &self,
-        available: &OkapiCapabilities,
-        required: &OkapiCapabilities,
-    ) -> bool {
-        // For now, just check runner type compatibility
-        // In v1.1+, implement full capability matching
-        available.runner_type == required.runner_type
-            || (available.token_probs && required.token_probs)
-            || (available.grammar_native && required.grammar_native)
-    }
-
-    /// Get all instances
-    pub async fn get_instances(&self) -> Vec<OkapiInstance> {
-        self.instances.read().await.clone()
-    }
-
-    /// Get instance count
-    pub async fn instance_count(&self) -> usize {
-        self.instances.read().await.len()
-    }
-
-    /// Start background health checking
-    pub async fn start_health_checks(self: Arc<Self>) {
-        let check_interval = self.health_checker.check_interval;
-
-        tokio::spawn(async move {
-            let mut interval = tokio::time::interval(check_interval);
-
-            loop {
-                interval.tick().await;
-
-                let instances = self.instances.read().await.clone();
-                for mut instance in instances {
-                    match self.health_checker.check_health(&instance.endpoint).await {
-                        Ok(health) => {
-                            instance.update_health(health.clone());
-                            if health.is_healthy() {
-                                info!(
-                                    "Okapi instance {} is healthy ({}ms)",
-                                    instance.endpoint,
-                                    if let HealthStatus::Healthy {
-                                        response_time_ms, ..
-                                    } = health
-                                    {
-                                        response_time_ms
-                                    } else {
-                                        0
-                                    }
-                                );
-                            } else {
-                                warn!("Okapi instance {} is unhealthy", instance.endpoint);
-                            }
-                        }
-                        Err(e) => {
-                            error!("Health check failed for {}: {}", instance.endpoint, e);
-                            instance.update_health(HealthStatus::Unhealthy {
-                                last_error: e,
-                                consecutive_failures: 1,
-                            });
-                        }
-                    }
-
-                    // Update instance in the list
-                    let mut instances = self.instances.write().await;
-                    if let Some(existing) = instances
-                        .iter_mut()
-                        .find(|i| i.endpoint == instance.endpoint)
-                    {
-                        *existing = instance;
-                    }
-                }
-            }
-        });
     }
 }
 
-/// Multi-Okapi failover client
-pub struct MultiOkapiClient {
-    router: Arc<CapabilityRouter>,
-    default_capabilities: OkapiCapabilities,
-}
+/// Load config from YAML
+pub fn load_multi_okapi_config(yaml_path: &str) -> Result<MultiOkapiConfig, &'static str> {
+    let content =
+        std::fs::read_to_string(yaml_path).map_err(|_| "Failed to read Multi-Okapi config")?;
 
-impl MultiOkapiClient {
-    /// Create new multi-Okapi client
-    pub fn new(router: Arc<CapabilityRouter>, default_capabilities: OkapiCapabilities) -> Self {
-        Self {
-            router,
-            default_capabilities,
-        }
-    }
-
-    /// Create HTTP client for selected instance
-    pub async fn get_client(&self) -> Option<OkapiHttpClient> {
-        if let Some(instance) = self
-            .router
-            .select_instance(&self.default_capabilities)
-            .await
-        {
-            Some(OkapiHttpClient::new(&instance.endpoint))
-        } else {
-            None
-        }
-    }
-
-    /// Get router reference
-    pub fn router(&self) -> Arc<CapabilityRouter> {
-        Arc::clone(&self.router)
-    }
+    serde_yaml::from_str(&content).map_err(|_| "Failed to parse Multi-Okapi config")
 }

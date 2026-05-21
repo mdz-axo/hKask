@@ -5,6 +5,10 @@
 //! - Acquisition resistance mechanisms
 //! - Kill-zone detection for VC investment patterns
 
+pub mod category;
+
+pub use category::{DataCategory, DataSovereignty};
+
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -277,8 +281,12 @@ mod tests {
     #[test]
     fn test_data_sovereignty_boundary_default() {
         let boundary = DataSovereigntyBoundary::hkask_default();
-        assert!(boundary.sovereign_data.contains(&"episodic_memory".to_string()));
-        assert!(boundary.shared_data.contains(&"semantic_memory".to_string()));
+        assert!(boundary
+            .sovereign_data
+            .contains(&"episodic_memory".to_string()));
+        assert!(boundary
+            .shared_data
+            .contains(&"semantic_memory".to_string()));
         assert!(boundary.public_data.contains(&"hlexicon_terms".to_string()));
         assert_eq!(boundary.resistance, AcquisitionResistance::High);
     }

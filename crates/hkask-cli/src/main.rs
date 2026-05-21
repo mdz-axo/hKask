@@ -17,9 +17,9 @@
 use clap::{Parser, Subcommand};
 use hkask_mcp::runtime::McpRuntime;
 use hkask_templates::{
-    FieldMapping, FieldMappings, IdTransformation, MappingMeta, MappedTemplate,
-    ModelTierSelection, RegistryEntry, RegistryIndex, RussellMappingConfig, RussellMapper,
-    SqliteRegistry, TemplateTypeInference,
+    FieldMapping, FieldMappings, IdTransformation, MappedTemplate, MappingMeta, ModelTierSelection,
+    RegistryEntry, RegistryIndex, RussellMapper, RussellMappingConfig, SqliteRegistry,
+    TemplateTypeInference,
 };
 use hkask_types::TemplateType as Type;
 use std::io::{self, BufRead, Write};
@@ -812,7 +812,7 @@ fn main() {
         Commands::Sovereignty { action } => match action {
             SovereigntyAction::Status => {
                 let state = hkask_types::UserSovereigntyState::new();
-                
+
                 println!("User Sovereignty Status:");
                 println!("  Explicit consent: {}", state.explicit_consent);
                 println!("  Sovereignty compromised: {}", state.is_compromised());
@@ -848,7 +848,7 @@ fn main() {
                 let mut state = hkask_types::UserSovereigntyState::new();
                 state.mark_acquisition_attempt();
                 state.update_vc_investment(vc_investment);
-                
+
                 println!("Acquisition attempt marked.");
                 println!("  VC investment: {:.2}", vc_investment);
                 println!("  Kill zone active: {}", state.is_compromised());
@@ -858,10 +858,13 @@ fn main() {
             }
             SovereigntyAction::KillZone => {
                 let state = hkask_types::UserSovereigntyState::new();
-                
+
                 println!("Kill Zone Status:");
                 println!("  Active: {}", state.detector.kill_zone_active);
-                println!("  Acquisition attempt: {}", state.detector.acquisition_attempt);
+                println!(
+                    "  Acquisition attempt: {}",
+                    state.detector.acquisition_attempt
+                );
                 println!("  VC investment: {:.2}", state.detector.vc_investment);
                 println!("  Threshold: {:.2}", state.detector.threshold);
                 if state.detector.kill_zone_active {
@@ -872,11 +875,11 @@ fn main() {
                 let owner = hkask_types::WebID::new();
                 let checker = hkask_agents::SovereigntyChecker::new(owner);
                 let state = checker.get_state();
-                
+
                 let is_sovereign = state.boundary.is_sovereign(&category);
                 let is_shared = state.boundary.shared_data.contains(&category);
                 let is_public = state.boundary.public_data.contains(&category);
-                
+
                 println!("Data access check for '{}':", category);
                 if is_sovereign {
                     println!("  Category: SOVEREIGN");

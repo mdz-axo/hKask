@@ -1,0 +1,163 @@
+# Coaching Kata Manifest
+# ℏKask v0.21.0 — 5-question coaching dialogue for capability development
+
+manifest:
+  id: coaching-kata
+  name: Coaching Kata
+  description: >
+    5-question coaching cycle used by Curator to teach scientific
+    thinking to bots. Each cycle ~20 minutes. Questions reveal
+    learner's thinking pattern and reinforce Improvement Kata.
+  editor: Curator
+  visibility: public
+
+energy:
+  cap: 12000
+  cost_per_token: 0.25
+  alert_threshold: 0.7
+  hard_limit: true
+
+steps:
+  - ordinal: 1
+    action: populate
+    description: >
+      Question 1: What is your target condition?
+      Establish the goal the learner is working toward.
+    renderer: minijinja
+    template_ref: kata/coaching-q1-target.j2
+    model_tier: fast_local
+    mcp: hkask-mcp-inference
+    energy_cap: 1500
+    timeout_seconds: 15
+    output_schema:
+      type: object
+      properties:
+        target_condition:
+          type: string
+        learner_understanding:
+          type: string
+
+  - ordinal: 2
+    action: populate
+    description: >
+      Question 2: What is your actual condition now?
+      What does the learner observe about current performance?
+    renderer: minijinja
+    template_ref: kata/coaching-q2-actual.j2
+    model_tier: fast_local
+    mcp: hkask-mcp-inference
+    energy_cap: 1500
+    timeout_seconds: 15
+    output_schema:
+      type: object
+      properties:
+        actual_condition:
+          type: string
+        gap_from_target:
+          type: string
+
+  - ordinal: 3
+    action: populate
+    description: >
+      Question 3: What obstacles do you think are preventing
+      you from reaching the target condition? Which one are you
+      addressing now?
+    renderer: minijinja
+    template_ref: kata/coaching-q3-obstacles.j2
+    model_tier: reasoning_local
+    mcp: hkask-mcp-inference
+    energy_cap: 2500
+    timeout_seconds: 20
+    output_schema:
+      type: object
+      properties:
+        obstacles:
+          type: array
+        selected_obstacle:
+          type: string
+
+  - ordinal: 4
+    action: populate
+    description: >
+      Question 4: What is your next step (next experiment)?
+      What do you expect?
+    renderer: minijinja
+    template_ref: kata/coaching-q4-experiment.j2
+    model_tier: balanced
+    mcp: hkask-mcp-inference
+    energy_cap: 3000
+    timeout_seconds: 25
+    output_schema:
+      type: object
+      properties:
+        next_experiment:
+          type: string
+        prediction:
+          type: string
+        expected_outcome:
+          type: object
+
+  - ordinal: 5
+    action: populate
+    description: >
+      Question 5: How quickly can we go and see what we have
+      learned from taking that step?
+      Establish immediate feedback loop.
+    renderer: minijinja
+    template_ref: kata/coaching-q5-learn.j2
+    model_tier: fast_local
+    mcp: hkask-mcp-inference
+    energy_cap: 2000
+    timeout_seconds: 15
+    output_schema:
+      type: object
+      properties:
+        when:
+          type: string
+        what_to_measure:
+          type: string
+        learning_goal:
+          type: string
+
+  - ordinal: 6
+    action: execute
+    description: >
+      Synthesize coaching cycle outcome and emit to CNS.
+      Record learner progress and next coaching needs.
+    renderer: null
+    template_ref: null
+    target: synthesize_coaching_outcome
+    mcp: hkask-mcp-cns
+    tool: cns_emit
+    energy_cap: 1500
+    timeout_seconds: 10
+    output_schema:
+      type: object
+      properties:
+        cns_event_id:
+          type: string
+        learner_progress:
+          type: string
+        next_coaching_focus:
+          type: string
+
+error_handling:
+  on_energy_exceeded: abort_and_escalate
+  on_timeout: retry
+  max_retries: 2
+  retry_backoff_seconds: 1
+
+cns:
+  emit_spans: true
+  span_namespace: cns.prompt.kata.coaching
+  variety_monitoring: true
+  algedonic_threshold: 100
+  escalation_target: hKask-Administrator
+
+audit:
+  enabled: true
+  log_level: info
+  include_input: true
+  include_output: true
+  include_energy_cost: true
+  include_cns_events: true

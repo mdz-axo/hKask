@@ -67,6 +67,7 @@ pub enum CapabilityAction {
     Render,
     Compose,
     Attenuate,
+    Acquire,
 }
 
 impl CapabilityAction {
@@ -78,6 +79,7 @@ impl CapabilityAction {
             CapabilityAction::Render => "render",
             CapabilityAction::Compose => "compose",
             CapabilityAction::Attenuate => "attenuate",
+            CapabilityAction::Acquire => "acquire",
         }
     }
 
@@ -89,6 +91,7 @@ impl CapabilityAction {
             "render" => Some(CapabilityAction::Render),
             "compose" => Some(CapabilityAction::Compose),
             "attenuate" => Some(CapabilityAction::Attenuate),
+            "acquire" => Some(CapabilityAction::Acquire),
             _ => None,
         }
     }

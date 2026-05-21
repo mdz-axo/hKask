@@ -1,0 +1,126 @@
+# Improvement Kata Manifest
+# ℏKask v0.21.0 — Scientific capability development for 7R7
+
+manifest:
+  id: improvement-kata
+  name: Improvement Kata
+  description: >
+    4-step scientific pattern for achieving challenging goals
+    through iterative experimentation. Used by Curator to develop
+    bot capabilities systematically.
+  editor: Curator
+  visibility: public
+
+energy:
+  cap: 15000
+  cost_per_token: 0.25
+  alert_threshold: 0.7
+  hard_limit: true
+
+steps:
+  - ordinal: 1
+    action: populate
+    description: >
+      Step 1: Understand the direction or challenge.
+      What capability needs development? What is the long-term goal?
+    renderer: minijinja
+    template_ref: kata/improvement-step1-direction.j2
+    model_tier: fast_local
+    mcp: hkask-mcp-inference
+    energy_cap: 2000
+    timeout_seconds: 20
+    output_schema:
+      type: object
+      properties:
+        challenge:
+          type: string
+        target_capability:
+          type: string
+        long_term_goal:
+          type: string
+
+  - ordinal: 2
+    action: populate
+    description: >
+      Step 2: Grasp the current condition.
+      What is the actual performance now? Measure, don't assume.
+    renderer: minijinja
+    template_ref: kata/improvement-step2-current.j2
+    model_tier: fast_local
+    mcp: hkask-mcp-inference
+    energy_cap: 3000
+    timeout_seconds: 30
+    output_schema:
+      type: object
+      properties:
+        current_performance:
+          type: object
+        metrics:
+          type: array
+        knowledge_threshold:
+          type: string
+
+  - ordinal: 3
+    action: populate
+    description: >
+      Step 3: Establish the next target condition.
+      What specific, measurable improvement will we achieve by when?
+    renderer: minijinja
+    template_ref: kata/improvement-step3-target.j2
+    model_tier: reasoning_local
+    mcp: hkask-mcp-inference
+    energy_cap: 4000
+    timeout_seconds: 30
+    output_schema:
+      type: object
+      properties:
+        target_condition:
+          type: string
+        metrics_target:
+          type: object
+        achieve_by:
+          type: string
+
+  - ordinal: 4
+    action: populate
+    description: >
+      Step 4: Experiment toward the target condition.
+      What obstacle will we address? What is the next experiment?
+    renderer: minijinja
+    template_ref: kata/improvement-step4-experiment.j2
+    model_tier: balanced
+    mcp: hkask-mcp-inference
+    energy_cap: 5000
+    timeout_seconds: 45
+    output_schema:
+      type: object
+      properties:
+        obstacle:
+          type: string
+        next_experiment:
+          type: string
+        prediction:
+          type: string
+        expected_outcome:
+          type: object
+
+error_handling:
+  on_energy_exceeded: abort_and_escalate
+  on_timeout: retry
+  max_retries: 2
+  retry_backoff_seconds: 1
+
+cns:
+  emit_spans: true
+  span_namespace: cns.prompt.kata.improvement
+  variety_monitoring: true
+  algedonic_threshold: 100
+  escalation_target: hKask-Administrator
+
+audit:
+  enabled: true
+  log_level: info
+  include_input: true
+  include_output: true
+  include_energy_cost: true
+  include_cns_events: true
