@@ -179,15 +179,6 @@ impl Default for McpRuntime {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_mcp_runtime_new() {
-        let runtime = McpRuntime::new();
-        assert_eq!(runtime.tool_count().await, 0);
-    }
 
     #[tokio::test]
     async fn test_mcp_runtime_register_server() {

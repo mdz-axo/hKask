@@ -32,10 +32,7 @@ impl Violation {
 
     /// Emit violation as CNS span (Curator handles review)
     pub fn emit_span(&self) -> Span {
-        Span::Review(format!(
-            "cns.alert.violation.{}",
-            self.id
-        ))
+        Span::Review(format!("cns.alert.violation.{}", self.id))
     }
 }
 
@@ -52,7 +49,9 @@ impl Default for ReviewQueue {
 
 impl ReviewQueue {
     pub fn new() -> Self {
-        Self { violations: Vec::new() }
+        Self {
+            violations: Vec::new(),
+        }
     }
 
     /// Add violation and emit span (Curator reviews)
@@ -68,26 +67,4 @@ impl ReviewQueue {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
 
-    #[test]
-    fn test_review_queue_new() {
-        let queue = ReviewQueue::new();
-        assert_eq!(queue.pending_violations().len(), 0);
-    }
-
-    #[test]
-    fn test_review_queue_add_violation() {
-        let mut queue = ReviewQueue::new();
-        let agent_id = WebID::new();
-        let violation = Violation::new(
-            agent_id.clone(),
-            "test".to_string(),
-            "Test violation".to_string(),
-        );
-        queue.add_violation(violation);
-        assert_eq!(queue.pending_violations().len(), 1);
-    }
-}

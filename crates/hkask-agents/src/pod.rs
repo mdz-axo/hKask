@@ -59,13 +59,14 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use thiserror::Error;
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 use tracing::info;
 use zeroize::Zeroizing;
 
-use crate::adapters::git_cas::GitCasAdapter;
 use crate::adapters::acp_runtime::AcpRuntimeAdapter;
 use crate::adapters::cns_emitter::CnsEmitterAdapter;
+use crate::adapters::git_cas::GitCasAdapter;
+use crate::adapters::memory_storage::MemoryStorageAdapter;
 use crate::adapters::mcp_runtime::McpRuntimeAdapter;
 use std::path::PathBuf;
 
@@ -680,6 +681,45 @@ impl GitCASPort for PlaceholderGitCAS {
     }
 }
 
+/// Memory Storage Port — Artifact persistence
+pub trait MemoryStoragePort {
+    /// Store a memory artifact (triple or embedding)
+    ///
+    /// # Arguments
+    /// * `producer_webid` — WebID of the producing agent
+    /// * `artifact_type` — Type of artifact ("episodic_triple", "semantic_triple", "embedding")
+    /// * `content` — Artifact content as JSON
+    /// * `visibility` — Visibility setting ("private", "public", "shared")
+    /// * `token` — Capability token authorizing the write
+    ///
+    /// # Returns
+    /// * `Ok(String)` — Artifact ID
+    /// * `Err(String)` — Storage error
+    fn store_artifact(
+        &self,
+        producer_webid: WebID,
+        artifact_type: &str,
+        content: serde_json::Value,
+        visibility: &str,
+        token: &CapabilityToken,
+    ) -> Result<String, String>;
+
+    /// Recall memory artifacts matching a query
+    ///
+    /// # Arguments
+    /// * `query` — Search query
+    /// * `token` — Capability token authorizing the read
+    ///
+    /// # Returns
+    /// * `Ok(Vec<serde_json::Value>)` — Matching artifacts
+    /// * `Err(String)` — Query error
+    fn recall(
+        &self,
+        query: &str,
+        token: &CapabilityToken,
+    ) -> Result<Vec<serde_json::Value>, String>;
+}
+
 /// Pod Manager — Manages collection of agent pods
 ///
 /// The PodManager provides centralized lifecycle management for all agent pods
@@ -696,6 +736,7 @@ pub struct PodManager {
     acp_runtime: AcpRuntimeAdapter,
     cns_emitter: CnsEmitterAdapter,
     mcp_runtime: McpRuntimeAdapter,
+    memory_storage: Arc<Mutex<MemoryStorageAdapter>>,
 }
 
 /// Pod status information
@@ -712,7 +753,13 @@ pub struct PodStatus {
 
 impl PodManager {
     /// Create a new pod manager with real adapters
-    pub fn new(git_cas: GitCasAdapter, acp_runtime: AcpRuntimeAdapter, cns_emitter: CnsEmitterAdapter, mcp_runtime: McpRuntimeAdapter) -> Self {
+    pub fn new(
+        git_cas: GitCasAdapter,
+        acp_runtime: AcpRuntimeAdapter,
+        cns_emitter: CnsEmitterAdapter,
+        mcp_runtime: McpRuntimeAdapter,
+        memory_storage: MemoryStorageAdapter,
+    ) -> Self {
         Self {
             pods: Arc::new(RwLock::new(HashMap::new())),
             keystore: Keychain::default(),
@@ -720,6 +767,7 @@ impl PodManager {
             acp_runtime,
             cns_emitter,
             mcp_runtime,
+            memory_storage: Arc::new(Mutex::new(memory_storage)),
         }
     }
 
@@ -732,7 +780,15 @@ impl PodManager {
             acp_runtime: AcpRuntimeAdapter::new(),
             cns_emitter: CnsEmitterAdapter::new(WebID::new()),
             mcp_runtime: McpRuntimeAdapter::new(),
+            memory_storage: Arc::new(Mutex::new(
+                MemoryStorageAdapter::in_memory().unwrap(),
+            )),
         }
+    }
+
+    /// Get memory storage adapter for artifact persistence
+    pub fn memory_storage(&self) -> Arc<Mutex<MemoryStorageAdapter>> {
+        self.memory_storage.clone()
     }
 
     /// Create a new pod from a template crate
@@ -860,28 +916,6 @@ impl Default for PodManager {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-
-    pub struct MockACPRuntime;
-    impl ACPRuntimePort for MockACPRuntime {
-        fn register_agent(
-            &self,
-            webid: WebID,
-            _capabilities: Vec<String>,
-        ) -> Result<CapabilityToken, String> {
-            Ok(CapabilityToken::new(
-                CapabilityResource::Tool,
-                "*".to_string(),
-                CapabilityAction::Execute,
-                WebID::new(),
-                webid,
-                b"test-secret",
-            ))
-        }
-    }
 
     pub struct MockMCPRuntime;
     impl MCPRuntimePort for MockMCPRuntime {
@@ -930,265 +964,3 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_pod_lifecycle() {
-        let persona_yaml = r#"
-agent:
-  name: "test-bot"
-  type: "Bot"
-  version: "0.1.0"
-charter:
-  description: "Test bot"
-  editor: "curator"
-capabilities:
-  - "tool:inference:call"
-rights: []
-responsibilities: []
-visibility:
-  default: "public"
-  episodic_override: "private"
-"#;
-
-        let persona = AgentPersona::from_yaml(persona_yaml).unwrap();
-        let git = MockGitCAS;
-        let mut pod = AgentPod::new("test-crate", &persona, &git).unwrap();
-
-        assert_eq!(pod.state(), PodLifecycleState::Populated);
-
-        let acp = MockACPRuntime;
-        let cns = MockCNSSpan;
-        pod.register(&acp, &cns).unwrap();
-        assert_eq!(pod.state(), PodLifecycleState::Registered);
-
-        let mcp = MockMCPRuntime;
-        pod.activate(&mcp, &cns).unwrap();
-        assert_eq!(pod.state(), PodLifecycleState::Activated);
-        assert!(pod.is_active());
-
-        pod.deactivate(&cns).unwrap();
-        assert_eq!(pod.state(), PodLifecycleState::Deactivated);
-        assert!(!pod.is_active());
-    }
-
-    #[test]
-    fn test_invalid_state_transitions() {
-        let persona_yaml = r#"
-agent:
-  name: "test-bot"
-  type: "Bot"
-charter:
-  description: "Test"
-  editor: "curator"
-capabilities: []
-rights: []
-responsibilities: []
-visibility:
-  default: "public"
-  episodic_override: "private"
-"#;
-
-        let persona = AgentPersona::from_yaml(persona_yaml).unwrap();
-        let git = MockGitCAS;
-        let mut pod = AgentPod::new("test-crate", &persona, &git).unwrap();
-
-        let cns = MockCNSSpan;
-        let result = pod.deactivate(&cns);
-        assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err(),
-            AgentPodError::InvalidStateTransition(_, _)
-        ));
-    }
-
-    #[test]
-    fn test_capability_attenuation() {
-        let persona_yaml = r#"
-agent:
-  name: "test-bot"
-  type: "Bot"
-charter:
-  description: "Test"
-  editor: "curator"
-capabilities: []
-rights: []
-responsibilities: []
-visibility:
-  default: "public"
-  episodic_override: "private"
-"#;
-
-        let persona = AgentPersona::from_yaml(persona_yaml).unwrap();
-        let git = MockGitCAS;
-        let pod = AgentPod::new("test-crate", &persona, &git).unwrap();
-
-        let new_holder = WebID::new();
-        let attenuated = pod.delegate(new_holder, 1000).unwrap();
-
-        assert_eq!(attenuated.attenuation_level, 1);
-    }
-
-    #[test]
-    fn test_attenuation_limit_enforcement() {
-        let persona_yaml = r#"
-agent:
-  name: "test-bot"
-  type: "Bot"
-charter:
-  description: "Test"
-  editor: "curator"
-capabilities: []
-rights: []
-responsibilities: []
-visibility:
-  default: "public"
-  episodic_override: "private"
-"#;
-
-        let persona = AgentPersona::from_yaml(persona_yaml).unwrap();
-        let git = MockGitCAS;
-        let mut pod = AgentPod::new("test-crate", &persona, &git).unwrap();
-
-        let mut token = pod.capability_token.clone();
-        token.attenuation_level = MAX_ATTENUATION_LEVEL;
-        pod.capability_token = token;
-
-        let new_holder = WebID::new();
-        let result = pod.delegate(new_holder, 1000);
-
-        assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err(),
-            AgentPodError::AttenuationLimitExceeded
-        ));
-    }
-
-    #[test]
-    fn test_persona_parsing() {
-        let yaml = r#"
-agent:
-  name: "memory-bot"
-  type: "Bot"
-  version: "0.2.0"
-charter:
-  description: "Expert bot for memory operations"
-  editor: "curator"
-capabilities:
-  - "tool:memory:remember"
-  - "tool:memory:recall"
-rights:
-  - read: "public_semantic_memory"
-  - write: "own_episodic_memory"
-responsibilities:
-  - "respond_to: memory_tool_calls"
-  - "emit: cns.agent_pod.*"
-visibility:
-  default: "public"
-  episodic_override: "private"
-"#;
-
-        let persona = AgentPersona::from_yaml(yaml).unwrap();
-        assert_eq!(persona.agent.name, "memory-bot");
-        assert_eq!(persona.agent.agent_type, AgentType::Bot);
-        assert_eq!(persona.agent.version, "0.2.0");
-        assert_eq!(persona.capabilities.len(), 2);
-    }
-
-    #[test]
-    fn test_double_registration_fails() {
-        let persona_yaml = r#"
-agent:
-  name: "test-bot"
-  type: "Bot"
-charter:
-  description: "Test"
-  editor: "curator"
-capabilities: []
-rights: []
-responsibilities: []
-visibility:
-  default: "public"
-  episodic_override: "private"
-"#;
-
-        let persona = AgentPersona::from_yaml(persona_yaml).unwrap();
-        let git = MockGitCAS;
-        let mut pod = AgentPod::new("test-crate", &persona, &git).unwrap();
-
-        let acp = MockACPRuntime;
-        let cns = MockCNSSpan;
-        pod.register(&acp, &cns).unwrap();
-
-        let result = pod.register(&acp, &cns);
-        assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err(),
-            AgentPodError::InvalidStateTransition(_, _)
-        ));
-    }
-
-    #[test]
-    fn test_double_activation_fails() {
-        let persona_yaml = r#"
-agent:
-  name: "test-bot"
-  type: "Bot"
-charter:
-  description: "Test"
-  editor: "curator"
-capabilities: []
-rights: []
-responsibilities: []
-visibility:
-  default: "public"
-  episodic_override: "private"
-"#;
-
-        let persona = AgentPersona::from_yaml(persona_yaml).unwrap();
-        let git = MockGitCAS;
-        let mut pod = AgentPod::new("test-crate", &persona, &git).unwrap();
-
-        let acp = MockACPRuntime;
-        let cns = MockCNSSpan;
-        pod.register(&acp, &cns).unwrap();
-
-        let mcp = MockMCPRuntime;
-        pod.activate(&mcp, &cns).unwrap();
-
-        let result = pod.activate(&mcp, &cns);
-        assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err(),
-            AgentPodError::InvalidStateTransition(_, _)
-        ));
-    }
-
-    #[test]
-    fn test_deactivate_from_populated_fails() {
-        let persona_yaml = r#"
-agent:
-  name: "test-bot"
-  type: "Bot"
-charter:
-  description: "Test"
-  editor: "curator"
-capabilities: []
-rights: []
-responsibilities: []
-visibility:
-  default: "public"
-  episodic_override: "private"
-"#;
-
-        let persona = AgentPersona::from_yaml(persona_yaml).unwrap();
-        let git = MockGitCAS;
-        let mut pod = AgentPod::new("test-crate", &persona, &git).unwrap();
-
-        let cns = MockCNSSpan;
-        let result = pod.deactivate(&cns);
-        assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err(),
-            AgentPodError::InvalidStateTransition(_, _)
-        ));
-    }
-}

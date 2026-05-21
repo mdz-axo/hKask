@@ -16,12 +16,18 @@
 //! **High-Temperature Templates:**
 //! - Anti-normative generation via temperature-controlled LLM parameters
 //! - Prevents convergence to homogeneous, predictable behavior
+//!
+//! **Curator Pipeline:**
+//! - Evaluates template outputs (Merge, Discard, Revise, Defer)
+//! - OCAP boundary enforcement
+//! - Variety counter tracking with algedonic alerts
 
 pub mod audit;
 pub mod capability_validator;
 pub mod cascade;
 pub mod contract_validator;
 pub mod contracts;
+pub mod curator_pipeline;
 pub mod dependency;
 pub mod engine;
 pub mod inference_port;
@@ -41,6 +47,7 @@ pub use contracts::{
     parse_frontmatter, validate_lexicon_terms, InferenceConfig as InferenceConfigParsed,
     ParsedContract, ParsedInference, TemplateFrontmatter,
 };
+pub use curator_pipeline::{merge_outputs, CuratorPipeline, EvaluationResult};
 pub use dependency::{parse_dependencies, DependencyGraph};
 pub use engine::{TemplateEngine, TemplateRegistry};
 pub use inference_port::{

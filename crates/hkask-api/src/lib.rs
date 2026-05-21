@@ -20,9 +20,10 @@
 //! - `GET /api/pods/:id/status` — Get pod status
 //! - `POST /api/chat` — Curator chat
 
-use hkask_agents::adapters::git_cas::GitCasAdapter;
 use hkask_agents::adapters::acp_runtime::AcpRuntimeAdapter;
 use hkask_agents::adapters::cns_emitter::CnsEmitterAdapter;
+use hkask_agents::adapters::git_cas::GitCasAdapter;
+use hkask_agents::adapters::memory_storage::MemoryStorageAdapter;
 use hkask_agents::adapters::mcp_runtime::McpRuntimeAdapter;
 use hkask_agents::pod::PodManager;
 use hkask_cns::rate_limit::{RateLimitConfig, RateLimiter};
@@ -97,7 +98,14 @@ impl ApiState {
         let observer_webid = WebID::new();
         let cns_emitter_adapter = CnsEmitterAdapter::new(observer_webid);
         let mcp_runtime_adapter = McpRuntimeAdapter::new();
-        let pod_manager = PodManager::new(git_cas, acp_runtime, cns_emitter_adapter, mcp_runtime_adapter);
+        let memory_storage = MemoryStorageAdapter::in_memory().unwrap();
+        let pod_manager = PodManager::new(
+            git_cas,
+            acp_runtime,
+            cns_emitter_adapter,
+            mcp_runtime_adapter,
+            memory_storage,
+        );
         Self::new(
             registry,
             mcp_runtime,
@@ -229,23 +237,4 @@ pub fn create_openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_api_state_new() {
-        let registry = SqliteRegistry::new(None).unwrap();
-        let mcp_runtime = hkask_mcp::runtime::McpRuntime::new();
-        let pod_manager = PodManager::new_mock();
-        let system_webid = WebID::new();
-        let state = ApiState::new(
-            registry,
-            mcp_runtime,
-            pod_manager,
-            b"test-secret",
-            system_webid,
-        );
-        assert_eq!(state.mcp_runtime.tool_count().await, 0);
-    }
 }

@@ -14,6 +14,16 @@ This template generates prose in authentic Hemingway style using:
 - Paratactic clause coordination (73-76% target)
 - Iceberg Theory (emotion shown through action, not stated)
 - Strategic polysyndeton/asyndeton
+- GENERATIVE LAYER: Stanley Fish's form-first approach
+- RDF TRIPLE MODEL: Simple sentences link to generate complex meaning
+
+Stanley Fish: "A sentence is a structure of logical relationships."
+Form precedes content. Forms are generative of meaning's possibility.
+
+RDF Triple Model:
+- Simple sentence = Subject-Predicate-Object
+- RDF triple = Subject-Predicate-Object  
+- Complex graph traversals emerge from linking simple triples
 
 Usage:
   from jinja2 import Environment
@@ -23,6 +33,76 @@ Usage:
 
 =============================================================================
 #}
+
+{# =============================================================================
+   GENERATIVE FORMS (Stanley Fish / RDF Triple Model)
+   =============================================================================
+   Core sentence forms that generate infinite content from finite structures.
+   Each form is a logical relationship structure, not a content template.
+   #}
+
+{% macro rdf_triple(subject, predicate, object) %}
+{# The atomic unit: Subject-Predicate-Object #}
+{{ subject | capitalize }} {{ predicate }} {{ object }}.
+{% endmacro %}
+
+{% macro actor_action_object(actor, action, acted_upon) %}
+{# Core form 1: X does Y to Z #}
+{# RDF: <actor> <action> <acted_upon> . #}
+{{ actor | capitalize }} {{ action }} {{ acted_upon }}.
+{% endmacro %}
+
+{% macro actor_action_manner(actor, action, manner) %}
+{# Core form 2: X does Y in Z way #}
+{# RDF: <actor> <action> _:b1 . _:b1 <manner> <manner> . #}
+{{ actor | capitalize }} {{ action }} {{ manner }}.
+{% endmacro %}
+
+{% macro actor_action_location_time(actor, action, location, time) %}
+{# Core form 3: X does Y at Z when W #}
+{# RDF: <actor> <action> _:b1 . _:b1 <location> <location> . _:b1 <time> <time> . #}
+{{ actor | capitalize }} {{ action }} {{ location }} {{ time }}.
+{% endmacro %}
+
+{% macro fish_expansion(base_sentence, modifiers) %}
+{# Fish's expansion exercise: 3 words to 100, maintaining core structure #}
+{# Start with base, add modifiers that preserve logical relationships #}
+{%- set expanded = base_sentence -%}
+{%- for modifier in modifiers -%}
+{%- if modifier.type == 'location' -%}
+{%- set expanded = expanded + ' ' + modifier.value -%}
+{%- elif modifier.type == 'time' -%}
+{%- set expanded = expanded + ' ' + modifier.value -%}
+{%- elif modifier.type == 'manner' -%}
+{%- set expanded = expanded + ' ' + modifier.value -%}
+{%- elif modifier.type == 'clause' -%}
+{%- set expanded = expanded + ' ' + modifier.value -%}
+{%- endif -%}
+{%- endfor -%}
+{{ expanded }}.
+{% endmacro %}
+
+{% macro graph_traverse(triples) %}
+{# Link simple RDF triples to generate complex meaning #}
+{# The graph traversal happens in the reader's mind #}
+{%- for triple in triples -%}
+{{ triple.subject | capitalize }} {{ triple.predicate }} {{ triple.object }}.
+{%- if not loop.last %} {% endif %}
+{%- endfor %}
+{% endmacro %}
+
+{% macro hemingway_graph(subject, predicates_and_objects) %}
+{# Build a sentence graph from one subject and multiple predicates/objects #}
+{# This is how Hemingway builds character through accumulation #}
+{{ subject | capitalize }}
+{%- for po in predicates_and_objects -%}
+{%- if loop.first %} {{ po.predicate }} {{ po.object }}
+{%- elif loop.revindex == 1 %} and {{ po.predicate }} {{ po.object }}
+{%- else %}, {{ po.predicate }} {{ po.object }}
+{%- endif -%}
+{%- endfor -%}
+.
+{% endmacro %}
 
 {% macro hemingway_clause(clause, conjunction='and') %}
 {{ clause | trim }}

@@ -2,7 +2,7 @@
 
 use hkask_types::TripleID;
 use rusqlite::Connection;
-use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -11,7 +11,6 @@ pub enum EmbeddingError {
     Database(#[from] rusqlite::Error),
 }
 
-/// Embedding vector
 #[derive(Debug, Clone)]
 pub struct Embedding {
     pub id: String,
@@ -32,57 +31,30 @@ impl Embedding {
         }
     }
 
-    #[must_use = "builder methods must be chained or assigned"]
+    #[must_use]
     pub fn with_entity_ref(mut self, entity_ref: TripleID) -> Self {
         self.entity_ref = Some(entity_ref);
         self
     }
 }
 
-/// Embedding store with vector similarity search
 pub struct EmbeddingStore {
-    conn: Rc<Connection>,
+    conn: Arc<Mutex<Connection>>,
 }
 
 impl EmbeddingStore {
-    pub fn new(conn: Rc<Connection>) -> Self {
+    pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
         Self { conn }
     }
 
-    /// Insert an embedding
     pub fn insert(&self, embedding: &Embedding) -> Result<(), EmbeddingError> {
-        let vector_bytes: Vec<u8> = embedding
-            .vector
-            .iter()
-            .flat_map(|f| f.to_le_bytes())
-            .collect();
-
+        let conn = self.conn.lock().unwrap();
+        let vector_bytes: Vec<u8> = embedding.vector.iter().flat_map(|f| f.to_le_bytes()).collect();
         let entity_ref = embedding.entity_ref.map(|e| e.0.to_string());
-
-        self.conn.execute(
-            "INSERT INTO embeddings (id, entity_ref, vector, dimensions, model)
-             VALUES (?1, ?2, ?3, ?4, ?5)",
-            rusqlite::params![
-                embedding.id,
-                entity_ref,
-                vector_bytes,
-                embedding.dimensions as i64,
-                embedding.model,
-            ],
+        conn.execute(
+            "INSERT INTO embeddings (id, entity_ref, vector, dimensions, model) VALUES (?1, ?2, ?3, ?4, ?5)",
+            rusqlite::params![embedding.id, entity_ref, vector_bytes, embedding.dimensions as i64, embedding.model],
         )?;
-
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_embedding_new() {
-        let vector = vec![0.1, 0.2, 0.3];
-        let embedding = Embedding::new(vector.clone(), "test-model");
-        assert_eq!(embedding.dimensions, 3);
     }
 }

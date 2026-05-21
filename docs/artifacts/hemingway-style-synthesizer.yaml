@@ -281,6 +281,96 @@ examples:
     - "The old man, who was despairing about nothing, sat late at the cafe."
 
 # =============================================================================
+# GENERATIVE COMPOSITIONAL LAYER (Stanley Fish / RDF Triple Model)
+# =============================================================================
+# Hemingway's process was inside-out, not outside-in.
+# He built complex meaning from simple sentence forms.
+# Stanley Fish: "A sentence is a structure of logical relationships."
+# Fish's key insight: Form precedes content. Forms are generative of meaning's possibility.
+#
+# RDF Triple Connection:
+# - Simple sentence = Subject-Predicate-Object
+# - RDF triple = Subject-Predicate-Object
+# - Complex graph traversals emerge from linking simple triples
+# - Not from complex individual triples
+#
+# The generative layer: Start with the form, the content follows endlessly.
+
+generative_layer:
+  # Stanley Fish's core principle
+  fish_principle: "A sentence is a structure of logical relationships"
+  
+  # Form before content
+  form_precedes_content: true
+  
+  # Forms are generative, not restrictive
+  forms_generate_meaning: "Forms are generative not of specific meanings, but of the very possibility of meaning"
+  
+  # Core sentence forms (finite structures, infinite content)
+  core_forms:
+    - name: "actor-action-object"
+      structure: "X does Y to Z"
+      example: "Jane baked cookies."
+      rdf_equivalent: "<Jane> <baked> <cookies> ."
+      generative_capacity: "Infinite sentences from one form"
+    
+    - name: "actor-action-manner"
+      structure: "X does Y in Z way"
+      example: "He walked slowly."
+      rdf_equivalent: "<He> <walked> _:b1 . _:b1 <manner> <slowly> ."
+      generative_capacity: "Infinite sentences from one form"
+    
+    - name: "actor-action-location-time"
+      structure: "X does Y at Z when W"
+      example: "She sat in the cafe at night."
+      rdf_equivalent: "<She> <sat> _:b1 . _:b1 <location> <cafe> . _:b1 <time> <night> ."
+      generative_capacity: "Infinite sentences from one form"
+    
+    - name: "subordinating"
+      structure: "X does Y because/although/when Z"
+      example: "He left because she arrived."
+      rdf_equivalent: "<He> <left> _:e1 . _:e1 <cause> <her_arrival> ."
+      generative_capacity: "Causal, temporal, conditional relations"
+    
+    - name: "additive"
+      structure: "X and Y and Z"
+      example: "The sun beat down and the dust rose and the men walked."
+      rdf_equivalent: "<sun> <beat_down> . <dust> <rose> . <men> <walked> ."
+      generative_capacity: "Accumulation, parataxis, Hemingway default"
+  
+  # Fish's expansion exercise
+  expansion_exercise:
+    description: "Take a 3-word sentence and expand to 100 words without losing core structure"
+    base: "Jane baked cookies."
+    step1: "Jane baked cookies in the kitchen."
+    step2: "Jane baked cookies in the kitchen while the rain fell."
+    step3: "Jane, who had not slept, baked cookies in the kitchen while the rain fell on the garden."
+    step4: "Jane, who had not slept and who knew he would not return, baked cookies in the kitchen while the rain fell on the garden and the children cried for their father."
+    principle: "Maintain core logical structure while adding modifying phrases and clauses"
+  
+  # RDF triple as sentence model
+  rdf_model:
+    triple_structure: "subject predicate object ."
+    sentence_structure: "actor action acted-upon"
+    equivalence: "Exact structural match"
+    graph_traversal: "Linking simple triples generates complex meaning"
+    example: |
+      <The_old_man> <sat> <in_the_cafe> .
+      <The_old_man> <was> <deaf> .
+      <The_old_man> <drank> <brandy> .
+      <The_waiter> <understood> <the_old_man> .
+      <The_waiter> <knew> <nada> .
+    emergent_meaning: "A clean, well-lighted place against nothingness"
+  
+  # Hemingway's generative technique
+  hemingway_generative:
+    step1: "Write one true sentence"
+    step2: "The form generates the next sentence"
+    step3: "Link sentences through paratactic coordination"
+    step4: "Meaning emerges from the graph, not individual nodes"
+    key_insight: "The silence between sentences is where the graph traversal happens"
+
+# =============================================================================
 # CURATOR NOTES
 # =============================================================================
 
@@ -295,8 +385,58 @@ curator_notes: |
   66% of coordinated clauses carry complex semantic relations despite surface simplicity.
   This is what makes Hemingway "suggestive" rather than "flat."
   
-  Use this synthesizer to generate text that carries multiple semantic weights
-  without ornate syntax. Let the silence between sentences speak.
+  GENERATIVE LAYER (NEW):
+  This synthesizer now includes the inside-out generative compositional layer.
+  Hemingway's process was not reductive (analyzing output) but generative (building from form).
+  
+  Stanley Fish: "A sentence is a structure of logical relationships."
+  - Form precedes content
+  - Forms are generative of meaning's possibility
+  - Simple sentence forms generate infinite content
+  
+  RDF Triple Model:
+  - Simple sentence = Subject-Predicate-Object
+  - RDF triple = Subject-Predicate-Object
+  - Complex graph traversals emerge from linking simple triples
+  - Not from complex individual triples
+  
+  THE DEEP CONNECTION:
+  Hemingway was a semantic web guy before the semantic web. So was Stanley Fish.
+  
+  All three understood the same architecture:
+  
+    Simple atomic units + Clear relationships + Graph traversal = Emergent meaning
+  
+  | Architect | Atomic Unit | Linking | Emergence |
+  |-----------|-------------|---------|-----------|
+  | Hemingway | Simple sentence | Paratactic coordination | Silence between sentences |
+  | Fish | Logical relationships | Form generates content | Infinite from finite |
+  | RDF | Triple (S-P-O) | Shared nodes | Knowledge graph |
+  
+  Hemingway wrote natural language RDF in the 1920s:
+  
+    <The_old_man> <sat> <in_the_cafe> .
+    <The_old_man> <was> <deaf> .
+    <The_old_man> <drank> <brandy> .
+    <The_waiter> <understood> <the_old_man> .
+    <The_waiter> <knew> <nada> .
+  
+  No complex individual statements. Just simple triples.
+  The meaning—"a clean, well-lighted place against nothingness"—
+  emerges from the graph, not the nodes.
+  
+  Fish: "Forms are generative not of specific meanings, 
+  but of the very possibility of meaning."
+  
+  The Semantic Web got it. Hemingway got it. Fish got it.
+  
+  All three were ignored for decades because people wanted
+  complex syntax instead of simple forms linked clearly.
+  
+  This synthesizer is not just a style tool.
+  It is a semantic web engine for natural language.
+  
+  The silence between sentences is where the graph traversal happens.
   
   Ba-nana.
 

@@ -111,19 +111,4 @@ pub fn get_or_create_ocap_secret(
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
 
-    #[test]
-    fn test_keychain_new() {
-        let keychain = Keychain::new("test-service");
-        assert_eq!(keychain.service_name, "test-service");
-    }
-
-    #[test]
-    fn test_keychain_default() {
-        let keychain = Keychain::default();
-        assert_eq!(keychain.service_name, "hkask");
-    }
-}

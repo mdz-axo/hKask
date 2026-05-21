@@ -2,7 +2,7 @@
 
 use hkask_types::{Visibility, WebID};
 use rusqlite::Connection;
-use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -11,7 +11,6 @@ pub enum BlobError {
     Database(#[from] rusqlite::Error),
 }
 
-/// Stored blob
 #[derive(Debug, Clone)]
 pub struct Blob {
     pub id: String,
@@ -42,27 +41,14 @@ impl Blob {
     }
 }
 
-/// Blob store for binary data
 pub struct BlobStore {
     #[allow(dead_code)]
-    conn: Rc<Connection>,
+    conn: Arc<Mutex<Connection>>,
 }
 
 impl BlobStore {
-    pub fn new(conn: Rc<Connection>) -> Self {
+    pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
         Self { conn }
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_blob_new() {
-        let data = b"Hello!".to_vec();
-        let owner = WebID::new();
-        let blob = Blob::new(data.clone(), "text/plain", owner);
-        assert!(blob.verify());
-    }
-}

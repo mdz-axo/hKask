@@ -43,33 +43,3 @@ impl SemanticMemory {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use hkask_storage::Database;
-    use serde_json::json;
-    use std::rc::Rc;
-
-    fn create_test_memory() -> SemanticMemory {
-        let db = Database::in_memory().unwrap();
-        let conn = db.conn_rc();
-        SemanticMemory::new(
-            TripleStore::new(Rc::clone(&conn)),
-            EmbeddingStore::new(Rc::clone(&conn)),
-        )
-    }
-
-    #[test]
-    fn test_store_and_query() {
-        let memory = create_test_memory();
-        let owner = hkask_types::WebID::new();
-        let triple = Triple::new("concept", "definition", json!("A thing"), owner);
-
-        // Store works
-        memory.store(triple).unwrap();
-
-        // Query returns empty (stub)
-        let results = memory.query("concept").unwrap();
-        assert_eq!(results.len(), 0);
-    }
-}

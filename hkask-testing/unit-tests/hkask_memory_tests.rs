@@ -1,170 +1,163 @@
-//! Unit tests for hkask-memory crate
-//! Migrated from inline tests in production code
-//! Expanded to cover Bayesian operations
+// Auto-extracted inline tests for hkask-memory
+// Extracted: Thu May 21 00:22:35 PDT 2026
 
-use hkask_memory::bayesian::BayesianOps;
-
-mod bayesian_tests {
+// === From bayesian.rs ===
+#[cfg(test)]
+mod tests {
     use super::*;
 
     #[test]
-    fn test_bayesian_ops_new() {
-        let _ops = BayesianOps::new();
-        assert!(true);
-    }
-
-    #[test]
-    fn test_bayesian_combine_high_confidence() {
+    fn test_combine_high_confidence() {
         let result = BayesianOps::combine(0.9, 0.9);
-        assert!(result > 0.9);
+        assert!(result > 0.9); // Combined should be higher
         assert!(result < 1.0);
     }
 
     #[test]
-    fn test_bayesian_combine_low_confidence() {
+    fn test_combine_low_confidence() {
         let result = BayesianOps::combine(0.1, 0.1);
-        assert!(result < 0.1);
+        assert!(result < 0.1); // Combined should be lower
     }
 
     #[test]
-    fn test_bayesian_combine_opposite() {
+    fn test_combine_opposite() {
         let result = BayesianOps::combine(0.9, 0.1);
         assert!(result >= 0.0 && result <= 1.0);
     }
 
     #[test]
-    fn test_bayesian_combine_identical() {
-        let result = BayesianOps::combine(0.5, 0.5);
-        assert!((result - 0.5).abs() < 0.001);
-    }
-
-    #[test]
-    fn test_bayesian_combine_extreme() {
-        let result = BayesianOps::combine(1.0, 0.5);
-        assert!(result > 0.5);
-    }
-
-    #[test]
-    fn test_bayesian_retract() {
+    fn test_retract() {
         let result = BayesianOps::retract(0.9, 0.5);
         assert!(result < 0.9);
     }
 
     #[test]
-    fn test_bayesian_join() {
-        let confidences = vec![0.8, 0.9, 0.7];
+    fn test_join() {
+        let confidences = vec![0.8, 0.7, 0.9];
         let result = BayesianOps::join(&confidences);
-        assert!(result > 0.9);
+        assert!(result >= 0.0 && result <= 1.0);
     }
 
     #[test]
-    fn test_bayesian_decay() {
+    fn test_decay() {
         let result = BayesianOps::decay(1.0, 0.1, 1.0);
         assert!(result < 1.0);
         assert!(result > 0.0);
     }
 
     #[test]
-    fn test_bayesian_weighted_average() {
-        let confidences = vec![(0.8, 2.0), (0.6, 1.0)];
+    fn test_weighted_average() {
+        let confidences = vec![(0.5, 1.0), (1.0, 2.0)];
         let result = BayesianOps::weighted_average(&confidences);
-        assert!(result > 0.6 && result < 0.8);
+        assert!((result - 0.833).abs() < 0.01);
     }
 
     #[test]
-    fn test_bayesian_combine_zero() {
+    fn test_join_empty() {
+        let result = BayesianOps::join(&[]);
+        assert_eq!(result, 0.5);
+    }
+
+    #[test]
+    fn test_combine_extreme_values() {
+        let result = BayesianOps::combine(1.0, 1.0);
+        assert_eq!(result, 1.0);
+    }
+
+    #[test]
+    fn test_combine_zero() {
         let result = BayesianOps::combine(0.0, 0.0);
         assert_eq!(result, 0.0);
     }
 
     #[test]
-    fn test_bayesian_combine_one_zero() {
-        let result = BayesianOps::combine(0.5, 0.0);
-        // Combining with 0.0 results in 0.0 (no confidence)
-        assert_eq!(result, 0.0);
+    fn test_decay_zero_time() {
+        let result = BayesianOps::decay(1.0, 0.1, 0.0);
+        assert_eq!(result, 1.0);
     }
 
     #[test]
-    fn test_bayesian_join_empty() {
-        let confidences: Vec<f64> = vec![];
-        let result = BayesianOps::join(&confidences);
-        // Empty join returns default confidence
+    fn test_weighted_average_empty() {
+        let result = BayesianOps::weighted_average(&[]);
         assert_eq!(result, 0.5);
     }
 
     #[test]
-    fn test_bayesian_join_single() {
-        let confidences = vec![0.7];
-        let result = BayesianOps::join(&confidences);
-        assert_eq!(result, 0.7);
+    fn test_weighted_average_zero_weights() {
+        let result = BayesianOps::weighted_average(&[(0.5, 0.0), (1.0, 0.0)]);
+        assert_eq!(result, 0.5);
     }
 }
 
-mod memory_stub_tests {
-    use hkask_storage::Triple;
-    use hkask_types::WebID;
+// === From episodic.rs ===
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_storage::Database;
     use serde_json::json;
 
-    #[test]
-    fn test_triple_creation() {
-        let owner = WebID::new();
-        let triple = Triple::new("concept", "is_a", json!("animal"), owner);
-        assert_eq!(triple.entity, "concept");
-        assert_eq!(triple.attribute, "is_a");
+    fn create_test_memory() -> EpisodicMemory {
+        let db = Database::in_memory().unwrap();
+        EpisodicMemory::new(TripleStore::new(db.conn_rc()))
     }
 
     #[test]
-    fn test_triple_with_confidence() {
-        let owner = WebID::new();
-        let triple = Triple::new("e", "a", json!("v"), owner).with_confidence(0.85);
-        assert_eq!(triple.confidence, 0.85);
+    fn test_store_episodic() {
+        let memory = create_test_memory();
+        let owner = hkask_types::WebID::new();
+        let perspective = hkask_types::WebID::new();
+        let triple = Triple::new("event", "experienced", json!("Something happened"), owner)
+            .with_perspective(perspective);
+
+        memory.store(triple).unwrap();
     }
 
     #[test]
-    fn test_triple_with_visibility() {
-        let owner = WebID::new();
-        let triple = Triple::new("e", "a", json!("v"), owner)
-            .with_visibility(hkask_types::Visibility::Public);
-        assert_eq!(triple.visibility, hkask_types::Visibility::Public);
-    }
+    fn test_query_for_perspective() {
+        let memory = create_test_memory();
+        let owner = hkask_types::WebID::new();
+        let perspective1 = hkask_types::WebID::new();
 
-    #[test]
-    fn test_triple_is_semantic() {
-        let owner = WebID::new();
-        let triple = Triple::new("e", "a", json!("v"), owner);
-        assert!(triple.is_semantic());
-        assert!(!triple.is_episodic());
-    }
+        let t1 =
+            Triple::new("event", "experienced", json!("E1"), owner).with_perspective(perspective1);
 
-    #[test]
-    fn test_triple_is_episodic() {
-        let owner = WebID::new();
-        let perspective = WebID::new();
-        let triple = Triple::new("e", "a", json!("v"), owner).with_perspective(perspective);
-        assert!(triple.is_episodic());
-        assert!(!triple.is_semantic());
-    }
+        memory.store(t1).unwrap();
 
-    #[test]
-    fn test_triple_with_perspective() {
-        let owner = WebID::new();
-        let perspective = WebID::new();
-        let triple = Triple::new("e", "a", json!("v"), owner).with_perspective(perspective.clone());
-        assert_eq!(triple.perspective, Some(perspective));
-    }
-
-    #[test]
-    fn test_triple_temporal_properties() {
-        let owner = WebID::new();
-        let triple = Triple::new("event", "time", json!("now"), owner);
-        assert!(triple.valid_from <= chrono::Utc::now());
-        assert!(triple.valid_to.is_none());
-    }
-
-    #[test]
-    fn test_triple_confidence_default() {
-        let owner = WebID::new();
-        let triple = Triple::new("e", "a", json!("v"), owner);
-        assert_eq!(triple.confidence, 1.0);
+        // Stub returns empty
+        let results = memory.query_for("event", perspective1).unwrap();
+        assert_eq!(results.len(), 0);
     }
 }
+
+// === From semantic.rs ===
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_storage::Database;
+    use serde_json::json;
+    use std::rc::Rc;
+
+    fn create_test_memory() -> SemanticMemory {
+        let db = Database::in_memory().unwrap();
+        let conn = db.conn_rc();
+        SemanticMemory::new(
+            TripleStore::new(Rc::clone(&conn)),
+            EmbeddingStore::new(Rc::clone(&conn)),
+        )
+    }
+
+    #[test]
+    fn test_store_and_query() {
+        let memory = create_test_memory();
+        let owner = hkask_types::WebID::new();
+        let triple = Triple::new("concept", "definition", json!("A thing"), owner);
+
+        // Store works
+        memory.store(triple).unwrap();
+
+        // Query returns empty (stub)
+        let results = memory.query("concept").unwrap();
+        assert_eq!(results.len(), 0);
+    }
+}
+

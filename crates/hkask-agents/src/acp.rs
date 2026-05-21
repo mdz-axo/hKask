@@ -867,28 +867,6 @@ impl TemplateDispatchHandler {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_acp_runtime_register_agent() {
-        let runtime = AcpRuntime::new(b"test-secret", None);
-        let webid = WebID::new();
-
-        let token = runtime
-            .register_agent(webid, "Bot".to_string(), vec!["inference:call".to_string()])
-            .await
-            .unwrap();
-
-        assert!(runtime.is_registered(&webid).await);
-        assert!(runtime.verify_capability(&token));
-
-        let agent = runtime.get_agent(&webid).await.unwrap();
-        assert_eq!(agent.webid, webid);
-        assert_eq!(agent.agent_type, "Bot");
-        assert_eq!(agent.capabilities.len(), 1);
-    }
 
     #[tokio::test]
     async fn test_acp_runtime_unregister_agent() {

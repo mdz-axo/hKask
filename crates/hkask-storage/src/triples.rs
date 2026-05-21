@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use hkask_types::{TripleID, Visibility, WebID};
 use rusqlite::Connection;
 use serde_json::Value;
-use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -75,17 +75,19 @@ impl Triple {
 
 /// Triple store for bitemporal RDF-like triples
 pub struct TripleStore {
-    conn: Rc<Connection>,
+    #[allow(dead_code)]
+    conn: Arc<Mutex<Connection>>,
 }
 
 impl TripleStore {
-    pub fn new(conn: Rc<Connection>) -> Self {
+    pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
         Self { conn }
     }
 
     /// Insert a triple
     pub fn insert(&self, triple: &Triple) -> Result<(), TripleError> {
-        self.conn.execute(
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
             "INSERT INTO triples (id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             rusqlite::params![
@@ -111,17 +113,4 @@ impl TripleStore {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-
-    #[test]
-    fn test_triple_new() {
-        let owner = WebID::new();
-        let triple = Triple::new("entity1", "attribute1", json!("value1"), owner);
-        assert_eq!(triple.entity, "entity1");
-        assert_eq!(triple.confidence, 1.0);
-        assert!(triple.is_semantic());
-    }
 }

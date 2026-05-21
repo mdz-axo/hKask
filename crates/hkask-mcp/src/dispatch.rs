@@ -228,17 +228,6 @@ impl McpDispatcher {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use hkask_cns::spans::SpanEmitter;
-
-    struct MockCns;
-    impl CnsPort for MockCns {
-        fn emit(&self, _span: &str, _outcome: Value, _confidence: f64) {
-            // Mock implementation
-        }
-    }
 
     #[tokio::test]
     async fn test_mcp_dispatcher_new() {

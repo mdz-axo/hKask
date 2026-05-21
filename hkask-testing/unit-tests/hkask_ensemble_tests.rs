@@ -1,7 +1,3 @@
-// Stub test file for hkask_ensemble_tests.rs
-// Full integration tests require running Okapi instances
+// Auto-extracted inline tests for hkask-ensemble
+// Extracted: Thu May 21 00:22:36 PDT 2026
 
-#[test]
-fn test_stub() {
-    assert!(true);
-}

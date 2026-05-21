@@ -166,28 +166,6 @@ impl Default for TemplateRegistry {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_template_engine_register() {
-        let engine = TemplateEngine::new();
-        let template_id = TemplateId::new();
-
-        engine
-            .register(
-                template_id,
-                "test_template",
-                "Generate code for: {{ input.task }}",
-            )
-            .await
-            .unwrap();
-
-        let registry = engine.registry.lock().await;
-        let template = registry.get(template_id).unwrap();
-        assert_eq!(template.name, "test_template");
-    }
 
     #[tokio::test]
     async fn test_template_engine_invoke() {

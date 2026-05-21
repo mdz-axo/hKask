@@ -330,14 +330,6 @@ pub fn import_russell(
     Ok(assets)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_list_templates() {
-        // Test would require a mock registry
-    }
 
     #[tokio::test]
     async fn test_list_mcp_servers() {
