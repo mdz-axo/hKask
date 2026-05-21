@@ -1,4 +1,7 @@
 //! hKask MCP Git — Git operations with gix
+//!
+//! This MCP server provides Git operations. In production, it wires to
+//! the GitCasAdapter from hkask-agents. For now, returns structured stub data.
 
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router, transport::stdio, ServiceExt};
 use schemars::JsonSchema;

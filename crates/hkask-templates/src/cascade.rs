@@ -4,6 +4,7 @@
 //! Rust is the loom. YAML is the thread.
 //! ℏKask v0.21.2
 
+use crate::config::load_yaml_config;
 use crate::ports::TemplateError;
 use hkask_cns::spans::SpanEmitter;
 use hkask_types::WebID;
@@ -346,7 +347,7 @@ impl CascadeEngine {
             if !context.can_recurse(&self.config.cascade_limits) {
                 break;
             }
-            
+
             context.descend(&stage.name, None);
             current = self.execute_stage(stage, current, context).await?;
         }
@@ -356,7 +357,7 @@ impl CascadeEngine {
             if !context.can_recurse(&self.config.cascade_limits) {
                 break;
             }
-            
+
             context.descend(&stage.name, None);
             current = self.execute_stage(stage, current, context).await?;
         }
@@ -366,7 +367,7 @@ impl CascadeEngine {
             if !context.can_recurse(&self.config.cascade_limits) {
                 break;
             }
-            
+
             context.descend(&stage.name, None);
             current = self.execute_stage(stage, current, context).await?;
         }
@@ -395,9 +396,5 @@ impl CascadeEngine {
 
 /// Load cascade config from YAML
 pub fn load_cascade_config(yaml_path: &str) -> Result<CascadeConfig, TemplateError> {
-    let content = std::fs::read_to_string(yaml_path)
-        .map_err(|e| TemplateError::Validation(format!("Failed to read cascade config: {}", e)))?;
-    
-    serde_yaml::from_str(&content)
-        .map_err(|e| TemplateError::Validation(format!("Failed to parse cascade config: {}", e)))
+    load_yaml_config(yaml_path)
 }

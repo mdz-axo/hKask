@@ -4,7 +4,7 @@
 
 use hkask_mcp::runtime::{McpRuntime, McpServer, McpTool};
 use hkask_templates::{
-    MappedTemplate, RegistryEntry, RegistryIndex, RussellMappingConfig, RussellMapper,
+    MappedTemplate, RegistryEntry, RegistryIndex, RussellMapper, RussellMappingConfig,
     SqliteRegistry, TemplateError,
 };
 use hkask_types::TemplateType;
@@ -241,7 +241,10 @@ pub fn import_russell(
                         Ok(manifest) => {
                             let mapped = mapper.map_to_hkask(&manifest);
                             if verbose {
-                                println!("Mapped Russell manifest: {} -> {}", manifest.id, mapped.id);
+                                println!(
+                                    "Mapped Russell manifest: {} -> {}",
+                                    manifest.id, mapped.id
+                                );
                             }
                             assets.push(mapped);
                         }
@@ -270,7 +273,10 @@ pub fn import_russell(
                                     Ok(manifest) => {
                                         let mapped = mapper.map_to_hkask(&manifest);
                                         if verbose {
-                                            println!("Mapped Russell manifest: {} -> {}", manifest.id, mapped.id);
+                                            println!(
+                                                "Mapped Russell manifest: {} -> {}",
+                                                manifest.id, mapped.id
+                                            );
                                         }
                                         assets.push(mapped);
                                     }

@@ -36,6 +36,6 @@ pub use template::{
 pub use visibility::*;
 // Re-export sovereignty types
 pub use sovereignty::{
-    AcquisitionResistance, DataSovereigntyBoundary, KillZoneDetector, SovereigntyId,
+    AcquisitionResistance, DataCategory, DataSovereigntyBoundary, KillZoneDetector, SovereigntyId,
     UserSovereigntyState,
 };

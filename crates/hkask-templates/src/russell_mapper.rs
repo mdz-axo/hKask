@@ -170,8 +170,8 @@ impl RussellMapper {
             source: e,
         })?;
 
-        let manifest: RussellSkillManifest = serde_yaml::from_str(&content)
-            .map_err(MapperError::YamlParse)?;
+        let manifest: RussellSkillManifest =
+            serde_yaml::from_str(&content).map_err(MapperError::YamlParse)?;
 
         if manifest.id.is_empty() {
             return Err(MapperError::MissingField {
@@ -209,7 +209,10 @@ fn transform_id(russell_id: &str, config: &IdTransformation) -> String {
 }
 
 /// Infer template type from Russell manifest
-fn infer_template_type(russell: &RussellSkillManifest, _config: &TemplateTypeInference) -> TemplateType {
+fn infer_template_type(
+    russell: &RussellSkillManifest,
+    _config: &TemplateTypeInference,
+) -> TemplateType {
     let probe_count = russell.probes.len();
     let intervention_count = russell.interventions.len();
 
@@ -272,7 +275,10 @@ mod tests {
             rules: vec![],
             default: "Process".to_string(),
         };
-        assert_eq!(infer_template_type(&russell, &config), TemplateType::Process);
+        assert_eq!(
+            infer_template_type(&russell, &config),
+            TemplateType::Process
+        );
     }
 
     #[test]

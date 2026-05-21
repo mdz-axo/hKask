@@ -8,6 +8,85 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+/// Data category for sovereignty classification
+///
+/// Categories determine what sovereignty rules apply:
+/// - Sovereign: Requires explicit user consent and ownership
+/// - Shared: Requires explicit consent
+/// - Public: Always accessible
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DataCategory {
+    /// Episodic memory (private, personal experiences)
+    EpisodicMemory,
+    /// Semantic memory (shared knowledge, facts)
+    SemanticMemory,
+    /// Personal context (user-specific settings, preferences)
+    PersonalContext,
+    /// Capability tokens (OCAP credentials)
+    CapabilityTokens,
+    /// OCAP boundaries (access control rules)
+    OcapBoundaries,
+    /// Template invocations (prompt/render history)
+    TemplateInvocations,
+    /// hLexicon terms (canonical vocabulary)
+    HLexiconTerms,
+    /// Template registry (public template metadata)
+    TemplateRegistry,
+    /// Custom category (application-specific)
+    Custom(&'static str),
+}
+
+impl DataCategory {
+    /// Get string representation of data category
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            DataCategory::EpisodicMemory => "episodic_memory",
+            DataCategory::SemanticMemory => "semantic_memory",
+            DataCategory::PersonalContext => "personal_context",
+            DataCategory::CapabilityTokens => "capability_tokens",
+            DataCategory::OcapBoundaries => "ocap_boundaries",
+            DataCategory::TemplateInvocations => "template_invocations",
+            DataCategory::HLexiconTerms => "hlexicon_terms",
+            DataCategory::TemplateRegistry => "template_registry",
+            DataCategory::Custom(s) => s,
+        }
+    }
+
+    /// Check if this category is typically sovereign
+    pub fn is_typically_sovereign(&self) -> bool {
+        matches!(
+            self,
+            DataCategory::EpisodicMemory
+                | DataCategory::PersonalContext
+                | DataCategory::CapabilityTokens
+                | DataCategory::OcapBoundaries
+        )
+    }
+
+    /// Check if this category is typically shared
+    pub fn is_typically_shared(&self) -> bool {
+        matches!(
+            self,
+            DataCategory::SemanticMemory | DataCategory::TemplateInvocations
+        )
+    }
+
+    /// Check if this category is typically public
+    pub fn is_typically_public(&self) -> bool {
+        matches!(
+            self,
+            DataCategory::HLexiconTerms | DataCategory::TemplateRegistry
+        )
+    }
+}
+
+impl std::fmt::Display for DataCategory {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
 /// SovereigntyId — Unique identifier for sovereignty boundaries
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SovereigntyId(pub Uuid);
@@ -277,8 +356,12 @@ mod tests {
     #[test]
     fn test_data_sovereignty_boundary_default() {
         let boundary = DataSovereigntyBoundary::hkask_default();
-        assert!(boundary.sovereign_data.contains(&"episodic_memory".to_string()));
-        assert!(boundary.shared_data.contains(&"semantic_memory".to_string()));
+        assert!(boundary
+            .sovereign_data
+            .contains(&"episodic_memory".to_string()));
+        assert!(boundary
+            .shared_data
+            .contains(&"semantic_memory".to_string()));
         assert!(boundary.public_data.contains(&"hlexicon_terms".to_string()));
         assert_eq!(boundary.resistance, AcquisitionResistance::High);
     }

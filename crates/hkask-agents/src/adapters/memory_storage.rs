@@ -55,9 +55,7 @@ impl MemoryStoragePort for MemoryStorageAdapter {
         match artifact_type {
             "episodic_triple" | "semantic_triple" => {
                 // Extract entity, attribute, value from content
-                let entity = content["entity"]
-                    .as_str()
-                    .ok_or("Missing 'entity' field")?;
+                let entity = content["entity"].as_str().ok_or("Missing 'entity' field")?;
                 let attribute = content["attribute"]
                     .as_str()
                     .ok_or("Missing 'attribute' field")?;
@@ -109,11 +107,7 @@ impl MemoryStoragePort for MemoryStorageAdapter {
         }
     }
 
-    fn recall(
-        &self,
-        query: &str,
-        _token: &CapabilityToken,
-    ) -> Result<Vec<Value>, String> {
+    fn recall(&self, query: &str, _token: &CapabilityToken) -> Result<Vec<Value>, String> {
         // For now, return empty results
         // TODO: Implement actual search using sqlite-vec
         tracing::debug!(
@@ -156,13 +150,8 @@ mod tests {
             b"test-secret",
         );
 
-        let result = adapter.store_artifact(
-            producer_webid,
-            "semantic_triple",
-            content,
-            "public",
-            &token,
-        );
+        let result =
+            adapter.store_artifact(producer_webid, "semantic_triple", content, "public", &token);
 
         assert!(result.is_ok());
     }
@@ -215,13 +204,7 @@ mod tests {
             b"test-secret",
         );
 
-        let result = adapter.store_artifact(
-            producer_webid,
-            "embedding",
-            content,
-            "public",
-            &token,
-        );
+        let result = adapter.store_artifact(producer_webid, "embedding", content, "public", &token);
 
         assert!(result.is_ok());
     }

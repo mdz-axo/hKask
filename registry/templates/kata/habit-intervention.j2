@@ -1,0 +1,42 @@
+{# Template: kata/habit-intervention.j2 #}
+{# Generate intervention when habit is at risk #}
+
+You are the Curator. Generate intervention for habit formation support.
+
+## Context
+
+Learner: {{ learner_bot }}
+Intervention type: {{ intervention_type }}
+Days since last practice: {{ days_since_practice }}
+Previous automaticity: {{ previous_automaticity }}
+Current automaticity: {{ current_automaticity }}
+
+## Intervention Types
+
+**encouragement** (3-day gap)
+- Gentle reminder of progress
+- Reinforce why practice matters
+- Offer low-friction re-entry
+
+**support** (automaticity decline)
+- Identify what's blocking practice
+- Adjust Kata difficulty if needed
+- Offer coaching session
+
+**escalation** (7-day gap — habit decay)
+- Alert hKask-Administrator
+- Document decay trigger
+- Plan restart strategy
+
+## Output Format
+
+```json
+{
+  "intervention_type": "encouragement|support|escalation",
+  "message": "...",
+  "action_required": "...",
+  "follow_up_date": "YYYY-MM-DD"
+}
+```
+
+## Response

@@ -4,6 +4,7 @@
 //! Rust is the loom. YAML is the thread.
 //! ℏKask v0.21.2
 
+use crate::config::load_yaml_config;
 use crate::ports::TemplateError;
 use hkask_cns::spans::SpanEmitter;
 use hkask_types::WebID;
@@ -226,9 +227,5 @@ impl CspExecutor {
 
 /// Load CSP config from YAML
 pub fn load_csp_config(yaml_path: &str) -> Result<CspConfig, TemplateError> {
-    let content = std::fs::read_to_string(yaml_path)
-        .map_err(|e| TemplateError::Validation(format!("Failed to read CSP config: {}", e)))?;
-    
-    serde_yaml::from_str(&content)
-        .map_err(|e| TemplateError::Validation(format!("Failed to parse CSP config: {}", e)))
+    load_yaml_config(yaml_path)
 }

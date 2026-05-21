@@ -45,7 +45,7 @@ impl OCAP {
         let history = history_map
             .entry(root_nonce.to_string())
             .or_insert_with(|| AttenuationHistory::new(root_nonce.to_string()));
-        
+
         history.add_entry(
             delegated_from.to_string(),
             delegated_to.to_string(),
@@ -58,7 +58,7 @@ impl OCAP {
     pub async fn verify_attenuation(&self, token: &CapabilityToken) -> bool {
         let history_map = self.attenuation_history.read().await;
         let root_nonce = token.root_context_nonce();
-        
+
         if let Some(history) = history_map.get(root_nonce) {
             history.verify_chain() && history.chain_length() >= token.attenuation_level as usize
         } else {
@@ -113,9 +113,9 @@ impl OCAP {
 
         // Calculate expiry based on enforcer policy
         let expires_at = Some(self.calculate_expiry(current_time));
-        
+
         let child = parent.attenuate_with_expiry(new_to, secret, expires_at);
-        
+
         if let Some(ref child_token) = child {
             // Record attenuation in history
             self.record_attenuation(
@@ -124,9 +124,10 @@ impl OCAP {
                 &child_token.delegated_to,
                 current_time,
                 child_token.attenuation_level,
-            ).await;
+            )
+            .await;
         }
-        
+
         child
     }
 }
@@ -149,8 +150,10 @@ mod tests {
         let webid2 = WebID::new();
         let webid3 = WebID::new();
 
-        ocap.record_attenuation("root-nonce", &webid1, &webid2, 1000, 0).await;
-        ocap.record_attenuation("root-nonce", &webid2, &webid3, 1001, 1).await;
+        ocap.record_attenuation("root-nonce", &webid1, &webid2, 1000, 0)
+            .await;
+        ocap.record_attenuation("root-nonce", &webid2, &webid3, 1001, 1)
+            .await;
 
         let history = ocap.get_attenuation_history("root-nonce").await;
         assert!(history.is_some());
@@ -163,7 +166,8 @@ mod tests {
         let webid1 = WebID::new();
         let webid2 = WebID::new();
 
-        ocap.record_attenuation("root-nonce", &webid1, &webid2, 1000, 0).await;
+        ocap.record_attenuation("root-nonce", &webid1, &webid2, 1000, 0)
+            .await;
 
         let token = CapabilityToken::new(
             CapabilityResource::Tool,
@@ -181,13 +185,13 @@ mod tests {
     #[test]
     fn test_ocap_expiry_enforcement() {
         use hkask_types::CapabilityToken;
-        
+
         let ocap = OCAP::new();
         let creation_time = 1000;
         let expiry = ocap.calculate_expiry(creation_time);
 
         assert_eq!(expiry, creation_time + 3600); // Default 1 hour
-        
+
         // Create token with expiry set
         let mut token_valid = CapabilityToken::new(
             CapabilityResource::Tool,
@@ -199,7 +203,7 @@ mod tests {
         );
         token_valid.expires_at = Some(expiry - 1);
         assert!(ocap.validate_expiry(&token_valid, expiry - 1));
-        
+
         // Create token with expiry set
         let mut token_expired = CapabilityToken::new(
             CapabilityResource::Tool,
@@ -230,7 +234,9 @@ mod tests {
             secret,
         );
 
-        let child = ocap.attenuate_with_history(&parent, webid2, secret, current_time).await;
+        let child = ocap
+            .attenuate_with_history(&parent, webid2, secret, current_time)
+            .await;
         assert!(child.is_some());
 
         let child_token = child.unwrap();
@@ -238,7 +244,9 @@ mod tests {
         assert!(child_token.expires_at.is_some());
 
         // Verify history was recorded
-        let history = ocap.get_attenuation_history(parent.root_context_nonce()).await;
+        let history = ocap
+            .get_attenuation_history(parent.root_context_nonce())
+            .await;
         assert!(history.is_some());
         assert_eq!(history.unwrap().chain_length(), 1);
     }

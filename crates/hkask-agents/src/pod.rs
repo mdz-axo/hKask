@@ -68,7 +68,7 @@ use crate::adapters::cns_emitter::CnsEmitterAdapter;
 use crate::adapters::git_cas::GitCasAdapter;
 use crate::adapters::mcp_runtime::McpRuntimeAdapter;
 use crate::adapters::memory_storage::MemoryStorageAdapter;
-use crate::security::{SecurityContext, AgentPersonaInput, InputValidator};
+use crate::security::{AgentPersonaInput, InputValidator, SecurityContext};
 use std::path::PathBuf;
 
 /// Pod lifecycle state machine
@@ -1144,7 +1144,14 @@ mod tests {
     #[tokio::test]
     async fn test_pod_manager_security_context() {
         let manager = PodManager::new_mock();
-        assert!(manager.security_context().rate_limiter.get_available("test").await > 0.0);
+        assert!(
+            manager
+                .security_context()
+                .rate_limiter
+                .get_available("test")
+                .await
+                > 0.0
+        );
     }
 
     #[tokio::test]
@@ -1165,7 +1172,7 @@ visibility:
   episodic_override: private
 "#;
         let persona = AgentPersona::from_yaml(persona_yaml).unwrap();
-        
+
         // Validate persona input
         let input = AgentPersonaInput {
             name: persona.agent.name.clone(),
@@ -1175,7 +1182,7 @@ visibility:
             editor: persona.charter.editor.clone(),
             capabilities: persona.capabilities.clone(),
         };
-        
+
         assert!(input.validate(&input).is_ok());
     }
 }

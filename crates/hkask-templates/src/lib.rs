@@ -25,6 +25,7 @@
 pub mod audit;
 pub mod capability_validator;
 pub mod cascade;
+pub mod config;
 pub mod contract_validator;
 pub mod contracts;
 pub mod curator_pipeline;
@@ -65,7 +66,7 @@ pub use registry::{Registry, TemplateEntry};
 pub use registry_git::GitRegistry;
 pub use registry_sqlite::SqliteRegistry;
 pub use russell_mapper::{
-    FieldMapping, FieldMappings, IdTransformation, MappedTemplate, MappingMeta,
-    ModelTierSelection, RussellMappingConfig, RussellMapper, RussellSkillManifest,
-    TemplateTypeInference, TierRule, TypeRule,
+    FieldMapping, FieldMappings, IdTransformation, MappedTemplate, MappingMeta, ModelTierSelection,
+    RussellMapper, RussellMappingConfig, RussellSkillManifest, TemplateTypeInference, TierRule,
+    TypeRule,
 };

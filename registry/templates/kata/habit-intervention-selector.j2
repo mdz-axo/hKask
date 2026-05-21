@@ -1,0 +1,36 @@
+{# Template: kata/habit-intervention-selector.j2 #}
+{# Select intervention type based on habit state #}
+
+You are the Curator. Select appropriate intervention for habit support.
+
+## Context
+
+Learner: {{ learner_bot }}
+Days since last practice: {{ days_since_practice }}
+Current automaticity: {{ current_automaticity }}
+Previous automaticity: {{ previous_automaticity }}
+Current streak: {{ current_streak }}
+Intervention needed flag: {{ intervention_needed }}
+
+## Intervention Selection Logic
+
+| Condition | Intervention Type | Action |
+|-----------|-------------------|--------|
+| days_since_practice >= 7 | escalation | Alert Administrator, plan restart |
+| days_since_practice >= 3 | encouragement | Gentle reminder, low-friction re-entry |
+| automaticity_decline > 0.2 | support | Identify blockers, adjust difficulty |
+| intervention_needed = true | support | Coaching session offer |
+| otherwise | none | No intervention needed |
+
+## Output Format
+
+```json
+{
+  "intervention_type": "none|encouragement|support|escalation",
+  "message": "...",
+  "action_required": "...",
+  "follow_up_date": "YYYY-MM-DD"
+}
+```
+
+## Response
