@@ -6,6 +6,7 @@
 //! - Kill-zone detection for VC investment patterns
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use uuid::Uuid;
 
 /// Data category for sovereignty classification
@@ -14,7 +15,7 @@ use uuid::Uuid;
 /// - Sovereign: Requires explicit user consent and ownership
 /// - Shared: Requires explicit consent
 /// - Public: Always accessible
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DataCategory {
     /// Episodic memory (private, personal experiences)
@@ -34,12 +35,12 @@ pub enum DataCategory {
     /// Template registry (public template metadata)
     TemplateRegistry,
     /// Custom category (application-specific)
-    Custom(&'static str),
+    Custom(String),
 }
 
 impl DataCategory {
     /// Get string representation of data category
-    pub fn as_str(&self) -> &'static str {
+    pub fn as_str(&self) -> &str {
         match self {
             DataCategory::EpisodicMemory => "episodic_memory",
             DataCategory::SemanticMemory => "semantic_memory",
@@ -49,7 +50,7 @@ impl DataCategory {
             DataCategory::TemplateInvocations => "template_invocations",
             DataCategory::HLexiconTerms => "hlexicon_terms",
             DataCategory::TemplateRegistry => "template_registry",
-            DataCategory::Custom(s) => s,
+            DataCategory::Custom(s) => s.as_str(),
         }
     }
 
@@ -155,11 +156,11 @@ impl std::fmt::Display for AcquisitionResistance {
 pub struct DataSovereigntyBoundary {
     pub id: SovereigntyId,
     /// What data is under user sovereignty
-    pub sovereign_data: Vec<String>,
+    pub sovereign_data: HashSet<DataCategory>,
     /// What data may be shared (with explicit consent)
-    pub shared_data: Vec<String>,
+    pub shared_data: HashSet<DataCategory>,
     /// What data is public (no sovereignty claim)
-    pub public_data: Vec<String>,
+    pub public_data: HashSet<DataCategory>,
     /// Resistance level for this boundary
     pub resistance: AcquisitionResistance,
 }
@@ -168,55 +169,56 @@ impl DataSovereigntyBoundary {
     pub fn new() -> Self {
         Self {
             id: SovereigntyId::default(),
-            sovereign_data: Vec::new(),
-            shared_data: Vec::new(),
-            public_data: Vec::new(),
+            sovereign_data: HashSet::new(),
+            shared_data: HashSet::new(),
+            public_data: HashSet::new(),
             resistance: AcquisitionResistance::default(),
         }
     }
 
     /// Create boundary with typical hKask defaults
     pub fn hkask_default() -> Self {
+        let mut sovereign_data = HashSet::new();
+        sovereign_data.insert(DataCategory::EpisodicMemory);
+        sovereign_data.insert(DataCategory::PersonalContext);
+        sovereign_data.insert(DataCategory::CapabilityTokens);
+        sovereign_data.insert(DataCategory::OcapBoundaries);
+
+        let mut shared_data = HashSet::new();
+        shared_data.insert(DataCategory::SemanticMemory);
+        shared_data.insert(DataCategory::TemplateInvocations);
+
+        let mut public_data = HashSet::new();
+        public_data.insert(DataCategory::HLexiconTerms);
+        public_data.insert(DataCategory::TemplateRegistry);
+
         Self {
             id: SovereigntyId::default(),
-            sovereign_data: vec![
-                "episodic_memory".to_string(),
-                "personal_context".to_string(),
-                "capability_tokens".to_string(),
-                "ocap_boundaries".to_string(),
-            ],
-            shared_data: vec![
-                "semantic_memory".to_string(),
-                "template_invocations".to_string(),
-            ],
-            public_data: vec![
-                "hlexicon_terms".to_string(),
-                "template_registry".to_string(),
-            ],
+            sovereign_data,
+            shared_data,
+            public_data,
             resistance: AcquisitionResistance::default_for_pods(),
         }
     }
 
     /// Add sovereign data category
-    pub fn add_sovereign(&mut self, category: &str) {
-        if !self.sovereign_data.contains(&category.to_string()) {
-            self.sovereign_data.push(category.to_string());
-        }
+    pub fn add_sovereign(&mut self, category: DataCategory) {
+        self.sovereign_data.insert(category);
     }
 
     /// Check if data category is under user sovereignty
-    pub fn is_sovereign(&self, category: &str) -> bool {
-        self.sovereign_data.contains(&category.to_string())
+    pub fn is_sovereign(&self, category: &DataCategory) -> bool {
+        self.sovereign_data.contains(category)
     }
 
     /// Check if data category is in shared set
-    pub fn is_shared(&self, category: &str) -> bool {
-        self.shared_data.contains(&category.to_string())
+    pub fn is_shared(&self, category: &DataCategory) -> bool {
+        self.shared_data.contains(category)
     }
 
     /// Check if data category is public
-    pub fn is_public(&self, category: &str) -> bool {
-        self.public_data.contains(&category.to_string())
+    pub fn is_public(&self, category: &DataCategory) -> bool {
+        self.public_data.contains(category)
     }
 }
 
@@ -355,6 +357,19 @@ mod tests {
     }
 
     #[test]
+    fn test_data_category_classification() {
+        assert!(DataCategory::EpisodicMemory.is_typically_sovereign());
+        assert!(DataCategory::SemanticMemory.is_typically_shared());
+        assert!(DataCategory::HLexiconTerms.is_typically_public());
+    }
+
+    #[test]
+    fn test_data_category_as_str() {
+        assert_eq!(DataCategory::EpisodicMemory.as_str(), "episodic_memory");
+        assert_eq!(DataCategory::SemanticMemory.as_str(), "semantic_memory");
+    }
+
+    #[test]
     fn test_acquisition_resistance_prevents_passive() {
         assert!(AcquisitionResistance::Medium.prevents_passive_acquisition());
         assert!(AcquisitionResistance::High.prevents_passive_acquisition());
@@ -366,22 +381,18 @@ mod tests {
     #[test]
     fn test_data_sovereignty_boundary_default() {
         let boundary = DataSovereigntyBoundary::hkask_default();
-        assert!(boundary
-            .sovereign_data
-            .contains(&"episodic_memory".to_string()));
-        assert!(boundary
-            .shared_data
-            .contains(&"semantic_memory".to_string()));
-        assert!(boundary.public_data.contains(&"hlexicon_terms".to_string()));
+        assert!(boundary.is_sovereign(&DataCategory::EpisodicMemory));
+        assert!(boundary.is_shared(&DataCategory::SemanticMemory));
+        assert!(boundary.is_public(&DataCategory::HLexiconTerms));
         assert_eq!(boundary.resistance, AcquisitionResistance::High);
     }
 
     #[test]
     fn test_data_sovereignty_is_sovereign() {
         let mut boundary = DataSovereigntyBoundary::new();
-        boundary.add_sovereign("test_data");
-        assert!(boundary.is_sovereign("test_data"));
-        assert!(!boundary.is_sovereign("other_data"));
+        boundary.add_sovereign(DataCategory::PersonalContext);
+        assert!(boundary.is_sovereign(&DataCategory::PersonalContext));
+        assert!(!boundary.is_sovereign(&DataCategory::EpisodicMemory));
     }
 
     #[test]

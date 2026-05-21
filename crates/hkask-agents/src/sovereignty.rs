@@ -3,9 +3,7 @@
 //! Ensures agent operations respect user sovereignty boundaries.
 //! Integrates with CNS for sovereignty event emission.
 
-use crate::ports::sovereignty::{
-    SovereigntyCheckResult, SovereigntyOperation, SovereigntyPort,
-};
+use crate::ports::sovereignty::{SovereigntyCheckResult, SovereigntyOperation, SovereigntyPort};
 use hkask_cns::spans::SpanEmitter;
 use hkask_types::{DataCategory, UserSovereigntyState, WebID};
 use serde_json::Value;
@@ -38,20 +36,18 @@ impl SovereigntyChecker {
 
     /// Check if data category is accessible
     pub fn can_access(&self, data_category: &DataCategory, requester: &WebID) -> bool {
-        let category_str = data_category.as_str();
-
         // Sovereign data requires explicit consent and owner
-        if self.state.boundary.is_sovereign_str(category_str) {
+        if self.state.boundary.is_sovereign(data_category) {
             return self.state.explicit_consent && requester == &self.owner_webid;
         }
 
         // Shared data requires consent
-        if self.state.boundary.is_shared_str(category_str) {
+        if self.state.boundary.is_shared(data_category) {
             return self.state.explicit_consent;
         }
 
         // Public data is always accessible
-        self.state.boundary.is_public_str(category_str)
+        self.state.boundary.is_public(data_category)
     }
 
     /// Check if operation respects sovereignty
@@ -268,10 +264,7 @@ mod tests {
         // Now accessible to owner
         assert!(checker.can_access(&DataCategory::EpisodicMemory, &owner));
         // But not to others
-        assert!(!checker.can_access(
-            &DataCategory::EpisodicMemory,
-            &WebID::new()
-        ));
+        assert!(!checker.can_access(&DataCategory::EpisodicMemory, &WebID::new()));
     }
 
     #[test]

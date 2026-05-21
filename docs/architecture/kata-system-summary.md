@@ -22,13 +22,13 @@ Pre-release versioning at third decimal place:
 
 ---
 
-## Files Created (14 total)
+## Files Created (17 total)
 
 ### Manifests (2)
-1. `registry/manifests/kata-pattern.yaml` — Unified Kata execution
-2. `registry/manifests/cns-carbon-tracking.yaml` — CNS carbon + capability metrics
+1. `registry/manifests/kata-pattern.yaml` — Unified Kata execution (v0.21.2)
+2. `registry/manifests/cns-carbon-tracking.yaml` — CNS carbon + capability metrics (v0.21.2)
 
-### Templates (9)
+### Templates (10)
 3. `registry/templates/kata/kata-selector.j2` — Pattern selection
 4. `registry/templates/kata/improvement-cycle.j2` — 4-step improvement
 5. `registry/templates/kata/coaching-cycle.j2` — 5-question coaching
@@ -40,30 +40,40 @@ Pre-release versioning at third decimal place:
 11. `registry/templates/kata/habit-intervention.j2` — Intervention generation
 12. `registry/templates/kata/improvement-metrics-selector.j2` — Metric selection
 
-### Documentation (3)
+### Documentation (5)
 13. `docs/architecture/carbon-accounting-methodology.md` — GHG Protocol methodology
-14. `docs/architecture/kata-decision-*.md` — Open question decisions (4 files)
+14. `docs/architecture/kata-decision-version-policy.md` — Version numbering policy
+15. `docs/architecture/kata-decision-multi-bot-coaching.md` — Q3 resolved
+16. `docs/architecture/kata-decision-retreat-criteria.md` — Q4 resolved
+17. `docs/architecture/kata-decision-capability-metrics.md` — Q5 resolved
+18. `docs/architecture/kata-decision-variety-baseline.md` — Q6 resolved
+19. `docs/architecture/kata-decision-consent-revocation.md` — Q7 resolved
+20. `docs/architecture/kata-decision-composition.md` — Q8 resolved
 
 ### Modified (2)
-15. `registry/bots/kata-bot.yaml` — OCAP scoping, carbon budget
-16. `registry/registries/kata/kata-system.yaml` — Carbon accounting metadata
+21. `registry/bots/kata-bot.yaml` — OCAP scoping, carbon budget
+22. `registry/registries/kata/kata-system.yaml` — Carbon accounting metadata
 
 ---
 
-## Open Questions Resolved (5 of 8)
+## Open Questions Resolved (8 of 8)
 
 | # | Question | Decision |
 |---|----------|----------|
-| 1 | Energy budget basis | GHG Protocol + IEA + 100k tokens |
-| 2 | Habit formation tracking | 3-signal system (streak, automaticity, decay) |
-| 3 | Multi-bot coaching | 1:1 only — ensemble for multi-bot |
-| 4 | Kata retreat criteria | Graduation at 0.75, monthly frequency |
-| 5 | Capability metrics | 3 primary + 2 secondary metrics |
-| 6 | CNS variety counter baseline | ⏳ Pending |
-| 7 | Consent revocation | ⏳ Pending |
-| 8 | Kata composition | ⏳ Pending |
+| 1 | Energy budget basis | ✅ GHG Protocol + IEA + 100k tokens |
+| 2 | Habit formation tracking | ✅ 3-signal system (streak, automaticity, decay) |
+| 3 | Multi-bot coaching | ✅ 1:1 only — ensemble for multi-bot |
+| 4 | Kata retreat criteria | ✅ Graduation at 0.75, monthly frequency |
+| 5 | Capability metrics | ✅ 3 primary + 2 secondary metrics |
+| 6 | CNS variety counter baseline | ✅ Percentage-based (60% warning, 40% critical) |
+| 7 | Consent revocation | ✅ Revocable at any time, graceful abort |
+| 8 | Kata composition | ✅ Limited bidirectional (Improvement ↔ Coaching) |
 
 ---
+
+## All Open Questions Resolved
+
+The Toyota Kata system is now fully specified and ready for testing.
 
 ## Capability Metrics Schema
 

@@ -1,0 +1,47 @@
+{# Template: kata/outcome-and-habit.j2 #}
+{# Synthesize Kata outcome with habit assessment #}
+
+You are the Curator. Synthesize outcome and assess habit formation.
+
+## Context
+
+Kata type: {{ kata_type }}
+Learner: {{ learner_bot }}
+Kata dialogue: {{ kata_dialogue }}
+Previous automaticity: {{ previous_automaticity | default(0.3) }}
+Current streak: {{ current_streak | default(0) }} days
+
+## Synthesis
+
+1. **Capability delta:** What capability changed? How?
+
+2. **Obstacle addressed:** What specific obstacle was worked on?
+
+3. **Experiment result:** What was learned?
+
+## Habit Assessment
+
+**Automaticity Classification:**
+- **0.0–0.5:** Intensive tier — Jumps to conclusions
+- **0.5–0.75:** Maintenance tier — Observes before concluding
+- **0.75–1.0:** Graduated tier — Scientific pattern automatic
+
+**Streak Status:**
+- Current: {{ current_streak }} days
+- Next milestone: {{ next_milestone }} days
+
+## Output Format
+
+```json
+{
+  "capability_delta": "...",
+  "obstacle_addressed": "...",
+  "experiment_result": {...},
+  "automaticity_score": 0.0,
+  "automaticity_trend": "improving|stable|declining",
+  "streak_days": 0,
+  "intervention_needed": true|false
+}
+```
+
+## Response

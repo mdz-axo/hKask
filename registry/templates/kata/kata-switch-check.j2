@@ -1,0 +1,40 @@
+{# Template: kata/kata-switch-check.j2 #}
+{# Check if Kata switching is requested #}
+
+You are the Curator. Check if Kata composition switching is needed.
+
+## Context
+
+Current Kata: {{ current_kata }}
+Learner: {{ learner_bot }}
+Current step outcome: {{ current_step_outcome }}
+
+## Allowed Transitions
+
+| From | To | Allowed? | Condition |
+|------|-----|----------|-----------|
+| improvement | coaching | ✅ Yes | Thinking pattern is the obstacle |
+| coaching | improvement | ✅ Yes | Specific capability gap identified |
+| starter | any | ❌ No | Starter is self-contained |
+
+## Switch Detection
+
+**improvement → coaching:**
+Obstacle identified as learner's thinking pattern (not capability gap).
+
+**coaching → improvement:**
+Specific capability gap identified during coaching dialogue.
+
+## Output Format
+
+```json
+{
+  "switch_requested": true|false,
+  "from_kata": "...",
+  "to_kata": "...",
+  "reason": "...",
+  "consent_verified": true|false
+}
+```
+
+## Response

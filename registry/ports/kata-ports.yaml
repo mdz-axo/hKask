@@ -1,0 +1,178 @@
+# Kata Ports — Hexagonal Architecture Definition
+# ℏKask v0.21.3 — Inbound/Outbound port definitions
+
+ports:
+  # Inbound Ports (requests into Kata system)
+  inbound:
+    - port: kata:execute
+      description: Execute a Kata pattern
+      handler: kata-pattern-manifest
+      input_schema:
+        type: object
+        properties:
+          kata_type:
+            type: string
+            enum: [improvement, coaching, starter]
+          learner_bot:
+            type: string
+          context:
+            type: object
+      authentication:
+        required: true
+        method: webid_signature
+      authorization:
+        improvement: Curator-consent
+        coaching: learner-consent OR Curator-consent
+        starter: self-consent
+    
+    - port: kata:switch
+      description: Switch from one Kata to another (composition)
+      handler: kata-switch-protocol
+      input_schema:
+        type: object
+        properties:
+          from_kata:
+            type: string
+          to_kata:
+            type: string
+          reason:
+            type: string
+      authentication:
+        required: true
+        method: webid_signature
+      authorization:
+        improvement_to_coaching: learner-consent
+        coaching_to_improvement: Curator-consent
+    
+    - port: kata:revoke-consent
+      description: Revoke consent mid-Kata cycle
+      handler: consent-revocation-handler
+      input_schema:
+        type: object
+        properties:
+          kata_id:
+            type: string
+          revoker:
+            type: string
+          reason:
+            type: string
+      authentication:
+        required: true
+        method: webid_signature
+      authorization:
+        revoker_must_be_grantor: true
+
+  # Outbound Ports (responses from Kata system)
+  outbound:
+    - port: cns:emit:kata
+      description: Emit Kata outcome span to CNS
+      handler: cns_emit_tool
+      output_schema:
+        type: object
+        properties:
+          span_type:
+            type: string
+          energy_wh:
+            type: number
+          co2e_kg:
+            type: number
+          automaticity_score:
+            type: number
+          streak_days:
+            type: integer
+      carbon_accounting:
+        framework: GHG-Protocol-Scope-2
+        grid_intensity_source: IEA-Emission-Factors-2026
+        pue: 1.15
+    
+    - port: memory:record:kata
+      description: Record practice to episodic memory
+      handler: memory_remember_tool
+      output_schema:
+        type: object
+        properties:
+          triple_id:
+            type: string
+          entity:
+            type: string
+          attribute:
+            type: string
+          value:
+            type: object
+          visibility:
+            type: string
+    
+    - port: curator:report:kata
+      description: Report to Curator standing session
+      handler: ensemble_send_message_tool
+      output_schema:
+        type: object
+        properties:
+          summary:
+            type: string
+          automaticity_score:
+            type: number
+          streak_days:
+            type: integer
+          intervention_status:
+            type: string
+    
+    - port: kata:state:save
+      description: Save Kata state for composition switching
+      handler: memory_remember_tool
+      output_schema:
+        type: object
+        properties:
+          state_id:
+            type: string
+          kata_type:
+            type: string
+          current_step:
+            type: integer
+          context:
+            type: object
+    
+    - port: kata:state:resume
+      description: Resume Kata state after composition
+      handler: memory_recall_tool
+      input_schema:
+        type: object
+        properties:
+          state_id:
+            type: string
+
+# Adapters (connect ports to infrastructure)
+adapters:
+  cns_adapter:
+    type: hexagonal_outbound
+    port: cns:emit:kata
+    infrastructure: hkask-mcp-cns
+    protocol: cns_span_emission
+  
+  memory_adapter:
+    type: hexagonal_outbound
+    port: memory:record:kata
+    infrastructure: hkask-mcp-memory
+    protocol: sqlite_triple_store
+  
+  ensemble_adapter:
+    type: hexagonal_outbound
+    port: curator:report:kata
+    infrastructure: hkask-mcp-ensemble
+    protocol: standing_session_message
+  
+  inference_adapter:
+    type: hexagonal_inbound
+    port: kata:execute
+    infrastructure: hkask-mcp-inference
+    protocol: llm_completion
+
+# Infrastructure Dependencies
+infrastructure:
+  required:
+    - hkask-mcp-cns
+    - hkask-mcp-memory
+    - hkask-mcp-inference
+    - hkask-mcp-ensemble
+  optional:
+    - hkask-mcp-templates  # For Kata switching

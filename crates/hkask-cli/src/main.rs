@@ -28,6 +28,21 @@ use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 mod commands;
 
+/// Parse a string into a DataCategory
+fn parse_data_category(s: &str) -> hkask_types::DataCategory {
+    match s {
+        "episodic_memory" => hkask_types::DataCategory::EpisodicMemory,
+        "semantic_memory" => hkask_types::DataCategory::SemanticMemory,
+        "personal_context" => hkask_types::DataCategory::PersonalContext,
+        "capability_tokens" => hkask_types::DataCategory::CapabilityTokens,
+        "ocap_boundaries" => hkask_types::DataCategory::OcapBoundaries,
+        "template_invocations" => hkask_types::DataCategory::TemplateInvocations,
+        "hlexicon_terms" => hkask_types::DataCategory::HLexiconTerms,
+        "template_registry" => hkask_types::DataCategory::TemplateRegistry,
+        _ => hkask_types::DataCategory::Custom(s.to_string()),
+    }
+}
+
 #[derive(Parser)]
 #[command(name = "kask")]
 #[command(author = "hKask Team")]
@@ -823,15 +838,15 @@ fn main() {
                 println!();
                 println!("  Sovereign data:");
                 for category in &state.boundary.sovereign_data {
-                    println!("    - {}", category);
+                    println!("    - {}", category.as_str());
                 }
                 println!("  Shared data:");
                 for category in &state.boundary.shared_data {
-                    println!("    - {}", category);
+                    println!("    - {}", category.as_str());
                 }
                 println!("  Public data:");
                 for category in &state.boundary.public_data {
-                    println!("    - {}", category);
+                    println!("    - {}", category.as_str());
                 }
             }
             SovereigntyAction::GrantConsent => {
@@ -876,9 +891,12 @@ fn main() {
                 let checker = hkask_agents::SovereigntyChecker::new(owner);
                 let state = checker.get_state();
 
-                let is_sovereign = state.boundary.is_sovereign(&category);
-                let is_shared = state.boundary.shared_data.contains(&category);
-                let is_public = state.boundary.public_data.contains(&category);
+                // Parse category string to DataCategory
+                let data_category = parse_data_category(&category);
+
+                let is_sovereign = state.boundary.is_sovereign(&data_category);
+                let is_shared = state.boundary.is_shared(&data_category);
+                let is_public = state.boundary.is_public(&data_category);
 
                 println!("Data access check for '{}':", category);
                 if is_sovereign {

@@ -695,9 +695,24 @@ async fn sovereignty_status(State(_state): State<ApiState>) -> Json<SovereigntyS
         vc_investment: state.detector.vc_investment,
         threshold: state.detector.threshold,
         acquisition_resistance: format!("{:?}", state.boundary.resistance),
-        sovereign_data: state.boundary.sovereign_data.clone(),
-        shared_data: state.boundary.shared_data.clone(),
-        public_data: state.boundary.public_data.clone(),
+        sovereign_data: state
+            .boundary
+            .sovereign_data
+            .iter()
+            .map(|c| c.as_str().to_string())
+            .collect(),
+        shared_data: state
+            .boundary
+            .shared_data
+            .iter()
+            .map(|c| c.as_str().to_string())
+            .collect(),
+        public_data: state
+            .boundary
+            .public_data
+            .iter()
+            .map(|c| c.as_str().to_string())
+            .collect(),
     })
 }
 
@@ -762,30 +777,49 @@ async fn sovereignty_check_access(
     State(_state): State<ApiState>,
     Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Json<AccessCheckResponse> {
-    use hkask_types::UserSovereigntyState;
+    use hkask_types::{DataCategory, UserSovereigntyState};
 
-    let category = params.get("category").map(|s| s.as_str()).unwrap_or("");
+    let category_str = params.get("category").map(|s| s.as_str()).unwrap_or("");
     let state = UserSovereigntyState::new();
 
-    let (classification, access_required) = if state.boundary.is_sovereign(category) {
+    // Parse category string to DataCategory
+    let category = parse_data_category(category_str);
+    let category_name = category.as_str();
+
+    let (classification, access_required) = if state.boundary.is_sovereign(&category) {
         (
             "SOVEREIGN".to_string(),
             "Requires explicit consent AND owner".to_string(),
         )
-    } else if state.boundary.shared_data.contains(&category.to_string()) {
+    } else if state.boundary.is_shared(&category) {
         (
             "SHARED".to_string(),
             "Requires explicit consent".to_string(),
         )
-    } else if state.boundary.public_data.contains(&category.to_string()) {
+    } else if state.boundary.is_public(&category) {
         ("PUBLIC".to_string(), "Always accessible".to_string())
     } else {
         ("UNKNOWN".to_string(), "Denied by default".to_string())
     };
 
     Json(AccessCheckResponse {
-        category: category.to_string(),
+        category: category_name.to_string(),
         classification,
         access_required,
     })
+}
+
+/// Parse a string into a DataCategory
+fn parse_data_category(s: &str) -> hkask_types::DataCategory {
+    match s {
+        "episodic_memory" => hkask_types::DataCategory::EpisodicMemory,
+        "semantic_memory" => hkask_types::DataCategory::SemanticMemory,
+        "personal_context" => hkask_types::DataCategory::PersonalContext,
+        "capability_tokens" => hkask_types::DataCategory::CapabilityTokens,
+        "ocap_boundaries" => hkask_types::DataCategory::OcapBoundaries,
+        "template_invocations" => hkask_types::DataCategory::TemplateInvocations,
+        "hlexicon_terms" => hkask_types::DataCategory::HLexiconTerms,
+        "template_registry" => hkask_types::DataCategory::TemplateRegistry,
+        _ => hkask_types::DataCategory::Custom(s.to_string()),
+    }
 }
