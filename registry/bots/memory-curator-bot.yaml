@@ -42,3 +42,16 @@ standing_session:
   administrator_visible: true
 
 process_manifest: registry/manifests/memory-ops.yaml
+
+depends_on:
+  - hkask-mcp-memory
+  - hkask-mcp-cns
+
+readiness_probe:
+  type: health_check
+  endpoint: memory::storage_status
+  expected:
+    storage_available: true
+    visibility_gating_enabled: true
+  timeout_seconds: 10
+  retry_count: 3

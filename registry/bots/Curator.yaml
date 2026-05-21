@@ -93,3 +93,22 @@ persona:
     - direct answers
     - technical precision
     - no unnecessary questions
+
+depends_on:
+  - cns-curator-bot
+  - memory-curator-bot
+  - inference-curator-bot
+  - mcp-dispatch-bot
+  - ensemble-curator-bot
+  - git-curator-bot
+  - registry-dispatch-bot
+
+readiness_probe:
+  type: health_check
+  endpoint: curator::metacognition_status
+  expected:
+    bot_reports_available: true
+    cns_spans_accessible: true
+    metacognition_templates_loaded: true
+  timeout_seconds: 15
+  retry_count: 3

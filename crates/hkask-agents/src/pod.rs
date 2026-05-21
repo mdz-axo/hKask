@@ -64,6 +64,9 @@ use tracing::info;
 use zeroize::Zeroizing;
 
 use crate::adapters::git_cas::GitCasAdapter;
+use crate::adapters::acp_runtime::AcpRuntimeAdapter;
+use crate::adapters::cns_emitter::CnsEmitterAdapter;
+use crate::adapters::mcp_runtime::McpRuntimeAdapter;
 use std::path::PathBuf;
 
 /// Pod lifecycle state machine
@@ -677,45 +680,6 @@ impl GitCASPort for PlaceholderGitCAS {
     }
 }
 
-/// Memory Storage Port — Artifact persistence
-pub trait MemoryStoragePort {
-    /// Store a memory artifact (triple or embedding)
-    ///
-    /// # Arguments
-    /// * `producer_webid` — WebID of the producing agent
-    /// * `artifact_type` — Type of artifact ("episodic_triple", "semantic_triple", "embedding")
-    /// * `content` — Artifact content as JSON
-    /// * `visibility` — Visibility setting ("private", "public", "shared")
-    /// * `token` — Capability token authorizing the write
-    ///
-    /// # Returns
-    /// * `Ok(String)` — Artifact ID
-    /// * `Err(String)` — Storage error
-    fn store_artifact(
-        &self,
-        producer_webid: WebID,
-        artifact_type: &str,
-        content: serde_json::Value,
-        visibility: &str,
-        token: &CapabilityToken,
-    ) -> Result<String, String>;
-
-    /// Recall memory artifacts matching a query
-    ///
-    /// # Arguments
-    /// * `query` — Search query
-    /// * `token` — Capability token authorizing the read
-    ///
-    /// # Returns
-    /// * `Ok(Vec<serde_json::Value>)` — Matching artifacts
-    /// * `Err(String)` — Query error
-    fn recall(
-        &self,
-        query: &str,
-        token: &CapabilityToken,
-    ) -> Result<Vec<serde_json::Value>, String>;
-}
-
 /// Pod Manager — Manages collection of agent pods
 ///
 /// The PodManager provides centralized lifecycle management for all agent pods
@@ -729,6 +693,9 @@ pub struct PodManager {
     #[allow(dead_code)]
     keystore: Keychain,
     git_cas: GitCasAdapter,
+    acp_runtime: AcpRuntimeAdapter,
+    cns_emitter: CnsEmitterAdapter,
+    mcp_runtime: McpRuntimeAdapter,
 }
 
 /// Pod status information
@@ -744,21 +711,27 @@ pub struct PodStatus {
 }
 
 impl PodManager {
-    /// Create a new pod manager
-    pub fn new(git_cas: GitCasAdapter) -> Self {
+    /// Create a new pod manager with real adapters
+    pub fn new(git_cas: GitCasAdapter, acp_runtime: AcpRuntimeAdapter, cns_emitter: CnsEmitterAdapter, mcp_runtime: McpRuntimeAdapter) -> Self {
         Self {
             pods: Arc::new(RwLock::new(HashMap::new())),
             keystore: Keychain::default(),
             git_cas,
+            acp_runtime,
+            cns_emitter,
+            mcp_runtime,
         }
     }
 
-    /// Create a new pod manager with mock Git CAS for testing
+    /// Create a new pod manager with mock adapters for testing
     pub fn new_mock() -> Self {
         Self {
             pods: Arc::new(RwLock::new(HashMap::new())),
             keystore: Keychain::default(),
             git_cas: GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-mock")),
+            acp_runtime: AcpRuntimeAdapter::new(),
+            cns_emitter: CnsEmitterAdapter::new(WebID::new()),
+            mcp_runtime: McpRuntimeAdapter::new(),
         }
     }
 
@@ -798,11 +771,18 @@ impl PodManager {
     /// Activate a pod for A2A communication
     pub async fn activate_pod(&self, pod_id: &PodID) -> AgentPodResult<()> {
         let mut pods = self.pods.write().await;
-        let _pod = pods
+        let pod = pods
             .get_mut(pod_id)
             .ok_or_else(|| AgentPodError::ACPRegistrationError("Pod not found".to_string()))?;
 
-        // Placeholder - needs actual MCP runtime and CNS emitter
+        // Register with ACP runtime if not already registered
+        if pod.state() == PodLifecycleState::Populated {
+            pod.register(&self.acp_runtime, &self.cns_emitter)?;
+        }
+
+        // Activate the pod with MCP runtime
+        pod.activate(&self.mcp_runtime, &self.cns_emitter)?;
+
         info!(
             target: "hkask.pod",
             pod_id = %pod_id,
@@ -815,9 +795,11 @@ impl PodManager {
     /// Deactivate a pod
     pub async fn deactivate_pod(&self, pod_id: &PodID) -> AgentPodResult<()> {
         let mut pods = self.pods.write().await;
-        let _pod = pods
+        let pod = pods
             .get_mut(pod_id)
             .ok_or_else(|| AgentPodError::ACPRegistrationError("Pod not found".to_string()))?;
+
+        pod.deactivate(&self.cns_emitter)?;
 
         info!(
             target: "hkask.pod",

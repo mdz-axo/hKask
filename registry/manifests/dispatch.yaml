@@ -6,12 +6,26 @@ manifest:
   version: "0.1.0"
   description: Template dispatch orchestration with selector-driven routing
 
+matroshka:
+  max_depth: 7
+  enforce: true
+  depth_counter:
+    enabled: true
+    inherit_from_parent: true
+    default: 0
+    increment_on_dispatch: true
+  cns_monitoring:
+    span_namespace: cns.prompt.matroshka_depth
+    alert_if_exceeds: 6
+    rationale: "Warning before hard limit at 7"
+
 steps:
   - ordinal: 1
     action: select
     template_ref: registry/selectors/selector.j2
     renderer: minijinja
     model_tier: fast_local
+    matroshka_depth: "${matroshka_depth}"
     output_schema:
       type: object
       properties:
@@ -25,23 +39,21 @@ steps:
           maximum: 1.0
 
   - ordinal: 2
-    populate:
-      template_ref: "${selected_template_id}"
-      renderer: minijinja
-      bindings:
-        raw_prompt: "${input.raw_prompt}"
-        context: "${input.context}"
+    action: populate
+    template_ref: "${selected_template_id}"
+    renderer: minijinja
+    bindings:
+      raw_prompt: "${input.raw_prompt}"
+      context: "${input.context}"
+      matroshka_depth: "${matroshka_depth + 1}"
 
   - ordinal: 3
-    execute:
-      target: "${template.contract.target}"
-      contract: "${template.contract}"
-      mcp: "${template.contract.mcp}"
-      model_tier: "${template.contract.model_tier}"
-
-matroshka:
-  max_depth: 7
-  enforce: true
+    action: execute
+    target: "${template.contract.target}"
+    contract: "${template.contract}"
+    mcp: "${template.contract.mcp}"
+    model_tier: "${template.contract.model_tier}"
+    matroshka_depth: "${matroshka_depth + 1}"
 
 cns:
   spans:

@@ -40,3 +40,16 @@ standing_session:
   administrator_visible: true
 
 process_manifest: registry/manifests/dispatch.yaml
+
+depends_on:
+  - hkask-mcp-registry
+  - hkask-mcp-inference
+
+readiness_probe:
+  type: health_check
+  endpoint: registry::dispatch_status
+  expected:
+    registry_index_available: true
+    template_selector_ready: true
+  timeout_seconds: 10
+  retry_count: 3

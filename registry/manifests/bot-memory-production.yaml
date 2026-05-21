@@ -18,12 +18,37 @@ memory:
     default_visibility: private
     perspective: agent_owned
     retention: permanent
+    batch_writes:
+      enabled: true
+      max_batch_size: 100
+      max_batch_age_minutes: 5
+      flush_on_shutdown: true
+    deduplication:
+      enabled: true
+      strategy: entity_attribute_value_hash
+      on_duplicate: update_confidence_bayesian
     
   semantic:
     enabled: true
     default_visibility: public
     extraction: from_operation_outcomes
     bayesian_confidence: true
+    deduplication:
+      enabled: true
+      strategy: triple_hash
+      on_duplicate: bayesian_join
+
+# Bayesian Confidence Configuration
+bayesian_confidence:
+  decay_lambda: 0.01
+  half_life_hours: 69.3
+  minimum_confidence: 0.1
+  refresh_on_recall: true
+  combination_rules:
+    corroborating: c1 + c2 - c1*c2
+    contradicting: c1 - c2
+    averaging: (c1 + c2) / 2
+    decay: c * exp(-lambda * t)
 
 # Process Steps
 steps:
@@ -46,6 +71,7 @@ steps:
       latency_ms: "${latency_ms}"
       cns_spans: "${cns_spans}"
       confidence: "${operation_confidence}"
+      matroshka_depth: "${matroshka_depth}"
     output_schema:
       type: object
       properties:
@@ -107,6 +133,13 @@ error_handling:
 
 # OCAP Configuration
 ocap:
+  memory_production:
+    required: true
+    attenuation: per_operation_type
+    exempt_operations:
+      - internal_housekeeping
+      - status_polling
+      - health_check
   required_capabilities:
     - resource: memory
       action: write
@@ -117,7 +150,7 @@ ocap:
       scope: public_semantic
       energy_budget: 3000
   delegation_chain_required: false
-  signature_algorithm: ed25519
+  signature_algorithm: HMAC-SHA256
   capability_expiry_seconds: 3600
   template_scoped: true
 
@@ -125,6 +158,18 @@ ocap:
 cns:
   emit_spans: true
   span_namespace: cns.memory.production
+  rate_limit:
+    per_bot_per_minute: 100
+    per_session_per_minute: 500
+    burst_allowance: 50
+    on_exceed: queue_not_drop
+  aggregation:
+    enabled: true
+    interval_minutes: 5
+    repetitive_span_threshold: 10
+  priority_queue:
+    enabled: true
+    order: [alert, outcome, invocation, production]
   spans:
     - cns.memory.production.episodic_recorded
     - cns.memory.production.semantic_extracted
@@ -138,6 +183,9 @@ bot_integration:
     - trivial_operations
     - internal_housekeeping
   include_in_standing_session: true
+  matroshka:
+    skip_if_depth_gt: 5
+    rationale: "Prevents infinite memory-of-memory recursion"
 
 # Standing Session Integration
 standing_session:
@@ -158,3 +206,19 @@ audit:
   include_energy_cost: true
   include_cns_events: true
   include_memory_refs: true
+
+# Security
+security:
+  injection_prevention:
+    sanitize_template_inputs: true
+    jinja2_sandbox: true
+    validate_triple_values: true
+    reject_executable_content: true
+  ocap_verification:
+    hmac_sha256_signatures: true
+    verify_on_every_access: true
+    reject_expired_tokens: true
+  audit_integrity:
+    spans_signed_by_webid: true
+    immutable_once_written: true
+    git_backed: true

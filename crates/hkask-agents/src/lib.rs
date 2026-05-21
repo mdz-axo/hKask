@@ -5,7 +5,7 @@
 //! - **Lifecycle Management**: Populated → Registered → Activated → Deactivated
 //! - **Capability Tokens**: OCAP-based access control with attenuation
 //! - **ACP Runtime**: Agent registration, A2A messaging, capability verification
-//! - **Hexagonal Ports**: ACPRuntimePort, MCPRuntimePort, CNSSpanPort, GitCASPort, MemoryStoragePort
+//! - **Hexagonal Ports**: ACPRuntimePort, MCPRuntimePort, CNSSpanPort, GitCASPort
 //!
 //! # Example
 //!
@@ -13,13 +13,19 @@
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! use hkask_agents::pod::PodManager;
 //! use hkask_agents::adapters::git_cas::GitCasAdapter;
+//! use hkask_agents::adapters::acp_runtime::AcpRuntimeAdapter;
+//! use hkask_agents::adapters::cns_emitter::CnsEmitterAdapter;
+//! use hkask_agents::adapters::mcp_runtime::McpRuntimeAdapter;
 //! use std::path::PathBuf;
 //!
-//! // Create Git CAS adapter
+//! // Create adapters
 //! let git_cas = GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-templates"));
+//! let acp_runtime = AcpRuntimeAdapter::new();
+//! let cns_emitter = CnsEmitterAdapter::new(hkask_types::WebID::new());
+//! let mcp_runtime = McpRuntimeAdapter::new();
 //!
 //! // Create pod manager
-//! let manager = PodManager::new(git_cas);
+//! let manager = PodManager::new(git_cas, acp_runtime, cns_emitter, mcp_runtime);
 //! # Ok(())
 //! # }
 //! ```
@@ -37,6 +43,6 @@ pub use acp::{A2AMessage, AcpAgent, AcpRuntime, TemplateDispatchHandler};
 pub use capability::{BotCapabilities, CapabilityChecker, CapabilityToken};
 pub use pod::{
     AgentPersona, AgentPod, AgentPodError, AgentPodResult, AgentType, CNSSpanPort, GitCASPort,
-    MCPRuntimePort, MemoryStoragePort, PodID, PodLifecycleState, PodManager, PodStatus,
+    MCPRuntimePort, PodID, PodLifecycleState, PodManager, PodStatus,
     TemplateCrate,
 };

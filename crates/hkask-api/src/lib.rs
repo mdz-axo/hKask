@@ -21,6 +21,9 @@
 //! - `POST /api/chat` — Curator chat
 
 use hkask_agents::adapters::git_cas::GitCasAdapter;
+use hkask_agents::adapters::acp_runtime::AcpRuntimeAdapter;
+use hkask_agents::adapters::cns_emitter::CnsEmitterAdapter;
+use hkask_agents::adapters::mcp_runtime::McpRuntimeAdapter;
 use hkask_agents::pod::PodManager;
 use hkask_cns::rate_limit::{RateLimitConfig, RateLimiter};
 use hkask_cns::spans::SpanEmitter;
@@ -82,7 +85,7 @@ impl ApiState {
         }
     }
 
-    /// Create ApiState with default Git CAS adapter
+    /// Create ApiState with default adapters
     pub fn with_defaults(
         registry: SqliteRegistry,
         mcp_runtime: hkask_mcp::runtime::McpRuntime,
@@ -90,7 +93,11 @@ impl ApiState {
         system_webid: WebID,
     ) -> Self {
         let git_cas = GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-templates"));
-        let pod_manager = PodManager::new(git_cas);
+        let acp_runtime = AcpRuntimeAdapter::new();
+        let observer_webid = WebID::new();
+        let cns_emitter_adapter = CnsEmitterAdapter::new(observer_webid);
+        let mcp_runtime_adapter = McpRuntimeAdapter::new();
+        let pod_manager = PodManager::new(git_cas, acp_runtime, cns_emitter_adapter, mcp_runtime_adapter);
         Self::new(
             registry,
             mcp_runtime,

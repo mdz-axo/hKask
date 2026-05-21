@@ -191,25 +191,59 @@ integration:
     namespace: cns.ensemble.standing_session
     emit_all_messages: true
     emit_summaries: true
+    rate_limit:
+      per_session_per_minute: 500
+      burst_allowance: 50
+      on_exceed: queue_not_drop
+    aggregation:
+      enabled: true
+      interval_minutes: 5
+      repetitive_span_threshold: 10
+    priority_queue:
+      enabled: true
+      order: [alert, outcome, invocation, production]
 
   # Memory persistence
   memory:
     persist_to: episodic_memory
     visibility: shared
     index_for_recall: true
+    batch_writes:
+      enabled: true
+      max_batch_size: 100
+      max_batch_age_minutes: 5
+    deduplication:
+      enabled: true
+      strategy: entity_attribute_value_hash
 
   # Git archival
   git:
     archive_interval: daily
     archive_path: registry/ensemble-archives/system-coordination
     include_summaries: true
+    lock_protocol:
+      enabled: true
+      timeout_minutes: 5
+      retry_backoff_minutes: [1, 2, 4, 8]
+    on_unavailable: skip_with_cns_alert
 
 # Energy Budget
 energy:
-  session_cap: 50000
+  session_cap: 150000
   per_message_cost: 100
-  alert_threshold: 0.8
+  alert_threshold: 0.7
   hard_limit: true
+  per_bot_allocation: 15000
+  curator_allocation: 25000
+  dynamic_adjustment:
+    enabled: true
+    max_adjustment_percent: 10
+    requires_cns_justification: true
+    audit_trail: true
+  degradation:
+    at_80_percent: reduce_memory_to_batch_only
+    at_90_percent: suspend_standing_session_reports
+    at_95_percent: curator_escalates_to_administrator
 
 # Health Monitoring
 health:
