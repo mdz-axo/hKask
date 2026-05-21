@@ -2,7 +2,7 @@
 
 **Version:** v0.21.2  
 **Date:** 2026-05-21  
-**Status:** Phase 1 Complete — Inline tests extracted  
+**Status:** Phase 3 Complete — Russell mapper simplified  
 **Goal:** Restore "Rust = frame, YAML/Jinja2 = finishing" architecture
 
 ---
@@ -11,16 +11,16 @@
 
 | Target | Before | After | Savings | Status |
 |--------|--------|-------|---------|--------|
-| Inline tests (moved to hkask-testing) | 4,532 | 5,066* | -4,532 (excluded) | ✅ Complete |
+| Inline tests (moved to hkask-testing) | 4,532 | 5,066* | -2,294 (excluded) | ✅ Complete |
 | Review queue | 570 | 87 | -483 (-85%) | ✅ Complete |
-| Russell mapper | 1,292 | 1,292 | 0 | ⏸️ Deferred (complex) |
+| Russell mapper | 1,193 | 508 | -685 (-57%) | ✅ Complete |
 | CSP solver | 615 | TBD | -495 | Pending |
 | Multi-Okapi | 676 | TBD | -526 | Pending |
 | Energy tracking | 537 | TBD | -437 | Pending |
 | ACP runtime | 1,136 | TBD | -736 | Pending |
 | Capability variants | 809 | TBD | -409 | Pending |
 | Cascade | 511 | TBD | -311 | Pending |
-| **Total** | **~10,000** | **TBD** | **~-7,500** | **2/9 Complete** |
+| **Total** | **~10,000** | **TBD** | **~-5,800** | **3/9 Complete** |
 
 \* Test LOC increased because we extracted inline tests to hkask-testing (excluded from budget per spec)
 
@@ -52,7 +52,6 @@
 **Budget Impact:**
 - Tests in hkask-testing are **excluded from budget** per architecture spec
 - Effective production budget reduction: **-2,294 LOC**
-- Remaining budget: 30,000 - 22,609 = **7,391 LOC (24.6%)**
 
 ---
 
@@ -71,30 +70,71 @@
 
 ---
 
-## Deferred: Russell Mapper Simplification
+## Phase 3 Complete: Russell Mapper Simplification
 
-**Status:** ⏸️ Deferred to v1.1
+**Result:**
+- Russell mapper + skill translation: 1,193 → 508 LOC (**-685 LOC, -57%**)
+- Removed: Complex provenance management, migration config, output format handlers
+- Kept: Generic YAML processor, ID transformation, template type inference, energy calculation
+- Tests: Inline → moved to hkask-testing
 
-**Rationale:**
-- Complex YAML parsing logic requires careful migration
-- Better to create YAML manifests after operational use reveals patterns
-- Current implementation works; optimization premature
+**Configuration Moved to Manifests:**
+- Field mappings → `registry/manifests/russell-mapping.yaml`
+- ID transformation rules → manifest configuration
+- Template type inference → manifest configuration
+- Model tier selection → manifest configuration
+- Skill translation pipeline → `registry/manifests/skill-translation.yaml`
 
-**Alternative Approach:**
-- Keep current Russell mapper
-- Add YAML configuration files alongside (not replacing) Rust code
-- Migrate to templates after v1.0 operational data informs optimal structure
+**Files Created:**
+- `registry/manifests/russell-mapping.yaml` — Mapping configuration
+- `registry/manifests/skill-translation.yaml` — Skill import pipeline
+
+---
+
+## Budget Status
+
+| Metric | LOC | % of Budget |
+|--------|-----|-------------|
+| **Original production** | 24,903 | 83.0% |
+| Phase 1 savings (tests excluded) | -2,294 | -7.6% |
+| Phase 2 savings (review queue) | -483 | -1.6% |
+| Phase 3 savings (Russell mapper) | -685 | -2.3% |
+| **Current production** | **22,511** | **75.0%** |
+| **Remaining budget** | **7,489** | **25.0%** |
+
+**After Full Consolidation (Projected):**
+| Target | Savings | New Total |
+|--------|---------|-----------|
+| CSP solver | -495 | 22,016 |
+| Multi-Okapi | -526 | 21,490 |
+| Energy tracking | -437 | 21,053 |
+| ACP runtime | -736 | 20,317 |
+| Capability variants | -409 | 19,908 |
+| Cascade | -311 | 19,597 |
+| **Final projected** | **-5,800** | **~19,600 (65.3%)** |
+
+**After Phase 6 + 9:**
+| Phase | LOC Impact | New Total |
+|-------|------------|-----------|
+| Current | 22,511 | 75.0% |
+| Phase 6 (scoped CLI/MCP) | +4,900 | 27,411 (91.4%) |
+| Phase 9 (Git archival) | +2,940 | 30,351 (101.2%) ❌ |
+
+**Revised Plan:**
+- Complete remaining consolidation phases first
+- Then implement Phase 6 (scoped)
+- Phase 9 deferred or further consolidation needed
 
 ---
 
 ## Remaining Consolidation Targets
 
-| Target | LOC | Savings Potential | Priority | Next Action |
-|--------|-----|-------------------|----------|-------------|
+| Target | LOC | Savings | Priority | Next Action |
+|--------|-----|---------|----------|-------------|
+| ACP runtime | 1,136 | -736 | High | Delegate to rmcp |
 | CSP solver | 615 | -495 | Medium | Create CSP manifests |
 | Multi-Okapi | 676 | -526 | Medium | Create orchestration config |
 | Energy tracking | 537 | -437 | Medium | Create energy manifests |
-| ACP runtime | 1,136 | -736 | High | Delegate to rmcp |
 | Capability variants | 809 | -409 | Medium | Simplify to triples |
 | Cascade | 511 | -311 | Low | Create cascade manifests |
 

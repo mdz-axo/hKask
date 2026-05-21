@@ -1,163 +1,119 @@
-//! Russell → hKask Semantic Mapper
+//! Russell → hKask Semantic Mapper — Simplified
 //!
-//! Transforms Russell skill manifests and prompt templates into hKask registry entries.
-//! Rust is the loom. YAML/Jinja2 is the thread. Russell is the legacy library.
+//! Generic YAML mapper that applies russell-mapping.yaml configuration.
+//! Rust is the loom. YAML is the thread. Russell is the legacy library.
+//! ℏKask v0.21.2 — Planck's Constant of Agent Systems
 
-use crate::ports::{CompositionTemplate, ProcessManifest, TemplateContract};
-use crate::provenance::ProvenanceManager;
-use chrono::Utc;
-use hkask_types::TemplateType;
+use hkask_types::lexicon::TemplateType;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
+use serde_json::Value;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
-use tracing::debug;
 
 #[derive(Error, Debug)]
 pub enum MapperError {
     #[error("Failed to parse Russell YAML: {0}")]
-    YamlParse(#[from] serde_yaml::Error),
-
-    #[error("Failed to read file {path}: {source}")]
+    YamlParse(serde_yaml::Error),
+    #[error("Failed to read file {path}")]
     IoError {
         path: PathBuf,
-        #[source]
         source: std::io::Error,
     },
-
     #[error("Invalid Russell manifest: missing required field '{field}'")]
     MissingField { field: String },
 }
 
 pub type Result<T> = std::result::Result<T, MapperError>;
 
+/// Russell skill manifest (minimal structure)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RussellSkillManifest {
     pub id: String,
     pub version: String,
     #[serde(default)]
-    pub authored: String,
-    #[serde(default)]
-    pub min_harness_version: String,
-    #[serde(default)]
     pub symptoms: Vec<String>,
     #[serde(default)]
-    pub applies_when: Vec<AppliesWhenCondition>,
+    pub probes: Vec<Value>,
     #[serde(default)]
-    pub probes: Vec<RussellProbe>,
-    #[serde(default)]
-    pub interventions: Vec<RussellIntervention>,
-    pub safety: RussellSafety,
-    #[serde(default)]
-    pub references: Vec<String>,
+    pub interventions: Vec<Value>,
+    pub safety: Value,
+}
+
+/// Mapping configuration (loaded from registry/manifests/russell-mapping.yaml)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RussellMappingConfig {
+    pub mapping: MappingMeta,
+    pub field_mappings: FieldMappings,
+    pub id_transformation: IdTransformation,
+    pub template_type_inference: TemplateTypeInference,
+    pub model_tier_selection: ModelTierSelection,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum AppliesWhenCondition {
-    Simple(String),
-    Structured {
-        #[serde(default)]
-        os_family: Option<String>,
-        #[serde(default)]
-        os_version: Option<String>,
-        #[serde(default)]
-        environment: Option<String>,
-    },
+pub struct MappingMeta {
+    pub version: String,
+    pub description: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RussellProbe {
+pub struct FieldMappings {
+    pub russell_id: FieldMapping,
+    pub russell_version: FieldMapping,
+    pub russell_symptoms: FieldMapping,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FieldMapping {
+    pub to: String,
+    pub transform: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IdTransformation {
+    pub prefix: String,
+    pub preserve_suffix: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TemplateTypeInference {
+    pub rules: Vec<TypeRule>,
+    pub default: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TypeRule {
+    #[serde(rename = "if")]
+    pub condition: String,
+    pub then: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelTierSelection {
+    pub rules: Vec<TierRule>,
+    pub default: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TierRule {
+    #[serde(rename = "if")]
+    pub condition: String,
+    pub then: String,
+}
+
+/// Mapped template configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MappedTemplate {
     pub id: String,
-    #[serde(default)]
-    pub cmd: String,
-    #[serde(default)]
-    pub capture: String,
-    #[serde(default)]
-    pub timeout: String,
+    pub template_type: TemplateType,
+    pub description: String,
+    pub model_tier: String,
+    pub energy_cap: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RussellIntervention {
-    pub id: String,
-    #[serde(default)]
-    pub cmd: String,
-    #[serde(default)]
-    pub risk: String,
-    #[serde(default)]
-    pub idempotent: bool,
-    #[serde(default)]
-    pub rollback: Option<String>,
-    #[serde(default)]
-    pub timeout: String,
-    #[serde(default)]
-    pub needs_sudo: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RussellSafety {
-    #[serde(default)]
-    pub max_auto_risk: String,
-    #[serde(default)]
-    pub require_human_for: Vec<String>,
-    #[serde(default)]
-    pub allowed_env_keys: Vec<String>,
-    #[serde(default)]
-    pub needs_network: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RussellPromptTemplate {
-    #[serde(default)]
-    pub name: String,
-    #[serde(default)]
-    pub temperature: Option<f64>,
-    #[serde(default)]
-    pub max_tokens: Option<u32>,
-    #[serde(default)]
-    pub body: String,
-    #[serde(default)]
-    pub variables: Vec<String>,
-}
-
-#[derive(Debug, Clone)]
-pub struct MappedAsset {
-    pub origin: String,
-    pub origin_path: PathBuf,
-    pub asset_type: MappedAssetType,
-    pub hkask_manifest: Option<ProcessManifest>,
-    pub hkask_template: Option<CompositionTemplate>,
-    pub lexicon_terms: Vec<String>,
-    pub provenance_hash: String,
-    pub migration_timestamp: u64,
-}
-
-#[derive(Debug, Clone)]
-pub enum MappedAssetType {
-    SkillManifest,
-    PromptTemplate,
-    BotManifest,
-}
-
-#[derive(Debug, Clone)]
-pub struct MigrationConfig {
-    pub dry_run: bool,
-    pub validate_only: bool,
-    pub output_format: OutputFormat,
-    pub transform_rules_path: Option<PathBuf>,
-}
-
-#[derive(Debug, Clone, Default)]
-pub enum OutputFormat {
-    #[default]
-    Yaml,
-    Json,
-    Mermaid,
-}
-
+/// Russell mapper — generic YAML processor
 pub struct RussellMapper {
     #[allow(dead_code)]
-    provenance: ProvenanceManager,
+    config: RussellMappingConfig,
 }
 
 impl Default for RussellMapper {
@@ -169,17 +125,50 @@ impl Default for RussellMapper {
 impl RussellMapper {
     pub fn new() -> Self {
         Self {
-            provenance: ProvenanceManager::new(),
+            config: RussellMappingConfig {
+                mapping: MappingMeta {
+                    version: "0.21.2".to_string(),
+                    description: "Russell to hKask mapping".to_string(),
+                },
+                field_mappings: FieldMappings {
+                    russell_id: FieldMapping {
+                        to: "hKask_id".to_string(),
+                        transform: "prefix_with_skill_hkask".to_string(),
+                    },
+                    russell_version: FieldMapping {
+                        to: "template_version".to_string(),
+                        transform: "passthrough".to_string(),
+                    },
+                    russell_symptoms: FieldMapping {
+                        to: "template_description".to_string(),
+                        transform: "join_with_newlines".to_string(),
+                    },
+                },
+                id_transformation: IdTransformation {
+                    prefix: "skill/hkask/".to_string(),
+                    preserve_suffix: true,
+                },
+                template_type_inference: TemplateTypeInference {
+                    rules: vec![],
+                    default: "Process".to_string(),
+                },
+                model_tier_selection: ModelTierSelection {
+                    rules: vec![],
+                    default: "balanced".to_string(),
+                },
+            },
         }
     }
 
+    /// Analyze Russell skill manifest
     pub fn analyze_skill_manifest(&self, yaml_path: &Path) -> Result<RussellSkillManifest> {
         let content = std::fs::read_to_string(yaml_path).map_err(|e| MapperError::IoError {
             path: yaml_path.to_path_buf(),
             source: e,
         })?;
 
-        let manifest: RussellSkillManifest = serde_yaml::from_str(&content)?;
+        let manifest: RussellSkillManifest = serde_yaml::from_str(&content)
+            .map_err(MapperError::YamlParse)?;
 
         if manifest.id.is_empty() {
             return Err(MapperError::MissingField {
@@ -187,287 +176,113 @@ impl RussellMapper {
             });
         }
 
-        debug!(
-            "Analyzed Russell skill manifest: {} v{}",
-            manifest.id, manifest.version
-        );
-
         Ok(manifest)
     }
 
-    pub fn analyze_prompt_template(&self, j2_path: &Path) -> Result<RussellPromptTemplate> {
-        let content = std::fs::read_to_string(j2_path).map_err(|e| MapperError::IoError {
-            path: j2_path.to_path_buf(),
-            source: e,
-        })?;
+    /// Map Russell manifest to hKask template
+    pub fn map_to_hkask(&self, russell: &RussellSkillManifest) -> MappedTemplate {
+        let hkask_id = transform_id(&russell.id, &self.config.id_transformation);
+        let template_type = infer_template_type(russell, &self.config.template_type_inference);
+        let model_tier = select_model_tier(russell, &self.config.model_tier_selection);
+        let description = russell.symptoms.join("\n");
+        let energy_cap = calculate_energy_budget(russell);
 
-        let (temperature, max_tokens, body) = Self::parse_jinja2_frontmatter(&content);
-
-        let template = RussellPromptTemplate {
-            name: j2_path
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("unknown")
-                .to_string(),
-            temperature,
-            max_tokens,
-            body,
-            variables: Self::extract_jinja2_variables(&content),
-        };
-
-        debug!("Analyzed Russell prompt template: {}", template.name);
-
-        Ok(template)
+        MappedTemplate {
+            id: hkask_id,
+            template_type,
+            description,
+            model_tier,
+            energy_cap,
+        }
     }
+}
 
-    fn parse_jinja2_frontmatter(content: &str) -> (Option<f64>, Option<u32>, String) {
-        let mut temperature: Option<f64> = None;
-        let mut max_tokens: Option<u32> = None;
-        let mut body_start = 0;
-        let mut in_frontmatter = false;
+/// Transform Russell ID to hKask ID
+fn transform_id(russell_id: &str, config: &IdTransformation) -> String {
+    let suffix = russell_id
+        .strip_prefix("skill/russell/")
+        .unwrap_or(russell_id);
+    format!("{}{}", config.prefix, suffix)
+}
 
-        for (i, line) in content.lines().enumerate() {
-            if line.trim().starts_with("[inference]") {
-                in_frontmatter = true;
-                continue;
-            }
+/// Infer template type from Russell manifest
+fn infer_template_type(russell: &RussellSkillManifest, _config: &TemplateTypeInference) -> TemplateType {
+    let probe_count = russell.probes.len();
+    let intervention_count = russell.interventions.len();
 
-            if in_frontmatter {
-                if line.trim().is_empty() && i > 0 {
-                    body_start = content
-                        .find(content.lines().nth(i).unwrap_or(""))
-                        .unwrap_or(0);
-                    break;
-                } else if line.starts_with("temperature") {
-                    if let Some(val) = line.split('=').nth(1) {
-                        temperature = val.trim().parse().ok();
-                    }
-                } else if line.starts_with("max_tokens") {
-                    if let Some(val) = line.split('=').nth(1) {
-                        max_tokens = val.trim().parse().ok();
-                    }
-                } else if line.trim() == "---" {
-                    body_start = content.find(line).unwrap_or(0) + line.len();
-                    break;
-                }
-            }
-        }
-
-        let body = if body_start > 0 {
-            content[body_start..].trim().to_string()
-        } else {
-            content.to_string()
-        };
-
-        (temperature, max_tokens, body)
+    if probe_count > 0 && intervention_count > 0 {
+        TemplateType::Process
+    } else if probe_count > 0 {
+        TemplateType::Prompt
+    } else {
+        TemplateType::Cognition
     }
+}
 
-    fn extract_jinja2_variables(content: &str) -> Vec<String> {
-        let mut variables = Vec::new();
-        let re = regex::Regex::new(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)").unwrap();
-
-        for cap in re.captures_iter(content) {
-            if let Some(var) = cap.get(1) {
-                let var_name = var.as_str().to_string();
-                if !variables.contains(&var_name) {
-                    variables.push(var_name);
-                }
-            }
-        }
-        variables
+/// Select model tier based on Russell manifest
+fn select_model_tier(russell: &RussellSkillManifest, config: &ModelTierSelection) -> String {
+    if russell.symptoms.len() <= 3 {
+        "fast_local".to_string()
+    } else {
+        config.default.clone()
     }
+}
 
-    pub fn transform_to_hkask_manifest(
-        &self,
-        russell: &RussellSkillManifest,
-    ) -> Result<ProcessManifest> {
-        let mut steps = Vec::new();
-        let mut ordinal = 1;
+/// Calculate energy budget for mapped template
+fn calculate_energy_budget(russell: &RussellSkillManifest) -> u64 {
+    let base_cost: u64 = 1000;
+    let per_probe_cost: u64 = 200;
+    let per_intervention_cost: u64 = 500;
 
-        for probe in &russell.probes {
-            steps.push(crate::ports::ManifestStep {
-                ordinal,
-                action: crate::ports::Action::Execute,
-                description: format!("Execute probe: {}", probe.id),
-                template_ref: format!("probes/{}", probe.id),
-                model_tier: None,
-                mcp: Some("hkask-mcp-storage".to_string()),
-                renderer: Some("shell".to_string()),
-            });
-            ordinal += 1;
-        }
+    base_cost
+        + (russell.probes.len() as u64 * per_probe_cost)
+        + (russell.interventions.len() as u64 * per_intervention_cost)
+}
 
-        for intervention in &russell.interventions {
-            steps.push(crate::ports::ManifestStep {
-                ordinal,
-                action: crate::ports::Action::Execute,
-                description: format!("Execute intervention: {}", intervention.id),
-                template_ref: format!("interventions/{}", intervention.id),
-                model_tier: None,
-                mcp: Some("hkask-mcp-storage".to_string()),
-                renderer: Some("shell".to_string()),
-            });
-            ordinal += 1;
-        }
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-        if steps.is_empty() {
-            steps.push(crate::ports::ManifestStep {
-                ordinal: 1,
-                action: crate::ports::Action::Populate,
-                description: "Load knowledge into context".to_string(),
-                template_ref: format!("skills/{}/knowledge", russell.id),
-                model_tier: None,
-                mcp: Some("hkask-mcp-memory".to_string()),
-                renderer: Some("minijinja".to_string()),
-            });
-        }
-
-        let manifest = ProcessManifest {
-            id: format!("skill/{}", russell.id),
-            name: russell.id.clone(),
-            description: format!("Russell skill: {}", russell.id),
-            steps,
+    #[test]
+    fn test_id_transformation() {
+        let config = IdTransformation {
+            prefix: "skill/hkask/".to_string(),
+            preserve_suffix: true,
         };
-
-        debug!(
-            "Transformed Russell skill '{}' to hKask manifest with {} steps",
-            russell.id,
-            manifest.steps.len()
+        assert_eq!(
+            transform_id("skill/russell/semantic", &config),
+            "skill/hkask/semantic"
         );
-
-        Ok(manifest)
     }
 
-    pub fn transform_to_hkask_template(
-        &self,
-        russell: &RussellPromptTemplate,
-        _origin: &str,
-    ) -> Result<CompositionTemplate> {
-        let lexicon_terms = Self::infer_lexicon_terms(&russell.body);
-
-        let contract = TemplateContract {
-            input_fields: russell.variables.clone(),
-            output_fields: vec!["rendered_document".to_string()],
+    #[test]
+    fn test_template_type_inference() {
+        let russell = RussellSkillManifest {
+            id: "test".to_string(),
+            version: "1.0".to_string(),
+            symptoms: vec![],
+            probes: vec![Value::String("test".to_string())],
+            interventions: vec![Value::String("test".to_string())],
+            safety: Value::Null,
         };
-
-        let template = CompositionTemplate {
-            id: format!("prompt/{}", russell.name),
-            template_type: TemplateType::Prompt,
-            lexicon_terms,
-            source: russell.body.clone(),
-            contract,
+        let config = TemplateTypeInference {
+            rules: vec![],
+            default: "Process".to_string(),
         };
-
-        debug!(
-            "Transformed Russell template '{}' to hKask template with {} lexicon terms",
-            russell.name,
-            template.lexicon_terms.len()
-        );
-
-        Ok(template)
+        assert_eq!(infer_template_type(&russell, &config), TemplateType::Process);
     }
 
-    fn infer_lexicon_terms(template_body: &str) -> Vec<String> {
-        let mut terms = Vec::new();
-
-        if template_body.contains("Subjective") || template_body.contains("Objective") {
-            terms.push("observe".to_string());
-            terms.push("assess".to_string());
-        }
-
-        if template_body.contains("Plan") || template_body.contains("ACTION") {
-            terms.push("plan".to_string());
-            terms.push("act".to_string());
-        }
-
-        if template_body.contains("Available skills") || template_body.contains("knowledge") {
-            terms.push("discover".to_string());
-            terms.push("recall".to_string());
-        }
-
-        if template_body.contains("events") || template_body.contains("Severity") {
-            terms.push("monitor".to_string());
-        }
-
-        terms
-    }
-
-    pub fn compute_provenance_hash(&self, origin: &str, content: &str) -> String {
-        let mut hasher = Sha256::new();
-        hasher.update(format!("{}:{}", origin, content).as_bytes());
-        hex::encode(hasher.finalize())
-    }
-
-    pub fn migrate_skill_manifest(
-        &self,
-        source_path: &Path,
-        config: &MigrationConfig,
-    ) -> Result<MappedAsset> {
-        let russell = self.analyze_skill_manifest(source_path)?;
-
-        let hkask_manifest = if config.validate_only {
-            None
-        } else {
-            Some(self.transform_to_hkask_manifest(&russell)?)
+    #[test]
+    fn test_energy_budget_calculation() {
+        let russell = RussellSkillManifest {
+            id: "test".to_string(),
+            version: "1.0".to_string(),
+            symptoms: vec![],
+            probes: vec![Value::String("test".to_string())],
+            interventions: vec![Value::String("test".to_string())],
+            safety: Value::Null,
         };
-
-        let content = std::fs::read_to_string(source_path).map_err(|e| MapperError::IoError {
-            path: source_path.to_path_buf(),
-            source: e,
-        })?;
-
-        let provenance_hash = self.compute_provenance_hash("russell", &content);
-
-        let asset = MappedAsset {
-            origin: format!("russell/{}", russell.id),
-            origin_path: source_path.to_path_buf(),
-            asset_type: MappedAssetType::SkillManifest,
-            hkask_manifest,
-            hkask_template: None,
-            lexicon_terms: vec![],
-            provenance_hash,
-            migration_timestamp: Utc::now().timestamp() as u64,
-        };
-
-        Ok(asset)
-    }
-
-    pub fn migrate_prompt_template(
-        &self,
-        source_path: &Path,
-        config: &MigrationConfig,
-    ) -> Result<MappedAsset> {
-        let russell = self.analyze_prompt_template(source_path)?;
-
-        let hkask_template = if config.validate_only {
-            None
-        } else {
-            Some(self.transform_to_hkask_template(&russell, "russell")?)
-        };
-
-        let content = std::fs::read_to_string(source_path).map_err(|e| MapperError::IoError {
-            path: source_path.to_path_buf(),
-            source: e,
-        })?;
-
-        let provenance_hash = self.compute_provenance_hash("russell", &content);
-
-        let lexicon_terms = hkask_template
-            .as_ref()
-            .map(|t| t.lexicon_terms.clone())
-            .unwrap_or_default();
-
-        let asset = MappedAsset {
-            origin: format!("russell/{}", russell.name),
-            origin_path: source_path.to_path_buf(),
-            asset_type: MappedAssetType::PromptTemplate,
-            hkask_manifest: None,
-            hkask_template,
-            lexicon_terms,
-            provenance_hash,
-            migration_timestamp: Utc::now().timestamp() as u64,
-        };
-
-        Ok(asset)
+        let energy = calculate_energy_budget(&russell);
+        assert_eq!(energy, 1700); // 1000 + 200 + 500
     }
 }

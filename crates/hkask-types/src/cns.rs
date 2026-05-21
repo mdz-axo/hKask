@@ -136,6 +136,8 @@ pub enum CnsSpan {
     Variety,
     /// Kill zone detection (cns.killzone.*)
     KillZone,
+    /// User sovereignty, acquisition resistance (cns.sovereignty.*)
+    Sovereignty,
 }
 
 impl CnsSpan {
@@ -150,6 +152,7 @@ impl CnsSpan {
             CnsSpan::Curation => "cns.curation".to_string(),
             CnsSpan::Variety => "cns.variety".to_string(),
             CnsSpan::KillZone => "cns.killzone".to_string(),
+            CnsSpan::Sovereignty => "cns.sovereignty".to_string(),
         }
     }
 }

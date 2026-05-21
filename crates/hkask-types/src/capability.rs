@@ -288,6 +288,35 @@ impl CapabilityToken {
         ))
     }
 
+    /// Create attenuated child token with custom expiry
+    pub fn attenuate_with_expiry(
+        &self,
+        new_to: WebID,
+        secret: &[u8],
+        expires_at: Option<i64>,
+    ) -> Option<CapabilityToken> {
+        if !self.can_attenuate() {
+            return None;
+        }
+
+        Some(CapabilityToken::new_with_attenuation(
+            self.resource,
+            self.resource_id.clone(),
+            self.action,
+            self.delegated_to,
+            new_to,
+            secret,
+            expires_at,
+            self.attenuation_level + 1,
+            self.max_attenuation,
+            Some(format!(
+                "{}-attenuated-{}",
+                self.context_nonce,
+                uuid::Uuid::new_v4()
+            )),
+        ))
+    }
+
     /// Check if this token is valid for a given resource and action
     pub fn is_valid_for(
         &self,

@@ -19,6 +19,8 @@ pub enum SpanCategory {
     AgentPod,
     /// Energy cost tracking (allocate, consume, opportunity, deficit)
     Energy,
+    /// User sovereignty monitoring (boundary, acquisition, kill-zone)
+    Sovereignty,
 }
 
 impl SpanCategory {
@@ -30,6 +32,7 @@ impl SpanCategory {
             SpanCategory::Prompt => "cns.prompt",
             SpanCategory::AgentPod => "cns.agent_pod",
             SpanCategory::Energy => "cns.energy",
+            SpanCategory::Sovereignty => "cns.sovereignty",
         }
     }
 
@@ -41,6 +44,7 @@ impl SpanCategory {
             "prompt" | "cns.prompt" => Some(SpanCategory::Prompt),
             "agent_pod" | "cns.agent_pod" => Some(SpanCategory::AgentPod),
             "energy" | "cns.energy" => Some(SpanCategory::Energy),
+            "sovereignty" | "cns.sovereignty" => Some(SpanCategory::Sovereignty),
             _ => None,
         }
     }
@@ -122,6 +126,24 @@ impl SpanEmitter {
         self.emit(
             Span::Energy(energy_event.to_string()),
             hkask_types::Phase::Observe,
+            observation,
+        );
+    }
+
+    /// Emit sovereignty span (boundary, acquisition, kill-zone)
+    pub fn emit_sovereignty(&self, sovereignty_event: &str, observation: Value) {
+        self.emit(
+            Span::Sovereignty(sovereignty_event.to_string()),
+            hkask_types::Phase::Observe,
+            observation,
+        );
+    }
+
+    /// Emit sovereignty alert (kill-zone detected)
+    pub fn emit_sovereignty_alert(&self, alert_type: &str, observation: Value) {
+        self.emit(
+            Span::Sovereignty(format!("alert.{}", alert_type)),
+            hkask_types::Phase::Regulate,
             observation,
         );
     }

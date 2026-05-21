@@ -4,8 +4,8 @@
 
 use hkask_mcp::runtime::{McpRuntime, McpServer, McpTool};
 use hkask_templates::{
-    MappedAsset, MigrationConfig, RegistryEntry, RegistryIndex, RussellMapper, SqliteRegistry,
-    TemplateError,
+    MappedTemplate, RegistryEntry, RegistryIndex, RussellMappingConfig, RussellMapper,
+    RussellSkillManifest, SqliteRegistry, TemplateError,
 };
 use hkask_types::TemplateType;
 use serde_json::Value;
@@ -196,9 +196,9 @@ pub async fn deactivate_pod(pod_id: &str) -> Result<(), String> {
 /// Import Russell assets into hKask registry
 pub fn import_russell(
     source_path: &Path,
-    config: &MigrationConfig,
+    config: &RussellMappingConfig,
     verbose: bool,
-) -> Result<Vec<MappedAsset>, String> {
+) -> Result<Vec<MappedTemplate>, String> {
     let mapper = RussellMapper::new();
     let mut assets = Vec::new();
 
@@ -209,26 +209,13 @@ pub fn import_russell(
             .unwrap_or("");
 
         match extension {
-            "yaml" | "yml" => match mapper.migrate_skill_manifest(source_path, config) {
-                Ok(asset) => {
+            "yaml" | "yml" => match mapper.analyze_skill_manifest(source_path) {
+                Ok(manifest) => {
+                    let mapped = mapper.map_to_hkask(&manifest);
                     if verbose {
-                        println!("Analyzed skill manifest: {}", asset.origin);
+                        println!("Mapped Russell manifest: {} -> {}", manifest.id, mapped.id);
                     }
-                    assets.push(asset);
-                }
-                Err(e) => {
-                    eprintln!("Failed to analyze {}: {}", source_path.display(), e);
-                    if !config.dry_run {
-                        return Err(format!("Migration failed: {}", e));
-                    }
-                }
-            },
-            "j2" => match mapper.migrate_prompt_template(source_path, config) {
-                Ok(asset) => {
-                    if verbose {
-                        println!("Analyzed prompt template: {}", asset.origin);
-                    }
-                    assets.push(asset);
+                    assets.push(mapped);
                 }
                 Err(e) => {
                     eprintln!("Failed to analyze {}: {}", source_path.display(), e);
@@ -250,26 +237,13 @@ pub fn import_russell(
                 let extension = path.extension().and_then(|s| s.to_str()).unwrap_or("");
 
                 match extension {
-                    "yaml" | "yml" => match mapper.migrate_skill_manifest(&path, config) {
-                        Ok(asset) => {
+                    "yaml" | "yml" => match mapper.analyze_skill_manifest(&path) {
+                        Ok(manifest) => {
+                            let mapped = mapper.map_to_hkask(&manifest);
                             if verbose {
-                                println!("Analyzed skill manifest: {}", asset.origin);
+                                println!("Mapped Russell manifest: {} -> {}", manifest.id, mapped.id);
                             }
-                            assets.push(asset);
-                        }
-                        Err(e) => {
-                            eprintln!("Failed to analyze {}: {}", path.display(), e);
-                            if !config.dry_run {
-                                return Err(format!("Migration failed: {}", e));
-                            }
-                        }
-                    },
-                    "j2" => match mapper.migrate_prompt_template(&path, config) {
-                        Ok(asset) => {
-                            if verbose {
-                                println!("Analyzed prompt template: {}", asset.origin);
-                            }
-                            assets.push(asset);
+                            assets.push(mapped);
                         }
                         Err(e) => {
                             eprintln!("Failed to analyze {}: {}", path.display(), e);
@@ -292,12 +266,13 @@ pub fn import_russell(
                             if sub_path.file_name().and_then(|s| s.to_str())
                                 == Some("manifest.yaml")
                             {
-                                match mapper.migrate_skill_manifest(&sub_path, config) {
-                                    Ok(asset) => {
+                                match mapper.analyze_skill_manifest(&sub_path) {
+                                    Ok(manifest) => {
+                                        let mapped = mapper.map_to_hkask(&manifest);
                                         if verbose {
-                                            println!("Analyzed skill manifest: {}", asset.origin);
+                                            println!("Mapped Russell manifest: {} -> {}", manifest.id, mapped.id);
                                         }
-                                        assets.push(asset);
+                                        assets.push(mapped);
                                     }
                                     Err(e) => {
                                         eprintln!(

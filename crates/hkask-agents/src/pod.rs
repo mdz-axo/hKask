@@ -68,6 +68,7 @@ use crate::adapters::cns_emitter::CnsEmitterAdapter;
 use crate::adapters::git_cas::GitCasAdapter;
 use crate::adapters::mcp_runtime::McpRuntimeAdapter;
 use crate::adapters::memory_storage::MemoryStorageAdapter;
+use crate::security::{SecurityContext, AgentPersonaInput, InputValidator};
 use std::path::PathBuf;
 
 /// Pod lifecycle state machine
@@ -736,6 +737,7 @@ pub struct PodManager {
     cns_emitter: CnsEmitterAdapter,
     mcp_runtime: McpRuntimeAdapter,
     memory_storage: Arc<Mutex<MemoryStorageAdapter>>,
+    security_context: SecurityContext,
 }
 
 /// Pod status information
@@ -767,6 +769,7 @@ impl PodManager {
             cns_emitter,
             mcp_runtime,
             memory_storage: Arc::new(Mutex::new(memory_storage)),
+            security_context: SecurityContext::default(),
         }
     }
 
@@ -780,6 +783,7 @@ impl PodManager {
             cns_emitter: CnsEmitterAdapter::new(WebID::new()),
             mcp_runtime: McpRuntimeAdapter::new(),
             memory_storage: Arc::new(Mutex::new(MemoryStorageAdapter::in_memory().unwrap())),
+            security_context: SecurityContext::default(),
         }
     }
 
@@ -788,6 +792,152 @@ impl PodManager {
         self.memory_storage.clone()
     }
 
+    /// Get security context for rate limiting and validation
+    pub fn security_context(&self) -> &SecurityContext {
+        &self.security_context
+    }
+
+    /// Create PodManager with default configuration for production use
+    ///
+    /// Uses default paths and in-memory storage for quick start.
+    /// For production, use [`PodManagerBuilder`] for explicit configuration.
+    pub fn with_defaults() -> Self {
+        Self {
+            pods: Arc::new(RwLock::new(HashMap::new())),
+            keystore: Keychain::default(),
+            git_cas: GitCasAdapter::from_path(PathBuf::from("./registry/templates")),
+            acp_runtime: AcpRuntimeAdapter::new(),
+            cns_emitter: CnsEmitterAdapter::new(WebID::new()),
+            mcp_runtime: McpRuntimeAdapter::new(),
+            memory_storage: Arc::new(Mutex::new(MemoryStorageAdapter::in_memory().unwrap())),
+            security_context: SecurityContext::default(),
+        }
+    }
+}
+
+/// Builder for constructing [`PodManager`] with explicit adapter configuration
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use hkask_agents::pod::PodManagerBuilder;
+/// use hkask_agents::adapters::git_cas::GitCasAdapter;
+/// use std::path::PathBuf;
+///
+/// let pod_manager = PodManagerBuilder::new()
+///     .git_cas(GitCasAdapter::from_path(PathBuf::from("./registry/templates")))
+///     .with_in_memory_storage()
+///     .build();
+/// ```
+pub struct PodManagerBuilder {
+    git_cas: Option<GitCasAdapter>,
+    acp_runtime: Option<AcpRuntimeAdapter>,
+    cns_emitter: Option<CnsEmitterAdapter>,
+    mcp_runtime: Option<McpRuntimeAdapter>,
+    memory_storage: Option<MemoryStorageAdapter>,
+    security_context: Option<SecurityContext>,
+}
+
+impl PodManagerBuilder {
+    /// Create new builder with default adapters
+    pub fn new() -> Self {
+        Self {
+            git_cas: None,
+            acp_runtime: None,
+            cns_emitter: None,
+            mcp_runtime: None,
+            memory_storage: None,
+            security_context: None,
+        }
+    }
+
+    /// Set Git CAS adapter
+    pub fn git_cas(mut self, adapter: GitCasAdapter) -> Self {
+        self.git_cas = Some(adapter);
+        self
+    }
+
+    /// Set Git CAS adapter from path
+    pub fn git_cas_from_path<P: Into<PathBuf>>(self, path: P) -> Self {
+        self.git_cas(GitCasAdapter::from_path(path.into()))
+    }
+
+    /// Set ACP runtime adapter
+    pub fn acp_runtime(mut self, adapter: AcpRuntimeAdapter) -> Self {
+        self.acp_runtime = Some(adapter);
+        self
+    }
+
+    /// Set CNS emitter adapter
+    pub fn cns_emitter(mut self, adapter: CnsEmitterAdapter) -> Self {
+        self.cns_emitter = Some(adapter);
+        self
+    }
+
+    /// Set MCP runtime adapter
+    pub fn mcp_runtime(mut self, adapter: McpRuntimeAdapter) -> Self {
+        self.mcp_runtime = Some(adapter);
+        self
+    }
+
+    /// Set memory storage adapter
+    pub fn memory_storage(mut self, adapter: MemoryStorageAdapter) -> Self {
+        self.memory_storage = Some(adapter);
+        self
+    }
+
+    /// Use in-memory storage (convenience method)
+    pub fn with_in_memory_storage(self) -> Self {
+        self.memory_storage(MemoryStorageAdapter::in_memory().unwrap())
+    }
+
+    /// Use encrypted storage from path (convenience method)
+    pub fn with_encrypted_storage<P: AsRef<std::path::Path>>(
+        self,
+        path: P,
+        passphrase: &str,
+    ) -> Self {
+        self.memory_storage(
+            MemoryStorageAdapter::from_path(path.as_ref().to_str().unwrap(), passphrase).unwrap(),
+        )
+    }
+
+    /// Set security context
+    pub fn security_context(mut self, context: SecurityContext) -> Self {
+        self.security_context = Some(context);
+        self
+    }
+
+    /// Build the PodManager
+    ///
+    /// Missing adapters are created with defaults:
+    /// - Git CAS: `./registry/templates`
+    /// - ACP Runtime: `AcpRuntimeAdapter::new()`
+    /// - CNS Emitter: `CnsEmitterAdapter::new(WebID::new())`
+    /// - MCP Runtime: `McpRuntimeAdapter::new()`
+    /// - Memory Storage: In-memory database
+    /// - Security Context: Default rate limiter and expiry enforcer
+    pub fn build(self) -> PodManager {
+        PodManager::new(
+            self.git_cas
+                .unwrap_or_else(|| GitCasAdapter::from_path(PathBuf::from("./registry/templates"))),
+            self.acp_runtime.unwrap_or_else(AcpRuntimeAdapter::new),
+            self.cns_emitter
+                .unwrap_or_else(|| CnsEmitterAdapter::new(WebID::new())),
+            self.mcp_runtime.unwrap_or_else(McpRuntimeAdapter::new),
+            self.memory_storage
+                .unwrap_or_else(|| MemoryStorageAdapter::in_memory().unwrap()),
+        )
+    }
+}
+
+impl Default for PodManagerBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl PodManager {
     /// Create a new pod from a template crate
     ///
     /// # Arguments
@@ -804,6 +954,33 @@ impl PodManager {
         persona: &AgentPersona,
         name: Option<String>,
     ) -> AgentPodResult<PodID> {
+        // Rate limit pod creation
+        let rate_key = format!("pod_creation:{}", template_name);
+        self.security_context
+            .rate_limiter
+            .acquire(&rate_key, 1.0)
+            .await
+            .map_err(|e| match e {
+                crate::security::ValidationError::RateLimitExceeded => {
+                    AgentPodError::ACPRegistrationError("Rate limit exceeded".to_string())
+                }
+                _ => AgentPodError::ACPRegistrationError(e.to_string()),
+            })?;
+
+        // Validate persona input
+        let input = AgentPersonaInput {
+            name: persona.agent.name.clone(),
+            agent_type: persona.agent.agent_type.to_string().to_lowercase(),
+            version: persona.agent.version.clone(),
+            description: persona.charter.description.clone(),
+            editor: persona.charter.editor.clone(),
+            capabilities: persona.capabilities.clone(),
+        };
+
+        input
+            .validate(&input)
+            .map_err(|e| AgentPodError::PersonaParseError(e.to_string()))?;
+
         let pod = AgentPod::new(template_name, persona, &self.git_cas)?;
         let pod_id = pod.id;
 
@@ -962,5 +1139,43 @@ mod tests {
         fn resolve_sha(&self, _crate_name: &str) -> Result<String, String> {
             Ok("abc123".to_string())
         }
+    }
+
+    #[tokio::test]
+    async fn test_pod_manager_security_context() {
+        let manager = PodManager::new_mock();
+        assert!(manager.security_context().rate_limiter.get_available("test").await > 0.0);
+    }
+
+    #[tokio::test]
+    async fn test_pod_creation_validation() {
+        let persona_yaml = r#"
+agent:
+  name: test-bot
+  type: Bot
+  version: "0.1.0"
+charter:
+  description: Test bot
+  editor: test
+capabilities: []
+rights: []
+responsibilities: []
+visibility:
+  default: public
+  episodic_override: private
+"#;
+        let persona = AgentPersona::from_yaml(persona_yaml).unwrap();
+        
+        // Validate persona input
+        let input = AgentPersonaInput {
+            name: persona.agent.name.clone(),
+            agent_type: persona.agent.agent_type.to_string().to_lowercase(),
+            version: persona.agent.version.clone(),
+            description: persona.charter.description.clone(),
+            editor: persona.charter.editor.clone(),
+            capabilities: persona.capabilities.clone(),
+        };
+        
+        assert!(input.validate(&input).is_ok());
     }
 }

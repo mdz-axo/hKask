@@ -10,7 +10,7 @@
 
 use hkask_types::{
     AlgedonicAlert, CnsSpan, CurationDecision, CurationRecord, CuratorId, OCAPBoundary,
-    TemplateInvocation, TemplateOutcome, VarietyCounter,
+    TemplateInvocation, TemplateOutcome, UserSovereigntyState, VarietyCounter,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -68,12 +68,14 @@ impl EvaluationResult {
 ///
 /// The Curator evaluates template outputs and makes curation decisions.
 /// It is ideological — it builds on logical ideas.
+/// It enforces the Magna Carta — user sovereignty is non-negotiable.
 pub struct CuratorPipeline {
     curator_id: CuratorId,
     pending: Arc<Mutex<Vec<TemplateInvocation>>>,
     records: Arc<Mutex<Vec<CurationRecord>>>,
     variety: Arc<Mutex<VarietyCounter>>,
     ocap_boundaries: Arc<Mutex<Vec<OCAPBoundary>>>,
+    sovereignty: Arc<Mutex<UserSovereigntyState>>,
 }
 
 impl CuratorPipeline {
@@ -84,6 +86,7 @@ impl CuratorPipeline {
             records: Arc::new(Mutex::new(Vec::new())),
             variety: Arc::new(Mutex::new(VarietyCounter::new())),
             ocap_boundaries: Arc::new(Mutex::new(Vec::new())),
+            sovereignty: Arc::new(Mutex::new(UserSovereigntyState::new())),
         }
     }
 
@@ -120,6 +123,9 @@ impl CuratorPipeline {
         // Check OCAP boundaries
         let ocap_ok = self.check_ocap(invocation).await;
 
+        // Check sovereignty state
+        let sovereignty_ok = self.check_sovereignty(invocation).await;
+
         // Evaluate output quality
         let (decision, rationale) = self.evaluate_quality(invocation).await;
 
@@ -130,6 +136,14 @@ impl CuratorPipeline {
             .with_rationale(&rationale)
             .with_ocap_check(ocap_ok)
             .with_variety_impact(variety_impact);
+
+        // Check for sovereignty compromise
+        if !sovereignty_ok {
+            result = result.with_rationale(&format!(
+                "{} [SOVEREignty ALERT: user sovereignty compromised]",
+                rationale
+            ));
+        }
 
         // Check for algedonic alert
         if self.variety.lock().await.needs_alert() {
@@ -159,6 +173,36 @@ impl CuratorPipeline {
 
         // Stub: always pass for now
         true
+    }
+
+    /// Check sovereignty state for invocation
+    async fn check_sovereignty(&self, _invocation: &TemplateInvocation) -> bool {
+        let sovereignty = self.sovereignty.lock().await;
+
+        // Check if sovereignty is compromised
+        !sovereignty.is_compromised()
+    }
+
+    /// Get current sovereignty state
+    pub async fn get_sovereignty_state(&self) -> UserSovereigntyState {
+        self.sovereignty.lock().await.clone()
+    }
+
+    /// Mark acquisition attempt detected
+    pub async fn mark_acquisition_attempt(&self) {
+        let mut sovereignty = self.sovereignty.lock().await;
+        sovereignty.mark_acquisition_attempt();
+    }
+
+    /// Update VC investment level
+    pub async fn update_vc_investment(&self, vc_investment: f32) {
+        let mut sovereignty = self.sovereignty.lock().await;
+        sovereignty.update_vc_investment(vc_investment);
+    }
+
+    /// Check if sovereignty alert should be triggered
+    pub async fn sovereignty_needs_alert(&self) -> bool {
+        self.sovereignty.lock().await.is_compromised()
     }
 
     /// Evaluate output quality and make decision

@@ -9,6 +9,7 @@
 //! - Template types (high-temperature templates, LLM parameters)
 //! - Curation types (Curator, OCAP boundaries, curation decisions)
 //! - CNS types (variety counters, algedonic alerts, kill zone detection)
+//! - Sovereignty types (user sovereignty, acquisition resistance, kill-zone detection)
 
 pub mod capability;
 pub mod cns;
@@ -16,6 +17,7 @@ pub mod curation;
 pub mod event;
 pub mod id;
 pub mod lexicon;
+pub mod sovereignty;
 pub mod template;
 pub mod visibility;
 
@@ -32,3 +34,8 @@ pub use template::{
     TemplateOutcome,
 };
 pub use visibility::*;
+// Re-export sovereignty types
+pub use sovereignty::{
+    AcquisitionResistance, DataSovereigntyBoundary, KillZoneDetector, SovereigntyId,
+    UserSovereigntyState,
+};
