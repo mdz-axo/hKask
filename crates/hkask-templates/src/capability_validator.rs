@@ -12,7 +12,9 @@ pub trait CapabilityProviderPort {
     type Capabilities: Into<OkapiCapabilities>;
     type Error: std::error::Error;
 
-    fn get_capabilities(&self) -> impl std::future::Future<Output = Result<Self::Capabilities, Self::Error>>;
+    fn get_capabilities(
+        &self,
+    ) -> impl std::future::Future<Output = Result<Self::Capabilities, Self::Error>>;
 }
 
 /// Enhanced contract validator with capability checking
@@ -94,12 +96,12 @@ impl CapabilityAwareValidator {
         }
 
         // Validate confidence config
-        if let Some(conf) = &frontmatter.confidence
-            && (conf.threshold < 0.0 || conf.threshold > 1.0)
-        {
-            errors.push(ValidationError::InvalidConfidenceThreshold {
-                threshold: conf.threshold,
-            });
+        if let Some(conf) = &frontmatter.confidence {
+            if conf.threshold < 0.0 || conf.threshold > 1.0 {
+                errors.push(ValidationError::InvalidConfidenceThreshold {
+                    threshold: conf.threshold,
+                });
+            }
         }
 
         if errors.is_empty() {
@@ -153,4 +155,3 @@ pub enum CapabilityAwareValidationError {
     #[error("Validation failed: {0:?}")]
     ValidationFailed(Vec<ValidationError>),
 }
-

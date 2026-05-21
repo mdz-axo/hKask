@@ -28,8 +28,8 @@
 //!                                                   Response to Agent A
 //! ```
 
+use hkask_cns::rate_limit::{RateLimitConfig, RateLimiter};
 use hkask_types::{CapabilityAction, CapabilityResource, CapabilityToken, WebID};
-use hkask_cns::rate_limit::{RateLimiter, RateLimitConfig};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -46,14 +46,14 @@ use zeroize::Zeroizing;
 /// - "agent:basic" -> (CapabilityResource::Tool, CapabilityAction::Execute) [default fallback]
 fn parse_capability(capability: &str) -> Option<(CapabilityResource, CapabilityAction)> {
     let parts: Vec<&str> = capability.split(':').collect();
-    
+
     if parts.len() != 2 {
         return None;
     }
-    
+
     let resource = CapabilityResource::parse_str(parts[0])?;
     let action = CapabilityAction::parse_str(parts[1])?;
-    
+
     Some((resource, action))
 }
 
@@ -168,16 +168,14 @@ impl AcpRuntime {
     /// * `Ok(AcpRuntime)` - Runtime initialized successfully
     /// * `Err(AcpError::SecretNotConfigured)` - Environment variable not set
     pub fn from_env(rate_limit_config: Option<RateLimitConfig>) -> Result<Self, AcpError> {
-        let secret_str = std::env::var("HKASK_ACP_SECRET")
-            .map_err(|_| AcpError::SecretNotConfigured)?;
-        
+        let secret_str =
+            std::env::var("HKASK_ACP_SECRET").map_err(|_| AcpError::SecretNotConfigured)?;
+
         let secret = Zeroizing::new(secret_str.into_bytes());
-        let rate_limiter = RateLimiter::new(
-            rate_limit_config.unwrap_or_else(|| RateLimitConfig {
-                max_tokens: 100,
-                refill_interval: std::time::Duration::from_millis(600),
-            })
-        );
+        let rate_limiter = RateLimiter::new(rate_limit_config.unwrap_or_else(|| RateLimitConfig {
+            max_tokens: 100,
+            refill_interval: std::time::Duration::from_millis(600),
+        }));
 
         Ok(Self {
             agents: Arc::new(RwLock::new(HashMap::new())),
@@ -200,12 +198,10 @@ impl AcpRuntime {
             pending_messages: Arc::new(RwLock::new(HashMap::new())),
             capability_tokens: Arc::new(RwLock::new(HashMap::new())),
             secret: Zeroizing::new(secret.to_vec()),
-            rate_limiter: RateLimiter::new(
-                rate_limit_config.unwrap_or_else(|| RateLimitConfig {
-                    max_tokens: 100,
-                    refill_interval: std::time::Duration::from_millis(600),
-                })
-            ),
+            rate_limiter: RateLimiter::new(rate_limit_config.unwrap_or_else(|| RateLimitConfig {
+                max_tokens: 100,
+                refill_interval: std::time::Duration::from_millis(600),
+            })),
         }
     }
 
@@ -251,7 +247,7 @@ impl AcpRuntime {
             .first()
             .cloned()
             .unwrap_or_else(|| "agent:basic".to_string());
-        
+
         let (resource, action) = parse_capability(&primary_capability)
             .unwrap_or((CapabilityResource::Tool, CapabilityAction::Execute));
 
@@ -374,9 +370,10 @@ impl AcpRuntime {
         let agents = self.agents.read().await;
         if let Some(agent) = agents.get(webid) {
             // Check if agent has the exact capability registered
-            agent.capabilities.iter().any(|cap| {
-                cap == capability || cap == "*"
-            })
+            agent
+                .capabilities
+                .iter()
+                .any(|cap| cap == capability || cap == "*")
         } else {
             false
         }
@@ -444,10 +441,10 @@ impl TemplateDispatchHandler {
         }
 
         // Verify recipient if specified
-        if let Some(recipient) = to
-            && !self.acp_runtime.is_registered(&recipient).await
-        {
-            return Err(format!("Recipient {:?} not registered", recipient));
+        if let Some(recipient) = to {
+            if !self.acp_runtime.is_registered(&recipient).await {
+                return Err(format!("Recipient {:?} not registered", recipient));
+            }
         }
 
         let correlation_id = uuid::Uuid::new_v4().to_string();
@@ -643,10 +640,10 @@ mod tests {
 
         // Explicit capability should work
         assert!(runtime.has_capability(&webid, "inference:call").await);
-        
+
         // Other capabilities should not work (no wildcards)
         assert!(!runtime.has_capability(&webid, "memory:write").await);
-        
+
         // Unregistered agent has no capabilities
         let other_webid = WebID::new();
         assert!(!runtime.has_capability(&other_webid, "inference:call").await);

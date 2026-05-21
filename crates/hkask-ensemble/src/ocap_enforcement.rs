@@ -145,44 +145,45 @@ impl OcapEnforcer {
         // Get the capability
         let capabilities = self.registry.get_capabilities(context.requester).await;
 
-        if let Some(caps) = capabilities
-            && let Some(cap) = caps
+        if let Some(caps) = capabilities {
+            if let Some(cap) = caps
                 .into_iter()
                 .find(|c| c.has_operation(context.operation) && !c.is_expired())
-        {
-            // Verify visibility
-            if cap.visibility() != context.required_visibility {
-                warn!(
-                    "OCAP denied: visibility mismatch. Required={:?}, Capability={:?}",
-                    context.required_visibility,
-                    cap.visibility()
+            {
+                // Verify visibility
+                if cap.visibility() != context.required_visibility {
+                    warn!(
+                        "OCAP denied: visibility mismatch. Required={:?}, Capability={:?}",
+                        context.required_visibility,
+                        cap.visibility()
+                    );
+
+                    return Ok(OcapEnforcementResult {
+                        granted: false,
+                        requester: context.requester,
+                        operation: context.operation,
+                        capability: None,
+                        error: Some(format!(
+                            "Visibility mismatch: required {:?}, capability has {:?}",
+                            context.required_visibility,
+                            cap.visibility()
+                        )),
+                    });
+                }
+
+                info!(
+                    "OCAP granted: requester={}, operation={:?}",
+                    context.requester, context.operation
                 );
 
                 return Ok(OcapEnforcementResult {
-                    granted: false,
+                    granted: true,
                     requester: context.requester,
                     operation: context.operation,
-                    capability: None,
-                    error: Some(format!(
-                        "Visibility mismatch: required {:?}, capability has {:?}",
-                        context.required_visibility,
-                        cap.visibility()
-                    )),
+                    capability: Some(cap),
+                    error: None,
                 });
             }
-
-            info!(
-                "OCAP granted: requester={}, operation={:?}",
-                context.requester, context.operation
-            );
-
-            return Ok(OcapEnforcementResult {
-                granted: true,
-                requester: context.requester,
-                operation: context.operation,
-                capability: Some(cap),
-                error: None,
-            });
         }
 
         Ok(OcapEnforcementResult {

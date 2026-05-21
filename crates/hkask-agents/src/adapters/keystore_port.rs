@@ -50,7 +50,7 @@ impl<T: AsRef<str>> std::fmt::Debug for Secret<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_secret_debug_redaction() {
         let secret = Secret::new("my-secret-value");

@@ -220,7 +220,7 @@ impl AgentPersona {
 }
 
 /// Template crate structure (loaded from Git CAS)
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct TemplateCrate {
     /// Crate name
     pub name: String,
@@ -234,19 +234,6 @@ pub struct TemplateCrate {
     pub templates: Vec<TemplateFile>,
     /// hLexicon terms used
     pub hlexicon_terms: Vec<String>,
-}
-
-impl Default for TemplateCrate {
-    fn default() -> Self {
-        Self {
-            name: String::new(),
-            git_sha: String::new(),
-            persona_yaml: String::new(),
-            dispatch_manifest_yaml: String::new(),
-            templates: vec![],
-            hlexicon_terms: vec![],
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -773,7 +760,7 @@ impl PodManager {
     /// # Returns
     /// * `Ok(PodID)` — Pod created successfully
     /// * `Err(AgentPodError)` — Failed to create pod
-pub async fn create_pod(
+    pub async fn create_pod(
         &self,
         template_name: &str,
         persona: &AgentPersona,

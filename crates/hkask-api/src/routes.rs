@@ -1,16 +1,16 @@
 //! HTTP routes implementation
 
 use axum::{
-    Json, extract::Path, extract::State, http::StatusCode, response::IntoResponse, routing::Router,
+    extract::Path, extract::State, http::StatusCode, response::IntoResponse, routing::Router, Json,
 };
 use hkask_templates::RegistryIndex;
 use serde_json::Value;
 use std::collections::HashMap;
 
 use crate::{
-    ApiState, ChatRequest, ChatResponse, CnsHealthResponse, CnsVarietyResponse,
-    CreatePodRequest, CreatePodResponse, GrantCapabilityRequest, ListPodsResponse,
-    PodStatusResponse, TemplateResponse, ToolResponse,
+    ApiState, ChatRequest, ChatResponse, CnsHealthResponse, CnsVarietyResponse, CreatePodRequest,
+    CreatePodResponse, GrantCapabilityRequest, ListPodsResponse, PodStatusResponse,
+    TemplateResponse, ToolResponse,
 };
 
 /// Create templates router
@@ -174,7 +174,10 @@ pub fn pods_router() -> Router<ApiState> {
         .route("/api/pods", axum::routing::get(list_pods))
         .route("/api/pods", axum::routing::post(create_pod))
         .route("/api/pods/:id/activate", axum::routing::post(activate_pod))
-        .route("/api/pods/:id/deactivate", axum::routing::post(deactivate_pod))
+        .route(
+            "/api/pods/:id/deactivate",
+            axum::routing::post(deactivate_pod),
+        )
         .route("/api/pods/:id/status", axum::routing::get(pod_status))
 }
 
@@ -194,19 +197,13 @@ async fn create_pod(
 }
 
 /// Activate a pod
-async fn activate_pod(
-    State(_state): State<ApiState>,
-    Path(_id): Path<String>,
-) -> StatusCode {
+async fn activate_pod(State(_state): State<ApiState>, Path(_id): Path<String>) -> StatusCode {
     // TODO: Implement pod activation with PodManager
     StatusCode::NOT_IMPLEMENTED
 }
 
 /// Deactivate a pod
-async fn deactivate_pod(
-    State(_state): State<ApiState>,
-    Path(_id): Path<String>,
-) -> StatusCode {
+async fn deactivate_pod(State(_state): State<ApiState>, Path(_id): Path<String>) -> StatusCode {
     // TODO: Implement pod deactivation with PodManager
     StatusCode::NOT_IMPLEMENTED
 }

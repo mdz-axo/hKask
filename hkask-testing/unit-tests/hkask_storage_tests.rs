@@ -3,9 +3,7 @@
 //! Expanded to cover BlobStore, TripleStore, EmbeddingStore, and GitCas
 
 use hkask_storage::{Blob, Embedding, Triple};
-use hkask_testing::{
-    StorageTestFixture, TempBlobStore, TempEmbeddingStore, TempTripleStore,
-};
+use hkask_testing::{StorageTestFixture, TempBlobStore, TempEmbeddingStore, TempTripleStore};
 use hkask_types::{TripleID, Visibility, WebID};
 use serde_json::json;
 
@@ -136,8 +134,7 @@ mod triple_tests {
     #[test]
     fn test_triple_with_confidence() {
         let owner = WebID::new();
-        let triple = Triple::new("e", "a", json!("v"), owner)
-            .with_confidence(0.85);
+        let triple = Triple::new("e", "a", json!("v"), owner).with_confidence(0.85);
         assert_eq!(triple.confidence, 0.85);
     }
 
@@ -145,8 +142,7 @@ mod triple_tests {
     fn test_triple_with_perspective() {
         let owner = WebID::new();
         let perspective = WebID::new();
-        let triple = Triple::new("e", "a", json!("v"), owner)
-            .with_perspective(perspective);
+        let triple = Triple::new("e", "a", json!("v"), owner).with_perspective(perspective);
         assert!(triple.perspective.is_some());
         assert!(triple.is_episodic());
     }
@@ -154,8 +150,7 @@ mod triple_tests {
     #[test]
     fn test_triple_with_visibility() {
         let owner = WebID::new();
-        let triple = Triple::new("e", "a", json!("v"), owner)
-            .with_visibility(Visibility::Public);
+        let triple = Triple::new("e", "a", json!("v"), owner).with_visibility(Visibility::Public);
         assert_eq!(triple.visibility, Visibility::Public);
     }
 
@@ -163,8 +158,7 @@ mod triple_tests {
     fn test_triple_is_episodic() {
         let owner = WebID::new();
         let perspective = WebID::new();
-        let triple = Triple::new("e", "a", json!("v"), owner)
-            .with_perspective(perspective);
+        let triple = Triple::new("e", "a", json!("v"), owner).with_perspective(perspective);
         assert!(triple.is_episodic());
         assert!(!triple.is_semantic());
     }
@@ -200,8 +194,18 @@ mod triple_tests {
         let store = TempTripleStore::new();
         let owner = WebID::new();
 
-        store.insert(Triple::new("entity1", "attr1", json!("value1"), owner.clone()));
-        store.insert(Triple::new("entity1", "attr2", json!("value2"), owner.clone()));
+        store.insert(Triple::new(
+            "entity1",
+            "attr1",
+            json!("value1"),
+            owner.clone(),
+        ));
+        store.insert(Triple::new(
+            "entity1",
+            "attr2",
+            json!("value2"),
+            owner.clone(),
+        ));
         store.insert(Triple::new("entity2", "attr1", json!("value3"), owner));
 
         let results = store.get_by_entity("entity1");
@@ -213,8 +217,18 @@ mod triple_tests {
         let store = TempTripleStore::new();
         let owner = WebID::new();
 
-        store.insert(Triple::new("entity1", "attr1", json!("value1"), owner.clone()));
-        store.insert(Triple::new("entity2", "attr1", json!("value2"), owner.clone()));
+        store.insert(Triple::new(
+            "entity1",
+            "attr1",
+            json!("value1"),
+            owner.clone(),
+        ));
+        store.insert(Triple::new(
+            "entity2",
+            "attr1",
+            json!("value2"),
+            owner.clone(),
+        ));
         store.insert(Triple::new("entity3", "attr2", json!("value3"), owner));
 
         let results = store.get_by_attribute("attr1");
@@ -226,8 +240,18 @@ mod triple_tests {
         let store = TempTripleStore::new();
         let owner = WebID::new();
 
-        store.insert(Triple::new("entity1", "attr1", json!("value1"), owner.clone()));
-        store.insert(Triple::new("entity1", "attr1", json!("value2"), owner.clone()));
+        store.insert(Triple::new(
+            "entity1",
+            "attr1",
+            json!("value1"),
+            owner.clone(),
+        ));
+        store.insert(Triple::new(
+            "entity1",
+            "attr1",
+            json!("value2"),
+            owner.clone(),
+        ));
         store.insert(Triple::new("entity2", "attr1", json!("value3"), owner));
 
         let results = store.get_by_entity_and_attribute("entity1", "attr1");
@@ -271,8 +295,7 @@ mod embedding_tests {
     fn test_embedding_with_entity_ref() {
         let vector = vec![0.1, 0.2];
         let entity_ref = TripleID::new();
-        let embedding = Embedding::new(vector, "test-model")
-            .with_entity_ref(entity_ref);
+        let embedding = Embedding::new(vector, "test-model").with_entity_ref(entity_ref);
         assert!(embedding.entity_ref.is_some());
     }
 

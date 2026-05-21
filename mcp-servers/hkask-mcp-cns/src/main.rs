@@ -1,6 +1,6 @@
 //! hKask MCP CNS — Cybernetic Nervous System monitoring and alerts
 
-use rmcp::{ServiceExt, handler::server::wrapper::Parameters, tool, tool_router, transport::stdio};
+use rmcp::{handler::server::wrapper::Parameters, tool, tool_router, transport::stdio, ServiceExt};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use std::sync::Arc;

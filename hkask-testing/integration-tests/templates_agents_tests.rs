@@ -1,13 +1,13 @@
 //! Integration tests for Templates + Agents coordination
 //! Tests template execution with agent pods using stub implementations
 
-use hkask_types::{WebID, Visibility};
+use hkask_types::{Visibility, WebID};
 use serde_json::json;
 
 mod templates_agents_integration {
     use super::*;
-    use hkask_testing::{MockInferenceAdapter, MockMcpAdapter, MockCnsAdapterMut, TempTripleStore};
-    use hkask_templates::ports::{InferencePort, McpPort, CnsPort, InferenceConfig, Action};
+    use hkask_templates::ports::{Action, CnsPort, InferenceConfig, InferencePort, McpPort};
+    use hkask_testing::{MockCnsAdapterMut, MockInferenceAdapter, MockMcpAdapter, TempTripleStore};
 
     #[test]
     fn test_bot_creation_stub() {
@@ -32,8 +32,8 @@ mod templates_agents_integration {
 
     #[test]
     fn test_mock_inference_for_template_render() {
-        let adapter = MockInferenceAdapter::new()
-            .with_response(json!({"rendered": "template_output"}));
+        let adapter =
+            MockInferenceAdapter::new().with_response(json!({"rendered": "template_output"}));
 
         let config = InferenceConfig::default();
         let result = adapter.call("fast", "render this template", &config);
@@ -56,8 +56,7 @@ mod templates_agents_integration {
 
     #[test]
     fn test_mock_mcp_for_agent_tool_invoke() {
-        let adapter = MockMcpAdapter::new()
-            .with_response(json!({"result": "tool executed"}));
+        let adapter = MockMcpAdapter::new().with_response(json!({"result": "tool executed"}));
 
         let result = adapter.invoke("test_tool", json!({"param": "value"}));
         assert!(result.is_ok());
@@ -93,7 +92,7 @@ mod templates_agents_integration {
             "template_execution",
             "event",
             json!("completed"),
-            owner.clone()
+            owner.clone(),
         ));
 
         assert_eq!(store.len(), 1);
@@ -111,7 +110,7 @@ mod templates_agents_integration {
             "template",
             "type",
             json!("process_manifest"),
-            owner.clone()
+            owner.clone(),
         ));
 
         assert_eq!(store.len(), 1);

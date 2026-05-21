@@ -5,9 +5,9 @@ pub mod deliberation;
 
 // Okapi integration modules
 pub mod adapters;
-pub mod ports;
 pub mod confidence_router;
 pub mod okapi_integration;
+pub mod ports;
 
 // Additional modules
 pub mod capability;

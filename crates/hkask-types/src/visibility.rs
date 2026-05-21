@@ -693,12 +693,10 @@ mod tests {
         let result =
             evaluator.evaluate(Visibility::Shared, "alice", "bob", &caps, "memory", "read");
         assert!(!result.allowed);
-        assert!(
-            result
-                .missing_capabilities
-                .iter()
-                .any(|s| s.contains("expired"))
-        );
+        assert!(result
+            .missing_capabilities
+            .iter()
+            .any(|s| s.contains("expired")));
     }
 
     #[test]
@@ -723,12 +721,10 @@ mod tests {
         let result =
             evaluator.evaluate(Visibility::Shared, "alice", "bob", &caps, "memory", "read");
         assert!(!result.allowed);
-        assert!(
-            result
-                .missing_capabilities
-                .iter()
-                .any(|s| s.contains("revoked"))
-        );
+        assert!(result
+            .missing_capabilities
+            .iter()
+            .any(|s| s.contains("revoked")));
     }
 
     #[test]

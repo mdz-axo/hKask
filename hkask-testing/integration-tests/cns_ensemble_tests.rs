@@ -3,9 +3,9 @@
 
 use hkask_cns::{
     algedonic::AlgedonicManager,
-    variety::VarietyMonitor,
+    energy::{EnergyAccount, EnergyBudget},
     spans::SpanEmitter,
-    energy::{EnergyBudget, EnergyAccount},
+    variety::VarietyMonitor,
 };
 use hkask_types::WebID;
 use serde_json::json;
@@ -19,9 +19,15 @@ mod cns_ensemble_integration {
         let mut algedonic_manager = AlgedonicManager::new(100);
 
         // Simulate ensemble activity
-        variety_monitor.counter("ensemble.agents").increment("agent_1");
-        variety_monitor.counter("ensemble.agents").increment("agent_2");
-        variety_monitor.counter("ensemble.decisions").increment("consensus");
+        variety_monitor
+            .counter("ensemble.agents")
+            .increment("agent_1");
+        variety_monitor
+            .counter("ensemble.agents")
+            .increment("agent_2");
+        variety_monitor
+            .counter("ensemble.decisions")
+            .increment("consensus");
 
         // Check CNS health
         let alert_count = algedonic_manager.check_all(&mut variety_monitor);
@@ -88,13 +94,22 @@ mod cns_ensemble_integration {
         let emitter = SpanEmitter::new(observer);
 
         // Track energy costs for ensemble operations
-        emitter.emit_energy("allocate", json!({"operation": "ensemble_dispatch", "tokens": 500}));
-        emitter.emit_energy("consume", json!({"operation": "agent_response", "cost": 125}));
-        emitter.emit_energy("opportunity", json!({
-            "actual": 100,
-            "alternative": 150,
-            "opportunity_cost": 50
-        }));
+        emitter.emit_energy(
+            "allocate",
+            json!({"operation": "ensemble_dispatch", "tokens": 500}),
+        );
+        emitter.emit_energy(
+            "consume",
+            json!({"operation": "agent_response", "cost": 125}),
+        );
+        emitter.emit_energy(
+            "opportunity",
+            json!({
+                "actual": 100,
+                "alternative": 150,
+                "opportunity_cost": 50
+            }),
+        );
 
         assert!(true);
     }
@@ -116,7 +131,7 @@ mod cns_ensemble_integration {
     #[test]
     fn test_energy_budget_for_ensemble() {
         let mut budget = EnergyBudget::new(10000);
-        
+
         // Allocate energy for ensemble operation
         let cost = budget.allocate(1000).unwrap();
         assert_eq!(cost, 250);
@@ -126,11 +141,11 @@ mod cns_ensemble_integration {
     #[test]
     fn test_energy_account_for_ensemble() {
         let mut account = EnergyAccount::new("ensemble", 10000);
-        
+
         // Record energy operations
         let cost = account.allocate(1000).unwrap();
         assert_eq!(cost, 250);
-        
+
         account.consume(100);
         assert_eq!(account.total_consumed, 100);
     }
@@ -164,10 +179,10 @@ mod cns_health_tests {
     #[test]
     fn test_variety_counter_entropy() {
         let mut counter = hkask_cns::variety::VarietyCounter::new();
-        
+
         // No variety = 0 entropy
         assert_eq!(counter.entropy(), 0.0);
-        
+
         // Equal distribution = max entropy
         counter.increment("a");
         counter.increment("b");
@@ -177,18 +192,18 @@ mod cns_health_tests {
     #[test]
     fn test_variety_monitor_multiple_domains() {
         let mut monitor = VarietyMonitor::new();
-        
+
         monitor.counter("domain1").increment("a");
         monitor.counter("domain2").increment("x");
         monitor.counter("domain3").increment("y");
-        
+
         assert_eq!(monitor.domains().len(), 3);
     }
 
     #[test]
     fn test_span_category_coverage() {
         use hkask_cns::spans::SpanCategory;
-        
+
         assert_eq!(SpanCategory::Connector.as_str(), "cns.connector");
         assert_eq!(SpanCategory::Pipeline.as_str(), "cns.pipeline");
         assert_eq!(SpanCategory::Tool.as_str(), "cns.tool");

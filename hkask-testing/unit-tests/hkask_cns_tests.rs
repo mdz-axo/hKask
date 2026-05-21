@@ -5,9 +5,9 @@
 use hkask_cns::{
     algedonic::{AlertSeverity, AlgedonicAlert, AlgedonicManager, CnsHealth},
     energy::{
-        EnergyAccount, EnergyBudget, EnergyEmitter, EnergySpanType, OpportunityCost,
         calculate_energy_cost, cleanup_expired_capabilities, estimate_tokens,
-        recommended_cleanup_interval,
+        recommended_cleanup_interval, EnergyAccount, EnergyBudget, EnergyEmitter, EnergySpanType,
+        OpportunityCost,
     },
     rate_limit::{RateLimitConfig, RateLimiter},
     spans::{SpanCategory, SpanEmitter},
@@ -336,14 +336,23 @@ mod energy_tests {
     fn test_energy_span_type_as_str() {
         assert_eq!(EnergySpanType::Allocate.as_str(), "cns.energy.allocate");
         assert_eq!(EnergySpanType::Consume.as_str(), "cns.energy.consume");
-        assert_eq!(EnergySpanType::Opportunity.as_str(), "cns.energy.opportunity");
+        assert_eq!(
+            EnergySpanType::Opportunity.as_str(),
+            "cns.energy.opportunity"
+        );
         assert_eq!(EnergySpanType::Deficit.as_str(), "cns.energy.deficit");
     }
 
     #[test]
     fn test_energy_span_type_parse() {
-        assert_eq!(EnergySpanType::parse_str("allocate"), Some(EnergySpanType::Allocate));
-        assert_eq!(EnergySpanType::parse_str("cns.energy.consume"), Some(EnergySpanType::Consume));
+        assert_eq!(
+            EnergySpanType::parse_str("allocate"),
+            Some(EnergySpanType::Allocate)
+        );
+        assert_eq!(
+            EnergySpanType::parse_str("cns.energy.consume"),
+            Some(EnergySpanType::Consume)
+        );
         assert_eq!(EnergySpanType::parse_str("invalid"), None);
     }
 
@@ -533,7 +542,7 @@ mod rate_limit_tests {
     fn test_token_bucket_consume() {
         let config = RateLimitConfig::default();
         let mut bucket = TokenBucket::new(config);
-        
+
         assert!(bucket.try_consume());
         assert_eq!(bucket.tokens(), 99);
     }
@@ -545,7 +554,7 @@ mod rate_limit_tests {
             refill_interval: Duration::from_secs(60),
         };
         let mut bucket = TokenBucket::new(config);
-        
+
         bucket.try_consume();
         bucket.try_consume();
         bucket.try_consume();
@@ -563,7 +572,7 @@ mod rate_limit_tests {
     fn test_rate_limiter_check() {
         let limiter = RateLimiter::default();
         let bot_id = WebID::new();
-        
+
         assert!(limiter.check(&bot_id));
     }
 
@@ -571,7 +580,7 @@ mod rate_limit_tests {
     fn test_rate_limiter_remaining() {
         let limiter = RateLimiter::default();
         let bot_id = WebID::new();
-        
+
         let remaining = limiter.remaining(&bot_id);
         assert!(remaining > 0);
     }
@@ -584,7 +593,7 @@ mod rate_limit_tests {
             max_tokens: 50,
             refill_interval: Duration::from_secs(1),
         };
-        
+
         limiter.configure_bot(&bot_id, custom_config);
         assert!(true);
     }
@@ -604,8 +613,14 @@ mod span_tests {
 
     #[test]
     fn test_span_category_parse() {
-        assert_eq!(SpanCategory::parse_str("connector"), Some(SpanCategory::Connector));
-        assert_eq!(SpanCategory::parse_str("cns.tool"), Some(SpanCategory::Tool));
+        assert_eq!(
+            SpanCategory::parse_str("connector"),
+            Some(SpanCategory::Connector)
+        );
+        assert_eq!(
+            SpanCategory::parse_str("cns.tool"),
+            Some(SpanCategory::Tool)
+        );
         assert_eq!(SpanCategory::parse_str("invalid"), None);
     }
 

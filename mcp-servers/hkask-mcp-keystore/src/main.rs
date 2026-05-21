@@ -1,6 +1,6 @@
 //! hKask MCP Keystore — OS keychain storage with AES-256-GCM
 
-use rmcp::{ServiceExt, handler::server::wrapper::Parameters, tool, tool_router, transport::stdio};
+use rmcp::{handler::server::wrapper::Parameters, tool, tool_router, transport::stdio, ServiceExt};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use std::collections::HashMap;

@@ -3,7 +3,7 @@
 //! Concrete implementation of ACPRuntimePort using acp-runtime crate.
 
 use crate::pod::ACPRuntimePort;
-use hkask_types::{CapabilityToken, CapabilityResource, CapabilityAction, WebID};
+use hkask_types::{CapabilityAction, CapabilityResource, CapabilityToken, WebID};
 
 /// ACP Runtime Adapter — Concrete implementation for agent registration
 #[derive(Default)]
@@ -36,7 +36,7 @@ impl ACPRuntimePort for AcpRuntimeAdapter {
             webid,
             b"acp-runtime-secret",
         );
-        
+
         Ok(token)
     }
 }
@@ -44,22 +44,22 @@ impl ACPRuntimePort for AcpRuntimeAdapter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_acp_runtime_adapter_new() {
         let _adapter = AcpRuntimeAdapter::new();
         assert!(true);
     }
-    
+
     #[test]
     fn test_acp_register_agent() {
         let adapter = AcpRuntimeAdapter::new();
         let webid = WebID::new();
         let capabilities = vec!["tool:memory:remember".to_string()];
-        
+
         let result = adapter.register_agent(webid.clone(), capabilities);
         assert!(result.is_ok());
-        
+
         let token = result.unwrap();
         assert_eq!(token.delegated_to, webid);
     }

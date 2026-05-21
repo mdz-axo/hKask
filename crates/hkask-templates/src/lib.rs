@@ -32,15 +32,15 @@ pub use audit::{AuditStats, AuditTrail, ExecutionAudit};
 pub use capability_validator::CapabilityAwareValidator;
 pub use contract_validator::{OkapiRequirements, RegistrationFrontmatter};
 pub use contracts::{
-    InferenceConfig as InferenceConfigParsed, ParsedContract, ParsedInference, TemplateFrontmatter,
-    parse_frontmatter, validate_lexicon_terms,
+    parse_frontmatter, validate_lexicon_terms, InferenceConfig as InferenceConfigParsed,
+    ParsedContract, ParsedInference, TemplateFrontmatter,
 };
-pub use dependency::{DependencyGraph, parse_dependencies};
+pub use dependency::{parse_dependencies, DependencyGraph};
 pub use manifest::{ManifestExecutorImpl, SelectorConfig, SimpleExecutor};
 pub use ports::{
-    Action, CnsPort, CompositionTemplate, DEFAULT_MATROSHKA_LIMIT, FAST_LOCAL_MODEL,
-    InferenceConfig, InferencePort, ManifestExecutor, ManifestStep, McpPort, ProcessManifest,
-    RegistryEntry, RegistryIndex, Result, TemplateContract, TemplateError, TemplateRenderer,
+    Action, CnsPort, CompositionTemplate, InferenceConfig, InferencePort, ManifestExecutor,
+    ManifestStep, McpPort, ProcessManifest, RegistryEntry, RegistryIndex, Result, TemplateContract,
+    TemplateError, TemplateRenderer, DEFAULT_MATROSHKA_LIMIT, FAST_LOCAL_MODEL,
 };
 pub use provenance::{ProvenanceManager, TemplateProvenance};
 pub use registry::{Registry, TemplateEntry};

@@ -8,7 +8,7 @@ use crate::ports::{
 };
 use crate::provenance::{ProvenanceManager, TemplateProvenance};
 use hkask_types::TemplateType;
-use rusqlite::{Connection, params};
+use rusqlite::{params, Connection};
 use std::collections::HashMap;
 
 /// SQLite-based registry index

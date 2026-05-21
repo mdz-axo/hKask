@@ -1,6 +1,6 @@
 //! hKask MCP FMP — Financial Modeling Prep API integration
 
-use rmcp::{ServiceExt, handler::server::wrapper::Parameters, tool, tool_router, transport::stdio};
+use rmcp::{handler::server::wrapper::Parameters, tool, tool_router, transport::stdio, ServiceExt};
 use schemars::JsonSchema;
 use serde::Deserialize;
 

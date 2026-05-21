@@ -116,8 +116,7 @@ mod memory_stub_tests {
     #[test]
     fn test_triple_with_confidence() {
         let owner = WebID::new();
-        let triple = Triple::new("e", "a", json!("v"), owner)
-            .with_confidence(0.85);
+        let triple = Triple::new("e", "a", json!("v"), owner).with_confidence(0.85);
         assert_eq!(triple.confidence, 0.85);
     }
 
@@ -141,8 +140,7 @@ mod memory_stub_tests {
     fn test_triple_is_episodic() {
         let owner = WebID::new();
         let perspective = WebID::new();
-        let triple = Triple::new("e", "a", json!("v"), owner)
-            .with_perspective(perspective);
+        let triple = Triple::new("e", "a", json!("v"), owner).with_perspective(perspective);
         assert!(triple.is_episodic());
         assert!(!triple.is_semantic());
     }
@@ -151,8 +149,7 @@ mod memory_stub_tests {
     fn test_triple_with_perspective() {
         let owner = WebID::new();
         let perspective = WebID::new();
-        let triple = Triple::new("e", "a", json!("v"), owner)
-            .with_perspective(perspective.clone());
+        let triple = Triple::new("e", "a", json!("v"), owner).with_perspective(perspective.clone());
         assert_eq!(triple.perspective, Some(perspective));
     }
 

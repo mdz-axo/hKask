@@ -25,11 +25,11 @@ impl McpRuntimeAdapter {
 impl MCPRuntimePort for McpRuntimeAdapter {
     fn grant_tool_access(&self, token: CapabilityToken) -> Result<(), String> {
         let token_id = token.id.clone();
-        
+
         if token_id.is_empty() {
             return Err("Invalid capability token".to_string());
         }
-        
+
         Ok(())
     }
 
@@ -43,7 +43,7 @@ impl MCPRuntimePort for McpRuntimeAdapter {
         if token_id.is_empty() {
             return Err("Invalid capability token".to_string());
         }
-        
+
         Ok(serde_json::json!({
             "tool": tool_name,
             "status": "invoked",
@@ -55,14 +55,14 @@ impl MCPRuntimePort for McpRuntimeAdapter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_types::{CapabilityResource, CapabilityAction, WebID};
-    
+    use hkask_types::{CapabilityAction, CapabilityResource, WebID};
+
     #[test]
     fn test_mcp_runtime_adapter_new() {
         let _adapter = McpRuntimeAdapter::new();
         assert!(true);
     }
-    
+
     #[test]
     fn test_mcp_grant_tool_access() {
         let adapter = McpRuntimeAdapter::new();
@@ -74,11 +74,11 @@ mod tests {
             WebID::new(),
             b"test-secret",
         );
-        
+
         let result = adapter.grant_tool_access(token);
         assert!(result.is_ok());
     }
-    
+
     #[test]
     fn test_mcp_invoke_tool() {
         let adapter = McpRuntimeAdapter::new();
@@ -90,10 +90,10 @@ mod tests {
             WebID::new(),
             b"test-secret",
         );
-        
+
         let input = serde_json::json!({"param": "value"});
         let result = adapter.invoke_tool("test_tool", input, &token);
-        
+
         assert!(result.is_ok());
     }
 }

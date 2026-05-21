@@ -1,0 +1,227 @@
+# hKask Release Pipeline
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v0.1.0)'
+        required: true
+        type: string
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # ============================================================================
+  # Pre-Release Checks
+  # ============================================================================
+  pre-release-checks:
+    name: Pre-Release Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-action@stable
+        with:
+          components: rustfmt, clippy
+      
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config \
+            libssl-dev \
+            libsqlite3-dev \
+            libclang-dev \
+            llvm-dev \
+            cmake \
+            protobuf-compiler \
+            libprotobuf-dev
+      
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Check formatting
+        run: cargo fmt --all --check
+      
+      - name: Run clippy
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      
+      - name: Run tests
+        run: cargo test --workspace --lib --all-features
+      
+      - name: Build documentation
+        run: cargo doc --workspace --no-deps
+
+  # ============================================================================
+  # Build Release Binaries
+  # ============================================================================
+  build-release:
+    name: Build Release Binaries
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: pre-release-checks
+    
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - x86_64-unknown-linux-musl
+          - aarch64-unknown-linux-gnu
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-action@stable
+        with:
+          targets: ${{ matrix.target }}
+      
+      - name: Install system dependencies (GNU)
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config \
+            libssl-dev \
+            libsqlite3-dev \
+            libclang-dev \
+            llvm-dev \
+            cmake \
+            protobuf-compiler \
+            libprotobuf-dev
+      
+      - name: Install musl-tools (musl)
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+      
+      - name: Install cross-compilation tools (AArch64)
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            gcc-aarch64-linux-gnu \
+            pkg-config \
+            libssl-dev \
+            libsqlite3-dev
+      
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Build release binary
+        run: cargo build --release --package hkask-cli --target ${{ matrix.target }}
+      
+      - name: Package binary
+        run: |
+          mkdir -p release
+          cp target/${{ matrix.target }}/release/kask release/
+          cp README.md release/
+          cp LICENSE release/ 2>/dev/null || echo "No LICENSE file"
+          cd release
+          tar -czf kask-${{ matrix.target }}.tar.gz *
+          sha256sum kask-${{ matrix.target }}.tar.gz > kask-${{ matrix.target }}.tar.gz.sha256
+      
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kask-${{ matrix.target }}
+          path: release/
+          retention-days: 30
+
+  # ============================================================================
+  # Create GitHub Release
+  # ============================================================================
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: build-release
+    permissions:
+      contents: write
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+      
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+          cp release-artifacts/kask-*/kask-*.tar.gz release-assets/
+          cp release-artifacts/kask-*/kask-*.tar.gz.sha256 release-assets/
+      
+      - name: Generate changelog
+        run: |
+          echo "# Release ${{ github.event.inputs.version || github.ref_name }}" > changelog.md
+          echo "" >> changelog.md
+          echo "## Changes" >> changelog.md
+          git log $(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || git rev-list --max-parents=0 HEAD)..HEAD --pretty=format:"* %s" >> changelog.md
+          echo "" >> changelog.md
+          echo "## Installation" >> changelog.md
+          echo "" >> changelog.md
+          echo '```bash' >> changelog.md
+          echo 'curl -fsSL https://raw.githubusercontent.com/mdz-axolotl/hKask/main/scripts/install.sh | bash' >> changelog.md
+          echo '```' >> changelog.md
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: hKask ${{ github.event.inputs.version || github.ref_name }}
+          body_path: changelog.md
+          files: release-assets/*
+          draft: false
+          generate_release_notes: true
+
+  # ============================================================================
+  # Publish to crates.io (Optional)
+  # ============================================================================
+  publish-crates:
+    name: Publish to crates.io
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: create-release
+    if: github.event_name == 'push'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-action@stable
+      
+      - name: Publish crates
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          # Publish workspace crates in dependency order
+          # Note: Adjust based on your actual publishing strategy
+          echo "Publishing crates..."
+          # cargo publish --package hkask-types
+          # cargo publish --package hkask-storage
+          # etc.
+          echo "Publishing disabled by default. Enable in CI when ready."

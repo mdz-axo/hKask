@@ -25,8 +25,8 @@ pub use algedonic::{
     AlertSeverity, AlgedonicAlert, AlgedonicManager, CnsHealth, DEFAULT_THRESHOLD,
 };
 pub use energy::{
-    EnergyAccount, EnergyBudget, EnergyEmitter, EnergyError, EnergySpanType, OpportunityCost,
-    calculate_energy_cost, estimate_tokens,
+    calculate_energy_cost, estimate_tokens, EnergyAccount, EnergyBudget, EnergyEmitter,
+    EnergyError, EnergySpanType, OpportunityCost,
 };
 pub use observers::composition::{
     CompositionMetrics, CompositionObserver, CompositionObserverState,

@@ -23,15 +23,24 @@ impl CnsEmitterAdapter {
     }
 
     pub fn from_emitter(emitter: SpanEmitter, observer_webid: WebID) -> Self {
-        Self { emitter, observer_webid }
+        Self {
+            emitter,
+            observer_webid,
+        }
     }
 }
 
 impl CNSSpanPort for CnsEmitterAdapter {
-    fn emit_event(&self, span: &str, phase: &str, observation: &serde_json::Value, _confidence: f64) {
+    fn emit_event(
+        &self,
+        span: &str,
+        phase: &str,
+        observation: &serde_json::Value,
+        _confidence: f64,
+    ) {
         let span = parse_span(span);
         let phase = parse_phase(phase);
-        
+
         self.emitter.emit(span, phase, observation.clone());
     }
 }
@@ -71,32 +80,32 @@ fn parse_phase(s: &str) -> Phase {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_cns_emitter_adapter_new() {
         let webid = WebID::new();
         let _adapter = CnsEmitterAdapter::new(webid);
         assert!(true);
     }
-    
+
     #[test]
     fn test_cns_emitter_emit_event() {
         let webid = WebID::new();
         let adapter = CnsEmitterAdapter::new(webid);
-        
+
         let observation = serde_json::json!({"test": "event"});
         adapter.emit_event("cns.agent_pod.test", "observe", &observation, 1.0);
-        
+
         // CNS event emitted (no return value to check)
         assert!(true);
     }
-    
+
     #[test]
     fn test_parse_span_agent_pod() {
         let span = parse_span("cns.agent_pod.registered");
         assert!(matches!(span, Span::AgentPod(_)));
     }
-    
+
     #[test]
     fn test_parse_phase() {
         assert_eq!(parse_phase("observe"), Phase::Observe);

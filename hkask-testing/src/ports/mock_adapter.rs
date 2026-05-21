@@ -4,7 +4,9 @@
 //! Provides deterministic, testable implementations of external dependencies.
 
 use async_trait::async_trait;
-use hkask_templates::ports::{InferencePort, McpPort, CnsPort, Result as TemplateResult, TemplateError};
+use hkask_templates::ports::{
+    CnsPort, InferencePort, McpPort, Result as TemplateResult, TemplateError,
+};
 use serde_json::Value;
 use std::cell::Cell;
 
@@ -192,7 +194,7 @@ pub struct MockCnsAdapterMut {
 
 impl MockCnsAdapterMut {
     pub fn new() -> Self {
-        Self { 
+        Self {
             emit_count: Cell::new(0),
         }
     }

@@ -6,9 +6,9 @@
 #[cfg(test)]
 mod e2e_tests {
     use hkask_ensemble::{
-        GenerateOptions, GenerateRequest,
         adapters::{OkapiCapabilityFetcher, OkapiHttpClient},
         ports::{CapabilityProvider, InferenceClient, MetricsSource},
+        GenerateOptions, GenerateRequest,
     };
 
     fn is_e2e_enabled() -> bool {
@@ -97,7 +97,10 @@ mod e2e_tests {
 
         use hkask_templates::{
             capability_validator::CapabilityAwareValidator,
-            contract_validator::{OkapiCapabilities as TemplateOkapiCapabilities, OkapiRequirements, RegistrationFrontmatter},
+            contract_validator::{
+                OkapiCapabilities as TemplateOkapiCapabilities, OkapiRequirements,
+                RegistrationFrontmatter,
+            },
         };
         use hkask_types::TemplateType;
 

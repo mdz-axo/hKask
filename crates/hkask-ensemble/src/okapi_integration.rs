@@ -277,16 +277,16 @@ where
             .await?;
         }
 
-        if current.prompt_cache_hit_ratio != last.prompt_cache_hit_ratio
-            && let Some(ratio) = current.prompt_cache_hit_ratio
-        {
-            self.emit_span(
-                Span::Connector("cns.connector.llm.cache_hit".to_string()),
-                serde_json::json!({
-                    "hit_ratio": ratio,
-                }),
-            )
-            .await?;
+        if current.prompt_cache_hit_ratio != last.prompt_cache_hit_ratio {
+            if let Some(ratio) = current.prompt_cache_hit_ratio {
+                self.emit_span(
+                    Span::Connector("cns.connector.llm.cache_hit".to_string()),
+                    serde_json::json!({
+                        "hit_ratio": ratio,
+                    }),
+                )
+                .await?;
+            }
         }
 
         Ok(())

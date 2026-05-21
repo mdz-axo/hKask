@@ -1,0 +1,301 @@
+# hKask CI/CD Pipeline
+
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  # ============================================================================
+  # Format Check
+  # ============================================================================
+  fmt:
+    name: Code Formatting
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-action@stable
+        with:
+          components: rustfmt
+      
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-fmt-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Check formatting
+        run: cargo fmt --all --check
+
+  # ============================================================================
+  # Lint Check
+  # ============================================================================
+  clippy:
+    name: Linting
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: fmt
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-action@stable
+        with:
+          components: clippy
+      
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config \
+            libssl-dev \
+            libsqlite3-dev \
+            libclang-dev \
+            llvm-dev \
+            cmake \
+            protobuf-compiler \
+            libprotobuf-dev
+      
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-clippy-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Run clippy
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+  # ============================================================================
+  # Build Check
+  # ============================================================================
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: fmt
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-action@stable
+      
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config \
+            libssl-dev \
+            libsqlite3-dev \
+            libclang-dev \
+            llvm-dev \
+            cmake \
+            protobuf-compiler \
+            libprotobuf-dev
+      
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Build workspace
+        run: cargo build --workspace --all-targets
+      
+      - name: Build documentation
+        run: cargo doc --workspace --no-deps
+
+  # ============================================================================
+  # Unit Tests
+  # ============================================================================
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: [clippy, build]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-action@stable
+      
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config \
+            libssl-dev \
+            libsqlite3-dev \
+            libclang-dev \
+            llvm-dev \
+            cmake \
+            protobuf-compiler \
+            libprotobuf-dev
+      
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Run unit tests
+        run: cargo test --workspace --lib --all-features
+      
+      - name: Run integration tests
+        run: cargo test --workspace --test '*' --all-features
+      
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: |
+            target/debug/deps/*.d
+          retention-days: 7
+
+  # ============================================================================
+  # Line Count Check (Budget Verification)
+  # ============================================================================
+  line-budget:
+    name: Line Budget Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: build
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install tokei
+        run: cargo install tokei
+      
+      - name: Count lines in production crates
+        run: |
+          echo "=== Line Count by Crate ==="
+          tokei crates/*/src --categories | sort -rn
+          
+          echo ""
+          echo "=== Total Production Lines ==="
+          total=$(tokei crates/*/src --categories | grep "Total" | awk '{print $2}')
+          echo "Total: $total lines"
+          
+          if [ "$total" -gt 30000 ]; then
+            echo "::error::Line budget exceeded! Total: $total, Budget: 30000"
+            exit 1
+          else
+            echo "✓ Within budget (30,000 lines)"
+          fi
+
+  # ============================================================================
+  # Security Audit
+  # ============================================================================
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-action@stable
+      
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+      
+      - name: Run security audit
+        run: cargo audit || echo "::warning::Security vulnerabilities found. Review cargo-audit output."
+
+  # ============================================================================
+  # Dependency Check
+  # ============================================================================
+  deps:
+    name: Dependency Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-action@stable
+      
+      - name: Install cargo-outdated
+        run: cargo install cargo-outdated
+      
+      - name: Check for outdated dependencies
+        run: cargo outdated || echo "::warning::Outdated dependencies found. Review cargo-outdated output."
+
+  # ============================================================================
+  # Build Binary (Release)
+  # ============================================================================
+  release-build:
+    name: Release Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: [test, line-budget]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-action@stable
+      
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config \
+            libssl-dev \
+            libsqlite3-dev \
+            libclang-dev \
+            llvm-dev \
+            cmake \
+            protobuf-compiler \
+            libprotobuf-dev
+      
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Build release binary
+        run: cargo build --release --package hkask-cli
+      
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kask-binary
+          path: target/release/kask
+          retention-days: 30

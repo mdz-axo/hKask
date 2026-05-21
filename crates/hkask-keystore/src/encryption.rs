@@ -1,8 +1,8 @@
 //! AES-256-GCM encryption with Argon2 key derivation
 
 use aes_gcm::{
-    Aes256Gcm, Nonce,
     aead::{Aead, KeyInit},
+    Aes256Gcm, Nonce,
 };
 use argon2::{Algorithm, Argon2, Params, Version};
 use rand::RngCore;
