@@ -210,4 +210,3 @@ mod tests {
         assert_eq!(queue.pending_violations().len(), 1);
     }
 }
-

@@ -66,8 +66,8 @@ use zeroize::Zeroizing;
 use crate::adapters::acp_runtime::AcpRuntimeAdapter;
 use crate::adapters::cns_emitter::CnsEmitterAdapter;
 use crate::adapters::git_cas::GitCasAdapter;
-use crate::adapters::memory_storage::MemoryStorageAdapter;
 use crate::adapters::mcp_runtime::McpRuntimeAdapter;
+use crate::adapters::memory_storage::MemoryStorageAdapter;
 use std::path::PathBuf;
 
 /// Pod lifecycle state machine
@@ -779,9 +779,7 @@ impl PodManager {
             acp_runtime: AcpRuntimeAdapter::new(),
             cns_emitter: CnsEmitterAdapter::new(WebID::new()),
             mcp_runtime: McpRuntimeAdapter::new(),
-            memory_storage: Arc::new(Mutex::new(
-                MemoryStorageAdapter::in_memory().unwrap(),
-            )),
+            memory_storage: Arc::new(Mutex::new(MemoryStorageAdapter::in_memory().unwrap())),
         }
     }
 

@@ -26,8 +26,14 @@ mod tests {
         let db = Database::in_memory().unwrap();
         let conn = db.conn_arc();
         let locked_conn = conn.lock().unwrap();
-        let mut stmt = locked_conn.prepare("SELECT name FROM sqlite_master WHERE type='table'").unwrap();
-        let tables: Vec<String> = stmt.query_map([], |row| row.get(0)).unwrap().filter_map(|r| r.ok()).collect();
+        let mut stmt = locked_conn
+            .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+            .unwrap();
+        let tables: Vec<String> = stmt
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
         assert!(tables.contains(&"triples".to_string()));
         assert!(tables.contains(&"embeddings".to_string()));
     }
@@ -38,11 +44,17 @@ mod tests {
         let db_path = temp_dir.path().join("test_encrypted.db");
         let passphrase = "test_passphrase_123";
         let db = Database::open(db_path.to_str().unwrap(), passphrase).unwrap();
-        
+
         let conn = db.conn_arc();
         let locked_conn = conn.lock().unwrap();
-        let mut stmt = locked_conn.prepare("SELECT name FROM sqlite_master WHERE type='table'").unwrap();
-        let tables: Vec<String> = stmt.query_map([], |row| row.get(0)).unwrap().filter_map(|r| r.ok()).collect();
+        let mut stmt = locked_conn
+            .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+            .unwrap();
+        let tables: Vec<String> = stmt
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
         assert!(tables.contains(&"triples".to_string()));
     }
 }
@@ -93,4 +105,3 @@ mod tests {
         assert!(triple.is_semantic());
     }
 }
-

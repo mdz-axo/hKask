@@ -866,5 +866,3 @@ impl TemplateDispatchHandler {
         Ok(())
     }
 }
-
-

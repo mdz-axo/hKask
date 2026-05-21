@@ -22,4 +22,3 @@ mod tests {
         assert_eq!(state.mcp_runtime.tool_count().await, 0);
     }
 }
-

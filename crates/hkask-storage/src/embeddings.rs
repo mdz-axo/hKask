@@ -49,7 +49,11 @@ impl EmbeddingStore {
 
     pub fn insert(&self, embedding: &Embedding) -> Result<(), EmbeddingError> {
         let conn = self.conn.lock().unwrap();
-        let vector_bytes: Vec<u8> = embedding.vector.iter().flat_map(|f| f.to_le_bytes()).collect();
+        let vector_bytes: Vec<u8> = embedding
+            .vector
+            .iter()
+            .flat_map(|f| f.to_le_bytes())
+            .collect();
         let entity_ref = embedding.entity_ref.map(|e| e.0.to_string());
         conn.execute(
             "INSERT INTO embeddings (id, entity_ref, vector, dimensions, model) VALUES (?1, ?2, ?3, ?4, ?5)",

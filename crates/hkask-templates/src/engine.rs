@@ -165,5 +165,3 @@ impl Default for TemplateRegistry {
         Self::new()
     }
 }
-
-

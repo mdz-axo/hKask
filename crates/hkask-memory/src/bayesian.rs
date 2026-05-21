@@ -69,5 +69,3 @@ impl Default for BayesianOps {
         Self::new()
     }
 }
-
-

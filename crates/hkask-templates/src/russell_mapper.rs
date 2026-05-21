@@ -471,5 +471,3 @@ impl RussellMapper {
         Ok(asset)
     }
 }
-
-

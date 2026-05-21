@@ -206,5 +206,3 @@ impl std::fmt::Display for Ideological {
         }
     }
 }
-
-

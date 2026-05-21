@@ -257,5 +257,3 @@ impl KillZoneState {
         self.kill_zone_detected
     }
 }
-
-

@@ -134,5 +134,3 @@ impl std::fmt::Display for EventID {
         write!(f, "{}", self.0)
     }
 }
-
-

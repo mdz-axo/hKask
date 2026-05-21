@@ -42,23 +42,30 @@ impl Database {
     /// Open database with passphrase for encryption
     pub fn open(path: &str, passphrase: &str) -> Result<Self, DatabaseError> {
         if passphrase.is_empty() {
-            return Err(DatabaseError::KeyDerivation("Passphrase cannot be empty".to_string()));
+            return Err(DatabaseError::KeyDerivation(
+                "Passphrase cannot be empty".to_string(),
+            ));
         }
         if passphrase.len() < 8 {
-            return Err(DatabaseError::KeyDerivation("Passphrase must be at least 8 characters".to_string()));
+            return Err(DatabaseError::KeyDerivation(
+                "Passphrase must be at least 8 characters".to_string(),
+            ));
         }
 
         let salt_path = format!("{}.salt", path);
         let salt = if let Ok(salt_bytes) = std::fs::read(&salt_path) {
             if salt_bytes.len() != SQLCIPHER_SALT_SIZE {
-                return Err(DatabaseError::SqlCipher("Invalid salt file size".to_string()));
+                return Err(DatabaseError::SqlCipher(
+                    "Invalid salt file size".to_string(),
+                ));
             }
             let mut salt = [0u8; SQLCIPHER_SALT_SIZE];
             salt.copy_from_slice(&salt_bytes);
             salt
         } else {
             let salt = generate_salt();
-            std::fs::write(&salt_path, salt).map_err(|e| DatabaseError::SqlCipher(format!("Failed to write salt: {}", e)))?;
+            std::fs::write(&salt_path, salt)
+                .map_err(|e| DatabaseError::SqlCipher(format!("Failed to write salt: {}", e)))?;
             salt
         };
 
@@ -82,8 +89,13 @@ impl Database {
         })
     }
 
-    fn configure_encryption(conn: &Connection, passphrase: &str, salt: &[u8]) -> Result<(), DatabaseError> {
-        let key = derive_key(passphrase, salt).map_err(|e| DatabaseError::KeyDerivation(e.to_string()))?;
+    fn configure_encryption(
+        conn: &Connection,
+        passphrase: &str,
+        salt: &[u8],
+    ) -> Result<(), DatabaseError> {
+        let key = derive_key(passphrase, salt)
+            .map_err(|e| DatabaseError::KeyDerivation(e.to_string()))?;
         let key_hex = hex::encode(*key);
         conn.execute_batch(&format!("PRAGMA key = 'x\"{}\"';", key_hex))?;
         Ok(())
@@ -112,7 +124,5 @@ impl Database {
 
 fn generate_salt() -> [u8; SQLCIPHER_SALT_SIZE] {
     use rand::Rng;
-    rand::thread_rng().gen()
+    rand::rng().random()
 }
-
-

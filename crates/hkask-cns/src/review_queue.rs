@@ -66,5 +66,3 @@ impl ReviewQueue {
         self.violations.iter().collect()
     }
 }
-
-

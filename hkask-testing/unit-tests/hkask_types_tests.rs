@@ -934,4 +934,3 @@ mod tests {
         assert!(!cap_sig.verify(bad_data, key));
     }
 }
-

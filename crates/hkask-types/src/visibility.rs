@@ -488,6 +488,3 @@ pub fn evaluate_access(
     let evaluator = AccessEvaluator::new(public_keys.clone(), current_time);
     evaluator.evaluate(visibility, owner, requester, capabilities, resource, action)
 }
-
-    use std::collections::HashMap;
-

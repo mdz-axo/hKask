@@ -13,7 +13,7 @@
 |--------|--------|-------|---------|--------|
 | Inline tests (moved to hkask-testing) | 4,532 | 5,066* | -4,532 (excluded) | ✅ Complete |
 | Review queue | 570 | 87 | -483 (-85%) | ✅ Complete |
-| Russell mapper | 1,292 | TBD | -1,142 | Pending |
+| Russell mapper | 1,292 | 1,292 | 0 | ⏸️ Deferred (complex) |
 | CSP solver | 615 | TBD | -495 | Pending |
 | Multi-Okapi | 676 | TBD | -526 | Pending |
 | Energy tracking | 537 | TBD | -437 | Pending |
@@ -53,6 +53,50 @@
 - Tests in hkask-testing are **excluded from budget** per architecture spec
 - Effective production budget reduction: **-2,294 LOC**
 - Remaining budget: 30,000 - 22,609 = **7,391 LOC (24.6%)**
+
+---
+
+## Phase 2 Complete: CNS Review Queue Simplification
+
+**Result:**
+- Review queue: 570 → 87 LOC (**-483 LOC, -85%**)
+- Removed: violation severity enum, review decision enum, block management, FIFO eviction, cleanup logic
+- Kept: Violation struct, ReviewQueue struct, span emission
+- Tests: 7 → 2 (moved to hkask-testing)
+
+**Configuration Moved to Manifests:**
+- Violation severity levels → `registry/manifests/cns-review.yaml`
+- Review decision types → manifest configuration
+- Block duration rules → manifest configuration
+
+---
+
+## Deferred: Russell Mapper Simplification
+
+**Status:** ⏸️ Deferred to v1.1
+
+**Rationale:**
+- Complex YAML parsing logic requires careful migration
+- Better to create YAML manifests after operational use reveals patterns
+- Current implementation works; optimization premature
+
+**Alternative Approach:**
+- Keep current Russell mapper
+- Add YAML configuration files alongside (not replacing) Rust code
+- Migrate to templates after v1.0 operational data informs optimal structure
+
+---
+
+## Remaining Consolidation Targets
+
+| Target | LOC | Savings Potential | Priority | Next Action |
+|--------|-----|-------------------|----------|-------------|
+| CSP solver | 615 | -495 | Medium | Create CSP manifests |
+| Multi-Okapi | 676 | -526 | Medium | Create orchestration config |
+| Energy tracking | 537 | -437 | Medium | Create energy manifests |
+| ACP runtime | 1,136 | -736 | High | Delegate to rmcp |
+| Capability variants | 809 | -409 | Medium | Simplify to triples |
+| Cascade | 511 | -311 | Low | Create cascade manifests |
 
 ---
 

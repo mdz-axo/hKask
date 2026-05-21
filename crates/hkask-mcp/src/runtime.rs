@@ -178,5 +178,3 @@ impl Default for McpRuntime {
         Self::new()
     }
 }
-
-

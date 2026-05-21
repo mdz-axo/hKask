@@ -152,5 +152,3 @@ impl BotCapabilities {
         self.capabilities.iter().any(|cap| cap == tool_name)
     }
 }
-
-

@@ -42,4 +42,3 @@ impl SemanticMemory {
         Ok(())
     }
 }
-

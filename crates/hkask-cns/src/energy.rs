@@ -351,5 +351,3 @@ pub fn cleanup_expired_capabilities(
 pub fn recommended_cleanup_interval() -> u64 {
     300
 }
-
-

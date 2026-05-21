@@ -329,5 +329,3 @@ pub fn import_russell(
 
     Ok(assets)
 }
-
-

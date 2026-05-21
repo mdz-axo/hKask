@@ -209,5 +209,3 @@ impl Default for SecurityGateway {
         Self::with_default_policy(b"default-secret-key-change-in-production")
     }
 }
-
-

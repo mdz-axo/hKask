@@ -383,4 +383,3 @@ mod tests {
         assert_eq!(log.len(), 10000); // Should be trimmed to 10,000
     }
 }
-

@@ -56,7 +56,9 @@ mod tests {
         let input = serde_json::json!({"task": "test"});
 
         let mut invocation = TemplateInvocation::new(template_id, bot_id, params, input);
-        invocation.outputs.push(serde_json::json!("ERROR: compilation failed"));
+        invocation
+            .outputs
+            .push(serde_json::json!("ERROR: compilation failed"));
         invocation.outcome = TemplateOutcome::Success;
 
         let result = pipeline.evaluate_invocation(&invocation).await;
@@ -418,4 +420,3 @@ ACTION: skill/probe
         assert!(terms.contains(&"act".to_string()));
     }
 }
-

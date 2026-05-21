@@ -193,5 +193,3 @@ pub async fn invoke_template_with_selection(
 
     Ok(invocation)
 }
-
-

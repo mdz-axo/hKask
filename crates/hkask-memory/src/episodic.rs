@@ -45,4 +45,3 @@ impl EpisodicMemory {
         Ok(triples.into_iter().filter(|t| t.is_episodic()).collect())
     }
 }
-

@@ -112,4 +112,3 @@ impl TripleStore {
         Ok(Vec::new())
     }
 }
-

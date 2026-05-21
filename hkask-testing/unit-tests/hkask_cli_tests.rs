@@ -25,4 +25,3 @@ mod tests {
         assert!(tools.is_empty());
     }
 }
-

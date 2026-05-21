@@ -80,4 +80,3 @@ mod tests {
         assert_eq!(keychain.service_name, "hkask");
     }
 }
-

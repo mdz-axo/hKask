@@ -110,5 +110,3 @@ pub fn get_or_create_ocap_secret(
         Err(e) => Err(e),
     }
 }
-
-

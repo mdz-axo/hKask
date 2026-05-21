@@ -149,5 +149,3 @@ pub fn get_passphrase(env_var: &str, prompt: &str) -> Result<Zeroizing<String>, 
         prompt_passphrase(prompt).map(Zeroizing::new)
     }
 }
-
-
