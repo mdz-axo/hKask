@@ -237,15 +237,15 @@ async fn create_pod(
         }),
     );
 
-    let user_webid = state.system_webid.clone();
+    let user_webid = state.system_webid;
 
     let has_capability = state.capability_checker.check_resource(
         &hkask_types::CapabilityToken::new(
             CapabilityResource::Tool,
             "pod".to_string(),
             CapabilityAction::Execute,
-            state.system_webid.clone(),
-            user_webid.clone(),
+            state.system_webid,
+            user_webid,
             b"temp-secret",
         ),
         &user_webid,
@@ -513,7 +513,7 @@ async fn cns_health(State(state): State<ApiState>) -> Json<CnsHealthResponse> {
         }),
     );
 
-    let health = CnsHealth::check(&mut AlgedonicManager::new(100));
+    let health = CnsHealth::check(&AlgedonicManager::new(100));
     
     Json(CnsHealthResponse {
         overall_deficit: health.overall_deficit,
