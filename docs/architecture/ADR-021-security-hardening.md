@@ -168,6 +168,28 @@ cargo test -p hkask-agents
 - `crates/hkask-agents/src/ocap.rs` — OCAP enhancement implementation
 - `crates/hkask-types/src/capability.rs` — Capability token with `attenuate_with_expiry()`
 
+## Resolved Design Decisions (Prior Session)
+
+**FUTURE-01: Rate limit persistence strategy**
+- **Decision:** Persist to SQLite on shutdown, reload on startup
+- **Rationale:** Prevents restart-based DoS attacks
+
+**FUTURE-02: Attenuation history retention policy**
+- **Decision:** 90-day TTL with automatic pruning
+- **Rationale:** Balance audit trail with privacy minimization
+
+**FUTURE-03: Multi-machine rate limiting**
+- **Decision:** Per-machine with optional Redis sync for production
+- **Rationale:** Simpler default, scalable option for deployments
+
+**FUTURE-04: Capability revocation mechanism**
+- **Decision:** Short expiry (1 hour) + optional revocation list in storage
+- **Rationale:** Most cases covered by expiry; revocation list for emergencies
+
+**FUTURE-05: Sovereignty boundary enforcement at tool invocation**
+- **Decision:** OCAP attenuation on boundary crossing; kill zone blocks entirely
+- **Rationale:** Graceful degradation with hard stop for acquisition attempts
+
 ---
 
 *ℏKask — Planck's Constant of Agent Systems — v0.21.0*

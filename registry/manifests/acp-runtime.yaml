@@ -1,0 +1,178 @@
+# ACP Runtime Configuration
+# ℏKask v0.21.2 — Planck's Constant of Agent Systems
+
+# Root authority configuration
+root_authority:
+  # System WebID (root of trust)
+  webid: "did:web:hkask.dev#system"
+  
+  # Secret management
+  secret:
+    source: environment  # environment, keystore, file
+    env_var: HKASK_ACP_SECRET
+    keystore_key: hkask_acp_root_secret
+  
+  # Token settings
+  token:
+    default_expiry_seconds: 3600
+    max_attenuation_level: 7
+    id_counter_start: 1
+
+# Agent registration
+agent_registration:
+  # Registration requirements
+  requirements:
+    require_webid: true
+    require_capabilities: true
+    require_manifest: false
+  
+  # Capability format
+  capabilities:
+    format: "resource:action"  # e.g., "tool:execute"
+    allowed_resources:
+      - tool
+      - template
+      - memory
+      - storage
+      - cns
+      - mcp
+    allowed_actions:
+      - execute
+      - render
+      - read
+      - write
+      - delete
+  
+  # Validation
+  validation:
+    validate_webid_format: true
+    validate_capabilities_format: true
+    reject_wildcard_capabilities: true
+
+# A2A messaging
+messaging:
+  # Message format
+  format:
+    version: "1.0"
+    content_type: application/json
+  
+  # Correlation
+  correlation:
+    enabled: true
+    id_format: uuid_v4
+    track_request_response: true
+  
+  # Routing
+  routing:
+    strategy: template_dispatch  # direct, template_dispatch, broadcast
+    default_template: template/default_dispatch
+  
+  # Delivery
+  delivery:
+    guarantee: at_least_once  # at_most_once, at_least_once, exactly_once
+    retry_on_failure: true
+    max_retries: 3
+
+# Rate limiting
+rate_limiting:
+  enabled: true
+  
+  # Default limits
+  defaults:
+    messages_per_minute: 60
+    burst_size: 10
+  
+  # Per-agent limits (override defaults)
+  per_agent:
+    bot:
+      messages_per_minute: 100
+      burst_size: 20
+    replicant:
+      messages_per_minute: 30
+      burst_size: 5
+  
+  # Enforcement
+  enforcement:
+    on_exceed: reject_with_retry_after  # reject, queue, reject_with_retry_after
+    include_retry_after_header: true
+
+# Capability verification
+capability_verification:
+  # Verification requirements
+  required: true
+  verify_on_each_message: true
+  
+  # Token validation
+  token_validation:
+    check_signature: true
+    check_expiry: true
+    check_attenuation_chain: true
+    max_chain_depth: 7
+  
+  # Caching
+  cache:
+    enabled: true
+    ttl_seconds: 300
+    max_size: 1000
+
+# Audit logging
+audit:
+  enabled: true
+  
+  # What to log
+  log:
+    message_send: true
+    message_receive: true
+    capability_check: true
+    rate_limit_check: true
+    errors: true
+  
+  # Log format
+  format:
+    include_timestamp: true
+    include_webid: true
+    include_message_id: true
+    include_correlation_id: true
+  
+  # Storage
+  storage:
+    backend: cns_span  # cns_span, file, database
+    retention_days: 30
+
+# CNS integration
+cns:
+  # Span emission
+  spans:
+    emit_on_message_send: true
+    emit_on_message_receive: true
+    emit_on_capability_denied: true
+    emit_on_rate_limit_exceeded: true
+  
+  # Span namespace
+  namespace: cns.agent.acp
+  
+  # Alert conditions
+  alerts:
+    on_repeated_capability_denial: true
+    denial_threshold: 10
+    on_rate_limit_abuse: true
+    abuse_threshold: 100
+
+# Security
+security:
+  # Injection prevention
+  injection_prevention:
+    sanitize_message_content: true
+    validate_template_inputs: true
+  
+  # Path traversal prevention
+  path_traversal:
+    prevent: true
+    allowed_paths:
+      - /agents/*
+      - /templates/*
+  
+  # DoS prevention
+  dos_prevention:
+    max_message_size_bytes: 1048576  # 1MB
+    max_agents_per_session: 100

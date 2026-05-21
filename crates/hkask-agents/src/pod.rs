@@ -69,6 +69,7 @@ use crate::adapters::git_cas::GitCasAdapter;
 use crate::adapters::mcp_runtime::McpRuntimeAdapter;
 use crate::adapters::memory_storage::MemoryStorageAdapter;
 use crate::security::{SecurityContext, AgentPersonaInput, InputValidator};
+use crate::sovereignty::SovereigntyChecker;
 use std::path::PathBuf;
 
 /// Pod lifecycle state machine
@@ -271,6 +272,8 @@ pub struct AgentPod {
     pub max_attenuation: u8,
     /// Keystore for secure secret storage
     pub keystore: Keychain,
+    /// Sovereignty checker for this pod
+    pub sovereignty_checker: SovereigntyChecker,
 }
 
 /// Maximum attenuation level (OCAP security limit)
@@ -348,6 +351,9 @@ impl AgentPod {
             ocap_secret.as_bytes(),
         );
 
+        // Initialize sovereignty checker for this pod
+        let sovereignty_checker = SovereigntyChecker::new(persona.webid());
+
         Ok(Self {
             id: PodID::new(),
             webid: persona.webid(),
@@ -359,6 +365,7 @@ impl AgentPod {
             created_at: current_timestamp(),
             max_attenuation: MAX_ATTENUATION_LEVEL,
             keystore,
+            sovereignty_checker,
         })
     }
 
@@ -520,6 +527,51 @@ impl AgentPod {
     /// Get the current lifecycle state
     pub fn state(&self) -> PodLifecycleState {
         self.state
+    }
+
+    /// Execute action with sovereignty check
+    ///
+    /// This method performs an OCAP sovereignty check before executing
+    /// any action that accesses data categories.
+    ///
+    /// # Arguments
+    /// * `action` — The action to execute
+    /// * `data_category` — The data category being accessed
+    /// * `requester` — The WebID requesting the action
+    ///
+    /// # Returns
+    /// * `Ok(true)` — Action is permitted
+    /// * `Ok(false)` — Action denied by sovereignty check
+    /// * `Err(AgentPodError)` — Sovereignty check error
+    pub fn check_sovereignty(
+        &self,
+        action: &str,
+        data_category: &str,
+        requester: &WebID,
+    ) -> Result<bool, AgentPodError> {
+        let checker = &self.sovereignty_checker;
+        
+        // Check if operation is permitted
+        if !checker.check_operation(action, data_category) {
+            return Ok(false);
+        }
+        
+        // Check if requester can access the data category
+        if !checker.can_access(data_category, requester) {
+            return Ok(false);
+        }
+        
+        Ok(true)
+    }
+
+    /// Get sovereignty checker reference
+    pub fn sovereignty_checker(&self) -> &SovereigntyChecker {
+        &self.sovereignty_checker
+    }
+
+    /// Get mutable sovereignty checker reference
+    pub fn sovereignty_checker_mut(&mut self) -> &mut SovereigntyChecker {
+        &mut self.sovereignty_checker
     }
 }
 
