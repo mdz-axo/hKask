@@ -1,0 +1,140 @@
+# Skill Translation Pipeline Configuration
+# ℏKask v0.21.2 — Planck's Constant of Agent Systems
+#
+# This manifest defines the pipeline for importing external skill definitions
+# (Claude Skills, Zapier Actions, LangChain Tools, etc.) into hKask registry.
+
+pipeline:
+  version: 0.21.2
+  description: Skill import pipeline with CNS tracking
+  stages:
+    - parse
+    - map
+    - generate
+    - validate
+    - register
+  max_depth: 7
+  cns_tracking: true
+  cns_namespace: cns.template.skill_import
+
+# Supported Source Formats
+format_parsers:
+  claude_skill:
+    file_extension: .skill.yaml
+    root_element: skill
+    fields:
+      id: $.id
+      name: $.name
+      description: $.description
+      prompts: $.prompts[*]
+      capabilities: $.capabilities[*]
+  
+  zapier_action:
+    file_extension: .action.yaml
+    root_element: action
+    fields:
+      id: $.action_id
+      name: $.name
+      description: $.description
+      prompts: $.steps[*].prompt
+      capabilities: $.triggers[*].action
+  
+  langchain_tool:
+    file_extension: .tool.yaml
+    root_element: tool
+    fields:
+      id: $.tool_id
+      name: $.name
+      description: $.description
+      prompts: $.examples[*].prompt
+      capabilities: $.functions[*].name
+  
+  crewai_agent:
+    file_extension: .agent.yaml
+    root_element: agent
+    fields:
+      id: $.agent_id
+      name: $.role
+      description: $.goal
+      prompts: $.backstory
+      capabilities: $.tools[*]
+
+# Semantic Mapping Rules
+semantic_mapping:
+  # Infer template type from skill structure
+  prompt_to_type:
+    single_prompt: Prompt
+    multi_prompt: Prompt
+    with_process: Process
+    with_reasoning: Cognition
+  
+  # Map skill steps to manifest steps
+  process_to_steps:
+    - pattern: "probe.*"
+      action: select
+    - pattern: "intervention.*"
+      action: execute
+    - pattern: "validate.*"
+      action: validate
+  
+  # Extract capabilities from skill
+  capability_extraction: |
+    capabilities = skill.capabilities || []
+    if skill.prompts:
+      capabilities.append("tool:inference:call")
+    if skill.steps:
+      capabilities.append("tool:mcp:dispatch")
+
+# Energy Budget Calculation
+energy_calculation:
+  base_cost: 1000
+  per_prompt_cost: 200
+  per_step_cost: 300
+  complexity_multiplier:
+    simple: 1.0
+    moderate: 1.5
+    complex: 2.0
+  formula: "(base + prompts*200 + steps*300) * complexity"
+  max_cap: 12000
+
+# Validation Rules
+validation:
+  required_fields:
+    - id
+    - name
+    - description
+  optional_fields:
+    - prompts
+    - steps
+    - capabilities
+    - version
+  constraints:
+    - "id must be unique in registry"
+    - "name must be non-empty"
+    - "energy_cap must be <= 12000"
+  security_review:
+    - check_for_injection_patterns
+    - validate_template_syntax
+    - verify_capability_references
+
+# Output Configuration
+output:
+  template_format: jinja2
+  manifest_format: yaml
+  include_provenance: true
+  provenance_fields:
+    - source_format
+    - source_path
+    - imported_at
+    - importer_webid
+  cns_events:
+    - cns.template.skill_import.parsed
+    - cns.template.skill_import.mapped
+    - cns.template.skill_import.registered
+
+# Error Handling
+error_handling:
+  on_parse_failure: skip_with_cns_alert
+  on_validation_failure: skip_with_cns_alert
+  on_registration_failure: retry_once_then_alert
+  cns_alert_severity: medium

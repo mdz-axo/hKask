@@ -19,6 +19,11 @@
 //! - `POST /api/pods/:id/deactivate` — Deactivate pod
 //! - `GET /api/pods/:id/status` — Get pod status
 //! - `POST /api/chat` — Curator chat
+//! - `GET /api/sovereignty/status` — User sovereignty status
+//! - `POST /api/sovereignty/consent/grant` — Grant explicit consent
+//! - `POST /api/sovereignty/consent/revoke` — Revoke explicit consent
+//! - `GET /api/sovereignty/killzone` — Kill zone status
+//! - `GET /api/sovereignty/access/check` — Check data access permissions
 
 use hkask_agents::adapters::acp_runtime::AcpRuntimeAdapter;
 use hkask_agents::adapters::cns_emitter::CnsEmitterAdapter;
@@ -228,6 +233,7 @@ pub fn create_router(state: ApiState) -> OpenApiRouter {
         .merge(routes::pods_router().into())
         .merge(routes::mcp_router().into())
         .merge(routes::cns_router().into())
+        .merge(routes::sovereignty_router().into())
         .merge(routes::chat_router().into())
         .with_state(state)
 }

@@ -1,6 +1,8 @@
 // Auto-extracted inline tests for hkask-types
 // Extracted: Thu May 21 00:22:23 PDT 2026
 
+use hkask_types::*;
+
 // === From capability.rs ===
 #[cfg(test)]
 mod tests {

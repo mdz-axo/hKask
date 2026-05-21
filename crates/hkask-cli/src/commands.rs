@@ -5,7 +5,7 @@
 use hkask_mcp::runtime::{McpRuntime, McpServer, McpTool};
 use hkask_templates::{
     MappedTemplate, RegistryEntry, RegistryIndex, RussellMappingConfig, RussellMapper,
-    RussellSkillManifest, SqliteRegistry, TemplateError,
+    SqliteRegistry, TemplateError,
 };
 use hkask_types::TemplateType;
 use serde_json::Value;

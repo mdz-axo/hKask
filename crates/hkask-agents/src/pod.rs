@@ -921,10 +921,10 @@ impl PodManagerBuilder {
         PodManager::new(
             self.git_cas
                 .unwrap_or_else(|| GitCasAdapter::from_path(PathBuf::from("./registry/templates"))),
-            self.acp_runtime.unwrap_or_else(AcpRuntimeAdapter::new),
+            self.acp_runtime.unwrap_or_default(),
             self.cns_emitter
                 .unwrap_or_else(|| CnsEmitterAdapter::new(WebID::new())),
-            self.mcp_runtime.unwrap_or_else(McpRuntimeAdapter::new),
+            self.mcp_runtime.unwrap_or_default(),
             self.memory_storage
                 .unwrap_or_else(|| MemoryStorageAdapter::in_memory().unwrap()),
         )

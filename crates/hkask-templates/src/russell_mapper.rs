@@ -47,6 +47,8 @@ pub struct RussellMappingConfig {
     pub id_transformation: IdTransformation,
     pub template_type_inference: TemplateTypeInference,
     pub model_tier_selection: ModelTierSelection,
+    #[serde(default)]
+    pub dry_run: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -156,6 +158,7 @@ impl RussellMapper {
                     rules: vec![],
                     default: "balanced".to_string(),
                 },
+                dry_run: false,
             },
         }
     }

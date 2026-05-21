@@ -65,5 +65,7 @@ pub use registry::{Registry, TemplateEntry};
 pub use registry_git::GitRegistry;
 pub use registry_sqlite::SqliteRegistry;
 pub use russell_mapper::{
-    MappedTemplate, RussellMapper, RussellSkillManifest,
+    FieldMapping, FieldMappings, IdTransformation, MappedTemplate, MappingMeta,
+    ModelTierSelection, RussellMappingConfig, RussellMapper, RussellSkillManifest,
+    TemplateTypeInference, TierRule, TypeRule,
 };

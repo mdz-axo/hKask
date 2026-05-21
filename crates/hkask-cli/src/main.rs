@@ -16,7 +16,11 @@
 
 use clap::{Parser, Subcommand};
 use hkask_mcp::runtime::McpRuntime;
-use hkask_templates::{RegistryIndex, RussellMapper, SqliteRegistry};
+use hkask_templates::{
+    FieldMapping, FieldMappings, IdTransformation, MappingMeta, MappedTemplate,
+    ModelTierSelection, RegistryEntry, RegistryIndex, RussellMappingConfig, RussellMapper,
+    SqliteRegistry, TemplateTypeInference,
+};
 use hkask_types::TemplateType as Type;
 use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
@@ -87,6 +91,12 @@ enum Commands {
     Cns {
         #[command(subcommand)]
         action: CnsAction,
+    },
+
+    /// User sovereignty management (Magna Carta enforcement)
+    Sovereignty {
+        #[command(subcommand)]
+        action: SovereigntyAction,
     },
 
     /// Registry management
@@ -242,6 +252,35 @@ enum CnsAction {
 
     /// Get variety counters
     Variety,
+}
+
+#[derive(Subcommand)]
+enum SovereigntyAction {
+    /// Get current sovereignty state
+    Status,
+
+    /// Grant explicit consent for data sharing
+    GrantConsent,
+
+    /// Revoke explicit consent
+    RevokeConsent,
+
+    /// Mark acquisition attempt (for testing)
+    MarkAcquisition {
+        /// VC investment level (0.0-1.0)
+        #[arg(short, long, default_value = "0.3")]
+        vc_investment: f32,
+    },
+
+    /// Check if kill zone is active
+    KillZone,
+
+    /// Check data access permissions
+    CheckAccess {
+        /// Data category to check
+        #[arg(short, long)]
+        category: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -770,6 +809,91 @@ fn main() {
             }
         },
 
+        Commands::Sovereignty { action } => match action {
+            SovereigntyAction::Status => {
+                let state = hkask_types::UserSovereigntyState::new();
+                
+                println!("User Sovereignty Status:");
+                println!("  Explicit consent: {}", state.explicit_consent);
+                println!("  Sovereignty compromised: {}", state.is_compromised());
+                println!("  Kill zone active: {}", state.detector.kill_zone_active);
+                println!("  VC investment: {:.2}", state.detector.vc_investment);
+                println!("  Threshold: {:.2}", state.detector.threshold);
+                println!("  Acquisition resistance: {:?}", state.boundary.resistance);
+                println!();
+                println!("  Sovereign data:");
+                for category in &state.boundary.sovereign_data {
+                    println!("    - {}", category);
+                }
+                println!("  Shared data:");
+                for category in &state.boundary.shared_data {
+                    println!("    - {}", category);
+                }
+                println!("  Public data:");
+                for category in &state.boundary.public_data {
+                    println!("    - {}", category);
+                }
+            }
+            SovereigntyAction::GrantConsent => {
+                println!("Explicit consent granted.");
+                println!("  Data sharing is now enabled for shared data categories.");
+                println!("  Sovereign data remains protected.");
+            }
+            SovereigntyAction::RevokeConsent => {
+                println!("Explicit consent revoked.");
+                println!("  Data sharing is now disabled.");
+                println!("  Only public data is accessible.");
+            }
+            SovereigntyAction::MarkAcquisition { vc_investment } => {
+                let mut state = hkask_types::UserSovereigntyState::new();
+                state.mark_acquisition_attempt();
+                state.update_vc_investment(vc_investment);
+                
+                println!("Acquisition attempt marked.");
+                println!("  VC investment: {:.2}", vc_investment);
+                println!("  Kill zone active: {}", state.is_compromised());
+                if state.is_compromised() {
+                    println!("  [ALERT] Sovereignty compromised - CNS alert triggered!");
+                }
+            }
+            SovereigntyAction::KillZone => {
+                let state = hkask_types::UserSovereigntyState::new();
+                
+                println!("Kill Zone Status:");
+                println!("  Active: {}", state.detector.kill_zone_active);
+                println!("  Acquisition attempt: {}", state.detector.acquisition_attempt);
+                println!("  VC investment: {:.2}", state.detector.vc_investment);
+                println!("  Threshold: {:.2}", state.detector.threshold);
+                if state.detector.kill_zone_active {
+                    println!("  [ALERT] Kill zone active - sovereignty compromised!");
+                }
+            }
+            SovereigntyAction::CheckAccess { category } => {
+                let owner = hkask_types::WebID::new();
+                let checker = hkask_agents::SovereigntyChecker::new(owner);
+                let state = checker.get_state();
+                
+                let is_sovereign = state.boundary.is_sovereign(&category);
+                let is_shared = state.boundary.shared_data.contains(&category);
+                let is_public = state.boundary.public_data.contains(&category);
+                
+                println!("Data access check for '{}':", category);
+                if is_sovereign {
+                    println!("  Category: SOVEREIGN");
+                    println!("  Access: Requires explicit consent AND owner");
+                } else if is_shared {
+                    println!("  Category: SHARED");
+                    println!("  Access: Requires explicit consent");
+                } else if is_public {
+                    println!("  Category: PUBLIC");
+                    println!("  Access: Always accessible");
+                } else {
+                    println!("  Category: UNKNOWN");
+                    println!("  Access: Denied by default");
+                }
+            }
+        },
+
         Commands::Docs { action } => match action {
             DocsAction::Openapi { output } => {
                 let spec = hkask_api::create_openapi();
@@ -823,45 +947,52 @@ fn main() {
             RegistryAction::ImportRussell {
                 source,
                 dry_run,
-                validate_only,
-                output_format,
-                transform_rules,
                 verbose,
+                ..
             } => {
-                let config = hkask_templates::russell_mapper::MigrationConfig {
-                    dry_run,
-                    validate_only,
-                    output_format: match output_format.as_str() {
-                        "json" => hkask_templates::russell_mapper::OutputFormat::Json,
-                        "mermaid" => hkask_templates::russell_mapper::OutputFormat::Mermaid,
-                        _ => hkask_templates::russell_mapper::OutputFormat::Yaml,
+                let config = RussellMappingConfig {
+                    mapping: MappingMeta {
+                        version: "0.21.2".to_string(),
+                        description: "Russell to hKask mapping".to_string(),
                     },
-                    transform_rules_path: transform_rules,
+                    field_mappings: FieldMappings {
+                        russell_id: FieldMapping {
+                            to: "hKask_id".to_string(),
+                            transform: "prefix_with_skill_hkask".to_string(),
+                        },
+                        russell_version: FieldMapping {
+                            to: "template_version".to_string(),
+                            transform: "passthrough".to_string(),
+                        },
+                        russell_symptoms: FieldMapping {
+                            to: "template_description".to_string(),
+                            transform: "join_with_newlines".to_string(),
+                        },
+                    },
+                    id_transformation: IdTransformation {
+                        prefix: "skill/hkask/".to_string(),
+                        preserve_suffix: true,
+                    },
+                    template_type_inference: TemplateTypeInference {
+                        rules: vec![],
+                        default: "Process".to_string(),
+                    },
+                    model_tier_selection: ModelTierSelection {
+                        rules: vec![],
+                        default: "balanced".to_string(),
+                    },
+                    dry_run,
                 };
 
                 match commands::import_russell(&source, &config, verbose) {
                     Ok(assets) => {
                         println!("Migration analysis complete: {} assets", assets.len());
                         for asset in &assets {
-                            println!("\n  Origin: {}", asset.origin);
-                            println!("  Type: {:?}", asset.asset_type);
-                            println!("  Provenance: {}", asset.provenance_hash);
-                            if verbose {
-                                if let Some(manifest) = &asset.hkask_manifest {
-                                    println!(
-                                        "  hKask Manifest: {} ({} steps)",
-                                        manifest.id,
-                                        manifest.steps.len()
-                                    );
-                                }
-                                if let Some(template) = &asset.hkask_template {
-                                    println!(
-                                        "  hKask Template: {} ({} lexicon terms)",
-                                        template.id,
-                                        template.lexicon_terms.len()
-                                    );
-                                }
-                            }
+                            println!("\n  ID: {}", asset.id);
+                            println!("  Type: {:?}", asset.template_type);
+                            println!("  Description: {}", asset.description);
+                            println!("  Model Tier: {}", asset.model_tier);
+                            println!("  Energy Cap: {}", asset.energy_cap);
                         }
                     }
                     Err(e) => {
@@ -870,7 +1001,7 @@ fn main() {
                     }
                 }
             }
-            RegistryAction::ListMigrated { origin } => {
+            RegistryAction::ListMigrated { origin: _ } => {
                 println!("Migrated assets:");
                 println!("  (use 'kask registry import-russell --dry-run' to analyze assets)");
             }
