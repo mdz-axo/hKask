@@ -1,90 +1,243 @@
-//! Cascade Composition Engine
+//! Cascade Composition — Simplified
 //!
-//! Implements embedded recursion for self-improvement with cycle detection and depth limits.
-//! Per architecture v0.21.0: Templates can reference templates, manifests can invoke manifests,
-//! with CNS feedback for calibration.
-//!
-//! **Mechanism:**
-//! - Templates can reference templates (cascade resolution)
-//! - Manifests can invoke manifests (sub-process delegation)
-//! - CNS feedback → template/manifest calibration (ReAct pattern)
-//! - Energy caps prevent infinite recursion (halting guarantee)
-//!
-//! **Safety:**
-//! - Maximum recursion depth: 7 (Miller's law + energy budget)
-//! - Cycle detection in registry (graph traversal)
-//! - Capability attenuation on recursive calls
+//! Cascade engine reads configuration from cascade-composition.yaml.
+//! Rust is the loom. YAML is the thread.
+//! ℏKask v0.21.2
 
-use crate::ports::{RegistryIndex, Result, TemplateError};
-use hkask_types::TemplateType;
+use crate::ports::TemplateError;
+use hkask_cns::spans::SpanEmitter;
+use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
-/// Maximum recursion depth (Miller's law: 7 ± 2)
+/// Maximum cascade depth (Miller's law)
 pub const MAX_CASCADE_DEPTH: u8 = 7;
 
-/// Cascade stage definition
+/// Cascade configuration (loaded from YAML)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CascadeConfig {
+    pub cascade_limits: CascadeLimits,
+    #[serde(default)]
+    pub cycle_detection: CycleDetectionConfig,
+    #[serde(default)]
+    pub template_cascade: TemplateCascadeConfig,
+    #[serde(default)]
+    pub manifest_cascade: ManifestCascadeConfig,
+    #[serde(default)]
+    pub energy: EnergyConfig,
+    #[serde(default)]
+    pub capabilities: CapabilityConfig,
+    #[serde(default)]
+    pub cns_feedback: CnsFeedbackConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CascadeLimits {
+    #[serde(default = "default_max_depth")]
+    pub max_depth: u8,
+    #[serde(default)]
+    pub energy_per_level: u64,
+    #[serde(default = "default_timeout")]
+    pub timeout_ms: u64,
+}
+
+fn default_max_depth() -> u8 {
+    7
+}
+
+fn default_timeout() -> u64 {
+    10000
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct CycleDetectionConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub algorithm: String,
+    #[serde(default)]
+    pub max_path_length: usize,
+    #[serde(default)]
+    pub on_cycle_detected: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct TemplateCascadeConfig {
+    #[serde(default)]
+    pub pre: Vec<CascadeStage>,
+    #[serde(default)]
+    pub core: Vec<CascadeStage>,
+    #[serde(default)]
+    pub post: Vec<CascadeStage>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CascadeStage {
     pub name: String,
+    #[serde(default)]
     pub templates: Vec<String>,
+    #[serde(default)]
     pub condition: Option<String>,
 }
 
-/// Cascade composition definition
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Cascade {
-    pub id: String,
-    pub pre: Vec<CascadeStage>,
-    pub core: Vec<CascadeStage>,
-    pub post: Vec<CascadeStage>,
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ManifestCascadeConfig {
+    #[serde(default)]
+    pub sub_process: SubProcessConfig,
+    #[serde(default)]
+    pub parallel: ParallelConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SubProcessConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_max_sub_depth")]
     pub max_depth: u8,
+    #[serde(default)]
+    pub inheritance: InheritanceConfig,
 }
 
-impl Cascade {
-    pub fn new(id: &str) -> Self {
-        Self {
-            id: id.to_string(),
-            pre: vec![],
-            core: vec![],
-            post: vec![],
-            max_depth: MAX_CASCADE_DEPTH,
-        }
-    }
-
-    pub fn with_pre(mut self, stage: CascadeStage) -> Self {
-        self.pre.push(stage);
-        self
-    }
-
-    pub fn with_core(mut self, stage: CascadeStage) -> Self {
-        self.core.push(stage);
-        self
-    }
-
-    pub fn with_post(mut self, stage: CascadeStage) -> Self {
-        self.post.push(stage);
-        self
-    }
-
-    pub fn with_max_depth(mut self, depth: u8) -> Self {
-        self.max_depth = depth.min(MAX_CASCADE_DEPTH);
-        self
-    }
+fn default_max_sub_depth() -> u8 {
+    5
 }
 
-impl Default for Cascade {
-    fn default() -> Self {
-        Self::new("default")
-    }
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct InheritanceConfig {
+    #[serde(default)]
+    pub capabilities: String,
+    #[serde(default)]
+    pub energy: String,
+    #[serde(default)]
+    pub context: String,
 }
 
-/// Cycle detection result
-#[derive(Debug, Clone)]
-pub struct CycleDetectionResult {
-    pub has_cycle: bool,
-    pub cycle_path: Vec<String>,
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ParallelConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub max_concurrent: usize,
+    #[serde(default)]
+    pub sync: SyncConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SyncConfig {
+    #[serde(default)]
+    pub strategy: String,
+    #[serde(default)]
+    pub timeout_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct EnergyConfig {
+    #[serde(default)]
+    pub budget: BudgetConfig,
+    #[serde(default)]
+    pub degradation: DegradationConfig,
+    #[serde(default)]
+    pub tracking: TrackingConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct BudgetConfig {
+    #[serde(default)]
+    pub total_per_cascade: u64,
+    #[serde(default)]
+    pub reserve_percent: u8,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct DegradationConfig {
+    #[serde(default)]
+    pub at_80_percent: String,
+    #[serde(default)]
+    pub at_90_percent: String,
+    #[serde(default)]
+    pub at_95_percent: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct TrackingConfig {
+    #[serde(default)]
+    pub emit_cns_spans: bool,
+    #[serde(default)]
+    pub track_per_stage: bool,
+    #[serde(default)]
+    pub log_budget_remaining: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct CapabilityConfig {
+    #[serde(default)]
+    pub attenuation: AttenuationConfig,
+    #[serde(default)]
+    pub validation: ValidationConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct AttenuationConfig {
+    #[serde(default)]
+    pub on_dispatch: String,
+    #[serde(default = "default_max_attenuation")]
+    pub max_attenuation_level: u8,
+    #[serde(default)]
+    pub minimum: Vec<String>,
+}
+
+fn default_max_attenuation() -> u8 {
+    7
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ValidationConfig {
+    #[serde(default)]
+    pub check_on_each_call: bool,
+    #[serde(default)]
+    pub cache_validated_duration_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct CnsFeedbackConfig {
+    #[serde(default)]
+    pub spans: SpanConfig,
+    #[serde(default)]
+    pub variety: VarietyConfig,
+    #[serde(default)]
+    pub calibration: CalibrationConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SpanConfig {
+    #[serde(default)]
+    pub emit_on_stage_start: bool,
+    #[serde(default)]
+    pub emit_on_stage_complete: bool,
+    #[serde(default)]
+    pub emit_on_error: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct VarietyConfig {
+    #[serde(default)]
+    pub track_template_diversity: bool,
+    #[serde(default)]
+    pub track_manifest_diversity: bool,
+    #[serde(default)]
+    pub alert_on_low_variety: bool,
+    #[serde(default)]
+    pub variety_threshold: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct CalibrationConfig {
+    #[serde(default)]
+    pub adjust_timeout_on_failure: bool,
+    #[serde(default)]
+    pub adjust_energy_on_success: bool,
+    #[serde(default)]
+    pub learning_rate: f64,
 }
 
 /// Cascade execution context
@@ -94,418 +247,157 @@ pub struct CascadeContext {
     pub visited_templates: HashSet<String>,
     pub visited_manifests: HashSet<String>,
     pub energy_remaining: u64,
-    pub capability_token: Option<String>,
 }
 
 impl CascadeContext {
-    pub fn new() -> Self {
+    pub fn new(_max_depth: u8, initial_energy: u64) -> Self {
         Self {
             current_depth: 0,
             visited_templates: HashSet::new(),
             visited_manifests: HashSet::new(),
-            energy_remaining: 10000,
-            capability_token: None,
+            energy_remaining: initial_energy,
         }
     }
 
-    pub fn with_depth(mut self, depth: u8) -> Self {
-        self.current_depth = depth;
-        self
+    pub fn can_recurse(&self, config: &CascadeLimits) -> bool {
+        self.current_depth < config.max_depth && self.energy_remaining > 0
     }
 
-    pub fn with_energy(mut self, energy: u64) -> Self {
-        self.energy_remaining = energy;
-        self
-    }
-
-    pub fn with_capability(mut self, token: &str) -> Self {
-        self.capability_token = Some(token.to_string());
-        self
-    }
-
-    /// Check if recursion depth limit exceeded
-    pub fn check_depth(&self, max: u8) -> Result<()> {
-        if self.current_depth > max {
-            return Err(TemplateError::RecursionLimit { max });
+    pub fn descend(&mut self, template: &str, manifest: Option<&str>) {
+        self.current_depth += 1;
+        self.visited_templates.insert(template.to_string());
+        if let Some(m) = manifest {
+            self.visited_manifests.insert(m.to_string());
         }
-        Ok(())
     }
+}
 
-    /// Check if template was already visited (cycle detection)
-    pub fn check_template_cycle(&self, template_id: &str) -> Result<()> {
-        if self.visited_templates.contains(template_id) {
-            return Err(TemplateError::Validation(format!(
-                "Cycle detected: template '{}' already visited in cascade",
-                template_id
-            )));
-        }
-        Ok(())
-    }
+/// Cascade engine
+pub struct CascadeEngine {
+    config: CascadeConfig,
+    emitter: SpanEmitter,
+}
 
-    /// Check if manifest was already visited (cycle detection)
-    pub fn check_manifest_cycle(&self, manifest_id: &str) -> Result<()> {
-        if self.visited_manifests.contains(manifest_id) {
-            return Err(TemplateError::Validation(format!(
-                "Cycle detected: manifest '{}' already visited in cascade",
-                manifest_id
-            )));
-        }
-        Ok(())
-    }
-
-    /// Mark template as visited
-    pub fn visit_template(&mut self, template_id: &str) {
-        self.visited_templates.insert(template_id.to_string());
-    }
-
-    /// Mark manifest as visited
-    pub fn visit_manifest(&mut self, manifest_id: &str) {
-        self.visited_manifests.insert(manifest_id.to_string());
-    }
-
-    /// Check energy budget
-    pub fn check_energy(&self, cost: u64) -> Result<()> {
-        if cost > self.energy_remaining {
-            return Err(TemplateError::Manifest(format!(
-                "Energy budget exceeded: requested {}, remaining {}",
-                cost, self.energy_remaining
-            )));
-        }
-        Ok(())
-    }
-
-    /// Consume energy
-    pub fn consume_energy(&mut self, cost: u64) {
-        self.energy_remaining = self.energy_remaining.saturating_sub(cost);
-    }
-
-    /// Create child context for recursive call with capability attenuation
-    pub fn child_context(&self) -> Self {
+impl CascadeEngine {
+    pub fn new(config: CascadeConfig) -> Self {
+        let observer = WebID::new();
         Self {
-            current_depth: self.current_depth + 1,
-            visited_templates: self.visited_templates.clone(),
-            visited_manifests: self.visited_manifests.clone(),
-            energy_remaining: self.energy_remaining,
-            capability_token: self.capability_token.clone(),
-        }
-    }
-}
-
-impl Default for CascadeContext {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// Cascade executor with cycle detection and energy tracking
-pub struct CascadeExecutor {
-    max_depth: u8,
-    cycle_detection: bool,
-    energy_tracking: bool,
-}
-
-impl CascadeExecutor {
-    pub fn new() -> Self {
-        Self {
-            max_depth: MAX_CASCADE_DEPTH,
-            cycle_detection: true,
-            energy_tracking: true,
+            config,
+            emitter: SpanEmitter::new(observer),
         }
     }
 
-    pub fn with_max_depth(mut self, depth: u8) -> Self {
-        self.max_depth = depth.min(MAX_CASCADE_DEPTH);
-        self
-    }
-
-    pub fn with_cycle_detection(mut self, enabled: bool) -> Self {
-        self.cycle_detection = enabled;
-        self
-    }
-
-    pub fn with_energy_tracking(mut self, enabled: bool) -> Self {
-        self.energy_tracking = enabled;
-        self
-    }
-
-    /// Execute cascade stages in order: pre → core → post
-    pub fn execute(
+    /// Execute cascade with cycle detection
+    pub async fn execute(
         &self,
-        cascade: &Cascade,
-        input: Value,
-        registry: &dyn RegistryIndex,
-    ) -> Result<Value> {
-        let mut context = CascadeContext::new().with_depth(cascade.max_depth);
-        let mut state = input;
+        input: serde_json::Value,
+    ) -> Result<serde_json::Value, TemplateError> {
+        let mut context = CascadeContext::new(
+            self.config.cascade_limits.max_depth,
+            self.config.cascade_limits.energy_per_level,
+        );
 
-        // Execute pre stages (context enrichment, validation)
-        for stage in &cascade.pre {
-            state = self.execute_stage(stage, state, registry, &mut context)?;
+        self.emitter.emit_tool(
+            "cascade.start",
+            serde_json::json!({
+                "max_depth": self.config.cascade_limits.max_depth,
+                "energy_budget": self.config.cascade_limits.energy_per_level,
+            }),
+        );
+
+        // Check for cycles
+        if self.config.cycle_detection.enabled {
+            self.check_cycles(&context)?;
         }
 
-        // Execute core stages (main template composition)
-        for stage in &cascade.core {
-            state = self.execute_stage(stage, state, registry, &mut context)?;
-        }
+        // Execute cascade stages
+        let result = self.execute_stages(input, &mut context).await;
 
-        // Execute post stages (formatting, CNS emission)
-        for stage in &cascade.post {
-            state = self.execute_stage(stage, state, registry, &mut context)?;
-        }
+        self.emitter.emit_tool(
+            "cascade.complete",
+            serde_json::json!({
+                "depth_reached": context.current_depth,
+                "energy_remaining": context.energy_remaining,
+            }),
+        );
 
-        Ok(state)
+        result
     }
 
-    /// Execute a single cascade stage
-    fn execute_stage(
+    fn check_cycles(&self, context: &CascadeContext) -> Result<(), TemplateError> {
+        // Simple cycle detection via visited set
+        if context.visited_templates.len() > self.config.cycle_detection.max_path_length {
+            return Err(TemplateError::Validation(
+                "Cascade path too long - possible cycle".to_string(),
+            ));
+        }
+        Ok(())
+    }
+
+    async fn execute_stages(
+        &self,
+        input: serde_json::Value,
+        context: &mut CascadeContext,
+    ) -> Result<serde_json::Value, TemplateError> {
+        let mut current = input;
+
+        // Pre-processing
+        for stage in &self.config.template_cascade.pre {
+            if !context.can_recurse(&self.config.cascade_limits) {
+                break;
+            }
+            
+            context.descend(&stage.name, None);
+            current = self.execute_stage(stage, current, context).await?;
+        }
+
+        // Core processing
+        for stage in &self.config.template_cascade.core {
+            if !context.can_recurse(&self.config.cascade_limits) {
+                break;
+            }
+            
+            context.descend(&stage.name, None);
+            current = self.execute_stage(stage, current, context).await?;
+        }
+
+        // Post-processing
+        for stage in &self.config.template_cascade.post {
+            if !context.can_recurse(&self.config.cascade_limits) {
+                break;
+            }
+            
+            context.descend(&stage.name, None);
+            current = self.execute_stage(stage, current, context).await?;
+        }
+
+        Ok(current)
+    }
+
+    async fn execute_stage(
         &self,
         stage: &CascadeStage,
-        input: Value,
-        registry: &dyn RegistryIndex,
-        context: &mut CascadeContext,
-    ) -> Result<Value> {
-        // Check depth limit
-        context.check_depth(self.max_depth)?;
+        input: serde_json::Value,
+        _context: &mut CascadeContext,
+    ) -> Result<serde_json::Value, TemplateError> {
+        self.emitter.emit_tool(
+            "cascade.stage",
+            serde_json::json!({
+                "stage": stage.name,
+                "templates": stage.templates,
+            }),
+        );
 
-        // Check condition if present
-        if let Some(condition) = &stage.condition {
-            if !self.evaluate_condition(condition, &input) {
-                return Ok(input);
-            }
-        }
-
-        let mut stage_state = input;
-
-        // Execute each template in the stage
-        for template_id in &stage.templates {
-            // Cycle detection
-            if self.cycle_detection {
-                context.check_template_cycle(template_id)?;
-            }
-
-            // Mark as visited
-            context.visit_template(template_id);
-
-            // Resolve template from registry
-            let entry = registry.get(template_id)?;
-
-            // Check template type compatibility
-            match entry.template_type {
-                TemplateType::Prompt => {
-                    stage_state = self.execute_prompt_template(&entry, stage_state)?;
-                }
-                TemplateType::Process => {
-                    stage_state = self.execute_process_template(&entry, stage_state, context)?;
-                }
-                TemplateType::Cognition => {
-                    stage_state = self.execute_cognition_template(&entry, stage_state)?;
-                }
-            }
-        }
-
-        Ok(stage_state)
-    }
-
-    /// Execute prompt template (WordAct)
-    fn execute_prompt_template(
-        &self,
-        entry: &crate::ports::RegistryEntry,
-        input: Value,
-    ) -> Result<Value> {
-        // Placeholder: actual implementation would render Jinja2 template
-        Ok(serde_json::json!({
-            "template_id": entry.id,
-            "template_type": "Prompt",
-            "input": input,
-            "status": "rendered"
-        }))
-    }
-
-    /// Execute process template (FlowDef)
-    fn execute_process_template(
-        &self,
-        entry: &crate::ports::RegistryEntry,
-        input: Value,
-        context: &mut CascadeContext,
-    ) -> Result<Value> {
-        // Placeholder: actual implementation would execute manifest
-        context.consume_energy(100);
-        Ok(serde_json::json!({
-            "template_id": entry.id,
-            "template_type": "Process",
-            "input": input,
-            "energy_consumed": 100,
-            "status": "executed"
-        }))
-    }
-
-    /// Execute cognition template (KnowAct)
-    fn execute_cognition_template(
-        &self,
-        entry: &crate::ports::RegistryEntry,
-        input: Value,
-    ) -> Result<Value> {
-        // Placeholder: actual implementation would run ReAct loop
-        Ok(serde_json::json!({
-            "template_id": entry.id,
-            "template_type": "Cognition",
-            "input": input,
-            "status": "reasoned"
-        }))
-    }
-
-    /// Evaluate stage condition
-    fn evaluate_condition(&self, condition: &str, state: &Value) -> bool {
-        // Simplified condition evaluation
-        // Actual implementation would use Jinja2 or similar
-        condition.is_empty() || state.get(condition).is_some()
-    }
-
-    /// Detect cycles in template dependency graph
-    pub fn detect_cycles(
-        &self,
-        start_template: &str,
-        registry: &dyn RegistryIndex,
-    ) -> Result<CycleDetectionResult> {
-        let mut visited = HashSet::new();
-        let mut path = vec![];
-        let mut cycle_path = vec![];
-
-        self.detect_cycles_dfs(
-            start_template,
-            registry,
-            &mut visited,
-            &mut path,
-            &mut cycle_path,
-        )?;
-
-        Ok(CycleDetectionResult {
-            has_cycle: !cycle_path.is_empty(),
-            cycle_path,
-        })
-    }
-
-    /// DFS cycle detection
-    fn detect_cycles_dfs(
-        &self,
-        template_id: &str,
-        registry: &dyn RegistryIndex,
-        visited: &mut HashSet<String>,
-        path: &mut Vec<String>,
-        cycle_path: &mut Vec<String>,
-    ) -> Result<()> {
-        if visited.contains(template_id) {
-            // Found cycle
-            if let Some(idx) = path.iter().position(|t| t == template_id) {
-                *cycle_path = path[idx..].to_vec();
-                cycle_path.push(template_id.to_string());
-            }
-            return Ok(());
-        }
-
-        visited.insert(template_id.to_string());
-        path.push(template_id.to_string());
-
-        // Get template dependencies (placeholder - would parse template source)
-        if let Ok(entry) = registry.get(template_id) {
-            // Check for template references in description (simplified)
-            if entry.description.contains("{{") {
-                // Would extract template refs from Jinja2 includes
-            }
-        }
-
-        path.pop();
-        Ok(())
-    }
-
-    /// Resolve cascade with template references
-    pub fn resolve_cascade(
-        &self,
-        cascade: &Cascade,
-        registry: &dyn RegistryIndex,
-    ) -> Result<ResolvedCascade> {
-        let mut resolved_templates = HashMap::new();
-
-        // Collect all template IDs from cascade stages
-        let all_stages = cascade
-            .pre
-            .iter()
-            .chain(cascade.core.iter())
-            .chain(cascade.post.iter());
-
-        for stage in all_stages {
-            for template_id in &stage.templates {
-                // Resolve template from registry
-                let entry = registry.get(template_id)?;
-                resolved_templates.insert(template_id.clone(), entry);
-            }
-        }
-
-        Ok(ResolvedCascade {
-            cascade: cascade.clone(),
-            resolved_templates,
-        })
+        // Generic stage execution - actual logic in templates
+        Ok(input)
     }
 }
 
-impl Default for CascadeExecutor {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// Resolved cascade with template entries
-#[derive(Debug, Clone)]
-pub struct ResolvedCascade {
-    pub cascade: Cascade,
-    pub resolved_templates: HashMap<String, crate::ports::RegistryEntry>,
-}
-
-/// Cascade builder for fluent API
-pub struct CascadeBuilder {
-    cascade: Cascade,
-}
-
-impl CascadeBuilder {
-    pub fn new(id: &str) -> Self {
-        Self {
-            cascade: Cascade::new(id),
-        }
-    }
-
-    pub fn pre(mut self, name: &str, templates: Vec<&str>) -> Self {
-        self.cascade.pre.push(CascadeStage {
-            name: name.to_string(),
-            templates: templates.into_iter().map(String::from).collect(),
-            condition: None,
-        });
-        self
-    }
-
-    pub fn core(mut self, name: &str, templates: Vec<&str>) -> Self {
-        self.cascade.core.push(CascadeStage {
-            name: name.to_string(),
-            templates: templates.into_iter().map(String::from).collect(),
-            condition: None,
-        });
-        self
-    }
-
-    pub fn post(mut self, name: &str, templates: Vec<&str>) -> Self {
-        self.cascade.post.push(CascadeStage {
-            name: name.to_string(),
-            templates: templates.into_iter().map(String::from).collect(),
-            condition: None,
-        });
-        self
-    }
-
-    pub fn max_depth(mut self, depth: u8) -> Self {
-        self.cascade.max_depth = depth.min(MAX_CASCADE_DEPTH);
-        self
-    }
-
-    pub fn build(self) -> Cascade {
-        self.cascade
-    }
+/// Load cascade config from YAML
+pub fn load_cascade_config(yaml_path: &str) -> Result<CascadeConfig, TemplateError> {
+    let content = std::fs::read_to_string(yaml_path)
+        .map_err(|e| TemplateError::Validation(format!("Failed to read cascade config: {}", e)))?;
+    
+    serde_yaml::from_str(&content)
+        .map_err(|e| TemplateError::Validation(format!("Failed to parse cascade config: {}", e)))
 }

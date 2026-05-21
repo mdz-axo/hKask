@@ -1,0 +1,100 @@
+# CSP Stage Isolation Configuration
+# ℏKask v0.21.2 — Planck's Constant of Agent Systems
+
+# Stage execution configuration
+stage_execution:
+  # Default timeout for stage execution (milliseconds)
+  default_timeout_ms: 5000
+  
+  # Channel capacity for backpressure (1 = synchronous)
+  channel_capacity: 1
+  
+  # Retry configuration
+  retry:
+    max_retries: 3
+    initial_delay_ms: 100
+    max_delay_ms: 1000
+    exponential_backoff: true
+
+# Stage definitions (reference by name in pipelines)
+stages:
+  # Pre-processing stages
+  pre_process:
+    - name: validate_input
+      timeout_ms: 1000
+      retry_on_failure: false
+      
+    - name: sanitize
+      timeout_ms: 500
+      retry_on_failure: false
+      
+    - name: enrich_context
+      timeout_ms: 2000
+      retry_on_failure: true
+  
+  # Core processing stages
+  core_process:
+    - name: template_render
+      timeout_ms: 3000
+      retry_on_failure: true
+      
+    - name: capability_check
+      timeout_ms: 500
+      retry_on_failure: false
+      
+    - name: execute_action
+      timeout_ms: 5000
+      retry_on_failure: true
+  
+  # Post-processing stages
+  post_process:
+    - name: validate_output
+      timeout_ms: 1000
+      retry_on_failure: false
+      
+    - name: emit_cns_span
+      timeout_ms: 500
+      retry_on_failure: true
+      
+    - name: cache_result
+      timeout_ms: 1000
+      retry_on_failure: false
+
+# Error handling configuration
+error_handling:
+  # Error classification
+  classification:
+    retryable:
+      - timeout
+      - channel_error
+      - transient_failure
+    
+    non_retryable:
+      - validation_error
+      - capability_denied
+      - invalid_input
+  
+  # Error escalation
+  escalation:
+    on_max_retries_exceeded: emit_cns_alert
+    on_stage_panic: escalate_to_curator
+    on_channel_failure: fallback_to_sync
+
+# Performance tuning
+performance:
+  # Task spawning strategy
+  task_spawning:
+    strategy: lazy_spawn  # lazy, eager, pooled
+    max_concurrent_stages: 10
+    min_idle_tasks: 2
+  
+  # Memory management
+  memory:
+    max_stage_memory_mb: 64
+    gc_on_stage_complete: false
+  
+  # Monitoring
+  monitoring:
+    emit_timing_spans: true
+    track_channel_utilization: true
+    alert_on_slow_stage_ms: 4000

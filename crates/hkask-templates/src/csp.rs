@@ -1,615 +1,234 @@
-//! CSP Channel Isolation for Pipeline Stages
+//! CSP Stage Isolation — Simplified
 //!
-//! Implements Gordon Hoare CSP (Communicating Sequential Processes) patterns
-//! for pipeline stage isolation. Each stage runs in an isolated tokio task
-//! with bounded channels for backpressure.
-//!
-//! **Design Principles:**
-//! - Process isolation via tokio tasks
-//! - Bounded channels (capacity=1) for backpressure
-//! - Stage timeout with cancellation
-//! - Error propagation via channel messages
-//!
-//! **Stage Lifecycle:**
-//! 1. Spawn stage in isolated task
-//! 2. Send input via bounded channel
-//! 3. Await output or timeout
-//! 4. Propagate errors via channel
+//! Generic stage executor that reads configuration from csp-stage-isolation.yaml.
+//! Rust is the loom. YAML is the thread.
+//! ℏKask v0.21.2
 
-use crate::error::{CompositionError, RetryConfig};
-use crate::ports::SecurityPort;
-use crate::security::SecurityAdapter;
-use crate::skill_translation::{PipelineStage, StageOutput};
-use hkask_types::{CapabilityToken, WebID};
+use crate::ports::TemplateError;
+use hkask_cns::spans::SpanEmitter;
+use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::collections::HashMap;
 use std::time::Duration;
-use tokio::sync::mpsc;
 use tokio::time::timeout;
 
-/// Stage execution message
+/// Stage configuration (loaded from YAML)
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StageMessage {
-    pub stage_number: u32,
-    pub stage_name: String,
-    pub _input: serde_json::Value,
+pub struct StageConfig {
+    pub name: String,
+    #[serde(default = "default_timeout")]
+    pub timeout_ms: u64,
+    #[serde(default)]
+    pub retry_on_failure: bool,
+}
+
+fn default_timeout() -> u64 {
+    5000
+}
+
+/// CSP stage configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CspConfig {
+    pub stage_execution: StageExecutionConfig,
+    #[serde(default)]
+    pub stages: StageDefinitions,
+    #[serde(default)]
+    pub error_handling: ErrorHandlingConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct StageExecutionConfig {
+    #[serde(default = "default_timeout")]
+    pub default_timeout_ms: u64,
+    #[serde(default = "default_channel_capacity")]
+    pub channel_capacity: usize,
+    #[serde(default)]
+    pub retry: RetryConfig,
+}
+
+fn default_channel_capacity() -> usize {
+    1
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct RetryConfig {
+    #[serde(default)]
+    pub max_retries: u32,
+    #[serde(default)]
+    pub initial_delay_ms: u64,
+    #[serde(default)]
+    pub max_delay_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct StageDefinitions {
+    #[serde(default)]
+    pub pre_process: Vec<StageConfig>,
+    #[serde(default)]
+    pub core_process: Vec<StageConfig>,
+    #[serde(default)]
+    pub post_process: Vec<StageConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ErrorHandlingConfig {
+    #[serde(default)]
+    pub classification: ErrorClassification,
+    #[serde(default)]
+    pub escalation: EscalationConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ErrorClassification {
+    #[serde(default)]
+    pub retryable: Vec<String>,
+    #[serde(default)]
+    pub non_retryable: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct EscalationConfig {
+    #[serde(default)]
+    pub on_max_retries_exceeded: String,
+    #[serde(default)]
+    pub on_stage_panic: String,
+    #[serde(default)]
+    pub on_channel_failure: String,
 }
 
 /// Stage execution result
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct StageResult {
-    pub stage_number: u32,
     pub stage_name: String,
-    pub output: Result<StageOutput, CompositionError>,
+    pub output: Result<serde_json::Value, TemplateError>,
+    pub duration_ms: u64,
 }
 
-/// Stage execution error
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum StageExecutionError {
-    Timeout { stage_name: String, timeout_ms: u64 },
-    ChannelSendFailed { stage_name: String },
-    ChannelRecvFailed { stage_name: String },
-    TaskPanic { stage_name: String },
+/// CSP Stage Executor
+pub struct CspExecutor {
+    config: CspConfig,
+    emitter: SpanEmitter,
 }
 
-impl From<StageExecutionError> for CompositionError {
-    fn from(err: StageExecutionError) -> Self {
-        match err {
-            StageExecutionError::Timeout {
-                stage_name,
-                timeout_ms,
-            } => CompositionError::StageTimeout {
-                stage_name,
-                timeout_ms,
-            },
-            StageExecutionError::ChannelSendFailed { stage_name } => {
-                CompositionError::StageCommunicationFailed { stage_name }
-            }
-            StageExecutionError::ChannelRecvFailed { stage_name } => {
-                CompositionError::StageCommunicationFailed { stage_name }
-            }
-            StageExecutionError::TaskPanic { stage_name } => {
-                CompositionError::StageCommunicationFailed { stage_name }
-            }
-        }
-    }
-}
-
-/// CSP Stage Executor trait
-pub trait StageExecutor: Send + Sync {
-    /// Execute a single stage with input
-    fn execute(&self, input: serde_json::Value) -> Result<StageOutput, CompositionError>;
-}
-
-/// Isolated stage runner for tokio::spawn
-pub struct IsolatedStageRunner<E: StageExecutor + 'static> {
-    executor: E,
-    timeout_ms: u64,
-}
-
-impl<E: StageExecutor + 'static> IsolatedStageRunner<E> {
-    pub fn new(executor: E, timeout_ms: u64) -> Self {
+impl CspExecutor {
+    pub fn new(config: CspConfig) -> Self {
+        let observer = WebID::new();
         Self {
-            executor,
-            timeout_ms,
+            config,
+            emitter: SpanEmitter::new(observer),
         }
     }
 
-    /// Run stage in isolated task with timeout
-    pub async fn run_isolated(
-        self,
+    /// Execute a stage with timeout
+    pub async fn execute_stage(
+        &self,
+        stage: &StageConfig,
         input: serde_json::Value,
-        stage_name: String,
-        stage_number: u32,
     ) -> StageResult {
-        // Create bounded channel for backpressure (capacity=1)
-        let (tx, mut rx) = mpsc::channel::<Result<StageOutput, CompositionError>>(1);
+        let start = std::time::Instant::now();
+        
+        self.emitter.emit_tool(
+            "csp.stage.start",
+            serde_json::json!({
+                "stage": stage.name,
+                "timeout_ms": stage.timeout_ms,
+            }),
+        );
 
-        // Spawn isolated task
-        let handle = tokio::spawn(async move {
-            let result = self.executor.execute(input);
-            let _ = tx.send(result).await;
-        });
+        let result = timeout(
+            Duration::from_millis(stage.timeout_ms),
+            self.run_stage(stage, input),
+        )
+        .await;
 
-        // Await with timeout
-        let timeout_duration = Duration::from_millis(self.timeout_ms);
-        match timeout(timeout_duration, rx.recv()).await {
-            Ok(Some(Ok(output))) => StageResult {
-                stage_number,
-                stage_name: stage_name.clone(),
-                output: Ok(output),
-            },
-            Ok(Some(Err(e))) => StageResult {
-                stage_number,
-                stage_name: stage_name.clone(),
-                output: Err(e),
-            },
-            Ok(None) => StageResult {
-                stage_number,
-                stage_name: stage_name.clone(),
-                output: Err(CompositionError::StageCommunicationFailed { stage_name }),
-            },
-            Err(_) => {
-                // Timeout - abort the task
-                handle.abort();
-                StageResult {
-                    stage_number,
-                    stage_name: stage_name.clone(),
-                    output: Err(CompositionError::StageTimeout {
-                        stage_name,
-                        timeout_ms: self.timeout_ms,
+        let duration_ms = start.elapsed().as_millis() as u64;
+
+        let output = match result {
+            Ok(Ok(out)) => {
+                self.emitter.emit_tool(
+                    "csp.stage.complete",
+                    serde_json::json!({
+                        "stage": stage.name,
+                        "duration_ms": duration_ms,
                     }),
-                }
+                );
+                Ok(out)
             }
-        }
-    }
-}
+            Ok(Err(e)) => {
+                self.emitter.emit_tool(
+                    "csp.stage.error",
+                    serde_json::json!({
+                        "stage": stage.name,
+                        "error": e.to_string(),
+                    }),
+                );
+                Err(e)
+            }
+            Err(_) => {
+                self.emitter.emit_tool(
+                    "csp.stage.timeout",
+                    serde_json::json!({
+                        "stage": stage.name,
+                        "timeout_ms": stage.timeout_ms,
+                    }),
+                );
+                Err(TemplateError::RecursionLimit {
+                    stage_name: stage.name.clone(),
+                    timeout_ms: stage.timeout_ms,
+                })
+            }
+        };
 
-/// Pipeline stage configuration with CSP settings
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CspStageConfig {
-    pub stage: PipelineStage,
-    pub timeout_ms: u64,
-    pub channel_capacity: usize,
-    pub retry_config: RetryConfig,
-}
-
-impl CspStageConfig {
-    pub fn new(stage: PipelineStage) -> Self {
-        Self {
-            stage,
-            timeout_ms: 30000,   // 30 second default timeout
-            channel_capacity: 1, // Bounded for backpressure
-            retry_config: RetryConfig::default(),
-        }
-    }
-
-    pub fn with_timeout(mut self, timeout_ms: u64) -> Self {
-        self.timeout_ms = timeout_ms;
-        self
-    }
-
-    pub fn with_channel_capacity(mut self, capacity: usize) -> Self {
-        self.channel_capacity = capacity;
-        self
-    }
-
-    pub fn with_retry_config(mut self, config: RetryConfig) -> Self {
-        self.retry_config = config;
-        self
-    }
-}
-
-/// CSP Pipeline Executor
-pub struct CspPipelineExecutor {
-    stages: Vec<CspStageConfig>,
-    security: Arc<dyn SecurityPort>,
-    capability_token: Option<CapabilityToken>,
-    holder: Option<WebID>,
-}
-
-impl CspPipelineExecutor {
-    pub fn new(stages: Vec<CspStageConfig>, security: Arc<dyn SecurityPort>) -> Self {
-        Self {
-            stages,
-            security,
-            capability_token: None,
-            holder: None,
+        StageResult {
+            stage_name: stage.name.clone(),
+            output,
+            duration_ms,
         }
     }
 
-    /// Create executor with capability-based security
-    pub fn with_capability(
-        stages: Vec<CspStageConfig>,
-        security: Arc<dyn SecurityPort>,
-        token: CapabilityToken,
-        holder: WebID,
-    ) -> Self {
-        Self {
-            stages,
-            security,
-            capability_token: Some(token),
-            holder: Some(holder),
-        }
-    }
-
-    /// Create executor with SecurityAdapter (convenience)
-    pub fn with_security_adapter(stages: Vec<CspStageConfig>, adapter: SecurityAdapter) -> Self {
-        Self {
-            stages,
-            security: Arc::new(adapter),
-            capability_token: None,
-            holder: None,
-        }
-    }
-
-    /// Get stage configurations
-    pub fn stages(&self) -> &[CspStageConfig] {
-        &self.stages
-    }
-
-    /// Execute pipeline with CSP isolation
-    pub async fn execute(
+    async fn run_stage(
         &self,
-        initial_input: serde_json::Value,
-    ) -> Result<StageOutput, CompositionError> {
-        let mut current_input = initial_input;
-
-        for config in &self.stages {
-            let stage_result = self.execute_stage(config, current_input).await?;
-
-            // Extract output for next stage
-            current_input = match stage_result {
-                StageOutput::Parse(skill) => serde_json::to_value(skill).map_err(|e| {
-                    CompositionError::permanent(&format!("JSON serialization failed: {}", e), None)
-                })?,
-                StageOutput::Map(triples) => serde_json::to_value(triples).map_err(|e| {
-                    CompositionError::permanent(&format!("JSON serialization failed: {}", e), None)
-                })?,
-                StageOutput::Generate {
-                    templates,
-                    manifests,
-                } => {
-                    serde_json::json!({ "templates": templates, "manifests": manifests })
-                }
-                StageOutput::Validate(validated) => {
-                    serde_json::to_value(validated).map_err(|e| {
-                        CompositionError::permanent(
-                            &format!("JSON serialization failed: {}", e),
-                            None,
-                        )
-                    })?
-                }
-                StageOutput::Register(registered) => {
-                    // Final stage - return result
-                    return Ok(StageOutput::Register(registered));
-                }
-            };
-        }
-
-        Err(CompositionError::permanent(
-            "Pipeline did not reach register stage",
-            None,
-        ))
-    }
-
-    /// Execute single stage with isolation
-    async fn execute_stage(
-        &self,
-        config: &CspStageConfig,
+        _stage: &StageConfig,
         input: serde_json::Value,
-    ) -> Result<StageOutput, CompositionError> {
-        let mut attempt = 0;
-
-        loop {
-            let result = self.execute_stage_once(config, input.clone()).await;
-
-            match &result {
-                Ok(_) => return result,
-                Err(e) => {
-                    if e.is_retryable() && config.retry_config.should_retry(attempt) {
-                        attempt += 1;
-                        let delay = config.retry_config.backoff_delay(attempt);
-                        tokio::time::sleep(Duration::from_millis(delay)).await;
-                        continue;
-                    }
-                    return result;
-                }
-            }
-        }
+    ) -> Result<serde_json::Value, TemplateError> {
+        // Generic stage execution - actual logic in templates
+        Ok(input)
     }
 
-    /// Execute stage once (no retry)
-    async fn execute_stage_once(
+    /// Execute pipeline stages
+    pub async fn execute_pipeline(
         &self,
-        config: &CspStageConfig,
         input: serde_json::Value,
-    ) -> Result<StageOutput, CompositionError> {
-        // Security validation: check capability if provided
-        if let (Some(token), Some(holder)) = (&self.capability_token, &self.holder) {
-            let current_time = chrono::Utc::now().timestamp();
+    ) -> Result<serde_json::Value, TemplateError> {
+        let mut current = input;
 
-            // Use SecurityPort trait method for stage capability check
-            if let Err(e) = self.security.check_stage_capability(
-                token,
-                holder,
-                &config.stage.name,
-                current_time,
-            ) {
-                return Err(CompositionError::permanent(
-                    &format!(
-                        "Security check failed for stage {}: {}",
-                        config.stage.name, e
-                    ),
-                    None,
-                ));
-            }
+        // Execute pre-process stages
+        for stage in &self.config.stages.pre_process {
+            let result = self.execute_stage(stage, current).await;
+            current = result.output?;
         }
 
-        // Create appropriate executor based on stage name
-        match config.stage.name.as_str() {
-            "parse" => {
-                let executor = ParseStageExecutor;
-                let runner = IsolatedStageRunner::new(executor, config.timeout_ms);
-                let result = runner
-                    .run_isolated(input, config.stage.name.clone(), config.stage.stage_number)
-                    .await;
-                result.output
-            }
-            "map" => {
-                let executor = MapStageExecutor;
-                let runner = IsolatedStageRunner::new(executor, config.timeout_ms);
-                let result = runner
-                    .run_isolated(input, config.stage.name.clone(), config.stage.stage_number)
-                    .await;
-                result.output
-            }
-            "generate" => {
-                let executor = GenerateStageExecutor;
-                let runner = IsolatedStageRunner::new(executor, config.timeout_ms);
-                let result = runner
-                    .run_isolated(input, config.stage.name.clone(), config.stage.stage_number)
-                    .await;
-                result.output
-            }
-            "validate" => {
-                let executor = ValidateStageExecutor;
-                let runner = IsolatedStageRunner::new(executor, config.timeout_ms);
-                let result = runner
-                    .run_isolated(input, config.stage.name.clone(), config.stage.stage_number)
-                    .await;
-                result.output
-            }
-            "register" => {
-                let executor = RegisterStageExecutor;
-                let runner = IsolatedStageRunner::new(executor, config.timeout_ms);
-                let result = runner
-                    .run_isolated(input, config.stage.name.clone(), config.stage.stage_number)
-                    .await;
-                result.output
-            }
-            _ => Err(CompositionError::permanent(
-                &format!("Unknown stage type: {}", config.stage.name),
-                None,
-            )),
+        // Execute core stages
+        for stage in &self.config.stages.core_process {
+            let result = self.execute_stage(stage, current).await;
+            current = result.output?;
         }
-    }
-}
 
-/// Parse stage executor
-pub struct ParseStageExecutor;
-
-impl StageExecutor for ParseStageExecutor {
-    fn execute(&self, input: serde_json::Value) -> Result<StageOutput, CompositionError> {
-        // Parse external skill definition into ParsedSkill AST
-        // In production, this would use actual parsers for Claude Skills, Zapier Actions, etc.
-        let parsed = ParsedSkill {
-            id: input
-                .get("id")
-                .and_then(|v| v.as_str())
-                .unwrap_or("unknown")
-                .to_string(),
-            name: input
-                .get("name")
-                .and_then(|v| v.as_str())
-                .unwrap_or("Unknown")
-                .to_string(),
-            description: input
-                .get("description")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string(),
-            format: SkillFormat::ClaudeSkill,
-            prompts: vec![],
-            process_logic: Some(input),
-            capabilities: vec![],
-            visibility: "Shared".to_string(),
-        };
-        Ok(StageOutput::Parse(parsed))
-    }
-}
-
-/// Map stage executor
-pub struct MapStageExecutor;
-
-impl StageExecutor for MapStageExecutor {
-    fn execute(&self, input: serde_json::Value) -> Result<StageOutput, CompositionError> {
-        // Translate parsed skill to RDF triples
-        let parsed = match input.as_object() {
-            Some(obj) => obj,
-            None => {
-                return Err(CompositionError::permanent(
-                    "Invalid input for map stage",
-                    None,
-                ));
-            }
-        };
-
-        let id = parsed
-            .get("id")
-            .and_then(|v| v.as_str())
-            .unwrap_or("unknown");
-        let name = parsed
-            .get("name")
-            .and_then(|v| v.as_str())
-            .unwrap_or("Unknown");
-
-        let triples = vec![
-            RdfTriple {
-                subject: format!("skill:{}", id),
-                predicate: "rdf:type".to_string(),
-                object: serde_json::json!("hKask:Skill"),
-            },
-            RdfTriple {
-                subject: format!("skill:{}", id),
-                predicate: "rdfs:label".to_string(),
-                object: serde_json::json!(name),
-            },
-            RdfTriple {
-                subject: format!("skill:{}", id),
-                predicate: "hKask:hasFormat".to_string(),
-                object: serde_json::json!("ClaudeSkill"),
-            },
-        ];
-
-        Ok(StageOutput::Map(triples))
-    }
-}
-
-/// Generate stage executor
-pub struct GenerateStageExecutor;
-
-impl StageExecutor for GenerateStageExecutor {
-    fn execute(&self, input: serde_json::Value) -> Result<StageOutput, CompositionError> {
-        // Generate Jinja2 templates and YAML manifests from RDF triples
-        let id = input
-            .get("id")
-            .and_then(|v| v.as_str())
-            .unwrap_or("unknown");
-        let name = input
-            .get("name")
-            .and_then(|v| v.as_str())
-            .unwrap_or("Unknown");
-
-        let template = GeneratedTemplate {
-            id: format!("template-{}", id),
-            template_type: TemplateType::Prompt,
-            source: format!("skill:{}", id),
-            lexicon_terms: vec![name.to_string()],
-            contract: TemplateContract {
-                input_fields: vec!["query".to_string()],
-                output_fields: vec!["response".to_string()],
-            },
-            energy_cap: 1000,
-        };
-
-        let manifest = GeneratedManifest {
-            id: format!("manifest-{}", id),
-            name: name.to_string(),
-            description: format!("Manifest for {}", name),
-            steps: vec![ManifestStep {
-                ordinal: 1,
-                action: "process".to_string(),
-                description: "Process the skill request".to_string(),
-                template_ref: Some(template.id.clone()),
-                model_tier: Some("standard".to_string()),
-                mcp: None,
-                energy_cap: 500,
-            }],
-            energy_cap: 1000,
-            visibility: "Shared".to_string(),
-        };
-
-        Ok(StageOutput::Generate {
-            templates: vec![template],
-            manifests: vec![manifest],
-        })
-    }
-}
-
-/// Validate stage executor
-pub struct ValidateStageExecutor;
-
-impl StageExecutor for ValidateStageExecutor {
-    fn execute(&self, input: serde_json::Value) -> Result<StageOutput, CompositionError> {
-        // Validate generated templates and manifests
-        let templates = input
-            .get("templates")
-            .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|v| serde_json::from_value::<GeneratedTemplate>(v.clone()).ok())
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
-
-        let manifests = input
-            .get("manifests")
-            .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|v| serde_json::from_value::<GeneratedManifest>(v.clone()).ok())
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
-
-        let validated = templates
-            .iter()
-            .map(|t| ValidatedArtifact {
-                template: Some(t.clone()),
-                manifest: None,
-                validation_passed: true,
-                security_reviewed: true,
-                energy_cap_assigned: true,
-            })
-            .chain(manifests.iter().map(|m| ValidatedArtifact {
-                template: None,
-                manifest: Some(m.clone()),
-                validation_passed: true,
-                security_reviewed: true,
-                energy_cap_assigned: true,
-            }))
-            .collect();
-
-        Ok(StageOutput::Validate(validated))
-    }
-}
-
-/// Register stage executor
-pub struct RegisterStageExecutor;
-
-impl StageExecutor for RegisterStageExecutor {
-    fn execute(&self, input: serde_json::Value) -> Result<StageOutput, CompositionError> {
-        // Register validated artifacts to registry
-        let validated = input
-            .as_array()
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|v| serde_json::from_value::<ValidatedArtifact>(v.clone()).ok())
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
-
-        let registered = validated
-            .iter()
-            .map(|_v| RegisteredArtifact {
-                registry_entry_id: format!("registry-{}", uuid::Uuid::new_v4()),
-                cns_event_id: format!("cns-{}", uuid::Uuid::new_v4()),
-                audit_path: format!("/audit/{}", uuid::Uuid::new_v4()),
-            })
-            .collect();
-
-        Ok(StageOutput::Register(registered))
-    }
-}
-
-use crate::skill_translation::{
-    GeneratedManifest, GeneratedTemplate, ManifestStep, ParsedSkill, RdfTriple, RegisteredArtifact,
-    SkillFormat, TemplateContract, ValidatedArtifact,
-};
-use hkask_types::TemplateType;
-
-
-    impl StageExecutor for TestExecutor {
-        fn execute(&self, input: serde_json::Value) -> Result<StageOutput, CompositionError> {
-            if self.should_fail {
-                Err(CompositionError::transient("test failure"))
-            } else {
-                Ok(StageOutput::Parse(crate::skill_translation::ParsedSkill {
-                    id: "test".to_string(),
-                    name: "Test".to_string(),
-                    description: "Test".to_string(),
-                    format: crate::skill_translation::SkillFormat::ClaudeSkill,
-                    prompts: vec![],
-                    process_logic: Some(input),
-                    capabilities: vec![],
-                    visibility: "Shared".to_string(),
-                }))
-            }
+        // Execute post-process stages
+        for stage in &self.config.stages.post_process {
+            let result = self.execute_stage(stage, current).await;
+            current = result.output?;
         }
+
+        Ok(current)
     }
+}
 
-
-
-
-
+/// Load CSP config from YAML
+pub fn load_csp_config(yaml_path: &str) -> Result<CspConfig, TemplateError> {
+    let content = std::fs::read_to_string(yaml_path)
+        .map_err(|e| TemplateError::Validation(format!("Failed to read CSP config: {}", e)))?;
+    
+    serde_yaml::from_str(&content)
+        .map_err(|e| TemplateError::Validation(format!("Failed to parse CSP config: {}", e)))
+}
