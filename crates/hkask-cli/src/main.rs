@@ -27,6 +27,7 @@ use std::path::PathBuf;
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 mod commands;
+mod git_archival;
 
 /// Parse a string into a DataCategory
 fn parse_data_category(s: &str) -> hkask_types::DataCategory {
@@ -118,6 +119,12 @@ enum Commands {
     Registry {
         #[command(subcommand)]
         action: RegistryAction,
+    },
+
+    /// Git archival management (Phase 9)
+    Git {
+        #[command(subcommand)]
+        action: GitAction,
     },
 
     /// Documentation generation
@@ -356,6 +363,82 @@ enum RegistryAction {
         /// Filter by origin (e.g., "russell/web-search")
         #[arg(short, long)]
         origin: Option<String>,
+    },
+}
+
+/// Git archival actions (Phase 9)
+#[derive(Subcommand)]
+enum GitAction {
+    /// Archive registry to GitHub repository
+    Archive {
+        /// GitHub repository owner
+        #[arg(short, long)]
+        owner: String,
+
+        /// GitHub repository name
+        #[arg(short, long)]
+        repo: String,
+
+        /// Branch to archive to
+        #[arg(short, long, default_value = "main")]
+        branch: String,
+
+        /// Path in repository
+        #[arg(short, long, default_value = "registry")]
+        path: String,
+
+        /// Content to archive (or use --file)
+        #[arg(short, long)]
+        content: Option<String>,
+
+        /// File to archive
+        #[arg(short, long)]
+        file: Option<PathBuf>,
+    },
+
+    /// Restore registry from GitHub repository
+    Restore {
+        /// GitHub repository owner
+        #[arg(short, long)]
+        owner: String,
+
+        /// GitHub repository name
+        #[arg(short, long)]
+        repo: String,
+
+        /// Git ref (branch, tag, or SHA)
+        #[arg(short, long)]
+        r#ref: String,
+
+        /// Target path to restore to
+        #[arg(short, long, default_value = ".")]
+        target: String,
+    },
+
+    /// List archived registry versions
+    List {
+        /// GitHub repository owner
+        #[arg(short, long)]
+        owner: String,
+
+        /// GitHub repository name
+        #[arg(short, long)]
+        repo: String,
+    },
+
+    /// Create registry snapshot (commit)
+    Snapshot {
+        /// GitHub repository owner
+        #[arg(short, long)]
+        owner: String,
+
+        /// GitHub repository name
+        #[arg(short, long)]
+        repo: String,
+
+        /// Commit message
+        #[arg(short, long)]
+        message: String,
     },
 }
 
@@ -1027,5 +1110,96 @@ fn main() {
                 println!("  (use 'kask registry import-russell --dry-run' to analyze assets)");
             }
         },
+
+        Commands::Git { action } => {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            let runtime = hkask_mcp::runtime::McpRuntime::new();
+
+            match action {
+                GitAction::Archive {
+                    owner,
+                    repo,
+                    branch,
+                    path,
+                    content,
+                    file,
+                } => {
+                    let content_str = if let Some(c) = content {
+                        c
+                    } else if let Some(f) = file {
+                        std::fs::read_to_string(&f).unwrap_or_else(|e| {
+                            eprintln!("Failed to read file: {}", e);
+                            std::process::exit(1);
+                        })
+                    } else {
+                        eprintln!("Either --content or --file must be provided");
+                        std::process::exit(1);
+                    };
+
+                    match rt.block_on(commands::archive_registry_to_git(
+                        &runtime,
+                        &owner,
+                        &repo,
+                        &branch,
+                        &path,
+                        &content_str,
+                    )) {
+                        Ok(result) => println!("{}", result),
+                        Err(e) => {
+                            eprintln!("Archive failed: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+
+                GitAction::Restore {
+                    owner,
+                    repo,
+                    r#ref,
+                    target,
+                } => {
+                    match rt.block_on(commands::restore_registry_from_git(
+                        &runtime, &owner, &repo, &r#ref, &target,
+                    )) {
+                        Ok(result) => println!("{}", result),
+                        Err(e) => {
+                            eprintln!("Restore failed: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+
+                GitAction::List { owner, repo } => {
+                    match rt.block_on(commands::list_registry_archives(&runtime, &owner, &repo)) {
+                        Ok(commits) => {
+                            println!("Archived versions for {}/{}:", owner, repo);
+                            for (i, sha) in commits.iter().enumerate() {
+                                println!("  {}. {}", i + 1, sha);
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("List failed: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+
+                GitAction::Snapshot {
+                    owner,
+                    repo,
+                    message,
+                } => {
+                    match rt.block_on(commands::create_registry_snapshot(
+                        &runtime, &owner, &repo, &message,
+                    )) {
+                        Ok(result) => println!("{}", result),
+                        Err(e) => {
+                            eprintln!("Snapshot failed: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+            }
+        }
     }
 }

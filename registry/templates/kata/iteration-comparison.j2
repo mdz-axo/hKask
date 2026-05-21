@@ -1,0 +1,62 @@
+{# Template: kata/iteration-comparison.j2 #}
+{# Functional Role: KnowAct (knowledge-action — variance judgment) #}
+{# Implementation: Jinja2 prompt #}
+{# Produces: variance_score, confidence, best_iteration #}
+{# Compare Kata iterations for variance and confidence #}
+
+You are the Curator. Compare multiple Kata executions for variance assessment.
+
+## Context
+
+Kata type: {{ kata_type }}
+Learner: {{ learner_bot }}
+Number of iterations: {{ iterations | length }}
+
+## Iterations
+
+{% for iteration in iterations %}
+**Iteration {{ loop.index }}:**
+- Automaticity: {{ iteration.automaticity_score }}
+- Capability delta: {{ iteration.capability_delta | truncate(50) }}
+- Energy: {{ iteration.energy_wh }} Wh
+- CO₂e: {{ iteration.co2e_kg }} kg
+{% endfor %}
+
+## Variance Assessment
+
+**Automaticity variance:** Calculate standard deviation across iterations
+
+**Outcome variance:** How different are the capability deltas?
+
+**Variance score:** 0.0 (identical) to 1.0 (completely different)
+
+| Variance Score | Confidence | Interpretation |
+|----------------|------------|----------------|
+| 0.0–0.2 | High | Consistent results, high confidence |
+| 0.2–0.4 | Medium | Some variance, moderate confidence |
+| 0.4–0.6 | Low | Significant variance, low confidence |
+| 0.6–1.0 | Very Low | Highly variable, unreliable results |
+
+## Selection
+
+Select the best iteration based on:
+1. Highest automaticity score
+2. Most specific capability delta
+3. Most actionable experiment result
+
+## Output Format
+
+```json
+{
+  "variance_score": 0.0,
+  "variance_details": {
+    "automaticity_std_dev": 0.0,
+    "outcome_variance": "low|medium|high"
+  },
+  "confidence": "high|medium|low|very_low",
+  "select_best": 1,
+  "rationale": "..."
+}
+```
+
+## Response

@@ -1,0 +1,189 @@
+# Kata Iteration Manifest
+# ℏKask v0.21.4 — Iteration for variance assessment and confidence building
+
+manifest:
+  id: kata-iteration
+  name: Kata Iteration
+  description: >
+    Iterate on Kata execution for variance assessment and confidence building.
+    Maximum 2 iterations per Kata session. Separate budget from primary execution.
+  parent_manifest: kata-pattern
+  version: 0.21.4
+  editor: Curator
+  visibility: public
+
+# Iteration Budget (separate from primary)
+energy:
+  accounting:
+    framework: GHG-Protocol-Scope-2
+    version: 2024-edition
+  
+  token_budget: 50000  # Per iteration
+  max_iterations: 2
+  total_iteration_budget: 100000  # 50k × 2 max iterations
+  
+  cost_per_token: 0.0008
+  alert_threshold: 0.8
+  hard_limit: true
+  
+  carbon_accounting:
+    location_based_co2e: (energy_wh × pue × grid_intensity_location)
+    unit: kg-CO₂e
+
+# Iteration Steps
+steps:
+  - ordinal: 1
+    action: populate
+    description: Re-execute Kata with temperature variation for variance assessment
+    renderer: minijinja
+    template_ref: kata/{{ kata_type }}-cycle.j2
+    model_tier: balanced
+    mcp: hkask-mcp-inference
+    token_cap: 40000
+    timeout_seconds: 60
+    temperature: 0.8  # Higher than primary (0.3) for variance
+    output_schema:
+      type: object
+      properties:
+        kata_outcome:
+          type: object
+        learner_response:
+          type: string
+        automaticity_score:
+          type: number
+
+  - ordinal: 2
+    action: populate
+    description: Compare all iterations for variance and confidence assessment
+    renderer: minijinja
+    template_ref: kata/iteration-comparison.j2
+    model_tier: fast_local
+    mcp: hkask-mcp-inference
+    token_cap: 5000
+    timeout_seconds: 20
+    output_schema:
+      type: object
+      properties:
+        variance_score:
+          type: number
+        confidence:
+          type: string
+        select_best:
+          type: integer
+        rationale:
+          type: string
+
+  - ordinal: 3
+    action: execute
+    description: Record best iteration to episodic memory
+    renderer: null
+    template_ref: null
+    target: record_best_iteration
+    mcp: hkask-mcp-memory
+    tool: memory_remember
+    token_cap: 2000
+    timeout_seconds: 10
+    output_schema:
+      type: object
+      properties:
+        triple_id:
+          type: string
+        iteration_number:
+          type: integer
+
+  - ordinal: 4
+    action: execute
+    description: Emit CNS span with iteration data
+    renderer: null
+    template_ref: null
+    target: emit_iteration_cns_span
+    mcp: hkask-mcp-cns
+    tool: cns_emit
+    token_cap: 2000
+    timeout_seconds: 10
+    output_schema:
+      type: object
+      properties:
+        cns_event_id:
+          type: string
+        iteration_number:
+          type: integer
+        variance_score:
+          type: number
+        confidence:
+          type: string
+        energy_wh:
+          type: number
+        co2e_kg:
+          type: number
+
+error_handling:
+  on_token_exceeded: abort_and_return_primary
+  on_timeout: retry
+  max_retries: 1
+  retry_backoff_seconds: 1
+  on_variance_high: trigger_additional_iteration
+  on_confidence_low: trigger_additional_iteration
+
+# CNS Integration
+cns:
+  emit_spans: true
+  span_namespace: cns.prompt.kata.iteration
+  
+  iteration_tracking:
+    enabled: true
+    max_iterations: 2
+    iteration_budget: 50000
+    variance_threshold: 0.3  # If variance > 30%, flag for review
+    confidence_threshold: 0.5  # If confidence < 50%, trigger iteration
+  
+  variety_counters:
+    - counter_id: kata.iterations.used
+      increment_on: iteration_executed
+      baseline:
+        expected: 0.5  # Average 0.5 iterations per session
+        warning_threshold: 1.5
+        critical_threshold: 2.0
+    
+    - counter_id: kata.variance.score
+      increment_on: variance_measurement
+      baseline:
+        expected: 0.2  # Target variance < 20%
+        warning_threshold: 0.4
+        critical_threshold: 0.6
+  
+  algedonic_alerts:
+    - trigger: iteration_budget_exceeded
+      condition: iterations_used > max_iterations
+      escalate_to: Curator
+    - trigger: high_variance_detected
+      condition: variance_score > 0.5
+      escalate_to: Curator
+    - trigger: low_confidence_persistent
+      condition: confidence_low_after_2_iterations
+      escalate_to: Curator
+
+# Carbon Accounting
+carbon:
+  tracking:
+    enabled: true
+    counter_id: kata.iteration.carbon.cumulative
+    unit: kg-CO₂e
+    grid_intensity_source: IEA-Emission-Factors-2026
+    pue: 1.15
+
+# Audit Trail
+audit:
+  enabled: true
+  log_level: info
+  include:
+    - iteration_number
+    - variance_score
+    - confidence
+    - token_count
+    - energy_wh
+    - co2e_kg
+  methodology_disclosure:
+    framework: GHG-Protocol-Scope-2-2024
+    grid_intensity_source: IEA-Emission-Factors-2026
+    pue_assumption: 1.15

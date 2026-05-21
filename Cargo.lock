@@ -2717,6 +2717,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "gix",
+ "hkask-agents",
  "hkask-types",
  "rmcp",
  "schemars",

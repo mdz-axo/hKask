@@ -1,0 +1,155 @@
+# hLexicon Governance — Functional/Implementation Alignment
+# ℏKask v0.21.4 — Workspace-wide governance structure
+
+governance:
+  # Registry Hierarchy
+  registry_hierarchy:
+    workspace:
+      path: registry/registries/hlexicon-workspace.yaml
+      scope: all_templates_manifests_ports
+      owner: hKask-Administrator
+    
+    subsystem:
+      path: registry/registries/{subsystem}/hlexicon-{subsystem}.yaml
+      scope: subsystem_specific
+      examples:
+        - registry/registries/kata/kata-hlexicon.yaml
+        - registry/registries/cognition/cognition-hlexicon.yaml
+        - registry/registries/process/process-hlexicon.yaml
+    
+    template_inline:
+      path: registry/templates/**/{template}.j2
+      scope: single_template
+      format: jinja2_header_comment
+
+  # Validation Rules
+  validation_rules:
+    rule_1_functional_required:
+      description: Every template/manifest MUST declare functional_role
+      check: functional_role in [wordact, flowdef, knowact]
+      enforcement: cargo test -p hkask-templates
+    
+    rule_2_implementation_declared:
+      description: Every template/manifest MUST declare implementation_type
+      check: implementation_type in [jinja2, yaml_manifest, yaml_port]
+      enforcement: cargo test -p hkask-templates
+    
+    rule_3_orthogonal_mapping:
+      description: Functional and implementation MUST be orthogonal (no coupling)
+      check: No functional_role is tied to specific implementation_type
+      enforcement: manual_review_quarterly
+    
+    rule_4_distribution_balance:
+      description: Warn if functional distribution is heavily skewed
+      check: No category > 60% of total
+      enforcement: cargo test -p hkask-templates -- hlexicon_balance
+
+  # Validation Script
+  validation_script:
+    path: scripts/validate-hlexicon-alignment.sh
+    description: Validate functional/implementation alignment across all templates
+    checks:
+      - Check all templates have functional_role header
+      - Check all manifests have functional_role in metadata
+      - Check functional distribution balance
+      - Report orthogonal mapping
+    output: validation_report.md
+
+  # Quarterly Review Process
+  quarterly_review:
+    frequency: every_3_months
+    participants:
+      - hKask-Administrator
+      - Curator
+      - Review_bot
+    agenda:
+      - Review functional distribution changes
+      - Identify misaligned templates
+      - Update hLexicon registry
+      - Document exceptions
+    output: quarterly_hlexicon_report.md
+
+  # New Template Checklist
+  new_template_checklist:
+    - [ ] Add functional_role header to template
+    - [ ] Categorize as WordAct, FlowDef, or KnowAct
+    - [ ] Add to subsystem hLexicon registry
+    - [ ] Update workspace hLexicon registry
+    - [ ] Run validation script
+    - [ ] Document in design notes
+
+# Functional Role Definitions
+functional_roles:
+  wordact:
+    definition: Action-word hybrid — generates messages, emits spans, records triples
+    examples:
+      - habit-intervention.j2 (generate intervention message)
+      - cns:emit:kata port (emit CNS span)
+    test: Does it produce an output artifact (message, span, triple)?
+    
+  flowdef:
+    definition: Flow definition — orchestrates multi-step processes
+    examples:
+      - improvement-cycle.j2 (4-step Kata process)
+      - kata-pattern.yaml (5+3 step execution flow)
+    test: Does it define a sequence of steps or stages?
+    
+  knowact:
+    definition: Knowledge-action hybrid — makes judgments, assessments, decisions
+    examples:
+      - consent-and-select.j2 (verify consent, select pattern)
+      - iteration-comparison.j2 (judge variance, confidence)
+    test: Does it produce a decision, judgment, or assessment?
+
+# Implementation Type Definitions
+implementation_types:
+  jinja2:
+    definition: Jinja2 template — rendered by minijinja engine
+    use_for: Prompts, classifiers, comparisons, generators
+    limitations: Cannot orchestrate steps (that's FlowDef via manifest)
+    
+  yaml_manifest:
+    definition: YAML manifest — defines step sequences, energy budgets, CNS integration
+    use_for: Process orchestration, capability enforcement, carbon accounting
+    limitations: Cannot directly generate text (that's WordAct via template)
+    
+  yaml_port:
+    definition: YAML port specification — defines inbound/outbound interfaces
+    use_for: Interface contracts, authorization, capability grants
+    limitations: Cannot execute (that's FlowDef) or judge (that's KnowAct)
+
+# Workspace Registry Structure
+workspace_registry:
+  path: registry/registries/hlexicon-workspace.yaml
+  sections:
+    - wordact_templates: []
+    - flowdef_templates: []
+    - knowact_templates: []
+    - wordact_ports: []
+    - flowdef_manifests: []
+    - knowact_ports: []
+  auto_generated: true
+  source: scripts/validate-hlexicon-alignment.sh
+
+# Compliance Tracking
+compliance:
+  required_fields:
+    templates:
+      - functional_role
+      - implementation_type
+      - description
+      - produces (for WordAct/KnowAct)
+      - steps (for FlowDef)
+    
+    manifests:
+      - functional_role
+      - description
+      - steps
+    
+    ports:
+      - functional_role
+      - input_schema (inbound)
+      - output_schema (outbound)
+  
+  compliance_rate_target: 100%
+  current_compliance_rate: 0%  # Will be calculated by validation script

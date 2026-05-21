@@ -310,3 +310,9 @@ pub fn import_russell(
 
     Ok(assets)
 }
+
+// Git archival commands (Phase 9)
+pub use super::git_archival::{
+    archive_registry_to_git, create_registry_snapshot, list_registry_archives,
+    restore_registry_from_git,
+};

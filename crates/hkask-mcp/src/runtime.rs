@@ -171,6 +171,29 @@ impl McpRuntime {
             );
         }
     }
+
+    /// Call a tool by name with arguments
+    /// Phase 9: Git archival support
+    pub async fn call_tool(
+        &self,
+        server_id: &str,
+        tool_name: &str,
+        arguments: serde_json::Value,
+    ) -> Result<serde_json::Value, String> {
+        // Check if tool exists
+        if !self.tool_exists(tool_name).await {
+            return Err(format!("Tool '{}' not found", tool_name));
+        }
+
+        // For now, return simulated responses
+        // In production, this would dispatch to the actual MCP server
+        Ok(serde_json::json!({
+            "server": server_id,
+            "tool": tool_name,
+            "arguments": arguments,
+            "result": "simulated"
+        }))
+    }
 }
 
 impl Default for McpRuntime {

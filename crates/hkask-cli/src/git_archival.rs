@@ -29,11 +29,16 @@ pub async fn archive_registry_to_git(
         .await
         .map_err(|e| format!("GitHub MCP call failed: {}", e))?;
 
-    let sha = result.get("commit").and_then(|c| c.get("sha"))
+    let sha = result
+        .get("commit")
+        .and_then(|c| c.get("sha"))
         .and_then(|s| s.as_str())
         .unwrap_or("unknown");
 
-    Ok(format!("Archived to {}/{}/{} at SHA {}", repo_owner, repo_name, branch, sha))
+    Ok(format!(
+        "Archived to {}/{}/{} at SHA {}",
+        repo_owner, repo_name, branch, sha
+    ))
 }
 
 /// Restore registry from GitHub repository
@@ -57,7 +62,10 @@ pub async fn restore_registry_from_git(
         .await
         .map_err(|e| format!("Git MCP call failed: {}", e))?;
 
-    Ok(format!("Restored from {}/{}/{} to {}", repo_owner, repo_name, git_ref, target_path))
+    Ok(format!(
+        "Restored from {}/{}/{} to {}",
+        repo_owner, repo_name, git_ref, target_path
+    ))
 }
 
 /// List archived registry versions
@@ -81,7 +89,12 @@ pub async fn list_registry_archives(
     let commits = result
         .get("commits")
         .and_then(|c| c.as_array())
-        .map(|arr| arr.iter().filter_map(|c| c.get("sha").and_then(|s| s.as_str())).map(String::from).collect())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|c| c.get("sha").and_then(|s| s.as_str()))
+                .map(String::from)
+                .collect()
+        })
         .unwrap_or_default();
 
     Ok(commits)
@@ -106,6 +119,12 @@ pub async fn create_registry_snapshot(
         .await
         .map_err(|e| format!("Git MCP call failed: {}", e))?;
 
-    let sha = result.get("sha").and_then(|s| s.as_str()).unwrap_or("unknown");
-    Ok(format!("Created snapshot {} with message: {}", sha, message))
+    let sha = result
+        .get("sha")
+        .and_then(|s| s.as_str())
+        .unwrap_or("unknown");
+    Ok(format!(
+        "Created snapshot {} with message: {}",
+        sha, message
+    ))
 }

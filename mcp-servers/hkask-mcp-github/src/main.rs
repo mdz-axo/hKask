@@ -1,4 +1,7 @@
-//! hKask MCP GitHub — GitHub API integration
+//! hKask MCP GitHub — GitHub API operations
+//!
+//! This MCP server provides GitHub operations for repository, issue, and PR management.
+//! Phase 9: Git archival via GitHub MCP tool calls.
 
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router, transport::stdio, ServiceExt};
 use schemars::JsonSchema;

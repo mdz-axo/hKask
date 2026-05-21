@@ -1,5 +1,5 @@
 # Kata Pattern Manifest
-# ℏKask v0.21.3 — Unified Kata execution (remediated)
+# ℏKask v0.21.4 — Unified Kata execution with iteration support
 
 manifest:
   id: kata-pattern
@@ -218,6 +218,49 @@ steps:
         new_kata_started:
           type: boolean
 
+  - ordinal: 9
+    action: select
+    description: Check if iteration is needed (high variance or low confidence)
+    renderer: minijinja
+    template_ref: kata/iteration-check.j2
+    model_tier: fast_local
+    mcp: hkask-mcp-inference
+    token_cap: 3000
+    timeout_seconds: 15
+    condition: variance_detected OR confidence_low
+    output_schema:
+      type: object
+      properties:
+        iteration_needed:
+          type: boolean
+        reason:
+          type: string
+        iterations_remaining:
+          type: integer
+
+  - ordinal: 10
+    action: execute
+    description: Execute iteration if triggered (invokes kata-iteration manifest)
+    renderer: null
+    template_ref: null
+    target: execute_kata_iteration
+    mcp: hkask-mcp-templates
+    tool: kata_iteration
+    token_cap: 50000
+    timeout_seconds: 90
+    condition: iteration_needed
+    output_schema:
+      type: object
+      properties:
+        iteration_completed:
+          type: boolean
+        variance_score:
+          type: number
+        confidence:
+          type: string
+        best_iteration:
+          type: integer
+
 error_handling:
   on_consent_revoked: abort_and_save_partial
   on_token_exceeded: abort_and_escalate
@@ -298,6 +341,28 @@ cns:
     - trigger: automaticity_decline
       condition: automaticity_score_drop_0.2
       escalate_to: Curator
+  
+  # Iteration tracking
+  iteration_tracking:
+    enabled: true
+    max_iterations: 2
+    iteration_budget: 50000
+    variance_threshold: 0.3
+    confidence_threshold: 0.5
+    
+    variety_counters:
+      - counter_id: kata.iterations.used
+        increment_on: iteration_executed
+        baseline:
+          expected: 0.5
+          warning_threshold: 1.5
+          critical_threshold: 2.0
+      - counter_id: kata.variance.score
+        increment_on: variance_measurement
+        baseline:
+          expected: 0.2
+          warning_threshold: 0.4
+          critical_threshold: 0.6
 
 # Kata Composition
 composition:

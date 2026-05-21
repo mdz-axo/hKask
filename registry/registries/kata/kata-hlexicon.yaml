@@ -1,0 +1,142 @@
+# Kata System hLexicon Registry
+# ℏKask v0.21.4 — Functional logic categorization
+
+hlexicon:
+  # WordAct templates (action-word: generate messages, commands)
+  wordact_templates:
+    - id: habit-intervention
+      path: registry/templates/kata/habit-intervention.j2
+      description: Generate intervention messages for habit support
+      functional_role: action-word
+      produces: intervention_message
+
+    - id: kata-port-cns-emit
+      path: registry/ports/kata-ports.yaml
+      description: Emit CNS span with carbon data
+      functional_role: action-word
+      produces: cns_span
+
+    - id: kata-port-memory-record
+      path: registry/ports/kata-ports.yaml
+      description: Record practice to episodic memory
+      functional_role: action-word
+      produces: memory_triple
+
+  # FlowDef templates (process: multi-step flows, sequences)
+  flowdef_templates:
+    - id: improvement-cycle
+      path: registry/templates/kata/improvement-cycle.j2
+      description: 4-step Improvement Kata process
+      functional_role: flow-definition
+      steps: [direction, current, target, experiment]
+
+    - id: coaching-cycle
+      path: registry/templates/kata/coaching-cycle.j2
+      description: 5-question Coaching Kata dialogue flow
+      functional_role: flow-definition
+      steps: [target, actual, obstacles, experiment, learn]
+
+    - id: starter-cycle
+      path: registry/templates/kata/starter-cycle.j2
+      description: Practice routine selection and execution flow
+      functional_role: flow-definition
+      steps: [select_routine, practice, record]
+
+    - id: kata-pattern-manifest
+      path: registry/manifests/kata-pattern.yaml
+      description: Unified Kata execution flow (5 core + 3 conditional steps)
+      functional_role: flow-definition
+      steps: [consent-select, kata-cycle, outcome-habit, memory-record, cns-emit, ...]
+
+    - id: kata-iteration-manifest
+      path: registry/manifests/kata-iteration.yaml
+      description: Iteration workflow for variance assessment
+      functional_role: flow-definition
+      steps: [re-execute, compare, record-best, emit-span]
+
+  # KnowAct templates (knowledge-action: judgments, assessments, decisions)
+  knowact_templates:
+    - id: consent-and-select
+      path: registry/templates/kata/consent-and-select.j2
+      description: Verify consent and select Kata pattern
+      functional_role: knowledge-action
+      produces: consent_decision, kata_selection
+
+    - id: outcome-and-habit
+      path: registry/templates/kata/outcome-and-habit.j2
+      description: Synthesize outcome and assess habit formation
+      functional_role: knowledge-action
+      produces: capability_delta, automaticity_score, streak_days
+
+    - id: kata-switch-check
+      path: registry/templates/kata/kata-switch-check.j2
+      description: Check if Kata composition switching is needed
+      functional_role: knowledge-action
+      produces: switch_decision
+
+    - id: iteration-comparison
+      path: registry/templates/kata/iteration-comparison.j2
+      description: Compare iterations for variance and confidence
+      functional_role: knowledge-action
+      produces: variance_score, confidence, best_iteration
+
+    - id: iteration-check
+      path: registry/templates/kata/iteration-check.j2
+      description: Determine if iteration is needed
+      functional_role: knowledge-action
+      produces: iteration_decision
+
+    - id: kata-port-execute
+      path: registry/ports/kata-ports.yaml
+      description: Authorization judgment for Kata execution
+      functional_role: knowledge-action
+      produces: authorization_decision
+
+    - id: kata-port-switch
+      path: registry/ports/kata-ports.yaml
+      description: Transition authorization judgment
+      functional_role: knowledge-action
+      produces: switch_authorization
+
+    - id: kata-port-revoke-consent
+      path: registry/ports/kata-ports.yaml
+      description: Revocation authorization judgment
+      functional_role: knowledge-action
+      produces: revocation_decision
+
+# Functional Logic Summary
+functional_summary:
+  wordact_count: 5  # Action-word hybrids (generate messages, emit spans, record triples)
+  flowdef_count: 5  # Flow definitions (multi-step processes)
+  knowact_count: 7  # Knowledge-action hybrids (judgments, assessments, decisions)
+  total: 17
+
+# Implementation vs Functional Logic Mapping
+implementation_mapping:
+  jinja2_templates:
+    total: 9
+    as_wordact: 1  # habit-intervention.j2
+    as_flowdef: 3  # improvement, coaching, starter cycles
+    as_knowact: 5  # consent-select, outcome-habit, switch-check, iteration-*, *
+
+  yaml_manifests:
+    total: 2
+    as_wordact: 0
+    as_flowdef: 2  # kata-pattern, kata-iteration
+    as_knowact: 0
+
+  yaml_ports:
+    total: 1
+    as_wordact: 3  # cns:emit, memory:record, ensemble:report
+    as_flowdef: 0
+    as_knowact: 3  # kata:execute, kata:switch, kata:revoke-consent
+
+# Separation Verification
+separation_verified: true
+notes: |
+  - Implementation (Jinja2/YAML) is independent of functional logic (WordAct/FlowDef/KnowAct)
+  - Same implementation can serve different functional roles
+  - FlowDefs orchestrate; KnowActs judge; WordActs act
+  - Manifests are FlowDefs (step orchestration)
+  - Port specs are mixed (KnowAct for authorization, WordAct for emission)
+  - Templates are mixed based on their functional role
