@@ -2486,7 +2486,9 @@ name = "hkask-api"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "chrono",
  "hkask-agents",
+ "hkask-cns",
  "hkask-mcp",
  "hkask-templates",
  "hkask-types",
@@ -2500,6 +2502,7 @@ dependencies = [
  "tracing",
  "utoipa",
  "utoipa-axum",
+ "uuid",
 ]
 
 [[package]]
@@ -2519,6 +2522,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]

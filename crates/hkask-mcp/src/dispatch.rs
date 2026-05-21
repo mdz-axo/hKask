@@ -9,10 +9,32 @@ use hkask_templates::{CnsPort, McpPort, Result, TemplateError};
 use hkask_types::WebID;
 use serde_json::Value;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::RwLock;
 use tracing::{info, warn};
 
 use crate::runtime::{McpRuntime, McpTool};
+
+/// Retry configuration for transient errors
+#[derive(Debug, Clone)]
+pub struct RetryConfig {
+    /// Maximum number of retries
+    pub max_retries: u32,
+    /// Base delay for exponential backoff
+    pub backoff_base: Duration,
+    /// Retryable error codes (HTTP-style)
+    pub retryable_status: Vec<u16>,
+}
+
+impl Default for RetryConfig {
+    fn default() -> Self {
+        Self {
+            max_retries: 3,
+            backoff_base: Duration::from_millis(500),
+            retryable_status: vec![503, 408, 429], // Service unavailable, timeout, rate limit
+        }
+    }
+}
 
 /// MCP dispatcher with security and rate limiting
 pub struct McpDispatcher {
@@ -24,6 +46,9 @@ pub struct McpDispatcher {
     rate_limiter: RateLimiter,
     /// Bot capabilities registry
     bot_capabilities: Arc<RwLock<std::collections::HashMap<WebID, BotCapabilities>>>,
+    /// Retry configuration (future: use in invoke_async)
+    #[allow(dead_code)]
+    retry_config: RetryConfig,
 }
 
 impl McpDispatcher {
@@ -34,6 +59,22 @@ impl McpDispatcher {
             capability_checker: Arc::new(CapabilityChecker::new(secret)),
             rate_limiter: RateLimiter::default(),
             bot_capabilities: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            retry_config: RetryConfig::default(),
+        }
+    }
+
+    /// Create with custom retry configuration
+    pub fn with_retry_config(
+        runtime: McpRuntime,
+        secret: &[u8],
+        retry_config: RetryConfig,
+    ) -> Self {
+        Self {
+            runtime,
+            capability_checker: Arc::new(CapabilityChecker::new(secret)),
+            rate_limiter: RateLimiter::default(),
+            bot_capabilities: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            retry_config,
         }
     }
 
@@ -94,6 +135,16 @@ impl McpPort for McpDispatcher {
         Err(TemplateError::Mcp(
             "Use invoke_async for MCP tool invocation".to_string(),
         ))
+    }
+
+    fn get_tool_info(&self, tool_name: &str) -> Option<hkask_templates::ports::ToolInfo> {
+        // Synchronous version - use get_tool_info_async for full functionality
+        warn!(
+            target: "hkask.mcp",
+            tool_name = %tool_name,
+            "Synchronous get_tool_info not supported — use get_tool_info_async"
+        );
+        None
     }
 }
 

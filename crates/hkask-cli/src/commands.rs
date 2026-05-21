@@ -100,33 +100,97 @@ pub struct PodStatus {
     pub created_at: String,
 }
 
-/// Get pod status (placeholder - requires pod manager implementation)
-pub fn get_pod_status(_pod_id: &str) -> Result<PodStatus, String> {
-    Err("Pod manager not yet implemented. This is a placeholder for Phase 3.".to_string())
+/// Get pod status
+pub async fn get_pod_status(pod_id: &str) -> Result<PodStatus, String> {
+    use hkask_agents::pod::{PodID, PodManager};
+    use uuid::Uuid;
+
+    let uuid = Uuid::parse_str(pod_id).map_err(|e| format!("Invalid pod ID: {}", e))?;
+    let manager = PodManager::new();
+    let status = manager
+        .get_pod_status(&PodID(uuid))
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(PodStatus {
+        pod_id: status.pod_id,
+        name: status.name,
+        state: status.state,
+        webid: status.webid,
+        created_at: status.created_at.to_string(),
+    })
 }
 
-/// List all pods (placeholder - requires pod manager implementation)
-pub fn list_pods() -> Vec<PodStatus> {
-    vec![]
+/// List all pods
+pub async fn list_pods() -> Vec<PodStatus> {
+    use hkask_agents::pod::PodManager;
+
+    let manager = PodManager::new();
+    let statuses = manager.list_pods().await.unwrap_or_default();
+
+    statuses
+        .into_iter()
+        .map(|s| PodStatus {
+            pod_id: s.pod_id,
+            name: s.name,
+            state: s.state,
+            webid: s.webid,
+            created_at: s.created_at.to_string(),
+        })
+        .collect()
 }
 
-/// Create pod from template crate (placeholder - requires pod manager implementation)
-pub fn create_pod(
-    _template_name: &str,
-    _persona_path: &PathBuf,
-    _pod_name: Option<&str>,
+/// Create pod from template crate
+pub async fn create_pod(
+    template_name: &str,
+    persona_path: &PathBuf,
+    pod_name: Option<&str>,
 ) -> Result<String, String> {
-    Err("Pod manager not yet implemented. This is a placeholder for Phase 3.".to_string())
+    use hkask_agents::pod::{AgentPersona, PodManager};
+
+    let yaml_content = std::fs::read_to_string(persona_path)
+        .map_err(|e| format!("Failed to read persona file: {}", e))?;
+
+    let persona = AgentPersona::from_yaml(&yaml_content)
+        .map_err(|e| format!("Invalid persona YAML: {}", e))?;
+
+    let manager = PodManager::new();
+    let pod_id = manager
+        .create_pod(template_name, &persona, pod_name.map(String::from))
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(pod_id.to_string())
 }
 
-/// Activate pod (placeholder - requires pod manager implementation)
-pub fn activate_pod(_pod_id: &str) -> Result<(), String> {
-    Err("Pod manager not yet implemented. This is a placeholder for Phase 3.".to_string())
+/// Activate pod
+pub async fn activate_pod(pod_id: &str) -> Result<(), String> {
+    use hkask_agents::pod::{PodID, PodManager};
+    use uuid::Uuid;
+
+    let uuid = Uuid::parse_str(pod_id).map_err(|e| format!("Invalid pod ID: {}", e))?;
+    let manager = PodManager::new();
+    manager
+        .activate_pod(&PodID(uuid))
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
 }
 
-/// Deactivate pod (placeholder - requires pod manager implementation)
-pub fn deactivate_pod(_pod_id: &str) -> Result<(), String> {
-    Err("Pod manager not yet implemented. This is a placeholder for Phase 3.".to_string())
+/// Deactivate pod
+pub async fn deactivate_pod(pod_id: &str) -> Result<(), String> {
+    use hkask_agents::pod::{PodID, PodManager};
+    use uuid::Uuid;
+
+    let uuid = Uuid::parse_str(pod_id).map_err(|e| format!("Invalid pod ID: {}", e))?;
+    let manager = PodManager::new();
+    manager
+        .deactivate_pod(&PodID(uuid))
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
 }
 
 /// Import Russell assets into hKask registry

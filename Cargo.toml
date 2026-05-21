@@ -84,7 +84,7 @@ hex = "0.4"
 gix = "0.81"
 
 # Templating
-minijinja = { version = "2", features = ["loader", "serde", "json"] }
+minijinja = { version = "2", features = ["loader", "serde", "json", "internal_safe_search"] }
 
 # Serialization
 serde = { version = "1", features = ["derive"] }

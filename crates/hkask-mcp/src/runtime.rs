@@ -9,6 +9,23 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::info;
 
+/// Tool information metadata
+#[derive(Debug, Clone)]
+pub struct ToolInfo {
+    /// Tool name
+    pub name: String,
+    /// Tool description
+    pub description: String,
+    /// Input schema (JSON Schema)
+    pub input_schema: Value,
+    /// Server that provides this tool
+    pub server_id: String,
+    /// Required capability (if any)
+    pub required_capability: Option<String>,
+    /// Rate limit hint (tools/min)
+    pub rate_limit_hint: Option<u32>,
+}
+
 /// MCP tool definition
 #[derive(Debug, Clone)]
 pub struct McpTool {
@@ -88,6 +105,28 @@ impl McpRuntime {
         let server = servers.get(server_id)?;
 
         server.tools.iter().find(|t| t.name == tool_name).cloned()
+    }
+
+    /// Get tool information with metadata
+    pub async fn get_tool_info(&self, tool_name: &str) -> Option<ToolInfo> {
+        let tool_registry = self.tool_registry.read().await;
+        let server_id = tool_registry.get(tool_name)?;
+
+        let servers = self.servers.read().await;
+        let server = servers.get(server_id)?;
+
+        server
+            .tools
+            .iter()
+            .find(|t| t.name == tool_name)
+            .map(|t| ToolInfo {
+                name: t.name.clone(),
+                description: t.description.clone(),
+                input_schema: t.input_schema.clone(),
+                server_id: server_id.clone(),
+                required_capability: None, // Future: load from config
+                rate_limit_hint: None,     // Future: load from env
+            })
     }
 
     /// Check if a tool exists

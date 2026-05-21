@@ -267,43 +267,42 @@ cargo check --workspace
 
 ## Task 7: Future — Open Questions
 
-### Architecture Decisions Pending
+### Architecture Decisions
 
-1. **Dynamic Loading**
-   - Q: Should MCP servers be dynamically loadable at runtime?
-   - Current: Statically linked at compile time
-   - Pros: Flexibility, plugin ecosystem
-   - Cons: Security complexity, versioning issues
-   - **Recommendation**: Defer to post-MVP; use Unix sockets for now
+1. **Dynamic Loading** — ✅ DECIDED (2026-05-20)
+   - **Decision: Static linking only. No dynamic loading.**
+   - Rationale: Security (smaller attack surface), simplicity (P6), deployment stability
+   - Implementation: MCP servers as separate binary crates in `mcp-servers/`
 
-2. **Capability in Registry**
-   - Q: Should capability attenuation be expressed in the registry manifest?
-   - Current: Capabilities issued separately via `hkask-mcp-ocap`
-   - Pros: Centralized policy, auditable
-   - Cons: Manifest complexity, coupling
-   - **Recommendation**: Add `required_capabilities: []` to manifest schema
+2. **Capability in Registry** — ✅ DECIDED (2026-05-20)
+   - **Decision: No. Capabilities are static, non-transferable, non-expiring.**
+   - Policy: Agent capabilities extend to artifacts the agent works with
+   - Unregistered agents cannot have templates/manifests in hKask
+   - Templates do not have capabilities—only agents do
+   - Current OCAP separation maintained (no manifest schema change)
 
-3. **Composition Model**
-   - Q: Should cross-server composition be explicit (cascade) or implicit (swarm)?
-   - Current: Explicit via `hkask-templates` cascade
-   - Decision: **Explicit only** (per architecture v0.21.0 - NO swarms)
+3. **Composition Model** — ✅ DECIDED (2026-05-20)
+   - **Decision: Explicit cascade only. NO swarms.**
+   - Rationale: Architecture v0.21.0 anchor #5, audit trail, OCAP per step, user sovereignty
+   - Implementation: `hkask-templates` cascade executor
 
-4. **Rate Limit Policy**
-   - Q: What is the rate-limit policy per MCP tool invocation?
-   - Current: Default `RateLimiter` in `hkask-cns`
-   - Missing: Per-tool configuration, burst allowances
-   - **Recommendation**: Add `rate_limit` field to tool registration
+4. **Rate Limit Policy** — ✅ DECIDED (2026-05-20)
+   - **Decision: Environment variables per tool.**
+   - Format: `HKASK_RATELIMIT_<TOOL>=<max>/<interval>`
+   - Example: `HKASK_RATELIMIT_FAL=10/60s`
+   - Implementation: `SecurityGateway::from_env()` loads tool-specific limits
 
-5. **Error Recovery**
-   - Q: Should failed tool calls retry automatically?
-   - Current: No retry logic in dispatcher
-   - **Recommendation**: Add exponential backoff for transient errors (503, timeout)
+5. **Error Recovery** — ✅ DECIDED (2026-05-20)
+   - **Decision: Exponential backoff for transient errors only.**
+   - Retryable: 503, timeout, rate-limit (with backoff)
+   - Non-retryable: 401, 403, 404, validation errors
+   - Implementation: `RetryConfig` in `McpDispatcher`
 
-6. **Tool Discovery Protocol**
-   - Q: How do bots discover available tools?
-   - Current: `discover_tools()` returns list of tool names
-   - Missing: Schema discovery, description browsing
-   - **Recommendation**: Add `get_tool_schema(tool_name)` endpoint
+6. **Tool Discovery Protocol** — ✅ DECIDED (2026-05-20)
+   - **Decision: Add `get_tool_info()` to `hkask-mcp` core.**
+   - Returns: tool name, description, input schema, required capabilities, rate limits
+   - Rationale: Tools are the point of MCP servers—core functionality
+   - Implementation: Extend `McpPort` trait with `get_tool_info()` method
 
 ---
 

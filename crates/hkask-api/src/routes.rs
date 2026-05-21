@@ -182,39 +182,264 @@ pub fn pods_router() -> Router<ApiState> {
 }
 
 /// List all pods
-async fn list_pods(State(_state): State<ApiState>) -> Json<ListPodsResponse> {
-    // TODO: Implement pod listing with PodManager
-    Json(ListPodsResponse { pods: vec![] })
+async fn list_pods(State(state): State<ApiState>) -> Json<ListPodsResponse> {
+    state.cns_emitter.emit_agent_pod(
+        "api.pod.list.start",
+        serde_json::json!({
+            "timestamp": chrono::Utc::now().to_rfc3339(),
+        }),
+    );
+
+    let pod_statuses = state.pod_manager.list_pods().await.unwrap_or_default();
+
+    let pods: Vec<PodStatusResponse> = pod_statuses
+        .into_iter()
+        .map(|s| PodStatusResponse {
+            pod_id: s.pod_id,
+            name: s.name,
+            state: s.state,
+            webid: s.webid,
+            agent_type: s.agent_type,
+            template: s.template,
+            created_at: s.created_at,
+        })
+        .collect();
+
+    state.cns_emitter.emit_agent_pod(
+        "api.pod.list.outcome",
+        serde_json::json!({
+            "count": pods.len(),
+        }),
+    );
+
+    Json(ListPodsResponse { pods })
 }
 
 /// Create a new pod
 async fn create_pod(
-    State(_state): State<ApiState>,
-    Json(_req): Json<CreatePodRequest>,
+    State(state): State<ApiState>,
+    Json(req): Json<CreatePodRequest>,
 ) -> Result<Json<CreatePodResponse>, StatusCode> {
-    // TODO: Implement pod creation with PodManager
-    Err(StatusCode::NOT_IMPLEMENTED)
+    use hkask_agents::pod::AgentPersona;
+    use hkask_types::{CapabilityAction, CapabilityResource};
+
+    state.cns_emitter.emit_agent_pod(
+        "api.pod.create.start",
+        serde_json::json!({
+            "template": req.template,
+            "name": req.name,
+        }),
+    );
+
+    let user_webid = state.system_webid.clone();
+
+    let has_capability = state.capability_checker.check_resource(
+        &hkask_types::CapabilityToken::new(
+            CapabilityResource::Tool,
+            "pod".to_string(),
+            CapabilityAction::Execute,
+            state.system_webid.clone(),
+            user_webid.clone(),
+            b"temp-secret",
+        ),
+        &user_webid,
+        CapabilityResource::Tool,
+    );
+
+    if !has_capability {
+        state.cns_emitter.emit_agent_pod(
+            "api.pod.create.denied",
+            serde_json::json!({
+                "reason": "capability_check_failed",
+            }),
+        );
+        return Err(StatusCode::FORBIDDEN);
+    }
+
+    let persona = AgentPersona::from_yaml(&req.persona_yaml).map_err(|e| {
+        tracing::warn!("Invalid persona YAML: {}", e);
+        StatusCode::BAD_REQUEST
+    })?;
+
+    let pod_id = state
+        .pod_manager
+        .create_pod(&req.template, &persona, req.name)
+        .await
+        .map_err(|e| {
+            state.cns_emitter.emit_agent_pod(
+                "api.pod.create.error",
+                serde_json::json!({
+                    "error": e.to_string(),
+                }),
+            );
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    state.cns_emitter.emit_agent_pod(
+        "api.pod.create.success",
+        serde_json::json!({
+            "pod_id": pod_id.to_string(),
+        }),
+    );
+
+    Ok(Json(CreatePodResponse {
+        pod_id: pod_id.to_string(),
+    }))
 }
 
 /// Activate a pod
-async fn activate_pod(State(_state): State<ApiState>, Path(_id): Path<String>) -> StatusCode {
-    // TODO: Implement pod activation with PodManager
-    StatusCode::NOT_IMPLEMENTED
+async fn activate_pod(State(state): State<ApiState>, Path(id): Path<String>) -> StatusCode {
+    use hkask_agents::pod::PodID;
+    use uuid::Uuid;
+
+    state.cns_emitter.emit_agent_pod(
+        "api.pod.activate.start",
+        serde_json::json!({
+            "pod_id": id,
+        }),
+    );
+
+    let uuid = match Uuid::parse_str(&id) {
+        Ok(u) => u,
+        Err(_) => {
+            state.cns_emitter.emit_agent_pod(
+                "api.pod.activate.error",
+                serde_json::json!({
+                    "reason": "invalid_pod_id",
+                }),
+            );
+            return StatusCode::BAD_REQUEST;
+        }
+    };
+    let pod_id = PodID(uuid);
+
+    match state.pod_manager.activate_pod(&pod_id).await {
+        Ok(_) => {
+            state.cns_emitter.emit_agent_pod(
+                "api.pod.activate.success",
+                serde_json::json!({
+                    "pod_id": id,
+                }),
+            );
+            StatusCode::NO_CONTENT
+        }
+        Err(e) => {
+            state.cns_emitter.emit_agent_pod(
+                "api.pod.activate.error",
+                serde_json::json!({
+                    "reason": e.to_string(),
+                }),
+            );
+            StatusCode::NOT_FOUND
+        }
+    }
 }
 
 /// Deactivate a pod
-async fn deactivate_pod(State(_state): State<ApiState>, Path(_id): Path<String>) -> StatusCode {
-    // TODO: Implement pod deactivation with PodManager
-    StatusCode::NOT_IMPLEMENTED
+async fn deactivate_pod(State(state): State<ApiState>, Path(id): Path<String>) -> StatusCode {
+    use hkask_agents::pod::PodID;
+    use uuid::Uuid;
+
+    state.cns_emitter.emit_agent_pod(
+        "api.pod.deactivate.start",
+        serde_json::json!({
+            "pod_id": id,
+        }),
+    );
+
+    let uuid = match Uuid::parse_str(&id) {
+        Ok(u) => u,
+        Err(_) => {
+            state.cns_emitter.emit_agent_pod(
+                "api.pod.deactivate.error",
+                serde_json::json!({
+                    "reason": "invalid_pod_id",
+                }),
+            );
+            return StatusCode::BAD_REQUEST;
+        }
+    };
+    let pod_id = PodID(uuid);
+
+    match state.pod_manager.deactivate_pod(&pod_id).await {
+        Ok(_) => {
+            state.cns_emitter.emit_agent_pod(
+                "api.pod.deactivate.success",
+                serde_json::json!({
+                    "pod_id": id,
+                }),
+            );
+            StatusCode::NO_CONTENT
+        }
+        Err(e) => {
+            state.cns_emitter.emit_agent_pod(
+                "api.pod.deactivate.error",
+                serde_json::json!({
+                    "reason": e.to_string(),
+                }),
+            );
+            StatusCode::NOT_FOUND
+        }
+    }
 }
 
 /// Get pod status
 async fn pod_status(
-    State(_state): State<ApiState>,
-    Path(_id): Path<String>,
+    State(state): State<ApiState>,
+    Path(id): Path<String>,
 ) -> Result<Json<PodStatusResponse>, StatusCode> {
-    // TODO: Implement pod status with PodManager
-    Err(StatusCode::NOT_IMPLEMENTED)
+    use hkask_agents::pod::PodID;
+    use uuid::Uuid;
+
+    state.cns_emitter.emit_agent_pod(
+        "api.pod.status.start",
+        serde_json::json!({
+            "pod_id": id,
+        }),
+    );
+
+    let uuid = Uuid::parse_str(&id).map_err(|_| {
+        state.cns_emitter.emit_agent_pod(
+            "api.pod.status.error",
+            serde_json::json!({
+                "reason": "invalid_pod_id",
+            }),
+        );
+        StatusCode::BAD_REQUEST
+    })?;
+    let pod_id = PodID(uuid);
+
+    let status = state
+        .pod_manager
+        .get_pod_status(&pod_id)
+        .await
+        .map_err(|e| {
+            state.cns_emitter.emit_agent_pod(
+                "api.pod.status.error",
+                serde_json::json!({
+                    "reason": e.to_string(),
+                }),
+            );
+            StatusCode::NOT_FOUND
+        })?;
+
+    state.cns_emitter.emit_agent_pod(
+        "api.pod.status.success",
+        serde_json::json!({
+            "pod_id": id,
+            "state": status.state,
+        }),
+    );
+
+    Ok(Json(PodStatusResponse {
+        pod_id: status.pod_id,
+        name: status.name,
+        state: status.state,
+        webid: status.webid,
+        agent_type: status.agent_type,
+        template: status.template,
+        created_at: status.created_at,
+    }))
 }
 
 /// Create MCP router

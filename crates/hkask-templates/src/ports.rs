@@ -177,10 +177,28 @@ pub trait InferencePort {
     }
 }
 
+/// Tool information metadata
+#[derive(Debug, Clone)]
+pub struct ToolInfo {
+    /// Tool name
+    pub name: String,
+    /// Tool description
+    pub description: String,
+    /// Input schema (JSON Schema)
+    pub input_schema: Value,
+    /// Server that provides this tool
+    pub server_id: String,
+    /// Required capability (if any)
+    pub required_capability: Option<String>,
+    /// Rate limit hint (tools/min)
+    pub rate_limit_hint: Option<u32>,
+}
+
 /// MCP port for tool invocation
 pub trait McpPort {
     fn discover_tools(&self) -> Vec<String>;
     fn invoke(&self, tool_name: &str, input: Value) -> Result<Value>;
+    fn get_tool_info(&self, tool_name: &str) -> Option<ToolInfo>;
 }
 
 /// CNS port for event emission

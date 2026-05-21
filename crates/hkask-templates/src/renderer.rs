@@ -25,8 +25,8 @@ impl TemplateRendererImpl {
         env.set_auto_escape_callback(|_| minijinja::AutoEscape::None);
         env.set_undefined_behavior(UndefinedBehavior::Strict);
 
-        // Note: minijinja sandbox is enabled by default in recent versions
-        // Additional hardening can be done via custom functions/filters
+        // minijinja v2 sandbox is enabled by default - restricts dangerous operations
+        // Additional hardening via path traversal validation in add_template/render
 
         Self {
             env: Arc::new(RwLock::new(env)),

@@ -13,9 +13,17 @@
 //! - `GET /api/cns/health` — CNS health status
 //! - `GET /api/cns/alerts` — Algedonic alerts
 //! - `GET /api/cns/variety` — CNS variety counters
+//! - `GET /api/pods` — List pods
+//! - `POST /api/pods` — Create pod
+//! - `POST /api/pods/:id/activate` — Activate pod
+//! - `POST /api/pods/:id/deactivate` — Deactivate pod
+//! - `GET /api/pods/:id/status` — Get pod status
 //! - `POST /api/chat` — Curator chat
 
+use hkask_agents::pod::PodManager;
+use hkask_cns::spans::SpanEmitter;
 use hkask_templates::SqliteRegistry;
+use hkask_types::{CapabilityChecker, WebID};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -35,13 +43,32 @@ pub struct ApiState {
     pub registry: Arc<tokio::sync::Mutex<SqliteRegistry>>,
     /// MCP runtime
     pub mcp_runtime: Arc<hkask_mcp::runtime::McpRuntime>,
+    /// Pod manager
+    pub pod_manager: Arc<PodManager>,
+    /// Capability checker for OCAP verification
+    pub capability_checker: Arc<CapabilityChecker>,
+    /// System WebID for signing capabilities
+    pub system_webid: WebID,
+    /// CNS span emitter for audit trail
+    pub cns_emitter: Arc<SpanEmitter>,
 }
 
 impl ApiState {
-    pub fn new(registry: SqliteRegistry, mcp_runtime: hkask_mcp::runtime::McpRuntime) -> Self {
+    pub fn new(
+        registry: SqliteRegistry,
+        mcp_runtime: hkask_mcp::runtime::McpRuntime,
+        pod_manager: PodManager,
+        capability_secret: &[u8],
+        system_webid: WebID,
+    ) -> Self {
+        let observer_webid = WebID::new();
         Self {
             registry: Arc::new(tokio::sync::Mutex::new(registry)),
             mcp_runtime: Arc::new(mcp_runtime),
+            pod_manager: Arc::new(pod_manager),
+            capability_checker: Arc::new(CapabilityChecker::new(capability_secret)),
+            system_webid,
+            cns_emitter: Arc::new(SpanEmitter::new(observer_webid)),
         }
     }
 }
@@ -175,7 +202,15 @@ mod tests {
     async fn test_api_state_new() {
         let registry = SqliteRegistry::new(None).unwrap();
         let mcp_runtime = hkask_mcp::runtime::McpRuntime::new();
-        let state = ApiState::new(registry, mcp_runtime);
+        let pod_manager = PodManager::new();
+        let system_webid = WebID::new();
+        let state = ApiState::new(
+            registry,
+            mcp_runtime,
+            pod_manager,
+            b"test-secret",
+            system_webid,
+        );
         assert_eq!(state.mcp_runtime.tool_count().await, 0);
     }
 }

@@ -152,6 +152,11 @@ impl McpPort for MockMcpAdapter {
 
         Ok(self.responses[count].clone())
     }
+
+    fn get_tool_info(&self, _tool_name: &str) -> Option<hkask_templates::ports::ToolInfo> {
+        // Mock implementation - returns None
+        None
+    }
 }
 
 /// Mock CNS adapter for testing

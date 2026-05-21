@@ -146,9 +146,11 @@ pub struct AcpRuntime {
     capability_tokens: Arc<RwLock<HashMap<WebID, Vec<CapabilityToken>>>>,
     /// Secret for HMAC signing (Zeroizing for secure memory)
     secret: Zeroizing<Vec<u8>>,
-    /// Rate limiter for DoS prevention (future: integrate with message processing)
+    /// Rate limiter for DoS prevention
     #[allow(dead_code)]
     rate_limiter: RateLimiter,
+    /// Audit log for A2A message tracking
+    audit_log: Arc<AuditLog>,
 }
 
 impl AcpRuntime {
@@ -176,6 +178,7 @@ impl AcpRuntime {
             max_tokens: 100,
             refill_interval: std::time::Duration::from_millis(600),
         }));
+        let audit_log = Arc::new(AuditLog::new());
 
         Ok(Self {
             agents: Arc::new(RwLock::new(HashMap::new())),
@@ -183,6 +186,7 @@ impl AcpRuntime {
             capability_tokens: Arc::new(RwLock::new(HashMap::new())),
             secret,
             rate_limiter,
+            audit_log,
         })
     }
 
@@ -202,6 +206,7 @@ impl AcpRuntime {
                 max_tokens: 100,
                 refill_interval: std::time::Duration::from_millis(600),
             })),
+            audit_log: Arc::new(AuditLog::new()),
         }
     }
 
@@ -316,20 +321,56 @@ impl AcpRuntime {
 
     /// Send A2A message
     pub async fn send_message(&self, message: A2AMessage) -> Result<String, String> {
-        let correlation_id = match &message {
-            A2AMessage::TemplateDispatch { correlation_id, .. } => correlation_id.clone(),
-            A2AMessage::TemplateResponse { correlation_id, .. } => correlation_id.clone(),
-            A2AMessage::MemoryArtifact { artifact_id, .. } => {
-                format!("artifact:{}", artifact_id)
-            }
+        let (correlation_id, from, to, message_type) = match &message {
+            A2AMessage::TemplateDispatch {
+                correlation_id,
+                from,
+                to,
+                ..
+            } => (
+                correlation_id.clone(),
+                Some(*from),
+                *to,
+                "template_dispatch".to_string(),
+            ),
+            A2AMessage::TemplateResponse { correlation_id, .. } => (
+                correlation_id.clone(),
+                None,
+                None,
+                "template_response".to_string(),
+            ),
+            A2AMessage::MemoryArtifact {
+                artifact_id,
+                producer,
+                ..
+            } => (
+                format!("artifact:{}", artifact_id),
+                Some(*producer),
+                None,
+                "memory_artifact".to_string(),
+            ),
         };
 
         let mut pending = self.pending_messages.write().await;
         pending.insert(correlation_id.clone(), message);
 
+        // Log audit entry
+        let audit_entry = AuditLogEntry {
+            id: uuid::Uuid::new_v4().to_string(),
+            timestamp: current_timestamp(),
+            from: from.unwrap_or(WebID::new()),
+            to,
+            message_type: message_type.clone(),
+            correlation_id: correlation_id.clone(),
+            event_type: "sent".to_string(),
+            metadata: serde_json::json!({}),
+        };
+        self.audit_log.log(audit_entry).await;
+
         info!(
             target: "hkask.acp",
             correlation_id = %correlation_id,
+            message_type = %message_type,
             "A2A message sent"
         );
 
@@ -398,6 +439,140 @@ fn current_timestamp() -> i64 {
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_secs() as i64
+}
+
+/// Audit log entry for A2A messages
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuditLogEntry {
+    /// Unique entry identifier
+    pub id: String,
+    /// Timestamp of the event
+    pub timestamp: i64,
+    /// Sender WebID
+    pub from: WebID,
+    /// Recipient WebID (if any)
+    pub to: Option<WebID>,
+    /// Message type
+    pub message_type: String,
+    /// Correlation ID
+    pub correlation_id: String,
+    /// Event type (sent, received, verified, denied)
+    pub event_type: String,
+    /// Additional metadata
+    pub metadata: serde_json::Value,
+}
+
+/// Audit log for A2A message tracking
+pub struct AuditLog {
+    entries: Arc<RwLock<Vec<AuditLogEntry>>>,
+    max_entries: usize,
+}
+
+impl AuditLog {
+    /// Create new audit log with default max entries
+    pub fn new() -> Self {
+        Self {
+            entries: Arc::new(RwLock::new(Vec::new())),
+            max_entries: 10000,
+        }
+    }
+
+    /// Create audit log with custom max entries
+    pub fn with_max_entries(max_entries: usize) -> Self {
+        Self {
+            entries: Arc::new(RwLock::new(Vec::new())),
+            max_entries,
+        }
+    }
+
+    /// Log an A2A message event
+    pub async fn log(&self, entry: AuditLogEntry) {
+        let mut entries = self.entries.write().await;
+        entries.push(entry);
+
+        // Trim if exceeding max entries
+        if entries.len() > self.max_entries {
+            let drain_count = entries.len() - self.max_entries;
+            entries.drain(0..drain_count);
+        }
+    }
+
+    /// Get recent entries
+    pub async fn get_recent(&self, count: usize) -> Vec<AuditLogEntry> {
+        let entries = self.entries.read().await;
+        entries.iter().rev().take(count).cloned().collect()
+    }
+
+    /// Get entries by WebID
+    pub async fn get_by_webid(&self, webid: &WebID, count: usize) -> Vec<AuditLogEntry> {
+        let entries = self.entries.read().await;
+        entries
+            .iter()
+            .filter(|e| e.from == *webid || e.to == Some(*webid))
+            .rev()
+            .take(count)
+            .cloned()
+            .collect()
+    }
+
+    /// Get entries by correlation ID
+    pub async fn get_by_correlation(&self, correlation_id: &str) -> Vec<AuditLogEntry> {
+        let entries = self.entries.read().await;
+        entries
+            .iter()
+            .filter(|e| e.correlation_id == correlation_id)
+            .cloned()
+            .collect()
+    }
+}
+
+impl Default for AuditLog {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Audit log port for external audit systems
+pub trait AuditLogPort {
+    /// Log an A2A message event
+    fn log(&self, entry: AuditLogEntry);
+
+    /// Get recent audit entries
+    fn get_recent(&self, count: usize) -> Vec<AuditLogEntry>;
+
+    /// Query audit log by WebID
+    fn get_by_webid(&self, webid: &WebID, count: usize) -> Vec<AuditLogEntry>;
+}
+
+impl AuditLogPort for AuditLog {
+    fn log(&self, entry: AuditLogEntry) {
+        // Clone self reference for async task
+        let entries = Arc::clone(&self.entries);
+        let max_entries = self.max_entries;
+
+        tokio::spawn(async move {
+            let mut entries_guard = entries.write().await;
+            entries_guard.push(entry);
+
+            // Trim if exceeding max entries
+            if entries_guard.len() > max_entries {
+                let drain_count = entries_guard.len() - max_entries;
+                entries_guard.drain(0..drain_count);
+            }
+        });
+    }
+
+    fn get_recent(&self, count: usize) -> Vec<AuditLogEntry> {
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(self.get_recent(count))
+        })
+    }
+
+    fn get_by_webid(&self, webid: &WebID, count: usize) -> Vec<AuditLogEntry> {
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(self.get_by_webid(webid, count))
+        })
+    }
 }
 
 impl Default for AcpRuntime {

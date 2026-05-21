@@ -654,42 +654,83 @@ fn main() {
                 persona,
                 name,
             } => {
-                println!("Creating agent pod from template: {}", template);
-                println!("Persona file: {}", persona.display());
-                if let Some(n) = &name {
-                    println!("Pod name: {}", n);
+                let rt = tokio::runtime::Runtime::new().unwrap();
+                match rt.block_on(commands::create_pod(&template, &persona, name.as_deref())) {
+                    Ok(pod_id) => {
+                        println!("Created agent pod: {}", pod_id);
+                        println!("Template: {}", template);
+                        println!("Persona file: {}", persona.display());
+                        if let Some(n) = &name {
+                            println!("Pod name: {}", n);
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to create pod: {}", e);
+                        std::process::exit(1);
+                    }
                 }
-                println!("\nNote: Full pod creation requires pod manager implementation.");
-                println!("This is a placeholder for Phase 3 CLI integration.");
             }
             PodAction::Activate { pod_id } => {
-                println!("Activating agent pod: {}", pod_id);
-                println!("\nNote: Full pod activation requires pod manager implementation.");
+                let rt = tokio::runtime::Runtime::new().unwrap();
+                match rt.block_on(commands::activate_pod(&pod_id)) {
+                    Ok(_) => {
+                        println!("Activated agent pod: {}", pod_id);
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to activate pod: {}", e);
+                        std::process::exit(1);
+                    }
+                }
             }
             PodAction::Deactivate { pod_id } => {
-                println!("Deactivating agent pod: {}", pod_id);
-                println!("\nNote: Full pod deactivation requires pod manager implementation.");
+                let rt = tokio::runtime::Runtime::new().unwrap();
+                match rt.block_on(commands::deactivate_pod(&pod_id)) {
+                    Ok(_) => {
+                        println!("Deactivated agent pod: {}", pod_id);
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to deactivate pod: {}", e);
+                        std::process::exit(1);
+                    }
+                }
             }
             PodAction::Status { pod_id, verbose } => {
-                println!("Agent pod status: {}", pod_id);
-                println!("  State: populated (placeholder)");
-                println!("  WebID: (pending pod manager integration)");
-                println!("  Agent type: (pending pod manager integration)");
-                println!("  Template: (pending pod manager integration)");
-                if verbose {
-                    println!("\n  Verbose details:");
-                    println!("    Created at: (pending)");
-                    println!("    Capability token: (redacted)");
-                    println!("    Max attenuation: 7");
-                    println!("    Current attenuation: 0");
-                    println!("    CNS spans emitted: (pending integration)");
+                let rt = tokio::runtime::Runtime::new().unwrap();
+                match rt.block_on(commands::get_pod_status(&pod_id)) {
+                    Ok(status) => {
+                        println!("Agent pod status: {}", pod_id);
+                        println!("  State: {}", status.state);
+                        println!("  WebID: {}", status.webid);
+                        if let Some(name) = &status.name {
+                            println!("  Name: {}", name);
+                        }
+                        if verbose {
+                            println!("  Created at: {}", status.created_at);
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to get pod status: {}", e);
+                        std::process::exit(1);
+                    }
                 }
-                println!("\nNote: Full status requires pod manager implementation.");
             }
             PodAction::List => {
-                println!("Agent pods:");
-                println!("  (no pods registered)");
-                println!("\nNote: Pod listing requires pod manager implementation.");
+                let rt = tokio::runtime::Runtime::new().unwrap();
+                let pods = rt.block_on(commands::list_pods());
+
+                if pods.is_empty() {
+                    println!("No pods registered.");
+                } else {
+                    println!("Agent pods ({}):\n", pods.len());
+                    for pod in pods {
+                        println!("  {} ({})", pod.pod_id, pod.state);
+                        println!("    WebID: {}", pod.webid);
+                        if let Some(name) = &pod.name {
+                            println!("    Name: {}", name);
+                        }
+                        println!();
+                    }
+                }
             }
         },
 

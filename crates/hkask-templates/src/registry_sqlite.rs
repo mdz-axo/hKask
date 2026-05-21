@@ -210,28 +210,26 @@ impl SqliteRegistry {
             .unwrap(); // TODO: Handle error properly
 
         let mut results = Vec::new();
-        for row_result in rows {
-            if let Ok((id, template_type, description, source_path)) = row_result {
-                // Get lexicon terms for this template
-                let mut lexicon_stmt = self
-                    .conn
-                    .prepare("SELECT term FROM lexicon_terms WHERE template_id = ?1")
-                    .unwrap();
+        for (id, template_type, description, source_path) in rows.flatten() {
+            // Get lexicon terms for this template
+            let mut lexicon_stmt = self
+                .conn
+                .prepare("SELECT term FROM lexicon_terms WHERE template_id = ?1")
+                .unwrap();
 
-                let lexicon_terms: Vec<String> = lexicon_stmt
-                    .query_map(params![id], |row| row.get(0))
-                    .unwrap()
-                    .filter_map(|r| r.ok())
-                    .collect();
+            let lexicon_terms: Vec<String> = lexicon_stmt
+                .query_map(params![id], |row| row.get(0))
+                .unwrap()
+                .filter_map(|r| r.ok())
+                .collect();
 
-                results.push(RegistryEntry {
-                    id,
-                    template_type,
-                    lexicon_terms,
-                    description,
-                    source_path,
-                });
-            }
+            results.push(RegistryEntry {
+                id,
+                template_type,
+                lexicon_terms,
+                description,
+                source_path,
+            });
         }
 
         results

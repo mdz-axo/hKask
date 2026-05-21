@@ -10,6 +10,7 @@ hkask-types = { path = "../hkask-types" }
 hkask-agents = { path = "../hkask-agents" }
 hkask-templates = { path = "../hkask-templates" }
 hkask-mcp = { path = "../hkask-mcp" }
+hkask-cns = { path = "../hkask-cns" }
 axum.workspace = true
 utoipa.workspace = true
 utoipa-axum.workspace = true
@@ -21,3 +22,5 @@ thiserror.workspace = true
 tracing.workspace = true
 tokio.workspace = true
 parking_lot.workspace = true
+uuid.workspace = true
+chrono.workspace = true

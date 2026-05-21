@@ -3,7 +3,7 @@
 //! Concrete implementation of GitCASPort using gix crate.
 
 use crate::pod::{GitCASPort, TemplateCrate, TemplateFile};
-use std::path::Path;
+use std::path::{Component, Path};
 
 /// Git CAS Adapter — Concrete implementation for template crate loading
 pub struct GitCasAdapter {
@@ -27,15 +27,48 @@ impl GitCasAdapter {
     pub fn from_path(base_path: std::path::PathBuf) -> Self {
         Self { base_path }
     }
+
+    /// Validate a path to prevent directory traversal attacks
+    ///
+    /// Blocks:
+    /// - Parent directory components ("..")
+    /// - Absolute paths
+    /// - Null bytes
+    pub fn validate_path(&self, path: &Path) -> Result<(), String> {
+        let path_str = path.to_string_lossy();
+
+        // Check for null bytes
+        if path_str.contains('\0') {
+            return Err("Path contains null bytes".to_string());
+        }
+
+        // Check for absolute paths
+        if path.is_absolute() {
+            return Err("Absolute paths not allowed".to_string());
+        }
+
+        // Check for parent directory traversal
+        for component in path.components() {
+            if let Component::ParentDir = component {
+                return Err("Parent directory traversal not allowed".to_string());
+            }
+        }
+
+        Ok(())
+    }
 }
 
 impl GitCASPort for GitCasAdapter {
     fn load_template_crate(&self, crate_name: &str) -> Result<TemplateCrate, String> {
-        // Load template crate from Git CAS
-        let crate_path = self.base_path.join(crate_name);
+        let crate_path = Path::new(crate_name);
 
-        if !crate_path.exists() {
-            return Err(format!("Crate path does not exist: {:?}", crate_path));
+        // Validate path to prevent directory traversal
+        self.validate_path(crate_path)?;
+
+        let full_path = self.base_path.join(crate_name);
+
+        if !full_path.exists() {
+            return Err(format!("Crate path does not exist: {:?}", full_path));
         }
 
         // Read agent_persona.yaml
@@ -164,6 +197,40 @@ mod tests {
         let nonexistent = std::path::PathBuf::from("/nonexistent/path/that/does/not/exist");
         let result = GitCasAdapter::new(&nonexistent);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_path_traversal() {
+        let temp_dir = std::env::temp_dir().join("hkask_git_test_validate");
+        fs::create_dir_all(&temp_dir).unwrap();
+
+        let adapter = GitCasAdapter::new(&temp_dir).unwrap();
+
+        // Test parent directory traversal
+        let result = adapter.validate_path(Path::new("../etc/passwd"));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Parent directory traversal"));
+
+        // Test absolute path
+        let result = adapter.validate_path(Path::new("/etc/passwd"));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Absolute paths"));
+
+        fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_validate_valid_path() {
+        let temp_dir = std::env::temp_dir().join("hkask_git_test_valid");
+        fs::create_dir_all(&temp_dir).unwrap();
+
+        let adapter = GitCasAdapter::new(&temp_dir).unwrap();
+
+        // Test valid relative path
+        let result = adapter.validate_path(Path::new("my-crate"));
+        assert!(result.is_ok());
+
+        fs::remove_dir_all(&temp_dir).ok();
     }
 }
 
