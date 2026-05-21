@@ -1,0 +1,36 @@
+bot:
+  name: git-curator-bot
+  type: Bot
+  binding_contract: true
+  editor: curator-or-human-admin
+
+capabilities:
+  - tool:git:resolve
+  - tool:git:snapshot
+  - tool:git:clone
+  - tool:git:fork
+  - tool:git:diff
+  - tool:git:list
+  - tool:storage:blobs_read
+  - tool:storage:blobs_write
+
+rights:
+  - read: git_cas
+  - write: git_cas
+  - read: blob_storage
+  - write: blob_storage
+
+responsibilities:
+  - respond_to: git_operations
+  - wrap: artifacts_in_git
+  - track: provenance_sha
+  - emit: cns.tool.invocation
+  - enforce: sha_versioning
+  - report_to: Curator
+
+reporting:
+  escalate_to: Curator
+  report_on: [merge_conflicts, cas_errors, provenance_tracking_failures]
+  report_interval: on_event_and_hourly_summary
+
+process_manifest: registry/manifests/git-ops.yaml

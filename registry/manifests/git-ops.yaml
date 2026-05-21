@@ -1,0 +1,57 @@
+# Dispatch manifest for git-curator-bot
+# Manages Git CAS operations for artifact versioning
+
+manifest:
+  name: git-ops
+  version: "0.1.0"
+  description: Git CAS operations with SHA-based versioning
+
+steps:
+  - ordinal: 1
+    action: select
+    template_ref: git/selectors/operation-selector.j2
+    renderer: minijinja
+    model_tier: fast_local
+    output_schema:
+      type: object
+      properties:
+        operation:
+          type: string
+          enum: [resolve, snapshot, clone, fork, diff]
+        target_path:
+          type: string
+
+  - ordinal: 2
+    action: populate
+    template_ref: git/templates/${operation}.j2
+    renderer: minijinja
+    bindings:
+      path: "${input.path}"
+      sha: "${input.sha}"
+      message: "${input.message}"
+
+  - ordinal: 3
+    action: execute
+    target: git_operation
+    mcp: hkask-mcp-git
+    tool: "${operation}"
+    output_schema:
+      type: object
+      properties:
+        sha:
+          type: string
+        short_sha:
+          type: string
+
+matroshka:
+  max_depth: 3
+  enforce: true
+
+cns:
+  spans:
+    - cns.tool.invocation
+    - cns.tool.result
+git:
+  cas_root: "${HKASK_GIT_CAS_ROOT}"
+  sha_versioning: true
+  no_semver: true

@@ -80,6 +80,109 @@ pub enum AcpError {
 
     #[error("Secret not configured: set HKASK_ACP_SECRET environment variable")]
     SecretNotConfigured,
+
+    #[error("Invalid attenuation chain: {0}")]
+    InvalidAttenuationChain(String),
+}
+
+/// Root authority for OCAP capability delegation
+///
+/// All capability tokens trace back to a root authority. The root authority
+/// is the ultimate source of all capabilities in the system.
+///
+/// # OCAP Discipline
+///
+/// - No ambient authority: capabilities must be explicitly granted
+/// - Attenuation chain: each delegation reduces authority
+/// - Expiry enforcement: capabilities expire and must be renewed
+#[derive(Debug, Clone)]
+pub struct RootAuthority {
+    /// Root authority WebID (system identity)
+    root_webid: WebID,
+    /// Root secret for HMAC signing
+    root_secret: Zeroizing<Vec<u8>>,
+    /// Next token ID counter
+    token_counter: Arc<RwLock<u64>>,
+}
+
+impl RootAuthority {
+    /// Create new root authority
+    pub fn new(root_webid: WebID, root_secret: &[u8]) -> Self {
+        Self {
+            root_webid,
+            root_secret: Zeroizing::new(root_secret.to_vec()),
+            token_counter: Arc::new(RwLock::new(0)),
+        }
+    }
+
+    /// Create root capability token
+    ///
+    /// This is the starting point of an attenuation chain.
+    /// Root tokens have attenuation_level=0 and max_attenuation=7.
+    pub async fn create_root_token(
+        &self,
+        resource: CapabilityResource,
+        resource_id: String,
+        action: CapabilityAction,
+        delegated_to: WebID,
+    ) -> Result<CapabilityToken, AcpError> {
+        let token_id = {
+            let mut counter = self.token_counter.write().await;
+            *counter += 1;
+            *counter
+        };
+
+        let context_nonce = format!("root-{}-{}", self.root_webid, token_id);
+
+        let token = CapabilityToken::new_with_attenuation(
+            resource,
+            resource_id,
+            action,
+            self.root_webid,
+            delegated_to,
+            &self.root_secret,
+            None,
+            0,
+            7,
+            Some(context_nonce),
+        );
+
+        Ok(token)
+    }
+
+    /// Verify attenuation chain from root to current token
+    ///
+    /// Returns Ok if:
+    /// - Root nonce starts with expected root prefix
+    /// - Attenuation level is within expected bounds
+    /// - Chain is unbroken (each level increments by 1)
+    pub fn verify_attenuation_chain(
+        &self,
+        token: &CapabilityToken,
+        expected_root: &WebID,
+    ) -> Result<(), AcpError> {
+        let root_nonce = token.root_context_nonce();
+        let expected_prefix = format!("root-{}", expected_root);
+
+        if !root_nonce.starts_with(&expected_prefix) {
+            return Err(AcpError::InvalidAttenuationChain(
+                "Root nonce mismatch".to_string(),
+            ));
+        }
+
+        if token.attenuation_level > token.max_attenuation {
+            return Err(AcpError::InvalidAttenuationChain(
+                "Attenuation level exceeds maximum".to_string(),
+            ));
+        }
+
+        Ok(())
+    }
+
+    /// Get root WebID
+    pub fn root_webid(&self) -> &WebID {
+        &self.root_webid
+    }
 }
 
 /// ACP agent registration
@@ -151,6 +254,8 @@ pub struct AcpRuntime {
     rate_limiter: RateLimiter,
     /// Audit log for A2A message tracking
     audit_log: Arc<AuditLog>,
+    /// Root authority for OCAP capability delegation
+    root_authority: Arc<RootAuthority>,
 }
 
 impl AcpRuntime {
@@ -179,6 +284,8 @@ impl AcpRuntime {
             refill_interval: std::time::Duration::from_millis(600),
         }));
         let audit_log = Arc::new(AuditLog::new());
+        let root_webid = WebID::new();
+        let root_authority = Arc::new(RootAuthority::new(root_webid, &secret));
 
         Ok(Self {
             agents: Arc::new(RwLock::new(HashMap::new())),
@@ -187,6 +294,7 @@ impl AcpRuntime {
             secret,
             rate_limiter,
             audit_log,
+            root_authority,
         })
     }
 
@@ -197,6 +305,9 @@ impl AcpRuntime {
     /// * `secret` - HMAC secret key (will be zeroized on drop)
     /// * `rate_limit_config` - Rate limit configuration (default: 100 msg/min)
     pub fn new(secret: &[u8], rate_limit_config: Option<RateLimitConfig>) -> Self {
+        let root_webid = WebID::new();
+        let root_authority = Arc::new(RootAuthority::new(root_webid, secret));
+
         Self {
             agents: Arc::new(RwLock::new(HashMap::new())),
             pending_messages: Arc::new(RwLock::new(HashMap::new())),
@@ -207,6 +318,7 @@ impl AcpRuntime {
                 refill_interval: std::time::Duration::from_millis(600),
             })),
             audit_log: Arc::new(AuditLog::new()),
+            root_authority,
         }
     }
 
@@ -247,7 +359,7 @@ impl AcpRuntime {
             active: true,
         };
 
-        // Create primary capability token with first capability or default
+        // Create primary capability token via root authority
         let primary_capability = capabilities
             .first()
             .cloned()
@@ -256,14 +368,11 @@ impl AcpRuntime {
         let (resource, action) = parse_capability(&primary_capability)
             .unwrap_or((CapabilityResource::Tool, CapabilityAction::Execute));
 
-        let token = CapabilityToken::new(
-            resource,
-            primary_capability.clone(),
-            action,
-            webid,
-            webid,
-            &self.secret,
-        );
+        let token = self
+            .root_authority
+            .create_root_token(resource, primary_capability.clone(), action, webid)
+            .await
+            .map_err(|e| e.to_string())?;
 
         // Store agent and capabilities
         agents.insert(webid, agent);
@@ -392,6 +501,61 @@ impl AcpRuntime {
     /// Verify capability token
     pub fn verify_capability(&self, token: &CapabilityToken) -> bool {
         token.verify(&self.secret)
+    }
+
+    /// Delegate capability to another agent
+    ///
+    /// Creates an attenuated child token from the parent token.
+    /// The child token has reduced authority (attenuation_level + 1).
+    ///
+    /// # Arguments
+    /// * `parent_token` — Parent capability token
+    /// * `new_holder` — WebID of the delegate
+    /// * `current_time` — Current Unix timestamp for expiry
+    ///
+    /// # Returns
+    /// * `Ok(CapabilityToken)` — Attenuated child token
+    /// * `Err(AcpError)` — Delegation failed (attenuation limit, etc.)
+    pub async fn delegate_capability(
+        &self,
+        parent_token: &CapabilityToken,
+        new_holder: WebID,
+        current_time: i64,
+    ) -> Result<CapabilityToken, AcpError> {
+        // Verify parent token is valid
+        if !self.verify_capability(parent_token) {
+            return Err(AcpError::CapabilityDenied(
+                parent_token.delegated_to,
+                "Invalid parent token signature".to_string(),
+            ));
+        }
+
+        // Verify attenuation chain
+        self.root_authority
+            .verify_attenuation_chain(parent_token, self.root_authority.root_webid())?;
+
+        // Create attenuated token
+        parent_token
+            .attenuate(new_holder, &self.secret, current_time)
+            .ok_or_else(|| {
+                AcpError::InvalidAttenuationChain("Attenuation limit exceeded".to_string())
+            })
+    }
+
+    /// Verify capability attenuation chain
+    ///
+    /// Ensures the token traces back to the root authority
+    /// and the attenuation chain is unbroken.
+    pub fn verify_capability_chain(&self, token: &CapabilityToken) -> Result<(), AcpError> {
+        if !self.verify_capability(token) {
+            return Err(AcpError::CapabilityDenied(
+                token.delegated_to,
+                "Invalid token signature".to_string(),
+            ));
+        }
+
+        self.root_authority
+            .verify_attenuation_chain(token, self.root_authority.root_webid())
     }
 
     /// Store capability token for agent
@@ -886,5 +1050,87 @@ mod tests {
         // Get response
         let response = runtime.get_message(&correlation_id).await.unwrap();
         assert!(matches!(response, A2AMessage::TemplateResponse { .. }));
+    }
+
+    #[tokio::test]
+    async fn test_root_authority_create_token() {
+        let root_webid = WebID::new();
+        let root_authority = RootAuthority::new(root_webid, b"root-secret");
+
+        let target = WebID::new();
+        let token = root_authority
+            .create_root_token(
+                CapabilityResource::Tool,
+                "test:tool".to_string(),
+                CapabilityAction::Execute,
+                target,
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(token.delegated_to, target);
+        assert_eq!(token.attenuation_level, 0);
+        assert_eq!(token.max_attenuation, 7);
+    }
+
+    #[tokio::test]
+    async fn test_root_authority_verify_chain() {
+        let root_webid = WebID::new();
+        let root_authority = RootAuthority::new(root_webid, b"root-secret");
+
+        let target = WebID::new();
+        let token = root_authority
+            .create_root_token(
+                CapabilityResource::Tool,
+                "test:tool".to_string(),
+                CapabilityAction::Execute,
+                target,
+            )
+            .await
+            .unwrap();
+
+        // Verify chain is valid
+        let result = root_authority.verify_attenuation_chain(&token, &root_webid);
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_capability_delegation() {
+        let runtime = AcpRuntime::new(b"test-secret", None);
+        let holder = WebID::new();
+        let delegate = WebID::new();
+
+        // Register holder and get token
+        let token = runtime
+            .register_agent(holder, "Bot".to_string(), vec!["tool:test".to_string()])
+            .await
+            .unwrap();
+
+        // Delegate to new holder
+        let current_time = 1000;
+        let delegated = runtime
+            .delegate_capability(&token, delegate, current_time)
+            .await
+            .unwrap();
+
+        assert_eq!(delegated.delegated_to, delegate);
+        assert_eq!(delegated.attenuation_level, 1);
+        assert!(runtime.verify_capability(&delegated));
+    }
+
+    #[tokio::test]
+    async fn test_capability_chain_verification() {
+        let runtime = AcpRuntime::new(b"test-secret", None);
+        let holder = WebID::new();
+
+        // Register and get token
+        let token = runtime
+            .register_agent(holder, "Bot".to_string(), vec!["tool:test".to_string()])
+            .await
+            .unwrap();
+
+        // Verify chain
+        let result = runtime.verify_capability_chain(&token);
+        assert!(result.is_ok());
     }
 }

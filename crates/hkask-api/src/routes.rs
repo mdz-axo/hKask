@@ -190,7 +190,7 @@ async fn list_pods(State(state): State<ApiState>) -> Json<ListPodsResponse> {
         }),
     );
 
-    let pod_statuses = state.pod_manager.list_pods().await.unwrap_or_default();
+    let pod_statuses: Vec<_> = state.pod_manager.list_pods().await.unwrap_or_default();
 
     let pods: Vec<PodStatusResponse> = pod_statuses
         .into_iter()

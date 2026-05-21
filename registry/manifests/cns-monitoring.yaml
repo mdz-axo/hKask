@@ -1,0 +1,54 @@
+# Dispatch manifest for cns-curator-bot
+# Monitors system health, variety counters, and triggers algedonic alerts
+
+manifest:
+  name: cns-monitoring
+  version: "0.1.0"
+  description: Cybernetic Nervous System monitoring and calibration
+
+steps:
+  - ordinal: 1
+    action: select
+    template_ref: cns/selectors/alert-selector.j2
+    renderer: minijinja
+    model_tier: fast_local
+    output_schema:
+      type: object
+      properties:
+        alert_type:
+          type: string
+        severity:
+          type: string
+          enum: [low, medium, high, critical]
+
+  - ordinal: 2
+    action: populate
+    template_ref: cns/templates/variety-counter.j2
+    renderer: minijinja
+    bindings:
+      span_namespace: "${input.span_namespace}"
+      time_window: "${input.time_window}"
+
+  - ordinal: 3
+    action: execute
+    target: cns_alert
+    mcp: hkask-mcp-cns
+    tool: cns_alert
+    output_schema:
+      type: object
+      properties:
+        alert_id:
+          type: string
+        escalated:
+          type: boolean
+
+matroshka:
+  max_depth: 5
+  enforce: true
+
+cns:
+  spans:
+    - cns.tool.invocation
+    - cns.tool.result
+  alert_threshold:
+    variety_deficit: 100

@@ -1,0 +1,61 @@
+# Dispatch manifest for inference-curator-bot
+# Orchestrates LLM inference with model tier selection
+
+manifest:
+  name: inference-dispatch
+  version: "0.1.0"
+  description: Inference orchestration with model tier balancing
+
+steps:
+  - ordinal: 1
+    action: select
+    template_ref: inference/selectors/model-selector.j2
+    renderer: minijinja
+    model_tier: fast_local
+    output_schema:
+      type: object
+      properties:
+        model_tier:
+          type: string
+          enum: [fast_local, balanced, high_quality]
+        model_name:
+          type: string
+        rationale:
+          type: string
+
+  - ordinal: 2
+    action: populate
+    template_ref: inference/templates/prompt.j2
+    renderer: minijinja
+    bindings:
+      system_prompt: "${input.system_prompt}"
+      user_prompt: "${input.user_prompt}"
+      context: "${input.context}"
+
+  - ordinal: 3
+    action: execute
+    target: inference_call
+    mcp: hkask-mcp-inference
+    tool: inference_call
+    output_schema:
+      type: object
+      properties:
+        response:
+          type: string
+        tokens_used:
+          type: integer
+        latency_ms:
+          type: number
+
+matroshka:
+  max_depth: 5
+  enforce: true
+
+cns:
+  spans:
+    - cns.tool.invocation
+    - cns.prompt.outcome
+model_tiers:
+  fast_local: ollama/llama3.2
+  balanced: okapi/claude-haiku
+  high_quality: okapi/claude-sonnet

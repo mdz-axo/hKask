@@ -1,0 +1,35 @@
+bot:
+  name: memory-curator-bot
+  type: Bot
+  binding_contract: true
+  editor: curator-or-human-admin
+
+capabilities:
+  - tool:memory:remember
+  - tool:memory:recall
+  - tool:memory:query
+  - tool:embedding:generate
+  - tool:embedding:similarity
+  - tool:storage:triples_read
+  - tool:storage:triples_write
+
+rights:
+  - read: public_semantic_memory
+  - read: own_episodic_memory
+  - write: own_episodic_memory
+  - write: public_semantic_memory
+
+responsibilities:
+  - respond_to: memory_tool_calls
+  - emit: cns.tool.invocation
+  - enforce: visibility_gating
+  - apply: bayesian_confidence_ops
+  - emit: memory_artifacts
+  - report_to: Curator
+
+reporting:
+  escalate_to: Curator
+  report_on: [confidence_anomalies, retrieval_failures, storage_errors]
+  report_interval: hourly_summary
+
+process_manifest: registry/manifests/memory-ops.yaml

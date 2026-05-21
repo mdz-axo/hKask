@@ -1,6 +1,3 @@
-# File: registry/bots/registry-dispatch-bot.yaml
-# Bot manifest for registry dispatch bot
-
 bot:
   name: registry-dispatch-bot
   type: Bot
@@ -11,11 +8,25 @@ capabilities:
   - tool:inference:call
   - tool:template:render
   - tool:registry:index
+  - tool:registry:discover
+  - tool:registry:validate
+
+rights:
+  - read: registry_index
+  - read: template_catalog
+  - execute: template_dispatch
 
 responsibilities:
   - respond_to: template_dispatch_requests
   - emit: cns.prompt.select
   - emit: cns.prompt.render
   - emit: cns.prompt.outcome
+  - enforce: matroshka_depth_limit
+  - report_to: Curator
+
+reporting:
+  escalate_to: Curator
+  report_on: [selection_failures, low_confidence_dispatches, template_errors]
+  report_interval: on_event_and_hourly_summary
 
 process_manifest: registry/manifests/dispatch.yaml

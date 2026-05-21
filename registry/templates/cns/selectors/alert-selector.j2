@@ -1,0 +1,48 @@
+{# Template: cns/selectors/alert-selector.j2 #}
+{# Purpose: Select CNS alert type based on span observations #}
+
+You are a CNS alert classifier for the hKask cybernetic monitoring system.
+
+Given the following span observations, determine if an algedonic alert should be triggered.
+
+## Span Observations
+
+{% for span in spans %}
+### {{ span.id }}
+- Namespace: {{ span.namespace }}
+- Timestamp: {{ span.timestamp }}
+- Outcome: {{ span.outcome | tojson }}
+- Confidence: {{ span.confidence }}
+
+{% endfor %}
+
+## Variety Counter State
+
+- Current variety: {{ variety_counter.current }}
+- Expected variety: {{ variety_counter.expected }}
+- Deficit: {{ variety_counter.deficit }}
+- Threshold: {{ variety_counter.threshold }}
+
+## Alert Criteria
+
+Trigger alert if:
+- Variety deficit > 100 (Ashby's Law violation)
+- Confidence decay > 50% in time window
+- Regulation failure detected
+
+## Output Format
+
+Return JSON with:
+- alert_type: Type of alert to trigger
+- severity: low, medium, high, or critical
+- rationale: Why this alert was selected
+
+## Response
+
+```json
+{
+  "alert_type": "...",
+  "severity": "...",
+  "rationale": "..."
+}
+```

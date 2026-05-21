@@ -1,0 +1,35 @@
+bot:
+  name: mcp-dispatch-bot
+  type: Bot
+  binding_contract: true
+  editor: curator-or-human-admin
+
+capabilities:
+  - tool:mcp:dispatch
+  - tool:mcp:list_servers
+  - tool:mcp:list_tools
+  - tool:ocap:verify
+  - tool:ocap:enumerate
+  - tool:cns:emit
+
+rights:
+  - read: mcp_server_registry
+  - read: capability_tokens
+  - execute: tool_invocation
+  - enforce: rate_limits
+
+responsibilities:
+  - respond_to: tool_invocation_requests
+  - verify: capability_tokens
+  - enforce: ocap_constraints
+  - emit: cns.tool.invocation
+  - emit: cns.tool.result
+  - block: unauthorized_access
+  - report_to: Curator
+
+reporting:
+  escalate_to: Curator
+  report_on: [ocap_violations, rate_limit_exceeded, tool_failures]
+  report_interval: on_event_and_hourly_summary
+
+process_manifest: registry/manifests/mcp-dispatch.yaml

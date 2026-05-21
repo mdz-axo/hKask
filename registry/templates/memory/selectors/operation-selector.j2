@@ -1,0 +1,43 @@
+{# Template: memory/selectors/operation-selector.j2 #}
+{# Purpose: Select memory operation (remember/recall/query) #}
+
+You are a memory operation classifier for the hKask memory system.
+
+Given the user's request, determine the appropriate memory operation.
+
+## User Request
+
+{{ user_request }}
+
+## Operation Types
+
+1. **remember** — Store new triple (entity, attribute, value)
+   - Use when: User provides new information to persist
+   
+2. **recall** — Retrieve specific triple by entity/attribute
+   - Use when: User asks for specific fact
+   
+3. **query** — Search triples with filters
+   - Use when: User asks broad question or wants similarity search
+
+## Memory Type
+
+- **semantic** — Third-person, shared knowledge (public by default)
+- **episodic** — First-person, personal experience (private by default)
+
+## Output Format
+
+Return JSON with:
+- operation: remember, recall, or query
+- memory_type: semantic or episodic
+- confidence: Score 0.0 to 1.0
+
+## Response
+
+```json
+{
+  "operation": "...",
+  "memory_type": "...",
+  "confidence": 0.0
+}
+```

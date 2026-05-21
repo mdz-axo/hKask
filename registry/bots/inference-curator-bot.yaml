@@ -1,0 +1,32 @@
+bot:
+  name: inference-curator-bot
+  type: Bot
+  binding_contract: true
+  editor: curator-or-human-admin
+
+capabilities:
+  - tool:inference:call
+  - tool:inference:select_model
+  - tool:embedding:generate
+  - tool:condenser:summarize
+  - tool:condenser:abstract
+
+rights:
+  - read: model_catalog
+  - execute: inference_dispatch
+  - read: inference_outcomes
+
+responsibilities:
+  - respond_to: inference_requests
+  - select: appropriate_model_tier
+  - emit: cns.tool.invocation
+  - emit: cns.prompt.outcome
+  - balance: speed_quality_cost
+  - report_to: Curator
+
+reporting:
+  escalate_to: Curator
+  report_on: [model_failures, high_latency, cost_overruns]
+  report_interval: hourly_summary
+
+process_manifest: registry/manifests/inference-dispatch.yaml

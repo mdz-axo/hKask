@@ -106,7 +106,7 @@ pub async fn get_pod_status(pod_id: &str) -> Result<PodStatus, String> {
     use uuid::Uuid;
 
     let uuid = Uuid::parse_str(pod_id).map_err(|e| format!("Invalid pod ID: {}", e))?;
-    let manager = PodManager::new();
+    let manager = PodManager::new_mock();
     let status = manager
         .get_pod_status(&PodID(uuid))
         .await
@@ -125,7 +125,7 @@ pub async fn get_pod_status(pod_id: &str) -> Result<PodStatus, String> {
 pub async fn list_pods() -> Vec<PodStatus> {
     use hkask_agents::pod::PodManager;
 
-    let manager = PodManager::new();
+    let manager = PodManager::new_mock();
     let statuses = manager.list_pods().await.unwrap_or_default();
 
     statuses
@@ -154,7 +154,7 @@ pub async fn create_pod(
     let persona = AgentPersona::from_yaml(&yaml_content)
         .map_err(|e| format!("Invalid persona YAML: {}", e))?;
 
-    let manager = PodManager::new();
+    let manager = PodManager::new_mock();
     let pod_id = manager
         .create_pod(template_name, &persona, pod_name.map(String::from))
         .await
@@ -169,7 +169,7 @@ pub async fn activate_pod(pod_id: &str) -> Result<(), String> {
     use uuid::Uuid;
 
     let uuid = Uuid::parse_str(pod_id).map_err(|e| format!("Invalid pod ID: {}", e))?;
-    let manager = PodManager::new();
+    let manager = PodManager::new_mock();
     manager
         .activate_pod(&PodID(uuid))
         .await
@@ -184,7 +184,7 @@ pub async fn deactivate_pod(pod_id: &str) -> Result<(), String> {
     use uuid::Uuid;
 
     let uuid = Uuid::parse_str(pod_id).map_err(|e| format!("Invalid pod ID: {}", e))?;
-    let manager = PodManager::new();
+    let manager = PodManager::new_mock();
     manager
         .deactivate_pod(&PodID(uuid))
         .await

@@ -1,0 +1,50 @@
+{# Template: ensemble/selectors/participant-selector.j2 #}
+{# Purpose: Select bot participants for ensemble session #}
+
+You are an ensemble participant selector for the hKask multi-agent system.
+
+Given the session topic, select appropriate bot participants.
+
+## Session Topic
+
+{{ topic }}
+
+## Available Bot Participants
+
+{% for bot in available_bots %}
+### {{ bot.name }}
+- Type: {{ bot.type }}
+- Capabilities: {{ bot.capabilities | join(', ') }}
+- Responsibilities: {{ bot.responsibilities | join(', ') }}
+
+{% endfor %}
+
+## Session Types
+
+1. **h2a** — Human-to-agent (Curator orchestrates, user participates)
+2. **a2a** — Agent-to-agent (bot-to-bot coordination)
+3. **multi_bot** — Multiple bots deliberating on shared problem
+
+## Selection Criteria
+
+- Match bot capabilities to session topic
+- Ensure diverse perspectives (no redundant bots)
+- Limit participants to ≤7 (matroshka limit)
+- No swarm consensus (explicit coordination only)
+
+## Output Format
+
+Return JSON with:
+- participants: Array of bot names
+- session_type: h2a, a2a, or multi_bot
+- rationale: Why these participants were selected
+
+## Response
+
+```json
+{
+  "participants": ["...", "..."],
+  "session_type": "...",
+  "rationale": "..."
+}
+```

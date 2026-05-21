@@ -1,0 +1,58 @@
+# Dispatch manifest for mcp-dispatch-bot
+# Routes MCP tool calls with OCAP capability verification
+
+manifest:
+  name: mcp-dispatch
+  version: "0.1.0"
+  description: MCP tool dispatch with capability gating and rate limiting
+
+steps:
+  - ordinal: 1
+    action: select
+    template_ref: mcp/selectors/tool-selector.j2
+    renderer: minijinja
+    model_tier: fast_local
+    output_schema:
+      type: object
+      properties:
+        server:
+          type: string
+        tool:
+          type: string
+        capability_required:
+          type: string
+
+  - ordinal: 2
+    action: populate
+    template_ref: mcp/templates/ocap-verify.j2
+    renderer: minijinja
+    bindings:
+      agent_webid: "${input.agent_webid}"
+      capability_token: "${input.capability_token}"
+      requested_action: "${input.requested_action}"
+
+  - ordinal: 3
+    action: execute
+    target: tool_invocation
+    mcp: "${server}"
+    tool: "${tool}"
+    output_schema:
+      type: object
+      properties:
+        result:
+          type: object
+        rate_limit_remaining:
+          type: integer
+
+matroshka:
+  max_depth: 3
+  enforce: true
+
+cns:
+  spans:
+    - cns.tool.invocation
+    - cns.tool.result
+security:
+  ocap_required: true
+  rate_limit: 100_per_minute
+  path_traversal_blocking: true

@@ -63,7 +63,8 @@ use tokio::sync::RwLock;
 use tracing::info;
 use zeroize::Zeroizing;
 
-use crate::adapters::git_cas::MockGitCas;
+use crate::adapters::git_cas::GitCasAdapter;
+use std::path::PathBuf;
 
 /// Pod lifecycle state machine
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -727,6 +728,7 @@ pub struct PodManager {
     pods: Arc<RwLock<HashMap<PodID, AgentPod>>>,
     #[allow(dead_code)]
     keystore: Keychain,
+    git_cas: GitCasAdapter,
 }
 
 /// Pod status information
@@ -743,10 +745,20 @@ pub struct PodStatus {
 
 impl PodManager {
     /// Create a new pod manager
-    pub fn new() -> Self {
+    pub fn new(git_cas: GitCasAdapter) -> Self {
         Self {
             pods: Arc::new(RwLock::new(HashMap::new())),
             keystore: Keychain::default(),
+            git_cas,
+        }
+    }
+
+    /// Create a new pod manager with mock Git CAS for testing
+    pub fn new_mock() -> Self {
+        Self {
+            pods: Arc::new(RwLock::new(HashMap::new())),
+            keystore: Keychain::default(),
+            git_cas: GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-mock")),
         }
     }
 
@@ -766,8 +778,7 @@ impl PodManager {
         persona: &AgentPersona,
         name: Option<String>,
     ) -> AgentPodResult<PodID> {
-        let git = MockGitCas;
-        let pod = AgentPod::new(template_name, persona, &git)?;
+        let pod = AgentPod::new(template_name, persona, &self.git_cas)?;
         let pod_id = pod.id;
 
         let mut pods = self.pods.write().await;
@@ -863,7 +874,7 @@ impl PodManager {
 
 impl Default for PodManager {
     fn default() -> Self {
-        Self::new()
+        Self::new_mock()
     }
 }
 

@@ -1,0 +1,58 @@
+# Dispatch manifest for memory-curator-bot
+# Handles semantic/episodic memory operations with Bayesian confidence
+
+manifest:
+  name: memory-ops
+  version: "0.1.0"
+  description: Memory operations with visibility gating and Bayesian confidence
+
+steps:
+  - ordinal: 1
+    action: select
+    template_ref: memory/selectors/operation-selector.j2
+    renderer: minijinja
+    model_tier: fast_local
+    output_schema:
+      type: object
+      properties:
+        operation:
+          type: string
+          enum: [remember, recall, query]
+        memory_type:
+          type: string
+          enum: [semantic, episodic]
+
+  - ordinal: 2
+    action: populate
+    template_ref: memory/templates/${operation}.j2
+    renderer: minijinja
+    bindings:
+      entity: "${input.entity}"
+      attribute: "${input.attribute}"
+      value: "${input.value}"
+      confidence: "${input.confidence}"
+      visibility: "${input.visibility}"
+
+  - ordinal: 3
+    action: execute
+    target: memory_operation
+    mcp: hkask-mcp-memory
+    tool: "${operation}"
+    output_schema:
+      type: object
+      properties:
+        triple_id:
+          type: string
+        confidence_combined:
+          type: number
+
+matroshka:
+  max_depth: 5
+  enforce: true
+
+cns:
+  spans:
+    - cns.tool.invocation
+    - cns.tool.result
+bayesian:
+  ops: [combine, subtract, join, decay]

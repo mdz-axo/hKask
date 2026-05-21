@@ -1,0 +1,34 @@
+bot:
+  name: cns-curator-bot
+  type: Bot
+  binding_contract: true
+  editor: curator-or-human-admin
+
+capabilities:
+  - tool:cns:emit
+  - tool:cns:variety
+  - tool:cns:alert
+  - tool:cns:calibrate
+  - tool:cns:list_alerts
+  - tool:cns:health
+
+rights:
+  - read: cns_spans
+  - read: variety_counters
+  - write: algedonic_alerts
+  - execute: calibration_ops
+
+responsibilities:
+  - respond_to: cns_monitoring_requests
+  - emit: cns.agent_pod.activated
+  - emit: cns.tool.invocation
+  - emit: cns.prompt.outcome
+  - calibrate: drift_detection
+  - report_to: Curator
+
+reporting:
+  escalate_to: Curator
+  alert_threshold: variety_deficit_gt_100
+  report_interval: on_alert_and_hourly_summary
+
+process_manifest: registry/manifests/cns-monitoring.yaml

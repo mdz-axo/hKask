@@ -1,0 +1,33 @@
+bot:
+  name: ensemble-curator-bot
+  type: Bot
+  binding_contract: true
+  editor: curator-or-human-admin
+
+capabilities:
+  - tool:ensemble:coordinate
+  - tool:ensemble:chat_orchestrate
+  - tool:template:dispatch
+  - tool:memory:recall
+  - tool:inference:call
+
+rights:
+  - read: agent_registry
+  - read: public_semantic_memory
+  - execute: multi_agent_coordination
+  - read: bot_charters
+
+responsibilities:
+  - respond_to: ensemble_requests
+  - coordinate: bot_deliberation
+  - enforce: no_swarm_consensus
+  - emit: cns.agent_pod.activated
+  - orchestrate: h2a_sessions
+  - report_to: Curator
+
+reporting:
+  escalate_to: Curator
+  report_on: [coordination_failures, participant_conflicts, session_outcomes]
+  report_interval: per_session_and_hourly_summary
+
+process_manifest: registry/manifests/ensemble-orchestration.yaml

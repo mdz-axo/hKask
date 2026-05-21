@@ -20,12 +20,16 @@
 //! - `GET /api/pods/:id/status` — Get pod status
 //! - `POST /api/chat` — Curator chat
 
+use hkask_agents::adapters::git_cas::GitCasAdapter;
 use hkask_agents::pod::PodManager;
+use hkask_agents::adapters::git_cas::GitCasAdapter;
 use hkask_cns::spans::SpanEmitter;
+use hkask_cns::rate_limit::{RateLimitConfig, RateLimiter};
 use hkask_templates::SqliteRegistry;
 use hkask_types::{CapabilityChecker, WebID};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::Arc;
 use utoipa::OpenApi;
 use utoipa::ToSchema;
@@ -51,6 +55,8 @@ pub struct ApiState {
     pub system_webid: WebID,
     /// CNS span emitter for audit trail
     pub cns_emitter: Arc<SpanEmitter>,
+    /// Rate limiter for API endpoints
+    pub rate_limiter: Arc<RateLimiter>,
 }
 
 impl ApiState {
@@ -62,6 +68,10 @@ impl ApiState {
         system_webid: WebID,
     ) -> Self {
         let observer_webid = WebID::new();
+        let rate_limiter = RateLimiter::new(RateLimitConfig {
+            max_tokens: 100,
+            refill_interval: std::time::Duration::from_millis(600),
+        });
         Self {
             registry: Arc::new(tokio::sync::Mutex::new(registry)),
             mcp_runtime: Arc::new(mcp_runtime),
@@ -69,7 +79,26 @@ impl ApiState {
             capability_checker: Arc::new(CapabilityChecker::new(capability_secret)),
             system_webid,
             cns_emitter: Arc::new(SpanEmitter::new(observer_webid)),
+            rate_limiter: Arc::new(rate_limiter),
         }
+    }
+
+    /// Create ApiState with default Git CAS adapter
+    pub fn with_defaults(
+        registry: SqliteRegistry,
+        mcp_runtime: hkask_mcp::runtime::McpRuntime,
+        capability_secret: &[u8],
+        system_webid: WebID,
+    ) -> Self {
+        let git_cas = GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-templates"));
+        let pod_manager = PodManager::new(git_cas);
+        Self::new(
+            registry,
+            mcp_runtime,
+            pod_manager,
+            capability_secret,
+            system_webid,
+        )
     }
 }
 
@@ -202,7 +231,7 @@ mod tests {
     async fn test_api_state_new() {
         let registry = SqliteRegistry::new(None).unwrap();
         let mcp_runtime = hkask_mcp::runtime::McpRuntime::new();
-        let pod_manager = PodManager::new();
+        let pod_manager = PodManager::new_mock();
         let system_webid = WebID::new();
         let state = ApiState::new(
             registry,
