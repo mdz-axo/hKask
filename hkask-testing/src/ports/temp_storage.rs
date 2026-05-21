@@ -48,7 +48,8 @@ impl StorageTestFixture {
     }
 
     pub fn create_test_triple(&self) -> hkask_types::TripleID {
-        use hkask_types::{Triple, Visibility, WebID};
+        use hkask_storage::Triple;
+        use hkask_types::{Visibility, WebID};
         use serde_json::json;
 
         let triple = Triple::new("test", "test", json!("test"), WebID::new())

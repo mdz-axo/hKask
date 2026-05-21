@@ -596,7 +596,6 @@ pub trait ACPRuntimePort {
     ) -> Result<CapabilityToken, String>;
 }
 
-/// MCP Runtime Port — Tool access and invocation
 pub trait MCPRuntimePort {
     /// Grant tool access to an agent
     ///
@@ -916,6 +915,9 @@ impl Default for PodManager {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
 
     pub struct MockMCPRuntime;
     impl MCPRuntimePort for MockMCPRuntime {
@@ -929,7 +931,7 @@ impl Default for PodManager {
             _input: serde_json::Value,
             _token: &CapabilityToken,
         ) -> Result<serde_json::Value, String> {
-            Ok(json!({"result": "success"}))
+            Ok(serde_json::json!({"result": "success"}))
         }
     }
 
@@ -963,4 +965,4 @@ impl Default for PodManager {
             Ok("abc123".to_string())
         }
     }
-
+}

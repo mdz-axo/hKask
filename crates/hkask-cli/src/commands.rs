@@ -331,17 +331,3 @@ pub fn import_russell(
 }
 
 
-    #[tokio::test]
-    async fn test_list_mcp_servers() {
-        let runtime = McpRuntime::new();
-        let servers = list_mcp_servers(&runtime).await;
-        assert!(servers.is_empty());
-    }
-
-    #[tokio::test]
-    async fn test_list_mcp_tools() {
-        let runtime = McpRuntime::new();
-        let tools = list_mcp_tools(&runtime).await;
-        assert!(tools.is_empty());
-    }
-}

@@ -236,5 +236,3 @@ pub fn create_router(state: ApiState) -> OpenApiRouter {
 pub fn create_openapi() -> utoipa::openapi::OpenApi {
     ApiDoc::openapi()
 }
-
-}
