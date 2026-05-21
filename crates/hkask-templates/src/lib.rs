@@ -12,6 +12,10 @@
 //! - `Registry` — In-memory filesystem-based registry (MVP default)
 //! - `GitRegistry` — Git CAS-backed registry (production)
 //! - `SqliteRegistry` — SQLite-backed registry (production with search)
+//!
+//! **High-Temperature Templates:**
+//! - Anti-normative generation via temperature-controlled LLM parameters
+//! - Prevents convergence to homogeneous, predictable behavior
 
 pub mod audit;
 pub mod capability_validator;
@@ -19,6 +23,8 @@ pub mod cascade;
 pub mod contract_validator;
 pub mod contracts;
 pub mod dependency;
+pub mod engine;
+pub mod inference_port;
 pub mod manifest;
 pub mod ports;
 pub mod provenance;
@@ -36,11 +42,16 @@ pub use contracts::{
     ParsedContract, ParsedInference, TemplateFrontmatter,
 };
 pub use dependency::{parse_dependencies, DependencyGraph};
+pub use engine::{TemplateEngine, TemplateRegistry};
+pub use inference_port::{
+    invoke_template_with_okapi, invoke_template_with_selection, InferenceError, InferencePort,
+    InferenceResult, OkapiInference, Usage,
+};
 pub use manifest::{ManifestExecutorImpl, SelectorConfig, SimpleExecutor};
 pub use ports::{
-    Action, CnsPort, CompositionTemplate, InferenceConfig, InferencePort, ManifestExecutor,
-    ManifestStep, McpPort, ProcessManifest, RegistryEntry, RegistryIndex, Result, TemplateContract,
-    TemplateError, TemplateRenderer, DEFAULT_MATROSHKA_LIMIT, FAST_LOCAL_MODEL,
+    Action, CnsPort, CompositionTemplate, InferenceConfig, InferencePort as InferencePortTrait,
+    ManifestExecutor, ManifestStep, McpPort, ProcessManifest, RegistryEntry, RegistryIndex, Result,
+    TemplateContract, TemplateError, TemplateRenderer, DEFAULT_MATROSHKA_LIMIT, FAST_LOCAL_MODEL,
 };
 pub use provenance::{ProvenanceManager, TemplateProvenance};
 pub use registry::{Registry, TemplateEntry};

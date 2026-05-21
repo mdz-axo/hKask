@@ -24,8 +24,11 @@ pub use cns::*;
 pub use curation::*;
 pub use event::*;
 pub use id::*;
-// Note: lexicon uses glob export but TemplateType conflict with template module
-// Users should import lexicon::LexiconTerm explicitly if needed
-pub use lexicon::{Domain, HLexicon, LexiconTerm};
-pub use template::*;
+// Re-export lexicon types (includes TemplateType: Prompt, Process, Cognition)
+pub use lexicon::{Domain, HLexicon, LexiconTerm, TemplateType};
+// Re-export high-temp template types
+pub use template::{
+    HighTempTemplateType, LLMParameters, TemperatureRange, TemplateId, TemplateInvocation,
+    TemplateOutcome,
+};
 pub use visibility::*;

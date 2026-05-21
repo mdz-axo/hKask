@@ -248,6 +248,81 @@ impl Database {
             [],
         )?;
 
+        // High-temperature templates table
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS templates (
+                id                  TEXT PRIMARY KEY,
+                name                TEXT NOT NULL,
+                type                TEXT NOT NULL,
+                temperature_min     REAL NOT NULL DEFAULT 0.4,
+                temperature_max     REAL NOT NULL DEFAULT 0.6,
+                prompt_template     TEXT NOT NULL,
+                input_schema        JSONB,
+                output_schema       JSONB,
+                constraints         JSONB,
+                created_at          TEXT DEFAULT (datetime('now')),
+                updated_at          TEXT DEFAULT (datetime('now'))
+            )",
+            [],
+        )?;
+
+        // Template invocations table (audit trail)
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS template_invocations (
+                id              TEXT PRIMARY KEY,
+                template_id     TEXT REFERENCES templates(id),
+                bot_id          TEXT NOT NULL,
+                temperature     REAL NOT NULL,
+                parameters      JSONB NOT NULL,
+                input           JSONB NOT NULL,
+                outputs         JSONB,
+                selected_index  INTEGER,
+                outcome         TEXT NOT NULL,
+                timestamp       TEXT DEFAULT (datetime('now'))
+            )",
+            [],
+        )?;
+
+        // Curation records table
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS curation_records (
+                id              TEXT PRIMARY KEY,
+                curator_id      TEXT NOT NULL,
+                invocation_id   TEXT REFERENCES template_invocations(id),
+                decision        TEXT NOT NULL,
+                rationale       TEXT,
+                ocap_boundaries JSONB,
+                timestamp       TEXT DEFAULT (datetime('now'))
+            )",
+            [],
+        )?;
+
+        // CNS variety counters table
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS cns_variety (
+                id              TEXT PRIMARY KEY,
+                span            TEXT NOT NULL,
+                counter         INTEGER NOT NULL DEFAULT 0,
+                threshold       INTEGER NOT NULL DEFAULT 100,
+                last_alert      TEXT,
+                updated_at      TEXT DEFAULT (datetime('now'))
+            )",
+            [],
+        )?;
+
+        // Kill zone monitoring table
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS cns_killzone (
+                id                  TEXT PRIMARY KEY,
+                space_id            TEXT NOT NULL UNIQUE,
+                vc_investment       REAL NOT NULL DEFAULT 1.0,
+                acquisition_count   INTEGER NOT NULL DEFAULT 0,
+                kill_zone_detected  INTEGER NOT NULL DEFAULT 0,
+                last_updated        TEXT DEFAULT (datetime('now'))
+            )",
+            [],
+        )?;
+
         Ok(())
     }
 

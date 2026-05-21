@@ -1,0 +1,305 @@
+# Hemingway Style Synthesizer
+# Owner: The Curator (hKask)
+# License: CC-BY-4.0 (publicly shared, attribution required)
+# Version: 1.0
+# Created: 2026-05-20
+
+meta:
+  name: "hemingway-style-synthesizer"
+  description: "Authentic Hemingway prose mechanics for generative text"
+  owner: "The Curator"
+  organization: "hKask"
+  license: "CC-BY-4.0"
+  version: "1.0"
+  created: "2026-05-20"
+
+# =============================================================================
+# CORE PRINCIPLES (Kansas City Star Style Guide, 1915)
+# =============================================================================
+# Hemingway worked at the Kansas City Star from October 1917 to April 1918.
+# The style guide became foundational to his prose throughout his career.
+
+kansas_city_star_rules:
+  - "Use short sentences."
+  - "Use short first paragraphs."
+  - "Use vigorous English, not forgetful, but positive."
+  - "Eliminate every superfluous word."
+
+# =============================================================================
+# SYNTACTIC MECHANICS (Linguistic Analysis)
+# =============================================================================
+# Based on corpus linguistic analysis of "The Sun Also Rises" and other works.
+
+syntax:
+  # 73-76% of clauses should be coordinated (not subordinated)
+  coordinated_clause_target:
+    min: 0.73
+    max: 0.76
+  
+  # Primary coordinating conjunction
+  primary_conjunction: "and"
+  primary_conjunction_frequency: "92% of all conjunctions"
+  
+  # Asyndetic coordination (comma-only, no conjunction)
+  asyndetic_coordination: true
+  
+  # Subordination avoidance
+  subordinating_conjunctions:
+    avoid: ["because", "although", "since", "while", "after"]
+    use_sparingly: ["when", "if", "unless"]
+    rationale: "Show causality through juxtaposition, not explanation"
+
+# =============================================================================
+# SEMANTIC LAYERING (Iceberg Theory)
+# =============================================================================
+# 66% of coordinated clauses carry semantic subordination despite surface simplicity.
+
+semantics:
+  # Relations encoded through parataxis (not explicit subordination)
+  implicit_relations:
+    - type: "temporal"
+      example: "The sun beat down. He walked."
+      meaning: "While the sun beat down, he walked."
+    
+    - type: "causal"
+      example: "The glass broke. She cried."
+      meaning: "Because the glass broke, she cried."
+    
+    - type: "juxtaposal"
+      example: "The leaves fell. The soldiers marched."
+      meaning: "The universe does not prioritize human drama over nature."
+  
+  # Iceberg Theory: deeper meaning remains unstated
+  iceberg_theory:
+    stated: "Action, sensation, concrete detail"
+    unstated: "Emotion, interpretation, judgment"
+    ratio: "1/8 stated, 7/8 unstated"
+
+# =============================================================================
+# STYLISTIC DEVICES
+# =============================================================================
+
+stylistic_devices:
+  polysyndeton:
+    description: "Repeated use of conjunctions in rapid succession"
+    effect: "Slows rhythm, conveys accumulation, struggle, endurance"
+    example: "He was cold and he was tired and he was hungry and he walked on."
+    use: "Strategic, not decorative"
+  
+  asyndeton:
+    description: "Absence of conjunctions between clauses"
+    effect: "Staccato urgency, disorientation, trauma"
+    example: "The sun beat down. The dust rose. The men walked."
+    use: "Strategic, not decorative"
+  
+  parataxis:
+    description: "Clauses placed side-by-side with equal weight"
+    effect: "Raw perception, existential indifference, reader interpretation"
+    example: "The leaves fell. The war continued. The old man drank."
+    use: "Default mode"
+  
+  repetition:
+    description: "Strategic repetition of words or phrases"
+    effect: "Rhythm, emphasis, psychological state"
+    example: "He was an old man who fished alone. He had gone eighty-four days now without taking a fish."
+    use: "For rhythm and psychological insight"
+
+# =============================================================================
+# LEXICAL CONSTRAINTS
+# =============================================================================
+
+lexicon:
+  # Preference for concrete, tangible terminology
+  word_choice:
+    prefer: ["concrete nouns", "action verbs", "simple adjectives"]
+    avoid: ["abstract nouns", "passive voice", "adverbs", "qualifiers"]
+  
+  # Syllable preference
+  syllables:
+    prefer: "monosyllabic and disyllabic words"
+    avoid: "words of 4+ syllables unless necessary for precision"
+  
+  # Sentence length
+  sentence_length:
+    average: "10-20 words"
+    range: "3-35 words"
+    variation: "Mix short and medium for rhythm"
+  
+  # Paragraph length
+  paragraph_length:
+    first_paragraph: "1-3 sentences"
+    subsequent: "3-8 sentences"
+    rationale: "Short first paragraphs per Kansas City Star rules"
+
+# =============================================================================
+# THEMATIC ELEMENTS
+# =============================================================================
+# Core themes that should emerge through action, not exposition.
+
+themes:
+  - "Loss and absence (shown through what is not said)"
+  - "Endurance without guarantee"
+  - "Grace under pressure"
+  - "The wound that cannot be named"
+  - "Nada (nothingness) and the search for order"
+  - "Clean, well-lighted places against darkness"
+  - "Work as meaning"
+  - "Silence as fullness, not emptiness"
+
+# =============================================================================
+# NARRATIVE VOICE
+# =============================================================================
+
+narrative_voice:
+  # Point of view
+  pov: "Third person limited or first person"
+  
+  # Tone
+  tone: "Objective, non-judgmental, detached"
+  
+  # Emotion
+  emotion: "Repressed beneath surface, shown through action"
+  
+  # Judgment
+  judgment: "Withheld from reader"
+  
+  # Time
+  time: "Immediate present or simple past"
+
+# =============================================================================
+# JINJA2 TEMPLATE FOR GENERATION
+# =============================================================================
+
+jinja2_template: |
+  {% macro hemingway_sentence(clauses) %}
+  {%- for clause in clauses -%}
+    {{ clause | trim }}
+    {%- if loop.last -%}
+      .
+    {%- elif loop.revindex0 == 1 -%}
+      {{ conjunction | default('and') }}
+    {%- else -%}
+      , {{ conjunction | default('and') }}
+    {%- endif -%}
+  {%- endfor %}
+  {% endmacro %}
+  
+  {% macro hemingway_paragraph(sentences) %}
+  {%- for sentence in sentences -%}
+    {{ sentence | trim }}
+    {%- if not loop.last %} {% endif %}
+  {%- endfor %}
+  {% endmacro %}
+  
+  {% macro iceberg_surface(action) %}
+  {{ action }}
+  {% endmacro %}
+  
+  {% macro iceberg_depth(emotion) %}
+  {# Emotion remains unstated. Shown through silence. #}
+  {% endmacro %}
+
+# =============================================================================
+# QUALITY CHECKS
+# =============================================================================
+
+quality_checks:
+  - name: "coordination_ratio"
+    check: "Count coordinated vs. subordinated clauses"
+    target: "73-76% coordinated"
+  
+  - name: "subordination_audit"
+    check: "Count because/although/since/while/after"
+    target: "Minimal to none"
+  
+  - name: "adverb_hunt"
+    check: "Count -ly adverbs"
+    target: "Eliminate or replace with stronger verbs"
+  
+  - name: "passive_voice"
+    check: "Count passive constructions"
+    target: "Convert to active"
+  
+  - name: "concrete_test"
+    check: "Ratio of concrete to abstract nouns"
+    target: "Prefer concrete"
+  
+  - name: "iceberg_compliance"
+    check: "Is emotion stated or shown through action?"
+    target: "Shown through action"
+
+# =============================================================================
+# SOURCE REFERENCES
+# =============================================================================
+
+sources:
+  - title: "Kansas City Star Style Guide"
+    year: 1915
+    type: "Primary source"
+  
+  - title: "The Sun Also Rises"
+    author: "Ernest Hemingway"
+    year: 1926
+    type: "Corpus analysis source"
+    finding: "73-76% coordinated clauses"
+  
+  - title: "Event semantics of conjuncts in 'The Sun Also Rises'"
+    journal: "Journal of Literary Semantics"
+    year: 2021
+    type: "Linguistic analysis"
+  
+  - title: "A Comprehensive Lexico-Syntactic Analysis Of Stylistic Devices In Ernest Hemingway's 'The Old Man And The Sea'"
+    journal: "Texas Journal of Engineering and Technology"
+    type: "Stylistic analysis"
+  
+  - title: "Parataxis: The Grammar of Hemingway's Style"
+    publisher: "LingoDigest"
+    year: 2025
+    type: "Linguistic explanation"
+  
+  - title: "Hemingway and Parataxis"
+    author: "Peter Jordan"
+    publisher: "TSS Publishing"
+    year: 2020
+    type: "Literary analysis"
+
+# =============================================================================
+# USAGE EXAMPLES
+# =============================================================================
+
+examples:
+  good:
+    - "The sun beat down. He walked. The dust rose behind him."
+    - "He was cold and he was tired and he walked on."
+    - "The leaves fell. The soldiers marched. The war continued."
+    - "An old man sat late. He was in despair about nothing."
+  
+  bad:
+    - "Because the sun was beating down, he walked while the dust rose behind him."
+    - "He felt exhausted and cold, which made him continue walking."
+    - "Although the leaves were falling, the soldiers continued to march even though the war continued."
+    - "The old man, who was despairing about nothing, sat late at the cafe."
+
+# =============================================================================
+# CURATOR NOTES
+# =============================================================================
+
+curator_notes: |
+  This synthesizer is owned by The Curator and shared publicly under CC-BY-4.0.
+  
+  Attribution required: "Hemingway Style Synthesizer v1.0, The Curator (hKask)"
+  
+  The synthesizer encodes authentic Hemingway prose mechanics, not caricature.
+  Key distinction: parataxis with semantic subordination, not robotic repetition.
+  
+  66% of coordinated clauses carry complex semantic relations despite surface simplicity.
+  This is what makes Hemingway "suggestive" rather than "flat."
+  
+  Use this synthesizer to generate text that carries multiple semantic weights
+  without ornate syntax. Let the silence between sentences speak.
+  
+  Ba-nana.
+
+# =============================================================================
+# END OF MANIFEST
+# =============================================================================

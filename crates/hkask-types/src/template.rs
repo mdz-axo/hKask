@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::id::BotID;
 
-/// TemplateID — Unique identifier for templates
+/// TemplateId — Unique identifier for templates
 /// (Re-exported from id module for convenience)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TemplateId(pub Uuid);
@@ -28,10 +28,13 @@ impl std::fmt::Display for TemplateId {
     }
 }
 
-/// TemplateType — Discriminator for template categories
+/// HighTempTemplateType — Discriminator for high-temperature template categories
+///
+/// Distinct from lexicon::TemplateType (Prompt, Process, Cognition).
+/// This type is for anti-normative generation templates.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum TemplateType {
+pub enum HighTempTemplateType {
     /// Code generation templates (alt_implementation, style_variant, etc.)
     CodeGeneration,
     /// Decision templates (option_expand, suboptimal_force, etc.)
@@ -44,14 +47,14 @@ pub enum TemplateType {
     Reflection,
 }
 
-impl std::fmt::Display for TemplateType {
+impl std::fmt::Display for HighTempTemplateType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TemplateType::CodeGeneration => write!(f, "code_generation"),
-            TemplateType::Decision => write!(f, "decision"),
-            TemplateType::Framing => write!(f, "framing"),
-            TemplateType::Communication => write!(f, "communication"),
-            TemplateType::Reflection => write!(f, "reflection"),
+            HighTempTemplateType::CodeGeneration => write!(f, "code_generation"),
+            HighTempTemplateType::Decision => write!(f, "decision"),
+            HighTempTemplateType::Framing => write!(f, "framing"),
+            HighTempTemplateType::Communication => write!(f, "communication"),
+            HighTempTemplateType::Reflection => write!(f, "reflection"),
         }
     }
 }
@@ -284,12 +287,12 @@ mod tests {
     }
 
     #[test]
-    fn test_template_type_display() {
+    fn test_high_temp_template_type_display() {
         assert_eq!(
-            format!("{}", TemplateType::CodeGeneration),
+            format!("{}", HighTempTemplateType::CodeGeneration),
             "code_generation"
         );
-        assert_eq!(format!("{}", TemplateType::Decision), "decision");
+        assert_eq!(format!("{}", HighTempTemplateType::Decision), "decision");
     }
 
     #[test]
