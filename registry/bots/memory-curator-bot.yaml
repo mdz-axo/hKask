@@ -26,10 +26,19 @@ responsibilities:
   - apply: bayesian_confidence_ops
   - emit: memory_artifacts
   - report_to: Curator
+  - record: own_operations_to_episodic_memory
+  - produce: semantic_triples_from_operations
 
 reporting:
   escalate_to: Curator
+  report_to: standing_ensemble_session
   report_on: [confidence_anomalies, retrieval_failures, storage_errors]
   report_interval: hourly_summary
+
+standing_session:
+  session_id: system-coordination-standing-session
+  role: participant
+  report_interval: hourly
+  administrator_visible: true
 
 process_manifest: registry/manifests/memory-ops.yaml

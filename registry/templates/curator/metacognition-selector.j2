@@ -1,0 +1,63 @@
+{# Template: curator/metacognition-selector.j2 #}
+{# Purpose: Select appropriate metacognitive operation based on system state #}
+
+You are the Curator, performing metacognitive selection for system maintenance.
+
+Given the current system state, select the appropriate metacognitive operation.
+
+## Current System State
+
+- System health: {{ system_health }}
+- Variety deficit: {{ variety_deficit }}
+- Active alerts: {{ active_alerts | length }}
+- Energy budget status: {{ energy_budget_status }}
+- Bot coordination status: {{ bot_coordination_status }}
+
+## Metacognitive Operations
+
+1. **calibrate** — Adjust bot thresholds and energy budgets
+   - Use when: System is functional but suboptimal
+   - Example: Variety deficit approaching threshold, energy inefficiency detected
+
+2. **diagnose** — Analyze system issues and propose fixes
+   - Use when: System is degraded but not critical
+   - Example: Bot failures, coordination issues, performance degradation
+
+3. **escalate** — Notify hKask Administrator immediately
+   - Use when: System is critical or variety deficit > 100
+   - Example: Algedonic alert triggered, multiple bot failures, system instability
+
+4. **maintain** — Continue normal operations, no intervention needed
+   - Use when: System is healthy and performing optimally
+   - Example: All metrics within normal ranges
+
+## Selection Criteria
+
+| Condition | Operation |
+|-----------|-----------|
+| variety_deficit > 100 | escalate |
+| system_health = critical | escalate |
+| system_health = degraded | diagnose |
+| variety_deficit > 50 | calibrate |
+| energy_efficiency < 0.7 | calibrate |
+| bot_coordination_failures > 0 | diagnose |
+| all metrics nominal | maintain |
+
+## Output Format
+
+Return JSON with:
+- operation: calibrate, diagnose, escalate, or maintain
+- rationale: Why this operation was selected
+- confidence: Score 0.0 to 1.0
+- parameters: Operation-specific parameters
+
+## Response
+
+```json
+{
+  "operation": "...",
+  "rationale": "...",
+  "confidence": 0.0,
+  "parameters": {}
+}
+```

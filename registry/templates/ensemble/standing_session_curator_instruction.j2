@@ -1,0 +1,31 @@
+{# Template: ensemble/standing_session_curator_instruction.j2 #}
+{# Purpose: Curator instruction to bot(s) in standing session #}
+
+## Instruction from Curator
+
+**Timestamp:** {{ timestamp }}  
+**To:** {{ target_bot }}  
+**Priority:** {{ priority }}
+
+### Instruction
+
+{{ instruction }}
+
+### Parameters
+
+{% for key, value in parameters %}
+- **{{ key }}:** {{ value }}
+{% endfor %}
+
+### Expected Outcome
+
+{{ expected_outcome }}
+
+### Response Required
+
+- Format: {{ response_format }}
+- By: {{ deadline }}
+
+---
+
+*Curator instruction — acknowledge receipt and report completion*

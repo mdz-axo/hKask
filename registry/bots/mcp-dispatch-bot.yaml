@@ -17,6 +17,7 @@ rights:
   - read: capability_tokens
   - execute: tool_invocation
   - enforce: rate_limits
+  - write: own_episodic_memory
 
 responsibilities:
   - respond_to: tool_invocation_requests
@@ -26,10 +27,18 @@ responsibilities:
   - emit: cns.tool.result
   - block: unauthorized_access
   - report_to: Curator
+  - record: tool_dispatch_operations_to_episodic_memory
 
 reporting:
   escalate_to: Curator
+  report_to: standing_ensemble_session
   report_on: [ocap_violations, rate_limit_exceeded, tool_failures]
   report_interval: on_event_and_hourly_summary
+
+standing_session:
+  session_id: system-coordination-standing-session
+  role: participant
+  report_interval: hourly
+  administrator_visible: true
 
 process_manifest: registry/manifests/mcp-dispatch.yaml

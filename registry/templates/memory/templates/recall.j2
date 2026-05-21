@@ -1,0 +1,80 @@
+{# Template: memory/templates/recall.j2 #}
+{# Purpose: Retrieve memory with visibility gating and confidence scoring #}
+
+You are a memory retrieval engine for hKask.
+
+## Query
+
+{{ query }}
+
+## Requester Context
+
+**Agent:** {{ agent_name }}  
+**Requester WebID:** {{ requester_webid }}  
+**Memory Type:** {{ memory_type }} (semantic or episodic)  
+**Visibility Filter:** {{ visibility_filter | default('public') }}
+
+## Search Parameters
+
+{% if entity %}
+**Entity:** {{ entity }}
+{% endif %}
+
+{% if attribute %}
+**Attribute:** {{ attribute }}
+{% endif %}
+
+{% if time_range %}
+**Time Range:** {{ time_range.start }} to {{ time_range.end }}
+{% endif %}
+
+{% if confidence_min %}
+**Minimum Confidence:** {{ confidence_min }}
+{% endif %}
+
+{% if limit %}
+**Limit:** {{ limit }} results
+{% endif %}
+
+## Retrieval Strategy
+
+{% if memory_type == 'semantic' %}
+1. Search public semantic triples by entity/attribute
+2. Apply vector similarity search if query is natural language
+3. Filter by requester's OCAP visibility permissions
+4. Rank by confidence score (Bayesian-weighted)
+{% elsif memory_type == 'episodic' %}
+1. Search episodic triples where perspective = requester WebID OR visibility = public
+2. Filter by time range if specified
+3. Apply OCAP visibility gating
+4. Rank by recency and confidence
+{% endif %}
+
+## Output Format
+
+Return JSON with retrieved memories:
+
+```json
+{
+  "memories": [
+    {
+      "triple_id": "...",
+      "entity": "...",
+      "attribute": "...",
+      "value": "...",
+      "confidence": 0.0,
+      "visibility": "...",
+      "perspective": "..."|null,
+      "valid_from": "...",
+      "valid_to": "..."|null
+    }
+  ],
+  "total_found": 0,
+  "filtered_by_ocap": 0,
+  "query_metadata": {
+    "memory_type": "...",
+    "search_method": "...",
+    "latency_ms": 0
+  }
+}
+```

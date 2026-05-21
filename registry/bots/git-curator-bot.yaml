@@ -19,6 +19,7 @@ rights:
   - write: git_cas
   - read: blob_storage
   - write: blob_storage
+  - write: own_episodic_memory
 
 responsibilities:
   - respond_to: git_operations
@@ -27,10 +28,19 @@ responsibilities:
   - emit: cns.tool.invocation
   - enforce: sha_versioning
   - report_to: Curator
+  - record: git_operations_to_episodic_memory
+  - produce: semantic_triples_from_provenance_records
 
 reporting:
   escalate_to: Curator
+  report_to: standing_ensemble_session
   report_on: [merge_conflicts, cas_errors, provenance_tracking_failures]
   report_interval: on_event_and_hourly_summary
+
+standing_session:
+  session_id: system-coordination-standing-session
+  role: participant
+  report_interval: hourly
+  administrator_visible: true
 
 process_manifest: registry/manifests/git-ops.yaml

@@ -22,9 +22,8 @@
 
 use hkask_agents::adapters::git_cas::GitCasAdapter;
 use hkask_agents::pod::PodManager;
-use hkask_agents::adapters::git_cas::GitCasAdapter;
-use hkask_cns::spans::SpanEmitter;
 use hkask_cns::rate_limit::{RateLimitConfig, RateLimiter};
+use hkask_cns::spans::SpanEmitter;
 use hkask_templates::SqliteRegistry;
 use hkask_types::{CapabilityChecker, WebID};
 use serde::{Deserialize, Serialize};

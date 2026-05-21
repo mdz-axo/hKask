@@ -12,13 +12,14 @@
 //! ```rust,no_run
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! use hkask_agents::pod::PodManager;
-//! use hkask_agents::adapters::acp_runtime::AcpRuntimeAdapter;
+//! use hkask_agents::adapters::git_cas::GitCasAdapter;
+//! use std::path::PathBuf;
 //!
-//! // Create ACP runtime adapter
-//! let acp_adapter = AcpRuntimeAdapter::new();
+//! // Create Git CAS adapter
+//! let git_cas = GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-templates"));
 //!
 //! // Create pod manager
-//! let manager = PodManager::new();
+//! let manager = PodManager::new(git_cas);
 //! # Ok(())
 //! # }
 //! ```

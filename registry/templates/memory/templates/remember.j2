@@ -1,0 +1,72 @@
+{# Template: memory/templates/remember.j2 #}
+{# Purpose: Store operation as episodic memory with Bayesian confidence #}
+
+You are a memory persistence engine for hKask agent operations.
+
+## Operation to Record
+
+**Agent:** {{ agent_name }}  
+**Operation:** {{ operation_type }}  
+**Timestamp:** {{ timestamp }}  
+**Session:** {{ session_id | default('standalone') }}
+
+## Input Data
+
+{{ input_data | tojson(indent=2) }}
+
+## Output/Result
+
+{{ output_data | tojson(indent=2) }}
+
+## Memory Classification
+
+**Memory Type:** episodic  
+**Perspective:** {{ agent_name }} (first-person agent experience)  
+**Visibility:** private (agent-owned)  
+**Confidence:** {{ confidence | default(0.9) }}
+
+## Triple Extraction
+
+Extract RDF triples from this operation:
+
+{% for triple in triples %}
+- Entity: {{ triple.entity }}
+- Attribute: {{ triple.attribute }}
+- Value: {{ triple.value }}
+- Confidence: {{ triple.confidence }}
+
+{% endfor %}
+
+## Metadata
+
+- Energy used: {{ energy_used }}
+- Latency: {{ latency_ms }}ms
+- CNS span ID: {{ cns_span_id }}
+- Related triples: {{ related_triple_ids | join(', ') }}
+
+## Output Format
+
+Return JSON for memory storage:
+
+```json
+{
+  "triples": [
+    {
+      "entity": "...",
+      "attribute": "...",
+      "value": "...",
+      "confidence": 0.0,
+      "perspective": "{{ agent_name }}",
+      "visibility": "private"
+    }
+  ],
+  "episodic_record": {
+    "agent": "{{ agent_name }}",
+    "operation": "{{ operation_type }}",
+    "timestamp": "{{ timestamp }}",
+    "input": {...},
+    "output": {...},
+    "cns_span_ref": "{{ cns_span_id }}"
+  }
+}
+```

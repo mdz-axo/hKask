@@ -1,0 +1,160 @@
+# Bot Memory Production Manifest
+# ℏKask v0.21.0 — Planck's Constant of Agent Systems
+
+manifest:
+  id: bot-memory-production
+  name: Bot Memory Production
+  description: >
+    Automatic memory production for all bot operations.
+    Records episodic memory of operations and extracts semantic triples.
+  version: 0.21.0
+  editor: curator-or-human-admin
+  visibility: Shared
+
+# Memory Production Configuration
+memory:
+  episodic:
+    enabled: true
+    default_visibility: private
+    perspective: agent_owned
+    retention: permanent
+    
+  semantic:
+    enabled: true
+    default_visibility: public
+    extraction: from_operation_outcomes
+    bayesian_confidence: true
+
+# Process Steps
+steps:
+  - ordinal: 1
+    action: populate
+    description: >
+      Render operation record template with bot operation data.
+    renderer: minijinja
+    template_ref: memory/templates/agent_operation_memory.j2
+    model_tier: fast_local
+    mcp: hkask-mcp-memory
+    energy_cap: 2000
+    timeout_seconds: 10
+    bindings:
+      agent_name: "${bot_name}"
+      operation_type: "${operation_type}"
+      input: "${operation_input}"
+      output: "${operation_output}"
+      energy_used: "${energy_used}"
+      latency_ms: "${latency_ms}"
+      cns_spans: "${cns_spans}"
+      confidence: "${operation_confidence}"
+    output_schema:
+      type: object
+      properties:
+        operation_id:
+          type: string
+        timestamp:
+          type: string
+        episodic_record:
+          type: object
+        extracted_triples:
+          type: array
+
+  - ordinal: 2
+    action: execute
+    description: >
+      Store episodic memory record via Memory MCP.
+    renderer: null
+    template_ref: null
+    target: store_episodic_memory
+    mcp: hkask-mcp-memory
+    tool: memory_remember
+    energy_cap: 3000
+    timeout_seconds: 15
+    output_schema:
+      type: object
+      properties:
+        triple_ids:
+          type: array
+        storage_status:
+          type: string
+
+  - ordinal: 3
+    action: execute
+    description: >
+      Extract and store semantic triples from operation outcome.
+    renderer: null
+    template_ref: null
+    target: extract_semantic_triples
+    mcp: hkask-mcp-memory
+    tool: memory_remember
+    energy_cap: 3000
+    timeout_seconds: 15
+    output_schema:
+      type: object
+      properties:
+        semantic_triple_ids:
+          type: array
+        confidence_combined:
+          type: number
+
+# Error Handling
+error_handling:
+  on_memory_full: degrade_gracefully
+  on_energy_exceeded: skip_semantic_keep_episodic
+  on_timeout: retry
+  max_retries: 2
+  retry_backoff_seconds: 1
+  on_storage_failure: emit_cns_alert
+
+# OCAP Configuration
+ocap:
+  required_capabilities:
+    - resource: memory
+      action: write
+      scope: own_episodic
+      energy_budget: 3000
+    - resource: memory
+      action: write
+      scope: public_semantic
+      energy_budget: 3000
+  delegation_chain_required: false
+  signature_algorithm: ed25519
+  capability_expiry_seconds: 3600
+  template_scoped: true
+
+# CNS Monitoring
+cns:
+  emit_spans: true
+  span_namespace: cns.memory.production
+  spans:
+    - cns.memory.production.episodic_recorded
+    - cns.memory.production.semantic_extracted
+    - cns.memory.production.storage_complete
+
+# Bot Integration
+bot_integration:
+  auto_invoke: true
+  invoke_after: every_operation
+  skip_for:
+    - trivial_operations
+    - internal_housekeeping
+  include_in_standing_session: true
+
+# Standing Session Integration
+standing_session:
+  report_memory_production: true
+  report_interval: hourly
+  metrics:
+    - episodic_records_count
+    - semantic_triples_count
+    - storage_success_rate
+    - energy_used_for_memory
+
+# Audit Trail
+audit:
+  enabled: true
+  log_level: info
+  include_input: true
+  include_output: true
+  include_energy_cost: true
+  include_cns_events: true
+  include_memory_refs: true

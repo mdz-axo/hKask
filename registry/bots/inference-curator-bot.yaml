@@ -15,6 +15,7 @@ rights:
   - read: model_catalog
   - execute: inference_dispatch
   - read: inference_outcomes
+  - write: own_episodic_memory
 
 responsibilities:
   - respond_to: inference_requests
@@ -23,10 +24,19 @@ responsibilities:
   - emit: cns.prompt.outcome
   - balance: speed_quality_cost
   - report_to: Curator
+  - record: inference_operations_to_episodic_memory
+  - produce: semantic_triples_from_inference_outcomes
 
 reporting:
   escalate_to: Curator
+  report_to: standing_ensemble_session
   report_on: [model_failures, high_latency, cost_overruns]
   report_interval: hourly_summary
+
+standing_session:
+  session_id: system-coordination-standing-session
+  role: participant
+  report_interval: hourly
+  administrator_visible: true
 
 process_manifest: registry/manifests/inference-dispatch.yaml

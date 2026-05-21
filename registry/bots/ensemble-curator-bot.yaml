@@ -16,6 +16,7 @@ rights:
   - read: public_semantic_memory
   - execute: multi_agent_coordination
   - read: bot_charters
+  - write: own_episodic_memory
 
 responsibilities:
   - respond_to: ensemble_requests
@@ -24,10 +25,19 @@ responsibilities:
   - emit: cns.agent_pod.activated
   - orchestrate: h2a_sessions
   - report_to: Curator
+  - record: ensemble_sessions_to_episodic_memory
+  - produce: semantic_triples_from_session_outcomes
 
 reporting:
   escalate_to: Curator
+  report_to: standing_ensemble_session
   report_on: [coordination_failures, participant_conflicts, session_outcomes]
   report_interval: per_session_and_hourly_summary
+
+standing_session:
+  session_id: system-coordination-standing-session
+  role: participant
+  report_interval: hourly
+  administrator_visible: true
 
 process_manifest: registry/manifests/ensemble-orchestration.yaml

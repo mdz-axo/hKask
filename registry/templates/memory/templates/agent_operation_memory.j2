@@ -1,0 +1,73 @@
+{# Template: memory/templates/agent_operation_memory.j2 #}
+{# Purpose: Auto-record bot operations as episodic memory #}
+
+## Agent Operation Memory Record
+
+**Agent:** {{ agent_name }}  
+**Operation ID:** {{ operation_id }}  
+**Timestamp:** {{ timestamp }}  
+**Session:** {{ session_id | default('standalone') }}
+
+### Operation Type
+
+{{ operation_type }}
+
+### Input
+
+```json
+{{ input | tojson(indent=2) }}
+```
+
+### Output
+
+```json
+{{ output | tojson(indent=2) }}
+```
+
+### Performance Metrics
+
+| Metric | Value |
+|--------|-------|
+| Energy Used | {{ energy_used }} |
+| Latency | {{ latency_ms }}ms |
+| Success | {{ success }} |
+| Confidence | {{ confidence }} |
+
+### CNS Spans
+
+{% for span in cns_spans %}
+- {{ span.namespace }}: {{ span.id }}
+{% endfor %}
+
+### Extracted Triples
+
+{% for triple in extracted_triples %}
+**Triple {{ loop.index }}:**
+- Entity: {{ triple.entity }}
+- Attribute: {{ triple.attribute }}
+- Value: {{ triple.value | tojson }}
+- Confidence: {{ triple.confidence }}
+- Visibility: {{ triple.visibility }}
+
+{% endfor %}
+
+### Memory Classification
+
+- **Type:** episodic
+- **Perspective:** {{ agent_name }}
+- **Visibility:** private (agent-owned)
+- **Retention:** permanent (unless explicitly deleted)
+
+### Related Operations
+
+{% if related_operations %}
+{% for op in related_operations %}
+- {{ op.operation_id }}: {{ op.description }}
+{% endfor %}
+{% else %}
+None
+{% endif %}
+
+---
+
+*Automated episodic memory record — stored by {{ agent_name }}*

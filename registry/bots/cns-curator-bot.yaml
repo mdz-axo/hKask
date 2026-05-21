@@ -16,6 +16,7 @@ rights:
   - read: cns_spans
   - read: variety_counters
   - write: algedonic_alerts
+  - write: own_episodic_memory
   - execute: calibration_ops
 
 responsibilities:
@@ -25,10 +26,18 @@ responsibilities:
   - emit: cns.prompt.outcome
   - calibrate: drift_detection
   - report_to: Curator
+  - record: own_operations_to_episodic_memory
 
 reporting:
   escalate_to: Curator
+  report_to: standing_ensemble_session
   alert_threshold: variety_deficit_gt_100
   report_interval: on_alert_and_hourly_summary
+
+standing_session:
+  session_id: system-coordination-standing-session
+  role: participant
+  report_interval: hourly
+  administrator_visible: true
 
 process_manifest: registry/manifests/cns-monitoring.yaml

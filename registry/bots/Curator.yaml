@@ -17,6 +17,7 @@ capabilities:
   - tool:cns:calibrate
   - tool:memory:recall
   - tool:memory:query
+  - tool:memory:remember
   - tool:inference:call
   - tool:ensemble:coordinate
   - tool:template:render
@@ -28,6 +29,9 @@ rights:
   - read: variety_counters_all
   - read: bot_reports_all
   - read: system_health_metrics
+  - read: all_episodic_memory_owned
+  - write: own_episodic_memory
+  - write: public_semantic_memory
   - execute: metacognition_ops
   - execute: system_calibration
   - coordinate: bot_ensemble_sessions
@@ -41,6 +45,9 @@ responsibilities:
   - escalate: critical_alerts_to_administrator
   - maintain: system_evolution_dialogue
   - emit: cns.prompt.metacognition
+  - orchestrate: standing_ensemble_session
+  - record: metacognition_operations_to_episodic_memory
+  - produce: semantic_triples_from_system_insights
 
 reporting:
   receives_from:
@@ -52,12 +59,20 @@ reporting:
     - git-curator-bot
     - registry-dispatch-bot
   report_format: synthesized_system_state
+  report_to: standing_ensemble_session
   escalate_to: hKask-Administrator
   escalation_triggers:
     - variety_deficit_gt_100
     - bot_coordination_failure
     - system_degradation_detected
     - energy_budget_critical
+
+standing_session:
+  session_id: system-coordination-standing-session
+  role: orchestrator
+  report_interval: hourly
+  bot_status_interval: hourly
+  administrator_visible: true
 
 process_manifest: registry/manifests/curator-metacognition.yaml
 

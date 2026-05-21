@@ -1,0 +1,65 @@
+{# Template: ensemble/standing_session_metacognition_update.j2 #}
+{# Purpose: Curator metacognition update to standing session #}
+
+## Metacognition Update — System State
+
+**Timestamp:** {{ timestamp }}  
+**Curator:** hKask Curator  
+**System Health:** {{ system_health }}
+
+### Synthesized System State
+
+{{ system_state_summary }}
+
+### Actions Taken
+
+{% for action in actions_taken %}
+- {{ action.timestamp }}: {{ action.description }}
+  - Target: {{ action.target }}
+  - Outcome: {{ action.outcome }}
+{% endfor %}
+
+### Calibrations
+
+{% if calibrations %}
+{% for calibration in calibrations %}
+- **{{ calibration.bot }}:** {{ calibration.parameter }} adjusted
+  - Old: {{ calibration.old_value }}
+  - New: {{ calibration.new_value }}
+  - Reason: {{ calibration.reason }}
+{% endfor %}
+{% else %}
+No calibrations in this cycle.
+{% endif %}
+
+### Active Alerts
+
+{% if active_alerts %}
+{% for alert in active_alerts %}
+- **{{ alert.severity | upper }}:** {{ alert.description }}
+  - Source: {{ alert.source }}
+  - Status: {{ alert.status }}
+{% endfor %}
+{% else %}
+No active alerts.
+{% endif %}
+
+### Administrator Escalations
+
+{% if escalations %}
+{% for escalation in escalations %}
+- **{{ escalation.timestamp }}:** {{ escalation.description }}
+  - Administrator response: {{ escalation.admin_response }}
+{% endfor %}
+{% else %}
+No escalations in this cycle.
+{% endif %}
+
+### Next Cycle
+
+- Next synthesis: {{ next_synthesis }}
+- Watch items: {{ watch_items | join(', ') }}
+
+---
+
+*Curator metacognition update — all bots continue monitoring*

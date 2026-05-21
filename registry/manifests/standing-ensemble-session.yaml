@@ -1,0 +1,265 @@
+# Standing Ensemble Session — System Coordination Chat
+# ℏKask v0.21.0 — Planck's Constant of Agent Systems
+
+session:
+  id: system-coordination-standing-session
+  name: System Coordination Standing Session
+  description: >
+    Persistent ensemble session where all system bots report status,
+    Curator orchestrates metacognition, and Administrator can observe/participate.
+  type: standing
+  visibility: Shared
+  created_by: hKask-Administrator
+  created_at: system_bootstrap
+
+# Participants
+participants:
+  - agent: Curator
+    type: Replicant
+    role: orchestrator
+    voting: false
+    description: System metacognition, Administrator liaison
+
+  - agent: cns-curator-bot
+    type: Bot
+    role: participant
+    voting: true
+    description: CNS monitoring, variety counters, algedonic alerts
+
+  - agent: memory-curator-bot
+    type: Bot
+    role: participant
+    voting: true
+    description: Memory operations, confidence tracking
+
+  - agent: inference-curator-bot
+    type: Bot
+    role: participant
+    voting: true
+    description: Inference orchestration, model tier selection
+
+  - agent: mcp-dispatch-bot
+    type: Bot
+    role: participant
+    voting: true
+    description: MCP tool dispatch, OCAP verification
+
+  - agent: ensemble-curator-bot
+    type: Bot
+    role: participant
+    voting: true
+    description: Multi-agent coordination (self-management)
+
+  - agent: git-curator-bot
+    type: Bot
+    role: participant
+    voting: true
+    description: Git CAS operations, versioning
+
+  - agent: registry-dispatch-bot
+    type: Bot
+    role: participant
+    voting: true
+    description: Template dispatch orchestration
+
+# Session Rules
+rules:
+  # No swarm consensus — explicit coordination only
+  consensus_required: false
+  
+  # Curator orchestrates, bots report
+  orchestration_model: curator_led
+  
+  # Administrator can join/observe anytime
+  administrator_access:
+    observe: true
+    participate: true
+    override: true
+  
+  # Bots report on schedule and on events
+  reporting:
+    scheduled: hourly
+    on_event: true
+    on_curator_request: true
+  
+  # Message retention
+  retention:
+    keep_messages: 1000
+    keep_summaries: true
+    archive_to_git: true
+
+# Curator Authority
+curator_authority:
+  # Can request status from any bot
+  can_request_status: true
+  
+  # Can calibrate bot thresholds
+  can_calibrate_thresholds: true
+  
+  # Can adjust energy budgets (within limits)
+  can_adjust_energy_budgets: true
+  max_adjustment_percent: 25
+  
+  # Can escalate to Administrator
+  can_escalate_to_administrator: true
+  
+  # Can spawn ad-hoc sub-ensembles
+  can_spawn_sub_ensembles: true
+  max_sub_ensemble_size: 4
+
+# Administrator Access
+administrator_access:
+  # Can observe all messages
+  observe_all: true
+  
+  # Can participate in discussions
+  participate: true
+  
+  # Can override Curator decisions
+  override_curator: true
+  
+  # Can modify bot charters
+  modify_bot_charters: true
+  
+  # Can adjust session rules
+  modify_session_rules: true
+  
+  # Can terminate/restart session
+  control_session: true
+
+# Message Types
+message_types:
+  - type: status_report
+    from: bots
+    to: all
+    priority: normal
+    schema:
+      bot_name: string
+      status: enum[healthy, degraded, critical]
+      metrics: object
+      issues: array
+      timestamp: string
+
+  - type: metacognition_update
+    from: Curator
+    to: all
+    priority: high
+    schema:
+      system_health: enum[healthy, degraded, critical]
+      actions_taken: array
+      calibrations: array
+      escalations: array
+      timestamp: string
+
+  - type: alert
+    from: any_bot
+    to: all
+    priority: critical
+    schema:
+      alert_type: string
+      severity: enum[low, medium, high, critical]
+      source: string
+      description: string
+      recommended_action: string
+      timestamp: string
+
+  - type: instruction
+    from: Curator
+    to: specific_bot_or_all
+    priority: high
+    schema:
+      target: string
+      instruction: string
+      parameters: object
+      expected_outcome: string
+      timestamp: string
+
+  - type: administrator_message
+    from: hKask-Administrator
+    to: all
+    priority: critical
+    schema:
+      message: string
+      action_required: boolean
+      recipients: array
+      timestamp: string
+
+# Integration Points
+integration:
+  # CNS span emission for all messages
+  cns_spans:
+    namespace: cns.ensemble.standing_session
+    emit_all_messages: true
+    emit_summaries: true
+
+  # Memory persistence
+  memory:
+    persist_to: episodic_memory
+    visibility: shared
+    index_for_recall: true
+
+  # Git archival
+  git:
+    archive_interval: daily
+    archive_path: registry/ensemble-archives/system-coordination
+    include_summaries: true
+
+# Energy Budget
+energy:
+  session_cap: 50000
+  per_message_cost: 100
+  alert_threshold: 0.8
+  hard_limit: true
+
+# Health Monitoring
+health:
+  # Session is healthy if:
+  healthy_if:
+    - min_participants: 5
+    - curator_responsive: true
+    - message_latency_max_ms: 5000
+    - no_critical_alerts: true
+
+  # Session degrades if:
+  degraded_if:
+    - participants_below: 4
+    - curator_unresponsive_seconds: 60
+    - message_latency_avg_ms: 10000
+
+  # Session critical if:
+  critical_if:
+    - participants_below: 3
+    - curator_unresponsive_seconds: 300
+    - variety_deficit_gt: 100
+
+# Bootstrapping
+bootstrap:
+  # Session starts automatically on system bootstrap
+  auto_start: true
+  
+  # Initial message from Curator
+  initial_message:
+    from: Curator
+    type: metacognition_update
+    content: |
+      ## System Coordination Standing Session — Initialized
+      
+      All participants: report status.
+      Administrator: session is open for observation/participation.
+
+  # Initial bot status reports
+  initial_reports:
+    - from: cns-curator-bot
+      content: "CNS monitoring active. Variety counters initialized."
+    - from: memory-curator-bot
+      content: "Memory operations ready. Visibility gating enabled."
+    - from: inference-curator-bot
+      content: "Inference dispatch ready. Model tiers configured."
+    - from: mcp-dispatch-bot
+      content: "MCP dispatch active. OCAP verification enabled."
+    - from: ensemble-curator-bot
+      content: "Ensemble coordination ready. Standing session initialized."
+    - from: git-curator-bot
+      content: "Git CAS ready. SHA versioning enabled."
+    - from: registry-dispatch-bot
+      content: "Registry dispatch ready. Template selection active."

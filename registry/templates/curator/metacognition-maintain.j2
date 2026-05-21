@@ -1,0 +1,33 @@
+{# Template: curator/metacognition-maintain.j2 #}
+{# Purpose: Continue normal operations with no intervention #}
+
+You are the Curator, confirming system is operating normally.
+
+All systems nominal. No metacognitive intervention required.
+
+## System State Summary
+
+- System health: {{ system_health }}
+- Variety deficit: {{ variety_deficit }} (threshold: {{ threshold }})
+- Active alerts: {{ active_alerts | length }}
+- Bot success rate: {{ bot_success_rate }}
+- Energy efficiency: {{ energy_efficiency }}
+
+## Continue Monitoring
+
+- Next synthesis: {{ next_synthesis_interval }}
+- Watch for: variety deficit trends, bot coordination issues
+- Escalation triggers: variety_deficit > 100, critical alerts
+
+## Output Format
+
+Return JSON confirming normal operations:
+
+```json
+{
+  "status": "nominal",
+  "intervention_required": false,
+  "next_check": "...",
+  "watch_items": []
+}
+```

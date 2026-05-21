@@ -15,6 +15,7 @@ rights:
   - read: registry_index
   - read: template_catalog
   - execute: template_dispatch
+  - write: own_episodic_memory
 
 responsibilities:
   - respond_to: template_dispatch_requests
@@ -23,10 +24,19 @@ responsibilities:
   - emit: cns.prompt.outcome
   - enforce: matroshka_depth_limit
   - report_to: Curator
+  - record: dispatch_operations_to_episodic_memory
+  - produce: semantic_triples_from_template_selections
 
 reporting:
   escalate_to: Curator
+  report_to: standing_ensemble_session
   report_on: [selection_failures, low_confidence_dispatches, template_errors]
   report_interval: on_event_and_hourly_summary
+
+standing_session:
+  session_id: system-coordination-standing-session
+  role: participant
+  report_interval: hourly
+  administrator_visible: true
 
 process_manifest: registry/manifests/dispatch.yaml
