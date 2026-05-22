@@ -1,0 +1,20 @@
+{# Spandrel: Get Capability #}
+{# Reads a Capability page from the catalogue #}
+
+{% if not slug %}
+  {{ raise_error("spandrel.invalid_input", "slug is required") }}
+{% endif %}
+
+{# Build response #}
+capability:
+  slug: "{{ slug }}"
+  page_path: "Capabilities/{{ slug }}"
+  status: retrieved
+
+{# CNS span emission #}
+span:
+  namespace: cns.tool.spandrel_get_capability
+  phase: observe
+  observation:
+    slug: "{{ slug }}"
+    outcome: retrieved

@@ -1,0 +1,20 @@
+{# Spandrel: Get Reference #}
+{# Read a Reference page #}
+
+{% if not slug %}
+  {{ raise_error("spandrel.invalid_input", "slug is required") }}
+{% endif %}
+
+{# Build response #}
+reference:
+  slug: "{{ slug }}"
+  page_path: "References/{{ slug }}"
+  status: retrieved
+
+{# CNS span emission #}
+span:
+  namespace: cns.tool.spandrel_get_reference
+  phase: observe
+  observation:
+    slug: "{{ slug }}"
+    outcome: retrieved

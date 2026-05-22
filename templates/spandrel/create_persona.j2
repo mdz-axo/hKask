@@ -1,0 +1,52 @@
+{# Spandrel: Create Persona #}
+{# Create a Persona page in the catalogue #}
+
+{% set timestamp = namespace(value=now()) %}
+
+{% if not exemplar_slug %}
+  {{ raise_error("spandrel.invalid_input", "exemplar_slug is required") }}
+{% endif %}
+
+{% if not version %}
+  {{ raise_error("spandrel.invalid_input", "version is required") }}
+{% endif %}
+
+{% if not base_model %}
+  {{ raise_error("spandrel.invalid_input", "base_model is required") }}
+{% endif %}
+
+{% if not story %}
+  {{ raise_error("spandrel.invalid_input", "story is required") }}
+{% endif %}
+
+{# Build Persona page #}
+persona:
+  exemplar_slug: "{{ exemplar_slug }}"
+  version: "{{ version }}"
+  base_model: "{{ base_model }}"
+  story: "{{ story }}"
+  status: {{ status | default("draft") }}
+  scope:
+    academic_domains: {{ scope_academic_domains | default([]) }}
+    industry_domains: {{ scope_industry_domains | default([]) }}
+    occupation_domains: {{ scope_occupation_domains | default([]) }}
+    active_workflows: {{ scope_active_workflows | default([]) }}
+    simulatable: {{ scope_simulatable | default(false) }}
+  created_at: {{ timestamp.value }}
+  page_path: "Personas/{{ exemplar_slug }}/{{ version }}"
+
+{# Result #}
+result:
+  exemplar_slug: "{{ exemplar_slug }}"
+  version: "{{ version }}"
+  page_path: "Personas/{{ exemplar_slug }}/{{ version }}"
+  status: created
+
+{# CNS span emission #}
+span:
+  namespace: cns.tool.spandrel_create_persona
+  phase: observe
+  observation:
+    exemplar_slug: "{{ exemplar_slug }}"
+    version: "{{ version }}"
+    outcome: created

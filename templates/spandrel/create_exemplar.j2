@@ -1,0 +1,37 @@
+{# Spandrel: Create Exemplar #}
+{# Create an Exemplar page in the catalogue #}
+
+{% set timestamp = namespace(value=now()) %}
+
+{% if not slug %}
+  {{ raise_error("spandrel.invalid_input", "slug is required") }}
+{% endif %}
+
+{% if not public_attribution_name %}
+  {{ raise_error("spandrel.invalid_input", "public_attribution_name is required") }}
+{% endif %}
+
+{# Build Exemplar page #}
+exemplar:
+  slug: "{{ slug }}"
+  public_attribution_name: "{{ public_attribution_name }}"
+  legal_name: {{ legal_name | default("null") }}
+  lifecycle_status: {{ lifecycle_status | default("prospective") }}
+  domain_expertise: {{ domain_expertise | default([]) }}
+  references: {{ references | default([]) }}
+  created_at: {{ timestamp.value }}
+  page_path: "Exemplars/{{ slug }}"
+
+{# Result #}
+result:
+  slug: "{{ slug }}"
+  page_path: "Exemplars/{{ slug }}"
+  status: created
+
+{# CNS span emission #}
+span:
+  namespace: cns.tool.spandrel_create_exemplar
+  phase: observe
+  observation:
+    slug: "{{ slug }}"
+    outcome: created

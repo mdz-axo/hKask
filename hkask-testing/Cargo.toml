@@ -108,6 +108,38 @@ name = "sovereignty_tests"
 path = "integration-tests/sovereignty_tests.rs"
 
 [[test]]
+name = "ocap_tests"
+path = "unit-tests/ocap_tests.rs"
+
+[[test]]
+name = "composition_tests"
+path = "unit-tests/composition_tests.rs"
+
+[[test]]
+name = "security_tests"
+path = "unit-tests/security_tests.rs"
+
+[[test]]
+name = "storage_sovereignty_tests"
+path = "unit-tests/storage_sovereignty_tests.rs"
+
+[[test]]
+name = "types_sovereignty_tests"
+path = "unit-tests/sovereignty_tests.rs"
+
+[[test]]
+name = "pod_tests"
+path = "unit-tests/pod_tests.rs"
+
+[[test]]
+name = "error_tests"
+path = "unit-tests/error_tests.rs"
+
+[[test]]
+name = "consent_tests"
+path = "unit-tests/consent_tests.rs"
+
+[[test]]
 name = "ensemble_unit_tests"
 path = "unit-tests/ensemble_unit_tests.rs"
 

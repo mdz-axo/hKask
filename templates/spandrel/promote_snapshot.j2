@@ -1,0 +1,67 @@
+{# Spandrel: Promote Snapshot #}
+{# Promote ingested snapshot to current #}
+
+{% set timestamp = namespace(value=now()) %}
+
+{% if not graph_iri %}
+  {{ raise_error("spandrel.invalid_input", "graph_iri is required") }}
+{% endif %}
+
+{% if not reviewer_assertion %}
+  {{ raise_error("spandrel.invalid_input", "reviewer_assertion is required") }}
+{% endif %}
+
+{% if not reviewer_assertion.author %}
+  {{ raise_error("spandrel.invalid_input", "reviewer_assertion.author is required") }}
+{% endif %}
+
+{% if not reviewer_assertion.data_architect %}
+  {{ raise_error("spandrel.invalid_input", "reviewer_assertion.data_architect is required") }}
+{% endif %}
+
+{% if not reviewer_assertion.reviewed_at %}
+  {{ raise_error("spandrel.invalid_input", "reviewer_assertion.reviewed_at is required") }}
+{% endif %}
+
+{% if confirm != true %}
+  {# Preview mode #}
+  preview:
+    mode: true
+    graph_iri: {{ graph_iri }}
+    reviewer_assertion: {{ reviewer_assertion }}
+    flip_planned: true
+    audit_write_planned: true
+    note: "Set confirm=true to execute"
+  {{ return() }}
+{% endif %}
+
+{# Execute mode #}
+{# Atomic flip of is-current flags #}
+flip_result:
+  previous_current: cleared
+  new_current: {{ graph_iri }}
+  status: flipped
+
+{# Write audit log #}
+audit_log:
+  graph_iri: {{ graph_iri }}
+  author: {{ reviewer_assertion.author }}
+  data_architect: {{ reviewer_assertion.data_architect }}
+  reviewed_at: {{ reviewer_assertion.reviewed_at }}
+  promoted_at: {{ timestamp.value }}
+
+{# Result #}
+result:
+  graph_iri: {{ graph_iri }}
+  status: current
+  promoted_at: {{ timestamp.value }}
+  was_noop: false
+
+{# CNS span emission #}
+span:
+  namespace: cns.tool.spandrel_promote_snapshot
+  phase: observe
+  observation:
+    graph_iri: {{ graph_iri }}
+    outcome: promoted
+    confirm: {{ confirm }}

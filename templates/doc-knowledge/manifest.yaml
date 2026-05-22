@@ -25,6 +25,26 @@ tools:
       - max_tokens: integer (default: 512)
       - overlap_tokens: integer (default: 64)
 
+  - name: doc_knowledge_detect_format
+    description: Detect document format from path
+    template: doc-knowledge/detect_format.j2
+    inputs:
+      - path: string
+
+  - name: doc_knowledge_extract_markdown
+    description: Extract text and image references from markdown
+    template: doc-knowledge/extract_markdown.j2
+    inputs:
+      - content: string
+      - label: string
+
+  - name: doc_knowledge_extract_html
+    description: Extract text from HTML content
+    template: doc-knowledge/extract_html.j2
+    inputs:
+      - content: string
+      - label: string
+
   - name: doc_knowledge_generate_qa
     description: Generate QA pairs from text chunk
     template: doc-knowledge/generate_qa.j2

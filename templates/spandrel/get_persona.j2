@@ -1,0 +1,26 @@
+{# Spandrel: Get Persona #}
+{# Read a Persona page #}
+
+{% if not exemplar_slug %}
+  {{ raise_error("spandrel.invalid_input", "exemplar_slug is required") }}
+{% endif %}
+
+{% if not version %}
+  {{ raise_error("spandrel.invalid_input", "version is required") }}
+{% endif %}
+
+{# Build response #}
+persona:
+  exemplar_slug: "{{ exemplar_slug }}"
+  version: "{{ version }}"
+  page_path: "Personas/{{ exemplar_slug }}/{{ version }}"
+  status: retrieved
+
+{# CNS span emission #}
+span:
+  namespace: cns.tool.spandrel_get_persona
+  phase: observe
+  observation:
+    exemplar_slug: "{{ exemplar_slug }}"
+    version: "{{ version }}"
+    outcome: retrieved

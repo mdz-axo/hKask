@@ -1,0 +1,53 @@
+{# Spandrel: Index Ontology Concept #}
+{# Index one ontology concept in the semantic-index vector store #}
+
+{% if not uri %}
+  {{ raise_error("spandrel.invalid_input", "uri is required") }}
+{% endif %}
+
+{% if not label %}
+  {{ raise_error("spandrel.invalid_input", "label is required") }}
+{% endif %}
+
+{% if not axis %}
+  {{ raise_error("spandrel.invalid_input", "axis is required") }}
+{% endif %}
+
+{% if axis not in ["academic", "industry", "occupation"] %}
+  {{ raise_error("spandrel.invalid_input", "axis must be academic, industry, or occupation") }}
+{% endif %}
+
+{% if not vector %}
+  {{ raise_error("spandrel.invalid_input", "vector is required") }}
+{% endif %}
+
+{% if not model %}
+  {{ raise_error("spandrel.invalid_input", "model is required") }}
+{% endif %}
+
+{# Index in vector store #}
+index_result:
+  uri: {{ uri }}
+  label: {{ label }}
+  axis: {{ axis }}
+  vector_dimensions: {{ vector | length }}
+  model: {{ model }}
+  purpose: ontology_label
+  status: indexed
+
+{# Result #}
+result:
+  uri: {{ uri }}
+  label: {{ label }}
+  axis: {{ axis }}
+  status: indexed
+  collection: "{{ model }}_ontology_label_{{ axis }}"
+
+{# CNS span emission #}
+span:
+  namespace: cns.tool.spandrel_index_ontology_concept
+  phase: observe
+  observation:
+    uri: {{ uri }}
+    axis: {{ axis }}
+    outcome: indexed

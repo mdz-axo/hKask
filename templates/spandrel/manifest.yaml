@@ -32,12 +32,44 @@ tools:
     inputs:
       - uri: string
 
+  - name: spandrel_get_capability
+    description: Read a Capability page from the catalogue
+    template: spandrel/get_capability.j2
+    inputs:
+      - slug: string
+
+  - name: spandrel_publish_capability
+    description: Atomically transition a validated Capability to published
+    template: spandrel/publish_capability.j2
+    inputs:
+      - slug: string
+      - confirm: boolean
+
   - name: spandrel_datalog_query
     description: Run conjunctive Datalog query against bitemporal store
     template: spandrel/datalog_query.j2
     inputs:
       - find: array[string]
       - clauses: array[object]
+
+  - name: spandrel_ingest_snapshot
+    description: Load ontology snapshot into bitemporal store
+    template: spandrel/ingest_snapshot.j2
+    inputs:
+      - ontology: enum[esco, openalex, nace]
+      - upstream_version: string
+      - rdf_format: enum[n-triples, n-quads]
+      - payload: string
+      - license: string
+      - source_urls: array[string]
+
+  - name: spandrel_promote_snapshot
+    description: Promote ingested snapshot to current
+    template: spandrel/promote_snapshot.j2
+    inputs:
+      - graph_iri: string
+      - reviewer_assertion: object
+      - confirm: boolean
 
   - name: spandrel_bind_persona
     description: Create EmbodimentBinding for agent bound to Persona
@@ -48,6 +80,23 @@ tools:
       - consumer_agent_id: string
       - workspace: enum[kask, peripheral, arsenal]
 
+  - name: spandrel_unbind_persona
+    description: Close an EmbodimentBinding by writing unbound_at
+    template: spandrel/unbind_persona.j2
+    inputs:
+      - binding_id: string
+      - at: string
+
+  - name: spandrel_index_ontology_concept
+    description: Index one ontology concept in the semantic-index vector store
+    template: spandrel/index_ontology_concept.j2
+    inputs:
+      - uri: string
+      - label: string
+      - axis: enum[academic, industry, occupation]
+      - vector: array[number]
+      - model: string
+
   - name: spandrel_search_concepts
     description: Cosine-similarity search over indexed ontology concepts
     template: spandrel/search_concepts.j2
@@ -56,6 +105,64 @@ tools:
       - model: string
       - limit: integer
       - axis: enum[academic, industry, occupation]
+
+  - name: spandrel_create_exemplar
+    description: Create an Exemplar page in the catalogue
+    template: spandrel/create_exemplar.j2
+    inputs:
+      - slug: string
+      - public_attribution_name: string
+      - legal_name: string
+      - lifecycle_status: enum[prospective, active, dormant, retired, archived]
+      - domain_expertise: array[object]
+      - references: array[string]
+
+  - name: spandrel_get_exemplar
+    description: Read an Exemplar page
+    template: spandrel/get_exemplar.j2
+    inputs:
+      - slug: string
+      - include_private_fields: boolean
+
+  - name: spandrel_create_persona
+    description: Create a Persona page in the catalogue
+    template: spandrel/create_persona.j2
+    inputs:
+      - exemplar_slug: string
+      - version: string
+      - base_model: string
+      - story: string
+      - status: enum[draft, active, dormant, retired, archived]
+      - scope_academic_domains: array[string]
+      - scope_industry_domains: array[string]
+      - scope_occupation_domains: array[string]
+      - scope_active_workflows: array[string]
+      - scope_simulatable: boolean
+
+  - name: spandrel_get_persona
+    description: Read a Persona page
+    template: spandrel/get_persona.j2
+    inputs:
+      - exemplar_slug: string
+      - version: string
+
+  - name: spandrel_create_reference
+    description: Create a Reference page in the catalogue
+    template: spandrel/create_reference.j2
+    inputs:
+      - slug: string
+      - category: enum[academic, industry, skill]
+      - source_locator: string
+      - published_on: string
+      - accessed_on: string
+      - last_verified_on: string
+      - notes: string
+
+  - name: spandrel_get_reference
+    description: Read a Reference page
+    template: spandrel/get_reference.j2
+    inputs:
+      - slug: string
 
 lifecycle:
   - proposed → validated → published → deprecated → retracted
