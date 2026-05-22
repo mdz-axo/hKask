@@ -2596,6 +2596,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
+ "uuid",
 ]
 
 [[package]]
@@ -2718,6 +2719,7 @@ dependencies = [
  "chrono",
  "gix",
  "hkask-agents",
+ "hkask-mcp",
  "hkask-types",
  "rmcp",
  "schemars",

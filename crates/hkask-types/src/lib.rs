@@ -14,6 +14,7 @@
 pub mod capability;
 pub mod cns;
 pub mod curation;
+pub mod error;
 pub mod event;
 pub mod id;
 pub mod lexicon;
@@ -24,6 +25,7 @@ pub mod visibility;
 pub use capability::*;
 pub use cns::*;
 pub use curation::*;
+pub use error::{ArchivalResult, GitArchivalError};
 pub use event::*;
 pub use id::*;
 // Re-export lexicon types (includes TemplateType: Prompt, Process, Cognition)
