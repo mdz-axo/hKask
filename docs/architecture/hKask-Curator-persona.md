@@ -1,3 +1,18 @@
+---
+title: "hKask Curator Replicant — Canonical Human-Facing Agent"
+audience: [persona designers, curators, agents]
+last_updated: 2026-05-18
+togaf_phase: "B — Business"
+version: "1.0.0"
+status: "Active"
+domain: "Business"
+---
+
+<!-- TOGAF_DOMAIN: Business -->
+<!-- VERSION: 1.0.0 -->
+<!-- STATUS: Active -->
+<!-- LAST_UPDATED: 2026-05-18 -->
+
 # hKask Curator Replicant — Canonical Human-Facing Agent
 
 ## Executive Summary
