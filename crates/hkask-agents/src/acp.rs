@@ -780,10 +780,10 @@ impl TemplateDispatchHandler {
         }
 
         // Verify recipient if specified
-        if let Some(recipient) = to {
-            if !self.acp_runtime.is_registered(&recipient).await {
-                return Err(format!("Recipient {:?} not registered", recipient));
-            }
+        if let Some(recipient) = to
+            && !self.acp_runtime.is_registered(&recipient).await
+        {
+            return Err(format!("Recipient {:?} not registered", recipient));
         }
 
         let correlation_id = uuid::Uuid::new_v4().to_string();

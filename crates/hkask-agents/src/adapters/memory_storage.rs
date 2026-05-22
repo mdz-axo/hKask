@@ -89,11 +89,11 @@ impl MemoryStoragePort for MemoryStorageAdapter {
                 let mut embedding = Embedding::new(vector, model);
 
                 // Add entity reference if provided
-                if let Some(entity_ref_str) = content["entity_ref"].as_str() {
-                    if let Ok(entity_ref_uuid) = Uuid::parse_str(entity_ref_str) {
-                        let entity_ref = TripleID(entity_ref_uuid);
-                        embedding = embedding.with_entity_ref(entity_ref);
-                    }
+                if let Some(entity_ref_str) = content["entity_ref"].as_str()
+                    && let Ok(entity_ref_uuid) = Uuid::parse_str(entity_ref_str)
+                {
+                    let entity_ref = TripleID(entity_ref_uuid);
+                    embedding = embedding.with_entity_ref(entity_ref);
                 }
 
                 self.embedding_store

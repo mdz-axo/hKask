@@ -17,8 +17,7 @@
 use clap::{Parser, Subcommand};
 use hkask_mcp::runtime::McpRuntime;
 use hkask_templates::{
-    FieldMapping, FieldMappings, IdTransformation, MappedTemplate, MappingMeta, ModelTierSelection,
-    RegistryEntry, RegistryIndex, RussellMapper, RussellMappingConfig, SqliteRegistry,
+    FieldMapping, FieldMappings, IdTransformation, MappingMeta, ModelTierSelection, RegistryIndex, RussellMappingConfig, SqliteRegistry,
     TemplateTypeInference,
 };
 use hkask_types::TemplateType as Type;

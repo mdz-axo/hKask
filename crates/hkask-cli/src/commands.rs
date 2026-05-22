@@ -53,16 +53,19 @@ pub fn search_templates(registry: &SqliteRegistry, term: &str) -> Vec<RegistryEn
 }
 
 /// List MCP servers
+#[allow(dead_code)] // Reserved for future MCP CLI commands
 pub async fn list_mcp_servers(runtime: &McpRuntime) -> Vec<McpServer> {
     runtime.list_servers().await
 }
 
 /// List MCP tools
+#[allow(dead_code)] // Reserved for future MCP CLI commands
 pub async fn list_mcp_tools(runtime: &McpRuntime) -> Vec<String> {
     runtime.discover_tools().await
 }
 
 /// Get MCP tool definition
+#[allow(dead_code)] // Reserved for future MCP CLI commands
 pub async fn get_mcp_tool(runtime: &McpRuntime, name: &str) -> Option<Value> {
     runtime.get_tool(name).await.map(|tool| {
         serde_json::json!({
@@ -75,6 +78,7 @@ pub async fn get_mcp_tool(runtime: &McpRuntime, name: &str) -> Option<Value> {
 }
 
 /// Register MCP server
+#[allow(dead_code)] // Reserved for future MCP CLI commands
 pub async fn register_mcp_server(
     runtime: &McpRuntime,
     id: String,
@@ -265,8 +269,8 @@ pub fn import_russell(
                     if sub_path.is_file() {
                         let extension = sub_path.extension().and_then(|s| s.to_str()).unwrap_or("");
 
-                        if extension == "yaml" || extension == "yml" {
-                            if sub_path.file_name().and_then(|s| s.to_str())
+                        if (extension == "yaml" || extension == "yml")
+                            && sub_path.file_name().and_then(|s| s.to_str())
                                 == Some("manifest.yaml")
                             {
                                 match mapper.analyze_skill_manifest(&sub_path) {
@@ -292,7 +296,6 @@ pub fn import_russell(
                                     }
                                 }
                             }
-                        }
                     }
                 }
             }

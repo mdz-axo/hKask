@@ -184,15 +184,15 @@ impl SovereigntyObserver {
         }
 
         // Check and generate alert
-        if let Some(alert) = manager.check(&counter, domain) {
-            if alert.should_escalate() {
-                error!(
-                    target: "cns.algedonic",
-                    webid = %webid,
-                    message = %message,
-                    "Escalating sovereignty violation to Curator/human"
-                );
-            }
+        if let Some(alert) = manager.check(&counter, domain)
+            && alert.should_escalate()
+        {
+            error!(
+                target: "cns.algedonic",
+                webid = %webid,
+                message = %message,
+                "Escalating sovereignty violation to Curator/human"
+            );
         }
     }
 

@@ -151,7 +151,7 @@ impl DeliberationSession {
         );
 
         self.responses
-            .insert(response.agent_webid.clone(), response);
+            .insert(response.agent_webid, response);
     }
 
     /// Get all responses

@@ -23,9 +23,15 @@ pub struct OkapiIntegration {
 
 impl OkapiIntegration {
     /// Create new Okapi integration with default system capability
+    ///
+    /// # Security Note
+    /// For production use, load the encryption key from the secure keystore
+    /// instead of using this placeholder. This is only for development/testing.
     pub fn new(base_url: String, cns_runtime: Arc<CnsRuntime>) -> Self {
         let holder = WebID::new();
-        let key = [0x42; 32]; // TODO: Load from secure keystore
+        // Development placeholder: In production, use hkask-keystore to load key
+        // Example: let key = keystore.get_encryption_key("okapi_integration")?;
+        let key = [0x42u8; 32];
         let capability = crate::capability::default_system_capability(holder, &key);
 
         Self {
@@ -277,8 +283,8 @@ where
             .await?;
         }
 
-        if current.prompt_cache_hit_ratio != last.prompt_cache_hit_ratio {
-            if let Some(ratio) = current.prompt_cache_hit_ratio {
+        if current.prompt_cache_hit_ratio != last.prompt_cache_hit_ratio
+            && let Some(ratio) = current.prompt_cache_hit_ratio {
                 self.emit_span(
                     Span::Connector("cns.connector.llm.cache_hit".to_string()),
                     serde_json::json!({
@@ -287,7 +293,6 @@ where
                 )
                 .await?;
             }
-        }
 
         Ok(())
     }

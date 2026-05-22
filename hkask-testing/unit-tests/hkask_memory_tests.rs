@@ -98,7 +98,7 @@ mod tests {
 
     fn create_test_memory() -> EpisodicMemory {
         let db = Database::in_memory().unwrap();
-        EpisodicMemory::new(TripleStore::new(db.conn_rc()))
+        EpisodicMemory::new(TripleStore::new(db.conn_arc()))
     }
 
     #[test]
@@ -139,7 +139,7 @@ mod tests {
 
     fn create_test_memory() -> SemanticMemory {
         let db = Database::in_memory().unwrap();
-        let conn = db.conn_rc();
+        let conn = db.conn_arc();
         SemanticMemory::new(
             TripleStore::new(Rc::clone(&conn)),
             EmbeddingStore::new(Rc::clone(&conn)),

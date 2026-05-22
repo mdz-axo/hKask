@@ -1,6 +1,6 @@
 //! Temporary database for testing
 
-use hkask_storage::{Database, EmbeddingStore, TripleStore};
+use hkask_storage::{EmbeddingStore, TripleStore};
 use std::sync::{Arc, Mutex};
 
 /// Temporary database fixture for testing
@@ -72,7 +72,7 @@ impl StorageTestFixture {
 
     pub fn create_test_blob(&self) -> String {
         use hkask_storage::Blob;
-        use hkask_types::{Visibility, WebID};
+        use hkask_types::WebID;
 
         let blob = Blob::new(b"test".to_vec(), "text/plain", WebID::new());
         let id = blob.id.clone();

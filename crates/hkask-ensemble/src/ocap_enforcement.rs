@@ -145,8 +145,8 @@ impl OcapEnforcer {
         // Get the capability
         let capabilities = self.registry.get_capabilities(context.requester).await;
 
-        if let Some(caps) = capabilities {
-            if let Some(cap) = caps
+        if let Some(caps) = capabilities
+            && let Some(cap) = caps
                 .into_iter()
                 .find(|c| c.has_operation(context.operation) && !c.is_expired())
             {
@@ -184,7 +184,6 @@ impl OcapEnforcer {
                     error: None,
                 });
             }
-        }
 
         Ok(OcapEnforcementResult {
             granted: false,

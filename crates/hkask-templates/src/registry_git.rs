@@ -36,12 +36,24 @@ impl GitRegistry {
         let inner = Registry::bootstrap();
         let mut provenance = ProvenanceManager::new();
 
+        // Get author WebID from Git config (falls back to new WebID if not configured)
+        // To configure: git config hkask.webid "your-webid-here"
+        let author_webid = std::process::Command::new("git")
+            .args(["config", "hkask.webid"])
+            .current_dir(repo_path)
+            .output()
+            .ok()
+            .and_then(|out| String::from_utf8(out.stdout).ok())
+            .map(|s| s.trim().to_string())
+            .and_then(|webid_str| hkask_types::WebID::from_str(&webid_str).ok())
+            .unwrap_or_else(hkask_types::WebID::new);
+
         // Record provenance for all templates
         for template_id in inner.ids() {
             let provenance_record = TemplateProvenance::new(
                 template_id.to_string(),
                 git_sha.clone(),
-                hkask_types::WebID::new(), // TODO: Get from Git config
+                author_webid.clone(),
                 branch.to_string(),
             );
             provenance.record(provenance_record);
@@ -91,15 +103,15 @@ impl GitRegistry {
         self.inner = Registry::bootstrap();
         self.provenance.clear();
 
-        // Record new provenance
+// Record new provenance
         for template_id in self.inner.ids() {
             let provenance_record = TemplateProvenance::new(
                 template_id.to_string(),
                 git_sha.clone(),
-                hkask_types::WebID::new(),
+                author_webid.clone(),
                 "HEAD".to_string(),
             );
-            self.provenance.record(provenance_record);
+            provenance.record(provenance_record);
         }
 
         Ok(())

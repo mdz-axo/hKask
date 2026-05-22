@@ -347,16 +347,16 @@ impl CapabilityManager {
     ) -> Result<TokenVerification, GmlError> {
         let token = &request.token;
 
-        if let Some(expires) = token.expires_at {
-            if Utc::now() > expires {
-                return Ok(TokenVerification {
-                    valid: false,
-                    token_id: token.id.clone(),
-                    subject: token.subject.clone(),
-                    operations: token.operations.clone(),
-                    error: Some("Token expired".into()),
-                });
-            }
+        if let Some(expires) = token.expires_at
+            && Utc::now() > expires
+        {
+            return Ok(TokenVerification {
+                valid: false,
+                token_id: token.id.clone(),
+                subject: token.subject.clone(),
+                operations: token.operations.clone(),
+                error: Some("Token expired".into()),
+            });
         }
 
         let token_data = format!(
@@ -394,18 +394,17 @@ impl CapabilityManager {
             });
         }
 
-        if let Some(scope) = request.scope {
-            if let Some(token_scope) = &token.scope {
-                if !token_scope.contains(&scope) {
-                    return Ok(TokenVerification {
-                        valid: false,
-                        token_id: token.id.clone(),
-                        subject: token.subject.clone(),
-                        operations: token.operations.clone(),
-                        error: Some(format!("Scope '{}' not allowed", scope)),
-                    });
-                }
-            }
+        if let Some(scope) = request.scope
+            && let Some(token_scope) = &token.scope
+            && !token_scope.contains(&scope)
+        {
+            return Ok(TokenVerification {
+                valid: false,
+                token_id: token.id.clone(),
+                subject: token.subject.clone(),
+                operations: token.operations.clone(),
+                error: Some(format!("Scope '{}' not allowed", scope)),
+            });
         }
 
         Ok(TokenVerification {
@@ -437,6 +436,12 @@ impl CapabilityManager {
 pub struct GmlServer {
     capability_manager: Arc<RwLock<Option<CapabilityManager>>>,
     cns_emitter: SpanEmitter,
+}
+
+impl Default for GmlServer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl GmlServer {

@@ -193,7 +193,7 @@ impl SqliteRegistry {
              JOIN lexicon_terms l ON t.id = l.template_id
              WHERE l.term = ?1",
             )
-            .unwrap(); // TODO: Handle error properly
+            .map_err(|e| RegistryError::Database(format!("Failed to prepare statement: {}", e)))?;
 
         let rows = stmt
             .query_map(params![term], |row| {
@@ -207,7 +207,7 @@ impl SqliteRegistry {
 
                 Ok((id, template_type, description, source_path))
             })
-            .unwrap(); // TODO: Handle error properly
+            .map_err(|e| RegistryError::Database(format!("Failed to query templates: {}", e)))?;
 
         let mut results = Vec::new();
         for (id, template_type, description, source_path) in rows.flatten() {
@@ -215,11 +215,11 @@ impl SqliteRegistry {
             let mut lexicon_stmt = self
                 .conn
                 .prepare("SELECT term FROM lexicon_terms WHERE template_id = ?1")
-                .unwrap();
+                .map_err(|e| RegistryError::Database(format!("Failed to prepare lexicon statement: {}", e)))?;
 
             let lexicon_terms: Vec<String> = lexicon_stmt
                 .query_map(params![id], |row| row.get(0))
-                .unwrap()
+                .map_err(|e| RegistryError::Database(format!("Failed to query lexicon terms: {}", e)))?
                 .filter_map(|r| r.ok())
                 .collect();
 

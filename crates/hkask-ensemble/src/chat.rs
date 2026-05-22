@@ -11,7 +11,7 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, info};
+use tracing::info;
 
 /// Chat message in multi-agent conversation
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -69,14 +69,14 @@ pub struct EnsembleChat {
 impl EnsembleChat {
     /// Create new ensemble chat with curator as owner
     pub fn new(curator_webid: WebID) -> Self {
-        let span_emitter = SpanEmitter::new(curator_webid.clone());
-        let sovereignty_checker = SovereigntyChecker::new(curator_webid.clone());
+        let span_emitter = SpanEmitter::new(curator_webid);
+        let sovereignty_checker = SovereigntyChecker::new(curator_webid);
 
         let mut participants = HashMap::new();
         participants.insert(
-            curator_webid.clone(),
+            curator_webid,
             ChatParticipant {
-                webid: curator_webid.clone(),
+                webid: curator_webid,
                 role: ParticipantRole::Curator,
                 pod_id: None,
             },
@@ -102,8 +102,7 @@ impl EnsembleChat {
         );
 
         self.participants
-            .insert(participant.webid.clone(), participant.clone());
-        debug!("Registered chat participant: {:?}", participant.role);
+            .insert(participant.webid, participant);
     }
 
     /// Add a message to the chat
@@ -256,7 +255,7 @@ impl EnsembleChatManager {
 
     /// Create a new chat session
     pub async fn create_chat(&self, session_id: &str) -> Arc<RwLock<EnsembleChat>> {
-        let chat = Arc::new(RwLock::new(EnsembleChat::new(self.curator_webid.clone())));
+        let chat = Arc::new(RwLock::new(EnsembleChat::new(self.curator_webid)));
 
         let mut chats = self.chats.write().await;
         chats.insert(session_id.to_string(), chat.clone());

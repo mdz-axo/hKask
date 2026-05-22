@@ -39,7 +39,7 @@ impl ArchivalService {
         repo: &str,
         branch: &str,
         path: &str,
-        content: &str,
+        _content: &str,
         requester: &WebID,
     ) -> ArchivalResult<String> {
         // Emit start span

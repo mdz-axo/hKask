@@ -7,7 +7,7 @@
 //! - Check consent status
 
 use hkask_storage::SovereigntyBoundaryStore;
-use hkask_types::{DataCategory, WebID};
+use hkask_types::DataCategory;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::sync::{Arc, RwLock};
@@ -70,12 +70,14 @@ impl ConsentRecord {
 
 /// Consent manager
 pub struct ConsentManager {
+    #[allow(dead_code)] // Reserved for future persistence
     store: Arc<RwLock<SovereigntyBoundaryStore>>,
     consent_cache: Arc<RwLock<Vec<ConsentRecord>>>,
 }
 
 impl ConsentManager {
     /// Create new consent manager
+    #[allow(clippy::arc_with_non_send_sync)]
     pub fn new(store: SovereigntyBoundaryStore) -> Self {
         Self {
             store: Arc::new(RwLock::new(store)),

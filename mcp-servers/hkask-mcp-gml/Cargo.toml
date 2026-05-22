@@ -5,6 +5,10 @@ edition.workspace = true
 license.workspace = true
 description = "GML (Allosteric Thinking) MCP server — MWC computations and capability enforcement"
 
+[[bin]]
+name = "hkask-mcp-gml"
+path = "src/main.rs"
+
 [dependencies]
 rmcp = { workspace = true, features = ["transport-io"] }
 schemars = { workspace = true }

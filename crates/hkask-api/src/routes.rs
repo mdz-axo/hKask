@@ -8,7 +8,6 @@ use hkask_cns::algedonic::{AlgedonicManager, CnsHealth};
 use hkask_cns::variety::VarietyMonitor;
 use hkask_templates::RegistryIndex;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::collections::HashMap;
 use utoipa::ToSchema;
 
@@ -453,6 +452,7 @@ pub fn mcp_router() -> Router<ApiState> {
     Router::new()
         .route("/api/mcp/servers", axum::routing::get(list_servers))
         .route("/api/mcp/tools", axum::routing::get(list_tools))
+        .route("/api/mcp/tools/:name", axum::routing::get(get_tool))
 }
 
 /// List MCP servers
@@ -773,7 +773,7 @@ async fn sovereignty_check_access(
     State(_state): State<ApiState>,
     Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Json<AccessCheckResponse> {
-    use hkask_types::{DataCategory, UserSovereigntyState};
+    use hkask_types::UserSovereigntyState;
 
     let category_str = params.get("category").map(|s| s.as_str()).unwrap_or("");
     let state = UserSovereigntyState::new();

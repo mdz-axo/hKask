@@ -85,11 +85,10 @@ impl<C: InferenceClient> ConfidenceRouter<C> {
                 temperature: None,
                 max_tokens: None,
             });
-        } else if let Some(ref mut opts) = current_request.options {
-            if opts.n_probs.is_none() {
+        } else if let Some(ref mut opts) = current_request.options
+            && opts.n_probs.is_none() {
                 opts.n_probs = Some(self.config.n_probs);
             }
-        }
 
         let response = self
             .inference_client
