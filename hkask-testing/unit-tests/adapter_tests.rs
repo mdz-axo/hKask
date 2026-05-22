@@ -10,7 +10,9 @@ use hkask_agents::adapters::{
     mcp_runtime::McpRuntimeAdapter,
     memory_storage::MemoryStorageAdapter,
 };
-use hkask_agents::pod::{ACPRuntimePort, CNSSpanPort, GitCASPort, MCPRuntimePort, MemoryStoragePort};
+use hkask_agents::pod::{
+    ACPRuntimePort, CNSSpanPort, GitCASPort, MCPRuntimePort, MemoryStoragePort,
+};
 use hkask_types::{CapabilityAction, CapabilityResource, CapabilityToken, WebID};
 use serde_json::json;
 use std::fs;
@@ -123,10 +125,13 @@ fn test_mock_git_cas() {
     let mock = MockGitCas::new();
     let result = mock.load_template_crate("test-crate");
     assert!(result.is_ok());
-    
+
     let template_crate = result.unwrap();
     assert_eq!(template_crate.name, "mock");
-    assert_eq!(template_crate.git_sha, "0000000000000000000000000000000000000000");
+    assert_eq!(
+        template_crate.git_sha,
+        "0000000000000000000000000000000000000000"
+    );
 }
 
 // ============================================================================

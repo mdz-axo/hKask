@@ -8,7 +8,7 @@ use crate::ports::{
 };
 use crate::provenance::{ProvenanceManager, TemplateProvenance};
 use hkask_types::TemplateType;
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 use std::collections::HashMap;
 
 /// SQLite-based registry index
@@ -184,7 +184,7 @@ impl SqliteRegistry {
     }
 
     /// Search templates by lexicon term
-    pub fn search_by_lexicon(&self, term: &str) -> Vec<RegistryEntry> {
+    pub fn search_by_lexicon(&self, term: &str) -> Result<Vec<RegistryEntry>> {
         let mut stmt = self
             .conn
             .prepare(
@@ -193,7 +193,7 @@ impl SqliteRegistry {
              JOIN lexicon_terms l ON t.id = l.template_id
              WHERE l.term = ?1",
             )
-            .map_err(|e| RegistryError::Database(format!("Failed to prepare statement: {}", e)))?;
+            .map_err(|e| TemplateError::Database(format!("Failed to prepare statement: {}", e)))?;
 
         let rows = stmt
             .query_map(params![term], |row| {
@@ -207,7 +207,7 @@ impl SqliteRegistry {
 
                 Ok((id, template_type, description, source_path))
             })
-            .map_err(|e| RegistryError::Database(format!("Failed to query templates: {}", e)))?;
+            .map_err(|e| TemplateError::Database(format!("Failed to query templates: {}", e)))?;
 
         let mut results = Vec::new();
         for (id, template_type, description, source_path) in rows.flatten() {
@@ -215,11 +215,15 @@ impl SqliteRegistry {
             let mut lexicon_stmt = self
                 .conn
                 .prepare("SELECT term FROM lexicon_terms WHERE template_id = ?1")
-                .map_err(|e| RegistryError::Database(format!("Failed to prepare lexicon statement: {}", e)))?;
+                .map_err(|e| {
+                    TemplateError::Database(format!("Failed to prepare lexicon statement: {}", e))
+                })?;
 
             let lexicon_terms: Vec<String> = lexicon_stmt
                 .query_map(params![id], |row| row.get(0))
-                .map_err(|e| RegistryError::Database(format!("Failed to query lexicon terms: {}", e)))?
+                .map_err(|e| {
+                    TemplateError::Database(format!("Failed to query lexicon terms: {}", e))
+                })?
                 .filter_map(|r| r.ok())
                 .collect();
 
@@ -232,7 +236,7 @@ impl SqliteRegistry {
             });
         }
 
-        results
+        Ok(results)
     }
 
     /// Get provenance for a template

@@ -5,7 +5,7 @@
 //! presence_penalty) support the anti-normative effect.
 
 use hkask_types::{BotID, LLMParameters, TemplateId, TemplateInvocation, TemplateOutcome};
-use minijinja::{context, Environment};
+use minijinja::{Environment, context};
 use serde_json::Value;
 use std::sync::Arc;
 use thiserror::Error;

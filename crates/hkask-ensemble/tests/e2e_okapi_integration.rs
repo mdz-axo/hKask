@@ -6,9 +6,9 @@
 #[cfg(test)]
 mod e2e_tests {
     use hkask_ensemble::{
+        GenerateOptions, GenerateRequest,
         adapters::{OkapiCapabilityFetcher, OkapiHttpClient},
         ports::{CapabilityProvider, InferenceClient, MetricsSource},
-        GenerateOptions, GenerateRequest,
     };
 
     fn is_e2e_enabled() -> bool {

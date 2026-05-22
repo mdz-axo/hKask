@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use ed25519_dalek::{Signature, SignatureError, SigningKey, VerifyingKey};
 use hkask_cns::spans::SpanEmitter;
 use hkask_types::WebID;
-use rmcp::{handler::server::wrapper::Parameters, tool, tool_router, ServiceExt};
+use rmcp::{ServiceExt, handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};

@@ -6,7 +6,7 @@
 #[cfg(test)]
 mod tests {
     use assert_cmd::Command;
-    use hkask_templates::SqliteRegistry;
+    use hkask_templates::{RegistryIndex, SqliteRegistry};
     use hkask_types::TemplateType;
 
     /// Test template list symmetry between CLI and direct registry access
@@ -104,7 +104,9 @@ mod tests {
         );
 
         // Direct registry search
-        let results = registry.search_by_lexicon("selector");
+        let results = registry
+            .search_by_lexicon("selector")
+            .expect("Search failed");
         assert_eq!(results.len(), 1, "Search should return one result");
         assert_eq!(results[0].id, "test/selector");
     }

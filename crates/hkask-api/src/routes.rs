@@ -1,8 +1,8 @@
 //! HTTP routes implementation
 
 use axum::{
-    extract::Path, extract::Query, extract::State, http::StatusCode, response::IntoResponse,
-    routing::Router, Json,
+    Json, extract::Path, extract::Query, extract::State, http::StatusCode, response::IntoResponse,
+    routing::Router,
 };
 use hkask_cns::algedonic::{AlgedonicManager, CnsHealth};
 use hkask_cns::variety::VarietyMonitor;
@@ -104,7 +104,7 @@ async fn search_templates(
     Path(term): Path<String>,
 ) -> Json<Vec<TemplateResponse>> {
     let registry = state.registry.lock().await;
-    let results = registry.search_by_lexicon(&term);
+    let results = registry.search_by_lexicon(&term).unwrap_or_default();
 
     let templates = results
         .iter()

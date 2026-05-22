@@ -5,7 +5,7 @@
 
 use hkask_agents::pod::GitCASPort;
 use hkask_mcp::adapter_container::AdapterContainer;
-use rmcp::{handler::server::wrapper::Parameters, tool, tool_router, transport::stdio, ServiceExt};
+use rmcp::{ServiceExt, handler::server::wrapper::Parameters, tool, tool_router, transport::stdio};
 use schemars::JsonSchema;
 use serde::Deserialize;
 

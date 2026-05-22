@@ -48,7 +48,10 @@ pub fn get_template(
 }
 
 /// Search templates by lexicon
-pub fn search_templates(registry: &SqliteRegistry, term: &str) -> Vec<RegistryEntry> {
+pub fn search_templates(
+    registry: &SqliteRegistry,
+    term: &str,
+) -> Result<Vec<RegistryEntry>, TemplateError> {
     registry.search_by_lexicon(term)
 }
 
@@ -272,30 +275,26 @@ pub fn import_russell(
                         if (extension == "yaml" || extension == "yml")
                             && sub_path.file_name().and_then(|s| s.to_str())
                                 == Some("manifest.yaml")
-                            {
-                                match mapper.analyze_skill_manifest(&sub_path) {
-                                    Ok(manifest) => {
-                                        let mapped = mapper.map_to_hkask(&manifest);
-                                        if verbose {
-                                            println!(
-                                                "Mapped Russell manifest: {} -> {}",
-                                                manifest.id, mapped.id
-                                            );
-                                        }
-                                        assets.push(mapped);
-                                    }
-                                    Err(e) => {
-                                        eprintln!(
-                                            "Failed to analyze {}: {}",
-                                            sub_path.display(),
-                                            e
+                        {
+                            match mapper.analyze_skill_manifest(&sub_path) {
+                                Ok(manifest) => {
+                                    let mapped = mapper.map_to_hkask(&manifest);
+                                    if verbose {
+                                        println!(
+                                            "Mapped Russell manifest: {} -> {}",
+                                            manifest.id, mapped.id
                                         );
-                                        if !config.dry_run {
-                                            return Err(format!("Migration failed: {}", e));
-                                        }
+                                    }
+                                    assets.push(mapped);
+                                }
+                                Err(e) => {
+                                    eprintln!("Failed to analyze {}: {}", sub_path.display(), e);
+                                    if !config.dry_run {
+                                        return Err(format!("Migration failed: {}", e));
                                     }
                                 }
                             }
+                        }
                     }
                 }
             }

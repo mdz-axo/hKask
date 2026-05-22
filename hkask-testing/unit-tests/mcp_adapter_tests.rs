@@ -50,8 +50,8 @@ fn test_adapter_container_clear() {
 
 #[test]
 fn test_adapter_container_thread_safety() {
-    use std::thread;
     use std::sync::Arc;
+    use std::thread;
 
     let container = Arc::new(AdapterContainer::new());
     let mut handles = vec![];

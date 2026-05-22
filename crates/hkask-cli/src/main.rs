@@ -17,8 +17,8 @@
 use clap::{Parser, Subcommand};
 use hkask_mcp::runtime::McpRuntime;
 use hkask_templates::{
-    FieldMapping, FieldMappings, IdTransformation, MappingMeta, ModelTierSelection, RegistryIndex, RussellMappingConfig, SqliteRegistry,
-    TemplateTypeInference,
+    FieldMapping, FieldMappings, IdTransformation, MappingMeta, ModelTierSelection, RegistryIndex,
+    RussellMappingConfig, SqliteRegistry, TemplateTypeInference,
 };
 use hkask_types::TemplateType as Type;
 use std::io::{self, BufRead, Write};
@@ -846,17 +846,22 @@ fn main() {
                     std::process::exit(1);
                 }
             },
-            TemplateAction::Search { term } => {
-                let results = commands::search_templates(&registry, &term);
-                if results.is_empty() {
-                    println!("No templates found with lexicon term: {}", term);
-                } else {
-                    println!("Templates matching '{}':\n", term);
-                    for entry in results {
-                        println!("  {} ({})", entry.id, entry.template_type.as_str());
+            TemplateAction::Search { term } => match commands::search_templates(&registry, &term) {
+                Ok(results) => {
+                    if results.is_empty() {
+                        println!("No templates found with lexicon term: {}", term);
+                    } else {
+                        println!("Templates matching '{}':\n", term);
+                        for entry in results {
+                            println!("  {} ({})", entry.id, entry.template_type.as_str());
+                        }
                     }
                 }
-            }
+                Err(e) => {
+                    eprintln!("Search failed: {}", e);
+                    std::process::exit(1);
+                }
+            },
         },
 
         Commands::Bot { action } => match action {

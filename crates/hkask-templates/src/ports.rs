@@ -50,6 +50,8 @@ pub enum TemplateError {
     Render(String),
     #[error("Manifest error: {0}")]
     Manifest(String),
+    #[error("Database error: {0}")]
+    Database(String),
     #[error("Inference error: {0}")]
     Inference(String),
     #[error("MCP error: {0}")]

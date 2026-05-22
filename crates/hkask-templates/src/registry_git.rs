@@ -45,15 +45,19 @@ impl GitRegistry {
             .ok()
             .and_then(|out| String::from_utf8(out.stdout).ok())
             .map(|s| s.trim().to_string())
-            .and_then(|webid_str| hkask_types::WebID::from_str(&webid_str).ok())
-            .unwrap_or_else(hkask_types::WebID::new);
+            .and_then(|webid_str| {
+                uuid::Uuid::parse_str(&webid_str)
+                    .map(hkask_types::WebID)
+                    .ok()
+            })
+            .unwrap_or_default();
 
         // Record provenance for all templates
         for template_id in inner.ids() {
             let provenance_record = TemplateProvenance::new(
                 template_id.to_string(),
                 git_sha.clone(),
-                author_webid.clone(),
+                author_webid,
                 branch.to_string(),
             );
             provenance.record(provenance_record);
@@ -103,15 +107,30 @@ impl GitRegistry {
         self.inner = Registry::bootstrap();
         self.provenance.clear();
 
-// Record new provenance
+        // Get author WebID (same as load)
+        let author_webid = std::process::Command::new("git")
+            .args(["config", "hkask.webid"])
+            .current_dir(&self.repo_path)
+            .output()
+            .ok()
+            .and_then(|out| String::from_utf8(out.stdout).ok())
+            .map(|s| s.trim().to_string())
+            .and_then(|webid_str| {
+                uuid::Uuid::parse_str(&webid_str)
+                    .map(hkask_types::WebID)
+                    .ok()
+            })
+            .unwrap_or_default();
+
+        // Record new provenance
         for template_id in self.inner.ids() {
             let provenance_record = TemplateProvenance::new(
                 template_id.to_string(),
                 git_sha.clone(),
-                author_webid.clone(),
+                author_webid,
                 "HEAD".to_string(),
             );
-            provenance.record(provenance_record);
+            self.provenance.record(provenance_record);
         }
 
         Ok(())

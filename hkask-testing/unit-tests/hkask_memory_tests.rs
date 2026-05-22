@@ -133,16 +133,16 @@ mod tests {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_storage::Database;
+    use hkask_storage::{Database, EmbeddingStore, Triple, TripleStore};
+    use hkask_templates::SemanticMemory;
     use serde_json::json;
-    use std::rc::Rc;
 
     fn create_test_memory() -> SemanticMemory {
         let db = Database::in_memory().unwrap();
         let conn = db.conn_arc();
         SemanticMemory::new(
-            TripleStore::new(Rc::clone(&conn)),
-            EmbeddingStore::new(Rc::clone(&conn)),
+            TripleStore::new(conn.clone()),
+            EmbeddingStore::new(conn.clone()),
         )
     }
 

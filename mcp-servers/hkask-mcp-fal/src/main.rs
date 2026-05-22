@@ -1,6 +1,6 @@
 //! hKask MCP Fal — Fal.ai API integration (image, video, audio generation)
 
-use rmcp::{handler::server::wrapper::Parameters, tool, tool_router, transport::stdio, ServiceExt};
+use rmcp::{ServiceExt, handler::server::wrapper::Parameters, tool, tool_router, transport::stdio};
 use schemars::JsonSchema;
 use serde::Deserialize;
 

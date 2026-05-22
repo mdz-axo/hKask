@@ -7,7 +7,7 @@ use crate::chat::ChatParticipant;
 use hkask_cns::spans::SpanEmitter;
 use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::HashMap;
 use tracing::info;
 
@@ -150,8 +150,7 @@ impl DeliberationSession {
             }),
         );
 
-        self.responses
-            .insert(response.agent_webid, response);
+        self.responses.insert(response.agent_webid, response);
     }
 
     /// Get all responses

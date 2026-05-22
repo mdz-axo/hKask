@@ -10,7 +10,7 @@
 use hkask_types::{
     AcquisitionResistance, DataCategory, KillZoneDetector, SovereigntyId, UserSovereigntyState,
 };
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::Path;

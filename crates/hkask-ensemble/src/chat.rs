@@ -7,7 +7,7 @@ use hkask_agents::SovereigntyChecker;
 use hkask_cns::spans::SpanEmitter;
 use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -101,8 +101,7 @@ impl EnsembleChat {
             }),
         );
 
-        self.participants
-            .insert(participant.webid, participant);
+        self.participants.insert(participant.webid, participant);
     }
 
     /// Add a message to the chat

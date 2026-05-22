@@ -86,9 +86,10 @@ impl<C: InferenceClient> ConfidenceRouter<C> {
                 max_tokens: None,
             });
         } else if let Some(ref mut opts) = current_request.options
-            && opts.n_probs.is_none() {
-                opts.n_probs = Some(self.config.n_probs);
-            }
+            && opts.n_probs.is_none()
+        {
+            opts.n_probs = Some(self.config.n_probs);
+        }
 
         let response = self
             .inference_client
@@ -166,7 +167,7 @@ pub enum LegacyRouterError {
 #[async_trait::async_trait]
 pub trait OkapiClientTrait {
     async fn generate(&self, request: &GenerateRequest)
-        -> Result<OkapiResponse, LegacyRouterError>;
+    -> Result<OkapiResponse, LegacyRouterError>;
 }
 
 /// Wrapper for legacy client implementations

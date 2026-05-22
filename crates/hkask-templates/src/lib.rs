@@ -45,21 +45,22 @@ pub use audit::{AuditStats, AuditTrail, ExecutionAudit};
 pub use capability_validator::CapabilityAwareValidator;
 pub use contract_validator::{OkapiRequirements, RegistrationFrontmatter};
 pub use contracts::{
-    parse_frontmatter, validate_lexicon_terms, InferenceConfig as InferenceConfigParsed,
-    ParsedContract, ParsedInference, TemplateFrontmatter,
+    InferenceConfig as InferenceConfigParsed, ParsedContract, ParsedInference, TemplateFrontmatter,
+    parse_frontmatter, validate_lexicon_terms,
 };
-pub use curator_pipeline::{merge_outputs, CuratorPipeline, EvaluationResult};
-pub use dependency::{parse_dependencies, DependencyGraph};
+pub use curator_pipeline::{CuratorPipeline, EvaluationResult, merge_outputs};
+pub use dependency::{DependencyGraph, parse_dependencies};
 pub use engine::{TemplateEngine, TemplateRegistry};
 pub use inference_port::{
-    invoke_template_with_okapi, invoke_template_with_selection, InferenceError, InferencePort,
-    InferenceResult, OkapiInference, Usage,
+    InferenceError, InferencePort, InferenceResult, OkapiInference, Usage,
+    invoke_template_with_okapi, invoke_template_with_selection,
 };
 pub use manifest::{ManifestExecutorImpl, SelectorConfig, SimpleExecutor};
 pub use ports::{
-    Action, CnsPort, CompositionTemplate, InferenceConfig, InferencePort as InferencePortTrait,
-    ManifestExecutor, ManifestStep, McpPort, ProcessManifest, RegistryEntry, RegistryIndex, Result,
-    TemplateContract, TemplateError, TemplateRenderer, DEFAULT_MATROSHKA_LIMIT, FAST_LOCAL_MODEL,
+    Action, CnsPort, CompositionTemplate, DEFAULT_MATROSHKA_LIMIT, FAST_LOCAL_MODEL,
+    InferenceConfig, InferencePort as InferencePortTrait, ManifestExecutor, ManifestStep, McpPort,
+    ProcessManifest, RegistryEntry, RegistryIndex, Result, TemplateContract, TemplateError,
+    TemplateRenderer,
 };
 pub use provenance::{ProvenanceManager, TemplateProvenance};
 pub use registry::{Registry, TemplateEntry};

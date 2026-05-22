@@ -4,17 +4,19 @@
 
 use hkask_templates::curator_pipeline::{CuratorPipeline, merge_outputs};
 use hkask_templates::russell_mapper::{
-    RussellMapper, RussellSkillManifest, IdTransformation, TemplateTypeInference,
-    ModelTierSelection, MappedTemplate, RussellMappingConfig, MappingMeta, FieldMappings,
-    FieldMapping,
+    FieldMapping, FieldMappings, IdTransformation, MappedTemplate, MappingMeta, ModelTierSelection,
+    RussellMapper, RussellMappingConfig, RussellSkillManifest, TemplateTypeInference,
 };
 use hkask_types::lexicon::TemplateType;
-use hkask_types::{CuratorId, TemplateInvocation, TemplateType as TemplateTypeEnum, WebID, BotID, LLMParameters, TemplateId};
+use hkask_types::{
+    BotID, CuratorId, LLMParameters, TemplateId, TemplateInvocation,
+    TemplateType as TemplateTypeEnum, WebID,
+};
 use serde_json::Value;
 use std::collections::HashMap;
+use std::fs;
 use std::path::Path;
 use tempfile::tempdir;
-use std::fs;
 
 // ============================================================================
 // Russell Mapper Tests
@@ -40,7 +42,7 @@ fn test_template_type_inference() {
     // Test template type inference logic inline
     let probes = vec![Value::String("test".to_string())];
     let interventions = vec![Value::String("test".to_string())];
-    
+
     // Both probes and interventions -> Process
     if !probes.is_empty() && !interventions.is_empty() {
         assert_eq!(TemplateType::Process, TemplateType::Process);
@@ -52,12 +54,14 @@ fn test_energy_budget_calculation() {
     // Test energy budget calculation inline
     let probes = vec![Value::String("test".to_string())];
     let interventions = vec![Value::String("test".to_string())];
-    
+
     let base_cost: u64 = 1000;
     let per_probe_cost: u64 = 200;
     let per_intervention_cost: u64 = 500;
-    
-    let energy = base_cost + (probes.len() as u64 * per_probe_cost) + (interventions.len() as u64 * per_intervention_cost);
+
+    let energy = base_cost
+        + (probes.len() as u64 * per_probe_cost)
+        + (interventions.len() as u64 * per_intervention_cost);
     assert_eq!(energy, 1700); // 1000 + 200 + 500
 }
 
@@ -73,7 +77,7 @@ fn test_russell_mapper_analyze_skill_manifest() {
     let mapper = RussellMapper::new();
     let temp_dir = tempdir().unwrap();
     let manifest_path = temp_dir.path().join("test_skill.yaml");
-    
+
     let manifest_content = r#"
 id: skill/russell/test
 version: "1.0"
@@ -84,12 +88,12 @@ probes: []
 interventions: []
 safety: null
 "#;
-    
+
     fs::write(&manifest_path, manifest_content).unwrap();
-    
+
     let result = mapper.analyze_skill_manifest(&manifest_path);
     assert!(result.is_ok());
-    
+
     let manifest = result.unwrap();
     assert_eq!(manifest.id, "skill/russell/test");
     assert_eq!(manifest.version, "1.0");
@@ -107,7 +111,7 @@ fn test_russell_mapper_map_to_hkask() {
         interventions: vec![Value::String("test intervention".to_string())],
         safety: Value::Null,
     };
-    
+
     let mapped = mapper.map_to_hkask(&russell);
     assert!(mapped.id.starts_with("skill/hkask/"));
     assert_eq!(mapped.template_type, TemplateType::Process);
@@ -135,17 +139,17 @@ async fn test_curator_pipeline_system() {
 #[tokio::test]
 async fn test_curator_pipeline_submit_and_evaluate() {
     let pipeline = CuratorPipeline::new(CuratorId::system());
-    
+
     let invocation = TemplateInvocation::new(
         TemplateId::new(),
         BotID::new(),
         LLMParameters::default(),
         serde_json::json!({"test": "input"}),
     );
-    
+
     pipeline.submit(invocation).await;
     let results = pipeline.evaluate_pending().await;
-    
+
     // Should have evaluated one invocation
     assert_eq!(results.len(), 1);
 }
