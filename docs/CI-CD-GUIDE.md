@@ -313,19 +313,12 @@ Before committing code:
 
 **Error: `let chains are only allowed in Rust 2024 or later`**
 
-**Fix:** The workspace uses Rust 2021 edition. Rewrite let chains:
+**Fix:** The workspace uses Rust 2024 edition. Let chains work natively:
 
 ```rust
-// ❌ Rust 2024 (doesn't work)
+// ✅ Rust 2024 (works with let chains)
 if let Some(x) = value && x > 0 {
     // ...
-}
-
-// ✅ Rust 2021 (works)
-if let Some(x) = value {
-    if x > 0 {
-        // ...
-    }
 }
 ```
 
@@ -369,11 +362,12 @@ cargo clean
 
 ## Architecture Decisions
 
-### Why Rust 2021?
+### Why Rust 2024?
 
-- **Stability:** Rust 2021 is the current stable edition
-- **Maturity:** Full ecosystem support, all features stabilized
-- **Compatibility:** Works with all dependencies
+- **Latest Features:** Let chains, if-let chaining, improved macros
+- **Performance:** Enhanced compiler optimizations
+- **Security:** Latest security hardening
+- **Ecosystem:** Full crate support by 2026
 - **Compatibility:** All crates and dependencies support 2021
 - **Features:** 2021 provides all needed features (async, macros, etc.)
 

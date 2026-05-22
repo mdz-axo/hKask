@@ -1,2 +1,22 @@
+# Build artifacts
+/target/
+**/target/
+**/target/debug/
+*.rs.bk
+
+# Rust
+Cargo.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
 # Documentation archive (gitignored - history is the archive of record)
 docs/archive/

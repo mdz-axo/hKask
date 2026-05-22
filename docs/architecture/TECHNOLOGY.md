@@ -24,10 +24,10 @@ domain: "Technology"
 
 ## 1. Executive Summary
 
-hKask is built on Rust 2021 edition (1.91 toolchain) with Tokio async runtime, SQLite storage, and Okapi LLM inference. The technology stack prioritizes local-first execution with remote fallback.
+hKask is built on Rust 2024 edition (1.91 toolchain) with Tokio async runtime, SQLite storage, and Okapi LLM inference. The technology stack prioritizes local-first execution with remote fallback.
 
 **Key Technology Decisions:**
-- **Rust 2021** — Memory safety, zero-cost abstractions, async/await
+- **Rust 2024** — Memory safety, zero-cost abstractions, async/await, let chains
 - **Tokio** — Async runtime with multi-threaded scheduler
 - **SQLite + SQLCipher** — Embedded, encrypted storage
 - **Okapi** — Self-hosted LLM inference (GGUF models)
@@ -60,8 +60,8 @@ hKask is built on Rust 2021 edition (1.91 toolchain) with Tokio async runtime, S
 # rust-toolchain.toml
 [toolchain]
 channel = "1.91"
-edition = "2021"
-components = ["rustfmt", "clippy"]
+edition = "2024"
+components = ["rustfmt", "clippy", "rust-src"]
 ```
 
 **Verification:**
@@ -285,7 +285,7 @@ status: VERIFIED
 
 | Constraint | Version | Rationale |
 |------------|---------|-----------|
-| **Rust edition** | 2021 | Stable, mature ecosystem |
+| **Rust edition** | 2024 | Latest stable features, let chains, if-let chaining |
 | **SQLite version** | 3.40+ | sqlite-vec compatibility |
 | **GGUF format** | v3 | Okapi compatibility |
 | **SQLCipher** | 4.x | Industry standard |
