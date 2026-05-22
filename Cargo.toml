@@ -15,7 +15,7 @@ members = [
     "crates/hkask-api",
     # MCP servers (excluded from budget)
     # Original 10 (subset - some not yet implemented)
-    # "mcp-servers/hkask-mcp-inference",  # Not implemented
+    "mcp-servers/hkask-mcp-inference",
     # "mcp-servers/hkask-mcp-storage",    # Not implemented
     # "mcp-servers/hkask-mcp-memory",     # Not implemented
     "mcp-servers/hkask-mcp-embedding",

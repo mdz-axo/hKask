@@ -21,6 +21,8 @@ pub enum SpanCategory {
     Energy,
     /// User sovereignty monitoring (boundary, acquisition, kill-zone)
     Sovereignty,
+    /// Goal primitive (create, verify, complete, delegate, block)
+    Goal,
 }
 
 impl SpanCategory {
@@ -33,6 +35,7 @@ impl SpanCategory {
             SpanCategory::AgentPod => "cns.agent_pod",
             SpanCategory::Energy => "cns.energy",
             SpanCategory::Sovereignty => "cns.sovereignty",
+            SpanCategory::Goal => "cns.goal",
         }
     }
 
@@ -45,6 +48,7 @@ impl SpanCategory {
             "agent_pod" | "cns.agent_pod" => Some(SpanCategory::AgentPod),
             "energy" | "cns.energy" => Some(SpanCategory::Energy),
             "sovereignty" | "cns.sovereignty" => Some(SpanCategory::Sovereignty),
+            "goal" | "cns.goal" => Some(SpanCategory::Goal),
             _ => None,
         }
     }
@@ -55,14 +59,28 @@ pub struct SpanEmitter {
     observer_webid: WebID,
 }
 
+impl Default for SpanEmitter {
+    fn default() -> Self {
+        Self {
+            observer_webid: WebID::new(),
+        }
+    }
+}
+
 impl SpanEmitter {
     pub fn new(observer_webid: WebID) -> Self {
         Self { observer_webid }
     }
 
     /// Emit a CNS span event
-    pub fn emit(&self, span: Span, phase: hkask_types::Phase, observation: Value) {
-        let event = NuEvent::new(self.observer_webid, span, phase, observation, 0);
+    pub fn emit(&self, span: Span, observation: Value) {
+        let event = NuEvent::new(
+            self.observer_webid,
+            span,
+            hkask_types::Phase::Observe,
+            observation,
+            0,
+        );
 
         info!(
             target: "cns",
@@ -75,66 +93,38 @@ impl SpanEmitter {
 
     /// Emit connector span (external I/O)
     pub fn emit_connector(&self, action: &str, observation: Value) {
-        self.emit(
-            Span::Connector(action.to_string()),
-            hkask_types::Phase::Observe,
-            observation,
-        );
+        self.emit(Span::Connector(action.to_string()), observation);
     }
 
     /// Emit pipeline span (multi-stage processing)
     pub fn emit_pipeline(&self, stage: &str, observation: Value) {
-        self.emit(
-            Span::Pipeline(stage.to_string()),
-            hkask_types::Phase::Observe,
-            observation,
-        );
+        self.emit(Span::Pipeline(stage.to_string()), observation);
     }
 
     /// Emit tool span (tool invocation)
     pub fn emit_tool(&self, tool_name: &str, observation: Value) {
-        self.emit(
-            Span::Tool(tool_name.to_string()),
-            hkask_types::Phase::Observe,
-            observation,
-        );
+        self.emit(Span::Tool(tool_name.to_string()), observation);
     }
 
     /// Emit prompt span (template rendering/execution)
     pub fn emit_prompt(&self, phase: &str, observation: Value) {
-        let span = Span::Prompt(phase.to_string());
-        let event_phase = match phase {
-            "select" | "render" => hkask_types::Phase::Observe,
-            "execute" => hkask_types::Phase::Regulate,
-            "outcome" => hkask_types::Phase::Outcome,
-            _ => hkask_types::Phase::Observe,
-        };
-        self.emit(span, event_phase, observation);
+        self.emit(Span::Prompt(phase.to_string()), observation);
     }
 
     /// Emit agent pod span (lifecycle event)
     pub fn emit_agent_pod(&self, lifecycle_event: &str, observation: Value) {
-        self.emit(
-            Span::AgentPod(lifecycle_event.to_string()),
-            hkask_types::Phase::Observe,
-            observation,
-        );
+        self.emit(Span::AgentPod(lifecycle_event.to_string()), observation);
     }
 
     /// Emit energy span (cost tracking)
     pub fn emit_energy(&self, energy_event: &str, observation: Value) {
-        self.emit(
-            Span::Energy(energy_event.to_string()),
-            hkask_types::Phase::Observe,
-            observation,
-        );
+        self.emit(Span::Energy(energy_event.to_string()), observation);
     }
 
     /// Emit sovereignty span (boundary, acquisition, kill-zone)
     pub fn emit_sovereignty(&self, sovereignty_event: &str, observation: Value) {
         self.emit(
             Span::Sovereignty(sovereignty_event.to_string()),
-            hkask_types::Phase::Observe,
             observation,
         );
     }
@@ -143,8 +133,17 @@ impl SpanEmitter {
     pub fn emit_sovereignty_alert(&self, alert_type: &str, observation: Value) {
         self.emit(
             Span::Sovereignty(format!("alert.{}", alert_type)),
-            hkask_types::Phase::Regulate,
             observation,
         );
+    }
+
+    /// Emit goal span (lifecycle event)
+    pub fn emit_goal(&self, goal_event: &str, observation: Value) {
+        self.emit(Span::Goal(goal_event.to_string()), observation);
+    }
+
+    /// Emit goal alert (variety deficit, algedonic)
+    pub fn emit_goal_alert(&self, alert_type: &str, observation: Value) {
+        self.emit(Span::Goal(format!("alert.{}", alert_type)), observation);
     }
 }

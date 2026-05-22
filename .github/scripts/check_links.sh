@@ -1,63 +1,66 @@
 #!/bin/bash
 # Link Checker for hKask Documentation
-# Validates all markdown links in the docs/ directory
-# Usage: .github/scripts/check_links.sh
+# Validates all markdown links in docs/ directory
 
 set -e
 
-DOCS_DIR="${1:-docs}"
-EXIT_CODE=0
+DOCS_DIR="docs"
+ERRORS=0
 
-echo "🔍 Checking links in $DOCS_DIR..."
+echo "=== hKask Documentation Link Checker ==="
+echo "Scanning: ${DOCS_DIR}/"
+echo ""
 
-# Find all markdown files excluding archive
-MARKDOWN_FILES=$(find "$DOCS_DIR" -type f -name "*.md" ! -path "*/archive/*")
+# Find all markdown files (excluding archive)
+FILES=$(find ${DOCS_DIR} -name "*.md" ! -path "docs/archive/*" -type f)
 
-# Check for broken internal links
-echo "Checking internal links..."
-for file in $MARKDOWN_FILES; do
-    # Extract links from markdown files
-    LINKS=$(grep -oE '\[.*\]\([^)]+\)' "$file" 2>/dev/null | grep -oE '\([^)]+\)' | tr -d '()' || true)
+for file in ${FILES}; do
+    # Extract all markdown links [text](url)
+    LINKS=$(grep -oE '\[.*\]\([^)]+\)' "$file" 2>/dev/null || true)
     
-    for link in $LINKS; do
-        # Skip external links
-        if [[ "$link" == http* ]]; then
+    if [ -z "$LINKS" ]; then
+        continue
+    fi
+    
+    # Check each link
+    echo "$LINKS" | while read -r link; do
+        # Extract URL from markdown link
+        URL=$(echo "$link" | grep -oE '\([^)]+\)' | tr -d '()')
+        
+        # Skip external URLs (http/https/mailto)
+        if [[ "$URL" =~ ^https?:// ]] || [[ "$URL" =~ ^mailto: ]]; then
             continue
         fi
         
         # Skip anchor-only links
-        if [[ "$link" == \#* ]]; then
+        if [[ "$URL" =~ ^# ]]; then
             continue
         fi
         
         # Resolve relative path
-        DIR=$(dirname "$file")
-        TARGET="$DIR/$link"
+        FILE_DIR=$(dirname "$file")
+        if [[ ! "$URL" =~ ^/ ]]; then
+            TARGET="${FILE_DIR}/${URL}"
+        else
+            TARGET="${DOCS_DIR}${URL}"
+        fi
         
-        # Normalize path
-        TARGET=$(cd "$(dirname "$TARGET")" 2>/dev/null && pwd)/$(basename "$TARGET") 2>/dev/null || true
+        # Normalize path (remove ../)
+        TARGET=$(realpath -m "$TARGET" 2>/dev/null || echo "$TARGET")
         
         # Check if target exists
         if [ ! -f "$TARGET" ]; then
-            echo "❌ Broken link in $file: $link"
-            EXIT_CODE=1
+            echo "❌ Broken link in ${file}: ${URL}"
+            ERRORS=$((ERRORS + 1))
         fi
     done
 done
 
-# Check for TODO/FIXME comments
-echo "Checking for TODO/FIXME comments..."
-TODO_COUNT=$(grep -r "TODO\|FIXME" "$DOCS_DIR" --include="*.md" ! -path "*/archive/*" 2>/dev/null | wc -l || echo "0")
-if [ "$TODO_COUNT" -gt 0 ]; then
-    echo "⚠️  Found $TODO_COUNT TODO/FIXME comments in documentation"
-    grep -n "TODO\|FIXME" "$DOCS_DIR" -r --include="*.md" ! -path "*/archive/*" 2>/dev/null || true
-fi
-
-# Summary
-if [ $EXIT_CODE -eq 0 ]; then
-    echo "✅ All links are valid"
+if [ ${ERRORS} -eq 0 ]; then
+    echo "✅ All internal links are valid"
+    exit 0
 else
-    echo "❌ Found broken links"
+    echo ""
+    echo "Found ${ERRORS} broken link(s)"
+    exit 1
 fi
-
-exit $EXIT_CODE

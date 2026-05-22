@@ -1,0 +1,55 @@
+manifest:
+  name: goal-verification
+  description: Verify goal completion via KnowAct templates
+  lexicon_terms: [sequence, evaluate, critique, assert]
+
+cascade:
+  pre:
+    - ordinal: 1
+      template:
+        type: Cognition
+        lexicon_terms: [recognize, classify]
+      description: "Recognize goal type and completion criteria"
+    
+  core:
+    - ordinal: 2
+      template:
+        type: Goal
+        lexicon_terms: [evaluate, assert, ground]
+        template_ref: registry/templates/goal_judge.j2
+      description: "Judge goal completion via LLM"
+      output_schema:
+        verdict: string
+        reason: string
+        confidence: float
+    
+    - ordinal: 3
+      template:
+        type: Process
+        lexicon_terms: [choice]
+      description: "Route based on verdict"
+      flow:
+        choice:
+          - condition: "verdict == 'done'"
+            action: mark_complete
+          - condition: "verdict == 'continue'"
+            action: continue_loop
+          - condition: "verdict == 'blocked'"
+            action: escalate
+    
+  post:
+    - ordinal: 4
+      template:
+        type: Cognition
+        lexicon_terms: [monitor, reflect]
+      description: "Emit CNS span and reflect on verification"
+
+error_handling:
+  catch:
+    - type: template_error
+      fallback: registry/templates/goal_judge_simple.j2
+    - type: llm_timeout
+      fallback: registry/templates/goal_judge_command.j2
+    - type: confidence_low
+      threshold: 0.7
+      action: request_human_review

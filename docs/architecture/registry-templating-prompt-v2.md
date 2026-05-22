@@ -478,6 +478,15 @@ The registry/templating system is complete when:
 
 ---
 
+## References
+
+[^jinja2]: Ronacher, A. (2026). *Jinja2 Documentation*. https://jinja.palletsprojects.com/
+[^minijinja]: Jinja2-compatible template engine for Rust. https://github.com/mitsuhiko/minijinja
+[^hKask-AGENTS]: hKask Project. (2026). *AGENTS.md*. `/home/mdz-axolotl/Clones/hKask/AGENTS.md`.
+[^hKask-master]: hKask Project. (2026). *hKask Architecture Master v0.21.0*. `docs/architecture/hKask-architecture-master.md`.
+
+---
+
 *ℏKask — Planck's Constant of Agent Systems — v0.21.0*
 *The Rust is the loom. The YAML/Jinja2 is the thread.*
 *MVP in progress.*

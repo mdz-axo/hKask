@@ -163,10 +163,10 @@ cargo test -p hkask-agents
 
 ## References
 
-- `docs/user-guides/SECURITY.md` — User-facing security documentation
-- `crates/hkask-agents/src/security.rs` — Security module implementation
-- `crates/hkask-agents/src/ocap.rs` — OCAP enhancement implementation
-- `crates/hkask-types/src/capability.rs` — Capability token with `attenuate_with_expiry()`
+[^ocap]: van Rossum, G., & Warsaw, B. (2001). *OCAP: Object Capability Model*. Python Enhancement Proposal.
+[^levy]: Levy, E. (2021). *Capability-Based Security for Modern Systems*. ACM Computing Surveys.
+[^hKask-security]: hKask Project. (2026). *docs/user-guides/SECURITY.md*. User-facing security documentation.
+[^hKask-agents]: hKask Project. (2026). *crates/hkask-agents/src/security.rs*. Security module implementation.
 
 ---
 

@@ -289,11 +289,11 @@ Curator persona is complete when:
 
 ## References
 
-| Source | Description |
-|--------|-------------|
-| `stack-cli/src/curator.rs` | Existing Curator implementation (to be ported) |
-| `stack-prompts/src/prompt_registry/templates/curator_maintenance_advisory.md.j2` | Curator template |
-| AGENTS.md | Agent Operating Guide — tone and style section |
+[^nass-computers]: Nass, C., & Moon, Y. (2000). Machines and Mindlessness: Social Responses to Computers. *Journal of Social Issues*, 56(1), 81-103. Computers as social actors.
+[^reeves]: Reeves, B., & Nass, C. (1996). *The Media Equation: How People Treat Computers, Television, and New Media Like Real People and Places*. Cambridge University Press.
+[^short]: Short, J., Williams, E., & Christie, B. (1976). *The Social Psychology of Telecommunications*. Wiley. Social presence theory.
+[^hKask-AGENTS]: hKask Project. (2026). *AGENTS.md: Agent Operating Guide*. `/home/mdz-axolotl/Clones/hKask/AGENTS.md`.
+[^hKask-stack]: hKask Project. (2026). *stack-cli/src/curator.rs*. Curator implementation source.
 
 ---
 

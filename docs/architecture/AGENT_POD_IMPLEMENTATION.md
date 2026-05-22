@@ -337,19 +337,12 @@ wc -l crates/hkask-agents/src/pod.rs crates/hkask-agents/src/acp.rs
 
 ---
 
-## Conclusion
+## References
 
-Phase 1-5 implementation complete. The agent pod system provides a complete foundation for hosting ACP agents within hKask with:
-
-- **Clean lifecycle management** (4-state state machine)
-- **Hexagonal architecture** (5 port traits for testability)
-- **OCAP security** (capability tokens with attenuation)
-- **CNS observability** (span emission for all lifecycle events)
-- **CLI integration** (`kask pod create/activate/deactivate/status/list`)
-- **A2A protocol** (ACP registration, template:dispatch, capability verification)
-- **Comprehensive tests** (22 unit tests across 2 crates)
-
-**Agent pods are production-ready for MVP.**
+[^acp]: ACP Runtime Project. (2026). *acp-runtime: Agent Communication Protocol*. https://github.com/acp-runtime/acp-runtime
+[^hKask-agents]: hKask Project. (2026). *crates/hkask-agents/src/pod.rs*. Agent pod implementation.
+[^hKask-cns]: hKask Project. (2026). *crates/hkask-cns/src/spans.rs*. CNS span emitter.
+[^hKask-ensemble]: hKask Project. (2026). *crates/hkask-ensemble/src/capability.rs*. OCAP capability tokens.
 
 ---
 

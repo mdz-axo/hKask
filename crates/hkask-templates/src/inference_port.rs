@@ -3,6 +3,7 @@
 //! This module provides the InferencePort trait for LLM invocations
 //! with temperature-controlled parameters for anti-normative generation.
 
+use async_trait::async_trait;
 use hkask_types::{BotID, LLMParameters, TemplateId, TemplateInvocation, TemplateOutcome};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -17,7 +18,7 @@ pub enum InferenceError {
     #[error("Generation error: {0}")]
     Generation(String),
     #[error("JSON error: {0}")]
-    Json(#[from] serde_json::Error),
+    Json(String),
 }
 
 /// Inference result from Okapi
@@ -40,16 +41,17 @@ pub struct Usage {
 /// Okapi inference port
 ///
 /// Trait for LLM backends. Okapi is the default implementation.
+#[async_trait]
 pub trait InferencePort: Send + Sync {
     /// Generate text with parameters
-    fn generate(
+    async fn generate(
         &self,
         prompt: &str,
         parameters: &LLMParameters,
     ) -> Result<InferenceResult, InferenceError>;
 
     /// Generate multiple outputs for template selection
-    fn generate_n(
+    async fn generate_n(
         &self,
         prompt: &str,
         parameters: &LLMParameters,
@@ -57,7 +59,7 @@ pub trait InferencePort: Send + Sync {
     ) -> Result<Vec<InferenceResult>, InferenceError> {
         let mut results = Vec::with_capacity(n);
         for _ in 0..n {
-            results.push(self.generate(prompt, parameters)?);
+            results.push(self.generate(prompt, parameters).await?);
         }
         Ok(results)
     }
@@ -68,7 +70,6 @@ pub struct OkapiInference {
     model: String,
     #[allow(dead_code)]
     base_url: String,
-    #[allow(dead_code)]
     client: reqwest::Client,
 }
 
@@ -92,14 +93,14 @@ impl OkapiInference {
     }
 }
 
+#[async_trait]
 impl InferencePort for OkapiInference {
-    fn generate(
+    async fn generate(
         &self,
         prompt: &str,
         parameters: &LLMParameters,
     ) -> Result<InferenceResult, InferenceError> {
-        // Okapi API request structure (stub for now)
-        let _request = OkapiRequest {
+        let request = OkapiRequest {
             model: self.model.clone(),
             messages: vec![Message {
                 role: "user".to_string(),
@@ -114,17 +115,46 @@ impl InferencePort for OkapiInference {
             seed: parameters.seed,
         };
 
-        // In production, this would call Okapi API
-        // For now, return a stub result
+        let response = self
+            .client
+            .post(format!("{}/api/generate", self.base_url))
+            .json(&request)
+            .send()
+            .await
+            .map_err(|e| InferenceError::Connection(e.to_string()))?;
+
+        if !response.status().is_success() {
+            return Err(InferenceError::Connection(format!(
+                "Okapi API returned status {}: {}",
+                response.status(),
+                response.text().await.unwrap_or_default()
+            )));
+        }
+
+        let okapi_response: OkapiResponse = response
+            .json()
+            .await
+            .map_err(|e| InferenceError::Json(format!("Okapi JSON parse error: {}", e)))?;
+
         Ok(InferenceResult {
-            text: format!("[Okapi stub] Generated for: {}", prompt),
-            model: self.model.clone(),
+            text: okapi_response
+                .choices
+                .first()
+                .map(|c| c.message.content.clone())
+                .ok_or_else(|| {
+                    InferenceError::Generation("Empty response from Okapi".to_string())
+                })?,
+            model: okapi_response.model,
             usage: Usage {
-                prompt_tokens: prompt.len() as u32 / 4,
-                completion_tokens: 100,
-                total_tokens: (prompt.len() as u32 / 4) + 100,
+                prompt_tokens: okapi_response.usage.prompt_tokens,
+                completion_tokens: okapi_response.usage.completion_tokens,
+                total_tokens: okapi_response.usage.total_tokens,
             },
-            finish_reason: "stop".to_string(),
+            finish_reason: okapi_response
+                .choices
+                .first()
+                .map(|c| c.finish_reason.clone())
+                .unwrap_or_else(|| "unknown".to_string()),
         })
     }
 }
@@ -143,8 +173,23 @@ struct OkapiRequest {
     seed: Option<u64>,
 }
 
+/// Okapi API response structure
+#[derive(Debug, Deserialize)]
+struct OkapiResponse {
+    model: String,
+    choices: Vec<Choice>,
+    usage: Usage,
+}
+
+/// Okapi API choice structure
+#[derive(Debug, Deserialize)]
+struct Choice {
+    message: Message,
+    finish_reason: String,
+}
+
 /// Okapi API message structure
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct Message {
     role: String,
     content: String,
@@ -152,14 +197,14 @@ struct Message {
 
 /// Template invocation with Okapi inference
 pub async fn invoke_template_with_okapi(
-    inference: &dyn InferencePort,
+    inference: Box<dyn InferencePort + Send + Sync>,
     template_id: TemplateId,
     bot_id: BotID,
     parameters: LLMParameters,
     rendered_prompt: &str,
     input: Value,
 ) -> Result<TemplateInvocation, InferenceError> {
-    let result = inference.generate(rendered_prompt, &parameters)?;
+    let result = inference.generate(rendered_prompt, &parameters).await?;
 
     let mut invocation = TemplateInvocation::new(template_id, bot_id, parameters, input);
     invocation.outputs.push(Value::String(result.text));
@@ -170,7 +215,7 @@ pub async fn invoke_template_with_okapi(
 
 /// Invoke template with N outputs for selection (anti-normative pattern)
 pub async fn invoke_template_with_selection(
-    inference: &dyn InferencePort,
+    inference: Box<dyn InferencePort + Send + Sync>,
     template_id: TemplateId,
     bot_id: BotID,
     parameters: LLMParameters,
@@ -178,7 +223,9 @@ pub async fn invoke_template_with_selection(
     input: Value,
     n: usize,
 ) -> Result<TemplateInvocation, InferenceError> {
-    let results = inference.generate_n(rendered_prompt, &parameters, n)?;
+    let results = inference
+        .generate_n(rendered_prompt, &parameters, n)
+        .await?;
 
     let mut invocation = TemplateInvocation::new(template_id, bot_id, parameters.clone(), input);
 

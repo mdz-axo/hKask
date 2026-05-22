@@ -7,8 +7,8 @@
 //! - Expiration limits token lifetime
 
 use hmac::{Hmac, Mac};
-use sha2::Sha256;
 use serde::{Deserialize, Serialize};
+use sha2::Sha256;
 
 use crate::goal::GoalId;
 
@@ -43,21 +43,13 @@ pub enum GoalAction {
         tool_name: String,
     },
     /// Read files matching pattern
-    ReadFile {
-        path_pattern: String,
-    },
+    ReadFile { path_pattern: String },
     /// Write files matching pattern
-    WriteFile {
-        path_pattern: String,
-    },
+    WriteFile { path_pattern: String },
     /// Execute specific commands
-    ExecuteCommand {
-        allowed_commands: Vec<String>,
-    },
+    ExecuteCommand { allowed_commands: Vec<String> },
     /// Delegate goal to another agent
-    DelegateGoal {
-        max_attenuation: u8,
-    },
+    DelegateGoal { max_attenuation: u8 },
 }
 
 /// Goal capability token with attenuation
@@ -97,17 +89,17 @@ impl GoalCapability {
         secret_key: &[u8],
     ) -> Result<Self, CapabilityError> {
         let id = CapabilityId::new();
-        let mut mac = HmacSha256::new_from_slice(secret_key)
-            .map_err(|_| CapabilityError::InvalidKey)?;
-        
+        let mut mac =
+            HmacSha256::new_from_slice(secret_key).map_err(|_| CapabilityError::InvalidKey)?;
+
         // Sign: id || goal_id || holder_webid || expiration
         mac.update(id.0.as_bytes());
         mac.update(goal_id.0.as_bytes());
         mac.update(holder_webid.as_bytes());
         mac.update(&expiration.to_be_bytes());
-        
+
         let signature = mac.finalize().into_bytes().to_vec();
-        
+
         Ok(Self {
             id,
             goal_id,
@@ -120,45 +112,41 @@ impl GoalCapability {
             hmac_signature: signature,
         })
     }
-    
+
     /// Verify HMAC signature
     pub fn verify(&self, secret_key: &[u8]) -> Result<(), CapabilityError> {
-        let mut mac = HmacSha256::new_from_slice(secret_key)
-            .map_err(|_| CapabilityError::InvalidKey)?;
-        
+        let mut mac =
+            HmacSha256::new_from_slice(secret_key).map_err(|_| CapabilityError::InvalidKey)?;
+
         mac.update(self.id.0.as_bytes());
         mac.update(self.goal_id.0.as_bytes());
         mac.update(self.holder_webid.as_bytes());
         mac.update(&self.expiration.to_be_bytes());
-        
+
         mac.verify_slice(&self.hmac_signature)
             .map_err(|_| CapabilityError::InvalidSignature)
     }
-    
+
     /// Check if capability is expired
     pub fn is_expired(&self) -> bool {
         self.expiration <= get_current_timestamp()
     }
-    
+
     /// Delegate capability with attenuation
     ///
     /// **Attenuation rules:**
     /// - Remove write permissions (keep read-only)
     /// - Halve remaining expiration time
     /// - Increment attenuation level
-    pub fn delegate(
-        &self,
-        new_holder: String,
-        secret_key: &[u8],
-    ) -> Result<Self, DelegationError> {
+    pub fn delegate(&self, new_holder: String, secret_key: &[u8]) -> Result<Self, DelegationError> {
         if self.attenuation_level >= self.max_attenuation {
             return Err(DelegationError::MaxAttenuationReached);
         }
-        
+
         if self.is_expired() {
             return Err(DelegationError::Expired);
         }
-        
+
         // Attenuate: keep only read-only actions
         let attenuated_actions = self
             .allowed_actions
@@ -171,12 +159,13 @@ impl GoalCapability {
             })
             .cloned()
             .collect();
-        
+
         // Halve remaining time
         let now = get_current_timestamp();
         let remaining = self.expiration - now;
         let new_expiration = now + (remaining / 2);
-        
+
+        // Create child capability (convert CapabilityError to DelegationError)
         Self::new(
             self.goal_id,
             self.owner_webid.clone(),
@@ -186,17 +175,18 @@ impl GoalCapability {
             new_expiration,
             secret_key,
         )
+        .map_err(|_| DelegationError::Expired)
         .map(|mut child| {
             child.attenuation_level = self.attenuation_level + 1;
             child
         })
     }
-    
+
     /// Check if action is allowed
     pub fn allows(&self, action: &GoalAction) -> bool {
-        self.allowed_actions.iter().any(|a| {
-            std::mem::discriminant(a) == std::mem::discriminant(action)
-        })
+        self.allowed_actions
+            .iter()
+            .any(|a| std::mem::discriminant(a) == std::mem::discriminant(action))
     }
 }
 

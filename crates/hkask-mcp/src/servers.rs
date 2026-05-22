@@ -3,6 +3,7 @@
 //! Built-in MCP server implementations for hKask:
 //! - `std-sqlite`: SQLite storage operations
 //! - `git-registry`: Git-based registry access
+//! - `inference`: Okapi-backed LLM inference
 
 use crate::runtime::{McpRuntime, McpServer, McpTool};
 use serde_json::Value;
@@ -14,6 +15,7 @@ use tracing::info;
 pub async fn register_builtin_servers(runtime: &McpRuntime) {
     register_sqlite_server(runtime).await;
     register_git_registry_server(runtime).await;
+    register_inference_server(runtime).await;
 }
 
 /// Register SQLite MCP server
@@ -181,4 +183,69 @@ impl Default for SqliteStorage {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Register inference MCP server
+pub async fn register_inference_server(runtime: &McpRuntime) {
+    let server = McpServer {
+        id: "hkask-mcp-inference".to_string(),
+        name: "hKask Inference Server".to_string(),
+        tools: vec![
+            McpTool {
+                name: "inference:generate".to_string(),
+                description: "Generate text from a prompt using Okapi LLM".to_string(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "prompt": {"type": "string", "description": "Input prompt"},
+                        "model": {"type": "string", "description": "Model name (optional)"},
+                        "temperature": {"type": "number", "description": "Temperature (0.0-2.0)"},
+                        "max_tokens": {"type": "integer", "description": "Maximum tokens to generate"}
+                    },
+                    "required": ["prompt"]
+                }),
+                server_id: "hkask-mcp-inference".to_string(),
+            },
+            McpTool {
+                name: "inference:chat".to_string(),
+                description: "Chat with the LLM using conversation history".to_string(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "messages": {"type": "array", "description": "Conversation history"},
+                        "model": {"type": "string", "description": "Model name (optional)"},
+                        "temperature": {"type": "number", "description": "Temperature (0.0-2.0)"}
+                    },
+                    "required": ["messages"]
+                }),
+                server_id: "hkask-mcp-inference".to_string(),
+            },
+            McpTool {
+                name: "inference:complete".to_string(),
+                description: "Complete text from a partial input".to_string(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "text": {"type": "string", "description": "Partial text to complete"},
+                        "model": {"type": "string", "description": "Model name (optional)"}
+                    },
+                    "required": ["text"]
+                }),
+                server_id: "hkask-mcp-inference".to_string(),
+            },
+            McpTool {
+                name: "inference:list_models".to_string(),
+                description: "Get information about available models".to_string(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {}
+                }),
+                server_id: "hkask-mcp-inference".to_string(),
+            },
+        ],
+        connected: true,
+    };
+
+    runtime.register_server(server).await;
+    info!(target: "hkask.mcp", "Registered Okapi Inference MCP server");
 }

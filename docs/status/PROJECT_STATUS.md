@@ -2,7 +2,7 @@
 
 **Version:** 0.21.0  
 **Last-Updated:** 2026-05-22  
-**Status:** Pre-alpha MVP in progress — Phase 5 (Testing Infrastructure) complete  
+**Status:** Pre-alpha MVP — Build passing, ready for integration testing  
 **TOGAF Phase:** C — Application  
 
 ---
@@ -22,16 +22,18 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-na
 
 | Metric | Value | Budget | Status |
 |--------|-------|--------|--------|
-| **Core LOC (Rust)** | ~25,516 | ≤30,000 | 85% used |
-| **MCP Server LOC** | ~3,019 | Excluded | — |
-| **Test LOC** | Excluded | Excluded | — |
-| **Total Crates** | 31 | — | 11 core + 19 MCP + 1 test |
+| **Core LOC (Rust)** | ~19,800 | ≤30,000 | 66% used |
+| **MCP Server LOC (Rust)** | ~2,800 | Included in budget | — |
+| **Total Rust LOC** | ~22,600 | ≤30,000 | 75% used |
+| **Excluded** | Jinja2 templates, YAML manifests | — | Not counted |
+
+**Note:** LOC count excludes blank lines and comments (per AGENTS.md definition — Rust as the "steel frame")
 
 ### 2.2 Test Metrics
 
 | Workspace | Tests | Status |
 |-----------|-------|--------|
-| **Core** | 237 passing | ✅ |
+| **Core Crates** | 237 passing | ✅ |
 | **MCP Servers** | 17 passing | ✅ |
 | **Test Crate** | 77 passing | ✅ |
 | **Total** | 331 passing | ✅ |
@@ -45,6 +47,15 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-na
 | `cargo clippy --workspace -- -D warnings` | ✅ Pass | None |
 | `cargo fmt --check` | ✅ Pass | — |
 
+### 2.4 Workspace Structure
+
+| Component | Count | Description |
+|-----------|-------|-------------|
+| **Core Crates** | 11 | `hkask-*` in `crates/` |
+| **MCP Servers** | 19 | `hkask-mcp-*` in `mcp-servers/` |
+| **Test Crate** | 1 | `hkask-testing` (excluded from LOC count) |
+| **Total** | 31 | All in workspace |
+
 ---
 
 ## 3. Implementation Progress
@@ -57,6 +68,7 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-na
 | **Phase 2** | Bot System | ✅ Complete | 2026-05-19 |
 | **Phase 3** | A2A Protocol | ✅ Complete | 2026-05-19 |
 | **Phase 4** | Templates & Registry | ✅ Complete | 2026-05-20 |
+| **Phase 5** | Security Hardening & Testing | ✅ Complete | 2026-05-22 |
 
 ### 3.2 Core Crates (11)
 
@@ -93,7 +105,7 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-na
 | `hkask-mcp-telnyx` | ✅ Enabled | Telnyx integration |
 | `hkask-mcp-fal` | ✅ Enabled | FAL integration |
 | `hkask-mcp-rss-reader` | ✅ Enabled | RSS reader |
-| `hkask-mcp-inference` | ⚠️ Exists, commented | Okapi LLM |
+| `hkask-mcp-inference` | ✅ Enabled | Okapi LLM |
 | `hkask-mcp-storage` | ⚠️ Exists, commented | Storage operations |
 | `hkask-mcp-memory` | ⚠️ Exists, commented | Memory pipelines |
 | `hkask-mcp-ensemble` | ⚠️ Exists, commented | Chat orchestration |

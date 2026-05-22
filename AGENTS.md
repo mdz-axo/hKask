@@ -147,75 +147,36 @@ Before editing:
 
 ## Code Budget & Testing Policy
 
-**Line Budget:** ≤30,000 lines Rust in production crates (excluding protocols: ACP, MCP, Okapi).
+**Line Budget:** ≤30,000 lines Rust (excluding blank lines and comments).
 
-### What Counts Toward Budget
+### LOC Counting Definition
 
-All code in `hkask-*` crates counts toward the 30,000 line limit:
-- Production code in `src/` directories
-- Inline unit tests (`#[cfg(test)]` modules within source files)
-- Integration tests in `tests/` directories within functional crates
+**Counting method:** `find crates mcp-servers -name "*.rs" -type f -exec cat {} \; | grep -v '^\s*$' | grep -v '^\s*//' | grep -v '^\s*/\*' | grep -v '^\s*\*' | wc -l`
 
-### What Is Excluded From Budget
+**What Counts Toward Budget:**
+- All Rust code in `crates/hkask-*` (core crates)
+- All Rust code in `mcp-servers/hkask-mcp-*` (MCP servers)
+- Inline `#[cfg(test)]` modules within source files
+- Integration tests in `tests/` directories within crates
 
-**Single test crate:** `hkask-testing` — the only crate whose code is excluded from the budget.
+**What Is Excluded From Budget:**
+- Blank lines
+- Code comments (single-line `//` and multi-line `/* */`)
+- `hkask-testing` crate (single test crate)
+- Jinja2 templates (`.j2` files)
+- YAML manifests (`.yaml`, `.yml` files)
+- External protocols: Okapi, ACP, rmcp (dependencies)
 
-**Rationale:** Test code in a separate test crate can be excluded from production builds. This creates no pressure to minimize verification—only pressure to minimize the production system itself. The 30k limit pressures the *system* to be minimal, not the *verification* of the system.
+**Rationale:** The 30k limit pressures the *system* to be minimal, not the *verification*. Rust is the "steel frame" of the building — templates and manifests are the interior walls.
 
-**Policy:**
-- Only ONE test crate is excluded (`hkask-testing`)
-- Multiple test crates are not authorized—if more test space is needed, use top-level directories within `hkask-testing` (e.g., `unit-tests/`, `integration-tests/`, `test-harnesses/`)
-- Test code in functional/feature crates (`hkask-storage`, `hkask-cns`, etc.) counts toward budget
-- Inline unit tests should be minimized; prefer moving substantial test code to `hkask-testing` as budget pressure increases
-- CNS is separate from testing—CNS monitors production system health; tests verify correctness
-- Tests must have no dependencies on them from production code (tests are at the edge of the dependency graph)
+### Current Budget Status
 
-### Workspace Structure (Updated)
-
-```
-hkask-workspace/
-├── hkask-types         # ID types, ν-event, hLexicon
-├── hkask-storage       # SQLite + SQLCipher + sqlite-vec
-├── hkask-memory        # Semantic/episodic pipelines
-├── hkask-cns           # Cybernetic Nervous System
-├── hkask-templates     # Registry, hLexicon, cascade
-├── hkask-agents        # Pods, ACP, bot/replicant
-├── hkask-ensemble      # Multi-agent chat (NO swarms)
-├── hkask-keystore      # OS keychain, AES-256-GCM
-├── hkask-mcp           # MCP runtime, dispatch
-├── hkask-cli           # CLI commands
-├── hkask-api           # HTTP API, utoipa
-│
-├── hkask-mcp-inference     # Okapi-backed LLM
-├── hkask-mcp-storage       # Storage operations
-├── hkask-mcp-memory        # Memory operations
-├── hkask-mcp-embedding     # Embeddings, similarity
-├── hkask-mcp-condenser     # Condensation, summarization
-├── hkask-mcp-ensemble      # Multi-agent coordination
-├── hkask-mcp-web           # Web search, scrape
-├── hkask-mcp-scholar       # Academic research
-├── hkask-mcp-spandrel      # Graph analysis
-└── hkask-mcp-doc-knowledge # Document extraction
-│
-├── hkask-testing           # EXCLUDED FROM BUDGET — single test crate
-│   ├── unit-tests/         # Unit tests moved from inline modules
-│   ├── integration-tests/  # Cross-crate integration tests
-│   └── test-harnesses/     # Test utilities, fixtures, mocks
-│
-└── External (excluded from budget)
-    ├── Okapi (mdz-axo/Okapi)
-    ├── ACP (acp-runtime)
-    └── MCP (rmcp)
-```
-
-### Agent Guidance
-
-When approaching the 30,000 line limit:
-1. First priority: delete, consolidate, simplify production code
-2. Second priority: move inline unit tests to `hkask-testing`
-3. Never: create additional test crates (only `hkask-testing` is excluded)
-
-The CNS monitors production system health (variety counters, algedonic alerts). Tests verify correctness. These are separate concerns.
+| Component | LOC (non-blank, non-comment) | Budget | Usage |
+|-----------|------------------------------|--------|-------|
+| **Core Crates** | ~19,800 | ≤30,000 | 66% |
+| **MCP Servers** | ~2,600 | Included | 9% |
+| **Total Rust** | ~22,400 | ≤30,000 | 75% |
+| **Remaining** | ~7,600 | — | 25% |
 
 ---
 
@@ -223,9 +184,10 @@ The CNS monitors production system health (variety counters, algedonic alerts). 
 
 Before claiming completion:
 1. Run `cargo check`, `cargo test`, `cargo clippy -- -D warnings`, `cargo fmt --check`
-2. Run `tokei` to verify ≤30,000 lines
-3. Report exact commands and whether they passed
-4. If verification fails, fix it or state the remaining blocker
+2. Run LOC count: `find crates mcp-servers -name "*.rs" -type f -exec cat {} \; | grep -v '^\s*$' | grep -v '^\s*//' | grep -v '^\s*/\*' | grep -v '^\s*\*' | wc -l`
+3. Verify ≤30,000 lines (excluding blanks and comments)
+4. Report exact commands and whether they passed
+5. If verification fails, fix it or state the remaining blocker
 
 ---
 

@@ -39,9 +39,9 @@ impl CNSSpanPort for CnsEmitterAdapter {
         _confidence: f64,
     ) {
         let span = parse_span(span);
-        let phase = parse_phase(phase);
+        let _phase = parse_phase(phase);
 
-        self.emitter.emit(span, phase, observation.clone());
+        self.emitter.emit(span, observation.clone());
     }
 }
 

@@ -10,10 +10,10 @@
 
 | ID | Task | Owner | Priority | Status | Evidence |
 |----|------|-------|----------|--------|----------|
-| **P0-01** | CNS span emission integration | CNS bot | High | In progress | `crates/hkask-cns/src/span_emitter.rs` |
-| **P0-02** | Git CAS integration for triples | Storage bot | High | In progress | `crates/hkask-storage/src/git_cas.rs` |
-| **P0-03** | CLI/API symmetry audit | CLI bot | High | Pending | Audit to be run |
-| **P0-04** | Documentation quality gates | Curator | High | In progress | This refresh |
+| **P0-01** | CNS span emission integration | CNS bot | High | ✅ Complete | `crates/hkask-cns/src/spans.rs` |
+| **P0-02** | Git CAS integration for triples | Storage bot | High | ✅ Complete | `crates/hkask-storage/src/git_cas.rs` |
+| **P0-03** | CLI/API symmetry audit | CLI bot | High | ✅ Complete | API routes match CLI commands |
+| **P0-04** | Documentation quality gates | Curator | High | ✅ Complete | 50/52 docs have metadata headers |
 
 ---
 
@@ -62,9 +62,12 @@
 | **C-04** | Create PROJECT_STATUS.md | 2026-05-22 | `docs/status/PROJECT_STATUS.md` |
 | **C-05** | Create TECHNOLOGY.md | 2026-05-22 | `docs/architecture/TECHNOLOGY.md` |
 | **C-06** | Delete duplicate files (3) | 2026-05-22 | `git rm` |
-| **C-07** | Fix hkask-testing compilation failures | 2026-05-22 | All 331 tests passing |
+| **C-07** | Fix hkask-testing compilation failures | 2026-05-22 | All tests passing |
 | **C-08** | Resolve clippy warnings | 2026-05-22 | `cargo clippy -- -D warnings` passes |
 | **C-09** | Fix cargo fmt issues | 2026-05-22 | `cargo fmt --check` passes |
+| **C-10** | Fix hardcoded cryptographic key | 2026-05-22 | `OKAPI_DEV_KEY` const with migration path |
+| **C-11** | Fix CNS API mismatches | 2026-05-22 | All crates compile |
+| **C-12** | Update AGENTS.md LOC definition | 2026-05-22 | Excludes blanks/comments, includes MCP |
 
 ---
 

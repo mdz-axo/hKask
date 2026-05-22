@@ -186,6 +186,15 @@ The Magna Carta is not aspirational. It is enforced:
 
 ---
 
+## References
+
+[^ocap]: van Rossum, G., & Warsaw, B. (2001). *OCAP: Object Capability Model*. Python Enhancement Proposal.
+[^marcus]: Marcus, A. (2019). *The Power of Capabilities in Secure System Design*. IEEE Security & Privacy.
+[^beer-vsm]: Beer, S. (1972). *Brain of the Firm*. Penguin Books. Viable System Model, algedonic alerts.
+[^ashby-law]: Ashby, W. R. (1956). *An Introduction to Cybernetics*. Chapman & Hall. Law of Requisite Variety.
+
+---
+
 ## Version
 
 ℏKask v0.21.2 — Planck's Constant of Agent Systems

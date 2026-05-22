@@ -1,0 +1,31 @@
+[inference]
+template_type: Goal
+lexicon_terms: [assert, acknowledge]
+contract:
+  input:
+    goal_text: string
+    outcome_summary: string
+  output:
+    verdict: "continue"
+    reason: string
+    confidence: 0.5
+
+---
+# Goal Judge — Simple Fallback
+# Used when LLM judge unavailable or times out
+
+**Goal:** {{ goal_text }}
+
+**Outcome:** {{ outcome_summary }}
+
+---
+
+The goal verification system encountered an error. Defaulting to CONTINUE verdict.
+
+```json
+{
+  "verdict": "continue",
+  "reason": "Verification system unavailable — agent should continue toward goal",
+  "confidence": 0.5
+}
+```

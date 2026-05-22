@@ -4,9 +4,9 @@
 
 **hLexicon** is the minimal vocabulary (~75 terms) for composing templates in the hKask system. It covers three domains:
 
-1. **WordAct** — Language for prompting/LLM interactions (speech act theory)
-2. **FlowDef** — Language for process/skill composition (workflow patterns)
-3. **KnowAct** — Language for cognition and metacognition (enactive cognition)
+1. **WordAct** — Language for prompting/LLM interactions (speech act theory)[^austin]
+2. **FlowDef** — Language for process/skill composition (workflow patterns)[^van-der-aalst]
+3. **KnowAct** — Language for cognition and metacognition (enactive cognition)[^varela]
 
 **Design Principles:**
 - **Minimal:** ≤75 terms total (currently 72)
@@ -30,7 +30,7 @@ contract:
 
 ## Domain 1: WordAct — Prompting Language (25 terms)
 
-**Theoretical Basis:** Speech Act Theory (J.L. Austin, John Searle)
+**Theoretical Basis:** Speech Act Theory (J.L. Austin, John Searle)[^austin][^searle]
 
 Speech acts distinguish between:
 - **Locution:** The words spoken
@@ -413,6 +413,16 @@ Analyze the outcomes: {{ evaluate(outcomes) }}
 
 Recommend adjustments: {{ regulate(pass_rate) }}
 ```
+
+---
+
+## References
+
+[^austin]: Austin, J. L. (1962). *How to Do Things with Words*. Harvard University Press. Speech act theory foundation.
+[^searle]: Searle, J. R. (1969). *Speech Acts: An Essay in the Philosophy of Language*. Cambridge University Press.
+[^van-der-aalst]: van der Aalst, W. M. P., ter Hofstede, A. H. M., & Weske, M. (2003). Workflow Patterns. In *Business Process Management* (pp. 1-20). Springer.
+[^varela]: Varela, F. J., Thompson, E., & Rosch, E. (1991). *The Embodied Mind: Cognitive Science and Human Experience*. MIT Press. Enactive cognition.
+[^russell]: Russell, S., & Norvig, P. (2020). *Artificial Intelligence: A Modern Approach* (4th ed.). Pearson. AI agent design patterns.
 
 ---
 

@@ -13,7 +13,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::id::SessionId;
+use crate::id::SessionID;
 use crate::visibility::Visibility;
 
 /// Unique identifier for a goal
@@ -67,10 +67,16 @@ impl std::fmt::Display for GoalCommitment {
 pub enum GoalState {
     #[default]
     Active,
-    Paused { reason: String },
-    Done { reason: String },
+    Paused {
+        reason: String,
+    },
+    Done {
+        reason: String,
+    },
     Cleared,
-    Blocked { reason: String },
+    Blocked {
+        reason: String,
+    },
 }
 
 /// FlowDef decomposition patterns for goal structure
@@ -82,9 +88,15 @@ pub enum GoalState {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "flow_type", rename_all = "snake_case")]
 pub enum GoalFlow {
-    Sequence { steps: Vec<SubgoalSpec> },
-    Parallel { branches: Vec<SubgoalSpec> },
-    Choice { branches: Vec<(String, SubgoalSpec)> },
+    Sequence {
+        steps: Vec<SubgoalSpec>,
+    },
+    Parallel {
+        branches: Vec<SubgoalSpec>,
+    },
+    Choice {
+        branches: Vec<(String, SubgoalSpec)>,
+    },
 }
 
 /// Subgoal specification
@@ -110,17 +122,14 @@ pub enum CompletionCriterion {
         expected_pattern: String,
     },
     /// Semantic evaluation via LLM
-    Semantic {
-        evaluator: String,
-        criteria: String,
-    },
+    Semantic { evaluator: String, criteria: String },
 }
 
 /// Goal specification (creation input)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GoalSpec {
     pub owner_webid: String,
-    pub session_id: SessionId,
+    pub session_id: SessionID,
     pub goal_text: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub template_ref: Option<String>,
@@ -142,7 +151,7 @@ pub struct GoalSpec {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Goal {
     pub id: GoalId,
-    pub session_id: SessionId,
+    pub session_id: SessionID,
     pub owner_webid: String,
     pub goal_text: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -197,7 +206,7 @@ impl Goal {
             visibility: spec.visibility,
         }
     }
-    
+
     /// Estimate goal complexity for variety counter
     pub fn estimate_complexity(&self) -> usize {
         let base = 1; // Goal itself
@@ -208,7 +217,7 @@ impl Goal {
             GoalFlow::Parallel { branches } => branches.len() * 2,
             GoalFlow::Choice { branches } => branches.len() * 3,
         });
-        
+
         base + criteria + subgoals + flow_complexity
     }
 }

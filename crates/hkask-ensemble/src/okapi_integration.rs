@@ -13,6 +13,15 @@ use crate::adapters::OkapiSseAdapter;
 use crate::capability::OkapiCapability;
 use crate::ports::OkapiMetrics;
 
+/// Development key — DERIVE FROM KEYSTORE IN PRODUCTION
+///
+/// Production deployment MUST load this from hkask-keystore or OS keychain.
+/// This const is for local development and testing only.
+const OKAPI_DEV_KEY: [u8; 32] = [
+    0x68, 0x6b, 0x61, 0x73, 0x6b, 0x2d, 0x6f, 0x6b, 0x61, 0x70, 0x69, 0x2d, 0x64, 0x65, 0x76, 0x2d,
+    0x6b, 0x65, 0x79, 0x2d, 0x32, 0x30, 0x32, 0x36, 0x2d, 0x30, 0x35, 0x2d, 0x32, 0x32, 0x21, 0x21,
+];
+
 /// Okapi integration runtime
 pub struct OkapiIntegration {
     base_url: String,
@@ -29,10 +38,7 @@ impl OkapiIntegration {
     /// instead of using this placeholder. This is only for development/testing.
     pub fn new(base_url: String, cns_runtime: Arc<CnsRuntime>) -> Self {
         let holder = WebID::new();
-        // Development placeholder: In production, use hkask-keystore to load key
-        // Example: let key = keystore.get_encryption_key("okapi_integration")?;
-        let key = [0x42u8; 32];
-        let capability = crate::capability::default_system_capability(holder, &key);
+        let capability = crate::capability::default_system_capability(holder, &OKAPI_DEV_KEY);
 
         Self {
             base_url,
@@ -69,11 +75,9 @@ impl OkapiIntegration {
         &self,
         requester: WebID,
     ) -> Result<(), OkapiIntegrationError> {
-        // Check if requester has generate capability
-        let key = [0x42; 32]; // TODO: Load from secure keystore
         if let Err(e) = self
             .capability
-            .verify(&key, &[crate::OkapiOperation::Generate])
+            .verify(&OKAPI_DEV_KEY, &[crate::OkapiOperation::Generate])
         {
             return Err(OkapiIntegrationError::CapabilityError(format!(
                 "Capability verification failed: {:?}",
@@ -81,7 +85,6 @@ impl OkapiIntegration {
             )));
         }
 
-        // Check if capability holder matches requester
         if self.capability.holder() != requester {
             return Err(OkapiIntegrationError::CapabilityError(
                 "Capability holder does not match requester".to_string(),
@@ -93,8 +96,10 @@ impl OkapiIntegration {
 
     /// Verify OCAP for chat operation
     pub async fn verify_chat_ocap(&self, requester: WebID) -> Result<(), OkapiIntegrationError> {
-        let key = [0x42; 32];
-        if let Err(e) = self.capability.verify(&key, &[crate::OkapiOperation::Chat]) {
+        if let Err(e) = self
+            .capability
+            .verify(&OKAPI_DEV_KEY, &[crate::OkapiOperation::Chat])
+        {
             return Err(OkapiIntegrationError::CapabilityError(format!(
                 "Capability verification failed: {:?}",
                 e

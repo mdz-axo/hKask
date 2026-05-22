@@ -7,6 +7,7 @@ description = "Okapi-backed LLM inference MCP server"
 
 [dependencies]
 hkask-types = { path = "../../crates/hkask-types" }
+hkask-templates = { path = "../../crates/hkask-templates" }
 rmcp.workspace = true
 serde.workspace = true
 serde_json.workspace = true

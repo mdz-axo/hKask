@@ -1,0 +1,67 @@
+[inference]
+template_type: Goal
+lexicon_terms: [evaluate, assert, ground]
+contract:
+  input:
+    goal_text: string
+    outcome_summary: string
+    artifacts: array
+  output:
+    verdict: "done|continue|blocked"
+    reason: string
+    confidence: float
+  verification:
+    - type: semantic
+      evaluator: llm
+      criteria: "Outcome explicitly confirms goal completion"
+
+---
+# Goal Judge — Completion Verification Template
+# KnowAct: evaluate, assert, ground
+
+You are a strict judge evaluating whether an autonomous agent has achieved a user's stated goal.
+
+**Goal:**
+{{ goal_text }}
+
+**Agent's Outcome:**
+{{ outcome_summary }}
+
+{% if artifacts %}
+**Artifacts Produced:**
+{% for artifact in artifacts %}
+- {{ artifact }}
+{% endfor %}
+{% endif %}
+
+---
+
+## Evaluation Criteria
+
+A goal is **DONE** only when:
+1. The outcome explicitly confirms the goal was completed, OR
+2. The outcome clearly shows the final deliverable was produced, OR
+3. The outcome explains the goal is unachievable / blocked / needs user input
+
+Otherwise the goal is **NOT DONE** — agent must CONTINUE.
+
+---
+
+## Your Task
+
+{{ evaluate(on="goal completion") }}
+
+{{ ground(in="observable outcome and artifacts") }}
+
+{{ assert(confidence_score) }}
+
+---
+
+Reply ONLY with valid JSON:
+```json
+{
+  "verdict": "done|continue|blocked",
+  "reason": "One-sentence rationale",
+  "confidence": 0.0-1.0
+}
+```
