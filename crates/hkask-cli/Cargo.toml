@@ -12,6 +12,7 @@ hkask-templates = { path = "../hkask-templates" }
 hkask-mcp = { path = "../hkask-mcp" }
 hkask-cns = { path = "../hkask-cns" }
 hkask-api = { path = "../hkask-api" }
+hkask-ensemble = { path = "../hkask-ensemble" }
 clap.workspace = true
 serde.workspace = true
 serde_json.workspace = true

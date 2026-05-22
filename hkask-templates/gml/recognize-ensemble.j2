@@ -1,12 +1,12 @@
 {# gml/recognize-ensemble.j2 - KnowAct: recognize, discriminate, parse #}
 {# Purpose: Parse concept into states and ports #}
 
-{% from 'gml/validate-inputs.j2' import validate_concept, check_capability %}
+{% from 'gml/validate-inputs.j2' import validate_concept %}
 {% from 'gml/cns-instrument.j2' import start_span, end_span, record_error, audit_log %}
+{% from 'gml/macros.j2' import mwc_state_function, hill_coefficient, partition_function %}
 
 {% set concept = inputs.concept %}
 {% set params = inputs.parameters | default({}) %}
-{% set capability = inputs.capability | default({}) %}
 
 {# CNS span start #}
 {{ start_span('recognize', concept.id | default('unknown')) }}
@@ -58,7 +58,7 @@ The concept has no strong default toward either frame.
 {% set alpha = params.alpha | default(concept.current_alpha, 0.0) %}
 {% set n = concept.ports | length %}
 {% set c_avg = (concept.ports | sum(attribute='affinity_c')) / n if n > 0 else 1.0 %}
-{% set r_bar = ((1 + alpha) ** n) / (((1 + alpha) ** n) + (L * ((1 + c_avg * alpha) ** n))) %}
+{% set r_bar = mwc_state_function(concept.l, c_avg, n, alpha) %}
 
 - Contextual pressure (α): {{ alpha | round(3) }}
 - Cooperativity dimensionality (n): {{ n }}

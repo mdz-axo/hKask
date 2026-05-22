@@ -316,3 +316,161 @@ pub use super::git_archival::{
     archive_registry_to_git, create_registry_snapshot, list_registry_archives,
     restore_registry_from_git,
 };
+
+// Ensemble multi-agent commands (Phase 7)
+use hkask_ensemble::{
+    ChatMessage, ChatParticipant, DeliberationCoordinator, EnsembleChatManager, ParticipantRole,
+};
+use hkask_types::WebID;
+use std::sync::Arc;
+use tokio::sync::RwLock;
+
+/// Ensemble chat manager (singleton for CLI)
+static CHAT_MANAGER: std::sync::OnceLock<Arc<RwLock<EnsembleChatManager>>> =
+    std::sync::OnceLock::new();
+static DELIBERATION_COORDINATOR: std::sync::OnceLock<Arc<RwLock<DeliberationCoordinator>>> =
+    std::sync::OnceLock::new();
+
+fn get_chat_manager() -> Arc<RwLock<EnsembleChatManager>> {
+    CHAT_MANAGER
+        .get_or_init(|| Arc::new(RwLock::new(EnsembleChatManager::new(WebID::new()))))
+        .clone()
+}
+
+fn get_deliberation_coordinator() -> Arc<RwLock<DeliberationCoordinator>> {
+    DELIBERATION_COORDINATOR
+        .get_or_init(|| Arc::new(RwLock::new(DeliberationCoordinator::new(WebID::new()))))
+        .clone()
+}
+
+/// Create chat session
+pub async fn ensemble_chat_create(session: String) -> Result<String, String> {
+    let manager = get_chat_manager();
+    manager.write().await.create_chat(&session).await;
+    Ok(format!("Chat session '{}' created", session))
+}
+
+/// Register bot in chat
+pub async fn ensemble_chat_register(
+    session: String,
+    bot: String,
+    role: String,
+) -> Result<String, String> {
+    let manager = get_chat_manager();
+    let chat = {
+        let manager_read = manager.read().await;
+        manager_read.get_chat(&session).await
+    }
+    .ok_or_else(|| format!("Chat session '{}' not found", session))?;
+
+    let participant_role = match role.as_str() {
+        "memory_bot" => ParticipantRole::MemoryBot,
+        "spandrel_bot" => ParticipantRole::SpandrelBot,
+        "okapi_bot" => ParticipantRole::OkapiBot,
+        "scholar_bot" => ParticipantRole::ScholarBot,
+        _ => ParticipantRole::Custom(role.clone()),
+    };
+
+    let mut chat_write = chat.write().await;
+    chat_write.register_participant(ChatParticipant {
+        webid: WebID::new(),
+        role: participant_role,
+        pod_id: None,
+    });
+
+    Ok(format!(
+        "Bot '{}' registered as {} in session '{}'",
+        bot, role, session
+    ))
+}
+
+/// Send message to chat
+pub async fn ensemble_chat_send(session: String, message: String) -> Result<String, String> {
+    let manager = get_chat_manager();
+    let chat = {
+        let manager_read = manager.read().await;
+        manager_read.get_chat(&session).await
+    }
+    .ok_or_else(|| format!("Chat session '{}' not found", session))?;
+
+    let mut chat_write = chat.write().await;
+    let msg = ChatMessage::new(WebID::new(), message);
+    chat_write.add_message(msg);
+
+    Ok("Message sent".to_string())
+}
+
+/// List chat sessions
+pub async fn ensemble_chat_list() -> Result<Vec<String>, String> {
+    let manager = get_chat_manager();
+    let sessions = {
+        let manager_read = manager.read().await;
+        manager_read.list_sessions().await
+    };
+    Ok(sessions)
+}
+
+/// Create deliberation session
+pub async fn ensemble_deliberation_create(session: String) -> Result<String, String> {
+    let coordinator = get_deliberation_coordinator();
+    coordinator.write().await.create_session(&session);
+    Ok(format!("Deliberation session '{}' created", session))
+}
+
+/// Start deliberation
+pub async fn ensemble_deliberation_start(session: String) -> Result<String, String> {
+    let coordinator = get_deliberation_coordinator();
+    let mut coord_write = coordinator.write().await;
+    let session_ref = coord_write
+        .get_session_mut(&session)
+        .ok_or_else(|| format!("Deliberation session '{}' not found", session))?;
+    session_ref.start();
+    Ok("Deliberation started".to_string())
+}
+
+/// Record response in deliberation
+pub async fn ensemble_deliberation_record(
+    session: String,
+    _agent: String,
+    content: String,
+    confidence: f64,
+) -> Result<String, String> {
+    let coordinator = get_deliberation_coordinator();
+    let mut coord_write = coordinator.write().await;
+    let session_ref = coord_write
+        .get_session_mut(&session)
+        .ok_or_else(|| format!("Deliberation session '{}' not found", session))?;
+
+    let agent_webid = WebID::new();
+    let response = hkask_ensemble::AgentResponse::new(agent_webid, content, confidence);
+    session_ref.record_response(response);
+
+    Ok("Response recorded".to_string())
+}
+
+/// Synthesize deliberation
+pub async fn ensemble_deliberation_synthesize(session: String) -> Result<String, String> {
+    let coordinator = get_deliberation_coordinator();
+    let result = {
+        let coord_read = coordinator.read().await;
+        let session_ref = coord_read
+            .get_session(&session)
+            .ok_or_else(|| format!("Deliberation session '{}' not found", session))?;
+        session_ref.synthesize()
+    };
+    Ok(result.synthesized_response)
+}
+
+/// List deliberation sessions
+pub async fn ensemble_deliberation_list() -> Result<Vec<String>, String> {
+    let coordinator = get_deliberation_coordinator();
+    let sessions = {
+        let coord_read = coordinator.read().await;
+        coord_read
+            .list_sessions()
+            .into_iter()
+            .map(String::from)
+            .collect()
+    };
+    Ok(sessions)
+}

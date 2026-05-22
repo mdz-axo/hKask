@@ -235,6 +235,7 @@ pub fn create_router(state: ApiState) -> OpenApiRouter {
         .merge(routes::cns_router().into())
         .merge(routes::sovereignty_router().into())
         .merge(routes::chat_router().into())
+        .merge(routes::ensemble_router().into())
         .with_state(state)
 }
 

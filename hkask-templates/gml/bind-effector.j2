@@ -1,12 +1,12 @@
 {# gml/bind-effector.j2 - KnowAct: analogy, infer, abduct, bind #}
 {# Purpose: Apply effector to port, infer state-shift #}
 
-{% from 'gml/validate-inputs.j2' import validate_concept, validate_effectors, check_capability, check_port_compatibility %}
+{% from 'gml/validate-inputs.j2' import validate_concept, validate_effectors %}
 {% from 'gml/cns-instrument.j2' import start_span, end_span, record_error, audit_log %}
+{% from 'gml/macros.j2' import mwc_state_function, hill_coefficient, partition_function %}
 
 {% set concept = inputs.concept %}
 {% set effectors = inputs.effectors %}
-{% set capability = inputs.capability | default({}) %}
 
 {# CNS span start #}
 {{ start_span('bind', concept.id | default('unknown')) }}
@@ -23,12 +23,17 @@
 {{ record_error('bind', 'GML_INVALID_EFFECTOR', effector_errors | join('; ')) }}
 {% include 'gml/error-validation.j2' %}
 {{ end_span('bind', 'error', {'errors': effector_errors | length}) }}
-{% elif not check_capability(capability, 'bind') %}
-{{ record_error('bind', 'GML_CAPABILITY_DENIED', 'Operation not allowed') }}
-{% set context = {'operation': 'bind', 'scope': capability.scope | default('none')} %}
-{% include 'gml/error-generic.j2' %}
-{{ end_span('bind', 'error', {'reason': 'capability_denied'}) }}
 {% else %}
+
+{% set compatible_ports = [] %}
+{% for effector in effectors %}
+{% for port in concept.ports %}
+{% if port.effector_shape == effector.shape %}
+{% set _ = compatible_ports.append({'effector': effector, 'port': port}) %}
+{% endif %}
+{% endfor %}
+{% endfor %}
+
 **Compatible bindings identified:**
 
 {% for binding in compatible_ports %}
@@ -44,8 +49,8 @@
 {% set c_avg = (concept.ports | sum(attribute='affinity_c')) / n if n > 0 else 1.0 %}
 {% set L = concept.l %}
 
-{% set old_r_bar = ((1 + old_alpha) ** n) / (((1 + old_alpha) ** n) + (L * ((1 + c_avg * old_alpha) ** n))) %}
-{% set new_r_bar = ((1 + new_alpha) ** n) / (((1 + new_alpha) ** n) + (L * ((1 + c_avg * new_alpha) ** n))) %}
+{% set old_r_bar = mwc_state_function(concept.l, c_avg, n, old_alpha) %}
+{% set new_r_bar = mwc_state_function(concept.l, c_avg, n, new_alpha) %}
 
 | Parameter | Before | After | Δ |
 |-----------|--------|-------|---|
@@ -65,13 +70,13 @@
 {% if compatible_ports | length > 0 %}
 {% set binding = compatible_ports[0] %}
 {% if binding.port.affinity_c < 1 %}
-Like oxygen binding to hemoglobin, {{ effector.name }} binds with higher affinity to the R-state,
+Like oxygen binding to hemoglobin, {{ binding.effector.name }} binds with higher affinity to the R-state,
 stabilizing the progressive interpretation and shifting the conformational equilibrium.
 {% elif binding.port.affinity_c > 1 %}
-Like 2,3-BPG binding to hemoglobin, {{ effector.name }} binds with higher affinity to the T-state,
+Like 2,3-BPG binding to hemoglobin, {{ binding.effector.name }} binds with higher affinity to the T-state,
 stabilizing the conservative interpretation and reducing access to the progressive frame.
 {% else %}
-Like a neutral ligand, {{ effector.name }} binds without strong state preference,
+Like a neutral ligand, {{ binding.effector.name }} binds without strong state preference,
 shifting equilibrium through concentration rather than selectivity.
 {% endif %}
 {% endif %}

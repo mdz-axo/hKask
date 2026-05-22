@@ -2516,6 +2516,7 @@ dependencies = [
  "hkask-agents",
  "hkask-api",
  "hkask-cns",
+ "hkask-ensemble",
  "hkask-mcp",
  "hkask-templates",
  "hkask-types",
@@ -2751,6 +2752,28 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
+]
+
+[[package]]
+name = "hkask-mcp-gml"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "ed25519-dalek",
+ "hex",
+ "hkask-cns",
+ "hkask-types",
+ "rand 0.8.6",
+ "rmcp",
+ "schemars",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

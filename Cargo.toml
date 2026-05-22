@@ -31,6 +31,7 @@ members = [
     "mcp-servers/hkask-mcp-cns",
     "mcp-servers/hkask-mcp-git",
     "mcp-servers/hkask-mcp-registry",
+    "mcp-servers/hkask-mcp-gml",
     # New: External integrations (5)
     "mcp-servers/hkask-mcp-github",
     "mcp-servers/hkask-mcp-fmp",

@@ -127,6 +127,12 @@ enum Commands {
         action: GitAction,
     },
 
+    /// Multi-agent ensemble management (Phase 7)
+    Ensemble {
+        #[command(subcommand)]
+        action: EnsembleAction,
+    },
+
     /// Documentation generation
     Docs {
         #[command(subcommand)]
@@ -440,6 +446,89 @@ enum GitAction {
         #[arg(short, long)]
         message: String,
     },
+}
+
+/// Ensemble multi-agent actions (Phase 7)
+#[derive(Subcommand)]
+enum EnsembleAction {
+    /// Create a new chat session
+    ChatCreate {
+        /// Session ID
+        #[arg(short, long)]
+        session: String,
+    },
+
+    /// Register a bot in a chat session
+    ChatRegister {
+        /// Session ID
+        #[arg(short, long)]
+        session: String,
+
+        /// Bot WebID
+        #[arg(short, long)]
+        bot: String,
+
+        /// Bot role (memory_bot, spandrel_bot, okapi_bot, scholar_bot)
+        #[arg(short, long)]
+        role: String,
+    },
+
+    /// Send a message to chat
+    ChatSend {
+        /// Session ID
+        #[arg(short, long)]
+        session: String,
+
+        /// Message content
+        #[arg(short, long)]
+        message: String,
+    },
+
+    /// List active chat sessions
+    ChatList,
+
+    /// Create a deliberation session
+    DeliberationCreate {
+        /// Session ID
+        #[arg(short, long)]
+        session: String,
+    },
+
+    /// Start deliberation
+    DeliberationStart {
+        /// Session ID
+        #[arg(short, long)]
+        session: String,
+    },
+
+    /// Record a response in deliberation
+    DeliberationRecord {
+        /// Session ID
+        #[arg(short, long)]
+        session: String,
+
+        /// Agent WebID
+        #[arg(short, long)]
+        agent: String,
+
+        /// Response content
+        #[arg(short, long)]
+        content: String,
+
+        /// Confidence score (0.0-1.0)
+        #[arg(short, long)]
+        confidence: f64,
+    },
+
+    /// Synthesize deliberation responses
+    DeliberationSynthesize {
+        /// Session ID
+        #[arg(short, long)]
+        session: String,
+    },
+
+    /// List active deliberation sessions
+    DeliberationList,
 }
 
 fn init_logging(verbose: bool) {
@@ -1195,6 +1284,119 @@ fn main() {
                         Ok(result) => println!("{}", result),
                         Err(e) => {
                             eprintln!("Snapshot failed: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+            }
+        }
+
+        Commands::Ensemble { action } => {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+
+            match action {
+                EnsembleAction::ChatCreate { session } => {
+                    match rt.block_on(commands::ensemble_chat_create(session.clone())) {
+                        Ok(result) => println!("{}", result),
+                        Err(e) => {
+                            eprintln!("Chat create failed: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+                EnsembleAction::ChatRegister { session, bot, role } => {
+                    match rt.block_on(commands::ensemble_chat_register(
+                        session.clone(),
+                        bot.clone(),
+                        role.clone(),
+                    )) {
+                        Ok(result) => println!("{}", result),
+                        Err(e) => {
+                            eprintln!("Chat register failed: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+                EnsembleAction::ChatSend { session, message } => {
+                    match rt.block_on(commands::ensemble_chat_send(
+                        session.clone(),
+                        message.clone(),
+                    )) {
+                        Ok(result) => println!("{}", result),
+                        Err(e) => {
+                            eprintln!("Chat send failed: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+                EnsembleAction::ChatList => match rt.block_on(commands::ensemble_chat_list()) {
+                    Ok(sessions) => {
+                        println!("Active chat sessions:");
+                        for s in sessions {
+                            println!("  - {}", s);
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Chat list failed: {}", e);
+                        std::process::exit(1);
+                    }
+                },
+                EnsembleAction::DeliberationCreate { session } => {
+                    match rt.block_on(commands::ensemble_deliberation_create(session.clone())) {
+                        Ok(result) => println!("{}", result),
+                        Err(e) => {
+                            eprintln!("Deliberation create failed: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+                EnsembleAction::DeliberationStart { session } => {
+                    match rt.block_on(commands::ensemble_deliberation_start(session.clone())) {
+                        Ok(result) => println!("{}", result),
+                        Err(e) => {
+                            eprintln!("Deliberation start failed: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+                EnsembleAction::DeliberationRecord {
+                    session,
+                    agent,
+                    content,
+                    confidence,
+                } => {
+                    match rt.block_on(commands::ensemble_deliberation_record(
+                        session.clone(),
+                        agent.clone(),
+                        content.clone(),
+                        confidence,
+                    )) {
+                        Ok(result) => println!("{}", result),
+                        Err(e) => {
+                            eprintln!("Deliberation record failed: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+                EnsembleAction::DeliberationSynthesize { session } => {
+                    match rt.block_on(commands::ensemble_deliberation_synthesize(session.clone())) {
+                        Ok(result) => println!("Synthesized response:\n{}", result),
+                        Err(e) => {
+                            eprintln!("Deliberation synthesize failed: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+                EnsembleAction::DeliberationList => {
+                    match rt.block_on(commands::ensemble_deliberation_list()) {
+                        Ok(sessions) => {
+                            println!("Active deliberation sessions:");
+                            for s in sessions {
+                                println!("  - {}", s);
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("Deliberation list failed: {}", e);
                             std::process::exit(1);
                         }
                     }
