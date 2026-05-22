@@ -8,21 +8,21 @@
 | Metric | Value |
 |--------|-------|
 | Total Templates/Manifests | 64 |
-| With functional_role | 35 |
-| Missing functional_role | 29 |
-| Compliance Rate | 54% |
+| With functional_role | 37 |
+| Missing functional_role | 27 |
+| Compliance Rate | 57% |
 
 ## Functional Distribution
 
 | Category | Count | Percentage |
 |----------|-------|------------|
-| WordAct | 0 | 0% |
-| FlowDef | 31 | 86% |
-| KnowAct | 4 | 11% |
+| WordAct | 1 | 2% |
+| FlowDef | 31 | 81% |
+| KnowAct | 5 | 13% |
 
 ## Validation Results
 
-❌ 29 templates missing functional_role
+❌ 27 templates missing functional_role
 ⚠️ Distribution skewed
 
 ## Templates Missing functional_role
@@ -52,15 +52,6 @@
 - `/home/mdz-axolotl/Clones/hKask/registry/templates/ensemble/standing_session_administrator_view.j2`
 - `/home/mdz-axolotl/Clones/hKask/registry/templates/ensemble/standing_session_status_report.j2`
 - `/home/mdz-axolotl/Clones/hKask/registry/templates/cns/selectors/alert-selector.j2`
-- `/home/mdz-axolotl/Clones/hKask/registry/templates/kata/kata-switch-check.j2`
-- `/home/mdz-axolotl/Clones/hKask/registry/templates/kata/iteration-comparison.j2`
-- `/home/mdz-axolotl/Clones/hKask/registry/templates/kata/consent-and-select.j2`
-- `/home/mdz-axolotl/Clones/hKask/registry/templates/kata/starter-cycle.j2`
-- `/home/mdz-axolotl/Clones/hKask/registry/templates/kata/outcome-and-habit.j2`
-- `/home/mdz-axolotl/Clones/hKask/registry/templates/kata/improvement-cycle.j2`
-- `/home/mdz-axolotl/Clones/hKask/registry/templates/kata/coaching-cycle.j2`
-- `/home/mdz-axolotl/Clones/hKask/registry/templates/kata/habit-intervention.j2`
-- `/home/mdz-axolotl/Clones/hKask/registry/templates/kata/iteration-check.j2`
 - `/home/mdz-axolotl/Clones/hKask/registry/templates/inference/selectors/model-selector.j2`
 - `/home/mdz-axolotl/Clones/hKask/registry/templates/cognition_calibrate.j2`
 
