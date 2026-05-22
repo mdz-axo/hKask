@@ -58,7 +58,6 @@ pub enum ParticipantRole {
 }
 
 /// Multi-agent chat session
-#[derive(Clone)]
 pub struct EnsembleChat {
     curator_webid: WebID,
     participants: HashMap<WebID, ChatParticipant>,
@@ -102,7 +101,8 @@ impl EnsembleChat {
             }),
         );
 
-        self.participants.insert(participant.webid.clone(), participant.clone());
+        self.participants
+            .insert(participant.webid.clone(), participant.clone());
         debug!("Registered chat participant: {:?}", participant.role);
     }
 
@@ -156,9 +156,7 @@ impl EnsembleChat {
                 "chat_dispatch.outcome",
                 json!({"outcome": "participant_not_found"}),
             );
-            return Err(EnsembleError::ParticipantNotFound(
-                bot_webid.to_string(),
-            ));
+            return Err(EnsembleError::ParticipantNotFound(bot_webid.to_string()));
         }
 
         self.span_emitter.emit_tool(
@@ -216,6 +214,13 @@ impl EnsembleChat {
         self.span_emitter.emit_agent_pod("chat_cleared", json!({}));
         info!("Chat history cleared");
     }
+
+    /// Grant explicit consent for template invocations
+    pub fn grant_consent(&mut self) {
+        self.sovereignty_checker.grant_consent();
+        self.span_emitter
+            .emit_agent_pod("chat_consent_granted", json!({}));
+    }
 }
 
 /// Ensemble chat error types
@@ -236,7 +241,7 @@ pub enum EnsembleError {
 
 /// Ensemble chat manager (handles multiple chat sessions)
 pub struct EnsembleChatManager {
-    chats: Arc<RwLock<HashMap<String, EnsembleChat>>>,
+    chats: Arc<RwLock<HashMap<String, Arc<RwLock<EnsembleChat>>>>>,
     curator_webid: WebID,
 }
 
@@ -250,17 +255,17 @@ impl EnsembleChatManager {
     }
 
     /// Create a new chat session
-    pub async fn create_chat(&self, session_id: &str) -> EnsembleChat {
-        let chat = EnsembleChat::new(self.curator_webid.clone());
+    pub async fn create_chat(&self, session_id: &str) -> Arc<RwLock<EnsembleChat>> {
+        let chat = Arc::new(RwLock::new(EnsembleChat::new(self.curator_webid.clone())));
 
         let mut chats = self.chats.write().await;
-        chats.insert(session_id.to_string(), chat);
+        chats.insert(session_id.to_string(), chat.clone());
 
-        chats.get(session_id).unwrap().clone()
+        chat
     }
 
     /// Get a chat session
-    pub async fn get_chat(&self, session_id: &str) -> Option<EnsembleChat> {
+    pub async fn get_chat(&self, session_id: &str) -> Option<Arc<RwLock<EnsembleChat>>> {
         let chats = self.chats.read().await;
         chats.get(session_id).cloned()
     }
@@ -369,7 +374,9 @@ mod tests {
         let manager = EnsembleChatManager::new(curator.clone());
 
         let chat = manager.create_chat("session1").await;
-        assert_eq!(chat.curator(), &curator);
+        let chat_read = chat.read().await;
+        assert_eq!(chat_read.curator(), &curator);
+        drop(chat_read);
 
         let sessions = manager.list_sessions().await;
         assert_eq!(sessions.len(), 1);
@@ -395,6 +402,9 @@ mod tests {
         let curator = WebID::new();
         let mut chat = EnsembleChat::new(curator.clone());
 
+        // Grant consent for template invocations
+        chat.grant_consent();
+
         let bot_webid = WebID::new();
         chat.register_participant(ChatParticipant {
             webid: bot_webid.clone(),
@@ -414,14 +424,14 @@ mod tests {
         let curator = WebID::new();
         let mut chat = EnsembleChat::new(curator.clone());
 
+        // Grant consent for template invocations
+        chat.grant_consent();
+
         let unknown_bot = WebID::new();
         let result = chat
             .dispatch_to_bot(&unknown_bot, "test_template", json!({}))
             .await;
 
-        assert!(matches!(
-            result,
-            Err(EnsembleError::ParticipantNotFound(_))
-        ));
+        assert!(matches!(result, Err(EnsembleError::ParticipantNotFound(_))));
     }
 }

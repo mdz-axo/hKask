@@ -23,6 +23,7 @@ pub mod resilience;
 pub mod webid_registry;
 
 // Re-export commonly used types
+pub use capability::OkapiOperation;
 pub use chat::{
     ChatMessage, ChatParticipant, EnsembleChat, EnsembleChatManager, EnsembleError, ParticipantRole,
 };
@@ -30,5 +31,4 @@ pub use deliberation::{
     AgentResponse, DeliberationCoordinator, DeliberationRequest, DeliberationResult,
     DeliberationSession, DeliberationStatus,
 };
-pub use capability::OkapiOperation;
 pub use ports::{GenerateOptions, GenerateRequest};

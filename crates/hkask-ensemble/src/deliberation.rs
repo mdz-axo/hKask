@@ -3,7 +3,7 @@
 //! Coordinates deliberation between multiple agents without consensus mechanisms.
 //! Each agent provides independent response; Curator synthesizes.
 
-use crate::chat::{ChatParticipant, ParticipantRole};
+use crate::chat::ChatParticipant;
 use hkask_cns::spans::SpanEmitter;
 use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
@@ -150,7 +150,8 @@ impl DeliberationSession {
             }),
         );
 
-        self.responses.insert(response.agent_webid.clone(), response);
+        self.responses
+            .insert(response.agent_webid.clone(), response);
     }
 
     /// Get all responses
@@ -295,6 +296,7 @@ impl Default for DeliberationCoordinator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ParticipantRole;
 
     #[test]
     fn test_deliberation_session_new() {

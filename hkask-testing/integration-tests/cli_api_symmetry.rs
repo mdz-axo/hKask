@@ -74,8 +74,12 @@ mod tests {
             source_path: "/tmp/action.j2".to_string(),
         };
 
-        registry.register(entry1, None).expect("Failed to register template 1");
-        registry.register(entry2, None).expect("Failed to register template 2");
+        registry
+            .register(entry1, None)
+            .expect("Failed to register template 1");
+        registry
+            .register(entry2, None)
+            .expect("Failed to register template 2");
 
         // CLI search
         let cli_output = Command::cargo_bin("kask")

@@ -43,7 +43,9 @@ async fn test_consent_grant_enables_access() {
     assert!(!manager.has_consent(webid, &DataCategory::EpisodicMemory));
 
     // Grant consent
-    manager.grant_consent(webid, &DataCategory::EpisodicMemory).unwrap();
+    manager
+        .grant_consent(webid, &DataCategory::EpisodicMemory)
+        .unwrap();
 
     // Now has consent
     assert!(manager.has_consent(webid, &DataCategory::EpisodicMemory));
