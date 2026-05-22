@@ -191,6 +191,98 @@ Before claiming completion:
 
 ---
 
+## Documentation Budget Policy
+
+**Line Budget:** ≤10,000 lines Markdown (working documentation only).
+
+### Counting Method
+
+```bash
+# Count all markdown excluding target/
+find . -path ./target -prune -o -type f -name "*.md" -print | xargs wc -l
+```
+
+### What Counts Toward Budget
+
+Working documentation that has not yet been formalized or archived:
+- `docs/research/` — Research notes, analysis, task reports
+- `docs/plans/` — Roadmaps, TODOs, planning documents
+- `docs/status/` — Project status, known issues
+- `docs/gml/` — GML implementation docs (excluding README)
+- `docs/architecture/` — Supporting docs (AGENT_POD_IMPLEMENTATION.md, Curator persona, template-header-standard.md, utoipa-implementation.md, MODEL_CATALOG.md)
+- `docs/standards/` — WRITING_EXCELLENCE.md, WRITING_EXCELLENCE_AUDIT.md
+- `docs/` root — CI-CD-GUIDE.md, P2_DOCUMENTATION_REFRESH.md, OPTIONAL_FOLLOWUPS_COMPLETE.md
+- `monitoring/DEPLOY.md`
+- `assets/LOGO-DESIGN-PRINCIPLES.md`
+- `hkask-testing/docs/SEMANTIC_MAP.md`
+- Root level: `CI-CHANGES.md`, `AGENTS.md`
+
+### What Is Excluded From Budget
+
+Formal, required, or archived documentation:
+- **Master TOGAF Documents** (17 files, ~5,285 lines) — See list below
+- **User Guides** (5 files, ~3,203 lines) — `docs/user-guides/*.md`
+- **README Files** (5 files, ~643 lines) — All `README.md` files
+- **Archive** (~107 files, ~25,366 lines) — `docs/archive/**/*.md`
+- Blank lines and code comments within markdown
+
+### Master TOGAF Documents (Excluded from Budget)
+
+These 17 files constitute the required TOGAF Lite architecture documentation:
+
+| File | Lines | TOGAF Domain |
+|------|-------|--------------|
+| `docs/architecture/hKask-architecture-master.md` | 269 | Architecture Vision |
+| `docs/architecture/business-architecture.md` | 280 | Business Architecture |
+| `docs/architecture/application-architecture.md` | 359 | Application Architecture |
+| `docs/architecture/data-architecture.md` | 356 | Data Architecture |
+| `docs/architecture/TECHNOLOGY.md` | 303 | Technology Architecture |
+| `docs/architecture/security-architecture.md` | 393 | Security Architecture |
+| `docs/architecture/PRINCIPLES.md` | 383 | Architecture Principles |
+| `docs/architecture/hKask-erd.md` | 356 | Architecture ERD |
+| `docs/architecture/magna-carta.md` | 203 | Constitutional Doc |
+| `docs/architecture/hKask-hLexicon.md` | 429 | Functional Logic Reference |
+| `docs/architecture/registry-templating-prompt-v2.md` | 492 | Registry Specification |
+| `docs/architecture/registry-erd.md` | 205 | Registry Data Model |
+| `docs/architecture/ADR-021-security-hardening.md` | 173 | Architecture Decision Record |
+| `docs/standards/GOVERNANCE.md` | 345 | Governance |
+| `docs/standards/DOCUMENTATION_STANDARDS.md` | 353 | Documentation Standards |
+| `docs/standards/DEPENDENCY_POLICY.md` | 251 | Dependency Policy |
+| `docs/TOGAF_LITE_FOR_OPEN_SOURCE.md` | 135 | TOGAF Methodology |
+| **Total** | **5,285** | |
+
+### Rationale
+
+The 10k limit pressures the *documentation* to remain lean and actionable. Working documents must either:
+1. **Mature** → Move to User Guides or Master TOGAF docs (excluded from budget)
+2. **Archive** → Move to `docs/archive/` when superseded or historical (excluded from budget)
+3. **Delete** → Remove when no longer relevant
+
+This prevents documentation drift and ensures the active docs remain current, focused, and useful.
+
+### Current Budget Status
+
+| Component | Lines | Budget | Usage |
+|-----------|-------|--------|-------|
+| **Research** | ~4,597 | ≤10,000 | 46% |
+| **Plans + Status** | ~982 | Included | 10% |
+| **GML** | ~1,118 | Included | 11% |
+| **Architecture (non-TOGAF)** | ~1,056 | Included | 11% |
+| **Standards (non-TOGAF)** | ~440 | Included | 4% |
+| **Other Working Docs** | ~2,284 | Included | 23% |
+| **Total Working** | ~10,477 | ≤10,000 | 105% |
+| **Remaining** | **-477** | — | **Over budget** |
+
+### Budget Compliance Actions
+
+When over budget, prioritize in this order:
+1. **Archive session summaries** — Move `docs/archive/2026-05-22-documentation-refresh/*summary.md` files deeper into archive subfolders if needed
+2. **Consolidate research** — Merge related research documents into single comprehensive reports
+3. **Promote to formal** — Move mature content to User Guides or Master TOGAF docs
+4. **Delete obsolete** — Remove TODOs, completed plans, or superseded analysis
+
+---
+
 ## Starting Point
 
 1. Read `docs/architecture/hKask-architecture-master.md` (sole authoritative spec, v0.21.0)

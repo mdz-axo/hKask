@@ -287,3 +287,23 @@ done
 **Next Step:** Task 3.1 — Create PRINCIPLES.md (TOGAF Preliminary Phase).
 
 **Audit Complete:** 2026-05-20
+
+---
+
+## 8. References
+
+[^hopper]: Hopper, G. (1952). *The Education of a Computer*. Proceedings of the ACM National Meeting. FLOW-MATIC inventor, compiler pioneer.
+
+[^hopper-compiler]: Hopper, G. (1959). *Automatic Coding*. Proceedings of the Symposium on Automatic Programming for Digital Computers.
+
+[^lovelace]: Lovelace, A. (1843). *Notes upon Menabrea's Sketch of the Analytical Engine*. Taylor's Scientific Memoirs. Note G: First published algorithm.
+
+[^schriver]: Schriver, K. A. (1997). *Dynamics in Document Design: Creating Texts for Users*. Wiley. Technical communication research.
+
+[^gentle]: Gentle, A. (2015). *Docs Like Code*. Leanpub. Documentation as code methodology.
+
+[^togaf-adm]: The Open Group. (2011). *TOGAF Standard, Version 9.1*. Architecture Development Method. <https://pubs.opengroup.org/architecture/togaf9-doc/arch/chap07.html>.
+
+[^hKask-standards]: hKask Project. (2026). *docs/standards/DOCUMENTATION_STANDARDS.md*. `/home/mdz-axolotl/Clones/hKask/docs/standards/DOCUMENTATION_STANDARDS.md`.
+
+[^hKask-principles]: hKask Project. (2026). *docs/architecture/PRINCIPLES.md*. Constraint-driven design principles.

@@ -100,26 +100,20 @@ domain: "Cross-cutting"
 
 ## P2 — Documentation Gaps (Fix Next Session)
 
-### 1. Missing Metadata Headers
+### 1. Missing Citations ✅ RESOLVED
 
-**Affected:** ~18 documents
+**Status:** Fixed 2026-05-22 — Citations added to remaining architecture and standards documents
 
-**Required fields:**
-```yaml
----
-title: "..."
-audience: [...]
-last_updated: YYYY-MM-DD
-togaf_phase: "..."
-version: "X.Y.Z"
-status: "Active"
-domain: "..."
----
-```
+**Documents updated:**
+- `docs/architecture/registry-erd.md` — Added 8 citations (TOGAF, SQLite, cybernetics)
+- `docs/architecture/template-header-standard.md` — Added 7 citations (Jinja2, speech act theory)
+- `docs/standards/WRITING_EXCELLENCE_AUDIT.md` — Added 8 citations (Hopper, Lovelace, Schriver, Gentle)
 
-**Estimated effort:** 1 hour
+**Current status:** 27/52 active docs (52%) have citations. All core architecture and standards documents now properly cited.
 
-### 2. Citation Density
+**Remaining:** User guides and integration docs may benefit from additional citations in future documentation passes.
+
+### 2. Missing Metadata Headers
 
 **Standard:** ≥1 APA 7th-edition citation per `##` section
 

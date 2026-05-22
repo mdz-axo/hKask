@@ -202,4 +202,22 @@ Schema: ~150 lines SQL
 Documentation: ~200 lines markdown
 Total: ~350 lines
 
+## References
+
+[^togaf-data]: The Open Group. (2011). *TOGAF Standard, Version 9.1*. Phase C: Data Architecture. <https://pubs.opengroup.org/architecture/togaf9-doc/arch/chap14.html>.
+
+[^sqlite]: SQLite Project. (2026). *SQLite Documentation*. <https://www.sqlite.org/docs.html>.
+
+[^rusqlite]: rusqlite Contributors. (2026). *rusqlite: Rust wrapper for SQLite*. <https://crates.io/crates/rusqlite>.
+
+[^hKask-storage]: hKask Project. (2026). *crates/hkask-storage/src/lib.rs*. SQLite storage implementation with SQLCipher encryption.
+
+[^beer-vsm]: Beer, S. (1972). *Brain of the Firm*. Penguin Books. Viable System Model, algedonic alerts.
+
+[^ashby-law]: Ashby, W. R. (1956). *An Introduction to Cybernetics*. Chapman & Hall. Law of Requisite Variety.
+
+[^cns]: hKask Project. (2026). *crates/hkask-cns/src/variety.rs*. CNS variety counter implementation.
+
+---
+
 *BaNANa.*

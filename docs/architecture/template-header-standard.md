@@ -100,3 +100,21 @@ standard:
     
     compliance_target: 100%
     current_compliance: 43%  # After Kata templates updated: ~50%
+
+---
+
+## References
+
+[^jinja2]: Ronacher, A. (2026). *Jinja2 Documentation*. <https://jinja.palletsprojects.com/>.
+
+[^minijinja]: Mitsuhiko. (2026). *minijinja: Jinja2-compatible template engine for Rust*. <https://github.com/mitsuhiko/minijinja>.
+
+[^hKask-hLexicon]: hKask Project. (2026). *hKask-hLexicon.md*. `/home/mdz-axolotl/Clones/hKask/docs/architecture/hKask-hLexicon.md`. Functional role definitions.
+
+[^hKask-templates]: hKask Project. (2026). *crates/hkask-templates/src/registry_sqlite.rs*. Template registry implementation.
+
+[^austin]: Austin, J. L. (1962). *How to Do Things with Words*. Harvard University Press. Speech act theory (WordAct, KnowAct foundations).
+
+[^searle]: Searle, J. R. (1969). *Speech Acts: An Essay in the Philosophy of Language*. Cambridge University Press.
+
+[^van-der-aalst]: van der Aalst, W. M. P. (2016). *Process Mining: Data Science in Action*. Springer. FlowDef process patterns.
