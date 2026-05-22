@@ -17,7 +17,7 @@ domain: "Cross-cutting"
 
 **Purpose:** Foundational principles governing hKask architecture, derived from cybernetic first principles and constraint-driven design.
 
-**Related:** [`AGENTS.md`](../../AGENTS.md), [`hKask-architecture-master.md`](architecture/hKask-architecture-master.md)  
+**Related:** [`AGENTS.md`](../../AGENTS.md), [`hKask-architecture-master.md`](hKask-architecture-master.md)  
 **Verification:** `cargo check --workspace`
 
 ---
@@ -62,7 +62,7 @@ status: VERIFIED
 **Principle:** Every agent (bot or replicant) is a sovereign entity with WebID, UCAN capabilities, and ACP communication.[^webid][^ucan][^acp]
 
 **Implementation:**
-- Bot/Replicant taxonomy in [`hkask-agents`](../../crates/hkask-agents)
+- Bot/Replicant taxonomy in `hkask-agents` crate
 - Agent pods with isolated execution
 - A2A (machine-to-machine) and H2A (human-to-agent) interaction modes
 

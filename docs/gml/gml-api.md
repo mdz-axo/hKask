@@ -614,9 +614,7 @@ pub const CNS_ALGEDONIC_VARIETY: &str = "cns.algedonic.variety_deficit";
 
 ## See Also
 
-- [User Guide](./gml-user-guide.md)
 - [Architecture](./gml-architecture.md)
-- [Research Agenda](./gml-research-agenda.md)
 
 ---
 

@@ -6,10 +6,8 @@
 
 ## Quick Start
 
-1. **New to GML?** Start with the [User Guide](./gml-user-guide.md) — introduces the Five Questions method
-2. **Implementing GML?** See the [Architecture](./gml-architecture.md) — crate structure, types, algebra
-3. **Using the API?** Check the [API Reference](./gml-api.md) — function signatures, examples
-4. **Contributing research?** Review the [Research Agenda](./gml-research-agenda.md) — open questions
+1. **Implementing GML?** See the [Architecture](./gml-architecture.md) — crate structure, types, algebra
+2. **Using the API?** Check the [API Reference](./gml-api.md) — function signatures, examples
 
 ---
 
@@ -17,10 +15,8 @@
 
 | Document | Purpose | Audience |
 |----------|---------|----------|
-| [gml-user-guide.md](./gml-user-guide.md) | How to use GML for conceptual analysis | End users, analysts |
 | [gml-architecture.md](./gml-architecture.md) | System design and implementation | Developers, architects |
 | [gml-api.md](./gml-api.md) | API reference and SQL schema | Developers integrating GML |
-| [gml-research-agenda.md](./gml-research-agenda.md) | Open questions and research directions | Researchers, contributors |
 
 ---
 
@@ -55,7 +51,7 @@ R̄ = (1 + α)ⁿ / ((1 + α)ⁿ + L·(1 + cα)ⁿ)
 
 - [hKask Architecture](../architecture/hKask-architecture-master.md) — overall system design
 - [AGENTS.md](../../AGENTS.md) — project operating guide
-- [CNS Documentation](../architecture/) — monitoring and alerts
+- [CNS Documentation](../architecture/PRINCIPLES.md) — monitoring and alerts
 
 ---
 

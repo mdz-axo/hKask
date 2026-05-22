@@ -490,9 +490,7 @@ Target: ≤2,000 lines Rust production code (excluding templates and tests)
 
 ## See Also
 
-- [User Guide](./gml-user-guide.md)
 - [API Reference](./gml-api.md)
-- [Research Agenda](./gml-research-agenda.md)
 
 ---
 

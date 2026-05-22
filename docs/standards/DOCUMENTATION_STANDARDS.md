@@ -29,7 +29,7 @@ non-negotiable biases of this project:
    Lovelace, Schriver, Gentle).
 4. **Stewardship Mandate** — documents that introduce, describe, or
    modify a context of participant collaboration honour the
-   stewardship principles in [`PRINCIPLES.md`](PRINCIPLES.md) §4.
+   stewardship principles in [`PRINCIPLES.md`](../architecture/PRINCIPLES.md) §4.
     Specifically: declare the shared goal of the context (PS-01),
     document the bounded lexicon of its domain (PS-02), name the mode
     of play it supports (PS-03), and prefer invitational over
@@ -210,7 +210,7 @@ Unacceptable:
 
 ### 5.3 Enforcement
 
-The Portal README ([`../README.md`](../README.md)) lists the minimum
+The Portal README ([`../../README.md`](../../README.md)) lists the minimum
 citation density per directory. Reviewers check by running
 `grep -c '\[\^' <document>.md` and confirming ≥ 1 citation per `##`-level
 section.
@@ -275,8 +275,9 @@ or point to git history (`git log --diff-filter=D -- <path>`).
 
 ```markdown
 [Docs Like Code](https://www.docslikecode.com/)
-[REQUIREMENTS.md](../specifications/REQUIREMENTS.md)
-[stack-domain-types](../../stack/crates/stack-domain-types/src/lib.rs)
+<!-- Example relative links (update for your repository structure) -->
+<!-- [REQUIREMENTS.md](../specifications/REQUIREMENTS.md) -->
+<!-- [stack-domain-types](../../crates/hkask-types/src/lib.rs) -->
 ```
 
 (Example paths above resolve against the `docs/standards/` directory. External

@@ -207,9 +207,9 @@ find mcp-servers -name "*.rs" -type f | xargs wc -l
 ## 8. References
 
 - [`AGENTS.md`](../../AGENTS.md) — Agent operating guide
-- [`DOCUMENTATION_STANDARDS.md`](docs/standards/DOCUMENTATION_STANDARDS.md) — Documentation standards
-- [`TOGAF_LITE_FOR_OPEN_SOURCE.md`](docs/TOGAF_LITE_FOR_OPEN_SOURCE.md) — TOGAF-Lite scaffold
-- [`hKask-architecture-master.md`](docs/architecture/hKask-architecture-master.md) — Master specification
+- [`DOCUMENTATION_STANDARDS.md`](../standards/DOCUMENTATION_STANDARDS.md) — Documentation standards
+- [`TOGAF_LITE_FOR_OPEN_SOURCE.md`](../TOGAF_LITE_FOR_OPEN_SOURCE.md) — TOGAF-Lite scaffold
+- [`hKask-architecture-master.md`](../architecture/hKask-architecture-master.md) — Master specification
 
 ---
 

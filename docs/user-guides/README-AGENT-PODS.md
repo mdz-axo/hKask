@@ -224,8 +224,6 @@ templates/
 ## Additional Resources
 
 ### Related Documentation
-- [CLI/API Symmetry Audit](../architecture/cli-api-symmetry-audit.md)
-- [Bot System Setup](../architecture/BOT_SYSTEM_SETUP.md)
 - [hKask Curator Persona](../architecture/hKask-Curator-persona.md)
 
 ### External References

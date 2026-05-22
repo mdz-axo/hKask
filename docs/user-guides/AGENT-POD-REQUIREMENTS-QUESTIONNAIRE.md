@@ -624,8 +624,8 @@ After completing this questionnaire:
 
 For assistance, refer to:
 - [Agent Pod Creation Guide](./AGENT-POD-CREATION-GUIDE.md)
-- [hKask Architecture Documentation](../architecture/)
-- [ACP Protocol Specification](../architecture/acp-protocol.md)
+- [hKask Architecture Documentation](../architecture/hKask-architecture-master.md)
+- [Agent Pod Implementation](../architecture/AGENT_POD_IMPLEMENTATION.md)
 
 ---
 

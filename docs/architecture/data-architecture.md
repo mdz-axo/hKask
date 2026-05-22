@@ -17,7 +17,7 @@ domain: "Data"
 
 **Purpose:** Bitemporal triple schema, embedding vector storage, ν-event audit trail, and SQLCipher encryption model.
 
-**Related:** [`hKask-erd.md`](hKask-erd.md), [`hkask-storage`](../../crates/hkask-storage)  
+**Related:** [`hKask-erd.md`](hKask-erd.md), `hkask-storage` crate  
 **TOGAF Phase:** C — Data Architecture[^togaf-data]
 
 ---

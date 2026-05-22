@@ -17,7 +17,7 @@ domain: "Business"
 
 **Purpose:** Phase 1-4 implementation timeline, deferred work categorization, and v1.1+ feature candidates.
 
-**Related:** [`future_work_resolved.md`](future_work_resolved.md), [`registry-deferred-work.md`](registry-deferred-work.md)  
+**Related:** Future work tracked in project backlog  
 **TOGAF Phase:** E — Opportunities & Solutions[^togaf-e]
 
 ---
@@ -76,7 +76,7 @@ hKask development follows a phased approach prioritizing minimal viable function
 | **Hot-Reload via Git** | Auto-reload on `kask bot manifest push` | Low | v1.0: explicit `kask template reload` |
 | **Cross-Registry Declaration** | Explicit `allowed_callee_types` in templates | Low | v1.0: free composition |
 
-**Reference:** [`registry-deferred-work.md`](registry-deferred-work.md)
+**Reference:** Deferred work tracked in project backlog
 
 ### 3.2 Security Model Deferred
 
@@ -86,7 +86,7 @@ hKask development follows a phased approach prioritizing minimal viable function
 | **Security Adapter Configuration** | Per-deployment policies via YAML | Medium | v1.0: hardcoded patterns adequate |
 | **Jinja2 Sandboxing** | minijinja sandbox features | Low | v1.0: pattern blocking sufficient |
 
-**Reference:** [`security-architecture.md`](security-architecture.md) §7
+**Reference:** [`../architecture/security-architecture.md`](../architecture/security-architecture.md) §7
 
 ### 3.3 CNS Operational Deferred
 
@@ -110,7 +110,7 @@ hKask development follows a phased approach prioritizing minimal viable function
 | Template hot-reload | Explicit signal (MVP), Git-driven (production) | ✅ Implemented |
 | Bootstrap loading order | Convention (MVP), Git CAS (production) | ✅ Implemented |
 
-**Reference:** [`future_work_resolved.md`](future_work_resolved.md)
+**Reference:** Resolved items archived in `docs/archive/`
 
 ---
 

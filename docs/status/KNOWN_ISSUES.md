@@ -17,7 +17,7 @@ domain: "Cross-cutting"
 
 **Purpose:** Track build failures, code quality issues, and documentation gaps identified during 2026-05-22 documentation refresh.
 
-**Related:** [`PROJECT_STATUS.md`](status/PROJECT_STATUS.md), [`TODO.md`](plans/TODO.md)
+**Related:** [`PROJECT_STATUS.md`](PROJECT_STATUS.md), [`../plans/TODO.md`](../plans/TODO.md)
 
 ---
 

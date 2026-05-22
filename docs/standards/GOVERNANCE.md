@@ -17,7 +17,7 @@ domain: "Technology"
 
 **Purpose:** Implementation governance, CNS monitoring, publication quality gates, and change management procedures.
 
-**Related:** [`PRINCIPLES.md`](PRINCIPLES.md), [`DOCUMENTATION_STANDARDS.md`](../standards/DOCUMENTATION_STANDARDS.md)  
+**Related:** [`PRINCIPLES.md`](../architecture/PRINCIPLES.md), [`DOCUMENTATION_STANDARDS.md`](DOCUMENTATION_STANDARDS.md)  
 **TOGAF Phase:** G — Implementation Governance, H — Change Management[^togaf-gh]
 
 ---
@@ -340,6 +340,6 @@ What is the change that we're proposing and/or doing?
 
 ---
 
-*This document governs implementation and change management. For migration strategy, see [`migration/strategy.md`](migration/strategy.md).*
+*This document governs implementation and change management. Migration procedures are handled via Git-based change management per [CI-CD-GUIDE.md](../CI-CD-GUIDE.md).*
 
 **Governance Complete:** 2026-05-20

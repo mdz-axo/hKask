@@ -1263,10 +1263,10 @@ After creating your agent pod:
 5. **Coordinate with other bots**: Establish A2A communication channels
 
 For advanced topics, see:
-- [ACP Protocol Specification](../architecture/acp-protocol.md)
-- [OCAP Security Model](../architecture/ocap-security.md)
-- [CNS Span Taxonomy](../architecture/cns-spans.md)
-- [Template Rendering Guide](../architecture/template-rendering.md)
+- [Agent Pod Implementation](../architecture/AGENT_POD_IMPLEMENTATION.md)
+- [Security Architecture](../architecture/security-architecture.md)
+- [CNS Observers](../architecture/PRINCIPLES.md)
+- [Template Header Standard](../architecture/template-header-standard.md)
 
 ---
 
