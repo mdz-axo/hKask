@@ -103,5 +103,9 @@ name = "cns_ensemble_tests"
 path = "integration-tests/cns_ensemble_tests.rs"
 
 [[test]]
+name = "sovereignty_tests"
+path = "integration-tests/sovereignty_tests.rs"
+
+[[test]]
 name = "templates_agents_tests"
 path = "integration-tests/templates_agents_tests.rs"

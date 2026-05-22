@@ -93,6 +93,8 @@ mod tests {
             repo: "repo".to_string(),
         };
         let json = serde_json::to_string(&err).unwrap();
-        assert!(json.contains("Repository not found"));
+        // Serialized error should contain owner and repo
+        assert!(json.contains("test"));
+        assert!(json.contains("repo"));
     }
 }

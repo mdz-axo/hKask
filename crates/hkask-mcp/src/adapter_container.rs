@@ -95,7 +95,7 @@ mod tests {
         let result = container.configure_git_cas(temp_path.clone());
         assert!(result.is_ok());
         assert!(container.has_git_cas());
-        assert_eq!(container.get_base_path(), Some(temp_path));
+        assert_eq!(container.get_base_path(), Some(temp_path.clone()));
 
         std::fs::remove_dir_all(&temp_path).ok();
     }

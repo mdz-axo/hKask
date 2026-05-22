@@ -239,6 +239,17 @@ Before claiming completion:
 
 ---
 
+## Documentation
+
+| Topic | Location |
+|-------|----------|
+| GML (Allosteric Thinking) | `docs/gml/README.md` |
+| Architecture | `docs/architecture/` |
+| CI/CD | `docs/CI-CD-GUIDE.md` |
+| Okapi Integration | `docs/P0_OKAPI_INTEGRATION_PLAN.md` |
+
+---
+
 *ℏKask — Planck's Constant of Agent Systems — v0.21.0*
 *As simple as possible, but no simpler.*
 *Rust is the loom. YAML/Jinja2 is the thread.*

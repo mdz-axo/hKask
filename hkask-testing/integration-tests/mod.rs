@@ -1,8 +1,9 @@
-//! Integration tests for hKask template loading and rendering
+//! Integration tests for hKask
 
-/// Mock integration test
-#[test]
-fn test_mock_integration() {
-    // Stub - integration tests are in individual crates
-    assert!(true);
-}
+pub mod chaos_integration;
+pub mod cli_api_symmetry;
+pub mod cli_tests;
+pub mod cns_ensemble_tests;
+pub mod sovereignty_tests;
+pub mod template_tests;
+pub mod templates_agents_tests;

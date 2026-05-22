@@ -6,8 +6,8 @@
 //! - Audit consent history
 //! - Check consent status
 
-use hkask_types::{DataCategory, WebID};
 use hkask_storage::SovereigntyBoundaryStore;
+use hkask_types::{DataCategory, WebID};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::sync::{Arc, RwLock};
@@ -90,9 +90,7 @@ impl ConsentManager {
         })?;
 
         // Find or create consent record
-        let record = cache
-            .iter_mut()
-            .find(|r| r.webid == webid);
+        let record = cache.iter_mut().find(|r| r.webid == webid);
 
         if let Some(record) = record {
             record.grant(category.as_str());
@@ -102,7 +100,11 @@ impl ConsentManager {
             cache.push(new_record);
         }
 
-        debug!("Granted consent for WebID: {} category: {}", webid, category.as_str());
+        debug!(
+            "Granted consent for WebID: {} category: {}",
+            webid,
+            category.as_str()
+        );
         Ok(())
     }
 
@@ -123,7 +125,10 @@ impl ConsentManager {
 
     /// Check if consent is granted for a data category
     pub fn has_consent(&self, webid: &str, category: &DataCategory) -> bool {
-        let cache = self.consent_cache.read().expect("Consent cache lock poisoned");
+        let cache = self
+            .consent_cache
+            .read()
+            .expect("Consent cache lock poisoned");
 
         cache
             .iter()
@@ -134,7 +139,10 @@ impl ConsentManager {
 
     /// Get all granted categories for a WebID
     pub fn get_granted_categories(&self, webid: &str) -> HashSet<String> {
-        let cache = self.consent_cache.read().expect("Consent cache lock poisoned");
+        let cache = self
+            .consent_cache
+            .read()
+            .expect("Consent cache lock poisoned");
 
         cache
             .iter()
@@ -145,7 +153,10 @@ impl ConsentManager {
 
     /// Check if any consent is active for a WebID
     pub fn has_any_consent(&self, webid: &str) -> bool {
-        let cache = self.consent_cache.read().expect("Consent cache lock poisoned");
+        let cache = self
+            .consent_cache
+            .read()
+            .expect("Consent cache lock poisoned");
 
         cache
             .iter()
@@ -156,7 +167,10 @@ impl ConsentManager {
 
     /// Clear all consent records
     pub fn clear(&self) {
-        let mut cache = self.consent_cache.write().expect("Consent cache lock poisoned");
+        let mut cache = self
+            .consent_cache
+            .write()
+            .expect("Consent cache lock poisoned");
         cache.clear();
         info!("Cleared all consent records");
     }
@@ -192,8 +206,12 @@ mod tests {
         let manager = ConsentManager::new(store);
         let webid = "did:web:test.example.com:user2";
 
-        manager.grant_consent(webid, &DataCategory::EpisodicMemory).unwrap();
-        manager.grant_consent(webid, &DataCategory::SemanticMemory).unwrap();
+        manager
+            .grant_consent(webid, &DataCategory::EpisodicMemory)
+            .unwrap();
+        manager
+            .grant_consent(webid, &DataCategory::SemanticMemory)
+            .unwrap();
 
         assert!(manager.has_consent(webid, &DataCategory::EpisodicMemory));
         assert!(manager.has_consent(webid, &DataCategory::SemanticMemory));
@@ -209,7 +227,9 @@ mod tests {
         let manager = ConsentManager::new(store);
         let webid = "did:web:test.example.com:user3";
 
-        manager.grant_consent(webid, &DataCategory::EpisodicMemory).unwrap();
+        manager
+            .grant_consent(webid, &DataCategory::EpisodicMemory)
+            .unwrap();
         assert!(manager.has_consent(webid, &DataCategory::EpisodicMemory));
 
         manager.clear();
