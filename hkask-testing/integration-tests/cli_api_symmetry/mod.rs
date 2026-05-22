@@ -13,7 +13,7 @@ mod tests {
     #[test]
     fn test_template_list_cli_registry_symmetry() {
         // Create in-memory registry
-        let registry = SqliteRegistry::new(None).expect("Failed to create registry");
+        let mut registry = SqliteRegistry::new(None).expect("Failed to create registry");
 
         // Register a test template
         let entry = hkask_templates::RegistryEntry {
@@ -55,7 +55,7 @@ mod tests {
     #[test]
     fn test_template_search_cli_registry_symmetry() {
         // Create in-memory registry
-        let registry = SqliteRegistry::new(None).expect("Failed to create registry");
+        let mut registry = SqliteRegistry::new(None).expect("Failed to create registry");
 
         // Register test templates
         let entry1 = hkask_templates::RegistryEntry {

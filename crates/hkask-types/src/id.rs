@@ -134,3 +134,25 @@ impl std::fmt::Display for EventID {
         write!(f, "{}", self.0)
     }
 }
+
+/// SessionID — Unique identifier for agent sessions
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct SessionID(pub Uuid);
+
+impl SessionID {
+    pub fn new() -> Self {
+        Self(Uuid::new_v4())
+    }
+}
+
+impl Default for SessionID {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl std::fmt::Display for SessionID {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}

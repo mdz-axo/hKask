@@ -62,6 +62,9 @@
 | **C-04** | Create PROJECT_STATUS.md | 2026-05-22 | `docs/status/PROJECT_STATUS.md` |
 | **C-05** | Create TECHNOLOGY.md | 2026-05-22 | `docs/architecture/TECHNOLOGY.md` |
 | **C-06** | Delete duplicate files (3) | 2026-05-22 | `git rm` |
+| **C-07** | Fix hkask-testing compilation failures | 2026-05-22 | All 331 tests passing |
+| **C-08** | Resolve clippy warnings | 2026-05-22 | `cargo clippy -- -D warnings` passes |
+| **C-09** | Fix cargo fmt issues | 2026-05-22 | `cargo fmt --check` passes |
 
 ---
 

@@ -2,7 +2,7 @@
 
 **Version:** 0.21.0  
 **Last-Updated:** 2026-05-22  
-**Status:** Pre-alpha MVP in progress — Phase 4 (Templates) complete  
+**Status:** Pre-alpha MVP in progress — Phase 5 (Testing Infrastructure) complete  
 **TOGAF Phase:** C — Application  
 
 ---
@@ -22,9 +22,9 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-na
 
 | Metric | Value | Budget | Status |
 |--------|-------|--------|--------|
-| **Core LOC (Rust)** | ~6,400 | ≤30,000 | 21% used |
-| **MCP Server LOC** | ~3,000 | Excluded | — |
-| **Test LOC** | ~2,600 | Excluded | — |
+| **Core LOC (Rust)** | ~25,516 | ≤30,000 | 85% used |
+| **MCP Server LOC** | ~3,019 | Excluded | — |
+| **Test LOC** | Excluded | Excluded | — |
 | **Total Crates** | 31 | — | 11 core + 19 MCP + 1 test |
 
 ### 2.2 Test Metrics
@@ -32,17 +32,17 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-na
 | Workspace | Tests | Status |
 |-----------|-------|--------|
 | **Core** | 237 passing | ✅ |
-| **MCP Servers** | 11 passing | ✅ |
-| **Test Crate** | 6 passing | ✅ |
-| **Total** | 254 passing | ✅ |
+| **MCP Servers** | 17 passing | ✅ |
+| **Test Crate** | 77 passing | ✅ |
+| **Total** | 331 passing | ✅ |
 
 ### 2.3 Build Status
 
 | Command | Status | Warnings |
 |---------|--------|----------|
-| `cargo check --workspace` | ✅ Pass | Minor unused function warnings |
-| `cargo test --workspace` | ✅ Pass | 254 tests passing |
-| `cargo clippy --workspace -- -D warnings` | ⚠️ Fix needed | Dead code warnings in CLI |
+| `cargo check --workspace` | ✅ Pass | None |
+| `cargo test --workspace` | ✅ Pass | 331 tests passing |
+| `cargo clippy --workspace -- -D warnings` | ✅ Pass | None |
 | `cargo fmt --check` | ✅ Pass | — |
 
 ---

@@ -10,6 +10,7 @@ pub enum TemplateType {
     Prompt,
     Process,
     Cognition,
+    Goal,
 }
 
 impl TemplateType {
@@ -18,6 +19,7 @@ impl TemplateType {
             TemplateType::Prompt => "Prompt",
             TemplateType::Process => "Process",
             TemplateType::Cognition => "Cognition",
+            TemplateType::Goal => "Goal",
         }
     }
 
@@ -26,6 +28,7 @@ impl TemplateType {
             "Prompt" | "prompt" => Some(TemplateType::Prompt),
             "Process" | "process" => Some(TemplateType::Process),
             "Cognition" | "cognition" => Some(TemplateType::Cognition),
+            "Goal" | "goal" => Some(TemplateType::Goal),
             _ => None,
         }
     }

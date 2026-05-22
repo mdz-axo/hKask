@@ -2,10 +2,10 @@
 //!
 //! Tests for hkask-cns composition observer
 
+use hkask_cns::algedonic::AlertSeverity;
 use hkask_cns::observers::composition::{
     CompositionMetrics, CompositionObserver, CompositionObserverState, VarietyCounter,
 };
-use hkask_cns::variety::AlertSeverity;
 use hkask_types::WebID;
 
 #[test]
