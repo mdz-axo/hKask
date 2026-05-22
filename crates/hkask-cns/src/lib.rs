@@ -9,7 +9,6 @@
 //! - `cns.tool.*` — Tool governance and invocation
 //! - `cns.prompt.*` — Prompt feedback loop (render, validate, outcome)
 //! - `cns.agent_pod.*` — Agent lifecycle (populate, register, activate, delegate)
-//! - `cns.goal.*` — Goal primitive (create, verify, complete, delegate, block)
 //!
 //! **Algedonic Alert:** Variety deficit >100 → escalate to Curator/human
 

@@ -14,7 +14,7 @@ cascade:
   core:
     - ordinal: 2
       template:
-        type: Goal
+        type: Cognition
         lexicon_terms: [evaluate, assert, ground]
         template_ref: registry/templates/goal_judge.j2
       description: "Judge goal completion via LLM"

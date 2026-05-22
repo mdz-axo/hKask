@@ -169,14 +169,7 @@ Before editing:
 
 **Rationale:** The 30k limit pressures the *system* to be minimal, not the *verification*. Rust is the "steel frame" of the building — templates and manifests are the interior walls.
 
-### Current Budget Status
-
-| Component | LOC (non-blank, non-comment) | Budget | Usage |
-|-----------|------------------------------|--------|-------|
-| **Core Crates** | ~19,800 | ≤30,000 | 66% |
-| **MCP Servers** | ~2,600 | Included | 9% |
-| **Total Rust** | ~22,400 | ≤30,000 | 75% |
-| **Remaining** | ~7,600 | — | 25% |
+**Status:** Run the LOC count command to verify current budget compliance.
 
 ---
 
@@ -260,26 +253,15 @@ The 10k limit pressures the *documentation* to remain lean and actionable. Worki
 
 This prevents documentation drift and ensures the active docs remain current, focused, and useful.
 
-### Current Budget Status
-
-| Component | Lines | Budget | Usage |
-|-----------|-------|--------|-------|
-| **Research** | ~4,597 | ≤10,000 | 46% |
-| **Plans + Status** | ~982 | Included | 10% |
-| **GML** | ~1,118 | Included | 11% |
-| **Architecture (non-TOGAF)** | ~1,056 | Included | 11% |
-| **Standards (non-TOGAF)** | ~440 | Included | 4% |
-| **Other Working Docs** | ~2,284 | Included | 23% |
-| **Total Working** | ~10,477 | ≤10,000 | 105% |
-| **Remaining** | **-477** | — | **Over budget** |
-
 ### Budget Compliance Actions
 
 When over budget, prioritize in this order:
-1. **Archive session summaries** — Move `docs/archive/2026-05-22-documentation-refresh/*summary.md` files deeper into archive subfolders if needed
+1. **Archive session summaries** — Move completed session reports into `docs/archive/` subfolders
 2. **Consolidate research** — Merge related research documents into single comprehensive reports
 3. **Promote to formal** — Move mature content to User Guides or Master TOGAF docs
 4. **Delete obsolete** — Remove TODOs, completed plans, or superseded analysis
+
+**Status:** Run the documentation count command to verify current budget compliance.
 
 ---
 

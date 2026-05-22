@@ -138,8 +138,6 @@ pub enum CnsSpan {
     KillZone,
     /// User sovereignty, acquisition resistance (cns.sovereignty.*)
     Sovereignty,
-    /// Goal primitive (cns.goal.*)
-    Goal,
 }
 
 impl CnsSpan {
@@ -155,7 +153,6 @@ impl CnsSpan {
             CnsSpan::Variety => "cns.variety".to_string(),
             CnsSpan::KillZone => "cns.killzone".to_string(),
             CnsSpan::Sovereignty => "cns.sovereignty".to_string(),
-            CnsSpan::Goal => "cns.goal".to_string(),
         }
     }
 }
