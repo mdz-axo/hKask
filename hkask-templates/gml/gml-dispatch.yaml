@@ -1,0 +1,158 @@
+# GML Allosteric Reasoning Cascade
+
+**Type:** FlowDef  
+**Version:** 0.1.0
+
+---
+
+## Process Definition
+
+```yaml
+process:
+  name: "allosteric-reframing"
+  type: FlowDef
+  description: "Apply GML to shift conceptual interpretation under contextual pressure"
+  
+  inputs:
+    - name: target_concept
+      type: Concept
+      description: "The concept to analyze allosterically"
+      required: true
+      schema: "gml/schema.json"
+    - name: contextual_effectors
+      type: List[Effector]
+      description: "Contextual ligands that bind and shift interpretation"
+      required: true
+    - name: mwc_parameters
+      type: MwcParameters
+      description: "MWC parameters (L, c, n, α) for the concept"
+      required: false
+    - name: network_context
+      type: Optional[Network]
+      description: "Surrounding concept network for coherence assessment"
+      required: false
+    - name: capability
+      type: Capability
+      description: "OCAP capability token for authorization"
+      required: false
+  
+  steps:
+    - id: recognize
+      action: template.render
+      template: gml/recognize-ensemble.j2
+      input:
+        concept: $.target_concept
+        parameters: $.mwc_parameters
+      output: concept_analysis
+      cns_span: "cns.gml.recognize"
+      
+    - id: bind
+      action: template.render
+      template: gml/bind-effector.j2
+      input:
+        concept: $.concept_analysis
+        effectors: $.contextual_effectors
+      output: shifted_concept
+      cns_span: "cns.gml.bind"
+      
+    - id: equilibrate
+      action: template.render
+      template: gml/compute-equilibrium.j2
+      input:
+        before: $.concept_analysis
+        after: $.shifted_concept
+      output: equilibrium_shift
+      cns_span: "cns.gml.equilibrate"
+      
+    - id: assess
+      action: template.render
+      template: gml/assess-coherence.j2
+      input:
+        shift: $.equilibrium_shift
+        network: $.network_context
+      output: coherence_analysis
+      cns_span: "cns.gml.assess"
+      
+    - id: reframe
+      action: template.render
+      template: gml/reframe-concept.j2
+      input:
+        coherence_analysis: $.coherence_analysis
+        shift: $.equilibrium_shift
+      output: reframed_concept
+      cns_span: "cns.gml.reframe"
+      
+  outputs:
+    - name: coherence_analysis
+      type: CoherenceReport
+      description: "Assessment of network coherence after effector binding"
+    - name: equilibrium_shift
+      type: EquilibriumShift
+      description: "Quantitative shift in R̄ and Hill coefficient"
+    - name: reframed_concept
+      type: Concept
+      description: "Concept with alternative interpretation frames"
+```
+
+---
+
+## Template Inventory
+
+| Template | Purpose | KnowAct Operations |
+|----------|---------|-------------------|
+| `gml/recognize-ensemble.j2` | Parse concept into states and ports | recognize, discriminate, parse |
+| `gml/bind-effector.j2` | Apply effector, infer state-shift | analogy, infer, bind |
+| `gml/compute-equilibrium.j2` | Calculate R̄, n_H, distribution | calculate, compare |
+| `gml/assess-coherence.j2` | Evaluate network homeostasis | evaluate, reflect, calibrate |
+| `gml/reframe-concept.j2` | Generate alternative frames | abduct, generate, synthesize |
+
+---
+
+## CNS Integration
+
+**Spans:**
+- `cns.gml.recognize`
+- `cns.gml.bind`
+- `cns.gml.equilibrate`
+- `cns.gml.assess`
+- `cns.gml.reframe`
+
+**Algedonic Alert:**
+- Trigger: variety_deficit > 100
+- Channel: `cns.algedonic.variety_deficit`
+
+---
+
+## Usage Example
+
+```yaml
+# Example invocation
+target_concept:
+  name: "Freedom"
+  t_state:
+    description: "Freedom from interference (negative liberty)"
+    energy: -10.0
+  r_state:
+    description: "Freedom to act/self-realize (positive liberty)"
+    energy: -5.0
+  l: 100.0
+  ports:
+    - name: "Threat Response"
+      effector_shape: "SecurityThreat"
+      affinity_c: 0.1
+    - name: "Resource Access"
+      effector_shape: "EconomicCondition"
+      affinity_c: 0.5
+  current_alpha: 0.0
+  current_r_bar: 0.01
+
+contextual_effectors:
+  - name: "Security Crisis"
+    concentration: 10.0
+    effect_type: "Activator"
+    shape: "SecurityThreat"
+```
+
+---
+
+*ℏKask — Planck's Constant of Agent Systems — GML v0.1.0*

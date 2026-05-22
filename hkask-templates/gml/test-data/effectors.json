@@ -1,0 +1,14 @@
+[
+  {
+    "name": "Security Crisis",
+    "concentration": 10.0,
+    "effect_type": "Activator",
+    "shape": "SecurityThreat"
+  },
+  {
+    "name": "Economic Pressure",
+    "concentration": 5.0,
+    "effect_type": "Activator",
+    "shape": "EconomicCondition"
+  }
+]

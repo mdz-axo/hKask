@@ -67,16 +67,16 @@ async fn test_boundary_update_affects_sovereignty() {
     let entry = hkask_storage::SovereigntyBoundaryEntry::from_state(webid, &state);
     store.store(&entry).unwrap();
 
-    // Verify initial state (default threshold is 0.2)
+    // Verify initial state (default threshold is 0.5)
     let retrieved = store.get(webid).unwrap().unwrap();
-    assert_eq!(retrieved.kill_zone_threshold, 0.2);
+    assert_eq!(retrieved.kill_zone_threshold, 0.5);
 
     // Update threshold
-    store.update_kill_zone_threshold(webid, 0.5).unwrap();
+    store.update_kill_zone_threshold(webid, 0.3).unwrap();
 
     // Verify update
     let updated = store.get(webid).unwrap().unwrap();
-    assert_eq!(updated.kill_zone_threshold, 0.5);
+    assert_eq!(updated.kill_zone_threshold, 0.3);
 }
 
 /// Test kill-zone detection triggers on VC investment
@@ -90,10 +90,13 @@ async fn test_kill_zone_detection() {
     assert!(!checker.is_compromised());
     assert!(!checker.kill_zone_active());
 
-    // Simulate VC investment above threshold (default is 0.2)
+    // Mark acquisition attempt first
+    checker.mark_acquisition_attempt(&serde_json::json!({}));
+
+    // Simulate VC investment below threshold (default is 0.5)
     checker.update_vc_investment(0.3);
 
-    // Kill zone should be active (0.3 > 0.2 threshold)
+    // Kill zone should be active (0.3 < 0.5 threshold, after acquisition attempt)
     assert!(checker.is_compromised());
     assert!(checker.kill_zone_active());
 }

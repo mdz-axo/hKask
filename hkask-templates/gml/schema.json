@@ -1,0 +1,125 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "http://hkask.org/gml/concept-schema.json",
+  "title": "GML Conceptual System",
+  "description": "Schema for GML concept inputs to template cascade",
+  "type": "object",
+  "required": ["id", "name", "t_state", "r_state", "l", "ports"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique concept identifier",
+      "pattern": "^gml:concept:[a-z_]+$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable concept name"
+    },
+    "t_state": {
+      "$ref": "#/definitions/interpretation",
+      "description": "Tense/conservative interpretation"
+    },
+    "r_state": {
+      "$ref": "#/definitions/interpretation",
+      "description": "Relaxed/progressive interpretation"
+    },
+    "l": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "Allosteric constant (default T/R bias)"
+    },
+    "ports": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/definitions/port"},
+      "description": "Allosteric ports for effector binding"
+    },
+    "current_alpha": {
+      "type": "number",
+      "minimum": 0,
+      "default": 0.0,
+      "description": "Current contextual pressure"
+    },
+    "current_r_bar": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Current R-state probability"
+    }
+  },
+  "definitions": {
+    "interpretation": {
+      "type": "object",
+      "required": ["description", "energy"],
+      "properties": {
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Interpretation description"
+        },
+        "energy": {
+          "type": "number",
+          "description": "Energy level for Boltzmann computation"
+        }
+      }
+    },
+    "port": {
+      "type": "object",
+      "required": ["name", "effector_shape", "affinity_c"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Port name"
+        },
+        "effector_shape": {
+          "type": "string",
+          "enum": [
+            "SecurityThreat",
+            "EconomicCondition",
+            "Evidence",
+            "Feedback",
+            "Challenge",
+            "TechnologyChange",
+            "SocialNorm"
+          ],
+          "description": "Compatible effector shape"
+        },
+        "affinity_c": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Affinity ratio (c < 1 = activator, c > 1 = inhibitor)"
+        },
+        "bound_effector": {
+          "type": ["null", "object"],
+          "description": "Currently bound effector (if any)"
+        }
+      }
+    },
+    "effector": {
+      "type": "object",
+      "required": ["name", "concentration", "effect_type", "shape"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "concentration": {"type": "number", "minimum": 0},
+        "effect_type": {
+          "type": "string",
+          "enum": ["Activator", "Inhibitor", "Neutral"]
+        },
+        "shape": {
+          "type": "string",
+          "enum": [
+            "SecurityThreat",
+            "EconomicCondition",
+            "Evidence",
+            "Feedback",
+            "Challenge",
+            "TechnologyChange",
+            "SocialNorm"
+          ]
+        }
+      }
+    }
+  }
+}

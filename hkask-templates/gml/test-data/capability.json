@@ -1,0 +1,11 @@
+{
+  "scope": "Private",
+  "operations": ["Recognize", "Bind", "Equilibrate"],
+  "effector_budget": 50.0,
+  "ports_allowed": [],
+  "concepts_allowed": [],
+  "valid_from": null,
+  "valid_until": null,
+  "id": "cap:gml:user:default",
+  "hash": "abc123"
+}
