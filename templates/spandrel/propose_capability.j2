@@ -1,0 +1,49 @@
+{# Spandrel: Propose Capability #}
+{# Creates a Capability page in the catalogue #}
+
+{% set capability_id = namespace(value=uuid()) %}
+{% set timestamp = namespace(value=now()) %}
+
+{# Validate inputs #}
+{% if not slug %}
+  {{ raise_error("spandrel.invalid_input", "slug is required") }}
+{% endif %}
+
+{% if not canonical_label %}
+  {{ raise_error("spandrel.invalid_input", "canonical_label is required") }}
+{% endif %}
+
+{% if capability_type not in ["atomic-skill", "latent", "adjacent-possible", "dormant", "structural-hole", "coasean-collapse"] %}
+  {{ raise_error("spandrel.invalid_input", "invalid capability_type") }}
+{% endif %}
+
+{# Build Capability page #}
+capability:
+  id: {{ capability_id.value }}
+  slug: "{{ slug }}"
+  canonical_label: "{{ canonical_label }}"
+  description: "{{ description | default('') }}"
+  story: "{{ story | default('') }}"
+  capability_type: {{ capability_type }}
+  lifecycle_status: proposed
+  domain:
+    academic: {{ domain_academic | default([]) | to_json }}
+    industry: {{ domain_industry | default([]) | to_json }}
+    occupation: {{ domain_occupation | default([]) | to_json }}
+  requires: {{ requires | default([]) | to_json }}
+  references: {{ references | default([]) | to_json }}
+  confidence:
+    reference: {{ reference_confidence | default(0.0) }}
+    anchor: {{ anchor_confidence | default(0.0) }}
+    author: {{ author_confidence | default(0.0) }}
+  created_at: {{ timestamp.value }}
+  page_path: "Capabilities/{{ slug }}"
+
+{# CNS span emission #}
+span:
+  namespace: cns.tool.spandrel_propose_capability
+  phase: observe
+  observation:
+    slug: "{{ slug }}"
+    capability_type: {{ capability_type }}
+    outcome: created

@@ -2663,20 +2663,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hkask-mcp-ensemble"
-version = "0.1.0"
-dependencies = [
- "hkask-ensemble",
- "hkask-types",
- "rmcp",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "tracing",
-]
-
-[[package]]
 name = "hkask-mcp-fal"
 version = "0.1.0"
 dependencies = [
@@ -2777,19 +2763,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hkask-mcp-inference"
-version = "0.1.0"
-dependencies = [
- "hkask-types",
- "rmcp",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "tracing",
-]
-
-[[package]]
 name = "hkask-mcp-keystore"
 version = "0.1.0"
 dependencies = [
@@ -2806,20 +2779,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
-]
-
-[[package]]
-name = "hkask-mcp-memory"
-version = "0.1.0"
-dependencies = [
- "hkask-memory",
- "hkask-types",
- "rmcp",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -2883,34 +2842,6 @@ version = "0.1.0"
 dependencies = [
  "hkask-types",
  "reqwest",
- "rmcp",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "hkask-mcp-spandrel"
-version = "0.1.0"
-dependencies = [
- "hkask-storage",
- "hkask-types",
- "rmcp",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "hkask-mcp-storage"
-version = "0.1.0"
-dependencies = [
- "hkask-storage",
- "hkask-types",
  "rmcp",
  "serde",
  "serde_json",
@@ -3028,6 +2959,7 @@ dependencies = [
  "hkask-ensemble",
  "hkask-keystore",
  "hkask-mcp",
+ "hkask-mcp-gml",
  "hkask-memory",
  "hkask-storage",
  "hkask-templates",

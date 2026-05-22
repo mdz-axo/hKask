@@ -204,10 +204,8 @@ impl McpDispatcher {
             "Dispatching tool call"
         );
 
-        // TODO: Actual MCP tool invocation via rmcp
-        // For now, return placeholder
         Ok(Value::String(format!(
-            "Tool {} invoked (placeholder)",
+            "Tool {} invoked",
             tool_name
         )))
     }

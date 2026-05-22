@@ -1,0 +1,68 @@
+{# Spandrel: Validate Capability #}
+{# Validates against INV-C-1 through INV-C-4 #}
+
+{% set validation_results = namespace(passed=[], failed=[]) %}
+
+{# INV-C-1: Capability has canonical_label #}
+{% if capability.canonical_label and capability.canonical_label | length > 0 %}
+  {{ validation_results.passed.append("INV-C-1: canonical_label present") }}
+{% else %}
+  {{ validation_results.failed.append("INV-C-1: canonical_label missing") }}
+{% endif %}
+
+{# INV-C-2: Capability has capability_type #}
+{% if capability.capability_type %}
+  {{ validation_results.passed.append("INV-C-2: capability_type present") }}
+{% else %}
+  {{ validation_results.failed.append("INV-C-2: capability_type missing") }}
+{% endif %}
+
+{# INV-C-3: Capability has lifecycle_status #}
+{% if capability.lifecycle_status %}
+  {{ validation_results.passed.append("INV-C-3: lifecycle_status present") }}
+{% else %}
+  {{ validation_results.failed.append("INV-C-3: lifecycle_status missing") }}
+{% endif %}
+
+{# INV-C-4: Capability has at least one domain anchor #}
+{% set has_domain = namespace(value=False) %}
+{% if capability.domain %}
+  {% if capability.domain.academic | length > 0 or capability.domain.industry | length > 0 or capability.domain.occupation | length > 0 %}
+    {% set has_domain.value = True %}
+  {% endif %}
+{% endif %}
+
+{% if has_domain.value %}
+  {{ validation_results.passed.append("INV-C-4: domain anchor present") }}
+{% else %}
+  {{ validation_results.failed.append("INV-C-4: domain anchor missing") }}
+{% endif %}
+
+{# Determine eligibility for status transition #}
+{% set eligible = namespace(value=False) %}
+{% if intended_status == "validated" and validation_results.failed | length == 0 %}
+  {% set eligible.value = True %}
+{% elif intended_status == "published" and validation_results.failed | length == 0 %}
+  {# Additional validation for published status could go here #}
+  {% set eligible.value = True %}
+{% endif %}
+
+validation:
+  slug: "{{ slug }}"
+  intended_status: {{ intended_status | default("published") }}
+  passed: {{ validation_results.passed }}
+  failed: {{ validation_results.failed }}
+  eligible_for_transition: {{ eligible.value }}
+  invariant_count: 4
+  passed_count: {{ validation_results.passed | length }}
+  failed_count: {{ validation_results.failed | length }}
+
+{# CNS span emission #}
+span:
+  namespace: cns.tool.spandrel_validate_capability
+  phase: observe
+  observation:
+    slug: "{{ slug }}"
+    passed: {{ validation_results.passed | length }}
+    failed: {{ validation_results.failed | length }}
+    eligible: {{ eligible.value }}

@@ -1,0 +1,59 @@
+# Doc-Knowledge MCP Server Manifest
+# Replaces: mcp-servers/hkask-mcp-doc-knowledge
+# Purpose: Document parsing, chunking, QA generation
+
+server:
+  name: hkask-mcp-doc-knowledge
+  version: 0.1.0
+  description: Document knowledge extraction and QA generation
+
+tools:
+  - name: doc_knowledge_parse
+    description: Parse document into IR with multi-tier chunking
+    template: doc-knowledge/parse.j2
+    inputs:
+      - path: string
+      - coarse_max_tokens: integer (default: 2048)
+      - medium_max_tokens: integer (default: 512)
+      - fine_max_tokens: integer (default: 128)
+
+  - name: doc_knowledge_chunk
+    description: Chunk text at specified granularity
+    template: doc-knowledge/chunk.j2
+    inputs:
+      - text: string
+      - max_tokens: integer (default: 512)
+      - overlap_tokens: integer (default: 64)
+
+  - name: doc_knowledge_generate_qa
+    description: Generate QA pairs from text chunk
+    template: doc-knowledge/generate_qa.j2
+    inputs:
+      - text: string
+      - chunk_id: string
+      - strategy: enum[default, selective, full-cube]
+      - bloom_levels: array[string]
+      - model_id: string
+
+  - name: doc_knowledge_store_qa
+    description: Store QA items with provenance
+    template: doc-knowledge/store_qa.j2
+    inputs:
+      - qa_items: array[object]
+      - source_document: string
+
+supported_formats:
+  - markdown (.md, .markdown)
+  - html (.html, .htm)
+
+bloom_levels:
+  - factual: recall facts, definitions, named entities
+  - conceptual: explain concept relationships
+  - procedural: apply or compute something
+  - comparative: contrast concepts or methods
+  - synthesis: connect to broader themes
+
+perspective_cube:
+  domain: [work, research_study]
+  level: [student, expert]
+  voice: [literary, scientific, businesslike]

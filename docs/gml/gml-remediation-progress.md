@@ -13,12 +13,81 @@
 | **3** | Capability infrastructure | ✓ Complete | `hkask-mcp-gml/src/main.rs` |
 | **4** | Unforgeable capability tokens | ✓ Complete | `hkask-mcp-gml/src/main.rs` |
 | **8** | CNS adapter implementation | ✓ Complete | `hkask-mcp-gml/src/main.rs` |
+| **10** | Verification test suite | ✓ Complete | `hkask-mcp-gml/src/main.rs` (8 tests) |
+| **11** | Architecture documentation update | ✓ Complete | `gml-architecture-update-v0.2.md` |
 | **5** | Error template consolidation (5→2) | ✓ Complete | `error-generic.j2`, `error-validation.j2` |
 | **6** | Macro consolidation (8→3) | ✓ Complete | `macros.j2` |
 | **7** | Test data expansion | ✓ Complete | `test-data/*.json` |
 | **9** | ERD documentation | ✓ Complete | `gml-architecture.md` |
 | **12** | Security hardening | ✓ Complete | `gml-security-audit.md` |
 | **13** | Minimalism verification | ✓ Complete | `gml-minimalism-audit.md` |
+
+---
+
+## Architecture Documentation Update (Task 11)
+
+### New Documentation
+
+**File:** `docs/gml/gml-architecture-update-v0.2.md`
+
+**Contents:**
+- Component boundaries (hkask-mcp-gml, templates, CNS)
+- Data flow diagrams (recognition, effector binding)
+- Security model (OCAP enforcement points)
+- CNS integration (spans, events, alerts)
+- Testing strategy (8 unit tests)
+- Performance characteristics
+- Future enhancements (Phase 2, 3)
+
+---
+
+## Remaining Tasks
+
+| Task | Description | Priority | Blockers |
+|------|-------------|----------|----------|
+| **1** | RDF runtime binding | Low | Optional |
+
+---
+
+## Next Steps
+
+1. **Task 1** — RDF runtime binding (optional, requires RDF store infrastructure)
+
+---
+
+## Verification Test Suite (Task 10)
+
+### Test Coverage
+
+**8 unit tests** covering:
+- MWC mathematical kernel accuracy (4 tests)
+- Capability token creation/verification (3 tests)
+- Effector budget enforcement (1 test)
+
+### Test Results
+
+```
+running 8 tests
+test tests::test_compute_delta_g ... ok
+test tests::test_compute_r_bar_invalid_l ... ok
+test tests::test_compute_r_bar_l_100_alpha_0 ... ok
+test tests::test_compute_r_bar_l_1_alpha_0 ... ok
+test tests::test_check_effector_budget ... ok
+test tests::test_create_capability_token ... ok
+test tests::test_verify_capability_valid ... ok
+test tests::test_verify_capability_wrong_operation ... ok
+
+test result: ok. 8 passed; 0 failed
+```
+
+### Future Test Expansion
+
+Additional tests to consider:
+- Signature verification with tampered tokens
+- Expired token verification
+- Multi-effector binding scenarios
+- Hill coefficient accuracy
+- End-to-end workflow tests (template → MCP → CNS)
 
 ---
 
@@ -145,17 +214,15 @@ hkask-templates/gml/
 
 | Task | Description | Priority | Blockers |
 |------|-------------|----------|----------|
-| **1** | RDF runtime binding | Low | Requires RDF store infrastructure |
-| **10** | Verification test suite | Medium | Ready to implement |
 | **11** | Architecture documentation update | Low | Ready to update |
+| **1** | RDF runtime binding | Low | Optional |
 
 ---
 
 ## Next Steps (Recommended Order)
 
-1. **Task 10** — Verification test suite (quality assurance)
-2. **Task 11** — Architecture documentation update
-3. **Task 1** — RDF runtime binding (optional)
+1. **Task 11** — Architecture documentation update
+2. **Task 1** — RDF runtime binding (optional)
 
 ---
 

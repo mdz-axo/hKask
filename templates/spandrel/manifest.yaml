@@ -1,0 +1,67 @@
+# Spandrel MCP Server Manifest
+# Replaces: mcp-servers/hkask-mcp-spandrel
+# Purpose: Graph analysis, capability catalogue, persona binding
+
+server:
+  name: hkask-mcp-spandrel
+  version: 0.1.0
+  description: Graph analysis and capability catalogue operations
+
+tools:
+  - name: spandrel_propose_capability
+    description: Create a proposed Capability page in the catalogue
+    template: spandrel/propose_capability.j2
+    inputs:
+      - slug: string
+      - canonical_label: string
+      - capability_type: enum[atomic-skill, latent, adjacent-possible, dormant, structural-hole, coasean-collapse]
+      - domain_academic: array[string]
+      - domain_industry: array[string]
+      - requires: array[string]
+
+  - name: spandrel_validate_capability
+    description: Validate Capability against INV-C-1 through INV-C-4
+    template: spandrel/validate_capability.j2
+    inputs:
+      - slug: string
+      - intended_status: enum[validated, published]
+
+  - name: spandrel_resolve_concept
+    description: Resolve concept URI against Reference Store
+    template: spandrel/resolve_concept.j2
+    inputs:
+      - uri: string
+
+  - name: spandrel_datalog_query
+    description: Run conjunctive Datalog query against bitemporal store
+    template: spandrel/datalog_query.j2
+    inputs:
+      - find: array[string]
+      - clauses: array[object]
+
+  - name: spandrel_bind_persona
+    description: Create EmbodimentBinding for agent bound to Persona
+    template: spandrel/bind_persona.j2
+    inputs:
+      - exemplar_slug: string
+      - persona_version: string
+      - consumer_agent_id: string
+      - workspace: enum[kask, peripheral, arsenal]
+
+  - name: spandrel_search_concepts
+    description: Cosine-similarity search over indexed ontology concepts
+    template: spandrel/search_concepts.j2
+    inputs:
+      - query_vector: array[number]
+      - model: string
+      - limit: integer
+      - axis: enum[academic, industry, occupation]
+
+lifecycle:
+  - proposed → validated → published → deprecated → retracted
+
+invariants:
+  - INV-C-1: Capability has canonical_label
+  - INV-C-2: Capability has capability_type
+  - INV-C-3: Capability has lifecycle_status
+  - INV-C-4: Capability has at least one domain anchor

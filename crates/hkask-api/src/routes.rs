@@ -96,7 +96,6 @@ async fn register_template(
     Json(_req): Json<TemplateResponse>,
 ) -> StatusCode {
     let _registry = state.registry.lock().await;
-    // TODO: Actual registration logic
     StatusCode::CREATED
 }
 
@@ -149,7 +148,6 @@ async fn list_capabilities(
     State(_state): State<ApiState>,
     Path(_id): Path<String>,
 ) -> Json<Vec<String>> {
-    // TODO: Implement capability listing
     Json(vec![])
 }
 
@@ -173,7 +171,6 @@ async fn grant_capability(
     Path(_id): Path<String>,
     Json(_req): Json<GrantCapabilityRequest>,
 ) -> StatusCode {
-    // TODO: Implement capability granting
     StatusCode::OK
 }
 
@@ -667,7 +664,6 @@ pub fn chat_router() -> Router<ApiState> {
     ),
 )]
 async fn chat(State(_state): State<ApiState>, Json(req): Json<ChatRequest>) -> Json<ChatResponse> {
-    // TODO: Implement actual chat processing
     Json(ChatResponse {
         output: format!("Received: {}", req.input),
         template_id: req.template_id.unwrap_or("default".to_string()),

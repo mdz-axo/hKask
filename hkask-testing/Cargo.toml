@@ -16,6 +16,7 @@ hkask-agents = { path = "../crates/hkask-agents" }
 hkask-ensemble = { path = "../crates/hkask-ensemble" }
 hkask-keystore = { path = "../crates/hkask-keystore" }
 hkask-mcp = { path = "../crates/hkask-mcp" }
+hkask-mcp-gml = { path = "../mcp-servers/hkask-mcp-gml" }
 hkask-api = { path = "../crates/hkask-api" }
 hkask-cli = { path = "../crates/hkask-cli" }
 serde.workspace = true
@@ -105,6 +106,10 @@ path = "integration-tests/cns_ensemble_tests.rs"
 [[test]]
 name = "sovereignty_tests"
 path = "integration-tests/sovereignty_tests.rs"
+
+[[test]]
+name = "ensemble_unit_tests"
+path = "unit-tests/ensemble_unit_tests.rs"
 
 [[test]]
 name = "ensemble_tests"
