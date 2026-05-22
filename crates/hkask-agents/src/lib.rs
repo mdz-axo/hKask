@@ -36,6 +36,7 @@ pub mod acp;
 pub mod adapters;
 pub mod bot;
 pub mod capability;
+pub mod consent;
 pub mod curator;
 pub mod ocap;
 pub mod pod;
@@ -46,6 +47,7 @@ pub mod sovereignty;
 
 pub use acp::{A2AMessage, AcpAgent, AcpRuntime, TemplateDispatchHandler};
 pub use capability::{BotCapabilities, CapabilityChecker, CapabilityToken};
+pub use consent::ConsentManager;
 pub use pod::{
     AgentPersona, AgentPod, AgentPodError, AgentPodResult, AgentType, CNSSpanPort, GitCASPort,
     MCPRuntimePort, MemoryStoragePort, PodID, PodLifecycleState, PodManager, PodStatus,

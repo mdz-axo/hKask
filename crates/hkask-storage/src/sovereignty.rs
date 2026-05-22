@@ -7,9 +7,10 @@
 //! - Acquisition resistance settings
 //! - Kill-zone detector thresholds
 
-use hkask_types::{AcquisitionResistance, DataCategory, SovereigntyId};
-use rusqlite::{params, Connection, OptionalExtension};
+use hkask_types::{AcquisitionResistance, DataCategory, KillZoneDetector, SovereigntyId, UserSovereigntyState};
+use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::path::Path;
 use thiserror::Error;
 use tracing::debug;
@@ -28,6 +29,9 @@ pub enum SovereigntyStoreError {
 
     #[error("Invalid data category: {0}")]
     InvalidCategory(String),
+
+    #[error("UUID parse error: {0}")]
+    UuidParse(String),
 }
 
 /// Stored sovereignty boundary entry
@@ -46,15 +50,15 @@ pub struct SovereigntyBoundaryEntry {
 
 impl SovereigntyBoundaryEntry {
     /// Create from sovereignty state
-    pub fn from_state(webid: &str, state: &hkask_types::UserSovereigntyState) -> Self {
+    pub fn from_state(webid: &str, state: &UserSovereigntyState) -> Self {
         let now = chrono::Utc::now().timestamp();
 
         Self {
-            id: state.id.0.to_string(),
+            id: state.boundary.id.0.to_string(),
             webid: webid.to_string(),
-            sovereign_categories: state.boundary.sovereign_data.clone(),
-            shared_categories: state.boundary.shared_data.clone(),
-            public_categories: state.boundary.public_data.clone(),
+            sovereign_categories: state.boundary.sovereign_data.iter().map(|c| c.as_str().to_string()).collect(),
+            shared_categories: state.boundary.shared_data.iter().map(|c| c.as_str().to_string()).collect(),
+            public_categories: state.boundary.public_data.iter().map(|c| c.as_str().to_string()).collect(),
             resistance: format!("{:?}", state.boundary.resistance),
             kill_zone_threshold: state.detector.threshold,
             created_at: now,
@@ -63,25 +67,42 @@ impl SovereigntyBoundaryEntry {
     }
 
     /// Convert to sovereignty state
-    pub fn to_state(&self) -> Result<hkask_types::UserSovereigntyState, SovereigntyStoreError> {
-        use hkask_types::{DataSovereigntyBoundary, KillZoneDetector};
-
+    pub fn to_state(&self) -> Result<UserSovereigntyState, SovereigntyStoreError> {
         let sovereignty_id = SovereigntyId(
             uuid::Uuid::parse_str(&self.id)
-                .map_err(|e| SovereigntyStoreError::InvalidCategory(e.to_string()))?,
+                .map_err(|e| SovereigntyStoreError::UuidParse(e.to_string()))?,
         );
 
         let resistance = match self.resistance.as_str() {
             "None" => AcquisitionResistance::None,
-            "Moderate" => AcquisitionResistance::Moderate,
+            "Low" => AcquisitionResistance::Low,
+            "Medium" => AcquisitionResistance::Medium,
+            "High" => AcquisitionResistance::High,
             "Maximum" => AcquisitionResistance::Maximum,
             _ => AcquisitionResistance::Maximum,
         };
 
-        let boundary = DataSovereigntyBoundary {
-            sovereign_data: self.sovereign_categories.clone(),
-            shared_data: self.shared_categories.clone(),
-            public_data: self.public_categories.clone(),
+        let parse_categories = |categories: &Vec<String>| -> Result<HashSet<DataCategory>, SovereigntyStoreError> {
+            categories.iter().map(|s| {
+                match s.as_str() {
+                    "episodic_memory" => Ok(DataCategory::EpisodicMemory),
+                    "semantic_memory" => Ok(DataCategory::SemanticMemory),
+                    "personal_context" => Ok(DataCategory::PersonalContext),
+                    "capability_tokens" => Ok(DataCategory::CapabilityTokens),
+                    "ocap_boundaries" => Ok(DataCategory::OcapBoundaries),
+                    "template_invocations" => Ok(DataCategory::TemplateInvocations),
+                    "hlexicon_terms" => Ok(DataCategory::HLexiconTerms),
+                    "template_registry" => Ok(DataCategory::TemplateRegistry),
+                    other => Err(SovereigntyStoreError::InvalidCategory(other.to_string())),
+                }
+            }).collect()
+        };
+
+        let boundary = hkask_types::DataSovereigntyBoundary {
+            id: sovereignty_id,
+            sovereign_data: parse_categories(&self.sovereign_categories)?,
+            shared_data: parse_categories(&self.shared_categories)?,
+            public_data: parse_categories(&self.public_categories)?,
             resistance,
         };
 
@@ -92,11 +113,11 @@ impl SovereigntyBoundaryEntry {
             acquisition_attempt: false,
         };
 
-        Ok(hkask_types::UserSovereigntyState {
-            id: sovereignty_id,
-            explicit_consent: false,
+        Ok(UserSovereigntyState {
             boundary,
             detector,
+            explicit_consent: false,
+            last_check: chrono::Utc::now(),
         })
     }
 }
@@ -188,14 +209,11 @@ impl SovereigntyBoundaryStore {
     }
 
     /// Get sovereignty boundary for a WebID
-    pub fn get(
-        &self,
-        webid: &str,
-    ) -> Result<Option<SovereigntyBoundaryEntry>, SovereigntyStoreError> {
+    pub fn get(&self, webid: &str) -> Result<Option<SovereigntyBoundaryEntry>, SovereigntyStoreError> {
         let mut stmt = self.conn.prepare(
             "SELECT id, webid, sovereign_categories, shared_categories, public_categories,
                     resistance, kill_zone_threshold, created_at, updated_at
-             FROM sovereignty_boundaries WHERE webid = ?1",
+             FROM sovereignty_boundaries WHERE webid = ?1"
         )?;
 
         let entry = stmt
@@ -249,7 +267,7 @@ impl SovereigntyBoundaryStore {
         let mut stmt = self.conn.prepare(
             "SELECT id, webid, sovereign_categories, shared_categories, public_categories,
                     resistance, kill_zone_threshold, created_at, updated_at
-             FROM sovereignty_boundaries ORDER BY created_at DESC",
+             FROM sovereignty_boundaries ORDER BY created_at DESC"
         )?;
 
         let entries = stmt
@@ -300,10 +318,7 @@ impl SovereigntyBoundaryStore {
             "UPDATE sovereignty_boundaries SET kill_zone_threshold = ?1, updated_at = ?2 WHERE webid = ?3",
             params![threshold, now, webid],
         )?;
-        debug!(
-            "Updated kill-zone threshold for WebID: {} to {}",
-            webid, threshold
-        );
+        debug!("Updated kill-zone threshold for WebID: {} to {}", webid, threshold);
         Ok(())
     }
 
@@ -319,20 +334,17 @@ impl SovereigntyBoundaryStore {
             "UPDATE sovereignty_boundaries SET resistance = ?1, updated_at = ?2 WHERE webid = ?3",
             params![resistance_str, now, webid],
         )?;
-        debug!(
-            "Updated resistance for WebID: {} to {:?}",
-            webid, resistance
-        );
+        debug!("Updated resistance for WebID: {} to {:?}", webid, resistance);
         Ok(())
     }
 
     /// Get store statistics
     pub fn stats(&self) -> Result<SovereigntyStoreStats, SovereigntyStoreError> {
-        let total: i64 =
-            self.conn
-                .query_row("SELECT COUNT(*) FROM sovereignty_boundaries", [], |row| {
-                    row.get(0)
-                })?;
+        let total: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM sovereignty_boundaries", [], |row| {
+                row.get(0)
+            })?;
 
         let sovereign: i64 = self.conn.query_row(
             "SELECT COUNT(*) FROM sovereignty_boundaries WHERE resistance = 'Maximum'",
@@ -350,7 +362,6 @@ impl SovereigntyBoundaryStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_types::{DataSovereigntyBoundary, KillZoneDetector, UserSovereigntyState};
 
     #[test]
     fn test_sovereignty_store_in_memory() {

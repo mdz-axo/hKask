@@ -2461,11 +2461,13 @@ name = "hkask-agents"
 version = "0.1.0"
 dependencies = [
  "acp-runtime",
+ "chrono",
  "gix",
  "hex",
  "hkask-cns",
  "hkask-keystore",
  "hkask-storage",
+ "hkask-templates",
  "hkask-types",
  "hmac",
  "rand 0.9.4",
