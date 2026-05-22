@@ -3,7 +3,8 @@
 //! Tests for hkask-agents security operations
 
 use hkask_agents::security::{
-    AgentPersonaInput, AttenuationHistory, ExpiryEnforcer, InputValidator, RateLimiter, ValidationError,
+    AgentPersonaInput, AttenuationHistory, ExpiryEnforcer, InputValidator, RateLimiter,
+    ValidationError,
 };
 use std::time::Duration;
 

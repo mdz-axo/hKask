@@ -30,7 +30,7 @@ hKask is built on five non-negotiable anchor capabilities that define the system
 graph TD
     subgraph Anchors[Five Anchor Capabilities]
         A1[1. Agent Enablement<br/>Bots + Replicants in pods]
-        A2[2. Essential Tools<br/>10 MCP servers + Okapi]
+        A2[2. Essential Tools<br/>19 MCP servers + Okapi]
         A3[3. User Sovereignty<br/>OCAP, SQLCipher, gating]
         A4[4. CNS<br/>cns.* spans, variety counters]
         A5[5. Composition<br/>Unified registry, hLexicon]
@@ -70,19 +70,36 @@ status: VERIFIED
 
 ### 1.2 Essential Tools
 
-**Principle:** Ten MCP servers provide all external tooling — no direct HTTP calls from agents.[^mcp]
+**Principle:** Nineteen MCP servers provide all external tooling — no direct HTTP calls from agents.[^mcp]
 
-**Implementation:**
-- `hkask-mcp-inference` — Okapi-backed LLM
-- `hkask-mcp-storage` — SQLite triples, embeddings, blobs
-- `hkask-mcp-memory` — Semantic/episodic pipelines
+**Implementation (19 Total):**
+
+**Enabled (15):**
 - `hkask-mcp-embedding` — Vector generation, similarity
 - `hkask-mcp-condenser` — Template abstraction
-- `hkask-mcp-ensemble` — Multi-agent chat
 - `hkask-mcp-web` — Search, scrape, extract
 - `hkask-mcp-scholar` — Academic research
-- `hkask-mcp-spandrel` — Graph analysis
-- `hkask-mcp-doc-knowledge` — Document extraction
+- `hkask-mcp-ocap` — Capability management
+- `hkask-mcp-keystore` — OS keychain
+- `hkask-mcp-cns` — CNS operations
+- `hkask-mcp-git` — Git CAS
+- `hkask-mcp-registry` — Registry operations
+- `hkask-mcp-gml` — GML operations
+- `hkask-mcp-github` — GitHub integration
+- `hkask-mcp-fmp` — FMP integration
+- `hkask-mcp-telnyx` — Telnyx integration
+- `hkask-mcp-fal` — FAL integration
+- `hkask-mcp-rss-reader` — RSS feeds
+
+**Exists but Commented (4):**
+- `hkask-mcp-inference` — Okapi LLM
+- `hkask-mcp-storage` — Storage operations
+- `hkask-mcp-memory` — Memory pipelines
+- `hkask-mcp-ensemble` — Multi-agent chat
+
+**Converted to Templates (per AGENTS.md):**
+- `hkask-mcp-spandrel` → Graph analysis templates
+- `hkask-mcp-doc-knowledge` → Document extraction templates
 
 **Constraint:** All MCP servers are `hkask-*` crates — no external MCP dependencies.
 

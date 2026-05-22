@@ -2,17 +2,21 @@
 //!
 //! Tests for hkask-agents pod management
 
-use hkask_agents::{
-    AgentPersona, CNSSpanPort, GitCASPort, MCPRuntimePort, PodID, PodManager,
-    TemplateCrate,
+use hkask_agents::security::{
+    AgentPersonaInput, ExpiryEnforcer, InputValidator, RateLimiter, ValidationError,
 };
-use hkask_agents::security::{AgentPersonaInput, ExpiryEnforcer, InputValidator, RateLimiter, ValidationError};
+use hkask_agents::{
+    AgentPersona, CNSSpanPort, GitCASPort, MCPRuntimePort, PodID, PodManager, TemplateCrate,
+};
 use hkask_types::capability::CapabilityToken;
 use serde_json;
 
 pub struct MockMCPRuntime;
 impl MCPRuntimePort for MockMCPRuntime {
-    fn grant_tool_access(&self, _token: hkask_types::capability::CapabilityToken) -> Result<(), String> {
+    fn grant_tool_access(
+        &self,
+        _token: hkask_types::capability::CapabilityToken,
+    ) -> Result<(), String> {
         Ok(())
     }
 

@@ -386,4 +386,3 @@ impl SovereigntyBoundaryStore {
         })
     }
 }
-

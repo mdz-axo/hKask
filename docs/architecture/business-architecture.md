@@ -101,26 +101,33 @@ status: VERIFIED
 
 ## 3. Business Capabilities
 
-### 3.1 Core Capabilities (10 MCP Servers)
+### 3.1 Core Capabilities (19 MCP Servers)
 
-| Capability | MCP Server | Business Service |
-|------------|------------|------------------|
-| **LLM Inference** | `hkask-mcp-inference` | Okapi-backed text generation, chat, completion |
-| **Storage** | `hkask-mcp-storage` | Bitemporal triples, embeddings, blobs, Git CAS |
-| **Memory** | `hkask-mcp-memory` | Semantic/episodic pipelines, promotion (categorical) |
-| **Embedding** | `hkask-mcp-embedding` | Vector generation, similarity search |
-| **Condensation** | `hkask-mcp-condenser` | Template abstraction, summarization |
-| **Ensemble** | `hkask-mcp-ensemble` | Multi-agent chat orchestration (NO swarms) |
-| **Web** | `hkask-mcp-web` | Search, scrape, extract (Firecrawl/Brave) |
-| **Scholar** | `hkask-mcp-scholar` | Academic research (Semantic Scholar API) |
-| **Spandrel** | `hkask-mcp-spandrel` | Graph analysis, centrality, clustering |
-| **Doc Knowledge** | `hkask-mcp-doc-knowledge` | Document extraction, parsing |
+| Capability | MCP Server | Business Service | Status |
+|------------|------------|------------------|--------|
+| **Embedding** | `hkask-mcp-embedding` | Vector generation, similarity search | ✅ Enabled |
+| **Condenser** | `hkask-mcp-condenser` | Template abstraction, summarization | ✅ Enabled |
+| **Web** | `hkask-mcp-web` | Search, scrape, extract | ✅ Enabled |
+| **Scholar** | `hkask-mcp-scholar` | Academic research | ✅ Enabled |
+| **OCAP** | `hkask-mcp-ocap` | Capability management | ✅ Enabled |
+| **Keystore** | `hkask-mcp-keystore` | OS keychain operations | ✅ Enabled |
+| **CNS** | `hkask-mcp-cns` | CNS operations | ✅ Enabled |
+| **Git** | `hkask-mcp-git` | Git CAS operations | ✅ Enabled |
+| **Registry** | `hkask-mcp-registry` | Registry operations | ✅ Enabled |
+| **GML** | `hkask-mcp-gml` | GML operations | ✅ Enabled |
+| **GitHub** | `hkask-mcp-github` | GitHub integration | ✅ Enabled |
+| **FMP** | `hkask-mcp-fmp` | FMP integration | ✅ Enabled |
+| **Telnyx** | `hkask-mcp-telnyx` | Telnyx integration | ✅ Enabled |
+| **FAL** | `hkask-mcp-fal` | FAL integration | ✅ Enabled |
+| **RSS Reader** | `hkask-mcp-rss-reader` | RSS feed reading | ✅ Enabled |
+| **LLM Inference** | `hkask-mcp-inference` | Okapi-backed text generation | ⚠️ Exists, commented |
+| **Storage** | `hkask-mcp-storage` | Bitemporal triples, embeddings, blobs | ⚠️ Exists, commented |
+| **Memory** | `hkask-mcp-memory` | Semantic/episodic pipelines | ⚠️ Exists, commented |
+| **Ensemble** | `hkask-mcp-ensemble` | Multi-agent chat orchestration | ⚠️ Exists, commented |
 
-**Excluded Capabilities (v1.0):**
-- Fine-tuning (axolotl) — Not minimal
-- Telnyx, FMP, FAL — Unused
-- Forecast — Use cascade skills
-- RSS reader — Use web
+**Converted to Templates (per AGENTS.md):**
+- `hkask-mcp-spandrel` → Graph analysis templates
+- `hkask-mcp-doc-knowledge` → Document extraction templates
 
 ### 3.2 OCAP Delegation Flows
 

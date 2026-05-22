@@ -376,4 +376,3 @@ impl Clone for CompositionObserver {
         }
     }
 }
-

@@ -371,7 +371,9 @@ cargo clean
 
 ### Why Rust 2021?
 
-- **Stability:** Rust 2024 is not yet stable (as of 2026)
+- **Stability:** Rust 2021 is the current stable edition
+- **Maturity:** Full ecosystem support, all features stabilized
+- **Compatibility:** Works with all dependencies
 - **Compatibility:** All crates and dependencies support 2021
 - **Features:** 2021 provides all needed features (async, macros, etc.)
 

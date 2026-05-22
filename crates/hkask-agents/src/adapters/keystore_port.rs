@@ -46,16 +46,3 @@ impl<T: AsRef<str>> std::fmt::Debug for Secret<T> {
         write!(f, "Secret([REDACTED])")
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_secret_debug_redaction() {
-        let secret = Secret::new("my-secret-value");
-        let debug_str = format!("{:?}", secret);
-        assert!(debug_str.contains("REDACTED"));
-        assert!(!debug_str.contains("my-secret-value"));
-    }
-}

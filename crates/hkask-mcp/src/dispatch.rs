@@ -204,10 +204,7 @@ impl McpDispatcher {
             "Dispatching tool call"
         );
 
-        Ok(Value::String(format!(
-            "Tool {} invoked",
-            tool_name
-        )))
+        Ok(Value::String(format!("Tool {} invoked", tool_name)))
     }
 
     /// Get tool definition

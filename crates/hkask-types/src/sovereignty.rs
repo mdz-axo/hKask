@@ -344,4 +344,3 @@ impl Default for UserSovereigntyState {
         Self::new()
     }
 }
-

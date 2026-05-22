@@ -313,9 +313,55 @@ pub fn emit_security_event(
 
 ---
 
-## 7. Open Questions (Resolved/Deferred)
+## 7. Resilience & Observability
 
-### 7.1 Resolved
+### 7.1 Resilience Components (Chaos Engineering)
+
+**Implemented in `hkask-ensemble`:**
+
+1. **Circuit Breaker** — Closed → Open → HalfOpen state machine
+   - Failure threshold: 5 (configurable)
+   - Open timeout: 30s (configurable)
+   - Success threshold: 2 (configurable)
+
+2. **Retry with Exponential Backoff**
+   - Max retries: 3 (configurable)
+   - Initial delay: 100ms
+   - Max delay: 10s
+   - Multiplier: 2.0
+
+3. **Multi-Okapi Failover**
+   - Health tracking per instance (Healthy, Degraded, Unhealthy, Unknown)
+   - Capability-based routing
+   - Automatic health checking
+
+4. **ResilientOkapiClient** — Combines circuit breaker + retry policies
+
+**Verification:** `cargo test -p hkask-ensemble --test chaos_integration`
+
+### 7.2 Observability Metrics
+
+**CNS Spans Exported to Prometheus:**
+
+| Category | Metrics |
+|----------|---------|
+| **Circuit Breaker** | `hkask_circuit_breaker_state`, `hkask_circuit_breaker_failures_total`, `hkask_circuit_breaker_state_changes_total` |
+| **Retry** | `hkask_retry_attempts_total`, `hkask_retry_duration_seconds`, `hkask_retry_exhausted_total` |
+| **Multi-Okapi** | `hkask_okapi_instances_healthy`, `hkask_okapi_requests_total`, `hkask_okapi_request_duration_seconds` |
+| **CNS** | `cns_tool_invocations_total`, `cns_prompt_renders_total`, `cns_agent_pod_completions_total` |
+
+**Dashboard Panels (Grafana):**
+- Okapi instance health status
+- Circuit breaker state over time
+- Request latency percentiles (p50, p95, p99)
+- Error rates by MCP server
+- CNS span emission rates
+
+---
+
+## 8. Open Questions (Resolved/Deferred)
+
+### 8.1 Resolved
 
 | Question | Resolution | Evidence |
 |----------|------------|----------|
@@ -323,7 +369,7 @@ pub fn emit_security_event(
 | Path traversal blocking | `SecurityAdapter::validate_path()` | `test_cascade_security_path_traversal_blocked` |
 | Jinja2 injection prevention | `SecurityAdapter::sanitize_jinja2_input()` | Pattern blocking implemented |
 
-### 7.2 Deferred (v1.1+)
+### 8.2 Deferred (v1.1+)
 
 | Question | Deferred Reason | v1.1 Candidate |
 |----------|-----------------|----------------|
@@ -333,7 +379,7 @@ pub fn emit_security_event(
 
 ---
 
-## 8. References
+## 9. References
 
 [^togaf-tech]: The Open Group. (2011). *TOGAF Standard, Version 9.1*. Phase D: Technology Architecture. <https://pubs.opengroup.org/architecture/togaf9-doc/arch/chap16.html>.
 [^ocap]: Miller, M. S. (2006). *Robust Composition: Towards a Unified Approach to Access Control and Concurrency Control*. Johns Hopkins University.
@@ -343,6 +389,6 @@ pub fn emit_security_event(
 
 ---
 
-*This document describes security architecture. For governance, see [`GOVERNANCE.md`](GOVERNANCE.md).*
+*This document describes security architecture including resilience and observability. For governance, see [`GOVERNANCE.md`](GOVERNANCE.md).*
 
 **Next:** Task 3.8 — Create `GOVERNANCE.md` (TOGAF Phase G/H).

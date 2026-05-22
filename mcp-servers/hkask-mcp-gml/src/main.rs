@@ -910,13 +910,21 @@ mod tests {
     #[test]
     fn test_compute_r_bar_l_100_alpha_0() {
         let r_bar = MwcEngine::compute_r_bar(100.0, 0.1, 4, 0.0).unwrap();
-        assert!((r_bar - 0.01).abs() < 0.001, "Expected R̄ ≈ 0.01, got {}", r_bar);
+        assert!(
+            (r_bar - 0.01).abs() < 0.001,
+            "Expected R̄ ≈ 0.01, got {}",
+            r_bar
+        );
     }
 
     #[test]
     fn test_compute_r_bar_l_1_alpha_0() {
         let r_bar = MwcEngine::compute_r_bar(1.0, 0.1, 4, 0.0).unwrap();
-        assert!((r_bar - 0.5).abs() < 0.001, "Expected R̄ = 0.5, got {}", r_bar);
+        assert!(
+            (r_bar - 0.5).abs() < 0.001,
+            "Expected R̄ = 0.5, got {}",
+            r_bar
+        );
     }
 
     #[test]
@@ -959,11 +967,13 @@ mod tests {
             expires_in_seconds: None,
         };
         let token = manager.create_capability(request).unwrap();
-        let verification = manager.verify_capability(VerifyCapabilityRequest {
-            token: token.clone(),
-            operation: "bind_effector".to_string(),
-            scope: None,
-        }).unwrap();
+        let verification = manager
+            .verify_capability(VerifyCapabilityRequest {
+                token: token.clone(),
+                operation: "bind_effector".to_string(),
+                scope: None,
+            })
+            .unwrap();
         assert!(verification.valid);
     }
 
@@ -979,11 +989,13 @@ mod tests {
             expires_in_seconds: None,
         };
         let token = manager.create_capability(request).unwrap();
-        let verification = manager.verify_capability(VerifyCapabilityRequest {
-            token,
-            operation: "compute_equilibrium".to_string(),
-            scope: None,
-        }).unwrap();
+        let verification = manager
+            .verify_capability(VerifyCapabilityRequest {
+                token,
+                operation: "compute_equilibrium".to_string(),
+                scope: None,
+            })
+            .unwrap();
         assert!(!verification.valid);
     }
 

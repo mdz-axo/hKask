@@ -50,7 +50,7 @@ hKask development follows a phased approach prioritizing minimal viable function
 | **Phase 3: CNS** | `hkask-cns` (variety counters, algedonic alerts, cns.* spans) | ✅ Complete | 2026-05 |
 | **Phase 4: Templates** | `hkask-templates` (registry, cascade, hLexicon grounding) | ✅ Complete | 2026-05 |
 | **Phase 5: Agents** | `hkask-agents` (pods, ACP, manifests), `hkask-ensemble` | ✅ Complete | 2026-05 |
-| **Phase 6: MCP Runtime** | `hkask-mcp` (dispatch, security adapter), 10 MCP servers | ✅ Complete | 2026-05 |
+| **Phase 6: MCP Runtime** | `hkask-mcp` (dispatch, security adapter), 19 MCP servers | ✅ Complete | 2026-05 |
 | **Phase 7: Security** | Capability attenuation, path blocking, Jinja2 sanitization | ✅ Complete | 2026-05-20 |
 | **Phase 8: Testing** | 237 tests (hkask-types: 50, hkask-cns: 49, hkask-templates: 138) | ✅ Complete | 2026-05-20 |
 

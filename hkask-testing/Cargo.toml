@@ -150,3 +150,19 @@ path = "integration-tests/ensemble_tests.rs"
 [[test]]
 name = "templates_agents_tests"
 path = "integration-tests/templates_agents_tests.rs"
+
+[[test]]
+name = "adapter_tests"
+path = "unit-tests/adapter_tests.rs"
+
+[[test]]
+name = "sovereignty_observer_tests"
+path = "unit-tests/sovereignty_observer_tests.rs"
+
+[[test]]
+name = "mcp_adapter_tests"
+path = "unit-tests/mcp_adapter_tests.rs"
+
+[[test]]
+name = "templates_unit_tests"
+path = "unit-tests/templates_unit_tests.rs"

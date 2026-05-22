@@ -176,64 +176,6 @@ fn parse_hlexicon_terms(content: &str) -> Vec<String> {
     terms
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::fs;
-
-    #[test]
-    fn test_git_cas_adapter_new() {
-        let temp_dir = std::env::temp_dir().join("hkask_git_test");
-        fs::create_dir_all(&temp_dir).unwrap();
-
-        let adapter = GitCasAdapter::new(&temp_dir);
-        assert!(adapter.is_ok());
-
-        fs::remove_dir_all(&temp_dir).ok();
-    }
-
-    #[test]
-    fn test_git_cas_adapter_nonexistent_path() {
-        let nonexistent = std::path::PathBuf::from("/nonexistent/path/that/does/not/exist");
-        let result = GitCasAdapter::new(&nonexistent);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_validate_path_traversal() {
-        let temp_dir = std::env::temp_dir().join("hkask_git_test_validate");
-        fs::create_dir_all(&temp_dir).unwrap();
-
-        let adapter = GitCasAdapter::new(&temp_dir).unwrap();
-
-        // Test parent directory traversal
-        let result = adapter.validate_path(Path::new("../etc/passwd"));
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Parent directory traversal"));
-
-        // Test absolute path
-        let result = adapter.validate_path(Path::new("/etc/passwd"));
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Absolute paths"));
-
-        fs::remove_dir_all(&temp_dir).ok();
-    }
-
-    #[test]
-    fn test_validate_valid_path() {
-        let temp_dir = std::env::temp_dir().join("hkask_git_test_valid");
-        fs::create_dir_all(&temp_dir).unwrap();
-
-        let adapter = GitCasAdapter::new(&temp_dir).unwrap();
-
-        // Test valid relative path
-        let result = adapter.validate_path(Path::new("my-crate"));
-        assert!(result.is_ok());
-
-        fs::remove_dir_all(&temp_dir).ok();
-    }
-}
-
 /// Mock Git CAS for testing
 pub struct MockGitCas;
 

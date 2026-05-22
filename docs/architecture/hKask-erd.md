@@ -1,7 +1,21 @@
+---
+title: "hKask Entity Relationship Diagram"
+audience: [data architects, database developers, agents]
+last_updated: 2026-05-22
+togaf_phase: "C — Data"
+version: "0.21.0"
+status: "Active"
+domain: "Data"
+---
+
+<!-- TOGAF_DOMAIN: Data -->
+<!-- VERSION: 0.21.0 -->
+<!-- STATUS: Active -->
+<!-- LAST_UPDATED: 2026-05-22 -->
+
 # hKask Entity Relationship Diagram
 
 **Version:** v0.21.0  
-**Date:** 2026-05-18  
 **Status:** Pre-alpha — MVP in progress
 
 ---
@@ -262,18 +276,78 @@ graph LR
 
 ---
 
-## Open Questions (To Be Resolved)
+## CNS (Cybernetic Nervous System) ERD
 
-| Question | Status | Resolution Path |
-|----------|--------|-----------------|
-| Enrichment port for `domain_hint` | Open | Pre-step in manifest or caller responsibility? |
-| Bootstrap loading order | Open | Convention (fixed paths) or Rust sequence? |
-| Selector failure (low confidence) | Open | Conditional step (`choice`) or Rust fallback? |
-| Template hot-reload detection | Open | fswatch or explicit signal (API/CLI)? |
-| Manifest step grammar extensibility | Open | New actions = Rust change or pure YAML? |
-| Git versioning (SHA resolution) | Open | HEAD only or revision parameter? |
-| Cross-registry composition rules | Open | Can Process invoke Prompt? Cognition invoke Process? |
-| Bot Manifest vs Template Manifest | Open | Same thing or different? |
+The cybernetic core — ν-events, observers, and algedonic alerts:[^beer-vsm][^ashby-law]
+
+```mermaid
+erDiagram
+    CYBERNETIC_EVENT ||--|| OBSERVER_REF : "produced_by"
+    CYBERNETIC_EVENT ||--|| CYBERNETIC_PHASE : "in"
+    CYBERNETIC_EVENT ||--|| OBSERVATION : "contains"
+    CYBERNETIC_EVENT ||--o{ REGULATION : "computes"
+    CYBERNETIC_EVENT ||--o{ ACTION : "triggers"
+    CYBERNETIC_EVENT ||--o{ OUTCOME : "yields"
+    CYBERNETIC_EVENT ||--o{ CYBERNETIC_EVENT : "parent_event"
+    
+    CYBERNETIC_PHASE: "Observe"
+    CYBERNETIC_PHASE: "Regulate"
+    CYBERNETIC_PHASE: "Act"
+    CYBERNETIC_PHASE: "MetaObserve"
+    
+    OBSERVER_REF {
+        string webid "Observer identity"
+        string role "bot|replicant|human"
+    }
+    
+    OBSERVATION {
+        json telemetry "Raw sensor data"
+        json pattern "Recognized patterns"
+        json state_estimate "Current state"
+    }
+    
+    REGULATION {
+        json contract "Expected behavior"
+        json error_signal "Deviation from contract"
+        string corrective_action "Action to restore equilibrium"
+    }
+    
+    ACTION {
+        string tool_invocation "Tool called"
+        string template_render "Template rendered"
+        string memory_write "Memory updated"
+    }
+    
+    OUTCOME {
+        json result "Execution result"
+        float confidence "Bayesian confidence"
+        timestamp completed_at "Completion time"
+    }
+    
+    CYBERNETIC_EVENT {
+        uuid id
+        timestamp emitted_at
+        uuid parent_event
+        int recursion_depth
+        int variety_counter
+        bool algedonic_alert "Variety deficit >100"
+    }
+```
+
+**Cybernetic Flow:**
+1. **Observe** — Telemetry capture, pattern recognition, state estimation
+2. **Regulate** — Contract validation, error signal computation, corrective action
+3. **Act** — Tool invocation, template render, memory write
+4. **Meta-Observe** — Observe the observation (second-order cybernetics)
+
+**Algedonic Alert:** Triggers when variety deficit >100, escalates to Curator/human.
+
+---
+
+## References
+
+[^beer-vsm]: Beer, S. (1972). *Brain of the Firm*. Penguin Books. Viable System Model.
+[^ashby-law]: Ashby, W. R. (1956). *An Introduction to Cybernetics*. Chapman & Hall. Law of Requisite Variety.
 
 ---
 

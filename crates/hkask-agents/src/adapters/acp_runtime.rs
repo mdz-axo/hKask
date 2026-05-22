@@ -40,27 +40,3 @@ impl ACPRuntimePort for AcpRuntimeAdapter {
         Ok(token)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_acp_runtime_adapter_new() {
-        let _adapter = AcpRuntimeAdapter::new();
-        assert!(true);
-    }
-
-    #[test]
-    fn test_acp_register_agent() {
-        let adapter = AcpRuntimeAdapter::new();
-        let webid = WebID::new();
-        let capabilities = vec!["tool:memory:remember".to_string()];
-
-        let result = adapter.register_agent(webid.clone(), capabilities);
-        assert!(result.is_ok());
-
-        let token = result.unwrap();
-        assert_eq!(token.delegated_to, webid);
-    }
-}

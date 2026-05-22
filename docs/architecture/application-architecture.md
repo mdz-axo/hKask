@@ -24,16 +24,16 @@ domain: "Application"
 
 ## 1. Executive Summary
 
-hKask application architecture consists of 21 Rust crates organized into three layers: Core (11 crates, ≤30k LOC budget), MCP Servers (10 crates, excluded from budget), and Testing (1 crate, excluded from budget).
+hKask application architecture consists of 31 Rust crates organized into three layers: Core (11 crates, ≤30k LOC budget), MCP Servers (19 crates, excluded from budget), and Testing (1 crate, excluded from budget).
 
 **Key Design Decisions:**
 - **Unified registry** — Single registry with `template_type` discriminator (not three separate)
-- **MCP dispatch** — Port/adapter pattern for all 10 MCP servers
+- **MCP dispatch** — Port/adapter pattern for all 19 MCP servers
 - **Bot manifests** — Pull/edit/push lifecycle with YAML validation
 - **Template cascade** — Jinja2 rendering with LLM-based selection
 
 **Current LOC:** ~6,400 lines Rust (21% of 30,000 budget)  
-**Tests:** 237 passing across workspace
+**Tests:** 254 passing across workspace
 
 **Verification:** `cargo check --workspace && cargo test --workspace`
 
@@ -57,17 +57,26 @@ graph TD
         API[hkask-api<br/>~2k LOC<br/>HTTP API, utoipa]
     end
     
-    subgraph MCPs[MCP Servers — Excluded from Budget]
-        INFERENCE[hkask-mcp-inference<br/>Okapi LLM]
-        STORAGE_MCP[hkask-mcp-storage<br/>Triples, embeddings]
-        MEMORY_MCP[hkask-mcp-memory<br/>Memory pipelines]
+    subgraph MCPs[MCP Servers — 19 Crates, Excluded from Budget]
         EMBEDDING[hkask-mcp-embedding<br/>Vector generation]
         CONDENSER[hkask-mcp-condenser<br/>Template abstraction]
-        ENSEMBLE_MCP[hkask-mcp-ensemble<br/>Chat orchestration]
         WEB[hkask-mcp-web<br/>Search, scrape]
         SCHOLAR[hkask-mcp-scholar<br/>Academic research]
-        SPANDREL[hkask-mcp-spandrel<br/>Graph analysis]
-        DOC_KNOWLEDGE[hkask-mcp-doc-knowledge<br/>Doc extraction]
+        OCAP[hkask-mcp-ocap<br/>Capability management]
+        KEYSTORE[hkask-mcp-keystore<br/>Keychain ops]
+        CNS[hkask-mcp-cns<br/>CNS operations]
+        GIT[hkask-mcp-git<br/>Git CAS]
+        REGISTRY[hkask-mcp-registry<br/>Registry ops]
+        GML[hkask-mcp-gml<br/>GML operations]
+        GITHUB[hkask-mcp-github<br/>GitHub integration]
+        FMP[hkask-mcp-fmp<br/>FMP integration]
+        TELNYX[hkask-mcp-telnyx<br/>Telnyx integration]
+        FAL[hkask-mcp-fal<br/>FAL integration]
+        RSS[hkask-mcp-rss-reader<br/>RSS feeds]
+        INFERENCE[hkask-mcp-inference<br/>Okapi LLM (commented)]
+        STORAGE_MCP[hkask-mcp-storage<br/>Storage (commented)]
+        MEMORY_MCP[hkask-mcp-memory<br/>Memory (commented)]
+        ENSEMBLE_MCP[hkask-mcp-ensemble<br/>Ensemble (commented)]
     end
     
     subgraph Testing[hkask-testing — Excluded from Budget]
@@ -162,18 +171,31 @@ status: VERIFIED
 
 ### 3.2 MCP Server Catalog
 
-| Server | Port Trait | Adapter | Tools |
-|--------|------------|---------|-------|
-| `hkask-mcp-inference` | `InferenceProvider` | `OkapiConnector` | `generate`, `chat`, `complete` |
-| `hkask-mcp-storage` | `StorageProvider` | `SqliteStorage` | `store_triple`, `query_triples`, `store_blob` |
-| `hkask-mcp-memory` | `MemoryProvider` | `MemoryPipeline` | `promote`, `retrieve`, `condense` |
-| `hkask-mcp-embedding` | `EmbeddingProvider` | `EmbeddingModel` | `embed`, `similarity` |
-| `hkask-mcp-condenser` | `CondenserProvider` | `TemplateAbstraction` | `abstract`, `summarize` |
-| `hkask-mcp-ensemble` | `EnsembleProvider` | `ChatOrchestrator` | `chat`, `coordinate` |
-| `hkask-mcp-web` | `WebProvider` | `FirecrawlConnector` | `search`, `scrape`, `extract` |
-| `hkask-mcp-scholar` | `ScholarProvider` | `SemanticScholarApi` | `search_papers`, `get_citations` |
-| `hkask-mcp-spandrel` | `GraphProvider` | `GraphAnalyzer` | `centrality`, `cluster`, `pathfinding` |
-| `hkask-mcp-doc-knowledge` | `DocProvider` | `DocumentParser` | `parse_pdf`, `extract_text` |
+| Server | Port Trait | Adapter | Tools | Status |
+|--------|------------|---------|-------|--------|
+| `hkask-mcp-embedding` | `EmbeddingProvider` | `EmbeddingModel` | `embed`, `similarity` | ✅ Enabled |
+| `hkask-mcp-condenser` | `CondenserProvider` | `TemplateAbstraction` | `abstract`, `summarize` | ✅ Enabled |
+| `hkask-mcp-web` | `WebProvider` | `FirecrawlConnector` | `search`, `scrape`, `extract` | ✅ Enabled |
+| `hkask-mcp-scholar` | `ScholarProvider` | `SemanticScholarApi` | `search_papers`, `get_citations` | ✅ Enabled |
+| `hkask-mcp-ocap` | `OCAPProvider` | `CapabilityManager` | `delegate`, `attenuate`, `verify` | ✅ Enabled |
+| `hkask-mcp-keystore` | `KeystoreProvider` | `OSKeychain` | `store`, `retrieve`, `delete` | ✅ Enabled |
+| `hkask-mcp-cns` | `CNSProvider` | `CnsSpanEmitter` | `emit_span`, `check_variety` | ✅ Enabled |
+| `hkask-mcp-git` | `GitProvider` | `GitCAS` | `store_artifact`, `resolve_ref` | ✅ Enabled |
+| `hkask-mcp-registry` | `RegistryProvider` | `TemplateRegistry` | `list`, `get`, `select` | ✅ Enabled |
+| `hkask-mcp-gml` | `GMLProvider` | `GmlEngine` | `compute_equilibrium`, `bind_effector` | ✅ Enabled |
+| `hkask-mcp-github` | `GitHubProvider` | `GitHubApi` | `list_issues`, `create_pr` | ✅ Enabled |
+| `hkask-mcp-fmp` | `FMPProvider` | `FmpApi` | `get_quote`, `get_financials` | ✅ Enabled |
+| `hkask-mcp-telnyx` | `TelnyxProvider` | `TelnyxApi` | `send_sms`, `make_call` | ✅ Enabled |
+| `hkask-mcp-fal` | `FALProvider` | `FalApi` | `generate_image`, `upscale` | ✅ Enabled |
+| `hkask-mcp-rss-reader` | `RSSProvider` | `RssParser` | `fetch_feed`, `parse_entries` | ✅ Enabled |
+| `hkask-mcp-inference` | `InferenceProvider` | `OkapiConnector` | `generate`, `chat`, `complete` | ⚠️ Commented |
+| `hkask-mcp-storage` | `StorageProvider` | `SqliteStorage` | `store_triple`, `query_triples` | ⚠️ Commented |
+| `hkask-mcp-memory` | `MemoryProvider` | `MemoryPipeline` | `promote`, `retrieve` | ⚠️ Commented |
+| `hkask-mcp-ensemble` | `EnsembleProvider` | `ChatOrchestrator` | `chat`, `coordinate` | ⚠️ Commented |
+
+**Converted to Templates:**
+- `hkask-mcp-spandrel` → Graph analysis via templates
+- `hkask-mcp-doc-knowledge` → Document extraction via templates
 
 ---
 
