@@ -388,3 +388,16 @@ pub enum HealthStatus {
     Degraded,
     Unhealthy,
 }
+
+/// Observability errors
+#[derive(Debug, thiserror::Error)]
+pub enum ObservabilityError {
+    #[error("Emission failed: {0}")]
+    EmissionFailed(String),
+
+    #[error("Configuration error: {0}")]
+    ConfigurationError(String),
+
+    #[error("Channel closed")]
+    ChannelClosed,
+}

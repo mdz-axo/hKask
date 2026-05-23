@@ -61,4 +61,38 @@ impl SemanticMemory {
         self.embedding_store.insert(&embedding)?;
         Ok(())
     }
+
+    /// Consolidate episodic memories into semantic knowledge.
+    ///
+    /// Takes episodic triples (with perspective) and creates semantic triples
+    /// (without perspective). Deduplicates before storing to avoid redundant
+    /// semantic entries from multiple episodic observations.
+    ///
+    /// Returns the number of new semantic triples stored.
+    pub fn consolidate(&self, episodic_triples: Vec<Triple>) -> Result<usize, SemanticMemoryError> {
+        let semantic: Vec<Triple> = episodic_triples
+            .into_iter()
+            .map(|t| {
+                Triple::new(&t.entity, &t.attribute, t.value, t.owner_webid)
+                    .with_confidence(t.confidence)
+                    .with_visibility(t.visibility)
+            })
+            .collect();
+
+        let deduped = recall_dedup::dedup_triples(semantic);
+        let count = deduped.len();
+
+        for triple in &deduped {
+            self.triple_store.insert(triple)?;
+        }
+
+        Ok(count)
+    }
+
+    /// Recall semantic knowledge for an entity.
+    ///
+    /// Returns deduplicated semantic triples (no perspective).
+    pub fn recall(&self, entity: &str) -> Result<Vec<Triple>, SemanticMemoryError> {
+        self.query_deduped(entity)
+    }
 }

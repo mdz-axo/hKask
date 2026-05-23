@@ -2,6 +2,7 @@
 //!
 //! Concrete implementation of MCPRuntimePort using rmcp crate.
 
+use crate::error::McpError;
 use crate::pod::MCPRuntimePort;
 use hkask_types::CapabilityToken;
 
@@ -23,11 +24,11 @@ impl McpRuntimeAdapter {
 }
 
 impl MCPRuntimePort for McpRuntimeAdapter {
-    fn grant_tool_access(&self, token: CapabilityToken) -> Result<(), String> {
+    fn grant_tool_access(&self, token: CapabilityToken) -> Result<(), McpError> {
         let token_id = token.id.clone();
 
         if token_id.is_empty() {
-            return Err("Invalid capability token".to_string());
+            return Err(McpError::InvalidToken("Token ID is empty".to_string()));
         }
 
         Ok(())
@@ -38,10 +39,10 @@ impl MCPRuntimePort for McpRuntimeAdapter {
         tool_name: &str,
         input: serde_json::Value,
         token: &CapabilityToken,
-    ) -> Result<serde_json::Value, String> {
+    ) -> Result<serde_json::Value, McpError> {
         let token_id = token.id.clone();
         if token_id.is_empty() {
-            return Err("Invalid capability token".to_string());
+            return Err(McpError::CapabilityDenied("Invalid capability token".to_string()));
         }
 
         Ok(serde_json::json!({

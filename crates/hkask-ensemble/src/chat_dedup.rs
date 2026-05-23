@@ -190,12 +190,9 @@ pub fn extract_context_window(
 ///
 /// Use this when you need to extract context multiple times or when the
 /// dedup state should be managed separately.
-pub fn extract_context_window_pure(
-    messages: &[String],
-    max_tokens: usize,
-) -> Vec<String> {
+pub fn extract_context_window_pure(messages: &[String], max_tokens: usize) -> Vec<String> {
     use std::collections::HashSet;
-    
+
     let mut seen = HashSet::new();
     let mut accepted = Vec::new();
     let mut tokens_used = 0;

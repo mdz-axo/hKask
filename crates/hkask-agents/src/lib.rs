@@ -39,6 +39,7 @@ pub mod bot;
 pub mod capability;
 pub mod consent;
 pub mod curator;
+pub mod error;
 pub mod ocap;
 pub mod pod;
 pub mod ports;
@@ -54,6 +55,7 @@ pub use consent::ConsentManager;
 pub use curator::escalation::{
     EscalationEntry, EscalationQueue, EscalationStats, EscalationStatus,
 };
+pub use error::{GitError, McpError, MemoryError};
 pub use pod::{
     AgentPersona, AgentPod, AgentPodError, AgentPodResult, AgentType, GitCASPort, MCPRuntimePort,
     MemoryStoragePort, PodID, PodLifecycleState, PodManager, PodStatus, TemplateCrate,

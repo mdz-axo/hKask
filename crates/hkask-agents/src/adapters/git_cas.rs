@@ -2,6 +2,7 @@
 //!
 //! Concrete implementation of GitCASPort using gix crate.
 
+use crate::error::GitError;
 use crate::pod::{GitCASPort, TemplateCrate, TemplateFile};
 use std::path::{Component, Path};
 
@@ -12,10 +13,12 @@ pub struct GitCasAdapter {
 
 impl GitCasAdapter {
     /// Create new Git CAS adapter
-    pub fn new(base_path: &Path) -> Result<Self, String> {
-        // Verify base path exists
+    pub fn new(base_path: &Path) -> Result<Self, GitError> {
         if !base_path.exists() {
-            return Err(format!("Base path does not exist: {:?}", base_path));
+            return Err(GitError::CrateNotFound(format!(
+                "Base path does not exist: {:?}",
+                base_path
+            )));
         }
 
         Ok(Self {
@@ -29,28 +32,22 @@ impl GitCasAdapter {
     }
 
     /// Validate a path to prevent directory traversal attacks
-    ///
-    /// Blocks:
-    /// - Parent directory components ("..")
-    /// - Absolute paths
-    /// - Null bytes
-    pub fn validate_path(&self, path: &Path) -> Result<(), String> {
+    pub fn validate_path(&self, path: &Path) -> Result<(), GitError> {
         let path_str = path.to_string_lossy();
 
-        // Check for null bytes
         if path_str.contains('\0') {
-            return Err("Path contains null bytes".to_string());
+            return Err(GitError::InvalidPath("Path contains null bytes".to_string()));
         }
 
-        // Check for absolute paths
         if path.is_absolute() {
-            return Err("Absolute paths not allowed".to_string());
+            return Err(GitError::InvalidPath("Absolute paths not allowed".to_string()));
         }
 
-        // Check for parent directory traversal
         for component in path.components() {
             if let Component::ParentDir = component {
-                return Err("Parent directory traversal not allowed".to_string());
+                return Err(GitError::InvalidPath(
+                    "Parent directory traversal not allowed".to_string(),
+                ));
             }
         }
 
@@ -59,40 +56,40 @@ impl GitCasAdapter {
 }
 
 impl GitCASPort for GitCasAdapter {
-    fn load_template_crate(&self, crate_name: &str) -> Result<TemplateCrate, String> {
+    fn load_template_crate(&self, crate_name: &str) -> Result<TemplateCrate, GitError> {
         let crate_path = Path::new(crate_name);
 
-        // Validate path to prevent directory traversal
         self.validate_path(crate_path)?;
 
         let full_path = self.base_path.join(crate_name);
 
         if !full_path.exists() {
-            return Err(format!("Crate path does not exist: {:?}", full_path));
+            return Err(GitError::CrateNotFound(format!(
+                "Crate path does not exist: {:?}",
+                full_path
+            )));
         }
 
-        // Read agent_persona.yaml
-        let persona_path = crate_path.join("agent_persona.yaml");
+        let persona_path = full_path.join("agent_persona.yaml");
         let persona_yaml = std::fs::read_to_string(&persona_path)
-            .map_err(|e| format!("Failed to read persona: {}", e))?;
+            .map_err(|e| GitError::Io(format!("Failed to read persona: {}", e)))?;
 
-        // Read dispatch_manifest.yaml
-        let manifest_path = crate_path.join("dispatch_manifest.yaml");
+        let manifest_path = full_path.join("dispatch_manifest.yaml");
         let dispatch_manifest_yaml = std::fs::read_to_string(&manifest_path)
-            .map_err(|e| format!("Failed to read manifest: {}", e))?;
+            .map_err(|e| GitError::Io(format!("Failed to read manifest: {}", e)))?;
 
-        // Load templates from templates/ directory
-        let templates_dir = crate_path.join("templates");
+        let templates_dir = full_path.join("templates");
         let mut templates = Vec::new();
 
         if templates_dir.exists() {
             for entry in std::fs::read_dir(&templates_dir)
-                .map_err(|e| format!("Failed to read templates dir: {}", e))?
+                .map_err(|e| GitError::Io(format!("Failed to read templates dir: {}", e)))?
             {
-                let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
+                let entry =
+                    entry.map_err(|e| GitError::Io(format!("Failed to read entry: {}", e)))?;
                 let path = entry.path();
                 let content = std::fs::read_to_string(&path)
-                    .map_err(|e| format!("Failed to read template: {}", e))?;
+                    .map_err(|e| GitError::Io(format!("Failed to read template: {}", e)))?;
 
                 let template_type = match path.extension().and_then(|s| s.to_str()) {
                     Some("j2") => "Prompt",
@@ -108,18 +105,15 @@ impl GitCASPort for GitCasAdapter {
             }
         }
 
-        // Read hlexicon.yaml
-        let hlexicon_path = crate_path.join("hlexicon.yaml");
+        let hlexicon_path = full_path.join("hlexicon.yaml");
         let hlexicon_terms = if hlexicon_path.exists() {
             let content = std::fs::read_to_string(&hlexicon_path)
-                .map_err(|e| format!("Failed to read hlexicon: {}", e))?;
-            // Parse YAML to extract terms
+                .map_err(|e| GitError::Io(format!("Failed to read hlexicon: {}", e)))?;
             parse_hlexicon_terms(&content)
         } else {
             Vec::new()
         };
 
-        // Get current Git SHA
         let git_sha = self.resolve_sha(crate_name)?;
 
         Ok(TemplateCrate {
@@ -132,7 +126,7 @@ impl GitCASPort for GitCasAdapter {
         })
     }
 
-    fn resolve_sha(&self, _crate_name: &str) -> Result<String, String> {
+    fn resolve_sha(&self, _crate_name: &str) -> Result<String, GitError> {
         use std::process::Command;
 
         let output = Command::new("git")
@@ -192,8 +186,7 @@ impl Default for MockGitCas {
 }
 
 impl GitCASPort for MockGitCas {
-    fn load_template_crate(&self, _crate_name: &str) -> Result<TemplateCrate, String> {
-        // Stub implementation for testing
+    fn load_template_crate(&self, _crate_name: &str) -> Result<TemplateCrate, GitError> {
         Ok(TemplateCrate {
             name: "mock".to_string(),
             git_sha: "0000000000000000000000000000000000000000".to_string(),
@@ -204,7 +197,7 @@ impl GitCASPort for MockGitCas {
         })
     }
 
-    fn resolve_sha(&self, _crate_name: &str) -> Result<String, String> {
+    fn resolve_sha(&self, _crate_name: &str) -> Result<String, GitError> {
         Ok("0000000000000000000000000000000000000000".to_string())
     }
 }

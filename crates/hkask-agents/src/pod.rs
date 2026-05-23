@@ -586,8 +586,8 @@ pub trait MCPRuntimePort {
     ///
     /// # Returns
     /// * `Ok(())` — Access granted
-    /// * `Err(String)` — Access denied error
-    fn grant_tool_access(&self, token: CapabilityToken) -> Result<(), String>;
+    /// * `Err(McpError)` — Access denied error
+    fn grant_tool_access(&self, token: CapabilityToken) -> Result<(), crate::error::McpError>;
 
     /// Invoke a tool with capability authorization
     ///
@@ -598,13 +598,13 @@ pub trait MCPRuntimePort {
     ///
     /// # Returns
     /// * `Ok(serde_json::Value)` — Tool result
-    /// * `Err(String)` — Invocation error
+    /// * `Err(McpError)` — Invocation error
     fn invoke_tool(
         &self,
         tool_name: &str,
         input: serde_json::Value,
         token: &CapabilityToken,
-    ) -> Result<serde_json::Value, String>;
+    ) -> Result<serde_json::Value, crate::error::McpError>;
 }
 
 /// Git CAS Port — Template crate loading
@@ -616,8 +616,8 @@ pub trait GitCASPort {
     ///
     /// # Returns
     /// * `Ok(TemplateCrate)` — Loaded crate structure
-    /// * `Err(String)` — Load error message
-    fn load_template_crate(&self, crate_name: &str) -> Result<TemplateCrate, String>;
+    /// * `Err(GitError)` — Load error
+    fn load_template_crate(&self, crate_name: &str) -> Result<TemplateCrate, crate::error::GitError>;
 
     /// Resolve the current Git SHA for a crate
     ///
@@ -626,15 +626,15 @@ pub trait GitCASPort {
     ///
     /// # Returns
     /// * `Ok(String)` — Git SHA (40 hex characters)
-    /// * `Err(String)` — Resolution error
-    fn resolve_sha(&self, crate_name: &str) -> Result<String, String>;
+    /// * `Err(GitError)` — Resolution error
+    fn resolve_sha(&self, crate_name: &str) -> Result<String, crate::error::GitError>;
 }
 
 /// Placeholder Git CAS implementation for PodManager
 pub struct PlaceholderGitCAS;
 
 impl GitCASPort for PlaceholderGitCAS {
-    fn load_template_crate(&self, crate_name: &str) -> Result<TemplateCrate, String> {
+    fn load_template_crate(&self, crate_name: &str) -> Result<TemplateCrate, crate::error::GitError> {
         Ok(TemplateCrate {
             name: crate_name.to_string(),
             git_sha: "0000000000000000000000000000000000000000".to_string(),
@@ -645,7 +645,7 @@ impl GitCASPort for PlaceholderGitCAS {
         })
     }
 
-    fn resolve_sha(&self, _crate_name: &str) -> Result<String, String> {
+    fn resolve_sha(&self, _crate_name: &str) -> Result<String, crate::error::GitError> {
         Ok("0000000000000000000000000000000000000000".to_string())
     }
 }
@@ -663,7 +663,7 @@ pub trait MemoryStoragePort {
     ///
     /// # Returns
     /// * `Ok(String)` — Artifact ID
-    /// * `Err(String)` — Storage error
+    /// * `Err(MemoryError)` — Storage error
     fn store_artifact(
         &self,
         producer_webid: WebID,
@@ -671,7 +671,7 @@ pub trait MemoryStoragePort {
         content: serde_json::Value,
         visibility: &str,
         token: &CapabilityToken,
-    ) -> Result<String, String>;
+    ) -> Result<String, crate::error::MemoryError>;
 
     /// Recall memory artifacts matching a query
     ///
@@ -681,12 +681,12 @@ pub trait MemoryStoragePort {
     ///
     /// # Returns
     /// * `Ok(Vec<serde_json::Value>)` — Matching artifacts
-    /// * `Err(String)` — Query error
+    /// * `Err(MemoryError)` — Query error
     fn recall(
         &self,
         query: &str,
         token: &CapabilityToken,
-    ) -> Result<Vec<serde_json::Value>, String>;
+    ) -> Result<Vec<serde_json::Value>, crate::error::MemoryError>;
 }
 
 /// Pod Manager — Manages collection of agent pods

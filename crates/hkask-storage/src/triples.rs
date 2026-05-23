@@ -75,7 +75,6 @@ impl Triple {
 
 /// Triple store for bitemporal RDF-like triples
 pub struct TripleStore {
-    #[allow(dead_code)]
     conn: Arc<Mutex<Connection>>,
 }
 
@@ -107,8 +106,251 @@ impl TripleStore {
     }
 
     /// Query triples by entity
-    pub fn query_by_entity(&self, _entity: &str) -> Result<Vec<Triple>, TripleError> {
-        // Stub - returns empty for now
-        Ok(Vec::new())
+    pub fn query_by_entity(&self, entity: &str) -> Result<Vec<Triple>, TripleError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid
+             FROM triples
+             WHERE entity = ?1 AND valid_to IS NULL
+             ORDER BY valid_from DESC",
+        )?;
+
+        let triples = stmt
+            .query_map(rusqlite::params![entity], |row| {
+                let id_str: String = row.get(0)?;
+                let entity: String = row.get(1)?;
+                let attribute: String = row.get(2)?;
+                let value_str: String = row.get(3)?;
+                let valid_from_str: String = row.get(4)?;
+                let valid_to_str: Option<String> = row.get(5)?;
+                let confidence: f64 = row.get(6)?;
+                let perspective_str: Option<String> = row.get(7)?;
+                let visibility_str: String = row.get(8)?;
+                let owner_webid_str: String = row.get(9)?;
+
+                Ok(TripleRow {
+                    id: id_str,
+                    entity,
+                    attribute,
+                    value: value_str,
+                    valid_from: valid_from_str,
+                    valid_to: valid_to_str,
+                    confidence,
+                    perspective: perspective_str,
+                    visibility: visibility_str,
+                    owner_webid: owner_webid_str,
+                })
+            })?
+            .filter_map(|r| r.ok())
+            .filter_map(|row| Self::row_to_triple(row).ok())
+            .collect();
+
+        Ok(triples)
     }
+
+    /// Query triples by entity and attribute
+    pub fn query_by_entity_attribute(
+        &self,
+        entity: &str,
+        attribute: &str,
+    ) -> Result<Vec<Triple>, TripleError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid
+             FROM triples
+             WHERE entity = ?1 AND attribute = ?2 AND valid_to IS NULL
+             ORDER BY valid_from DESC",
+        )?;
+
+        let triples = stmt
+            .query_map(rusqlite::params![entity, attribute], |row| {
+                let id_str: String = row.get(0)?;
+                let entity: String = row.get(1)?;
+                let attribute: String = row.get(2)?;
+                let value_str: String = row.get(3)?;
+                let valid_from_str: String = row.get(4)?;
+                let valid_to_str: Option<String> = row.get(5)?;
+                let confidence: f64 = row.get(6)?;
+                let perspective_str: Option<String> = row.get(7)?;
+                let visibility_str: String = row.get(8)?;
+                let owner_webid_str: String = row.get(9)?;
+
+                Ok(TripleRow {
+                    id: id_str,
+                    entity,
+                    attribute,
+                    value: value_str,
+                    valid_from: valid_from_str,
+                    valid_to: valid_to_str,
+                    confidence,
+                    perspective: perspective_str,
+                    visibility: visibility_str,
+                    owner_webid: owner_webid_str,
+                })
+            })?
+            .filter_map(|r| r.ok())
+            .filter_map(|row| Self::row_to_triple(row).ok())
+            .collect();
+
+        Ok(triples)
+    }
+
+    /// Query all triples for a perspective (episodic memories)
+    pub fn query_by_perspective(&self, perspective: &WebID) -> Result<Vec<Triple>, TripleError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid
+             FROM triples
+             WHERE perspective = ?1 AND valid_to IS NULL
+             ORDER BY valid_from DESC",
+        )?;
+
+        let triples = stmt
+            .query_map(rusqlite::params![perspective.0.to_string()], |row| {
+                let id_str: String = row.get(0)?;
+                let entity: String = row.get(1)?;
+                let attribute: String = row.get(2)?;
+                let value_str: String = row.get(3)?;
+                let valid_from_str: String = row.get(4)?;
+                let valid_to_str: Option<String> = row.get(5)?;
+                let confidence: f64 = row.get(6)?;
+                let perspective_str: Option<String> = row.get(7)?;
+                let visibility_str: String = row.get(8)?;
+                let owner_webid_str: String = row.get(9)?;
+
+                Ok(TripleRow {
+                    id: id_str,
+                    entity,
+                    attribute,
+                    value: value_str,
+                    valid_from: valid_from_str,
+                    valid_to: valid_to_str,
+                    confidence,
+                    perspective: perspective_str,
+                    visibility: visibility_str,
+                    owner_webid: owner_webid_str,
+                })
+            })?
+            .filter_map(|r| r.ok())
+            .filter_map(|row| Self::row_to_triple(row).ok())
+            .collect();
+
+        Ok(triples)
+    }
+
+    /// Update a triple's value (closes current version, inserts new)
+    pub fn update(
+        &self,
+        id: &TripleID,
+        new_value: Value,
+        new_confidence: f64,
+    ) -> Result<(), TripleError> {
+        let conn = self.conn.lock().unwrap();
+        let now = Utc::now().to_rfc3339();
+
+        conn.execute(
+            "UPDATE triples SET valid_to = ?1 WHERE id = ?2 AND valid_to IS NULL",
+            rusqlite::params![now, id.0.to_string()],
+        )?;
+
+        let mut stmt = conn.prepare(
+            "SELECT entity, attribute, perspective, visibility, owner_webid
+             FROM triples WHERE id = ?1",
+        )?;
+
+        let row = stmt.query_row(rusqlite::params![id.0.to_string()], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Option<String>>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, String>(4)?,
+            ))
+        })?;
+
+        let new_id = TripleID::new();
+        conn.execute(
+            "INSERT INTO triples (id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid)
+             VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, ?7, ?8, ?9)",
+            rusqlite::params![
+                new_id.0.to_string(),
+                row.0,
+                row.1,
+                serde_json::to_string(&new_value)?,
+                now,
+                new_confidence,
+                row.2,
+                row.3,
+                row.4,
+            ],
+        )?;
+
+        Ok(())
+    }
+
+    /// Delete a triple (soft delete via valid_to)
+    pub fn delete(&self, id: &TripleID) -> Result<(), TripleError> {
+        let conn = self.conn.lock().unwrap();
+        let now = Utc::now().to_rfc3339();
+        conn.execute(
+            "UPDATE triples SET valid_to = ?1 WHERE id = ?2 AND valid_to IS NULL",
+            rusqlite::params![now, id.0.to_string()],
+        )?;
+        Ok(())
+    }
+
+    /// Hard delete a triple
+    pub fn hard_delete(&self, id: &TripleID) -> Result<(), TripleError> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "DELETE FROM triples WHERE id = ?1",
+            rusqlite::params![id.0.to_string()],
+        )?;
+        Ok(())
+    }
+
+    fn row_to_triple(row: TripleRow) -> Result<Triple, TripleError> {
+        let id = TripleID(uuid::Uuid::parse_str(&row.id).unwrap_or_else(|_| uuid::Uuid::new_v4()));
+        let value: Value = serde_json::from_str(&row.value)?;
+        let valid_from = DateTime::parse_from_rfc3339(&row.valid_from)
+            .map(|dt| dt.with_timezone(&Utc))
+            .unwrap_or_else(|_| Utc::now());
+        let valid_to = row
+            .valid_to
+            .and_then(|s| DateTime::parse_from_rfc3339(&s).ok())
+            .map(|dt| dt.with_timezone(&Utc));
+        let perspective = row
+            .perspective
+            .and_then(|s| uuid::Uuid::parse_str(&s).ok())
+            .map(WebID);
+        let visibility = Visibility::parse_str(&row.visibility).unwrap_or_default();
+        let owner_webid =
+            WebID(uuid::Uuid::parse_str(&row.owner_webid).unwrap_or_else(|_| uuid::Uuid::new_v4()));
+
+        Ok(Triple {
+            id,
+            entity: row.entity,
+            attribute: row.attribute,
+            value,
+            valid_from,
+            valid_to,
+            confidence: row.confidence,
+            perspective,
+            visibility,
+            owner_webid,
+        })
+    }
+}
+
+struct TripleRow {
+    id: String,
+    entity: String,
+    attribute: String,
+    value: String,
+    valid_from: String,
+    valid_to: Option<String>,
+    confidence: f64,
+    perspective: Option<String>,
+    visibility: String,
+    owner_webid: String,
 }

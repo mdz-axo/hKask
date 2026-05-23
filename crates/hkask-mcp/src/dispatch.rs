@@ -11,7 +11,7 @@ use serde_json::Value;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
-use tracing::{info, warn};
+use tracing::info;
 
 use crate::runtime::{McpRuntime, McpTool};
 
@@ -120,31 +120,42 @@ impl McpDispatcher {
 
 impl McpPort for McpDispatcher {
     fn discover_tools(&self) -> Vec<String> {
-        // Note: This is synchronous; use runtime.discover_tools().await in async context
-        vec![]
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(self.runtime.discover_tools())
+        })
     }
 
-    fn invoke(&self, tool_name: &str, _input: Value) -> Result<Value> {
-        // Synchronous invoke - for async, use invoke_async
-        warn!(
-            target: "hkask.mcp",
-            tool_name = %tool_name,
-            "Synchronous invoke not supported — use invoke_async"
-        );
+    fn invoke(&self, tool_name: &str, input: Value) -> Result<Value> {
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                let tool_info =
+                    self.runtime.get_tool_info(tool_name).await.ok_or_else(|| {
+                        TemplateError::Mcp(format!("Tool not found: {}", tool_name))
+                    })?;
 
-        Err(TemplateError::Mcp(
-            "Use invoke_async for MCP tool invocation".to_string(),
-        ))
+                self.runtime
+                    .call_tool(&tool_info.server_id, tool_name, input)
+                    .await
+                    .map_err(|e| TemplateError::Mcp(format!("Tool call failed: {}", e)))
+            })
+        })
     }
 
     fn get_tool_info(&self, tool_name: &str) -> Option<hkask_templates::ports::ToolInfo> {
-        // Synchronous version - use get_tool_info_async for full functionality
-        warn!(
-            target: "hkask.mcp",
-            tool_name = %tool_name,
-            "Synchronous get_tool_info not supported — use get_tool_info_async"
-        );
-        None
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                self.runtime.get_tool_info(tool_name).await.map(|t| {
+                    hkask_templates::ports::ToolInfo {
+                        name: t.name,
+                        description: t.description,
+                        input_schema: t.input_schema,
+                        server_id: t.server_id,
+                        required_capability: t.required_capability,
+                        rate_limit_hint: t.rate_limit_hint,
+                    }
+                })
+            })
+        })
     }
 }
 
@@ -204,7 +215,25 @@ impl McpDispatcher {
             "Dispatching tool call"
         );
 
-        Ok(Value::String(format!("Tool {} invoked", tool_name)))
+        let tool_info = self
+            .runtime
+            .get_tool_info(tool_name)
+            .await
+            .ok_or_else(|| TemplateError::Mcp(format!("Tool info not found: {}", tool_name)))?;
+
+        let result = self
+            .runtime
+            .call_tool(&tool_info.server_id, tool_name, input)
+            .await
+            .map_err(|e| TemplateError::Mcp(format!("Tool call failed: {}", e)))?;
+
+        cns.emit(
+            &format!("cns.tool.{}.result", tool_name.replace(':', ".")),
+            result.clone(),
+            1.0,
+        );
+
+        Ok(result)
     }
 
     /// Get tool definition

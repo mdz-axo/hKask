@@ -2,6 +2,7 @@
 //!
 //! Concrete implementation of MemoryStoragePort using hkask-storage crate.
 
+use crate::error::MemoryError;
 use crate::pod::MemoryStoragePort;
 use hkask_storage::{Database, Embedding, EmbeddingStore, Triple, TripleStore};
 use hkask_types::{CapabilityToken, TripleID, Visibility, WebID};
@@ -16,7 +17,7 @@ pub struct MemoryStorageAdapter {
 
 impl MemoryStorageAdapter {
     /// Create new memory storage adapter
-    pub fn new(db: Database) -> Result<Self, String> {
+    pub fn new(db: Database) -> Result<Self, MemoryError> {
         let conn = db.conn_arc();
         Ok(Self {
             triple_store: TripleStore::new(conn.clone()),
@@ -25,14 +26,16 @@ impl MemoryStorageAdapter {
     }
 
     /// Create from database path and passphrase
-    pub fn from_path(path: &str, passphrase: &str) -> Result<Self, String> {
-        let db = Database::open(path, passphrase).map_err(|e| e.to_string())?;
+    pub fn from_path(path: &str, passphrase: &str) -> Result<Self, MemoryError> {
+        let db = Database::open(path, passphrase)
+            .map_err(|e| MemoryError::Storage(e.to_string()))?;
         Self::new(db)
     }
 
     /// Create in-memory database for testing
-    pub fn in_memory() -> Result<Self, String> {
-        let db = Database::in_memory().map_err(|e| e.to_string())?;
+    pub fn in_memory() -> Result<Self, MemoryError> {
+        let db =
+            Database::in_memory().map_err(|e| MemoryError::Storage(e.to_string()))?;
         Self::new(db)
     }
 }
@@ -45,7 +48,7 @@ impl MemoryStoragePort for MemoryStorageAdapter {
         content: Value,
         visibility: &str,
         _token: &CapabilityToken,
-    ) -> Result<String, String> {
+    ) -> Result<String, MemoryError> {
         let visibility = match visibility.to_lowercase().as_str() {
             "public" => Visibility::Public,
             "shared" => Visibility::Shared,
@@ -54,33 +57,32 @@ impl MemoryStoragePort for MemoryStorageAdapter {
 
         match artifact_type {
             "episodic_triple" | "semantic_triple" => {
-                // Extract entity, attribute, value from content
-                let entity = content["entity"].as_str().ok_or("Missing 'entity' field")?;
+                let entity = content["entity"]
+                    .as_str()
+                    .ok_or_else(|| MemoryError::Serialization("Missing 'entity' field".to_string()))?;
                 let attribute = content["attribute"]
                     .as_str()
-                    .ok_or("Missing 'attribute' field")?;
+                    .ok_or_else(|| MemoryError::Serialization("Missing 'attribute' field".to_string()))?;
                 let value = content["value"].clone();
 
                 let mut triple = Triple::new(entity, attribute, value, producer_webid)
                     .with_visibility(visibility);
 
-                // Add perspective for episodic triples
                 if artifact_type == "episodic_triple" {
                     triple = triple.with_perspective(producer_webid);
                 }
 
                 self.triple_store
                     .insert(&triple)
-                    .map_err(|e| e.to_string())?;
+                    .map_err(|e| MemoryError::Storage(e.to_string()))?;
 
                 Ok(triple.id.to_string())
             }
 
             "embedding" => {
-                // Extract vector from content
                 let vector: Vec<f32> = content["vector"]
                     .as_array()
-                    .ok_or("Missing 'vector' field")?
+                    .ok_or_else(|| MemoryError::Serialization("Missing 'vector' field".to_string()))?
                     .iter()
                     .filter_map(|v| v.as_f64().map(|f| f as f32))
                     .collect();
@@ -88,7 +90,6 @@ impl MemoryStoragePort for MemoryStorageAdapter {
                 let model = content["model"].as_str().unwrap_or("default");
                 let mut embedding = Embedding::new(vector, model);
 
-                // Add entity reference if provided
                 if let Some(entity_ref_str) = content["entity_ref"].as_str()
                     && let Ok(entity_ref_uuid) = Uuid::parse_str(entity_ref_str)
                 {
@@ -98,23 +99,44 @@ impl MemoryStoragePort for MemoryStorageAdapter {
 
                 self.embedding_store
                     .insert(&embedding)
-                    .map_err(|e| e.to_string())?;
+                    .map_err(|e| MemoryError::Storage(e.to_string()))?;
 
                 Ok(embedding.id.clone())
             }
 
-            _ => Err(format!("Unknown artifact type: {}", artifact_type)),
+            _ => Err(MemoryError::InvalidArtifactType(artifact_type.to_string())),
         }
     }
 
-    fn recall(&self, query: &str, _token: &CapabilityToken) -> Result<Vec<Value>, String> {
-        // For now, return empty results
-        // TODO: Implement actual search using sqlite-vec
+    fn recall(&self, query: &str, _token: &CapabilityToken) -> Result<Vec<Value>, MemoryError> {
+        let triples = self
+            .triple_store
+            .query_by_entity(query)
+            .map_err(|e| MemoryError::Query(e.to_string()))?;
+
+        let results: Vec<Value> = triples
+            .into_iter()
+            .map(|t| {
+                serde_json::json!({
+                    "id": t.id.to_string(),
+                    "entity": t.entity,
+                    "attribute": t.attribute,
+                    "value": t.value,
+                    "confidence": t.confidence,
+                    "perspective": t.perspective.map(|p| p.to_string()),
+                    "visibility": t.visibility.as_str(),
+                    "valid_from": t.valid_from.to_rfc3339(),
+                })
+            })
+            .collect();
+
         tracing::debug!(
             target: "hkask.memory",
             query = %query,
-            "Memory recall (stub - returns empty)"
+            results = results.len(),
+            "Memory recall"
         );
-        Ok(Vec::new())
+
+        Ok(results)
     }
 }

@@ -157,7 +157,10 @@ where
         });
 
         // Priority 2: User message from input
-        if let Some(user_msg) = input.get(context_keys::USER_MESSAGE).and_then(|v| v.as_str()) {
+        if let Some(user_msg) = input
+            .get(context_keys::USER_MESSAGE)
+            .and_then(|v| v.as_str())
+        {
             assembler.add(ContextFragment {
                 content: user_msg.to_string(),
                 source: FragmentSource::User,
@@ -193,7 +196,10 @@ where
             }
 
             // Episodic memory (if perspective available)
-            if let Some(perspective) = input.get(context_keys::PERSPECTIVE).and_then(|v| v.as_str()) {
+            if let Some(perspective) = input
+                .get(context_keys::PERSPECTIVE)
+                .and_then(|v| v.as_str())
+            {
                 let episodic_fragments = memory.query_episodic(entity, perspective);
                 for fragment in episodic_fragments {
                     assembler.add(ContextFragment {
@@ -239,7 +245,10 @@ where
             }
 
             // Episodic memory (if perspective available)
-            if let Some(perspective) = input.get(context_keys::PERSPECTIVE).and_then(|v| v.as_str()) {
+            if let Some(perspective) = input
+                .get(context_keys::PERSPECTIVE)
+                .and_then(|v| v.as_str())
+            {
                 let episodic_fragments = memory.query_episodic(entity, perspective);
                 for fragment in episodic_fragments {
                     assembler.add(ContextFragment {
