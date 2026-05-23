@@ -17,7 +17,7 @@ The `/goal` primitive represents a **fundamental shift from prompting to assigni
 4. **Registry Routing** — `template_type: Goal` discriminator
 5. **hLexicon Grounding** — Speech act theory (WordAct), workflow patterns (FlowDef), enactive cognition (KnowAct)
 
-**Implementation Cost:** ~2,050 LOC (within 30,000 line budget)
+**Implementation Cost:** ~2,050 LOC
 
 ---
 
@@ -315,8 +315,6 @@ impl GoalCapability {
 - P6: No stubs — ✅ (Phase 0 types only)
 - P7: Deletion > deprecation — ✅
 
-**Budget Impact:** 30,000 - 2,050 = **27,950 LOC remaining** ✅
-
 ---
 
 ## Part 7: Comparison Matrix
@@ -375,7 +373,6 @@ impl GoalCapability {
 7. ✅ CLI commands implemented
 8. ✅ Verifier trait with hybrid verification
 9. ✅ Tests passing
-10. ✅ LOC budget ≤2,000
 
 ---
 
@@ -393,7 +390,6 @@ impl GoalCapability {
 - Aligns with hKask's cybernetic roots (Beer, Ashby, Von Foerster)
 - Extends BDI model with OCAP security and CNS monitoring
 - Enables multi-agent goal delegation (unlike Hermes single-session)
-- Maintains ≤30,000 LOC budget (~2,050 LOC addition)
 - Leverages existing hLexicon vocabulary (12 of 80 terms directly relevant)
 
 **Next Step:** Begin Phase 1 implementation (database schema + Rust types).

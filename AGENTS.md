@@ -6,8 +6,7 @@
 
 **Name:** hKask (pronounced *h-bar-kask*)  
 **Binary:** `kask`  
-**Crate prefix:** `hkask-`  
-**Line Budget:** ≤30,000 lines Rust (excluding protocols)
+**Crate prefix:** `hkask-`
 
 ---
 
@@ -50,7 +49,7 @@ hkask-workspace/
 ├── hkask-mcp-spandrel      # Graph analysis
 └── hkask-mcp-doc-knowledge # Document extraction
 │
-└── External (excluded from budget)
+└── External
     ├── Okapi (mdz-axo/Okapi)
     ├── ACP (acp-runtime)
     └── MCP (rmcp)
@@ -145,45 +144,6 @@ Before editing:
 
 ---
 
-## Code Budget & Testing Policy
-
-**Line Budget:** ≤30,000 lines Rust (excluding blank lines and comments).
-
-### LOC Counting Definition
-
-**Counting method:** `find crates mcp-servers -name "*.rs" -type f -exec cat {} \; | grep -v '^\s*$' | grep -v '^\s*//' | grep -v '^\s*/\*' | grep -v '^\s*\*' | wc -l`
-
-**What Counts Toward Budget:**
-- All Rust code in `crates/hkask-*` (core crates)
-- All Rust code in `mcp-servers/hkask-mcp-*` (MCP servers)
-- Inline `#[cfg(test)]` modules within source files
-- Integration tests in `tests/` directories within crates
-
-**What Is Excluded From Budget:**
-- Blank lines
-- Code comments (single-line `//` and multi-line `/* */`)
-- `hkask-testing` crate (single test crate)
-- Jinja2 templates (`.j2` files)
-- YAML manifests (`.yaml`, `.yml` files)
-- External protocols: Okapi, ACP, rmcp (dependencies)
-
-**Rationale:** The 30k limit pressures the *system* to be minimal, not the *verification*. Rust is the "steel frame" of the building — templates and manifests are the interior walls.
-
-**Status:** Run the LOC count command to verify current budget compliance.
-
----
-
-## Completion Standard
-
-Before claiming completion:
-1. Run `cargo check`, `cargo test`, `cargo clippy -- -D warnings`, `cargo fmt --check`
-2. Run LOC count: `find crates mcp-servers -name "*.rs" -type f -exec cat {} \; | grep -v '^\s*$' | grep -v '^\s*//' | grep -v '^\s*/\*' | grep -v '^\s*\*' | wc -l`
-3. Verify ≤30,000 lines (excluding blanks and comments)
-4. Report exact commands and whether they passed
-5. If verification fails, fix it or state the remaining blocker
-
----
-
 ## Documentation Budget Policy
 
 **Line Budget:** ≤10,000 lines Markdown (working documentation only).
@@ -260,8 +220,6 @@ When over budget, prioritize in this order:
 2. **Consolidate research** — Merge related research documents into single comprehensive reports
 3. **Promote to formal** — Move mature content to User Guides or Master TOGAF docs
 4. **Delete obsolete** — Remove TODOs, completed plans, or superseded analysis
-
-**Status:** Run the documentation count command to verify current budget compliance.
 
 ---
 

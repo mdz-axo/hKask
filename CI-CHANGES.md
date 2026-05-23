@@ -75,7 +75,6 @@ curl -fsSL https://raw.githubusercontent.com/mdz-axolotl/hKask/main/scripts/inst
 - **Build** — `cargo build --workspace --all-targets`
 - **Unit Tests** — `cargo test --workspace --lib`
 - **Integration Tests** — `cargo test --workspace --test '*'`
-- **Line Budget Check** — Verifies ≤30,000 lines using `tokei`
 - **Security Audit** — `cargo audit`
 - **Dependency Check** — `cargo outdated`
 - **Release Build** — Builds production binary (main branch only)
@@ -148,11 +147,6 @@ All checks pass:
 - **Rationale:** Chaos tests require multiple Okapi instances and system tools
 - **Benefit:** Cost-effective for long-running tests (3+ hours)
 - **Trade-off:** Requires maintaining self-hosted infrastructure
-
-### Line Budget Enforcement
-- **Rationale:** AGENTS.md specifies ≤30,000 lines of Rust
-- **Benefit:** Enforces minimalism, prevents bloat
-- **Implementation:** `tokei` check in CI pipeline
 
 ### Comprehensive Install Script
 - **Rationale:** One command should work across all Linux distributions
@@ -253,7 +247,6 @@ All checks pass:
 - Formatting enforced via `cargo fmt`
 - Linting enforced via `cargo clippy`
 - Tests must pass before merge
-- Line budget enforced (≤30,000 lines)
 - Security audits run on every PR
 
 ---

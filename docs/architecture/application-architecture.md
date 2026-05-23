@@ -24,7 +24,7 @@ domain: "Application"
 
 ## 1. Executive Summary
 
-hKask application architecture consists of 31 Rust crates organized into three layers: Core (11 crates, ≤30k LOC budget), MCP Servers (19 crates, excluded from budget), and Testing (1 crate, excluded from budget).
+hKask application architecture consists of 31 Rust crates organized into three layers: Core (11 crates), MCP Servers (19 crates), and Testing (1 crate).
 
 **Key Design Decisions:**
 - **Unified registry** — Single registry with `template_type` discriminator (not three separate)
@@ -32,7 +32,6 @@ hKask application architecture consists of 31 Rust crates organized into three l
 - **Bot manifests** — Pull/edit/push lifecycle with YAML validation
 - **Template cascade** — Jinja2 rendering with LLM-based selection
 
-**Current LOC:** ~6,400 lines Rust (21% of 30,000 budget)  
 **Tests:** 254 passing across workspace
 
 **Verification:** `cargo check --workspace && cargo test --workspace`

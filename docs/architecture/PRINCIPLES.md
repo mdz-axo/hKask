@@ -132,7 +132,7 @@ status: VERIFIED
 **Implementation:**
 - Single registry (not three separate)
 - Template types: `Prompt`, `Process`, `Cognition`
-- hLexicon grounding (~75 terms)
+- hLexicon grounding (75 terms allocated across 3 domains)
 - Jinja2 rendering with LLM-based selection
 
 **Constraint:** Selection intelligence in Jinja2/LLM, not Rust code.
@@ -318,43 +318,6 @@ done
 ```bash
 # Check for anti-pattern implementation
 grep -r "reputation\|swarm\|marketplace\|OCT-H\|axolotl" crates/ --include="*.rs"
-```
-
----
-
-## 6. Line Budget & Testing Policy
-
-**Principle:** ≤30,000 lines Rust in production crates (excluding protocols: ACP, MCP, Okapi).[^budget]
-
-### 6.1 Budget Allocation
-
-| Crate | Budget LOC | Current LOC | Utilization |
-|-------|------------|-------------|-------------|
-| `hkask-types` | ~2,000 | ~2,000 | 100% |
-| `hkask-storage` | ~4,000 | ~4,000 | 100% |
-| `hkask-memory` | ~3,000 | ~3,000 | 100% |
-| `hkask-cns` | ~2,000 | ~2,000 | 100% |
-| `hkask-templates` | ~5,000 | ~5,000 | 100% |
-| `hkask-agents` | ~2,500 | ~2,500 | 100% |
-| `hkask-ensemble` | ~1,500 | ~1,500 | 100% |
-| `hkask-keystore` | ~1,000 | ~1,000 | 100% |
-| `hkask-mcp` | ~2,500 | ~2,500 | 100% |
-| `hkask-cli` | ~2,000 | ~2,000 | 100% |
-| `hkask-api` | ~2,000 | ~2,000 | 100% |
-| **Total** | **30,000** | **~6,400** | **21%** |
-
-**Current State:** ~6,400 LOC (21% of budget) as of 2026-05-20.
-
-### 6.2 Testing Exclusion
-
-**Principle:** Only `hkask-testing` crate is excluded from budget. All other test code counts.
-
-**Rationale:** Test code in a separate test crate can be excluded from production builds. This creates no pressure to minimize verification—only pressure to minimize the production system itself.[^testing]
-
-**Verification Command:**
-```bash
-# Count production LOC (excluding hkask-testing)
-tokei crates/ --exclude hkask-testing --exclude "*.md" | grep Rust
 ```
 
 ---

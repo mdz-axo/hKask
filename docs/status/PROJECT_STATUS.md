@@ -20,14 +20,12 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-na
 
 ### 2.1 Code Metrics
 
-| Metric | Value | Budget | Status |
-|--------|-------|--------|--------|
-| **Core LOC (Rust)** | ~25,800 | ≤30,000 | 86% used |
-| **MCP Server LOC (Rust)** | Included in budget | — | — |
-| **Total Rust LOC** | ~25,800 | ≤30,000 | 86% used |
-| **Excluded** | Jinja2 templates, YAML manifests | — | Not counted |
-
-**Note:** LOC count excludes blank lines and comments (per AGENTS.md definition — Rust as the "steel frame")
+| Metric | Value | Status |
+|--------|-------|--------|
+| **Core LOC (Rust)** | ~25,800 | — |
+| **MCP Server LOC (Rust)** | Included in count | — |
+| **Total Rust LOC** | ~25,800 | — |
+| **Excluded** | Jinja2 templates, YAML manifests | Not counted |
 
 ### 2.2 Test Metrics
 
@@ -51,7 +49,7 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-na
 |-----------|-------|-------------|
 | **Core Crates** | 11 | `hkask-*` in `crates/` |
 | **MCP Servers** | 19 | `hkask-mcp-*` in `mcp-servers/` |
-| **Test Crate** | 1 | `hkask-testing` (excluded from LOC count) |
+| **Test Crate** | 1 | `hkask-testing` |
 | **Total** | 31 | All in workspace |
 
 ---
@@ -115,7 +113,7 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-na
 - `hkask-mcp-spandrel` → Graph analysis templates
 - `hkask-mcp-doc-knowledge` → Document extraction templates
 
-**Note:** MCP servers are excluded from the 30,000 LOC budget per [`AGENTS.md`](../../AGENTS.md).
+**Note:** MCP servers are excluded from count per [`AGENTS.md`](../../AGENTS.md).
 
 ---
 

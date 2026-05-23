@@ -1,8 +1,6 @@
 # hKask (ℏKask) — Planck's Constant of Agent Systems
 
-**Version:** v0.21.0 (Pre-alpha MVP in progress)  
-**Line Budget:** ≤30,000 lines Rust (excluding ACP/MCP protocols, Okapi)  
-**Current LOC:** ~734 lines Rust (workspace skeleton)
+**Version:** v0.21.0 (Pre-alpha MVP in progress)
 
 ---
 
@@ -28,7 +26,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 
 ## Crate Structure
 
-### Core (11 crates — ≤30k lines total)
+### Core (11 crates)
 - `hkask-types` — ID types, ν-event, hLexicon, visibility
 - `hkask-storage` — SQLite + SQLCipher, triples, embeddings, blobs, Git CAS
 - `hkask-memory` — Semantic/episodic pipelines
@@ -41,7 +39,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 - `hkask-cli` — CLI commands
 - `hkask-api` — HTTP API, utoipa OpenAPI
 
-### MCP Servers (10 crates — excluded from budget)
+### MCP Servers (10 crates)
 - `hkask-mcp-inference` — Okapi-backed LLM inference
 - `hkask-mcp-storage` — Storage operations
 - `hkask-mcp-memory` — Memory operations
@@ -86,7 +84,6 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 - [ ] Seed templates (prompt/process/cognition)
 - [ ] Curator instantiation
 - [ ] Success criterion test (16 items from master spec)
-- [ ] LOC audit (≤30,000)
 
 ---
 
@@ -121,9 +118,6 @@ cargo check
 cargo test
 cargo clippy -- -D warnings
 cargo fmt --check
-
-# Line count
-tokei
 ```
 
 ---
@@ -165,7 +159,6 @@ tokei
 
 **As simple as possible, but no simpler.**
 
-- **≤30,000 lines** — Not one line more
 - **No silent draws on reserve** — Every change cited
 - **No hallucinations** — All features traceable to spec
 - **No speculation** — Code not needed today is debt
@@ -173,10 +166,10 @@ tokei
 
 **The Loom and the Thread:**
 
-| Layer | Technology | Budget | Mutability |
-|-------|------------|--------|------------|
-| **Hard (Kernel)** | Rust | ≤30,000 LOC | Fixed, stable |
-| **Soft (Material)** | YAML, Jinja2, MD | Unlimited | Mutable, evolving |
+| Layer | Technology | Mutability |
+|-------|------------|------------|
+| **Hard (Kernel)** | Rust | Fixed, stable |
+| **Soft (Material)** | YAML, Jinja2, MD | Mutable, evolving |
 
 ---
 

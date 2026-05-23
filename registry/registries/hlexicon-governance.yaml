@@ -22,6 +22,26 @@ governance:
       scope: single_template
       format: jinja2_header_comment
 
+  # Vocabulary Term Allocation
+  term_allocation:
+    total_allocation: 75
+    distribution:
+      wordact: 25
+      flowdef: 27
+      knowact: 23
+    current_usage: 80
+    overage_justification: |
+      Git evolution terms (fork, clone, branch, merge, rebase, pr, upstream, downstream)
+      were deemed essential for artifact management despite exceeding the original allocation.
+      hLexicon terms are allocated, not consumed. Terms are not depleted by use;
+      they are deliberately placed and reused infinitely. Allocation implies intentional
+      distribution across domains, not resource depletion.
+    expansion_policy: |
+      When the vocabulary exceeds allocation, the governance body must either:
+      1. Retire underused terms (zero codebase matches)
+      2. Formally expand allocation with written justification
+      3. Accept overage with documented rationale per term group
+
   # Validation Rules
   validation_rules:
     rule_1_functional_required:

@@ -25,8 +25,7 @@ domain: "Cross-cutting"
 
 **Name:** hKask (pronounced *h-bar-kask*)  
 **Binary:** `kask`  
-**Crate prefix:** `hkask-`  
-**Line Budget:** ≤30,000 lines Rust (excluding protocols: ACP, MCP, Okapi)
+**Crate prefix:** `hkask-`
 
 **Version:** v0.21.0 — MVP in progress  
 **Status:** Pre-alpha — Phase 7 complete (Ensemble & CNS), Phase 8 complete (UI/API)
@@ -49,31 +48,7 @@ domain: "Cross-cutting"
 
 ```mermaid
 graph TB
-    subgraph Core[Core Crates - 30k LOC Budget]
-        types[hkask-types]
-        storage[hkask-storage]
-        memory[hkask-memory]
-        cns[hkask-cns]
-        templates[hkask-templates]
-        agents[hkask-agents]
-        ensemble[hkask-ensemble]
-        keystore[hkask-keystore]
-        mcp[hkask-mcp]
-        cli[hkask-cli]
-        api[hkask-api]
-    end
-    
-    subgraph MCP[MCP Servers - Excluded from Budget]
-        mcp_inf[hkask-mcp-inference]
-        mcp_store[hkask-mcp-storage]
-        mcp_mem[hkask-mcp-memory]
-        mcp_emb[hkask-mcp-embedding]
-        mcp_cond[hkask-mcp-condenser]
-        mcp_web[hkask-mcp-web]
-        mcp_sch[hkask-mcp-scholar]
-    end
-    
-    subgraph Test[Test Crate - Excluded from Budget]
+    subgraph Test[Test Crate]
         testing[hkask-testing]
     end
     
@@ -120,12 +95,12 @@ hkask-workspace/
 ├── hkask-mcp-spandrel      # Graph analysis
 └── hkask-mcp-doc-knowledge # Document extraction
 │
-├── hkask-testing           # EXCLUDED FROM BUDGET — single test crate
+├── hkask-testing           # single test crate
 │   ├── unit-tests/         # Unit tests moved from inline modules
 │   ├── integration-tests/  # Cross-crate integration tests
 │   └── test-harnesses/     # Test utilities, fixtures, mocks
 │
-└── External (excluded from budget)
+└── External
     ├── Okapi (mdz-axo/Okapi)
     ├── ACP (acp-runtime)
     └── MCP (rmcp)
@@ -223,9 +198,6 @@ cargo fmt
 cargo check --workspace
 cargo clippy --workspace -- -D warnings
 cargo fmt --check
-
-# Line count verification
-tokei
 ```
 
 ---
@@ -241,16 +213,6 @@ tokei
 | Entity Relationships | `docs/architecture/hKask-erd.md` |
 | Registry & Templating | `docs/architecture/registry-templating-prompt-v2.md` |
 | Agent Operating Guide | `AGENTS.md` |
-
----
-
-## Completion Standard
-
-Before claiming completion:
-1. Run `cargo check`, `cargo test`, `cargo clippy -- -D warnings`, `cargo fmt --check`
-2. Run `tokei` to verify ≤30,000 lines
-3. Report exact commands and whether they passed
-4. If verification fails, fix it or state the remaining blocker
 
 ---
 

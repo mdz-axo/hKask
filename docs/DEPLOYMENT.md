@@ -11,10 +11,18 @@
 hKask (ℏKask — "Planck's Constant of Agent Systems") is a minimal agent-native container platform. This guide covers production deployment of the `kask` binary and supporting infrastructure.
 
 **Components:**
-- `kask` CLI binary — User-facing command interface
-- `hkask-api` — HTTP API server (optional, for programmatic access)
+- `kask` CLI binary — User-facing command interface (interactive chat, template management, pod operations)
+- `hkask-api` — HTTP API server (optional, for programmatic access including `/api/chat` endpoint)
 - SQLite database — Persistent storage for registry, goals, CNS state
 - Okapi LLM — External dependency for inference (local or remote)
+
+**Key Features:**
+- Interactive CLI chat with Curator persona
+- API-based chat endpoint (`POST /api/chat`)
+- Template registry with hLexicon validation
+- Agent pod management (bot/replicant lifecycle)
+- CNS monitoring with algedonic alerts
+- User sovereignty enforcement (Magna Carta)
 
 ---
 
@@ -32,11 +40,45 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a minimal agent-nati
 
 ### 2.2 External Dependencies
 
-| Dependency | Purpose | Required |
-|------------|---------|----------|
-| **Okapi LLM** | LLM inference | Yes (for inference features) |
-| **SQLite** | Database engine | Bundled (rusqlite) |
-| **Git** | Template loading (optional) | Optional |
+| Dependency | Purpose | Required | Default |
+|------------|---------|----------|---------|
+| **Okapi LLM** | LLM inference (chat, SOAP, templates) | Yes (for inference features) | `http://localhost:8080` |
+| **SQLite** | Database engine | Bundled (rusqlite) | — |
+| **Git** | Template loading (optional) | Optional | — |
+
+### 2.3 Okapi LLM Setup
+
+hKask requires Okapi for inference. Options:
+
+**Option A: Local Okapi (Development)**
+```bash
+# Install Okapi (mdz-axo/Okapi)
+git clone https://github.com/mdz-axolotl/Okapi.git
+cd Okapi
+cargo run --release
+
+# Okapi starts at http://localhost:8080 by default
+```
+
+**Option B: Remote Okapi (Production)**
+```bash
+# Configure remote Okapi endpoint
+export OKAPI_BASE_URL="https://okapi.example.com"
+export OKAPI_API_KEY="your-api-key-here"
+```
+
+**Option C: Ollama Compatibility**
+Okapi is compatible with Ollama API. You can use Ollama as a drop-in replacement:
+```bash
+# Install Ollama
+curl https://ollama.com/install.sh | sh
+
+# Pull model
+ollama pull qwen3:8b
+
+# Configure hKask to use Ollama
+export OKAPI_BASE_URL="http://localhost:11434"
+```
 
 ---
 
@@ -53,23 +95,60 @@ cd hKask
 cargo build --release -p hkask-cli
 
 # Install binary
-cp target/release/kask /usr/local/bin/
+cp target/release/hkask-cli /usr/local/bin/kask
 
 # Verify installation
 kask --version
 ```
 
-### 3.2 Run Interactive Chat
+### 3.2 Interactive CLI Chat
 
 ```bash
-# Start interactive chat session
+# Start interactive chat session (auto-selects template)
 kask chat --interactive
 
-# Chat with template
+# Chat with specific template
 kask chat --interactive --template prompt/selector
 
-# Process single input
+# Process single input from stdin
 echo "What is 2+2?" | kask chat
+
+# Process input from file
+kask chat -f questions.txt
+```
+
+**Chat Features:**
+- Auto-template selection based on input type (questions, actions, defaults)
+- Explicit template selection via `--template` flag
+- Okapi inference with configurable parameters (temperature: 0.7, max_tokens: 512)
+- Graceful error handling when Okapi is unavailable
+
+### 3.3 API Server (Optional)
+
+```bash
+# Build API server
+cargo build --release -p hkask-api
+
+# Start API server
+./target/release/hkask-api
+
+# Test chat endpoint
+curl -X POST http://localhost:8080/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"input": "What is the capital of France?", "template_id": null}'
+```
+
+### 3.4 Verify Installation
+
+```bash
+# Check CNS health
+kask cns health
+
+# List templates
+kask template list
+
+# Check sovereignty status
+kask sovereignty status
 ```
 
 ---
@@ -87,8 +166,30 @@ echo "What is 2+2?" | kask chat
 | `HKASK_DATABASE_URL` | SQLite database path | `./hkask.db` | No |
 | `HKASK_LOG_LEVEL` | Logging verbosity | `info` | No |
 | `RUST_LOG` | Rust tracing filter | — | No |
+| `HKASK_SOAP_MODEL` | Model for SOAP inference | `qwen3:8b` | No |
+| `HKASK_SOAP_TEMPERATURE` | Temperature for SOAP | `0.2` | No |
+| `HKASK_SOAP_MAX_TOKENS` | Max tokens for SOAP | `2048` | No |
+| `HKASK_SOAP_TIMEOUT_SECS` | SOAP inference timeout | `30` | No |
+| `HKASK_SOAP_PERSONA_PATH` | Jack persona file path | `hkask-templates/personas/jack-nurse.md` | No |
 
-### 4.2 Example Configuration
+### 4.2 Chat Configuration
+
+Chat endpoints use the following default LLM parameters:
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `temperature` | 0.7 | Balanced creativity/coherence |
+| `top_p` | 0.9 | Nucleus sampling threshold |
+| `top_k` | 40 | Token sampling limit |
+| `max_tokens` | 512 | Maximum response length |
+| `frequency_penalty` | 0.0 | No repetition penalty |
+| `presence_penalty` | 0.0 | No novelty bonus |
+
+To customize chat behavior, modify the source code in:
+- CLI: `crates/hkask-cli/src/main.rs:process_chat_input_async()`
+- API: `crates/hkask-api/src/routes.rs:chat()`
+
+### 4.3 Example Configuration
 
 ```bash
 # Production environment
@@ -98,9 +199,14 @@ export OKAPI_TIMEOUT_SECS=60
 export HKASK_DATABASE_URL="/var/lib/hkask/hkask.db"
 export HKASK_LOG_LEVEL="warn"
 export RUST_LOG="hkask=info,hyper=warn"
+
+# Custom model configuration
+export HKASK_SOAP_MODEL="qwen3:32b"
+export HKASK_SOAP_TEMPERATURE="0.3"
+export HKASK_SOAP_MAX_TOKENS="4096"
 ```
 
-### 4.3 Database Location
+### 4.4 Database Location
 
 Default database locations by platform:
 
@@ -375,11 +481,30 @@ chmod 600 /var/lib/hkask/hkask.db
 | Issue | Cause | Resolution |
 |-------|-------|------------|
 | `Failed to initialize Okapi` | Okapi not running | Start Okapi service or check `OKAPI_BASE_URL` |
+| `Inference error: error sending request` | Okapi connection refused | Verify Okapi is running at configured URL |
 | `Database locked` | Concurrent access | Ensure single writer; use WAL mode |
 | `Template not found` | Registry empty | Register templates with `kask template register` |
 | `Capability denied` | Missing/invalid token | Grant capability with `kask bot grant` |
+| `Chat response slow` | High inference latency | Check Okapi load; reduce `max_tokens` |
 
-### 10.2 Debug Mode
+### 10.2 Chat-Specific Issues
+
+**Empty or generic responses:**
+- Increase `temperature` for more creative outputs
+- Check template selection (auto-select may not match intent)
+- Verify prompt format with `RUST_LOG=debug`
+
+**Template not applied:**
+- Explicit template ID: `kask chat --interactive --template prompt/selector`
+- Check template exists: `kask template get <id>`
+- Verify template type matches input (prompt, cognition, process)
+
+**Okapi timeout:**
+- Increase `OKAPI_TIMEOUT_SECS` (default: 30)
+- Check Okapi server load
+- Reduce `HKASK_SOAP_MAX_TOKENS`
+
+### 10.3 Debug Mode
 
 ```bash
 # Enable verbose logging
@@ -388,13 +513,19 @@ kask chat --interactive --verbose
 
 # View detailed CNS spans
 kask cns health --verbose
+
+# Test Okapi connectivity directly
+curl http://localhost:8080/api/generate \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "test", "model": "qwen3:8b"}'
 ```
 
-### 10.3 Support
+### 10.4 Support
 
 - Documentation: `docs/` directory
 - Issue tracker: https://github.com/mdz-axolotl/hKask/issues
 - Architecture: `docs/architecture/hKask-architecture-master.md`
+- API Reference: `kask docs openapi` or `docs/openapi.json`
 
 ---
 
@@ -425,6 +556,91 @@ sudo systemctl start hkask-api
 # Verify
 kask --version
 curl http://localhost:8080/api/cns/health
+```
+
+---
+
+## 12. API Reference
+
+### 12.1 Chat Endpoints
+
+**POST /api/chat**
+Curator chat with Okapi inference.
+
+```bash
+curl -X POST http://localhost:8080/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": "What is the capital of France?",
+    "template_id": null
+  }'
+```
+
+Response:
+```json
+{
+  "output": "Paris is the capital of France.",
+  "template_id": "auto-select"
+}
+```
+
+**Request Body:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `input` | string | Yes | User input text |
+| `template_id` | string | No | Template ID (auto-select if null) |
+
+**Response:**
+| Field | Type | Description |
+|-------|------|-------------|
+| `output` | string | LLM response text |
+| `template_id` | string | Template used (explicit or auto-select) |
+
+### 12.2 Template Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/templates` | List all templates |
+| GET | `/api/templates/:id` | Get template by ID |
+| POST | `/api/templates` | Register new template |
+| GET | `/api/templates/search/:term` | Search by lexicon term |
+
+### 12.3 Pod Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/pods` | List all pods |
+| POST | `/api/pods` | Create new pod |
+| POST | `/api/pods/:id/activate` | Activate pod |
+| POST | `/api/pods/:id/deactivate` | Deactivate pod |
+| GET | `/api/pods/:id/status` | Get pod status |
+
+### 12.4 CNS Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/cns/health` | CNS health status |
+| GET | `/api/cns/alerts` | Algedonic alerts |
+| GET | `/api/cns/variety` | Variety counters |
+
+### 12.5 Sovereignty Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/sovereignty/status` | User sovereignty status |
+| POST | `/api/sovereignty/consent/grant` | Grant consent |
+| POST | `/api/sovereignty/consent/revoke` | Revoke consent |
+| GET | `/api/sovereignty/killzone` | Kill zone status |
+| GET | `/api/sovereignty/access/check` | Check data access |
+
+### 12.6 Generate OpenAPI Spec
+
+```bash
+# Generate OpenAPI specification
+kask docs openapi -o docs/openapi.json
+
+# Or via API (if running)
+curl http://localhost:8080/api/openapi.json -o openapi.json
 ```
 
 ---

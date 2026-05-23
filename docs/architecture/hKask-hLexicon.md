@@ -2,14 +2,14 @@
 
 ## Executive Summary
 
-**hLexicon** is the minimal vocabulary (~75 terms) for composing templates in the hKask system. It covers three domains:
+**hLexicon** is the minimal vocabulary (75 terms allocated across 3 domains) for composing templates in the hKask system. It covers three domains:
 
 1. **WordAct** — Language for prompting/LLM interactions (speech act theory)[^austin]
 2. **FlowDef** — Language for process/skill composition (workflow patterns)[^van-der-aalst]
 3. **KnowAct** — Language for cognition and metacognition (enactive cognition)[^varela]
 
 **Design Principles:**
-- **Minimal:** ≤75 terms total (currently 72)
+- **Minimal:** 75 terms allocated across 3 domains (currently 80)
 - **Composable:** Terms combine to express complex patterns
 - **Academic Grounding:** Based on established theory (Austin, Searle, van der Aalst, Varela)
 - **LLM-Optimized:** Terms selected for LLM comprehension and consistent interpretation
@@ -344,7 +344,7 @@ contract:
 ### KnowAct (23)
 `recognize`, `classify`, `detect`, `match`, `discriminate`, `parse`, `infer`, `deduce`, `induce`, `abduct`, `analogy`, `critique`, `acquire`, `integrate`, `crystallize`, `adapt`, `calibrate`, `reflect`, `monitor`, `evaluate`, `regulate`, `orient`, `ground`
 
-**Total: 80 terms** (5 over 75 limit — git evolution terms are essential for artifact management)
+**Total: 80 terms** (5 over 75 allocation — git evolution terms are essential for artifact management)
 
 ---
 
@@ -426,4 +426,4 @@ Recommend adjustments: {{ regulate(pass_rate) }}
 
 ---
 
-*hLexicon v1.0 — 72 terms, 3 domains, 1 unified composition substrate*
+*hLexicon v1.0 — 80 terms allocated across 3 domains, 1 unified composition substrate*

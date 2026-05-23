@@ -83,14 +83,6 @@ cargo clippy --workspace -- -D warnings
 cargo fmt --check
 ```
 
-**Line Count:**
-```bash
-find crates mcp-servers -name "*.rs" -type f -exec cat {} \; \
-  | grep -v '^\s*$' | grep -v '^\s*//' | grep -v '^\s*/\*' \
-  | grep -v '^\s*\*' | wc -l
-# Result: 25,800 / 30,000 (86% used, 4,200 remaining)
-```
-
 ---
 
 ## Technical Details

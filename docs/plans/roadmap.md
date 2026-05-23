@@ -27,7 +27,6 @@ domain: "Business"
 hKask development follows a phased approach prioritizing minimal viable functionality (v0.21.0 MVP) before operational enhancements (v1.1+) and feature expansion (v1.2+).
 
 **Current State:** v0.21.0 MVP in progress — Phase 5 (Security Hardening & Integration Tests) complete  
-**Line Budget:** ~6,400 LOC Rust (21% of 30,000 budget)  
 **Tests:** 237 passing across workspace
 
 **Timeline:**
@@ -186,7 +185,6 @@ grep -r "νKask\|OKH\|three registries" docs/ --include="*.md" --exclude-dir=arc
 
 | Metric | Target | Current | Status |
 |--------|--------|---------|--------|
-| **LOC Budget** | ≤30,000 | ~6,400 (21%) | ✅ On track |
 | **Test Coverage** | ≥200 tests | 237 | ✅ Pass |
 | **TOGAF Coverage** | 9 phases | 7 of 10 (70%) | ⚠️ In progress |
 | **Writing Excellence** | ≥80% passing | 92% | ✅ Pass |

@@ -279,7 +279,6 @@ status: VERIFIED
 | **Rust-only production code** | Memory safety, performance | Cargo workspace |
 | **No JavaScript runtime** | Single-language stack | Architecture principle |
 | **Local-first execution** | User sovereignty | Design invariant |
-| **≤30,000 LOC kernel** | Minimal footprint | Line budget tracking |
 
 ### 7.2 Compatibility Constraints
 

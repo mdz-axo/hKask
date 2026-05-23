@@ -497,10 +497,9 @@ cargo build --release -p hkask-api
 1. ✅ `cargo check --workspace` passes
 2. ✅ `cargo test --workspace` passes (40+ tests)
 3. ✅ `cargo clippy --workspace -- -D warnings` passes
-4. ✅ LOC ≤ 30,000 (excluding tests and docs)
-5. ✅ Documentation ≤ 10,000 lines (working docs only)
-6. ✅ All P0 tasks complete
-7. ✅ All P1 tasks complete or deferred with justification
+4. ✅ Documentation ≤ 10,000 lines (working docs only)
+5. ✅ All P0 tasks complete
+6. ✅ All P1 tasks complete or deferred with justification
 
 ---
 

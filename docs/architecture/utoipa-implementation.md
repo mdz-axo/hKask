@@ -27,9 +27,7 @@ utoipa provides automatic OpenAPI specification generation for the hKask HTTP AP
 |-------|-------------|-------------|---------|
 | `hkask-api` | ~150 | 481 | OpenAPI schemas and path annotations |
 | `hkask-cli` | ~200 | 1,112 | Documentation generation commands |
-| **Total core crates** | — | 22,251 | Well within 30,000 line budget |
-
-**Remaining budget:** 7,749 lines
+| **Total core crates** | — | 22,251 | —
 
 ### 2.2 Dependencies
 

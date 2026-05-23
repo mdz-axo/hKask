@@ -160,7 +160,6 @@ cargo fmt
 - **Build** — Compiles all workspace members
 - **Unit Tests** — Runs `cargo test --workspace --lib`
 - **Integration Tests** — Runs integration test suite
-- **Line Budget Check** — Verifies ≤30,000 lines of Rust code
 - **Security Audit** — Runs `cargo audit`
 - **Dependency Check** — Runs `cargo outdated`
 - **Release Build** — Builds production binary (main branch only)
@@ -297,7 +296,6 @@ Before committing code:
 - ✓ Linting (`cargo clippy -- -D warnings`)
 - ✓ Build (`cargo build --workspace`)
 - ✓ Unit tests (`cargo test --workspace --lib`)
-- ✓ Line budget (≤30,000 lines)
 
 ### Optional Checks
 

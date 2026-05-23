@@ -30,7 +30,6 @@ hKask is a **minimal agent-native container platform** enabling sovereign agents
 - Reduces agent integration complexity from weeks to hours via self-wiring templates
 - Enables user sovereignty through OCAP capability attenuation
 - Provides cybernetic monitoring via CNS with algedonic alerts
-- Maintains minimal footprint (≤30,000 LOC Rust kernel)
 
 **Verification:** `cargo check --workspace`
 

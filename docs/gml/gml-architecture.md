@@ -472,22 +472,6 @@ impl HybridConcept {
 
 ---
 
-## Line Budget
-
-| Crate | Estimated Lines |
-|-------|-----------------|
-| hkask-gml-types | ~400 |
-| hkask-gml-core | ~500 |
-| hkask-gml-cascade | ~300 |
-| hkask-gml-storage | ~250 |
-| hkask-gml-template | ~100 |
-| hkask-mcp-gml | ~200 |
-| **Total** | **~1,750** |
-
-Target: ≤2,000 lines Rust production code (excluding templates and tests)
-
----
-
 ## See Also
 
 - [API Reference](./gml-api.md)
