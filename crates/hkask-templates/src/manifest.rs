@@ -7,8 +7,33 @@ use crate::ports::{
     Action, CnsPort, DEFAULT_MATROSHKA_LIMIT, InferenceConfig, InferencePort, ManifestExecutor,
     ManifestStep, McpPort, ProcessManifest, Result, TemplateError, TemplateRenderer,
 };
+use hkask_storage::ModelCategory;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::info;
+
+/// Model requirements for template execution
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelRequirements {
+    /// Required model ID (e.g., "ollama/llama-3.1-8b-instruct")
+    pub required: String,
+    /// Model category for fallback selection
+    pub category: ModelCategory,
+    /// Fallback category if required model unavailable
+    pub fallback_category: Option<ModelCategory>,
+    /// Minimum context length required
+    pub min_context: u32,
+    /// Whether reasoning capability is required
+    #[serde(default)]
+    pub reasoning_required: bool,
+    /// Required capabilities (e.g., "code", "math", "analysis")
+    #[serde(default)]
+    pub capabilities: Vec<String>,
+    /// Embedding dimension (for embedding models only)
+    pub dimension: Option<u32>,
+    /// Pooling strategy (for embedding models only)
+    pub pooling: Option<String>,
+}
 
 /// Configuration for selector fallback
 #[derive(Debug, Clone)]

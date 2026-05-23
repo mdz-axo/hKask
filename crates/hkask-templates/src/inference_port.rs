@@ -3,11 +3,16 @@
 //! This module provides the InferencePort trait for LLM invocations
 //! with temperature-controlled parameters for anti-normative generation.
 
+use crate::manifest::ModelRequirements;
+use crate::okapi_config::{OkapiConfig, RetryConfig, validate_prompt};
 use async_trait::async_trait;
-use hkask_types::{BotID, LLMParameters, TemplateId, TemplateInvocation, TemplateOutcome};
+use hkask_cns::{RateLimiter, SpanEmitter};
+use hkask_types::{BotID, LLMParameters, TemplateId, TemplateInvocation, TemplateOutcome, WebID};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::sync::Arc;
 use thiserror::Error;
+use tracing::{info, warn};
 
 #[derive(Error, Debug)]
 pub enum InferenceError {
@@ -19,6 +24,8 @@ pub enum InferenceError {
     Generation(String),
     #[error("JSON error: {0}")]
     Json(String),
+    #[error("Rate limit exceeded: {0}")]
+    RateLimitExceeded(String),
 }
 
 /// Inference result from Okapi
@@ -28,6 +35,22 @@ pub struct InferenceResult {
     pub model: String,
     pub usage: Usage,
     pub finish_reason: String,
+    /// Token-level probabilities for confidence scoring
+    pub token_probabilities: Option<Vec<TokenProbability>>,
+}
+
+/// Token probability from Okapi response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TokenProbability {
+    pub token: String,
+    pub prob: f64,
+    pub top_k: Vec<TokenProb>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TokenProb {
+    pub token: String,
+    pub prob: f64,
 }
 
 /// Token usage statistics
@@ -50,6 +73,17 @@ pub trait InferencePort: Send + Sync {
         parameters: &LLMParameters,
     ) -> Result<InferenceResult, InferenceError>;
 
+    /// Generate text with model requirements
+    async fn generate_with_model(
+        &self,
+        prompt: &str,
+        parameters: &LLMParameters,
+        _model_requirements: Option<&ModelRequirements>,
+    ) -> Result<InferenceResult, InferenceError> {
+        // Default implementation ignores model_requirements
+        self.generate(prompt, parameters).await
+    }
+
     /// Generate multiple outputs for template selection
     async fn generate_n(
         &self,
@@ -68,28 +102,195 @@ pub trait InferencePort: Send + Sync {
 /// Okapi-backed inference implementation
 pub struct OkapiInference {
     model: String,
-    #[allow(dead_code)]
-    base_url: String,
+    config: OkapiConfig,
+    retry_config: RetryConfig,
     client: reqwest::Client,
+    /// Rate limiter for inference boundary
+    rate_limiter: Option<Arc<RateLimiter>>,
+    /// Bot/WebID for rate limiting
+    bot_id: Option<WebID>,
+    /// CNS span emitter
+    span_emitter: SpanEmitter,
 }
 
 impl OkapiInference {
-    pub fn new(model: &str, base_url: &str) -> Self {
-        Self {
+    pub fn new(model: &str, config: OkapiConfig) -> Result<Self, InferenceError> {
+        let client = config
+            .build_client()
+            .map_err(|e| InferenceError::Connection(e.to_string()))?;
+
+        Ok(Self {
             model: model.to_string(),
-            base_url: base_url.to_string(),
-            client: reqwest::Client::new(),
-        }
+            retry_config: RetryConfig::default(),
+            config,
+            client,
+            rate_limiter: None,
+            bot_id: None,
+            span_emitter: SpanEmitter::default(),
+        })
     }
 
-    /// Default local Okapi endpoint
-    pub fn local(model: &str) -> Self {
-        Self::new(model, "http://localhost:8080")
+    pub fn with_retry_config(
+        model: &str,
+        config: OkapiConfig,
+        retry_config: RetryConfig,
+    ) -> Result<Self, InferenceError> {
+        let client = config
+            .build_client()
+            .map_err(|e| InferenceError::Connection(e.to_string()))?;
+
+        Ok(Self {
+            model: model.to_string(),
+            retry_config,
+            config,
+            client,
+            rate_limiter: None,
+            bot_id: None,
+            span_emitter: SpanEmitter::default(),
+        })
+    }
+
+    pub fn with_rate_limiting(
+        model: &str,
+        config: OkapiConfig,
+        retry_config: RetryConfig,
+        rate_limiter: RateLimiter,
+        bot_id: WebID,
+    ) -> Result<Self, InferenceError> {
+        let client = config
+            .build_client()
+            .map_err(|e| InferenceError::Connection(e.to_string()))?;
+
+        Ok(Self {
+            model: model.to_string(),
+            retry_config,
+            config,
+            client,
+            rate_limiter: Some(Arc::new(rate_limiter)),
+            bot_id: Some(bot_id),
+            span_emitter: SpanEmitter::default(),
+        })
+    }
+
+    /// Default local Okapi endpoint (no auth)
+    pub fn local(model: &str) -> Result<Self, InferenceError> {
+        Self::new(model, OkapiConfig::local_dev())
     }
 
     /// Fast local model preset
-    pub fn fast_local() -> Self {
+    pub fn fast_local() -> Result<Self, InferenceError> {
         Self::local("fast-local-model")
+    }
+
+    /// Execute HTTP request to Okapi API
+    async fn execute_request(
+        &self,
+        request: OkapiRequest,
+    ) -> Result<InferenceResult, InferenceError> {
+        let mut req = self
+            .client
+            .post(format!("{}/api/generate", self.config.base_url))
+            .json(&request);
+
+        // Add authorization header if configured
+        if let Some(auth_header) = self.config.get_authorization_header() {
+            req = req.header("Authorization", auth_header);
+        }
+
+        let response = req
+            .send()
+            .await
+            .map_err(|e| InferenceError::Connection(e.to_string()))?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_text = response.text().await.unwrap_or_default();
+
+            // Check if retryable
+            if self.retry_config.is_retryable_status(status.as_u16()) {
+                return Err(InferenceError::Connection(format!(
+                    "Retryable status {}: {}",
+                    status, error_text
+                )));
+            }
+
+            return Err(InferenceError::Connection(format!(
+                "Okapi API returned status {}: {}",
+                status, error_text
+            )));
+        }
+
+        let okapi_response: OkapiResponse = response
+            .json()
+            .await
+            .map_err(|e| InferenceError::Json(format!("Okapi JSON parse error: {}", e)))?;
+
+        let choice = okapi_response
+            .choices
+            .first()
+            .ok_or_else(|| InferenceError::Generation("Empty response from Okapi".to_string()))?;
+
+        // Extract token probabilities if available
+        let token_probabilities = choice.token_probs.as_ref().map(|probs| {
+            probs
+                .iter()
+                .map(|p| TokenProbability {
+                    token: p.token.clone(),
+                    prob: p.prob,
+                    top_k: p
+                        .top_k
+                        .iter()
+                        .map(|tk| TokenProb {
+                            token: tk.token.clone(),
+                            prob: tk.prob,
+                        })
+                        .collect(),
+                })
+                .collect()
+        });
+
+        Ok(InferenceResult {
+            text: choice.message.content.clone(),
+            model: okapi_response.model.clone(),
+            usage: Usage {
+                prompt_tokens: okapi_response.usage.prompt_tokens,
+                completion_tokens: okapi_response.usage.completion_tokens,
+                total_tokens: okapi_response.usage.total_tokens,
+            },
+            finish_reason: choice.finish_reason.clone(),
+            token_probabilities,
+        })
+    }
+
+    /// Execute request with retry logic
+    async fn execute_with_retry(
+        &self,
+        request: OkapiRequest,
+    ) -> Result<InferenceResult, InferenceError> {
+        let mut last_error = None;
+
+        for attempt in 0..=self.retry_config.max_retries {
+            match self.execute_request(request.clone()).await {
+                Ok(result) => return Ok(result),
+                Err(e) => {
+                    last_error = Some(e);
+
+                    if attempt < self.retry_config.max_retries {
+                        let delay = self.retry_config.delay_for_attempt(attempt);
+                        warn!(
+                            target: "hkask.inference",
+                            attempt = %attempt,
+                            delay_ms = %delay.as_millis(),
+                            error = ?last_error,
+                            "Retryable error, waiting before retry"
+                        );
+                        tokio::time::sleep(delay).await;
+                    }
+                }
+            }
+        }
+
+        Err(last_error.unwrap())
     }
 }
 
@@ -100,6 +301,29 @@ impl InferencePort for OkapiInference {
         prompt: &str,
         parameters: &LLMParameters,
     ) -> Result<InferenceResult, InferenceError> {
+        // Validate input
+        validate_prompt(prompt).map_err(|e| InferenceError::Generation(e.to_string()))?;
+
+        // Check rate limit before API call
+        if let (Some(rate_limiter), Some(bot_id)) = (&self.rate_limiter, &self.bot_id) {
+            if !rate_limiter.check(bot_id) {
+                // Emit CNS span for rate limit exceeded
+                self.span_emitter.emit_tool(
+                    "rate_limit_exceeded",
+                    serde_json::json!({
+                        "bot_id": bot_id.to_string(),
+                        "model": self.model,
+                        "action": "inference.generate",
+                        "reason": "token_bucket_empty"
+                    }),
+                );
+                return Err(InferenceError::RateLimitExceeded(format!(
+                    "Rate limit exceeded for bot {}",
+                    bot_id
+                )));
+            }
+        }
+
         let request = OkapiRequest {
             model: self.model.clone(),
             messages: vec![Message {
@@ -113,54 +337,87 @@ impl InferencePort for OkapiInference {
             presence_penalty: parameters.presence_penalty,
             max_tokens: parameters.max_tokens as i32,
             seed: parameters.seed,
+            n_probs: Some(5),
         };
 
-        let response = self
-            .client
-            .post(format!("{}/api/generate", self.base_url))
-            .json(&request)
-            .send()
-            .await
-            .map_err(|e| InferenceError::Connection(e.to_string()))?;
+        let result = self.execute_with_retry(request).await?;
 
-        if !response.status().is_success() {
-            return Err(InferenceError::Connection(format!(
-                "Okapi API returned status {}: {}",
-                response.status(),
-                response.text().await.unwrap_or_default()
-            )));
+        info!(
+            target: "hkask.inference",
+            model = %result.model,
+            tokens = result.usage.total_tokens,
+            finish_reason = %result.finish_reason,
+            "Inference completed"
+        );
+
+        Ok(result)
+    }
+
+    async fn generate_with_model(
+        &self,
+        prompt: &str,
+        parameters: &LLMParameters,
+        model_requirements: Option<&ModelRequirements>,
+    ) -> Result<InferenceResult, InferenceError> {
+        // Validate input
+        validate_prompt(prompt).map_err(|e| InferenceError::Generation(e.to_string()))?;
+
+        // Check rate limit before API call
+        if let (Some(rate_limiter), Some(bot_id)) = (&self.rate_limiter, &self.bot_id) {
+            if !rate_limiter.check(bot_id) {
+                // Emit CNS span for rate limit exceeded
+                self.span_emitter.emit_tool(
+                    "rate_limit_exceeded",
+                    serde_json::json!({
+                        "bot_id": bot_id.to_string(),
+                        "model": self.model,
+                        "action": "inference.generate_with_model",
+                        "reason": "token_bucket_empty"
+                    }),
+                );
+                return Err(InferenceError::RateLimitExceeded(format!(
+                    "Rate limit exceeded for bot {}",
+                    bot_id
+                )));
+            }
         }
 
-        let okapi_response: OkapiResponse = response
-            .json()
-            .await
-            .map_err(|e| InferenceError::Json(format!("Okapi JSON parse error: {}", e)))?;
+        let model_id = model_requirements
+            .map(|r| r.required.clone())
+            .unwrap_or_else(|| self.model.clone());
 
-        Ok(InferenceResult {
-            text: okapi_response
-                .choices
-                .first()
-                .map(|c| c.message.content.clone())
-                .ok_or_else(|| {
-                    InferenceError::Generation("Empty response from Okapi".to_string())
-                })?,
-            model: okapi_response.model,
-            usage: Usage {
-                prompt_tokens: okapi_response.usage.prompt_tokens,
-                completion_tokens: okapi_response.usage.completion_tokens,
-                total_tokens: okapi_response.usage.total_tokens,
-            },
-            finish_reason: okapi_response
-                .choices
-                .first()
-                .map(|c| c.finish_reason.clone())
-                .unwrap_or_else(|| "unknown".to_string()),
-        })
+        let request = OkapiRequest {
+            model: model_id.clone(),
+            messages: vec![Message {
+                role: "user".to_string(),
+                content: prompt.to_string(),
+            }],
+            temperature: parameters.temperature,
+            top_p: parameters.top_p,
+            top_k: parameters.top_k as i32,
+            frequency_penalty: parameters.frequency_penalty,
+            presence_penalty: parameters.presence_penalty,
+            max_tokens: parameters.max_tokens as i32,
+            seed: parameters.seed,
+            n_probs: Some(5),
+        };
+
+        let result = self.execute_with_retry(request).await?;
+
+        info!(
+            target: "hkask.inference",
+            model = %result.model,
+            tokens = result.usage.total_tokens,
+            finish_reason = %result.finish_reason,
+            "Inference with model completed"
+        );
+
+        Ok(result)
     }
 }
 
 /// Okapi API request structure
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 struct OkapiRequest {
     model: String,
     messages: Vec<Message>,
@@ -171,6 +428,8 @@ struct OkapiRequest {
     presence_penalty: f32,
     max_tokens: i32,
     seed: Option<u64>,
+    /// Number of top token probabilities to return
+    n_probs: Option<i32>,
 }
 
 /// Okapi API response structure
@@ -186,10 +445,28 @@ struct OkapiResponse {
 struct Choice {
     message: Message,
     finish_reason: String,
+    /// Token probabilities if requested
+    #[serde(default, rename = "token_probs")]
+    token_probs: Option<Vec<RawTokenProb>>,
+}
+
+/// Raw token probability from Okapi API
+#[derive(Debug, Deserialize)]
+struct RawTokenProb {
+    token: String,
+    prob: f64,
+    #[serde(default)]
+    top_k: Vec<RawTokenProbTopK>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RawTokenProbTopK {
+    token: String,
+    prob: f64,
 }
 
 /// Okapi API message structure
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct Message {
     role: String,
     content: String,

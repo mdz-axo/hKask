@@ -125,3 +125,6 @@ proptest = "1.6"
 # Pattern matching (for migration)
 regex = "1"
 regex-lite = "0.1"
+
+# Futures utilities
+futures-util = "0.3"

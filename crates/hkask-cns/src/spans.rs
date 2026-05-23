@@ -21,6 +21,8 @@ pub enum SpanCategory {
     Energy,
     /// User sovereignty monitoring (boundary, acquisition, kill-zone)
     Sovereignty,
+    /// Goal primitive (create, transition, verify, complete, subgoal)
+    Goal,
 }
 
 impl SpanCategory {
@@ -33,6 +35,7 @@ impl SpanCategory {
             SpanCategory::AgentPod => "cns.agent_pod",
             SpanCategory::Energy => "cns.energy",
             SpanCategory::Sovereignty => "cns.sovereignty",
+            SpanCategory::Goal => "cns.goal",
         }
     }
 
@@ -45,6 +48,7 @@ impl SpanCategory {
             "agent_pod" | "cns.agent_pod" => Some(SpanCategory::AgentPod),
             "energy" | "cns.energy" => Some(SpanCategory::Energy),
             "sovereignty" | "cns.sovereignty" => Some(SpanCategory::Sovereignty),
+            "goal" | "cns.goal" => Some(SpanCategory::Goal),
             _ => None,
         }
     }
@@ -131,5 +135,15 @@ impl SpanEmitter {
             Span::Sovereignty(format!("alert.{}", alert_type)),
             observation,
         );
+    }
+
+    /// Emit goal span (lifecycle event)
+    pub fn emit_goal(&self, goal_event: &str, observation: Value) {
+        self.emit(Span::Goal(goal_event.to_string()), observation);
+    }
+
+    /// Emit goal alert (variety deficit, algedonic)
+    pub fn emit_goal_alert(&self, alert_type: &str, observation: Value) {
+        self.emit(Span::Goal(format!("alert.{}", alert_type)), observation);
     }
 }

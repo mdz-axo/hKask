@@ -11,6 +11,10 @@ impl WebID {
     pub fn new() -> Self {
         Self(Uuid::new_v4())
     }
+
+    pub fn from_string(s: &str) -> Self {
+        WebID(uuid::Uuid::parse_str(s).unwrap_or_else(|_| uuid::Uuid::new_v4()))
+    }
 }
 
 impl Default for WebID {
@@ -152,6 +156,32 @@ impl Default for SessionID {
 }
 
 impl std::fmt::Display for SessionID {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+/// GoalID — Unique identifier for goals
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GoalID(pub Uuid);
+
+impl GoalID {
+    pub fn new() -> Self {
+        Self(Uuid::new_v4())
+    }
+
+    pub fn from_string(s: &str) -> Self {
+        GoalID(uuid::Uuid::parse_str(s).unwrap_or_else(|_| uuid::Uuid::new_v4()))
+    }
+}
+
+impl Default for GoalID {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl std::fmt::Display for GoalID {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }

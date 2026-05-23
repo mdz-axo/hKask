@@ -1,0 +1,157 @@
+# Goal Lifecycle Manifest — Complete goal primitive flow
+# Shared language (hLexicon) + Shared goals = productive cooperation
+# Per Scott Page's "The Difference": high-performance groups need both
+
+manifest:
+  name: goal-lifecycle
+  version: "0.1.0"
+  description: Goal creation → activation → verification → completion
+  lexicon_terms: [pledge, commit, undertake, promise, sequence, choice, evaluate, assert, ground]
+
+matroshka:
+  max_depth: 7
+  enforce: true
+  depth_counter:
+    enabled: true
+    inherit_from_parent: true
+    default: 0
+    increment_on_dispatch: true
+  cns_monitoring:
+    span_namespace: cns.goal
+    alert_if_exceeds: 6
+    rationale: "Warning before hard limit at 7"
+
+cascade:
+  pre:
+    - ordinal: 1
+      template:
+        type: Prompt
+        lexicon_terms: [pledge, commit]
+        template_ref: registry/templates/goal_create.j2
+      description: "Extract structured goal from user intent"
+      output_schema:
+        type: object
+        properties:
+          goal_text:
+            type: string
+          criteria:
+            type: array
+          visibility:
+            type: string
+            enum: [private, shared, public]
+          priority:
+            type: string
+            enum: [low, medium, high]
+
+  core:
+    - ordinal: 2
+      template:
+        type: Process
+        lexicon_terms: [sequence, choice]
+      description: "Create goal in storage, attach criteria"
+      flow:
+        sequence:
+          - action: create_goal
+            port: storage.goals
+            input:
+              webid: "${session.webid}"
+              text: "${goal_text}"
+              visibility: "${visibility}"
+          - action: add_criteria
+            port: storage.goals
+            loop: "${criteria}"
+            input:
+              goal_id: "${created_goal.id}"
+              criterion: "${item}"
+          - action: activate_goal
+            port: storage.goals
+            input:
+              goal_id: "${created_goal.id}"
+              state: "active"
+          - action: emit_cns_span
+            port: cns
+            input:
+              span: "cns.goal.create"
+              observation:
+                goal_id: "${created_goal.id}"
+                webid: "${session.webid}"
+
+    - ordinal: 3
+      template:
+        type: Process
+        lexicon_terms: [execute]
+      description: "Execute agent work toward goal"
+      flow:
+        execute:
+          agent: "${session.agent}"
+          goal_context:
+            goal_id: "${created_goal.id}"
+            goal_text: "${goal_text}"
+            criteria: "${criteria}"
+
+  post:
+    - ordinal: 4
+      template:
+        type: Cognition
+        lexicon_terms: [evaluate, assert, ground]
+        template_ref: registry/templates/goal_judge.j2
+      description: "Verify goal completion via LLM judge"
+      input:
+        goal_text: "${goal_text}"
+        outcome_summary: "${agent.outcome}"
+        artifacts: "${agent.artifacts}"
+      output_schema:
+        type: object
+        properties:
+          verdict:
+            type: string
+            enum: [done, continue, blocked]
+          reason:
+            type: string
+          confidence:
+            type: number
+
+    - ordinal: 5
+      template:
+        type: Process
+        lexicon_terms: [choice]
+      description: "Route based on verdict"
+      flow:
+        choice:
+          - condition: "verdict == 'done'"
+            action: complete_goal
+            spans:
+              - cns.goal.complete
+          - condition: "verdict == 'continue'"
+            action: continue_loop
+            spans:
+              - cns.goal.transition
+          - condition: "verdict == 'blocked'"
+            action: block_goal
+            spans:
+              - cns.goal.block
+              - cns.goal.alert.escalate
+
+error_handling:
+  catch:
+    - type: template_error
+      fallback: registry/templates/goal_create.j2
+      action: retry_with_simpler_template
+    - type: llm_timeout
+      fallback: registry/templates/goal_judge_simple.j2
+      action: use_simple_verification
+    - type: storage_error
+      action: emit_cns_alert
+      span: cns.goal.alert.storage_failure
+
+cns:
+  spans:
+    - cns.goal.create
+    - cns.goal.transition
+    - cns.goal.verify
+    - cns.goal.complete
+    - cns.goal.block
+  variety_monitoring:
+    metric: active_goals_per_user
+    threshold: 10
+    alert: "User has >10 concurrent active goals — consider delegation or abandonment"

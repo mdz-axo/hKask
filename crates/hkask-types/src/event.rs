@@ -81,6 +81,7 @@ pub enum Span {
     Energy(String),
     Review(String),
     Sovereignty(String),
+    Goal(String),
 }
 
 impl Span {
@@ -116,6 +117,10 @@ impl Span {
         Span::Sovereignty(format!("cns.sovereignty.{}", path))
     }
 
+    pub fn goal(path: &str) -> Self {
+        Span::Goal(format!("cns.goal.{}", path))
+    }
+
     pub fn as_str(&self) -> &str {
         match self {
             Span::Prompt(s) => s,
@@ -126,6 +131,7 @@ impl Span {
             Span::Energy(s) => s,
             Span::Review(s) => s,
             Span::Sovereignty(s) => s,
+            Span::Goal(s) => s,
         }
     }
 }

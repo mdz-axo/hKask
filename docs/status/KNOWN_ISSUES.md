@@ -113,6 +113,27 @@ domain: "Cross-cutting"
 
 **Remaining:** User guides and integration docs may benefit from additional citations in future documentation passes.
 
+### 2. Model Selection Intelligence ✅ P0 COMPLETE
+
+**Status:** Fixed 2026-05-22 — Model registry and template model declaration implemented
+
+**Implementation:**
+- `crates/hkask-storage/src/model_registry.rs` — Model registry schema (280 LOC)
+- `crates/hkask-templates/src/manifest.rs` — `ModelRequirements` struct
+- `crates/hkask-templates/src/model_catalog.rs` — Model catalog seeder (7 models)
+- `crates/hkask-templates/src/inference_port.rs` — `generate_with_model()` method
+
+**Features:**
+- Template-driven model selection (MVP)
+- 7 pre-seeded models (instruct, thinking, categorization, embedding, specialist)
+- Category-based fallback
+- Model registry queryable by category/capabilities
+
+**Remaining (P2):**
+- LLM-assisted model selection (vLLM semantic router pattern)
+- Energy cost optimization
+- Specialist model routing improvements
+
 ### 2. Missing Metadata Headers
 
 **Standard:** ≥1 APA 7th-edition citation per `##` section

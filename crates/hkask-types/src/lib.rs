@@ -1,7 +1,7 @@
 //! hKask Types — Foundation types for the hKask agent platform
 //!
 //! This crate provides:
-//! - ID types (WebID, TemplateID, BotID, etc.)
+//! - ID types (WebID, TemplateID, BotID, GoalID, etc.)
 //! - ν-event (cybernetic audit trail)
 //! - hLexicon (canonical vocabulary)
 //! - Visibility types (OCAP-enforced)
@@ -10,12 +10,15 @@
 //! - Curation types (Curator, OCAP boundaries, curation decisions)
 //! - CNS types (variety counters, algedonic alerts, kill zone detection)
 //! - Sovereignty types (user sovereignty, acquisition resistance, kill-zone detection)
+//! - Goal types (minimal coordination substrate for multi-agent collaboration)
 
 pub mod capability;
 pub mod cns;
 pub mod curation;
 pub mod error;
 pub mod event;
+pub mod goal;
+pub mod goal_capability;
 pub mod id;
 pub mod lexicon;
 pub mod sovereignty;
@@ -27,8 +30,9 @@ pub use cns::*;
 pub use curation::*;
 pub use error::{ArchivalResult, GitArchivalError};
 pub use event::*;
+pub use goal::*;
+pub use goal_capability::*;
 pub use id::*;
-// Re-export lexicon types (includes TemplateType: Prompt, Process, Cognition)
 pub use lexicon::{Domain, HLexicon, LexiconTerm, TemplateType};
 // Re-export high-temp template types
 pub use template::{

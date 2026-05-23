@@ -33,6 +33,12 @@ pub mod dependency;
 pub mod engine;
 pub mod inference_port;
 pub mod manifest;
+pub mod model_catalog;
+pub mod okapi_config;
+pub use model_catalog::seed_model_catalog;
+pub use okapi_config::{
+    OkapiConfig, OkapiConfigError, RetryConfig, sanitize_output, validate_prompt,
+};
 pub mod ports;
 pub mod provenance;
 pub mod registry;
@@ -55,7 +61,7 @@ pub use inference_port::{
     InferenceError, InferencePort, InferenceResult, OkapiInference, Usage,
     invoke_template_with_okapi, invoke_template_with_selection,
 };
-pub use manifest::{ManifestExecutorImpl, SelectorConfig, SimpleExecutor};
+pub use manifest::{ManifestExecutorImpl, ModelRequirements, SelectorConfig, SimpleExecutor};
 pub use ports::{
     Action, CnsPort, CompositionTemplate, DEFAULT_MATROSHKA_LIMIT, FAST_LOCAL_MODEL,
     InferenceConfig, InferencePort as InferencePortTrait, ManifestExecutor, ManifestStep, McpPort,

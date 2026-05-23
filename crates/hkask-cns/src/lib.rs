@@ -9,11 +9,13 @@
 //! - `cns.tool.*` — Tool governance and invocation
 //! - `cns.prompt.*` — Prompt feedback loop (render, validate, outcome)
 //! - `cns.agent_pod.*` — Agent lifecycle (populate, register, activate, delegate)
+//! - `cns.goal.*` — Goal primitive (create, transition, verify, complete, subgoal)
 //!
 //! **Algedonic Alert:** Variety deficit >100 → escalate to Curator/human
 
 pub mod algedonic;
 pub mod energy;
+pub mod goal_variety;
 pub mod observers;
 pub mod rate_limit;
 pub mod review_queue;
@@ -28,6 +30,7 @@ pub use energy::{
     EnergyAccount, EnergyBudget, EnergyEmitter, EnergyError, EnergySpanType, OpportunityCost,
     calculate_energy_cost, estimate_tokens,
 };
+pub use goal_variety::{GoalVarietyCounter, GoalVarietyMonitor};
 pub use observers::composition::{
     CompositionMetrics, CompositionObserver, CompositionObserverState,
 };
