@@ -54,6 +54,7 @@
 //! # }
 //! ```
 
+use hkask_cns::CnsEmit;
 use hkask_keystore::keychain::Keychain;
 use hkask_types::{CapabilityAction, CapabilityResource, CapabilityToken, WebID};
 use serde::{Deserialize, Serialize};
@@ -376,7 +377,7 @@ impl AgentPod {
     pub async fn register(
         &mut self,
         acp: &dyn crate::ports::AcpPort,
-        cns: &dyn CNSSpanPort,
+        cns: &dyn CnsEmit,
     ) -> AgentPodResult<()> {
         if self.state != PodLifecycleState::Populated {
             return Err(AgentPodError::InvalidStateTransition(
@@ -424,7 +425,7 @@ impl AgentPod {
     pub fn activate(
         &mut self,
         mcp: &dyn MCPRuntimePort,
-        cns: &dyn CNSSpanPort,
+        cns: &dyn CnsEmit,
     ) -> AgentPodResult<()> {
         if self.state != PodLifecycleState::Registered {
             return Err(AgentPodError::InvalidStateTransition(
@@ -462,7 +463,7 @@ impl AgentPod {
     ///
     /// # Returns
     /// * `Ok(())` — Deactivation successful
-    pub fn deactivate(&mut self, cns: &dyn CNSSpanPort) -> AgentPodResult<()> {
+    pub fn deactivate(&mut self, cns: &dyn CnsEmit) -> AgentPodResult<()> {
         if self.state != PodLifecycleState::Activated {
             return Err(AgentPodError::InvalidStateTransition(
                 self.state,
@@ -608,18 +609,6 @@ pub trait MCPRuntimePort {
         input: serde_json::Value,
         token: &CapabilityToken,
     ) -> Result<serde_json::Value, String>;
-}
-
-/// CNS Span Port — Cybernetic event emission
-pub trait CNSSpanPort {
-    /// Emit a CNS span event
-    ///
-    /// # Arguments
-    /// * `span` — Span name (e.g., "cns.agent_pod.registered")
-    /// * `phase` — Event phase (e.g., "registered", "activated")
-    /// * `observation` — Event observation as JSON
-    /// * `confidence` — Confidence score (0.0 to 1.0)
-    fn emit_event(&self, span: &str, phase: &str, observation: &serde_json::Value, confidence: f64);
 }
 
 /// Git CAS Port — Template crate loading

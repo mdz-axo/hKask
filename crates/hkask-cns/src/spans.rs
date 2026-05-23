@@ -4,6 +4,28 @@ use hkask_types::{NuEvent, Span, WebID};
 use serde_json::Value;
 use tracing::info;
 
+/// CnsEmit — Canonical CNS event emission trait
+///
+/// Unified trait for all CNS event emission across hKask subsystems.
+/// Replaces `CnsPort` (hkask-templates) and `CNSSpanPort` (hkask-agents).
+pub trait CnsEmit {
+    /// Emit a CNS span event with full context
+    ///
+    /// # Arguments
+    /// * `span` — Span name (e.g., "cns.agent_pod.registered")
+    /// * `phase` — Event phase (e.g., "registered", "activated", "observe")
+    /// * `observation` — Event observation as JSON
+    /// * `confidence` — Confidence score (0.0 to 1.0)
+    fn emit_event(&self, span: &str, phase: &str, observation: &Value, confidence: f64);
+
+    /// Emit a CNS span event with default phase ("observe")
+    ///
+    /// Convenience method for callers that don't need explicit phase tracking.
+    fn emit(&self, span: &str, outcome: Value, confidence: f64) {
+        self.emit_event(span, "observe", &outcome, confidence);
+    }
+}
+
 /// CNS span categories
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SpanCategory {

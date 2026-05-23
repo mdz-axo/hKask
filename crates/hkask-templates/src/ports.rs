@@ -198,10 +198,8 @@ pub trait McpPort {
     fn get_tool_info(&self, tool_name: &str) -> Option<ToolInfo>;
 }
 
-/// CNS port for event emission
-pub trait CnsPort {
-    fn emit(&self, span: &str, outcome: Value, confidence: f64);
-}
+/// CNS port for event emission — re-export of CnsEmit from hkask-cns
+pub use hkask_cns::CnsEmit as CnsPort;
 
 /// Memory context fragment for deduplication
 #[derive(Debug, Clone)]

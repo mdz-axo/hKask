@@ -187,7 +187,7 @@ impl Default for MockCnsAdapter {
 }
 
 impl CnsPort for MockCnsAdapter {
-    fn emit(&self, _span: &str, _outcome: Value, _confidence: f64) {
+    fn emit_event(&self, _span: &str, _phase: &str, _observation: &Value, _confidence: f64) {
         self.emit_count.set(self.emit_count.get() + 1);
     }
 }
@@ -216,9 +216,10 @@ impl Default for MockCnsAdapterMut {
 }
 
 impl CnsPort for MockCnsAdapterMut {
-    fn emit(&self, _span: &str, _outcome: Value, _confidence: f64) {
+    fn emit_event(&self, _span: &str, _phase: &str, _observation: &Value, _confidence: f64) {
         self.emit_count.set(self.emit_count.get() + 1);
     }
+}
 }
 
 #[cfg(test)]

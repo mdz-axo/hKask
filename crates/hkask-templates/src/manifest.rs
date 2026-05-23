@@ -68,23 +68,26 @@ impl Default for SelectorConfig {
 /// This is the "loom" that weaves the "thread" (YAML/Jinja2 templates).
 /// It doesn't change when templates are added, edited, or removed.
 /// Only changes if the grammar of steps themselves changes.
-pub struct ManifestExecutorImpl<R, I, M, C> {
+pub struct ManifestExecutorImpl<R, I, M, C, Mem> {
     #[allow(dead_code)]
     renderer: R,
     inference: I,
     mcp: M,
     cns: C,
+    memory: Option<Mem>,
     max_depth: u8,
     selector_config: SelectorConfig,
     inference_config: InferenceConfig,
+    context_budget: usize,
 }
 
-impl<R, I, M, C> ManifestExecutorImpl<R, I, M, C>
+impl<R, I, M, C, Mem> ManifestExecutorImpl<R, I, M, C, Mem>
 where
     R: TemplateRenderer,
     I: InferencePort,
     M: McpPort,
     C: CnsPort,
+    Mem: MemoryPort,
 {
     pub fn new(renderer: R, inference: I, mcp: M, cns: C) -> Self {
         Self {
@@ -92,10 +95,116 @@ where
             inference,
             mcp,
             cns,
+            memory: None,
             max_depth: DEFAULT_MATROSHKA_LIMIT,
             selector_config: SelectorConfig::default(),
             inference_config: InferenceConfig::default(),
+            context_budget: 4096,
         }
+    }
+
+    pub fn with_memory(mut self, memory: Mem) -> Self {
+        self.memory = Some(memory);
+        self
+    }
+
+    pub fn with_context_budget(mut self, budget: usize) -> Self {
+        self.context_budget = budget;
+        self
+    }
+
+    /// Assemble context from all sources with deduplication
+    ///
+    /// Priority order:
+    /// 1. System instructions (from manifest metadata)
+    /// 2. User message (from input state)
+    /// 3. Memory context (semantic + episodic triples)
+    /// 4. Session history (most recent first)
+    fn assemble_context(
+        &self,
+        manifest: &ProcessManifest,
+        input: &Value,
+    ) -> (String, crate::context_assembly::AssemblyStats) {
+        let mut assembler = ContextAssembler::new(self.context_budget);
+
+        // Priority 1: System instructions from manifest
+        let system_prompt = format!(
+            "You are executing the {} manifest. {}",
+            manifest.name, manifest.description
+        );
+        assembler.add(ContextFragment {
+            content: system_prompt,
+            source: FragmentSource::System,
+            embedding: None,
+            priority: 0,
+        });
+
+        // Priority 2: User message from input
+        if let Some(user_msg) = input.get("user_message").and_then(|v| v.as_str()) {
+            assembler.add(ContextFragment {
+                content: user_msg.to_string(),
+                source: FragmentSource::User,
+                embedding: None,
+                priority: 1,
+            });
+        } else if let Some(prompt) = input.get("prompt").and_then(|v| v.as_str()) {
+            assembler.add(ContextFragment {
+                content: prompt.to_string(),
+                source: FragmentSource::User,
+                embedding: None,
+                priority: 1,
+            });
+        }
+
+        // Priority 3: Memory context (if memory port available)
+        if let Some(memory) = &self.memory {
+            // Extract entity from input for memory queries
+            let entity = input
+                .get("entity")
+                .and_then(|v| v.as_str())
+                .unwrap_or("default");
+
+            // Semantic memory
+            let semantic_fragments = memory.query_semantic(entity);
+            for fragment in semantic_fragments {
+                assembler.add(ContextFragment {
+                    content: fragment.content,
+                    source: FragmentSource::SemanticMemory,
+                    embedding: None,
+                    priority: 2,
+                });
+            }
+
+            // Episodic memory (if perspective available)
+            if let Some(perspective) = input.get("perspective").and_then(|v| v.as_str()) {
+                let episodic_fragments = memory.query_episodic(entity, perspective);
+                for fragment in episodic_fragments {
+                    assembler.add(ContextFragment {
+                        content: fragment.content,
+                        source: FragmentSource::EpisodicMemory,
+                        embedding: None,
+                        priority: 2,
+                    });
+                }
+            }
+
+            // Session history (if session_id available)
+            if let Some(session_id) = input.get("session_id").and_then(|v| v.as_str()) {
+                let history = memory.get_session_history(session_id, 20);
+                for message in history {
+                    assembler.add(ContextFragment {
+                        content: message,
+                        source: FragmentSource::SessionHistory,
+                        embedding: None,
+                        priority: 3,
+                    });
+                }
+            }
+        }
+
+        let stats = assembler.stats().clone();
+        let prompt = assembler.render();
+        (prompt, stats)
     }
 
     pub fn with_max_depth(mut self, depth: u8) -> Self {
@@ -113,7 +222,7 @@ where
         self
     }
 
-    fn execute_step(&self, step: &ManifestStep, state: Value, depth: u8) -> Result<Value> {
+    fn execute_step(&self, manifest: &ProcessManifest, step: &ManifestStep, state: Value, depth: u8) -> Result<Value> {
         if depth > self.max_depth {
             return Err(TemplateError::RecursionLimit {
                 max: self.max_depth,
@@ -179,7 +288,30 @@ where
                         self.mcp.invoke(mcp, state.clone())?
                     }
                 } else {
-                    Value::String(format!("Executed: {:?}", state))
+                    // Assemble context with deduplication before inference
+                    let (assembled_prompt, assembly_stats) = self.assemble_context(manifest, &state);
+                    
+                    // Emit CNS event for context assembly
+                    self.cns.emit(
+                        "cns.prompt.context_assembly",
+                        serde_json::json!({
+                            "fragments_offered": assembly_stats.fragments_offered,
+                            "fragments_accepted": assembly_stats.fragments_accepted,
+                            "duplicates_exact": assembly_stats.duplicates_exact,
+                            "duplicates_similar": assembly_stats.duplicates_similar,
+                            "budget_rejected": assembly_stats.budget_rejected,
+                            "tokens_used": assembly_stats.tokens_used,
+                            "tokens_budget": assembly_stats.tokens_budget,
+                        }),
+                        1.0,
+                    );
+                    
+                    // Call inference with assembled prompt
+                    self.inference.call(
+                        step.model_tier.as_deref().unwrap_or("balanced"),
+                        &assembled_prompt,
+                        &self.inference_config,
+                    )?
                 }
             }
         };
@@ -195,12 +327,13 @@ where
     }
 }
 
-impl<R, I, M, C> ManifestExecutor for ManifestExecutorImpl<R, I, M, C>
+impl<R, I, M, C, Mem> ManifestExecutor for ManifestExecutorImpl<R, I, M, C, Mem>
 where
     R: TemplateRenderer,
     I: InferencePort,
     M: McpPort,
     C: CnsPort,
+    Mem: MemoryPort,
 {
     fn load(&self, _path: &std::path::Path) -> Result<ProcessManifest> {
         // In production, this would load from YAML file
@@ -220,7 +353,7 @@ where
 
         let mut state = input;
         for step in &manifest.steps {
-            state = self.execute_step(step, state, 0)?;
+            state = self.execute_step(manifest, step, state, 0)?;
         }
 
         // Emit final outcome event

@@ -13,7 +13,6 @@ pub mod confidence_router;
 pub mod deliberation;
 pub mod macaroon;
 pub mod metrics;
-pub mod multi_okapi;
 pub mod ocap_enforcement;
 pub mod okapi_integration;
 pub mod ports;

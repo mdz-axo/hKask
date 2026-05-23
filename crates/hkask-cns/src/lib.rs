@@ -38,5 +38,5 @@ pub use observers::sovereignty::{
 pub use rate_limit::{RateLimitConfig, RateLimiter};
 pub use review_queue::{ReviewQueue, Violation};
 pub use runtime::CnsRuntime;
-pub use spans::{SpanCategory, SpanEmitter};
+pub use spans::{CnsEmit, SpanCategory, SpanEmitter};
 pub use variety::{VarietyMonitor, VarietyTracker};

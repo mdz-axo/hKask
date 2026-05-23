@@ -5,7 +5,7 @@
 //! - **Lifecycle Management**: Populated → Registered → Activated → Deactivated
 //! - **Capability Tokens**: OCAP-based access control with attenuation
 //! - **ACP Runtime**: Agent registration, A2A messaging, capability verification
-//! - **Hexagonal Ports**: AcpPort, MCPRuntimePort, CNSSpanPort, GitCASPort
+//! - **Hexagonal Ports**: AcpPort, MCPRuntimePort, CnsEmit, GitCASPort
 //!
 //! # Example
 //!
@@ -55,7 +55,7 @@ pub use curator::escalation::{
     EscalationEntry, EscalationQueue, EscalationStats, EscalationStatus,
 };
 pub use pod::{
-    AgentPersona, AgentPod, AgentPodError, AgentPodResult, AgentType, CNSSpanPort, GitCASPort,
+    AgentPersona, AgentPod, AgentPodError, AgentPodResult, AgentType, GitCASPort,
     MCPRuntimePort, MemoryStoragePort, PodID, PodLifecycleState, PodManager, PodStatus,
     TemplateCrate,
 };
