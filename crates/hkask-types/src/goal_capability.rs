@@ -178,3 +178,82 @@ impl GoalAccess {
         matches!(self, GoalAccess::Owner)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::goal::Goal;
+    use crate::visibility::Visibility;
+
+    #[test]
+    fn capability_token_hmac_verifies() {
+        let goal_id = GoalID::new();
+        let webid = WebID::new();
+        let operations = vec![GoalOp::Create, GoalOp::Read];
+        
+        let token = GoalCapabilityToken::new(goal_id, webid, operations);
+        assert!(token.is_valid());
+        assert!(token.verify_signature());
+    }
+
+    #[test]
+    fn capability_token_attenuation_halves_expiration() {
+        let goal_id = GoalID::new();
+        let webid = WebID::new();
+        let operations = vec![GoalOp::Create, GoalOp::Read];
+        
+        let token = GoalCapabilityToken::new(goal_id, webid, operations);
+        let original_expires = token.expires;
+        
+        let attenuated = token.attenuate(vec![GoalOp::Read]).unwrap();
+        let expected_expires = Utc::now() + (original_expires - Utc::now()) / 2;
+        
+        assert_eq!(attenuated.attenuation_level, 1);
+        assert!((attenuated.expires - expected_expires).num_seconds() < 1);
+    }
+
+    #[test]
+    fn capability_token_rejects_at_level_7() {
+        let goal_id = GoalID::new();
+        let webid = WebID::new();
+        let operations = vec![GoalOp::Create];
+        
+        let mut token = GoalCapabilityToken::new(goal_id, webid, operations);
+        token.attenuation_level = 7;
+        
+        let result = token.attenuate(vec![GoalOp::Read]);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn goal_access_private_owner() {
+        let webid = WebID::new();
+        let goal = Goal::new(webid, "Test", Visibility::Private);
+        
+        let access = GoalAccess::check(&goal, &webid);
+        assert_eq!(access, GoalAccess::Owner);
+        assert!(access.can_read());
+        assert!(access.can_write());
+        assert!(access.can_admin());
+    }
+
+    #[test]
+    fn goal_access_private_denied() {
+        let owner_webid = WebID::new();
+        let other_webid = WebID::new();
+        let goal = Goal::new(owner_webid, "Test", Visibility::Private);
+        
+        let access = GoalAccess::check(&goal, &other_webid);
+        assert_eq!(access, GoalAccess::Denied);
+        assert!(!access.can_read());
+        assert!(!access.can_write());
+        assert!(!access.can_admin());
+    }
+
+    #[test]
+    fn goal_op_as_str() {
+        assert_eq!(GoalOp::Create.as_str(), "CREATE");
+        assert_eq!(GoalOp::Read.as_str(), "READ");
+        assert_eq!(GoalOp::Complete.as_str(), "COMPLETE");
+    }
+}

@@ -7,10 +7,19 @@ use crate::ports::{
     Action, CnsPort, DEFAULT_MATROSHKA_LIMIT, InferenceConfig, InferencePort, ManifestExecutor,
     ManifestStep, McpPort, ProcessManifest, Result, TemplateError, TemplateRenderer,
 };
-use hkask_storage::ModelCategory;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::info;
+
+/// Model category for selection
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ModelCategory {
+    Fast,
+    Balanced,
+    Reasoning,
+    Embedding,
+}
 
 /// Model requirements for template execution
 #[derive(Debug, Clone, Serialize, Deserialize)]

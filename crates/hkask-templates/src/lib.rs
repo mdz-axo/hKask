@@ -33,12 +33,6 @@ pub mod dependency;
 pub mod engine;
 pub mod inference_port;
 pub mod manifest;
-pub mod model_catalog;
-pub mod okapi_config;
-pub use model_catalog::seed_model_catalog;
-pub use okapi_config::{
-    OkapiConfig, OkapiConfigError, RetryConfig, sanitize_output, validate_prompt,
-};
 pub mod ports;
 pub mod provenance;
 pub mod registry;

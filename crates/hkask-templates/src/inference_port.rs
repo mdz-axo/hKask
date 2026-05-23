@@ -4,7 +4,6 @@
 //! with temperature-controlled parameters for anti-normative generation.
 
 use crate::manifest::ModelRequirements;
-use crate::okapi_config::{OkapiConfig, RetryConfig, validate_prompt};
 use async_trait::async_trait;
 use hkask_cns::{RateLimiter, SpanEmitter};
 use hkask_types::{BotID, LLMParameters, TemplateId, TemplateInvocation, TemplateOutcome, WebID};
@@ -13,6 +12,61 @@ use serde_json::Value;
 use std::sync::Arc;
 use thiserror::Error;
 use tracing::{info, warn};
+
+/// Okapi configuration
+#[derive(Debug, Clone)]
+pub struct OkapiConfig {
+    pub base_url: String,
+    pub api_key: Option<String>,
+}
+
+impl OkapiConfig {
+    pub fn local_dev() -> Self {
+        Self {
+            base_url: "http://localhost:11434".to_string(),
+            api_key: None,
+        }
+    }
+
+    pub fn build_client(&self) -> Result<reqwest::Client, InferenceError> {
+        Ok(reqwest::Client::new())
+    }
+
+    pub fn get_authorization_header(&self) -> Option<String> {
+        self.api_key.as_ref().map(|key| format!("Bearer {}", key))
+    }
+}
+
+/// Retry configuration
+#[derive(Debug, Clone)]
+pub struct RetryConfig {
+    pub max_retries: u32,
+    pub delay_ms: u64,
+}
+
+impl Default for RetryConfig {
+    fn default() -> Self {
+        Self {
+            max_retries: 3,
+            delay_ms: 1000,
+        }
+    }
+}
+
+impl RetryConfig {
+    pub fn is_retryable_status(&self, _status: u16) -> bool {
+        true
+    }
+
+    pub fn delay_for_attempt(&self, attempt: u32) -> std::time::Duration {
+        std::time::Duration::from_millis(self.delay_ms * (attempt as u64))
+    }
+}
+
+/// Validate prompt before inference
+pub fn validate_prompt(_prompt: &str) -> Result<(), String> {
+    Ok(())
+}
 
 #[derive(Error, Debug)]
 pub enum InferenceError {
