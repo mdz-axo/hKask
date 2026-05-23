@@ -1,9 +1,9 @@
 //! Adapter unit tests migrated from inline tests
 //!
-//! Tests for: acp_runtime, cns_emitter, git_cas, keystore_port, mcp_runtime, memory_storage
+//! Tests for: cns_emitter, git_cas, keystore_port, mcp_runtime, memory_storage
+//! Note: ACP runtime tests moved to crates/hkask-agents/src/acp.rs
 
 use hkask_agents::adapters::{
-    acp_runtime::AcpRuntimeAdapter,
     cns_emitter::{self, CnsEmitterAdapter},
     git_cas::{GitCasAdapter, MockGitCas},
     keystore_port::Secret,
@@ -11,35 +11,12 @@ use hkask_agents::adapters::{
     memory_storage::MemoryStorageAdapter,
 };
 use hkask_agents::pod::{
-    ACPRuntimePort, CNSSpanPort, GitCASPort, MCPRuntimePort, MemoryStoragePort,
+    CNSSpanPort, GitCASPort, MCPRuntimePort, MemoryStoragePort,
 };
 use hkask_types::{CapabilityAction, CapabilityResource, CapabilityToken, WebID};
 use serde_json::json;
 use std::fs;
 use std::path::Path;
-
-// ============================================================================
-// ACP Runtime Adapter Tests
-// ============================================================================
-
-#[test]
-fn test_acp_runtime_adapter_new() {
-    let _adapter = AcpRuntimeAdapter::new();
-    assert!(true);
-}
-
-#[test]
-fn test_acp_register_agent() {
-    let adapter = AcpRuntimeAdapter::new();
-    let webid = WebID::new();
-    let capabilities = vec!["tool:memory:remember".to_string()];
-
-    let result = adapter.register_agent(webid.clone(), capabilities);
-    assert!(result.is_ok());
-
-    let token = result.unwrap();
-    assert_eq!(token.delegated_to, webid);
-}
 
 // ============================================================================
 // CNS Emitter Adapter Tests

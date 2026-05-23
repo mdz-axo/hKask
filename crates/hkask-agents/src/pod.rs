@@ -27,14 +27,15 @@
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! use hkask_agents::pod::{AgentPod, AgentPersona, PodLifecycleState};
 //! use hkask_agents::adapters::git_cas::MockGitCas;
-//! use hkask_agents::adapters::acp_runtime::AcpRuntimeAdapter;
+//! use hkask_agents::acp::AcpRuntime;
 //! use hkask_agents::adapters::cns_emitter::CnsEmitterAdapter;
 //! use hkask_agents::adapters::mcp_runtime::McpRuntimeAdapter;
 //! use hkask_types::WebID;
+//! use std::sync::Arc;
 //!
 //! // Create adapters
 //! let git_adapter = MockGitCas::new();
-//! let acp_adapter = AcpRuntimeAdapter::default();
+//! let acp_runtime = Arc::new(AcpRuntime::default());
 //! let cns_emitter = CnsEmitterAdapter::new(WebID::new());
 //! let mcp_runtime = McpRuntimeAdapter::new();
 //!
@@ -47,7 +48,7 @@
 //!
 //! let persona = AgentPersona::from_yaml(yaml_str)?;
 //! let mut pod = AgentPod::new("test-bot", &persona, &git_adapter)?;
-//! pod.register(&acp_adapter, &cns_emitter)?;
+//! pod.register(&acp_runtime, &cns_emitter)?;
 //! pod.activate(&mcp_runtime, &cns_emitter)?;
 //! # Ok(())
 //! # }
@@ -63,7 +64,6 @@ use tokio::sync::{Mutex, RwLock};
 use tracing::info;
 use zeroize::Zeroizing;
 
-use crate::adapters::acp_runtime::AcpRuntimeAdapter;
 use crate::adapters::cns_emitter::CnsEmitterAdapter;
 use crate::adapters::git_cas::GitCasAdapter;
 use crate::adapters::mcp_runtime::McpRuntimeAdapter;
@@ -373,9 +373,9 @@ impl AgentPod {
     /// # Returns
     /// * `Ok(())` — Registration successful
     /// * `Err(AgentPodError)` — ACP registration failed
-    pub fn register(
+    pub async fn register(
         &mut self,
-        acp: &dyn ACPRuntimePort,
+        acp: &dyn crate::ports::AcpPort,
         cns: &dyn CNSSpanPort,
     ) -> AgentPodResult<()> {
         if self.state != PodLifecycleState::Populated {
@@ -386,8 +386,10 @@ impl AgentPod {
         }
 
         let capabilities: Vec<String> = self.persona.capabilities.clone();
+        let agent_type = self.agent_type.to_string();
         let token = acp
-            .register_agent(self.webid, capabilities)
+            .register_agent(self.webid, &agent_type, capabilities)
+            .await
             .map_err(|e| AgentPodError::ACPRegistrationError(e.to_string()))?;
 
         self.capability_token = token;
@@ -579,24 +581,6 @@ fn generate_secure_ocap_secret() -> String {
 // Hexagonal Architecture Ports (Traits)
 // ============================================================================
 
-/// ACP Runtime Port — Agent registration and identity management
-pub trait ACPRuntimePort {
-    /// Register an agent with the ACP runtime
-    ///
-    /// # Arguments
-    /// * `webid` — Agent's WebID
-    /// * `capabilities` — List of capability strings
-    ///
-    /// # Returns
-    /// * `Ok(CapabilityToken)` — Registered capability token
-    /// * `Err(String)` — Registration error message
-    fn register_agent(
-        &self,
-        webid: WebID,
-        capabilities: Vec<String>,
-    ) -> Result<CapabilityToken, String>;
-}
-
 pub trait MCPRuntimePort {
     /// Grant tool access to an agent
     ///
@@ -733,7 +717,7 @@ pub struct PodManager {
     #[allow(dead_code)]
     keystore: Keychain,
     git_cas: GitCasAdapter,
-    acp_runtime: AcpRuntimeAdapter,
+    acp_runtime: Arc<dyn crate::ports::AcpPort + Send + Sync>,
     cns_emitter: CnsEmitterAdapter,
     mcp_runtime: McpRuntimeAdapter,
     memory_storage: Arc<Mutex<MemoryStorageAdapter>>,
@@ -756,7 +740,7 @@ impl PodManager {
     /// Create a new pod manager with real adapters
     pub fn new(
         git_cas: GitCasAdapter,
-        acp_runtime: AcpRuntimeAdapter,
+        acp_runtime: Arc<dyn crate::ports::AcpPort + Send + Sync>,
         cns_emitter: CnsEmitterAdapter,
         mcp_runtime: McpRuntimeAdapter,
         memory_storage: MemoryStorageAdapter,
@@ -779,7 +763,7 @@ impl PodManager {
             pods: Arc::new(RwLock::new(HashMap::new())),
             keystore: Keychain::default(),
             git_cas: GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-mock")),
-            acp_runtime: AcpRuntimeAdapter::default(),
+            acp_runtime: Arc::new(crate::acp::AcpRuntime::default()),
             cns_emitter: CnsEmitterAdapter::new(WebID::new()),
             mcp_runtime: McpRuntimeAdapter::new(),
             memory_storage: Arc::new(Mutex::new(MemoryStorageAdapter::in_memory().unwrap())),
@@ -792,7 +776,7 @@ impl PodManager {
             pods: Arc::new(RwLock::new(HashMap::new())),
             keystore: Keychain::default(),
             git_cas: GitCasAdapter::from_path(PathBuf::from("./registry/templates")),
-            acp_runtime: AcpRuntimeAdapter::default(),
+            acp_runtime: Arc::new(crate::acp::AcpRuntime::default()),
             cns_emitter: CnsEmitterAdapter::new(WebID::new()),
             mcp_runtime: McpRuntimeAdapter::new(),
             memory_storage: Arc::new(Mutex::new(MemoryStorageAdapter::in_memory().unwrap())),
@@ -817,7 +801,7 @@ impl PodManager {
 /// ```
 pub struct PodManagerBuilder {
     git_cas: Option<GitCasAdapter>,
-    acp_runtime: Option<AcpRuntimeAdapter>,
+    acp_runtime: Option<Arc<dyn crate::ports::AcpPort + Send + Sync>>,
     cns_emitter: Option<CnsEmitterAdapter>,
     mcp_runtime: Option<McpRuntimeAdapter>,
     memory_storage: Option<MemoryStorageAdapter>,
@@ -848,8 +832,8 @@ impl PodManagerBuilder {
         self.git_cas(GitCasAdapter::from_path(path.into()))
     }
 
-    /// Set ACP runtime adapter
-    pub fn acp_runtime(mut self, adapter: AcpRuntimeAdapter) -> Self {
+    /// Set ACP runtime (accepts any AcpPort implementation)
+    pub fn acp_runtime(mut self, adapter: Arc<dyn crate::ports::AcpPort + Send + Sync>) -> Self {
         self.acp_runtime = Some(adapter);
         self
     }
@@ -898,7 +882,7 @@ impl PodManagerBuilder {
     ///
     /// Missing adapters are created with defaults:
     /// - Git CAS: `./registry/templates`
-    /// - ACP Runtime: `AcpRuntimeAdapter::default()`
+    /// - ACP Runtime: `Arc::new(AcpRuntime::default())`
     /// - CNS Emitter: `CnsEmitterAdapter::new(WebID::new())`
     /// - MCP Runtime: `McpRuntimeAdapter::new()`
     /// - Memory Storage: In-memory database
@@ -907,7 +891,8 @@ impl PodManagerBuilder {
         PodManager::new(
             self.git_cas
                 .unwrap_or_else(|| GitCasAdapter::from_path(PathBuf::from("./registry/templates"))),
-            self.acp_runtime.unwrap_or_default(),
+            self.acp_runtime
+                .unwrap_or_else(|| Arc::new(crate::acp::AcpRuntime::default())),
             self.cns_emitter
                 .unwrap_or_else(|| CnsEmitterAdapter::new(WebID::new())),
             self.mcp_runtime.unwrap_or_default(),
@@ -986,17 +971,60 @@ impl PodManager {
 
     /// Activate a pod for A2A communication
     pub async fn activate_pod(&self, pod_id: &PodID) -> AgentPodResult<()> {
+        // Phase 1: Extract registration data while holding the guard
+        let registration_data = {
+            let pods = self.pods.read().await;
+            let pod = pods
+                .get(pod_id)
+                .ok_or_else(|| AgentPodError::ACPRegistrationError("Pod not found".to_string()))?;
+
+            if pod.state() == PodLifecycleState::Populated {
+                Some((
+                    pod.webid,
+                    pod.agent_type.to_string(),
+                    pod.persona.capabilities.clone(),
+                ))
+            } else {
+                None
+            }
+        }; // Guard dropped here
+
+        // Phase 2: Async ACP registration without holding the lock
+        let token = if let Some((webid, agent_type, capabilities)) = registration_data {
+            Some(
+                self.acp_runtime
+                    .register_agent(webid, &agent_type, capabilities)
+                    .await
+                    .map_err(|e| AgentPodError::ACPRegistrationError(e.to_string()))?,
+            )
+        } else {
+            None
+        };
+
+        // Phase 3: Apply result and activate MCP while holding write guard
         let mut pods = self.pods.write().await;
         let pod = pods
             .get_mut(pod_id)
             .ok_or_else(|| AgentPodError::ACPRegistrationError("Pod not found".to_string()))?;
 
-        // Register with ACP runtime if not already registered
-        if pod.state() == PodLifecycleState::Populated {
-            pod.register(&self.acp_runtime, &self.cns_emitter)?;
+        if let Some(token) = token {
+            pod.capability_token = token;
+            pod.state = PodLifecycleState::Registered;
+
+            self.cns_emitter.emit_event(
+                "cns.agent_pod.registered",
+                "registered",
+                &serde_json::json!({
+                    "pod_id": pod.id.to_string(),
+                    "webid": pod.webid.to_string(),
+                    "agent_type": pod.agent_type.to_string(),
+                }),
+                1.0,
+            );
+
+            info!("Agent pod {} registered with ACP", pod.id);
         }
 
-        // Activate the pod with MCP runtime
         pod.activate(&self.mcp_runtime, &self.cns_emitter)?;
 
         info!(

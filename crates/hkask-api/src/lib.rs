@@ -26,7 +26,7 @@
 //! - `GET /api/sovereignty/access/check` — Check data access status
 //! - `POST /api/llm/infer` — SOAP inference endpoint for Russell
 
-use hkask_agents::adapters::acp_runtime::AcpRuntimeAdapter;
+use hkask_agents::acp::AcpRuntime;
 use hkask_agents::adapters::cns_emitter::CnsEmitterAdapter;
 use hkask_agents::adapters::git_cas::GitCasAdapter;
 use hkask_agents::adapters::mcp_runtime::McpRuntimeAdapter;
@@ -104,7 +104,7 @@ impl ApiState {
         system_webid: WebID,
     ) -> Self {
         let git_cas = GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-templates"));
-        let acp_runtime = AcpRuntimeAdapter::default();
+        let acp_runtime = Arc::new(AcpRuntime::default());
         let observer_webid = WebID::new();
         let cns_emitter_adapter = CnsEmitterAdapter::new(observer_webid);
         let mcp_runtime_adapter = McpRuntimeAdapter::new();

@@ -1,5 +1,6 @@
 //! Semantic memory pipeline
 
+use crate::recall_dedup::{self, DedupResult};
 use hkask_storage::{Embedding, EmbeddingError, EmbeddingStore, Triple, TripleError, TripleStore};
 use thiserror::Error;
 
@@ -34,6 +35,25 @@ impl SemanticMemory {
     /// Query by entity
     pub fn query(&self, entity: &str) -> Result<Vec<Triple>, SemanticMemoryError> {
         Ok(self.triple_store.query_by_entity(entity)?)
+    }
+
+    /// Query by entity with deduplication (entity_attribute_value_hash strategy).
+    ///
+    /// Filters duplicate triples at recall time. Two triples are considered
+    /// duplicates if they share the same entity, attribute, and canonical value —
+    /// regardless of timestamps, confidence, or perspective metadata.
+    pub fn query_deduped(&self, entity: &str) -> Result<Vec<Triple>, SemanticMemoryError> {
+        let triples = self.triple_store.query_by_entity(entity)?;
+        Ok(recall_dedup::dedup_triples(triples))
+    }
+
+    /// Query by entity with deduplication and statistics.
+    pub fn query_deduped_with_stats(
+        &self,
+        entity: &str,
+    ) -> Result<DedupResult, SemanticMemoryError> {
+        let triples = self.triple_store.query_by_entity(entity)?;
+        Ok(recall_dedup::dedup_triples_with_stats(triples))
     }
 
     /// Store embedding for semantic search

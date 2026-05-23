@@ -5,7 +5,7 @@
 //! - **Lifecycle Management**: Populated → Registered → Activated → Deactivated
 //! - **Capability Tokens**: OCAP-based access control with attenuation
 //! - **ACP Runtime**: Agent registration, A2A messaging, capability verification
-//! - **Hexagonal Ports**: ACPRuntimePort, MCPRuntimePort, CNSSpanPort, GitCASPort
+//! - **Hexagonal Ports**: AcpPort, MCPRuntimePort, CNSSpanPort, GitCASPort
 //!
 //! # Example
 //!
@@ -13,15 +13,16 @@
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! use hkask_agents::pod::PodManager;
 //! use hkask_agents::adapters::git_cas::GitCasAdapter;
-//! use hkask_agents::adapters::acp_runtime::AcpRuntimeAdapter;
+//! use hkask_agents::acp::AcpRuntime;
 //! use hkask_agents::adapters::cns_emitter::CnsEmitterAdapter;
 //! use hkask_agents::adapters::mcp_runtime::McpRuntimeAdapter;
 //! use hkask_agents::adapters::memory_storage::MemoryStorageAdapter;
 //! use std::path::PathBuf;
+//! use std::sync::Arc;
 //!
 //! // Create adapters
 //! let git_cas = GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-templates"));
-//! let acp_runtime = AcpRuntimeAdapter::default();
+//! let acp_runtime = Arc::new(AcpRuntime::default());
 //! let cns_emitter = CnsEmitterAdapter::new(hkask_types::WebID::new());
 //! let mcp_runtime = McpRuntimeAdapter::new();
 //! let memory_storage = MemoryStorageAdapter::in_memory()?;
@@ -44,8 +45,10 @@ pub mod ports;
 pub mod replicant;
 pub mod security;
 pub mod sovereignty;
+pub mod transport;
 
 pub use acp::{A2AMessage, AcpAgent, AcpRuntime, TemplateDispatchHandler};
+pub use ports::AcpPort;
 pub use bot::Bot;
 pub use capability::{BotCapabilities, CapabilityChecker, CapabilityToken};
 pub use consent::ConsentManager;
@@ -59,3 +62,4 @@ pub use pod::{
 };
 pub use replicant::{Replicant, ReplicantCapabilities};
 pub use sovereignty::SovereigntyChecker;
+pub use transport::{AcpMessage, AcpTransport, LoopbackHttpTransport, StdioTransport, TransportError};

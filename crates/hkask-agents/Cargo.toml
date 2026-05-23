@@ -11,7 +11,7 @@ hkask-cns = { path = "../hkask-cns" }
 hkask-keystore = { path = "../hkask-keystore" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-templates = { path = "../hkask-templates" }
-acp-runtime.workspace = true
+async-trait.workspace = true
 chrono.workspace = true
 rmcp.workspace = true
 gix.workspace = true

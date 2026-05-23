@@ -96,6 +96,27 @@ pub enum AcpError {
 
     #[error("Invalid attenuation chain: {0}")]
     InvalidAttenuationChain(String),
+
+    #[error("Transport error: {0}")]
+    TransportError(String),
+
+    #[error("Non-loopback address refused: {0}")]
+    NonLoopbackRefused(std::net::IpAddr),
+
+    #[error("Connection refused: {0}")]
+    ConnectionRefused(String),
+
+    #[error("Transport disconnected")]
+    Disconnected,
+
+    #[error("{0}")]
+    LegacyError(String),
+}
+
+impl From<String> for AcpError {
+    fn from(s: String) -> Self {
+        AcpError::LegacyError(s)
+    }
 }
 
 /// Root authority for OCAP capability delegation
@@ -344,23 +365,23 @@ impl AcpRuntime {
     ///
     /// # Returns
     /// * `Ok(CapabilityToken)` — Primary capability token for the agent
-    /// * `Err(String)` — Registration error
+    /// * `Err(AcpError)` — Registration error
     pub async fn register_agent(
         &self,
         webid: WebID,
         agent_type: String,
         capabilities: Vec<String>,
-    ) -> Result<CapabilityToken, String> {
+    ) -> Result<CapabilityToken, AcpError> {
         let mut agents = self.agents.write().await;
 
         if agents.contains_key(&webid) {
-            return Err(format!("Agent {:?} already registered", webid));
+            return Err(AcpError::AgentAlreadyRegistered(webid));
         }
 
         // Validate capabilities - reject wildcards
         for cap in &capabilities {
             if cap == "*" {
-                return Err("Wildcard capabilities are not allowed".to_string());
+                return Err(AcpError::WildcardCapabilityNotAllowed);
             }
         }
 
@@ -378,14 +399,12 @@ impl AcpRuntime {
             .cloned()
             .unwrap_or_else(|| "agent:basic".to_string());
 
-        let (resource, action) = parse_capability(&primary_capability)
-            .map_err(|e| e.to_string())?;
+        let (resource, action) = parse_capability(&primary_capability)?;
 
         let token = self
             .root_authority
             .create_root_token(resource, primary_capability.clone(), action, webid)
-            .await
-            .map_err(|e| e.to_string())?;
+            .await?;
 
         // Store agent and capabilities
         agents.insert(webid, agent);
@@ -409,11 +428,11 @@ impl AcpRuntime {
     }
 
     /// Unregister an agent
-    pub async fn unregister_agent(&self, webid: &WebID) -> Result<(), String> {
+    pub async fn unregister_agent(&self, webid: &WebID) -> Result<(), AcpError> {
         let mut agents = self.agents.write().await;
 
         if agents.remove(webid).is_none() {
-            return Err(format!("Agent {:?} not found", webid));
+            return Err(AcpError::AgentNotFound(*webid));
         }
 
         // Remove capability tokens
@@ -442,7 +461,7 @@ impl AcpRuntime {
     }
 
     /// Send A2A message
-    pub async fn send_message(&self, message: A2AMessage) -> Result<String, String> {
+    pub async fn send_message(&self, message: A2AMessage) -> Result<String, AcpError> {
         let (correlation_id, from, to, message_type) = match &message {
             A2AMessage::TemplateDispatch {
                 correlation_id,
@@ -766,6 +785,38 @@ impl Default for AcpRuntime {
     }
 }
 
+#[async_trait::async_trait]
+impl crate::ports::AcpPort for AcpRuntime {
+    async fn register_agent(
+        &self,
+        webid: WebID,
+        agent_type: &str,
+        capabilities: Vec<String>,
+    ) -> Result<CapabilityToken, AcpError> {
+        AcpRuntime::register_agent(self, webid, agent_type.to_string(), capabilities).await
+    }
+
+    async fn unregister_agent(&self, webid: &WebID) -> Result<(), AcpError> {
+        AcpRuntime::unregister_agent(self, webid).await
+    }
+
+    async fn send_message(&self, msg: A2AMessage) -> Result<String, AcpError> {
+        AcpRuntime::send_message(self, msg).await
+    }
+
+    async fn list_capabilities(&self, webid: &WebID) -> Result<Vec<String>, AcpError> {
+        let agents = self.agents.read().await;
+        agents
+            .get(webid)
+            .map(|agent| agent.capabilities.clone())
+            .ok_or(AcpError::AgentNotFound(*webid))
+    }
+
+    async fn is_registered(&self, webid: &WebID) -> bool {
+        AcpRuntime::is_registered(self, webid).await
+    }
+}
+
 /// A2A template dispatch handler
 pub struct TemplateDispatchHandler {
     acp_runtime: Arc<AcpRuntime>,
@@ -787,24 +838,24 @@ impl TemplateDispatchHandler {
     ///
     /// # Returns
     /// * `Ok(correlation_id)` — Message correlation ID
-    /// * `Err(String)` — Dispatch error
+    /// * `Err(AcpError)` — Dispatch error
     pub async fn dispatch(
         &self,
         from: WebID,
         to: Option<WebID>,
         template_id: String,
         input: serde_json::Value,
-    ) -> Result<String, String> {
+    ) -> Result<String, AcpError> {
         // Verify sender is registered
         if !self.acp_runtime.is_registered(&from).await {
-            return Err(format!("Sender {:?} not registered", from));
+            return Err(AcpError::AgentNotFound(from));
         }
 
         // Verify recipient if specified
         if let Some(recipient) = to
             && !self.acp_runtime.is_registered(&recipient).await
         {
-            return Err(format!("Recipient {:?} not registered", recipient));
+            return Err(AcpError::AgentNotFound(recipient));
         }
 
         let correlation_id = uuid::Uuid::new_v4().to_string();
@@ -838,7 +889,7 @@ impl TemplateDispatchHandler {
         correlation_id: String,
         result: serde_json::Value,
         error: Option<String>,
-    ) -> Result<(), String> {
+    ) -> Result<(), AcpError> {
         let message = A2AMessage::TemplateResponse {
             correlation_id: correlation_id.clone(),
             result,
@@ -863,7 +914,7 @@ impl TemplateDispatchHandler {
         artifact_type: String,
         artifact_id: String,
         visibility: String,
-    ) -> Result<(), String> {
+    ) -> Result<(), AcpError> {
         let artifact_id_clone = artifact_id.clone();
         let artifact_type_clone = artifact_type.clone();
 
@@ -887,3 +938,4 @@ impl TemplateDispatchHandler {
         Ok(())
     }
 }
+

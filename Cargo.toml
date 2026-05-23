@@ -59,9 +59,6 @@ tower-http = { version = "0.6", features = ["cors", "trace"] }
 utoipa = { version = "5.5", features = ["axum_extras", "uuid", "chrono"] }
 utoipa-axum = "0.2"
 
-# ACP protocol (agent communication)
-acp-runtime = "0.1"
-
 # MCP protocol (tool protocol)
 rmcp = "1"
 
