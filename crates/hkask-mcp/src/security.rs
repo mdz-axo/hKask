@@ -206,14 +206,13 @@ impl SecurityGateway {
 
 impl Default for SecurityGateway {
     fn default() -> Self {
-        let secret = hkask_keystore::resolve(
-            &hkask_types::SecretRef::env("HKASK_MCP_SECURITY_KEY"),
-        )
-        .unwrap_or_else(|_| {
-            tracing::warn!("HKASK_MCP_SECURITY_KEY not set, using generated secret");
-            hkask_keystore::resolve(&hkask_types::SecretRef::generated(32))
-                .expect("generated secret cannot fail")
-        });
+        let secret =
+            hkask_keystore::resolve(&hkask_types::SecretRef::env("HKASK_MCP_SECURITY_KEY"))
+                .unwrap_or_else(|_| {
+                    tracing::warn!("HKASK_MCP_SECURITY_KEY not set, using generated secret");
+                    hkask_keystore::resolve(&hkask_types::SecretRef::generated(32))
+                        .expect("generated secret cannot fail")
+                });
         Self::with_default_policy(&secret)
     }
 }

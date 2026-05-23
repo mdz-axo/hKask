@@ -257,7 +257,7 @@ impl CapabilityToken {
             &self.delegated_to,
             secret,
         );
-        
+
         // Constant-time comparison to prevent timing attacks
         use subtle::ConstantTimeEq;
         expected.as_bytes().ct_eq(self.signature.as_bytes()).into()

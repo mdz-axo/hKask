@@ -61,7 +61,7 @@ impl StepAction {
 
 /// Authorization error for step capabilities
 #[derive(Debug, thiserror::Error)]
-pub enum AuthorizationError {
+pub enum StepAuthError {
     #[error("Step action not authorized: {action:?}")]
     StepActionNotAuthorized { action: StepAction },
 
@@ -117,10 +117,10 @@ impl StepCapability {
         &self,
         step: &ManifestStep,
         new_holder: WebID,
-    ) -> Result<StepCapability, AuthorizationError> {
+    ) -> Result<StepCapability, StepAuthError> {
         // Check attenuation depth
         if self.attenuation_level >= self.max_attenuation {
-            return Err(AuthorizationError::MaxAttenuationReached {
+            return Err(StepAuthError::MaxAttenuationReached {
                 max: self.max_attenuation,
             });
         }
@@ -130,7 +130,7 @@ impl StepCapability {
 
         // Verify step action is in allowed_actions
         if !self.allowed_actions.contains(&step_action) {
-            return Err(AuthorizationError::StepActionNotAuthorized {
+            return Err(StepAuthError::StepActionNotAuthorized {
                 action: step_action,
             });
         }
@@ -139,7 +139,7 @@ impl StepCapability {
         if !self.allowed_templates.is_empty()
             && !self.allowed_templates.contains(&step.template_ref)
         {
-            return Err(AuthorizationError::TemplateNotAuthorized {
+            return Err(StepAuthError::TemplateNotAuthorized {
                 template_ref: step.template_ref.clone(),
             });
         }
@@ -149,7 +149,7 @@ impl StepCapability {
             && !self.allowed_mcps.is_empty()
             && !self.allowed_mcps.contains(mcp)
         {
-            return Err(AuthorizationError::McpNotAuthorized { mcp: mcp.clone() });
+            return Err(StepAuthError::McpNotAuthorized { mcp: mcp.clone() });
         }
 
         // Create attenuated capability with minimal authority
@@ -168,10 +168,10 @@ impl StepCapability {
     }
 
     /// Check if capability authorizes a step
-    pub fn authorize_step(&self, step: &ManifestStep) -> Result<(), AuthorizationError> {
+    pub fn authorize_step(&self, step: &ManifestStep) -> Result<(), StepAuthError> {
         // Check expiration
         if Utc::now() > self.expires_at {
-            return Err(AuthorizationError::CapabilityExpired {
+            return Err(StepAuthError::CapabilityExpired {
                 expired_at: self.expires_at,
             });
         }
@@ -179,7 +179,7 @@ impl StepCapability {
         // Verify action
         let step_action = StepAction::from_manifest_action(step.action);
         if !self.allowed_actions.contains(&step_action) {
-            return Err(AuthorizationError::StepActionNotAuthorized {
+            return Err(StepAuthError::StepActionNotAuthorized {
                 action: step_action,
             });
         }
@@ -188,7 +188,7 @@ impl StepCapability {
         if !self.allowed_templates.is_empty()
             && !self.allowed_templates.contains(&step.template_ref)
         {
-            return Err(AuthorizationError::TemplateNotAuthorized {
+            return Err(StepAuthError::TemplateNotAuthorized {
                 template_ref: step.template_ref.clone(),
             });
         }
@@ -198,16 +198,16 @@ impl StepCapability {
             && !self.allowed_mcps.is_empty()
             && !self.allowed_mcps.contains(mcp)
         {
-            return Err(AuthorizationError::McpNotAuthorized { mcp: mcp.clone() });
+            return Err(StepAuthError::McpNotAuthorized { mcp: mcp.clone() });
         }
 
         Ok(())
     }
 
     /// Check if holder matches
-    pub fn verify_holder(&self, holder: &WebID) -> Result<(), AuthorizationError> {
+    pub fn verify_holder(&self, holder: &WebID) -> Result<(), StepAuthError> {
         if &self.holder != holder {
-            return Err(AuthorizationError::HolderMismatch {
+            return Err(StepAuthError::HolderMismatch {
                 expected: self.holder,
                 actual: *holder,
             });
@@ -234,9 +234,9 @@ impl AtomicCapability {
     }
 
     /// Check capability and execute atomically
-    pub async fn check_and_execute<F, T>(&self, operation: F) -> Result<T, AuthorizationError>
+    pub async fn check_and_execute<F, T>(&self, operation: F) -> Result<T, StepAuthError>
     where
-        F: FnOnce(&StepCapability) -> Result<T, AuthorizationError>,
+        F: FnOnce(&StepCapability) -> Result<T, StepAuthError>,
     {
         // Atomic: check usage, increment, execute
         let current = self
@@ -245,7 +245,7 @@ impl AtomicCapability {
         if current >= self.max_usage {
             self.usage_count
                 .fetch_sub(1, std::sync::atomic::Ordering::SeqCst); // Rollback
-            return Err(AuthorizationError::UsageExceeded {
+            return Err(StepAuthError::UsageExceeded {
                 max: self.max_usage,
                 current,
             });
@@ -255,7 +255,7 @@ impl AtomicCapability {
 
         // Check expiration atomically with usage
         if Utc::now() > cap.expires_at {
-            return Err(AuthorizationError::CapabilityExpired {
+            return Err(StepAuthError::CapabilityExpired {
                 expired_at: cap.expires_at,
             });
         }

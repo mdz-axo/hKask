@@ -5,7 +5,7 @@
 //!
 //! Uses shared state with RwLock for compatibility with sync and async contexts.
 
-use crate::algedonic::{AlgedonicManager, CnsHealth, RuntimeAlert, DEFAULT_THRESHOLD};
+use crate::algedonic::{AlgedonicManager, CnsHealth, DEFAULT_THRESHOLD, RuntimeAlert};
 use crate::variety::{VarietyMonitor, VarietyTracker};
 use std::sync::Arc;
 use tokio::sync::RwLock;

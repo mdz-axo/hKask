@@ -24,7 +24,7 @@
 //! ```
 
 use crate::manifest::ModelRequirements;
-use crate::okapi_config::{OkapiConfig, RetryConfig, validate_prompt};
+use crate::okapi_config::{OkapiConfig, OkapiRetryConfig, validate_prompt};
 use crate::resilience::CircuitBreaker;
 use async_trait::async_trait;
 use hkask_cns::{RateLimiter, SpanEmitter};
@@ -151,7 +151,7 @@ pub trait InferencePort: Send + Sync {
 pub struct OkapiInference {
     model: String,
     config: OkapiConfig,
-    retry_config: RetryConfig,
+    retry_config: OkapiRetryConfig,
     client: reqwest::Client,
     /// Rate limiter for inference boundary
     rate_limiter: Option<Arc<RateLimiter>>,
@@ -171,7 +171,7 @@ impl OkapiInference {
 
         Ok(Self {
             model: model.to_string(),
-            retry_config: RetryConfig::default(),
+            retry_config: OkapiRetryConfig::default(),
             config,
             client,
             rate_limiter: None,
@@ -184,7 +184,7 @@ impl OkapiInference {
     pub fn with_retry_config(
         model: &str,
         config: OkapiConfig,
-        retry_config: RetryConfig,
+        retry_config: OkapiRetryConfig,
     ) -> Result<Self, InferenceError> {
         let client = config
             .build_client()
@@ -205,7 +205,7 @@ impl OkapiInference {
     pub fn with_rate_limiting(
         model: &str,
         config: OkapiConfig,
-        retry_config: RetryConfig,
+        retry_config: OkapiRetryConfig,
         rate_limiter: RateLimiter,
         bot_id: WebID,
     ) -> Result<Self, InferenceError> {
@@ -228,7 +228,7 @@ impl OkapiInference {
     pub fn with_circuit_breaker(
         model: &str,
         config: OkapiConfig,
-        retry_config: RetryConfig,
+        retry_config: OkapiRetryConfig,
         circuit_breaker: CircuitBreaker,
     ) -> Result<Self, InferenceError> {
         let client = config

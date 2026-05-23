@@ -188,6 +188,44 @@ pub fn pods_router() -> Router<ApiState> {
         .route("/api/pods/:id/status", axum::routing::get(pod_status))
 }
 
+/// ACP registration router
+pub fn acp_router() -> Router<ApiState> {
+    Router::new().route("/api/v1/acp/register", axum::routing::post(acp_register))
+}
+
+/// Register an agent with the ACP runtime
+async fn acp_register(
+    State(state): State<ApiState>,
+    Json(req): Json<crate::AcpRegisterRequest>,
+) -> Result<Json<crate::AcpRegisterResponse>, StatusCode> {
+    let webid = uuid::Uuid::parse_str(&req.webid)
+        .map_err(|_| StatusCode::BAD_REQUEST)
+        .map(hkask_types::WebID)?;
+
+    if !["Bot", "Replicant"].contains(&req.agent_type.as_str()) {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    if req.capabilities.is_empty() {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    let acp = state.pod_manager.acp_runtime();
+    let token = acp
+        .register_agent(webid, &req.agent_type, req.capabilities)
+        .await
+        .map_err(|e| match e {
+            hkask_agents::AcpError::AgentAlreadyRegistered(_) => StatusCode::CONFLICT,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        })?;
+
+    Ok(Json(crate::AcpRegisterResponse {
+        token: token.id.clone(),
+        registered_at: chrono::Utc::now().timestamp(),
+        webid: req.webid,
+    }))
+}
+
 /// List all pods
 async fn list_pods(State(state): State<ApiState>) -> Json<ListPodsResponse> {
     state.cns_emitter.emit_agent_pod(
@@ -241,11 +279,9 @@ async fn create_pod(
     let user_webid = state.system_webid;
 
     let has_capability = state.capability_checker.check_resource(
-        &state.capability_checker.grant_tool(
-            "pod".to_string(),
-            state.system_webid,
-            user_webid,
-        ),
+        &state
+            .capability_checker
+            .grant_tool("pod".to_string(), state.system_webid, user_webid),
         &user_webid,
         CapabilityResource::Tool,
     );

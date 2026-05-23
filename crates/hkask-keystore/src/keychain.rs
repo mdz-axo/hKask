@@ -1,7 +1,7 @@
 //! OS keychain integration
 
-use hkask_types::WebID;
 use hkask_types::SecretRef;
+use hkask_types::WebID;
 use keyring::{Entry, Error as KeyringError};
 use thiserror::Error;
 use zeroize::Zeroizing;
@@ -117,9 +117,8 @@ pub fn get_or_create_ocap_secret(
 pub fn resolve(secret_ref: &SecretRef) -> Result<Zeroizing<Vec<u8>>, KeychainError> {
     match secret_ref {
         SecretRef::Env(var_name) => {
-            let value = std::env::var(var_name).map_err(|_| {
-                KeychainError::NotFound(format!("env var {} not set", var_name))
-            })?;
+            let value = std::env::var(var_name)
+                .map_err(|_| KeychainError::NotFound(format!("env var {} not set", var_name)))?;
             Ok(Zeroizing::new(value.into_bytes()))
         }
         SecretRef::Keychain(key_name) => {

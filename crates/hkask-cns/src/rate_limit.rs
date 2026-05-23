@@ -29,13 +29,13 @@ impl Default for RateLimitConfig {
 
 /// Token bucket for rate limiting
 #[derive(Debug)]
-pub struct TokenBucket {
+pub struct CnsTokenBucket {
     tokens: u32,
     last_refill: Instant,
     config: RateLimitConfig,
 }
 
-impl TokenBucket {
+impl CnsTokenBucket {
     pub fn new(config: RateLimitConfig) -> Self {
         Self {
             tokens: config.max_tokens,
@@ -77,7 +77,7 @@ impl TokenBucket {
 
 /// Rate limiter for template dispatch
 pub struct RateLimiter {
-    buckets: Mutex<HashMap<WebID, TokenBucket>>,
+    buckets: Mutex<HashMap<WebID, CnsTokenBucket>>,
     config: RateLimitConfig,
 }
 
@@ -95,7 +95,7 @@ impl RateLimiter {
 
         let bucket = buckets
             .entry(*bot_id)
-            .or_insert_with(|| TokenBucket::new(self.config.clone()));
+            .or_insert_with(|| CnsTokenBucket::new(self.config.clone()));
 
         bucket.try_consume()
     }
@@ -106,7 +106,7 @@ impl RateLimiter {
 
         let bucket = buckets
             .entry(*bot_id)
-            .or_insert_with(|| TokenBucket::new(self.config.clone()));
+            .or_insert_with(|| CnsTokenBucket::new(self.config.clone()));
 
         bucket.tokens()
     }
@@ -114,7 +114,7 @@ impl RateLimiter {
     /// Update rate limit config for a specific bot
     pub fn configure_bot(&self, bot_id: &WebID, config: RateLimitConfig) {
         let mut buckets = self.buckets.lock();
-        buckets.insert(*bot_id, TokenBucket::new(config));
+        buckets.insert(*bot_id, CnsTokenBucket::new(config));
     }
 }
 

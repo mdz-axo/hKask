@@ -65,7 +65,12 @@ pub struct GoalCapabilityToken {
 }
 
 impl GoalCapabilityToken {
-    pub fn new(goal_id: GoalID, holder_webid: WebID, operations: Vec<GoalOp>, secret: &[u8]) -> Self {
+    pub fn new(
+        goal_id: GoalID,
+        holder_webid: WebID,
+        operations: Vec<GoalOp>,
+        secret: &[u8],
+    ) -> Self {
         let id = format!("gct_{}", uuid::Uuid::new_v4().simple());
         let expires = Utc::now() + chrono::Duration::hours(24);
 
@@ -84,8 +89,7 @@ impl GoalCapabilityToken {
     }
 
     fn compute_hmac(&self, secret: &[u8]) -> String {
-        let mut mac = HmacSha256::new_from_slice(secret)
-            .expect("HMAC can take key of any size");
+        let mut mac = HmacSha256::new_from_slice(secret).expect("HMAC can take key of any size");
         mac.update(self.id.as_bytes());
         mac.update(self.goal_id.to_string().as_bytes());
         mac.update(self.holder_webid.to_string().as_bytes());

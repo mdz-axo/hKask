@@ -23,9 +23,7 @@ pub mod runtime;
 pub mod spans;
 pub mod variety;
 
-pub use algedonic::{
-    AlertSeverity, AlgedonicManager, CnsHealth, RuntimeAlert, DEFAULT_THRESHOLD,
-};
+pub use algedonic::{AlertSeverity, AlgedonicManager, CnsHealth, DEFAULT_THRESHOLD, RuntimeAlert};
 pub use energy::{
     EnergyAccount, EnergyBudget, EnergyEmitter, EnergyError, EnergySpanType, OpportunityCost,
     calculate_energy_cost, estimate_tokens,

@@ -268,6 +268,28 @@ pub enum ValidationErrorType {
     InvalidCharacters,
 }
 
+/// ACP registration request
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct AcpRegisterRequest {
+    /// Agent WebID (UUID string)
+    pub webid: String,
+    /// Agent type: "Bot" or "Replicant"
+    pub agent_type: String,
+    /// Capabilities to grant (e.g., ["tool:execute", "template:render"])
+    pub capabilities: Vec<String>,
+}
+
+/// ACP registration response
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct AcpRegisterResponse {
+    /// Granted capability token (HMAC-signed)
+    pub token: String,
+    /// Registration timestamp (Unix epoch seconds)
+    pub registered_at: i64,
+    /// Agent WebID
+    pub webid: String,
+}
+
 /// CNS span types for SOAP inference (type-safe emissions)
 pub enum InferenceSpan {
     Start {
@@ -400,24 +422,23 @@ pub struct SoapInferenceConfig {
 
 impl Default for SoapInferenceConfig {
     fn default() -> Self {
-        let capability_secret = hkask_keystore::resolve(
-            &hkask_types::SecretRef::env("HKASK_CAPABILITY_KEY"),
-        )
-        .map(|s| {
-            let mut arr = [0u8; 32];
-            let bytes: &[u8] = &s;
-            let len = bytes.len().min(32);
-            arr[..len].copy_from_slice(&bytes[..len]);
-            arr
-        })
-        .unwrap_or_else(|_| {
-            let mut arr = [0u8; 32];
-            for b in arr.iter_mut() {
-                *b = rand::random();
-            }
-            tracing::warn!("HKASK_CAPABILITY_KEY not set, using generated secret");
-            arr
-        });
+        let capability_secret =
+            hkask_keystore::resolve(&hkask_types::SecretRef::env("HKASK_CAPABILITY_KEY"))
+                .map(|s| {
+                    let mut arr = [0u8; 32];
+                    let bytes: &[u8] = &s;
+                    let len = bytes.len().min(32);
+                    arr[..len].copy_from_slice(&bytes[..len]);
+                    arr
+                })
+                .unwrap_or_else(|_| {
+                    let mut arr = [0u8; 32];
+                    for b in arr.iter_mut() {
+                        *b = rand::random();
+                    }
+                    tracing::warn!("HKASK_CAPABILITY_KEY not set, using generated secret");
+                    arr
+                });
 
         Self {
             capability_secret,
@@ -549,6 +570,7 @@ pub fn create_router(state: ApiState) -> OpenApiRouter {
         .merge(routes::chat_router().into())
         .merge(routes::ensemble_router().into())
         .merge(routes::soap_infer_router().into())
+        .merge(routes::acp_router().into())
         .with_state(state)
 }
 

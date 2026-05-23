@@ -349,7 +349,10 @@ mod tests {
     fn test_assembler_render_plain() {
         let mut assembler = ContextAssembler::new(4096);
 
-        assembler.add(ContextFragment::new("Line 1".into(), FragmentSource::System));
+        assembler.add(ContextFragment::new(
+            "Line 1".into(),
+            FragmentSource::System,
+        ));
         assembler.add(ContextFragment::new("Line 2".into(), FragmentSource::User));
 
         let output = assembler.render_plain();
@@ -406,7 +409,14 @@ mod tests {
         ];
 
         let results = assembler.add_many(fragments);
-        assert_eq!(results, vec![AddResult::Accepted, AddResult::Accepted, AddResult::DuplicateExact]);
+        assert_eq!(
+            results,
+            vec![
+                AddResult::Accepted,
+                AddResult::Accepted,
+                AddResult::DuplicateExact
+            ]
+        );
         assert_eq!(assembler.len(), 2);
     }
 

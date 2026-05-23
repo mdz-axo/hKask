@@ -12,7 +12,7 @@
 //! # Example
 //!
 //! ```rust
-//! use hkask_templates::{OkapiConfig, RetryConfig};
+//! use hkask_templates::{OkapiConfig, OkapiRetryConfig};
 //!
 //! // Local development (no auth)
 //! let config = OkapiConfig::local_dev();
@@ -26,7 +26,7 @@
 //! };
 //!
 //! // Retry configuration
-//! let retry_config = RetryConfig::default();
+//! let retry_config = OkapiRetryConfig::default();
 //! assert_eq!(retry_config.max_retries, 3);
 //! ```
 
@@ -84,14 +84,14 @@ impl OkapiConfig {
 
 /// Retry configuration
 #[derive(Debug, Clone)]
-pub struct RetryConfig {
+pub struct OkapiRetryConfig {
     pub max_retries: u32,
     pub backoff_base_ms: u64,
     pub max_delay_ms: u64,
     pub retryable_status: Vec<u16>,
 }
 
-impl Default for RetryConfig {
+impl Default for OkapiRetryConfig {
     fn default() -> Self {
         Self {
             max_retries: 3,
@@ -102,7 +102,7 @@ impl Default for RetryConfig {
     }
 }
 
-impl RetryConfig {
+impl OkapiRetryConfig {
     pub fn is_retryable_status(&self, status: u16) -> bool {
         self.retryable_status.contains(&status)
     }

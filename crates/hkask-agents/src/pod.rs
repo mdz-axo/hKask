@@ -48,7 +48,7 @@
 //!
 //! let persona = AgentPersona::from_yaml(yaml_str)?;
 //! let mut pod = AgentPod::new("test-bot", &persona, &git_adapter)?;
-//! pod.register(&acp_runtime, &cns_emitter)?;
+//! pod.register(acp_runtime.as_ref(), &cns_emitter).await?;
 //! pod.activate(&mcp_runtime, &cns_emitter)?;
 //! # Ok(())
 //! # }
@@ -1095,6 +1095,11 @@ impl PodManager {
             .collect();
 
         Ok(statuses)
+    }
+
+    /// Get a reference to the ACP runtime port
+    pub fn acp_runtime(&self) -> Arc<dyn crate::ports::AcpPort + Send + Sync> {
+        Arc::clone(&self.acp_runtime)
     }
 }
 

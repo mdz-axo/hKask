@@ -64,3 +64,23 @@ impl GitArchivalError {
 
 /// Archival operation result
 pub type ArchivalResult<T> = Result<T, GitArchivalError>;
+
+/// AuthorizationError — Canonical authorization failure for hKask
+///
+/// Common authorization error variants shared across subsystems.
+/// Domain-specific errors should use dedicated types (WebIdAuthError,
+/// CapabilityAuthError, StepAuthError).
+#[derive(Debug, Error, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum AuthorizationError {
+    #[error("Capability not found")]
+    CapabilityNotFound,
+
+    #[error("Capability expired")]
+    CapabilityExpired,
+
+    #[error("Unauthorized operation: {0}")]
+    Unauthorized(String),
+
+    #[error("Insufficient permissions: requested {requested}, granted {granted}")]
+    InsufficientPermissions { requested: String, granted: String },
+}

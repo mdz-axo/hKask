@@ -308,46 +308,60 @@ impl TokenBucket {
     }
 }
 
-/// TokenBucket — General-purpose token bucket rate limiter
+/// RetryConfig — Canonical retry configuration for all hKask subsystems
 ///
-/// Uses f64 for fractional token accumulation. Suitable for
-/// rate limiting across all hKask subsystems.
-#[derive(Debug, Clone)]
-pub struct TokenBucket {
-    tokens: f64,
-    max_tokens: f64,
-    refill_rate: f64,
-    last_refill: std::time::Instant,
+/// Combines exponential backoff with retryable status codes.
+/// All delays are in milliseconds for serialization compatibility.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RetryConfig {
+    pub max_retries: u32,
+    pub initial_delay_ms: u64,
+    pub max_delay_ms: u64,
+    #[serde(default = "default_multiplier")]
+    pub multiplier: f64,
+    #[serde(default)]
+    pub retryable_status: Vec<u16>,
 }
 
-impl TokenBucket {
-    pub fn new(max_tokens: f64, refill_rate: f64) -> Self {
+fn default_multiplier() -> f64 {
+    2.0
+}
+
+impl RetryConfig {
+    pub fn new(max_retries: u32, initial_delay_ms: u64, max_delay_ms: u64) -> Self {
         Self {
-            tokens: max_tokens,
-            max_tokens,
-            refill_rate,
-            last_refill: std::time::Instant::now(),
+            max_retries,
+            initial_delay_ms,
+            max_delay_ms,
+            multiplier: 2.0,
+            retryable_status: Vec::new(),
         }
     }
 
-    fn refill(&mut self) {
-        let now = std::time::Instant::now();
-        let elapsed = now.duration_since(self.last_refill).as_secs_f64();
-        self.tokens = (self.tokens + elapsed * self.refill_rate).min(self.max_tokens);
-        self.last_refill = now;
+    pub fn with_multiplier(mut self, multiplier: f64) -> Self {
+        self.multiplier = multiplier;
+        self
     }
 
-    pub fn consume(&mut self, tokens: f64) -> bool {
-        self.refill();
-        if self.tokens >= tokens {
-            self.tokens -= tokens;
-            true
-        } else {
-            false
+    pub fn with_retryable_status(mut self, status: Vec<u16>) -> Self {
+        self.retryable_status = status;
+        self
+    }
+
+    pub fn delay_for_attempt(&self, attempt: u32) -> u64 {
+        let delay = self.initial_delay_ms * (self.multiplier as u64).pow(attempt);
+        delay.min(self.max_delay_ms)
+    }
+}
+
+impl Default for RetryConfig {
+    fn default() -> Self {
+        Self {
+            max_retries: 3,
+            initial_delay_ms: 500,
+            max_delay_ms: 30000,
+            multiplier: 2.0,
+            retryable_status: vec![408, 429, 500, 502, 503, 504],
         }
-    }
-
-    pub fn available(&self) -> f64 {
-        self.tokens
     }
 }

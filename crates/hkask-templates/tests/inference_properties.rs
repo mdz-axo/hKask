@@ -3,7 +3,7 @@
 //! Uses proptest for random prompt/parameter generation.
 //! Tests invariants: response non-empty, usage stats consistent, no panics.
 
-use hkask_templates::{InferenceResult, OkapiConfig, RetryConfig};
+use hkask_templates::{InferenceResult, OkapiConfig, OkapiRetryConfig};
 use hkask_types::LLMParameters;
 use proptest::prelude::*;
 
@@ -98,7 +98,7 @@ fn test_okapi_config_roundtrip() {
 /// Property: Retry config exponential backoff
 #[test]
 fn test_retry_exponential_backoff() {
-    let config = RetryConfig::default();
+    let config = OkapiRetryConfig::default();
 
     let delay_0 = config.delay_for_attempt(0);
     let delay_1 = config.delay_for_attempt(1);

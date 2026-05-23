@@ -5,8 +5,9 @@
 
 use crate::ports::{
     Action, CnsPort, DEFAULT_MATROSHKA_LIMIT, InferenceConfig, InferencePort, ManifestExecutor,
-    ManifestStep, McpPort, ProcessManifest, Result, TemplateError, TemplateRenderer,
+    ManifestStep, McpPort, MemoryPort, ProcessManifest, Result, TemplateError, TemplateRenderer,
 };
+use crate::context_assembly::{ContextAssembler, ContextFragment, FragmentSource};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::info;

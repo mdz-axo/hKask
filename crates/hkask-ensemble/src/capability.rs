@@ -107,7 +107,7 @@ impl CapabilityConfig {
 
 /// Authorization error
 #[derive(Debug, Error)]
-pub enum AuthorizationError {
+pub enum CapabilityAuthError {
     #[error("Capability not found")]
     CapabilityNotFound,
 
@@ -127,22 +127,22 @@ pub enum AuthorizationError {
     Registry(String),
 }
 
-impl From<MacaroonError> for AuthorizationError {
+impl From<MacaroonError> for CapabilityAuthError {
     fn from(err: MacaroonError) -> Self {
         match err {
-            MacaroonError::InvalidSignature => AuthorizationError::MacaroonInvalid(
+            MacaroonError::InvalidSignature => CapabilityAuthError::MacaroonInvalid(
                 "Signature invalid - may have been tampered with".to_string(),
             ),
-            MacaroonError::Expired => AuthorizationError::CapabilityExpired,
-            MacaroonError::Unauthorized => AuthorizationError::Unauthorized {
+            MacaroonError::Expired => CapabilityAuthError::CapabilityExpired,
+            MacaroonError::Unauthorized => CapabilityAuthError::Unauthorized {
                 requested: "unknown".to_string(),
                 granted: vec![],
             },
             MacaroonError::UnknownCaveat => {
-                AuthorizationError::MacaroonInvalid("Unknown caveat type".to_string())
+                CapabilityAuthError::MacaroonInvalid("Unknown caveat type".to_string())
             }
             MacaroonError::InvalidCaveat => {
-                AuthorizationError::MacaroonInvalid("Invalid caveat data".to_string())
+                CapabilityAuthError::MacaroonInvalid("Invalid caveat data".to_string())
             }
         }
     }
@@ -244,10 +244,10 @@ impl OkapiCapability {
         &self,
         key: &[u8; 32],
         operations: &[OkapiOperation],
-    ) -> Result<(), AuthorizationError> {
+    ) -> Result<(), CapabilityAuthError> {
         // Verify macaroon signature
         self.macaroon.verify(key).map_err(|e| {
-            AuthorizationError::MacaroonInvalid(format!("Signature verification failed: {:?}", e))
+            CapabilityAuthError::MacaroonInvalid(format!("Signature verification failed: {:?}", e))
         })?;
 
         // Build caveat context with requested operations and visibility
@@ -273,12 +273,12 @@ impl OkapiCapability {
                 .collect();
 
             match e {
-                crate::macaroon::MacaroonError::Unauthorized => AuthorizationError::Unauthorized {
+                crate::macaroon::MacaroonError::Unauthorized => CapabilityAuthError::Unauthorized {
                     requested: requested_ops.join(", "),
                     granted: granted_ops,
                 },
-                crate::macaroon::MacaroonError::Expired => AuthorizationError::CapabilityExpired,
-                _ => AuthorizationError::MacaroonInvalid(format!(
+                crate::macaroon::MacaroonError::Expired => CapabilityAuthError::CapabilityExpired,
+                _ => CapabilityAuthError::MacaroonInvalid(format!(
                     "Caveat verification failed: {:?}",
                     e
                 )),

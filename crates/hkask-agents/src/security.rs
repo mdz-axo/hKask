@@ -6,10 +6,10 @@
 //! - **OCAP Enhancement**: Attenuation history tracking and expiry enforcement
 
 use hkask_types::TokenBucket;
-use hkask_types::TokenBucket;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::RwLock;
 
 /// Input validation errors
@@ -113,47 +113,6 @@ impl InputValidator<AgentPersonaInput> for AgentPersonaInput {
         }
 
         Ok(())
-    }
-}
-
-/// Token bucket rate limiter
-#[derive(Debug, Clone)]
-pub struct TokenBucket {
-    tokens: f64,
-    max_tokens: f64,
-    refill_rate: f64, // tokens per second
-    last_refill: Instant,
-}
-
-impl TokenBucket {
-    pub fn new(max_tokens: f64, refill_rate: f64) -> Self {
-        Self {
-            tokens: max_tokens,
-            max_tokens,
-            refill_rate,
-            last_refill: Instant::now(),
-        }
-    }
-
-    fn refill(&mut self) {
-        let now = Instant::now();
-        let elapsed = now.duration_since(self.last_refill).as_secs_f64();
-        self.tokens = (self.tokens + elapsed * self.refill_rate).min(self.max_tokens);
-        self.last_refill = now;
-    }
-
-    pub fn consume(&mut self, tokens: f64) -> bool {
-        self.refill();
-        if self.tokens >= tokens {
-            self.tokens -= tokens;
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn available(&self) -> f64 {
-        self.tokens
     }
 }
 

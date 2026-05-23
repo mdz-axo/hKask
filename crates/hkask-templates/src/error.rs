@@ -207,7 +207,7 @@ impl CompositionError {
 
 /// Retry configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RetryConfig {
+pub struct ErrorErrorRetryConfig {
     /// Maximum retry attempts
     pub max_retries: u32,
     /// Base delay for exponential backoff (ms)
@@ -216,7 +216,7 @@ pub struct RetryConfig {
     pub max_delay_ms: u64,
 }
 
-impl RetryConfig {
+impl ErrorErrorRetryConfig {
     pub fn new(max_retries: u32, base_delay_ms: u64, max_delay_ms: u64) -> Self {
         Self {
             max_retries,
@@ -237,7 +237,7 @@ impl RetryConfig {
     }
 }
 
-impl Default for RetryConfig {
+impl Default for ErrorErrorRetryConfig {
     fn default() -> Self {
         Self {
             max_retries: 3,

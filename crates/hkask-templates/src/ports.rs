@@ -12,11 +12,8 @@ use std::time::Duration;
 /// Configuration for inference calls with timeout and retry
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InferenceConfig {
-    /// Timeout for each inference call
     pub timeout: Duration,
-    /// Maximum number of retries on transient failure
     pub max_retries: u32,
-    /// Base delay for exponential backoff
     pub backoff_base: Duration,
 }
 
@@ -31,7 +28,6 @@ impl Default for InferenceConfig {
 }
 
 impl InferenceConfig {
-    /// Calculate backoff delay for given attempt (exponential: 1s, 2s, 4s, ...)
     pub fn backoff_delay(&self, attempt: u32) -> Duration {
         self.backoff_base * 2u32.pow(attempt)
     }
@@ -169,11 +165,10 @@ pub trait RegistryIndex {
     fn bootstrap_manifest(&self) -> Option<ProcessManifest>;
 }
 
-/// Inference port for LLM calls with timeout/retry support
+/// Sync inference port for manifest executor
 pub trait InferencePort {
     fn call(&self, model_tier: &str, prompt: &str, config: &InferenceConfig) -> Result<Value>;
 
-    /// Call with default configuration
     fn call_default(&self, model_tier: &str, prompt: &str) -> Result<Value> {
         self.call(model_tier, prompt, &InferenceConfig::default())
     }
@@ -206,6 +201,26 @@ pub trait McpPort {
 /// CNS port for event emission
 pub trait CnsPort {
     fn emit(&self, span: &str, outcome: Value, confidence: f64);
+}
+
+/// Memory context fragment for deduplication
+#[derive(Debug, Clone)]
+pub struct MemoryFragment {
+    pub content: String,
+    pub source: String,
+    pub confidence: f64,
+}
+
+/// Memory port for semantic/episodic recall
+pub trait MemoryPort {
+    /// Query semantic memory for relevant triples
+    fn query_semantic(&self, entity: &str) -> Vec<MemoryFragment>;
+    
+    /// Query episodic memory for relevant experiences
+    fn query_episodic(&self, entity: &str, perspective: &str) -> Vec<MemoryFragment>;
+    
+    /// Get recent session history
+    fn get_session_history(&self, session_id: &str, max_messages: usize) -> Vec<String>;
 }
 
 /// Maximum Matroshka nesting depth (configurable per template)

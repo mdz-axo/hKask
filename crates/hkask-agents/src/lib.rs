@@ -48,7 +48,6 @@ pub mod sovereignty;
 
 pub use acp::{A2AMessage, AcpAgent, AcpError, AcpRuntime, TemplateDispatchHandler};
 pub use adapters::{LoopbackHttpTransport, StdioTransport};
-pub use ports::{AcpPort, AcpTransport, AcpWireMessage, AcpWireResponse};
 pub use bot::Bot;
 pub use capability::{BotCapabilities, CapabilityChecker, CapabilityToken};
 pub use consent::ConsentManager;
@@ -60,5 +59,6 @@ pub use pod::{
     MCPRuntimePort, MemoryStoragePort, PodID, PodLifecycleState, PodManager, PodStatus,
     TemplateCrate,
 };
+pub use ports::{AcpPort, AcpTransport, AcpWireMessage, AcpWireResponse};
 pub use replicant::{Replicant, ReplicantCapabilities};
 pub use sovereignty::SovereigntyChecker;

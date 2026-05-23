@@ -44,7 +44,7 @@ pub struct StageExecutionConfig {
     #[serde(default = "default_channel_capacity")]
     pub channel_capacity: usize,
     #[serde(default)]
-    pub retry: RetryConfig,
+    pub retry: CspCspRetryConfig,
 }
 
 fn default_channel_capacity() -> usize {
@@ -52,7 +52,7 @@ fn default_channel_capacity() -> usize {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct RetryConfig {
+pub struct CspCspRetryConfig {
     #[serde(default)]
     pub max_retries: u32,
     #[serde(default)]

@@ -166,7 +166,7 @@ pub struct CircuitBreakerStats {
 
 /// Retry configuration
 #[derive(Debug, Clone)]
-pub struct RetryConfig {
+pub struct EnsembleEnsembleRetryConfig {
     /// Maximum number of retry attempts
     pub max_retries: u32,
     /// Initial delay between retries
@@ -177,7 +177,7 @@ pub struct RetryConfig {
     pub multiplier: f64,
 }
 
-impl Default for RetryConfig {
+impl Default for EnsembleEnsembleRetryConfig {
     fn default() -> Self {
         Self {
             max_retries: 3,
@@ -190,7 +190,7 @@ impl Default for RetryConfig {
 
 /// Retry with exponential backoff
 pub async fn retry_with_backoff<F, Fut, T>(
-    config: RetryConfig,
+    config: EnsembleEnsembleRetryConfig,
     mut operation: F,
 ) -> Result<T, RetryError>
 where
@@ -247,7 +247,7 @@ pub enum RetryError {
 pub struct ResilientOkapiClient<C> {
     inner: C,
     circuit_breaker: Arc<CircuitBreaker>,
-    retry_config: RetryConfig,
+    retry_config: EnsembleEnsembleRetryConfig,
 }
 
 impl<C> ResilientOkapiClient<C>
@@ -259,7 +259,7 @@ where
         inner: C,
         name: String,
         circuit_config: CircuitBreakerConfig,
-        retry_config: RetryConfig,
+        retry_config: EnsembleEnsembleRetryConfig,
     ) -> Self {
         let circuit_breaker = Arc::new(CircuitBreaker::new(name, circuit_config));
 

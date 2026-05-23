@@ -101,7 +101,10 @@ pub struct SqliteGoalRepository {
 
 impl SqliteGoalRepository {
     pub fn new(conn: Arc<Connection>, capability_secret: Vec<u8>) -> Self {
-        Self { conn, capability_secret }
+        Self {
+            conn,
+            capability_secret,
+        }
     }
 
     /// Verify capability token is valid and authorized for operation
@@ -483,7 +486,12 @@ mod tests {
             GoalOp::CreateSubgoal,
             GoalOp::AddArtifact,
         ];
-        GoalCapabilityToken::new(goal_id, webid, operations, b"hkask-test-goal-capability-key")
+        GoalCapabilityToken::new(
+            goal_id,
+            webid,
+            operations,
+            b"hkask-test-goal-capability-key",
+        )
     }
 
     #[test]
@@ -714,7 +722,12 @@ mod tests {
         assert!(retrieved.is_some());
 
         // Create token for other user (should be denied access to private goal)
-        let other_token = GoalCapabilityToken::new(goal_id, other_webid, vec![GoalOp::Read], b"hkask-test-goal-capability-key");
+        let other_token = GoalCapabilityToken::new(
+            goal_id,
+            other_webid,
+            vec![GoalOp::Read],
+            b"hkask-test-goal-capability-key",
+        );
 
         // Other user cannot access private goal
         let result = repo.get_goal(&other_token, goal.id);

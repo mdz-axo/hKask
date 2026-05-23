@@ -1,46 +1,10 @@
 //! Rate Limiting Adapter — Token Bucket Implementation
 
-use crate::ports::security_port::{RateLimitPort, ValidationResult, ValidationError};
+use crate::ports::security_port::{RateLimitPort, ValidationError};
+use hkask_types::TokenBucket;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Instant;
 use tokio::sync::RwLock;
-
-#[derive(Debug, Clone)]
-pub struct TokenBucket {
-    tokens: f64,
-    max_tokens: f64,
-    refill_rate: f64,
-    last_refill: Instant,
-}
-
-impl TokenBucket {
-    pub fn new(max_tokens: f64, refill_rate: f64) -> Self {
-        Self {
-            tokens: max_tokens,
-            max_tokens,
-            refill_rate,
-            last_refill: Instant::now(),
-        }
-    }
-
-    fn refill(&mut self) {
-        let now = Instant::now();
-        let elapsed = now.duration_since(self.last_refill).as_secs_f64();
-        self.tokens = (self.tokens + elapsed * self.refill_rate).min(self.max_tokens);
-        self.last_refill = now;
-    }
-
-    pub fn consume(&mut self, tokens: f64) -> bool {
-        self.refill();
-        if self.tokens >= tokens {
-            self.tokens -= tokens;
-            true
-        } else {
-            false
-        }
-    }
-}
 
 pub struct RateLimiterAdapter {
     buckets: Arc<RwLock<HashMap<String, TokenBucket>>>,

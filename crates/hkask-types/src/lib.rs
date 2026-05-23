@@ -29,7 +29,7 @@ pub mod visibility;
 pub use capability::*;
 pub use cns::*;
 pub use curation::*;
-pub use error::{ArchivalResult, GitArchivalError};
+pub use error::{ArchivalResult, AuthorizationError, GitArchivalError};
 pub use event::*;
 pub use goal::*;
 pub use goal_capability::*;

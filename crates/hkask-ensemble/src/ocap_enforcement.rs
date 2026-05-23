@@ -3,7 +3,7 @@
 //! Provides capability-based authorization at Okapi and MCP boundaries.
 //! Enforces principle of least authority (Mark Miller / Bruce Schneier).
 
-use crate::capability::{AuthorizationError, OkapiCapability, OkapiOperation};
+use crate::capability::{CapabilityAuthError, OkapiCapability, OkapiOperation};
 use crate::webid_registry::WebIDCapabilityRegistry;
 use hkask_types::{Visibility, WebID};
 use std::sync::Arc;
@@ -110,7 +110,7 @@ impl OcapEnforcer {
     pub async fn enforce(
         &self,
         context: OcapContext,
-    ) -> Result<OcapEnforcementResult, AuthorizationError> {
+    ) -> Result<OcapEnforcementResult, CapabilityAuthError> {
         debug!(
             "Enforcing OCAP: requester={}, operation={:?}, visibility={:?}",
             context.requester, context.operation, context.required_visibility
@@ -214,7 +214,7 @@ impl OcapEnforcer {
     pub async fn authorize_generate(
         &self,
         requester: WebID,
-    ) -> Result<OcapEnforcementResult, AuthorizationError> {
+    ) -> Result<OcapEnforcementResult, CapabilityAuthError> {
         let context = OcapContext::new(requester, OkapiOperation::Generate);
         self.enforce(context).await
     }
@@ -223,7 +223,7 @@ impl OcapEnforcer {
     pub async fn authorize_chat(
         &self,
         requester: WebID,
-    ) -> Result<OcapEnforcementResult, AuthorizationError> {
+    ) -> Result<OcapEnforcementResult, CapabilityAuthError> {
         let context = OcapContext::new(requester, OkapiOperation::Chat);
         self.enforce(context).await
     }
@@ -232,7 +232,7 @@ impl OcapEnforcer {
     pub async fn authorize_embed(
         &self,
         requester: WebID,
-    ) -> Result<OcapEnforcementResult, AuthorizationError> {
+    ) -> Result<OcapEnforcementResult, CapabilityAuthError> {
         let context = OcapContext::new(requester, OkapiOperation::Embed);
         self.enforce(context).await
     }
@@ -241,7 +241,7 @@ impl OcapEnforcer {
     pub async fn authorize_read_metrics(
         &self,
         requester: WebID,
-    ) -> Result<OcapEnforcementResult, AuthorizationError> {
+    ) -> Result<OcapEnforcementResult, CapabilityAuthError> {
         let context = OcapContext::new(requester, OkapiOperation::ReadMetrics);
         self.enforce(context).await
     }
@@ -252,15 +252,15 @@ pub async fn enforce_okapi_ocap(
     enforcer: Arc<OcapEnforcer>,
     requester: WebID,
     operation: OkapiOperation,
-) -> Result<OkapiCapability, AuthorizationError> {
+) -> Result<OkapiCapability, CapabilityAuthError> {
     let context = OcapContext::new(requester, operation);
     let result = enforcer.enforce(context).await?;
 
     if result.granted {
         result
             .capability
-            .ok_or(AuthorizationError::CapabilityNotFound)
+            .ok_or(CapabilityAuthError::CapabilityNotFound)
     } else {
-        Err(AuthorizationError::CapabilityNotFound)
+        Err(CapabilityAuthError::CapabilityNotFound)
     }
 }

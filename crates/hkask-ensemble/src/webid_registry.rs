@@ -212,27 +212,27 @@ pub async fn authorize_operation(
     registry: Arc<WebIDCapabilityRegistry>,
     webid: WebID,
     operation: OkapiOperation,
-) -> Result<OkapiCapability, AuthorizationError> {
+) -> Result<OkapiCapability, WebIdAuthError> {
     let has_cap = registry.has_capability(webid, operation).await;
 
     if !has_cap {
-        return Err(AuthorizationError::CapabilityNotFound);
+        return Err(WebIdAuthError::CapabilityNotFound);
     }
 
     let capabilities = registry
         .get_capabilities(webid)
         .await
-        .ok_or(AuthorizationError::WebIDNotFound)?;
+        .ok_or(WebIdAuthError::WebIDNotFound)?;
 
     capabilities
         .into_iter()
         .find(|cap| cap.has_operation(operation) && !cap.is_expired())
-        .ok_or(AuthorizationError::CapabilityNotFound)
+        .ok_or(WebIdAuthError::CapabilityNotFound)
 }
 
 /// Authorization error
 #[derive(Debug, thiserror::Error)]
-pub enum AuthorizationError {
+pub enum WebIdAuthError {
     #[error("WebID not found")]
     WebIDNotFound,
 

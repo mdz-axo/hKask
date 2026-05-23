@@ -173,8 +173,8 @@ impl CuratorPipeline {
             }
 
             // Check if the boundary applies to this template
-            if boundary.capability == invocation.template_id.to_string() 
-                || boundary.capability == "*" 
+            if boundary.capability == invocation.template_id.to_string()
+                || boundary.capability == "*"
             {
                 // Check authority level
                 match boundary.authority {

@@ -68,19 +68,13 @@ impl AcpTransport for LoopbackHttpTransport {
     async fn send(&self, msg: &AcpWireMessage) -> Result<AcpWireResponse, AcpError> {
         let url = self.endpoint_url("/acp/message");
 
-        let response = self
-            .client
-            .post(&url)
-            .json(msg)
-            .send()
-            .await
-            .map_err(|e| {
-                if e.is_connect() {
-                    AcpError::ConnectionRefused(format!("{}: {e}", self.endpoint))
-                } else {
-                    AcpError::TransportError(format!("HTTP request failed: {e}"))
-                }
-            })?;
+        let response = self.client.post(&url).json(msg).send().await.map_err(|e| {
+            if e.is_connect() {
+                AcpError::ConnectionRefused(format!("{}: {e}", self.endpoint))
+            } else {
+                AcpError::TransportError(format!("HTTP request failed: {e}"))
+            }
+        })?;
 
         if !response.status().is_success() {
             return Err(AcpError::TransportError(format!(
@@ -117,7 +111,10 @@ mod tests {
         let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(192, 168, 1, 1)), 8080);
         let result = LoopbackHttpTransport::new(addr);
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), AcpError::NonLoopbackRefused(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            AcpError::NonLoopbackRefused(_)
+        ));
     }
 
     #[test]

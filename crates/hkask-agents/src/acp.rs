@@ -59,7 +59,7 @@ fn parse_capability(capability: &str) -> Result<(CapabilityResource, CapabilityA
     let resource = CapabilityResource::parse_str(parts[0]).ok_or_else(|| {
         AcpError::MalformedCapability(format!("Unknown resource type: {}", parts[0]))
     })?;
-    
+
     let action = CapabilityAction::parse_str(parts[1]).ok_or_else(|| {
         AcpError::MalformedCapability(format!("Unknown action type: {}", parts[1]))
     })?;
@@ -773,14 +773,12 @@ impl AuditLogPort for AuditLog {
 
 impl Default for AcpRuntime {
     fn default() -> Self {
-        let secret = hkask_keystore::resolve(
-            &hkask_types::SecretRef::env("HKASK_ACP_SECRET_KEY"),
-        )
-        .unwrap_or_else(|_| {
-            tracing::warn!("HKASK_ACP_SECRET_KEY not set, using generated secret");
-            hkask_keystore::resolve(&hkask_types::SecretRef::generated(32))
-                .expect("generated secret cannot fail")
-        });
+        let secret = hkask_keystore::resolve(&hkask_types::SecretRef::env("HKASK_ACP_SECRET_KEY"))
+            .unwrap_or_else(|_| {
+                tracing::warn!("HKASK_ACP_SECRET_KEY not set, using generated secret");
+                hkask_keystore::resolve(&hkask_types::SecretRef::generated(32))
+                    .expect("generated secret cannot fail")
+            });
         Self::new(&secret, None)
     }
 }
@@ -938,4 +936,3 @@ impl TemplateDispatchHandler {
         Ok(())
     }
 }
-

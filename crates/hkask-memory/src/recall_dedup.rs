@@ -136,10 +136,10 @@ mod tests {
 
     #[test]
     fn test_eav_hash_ignores_metadata() {
-        let t1 = Triple::new("Paris", "capital_of", json!("France"), test_webid())
-            .with_confidence(0.9);
-        let t2 = Triple::new("Paris", "capital_of", json!("France"), test_webid())
-            .with_confidence(0.5);
+        let t1 =
+            Triple::new("Paris", "capital_of", json!("France"), test_webid()).with_confidence(0.9);
+        let t2 =
+            Triple::new("Paris", "capital_of", json!("France"), test_webid()).with_confidence(0.5);
 
         assert_eq!(eav_hash(&t1), eav_hash(&t2));
     }

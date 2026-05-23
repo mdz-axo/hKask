@@ -17,7 +17,7 @@ use crate::runtime::{McpRuntime, McpTool};
 
 /// Retry configuration for transient errors
 #[derive(Debug, Clone)]
-pub struct RetryConfig {
+pub struct McpMcpRetryConfig {
     /// Maximum number of retries
     pub max_retries: u32,
     /// Base delay for exponential backoff
@@ -26,7 +26,7 @@ pub struct RetryConfig {
     pub retryable_status: Vec<u16>,
 }
 
-impl Default for RetryConfig {
+impl Default for McpMcpRetryConfig {
     fn default() -> Self {
         Self {
             max_retries: 3,
@@ -48,7 +48,7 @@ pub struct McpDispatcher {
     bot_capabilities: Arc<RwLock<std::collections::HashMap<WebID, BotCapabilities>>>,
     /// Retry configuration (future: use in invoke_async)
     #[allow(dead_code)]
-    retry_config: RetryConfig,
+    retry_config: McpMcpRetryConfig,
 }
 
 impl McpDispatcher {
@@ -59,7 +59,7 @@ impl McpDispatcher {
             capability_checker: Arc::new(CapabilityChecker::new(secret)),
             rate_limiter: RateLimiter::default(),
             bot_capabilities: Arc::new(RwLock::new(std::collections::HashMap::new())),
-            retry_config: RetryConfig::default(),
+            retry_config: McpMcpRetryConfig::default(),
         }
     }
 
@@ -67,7 +67,7 @@ impl McpDispatcher {
     pub fn with_retry_config(
         runtime: McpRuntime,
         secret: &[u8],
-        retry_config: RetryConfig,
+        retry_config: McpMcpRetryConfig,
     ) -> Self {
         Self {
             runtime,
