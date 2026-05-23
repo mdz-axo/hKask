@@ -25,7 +25,7 @@ pub fn eav_hash(triple: &Triple) -> [u8; 32] {
         triple.attribute,
         canonical_value(&triple.value)
     );
-    *blake3::hash(canonical.as_bytes()).as_bytes()
+    hkask_types::blake3_hash(canonical.as_bytes())
 }
 
 /// Produce a deterministic string representation of a JSON value for hashing.

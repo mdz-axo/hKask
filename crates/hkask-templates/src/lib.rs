@@ -47,7 +47,6 @@ pub mod registry_git;
 pub mod registry_sqlite;
 pub mod renderer;
 pub mod resilience;
-pub mod russell_mapper;
 pub mod skill_translation;
 
 pub use audit::{AuditStats, AuditTrail, ExecutionAudit};
@@ -81,8 +80,3 @@ pub use registry::{Registry, TemplateEntry};
 pub use registry_git::GitRegistry;
 pub use registry_sqlite::SqliteRegistry;
 pub use resilience::{CircuitBreaker, CircuitBreakerConfig, CircuitState};
-pub use russell_mapper::{
-    FieldMapping, FieldMappings, IdTransformation, MappedTemplate, MappingMeta, ModelTierSelection,
-    RussellMapper, RussellMappingConfig, RussellSkillManifest, TemplateTypeInference, TierRule,
-    TypeRule,
-};

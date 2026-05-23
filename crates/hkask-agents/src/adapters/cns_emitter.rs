@@ -2,8 +2,8 @@
 //!
 //! Concrete implementation of CnsEmit using hkask-cns crate.
 
-use hkask_cns::spans::SpanEmitter;
 use hkask_cns::CnsEmit;
+use hkask_cns::spans::SpanEmitter;
 use hkask_types::{Span, WebID};
 
 /// CNS Emitter Adapter — Concrete implementation for span emission

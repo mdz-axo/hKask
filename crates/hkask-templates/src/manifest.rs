@@ -3,14 +3,32 @@
 //! Implements the fixed logic that executes ANY manifest without modification.
 //! Per architecture v0.21.0: ~50 lines of Rust that never changes when templates are added/edited.
 
+use crate::context_assembly::{ContextAssembler, ContextFragment, FragmentSource};
 use crate::ports::{
     Action, CnsPort, DEFAULT_MATROSHKA_LIMIT, InferenceConfig, InferencePort, ManifestExecutor,
     ManifestStep, McpPort, MemoryPort, ProcessManifest, Result, TemplateError, TemplateRenderer,
 };
-use crate::context_assembly::{ContextAssembler, ContextFragment, FragmentSource};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::info;
+
+/// Canonical input keys for context assembly
+///
+/// These keys are used to extract context from the input JSON value.
+/// Manifests that use context assembly should declare these in their
+/// `TemplateContract.input_fields`.
+pub mod context_keys {
+    /// User's message or prompt
+    pub const USER_MESSAGE: &str = "user_message";
+    /// Alternative key for user message
+    pub const PROMPT: &str = "prompt";
+    /// Entity to query from memory
+    pub const ENTITY: &str = "entity";
+    /// Perspective for episodic memory (agent WebID)
+    pub const PERSPECTIVE: &str = "perspective";
+    /// Session ID for history retrieval
+    pub const SESSION_ID: &str = "session_id";
+}
 
 /// Model category for selection
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -68,26 +86,25 @@ impl Default for SelectorConfig {
 /// This is the "loom" that weaves the "thread" (YAML/Jinja2 templates).
 /// It doesn't change when templates are added, edited, or removed.
 /// Only changes if the grammar of steps themselves changes.
-pub struct ManifestExecutorImpl<R, I, M, C, Mem> {
+pub struct ManifestExecutorImpl<R, I, M, C> {
     #[allow(dead_code)]
     renderer: R,
     inference: I,
     mcp: M,
     cns: C,
-    memory: Option<Mem>,
+    memory: Option<Box<dyn MemoryPort>>,
     max_depth: u8,
     selector_config: SelectorConfig,
     inference_config: InferenceConfig,
     context_budget: usize,
 }
 
-impl<R, I, M, C, Mem> ManifestExecutorImpl<R, I, M, C, Mem>
+impl<R, I, M, C> ManifestExecutorImpl<R, I, M, C>
 where
     R: TemplateRenderer,
     I: InferencePort,
     M: McpPort,
     C: CnsPort,
-    Mem: MemoryPort,
 {
     pub fn new(renderer: R, inference: I, mcp: M, cns: C) -> Self {
         Self {
@@ -103,7 +120,7 @@ where
         }
     }
 
-    pub fn with_memory(mut self, memory: Mem) -> Self {
+    pub fn with_memory(mut self, memory: Box<dyn MemoryPort>) -> Self {
         self.memory = Some(memory);
         self
     }
@@ -140,14 +157,14 @@ where
         });
 
         // Priority 2: User message from input
-        if let Some(user_msg) = input.get("user_message").and_then(|v| v.as_str()) {
+        if let Some(user_msg) = input.get(context_keys::USER_MESSAGE).and_then(|v| v.as_str()) {
             assembler.add(ContextFragment {
                 content: user_msg.to_string(),
                 source: FragmentSource::User,
                 embedding: None,
                 priority: 1,
             });
-        } else if let Some(prompt) = input.get("prompt").and_then(|v| v.as_str()) {
+        } else if let Some(prompt) = input.get(context_keys::PROMPT).and_then(|v| v.as_str()) {
             assembler.add(ContextFragment {
                 content: prompt.to_string(),
                 source: FragmentSource::User,
@@ -160,7 +177,7 @@ where
         if let Some(memory) = &self.memory {
             // Extract entity from input for memory queries
             let entity = input
-                .get("entity")
+                .get(context_keys::ENTITY)
                 .and_then(|v| v.as_str())
                 .unwrap_or("default");
 
@@ -176,7 +193,7 @@ where
             }
 
             // Episodic memory (if perspective available)
-            if let Some(perspective) = input.get("perspective").and_then(|v| v.as_str()) {
+            if let Some(perspective) = input.get(context_keys::PERSPECTIVE).and_then(|v| v.as_str()) {
                 let episodic_fragments = memory.query_episodic(entity, perspective);
                 for fragment in episodic_fragments {
                     assembler.add(ContextFragment {
@@ -189,7 +206,53 @@ where
             }
 
             // Session history (if session_id available)
-            if let Some(session_id) = input.get("session_id").and_then(|v| v.as_str()) {
+            if let Some(session_id) = input.get(context_keys::SESSION_ID).and_then(|v| v.as_str()) {
+                let history = memory.get_session_history(session_id, 20);
+                for message in history {
+                    assembler.add(ContextFragment {
+                        content: message,
+                        source: FragmentSource::SessionHistory,
+                        embedding: None,
+                        priority: 3,
+                    });
+                }
+            }
+        }
+
+        // Priority 3: Memory context (if memory port available)
+        if let Some(memory) = &self.memory {
+            // Extract entity from input for memory queries
+            let entity = input
+                .get(context_keys::ENTITY)
+                .and_then(|v| v.as_str())
+                .unwrap_or("default");
+
+            // Semantic memory
+            let semantic_fragments = memory.query_semantic(entity);
+            for fragment in semantic_fragments {
+                assembler.add(ContextFragment {
+                    content: fragment.content,
+                    source: FragmentSource::SemanticMemory,
+                    embedding: None,
+                    priority: 2,
+                });
+            }
+
+            // Episodic memory (if perspective available)
+            if let Some(perspective) = input.get(context_keys::PERSPECTIVE).and_then(|v| v.as_str()) {
+                let episodic_fragments = memory.query_episodic(entity, perspective);
+                for fragment in episodic_fragments {
+                    assembler.add(ContextFragment {
+                        content: fragment.content,
+                        source: FragmentSource::EpisodicMemory,
+                        embedding: None,
+                        priority: 2,
+                    });
+                }
+            }
+
+            // Session history (if session_id available)
+            if let Some(session_id) = input.get(context_keys::SESSION_ID).and_then(|v| v.as_str()) {
                 let history = memory.get_session_history(session_id, 20);
                 for message in history {
                     assembler.add(ContextFragment {
@@ -222,7 +285,13 @@ where
         self
     }
 
-    fn execute_step(&self, manifest: &ProcessManifest, step: &ManifestStep, state: Value, depth: u8) -> Result<Value> {
+    fn execute_step(
+        &self,
+        manifest: &ProcessManifest,
+        step: &ManifestStep,
+        state: Value,
+        depth: u8,
+    ) -> Result<Value> {
         if depth > self.max_depth {
             return Err(TemplateError::RecursionLimit {
                 max: self.max_depth,
@@ -289,8 +358,9 @@ where
                     }
                 } else {
                     // Assemble context with deduplication before inference
-                    let (assembled_prompt, assembly_stats) = self.assemble_context(manifest, &state);
-                    
+                    let (assembled_prompt, assembly_stats) =
+                        self.assemble_context(manifest, &state);
+
                     // Emit CNS event for context assembly
                     self.cns.emit(
                         "cns.prompt.context_assembly",
@@ -305,7 +375,7 @@ where
                         }),
                         1.0,
                     );
-                    
+
                     // Call inference with assembled prompt
                     self.inference.call(
                         step.model_tier.as_deref().unwrap_or("balanced"),
@@ -327,13 +397,12 @@ where
     }
 }
 
-impl<R, I, M, C, Mem> ManifestExecutor for ManifestExecutorImpl<R, I, M, C, Mem>
+impl<R, I, M, C> ManifestExecutor for ManifestExecutorImpl<R, I, M, C>
 where
     R: TemplateRenderer,
     I: InferencePort,
     M: McpPort,
     C: CnsPort,
-    Mem: MemoryPort,
 {
     fn load(&self, _path: &std::path::Path) -> Result<ProcessManifest> {
         // In production, this would load from YAML file

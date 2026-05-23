@@ -19,3 +19,4 @@ secrecy.workspace = true
 hex.workspace = true
 subtle.workspace = true
 base64 = "0.21"
+blake3 = "1"

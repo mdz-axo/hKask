@@ -15,18 +15,17 @@
 //! - `kask cns health` — CNS monitoring
 
 use clap::{Parser, Subcommand};
-use hkask_mcp::runtime::McpRuntime;
-use hkask_templates::{
-    FieldMapping, FieldMappings, IdTransformation, InferencePort, MappingMeta, ModelTierSelection,
-    OkapiConfig, OkapiInference, RussellMappingConfig, SqliteRegistry, TemplateTypeInference,
+use hkask_cli::commands;
+use hkask_cli::russell_mapper::{
+    FieldMapping, FieldMappings, IdTransformation, MappingMeta, ModelTierSelection,
+    RussellMappingConfig, TemplateTypeInference,
 };
+use hkask_mcp::runtime::McpRuntime;
+use hkask_templates::{InferencePort, OkapiConfig, OkapiInference, SqliteRegistry};
 use hkask_types::TemplateType as Type;
 use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
-
-mod commands;
-mod git_archival;
 
 /// Parse a string into a DataCategory
 fn parse_data_category(s: &str) -> hkask_types::DataCategory {

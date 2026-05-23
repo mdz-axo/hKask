@@ -76,7 +76,7 @@ impl ContextFragment {
 
     /// Compute BLAKE3 hash of the content for exact dedup
     fn content_hash(&self) -> [u8; 32] {
-        *blake3::hash(self.content.as_bytes()).as_bytes()
+        hkask_types::blake3_hash(self.content.as_bytes())
     }
 }
 
@@ -279,9 +279,7 @@ impl ContextAssembler {
 /// model's tokenizer. For precise counting, integrate with tiktoken or
 /// the model's tokenizer directly.
 fn estimate_tokens(text: &str) -> usize {
-    // Conservative estimate: 1 token per 4 characters
-    // This overestimates for English, underestimates for CJK
-    (text.len() + 3) / 4
+    hkask_types::estimate_tokens(text)
 }
 
 #[cfg(test)]

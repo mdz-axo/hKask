@@ -2,3 +2,4 @@
 
 pub mod commands;
 pub mod git_archival;
+pub mod russell_mapper;

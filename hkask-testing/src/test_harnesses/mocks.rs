@@ -4,7 +4,7 @@
 //! for use in testing. Each mock implements the corresponding port trait.
 
 use async_trait::async_trait;
-use hkask_templates::ports::{InferencePort, McpPort, CnsPort, SkillRegistryPort};
+use hkask_templates::ports::{InferencePort, McpPort, CnsPort};
 use hkask_types::{TemplateType, WebID};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -47,9 +47,27 @@ impl InferencePort for MockInferencePort {
     }
 }
 
-/// Mock implementation of McpPort
-pub struct MockMcpPort {
-    tools: Arc<RwLock<HashMap<String, bool>>>,
+/// Composite mock for complex test scenarios
+pub struct TestMocks {
+    pub inference: MockInferencePort,
+    pub mcp: MockMcpPort,
+    pub cns: MockCnsPort,
+}
+
+impl TestMocks {
+    pub fn new() -> Self {
+        Self {
+            inference: MockInferencePort::new(),
+            mcp: MockMcpPort::new(),
+            cns: MockCnsPort::new(),
+        }
+    }
+}
+
+impl Default for TestMocks {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MockMcpPort {
@@ -115,21 +133,40 @@ impl Default for MockCnsPort {
     }
 }
 
-#[async_trait]
 impl CnsPort for MockCnsPort {
-    async fn emit_event(
+    fn emit_event(
         &self,
-        event: &str,
-    ) -> Result<(), hkask_templates::ports::CnsError> {
+        span: &str,
+        _phase: &str,
+        _observation: &serde_json::Value,
+        _confidence: f64,
+    ) {
         let mut events = self.events.write().unwrap();
-        events.push(event.to_string());
-        Ok(())
+        events.push(span.to_string());
     }
 }
 
-/// Mock implementation of SkillRegistryPort
-pub struct MockSkillRegistryPort {
-    templates: Arc<RwLock<HashMap<String, TemplateType>>>,
+/// Composite mock for complex test scenarios
+pub struct TestMocks {
+    pub inference: MockInferencePort,
+    pub mcp: MockMcpPort,
+    pub cns: MockCnsPort,
+}
+
+impl TestMocks {
+    pub fn new() -> Self {
+        Self {
+            inference: MockInferencePort::new(),
+            mcp: MockMcpPort::new(),
+            cns: MockCnsPort::new(),
+        }
+    }
+}
+
+impl Default for TestMocks {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MockSkillRegistryPort {

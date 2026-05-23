@@ -55,9 +55,8 @@ pub use curator::escalation::{
     EscalationEntry, EscalationQueue, EscalationStats, EscalationStatus,
 };
 pub use pod::{
-    AgentPersona, AgentPod, AgentPodError, AgentPodResult, AgentType, GitCASPort,
-    MCPRuntimePort, MemoryStoragePort, PodID, PodLifecycleState, PodManager, PodStatus,
-    TemplateCrate,
+    AgentPersona, AgentPod, AgentPodError, AgentPodResult, AgentType, GitCASPort, MCPRuntimePort,
+    MemoryStoragePort, PodID, PodLifecycleState, PodManager, PodStatus, TemplateCrate,
 };
 pub use ports::{AcpPort, AcpTransport, AcpWireMessage, AcpWireResponse};
 pub use replicant::{Replicant, ReplicantCapabilities};

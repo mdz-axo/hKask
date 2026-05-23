@@ -24,6 +24,7 @@ pub mod lexicon;
 pub mod secret;
 pub mod sovereignty;
 pub mod template;
+pub mod text;
 pub mod visibility;
 
 pub use capability::*;
@@ -47,3 +48,5 @@ pub use sovereignty::{
     AcquisitionResistance, DataCategory, DataSovereigntyBoundary, KillZoneDetector, SovereigntyId,
     UserSovereigntyState,
 };
+// Re-export text utilities
+pub use text::{blake3_hash, estimate_tokens};

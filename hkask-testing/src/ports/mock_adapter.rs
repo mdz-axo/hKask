@@ -220,7 +220,6 @@ impl CnsPort for MockCnsAdapterMut {
         self.emit_count.set(self.emit_count.get() + 1);
     }
 }
-}
 
 #[cfg(test)]
 mod tests {

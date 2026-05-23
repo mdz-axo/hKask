@@ -2,11 +2,9 @@
 //!
 //! This module contains the actual command handlers.
 
+use crate::russell_mapper::{MappedTemplate, RussellMapper, RussellMappingConfig};
 use hkask_mcp::runtime::{McpRuntime, McpServer, McpTool};
-use hkask_templates::{
-    MappedTemplate, RegistryEntry, RegistryIndex, RussellMapper, RussellMappingConfig,
-    SqliteRegistry, TemplateError,
-};
+use hkask_templates::{RegistryEntry, RegistryIndex, SqliteRegistry, TemplateError};
 use hkask_types::TemplateType;
 use serde_json::Value;
 use std::path::{Path, PathBuf};

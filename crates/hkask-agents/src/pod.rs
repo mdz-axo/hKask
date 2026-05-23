@@ -422,11 +422,7 @@ impl AgentPod {
     /// # Returns
     /// * `Ok(())` — Activation successful
     /// * `Err(AgentPodError)` — MCP access grant failed
-    pub fn activate(
-        &mut self,
-        mcp: &dyn MCPRuntimePort,
-        cns: &dyn CnsEmit,
-    ) -> AgentPodResult<()> {
+    pub fn activate(&mut self, mcp: &dyn MCPRuntimePort, cns: &dyn CnsEmit) -> AgentPodResult<()> {
         if self.state != PodLifecycleState::Registered {
             return Err(AgentPodError::InvalidStateTransition(
                 self.state,

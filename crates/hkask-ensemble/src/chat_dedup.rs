@@ -137,13 +137,21 @@ impl SessionDedup {
 
 /// Compute BLAKE3 hash of message content.
 fn content_hash(content: &str) -> [u8; 32] {
-    *blake3::hash(content.as_bytes()).as_bytes()
+    hkask_types::blake3_hash(content.as_bytes())
 }
 
 /// Extract a deduplicated context window from chat history.
 ///
 /// Takes a slice of messages (most recent last) and returns a deduplicated
 /// subset that fits within the token budget, prioritizing recent messages.
+///
+/// **Side-effect:** This function mutates the `dedup` state by calling `accept()`
+/// on each message. Messages consumed by this function will be marked as "seen"
+/// and rejected as duplicates if the same `SessionDedup` is used for additional
+/// filtering afterwards.
+///
+/// If you need to extract context without mutating the dedup state, use
+/// `extract_context_window_pure()` instead.
 ///
 /// This is the primary entry point for building context windows from
 /// session history before sending to Okapi for inference.
@@ -175,9 +183,47 @@ pub fn extract_context_window(
     accepted
 }
 
+/// Extract a context window from chat history without mutating dedup state.
+///
+/// This is a pure function that uses a local HashSet for deduplication,
+/// leaving the caller's `SessionDedup` state unchanged.
+///
+/// Use this when you need to extract context multiple times or when the
+/// dedup state should be managed separately.
+pub fn extract_context_window_pure(
+    messages: &[String],
+    max_tokens: usize,
+) -> Vec<String> {
+    use std::collections::HashSet;
+    
+    let mut seen = HashSet::new();
+    let mut accepted = Vec::new();
+    let mut tokens_used = 0;
+
+    // Process in reverse order (most recent first) to prioritize recent messages
+    for message in messages.iter().rev() {
+        let hash = content_hash(message);
+        if !seen.insert(hash) {
+            continue; // Skip duplicate
+        }
+
+        let msg_tokens = estimate_tokens(message);
+        if tokens_used + msg_tokens > max_tokens {
+            break; // Budget exceeded
+        }
+
+        tokens_used += msg_tokens;
+        accepted.push(message.clone());
+    }
+
+    // Reverse to restore chronological order
+    accepted.reverse();
+    accepted
+}
+
 /// Estimate token count for a string (~4 chars per token).
 fn estimate_tokens(text: &str) -> usize {
-    (text.len() + 3) / 4
+    hkask_types::estimate_tokens(text)
 }
 
 #[cfg(test)]

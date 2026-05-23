@@ -213,10 +213,10 @@ pub struct MemoryFragment {
 pub trait MemoryPort {
     /// Query semantic memory for relevant triples
     fn query_semantic(&self, entity: &str) -> Vec<MemoryFragment>;
-    
+
     /// Query episodic memory for relevant experiences
     fn query_episodic(&self, entity: &str, perspective: &str) -> Vec<MemoryFragment>;
-    
+
     /// Get recent session history
     fn get_session_history(&self, session_id: &str, max_messages: usize) -> Vec<String>;
 }

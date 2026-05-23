@@ -365,3 +365,26 @@ impl Default for RetryConfig {
         }
     }
 }
+
+/// ObservabilityPort — Canonical observability trait for hKask
+///
+/// Provides metrics recording and health checking across all subsystems.
+/// Implementations may delegate to Prometheus, OpenTelemetry, or logging.
+pub trait ObservabilityPort: Send + Sync {
+    /// Record a counter metric
+    fn record_counter(&self, name: &str, value: u64, labels: &[(&str, &str)]);
+
+    /// Record a histogram observation
+    fn record_histogram(&self, name: &str, value: f64, labels: &[(&str, &str)]);
+
+    /// Check system health
+    fn health_check(&self) -> HealthStatus;
+}
+
+/// Health status for observability
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum HealthStatus {
+    Healthy,
+    Degraded,
+    Unhealthy,
+}
