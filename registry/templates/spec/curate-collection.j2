@@ -1,0 +1,19 @@
+{# spec/curate-collection.j2 — Evaluate collection coherence and completeness #}
+## Curation Report
+
+**Collection:** {{ collection_id | default("default") }}
+**Decision:** {{ decision | default("Revise") }}
+**Coherence:** {{ coherence_score | default(0.0) }} / {{ threshold | default(0.7) }}
+
+### Categories
+{% for cat in categories %}
+- **{{ cat.name }}**: {{ "complete" if cat.complete else "incomplete" }} ({{ cat.spec_count }} specs)
+{% endfor %}
+
+### Missing Categories
+{% for cat in categories_missing %}
+- {{ cat }}
+{% endfor %}
+
+### Rationale
+{{ rationale | default("Collection requires further specification to reach coherence threshold.") }}

@@ -131,6 +131,12 @@ enum Commands {
         action: EnsembleAction,
     },
 
+    /// Specification authoring, curation, and validation (DDMVSS)
+    Spec {
+        #[command(subcommand)]
+        action: SpecAction,
+    },
+
     /// Documentation generation
     Docs {
         #[command(subcommand)]
@@ -527,6 +533,57 @@ enum EnsembleAction {
 
     /// List active deliberation sessions
     DeliberationList,
+}
+
+/// Specification actions (DDMVSS)
+#[derive(Subcommand)]
+enum SpecAction {
+    /// Capture a goal as a binding specification
+    Capture {
+        /// Goal description
+        #[arg()]
+        description: String,
+
+        /// Spec category (domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation)
+        #[arg(short, long, default_value = "domain")]
+        category: String,
+
+        /// Domain anchor (okapi, russell, hkask)
+        #[arg(short, long, default_value = "hkask")]
+        domain: String,
+
+        /// Completion criteria (comma-separated)
+        #[arg(short, long)]
+        criteria: Option<String>,
+    },
+
+    /// List all specifications
+    List {
+        /// Filter by category
+        #[arg(short, long)]
+        category: Option<String>,
+    },
+
+    /// Evaluate a specification for coherence (curation)
+    Evaluate {
+        /// Specification ID
+        #[arg()]
+        spec_id: String,
+    },
+
+    /// Validate the full specification collection
+    Validate {
+        /// Coherence threshold (0.0-1.0)
+        #[arg(short, long, default_value = "0.7")]
+        threshold: f64,
+    },
+
+    /// Show collection coherence and missing categories
+    Cultivate {
+        /// Coherence threshold (0.0-1.0)
+        #[arg(short, long, default_value = "0.7")]
+        threshold: f64,
+    },
 }
 
 fn init_logging(verbose: bool) {
@@ -1332,6 +1389,62 @@ fn main() {
                 }
             }
         }
+
+        Commands::Spec { action } => match action {
+            SpecAction::Capture {
+                description,
+                category,
+                domain,
+                criteria,
+            } => {
+                use hkask_types::{CompletenessCheck, DomainAnchor, GoalSpec, Spec, SpecCategory};
+
+                let cat = SpecCategory::parse_str(&category).unwrap_or(SpecCategory::Domain);
+                let anchor = DomainAnchor::parse_str(&domain).unwrap_or(DomainAnchor::Hkask);
+
+                let mut goal = GoalSpec::new(&description);
+                if let Some(crits) = criteria {
+                    for c in crits.split(',') {
+                        goal = goal.with_criterion(c.trim());
+                    }
+                }
+
+                let spec = Spec::new(&description, cat, anchor).with_goal(goal);
+                let complete = spec.is_complete();
+
+                println!("Specification captured:");
+                println!("  ID: {}", spec.id);
+                println!("  Name: {}", spec.name);
+                println!("  Category: {}", spec.category.as_str());
+                println!("  Domain: {}", spec.domain_anchor.as_str());
+                println!("  Complete: {}", complete);
+            }
+            SpecAction::List { category } => {
+                println!("Specifications:");
+                if let Some(cat) = category {
+                    println!("  (filtered by category: {})", cat);
+                }
+                println!("  Note: Persistent spec storage requires hkask-mcp-spec server.");
+            }
+            SpecAction::Evaluate { spec_id } => {
+                println!("Evaluating specification: {}", spec_id);
+                println!("  Note: Evaluation requires hkask-mcp-spec server.");
+            }
+            SpecAction::Validate { threshold } => {
+                println!("Validating specification collection (threshold: {:.2})", threshold);
+                println!("  Note: Validation requires hkask-mcp-spec server.");
+            }
+            SpecAction::Cultivate { threshold } => {
+                use hkask_types::SpecCategory;
+
+                println!("Cultivating specification collection (threshold: {:.2})", threshold);
+                println!("  Categories required:");
+                for cat in SpecCategory::all() {
+                    println!("    - {}", cat.as_str());
+                }
+                println!("  Note: Full cultivation requires hkask-mcp-spec server.");
+            }
+        },
 
         Commands::Ensemble { action } => {
             let rt = tokio::runtime::Runtime::new().unwrap();

@@ -1,0 +1,13 @@
+{# spec/contextualise.j2 — Situate artifact within meaningful environment #}
+## Contextualisation: {{ artifact_name }}
+
+**Collection:** {{ collection_id }}
+**Coherence Score:** {{ coherence_score | default(0.0) }}
+
+### Environment
+- Domain: {{ domain_anchor }}
+- Related specs: {{ related_specs | default([]) | join(", ") }}
+- hLexicon overlap: {{ lexicon_overlap | default(0) }} terms
+
+### Assessment
+{{ assessment | default("Artifact situated within collection context.") }}

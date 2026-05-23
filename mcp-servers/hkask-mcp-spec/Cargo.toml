@@ -1,0 +1,20 @@
+[package]
+name = "hkask-mcp-spec"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Specification authoring, curation, and validation MCP server"
+
+[dependencies]
+hkask-types = { path = "../../crates/hkask-types" }
+rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+schemars.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+anyhow.workspace = true

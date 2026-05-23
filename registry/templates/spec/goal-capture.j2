@@ -1,0 +1,23 @@
+{# spec/goal-capture.j2 — Elicit user intent as binding requirement #}
+## Goal: {{ goal_name }}
+
+**Domain:** {{ domain_anchor }}
+**Category:** {{ spec_category }}
+
+### Intent
+When {{ situation | default("working on this domain") }}, I want to {{ motivation }}, so I can {{ outcome }}.
+
+### Criteria
+{% for criterion in criteria %}
+- [ ] {{ criterion.description }}
+{% endfor %}
+
+### hLexicon Grounding
+{% for term in lexicon_terms %}
+- **{{ term }}**: {{ hlexicon[term].definition | default("term not yet defined") }}
+{% endfor %}
+
+### Sub-goals
+{% for sub in sub_goals %}
+{{ loop.index }}. {{ sub.text }} (depth: {{ sub.depth }})
+{% endfor %}

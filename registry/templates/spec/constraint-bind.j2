@@ -1,0 +1,15 @@
+{# spec/constraint-bind.j2 — Attach OCAP boundaries to goals #}
+## Constraint Binding: {{ goal_name }}
+
+**Capability:** {{ capability }}
+**Authority:** {{ authority | default("explicit") }}
+**Enforced:** {{ enforced | default(true) }}
+
+### OCAP Boundary
+- Resource: `{{ resource }}`
+- Action: `{{ action }}`
+- Attenuation max: {{ attenuation_max | default(7) }}
+- TTL: {{ token_ttl_seconds | default(3600) }}s
+
+### Bound Goal
+> {{ goal_text }}

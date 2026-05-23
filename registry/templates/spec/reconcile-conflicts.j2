@@ -1,0 +1,16 @@
+{# spec/reconcile-conflicts.j2 — Resolve goal tensions without collapsing them #}
+## Reconciliation Report
+
+**Tension:** {{ tension_description }}
+**Specs involved:** {{ spec_ids | join(", ") }}
+
+### Resolution
+{{ resolution | default("Tensions preserved — goals remain distinct.") }}
+
+### Preserved Tensions
+{% for tension in tensions_preserved %}
+- {{ tension }}
+{% endfor %}
+
+### Rationale
+{{ rationale | default("Reconciliation maintains goal diversity per DDMVSS principles.") }}

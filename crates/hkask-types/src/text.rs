@@ -21,7 +21,7 @@
 /// assert_eq!(estimate_tokens("Hello world"), 3); // 11 chars / 4 = 2.75 → 3
 /// ```
 pub fn estimate_tokens(text: &str) -> usize {
-    (text.len() + 3) / 4
+    text.len().div_ceil(4)
 }
 
 /// Compute BLAKE3 hash of arbitrary data.

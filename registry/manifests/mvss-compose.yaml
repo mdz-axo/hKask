@@ -1,0 +1,34 @@
+manifest:
+  name: mvss-compose
+  description: Compose minimum viable specification set from user goals
+
+steps:
+  - ordinal: 1
+    action: select
+    template_ref: spec/templates/selector.j2
+    model_tier: fast_local
+    output_schema:
+      selected_templates: array
+      domain_hints: object
+
+  - ordinal: 2
+    action: populate
+    template_ref: "{{ selected_templates }}"
+    output_schema:
+      goal_requirements: array
+
+  - ordinal: 3
+    action: execute
+    target: spec/goal/capture
+    mcp: hkask-mcp-spec
+    output_schema:
+      mvss: object
+      completeness_score: float
+
+  - ordinal: 4
+    action: execute
+    target: spec/curate/evaluate
+    mcp: hkask-mcp-spec
+    output_schema:
+      curation_decision: string
+      coherence_score: float

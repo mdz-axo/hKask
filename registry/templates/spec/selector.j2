@@ -1,0 +1,15 @@
+{# spec/selector.j2 — Route input to best-fit specification template #}
+{# Selection logic lives in Jinja2/LLM, not Rust (per FA-Co1) #}
+{% if intent == "capture" %}
+spec/goal-capture.j2
+{% elif intent == "constrain" %}
+spec/constraint-bind.j2
+{% elif intent == "contextualise" %}
+spec/contextualise.j2
+{% elif intent == "reconcile" %}
+spec/reconcile-conflicts.j2
+{% elif intent == "curate" %}
+spec/curate-collection.j2
+{% else %}
+spec/goal-capture.j2
+{% endif %}

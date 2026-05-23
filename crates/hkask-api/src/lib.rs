@@ -558,6 +558,58 @@ pub struct ListPodsResponse {
     pub pods: Vec<PodStatusResponse>,
 }
 
+/// Spec capture request
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct SpecCaptureRequest {
+    pub description: String,
+    pub category: String,
+    pub domain_anchor: String,
+    pub criteria: Vec<String>,
+}
+
+/// Spec capture response
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct SpecCaptureResponse {
+    pub spec_id: String,
+    pub name: String,
+    pub category: String,
+    pub domain_anchor: String,
+}
+
+/// Spec list response
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct SpecListResponse {
+    pub spec_id: String,
+    pub name: String,
+    pub category: String,
+    pub complete: bool,
+}
+
+/// Spec validate request
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct SpecValidateRequest {
+    pub threshold: f64,
+}
+
+/// Spec validate response
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct SpecValidateResponse {
+    pub valid: bool,
+    pub coherence_score: f64,
+    pub threshold: f64,
+    pub violations: Vec<String>,
+    pub suggestions: Vec<String>,
+}
+
+/// Spec cultivate response
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct SpecCultivateResponse {
+    pub coherence_score: f64,
+    pub spec_count: usize,
+    pub categories_covered: Vec<String>,
+    pub categories_missing: Vec<String>,
+}
+
 /// Create API router with OpenAPI documentation
 pub fn create_router(state: ApiState) -> OpenApiRouter {
     OpenApiRouter::with_openapi(ApiDoc::openapi())
@@ -571,6 +623,7 @@ pub fn create_router(state: ApiState) -> OpenApiRouter {
         .merge(routes::ensemble_router().into())
         .merge(routes::soap_infer_router().into())
         .merge(routes::acp_router().into())
+        .merge(routes::spec_router().into())
         .with_state(state)
 }
 

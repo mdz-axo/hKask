@@ -39,6 +39,10 @@ pub use goal_capability::*;
 pub use id::*;
 pub use lexicon::{Domain, HLexicon, LexiconTerm, TemplateType};
 pub use secret::SecretRef;
+pub use sovereignty::{
+    AcquisitionResistance, DataCategory, DataSovereigntyBoundary, KillZoneDetector, SovereigntyId,
+    UserSovereigntyState,
+};
 pub use spec::{
     CompletenessCheck, Criterion, DomainAnchor, GoalSpec, Spec, SpecCategory, SpecCurationRecord,
     SpecCurator, SpecError, SpecId, SpecObserver, SpecSigner, SpecStore,
@@ -47,9 +51,5 @@ pub use template::{
     HighTempTemplateType, LLMParameters, TemperatureRange, TemplateId, TemplateInvocation,
     TemplateOutcome,
 };
-pub use visibility::*;
-pub use sovereignty::{
-    AcquisitionResistance, DataCategory, DataSovereigntyBoundary, KillZoneDetector, SovereigntyId,
-    UserSovereigntyState,
-};
 pub use text::{blake3_hash, estimate_tokens};
+pub use visibility::*;

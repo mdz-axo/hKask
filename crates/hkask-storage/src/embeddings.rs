@@ -111,8 +111,14 @@ impl EmbeddingStore {
 
     pub fn delete(&self, id: &str) -> Result<(), EmbeddingError> {
         let conn = self.conn.lock().unwrap();
-        conn.execute("DELETE FROM embeddings WHERE id = ?1", rusqlite::params![id])?;
-        let _ = conn.execute("DELETE FROM vec_embeddings WHERE id = ?1", rusqlite::params![id]);
+        conn.execute(
+            "DELETE FROM embeddings WHERE id = ?1",
+            rusqlite::params![id],
+        )?;
+        let _ = conn.execute(
+            "DELETE FROM vec_embeddings WHERE id = ?1",
+            rusqlite::params![id],
+        );
         Ok(())
     }
 }

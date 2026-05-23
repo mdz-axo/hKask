@@ -24,12 +24,10 @@ pub fn embedding_dim() -> usize {
 fn load_sqlite_vec() -> Result<(), DatabaseError> {
     use std::sync::Once;
     static INIT: Once = Once::new();
-    INIT.call_once(|| {
-        unsafe {
-            rusqlite::ffi::sqlite3_auto_extension(Some(std::mem::transmute(
-                sqlite_vec::sqlite3_vec_init as *const (),
-            )));
-        }
+    INIT.call_once(|| unsafe {
+        rusqlite::ffi::sqlite3_auto_extension(Some(std::mem::transmute(
+            sqlite_vec::sqlite3_vec_init as *const (),
+        )));
     });
     Ok(())
 }
