@@ -47,27 +47,7 @@ pub struct McpDispatcher {
     /// Bot capabilities registry
     bot_capabilities: Arc<RwLock<std::collections::HashMap<WebID, BotCapabilities>>>,
     /// Retry configuration (future: use in invoke_async)
-    #[allow(dead_code)]
     retry_config: McpMcpRetryConfig,
-}
-
-impl McpDispatcher {
-    /// Create new MCP dispatcher
-    pub fn new(runtime: McpRuntime, secret: &[u8]) -> Self {
-        Self {
-            runtime,
-            capability_checker: Arc::new(CapabilityChecker::new(secret)),
-            rate_limiter: RateLimiter::default(),
-            bot_capabilities: Arc::new(RwLock::new(std::collections::HashMap::new())),
-            retry_config: McpMcpRetryConfig::default(),
-        }
-    }
-
-    /// Create with custom retry configuration
-    pub fn with_retry_config(
-        runtime: McpRuntime,
-        secret: &[u8],
-        retry_config: McpMcpRetryConfig,
     ) -> Self {
         Self {
             runtime,

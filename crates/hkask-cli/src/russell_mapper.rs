@@ -114,7 +114,6 @@ pub struct MappedTemplate {
 
 /// Russell mapper — generic YAML processor
 pub struct RussellMapper {
-    #[allow(dead_code)]
     config: RussellMappingConfig,
 }
 

@@ -9,7 +9,6 @@ use hkask_types::{Span, WebID};
 /// CNS Emitter Adapter — Concrete implementation for span emission
 pub struct CnsEmitterAdapter {
     emitter: SpanEmitter,
-    #[allow(dead_code)]
     observer_webid: WebID,
 }
 

@@ -42,7 +42,6 @@ impl Blob {
 }
 
 pub struct BlobStore {
-    #[allow(dead_code)]
     conn: Arc<Mutex<Connection>>,
 }
 

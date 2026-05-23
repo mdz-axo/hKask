@@ -284,7 +284,6 @@ pub struct AcpRuntime {
     /// Secret for HMAC signing (Zeroizing for secure memory)
     secret: Zeroizing<Vec<u8>>,
     /// Rate limiter for DoS prevention
-    #[allow(dead_code)]
     rate_limiter: RateLimiter,
     /// Audit log for A2A message tracking
     audit_log: Arc<AuditLog>,

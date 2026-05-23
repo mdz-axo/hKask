@@ -184,6 +184,54 @@ impl HLexicon {
             "Propose template revisions",
         ));
 
+        lexicon.add(LexiconTerm::new(
+            "specify",
+            Domain::WordAct,
+            "Articulate a goal as a binding requirement",
+        ));
+        lexicon.add(LexiconTerm::new(
+            "elicit",
+            Domain::WordAct,
+            "Draw out user intent as structured input",
+        ));
+        lexicon.add(LexiconTerm::new(
+            "require",
+            Domain::WordAct,
+            "Assert a goal as a non-negotiable constraint",
+        ));
+
+        lexicon.add(LexiconTerm::new(
+            "decompose",
+            Domain::FlowDef,
+            "Break a goal into ordered sub-goals",
+        ));
+        lexicon.add(LexiconTerm::new(
+            "sequence",
+            Domain::FlowDef,
+            "Arrange sub-goals into execution order",
+        ));
+        lexicon.add(LexiconTerm::new(
+            "constrain",
+            Domain::FlowDef,
+            "Attach OCAP boundaries to a goal",
+        ));
+
+        lexicon.add(LexiconTerm::new(
+            "curate",
+            Domain::KnowAct,
+            "Evaluate an artifact for collection coherence",
+        ));
+        lexicon.add(LexiconTerm::new(
+            "contextualise",
+            Domain::KnowAct,
+            "Situate an artifact within its meaningful environment",
+        ));
+        lexicon.add(LexiconTerm::new(
+            "reconcile",
+            Domain::KnowAct,
+            "Resolve goal tensions without collapsing them",
+        ));
+
         lexicon
     }
 }

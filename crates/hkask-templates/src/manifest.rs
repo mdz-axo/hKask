@@ -87,7 +87,6 @@ impl Default for SelectorConfig {
 /// It doesn't change when templates are added, edited, or removed.
 /// Only changes if the grammar of steps themselves changes.
 pub struct ManifestExecutorImpl<R, I, M, C> {
-    #[allow(dead_code)]
     renderer: R,
     inference: I,
     mcp: M,

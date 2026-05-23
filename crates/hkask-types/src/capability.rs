@@ -47,6 +47,7 @@ pub enum CapabilityResource {
     Manifest,
     Registry,
     Cascade,
+    Spec,
 }
 
 impl CapabilityResource {
@@ -57,6 +58,7 @@ impl CapabilityResource {
             CapabilityResource::Manifest => "manifest",
             CapabilityResource::Registry => "registry",
             CapabilityResource::Cascade => "cascade",
+            CapabilityResource::Spec => "spec",
         }
     }
 
@@ -67,6 +69,7 @@ impl CapabilityResource {
             Some("manifest") => Some(CapabilityResource::Manifest),
             Some("registry") => Some(CapabilityResource::Registry),
             Some("cascade") => Some(CapabilityResource::Cascade),
+            Some("spec") => Some(CapabilityResource::Spec),
             _ => None,
         }
     }
@@ -81,6 +84,7 @@ pub enum CapabilityAction {
     Render,
     Compose,
     Attenuate,
+    Validate,
 }
 
 impl CapabilityAction {
@@ -92,6 +96,7 @@ impl CapabilityAction {
             CapabilityAction::Render => "render",
             CapabilityAction::Compose => "compose",
             CapabilityAction::Attenuate => "attenuate",
+            CapabilityAction::Validate => "validate",
         }
     }
 
@@ -103,6 +108,7 @@ impl CapabilityAction {
             "render" => Some(CapabilityAction::Render),
             "compose" => Some(CapabilityAction::Compose),
             "attenuate" => Some(CapabilityAction::Attenuate),
+            "validate" => Some(CapabilityAction::Validate),
             _ => None,
         }
     }

@@ -70,7 +70,6 @@ impl ConsentRecord {
 
 /// Consent manager
 pub struct ConsentManager {
-    #[allow(dead_code)] // Reserved for future persistence
     store: Arc<RwLock<SovereigntyBoundaryStore>>,
     consent_cache: Arc<RwLock<Vec<ConsentRecord>>>,
 }

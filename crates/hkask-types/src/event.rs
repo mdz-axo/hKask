@@ -82,6 +82,7 @@ pub enum Span {
     Review(String),
     Sovereignty(String),
     Goal(String),
+    Spec(String),
 }
 
 impl Span {
@@ -121,6 +122,10 @@ impl Span {
         Span::Goal(format!("cns.goal.{}", path))
     }
 
+    pub fn spec(path: &str) -> Self {
+        Span::Spec(format!("cns.spec.{}", path))
+    }
+
     pub fn as_str(&self) -> &str {
         match self {
             Span::Prompt(s) => s,
@@ -132,6 +137,7 @@ impl Span {
             Span::Review(s) => s,
             Span::Sovereignty(s) => s,
             Span::Goal(s) => s,
+            Span::Spec(s) => s,
         }
     }
 }

@@ -189,6 +189,7 @@ fn span_to_columns(span: &Span) -> (&'static str, &str) {
         Span::Review(s) => ("review", s.as_str()),
         Span::Sovereignty(s) => ("sovereignty", s.as_str()),
         Span::Goal(s) => ("goal", s.as_str()),
+        Span::Spec(s) => ("spec", s.as_str()),
     }
 }
 
@@ -203,6 +204,7 @@ fn span_from_columns(category: &str, path: &str) -> Span {
         "review" => Span::Review(path.to_string()),
         "sovereignty" => Span::Sovereignty(path.to_string()),
         "goal" => Span::Goal(path.to_string()),
+        "spec" => Span::Spec(path.to_string()),
         _ => Span::Tool(path.to_string()),
     }
 }

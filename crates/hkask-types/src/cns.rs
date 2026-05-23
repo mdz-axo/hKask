@@ -140,6 +140,8 @@ pub enum CnsSpan {
     Sovereignty,
     /// Goal primitive (cns.goal.*)
     Goal,
+    /// Specification operations: capture, compose, validate, sign, curate (cns.spec.*)
+    Spec,
 }
 
 impl CnsSpan {
@@ -156,6 +158,7 @@ impl CnsSpan {
             CnsSpan::KillZone => "cns.killzone".to_string(),
             CnsSpan::Sovereignty => "cns.sovereignty".to_string(),
             CnsSpan::Goal => "cns.goal".to_string(),
+            CnsSpan::Spec => "cns.spec".to_string(),
         }
     }
 }

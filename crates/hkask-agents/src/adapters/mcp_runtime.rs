@@ -10,7 +10,6 @@ use hkask_types::CapabilityToken;
 #[derive(Default)]
 pub struct McpRuntimeAdapter {
     /// Granted tokens (reserved for future use)
-    #[allow(dead_code)]
     granted_tokens: std::collections::HashSet<String>,
 }
 

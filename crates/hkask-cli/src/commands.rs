@@ -54,19 +54,16 @@ pub fn search_templates(
 }
 
 /// List MCP servers
-#[allow(dead_code)] // Reserved for future MCP CLI commands
 pub async fn list_mcp_servers(runtime: &McpRuntime) -> Vec<McpServer> {
     runtime.list_servers().await
 }
 
 /// List MCP tools
-#[allow(dead_code)] // Reserved for future MCP CLI commands
 pub async fn list_mcp_tools(runtime: &McpRuntime) -> Vec<String> {
     runtime.discover_tools().await
 }
 
 /// Get MCP tool definition
-#[allow(dead_code)] // Reserved for future MCP CLI commands
 pub async fn get_mcp_tool(runtime: &McpRuntime, name: &str) -> Option<Value> {
     runtime.get_tool(name).await.map(|tool| {
         serde_json::json!({
@@ -79,7 +76,6 @@ pub async fn get_mcp_tool(runtime: &McpRuntime, name: &str) -> Option<Value> {
 }
 
 /// Register MCP server
-#[allow(dead_code)] // Reserved for future MCP CLI commands
 pub async fn register_mcp_server(
     runtime: &McpRuntime,
     id: String,

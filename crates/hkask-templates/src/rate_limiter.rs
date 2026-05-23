@@ -130,7 +130,6 @@ impl RateLimitExceededError {
 /// Rate-limited manifest repository wrapper
 pub struct RateLimitedRepository<R> {
     inner: R,
-    #[allow(dead_code)]
     rate_limiter: RateLimiter,
 }
 
@@ -154,7 +153,6 @@ impl<R> RateLimitedRepository<R> {
     }
 
     /// Check rate limit before operation
-    #[allow(dead_code)]
     fn check_rate_limit(&self) -> Result<(), RateLimitExceededError> {
         if !self.rate_limiter.try_acquire() {
             // Calculate retry-after based on refill rate

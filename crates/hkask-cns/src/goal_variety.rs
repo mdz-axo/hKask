@@ -9,7 +9,6 @@ use hkask_types::cns::{AlgedonicAlert, CnsSpan, VarietyCounter};
 use hkask_types::id::WebID;
 
 /// Goal variety counter — tracks active goals per user
-#[allow(dead_code)]
 pub struct GoalVarietyCounter {
     webid: WebID,
     active_goal_count: u64,

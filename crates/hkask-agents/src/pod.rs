@@ -705,7 +705,6 @@ pub trait MemoryStoragePort {
 /// - Listing all pods
 pub struct PodManager {
     pods: Arc<RwLock<HashMap<PodID, AgentPod>>>,
-    #[allow(dead_code)]
     keystore: Keychain,
     git_cas: GitCasAdapter,
     acp_runtime: Arc<dyn crate::ports::AcpPort + Send + Sync>,

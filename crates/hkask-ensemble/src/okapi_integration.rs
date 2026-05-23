@@ -26,7 +26,6 @@ const OKAPI_DEV_KEY: [u8; 32] = [
 pub struct OkapiIntegration {
     base_url: String,
     capability: OkapiCapability,
-    #[allow(dead_code)]
     cns_runtime: Arc<CnsRuntime>,
 }
 

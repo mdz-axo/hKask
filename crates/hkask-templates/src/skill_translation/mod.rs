@@ -88,7 +88,6 @@ pub struct GeneratedManifest {
 
 /// Skill translation pipeline
 pub struct SkillTranslationPipeline {
-    #[allow(dead_code)]
     config: SkillTranslationConfig,
 }
 
