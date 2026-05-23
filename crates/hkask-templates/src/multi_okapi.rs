@@ -50,10 +50,7 @@ pub struct MultiOkapiClient {
 
 impl MultiOkapiClient {
     pub fn new(endpoints: Vec<String>) -> Self {
-        let endpoints: Vec<OkapiEndpoint> = endpoints
-            .into_iter()
-            .map(OkapiEndpoint::new)
-            .collect();
+        let endpoints: Vec<OkapiEndpoint> = endpoints.into_iter().map(OkapiEndpoint::new).collect();
 
         Self {
             endpoints,
@@ -76,10 +73,10 @@ impl MultiOkapiClient {
         let start_index = index;
 
         loop {
-            if let Some(endpoint) = self.endpoints.get(index) {
-                if endpoint.is_healthy().await {
-                    return Some(endpoint.clone());
-                }
+            if let Some(endpoint) = self.endpoints.get(index)
+                && endpoint.is_healthy().await
+            {
+                return Some(endpoint.clone());
             }
 
             index = (index + 1) % self.endpoints.len();
@@ -118,8 +115,14 @@ pub struct MultiOkapiInference {
 }
 
 impl MultiOkapiInference {
-    pub fn new(clients: Vec<Arc<dyn InferencePort + Send + Sync>>, multi_client: MultiOkapiClient) -> Self {
-        Self { clients, multi_client }
+    pub fn new(
+        clients: Vec<Arc<dyn InferencePort + Send + Sync>>,
+        multi_client: MultiOkapiClient,
+    ) -> Self {
+        Self {
+            clients,
+            multi_client,
+        }
     }
 
     pub async fn generate_with_failover(

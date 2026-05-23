@@ -29,3 +29,9 @@ async-trait.workspace = true
 futures-util.workspace = true
 rand.workspace = true
 secrecy.workspace = true
+
+[dev-dependencies]
+proptest = "1.4"
+axum = "0.7"
+tower = "0.4"
+http-body-util = "0.1"

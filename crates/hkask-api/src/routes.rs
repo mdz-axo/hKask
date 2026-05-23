@@ -14,8 +14,9 @@ use utoipa::ToSchema;
 
 use crate::{
     ApiState, ChatRequest, ChatResponse, CnsHealthResponse, CnsVarietyResponse, CreatePodRequest,
-    CreatePodResponse, GrantCapabilityRequest, ListPodsResponse, PodStatusResponse,
-    SoapInferRequest, SoapInferResponse, TemplateResponse, ToolResponse, VarietyCounterResponse,
+    CreatePodResponse, GrantCapabilityRequest, InferenceSpan, ListPodsResponse, PodStatusResponse,
+    SoapInferAuthRequest, SoapInferRequest, SoapInferResponse, SoapInferenceConfig,
+    TemplateResponse, ToolResponse, ValidationErrorType, VarietyCounterResponse,
 };
 
 /// Create templates router
@@ -1032,20 +1033,89 @@ pub fn soap_infer_router() -> Router<ApiState> {
     post,
     path = "/api/llm/infer",
     tag = "inference",
-    request_body = SoapInferRequest,
+    request_body = SoapInferAuthRequest,
     responses(
         (status = 200, description = "LLM inference response", body = SoapInferResponse),
-        (status = 400, description = "Invalid request"),
+        (status = 400, description = "Validation failed"),
+        (status = 403, description = "Capability verification failed"),
+        (status = 429, description = "Rate limit exceeded"),
         (status = 500, description = "Internal server error"),
+        (status = 504, description = "Inference timeout"),
     ),
 )]
 async fn soap_infer(
     State(state): State<ApiState>,
-    Json(req): Json<SoapInferRequest>,
-) -> Json<SoapInferResponse> {
+    Json(req): Json<SoapInferAuthRequest>,
+) -> Result<Json<SoapInferResponse>, StatusCode> {
     use std::time::Instant;
+    use tokio::time::{Duration, timeout};
 
-    let jack_persona = include_str!("../../../hkask-templates/personas/jack-nurse.md");
+    let config = SoapInferenceConfig::from_env();
+    let start = Instant::now();
+
+    // Validate request size (DoS prevention)
+    if let Err(err) = validate_soap_request(&req.request, &config) {
+        InferenceSpan::ValidationError {
+            error_type: format!("{:?}", err),
+        }
+        .emit(&state.cns_emitter);
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    // CNS span: inference started
+    InferenceSpan::Start {
+        timestamp: chrono::Utc::now().to_rfc3339(),
+        events_count: req.request.objective.recent_events.len(),
+        severity_total: req.request.objective.severity_counts.crit
+            + req.request.objective.severity_counts.alert
+            + req.request.objective.severity_counts.warn
+            + req.request.objective.severity_counts.info,
+    }
+    .emit(&state.cns_emitter);
+
+    // Verify capability token (OCAP security boundary)
+    // Parse token to extract holder WebID for proper authority tracking
+    let token = match hkask_types::capability::CapabilityToken::from_base64(&req.capability_token) {
+        Ok(t) => t,
+        Err(_) => {
+            InferenceSpan::OcapDenied {
+                reason: "invalid_token_format".to_string(),
+            }
+            .emit(&state.cns_emitter);
+            return Err(StatusCode::FORBIDDEN);
+        }
+    };
+
+    // Verify token signature
+    if !token.verify(&config.capability_secret) {
+        InferenceSpan::OcapDenied {
+            reason: "invalid_token_signature".to_string(),
+        }
+        .emit(&state.cns_emitter);
+        return Err(StatusCode::FORBIDDEN);
+    }
+
+    // Rate limiting by token holder (Miller authority separation)
+    let holder_webid = token.holder();
+    if !state.rate_limiter.check(&holder_webid) {
+        InferenceSpan::RateLimitExceeded {
+            endpoint: "/api/llm/infer".to_string(),
+        }
+        .emit(&state.cns_emitter);
+        return Err(StatusCode::TOO_MANY_REQUESTS);
+    }
+
+    // Load Jack persona from file (runtime loading)
+    let jack_persona = match config.load_jack_persona() {
+        Ok(content) => content,
+        Err(e) => {
+            InferenceSpan::PersonaError {
+                error: e.to_string(),
+            }
+            .emit(&state.cns_emitter);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
 
     let system_prompt = format!(
         "You are Jack, Russell's nurse persona.\n\n{}\n\n\
@@ -1057,47 +1127,79 @@ async fn soap_infer(
         jack_persona
     );
 
-    let user_prompt = build_soap_prompt(&req);
+    let user_prompt = build_soap_prompt(&req.request);
     let full_prompt = format!("{}\n\n{}", system_prompt, user_prompt);
 
-    let start = Instant::now();
-
     let infer_request = hkask_ensemble::ports::GenerateRequest {
-        model: "qwen3:8b".to_string(),
-        prompt: full_prompt,
+        model: config.model.clone(),
+        prompt: full_prompt.clone(),
         options: Some(hkask_ensemble::ports::GenerateOptions {
             n_probs: None,
-            temperature: Some(0.2),
-            max_tokens: Some(2048),
+            temperature: Some(config.temperature),
+            max_tokens: Some(config.max_tokens as i32),
         }),
     };
 
+    // Inference with timeout (resilience pattern)
     let response_text = if let Some(ref inferencer) = state.ensemble_inferencer {
-        match inferencer.generate(&infer_request).await {
-            Ok(resp) => resp.response,
-            Err(e) => format!("Inference error: {}", e),
+        match timeout(
+            Duration::from_secs(config.timeout_secs),
+            inferencer.generate(&infer_request),
+        )
+        .await
+        {
+            Ok(Ok(resp)) => resp.response,
+            Ok(Err(e)) => {
+                InferenceSpan::InferenceError {
+                    error: e.to_string(),
+                }
+                .emit(&state.cns_emitter);
+                format!("Inference error: {}", e)
+            }
+            Err(_) => {
+                InferenceSpan::Timeout {
+                    timeout_secs: config.timeout_secs,
+                }
+                .emit(&state.cns_emitter);
+                return Err(StatusCode::GATEWAY_TIMEOUT);
+            }
         }
     } else {
         format!(
             "Mock response: Received SOAP request with {} events, {} crit, {} alert, {} warn, {} info",
-            req.objective.recent_events.len(),
-            req.objective.severity_counts.crit,
-            req.objective.severity_counts.alert,
-            req.objective.severity_counts.warn,
-            req.objective.severity_counts.info,
+            req.request.objective.recent_events.len(),
+            req.request.objective.severity_counts.crit,
+            req.request.objective.severity_counts.alert,
+            req.request.objective.severity_counts.warn,
+            req.request.objective.severity_counts.info,
         )
     };
 
     let latency_ms = start.elapsed().as_millis() as u64;
-
     let actions = extract_actions(&response_text);
 
-    Json(SoapInferResponse {
+    // CNS span: inference outcome
+    InferenceSpan::Outcome {
+        latency_ms,
+        actions_count: actions.len(),
+        success: !response_text.contains("Inference error"),
+    }
+    .emit(&state.cns_emitter);
+
+    // CNS span: variety counter for inference domain
+    InferenceSpan::Execute {
+        model: config.model.clone(),
+        prompt_length: full_prompt.len(),
+        response_length: response_text.len(),
+    }
+    .emit(&state.cns_emitter);
+
+    Ok(Json(SoapInferResponse {
         response: response_text,
-        model: "qwen3:8b".to_string(),
+        model: config.model,
         latency_ms,
         actions,
-    })
+    }))
 }
 
 /// Build SOAP prompt from request
@@ -1143,4 +1245,31 @@ fn extract_actions(response: &str) -> Vec<String> {
         }
     }
     actions
+}
+
+/// Validate SOAP request size and content (DoS prevention)
+pub fn validate_soap_request(
+    req: &SoapInferRequest,
+    config: &SoapInferenceConfig,
+) -> Result<(), ValidationErrorType> {
+    // Check event count
+    if req.objective.recent_events.len() > config.max_events {
+        return Err(ValidationErrorType::TooManyEvents);
+    }
+
+    // Check subjective length
+    if let Some(subj) = &req.subjective {
+        if subj.len() > config.max_subjective_len {
+            return Err(ValidationErrorType::SubjectiveTooLong);
+        }
+    }
+
+    // Check event message lengths
+    for event in &req.objective.recent_events {
+        if event.message.len() > config.max_message_len {
+            return Err(ValidationErrorType::MessageTooLong);
+        }
+    }
+
+    Ok(())
 }

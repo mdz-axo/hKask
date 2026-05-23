@@ -3,7 +3,7 @@
 //! Persistent queue for escalated outputs that require human review.
 
 use chrono::{DateTime, Utc};
-use hkask_types::{BotID, TemplateId, WebID};
+use hkask_types::{BotID, TemplateId};
 use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -77,7 +77,8 @@ impl EscalationQueue {
                 resolved_at TEXT,
                 resolved_by TEXT
             )
-        ")?;
+        ",
+        )?;
         Ok(())
     }
 
@@ -120,10 +121,13 @@ impl EscalationQueue {
         let rows = stmt.query_map([], |row| {
             let bot_uuid_str: String = row.get(2)?;
             let bot_uuid = Uuid::parse_str(&bot_uuid_str).unwrap_or_else(|_| Uuid::new_v4());
-            
+
             Ok(EscalationEntry {
                 id: row.get(0)?,
-                template_id: TemplateId(uuid::Uuid::parse_str(&row.get::<_, String>(1)?).unwrap_or_else(|_| uuid::Uuid::new_v4())),
+                template_id: TemplateId(
+                    uuid::Uuid::parse_str(&row.get::<_, String>(1)?)
+                        .unwrap_or_else(|_| uuid::Uuid::new_v4()),
+                ),
                 bot_id: BotID(bot_uuid),
                 output: row.get(3)?,
                 confidence: row.get(4)?,
@@ -175,7 +179,10 @@ impl EscalationQueue {
 
             Ok(Some(EscalationEntry {
                 id: row.get(0)?,
-                template_id: TemplateId(uuid::Uuid::parse_str(&row.get::<_, String>(1)?).unwrap_or_else(|_| uuid::Uuid::new_v4())),
+                template_id: TemplateId(
+                    uuid::Uuid::parse_str(&row.get::<_, String>(1)?)
+                        .unwrap_or_else(|_| uuid::Uuid::new_v4()),
+                ),
                 bot_id: BotID(bot_uuid),
                 output: row.get(3)?,
                 confidence: row.get(4)?,
@@ -219,7 +226,7 @@ impl EscalationQueue {
                 SUM(CASE WHEN status = 'in_review' THEN 1 ELSE 0 END) as in_review,
                 SUM(CASE WHEN status = 'resolved' THEN 1 ELSE 0 END) as resolved,
                 SUM(CASE WHEN status = 'dismissed' THEN 1 ELSE 0 END) as dismissed
-             FROM escalations"
+             FROM escalations",
         )?;
 
         let row = stmt.query_row([], |row| {
@@ -257,7 +264,7 @@ mod tests {
         let conn = Arc::new(Connection::open(db_path).unwrap());
         let queue = EscalationQueue::new(conn).unwrap();
 
-        let template_id = TemplateId::new(WebID::new(), "test_template");
+        let template_id = TemplateId::new();
         let bot_id = BotID::new();
 
         let id = queue

@@ -1,4 +1,34 @@
 //! Okapi Configuration
+//!
+//! Configuration for Okapi LLM inference with authentication, timeouts, and connection pooling.
+//!
+//! # Environment Variables
+//!
+//! - `OKAPI_BASE_URL` - Okapi API base URL (default: http://localhost:8080)
+//! - `OKAPI_API_KEY` - API key for authentication (optional)
+//! - `OKAPI_TIMEOUT_SECS` - Request timeout in seconds (default: 30)
+//! - `OKAPI_POOL_MAX_IDLE` - Max idle connections per host (default: 10)
+//!
+//! # Example
+//!
+//! ```rust
+//! use hkask_templates::{OkapiConfig, RetryConfig};
+//!
+//! // Local development (no auth)
+//! let config = OkapiConfig::local_dev();
+//!
+//! // Production with API key
+//! let config = OkapiConfig {
+//!     base_url: "https://okapi.example.com".to_string(),
+//!     api_key: Some("your-api-key".to_string()),
+//!     timeout_secs: 60,
+//!     pool_max_idle: 20,
+//! };
+//!
+//! // Retry configuration
+//! let retry_config = RetryConfig::default();
+//! assert_eq!(retry_config.max_retries, 3);
+//! ```
 
 use thiserror::Error;
 
@@ -9,6 +39,8 @@ pub enum OkapiConfigError {
 }
 
 /// Okapi configuration
+///
+/// Contains connection settings for Okapi API access.
 #[derive(Debug, Clone)]
 pub struct OkapiConfig {
     pub base_url: String,

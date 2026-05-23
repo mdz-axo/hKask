@@ -2,11 +2,10 @@
 //!
 //! Provides circuit breaker and retry logic for resilient inference.
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 use thiserror::Error;
-use tracing::{error, info, warn};
+use tracing::{error, info};
 
 /// Circuit breaker states
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -68,8 +67,7 @@ impl CircuitBreaker {
                 }
 
                 let elapsed = Instant::now().duration_since(
-                    Instant::now()
-                        - Duration::from_secs_f64((last_failure as f64 / 1_000_000_000.0)),
+                    Instant::now() - Duration::from_secs_f64(last_failure as f64 / 1_000_000_000.0),
                 );
 
                 if elapsed >= self.config.open_timeout {

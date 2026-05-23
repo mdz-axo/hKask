@@ -135,7 +135,9 @@ impl ApiState {
         system_webid: WebID,
         okapi_base_url: &str,
     ) -> Self {
-        let inferencer = Arc::new(hkask_ensemble::adapters::OkapiHttpClient::new(okapi_base_url));
+        let inferencer = Arc::new(hkask_ensemble::adapters::OkapiHttpClient::new(
+            okapi_base_url,
+        ));
         Self::new(
             registry,
             mcp_runtime,
@@ -215,29 +217,11 @@ pub struct SoapInferRequest {
     pub plan: String,
 }
 
-/// Telemetry data from Russell
+/// Authenticated SOAP inference request
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct ObjectiveData {
-    /// Severity counts from recent events
-    pub severity_counts: SeverityCounts,
-    /// Recent journal events
-    pub recent_events: Vec<EventRecord>,
-}
-
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct SeverityCounts {
-    pub crit: u64,
-    pub alert: u64,
-    pub warn: u64,
-    pub info: u64,
-}
-
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct EventRecord {
-    pub probe: String,
-    pub severity: String,
-    pub message: String,
-    pub ts: String,
+pub struct SoapInferAuthRequest {
+    pub request: SoapInferRequest,
+    pub capability_token: String,
 }
 
 /// SOAP inference response
@@ -251,6 +235,243 @@ pub struct SoapInferResponse {
     pub latency_ms: u64,
     /// ACTION: proposals (if any)
     pub actions: Vec<String>,
+}
+
+/// SOAP inference error types
+#[derive(Debug, thiserror::Error)]
+pub enum SoapInferError {
+    #[error("Capability verification failed")]
+    OcapDenied,
+
+    #[error("Rate limit exceeded")]
+    RateLimitExceeded,
+
+    #[error("Inference backend error: {0}")]
+    InferenceError(String),
+
+    #[error("Invalid capability token: {0}")]
+    InvalidToken(String),
+
+    #[error("Validation failed: {0}")]
+    ValidationError(String),
+
+    #[error("Inference timeout")]
+    Timeout,
+}
+
+/// Validation error details
+#[derive(Debug, Serialize, Deserialize)]
+pub enum ValidationErrorType {
+    TooManyEvents,
+    SubjectiveTooLong,
+    MessageTooLong,
+    InvalidCharacters,
+}
+
+/// CNS span types for SOAP inference (type-safe emissions)
+pub enum InferenceSpan {
+    Start {
+        timestamp: String,
+        events_count: usize,
+        severity_total: u64,
+    },
+    ValidationError {
+        error_type: String,
+    },
+    OcapDenied {
+        reason: String,
+    },
+    RateLimitExceeded {
+        endpoint: String,
+    },
+    PersonaError {
+        error: String,
+    },
+    InferenceError {
+        error: String,
+    },
+    Timeout {
+        timeout_secs: u64,
+    },
+    Outcome {
+        latency_ms: u64,
+        actions_count: usize,
+        success: bool,
+    },
+    Execute {
+        model: String,
+        prompt_length: usize,
+        response_length: usize,
+    },
+}
+
+impl InferenceSpan {
+    pub fn span_name(&self) -> &'static str {
+        match self {
+            InferenceSpan::Start { .. } => "cns.tool.inference.start",
+            InferenceSpan::ValidationError { .. } => "cns.tool.inference.validation_error",
+            InferenceSpan::OcapDenied { .. } => "cns.tool.inference.ocap_denied",
+            InferenceSpan::RateLimitExceeded { .. } => "cns.tool.rate_limit.exceeded",
+            InferenceSpan::PersonaError { .. } => "cns.tool.inference.persona_error",
+            InferenceSpan::InferenceError { .. } => "cns.tool.inference.error",
+            InferenceSpan::Timeout { .. } => "cns.tool.inference.timeout",
+            InferenceSpan::Outcome { .. } => "cns.tool.inference.outcome",
+            InferenceSpan::Execute { .. } => "cns.tool.inference.execute",
+        }
+    }
+
+    pub fn observation(&self) -> serde_json::Value {
+        match self {
+            InferenceSpan::Start {
+                timestamp,
+                events_count,
+                severity_total,
+            } => serde_json::json!({
+                "timestamp": timestamp,
+                "events_count": events_count,
+                "severity_total": severity_total,
+            }),
+            InferenceSpan::ValidationError { error_type } => serde_json::json!({
+                "error_type": error_type,
+            }),
+            InferenceSpan::OcapDenied { reason } => serde_json::json!({
+                "reason": reason,
+            }),
+            InferenceSpan::RateLimitExceeded { endpoint } => serde_json::json!({
+                "endpoint": endpoint,
+            }),
+            InferenceSpan::PersonaError { error } => serde_json::json!({
+                "error": error,
+            }),
+            InferenceSpan::InferenceError { error } => serde_json::json!({
+                "error": error,
+            }),
+            InferenceSpan::Timeout { timeout_secs } => serde_json::json!({
+                "timeout_secs": timeout_secs,
+            }),
+            InferenceSpan::Outcome {
+                latency_ms,
+                actions_count,
+                success,
+            } => serde_json::json!({
+                "latency_ms": latency_ms,
+                "actions_count": actions_count,
+                "success": success,
+            }),
+            InferenceSpan::Execute {
+                model,
+                prompt_length,
+                response_length,
+            } => serde_json::json!({
+                "model": model,
+                "prompt_length": prompt_length,
+                "response_length": response_length,
+            }),
+        }
+    }
+
+    pub fn emit(&self, emitter: &crate::SpanEmitter) {
+        emitter.emit_tool(self.span_name(), self.observation());
+    }
+}
+
+/// SOAP inference configuration
+#[derive(Clone, Debug)]
+pub struct SoapInferenceConfig {
+    /// Capability secret for token verification (loaded from keystore)
+    pub capability_secret: [u8; 32],
+    /// Maximum number of events per request
+    pub max_events: usize,
+    /// Maximum subjective text length
+    pub max_subjective_len: usize,
+    /// Maximum event message length
+    pub max_message_len: usize,
+    /// Inference timeout in seconds
+    pub timeout_secs: u64,
+    /// Model to use for inference
+    pub model: String,
+    /// Inference temperature (0.0-1.0)
+    pub temperature: f64,
+    /// Maximum tokens to generate
+    pub max_tokens: u32,
+    /// Path to Jack persona file (loaded at runtime)
+    pub jack_persona_path: String,
+}
+
+impl Default for SoapInferenceConfig {
+    fn default() -> Self {
+        Self {
+            // DEV ONLY — load from keystore in production
+            capability_secret: [
+                0x68, 0x6b, 0x61, 0x73, 0x6b, 0x2d, 0x73, 0x6f, 0x61, 0x70, 0x2d, 0x69, 0x6e, 0x66,
+                0x65, 0x72, 0x2d, 0x6b, 0x65, 0x79, 0x2d, 0x32, 0x30, 0x32, 0x36, 0x2d, 0x30, 0x35,
+                0x2d, 0x32, 0x32, 0x21,
+            ],
+            max_events: 100,
+            max_subjective_len: 4096,
+            max_message_len: 1024,
+            timeout_secs: 30,
+            model: "qwen3:8b".to_string(),
+            temperature: 0.2,
+            max_tokens: 2048,
+            jack_persona_path: "hkask-templates/personas/jack-nurse.md".to_string(),
+        }
+    }
+}
+
+impl SoapInferenceConfig {
+    /// Load configuration from environment variables
+    pub fn from_env() -> Self {
+        let mut config = Self::default();
+
+        if let Ok(val) = std::env::var("HKASK_SOAP_MODEL") {
+            config.model = val;
+        }
+        if let Ok(val) = std::env::var("HKASK_SOAP_TEMPERATURE") {
+            config.temperature = val.parse().unwrap_or(config.temperature);
+        }
+        if let Ok(val) = std::env::var("HKASK_SOAP_MAX_TOKENS") {
+            config.max_tokens = val.parse().unwrap_or(config.max_tokens);
+        }
+        if let Ok(val) = std::env::var("HKASK_SOAP_TIMEOUT_SECS") {
+            config.timeout_secs = val.parse().unwrap_or(config.timeout_secs);
+        }
+        if let Ok(val) = std::env::var("HKASK_SOAP_PERSONA_PATH") {
+            config.jack_persona_path = val;
+        }
+
+        config
+    }
+
+    /// Load Jack persona from file at runtime
+    pub fn load_jack_persona(&self) -> Result<String, std::io::Error> {
+        std::fs::read_to_string(&self.jack_persona_path)
+    }
+}
+
+/// Telemetry data from Russell
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct ObjectiveData {
+    /// Severity counts from recent events
+    pub severity_counts: SeverityCounts,
+    /// Recent journal events
+    pub recent_events: Vec<EventRecord>,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, Default)]
+pub struct SeverityCounts {
+    pub crit: u64,
+    pub alert: u64,
+    pub warn: u64,
+    pub info: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct EventRecord {
+    pub probe: String,
+    pub severity: String,
+    pub message: String,
+    pub ts: String,
 }
 
 /// Tool response

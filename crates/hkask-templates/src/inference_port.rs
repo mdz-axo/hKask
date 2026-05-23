@@ -2,10 +2,30 @@
 //!
 //! This module provides the InferencePort trait for LLM invocations
 //! with temperature-controlled parameters for anti-normative generation.
+//!
+//! # Example
+//!
+//! ```rust,no_run
+//! use hkask_templates::{OkapiInference, OkapiConfig, InferencePort};
+//! use hkask_types::LLMParameters;
+//!
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! // Create Okapi inference client
+//! let config = OkapiConfig::local_dev();
+//! let inference = OkapiInference::new("ollama/llama-3.1-8b-instruct", config)?;
+//!
+//! // Generate text
+//! let params = LLMParameters::default();
+//! let result = inference.generate("What is the meaning of life?", &params).await?;
+//!
+//! println!("Response: {}", result.text);
+//! # Ok(())
+//! # }
+//! ```
 
 use crate::manifest::ModelRequirements;
 use crate::okapi_config::{OkapiConfig, RetryConfig, validate_prompt};
-use crate::resilience::{CircuitBreaker, CircuitBreakerConfig};
+use crate::resilience::CircuitBreaker;
 use async_trait::async_trait;
 use hkask_cns::{RateLimiter, SpanEmitter};
 use hkask_types::{BotID, LLMParameters, TemplateId, TemplateInvocation, TemplateOutcome, WebID};
@@ -15,6 +35,9 @@ use std::sync::Arc;
 use thiserror::Error;
 use tracing::{info, warn};
 
+/// Inference error types
+///
+/// Errors returned by Okapi inference operations.
 #[derive(Error, Debug)]
 pub enum InferenceError {
     #[error("Okapi connection error: {0}")]
@@ -30,6 +53,28 @@ pub enum InferenceError {
 }
 
 /// Inference result from Okapi
+///
+/// Contains the generated text, model used, token usage, and optional token probabilities.
+///
+/// # Example
+///
+/// ```rust
+/// use hkask_templates::InferenceResult;
+///
+/// let result = InferenceResult {
+///     text: "The meaning of life is 42.".to_string(),
+///     model: "ollama/llama-3.1-8b-instruct".to_string(),
+///     usage: hkask_templates::Usage {
+///         prompt_tokens: 10,
+///         completion_tokens: 20,
+///         total_tokens: 30,
+///     },
+///     finish_reason: "stop".to_string(),
+///     token_probabilities: None,
+/// };
+///
+/// assert_eq!(result.text, "The meaning of life is 42.");
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InferenceResult {
     pub text: String,
@@ -41,6 +86,8 @@ pub struct InferenceResult {
 }
 
 /// Token probability from Okapi response
+///
+/// Contains the token and its probability, plus top-k alternatives.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenProbability {
     pub token: String,
@@ -216,21 +263,21 @@ impl OkapiInference {
         request: OkapiRequest,
     ) -> Result<InferenceResult, InferenceError> {
         // Check circuit breaker before request
-        if let Some(ref cb) = self.circuit_breaker {
-            if !cb.allow_request() {
-                // Emit CNS span for circuit open
-                self.span_emitter.emit_connector(
-                    "circuit_open",
-                    serde_json::json!({
-                        "model": self.model,
-                        "action": "inference.execute_request",
-                        "reason": "circuit_breaker_open"
-                    }),
-                );
-                return Err(InferenceError::Connection(
-                    "Circuit breaker is open".to_string(),
-                ));
-            }
+        if let Some(ref cb) = self.circuit_breaker
+            && !cb.allow_request()
+        {
+            // Emit CNS span for circuit open
+            self.span_emitter.emit_connector(
+                "circuit_open",
+                serde_json::json!({
+                    "model": self.model,
+                    "action": "inference.execute_request",
+                    "reason": "circuit_breaker_open"
+                }),
+            );
+            return Err(InferenceError::Connection(
+                "Circuit breaker is open".to_string(),
+            ));
         }
 
         let mut req = self
@@ -361,23 +408,23 @@ impl InferencePort for OkapiInference {
         validate_prompt(prompt).map_err(|e| InferenceError::Generation(e.to_string()))?;
 
         // Check rate limit before API call
-        if let (Some(rate_limiter), Some(bot_id)) = (&self.rate_limiter, &self.bot_id) {
-            if !rate_limiter.check(bot_id) {
-                // Emit CNS span for rate limit exceeded
-                self.span_emitter.emit_tool(
-                    "rate_limit_exceeded",
-                    serde_json::json!({
-                        "bot_id": bot_id.to_string(),
-                        "model": self.model,
-                        "action": "inference.generate",
-                        "reason": "token_bucket_empty"
-                    }),
-                );
-                return Err(InferenceError::RateLimitExceeded(format!(
-                    "Rate limit exceeded for bot {}",
-                    bot_id
-                )));
-            }
+        if let (Some(rate_limiter), Some(bot_id)) = (&self.rate_limiter, &self.bot_id)
+            && !rate_limiter.check(bot_id)
+        {
+            // Emit CNS span for rate limit exceeded
+            self.span_emitter.emit_tool(
+                "rate_limit_exceeded",
+                serde_json::json!({
+                    "bot_id": bot_id.to_string(),
+                    "model": self.model,
+                    "action": "inference.generate",
+                    "reason": "token_bucket_empty"
+                }),
+            );
+            return Err(InferenceError::RateLimitExceeded(format!(
+                "Rate limit exceeded for bot {}",
+                bot_id
+            )));
         }
 
         let request = OkapiRequest {
@@ -419,23 +466,23 @@ impl InferencePort for OkapiInference {
         validate_prompt(prompt).map_err(|e| InferenceError::Generation(e.to_string()))?;
 
         // Check rate limit before API call
-        if let (Some(rate_limiter), Some(bot_id)) = (&self.rate_limiter, &self.bot_id) {
-            if !rate_limiter.check(bot_id) {
-                // Emit CNS span for rate limit exceeded
-                self.span_emitter.emit_tool(
-                    "rate_limit_exceeded",
-                    serde_json::json!({
-                        "bot_id": bot_id.to_string(),
-                        "model": self.model,
-                        "action": "inference.generate_with_model",
-                        "reason": "token_bucket_empty"
-                    }),
-                );
-                return Err(InferenceError::RateLimitExceeded(format!(
-                    "Rate limit exceeded for bot {}",
-                    bot_id
-                )));
-            }
+        if let (Some(rate_limiter), Some(bot_id)) = (&self.rate_limiter, &self.bot_id)
+            && !rate_limiter.check(bot_id)
+        {
+            // Emit CNS span for rate limit exceeded
+            self.span_emitter.emit_tool(
+                "rate_limit_exceeded",
+                serde_json::json!({
+                    "bot_id": bot_id.to_string(),
+                    "model": self.model,
+                    "action": "inference.generate_with_model",
+                    "reason": "token_bucket_empty"
+                }),
+            );
+            return Err(InferenceError::RateLimitExceeded(format!(
+                "Rate limit exceeded for bot {}",
+                bot_id
+            )));
         }
 
         let model_id = model_requirements
@@ -568,6 +615,82 @@ pub async fn invoke_template_with_selection(
 
     // Select best output (simple heuristic: first non-empty)
     // In production, Curator would evaluate and select
+    invocation.selected_index = Some(0);
+    invocation.outcome = TemplateOutcome::Merged;
+
+    Ok(invocation)
+}
+
+/// Invoke template with generic inference port (no boxing)
+///
+/// Uses generics instead of `Box<dyn InferencePort>` for better performance.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use hkask_templates::{OkapiInference, OkapiConfig, invoke_template_with_okapi_generic};
+/// use hkask_types::{BotID, TemplateId, LLMParameters};
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+///
+/// let inference = OkapiInference::new("test-model", OkapiConfig::local_dev())?;
+/// let template_id = TemplateId::new();
+/// let bot_id = BotID::new();
+/// let params = LLMParameters::default();
+///
+/// let invocation = invoke_template_with_okapi_generic(
+///     &inference,
+///     template_id,
+///     bot_id,
+///     params,
+///     "Test prompt",
+///     serde_json::json!({}),
+/// ).await?;
+/// # Ok(())
+/// # }
+/// ```
+pub async fn invoke_template_with_okapi_generic<I>(
+    inference: &I,
+    template_id: TemplateId,
+    bot_id: BotID,
+    parameters: LLMParameters,
+    rendered_prompt: &str,
+    input: Value,
+) -> Result<TemplateInvocation, InferenceError>
+where
+    I: InferencePort + Send + Sync,
+{
+    let result = inference.generate(rendered_prompt, &parameters).await?;
+
+    let mut invocation = TemplateInvocation::new(template_id, bot_id, parameters, input);
+    invocation.outputs.push(Value::String(result.text));
+    invocation.outcome = TemplateOutcome::Success;
+
+    Ok(invocation)
+}
+
+/// Invoke template with N outputs using generic inference port
+pub async fn invoke_template_with_selection_generic<I>(
+    inference: &I,
+    template_id: TemplateId,
+    bot_id: BotID,
+    parameters: LLMParameters,
+    rendered_prompt: &str,
+    input: Value,
+    n: usize,
+) -> Result<TemplateInvocation, InferenceError>
+where
+    I: InferencePort + Send + Sync,
+{
+    let results = inference
+        .generate_n(rendered_prompt, &parameters, n)
+        .await?;
+
+    let mut invocation = TemplateInvocation::new(template_id, bot_id, parameters.clone(), input);
+
+    for result in results {
+        invocation.outputs.push(Value::String(result.text));
+    }
+
     invocation.selected_index = Some(0);
     invocation.outcome = TemplateOutcome::Merged;
 

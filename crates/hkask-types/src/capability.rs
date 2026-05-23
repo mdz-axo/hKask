@@ -25,6 +25,20 @@ fn to_string(webid: &WebID) -> String {
     webid.to_string()
 }
 
+/// Base64 encode bytes to string
+fn base64_encode(data: &[u8]) -> String {
+    use base64::Engine;
+    base64::engine::general_purpose::STANDARD.encode(data)
+}
+
+/// Base64 decode string to bytes
+fn base64_decode(s: &str) -> Result<Vec<u8>, String> {
+    use base64::Engine;
+    base64::engine::general_purpose::STANDARD
+        .decode(s)
+        .map_err(|e| e.to_string())
+}
+
 /// Capability resource types
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CapabilityResource {
@@ -250,6 +264,28 @@ impl CapabilityToken {
         self.expires_at
             .map(|exp| current_time > exp)
             .unwrap_or(false)
+    }
+
+    /// Get the holder (recipient) of this capability token
+    pub fn holder(&self) -> WebID {
+        self.delegated_to
+    }
+
+    /// Get the issuer (delegator) of this capability token
+    pub fn issuer(&self) -> WebID {
+        self.delegated_from
+    }
+
+    /// Serialize token to base64-encoded JSON
+    pub fn to_base64(&self) -> Result<String, serde_json::Error> {
+        let json = serde_json::to_string(self)?;
+        Ok(base64_encode(json.as_bytes()))
+    }
+
+    /// Deserialize token from base64-encoded JSON
+    pub fn from_base64(encoded: &str) -> Result<Self, String> {
+        let json = base64_decode(encoded)?;
+        serde_json::from_slice(&json).map_err(|e| e.to_string())
     }
 
     /// Check if attenuation allows further delegation

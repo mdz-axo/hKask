@@ -22,6 +22,7 @@
 //! - OCAP boundary enforcement
 //! - Variety counter tracking with algedonic alerts
 
+pub mod adapters;
 pub mod audit;
 pub mod capability_validator;
 pub mod cascade;
@@ -31,11 +32,14 @@ pub mod contracts;
 pub mod curator_pipeline;
 pub mod dependency;
 pub mod engine;
+pub mod error;
 pub mod inference_port;
 pub mod manifest;
 pub mod model_catalog;
+pub mod multi_okapi;
 pub mod okapi_config;
 pub mod ports;
+pub mod prompt_cache;
 pub mod provenance;
 pub mod registry;
 pub mod registry_git;
@@ -43,6 +47,7 @@ pub mod registry_sqlite;
 pub mod renderer;
 pub mod resilience;
 pub mod russell_mapper;
+pub mod skill_translation;
 
 pub use audit::{AuditStats, AuditTrail, ExecutionAudit};
 pub use capability_validator::CapabilityAwareValidator;

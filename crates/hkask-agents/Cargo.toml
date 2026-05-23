@@ -28,3 +28,6 @@ uuid.workspace = true
 zeroize.workspace = true
 rand.workspace = true
 rusqlite.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

@@ -4,12 +4,12 @@
 //! Rust is the loom. YAML is the thread.
 //! ℏKask v0.21.2 — Planck's Constant of Agent Systems
 
-use crate::ports::TemplateContract;
+pub use crate::ports::TemplateContract;
+use crate::ports::TemplateContract as TemplateContractType;
 use hkask_types::lexicon::TemplateType;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
 
 /// Skill translation configuration (loaded from registry/manifests/skill-translation.yaml)
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -73,6 +73,17 @@ pub struct GeneratedTemplate {
     pub template_type: TemplateType,
     pub description: String,
     pub energy_cap: u64,
+    pub source: String,
+    pub lexicon_terms: Vec<String>,
+    pub contract: TemplateContractType,
+}
+
+/// Generated manifest configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GeneratedManifest {
+    pub id: String,
+    pub name: String,
+    pub description: String,
 }
 
 /// Skill translation pipeline
@@ -92,7 +103,13 @@ impl SkillTranslationPipeline {
         Self {
             config: SkillTranslationConfig {
                 pipeline: PipelineConfig {
-                    stages: vec!["parse", "map", "generate", "validate", "register"],
+                    stages: vec![
+                        "parse".to_string(),
+                        "map".to_string(),
+                        "generate".to_string(),
+                        "validate".to_string(),
+                        "register".to_string(),
+                    ],
                     max_depth: 7,
                     cns_tracking: true,
                 },
@@ -113,7 +130,7 @@ impl SkillTranslationPipeline {
     }
 
     /// Parse skill from source format
-    pub fn parse_skill(&self, source: &str, format: &str) -> ParsedSkill {
+    pub fn parse_skill(&self, _source: &str, _format: &str) -> ParsedSkill {
         // Generic parser applies configuration rules
         ParsedSkill {
             id: "skill_1".to_string(),
@@ -135,6 +152,12 @@ impl SkillTranslationPipeline {
             template_type,
             description: skill.description.clone(),
             energy_cap,
+            source: String::new(),
+            lexicon_terms: vec![],
+            contract: TemplateContractType {
+                input_fields: vec![],
+                output_fields: vec![],
+            },
         }
     }
 }

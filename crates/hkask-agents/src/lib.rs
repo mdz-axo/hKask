@@ -46,12 +46,16 @@ pub mod security;
 pub mod sovereignty;
 
 pub use acp::{A2AMessage, AcpAgent, AcpRuntime, TemplateDispatchHandler};
+pub use bot::Bot;
 pub use capability::{BotCapabilities, CapabilityChecker, CapabilityToken};
 pub use consent::ConsentManager;
-pub use curator::escalation::{EscalationEntry, EscalationQueue, EscalationStats, EscalationStatus};
+pub use curator::escalation::{
+    EscalationEntry, EscalationQueue, EscalationStats, EscalationStatus,
+};
 pub use pod::{
     AgentPersona, AgentPod, AgentPodError, AgentPodResult, AgentType, CNSSpanPort, GitCASPort,
     MCPRuntimePort, MemoryStoragePort, PodID, PodLifecycleState, PodManager, PodStatus,
     TemplateCrate,
 };
+pub use replicant::{Replicant, ReplicantCapabilities};
 pub use sovereignty::SovereigntyChecker;

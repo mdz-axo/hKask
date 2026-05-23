@@ -140,7 +140,7 @@ pub struct CompositionTemplate {
 }
 
 /// Template input/output contract
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TemplateContract {
     pub input_fields: Vec<String>,
     pub output_fields: Vec<String>,

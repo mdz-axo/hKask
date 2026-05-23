@@ -1,6 +1,5 @@
 //! Model Catalog Seeder
 
-use crate::okapi_config::OkapiConfig;
 use hkask_storage::ModelRegistryStore;
 
 /// Seed the model registry with initial catalog

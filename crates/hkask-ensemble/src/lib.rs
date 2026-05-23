@@ -3,30 +3,28 @@
 //! Orchestrates conversation between Curator (replicant) and expert bots
 //! via template-mediated A2A communication. No swarms, no consensus mechanisms.
 
-pub mod chat;
-pub mod deliberation;
-
-// Okapi integration modules
 pub mod adapters;
-pub mod confidence_router;
-pub mod okapi_integration;
-pub mod ports;
-
-// Additional modules
-pub mod capability;
+pub mod chat;
+pub mod cns_integration;
 pub mod cns_spans;
+pub mod confidence_router;
+pub mod deliberation;
 pub mod macaroon;
 pub mod metrics;
 pub mod multi_okapi;
 pub mod ocap_enforcement;
+pub mod okapi_integration;
+pub mod ports;
 pub mod resilience;
 pub mod webid_registry;
 
 // Re-export commonly used types
-pub use capability::OkapiOperation;
 pub use chat::{
     ChatMessage, ChatParticipant, EnsembleChat, EnsembleChatManager, EnsembleError, ParticipantRole,
 };
+pub use cns_integration::{CnsIntegration, CnsIntegrationBuilder};
+pub use cns_spans::{OkapiCnsSpan, ValidationResult};
+pub use confidence_router::{compute_confidence, ConfidenceConfig, ConfidenceRouter, RouterError};
 pub use deliberation::{
     AgentResponse, DeliberationCoordinator, DeliberationRequest, DeliberationResult,
     DeliberationSession, DeliberationStatus,
