@@ -29,6 +29,7 @@ async-trait.workspace = true
 futures-util.workspace = true
 rand.workspace = true
 secrecy.workspace = true
+blake3 = "1"
 
 [dev-dependencies]
 proptest = "1.4"

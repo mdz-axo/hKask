@@ -6,6 +6,7 @@
 pub mod adapters;
 pub mod capability;
 pub mod chat;
+pub mod chat_dedup;
 pub mod cns_integration;
 pub mod cns_spans;
 pub mod confidence_router;
@@ -23,6 +24,7 @@ pub mod webid_registry;
 pub use chat::{
     ChatMessage, ChatParticipant, EnsembleChat, EnsembleChatManager, EnsembleError, ParticipantRole,
 };
+pub use chat_dedup::{DedupStats, SessionDedup, extract_context_window};
 pub use cns_integration::{CnsIntegration, CnsIntegrationBuilder};
 pub use cns_spans::{OkapiCnsSpan, ValidationResult};
 pub use confidence_router::{ConfidenceConfig, ConfidenceRouter, RouterError, compute_confidence};

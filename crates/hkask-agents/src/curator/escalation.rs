@@ -3,7 +3,7 @@
 //! Persistent queue for escalated outputs that require human review.
 
 use chrono::{DateTime, Utc};
-use hkask_types::{BotID, TemplateId};
+use hkask_types::{BotID, TemplateID};
 use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -14,7 +14,7 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EscalationEntry {
     pub id: String,
-    pub template_id: TemplateId,
+    pub template_id: TemplateID,
     pub bot_id: BotID,
     pub output: String,
     pub confidence: f64,
@@ -84,7 +84,7 @@ impl EscalationQueue {
 
     pub fn add(
         &self,
-        template_id: TemplateId,
+        template_id: TemplateID,
         bot_id: BotID,
         output: String,
         confidence: f64,
@@ -124,7 +124,7 @@ impl EscalationQueue {
 
             Ok(EscalationEntry {
                 id: row.get(0)?,
-                template_id: TemplateId(
+                template_id: TemplateID(
                     uuid::Uuid::parse_str(&row.get::<_, String>(1)?)
                         .unwrap_or_else(|_| uuid::Uuid::new_v4()),
                 ),
@@ -179,7 +179,7 @@ impl EscalationQueue {
 
             Ok(Some(EscalationEntry {
                 id: row.get(0)?,
-                template_id: TemplateId(
+                template_id: TemplateID(
                     uuid::Uuid::parse_str(&row.get::<_, String>(1)?)
                         .unwrap_or_else(|_| uuid::Uuid::new_v4()),
                 ),
@@ -264,7 +264,7 @@ mod tests {
         let conn = Arc::new(Connection::open(db_path).unwrap());
         let queue = EscalationQueue::new(conn).unwrap();
 
-        let template_id = TemplateId::new();
+        let template_id = TemplateID::new();
         let bot_id = BotID::new();
 
         let id = queue

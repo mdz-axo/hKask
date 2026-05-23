@@ -178,7 +178,7 @@ impl SovereigntyObserver {
         );
 
         // Create variety counter for this domain
-        let mut counter = crate::variety::VarietyCounter::new();
+        let mut counter = crate::variety::VarietyTracker::new();
         for _ in 0..deficit {
             counter.increment(domain);
         }

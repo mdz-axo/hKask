@@ -37,6 +37,10 @@ impl TemplateID {
     pub fn new() -> Self {
         Self(Uuid::new_v4())
     }
+
+    pub fn from_string(s: &str) -> Self {
+        TemplateID(Uuid::parse_str(s).unwrap_or_else(|_| Uuid::new_v4()))
+    }
 }
 
 impl Default for TemplateID {

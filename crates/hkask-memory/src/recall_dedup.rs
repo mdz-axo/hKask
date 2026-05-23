@@ -29,12 +29,6 @@ pub fn eav_hash(triple: &Triple) -> [u8; 32] {
 }
 
 /// Produce a deterministic string representation of a JSON value for hashing.
-///
-/// - Strings: used as-is
-/// - Numbers: formatted via serde_json (stable representation)
-/// - Booleans: "true" / "false"
-/// - Null: "null"
-/// - Arrays/Objects: sorted canonical JSON
 fn canonical_value(value: &serde_json::Value) -> String {
     match value {
         serde_json::Value::String(s) => s.clone(),
@@ -95,15 +89,6 @@ pub fn dedup_triples_with_stats(triples: Vec<Triple>) -> DedupResult {
         duplicates_removed: original_count - deduped_count,
     }
 }
-    }
-
-    let deduped_count = result.len();
-    DedupResult {
-        triples: result,
-        original_count,
-        duplicates_removed: original_count - deduped_count,
-    }
-}
 
 /// Result of a deduplication operation with statistics.
 #[derive(Debug)]
@@ -119,9 +104,10 @@ mod tests {
     use hkask_storage::Triple;
     use hkask_types::WebID;
     use serde_json::json;
+    use uuid::Uuid;
 
     fn test_webid() -> WebID {
-        WebID("https://example.com/agent#test".to_string())
+        WebID(Uuid::new_v4())
     }
 
     #[test]
@@ -155,7 +141,6 @@ mod tests {
         let t2 = Triple::new("Paris", "capital_of", json!("France"), test_webid())
             .with_confidence(0.5);
 
-        // Same EAV content, different confidence → same hash
         assert_eq!(eav_hash(&t1), eav_hash(&t2));
     }
 
@@ -164,9 +149,9 @@ mod tests {
         let triples = vec![
             Triple::new("Paris", "capital_of", json!("France"), test_webid()),
             Triple::new("Berlin", "capital_of", json!("Germany"), test_webid()),
-            Triple::new("Paris", "capital_of", json!("France"), test_webid()), // duplicate
+            Triple::new("Paris", "capital_of", json!("France"), test_webid()),
             Triple::new("Tokyo", "capital_of", json!("Japan"), test_webid()),
-            Triple::new("Berlin", "capital_of", json!("Germany"), test_webid()), // duplicate
+            Triple::new("Berlin", "capital_of", json!("Germany"), test_webid()),
         ];
 
         let result = dedup_triples(triples);
@@ -209,7 +194,6 @@ mod tests {
 
     #[test]
     fn test_canonical_value_object_ordering() {
-        // Objects with same keys in different order should hash the same
         let v1 = json!({"a": 1, "b": 2});
         let v2 = json!({"b": 2, "a": 1});
 

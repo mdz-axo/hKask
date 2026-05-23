@@ -5,12 +5,12 @@
 //!
 //! Per architecture v0.21.0: Variety deficit >100 → escalate to Curator/human
 
-use crate::variety::{VarietyCounter, VarietyMonitor};
+use crate::variety::{VarietyMonitor, VarietyTracker};
 use std::time::{Duration, Instant};
 use tracing::{error, warn};
 
 /// Callback type for escalation notifications
-pub type EscalationCallback = dyn Fn(&AlgedonicAlert) + Send + Sync;
+pub type EscalationCallback = dyn Fn(&RuntimeAlert) + Send + Sync;
 
 /// Default algedonic alert threshold (variety deficit)
 pub const DEFAULT_THRESHOLD: u64 = 100;
@@ -28,7 +28,7 @@ pub enum AlertSeverity {
 
 /// Algedonic alert
 #[derive(Debug, Clone)]
-pub struct AlgedonicAlert {
+pub struct RuntimeAlert {
     pub domain: String,
     pub deficit: u64,
     pub threshold: u64,
@@ -38,7 +38,7 @@ pub struct AlgedonicAlert {
     pub message: String,
 }
 
-impl AlgedonicAlert {
+impl RuntimeAlert {
     pub fn new(domain: &str, deficit: u64, threshold: u64) -> Self {
         let severity = if deficit > threshold {
             AlertSeverity::Critical
@@ -78,7 +78,7 @@ impl AlgedonicAlert {
 /// Algedonic alert manager
 pub struct AlgedonicManager {
     threshold: u64,
-    alerts: Vec<AlgedonicAlert>,
+    alerts: Vec<RuntimeAlert>,
     escalation_callback: Option<Box<EscalationCallback>>,
 }
 
@@ -93,16 +93,16 @@ impl AlgedonicManager {
 
     pub fn with_escalation_callback<F>(mut self, callback: F) -> Self
     where
-        F: Fn(&AlgedonicAlert) + Send + Sync + 'static,
+        F: Fn(&RuntimeAlert) + Send + Sync + 'static,
     {
         self.escalation_callback = Some(Box::new(callback));
         self
     }
 
     /// Check variety counter and generate alert if needed
-    pub fn check(&mut self, counter: &VarietyCounter, domain: &str) -> Option<&AlgedonicAlert> {
+    pub fn check(&mut self, counter: &VarietyTracker, domain: &str) -> Option<&RuntimeAlert> {
         let deficit = counter.deficit(u64::MAX); // Total variety deficit
-        let alert = AlgedonicAlert::new(domain, deficit, self.threshold);
+        let alert = RuntimeAlert::new(domain, deficit, self.threshold);
 
         if alert.should_escalate() {
             error!(
@@ -144,12 +144,12 @@ impl AlgedonicManager {
     }
 
     /// Get all alerts
-    pub fn alerts(&self) -> &[AlgedonicAlert] {
+    pub fn alerts(&self) -> &[RuntimeAlert] {
         &self.alerts
     }
 
     /// Get critical alerts only
-    pub fn critical_alerts(&self) -> Vec<&AlgedonicAlert> {
+    pub fn critical_alerts(&self) -> Vec<&RuntimeAlert> {
         self.alerts.iter().filter(|a| a.is_critical()).collect()
     }
 

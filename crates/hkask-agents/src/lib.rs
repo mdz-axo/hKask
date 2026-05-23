@@ -45,10 +45,10 @@ pub mod ports;
 pub mod replicant;
 pub mod security;
 pub mod sovereignty;
-pub mod transport;
 
-pub use acp::{A2AMessage, AcpAgent, AcpRuntime, TemplateDispatchHandler};
-pub use ports::AcpPort;
+pub use acp::{A2AMessage, AcpAgent, AcpError, AcpRuntime, TemplateDispatchHandler};
+pub use adapters::{LoopbackHttpTransport, StdioTransport};
+pub use ports::{AcpPort, AcpTransport, AcpWireMessage, AcpWireResponse};
 pub use bot::Bot;
 pub use capability::{BotCapabilities, CapabilityChecker, CapabilityToken};
 pub use consent::ConsentManager;
@@ -62,4 +62,3 @@ pub use pod::{
 };
 pub use replicant::{Replicant, ReplicantCapabilities};
 pub use sovereignty::SovereigntyChecker;
-pub use transport::{AcpMessage, AcpTransport, LoopbackHttpTransport, StdioTransport, TransportError};

@@ -7,7 +7,7 @@
 //! - Variety monitoring
 //! - Algedonic alerts
 
-use hkask_cns::{AlgedonicAlert, SpanEmitter, VarietyMonitor};
+use hkask_cns::{RuntimeAlert, SpanEmitter, VarietyMonitor};
 use hkask_types::WebID;
 use serde_json::json;
 use std::sync::Arc;
@@ -131,7 +131,7 @@ impl CnsIntegration {
         // Check for deficit and generate alert if needed
         let deficit = counter.deficit(threshold);
         if deficit > 0 {
-            let alert = AlgedonicAlert::new(category, deficit, threshold);
+            let alert = RuntimeAlert::new(category, deficit, threshold);
             if alert.should_escalate() {
                 drop(variety_monitor);
                 self.handle_algedonic_alert(alert).await;
@@ -140,7 +140,7 @@ impl CnsIntegration {
     }
 
     /// Handle algedonic alert
-    pub async fn handle_algedonic_alert(&self, alert: AlgedonicAlert) {
+    pub async fn handle_algedonic_alert(&self, alert: RuntimeAlert) {
         warn!(
             target: "hkask.cns.algedonic",
             severity = ?alert.severity,

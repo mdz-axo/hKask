@@ -5,8 +5,8 @@
 //!
 //! Uses shared state with RwLock for compatibility with sync and async contexts.
 
-use crate::algedonic::{AlgedonicAlert, AlgedonicManager, CnsHealth, DEFAULT_THRESHOLD};
-use crate::variety::{VarietyCounter, VarietyMonitor};
+use crate::algedonic::{AlgedonicManager, CnsHealth, RuntimeAlert, DEFAULT_THRESHOLD};
+use crate::variety::{VarietyMonitor, VarietyTracker};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::info;
@@ -51,13 +51,13 @@ impl CnsRuntime {
     }
 
     /// Get all algedonic alerts
-    pub async fn alerts(&self) -> Vec<AlgedonicAlert> {
+    pub async fn alerts(&self) -> Vec<RuntimeAlert> {
         let state = self.state.read().await;
         state.algedonic.alerts().to_vec()
     }
 
     /// Get critical alerts only
-    pub async fn critical_alerts(&self) -> Vec<AlgedonicAlert> {
+    pub async fn critical_alerts(&self) -> Vec<RuntimeAlert> {
         let state = self.state.read().await;
         state
             .algedonic
@@ -102,7 +102,7 @@ impl CnsRuntime {
     }
 
     /// Check variety and generate algedonic alert if needed
-    pub async fn check_variety(&self, domain: &str) -> Option<AlgedonicAlert> {
+    pub async fn check_variety(&self, domain: &str) -> Option<RuntimeAlert> {
         let counter = {
             let state = self.state.read().await;
             state
@@ -110,7 +110,7 @@ impl CnsRuntime {
                 .counters()
                 .get(domain)
                 .cloned()
-                .unwrap_or_else(VarietyCounter::new)
+                .unwrap_or_else(VarietyTracker::new)
         };
 
         let mut state = self.state.write().await;

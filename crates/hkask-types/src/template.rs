@@ -1,32 +1,10 @@
 //! Template types for hKask high-temperature templates
 
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 use crate::id::BotID;
 
-/// TemplateId — Unique identifier for templates
-/// (Re-exported from id module for convenience)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct TemplateId(pub Uuid);
-
-impl TemplateId {
-    pub fn new() -> Self {
-        Self(Uuid::new_v4())
-    }
-}
-
-impl Default for TemplateId {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl std::fmt::Display for TemplateId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
+pub type TemplateId = crate::id::TemplateID;
 
 /// HighTempTemplateType — Discriminator for high-temperature template categories
 ///

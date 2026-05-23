@@ -5,10 +5,11 @@
 //! - **Rate Limiting**: Token bucket algorithm for abuse prevention
 //! - **OCAP Enhancement**: Attenuation history tracking and expiry enforcement
 
+use hkask_types::TokenBucket;
+use hkask_types::TokenBucket;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 
 /// Input validation errors

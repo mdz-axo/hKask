@@ -24,7 +24,7 @@ pub mod spans;
 pub mod variety;
 
 pub use algedonic::{
-    AlertSeverity, AlgedonicAlert, AlgedonicManager, CnsHealth, DEFAULT_THRESHOLD,
+    AlertSeverity, AlgedonicManager, CnsHealth, RuntimeAlert, DEFAULT_THRESHOLD,
 };
 pub use energy::{
     EnergyAccount, EnergyBudget, EnergyEmitter, EnergyError, EnergySpanType, OpportunityCost,
@@ -41,4 +41,4 @@ pub use rate_limit::{RateLimitConfig, RateLimiter};
 pub use review_queue::{ReviewQueue, Violation};
 pub use runtime::CnsRuntime;
 pub use spans::{SpanCategory, SpanEmitter};
-pub use variety::{VarietyCounter, VarietyMonitor};
+pub use variety::{VarietyMonitor, VarietyTracker};

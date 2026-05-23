@@ -8,13 +8,13 @@ use std::time::{Duration, Instant};
 
 /// Variety counter for tracking state diversity in a domain
 #[derive(Debug, Clone)]
-pub struct VarietyCounter {
+pub struct VarietyTracker {
     counts: HashMap<String, u64>,
     window_start: Instant,
     window_duration: Duration,
 }
 
-impl VarietyCounter {
+impl VarietyTracker {
     /// Create a new variety counter with default 1-minute window
     pub fn new() -> Self {
         Self {
@@ -106,7 +106,7 @@ impl VarietyCounter {
     }
 }
 
-impl Default for VarietyCounter {
+impl Default for VarietyTracker {
     fn default() -> Self {
         Self::new()
     }
@@ -115,7 +115,7 @@ impl Default for VarietyCounter {
 /// Variety monitor for multiple domains
 #[derive(Debug)]
 pub struct VarietyMonitor {
-    counters: HashMap<String, VarietyCounter>,
+    counters: HashMap<String, VarietyTracker>,
 }
 
 impl VarietyMonitor {
@@ -126,7 +126,7 @@ impl VarietyMonitor {
     }
 
     /// Get or create a counter for a domain
-    pub fn counter(&mut self, domain: &str) -> &mut VarietyCounter {
+    pub fn counter(&mut self, domain: &str) -> &mut VarietyTracker {
         self.counters.entry(domain.to_string()).or_default()
     }
 
@@ -141,7 +141,7 @@ impl VarietyMonitor {
     }
 
     /// Get all counters (public accessor)
-    pub fn counters(&self) -> &HashMap<String, VarietyCounter> {
+    pub fn counters(&self) -> &HashMap<String, VarietyTracker> {
         &self.counters
     }
 

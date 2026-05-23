@@ -15,7 +15,7 @@
 //! - Calibration prompts → adjust translation rules
 //! - Human escalation → Curator review on persistent deficits
 
-use crate::algedonic::{AlertSeverity, AlgedonicAlert};
+use crate::algedonic::{AlertSeverity, RuntimeAlert};
 use crate::energy::EnergyAccount;
 use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
@@ -125,7 +125,7 @@ impl Default for CompositionMetrics {
 
 /// Variety counter for CNS monitoring
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct VarietyCounter {
+pub struct VarietyMetrics {
     pub entity_type: String,
     pub count: u64,
     pub deficit: u64,
@@ -133,7 +133,7 @@ pub struct VarietyCounter {
     pub alert_triggered: bool,
 }
 
-impl VarietyCounter {
+impl VarietyMetrics {
     pub fn new(entity_type: &str, threshold: u64) -> Self {
         let mut counter = Self {
             entity_type: entity_type.to_string(),
@@ -178,7 +178,7 @@ impl VarietyCounter {
 #[derive(Debug, Clone)]
 pub struct CompositionObserverState {
     pub metrics: CompositionMetrics,
-    pub variety_counters: HashMap<String, VarietyCounter>,
+    pub variety_counters: HashMap<String, VarietyMetrics>,
     pub energy_account: EnergyAccount,
     pub algedonic_threshold: u64,
     pub total_variety_deficit: u64,
@@ -187,9 +187,9 @@ pub struct CompositionObserverState {
 impl CompositionObserverState {
     pub fn new(algedonic_threshold: u64) -> Self {
         let mut variety_counters = HashMap::new();
-        variety_counters.insert("template".to_string(), VarietyCounter::new("template", 100));
-        variety_counters.insert("manifest".to_string(), VarietyCounter::new("manifest", 100));
-        variety_counters.insert("lexicon".to_string(), VarietyCounter::new("lexicon", 100));
+        variety_counters.insert("template".to_string(), VarietyMetrics::new("template", 100));
+        variety_counters.insert("manifest".to_string(), VarietyMetrics::new("manifest", 100));
+        variety_counters.insert("lexicon".to_string(), VarietyMetrics::new("lexicon", 100));
 
         Self {
             metrics: CompositionMetrics::new(),
@@ -289,7 +289,7 @@ impl CompositionObserver {
     }
 
     /// Check and generate algedonic alert if needed
-    pub fn check_algedonic(&self) -> Option<AlgedonicAlert> {
+    pub fn check_algedonic(&self) -> Option<RuntimeAlert> {
         let mut state = self.state.write().unwrap();
         let total_deficit = state.calculate_total_deficit();
 
@@ -302,7 +302,7 @@ impl CompositionObserver {
                 AlertSeverity::Info
             };
 
-            let alert = AlgedonicAlert::new(
+            let alert = RuntimeAlert::new(
                 "composition_variety_deficit",
                 total_deficit,
                 state.algedonic_threshold,

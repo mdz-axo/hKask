@@ -27,6 +27,7 @@ pub mod audit;
 pub mod capability_validator;
 pub mod cascade;
 pub mod config;
+pub mod context_assembly;
 pub mod contract_validator;
 pub mod contracts;
 pub mod curator_pipeline;
@@ -55,6 +56,9 @@ pub use contract_validator::{OkapiRequirements, RegistrationFrontmatter};
 pub use contracts::{
     InferenceConfig as InferenceConfigParsed, ParsedContract, ParsedInference, TemplateFrontmatter,
     parse_frontmatter, validate_lexicon_terms,
+};
+pub use context_assembly::{
+    AddResult, AssemblyStats, ContextAssembler, ContextFragment, FragmentSource,
 };
 pub use curator_pipeline::{CuratorPipeline, EvaluationResult, merge_outputs};
 pub use dependency::{DependencyGraph, parse_dependencies};

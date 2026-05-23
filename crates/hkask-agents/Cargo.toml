@@ -13,6 +13,7 @@ hkask-storage = { path = "../hkask-storage" }
 hkask-templates = { path = "../hkask-templates" }
 async-trait.workspace = true
 chrono.workspace = true
+reqwest.workspace = true
 rmcp.workspace = true
 gix.workspace = true
 serde.workspace = true
