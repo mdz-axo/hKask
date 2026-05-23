@@ -1,8 +1,10 @@
 //! OS keychain integration
 
 use hkask_types::WebID;
+use hkask_types::SecretRef;
 use keyring::{Entry, Error as KeyringError};
 use thiserror::Error;
+use zeroize::Zeroizing;
 
 #[derive(Error, Debug)]
 pub enum KeychainError {
@@ -71,7 +73,7 @@ impl Default for Keychain {
 }
 
 /// Key ring for holding cryptographic keys
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, zeroize::Zeroize, zeroize::ZeroizeOnDrop)]
 pub struct KeyRing {
     key: [u8; 32],
 }
@@ -108,5 +110,32 @@ pub fn get_or_create_ocap_secret(
             Ok(secret)
         }
         Err(e) => Err(e),
+    }
+}
+
+/// Resolve a SecretRef to actual secret bytes
+pub fn resolve(secret_ref: &SecretRef) -> Result<Zeroizing<Vec<u8>>, KeychainError> {
+    match secret_ref {
+        SecretRef::Env(var_name) => {
+            let value = std::env::var(var_name).map_err(|_| {
+                KeychainError::NotFound(format!("env var {} not set", var_name))
+            })?;
+            Ok(Zeroizing::new(value.into_bytes()))
+        }
+        SecretRef::Keychain(key_name) => {
+            let keychain = Keychain::default();
+            let entry = Entry::new(&keychain.service_name, key_name)
+                .map_err(|e| KeychainError::Platform(e.to_string()))?;
+            let secret = entry
+                .get_password()
+                .map_err(|e| KeychainError::NotFound(e.to_string()))?;
+            Ok(Zeroizing::new(secret.into_bytes()))
+        }
+        SecretRef::Generated(length) => {
+            let bytes: Vec<u8> = (0..*length as usize)
+                .map(|_| rand::random::<u8>())
+                .collect();
+            Ok(Zeroizing::new(bytes))
+        }
     }
 }

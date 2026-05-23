@@ -65,7 +65,7 @@ pub struct GoalCapabilityToken {
 }
 
 impl GoalCapabilityToken {
-    pub fn new(goal_id: GoalID, holder_webid: WebID, operations: Vec<GoalOp>) -> Self {
+    pub fn new(goal_id: GoalID, holder_webid: WebID, operations: Vec<GoalOp>, secret: &[u8]) -> Self {
         let id = format!("gct_{}", uuid::Uuid::new_v4().simple());
         let expires = Utc::now() + chrono::Duration::hours(24);
 
@@ -79,12 +79,12 @@ impl GoalCapabilityToken {
             hmac_signature: String::new(),
         };
 
-        token.hmac_signature = token.compute_hmac();
+        token.hmac_signature = token.compute_hmac(secret);
         token
     }
 
-    fn compute_hmac(&self) -> String {
-        let mut mac = HmacSha256::new_from_slice(b"hkask-goal-capability-key")
+    fn compute_hmac(&self, secret: &[u8]) -> String {
+        let mut mac = HmacSha256::new_from_slice(secret)
             .expect("HMAC can take key of any size");
         mac.update(self.id.as_bytes());
         mac.update(self.goal_id.to_string().as_bytes());
@@ -93,8 +93,8 @@ impl GoalCapabilityToken {
         hex::encode(mac.finalize().into_bytes())
     }
 
-    pub fn verify_signature(&self) -> bool {
-        let expected = self.compute_hmac();
+    pub fn verify_signature(&self, secret: &[u8]) -> bool {
+        let expected = self.compute_hmac(secret);
         expected == self.hmac_signature
     }
 
@@ -102,25 +102,24 @@ impl GoalCapabilityToken {
         Utc::now() > self.expires
     }
 
-    pub fn is_valid(&self) -> bool {
-        !self.is_expired() && self.verify_signature()
+    pub fn is_valid(&self, secret: &[u8]) -> bool {
+        !self.is_expired() && self.verify_signature(secret)
     }
 
-    pub fn can_perform(&self, operation: GoalOp) -> bool {
-        self.is_valid() && self.operations.contains(&operation)
+    pub fn can_perform(&self, operation: GoalOp, secret: &[u8]) -> bool {
+        self.is_valid(secret) && self.operations.contains(&operation)
     }
 
-    /// Attenuate capability — reduces permissions, halves expiration
-    pub fn attenuate(&self, new_operations: Vec<GoalOp>) -> Option<Self> {
+    pub fn attenuate(&self, new_operations: Vec<GoalOp>, secret: &[u8]) -> Option<Self> {
         if self.attenuation_level >= 7 {
             return None;
         }
 
         let mut attenuated =
-            GoalCapabilityToken::new(self.goal_id, self.holder_webid, new_operations);
+            GoalCapabilityToken::new(self.goal_id, self.holder_webid, new_operations, secret);
         attenuated.attenuation_level = self.attenuation_level + 1;
         attenuated.expires = Utc::now() + (self.expires - Utc::now()) / 2;
-        attenuated.hmac_signature = attenuated.compute_hmac();
+        attenuated.hmac_signature = attenuated.compute_hmac(secret);
         Some(attenuated)
     }
 }
@@ -185,15 +184,17 @@ mod tests {
     use crate::goal::Goal;
     use crate::visibility::Visibility;
 
+    const TEST_SECRET: &[u8] = b"hkask-test-secret-key-for-goals";
+
     #[test]
     fn capability_token_hmac_verifies() {
         let goal_id = GoalID::new();
         let webid = WebID::new();
         let operations = vec![GoalOp::Create, GoalOp::Read];
 
-        let token = GoalCapabilityToken::new(goal_id, webid, operations);
-        assert!(token.is_valid());
-        assert!(token.verify_signature());
+        let token = GoalCapabilityToken::new(goal_id, webid, operations, TEST_SECRET);
+        assert!(token.is_valid(TEST_SECRET));
+        assert!(token.verify_signature(TEST_SECRET));
     }
 
     #[test]
@@ -202,10 +203,10 @@ mod tests {
         let webid = WebID::new();
         let operations = vec![GoalOp::Create, GoalOp::Read];
 
-        let token = GoalCapabilityToken::new(goal_id, webid, operations);
+        let token = GoalCapabilityToken::new(goal_id, webid, operations, TEST_SECRET);
         let original_expires = token.expires;
 
-        let attenuated = token.attenuate(vec![GoalOp::Read]).unwrap();
+        let attenuated = token.attenuate(vec![GoalOp::Read], TEST_SECRET).unwrap();
         let expected_expires = Utc::now() + (original_expires - Utc::now()) / 2;
 
         assert_eq!(attenuated.attenuation_level, 1);
@@ -218,10 +219,10 @@ mod tests {
         let webid = WebID::new();
         let operations = vec![GoalOp::Create];
 
-        let mut token = GoalCapabilityToken::new(goal_id, webid, operations);
+        let mut token = GoalCapabilityToken::new(goal_id, webid, operations, TEST_SECRET);
         token.attenuation_level = 7;
 
-        let result = token.attenuate(vec![GoalOp::Read]);
+        let result = token.attenuate(vec![GoalOp::Read], TEST_SECRET);
         assert!(result.is_none());
     }
 

@@ -43,18 +43,28 @@ use zeroize::Zeroizing;
 /// Examples:
 /// - "tool:execute" -> (CapabilityResource::Tool, CapabilityAction::Execute)
 /// - "template:render" -> (CapabilityResource::Template, CapabilityAction::Render)
-/// - "agent:basic" -> (CapabilityResource::Tool, CapabilityAction::Execute) [default fallback]
-fn parse_capability(capability: &str) -> Option<(CapabilityResource, CapabilityAction)> {
+///
+/// # Errors
+/// Returns `AcpError::MalformedCapability` if the capability string is invalid
+fn parse_capability(capability: &str) -> Result<(CapabilityResource, CapabilityAction), AcpError> {
     let parts: Vec<&str> = capability.split(':').collect();
 
     if parts.len() != 2 {
-        return None;
+        return Err(AcpError::MalformedCapability(format!(
+            "Expected format 'resource:action', got '{}'",
+            capability
+        )));
     }
 
-    let resource = CapabilityResource::parse_str(parts[0])?;
-    let action = CapabilityAction::parse_str(parts[1])?;
+    let resource = CapabilityResource::parse_str(parts[0]).ok_or_else(|| {
+        AcpError::MalformedCapability(format!("Unknown resource type: {}", parts[0]))
+    })?;
+    
+    let action = CapabilityAction::parse_str(parts[1]).ok_or_else(|| {
+        AcpError::MalformedCapability(format!("Unknown action type: {}", parts[1]))
+    })?;
 
-    Some((resource, action))
+    Ok((resource, action))
 }
 
 /// ACP error types for security and validation
@@ -74,6 +84,9 @@ pub enum AcpError {
 
     #[error("Invalid capability: wildcards not allowed")]
     WildcardCapabilityNotAllowed,
+
+    #[error("Malformed capability: {0}")]
+    MalformedCapability(String),
 
     #[error("Message correlation ID not found: {0}")]
     CorrelationIdNotFound(String),
@@ -366,7 +379,7 @@ impl AcpRuntime {
             .unwrap_or_else(|| "agent:basic".to_string());
 
         let (resource, action) = parse_capability(&primary_capability)
-            .unwrap_or((CapabilityResource::Tool, CapabilityAction::Execute));
+            .map_err(|e| e.to_string())?;
 
         let token = self
             .root_authority
@@ -741,7 +754,15 @@ impl AuditLogPort for AuditLog {
 
 impl Default for AcpRuntime {
     fn default() -> Self {
-        Self::new(b"acp-default-secret-key", None)
+        let secret = hkask_keystore::resolve(
+            &hkask_types::SecretRef::env("HKASK_ACP_SECRET_KEY"),
+        )
+        .unwrap_or_else(|_| {
+            tracing::warn!("HKASK_ACP_SECRET_KEY not set, using generated secret");
+            hkask_keystore::resolve(&hkask_types::SecretRef::generated(32))
+                .expect("generated secret cannot fail")
+        });
+        Self::new(&secret, None)
     }
 }
 

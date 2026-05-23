@@ -77,8 +77,9 @@ sha2 = "0.10"
 hmac = "0.12"
 ed25519-dalek = "2"
 secrecy = "0.10"
-zeroize = "1"
+zeroize = { version = "1", features = ["zeroize_derive"] }
 hex = "0.4"
+subtle = "2"
 
 # Git
 gix = "0.81"

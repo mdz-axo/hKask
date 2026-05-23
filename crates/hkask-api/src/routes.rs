@@ -228,7 +228,7 @@ async fn create_pod(
     Json(req): Json<CreatePodRequest>,
 ) -> Result<Json<CreatePodResponse>, StatusCode> {
     use hkask_agents::pod::AgentPersona;
-    use hkask_types::{CapabilityAction, CapabilityResource};
+    use hkask_types::CapabilityResource;
 
     state.cns_emitter.emit_agent_pod(
         "api.pod.create.start",
@@ -241,13 +241,10 @@ async fn create_pod(
     let user_webid = state.system_webid;
 
     let has_capability = state.capability_checker.check_resource(
-        &hkask_types::CapabilityToken::new(
-            CapabilityResource::Tool,
+        &state.capability_checker.grant_tool(
             "pod".to_string(),
-            CapabilityAction::Execute,
             state.system_webid,
             user_webid,
-            b"temp-secret",
         ),
         &user_webid,
         CapabilityResource::Tool,

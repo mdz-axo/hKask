@@ -34,7 +34,7 @@
 //!
 //! // Create adapters
 //! let git_adapter = MockGitCas::new();
-//! let acp_adapter = AcpRuntimeAdapter::new();
+//! let acp_adapter = AcpRuntimeAdapter::default();
 //! let cns_emitter = CnsEmitterAdapter::new(WebID::new());
 //! let mcp_runtime = McpRuntimeAdapter::new();
 //!
@@ -779,7 +779,7 @@ impl PodManager {
             pods: Arc::new(RwLock::new(HashMap::new())),
             keystore: Keychain::default(),
             git_cas: GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-mock")),
-            acp_runtime: AcpRuntimeAdapter::new(),
+            acp_runtime: AcpRuntimeAdapter::default(),
             cns_emitter: CnsEmitterAdapter::new(WebID::new()),
             mcp_runtime: McpRuntimeAdapter::new(),
             memory_storage: Arc::new(Mutex::new(MemoryStorageAdapter::in_memory().unwrap())),
@@ -787,26 +787,12 @@ impl PodManager {
         }
     }
 
-    /// Get memory storage adapter for artifact persistence
-    pub fn memory_storage(&self) -> Arc<Mutex<MemoryStorageAdapter>> {
-        self.memory_storage.clone()
-    }
-
-    /// Get security context for rate limiting and validation
-    pub fn security_context(&self) -> &SecurityContext {
-        &self.security_context
-    }
-
-    /// Create PodManager with default configuration for production use
-    ///
-    /// Uses default paths and in-memory storage for quick start.
-    /// For production, use [`PodManagerBuilder`] for explicit configuration.
-    pub fn with_defaults() -> Self {
+    fn create_test_pod_manager_with_templates() -> PodManager {
         Self {
             pods: Arc::new(RwLock::new(HashMap::new())),
             keystore: Keychain::default(),
             git_cas: GitCasAdapter::from_path(PathBuf::from("./registry/templates")),
-            acp_runtime: AcpRuntimeAdapter::new(),
+            acp_runtime: AcpRuntimeAdapter::default(),
             cns_emitter: CnsEmitterAdapter::new(WebID::new()),
             mcp_runtime: McpRuntimeAdapter::new(),
             memory_storage: Arc::new(Mutex::new(MemoryStorageAdapter::in_memory().unwrap())),
@@ -912,7 +898,7 @@ impl PodManagerBuilder {
     ///
     /// Missing adapters are created with defaults:
     /// - Git CAS: `./registry/templates`
-    /// - ACP Runtime: `AcpRuntimeAdapter::new()`
+    /// - ACP Runtime: `AcpRuntimeAdapter::default()`
     /// - CNS Emitter: `CnsEmitterAdapter::new(WebID::new())`
     /// - MCP Runtime: `McpRuntimeAdapter::new()`
     /// - Memory Storage: In-memory database

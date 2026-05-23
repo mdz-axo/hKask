@@ -96,21 +96,22 @@ pub trait GoalRepositoryPort {
 /// SQLite goal repository implementation
 pub struct SqliteGoalRepository {
     conn: Arc<Connection>,
+    capability_secret: Vec<u8>,
 }
 
 impl SqliteGoalRepository {
-    pub fn new(conn: Arc<Connection>) -> Self {
-        Self { conn }
+    pub fn new(conn: Arc<Connection>, capability_secret: Vec<u8>) -> Self {
+        Self { conn, capability_secret }
     }
 
     /// Verify capability token is valid and authorized for operation
     fn verify_capability(&self, token: &GoalCapabilityToken, required_op: GoalOp) -> Result<()> {
-        if !token.is_valid() {
+        if !token.is_valid(&self.capability_secret) {
             return Err(GoalRepositoryError::CapabilityDenied(
                 "Token invalid or expired".to_string(),
             ));
         }
-        if !token.can_perform(required_op) {
+        if !token.can_perform(required_op, &self.capability_secret) {
             return Err(GoalRepositoryError::CapabilityDenied(format!(
                 "Missing capability for operation: {:?}",
                 required_op
@@ -470,7 +471,7 @@ mod tests {
         )
         .unwrap();
 
-        SqliteGoalRepository::new(conn)
+        SqliteGoalRepository::new(conn, b"hkask-test-goal-capability-key".to_vec())
     }
 
     fn create_test_token(webid: WebID, goal_id: GoalID) -> GoalCapabilityToken {
@@ -482,7 +483,7 @@ mod tests {
             GoalOp::CreateSubgoal,
             GoalOp::AddArtifact,
         ];
-        GoalCapabilityToken::new(goal_id, webid, operations)
+        GoalCapabilityToken::new(goal_id, webid, operations, b"hkask-test-goal-capability-key")
     }
 
     #[test]
@@ -713,7 +714,7 @@ mod tests {
         assert!(retrieved.is_some());
 
         // Create token for other user (should be denied access to private goal)
-        let other_token = GoalCapabilityToken::new(goal_id, other_webid, vec![GoalOp::Read]);
+        let other_token = GoalCapabilityToken::new(goal_id, other_webid, vec![GoalOp::Read], b"hkask-test-goal-capability-key");
 
         // Other user cannot access private goal
         let result = repo.get_goal(&other_token, goal.id);

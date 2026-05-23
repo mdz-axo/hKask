@@ -21,7 +21,7 @@
 //!
 //! // Create adapters
 //! let git_cas = GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-templates"));
-//! let acp_runtime = AcpRuntimeAdapter::new();
+//! let acp_runtime = AcpRuntimeAdapter::default();
 //! let cns_emitter = CnsEmitterAdapter::new(hkask_types::WebID::new());
 //! let mcp_runtime = McpRuntimeAdapter::new();
 //! let memory_storage = MemoryStorageAdapter::in_memory()?;

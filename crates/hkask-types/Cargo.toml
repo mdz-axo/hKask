@@ -17,4 +17,5 @@ hmac.workspace = true
 ed25519-dalek.workspace = true
 secrecy.workspace = true
 hex.workspace = true
+subtle.workspace = true
 base64 = "0.21"

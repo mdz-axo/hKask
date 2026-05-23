@@ -21,6 +21,7 @@ pub mod goal;
 pub mod goal_capability;
 pub mod id;
 pub mod lexicon;
+pub mod secret;
 pub mod sovereignty;
 pub mod template;
 pub mod visibility;
@@ -34,6 +35,7 @@ pub use goal::*;
 pub use goal_capability::*;
 pub use id::*;
 pub use lexicon::{Domain, HLexicon, LexiconTerm, TemplateType};
+pub use secret::SecretRef;
 // Re-export high-temp template types
 pub use template::{
     HighTempTemplateType, LLMParameters, TemperatureRange, TemplateId, TemplateInvocation,

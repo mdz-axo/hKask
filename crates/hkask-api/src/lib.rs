@@ -104,7 +104,7 @@ impl ApiState {
         system_webid: WebID,
     ) -> Self {
         let git_cas = GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-templates"));
-        let acp_runtime = AcpRuntimeAdapter::new();
+        let acp_runtime = AcpRuntimeAdapter::default();
         let observer_webid = WebID::new();
         let cns_emitter_adapter = CnsEmitterAdapter::new(observer_webid);
         let mcp_runtime_adapter = McpRuntimeAdapter::new();
@@ -400,13 +400,27 @@ pub struct SoapInferenceConfig {
 
 impl Default for SoapInferenceConfig {
     fn default() -> Self {
+        let capability_secret = hkask_keystore::resolve(
+            &hkask_types::SecretRef::env("HKASK_CAPABILITY_KEY"),
+        )
+        .map(|s| {
+            let mut arr = [0u8; 32];
+            let bytes: &[u8] = &s;
+            let len = bytes.len().min(32);
+            arr[..len].copy_from_slice(&bytes[..len]);
+            arr
+        })
+        .unwrap_or_else(|_| {
+            let mut arr = [0u8; 32];
+            for b in arr.iter_mut() {
+                *b = rand::random();
+            }
+            tracing::warn!("HKASK_CAPABILITY_KEY not set, using generated secret");
+            arr
+        });
+
         Self {
-            // DEV ONLY — load from keystore in production
-            capability_secret: [
-                0x68, 0x6b, 0x61, 0x73, 0x6b, 0x2d, 0x73, 0x6f, 0x61, 0x70, 0x2d, 0x69, 0x6e, 0x66,
-                0x65, 0x72, 0x2d, 0x6b, 0x65, 0x79, 0x2d, 0x32, 0x30, 0x32, 0x36, 0x2d, 0x30, 0x35,
-                0x2d, 0x32, 0x32, 0x21,
-            ],
+            capability_secret,
             max_events: 100,
             max_subjective_len: 4096,
             max_message_len: 1024,

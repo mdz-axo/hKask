@@ -12,6 +12,7 @@ hkask-templates = { path = "../hkask-templates" }
 hkask-mcp = { path = "../hkask-mcp" }
 hkask-cns = { path = "../hkask-cns" }
 hkask-ensemble = { path = "../hkask-ensemble" }
+hkask-keystore = { path = "../hkask-keystore" }
 axum.workspace = true
 utoipa.workspace = true
 utoipa-axum.workspace = true
@@ -25,3 +26,4 @@ tokio.workspace = true
 parking_lot.workspace = true
 uuid.workspace = true
 chrono.workspace = true
+rand.workspace = true

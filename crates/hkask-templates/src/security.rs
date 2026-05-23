@@ -446,12 +446,13 @@ impl crate::ports::SecurityPort for SecurityAdapter {
     }
     fn attenuate_capability(
         &self,
-        _token: &CapabilityToken,
-        _new_to: WebID,
-        _current_time: i64,
+        token: &CapabilityToken,
+        new_to: WebID,
+        current_time: i64,
     ) -> Option<CapabilityToken> {
-        // Stub implementation - attenuation handled by capability system
-        None
+        // Use the capability token's built-in attenuation method
+        // This ensures proper attenuation chain tracking and expiry reduction
+        token.attenuate(new_to, &self.secret, current_time)
     }
     fn validate_path(&self, path: &str) -> Result<()> {
         self.validate_template_path(path)

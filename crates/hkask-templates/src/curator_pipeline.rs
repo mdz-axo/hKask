@@ -166,12 +166,48 @@ impl CuratorPipeline {
     async fn check_ocap(&self, invocation: &TemplateInvocation) -> bool {
         let boundaries = self.ocap_boundaries.lock().await;
 
-        // Check if invocation has required authority
-        // In production, this would verify capability tokens
-        let _ = invocation;
-        let _ = boundaries;
+        // Check if any OCAP boundary denies this invocation
+        for boundary in boundaries.iter() {
+            if !boundary.enforced {
+                continue;
+            }
 
-        // Stub: always pass for now
+            // Check if the boundary applies to this template
+            if boundary.capability == invocation.template_id.to_string() 
+                || boundary.capability == "*" 
+            {
+                // Check authority level
+                match boundary.authority {
+                    hkask_types::AuthorityLevel::Denied => {
+                        tracing::warn!(
+                            "OCAP denied: bot {} attempted template {} (boundary: {})",
+                            invocation.bot_id,
+                            invocation.template_id,
+                            boundary.capability
+                        );
+                        return false;
+                    }
+                    hkask_types::AuthorityLevel::Explicit => {
+                        // Explicit authority required - in production, verify capability token
+                        // For now, log and allow (stub for token verification)
+                        tracing::debug!(
+                            "OCAP explicit: bot {} has explicit authority for template {}",
+                            invocation.bot_id,
+                            invocation.template_id
+                        );
+                    }
+                    hkask_types::AuthorityLevel::Implicit => {
+                        // Implicit authority - allow
+                        tracing::trace!(
+                            "OCAP implicit: bot {} has implicit authority for template {}",
+                            invocation.bot_id,
+                            invocation.template_id
+                        );
+                    }
+                }
+            }
+        }
+
         true
     }
 

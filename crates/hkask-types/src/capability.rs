@@ -246,9 +246,9 @@ impl CapabilityToken {
         hex::encode(mac.finalize().into_bytes())
     }
 
-    /// Verify the token signature
+    /// Verify the token signature using constant-time comparison
     pub fn verify(&self, secret: &[u8]) -> bool {
-        Self::sign(
+        let expected = Self::sign(
             &self.id,
             &self.resource,
             &self.resource_id,
@@ -256,7 +256,11 @@ impl CapabilityToken {
             &self.delegated_from,
             &self.delegated_to,
             secret,
-        ) == self.signature
+        );
+        
+        // Constant-time comparison to prevent timing attacks
+        use subtle::ConstantTimeEq;
+        expected.as_bytes().ct_eq(self.signature.as_bytes()).into()
     }
 
     /// Check if token is expired
