@@ -12,6 +12,7 @@
 
 pub mod cns_emitter;
 pub mod git_cas;
+pub mod keychain_adapter;
 pub mod keystore_port;
 pub mod loopback_http_transport;
 pub mod mcp_runtime;
@@ -20,6 +21,7 @@ pub mod stdio_transport;
 
 pub use cns_emitter::CnsEmitterAdapter;
 pub use git_cas::{GitCasAdapter, MockGitCas};
+pub use keychain_adapter::KeychainAdapter;
 pub use keystore_port::{KeystorePort, Secret};
 pub use loopback_http_transport::LoopbackHttpTransport;
 pub use mcp_runtime::McpRuntimeAdapter;

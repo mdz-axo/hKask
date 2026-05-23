@@ -1,15 +1,17 @@
 //! hKask Storage — SQLite + SQLCipher storage backend
 
+pub mod audit_log;
 pub mod blobs;
 pub mod database;
 pub mod embeddings;
 pub mod git_cas;
 pub mod goal_judge;
 pub mod goals;
-pub mod model_registry;
+pub mod nu_event_store;
 pub mod sovereignty;
 pub mod triples;
 
+pub use audit_log::{AuditEntry, AuditLogError, AuditLogStore};
 pub use blobs::{Blob, BlobError, BlobStore};
 pub use database::Database;
 pub use embeddings::{Embedding, EmbeddingError, EmbeddingStore};
@@ -18,7 +20,7 @@ pub use goal_judge::{GoalJudgeAdapter, GoalJudgeError, GoalVerifier};
 pub use goals::{
     GoalRepositoryError, GoalRepositoryPort, Result as GoalResult, SqliteGoalRepository,
 };
-pub use model_registry::{ModelCategory, ModelEntry, ModelRegistryStore, ModelStatus};
+pub use nu_event_store::{NuEventError, NuEventStore};
 pub use sovereignty::{
     SovereigntyBoundaryEntry, SovereigntyBoundaryStore, SovereigntyStoreError,
     SovereigntyStoreStats,

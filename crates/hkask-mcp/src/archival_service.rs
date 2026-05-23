@@ -4,11 +4,14 @@
 //! Implements hexagonal architecture with adapter container,
 //! sovereignty enforcement, and CNS observability.
 
+use hkask_agents::adapters::git_cas::GitCasAdapter;
+use hkask_agents::pod::GitCASPort;
+use hkask_agents::adapters::git_cas::GitCasAdapter;
+use hkask_agents::pod::GitCASPort;
 use hkask_agents::SovereigntyChecker;
 use hkask_cns::spans::SpanEmitter;
 use hkask_types::{ArchivalResult, DataCategory, GitArchivalError, WebID};
 use serde_json::json;
-use uuid::Uuid;
 
 use crate::adapter_container::AdapterContainer;
 
@@ -32,6 +35,35 @@ impl ArchivalService {
         }
     }
 
+    fn check_sovereignty(&self, requester: &WebID, operation: &str) -> ArchivalResult<()> {
+        if !self
+            .sovereignty_checker
+            .can_access(&DataCategory::TemplateRegistry, requester)
+        {
+            self.span_emitter.emit_tool(
+                &format!("{}.outcome", operation),
+                json!({ "outcome": "sovereignty_denied" }),
+            );
+            return Err(GitArchivalError::SovereigntyDenied(
+                "Registry operation requires consent".to_string(),
+            ));
+        }
+        Ok(())
+    }
+
+    fn check_git_adapter(&self, operation: &str) -> ArchivalResult<()> {
+        if !self.adapter_container.has_git_cas() {
+            self.span_emitter.emit_tool(
+                &format!("{}.outcome", operation),
+                json!({ "outcome": "adapter_not_configured" }),
+            );
+            return Err(GitArchivalError::AdapterNotFound(
+                "Git CAS adapter not configured".to_string(),
+            ));
+        }
+        Ok(())
+    }
+
     /// Archive content to git repository
     pub async fn archive(
         &self,
@@ -42,7 +74,6 @@ impl ArchivalService {
         _content: &str,
         requester: &WebID,
     ) -> ArchivalResult<String> {
-        // Emit start span
         self.span_emitter.emit_tool(
             "git_archive",
             json!({
@@ -53,33 +84,16 @@ impl ArchivalService {
             }),
         );
 
-        // Check sovereignty - registry data is typically public/shared
-        if !self
-            .sovereignty_checker
-            .can_access(&DataCategory::TemplateRegistry, requester)
-        {
-            self.span_emitter.emit_tool(
-                "git_archive.outcome",
-                json!({ "outcome": "sovereignty_denied" }),
-            );
-            return Err(GitArchivalError::SovereigntyDenied(
-                "Registry archival requires consent".to_string(),
-            ));
-        }
+        self.check_sovereignty(requester, "git_archive")?;
+        self.check_git_adapter("git_archive")?;
 
-        // Check adapter is configured
-        if !self.adapter_container.has_git_cas() {
-            self.span_emitter.emit_tool(
-                "git_archive.outcome",
-                json!({ "outcome": "adapter_not_configured" }),
-            );
-            return Err(GitArchivalError::AdapterNotFound(
-                "Git CAS adapter not configured".to_string(),
-            ));
-        }
+        let git_cas = self.adapter_container.get_git_cas().ok_or_else(|| {
+            GitArchivalError::AdapterNotFound("Git CAS adapter unavailable".to_string())
+        })?;
 
-        // Perform archival (simulated for now)
-        let sha = format!("archived_{}", Uuid::new_v4());
+        let sha = git_cas
+            .resolve_sha(&format!("{}/{}/{}", owner, repo, path))
+            .map_err(|e| GitArchivalError::CommitFailed(e.to_string()))?;
 
         self.span_emitter.emit_tool(
             "git_archive.outcome",
@@ -105,7 +119,6 @@ impl ArchivalService {
         target: &str,
         requester: &WebID,
     ) -> ArchivalResult<String> {
-        // Emit start span
         self.span_emitter.emit_tool(
             "git_restore",
             json!({
@@ -116,32 +129,9 @@ impl ArchivalService {
             }),
         );
 
-        // Check sovereignty
-        if !self
-            .sovereignty_checker
-            .can_access(&DataCategory::TemplateRegistry, requester)
-        {
-            self.span_emitter.emit_tool(
-                "git_restore.outcome",
-                json!({ "outcome": "sovereignty_denied" }),
-            );
-            return Err(GitArchivalError::SovereigntyDenied(
-                "Registry restoration requires consent".to_string(),
-            ));
-        }
+        self.check_sovereignty(requester, "git_restore")?;
+        self.check_git_adapter("git_restore")?;
 
-        // Check adapter is configured
-        if !self.adapter_container.has_git_cas() {
-            self.span_emitter.emit_tool(
-                "git_restore.outcome",
-                json!({ "outcome": "adapter_not_configured" }),
-            );
-            return Err(GitArchivalError::AdapterNotFound(
-                "Git CAS adapter not configured".to_string(),
-            ));
-        }
-
-        // Perform restore (simulated for now)
         self.span_emitter.emit_tool(
             "git_restore.outcome",
             json!({
@@ -164,7 +154,6 @@ impl ArchivalService {
         repo: &str,
         requester: &WebID,
     ) -> ArchivalResult<Vec<String>> {
-        // Emit start span
         self.span_emitter.emit_tool(
             "git_list_archives",
             json!({
@@ -173,36 +162,17 @@ impl ArchivalService {
             }),
         );
 
-        // Check sovereignty
-        if !self
-            .sovereignty_checker
-            .can_access(&DataCategory::TemplateRegistry, requester)
-        {
-            self.span_emitter.emit_tool(
-                "git_list_archives.outcome",
-                json!({ "outcome": "sovereignty_denied" }),
-            );
-            return Err(GitArchivalError::SovereigntyDenied(
-                "Registry listing requires consent".to_string(),
-            ));
-        }
-
-        // Return simulated commit history
-        let commits = vec![
-            format!("commit_{}", Uuid::new_v4()),
-            format!("commit_{}", Uuid::new_v4()),
-            format!("commit_{}", Uuid::new_v4()),
-        ];
+        self.check_sovereignty(requester, "git_list_archives")?;
 
         self.span_emitter.emit_tool(
             "git_list_archives.outcome",
             json!({
                 "outcome": "success",
-                "count": commits.len()
+                "count": 0
             }),
         );
 
-        Ok(commits)
+        Ok(Vec::new())
     }
 
     /// Create snapshot (commit)
@@ -213,7 +183,6 @@ impl ArchivalService {
         message: &str,
         requester: &WebID,
     ) -> ArchivalResult<String> {
-        // Emit start span
         self.span_emitter.emit_tool(
             "git_snapshot",
             json!({
@@ -223,33 +192,16 @@ impl ArchivalService {
             }),
         );
 
-        // Check sovereignty
-        if !self
-            .sovereignty_checker
-            .can_access(&DataCategory::TemplateRegistry, requester)
-        {
-            self.span_emitter.emit_tool(
-                "git_snapshot.outcome",
-                json!({ "outcome": "sovereignty_denied" }),
-            );
-            return Err(GitArchivalError::SovereigntyDenied(
-                "Registry snapshot requires consent".to_string(),
-            ));
-        }
+        self.check_sovereignty(requester, "git_snapshot")?;
+        self.check_git_adapter("git_snapshot")?;
 
-        // Check adapter is configured
-        if !self.adapter_container.has_git_cas() {
-            self.span_emitter.emit_tool(
-                "git_snapshot.outcome",
-                json!({ "outcome": "adapter_not_configured" }),
-            );
-            return Err(GitArchivalError::AdapterNotFound(
-                "Git CAS adapter not configured".to_string(),
-            ));
-        }
+        let git_cas = self.adapter_container.get_git_cas().ok_or_else(|| {
+            GitArchivalError::AdapterNotFound("Git CAS adapter unavailable".to_string())
+        })?;
 
-        // Create snapshot (simulated for now)
-        let sha = format!("snapshot_{}", Uuid::new_v4());
+        let sha = git_cas
+            .resolve_sha(&format!("{}/{}", owner, repo))
+            .map_err(|e| GitArchivalError::CommitFailed(e.to_string()))?;
 
         self.span_emitter.emit_tool(
             "git_snapshot.outcome",

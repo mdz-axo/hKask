@@ -617,7 +617,10 @@ pub trait GitCASPort {
     /// # Returns
     /// * `Ok(TemplateCrate)` — Loaded crate structure
     /// * `Err(GitError)` — Load error
-    fn load_template_crate(&self, crate_name: &str) -> Result<TemplateCrate, crate::error::GitError>;
+    fn load_template_crate(
+        &self,
+        crate_name: &str,
+    ) -> Result<TemplateCrate, crate::error::GitError>;
 
     /// Resolve the current Git SHA for a crate
     ///
@@ -634,7 +637,10 @@ pub trait GitCASPort {
 pub struct PlaceholderGitCAS;
 
 impl GitCASPort for PlaceholderGitCAS {
-    fn load_template_crate(&self, crate_name: &str) -> Result<TemplateCrate, crate::error::GitError> {
+    fn load_template_crate(
+        &self,
+        crate_name: &str,
+    ) -> Result<TemplateCrate, crate::error::GitError> {
         Ok(TemplateCrate {
             name: crate_name.to_string(),
             git_sha: "0000000000000000000000000000000000000000".to_string(),

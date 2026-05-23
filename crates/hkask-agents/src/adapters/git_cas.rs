@@ -36,11 +36,15 @@ impl GitCasAdapter {
         let path_str = path.to_string_lossy();
 
         if path_str.contains('\0') {
-            return Err(GitError::InvalidPath("Path contains null bytes".to_string()));
+            return Err(GitError::InvalidPath(
+                "Path contains null bytes".to_string(),
+            ));
         }
 
         if path.is_absolute() {
-            return Err(GitError::InvalidPath("Absolute paths not allowed".to_string()));
+            return Err(GitError::InvalidPath(
+                "Absolute paths not allowed".to_string(),
+            ));
         }
 
         for component in path.components() {

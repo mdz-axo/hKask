@@ -15,6 +15,19 @@ impl WebID {
     pub fn from_string(s: &str) -> Self {
         WebID(uuid::Uuid::parse_str(s).unwrap_or_else(|_| uuid::Uuid::new_v4()))
     }
+
+    /// Redacted display format — shows first 8 chars of UUID + "..."
+    /// Use at INFO level and below to prevent full UUID leakage in logs.
+    pub fn redacted_display(&self) -> String {
+        let full = self.0.to_string();
+        format!("{}...", &full[..8])
+    }
+
+    /// Full display format — shows complete UUID.
+    /// Use only at TRACE level with HKASK_TRACE_WEBIDS=1.
+    pub fn full_display(&self) -> String {
+        self.0.to_string()
+    }
 }
 
 impl Default for WebID {

@@ -42,7 +42,9 @@ impl MCPRuntimePort for McpRuntimeAdapter {
     ) -> Result<serde_json::Value, McpError> {
         let token_id = token.id.clone();
         if token_id.is_empty() {
-            return Err(McpError::CapabilityDenied("Invalid capability token".to_string()));
+            return Err(McpError::CapabilityDenied(
+                "Invalid capability token".to_string(),
+            ));
         }
 
         Ok(serde_json::json!({

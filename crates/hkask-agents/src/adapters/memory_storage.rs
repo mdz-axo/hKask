@@ -27,15 +27,14 @@ impl MemoryStorageAdapter {
 
     /// Create from database path and passphrase
     pub fn from_path(path: &str, passphrase: &str) -> Result<Self, MemoryError> {
-        let db = Database::open(path, passphrase)
-            .map_err(|e| MemoryError::Storage(e.to_string()))?;
+        let db =
+            Database::open(path, passphrase).map_err(|e| MemoryError::Storage(e.to_string()))?;
         Self::new(db)
     }
 
     /// Create in-memory database for testing
     pub fn in_memory() -> Result<Self, MemoryError> {
-        let db =
-            Database::in_memory().map_err(|e| MemoryError::Storage(e.to_string()))?;
+        let db = Database::in_memory().map_err(|e| MemoryError::Storage(e.to_string()))?;
         Self::new(db)
     }
 }
@@ -57,12 +56,12 @@ impl MemoryStoragePort for MemoryStorageAdapter {
 
         match artifact_type {
             "episodic_triple" | "semantic_triple" => {
-                let entity = content["entity"]
-                    .as_str()
-                    .ok_or_else(|| MemoryError::Serialization("Missing 'entity' field".to_string()))?;
-                let attribute = content["attribute"]
-                    .as_str()
-                    .ok_or_else(|| MemoryError::Serialization("Missing 'attribute' field".to_string()))?;
+                let entity = content["entity"].as_str().ok_or_else(|| {
+                    MemoryError::Serialization("Missing 'entity' field".to_string())
+                })?;
+                let attribute = content["attribute"].as_str().ok_or_else(|| {
+                    MemoryError::Serialization("Missing 'attribute' field".to_string())
+                })?;
                 let value = content["value"].clone();
 
                 let mut triple = Triple::new(entity, attribute, value, producer_webid)
@@ -82,7 +81,9 @@ impl MemoryStoragePort for MemoryStorageAdapter {
             "embedding" => {
                 let vector: Vec<f32> = content["vector"]
                     .as_array()
-                    .ok_or_else(|| MemoryError::Serialization("Missing 'vector' field".to_string()))?
+                    .ok_or_else(|| {
+                        MemoryError::Serialization("Missing 'vector' field".to_string())
+                    })?
                     .iter()
                     .filter_map(|v| v.as_f64().map(|f| f as f32))
                     .collect();

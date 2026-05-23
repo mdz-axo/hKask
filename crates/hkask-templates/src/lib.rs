@@ -36,7 +36,6 @@ pub mod engine;
 pub mod error;
 pub mod inference_port;
 pub mod manifest;
-pub mod model_catalog;
 pub mod multi_okapi;
 pub mod okapi_config;
 pub mod ports;
@@ -67,7 +66,6 @@ pub use inference_port::{
     invoke_template_with_okapi, invoke_template_with_selection,
 };
 pub use manifest::{ManifestExecutorImpl, ModelRequirements, SelectorConfig, SimpleExecutor};
-pub use model_catalog::seed_model_catalog;
 pub use okapi_config::{OkapiConfig, OkapiRetryConfig};
 pub use ports::{
     Action, CnsPort, CompositionTemplate, DEFAULT_MATROSHKA_LIMIT, FAST_LOCAL_MODEL,

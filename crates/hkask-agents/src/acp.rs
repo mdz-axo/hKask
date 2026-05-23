@@ -290,6 +290,8 @@ pub struct AcpRuntime {
     audit_log: Arc<AuditLog>,
     /// Root authority for OCAP capability delegation
     root_authority: Arc<RootAuthority>,
+    /// Revoked capability token IDs
+    revoked_tokens: Arc<RwLock<std::collections::HashSet<String>>>,
 }
 
 impl AcpRuntime {
@@ -329,6 +331,7 @@ impl AcpRuntime {
             rate_limiter,
             audit_log,
             root_authority,
+            revoked_tokens: Arc::new(RwLock::new(std::collections::HashSet::new())),
         })
     }
 
@@ -353,6 +356,7 @@ impl AcpRuntime {
             })),
             audit_log: Arc::new(AuditLog::new()),
             root_authority,
+            revoked_tokens: Arc::new(RwLock::new(std::collections::HashSet::new())),
         }
     }
 
@@ -530,9 +534,26 @@ impl AcpRuntime {
         pending.remove(correlation_id)
     }
 
-    /// Verify capability token
+    /// Verify capability token (HMAC signature + revocation check)
     pub fn verify_capability(&self, token: &CapabilityToken) -> bool {
-        token.verify(&self.secret)
+        if !token.verify(&self.secret) {
+            return false;
+        }
+
+        let revoked = self.revoked_tokens.blocking_read();
+        !revoked.contains(&token.id)
+    }
+
+    /// Revoke a capability token by ID
+    pub async fn revoke_capability(&self, token_id: &str) {
+        let mut revoked = self.revoked_tokens.write().await;
+        revoked.insert(token_id.to_string());
+    }
+
+    /// Check if a capability token has been revoked
+    pub async fn is_revoked(&self, token_id: &str) -> bool {
+        let revoked = self.revoked_tokens.read().await;
+        revoked.contains(token_id)
     }
 
     /// Delegate capability to another agent
@@ -729,45 +750,44 @@ impl Default for AuditLog {
 }
 
 /// Audit log port for external audit systems
-pub trait AuditLogPort {
+#[async_trait::async_trait]
+pub trait AuditLogPort: Send + Sync {
     /// Log an A2A message event
-    fn log(&self, entry: AuditLogEntry);
+    async fn log(&self, entry: AuditLogEntry);
 
     /// Get recent audit entries
-    fn get_recent(&self, count: usize) -> Vec<AuditLogEntry>;
+    async fn get_recent(&self, count: usize) -> Vec<AuditLogEntry>;
 
     /// Query audit log by WebID
-    fn get_by_webid(&self, webid: &WebID, count: usize) -> Vec<AuditLogEntry>;
+    async fn get_by_webid(&self, webid: &WebID, count: usize) -> Vec<AuditLogEntry>;
 }
 
+#[async_trait::async_trait]
 impl AuditLogPort for AuditLog {
-    fn log(&self, entry: AuditLogEntry) {
-        // Clone self reference for async task
-        let entries = Arc::clone(&self.entries);
-        let max_entries = self.max_entries;
+    async fn log(&self, entry: AuditLogEntry) {
+        let mut entries = self.entries.write().await;
+        entries.push(entry);
 
-        tokio::spawn(async move {
-            let mut entries_guard = entries.write().await;
-            entries_guard.push(entry);
-
-            // Trim if exceeding max entries
-            if entries_guard.len() > max_entries {
-                let drain_count = entries_guard.len() - max_entries;
-                entries_guard.drain(0..drain_count);
-            }
-        });
+        if entries.len() > self.max_entries {
+            let drain_count = entries.len() - self.max_entries;
+            entries.drain(0..drain_count);
+        }
     }
 
-    fn get_recent(&self, count: usize) -> Vec<AuditLogEntry> {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(self.get_recent(count))
-        })
+    async fn get_recent(&self, count: usize) -> Vec<AuditLogEntry> {
+        let entries = self.entries.read().await;
+        entries.iter().rev().take(count).cloned().collect()
     }
 
-    fn get_by_webid(&self, webid: &WebID, count: usize) -> Vec<AuditLogEntry> {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(self.get_by_webid(webid, count))
-        })
+    async fn get_by_webid(&self, webid: &WebID, count: usize) -> Vec<AuditLogEntry> {
+        let entries = self.entries.read().await;
+        entries
+            .iter()
+            .rev()
+            .filter(|e| &e.from == webid || e.to.as_ref() == Some(webid))
+            .take(count)
+            .cloned()
+            .collect()
     }
 }
 

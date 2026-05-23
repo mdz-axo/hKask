@@ -16,11 +16,7 @@ members = [
     # MCP servers (excluded from budget)
     # Original 10 (subset - some not yet implemented)
     "mcp-servers/hkask-mcp-inference",
-    # "mcp-servers/hkask-mcp-storage",    # Not implemented
-    # "mcp-servers/hkask-mcp-memory",     # Not implemented
-    "mcp-servers/hkask-mcp-embedding",
     "mcp-servers/hkask-mcp-condenser",
-    # "mcp-servers/hkask-mcp-ensemble",   # Not implemented
     "mcp-servers/hkask-mcp-web",
     "mcp-servers/hkask-mcp-scholar",
     # "mcp-servers/hkask-mcp-spandrel",  # Converted to templates (Action 1)

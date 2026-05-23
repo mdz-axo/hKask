@@ -10,6 +10,30 @@ use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
+/// Default embedding dimension (configurable via HKASK_EMBEDDING_DIM)
+pub const DEFAULT_EMBEDDING_DIM: usize = 384;
+
+/// Get embedding dimension from environment or default
+pub fn embedding_dim() -> usize {
+    std::env::var("HKASK_EMBEDDING_DIM")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(DEFAULT_EMBEDDING_DIM)
+}
+
+fn load_sqlite_vec() -> Result<(), DatabaseError> {
+    use std::sync::Once;
+    static INIT: Once = Once::new();
+    INIT.call_once(|| {
+        unsafe {
+            rusqlite::ffi::sqlite3_auto_extension(Some(std::mem::transmute(
+                sqlite_vec::sqlite3_vec_init as *const (),
+            )));
+        }
+    });
+    Ok(())
+}
+
 /// Salt size for SQLCipher key derivation
 pub const SQLCIPHER_SALT_SIZE: usize = 16;
 
@@ -41,6 +65,7 @@ pub struct Database {
 impl Database {
     /// Open database with passphrase for encryption
     pub fn open(path: &str, passphrase: &str) -> Result<Self, DatabaseError> {
+        load_sqlite_vec()?;
         if passphrase.is_empty() {
             return Err(DatabaseError::KeyDerivation(
                 "Passphrase cannot be empty".to_string(),
@@ -81,6 +106,7 @@ impl Database {
 
     /// Open in-memory database (unencrypted, for testing)
     pub fn in_memory() -> Result<Self, DatabaseError> {
+        load_sqlite_vec()?;
         let conn = Connection::open_in_memory()?;
         Self::initialize_schema(&conn)?;
         Ok(Self {
@@ -102,11 +128,19 @@ impl Database {
     }
 
     fn initialize_schema(conn: &Connection) -> Result<(), DatabaseError> {
+        let dim = embedding_dim();
         conn.execute_batch(
+            &format!(
             "CREATE TABLE IF NOT EXISTS triples (id TEXT PRIMARY KEY, entity TEXT NOT NULL, attribute TEXT NOT NULL, value TEXT NOT NULL, valid_from TEXT NOT NULL, valid_to TEXT, transaction_at TEXT DEFAULT (datetime('now')), confidence REAL NOT NULL DEFAULT 1.0, perspective TEXT, visibility TEXT NOT NULL DEFAULT 'private', owner_webid TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS embeddings (id TEXT PRIMARY KEY, entity_ref TEXT REFERENCES triples(id), vector BLOB NOT NULL, dimensions INTEGER NOT NULL, model TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));
+            CREATE VIRTUAL TABLE IF NOT EXISTS vec_embeddings USING vec0(id TEXT PRIMARY KEY, embedding float[{dim}]);
             CREATE TABLE IF NOT EXISTS nu_events (id TEXT PRIMARY KEY, timestamp TEXT NOT NULL, observer_webid TEXT NOT NULL, span_category TEXT NOT NULL, span_path TEXT NOT NULL, phase TEXT NOT NULL, observation TEXT NOT NULL, regulation TEXT, outcome TEXT, recursion_depth INTEGER NOT NULL, parent_event TEXT, visibility TEXT NOT NULL DEFAULT 'private');
-            CREATE TABLE IF NOT EXISTS blobs (id TEXT PRIMARY KEY, content_type TEXT NOT NULL, size INTEGER NOT NULL, blake3_hash TEXT NOT NULL, data BLOB NOT NULL, created_at TEXT DEFAULT (datetime('now')), visibility TEXT NOT NULL DEFAULT 'private', owner_webid TEXT NOT NULL);"
+            CREATE TABLE IF NOT EXISTS blobs (id TEXT PRIMARY KEY, content_type TEXT NOT NULL, size INTEGER NOT NULL, blake3_hash TEXT NOT NULL, data BLOB NOT NULL, created_at TEXT DEFAULT (datetime('now')), visibility TEXT NOT NULL DEFAULT 'private', owner_webid TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS audit_log (id TEXT PRIMARY KEY, timestamp TEXT NOT NULL, actor_webid TEXT NOT NULL, action TEXT NOT NULL, resource TEXT NOT NULL, outcome TEXT NOT NULL, details TEXT, ip_address TEXT, created_at TEXT DEFAULT (datetime('now')));
+            CREATE INDEX IF NOT EXISTS idx_audit_log_timestamp ON audit_log(timestamp);
+            CREATE INDEX IF NOT EXISTS idx_audit_log_actor ON audit_log(actor_webid);
+            CREATE TABLE IF NOT EXISTS cns_variety_checkpoint (domain TEXT PRIMARY KEY, variety_count INTEGER NOT NULL, last_updated TEXT NOT NULL, threshold INTEGER NOT NULL DEFAULT 10);
+            CREATE TABLE IF NOT EXISTS cns_alerts (id TEXT PRIMARY KEY, timestamp TEXT NOT NULL, alert_type TEXT NOT NULL, severity TEXT NOT NULL, domain TEXT, message TEXT NOT NULL, resolved INTEGER NOT NULL DEFAULT 0, resolved_at TEXT);")
         )?;
         Ok(())
     }

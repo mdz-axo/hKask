@@ -1,6 +1,6 @@
 //! CNS span emission with full categorization
 
-use hkask_types::{NuEvent, Span, WebID};
+use hkask_types::{NuEvent, NuEventSink, Span, WebID};
 use serde_json::Value;
 use tracing::info;
 
@@ -79,19 +79,29 @@ impl SpanCategory {
 /// CNS span emitter
 pub struct SpanEmitter {
     observer_webid: WebID,
+    sink: Option<Box<dyn NuEventSink>>,
 }
 
 impl Default for SpanEmitter {
     fn default() -> Self {
         Self {
             observer_webid: WebID::new(),
+            sink: None,
         }
     }
 }
 
 impl SpanEmitter {
     pub fn new(observer_webid: WebID) -> Self {
-        Self { observer_webid }
+        Self {
+            observer_webid,
+            sink: None,
+        }
+    }
+
+    pub fn with_sink(mut self, sink: Box<dyn NuEventSink>) -> Self {
+        self.sink = Some(sink);
+        self
     }
 
     /// Emit a CNS span event
@@ -103,6 +113,12 @@ impl SpanEmitter {
             observation,
             0,
         );
+
+        if let Some(sink) = &self.sink {
+            if let Err(e) = sink.persist(&event) {
+                tracing::warn!(target: "cns", error = %e, "Failed to persist CNS event");
+            }
+        }
 
         info!(
             target: "cns",
