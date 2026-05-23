@@ -33,12 +33,15 @@ pub mod dependency;
 pub mod engine;
 pub mod inference_port;
 pub mod manifest;
+pub mod model_catalog;
+pub mod okapi_config;
 pub mod ports;
 pub mod provenance;
 pub mod registry;
 pub mod registry_git;
 pub mod registry_sqlite;
 pub mod renderer;
+pub mod resilience;
 pub mod russell_mapper;
 
 pub use audit::{AuditStats, AuditTrail, ExecutionAudit};
@@ -56,6 +59,8 @@ pub use inference_port::{
     invoke_template_with_okapi, invoke_template_with_selection,
 };
 pub use manifest::{ManifestExecutorImpl, ModelRequirements, SelectorConfig, SimpleExecutor};
+pub use model_catalog::seed_model_catalog;
+pub use okapi_config::{OkapiConfig, RetryConfig};
 pub use ports::{
     Action, CnsPort, CompositionTemplate, DEFAULT_MATROSHKA_LIMIT, FAST_LOCAL_MODEL,
     InferenceConfig, InferencePort as InferencePortTrait, ManifestExecutor, ManifestStep, McpPort,
@@ -66,6 +71,7 @@ pub use provenance::{ProvenanceManager, TemplateProvenance};
 pub use registry::{Registry, TemplateEntry};
 pub use registry_git::GitRegistry;
 pub use registry_sqlite::SqliteRegistry;
+pub use resilience::{CircuitBreaker, CircuitBreakerConfig, CircuitState};
 pub use russell_mapper::{
     FieldMapping, FieldMappings, IdTransformation, MappedTemplate, MappingMeta, ModelTierSelection,
     RussellMapper, RussellMappingConfig, RussellSkillManifest, TemplateTypeInference, TierRule,

@@ -11,6 +11,7 @@ hkask-agents = { path = "../hkask-agents" }
 hkask-templates = { path = "../hkask-templates" }
 hkask-mcp = { path = "../hkask-mcp" }
 hkask-cns = { path = "../hkask-cns" }
+hkask-ensemble = { path = "../hkask-ensemble" }
 axum.workspace = true
 utoipa.workspace = true
 utoipa-axum.workspace = true

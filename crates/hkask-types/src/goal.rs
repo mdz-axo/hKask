@@ -215,12 +215,12 @@ mod tests {
     fn goal_transition_to_completed_sets_timestamp() {
         let webid = WebID::new();
         let mut goal = Goal::new(webid, "Test goal", Visibility::Private);
-        
+
         assert!(!goal.is_terminal());
         assert!(goal.completed_at.is_none());
-        
+
         goal.complete();
-        
+
         assert!(goal.is_terminal());
         assert!(goal.completed_at.is_some());
         assert_eq!(goal.state, GoalState::Completed);
@@ -230,11 +230,11 @@ mod tests {
     fn goal_can_have_subgoals_returns_false_at_depth_7() {
         let webid = WebID::new();
         let mut goal = Goal::new(webid, "Test goal", Visibility::Private);
-        
+
         // Set depth to 6 (can still have subgoals)
         goal.depth = 6;
         assert!(goal.can_have_subgoals());
-        
+
         // Set depth to 7 (cannot have subgoals)
         goal.depth = 7;
         assert!(!goal.can_have_subgoals());
@@ -245,7 +245,7 @@ mod tests {
         let verdict = GoalVerdict::Done;
         let serialized = serde_json::to_string(&verdict).unwrap();
         assert_eq!(serialized, "\"done\"");
-        
+
         let deserialized: GoalVerdict = serde_json::from_str(&serialized).unwrap();
         assert_eq!(deserialized, GoalVerdict::Done);
     }
@@ -255,7 +255,7 @@ mod tests {
         let goal_id = GoalID::new();
         let verification = GoalVerification::new(goal_id, GoalVerdict::Done, "Test", 1.5);
         assert_eq!(verification.confidence, 1.0);
-        
+
         let verification = GoalVerification::new(goal_id, GoalVerdict::Done, "Test", -0.5);
         assert_eq!(verification.confidence, 0.0);
     }

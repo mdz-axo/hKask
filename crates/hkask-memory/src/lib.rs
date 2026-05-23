@@ -7,5 +7,7 @@ pub mod semantic;
 
 pub use bayesian::BayesianOps;
 pub use episodic::EpisodicMemory;
-pub use goal_memory::{GoalEpisodicMemory, GoalMemory, GoalMemoryPort, GoalSemanticMemory, MemoryError};
+pub use goal_memory::{
+    GoalEpisodicMemory, GoalMemory, GoalMemoryPort, GoalSemanticMemory, MemoryError,
+};
 pub use semantic::SemanticMemory;

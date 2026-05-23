@@ -190,7 +190,7 @@ mod tests {
         let goal_id = GoalID::new();
         let webid = WebID::new();
         let operations = vec![GoalOp::Create, GoalOp::Read];
-        
+
         let token = GoalCapabilityToken::new(goal_id, webid, operations);
         assert!(token.is_valid());
         assert!(token.verify_signature());
@@ -201,13 +201,13 @@ mod tests {
         let goal_id = GoalID::new();
         let webid = WebID::new();
         let operations = vec![GoalOp::Create, GoalOp::Read];
-        
+
         let token = GoalCapabilityToken::new(goal_id, webid, operations);
         let original_expires = token.expires;
-        
+
         let attenuated = token.attenuate(vec![GoalOp::Read]).unwrap();
         let expected_expires = Utc::now() + (original_expires - Utc::now()) / 2;
-        
+
         assert_eq!(attenuated.attenuation_level, 1);
         assert!((attenuated.expires - expected_expires).num_seconds() < 1);
     }
@@ -217,10 +217,10 @@ mod tests {
         let goal_id = GoalID::new();
         let webid = WebID::new();
         let operations = vec![GoalOp::Create];
-        
+
         let mut token = GoalCapabilityToken::new(goal_id, webid, operations);
         token.attenuation_level = 7;
-        
+
         let result = token.attenuate(vec![GoalOp::Read]);
         assert!(result.is_none());
     }
@@ -229,7 +229,7 @@ mod tests {
     fn goal_access_private_owner() {
         let webid = WebID::new();
         let goal = Goal::new(webid, "Test", Visibility::Private);
-        
+
         let access = GoalAccess::check(&goal, &webid);
         assert_eq!(access, GoalAccess::Owner);
         assert!(access.can_read());
@@ -242,7 +242,7 @@ mod tests {
         let owner_webid = WebID::new();
         let other_webid = WebID::new();
         let goal = Goal::new(owner_webid, "Test", Visibility::Private);
-        
+
         let access = GoalAccess::check(&goal, &other_webid);
         assert_eq!(access, GoalAccess::Denied);
         assert!(!access.can_read());

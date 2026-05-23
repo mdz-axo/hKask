@@ -49,11 +49,7 @@ impl GoalVarietyCounter {
     }
 
     pub fn emit_algedonic_alert(&self) -> AlgedonicAlert {
-        AlgedonicAlert::new(
-            self.active_goal_count,
-            self.threshold,
-            CnsSpan::Goal,
-        )
+        AlgedonicAlert::new(self.active_goal_count, self.threshold, CnsSpan::Goal)
     }
 
     pub fn variety_counter(&self) -> VarietyCounter {
@@ -83,13 +79,13 @@ impl GoalVarietyMonitor {
 
     pub fn check_all(&mut self) -> Vec<AlgedonicAlert> {
         let mut alerts = Vec::new();
-        
+
         for counter in self.counters.values_mut() {
             if counter.needs_alert() {
                 alerts.push(counter.emit_algedonic_alert());
             }
         }
-        
+
         alerts
     }
 

@@ -23,7 +23,8 @@
 //! - `POST /api/sovereignty/consent/grant` — Grant explicit consent
 //! - `POST /api/sovereignty/consent/revoke` — Revoke explicit consent
 //! - `GET /api/sovereignty/killzone` — Kill zone status
-//! - `GET /api/sovereignty/access/check` — Check data access permissions
+//! - `GET /api/sovereignty/access/check` — Check data access status
+//! - `POST /api/llm/infer` — SOAP inference endpoint for Russell
 
 use hkask_agents::adapters::acp_runtime::AcpRuntimeAdapter;
 use hkask_agents::adapters::cns_emitter::CnsEmitterAdapter;
@@ -65,6 +66,8 @@ pub struct ApiState {
     pub cns_emitter: Arc<SpanEmitter>,
     /// Rate limiter for API endpoints
     pub rate_limiter: Arc<RateLimiter>,
+    /// Ensemble inferencer (optional - for Russell SOAP inference)
+    pub ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::OkapiHttpClient>>,
 }
 
 impl ApiState {
@@ -74,6 +77,7 @@ impl ApiState {
         pod_manager: PodManager,
         capability_secret: &[u8],
         system_webid: WebID,
+        ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::OkapiHttpClient>>,
     ) -> Self {
         let observer_webid = WebID::new();
         let rate_limiter = RateLimiter::new(RateLimitConfig {
@@ -88,6 +92,7 @@ impl ApiState {
             system_webid,
             cns_emitter: Arc::new(SpanEmitter::new(observer_webid)),
             rate_limiter: Arc::new(rate_limiter),
+            ensemble_inferencer,
         }
     }
 
@@ -117,6 +122,27 @@ impl ApiState {
             pod_manager,
             capability_secret,
             system_webid,
+            None,
+        )
+    }
+
+    /// Create ApiState with ensemble inferencer
+    pub fn with_ensemble_inferencer(
+        registry: SqliteRegistry,
+        mcp_runtime: hkask_mcp::runtime::McpRuntime,
+        pod_manager: PodManager,
+        capability_secret: &[u8],
+        system_webid: WebID,
+        okapi_base_url: &str,
+    ) -> Self {
+        let inferencer = Arc::new(hkask_ensemble::adapters::OkapiHttpClient::new(okapi_base_url));
+        Self::new(
+            registry,
+            mcp_runtime,
+            pod_manager,
+            capability_secret,
+            system_webid,
+            Some(inferencer),
         )
     }
 }
@@ -174,6 +200,57 @@ pub struct CnsVarietyResponse {
     pub domains: Vec<String>,
     pub total_deficit: u64,
     pub counters: HashMap<String, VarietyCounterResponse>,
+}
+
+/// SOAP inference request from Russell
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct SoapInferRequest {
+    /// Subjective: operator note or context
+    pub subjective: Option<String>,
+    /// Objective: telemetry data
+    pub objective: ObjectiveData,
+    /// Assessment: left empty for LLM to fill
+    pub assessment: String,
+    /// Plan: left empty for LLM to fill
+    pub plan: String,
+}
+
+/// Telemetry data from Russell
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct ObjectiveData {
+    /// Severity counts from recent events
+    pub severity_counts: SeverityCounts,
+    /// Recent journal events
+    pub recent_events: Vec<EventRecord>,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct SeverityCounts {
+    pub crit: u64,
+    pub alert: u64,
+    pub warn: u64,
+    pub info: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct EventRecord {
+    pub probe: String,
+    pub severity: String,
+    pub message: String,
+    pub ts: String,
+}
+
+/// SOAP inference response
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct SoapInferResponse {
+    /// LLM response text
+    pub response: String,
+    /// Model used
+    pub model: String,
+    /// Latency in milliseconds
+    pub latency_ms: u64,
+    /// ACTION: proposals (if any)
+    pub actions: Vec<String>,
 }
 
 /// Tool response
@@ -236,6 +313,7 @@ pub fn create_router(state: ApiState) -> OpenApiRouter {
         .merge(routes::sovereignty_router().into())
         .merge(routes::chat_router().into())
         .merge(routes::ensemble_router().into())
+        .merge(routes::soap_infer_router().into())
         .with_state(state)
 }
 

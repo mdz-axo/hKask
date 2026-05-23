@@ -4,6 +4,8 @@
 //! with temperature-controlled parameters for anti-normative generation.
 
 use crate::manifest::ModelRequirements;
+use crate::okapi_config::{OkapiConfig, RetryConfig, validate_prompt};
+use crate::resilience::{CircuitBreaker, CircuitBreakerConfig};
 use async_trait::async_trait;
 use hkask_cns::{RateLimiter, SpanEmitter};
 use hkask_types::{BotID, LLMParameters, TemplateId, TemplateInvocation, TemplateOutcome, WebID};
@@ -12,61 +14,6 @@ use serde_json::Value;
 use std::sync::Arc;
 use thiserror::Error;
 use tracing::{info, warn};
-
-/// Okapi configuration
-#[derive(Debug, Clone)]
-pub struct OkapiConfig {
-    pub base_url: String,
-    pub api_key: Option<String>,
-}
-
-impl OkapiConfig {
-    pub fn local_dev() -> Self {
-        Self {
-            base_url: "http://localhost:11434".to_string(),
-            api_key: None,
-        }
-    }
-
-    pub fn build_client(&self) -> Result<reqwest::Client, InferenceError> {
-        Ok(reqwest::Client::new())
-    }
-
-    pub fn get_authorization_header(&self) -> Option<String> {
-        self.api_key.as_ref().map(|key| format!("Bearer {}", key))
-    }
-}
-
-/// Retry configuration
-#[derive(Debug, Clone)]
-pub struct RetryConfig {
-    pub max_retries: u32,
-    pub delay_ms: u64,
-}
-
-impl Default for RetryConfig {
-    fn default() -> Self {
-        Self {
-            max_retries: 3,
-            delay_ms: 1000,
-        }
-    }
-}
-
-impl RetryConfig {
-    pub fn is_retryable_status(&self, _status: u16) -> bool {
-        true
-    }
-
-    pub fn delay_for_attempt(&self, attempt: u32) -> std::time::Duration {
-        std::time::Duration::from_millis(self.delay_ms * (attempt as u64))
-    }
-}
-
-/// Validate prompt before inference
-pub fn validate_prompt(_prompt: &str) -> Result<(), String> {
-    Ok(())
-}
 
 #[derive(Error, Debug)]
 pub enum InferenceError {
@@ -165,6 +112,8 @@ pub struct OkapiInference {
     bot_id: Option<WebID>,
     /// CNS span emitter
     span_emitter: SpanEmitter,
+    /// Circuit breaker for resilience
+    circuit_breaker: Option<Arc<CircuitBreaker>>,
 }
 
 impl OkapiInference {
@@ -181,6 +130,7 @@ impl OkapiInference {
             rate_limiter: None,
             bot_id: None,
             span_emitter: SpanEmitter::default(),
+            circuit_breaker: None,
         })
     }
 
@@ -201,6 +151,7 @@ impl OkapiInference {
             rate_limiter: None,
             bot_id: None,
             span_emitter: SpanEmitter::default(),
+            circuit_breaker: None,
         })
     }
 
@@ -223,6 +174,29 @@ impl OkapiInference {
             rate_limiter: Some(Arc::new(rate_limiter)),
             bot_id: Some(bot_id),
             span_emitter: SpanEmitter::default(),
+            circuit_breaker: None,
+        })
+    }
+
+    pub fn with_circuit_breaker(
+        model: &str,
+        config: OkapiConfig,
+        retry_config: RetryConfig,
+        circuit_breaker: CircuitBreaker,
+    ) -> Result<Self, InferenceError> {
+        let client = config
+            .build_client()
+            .map_err(|e| InferenceError::Connection(e.to_string()))?;
+
+        Ok(Self {
+            model: model.to_string(),
+            retry_config,
+            config,
+            client,
+            rate_limiter: None,
+            bot_id: None,
+            span_emitter: SpanEmitter::default(),
+            circuit_breaker: Some(Arc::new(circuit_breaker)),
         })
     }
 
@@ -241,6 +215,24 @@ impl OkapiInference {
         &self,
         request: OkapiRequest,
     ) -> Result<InferenceResult, InferenceError> {
+        // Check circuit breaker before request
+        if let Some(ref cb) = self.circuit_breaker {
+            if !cb.allow_request() {
+                // Emit CNS span for circuit open
+                self.span_emitter.emit_connector(
+                    "circuit_open",
+                    serde_json::json!({
+                        "model": self.model,
+                        "action": "inference.execute_request",
+                        "reason": "circuit_breaker_open"
+                    }),
+                );
+                return Err(InferenceError::Connection(
+                    "Circuit breaker is open".to_string(),
+                ));
+            }
+        }
+
         let mut req = self
             .client
             .post(format!("{}/api/generate", self.config.base_url))
@@ -259,6 +251,11 @@ impl OkapiInference {
         let status = response.status();
         if !status.is_success() {
             let error_text = response.text().await.unwrap_or_default();
+
+            // Record failure in circuit breaker
+            if let Some(ref cb) = self.circuit_breaker {
+                cb.record_failure();
+            }
 
             // Check if retryable
             if self.retry_config.is_retryable_status(status.as_u16()) {
@@ -302,6 +299,11 @@ impl OkapiInference {
                 })
                 .collect()
         });
+
+        // Record success in circuit breaker
+        if let Some(ref cb) = self.circuit_breaker {
+            cb.record_success();
+        }
 
         Ok(InferenceResult {
             text: choice.message.content.clone(),

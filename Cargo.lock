@@ -2513,6 +2513,7 @@ dependencies = [
  "chrono",
  "hkask-agents",
  "hkask-cns",
+ "hkask-ensemble",
  "hkask-mcp",
  "hkask-templates",
  "hkask-types",
@@ -2923,7 +2924,6 @@ name = "hkask-storage"
 version = "0.1.0"
 dependencies = [
  "argon2",
- "async-trait",
  "blake3",
  "chrono",
  "gix",
