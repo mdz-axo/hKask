@@ -17,8 +17,8 @@
 use clap::{Parser, Subcommand};
 use hkask_mcp::runtime::McpRuntime;
 use hkask_templates::{
-    FieldMapping, FieldMappings, IdTransformation, MappingMeta, ModelTierSelection, RegistryIndex,
-    RussellMappingConfig, SqliteRegistry, TemplateTypeInference,
+    FieldMapping, FieldMappings, IdTransformation, InferencePort, MappingMeta, ModelTierSelection,
+    OkapiConfig, OkapiInference, RussellMappingConfig, SqliteRegistry, TemplateTypeInference,
 };
 use hkask_types::TemplateType as Type;
 use std::io::{self, BufRead, Write};
@@ -580,30 +580,59 @@ fn run_chat_interactive(
             break;
         }
 
-        // Process input
-        let response = process_chat_input(registry, input, template_id);
+        // Process input with Okapi inference
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let response = rt.block_on(process_chat_input_async(registry, input, template_id));
         println!("Curator: {}\n", response);
     }
 }
 
-fn process_chat_input(registry: &SqliteRegistry, input: &str, template_id: Option<&str>) -> String {
-    // Simple echo/response for now - TODO: Implement actual template processing
-    match template_id {
-        Some(id) => match registry.get(id) {
-            Ok(_entry) => format!("Processing with template '{}': {}", id, input),
-            Err(_) => format!("Template '{}' not found. Using default response.", id),
-        },
+async fn process_chat_input_async(
+    _registry: &SqliteRegistry,
+    input: &str,
+    template_id: Option<&str>,
+) -> String {
+    use hkask_types::LLMParameters;
+
+    // Initialize Okapi inference client
+    let config = OkapiConfig::local_dev();
+    let model = "qwen3:8b";
+
+    let inference = match OkapiInference::new(model, config) {
+        Ok(i) => i,
+        Err(e) => return format!("Failed to initialize Okapi: {}", e),
+    };
+
+    // Build prompt based on template selection
+    let prompt = match template_id {
+        Some(id) => format!("[template: {}] {}", id, input),
         None => {
-            // Auto-select template based on input
+            // Auto-select template based on input type
             if input.contains('?') || input.contains("what") || input.contains("how") {
-                "I'll help answer your question. (Question template would process this)".to_string()
+                format!("Answer concisely: {}", input)
             } else if input.contains("create") || input.contains("make") || input.contains("build")
             {
-                "I'll help you create that. (Action template would process this)".to_string()
+                format!("Provide step-by-step instructions: {}", input)
             } else {
-                format!("Received: {}. (Default template response)", input)
+                format!("Respond helpfully: {}", input)
             }
         }
+    };
+
+    let params = LLMParameters {
+        temperature: 0.7,
+        top_p: 0.9,
+        top_k: 40,
+        frequency_penalty: 0.0,
+        presence_penalty: 0.0,
+        max_tokens: 512,
+        seed: None,
+    };
+
+    // Call Okapi for inference
+    match inference.generate(&prompt, &params).await {
+        Ok(result) => result.text,
+        Err(e) => format!("Inference error: {}", e),
     }
 }
 
@@ -756,7 +785,12 @@ fn main() {
                 // Read from file
                 match std::fs::read_to_string(&input_path) {
                     Ok(content) => {
-                        let response = process_chat_input(&registry, &content, template.as_deref());
+                        let rt = tokio::runtime::Runtime::new().unwrap();
+                        let response = rt.block_on(process_chat_input_async(
+                            &registry,
+                            &content,
+                            template.as_deref(),
+                        ));
                         println!("Curator: {}", response);
                     }
                     Err(e) => {
@@ -768,7 +802,12 @@ fn main() {
                 // Read from stdin
                 let mut input = String::new();
                 if io::stdin().read_line(&mut input).is_ok() {
-                    let response = process_chat_input(&registry, input.trim(), template.as_deref());
+                    let rt = tokio::runtime::Runtime::new().unwrap();
+                    let response = rt.block_on(process_chat_input_async(
+                        &registry,
+                        input.trim(),
+                        template.as_deref(),
+                    ));
                     println!("Curator: {}", response);
                 }
             }

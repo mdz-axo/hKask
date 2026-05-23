@@ -30,6 +30,7 @@
 //! assert_eq!(retry_config.max_retries, 3);
 //! ```
 
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -41,7 +42,7 @@ pub enum OkapiConfigError {
 /// Okapi configuration
 ///
 /// Contains connection settings for Okapi API access.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OkapiConfig {
     pub base_url: String,
     pub api_key: Option<String>,

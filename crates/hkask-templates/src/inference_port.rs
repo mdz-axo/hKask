@@ -628,7 +628,7 @@ pub async fn invoke_template_with_selection(
 /// # Example
 ///
 /// ```rust,no_run
-/// use hkask_templates::{OkapiInference, OkapiConfig, invoke_template_with_okapi_generic};
+/// use hkask_templates::{OkapiInference, OkapiConfig, InferencePort};
 /// use hkask_types::{BotID, TemplateId, LLMParameters};
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 ///
@@ -637,14 +637,7 @@ pub async fn invoke_template_with_selection(
 /// let bot_id = BotID::new();
 /// let params = LLMParameters::default();
 ///
-/// let invocation = invoke_template_with_okapi_generic(
-///     &inference,
-///     template_id,
-///     bot_id,
-///     params,
-///     "Test prompt",
-///     serde_json::json!({}),
-/// ).await?;
+/// let result = inference.generate("Test prompt", &params).await?;
 /// # Ok(())
 /// # }
 /// ```

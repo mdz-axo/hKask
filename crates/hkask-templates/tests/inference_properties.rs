@@ -19,7 +19,7 @@ proptest! {
     ) {
         let params = LLMParameters {
             temperature,
-            max_tokens: max_tokens as usize,
+            max_tokens,
             ..Default::default()
         };
 

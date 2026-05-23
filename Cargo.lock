@@ -3014,6 +3014,7 @@ dependencies = [
  "chrono",
  "futures-util",
  "hex",
+ "hkask-agents",
  "hkask-cns",
  "hkask-keystore",
  "hkask-storage",

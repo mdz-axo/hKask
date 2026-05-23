@@ -35,3 +35,4 @@ proptest = "1.4"
 axum = "0.7"
 tower = "0.4"
 http-body-util = "0.1"
+hkask-agents = { path = "../hkask-agents" }
