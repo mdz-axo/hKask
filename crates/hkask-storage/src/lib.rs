@@ -15,7 +15,9 @@ pub use database::Database;
 pub use embeddings::{Embedding, EmbeddingError, EmbeddingStore};
 pub use git_cas::GitCas;
 pub use goal_judge::{GoalJudgeAdapter, GoalJudgeError, GoalVerifier};
-pub use goals::{GoalRepositoryPort, SqliteGoalRepository};
+pub use goals::{
+    GoalRepositoryError, GoalRepositoryPort, Result as GoalResult, SqliteGoalRepository,
+};
 pub use model_registry::{ModelCategory, ModelEntry, ModelRegistryStore, ModelStatus};
 pub use sovereignty::{
     SovereigntyBoundaryEntry, SovereigntyBoundaryStore, SovereigntyStoreError,

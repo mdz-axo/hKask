@@ -1258,10 +1258,10 @@ pub fn validate_soap_request(
     }
 
     // Check subjective length
-    if let Some(subj) = &req.subjective {
-        if subj.len() > config.max_subjective_len {
-            return Err(ValidationErrorType::SubjectiveTooLong);
-        }
+    if let Some(subj) = &req.subjective
+        && subj.len() > config.max_subjective_len
+    {
+        return Err(ValidationErrorType::SubjectiveTooLong);
     }
 
     // Check event message lengths

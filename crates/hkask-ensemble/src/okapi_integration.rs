@@ -10,7 +10,7 @@ use tokio::sync::mpsc;
 use tracing::{error, info, instrument};
 
 use crate::adapters::OkapiSseAdapter;
-use crate::capability::OkapiCapability;
+use crate::capability::{OkapiCapability, OkapiOperation};
 use crate::ports::OkapiMetrics;
 
 /// Development key — DERIVE FROM KEYSTORE IN PRODUCTION
@@ -77,7 +77,7 @@ impl OkapiIntegration {
     ) -> Result<(), OkapiIntegrationError> {
         if let Err(e) = self
             .capability
-            .verify(&OKAPI_DEV_KEY, &[crate::OkapiOperation::Generate])
+            .verify(&OKAPI_DEV_KEY, &[OkapiOperation::Generate])
         {
             return Err(OkapiIntegrationError::CapabilityError(format!(
                 "Capability verification failed: {:?}",
@@ -98,7 +98,7 @@ impl OkapiIntegration {
     pub async fn verify_chat_ocap(&self, requester: WebID) -> Result<(), OkapiIntegrationError> {
         if let Err(e) = self
             .capability
-            .verify(&OKAPI_DEV_KEY, &[crate::OkapiOperation::Chat])
+            .verify(&OKAPI_DEV_KEY, &[OkapiOperation::Chat])
         {
             return Err(OkapiIntegrationError::CapabilityError(format!(
                 "Capability verification failed: {:?}",

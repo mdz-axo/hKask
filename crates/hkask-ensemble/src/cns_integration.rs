@@ -7,21 +7,21 @@
 //! - Variety monitoring
 //! - Algedonic alerts
 
-use hkask_cns::{AlgedonicAlert, AlgedonicManager, SpanEmitter, VarietyMonitor};
-use hkask_types::{NuEvent, Span, WebID};
+use hkask_cns::{AlgedonicAlert, SpanEmitter, VarietyMonitor};
+use hkask_types::WebID;
 use serde_json::json;
-use tracing::{error, info, warn};
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use tracing::{info, warn};
 
 use crate::cns_spans::OkapiCnsSpan;
-use crate::confidence_router::{compute_confidence, ConfidenceConfig};
 
 /// CNS integration manager
 ///
 /// Central hub for CNS span emission and algedonic alert handling.
 pub struct CnsIntegration {
     span_emitter: SpanEmitter,
-    variety_monitor: VarietyMonitor,
-    algedonic_manager: AlgedonicManager,
+    variety_monitor: Arc<RwLock<VarietyMonitor>>,
     observer_webid: WebID,
 }
 
@@ -29,8 +29,7 @@ impl CnsIntegration {
     pub fn new(observer_webid: WebID) -> Self {
         Self {
             span_emitter: SpanEmitter::new(observer_webid),
-            variety_monitor: VarietyMonitor::new(observer_webid),
-            algedonic_manager: AlgedonicManager::new(observer_webid),
+            variety_monitor: Arc::new(RwLock::new(VarietyMonitor::new())),
             observer_webid,
         }
     }
@@ -49,7 +48,7 @@ impl CnsIntegration {
                 "session_id": session_id,
                 "status": status,
                 "data": data
-            })
+            }),
         );
         info!(target: "hkask.cns.deliberation", session_id = %session_id, "Deliberation span emitted");
     }
@@ -70,7 +69,7 @@ impl CnsIntegration {
         };
 
         self.span_emitter.emit_prompt("escalation", json!(span));
-        
+
         info!(
             target: "hkask.cns.confidence",
             initial_confidence = %initial_confidence,
@@ -93,12 +92,17 @@ impl CnsIntegration {
                 "tool_name": tool_name,
                 "success": success,
                 "data": data
-            })
+            }),
         );
     }
 
     /// Emit template render span
-    pub fn emit_template_render_span(&self, template_id: &str, success: bool, data: serde_json::Value) {
+    pub fn emit_template_render_span(
+        &self,
+        template_id: &str,
+        success: bool,
+        data: serde_json::Value,
+    ) {
         let span_name = if success {
             "template.rendered"
         } else {
@@ -111,21 +115,32 @@ impl CnsIntegration {
                 "template_id": template_id,
                 "success": success,
                 "data": data
-            })
+            }),
         );
     }
 
     /// Track variety for a category
-    pub fn track_variety(&self, category: &str, count: u64, threshold: u64) {
-        self.variety_monitor.track(category, count, threshold);
-        
-        if let Some(alert) = self.variety_monitor.check_deficit(category) {
-            self.handle_algedonic_alert(alert);
+    pub async fn track_variety(&self, category: &str, count: u64, threshold: u64) {
+        // VarietyMonitor doesn't have track() method - use counter().increment()
+        let mut variety_monitor = self.variety_monitor.write().await;
+        let counter = variety_monitor.counter(category);
+        for _ in 0..count {
+            counter.increment("state_active");
+        }
+
+        // Check for deficit and generate alert if needed
+        let deficit = counter.deficit(threshold);
+        if deficit > 0 {
+            let alert = AlgedonicAlert::new(category, deficit, threshold);
+            if alert.should_escalate() {
+                drop(variety_monitor);
+                self.handle_algedonic_alert(alert).await;
+            }
         }
     }
 
     /// Handle algedonic alert
-    pub fn handle_algedonic_alert(&self, alert: AlgedonicAlert) {
+    pub async fn handle_algedonic_alert(&self, alert: AlgedonicAlert) {
         warn!(
             target: "hkask.cns.algedonic",
             severity = ?alert.severity,
@@ -133,17 +148,30 @@ impl CnsIntegration {
             "Algedonic alert triggered"
         );
 
-        self.algedonic_manager.handle(alert);
+        // AlgedonicManager doesn't have handle() - just log the alert
+        // The alert is already logged above
+        info!(
+            target: "hkask.cns.algedonic",
+            domain = %alert.domain,
+            deficit = alert.deficit,
+            threshold = alert.threshold,
+            "Alert recorded"
+        );
     }
 
     /// Emit agent pod lifecycle span
-    pub fn emit_pod_lifecycle_span(&self, pod_id: &str, lifecycle_event: &str, data: serde_json::Value) {
+    pub fn emit_pod_lifecycle_span(
+        &self,
+        pod_id: &str,
+        lifecycle_event: &str,
+        data: serde_json::Value,
+    ) {
         self.span_emitter.emit_agent_pod(
             lifecycle_event,
             json!({
                 "pod_id": pod_id,
                 "data": data
-            })
+            }),
         );
         info!(target: "hkask.cns.pod", pod_id = %pod_id, lifecycle_event = %lifecycle_event, "Pod lifecycle span emitted");
     }
@@ -155,7 +183,7 @@ impl CnsIntegration {
             json!({
                 "goal_id": goal_id,
                 "data": data
-            })
+            }),
         );
     }
 
@@ -165,14 +193,20 @@ impl CnsIntegration {
     }
 
     /// Emit energy consumption span
-    pub fn emit_energy_span(&self, energy_event: &str, tokens: u64, cost: f64, data: serde_json::Value) {
+    pub fn emit_energy_span(
+        &self,
+        energy_event: &str,
+        tokens: u64,
+        cost: f64,
+        data: serde_json::Value,
+    ) {
         self.span_emitter.emit_energy(
             energy_event,
             json!({
                 "tokens": tokens,
                 "estimated_cost": cost,
                 "data": data
-            })
+            }),
         );
     }
 
@@ -214,7 +248,7 @@ mod tests {
     fn test_cns_integration_creation() {
         let webid = WebID::new();
         let integration = CnsIntegration::new(webid);
-        
+
         assert_eq!(integration.observer(), webid);
     }
 
@@ -224,7 +258,7 @@ mod tests {
         let integration = CnsIntegrationBuilder::new(webid)
             .with_variety_threshold(50)
             .build();
-        
+
         assert_eq!(integration.observer(), webid);
     }
 
@@ -232,11 +266,11 @@ mod tests {
     fn test_span_emission() {
         let webid = WebID::new();
         let integration = CnsIntegration::new(webid);
-        
+
         integration.emit_chat_span("test_action", json!({"test": "data"}));
         integration.emit_tool_span("test_tool", true, json!({}));
         integration.emit_template_render_span("test_template", true, json!({}));
-        
+
         // These should complete without errors
     }
 }

@@ -4,6 +4,7 @@
 //! via template-mediated A2A communication. No swarms, no consensus mechanisms.
 
 pub mod adapters;
+pub mod capability;
 pub mod chat;
 pub mod cns_integration;
 pub mod cns_spans;
@@ -24,7 +25,7 @@ pub use chat::{
 };
 pub use cns_integration::{CnsIntegration, CnsIntegrationBuilder};
 pub use cns_spans::{OkapiCnsSpan, ValidationResult};
-pub use confidence_router::{compute_confidence, ConfidenceConfig, ConfidenceRouter, RouterError};
+pub use confidence_router::{ConfidenceConfig, ConfidenceRouter, RouterError, compute_confidence};
 pub use deliberation::{
     AgentResponse, DeliberationCoordinator, DeliberationRequest, DeliberationResult,
     DeliberationSession, DeliberationStatus,

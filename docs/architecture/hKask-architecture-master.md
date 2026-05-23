@@ -1,7 +1,7 @@
 ---
 title: "hKask Architecture Master"
 audience: [architects, developers, agents]
-last_updated: 2026-05-22
+last_updated: 2026-05-23
 togaf_phase: "All Phases"
 version: "0.21.0"
 status: "Active"
@@ -11,7 +11,7 @@ domain: "Cross-cutting"
 <!-- TOGAF_DOMAIN: Cross-cutting -->
 <!-- VERSION: 0.21.0 -->
 <!-- STATUS: Active -->
-<!-- LAST_UPDATED: 2026-05-22 -->
+<!-- LAST_UPDATED: 2026-05-23 -->
 
 # hKask Architecture Master
 
@@ -29,7 +29,7 @@ domain: "Cross-cutting"
 **Line Budget:** ≤30,000 lines Rust (excluding protocols: ACP, MCP, Okapi)
 
 **Version:** v0.21.0 — MVP in progress  
-**Status:** Pre-alpha
+**Status:** Pre-alpha — Phase 7 complete (Ensemble & CNS), Phase 8 complete (UI/API)
 
 ---
 

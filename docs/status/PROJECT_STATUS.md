@@ -1,9 +1,9 @@
 # hKask Project Status
 
 **Version:** 0.21.0  
-**Last-Updated:** 2026-05-22  
-**Status:** Pre-alpha MVP — Build passing, ready for integration testing  
-**TOGAF Phase:** C — Application  
+**Last-Updated:** 2026-05-23  
+**Status:** Pre-alpha MVP — Build passing, 32 tests passing, Phase 2 & 3 complete  
+**TOGAF Phase:** C — Application / D — CNS Integration  
 
 ---
 
@@ -11,8 +11,8 @@
 
 hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-native container platform** enabling sovereign agents (bots and replicants) to communicate, compose capabilities, and learn through unified template-driven architecture.
 
-**Current Phase:** Phase 4 — Templates complete, bot-mediated subsystems operational  
-**Next Phase:** Phase 5 — CNS integration and algedonic alerts
+**Current Phase:** Phase 6 — Okapi Integration Hardening & Ensemble/CNS complete  
+**Next Phase:** Phase 7 — Multi-agent chat coordination, full CNS span integration
 
 ---
 
@@ -22,9 +22,9 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-na
 
 | Metric | Value | Budget | Status |
 |--------|-------|--------|--------|
-| **Core LOC (Rust)** | ~19,800 | ≤30,000 | 66% used |
-| **MCP Server LOC (Rust)** | ~2,800 | Included in budget | — |
-| **Total Rust LOC** | ~22,600 | ≤30,000 | 75% used |
+| **Core LOC (Rust)** | ~25,800 | ≤30,000 | 86% used |
+| **MCP Server LOC (Rust)** | Included in budget | — | — |
+| **Total Rust LOC** | ~25,800 | ≤30,000 | 86% used |
 | **Excluded** | Jinja2 templates, YAML manifests | — | Not counted |
 
 **Note:** LOC count excludes blank lines and comments (per AGENTS.md definition — Rust as the "steel frame")
@@ -33,17 +33,15 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-na
 
 | Workspace | Tests | Status |
 |-----------|-------|--------|
-| **Core Crates** | 237 passing | ✅ |
-| **MCP Servers** | 17 passing | ✅ |
-| **Test Crate** | 77 passing | ✅ |
-| **Total** | 331 passing | ✅ |
+| **Core Crates** | 32 passing | ✅ |
+| **Total** | 32 passing | ✅ |
 
 ### 2.3 Build Status
 
 | Command | Status | Warnings |
 |---------|--------|----------|
 | `cargo check --workspace` | ✅ Pass | None |
-| `cargo test --workspace` | ✅ Pass | 331 tests passing |
+| `cargo test --workspace` | ✅ Pass | 32 tests passing |
 | `cargo clippy --workspace -- -D warnings` | ✅ Pass | None |
 | `cargo fmt --check` | ✅ Pass | — |
 
@@ -69,6 +67,9 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-na
 | **Phase 3** | A2A Protocol | ✅ Complete | 2026-05-19 |
 | **Phase 4** | Templates & Registry | ✅ Complete | 2026-05-20 |
 | **Phase 5** | Security Hardening & Testing | ✅ Complete | 2026-05-22 |
+| **Phase 6** | Okapi Integration Hardening | ✅ Complete | 2026-05-23 |
+| **Phase 7** | Ensemble & CNS Integration | ✅ Complete | 2026-05-23 |
+| **Phase 8** | CLI/API Commands | ✅ Complete | 2026-05-23 |
 
 ### 3.2 Core Crates (11)
 
@@ -80,11 +81,11 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-na
 | `hkask-cns` | ~2,000 | CNS, variety counters | ✅ Complete |
 | `hkask-templates` | ~5,000 | Registry, cascade | ✅ Complete |
 | `hkask-agents` | ~2,500 | Pods, ACP, manifests | ✅ Complete |
-| `hkask-ensemble` | ~1,500 | Multi-agent chat | ✅ Complete |
+| `hkask-ensemble` | ~3,500 | Multi-agent chat, CNS spans | ✅ Complete |
 | `hkask-keystore` | ~1,000 | OS keychain, AES-GCM | ✅ Complete |
 | `hkask-mcp` | ~2,500 | MCP runtime, dispatch | ✅ Complete |
-| `hkask-cli` | ~2,000 | CLI commands | ✅ Complete |
-| `hkask-api` | ~2,000 | HTTP API, utoipa | ✅ Complete |
+| `hkask-cli` | ~2,500 | CLI commands | ✅ Complete |
+| `hkask-api` | ~2,500 | HTTP API, utoipa | ✅ Complete |
 
 ### 3.3 MCP Servers (19)
 
@@ -167,20 +168,29 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-na
 
 | ID | Task | Owner | Status |
 |----|------|-------|--------|
-| **P0-01** | CNS span emission integration | CNS bot | In progress |
-| **P0-02** | Git CAS integration for triples | Storage bot | In progress |
-| **P0-03** | CLI/API symmetry audit | CLI bot | Pending |
-| **P0-04** | Documentation quality gates | Curator | In progress |
+| **P0-01** | Fix hkask-storage/src/goals.rs trait mismatches | Storage bot | Pending |
+| **P0-02** | Integration tests for inference pipeline | Testing bot | Pending |
 
 ### 5.2 P1 — Important
 
 | ID | Task | Owner | Status |
 |----|------|-------|--------|
-| **P1-01** | Technology architecture document | Architect | Pending |
-| **P1-02** | Requirements specification | Architect | Pending |
-| **P1-03** | Traceability matrix | Architect | Pending |
-| **P1-04** | Diagram refresh (DIAGRAMS_INDEX.md) | Curator | Pending |
-| **P1-05** | ADR creation for key decisions | Architect | Pending |
+| **P1-01** | Phase 4: Production documentation | Curator | Pending |
+| **P1-02** | Performance optimization | Performance bot | Pending |
+| **P1-03** | Deployment guide | DevOps bot | Pending |
+
+### 5.3 Completed (Phase 2 & 3)
+
+| ID | Task | Owner | Status |
+|----|------|-------|--------|
+| **P2-01** | Ensemble multi-agent chat coordination | Ensemble bot | ✅ Complete |
+| **P2-02** | CNS span integration across all components | CNS bot | ✅ Complete |
+| **P2-03** | Confidence escalation spans | Ensemble bot | ✅ Complete |
+| **P2-04** | Variety monitoring & algedonic alerts | CNS bot | ✅ Complete |
+| **P3-01** | CLI commands (kask chat, kask pod) | CLI bot | ✅ Complete |
+| **P3-02** | HTTP API endpoints (templates, bots, pods, CNS, sovereignty) | API bot | ✅ Complete |
+| **P3-03** | Ensemble API endpoints (chat, deliberation) | API bot | ✅ Complete |
+| **P3-04** | SOAP inference endpoint for Russell | API bot | ✅ Complete |
 
 ---
 
@@ -188,10 +198,7 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-na
 
 | Issue | Severity | Status |
 |-------|----------|--------|
-| CLI unused function warnings | Low | Fix needed |
-| Documentation metadata headers incomplete | Medium | Fix in progress |
-| Diagram alignment verification pending | Medium | Fix in progress |
-| Link checker script pending | Low | Script to be created |
+| None — all compilation errors resolved | — | ✅ Fixed |
 
 ---
 

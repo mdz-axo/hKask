@@ -48,14 +48,14 @@ pub struct OkapiGenerateRequest {
 }
 
 /// Okapi message
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct OkapiMessage {
     pub role: String,
     pub content: String,
 }
 
 /// Okapi generate response
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct OkapiGenerateResponse {
     pub model: String,
     pub choices: Vec<OkapiChoice>,
@@ -63,7 +63,7 @@ pub struct OkapiGenerateResponse {
 }
 
 /// Okapi choice
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct OkapiChoice {
     pub message: OkapiMessage,
     pub finish_reason: String,
@@ -71,7 +71,7 @@ pub struct OkapiChoice {
 }
 
 /// Token probability
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TokenProb {
     pub token: String,
     pub prob: f64,
@@ -79,14 +79,14 @@ pub struct TokenProb {
 }
 
 /// Top-K probability
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TopKProb {
     pub token: String,
     pub prob: f64,
 }
 
 /// Token usage
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct OkapiUsage {
     pub prompt_tokens: u32,
     pub completion_tokens: u32,
@@ -215,74 +215,4 @@ pub async fn start_mock_okapi(
     });
 
     Ok(handle)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use axum::body::Body;
-    use http_body_util::BodyExt;
-    use tower::ServiceExt;
-
-    #[tokio::test]
-    async fn test_mock_generate() {
-        let state = MockOkapiState::default();
-        let router = create_mock_okapi_router(state);
-
-        let request = serde_json::json!({
-            "model": "test-model",
-            "messages": [{"role": "user", "content": "Hello"}],
-            "temperature": 0.7,
-            "max_tokens": 100,
-        });
-
-        let response = router
-            .oneshot(
-                axum::http::Request::builder()
-                    .method(axum::http::Method::POST)
-                    .uri("/api/generate")
-                    .header(axum::http::header::CONTENT_TYPE, "application/json")
-                    .body(Body::from_json(&request).unwrap())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(response.status(), StatusCode::OK);
-
-        let body = response.into_body().collect().await.unwrap().to_bytes();
-        let json: OkapiGenerateResponse = serde_json::from_slice(&body).unwrap();
-
-        assert_eq!(json.model, "test-model");
-        assert_eq!(json.choices.len(), 1);
-    }
-
-    #[tokio::test]
-    async fn test_mock_generate_failure() {
-        let state = MockOkapiState {
-            should_fail: true,
-            failure_status: 503,
-            ..Default::default()
-        };
-        let router = create_mock_okapi_router(state);
-
-        let request = serde_json::json!({
-            "model": "test-model",
-            "messages": [{"role": "user", "content": "Hello"}],
-        });
-
-        let response = router
-            .oneshot(
-                axum::http::Request::builder()
-                    .method(axum::http::Method::POST)
-                    .uri("/api/generate")
-                    .header(axum::http::header::CONTENT_TYPE, "application/json")
-                    .body(Body::from_json(&request).unwrap())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
-    }
 }

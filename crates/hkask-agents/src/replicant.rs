@@ -98,7 +98,11 @@ impl Replicant {
 impl Default for Replicant {
     fn default() -> Self {
         let owner = WebID::new();
-        Self::new("unnamed-replicant".to_string(), "A replicant agent".to_string(), owner)
+        Self::new(
+            "unnamed-replicant".to_string(),
+            "A replicant agent".to_string(),
+            owner,
+        )
     }
 }
 
@@ -119,7 +123,7 @@ mod tests {
         let mut replicant = Replicant::default();
         replicant.activate();
         assert!(replicant.is_active());
-        
+
         replicant.deactivate();
         assert!(!replicant.is_active());
     }
@@ -127,13 +131,13 @@ mod tests {
     #[test]
     fn test_replicant_capabilities() {
         let mut replicant = Replicant::default();
-        
+
         replicant.enable_episodic_memory();
         assert!(replicant.capabilities.can_access_episodic);
-        
+
         replicant.enable_semantic_memory();
         assert!(replicant.capabilities.can_access_semantic);
-        
+
         replicant.enable_templates();
         assert!(replicant.capabilities.can_dispatch_templates);
     }

@@ -70,13 +70,13 @@ impl TestGitRepo {
     pub fn new() -> Result<Self, std::io::Error> {
         let temp_dir = TempDir::new()?;
         let path = temp_dir.path().to_path_buf();
-        
+
         // Initialize git repository
         std::process::Command::new("git")
             .arg("init")
             .current_dir(&path)
             .output()?;
-        
+
         Ok(Self {
             _temp_dir: temp_dir,
             path,

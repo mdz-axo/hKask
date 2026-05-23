@@ -111,7 +111,7 @@ mod tests {
         let mut bot = Bot::default();
         bot.activate();
         assert!(bot.is_active());
-        
+
         bot.deactivate();
         assert!(!bot.is_active());
     }
@@ -119,16 +119,16 @@ mod tests {
     #[test]
     fn test_bot_capabilities() {
         let mut bot = Bot::default();
-        
+
         bot.enable_tools();
         assert!(bot.capabilities.can_invoke_tools);
-        
+
         bot.enable_memory();
         assert!(bot.capabilities.can_access_memory);
-        
+
         bot.enable_templates();
         assert!(bot.capabilities.can_dispatch_templates);
-        
+
         bot.enable_escalation();
         assert!(bot.capabilities.can_escalate);
     }
