@@ -198,7 +198,7 @@ rights:
 depends_on:
   - hkask-mcp-registry
   - hkask-mcp-inference
-  - hkask-mcp-memory
+   - hkask-mcp-registry
   - cns-curator-bot
   - memory-curator-bot
 ```
@@ -305,7 +305,7 @@ process_manifest: registry/manifests/my-bot-dispatch.yaml
 # Optional: Dependencies
 depends_on:
   - hkask-mcp-inference
-  - hkask-mcp-memory
+   - hkask-mcp-registry
 
 # Required: Readiness probe
 readiness_probe:
@@ -509,7 +509,7 @@ steps:
     action: execute
     target: memory
     contract:
-      mcp: hkask-mcp-memory
+       mcp: hkask-mcp-registry
 
   - ordinal: 3
     action: populate

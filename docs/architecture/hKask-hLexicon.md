@@ -1,3 +1,13 @@
+---
+title: "hKask hLexicon — Minimal Composition Vocabulary"
+audience: [architects, developers, agents]
+last_updated: 2026-05-24
+togaf_phase: "C — Application"
+version: "0.21.0"
+status: "Active"
+domain: "Application"
+---
+
 # hKask hLexicon — Minimal Composition Vocabulary
 
 ## Executive Summary

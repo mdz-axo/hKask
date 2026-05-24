@@ -1,7 +1,17 @@
+---
+title: "hLexicon Alignment Validation Report"
+audience: [architects, developers]
+last_updated: 2026-05-24
+togaf_phase: "C — Application"
+version: "0.21.0"
+status: "Active"
+domain: "Application"
+---
+
 # hLexicon Alignment Validation Report
 
 **Date:** 2026-05-24
-**Version:** v0.21.4
+**Version:** v0.21.0
 
 ## Summary
 
@@ -31,4 +41,4 @@
 ## Orthogonal Mapping
 
 Functional logic and implementation logic are orthogonal surfaces.
-See `docs/architecture/hlexicon-functional-logic-note.md` for design rationale.
+See [`hKask-hLexicon.md`](hKask-hLexicon.md) for design rationale.

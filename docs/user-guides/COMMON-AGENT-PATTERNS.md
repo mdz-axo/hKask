@@ -80,7 +80,7 @@ visibility:
 process_manifest: registry/manifests/memory-ops.yaml
 
 depends_on:
-  - hkask-mcp-memory
+   - hkask-mcp-registry
 
 readiness_probe:
   type: health_check
@@ -137,7 +137,7 @@ steps:
     action: execute
     target: memory
     contract:
-      mcp: hkask-mcp-memory
+       mcp: hkask-mcp-registry
       model_tier: balanced
 
 cns:

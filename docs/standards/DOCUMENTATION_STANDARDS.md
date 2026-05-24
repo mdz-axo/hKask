@@ -8,7 +8,7 @@ status: "Active"
 ---
 
 <!-- TOGAF_DOMAIN: Cross-cutting -->
-<!-- VERSION: 0.2.0 -->
+<!-- VERSION: 0.3.0 -->
 <!-- STATUS: Active -->
 <!-- LAST_UPDATED: 2026-05-12 -->
 

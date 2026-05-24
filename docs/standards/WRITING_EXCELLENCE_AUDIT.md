@@ -1,27 +1,24 @@
 ---
 title: "Writing Excellence Audit"
 audience: [documentation stewards, architecture reviewers]
-last_updated: 2026-05-20
+last_updated: 2026-05-24
 togaf_phase: "Preliminary"
-version: "1.0.0"
+version: "1.1.0"
 status: "Active"
 domain: "Cross-cutting"
 ---
 
 <!-- TOGAF_DOMAIN: Cross-cutting -->
-<!-- VERSION: 1.0.0 -->
+<!-- VERSION: 1.1.0 -->
 <!-- STATUS: Active -->
-<!-- LAST_UPDATED: 2026-05-20 -->
+<!-- LAST_UPDATED: 2026-05-24 -->
 
 # Writing Excellence Audit
 
-**Purpose:** Comprehensive scoring of all 31 hKask documentation files on four dimensions (Hopper, Lovelace, Schriver, Gentle).
+**Purpose:** Comprehensive scoring of hKask documentation files on four dimensions (Hopper, Lovelace, Schriver, Gentle).
 
-**Audit Date:** 2026-05-20  
-**Total Documents:** 31  
-**Active Documents:** 26  
-**Superseded Documents:** 2 (vKask-*.md)  
-**Progress/Remediation:** 3 (excluded from audit)
+**Audit Date:** 2026-05-20 (original), 2026-05-24 (refresh)  
+**Note:** This audit scored the document set as of 2026-05-20. Several scored documents have since been archived or superseded during the 2026-05-24 documentation refresh. A re-audit of the current document set is pending.
 
 ---
 

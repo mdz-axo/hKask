@@ -230,7 +230,7 @@ When a document requires fundamental rework:
 ```bash
 # Supersede vKask-cybernetic-constant.md with CNS documentation
 git rm docs/architecture/vKask-cybernetic-constant.md
-git rm docs/architecture/vKask-erd.md
+git rm docs/architecture/<superseded-document>.md
 # New CNS documentation already in place (security-architecture.md, data-architecture.md)
 ```
 

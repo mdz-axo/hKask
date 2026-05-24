@@ -142,9 +142,9 @@ pub trait VectorProvider {
 
 | Model | Dimensions | Purpose | MCP Server |
 |-------|------------|---------|------------|
-| `mxbai-embed-large-v1` | 1024 | General semantic search | `hkask-mcp-embedding` |
-| `bge-m3` | 1024 | Multi-granularity (dense+sparse) | `hkask-mcp-embedding` |
-| `all-MiniLM-L6-v2` | 384 | Fast, local embeddings | `hkask-mcp-embedding` |
+| `mxbai-embed-large-v1` | 1024 | General semantic search | `hkask-storage` (sqlite-vec) |
+| `bge-m3` | 1024 | Multi-granularity (dense+sparse) | `hkask-storage` (sqlite-vec) |
+| `all-MiniLM-L6-v2` | 384 | Fast, local embeddings | `hkask-storage` (sqlite-vec) |
 
 **Model Version Awareness:** Embedding MCP tracks model version per vector. Similarity comparisons require matching models.
 

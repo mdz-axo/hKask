@@ -1,3 +1,13 @@
+---
+title: "Registry & Templating System — Composite Design Prompt v2"
+audience: [architects, developers, agents]
+last_updated: 2026-05-24
+togaf_phase: "C — Application"
+version: "2.0.0"
+status: "Active"
+domain: "Application"
+---
+
 # hKask Registry & Templating System — Composite Design Prompt v2
 
 ## Architectural Invariant: Code vs. Content Separation

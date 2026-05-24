@@ -261,7 +261,7 @@ _________________________________________________________________
 **What hKask crates does the agent depend on?** (Check all that apply)
 
 - [ ] `hkask-mcp-inference` — Inference MCP server
-- [ ] `hkask-mcp-memory` — Memory MCP server
+- [ ] `hkask-mcp-registry` — Registry MCP server
 - [ ] `hkask-mcp-registry` — Registry MCP server
 - [ ] `hkask-mcp-web` — Web search/scrape MCP server
 - [ ] `hkask-mcp-scholar` — Academic search MCP server

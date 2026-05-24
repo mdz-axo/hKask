@@ -120,10 +120,7 @@ status: VERIFIED
 | **Telnyx** | `hkask-mcp-telnyx` | Telnyx integration | ✅ Enabled |
 | **FAL** | `hkask-mcp-fal` | FAL integration | ✅ Enabled |
 | **RSS Reader** | `hkask-mcp-rss-reader` | RSS feed reading | ✅ Enabled |
-| **LLM Inference** | `hkask-mcp-inference` | Okapi-backed text generation | ⚠️ Exists, commented |
-| **Storage** | `hkask-mcp-storage` | Bitemporal triples, embeddings, blobs | ⚠️ Exists, commented |
-| **Memory** | `hkask-mcp-memory` | Semantic/episodic pipelines | ⚠️ Exists, commented |
-| **Ensemble** | `hkask-mcp-ensemble` | Multi-agent chat orchestration | ⚠️ Exists, commented |
+| **LLM Inference** | `hkask-mcp-inference` | Okapi-backed text generation | ✅ Enabled |
 
 **Converted to Templates (per AGENTS.md):**
 - `hkask-mcp-spandrel` → Graph analysis templates
@@ -214,11 +211,11 @@ status: VERIFIED
 
 | Domain | Bot | Templates | MCP Servers |
 |--------|-----|-----------|-------------|
-| **Memory** | Memory Bot | `memory/retrieve.j2`, `memory/store.j2` | `hkask-mcp-memory`, `hkask-mcp-storage` |
-| **Graph** | Spandrel Bot | `graph/analyze.j2`, `graph/cluster.j2` | `hkask-mcp-spandrel` |
+| **Memory** | Memory Bot | `memory/retrieve.j2`, `memory/store.j2` | `hkask-mcp-registry`, `hkask-mcp-git` |
+| **Graph** | Spandrel Bot | `graph/analyze.j2`, `graph/cluster.j2` | `templates/spandrel/` |
 | **Research** | Scholar Bot | `scholar/search.j2`, `scholar/summarize.j2` | `hkask-mcp-scholar`, `hkask-mcp-web` |
 | **Inference** | Okapi Bot | `inference/select.j2`, `inference/generate.j2` | `hkask-mcp-inference` |
-| **Ensemble** | Ensemble Bot | `ensemble/chat.j2`, `ensemble/coordinate.j2` | `hkask-mcp-ensemble` |
+| **Spec** | Spec Bot | `spec/capture.j2`, `spec/decompose.j2` | `hkask-mcp-spec` |
 
 ### 5.2 Bot-Mediated Subsystem Pattern
 

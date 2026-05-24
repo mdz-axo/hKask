@@ -172,7 +172,7 @@ grep -r "νKask\|OKH\|three registries" docs/ --include="*.md" --exclude-dir=arc
 
 | Action | Files | Status |
 |--------|-------|--------|
-| Archive superseded | `vKask-cybernetic-constant.md`, `vKask-erd.md` | ⏳ Pending (Task 7) |
+| Archive superseded | `vKask-cybernetic-constant.md`, `vKask-erd.md` | ✅ Archived 2026-05-22 |
 | Add metadata headers | 18 documents | ⏳ Deferred |
 | Add citations | 16 documents | ⏳ Deferred |
 | Add DIAGRAM_ALIGNMENT | 6 diagrams | ⏳ Deferred |

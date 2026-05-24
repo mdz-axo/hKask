@@ -1,7 +1,16 @@
+---
+title: "GML API Reference (Aspirational)"
+audience: [developers]
+last_updated: 2026-05-24
+togaf_phase: "C — Application"
+version: "0.1.0"
+status: "Draft"
+domain: "Application"
+---
+
 # GML API Reference
 
-**Version:** 0.1.0  
-**Generated:** Auto-generated from Rust source
+**Status:** Draft — This document describes a planned API for separate GML crates. The current implementation lives in `hkask-mcp-gml`. See `mcp-servers/hkask-mcp-gml/src/` for the actual API.
 
 ---
 

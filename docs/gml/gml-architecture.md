@@ -1,7 +1,16 @@
+---
+title: "GML Architecture (Aspirational)"
+audience: [architects, developers]
+last_updated: 2026-05-24
+togaf_phase: "C — Application"
+version: "0.1.0"
+status: "Draft"
+domain: "Application"
+---
+
 # GML Architecture
 
-**Version:** 0.1.0  
-**Status:** MVP
+**Status:** Draft — This document describes a planned multi-crate GML decomposition. The current implementation lives entirely in `hkask-mcp-gml` (1,022 LOC). The crate structure below is aspirational for v1.1+.
 
 ---
 

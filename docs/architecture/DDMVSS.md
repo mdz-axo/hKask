@@ -1022,7 +1022,7 @@ graph TB
 | Keystore | Driven | `hkask-keystore` | No | Sign manifests with existing Ed25519 + AES-256-GCM |
 | Curation engine | Domain | `hkask-types` (curation.rs) | No | `CurationDecision`, `OCAPBoundary`, `CurationRecord` already exist; add `CurationPort` trait |
 
-**Gap analysis result:** One new MCP server crate (`hkask-mcp-spec`) justified. All other ports map to existing hKask infrastructure. The `hkask-mcp-spec` follows the established 3-file MCP server pattern (`main.rs`, `lib.rs`, `tools.rs`) used by `hkask-mcp-embedding`, `hkask-mcp-web`, etc.
+**Gap analysis result:** One new MCP server crate (`hkask-mcp-spec`) justified. All other ports map to existing hKask infrastructure. The `hkask-mcp-spec` follows the established 3-file MCP server pattern (`main.rs`, `lib.rs`, `tools.rs`) used by `hkask-mcp-inference`, `hkask-mcp-web`, etc.
 
 ### 6.3 `hkask-mcp-spec` Tool Surface
 

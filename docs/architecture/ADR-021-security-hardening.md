@@ -1,3 +1,13 @@
+---
+title: "ADR-021: Security Hardening"
+audience: [architects, security engineers]
+last_updated: 2026-05-21
+togaf_phase: "A"
+version: "1.0.0"
+status: "Active"
+domain: "Technology"
+---
+
 # Security Architecture
 
 **ADR-021** — Security Hardening Implementation  

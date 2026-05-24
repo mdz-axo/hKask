@@ -1,6 +1,18 @@
+---
+title: "GML (Allosteric Thinking) Documentation"
+audience: [architects, developers]
+last_updated: 2026-05-24
+togaf_phase: "C — Application"
+version: "0.1.0"
+status: "Draft"
+domain: "Application"
+---
+
 # GML (Allosteric Thinking) Documentation
 
 **Generalized Monad Logic — KnowAct for conceptual analysis**
+
+**Status:** Draft — GML is currently implemented as `hkask-mcp-gml` (1,022 LOC, 5 MCP tools). The multi-crate decomposition described in sub-documents is aspirational for v1.1+.
 
 ---
 

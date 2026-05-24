@@ -56,7 +56,7 @@
 
 | ID | Task | Date | Evidence |
 |----|------|------|----------|
-| **C-01** | Documentation audit | 2026-05-22 | `docs/DOCUMENTATION_AUDIT_2026-05-22.md` |
+| **C-01** | Documentation audit | 2026-05-22 | `docs/standards/WRITING_EXCELLENCE_AUDIT.md` |
 | **C-02** | Archive stale documents (73 files) | 2026-05-22 | `docs/archive/2026-05-22-documentation-refresh/` |
 | **C-03** | Create TOGAF-Lite scaffold | 2026-05-22 | `docs/TOGAF_LITE_FOR_OPEN_SOURCE.md` |
 | **C-04** | Create PROJECT_STATUS.md | 2026-05-22 | `docs/status/PROJECT_STATUS.md` |

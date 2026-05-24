@@ -22,16 +22,16 @@ This document defines the TOGAF-Lite structural skeleton for hKask documentation
 | TOGAF Phase | Description | Directory | Documents |
 |-------------|-------------|-----------|-----------|
 | **Preliminary** | Architecture principles, standards | `docs/standards/` | `DOCUMENTATION_STANDARDS.md`, `WRITING_EXCELLENCE.md`, `GOVERNANCE.md`, `PRINCIPLES.md` |
-| **Phase A** | Architecture vision | `docs/architecture/` | `hKask-architecture-master.md`, `hKask-architecture-index.md`, `magna-carta.md`, `VISION.md` |
+| **Phase A** | Architecture vision | `docs/architecture/` | `hKask-architecture-master.md`, `magna-carta.md`, `PRINCIPLES.md` |
 | **Phase B** | Business architecture | `docs/architecture/` | `business-architecture.md` |
-| **Phase C — Data** | Data architecture | `docs/architecture/` | `data-architecture.md`, `hKask-erd.md`, `registry-erd.md`, `vKask-erd.md` |
+| **Phase C — Data** | Data architecture | `docs/architecture/` | `data-architecture.md`, `hKask-erd.md`, `registry-erd.md` |
 | **Phase C — Application** | Application architecture | `docs/architecture/` | `application-architecture.md`, `hKask-hLexicon.md`, `registry-templating-prompt-v2.md` |
-| **Phase D** | Technology architecture | `docs/architecture/` | `TECHNOLOGY.md` (to be created) |
+| **Phase D** | Technology architecture | `docs/architecture/` | `TECHNOLOGY.md` |
 | **Phase E** | Opportunities and solutions | `docs/plans/` | `roadmap.md`, `backstory-r7.md` |
 | **Phase F** | Migration planning | *(none — MVP in progress)* | |
 | **Phase G** | Implementation governance | `docs/user-guides/` | `SECURITY.md`, `README-AGENT-PODS.md`, `AGENT-POD-CREATION-GUIDE.md` |
 | **Phase H** | Architecture change management | `docs/standards/` | `GOVERNANCE.md` |
-| **Requirements Management** | Cross-cutting | `docs/specifications/` | `MODEL_CATALOG.md`, `chaos-testing-spec.md`, `metrics-dashboard-spec.md` |
+| **Requirements Management** | Cross-cutting | `docs/specifications/` | `MODEL_CATALOG.md` |
 
 ---
 
@@ -77,7 +77,7 @@ Per TOGAF-Lite scaling guidance, documentation collections are assessed by docum
 | **Standard** | 30–74 | Review required, quality gates |
 | **Scaled** | 75+ | Architecture board, formal governance |
 
-**Current Assessment:** 42 active documents (after 2026-05-22 refresh) → **Standard tier**
+**Current Assessment:** 35 active documents (after 2026-05-24 refresh) → **Standard tier**
 
 **Quality Gates (Standard Tier):**
 - Metadata headers mandatory (6 fields)

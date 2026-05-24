@@ -1,3 +1,13 @@
+---
+title: "Template Registry — Entity Relationship Diagram"
+audience: [data architects, database developers, agents]
+last_updated: 2026-05-24
+togaf_phase: "C — Data"
+version: "0.21.0"
+status: "Active"
+domain: "Data"
+---
+
 # Template Registry — Entity Relationship Diagram
 
 ## Overview

@@ -357,7 +357,7 @@ graph LR
     hKask -->|HTTP| Okapi[Okapi<br/>Inference Engine]
     
     subgraph "hKask MCP Servers"
-        M1[hkask-mcp-storage]
+        M1[hkask-storage]
         M2[hkask-mcp-registry]
         M3[hkask-mcp-inference]
         M4[hkask-mcp-spec<br/>NEW]
