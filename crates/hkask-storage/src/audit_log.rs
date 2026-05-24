@@ -82,7 +82,7 @@ impl AuditLogStore {
                 entry.action,
                 entry.resource,
                 entry.outcome,
-                entry.details.as_ref().map(|v| serde_json::to_string(v).ok()).flatten(),
+                entry.details.as_ref().and_then(|v| serde_json::to_string(v).ok()),
                 entry.ip_address,
             ],
         )?;

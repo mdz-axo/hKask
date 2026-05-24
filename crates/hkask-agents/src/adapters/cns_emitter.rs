@@ -19,9 +19,7 @@ impl CnsEmitterAdapter {
     }
 
     pub fn from_emitter(emitter: SpanEmitter) -> Self {
-        Self {
-            emitter,
-        }
+        Self { emitter }
     }
 }
 

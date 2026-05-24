@@ -347,7 +347,7 @@ impl SpecServer {
             .unwrap_or_else(|_| "{}".into());
         }
 
-        let spec_id_parsed = SpecId::from_string(&spec_id).unwrap_or(SpecId::new());
+        let spec_id_parsed = SpecId::from_string(&spec_id).unwrap_or_default();
         let mut spec = match self.store.load(spec_id_parsed) {
             Ok(s) => s,
             Err(_) => {
@@ -416,7 +416,7 @@ impl SpecServer {
             .unwrap_or_else(|_| "{}".into());
         }
 
-        let spec_id_parsed = SpecId::from_string(&spec_id).unwrap_or(SpecId::new());
+        let spec_id_parsed = SpecId::from_string(&spec_id).unwrap_or_default();
         let mut spec = match self.store.load(spec_id_parsed) {
             Ok(s) => s,
             Err(_) => {
@@ -477,7 +477,7 @@ impl SpecServer {
             .unwrap_or_else(|_| "{}".into());
         }
 
-        let spec_id_parsed = SpecId::from_string(&spec_id).unwrap_or(SpecId::new());
+        let spec_id_parsed = SpecId::from_string(&spec_id).unwrap_or_default();
         let spec = match self.store.load(spec_id_parsed) {
             Ok(s) => s,
             Err(_) => {
@@ -540,7 +540,7 @@ impl SpecServer {
         let mut missing = Vec::new();
 
         for id in &spec_ids {
-            let parsed = SpecId::from_string(id).unwrap_or(SpecId::new());
+            let parsed = SpecId::from_string(id).unwrap_or_default();
             if self.store.load(parsed).is_ok() {
                 found.push(id.clone());
             } else {
@@ -557,7 +557,7 @@ impl SpecServer {
 
         let mut loaded_specs = Vec::new();
         for id in &found {
-            let parsed = SpecId::from_string(id).unwrap_or(SpecId::new());
+            let parsed = SpecId::from_string(id).unwrap_or_default();
             if let Ok(spec) = self.store.load(parsed) {
                 loaded_specs.push(spec);
             }

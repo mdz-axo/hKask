@@ -32,23 +32,13 @@ fn default_timeout() -> u64 {
 }
 
 /// CSP stage configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CspConfig {
     pub stage_execution: StageExecutionConfig,
     #[serde(default)]
     pub stages: StageDefinitions,
     #[serde(default)]
     pub error_handling: ErrorHandlingConfig,
-}
-
-impl Default for CspConfig {
-    fn default() -> Self {
-        Self {
-            stage_execution: StageExecutionConfig::default(),
-            stages: StageDefinitions::default(),
-            error_handling: ErrorHandlingConfig::default(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

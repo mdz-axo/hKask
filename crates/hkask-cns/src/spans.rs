@@ -114,10 +114,10 @@ impl SpanEmitter {
             0,
         );
 
-        if let Some(sink) = &self.sink {
-            if let Err(e) = sink.persist(&event) {
-                tracing::warn!(target: "cns", error = %e, "Failed to persist CNS event");
-            }
+        if let Some(sink) = &self.sink
+            && let Err(e) = sink.persist(&event)
+        {
+            tracing::warn!(target: "cns", error = %e, "Failed to persist CNS event");
         }
 
         info!(

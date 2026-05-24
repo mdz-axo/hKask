@@ -97,7 +97,8 @@ For deeper understanding of system behavior:
 
 1. `docs/architecture/hKask-architecture-master.md` — authoritative spec (v0.21.0)
 2. `docs/architecture/hKask-erd.md` — entity relationship diagrams
-3. `docs/architecture/registry-templating-prompt-v2.md` — registry & templating design
+3. `docs/architecture/subsystem-erds.md` — per-crate ERDs grounded in Rust source
+4. `docs/architecture/registry-templating-prompt-v2.md` — registry & templating design
 
 ---
 

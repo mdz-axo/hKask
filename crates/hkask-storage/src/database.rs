@@ -25,6 +25,7 @@ fn load_sqlite_vec() -> Result<(), DatabaseError> {
     use std::sync::Once;
     static INIT: Once = Once::new();
     INIT.call_once(|| unsafe {
+        #[allow(clippy::missing_transmute_annotations)]
         rusqlite::ffi::sqlite3_auto_extension(Some(std::mem::transmute(
             sqlite_vec::sqlite3_vec_init as *const (),
         )));

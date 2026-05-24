@@ -1,5 +1,3 @@
-//! Rate Limiting Adapter — Token Bucket Implementation
-
 use crate::ports::security_port::{RateLimitPort, ValidationError};
 use hkask_types::TokenBucket;
 use std::collections::HashMap;
@@ -36,15 +34,37 @@ impl RateLimiterAdapter {
 }
 
 impl RateLimitPort for RateLimiterAdapter {
-    fn acquire(&self, _key: &str, _tokens: f64) -> Result<(), ValidationError> {
+    fn acquire(&self, key: &str, tokens: f64) -> Result<(), ValidationError> {
+        let buckets = self.buckets.blocking_read();
+        if let Some(bucket) = buckets.get(key) {
+            if bucket.consume(tokens) {
+                return Ok(());
+            }
+        } else {
+            drop(buckets);
+            let mut buckets = self.buckets.blocking_write();
+            let bucket = buckets
+                .entry(key.to_string())
+                .or_insert_with(|| TokenBucket::new(self.default_max_tokens, self.default_refill_rate));
+            if bucket.consume(tokens) {
+                return Ok(());
+            }
+        }
         Err(ValidationError::RateLimitExceeded)
     }
 
-    fn available(&self, _key: &str) -> f64 {
-        self.default_max_tokens
+    fn available(&self, key: &str) -> f64 {
+        let buckets = self.buckets.blocking_read();
+        buckets
+            .get(key)
+            .map(|b| b.available())
+            .unwrap_or(self.default_max_tokens)
     }
 
-    fn reset(&self, _key: &str) {}
+    fn reset(&self, key: &str) {
+        let mut buckets = self.buckets.blocking_write();
+        buckets.remove(key);
+    }
 }
 
 impl Default for RateLimiterAdapter {

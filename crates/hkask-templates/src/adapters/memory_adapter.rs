@@ -50,7 +50,10 @@ pub struct MemoryAdapter<S, E> {
 
 impl<S, E> MemoryAdapter<S, E> {
     pub fn new(semantic: S, episodic: E) -> Self {
-        Self { _semantic: semantic, _episodic: episodic }
+        Self {
+            _semantic: semantic,
+            _episodic: episodic,
+        }
     }
 }
 

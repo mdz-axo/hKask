@@ -86,11 +86,11 @@ impl SessionDedup {
         }
 
         // Evict oldest if window is full
-        if self.hash_queue.len() >= self.max_window {
-            if let Some(old_hash) = self.hash_queue.pop_front() {
-                self.seen_hashes.remove(&old_hash);
-                self.stats.evictions += 1;
-            }
+        if self.hash_queue.len() >= self.max_window
+            && let Some(old_hash) = self.hash_queue.pop_front()
+        {
+            self.seen_hashes.remove(&old_hash);
+            self.stats.evictions += 1;
         }
 
         self.seen_hashes.insert(hash);
