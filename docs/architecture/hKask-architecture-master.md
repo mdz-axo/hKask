@@ -38,8 +38,8 @@ domain: "Cross-cutting"
 |---|--------|----------------|
 | 1 | **Agent Enablement** | Bots + Replicants in pods with WebID, ACP |
 | 2 | **Essential Tools** | 16 MCP servers + Okapi |
-| 3 | **User Sovereignty** | OCAP, SQLCipher, private/public gating |
-| 4 | **CNS** | `cns.*` spans, variety counters, algedonic alerts |
+| 3 | **User Sovereignty** | OCAP, SQLCipher, private/public gating [^miller-ocap] |
+| 4 | **CNS** | `cns.*` spans, variety counters, algedonic alerts [^beer-vsm][^ashby-law] |
 | 5 | **Composition** | **Unified registry** with template_type discriminator |
 
 ---
@@ -64,7 +64,14 @@ graph TB
     api --> agents
     
     MCP -.-> mcp
-```
+    ```
+
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-MASTER-001
+verified_date: 2026-05-24
+verified_against: Cargo.toml workspace definition
+status: VERIFIED
+-->
 
 ---
 
@@ -109,7 +116,7 @@ hkask-workspace/
 └── External
     ├── Okapi (mdz-axo/Okapi)
     ├── ACP (acp-runtime)
-    └── MCP (rmcp)
+    └── MCP (rmcp) [^mcp-spec]
 ```
 
 ---
@@ -124,7 +131,7 @@ hkask-workspace/
 - `cns.agent_pod.*` — lifecycle, delegation
 - `cns.connector.*` — external I/O (LLM, embeddings)
 
-**Algedonic Alert:** Variety deficit >100 → escalate to Curator/human
+**Algedonic Alert:** Variety deficit >100 → escalate to Curator/human [^ashby-law]
 
 ---
 
@@ -139,7 +146,7 @@ hkask-workspace/
 
 ---
 
-## Constraint-Driven Design
+## Constraint-Driven Design [^gabriel-worse]
 
 ### Principles (P1–P7)
 
@@ -187,7 +194,7 @@ The following are **explicitly out of scope** for hKask v0.21.0:
 - OpenHands-style condenser
 - UCAN for h-bar (OCAP-only)
 - **Three separate registries** (unified registry with `template_type` discriminator)
-- **Rust-based template selection** (selection intelligence in Jinja2/LLM)
+- **Rust-based template selection** (selection intelligence in Jinja2/LLM) [^jinja2]
 
 ---
 
@@ -228,6 +235,10 @@ cargo fmt --check
 [^ashby-law]: Ashby, W. R. (1956). *An Introduction to Cybernetics*. Chapman & Hall. Law of Requisite Variety.
 [^von-foerster]: Von Foerster, H. (1974). *Cybernetics of Cybernetics*. Biological Computer Laboratory.
 [^togaf-adm]: The Open Group. TOGAF Standard, Version 10. Architecture Development Method.
+[^miller-ocap]: Miller, M. S. (2006). *Robust composition: Towards a unified approach to access control and concurrency control* [Doctoral dissertation, Johns Hopkins University]. https://miller.emulab.net/papers/robust-composition.pdf
+[^gabriel-worse]: Gabriel, R. P. (1991). *Lisp: Good news, bad news, how to win big*. AI Expert, 6(6). https://www.dreamsongs.com/WorseIsBetter.html
+[^mcp-spec]: Model Context Protocol. (2024). *MCP Specification*. https://spec.modelcontextprotocol.io/
+[^jinja2]: Ronacher, A. (2024). *Jinja*. Pallets Projects. https://jinja.palletsprojects.com/
 
 ---
 

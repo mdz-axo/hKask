@@ -33,7 +33,7 @@ domain: "Cross-cutting"
 |-------|--------|
 | **New Rust edition released** | Update within 3 months of stable release |
 | **New toolchain version** | Update `rust-toolchain.toml` within 1 month |
-| **MSRV (Minimum Supported Rust Version)** | Track latest stable minus 2 versions |
+| **MSRV (Minimum Supported Rust Version)** | Track latest stable minus 2 versions [^semver] |
 
 ### 1.3 Rationale
 
@@ -56,7 +56,7 @@ domain: "Cross-cutting"
 
 ### 2.2 Automated Updates
 
-**Tool:** `cargo-outdated` + `dependabot` (or `renovate`)
+**Tool:** `cargo-outdated` + `dependabot` (or `renovate`) [^dependabot]
 
 ```bash
 # Check for outdated dependencies
@@ -90,7 +90,7 @@ Major version updates require:
 | **Active maintenance** | Commits within 6 months | GitHub activity |
 | **Documentation** | API docs + examples | `cargo doc` builds |
 | **Test coverage** | Tests present + passing | CI status |
-| **Security** | No known CVEs | `cargo audit` |
+| **Security** | No known CVEs | `cargo audit` [^slsa] |
 | **License** | MIT, Apache-2.0, BSD | `cargo-license` |
 
 ### 3.2 Preferred Properties
@@ -119,7 +119,7 @@ Major version updates require:
 
 | Specifier | Meaning | Use Case |
 |-----------|---------|----------|
-| `^1.2.3` | `>=1.2.3, <2.0.0` | Default for stable crates |
+| `^1.2.3` | `>=1.2.3, <2.0.0` | Default for stable crates [^semver] |
 | `~1.2.3` | `>=1.2.3, <1.3.0` | Conservative updates |
 | `=1.2.3` | Exactly this version | Critical dependencies |
 | `>=1.2.3` | Any compatible version | Flexible crates |
@@ -187,11 +187,18 @@ flowchart TD
     H --> I{Tests pass?}
     I -->|Yes| J[Commit + deploy]
     I -->|No| K[Workaround or fork]
-```
+    ```
+
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-DEP-001
+verified_date: 2026-05-24
+verified_against: Cargo.toml workspace.dependencies
+status: VERIFIED
+-->
 
 ---
 
-## 6. Build Reproducibility
+## 6. Build Reproducibility [^reproducible-builds]
 
 ### 6.1 Toolchain Pinning
 
@@ -243,6 +250,11 @@ Before adding a new dependency:
 - **Cargo Versioning:** <https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html>
 - **cargo-audit:** <https://github.com/rustsec/rustsec>
 - **cargo-outdated:** <https://github.com/kbknapp/cargo-outdated>
+
+[^semver]: Preston-Werner, T. (2013). *Semantic Versioning 2.0.0*. https://semver.org/
+[^dependabot]: GitHub. (2024). *About Dependabot version updates*. https://docs.github.com/en/code-security/dependabot
+[^slsa]: OpenSSF. (2024). *SLSA: Supply-chain Levels for Software Artifacts*. https://slsa.dev/
+[^reproducible-builds]: Reproducible Builds Project. (2024). *Reproducible Builds*. https://reproducible-builds.org/
 
 ---
 

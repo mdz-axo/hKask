@@ -8,7 +8,7 @@
 
 ## Overview
 
-Okapi is the default LLM inference backend for hKask, providing text generation with temperature-controlled parameters for anti-normative template execution. All inference flows through the `OkapiInference` implementation of the `InferencePort` trait.
+Okapi is the default LLM inference backend for hKask, providing text generation with temperature-controlled parameters for anti-normative template execution [^ollama-api]. All inference flows through the `OkapiInference` implementation of the `InferencePort` trait.
 
 **Source:** `crates/hkask-templates/src/inference_port.rs`
 **Config:** `crates/hkask-templates/src/okapi_config.rs`
@@ -19,7 +19,7 @@ Okapi is the default LLM inference backend for hKask, providing text generation 
 
 ### POST /api/generate
 
-**Base URL:** Configurable via `OkapiConfig.base_url` (default: `http://127.0.0.1:11435`)
+**Base URL:** Configurable via `OkapiConfig.base_url` (default: `http://127.0.0.1:11435`) [^openai-chat-api]
 
 #### Request Schema
 
@@ -120,7 +120,7 @@ The following HTTP status codes trigger automatic retry:
 
 ### Circuit Breaker
 
-Optional resilience layer (`CircuitBreaker`):
+Optional resilience layer (`CircuitBreaker`) [^nygard-release]:
 - Tracks consecutive failures/successes
 - When open, immediately returns `InferenceError::Connection("Circuit breaker is open")`
 - Records failure on non-success HTTP responses
@@ -171,7 +171,7 @@ Optional resilience layer (`CircuitBreaker`):
 
 ## Model Catalog
 
-Okapi supports any model identifier string. Convention: `<provider>/<model-name>`.
+Okapi supports any model identifier string [^gguf-spec]. Convention: `<provider>/<model-name>`.
 
 | Tier | Model ID | Use Case |
 |------|----------|----------|
@@ -188,7 +188,7 @@ Models are selected by:
 
 ## Prompt Validation
 
-Prompts are validated before API calls:
+Prompts are validated before API calls [^white-prompt]:
 - Must be non-empty
 - Must not exceed 1,000,000 characters
 
@@ -221,6 +221,16 @@ Okapi inference emits CNS spans at key boundary points:
 - `OkapiInference` supports four construction modes: `new`, `with_retry_config`, `with_rate_limiting`, `with_circuit_breaker`
 - Token probabilities (`n_probs`) are enabled by default (5 top tokens) for confidence scoring
 - Anti-normative generation patterns use `generate_n` for multi-output selection
+
+---
+
+## References
+
+[^ollama-api]: Ollama Contributors. (2024). *Ollama REST API*. https://github.com/ollama/ollama/blob/main/docs/api.md
+[^openai-chat-api]: OpenAI. (2024). *Chat Completions API Reference*. https://platform.openai.com/docs/api-reference/chat
+[^nygard-release]: Nygard, M. T. (2018). *Release It!: Design and Deploy Production-Ready Software* (2nd ed.). Pragmatic Bookshelf.
+[^gguf-spec]: Gerganov, G. (2023). *GGUF: GGML Universal File Format*. https://github.com/ggerganov/ggml/blob/master/docs/gguf.md
+[^white-prompt]: White, J., Fu, Q., Schmidt, S., & Sural, S. (2023). A prompt pattern catalog to enhance prompt engineering with ChatGPT. *arXiv preprint arXiv:2302.11382*. https://arxiv.org/abs/2302.11382
 
 ---
 

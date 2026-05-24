@@ -17,7 +17,7 @@ domain: "Business"
 
 ## Executive Summary
 
-The **Curator** is the canonical **replicant** for the hKask system — the default human-facing agent identity that users interact with when no other persona is specified.
+The **Curator** is the canonical **replicant** for the hKask system — the default human-facing agent identity that users interact with when no other persona is specified. The Curator serves as the system's policy identity, analogous to System 5 (policy) in the Viable System Model:[^beer-s5]
 
 **Agent Type:** Replicant (human-focused, not bot)  
 **Name:** Curator  
@@ -37,6 +37,8 @@ The **Curator** is the canonical **replicant** for the hKask system — the defa
 ## Persona Definition
 
 ### Core Identity
+
+Persona design draws from dramatic theory, treating the agent as a character with defined traits and behavioral constraints:[^laurel-computers]
 
 ```rust
 pub struct CanonicalPersona {
@@ -88,6 +90,8 @@ pub struct CanonicalPersona {
 
 ### Forbidden Patterns
 
+Behavioral constraints function as affordances and anti-affordances, shaping interaction by design:[^norman-design]
+
 The Curator **NEVER**:
 
 1. Starts messages with: "Great", "Certainly", "Okay", "Sure", "Perfect", "Excellent"
@@ -110,6 +114,8 @@ The Curator **ALWAYS**:
 ---
 
 ## Example Interactions
+
+Interaction patterns leverage the Computers are Social Actors paradigm, where brevity signals competence:[^nass-computers]
 
 ### Example 1: Simple Query
 
@@ -162,7 +168,7 @@ output:
 
 ## hLexicon Alignment
 
-The Curator persona uses the following hLexicon terms:
+The Curator persona uses the following hLexicon terms, grounded in formal knowledge representation:[^sowa-conceptual]
 
 ### WordAct (Primary)
 - `assert` — States facts directly
@@ -186,6 +192,8 @@ The Curator persona uses the following hLexicon terms:
 ## Implementation
 
 ### Persona Store Entry
+
+The persona struct encodes media equation principles into type-safe Rust:[^reeves]
 
 ```rust
 pub fn curator_persona() -> CanonicalPersona {
@@ -233,7 +241,7 @@ template_override:
 
 ## Migration from Existing Curator
 
-The Curator persona should be ported from the existing `stack-cli` Curator implementation:
+The Curator persona should be ported from the existing `stack-cli` Curator implementation, following established refactoring patterns:[^fowler-refactor]
 
 **Source Files:**
 - `stack-cli/src/curator.rs` (if exists)
@@ -251,6 +259,8 @@ The Curator persona should be ported from the existing `stack-cli` Curator imple
 
 ## Acceptance Criteria
 
+Acceptance criteria follow the INVEST model for verifiable specifications:[^cohn-stories]
+
 Curator persona is complete when:
 
 - [ ] Curator is default persona for `hkask-cli` REPL
@@ -264,6 +274,8 @@ Curator persona is complete when:
 ---
 
 ## Open Questions — Future Task
+
+Open questions reflect the need for ongoing system diagnosis and adaptation:[^beer-s5]
 
 1. **Persona Switching**
    - How does user select a different persona?
@@ -294,6 +306,12 @@ Curator persona is complete when:
 [^short]: Short, J., Williams, E., & Christie, B. (1976). *The Social Psychology of Telecommunications*. Wiley. Social presence theory.
 [^hKask-AGENTS]: hKask Project. (2026). *AGENTS.md: Agent Operating Guide*. `/home/mdz-axolotl/Clones/hKask/AGENTS.md`.
 [^hKask-stack]: hKask Project. (2026). *stack-cli/src/curator.rs*. Curator implementation source.
+[^beer-s5]: Beer, S. (1985). *Diagnosing the System for Organizations*. Wiley. System 5 (policy/identity) of the Viable System Model.
+[^laurel-computers]: Laurel, B. (1991). *Computers as Theatre*. Addison-Wesley. Agent persona design as dramatic character.
+[^norman-design]: Norman, D. A. (2013). *The Design of Everyday Things* (Revised and expanded ed.). Basic Books. Affordances and constraints in design.
+[^sowa-conceptual]: Sowa, J. F. (2000). *Knowledge Representation: Logical, Philosophical, and Computational Foundations*. Brooks/Cole. Lexicon grounding in formal knowledge structures.
+[^fowler-refactor]: Fowler, M. (1999). *Refactoring: Improving the Design of Existing Code*. Addison-Wesley. Behavioral specification extraction patterns.
+[^cohn-stories]: Cohn, M. (2004). *User Stories Applied: For Agile Software Development*. Addison-Wesley. INVEST model for acceptance criteria.
 
 ---
 

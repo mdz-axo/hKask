@@ -22,7 +22,7 @@ hKask operates under a Magna Carta — a charter of liberties that honors user s
 
 ### Core Principles
 
-1. **Clear Boundaries** — Every agent, every pod, every template invocation operates within explicit OCAP boundaries
+1. **Clear Boundaries** — Every agent, every pod, every template invocation operates within explicit OCAP boundaries[^miller-ocap]
 2. **User Sovereignty** — Episodic memory, personal context, capability tokens: these are sovereign. Never shared without explicit consent.
 3. **Acquisition Resistance** — Default resistance level is `Maximum`. Acquisition requires user consent.
 4. **Kill-Zone Detection** — VC investment < 0.5 after acquisition attempt triggers CNS algedonic alert.
@@ -44,6 +44,8 @@ hKask operates under a Magna Carta — a charter of liberties that honors user s
 
 **The Release:** Within those boundaries, we provide the most generative agent platform possible.
 
+The catch-and-release dialectic mirrors the Viable System Model's balance between regulation and autonomy:[^beer-vsm]
+
 This is not a contradiction. This is the core.
 
 ---
@@ -51,6 +53,8 @@ This is not a contradiction. This is the core.
 ## Sovereignty Architecture
 
 ### Data Sovereignty Boundary
+
+Data sovereignty boundaries implement the principle of informational self-determination:[^westin-data]
 
 ```rust
 pub struct DataSovereigntyBoundary {
@@ -95,7 +99,7 @@ pub struct KillZoneDetector {
 
 ## The Curator as Enforcer
 
-The Curator is not just a quality gate. The Curator is the Magna Carta enforcer.
+The Curator is not just a quality gate. The Curator is the Magna Carta enforcer, maintaining requisite variety through curation decisions:[^ashby-law]
 
 ### Curator Responsibilities
 
@@ -120,7 +124,7 @@ The Curator is not just a quality gate. The Curator is the Magna Carta enforcer.
 
 ## CNS Integration
 
-The Cybernetic Nervous System monitors:
+The Cybernetic Nervous System monitors, providing algedonic signaling from the Viable System Model:[^beer-vsm]
 
 1. **Variety Counter** — Tracks code generation diversity
 2. **Kill Zone State** — Monitors acquisition patterns
@@ -138,6 +142,8 @@ When triggered, the Curator escalates to:
 ## Implementation
 
 ### Sovereignty State Tracking
+
+Sovereignty state tracking implements privacy-by-design principles:[^solove-taxonomy]
 
 ```rust
 pub struct UserSovereigntyState {
@@ -177,7 +183,7 @@ impl CuratorPipeline {
 
 ## The Promise
 
-**To Users:** Your sovereignty is non-negotiable. Your data is yours. Your agents serve you.
+**To Users:** Your sovereignty is non-negotiable. Your data is yours. Your agents serve you.[^westin-data]
 
 **To Builders:** Within these boundaries, build freely. High-temperature templates, anti-normative generation, creative exploration — all encouraged.
 
@@ -189,7 +195,7 @@ impl CuratorPipeline {
 
 The Magna Carta is not aspirational. It is enforced:
 
-1. **OCAP Boundaries** — Capability tokens verify authority
+1. **OCAP Boundaries** — Capability tokens verify authority[^miller-ocap]
 2. **Sovereignty Checks** — Every invocation checked
 3. **CNS Alerts** — Violations trigger immediate alerts
 4. **Audit Trail** — All decisions recorded
@@ -202,6 +208,9 @@ The Magna Carta is not aspirational. It is enforced:
 [^marcus]: Marcus, A. (2019). *The Power of Capabilities in Secure System Design*. IEEE Security & Privacy.
 [^beer-vsm]: Beer, S. (1972). *Brain of the Firm*. Penguin Books. Viable System Model, algedonic alerts.
 [^ashby-law]: Ashby, W. R. (1956). *An Introduction to Cybernetics*. Chapman & Hall. Law of Requisite Variety.
+[^miller-ocap]: Miller, M. S. (2006). *Robust composition: Towards a unified approach to access control and concurrency control* [Doctoral dissertation, Johns Hopkins University].
+[^westin-data]: Westin, A. F. (1967). *Privacy and Freedom*. Atheneum. Foundational framework for data sovereignty and informational self-determination.
+[^solove-taxonomy]: Solove, D. J. (2006). A taxonomy of privacy. *University of Pennsylvania Law Review*, 154(3), 477–560. https://doi.org/10.2307/40041379
 
 ---
 

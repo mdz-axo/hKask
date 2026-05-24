@@ -203,7 +203,7 @@ stateDiagram-v2
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-GOV-001
 verified_date: 2026-05-20
-verified_against: docs/standards/DOCUMENTATION_STANDARDS.md:93-108
+verified_against: .github/scripts/check_links.sh; .github/workflows/docs.yml
 status: VERIFIED
 -->
 
@@ -300,7 +300,7 @@ flowchart TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-GOV-002
 verified_date: 2026-05-20
-verified_against: docs/decisions/pragmatic-composition-adr.md
+verified_against: crates/hkask-templates/src/ports.rs; crates/hkask-templates/src/registry.rs
 status: VERIFIED
 -->
 

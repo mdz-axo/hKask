@@ -156,7 +156,14 @@ erDiagram
         object outcome
         float confidence
     }
-```
+    ```
+
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-RTL-001
+verified_date: 2026-05-24
+verified_against: crates/hkask-templates/src/cascade.rs; crates/hkask-templates/src/engine.rs
+status: VERIFIED
+-->
 
 ### 2.2 Data Flow
 
@@ -217,7 +224,14 @@ graph TB
     
     YAML -. interpreted by .- MAN
     J2 -. rendered by .- TPL
-```
+    ```
+
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-RTL-002
+verified_date: 2026-05-24
+verified_against: crates/hkask-templates/src/cascade.rs; crates/hkask-templates/src/engine.rs
+status: VERIFIED
+-->
 
 ### 3.2 Port Definitions
 

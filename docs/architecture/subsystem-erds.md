@@ -691,7 +691,349 @@ status: VERIFIED
 
 ---
 
-## 8. Cross-Crate Dependency Graph
+## 8. hkask-storage — SQLite Persistence & SQLCipher
+
+Bitemporal triple store, embedding vectors, blob storage, and sovereignty boundaries. 17 public structs, 10 error enums, 1 trait.[^bitemporal]
+
+```mermaid
+erDiagram
+    Database ||--o{ TripleStore : "owns"
+    Database ||--o{ EmbeddingStore : "owns"
+    Database ||--o{ BlobStore : "owns"
+    Database ||--o{ NuEventStore : "owns"
+    Database ||--o{ AuditLogStore : "owns"
+    Database ||--o{ SqliteGoalRepository : "owns"
+    Database ||--o{ SqliteSpecStore : "owns"
+
+    TripleStore ||--o{ Triple : "stores"
+    EmbeddingStore ||--o{ Embedding : "indexes"
+    BlobStore ||--o{ Blob : "stores"
+    NuEventStore ||--o{ NuEvent : "records"
+    AuditLogStore ||--o{ AuditEntry : "logs"
+    SqliteGoalRepository ||--o{ Goal : "manages"
+    SovereigntyBoundaryStore ||--o{ SovereigntyBoundaryEntry : "enforces"
+
+    Triple ||--o{ Embedding : "has_vector"
+    Triple ||--o{ NuEvent : "produces"
+    Triple }o--|| WebID : "owned_by"
+
+    Database {
+        Arc_Mutex_Connection conn
+        bytes16 salt
+    }
+
+    Triple {
+        TripleID id PK
+        string entity
+        string attribute
+        json value
+        DateTime valid_from
+        DateTime valid_to
+        float confidence
+        WebID perspective FK
+        Visibility visibility
+        WebID owner_webid FK
+    }
+
+    Embedding {
+        string id PK
+        TripleID entity_ref FK
+        array_f32 vector
+        int dimensions
+        string model
+    }
+
+    Blob {
+        string id PK
+        string content_type
+        int size
+        string blake3_hash
+        bytes data
+        Visibility visibility
+        WebID owner_webid FK
+    }
+
+    AuditEntry {
+        string id PK
+        DateTime timestamp
+        string actor_webid FK
+        string action
+        string resource
+        string outcome
+        json details
+    }
+
+    SovereigntyBoundaryEntry {
+        string id PK
+        string webid FK
+        array sovereign_categories
+        array shared_categories
+        array public_categories
+        string resistance
+        float kill_zone_threshold
+        i64 created_at
+    }
+
+    GoalJudgeResponse {
+        string verdict
+        string reason
+        float confidence
+    }
+
+    SqliteGoalRepository {
+        Arc_Connection conn
+        bytes capability_secret
+    }
+```
+
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-SUBSYS-009
+verified_date: 2026-05-24
+verified_against: crates/hkask-storage/src/triples.rs; crates/hkask-storage/src/embeddings.rs; crates/hkask-storage/src/blobs.rs; crates/hkask-storage/src/nu_event_store.rs; crates/hkask-storage/src/audit_log.rs; crates/hkask-storage/src/goals.rs; crates/hkask-storage/src/sovereignty.rs; crates/hkask-storage/src/spec_store.rs
+status: VERIFIED
+-->
+
+---
+
+## 9. hkask-cns — Cybernetic Nervous System
+
+Span emission, algedonic alerts, variety monitoring, energy budgets, sovereignty observation, and composition metrics. 20 public structs, 5 enums, 1 trait.[^beer-vsm]
+
+```mermaid
+erDiagram
+    CnsRuntime ||--|| AlgedonicManager : "contains"
+    CnsRuntime ||--|| VarietyMonitor : "contains"
+    SpanEmitter }o--|| NuEventSink : "writes_to"
+
+    AlgedonicManager ||--o{ RuntimeAlert : "emits"
+    AlgedonicManager }o--o| EscalationCallback : "escalates_via"
+
+    VarietyMonitor ||--o{ VarietyTracker : "tracks"
+    EnergyEmitter ||--|| EnergyAccount : "manages"
+    EnergyAccount ||--|| EnergyBudget : "constrained_by"
+    EnergyAccount ||--o{ OpportunityCost : "records"
+
+    CompositionObserver ||--|| CompositionObserverState : "holds"
+    CompositionObserverState ||--|| CompositionMetrics : "tracks"
+    CompositionObserverState ||--o{ VarietyMetrics : "monitors"
+    CompositionObserverState ||--|| EnergyAccount : "accounts"
+
+    SovereigntyObserver ||--|| SovereigntyObserverState : "holds"
+    SovereigntyObserver ||--|| AlgedonicManager : "delegates_to"
+    SovereigntyObserverState ||--o{ SovereigntyEvent : "records"
+
+    GoalVarietyMonitor ||--o{ GoalVarietyCounter : "per_webid"
+    RateLimiter ||--o{ CnsTokenBucket : "per_webid"
+    ReviewQueue ||--o{ Violation : "queues"
+
+    SpanEmitter {
+        WebID observer_webid
+        Option_NuEventSink sink
+    }
+
+    RuntimeAlert {
+        string domain
+        u64 deficit
+        u64 threshold
+        AlertSeverity severity
+        bool escalated
+        Instant timestamp
+    }
+
+    EnergyBudget {
+        u64 cap
+        u64 remaining
+        float cost_per_token
+        float alert_threshold
+        bool hard_limit
+    }
+
+    EnergyAccount {
+        string id
+        EnergyBudget budget
+        u64 total_allocated
+        u64 total_consumed
+    }
+
+    CompositionMetrics {
+        u64 total_attempts
+        u64 successful_translations
+        u64 failed_translations
+        float energy_cost_variance
+        u64 template_diversity
+        u64 security_violations_blocked
+    }
+
+    VarietyMetrics {
+        string entity_type
+        u64 count
+        u64 deficit
+        u64 threshold
+        bool alert_triggered
+    }
+
+    SovereigntyEvent {
+        SovereigntyEventType event_type
+        Instant timestamp
+        WebID webid FK
+        SovereigntyId sovereignty_id
+        string data_category
+    }
+
+    Violation {
+        uuid id PK
+        WebID agent_id FK
+        string violation_type
+        string description
+        DateTime occurred_at
+    }
+```
+
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-SUBSYS-010
+verified_date: 2026-05-24
+verified_against: crates/hkask-cns/src/spans.rs; crates/hkask-cns/src/algedonic.rs; crates/hkask-cns/src/variety.rs; crates/hkask-cns/src/energy.rs; crates/hkask-cns/src/runtime.rs; crates/hkask-cns/src/rate_limit.rs; crates/hkask-cns/src/review_queue.rs; crates/hkask-cns/src/observers/composition.rs; crates/hkask-cns/src/observers/sovereignty.rs; crates/hkask-cns/src/goal_variety.rs
+status: VERIFIED
+-->
+
+---
+
+## 10. hkask-templates — Registry, Cascade & Manifest Execution
+
+Unified template registry, Jinja2 rendering, manifest step executor, cascade engine, curator pipeline, context assembly, and Okapi inference. 40+ structs, 10 enums, 9 traits.[^cockburn-hexagonal]
+
+```mermaid
+erDiagram
+    Registry ||--o{ TemplateEntry : "indexes"
+    TemplateEngine ||--|| TemplateRegistry : "wraps"
+    TemplateEngine ||--|| Environment : "renders_via"
+
+    ManifestExecutorImpl ||--|| TemplateRenderer : "renders_via"
+    ManifestExecutorImpl ||--|| SyncInferencePort : "infers_via"
+    ManifestExecutorImpl ||--|| McpPort : "dispatches_via"
+    ManifestExecutorImpl ||--|| CnsPort : "observes_via"
+    ManifestExecutorImpl ||--o| MemoryPort : "recalls_via"
+    ManifestExecutorImpl ||--o| CspEnforcer : "enforces_via"
+
+    ContextAssembler ||--o{ ContextFragment : "assembles"
+    ContextFragment }o--|| FragmentSource : "from"
+
+    CuratorPipeline ||--o{ TemplateInvocation : "evaluates"
+    CuratorPipeline ||--o{ CurationRecord : "records"
+    CuratorPipeline ||--|| VarietyCounter : "checks"
+    CuratorPipeline ||--o{ OCAPBoundary : "enforces"
+
+    CascadeEngine ||--|| CascadeConfig : "configured_by"
+    CascadeEngine ||--|| SpanEmitter : "emits_via"
+    CascadeContext ||--|| CascadeLimits : "bounded_by"
+
+    OkapiInference ||--o| CircuitBreaker : "protected_by"
+    OkapiInference ||--o| RateLimiter : "throttled_by"
+    OkapiInference ||--|| SpanEmitter : "observes_via"
+
+    ContractValidator ||--|| OkapiCapabilities : "checks_against"
+    CapabilityAwareValidator ||--|| OkapiCapabilities : "checks_against"
+
+    DependencyGraph ||--o{ DependencyEdge : "tracks"
+    AuditTrail ||--o{ ExecutionAudit : "records"
+    ProvenanceManager ||--o{ TemplateProvenance : "tracks"
+
+    ProcessManifest ||--|{ ManifestStep : "defines"
+    ManifestStep }o--|| Action : "performs"
+
+    TemplateEntry {
+        string id PK
+        TemplateType template_type
+        string name
+        string description
+        array lexicon_terms
+        string source_path
+        int cascade_level
+        int matroshka_limit
+    }
+
+    ProcessManifest {
+        string id PK
+        string name
+        string description
+        array steps
+    }
+
+    ManifestStep {
+        int ordinal
+        Action action
+        string description
+        string template_ref FK
+        string model_tier
+        string mcp
+        string renderer
+    }
+
+    ContextFragment {
+        string content
+        FragmentSource source
+        array_f32 embedding
+        u8 priority
+    }
+
+    EvaluationResult {
+        string invocation_id
+        CurationDecision decision
+        string rationale
+        bool ocap_checked
+        i64 variety_impact
+    }
+
+    ExecutionAudit {
+        uuid id PK
+        WebID bot_id FK
+        string template_id FK
+        string input_hash
+        uuid outcome_event_id
+        DateTime executed_at
+        u64 duration_ms
+        bool success
+    }
+
+    TemplateProvenance {
+        string template_id FK
+        string git_sha
+        WebID modified_by FK
+        DateTime modified_at
+        string branch
+    }
+
+    InferenceResult {
+        string text
+        string model
+        Usage usage
+        string finish_reason
+    }
+
+    OkapiConfig {
+        string base_url
+        string api_key
+        u64 timeout_secs
+        int pool_max_idle
+    }
+
+    DependencyEdge {
+        string caller
+        string callee
+        u8 depth
+    }
+```
+
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-SUBSYS-011
+verified_date: 2026-05-24
+verified_against: crates/hkask-templates/src/registry.rs; crates/hkask-templates/src/engine.rs; crates/hkask-templates/src/ports.rs; crates/hkask-templates/src/manifest.rs; crates/hkask-templates/src/cascade.rs; crates/hkask-templates/src/curator_pipeline.rs; crates/hkask-templates/src/context_assembly.rs; crates/hkask-templates/src/inference_port.rs; crates/hkask-templates/src/okapi_config.rs; crates/hkask-templates/src/resilience.rs; crates/hkask-templates/src/contract_validator.rs; crates/hkask-templates/src/capability_validator.rs; crates/hkask-templates/src/dependency.rs; crates/hkask-templates/src/audit.rs; crates/hkask-templates/src/provenance.rs
+status: VERIFIED
+-->
+
+---
+
+## 11. Cross-Crate Dependency Graph
 
 ```mermaid
 graph TB
@@ -782,6 +1124,8 @@ status: VERIFIED
 [^utoipa]: utoipa Contributors. (2024). *utoipa: Compile-time OpenAPI documentation*. <https://crates.io/crates/utoipa>. Used for compile-time OpenAPI spec generation from Rust types.
 
 [^nist-sp800-132]: NIST. (2010). *Recommendation for Password-Based Key Derivation*. NIST Special Publication 800-132. <https://csrc.nist.gov/publications/detail/sp/800-132/final>. Argon2id parameters in hkask-keystore follow NIST guidance for memory-hard KDFs.
+
+[^bitemporal]: Johnston, R., & Weis, T. (2018). *Bitemporal Data: Theory and Practice*. Morgan Kaufmann. The bitemporal triple schema in hkask-storage uses valid-time and transaction-time dimensions for full auditability.
 
 ---
 

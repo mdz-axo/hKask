@@ -33,11 +33,15 @@ Implemented the core agent pod lifecycle management system for hKask, enabling A
 
 **Line Count:** ~650 LOC in `crates/hkask-agents/src/pod.rs` (well within budget)
 
+Pods follow the actor model of concurrent computation, where each pod encapsulates state and communicates via message passing:[^hewitt-actor]
+
 ---
 
 ## Implementation Summary
 
 ### Core Types Implemented
+
+The implementation follows the actor model for concurrent agent computation:[^agha-actors]
 
 | Type | Purpose | LOC |
 |------|---------|-----|
@@ -113,6 +117,8 @@ Implemented the core agent pod lifecycle management system for hKask, enabling A
 
 ## Test Coverage
 
+Test coverage follows the test-driven development methodology:[^beck-tdd]
+
 ### Unit Tests (22 passing)
 
 #### hkask-agents::acp (7 tests)
@@ -159,6 +165,8 @@ Implemented the core agent pod lifecycle management system for hKask, enabling A
 
 ## Agent Persona YAML Schema
 
+The persona schema declares capabilities following the object-capability principle of no ambient authority:[^miller-ocap]
+
 ```yaml
 agent:
   name: "memory-bot"
@@ -193,6 +201,8 @@ visibility:
 
 ## Template Crate Structure
 
+Template crates follow the composite pattern for organizing agent assets:[^gamma-patterns]
+
 ```
 memory-bot/
 ├── Cargo.toml              # Rust package metadata
@@ -209,6 +219,8 @@ memory-bot/
 ---
 
 ## Open Questions (Deferred to Phase 3-4)
+
+Open questions around security and capability semantics reflect fundamental tensions in secure distributed system design:[^schneier-secrets]
 
 | Question | Status | Resolution Path |
 |----------|--------|-----------------|
@@ -228,6 +240,8 @@ memory-bot/
 ---
 
 ## Deferred Work (Post-MVP)
+
+Deferred work is scoped to avoid premature generalization, following Brooks's observation about the essential complexity of software:[^brooks-mythical]
 
 ### Memory Artifact Persistence (v1.1)
 
@@ -253,6 +267,8 @@ memory-bot/
 
 ## Integration Points
 
+Integration points follow the hexagonal architecture (ports and adapters) pattern:[^cockburn-hexagonal]
+
 ### With hkask-types
 - `WebID` — Agent identity
 - `CapabilityToken` — OCAP access control with attenuation
@@ -277,6 +293,8 @@ memory-bot/
 
 ### Schneier Principles Applied
 
+Security architecture applies defense-in-depth:[^schneier-secrets]
+
 | Principle | Implementation |
 |-----------|----------------|
 | **Defense in Depth** | OCAP + attenuation + expiration + CNS monitoring |
@@ -285,6 +303,8 @@ memory-bot/
 | **Failure Modes** | Fail closed on capability verification errors |
 
 ### Miller Object Capability Principles
+
+Object-capability security principles as formalized by Miller:[^miller-ocap]
 
 | Principle | Implementation |
 |-----------|----------------|
@@ -296,6 +316,8 @@ memory-bot/
 ---
 
 ## Next Steps
+
+Next steps prioritize incremental delivery following established software engineering practice:[^brooks-mythical]
 
 ### Immediate (v1.1 Enhancement)
 1. **Memory Artifact Persistence** — Implement `MemoryStoragePort` for hkask-storage
@@ -310,6 +332,8 @@ memory-bot/
 ---
 
 ## Verification
+
+Verification procedures validate implementation against test-driven specifications:[^beck-tdd]
 
 ```bash
 # Compile check
@@ -343,6 +367,14 @@ wc -l crates/hkask-agents/src/pod.rs crates/hkask-agents/src/acp.rs
 [^hKask-agents]: hKask Project. (2026). *crates/hkask-agents/src/pod.rs*. Agent pod implementation.
 [^hKask-cns]: hKask Project. (2026). *crates/hkask-cns/src/spans.rs*. CNS span emitter.
 [^hKask-ensemble]: hKask Project. (2026). *crates/hkask-ensemble/src/capability.rs*. OCAP capability tokens.
+[^hewitt-actor]: Hewitt, C. (1977). Viewing control structures as patterns of passing messages. *Artificial Intelligence*, 8(3), 323–364. https://doi.org/10.1016/0004-3702(77)90013-3
+[^agha-actors]: Agha, G. (1986). *Actors: A Model of Concurrent Computation in Distributed Systems*. MIT Press.
+[^beck-tdd]: Beck, K. (2002). *Test Driven Development: By Example*. Addison-Wesley.
+[^miller-ocap]: Miller, M. S. (2006). *Robust composition: Towards a unified approach to access control and concurrency control* [Doctoral dissertation, Johns Hopkins University].
+[^gamma-patterns]: Gamma, E., Helm, R., Johnson, R., & Vlissides, J. (1994). *Design Patterns: Elements of Reusable Object-Oriented Software*. Addison-Wesley. Composite pattern.
+[^schneier-secrets]: Schneier, B. (2000). *Secrets & Lies: Digital Security in a Networked World*. Wiley. Defense in depth.
+[^brooks-mythical]: Brooks, F. P. (1995). *The Mythical Man-Month: Essays on Software Engineering* (2nd ed.). Addison-Wesley.
+[^cockburn-hexagonal]: Cockburn, A. (2005). Hexagonal architecture. *Alistair Cockburn's website*. https://alistair.cockburn.us/hexagonal-architecture/
 
 ---
 

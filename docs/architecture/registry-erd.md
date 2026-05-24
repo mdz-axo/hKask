@@ -76,7 +76,14 @@ erDiagram
         integer kill_zone_detected
         timestamp last_updated
     }
-```
+    ```
+
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-REG-001
+verified_date: 2026-05-24
+verified_against: crates/hkask-templates/src/registry.rs; crates/hkask-templates/src/registry_sqlite.rs
+status: VERIFIED
+-->
 
 ## Tables
 

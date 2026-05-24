@@ -54,7 +54,7 @@ stateDiagram-v2
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-TOGAF-001
 verified_date: 2026-05-22
-verified_against: docs/standards/DOCUMENTATION_STANDARDS.md:82-91
+verified_against: .github/scripts/check_links.sh; docs/standards/DOCUMENTATION_STANDARDS.md:82-91
 status: VERIFIED
 -->
 

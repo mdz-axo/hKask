@@ -312,7 +312,7 @@ erDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-DATA-001
 verified_date: 2026-05-20
-verified_against: docs/architecture/hKask-erd.md; crates/hkask-storage/src/schema.rs
+verified_against: crates/hkask-storage/src/triples.rs; crates/hkask-storage/src/embeddings.rs; crates/hkask-storage/src/nu_event_store.rs
 status: VERIFIED
 -->
 

@@ -81,6 +81,13 @@ graph TD
     end
 ```
 
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-SPEC-001
+verified_date: 2026-05-24
+verified_against: crates/hkask-types/src/spec.rs; crates/hkask-types/src/curation.rs
+status: VERIFIED
+-->
+
 **Nodes:** The 80 hLexicon terms across three domains — WordAct (speech acts), FlowDef (workflow patterns), KnowAct (enactive cognition). These are the goals.
 
 **Edges:** Canonical composition patterns like `query → infer → reflect` or `detect → escalate → regulate`. These are typed relationships between semantic primitives.
@@ -367,7 +374,14 @@ graph LR
     hKask --> M2
     hKask --> M3
     hKask --> M4
-```
+    ```
+
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-SPEC-002
+verified_date: 2026-05-24
+verified_against: crates/hkask-types/src/spec.rs; crates/hkask-types/src/curation.rs
+status: VERIFIED
+-->
 
 ### 6.2 Crate Structure
 

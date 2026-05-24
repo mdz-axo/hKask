@@ -21,7 +21,7 @@ domain: "Cross-cutting"
 
 ## 1. Semantic Map & Root-Cause Drilldown (Task 1)
 
-### 1.1 RDF/Turtle Graph
+### 1.1 RDF/Turtle Graph [^w3c-rdf]
 
 ```turtle
 @prefix : <https://hkask.dev/ontology/ddmvss#> .
@@ -208,7 +208,14 @@ erDiagram
         string domain PK
         string sorting_key
     }
-```
+    ```
+
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-DDMVSS-001
+verified_date: 2026-05-24
+verified_against: crates/hkask-types/src/spec.rs; crates/hkask-templates/src/manifest.rs
+status: VERIFIED
+-->
 
 ### 1.3 Predicate Root-Cause Drilldown
 
@@ -234,13 +241,13 @@ erDiagram
 |-----------|-------------------|-------------------|-------------------|
 | **TOGAF ADM** | Phase-gated architecture development | MVSDD recursion cycle (specify→grant→compose→curate→reflect) | Content metamodel, Architecture Repository, full 8-phase ADM |
 | **Agile-TOGAF / MVA** | "Just-enough architecture" threshold | CompletenessPredicate per category | Sprint planning, story points, velocity tracking |
-| **Lean Startup MVP** | Build-Measure-Learn feedback loop | MVSDD reflect→respecify step | Pivot/persevere decisions, innovation accounting |
-| **Cynefin** | Domain framing (clear/complicated/complex/chaotic) | Domain anchor selection (Okapi/Russell/hKask) | Full sense-making framework, probe-respond patterns |
+| **Lean Startup MVP** | Build-Measure-Learn feedback loop [^ries-lean] | MVSDD reflect→respecify step | Pivot/persevere decisions, innovation accounting |
+| **Cynefin** | Domain framing (clear/complicated/complex/chaotic) [^snowden-cynefin] | Domain anchor selection (Okapi/Russell/hKask) | Full sense-making framework, probe-respond patterns |
 | **DDD (Evans)** | Bounded Context, Ubiquitous Language | Domain spec category, hLexicon grounding | Aggregates, repositories, domain events (hKask uses ν-events) |
-| **Capability-based design (Miller)** | OCAP, POLA, unforgeable capability tokens | Capability spec category, hkask-keystore integration | Full E-language, vat model, distributed promises |
+| **Capability-based design (Miller)** | OCAP, POLA, unforgeable capability tokens [^miller-robust] | Capability spec category, hkask-keystore integration | Full E-language, vat model, distributed promises |
 | **Job Stories** | `When <situation>, I want to <motivation>, so I can <outcome>` | Goal text format in templates | Persona creation, job mapping canvas |
 | **arc42** | 12-section documentation template | Reduced to 9 DDMVSS categories | Full 12-section structure, cross-cutting concepts section |
-| **C4** | Hierarchical system decomposition (Context→Container→Component→Code) | Spec composition hierarchy | Full C4 diagramming notation |
+| **C4** | Hierarchical system decomposition (Context→Container→Component→Code) [^brown-c4] | Spec composition hierarchy | Full C4 diagramming notation |
 | **ATAM** | Quality attribute scenarios | CompletenessPredicate expressions | Utility trees, sensitivity/threshold analysis |
 | **Participatory Archives / Curation Studies** | Gradient evaluation (Merge/Revise/Defer/Discard), contextualisation, reconciliation | Curation spec category, `CurationPort` trait, spec-curator bot | Full archival science apparatus, provenance chains |
 
@@ -304,7 +311,7 @@ Nine new terms distributed across the three domains, following existing `lexicon
 
 ## 4. MVSDD as Capability Model (Task 4)
 
-### 4.1 Constraint-Driven vs. Capability-Driven SDD
+### 4.1 Constraint-Driven vs. Capability-Driven SDD [^miller-robust]
 
 | Aspect | Constraint-Driven SDD | MVSDD (Capability-Driven) |
 |--------|----------------------|---------------------------|
@@ -362,7 +369,14 @@ sequenceDiagram
     else not complete
         S->>S: MVSDD_cycle(spec, refined_domain)
     end
-```
+    ```
+
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-DDMVSS-002
+verified_date: 2026-05-24
+verified_against: crates/hkask-types/src/spec.rs; crates/hkask-templates/src/manifest.rs
+status: VERIFIED
+-->
 
 ---
 
@@ -839,7 +853,7 @@ cross_references:
     relation: "cns.spec.curate spans"
 ```
 
-### 5.10 Jinja2 Spec Templates (Soft Layer)
+### 5.10 Jinja2 Spec Templates (Soft Layer) [^ronacher-jinja2]
 
 Following hKask's loom/thread separation (Rust is loom, Jinja2/YAML is thread):
 
@@ -964,7 +978,7 @@ The templates above are instantiated for hKask (domain anchor: `hkask`, bounded 
 
 ---
 
-## 6. Hexagonal Architecture Mapping (Task 6)
+## 6. Hexagonal Architecture Mapping (Task 6) [^cockburn-hexagonal]
 
 ### 6.1 Component Diagram
 
@@ -1006,7 +1020,14 @@ graph TB
     SPEC --> CNS_OUT
     SPEC --> KEYSTORE
     CURATION --> CNS_OUT
-```
+    ```
+
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-DDMVSS-003
+verified_date: 2026-05-24
+verified_against: crates/hkask-types/src/spec.rs; crates/hkask-templates/src/manifest.rs
+status: VERIFIED
+-->
 
 ### 6.2 Port-to-Crate Reuse Map
 
@@ -1059,7 +1080,7 @@ graph TB
 
 ## 7. Capability & Security Design (Task 7)
 
-### 7.1 Threat Model (Schneier-grade, lean)
+### 7.1 Threat Model (Schneier-grade, lean) [^shostack-threat]
 
 **Assets:**
 
@@ -1411,6 +1432,14 @@ impl SpecStore for SqliteSpecStore {
 [^beer-vsm]: Beer, S. (1972). *Brain of the Firm*. Penguin Books. Viable System Model.
 
 [^ashby-law]: Ashby, W. R. (1956). *An Introduction to Cybernetics*. Chapman & Hall. Law of Requisite Variety.
+[^w3c-rdf]: World Wide Web Consortium. (2014). *RDF 1.1 Concepts and Abstract Syntax*. W3C Recommendation. https://www.w3.org/TR/rdf11-concepts/
+[^ries-lean]: Ries, E. (2011). *The Lean Startup: How Today's Entrepreneurs Use Continuous Innovation to Create Radically Successful Businesses*. Crown Business.
+[^snowden-cynefin]: Snowden, D. J., & Boone, M. E. (2007). A leader's framework for decision making. *Harvard Business Review*, 85(11), 68–76.
+[^miller-robust]: Miller, M. S. (2006). *Robust composition: Towards a unified approach to access control and concurrency control* [Doctoral dissertation, Johns Hopkins University]. https://miller.emulab.net/papers/robust-composition.pdf
+[^brown-c4]: Brown, S. (2020). *The C4 Model for Visualising Software Architecture*. https://c4model.com/
+[^cockburn-hexagonal]: Cockburn, A. (2005). *Hexagonal Architecture*. https://alistair.cockburn.us/hexagonal-architecture/
+[^shostack-threat]: Shostack, A. (2014). *Threat Modeling: Designing for Security*. Wiley.
+[^ronacher-jinja2]: Ronacher, A. (2024). *Jinja*. Pallets Projects. https://jinja.palletsprojects.com/
 
 ---
 

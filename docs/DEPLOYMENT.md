@@ -42,7 +42,7 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a minimal agent-nati
 | **CPU** | 2 cores | 4+ cores |
 | **RAM** | 4 GB | 8+ GB |
 | **Disk** | 2 GB | 10+ GB SSD |
-| **Rust** | 1.85+ | Latest stable |
+| **Rust** | 1.91+ | Latest stable |
 
 ### 2.2 External Dependencies
 
@@ -267,7 +267,7 @@ sudo systemctl status hkask-api
 ### 5.2 Docker Deployment
 
 ```dockerfile
-FROM rust:1.85-slim AS builder
+FROM rust:1.91-slim AS builder
 
 WORKDIR /app
 COPY . .

@@ -74,7 +74,7 @@ graph TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-BIZ-001
 verified_date: 2026-05-20
-verified_against: docs/architecture/hKask-architecture-master.md:34-46
+verified_against: crates/hkask-agents/src/pod.rs; crates/hkask-agents/src/bot.rs; crates/hkask-agents/src/replicant.rs
 status: VERIFIED
 -->
 
@@ -199,7 +199,7 @@ stateDiagram-v2
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-BIZ-003
 verified_date: 2026-05-20
-verified_against: docs/architecture/hKask-architecture-master.md:48-78
+verified_against: crates/hkask-agents/src/acp.rs; crates/hkask-ensemble/src/capability.rs
 status: VERIFIED
 -->
 

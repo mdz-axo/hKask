@@ -24,7 +24,7 @@ domain: "Technology"
 
 ## 1. Executive Summary
 
-hKask is built on Rust 2024 edition (1.91 toolchain) with Tokio async runtime, SQLite storage, and Okapi LLM inference. The technology stack prioritizes local-first execution with remote fallback.
+hKask is built on Rust 2024 edition (1.91 toolchain) [^rust-lang] with Tokio async runtime [^tokio], SQLite storage [^sqlite], and Okapi LLM inference [^gguf-spec]. The technology stack prioritizes local-first execution with remote fallback.
 
 **Key Technology Decisions:**
 - **Rust 2024** — Memory safety, zero-cost abstractions, async/await, let chains
@@ -44,11 +44,11 @@ hKask is built on Rust 2024 edition (1.91 toolchain) with Tokio async runtime, S
 | Layer | Technology | Version | Purpose |
 |-------|------------|---------|---------|
 | **Language** | Rust | 2024 edition (1.91) | System programming, memory safety |
-| **Async Runtime** | Tokio | 1.x | Async I/O, multi-threaded scheduler |
+| **Async Runtime** | Tokio | 1.x | Async I/O, multi-threaded scheduler [^tokio] |
 | **Serialization** | Serde | 1.x | JSON/YAML serialization |
-| **Database** | SQLite | 3.x + SQLCipher | Encrypted persistent storage |
-| **Vector Search** | sqlite-vec | 0.1.x | Embedding similarity search |
-| **LLM Inference** | Okapi | Latest | GGUF model inference |
+| **Database** | SQLite | 3.x + SQLCipher | Encrypted persistent storage [^sqlite][^sqlcipher] |
+| **Vector Search** | sqlite-vec | 0.1.x | Embedding similarity search [^sqlite-vec] |
+| **LLM Inference** | Okapi | Latest | GGUF model inference [^gguf-spec] |
 | **Embeddings** | FastEmbed | Latest | Candle-backed embeddings |
 | **HTTP Client** | Reqwest | 0.12.x | Web API calls |
 | **CLI** | Clap | 4.x | Command-line interface |
@@ -92,7 +92,7 @@ cargo --version  # cargo 1.91.0 (...)
 
 ## 3. Runtime Environment
 
-### 3.1 Async Runtime
+### 3.1 Async Runtime [^tokio]
 
 ```rust
 use tokio::runtime::Runtime;
@@ -111,7 +111,7 @@ fn main() -> Result<()> {
 - Max blocking threads: 512
 - Global queue capacity: 1024
 
-### 3.2 Storage Stack
+### 3.2 Storage Stack [^sqlite]
 
 ```mermaid
 graph TD
@@ -154,7 +154,7 @@ verified_against: crates/hkask-storage/src/lib.rs
 status: VERIFIED
 -->
 
-### 3.3 Encryption Model
+### 3.3 Encryption Model [^sqlcipher]
 
 | Component | Algorithm | Key Size | KDF |
 |-----------|-----------|----------|-----|
@@ -294,6 +294,12 @@ status: VERIFIED
 ## 8. References
 
 [^togaf-tech]: The Open Group. (2011). *TOGAF Standard, Version 9.1*. Phase D: Technology Architecture. <https://pubs.opengroup.org/architecture/togaf9-doc/arch/chap16.html>.
+[^rust-lang]: Rust Foundation. (2024). *The Rust Programming Language*. https://doc.rust-lang.org/book/
+[^tokio]: Tokio Contributors. (2024). *Tokio: Asynchronous Runtime for the Rust Programming Language*. https://tokio.rs/
+[^sqlite]: Hipp, D. R. (2024). *About SQLite*. SQLite Consortium. https://www.sqlite.org/about.html
+[^sqlcipher]: Zetetic LLC. (2024). *SQLCipher: Encrypted SQLite Extension*. https://www.zetetic.net/sqlcipher/
+[^gguf-spec]: Gerganov, G. (2023). *GGUF: GGML Universal File Format*. https://github.com/ggerganov/ggml/blob/master/docs/gguf.md
+[^sqlite-vec]: Li, J. (2024). *sqlite-vec: A Vector Search SQLite Extension*. https://github.com/asg017/sqlite-vec
 
 ---
 

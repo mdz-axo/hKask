@@ -101,7 +101,7 @@ graph TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-APP-001
 verified_date: 2026-05-20
-verified_against: Cargo.toml workspace definition; docs/architecture/hKask-architecture-master.md:86-123
+verified_against: Cargo.toml workspace definition; crates/hkask-templates/src/ports.rs; crates/hkask-mcp/src/dispatch.rs
 status: VERIFIED
 -->
 

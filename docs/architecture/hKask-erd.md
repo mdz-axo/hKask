@@ -22,6 +22,8 @@ domain: "Data"
 
 ## Core Entities
 
+Core entity relationships in the hKask data model, following the entity-relationship approach to data modeling:[^chen-er]
+
 ```mermaid
 erDiagram
     BOT ||--o{ MANIFEST : executes
@@ -108,6 +110,8 @@ status: VERIFIED
 
 ## Architecture Layers
 
+The hKask codebase is organized into mutable and fixed layers, adhering to the layered architecture pattern:[^fowler-layers]
+
 ```mermaid
 graph TB
     subgraph "Soft Layer (Mutable — Outside LOC Budget)"
@@ -164,6 +168,8 @@ status: VERIFIED
 
 ## Data Flow: Dispatch Pattern
 
+Template dispatch follows a message routing pattern common in enterprise integration:[^hohpe-eip]
+
 ```mermaid
 sequenceDiagram
     participant User
@@ -215,6 +221,8 @@ status: VERIFIED
 
 ## Manifest Step Grammar
 
+Step execution follows an interpreter pattern where each action type maps to a discrete execution strategy:[^gamma-patterns]
+
 ```mermaid
 stateDiagram-v2
     [*] --> LoadManifest
@@ -256,6 +264,8 @@ status: VERIFIED
 ---
 
 ## CNS Span Hierarchy
+
+CNS spans form a hierarchical observability structure grounded in cybernetic regulation theory:[^ashby-law]
 
 ```mermaid
 graph LR
@@ -335,6 +345,8 @@ status: VERIFIED
 ---
 
 ## Key Invariants
+
+System invariants define the unchanging design contracts that preserve architectural integrity:[^meyer-contract]
 
 | Invariant | Description | Enforcement |
 |-----------|-------------|-------------|
@@ -424,6 +436,11 @@ status: VERIFIED
 
 [^beer-vsm]: Beer, S. (1972). *Brain of the Firm*. Penguin Books. Viable System Model.
 [^ashby-law]: Ashby, W. R. (1956). *An Introduction to Cybernetics*. Chapman & Hall. Law of Requisite Variety.
+[^chen-er]: Chen, P. P.-S. (1976). The entity-relationship model—Toward a unified view of data. *ACM Transactions on Database Systems*, 1(1), 9–36. https://doi.org/10.1145/320434.320440
+[^fowler-layers]: Fowler, M. (2002). *Patterns of Enterprise Application Architecture*. Addison-Wesley. Layered architecture pattern.
+[^hohpe-eip]: Hohpe, G., & Woolf, B. (2003). *Enterprise Integration Patterns: Designing, Building, and Deploying Messaging Solutions*. Addison-Wesley. Message dispatch and routing patterns.
+[^gamma-patterns]: Gamma, E., Helm, R., Johnson, R., & Vlissides, J. (1994). *Design Patterns: Elements of Reusable Object-Oriented Software*. Addison-Wesley. Interpreter and command patterns.
+[^meyer-contract]: Meyer, B. (1997). *Object-Oriented Software Construction* (2nd ed.). Prentice Hall. Design by contract and class invariants.
 
 ---
 
