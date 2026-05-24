@@ -10,7 +10,7 @@ use hkask_types::id::WebID;
 
 /// Goal variety counter — tracks active goals per user
 pub struct GoalVarietyCounter {
-    webid: WebID,
+    _webid: WebID,
     active_goal_count: u64,
     threshold: u64,
 }
@@ -18,7 +18,7 @@ pub struct GoalVarietyCounter {
 impl GoalVarietyCounter {
     pub fn new(webid: WebID) -> Self {
         Self {
-            webid,
+            _webid: webid,
             active_goal_count: 0,
             threshold: 10,
         }

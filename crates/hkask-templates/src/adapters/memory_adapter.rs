@@ -44,13 +44,13 @@ impl MemoryPort for StubMemoryPort {
 ///     .with_memory(Box::new(adapter));
 /// ```
 pub struct MemoryAdapter<S, E> {
-    semantic: S,
-    episodic: E,
+    _semantic: S,
+    _episodic: E,
 }
 
 impl<S, E> MemoryAdapter<S, E> {
     pub fn new(semantic: S, episodic: E) -> Self {
-        Self { semantic, episodic }
+        Self { _semantic: semantic, _episodic: episodic }
     }
 }
 

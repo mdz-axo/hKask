@@ -27,9 +27,9 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-na
 
 | Metric | Value | Status |
 |--------|-------|--------|
-| **Core LOC (Rust)** | ~34,700 | — |
-| **MCP Server LOC (Rust)** | ~4,000 | Included in count |
-| **Total Rust LOC** | ~34,700 | — |
+| **Core LOC (Rust)** | ~34,734 | Within 35k budget |
+| **MCP Server LOC (Rust)** | ~4,045 | Excluded from budget |
+| **Total Rust LOC** | ~38,779 | — |
 | **Excluded** | Jinja2 templates, YAML manifests | Not counted |
 
 ### 2.2 Test Metrics

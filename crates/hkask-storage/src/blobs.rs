@@ -42,11 +42,11 @@ impl Blob {
 }
 
 pub struct BlobStore {
-    conn: Arc<Mutex<Connection>>,
+    _conn: Arc<Mutex<Connection>>,
 }
 
 impl BlobStore {
     pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
-        Self { conn }
+        Self { _conn: conn }
     }
 }

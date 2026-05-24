@@ -3,6 +3,7 @@
 //! Tests the complete cascade execution model including:
 //! - Stage execution with ManifestExecutor
 //! - Named operations in CspExecutor
+#![allow(dead_code)]
 //! - Jinja2 rendering in Populate action
 //! - Inference/MCP dispatch in Execute action
 //! - Error classification and retry logic

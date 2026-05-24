@@ -9,21 +9,18 @@ use hkask_types::{Span, WebID};
 /// CNS Emitter Adapter — Concrete implementation for span emission
 pub struct CnsEmitterAdapter {
     emitter: SpanEmitter,
-    observer_webid: WebID,
 }
 
 impl CnsEmitterAdapter {
     pub fn new(observer_webid: WebID) -> Self {
         Self {
             emitter: SpanEmitter::new(observer_webid),
-            observer_webid,
         }
     }
 
-    pub fn from_emitter(emitter: SpanEmitter, observer_webid: WebID) -> Self {
+    pub fn from_emitter(emitter: SpanEmitter) -> Self {
         Self {
             emitter,
-            observer_webid,
         }
     }
 }

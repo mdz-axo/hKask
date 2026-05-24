@@ -284,7 +284,7 @@ pub struct AcpRuntime {
     /// Secret for HMAC signing (Zeroizing for secure memory)
     secret: Zeroizing<Vec<u8>>,
     /// Rate limiter for DoS prevention
-    rate_limiter: RateLimiter,
+    _rate_limiter: RateLimiter,
     /// Audit log for A2A message tracking
     audit_log: Arc<AuditLog>,
     /// Root authority for OCAP capability delegation
@@ -327,7 +327,7 @@ impl AcpRuntime {
             pending_messages: Arc::new(RwLock::new(HashMap::new())),
             capability_tokens: Arc::new(RwLock::new(HashMap::new())),
             secret,
-            rate_limiter,
+            _rate_limiter: rate_limiter,
             audit_log,
             root_authority,
             revoked_tokens: Arc::new(RwLock::new(std::collections::HashSet::new())),
@@ -349,7 +349,7 @@ impl AcpRuntime {
             pending_messages: Arc::new(RwLock::new(HashMap::new())),
             capability_tokens: Arc::new(RwLock::new(HashMap::new())),
             secret: Zeroizing::new(secret.to_vec()),
-            rate_limiter: RateLimiter::new(rate_limit_config.unwrap_or_else(|| RateLimitConfig {
+            _rate_limiter: RateLimiter::new(rate_limit_config.unwrap_or_else(|| RateLimitConfig {
                 max_tokens: 100,
                 refill_interval: std::time::Duration::from_millis(600),
             })),

@@ -47,7 +47,7 @@ pub struct McpDispatcher {
     /// Bot capabilities registry
     bot_capabilities: Arc<RwLock<std::collections::HashMap<WebID, BotCapabilities>>>,
     /// Retry configuration (future: use in invoke_async)
-    retry_config: McpMcpRetryConfig,
+    _retry_config: McpMcpRetryConfig,
 }
 
 impl McpDispatcher {
@@ -57,7 +57,7 @@ impl McpDispatcher {
             capability_checker: Arc::new(CapabilityChecker::new(secret)),
             rate_limiter: RateLimiter::default(),
             bot_capabilities: Arc::new(RwLock::new(std::collections::HashMap::new())),
-            retry_config,
+            _retry_config: retry_config,
         }
     }
 

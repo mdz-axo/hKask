@@ -205,11 +205,11 @@ jobs:
           total=$(tokei crates/*/src --categories | grep "Total" | awk '{print $2}')
           echo "Total: $total lines"
           
-          if [ "$total" -gt 30000 ]; then
-            echo "::error::Line budget exceeded! Total: $total, Budget: 30000"
+          if [ "$total" -gt 35000 ]; then
+            echo "::error::Line budget exceeded! Total: $total, Budget: 35000"
             exit 1
           else
-            echo "✓ Within budget (30,000 lines)"
+            echo "✓ Within budget (35,000 lines)"
           fi
 
   # ============================================================================

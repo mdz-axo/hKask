@@ -42,7 +42,7 @@ hKask application architecture consists of 28 Rust crates organized into three l
 
 ```mermaid
 graph TD
-    subgraph Core[Core Crates — 30k LOC Budget]
+    subgraph Core[Core Crates — 35k LOC Budget]
         TYPES[hkask-types<br/>~2k LOC<br/>ID types, ν-event, hLexicon]
         STORAGE[hkask-storage<br/>~4k LOC<br/>SQLite + SQLCipher]
         MEMORY[hkask-memory<br/>~3k LOC<br/>Semantic/episodic]

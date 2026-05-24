@@ -705,12 +705,12 @@ pub trait MemoryStoragePort {
 /// - Listing all pods
 pub struct PodManager {
     pods: Arc<RwLock<HashMap<PodID, AgentPod>>>,
-    keystore: Keychain,
+    _keystore: Keychain,
     git_cas: GitCasAdapter,
     acp_runtime: Arc<dyn crate::ports::AcpPort + Send + Sync>,
     cns_emitter: CnsEmitterAdapter,
     mcp_runtime: McpRuntimeAdapter,
-    memory_storage: Arc<Mutex<MemoryStorageAdapter>>,
+    _memory_storage: Arc<Mutex<MemoryStorageAdapter>>,
     security_context: SecurityContext,
 }
 
@@ -737,12 +737,12 @@ impl PodManager {
     ) -> Self {
         Self {
             pods: Arc::new(RwLock::new(HashMap::new())),
-            keystore: Keychain::default(),
+            _keystore: Keychain::default(),
             git_cas,
             acp_runtime,
             cns_emitter,
             mcp_runtime,
-            memory_storage: Arc::new(Mutex::new(memory_storage)),
+            _memory_storage: Arc::new(Mutex::new(memory_storage)),
             security_context: SecurityContext::default(),
         }
     }
@@ -751,25 +751,26 @@ impl PodManager {
     pub fn new_mock() -> Self {
         Self {
             pods: Arc::new(RwLock::new(HashMap::new())),
-            keystore: Keychain::default(),
+            _keystore: Keychain::default(),
             git_cas: GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-mock")),
             acp_runtime: Arc::new(crate::acp::AcpRuntime::default()),
             cns_emitter: CnsEmitterAdapter::new(WebID::new()),
             mcp_runtime: McpRuntimeAdapter::new(),
-            memory_storage: Arc::new(Mutex::new(MemoryStorageAdapter::in_memory().unwrap())),
+            _memory_storage: Arc::new(Mutex::new(MemoryStorageAdapter::in_memory().unwrap())),
             security_context: SecurityContext::default(),
         }
     }
 
+    #[cfg(test)]
     fn create_test_pod_manager_with_templates() -> PodManager {
         Self {
             pods: Arc::new(RwLock::new(HashMap::new())),
-            keystore: Keychain::default(),
+            _keystore: Keychain::default(),
             git_cas: GitCasAdapter::from_path(PathBuf::from("./registry/templates")),
             acp_runtime: Arc::new(crate::acp::AcpRuntime::default()),
             cns_emitter: CnsEmitterAdapter::new(WebID::new()),
             mcp_runtime: McpRuntimeAdapter::new(),
-            memory_storage: Arc::new(Mutex::new(MemoryStorageAdapter::in_memory().unwrap())),
+            _memory_storage: Arc::new(Mutex::new(MemoryStorageAdapter::in_memory().unwrap())),
             security_context: SecurityContext::default(),
         }
     }

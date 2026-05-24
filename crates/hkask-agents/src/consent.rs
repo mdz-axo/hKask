@@ -70,7 +70,7 @@ impl ConsentRecord {
 
 /// Consent manager
 pub struct ConsentManager {
-    store: Arc<RwLock<SovereigntyBoundaryStore>>,
+    _store: Arc<RwLock<SovereigntyBoundaryStore>>,
     consent_cache: Arc<RwLock<Vec<ConsentRecord>>>,
 }
 
@@ -79,7 +79,7 @@ impl ConsentManager {
     #[allow(clippy::arc_with_non_send_sync)]
     pub fn new(store: SovereigntyBoundaryStore) -> Self {
         Self {
-            store: Arc::new(RwLock::new(store)),
+            _store: Arc::new(RwLock::new(store)),
             consent_cache: Arc::new(RwLock::new(Vec::new())),
         }
     }
