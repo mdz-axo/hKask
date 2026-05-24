@@ -34,7 +34,7 @@ impl InferenceConfig {
 }
 
 /// Error type for template operations
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, thiserror::Error)]
 pub enum TemplateError {
     #[error("Template not found: {0}")]
     NotFound(String),

@@ -9,6 +9,7 @@ description = "CLI commands for hKask"
 hkask-types = { path = "../hkask-types" }
 hkask-agents = { path = "../hkask-agents" }
 hkask-templates = { path = "../hkask-templates" }
+hkask-storage = { path = "../hkask-storage" }
 hkask-mcp = { path = "../hkask-mcp" }
 hkask-cns = { path = "../hkask-cns" }
 hkask-api = { path = "../hkask-api" }
@@ -23,3 +24,4 @@ tracing-subscriber.workspace = true
 tokio.workspace = true
 uuid.workspace = true
 minijinja.workspace = true
+rusqlite.workspace = true

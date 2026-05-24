@@ -150,6 +150,12 @@ impl ApiState {
             Some(inferencer),
         )
     }
+
+    /// Set the spec store for DDMVSS specifications
+    pub fn with_spec_store(mut self, store: Arc<dyn hkask_types::SpecStore + Send + Sync>) -> Self {
+        self.spec_store = Some(store);
+        self
+    }
 }
 
 /// Template response

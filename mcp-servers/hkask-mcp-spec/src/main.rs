@@ -11,15 +11,14 @@
 //! - spec/graph/validate — Validate collection coherence
 
 use hkask_types::{
-    CapabilityAction, CapabilityChecker, CompletenessCheck, CurationDecision,
-    DomainAnchor, GoalSpec, OCAPBoundary, Spec, SpecCategory, SpecError, SpecStore,
+    CapabilityAction, CapabilityChecker, CapabilityResource, CapabilityToken, CollectionCoherence,
+    CompletenessCheck, CurationDecision, DomainAnchor, GoalSpec, OCAPBoundary, Spec, SpecCategory,
+    SpecError, SpecId, SpecObserver, SpecStore,
 };
 use rmcp::{ServiceExt, handler::server::wrapper::Parameters, tool, tool_router, transport::stdio};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::RwLock;
 
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -112,6 +111,7 @@ pub struct GoalCaptureRequest {
     pub category: String,
     pub domain_anchor: String,
     pub criteria: Option<Vec<String>>,
+    pub capability_token: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -119,6 +119,7 @@ pub struct GoalDecomposeRequest {
     pub spec_id: String,
     pub goal_index: usize,
     pub sub_goals: Vec<String>,
+    pub capability_token: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -127,72 +128,67 @@ pub struct RequireBindRequest {
     pub goal_index: usize,
     pub capability: String,
     pub authority: String,
+    pub capability_token: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct CurateEvaluateRequest {
     pub spec_id: String,
     pub rationale_hint: Option<String>,
+    pub capability_token: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct CurateReconcileRequest {
     pub spec_ids: Vec<String>,
     pub tension_description: String,
+    pub capability_token: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct CurateCultivateRequest {
     pub coherence_threshold: Option<f64>,
+    pub capability_token: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GraphQueryRequest {
     pub category: Option<String>,
     pub domain_anchor: Option<String>,
+    pub capability_token: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GraphValidateRequest {
     pub coherence_threshold: Option<f64>,
+    pub capability_token: Option<String>,
 }
 
 // ── Server ───────────────────────────────────────────────────
 
 pub struct SpecServer {
-    specs: Arc<RwLock<HashMap<String, Spec>>>,
-    store: Option<Arc<dyn SpecStore + Send + Sync>>,
+    store: Arc<dyn SpecStore + Send + Sync>,
     capability_checker: Option<Arc<CapabilityChecker>>,
+    observer: Option<Arc<dyn SpecObserver + Send + Sync>>,
 }
 
 impl std::fmt::Debug for SpecServer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SpecServer")
-            .field("specs", &self.specs)
-            .field("store", &self.store.is_some())
+            .field("store", &"<dyn SpecStore>")
             .field("capability_checker", &self.capability_checker.is_some())
+            .field("observer", &self.observer.is_some())
             .finish()
     }
 }
 
-impl Default for SpecServer {
-    fn default() -> Self {
-        Self {
-            specs: Arc::new(RwLock::new(HashMap::new())),
-            store: None,
-            capability_checker: None,
-        }
-    }
-}
-
 impl SpecServer {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn with_store(mut self, store: Arc<dyn SpecStore + Send + Sync>) -> Self {
-        self.store = Some(store);
-        self
+    pub fn new(store: Arc<dyn SpecStore + Send + Sync>) -> Self {
+        Self {
+            store,
+            capability_checker: None,
+            observer: None,
+        }
     }
 
     pub fn with_capability_checker(mut self, checker: CapabilityChecker) -> Self {
@@ -200,28 +196,70 @@ impl SpecServer {
         self
     }
 
-    fn verify_capability(
-        &self,
-        resource_id: &str,
-        action: CapabilityAction,
-    ) -> Result<(), SpecError> {
-        if let Some(_checker) = &self.capability_checker {
-            // Capability checking is configured but token verification
-            // requires the caller's token, which is passed per-request.
-            // When no token is presented, allow the call (open mode).
-            // In production, the MCP transport layer should inject the
-            // CapabilityToken into the request context.
-            Ok(())
-        } else {
-            // No capability checker configured — open mode
-            let _ = (resource_id, action);
-            Ok(())
+    pub fn with_observer(mut self, observer: Arc<dyn SpecObserver + Send + Sync>) -> Self {
+        self.observer = Some(observer);
+        self
+    }
+
+    fn save_and_observe(&self, spec: &Spec, operation: &str) -> Result<(), SpecError> {
+        match self.store.save(spec) {
+            Ok(()) => Ok(()),
+            Err(e) => {
+                if let Some(obs) = &self.observer {
+                    obs.emit_span(
+                        spec.id,
+                        &format!("{}.error", operation),
+                        &serde_json::json!({"error": e.to_string()}),
+                    );
+                }
+                Err(e)
+            }
         }
     }
 
-    async fn persist_spec(&self, spec: &Spec) {
-        if let Some(store) = &self.store {
-            let _ = store.save(spec);
+    fn verify_capability(
+        &self,
+        token_b64: Option<&str>,
+        resource_id: &str,
+        action: CapabilityAction,
+    ) -> Result<(), SpecError> {
+        match (&self.capability_checker, token_b64) {
+            (None, None) => {
+                tracing::warn!(
+                    resource_id,
+                    action = action.as_str(),
+                    "OCAP open mode: no capability checker configured"
+                );
+                Ok(())
+            }
+            (Some(_checker), None) => Err(SpecError::CapabilityDenied(format!(
+                "No capability token provided for spec:{}:{}",
+                resource_id,
+                action.as_str()
+            ))),
+            (_, Some(b64)) => {
+                let checker = self.capability_checker.as_ref().unwrap();
+                let token = CapabilityToken::from_base64(b64).map_err(|e| {
+                    SpecError::CapabilityDenied(format!("Invalid token encoding: {}", e))
+                })?;
+                if !checker.verify(&token) {
+                    return Err(SpecError::CapabilityDenied(
+                        "Token signature verification failed".to_string(),
+                    ));
+                }
+                let now = chrono::Utc::now().timestamp();
+                if token.is_expired(now) {
+                    return Err(SpecError::CapabilityDenied("Token expired".to_string()));
+                }
+                if !token.is_valid_for(CapabilityResource::Spec, resource_id, action) {
+                    return Err(SpecError::CapabilityDenied(format!(
+                        "Token does not grant spec:{}:{}",
+                        resource_id,
+                        action.as_str()
+                    )));
+                }
+                Ok(())
+            }
         }
     }
 }
@@ -236,9 +274,14 @@ impl SpecServer {
             category,
             domain_anchor,
             criteria,
+            capability_token,
         }): Parameters<GoalCaptureRequest>,
     ) -> String {
-        if let Err(e) = self.verify_capability("spec:capture", CapabilityAction::Write) {
+        if let Err(e) = self.verify_capability(
+            capability_token.as_deref(),
+            "capture",
+            CapabilityAction::Write,
+        ) {
             return serde_json::to_string(&ErrorResponse {
                 error: e.to_string(),
             })
@@ -256,15 +299,17 @@ impl SpecServer {
         }
 
         let spec = Spec::new(&description, cat, anchor).with_goal(goal);
-        let id = spec.id.to_string();
+        let id = spec.id;
 
-        self.persist_spec(&spec).await;
-
-        let mut specs = self.specs.write().await;
-        specs.insert(id.clone(), spec);
+        if let Err(e) = self.save_and_observe(&spec, "spec.capture") {
+            return serde_json::to_string(&ErrorResponse {
+                error: format!("Failed to persist spec: {}", e),
+            })
+            .unwrap_or_else(|_| "{}".into());
+        }
 
         serde_json::to_string(&GoalCaptureResponse {
-            spec_id: id,
+            spec_id: id.to_string(),
             category: cat.as_str().to_string(),
             domain_anchor: anchor.as_str().to_string(),
             status: "captured".to_string(),
@@ -279,22 +324,31 @@ impl SpecServer {
             spec_id,
             goal_index,
             sub_goals,
+            capability_token,
         }): Parameters<GoalDecomposeRequest>,
     ) -> String {
-        if let Err(e) = self.verify_capability(&spec_id, CapabilityAction::Write) {
+        if let Err(e) = self.verify_capability(
+            capability_token.as_deref(),
+            &spec_id,
+            CapabilityAction::Write,
+        ) {
             return serde_json::to_string(&ErrorResponse {
                 error: e.to_string(),
             })
             .unwrap_or_else(|_| "{}".into());
         }
 
-        let mut specs = self.specs.write().await;
-        let Some(spec) = specs.get_mut(&spec_id) else {
-            return serde_json::to_string(&ErrorResponse {
-                error: format!("Spec not found: {}", spec_id),
-            })
-            .unwrap_or_else(|_| "{}".into());
+        let spec_id_parsed = SpecId::from_string(&spec_id).unwrap_or(SpecId::new());
+        let mut spec = match self.store.load(spec_id_parsed) {
+            Ok(s) => s,
+            Err(_) => {
+                return serde_json::to_string(&ErrorResponse {
+                    error: format!("Spec not found: {}", spec_id),
+                })
+                .unwrap_or_else(|_| "{}".into());
+            }
         };
+
         let Some(goal) = spec.goals.get_mut(goal_index) else {
             return serde_json::to_string(&ErrorResponse {
                 error: format!("Goal index {} out of range", goal_index),
@@ -316,6 +370,13 @@ impl SpecServer {
             goal.sub_goals.push(child);
         }
 
+        if let Err(e) = self.save_and_observe(&spec, "spec.decompose") {
+            return serde_json::to_string(&ErrorResponse {
+                error: format!("Failed to persist spec: {}", e),
+            })
+            .unwrap_or_else(|_| "{}".into());
+        }
+
         serde_json::to_string(&GoalDecomposeResponse {
             spec_id,
             goal_index,
@@ -332,21 +393,29 @@ impl SpecServer {
             goal_index,
             capability,
             authority,
+            capability_token,
         }): Parameters<RequireBindRequest>,
     ) -> String {
-        if let Err(e) = self.verify_capability(&spec_id, CapabilityAction::Write) {
+        if let Err(e) = self.verify_capability(
+            capability_token.as_deref(),
+            &spec_id,
+            CapabilityAction::Write,
+        ) {
             return serde_json::to_string(&ErrorResponse {
                 error: e.to_string(),
             })
             .unwrap_or_else(|_| "{}".into());
         }
 
-        let specs = self.specs.read().await;
-        let Some(spec) = specs.get(&spec_id) else {
-            return serde_json::to_string(&ErrorResponse {
-                error: format!("Spec not found: {}", spec_id),
-            })
-            .unwrap_or_else(|_| "{}".into());
+        let spec_id_parsed = SpecId::from_string(&spec_id).unwrap_or(SpecId::new());
+        let mut spec = match self.store.load(spec_id_parsed) {
+            Ok(s) => s,
+            Err(_) => {
+                return serde_json::to_string(&ErrorResponse {
+                    error: format!("Spec not found: {}", spec_id),
+                })
+                .unwrap_or_else(|_| "{}".into());
+            }
         };
         if goal_index >= spec.goals.len() {
             return serde_json::to_string(&ErrorResponse {
@@ -360,12 +429,21 @@ impl SpecServer {
             _ => OCAPBoundary::explicit(capability.clone()),
         };
 
+        spec.goals[goal_index].constraints.push(boundary);
+
+        if let Err(e) = self.save_and_observe(&spec, "spec.bind") {
+            return serde_json::to_string(&ErrorResponse {
+                error: format!("Failed to persist spec: {}", e),
+            })
+            .unwrap_or_else(|_| "{}".into());
+        }
+
         serde_json::to_string(&RequireBindResponse {
             spec_id,
             goal_index,
             capability,
             authority,
-            enforced: boundary.enforced,
+            enforced: true,
         })
         .unwrap_or_else(|_| "{}".into())
     }
@@ -376,21 +454,29 @@ impl SpecServer {
         Parameters(CurateEvaluateRequest {
             spec_id,
             rationale_hint,
+            capability_token,
         }): Parameters<CurateEvaluateRequest>,
     ) -> String {
-        if let Err(e) = self.verify_capability(&spec_id, CapabilityAction::Read) {
+        if let Err(e) = self.verify_capability(
+            capability_token.as_deref(),
+            &spec_id,
+            CapabilityAction::Read,
+        ) {
             return serde_json::to_string(&ErrorResponse {
                 error: e.to_string(),
             })
             .unwrap_or_else(|_| "{}".into());
         }
 
-        let specs = self.specs.read().await;
-        let Some(spec) = specs.get(&spec_id) else {
-            return serde_json::to_string(&ErrorResponse {
-                error: format!("Spec not found: {}", spec_id),
-            })
-            .unwrap_or_else(|_| "{}".into());
+        let spec_id_parsed = SpecId::from_string(&spec_id).unwrap_or(SpecId::new());
+        let spec = match self.store.load(spec_id_parsed) {
+            Ok(s) => s,
+            Err(_) => {
+                return serde_json::to_string(&ErrorResponse {
+                    error: format!("Spec not found: {}", spec_id),
+                })
+                .unwrap_or_else(|_| "{}".into());
+            }
         };
 
         let complete = spec.is_complete();
@@ -410,7 +496,7 @@ impl SpecServer {
             }
         });
 
-        let coherence = if complete { 1.0 } else { 0.5 };
+        let coherence = spec.coherence();
 
         serde_json::to_string(&CurateEvaluateResponse {
             spec_id,
@@ -427,21 +513,26 @@ impl SpecServer {
         Parameters(CurateReconcileRequest {
             spec_ids,
             tension_description,
+            capability_token,
         }): Parameters<CurateReconcileRequest>,
     ) -> String {
-        if let Err(e) = self.verify_capability("spec:reconcile", CapabilityAction::Compose) {
+        if let Err(e) = self.verify_capability(
+            capability_token.as_deref(),
+            "reconcile",
+            CapabilityAction::Compose,
+        ) {
             return serde_json::to_string(&ErrorResponse {
                 error: e.to_string(),
             })
             .unwrap_or_else(|_| "{}".into());
         }
 
-        let specs = self.specs.read().await;
         let mut found = Vec::new();
         let mut missing = Vec::new();
 
         for id in &spec_ids {
-            if specs.contains_key(id) {
+            let parsed = SpecId::from_string(id).unwrap_or(SpecId::new());
+            if self.store.load(parsed).is_ok() {
                 found.push(id.clone());
             } else {
                 missing.push(id.as_str());
@@ -469,19 +560,31 @@ impl SpecServer {
         &self,
         Parameters(CurateCultivateRequest {
             coherence_threshold,
+            capability_token,
         }): Parameters<CurateCultivateRequest>,
     ) -> String {
-        if let Err(e) = self.verify_capability("spec:cultivate", CapabilityAction::Compose) {
+        if let Err(e) = self.verify_capability(
+            capability_token.as_deref(),
+            "cultivate",
+            CapabilityAction::Compose,
+        ) {
             return serde_json::to_string(&ErrorResponse {
                 error: e.to_string(),
             })
             .unwrap_or_else(|_| "{}".into());
         }
 
-        let specs = self.specs.read().await;
         let threshold = coherence_threshold.unwrap_or(0.7);
-        let all_specs: Vec<Spec> = specs.values().cloned().collect();
-        let coherence = all_specs.as_slice().coherence();
+        let all_specs: Vec<Spec> = match self.store.list_all() {
+            Ok(specs) => specs,
+            Err(e) => {
+                return serde_json::to_string(&ErrorResponse {
+                    error: format!("Failed to load specs: {}", e),
+                })
+                .unwrap_or_else(|_| "{}".into());
+            }
+        };
+        let coherence = all_specs.as_slice().collection_coherence();
         let categories_covered: Vec<String> = all_specs
             .iter()
             .map(|s| s.category.as_str().to_string())
@@ -513,18 +616,31 @@ impl SpecServer {
         Parameters(GraphQueryRequest {
             category,
             domain_anchor,
+            capability_token,
         }): Parameters<GraphQueryRequest>,
     ) -> String {
-        if let Err(e) = self.verify_capability("spec:query", CapabilityAction::Read) {
+        if let Err(e) = self.verify_capability(
+            capability_token.as_deref(),
+            "query",
+            CapabilityAction::Read,
+        ) {
             return serde_json::to_string(&ErrorResponse {
                 error: e.to_string(),
             })
             .unwrap_or_else(|_| "{}".into());
         }
 
-        let specs = self.specs.read().await;
-        let results: Vec<&Spec> = specs
-            .values()
+        let all_specs: Vec<Spec> = match self.store.list_all() {
+            Ok(specs) => specs,
+            Err(e) => {
+                return serde_json::to_string(&ErrorResponse {
+                    error: format!("Failed to load specs: {}", e),
+                })
+                .unwrap_or_else(|_| "{}".into());
+            }
+        };
+        let results: Vec<&Spec> = all_specs
+            .iter()
             .filter(|s| {
                 let cat_match = category
                     .as_ref()
@@ -562,19 +678,31 @@ impl SpecServer {
         &self,
         Parameters(GraphValidateRequest {
             coherence_threshold,
+            capability_token,
         }): Parameters<GraphValidateRequest>,
     ) -> String {
-        if let Err(e) = self.verify_capability("spec:validate", CapabilityAction::Validate) {
+        if let Err(e) = self.verify_capability(
+            capability_token.as_deref(),
+            "validate",
+            CapabilityAction::Validate,
+        ) {
             return serde_json::to_string(&ErrorResponse {
                 error: e.to_string(),
             })
             .unwrap_or_else(|_| "{}".into());
         }
 
-        let specs = self.specs.read().await;
         let threshold = coherence_threshold.unwrap_or(0.7);
-        let all_specs: Vec<Spec> = specs.values().cloned().collect();
-        let coherence = all_specs.as_slice().coherence();
+        let all_specs: Vec<Spec> = match self.store.list_all() {
+            Ok(specs) => specs,
+            Err(e) => {
+                return serde_json::to_string(&ErrorResponse {
+                    error: format!("Failed to load specs: {}", e),
+                })
+                .unwrap_or_else(|_| "{}".into());
+            }
+        };
+        let coherence = all_specs.as_slice().collection_coherence();
 
         let mut violations = Vec::new();
         let mut suggestions = Vec::new();
@@ -619,7 +747,12 @@ async fn main() -> anyhow::Result<()> {
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
 
-    let server = SpecServer::new();
+    let conn = rusqlite::Connection::open_in_memory()?;
+    let conn = std::sync::Arc::new(std::sync::Mutex::new(conn));
+    let store = std::sync::Arc::new(hkask_storage::SqliteSpecStore::new(conn));
+    store.init_schema().map_err(|e| anyhow::anyhow!("{}", e))?;
+
+    let server = SpecServer::new(store);
     let service = server.serve(stdio());
     tracing::info!("hkask-mcp-spec started (v{})", SERVER_VERSION);
     service.await?;

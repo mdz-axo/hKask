@@ -149,6 +149,7 @@ pub struct GoalSpec {
     pub id: GoalID,
     pub text: String,
     pub criteria: Vec<Criterion>,
+    pub constraints: Vec<OCAPBoundary>,
     pub sub_goals: Vec<GoalSpec>,
     pub depth: u8,
 }
@@ -159,6 +160,7 @@ impl GoalSpec {
             id: GoalID::new(),
             text: text.to_string(),
             criteria: Vec::new(),
+            constraints: Vec::new(),
             sub_goals: Vec::new(),
             depth: 0,
         }
@@ -254,12 +256,17 @@ impl CompletenessCheck for Spec {
     }
 }
 
-impl CompletenessCheck for [Spec] {
-    fn is_complete(&self) -> bool {
+pub trait CollectionCoherence {
+    fn collection_coherence(&self) -> f64;
+    fn is_collection_complete(&self) -> bool;
+}
+
+impl CollectionCoherence for [Spec] {
+    fn is_collection_complete(&self) -> bool {
         !self.is_empty() && self.iter().all(|s| s.is_complete())
     }
 
-    fn coherence(&self) -> f64 {
+    fn collection_coherence(&self) -> f64 {
         if self.is_empty() {
             return 0.0;
         }
@@ -307,6 +314,8 @@ impl SpecCurationRecord {
 pub trait SpecStore {
     fn load(&self, id: SpecId) -> Result<Spec, SpecError>;
     fn save(&self, spec: &Spec) -> Result<(), SpecError>;
+    fn delete(&self, id: SpecId) -> Result<(), SpecError>;
+    fn list_all(&self) -> Result<Vec<Spec>, SpecError>;
     fn list_by_category(&self, cat: SpecCategory) -> Result<Vec<Spec>, SpecError>;
 }
 
@@ -512,7 +521,7 @@ mod tests {
     #[test]
     fn slice_coherence_empty() {
         let specs: Vec<Spec> = vec![];
-        assert_eq!(specs.as_slice().coherence(), 0.0);
+        assert_eq!(specs.as_slice().collection_coherence(), 0.0);
     }
 
     #[test]
@@ -521,7 +530,7 @@ mod tests {
         goal.criteria[0].mark_satisfied();
         let spec = Spec::new("test", SpecCategory::Domain, DomainAnchor::Hkask).with_goal(goal);
         let specs = vec![spec];
-        let coherence = specs.as_slice().coherence();
+        let coherence = specs.as_slice().collection_coherence();
         assert!(coherence > 0.0);
         assert!(coherence < 1.0);
     }

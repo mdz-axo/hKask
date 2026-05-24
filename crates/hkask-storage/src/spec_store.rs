@@ -1,7 +1,7 @@
 //! SpecStore — SQLite-backed specification storage and curation
 
-use hkask_types::spec::{Spec, SpecCategory, SpecCurationRecord, SpecError, SpecStore};
-use hkask_types::{CompletenessCheck, CurationDecision, OCAPBoundary, SpecCurator, SpecId};
+use hkask_types::spec::{Spec, SpecCategory, SpecCurationRecord, SpecError, SpecObserver, SpecStore};
+use hkask_types::{CollectionCoherence, CompletenessCheck, CurationDecision, OCAPBoundary, SpecCurator, SpecId};
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 
@@ -66,6 +66,38 @@ impl SpecStore for SqliteSpecStore {
         Ok(())
     }
 
+    fn delete(&self, id: SpecId) -> Result<(), SpecError> {
+        let conn = self.conn.lock().unwrap();
+        let changed = conn
+            .execute("DELETE FROM specs WHERE id = ?1", rusqlite::params![id.to_string()])
+            .map_err(|e| SpecError::Storage(e.to_string()))?;
+        if changed == 0 {
+            return Err(SpecError::NotFound(id));
+        }
+        Ok(())
+    }
+
+    fn list_all(&self) -> Result<Vec<Spec>, SpecError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn
+            .prepare("SELECT data FROM specs")
+            .map_err(|e| SpecError::Storage(e.to_string()))?;
+        let rows = stmt
+            .query_map([], |row| {
+                let data: String = row.get(0)?;
+                Ok(data)
+            })
+            .map_err(|e| SpecError::Storage(e.to_string()))?;
+        let mut specs = Vec::new();
+        for row in rows {
+            let data = row.map_err(|e| SpecError::Storage(e.to_string()))?;
+            let spec: Spec =
+                serde_json::from_str(&data).map_err(|e| SpecError::Storage(e.to_string()))?;
+            specs.push(spec);
+        }
+        Ok(specs)
+    }
+
     fn list_by_category(&self, cat: SpecCategory) -> Result<Vec<Spec>, SpecError> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn
@@ -88,11 +120,11 @@ impl SpecStore for SqliteSpecStore {
     }
 }
 
-pub struct SqliteSpecCurator {
+pub struct DefaultSpecCurator {
     coherence_threshold: f64,
 }
 
-impl SqliteSpecCurator {
+impl DefaultSpecCurator {
     pub fn new(coherence_threshold: f64) -> Self {
         Self {
             coherence_threshold: coherence_threshold.clamp(0.0, 1.0),
@@ -100,13 +132,13 @@ impl SqliteSpecCurator {
     }
 }
 
-impl Default for SqliteSpecCurator {
+impl Default for DefaultSpecCurator {
     fn default() -> Self {
         Self::new(0.7)
     }
 }
 
-impl SpecCurator for SqliteSpecCurator {
+impl SpecCurator for DefaultSpecCurator {
     fn evaluate(&self, spec: &Spec) -> Result<SpecCurationRecord, SpecError> {
         let complete = spec.is_complete();
         let decision = if complete {
@@ -142,11 +174,25 @@ impl SpecCurator for SqliteSpecCurator {
     }
 
     fn cultivate(&self, specs: &mut Vec<Spec>) -> Result<f64, SpecError> {
-        let coherence = specs.as_slice().coherence();
+        let coherence = specs.as_slice().collection_coherence();
         if coherence < self.coherence_threshold {
             return Err(SpecError::CoherenceInsufficient(coherence));
         }
         Ok(coherence)
+    }
+}
+
+pub struct CnsSpecObserver;
+
+impl SpecObserver for CnsSpecObserver {
+    fn emit_span(&self, spec_id: SpecId, operation: &str, outcome: &serde_json::Value) {
+        tracing::info!(
+            target: "cns.spec",
+            spec_id = %spec_id,
+            operation,
+            outcome = %outcome,
+            "spec operation"
+        );
     }
 }
 
@@ -203,8 +249,41 @@ mod tests {
     }
 
     #[test]
+    fn spec_store_list_all() {
+        let store = test_store();
+        let spec1 = Spec::new("s1", SpecCategory::Domain, DomainAnchor::Hkask);
+        let spec2 = Spec::new("s2", SpecCategory::Capability, DomainAnchor::Hkask);
+
+        store.save(&spec1).unwrap();
+        store.save(&spec2).unwrap();
+
+        let all = store.list_all().unwrap();
+        assert_eq!(all.len(), 2);
+    }
+
+    #[test]
+    fn spec_store_delete() {
+        let store = test_store();
+        let spec = Spec::new("s1", SpecCategory::Domain, DomainAnchor::Hkask);
+        let id = spec.id;
+
+        store.save(&spec).unwrap();
+        store.delete(id).unwrap();
+
+        let result = store.load(id);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn spec_store_delete_not_found() {
+        let store = test_store();
+        let result = store.delete(SpecId::new());
+        assert!(result.is_err());
+    }
+
+    #[test]
     fn spec_curator_evaluate_complete() {
-        let curator = SqliteSpecCurator::default();
+        let curator = DefaultSpecCurator::default();
         let mut goal = GoalSpec::new("g1").with_criterion("c1");
         goal.criteria[0].mark_satisfied();
         let spec = Spec::new("test", SpecCategory::Domain, DomainAnchor::Hkask).with_goal(goal);
@@ -216,7 +295,7 @@ mod tests {
 
     #[test]
     fn spec_curator_evaluate_incomplete() {
-        let curator = SqliteSpecCurator::default();
+        let curator = DefaultSpecCurator::default();
         let goal = GoalSpec::new("g1").with_criterion("c1");
         let spec = Spec::new("test", SpecCategory::Domain, DomainAnchor::Hkask).with_goal(goal);
 
@@ -226,7 +305,7 @@ mod tests {
 
     #[test]
     fn spec_curator_evaluate_empty() {
-        let curator = SqliteSpecCurator::default();
+        let curator = DefaultSpecCurator::default();
         let spec = Spec::new("test", SpecCategory::Domain, DomainAnchor::Hkask);
 
         let record = curator.evaluate(&spec).unwrap();
@@ -235,7 +314,7 @@ mod tests {
 
     #[test]
     fn spec_curator_cultivate_above_threshold() {
-        let curator = SqliteSpecCurator::new(0.5);
+        let curator = DefaultSpecCurator::new(0.5);
         let mut goal = GoalSpec::new("g1").with_criterion("c1");
         goal.criteria[0].mark_satisfied();
         let spec = Spec::new("test", SpecCategory::Domain, DomainAnchor::Hkask).with_goal(goal);
@@ -247,7 +326,7 @@ mod tests {
 
     #[test]
     fn spec_curator_cultivate_below_threshold() {
-        let curator = SqliteSpecCurator::new(0.9);
+        let curator = DefaultSpecCurator::new(0.9);
         let spec = Spec::new("test", SpecCategory::Domain, DomainAnchor::Hkask);
         let mut specs = vec![spec];
 

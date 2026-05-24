@@ -1462,6 +1462,10 @@ fn main() {
                 println!("  Note: Full cultivation requires hkask-mcp-spec server.");
             }
             SpecAction::Render { template, spec_id } => {
+                use hkask_storage::SqliteSpecStore;
+                use hkask_types::{SpecId, SpecStore};
+                use minijinja::UndefinedBehavior;
+
                 let template_path = format!("registry/templates/{}", template);
                 let template_content = match std::fs::read_to_string(&template_path) {
                     Ok(content) => content,
@@ -1471,15 +1475,54 @@ fn main() {
                     }
                 };
 
-                let mut ctx = minijinja::context! {};
-                if let Some(sid) = spec_id {
-                    ctx = minijinja::context! {
-                        spec_id => sid,
-                        goal_name => "Loaded from store",
-                    };
+                let db_path = std::env::var("HKASK_DB_PATH").unwrap_or_else(|_| "hkask.db".to_string());
+                let conn = match rusqlite::Connection::open(&db_path) {
+                    Ok(c) => c,
+                    Err(e) => {
+                        eprintln!("Failed to open database: {}", e);
+                        std::process::exit(1);
+                    }
+                };
+                let store = SqliteSpecStore::new(std::sync::Arc::new(std::sync::Mutex::new(conn)));
+                if let Err(e) = store.init_schema() {
+                    eprintln!("Failed to initialize spec schema: {}", e);
+                    std::process::exit(1);
                 }
 
-                let env = minijinja::Environment::new();
+                let ctx = if let Some(sid) = spec_id {
+                    let parsed_id = match SpecId::from_string(&sid) {
+                        Ok(id) => id,
+                        Err(e) => {
+                            eprintln!("Invalid spec ID: {}", e);
+                            std::process::exit(1);
+                        }
+                    };
+                    match store.load(parsed_id) {
+                        Ok(spec) => minijinja::context! {
+                            spec_id => spec.id.to_string(),
+                            goal_name => spec.name,
+                            spec_category => spec.category.as_str(),
+                            domain_anchor => spec.domain_anchor.as_str(),
+                            goals => spec.goals.iter().map(|g| minijinja::context! {
+                                text => g.text,
+                                depth => g.depth,
+                                criteria => g.criteria.iter().map(|c| minijinja::context! {
+                                    description => c.description,
+                                    satisfied => c.satisfied,
+                                }).collect::<Vec<_>>(),
+                            }).collect::<Vec<_>>(),
+                        },
+                        Err(e) => {
+                            eprintln!("Failed to load spec: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                } else {
+                    minijinja::context! {}
+                };
+
+                let mut env = minijinja::Environment::new();
+                env.set_undefined_behavior(UndefinedBehavior::Strict);
                 match env.render_str(&template_content, ctx) {
                     Ok(rendered) => println!("{}", rendered),
                     Err(e) => {

@@ -335,6 +335,59 @@ impl CascadeEngine {
         Ok(())
     }
 
+    /// Evaluate a condition expression against the current state
+    pub fn evaluate_condition(
+        &self,
+        condition: &str,
+        state: &serde_json::Value,
+        _context: &CascadeContext,
+    ) -> bool {
+        // Simple condition evaluation
+        // Format: "field=value" or "field" (existence check) or "field>value" (numeric comparison)
+        
+        if condition.contains('=') {
+            let parts: Vec<&str> = condition.split('=').collect();
+            if parts.len() == 2 {
+                let field = parts[0].trim();
+                let expected = parts[1].trim();
+                
+                if let Some(value) = state.get(field) {
+                    match value {
+                        serde_json::Value::String(s) => s == expected,
+                        serde_json::Value::Number(n) => n.to_string() == expected,
+                        serde_json::Value::Bool(b) => b.to_string() == expected,
+                        _ => false,
+                    }
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        } else if condition.contains('>') {
+            let parts: Vec<&str> = condition.split('>').collect();
+            if parts.len() == 2 {
+                let field = parts[0].trim();
+                let threshold: f64 = parts[1].trim().parse().unwrap_or(0.0);
+                
+                if let Some(value) = state.get(field) {
+                    if let Some(n) = value.as_f64() {
+                        n > threshold
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        } else {
+            // Existence check
+            state.get(condition).is_some()
+        }
+    }
+
     async fn execute_stages(
         &self,
         input: serde_json::Value,

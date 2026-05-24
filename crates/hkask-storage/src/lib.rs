@@ -26,5 +26,5 @@ pub use sovereignty::{
     SovereigntyBoundaryEntry, SovereigntyBoundaryStore, SovereigntyStoreError,
     SovereigntyStoreStats,
 };
-pub use spec_store::{SqliteSpecCurator, SqliteSpecStore};
+pub use spec_store::{CnsSpecObserver, DefaultSpecCurator, SqliteSpecStore};
 pub use triples::{Triple, TripleError, TripleStore};

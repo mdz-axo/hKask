@@ -246,10 +246,12 @@ impl CspExecutor {
                     );
                     
                     if attempt >= max_retries {
-                        last_error = Some(TemplateError::RecursionLimit {
-                            stage_name: stage.name.clone(),
-                            timeout_ms: stage.timeout_ms,
-                        });
+                        last_error = Some(TemplateError::Manifest(format!(
+                            "Stage '{}' timed out after {} attempts (timeout: {}ms)",
+                            stage.name,
+                            attempt + 1,
+                            stage.timeout_ms
+                        )));
                         break;
                     }
 
