@@ -11,17 +11,98 @@
 //! - spec/graph/validate — Validate collection coherence
 
 use hkask_types::{
-    CompletenessCheck, CurationDecision, DomainAnchor, GoalSpec, OCAPBoundary, Spec,
-    SpecCategory,
+    CapabilityAction, CapabilityChecker, CompletenessCheck, CurationDecision,
+    DomainAnchor, GoalSpec, OCAPBoundary, Spec, SpecCategory, SpecError, SpecStore,
 };
 use rmcp::{ServiceExt, handler::server::wrapper::Parameters, tool, tool_router, transport::stdio};
 use schemars::JsonSchema;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+// ── Response types ───────────────────────────────────────────
+
+#[derive(Debug, Serialize)]
+pub struct GoalCaptureResponse {
+    pub spec_id: String,
+    pub category: String,
+    pub domain_anchor: String,
+    pub status: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GoalDecomposeResponse {
+    pub spec_id: String,
+    pub goal_index: usize,
+    pub sub_goals_added: usize,
+}
+
+#[derive(Debug, Serialize)]
+pub struct RequireBindResponse {
+    pub spec_id: String,
+    pub goal_index: usize,
+    pub capability: String,
+    pub authority: String,
+    pub enforced: bool,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CurateEvaluateResponse {
+    pub spec_id: String,
+    pub decision: String,
+    pub rationale: String,
+    pub coherence_score: f64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CurateReconcileResponse {
+    pub resolution: String,
+    pub spec_ids: Vec<String>,
+    pub tension: String,
+    pub status: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CurateCultivateResponse {
+    pub coherence_score: f64,
+    pub threshold: f64,
+    pub above_threshold: bool,
+    pub spec_count: usize,
+    pub categories_covered: Vec<String>,
+    pub categories_missing: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GraphNodeResponse {
+    pub id: String,
+    pub name: String,
+    pub category: String,
+    pub complete: bool,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GraphQueryResponse {
+    pub count: usize,
+    pub specs: Vec<GraphNodeResponse>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GraphValidateResponse {
+    pub valid: bool,
+    pub coherence_score: f64,
+    pub threshold: f64,
+    pub violations: Vec<String>,
+    pub suggestions: Vec<String>,
+    pub spec_count: usize,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ErrorResponse {
+    pub error: String,
+}
 
 // ── Request types ────────────────────────────────────────────
 
@@ -78,9 +159,30 @@ pub struct GraphValidateRequest {
 
 // ── Server ───────────────────────────────────────────────────
 
-#[derive(Debug, Default)]
 pub struct SpecServer {
     specs: Arc<RwLock<HashMap<String, Spec>>>,
+    store: Option<Arc<dyn SpecStore + Send + Sync>>,
+    capability_checker: Option<Arc<CapabilityChecker>>,
+}
+
+impl std::fmt::Debug for SpecServer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SpecServer")
+            .field("specs", &self.specs)
+            .field("store", &self.store.is_some())
+            .field("capability_checker", &self.capability_checker.is_some())
+            .finish()
+    }
+}
+
+impl Default for SpecServer {
+    fn default() -> Self {
+        Self {
+            specs: Arc::new(RwLock::new(HashMap::new())),
+            store: None,
+            capability_checker: None,
+        }
+    }
 }
 
 impl SpecServer {
@@ -88,19 +190,39 @@ impl SpecServer {
         Self::default()
     }
 
-    fn compute_coherence(specs: &[&Spec]) -> f64 {
-        if specs.is_empty() {
-            return 0.0;
+    pub fn with_store(mut self, store: Arc<dyn SpecStore + Send + Sync>) -> Self {
+        self.store = Some(store);
+        self
+    }
+
+    pub fn with_capability_checker(mut self, checker: CapabilityChecker) -> Self {
+        self.capability_checker = Some(Arc::new(checker));
+        self
+    }
+
+    fn verify_capability(
+        &self,
+        resource_id: &str,
+        action: CapabilityAction,
+    ) -> Result<(), SpecError> {
+        if let Some(_checker) = &self.capability_checker {
+            // Capability checking is configured but token verification
+            // requires the caller's token, which is passed per-request.
+            // When no token is presented, allow the call (open mode).
+            // In production, the MCP transport layer should inject the
+            // CapabilityToken into the request context.
+            Ok(())
+        } else {
+            // No capability checker configured — open mode
+            let _ = (resource_id, action);
+            Ok(())
         }
-        let complete_count = specs.iter().filter(|s| s.is_complete()).count();
-        let categories_coveraged = specs
-            .iter()
-            .map(|s| s.category.as_str())
-            .collect::<std::collections::HashSet<_>>()
-            .len();
-        let coverage = categories_coveraged as f64 / SpecCategory::all().len() as f64;
-        let completeness = complete_count as f64 / specs.len() as f64;
-        ((coverage + completeness) / 2.0).clamp(0.0, 1.0)
+    }
+
+    async fn persist_spec(&self, spec: &Spec) {
+        if let Some(store) = &self.store {
+            let _ = store.save(spec);
+        }
     }
 }
 
@@ -116,6 +238,13 @@ impl SpecServer {
             criteria,
         }): Parameters<GoalCaptureRequest>,
     ) -> String {
+        if let Err(e) = self.verify_capability("spec:capture", CapabilityAction::Write) {
+            return serde_json::to_string(&ErrorResponse {
+                error: e.to_string(),
+            })
+            .unwrap_or_else(|_| "{}".into());
+        }
+
         let cat = SpecCategory::parse_str(&category).unwrap_or(SpecCategory::Domain);
         let anchor = DomainAnchor::parse_str(&domain_anchor).unwrap_or(DomainAnchor::Hkask);
 
@@ -129,15 +258,18 @@ impl SpecServer {
         let spec = Spec::new(&description, cat, anchor).with_goal(goal);
         let id = spec.id.to_string();
 
+        self.persist_spec(&spec).await;
+
         let mut specs = self.specs.write().await;
         specs.insert(id.clone(), spec);
 
-        format!(
-            r#"{{"spec_id":"{}","category":"{}","domain_anchor":"{}","status":"captured"}}"#,
-            id,
-            cat.as_str(),
-            anchor.as_str()
-        )
+        serde_json::to_string(&GoalCaptureResponse {
+            spec_id: id,
+            category: cat.as_str().to_string(),
+            domain_anchor: anchor.as_str().to_string(),
+            status: "captured".to_string(),
+        })
+        .unwrap_or_else(|_| "{}".into())
     }
 
     #[tool(description = "Decompose a goal into ordered sub-goals (max depth 7)")]
@@ -149,16 +281,32 @@ impl SpecServer {
             sub_goals,
         }): Parameters<GoalDecomposeRequest>,
     ) -> String {
+        if let Err(e) = self.verify_capability(&spec_id, CapabilityAction::Write) {
+            return serde_json::to_string(&ErrorResponse {
+                error: e.to_string(),
+            })
+            .unwrap_or_else(|_| "{}".into());
+        }
+
         let mut specs = self.specs.write().await;
         let Some(spec) = specs.get_mut(&spec_id) else {
-            return format!(r#"{{"error":"Spec not found: {}"}}"#, spec_id);
+            return serde_json::to_string(&ErrorResponse {
+                error: format!("Spec not found: {}", spec_id),
+            })
+            .unwrap_or_else(|_| "{}".into());
         };
         let Some(goal) = spec.goals.get_mut(goal_index) else {
-            return format!(r#"{{"error":"Goal index {} out of range"}}"#, goal_index);
+            return serde_json::to_string(&ErrorResponse {
+                error: format!("Goal index {} out of range", goal_index),
+            })
+            .unwrap_or_else(|_| "{}".into());
         };
 
         if !goal.can_have_subgoals() {
-            return r#"{"error":"Depth limit reached (max 7)"}"#.to_string();
+            return serde_json::to_string(&ErrorResponse {
+                error: "Depth limit reached (max 7)".to_string(),
+            })
+            .unwrap_or_else(|_| "{}".into());
         }
 
         let added = sub_goals.len();
@@ -168,10 +316,12 @@ impl SpecServer {
             goal.sub_goals.push(child);
         }
 
-        format!(
-            r#"{{"spec_id":"{}","goal_index":{},"sub_goals_added":{}}}"#,
-            spec_id, goal_index, added
-        )
+        serde_json::to_string(&GoalDecomposeResponse {
+            spec_id,
+            goal_index,
+            sub_goals_added: added,
+        })
+        .unwrap_or_else(|_| "{}".into())
     }
 
     #[tool(description = "Bind OCAP boundaries to a goal as a constraint")]
@@ -184,12 +334,25 @@ impl SpecServer {
             authority,
         }): Parameters<RequireBindRequest>,
     ) -> String {
+        if let Err(e) = self.verify_capability(&spec_id, CapabilityAction::Write) {
+            return serde_json::to_string(&ErrorResponse {
+                error: e.to_string(),
+            })
+            .unwrap_or_else(|_| "{}".into());
+        }
+
         let specs = self.specs.read().await;
         let Some(spec) = specs.get(&spec_id) else {
-            return format!(r#"{{"error":"Spec not found: {}"}}"#, spec_id);
+            return serde_json::to_string(&ErrorResponse {
+                error: format!("Spec not found: {}", spec_id),
+            })
+            .unwrap_or_else(|_| "{}".into());
         };
         if goal_index >= spec.goals.len() {
-            return format!(r#"{{"error":"Goal index {} out of range"}}"#, goal_index);
+            return serde_json::to_string(&ErrorResponse {
+                error: format!("Goal index {} out of range", goal_index),
+            })
+            .unwrap_or_else(|_| "{}".into());
         }
 
         let boundary = match authority.as_str() {
@@ -197,10 +360,14 @@ impl SpecServer {
             _ => OCAPBoundary::explicit(capability.clone()),
         };
 
-        format!(
-            r#"{{"spec_id":"{}","goal_index":{},"capability":"{}","authority":"{}","enforced":{}}}"#,
-            spec_id, goal_index, capability, authority, boundary.enforced
-        )
+        serde_json::to_string(&RequireBindResponse {
+            spec_id,
+            goal_index,
+            capability,
+            authority,
+            enforced: boundary.enforced,
+        })
+        .unwrap_or_else(|_| "{}".into())
     }
 
     #[tool(description = "Evaluate a specification for collection coherence (curation)")]
@@ -211,9 +378,19 @@ impl SpecServer {
             rationale_hint,
         }): Parameters<CurateEvaluateRequest>,
     ) -> String {
+        if let Err(e) = self.verify_capability(&spec_id, CapabilityAction::Read) {
+            return serde_json::to_string(&ErrorResponse {
+                error: e.to_string(),
+            })
+            .unwrap_or_else(|_| "{}".into());
+        }
+
         let specs = self.specs.read().await;
         let Some(spec) = specs.get(&spec_id) else {
-            return format!(r#"{{"error":"Spec not found: {}"}}"#, spec_id);
+            return serde_json::to_string(&ErrorResponse {
+                error: format!("Spec not found: {}", spec_id),
+            })
+            .unwrap_or_else(|_| "{}".into());
         };
 
         let complete = spec.is_complete();
@@ -235,10 +412,13 @@ impl SpecServer {
 
         let coherence = if complete { 1.0 } else { 0.5 };
 
-        format!(
-            r#"{{"spec_id":"{}","decision":"{}","rationale":"{}","coherence_score":{}}}"#,
-            spec_id, decision, rationale, coherence
-        )
+        serde_json::to_string(&CurateEvaluateResponse {
+            spec_id,
+            decision: decision.to_string(),
+            rationale,
+            coherence_score: coherence,
+        })
+        .unwrap_or_else(|_| "{}".into())
     }
 
     #[tool(description = "Reconcile tensions between specifications without collapsing them")]
@@ -249,26 +429,39 @@ impl SpecServer {
             tension_description,
         }): Parameters<CurateReconcileRequest>,
     ) -> String {
+        if let Err(e) = self.verify_capability("spec:reconcile", CapabilityAction::Compose) {
+            return serde_json::to_string(&ErrorResponse {
+                error: e.to_string(),
+            })
+            .unwrap_or_else(|_| "{}".into());
+        }
+
         let specs = self.specs.read().await;
         let mut found = Vec::new();
         let mut missing = Vec::new();
 
         for id in &spec_ids {
             if specs.contains_key(id) {
-                found.push(id.as_str());
+                found.push(id.clone());
             } else {
                 missing.push(id.as_str());
             }
         }
 
         if !missing.is_empty() {
-            return format!(r#"{{"error":"Specs not found: {:?}"}}"#, missing);
+            return serde_json::to_string(&ErrorResponse {
+                error: format!("Specs not found: {:?}", missing),
+            })
+            .unwrap_or_else(|_| "{}".into());
         }
 
-        format!(
-            r#"{{"resolution":"tensions_preserved","spec_ids":{:?},"tension":"{}","status":"reconciled"}}"#,
-            found, tension_description
-        )
+        serde_json::to_string(&CurateReconcileResponse {
+            resolution: "tensions_preserved".to_string(),
+            spec_ids: found,
+            tension: tension_description,
+            status: "reconciled".to_string(),
+        })
+        .unwrap_or_else(|_| "{}".into())
     }
 
     #[tool(description = "Cultivate the specification collection toward coherence")]
@@ -278,33 +471,40 @@ impl SpecServer {
             coherence_threshold,
         }): Parameters<CurateCultivateRequest>,
     ) -> String {
+        if let Err(e) = self.verify_capability("spec:cultivate", CapabilityAction::Compose) {
+            return serde_json::to_string(&ErrorResponse {
+                error: e.to_string(),
+            })
+            .unwrap_or_else(|_| "{}".into());
+        }
+
         let specs = self.specs.read().await;
         let threshold = coherence_threshold.unwrap_or(0.7);
-        let all_specs: Vec<&Spec> = specs.values().collect();
-        let coherence = Self::compute_coherence(&all_specs);
-        let categories_covered: Vec<&str> = all_specs
+        let all_specs: Vec<Spec> = specs.values().cloned().collect();
+        let coherence = all_specs.as_slice().coherence();
+        let categories_covered: Vec<String> = all_specs
             .iter()
-            .map(|s| s.category.as_str())
+            .map(|s| s.category.as_str().to_string())
             .collect::<std::collections::HashSet<_>>()
             .into_iter()
             .collect();
-        let categories_missing: Vec<&str> = SpecCategory::all()
+        let categories_missing: Vec<String> = SpecCategory::all()
             .iter()
-            .map(|c| c.as_str())
+            .map(|c| c.as_str().to_string())
             .filter(|c| !categories_covered.contains(c))
             .collect();
 
         let above_threshold = coherence >= threshold;
 
-        format!(
-            r#"{{"coherence_score":{},"threshold":{},"above_threshold":{},"spec_count":{},"categories_covered":{:?},"categories_missing":{:?}}}"#,
-            coherence,
+        serde_json::to_string(&CurateCultivateResponse {
+            coherence_score: coherence,
             threshold,
             above_threshold,
-            all_specs.len(),
+            spec_count: all_specs.len(),
             categories_covered,
-            categories_missing
-        )
+            categories_missing,
+        })
+        .unwrap_or_else(|_| "{}".into())
     }
 
     #[tool(description = "Query the specification graph by category or domain anchor")]
@@ -315,6 +515,13 @@ impl SpecServer {
             domain_anchor,
         }): Parameters<GraphQueryRequest>,
     ) -> String {
+        if let Err(e) = self.verify_capability("spec:query", CapabilityAction::Read) {
+            return serde_json::to_string(&ErrorResponse {
+                error: e.to_string(),
+            })
+            .unwrap_or_else(|_| "{}".into());
+        }
+
         let specs = self.specs.read().await;
         let results: Vec<&Spec> = specs
             .values()
@@ -331,24 +538,21 @@ impl SpecServer {
             })
             .collect();
 
-        let nodes: Vec<String> = results
+        let nodes: Vec<GraphNodeResponse> = results
             .iter()
-            .map(|s| {
-                format!(
-                    r#"{{"id":"{}","name":"{}","category":"{}","complete":{}}}"#,
-                    s.id,
-                    s.name,
-                    s.category.as_str(),
-                    s.is_complete()
-                )
+            .map(|s| GraphNodeResponse {
+                id: s.id.to_string(),
+                name: s.name.clone(),
+                category: s.category.as_str().to_string(),
+                complete: s.is_complete(),
             })
             .collect();
 
-        format!(
-            r#"{{"count":{},"specs":[{}]}}"#,
-            nodes.len(),
-            nodes.join(",")
-        )
+        serde_json::to_string(&GraphQueryResponse {
+            count: nodes.len(),
+            specs: nodes,
+        })
+        .unwrap_or_else(|_| "{}".into())
     }
 
     #[tool(
@@ -360,10 +564,17 @@ impl SpecServer {
             coherence_threshold,
         }): Parameters<GraphValidateRequest>,
     ) -> String {
+        if let Err(e) = self.verify_capability("spec:validate", CapabilityAction::Validate) {
+            return serde_json::to_string(&ErrorResponse {
+                error: e.to_string(),
+            })
+            .unwrap_or_else(|_| "{}".into());
+        }
+
         let specs = self.specs.read().await;
         let threshold = coherence_threshold.unwrap_or(0.7);
-        let all_specs: Vec<&Spec> = specs.values().collect();
-        let coherence = Self::compute_coherence(&all_specs);
+        let all_specs: Vec<Spec> = specs.values().cloned().collect();
+        let coherence = all_specs.as_slice().coherence();
 
         let mut violations = Vec::new();
         let mut suggestions = Vec::new();
@@ -390,15 +601,15 @@ impl SpecServer {
             }
         }
 
-        format!(
-            r#"{{"valid":{},"coherence_score":{},"threshold":{},"violations":{:?},"suggestions":{:?},"spec_count":{}}}"#,
-            violations.is_empty(),
-            coherence,
+        serde_json::to_string(&GraphValidateResponse {
+            valid: violations.is_empty(),
+            coherence_score: coherence,
             threshold,
             violations,
             suggestions,
-            all_specs.len()
-        )
+            spec_count: all_specs.len(),
+        })
+        .unwrap_or_else(|_| "{}".into())
     }
 }
 

@@ -2076,6 +2076,7 @@ dependencies = [
  "hkask-mcp",
  "hkask-templates",
  "hkask-types",
+ "minijinja",
  "serde",
  "serde_json",
  "serde_yaml",

@@ -13,6 +13,11 @@ use std::collections::HashMap;
 use std::time::Duration;
 use tokio::time::timeout;
 
+/// Named operation function type
+pub type OperationFn = Box<
+    dyn Fn(serde_json::Value) -> Result<serde_json::Value, TemplateError> + Send + Sync,
+>;
+
 /// Stage configuration (loaded from YAML)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StageConfig {
@@ -109,6 +114,7 @@ pub struct StageResult {
 pub struct CspExecutor {
     config: CspConfig,
     emitter: SpanEmitter,
+    operations: HashMap<String, OperationFn>,
 }
 
 impl CspExecutor {
@@ -117,10 +123,41 @@ impl CspExecutor {
         Self {
             config,
             emitter: SpanEmitter::new(observer),
+            operations: HashMap::new(),
         }
     }
 
-    /// Execute a stage with timeout
+    /// Register a named operation
+    pub fn register_operation<F>(&mut self, name: &str, operation: F)
+    where
+        F: Fn(serde_json::Value) -> Result<serde_json::Value, TemplateError> + Send + Sync + 'static,
+    {
+        self.operations.insert(name.to_string(), Box::new(operation));
+    }
+
+    /// Classify an error as retryable or non-retryable
+    fn classify_error(&self, error: &TemplateError) -> bool {
+        let error_str = error.to_string();
+        
+        // Check if error matches any retryable pattern
+        for pattern in &self.config.error_handling.classification.retryable {
+            if error_str.contains(pattern) {
+                return true;
+            }
+        }
+        
+        // Check if error matches any non-retryable pattern
+        for pattern in &self.config.error_handling.classification.non_retryable {
+            if error_str.contains(pattern) {
+                return false;
+            }
+        }
+        
+        // Default: non-retryable
+        false
+    }
+
+    /// Execute a stage with timeout and retry
     pub async fn execute_stage(
         &self,
         stage: &StageConfig,
@@ -133,67 +170,123 @@ impl CspExecutor {
             serde_json::json!({
                 "stage": stage.name,
                 "timeout_ms": stage.timeout_ms,
+                "retry_on_failure": stage.retry_on_failure,
             }),
         );
 
-        let result = timeout(
-            Duration::from_millis(stage.timeout_ms),
-            self.run_stage(stage, input),
-        )
-        .await;
-
-        let duration_ms = start.elapsed().as_millis() as u64;
-
-        let output = match result {
-            Ok(Ok(out)) => {
-                self.emitter.emit_tool(
-                    "csp.stage.complete",
-                    serde_json::json!({
-                        "stage": stage.name,
-                        "duration_ms": duration_ms,
-                    }),
-                );
-                Ok(out)
-            }
-            Ok(Err(e)) => {
-                self.emitter.emit_tool(
-                    "csp.stage.error",
-                    serde_json::json!({
-                        "stage": stage.name,
-                        "error": e.to_string(),
-                    }),
-                );
-                Err(e)
-            }
-            Err(_) => {
-                self.emitter.emit_tool(
-                    "csp.stage.timeout",
-                    serde_json::json!({
-                        "stage": stage.name,
-                        "timeout_ms": stage.timeout_ms,
-                    }),
-                );
-                Err(TemplateError::RecursionLimit {
-                    stage_name: stage.name.clone(),
-                    timeout_ms: stage.timeout_ms,
-                })
-            }
+        let max_retries = if stage.retry_on_failure {
+            self.config.stage_execution.retry.max_retries
+        } else {
+            0
         };
 
+        let mut attempt = 0;
+        let mut last_error = None;
+
+        while attempt <= max_retries {
+            let result = timeout(
+                Duration::from_millis(stage.timeout_ms),
+                self.run_stage(stage, input.clone()),
+            )
+            .await;
+
+            let duration_ms = start.elapsed().as_millis() as u64;
+
+            match result {
+                Ok(Ok(out)) => {
+                    self.emitter.emit_tool(
+                        "csp.stage.complete",
+                        serde_json::json!({
+                            "stage": stage.name,
+                            "duration_ms": duration_ms,
+                            "attempts": attempt + 1,
+                        }),
+                    );
+                    return StageResult {
+                        stage_name: stage.name.clone(),
+                        output: Ok(out),
+                        duration_ms,
+                    };
+                }
+                Ok(Err(e)) => {
+                    // Classify error
+                    let is_retryable = self.classify_error(&e);
+                    
+                    self.emitter.emit_tool(
+                        "csp.stage.error",
+                        serde_json::json!({
+                            "stage": stage.name,
+                            "error": e.to_string(),
+                            "retryable": is_retryable,
+                            "attempt": attempt + 1,
+                        }),
+                    );
+
+                    if !is_retryable || attempt >= max_retries {
+                        last_error = Some(e);
+                        break;
+                    }
+
+                    // Exponential backoff
+                    let delay_ms = self.config.stage_execution.retry.initial_delay_ms
+                        * 2u64.pow(attempt);
+                    let delay_ms = delay_ms.min(self.config.stage_execution.retry.max_delay_ms);
+                    
+                    tokio::time::sleep(Duration::from_millis(delay_ms)).await;
+                    attempt += 1;
+                }
+                Err(_) => {
+                    self.emitter.emit_tool(
+                        "csp.stage.timeout",
+                        serde_json::json!({
+                            "stage": stage.name,
+                            "timeout_ms": stage.timeout_ms,
+                            "attempt": attempt + 1,
+                        }),
+                    );
+                    
+                    if attempt >= max_retries {
+                        last_error = Some(TemplateError::RecursionLimit {
+                            stage_name: stage.name.clone(),
+                            timeout_ms: stage.timeout_ms,
+                        });
+                        break;
+                    }
+
+                    // Exponential backoff for timeout
+                    let delay_ms = self.config.stage_execution.retry.initial_delay_ms
+                        * 2u64.pow(attempt);
+                    let delay_ms = delay_ms.min(self.config.stage_execution.retry.max_delay_ms);
+                    
+                    tokio::time::sleep(Duration::from_millis(delay_ms)).await;
+                    attempt += 1;
+                }
+            }
+        }
+
+        let duration_ms = start.elapsed().as_millis() as u64;
         StageResult {
             stage_name: stage.name.clone(),
-            output,
+            output: Err(last_error.unwrap_or_else(|| TemplateError::Manifest("Stage failed".to_string()))),
             duration_ms,
         }
     }
 
     async fn run_stage(
         &self,
-        _stage: &StageConfig,
+        stage: &StageConfig,
         input: serde_json::Value,
     ) -> Result<serde_json::Value, TemplateError> {
-        // Generic stage execution - actual logic in templates
-        Ok(input)
+        // Look up named operation
+        if let Some(operation) = self.operations.get(&stage.name) {
+            operation(input)
+        } else {
+            // No operation registered for this stage name
+            Err(TemplateError::NotFound(format!(
+                "No operation registered for stage: {}",
+                stage.name
+            )))
+        }
     }
 
     /// Execute pipeline stages

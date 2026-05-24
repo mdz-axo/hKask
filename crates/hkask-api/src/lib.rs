@@ -68,6 +68,8 @@ pub struct ApiState {
     pub rate_limiter: Arc<RateLimiter>,
     /// Ensemble inferencer (optional - for Russell SOAP inference)
     pub ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::OkapiHttpClient>>,
+    /// Spec store for DDMVSS specifications
+    pub spec_store: Option<Arc<dyn hkask_types::SpecStore + Send + Sync>>,
 }
 
 impl ApiState {
@@ -93,6 +95,7 @@ impl ApiState {
             cns_emitter: Arc::new(SpanEmitter::new(observer_webid)),
             rate_limiter: Arc::new(rate_limiter),
             ensemble_inferencer,
+            spec_store: None,
         }
     }
 

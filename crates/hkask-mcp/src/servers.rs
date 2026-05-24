@@ -16,6 +16,7 @@ pub async fn register_builtin_servers(runtime: &McpRuntime) {
     register_sqlite_server(runtime).await;
     register_git_registry_server(runtime).await;
     register_inference_server(runtime).await;
+    register_spec_server(runtime).await;
 }
 
 /// Register SQLite MCP server
@@ -248,4 +249,122 @@ pub async fn register_inference_server(runtime: &McpRuntime) {
 
     runtime.register_server(server).await;
     info!(target: "hkask.mcp", "Registered Okapi Inference MCP server");
+}
+
+/// Register Spec MCP server (DDMVSS)
+pub async fn register_spec_server(runtime: &McpRuntime) {
+    let server = McpServer {
+        id: "hkask-mcp-spec".to_string(),
+        name: "hKask Specification Server".to_string(),
+        tools: vec![
+            McpTool {
+                name: "spec:goal:capture".to_string(),
+                description: "Capture a goal as a binding specification requirement".to_string(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "description": {"type": "string", "description": "Goal description"},
+                        "category": {"type": "string", "description": "Spec category"},
+                        "domain_anchor": {"type": "string", "description": "Domain anchor"},
+                        "criteria": {"type": "array", "items": {"type": "string"}, "description": "Completion criteria"}
+                    },
+                    "required": ["description", "category", "domain_anchor"]
+                }),
+                server_id: "hkask-mcp-spec".to_string(),
+            },
+            McpTool {
+                name: "spec:goal:decompose".to_string(),
+                description: "Decompose a goal into ordered sub-goals".to_string(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "spec_id": {"type": "string"},
+                        "goal_index": {"type": "integer"},
+                        "sub_goals": {"type": "array", "items": {"type": "string"}}
+                    },
+                    "required": ["spec_id", "goal_index", "sub_goals"]
+                }),
+                server_id: "hkask-mcp-spec".to_string(),
+            },
+            McpTool {
+                name: "spec:require:bind".to_string(),
+                description: "Bind OCAP boundaries to a goal".to_string(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "spec_id": {"type": "string"},
+                        "goal_index": {"type": "integer"},
+                        "capability": {"type": "string"},
+                        "authority": {"type": "string"}
+                    },
+                    "required": ["spec_id", "goal_index", "capability", "authority"]
+                }),
+                server_id: "hkask-mcp-spec".to_string(),
+            },
+            McpTool {
+                name: "spec:curate:evaluate".to_string(),
+                description: "Evaluate a specification for coherence".to_string(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "spec_id": {"type": "string"},
+                        "rationale_hint": {"type": "string"}
+                    },
+                    "required": ["spec_id"]
+                }),
+                server_id: "hkask-mcp-spec".to_string(),
+            },
+            McpTool {
+                name: "spec:curate:reconcile".to_string(),
+                description: "Reconcile tensions between specifications".to_string(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "spec_ids": {"type": "array", "items": {"type": "string"}},
+                        "tension_description": {"type": "string"}
+                    },
+                    "required": ["spec_ids", "tension_description"]
+                }),
+                server_id: "hkask-mcp-spec".to_string(),
+            },
+            McpTool {
+                name: "spec:curate:cultivate".to_string(),
+                description: "Cultivate the specification collection toward coherence".to_string(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "coherence_threshold": {"type": "number"}
+                    }
+                }),
+                server_id: "hkask-mcp-spec".to_string(),
+            },
+            McpTool {
+                name: "spec:graph:query".to_string(),
+                description: "Query the specification graph".to_string(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "category": {"type": "string"},
+                        "domain_anchor": {"type": "string"}
+                    }
+                }),
+                server_id: "hkask-mcp-spec".to_string(),
+            },
+            McpTool {
+                name: "spec:graph:validate".to_string(),
+                description: "Validate the full specification collection".to_string(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "coherence_threshold": {"type": "number"}
+                    }
+                }),
+                server_id: "hkask-mcp-spec".to_string(),
+            },
+        ],
+        connected: true,
+    };
+
+    runtime.register_server(server).await;
+    info!(target: "hkask.mcp", "Registered Spec MCP server (DDMVSS)");
 }

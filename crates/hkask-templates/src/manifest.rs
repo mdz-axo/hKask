@@ -350,16 +350,77 @@ where
                 }
             }
             Action::Populate => {
-                // Bind input into selected template's fields
-                // State should contain selected_template_id from previous step
-                Value::String(format!("Populated: {:?}", state))
+                // Bind input into selected template's fields using Jinja2 rendering
+                // State should contain selected_template_id from previous Select step
+                let template_id = state
+                    .get("selected_template_id")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| {
+                        TemplateError::Manifest(
+                            "Populate action requires selected_template_id in state".to_string(),
+                        )
+                    })?;
+
+                // Load template from registry
+                let template_path = std::path::Path::new(template_id);
+                let template = self.renderer.load(template_path)?;
+
+                // Render template with state as bindings
+                let rendered = self.renderer.render(&template, state.clone())?;
+
+                // Emit CNS event for populate
+                self.cns.emit(
+                    "cns.prompt.populate",
+                    serde_json::json!({
+                        "template_id": template_id,
+                        "rendered_length": rendered.len(),
+                    }),
+                    1.0,
+                );
+
+                Value::String(rendered)
             }
             Action::Execute => {
                 // Execute via MCP tool or inference
                 if let Some(mcp) = &step.mcp {
                     if mcp == "from_template_contract" {
                         // Target determined by template contract
-                        Value::String(format!("Executed via contract: {:?}", state))
+                        // Get selected_template_id from state
+                        let template_id = state
+                            .get("selected_template_id")
+                            .and_then(|v| v.as_str())
+                            .ok_or_else(|| {
+                                TemplateError::Manifest(
+                                    "Execute with from_template_contract requires selected_template_id in state".to_string(),
+                                )
+                            })?;
+
+                        // Load template to get its contract
+                        let template_path = std::path::Path::new(template_id);
+                        let template = self.renderer.load(template_path)?;
+
+                        // Extract target tool from contract (first output field or use template_id as tool name)
+                        let target_tool = template
+                            .contract
+                            .output_fields
+                            .first()
+                            .cloned()
+                            .unwrap_or_else(|| template_id.to_string());
+
+                        // Invoke the target tool
+                        let result = self.mcp.invoke(&target_tool, state.clone())?;
+
+                        // Emit CNS event for contract-based execution
+                        self.cns.emit(
+                            "cns.prompt.execute_contract",
+                            serde_json::json!({
+                                "template_id": template_id,
+                                "target_tool": target_tool,
+                            }),
+                            1.0,
+                        );
+
+                        result
                     } else {
                         // Invoke specific MCP tool
                         self.mcp.invoke(mcp, state.clone())?

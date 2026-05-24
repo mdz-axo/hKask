@@ -17,8 +17,8 @@ use crate::{
     CreatePodResponse, GrantCapabilityRequest, InferenceSpan, ListPodsResponse, PodStatusResponse,
     SoapInferAuthRequest, SoapInferRequest, SoapInferResponse, SoapInferenceConfig,
     SpecCaptureRequest, SpecCaptureResponse, SpecCultivateResponse, SpecListResponse,
-    SpecValidateRequest, SpecValidateResponse, TemplateResponse, ToolResponse,
-    ValidationErrorType, VarietyCounterResponse,
+    SpecValidateRequest, SpecValidateResponse, TemplateResponse, ToolResponse, ValidationErrorType,
+    VarietyCounterResponse,
 };
 use hkask_types::SpecCategory;
 

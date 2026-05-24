@@ -656,6 +656,24 @@ impl CapabilityChecker {
         )
     }
 
+    /// Create a capability token for spec operations
+    pub fn grant_spec(
+        &self,
+        spec_id: String,
+        action: CapabilityAction,
+        from: WebID,
+        to: WebID,
+    ) -> CapabilityToken {
+        CapabilityToken::new(
+            CapabilityResource::Spec,
+            spec_id,
+            action,
+            from,
+            to,
+            &self.secret,
+        )
+    }
+
     /// Create an attenuated token for delegation
     pub fn attenuate(
         &self,

@@ -1350,5 +1350,25 @@ impl SpecStore for SqliteSpecStore {
 
 ---
 
+## 11. Adversarial Review Remediation (2026-05-24)
+
+The following items were identified during an adversarial review and deferred for future implementation:
+
+1. **Persistent curation audit trail:** `CurationRecord` from `curation.rs` should be stored as bitemporal triples when `SpecCurator::evaluate` is called. Currently decisions are returned but not persisted.
+
+2. **Manifest step grammar extension:** `mvss-compose.yaml` uses `select|populate|execute` actions. If `validate` or `curate` actions are needed, the manifest executor in `hkask-templates` must be extended. Currently the manifest is a design artifact, not executable.
+
+3. **Cross-surface coherence test:** No integration test verifies that MCP `spec_goal_capture`, CLI `kask spec capture`, and API `POST /api/specs/capture` produce identical `Spec` objects through the shared `SpecStore`. This is the load-bearing test for the `MCP ≡ CLI ≡ API` axiom.
+
+4. **Capability token minting for spec operations:** No code path mints `spec:read`/`spec:write`/`spec:compose` tokens. The Curator bot needs these to operate. Currently the capability grant table in §7.2 is a design artifact.
+
+5. **`SpecSigner` implementation:** Manifest signing via `hkask-keystore` Ed25519 is specified but unimplemented. The `signed_by` field on `Spec` is `Option<WebID>` — it remains `None` until a signer adapter exists.
+
+6. **Coherence threshold calibration:** The 0.7 default threshold is a guess. Empirical data from curation sessions should inform the real value. The `SpecCurator::cultivate` method should track historical coherence scores.
+
+7. **Spec drift detection:** `cns.spec.drift` span with drift-magnitude metric is specified in §10.5 but not implemented. Requires comparing `Spec` goals against actual implementation state — a non-trivial feedback loop.
+
+---
+
 *DDMVSS v0.2.0 — Domain-Driven Minimum Viable Specification Set for hKask*
 *Self-applying, recursively sound, curated not governed, Planck-scale minimal.*

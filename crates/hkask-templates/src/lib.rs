@@ -30,6 +30,7 @@ pub mod config;
 pub mod context_assembly;
 pub mod contract_validator;
 pub mod contracts;
+pub mod csp;
 pub mod curator_pipeline;
 pub mod dependency;
 pub mod engine;

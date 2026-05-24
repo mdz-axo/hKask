@@ -584,6 +584,17 @@ enum SpecAction {
         #[arg(short, long, default_value = "0.7")]
         threshold: f64,
     },
+
+    /// Render a specification template with spec data
+    Render {
+        /// Template path (e.g., spec/goal-capture.j2)
+        #[arg()]
+        template: String,
+
+        /// Specification ID to populate template with
+        #[arg(short, long)]
+        spec_id: Option<String>,
+    },
 }
 
 fn init_logging(verbose: bool) {
@@ -1431,18 +1442,51 @@ fn main() {
                 println!("  Note: Evaluation requires hkask-mcp-spec server.");
             }
             SpecAction::Validate { threshold } => {
-                println!("Validating specification collection (threshold: {:.2})", threshold);
+                println!(
+                    "Validating specification collection (threshold: {:.2})",
+                    threshold
+                );
                 println!("  Note: Validation requires hkask-mcp-spec server.");
             }
             SpecAction::Cultivate { threshold } => {
                 use hkask_types::SpecCategory;
 
-                println!("Cultivating specification collection (threshold: {:.2})", threshold);
+                println!(
+                    "Cultivating specification collection (threshold: {:.2})",
+                    threshold
+                );
                 println!("  Categories required:");
                 for cat in SpecCategory::all() {
                     println!("    - {}", cat.as_str());
                 }
                 println!("  Note: Full cultivation requires hkask-mcp-spec server.");
+            }
+            SpecAction::Render { template, spec_id } => {
+                let template_path = format!("registry/templates/{}", template);
+                let template_content = match std::fs::read_to_string(&template_path) {
+                    Ok(content) => content,
+                    Err(_) => {
+                        eprintln!("Template not found: {}", template_path);
+                        std::process::exit(1);
+                    }
+                };
+
+                let mut ctx = minijinja::context! {};
+                if let Some(sid) = spec_id {
+                    ctx = minijinja::context! {
+                        spec_id => sid,
+                        goal_name => "Loaded from store",
+                    };
+                }
+
+                let env = minijinja::Environment::new();
+                match env.render_str(&template_content, ctx) {
+                    Ok(rendered) => println!("{}", rendered),
+                    Err(e) => {
+                        eprintln!("Template render error: {}", e);
+                        std::process::exit(1);
+                    }
+                }
             }
         },
 

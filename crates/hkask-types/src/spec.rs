@@ -11,6 +11,7 @@ use crate::curation::{CurationDecision, OCAPBoundary};
 use crate::id::{GoalID, WebID};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -21,8 +22,10 @@ impl SpecId {
         Self(Uuid::new_v4())
     }
 
-    pub fn from_string(s: &str) -> Self {
-        SpecId(Uuid::parse_str(s).unwrap_or_else(|_| Uuid::new_v4()))
+    pub fn from_string(s: &str) -> Result<Self, SpecError> {
+        Uuid::parse_str(s)
+            .map(SpecId)
+            .map_err(|_| SpecError::InvalidId(s.to_string()))
     }
 }
 
@@ -188,7 +191,6 @@ pub struct Spec {
     pub category: SpecCategory,
     pub domain_anchor: DomainAnchor,
     pub goals: Vec<GoalSpec>,
-    pub version_sha: String,
     pub signed_by: Option<WebID>,
     pub created_at: DateTime<Utc>,
 }
@@ -201,7 +203,6 @@ impl Spec {
             category,
             domain_anchor,
             goals: Vec::new(),
-            version_sha: String::new(),
             signed_by: None,
             created_at: Utc::now(),
         }
@@ -215,6 +216,7 @@ impl Spec {
 
 pub trait CompletenessCheck {
     fn is_complete(&self) -> bool;
+    fn coherence(&self) -> f64;
 }
 
 impl CompletenessCheck for GoalSpec {
@@ -223,11 +225,53 @@ impl CompletenessCheck for GoalSpec {
             && self.criteria.iter().all(|c| c.satisfied)
             && self.sub_goals.iter().all(|g| g.is_complete())
     }
+
+    fn coherence(&self) -> f64 {
+        if self.criteria.is_empty() {
+            return 0.0;
+        }
+        let satisfied = self.criteria.iter().filter(|c| c.satisfied).count();
+        let ratio = satisfied as f64 / self.criteria.len() as f64;
+        let sub_coherence = if self.sub_goals.is_empty() {
+            1.0
+        } else {
+            self.sub_goals.iter().map(|g| g.coherence()).sum::<f64>() / self.sub_goals.len() as f64
+        };
+        ((ratio + sub_coherence) / 2.0).clamp(0.0, 1.0)
+    }
 }
 
 impl CompletenessCheck for Spec {
     fn is_complete(&self) -> bool {
         !self.goals.is_empty() && self.goals.iter().all(|g| g.is_complete())
+    }
+
+    fn coherence(&self) -> f64 {
+        if self.goals.is_empty() {
+            return 0.0;
+        }
+        self.goals.iter().map(|g| g.coherence()).sum::<f64>() / self.goals.len() as f64
+    }
+}
+
+impl CompletenessCheck for [Spec] {
+    fn is_complete(&self) -> bool {
+        !self.is_empty() && self.iter().all(|s| s.is_complete())
+    }
+
+    fn coherence(&self) -> f64 {
+        if self.is_empty() {
+            return 0.0;
+        }
+        let complete_count = self.iter().filter(|s| s.is_complete()).count();
+        let categories_coveraged = self
+            .iter()
+            .map(|s| s.category.as_str())
+            .collect::<HashSet<_>>()
+            .len();
+        let coverage = categories_coveraged as f64 / SpecCategory::all().len() as f64;
+        let completeness = complete_count as f64 / self.len() as f64;
+        ((coverage + completeness) / 2.0).clamp(0.0, 1.0)
     }
 }
 
@@ -285,6 +329,8 @@ pub trait SpecCurator {
 pub enum SpecError {
     #[error("Spec not found: {0}")]
     NotFound(SpecId),
+    #[error("Invalid spec ID: {0}")]
+    InvalidId(String),
     #[error("Capability denied: {0}")]
     CapabilityDenied(String),
     #[error("Signature invalid")]
@@ -307,8 +353,18 @@ mod tests {
     fn spec_id_roundtrip() {
         let id = SpecId::new();
         let s = id.to_string();
-        let parsed = SpecId::from_string(&s);
+        let parsed = SpecId::from_string(&s).unwrap();
         assert_eq!(id, parsed);
+    }
+
+    #[test]
+    fn spec_id_from_string_invalid() {
+        let result = SpecId::from_string("not-a-uuid");
+        assert!(result.is_err());
+        match result {
+            Err(SpecError::InvalidId(s)) => assert_eq!(s, "not-a-uuid"),
+            _ => panic!("Expected InvalidId error"),
+        }
     }
 
     #[test]
@@ -416,5 +472,57 @@ mod tests {
 
         let err = SpecError::CoherenceInsufficient(0.3);
         assert_eq!(err.to_string(), "Coherence below threshold: 0.3");
+    }
+
+    #[test]
+    fn goal_coherence_empty_criteria() {
+        let goal = GoalSpec::new("test");
+        assert_eq!(goal.coherence(), 0.0);
+    }
+
+    #[test]
+    fn goal_coherence_partial() {
+        let goal = GoalSpec::new("test")
+            .with_criterion("c1")
+            .with_criterion("c2");
+        assert_eq!(goal.coherence(), 0.5);
+    }
+
+    #[test]
+    fn goal_coherence_complete() {
+        let mut goal = GoalSpec::new("test").with_criterion("c1");
+        goal.criteria[0].mark_satisfied();
+        assert_eq!(goal.coherence(), 1.0);
+    }
+
+    #[test]
+    fn spec_coherence_empty() {
+        let spec = Spec::new("test", SpecCategory::Domain, DomainAnchor::Hkask);
+        assert_eq!(spec.coherence(), 0.0);
+    }
+
+    #[test]
+    fn spec_coherence_complete() {
+        let mut goal = GoalSpec::new("g1").with_criterion("c1");
+        goal.criteria[0].mark_satisfied();
+        let spec = Spec::new("test", SpecCategory::Domain, DomainAnchor::Hkask).with_goal(goal);
+        assert_eq!(spec.coherence(), 1.0);
+    }
+
+    #[test]
+    fn slice_coherence_empty() {
+        let specs: Vec<Spec> = vec![];
+        assert_eq!(specs.as_slice().coherence(), 0.0);
+    }
+
+    #[test]
+    fn slice_coherence_partial_coverage() {
+        let mut goal = GoalSpec::new("g1").with_criterion("c1");
+        goal.criteria[0].mark_satisfied();
+        let spec = Spec::new("test", SpecCategory::Domain, DomainAnchor::Hkask).with_goal(goal);
+        let specs = vec![spec];
+        let coherence = specs.as_slice().coherence();
+        assert!(coherence > 0.0);
+        assert!(coherence < 1.0);
     }
 }

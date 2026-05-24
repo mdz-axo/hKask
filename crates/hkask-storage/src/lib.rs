@@ -9,6 +9,7 @@ pub mod goal_judge;
 pub mod goals;
 pub mod nu_event_store;
 pub mod sovereignty;
+pub mod spec_store;
 pub mod triples;
 
 pub use audit_log::{AuditEntry, AuditLogError, AuditLogStore};
@@ -25,4 +26,5 @@ pub use sovereignty::{
     SovereigntyBoundaryEntry, SovereigntyBoundaryStore, SovereigntyStoreError,
     SovereigntyStoreStats,
 };
+pub use spec_store::{SqliteSpecCurator, SqliteSpecStore};
 pub use triples::{Triple, TripleError, TripleStore};
