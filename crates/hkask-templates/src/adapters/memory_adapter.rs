@@ -4,24 +4,21 @@
 //! - `StubMemoryPort`: Returns empty results (for testing)
 //! - `MemoryAdapter`: Connects to real SemanticMemory + EpisodicMemory
 
-use crate::ports::{MemoryFragment, MemoryPort};
+use crate::ports::{MemoryFragment, MemoryPort, Result};
 
-/// Stub memory port that returns empty results.
-///
-/// Use this for testing or when no memory backend is available.
 pub struct StubMemoryPort;
 
 impl MemoryPort for StubMemoryPort {
-    fn query_semantic(&self, _entity: &str) -> Vec<MemoryFragment> {
-        Vec::new()
+    fn query_semantic(&self, _entity: &str) -> Result<Vec<MemoryFragment>> {
+        Ok(Vec::new())
     }
 
-    fn query_episodic(&self, _entity: &str, _perspective: &str) -> Vec<MemoryFragment> {
-        Vec::new()
+    fn query_episodic(&self, _entity: &str, _perspective: &str) -> Result<Vec<MemoryFragment>> {
+        Ok(Vec::new())
     }
 
-    fn get_session_history(&self, _session_id: &str, _max_messages: usize) -> Vec<String> {
-        Vec::new()
+    fn get_session_history(&self, _session_id: &str, _max_messages: usize) -> Result<Vec<String>> {
+        Ok(Vec::new())
     }
 }
 
@@ -106,15 +103,15 @@ mod tests {
     fn test_stub_memory_port_returns_empty() {
         let stub = StubMemoryPort;
 
-        assert!(stub.query_semantic("test").is_empty());
-        assert!(stub.query_episodic("test", "user1").is_empty());
-        assert!(stub.get_session_history("session1", 10).is_empty());
+        assert!(stub.query_semantic("test").unwrap().is_empty());
+        assert!(stub.query_episodic("test", "user1").unwrap().is_empty());
+        assert!(stub.get_session_history("session1", 10).unwrap().is_empty());
     }
 
     #[test]
     fn test_stub_memory_port_can_be_boxed() {
         let stub: Box<dyn MemoryPort> = Box::new(StubMemoryPort);
 
-        assert!(stub.query_semantic("test").is_empty());
+        assert!(stub.query_semantic("test").unwrap().is_empty());
     }
 }
