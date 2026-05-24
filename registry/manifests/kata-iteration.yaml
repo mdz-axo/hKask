@@ -5,6 +5,7 @@ manifest:
   id: kata-iteration
   name: Kata Iteration
   description: >
+  functional_role: flowdef
     Iterate on Kata execution for variance assessment and confidence building.
     Maximum 2 iterations per Kata session. Separate budget from primary execution.
   parent_manifest: kata-pattern

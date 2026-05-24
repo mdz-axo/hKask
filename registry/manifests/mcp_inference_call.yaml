@@ -5,6 +5,7 @@ manifest:
   id: mcp/inference_call
   name: MCP Inference Call
   description: >
+  functional_role: flowdef
     LLM inference call via MCP with capability validation and CNS monitoring.
     Supports model tier selection, temperature control, and token budgeting.
   version: 0.21.0

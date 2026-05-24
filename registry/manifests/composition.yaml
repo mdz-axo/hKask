@@ -6,6 +6,7 @@ manifest:
   id: composition
   name: Answer Composition
   description: >
+  functional_role: flowdef
     Synthesize final answer from cycle-derived facts.
     Supplements with LLM knowledge only when facts are insufficient.
   version: 0.21.0

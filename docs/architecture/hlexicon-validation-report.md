@@ -1,36 +1,32 @@
 # hLexicon Alignment Validation Report
 
-**Date:** 2026-05-23
+**Date:** 2026-05-24
 **Version:** v0.21.4
 
 ## Summary
 
 | Metric | Value |
 |--------|-------|
-| Total Templates/Manifests | 70 |
-| With functional_role | 66 |
-| Missing functional_role | 4 |
-| Compliance Rate | 94% |
+| Total Templates/Manifests | 81 |
+| With functional_role | 78 |
+| Missing functional_role | 3 |
+| Compliance Rate | 96% |
 
 ## Functional Distribution
 
 | Category | Count | Percentage |
 |----------|-------|------------|
-| WordAct | 8 | 11% |
-| FlowDef | 41 | 61% |
-| KnowAct | 17 | 25% |
+| WordAct | 11 | 13% |
+| FlowDef | 40 | 50% |
+| KnowAct | 27 | 34% |
 
 ## Validation Results
 
-❌ 4 templates missing functional_role
-⚠️ Distribution skewed
+❌ 3 templates missing functional_role
+✅ Distribution balanced (no category >60%)
 
 ## Templates Missing functional_role
 
-- `/home/mdz-axolotl/Clones/hKask/registry/templates/goal_create.j2`
-- `/home/mdz-axolotl/Clones/hKask/registry/templates/goal_judge_command.j2`
-- `/home/mdz-axolotl/Clones/hKask/registry/templates/goal_judge_simple.j2`
-- `/home/mdz-axolotl/Clones/hKask/registry/templates/goal_judge.j2`
 
 ## Orthogonal Mapping
 

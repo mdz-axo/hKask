@@ -1,6 +1,7 @@
 manifest:
   name: mvss-compose
   description: Compose minimum viable specification set from user goals
+  functional_role: flowdef
 
 steps:
   - ordinal: 1

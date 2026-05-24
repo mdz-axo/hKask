@@ -5,6 +5,7 @@ manifest:
   id: mcp/scholar_extract
   name: MCP Scholar Extractor
   description: >
+  functional_role: flowdef
     Search and extract academic papers from scholarly databases.
     Supports database selection, year filtering, and citation tracking.
   version: 0.21.0

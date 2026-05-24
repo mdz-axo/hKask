@@ -1,6 +1,8 @@
 manifest:
   name: goal-verification
   description: Verify goal completion via KnowAct templates
+  functional_role: knowact
+  functional_role: knowact
   lexicon_terms: [sequence, evaluate, critique, assert]
 
 cascade:

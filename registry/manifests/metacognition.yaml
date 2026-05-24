@@ -6,6 +6,8 @@ manifest:
   id: metacognition
   name: Metacognition
   description: >
+  functional_role: knowact
+  functional_role: knowact
     Metacognitive reasoning with goal decomposition and strategy reflection.
     Enables cross-cycle adaptation and effort calibration.
   version: 0.21.0

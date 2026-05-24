@@ -1,5 +1,6 @@
 # Cascade Composition Configuration
 # ℏKask v0.21.2 — Planck's Constant of Agent Systems
+# functional_role: flowdef
 
 # Cascade execution limits
 cascade_limits:

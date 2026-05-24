@@ -1,4 +1,10 @@
 {# spec/selector.j2 — Route input to best-fit specification template #}
+{# functional_role: knowact #}
+{# implementation_type: jinja2 #}
+{# lexicon_terms: [recognize, match] #}
+{# contract: #}
+{#   input: {intent: string, context: object} #}
+{#   output: {selected_template: string} #}
 {# Selection logic lives in Jinja2/LLM, not Rust (per FA-Co1) #}
 {% if intent == "capture" %}
 spec/goal-capture.j2

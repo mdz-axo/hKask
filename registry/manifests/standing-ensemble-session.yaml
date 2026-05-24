@@ -7,6 +7,7 @@ session:
   description: >
     Persistent ensemble session where all system bots report status,
     Curator orchestrates metacognition, and Administrator can observe/participate.
+  functional_role: flowdef
   type: standing
   visibility: Shared
   created_by: hKask-Administrator

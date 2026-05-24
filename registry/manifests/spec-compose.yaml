@@ -1,0 +1,92 @@
+# Spec Compose Manifest — Goal → Spec pipeline
+# Select → Populate → Execute flow for specification authoring
+# Per DDMVSS §6.3: Declarative Manifest-Driven Multi-Stage Specification System
+
+manifest:
+  name: spec-compose
+  version: "0.1.0"
+  description: Compose specifications from user intent through template selection and population
+  functional_role: flowdef
+  lexicon_terms: [specify, require, elicit, curate, recognize, match]
+
+matroshka:
+  max_depth: 5
+  enforce: true
+  depth_counter:
+    enabled: true
+    inherit_from_parent: true
+    default: 0
+    increment_on_dispatch: true
+  cns_monitoring:
+    span_namespace: cns.spec.compose
+    alert_if_exceeds: 4
+    rationale: "Spec composition should not require deep nesting"
+
+cascade:
+  pre:
+    - ordinal: 1
+      action: Select
+      template_ref: registry/templates/spec/selector.j2
+      description: "Route user intent to appropriate specification template"
+      output_schema:
+        type: object
+        properties:
+          selected_template:
+            type: string
+
+  core:
+    - ordinal: 2
+      action: Populate
+      template_ref: "{{ selected_template }}"
+      description: "Bind user input to selected specification template"
+      input_schema:
+        type: object
+        properties:
+          goal_name:
+            type: string
+          domain_anchor:
+            type: string
+          spec_category:
+            type: string
+          criteria:
+            type: array
+      output_schema:
+        type: object
+        properties:
+          populated_spec:
+            type: string
+
+    - ordinal: 3
+      action: Execute
+      description: "Validate and store the populated specification"
+      mcp: spec/goal/capture
+      input_schema:
+        type: object
+        properties:
+          populated_spec:
+            type: string
+      output_schema:
+        type: object
+        properties:
+          spec_id:
+            type: string
+          status:
+            type: string
+
+  post:
+    - ordinal: 4
+      action: Execute
+      description: "Emit CNS span for spec composition completion"
+      mcp: cns/emit
+      input_schema:
+        type: object
+        properties:
+          spec_id:
+            type: string
+          template_used:
+            type: string
+      output_schema:
+        type: object
+        properties:
+          span_id:
+            type: string

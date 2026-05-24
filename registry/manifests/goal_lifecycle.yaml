@@ -6,6 +6,7 @@ manifest:
   name: goal-lifecycle
   version: "0.1.0"
   description: Goal creation → activation → verification → completion
+  functional_role: flowdef
   lexicon_terms: [pledge, commit, undertake, promise, sequence, choice, evaluate, assert, ground]
 
 matroshka:

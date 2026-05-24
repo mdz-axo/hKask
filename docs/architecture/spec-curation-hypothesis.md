@@ -24,7 +24,7 @@ This hypothesis enriches hKask's existing architecture by:
 
 1. **Reframing graph management** from governance (constraint-based) to curation (invitation-based)
 2. **Collapsing the goal/requirement distinction** to preserve user sovereignty
-3. **Extending hLexicon** with 9 terms for specification and curation acts
+3. **Extending hLexicon** with 8 terms for specification and curation acts
 4. **Proposing `hkask-mcp-spec`** as a first-class MCP server for spec-curation operations
 5. **Establishing a self-referential fixed point** where the system can curate its own specification
 
@@ -624,7 +624,7 @@ The extended hypothesis has three claims that compose into a coherent architectu
 
 | Existing Component | Spec-Curation Integration |
 |-------------------|---------------------------|
-| hLexicon (80 terms) | Extended with 9 SpecCure terms |
+| hLexicon (88 terms) | Extended with 8 SpecCure terms |
 | Manifest Executor (loom) | Interprets spec-curation manifests |
 | Curator Pipeline | Evaluates spec-curation outputs |
 | CurationDecision enum | Merge/Discard/Revise/Defer for specs |
@@ -637,7 +637,7 @@ The extended hypothesis has three claims that compose into a coherent architectu
 
 **Phase 1: hLexicon Extension**
 
-1. Add 9 terms to `lexicon.rs` bootstrap
+1. Add 8 terms to `lexicon.rs` bootstrap
 2. Update `hKask-hLexicon.md` documentation
 3. Run validation script
 4. Update governance doc to reflect expanded budget

@@ -5,6 +5,7 @@ manifest:
   name: inference-dispatch
   version: "0.1.0"
   description: Inference orchestration with model tier balancing
+  functional_role: flowdef
 
 steps:
   - ordinal: 1

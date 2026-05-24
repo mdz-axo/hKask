@@ -1,4 +1,10 @@
 {# spec/curate-collection.j2 — Evaluate collection coherence and completeness #}
+{# functional_role: knowact #}
+{# implementation_type: jinja2 #}
+{# lexicon_terms: [curate, cultivate] #}
+{# contract: #}
+{#   input: {collection_id: string, decision: string, coherence_score: float, specs: array, categories: array} #}
+{#   output: {curation_spec: object} #}
 ## Curation Report
 
 **Collection:** {{ collection_id | default("default") }}

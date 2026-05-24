@@ -1,0 +1,155 @@
+# Spec Curate Manifest — Collection curation evaluation
+# Evaluate and cultivate specification collections over time
+# Per DDMVSS §6.3: Curation as ongoing coherence maintenance
+
+manifest:
+  name: spec-curate
+  version: "0.1.0"
+  description: Evaluate specification collection coherence and recommend cultivation actions
+  functional_role: flowdef
+  lexicon_terms: [curate, cultivate, evaluate, contextualise]
+
+matroshka:
+  max_depth: 5
+  enforce: true
+  depth_counter:
+    enabled: true
+    inherit_from_parent: true
+    default: 0
+    increment_on_dispatch: true
+  cns_monitoring:
+    span_namespace: cns.spec.curate
+    alert_if_exceeds: 4
+    rationale: "Curation evaluation should be bounded and focused"
+
+cascade:
+  pre:
+    - ordinal: 1
+      action: Execute
+      description: "Query specification collection for evaluation"
+      mcp: spec/graph/query
+      input_schema:
+        type: object
+        properties:
+          collection_id:
+            type: string
+          time_horizon:
+            type: string
+      output_schema:
+        type: object
+        properties:
+          collection_specs:
+            type: array
+          collection_metadata:
+            type: object
+
+  core:
+    - ordinal: 2
+      action: Execute
+      description: "Evaluate collection coherence and completeness"
+      mcp: spec/curate/evaluate
+      input_schema:
+        type: object
+        properties:
+          collection_specs:
+            type: array
+          collection_metadata:
+            type: object
+      output_schema:
+        type: object
+        properties:
+          coherence_score:
+            type: number
+          completeness_score:
+            type: number
+          categories_covered:
+            type: array
+          categories_missing:
+            type: array
+
+    - ordinal: 3
+      action: Populate
+      template_ref: registry/templates/spec/curate-collection.j2
+      description: "Generate curation report with recommendations"
+      input_schema:
+        type: object
+        properties:
+          coherence_score:
+            type: number
+          completeness_score:
+            type: number
+          categories_covered:
+            type: array
+          categories_missing:
+            type: array
+      output_schema:
+        type: object
+        properties:
+          curation_report:
+            type: string
+          recommendations:
+            type: array
+
+    - ordinal: 4
+      action: Execute
+      description: "Apply cultivation actions to improve coherence"
+      mcp: spec/curate/cultivate
+      input_schema:
+        type: object
+        properties:
+          collection_specs:
+            type: array
+          recommendations:
+            type: array
+          time_horizon:
+            type: string
+      output_schema:
+        type: object
+        properties:
+          cultivation_actions:
+            type: array
+          new_coherence_score:
+            type: number
+          cultivation_status:
+            type: string
+
+  post:
+    - ordinal: 5
+      action: Execute
+      description: "Validate cultivated specification collection"
+      mcp: spec/graph/validate
+      input_schema:
+        type: object
+        properties:
+          collection_specs:
+            type: array
+          cultivation_actions:
+            type: array
+      output_schema:
+        type: object
+        properties:
+          validation_result:
+            type: object
+          final_coherence_score:
+            type: number
+
+    - ordinal: 6
+      action: Execute
+      description: "Emit CNS span for curation completion"
+      mcp: cns/emit
+      input_schema:
+        type: object
+        properties:
+          collection_id:
+            type: string
+          initial_coherence:
+            type: number
+          final_coherence:
+            type: number
+          cultivation_actions:
+            type: array
+      output_schema:
+        type: object
+        properties:
+          span_id:
+            type: string

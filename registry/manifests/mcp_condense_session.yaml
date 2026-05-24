@@ -5,6 +5,7 @@ manifest:
   id: mcp/condense_session
   name: MCP Session Condenser
   description: >
+  functional_role: flowdef
     Condense conversation sessions into summaries with key decisions and action items.
     Supports configurable compression ratio and selective extraction.
   version: 0.21.0

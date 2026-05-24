@@ -6,6 +6,8 @@ manifest:
   id: reasoning-cycle
   name: Reasoning Cycle
   description: >
+  functional_role: knowact
+  functional_role: knowact
     Core reasoning cycle with cybernetic feedback.
     Applies reasoning skills, extracts atomic facts, and validates against constraints.
   version: 0.21.0

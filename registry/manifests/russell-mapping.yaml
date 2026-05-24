@@ -8,6 +8,7 @@
 mapping:
   version: 0.21.2
   description: Russell skill manifest to hKask registry mapping
+  functional_role: flowdef
 
 # Field Mappings
 field_mappings:

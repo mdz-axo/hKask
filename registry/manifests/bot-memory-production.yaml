@@ -5,6 +5,7 @@ manifest:
   id: bot-memory-production
   name: Bot Memory Production
   description: >
+  functional_role: flowdef
     Automatic memory production for all bot operations.
     Records episodic memory of operations and extracts semantic triples.
   version: 0.21.0

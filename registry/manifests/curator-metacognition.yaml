@@ -5,6 +5,8 @@ manifest:
   id: curator-metacognition
   name: Curator Metacognition
   description: >
+  functional_role: knowact
+  functional_role: knowact
     Metacognitive reasoning for system sense-making, performance monitoring,
     and coordination with hKask Administrator on system evolution.
   version: 0.21.0

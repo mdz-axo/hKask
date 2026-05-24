@@ -5,6 +5,7 @@ manifest:
   id: mcp/web_extract
   name: MCP Web Extractor
   description: >
+  functional_role: flowdef
     Search and extract information from web sources.
     Supports source filtering, freshness constraints, and relevance ranking.
   version: 0.21.0

@@ -1,0 +1,124 @@
+# Spec Reconcile Manifest — Conflict resolution pipeline
+# Resolve goal tensions without collapsing them
+# Per DDMVSS §6.3: Reconciliation as tension preservation
+
+manifest:
+  name: spec-reconcile
+  version: "0.1.0"
+  description: Resolve conflicts between specifications while preserving productive tensions
+  functional_role: flowdef
+  lexicon_terms: [reconcile, curate, evaluate, contextualise]
+
+matroshka:
+  max_depth: 5
+  enforce: true
+  depth_counter:
+    enabled: true
+    inherit_from_parent: true
+    default: 0
+    increment_on_dispatch: true
+  cns_monitoring:
+    span_namespace: cns.spec.reconcile
+    alert_if_exceeds: 4
+    rationale: "Reconciliation should be bounded to prevent infinite loops"
+
+cascade:
+  pre:
+    - ordinal: 1
+      action: Execute
+      description: "Identify conflicting specifications"
+      mcp: spec/graph/query
+      input_schema:
+        type: object
+        properties:
+          spec_ids:
+            type: array
+          conflict_type:
+            type: string
+      output_schema:
+        type: object
+        properties:
+          conflicting_specs:
+            type: array
+          tension_map:
+            type: object
+
+  core:
+    - ordinal: 2
+      action: Populate
+      template_ref: registry/templates/spec/reconcile-conflicts.j2
+      description: "Generate reconciliation report with tension analysis"
+      input_schema:
+        type: object
+        properties:
+          conflicting_specs:
+            type: array
+          tension_map:
+            type: object
+      output_schema:
+        type: object
+        properties:
+          reconciliation_report:
+            type: string
+          tensions_identified:
+            type: integer
+
+    - ordinal: 3
+      action: Execute
+      description: "Apply reconciliation strategy to resolve conflicts"
+      mcp: spec/curate/reconcile
+      input_schema:
+        type: object
+        properties:
+          reconciliation_report:
+            type: string
+          conflicting_specs:
+            type: array
+          strategy:
+            type: string
+      output_schema:
+        type: object
+        properties:
+          resolved_specs:
+            type: array
+          preserved_tensions:
+            type: array
+          resolution_status:
+            type: string
+
+  post:
+    - ordinal: 4
+      action: Execute
+      description: "Validate reconciled specification collection"
+      mcp: spec/graph/validate
+      input_schema:
+        type: object
+        properties:
+          resolved_specs:
+            type: array
+      output_schema:
+        type: object
+        properties:
+          validation_result:
+            type: object
+          coherence_score:
+            type: number
+
+    - ordinal: 5
+      action: Execute
+      description: "Emit CNS span for reconciliation completion"
+      mcp: cns/emit
+      input_schema:
+        type: object
+        properties:
+          resolved_specs:
+            type: array
+          preserved_tensions:
+            type: array
+          coherence_score:
+            type: number
+      output_schema:
+        type: object
+        properties:
+          span_id:
+            type: string

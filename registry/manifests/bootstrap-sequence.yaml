@@ -1,5 +1,6 @@
 # Bootstrap Sequence — hKask System Initialization
 # ℏKask v0.21.0 — Planck's Constant of Agent Systems
+# functional_role: flowdef
 
 bootstrap:
   version: 0.21.0

@@ -5,6 +5,8 @@ manifest:
   name: cns-monitoring
   version: "0.1.0"
   description: Cybernetic Nervous System monitoring and calibration
+  functional_role: knowact
+  functional_role: knowact
 
 steps:
   - ordinal: 1

@@ -5,6 +5,7 @@ manifest:
   name: ensemble-orchestration
   version: "0.1.0"
   description: Multi-agent coordination with H2A session orchestration
+  functional_role: flowdef
 
 steps:
   - ordinal: 1

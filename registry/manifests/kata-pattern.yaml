@@ -5,6 +5,7 @@ manifest:
   id: kata-pattern
   name: Kata Pattern
   description: >
+  functional_role: flowdef
     Unified Kata execution pattern. Selects and executes one of three
     Kata patterns: Improvement (4-step), Coaching (5-question), or Starter
     (practice routine). All Kata outcomes recorded to memory and CNS.

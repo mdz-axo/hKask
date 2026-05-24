@@ -1,0 +1,133 @@
+# Spec Elicit Manifest — Participatory goal elicitation flow
+# Draw out latent goals or requirements through structured dialogue
+# Per DDMVSS §6.3: Elicitation as collaborative specification
+
+manifest:
+  name: spec-elicit
+  version: "0.1.0"
+  description: Elicit user goals through structured questioning and refinement
+  functional_role: flowdef
+  lexicon_terms: [elicit, specify, require, recognize, contextualise]
+
+matroshka:
+  max_depth: 7
+  enforce: true
+  depth_counter:
+    enabled: true
+    inherit_from_parent: true
+    default: 0
+    increment_on_dispatch: true
+  cns_monitoring:
+    span_namespace: cns.spec.elicit
+    alert_if_exceeds: 6
+    rationale: "Elicitation may require deeper exploration of user intent"
+
+cascade:
+  pre:
+    - ordinal: 1
+      action: Execute
+      description: "Analyze user context to identify elicitation strategy"
+      mcp: spec/graph/query
+      input_schema:
+        type: object
+        properties:
+          user_context:
+            type: object
+          existing_specs:
+            type: array
+      output_schema:
+        type: object
+        properties:
+          elicitation_strategy:
+            type: string
+          related_specs:
+            type: array
+
+  core:
+    - ordinal: 2
+      action: Populate
+      template_ref: registry/templates/spec/goal-capture.j2
+      description: "Present structured questions to elicit user goals"
+      input_schema:
+        type: object
+        properties:
+          elicitation_strategy:
+            type: string
+          domain_anchor:
+            type: string
+      output_schema:
+        type: object
+        properties:
+          elicited_goals:
+            type: array
+
+    - ordinal: 3
+      action: Execute
+      description: "Decompose elicited goals into sub-goals"
+      mcp: spec/goal/decompose
+      input_schema:
+        type: object
+        properties:
+          elicited_goals:
+            type: array
+      output_schema:
+        type: object
+        properties:
+          decomposed_goals:
+            type: array
+          sub_goal_count:
+            type: integer
+
+    - ordinal: 4
+      action: Execute
+      description: "Bind OCAP boundaries to elicited goals"
+      mcp: spec/require/bind
+      input_schema:
+        type: object
+        properties:
+          decomposed_goals:
+            type: array
+      output_schema:
+        type: object
+        properties:
+          bound_goals:
+            type: array
+          capability_tokens:
+            type: array
+
+  post:
+    - ordinal: 5
+      action: Execute
+      description: "Validate elicited specification collection"
+      mcp: spec/graph/validate
+      input_schema:
+        type: object
+        properties:
+          bound_goals:
+            type: array
+      output_schema:
+        type: object
+        properties:
+          validation_result:
+            type: object
+          coherence_score:
+            type: number
+
+    - ordinal: 6
+      action: Execute
+      description: "Store elicited specifications"
+      mcp: spec/goal/capture
+      input_schema:
+        type: object
+        properties:
+          bound_goals:
+            type: array
+          validation_result:
+            type: object
+      output_schema:
+        type: object
+        properties:
+          spec_ids:
+            type: array
+          status:
+            type: string

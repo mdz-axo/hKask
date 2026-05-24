@@ -6,6 +6,7 @@ manifest:
   id: dct-pipeline
   name: DCT Pipeline
   description: >
+  functional_role: flowdef
     Multi-stage pipeline for semantic decomposition and classification.
     Converts natural language input into structured goal/constraint/task hierarchies.
   version: 0.21.0

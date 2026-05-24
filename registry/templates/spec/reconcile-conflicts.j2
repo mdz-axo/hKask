@@ -1,4 +1,10 @@
 {# spec/reconcile-conflicts.j2 — Resolve goal tensions without collapsing them #}
+{# functional_role: flowdef #}
+{# implementation_type: jinja2 #}
+{# lexicon_terms: [reconcile] #}
+{# contract: #}
+{#   input: {tension_description: string, spec_ids: array, tensions: array, resolution_strategy: string} #}
+{#   output: {reconciliation_spec: object} #}
 ## Reconciliation Report
 
 **Tension:** {{ tension_description }}

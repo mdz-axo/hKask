@@ -4,6 +4,8 @@
 id: process/memory/recall
 name: Memory Recall
 description: Recalls semantic/episodic memory triples with confidence scoring
+functional_role: flowdef
+functional_role: flowdef
 
 steps:
   - ordinal: 1

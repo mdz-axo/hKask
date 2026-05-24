@@ -1,4 +1,10 @@
 {# spec/goal-capture.j2 — Elicit user intent as binding requirement #}
+{# functional_role: wordact #}
+{# implementation_type: jinja2 #}
+{# lexicon_terms: [specify, require, elicit] #}
+{# contract: #}
+{#   input: {goal_name: string, domain_anchor: string, spec_category: string, situation: string, motivation: string, outcome: string, criteria: array, lexicon_terms: array, hlexicon: object, sub_goals: array} #}
+{#   output: {goal_spec: object} #}
 ## Goal: {{ goal_name }}
 
 **Domain:** {{ domain_anchor }}
