@@ -17,7 +17,7 @@ use hkask_templates::cascade::{
 };
 use hkask_templates::csp::{CspConfig, CspExecutor, StageConfig};
 use hkask_templates::ports::{
-    Action, CompositionTemplate, InferenceConfig, InferencePort, ManifestExecutor, ManifestStep,
+    Action, CompositionTemplate, InferenceConfig, SyncInferencePort, ManifestExecutor, ManifestStep,
     McpPort, ProcessManifest, TemplateError, TemplateRenderer, ToolInfo,
 };
 use serde_json::json;
@@ -103,7 +103,7 @@ impl MockInference {
     }
 }
 
-impl InferencePort for MockInference {
+impl SyncInferencePort for MockInference {
     fn call(
         &self,
         _model_tier: &str,

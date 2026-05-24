@@ -90,6 +90,12 @@ impl std::fmt::Display for BotID {
     }
 }
 
+impl From<BotID> for WebID {
+    fn from(bot_id: BotID) -> Self {
+        WebID(bot_id.0)
+    }
+}
+
 /// ManifestID — Unique identifier for manifests
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ManifestID(pub Uuid);

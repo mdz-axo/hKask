@@ -5,7 +5,7 @@
 
 use crate::context_assembly::{ContextAssembler, ContextFragment, FragmentSource};
 use crate::ports::{
-    Action, CnsPort, DEFAULT_MATROSHKA_LIMIT, InferenceConfig, InferencePort, ManifestExecutor,
+    Action, CnsPort, DEFAULT_MATROSHKA_LIMIT, InferenceConfig, SyncInferencePort, ManifestExecutor,
     ManifestStep, McpPort, MemoryPort, ProcessManifest, Result, TemplateError, TemplateRenderer,
 };
 use serde::{Deserialize, Serialize};
@@ -101,7 +101,7 @@ pub struct ManifestExecutorImpl<R, I, M, C> {
 impl<R, I, M, C> ManifestExecutorImpl<R, I, M, C>
 where
     R: TemplateRenderer,
-    I: InferencePort,
+    I: SyncInferencePort,
     M: McpPort,
     C: CnsPort,
 {
@@ -469,7 +469,7 @@ where
 impl<R, I, M, C> ManifestExecutor for ManifestExecutorImpl<R, I, M, C>
 where
     R: TemplateRenderer,
-    I: InferencePort,
+    I: SyncInferencePort,
     M: McpPort,
     C: CnsPort,
 {

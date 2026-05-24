@@ -1,4 +1,4 @@
-use crate::security::ValidationError;
+pub use crate::security::ValidationError;
 
 pub trait RateLimitPort: Send + Sync {
     fn acquire(&self, key: &str, tokens: f64) -> Result<(), ValidationError>;

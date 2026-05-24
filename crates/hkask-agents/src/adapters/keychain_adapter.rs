@@ -2,11 +2,11 @@
 
 use crate::adapters::keystore_port::KeystorePort;
 use hkask_keystore::keychain::Keychain;
+use hkask_keystore::KeystoreError;
 use hkask_types::WebID;
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
-/// Keychain Adapter — Bridges KeystorePort to OS keychain via hkask-keystore
 pub struct KeychainAdapter {
     keychain: Keychain,
 }
@@ -42,37 +42,37 @@ impl Default for KeychainAdapter {
 }
 
 impl KeystorePort for KeychainAdapter {
-    fn set(&self, key: &str, value: &str, service: &str) -> Result<(), String> {
+    fn set(&self, key: &str, value: &str, service: &str) -> Result<(), KeystoreError> {
         let webid = Self::key_to_webid(key, service);
-        self.keychain
-            .store(&webid, value)
-            .map_err(|e| e.to_string())
+        self.keychain.store(&webid, value).map_err(KeystoreError::from)
     }
 
-    fn get(&self, key: &str, service: &str) -> Result<String, String> {
+    fn get(&self, key: &str, service: &str) -> Result<String, KeystoreError> {
         let webid = Self::key_to_webid(key, service);
-        self.keychain.retrieve(&webid).map_err(|e| e.to_string())
+        self.keychain.retrieve(&webid).map_err(KeystoreError::from)
     }
 
-    fn rotate(&self, key: &str, new_value: &str, service: &str) -> Result<(), String> {
+    fn rotate(&self, key: &str, new_value: &str, service: &str) -> Result<(), KeystoreError> {
         self.set(key, new_value, service)
     }
 
-    fn delete(&self, key: &str, service: &str) -> Result<(), String> {
+    fn delete(&self, key: &str, service: &str) -> Result<(), KeystoreError> {
         let webid = Self::key_to_webid(key, service);
-        self.keychain.delete(&webid).map_err(|e| e.to_string())
+        self.keychain.delete(&webid).map_err(KeystoreError::from)
     }
 
-    fn list(&self, _service: &str) -> Result<Vec<String>, String> {
-        Err("Keychain does not support listing keys".to_string())
+    fn list(&self, _service: &str) -> Result<Vec<String>, KeystoreError> {
+        Err(KeystoreError::NotSupported(
+            "Keychain does not support listing keys".to_string(),
+        ))
     }
 
-    fn prompt(&self, prompt_text: &str) -> Result<String, String> {
+    fn prompt(&self, prompt_text: &str) -> Result<String, KeystoreError> {
         eprint!("{}: ", prompt_text);
         let mut input = String::new();
         std::io::stdin()
             .read_line(&mut input)
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| KeystoreError::Io(e.to_string()))?;
         Ok(input.trim().to_string())
     }
 }

@@ -4,7 +4,7 @@
 //! for use in testing. Each mock implements the corresponding port trait.
 
 use async_trait::async_trait;
-use hkask_templates::ports::{InferencePort, McpPort, CnsPort};
+use hkask_templates::ports::{SyncInferencePort, McpPort, CnsPort};
 use hkask_types::{TemplateType, WebID};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -36,14 +36,20 @@ impl Default for MockInferencePort {
     }
 }
 
-#[async_trait]
-impl InferencePort for MockInferencePort {
-    async fn infer(&self, prompt: &str) -> Result<String, hkask_templates::ports::InferenceError> {
+impl SyncInferencePort for MockInferencePort {
+    fn call(
+        &self,
+        _model_tier: &str,
+        prompt: &str,
+        _config: &hkask_templates::ports::InferenceConfig,
+    ) -> hkask_templates::ports::Result<serde_json::Value> {
         let responses = self.responses.read().unwrap();
         responses
             .get(prompt)
-            .cloned()
-            .ok_or_else(|| hkask_templates::ports::InferenceError::ModelUnavailable)
+            .map(|r| serde_json::from_str(r).unwrap_or(serde_json::Value::String(r.clone())))
+            .ok_or_else(|| hkask_templates::ports::TemplateError::Inference(
+                "No mock response for prompt".to_string(),
+            ))
     }
 }
 

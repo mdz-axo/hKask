@@ -11,6 +11,7 @@
 use hkask_types::{
     AlgedonicAlert, CnsSpan, CurationDecision, CurationRecord, CuratorId, OCAPBoundary,
     TemplateInvocation, TemplateOutcome, UserSovereigntyState, VarietyCounter,
+    CapabilityAction, CapabilityResource,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -76,6 +77,7 @@ pub struct CuratorPipeline {
     variety: Arc<Mutex<VarietyCounter>>,
     ocap_boundaries: Arc<Mutex<Vec<OCAPBoundary>>>,
     sovereignty: Arc<Mutex<UserSovereigntyState>>,
+    capability_checker: Option<Arc<hkask_types::CapabilityChecker>>,
 }
 
 impl CuratorPipeline {
@@ -87,7 +89,13 @@ impl CuratorPipeline {
             variety: Arc::new(Mutex::new(VarietyCounter::new())),
             ocap_boundaries: Arc::new(Mutex::new(Vec::new())),
             sovereignty: Arc::new(Mutex::new(UserSovereigntyState::new())),
+            capability_checker: None,
         }
+    }
+
+    pub fn with_capability_checker(mut self, checker: Arc<hkask_types::CapabilityChecker>) -> Self {
+        self.capability_checker = Some(checker);
+        self
     }
 
     /// The one true Curator — system singleton
@@ -166,17 +174,14 @@ impl CuratorPipeline {
     async fn check_ocap(&self, invocation: &TemplateInvocation) -> bool {
         let boundaries = self.ocap_boundaries.lock().await;
 
-        // Check if any OCAP boundary denies this invocation
         for boundary in boundaries.iter() {
             if !boundary.enforced {
                 continue;
             }
 
-            // Check if the boundary applies to this template
             if boundary.capability == invocation.template_id.to_string()
                 || boundary.capability == "*"
             {
-                // Check authority level
                 match boundary.authority {
                     hkask_types::AuthorityLevel::Denied => {
                         tracing::warn!(
@@ -188,16 +193,38 @@ impl CuratorPipeline {
                         return false;
                     }
                     hkask_types::AuthorityLevel::Explicit => {
-                        // Explicit authority required - in production, verify capability token
-                        // For now, log and allow (stub for token verification)
-                        tracing::debug!(
-                            "OCAP explicit: bot {} has explicit authority for template {}",
-                            invocation.bot_id,
-                            invocation.template_id
-                        );
+                        if let Some(ref checker) = self.capability_checker {
+                            let bot_webid = invocation.bot_id;
+                            let has_valid_token = checker.verify_tool_capability(
+                                bot_webid,
+                                CapabilityResource::Template,
+                                &invocation.template_id.to_string(),
+                                CapabilityAction::Execute,
+                            );
+
+                            if !has_valid_token {
+                                tracing::warn!(
+                                    "OCAP explicit: bot {} lacks valid capability token for template {}",
+                                    invocation.bot_id,
+                                    invocation.template_id
+                                );
+                                return false;
+                            }
+                            tracing::debug!(
+                                "OCAP explicit: bot {} has verified capability for template {}",
+                                invocation.bot_id,
+                                invocation.template_id
+                            );
+                        } else {
+                            tracing::warn!(
+                                "OCAP explicit: no capability checker configured, denying bot {} for template {}",
+                                invocation.bot_id,
+                                invocation.template_id
+                            );
+                            return false;
+                        }
                     }
                     hkask_types::AuthorityLevel::Implicit => {
-                        // Implicit authority - allow
                         tracing::trace!(
                             "OCAP implicit: bot {} has implicit authority for template {}",
                             invocation.bot_id,

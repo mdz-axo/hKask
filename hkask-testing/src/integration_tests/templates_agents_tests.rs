@@ -6,7 +6,7 @@ use serde_json::json;
 
 mod templates_agents_integration {
     use super::*;
-    use hkask_templates::ports::{Action, CnsPort, InferenceConfig, InferencePort, McpPort};
+    use hkask_templates::ports::{Action, CnsPort, InferenceConfig, SyncInferencePort, McpPort};
     use hkask_testing::{MockCnsAdapterMut, MockInferenceAdapter, MockMcpAdapter};
 
     #[test]

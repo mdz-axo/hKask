@@ -166,7 +166,12 @@ pub trait RegistryIndex {
 }
 
 /// Sync inference port for manifest executor
-pub trait InferencePort {
+///
+/// NOTE: For new code, prefer the async `InferencePort` in `inference_port.rs`.
+/// This synchronous trait exists for the manifest executor which operates
+/// synchronously. When the manifest executor is migrated to async, this trait
+/// should be removed in favor of the async version.
+pub trait SyncInferencePort {
     fn call(&self, model_tier: &str, prompt: &str, config: &InferenceConfig) -> Result<Value>;
 
     fn call_default(&self, model_tier: &str, prompt: &str) -> Result<Value> {
@@ -211,14 +216,11 @@ pub struct MemoryFragment {
 
 /// Memory port for semantic/episodic recall
 pub trait MemoryPort {
-    /// Query semantic memory for relevant triples
-    fn query_semantic(&self, entity: &str) -> Vec<MemoryFragment>;
+    fn query_semantic(&self, entity: &str) -> Result<Vec<MemoryFragment>>;
 
-    /// Query episodic memory for relevant experiences
-    fn query_episodic(&self, entity: &str, perspective: &str) -> Vec<MemoryFragment>;
+    fn query_episodic(&self, entity: &str, perspective: &str) -> Result<Vec<MemoryFragment>>;
 
-    /// Get recent session history
-    fn get_session_history(&self, session_id: &str, max_messages: usize) -> Vec<String>;
+    fn get_session_history(&self, session_id: &str, max_messages: usize) -> Result<Vec<String>>;
 }
 
 /// Maximum Matroshka nesting depth (configurable per template)

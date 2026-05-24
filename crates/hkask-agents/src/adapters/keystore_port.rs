@@ -2,30 +2,24 @@
 //!
 //! Trait for secure key/value storage with OS keychain integration.
 
+use hkask_keystore::KeystoreError;
 use serde::{Deserialize, Serialize};
 
 /// Keystore Port — Secure storage for secrets
-pub trait KeystorePort {
-    /// Store a secret value
-    fn set(&self, key: &str, value: &str, service: &str) -> Result<(), String>;
+pub trait KeystorePort: Send + Sync {
+    fn set(&self, key: &str, value: &str, service: &str) -> Result<(), KeystoreError>;
 
-    /// Retrieve a secret value
-    fn get(&self, key: &str, service: &str) -> Result<String, String>;
+    fn get(&self, key: &str, service: &str) -> Result<String, KeystoreError>;
 
-    /// Rotate a secret value
-    fn rotate(&self, key: &str, new_value: &str, service: &str) -> Result<(), String>;
+    fn rotate(&self, key: &str, new_value: &str, service: &str) -> Result<(), KeystoreError>;
 
-    /// Delete a secret value
-    fn delete(&self, key: &str, service: &str) -> Result<(), String>;
+    fn delete(&self, key: &str, service: &str) -> Result<(), KeystoreError>;
 
-    /// List all keys for a service
-    fn list(&self, service: &str) -> Result<Vec<String>, String>;
+    fn list(&self, service: &str) -> Result<Vec<String>, KeystoreError>;
 
-    /// Prompt user for a secret value
-    fn prompt(&self, prompt_text: &str) -> Result<String, String>;
+    fn prompt(&self, prompt_text: &str) -> Result<String, KeystoreError>;
 }
 
-/// Secret wrapper for type safety
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Secret<T> {
     inner: T,

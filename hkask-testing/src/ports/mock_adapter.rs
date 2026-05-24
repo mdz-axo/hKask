@@ -5,7 +5,7 @@
 
 use async_trait::async_trait;
 use hkask_templates::ports::{
-    CnsPort, InferencePort, McpPort, Result as TemplateResult, TemplateError,
+    CnsPort, SyncInferencePort, McpPort, Result as TemplateResult, TemplateError,
 };
 use serde_json::Value;
 use std::cell::Cell;
@@ -60,7 +60,7 @@ impl Default for MockInferenceAdapter {
 }
 
 #[async_trait]
-impl InferencePort for MockInferenceAdapter {
+impl SyncInferencePort for MockInferenceAdapter {
     fn call(
         &self,
         _model_tier: &str,
