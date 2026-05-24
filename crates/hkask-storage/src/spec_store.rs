@@ -1,7 +1,11 @@
 //! SpecStore — SQLite-backed specification storage and curation
 
-use hkask_types::spec::{Spec, SpecCategory, SpecCurationRecord, SpecError, SpecObserver, SpecStore};
-use hkask_types::{CollectionCoherence, CompletenessCheck, CurationDecision, OCAPBoundary, SpecCurator, SpecId};
+use hkask_types::spec::{
+    Spec, SpecCategory, SpecCurationRecord, SpecError, SpecObserver, SpecStore,
+};
+use hkask_types::{
+    CollectionCoherence, CompletenessCheck, CurationDecision, OCAPBoundary, SpecCurator, SpecId,
+};
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 
@@ -69,7 +73,10 @@ impl SpecStore for SqliteSpecStore {
     fn delete(&self, id: SpecId) -> Result<(), SpecError> {
         let conn = self.conn.lock().unwrap();
         let changed = conn
-            .execute("DELETE FROM specs WHERE id = ?1", rusqlite::params![id.to_string()])
+            .execute(
+                "DELETE FROM specs WHERE id = ?1",
+                rusqlite::params![id.to_string()],
+            )
             .map_err(|e| SpecError::Storage(e.to_string()))?;
         if changed == 0 {
             return Err(SpecError::NotFound(id));

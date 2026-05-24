@@ -184,52 +184,50 @@ impl HLexicon {
             "Propose template revisions",
         ));
 
+        // SpecCure — WordAct (Speech Acts of Specification)
         lexicon.add(LexiconTerm::new(
             "specify",
             Domain::WordAct,
-            "Articulate a goal as a binding requirement",
-        ));
-        lexicon.add(LexiconTerm::new(
-            "elicit",
-            Domain::WordAct,
-            "Draw out user intent as structured input",
+            "Define a binding constraint or intent",
         ));
         lexicon.add(LexiconTerm::new(
             "require",
             Domain::WordAct,
-            "Assert a goal as a non-negotiable constraint",
-        ));
-
-        lexicon.add(LexiconTerm::new(
-            "decompose",
-            Domain::FlowDef,
-            "Break a goal into ordered sub-goals",
-        ));
-        lexicon.add(LexiconTerm::new(
-            "sequence",
-            Domain::FlowDef,
-            "Arrange sub-goals into execution order",
+            "State a non-negotiable condition",
         ));
         lexicon.add(LexiconTerm::new(
             "constrain",
-            Domain::FlowDef,
-            "Attach OCAP boundaries to a goal",
+            Domain::WordAct,
+            "Limit the solution space",
         ));
 
+        // SpecCure — FlowDef (Process of Composition)
         lexicon.add(LexiconTerm::new(
             "curate",
-            Domain::KnowAct,
-            "Evaluate an artifact for collection coherence",
+            Domain::FlowDef,
+            "Select, contextualise, and integrate artifacts",
         ));
+        lexicon.add(LexiconTerm::new(
+            "elicit",
+            Domain::FlowDef,
+            "Draw out latent goals or requirements",
+        ));
+        lexicon.add(LexiconTerm::new(
+            "reconcile",
+            Domain::FlowDef,
+            "Resolve conflicts between goals or requirements",
+        ));
+
+        // SpecCure — KnowAct (Cognitive Acts of Curation)
         lexicon.add(LexiconTerm::new(
             "contextualise",
             Domain::KnowAct,
             "Situate an artifact within its meaningful environment",
         ));
         lexicon.add(LexiconTerm::new(
-            "reconcile",
+            "cultivate",
             Domain::KnowAct,
-            "Resolve goal tensions without collapsing them",
+            "Nurture growth and coherence over time",
         ));
 
         lexicon

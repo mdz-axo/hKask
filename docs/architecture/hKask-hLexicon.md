@@ -28,7 +28,7 @@ contract:
 
 ---
 
-## Domain 1: WordAct — Prompting Language (25 terms)
+## Domain 1: WordAct — Prompting Language (28 terms)
 
 **Theoretical Basis:** Speech Act Theory (J.L. Austin, John Searle)[^austin][^searle]
 
@@ -89,9 +89,17 @@ Speech acts distinguish between:
 | `abolish` | End existence | "Abolish: Deprecated endpoint removed" |
 | `transform` | Change state | "Transform: Converting to new format" |
 
+### 1.6 Specification Acts (3 terms) — Defining binding requirements
+
+| Term | Definition | Example Usage |
+|------|------------|---------------|
+| `specify` | Define a binding constraint or intent | "Specify: User must authenticate before access" |
+| `require` | State a non-negotiable condition | "Require: All outputs must be validated" |
+| `constrain` | Limit the solution space | "Constrain: Response time < 200ms" |
+
 ---
 
-## Domain 2: FlowDef — Process Flow Language (24 terms)
+## Domain 2: FlowDef — Process Flow Language (27 terms)
 
 **Theoretical Basis:** Workflow Patterns (Wil van der Aalst), Cascade Skill Manifests
 
@@ -159,9 +167,17 @@ Speech acts distinguish between:
 | `upstream` | Original source of fork | "upstream: track canonical template" |
 | `downstream` | Forks of this artifact | "downstream: 5 forks of this template" |
 
+### 2.7 Curation Process (3 terms) — Composition and integration workflows
+
+| Term | Definition | Example Usage |
+|------|------------|---------------|
+| `curate` | Select, contextualise, and integrate artifacts | "curate: Build coherent template collection" |
+| `elicit` | Draw out latent goals or requirements | "elicit: Discover user's underlying intent" |
+| `reconcile` | Resolve conflicts between goals or requirements | "reconcile: Balance speed vs accuracy tradeoffs" |
+
 ---
 
-## Domain 3: KnowAct — Cognition Language (23 terms)
+## Domain 3: KnowAct — Cognition Language (25 terms)
 
 **Theoretical Basis:** Enactive Cognition (Varela, Thompson), Second-Order Cybernetics (von Foerster), Autopoiesis (Maturana)
 
@@ -209,6 +225,13 @@ Speech acts distinguish between:
 | `regulate` | Adjust behavior | "regulate: reduce complexity" |
 | `orient` | Direct attention | "orient: to salient features" |
 | `ground` | Anchor in reality | "ground: in observed data" |
+
+### 3.5 Curation Cognition (2 terms) — Nurturing coherent collections
+
+| Term | Definition | Example Usage |
+|------|------------|---------------|
+| `contextualise` | Situate an artifact within its meaningful environment | "contextualise: Place template in workflow context" |
+| `cultivate` | Nurture growth and coherence over time | "cultivate: Evolve template collection toward coherence" |
 
 ---
 
@@ -333,18 +356,18 @@ contract:
 
 ---
 
-## hLexicon Term Index (80 terms)
+## hLexicon Term Index (88 terms)
 
-### WordAct (25)
-`query`, `request`, `instruct`, `command`, `prompt`, `probe`, `challenge`, `summon`, `pledge`, `propose`, `promise`, `undertake`, `commit`, `assert`, `claim`, `report`, `declare`, `affirm`, `testify`, `acknowledge`, `apologize`, `celebrate`, `create`, `abolish`, `transform`
+### WordAct (28)
+`query`, `request`, `instruct`, `command`, `prompt`, `probe`, `challenge`, `summon`, `pledge`, `propose`, `promise`, `undertake`, `commit`, `assert`, `claim`, `report`, `declare`, `affirm`, `testify`, `acknowledge`, `apologize`, `celebrate`, `create`, `abolish`, `transform`, `specify`, `require`, `constrain`
 
-### FlowDef (32)
-`sequence`, `parallel`, `choice`, `iteration`, `fork`, `join`, `sync`, `async`, `transform`, `filter`, `aggregate`, `route`, `broadcast`, `catch`, `fallback`, `compensate`, `escalate`, `abort`, `delay`, `timeout`, `schedule`, `expire`, `compose`, `decompose`, **`fork`**, **`clone`**, **`branch`**, **`merge`**, **`rebase`**, **`pr`**, **`upstream`**, **`downstream`**
+### FlowDef (27)
+`sequence`, `parallel`, `choice`, `iteration`, `fork`, `join`, `sync`, `async`, `transform`, `filter`, `aggregate`, `route`, `broadcast`, `catch`, `fallback`, `compensate`, `escalate`, `abort`, `delay`, `timeout`, `schedule`, `expire`, `compose`, `decompose`, `fork`, `clone`, `branch`, `merge`, `rebase`, `pr`, `upstream`, `downstream`, `curate`, `elicit`, `reconcile`
 
-### KnowAct (23)
-`recognize`, `classify`, `detect`, `match`, `discriminate`, `parse`, `infer`, `deduce`, `induce`, `abduct`, `analogy`, `critique`, `acquire`, `integrate`, `crystallize`, `adapt`, `calibrate`, `reflect`, `monitor`, `evaluate`, `regulate`, `orient`, `ground`
+### KnowAct (25)
+`recognize`, `classify`, `detect`, `match`, `discriminate`, `parse`, `infer`, `deduce`, `induce`, `abduct`, `analogy`, `critique`, `acquire`, `integrate`, `crystallize`, `adapt`, `calibrate`, `reflect`, `monitor`, `evaluate`, `regulate`, `orient`, `ground`, `contextualise`, `cultivate`
 
-**Total: 80 terms** (5 over 75 allocation — git evolution terms are essential for artifact management)
+**Total: 88 terms** (13 over 75 allocation — git evolution terms and spec-curation terms are essential for artifact management and participatory goal elicitation)
 
 ---
 
@@ -426,4 +449,4 @@ Recommend adjustments: {{ regulate(pass_rate) }}
 
 ---
 
-*hLexicon v1.0 — 80 terms allocated across 3 domains, 1 unified composition substrate*
+*hLexicon v1.1 — 88 terms allocated across 3 domains, 1 unified composition substrate*

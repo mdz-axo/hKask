@@ -271,6 +271,19 @@ impl CascadeContext {
             self.visited_manifests.insert(m.to_string());
         }
     }
+
+    /// Consume energy for a stage execution
+    /// Returns error if insufficient energy
+    pub fn consume_energy(&mut self, amount: u64) -> Result<(), TemplateError> {
+        if self.energy_remaining < amount {
+            return Err(TemplateError::Manifest(format!(
+                "Insufficient energy: requested {}, remaining {}",
+                amount, self.energy_remaining
+            )));
+        }
+        self.energy_remaining -= amount;
+        Ok(())
+    }
 }
 
 /// Cascade engine
@@ -344,13 +357,13 @@ impl CascadeEngine {
     ) -> bool {
         // Simple condition evaluation
         // Format: "field=value" or "field" (existence check) or "field>value" (numeric comparison)
-        
+
         if condition.contains('=') {
             let parts: Vec<&str> = condition.split('=').collect();
             if parts.len() == 2 {
                 let field = parts[0].trim();
                 let expected = parts[1].trim();
-                
+
                 if let Some(value) = state.get(field) {
                     match value {
                         serde_json::Value::String(s) => s == expected,
@@ -369,7 +382,7 @@ impl CascadeEngine {
             if parts.len() == 2 {
                 let field = parts[0].trim();
                 let threshold: f64 = parts[1].trim().parse().unwrap_or(0.0);
-                
+
                 if let Some(value) = state.get(field) {
                     if let Some(n) = value.as_f64() {
                         n > threshold

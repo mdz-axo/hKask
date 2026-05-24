@@ -1475,7 +1475,8 @@ fn main() {
                     }
                 };
 
-                let db_path = std::env::var("HKASK_DB_PATH").unwrap_or_else(|_| "hkask.db".to_string());
+                let db_path =
+                    std::env::var("HKASK_DB_PATH").unwrap_or_else(|_| "hkask.db".to_string());
                 let conn = match rusqlite::Connection::open(&db_path) {
                     Ok(c) => c,
                     Err(e) => {

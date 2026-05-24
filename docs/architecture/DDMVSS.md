@@ -1352,21 +1352,55 @@ impl SpecStore for SqliteSpecStore {
 
 ## 11. Adversarial Review Remediation (2026-05-24)
 
-The following items were identified during an adversarial review and deferred for future implementation:
+### Round 1 — Completed
 
-1. **Persistent curation audit trail:** `CurationRecord` from `curation.rs` should be stored as bitemporal triples when `SpecCurator::evaluate` is called. Currently decisions are returned but not persisted.
+| Task | Weakness | Status |
+|------|----------|--------|
+| T5 | `SpecId::from_string` silent UUID generation on parse failure | **Fixed** — returns `Result<Self, SpecError>` |
+| T6 | `version_sha` dead field on `Spec` | **Fixed** — removed |
+| T7 | `compute_coherence` private method instead of trait | **Fixed** — `coherence()` on `CompletenessCheck` trait |
+| T3 | `format!` JSON in MCP tools | **Fixed** — `serde_json::to_string` with typed response structs |
+| T1 | Three surfaces don't share state | **Fixed** — `SqliteSpecStore` implements `SpecStore` port |
+| T4 | `SpecCurator` has zero implementations | **Fixed** — `DefaultSpecCurator` implements `SpecCurator` |
+| T2 | MCP tools perform no capability checking | **Fixed** — `CapabilityToken` verified per-request |
+| T8 | `hkask-mcp-spec` not registered in runtime | **Fixed** — `register_spec_server` in builtin servers |
+| T9 | Jinja2 templates disconnected from rendering | **Fixed** — `kask spec render` CLI subcommand |
 
-2. **Manifest step grammar extension:** `mvss-compose.yaml` uses `select|populate|execute` actions. If `validate` or `curate` actions are needed, the manifest executor in `hkask-templates` must be extended. Currently the manifest is a design artifact, not executable.
+### Round 2 — Completed
 
-3. **Cross-surface coherence test:** No integration test verifies that MCP `spec_goal_capture`, CLI `kask spec capture`, and API `POST /api/specs/capture` produce identical `Spec` objects through the shared `SpecStore`. This is the load-bearing test for the `MCP ≡ CLI ≡ API` axiom.
+| Task | Weakness | Status |
+|------|----------|--------|
+| R2-T6 | `spec_curate_evaluate` hardcoded coherence | **Fixed** — uses `spec.coherence()` |
+| R2-T4 | `SqliteSpecCurator` misnamed (no SQLite) | **Fixed** — renamed `DefaultSpecCurator` |
+| R2-T8 | `CompletenessCheck` for `[Spec]` conflates local/global semantics | **Fixed** — split into `CollectionCoherence` trait |
+| R2-T1 | `SpecServer` HashMap shadow; reads never consult store | **Fixed** — HashMap removed; store is single source of truth |
+| R2-T3 | `spec_require_bind` is a no-op | **Fixed** — mutates `GoalSpec.constraints` and persists |
+| R2-T2 | `verify_capability` always returns `Ok(())` | **Fixed** — decodes base64 token, verifies signature, checks resource/action |
+| R2-T5 | `persist_spec` silently discards errors | **Fixed** — errors propagated; `CnsSpecObserver` emits `cns.spec.*` spans |
+| R2-T7 | CLI `Render` never loads spec from store | **Fixed** — loads via `SpecStore::load`, populates minijinja context |
+| R2-T9 | `spec_curate_reconcile` echoes without analysis | **Fixed** — Jaccard similarity on goal word tokens; `TensionReport` in response |
 
-4. **Capability token minting for spec operations:** No code path mints `spec:read`/`spec:write`/`spec:compose` tokens. The Curator bot needs these to operate. Currently the capability grant table in §7.2 is a design artifact.
+### Round 3 — Deferred
 
-5. **`SpecSigner` implementation:** Manifest signing via `hkask-keystore` Ed25519 is specified but unimplemented. The `signed_by` field on `Spec` is `Option<WebID>` — it remains `None` until a signer adapter exists.
+1. **`SpecStore` needs `Send + Sync` bounds on the trait itself.** Currently the bounds are only on the `SpecServer` field type (`Arc<dyn SpecStore + Send + Sync>`). The trait should declare these bounds so all adapters are forced to be thread-safe. This is a breaking change to the trait signature.
 
-6. **Coherence threshold calibration:** The 0.7 default threshold is a guess. Empirical data from curation sessions should inform the real value. The `SpecCurator::cultivate` method should track historical coherence scores.
+2. **`SpecStore` needs bitemporal semantics.** The current schema stores a single `created_at` timestamp. The DDMVSS spec calls for bitemporal triples (valid-time + transaction-time). This requires extending the schema with `valid_from`, `valid_to`, `recorded_at` columns and updating `save`/`load` to accept a temporal context.
 
-7. **Spec drift detection:** `cns.spec.drift` span with drift-magnitude metric is specified in §10.5 but not implemented. Requires comparing `Spec` goals against actual implementation state — a non-trivial feedback loop.
+3. **`SpecSigner` implementation via `hkask-keystore` Ed25519.** The `signed_by: Option<WebID>` field remains `None`. A `KeystoreSpecSigner` adapter in `hkask-keystore` should sign the spec's canonical JSON serialization and store the signature alongside `signed_by`.
+
+4. **Capability token minting for spec operations.** No code path mints `spec:read`/`spec:write`/`spec:compose` tokens. The Curator bot needs these to operate. Add `grant_spec` convenience method usage to the bootstrap sequence.
+
+5. **`SpecObserver` → CNS span integration depth.** The `CnsSpecObserver` adapter emits `tracing::info!` spans. For full CNS integration, these should feed into `SpanEmitter` variety counters and trigger algedonic alerts when spec diversity drops below threshold.
+
+6. **Cross-surface equivalence test.** No integration test verifies that MCP `spec_goal_capture`, CLI `kask spec capture`, and API `POST /api/specs/capture` produce identical `Spec` objects through the shared `SpecStore`. This is the load-bearing test for the `MCP ≡ CLI ≡ API` axiom.
+
+7. **Coherence threshold calibration.** The 0.7 default is a guess. `DefaultSpecCurator::cultivate` should track historical coherence scores in a `curation_history` table and compute an empirical threshold.
+
+8. **Persistent curation audit trail.** `CurationRecord` from `curation.rs` should be stored as bitemporal triples when `SpecCurator::evaluate` is called. Currently decisions are returned but not persisted.
+
+9. **Manifest step grammar extension.** `mvss-compose.yaml` uses `select|populate|execute` actions. If `validate` or `curate` actions are needed, the manifest executor in `hkask-templates` must be extended.
+
+10. **Spec drift detection.** `cns.spec.drift` span with drift-magnitude metric is specified in §10.5 but not implemented. Requires comparing `Spec` goals against actual implementation state — a non-trivial feedback loop.
 
 ---
 

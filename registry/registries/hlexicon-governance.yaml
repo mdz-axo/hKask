@@ -24,18 +24,24 @@ governance:
 
   # Vocabulary Term Allocation
   term_allocation:
-    total_allocation: 75
+    total_allocation: 90
     distribution:
-      wordact: 25
-      flowdef: 27
-      knowact: 23
-    current_usage: 80
+      wordact: 28
+      flowdef: 34
+      knowact: 28
+    current_usage: 88
     overage_justification: |
       Git evolution terms (fork, clone, branch, merge, rebase, pr, upstream, downstream)
       were deemed essential for artifact management despite exceeding the original allocation.
       hLexicon terms are allocated, not consumed. Terms are not depleted by use;
       they are deliberately placed and reused infinitely. Allocation implies intentional
       distribution across domains, not resource depletion.
+    expansion_justification: |
+      Spec-curation capability requires 8 new terms (specify, require, constrain,
+      curate, elicit, reconcile, contextualise, cultivate) to support participatory
+      goal elicitation and collection curation workflows. These terms enable agents
+      to reason about specification quality, resolve goal tensions, and nurture
+      coherent artifact collections over time.
     expansion_policy: |
       When the vocabulary exceeds allocation, the governance body must either:
       1. Retire underused terms (zero codebase matches)

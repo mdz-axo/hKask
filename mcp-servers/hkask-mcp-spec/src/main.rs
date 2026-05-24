@@ -61,7 +61,16 @@ pub struct CurateReconcileResponse {
     pub resolution: String,
     pub spec_ids: Vec<String>,
     pub tension: String,
+    pub tensions: Vec<TensionReport>,
     pub status: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct TensionReport {
+    pub spec_a: String,
+    pub spec_b: String,
+    pub overlapping_goals: Vec<String>,
+    pub jaccard_score: f64,
 }
 
 #[derive(Debug, Serialize)]
@@ -546,10 +555,62 @@ impl SpecServer {
             .unwrap_or_else(|_| "{}".into());
         }
 
+        let mut loaded_specs = Vec::new();
+        for id in &found {
+            let parsed = SpecId::from_string(id).unwrap_or(SpecId::new());
+            if let Ok(spec) = self.store.load(parsed) {
+                loaded_specs.push(spec);
+            }
+        }
+
+        let mut tensions = Vec::new();
+        for i in 0..loaded_specs.len() {
+            for j in (i + 1)..loaded_specs.len() {
+                let a = &loaded_specs[i];
+                let b = &loaded_specs[j];
+                let words_a: std::collections::HashSet<&str> = a
+                    .goals
+                    .iter()
+                    .flat_map(|g| g.text.split_whitespace())
+                    .collect();
+                let words_b: std::collections::HashSet<&str> = b
+                    .goals
+                    .iter()
+                    .flat_map(|g| g.text.split_whitespace())
+                    .collect();
+                let intersection = words_a.intersection(&words_b).count();
+                let union = words_a.union(&words_b).count();
+                let jaccard = if union > 0 {
+                    intersection as f64 / union as f64
+                } else {
+                    0.0
+                };
+                if jaccard > 0.3 {
+                    let overlapping: Vec<String> = words_a
+                        .intersection(&words_b)
+                        .map(|w| w.to_string())
+                        .collect();
+                    tensions.push(TensionReport {
+                        spec_a: a.id.to_string(),
+                        spec_b: b.id.to_string(),
+                        overlapping_goals: overlapping,
+                        jaccard_score: jaccard,
+                    });
+                }
+            }
+        }
+
+        let resolution = if tensions.is_empty() {
+            "no_tensions_detected"
+        } else {
+            "tensions_identified"
+        };
+
         serde_json::to_string(&CurateReconcileResponse {
-            resolution: "tensions_preserved".to_string(),
+            resolution: resolution.to_string(),
             spec_ids: found,
             tension: tension_description,
+            tensions,
             status: "reconciled".to_string(),
         })
         .unwrap_or_else(|_| "{}".into())
@@ -619,11 +680,9 @@ impl SpecServer {
             capability_token,
         }): Parameters<GraphQueryRequest>,
     ) -> String {
-        if let Err(e) = self.verify_capability(
-            capability_token.as_deref(),
-            "query",
-            CapabilityAction::Read,
-        ) {
+        if let Err(e) =
+            self.verify_capability(capability_token.as_deref(), "query", CapabilityAction::Read)
+        {
             return serde_json::to_string(&ErrorResponse {
                 error: e.to_string(),
             })

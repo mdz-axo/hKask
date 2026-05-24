@@ -14,9 +14,8 @@ use std::time::Duration;
 use tokio::time::timeout;
 
 /// Named operation function type
-pub type OperationFn = Box<
-    dyn Fn(serde_json::Value) -> Result<serde_json::Value, TemplateError> + Send + Sync,
->;
+pub type OperationFn =
+    Box<dyn Fn(serde_json::Value) -> Result<serde_json::Value, TemplateError> + Send + Sync>;
 
 /// Stage configuration (loaded from YAML)
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -40,6 +39,16 @@ pub struct CspConfig {
     pub stages: StageDefinitions,
     #[serde(default)]
     pub error_handling: ErrorHandlingConfig,
+}
+
+impl Default for CspConfig {
+    fn default() -> Self {
+        Self {
+            stage_execution: StageExecutionConfig::default(),
+            stages: StageDefinitions::default(),
+            error_handling: ErrorHandlingConfig::default(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -130,29 +139,33 @@ impl CspExecutor {
     /// Register a named operation
     pub fn register_operation<F>(&mut self, name: &str, operation: F)
     where
-        F: Fn(serde_json::Value) -> Result<serde_json::Value, TemplateError> + Send + Sync + 'static,
+        F: Fn(serde_json::Value) -> Result<serde_json::Value, TemplateError>
+            + Send
+            + Sync
+            + 'static,
     {
-        self.operations.insert(name.to_string(), Box::new(operation));
+        self.operations
+            .insert(name.to_string(), Box::new(operation));
     }
 
     /// Classify an error as retryable or non-retryable
     fn classify_error(&self, error: &TemplateError) -> bool {
         let error_str = error.to_string();
-        
+
         // Check if error matches any retryable pattern
         for pattern in &self.config.error_handling.classification.retryable {
             if error_str.contains(pattern) {
                 return true;
             }
         }
-        
+
         // Check if error matches any non-retryable pattern
         for pattern in &self.config.error_handling.classification.non_retryable {
             if error_str.contains(pattern) {
                 return false;
             }
         }
-        
+
         // Default: non-retryable
         false
     }
@@ -164,7 +177,7 @@ impl CspExecutor {
         input: serde_json::Value,
     ) -> StageResult {
         let start = std::time::Instant::now();
-        
+
         self.emitter.emit_tool(
             "csp.stage.start",
             serde_json::json!({
@@ -211,7 +224,7 @@ impl CspExecutor {
                 Ok(Err(e)) => {
                     // Classify error
                     let is_retryable = self.classify_error(&e);
-                    
+
                     self.emitter.emit_tool(
                         "csp.stage.error",
                         serde_json::json!({
@@ -228,10 +241,10 @@ impl CspExecutor {
                     }
 
                     // Exponential backoff
-                    let delay_ms = self.config.stage_execution.retry.initial_delay_ms
-                        * 2u64.pow(attempt);
+                    let delay_ms =
+                        self.config.stage_execution.retry.initial_delay_ms * 2u64.pow(attempt);
                     let delay_ms = delay_ms.min(self.config.stage_execution.retry.max_delay_ms);
-                    
+
                     tokio::time::sleep(Duration::from_millis(delay_ms)).await;
                     attempt += 1;
                 }
@@ -244,7 +257,7 @@ impl CspExecutor {
                             "attempt": attempt + 1,
                         }),
                     );
-                    
+
                     if attempt >= max_retries {
                         last_error = Some(TemplateError::Manifest(format!(
                             "Stage '{}' timed out after {} attempts (timeout: {}ms)",
@@ -256,10 +269,10 @@ impl CspExecutor {
                     }
 
                     // Exponential backoff for timeout
-                    let delay_ms = self.config.stage_execution.retry.initial_delay_ms
-                        * 2u64.pow(attempt);
+                    let delay_ms =
+                        self.config.stage_execution.retry.initial_delay_ms * 2u64.pow(attempt);
                     let delay_ms = delay_ms.min(self.config.stage_execution.retry.max_delay_ms);
-                    
+
                     tokio::time::sleep(Duration::from_millis(delay_ms)).await;
                     attempt += 1;
                 }
@@ -269,7 +282,9 @@ impl CspExecutor {
         let duration_ms = start.elapsed().as_millis() as u64;
         StageResult {
             stage_name: stage.name.clone(),
-            output: Err(last_error.unwrap_or_else(|| TemplateError::Manifest("Stage failed".to_string()))),
+            output: Err(
+                last_error.unwrap_or_else(|| TemplateError::Manifest("Stage failed".to_string()))
+            ),
             duration_ms,
         }
     }
