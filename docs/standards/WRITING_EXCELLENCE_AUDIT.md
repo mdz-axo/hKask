@@ -287,6 +287,68 @@ done
 
 ---
 
+## 9. 2026-05-24 Refresh — Post-Remediation Assessment
+
+**Audit Date:** 2026-05-24  
+**Total Active Documents:** 49  
+**Remediation Actions Completed:** 7 phases (factual corrections, archival, dead references, metadata compliance, ERD refresh, citations, verification)
+
+### 9.1 Metadata Compliance
+
+| Metric | Before (2026-05-20) | After (2026-05-24) |
+|--------|---------------------|---------------------|
+| Documents with 6-field YAML frontmatter | 22/57 (39%) | **49/49 (100%)** |
+| Documents without metadata | 27 | **0** |
+| Version mismatches (YAML vs HTML comment) | 3 | **0** |
+
+### 9.2 Factual Accuracy (Gentle Test)
+
+| Metric | Before | After |
+|--------|--------|-------|
+| Phantom crate references | 12 | **0** |
+| Wrong MCP server counts | 12 documents | **0** |
+| Wrong test counts | 5 documents | **0** |
+| Dead document references | 12 targets | **0** |
+| Empty directories | 4 | **0** |
+
+### 9.3 Diagram Coverage
+
+| Metric | Before | After |
+|--------|--------|-------|
+| ERDs with DIAGRAM_ALIGNMENT | 20/60 (33%) | **28/68 (41%)** |
+| Subsystem ERDs (per crate) | 2 of 9 partial | **9 of 9** (via `subsystem-erds.md`) |
+| CNS span categories shown | 3 of 11 | **11 of 11** |
+| Phase enum accuracy | Wrong (Act/MetaObserve) | **Correct (Observe/Regulate/Outcome)** |
+
+### 9.4 Citation Coverage
+
+| Domain | Before | After |
+|--------|--------|-------|
+| Memory (episodic/semantic) | No citations | **Tulving (1972) cited** |
+| Domain-Driven Design | No citation | **Evans (2003) cited** |
+| Hexagonal Architecture | No citation | **Cockburn (2005) cited** |
+| ACP/MCP protocols | No citations | **rmcp, acp-runtime cited** |
+
+### 9.5 Corpus Quality Summary (Post-Refresh)
+
+| Dimension | Weakest Area | Score | Trend |
+|-----------|-------------|-------|-------|
+| **Hopper (Accessibility)** | GML docs (now marked Draft) | 3/4 avg | ↑ |
+| **Lovelace (Precision)** | ERDs now match code | 3/4 avg | ↑ |
+| **Schriver (Findability)** | All docs have metadata headers | 3/4 avg | ↑ |
+| **Gentle (Agent-Correctness)** | Factual errors eliminated | 3/4 avg | ↑↑ |
+
+### 9.6 Remaining Gaps
+
+| Gap | Priority | Effort |
+|-----|----------|--------|
+| DIAGRAM_ALIGNMENT on 40 older diagrams | P2 | 2 hours |
+| Re-score individual documents with new rubric | P2 | 4 hours |
+| Navigation tables for documents >200 lines | P2 | 3 hours |
+| Sentence-length audit (>35 words) | P3 | 1 hour |
+
+---
+
 ## 8. References
 
 [^hopper]: Hopper, G. (1952). *The Education of a Computer*. Proceedings of the ACM National Meeting. FLOW-MATIC inventor, compiler pioneer.
