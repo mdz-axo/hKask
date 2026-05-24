@@ -69,10 +69,12 @@ impl TelnyxServer {
             messaging_profile_id,
         }): Parameters<BuyNumberRequest>,
     ) -> String {
-        format!(
-            r#"{{"phone_number":"{}","messaging_profile_id":"{}","purchased":true}}"#,
-            phone_number, messaging_profile_id
-        )
+        serde_json::json!({
+            "phone_number": phone_number,
+            "messaging_profile_id": messaging_profile_id,
+            "purchased": true,
+        })
+        .to_string()
     }
 
     #[tool(description = "Send an SMS")]
@@ -80,10 +82,13 @@ impl TelnyxServer {
         &self,
         Parameters(SendSmsRequest { from, to, text }): Parameters<SendSmsRequest>,
     ) -> String {
-        format!(
-            r#"{{"from":"{}","to":"{}","text":"{}","sent":true}}"#,
-            from, to, text
-        )
+        serde_json::json!({
+            "from": from,
+            "to": to,
+            "text": text,
+            "sent": true,
+        })
+        .to_string()
     }
 
     #[tool(description = "Make a phone call")]
@@ -95,10 +100,13 @@ impl TelnyxServer {
             webhook_url,
         }): Parameters<MakeCallRequest>,
     ) -> String {
-        format!(
-            r#"{{"from":"{}","to":"{}","webhook_url":"{}","call_initiated":true}}"#,
-            from, to, webhook_url
-        )
+        serde_json::json!({
+            "from": from,
+            "to": to,
+            "webhook_url": webhook_url,
+            "call_initiated": true,
+        })
+        .to_string()
     }
 
     #[tool(description = "Send a WhatsApp message")]
@@ -111,10 +119,13 @@ impl TelnyxServer {
             content: _,
         }): Parameters<SendWhatsAppRequest>,
     ) -> String {
-        format!(
-            r#"{{"from":"{}","to":"{}","content_type":"{}","sent":true}}"#,
-            from, to, content_type
-        )
+        serde_json::json!({
+            "from": from,
+            "to": to,
+            "content_type": content_type,
+            "sent": true,
+        })
+        .to_string()
     }
 
     #[tool(description = "Generate text-to-speech audio")]
@@ -122,11 +133,12 @@ impl TelnyxServer {
         &self,
         Parameters(TtsRequest { text, voice }): Parameters<TtsRequest>,
     ) -> String {
-        format!(
-            r#"{{"text":"{}","voice":"{}","audio_url":"https://example.com/audio.mp3"}}"#,
-            text,
-            voice.unwrap_or_else(|| "default".to_string())
-        )
+        serde_json::json!({
+            "text": text,
+            "voice": voice.unwrap_or_else(|| "default".to_string()),
+            "audio_url": "https://example.com/audio.mp3",
+        })
+        .to_string()
     }
 
     #[tool(description = "List available voices")]

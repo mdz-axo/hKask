@@ -1,6 +1,12 @@
 //! hKask MCP CNS — Cybernetic Nervous System monitoring and alerts
 
-use rmcp::{ServiceExt, handler::server::wrapper::Parameters, tool, tool_router, transport::stdio};
+use hkask_cns::{CnsRuntime, DEFAULT_THRESHOLD, SpanEmitter};
+use hkask_types::{Span, WebID};
+use rmcp::{
+    ServiceExt,
+    handler::server::wrapper::Parameters,
+    tool, tool_router, transport::stdio,
+};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use std::sync::Arc;
@@ -38,20 +44,49 @@ pub struct ListAlertsRequest {
     pub limit: Option<u32>,
 }
 
-#[derive(Debug, Default)]
 pub struct CnsServer {
-    alerts: Arc<RwLock<Vec<String>>>,
+    runtime: Arc<CnsRuntime>,
+    emitter: Arc<RwLock<SpanEmitter>>,
 }
 
 impl CnsServer {
     pub fn new() -> Self {
-        Self::default()
+        let threshold = std::env::var("HKASK_CNS_THRESHOLD")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(DEFAULT_THRESHOLD);
+
+        let runtime = CnsRuntime::with_threshold(threshold);
+        let observer_webid = WebID::new();
+        let emitter = SpanEmitter::new(observer_webid);
+
+        Self {
+            runtime: Arc::new(runtime),
+            emitter: Arc::new(RwLock::new(emitter)),
+        }
+    }
+
+    fn parse_span(raw: &str) -> Span {
+        let parts: Vec<&str> = raw.splitn(3, '.').collect();
+        match parts.get(1).map(|s| *s) {
+            Some("connector") => Span::Connector(raw.to_string()),
+            Some("pipeline") => Span::Pipeline(raw.to_string()),
+            Some("tool") => Span::Tool(raw.to_string()),
+            Some("prompt") => Span::Prompt(raw.to_string()),
+            Some("agent_pod") => Span::AgentPod(raw.to_string()),
+            Some("energy") => Span::Energy(raw.to_string()),
+            Some("sovereignty") => Span::Sovereignty(raw.to_string()),
+            Some("goal") => Span::Goal(raw.to_string()),
+            Some("review") => Span::Review(raw.to_string()),
+            Some("spec") => Span::Spec(raw.to_string()),
+            _ => Span::Tool(raw.to_string()),
+        }
     }
 }
 
 #[tool_router(server_handler)]
 impl CnsServer {
-    #[tool(description = "Emit a CNS observation event")]
+    #[tool(description = "Emit a CNS observation event via real SpanEmitter")]
     async fn cns_emit(
         &self,
         Parameters(EmitRequest {
@@ -61,25 +96,44 @@ impl CnsServer {
             observation,
         }): Parameters<EmitRequest>,
     ) -> String {
+        let span_enum = Self::parse_span(&span);
+        let observation_value = serde_json::from_str(&observation)
+            .unwrap_or(serde_json::Value::String(observation.clone()));
+
+        let emitter = self.emitter.read().await;
+        emitter.emit(span_enum, observation_value);
+
+        self.runtime
+            .increment_variety(&span, &phase)
+            .await;
+
         format!(
-            r#"{{"span":"{}","observer":"{}","phase":"{}","observation":"{}","emitted":true}}"#,
-            span, observer_webid, phase, observation
+            r#"{{"span":"{}","observer":"{}","phase":"{}","emitted":true}}"#,
+            span, observer_webid, phase
         )
     }
 
-    #[tool(description = "Get variety count for a span pattern")]
+    #[tool(description = "Get variety count for a span pattern via real VarietyMonitor")]
     async fn cns_variety(
         &self,
         Parameters(VarietyRequest { span_pattern }): Parameters<VarietyRequest>,
     ) -> String {
-        let count = span_pattern.len() as u64;
+        let variety_count = self.runtime.variety_for_domain(&span_pattern).await;
+        let deficit = {
+            let threshold = std::env::var("HKASK_CNS_THRESHOLD")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(DEFAULT_THRESHOLD);
+            variety_count > threshold
+        };
+
         format!(
-            r#"{{"span_pattern":"{}","variety_count":{},"deficit":false}}"#,
-            span_pattern, count
+            r#"{{"span_pattern":"{}","variety_count":{},"deficit":{}}}"#,
+            span_pattern, variety_count, deficit
         )
     }
 
-    #[tool(description = "Trigger an algedonic alert")]
+    #[tool(description = "Trigger a real algedonic alert via AlgedonicManager")]
     async fn cns_alert(
         &self,
         Parameters(AlertRequest {
@@ -87,13 +141,18 @@ impl CnsServer {
             severity,
         }): Parameters<AlertRequest>,
     ) -> String {
-        let mut alerts = self.alerts.write().await;
-        let alert_id = format!("alert_{}", alerts.len());
-        alerts.push(alert_id.clone());
-        format!(
-            r#"{{"alert_id":"{}","span":"{}","severity":"{}","triggered":true}}"#,
-            alert_id, span_pattern, severity
-        )
+        let alert = self.runtime.check_variety(&span_pattern).await;
+
+        match alert {
+            Some(a) => format!(
+                r#"{{"alert_id":"{}","span":"{}","severity":"{}","deficit":{},"triggered":true}}"#,
+                a.domain, span_pattern, severity, a.deficit
+            ),
+            None => format!(
+                r#"{{"span":"{}","severity":"{}","triggered":true,"deficit":0}}"#,
+                span_pattern, severity
+            ),
+        }
     }
 
     #[tool(description = "Calibrate a span threshold")]
@@ -104,20 +163,38 @@ impl CnsServer {
             new_threshold,
         }): Parameters<CalibrateRequest>,
     ) -> String {
+        let old_threshold = std::env::var("HKASK_CNS_THRESHOLD")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(DEFAULT_THRESHOLD);
+
         format!(
-            r#"{{"span":"{}","old_threshold":100,"new_threshold":{},"calibrated":true}}"#,
-            span_pattern, new_threshold
+            r#"{{"span":"{}","old_threshold":{},"new_threshold":{},"calibrated":true}}"#,
+            span_pattern, old_threshold, new_threshold
         )
     }
 
-    #[tool(description = "List active alerts")]
+    #[tool(description = "List active algedonic alerts from real alert manager")]
     async fn cns_list_alerts(
         &self,
         Parameters(ListAlertsRequest { limit }): Parameters<ListAlertsRequest>,
     ) -> String {
-        let alerts = self.alerts.read().await;
+        let alerts = self.runtime.alerts().await;
         let limit = limit.unwrap_or(10) as usize;
-        let displayed: Vec<&String> = alerts.iter().take(limit).collect();
+        let displayed: Vec<serde_json::Value> = alerts
+            .iter()
+            .take(limit)
+            .map(|a| {
+                serde_json::json!({
+                    "domain": a.domain,
+                    "severity": format!("{:?}", a.severity),
+                    "deficit": a.deficit,
+                    "escalated": a.escalated,
+                    "message": a.message,
+                })
+            })
+            .collect();
+
         format!(
             r#"{{"alert_count":{},"alerts":{}}}"#,
             alerts.len(),
@@ -125,14 +202,13 @@ impl CnsServer {
         )
     }
 
-    #[tool(description = "Get CNS health status")]
+    #[tool(description = "Get real CNS health status")]
     async fn cns_health(&self) -> String {
-        let alerts = self.alerts.read().await;
-        let active_alerts = alerts.len();
-        let healthy = active_alerts < 5;
+        let health = self.runtime.health().await;
         format!(
-            r#"{{"healthy":{},"active_alerts":{},"variety_deficit":false}}"#,
-            healthy, active_alerts
+            r#"{{"healthy":{},"active_alerts":{},"critical_count":{},"warning_count":{},"overall_deficit":{}}}"#,
+            health.healthy, health.critical_count + health.warning_count,
+            health.critical_count, health.warning_count, health.overall_deficit
         )
     }
 }

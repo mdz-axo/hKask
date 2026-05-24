@@ -82,10 +82,13 @@ impl GithubServer {
         &self,
         Parameters(RepoRequest { owner, repo }): Parameters<RepoRequest>,
     ) -> String {
-        format!(
-            r#"{{"owner":"{}","repo":"{}","description":"Simulated repo","stars":100}}"#,
-            owner, repo
-        )
+        serde_json::json!({
+            "owner": owner,
+            "repo": repo,
+            "description": "Simulated repo",
+            "stars": 100,
+        })
+        .to_string()
     }
 
     #[tool(description = "List issues in a repository")]
@@ -93,12 +96,13 @@ impl GithubServer {
         &self,
         Parameters(ListIssuesRequest { owner, repo, state }): Parameters<ListIssuesRequest>,
     ) -> String {
-        format!(
-            r#"{{"owner":"{}","repo":"{}","state":"{}","issues":[]}}"#,
-            owner,
-            repo,
-            state.unwrap_or_else(|| "open".to_string())
-        )
+        serde_json::json!({
+            "owner": owner,
+            "repo": repo,
+            "state": state.unwrap_or_else(|| "open".to_string()),
+            "issues": [],
+        })
+        .to_string()
     }
 
     #[tool(description = "Get a specific issue")]
@@ -110,10 +114,13 @@ impl GithubServer {
             issue_number,
         }): Parameters<IssueRequest>,
     ) -> String {
-        format!(
-            r#"{{"owner":"{}","repo":"{}","number":{},"title":"Issue #{}"}}"#,
-            owner, repo, issue_number, issue_number
-        )
+        serde_json::json!({
+            "owner": owner,
+            "repo": repo,
+            "number": issue_number,
+            "title": format!("Issue #{}", issue_number),
+        })
+        .to_string()
     }
 
     #[tool(description = "Create a new issue")]
@@ -127,10 +134,14 @@ impl GithubServer {
             labels: _,
         }): Parameters<CreateIssueRequest>,
     ) -> String {
-        format!(
-            r#"{{"owner":"{}","repo":"{}","title":"{}","number":1,"created":true}}"#,
-            owner, repo, title
-        )
+        serde_json::json!({
+            "owner": owner,
+            "repo": repo,
+            "title": title,
+            "number": 1,
+            "created": true,
+        })
+        .to_string()
     }
 
     #[tool(description = "Add a comment to an issue or PR")]
@@ -143,10 +154,14 @@ impl GithubServer {
             body: _,
         }): Parameters<CommentRequest>,
     ) -> String {
-        format!(
-            r#"{{"owner":"{}","repo":"{}","issue":{},"comment_id":1,"created":true}}"#,
-            owner, repo, issue_number
-        )
+        serde_json::json!({
+            "owner": owner,
+            "repo": repo,
+            "issue": issue_number,
+            "comment_id": 1,
+            "created": true,
+        })
+        .to_string()
     }
 
     #[tool(description = "List pull requests")]
@@ -154,12 +169,13 @@ impl GithubServer {
         &self,
         Parameters(ListPrsRequest { owner, repo, state }): Parameters<ListPrsRequest>,
     ) -> String {
-        format!(
-            r#"{{"owner":"{}","repo":"{}","state":"{}","prs":[]}}"#,
-            owner,
-            repo,
-            state.unwrap_or_else(|| "open".to_string())
-        )
+        serde_json::json!({
+            "owner": owner,
+            "repo": repo,
+            "state": state.unwrap_or_else(|| "open".to_string()),
+            "prs": [],
+        })
+        .to_string()
     }
 
     #[tool(description = "Get a specific pull request")]
@@ -171,10 +187,13 @@ impl GithubServer {
             pr_number,
         }): Parameters<PrRequest>,
     ) -> String {
-        format!(
-            r#"{{"owner":"{}","repo":"{}","number":{},"title":"PR #{}"}}"#,
-            owner, repo, pr_number, pr_number
-        )
+        serde_json::json!({
+            "owner": owner,
+            "repo": repo,
+            "number": pr_number,
+            "title": format!("PR #{}", pr_number),
+        })
+        .to_string()
     }
 
     #[tool(description = "Search repositories")]
@@ -183,7 +202,12 @@ impl GithubServer {
         Parameters(SearchReposRequest { query, limit }): Parameters<SearchReposRequest>,
     ) -> String {
         let limit = limit.unwrap_or(10);
-        format!(r#"{{"query":"{}","limit":{},"results":[]}}"#, query, limit)
+        serde_json::json!({
+            "query": query,
+            "limit": limit,
+            "results": [],
+        })
+        .to_string()
     }
 }
 

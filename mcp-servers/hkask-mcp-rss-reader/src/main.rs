@@ -79,10 +79,13 @@ impl RssServer {
         let stream_id = format!("stream_{}", subs.len());
         let lbl = label.unwrap_or_else(|| url.clone());
         subs.insert(stream_id.clone(), url.clone());
-        format!(
-            r#"{{"stream_id":"{}","url":"{}","label":"{}","subscribed":true}}"#,
-            stream_id, url, lbl
-        )
+        serde_json::json!({
+            "stream_id": stream_id,
+            "url": url,
+            "label": lbl,
+            "subscribed": true,
+        })
+        .to_string()
     }
 
     #[tool(description = "Unsubscribe from a feed")]
@@ -92,12 +95,18 @@ impl RssServer {
     ) -> String {
         let mut subs = self.subscriptions.write().await;
         if subs.remove(&stream_id).is_some() {
-            format!(r#"{{"stream_id":"{}","unsubscribed":true}}"#, stream_id)
+            serde_json::json!({
+                "stream_id": stream_id,
+                "unsubscribed": true,
+            })
+            .to_string()
         } else {
-            format!(
-                r#"{{"stream_id":"{}","unsubscribed":false,"error":"Not found"}}"#,
-                stream_id
-            )
+            serde_json::json!({
+                "stream_id": stream_id,
+                "unsubscribed": false,
+                "error": "Not found",
+            })
+            .to_string()
         }
     }
 
@@ -109,12 +118,12 @@ impl RssServer {
         let subs = self.subscriptions.read().await;
         let subs_vec: Vec<_> = subs.iter().map(|(k, v)| format!("{}:{}", k, v)).collect();
         drop(subs);
-        format!(
-            r#"{{"folder":"{}","count":{},"subscriptions":{}}}"#,
-            folder.unwrap_or_else(|| "all".to_string()),
-            subs_vec.len(),
-            serde_json::to_string(&subs_vec).unwrap()
-        )
+        serde_json::json!({
+            "folder": folder.unwrap_or_else(|| "all".to_string()),
+            "count": subs_vec.len(),
+            "subscriptions": subs_vec,
+        })
+        .to_string()
     }
 
     #[tool(description = "Fetch new entries from a feed")]
@@ -122,10 +131,12 @@ impl RssServer {
         &self,
         Parameters(FetchRequest { stream_id }): Parameters<FetchRequest>,
     ) -> String {
-        format!(
-            r#"{{"stream_id":"{}","new_entries":0,"fetched":true}}"#,
-            stream_id
-        )
+        serde_json::json!({
+            "stream_id": stream_id,
+            "new_entries": 0,
+            "fetched": true,
+        })
+        .to_string()
     }
 
     #[tool(description = "Get entries from a feed")]
@@ -136,11 +147,12 @@ impl RssServer {
             unread_only,
         }): Parameters<GetEntriesRequest>,
     ) -> String {
-        format!(
-            r#"{{"stream_id":"{}","unread_only":{},"entries":[]}}"#,
-            stream_id,
-            unread_only.unwrap_or(false)
-        )
+        serde_json::json!({
+            "stream_id": stream_id,
+            "unread_only": unread_only.unwrap_or(false),
+            "entries": [],
+        })
+        .to_string()
     }
 
     #[tool(description = "Mark all entries as read")]
@@ -148,7 +160,11 @@ impl RssServer {
         &self,
         Parameters(MarkReadRequest { stream_id }): Parameters<MarkReadRequest>,
     ) -> String {
-        format!(r#"{{"stream_id":"{}","marked_read":true}}"#, stream_id)
+        serde_json::json!({
+            "stream_id": stream_id,
+            "marked_read": true,
+        })
+        .to_string()
     }
 
     #[tool(description = "Get unread count")]
@@ -156,7 +172,11 @@ impl RssServer {
         &self,
         Parameters(UnsubscribeRequest { stream_id }): Parameters<UnsubscribeRequest>,
     ) -> String {
-        format!(r#"{{"stream_id":"{}","unread_count":0}}"#, stream_id)
+        serde_json::json!({
+            "stream_id": stream_id,
+            "unread_count": 0,
+        })
+        .to_string()
     }
 
     #[tool(description = "Search across feeds")]
@@ -164,11 +184,12 @@ impl RssServer {
         &self,
         Parameters(SearchRequest { query, limit }): Parameters<SearchRequest>,
     ) -> String {
-        format!(
-            r#"{{"query":"{}","limit":{},"results":[]}}"#,
-            query,
-            limit.unwrap_or(10)
-        )
+        serde_json::json!({
+            "query": query,
+            "limit": limit.unwrap_or(10),
+            "results": [],
+        })
+        .to_string()
     }
 
     #[tool(description = "Export subscriptions as OPML")]
@@ -181,7 +202,11 @@ impl RssServer {
         &self,
         Parameters(DiscoverRequest { url }): Parameters<DiscoverRequest>,
     ) -> String {
-        format!(r#"{{"url":"{}","feeds":[]}}"#, url)
+        serde_json::json!({
+            "url": url,
+            "feeds": [],
+        })
+        .to_string()
     }
 }
 

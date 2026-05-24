@@ -184,7 +184,7 @@ where
                 .unwrap_or("default");
 
             // Semantic memory
-            let semantic_fragments = memory.query_semantic(entity);
+            let semantic_fragments = memory.query_semantic(entity).unwrap_or_default();
             for fragment in semantic_fragments {
                 assembler.add(ContextFragment {
                     content: fragment.content,
@@ -199,7 +199,7 @@ where
                 .get(context_keys::PERSPECTIVE)
                 .and_then(|v| v.as_str())
             {
-                let episodic_fragments = memory.query_episodic(entity, perspective);
+                let episodic_fragments = memory.query_episodic(entity, perspective).unwrap_or_default();
                 for fragment in episodic_fragments {
                     assembler.add(ContextFragment {
                         content: fragment.content,
@@ -212,7 +212,7 @@ where
 
             // Session history (if session_id available)
             if let Some(session_id) = input.get(context_keys::SESSION_ID).and_then(|v| v.as_str()) {
-                let history = memory.get_session_history(session_id, 20);
+                let history = memory.get_session_history(session_id, 20).unwrap_or_default();
                 for message in history {
                     assembler.add(ContextFragment {
                         content: message,
@@ -233,7 +233,7 @@ where
                 .unwrap_or("default");
 
             // Semantic memory
-            let semantic_fragments = memory.query_semantic(entity);
+            let semantic_fragments = memory.query_semantic(entity).unwrap_or_default();
             for fragment in semantic_fragments {
                 assembler.add(ContextFragment {
                     content: fragment.content,
@@ -248,7 +248,7 @@ where
                 .get(context_keys::PERSPECTIVE)
                 .and_then(|v| v.as_str())
             {
-                let episodic_fragments = memory.query_episodic(entity, perspective);
+                let episodic_fragments = memory.query_episodic(entity, perspective).unwrap_or_default();
                 for fragment in episodic_fragments {
                     assembler.add(ContextFragment {
                         content: fragment.content,
@@ -261,7 +261,7 @@ where
 
             // Session history (if session_id available)
             if let Some(session_id) = input.get(context_keys::SESSION_ID).and_then(|v| v.as_str()) {
-                let history = memory.get_session_history(session_id, 20);
+                let history = memory.get_session_history(session_id, 20).unwrap_or_default();
                 for message in history {
                     assembler.add(ContextFragment {
                         content: message,

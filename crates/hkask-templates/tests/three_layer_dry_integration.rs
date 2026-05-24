@@ -102,7 +102,7 @@ fn test_three_layer_pipeline_with_stub_memory() {
     let stub_memory = StubMemoryPort;
 
     // Layer 1: Memory recall (stub returns empty)
-    let semantic_fragments = stub_memory.query_semantic("test");
+    let semantic_fragments = stub_memory.query_semantic("test").unwrap();
     assert!(semantic_fragments.is_empty());
 
     // Layer 2: Session message dedup

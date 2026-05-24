@@ -7,6 +7,8 @@ description = "Template registry index, discovery, and validation MCP server"
 
 [dependencies]
 hkask-types = { path = "../../crates/hkask-types" }
+hkask-templates = { path = "../../crates/hkask-templates" }
+hkask-storage = { path = "../../crates/hkask-storage" }
 rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
 tokio.workspace = true
 serde.workspace = true

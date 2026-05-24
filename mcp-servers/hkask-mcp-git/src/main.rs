@@ -82,15 +82,26 @@ impl GitServer {
                 .get_base_path()
                 .unwrap_or_else(|| std::path::PathBuf::from("."));
             match adapter.resolve_sha(repo_path.to_str().unwrap_or(".")) {
-                Ok(sha) => format!(r#"{{"ref":"{}","sha":"{}","resolved":true}}"#, git_ref, sha),
-                Err(e) => format!(r#"{{"error":"{}"}}"#, e),
+                Ok(sha) => serde_json::json!({
+                    "ref": git_ref,
+                    "sha": sha,
+                    "resolved": true,
+                })
+                .to_string(),
+                Err(e) => serde_json::json!({
+                    "error": e.to_string(),
+                })
+                .to_string(),
             }
         } else {
             let fake_sha = format!("abc123def456_{}", git_ref);
-            format!(
-                r#"{{"ref":"{}","sha":"{}","resolved":false,"note":"No adapter configured"}}"#,
-                git_ref, fake_sha
-            )
+            serde_json::json!({
+                "ref": git_ref,
+                "sha": fake_sha,
+                "resolved": false,
+                "note": "No adapter configured",
+            })
+            .to_string()
         }
     }
 
@@ -103,15 +114,22 @@ impl GitServer {
         let sha = format!("snap_{}", message.replace(' ', "_"));
 
         if self.adapter_container.has_git_cas() {
-            format!(
-                r#"{{"sha":"{}","message":"{}","branch":"{}","committed":true}}"#,
-                sha, message, branch_name
-            )
+            serde_json::json!({
+                "sha": sha,
+                "message": message,
+                "branch": branch_name,
+                "committed": true,
+            })
+            .to_string()
         } else {
-            format!(
-                r#"{{"sha":"{}","message":"{}","branch":"{}","committed":false,"note":"No adapter configured"}}"#,
-                sha, message, branch_name
-            )
+            serde_json::json!({
+                "sha": sha,
+                "message": message,
+                "branch": branch_name,
+                "committed": false,
+                "note": "No adapter configured",
+            })
+            .to_string()
         }
     }
 
@@ -127,15 +145,22 @@ impl GitServer {
         let branch_name = branch.unwrap_or_else(|| "main".to_string());
 
         if self.adapter_container.has_git_cas() {
-            format!(
-                r#"{{"url":"{}","path":"{}","branch":"{}","cloned":true}}"#,
-                url, target_path, branch_name
-            )
+            serde_json::json!({
+                "url": url,
+                "path": target_path,
+                "branch": branch_name,
+                "cloned": true,
+            })
+            .to_string()
         } else {
-            format!(
-                r#"{{"url":"{}","path":"{}","branch":"{}","cloned":false,"note":"No adapter configured"}}"#,
-                url, target_path, branch_name
-            )
+            serde_json::json!({
+                "url": url,
+                "path": target_path,
+                "branch": branch_name,
+                "cloned": false,
+                "note": "No adapter configured",
+            })
+            .to_string()
         }
     }
 
@@ -151,15 +176,20 @@ impl GitServer {
         let org = organization.unwrap_or_else(|| "forked".to_string());
 
         if self.adapter_container.has_git_cas() {
-            format!(
-                r#"{{"source":"{}","target":"{}/{}","forked":true}}"#,
-                source_url, org, target_name
-            )
+            serde_json::json!({
+                "source": source_url,
+                "target": format!("{}/{}", org, target_name),
+                "forked": true,
+            })
+            .to_string()
         } else {
-            format!(
-                r#"{{"source":"{}","target":"{}/{}","forked":false,"note":"No adapter configured"}}"#,
-                source_url, org, target_name
-            )
+            serde_json::json!({
+                "source": source_url,
+                "target": format!("{}/{}", org, target_name),
+                "forked": false,
+                "note": "No adapter configured",
+            })
+            .to_string()
         }
     }
 
@@ -171,15 +201,22 @@ impl GitServer {
         let path_filter = path.unwrap_or_else(|| "all".to_string());
 
         if self.adapter_container.has_git_cas() {
-            format!(
-                r#"{{"sha1":"{}","sha2":"{}","path":"{}","diff":"diff output available"}}"#,
-                sha1, sha2, path_filter
-            )
+            serde_json::json!({
+                "sha1": sha1,
+                "sha2": sha2,
+                "path": path_filter,
+                "diff": "diff output available",
+            })
+            .to_string()
         } else {
-            format!(
-                r#"{{"sha1":"{}","sha2":"{}","path":"{}","diff":"simulated diff output","note":"No adapter configured"}}"#,
-                sha1, sha2, path_filter
-            )
+            serde_json::json!({
+                "sha1": sha1,
+                "sha2": sha2,
+                "path": path_filter,
+                "diff": "simulated diff output",
+                "note": "No adapter configured",
+            })
+            .to_string()
         }
     }
 
@@ -188,15 +225,18 @@ impl GitServer {
         let p = path.unwrap_or_else(|| ".".to_string());
 
         if self.adapter_container.has_git_cas() {
-            format!(
-                r#"{{"path":"{}","files":["file1.rs","file2.rs","Cargo.toml"]}}"#,
-                p
-            )
+            serde_json::json!({
+                "path": p,
+                "files": ["file1.rs", "file2.rs", "Cargo.toml"],
+            })
+            .to_string()
         } else {
-            format!(
-                r#"{{"path":"{}","files":["file1.rs","file2.rs","Cargo.toml"],"note":"No adapter configured"}}"#,
-                p
-            )
+            serde_json::json!({
+                "path": p,
+                "files": ["file1.rs", "file2.rs", "Cargo.toml"],
+                "note": "No adapter configured",
+            })
+            .to_string()
         }
     }
 }

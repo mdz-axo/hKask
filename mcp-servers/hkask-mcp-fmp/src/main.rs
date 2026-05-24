@@ -51,10 +51,12 @@ impl FmpServer {
         &self,
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
-        format!(
-            r#"{{"symbol":"{}","name":"Company Inc","sector":"Technology"}}"#,
-            symbol
-        )
+        serde_json::json!({
+            "symbol": symbol,
+            "name": "Company Inc",
+            "sector": "Technology",
+        })
+        .to_string()
     }
 
     #[tool(description = "Get stock quote")]
@@ -62,7 +64,12 @@ impl FmpServer {
         &self,
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
-        format!(r#"{{"symbol":"{}","price":150.25,"change":2.5}}"#, symbol)
+        serde_json::json!({
+            "symbol": symbol,
+            "price": 150.25,
+            "change": 2.5,
+        })
+        .to_string()
     }
 
     #[tool(description = "Get income statement")]
@@ -70,11 +77,12 @@ impl FmpServer {
         &self,
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
-        format!(
-            r#"{{"symbol":"{}","limit":{},"statements":[]}}"#,
-            symbol,
-            limit.unwrap_or(1)
-        )
+        serde_json::json!({
+            "symbol": symbol,
+            "limit": limit.unwrap_or(1),
+            "statements": [],
+        })
+        .to_string()
     }
 
     #[tool(description = "Get balance sheet")]
@@ -82,11 +90,12 @@ impl FmpServer {
         &self,
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
-        format!(
-            r#"{{"symbol":"{}","limit":{},"sheets":[]}}"#,
-            symbol,
-            limit.unwrap_or(1)
-        )
+        serde_json::json!({
+            "symbol": symbol,
+            "limit": limit.unwrap_or(1),
+            "sheets": [],
+        })
+        .to_string()
     }
 
     #[tool(description = "Get cash flow statement")]
@@ -94,11 +103,12 @@ impl FmpServer {
         &self,
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
-        format!(
-            r#"{{"symbol":"{}","limit":{},"flows":[]}}"#,
-            symbol,
-            limit.unwrap_or(1)
-        )
+        serde_json::json!({
+            "symbol": symbol,
+            "limit": limit.unwrap_or(1),
+            "flows": [],
+        })
+        .to_string()
     }
 
     #[tool(description = "Get key metrics")]
@@ -106,12 +116,12 @@ impl FmpServer {
         &self,
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
-        format!(
-            r#"{{"symbol":"{}","limit":{},"metrics":{}}}"#,
-            symbol,
-            limit.unwrap_or(1),
-            serde_json::json!({})
-        )
+        serde_json::json!({
+            "symbol": symbol,
+            "limit": limit.unwrap_or(1),
+            "metrics": {},
+        })
+        .to_string()
     }
 
     #[tool(description = "Get historical price data")]
@@ -119,10 +129,13 @@ impl FmpServer {
         &self,
         Parameters(HistoricalRequest { symbol, from, to }): Parameters<HistoricalRequest>,
     ) -> String {
-        format!(
-            r#"{{"symbol":"{}","from":"{}","to":"{}","prices":[]}}"#,
-            symbol, from, to
-        )
+        serde_json::json!({
+            "symbol": symbol,
+            "from": from,
+            "to": to,
+            "prices": [],
+        })
+        .to_string()
     }
 
     #[tool(description = "Search for symbols")]
@@ -130,11 +143,12 @@ impl FmpServer {
         &self,
         Parameters(SearchRequest { query, limit }): Parameters<SearchRequest>,
     ) -> String {
-        format!(
-            r#"{{"query":"{}","limit":{},"results":[]}}"#,
-            query,
-            limit.unwrap_or(10)
-        )
+        serde_json::json!({
+            "query": query,
+            "limit": limit.unwrap_or(10),
+            "results": [],
+        })
+        .to_string()
     }
 
     #[tool(description = "Get analyst estimates")]
@@ -142,11 +156,11 @@ impl FmpServer {
         &self,
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
-        format!(
-            r#"{{"symbol":"{}","estimates":{}}}"#,
-            symbol,
-            serde_json::json!({})
-        )
+        serde_json::json!({
+            "symbol": symbol,
+            "estimates": {},
+        })
+        .to_string()
     }
 
     #[tool(description = "Get discounted cash flow analysis")]
@@ -154,10 +168,12 @@ impl FmpServer {
         &self,
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
-        format!(
-            r#"{{"symbol":"{}","dcf_value":175.50,"current_price":150.25}}"#,
-            symbol
-        )
+        serde_json::json!({
+            "symbol": symbol,
+            "dcf_value": 175.50,
+            "current_price": 150.25,
+        })
+        .to_string()
     }
 }
 

@@ -84,12 +84,13 @@ impl FalServer {
             num_images,
         }): Parameters<GenerateImageRequest>,
     ) -> String {
-        format!(
-            r#"{{"prompt":"{}","image_size":"{}","num_images":{},"images":["https://example.com/image1.png"]}}"#,
-            prompt,
-            image_size.unwrap_or_else(|| "1024x1024".to_string()),
-            num_images.unwrap_or(1)
-        )
+        serde_json::json!({
+            "prompt": prompt,
+            "image_size": image_size.unwrap_or_else(|| "1024x1024".to_string()),
+            "num_images": num_images.unwrap_or(1),
+            "images": ["https://example.com/image1.png"],
+        })
+        .to_string()
     }
 
     #[tool(description = "Generate an image quickly")]
@@ -99,11 +100,12 @@ impl FalServer {
             GenerateImageFastRequest,
         >,
     ) -> String {
-        format!(
-            r#"{{"prompt":"{}","image_size":"{}","image":"https://example.com/fast_image.png"}}"#,
-            prompt,
-            image_size.unwrap_or_else(|| "1024x1024".to_string())
-        )
+        serde_json::json!({
+            "prompt": prompt,
+            "image_size": image_size.unwrap_or_else(|| "1024x1024".to_string()),
+            "image": "https://example.com/fast_image.png",
+        })
+        .to_string()
     }
 
     #[tool(description = "Transform an image with a prompt")]
@@ -115,12 +117,13 @@ impl FalServer {
             strength,
         }): Parameters<ImageToImageRequest>,
     ) -> String {
-        format!(
-            r#"{{"prompt":"{}","image_url":"{}","strength":{},"output":"https://example.com/transformed.png"}}"#,
-            prompt,
-            image_url,
-            strength.unwrap_or(0.7)
-        )
+        serde_json::json!({
+            "prompt": prompt,
+            "image_url": image_url,
+            "strength": strength.unwrap_or(0.7),
+            "output": "https://example.com/transformed.png",
+        })
+        .to_string()
     }
 
     #[tool(description = "Upscale an image")]
@@ -128,11 +131,12 @@ impl FalServer {
         &self,
         Parameters(UpscaleRequest { image_url, scale }): Parameters<UpscaleRequest>,
     ) -> String {
-        format!(
-            r#"{{"image_url":"{}","scale":{},"output":"https://example.com/upscaled.png"}}"#,
-            image_url,
-            scale.unwrap_or(4)
-        )
+        serde_json::json!({
+            "image_url": image_url,
+            "scale": scale.unwrap_or(4),
+            "output": "https://example.com/upscaled.png",
+        })
+        .to_string()
     }
 
     #[tool(description = "Generate a video from a prompt")]
@@ -140,11 +144,12 @@ impl FalServer {
         &self,
         Parameters(GenerateVideoRequest { prompt, duration }): Parameters<GenerateVideoRequest>,
     ) -> String {
-        format!(
-            r#"{{"prompt":"{}","duration":{},"video":"https://example.com/video.mp4"}}"#,
-            prompt,
-            duration.unwrap_or(5.0)
-        )
+        serde_json::json!({
+            "prompt": prompt,
+            "duration": duration.unwrap_or(5.0),
+            "video": "https://example.com/video.mp4",
+        })
+        .to_string()
     }
 
     #[tool(description = "Generate music from a prompt")]
@@ -155,11 +160,12 @@ impl FalServer {
             duration_seconds,
         }): Parameters<GenerateMusicRequest>,
     ) -> String {
-        format!(
-            r#"{{"prompt":"{}","duration":{},"audio":"https://example.com/music.mp3"}}"#,
-            prompt,
-            duration_seconds.unwrap_or(30.0)
-        )
+        serde_json::json!({
+            "prompt": prompt,
+            "duration": duration_seconds.unwrap_or(30.0),
+            "audio": "https://example.com/music.mp3",
+        })
+        .to_string()
     }
 
     #[tool(description = "Transcribe audio to text")]
@@ -167,10 +173,11 @@ impl FalServer {
         &self,
         Parameters(WhisperRequest { audio_url }): Parameters<WhisperRequest>,
     ) -> String {
-        format!(
-            r#"{{"audio_url":"{}","transcription":"Simulated transcription text"}}"#,
-            audio_url
-        )
+        serde_json::json!({
+            "audio_url": audio_url,
+            "transcription": "Simulated transcription text",
+        })
+        .to_string()
     }
 
     #[tool(description = "Generate a caption for an image")]
@@ -178,10 +185,11 @@ impl FalServer {
         &self,
         Parameters(CaptionRequest { image_url }): Parameters<CaptionRequest>,
     ) -> String {
-        format!(
-            r#"{{"image_url":"{}","caption":"A beautiful image"}}"#,
-            image_url
-        )
+        serde_json::json!({
+            "image_url": image_url,
+            "caption": "A beautiful image",
+        })
+        .to_string()
     }
 
     #[tool(description = "Generate a 3D model from an image")]
@@ -189,10 +197,11 @@ impl FalServer {
         &self,
         Parameters(Generate3dRequest { image_url }): Parameters<Generate3dRequest>,
     ) -> String {
-        format!(
-            r#"{{"image_url":"{}","model_3d":"https://example.com/model.obj"}}"#,
-            image_url
-        )
+        serde_json::json!({
+            "image_url": image_url,
+            "model_3d": "https://example.com/model.obj",
+        })
+        .to_string()
     }
 }
 
