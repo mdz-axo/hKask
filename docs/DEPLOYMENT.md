@@ -12,6 +12,25 @@ domain: "Technology"
 
 ---
 
+## Contents
+
+| Section | Description |
+|---------|-------------|
+| [§1 Overview](#1-overview) | Platform components and key features |
+| [§2 Prerequisites](#2-prerequisites) | System requirements and dependencies |
+| [§3 Quick Start](#3-quick-start) | Minimal setup to get running |
+| [§4 Configuration](#4-configuration) | Environment, database, LLM, and API config |
+| [§5 Production Deployment](#5-production-deployment) | Full production setup with systemd and TLS |
+| [§6 Health Checks](#6-health-checks) | Liveness and readiness endpoints |
+| [§7 Monitoring](#7-monitoring) | CNS metrics and alerting |
+| [§8 Backup & Recovery](#8-backup--recovery) | Database backup and restore procedures |
+| [§9 Security Hardening](#9-security-hardening) | Production security checklist |
+| [§10 Troubleshooting](#10-troubleshooting) | Common issues and resolutions |
+| [§11 Upgrade Path](#11-upgrade-path) | Version migration instructions |
+| [§12 API Reference](#12-api-reference) | HTTP API endpoint reference |
+
+---
+
 ## 1. Overview
 
 hKask (ℏKask — "Planck's Constant of Agent Systems") is a minimal agent-native container platform. This guide covers production deployment of the `kask` binary and supporting infrastructure.

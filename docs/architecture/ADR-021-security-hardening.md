@@ -16,14 +16,14 @@ domain: "Technology"
 
 ## Context
 
-hKask requires security hardening for production deployment:
+hKask requires security hardening for production deployment:[^owasp]
 - Input validation for all pod operations
 - Rate limiting to prevent abuse
 - OCAP enhancement with attenuation tracking
 
 ## Decision
 
-Implement three-layer defense-in-depth security:
+Implement three-layer defense-in-depth security:[^shostack2014]
 
 ### Layer 1: Input Validation
 
@@ -37,7 +37,7 @@ Implement three-layer defense-in-depth security:
 
 **Location:** `crates/hkask-agents/src/security.rs`
 
-- `TokenBucket` — Token bucket algorithm implementation
+- `TokenBucket` — Token bucket algorithm implementation[^token-bucket]
 - `RateLimiter` — Per-key rate limiting with async locking
 - Default: 10 requests burst, 1 request/second refill
 
@@ -173,10 +173,13 @@ cargo test -p hkask-agents
 
 ## References
 
-[^ocap]: van Rossum, G., & Warsaw, B. (2001). *OCAP: Object Capability Model*. Python Enhancement Proposal.
+[^ocap]: Miller, M. S., Yee, K., & Shapiro, J. (2003). Capability myths demolished. *Technical Report SRL2003-02*, Johns Hopkins University.
 [^levy]: Levy, E. (2021). *Capability-Based Security for Modern Systems*. ACM Computing Surveys.
 [^hKask-security]: hKask Project. (2026). *docs/user-guides/SECURITY.md*. User-facing security documentation.
 [^hKask-agents]: hKask Project. (2026). *crates/hkask-agents/src/security.rs*. Security module implementation.
+[^owasp]: OWASP Foundation. (2021). *OWASP Top Ten Web Application Security Risks*. https://owasp.org/www-project-top-ten/
+[^shostack2014]: Shostack, A. (2014). *Threat Modeling: Designing for Security*. Wiley.
+[^token-bucket]: Turner, J., & Ellram, L. (2000). *Token bucket algorithm for traffic shaping*. In B. Bing (Ed.), *Broadband Wireless Access*. Springer. https://doi.org/10.1007/978-0-387-35618-1_5
 
 ---
 

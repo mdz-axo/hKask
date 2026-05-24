@@ -14,7 +14,25 @@ domain: "Application"
 
 ---
 
+## Contents
+
+| Section | Description |
+|---------|-------------|
+| [hkask-gml-types](#hkask-gml-types) | ID types, parameters, domain structs |
+| [hkask-gml-core](#hkask-gml-core) | Concept system, effector, distribution, coherence |
+| [hkask-gml-cascade](#hkask-gml-cascade) | Cascade selection and regulation logic |
+| [hkask-gml-storage](#hkask-gml-storage) | Persistence, queries, and sqlite-vec |
+| [hkask-gml-template](#hkask-gml-template) | GML prompt template integration |
+| [hkask-gml-embedding](#hkask-gml-embedding) | Embedding generation and similarity |
+| [hkask-mcp-gml](#hkask-mcp-gml) | MCP server implementation for GML |
+| [CNS Integration](#cns-integration) | GML-specific CNS spans |
+| [See Also](#see-also) | Related documentation |
+
+---
+
 ## hkask-gml-types
+
+Domain types implementing the MWC allosteric formalism [^mwc1965].
 
 ### Module: `ids`
 
@@ -282,6 +300,8 @@ pub enum CapabilityDenialReason {
 
 ## hkask-gml-core
 
+Core algebra implementing the MWC state function and Hill cooperativity coefficient [^mwc1965][^hill1910].
+
 ### Module: `mwc`
 
 ```rust
@@ -370,6 +390,8 @@ pub type Result<T> = std::result::Result<T, GmlError>;
 
 ## hkask-gml-cascade
 
+Cascade execution follows a system-dynamics flow of recognize → bind → equilibrate → assess [^forrester1961].
+
 ### Trait: `GmlCascade`
 
 ```rust
@@ -404,6 +426,8 @@ pub struct CoherenceReport {
 ---
 
 ## hkask-gml-storage
+
+Storage with SQLCipher encryption and capability-based row-level security [^dennis1966].
 
 ### Trait: `GmlStorage`
 
@@ -535,6 +559,8 @@ pub trait GmlTemplateEngine {
 
 ## hkask-gml-embedding
 
+Embedding projection maps conceptual systems into a state space derived from allosteric binding parameters [^mwc1965].
+
 ### Trait: `ConceptEmbedding`
 
 ```rust
@@ -555,6 +581,8 @@ pub struct StateVector {
 ---
 
 ## hkask-mcp-gml
+
+MCP server exposing GML operations as tools following the Model Context Protocol specification [^anthropic2024]. API design follows resource-oriented principles of stateless interaction [^fielding2000].
 
 ### MCP Tools
 
@@ -598,6 +626,8 @@ pub struct HomeostasisParams {
 
 ## CNS Integration
 
+CNS spans and algedonic alerts provide observability for GML operations following Beer's viable system model [^beer1972].
+
 ### Spans
 
 ```rust
@@ -624,6 +654,22 @@ pub const CNS_ALGEDONIC_VARIETY: &str = "cns.algedonic.variety_deficit";
 ## See Also
 
 - [Architecture](./gml-architecture.md)
+
+---
+
+[^mwc1965]: Monod, J., Wyman, J., & Changeux, J.-P. (1965). On the nature of allosteric transitions: A plausible model. *Journal of Molecular Biology*, 12(1), 88–118. https://doi.org/10.1016/S0022-2836(65)80285-6
+
+[^hill1910]: Hill, A. V. (1910). The possible effects of the aggregation of the molecules of haemoglobin on its dissociation curves. *Journal of Physiology*, 40(Suppl), iv–vii.
+
+[^forrester1961]: Forrester, J. W. (1961). *Industrial Dynamics*. MIT Press.
+
+[^dennis1966]: Dennis, J. B., & Van Horn, E. C. (1966). Programming semantics for multiprogrammed computations. *Communications of the ACM*, 9(3), 143–155. https://doi.org/10.1145/365230.365252
+
+[^anthropic2024]: Anthropic. (2024). *Model Context Protocol specification*. https://modelcontextprotocol.io/
+
+[^fielding2000]: Fielding, R. T. (2000). *Architectural styles and the design of network-based software architectures* [Doctoral dissertation, University of California, Irvine]. https://www.ics.uci.edu/~fielding/pubs/dissertation/top.htm
+
+[^beer1972]: Beer, S. (1972). *Brain of the Firm: The Managerial Cybernetics of Organization*. Allen Lane.
 
 ---
 

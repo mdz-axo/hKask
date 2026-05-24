@@ -22,6 +22,20 @@ domain: "Application"
 
 ---
 
+## Contents
+
+| Section | Description |
+|---------|-------------|
+| [§1 Executive Summary](#1-executive-summary) | 28-crate architecture overview and key decisions |
+| [§2 Crate Dependency Graph](#2-crate-dependency-graph) | Full workspace crate dependency relationships |
+| [§3 MCP Server Dispatch Pattern](#3-mcp-server-dispatch-pattern) | Port/adapter pattern for 16 MCP servers |
+| [§4 Unified Template Registry](#4-unified-template-registry) | Single registry with template_type discriminator |
+| [§5 Bot Manifest Lifecycle](#5-bot-manifest-lifecycle) | Pull/edit/push lifecycle with YAML validation |
+| [§6 Application Components](#6-application-components) | Per-crate component summaries |
+| [§7 References](#7-references) | Citations and references |
+
+---
+
 ## 1. Executive Summary
 
 hKask application architecture consists of 28 Rust crates organized into three layers: Core (11 crates), MCP Servers (16 crates), and Testing (1 crate).

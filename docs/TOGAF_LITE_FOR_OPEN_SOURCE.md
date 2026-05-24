@@ -77,7 +77,7 @@ Per TOGAF-Lite scaling guidance, documentation collections are assessed by docum
 | **Standard** | 30–74 | Review required, quality gates |
 | **Scaled** | 75+ | Architecture board, formal governance |
 
-**Current Assessment:** 43 active documents (after 2026-05-24 cleanup) → **Standard tier**
+**Current Assessment:** 45 active documents (after 2026-05-24 cleanup) → **Standard tier**
 
 **Quality Gates (Standard Tier):**
 - Metadata headers mandatory (6 fields)

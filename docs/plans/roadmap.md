@@ -24,7 +24,7 @@ domain: "Business"
 
 ## 1. Executive Summary
 
-hKask development follows a phased approach prioritizing minimal viable functionality (v0.21.0 MVP) before operational enhancements (v1.1+) and feature expansion (v1.2+).
+hKask development follows a phased approach prioritizing minimal viable functionality (v0.21.0 MVP) before operational enhancements (v1.1+) and feature expansion (v1.2+).[^lehman1980]
 
 **Current State:** v0.21.0 MVP in progress — Phase 8 (CLI/API) complete  
 **Tests:** 210 passing across workspace
@@ -64,6 +64,8 @@ hKask development follows a phased approach prioritizing minimal viable function
 ---
 
 ## 3. Deferred Work (v1.0 → v1.1)
+
+Deferred work categorization follows incremental architecture evolution patterns.[^fowler2019]
 
 ### 3.1 Registry/Templating Deferred
 
@@ -154,6 +156,8 @@ hKask development follows a phased approach prioritizing minimal viable function
 
 ### 5.1 Terminology Migration (v0.21.0 → v0.22.0)
 
+Terminology migration follows established software evolution practices.[^lehman1980]
+
 | Deprecated Term | Replacement | Status |
 |-----------------|-------------|--------|
 | νKask | CNS (Cybernetic Nervous System) | ✅ Code updated, docs pending archival |
@@ -181,6 +185,8 @@ grep -r "νKask\|OKH\|three registries" docs/ --include="*.md" --exclude-dir=arc
 
 ## 6. Success Metrics
 
+Success metrics are derived from quality attribute requirements in the architecture specification.[^bass2021]
+
 ### 6.1 v1.0 Release Criteria
 
 | Metric | Target | Current | Status |
@@ -205,6 +211,9 @@ grep -r "νKask\|OKH\|three registries" docs/ --include="*.md" --exclude-dir=arc
 ## 7. References
 
 [^togaf-e]: The Open Group. (2011). *TOGAF Standard, Version 9.1*. Phase E: Opportunities & Solutions. <https://pubs.opengroup.org/architecture/togaf9-doc/arch/chap16.html>.
+[^lehman1980]: Lehman, M. M. (1980). Programs, life cycles, and laws of software evolution. *Proceedings of the IEEE*, 68(9), 1060–1076. https://doi.org/10.1109/PROC.1980.11805
+[^fowler2019]: Fowler, M. (2019). *Refactoring: Improving the Design of Existing Code* (2nd ed.). Addison-Wesley. Evolutionary architecture.
+[^bass2021]: Bass, L., Clements, P., & Kazman, R. (2021). *Software Architecture in Practice* (4th ed.). Addison-Wesley. Quality attributes and architecture evaluation.
 
 ---
 

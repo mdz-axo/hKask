@@ -34,11 +34,11 @@ domain: "Application"
 
 ## Overview
 
-GML applies the Monod-Wyman-Changeux (MWC) allosteric model to abstract concepts:
+GML applies the Monod-Wyman-Changeux (MWC) allosteric model to abstract concepts [^mwc1965]:
 
-- **Concepts** exist as probability distributions over interpretive states (T/R)
-- **Effectors** (context) bind to ports and shift interpretive equilibrium
-- **Cooperativity** amplifies or dampens conceptual shifts
+- **Concepts** exist as probability distributions over interpretive states (T/R) [^wiener1948]
+- **Effectors** (context) bind to ports and shift interpretive equilibrium [^beer1972]
+- **Cooperativity** amplifies or dampens conceptual shifts [^hill1910]
 
 **Mathematical kernel:**
 ```
@@ -55,7 +55,7 @@ R̄ = (1 + α)ⁿ / ((1 + α)ⁿ + L·(1 + cα)ⁿ)
 | 2 | "What are its ports — what could bind and shift it?" | `parse` + `discriminate` |
 | 3 | "What ideas amplify each other when co-present?" | `analogy` + `cooperate` |
 | 4 | "What is suppressing this idea's generative state?" | `detect` + `inhibit` |
-| 5 | "Is this idea-network self-reinforcing or decaying?" | `evaluate` + `homeostasis` |
+| 5 | "Is this idea-network self-reinforcing or decaying?" | `evaluate` + `homeostasis` [^cannon1932] |
 
 ---
 
@@ -64,6 +64,18 @@ R̄ = (1 + α)ⁿ / ((1 + α)ⁿ + L·(1 + cα)ⁿ)
 - [hKask Architecture](../architecture/hKask-architecture-master.md) — overall system design
 - [AGENTS.md](../../AGENTS.md) — project operating guide
 - [CNS Documentation](../architecture/PRINCIPLES.md) — monitoring and alerts
+
+---
+
+[^mwc1965]: Monod, J., Wyman, J., & Changeux, J.-P. (1965). On the nature of allosteric transitions: A plausible model. *Journal of Molecular Biology*, 12(1), 88–118. https://doi.org/10.1016/S0022-2836(65)80285-6
+
+[^wiener1948]: Wiener, N. (1948). *Cybernetics: Or Control and Communication in the Animal and the Machine*. MIT Press.
+
+[^beer1972]: Beer, S. (1972). *Brain of the Firm: The Managerial Cybernetics of Organization*. Allen Lane.
+
+[^hill1910]: Hill, A. V. (1910). The possible effects of the aggregation of the molecules of haemoglobin on its dissociation curves. *Journal of Physiology*, 40(Suppl), iv–vii.
+
+[^cannon1932]: Cannon, W. B. (1932). *The Wisdom of the Body*. W. W. Norton.
 
 ---
 

@@ -3,10 +3,10 @@
 //! Dispatches tool calls through MCP with OCAP capability verification
 //! and rate limiting integration.
 
-use hkask_agents::{BotCapabilities, CapabilityChecker, CapabilityToken};
+use hkask_agents::BotCapabilities;
 use hkask_cns::RateLimiter;
 use hkask_templates::{CnsPort, McpPort, Result, TemplateError};
-use hkask_types::WebID;
+use hkask_types::{CapabilityChecker, CapabilityToken, WebID};
 use serde_json::Value;
 use std::sync::Arc;
 use std::time::Duration;

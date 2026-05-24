@@ -95,7 +95,7 @@ impl VarietyCounter {
 
 ### 3.1 Document Quality Checklist
 
-Every document in `docs/` must pass the following quality gate before publication:[^doc-standards]
+Every document in `docs/` must pass the following quality gate before publication:[^doc-standards] Quality gates enforce architectural governance standards.[^togaf10]
 
 | Check | Requirement | Verification |
 |-------|-------------|--------------|
@@ -182,6 +182,8 @@ echo "✅ All quality gates passed"
 
 ### 5.1 Lifecycle States
 
+Document lifecycle management follows established change management patterns.[^itil2019]
+
 ```mermaid
 stateDiagram-v2
     [*] --> Draft: Author creates document
@@ -240,6 +242,8 @@ git rm docs/architecture/<superseded-document>.md
 
 ### 6.1 Current State (v1.0)
 
+Security configuration follows defense-in-depth principles for template engines.[^owasp-injection]
+
 **Hardcoded Policies:**
 - Path traversal patterns: `..`, `/`, `\0`
 - Jinja2 dangerous patterns: `{{ config }}`, `{{ __class__ }}`, `{% import %}`
@@ -282,6 +286,8 @@ HKASK_CAPABILITY_EXPIRATION_HOURS=24
 
 ### 7.1 Architecture Change Process
 
+Architecture change management follows TOGAF Phase H change management principles.[^togaf-h]
+
 ```mermaid
 flowchart TD
     A[Change Proposal] --> B{Breaking Change?}
@@ -305,6 +311,8 @@ status: VERIFIED
 -->
 
 ### 7.2 ADR Template
+
+Architecture Decision Records capture consequential decisions with context and rationale.[^nygard-adr]
 
 ```markdown
 # ADR-NNN: <Title>
@@ -337,6 +345,11 @@ What is the change that we're proposing and/or doing?
 [^beer-variety]: Beer, S. (1972). *Brain of the Firm*. Penguin Books. Chapter 11: Variety.
 [^doc-standards]: hKask Project. (2026). *DOCUMENTATION_STANDARDS.md*. `/home/mdz-axolotl/Clones/hKask/docs/standards/DOCUMENTATION_STANDARDS.md`.
 [^semver]: Semantic Versioning. (2026). *Semantic Versioning 2.0.0*. <https://semver.org/>.
+[^togaf10]: The Open Group. (2022). *TOGAF Standard, 10th Edition*. Architecture Governance. https://pubs.opengroup.org/togaf-standard/
+[^itil2019]: Axelos. (2019). *ITIL Foundation: ITIL 4 Edition*. TSO (The Stationery Office). Change management and service value system.
+[^togaf-h]: The Open Group. (2022). *TOGAF Standard, 10th Edition - Phase H: Architecture Change Management*. https://pubs.opengroup.org/togaf-standard/adm/chap13.html
+[^nygard-adr]: Nygard, M. (2011). *Documenting architecture decisions*. https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions
+[^owasp-injection]: OWASP Foundation. (2021). *OWASP Top Ten: A03 Injection*. https://owasp.org/Top10/A03_2021-Injection/
 
 ---
 

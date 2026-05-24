@@ -21,6 +21,25 @@ domain: "Application"
 
 ---
 
+## Contents
+
+| Section | Description |
+|---------|-------------|
+| [Executive Summary](#executive-summary) | Core agent pod lifecycle implementation overview |
+| [Implementation Summary](#implementation-summary) | Phase-by-phase implementation details |
+| [Test Coverage](#test-coverage) | Test suite and coverage metrics |
+| [Agent Persona YAML Schema](#agent-persona-yaml-schema) | YAML schema for agent persona definitions |
+| [Template Crate Structure](#template-crate-structure) | Directory layout for template crates |
+| [Open Questions (Deferred)](#open-questions-deferred-to-phase-3-4) | Deferred questions for future phases |
+| [Deferred Work (Post-MVP)](#deferred-work-post-mvp) | Post-MVP feature backlog |
+| [Integration Points](#integration-points) | Cross-crate integration surface |
+| [Security Architecture](#security-architecture) | OCAP and ACP security model |
+| [Next Steps](#next-steps) | Post-implementation roadmap |
+| [Verification](#verification) | Verification commands and criteria |
+| [References](#references) | Citations and references |
+
+---
+
 ## Executive Summary
 
 Implemented the core agent pod lifecycle management system for hKask, enabling ACP agents (bots and replicants) to:

@@ -12,15 +12,17 @@ domain: "Technology"
 
 ## Overview
 
-hKask implements defense-in-depth security through three layers:
+hKask implements defense-in-depth security[^shostack2014] through three layers:
 
 1. **Input Validation** — Schema-based validation for all pod operations
 2. **Rate Limiting** — Token bucket algorithm for abuse prevention
 3. **OCAP** — Object-capability security with attenuation history tracking
 
+Storage-layer encryption for persisted data is provided by SQLCipher[^sqlcipher].
+
 ## Input Validation
 
-All agent persona inputs are validated before pod creation:
+All agent persona inputs are validated before pod creation[^owasp2021]:
 
 | Field | Constraints |
 |-------|-------------|
@@ -50,7 +52,7 @@ input.validate(&input)?; // Returns ValidationResult<()>
 
 ## Rate Limiting
 
-Pod operations use token bucket rate limiting:
+Pod operations use token bucket rate limiting[^rfc2698]:
 
 - **Default:** 10 requests burst, 1 request/second refill
 - **Per-key:** Rate limits are tracked per operation key (e.g., `pod_creation:{template_name}`)
@@ -77,9 +79,9 @@ let manager = PodManagerBuilder::new()
 
 ### Capability Tokens
 
-All pod operations require valid capability tokens:
+All pod operations require valid capability tokens[^miller2006]:
 
-- **Cryptographic:** HMAC-SHA256 signatures
+- **Cryptographic:** HMAC-SHA256 signatures[^fips198]
 - **Attenuation:** Max 7 levels of delegation
 - **Expiry:** Configurable lifetime (default 1 hour)
 - **Context Nonce:** Traceable delegation chains
@@ -139,7 +141,7 @@ let valid = ocap.validate_expiry(&token, current_time);
 
 ## Security Context
 
-`SecurityContext` unifies rate limiting and expiry enforcement:
+`SecurityContext` unifies rate limiting and expiry enforcement[^anderson2020]:
 
 ```rust
 use hkask_agents::security::SecurityContext;
@@ -160,7 +162,7 @@ let ctx = manager.security_context();
 
 ## Error Handling
 
-Security violations return `ValidationError`:
+Security violations return `ValidationError`[^owasp2021]:
 
 ```rust
 use hkask_agents::security::ValidationError;
@@ -177,7 +179,7 @@ match result {
 
 ## Architecture
 
-Security is implemented at the adapter layer (hexagonal architecture):
+Security is implemented at the adapter layer (hexagonal architecture)[^cockburn2005]:
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -196,7 +198,7 @@ Security is implemented at the adapter layer (hexagonal architecture):
 
 ## Testing
 
-Run security tests:
+Run security tests[^owasp_testing]:
 
 ```bash
 cargo test -p hkask-agents security
@@ -208,6 +210,16 @@ All security modules have full test coverage:
 - Rate limiting (burst, refill, exhaustion)
 - Expiry enforcement (valid, expired, custom lifetime)
 - Attenuation history (recording, verification, chain integrity)
+
+[^shostack2014]: Shostack, A. (2014). *Threat modeling: Designing for security*. Wiley.
+[^sqlcipher]: Zetetic, LLC. (2024). *SQLCipher: Full database encryption for SQLite*. https://www.zetetic.net/sqlcipher/
+[^owasp2021]: OWASP Foundation. (2021). *OWASP Top 10: 2021*. https://owasp.org/Top10/
+[^rfc2698]: Heinanen, J., & Guerin, R. (1999). *A two rate three color marker*. RFC 2698. Internet Engineering Task Force. https://datatracker.ietf.org/doc/html/rfc2698
+[^miller2006]: Miller, M. S. (2006). *Robust composition: Towards a practical approach to trust in open distributed systems* [Doctoral dissertation, Johns Hopkins University]. https://www.erights.org/
+[^fips198]: National Institute of Standards and Technology. (2008). *The keyed-hash message authentication code (HMAC)* (FIPS PUB 198-1). U.S. Department of Commerce. https://csrc.nist.gov/publications/detail/fips/198/1/final
+[^anderson2020]: Anderson, R. (2020). *Security engineering: A guide to building dependable distributed systems* (3rd ed.). Wiley. https://www.cl.cam.ac.uk/~rja14/book.html
+[^cockburn2005]: Cockburn, A. (2005). *Hexagonal architecture* (a.k.a. Ports and Adapters). https://alistair.cockburn.us/hexagonal-architecture/
+[^owasp_testing]: OWASP Foundation. (2024). *OWASP web security testing guide, v4.2*. https://owasp.org/www-project-web-security-testing-guide/
 
 ---
 

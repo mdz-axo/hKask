@@ -22,6 +22,21 @@ domain: "Data"
 
 ---
 
+## Contents
+
+| Section | Description |
+|---------|-------------|
+| [§1 Executive Summary](#1-executive-summary) | Data architecture overview and key decisions |
+| [§2 Bitemporal Triple Schema](#2-bitemporal-triple-schema) | Valid-time and transaction-time triple model |
+| [§3 Embedding Vector Storage](#3-embedding-vector-storage) | sqlite-vec and semantic search architecture |
+| [§4 ν-Event Audit Trail](#4-ν-event-audit-trail) | CNS audit trail via ν-events |
+| [§5 SQLCipher Encryption Model](#5-sqlcipher-encryption-model) | Encryption-at-rest with SQLCipher |
+| [§6 Entity Relationship Diagram](#6-entity-relationship-diagram) | Core ERD for the data layer |
+| [§7 Storage Adapters](#7-storage-adapters) | Storage adapter trait and implementations |
+| [§8 References](#8-references) | Citations and references |
+
+---
+
 ## 1. Executive Summary
 
 hKask stores all data in SQLite with SQLCipher encryption, using bitemporal triples for memory, embedding vectors for semantic search, and ν-events for CNS audit trails.

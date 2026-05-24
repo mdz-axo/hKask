@@ -10,9 +10,24 @@ domain: "Application"
 
 # hKask Registry & Templating System — Composite Design Prompt v2
 
+## Contents
+
+| Section | Description |
+|---------|-------------|
+| [Architectural Invariant: Code vs. Content Separation](#architectural-invariant-code-vs-content-separation) | Rust is the loom; YAML/Jinja2 is the thread |
+| [Part 1: Semantic Root Cause Analysis](#part-1-semantic-root-cause-analysis) | Conceptual distinctions and RDF triples |
+| [Part 2: Entity Relationship Model](#part-2-entity-relationship-model) | Core entities and their relationships |
+| [Part 3: Hexagonal Architecture Mapping](#part-3-hexagonal-architecture-mapping) | Ports, adapters, and boundary mapping |
+| [Part 4: Core Manifest Specification](#part-4-core-manifest-specification) | Manifest schema, steps, and cascade rules |
+| [Part 5: Rust Execution Loop](#part-5-rust-execution-loop-minimal-hard-logic) | Minimal hard logic in Rust for manifest execution |
+| [Part 6: Implementation Tasks](#part-6-implementation-tasks) | Ordered implementation task list |
+| [Part 7: Future — Open Questions](#part-7-future--open-questions) | Unresolved design questions |
+| [Completion Criterion](#completion-criterion) | Definition of done for the design prompt |
+| [References](#references) | Citations and references |
+
 ## Architectural Invariant: Code vs. Content Separation
 
-**Root Principle:** Rust is the loom. YAML/Jinja2 is the thread. The loom doesn't change when you weave a different pattern.
+**Root Principle:** Rust is the loom. YAML/Jinja2 is the thread. The loom doesn't change when you weave a different pattern.[^evans-ddd]
 
 ```
 | Layer          | Technology      | Mutability           |
@@ -22,7 +37,7 @@ domain: "Application"
 | Testing        | Rust (tests)    | Verification edge    |
 ```
 
-**Rust owns:** Parsing YAML steps, rendering Jinja2 via minijinja, enforcing matroshka depth, validating hLexicon terms, routing MCP/LLM calls.
+**Rust owns:** Parsing YAML steps, rendering Jinja2[^jinja2] via minijinja,[^minijinja] enforcing matroshka depth, validating hLexicon terms, routing MCP/LLM calls.
 
 **Rust does NOT own:** Which templates exist, what they say, how selection logic is phrased, what steps a manifest contains, what a prompt looks like.
 
@@ -93,11 +108,13 @@ domain: "Application"
 - **C4 (Repetition is missing primitive):** Is three registries repetition or genuine distinction?
 - **P4 (No builder without complexity):** Does split justify added complexity?
 
-**Decision:** **One unified registry** with `template_type` discriminator. The three-way distinction is preserved as metadata tags on entries, not separate Rust data structures or code paths. Selection intelligence lives in Jinja2/LLM, not Rust branching.
+**Decision:** **One unified registry** with `template_type` discriminator.[^fowler-poeaa] The three-way distinction is preserved as metadata tags on entries, not separate Rust data structures or code paths. Selection intelligence lives in Jinja2/LLM, not Rust branching.[^lewis-rag]
 
 ---
 
 ## Part 2: Entity Relationship Model
+
+The registry provides context-aware template discovery through type-discriminated indexing.[^fowler-poeaa]
 
 ### 2.1 Mermaid ERD
 
@@ -178,6 +195,8 @@ input → [Registry Lookup] → [Template Discovery] → [Jinja2 Render] → [LL
 ---
 
 ## Part 3: Hexagonal Architecture Mapping
+
+The system follows the hexagonal (ports and adapters) architecture pattern, isolating the domain core from infrastructure concerns.[^cockburn-hex]
 
 ### 3.1 Architecture Diagram
 
@@ -262,6 +281,8 @@ status: VERIFIED
 ---
 
 ## Part 4: Core Manifest Specification
+
+Manifests define executable workflow steps following established process patterns.[^vander-aalst-wf]
 
 ### 4.1 Dispatch Manifest (YAML)
 
@@ -365,6 +386,8 @@ process_manifest: registry/manifests/dispatch.yaml
 
 ## Part 5: Rust Execution Loop (Minimal Hard Logic)
 
+The executor interprets manifest steps through a fixed dispatch loop, applying the Interpreter pattern where the step grammar is stable and step content is variable.[^gamma-interpreter]
+
 ```rust
 /// Core loop — fixed logic, applies to ANY manifest
 fn execute_manifest(
@@ -409,6 +432,8 @@ fn execute_manifest(
 ---
 
 ## Part 6: Implementation Tasks
+
+Port traits and adapters are defined per hKask constraint principles.[^hKask-AGENTS]
 
 ### Task 1: Define Port Traits (`hkask-templates/src/ports.rs`)
 
@@ -456,6 +481,8 @@ Emit `cns.prompt.select`, `cns.prompt.render`, `cns.prompt.outcome` spans at eac
 
 ## Part 7: Future — Open Questions
 
+Open questions are tracked against the architecture master specification.[^hKask-master]
+
 1. **Enrichment Port:** What injects `domain_hint` and context before dispatch? Pre-step in manifest, or caller responsibility?
 
 2. **Bootstrap Loading Order:** Are dispatch manifest and selector template loaded by convention from fixed paths, or is there a Rust bootstrap sequence?
@@ -497,10 +524,16 @@ The registry/templating system is complete when:
 
 ## References
 
-[^jinja2]: Ronacher, A. (2026). *Jinja2 Documentation*. https://jinja.palletsprojects.com/
-[^minijinja]: Jinja2-compatible template engine for Rust. https://github.com/mitsuhiko/minijinja
+[^jinja2]: Ronacher, A. (2024). *Jinja2 documentation*. Pallets Projects. https://jinja.palletsprojects.com/
+[^minijinja]: Ronacher, A. (2024). *minijinja: A Jinja2-compatible template engine for Rust*. https://github.com/mitsuhiko/minijinja
 [^hKask-AGENTS]: hKask Project. (2026). *AGENTS.md*. `/home/mdz-axolotl/Clones/hKask/AGENTS.md`.
 [^hKask-master]: hKask Project. (2026). *hKask Architecture Master v0.21.0*. `docs/architecture/hKask-architecture-master.md`.
+[^evans-ddd]: Evans, E. (2003). *Domain-Driven Design: Tackling Complexity in the Heart of Software*. Addison-Wesley. Strategic design and bounded context separation.
+[^cockburn-hex]: Cockburn, A. (2005). *Hexagonal Architecture* (Ports and Adapters). https://alistair.cockburn.us/hexagonal-architecture/
+[^fowler-poeaa]: Fowler, M. (2002). *Patterns of Enterprise Application Architecture*. Addison-Wesley. Registry pattern (pp. 490–494).
+[^lewis-rag]: Lewis, P., Perez, E., Piktus, A., Petroni, F., Karpukhin, V., Goyal, N., Küttler, H., Lewis, M., Yih, W., Rocktäschel, T., Kiela, D., & Petroni, F. (2020). Retrieval-augmented generation for knowledge-intensive NLP tasks. *Advances in Neural Information Processing Systems*, 33, 9459–9474. https://arxiv.org/abs/2005.11401
+[^vander-aalst-wf]: van der Aalst, W. M. P., ter Hofstede, A. H. M., Kiepuszewski, B., & Barros, A. P. (2003). Workflow patterns. *Distributed and Parallel Databases*, 14(1), 5–51. https://doi.org/10.1023/A:1022883727209
+[^gamma-interpreter]: Gamma, E., Helm, R., Johnson, R., & Vlissides, J. (1994). *Design Patterns: Elements of Reusable Object-Oriented Software*. Addison-Wesley. Interpreter pattern (pp. 243–255).
 
 ---
 

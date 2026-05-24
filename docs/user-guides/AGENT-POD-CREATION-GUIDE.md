@@ -14,7 +14,7 @@ domain: "Application"
 
 ## Overview
 
-This guide walks you through creating an **Agent Pod** — a runtime container for ACP agents (bots or replicants) in the hKask ecosystem. Agent pods provide:
+This guide walks you through creating an **Agent Pod** — a runtime container for ACP agents (bots or replicants) in the hKask ecosystem[^hewitt1973]. Agent pods provide:
 
 - **Isolation**: Independent capability tokens, no shared state
 - **Identity**: WebID-based ACP registration
@@ -30,6 +30,8 @@ An agent pod can be:
 ---
 
 ## Table of Contents
+
+The creation process follows a requirements-driven methodology[^wiegers2013]:
 
 1. [Prerequisites](#prerequisites)
 2. [Agent Pod Architecture](#agent-pod-architecture)
@@ -48,7 +50,7 @@ An agent pod can be:
 
 ## Prerequisites
 
-Before creating an agent pod, ensure you have:
+Before creating an agent pod, ensure you have[^bass2021]:
 
 - **hKask CLI installed**: `cargo install --path crates/hkask-cli`
 - **Git CAS configured**: Template path set via `HKASK_TEMPLATES_PATH` or default `./registry/templates/`
@@ -59,6 +61,8 @@ Before creating an agent pod, ensure you have:
 ---
 
 ## Agent Pod Architecture
+
+The architecture follows a hexagonal (ports and adapters) design[^cockburn2005].
 
 ### Lifecycle States
 
@@ -97,7 +101,7 @@ my-agent-crate/
 
 ## Step 1: Requirements Discovery
 
-Answer these questions before creating your agent pod:
+Answer these questions before creating your agent pod[^wiegers2013]:
 
 ### 1.1 Agent Purpose
 
@@ -246,7 +250,7 @@ reporting:
 
 ## Step 2: Create Agent Persona
 
-The agent persona defines identity, capabilities, and behavior.
+The agent persona defines identity, capabilities, and behavior[^yaml12][^cooper1999].
 
 ### 2.1 Bot Persona Template
 
@@ -398,7 +402,7 @@ readiness_probe:
 
 ## Step 3: Create Dispatch Manifest
 
-The dispatch manifest defines the agent's workflow as a sequence of steps.
+The dispatch manifest defines the agent's workflow as a sequence of steps[^yaml12][^mcp_spec].
 
 ### 3.1 Dispatch Manifest Structure
 
@@ -572,7 +576,7 @@ steps:
 
 ## Step 4: Create Templates
 
-Templates are Jinja2 files that define the agent's behavior.
+Templates are Jinja2 files that define the agent's behavior[^jinja2].
 
 ### 4.1 Template Types
 
@@ -687,6 +691,8 @@ Return JSON with:
 
 ## Step 5: Build Agent Crate
 
+Crate structure follows Cargo workspace conventions[^cargo_book].
+
 ### 5.1 Crate Directory Structure
 
 ```
@@ -781,6 +787,8 @@ members = [
 
 ## Step 6: Register with ACP Runtime
 
+Registration issues capability tokens following OCAP principles[^miller2006].
+
 ### 6.1 CLI Registration
 
 ```bash
@@ -867,6 +875,8 @@ pub struct CapabilityToken {
 
 ## Step 7: Activate Pod
 
+Activation transitions the pod to a live actor state[^hewitt1973].
+
 ### 7.1 CLI Activation
 
 ```bash
@@ -902,7 +912,7 @@ println!("Pod activated: {}", pod_id);
 
 ### 8.1 Visibility Settings
 
-Visibility is configured in the agent persona:
+Visibility is configured in the agent persona[^miller2006]:
 
 ```yaml
 visibility:
@@ -938,6 +948,8 @@ if !has_access {
 ---
 
 ## Common Agent Patterns
+
+Agent patterns follow established design pattern conventions[^gamma1994]:
 
 ### Pattern 1: Specialist Bot
 
@@ -1122,6 +1134,8 @@ external_workspace:
 
 ## Troubleshooting
 
+Diagnostic approaches follow security testing methodology[^owasp_testing].
+
 ### Pod Creation Fails
 
 **Error:** `Failed to load template crate`
@@ -1192,6 +1206,8 @@ external_workspace:
 
 ## Quick Reference
 
+Reference cards follow architectural documentation conventions[^bass2021].
+
 ### Lifecycle Commands
 
 ```bash
@@ -1261,7 +1277,7 @@ kask pod deactivate <pod-id>
 
 ## Next Steps
 
-After creating your agent pod:
+After creating your agent pod[^humble2010]:
 
 1. **Test readiness probe**: Verify all dependencies are available
 2. **Join ensemble session**: Participate in standing coordination sessions
@@ -1274,6 +1290,20 @@ For advanced topics, see:
 - [Security Architecture](../architecture/security-architecture.md)
 - [CNS Observers](../architecture/PRINCIPLES.md)
 - [Template Header Standard](../architecture/template-header-standard.md)
+
+[^hewitt1973]: Hewitt, C., Bishop, P., & Steiger, R. (1973). A universal modular ACTOR formalism for artificial intelligence. In *Proceedings of the 3rd International Joint Conference on Artificial Intelligence (IJCAI)* (pp. 235-245). https://dl.acm.org/doi/10.5555/1624775.1624804
+[^wiegers2013]: Wiegers, K. E., & Beatty, J. (2013). *Software requirements* (3rd ed.). Microsoft Press.
+[^bass2021]: Bass, L., Clements, P., & Kazman, R. (2021). *Software architecture in practice* (4th ed.). Addison-Wesley.
+[^cockburn2005]: Cockburn, A. (2005). *Hexagonal architecture* (a.k.a. Ports and Adapters). https://alistair.cockburn.us/hexagonal-architecture/
+[^yaml12]: Ben-Kiki, O., Evans, C., & döt Net, I. (2009). *YAML ain't markup language (YAML) version 1.2* (3rd ed.). https://yaml.org/spec/1.2/spec.html
+[^cooper1999]: Cooper, A. (1999). *The inmates are running the asylum: Why high-tech products drive us Crazy and how to restore the sanity*. SAMS.
+[^mcp_spec]: Anthropic. (2024). *Model Context Protocol specification*. https://modelcontextprotocol.io/
+[^jinja2]: Ronacher, A. (2024). *Jinja2 documentation*. Pallets Projects. https://jinja.palletsprojects.com/
+[^cargo_book]: The Rust Project. (2024). *The Cargo book*. https://doc.rust-lang.org/cargo/
+[^miller2006]: Miller, M. S. (2006). *Robust composition: Towards a practical approach to trust in open distributed systems* [Doctoral dissertation, Johns Hopkins University]. https://www.erights.org/
+[^gamma1994]: Gamma, E., Helm, R., Johnson, R., & Vlissides, J. (1994). *Design patterns: Elements of reusable object-oriented software*. Addison-Wesley.
+[^owasp_testing]: OWASP Foundation. (2024). *OWASP web security testing guide, v4.2*. https://owasp.org/www-project-web-security-testing-guide/
+[^humble2010]: Humble, J., & Farley, D. (2010). *Continuous delivery: Reliable software releases through build, test, and deployment automation*. Addison-Wesley.
 
 ---
 

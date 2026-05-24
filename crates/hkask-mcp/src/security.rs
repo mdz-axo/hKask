@@ -7,7 +7,7 @@
 //! - Audit logging
 //! - URL validation (SSRF protection)
 
-use hkask_agents::{CapabilityChecker, CapabilityToken};
+use hkask_types::{CapabilityChecker, CapabilityToken};
 use hkask_cns::rate_limit::RateLimiter;
 use hkask_templates::TemplateError;
 use hkask_types::WebID;

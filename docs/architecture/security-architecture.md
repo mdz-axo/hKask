@@ -22,6 +22,22 @@ domain: "Technology"
 
 ---
 
+## Contents
+
+| Section | Description |
+|---------|-------------|
+| [§1 Executive Summary](#1-executive-summary) | Security model overview and key design decisions |
+| [§2 Capability Model](#2-capability-model) | OCAP capability attenuation and delegation |
+| [§3 Threat Model (STRIDE)](#3-threat-model-stride) | STRIDE threat analysis |
+| [§4 Security Adapter Configuration](#4-security-adapter-configuration) | Security adapter setup and Jinja2 sandboxing |
+| [§5 CNS Security Spans](#5-cns-security-spans) | Security observability via CNS spans |
+| [§6 Schneier Principles Applied](#6-schneier-principles-applied) | Bruce Schneier's security design principles |
+| [§7 Resilience & Observability](#7-resilience--observability) | Resilience patterns and monitoring |
+| [§8 Open Questions](#8-open-questions-resolveddeferred) | Resolved and deferred security questions |
+| [§9 References](#9-references) | Citations and references |
+
+---
+
 ## 1. Executive Summary
 
 hKask security model integrates OCAP capability attenuation, SQLCipher encryption, path traversal blocking, Jinja2 injection prevention, and CNS monitoring.

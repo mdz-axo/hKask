@@ -19,6 +19,25 @@ domain: "Cross-cutting"
 
 ---
 
+## Contents
+
+| Section | Description |
+|---------|-------------|
+| [§1 Semantic Map & Root-Cause Drilldown](#1-semantic-map--root-cause-drilldown-task-1) | RDF/Turtle graph and root-cause analysis of the DDMVSS domain |
+| [§2 Comparative Review](#2-comparative-review-task-2) | Comparison with existing specification methodologies |
+| [§3 DDMVSS Categories — Goal-Group Taxonomy](#3-ddmvss-categories--goal-group-taxonomy-task-3) | Goal-group taxonomy for DDMVSS classification |
+| [§4 MVSDD as Capability Model](#4-mvsdd-as-capability-model-task-4) | Minimum Viable Specification-Driven Design as OCAP capability |
+| [§5 Template Manifests](#5-template-manifests-task-5) | Manifest specifications for each template type |
+| [§6 Hexagonal Architecture Mapping](#6-hexagonal-architecture-mapping-task-6) | Ports and adapters mapping to hexagonal architecture |
+| [§7 Capability & Security Design](#7-capability--security-design-task-7) | OCAP capability attenuation and security model |
+| [§8 Rust Type-Level Skeleton](#8-rust-type-level-skeleton-task-8) | Type-level implementation skeleton in Rust |
+| [§9 Self-Application Validation](#9-self-application-validation-task-9) | DDMVSS applied to itself as validation |
+| [§10 Open / Underspecified Questions](#10-open--underspecified-questions-task-10) | Identified gaps and underspecified areas |
+| [§11 Adversarial Review Remediation](#11-adversarial-review-remediation-2026-05-24) | Remediation of adversarial review findings |
+| [§11 References](#11-references) | Citations and references |
+
+---
+
 ## 1. Semantic Map & Root-Cause Drilldown (Task 1)
 
 ### 1.1 RDF/Turtle Graph [^w3c-rdf]

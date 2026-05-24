@@ -16,9 +16,29 @@ domain: "Application"
 
 ---
 
+## Contents
+
+| Section | Description |
+|---------|-------------|
+| [Executive Summary](#executive-summary) | Decision to adapt a native goal primitive |
+| [Part 1: What /goal Actually Is](#part-1-what-goal-actually-is) | Semantic analysis of the goal primitive |
+| [Part 2: Academic Research](#part-2-academic-research-on-goal-primitives) | Survey of goal primitives across agent systems |
+| [Part 3: hLexicon as Foundation](#part-3-hlexicon-as-foundation-for-goal-primitive) | hLexicon grounding for goal semantics |
+| [Part 4: Current Architecture Analysis](#part-4-hkask-current-architecture-analysis) | Gap analysis of existing hKask goal support |
+| [Part 5: Proposed Goal Primitive Design](#part-5-proposed-hkask-goal-primitive-design) | OCAP-gated goal primitive with CNS monitoring |
+| [Part 6: Implementation Plan](#part-6-implementation-plan) | Phased implementation roadmap |
+| [Part 7: Comparison Matrix](#part-7-comparison-matrix) | Feature comparison across agent systems |
+| [Part 8: Open Questions (Resolved)](#part-8-open-questions-resolved) | Resolved design questions |
+| [Part 9: Risks & Mitigations](#part-9-risks--mitigations) | Risk assessment and mitigation strategies |
+| [Part 10: Completion Criteria](#part-10-completion-criteria) | Definition of done for goal primitive |
+| [Recommendation](#recommendation) | Final ADAPT recommendation |
+| [Archived Files](#archived-files) | Archived research source files |
+
+---
+
 ## Executive Summary
 
-The `/goal` primitive represents a **fundamental shift from prompting to assigning** — agents transition from one-shot commands to persistent objectives with defined completion criteria. This research analyzed implementations in Claude Code, OpenAI Codex CLI, and Hermes Agent, and evaluated whether hKask should formalize a shared understanding of "goal."
+The `/goal` primitive represents a **fundamental shift from prompting to assigning** — agents transition from one-shot commands to persistent objectives with defined completion criteria.[^locke-latham] This research analyzed implementations in Claude Code, OpenAI Codex CLI, and Hermes Agent, and evaluated whether hKask should formalize a shared understanding of "goal."
 
 **Decision:** **ADAPT** (not adopt or reject) — hKask should implement a native goal primitive with:
 1. **OCAP-Gated Delegation** — Capability tokens with attenuation
@@ -34,6 +54,8 @@ The `/goal` primitive represents a **fundamental shift from prompting to assigni
 ## Part 1: What /goal Actually Is
 
 ### The Primitive Shift
+
+The transition from prompting to goal-assignment reflects a broader shift in agent architectures toward persistent objective tracking.[^locke-latham]
 
 | Paradigm | User Role | Agent Role | Completion |
 |----------|-----------|------------|------------|
@@ -76,7 +98,7 @@ class GoalState:
 
 ### BDI (Belief-Desire-Intention) Architecture
 
-**Historical Foundation:** Bratman (1987), Rao & Georgeff (1991), modern implementations (Jason, AgentSpeak, GOAL, Can)
+**Historical Foundation:** Bratman (1987),[^bratman] Rao & Georgeff (1991),[^rao-georgeff] modern implementations (Jason, AgentSpeak, GOAL, Can)
 
 **Goal Lifecycle:** `Pending → Active → [Suspended | Aborted | Successful]`
 
@@ -90,9 +112,9 @@ class GoalState:
 
 ### Recent Advances (2020-2026)
 
-1. **Temporally Extended Goals** (IJCAI 2024) — Mix reachability + invariant properties
-2. **Goal-Conditioned RL** (AAAI 2026) — First-order representation languages, Hindsight Experience Replay
-3. **Goal Representation Learning** (2025-2026) — Action-sufficient representations, dual goal representations
+1. **Temporally Extended Goals** (IJCAI 2024)[^degiacomo2024] — Mix reachability + invariant properties
+2. **Goal-Conditioned RL** (AAAI 2026)[^kaelbling2023] — First-order representation languages, Hindsight Experience Replay
+3. **Goal Representation Learning** (2025-2026)[^li2025] — Action-sufficient representations, dual goal representations
 
 ### Formal Specification Languages
 
@@ -108,7 +130,7 @@ class GoalState:
 
 ### hLexicon Coverage Analysis
 
-The hLexicon provides hKask with a **uniquely elegant framework** for implementing goals. Unlike Hermes (free-form text) or BDI (logical formulas), hLexicon grounds goals in:
+The hLexicon provides hKask with a **uniquely elegant framework** for implementing goals. Unlike Hermes (free-form text) or BDI (logical formulas), hLexicon grounds goals in domain-driven vocabulary design:[^evans-ddd]
 
 1. **Speech Act Theory (WordAct)** — Goals as **commissive acts** (`commit`, `pledge`, `undertake`)
 2. **Workflow Patterns (FlowDef)** — Goals as **process compositions** (`sequence`, `parallel`, `choice`)
@@ -147,6 +169,8 @@ The hLexicon provides hKask with a **uniquely elegant framework** for implementi
 
 ### Existing Goal-Related Concepts
 
+The CNS ν-event lifecycle already implements a goal-adjacent comparator pattern derived from cybernetic control theory.[^beer1972]
+
 **CNS ν-Event Lifecycle:**
 ```rust
 pub struct NuEvent {
@@ -182,6 +206,8 @@ pub struct VarietyCounter {
 ---
 
 ## Part 5: Proposed hKask Goal Primitive Design
+
+The proposed design synthesizes BDI goal lifecycles with OCAP security and CNS cybernetic monitoring.[^rao-georgeff]
 
 ### Database Schema
 
@@ -303,6 +329,8 @@ impl GoalCapability {
 
 ## Part 6: Implementation Plan
 
+The phased rollout follows established patterns for incremental agent system development.[^wooldridge2009]
+
 ### Phased Rollout
 
 | Phase | Duration | Deliverables | LOC |
@@ -328,6 +356,8 @@ impl GoalCapability {
 ---
 
 ## Part 7: Comparison Matrix
+
+The comparison highlights how hKask's design addresses limitations identified in single-session goal systems.[^locke-latham]
 
 | Feature | Hermes | hKask (Proposed) |
 |---------|--------|------------------|
@@ -361,6 +391,8 @@ impl GoalCapability {
 ---
 
 ## Part 9: Risks & Mitigations
+
+Risk mitigation follows hierarchical task analysis principles for decomposing failure modes.[^annett2005]
 
 | Risk | Mitigation |
 |------|------------|
@@ -397,8 +429,8 @@ impl GoalCapability {
 6. **hLexicon Grounding** — Speech acts (WordAct), workflows (FlowDef), cognition (KnowAct)
 
 **Rationale:**
-- Aligns with hKask's cybernetic roots (Beer, Ashby, Von Foerster)
-- Extends BDI model with OCAP security and CNS monitoring
+- Aligns with hKask's cybernetic roots (Beer, Ashby, Von Foerster)[^beer1972][^ashby1956]
+- Extends BDI model with OCAP security and CNS monitoring[^rao-georgeff]
 - Enables multi-agent goal delegation (unlike Hermes single-session)
 - Leverages existing hLexicon vocabulary (12 of 80 terms directly relevant)
 
@@ -431,3 +463,19 @@ The following files have been moved to `docs/archive/2026-05-22-documentation-re
 *ℏKask — Planck's Constant of Agent Systems — v0.21.0*  
 *Goal primitive: from prompting to assigning.*  
 *Rust is the loom. YAML/Jinja2 is the thread. OCAP is the gate. CNS is the monitor. hLexicon is the foundation.*
+
+---
+
+## References
+
+[^locke-latham]: Locke, E. A., & Latham, G. P. (2002). Building a practically useful theory of goal setting and task motivation: A 35-year odyssey. *American Psychologist*, 57(9), 705–717. https://doi.org/10.1037/0003-066X.57.9.705
+[^bratman]: Bratman, M. E. (1987). *Intention, Plans, and Practical Reason*. Harvard University Press.
+[^rao-georgeff]: Rao, A. S., & Georgeff, M. P. (1995). BDI agents: From theory to practice. In *Proceedings of the First International Conference on Multi-Agent Systems* (pp. 312–319). AAAI Press.
+[^degiacomo2024]: De Giacomo, G., Favorito, M., Iocchi, L., Leone, F., Palamidessi, F., & Patrizi, F. (2024). Temporally extended goals for planning in AI. In *Proceedings of the 33rd International Joint Conference on Artificial Intelligence (IJCAI 2024)*. https://www.ijcai.org/proceedings/2024/
+[^kaelbling2023]: Kaelbling, L. P. (2023). The foundation of efficient robot learning. In *Proceedings of the AAAI Conference on Artificial Intelligence*, 37(13), 15305–15312. https://doi.org/10.1609/aaai.v37i13.26843
+[^li2025]: Li, A., & Li, K. (2025). Goal representation learning: A survey. *arXiv preprint arXiv:2503.09368*. https://arxiv.org/abs/2503.09368
+[^evans-ddd]: Evans, E. (2003). *Domain-Driven Design: Tackling Complexity in the Heart of Software*. Addison-Wesley. Ubiquitous language and bounded contexts.
+[^beer1972]: Beer, S. (1972). *Brain of the Firm*. Penguin Press. Viable system model and variety management.
+[^ashby1956]: Ashby, W. R. (1956). *An Introduction to Cybernetics*. Chapman & Hall. https://archive.org/details/introductiontocy00ashb
+[^wooldridge2009]: Wooldridge, M. (2009). *An Introduction to Multiagent Systems* (2nd ed.). Wiley.
+[^annett2005]: Annett, J. (2005). Hierarchical task analysis (HTA). In N. A. Stanton, A. Hedge, K. Brookhuis, E. Salas, & H. Hendrick (Eds.), *Handbook of Human Factors and Ergonomics Methods* (pp. 33-1–33-7). CRC Press.

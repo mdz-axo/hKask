@@ -16,6 +16,26 @@ domain: "Data"
 
 ---
 
+## Contents
+
+| Section | Description |
+|---------|-------------|
+| [§1 hkask-types — Foundation Types](#1-hkask-types--foundation-types) | Core ID types and ν-event foundation |
+| [§2 hkask-agents — Pod Lifecycle & ACP](#2-hkask-agents--pod-lifecycle--acp) | Agent pod, WebID, capability tokens |
+| [§3 hkask-ensemble — Multi-Agent Chat](#3-hkask-ensemble--multi-agent-chat--deliberation) | Multi-agent deliberation and chat sessions |
+| [§4 hkask-memory — Episodic & Semantic](#4-hkask-memory--episodic--semantic-pipelines) | Memory pipelines and triple storage |
+| [§5 hkask-mcp — MCP Runtime & Dispatch](#5-hkask-mcp--mcp-runtime--dispatch) | MCP server dispatch and tool invocation |
+| [§6 hkask-api — HTTP API & OpenAPI](#6-hkask-api--http-api--openapi) | REST endpoints and OpenAPI spec |
+| [§7 hkask-keystore — Keychain & Encryption](#7-hkask-keystore--keychain--encryption) | OS keychain integration and AES-256-GCM |
+| [§8 hkask-storage — SQLite & SQLCipher](#8-hkask-storage--sqlite-persistence--sqlcipher) | Bitemporal triples, sqlite-vec, encryption |
+| [§9 hkask-cns — Cybernetic Nervous System](#9-hkask-cns--cybernetic-nervous-system) | Spans, variety counters, algedonic alerts |
+| [§10 hkask-templates — Registry & Cascade](#10-hkask-templates--registry-cascade--manifest-execution) | Template registry, cascade, and manifest execution |
+| [§11 MCP Server Composite ERD](#11-mcp-server-composite-erd) | All 16 MCP servers in composite view |
+| [§12 Cross-Crate Dependency Graph](#12-cross-crate-dependency-graph) | Workspace-wide crate dependency relationships |
+| [References](#references) | Citations and references |
+
+---
+
 ## 1. hkask-types — Foundation Types
 
 The type foundation: 76 public types across 16 modules. All ID types are newtype wrappers around `uuid::Uuid`.[^rust-newtype]
@@ -1033,7 +1053,141 @@ status: VERIFIED
 
 ---
 
-## 11. Cross-Crate Dependency Graph
+## 11. MCP Server Composite ERD
+
+All 16 MCP servers share a thin-adapter pattern: each implements one or more port traits from `hkask-mcp` and delegates to an external service or internal crate. This composite ERD shows the shared structure and per-server specializations.[^mcp-spec]
+
+```mermaid
+erDiagram
+    MCP_SERVER ||--|| MCP_TOOL : "provides"
+    MCP_SERVER }o--|| HKASK_MCP_RUNTIME : "registered_in"
+
+    INFERENCE_SERVER ||--|| OKAPI_CONNECTOR : "delegates_to"
+    CONDENSER_SERVER ||--|| TEMPLATE_ABSTRACTION : "delegates_to"
+    WEB_SERVER ||--|| FIRECRAWL_CONNECTOR : "delegates_to"
+    SCHOLAR_SERVER ||--|| SEMANTIC_SCHOLAR_API : "delegates_to"
+    OCAP_SERVER ||--|| CAPABILITY_MANAGER : "delegates_to"
+    KEYSTORE_SERVER ||--|| OS_KEYCHAIN : "delegates_to"
+    CNS_SERVER ||--|| SPAN_EMITTER : "delegates_to"
+    GIT_SERVER ||--|| GIT_CAS : "delegates_to"
+    REGISTRY_SERVER ||--|| TEMPLATE_REGISTRY : "delegates_to"
+    GML_SERVER ||--|| GML_ENGINE : "delegates_to"
+    SPEC_SERVER ||--|| SPEC_CAPTURE : "delegates_to"
+    GITHUB_SERVER ||--|| GITHUB_API : "delegates_to"
+    FMP_SERVER ||--|| FMP_API : "delegates_to"
+    TELNYX_SERVER ||--|| TELNYX_API : "delegates_to"
+    FAL_SERVER ||--|| FAL_API : "delegates_to"
+    RSS_SERVER ||--|| RSS_PARSER : "delegates_to"
+
+    MCP_SERVER {
+        string id PK
+        string name
+        bool connected
+    }
+
+    MCP_TOOL {
+        string name PK
+        string description
+        json input_schema
+        string server_id FK
+    }
+
+    HKASK_MCP_RUNTIME {
+        map servers
+        map tool_registry
+    }
+
+    INFERENCE_SERVER {
+        string id "hkask-mcp-inference"
+        string purpose "Okapi LLM inference"
+    }
+
+    CONDENSER_SERVER {
+        string id "hkask-mcp-condenser"
+        string purpose "Template condensation"
+    }
+
+    WEB_SERVER {
+        string id "hkask-mcp-web"
+        string purpose "Search, scrape, extract"
+    }
+
+    SCHOLAR_SERVER {
+        string id "hkask-mcp-scholar"
+        string purpose "Academic research"
+    }
+
+    OCAP_SERVER {
+        string id "hkask-mcp-ocap"
+        string purpose "Capability management"
+    }
+
+    KEYSTORE_SERVER {
+        string id "hkask-mcp-keystore"
+        string purpose "OS keychain operations"
+    }
+
+    CNS_SERVER {
+        string id "hkask-mcp-cns"
+        string purpose "CNS operations"
+    }
+
+    GIT_SERVER {
+        string id "hkask-mcp-git"
+        string purpose "Git CAS operations"
+    }
+
+    REGISTRY_SERVER {
+        string id "hkask-mcp-registry"
+        string purpose "Registry operations"
+    }
+
+    GML_SERVER {
+        string id "hkask-mcp-gml"
+        string purpose "GML allosteric engine"
+    }
+
+    SPEC_SERVER {
+        string id "hkask-mcp-spec"
+        string purpose "DDMVSS spec capture"
+    }
+
+    GITHUB_SERVER {
+        string id "hkask-mcp-github"
+        string purpose "GitHub integration"
+    }
+
+    FMP_SERVER {
+        string id "hkask-mcp-fmp"
+        string purpose "FMP integration"
+    }
+
+    TELNYX_SERVER {
+        string id "hkask-mcp-telnyx"
+        string purpose "Telnyx integration"
+    }
+
+    FAL_SERVER {
+        string id "hkask-mcp-fal"
+        string purpose "FAL integration"
+    }
+
+    RSS_SERVER {
+        string id "hkask-mcp-rss-reader"
+        string purpose "RSS feed reading"
+    }
+```
+
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-SUBSYS-012
+verified_date: 2026-05-24
+verified_against: mcp-servers/hkask-mcp-inference/src/main.rs; mcp-servers/hkask-mcp-web/src/main.rs; mcp-servers/hkask-mcp-ocap/src/main.rs; Cargo.toml workspace members
+status: VERIFIED
+-->
+
+---
+
+## 12. Cross-Crate Dependency Graph
 
 ```mermaid
 graph TB

@@ -14,9 +14,26 @@ This document catalogs the most common agent patterns and their corresponding te
 
 ---
 
+## Contents
+
+| Section | Description |
+|---------|-------------|
+| [Agent Pattern Taxonomy](#agent-pattern-taxonomy) | Four primary agent patterns overview |
+| [Pattern 1: Specialist Bot](#pattern-1-specialist-bot) | Domain-specific expert bot pattern |
+| [Pattern 2: Curator Bot](#pattern-2-curator-bot) | System oversight and coordination bot |
+| [Pattern 3: Dispatch Bot](#pattern-3-dispatch-bot) | Template routing and execution bot |
+| [Pattern 4: Replicant Assistant](#pattern-4-replicant-assistant) | Human-facing personal assistant |
+| [Pattern 5: Bridge Agent](#pattern-5-bridge-agent) | External workspace integration agent |
+| [Template Library](#template-library) | Complete template catalog with YAML |
+| [Quick Start Templates](#quick-start-templates) | Copy-paste ready template snippets |
+| [Template Generator](#template-generator) | Generator for new agent templates |
+| [Next Steps](#next-steps) | Follow-up actions and resources |
+
+---
+
 ## Agent Pattern Taxonomy
 
-Agents in hKask fall into four primary patterns:
+Agents in hKask fall into four primary patterns[^gamma1994][^wooldridge2009]:
 
 | Pattern | Type | Purpose | Example |
 |---------|------|---------|---------|
@@ -31,7 +48,7 @@ Agents in hKask fall into four primary patterns:
 ## Pattern 1: Specialist Bot
 
 ### Purpose
-Domain-specific expert bot that performs specialized operations (memory, CNS, inference, etc.)
+Domain-specific expert bot that performs specialized operations[^gamma1994] (memory, CNS, inference, etc.)
 
 ### Files Required
 ```
@@ -202,7 +219,7 @@ You are a memory operation selector.
 ## Pattern 2: Curator Bot
 
 ### Purpose
-System oversight, metacognition, and coordination of other bots
+System oversight, metacognition, and coordination of other bots[^ashby1956]
 
 ### Files Required
 ```
@@ -312,7 +329,7 @@ readiness_probe:
 ## Pattern 3: Dispatch Bot
 
 ### Purpose
-Template routing, selection, and execution orchestration
+Template routing, selection, and execution orchestration[^mcp_spec]
 
 ### Files Required
 ```
@@ -389,6 +406,8 @@ readiness_probe:
 ```
 
 ### Dispatch Workflow (Matroshka Pattern)
+
+The matroshka pattern applies depth-limited recursive execution for nested template dispatch.[^abelson1996]
 ```yaml
 steps:
   - ordinal: 1
@@ -431,7 +450,7 @@ steps:
 ## Pattern 4: Replicant Assistant
 
 ### Purpose
-Human user assistance, query response, task execution
+Human user assistance, query response, task execution[^cooper1999]
 
 ### Files Required
 ```
@@ -568,7 +587,7 @@ You are {{ agent_name }}, a personal assistant in the hKask system.
 ## Pattern 5: Bridge Agent
 
 ### Purpose
-Connect external workspace to hKask via ACP/A2A protocols
+Connect external workspace to hKask via ACP/A2A protocols[^birgisson2014]
 
 ### Files Required
 ```
@@ -647,6 +666,8 @@ readiness_probe:
 ```
 
 ### Bridge Configuration
+
+Bridge configuration defines the translation and authentication layer for cross-workspace integration.[^hohpe2003]
 ```yaml
 # File: external_workspace_config.yaml
 
@@ -691,6 +712,8 @@ monitoring:
 
 ## Template Library
 
+Template files use Jinja2[^jinja2] and YAML[^yaml12] formats.
+
 ### Selector Templates
 
 | Template | Purpose | Location |
@@ -734,6 +757,8 @@ monitoring:
 ---
 
 ## Quick Start Templates
+
+Quick-start templates follow the template method pattern[^gamma1994]:
 
 ### Minimal Bot Template
 
@@ -820,7 +845,7 @@ readiness_probe:
 
 ## Template Generator
 
-Use the automated template generator:
+Use the automated template generator[^humble2010]:
 
 ```bash
 # Generate complete agent pod crate
@@ -837,7 +862,7 @@ Use the automated template generator:
 
 ## Next Steps
 
-After selecting a pattern:
+After selecting a pattern[^wiegers2013]:
 
 1. **Complete Requirements Questionnaire** — See `AGENT-POD-REQUIREMENTS-QUESTIONNAIRE.md`
 2. **Generate Crate Structure** — Use `generate-agent-pod.sh` or manual creation
@@ -845,6 +870,19 @@ After selecting a pattern:
 4. **Register with ACP** — `kask pod create --template <crate> --persona agent_persona.yaml`
 5. **Activate Pod** — `kask pod activate <pod-id>`
 6. **Monitor CNS Spans** — Verify proper operation via CNS events
+
+[^gamma1994]: Gamma, E., Helm, R., Johnson, R., & Vlissides, J. (1994). *Design patterns: Elements of reusable object-oriented software*. Addison-Wesley.
+[^wooldridge2009]: Wooldridge, M. (2009). *An introduction to multiagent systems* (2nd ed.). Wiley.
+[^ashby1956]: Ashby, W. R. (1956). *An introduction to cybernetics*. Chapman & Hall. https://archive.org/details/introductiontocy00ashb
+[^mcp_spec]: Anthropic. (2024). *Model Context Protocol specification*. https://modelcontextprotocol.io/
+[^cooper1999]: Cooper, A. (1999). *The inmates are running the asylum: Why high-tech products drive us Crazy and how to restore the sanity*. SAMS.
+[^birgisson2014]: Birgisson, A., Politz, J. G., Erlingsson, Ú., Taly, A., Vrable, M., & Lentczner, M. (2014). Macaroons: Cookies with contextual caveats for decentralized authorization. In *2014 IEEE Symposium on Security and Privacy* (pp. 625-640). IEEE. https://ieeexplore.ieee.org/document/6956576
+[^jinja2]: Ronacher, A. (2024). *Jinja2 documentation*. Pallets Projects. https://jinja.palletsprojects.com/
+[^yaml12]: Ben-Kiki, O., Evans, C., & döt Net, I. (2009). *YAML ain't markup language (YAML) version 1.2* (3rd ed.). https://yaml.org/spec/1.2/spec.html
+[^humble2010]: Humble, J., & Farley, D. (2010). *Continuous delivery: Reliable software releases through build, test, and deployment automation*. Addison-Wesley.
+[^wiegers2013]: Wiegers, K. E., & Beatty, J. (2013). *Software requirements* (3rd ed.). Microsoft Press.
+[^abelson1996]: Abelson, H., Sussman, G. J., & Sussman, J. (1996). *Structure and interpretation of computer programs* (2nd ed.). MIT Press. Recursive execution and metacircular interpreters.
+[^hohpe2003]: Hohpe, G., & Woolf, B. (2003). *Enterprise integration patterns: Designing, building, and deploying messaging solutions*. Addison-Wesley. Bridge and channel adapter patterns.
 
 ---
 

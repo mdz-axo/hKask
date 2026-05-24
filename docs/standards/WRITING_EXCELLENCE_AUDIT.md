@@ -22,9 +22,27 @@ domain: "Cross-cutting"
 
 ---
 
+## Contents
+
+| Section | Description |
+|---------|-------------|
+| [§1 Scoring Methodology](#1-scoring-methodology) | Hopper, Lovelace, Schriver, Gentle dimensions |
+| [§2 Full Audit Results](#2-full-audit-results) | Per-document scores and notes |
+| [§3 Summary Statistics](#3-summary-statistics) | Aggregate scores and distributions |
+| [§4 Priority Rewrite Queue](#4-priority-rewrite-queue) | Documents ordered by rewrite urgency |
+| [§5 Style Violations](#5-style-violations) | Recurring style and formatting violations |
+| [§6 Recommendations](#6-recommendations) | Improvement recommendations |
+| [§7 Completion Checklist](#7-completion-checklist) | Quality gate checklist |
+| [§9 2026-05-24 Refresh](#9-2026-05-24-refresh--post-remediation-assessment) | Post-remediation re-assessment |
+| [§8 References](#8-references) | Citations and references |
+
+---
+
 ## 1. Scoring Methodology
 
 **Four Dimensions (0-4 scale each):**
+
+The scoring methodology applies multi-dimensional quality assessment following established audit frameworks.[^iso19011]
 
 | Dimension | Test | Question | Source |
 |-----------|------|----------|--------|
@@ -161,6 +179,8 @@ These documents are transient progress reports and remediation plans. They are e
 ## 3. Summary Statistics
 
 ### 3.1 Overall Corpus Quality
+
+Aggregate quality metrics follow software quality model standards.[^iso25010]
 
 | Metric | Value |
 |--------|-------|
@@ -364,3 +384,6 @@ done
 [^hKask-standards]: hKask Project. (2026). *docs/standards/DOCUMENTATION_STANDARDS.md*. `/home/mdz-axolotl/Clones/hKask/docs/standards/DOCUMENTATION_STANDARDS.md`.
 
 [^hKask-principles]: hKask Project. (2026). *docs/architecture/PRINCIPLES.md*. Constraint-driven design principles.
+
+[^iso19011]: International Organization for Standardization. (2018). *ISO 19011:2018 — Guidelines for auditing management systems*. ISO. https://www.iso.org/standard/70017.html
+[^iso25010]: International Organization for Standardization/IEC. (2011). *ISO/IEC 25010:2011 — Systems and software quality models*. ISO. https://www.iso.org/standard/35733.html

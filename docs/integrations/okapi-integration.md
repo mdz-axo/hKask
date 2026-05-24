@@ -217,7 +217,7 @@ Okapi inference emits CNS spans at key boundary points:
 
 ## Architecture Notes
 
-- `InferencePort` is async; `SyncInferencePort` exists for synchronous manifest executor compatibility
+- `InferencePort` is async; `SyncInferencePort` exists for synchronous manifest executor compatibility[^gamma1994]
 - `OkapiInference` supports four construction modes: `new`, `with_retry_config`, `with_rate_limiting`, `with_circuit_breaker`
 - Token probabilities (`n_probs`) are enabled by default (5 top tokens) for confidence scoring
 - Anti-normative generation patterns use `generate_n` for multi-output selection
@@ -231,6 +231,7 @@ Okapi inference emits CNS spans at key boundary points:
 [^nygard-release]: Nygard, M. T. (2018). *Release It!: Design and Deploy Production-Ready Software* (2nd ed.). Pragmatic Bookshelf.
 [^gguf-spec]: Gerganov, G. (2023). *GGUF: GGML Universal File Format*. https://github.com/ggerganov/ggml/blob/master/docs/gguf.md
 [^white-prompt]: White, J., Fu, Q., Schmidt, S., & Sural, S. (2023). A prompt pattern catalog to enhance prompt engineering with ChatGPT. *arXiv preprint arXiv:2302.11382*. https://arxiv.org/abs/2302.11382
+[^gamma1994]: Gamma, E., Helm, R., Johnson, R., & Vlissides, J. (1994). *Design Patterns: Elements of Reusable Object-Oriented Software*. Addison-Wesley. Adapter pattern for port compatibility.
 
 ---
 

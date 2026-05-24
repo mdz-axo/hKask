@@ -14,10 +14,33 @@ domain: "Application"
 
 ---
 
+## Contents
+
+| Section | Description |
+|---------|-------------|
+| [§1 Agent Identity](#section-1-agent-identity) | Name, type, and archetype |
+| [§2 Agent Purpose](#section-2-agent-purpose) | Goal, scope, and success criteria |
+| [§3 Capabilities](#section-3-capabilities) | MCP tools, LLM, and delegation |
+| [§4 Rights and Access](#section-4-rights-and-access) | OCAP boundaries and data access |
+| [§5 Responsibilities](#section-5-responsibilities) | Obligations and constraints |
+| [§6 Workspace Integration](#section-6-workspace-integration) | Crate location and dependencies |
+| [§7 Visibility and Sharing](#section-7-visibility-and-sharing) | Public/private gating |
+| [§8 Reporting and Coordination](#section-8-reporting-and-coordination) | A2A protocols and coordination |
+| [§9 Process Manifest](#section-9-process-manifest) | Dispatch manifest definition |
+| [§10 Templates](#section-10-templates) | Required prompt and skill templates |
+| [§11 Readiness Probe](#section-11-readiness-probe) | Pre-creation validation checklist |
+| [§12 MACAROON Configuration](#section-12-macaroon-configuration-optional) | Optional capability token config |
+| [§13 CNS Integration](#section-13-cns-integration) | Monitoring and algedonic alerts |
+| [§14 Additional Configuration](#section-14-additional-configuration) | Extra settings and flags |
+| [§15 Review and Validation](#section-15-review-and-validation) | Final review before creation |
+| [Next Steps](#next-steps) | Post-questionnaire actions |
+
+---
+
 ## Section 1: Agent Identity
 
 ### 1.1 Agent Name
-**What is the agent's name?**
+**What is the agent's name?**[^wiegers2013]
 - Must be unique within your workspace
 - Use kebab-case: `my-specialist-bot`
 - Example: `memory-curator-bot`, `registry-dispatch-bot`
@@ -52,7 +75,7 @@ domain: "Application"
 ## Section 2: Agent Purpose
 
 ### 2.1 Primary Function
-**Describe the agent's primary purpose in 1-2 sentences:**
+**Describe the agent's primary purpose in 1-2 sentences:**[^cooper1999]
 
 Example: "Specialist bot responsible for memory operations including recall, storage, and semantic triple production."
 
@@ -86,7 +109,7 @@ _________________________________________________________________
 ## Section 3: Capabilities
 
 ### 3.1 Required Tools
-**What tools does the agent need access to?** (Check all that apply)
+**What tools does the agent need access to?**[^miller2006] (Check all that apply)
 
 #### Inference Tools
 - [ ] `tool:inference:call` — Call LLM for generation
@@ -143,7 +166,7 @@ _________________________________________________________________
 ## Section 4: Rights and Access
 
 ### 4.1 Read Access
-**What data/resources does the agent need to read?** (Check all that apply)
+**What data/resources does the agent need to read?**[^miller2006] (Check all that apply)
 
 - [ ] `registry_index` — Template registry index
 - [ ] `template_catalog` — Available templates
@@ -192,7 +215,7 @@ _________________________________________________________________
 ## Section 5: Responsibilities
 
 ### 5.1 Core Responsibilities
-**What is the agent responsible for?** (Check all that apply)
+**What is the agent responsible for?**[^wooldridge2009] (Check all that apply)
 
 #### Response Responsibilities
 - [ ] `respond_to: template_dispatch_requests`
@@ -251,7 +274,7 @@ _________________________________________________________________
 ## Section 6: Workspace Integration
 
 ### 6.1 Workspace Type
-**How does this agent integrate with workspaces?**
+**How does this agent integrate with workspaces?**[^bass2021]
 
 - [ ] **Standalone** — Independent crate, no workspace
 - [ ] **New Workspace** — First crate in new workspace
@@ -309,7 +332,7 @@ _________________________________________________________________
 ## Section 7: Visibility and Sharing
 
 ### 7.1 Default Visibility
-**What is the default visibility for agent artifacts?**
+**What is the default visibility for agent artifacts?**[^miller2006]
 
 - [ ] **public** — Visible to all agents
   - Use case: System bots, shared knowledge
@@ -342,7 +365,7 @@ _________________________________________________________________
 ## Section 8: Reporting and Coordination
 
 ### 8.1 Receives Reports From
-**Which agents does this agent receive reports from?**
+**Which agents does this agent receive reports from?**[^wooldridge2009]
 
 List agent names:
 ```
@@ -386,7 +409,7 @@ _________________________________________________________________
 ## Section 9: Process Manifest
 
 ### 9.1 Dispatch Pattern
-**What dispatch pattern does the agent use?**
+**What dispatch pattern does the agent use?**[^mcp_spec]
 
 - [ ] **Simple Inference** — Direct LLM call
 - [ ] **Memory Recall → Inference** — Retrieve memory, then infer
@@ -421,7 +444,7 @@ _________________________________________________________________
 ## Section 10: Templates
 
 ### 10.1 Required Templates
-**What templates does the agent need?** (Check all that apply)
+**What templates does the agent need?**[^jinja2] (Check all that apply)
 
 #### Selectors
 - [ ] Template selector
@@ -460,7 +483,7 @@ _________________________________________________________________
 ## Section 11: Readiness Probe
 
 ### 11.1 Health Check Endpoint
-**What is the health check endpoint?**
+**What is the health check endpoint?**[^newman2021]
 
 Format: `<agent_name>::<action>_status`
 
@@ -489,7 +512,7 @@ Example: `registry::dispatch_status`, `curator::metacognition_status`
 ## Section 12: MACAROON Configuration (Optional)
 
 ### 12.1 Macaroon Issuance
-**Does the agent need macaroon-based capability tokens?**
+**Does the agent need macaroon-based capability tokens?**[^birgisson2014]
 
 - [ ] Yes (for Russell ACP agent integration)
 - [ ] No (standard hKask OCAP tokens)
@@ -514,7 +537,7 @@ Example: `registry::dispatch_status`, `curator::metacognition_status`
 ## Section 13: CNS Integration
 
 ### 13.1 Span Emission
-**What CNS spans should the agent emit?** (Check all that apply)
+**What CNS spans should the agent emit?**[^ashby1956] (Check all that apply)
 
 #### Lifecycle Spans
 - [ ] `cns.agent_pod.registered`
@@ -552,7 +575,7 @@ _________________________________________________________________
 ## Section 14: Additional Configuration
 
 ### 14.1 Energy Budget (Optional)
-**Does the agent have specific energy budget requirements?**
+**Does the agent have specific energy budget requirements?**[^bass2021]
 
 - [ ] Yes, budget: `____` tokens/day
 - [ ] Yes, budget: `____` tokens/request
@@ -581,6 +604,8 @@ _________________________________________________________________
 ---
 
 ## Section 15: Review and Validation
+
+Requirements review ensures completeness and consistency[^wiegers2013].
 
 ### 15.1 Completeness Checklist
 
@@ -621,7 +646,7 @@ _________________________________________________________________
 
 ## Next Steps
 
-After completing this questionnaire:
+After completing this questionnaire[^wiegers2013]:
 
 1. **Review answers** with team/stakeholders
 2. **Generate agent persona YAML** from responses
@@ -636,6 +661,18 @@ For assistance, refer to:
 - [Agent Pod Creation Guide](./AGENT-POD-CREATION-GUIDE.md)
 - [hKask Architecture Documentation](../architecture/hKask-architecture-master.md)
 - [Agent Pod Implementation](../architecture/AGENT_POD_IMPLEMENTATION.md)
+
+[^wiegers2013]: Wiegers, K. E., & Beatty, J. (2013). *Software requirements* (3rd ed.). Microsoft Press.
+[^cooper1999]: Cooper, A. (1999). *The inmates are running the asylum: Why high-tech products drive us Crazy and how to restore the sanity*. SAMS.
+[^miller2006]: Miller, M. S. (2006). *Robust composition: Towards a practical approach to trust in open distributed systems* [Doctoral dissertation, Johns Hopkins University]. https://www.erights.org/
+[^wooldridge2009]: Wooldridge, M. (2009). *An introduction to multiagent systems* (2nd ed.). Wiley.
+[^bass2021]: Bass, L., Clements, P., & Kazman, R. (2021). *Software architecture in practice* (4th ed.). Addison-Wesley.
+[^mcp_spec]: Anthropic. (2024). *Model Context Protocol specification*. https://modelcontextprotocol.io/
+[^yaml12]: Ben-Kiki, O., Evans, C., & döt Net, I. (2009). *YAML ain't markup language (YAML) version 1.2* (3rd ed.). https://yaml.org/spec/1.2/spec.html
+[^jinja2]: Ronacher, A. (2024). *Jinja2 documentation*. Pallets Projects. https://jinja.palletsprojects.com/
+[^newman2021]: Newman, S. (2021). *Building microservices: Designing fine-grained systems* (2nd ed.). O'Reilly.
+[^birgisson2014]: Birgisson, A., Politz, J. G., Erlingsson, Ú., Taly, A., Vrable, M., & Lentczner, M. (2014). Macaroons: Cookies with contextual caveats for decentralized authorization. In *2014 IEEE Symposium on Security and Privacy* (pp. 625-640). IEEE. https://ieeexplore.ieee.org/document/6956576
+[^ashby1956]: Ashby, W. R. (1956). *An introduction to cybernetics*. Chapman & Hall. https://archive.org/details/introductiontocy00ashb
 
 ---
 

@@ -14,9 +14,26 @@ domain: "Application"
 
 ---
 
+## Contents
+
+| Section | Description |
+|---------|-------------|
+| [Overview](#overview) | GML as a KnowAct applying MWC allosteric model |
+| [Crate Structure](#crate-structure) | Planned multi-crate decomposition |
+| [Domain Types](#domain-types) | Core type definitions and relationships |
+| [GML Algebra](#gml-algebra) | Mathematical operations on concept distributions |
+| [Cascade Structure](#cascade-structure) | Multi-level cascade selection mechanism |
+| [Hexagonal Architecture](#hexagonal-architecture) | Ports and adapters for GML |
+| [CNS Integration](#cns-integration) | GML-specific CNS spans and metrics |
+| [Security Model (OCAP)](#security-model-ocap) | Capability-gated GML operations |
+| [Boltzmann Machine Integration](#boltzmann-machine-integration) | Boltzmann sampling for concept recombination |
+| [See Also](#see-also) | Related documentation |
+
+---
+
 ## Overview
 
-Generalized Monad Logic (GML) is a KnowAct that applies the Monod-Wyman-Changeux (MWC) allosteric model to abstract concept recombination and regulation.
+Generalized Monad Logic (GML) is a KnowAct that applies the Monod-Wyman-Changeux (MWC) allosteric model [^mwc1965] to abstract concept recombination and regulation [^beer1972].
 
 ---
 
@@ -95,6 +112,8 @@ hkask-workspace/
 ---
 
 ## Domain Types
+
+Core domain types derive from the MWC allosteric formalism [^mwc1965] and cooperative binding theory [^hill1910].
 
 ### MwcParameters
 
@@ -192,6 +211,8 @@ pub enum Stability {
 
 ## GML Algebra
 
+The algebra implements the MWC state function, Hill cooperativity coefficient, and Boltzmann energy partition [^mwc1965][^hill1910].
+
 ### Trait Definition
 
 ```rust
@@ -241,6 +262,8 @@ pub fn boltzmann_factor(e_t: f64, e_r: f64, kt: f64) -> f64 {
 ---
 
 ## Cascade Structure
+
+Cascade execution follows a system-dynamics-inspired flow of pre/core/post stages [^forrester1961].
 
 ### YAML Configuration
 
@@ -313,6 +336,8 @@ process:
 
 ## Hexagonal Architecture
 
+GML follows the ports-and-adapters (hexagonal) pattern to isolate domain logic from infrastructure [^cockburn2005].
+
 ### Inbound Ports (Domain Interface)
 
 ```rust
@@ -356,6 +381,8 @@ pub trait ConceptEmbedding {
 
 ## CNS Integration
 
+The Cybernetic Nervous System (CNS) provides observability and algedonic alerting inspired by Beer's viable system model [^beer1972].
+
 ### Spans
 
 ```rust
@@ -376,6 +403,8 @@ pub const CNS_ALGEDONIC_VARIETY: &str = "cns.algedonic.variety_deficit";
 ---
 
 ## Security Model (OCAP)
+
+Access control follows the object-capability model, where capabilities are unforgeable tokens that confer authority [^dennis1966].
 
 ### Capability Types
 
@@ -433,6 +462,8 @@ pub struct GmlAuditLog {
 
 ## Boltzmann Machine Integration
 
+GML extends the MWC framework with energy-based computation drawn from Hopfield networks [^hopfield1982].
+
 ### Energy-Based Concept
 
 ```rust
@@ -484,6 +515,22 @@ impl HybridConcept {
 ## See Also
 
 - [API Reference](./gml-api.md)
+
+---
+
+[^mwc1965]: Monod, J., Wyman, J., & Changeux, J.-P. (1965). On the nature of allosteric transitions: A plausible model. *Journal of Molecular Biology*, 12(1), 88–118. https://doi.org/10.1016/S0022-2836(65)80285-6
+
+[^hill1910]: Hill, A. V. (1910). The possible effects of the aggregation of the molecules of haemoglobin on its dissociation curves. *Journal of Physiology*, 40(Suppl), iv–vii.
+
+[^beer1972]: Beer, S. (1972). *Brain of the Firm: The Managerial Cybernetics of Organization*. Allen Lane.
+
+[^forrester1961]: Forrester, J. W. (1961). *Industrial Dynamics*. MIT Press.
+
+[^cockburn2005]: Cockburn, A. (2005). Hexagonal architecture (Ports and Adapters). https://alistair.cockburn.us/hexagonal-architecture/
+
+[^dennis1966]: Dennis, J. B., & Van Horn, E. C. (1966). Programming semantics for multiprogrammed computations. *Communications of the ACM*, 9(3), 143–155. https://doi.org/10.1145/365230.365252
+
+[^hopfield1982]: Hopfield, J. J. (1982). Neural networks and physical systems with emergent collective computational abilities. *Proceedings of the National Academy of Sciences*, 79(8), 2554–2558. https://doi.org/10.1073/pnas.79.8.2554
 
 ---
 

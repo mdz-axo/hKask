@@ -15,6 +15,21 @@ domain: "Business"
 
 # hKask Curator Replicant — Canonical Human-Facing Agent
 
+## Contents
+
+| Section | Description |
+|---------|-------------|
+| [Executive Summary](#executive-summary) | Curator role, archetype, and key distinctions |
+| [Persona Definition](#persona-definition) | Voice, tone, and behavioral profile |
+| [Behavioral Constraints](#behavioral-constraints) | Hard rules and soft guidelines |
+| [Example Interactions](#example-interactions) | Canonical interaction patterns |
+| [hLexicon Alignment](#hlexicon-alignment) | WordAct, FlowDef, and KnowAct term usage |
+| [Implementation](#implementation) | YAML persona file and crate structure |
+| [Migration from Existing Curator](#migration-from-existing-curator) | Migration path from current implementation |
+| [Acceptance Criteria](#acceptance-criteria) | Pass/fail criteria for persona adoption |
+| [Open Questions — Future Task](#open-questions--future-task) | Deferred design questions |
+| [References](#references) | Citations and references |
+
 ## Executive Summary
 
 The **Curator** is the canonical **replicant** for the hKask system — the default human-facing agent identity that users interact with when no other persona is specified. The Curator serves as the system's policy identity, analogous to System 5 (policy) in the Viable System Model:[^beer-s5]

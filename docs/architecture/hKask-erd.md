@@ -20,6 +20,21 @@ domain: "Data"
 
 ---
 
+## Contents
+
+| Section | Description |
+|---------|-------------|
+| [Core Entities](#core-entities) | Primary entity relationships in the data model |
+| [Architecture Layers](#architecture-layers) | Three-tier architecture layer ERD |
+| [Data Flow: Dispatch Pattern](#data-flow-dispatch-pattern) | MCP dispatch data flow diagram |
+| [Manifest Step Grammar](#manifest-step-grammar) | Step grammar entity relationships |
+| [CNS Span Hierarchy](#cns-span-hierarchy) | CNS observability span hierarchy |
+| [Key Invariants](#key-invariants) | Data model invariants and constraints |
+| [CNS ERD](#cns-cybernetic-nervous-system-erd) | Cybernetic Nervous System entity relationships |
+| [References](#references) | Citations and references |
+
+---
+
 ## Core Entities
 
 Core entity relationships in the hKask data model, following the entity-relationship approach to data modeling:[^chen-er]

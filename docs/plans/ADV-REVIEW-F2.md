@@ -1,5 +1,12 @@
 # Adversarial Review & Remediation Plan F2 — hKask v0.21.0
 
+**Version:** 1.0.0  
+**Last-Updated:** 2026-05-24  
+**Status:** Active  
+**Audience:** architects, reviewers  
+**TOGAF Phase:** E  
+**Domain:** Cross-cutting
+
 > **Synthesized from two independent reviews.** Perspectives applied: Hoare (correctness via types, no stubs), Cockburn (ports/adapters purity), Fowler (clean seams), Schneier (zero-trust defaults), Miller (unforgeable capabilities, no ambient authority). Minimalism with recursion: every layer is the same shape — **identity → capability → port → adapter → CNS span**.
 
 **Status:** All issues verified against source. Zero hallucinations.
@@ -55,7 +62,8 @@ erDiagram
         Vec_Caveat caveats
         bytes32 signature
     }
-```
+    ```
+<!-- DIAGRAM_ALIGNMENT: id=DIAG-ADV-001 | verified_date=2026-05-24 | verified_against=crates/hkask-agents/src/pod.rs; crates/hkask-mcp/src/security.rs; crates/hkask-templates/src/resilience.rs | status=VERIFIED -->
 
 ### RDF Invariants (desired state)
 
@@ -118,7 +126,8 @@ graph TB
   classDef delete fill:#fee,stroke:#c00
   class ACP,MCPR,OKA,GIT,MEM,KS,AUD,CNS port
   class MAC,OKC,ACT delete
-```
+  ```
+<!-- DIAGRAM_ALIGNMENT: id=DIAG-ADV-002 | verified_date=2026-05-24 | verified_against=crates/hkask-agents/src/pod.rs; crates/hkask-mcp/src/security.rs; crates/hkask-templates/src/resilience.rs | status=VERIFIED -->
 
 ---
 

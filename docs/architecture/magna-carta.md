@@ -16,6 +16,23 @@ domain: "Cross-cutting"
 
 ---
 
+## Contents
+
+| Section | Description |
+|---------|-------------|
+| [The Contract](#the-contract) | Core principles of user sovereignty |
+| [Catch and Release](#catch-and-release) | Data sovereignty catch-and-release model |
+| [Sovereignty Architecture](#sovereignty-architecture) | OCAP boundaries and acquisition resistance |
+| [The Curator as Enforcer](#the-curator-as-enforcer) | Curator role in enforcing the Magna Carta |
+| [CNS Integration](#cns-integration) | Algedonic alerts and sovereignty monitoring |
+| [Implementation](#implementation) | Code-level enforcement mechanisms |
+| [The Promise](#the-promise) | The pledge to users |
+| [Enforcement](#enforcement) | Runtime enforcement and audit |
+| [References](#references) | Citations and references |
+| [Version](#version) | Document version history |
+
+---
+
 ## The Contract
 
 hKask operates under a Magna Carta — a charter of liberties that honors user sovereignty above all else. This is not a feature. This is the foundation.

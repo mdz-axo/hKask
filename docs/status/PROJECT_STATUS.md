@@ -128,7 +128,7 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-na
 | **Standards** | 5 | `docs/standards/` |
 | **Architecture** | 19 | `docs/architecture/` |
 | **Specifications** | 1 | `docs/specifications/` |
-| **Plans** | 2 | `docs/plans/` |
+| **Plans** | 4 | `docs/plans/` |
 | **User Guides** | 5 | `docs/user-guides/` |
 | **GML** | 3 | `docs/gml/` |
 | **Integrations** | 1 | `docs/integrations/` |

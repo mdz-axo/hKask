@@ -10,6 +10,22 @@ domain: "Application"
 
 # hKask hLexicon — Minimal Composition Vocabulary
 
+## Contents
+
+| Section | Description |
+|---------|-------------|
+| [Executive Summary](#executive-summary) | Overview of the 75-term minimal composition vocabulary |
+| [Domain 1: WordAct — Prompting Language](#domain-1-wordact--prompting-language-28-terms) | Speech act theory terms for LLM interactions (28 terms) |
+| [Domain 2: FlowDef — Process Flow Language](#domain-2-flowdef--process-flow-language-27-terms) | Workflow pattern terms for skill composition (27 terms) |
+| [Domain 3: KnowAct — Cognition Language](#domain-3-knowact--cognition-language-25-terms) | Enactive cognition terms for metacognition (25 terms) |
+| [Cross-Domain Composition Patterns](#cross-domain-composition-patterns) | How terms from different domains compose together |
+| [hLexicon Grammar](#hlexicon-grammar) | Formal grammar for term usage and validation |
+| [Academic Grounding References](#academic-grounding-references) | Academic sources for each domain |
+| [hLexicon Term Index](#hlexicon-term-index-88-terms) | Alphabetical index of all 88 terms |
+| [Future Expansion](#future-expansion) | Planned term additions and domain extensions |
+| [Usage Examples](#usage-examples) | Practical template integration examples |
+| [References](#references) | Citations and references |
+
 ## Executive Summary
 
 **hLexicon** is the minimal vocabulary (75 terms allocated across 3 domains) for composing templates in the hKask system. It covers three domains:
@@ -111,7 +127,7 @@ Speech acts distinguish between:
 
 ## Domain 2: FlowDef — Process Flow Language (27 terms)
 
-**Theoretical Basis:** Workflow Patterns (Wil van der Aalst), Cascade Skill Manifests
+**Theoretical Basis:** Workflow Patterns (Wil van der Aalst), Cascade Skill Manifests[^van-der-aalst]
 
 **hKask FlowDef Categories:**
 
@@ -189,7 +205,7 @@ Speech acts distinguish between:
 
 ## Domain 3: KnowAct — Cognition Language (25 terms)
 
-**Theoretical Basis:** Enactive Cognition (Varela, Thompson), Second-Order Cybernetics (von Foerster), Autopoiesis (Maturana)
+**Theoretical Basis:** Enactive Cognition (Varela, Thompson),[^varela] Second-Order Cybernetics (von Foerster),[^von-foerster] Autopoiesis (Maturana)[^maturana]
 
 **hKask KnowAct Categories:**
 
@@ -330,6 +346,8 @@ contract:
 
 ### Validation Rules
 
+Terminology validation follows ISO principles for vocabulary management.[^iso704] Domain-driven vocabulary design ensures that each template type maps to a primary lexicon domain.[^evans-ddd]
+
 1. **Minimum Terms:** Each template must declare ≥1 lexicon term
 2. **Maximum Terms:** Each template declares ≤10 lexicon terms (prevent over-specification)
 3. **Domain Match:** Template type must match primary lexicon domain
@@ -456,6 +474,10 @@ Recommend adjustments: {{ regulate(pass_rate) }}
 [^van-der-aalst]: van der Aalst, W. M. P., ter Hofstede, A. H. M., & Weske, M. (2003). Workflow Patterns. In *Business Process Management* (pp. 1-20). Springer.
 [^varela]: Varela, F. J., Thompson, E., & Rosch, E. (1991). *The Embodied Mind: Cognitive Science and Human Experience*. MIT Press. Enactive cognition.
 [^russell]: Russell, S., & Norvig, P. (2020). *Artificial Intelligence: A Modern Approach* (4th ed.). Pearson. AI agent design patterns.
+[^von-foerster]: von Foerster, H. (2003). *Understanding Understanding: Essays on Cybernetics and Cognition*. Springer. https://doi.org/10.1007/978-1-4419-8972-3
+[^maturana]: Maturana, H. R., & Varela, F. J. (1980). *Autopoiesis and Cognition: The Realization of the Living*. D. Reidel.
+[^iso704]: International Organization for Standardization. (2022). *ISO 704:2022 — Terminology work: Principles and methods*. ISO. https://www.iso.org/standard/79887.html
+[^evans-ddd]: Evans, E. (2003). *Domain-Driven Design: Tackling Complexity in the Heart of Software*. Addison-Wesley. Ubiquitous language and bounded contexts.
 
 ---
 
