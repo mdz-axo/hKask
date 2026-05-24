@@ -33,7 +33,7 @@ domain: "Cross-cutting"
 
 **Location:** `hkask-testing/unit-tests/*` (multiple files)
 
-**Status:** Fixed 2026-05-22 — All 331 tests now passing
+**Status:** Fixed 2026-05-22 — All 210 tests now passing
 - Fixed import paths for `Triple`, `TripleStore`, `EpisodicMemory`, `SemanticMemory`, `BayesianOps`
 - Fixed `TempTripleStore` → `TripleStore` with in-memory database
 - Fixed `AlertSeverity` import path
@@ -78,7 +78,7 @@ domain: "Cross-cutting"
 - `InferencePort` trait updated to async with `#[async_trait]`
 - Full Okapi API request/response structures implemented
 
-**Testing:** End-to-end testing requires running Okapi instance (see `docs/P0_OKAPI_INTEGRATION_PLAN.md`)
+**Testing:** End-to-end testing requires running Okapi instance
 
 ### 2. unwrap_or() with Defaults ✅ ACCEPTABLE
 

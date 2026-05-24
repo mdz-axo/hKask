@@ -220,4 +220,4 @@ Total: ~350 lines
 
 ---
 
-*BaNANa.*
+*ℏKask — Planck's Constant of Agent Systems — v0.21.0*

@@ -11,8 +11,8 @@
 
 hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-native container platform** enabling sovereign agents (bots and replicants) to communicate, compose capabilities, and learn through unified template-driven architecture.
 
-**Current Phase:** Phase 6 — Okapi Integration Hardening & Ensemble/CNS complete  
-**Next Phase:** Phase 7 — Multi-agent chat coordination, full CNS span integration
+**Current Phase:** Phase 8 complete — CLI/API commands, Okapi integration hardened, Ensemble/CNS integrated  
+**Next Phase:** Documentation refresh and operational hardening
 
 ---
 
@@ -22,24 +22,24 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-na
 
 | Metric | Value | Status |
 |--------|-------|--------|
-| **Core LOC (Rust)** | ~25,800 | — |
-| **MCP Server LOC (Rust)** | Included in count | — |
-| **Total Rust LOC** | ~25,800 | — |
+| **Core LOC (Rust)** | ~34,700 | — |
+| **MCP Server LOC (Rust)** | ~4,000 | Included in count |
+| **Total Rust LOC** | ~34,700 | — |
 | **Excluded** | Jinja2 templates, YAML manifests | Not counted |
 
 ### 2.2 Test Metrics
 
 | Workspace | Tests | Status |
 |-----------|-------|--------|
-| **Core Crates** | 32 passing | ✅ |
-| **Total** | 32 passing | ✅ |
+| **Core Crates** | 210 passing | ✅ |
+| **Total** | 210 passing | ✅ |
 
 ### 2.3 Build Status
 
 | Command | Status | Warnings |
 |---------|--------|----------|
 | `cargo check --workspace` | ✅ Pass | None |
-| `cargo test --workspace` | ✅ Pass | 32 tests passing |
+| `cargo test --workspace` | ✅ Pass | 210 tests passing |
 | `cargo clippy --workspace -- -D warnings` | ✅ Pass | None |
 | `cargo fmt --check` | ✅ Pass | — |
 
@@ -48,7 +48,7 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-na
 | Component | Count | Description |
 |-----------|-------|-------------|
 | **Core Crates** | 11 | `hkask-*` in `crates/` |
-| **MCP Servers** | 19 | `hkask-mcp-*` in `mcp-servers/` |
+| **MCP Servers** | 16 | `hkask-mcp-*` in `mcp-servers/` |
 | **Test Crate** | 1 | `hkask-testing` |
 | **Total** | 31 | All in workspace |
 
@@ -85,33 +85,30 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-na
 | `hkask-cli` | ~2,500 | CLI commands | ✅ Complete |
 | `hkask-api` | ~2,500 | HTTP API, utoipa | ✅ Complete |
 
-### 3.3 MCP Servers (19)
+### 3.3 MCP Servers (16)
 
 | Server | Status | Purpose |
 |--------|--------|---------|
-| `hkask-mcp-embedding` | ✅ Enabled | Vector generation |
-| `hkask-mcp-condenser` | ✅ Enabled | Template abstraction |
-| `hkask-mcp-web` | ✅ Enabled | Search, scrape |
+| `hkask-mcp-inference` | ✅ Enabled | Okapi LLM inference |
+| `hkask-mcp-condenser` | ✅ Enabled | Template condensation |
+| `hkask-mcp-web` | ✅ Enabled | Web search, scrape |
 | `hkask-mcp-scholar` | ✅ Enabled | Academic research |
 | `hkask-mcp-ocap` | ✅ Enabled | Capability management |
 | `hkask-mcp-keystore` | ✅ Enabled | Keystore operations |
 | `hkask-mcp-cns` | ✅ Enabled | CNS operations |
 | `hkask-mcp-git` | ✅ Enabled | Git CAS |
 | `hkask-mcp-registry` | ✅ Enabled | Registry operations |
-| `hkask-mcp-gml` | ✅ Enabled | GML operations |
+| `hkask-mcp-gml` | ✅ Enabled | GML allosteric engine |
+| `hkask-mcp-spec` | ✅ Enabled | DDMVSS spec capture |
 | `hkask-mcp-github` | ✅ Enabled | GitHub integration |
-| `hkask-mcp-fmp` | ✅ Enabled | FMP integration |
-| `hkask-mcp-telnyx` | ✅ Enabled | Telnyx integration |
-| `hkask-mcp-fal` | ✅ Enabled | FAL integration |
-| `hkask-mcp-rss-reader` | ✅ Enabled | RSS reader |
-| `hkask-mcp-inference` | ✅ Enabled | Okapi LLM |
-| `hkask-mcp-storage` | ⚠️ Exists, commented | Storage operations |
-| `hkask-mcp-memory` | ⚠️ Exists, commented | Memory pipelines |
-| `hkask-mcp-ensemble` | ⚠️ Exists, commented | Chat orchestration |
+| `hkask-mcp-fmp` | ✅ Enabled | Financial data (FMP) |
+| `hkask-mcp-telnyx` | ✅ Enabled | Communications (Telnyx) |
+| `hkask-mcp-fal` | ✅ Enabled | Media generation (FAL) |
+| `hkask-mcp-rss-reader` | ✅ Enabled | RSS feed reader |
 
 **Converted to Templates (per AGENTS.md):**
-- `hkask-mcp-spandrel` → Graph analysis templates
-- `hkask-mcp-doc-knowledge` → Document extraction templates
+- `hkask-mcp-spandrel` → `templates/spandrel/` (graph analysis)
+- `hkask-mcp-doc-knowledge` → `templates/doc-knowledge/` (document extraction)
 
 **Note:** MCP servers are excluded from count per [`AGENTS.md`](../../AGENTS.md).
 
@@ -131,7 +128,7 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-na
 | **GML** | 2 | `docs/gml/` |
 | **TOGAF Scaffold** | 1 | `docs/TOGAF_LITE_FOR_OPEN_SOURCE.md` |
 | **Project Status** | 1 | `docs/status/PROJECT_STATUS.md` |
-| **Audit** | 1 | `docs/DOCUMENTATION_AUDIT_2026-05-22.md` |
+| **Audit** | 1 | `docs/standards/WRITING_EXCELLENCE_AUDIT.md` |
 | **Total** | 31 | — |
 
 ### 4.2 Archived Documents

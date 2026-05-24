@@ -15,7 +15,7 @@
 | Anchor | What It Does |
 |--------|-------------|
 | **Agent Enablement** | Bots + Replicants run in pods with WebID, ACP |
-| **Essential Tools** | 10 MCP servers + Okapi for inference |
+| **Essential Tools** | 16 MCP servers + Okapi for inference |
 | **User Sovereignty** | OCAP, SQLCipher encryption, private/public gating |
 | **CNS** | Observability via `cns.*` spans, variety counters, algedonic alerts |
 | **Composition** | Unified registry with `template_type` discriminator |
@@ -38,7 +38,7 @@
 | `hkask-cli` | CLI commands |
 | `hkask-api` | HTTP API (utoipa) |
 
-**MCP Servers:** `inference` (Okapi LLM), `storage`, `memory`, `embedding`, `condenser`, `ensemble`, `web`, `scholar`, `spandrel` (graph), `doc-knowledge`
+**MCP Servers:** `inference` (Okapi LLM), `condenser`, `web`, `scholar`, `ocap`, `keystore`, `cns`, `git`, `registry`, `gml`, `spec`, `github`, `fmp`, `telnyx`, `fal`, `rss-reader`
 
 **External deps:** Okapi (mdz-axo/Okapi), ACP (acp-runtime), MCP (rmcp)
 

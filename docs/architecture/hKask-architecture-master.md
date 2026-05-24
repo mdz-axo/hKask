@@ -37,7 +37,7 @@ domain: "Cross-cutting"
 | # | Anchor | Implementation |
 |---|--------|----------------|
 | 1 | **Agent Enablement** | Bots + Replicants in pods with WebID, ACP |
-| 2 | **Essential Tools** | MCP servers + Okapi |
+| 2 | **Essential Tools** | 16 MCP servers + Okapi |
 | 3 | **User Sovereignty** | OCAP, SQLCipher, private/public gating |
 | 4 | **CNS** | `cns.*` spans, variety counters, algedonic alerts |
 | 5 | **Composition** | **Unified registry** with template_type discriminator |
@@ -85,15 +85,21 @@ hkask-workspace/
 ├── hkask-api           # HTTP API, utoipa
 │
 ├── hkask-mcp-inference     # Okapi-backed LLM
-├── hkask-mcp-storage       # Storage operations
-├── hkask-mcp-memory        # Memory operations
-├── hkask-mcp-embedding     # Embeddings, similarity
 ├── hkask-mcp-condenser     # Condensation, summarization
-├── hkask-mcp-ensemble      # Multi-agent coordination
 ├── hkask-mcp-web           # Web search, scrape
 ├── hkask-mcp-scholar       # Academic research
-├── hkask-mcp-spandrel      # Graph analysis
-└── hkask-mcp-doc-knowledge # Document extraction
+├── hkask-mcp-ocap          # Capability management
+├── hkask-mcp-keystore      # Keystore operations
+├── hkask-mcp-cns           # CNS operations
+├── hkask-mcp-git           # Git CAS
+├── hkask-mcp-registry      # Registry operations
+├── hkask-mcp-gml           # GML allosteric engine
+├── hkask-mcp-spec          # DDMVSS spec capture
+├── hkask-mcp-github        # GitHub integration
+├── hkask-mcp-fmp           # Financial data (FMP)
+├── hkask-mcp-telnyx        # Communications (Telnyx)
+├── hkask-mcp-fal           # Media generation (FAL)
+├── hkask-mcp-rss-reader    # RSS feed reader
 │
 ├── hkask-testing           # single test crate
 │   ├── unit-tests/         # Unit tests moved from inline modules
@@ -209,7 +215,7 @@ cargo fmt --check
 | GML (Allosteric Thinking) | `docs/gml/README.md` |
 | Architecture | `docs/architecture/` |
 | CI/CD | `docs/CI-CD-GUIDE.md` |
-| Okapi Integration | `docs/P0_OKAPI_INTEGRATION_PLAN.md` |
+| Okapi Integration | `docs/integrations/okapi-integration.md` |
 | Entity Relationships | `docs/architecture/hKask-erd.md` |
 | Registry & Templating | `docs/architecture/registry-templating-prompt-v2.md` |
 | Agent Operating Guide | `AGENTS.md` |

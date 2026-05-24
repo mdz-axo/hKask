@@ -17,7 +17,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 | # | Anchor | Implementation |
 |---|--------|----------------|
 | 1 | **Agent Enablement** | Bots + Replicants in pods with WebID, ACP |
-| 2 | **Essential Tools** | 10 MCP servers + Okapi |
+| 2 | **Essential Tools** | 16 MCP servers + Okapi |
 | 3 | **User Sovereignty** | OCAP, SQLCipher, private/public gating |
 | 4 | **CNS** | `cns.*` spans, variety counters, algedonic alerts |
 | 5 | **Composition** | Unified registry with template_type discriminator |
@@ -39,17 +39,27 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 - `hkask-cli` — CLI commands
 - `hkask-api` — HTTP API, utoipa OpenAPI
 
-### MCP Servers (10 crates)
+### MCP Servers (16 crates)
 - `hkask-mcp-inference` — Okapi-backed LLM inference
-- `hkask-mcp-storage` — Storage operations
-- `hkask-mcp-memory` — Memory operations
-- `hkask-mcp-embedding` — Embeddings, similarity
 - `hkask-mcp-condenser` — Template condensation
-- `hkask-mcp-ensemble` — Multi-agent coordination
 - `hkask-mcp-web` — Web search, scrape
 - `hkask-mcp-scholar` — Academic research
-- `hkask-mcp-spandrel` — Graph analysis
-- `hkask-mcp-doc-knowledge` — Document extraction
+- `hkask-mcp-ocap` — Capability management
+- `hkask-mcp-keystore` — Keystore operations
+- `hkask-mcp-cns` — CNS operations
+- `hkask-mcp-git` — Git CAS
+- `hkask-mcp-registry` — Registry operations
+- `hkask-mcp-gml` — GML allosteric engine
+- `hkask-mcp-spec` — DDMVSS spec capture
+- `hkask-mcp-github` — GitHub integration
+- `hkask-mcp-fmp` — Financial data (FMP)
+- `hkask-mcp-telnyx` — Communications (Telnyx)
+- `hkask-mcp-fal` — Media generation (FAL)
+- `hkask-mcp-rss-reader` — RSS feed reader
+
+**Converted to templates** (not MCP servers):
+- `spandrel` → `templates/spandrel/` (graph analysis)
+- `doc-knowledge` → `templates/doc-knowledge/` (document extraction)
 
 ---
 
@@ -96,7 +106,7 @@ hKask is "done" when a single user can:
 3. Observe ≥3 subsystem-curator bots spawn at startup
 4. Trigger ensemble session with ≥2 subsystem-curators deliberating
 5. Invoke any operation through CLI or HTTP API with identical behavior
-6. Invoke any tool from 10 MCP set; observe routing
+6. Invoke any tool from 16 MCP set; observe routing
 7. Compose two tools via process template
 8. Record episodic memory with confidence
 9. Retrieve memory; observe `as-of` query returns historical state
@@ -127,7 +137,6 @@ cargo fmt --check
 - `docs/architecture/hKask-architecture-master.md` — Sole authoritative spec (v0.21.0)
 - `docs/architecture/hKask-erd.md` — Entity relationship diagrams
 - `docs/architecture/registry-templating-prompt-v2.md` — Registry & templating design
-- `docs/architecture/hKask-implementation-handoff.md` — Implementation handoff
 - `AGENTS.md` — Agent operating guide
 
 ---

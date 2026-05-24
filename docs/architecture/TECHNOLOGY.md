@@ -43,7 +43,7 @@ hKask is built on Rust 2024 edition (1.91 toolchain) with Tokio async runtime, S
 
 | Layer | Technology | Version | Purpose |
 |-------|------------|---------|---------|
-| **Language** | Rust | 2021 edition (1.91) | System programming, memory safety |
+| **Language** | Rust | 2024 edition (1.91) | System programming, memory safety |
 | **Async Runtime** | Tokio | 1.x | Async I/O, multi-threaded scheduler |
 | **Serialization** | Serde | 1.x | JSON/YAML serialization |
 | **Database** | SQLite | 3.x + SQLCipher | Encrypted persistent storage |
@@ -187,7 +187,7 @@ status: VERIFIED
 │  │  └──────────────┬──────────────┘  │  │
 │  │                 │                 │  │
 │  │  ┌──────────────▼──────────────┐  │  │
-│  │  │  MCP Servers (10)           │  │  │
+│  │  │  MCP Servers (16)           │  │  │
 │  │  └──────────────┬──────────────┘  │  │
 │  │                 │                 │  │
 │  │  ┌──────────────▼──────────────┐  │  │

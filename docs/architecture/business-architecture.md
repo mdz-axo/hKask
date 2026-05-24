@@ -100,12 +100,12 @@ status: VERIFIED
 
 ## 3. Business Capabilities
 
-### 3.1 Core Capabilities (19 MCP Servers)
+### 3.1 Core Capabilities (16 MCP Servers)
 
 | Capability | MCP Server | Business Service | Status |
 |------------|------------|------------------|--------|
-| **Embedding** | `hkask-mcp-embedding` | Vector generation, similarity search | ✅ Enabled |
-| **Condenser** | `hkask-mcp-condenser` | Template abstraction, summarization | ✅ Enabled |
+| **Inference** | `hkask-mcp-inference` | Okapi LLM inference | ✅ Enabled |
+| **Condenser** | `hkask-mcp-condenser` | Template condensation, summarization | ✅ Enabled |
 | **Web** | `hkask-mcp-web` | Search, scrape, extract | ✅ Enabled |
 | **Scholar** | `hkask-mcp-scholar` | Academic research | ✅ Enabled |
 | **OCAP** | `hkask-mcp-ocap` | Capability management | ✅ Enabled |
@@ -113,7 +113,8 @@ status: VERIFIED
 | **CNS** | `hkask-mcp-cns` | CNS operations | ✅ Enabled |
 | **Git** | `hkask-mcp-git` | Git CAS operations | ✅ Enabled |
 | **Registry** | `hkask-mcp-registry` | Registry operations | ✅ Enabled |
-| **GML** | `hkask-mcp-gml` | GML operations | ✅ Enabled |
+| **GML** | `hkask-mcp-gml` | GML allosteric engine | ✅ Enabled |
+| **Spec** | `hkask-mcp-spec` | DDMVSS spec capture | ✅ Enabled |
 | **GitHub** | `hkask-mcp-github` | GitHub integration | ✅ Enabled |
 | **FMP** | `hkask-mcp-fmp` | FMP integration | ✅ Enabled |
 | **Telnyx** | `hkask-mcp-telnyx` | Telnyx integration | ✅ Enabled |

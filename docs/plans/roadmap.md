@@ -26,8 +26,8 @@ domain: "Business"
 
 hKask development follows a phased approach prioritizing minimal viable functionality (v0.21.0 MVP) before operational enhancements (v1.1+) and feature expansion (v1.2+).
 
-**Current State:** v0.21.0 MVP in progress — Phase 5 (Security Hardening & Integration Tests) complete  
-**Tests:** 237 passing across workspace
+**Current State:** v0.21.0 MVP in progress — Phase 8 (CLI/API) complete  
+**Tests:** 210 passing across workspace
 
 **Timeline:**
 - **Phase 1-2:** Core types, storage, CNS (complete)
@@ -49,9 +49,9 @@ hKask development follows a phased approach prioritizing minimal viable function
 | **Phase 3: CNS** | `hkask-cns` (variety counters, algedonic alerts, cns.* spans) | ✅ Complete | 2026-05 |
 | **Phase 4: Templates** | `hkask-templates` (registry, cascade, hLexicon grounding) | ✅ Complete | 2026-05 |
 | **Phase 5: Agents** | `hkask-agents` (pods, ACP, manifests), `hkask-ensemble` | ✅ Complete | 2026-05 |
-| **Phase 6: MCP Runtime** | `hkask-mcp` (dispatch, security adapter), 19 MCP servers | ✅ Complete | 2026-05 |
+| **Phase 6: MCP Runtime** | `hkask-mcp` (dispatch, security adapter), 16 MCP servers | ✅ Complete | 2026-05 |
 | **Phase 7: Security** | Capability attenuation, path blocking, Jinja2 sanitization | ✅ Complete | 2026-05-20 |
-| **Phase 8: Testing** | 237 tests (hkask-types: 50, hkask-cns: 49, hkask-templates: 138) | ✅ Complete | 2026-05-20 |
+| **Phase 8: Testing** | 210 tests across workspace | ✅ Complete | 2026-05-23 |
 
 ### 2.2 In Progress
 
@@ -185,7 +185,7 @@ grep -r "νKask\|OKH\|three registries" docs/ --include="*.md" --exclude-dir=arc
 
 | Metric | Target | Current | Status |
 |--------|--------|---------|--------|
-| **Test Coverage** | ≥200 tests | 237 | ✅ Pass |
+| **Test Coverage** | ≥200 tests | 210 | ✅ Pass |
 | **TOGAF Coverage** | 9 phases | 7 of 10 (70%) | ⚠️ In progress |
 | **Writing Excellence** | ≥80% passing | 92% | ✅ Pass |
 | **Security Hardening** | All P0 tasks | Complete | ✅ Pass |

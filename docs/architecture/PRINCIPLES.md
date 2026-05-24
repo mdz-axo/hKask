@@ -30,7 +30,7 @@ hKask is built on five non-negotiable anchor capabilities that define the system
 graph TD
     subgraph Anchors[Five Anchor Capabilities]
         A1[1. Agent Enablement<br/>Bots + Replicants in pods]
-        A2[2. Essential Tools<br/>19 MCP servers + Okapi]
+        A2[2. Essential Tools<br/>16 MCP servers + Okapi]
         A3[3. User Sovereignty<br/>OCAP, SQLCipher, gating]
         A4[4. CNS<br/>cns.* spans, variety counters]
         A5[5. Composition<br/>Unified registry, hLexicon]
@@ -70,13 +70,13 @@ status: VERIFIED
 
 ### 1.2 Essential Tools
 
-**Principle:** Nineteen MCP servers provide all external tooling — no direct HTTP calls from agents.[^mcp]
+**Principle:** Sixteen MCP servers provide all external tooling — no direct HTTP calls from agents.[^mcp]
 
-**Implementation (19 Total):**
+**Implementation (16 Total):**
 
-**Enabled (15):**
-- `hkask-mcp-embedding` — Vector generation, similarity
-- `hkask-mcp-condenser` — Template abstraction
+**Enabled (16):**
+- `hkask-mcp-inference` — Okapi LLM inference
+- `hkask-mcp-condenser` — Template condensation
 - `hkask-mcp-web` — Search, scrape, extract
 - `hkask-mcp-scholar` — Academic research
 - `hkask-mcp-ocap` — Capability management
@@ -84,18 +84,13 @@ status: VERIFIED
 - `hkask-mcp-cns` — CNS operations
 - `hkask-mcp-git` — Git CAS
 - `hkask-mcp-registry` — Registry operations
-- `hkask-mcp-gml` — GML operations
+- `hkask-mcp-gml` — GML allosteric engine
+- `hkask-mcp-spec` — DDMVSS spec capture
 - `hkask-mcp-github` — GitHub integration
 - `hkask-mcp-fmp` — FMP integration
 - `hkask-mcp-telnyx` — Telnyx integration
 - `hkask-mcp-fal` — FAL integration
 - `hkask-mcp-rss-reader` — RSS feeds
-
-**Exists but Commented (4):**
-- `hkask-mcp-inference` — Okapi LLM
-- `hkask-mcp-storage` — Storage operations
-- `hkask-mcp-memory` — Memory pipelines
-- `hkask-mcp-ensemble` — Multi-agent chat
 
 **Converted to Templates (per AGENTS.md):**
 - `hkask-mcp-spandrel` → Graph analysis templates

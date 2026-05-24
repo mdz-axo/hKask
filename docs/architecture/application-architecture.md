@@ -15,7 +15,7 @@ domain: "Application"
 
 # hKask Application Architecture
 
-**Purpose:** 21-crate dependency graph, MCP server dispatch pattern, unified template registry, and bot manifest lifecycle.
+**Purpose:** 28-crate dependency graph, MCP server dispatch pattern, unified template registry, and bot manifest lifecycle.
 
 **Related:** [`business-architecture.md`](business-architecture.md), [`data-architecture.md`](data-architecture.md)  
 **TOGAF Phase:** C — Application Architecture[^togaf-app]
@@ -24,15 +24,15 @@ domain: "Application"
 
 ## 1. Executive Summary
 
-hKask application architecture consists of 31 Rust crates organized into three layers: Core (11 crates), MCP Servers (19 crates), and Testing (1 crate).
+hKask application architecture consists of 28 Rust crates organized into three layers: Core (11 crates), MCP Servers (16 crates), and Testing (1 crate).
 
 **Key Design Decisions:**
 - **Unified registry** — Single registry with `template_type` discriminator (not three separate)
-- **MCP dispatch** — Port/adapter pattern for all 19 MCP servers
+- **MCP dispatch** — Port/adapter pattern for all 16 MCP servers
 - **Bot manifests** — Pull/edit/push lifecycle with YAML validation
 - **Template cascade** — Jinja2 rendering with LLM-based selection
 
-**Tests:** 254 passing across workspace
+**Tests:** 210 passing across workspace
 
 **Verification:** `cargo check --workspace && cargo test --workspace`
 
@@ -56,9 +56,9 @@ graph TD
         API[hkask-api<br/>~2k LOC<br/>HTTP API, utoipa]
     end
     
-    subgraph MCPs[MCP Servers — 19 Crates, Excluded from Budget]
-        EMBEDDING[hkask-mcp-embedding<br/>Vector generation]
-        CONDENSER[hkask-mcp-condenser<br/>Template abstraction]
+    subgraph MCPs[MCP Servers — 16 Crates, Excluded from Budget]
+        INFERENCE[hkask-mcp-inference<br/>Okapi LLM]
+        CONDENSER[hkask-mcp-condenser<br/>Template condensation]
         WEB[hkask-mcp-web<br/>Search, scrape]
         SCHOLAR[hkask-mcp-scholar<br/>Academic research]
         OCAP[hkask-mcp-ocap<br/>Capability management]
@@ -66,16 +66,13 @@ graph TD
         CNS[hkask-mcp-cns<br/>CNS operations]
         GIT[hkask-mcp-git<br/>Git CAS]
         REGISTRY[hkask-mcp-registry<br/>Registry ops]
-        GML[hkask-mcp-gml<br/>GML operations]
+        GML[hkask-mcp-gml<br/>GML allosteric engine]
+        SPEC[hkask-mcp-spec<br/>DDMVSS spec capture]
         GITHUB[hkask-mcp-github<br/>GitHub integration]
         FMP[hkask-mcp-fmp<br/>FMP integration]
         TELNYX[hkask-mcp-telnyx<br/>Telnyx integration]
         FAL[hkask-mcp-fal<br/>FAL integration]
         RSS[hkask-mcp-rss-reader<br/>RSS feeds]
-        INFERENCE[hkask-mcp-inference<br/>Okapi LLM (commented)]
-        STORAGE_MCP[hkask-mcp-storage<br/>Storage (commented)]
-        MEMORY_MCP[hkask-mcp-memory<br/>Memory (commented)]
-        ENSEMBLE_MCP[hkask-mcp-ensemble<br/>Ensemble (commented)]
     end
     
     subgraph Testing[hkask-testing — Excluded from Budget]
@@ -172,7 +169,7 @@ status: VERIFIED
 
 | Server | Port Trait | Adapter | Tools | Status |
 |--------|------------|---------|-------|--------|
-| `hkask-mcp-embedding` | `EmbeddingProvider` | `EmbeddingModel` | `embed`, `similarity` | ✅ Enabled |
+| `hkask-mcp-inference` | `InferenceProvider` | `OkapiConnector` | `generate`, `chat`, `complete` | ✅ Enabled |
 | `hkask-mcp-condenser` | `CondenserProvider` | `TemplateAbstraction` | `abstract`, `summarize` | ✅ Enabled |
 | `hkask-mcp-web` | `WebProvider` | `FirecrawlConnector` | `search`, `scrape`, `extract` | ✅ Enabled |
 | `hkask-mcp-scholar` | `ScholarProvider` | `SemanticScholarApi` | `search_papers`, `get_citations` | ✅ Enabled |
@@ -182,15 +179,12 @@ status: VERIFIED
 | `hkask-mcp-git` | `GitProvider` | `GitCAS` | `store_artifact`, `resolve_ref` | ✅ Enabled |
 | `hkask-mcp-registry` | `RegistryProvider` | `TemplateRegistry` | `list`, `get`, `select` | ✅ Enabled |
 | `hkask-mcp-gml` | `GMLProvider` | `GmlEngine` | `compute_equilibrium`, `bind_effector` | ✅ Enabled |
+| `hkask-mcp-spec` | `SpecProvider` | `SpecCapture` | `capture`, `decompose`, `bind` | ✅ Enabled |
 | `hkask-mcp-github` | `GitHubProvider` | `GitHubApi` | `list_issues`, `create_pr` | ✅ Enabled |
 | `hkask-mcp-fmp` | `FMPProvider` | `FmpApi` | `get_quote`, `get_financials` | ✅ Enabled |
 | `hkask-mcp-telnyx` | `TelnyxProvider` | `TelnyxApi` | `send_sms`, `make_call` | ✅ Enabled |
 | `hkask-mcp-fal` | `FALProvider` | `FalApi` | `generate_image`, `upscale` | ✅ Enabled |
 | `hkask-mcp-rss-reader` | `RSSProvider` | `RssParser` | `fetch_feed`, `parse_entries` | ✅ Enabled |
-| `hkask-mcp-inference` | `InferenceProvider` | `OkapiConnector` | `generate`, `chat`, `complete` | ⚠️ Commented |
-| `hkask-mcp-storage` | `StorageProvider` | `SqliteStorage` | `store_triple`, `query_triples` | ⚠️ Commented |
-| `hkask-mcp-memory` | `MemoryProvider` | `MemoryPipeline` | `promote`, `retrieve` | ⚠️ Commented |
-| `hkask-mcp-ensemble` | `EnsembleProvider` | `ChatOrchestrator` | `chat`, `coordinate` | ⚠️ Commented |
 
 **Converted to Templates:**
 - `hkask-mcp-spandrel` → Graph analysis via templates
