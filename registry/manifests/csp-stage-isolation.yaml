@@ -1,6 +1,7 @@
 # CSP Stage Isolation Configuration
 # ℏKask v0.21.2 — Planck's Constant of Agent Systems
-# functional_role: flowdef
+
+functional_role: flowdef
 
 # Stage execution configuration
 stage_execution:

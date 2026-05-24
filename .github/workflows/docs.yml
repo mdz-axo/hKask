@@ -34,7 +34,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Install Rust toolchain
-        uses: dtolnay/rust-action@stable
+        uses: dtolnay/rust-toolchain@stable
         with:
           components: rust-docs
       
@@ -152,7 +152,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Install markdown-link-check
-        run: cargo install markdown-link-check
+        run: npm install -g markdown-link-check
       
       - name: Check README links
         run: |
@@ -174,7 +174,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Install Rust toolchain
-        uses: dtolnay/rust-action@stable
+        uses: dtolnay/rust-toolchain@stable
       
       - name: Install system dependencies
         run: |

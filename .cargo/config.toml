@@ -22,11 +22,6 @@ rustflags = ["-C", "target-cpu=native"]
 # Set environment variables for builds
 # RUST_LOG = "debug"
 
-# Incremental compilation settings
-[incremental]
-# Uncomment for faster rebuilds in development:
-# true = true
-
 # Registry configuration
 [registry]
 default-registry = "crates-io"

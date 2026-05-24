@@ -8,21 +8,21 @@
 | Metric | Value |
 |--------|-------|
 | Total Templates/Manifests | 81 |
-| With functional_role | 78 |
-| Missing functional_role | 3 |
-| Compliance Rate | 96% |
+| With functional_role | 81 |
+| Missing functional_role | 0 |
+| Compliance Rate | 100% |
 
 ## Functional Distribution
 
 | Category | Count | Percentage |
 |----------|-------|------------|
 | WordAct | 11 | 13% |
-| FlowDef | 40 | 50% |
-| KnowAct | 27 | 34% |
+| FlowDef | 43 | 52% |
+| KnowAct | 27 | 32% |
 
 ## Validation Results
 
-❌ 3 templates missing functional_role
+✅ All templates have functional_role declared
 ✅ Distribution balanced (no category >60%)
 
 ## Templates Missing functional_role
