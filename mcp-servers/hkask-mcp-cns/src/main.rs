@@ -2,11 +2,7 @@
 
 use hkask_cns::{CnsRuntime, DEFAULT_THRESHOLD, SpanEmitter};
 use hkask_types::{Span, WebID};
-use rmcp::{
-    ServiceExt,
-    handler::server::wrapper::Parameters,
-    tool, tool_router, transport::stdio,
-};
+use rmcp::{ServiceExt, handler::server::wrapper::Parameters, tool, tool_router, transport::stdio};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use std::sync::Arc;
@@ -49,6 +45,12 @@ pub struct CnsServer {
     emitter: Arc<RwLock<SpanEmitter>>,
 }
 
+impl Default for CnsServer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CnsServer {
     pub fn new() -> Self {
         let threshold = std::env::var("HKASK_CNS_THRESHOLD")
@@ -68,7 +70,7 @@ impl CnsServer {
 
     fn parse_span(raw: &str) -> Span {
         let parts: Vec<&str> = raw.splitn(3, '.').collect();
-        match parts.get(1).map(|s| *s) {
+        match parts.get(1).copied() {
             Some("connector") => Span::Connector(raw.to_string()),
             Some("pipeline") => Span::Pipeline(raw.to_string()),
             Some("tool") => Span::Tool(raw.to_string()),
@@ -103,9 +105,7 @@ impl CnsServer {
         let emitter = self.emitter.read().await;
         emitter.emit(span_enum, observation_value);
 
-        self.runtime
-            .increment_variety(&span, &phase)
-            .await;
+        self.runtime.increment_variety(&span, &phase).await;
 
         format!(
             r#"{{"span":"{}","observer":"{}","phase":"{}","emitted":true}}"#,
@@ -207,8 +207,11 @@ impl CnsServer {
         let health = self.runtime.health().await;
         format!(
             r#"{{"healthy":{},"active_alerts":{},"critical_count":{},"warning_count":{},"overall_deficit":{}}}"#,
-            health.healthy, health.critical_count + health.warning_count,
-            health.critical_count, health.warning_count, health.overall_deficit
+            health.healthy,
+            health.critical_count + health.warning_count,
+            health.critical_count,
+            health.warning_count,
+            health.overall_deficit
         )
     }
 }

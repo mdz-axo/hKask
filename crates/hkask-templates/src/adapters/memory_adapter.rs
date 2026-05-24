@@ -2,9 +2,12 @@
 //!
 //! Provides:
 //! - `StubMemoryPort`: Returns empty results (for testing)
-//! - `MemoryAdapter`: Connects to real SemanticMemory + EpisodicMemory
+//! - `MemoryAdapter`: Generic wrapper (for custom types)
+//! - `AppMemoryAdapter`: Concrete adapter for SemanticMemory + EpisodicMemory
 
 use crate::ports::{MemoryFragment, MemoryPort, Result};
+use hkask_memory::{EpisodicMemory, SemanticMemory};
+use hkask_types::WebID;
 
 pub struct StubMemoryPort;
 
@@ -22,24 +25,6 @@ impl MemoryPort for StubMemoryPort {
     }
 }
 
-/// Memory adapter that connects to real SemanticMemory + EpisodicMemory.
-///
-/// This adapter converts hkask-storage Triple types into MemoryFragment types
-/// expected by the template system.
-///
-/// # Example
-///
-/// ```ignore
-/// use hkask_templates::adapters::memory_adapter::MemoryAdapter;
-/// use hkask_memory::{SemanticMemory, EpisodicMemory};
-///
-/// let semantic = SemanticMemory::new(triple_store.clone(), embedding_store);
-/// let episodic = EpisodicMemory::new(triple_store);
-/// let adapter = MemoryAdapter::new(semantic, episodic);
-///
-/// let executor = ManifestExecutorImpl::new(renderer, inference, mcp, cns)
-///     .with_memory(Box::new(adapter));
-/// ```
 pub struct MemoryAdapter<S, E> {
     _semantic: S,
     _episodic: E,
@@ -54,46 +39,51 @@ impl<S, E> MemoryAdapter<S, E> {
     }
 }
 
-// Note: The actual MemoryPort implementation requires hkask-memory as a dependency,
-// which would create a circular dependency. Instead, users should implement MemoryPort
-// for their specific memory types in their application code, or use the StubMemoryPort
-// for testing.
-//
-// Example implementation in application code:
-//
-// ```ignore
-// use hkask_templates::ports::{MemoryFragment, MemoryPort};
-// use hkask_memory::{SemanticMemory, EpisodicMemory};
-//
-// struct AppMemoryAdapter {
-//     semantic: SemanticMemory,
-//     episodic: EpisodicMemory,
-// }
-//
-// impl MemoryPort for AppMemoryAdapter {
-//     fn query_semantic(&self, entity: &str) -> Vec<MemoryFragment> {
-//         self.semantic.query_deduped(entity)
-//             .unwrap_or_default()
-//             .into_iter()
-//             .map(|triple| MemoryFragment {
-//                 content: format!("{}: {} = {}", triple.entity, triple.attribute, triple.value),
-//                 source: "semantic".to_string(),
-//                 confidence: triple.confidence,
-//             })
-//             .collect()
-//     }
-//
-//     fn query_episodic(&self, entity: &str, perspective: &str) -> Vec<MemoryFragment> {
-//         // Similar implementation for episodic memory
-//         Vec::new()
-//     }
-//
-//     fn get_session_history(&self, session_id: &str, max_messages: usize) -> Vec<String> {
-//         // Query session storage
-//         Vec::new()
-//     }
-// }
-// ```
+pub struct AppMemoryAdapter {
+    semantic: SemanticMemory,
+    episodic: EpisodicMemory,
+}
+
+impl AppMemoryAdapter {
+    pub fn new(semantic: SemanticMemory, episodic: EpisodicMemory) -> Self {
+        Self { semantic, episodic }
+    }
+}
+
+impl MemoryPort for AppMemoryAdapter {
+    fn query_semantic(&self, entity: &str) -> Result<Vec<MemoryFragment>> {
+        Ok(self
+            .semantic
+            .query_deduped(entity)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|triple| MemoryFragment {
+                content: format!("{}: {} = {}", triple.entity, triple.attribute, triple.value),
+                source: "semantic".to_string(),
+                confidence: triple.confidence,
+            })
+            .collect())
+    }
+
+    fn query_episodic(&self, entity: &str, perspective: &str) -> Result<Vec<MemoryFragment>> {
+        let webid = WebID::from_string(perspective);
+        Ok(self
+            .episodic
+            .query_for_deduped(entity, webid)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|triple| MemoryFragment {
+                content: format!("{}: {} = {}", triple.entity, triple.attribute, triple.value),
+                source: "episodic".to_string(),
+                confidence: triple.confidence,
+            })
+            .collect())
+    }
+
+    fn get_session_history(&self, _session_id: &str, _max_messages: usize) -> Result<Vec<String>> {
+        Ok(Vec::new())
+    }
+}
 
 #[cfg(test)]
 mod tests {

@@ -1,12 +1,8 @@
 //! hKask MCP Registry — Template registry with real registry operations
 
-use hkask_templates::{Registry, RegistryEntry, RegistryIndex, SqliteRegistry};
+use hkask_templates::{Registry, RegistryIndex, SqliteRegistry};
 use hkask_types::TemplateType;
-use rmcp::{
-    ServiceExt,
-    handler::server::wrapper::Parameters,
-    tool, tool_router, transport::stdio,
-};
+use rmcp::{ServiceExt, handler::server::wrapper::Parameters, tool, tool_router, transport::stdio};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use std::sync::Arc;
@@ -50,6 +46,12 @@ pub struct GetRequest {
 
 pub struct RegistryServer {
     registry: Arc<RwLock<Registry>>,
+}
+
+impl Default for RegistryServer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl RegistryServer {
@@ -134,8 +136,8 @@ impl RegistryServer {
                 e.lexicon_terms
                     .iter()
                     .any(|t| t.contains(hint) || hint.contains(t))
-                || e.description.contains(hint)
-                || e.id.contains(hint)
+                    || e.description.contains(hint)
+                    || e.id.contains(hint)
             });
         }
 

@@ -1,13 +1,9 @@
 //! hKask MCP Keystore — OS keychain storage with AES-256-GCM
 
-use hkask_keystore::encryption::EncryptionService;
 use hkask_keystore::Keychain;
+use hkask_keystore::encryption::EncryptionService;
 use hkask_types::WebID;
-use rmcp::{
-    ServiceExt,
-    handler::server::wrapper::Parameters,
-    tool, tool_router, transport::stdio,
-};
+use rmcp::{ServiceExt, handler::server::wrapper::Parameters, tool, tool_router, transport::stdio};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -59,8 +55,13 @@ struct EncryptedEntry {
 
 pub struct KeystoreServer {
     keychain: Keychain,
-    encryption: Arc<RwLock<Option<EncryptionService>>>,
     entries: Arc<RwLock<HashMap<String, EncryptedEntry>>>,
+}
+
+impl Default for KeystoreServer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl KeystoreServer {
@@ -69,36 +70,12 @@ impl KeystoreServer {
             .unwrap_or_else(|_| "hkask-keystore".to_string());
         Self {
             keychain: Keychain::new(&service_name),
-            encryption: Arc::new(RwLock::new(None)),
             entries: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
     fn full_key(service: &Option<String>, key: &str) -> String {
-        format!(
-            "{}:{}",
-            service.as_deref().unwrap_or("default"),
-            key
-        )
-    }
-
-    async fn get_encryption(&self) -> EncryptionService {
-        let guard = self.encryption.read().await;
-        if let Some(ref enc) = *guard {
-            let salt = EncryptionService::generate_salt();
-            EncryptionService::new("hkask-mcp-keystore", &salt)
-                .expect("encryption service creation should not fail")
-        } else {
-            drop(guard);
-            let salt = EncryptionService::generate_salt();
-            let enc = EncryptionService::new("hkask-mcp-keystore", &salt)
-                .expect("encryption service creation should not fail");
-            let mut guard = self.encryption.write().await;
-            *guard = Some(enc);
-            guard.as_ref().unwrap().encrypt(b"init").expect("encryption init");
-            EncryptionService::new("hkask-mcp-keystore", &salt)
-                .expect("encryption service creation should not fail")
-        }
+        format!("{}:{}", service.as_deref().unwrap_or("default"), key)
     }
 }
 
@@ -164,7 +141,9 @@ impl KeystoreServer {
         }
     }
 
-    #[tool(description = "Get a value from the keystore (capability-gated: only owner pod can read)")]
+    #[tool(
+        description = "Get a value from the keystore (capability-gated: only owner pod can read)"
+    )]
     async fn keystore_get(
         &self,
         Parameters(GetRequest {

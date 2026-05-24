@@ -109,6 +109,63 @@ impl EmbeddingStore {
         Ok(results)
     }
 
+    pub fn search(
+        &self,
+        query: &[f32],
+        limit: usize,
+    ) -> Result<Vec<(Embedding, f64)>, EmbeddingError> {
+        let expected_dim = crate::database::embedding_dim();
+        if query.len() != expected_dim {
+            return Err(EmbeddingError::DimensionMismatch {
+                expected: expected_dim,
+                got: query.len(),
+            });
+        }
+
+        let conn = self.conn.lock().unwrap();
+        let query_bytes = Self::vector_to_bytes(query);
+
+        let mut stmt = conn.prepare(
+            "SELECT e.id, e.entity_ref, e.vector, e.dimensions, e.model, v.distance \
+             FROM vec_embeddings v \
+             JOIN embeddings e ON v.id = e.id \
+             WHERE v.embedding MATCH ?1 AND k = ?2 \
+             ORDER BY v.distance",
+        )?;
+
+        let results = stmt
+            .query_map(rusqlite::params![query_bytes, limit as i64], |row| {
+                let id: String = row.get(0)?;
+                let entity_ref: Option<String> = row.get(1)?;
+                let vector_bytes: Vec<u8> = row.get(2)?;
+                let dimensions: i64 = row.get(3)?;
+                let model: String = row.get(4)?;
+                let distance: f64 = row.get(5)?;
+
+                let vector: Vec<f32> = vector_bytes
+                    .chunks_exact(4)
+                    .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
+                    .collect();
+
+                Ok((
+                    Embedding {
+                        id,
+                        entity_ref: entity_ref
+                            .and_then(|s| s.parse().ok())
+                            .map(TripleID),
+                        vector,
+                        dimensions: dimensions as usize,
+                        model,
+                    },
+                    distance,
+                ))
+            })?
+            .filter_map(|r| r.ok())
+            .collect();
+
+        Ok(results)
+    }
+
     pub fn delete(&self, id: &str) -> Result<(), EmbeddingError> {
         let conn = self.conn.lock().unwrap();
         conn.execute(

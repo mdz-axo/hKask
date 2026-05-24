@@ -3,11 +3,7 @@
 use hkask_types::{
     CapabilityAction, CapabilityChecker, CapabilityResource, CapabilityToken, WebID,
 };
-use rmcp::{
-    ServiceExt,
-    handler::server::wrapper::Parameters,
-    tool, tool_router, transport::stdio,
-};
+use rmcp::{ServiceExt, handler::server::wrapper::Parameters, tool, tool_router, transport::stdio};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
@@ -46,6 +42,12 @@ pub struct OcapServer {
     secret: Vec<u8>,
 }
 
+impl Default for OcapServer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OcapServer {
     pub fn new() -> Self {
         let secret = std::env::var("HKASK_OCAP_SECRET")
@@ -75,7 +77,7 @@ impl OcapServer {
 
     fn parse_action(cap: &str) -> CapabilityAction {
         let parts: Vec<&str> = cap.split(':').collect();
-        match parts.get(1).map(|s| *s) {
+        match parts.get(1).copied() {
             Some("read") => CapabilityAction::Read,
             Some("write") => CapabilityAction::Write,
             Some("execute") => CapabilityAction::Execute,

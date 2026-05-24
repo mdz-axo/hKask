@@ -261,8 +261,13 @@ struct NuEventRow {
 }
 
 impl hkask_types::NuEventSink for NuEventStore {
-    fn persist(&self, event: &NuEvent) -> Result<(), String> {
-        self.insert(event).map_err(|e| e.to_string())
+    fn persist(&self, event: &NuEvent) -> Result<(), hkask_types::NuEventSinkError> {
+        self.insert(event).map_err(|e| match e {
+            NuEventError::Database(msg) => hkask_types::NuEventSinkError::Database(msg.to_string()),
+            NuEventError::Serialization(msg) => {
+                hkask_types::NuEventSinkError::Serialization(msg.to_string())
+            }
+        })
     }
 }
 
