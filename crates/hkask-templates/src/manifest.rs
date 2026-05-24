@@ -5,8 +5,9 @@
 
 use crate::context_assembly::{ContextAssembler, ContextFragment, FragmentSource};
 use crate::ports::{
-    Action, CnsPort, DEFAULT_MATROSHKA_LIMIT, InferenceConfig, SyncInferencePort, ManifestExecutor,
-    ManifestStep, McpPort, MemoryPort, ProcessManifest, Result, TemplateError, TemplateRenderer,
+    Action, CnsPort, DEFAULT_MATROSHKA_LIMIT, InferenceConfig, SyncInferencePort,
+    ManifestExecutor, ManifestStep, McpPort, MemoryPort, ProcessManifest, Result, TemplateError,
+    TemplateRenderer,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -81,6 +82,45 @@ impl Default for SelectorConfig {
     }
 }
 
+/// Energy budget tracker for manifest execution
+#[derive(Debug, Clone)]
+pub struct EnergyAccount {
+    pub budget: u64,
+    pub consumed: u64,
+}
+
+impl EnergyAccount {
+    pub fn new(budget: u64) -> Self {
+        Self { budget, consumed: 0 }
+    }
+
+    pub fn remaining(&self) -> u64 {
+        self.budget.saturating_sub(self.consumed)
+    }
+
+    pub fn debit(&mut self, cost: u64) -> bool {
+        if self.consumed + cost > self.budget {
+            return false;
+        }
+        self.consumed += cost;
+        true
+    }
+}
+
+/// CSP enforcement hook — implemented by the CSP module to gate steps
+pub trait CspEnforcer {
+    fn enforce(&self, step: &ManifestStep, state: &Value) -> Result<()>;
+}
+
+/// No-op CSP enforcer for when CSP is not configured
+pub struct NoopCsp;
+
+impl CspEnforcer for NoopCsp {
+    fn enforce(&self, _step: &ManifestStep, _state: &Value) -> Result<()> {
+        Ok(())
+    }
+}
+
 /// Core manifest execution loop — fixed logic, applies to ANY manifest
 ///
 /// This is the "loom" that weaves the "thread" (YAML/Jinja2 templates).
@@ -92,10 +132,12 @@ pub struct ManifestExecutorImpl<R, I, M, C> {
     mcp: M,
     cns: C,
     memory: Option<Box<dyn MemoryPort>>,
+    csp: Option<Box<dyn CspEnforcer>>,
     max_depth: u8,
     selector_config: SelectorConfig,
     inference_config: InferenceConfig,
     context_budget: usize,
+    energy_budget: u64,
 }
 
 impl<R, I, M, C> ManifestExecutorImpl<R, I, M, C>
@@ -112,10 +154,12 @@ where
             mcp,
             cns,
             memory: None,
+            csp: None,
             max_depth: DEFAULT_MATROSHKA_LIMIT,
             selector_config: SelectorConfig::default(),
             inference_config: InferenceConfig::default(),
             context_budget: 4096,
+            energy_budget: 10_000,
         }
     }
 
@@ -124,8 +168,18 @@ where
         self
     }
 
+    pub fn with_csp(mut self, csp: Box<dyn CspEnforcer>) -> Self {
+        self.csp = Some(csp);
+        self
+    }
+
     pub fn with_context_budget(mut self, budget: usize) -> Self {
         self.context_budget = budget;
+        self
+    }
+
+    pub fn with_energy_budget(mut self, budget: u64) -> Self {
+        self.energy_budget = budget;
         self
     }
 
@@ -224,55 +278,6 @@ where
             }
         }
 
-        // Priority 3: Memory context (if memory port available)
-        if let Some(memory) = &self.memory {
-            // Extract entity from input for memory queries
-            let entity = input
-                .get(context_keys::ENTITY)
-                .and_then(|v| v.as_str())
-                .unwrap_or("default");
-
-            // Semantic memory
-            let semantic_fragments = memory.query_semantic(entity).unwrap_or_default();
-            for fragment in semantic_fragments {
-                assembler.add(ContextFragment {
-                    content: fragment.content,
-                    source: FragmentSource::SemanticMemory,
-                    embedding: None,
-                    priority: 2,
-                });
-            }
-
-            // Episodic memory (if perspective available)
-            if let Some(perspective) = input
-                .get(context_keys::PERSPECTIVE)
-                .and_then(|v| v.as_str())
-            {
-                let episodic_fragments = memory.query_episodic(entity, perspective).unwrap_or_default();
-                for fragment in episodic_fragments {
-                    assembler.add(ContextFragment {
-                        content: fragment.content,
-                        source: FragmentSource::EpisodicMemory,
-                        embedding: None,
-                        priority: 2,
-                    });
-                }
-            }
-
-            // Session history (if session_id available)
-            if let Some(session_id) = input.get(context_keys::SESSION_ID).and_then(|v| v.as_str()) {
-                let history = memory.get_session_history(session_id, 20).unwrap_or_default();
-                for message in history {
-                    assembler.add(ContextFragment {
-                        content: message,
-                        source: FragmentSource::SessionHistory,
-                        embedding: None,
-                        priority: 3,
-                    });
-                }
-            }
-        }
-
         let stats = assembler.stats().clone();
         let prompt = assembler.render();
         (prompt, stats)
@@ -299,6 +304,7 @@ where
         step: &ManifestStep,
         state: Value,
         depth: u8,
+        energy: &mut EnergyAccount,
     ) -> Result<Value> {
         if depth > self.max_depth {
             return Err(TemplateError::RecursionLimit {
@@ -306,9 +312,33 @@ where
             });
         }
 
+        let step_cost = match step.action {
+            Action::Select => 100,
+            Action::Populate => 50,
+            Action::Execute => 500,
+        };
+        if !energy.debit(step_cost) {
+            self.cns.emit(
+                "cns.energy.algedonic",
+                serde_json::json!({
+                    "consumed": energy.consumed,
+                    "budget": energy.budget,
+                    "step": step.action.as_str(),
+                }),
+                0.0,
+            );
+            return Err(TemplateError::Manifest(format!(
+                "Energy exhausted: {}/{}",
+                energy.consumed, energy.budget
+            )));
+        }
+
+        if let Some(csp) = &self.csp {
+            csp.enforce(step, &state)?;
+        }
+
         let result = match step.action {
             Action::Select => {
-                // Render selector template and call fast model with timeout/retry
                 let prompt = format!("Select template for: {:?}", state);
                 let selection_result = self.inference.call(
                     step.model_tier.as_deref().unwrap_or("fast_local"),
@@ -316,12 +346,10 @@ where
                     &self.inference_config,
                 )?;
 
-                // Check confidence and apply fallback if needed
                 if let Some(confidence) =
                     selection_result.get("confidence").and_then(|v| v.as_f64())
                 {
                     if confidence < self.selector_config.confidence_threshold {
-                        // Emit CNS event for fallback
                         self.cns.emit(
                             "cns.prompt.selector_fallback",
                             Value::String(format!(
@@ -330,8 +358,6 @@ where
                             )),
                             confidence,
                         );
-
-                        // Use fallback template
                         let mut fallback_result = selection_result;
                         if let Some(obj) = fallback_result.as_object_mut() {
                             obj.insert(
@@ -345,13 +371,10 @@ where
                         selection_result
                     }
                 } else {
-                    // No confidence field; pass through
                     selection_result
                 }
             }
             Action::Populate => {
-                // Bind input into selected template's fields using Jinja2 rendering
-                // State should contain selected_template_id from previous Select step
                 let template_id = state
                     .get("selected_template_id")
                     .and_then(|v| v.as_str())
@@ -361,14 +384,10 @@ where
                         )
                     })?;
 
-                // Load template from registry
                 let template_path = std::path::Path::new(template_id);
                 let template = self.renderer.load(template_path)?;
-
-                // Render template with state as bindings
                 let rendered = self.renderer.render(&template, state.clone())?;
 
-                // Emit CNS event for populate
                 self.cns.emit(
                     "cns.prompt.populate",
                     serde_json::json!({
@@ -381,11 +400,8 @@ where
                 Value::String(rendered)
             }
             Action::Execute => {
-                // Execute via MCP tool or inference
                 if let Some(mcp) = &step.mcp {
                     if mcp == "from_template_contract" {
-                        // Target determined by template contract
-                        // Get selected_template_id from state
                         let template_id = state
                             .get("selected_template_id")
                             .and_then(|v| v.as_str())
@@ -395,11 +411,8 @@ where
                                 )
                             })?;
 
-                        // Load template to get its contract
                         let template_path = std::path::Path::new(template_id);
                         let template = self.renderer.load(template_path)?;
-
-                        // Extract target tool from contract (first output field or use template_id as tool name)
                         let target_tool = template
                             .contract
                             .output_fields
@@ -407,10 +420,7 @@ where
                             .cloned()
                             .unwrap_or_else(|| template_id.to_string());
 
-                        // Invoke the target tool
                         let result = self.mcp.invoke(&target_tool, state.clone())?;
-
-                        // Emit CNS event for contract-based execution
                         self.cns.emit(
                             "cns.prompt.execute_contract",
                             serde_json::json!({
@@ -419,18 +429,14 @@ where
                             }),
                             1.0,
                         );
-
                         result
                     } else {
-                        // Invoke specific MCP tool
                         self.mcp.invoke(mcp, state.clone())?
                     }
                 } else {
-                    // Assemble context with deduplication before inference
                     let (assembled_prompt, assembly_stats) =
                         self.assemble_context(manifest, &state);
 
-                    // Emit CNS event for context assembly
                     self.cns.emit(
                         "cns.prompt.context_assembly",
                         serde_json::json!({
@@ -445,7 +451,6 @@ where
                         1.0,
                     );
 
-                    // Call inference with assembled prompt
                     self.inference.call(
                         step.model_tier.as_deref().unwrap_or("balanced"),
                         &assembled_prompt,
@@ -455,7 +460,6 @@ where
             }
         };
 
-        // Emit CNS event for this step
         self.cns.emit(
             &format!("cns.prompt.{}", step.action.as_str()),
             result.clone(),
@@ -489,15 +493,36 @@ where
             "Executing manifest"
         );
 
+        let mut energy = EnergyAccount::new(self.energy_budget);
         let mut state = input;
         for step in &manifest.steps {
-            state = self.execute_step(manifest, step, state, 0)?;
+            let step_result = self.execute_step(manifest, step, state.clone(), 0, &mut energy)?;
+            state = merge_state(state, step_result);
         }
 
-        // Emit final outcome event
+        self.cns.emit(
+            "cns.energy.final",
+            serde_json::json!({
+                "consumed": energy.consumed,
+                "budget": energy.budget,
+            }),
+            1.0,
+        );
         self.cns.emit("cns.prompt.outcome", state.clone(), 1.0);
 
         Ok(state)
+    }
+}
+
+fn merge_state(mut base: Value, step_output: Value) -> Value {
+    match (&mut base, step_output) {
+        (Value::Object(base_map), Value::Object(step_map)) => {
+            for (k, v) in step_map {
+                base_map.insert(k, v);
+            }
+            base
+        }
+        (_, step_output) => step_output,
     }
 }
 

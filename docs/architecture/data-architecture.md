@@ -353,5 +353,3 @@ pub trait StorageProvider {
 ---
 
 *This document describes data architecture. For application components, see [`application-architecture.md`](application-architecture.md).*
-
-**Next:** Task 3.5 — Create `application-architecture.md` (TOGAF Phase C-Application).

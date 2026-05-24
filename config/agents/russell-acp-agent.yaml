@@ -165,64 +165,7 @@ mcp_tools:
         skill_id: spec-curation
         tool: spec/graph/validate
     
-    # Specification curation (via hkask-mcp-spec)
-    - name: russell/spec/goal/capture
-      description: Capture and structure user goals as specifications
-      method: acp/skill/run
-      params:
-        skill_id: spec-curation
-        tool: spec/goal/capture
-    
-    - name: russell/spec/goal/decompose
-      description: Decompose high-level goals into sub-goals
-      method: acp/skill/run
-      params:
-        skill_id: spec-curation
-        tool: spec/goal/decompose
-    
-    - name: russell/spec/require/bind
-      description: Bind requirements to goals with constraints
-      method: acp/skill/run
-      params:
-        skill_id: spec-curation
-        tool: spec/require/bind
-    
-    - name: russell/spec/curate/evaluate
-      description: Evaluate specification collection coherence
-      method: acp/skill/run
-      params:
-        skill_id: spec-curation
-        tool: spec/curate/evaluate
-    
-    - name: russell/spec/curate/reconcile
-      description: Reconcile conflicts between specifications
-      method: acp/skill/run
-      params:
-        skill_id: spec-curation
-        tool: spec/curate/reconcile
-    
-    - name: russell/spec/curate/cultivate
-      description: Cultivate specification collection over time
-      method: acp/skill/run
-      params:
-        skill_id: spec-curation
-        tool: spec/curate/cultivate
-    
-    - name: russell/spec/graph/query
-      description: Query specification dependency graph
-      method: acp/skill/run
-      params:
-        skill_id: spec-curation
-        tool: spec/graph/query
-    
-    - name: russell/spec/graph/validate
-      description: Validate specification graph integrity
-      method: acp/skill/run
-      params:
-        skill_id: spec-curation
-        tool: spec/graph/validate
-
-# Skill routing (hLexicon-based routing for Russell skills)
+ (hLexicon-based routing for Russell skills)
 skill_routing:
   russell:
     # WordAct skills (action verbs)
@@ -235,7 +178,6 @@ skill_routing:
     flowdef:
       - journal-viewer
       - journal-compactor
-      - spec-curation
       - spec-curation
     
     # KnowAct skills (knowledge assertions)

@@ -390,5 +390,3 @@ pub fn emit_security_event(
 ---
 
 *This document describes security architecture including resilience and observability. For governance, see [`GOVERNANCE.md`](../standards/GOVERNANCE.md).*
-
-**Next:** Task 3.8 — Create `GOVERNANCE.md` (TOGAF Phase G/H).

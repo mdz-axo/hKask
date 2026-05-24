@@ -3,13 +3,12 @@
 //! This module provides mock implementations of production port traits
 //! for use in testing. Each mock implements the corresponding port trait.
 
-use async_trait::async_trait;
-use hkask_templates::ports::{SyncInferencePort, McpPort, CnsPort};
-use hkask_types::{TemplateType, WebID};
+use hkask_templates::ports::{CnsPort, McpPort, SyncInferencePort, TemplateError, ToolInfo};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
-/// Mock implementation of InferencePort
+/// Mock implementation of SyncInferencePort
 pub struct MockInferencePort {
     responses: Arc<RwLock<HashMap<String, String>>>,
 }
@@ -21,7 +20,7 @@ impl MockInferencePort {
         }
     }
 
-    pub fn with_response(mut self, prompt: &str, response: &str) -> Self {
+    pub fn with_response(self, prompt: &str, response: &str) -> Self {
         self.responses
             .write()
             .unwrap()
@@ -42,38 +41,18 @@ impl SyncInferencePort for MockInferencePort {
         _model_tier: &str,
         prompt: &str,
         _config: &hkask_templates::ports::InferenceConfig,
-    ) -> hkask_templates::ports::Result<serde_json::Value> {
+    ) -> hkask_templates::ports::Result<Value> {
         let responses = self.responses.read().unwrap();
         responses
             .get(prompt)
-            .map(|r| serde_json::from_str(r).unwrap_or(serde_json::Value::String(r.clone())))
-            .ok_or_else(|| hkask_templates::ports::TemplateError::Inference(
-                "No mock response for prompt".to_string(),
-            ))
+            .map(|r| serde_json::from_str(r).unwrap_or(Value::String(r.clone())))
+            .ok_or_else(|| TemplateError::Inference("No mock response for prompt".to_string()))
     }
 }
 
-/// Composite mock for complex test scenarios
-pub struct TestMocks {
-    pub inference: MockInferencePort,
-    pub mcp: MockMcpPort,
-    pub cns: MockCnsPort,
-}
-
-impl TestMocks {
-    pub fn new() -> Self {
-        Self {
-            inference: MockInferencePort::new(),
-            mcp: MockMcpPort::new(),
-            cns: MockCnsPort::new(),
-        }
-    }
-}
-
-impl Default for TestMocks {
-    fn default() -> Self {
-        Self::new()
-    }
+/// Mock implementation of McpPort
+pub struct MockMcpPort {
+    tools: Arc<RwLock<HashMap<String, bool>>>,
 }
 
 impl MockMcpPort {
@@ -83,7 +62,7 @@ impl MockMcpPort {
         }
     }
 
-    pub fn with_tool(mut self, tool_name: &str, enabled: bool) -> Self {
+    pub fn with_tool(self, tool_name: &str, enabled: bool) -> Self {
         self.tools
             .write()
             .unwrap()
@@ -98,20 +77,41 @@ impl Default for MockMcpPort {
     }
 }
 
-#[async_trait]
 impl McpPort for MockMcpPort {
-    async fn call_tool(
-        &self,
-        tool_name: &str,
-        _args: serde_json::Value,
-    ) -> Result<serde_json::Value, hkask_templates::ports::McpError> {
+    fn discover_tools(&self) -> Vec<String> {
+        let tools = self.tools.read().unwrap();
+        tools
+            .iter()
+            .filter(|&(_, &enabled)| enabled)
+            .map(|(name, _)| name.clone())
+            .collect()
+    }
+
+    fn invoke(&self, tool_name: &str, _input: Value) -> hkask_templates::ports::Result<Value> {
         let tools = self.tools.read().unwrap();
         if tools.get(tool_name).copied().unwrap_or(false) {
             Ok(serde_json::json!({"status": "success"}))
         } else {
-            Err(hkask_templates::ports::McpError::ToolNotFound(
-                tool_name.to_string(),
-            ))
+            Err(TemplateError::Mcp(format!(
+                "Tool not found: {}",
+                tool_name
+            )))
+        }
+    }
+
+    fn get_tool_info(&self, tool_name: &str) -> Option<ToolInfo> {
+        let tools = self.tools.read().unwrap();
+        if tools.get(tool_name).copied().unwrap_or(false) {
+            Some(ToolInfo {
+                name: tool_name.to_string(),
+                description: format!("Mock tool: {}", tool_name),
+                input_schema: serde_json::json!({"type": "object"}),
+                server_id: "mock".to_string(),
+                required_capability: None,
+                rate_limit_hint: None,
+            })
+        } else {
+            None
         }
     }
 }
@@ -140,13 +140,7 @@ impl Default for MockCnsPort {
 }
 
 impl CnsPort for MockCnsPort {
-    fn emit_event(
-        &self,
-        span: &str,
-        _phase: &str,
-        _observation: &serde_json::Value,
-        _confidence: f64,
-    ) {
+    fn emit_event(&self, span: &str, _phase: &str, _observation: &Value, _confidence: f64) {
         let mut events = self.events.write().unwrap();
         events.push(span.to_string());
     }
@@ -165,93 +159,6 @@ impl TestMocks {
             inference: MockInferencePort::new(),
             mcp: MockMcpPort::new(),
             cns: MockCnsPort::new(),
-        }
-    }
-}
-
-impl Default for TestMocks {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl MockSkillRegistryPort {
-    pub fn new() -> Self {
-        Self {
-            templates: Arc::new(RwLock::new(HashMap::new())),
-        }
-    }
-
-    pub fn with_template(mut self, template_id: &str, template_type: TemplateType) -> Self {
-        self.templates
-            .write()
-            .unwrap()
-            .insert(template_id.to_string(), template_type);
-        self
-    }
-}
-
-impl Default for MockSkillRegistryPort {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[async_trait]
-impl SkillRegistryPort for MockSkillRegistryPort {
-    async fn get_template(
-        &self,
-        template_id: &str,
-    ) -> Result<hkask_templates::GeneratedTemplate, hkask_templates::ports::RegistryError> {
-        let templates = self.templates.read().unwrap();
-        let template_type = templates
-            .get(template_id)
-            .ok_or_else(|| hkask_templates::ports::RegistryError::NotFound)?;
-
-        Ok(hkask_templates::GeneratedTemplate {
-            id: template_id.to_string(),
-            template_type: *template_type,
-            source: "mock template".to_string(),
-            lexicon_terms: vec![],
-            contract: hkask_templates::TemplateContract {
-                input_fields: vec![],
-                output_fields: vec![],
-            },
-            energy_cap: 1000,
-        })
-    }
-
-    async fn list_templates(
-        &self,
-        _template_type: TemplateType,
-    ) -> Result<Vec<String>, hkask_templates::ports::RegistryError> {
-        let templates = self.templates.read().unwrap();
-        Ok(templates.keys().cloned().collect())
-    }
-
-    async fn search_by_lexicon(
-        &self,
-        _term: &str,
-    ) -> Result<Vec<String>, hkask_templates::ports::RegistryError> {
-        Ok(vec![])
-    }
-}
-
-/// Composite mock for complex test scenarios
-pub struct TestMocks {
-    pub inference: MockInferencePort,
-    pub mcp: MockMcpPort,
-    pub cns: MockCnsPort,
-    pub registry: MockSkillRegistryPort,
-}
-
-impl TestMocks {
-    pub fn new() -> Self {
-        Self {
-            inference: MockInferencePort::new(),
-            mcp: MockMcpPort::new(),
-            cns: MockCnsPort::new(),
-            registry: MockSkillRegistryPort::new(),
         }
     }
 }

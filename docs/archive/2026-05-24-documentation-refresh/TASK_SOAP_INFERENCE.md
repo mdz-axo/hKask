@@ -284,7 +284,7 @@ pub struct ApiState {
 
 ```bash
 # Test with curl
-curl -X POST http://localhost:8080/api/llm/infer \
+curl -X POST http://127.0.0.1:11435/api/llm/infer \
   -H "Content-Type: application/json" \
   -d '{
     "subjective": "Machine feels sluggish",

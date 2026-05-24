@@ -209,5 +209,3 @@ grep -r "νKask\|OKH\|three registries" docs/ --include="*.md" --exclude-dir=arc
 ---
 
 *This roadmap is updated quarterly. Next review: 2026-08-20.*
-
-**Next:** Task 3.7 — Create `migration/strategy.md` (TOGAF Phase F).

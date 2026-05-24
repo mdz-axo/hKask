@@ -64,6 +64,37 @@ impl Keychain {
 
         Ok(())
     }
+
+    pub fn store_by_key(&self, key: &str, secret: &str) -> Result<(), KeychainError> {
+        let entry = Entry::new(&self.service_name, key)
+            .map_err(|e| KeychainError::Platform(e.to_string()))?;
+
+        entry
+            .set_password(secret)
+            .map_err(|e| KeychainError::Platform(e.to_string()))?;
+
+        Ok(())
+    }
+
+    pub fn retrieve_by_key(&self, key: &str) -> Result<String, KeychainError> {
+        let entry = Entry::new(&self.service_name, key)
+            .map_err(|e| KeychainError::Platform(e.to_string()))?;
+
+        entry
+            .get_password()
+            .map_err(|e| KeychainError::NotFound(e.to_string()))
+    }
+
+    pub fn delete_by_key(&self, key: &str) -> Result<(), KeychainError> {
+        let entry = Entry::new(&self.service_name, key)
+            .map_err(|e| KeychainError::Platform(e.to_string()))?;
+
+        entry
+            .delete_credential()
+            .map_err(|e| KeychainError::Platform(e.to_string()))?;
+
+        Ok(())
+    }
 }
 
 impl Default for Keychain {

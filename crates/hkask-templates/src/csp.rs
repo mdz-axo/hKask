@@ -284,15 +284,10 @@ impl CspExecutor {
         stage: &StageConfig,
         input: serde_json::Value,
     ) -> Result<serde_json::Value, TemplateError> {
-        // Look up named operation
         if let Some(operation) = self.operations.get(&stage.name) {
             operation(input)
         } else {
-            // No operation registered for this stage name
-            Err(TemplateError::NotFound(format!(
-                "No operation registered for stage: {}",
-                stage.name
-            )))
+            Ok(input)
         }
     }
 

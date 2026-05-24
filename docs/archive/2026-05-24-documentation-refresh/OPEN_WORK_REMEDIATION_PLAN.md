@@ -361,7 +361,7 @@ kask --version
 ### 1. Environment Variables
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `OKAPI_BASE_URL` | Okapi API endpoint | `http://localhost:8080` |
+| `OKAPI_BASE_URL` | Okapi API endpoint | `http://127.0.0.1:11435` |
 | `OKAPI_API_KEY` | Okapi API key | — |
 | `HKASK_DATABASE_URL` | SQLite database path | `./hkask.db` |
 | `HKASK_CAPABILITY_SECRET` | 32-byte hex secret | — |

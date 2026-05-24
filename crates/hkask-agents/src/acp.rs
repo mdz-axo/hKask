@@ -682,6 +682,7 @@ pub struct AuditLogEntry {
 pub struct AuditLog {
     entries: Arc<RwLock<Vec<AuditLogEntry>>>,
     max_entries: usize,
+    store: Option<Arc<hkask_storage::AuditLogStore>>,
 }
 
 impl AuditLog {
@@ -690,6 +691,7 @@ impl AuditLog {
         Self {
             entries: Arc::new(RwLock::new(Vec::new())),
             max_entries: 10000,
+            store: None,
         }
     }
 
@@ -698,15 +700,49 @@ impl AuditLog {
         Self {
             entries: Arc::new(RwLock::new(Vec::new())),
             max_entries,
+            store: None,
+        }
+    }
+
+    /// Create audit log backed by persistent SQLite storage
+    pub fn with_store(store: Arc<hkask_storage::AuditLogStore>) -> Self {
+        Self {
+            entries: Arc::new(RwLock::new(Vec::new())),
+            max_entries: 10000,
+            store: Some(store),
+        }
+    }
+
+    /// Create audit log with custom max entries and persistent storage
+    pub fn with_max_entries_and_store(max_entries: usize, store: Arc<hkask_storage::AuditLogStore>) -> Self {
+        Self {
+            entries: Arc::new(RwLock::new(Vec::new())),
+            max_entries,
+            store: Some(store),
         }
     }
 
     /// Log an A2A message event
     pub async fn log(&self, entry: AuditLogEntry) {
+        if let Some(ref store) = self.store {
+            let storage_entry = hkask_storage::AuditEntry::new(
+                &entry.from.to_string(),
+                &entry.event_type,
+                &entry.message_type,
+                "success",
+            )
+            .with_details(serde_json::json!({
+                "id": entry.id,
+                "correlation_id": entry.correlation_id,
+                "to": entry.to.map(|t| t.to_string()),
+                "metadata": entry.metadata,
+            }));
+            let _ = store.insert(&storage_entry);
+        }
+
         let mut entries = self.entries.write().await;
         entries.push(entry);
 
-        // Trim if exceeding max entries
         if entries.len() > self.max_entries {
             let drain_count = entries.len() - self.max_entries;
             entries.drain(0..drain_count);
@@ -715,12 +751,28 @@ impl AuditLog {
 
     /// Get recent entries
     pub async fn get_recent(&self, count: usize) -> Vec<AuditLogEntry> {
+        if let Some(ref store) = self.store
+            && let Ok(storage_entries) = store.query_recent(count)
+        {
+            return storage_entries
+                .into_iter()
+                .filter_map(audit_entry_from_storage)
+                .collect();
+        }
         let entries = self.entries.read().await;
         entries.iter().rev().take(count).cloned().collect()
     }
 
     /// Get entries by WebID
     pub async fn get_by_webid(&self, webid: &WebID, count: usize) -> Vec<AuditLogEntry> {
+        if let Some(ref store) = self.store
+            && let Ok(storage_entries) = store.query_by_actor(&webid.to_string(), count)
+        {
+            return storage_entries
+                .into_iter()
+                .filter_map(audit_entry_from_storage)
+                .collect();
+        }
         let entries = self.entries.read().await;
         entries
             .iter()
@@ -740,6 +792,28 @@ impl AuditLog {
             .cloned()
             .collect()
     }
+}
+
+fn audit_entry_from_storage(e: hkask_storage::AuditEntry) -> Option<AuditLogEntry> {
+    let details = e.details.as_ref()?;
+    let id = details.get("id")?.as_str()?.to_string();
+    let correlation_id = details.get("correlation_id")?.as_str()?.to_string();
+    let to = details
+        .get("to")
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+        .map(WebID::from_string);
+    let metadata = details.get("metadata").cloned().unwrap_or(serde_json::json!({}));
+    Some(AuditLogEntry {
+        id,
+        timestamp: e.timestamp.timestamp(),
+        from: WebID::from_string(&e.actor_webid),
+        to,
+        message_type: e.resource,
+        correlation_id,
+        event_type: e.action,
+        metadata,
+    })
 }
 
 impl Default for AuditLog {
@@ -792,11 +866,19 @@ impl AuditLogPort for AuditLog {
 
 impl Default for AcpRuntime {
     fn default() -> Self {
+        let keychain = hkask_keystore::Keychain::new("hkask");
         let secret = hkask_keystore::resolve(&hkask_types::SecretRef::env("HKASK_ACP_SECRET_KEY"))
+            .or_else(|_| keychain.retrieve_by_key("acp-secret").map(|s| zeroize::Zeroizing::new(s.into_bytes())))
             .unwrap_or_else(|_| {
-                tracing::warn!("HKASK_ACP_SECRET_KEY not set, using generated secret");
-                hkask_keystore::resolve(&hkask_types::SecretRef::generated(32))
-                    .expect("generated secret cannot fail")
+                let generated: String = (0..32)
+                    .map(|_| rand::random::<u8>())
+                    .map(|b| format!("{:02x}", b))
+                    .collect();
+                match keychain.store_by_key("acp-secret", &generated) {
+                    Ok(()) => info!(target: "hkask.acp", "Generated and stored new ACP secret in OS keychain"),
+                    Err(_) => tracing::warn!("Failed to store ACP secret in OS keychain; secret will not persist across restarts"),
+                }
+                zeroize::Zeroizing::new(generated.into_bytes())
             });
         Self::new(&secret, None)
     }

@@ -273,5 +273,3 @@ cargo test -p hkask-templates test_cascade_context_child_with_attenuation
 ---
 
 *This document describes business capabilities and stakeholder relationships. For data architecture, see [`data-architecture.md`](data-architecture.md).*
-
-**Next:** Task 3.4 — Create `data-architecture.md` (TOGAF Phase C-Data).

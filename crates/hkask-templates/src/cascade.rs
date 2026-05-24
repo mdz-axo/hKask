@@ -445,7 +445,7 @@ impl CascadeEngine {
         &self,
         stage: &CascadeStage,
         input: serde_json::Value,
-        _context: &mut CascadeContext,
+        context: &mut CascadeContext,
     ) -> Result<serde_json::Value, TemplateError> {
         self.emitter.emit_tool(
             "cascade.stage",
@@ -455,8 +455,43 @@ impl CascadeEngine {
             }),
         );
 
-        // Generic stage execution - actual logic in templates
-        Ok(input)
+        if let Some(condition) = &stage.condition
+            && !self.evaluate_condition(condition, &input, context)
+        {
+            self.emitter.emit_tool(
+                "cascade.stage.skipped",
+                serde_json::json!({"stage": stage.name, "condition": condition}),
+            );
+            return Ok(input);
+        }
+
+        let energy_cost = self.config.cascade_limits.energy_per_level;
+        context.consume_energy(energy_cost).map_err(|_| {
+            self.emitter.emit_tool(
+                "cascade.energy.exhausted",
+                serde_json::json!({"stage": stage.name, "remaining": context.energy_remaining}),
+            );
+            TemplateError::Manifest(format!(
+                "Energy exhausted at stage '{}'",
+                stage.name
+            ))
+        })?;
+
+        let mut current = input;
+        for template_id in &stage.templates {
+            self.emitter.emit_prompt(
+                "cascade.render",
+                serde_json::json!({"template": template_id}),
+            );
+            let _ = template_id;
+            current = serde_json::json!({
+                "cascade": stage.name,
+                "template": template_id,
+                "input": current,
+            });
+        }
+
+        Ok(current)
     }
 }
 

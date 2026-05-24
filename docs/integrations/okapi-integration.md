@@ -1,0 +1,227 @@
+# Okapi Integration — API Contract
+
+**Version:** 0.21.0
+**Last Updated:** 2026-05-24
+**Status:** Active
+
+---
+
+## Overview
+
+Okapi is the default LLM inference backend for hKask, providing text generation with temperature-controlled parameters for anti-normative template execution. All inference flows through the `OkapiInference` implementation of the `InferencePort` trait.
+
+**Source:** `crates/hkask-templates/src/inference_port.rs`
+**Config:** `crates/hkask-templates/src/okapi_config.rs`
+
+---
+
+## API Endpoint
+
+### POST /api/generate
+
+**Base URL:** Configurable via `OkapiConfig.base_url` (default: `http://127.0.0.1:11435`)
+
+#### Request Schema
+
+```json
+{
+  "model": "string (required) — Model identifier, e.g. 'ollama/llama-3.1-8b-instruct'",
+  "messages": [
+    {
+      "role": "string — 'user' | 'system' | 'assistant'",
+      "content": "string — Prompt text"
+    }
+  ],
+  "temperature": "float32 — Sampling temperature (0.0–1.0)",
+  "top_p": "float32 — Nucleus sampling threshold (0.0–1.0)",
+  "top_k": "int32 — Top-k sampling parameter",
+  "frequency_penalty": "float32 — Frequency penalty (0.0–2.0)",
+  "presence_penalty": "float32 — Presence penalty (0.0–2.0)",
+  "max_tokens": "int32 — Maximum tokens to generate",
+  "seed": "uint64|null — Deterministic seed for reproducibility",
+  "n_probs": "int32|null — Number of top token probabilities to return (default: 5)"
+}
+```
+
+#### Response Schema
+
+```json
+{
+  "model": "string — Model used for generation",
+  "choices": [
+    {
+      "message": {
+        "role": "string",
+        "content": "string — Generated text"
+      },
+      "finish_reason": "string — 'stop' | 'length' | 'content_filter'",
+      "token_probs": [
+        {
+          "token": "string",
+          "prob": "float64",
+          "top_k": [
+            {
+              "token": "string",
+              "prob": "float64"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "usage": {
+    "prompt_tokens": "uint32",
+    "completion_tokens": "uint32",
+    "total_tokens": "uint32"
+  }
+}
+```
+
+#### Authentication
+
+If `OkapiConfig.api_key` is set, requests include:
+```
+Authorization: Bearer <api_key>
+```
+
+---
+
+## Error Handling
+
+### Error Types (InferenceError)
+
+| Variant | HTTP Status | Description |
+|---------|-------------|-------------|
+| `Connection` | N/A | Network/connection failure, circuit breaker open |
+| `Model` | 400 | Invalid model identifier |
+| `Generation` | N/A | Empty response, prompt validation failure |
+| `Json` | N/A | Response parse error |
+| `RateLimitExceeded` | N/A | Client-side rate limit exceeded (token bucket) |
+
+### Retryable Status Codes
+
+The following HTTP status codes trigger automatic retry:
+
+| Code | Meaning |
+|------|---------|
+| 408 | Request Timeout |
+| 429 | Too Many Requests |
+| 500 | Internal Server Error |
+| 502 | Bad Gateway |
+| 503 | Service Unavailable |
+| 504 | Gateway Timeout |
+
+### Retry Behavior
+
+- **Max retries:** 3 (configurable via `OkapiRetryConfig.max_retries`)
+- **Backoff:** Exponential with base 500ms, capped at 30s
+- **Formula:** `min(backoff_base_ms * 2^attempt, max_delay_ms)`
+- **Attempt delays:** 500ms → 1000ms → 2000ms → 4000ms → ...
+
+### Circuit Breaker
+
+Optional resilience layer (`CircuitBreaker`):
+- Tracks consecutive failures/successes
+- When open, immediately returns `InferenceError::Connection("Circuit breaker is open")`
+- Records failure on non-success HTTP responses
+- Records success on valid responses
+- Emits `cns.connector.circuit_open` span when tripped
+
+---
+
+## Configuration
+
+### OkapiConfig Fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `base_url` | String | `http://127.0.0.1:11435` | Okapi API endpoint |
+| `api_key` | Option<String> | `None` | Bearer token for authentication |
+| `timeout_secs` | u64 | `30` | HTTP request timeout |
+| `pool_max_idle` | usize | `10` | Max idle connections per host |
+
+### OkapiRetryConfig Fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `max_retries` | u32 | `3` | Maximum retry attempts |
+| `backoff_base_ms` | u64 | `500` | Base delay in milliseconds |
+| `max_delay_ms` | u64 | `30000` | Maximum delay cap |
+| `retryable_status` | Vec<u16> | `[408, 429, 500, 502, 503, 504]` | Status codes that trigger retry |
+
+### Presets
+
+| Preset | base_url | api_key | timeout | pool_max_idle |
+|--------|----------|---------|---------|---------------|
+| `local_dev()` | `http://127.0.0.1:11435` | None | 30s | 5 |
+| `default()` | `http://127.0.0.1:11435` | None | 30s | 10 |
+
+---
+
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OKAPI_BASE_URL` | `http://127.0.0.1:11435` | Okapi API base URL |
+| `OKAPI_API_KEY` | (none) | API key for authentication |
+| `OKAPI_TIMEOUT_SECS` | `30` | Request timeout in seconds |
+| `OKAPI_POOL_MAX_IDLE` | `10` | Max idle connections per host |
+
+---
+
+## Model Catalog
+
+Okapi supports any model identifier string. Convention: `<provider>/<model-name>`.
+
+| Tier | Model ID | Use Case |
+|------|----------|----------|
+| `fast_local` | `fast-local-model` | Quick local inference, template selection |
+| `balanced` | (configurable) | Standard template execution |
+| `ollama/llama-3.1-8b-instruct` | (example) | Full inference with instruction following |
+
+Models are selected by:
+1. `ModelRequirements.required` if provided (via `generate_with_model`)
+2. `OkapiInference.model` default (set at construction)
+3. `ModelTierSelection` rules in Russell mapping config
+
+---
+
+## Prompt Validation
+
+Prompts are validated before API calls:
+- Must be non-empty
+- Must not exceed 1,000,000 characters
+
+---
+
+## Rate Limiting
+
+Client-side rate limiting via `RateLimiter` (optional):
+- Token bucket algorithm per `WebID`/`BotID`
+- Checked before API call
+- Emits `cns.tool.rate_limit_exceeded` span on denial
+- Returns `InferenceError::RateLimitExceeded`
+
+---
+
+## CNS Integration
+
+Okapi inference emits CNS spans at key boundary points:
+
+| Span | When |
+|------|------|
+| `cns.connector.circuit_open` | Circuit breaker trips |
+| `cns.tool.rate_limit_exceeded` | Rate limit denied |
+
+---
+
+## Architecture Notes
+
+- `InferencePort` is async; `SyncInferencePort` exists for synchronous manifest executor compatibility
+- `OkapiInference` supports four construction modes: `new`, `with_retry_config`, `with_rate_limiting`, `with_circuit_breaker`
+- Token probabilities (`n_probs`) are enabled by default (5 top tokens) for confidence scoring
+- Anti-normative generation patterns use `generate_n` for multi-output selection
+
+---
+
+*ℏKask — Planck's Constant of Agent Systems — v0.21.0*

@@ -16,10 +16,7 @@
 
 use clap::{Parser, Subcommand};
 use hkask_cli::commands;
-use hkask_cli::russell_mapper::{
-    FieldMapping, FieldMappings, IdTransformation, MappingMeta, ModelTierSelection,
-    RussellMappingConfig, TemplateTypeInference,
-};
+use hkask_cli::russell_mapper::RussellMappingConfig;
 use hkask_mcp::runtime::McpRuntime;
 use hkask_templates::{InferencePort, OkapiConfig, OkapiInference, SqliteRegistry};
 use hkask_types::TemplateType as Type;
@@ -1250,57 +1247,95 @@ fn main() {
             RegistryAction::ImportRussell {
                 source,
                 dry_run,
+                validate_only,
+                output_format,
+                transform_rules,
                 verbose,
-                ..
             } => {
-                let config = RussellMappingConfig {
-                    mapping: MappingMeta {
-                        version: "0.21.2".to_string(),
-                        description: "Russell to hKask mapping".to_string(),
-                    },
-                    field_mappings: FieldMappings {
-                        russell_id: FieldMapping {
-                            to: "hKask_id".to_string(),
-                            transform: "prefix_with_skill_hkask".to_string(),
-                        },
-                        russell_version: FieldMapping {
-                            to: "template_version".to_string(),
-                            transform: "passthrough".to_string(),
-                        },
-                        russell_symptoms: FieldMapping {
-                            to: "template_description".to_string(),
-                            transform: "join_with_newlines".to_string(),
-                        },
-                    },
-                    id_transformation: IdTransformation {
-                        prefix: "skill/hkask/".to_string(),
-                        preserve_suffix: true,
-                    },
-                    template_type_inference: TemplateTypeInference {
-                        rules: vec![],
-                        default: "Process".to_string(),
-                    },
-                    model_tier_selection: ModelTierSelection {
-                        rules: vec![],
-                        default: "balanced".to_string(),
-                    },
-                    dry_run,
-                };
-
-                match commands::import_russell(&source, &config, verbose) {
-                    Ok(assets) => {
-                        println!("Migration analysis complete: {} assets", assets.len());
-                        for asset in &assets {
-                            println!("\n  ID: {}", asset.id);
-                            println!("  Type: {:?}", asset.template_type);
-                            println!("  Description: {}", asset.description);
-                            println!("  Model Tier: {}", asset.model_tier);
-                            println!("  Energy Cap: {}", asset.energy_cap);
+                let mut config = if let Some(rules_path) = &transform_rules {
+                    match RussellMappingConfig::load_from_yaml(
+                        rules_path.to_str().unwrap_or(""),
+                    ) {
+                        Ok(c) => c,
+                        Err(e) => {
+                            eprintln!("Warning: Failed to load transform rules from {}: {}. Using defaults.", rules_path.display(), e);
+                            RussellMappingConfig::defaults()
                         }
                     }
-                    Err(e) => {
-                        eprintln!("Migration failed: {}", e);
-                        std::process::exit(1);
+                } else {
+                    let default_path = "registry/manifests/russell-mapping.yaml";
+                    match RussellMappingConfig::load_from_yaml(default_path) {
+                        Ok(c) => c,
+                        Err(_) => RussellMappingConfig::defaults(),
+                    }
+                };
+
+                config.dry_run = dry_run;
+
+                let mapper = hkask_cli::russell_mapper::RussellMapper::with_config(config.clone());
+
+                if validate_only {
+                    match hkask_cli::commands::import_russell(&source, &config, verbose) {
+                        Ok(assets) => {
+                            println!("Validation complete: {} manifests parsed", assets.len());
+                            for asset in &assets {
+                                println!("\n  ID: {} [VALID]", asset.id);
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("Validation failed: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                } else {
+                    match hkask_cli::commands::import_russell_with_mapper(&mapper, &source, verbose) {
+                        Ok(assets) => {
+                            let fmt = output_format.to_lowercase();
+                            match fmt.as_str() {
+                                "json" => {
+                                    let json = serde_json::to_string_pretty(&assets)
+                                        .unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e));
+                                    println!("{}", json);
+                                }
+                                "mermaid" => {
+                                    println!("graph LR");
+                                    for asset in &assets {
+                                        println!("  russell[\"{}\"] --> hkask[\"{}\"]", asset.id, asset.id);
+                                    }
+                                }
+                                _ => {
+                                    println!("Migration analysis complete: {} assets", assets.len());
+                                    for asset in &assets {
+                                        println!("\n  ID: {}", asset.id);
+                                        println!("  Type: {:?}", asset.template_type);
+                                        println!("  Description: {}", asset.description);
+                                        println!("  Model Tier: {}", asset.model_tier);
+                                        println!("  Energy Cap: {}", asset.energy_cap);
+                                    }
+                                }
+                            }
+
+                            if !dry_run {
+                                for asset in &assets {
+                                    let entry = hkask_templates::RegistryEntry {
+                                        id: asset.id.clone(),
+                                        template_type: asset.template_type.clone(),
+                                        lexicon_terms: vec!["russell-migrated".to_string()],
+                                        description: asset.description.clone(),
+                                        source_path: format!("russell-migrated:{}", asset.id),
+                                    };
+                                    if let Err(e) = registry.register(entry, None) {
+                                        eprintln!("Failed to register template {}: {}", asset.id, e);
+                                    } else if verbose {
+                                        println!("  Registered: {}", asset.id);
+                                    }
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("Migration failed: {}", e);
+                            std::process::exit(1);
+                        }
                     }
                 }
             }

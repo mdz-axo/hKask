@@ -98,19 +98,18 @@ stateDiagram-v2
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-STD-001
-verified_date: 2026-05-05
-verified_against: docs/standards/DOCUMENTATION_STANDARDS.md; .gitignore
+verified_date: 2026-05-24
+verified_against: docs/standards/DOCUMENTATION_STANDARDS.md; .gitignore; docs/archive/
 status: VERIFIED
 -->
 
 Git history is the project's Architecture Repository[^archrepo]. Retired
 documents are recoverable through `git log --all --diff-filter=D -- <path>`
-followed by `git show <sha>:<path>`. A local `docs/archive/` directory is
-gitignored and may be used by individual maintainers for personal
-reference, but the active tree must not link to it as if archived
-content were fetchable.
-No active-tree document may describe retired or removed subsystems — per
-[`AGENTS.md`](../../AGENTS.md) §2.4.
+followed by `git show <sha>:<path>`. The `docs/archive/` directory is
+tracked in git for team reference and organized by date
+(`docs/archive/YYYY-MM-DD-<label>/`). Archived documents must not be
+linked from the active tree. No active-tree document may describe retired
+or removed subsystems — per [`AGENTS.md`](../../AGENTS.md) §2.4.
 
 ## 4. Mermaid diagrams
 
@@ -221,7 +220,7 @@ section.
 
 All specifications, reports, plans, decisions, and architectural documentation
 MUST reside under `docs/` at the repository root. The only documentation
-permitted inside crate directories (`stack/crates/*/` or `arsenal/crates/*/`)
+permitted inside crate directories (`crates/*/`)
 is a `README.md` providing context to coding agents working in that crate.
 
 This ensures:
@@ -259,7 +258,7 @@ Naming conventions below align with POSIX portable filename rules[^posix-filenam
 | Document | UPPER_SNAKE_CASE for canonical specifications; `README.md` per directory |
 | ADR | `ADR-NNN-kebab-case-title.md`, three-digit zero-padded numbering |
 | Diagram id | `DIAG-<AREA>-<NNN>` — area is a 3–10 letter scope tag (`STD`, `VISION`, `APP`, `DATA`, etc.) |
-| Local archive snapshot (gitignored, optional) | `docs/archive/YYYY-MM-DD/` on a maintainer's disk only — not part of the tracked corpus |
+| Local archive snapshot | `docs/archive/YYYY-MM-DD-<label>/` — tracked in git for team reference |
 
 ## 8. Cross-references
 

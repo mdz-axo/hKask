@@ -31,11 +31,16 @@ pub struct RussellSkillManifest {
     pub id: String,
     pub version: String,
     #[serde(default)]
+    pub authored: Option<String>,
+    #[serde(default)]
+    pub applies_when: Vec<String>,
+    #[serde(default)]
     pub symptoms: Vec<String>,
     #[serde(default)]
     pub probes: Vec<Value>,
     #[serde(default)]
     pub interventions: Vec<Value>,
+    #[serde(default)]
     pub safety: Value,
 }
 
@@ -48,20 +53,93 @@ pub struct RussellMappingConfig {
     pub template_type_inference: TemplateTypeInference,
     pub model_tier_selection: ModelTierSelection,
     #[serde(default)]
+    pub energy_budget: Option<EnergyBudget>,
+    #[serde(default)]
+    pub cns_spans: Option<CnsSpans>,
+    #[serde(default)]
+    pub output: Option<OutputConfig>,
+    #[serde(default)]
     pub dry_run: bool,
+}
+
+impl RussellMappingConfig {
+    pub fn load_from_yaml(path: &str) -> Result<Self> {
+        let content = std::fs::read_to_string(path).map_err(|e| MapperError::IoError {
+            path: PathBuf::from(path),
+            source: e,
+        })?;
+        serde_yaml::from_str(&content).map_err(MapperError::YamlParse)
+    }
+
+    pub fn defaults() -> Self {
+        Self {
+            mapping: MappingMeta {
+                version: "0.21.2".to_string(),
+                description: "Russell to hKask mapping".to_string(),
+                functional_role: None,
+            },
+            field_mappings: FieldMappings {
+                russell_id: FieldMapping {
+                    to: "hKask_id".to_string(),
+                    transform: "prefix_with_skill_hkask".to_string(),
+                },
+                russell_version: FieldMapping {
+                    to: "template_version".to_string(),
+                    transform: "passthrough".to_string(),
+                },
+                russell_authored: None,
+                russell_symptoms: FieldMapping {
+                    to: "template_description".to_string(),
+                    transform: "join_with_newlines".to_string(),
+                },
+                russell_applies_when: None,
+                russell_probes: None,
+                russell_interventions: None,
+                russell_safety: None,
+            },
+            id_transformation: IdTransformation {
+                prefix: "skill/hkask/".to_string(),
+                preserve_suffix: true,
+            },
+            template_type_inference: TemplateTypeInference {
+                rules: vec![],
+                default: "Process".to_string(),
+            },
+            model_tier_selection: ModelTierSelection {
+                rules: vec![],
+                default: "balanced".to_string(),
+            },
+            energy_budget: None,
+            cns_spans: None,
+            output: None,
+            dry_run: false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MappingMeta {
     pub version: String,
     pub description: String,
+    #[serde(default)]
+    pub functional_role: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FieldMappings {
     pub russell_id: FieldMapping,
     pub russell_version: FieldMapping,
+    #[serde(default)]
+    pub russell_authored: Option<FieldMapping>,
     pub russell_symptoms: FieldMapping,
+    #[serde(default)]
+    pub russell_applies_when: Option<FieldMapping>,
+    #[serde(default)]
+    pub russell_probes: Option<FieldMapping>,
+    #[serde(default)]
+    pub russell_interventions: Option<FieldMapping>,
+    #[serde(default)]
+    pub russell_safety: Option<FieldMapping>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -102,6 +180,47 @@ pub struct TierRule {
     pub then: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EnergyBudget {
+    pub base_cost: u64,
+    pub per_probe_cost: u64,
+    pub per_intervention_cost: u64,
+    #[serde(default)]
+    pub risk_multiplier: std::collections::HashMap<String, f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CnsSpans {
+    #[serde(default = "default_true")]
+    pub emit_on_mapping: bool,
+    #[serde(default = "default_cns_namespace")]
+    pub span_namespace: String,
+    #[serde(default)]
+    pub phases: Vec<String>,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_cns_namespace() -> String {
+    "cns.template.russell_mapping".to_string()
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OutputConfig {
+    #[serde(default = "default_output_format")]
+    pub format: String,
+    #[serde(default = "default_true")]
+    pub include_provenance: bool,
+    #[serde(default)]
+    pub provenance_fields: Vec<String>,
+}
+
+fn default_output_format() -> String {
+    "yaml".to_string()
+}
+
 /// Mapped template configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MappedTemplate {
@@ -115,6 +234,7 @@ pub struct MappedTemplate {
 /// Russell mapper — generic YAML processor
 pub struct RussellMapper {
     config: RussellMappingConfig,
+    cns: hkask_cns::SpanEmitter,
 }
 
 impl Default for RussellMapper {
@@ -126,39 +246,15 @@ impl Default for RussellMapper {
 impl RussellMapper {
     pub fn new() -> Self {
         Self {
-            config: RussellMappingConfig {
-                mapping: MappingMeta {
-                    version: "0.21.2".to_string(),
-                    description: "Russell to hKask mapping".to_string(),
-                },
-                field_mappings: FieldMappings {
-                    russell_id: FieldMapping {
-                        to: "hKask_id".to_string(),
-                        transform: "prefix_with_skill_hkask".to_string(),
-                    },
-                    russell_version: FieldMapping {
-                        to: "template_version".to_string(),
-                        transform: "passthrough".to_string(),
-                    },
-                    russell_symptoms: FieldMapping {
-                        to: "template_description".to_string(),
-                        transform: "join_with_newlines".to_string(),
-                    },
-                },
-                id_transformation: IdTransformation {
-                    prefix: "skill/hkask/".to_string(),
-                    preserve_suffix: true,
-                },
-                template_type_inference: TemplateTypeInference {
-                    rules: vec![],
-                    default: "Process".to_string(),
-                },
-                model_tier_selection: ModelTierSelection {
-                    rules: vec![],
-                    default: "balanced".to_string(),
-                },
-                dry_run: false,
-            },
+            config: RussellMappingConfig::defaults(),
+            cns: hkask_cns::SpanEmitter::default(),
+        }
+    }
+
+    pub fn with_config(config: RussellMappingConfig) -> Self {
+        Self {
+            config,
+            cns: hkask_cns::SpanEmitter::default(),
         }
     }
 
@@ -178,6 +274,17 @@ impl RussellMapper {
             });
         }
 
+        if self.should_emit_cns() {
+            self.cns.emit_pipeline(
+                "russell_manifest_analyzed",
+                serde_json::json!({
+                    "manifest_id": manifest.id,
+                    "version": manifest.version,
+                    "source": yaml_path.to_string_lossy(),
+                }),
+            );
+        }
+
         Ok(manifest)
     }
 
@@ -187,7 +294,21 @@ impl RussellMapper {
         let template_type = infer_template_type(russell, &self.config.template_type_inference);
         let model_tier = select_model_tier(russell, &self.config.model_tier_selection);
         let description = russell.symptoms.join("\n");
-        let energy_cap = calculate_energy_budget(russell);
+        let energy_cap = calculate_energy_budget(russell, self.config.energy_budget.as_ref());
+
+        if self.should_emit_cns() {
+            self.cns.emit_pipeline(
+                "russell_mapping_complete",
+                serde_json::json!({
+                    "source_id": russell.id,
+                    "mapped_id": hkask_id,
+                    "template_type": format!("{:?}", template_type),
+                    "model_tier": model_tier,
+                    "energy_cap": energy_cap,
+                    "phase": "mapped",
+                }),
+            );
+        }
 
         MappedTemplate {
             id: hkask_id,
@@ -196,6 +317,14 @@ impl RussellMapper {
             model_tier,
             energy_cap,
         }
+    }
+
+    fn should_emit_cns(&self) -> bool {
+        self.config
+            .cns_spans
+            .as_ref()
+            .map(|s| s.emit_on_mapping)
+            .unwrap_or(true)
     }
 }
 
@@ -234,10 +363,10 @@ fn select_model_tier(russell: &RussellSkillManifest, config: &ModelTierSelection
 }
 
 /// Calculate energy budget for mapped template
-fn calculate_energy_budget(russell: &RussellSkillManifest) -> u64 {
-    let base_cost: u64 = 1000;
-    let per_probe_cost: u64 = 200;
-    let per_intervention_cost: u64 = 500;
+fn calculate_energy_budget(russell: &RussellSkillManifest, budget_cfg: Option<&EnergyBudget>) -> u64 {
+    let base_cost: u64 = budget_cfg.map(|b| b.base_cost).unwrap_or(1000);
+    let per_probe_cost: u64 = budget_cfg.map(|b| b.per_probe_cost).unwrap_or(200);
+    let per_intervention_cost: u64 = budget_cfg.map(|b| b.per_intervention_cost).unwrap_or(500);
 
     base_cost
         + (russell.probes.len() as u64 * per_probe_cost)

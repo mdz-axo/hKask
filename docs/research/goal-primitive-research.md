@@ -402,7 +402,7 @@ impl GoalCapability {
 - Enables multi-agent goal delegation (unlike Hermes single-session)
 - Leverages existing hLexicon vocabulary (12 of 80 terms directly relevant)
 
-**Next Step:** Begin Phase 1 implementation (database schema + Rust types).
+*Research complete. Implementation reflected in `crates/hkask-types/src/goal.rs` and `crates/hkask-memory/src/goal_memory.rs`.*
 
 ---
 

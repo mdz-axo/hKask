@@ -3,14 +3,13 @@
 //! Tests for: curator_pipeline.rs, russell_mapper.rs
 
 use hkask_templates::curator_pipeline::{CuratorPipeline, merge_outputs};
-use hkask_templates::russell_mapper::{
+use hkask_cli::russell_mapper::{
     FieldMapping, FieldMappings, IdTransformation, MappedTemplate, MappingMeta, ModelTierSelection,
     RussellMapper, RussellMappingConfig, RussellSkillManifest, TemplateTypeInference,
 };
 use hkask_types::lexicon::TemplateType;
 use hkask_types::{
-    BotID, CuratorId, LLMParameters, TemplateId, TemplateInvocation,
-    TemplateType as TemplateTypeEnum, WebID,
+    BotID, CuratorId, LLMParameters, TemplateId, TemplateInvocation, WebID,
 };
 use serde_json::Value;
 use std::collections::HashMap;
@@ -81,6 +80,9 @@ fn test_russell_mapper_analyze_skill_manifest() {
     let manifest_content = r#"
 id: skill/russell/test
 version: "1.0"
+authored: "2025-01-01"
+applies_when:
+  - "always"
 symptoms:
   - "Test symptom 1"
   - "Test symptom 2"
@@ -106,6 +108,8 @@ fn test_russell_mapper_map_to_hkask() {
     let russell = RussellSkillManifest {
         id: "skill/russell/test".to_string(),
         version: "1.0".to_string(),
+        authored: None,
+        applies_when: vec![],
         symptoms: vec!["Test symptom".to_string()],
         probes: vec![Value::String("test probe".to_string())],
         interventions: vec![Value::String("test intervention".to_string())],

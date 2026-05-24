@@ -48,7 +48,7 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a minimal agent-nati
 
 | Dependency | Purpose | Required | Default |
 |------------|---------|----------|---------|
-| **Okapi LLM** | LLM inference (chat, SOAP, templates) | Yes (for inference features) | `http://localhost:8080` |
+| **Okapi LLM** | LLM inference (chat, SOAP, templates) | Yes (for inference features) | `http://127.0.0.1:11435` |
 | **SQLite** | Database engine | Bundled (rusqlite) | — |
 | **Git** | Template loading (optional) | Optional | — |
 
@@ -63,7 +63,7 @@ git clone https://github.com/mdz-axolotl/Okapi.git
 cd Okapi
 cargo run --release
 
-# Okapi starts at http://localhost:8080 by default
+# Okapi starts at http://127.0.0.1:11435 by default
 ```
 
 **Option B: Remote Okapi (Production)**
@@ -139,7 +139,7 @@ cargo build --release -p hkask-api
 ./target/release/hkask-api
 
 # Test chat endpoint
-curl -X POST http://localhost:8080/api/chat \
+curl -X POST http://127.0.0.1:11435/api/chat \
   -H "Content-Type: application/json" \
   -d '{"input": "What is the capital of France?", "template_id": null}'
 ```
@@ -165,7 +165,7 @@ kask sovereignty status
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
-| `OKAPI_BASE_URL` | Okapi API endpoint | `http://localhost:8080` | No |
+| `OKAPI_BASE_URL` | Okapi API endpoint | `http://127.0.0.1:11435` | No |
 | `OKAPI_API_KEY` | Okapi API key (Bearer auth) | — | No |
 | `OKAPI_TIMEOUT_SECS` | Request timeout | `30` | No |
 | `OKAPI_POOL_MAX_IDLE` | Connection pool size | `10` | No |
@@ -361,7 +361,7 @@ spec:
 
 ```bash
 # Check CNS health
-curl -s http://localhost:8080/api/cns/health | jq
+curl -s http://127.0.0.1:11435/api/cns/health | jq
 
 # Expected response
 {
@@ -521,7 +521,7 @@ kask chat --interactive --verbose
 kask cns health --verbose
 
 # Test Okapi connectivity directly
-curl http://localhost:8080/api/generate \
+curl http://127.0.0.1:11435/api/generate \
   -H "Content-Type: application/json" \
   -d '{"prompt": "test", "model": "qwen3:8b"}'
 ```
@@ -561,7 +561,7 @@ sudo systemctl start hkask-api
 
 # Verify
 kask --version
-curl http://localhost:8080/api/cns/health
+curl http://127.0.0.1:11435/api/cns/health
 ```
 
 ---
@@ -574,7 +574,7 @@ curl http://localhost:8080/api/cns/health
 Curator chat with Okapi inference.
 
 ```bash
-curl -X POST http://localhost:8080/api/chat \
+curl -X POST http://127.0.0.1:11435/api/chat \
   -H "Content-Type: application/json" \
   -d '{
     "input": "What is the capital of France?",
@@ -646,7 +646,7 @@ Response:
 kask docs openapi -o docs/openapi.json
 
 # Or via API (if running)
-curl http://localhost:8080/api/openapi.json -o openapi.json
+curl http://127.0.0.1:11435/api/openapi.json -o openapi.json
 ```
 
 ---

@@ -337,5 +337,3 @@ grep -r "reputation\|swarm\|marketplace\|OCT-H\|axolotl" crates/ --include="*.rs
 ---
 
 *These principles are the foundation for all hKask architecture decisions. Deviations require ADR with procedural rhetoric.*
-
-**Next:** Task 3.2 — Create `vision.md` (TOGAF Phase A).

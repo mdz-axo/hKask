@@ -60,7 +60,7 @@ impl MultiOkapiClient {
 
     pub fn from_env() -> Self {
         let endpoints = std::env::var("OKAPI_FAILOVER_ENDPOINTS")
-            .unwrap_or_else(|_| "http://localhost:8080".to_string())
+            .unwrap_or_else(|_| "http://127.0.0.1:11435".to_string())
             .split(',')
             .map(|s| s.trim().to_string())
             .collect();
@@ -165,9 +165,9 @@ mod tests {
     #[test]
     fn test_multi_okapi_client() {
         let client = MultiOkapiClient::new(vec![
-            "http://localhost:8080".to_string(),
-            "http://localhost:8081".to_string(),
-            "http://localhost:8082".to_string(),
+            "http://127.0.0.1:11435".to_string(),
+            "http://127.0.0.1:11436".to_string(),
+            "http://127.0.0.1:11437".to_string(),
         ]);
 
         assert_eq!(client.endpoints.len(), 3);

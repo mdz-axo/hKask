@@ -1,6 +1,6 @@
 //! CNS (Cybernetic Nervous System) types for hKask
 //!
-//! Namespace: cns.* (replaces okh.*)
+//! Namespace: cns.* (canonical observability namespace)
 //! Key spans: cns.tool.*, cns.prompt.*, cns.agent_pod.*, cns.connector.*, cns.template.*, cns.curation.*
 
 use serde::{Deserialize, Serialize};

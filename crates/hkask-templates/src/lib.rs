@@ -66,7 +66,7 @@ pub use inference_port::{
     InferenceError, InferencePort, InferenceResult, OkapiInference, Usage,
     invoke_template_with_okapi, invoke_template_with_selection,
 };
-pub use manifest::{ManifestExecutorImpl, ModelRequirements, SelectorConfig, SimpleExecutor};
+pub use manifest::{CspEnforcer, EnergyAccount, ManifestExecutorImpl, ModelRequirements, NoopCsp, SelectorConfig, SimpleExecutor};
 pub use okapi_config::{OkapiConfig, OkapiRetryConfig};
 pub use ports::{
     Action, CnsPort, CompositionTemplate, DEFAULT_MATROSHKA_LIMIT, FAST_LOCAL_MODEL,

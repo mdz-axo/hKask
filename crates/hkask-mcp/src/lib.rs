@@ -20,4 +20,7 @@ pub use archival_service::ArchivalService;
 pub use dispatch::McpDispatcher;
 pub use runtime::ToolInfo;
 pub use runtime::{McpRuntime, McpServer, McpTool};
-pub use security::{AuditAction, AuditEntry, SecurityGateway, SecurityPolicy};
+pub use security::{
+    AuditAction, AuditEntry, SecurityError, SecurityGateway, SecurityPolicy, UrlValidationConfig,
+    validate_url,
+};

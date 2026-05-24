@@ -18,5 +18,6 @@ Cargo.lock
 .DS_Store
 Thumbs.db
 
-# Documentation archive (gitignored - history is the archive of record)
-docs/archive/
+# Documentation archive — tracked in git for team reference
+# Retired documents recoverable via: git log --diff-filter=D -- <path>
+# See DOCUMENTATION_STANDARDS.md §3 for lifecycle policy

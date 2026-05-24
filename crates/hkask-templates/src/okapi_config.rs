@@ -4,7 +4,7 @@
 //!
 //! # Environment Variables
 //!
-//! - `OKAPI_BASE_URL` - Okapi API base URL (default: http://localhost:8080)
+//! - `OKAPI_BASE_URL` - Okapi API base URL (default: http://127.0.0.1:11435)
 //! - `OKAPI_API_KEY` - API key for authentication (optional)
 //! - `OKAPI_TIMEOUT_SECS` - Request timeout in seconds (default: 30)
 //! - `OKAPI_POOL_MAX_IDLE` - Max idle connections per host (default: 10)
@@ -23,6 +23,7 @@
 //!     api_key: Some("your-api-key".to_string()),
 //!     timeout_secs: 60,
 //!     pool_max_idle: 20,
+//!     retry: OkapiRetryConfig::default(),
 //! };
 //!
 //! // Retry configuration
@@ -53,7 +54,7 @@ pub struct OkapiConfig {
 impl Default for OkapiConfig {
     fn default() -> Self {
         Self {
-            base_url: "http://localhost:8080".to_string(),
+            base_url: "http://127.0.0.1:11435".to_string(),
             api_key: None,
             timeout_secs: 30,
             pool_max_idle: 10,
@@ -64,7 +65,7 @@ impl Default for OkapiConfig {
 impl OkapiConfig {
     pub fn local_dev() -> Self {
         Self {
-            base_url: "http://localhost:8080".to_string(),
+            base_url: "http://127.0.0.1:11435".to_string(),
             api_key: None,
             timeout_secs: 30,
             pool_max_idle: 5,

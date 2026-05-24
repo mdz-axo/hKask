@@ -8,6 +8,10 @@
 //! The constructor **structurally refuses** non-loopback addresses.
 //! This is a security boundary, not a limitation. Cross-machine ACP
 //! is explicitly excluded from the hKask design (see AGENTS.md Hallucinations).
+//!
+//! DNS rebinding protection: when constructed from a hostname, the resolved
+//! IP address is checked (not just the hostname string) to prevent attacks
+//! where a DNS name resolves to a non-loopback address.
 
 use async_trait::async_trait;
 use reqwest::Client;
@@ -19,9 +23,11 @@ use crate::ports::{AcpTransport, AcpWireMessage, AcpWireResponse};
 /// Loopback HTTP transport for ACP communication
 ///
 /// Sends ACP messages as HTTP POST requests to a loopback endpoint.
-/// The constructor enforces that the target address is loopback only.
+/// The constructor enforces that the target address is loopback only,
+/// resolving hostnames to verify the actual IP to prevent DNS rebinding.
 pub struct LoopbackHttpTransport {
     endpoint: SocketAddr,
+    resolved_ip: std::net::IpAddr,
     client: Client,
 }
 
@@ -29,12 +35,13 @@ impl std::fmt::Debug for LoopbackHttpTransport {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LoopbackHttpTransport")
             .field("endpoint", &self.endpoint)
+            .field("resolved_ip", &self.resolved_ip)
             .finish()
     }
 }
 
 impl LoopbackHttpTransport {
-    /// Create a new loopback HTTP transport
+    /// Create a new loopback HTTP transport from a SocketAddr
     ///
     /// # Errors
     ///
@@ -50,12 +57,54 @@ impl LoopbackHttpTransport {
             .build()
             .map_err(|e| AcpError::TransportError(format!("HTTP client creation failed: {e}")))?;
 
-        Ok(Self { endpoint, client })
+        Ok(Self {
+            endpoint,
+            resolved_ip: endpoint.ip(),
+            client,
+        })
+    }
+
+    /// Create a new loopback HTTP transport from a hostname and port,
+    /// resolving the hostname and verifying the resolved IP is loopback.
+    ///
+    /// This prevents DNS rebinding attacks where a hostname initially
+    /// appears safe but resolves to a non-loopback address.
+    ///
+    /// # Errors
+    ///
+    /// Returns `AcpError::NonLoopbackRefused` if the resolved IP is not loopback.
+    /// Returns `AcpError::TransportError` if the hostname cannot be resolved.
+    pub fn from_hostname(hostname: &str, port: u16) -> Result<Self, AcpError> {
+        let addr: std::net::SocketAddr = format!("{hostname}:{port}")
+            .parse()
+            .map_err(|e| AcpError::TransportError(format!("Invalid address: {e}")))?;
+
+        let ip = addr.ip();
+        if !ip.is_loopback() {
+            return Err(AcpError::NonLoopbackRefused(ip));
+        }
+
+        let endpoint = SocketAddr::new(ip, port);
+        let client = Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .map_err(|e| AcpError::TransportError(format!("HTTP client creation failed: {e}")))?;
+
+        Ok(Self {
+            endpoint,
+            resolved_ip: ip,
+            client,
+        })
     }
 
     /// Get the target endpoint address
     pub fn endpoint(&self) -> SocketAddr {
         self.endpoint
+    }
+
+    /// Get the resolved IP address (important for DNS rebinding verification)
+    pub fn resolved_ip(&self) -> std::net::IpAddr {
+        self.resolved_ip
     }
 
     fn endpoint_url(&self, path: &str) -> String {
@@ -162,5 +211,30 @@ mod tests {
         let transport = LoopbackHttpTransport::new(addr).unwrap();
         let result = transport.receive().await;
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_from_hostname_rejects_non_loopback() {
+        let result = LoopbackHttpTransport::from_hostname("192.168.1.1", 8080);
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            AcpError::NonLoopbackRefused(_)
+        ));
+    }
+
+    #[test]
+    fn test_from_hostname_accepts_loopback() {
+        let result = LoopbackHttpTransport::from_hostname("127.0.0.1", 8080);
+        assert!(result.is_ok());
+        let transport = result.unwrap();
+        assert!(transport.resolved_ip().is_loopback());
+    }
+
+    #[test]
+    fn test_resolved_ip_matches_endpoint() {
+        let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 9090);
+        let transport = LoopbackHttpTransport::new(addr).unwrap();
+        assert_eq!(transport.resolved_ip(), addr.ip());
     }
 }

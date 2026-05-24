@@ -351,5 +351,3 @@ status: VERIFIED
 ---
 
 *This document describes application components. For security architecture, see [`security-architecture.md`](security-architecture.md).*
-
-**Next:** Task 6 — Create `security-architecture.md`.

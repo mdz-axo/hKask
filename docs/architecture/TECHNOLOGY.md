@@ -298,5 +298,3 @@ status: VERIFIED
 ---
 
 *This document describes technology architecture. For security considerations, see [`security-architecture.md`](security-architecture.md).*
-
-**Next:** Task 5 — Rewrite specifications (REQUIREMENTS, TRACEABILITY).

@@ -40,7 +40,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.21.0"
 edition = "2024"
 license = "MIT"
 repository = "https://github.com/mdz-axolotl/hKask"
@@ -123,3 +123,6 @@ regex-lite = "0.1"
 
 # Futures utilities
 futures-util = "0.3"
+
+# URL parsing
+url = "2"

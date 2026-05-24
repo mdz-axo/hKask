@@ -208,7 +208,7 @@ russell:
   
   # MCP server configuration
   mcp:
-    endpoint: http://127.0.0.1:8080/mcp
+    endpoint: http://127.0.0.1:11435/mcp
     version: v1
     
     # Tool authorization

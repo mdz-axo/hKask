@@ -125,16 +125,17 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-na
 
 | Category | Count | Location |
 |----------|-------|----------|
-| **Standards** | 4 | `docs/standards/` |
-| **Architecture** | 12 | `docs/architecture/` |
-| **Specifications** | 3 | `docs/specifications/` |
+| **Standards** | 5 | `docs/standards/` |
+| **Architecture** | 19 | `docs/architecture/` |
+| **Specifications** | 1 | `docs/specifications/` |
 | **Plans** | 2 | `docs/plans/` |
 | **User Guides** | 5 | `docs/user-guides/` |
-| **GML** | 2 | `docs/gml/` |
-| **TOGAF Scaffold** | 1 | `docs/TOGAF_LITE_FOR_OPEN_SOURCE.md` |
-| **Project Status** | 1 | `docs/status/PROJECT_STATUS.md` |
-| **Audit** | 1 | `docs/standards/WRITING_EXCELLENCE_AUDIT.md` |
-| **Total** | 31 | — |
+| **GML** | 3 | `docs/gml/` |
+| **Integrations** | 1 | `docs/integrations/` |
+| **Research** | 1 | `docs/research/` |
+| **Status** | 2 | `docs/status/` |
+| **Cross-cutting** | 4 | `docs/` root |
+| **Total** | 43 | — |
 
 ### 4.2 Archived Documents
 
