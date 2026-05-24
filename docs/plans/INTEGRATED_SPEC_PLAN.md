@@ -1,8 +1,11 @@
 ---
 title: "Integrated Implementation Plan — hKask v0.22.0"
-togaf_phase: "Phase E"
-status: "proposed"
-author: "hKask Architecture Team"
+audience: [architects, developers]
+last_updated: 2026-05-24
+togaf_phase: "E"
+version: "1.0.0"
+status: "Active"
+domain: "Cross-cutting"
 created: "2026-05-23"
 updated: "2026-05-23"
 scope: "hKask, Russell, Okapi"

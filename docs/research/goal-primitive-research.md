@@ -1,3 +1,13 @@
+---
+title: "Goal Primitive Research — Consolidated Report"
+audience: [architects, developers]
+last_updated: 2026-05-24
+togaf_phase: "E"
+version: "1.0.0"
+status: "Active"
+domain: "Application"
+---
+
 # Goal Primitive Research — Consolidated Report
 
 **Date:** 2026-05-22  

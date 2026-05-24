@@ -70,7 +70,7 @@ hkask-workspace/
 │       ├── adapter.rs        # GmlTemplateEngine trait implementation
 │       └── namespace.rs      # gml/ namespace registration
 │
-├── hkask-gml-embedding/      # Embedding adapter (Okapi via hkask-mcp-embedding)
+├── hkask-gml-embedding/      # Embedding adapter (Okapi via hkask-mcp-inference)
 │   ├── Cargo.toml
 │   └── src/
 │       ├── lib.rs
@@ -349,7 +349,7 @@ pub trait ConceptEmbedding {
 |---------|----------------|
 | Storage | SQLite + SQLCipher with row-level security |
 | Template | Jinja2 via hkask-templates with gml/ namespace |
-| Embedding | Okapi-backed via hkask-mcp-embedding |
+| Embedding | Okapi-backed via hkask-mcp-inference |
 | MCP Server | hkask-mcp-gml exposing GML operations |
 
 ---

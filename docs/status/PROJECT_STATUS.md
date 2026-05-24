@@ -1,9 +1,14 @@
-# hKask Project Status
+---
+title: "hKask Project Status"
+audience: [project maintainers, contributors, stakeholders]
+last_updated: 2026-05-24
+togaf_phase: "E"
+version: "0.21.0"
+status: "Active"
+domain: "Cross-cutting"
+---
 
-**Version:** 0.21.0  
-**Last-Updated:** 2026-05-23  
-**Status:** Pre-alpha MVP — Build passing, 32 tests passing, Phase 2 & 3 complete  
-**TOGAF Phase:** C — Application / D — CNS Integration  
+# hKask Project Status
 
 ---
 

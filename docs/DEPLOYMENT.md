@@ -1,8 +1,14 @@
-# hKask Deployment Guide
+---
+title: "hKask Deployment Guide"
+audience: [DevOps engineers, system administrators, deployment teams]
+last_updated: 2026-05-24
+togaf_phase: "G"
+version: "1.0.0"
+status: "Active"
+domain: "Technology"
+---
 
-**Version:** 1.0.0  
-**Last Updated:** 2026-05-23  
-**Audience:** DevOps engineers, system administrators, deployment teams
+# hKask Deployment Guide
 
 ---
 

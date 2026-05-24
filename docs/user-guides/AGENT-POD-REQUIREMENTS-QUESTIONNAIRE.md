@@ -1,3 +1,13 @@
+---
+title: "Agent Pod Requirements Discovery Questionnaire"
+audience: [developers, agent designers]
+last_updated: 2026-05-24
+togaf_phase: "G"
+version: "0.21.0"
+status: "Active"
+domain: "Application"
+---
+
 # Agent Pod Requirements Discovery Questionnaire
 
 **Purpose:** This questionnaire helps you define all requirements for creating an agent pod in hKask. Complete all sections before proceeding to agent pod creation.

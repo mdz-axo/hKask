@@ -1,11 +1,11 @@
 ---
 title: "Specification Curation Hypothesis: Extended Architecture"
-togaf_phase: "Phase C-App"
-status: "draft"
-author: "hKask Architecture Team"
-created: "2026-05-23"
-updated: "2026-05-23"
-hlexicon_terms: [specify, require, curate, elicit, reconcile, contextualise, cultivate, constrain]
+audience: [architects, developers]
+last_updated: 2026-05-24
+togaf_phase: "C — Application"
+version: "1.0.0"
+status: "Draft"
+domain: "Application"
 related_docs:
   - hKask-hLexicon.md
   - hKask-architecture-master.md

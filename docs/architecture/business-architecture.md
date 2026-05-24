@@ -1,7 +1,7 @@
 ---
 title: "hKask Business Architecture"
 audience: [architects, business stakeholders, agent designers]
-last_updated: 2026-05-20
+last_updated: 2026-05-24
 togaf_phase: "B"
 version: "1.0.0"
 status: "Active"

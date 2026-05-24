@@ -1,8 +1,14 @@
-# Open Work Remediation Plan
+---
+title: "Open Work Remediation Plan"
+audience: [project maintainers, developers]
+last_updated: 2026-05-24
+togaf_phase: "E"
+version: "1.0.0"
+status: "Active"
+domain: "Cross-cutting"
+---
 
-**Version:** 1.0  
-**Created:** 2026-05-23  
-**Status:** Pending  
+# Open Work Remediation Plan
 **Priority:** P0 (Critical) → P1 (Important)
 
 ---

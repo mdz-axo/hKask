@@ -1,3 +1,13 @@
+---
+title: "7R7 — Backstory Narrative"
+audience: [project contributors]
+last_updated: 2026-05-24
+togaf_phase: "E"
+version: "1.0.0"
+status: "Active"
+domain: "Cross-cutting"
+---
+
 # 7R7
 
 ## I.

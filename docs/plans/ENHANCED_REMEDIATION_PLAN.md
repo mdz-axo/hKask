@@ -1,11 +1,11 @@
 ---
 title: "hKask Enhanced Remediation Plan v4 — Synthetic Multi-Perspective Review"
 audience: [architects, developers, agents]
-last_updated: 2026-05-23
+last_updated: 2026-05-24
+togaf_phase: "E"
 version: "4.0.0"
 status: "Active"
 domain: "Cross-cutting"
-supersedes: ["ADVERSARIAL_REVIEW_ACTION_PLAN.md", "OPEN_QUESTIONS_RESOLVED.md"]
 ---
 
 # hKask Enhanced Remediation Plan v4

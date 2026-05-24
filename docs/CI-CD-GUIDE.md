@@ -1,3 +1,13 @@
+---
+title: "CI/CD and Installation Guide"
+audience: [DevOps engineers, contributors]
+last_updated: 2026-05-24
+togaf_phase: "G"
+version: "1.0.0"
+status: "Active"
+domain: "Technology"
+---
+
 # CI/CD and Installation Guide — hKask
 
 ## Overview

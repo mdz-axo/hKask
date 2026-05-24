@@ -1404,5 +1404,15 @@ impl SpecStore for SqliteSpecStore {
 
 ---
 
+## 11. References
+
+[^evans-ddd]: Evans, E. (2003). *Domain-Driven Design: Tackling Complexity in the Heart of Software*. Addison-Wesley. The "Domain-Driven" in DDMVSS derives from Evans's pattern of bounding a model within an explicit context, ubiquitous language, and anti-corruption layers.
+
+[^beer-vsm]: Beer, S. (1972). *Brain of the Firm*. Penguin Books. Viable System Model.
+
+[^ashby-law]: Ashby, W. R. (1956). *An Introduction to Cybernetics*. Chapman & Hall. Law of Requisite Variety.
+
+---
+
 *DDMVSS v0.2.0 — Domain-Driven Minimum Viable Specification Set for hKask*
 *Self-applying, recursively sound, curated not governed, Planck-scale minimal.*

@@ -1,7 +1,7 @@
 ---
 title: "hKask Entity Relationship Diagram"
 audience: [data architects, database developers, agents]
-last_updated: 2026-05-22
+last_updated: 2026-05-24
 togaf_phase: "C — Data"
 version: "0.21.0"
 status: "Active"
@@ -97,6 +97,13 @@ erDiagram
     }
 ```
 
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-ERD-001
+verified_date: 2026-05-24
+verified_against: crates/hkask-types/src/; crates/hkask-templates/src/; crates/hkask-agents/src/
+status: VERIFIED
+-->
+
 ---
 
 ## Architecture Layers
@@ -146,6 +153,13 @@ graph TB
     HKASK_TESTING -. verifies .- HKASK_AGENTS
 ```
 
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-ERD-002
+verified_date: 2026-05-24
+verified_against: Cargo.toml workspace members; crates/*/src/lib.rs
+status: VERIFIED
+-->
+
 ---
 
 ## Data Flow: Dispatch Pattern
@@ -190,6 +204,13 @@ sequenceDiagram
     CLI-->>User: Display result
 ```
 
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-ERD-003
+verified_date: 2026-05-24
+verified_against: crates/hkask-mcp/src/dispatch.rs; crates/hkask-templates/src/manifest.rs
+status: VERIFIED
+-->
+
 ---
 
 ## Manifest Step Grammar
@@ -225,6 +246,13 @@ stateDiagram-v2
     end note
 ```
 
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-ERD-004
+verified_date: 2026-05-24
+verified_against: crates/hkask-templates/src/manifest.rs
+status: VERIFIED
+-->
+
 ---
 
 ## CNS Span Hierarchy
@@ -248,6 +276,42 @@ graph LR
         CAA[cns.agent_pod.activated]
     end
     
+    subgraph "cns.connector.*"
+        CCI[cns.connector.llm]
+        CCE[cns.connector.embedding]
+    end
+    
+    subgraph "cns.template.*"
+        CTPL[cns.template.invoke]
+        CTCS[cns.template.cascade]
+    end
+    
+    subgraph "cns.curation.*"
+        CCUR[cns.curation.decide]
+    end
+    
+    subgraph "cns.variety.*"
+        CVAR[cns.variety.counter]
+        CALG[cns.variety.algedonic]
+    end
+    
+    subgraph "cns.sovereignty.*"
+        CSOV[cns.sovereignty.check]
+    end
+    
+    subgraph "cns.goal.*"
+        CGOAL[cns.goal.spec]
+    end
+    
+    subgraph "cns.spec.*"
+        CSPEC[cns.spec.capture]
+        CSPECV[cns.spec.validate]
+    end
+    
+    subgraph "cns.killzone.*"
+        CKZ[cns.killzone.detect]
+    end
+    
     CPS --> CPR
     CPR --> CPO
     CPO --> CTI
@@ -260,6 +324,13 @@ graph LR
     style CPR fill:#f9f,stroke:#333
     style CPO fill:#f9f,stroke:#333
 ```
+
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-ERD-005
+verified_date: 2026-05-24
+verified_against: crates/hkask-types/src/cns.rs:122-145; crates/hkask-types/src/event.rs:75-86
+status: VERIFIED
+-->
 
 ---
 
@@ -292,8 +363,7 @@ erDiagram
     
     CYBERNETIC_PHASE: "Observe"
     CYBERNETIC_PHASE: "Regulate"
-    CYBERNETIC_PHASE: "Act"
-    CYBERNETIC_PHASE: "MetaObserve"
+    CYBERNETIC_PHASE: "Outcome"
     
     OBSERVER_REF {
         string webid "Observer identity"
@@ -334,11 +404,17 @@ erDiagram
     }
 ```
 
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-ERD-007
+verified_date: 2026-05-24
+verified_against: crates/hkask-types/src/event.rs:10-22,148-152; crates/hkask-cns/src/
+status: VERIFIED
+-->
+
 **Cybernetic Flow:**
 1. **Observe** — Telemetry capture, pattern recognition, state estimation
 2. **Regulate** — Contract validation, error signal computation, corrective action
-3. **Act** — Tool invocation, template render, memory write
-4. **Meta-Observe** — Observe the observation (second-order cybernetics)
+3. **Outcome** — Tool invocation result, confidence scoring, memory write
 
 **Algedonic Alert:** Triggers when variety deficit >100, escalates to Curator/human.
 

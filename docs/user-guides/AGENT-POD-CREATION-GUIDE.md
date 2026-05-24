@@ -1,7 +1,14 @@
-# Agent Pod Creation Guide — hKask
+---
+title: "Agent Pod Creation Guide"
+audience: [developers, agent designers]
+last_updated: 2026-05-24
+togaf_phase: "G"
+version: "0.21.0"
+status: "Active"
+domain: "Application"
+---
 
-**Version:** v0.21.0  
-**Last Updated:** 2026-05-20
+# Agent Pod Creation Guide — hKask
 
 ---
 

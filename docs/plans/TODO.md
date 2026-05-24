@@ -1,8 +1,14 @@
-# hKask TODO — Open Work
+---
+title: "hKask TODO — Open Work"
+audience: [project maintainers, contributors]
+last_updated: 2026-05-24
+togaf_phase: "E"
+version: "1.1.0"
+status: "Active"
+domain: "Cross-cutting"
+---
 
-**Version:** 1.0.0  
-**Last-Updated:** 2026-05-22  
-**Status:** Active  
+# hKask TODO — Open Work
 
 ---
 

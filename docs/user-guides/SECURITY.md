@@ -1,7 +1,14 @@
-# hKask Security Model
+---
+title: "hKask Security Model"
+audience: [security engineers, developers, agents]
+last_updated: 2026-05-24
+togaf_phase: "G"
+version: "0.21.0"
+status: "Active"
+domain: "Technology"
+---
 
-**Version:** 0.21.0  
-**Last Updated:** 2026-05-21
+# hKask Security Model
 
 ## Overview
 

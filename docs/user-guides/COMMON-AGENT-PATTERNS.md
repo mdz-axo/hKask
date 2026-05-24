@@ -1,7 +1,14 @@
-# Common Agent Patterns and Templates
+---
+title: "Common Agent Patterns and Templates"
+audience: [developers, agent designers]
+last_updated: 2026-05-24
+togaf_phase: "G"
+version: "0.21.0"
+status: "Active"
+domain: "Application"
+---
 
-**Version:** v0.21.0  
-**Last Updated:** 2026-05-20
+# Common Agent Patterns and Templates
 
 This document catalogs the most common agent patterns and their corresponding templates for loading agents into agent pods in hKask.
 

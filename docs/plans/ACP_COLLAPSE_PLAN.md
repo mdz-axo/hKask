@@ -1,8 +1,14 @@
-# Phase 1C: Collapse Dual ACP Systems — Implementation Plan
+---
+title: "Phase 1C: Collapse Dual ACP Systems"
+audience: [developers, architects]
+last_updated: 2026-05-24
+togaf_phase: "E"
+version: "1.0.0"
+status: "Active"
+domain: "Application"
+---
 
-**Version:** 1.0.0  
-**Created:** 2026-05-23  
-**Status:** Ready for Implementation  
+# Phase 1C: Collapse Dual ACP Systems — Implementation Plan
 **Priority:** P0 (Security Critical)  
 **Estimated Effort:** 6 hours across 2 sessions
 

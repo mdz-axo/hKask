@@ -1,7 +1,7 @@
 ---
 title: "hKask Application Architecture"
 audience: [application architects, developers, agents]
-last_updated: 2026-05-20
+last_updated: 2026-05-24
 togaf_phase: "C — Application"
 version: "1.0.0"
 status: "Active"
@@ -344,6 +344,9 @@ status: VERIFIED
 [^togaf-app]: The Open Group. (2011). *TOGAF Standard, Version 9.1*. Phase C: Application Architecture. <https://pubs.opengroup.org/architecture/togaf9-doc/arch/chap15.html>.
 [^registry]: hKask Project. (2026). *AGENTS.md*. `/home/mdz-axolotl/Clones/hKask/AGENTS.md`.
 [^git-cas]: hKask Project. (2026). *docs/architecture/registry-deferred-work.md*. `/home/mdz-axolotl/Clones/hKask/docs/architecture/registry-deferred-work.md`.
+[^cockburn-hexagonal]: Cockburn, A. (2005). *Hexagonal Architecture*. <https://alistair.cockburn.us/hexagonal-architecture/>. The port/adapter pattern used throughout hKask (MCP servers as adapters, trait ports in core crates) derives from Cockburn's architectural pattern for isolating domain logic from external concerns.
+[^rmcp]: rmcp Contributors. (2024). *rmcp: Rust MCP (Model Context Protocol) SDK*. <https://crates.io/crates/rmcp>. The MCP runtime implementation.
+[^acp-runtime]: ACP Contributors. (2024). *acp-runtime: Agent Communication Protocol*. <https://crates.io/crates/acp-runtime>. The ACP wire protocol and transport layer.
 
 ---
 

@@ -1,7 +1,7 @@
 ---
 title: "hKask Architecture Principles"
 audience: [architects, developers, agents]
-last_updated: 2026-05-20
+last_updated: 2026-05-24
 togaf_phase: "Preliminary"
 version: "1.0.0"
 status: "Active"

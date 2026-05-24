@@ -1,7 +1,7 @@
 ---
 title: "hKask Data Architecture"
 audience: [data architects, database developers, agents]
-last_updated: 2026-05-20
+last_updated: 2026-05-24
 togaf_phase: "C — Data"
 version: "1.0.0"
 status: "Active"
@@ -66,7 +66,7 @@ CREATE TABLE triples (
 - `valid_from` / `valid_to` — When the fact is true in the world (valid-time)
 - `transaction_at` — When we recorded the fact (transaction-time)
 - `confidence` — Bayesian probability (0.0–1.0)
-- `perspective` — NULL = semantic (objective), SOME(agent_id) = episodic (subjective)
+- `perspective` — NULL = semantic (objective), SOME(agent_id) = episodic (subjective)[^tulving]
 - `visibility` — `private`, `public`, `shared`
 
 ### 2.2 Confidence Combination
@@ -348,6 +348,7 @@ pub trait StorageProvider {
 [^cybernetics]: Wiener, N. (1948). *Cybernetics: Or Control and Communication in the Animal and the Machine*. MIT Press.
 [^ashby]: Ashby, W. R. (1956). *An Introduction to Cybernetics*. Chapman & Hall. Law of Requisite Variety, Chapter 11.
 [^owasp]: OWASP. (2023). *Password Storage Cheat Sheet*. <https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html>.
+[^tulving]: Tulving, E. (1972). Episodic and Semantic Memory. In E. Tulving & W. Donaldson (Eds.), *Organization of Memory* (pp. 381–403). Academic Press. The episodic/semantic distinction governs hKask's memory taxonomy: episodic memory stores agent-perspective events (subjective, time-stamped); semantic memory stores shared knowledge (objective, perspective-free).
 
 ---
 

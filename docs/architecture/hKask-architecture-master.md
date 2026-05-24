@@ -1,7 +1,7 @@
 ---
 title: "hKask Architecture Master"
 audience: [architects, developers, agents]
-last_updated: 2026-05-23
+last_updated: 2026-05-24
 togaf_phase: "All Phases"
 version: "0.21.0"
 status: "Active"
