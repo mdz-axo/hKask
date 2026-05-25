@@ -190,9 +190,7 @@ install_rust() {
         local rust_version=$(rustc --version)
         log "Rust already installed: $rust_version"
         
-        # Check if version is acceptable (1.85+ for edition 2024)
-        local rust_minor=$(rustc --version | grep -oP '\d+\.\d+' | head -1 | cut -d. -f2)
-        if [ "$rust_minor" -lt 85 ]; then
+        if ! rustc --version | grep -qE 'rustc (1\.(8[5-9]|9[0-9]|[1-9][0-9]{2})\.)'; then
             log_warning "Rust version too old for edition 2024 (requires 1.85+). Consider updating with 'rustup update'"
         fi
     else
@@ -201,17 +199,14 @@ install_rust() {
         if [ "$CI" != "true" ]; then
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.91
             
-            # Source cargo environment
             if [ -f "$HOME/.cargo/env" ]; then
                 source "$HOME/.cargo/env"
             fi
         else
-            # In CI, Rust is typically pre-installed
             log "Running in CI environment, skipping Rust installation"
         fi
     fi
     
-    # Add components
     log "Adding Rust components..."
     rustup component add rustfmt clippy rust-src 2>/dev/null || true
     

@@ -65,7 +65,8 @@ jobs:
             llvm-dev \
             cmake \
             protobuf-compiler \
-            libprotobuf-dev
+            libprotobuf-dev \
+            libzstd-dev
       
       - name: Cache cargo registry
         uses: Swatinem/rust-cache@v2
@@ -99,7 +100,8 @@ jobs:
             llvm-dev \
             cmake \
             protobuf-compiler \
-            libprotobuf-dev
+            libprotobuf-dev \
+            libzstd-dev
       
       - name: Cache cargo registry
         uses: Swatinem/rust-cache@v2
@@ -136,7 +138,8 @@ jobs:
             llvm-dev \
             cmake \
             protobuf-compiler \
-            libprotobuf-dev
+            libprotobuf-dev \
+            libzstd-dev
       
       - name: Cache cargo registry
         uses: Swatinem/rust-cache@v2
@@ -145,7 +148,7 @@ jobs:
         run: cargo test --workspace --lib
       
       - name: Run integration tests
-        run: cargo test --workspace --test '*'
+        run: cargo test --workspace --tests
       
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -255,7 +258,8 @@ jobs:
             llvm-dev \
             cmake \
             protobuf-compiler \
-            libprotobuf-dev
+            libprotobuf-dev \
+            libzstd-dev
       
       - name: Cache cargo registry
         uses: Swatinem/rust-cache@v2

@@ -45,7 +45,8 @@ jobs:
             llvm-dev \
             cmake \
             protobuf-compiler \
-            libprotobuf-dev
+            libprotobuf-dev \
+            libzstd-dev
       
       - name: Cache cargo registry
         uses: Swatinem/rust-cache@v2
@@ -98,7 +99,8 @@ jobs:
             llvm-dev \
             cmake \
             protobuf-compiler \
-            libprotobuf-dev
+            libprotobuf-dev \
+            libzstd-dev
       
       - name: Install musl-tools (musl)
         if: matrix.target == 'x86_64-unknown-linux-musl'
@@ -110,7 +112,8 @@ jobs:
             libclang-dev \
             llvm-dev \
             cmake \
-            protobuf-compiler
+            protobuf-compiler \
+            libzstd-dev
       
       - name: Install cross-compilation tools (AArch64)
         if: matrix.target == 'aarch64-unknown-linux-gnu'
@@ -122,7 +125,8 @@ jobs:
             libclang-dev \
             llvm-dev \
             cmake \
-            protobuf-compiler
+            protobuf-compiler \
+            libzstd-dev
       
       - name: Cache cargo registry
         uses: Swatinem/rust-cache@v2
