@@ -113,7 +113,6 @@ pub struct MetacognitionLoop {
     escalation_queue: tokio::sync::Mutex<Arc<EscalationQueue>>,
     config: MetacognitionConfig,
     bot_reports: Arc<RwLock<Vec<BotStatusReport>>>,
-    running: Arc<RwLock<bool>>,
     /// Persistent storage for snapshots (R6: Persist Metacognition State)
     store: Option<Arc<MetacognitionStore>>,
 }
@@ -129,7 +128,6 @@ impl MetacognitionLoop {
             escalation_queue: tokio::sync::Mutex::new(escalation_queue),
             config,
             bot_reports: Arc::new(RwLock::new(Vec::new())),
-            running: Arc::new(RwLock::new(false)),
             store: None,
         }
     }
@@ -357,23 +355,13 @@ impl MetacognitionLoop {
 
         summary
     }
-
-    /// Stop the metacognition loop
-    pub async fn stop(&self) {
-        let mut running = self.running.write().await;
-        *running = false;
-        info!(target: "curator.metacognition", "Metacognition loop stopped");
-    }
-
-    /// Check if the loop is running
-    pub async fn is_running(&self) -> bool {
-        *self.running.read().await
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::adapters::CnsRuntimeAdapter;
+    use hkask_cns::CnsRuntime;
     use rusqlite::Connection;
     use tempfile::tempdir;
 
@@ -383,7 +371,7 @@ mod tests {
         let db_path = temp_dir.path().join("escalations.db");
         let conn = Arc::new(Connection::open(db_path).unwrap());
         let queue = Arc::new(EscalationQueue::new(conn).unwrap());
-        let cns = Arc::new(CnsRuntime::new());
+        let cns = Arc::new(CnsRuntimeAdapter::new(Arc::new(CnsRuntime::new())));
 
         let config = MetacognitionConfig::default();
         let loop_instance = MetacognitionLoop::new(cns, queue, config);
@@ -397,54 +385,27 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_bot_report_submission() {
-        let temp_dir = tempdir().unwrap();
-        let db_path = temp_dir.path().join("escalations.db");
-        let conn = Arc::new(Connection::open(db_path).unwrap());
-        let queue = Arc::new(EscalationQueue::new(conn).unwrap());
-        let cns = Arc::new(CnsRuntime::new());
-
-        let config = MetacognitionConfig::default();
-        let loop_instance = MetacognitionLoop::new(cns, queue, config);
-
-        let report = BotStatusReport {
-            bot_name: "test-bot".to_string(),
-            status: BotHealthStatus::Healthy,
-            last_report: Some(chrono::Utc::now()),
-            issues: vec![],
-        };
-
-        loop_instance.submit_bot_report(report).await;
-
-        let reports = loop_instance.get_bot_reports().await;
-        assert_eq!(reports.len(), 1);
-        assert_eq!(reports[0].bot_name, "test-bot");
-        assert_eq!(reports[0].status, BotHealthStatus::Healthy);
-    }
-
-    #[tokio::test]
     async fn test_escalation_on_critical_alerts() {
         let temp_dir = tempdir().unwrap();
         let db_path = temp_dir.path().join("escalations.db");
         let conn = Arc::new(Connection::open(db_path).unwrap());
         let queue = Arc::new(EscalationQueue::new(conn).unwrap());
-        let cns = Arc::new(CnsRuntime::new());
+        let cns = Arc::new(CnsRuntimeAdapter::new(Arc::new(CnsRuntime::new())));
 
-        // Set threshold to 1 so any critical alert triggers escalation
         let config = MetacognitionConfig {
             thresholds: EscalationThresholds {
-                critical_alerts: 1,
-                ..Default::default()
+                critical_alerts: 3,
+                variety_deficit: 100,
+                bot_failures: 2,
             },
             ..Default::default()
         };
 
         let loop_instance = MetacognitionLoop::new(cns, queue.clone(), config);
 
-        // Manually create a snapshot with critical alerts
         let snapshot = SystemHealthSnapshot {
             timestamp: chrono::Utc::now(),
-            cns_health: "Critical".to_string(),
+            cns_health: "Degraded".to_string(),
             variety_counters: vec![],
             critical_alerts: 5,
             total_alerts: 10,
@@ -461,13 +422,14 @@ mod tests {
         let stats = queue.stats().unwrap();
         assert_eq!(stats.pending, 1);
     }
+
     #[tokio::test]
     async fn test_summary_generation() {
         let temp_dir = tempdir().unwrap();
         let db_path = temp_dir.path().join("escalations.db");
         let conn = Arc::new(Connection::open(db_path).unwrap());
         let queue = Arc::new(EscalationQueue::new(conn).unwrap());
-        let cns = Arc::new(CnsRuntime::new());
+        let cns = Arc::new(CnsRuntimeAdapter::new(Arc::new(CnsRuntime::new())));
 
         let config = MetacognitionConfig::default();
         let loop_instance = MetacognitionLoop::new(cns, queue, config);

@@ -31,8 +31,8 @@ pub mod text;
 pub mod visibility;
 
 pub use agent_def::{
-    AgentDefinition, AgentKind, Charter, PersonaConstraints, ReadinessProbe, RegisteredAgent,
-    ReportingConfig, Responsibility, Right, StandingSessionConfig,
+    AgentDefinition, AgentKind, AgentStandingSessionConfig, Charter, PersonaConstraints,
+    ReadinessProbe, RegisteredAgent, ReportingConfig, Responsibility, Right,
 };
 pub use capability::*;
 pub use cns::*;

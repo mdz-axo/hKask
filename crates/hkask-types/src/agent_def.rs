@@ -141,7 +141,8 @@ fn default_retry() -> u32 {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct StandingSessionConfig {
+/// Per-agent standing session configuration (part of agent definition)
+pub struct AgentStandingSessionConfig {
     pub session_id: String,
     pub role: String,
     #[serde(default)]
@@ -188,7 +189,7 @@ pub struct AgentDefinition {
     #[serde(default)]
     pub reporting: Option<ReportingConfig>,
     #[serde(default)]
-    pub standing_session: Option<StandingSessionConfig>,
+    pub standing_session: Option<AgentStandingSessionConfig>,
     #[serde(default)]
     pub persona: Option<PersonaConstraints>,
     #[serde(default)]

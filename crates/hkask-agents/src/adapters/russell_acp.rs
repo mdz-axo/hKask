@@ -339,7 +339,7 @@ impl AcpPort for RussellAcpAdapter {
             CapabilityResource::Tool,
             "russell:session".to_string(),
             CapabilityAction::Execute,
-            WebID::from_persona(b"russell-bridge"),
+            WebID::from_persona_with_namespace(b"russell-bridge", "russell"),
             webid,
             self.bridge_secret.as_ref(),
         );
@@ -352,7 +352,7 @@ impl AcpPort for RussellAcpAdapter {
         let session_id = self
             .get_session_id(webid)
             .await
-            .ok_or_else(|| AcpError::AgentNotFound(*webid))?;
+            .ok_or(AcpError::AgentNotFound(*webid))?;
 
         let request = JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
@@ -630,7 +630,7 @@ mod tests {
             CapabilityResource::Tool,
             "russell:session".to_string(),
             CapabilityAction::Execute,
-            WebID::from_persona(b"russell-bridge"),
+            WebID::from_persona_with_namespace(b"russell-bridge", "russell"),
             webid,
             adapter.bridge_secret.as_ref(),
         );

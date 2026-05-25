@@ -200,10 +200,10 @@ pub fn granted_operations(token: &CapabilityToken) -> Vec<String> {
 
 /// Check if capability is expired
 pub fn is_expired(token: &CapabilityToken) -> bool {
-    if let Some(expiry_str) = token.get_caveat_data("expiration") {
-        if let Ok(expiry) = expiry_str.parse::<i64>() {
-            return chrono::Utc::now().timestamp() > expiry;
-        }
+    if let Some(expiry_str) = token.get_caveat_data("expiration")
+        && let Ok(expiry) = expiry_str.parse::<i64>()
+    {
+        return chrono::Utc::now().timestamp() > expiry;
     }
     false
 }

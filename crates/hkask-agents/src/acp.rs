@@ -602,12 +602,10 @@ impl AcpRuntime {
     /// Verify capability token (HMAC signature + revocation check + expiry check)
     pub async fn verify_capability(&self, token: &CapabilityToken) -> bool {
         let current_time = chrono::Utc::now().timestamp();
-        let valid = token.verify(self.secret.as_ref()) 
-            && !token.is_expired(current_time)
-            && {
-                let revoked = self.revoked_tokens.read().await;
-                !revoked.contains(&token.id)
-            };
+        let valid = token.verify(self.secret.as_ref()) && !token.is_expired(current_time) && {
+            let revoked = self.revoked_tokens.read().await;
+            !revoked.contains(&token.id)
+        };
 
         // Emit CNS span for capability verification
         if let Some(ref cns) = self.cns_emitter {
@@ -982,22 +980,22 @@ impl AuditLogPort for AuditLog {
 
     async fn get_recent(&self, count: usize) -> Vec<AuditLogEntry> {
         // Try storage first
-        if let Some(ref store) = self.store {
-            if let Ok(entries) = store.query_recent(count) {
-                return entries
-                    .into_iter()
-                    .map(|e| AuditLogEntry {
-                        id: e.id,
-                        timestamp: e.timestamp.timestamp(),
-                        from: WebID::from_string(&e.actor_webid),
-                        to: None,
-                        message_type: e.action,
-                        correlation_id: String::new(),
-                        event_type: e.outcome,
-                        metadata: e.details.unwrap_or(serde_json::Value::Null),
-                    })
-                    .collect();
-            }
+        if let Some(ref store) = self.store
+            && let Ok(entries) = store.query_recent(count)
+        {
+            return entries
+                .into_iter()
+                .map(|e| AuditLogEntry {
+                    id: e.id,
+                    timestamp: e.timestamp.timestamp(),
+                    from: WebID::from_string(&e.actor_webid),
+                    to: None,
+                    message_type: e.action,
+                    correlation_id: String::new(),
+                    event_type: e.outcome,
+                    metadata: e.details.unwrap_or(serde_json::Value::Null),
+                })
+                .collect();
         }
 
         // Fallback to in-memory
@@ -1007,22 +1005,22 @@ impl AuditLogPort for AuditLog {
 
     async fn get_by_webid(&self, webid: &WebID, count: usize) -> Vec<AuditLogEntry> {
         // Try storage first
-        if let Some(ref store) = self.store {
-            if let Ok(entries) = store.query_by_actor(&webid.to_string(), count) {
-                return entries
-                    .into_iter()
-                    .map(|e| AuditLogEntry {
-                        id: e.id,
-                        timestamp: e.timestamp.timestamp(),
-                        from: WebID::from_string(&e.actor_webid),
-                        to: None,
-                        message_type: e.action,
-                        correlation_id: String::new(),
-                        event_type: e.outcome,
-                        metadata: e.details.unwrap_or(serde_json::Value::Null),
-                    })
-                    .collect();
-            }
+        if let Some(ref store) = self.store
+            && let Ok(entries) = store.query_by_actor(&webid.to_string(), count)
+        {
+            return entries
+                .into_iter()
+                .map(|e| AuditLogEntry {
+                    id: e.id,
+                    timestamp: e.timestamp.timestamp(),
+                    from: WebID::from_string(&e.actor_webid),
+                    to: None,
+                    message_type: e.action,
+                    correlation_id: String::new(),
+                    event_type: e.outcome,
+                    metadata: e.details.unwrap_or(serde_json::Value::Null),
+                })
+                .collect();
         }
 
         // Fallback to in-memory

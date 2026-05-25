@@ -151,7 +151,10 @@ impl StandingSessionStore {
         Ok(conn.last_insert_rowid())
     }
 
-    pub fn get_messages(&self, session_id: &str) -> Result<Vec<StoredMessage>, StandingSessionError> {
+    pub fn get_messages(
+        &self,
+        session_id: &str,
+    ) -> Result<Vec<StoredMessage>, StandingSessionError> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
             "SELECT id, session_id, from_webid, content, timestamp, template_id

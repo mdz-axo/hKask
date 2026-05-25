@@ -834,6 +834,7 @@ impl PodManager {
                     .expect("In-memory storage initialization should never fail"),
             )),
             security_context: SecurityContext::default(),
+            inference_port: None,
         }
     }
 }
@@ -1258,10 +1259,7 @@ pub struct PodContext {
 
 impl PodContext {
     /// Create a new pod context from a pod manager and pod ID
-    pub async fn from_manager(
-        manager: &PodManager,
-        pod_id: &PodID,
-    ) -> AgentPodResult<Self> {
+    pub async fn from_manager(manager: &PodManager, pod_id: &PodID) -> AgentPodResult<Self> {
         let pods = manager.pods.read().await;
         let pod = pods
             .get(pod_id)

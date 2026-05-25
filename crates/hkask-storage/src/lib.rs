@@ -32,5 +32,7 @@ pub use sovereignty::{
     SovereigntyStoreStats,
 };
 pub use spec_store::{CnsSpecObserver, DefaultSpecCurator, SqliteSpecStore};
-pub use standing_session::{StandingSessionError, StandingSessionStore, StoredMessage, StoredSession};
+pub use standing_session::{
+    StandingSessionError, StandingSessionStore, StoredMessage, StoredSession,
+};
 pub use triples::{Triple, TripleError, TripleStore};

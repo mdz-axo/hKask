@@ -122,9 +122,9 @@ struct RawYamlAgent {
     #[serde(default)]
     capabilities: Vec<String>,
     #[serde(default)]
-    rights: Vec<hkask_types::Right>,
+    rights: Vec<std::collections::HashMap<String, String>>,
     #[serde(default)]
-    responsibilities: Vec<hkask_types::Responsibility>,
+    responsibilities: Vec<std::collections::HashMap<String, String>>,
     #[serde(default)]
     reporting: Option<YamlReporting>,
     #[serde(default)]
@@ -142,6 +142,95 @@ struct RawYamlAgent {
 impl RawYamlAgent {
     fn header(&self) -> Option<&YamlAgentHeader> {
         self.agent.as_ref().or(self.bot.as_ref())
+    }
+
+    fn convert_rights(
+        rights: Vec<std::collections::HashMap<String, String>>,
+    ) -> Vec<hkask_types::Right> {
+        rights
+            .into_iter()
+            .filter_map(|map| {
+                if let Some(resource) = map.get("read") {
+                    Some(hkask_types::Right::Read {
+                        resource: resource.clone(),
+                    })
+                } else if let Some(resource) = map.get("write") {
+                    Some(hkask_types::Right::Write {
+                        resource: resource.clone(),
+                    })
+                } else if let Some(action) = map.get("execute") {
+                    Some(hkask_types::Right::Execute {
+                        action: action.clone(),
+                    })
+                } else if let Some(scope) = map.get("coordinate") {
+                    Some(hkask_types::Right::Coordinate {
+                        scope: scope.clone(),
+                    })
+                } else if let Some(target) = map.get("escalate_to") {
+                    Some(hkask_types::Right::EscalateTo {
+                        target: target.clone(),
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    fn convert_responsibilities(
+        responsibilities: Vec<std::collections::HashMap<String, String>>,
+    ) -> Vec<hkask_types::Responsibility> {
+        responsibilities
+            .into_iter()
+            .filter_map(|map| {
+                if let Some(target) = map.get("monitor") {
+                    Some(hkask_types::Responsibility::Monitor {
+                        target: target.clone(),
+                    })
+                } else if let Some(input) = map.get("synthesize") {
+                    // For synthesize, we need both input and output, but the YAML format only has one value
+                    // We'll use the value as input and leave output empty for now
+                    Some(hkask_types::Responsibility::Synthesize {
+                        input: input.clone(),
+                        output: String::new(),
+                    })
+                } else if let Some(action) = map.get("perform") {
+                    Some(hkask_types::Responsibility::Perform {
+                        action: action.clone(),
+                    })
+                } else if let Some(target) = map.get("calibrate") {
+                    Some(hkask_types::Responsibility::Calibrate {
+                        target: target.clone(),
+                    })
+                } else if let Some(trigger) = map.get("escalate") {
+                    // Similar to synthesize, escalate needs trigger and target
+                    Some(hkask_types::Responsibility::Escalate {
+                        trigger: trigger.clone(),
+                        target: String::new(),
+                    })
+                } else if let Some(resource) = map.get("maintain") {
+                    Some(hkask_types::Responsibility::Maintain {
+                        resource: resource.clone(),
+                    })
+                } else if let Some(span) = map.get("emit") {
+                    Some(hkask_types::Responsibility::Emit { span: span.clone() })
+                } else if let Some(session) = map.get("orchestrate") {
+                    Some(hkask_types::Responsibility::Orchestrate {
+                        session: session.clone(),
+                    })
+                } else if let Some(target) = map.get("record") {
+                    Some(hkask_types::Responsibility::Record {
+                        target: target.clone(),
+                    })
+                } else if let Some(artifact) = map.get("produce") {
+                    Some(hkask_types::Responsibility::Produce {
+                        artifact: artifact.clone(),
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 
     fn into_agent_definition(
@@ -173,8 +262,8 @@ impl RawYamlAgent {
                 visibility: c.visibility,
             }),
             capabilities: self.capabilities,
-            rights: self.rights,
-            responsibilities: self.responsibilities,
+            rights: Self::convert_rights(self.rights),
+            responsibilities: Self::convert_responsibilities(self.responsibilities),
             reporting: self.reporting.map(|r| hkask_types::ReportingConfig {
                 escalate_to: r.escalate_to,
                 report_to: r.report_to,
@@ -185,14 +274,14 @@ impl RawYamlAgent {
                 receives_from: r.receives_from,
                 escalation_triggers: r.escalation_triggers,
             }),
-            standing_session: self
-                .standing_session
-                .map(|s| hkask_types::StandingSessionConfig {
+            standing_session: self.standing_session.map(|s| {
+                hkask_types::AgentStandingSessionConfig {
                     session_id: s.session_id,
                     role: s.role,
                     report_interval: s.report_interval,
                     administrator_visible: s.administrator_visible,
-                }),
+                }
+            }),
             persona: self.persona.map(|p| hkask_types::PersonaConstraints {
                 tone: p.tone,
                 verbosity: p.verbosity,

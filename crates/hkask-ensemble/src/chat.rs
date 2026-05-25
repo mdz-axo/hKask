@@ -176,32 +176,32 @@ impl EnsembleChat {
         };
 
         // R4: Capability Intersection — check if bot has required capabilities for template
-        if let Some(ref registry) = self.template_registry {
-            if let Ok(entry) = registry.get(template_id) {
-                let required_caps = &entry.required_capabilities;
-                if !required_caps.is_empty() {
-                    let bot_caps = &participant.capabilities;
-                    let intersection: Vec<_> = required_caps
-                        .iter()
-                        .filter(|cap| bot_caps.contains(cap))
-                        .collect();
+        if let Some(ref registry) = self.template_registry
+            && let Ok(entry) = registry.get(template_id)
+        {
+            let required_caps = &entry.required_capabilities;
+            if !required_caps.is_empty() {
+                let bot_caps = &participant.capabilities;
+                let intersection: Vec<_> = required_caps
+                    .iter()
+                    .filter(|cap| bot_caps.contains(cap))
+                    .collect();
 
-                    if intersection.is_empty() {
-                        self.span_emitter.emit_tool(
-                            "chat_dispatch.outcome",
-                            json!({
-                                "outcome": "capability_denied",
-                                "bot": bot_webid.to_string(),
-                                "template": template_id,
-                                "required": required_caps,
-                                "granted": bot_caps,
-                            }),
-                        );
-                        return Err(EnsembleError::CapabilityDenied(format!(
-                            "Bot {} lacks required capabilities {:?} for template {}",
-                            bot_webid, required_caps, template_id
-                        )));
-                    }
+                if intersection.is_empty() {
+                    self.span_emitter.emit_tool(
+                        "chat_dispatch.outcome",
+                        json!({
+                            "outcome": "capability_denied",
+                            "bot": bot_webid.to_string(),
+                            "template": template_id,
+                            "required": required_caps,
+                            "granted": bot_caps,
+                        }),
+                    );
+                    return Err(EnsembleError::CapabilityDenied(format!(
+                        "Bot {} lacks required capabilities {:?} for template {}",
+                        bot_webid, required_caps, template_id
+                    )));
                 }
             }
         }

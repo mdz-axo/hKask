@@ -197,10 +197,9 @@ impl CuratorPipeline {
                             if let Some(ref token) = invocation.capability_token {
                                 // Verify the token is valid and grants access to this template
                                 let token_valid = checker.verify(token);
-                                let grants_template = token.grants_resource(
-                                    hkask_types::CapabilityResource::Template,
-                                );
-                                
+                                let grants_template = token
+                                    .grants_resource(hkask_types::CapabilityResource::Template);
+
                                 if token_valid && grants_template {
                                     tracing::info!(
                                         "OCAP explicit: token verified for bot {} on template {}",

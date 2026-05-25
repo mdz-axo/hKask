@@ -153,7 +153,9 @@ impl StandingSession {
                 created_at: now.clone(),
                 last_active: now,
             };
-            store.save_session(&stored).map_err(|e| format!("Failed to persist session: {}", e))?;
+            store
+                .save_session(&stored)
+                .map_err(|e| format!("Failed to persist session: {}", e))?;
         }
         Ok(())
     }
@@ -169,8 +171,12 @@ impl StandingSession {
                 timestamp: message.timestamp.to_rfc3339(),
                 template_id: message.template_id.clone(),
             };
-            store.save_message(&stored).map_err(|e| format!("Failed to persist message: {}", e))?;
-            store.update_last_active(&self.session_id).map_err(|e| format!("Failed to update last_active: {}", e))?;
+            store
+                .save_message(&stored)
+                .map_err(|e| format!("Failed to persist message: {}", e))?;
+            store
+                .update_last_active(&self.session_id)
+                .map_err(|e| format!("Failed to update last_active: {}", e))?;
         }
         Ok(())
     }
@@ -178,9 +184,10 @@ impl StandingSession {
     /// Load messages from storage into chat history
     pub fn load_messages_from_storage(&mut self) -> Result<(), String> {
         if let Some(ref store) = self.store {
-            let messages = store.get_messages(&self.session_id)
+            let messages = store
+                .get_messages(&self.session_id)
                 .map_err(|e| format!("Failed to load messages: {}", e))?;
-            
+
             for stored in messages {
                 let webid = WebID::from_string(&stored.from_webid);
                 let mut msg = ChatMessage::new(webid, stored.content);
@@ -190,7 +197,7 @@ impl StandingSession {
                 msg.template_id = stored.template_id;
                 self.chat.add_message(msg);
             }
-            
+
             info!(
                 session_id = %self.session_id,
                 messages = self.chat.get_history().len(),
@@ -285,32 +292,33 @@ pub fn bootstrap_standing_session_with_store(
 ) -> Result<StandingSession, StandingSessionError> {
     let config = load_standing_session_config(path)?;
     let config_yaml = std::fs::read_to_string(path)?;
-    
+
     // Check if session already exists in storage
     let session_exists = store.get_session(&config.session.id).is_ok();
-    
-    let mut session = StandingSession::from_config(config.clone())
-        .with_store(store.clone());
-    
+
+    let mut session = StandingSession::from_config(config.clone()).with_store(store.clone());
+
     if session_exists {
         // Load existing messages from storage
-        session.load_messages_from_storage()
-            .map_err(|e| StandingSessionError::Bootstrap(e))?;
+        session
+            .load_messages_from_storage()
+            .map_err(StandingSessionError::Bootstrap)?;
         info!(
             session_id = %session.session_id,
             "Restored standing session from storage"
         );
     } else {
         // New session - persist and post initial messages
-        session.persist_session(&config_yaml)
-            .map_err(|e| StandingSessionError::Bootstrap(e))?;
+        session
+            .persist_session(&config_yaml)
+            .map_err(StandingSessionError::Bootstrap)?;
         session.post_initial_messages(&config);
         info!(
             session_id = %session.session_id,
             "Created new standing session with persistence"
         );
     }
-    
+
     Ok(session)
 }
 

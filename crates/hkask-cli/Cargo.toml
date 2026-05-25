@@ -30,3 +30,4 @@ tokio.workspace = true
 uuid.workspace = true
 minijinja.workspace = true
 rusqlite.workspace = true
+zeroize.workspace = true

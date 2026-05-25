@@ -182,7 +182,7 @@ mod tests {
     #[test]
     fn test_list_snapshots() {
         let store = test_store();
-        
+
         for i in 0..5 {
             let snapshot = StoredSnapshot {
                 id: 0,
@@ -205,7 +205,7 @@ mod tests {
     #[test]
     fn test_delete_old_snapshots() {
         let store = test_store();
-        
+
         let old_snapshot = StoredSnapshot {
             id: 0,
             timestamp: "2020-01-01T00:00:00Z".to_string(),

@@ -154,7 +154,7 @@ impl OcapEnforcer {
             // Verify visibility
             let cap_visibility = cap
                 .get_caveat_data("visibility")
-                .and_then(|v| hkask_types::Visibility::parse_str(v))
+                .and_then(hkask_types::Visibility::parse_str)
                 .unwrap_or(hkask_types::Visibility::Private);
 
             if cap_visibility != context.required_visibility {

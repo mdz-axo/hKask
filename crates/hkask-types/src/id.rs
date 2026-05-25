@@ -16,13 +16,33 @@ impl WebID {
     ///
     /// Uses SHA-1 name-based UUID with a fixed namespace.
     /// Same persona bytes → same WebID.
+    ///
+    /// Note: This uses a default namespace. For namespace isolation,
+    /// use `from_persona_with_namespace` instead.
     pub fn from_persona(persona_bytes: &[u8]) -> Self {
+        Self::from_persona_with_namespace(persona_bytes, "hkask")
+    }
+
+    /// Derive WebID deterministically from persona with namespace isolation (R10)
+    ///
+    /// Uses SHA-1 name-based UUID with a fixed namespace.
+    /// Combines namespace and persona bytes to prevent collisions across
+    /// different agent registries (e.g., "hkask" vs "russell").
+    ///
+    /// Same namespace + persona bytes → same WebID.
+    pub fn from_persona_with_namespace(persona_bytes: &[u8], namespace: &str) -> Self {
         // Fixed namespace UUID for hKask personas
         // UUID: 686b6173-6b2d-7065-7273-6f6e612d6e73
-        let namespace = Uuid::parse_str("686b6173-6b2d-7065-7273-6f6e612d6e73")
+        let base_namespace = Uuid::parse_str("686b6173-6b2d-7065-7273-6f6e612d6e73")
             .expect("Invalid namespace UUID");
 
-        Self(Uuid::new_v5(&namespace, persona_bytes))
+        // Combine namespace and persona bytes to create isolated WebIDs
+        let mut combined = Vec::with_capacity(namespace.len() + 1 + persona_bytes.len());
+        combined.extend_from_slice(namespace.as_bytes());
+        combined.push(b':');
+        combined.extend_from_slice(persona_bytes);
+
+        Self(Uuid::new_v5(&base_namespace, &combined))
     }
 
     pub fn from_string(s: &str) -> Self {
@@ -256,5 +276,37 @@ mod tests {
         assert_eq!(id1, id2);
         assert_eq!(id2, id3);
         assert_eq!(id1, id3);
+    }
+
+    #[test]
+    fn test_webid_namespace_isolation() {
+        let persona = b"Curator";
+        let id_hkask = WebID::from_persona_with_namespace(persona, "hkask");
+        let id_russell = WebID::from_persona_with_namespace(persona, "russell");
+        let id_default = WebID::from_persona(persona);
+
+        // Different namespaces should produce different WebIDs
+        assert_ne!(
+            id_hkask, id_russell,
+            "Different namespaces should produce different WebIDs for same persona"
+        );
+
+        // Default namespace should match "hkask" namespace
+        assert_eq!(
+            id_hkask, id_default,
+            "Default namespace should match explicit 'hkask' namespace"
+        );
+    }
+
+    #[test]
+    fn test_webid_namespace_deterministic() {
+        let persona = b"test-agent";
+        let namespace = "test-namespace";
+        let id1 = WebID::from_persona_with_namespace(persona, namespace);
+        let id2 = WebID::from_persona_with_namespace(persona, namespace);
+        assert_eq!(
+            id1, id2,
+            "Same namespace + persona should produce same WebID"
+        );
     }
 }
