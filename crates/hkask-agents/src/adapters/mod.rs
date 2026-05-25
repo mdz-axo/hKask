@@ -17,6 +17,7 @@ pub mod keystore_port;
 pub mod loopback_http_transport;
 pub mod mcp_runtime;
 pub mod memory_storage;
+pub mod russell_acp;
 pub mod stdio_transport;
 
 pub use cns_emitter::CnsEmitterAdapter;
@@ -26,4 +27,5 @@ pub use keystore_port::{KeystorePort, Secret};
 pub use loopback_http_transport::LoopbackHttpTransport;
 pub use mcp_runtime::McpRuntimeAdapter;
 pub use memory_storage::MemoryStorageAdapter;
+pub use russell_acp::RussellAcpAdapter;
 pub use stdio_transport::StdioTransport;

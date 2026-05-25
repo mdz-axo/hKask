@@ -12,7 +12,7 @@
 //! # Example
 //!
 //! ```rust
-//! use hkask_templates::{OkapiConfig, OkapiRetryConfig};
+//! use hkask_templates::OkapiConfig;
 //!
 //! // Local development (no auth)
 //! let config = OkapiConfig::local_dev();
@@ -23,12 +23,7 @@
 //!     api_key: Some("your-api-key".to_string()),
 //!     timeout_secs: 60,
 //!     pool_max_idle: 20,
-//!     retry: OkapiRetryConfig::default(),
 //! };
-//!
-//! // Retry configuration
-//! let retry_config = OkapiRetryConfig::default();
-//! assert_eq!(retry_config.max_retries, 3);
 //! ```
 
 use serde::{Deserialize, Serialize};

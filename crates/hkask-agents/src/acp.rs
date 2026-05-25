@@ -291,6 +291,8 @@ pub struct AcpRuntime {
     root_authority: Arc<RootAuthority>,
     /// Revoked capability token IDs
     revoked_tokens: Arc<RwLock<std::collections::HashSet<String>>>,
+    /// CNS emitter for observability (optional)
+    cns_emitter: Option<Arc<dyn hkask_cns::CnsEmit + Send + Sync>>,
 }
 
 impl AcpRuntime {
@@ -331,6 +333,7 @@ impl AcpRuntime {
             audit_log,
             root_authority,
             revoked_tokens: Arc::new(RwLock::new(std::collections::HashSet::new())),
+            cns_emitter: None,
         })
     }
 
@@ -359,7 +362,14 @@ impl AcpRuntime {
             audit_log: Arc::new(AuditLog::new()),
             root_authority,
             revoked_tokens: Arc::new(RwLock::new(std::collections::HashSet::new())),
+            cns_emitter: None,
         }
+    }
+
+    /// Set CNS emitter for observability
+    pub fn with_cns_emitter(mut self, emitter: Arc<dyn hkask_cns::CnsEmit + Send + Sync>) -> Self {
+        self.cns_emitter = Some(emitter);
+        self
     }
 
     /// Register an agent with the ACP runtime
@@ -429,6 +439,21 @@ impl AcpRuntime {
             capabilities = ?capabilities,
             "Agent registered with ACP runtime"
         );
+
+        // Emit CNS span for capability minting
+        if let Some(ref cns) = self.cns_emitter {
+            cns.emit_event(
+                "cns.cap.minted",
+                "minted",
+                &serde_json::json!({
+                    "token_id": token.id,
+                    "holder": token.delegated_to.to_string(),
+                    "resource": token.resource_id,
+                    "action": token.action.as_str(),
+                }),
+                1.0,
+            );
+        }
 
         Ok(token)
     }
@@ -538,18 +563,49 @@ impl AcpRuntime {
 
     /// Verify capability token (HMAC signature + revocation check)
     pub async fn verify_capability(&self, token: &CapabilityToken) -> bool {
-        if !token.verify(self.secret.as_ref()) {
-            return false;
+        let valid = token.verify(self.secret.as_ref()) && {
+            let revoked = self.revoked_tokens.read().await;
+            !revoked.contains(&token.id)
+        };
+
+        // Emit CNS span for capability verification
+        if let Some(ref cns) = self.cns_emitter {
+            let span_name = if valid {
+                "cns.cap.verified_ok"
+            } else {
+                "cns.cap.verified_denied"
+            };
+            cns.emit_event(
+                span_name,
+                "verified",
+                &serde_json::json!({
+                    "token_id": token.id,
+                    "holder": token.delegated_to.to_string(),
+                    "resource": token.resource_id,
+                }),
+                1.0,
+            );
         }
 
-        let revoked = self.revoked_tokens.read().await;
-        !revoked.contains(&token.id)
+        valid
     }
 
     /// Revoke a capability token by ID
     pub async fn revoke_capability(&self, token_id: &str) {
         let mut revoked = self.revoked_tokens.write().await;
         revoked.insert(token_id.to_string());
+
+        // Emit CNS span for capability revocation
+        if let Some(ref cns) = self.cns_emitter {
+            cns.emit_event(
+                "cns.cap.revoked",
+                "revoked",
+                &serde_json::json!({
+                    "token_id": token_id,
+                }),
+                1.0,
+            );
+        }
     }
 
     /// Check if a capability token has been revoked
@@ -590,11 +646,28 @@ impl AcpRuntime {
             .verify_attenuation_chain(parent_token, self.root_authority.root_webid())?;
 
         // Create attenuated token
-        parent_token
+        let child = parent_token
             .attenuate(new_holder, self.secret.as_ref(), current_time)
             .ok_or_else(|| {
                 AcpError::InvalidAttenuationChain("Attenuation limit exceeded".to_string())
-            })
+            })?;
+
+        // Emit CNS span for capability attenuation
+        if let Some(ref cns) = self.cns_emitter {
+            cns.emit_event(
+                "cns.cap.attenuated",
+                "attenuated",
+                &serde_json::json!({
+                    "parent_id": parent_token.id,
+                    "child_id": child.id,
+                    "attenuation_level": child.attenuation_level,
+                    "holder": child.delegated_to.to_string(),
+                }),
+                1.0,
+            );
+        }
+
+        Ok(child)
     }
 
     /// Verify capability attenuation chain
@@ -838,6 +911,18 @@ pub trait AuditLogPort: Send + Sync {
 #[async_trait::async_trait]
 impl AuditLogPort for AuditLog {
     async fn log(&self, entry: AuditLogEntry) {
+        // Write to persistent storage if available
+        if let Some(ref store) = self.store {
+            let storage_entry = hkask_storage::AuditEntry::new(
+                &entry.from.to_string(),
+                &entry.message_type,
+                &entry.event_type,
+                &entry.correlation_id,
+            );
+            let _ = store.insert(&storage_entry);
+        }
+
+        // Write to in-memory cache
         let mut entries = self.entries.write().await;
         entries.push(entry);
 
@@ -848,11 +933,51 @@ impl AuditLogPort for AuditLog {
     }
 
     async fn get_recent(&self, count: usize) -> Vec<AuditLogEntry> {
+        // Try storage first
+        if let Some(ref store) = self.store {
+            if let Ok(entries) = store.query_recent(count) {
+                return entries
+                    .into_iter()
+                    .map(|e| AuditLogEntry {
+                        id: e.id,
+                        timestamp: e.timestamp.timestamp(),
+                        from: WebID::from_string(&e.actor_webid),
+                        to: None,
+                        message_type: e.action,
+                        correlation_id: String::new(),
+                        event_type: e.outcome,
+                        metadata: e.details.unwrap_or(serde_json::Value::Null),
+                    })
+                    .collect();
+            }
+        }
+
+        // Fallback to in-memory
         let entries = self.entries.read().await;
         entries.iter().rev().take(count).cloned().collect()
     }
 
     async fn get_by_webid(&self, webid: &WebID, count: usize) -> Vec<AuditLogEntry> {
+        // Try storage first
+        if let Some(ref store) = self.store {
+            if let Ok(entries) = store.query_by_actor(&webid.to_string(), count) {
+                return entries
+                    .into_iter()
+                    .map(|e| AuditLogEntry {
+                        id: e.id,
+                        timestamp: e.timestamp.timestamp(),
+                        from: WebID::from_string(&e.actor_webid),
+                        to: None,
+                        message_type: e.action,
+                        correlation_id: String::new(),
+                        event_type: e.outcome,
+                        metadata: e.details.unwrap_or(serde_json::Value::Null),
+                    })
+                    .collect();
+            }
+        }
+
+        // Fallback to in-memory
         let entries = self.entries.read().await;
         entries
             .iter()

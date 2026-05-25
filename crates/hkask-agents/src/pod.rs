@@ -344,6 +344,9 @@ pub enum AgentPodError {
 
     #[error("Keystore error: {0}")]
     KeystoreError(String),
+
+    #[error("Storage error: {0}")]
+    StorageError(String),
 }
 
 /// Result type for agent pod operations
@@ -752,7 +755,7 @@ pub struct PodManager {
     acp_runtime: Arc<dyn crate::ports::AcpPort + Send + Sync>,
     cns_emitter: CnsEmitterAdapter,
     mcp_runtime: McpRuntimeAdapter,
-    _memory_storage: Arc<Mutex<MemoryStorageAdapter>>,
+    memory_storage: Arc<Mutex<MemoryStorageAdapter>>,
     security_context: SecurityContext,
 }
 
@@ -784,7 +787,7 @@ impl PodManager {
             acp_runtime,
             cns_emitter,
             mcp_runtime,
-            _memory_storage: Arc::new(Mutex::new(memory_storage)),
+            memory_storage: Arc::new(Mutex::new(memory_storage)),
             security_context: SecurityContext::default(),
         }
     }
@@ -798,7 +801,7 @@ impl PodManager {
             acp_runtime: Arc::new(crate::acp::AcpRuntime::default()),
             cns_emitter: CnsEmitterAdapter::new(WebID::new()),
             mcp_runtime: McpRuntimeAdapter::new(),
-            _memory_storage: Arc::new(Mutex::new(MemoryStorageAdapter::in_memory().unwrap())),
+            memory_storage: Arc::new(Mutex::new(MemoryStorageAdapter::in_memory().unwrap())),
             security_context: SecurityContext::default(),
         }
     }
@@ -812,7 +815,7 @@ impl PodManager {
             acp_runtime: Arc::new(crate::acp::AcpRuntime::default()),
             cns_emitter: CnsEmitterAdapter::new(WebID::new()),
             mcp_runtime: McpRuntimeAdapter::new(),
-            _memory_storage: Arc::new(Mutex::new(MemoryStorageAdapter::in_memory().unwrap())),
+            memory_storage: Arc::new(Mutex::new(MemoryStorageAdapter::in_memory().unwrap())),
             security_context: SecurityContext::default(),
         }
     }
@@ -1060,6 +1063,26 @@ impl PodManager {
 
         pod.activate(&self.mcp_runtime, &self.cns_emitter)?;
 
+        // Persist activation event to memory storage
+        let event = serde_json::json!({
+            "entity": pod.webid.to_string(),
+            "attribute": "lifecycle_event",
+            "value": {
+                "event": "activated",
+                "pod_id": pod.id.to_string(),
+                "timestamp": chrono::Utc::now().to_rfc3339(),
+            }
+        });
+        
+        let memory = self.memory_storage.lock().await;
+        let _ = memory.store_artifact(
+            pod.webid,
+            "episodic_triple",
+            event,
+            "private",
+            &pod.capability_token,
+        );
+
         info!(
             target: "hkask.pod",
             pod_id = %pod_id,
@@ -1078,6 +1101,26 @@ impl PodManager {
 
         pod.deactivate(&self.cns_emitter)?;
 
+        // Persist deactivation event to memory storage
+        let event = serde_json::json!({
+            "entity": pod.webid.to_string(),
+            "attribute": "lifecycle_event",
+            "value": {
+                "event": "deactivated",
+                "pod_id": pod.id.to_string(),
+                "timestamp": chrono::Utc::now().to_rfc3339(),
+            }
+        });
+        
+        let memory = self.memory_storage.lock().await;
+        let _ = memory.store_artifact(
+            pod.webid,
+            "episodic_triple",
+            event,
+            "private",
+            &pod.capability_token,
+        );
+
         info!(
             target: "hkask.pod",
             pod_id = %pod_id,
@@ -1085,6 +1128,21 @@ impl PodManager {
         );
 
         Ok(())
+    }
+
+    /// Recall lifecycle events for a pod
+    pub async fn recall_pod_events(&self, pod_id: &PodID) -> AgentPodResult<Vec<serde_json::Value>> {
+        let pods = self.pods.read().await;
+        let pod = pods
+            .get(pod_id)
+            .ok_or_else(|| AgentPodError::ACPRegistrationError("Pod not found".to_string()))?;
+
+        let memory = self.memory_storage.lock().await;
+        let results = memory
+            .recall(&pod.webid.to_string(), &pod.capability_token)
+            .map_err(|e| AgentPodError::StorageError(e.to_string()))?;
+
+        Ok(results)
     }
 
     /// Get pod status

@@ -43,6 +43,7 @@ pub mod ocap;
 pub mod pod;
 pub mod ports;
 pub mod replicant;
+pub mod revocation_store;
 pub mod security;
 pub mod sovereignty;
 
