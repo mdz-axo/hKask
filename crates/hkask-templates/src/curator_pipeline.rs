@@ -192,18 +192,40 @@ impl CuratorPipeline {
                         return false;
                     }
                     hkask_types::AuthorityLevel::Explicit => {
-                        if let Some(ref _checker) = self.capability_checker {
-                            // TODO: Token verification requires access to the capability token
-                            // which is not currently available in the curator pipeline context.
-                            // For now, we log a warning and deny (fail-safe).
-                            // Future: Pass the capability token through the invocation context
-                            // or inject a token lookup mechanism.
-                            tracing::warn!(
-                                "OCAP explicit: token verification not yet implemented for bot {} on template {} (denying for safety)",
-                                invocation.bot_id,
-                                invocation.template_id
-                            );
-                            return false;
+                        if let Some(ref checker) = self.capability_checker {
+                            // R3: Complete OCAP verification
+                            if let Some(ref token) = invocation.capability_token {
+                                // Verify the token is valid and grants access to this template
+                                let token_valid = checker.verify(token);
+                                let grants_template = token.grants_resource(
+                                    hkask_types::CapabilityResource::Template,
+                                );
+                                
+                                if token_valid && grants_template {
+                                    tracing::info!(
+                                        "OCAP explicit: token verified for bot {} on template {}",
+                                        invocation.bot_id,
+                                        invocation.template_id
+                                    );
+                                    // Token is valid, continue checking other boundaries
+                                } else {
+                                    tracing::warn!(
+                                        "OCAP explicit: token verification failed for bot {} on template {} (valid: {}, grants_template: {})",
+                                        invocation.bot_id,
+                                        invocation.template_id,
+                                        token_valid,
+                                        grants_template
+                                    );
+                                    return false;
+                                }
+                            } else {
+                                tracing::warn!(
+                                    "OCAP explicit: no capability token provided for bot {} on template {} (denying for safety)",
+                                    invocation.bot_id,
+                                    invocation.template_id
+                                );
+                                return false;
+                            }
                         } else {
                             tracing::warn!(
                                 "OCAP explicit: no capability checker configured, denying bot {} for template {}",

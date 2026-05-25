@@ -728,6 +728,7 @@ pub trait MemoryStoragePort {
 /// - Pod activation/deactivation
 /// - Status queries
 /// - Listing all pods
+/// - Inference access via InferencePort
 pub struct PodManager {
     pods: Arc<RwLock<HashMap<PodID, AgentPod>>>,
     _keystore: Keychain,
@@ -737,6 +738,7 @@ pub struct PodManager {
     mcp_runtime: McpRuntimeAdapter,
     memory_storage: Arc<Mutex<MemoryStorageAdapter>>,
     security_context: SecurityContext,
+    inference_port: Option<Arc<dyn hkask_templates::InferencePort>>,
 }
 
 /// Pod status information
@@ -769,7 +771,35 @@ impl PodManager {
             mcp_runtime,
             memory_storage: Arc::new(Mutex::new(memory_storage)),
             security_context: SecurityContext::default(),
+            inference_port: None,
         }
+    }
+
+    /// Create a new pod manager with inference port
+    pub fn with_inference(
+        git_cas: GitCasAdapter,
+        acp_runtime: Arc<dyn crate::ports::AcpPort + Send + Sync>,
+        cns_emitter: CnsEmitterAdapter,
+        mcp_runtime: McpRuntimeAdapter,
+        memory_storage: MemoryStorageAdapter,
+        inference_port: Arc<dyn hkask_templates::InferencePort>,
+    ) -> Self {
+        Self {
+            pods: Arc::new(RwLock::new(HashMap::new())),
+            _keystore: Keychain::default(),
+            git_cas,
+            acp_runtime,
+            cns_emitter,
+            mcp_runtime,
+            memory_storage: Arc::new(Mutex::new(memory_storage)),
+            security_context: SecurityContext::default(),
+            inference_port: Some(inference_port),
+        }
+    }
+
+    /// Get the inference port if available
+    pub fn inference_port(&self) -> Option<Arc<dyn hkask_templates::InferencePort>> {
+        self.inference_port.clone()
     }
 
     /// Create a new pod manager with mock adapters for testing
@@ -786,6 +816,7 @@ impl PodManager {
                     .expect("In-memory storage initialization should never fail"),
             )),
             security_context: SecurityContext::default(),
+            inference_port: None,
         }
     }
 
@@ -828,6 +859,7 @@ pub struct PodManagerBuilder {
     mcp_runtime: Option<McpRuntimeAdapter>,
     memory_storage: Option<MemoryStorageAdapter>,
     security_context: Option<SecurityContext>,
+    inference_port: Option<Arc<dyn hkask_templates::InferencePort>>,
 }
 
 impl PodManagerBuilder {
@@ -840,6 +872,7 @@ impl PodManagerBuilder {
             mcp_runtime: None,
             memory_storage: None,
             security_context: None,
+            inference_port: None,
         }
     }
 
@@ -875,6 +908,12 @@ impl PodManagerBuilder {
     /// Set memory storage adapter
     pub fn memory_storage(mut self, adapter: MemoryStorageAdapter) -> Self {
         self.memory_storage = Some(adapter);
+        self
+    }
+
+    /// Set inference port for LLM access
+    pub fn inference_port(mut self, adapter: Arc<dyn hkask_templates::InferencePort>) -> Self {
+        self.inference_port = Some(adapter);
         self
     }
 
@@ -917,8 +956,9 @@ impl PodManagerBuilder {
     /// - MCP Runtime: `McpRuntimeAdapter::new()`
     /// - Memory Storage: In-memory database
     /// - Security Context: Default rate limiter and expiry enforcer
+    /// - Inference Port: None (must be set explicitly if needed)
     pub fn build(self) -> PodManager {
-        PodManager::new(
+        let mut manager = PodManager::new(
             self.git_cas
                 .unwrap_or_else(|| GitCasAdapter::from_path(PathBuf::from("./registry/templates"))),
             self.acp_runtime
@@ -930,7 +970,9 @@ impl PodManagerBuilder {
                 MemoryStorageAdapter::in_memory()
                     .expect("In-memory storage initialization should never fail")
             }),
-        )
+        );
+        manager.inference_port = self.inference_port;
+        manager
     }
 }
 
@@ -1196,6 +1238,109 @@ impl PodManager {
 impl Default for PodManager {
     fn default() -> Self {
         Self::new_mock()
+    }
+}
+
+/// PodContext — Runtime context for an active pod
+///
+/// Provides access to all ports (inference, memory, MCP, CNS) for a specific pod.
+/// This is the unit of access that enforces the pod invariant: all interactions
+/// with memory, inference, and tools must go through a pod context.
+pub struct PodContext {
+    pub pod_id: PodID,
+    pub webid: WebID,
+    pub capability_token: CapabilityToken,
+    inference_port: Option<Arc<dyn hkask_templates::InferencePort>>,
+    memory_storage: Arc<Mutex<MemoryStorageAdapter>>,
+    mcp_runtime: Arc<McpRuntimeAdapter>,
+    cns_emitter: Arc<CnsEmitterAdapter>,
+}
+
+impl PodContext {
+    /// Create a new pod context from a pod manager and pod ID
+    pub async fn from_manager(
+        manager: &PodManager,
+        pod_id: &PodID,
+    ) -> AgentPodResult<Self> {
+        let pods = manager.pods.read().await;
+        let pod = pods
+            .get(pod_id)
+            .ok_or_else(|| AgentPodError::ACPRegistrationError("Pod not found".to_string()))?;
+
+        if pod.state != PodLifecycleState::Activated {
+            return Err(AgentPodError::ACPRegistrationError(
+                "Pod must be activated before creating context".to_string(),
+            ));
+        }
+
+        Ok(Self {
+            pod_id: *pod_id,
+            webid: pod.webid,
+            capability_token: pod.capability_token.clone(),
+            inference_port: manager.inference_port.clone(),
+            memory_storage: Arc::clone(&manager.memory_storage),
+            mcp_runtime: Arc::new(manager.mcp_runtime.clone()),
+            cns_emitter: Arc::new(CnsEmitterAdapter::new(pod.webid)),
+        })
+    }
+
+    /// Get the inference port if available
+    pub fn inference_port(&self) -> Option<Arc<dyn hkask_templates::InferencePort>> {
+        self.inference_port.clone()
+    }
+
+    /// Recall memory artifacts for this pod's agent
+    pub async fn recall_memory(&self, query: &str) -> Result<Vec<serde_json::Value>, String> {
+        let memory = self.memory_storage.lock().await;
+        memory
+            .recall(query, &self.capability_token)
+            .map_err(|e| format!("Memory recall error: {}", e))
+    }
+
+    /// Store a memory artifact for this pod's agent
+    pub async fn store_memory(
+        &self,
+        artifact_type: &str,
+        content: serde_json::Value,
+        visibility: &str,
+    ) -> Result<String, String> {
+        let memory = self.memory_storage.lock().await;
+        memory
+            .store_artifact(
+                self.webid,
+                artifact_type,
+                content,
+                visibility,
+                &self.capability_token,
+            )
+            .map_err(|e| format!("Memory store error: {}", e))
+    }
+
+    /// Invoke an MCP tool with capability authorization
+    pub fn invoke_tool(
+        &self,
+        tool_name: &str,
+        input: serde_json::Value,
+    ) -> Result<serde_json::Value, String> {
+        self.mcp_runtime
+            .invoke_tool(tool_name, input, &self.capability_token)
+            .map_err(|e| format!("Tool invocation error: {}", e))
+    }
+
+    /// Emit a CNS span for observability
+    pub fn emit_span(&self, span_type: &str, action: &str, data: serde_json::Value) {
+        use hkask_cns::CnsEmit;
+        self.cns_emitter.emit_event(
+            span_type,
+            "action",
+            &serde_json::json!({
+                "pod_id": self.pod_id.to_string(),
+                "webid": self.webid.to_string(),
+                "action": action,
+                "data": data,
+            }),
+            1.0,
+        );
     }
 }
 

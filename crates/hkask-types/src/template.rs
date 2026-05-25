@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::capability::CapabilityToken;
 use crate::id::BotID;
 
 pub type TemplateId = crate::id::TemplateID;
@@ -229,6 +230,9 @@ pub struct TemplateInvocation {
     pub selected_index: Option<usize>,
     pub outcome: TemplateOutcome,
     pub timestamp: chrono::DateTime<chrono::Utc>,
+    /// Capability token authorizing this invocation (for OCAP verification)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub capability_token: Option<CapabilityToken>,
 }
 
 impl TemplateInvocation {
@@ -249,6 +253,30 @@ impl TemplateInvocation {
             selected_index: None,
             outcome: TemplateOutcome::Failure,
             timestamp: chrono::Utc::now(),
+            capability_token: None,
+        }
+    }
+
+    /// Create a new invocation with a capability token for OCAP verification
+    pub fn with_capability_token(
+        template_id: TemplateId,
+        bot_id: BotID,
+        parameters: LLMParameters,
+        input: serde_json::Value,
+        token: CapabilityToken,
+    ) -> Self {
+        Self {
+            id: TemplateId::new(),
+            template_id,
+            bot_id,
+            temperature: parameters.temperature,
+            parameters,
+            input,
+            outputs: Vec::new(),
+            selected_index: None,
+            outcome: TemplateOutcome::Failure,
+            timestamp: chrono::Utc::now(),
+            capability_token: Some(token),
         }
     }
 }

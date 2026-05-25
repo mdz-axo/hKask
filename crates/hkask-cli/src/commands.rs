@@ -610,6 +610,34 @@ async fn init_registry() -> Result<
         .initialize_schema()
         .map_err(|e| format!("Schema init error: {}", e))?;
 
+    // R2: Restore agent state from persistent storage
+    let registered_agents = store
+        .list()
+        .map_err(|e| format!("Failed to list agents: {}", e))?;
+
+    if !registered_agents.is_empty() {
+        // Restore AcpRuntime state from storage
+        let agents: Vec<hkask_agents::acp::AcpAgent> = registered_agents
+            .iter()
+            .map(|ra| hkask_agents::acp::AcpAgent {
+                webid: hkask_types::WebID::from_string(&ra.definition.name),
+                agent_type: ra.definition.agent_kind.as_str().to_string(),
+                capabilities: ra.definition.capabilities.clone(),
+                registered_at: chrono::DateTime::parse_from_rfc3339(&ra.registered_at)
+                    .map(|dt| dt.timestamp())
+                    .unwrap_or(0),
+                active: true,
+            })
+            .collect();
+
+        // Restore capability tokens (empty for now - R8 will add token persistence)
+        let tokens = std::collections::HashMap::new();
+
+        acp.restore_from_storage(agents, tokens)
+            .await
+            .map_err(|e| format!("Failed to restore agent state: {}", e))?;
+    }
+
     Ok((acp, store))
 }
 
@@ -719,4 +747,258 @@ pub async fn agent_unregister(name: &str) -> Result<(), String> {
         .map_err(|e| format!("Unregister error: {}", e))?;
 
     Ok(())
+}
+
+pub async fn chat_with_agent(input: &str, agent_name: Option<&str>) -> String {
+    use hkask_agents::pod::{PodContext, PodManagerBuilder};
+    use hkask_templates::{InferencePort, OkapiConfig, OkapiInference};
+    use hkask_types::LLMParameters;
+    use std::sync::Arc;
+
+    let name = agent_name.unwrap_or("Curator");
+
+    // Load agent registry
+    let (acp, store) = match init_registry().await {
+        Ok(r) => r,
+        Err(e) => return format!("Registry init error: {}", e),
+    };
+
+    let loader = hkask_agents::BotRegistryLoader::new(registry_yaml_path(), acp.clone(), store);
+
+    let agents = match loader.boot().await {
+        Ok(a) => a,
+        Err(e) => return format!("Registry load error: {}", e),
+    };
+
+    let agent = agents.iter().find(|a| a.definition.name == name);
+
+    let system_prompt = match agent {
+        Some(registered) => registered.definition.compose_system_prompt(),
+        None => {
+            if name == "russell" || name == "Russell" {
+                return "Russell direct chat requires the Russell binary. Use `kask agent register` to register Russell first.".to_string();
+            }
+            format!("You are {}, an assistant in the hKask system.\n\n", name)
+        }
+    };
+
+    // Create inference port
+    let config = OkapiConfig::local_dev();
+    let inference = match OkapiInference::new("qwen3:8b", config) {
+        Ok(i) => Arc::new(i) as Arc<dyn InferencePort>,
+        Err(e) => return format!("Okapi init error: {}", e),
+    };
+
+    // Create PodManager with inference port (R1: Restore Pod Invariant)
+    let pod_manager = PodManagerBuilder::new()
+        .acp_runtime(acp)
+        .inference_port(inference.clone())
+        .with_in_memory_storage()
+        .build();
+
+    // Create or find pod for this agent
+    let persona_yaml = format!(
+        r#"
+agent:
+  name: {}
+  type: {}
+  version: "0.1.0"
+charter:
+  description: "Chat session with {}"
+  editor: cli
+capabilities:
+  - "tool:inference:call"
+rights: []
+responsibilities: []
+visibility:
+  default: public
+  episodic_override: private
+"#,
+        name,
+        if name == "Curator" { "Replicant" } else { "Bot" },
+        name
+    );
+
+    let persona = match hkask_agents::pod::AgentPersona::from_yaml(&persona_yaml) {
+        Ok(p) => p,
+        Err(e) => return format!("Persona parse error: {}", e),
+    };
+
+    let pod_id = match pod_manager.create_pod("chat-template", &persona, Some(name.to_string())).await {
+        Ok(id) => id,
+        Err(e) => return format!("Pod creation error: {}", e),
+    };
+
+    // Activate pod (registers with ACP, grants MCP access)
+    if let Err(e) = pod_manager.activate_pod(&pod_id).await {
+        return format!("Pod activation error: {}", e);
+    }
+
+    // Create PodContext (R1: all access goes through pod)
+    let pod_context = match PodContext::from_manager(&pod_manager, &pod_id).await {
+        Ok(ctx) => ctx,
+        Err(e) => return format!("Pod context error: {}", e),
+    };
+
+    // Emit CNS span for observability
+    pod_context.emit_span(
+        "cns.prompt.chat",
+        "chat_interaction",
+        serde_json::json!({
+            "agent": name,
+            "input_length": input.len(),
+        }),
+    );
+
+    // Build full prompt with system context
+    let full_prompt = format!("{}\n\nUser: {}", system_prompt, input);
+
+    let params = LLMParameters {
+        temperature: 0.7,
+        top_p: 0.9,
+        top_k: 40,
+        frequency_penalty: 0.0,
+        presence_penalty: 0.0,
+        max_tokens: 512,
+        seed: None,
+    };
+
+    // Use inference port from PodContext (R1: pod-mediated inference)
+    let inference_port = match pod_context.inference_port() {
+        Some(port) => port,
+        None => return "No inference port available in pod context".to_string(),
+    };
+
+    match inference_port.generate(&full_prompt, &params).await {
+        Ok(result) => {
+            // Store interaction as episodic memory
+            let _ = pod_context
+                .store_memory(
+                    "episodic_triple",
+                    serde_json::json!({
+                        "entity": pod_context.webid.to_string(),
+                        "attribute": "chat_interaction",
+                        "value": {
+                            "input": input,
+                            "output": result.text.clone(),
+                            "timestamp": chrono::Utc::now().to_rfc3339(),
+                        }
+                    }),
+                    "private",
+                )
+                .await;
+
+            result.text
+        }
+        Err(e) => format!("Inference error: {}", e),
+    }
+}
+
+pub fn ensemble_standing_start(
+    config_path: &std::path::Path,
+) -> Result<hkask_ensemble::StandingSessionStatus, String> {
+    let session = hkask_ensemble::bootstrap_standing_session(config_path)
+        .map_err(|e| format!("Bootstrap failed: {}", e))?;
+    Ok(session.get_status())
+}
+
+pub fn ensemble_standing_status() -> Result<hkask_ensemble::StandingSessionStatus, String> {
+    let config_path = std::path::Path::new("registry/manifests/standing-ensemble-session.yaml");
+    if !config_path.exists() {
+        return Err(
+            "Standing session not bootstrapped. Run 'kask ensemble standing-start' first."
+                .to_string(),
+        );
+    }
+
+    let session = hkask_ensemble::bootstrap_standing_session(config_path)
+        .map_err(|e| format!("Failed to load standing session: {}", e))?;
+    Ok(session.get_status())
+}
+
+pub async fn curator_escalations() -> Result<Vec<hkask_agents::EscalationEntry>, String> {
+    use rusqlite::Connection;
+    use std::sync::Arc;
+
+    let db_path = registry_db_path();
+    let conn = if db_path == ":memory:" {
+        Connection::open_in_memory().map_err(|e| format!("Database error: {}", e))?
+    } else {
+        Connection::open(&db_path).map_err(|e| format!("Database error: {}", e))?
+    };
+
+    let queue = hkask_agents::EscalationQueue::new(Arc::new(conn))
+        .map_err(|e| format!("Escalation queue error: {}", e))?;
+
+    queue
+        .list_pending()
+        .map_err(|e| format!("Failed to list escalations: {}", e))
+}
+
+pub async fn curator_resolve(id: &str) -> Result<(), String> {
+    use rusqlite::Connection;
+    use std::sync::Arc;
+
+    let db_path = registry_db_path();
+    let conn = if db_path == ":memory:" {
+        Connection::open_in_memory().map_err(|e| format!("Database error: {}", e))?
+    } else {
+        Connection::open(&db_path).map_err(|e| format!("Database error: {}", e))?
+    };
+
+    let queue = hkask_agents::EscalationQueue::new(Arc::new(conn))
+        .map_err(|e| format!("Escalation queue error: {}", e))?;
+
+    queue
+        .resolve(id, "cli-administrator")
+        .map_err(|e| format!("Failed to resolve escalation: {}", e))
+}
+
+pub async fn curator_dismiss(id: &str) -> Result<(), String> {
+    use rusqlite::Connection;
+    use std::sync::Arc;
+
+    let db_path = registry_db_path();
+    let conn = if db_path == ":memory:" {
+        Connection::open_in_memory().map_err(|e| format!("Database error: {}", e))?
+    } else {
+        Connection::open(&db_path).map_err(|e| format!("Database error: {}", e))?
+    };
+
+    let queue = hkask_agents::EscalationQueue::new(Arc::new(conn))
+        .map_err(|e| format!("Escalation queue error: {}", e))?;
+
+    queue
+        .dismiss(id, "cli-administrator")
+        .map_err(|e| format!("Failed to dismiss escalation: {}", e))
+}
+
+pub async fn curator_metacognition() -> Result<String, String> {
+    use hkask_agents::curator::{MetacognitionConfig, MetacognitionLoop};
+    use hkask_cns::CnsRuntime;
+    use rusqlite::Connection;
+    use std::sync::Arc;
+
+    let db_path = registry_db_path();
+    let conn = if db_path == ":memory:" {
+        Connection::open_in_memory().map_err(|e| format!("Database error: {}", e))?
+    } else {
+        Connection::open(&db_path).map_err(|e| format!("Database error: {}", e))?
+    };
+
+    let queue = Arc::new(
+        hkask_agents::EscalationQueue::new(Arc::new(conn))
+            .map_err(|e| format!("Escalation queue error: {}", e))?,
+    );
+
+    let cns = Arc::new(CnsRuntime::new());
+    let config = MetacognitionConfig::default();
+    let loop_instance = MetacognitionLoop::new(cns, queue, config);
+
+    let snapshot = loop_instance
+        .run_cycle()
+        .await
+        .map_err(|e| format!("Metacognition error: {}", e))?;
+
+    Ok(loop_instance.generate_summary(&snapshot))
 }

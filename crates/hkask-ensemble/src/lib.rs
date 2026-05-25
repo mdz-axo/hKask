@@ -16,6 +16,7 @@ pub mod okapi_capability;
 pub mod okapi_integration;
 pub mod ports;
 pub mod resilience;
+pub mod standing_session;
 pub mod webid_registry;
 
 // Re-export commonly used types
@@ -36,3 +37,7 @@ pub use okapi_capability::{
     has_operation, is_expired, read_only_capability, verify_okapi_capability,
 };
 pub use ports::{GenerateOptions, GenerateRequest};
+pub use standing_session::{
+    StandingSession, StandingSessionConfig, StandingSessionError, StandingSessionStatus,
+    bootstrap_standing_session, load_standing_session_config,
+};

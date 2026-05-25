@@ -481,6 +481,42 @@ impl AcpRuntime {
         Ok(())
     }
 
+    /// Restore agent state from storage (R2: Persist Agent State)
+    ///
+    /// # Arguments
+    /// * `agents` - List of registered agents to restore
+    /// * `tokens` - Map of WebID to capability tokens
+    ///
+    /// # Returns
+    /// * `Ok(usize)` - Number of agents restored
+    /// * `Err(AcpError)` - Restoration error
+    pub async fn restore_from_storage(
+        &self,
+        agents: Vec<AcpAgent>,
+        tokens: std::collections::HashMap<WebID, Vec<CapabilityToken>>,
+    ) -> Result<usize, AcpError> {
+        let mut agents_lock = self.agents.write().await;
+        let mut tokens_lock = self.capability_tokens.write().await;
+
+        let count = agents.len();
+
+        for agent in agents {
+            agents_lock.insert(agent.webid, agent);
+        }
+
+        for (webid, token_list) in tokens {
+            tokens_lock.insert(webid, token_list);
+        }
+
+        info!(
+            target: "hkask.acp",
+            agent_count = count,
+            "Agent state restored from storage"
+        );
+
+        Ok(count)
+    }
+
     /// Get agent by WebID
     pub async fn get_agent(&self, webid: &WebID) -> Option<AcpAgent> {
         let agents = self.agents.read().await;

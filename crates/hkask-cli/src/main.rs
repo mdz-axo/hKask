@@ -18,7 +18,7 @@ use clap::{Parser, Subcommand};
 use hkask_cli::commands;
 use hkask_cli::russell_mapper::RussellMappingConfig;
 use hkask_mcp::runtime::McpRuntime;
-use hkask_templates::{InferencePort, OkapiConfig, OkapiInference, SqliteRegistry};
+use hkask_templates::SqliteRegistry;
 use hkask_types::TemplateType as Type;
 use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
@@ -72,6 +72,10 @@ enum Commands {
         /// Interactive mode
         #[arg(short, long)]
         interactive: bool,
+
+        /// Agent to chat with (default: Curator)
+        #[arg(short, long)]
+        agent: Option<String>,
     },
 
     /// Template management
@@ -144,6 +148,12 @@ enum Commands {
     Agent {
         #[command(subcommand)]
         action: AgentAction,
+    },
+
+    /// Curator governance and metacognition
+    Curator {
+        #[command(subcommand)]
+        action: CuratorAction,
     },
 }
 
@@ -535,6 +545,44 @@ enum EnsembleAction {
 
     /// List active deliberation sessions
     DeliberationList,
+
+    /// Bootstrap the standing ensemble session from YAML
+    StandingStart {
+        /// Path to standing-ensemble-session.yaml
+        #[arg(
+            short,
+            long,
+            default_value = "registry/manifests/standing-ensemble-session.yaml"
+        )]
+        config: PathBuf,
+    },
+
+    /// Show standing session status
+    StandingStatus,
+}
+
+/// Curator governance actions
+#[derive(Subcommand)]
+enum CuratorAction {
+    /// List pending escalations
+    Escalations,
+
+    /// Resolve an escalation by ID
+    Resolve {
+        /// Escalation ID
+        #[arg()]
+        id: String,
+    },
+
+    /// Dismiss an escalation by ID
+    Dismiss {
+        /// Escalation ID
+        #[arg()]
+        id: String,
+    },
+
+    /// Run a metacognition cycle and display system health
+    Metacognition,
 }
 
 /// Specification actions (DDMVSS)
@@ -622,8 +670,11 @@ fn run_chat_interactive(
     registry: &SqliteRegistry,
     _runtime: &McpRuntime,
     template_id: Option<&str>,
+    agent_name: Option<&str>,
 ) {
-    println!("ℏKask Curator Chat - Interactive Mode");
+    let display_name = agent_name.unwrap_or("Curator");
+    println!("ℏKask Chat - Interactive Mode");
+    println!("Agent: {}", display_name);
     println!("Template: {}", template_id.unwrap_or("auto-select"));
     println!("Type 'quit' or 'exit' to end session\n");
 
@@ -649,60 +700,24 @@ fn run_chat_interactive(
             break;
         }
 
-        // Process input with Okapi inference
         let rt = tokio::runtime::Runtime::new().unwrap();
-        let response = rt.block_on(process_chat_input_async(registry, input, template_id));
-        println!("Curator: {}\n", response);
+        let response = rt.block_on(process_chat_input_async(
+            registry,
+            input,
+            template_id,
+            agent_name,
+        ));
+        println!("{}: {}\n", display_name, response);
     }
 }
 
 async fn process_chat_input_async(
     _registry: &SqliteRegistry,
     input: &str,
-    template_id: Option<&str>,
+    _template_id: Option<&str>,
+    agent_name: Option<&str>,
 ) -> String {
-    use hkask_types::LLMParameters;
-
-    // Initialize Okapi inference client
-    let config = OkapiConfig::local_dev();
-    let model = "qwen3:8b";
-
-    let inference = match OkapiInference::new(model, config) {
-        Ok(i) => i,
-        Err(e) => return format!("Failed to initialize Okapi: {}", e),
-    };
-
-    // Build prompt based on template selection
-    let prompt = match template_id {
-        Some(id) => format!("[template: {}] {}", id, input),
-        None => {
-            // Auto-select template based on input type
-            if input.contains('?') || input.contains("what") || input.contains("how") {
-                format!("Answer concisely: {}", input)
-            } else if input.contains("create") || input.contains("make") || input.contains("build")
-            {
-                format!("Provide step-by-step instructions: {}", input)
-            } else {
-                format!("Respond helpfully: {}", input)
-            }
-        }
-    };
-
-    let params = LLMParameters {
-        temperature: 0.7,
-        top_p: 0.9,
-        top_k: 40,
-        frequency_penalty: 0.0,
-        presence_penalty: 0.0,
-        max_tokens: 512,
-        seed: None,
-    };
-
-    // Call Okapi for inference
-    match inference.generate(&prompt, &params).await {
-        Ok(result) => result.text,
-        Err(e) => format!("Inference error: {}", e),
-    }
+    commands::chat_with_agent(input, agent_name).await
 }
 
 fn generate_cli_markdown() -> String {
@@ -850,11 +865,12 @@ fn main() {
             template,
             input,
             interactive,
+            agent,
         } => {
+            let agent_name = agent.as_deref();
             if interactive {
-                run_chat_interactive(&registry, &runtime, template.as_deref());
+                run_chat_interactive(&registry, &runtime, template.as_deref(), agent_name);
             } else if let Some(input_path) = input {
-                // Read from file
                 match std::fs::read_to_string(&input_path) {
                     Ok(content) => {
                         let rt = tokio::runtime::Runtime::new().unwrap();
@@ -862,8 +878,9 @@ fn main() {
                             &registry,
                             &content,
                             template.as_deref(),
+                            agent_name,
                         ));
-                        println!("Curator: {}", response);
+                        println!("{}: {}", agent_name.unwrap_or("Curator"), response);
                     }
                     Err(e) => {
                         eprintln!("Failed to read input file: {}", e);
@@ -871,7 +888,6 @@ fn main() {
                     }
                 }
             } else {
-                // Read from stdin
                 let mut input = String::new();
                 if io::stdin().read_line(&mut input).is_ok() {
                     let rt = tokio::runtime::Runtime::new().unwrap();
@@ -879,8 +895,9 @@ fn main() {
                         &registry,
                         input.trim(),
                         template.as_deref(),
+                        agent_name,
                     ));
-                    println!("Curator: {}", response);
+                    println!("{}: {}", agent_name.unwrap_or("Curator"), response);
                 }
             }
         }
@@ -1778,6 +1795,36 @@ fn main() {
                         }
                     }
                 }
+                EnsembleAction::StandingStart { config } => {
+                    match commands::ensemble_standing_start(&config) {
+                        Ok(status) => {
+                            println!("Standing session bootstrapped:");
+                            println!("  Session ID: {}", status.session_id);
+                            println!("  Participants: {}", status.participant_count);
+                            println!("  Initial messages: {}", status.message_count);
+                        }
+                        Err(e) => {
+                            eprintln!("Standing session bootstrap failed: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+                EnsembleAction::StandingStatus => match commands::ensemble_standing_status() {
+                    Ok(status) => {
+                        println!("Standing session status:");
+                        println!("  Session ID: {}", status.session_id);
+                        println!("  Participants: {}", status.participant_count);
+                        println!("  Messages: {}", status.message_count);
+                        println!("\nParticipants:");
+                        for p in &status.participants {
+                            println!("  - {} ({})", p.name, p.role);
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Standing status failed: {}", e);
+                        std::process::exit(1);
+                    }
+                },
             }
         }
 
@@ -1858,6 +1905,83 @@ fn main() {
                         }
                         Err(e) => {
                             eprintln!("Failed to get capabilities: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                });
+            }
+        },
+
+        Commands::Curator { action } => match action {
+            CuratorAction::Escalations => {
+                let rt = tokio::runtime::Runtime::new().unwrap();
+                rt.block_on(async {
+                    match commands::curator_escalations().await {
+                        Ok(escalations) => {
+                            if escalations.is_empty() {
+                                println!("No pending escalations.");
+                                return;
+                            }
+                            println!(
+                                "{:<20} {:<15} {:<10} {}",
+                                "ID", "BOT", "CONFIDENCE", "CONTEXT"
+                            );
+                            println!("{}", "-".repeat(80));
+                            for esc in &escalations {
+                                println!(
+                                    "{:<20} {:<15} {:<10.2} {}",
+                                    &esc.id[..std::cmp::min(20, esc.id.len())],
+                                    esc.bot_id
+                                        .0
+                                        .to_string()
+                                        .split('-')
+                                        .next()
+                                        .unwrap_or("unknown"),
+                                    esc.confidence,
+                                    &esc.error_context
+                                        [..std::cmp::min(40, esc.error_context.len())],
+                                );
+                            }
+                            println!("\nTotal: {} pending escalations", escalations.len());
+                        }
+                        Err(e) => {
+                            eprintln!("Failed to list escalations: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                });
+            }
+            CuratorAction::Resolve { id } => {
+                let rt = tokio::runtime::Runtime::new().unwrap();
+                rt.block_on(async {
+                    match commands::curator_resolve(&id).await {
+                        Ok(()) => println!("Escalation {} resolved.", id),
+                        Err(e) => {
+                            eprintln!("Failed to resolve escalation: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                });
+            }
+            CuratorAction::Dismiss { id } => {
+                let rt = tokio::runtime::Runtime::new().unwrap();
+                rt.block_on(async {
+                    match commands::curator_dismiss(&id).await {
+                        Ok(()) => println!("Escalation {} dismissed.", id),
+                        Err(e) => {
+                            eprintln!("Failed to dismiss escalation: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                });
+            }
+            CuratorAction::Metacognition => {
+                let rt = tokio::runtime::Runtime::new().unwrap();
+                rt.block_on(async {
+                    match commands::curator_metacognition().await {
+                        Ok(summary) => println!("{}", summary),
+                        Err(e) => {
+                            eprintln!("Metacognition cycle failed: {}", e);
                             std::process::exit(1);
                         }
                     }
