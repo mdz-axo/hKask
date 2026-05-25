@@ -218,10 +218,11 @@ mod e2e_tests {
         use std::sync::Arc;
 
         let cns_runtime = Arc::new(CnsRuntime::new());
-        let integration = OkapiIntegration::new(okapi_base_url(), cns_runtime);
+        let integration = OkapiIntegration::new(okapi_base_url(), cns_runtime)
+            .expect("Failed to create OkapiIntegration");
 
         println!("Okapi Integration created: {}", integration.base_url());
-        println!("Capability: {:?}", integration.capability().id());
+        println!("Capability: {:?}", integration.capability().id);
 
         // Note: start_metrics_translation() will run until stream ends
         // For testing, we just verify creation works

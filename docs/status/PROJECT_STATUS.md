@@ -135,7 +135,7 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-na
 | **Research** | 1 | `docs/research/` |
 | **Status** | 2 | `docs/status/` |
 | **Cross-cutting** | 4 | `docs/` root |
-| **Total** | 43 | — |
+| **Total** | 45 | — |
 
 ### 4.2 Archived Documents
 

@@ -4,10 +4,12 @@
 
 use crate::russell_mapper::{MappedTemplate, RussellMapper, RussellMappingConfig};
 use hkask_mcp::runtime::{McpRuntime, McpServer, McpTool};
+use hkask_mcp::transport::McpTransport;
 use hkask_templates::{RegistryEntry, RegistryIndex, SqliteRegistry, TemplateError};
 use hkask_types::TemplateType;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 /// Template list command
 pub fn list_templates(
@@ -81,15 +83,17 @@ pub async fn register_mcp_server(
     id: String,
     name: String,
     tools: Vec<McpTool>,
+    transport: Arc<dyn McpTransport>,
 ) {
     let server = McpServer {
         id,
         name,
         tools,
         connected: true,
+        transport: None, // Will be set by register_server
     };
 
-    runtime.register_server(server).await;
+    runtime.register_server(server, transport).await;
 }
 
 /// Pod status information
@@ -418,7 +422,6 @@ use hkask_ensemble::{
     ChatMessage, ChatParticipant, DeliberationCoordinator, EnsembleChatManager, ParticipantRole,
 };
 use hkask_types::WebID;
-use std::sync::Arc;
 use tokio::sync::RwLock;
 
 /// Ensemble chat manager (singleton for CLI)

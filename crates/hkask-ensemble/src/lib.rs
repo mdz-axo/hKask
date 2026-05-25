@@ -4,16 +4,15 @@
 //! via template-mediated A2A communication. No swarms, no consensus mechanisms.
 
 pub mod adapters;
-pub mod capability;
 pub mod chat;
 pub mod chat_dedup;
 pub mod cns_integration;
 pub mod cns_spans;
 pub mod confidence_router;
 pub mod deliberation;
-pub mod macaroon;
 pub mod metrics;
 pub mod ocap_enforcement;
+pub mod okapi_capability;
 pub mod okapi_integration;
 pub mod ports;
 pub mod resilience;
@@ -30,5 +29,10 @@ pub use confidence_router::{ConfidenceConfig, ConfidenceRouter, RouterError, com
 pub use deliberation::{
     AgentResponse, DeliberationCoordinator, DeliberationRequest, DeliberationResult,
     DeliberationSession, DeliberationStatus,
+};
+pub use okapi_capability::{
+    OkapiCapabilityError, OkapiOperation, attenuate_for_template, create_okapi_capability,
+    create_okapi_capability_for_template, default_system_capability, granted_operations,
+    has_operation, is_expired, read_only_capability, verify_okapi_capability,
 };
 pub use ports::{GenerateOptions, GenerateRequest};

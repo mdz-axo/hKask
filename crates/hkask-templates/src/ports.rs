@@ -120,9 +120,10 @@ pub struct ProcessManifest {
 }
 
 /// Manifest executor port
-pub trait ManifestExecutor {
+#[async_trait::async_trait]
+pub trait ManifestExecutor: Send + Sync {
     fn load(&self, path: &Path) -> Result<ProcessManifest>;
-    fn execute(&self, manifest: &ProcessManifest, input: Value) -> Result<Value>;
+    async fn execute(&self, manifest: &ProcessManifest, input: Value) -> Result<Value>;
 }
 
 /// Template composition definition
@@ -197,10 +198,11 @@ pub struct ToolInfo {
 }
 
 /// MCP port for tool invocation
-pub trait McpPort {
-    fn discover_tools(&self) -> Vec<String>;
-    fn invoke(&self, tool_name: &str, input: Value) -> Result<Value>;
-    fn get_tool_info(&self, tool_name: &str) -> Option<ToolInfo>;
+#[async_trait::async_trait]
+pub trait McpPort: Send + Sync {
+    async fn discover_tools(&self) -> Vec<String>;
+    async fn invoke(&self, tool_name: &str, input: Value) -> Result<Value>;
+    async fn get_tool_info(&self, tool_name: &str) -> Option<ToolInfo>;
 }
 
 /// CNS port for event emission — re-export of CnsEmit from hkask-cns
@@ -215,7 +217,7 @@ pub struct MemoryFragment {
 }
 
 /// Memory port for semantic/episodic recall
-pub trait MemoryPort {
+pub trait MemoryPort: Send + Sync {
     fn query_semantic(&self, entity: &str) -> Result<Vec<MemoryFragment>>;
 
     fn query_episodic(&self, entity: &str, perspective: &str) -> Result<Vec<MemoryFragment>>;

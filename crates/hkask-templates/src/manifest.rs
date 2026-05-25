@@ -108,7 +108,7 @@ impl EnergyAccount {
 }
 
 /// CSP enforcement hook — implemented by the CSP module to gate steps
-pub trait CspEnforcer {
+pub trait CspEnforcer: Send + Sync {
     fn enforce(&self, step: &ManifestStep, state: &Value) -> Result<()>;
 }
 
@@ -298,7 +298,7 @@ where
         self
     }
 
-    fn execute_step(
+    async fn execute_step(
         &self,
         manifest: &ProcessManifest,
         step: &ManifestStep,
@@ -420,7 +420,7 @@ where
                             .cloned()
                             .unwrap_or_else(|| template_id.to_string());
 
-                        let result = self.mcp.invoke(&target_tool, state.clone())?;
+                        let result = self.mcp.invoke(&target_tool, state.clone()).await?;
                         self.cns.emit(
                             "cns.prompt.execute_contract",
                             serde_json::json!({
@@ -431,7 +431,7 @@ where
                         );
                         result
                     } else {
-                        self.mcp.invoke(mcp, state.clone())?
+                        self.mcp.invoke(mcp, state.clone()).await?
                     }
                 } else {
                     let (assembled_prompt, assembly_stats) =
@@ -470,12 +470,13 @@ where
     }
 }
 
+#[async_trait::async_trait]
 impl<R, I, M, C> ManifestExecutor for ManifestExecutorImpl<R, I, M, C>
 where
-    R: TemplateRenderer,
-    I: SyncInferencePort,
+    R: TemplateRenderer + Send + Sync,
+    I: SyncInferencePort + Send + Sync,
     M: McpPort,
-    C: CnsPort,
+    C: CnsPort + Send + Sync,
 {
     fn load(&self, _path: &std::path::Path) -> Result<ProcessManifest> {
         // In production, this would load from YAML file
@@ -485,7 +486,7 @@ where
         ))
     }
 
-    fn execute(&self, manifest: &ProcessManifest, input: Value) -> Result<Value> {
+    async fn execute(&self, manifest: &ProcessManifest, input: Value) -> Result<Value> {
         info!(
             target: "hkask.templates",
             manifest = %manifest.id,
@@ -496,7 +497,7 @@ where
         let mut energy = EnergyAccount::new(self.energy_budget);
         let mut state = input;
         for step in &manifest.steps {
-            let step_result = self.execute_step(manifest, step, state.clone(), 0, &mut energy)?;
+            let step_result = self.execute_step(manifest, step, state.clone(), 0, &mut energy).await?;
             state = merge_state(state, step_result);
         }
 
@@ -529,6 +530,7 @@ fn merge_state(mut base: Value, step_output: Value) -> Value {
 /// Simple manifest executor for testing
 pub struct SimpleExecutor;
 
+#[async_trait::async_trait]
 impl ManifestExecutor for SimpleExecutor {
     fn load(&self, _path: &std::path::Path) -> Result<ProcessManifest> {
         Err(TemplateError::Manifest(
@@ -536,7 +538,7 @@ impl ManifestExecutor for SimpleExecutor {
         ))
     }
 
-    fn execute(&self, manifest: &ProcessManifest, input: Value) -> Result<Value> {
+    async fn execute(&self, manifest: &ProcessManifest, input: Value) -> Result<Value> {
         let mut state = input;
         for step in &manifest.steps {
             state = match step.action {

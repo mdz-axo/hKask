@@ -3,12 +3,12 @@
 //! Integrates Okapi capability management with hKask agent WebID registry.
 //! This allows capability-based authorization to be tied to specific agent identities.
 
-use hkask_types::{TemplateID, WebID};
+use hkask_types::{CapabilityToken, TemplateID, WebID};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::capability::{OkapiCapability, OkapiOperation};
+use crate::okapi_capability::OkapiOperation;
 use crate::ocap_enforcement::CapabilityQueryPort;
 
 /// WebID-to-capability mapping entry
@@ -17,7 +17,7 @@ pub struct WebIDCapabilityEntry {
     /// Agent WebID
     pub webid: WebID,
     /// Capabilities granted to this WebID
-    pub capabilities: Vec<OkapiCapability>,
+    pub capabilities: Vec<CapabilityToken>,
     /// Creation timestamp
     pub created_at: chrono::DateTime<chrono::Utc>,
     /// Last used timestamp
@@ -28,7 +28,7 @@ pub struct WebIDCapabilityEntry {
 
 impl WebIDCapabilityEntry {
     /// Create new entry
-    pub fn new(webid: WebID, capabilities: Vec<OkapiCapability>) -> Self {
+    pub fn new(webid: WebID, capabilities: Vec<CapabilityToken>) -> Self {
         Self {
             webid,
             capabilities,
@@ -47,14 +47,14 @@ impl WebIDCapabilityEntry {
     pub fn has_capability(&self, operation: OkapiOperation) -> bool {
         self.capabilities
             .iter()
-            .any(|cap| cap.has_operation(operation) && !cap.is_expired())
+            .any(|cap| crate::okapi_capability::has_operation(cap, operation) && !crate::okapi_capability::is_expired(cap))
     }
 
     /// Get best capability for operation
-    pub fn get_capability(&self, operation: OkapiOperation) -> Option<&OkapiCapability> {
+    pub fn get_capability(&self, operation: OkapiOperation) -> Option<&CapabilityToken> {
         self.capabilities
             .iter()
-            .find(|cap| cap.has_operation(operation) && !cap.is_expired())
+            .find(|cap| crate::okapi_capability::has_operation(cap, operation) && !crate::okapi_capability::is_expired(cap))
     }
 }
 
@@ -77,7 +77,7 @@ impl WebIDCapabilityRegistry {
     pub async fn register(
         &self,
         webid: WebID,
-        capabilities: Vec<OkapiCapability>,
+        capabilities: Vec<CapabilityToken>,
     ) -> Result<(), RegistryError> {
         let mut entries = self.entries.write().await;
 
@@ -92,7 +92,7 @@ impl WebIDCapabilityRegistry {
         &self,
         webid: WebID,
         template_id: TemplateID,
-        capabilities: Vec<OkapiCapability>,
+        capabilities: Vec<CapabilityToken>,
     ) -> Result<(), RegistryError> {
         // Register the capabilities
         self.register(webid, capabilities).await?;
@@ -108,7 +108,7 @@ impl WebIDCapabilityRegistry {
     }
 
     /// Get capabilities for a WebID
-    pub async fn get_capabilities(&self, webid: WebID) -> Option<Vec<OkapiCapability>> {
+    pub async fn get_capabilities(&self, webid: WebID) -> Option<Vec<CapabilityToken>> {
         let entries = self.entries.read().await;
         entries.get(&webid).map(|entry| {
             let mut entry = entry.clone();
@@ -212,7 +212,7 @@ pub async fn authorize_operation(
     registry: Arc<WebIDCapabilityRegistry>,
     webid: WebID,
     operation: OkapiOperation,
-) -> Result<OkapiCapability, WebIdAuthError> {
+) -> Result<CapabilityToken, WebIdAuthError> {
     let has_cap = registry.has_capability(webid, operation).await;
 
     if !has_cap {
@@ -226,7 +226,7 @@ pub async fn authorize_operation(
 
     capabilities
         .into_iter()
-        .find(|cap| cap.has_operation(operation) && !cap.is_expired())
+        .find(|cap| crate::okapi_capability::has_operation(cap, operation) && !crate::okapi_capability::is_expired(cap))
         .ok_or(WebIdAuthError::CapabilityNotFound)
 }
 
@@ -257,7 +257,7 @@ impl CapabilityQueryPort for WebIDCapabilityRegistry {
             .unwrap_or(false)
     }
 
-    async fn get_capabilities(&self, webid: WebID) -> Option<Vec<OkapiCapability>> {
+    async fn get_capabilities(&self, webid: WebID) -> Option<Vec<CapabilityToken>> {
         // Call inherent method explicitly
         let entries = self.entries.read().await;
         entries.get(&webid).map(|entry| entry.capabilities.clone())

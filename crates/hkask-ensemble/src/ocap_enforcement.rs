@@ -3,9 +3,9 @@
 //! Provides capability-based authorization at Okapi and MCP boundaries.
 //! Enforces principle of least authority (Mark Miller / Bruce Schneier).
 
-use crate::capability::{CapabilityAuthError, OkapiCapability, OkapiOperation};
+use crate::okapi_capability::{OkapiCapabilityError, OkapiOperation};
 use crate::webid_registry::WebIDCapabilityRegistry;
-use hkask_types::{Visibility, WebID};
+use hkask_types::{CapabilityToken, Visibility, WebID};
 use std::sync::Arc;
 use tracing::{debug, info, warn};
 
@@ -16,7 +16,7 @@ pub trait CapabilityQueryPort: Send + Sync {
     async fn has_capability(&self, webid: WebID, operation: OkapiOperation) -> bool;
 
     /// Get all capabilities for WebID
-    async fn get_capabilities(&self, webid: WebID) -> Option<Vec<OkapiCapability>>;
+    async fn get_capabilities(&self, webid: WebID) -> Option<Vec<CapabilityToken>>;
 }
 
 /// Port for security metrics (hexagonal architecture)
@@ -41,7 +41,7 @@ pub struct OcapEnforcementResult {
     /// Operation requested
     pub operation: OkapiOperation,
     /// Capability used (if granted)
-    pub capability: Option<OkapiCapability>,
+    pub capability: Option<CapabilityToken>,
     /// Error message (if denied)
     pub error: Option<String>,
 }
@@ -110,7 +110,7 @@ impl OcapEnforcer {
     pub async fn enforce(
         &self,
         context: OcapContext,
-    ) -> Result<OcapEnforcementResult, CapabilityAuthError> {
+    ) -> Result<OcapEnforcementResult, OkapiCapabilityError> {
         debug!(
             "Enforcing OCAP: requester={}, operation={:?}, visibility={:?}",
             context.requester, context.operation, context.required_visibility
@@ -148,14 +148,19 @@ impl OcapEnforcer {
         if let Some(caps) = capabilities
             && let Some(cap) = caps
                 .into_iter()
-                .find(|c| c.has_operation(context.operation) && !c.is_expired())
+                .find(|c| crate::okapi_capability::has_operation(c, context.operation) && !crate::okapi_capability::is_expired(c))
         {
             // Verify visibility
-            if cap.visibility() != context.required_visibility {
+            let cap_visibility = cap
+                .get_caveat_data("visibility")
+                .and_then(|v| hkask_types::Visibility::parse_str(v))
+                .unwrap_or(hkask_types::Visibility::Private);
+            
+            if cap_visibility != context.required_visibility {
                 warn!(
                     "OCAP denied: visibility mismatch. Required={:?}, Capability={:?}",
                     context.required_visibility,
-                    cap.visibility()
+                    cap_visibility
                 );
 
                 return Ok(OcapEnforcementResult {
@@ -166,7 +171,7 @@ impl OcapEnforcer {
                     error: Some(format!(
                         "Visibility mismatch: required {:?}, capability has {:?}",
                         context.required_visibility,
-                        cap.visibility()
+                        cap_visibility
                     )),
                 });
             }
@@ -214,7 +219,7 @@ impl OcapEnforcer {
     pub async fn authorize_generate(
         &self,
         requester: WebID,
-    ) -> Result<OcapEnforcementResult, CapabilityAuthError> {
+    ) -> Result<OcapEnforcementResult, OkapiCapabilityError> {
         let context = OcapContext::new(requester, OkapiOperation::Generate);
         self.enforce(context).await
     }
@@ -223,7 +228,7 @@ impl OcapEnforcer {
     pub async fn authorize_chat(
         &self,
         requester: WebID,
-    ) -> Result<OcapEnforcementResult, CapabilityAuthError> {
+    ) -> Result<OcapEnforcementResult, OkapiCapabilityError> {
         let context = OcapContext::new(requester, OkapiOperation::Chat);
         self.enforce(context).await
     }
@@ -232,7 +237,7 @@ impl OcapEnforcer {
     pub async fn authorize_embed(
         &self,
         requester: WebID,
-    ) -> Result<OcapEnforcementResult, CapabilityAuthError> {
+    ) -> Result<OcapEnforcementResult, OkapiCapabilityError> {
         let context = OcapContext::new(requester, OkapiOperation::Embed);
         self.enforce(context).await
     }
@@ -241,7 +246,7 @@ impl OcapEnforcer {
     pub async fn authorize_read_metrics(
         &self,
         requester: WebID,
-    ) -> Result<OcapEnforcementResult, CapabilityAuthError> {
+    ) -> Result<OcapEnforcementResult, OkapiCapabilityError> {
         let context = OcapContext::new(requester, OkapiOperation::ReadMetrics);
         self.enforce(context).await
     }
@@ -252,15 +257,21 @@ pub async fn enforce_okapi_ocap(
     enforcer: Arc<OcapEnforcer>,
     requester: WebID,
     operation: OkapiOperation,
-) -> Result<OkapiCapability, CapabilityAuthError> {
+) -> Result<CapabilityToken, OkapiCapabilityError> {
     let context = OcapContext::new(requester, operation);
     let result = enforcer.enforce(context).await?;
 
     if result.granted {
         result
             .capability
-            .ok_or(CapabilityAuthError::CapabilityNotFound)
+            .ok_or(OkapiCapabilityError::Unauthorized {
+                requested: operation.to_string(),
+                granted: vec![],
+            })
     } else {
-        Err(CapabilityAuthError::CapabilityNotFound)
+        Err(OkapiCapabilityError::Unauthorized {
+            requested: operation.to_string(),
+            granted: vec![],
+        })
     }
 }

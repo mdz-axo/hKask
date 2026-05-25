@@ -88,7 +88,7 @@ impl SyncInferencePort for MockInferenceAdapter {
 pub struct MockMcpAdapter {
     tools: Vec<String>,
     responses: Vec<Value>,
-    invoke_count: Cell<usize>,
+    invoke_count: std::sync::atomic::AtomicUsize,
     should_fail: bool,
 }
 
@@ -97,7 +97,7 @@ impl MockMcpAdapter {
         Self {
             tools: Vec::new(),
             responses: Vec::new(),
-            invoke_count: Cell::new(0),
+            invoke_count: std::sync::atomic::AtomicUsize::new(0),
             should_fail: false,
         }
     }
@@ -123,7 +123,7 @@ impl MockMcpAdapter {
     }
 
     pub fn invoke_count(&self) -> usize {
-        self.invoke_count.get()
+        self.invoke_count.load(std::sync::atomic::Ordering::SeqCst)
     }
 }
 
@@ -133,18 +133,18 @@ impl Default for MockMcpAdapter {
     }
 }
 
+#[async_trait::async_trait]
 impl McpPort for MockMcpAdapter {
-    fn discover_tools(&self) -> Vec<String> {
+    async fn discover_tools(&self) -> Vec<String> {
         self.tools.clone()
     }
 
-    fn invoke(&self, _tool_name: &str, _input: Value) -> TemplateResult<Value> {
+    async fn invoke(&self, _tool_name: &str, _input: Value) -> TemplateResult<Value> {
         if self.should_fail {
             return Err(TemplateError::Mcp("Mock MCP failure".to_string()));
         }
 
-        let count = self.invoke_count.get();
-        self.invoke_count.set(count + 1);
+        let count = self.invoke_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 
         if count >= self.responses.len() {
             return Ok(Value::Null);
@@ -153,7 +153,7 @@ impl McpPort for MockMcpAdapter {
         Ok(self.responses[count].clone())
     }
 
-    fn get_tool_info(&self, _tool_name: &str) -> Option<hkask_templates::ports::ToolInfo> {
+    async fn get_tool_info(&self, _tool_name: &str) -> Option<hkask_templates::ports::ToolInfo> {
         // Mock implementation - returns None
         None
     }
@@ -250,21 +250,21 @@ mod tests {
         assert!(result.is_err());
     }
 
-    #[test]
-    fn test_mock_mcp_adapter_discover_tools() {
+    #[tokio::test]
+    async fn test_mock_mcp_adapter_discover_tools() {
         let adapter = MockMcpAdapter::new()
             .with_tool("search")
             .with_tool("scrape");
-        let tools = adapter.discover_tools();
+        let tools = adapter.discover_tools().await;
         assert_eq!(tools.len(), 2);
         assert!(tools.contains(&"search".to_string()));
         assert!(tools.contains(&"scrape".to_string()));
     }
 
-    #[test]
-    fn test_mock_mcp_adapter_invoke() {
+    #[tokio::test]
+    async fn test_mock_mcp_adapter_invoke() {
         let adapter = MockMcpAdapter::new().with_response(json!({"status": "ok"}));
-        let result = adapter.invoke("test_tool", json!({}));
+        let result = adapter.invoke("test_tool", json!({})).await;
         assert!(result.is_ok());
         assert_eq!(adapter.invoke_count(), 1);
     }

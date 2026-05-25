@@ -99,7 +99,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 clap = { version = "4", features = ["derive", "env"] }
 
 # Utilities
-uuid = { version = "1", features = ["v4", "serde", "fast-rng"] }
+uuid = { version = "1", features = ["v4", "v5", "serde", "fast-rng"] }
 chrono = { version = "0.4", features = ["serde"] }
 parking_lot = "0.12"
 rand = "0.9"

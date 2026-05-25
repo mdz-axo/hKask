@@ -11,7 +11,6 @@
 use hkask_types::{
     AlgedonicAlert, CnsSpan, CurationDecision, CurationRecord, CuratorId, OCAPBoundary,
     TemplateInvocation, TemplateOutcome, UserSovereigntyState, VarietyCounter,
-    CapabilityAction, CapabilityResource,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -193,28 +192,18 @@ impl CuratorPipeline {
                         return false;
                     }
                     hkask_types::AuthorityLevel::Explicit => {
-                        if let Some(ref checker) = self.capability_checker {
-                            let bot_webid = invocation.bot_id;
-                            let has_valid_token = checker.verify_tool_capability(
-                                bot_webid,
-                                CapabilityResource::Template,
-                                &invocation.template_id.to_string(),
-                                CapabilityAction::Execute,
-                            );
-
-                            if !has_valid_token {
-                                tracing::warn!(
-                                    "OCAP explicit: bot {} lacks valid capability token for template {}",
-                                    invocation.bot_id,
-                                    invocation.template_id
-                                );
-                                return false;
-                            }
-                            tracing::debug!(
-                                "OCAP explicit: bot {} has verified capability for template {}",
+                        if let Some(ref _checker) = self.capability_checker {
+                            // TODO: Token verification requires access to the capability token
+                            // which is not currently available in the curator pipeline context.
+                            // For now, we log a warning and deny (fail-safe).
+                            // Future: Pass the capability token through the invocation context
+                            // or inject a token lookup mechanism.
+                            tracing::warn!(
+                                "OCAP explicit: token verification not yet implemented for bot {} on template {} (denying for safety)",
                                 invocation.bot_id,
                                 invocation.template_id
                             );
+                            return false;
                         } else {
                             tracing::warn!(
                                 "OCAP explicit: no capability checker configured, denying bot {} for template {}",

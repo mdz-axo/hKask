@@ -75,7 +75,7 @@ impl McpDispatcher {
 
     /// Issue capability token to a bot
     pub fn issue_capability(&self, tool_name: String, from: WebID, to: WebID) -> CapabilityToken {
-        self.capability_checker.grant(tool_name, from, to)
+        self.capability_checker.grant_tool(tool_name, from, to)
     }
 
     /// Check if bot has capability for tool
@@ -101,43 +101,34 @@ impl McpDispatcher {
     }
 }
 
+#[async_trait::async_trait]
 impl McpPort for McpDispatcher {
-    fn discover_tools(&self) -> Vec<String> {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(self.runtime.discover_tools())
-        })
+    async fn discover_tools(&self) -> Vec<String> {
+        self.runtime.discover_tools().await
     }
 
-    fn invoke(&self, tool_name: &str, input: Value) -> Result<Value> {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                let tool_info =
-                    self.runtime.get_tool_info(tool_name).await.ok_or_else(|| {
-                        TemplateError::Mcp(format!("Tool not found: {}", tool_name))
-                    })?;
+    async fn invoke(&self, tool_name: &str, input: Value) -> Result<Value> {
+        let tool_info =
+            self.runtime.get_tool_info(tool_name).await.ok_or_else(|| {
+                TemplateError::Mcp(format!("Tool not found: {}", tool_name))
+            })?;
 
-                self.runtime
-                    .call_tool(&tool_info.server_id, tool_name, input)
-                    .await
-                    .map_err(|e| TemplateError::Mcp(format!("Tool call failed: {}", e)))
-            })
-        })
+        self.runtime
+            .call_tool(&tool_info.server_id, tool_name, input)
+            .await
+            .map_err(|e| TemplateError::Mcp(format!("Tool call failed: {}", e)))
     }
 
-    fn get_tool_info(&self, tool_name: &str) -> Option<hkask_templates::ports::ToolInfo> {
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                self.runtime.get_tool_info(tool_name).await.map(|t| {
-                    hkask_templates::ports::ToolInfo {
-                        name: t.name,
-                        description: t.description,
-                        input_schema: t.input_schema,
-                        server_id: t.server_id,
-                        required_capability: t.required_capability,
-                        rate_limit_hint: t.rate_limit_hint,
-                    }
-                })
-            })
+    async fn get_tool_info(&self, tool_name: &str) -> Option<hkask_templates::ports::ToolInfo> {
+        self.runtime.get_tool_info(tool_name).await.map(|t| {
+            hkask_templates::ports::ToolInfo {
+                name: t.name,
+                description: t.description,
+                input_schema: t.input_schema,
+                server_id: t.server_id,
+                required_capability: t.required_capability,
+                rate_limit_hint: t.rate_limit_hint,
+            }
         })
     }
 }

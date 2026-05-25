@@ -151,6 +151,9 @@ pub struct AgentPersona {
     pub responsibilities: Vec<String>,
     /// Default visibility for artifacts
     pub visibility: VisibilitySettings,
+    /// Cached WebID (derived deterministically from persona)
+    #[serde(skip)]
+    cached_webid: Option<WebID>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -195,16 +198,48 @@ fn default_private() -> String {
 }
 
 impl AgentPersona {
-    /// Parse agent persona from YAML string
-    pub fn from_yaml(yaml: &str) -> Result<Self, AgentPodError> {
-        serde_yaml::from_str(yaml).map_err(|e| AgentPodError::PersonaParseError(e.to_string()))
+    /// Create a new AgentPersona with deterministic WebID
+    pub fn new(
+        agent: AgentIdentity,
+        charter: AgentCharter,
+        capabilities: Vec<String>,
+        rights: Vec<AccessRight>,
+        responsibilities: Vec<String>,
+        visibility: VisibilitySettings,
+    ) -> Self {
+        let mut persona = Self {
+            agent,
+            charter,
+            capabilities,
+            rights,
+            responsibilities,
+            visibility,
+            cached_webid: None,
+        };
+        // Compute and cache WebID
+        let canonical = serde_json::to_string(&persona.agent).unwrap_or_default();
+        persona.cached_webid = Some(WebID::from_persona(canonical.as_bytes()));
+        persona
     }
 
-    /// Get the agent's WebID (derived from persona)
+    /// Parse agent persona from YAML string
+    pub fn from_yaml(yaml: &str) -> Result<Self, AgentPodError> {
+        let mut persona: Self = serde_yaml::from_str(yaml)
+            .map_err(|e| AgentPodError::PersonaParseError(e.to_string()))?;
+        
+        // Compute and cache WebID
+        let canonical = serde_json::to_string(&persona.agent).unwrap_or_default();
+        persona.cached_webid = Some(WebID::from_persona(canonical.as_bytes()));
+        
+        Ok(persona)
+    }
+
+    /// Get the agent's WebID (derived deterministically from persona)
     pub fn webid(&self) -> WebID {
-        // In production, this would be derived from a deterministic hash of the persona
-        // For now, we generate a new WebID per persona instance
-        WebID::new()
+        self.cached_webid.unwrap_or_else(|| {
+            let canonical = serde_json::to_string(&self.agent).unwrap_or_default();
+            WebID::from_persona(canonical.as_bytes())
+        })
     }
 
     /// Get capabilities as CapabilityResource enums
@@ -340,9 +375,16 @@ impl AgentPod {
         // Retrieve or generate OCAP secret from keystore
         let ocap_secret = get_or_create_ocap_secret(&keystore, &persona.webid())?;
 
+        // Use first capability from persona, or default to "tool:execute"
+        let first_capability = persona
+            .capabilities
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "tool:execute".to_string());
+
         let capability_token = CapabilityToken::new(
             CapabilityResource::Tool,
-            "*".to_string(),
+            first_capability,
             CapabilityAction::Execute,
             WebID::new(),
             persona.webid(),
@@ -1097,5 +1139,101 @@ impl PodManager {
 impl Default for PodManager {
     fn default() -> Self {
         Self::new_mock()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_persona_webid_deterministic() {
+        let yaml = r#"
+agent:
+  name: test-bot
+  type: Bot
+  version: "0.1.0"
+charter:
+  description: Test bot
+  editor: test
+capabilities:
+  - "tool:execute"
+rights: []
+responsibilities: []
+visibility:
+  default: public
+  episodic_override: private
+"#;
+        let persona1 = AgentPersona::from_yaml(yaml).unwrap();
+        let persona2 = AgentPersona::from_yaml(yaml).unwrap();
+        
+        assert_eq!(persona1.webid(), persona2.webid(), 
+                   "Same YAML should produce same WebID");
+    }
+
+    #[test]
+    fn test_persona_webid_different_for_different_agents() {
+        let yaml1 = r#"
+agent:
+  name: bot-1
+  type: Bot
+  version: "0.1.0"
+charter:
+  description: Bot 1
+  editor: test
+capabilities: []
+rights: []
+responsibilities: []
+visibility:
+  default: public
+  episodic_override: private
+"#;
+        let yaml2 = r#"
+agent:
+  name: bot-2
+  type: Bot
+  version: "0.1.0"
+charter:
+  description: Bot 2
+  editor: test
+capabilities: []
+rights: []
+responsibilities: []
+visibility:
+  default: public
+  episodic_override: private
+"#;
+        let persona1 = AgentPersona::from_yaml(yaml1).unwrap();
+        let persona2 = AgentPersona::from_yaml(yaml2).unwrap();
+        
+        assert_ne!(persona1.webid(), persona2.webid(), 
+                   "Different agents should have different WebIDs");
+    }
+
+    #[test]
+    fn test_persona_webid_cached() {
+        let yaml = r#"
+agent:
+  name: cached-bot
+  type: Bot
+  version: "0.1.0"
+charter:
+  description: Cached bot
+  editor: test
+capabilities: []
+rights: []
+responsibilities: []
+visibility:
+  default: public
+  episodic_override: private
+"#;
+        let persona = AgentPersona::from_yaml(yaml).unwrap();
+        let webid1 = persona.webid();
+        let webid2 = persona.webid();
+        let webid3 = persona.webid();
+        
+        assert_eq!(webid1, webid2);
+        assert_eq!(webid2, webid3);
+        assert_eq!(webid1, webid3);
     }
 }

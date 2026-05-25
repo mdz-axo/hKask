@@ -4,52 +4,74 @@
 //! Combines ports, adapters, capability security, and CNS integration.
 
 use hkask_cns::CnsRuntime;
-use hkask_types::{NuEvent, Span, WebID};
+use hkask_keystore::keychain::KeychainError;
+use hkask_keystore::Keychain;
+use hkask_types::{CapabilityToken, NuEvent, Span, WebID};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tracing::{error, info, instrument};
+use zeroize::Zeroizing;
 
 use crate::adapters::OkapiSseAdapter;
-use crate::capability::{OkapiCapability, OkapiOperation};
+use crate::okapi_capability::{OkapiOperation, verify_okapi_capability};
 use crate::ports::OkapiMetrics;
 
-/// Development key — DERIVE FROM KEYSTORE IN PRODUCTION
+/// Load Okapi HMAC key from keystore
 ///
-/// Production deployment MUST load this from hkask-keystore or OS keychain.
-/// This const is for local development and testing only.
-const OKAPI_DEV_KEY: [u8; 32] = [
-    0x68, 0x6b, 0x61, 0x73, 0x6b, 0x2d, 0x6f, 0x6b, 0x61, 0x70, 0x69, 0x2d, 0x64, 0x65, 0x76, 0x2d,
-    0x6b, 0x65, 0x79, 0x2d, 0x32, 0x30, 0x32, 0x36, 0x2d, 0x30, 0x35, 0x2d, 0x32, 0x32, 0x21, 0x21,
-];
+/// Resolution order:
+/// 1. Environment variable `HKASK_OKAPI_KEY` (for CI/testing)
+/// 2. Keychain entry `okapi-cap-key`
+/// 3. Generate new key and store in keychain
+fn load_okapi_key() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
+    // Try environment variable first (for CI/testing)
+    if let Ok(key) = std::env::var("HKASK_OKAPI_KEY") {
+        return Ok(Zeroizing::new(key.into_bytes()));
+    }
+
+    // Try keychain
+    let keychain = Keychain::default();
+    match keychain.retrieve_by_key("okapi-cap-key") {
+        Ok(secret) => Ok(Zeroizing::new(secret.into_bytes())),
+        Err(KeychainError::NotFound(_)) => {
+            // Generate new key and store
+            let generated: Vec<u8> = (0..32).map(|_| rand::random::<u8>()).collect();
+            let hex_key = hex::encode(&generated);
+            keychain.store_by_key("okapi-cap-key", &hex_key)?;
+            Ok(Zeroizing::new(generated))
+        }
+        Err(e) => Err(e),
+    }
+}
 
 /// Okapi integration runtime
 pub struct OkapiIntegration {
     base_url: String,
-    capability: OkapiCapability,
+    capability: CapabilityToken,
     cns_runtime: Arc<CnsRuntime>,
 }
 
 impl OkapiIntegration {
     /// Create new Okapi integration with default system capability
     ///
-    /// # Security Note
-    /// For production use, load the encryption key from the secure keystore
-    /// instead of using this placeholder. This is only for development/testing.
-    pub fn new(base_url: String, cns_runtime: Arc<CnsRuntime>) -> Self {
+    /// Loads the encryption key from keystore (env var, keychain, or generates new).
+    pub fn new(base_url: String, cns_runtime: Arc<CnsRuntime>) -> Result<Self, OkapiIntegrationError> {
         let holder = WebID::new();
-        let capability = crate::capability::default_system_capability(holder, &OKAPI_DEV_KEY);
+        let key = load_okapi_key().map_err(|e| {
+            OkapiIntegrationError::CapabilityError(format!("Failed to load Okapi key: {}", e))
+        })?;
+        let capability = crate::okapi_capability::default_system_capability(holder, key.as_ref());
 
-        Self {
+        Ok(Self {
             base_url,
             capability,
             cns_runtime,
-        }
+        })
     }
 
     /// Create with custom capability
     pub fn with_capability(
         base_url: String,
-        capability: OkapiCapability,
+        capability: CapabilityToken,
         cns_runtime: Arc<CnsRuntime>,
     ) -> Self {
         Self {
@@ -65,7 +87,7 @@ impl OkapiIntegration {
     }
 
     /// Get the capability
-    pub fn capability(&self) -> &OkapiCapability {
+    pub fn capability(&self) -> &CapabilityToken {
         &self.capability
     }
 
@@ -74,10 +96,15 @@ impl OkapiIntegration {
         &self,
         requester: WebID,
     ) -> Result<(), OkapiIntegrationError> {
-        if let Err(e) = self
-            .capability
-            .verify(&OKAPI_DEV_KEY, &[OkapiOperation::Generate])
-        {
+        let key = load_okapi_key().map_err(|e| {
+            OkapiIntegrationError::CapabilityError(format!("Failed to load Okapi key: {}", e))
+        })?;
+        
+        if let Err(e) = verify_okapi_capability(
+            &self.capability,
+            key.as_ref(),
+            &[OkapiOperation::Generate],
+        ) {
             return Err(OkapiIntegrationError::CapabilityError(format!(
                 "Capability verification failed: {:?}",
                 e
@@ -95,10 +122,15 @@ impl OkapiIntegration {
 
     /// Verify OCAP for chat operation
     pub async fn verify_chat_ocap(&self, requester: WebID) -> Result<(), OkapiIntegrationError> {
-        if let Err(e) = self
-            .capability
-            .verify(&OKAPI_DEV_KEY, &[OkapiOperation::Chat])
-        {
+        let key = load_okapi_key().map_err(|e| {
+            OkapiIntegrationError::CapabilityError(format!("Failed to load Okapi key: {}", e))
+        })?;
+        
+        if let Err(e) = verify_okapi_capability(
+            &self.capability,
+            key.as_ref(),
+            &[OkapiOperation::Chat],
+        ) {
             return Err(OkapiIntegrationError::CapabilityError(format!(
                 "Capability verification failed: {:?}",
                 e

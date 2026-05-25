@@ -12,6 +12,19 @@ impl WebID {
         Self(Uuid::new_v4())
     }
 
+    /// Derive WebID deterministically from persona using UUID v5
+    ///
+    /// Uses SHA-1 name-based UUID with a fixed namespace.
+    /// Same persona bytes → same WebID.
+    pub fn from_persona(persona_bytes: &[u8]) -> Self {
+        // Fixed namespace UUID for hKask personas
+        // UUID: 686b6173-6b2d-7065-7273-6f6e612d6e73
+        let namespace = Uuid::parse_str("686b6173-6b2d-7065-7273-6f6e612d6e73")
+            .expect("Invalid namespace UUID");
+        
+        Self(Uuid::new_v5(&namespace, persona_bytes))
+    }
+
     pub fn from_string(s: &str) -> Self {
         WebID(uuid::Uuid::parse_str(s).unwrap_or_else(|_| uuid::Uuid::new_v4()))
     }
@@ -207,5 +220,38 @@ impl Default for GoalID {
 impl std::fmt::Display for GoalID {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_webid_from_persona_deterministic() {
+        let persona = b"test-persona-yaml";
+        let id1 = WebID::from_persona(persona);
+        let id2 = WebID::from_persona(persona);
+        assert_eq!(id1, id2, "Same persona bytes should produce same WebID");
+    }
+
+    #[test]
+    fn test_webid_from_persona_different() {
+        let persona1 = b"persona-1";
+        let persona2 = b"persona-2";
+        let id1 = WebID::from_persona(persona1);
+        let id2 = WebID::from_persona(persona2);
+        assert_ne!(id1, id2, "Different persona bytes should produce different WebIDs");
+    }
+
+    #[test]
+    fn test_webid_from_persona_not_random() {
+        let persona = b"fixed-persona";
+        let id1 = WebID::from_persona(persona);
+        let id2 = WebID::from_persona(persona);
+        let id3 = WebID::from_persona(persona);
+        assert_eq!(id1, id2);
+        assert_eq!(id2, id3);
+        assert_eq!(id1, id3);
     }
 }

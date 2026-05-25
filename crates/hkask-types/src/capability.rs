@@ -114,6 +114,102 @@ impl CapabilityAction {
     }
 }
 
+/// Caveat — A restriction on a capability token
+///
+/// Caveats are additive restrictions that limit the scope of a capability.
+/// Each caveat has a type identifier and associated data.
+///
+/// # Common Caveat Types
+/// - `expiration`: Unix timestamp after which the capability is invalid
+/// - `operation`: Specific operation allowed (e.g., "generate", "chat")
+/// - `template`: Template ID scope restriction
+/// - `visibility`: Visibility level requirement (e.g., "private", "shared")
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Caveat {
+    /// Caveat type identifier (e.g., "expiration", "operation", "template")
+    pub caveat_id: String,
+    /// Caveat data (e.g., timestamp, operation name, template ID)
+    pub data: String,
+}
+
+impl Caveat {
+    /// Create a new caveat
+    pub fn new(caveat_id: impl Into<String>, data: impl Into<String>) -> Self {
+        Self {
+            caveat_id: caveat_id.into(),
+            data: data.into(),
+        }
+    }
+
+    /// Create an expiration caveat
+    pub fn expiration(unix_timestamp: i64) -> Self {
+        Self::new("expiration", unix_timestamp.to_string())
+    }
+
+    /// Create an operation caveat
+    pub fn operation(operation: impl Into<String>) -> Self {
+        Self::new("operation", operation)
+    }
+
+    /// Create a template caveat
+    pub fn template(template_id: impl Into<String>) -> Self {
+        Self::new("template", template_id)
+    }
+
+    /// Create a visibility caveat
+    pub fn visibility(visibility: impl Into<String>) -> Self {
+        Self::new("visibility", visibility)
+    }
+}
+
+/// Context for caveat verification
+pub struct CaveatContext {
+    /// Operations allowed in this context
+    pub allowed_operations: Vec<String>,
+    /// Template ID if template-scoped
+    pub template_id: Option<String>,
+    /// Visibility level required
+    pub visibility: String,
+    /// Current timestamp for expiration checks
+    pub current_time: i64,
+}
+
+impl CaveatContext {
+    /// Create new context with current time
+    pub fn new() -> Self {
+        Self {
+            allowed_operations: Vec::new(),
+            template_id: None,
+            visibility: String::new(),
+            current_time: chrono::Utc::now().timestamp(),
+        }
+    }
+
+    /// Set allowed operations
+    pub fn with_operations(mut self, ops: Vec<String>) -> Self {
+        self.allowed_operations = ops;
+        self
+    }
+
+    /// Set template ID
+    pub fn with_template(mut self, template_id: String) -> Self {
+        self.template_id = Some(template_id);
+        self
+    }
+
+    /// Set visibility
+    pub fn with_visibility(mut self, visibility: String) -> Self {
+        self.visibility = visibility;
+        self
+    }
+}
+
+impl Default for CaveatContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Capability token for tool access and composition operations
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CapabilityToken {
@@ -139,6 +235,8 @@ pub struct CapabilityToken {
     pub max_attenuation: u8,
     /// Context nonce for binding token to specific execution context
     pub context_nonce: String,
+    /// Caveats (restrictions on this capability)
+    pub caveats: Vec<Caveat>,
 }
 
 impl CapabilityToken {
@@ -186,6 +284,7 @@ impl CapabilityToken {
             &delegated_from,
             &delegated_to,
         );
+        let caveats = Vec::new();
         let signature = Self::sign(
             &id,
             &resource,
@@ -193,6 +292,7 @@ impl CapabilityToken {
             &action,
             &delegated_from,
             &delegated_to,
+            &caveats,
             secret,
         );
         let context_nonce = context_nonce.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
@@ -209,6 +309,7 @@ impl CapabilityToken {
             attenuation_level,
             max_attenuation,
             context_nonce,
+            caveats,
         }
     }
 
@@ -237,6 +338,7 @@ impl CapabilityToken {
         action: &CapabilityAction,
         from: &WebID,
         to: &WebID,
+        caveats: &[Caveat],
         secret: &[u8],
     ) -> String {
         use hmac::{Hmac, Mac};
@@ -249,6 +351,11 @@ impl CapabilityToken {
         mac.update(action.as_str().as_bytes());
         mac.update(to_string(from).as_bytes());
         mac.update(to_string(to).as_bytes());
+        // Include caveats in signature for tamper-evidence
+        for caveat in caveats {
+            mac.update(caveat.caveat_id.as_bytes());
+            mac.update(caveat.data.as_bytes());
+        }
         hex::encode(mac.finalize().into_bytes())
     }
 
@@ -261,6 +368,7 @@ impl CapabilityToken {
             &self.action,
             &self.delegated_from,
             &self.delegated_to,
+            &self.caveats,
             secret,
         );
 
@@ -316,7 +424,7 @@ impl CapabilityToken {
 
         // Attenuate: reduce max_attenuation and increase attenuation_level
         // Preserve parent's context nonce for traceability
-        Some(CapabilityToken::new_with_attenuation(
+        let mut child = CapabilityToken::new_with_attenuation(
             self.resource,
             self.resource_id.clone(),
             self.action,
@@ -331,7 +439,24 @@ impl CapabilityToken {
                 self.context_nonce,
                 uuid::Uuid::new_v4()
             )),
-        ))
+        );
+        
+        // Preserve parent's caveats
+        child.caveats = self.caveats.clone();
+        
+        // Re-sign with caveats
+        child.signature = Self::sign(
+            &child.id,
+            &child.resource,
+            &child.resource_id,
+            &child.action,
+            &child.delegated_from,
+            &child.delegated_to,
+            &child.caveats,
+            secret,
+        );
+        
+        Some(child)
     }
 
     /// Create attenuated child token with custom expiry
@@ -345,7 +470,7 @@ impl CapabilityToken {
             return None;
         }
 
-        Some(CapabilityToken::new_with_attenuation(
+        let mut child = CapabilityToken::new_with_attenuation(
             self.resource,
             self.resource_id.clone(),
             self.action,
@@ -360,7 +485,24 @@ impl CapabilityToken {
                 self.context_nonce,
                 uuid::Uuid::new_v4()
             )),
-        ))
+        );
+        
+        // Preserve parent's caveats
+        child.caveats = self.caveats.clone();
+        
+        // Re-sign with caveats
+        child.signature = Self::sign(
+            &child.id,
+            &child.resource,
+            &child.resource_id,
+            &child.action,
+            &child.delegated_from,
+            &child.delegated_to,
+            &child.caveats,
+            secret,
+        );
+        
+        Some(child)
     }
 
     /// Check if this token is valid for a given resource and action
@@ -427,6 +569,118 @@ impl CapabilityToken {
     /// * `false` — Signature invalid or tampered
     pub fn verify_cryptographic(&self, secret: &[u8]) -> bool {
         self.verify(secret)
+    }
+
+    /// Add a caveat to this capability token
+    ///
+    /// Caveats are additive restrictions on the capability. Each caveat
+    /// adds a new constraint that must be satisfied for the capability to be valid.
+    ///
+    /// # Arguments
+    /// * `caveat` — The caveat to add
+    /// * `secret` — Secret key for re-signing the token
+    ///
+    /// # Returns
+    /// A new `CapabilityToken` with the caveat added and re-signed
+    pub fn add_caveat(&self, caveat: Caveat, secret: &[u8]) -> Self {
+        let mut new_token = self.clone();
+        new_token.caveats.push(caveat);
+        
+        // Re-sign with the new caveat included
+        new_token.signature = Self::sign(
+            &new_token.id,
+            &new_token.resource,
+            &new_token.resource_id,
+            &new_token.action,
+            &new_token.delegated_from,
+            &new_token.delegated_to,
+            &new_token.caveats,
+            secret,
+        );
+        
+        new_token
+    }
+
+    /// Verify all caveats are satisfied in the given context
+    ///
+    /// Checks each caveat against the provided context:
+    /// - expiration: current time must be before expiry
+    /// - operation: at least one requested operation must match a granted operation caveat
+    /// - template: context template must match caveat template
+    /// - visibility: context visibility must match caveat visibility
+    ///
+    /// # Arguments
+    /// * `ctx` — The context in which to verify caveats
+    ///
+    /// # Returns
+    /// * `Ok(())` — All caveats satisfied
+    /// * `Err(String)` — Description of which caveat failed
+    pub fn verify_caveats(&self, ctx: &CaveatContext) -> Result<(), String> {
+        let mut has_matching_operation = ctx.allowed_operations.is_empty();
+
+        for caveat in &self.caveats {
+            match caveat.caveat_id.as_str() {
+                "expiration" => {
+                    let expiry = caveat
+                        .data
+                        .parse::<i64>()
+                        .map_err(|_| "Invalid expiration caveat data".to_string())?;
+                    if ctx.current_time > expiry {
+                        return Err("Capability expired".to_string());
+                    }
+                }
+                "operation" => {
+                    // Check if this operation caveat matches any requested operation
+                    if !has_matching_operation && ctx.allowed_operations.contains(&caveat.data) {
+                        has_matching_operation = true;
+                    }
+                }
+                "template" => {
+                    if ctx.template_id.as_ref() != Some(&caveat.data) {
+                        return Err(format!(
+                            "Template mismatch: expected {}, got {:?}",
+                            caveat.data, ctx.template_id
+                        ));
+                    }
+                }
+                "visibility" => {
+                    if ctx.visibility != caveat.data {
+                        return Err(format!(
+                            "Visibility mismatch: expected {}, got {}",
+                            caveat.data, ctx.visibility
+                        ));
+                    }
+                }
+                _ => {
+                    return Err(format!("Unknown caveat type: {}", caveat.caveat_id));
+                }
+            }
+        }
+
+        // If operations were requested, at least one must match
+        if !ctx.allowed_operations.is_empty() && !has_matching_operation {
+            return Err("No matching operation caveat found".to_string());
+        }
+
+        Ok(())
+    }
+
+    /// Get all caveat IDs
+    pub fn caveat_ids(&self) -> Vec<&str> {
+        self.caveats.iter().map(|c| c.caveat_id.as_str()).collect()
+    }
+
+    /// Check if token has a specific caveat type
+    pub fn has_caveat_type(&self, caveat_type: &str) -> bool {
+        self.caveats.iter().any(|c| c.caveat_id == caveat_type)
+    }
+
+    /// Get caveat data for a specific caveat type
+    pub fn get_caveat_data(&self, caveat_type: &str) -> Option<&str> {
+        self.caveats
+            .iter()
+            .find(|c| c.caveat_id == caveat_type)
+            .map(|c| c.data.as_str())
     }
 
     /// Verify capability with lazy timestamp check (CRDT-style eventual consistency)
@@ -684,38 +938,38 @@ impl CapabilityChecker {
         token.attenuate(new_to, &self.secret, current_time)
     }
 
-    /// Verify that a holder has a valid capability token for a specific resource/action
+    /// Verify a capability token for tool access (OCAP-idiomatic)
     ///
-    /// This is the primary OCAP enforcement entry point. It checks:
-    /// 1. Token signature validity (HMAC verification)
-    /// 2. Token not expired
-    /// 3. Token holder matches
-    /// 4. Token grants the requested resource/action
+    /// The holder presents the token; the checker verifies it.
+    /// Checks: signature, expiry, holder match, resource/action match.
     pub fn verify_tool_capability(
         &self,
-        holder: impl Into<WebID>,
+        token: &CapabilityToken,
+        expected_holder: &WebID,
         resource: CapabilityResource,
         resource_id: &str,
         action: CapabilityAction,
     ) -> bool {
-        let holder = holder.into();
         let current_time = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs() as i64;
 
-        self.check_resource_for_holder(holder, resource, resource_id, action, current_time)
-    }
+        // 1. Verify signature and expiry
+        if !self.verify_with_time(token, current_time) {
+            return false;
+        }
 
-    fn check_resource_for_holder(
-        &self,
-        holder: WebID,
-        resource: CapabilityResource,
-        resource_id: &str,
-        action: CapabilityAction,
-        current_time: i64,
-    ) -> bool {
-        let _ = (holder, resource, resource_id, action, current_time);
+        // 2. Verify holder matches
+        if token.delegated_to != *expected_holder {
+            return false;
+        }
+
+        // 3. Verify resource/action match
+        if !token.is_valid_for(resource, resource_id, action) {
+            return false;
+        }
+
         true
     }
 }

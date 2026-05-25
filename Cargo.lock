@@ -2117,6 +2117,7 @@ dependencies = [
  "hkask-templates",
  "hkask-types",
  "hmac",
+ "rand 0.9.4",
  "reqwest",
  "serde",
  "serde_json",
@@ -2126,6 +2127,7 @@ dependencies = [
  "tokio",
  "tracing",
  "uuid",
+ "zeroize",
 ]
 
 [[package]]
@@ -2148,6 +2150,7 @@ dependencies = [
 name = "hkask-mcp"
 version = "0.21.0"
 dependencies = [
+ "async-trait",
  "chrono",
  "hkask-agents",
  "hkask-cns",
@@ -4003,6 +4006,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "sha1_smol"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bbfa15b3dddfee50a0fff136974b3e1bde555604ba463834a7eb7deb6417705d"
+
+[[package]]
 name = "sha2"
 version = "0.10.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4582,6 +4591,7 @@ dependencies = [
  "js-sys",
  "rand 0.10.1",
  "serde_core",
+ "sha1_smol",
  "wasm-bindgen",
 ]
 

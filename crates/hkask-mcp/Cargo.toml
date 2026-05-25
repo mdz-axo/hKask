@@ -11,6 +11,7 @@ hkask-templates = { path = "../hkask-templates" }
 hkask-agents = { path = "../hkask-agents" }
 hkask-cns = { path = "../hkask-cns" }
 hkask-keystore = { path = "../hkask-keystore" }
+async-trait.workspace = true
 rmcp.workspace = true
 serde.workspace = true
 serde_json.workspace = true

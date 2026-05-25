@@ -77,8 +77,9 @@ impl Default for MockMcpPort {
     }
 }
 
+#[async_trait::async_trait]
 impl McpPort for MockMcpPort {
-    fn discover_tools(&self) -> Vec<String> {
+    async fn discover_tools(&self) -> Vec<String> {
         let tools = self.tools.read().unwrap();
         tools
             .iter()
@@ -87,7 +88,7 @@ impl McpPort for MockMcpPort {
             .collect()
     }
 
-    fn invoke(&self, tool_name: &str, _input: Value) -> hkask_templates::ports::Result<Value> {
+    async fn invoke(&self, tool_name: &str, _input: Value) -> hkask_templates::ports::Result<Value> {
         let tools = self.tools.read().unwrap();
         if tools.get(tool_name).copied().unwrap_or(false) {
             Ok(serde_json::json!({"status": "success"}))
@@ -99,7 +100,7 @@ impl McpPort for MockMcpPort {
         }
     }
 
-    fn get_tool_info(&self, tool_name: &str) -> Option<ToolInfo> {
+    async fn get_tool_info(&self, tool_name: &str) -> Option<ToolInfo> {
         let tools = self.tools.read().unwrap();
         if tools.get(tool_name).copied().unwrap_or(false) {
             Some(ToolInfo {

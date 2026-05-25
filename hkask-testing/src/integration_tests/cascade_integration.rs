@@ -139,12 +139,13 @@ impl MockMcp {
     }
 }
 
+#[async_trait::async_trait]
 impl McpPort for MockMcp {
-    fn discover_tools(&self) -> Vec<String> {
+    async fn discover_tools(&self) -> Vec<String> {
         self.tools.keys().cloned().collect()
     }
 
-    fn invoke(
+    async fn invoke(
         &self,
         tool_name: &str,
         input: serde_json::Value,
@@ -156,7 +157,7 @@ impl McpPort for MockMcp {
         Ok(handler(input))
     }
 
-    fn get_tool_info(&self, tool_name: &str) -> Option<ToolInfo> {
+    async fn get_tool_info(&self, tool_name: &str) -> Option<ToolInfo> {
         if self.tools.contains_key(tool_name) {
             Some(ToolInfo {
                 name: tool_name.to_string(),
@@ -330,7 +331,7 @@ async fn test_manifest_executor_populate() {
         "name": "Alice",
         "age": 30
     });
-    let result = executor.execute(&manifest, input);
+    let result = executor.execute(&manifest, input).await;
 
     assert!(result.is_ok());
     let output = result.unwrap();
@@ -370,7 +371,7 @@ async fn test_manifest_executor_execute_inference() {
     };
 
     let input = json!({"prompt": "What is the capital of France?"});
-    let result = executor.execute(&manifest, input);
+    let result = executor.execute(&manifest, input).await;
 
     assert!(result.is_ok());
     let output = result.unwrap();
@@ -411,7 +412,7 @@ async fn test_manifest_executor_execute_mcp() {
     };
 
     let input = json!({"a": 10, "b": 20});
-    let result = executor.execute(&manifest, input);
+    let result = executor.execute(&manifest, input).await;
 
     assert!(result.is_ok());
     let output = result.unwrap();

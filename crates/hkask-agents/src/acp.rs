@@ -133,8 +133,8 @@ impl From<String> for AcpError {
 pub struct RootAuthority {
     /// Root authority WebID (system identity)
     root_webid: WebID,
-    /// Root secret for HMAC signing
-    root_secret: Zeroizing<Vec<u8>>,
+    /// Root secret for HMAC signing (Arc to avoid copying on Clone)
+    root_secret: Arc<Zeroizing<Vec<u8>>>,
     /// Next token ID counter
     token_counter: Arc<RwLock<u64>>,
 }
@@ -144,7 +144,7 @@ impl RootAuthority {
     pub fn new(root_webid: WebID, root_secret: &[u8]) -> Self {
         Self {
             root_webid,
-            root_secret: Zeroizing::new(root_secret.to_vec()),
+            root_secret: Arc::new(Zeroizing::new(root_secret.to_vec())),
             token_counter: Arc::new(RwLock::new(0)),
         }
     }
@@ -174,7 +174,7 @@ impl RootAuthority {
             action,
             self.root_webid,
             delegated_to,
-            &self.root_secret,
+            self.root_secret.as_ref(),
             None,
             0,
             7,
@@ -281,8 +281,8 @@ pub struct AcpRuntime {
     pending_messages: Arc<RwLock<HashMap<String, A2AMessage>>>,
     /// Capability tokens indexed by holder WebID
     capability_tokens: Arc<RwLock<HashMap<WebID, Vec<CapabilityToken>>>>,
-    /// Secret for HMAC signing (Zeroizing for secure memory)
-    secret: Zeroizing<Vec<u8>>,
+    /// Secret for HMAC signing (Arc<Zeroizing> to avoid copying on Clone)
+    secret: Arc<Zeroizing<Vec<u8>>>,
     /// Rate limiter for DoS prevention
     _rate_limiter: RateLimiter,
     /// Audit log for A2A message tracking
@@ -313,7 +313,7 @@ impl AcpRuntime {
         let secret_str =
             std::env::var("HKASK_ACP_SECRET").map_err(|_| AcpError::SecretNotConfigured)?;
 
-        let secret = Zeroizing::new(secret_str.into_bytes());
+        let secret = Arc::new(Zeroizing::new(secret_str.into_bytes()));
         let rate_limiter = RateLimiter::new(rate_limit_config.unwrap_or_else(|| RateLimitConfig {
             max_tokens: 100,
             refill_interval: std::time::Duration::from_millis(600),
@@ -341,14 +341,17 @@ impl AcpRuntime {
     /// * `secret` - HMAC secret key (will be zeroized on drop)
     /// * `rate_limit_config` - Rate limit configuration (default: 100 msg/min)
     pub fn new(secret: &[u8], rate_limit_config: Option<RateLimitConfig>) -> Self {
-        let root_webid = WebID::new();
+        // Derive root WebID deterministically from a fixed "root" persona
+        let root_persona = b"hkask-root-authority";
+        let root_webid = WebID::from_persona(root_persona);
         let root_authority = Arc::new(RootAuthority::new(root_webid, secret));
+        let secret_arc = Arc::new(Zeroizing::new(secret.to_vec()));
 
         Self {
             agents: Arc::new(RwLock::new(HashMap::new())),
             pending_messages: Arc::new(RwLock::new(HashMap::new())),
             capability_tokens: Arc::new(RwLock::new(HashMap::new())),
-            secret: Zeroizing::new(secret.to_vec()),
+            secret: secret_arc,
             _rate_limiter: RateLimiter::new(rate_limit_config.unwrap_or_else(|| RateLimitConfig {
                 max_tokens: 100,
                 refill_interval: std::time::Duration::from_millis(600),
@@ -400,7 +403,7 @@ impl AcpRuntime {
         let primary_capability = capabilities
             .first()
             .cloned()
-            .unwrap_or_else(|| "agent:basic".to_string());
+            .unwrap_or_else(|| "tool:execute".to_string());
 
         let (resource, action) = parse_capability(&primary_capability)?;
 
@@ -534,12 +537,12 @@ impl AcpRuntime {
     }
 
     /// Verify capability token (HMAC signature + revocation check)
-    pub fn verify_capability(&self, token: &CapabilityToken) -> bool {
-        if !token.verify(&self.secret) {
+    pub async fn verify_capability(&self, token: &CapabilityToken) -> bool {
+        if !token.verify(self.secret.as_ref()) {
             return false;
         }
 
-        let revoked = self.revoked_tokens.blocking_read();
+        let revoked = self.revoked_tokens.read().await;
         !revoked.contains(&token.id)
     }
 
@@ -575,7 +578,7 @@ impl AcpRuntime {
         current_time: i64,
     ) -> Result<CapabilityToken, AcpError> {
         // Verify parent token is valid
-        if !self.verify_capability(parent_token) {
+        if !self.verify_capability(parent_token).await {
             return Err(AcpError::CapabilityDenied(
                 parent_token.delegated_to,
                 "Invalid parent token signature".to_string(),
@@ -588,7 +591,7 @@ impl AcpRuntime {
 
         // Create attenuated token
         parent_token
-            .attenuate(new_holder, &self.secret, current_time)
+            .attenuate(new_holder, self.secret.as_ref(), current_time)
             .ok_or_else(|| {
                 AcpError::InvalidAttenuationChain("Attenuation limit exceeded".to_string())
             })
@@ -598,8 +601,8 @@ impl AcpRuntime {
     ///
     /// Ensures the token traces back to the root authority
     /// and the attenuation chain is unbroken.
-    pub fn verify_capability_chain(&self, token: &CapabilityToken) -> Result<(), AcpError> {
-        if !self.verify_capability(token) {
+    pub async fn verify_capability_chain(&self, token: &CapabilityToken) -> Result<(), AcpError> {
+        if !self.verify_capability(token).await {
             return Err(AcpError::CapabilityDenied(
                 token.delegated_to,
                 "Invalid token signature".to_string(),
@@ -626,11 +629,8 @@ impl AcpRuntime {
     pub async fn has_capability(&self, webid: &WebID, capability: &str) -> bool {
         let agents = self.agents.read().await;
         if let Some(agent) = agents.get(webid) {
-            // Check if agent has the exact capability registered
-            agent
-                .capabilities
-                .iter()
-                .any(|cap| cap == capability || cap == "*")
+            // Check if agent has the exact capability registered (no wildcards)
+            agent.capabilities.iter().any(|cap| cap == capability)
         } else {
             false
         }

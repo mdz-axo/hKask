@@ -3,6 +3,7 @@
 //! Manages MCP server connections, tool discovery, and lifecycle.
 //! Integrates with capability security and rate limiting.
 
+use crate::transport::McpTransport;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -40,7 +41,7 @@ pub struct McpTool {
 }
 
 /// MCP server registration
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct McpServer {
     /// Server ID
     pub id: String,
@@ -50,6 +51,20 @@ pub struct McpServer {
     pub tools: Vec<McpTool>,
     /// Connection status
     pub connected: bool,
+    /// Transport for tool invocation
+    pub transport: Option<Arc<dyn McpTransport>>,
+}
+
+impl Clone for McpServer {
+    fn clone(&self) -> Self {
+        Self {
+            id: self.id.clone(),
+            name: self.name.clone(),
+            tools: self.tools.clone(),
+            connected: self.connected,
+            transport: self.transport.clone(),
+        }
+    }
 }
 
 /// MCP runtime manager
@@ -69,8 +84,8 @@ impl McpRuntime {
         }
     }
 
-    /// Register an MCP server
-    pub async fn register_server(&self, server: McpServer) {
+    /// Register an MCP server with a transport
+    pub async fn register_server(&self, mut server: McpServer, transport: Arc<dyn McpTransport>) {
         let mut servers = self.servers.write().await;
         let mut tool_registry = self.tool_registry.write().await;
 
@@ -86,6 +101,10 @@ impl McpRuntime {
         for tool in &server.tools {
             tool_registry.insert(tool.name.clone(), server.id.clone());
         }
+
+        // Set transport
+        server.transport = Some(transport);
+        server.connected = true;
 
         servers.insert(server.id.clone(), server);
     }
@@ -173,7 +192,8 @@ impl McpRuntime {
     }
 
     /// Call a tool by name with arguments
-    /// Phase 9: Git archival support
+    ///
+    /// Dispatches the tool call to the appropriate MCP server transport.
     pub async fn call_tool(
         &self,
         server_id: &str,
@@ -185,14 +205,23 @@ impl McpRuntime {
             return Err(format!("Tool '{}' not found", tool_name));
         }
 
-        // For now, return simulated responses
-        // In production, this would dispatch to the actual MCP server
-        Ok(serde_json::json!({
-            "server": server_id,
-            "tool": tool_name,
-            "arguments": arguments,
-            "result": "simulated"
-        }))
+        // Get server and transport
+        let servers = self.servers.read().await;
+        let server = servers
+            .get(server_id)
+            .ok_or_else(|| format!("Server '{}' not found", server_id))?;
+
+        let transport = server
+            .transport
+            .as_ref()
+            .ok_or_else(|| format!("No transport registered for server '{}'", server_id))?;
+
+        if !transport.is_connected() {
+            return Err(format!("Transport for server '{}' is not connected", server_id));
+        }
+
+        // Dispatch to transport
+        transport.call(server_id, tool_name, arguments).await
     }
 }
 
