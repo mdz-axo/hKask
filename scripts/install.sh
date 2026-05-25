@@ -270,9 +270,9 @@ setup_environment() {
         export PATH="$BIN_DIR:$PATH"
         
         local shell_config=""
-        if [ -n "$ZSH_VERSION" ]; then
+        if [ -n "${ZSH_VERSION:-}" ]; then
             shell_config="$HOME/.zshrc"
-        elif [ -n "$BASH_VERSION" ]; then
+        elif [ -n "${BASH_VERSION:-}" ]; then
             shell_config="$HOME/.bashrc"
         fi
         
