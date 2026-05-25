@@ -494,13 +494,5 @@ impl CascadeEngine {
 
 /// Load cascade config from YAML
 pub fn load_cascade_config(yaml_path: &str) -> Result<CascadeConfig, TemplateError> {
-<<<<<<< HEAD
     load_yaml_config(yaml_path)
-=======
-    let content = std::fs::read_to_string(yaml_path)
-        .map_err(|e| TemplateError::Validation(format!("Failed to read cascade config: {}", e)))?;
-
-    serde_yaml::from_str(&content)
-        .map_err(|e| TemplateError::Validation(format!("Failed to parse cascade config: {}", e)))
->>>>>>> origin/main
 }

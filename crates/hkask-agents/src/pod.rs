@@ -54,9 +54,10 @@
 //! # }
 //! ```
 
+use crate::SovereigntyChecker;
 use hkask_cns::CnsEmit;
 use hkask_keystore::keychain::Keychain;
-use hkask_types::{CapabilityAction, CapabilityResource, CapabilityToken, WebID};
+use hkask_types::{CapabilityAction, CapabilityResource, CapabilityToken, DataCategory, WebID};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -69,13 +70,8 @@ use crate::adapters::cns_emitter::CnsEmitterAdapter;
 use crate::adapters::git_cas::GitCasAdapter;
 use crate::adapters::mcp_runtime::McpRuntimeAdapter;
 use crate::adapters::memory_storage::MemoryStorageAdapter;
-<<<<<<< HEAD
 use crate::ports::{GitCASPort, MCPRuntimePort, MemoryStoragePort};
 use crate::security::{AgentPersonaInput, InputValidator, SecurityContext};
-=======
-use crate::security::{AgentPersonaInput, InputValidator, SecurityContext};
-use crate::sovereignty::SovereigntyChecker;
->>>>>>> origin/main
 use std::path::PathBuf;
 
 /// Pod lifecycle state machine
@@ -613,7 +609,7 @@ impl AgentPod {
     pub fn check_sovereignty(
         &self,
         action: &str,
-        data_category: &str,
+        data_category: &DataCategory,
         requester: &WebID,
     ) -> Result<bool, AgentPodError> {
         let checker = &self.sovereignty_checker;
@@ -1353,75 +1349,9 @@ impl PodContext {
 mod tests {
     use super::*;
 
-<<<<<<< HEAD
     #[test]
     fn test_persona_webid_deterministic() {
         let yaml = r#"
-=======
-    pub struct MockMCPRuntime;
-    impl MCPRuntimePort for MockMCPRuntime {
-        fn grant_tool_access(&self, _token: CapabilityToken) -> Result<(), String> {
-            Ok(())
-        }
-
-        fn invoke_tool(
-            &self,
-            _tool_name: &str,
-            _input: serde_json::Value,
-            _token: &CapabilityToken,
-        ) -> Result<serde_json::Value, String> {
-            Ok(serde_json::json!({"result": "success"}))
-        }
-    }
-
-    pub struct MockCNSSpan;
-    impl CNSSpanPort for MockCNSSpan {
-        fn emit_event(
-            &self,
-            _span: &str,
-            _phase: &str,
-            _observation: &serde_json::Value,
-            _confidence: f64,
-        ) {
-            // No-op for tests
-        }
-    }
-
-    pub struct MockGitCAS;
-    impl GitCASPort for MockGitCAS {
-        fn load_template_crate(&self, _crate_name: &str) -> Result<TemplateCrate, String> {
-            Ok(TemplateCrate {
-                name: "test-crate".to_string(),
-                git_sha: "abc123".to_string(),
-                persona_yaml: String::new(),
-                dispatch_manifest_yaml: String::new(),
-                templates: vec![],
-                hlexicon_terms: vec![],
-            })
-        }
-
-        fn resolve_sha(&self, _crate_name: &str) -> Result<String, String> {
-            Ok("abc123".to_string())
-        }
-    }
-
-    #[tokio::test]
-    async fn test_pod_manager_security_context() {
-        let manager = PodManager::new_mock();
-        assert!(
-            manager
-                .security_context()
-                .rate_limiter
-                .get_available("test")
-                .await
-                > 0.0
-        );
-    }
-
-    #[tokio::test]
-    async fn test_pod_creation_validation() {
-        let persona_yaml = r#"
->>>>>>> origin/main
 agent:
   name: test-bot
   type: Bot
@@ -1464,7 +1394,6 @@ visibility:
   default: public
   episodic_override: private
 "#;
-<<<<<<< HEAD
         let yaml2 = r#"
 agent:
   name: bot-2
@@ -1515,20 +1444,5 @@ visibility:
         assert_eq!(webid1, webid2);
         assert_eq!(webid2, webid3);
         assert_eq!(webid1, webid3);
-=======
-        let persona = AgentPersona::from_yaml(persona_yaml).unwrap();
-
-        // Validate persona input
-        let input = AgentPersonaInput {
-            name: persona.agent.name.clone(),
-            agent_type: persona.agent.agent_type.to_string().to_lowercase(),
-            version: persona.agent.version.clone(),
-            description: persona.charter.description.clone(),
-            editor: persona.charter.editor.clone(),
-            capabilities: persona.capabilities.clone(),
-        };
-
-        assert!(input.validate(&input).is_ok());
->>>>>>> origin/main
     }
 }

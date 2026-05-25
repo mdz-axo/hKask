@@ -186,7 +186,7 @@ jobs:
           echo "## Installation" >> changelog.md
           echo "" >> changelog.md
           echo '```bash' >> changelog.md
-          echo 'curl -fsSL https://raw.githubusercontent.com/mdz-axolotl/hKask/main/scripts/install.sh | bash' >> changelog.md
+          echo 'curl -fsSL https://raw.githubusercontent.com/mdz-axo/hKask/main/scripts/install.sh | bash' >> changelog.md
           echo '```' >> changelog.md
       
       - name: Create GitHub Release

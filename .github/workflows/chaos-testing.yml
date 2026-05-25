@@ -4,7 +4,7 @@ name: Chaos Testing
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
     paths:
       - 'crates/**'
       - 'hkask-testing/**'

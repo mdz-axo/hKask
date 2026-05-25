@@ -4,8 +4,8 @@
 # This script installs hKask and its dependencies on Linux systems.
 # Supports: Debian/Ubuntu, Fedora/RHEL, Arch Linux, openSUSE, Alpine
 #
-# Usage: curl -fsSL https://raw.githubusercontent.com/mdz-axolotl/hKask/main/scripts/install.sh | bash
-# Or: wget -O - https://raw.githubusercontent.com/mdz-axolotl/hKask/main/scripts/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/mdz-axo/hKask/main/scripts/install.sh | bash
+# Or: wget -O - https://raw.githubusercontent.com/mdz-axo/hKask/main/scripts/install.sh | bash
 
 set -euo pipefail
 
@@ -222,7 +222,7 @@ install_rust() {
 # Build and Install
 # ============================================================================
 
-HKASK_REPO_URL="${HKASK_REPO_URL:-https://github.com/mdz-axolotl/hKask.git}"
+HKASK_REPO_URL="${HKASK_REPO_URL:-https://github.com/mdz-axo/hKask.git}"
 HKASK_SOURCE_DIR="${HKASK_SOURCE_DIR:-}"
 
 clone_repo() {
@@ -405,11 +405,11 @@ Environment Variables:
     CARGO_HOME          Cargo installation directory (default: \$HOME/.cargo)
     HKASK_REMOVE_CONFIG Remove config and data on uninstall (default: false)
     HKASK_SOURCE_DIR    Use existing source directory instead of cloning
-    HKASK_REPO_URL      Git repository URL (default: https://github.com/mdz-axolotl/hKask.git)
+    HKASK_REPO_URL      Git repository URL (default: https://github.com/mdz-axo/hKask.git)
 
 Examples:
     # Install hKask
-    curl -fsSL https://raw.githubusercontent.com/mdz-axolotl/hKask/main/scripts/install.sh | bash
+    curl -fsSL https://raw.githubusercontent.com/mdz-axo/hKask/main/scripts/install.sh | bash
     
     # Install with custom directory
     INSTALL_DIR=/opt/hkask bash install.sh

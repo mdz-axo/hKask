@@ -42,16 +42,12 @@ pub mod error;
 pub mod ocap;
 pub mod pod;
 pub mod ports;
-<<<<<<< HEAD
 pub mod registry_loader;
-=======
->>>>>>> origin/main
 pub mod replicant;
 pub mod revocation_store;
 pub mod security;
 pub mod sovereignty;
 
-<<<<<<< HEAD
 pub use acp::{A2AMessage, AcpAgent, AcpError, AcpRuntime, TemplateDispatchHandler};
 pub use adapters::{LoopbackHttpTransport, StdioTransport};
 pub use bot::Bot;
@@ -68,14 +64,4 @@ pub use pod::{
 pub use ports::{AcpPort, AcpTransport, AcpWireMessage, AcpWireResponse, GitCASPort, MCPRuntimePort, MemoryStoragePort};
 pub use registry_loader::{BotRegistryLoader, RegistryLoaderError};
 pub use replicant::{Replicant, ReplicantCapabilities};
-=======
-pub use crate::acp::{A2AMessage, AcpAgent, AcpRuntime, TemplateDispatchHandler};
-pub use capability::{BotCapabilities, CapabilityChecker, CapabilityToken};
-pub use pod::{
-    AgentPersona, AgentPod, AgentPodError, AgentPodResult, AgentType, CNSSpanPort, GitCASPort,
-    MCPRuntimePort, MemoryStoragePort, PodID, PodLifecycleState, PodManager, PodStatus,
-    TemplateCrate,
-};
-pub use ports::{SovereigntyError, SovereigntyPort, SovereigntyResult};
->>>>>>> origin/main
 pub use sovereignty::SovereigntyChecker;

@@ -5,15 +5,8 @@
 use crate::errors::{AgentError, CuratorError, EnsembleError, RegistryError};
 use crate::russell_mapper::{MappedTemplate, RussellMapper, RussellMappingConfig};
 use hkask_mcp::runtime::{McpRuntime, McpServer, McpTool};
-<<<<<<< HEAD
 use hkask_mcp::transport::McpTransport;
 use hkask_templates::{RegistryEntry, RegistryIndex, SqliteRegistry, TemplateError};
-=======
-use hkask_templates::{
-    MappedTemplate, RegistryEntry, RegistryIndex, RussellMapper, RussellMappingConfig,
-    SqliteRegistry, TemplateError,
-};
->>>>>>> origin/main
 use hkask_types::TemplateType;
 use serde_json::Value;
 use std::path::{Path, PathBuf};

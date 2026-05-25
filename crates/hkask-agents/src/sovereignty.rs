@@ -3,14 +3,9 @@
 //! Ensures agent operations respect user sovereignty boundaries.
 //! Integrates with CNS for sovereignty event emission.
 
-<<<<<<< HEAD
 use crate::ports::sovereignty::{SovereigntyCheckResult, SovereigntyOperation, SovereigntyPort};
 use hkask_cns::spans::SpanEmitter;
 use hkask_types::{DataCategory, UserSovereigntyState, WebID};
-=======
-use hkask_cns::spans::SpanEmitter;
-use hkask_types::{UserSovereigntyState, WebID};
->>>>>>> origin/main
 use serde_json::Value;
 
 /// Sovereignty checker for agent pods
@@ -185,7 +180,6 @@ impl SovereigntyPort for SovereigntyChecker {
         }
     }
 
-<<<<<<< HEAD
     fn can_access(&self, data_category: DataCategory, requester: &WebID) -> bool {
         if self.state.boundary.is_sovereign(&data_category) {
             self.state.explicit_consent && requester == &self.owner_webid
@@ -194,21 +188,6 @@ impl SovereigntyPort for SovereigntyChecker {
         } else {
             self.state.boundary.is_public(&data_category)
         }
-=======
-    #[test]
-    fn test_can_access_sovereign_data() {
-        let owner = WebID::new();
-        let mut checker = SovereigntyChecker::new(owner);
-        // Sovereign data requires consent
-        assert!(!checker.can_access("episodic_memory", &owner));
-
-        // Grant consent
-        checker.grant_consent();
-        // Now accessible to owner
-        assert!(checker.can_access("episodic_memory", &owner));
-        // But not to others
-        assert!(!checker.can_access("episodic_memory", &WebID::new()));
->>>>>>> origin/main
     }
 
     fn mark_acquisition_attempt(&mut self, details: &Value) {
@@ -245,7 +224,6 @@ impl SovereigntyPort for SovereigntyChecker {
             }),
         );
     }
-<<<<<<< HEAD
 
     fn revoke_consent(&mut self) {
         self.state.revoke_consent();
@@ -260,6 +238,4 @@ impl SovereigntyPort for SovereigntyChecker {
     fn owner_webid(&self) -> WebID {
         self.owner_webid
     }
-=======
->>>>>>> origin/main
 }
