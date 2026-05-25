@@ -347,6 +347,9 @@ pub enum AgentPodError {
 
     #[error("Storage error: {0}")]
     StorageError(String),
+
+    #[error("Clock error: {0}")]
+    ClockError(String),
 }
 
 /// Result type for agent pod operations
@@ -402,7 +405,7 @@ impl AgentPod {
             template_crate,
             capability_token,
             state: PodLifecycleState::Populated,
-            created_at: current_timestamp(),
+            created_at: current_timestamp()?,
             max_attenuation: MAX_ATTENUATION_LEVEL,
             keystore,
         })
@@ -567,12 +570,12 @@ impl AgentPod {
     }
 }
 
-fn current_timestamp() -> i64 {
+fn current_timestamp() -> Result<i64, AgentPodError> {
     use std::time::{SystemTime, UNIX_EPOCH};
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs() as i64
+        .map(|d| d.as_secs() as i64)
+        .map_err(|e| AgentPodError::ClockError(e.to_string()))
 }
 
 /// Get or create OCAP secret for a WebID from the keystore
@@ -678,29 +681,6 @@ pub trait GitCASPort {
     fn resolve_sha(&self, crate_name: &str) -> Result<String, crate::error::GitError>;
 }
 
-/// Placeholder Git CAS implementation for PodManager
-pub struct PlaceholderGitCAS;
-
-impl GitCASPort for PlaceholderGitCAS {
-    fn load_template_crate(
-        &self,
-        crate_name: &str,
-    ) -> Result<TemplateCrate, crate::error::GitError> {
-        Ok(TemplateCrate {
-            name: crate_name.to_string(),
-            git_sha: "0000000000000000000000000000000000000000".to_string(),
-            persona_yaml: String::new(),
-            dispatch_manifest_yaml: String::new(),
-            templates: vec![],
-            hlexicon_terms: vec![],
-        })
-    }
-
-    fn resolve_sha(&self, _crate_name: &str) -> Result<String, crate::error::GitError> {
-        Ok("0000000000000000000000000000000000000000".to_string())
-    }
-}
-
 /// Memory Storage Port — Artifact persistence
 pub trait MemoryStoragePort {
     /// Store a memory artifact (triple or embedding)
@@ -801,7 +781,10 @@ impl PodManager {
             acp_runtime: Arc::new(crate::acp::AcpRuntime::default()),
             cns_emitter: CnsEmitterAdapter::new(WebID::new()),
             mcp_runtime: McpRuntimeAdapter::new(),
-            memory_storage: Arc::new(Mutex::new(MemoryStorageAdapter::in_memory().unwrap())),
+            memory_storage: Arc::new(Mutex::new(
+                MemoryStorageAdapter::in_memory()
+                    .expect("In-memory storage initialization should never fail"),
+            )),
             security_context: SecurityContext::default(),
         }
     }
@@ -815,7 +798,10 @@ impl PodManager {
             acp_runtime: Arc::new(crate::acp::AcpRuntime::default()),
             cns_emitter: CnsEmitterAdapter::new(WebID::new()),
             mcp_runtime: McpRuntimeAdapter::new(),
-            memory_storage: Arc::new(Mutex::new(MemoryStorageAdapter::in_memory().unwrap())),
+            memory_storage: Arc::new(Mutex::new(
+                MemoryStorageAdapter::in_memory()
+                    .expect("In-memory storage initialization should never fail"),
+            )),
             security_context: SecurityContext::default(),
         }
     }
@@ -894,7 +880,10 @@ impl PodManagerBuilder {
 
     /// Use in-memory storage (convenience method)
     pub fn with_in_memory_storage(self) -> Self {
-        self.memory_storage(MemoryStorageAdapter::in_memory().unwrap())
+        self.memory_storage(
+            MemoryStorageAdapter::in_memory()
+                .expect("In-memory storage initialization should never fail"),
+        )
     }
 
     /// Use encrypted storage from path (convenience method)
@@ -903,8 +892,13 @@ impl PodManagerBuilder {
         path: P,
         passphrase: &str,
     ) -> Self {
+        let path_str = path
+            .as_ref()
+            .to_str()
+            .expect("Storage path must be valid UTF-8");
         self.memory_storage(
-            MemoryStorageAdapter::from_path(path.as_ref().to_str().unwrap(), passphrase).unwrap(),
+            MemoryStorageAdapter::from_path(path_str, passphrase)
+                .expect("Encrypted storage initialization should succeed"),
         )
     }
 
@@ -932,8 +926,10 @@ impl PodManagerBuilder {
             self.cns_emitter
                 .unwrap_or_else(|| CnsEmitterAdapter::new(WebID::new())),
             self.mcp_runtime.unwrap_or_default(),
-            self.memory_storage
-                .unwrap_or_else(|| MemoryStorageAdapter::in_memory().unwrap()),
+            self.memory_storage.unwrap_or_else(|| {
+                MemoryStorageAdapter::in_memory()
+                    .expect("In-memory storage initialization should never fail")
+            }),
         )
     }
 }

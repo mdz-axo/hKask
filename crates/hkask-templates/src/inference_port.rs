@@ -139,11 +139,18 @@ pub trait InferencePort: Send + Sync {
         parameters: &LLMParameters,
         n: usize,
     ) -> Result<Vec<InferenceResult>, InferenceError> {
-        let mut results = Vec::with_capacity(n);
-        for _ in 0..n {
-            results.push(self.generate(prompt, parameters).await?);
-        }
-        Ok(results)
+        use futures_util::future::join_all;
+
+        // Create n concurrent generate futures
+        let futures: Vec<_> = (0..n)
+            .map(|_| self.generate(prompt, parameters))
+            .collect();
+
+        // Execute all futures concurrently
+        let results = join_all(futures).await;
+
+        // Collect results, returning first error if any
+        results.into_iter().collect()
     }
 }
 
@@ -152,7 +159,7 @@ pub struct OkapiInference {
     model: String,
     config: OkapiConfig,
     retry_config: OkapiRetryConfig,
-    client: reqwest::Client,
+    client: Arc<reqwest::Client>,
     /// Rate limiter for inference boundary
     rate_limiter: Option<Arc<RateLimiter>>,
     /// Bot/WebID for rate limiting
@@ -163,10 +170,22 @@ pub struct OkapiInference {
     circuit_breaker: Option<Arc<CircuitBreaker>>,
 }
 
+/// Create a shared HTTP client for Okapi inference
+///
+/// This client can be shared across multiple OkapiInference instances
+/// to reuse connection pools and reduce overhead.
+pub fn create_shared_client(config: &OkapiConfig) -> Result<Arc<reqwest::Client>, InferenceError> {
+    config
+        .build_client()
+        .map(Arc::new)
+        .map_err(|e| InferenceError::Connection(e.to_string()))
+}
+
 impl OkapiInference {
     pub fn new(model: &str, config: OkapiConfig) -> Result<Self, InferenceError> {
         let client = config
             .build_client()
+            .map(Arc::new)
             .map_err(|e| InferenceError::Connection(e.to_string()))?;
 
         Ok(Self {
@@ -181,6 +200,27 @@ impl OkapiInference {
         })
     }
 
+    /// Create OkapiInference with a shared HTTP client
+    ///
+    /// Use this constructor when creating multiple OkapiInference instances
+    /// that should share the same connection pool.
+    pub fn with_shared_client(
+        model: &str,
+        config: OkapiConfig,
+        client: Arc<reqwest::Client>,
+    ) -> Self {
+        Self {
+            model: model.to_string(),
+            retry_config: OkapiRetryConfig::default(),
+            config,
+            client,
+            rate_limiter: None,
+            bot_id: None,
+            span_emitter: SpanEmitter::default(),
+            circuit_breaker: None,
+        }
+    }
+
     pub fn with_retry_config(
         model: &str,
         config: OkapiConfig,
@@ -188,6 +228,7 @@ impl OkapiInference {
     ) -> Result<Self, InferenceError> {
         let client = config
             .build_client()
+            .map(Arc::new)
             .map_err(|e| InferenceError::Connection(e.to_string()))?;
 
         Ok(Self {
@@ -211,6 +252,7 @@ impl OkapiInference {
     ) -> Result<Self, InferenceError> {
         let client = config
             .build_client()
+            .map(Arc::new)
             .map_err(|e| InferenceError::Connection(e.to_string()))?;
 
         Ok(Self {
@@ -233,6 +275,7 @@ impl OkapiInference {
     ) -> Result<Self, InferenceError> {
         let client = config
             .build_client()
+            .map(Arc::new)
             .map_err(|e| InferenceError::Connection(e.to_string()))?;
 
         Ok(Self {
@@ -573,52 +616,6 @@ struct RawTokenProbTopK {
 struct Message {
     role: String,
     content: String,
-}
-
-/// Template invocation with Okapi inference
-pub async fn invoke_template_with_okapi(
-    inference: Box<dyn InferencePort + Send + Sync>,
-    template_id: TemplateId,
-    bot_id: BotID,
-    parameters: LLMParameters,
-    rendered_prompt: &str,
-    input: Value,
-) -> Result<TemplateInvocation, InferenceError> {
-    let result = inference.generate(rendered_prompt, &parameters).await?;
-
-    let mut invocation = TemplateInvocation::new(template_id, bot_id, parameters, input);
-    invocation.outputs.push(Value::String(result.text));
-    invocation.outcome = TemplateOutcome::Success;
-
-    Ok(invocation)
-}
-
-/// Invoke template with N outputs for selection (anti-normative pattern)
-pub async fn invoke_template_with_selection(
-    inference: Box<dyn InferencePort + Send + Sync>,
-    template_id: TemplateId,
-    bot_id: BotID,
-    parameters: LLMParameters,
-    rendered_prompt: &str,
-    input: Value,
-    n: usize,
-) -> Result<TemplateInvocation, InferenceError> {
-    let results = inference
-        .generate_n(rendered_prompt, &parameters, n)
-        .await?;
-
-    let mut invocation = TemplateInvocation::new(template_id, bot_id, parameters.clone(), input);
-
-    for result in results {
-        invocation.outputs.push(Value::String(result.text));
-    }
-
-    // Select best output (simple heuristic: first non-empty)
-    // In production, Curator would evaluate and select
-    invocation.selected_index = Some(0);
-    invocation.outcome = TemplateOutcome::Merged;
-
-    Ok(invocation)
 }
 
 /// Invoke template with generic inference port (no boxing)

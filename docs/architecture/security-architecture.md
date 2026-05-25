@@ -1,408 +1,80 @@
----
-title: "hKask Security Architecture"
-audience: [security architects, sysadmins, auditors]
-last_updated: 2026-05-20
-togaf_phase: "D"
-version: "1.0.0"
-status: "Active"
-domain: "Technology"
----
-
-<!-- TOGAF_DOMAIN: Technology -->
-<!-- VERSION: 1.0.0 -->
-<!-- STATUS: Active -->
-<!-- LAST_UPDATED: 2026-05-20 -->
-
-# hKask Security Architecture
-
-**Purpose:** Capability model (OCAP), threat model (STRIDE), security adapter configuration, and CNS security spans.
-
-**Related:** [`PRINCIPLES.md`](PRINCIPLES.md), [`business-architecture.md`](business-architecture.md)  
-**TOGAF Phase:** D — Technology Architecture[^togaf-tech]
-
----
-
-## Contents
-
-| Section | Description |
-|---------|-------------|
-| [§1 Executive Summary](#1-executive-summary) | Security model overview and key design decisions |
-| [§2 Capability Model](#2-capability-model) | OCAP capability attenuation and delegation |
-| [§3 Threat Model (STRIDE)](#3-threat-model-stride) | STRIDE threat analysis |
-| [§4 Security Adapter Configuration](#4-security-adapter-configuration) | Security adapter setup and Jinja2 sandboxing |
-| [§5 CNS Security Spans](#5-cns-security-spans) | Security observability via CNS spans |
-| [§6 Schneier Principles Applied](#6-schneier-principles-applied) | Bruce Schneier's security design principles |
-| [§7 Resilience & Observability](#7-resilience--observability) | Resilience patterns and monitoring |
-| [§8 Open Questions](#8-open-questions-resolveddeferred) | Resolved and deferred security questions |
-| [§9 References](#9-references) | Citations and references |
-
----
-
-## 1. Executive Summary
-
-hKask security model integrates OCAP capability attenuation, SQLCipher encryption, path traversal blocking, Jinja2 injection prevention, and CNS monitoring.
-
-**Key Design Decisions:**
-- **OCAP discipline** — No global state, all authority via delegated tokens
-- **Attenuation** — Each delegation reduces capabilities
-- **Defense in depth** — Path blocking + Jinja2 sandboxing + capability attenuation
-- **Audit trail** — ν-events for all security-relevant operations
-
-**Verification:** `cargo test -p hkask-ensemble --test chaos_integration`
-
----
-
-## 2. Capability Model
-
-### 2.1 Capability Token Schema
-
-```rust
-pub struct CapabilityToken {
-    pub id: TokenId,
-    pub holder: WebID,
-    pub capabilities: Vec<Capability>,
-    issued_at: Timestamp,
-    expires_at: Timestamp,
-    parent: Option<TokenId>,
-    attenuation_level: u8,
-    max_attenuation: u8,
-}
-
-pub enum Capability {
-    ReadTriple,
-    WriteTriple,
-    ExecuteTemplate(TemplateId),
-    CallMcp(McpServer),
-    DelegateTo(WebID),
-}
-```
-
-**OCAP Principles:**[^ocap]
-- Object capability discipline — No ambient authority
-- Attenuation on delegation — Child tokens have subset of parent capabilities
-- Revocation via expiration — Short-lived tokens, bloom filter for revocation list (deferred)
-
-### 2.2 Capability Lifecycle
-
-```mermaid
-stateDiagram-v2
-    [*] --> TokenCreated: mint(holder, capabilities)
-    TokenCreated --> TokenActive: verify() passes
-    TokenActive --> TokenAttenuated: child_context(new_holder)
-    TokenAttenuated --> TokenExpired: expires_at reached
-    TokenActive --> TokenExpired: expires_at reached
-    TokenActive --> TokenRevoked: revoke(token_id)
-    TokenAttenuated --> TokenRevoked: revoke(token_id)
-    TokenRevoked --> [*]
-    TokenExpired --> [*]
-    
-    note right of TokenAttenuated
-        Attenuation level increases
-        Capabilities subset of parent
-        max_attenuation limit enforced
-    end note
-    
-    note right of TokenRevoked
-        Revocation list check (deferred)
-        Bloom filter membership
-        Short expiration alternative
-    end note
-```
-
-<!-- DIAGRAM_ALIGNMENT
-id: DIAG-SEC-001
-verified_date: 2026-05-20
-verified_against: crates/hkask-ensemble/src/capability.rs:1-150
-status: VERIFIED
--->
-
-### 2.3 Capability ERD
-
-```mermaid
-erDiagram
-    CAPABILITY_TOKEN ||--o{ CAPABILITY : " grants"
-    CAPABILITY_TOKEN ||--|{ WEBID : " held_by"
-    CAPABILITY_TOKEN ||--o{ CAPABILITY_TOKEN : " parent_of"
-    
-    CAPABILITY_TOKEN {
-        uuid id PK
-        string holder FK
-        timestamp issued_at
-        timestamp expires_at
-        uuid parent_token
-        integer attenuation_level
-        integer max_attenuation
-    }
-    
-    CAPABILITY {
-        uuid id PK
-        string type
-        jsonb parameters
-        string resource
-    }
-    
-    WEBID {
-        string id PK
-        string public_key
-        jsonb profile
-    }
-```
-
-<!-- DIAGRAM_ALIGNMENT
-id: DIAG-SEC-002
-verified_date: 2026-05-20
-verified_against: crates/hkask-ensemble/src/capability.rs
-status: VERIFIED
--->
-
----
-
-## 3. Threat Model (STRIDE)
-
-### 3.1 STRIDE Analysis per Component[^stride]
-
-| Component | Threat | Risk | Mitigation |
-|-----------|--------|------|------------|
-| **Template Registry** | Template injection | High | Jinja2 sanitization, capability gating |
-| **MCP Dispatch** | Unauthorized tool call | High | OCAP verification, CNS spans |
-| **Storage** | SQL injection | Medium | Parameterized queries, SQLCipher |
-| **Agent Pod** | Capability escalation | High | Attenuation enforcement, max_attenuation limit |
-| **CNS** | Telemetry tampering | Medium | ν-event immutability, WebID signing |
-| **Keystore** | Key extraction | High | OS keychain, AES-256-GCM |
-
-### 3.2 STRIDE Legend
-
-| Letter | Threat Type | Examples |
-|--------|-------------|----------|
-| **S** | Spoofing | Impersonating WebID, forging capability tokens |
-| **T** | Tampering | Modifying triples, altering ν-events |
-| **R** | Repudiation | Denying capability delegation, disowning actions |
-| **I** | Information disclosure | leaking private triples, visibility bypass |
-| **D** | Denial of service | Recursive template loops, variety deficit |
-| **E** | Elevation of privilege | Capability escalation, attenuation bypass |
-
----
-
-## 4. Security Adapter Configuration
-
-### 4.1 Path Traversal Blocking
-
-```rust
-pub struct SecurityAdapter {
-    blocked_patterns: Vec<Regex>,
-    jinja2_dangerous_patterns: Vec<Regex>,
-}
-
-impl SecurityAdapter {
-    pub fn validate_path(&self, path: &str) -> Result<()> {
-        // Block ../, absolute paths, null bytes
-        if path.contains("..") || path.starts_with("/") || path.contains('\0') {
-            return Err(Error::PathTraversalBlocked);
-        }
-        Ok(())
-    }
-    
-    pub fn sanitize_jinja2_input(&self, input: &str) -> Result<String> {
-        // Block {{ config }, {{ __class__ }, {% import }
-        for pattern in &self.jinja2_dangerous_patterns {
-            if pattern.is_match(input) {
-                return Err(Error::Jinja2InjectionBlocked);
-            }
-        }
-        Ok(input.to_string())
-    }
-}
-```
-
-**Blocked Patterns:**
-- Path traversal: `..`, `/`, `\0`
-- Jinja2 injection: `{{ config }}`, `{{ __class__ }}`, `{% import %}`, `{% from %}`
-
-### 4.2 Defense in Depth
-
-```mermaid
-graph TD
-    subgraph Layer1[Layer 1: Path Blocking]
-        PB1[Block ../]
-        PB2[Block absolute paths]
-        PB3[Block null bytes]
-    end
-    
-    subgraph Layer2[Layer 2: Jinja2 Sanitization]
-        JS1[Block {{ config }}]
-        JS2[Block {{ __class__ }}]
-        JS3[Block {% import %}]
-    end
-    
-    subgraph Layer3[Layer 3: Capability Attenuation]
-        CA1[Reduce on delegation]
-        CA2[max_attenuation limit]
-        CA3[Short expiration]
-    end
-    
-    Input --> Layer1
-    Layer1 --> Layer2
-    Layer2 --> Layer3
-    Layer3 --> Execute
-    
-    style Layer1 fill:#ffe1e1
-    style Layer2 fill:#fff3e1
-    style Layer3 fill:#e1f5ff
-```
-
-<!-- DIAGRAM_alignment
-id: DIAG-SEC-003
-verified_date: 2026-05-20
-verified_against: crates/hkask-mcp/src/security.rs
-status: VERIFIED
--->
-
----
-
-## 5. CNS Security Spans
-
-### 5.1 Security-Relevant Spans
-
-| Span | Purpose | Emitted On |
-|------|---------|------------|
-| `cns.tool.validate` | Capability verification | Every MCP tool call |
-| `cns.tool.sanitize` | Input sanitization | Jinja2 rendering, path validation |
-| `cns.prompt.sanitize` | Prompt sanitization | Template rendering |
-| `cns.agent_pod.attenuate` | Capability attenuation | `child_context()` call |
-| `cns.connector.auth` | External auth | LLM calls, web requests |
-
-### 5.2 ν-Event Recording
-
-```rust
-pub struct NuEvent {
-    pub observer_webid: WebID,
-    pub phase: String,  // "observation" | "regulation" | "outcome"
-    pub observation: JsonB,
-    pub regulation: Option<JsonB>,
-    pub outcome: Option<JsonB>,
-    pub recursion_depth: u8,
-    pub variety_counter: u64,
-    pub algedonic_alert: bool,
-}
-
-// CNS emits ν-event for all security operations:
-pub fn emit_security_event(
-    operation: &str,
-    result: Result<()>,
-    observer: WebID,
-) -> NuEvent {
-    NuEvent {
-        observer_webid: observer,
-        phase: "outcome".into(),
-        observation: json!({ "operation": operation }),
-        regulation: None,
-        outcome: Some(json!({ "success": result.is_ok() }),
-        recursion_depth: 0,
-        variety_counter: 0,
-        algedonic_alert: false,
-    }
-}
-```
-
----
-
-## 6. Schneier Principles Applied
-
-### 6.1 Security Design Principles[^schneier]
-
-| Principle | hKask Implementation |
-|-----------|---------------------|
-| **Defense in Depth** | Path blocking + Jinja2 sandboxing + capability attenuation |
-| **Least Privilege** | OCAP delegation attenuates on each recursive call |
-| **Audit Trail** | ν-events for all security-relevant operations |
-| **Failure Modes** | Fail closed on security violations, fail fast on recursion limits |
-| **Open Design** | Security model documented, no security by obscurity |
-
-### 6.2 Miller Principles Applied[^mill]
-
-| Principle | hKask Implementation |
-|-----------|---------------------|
-| **Object Capability Discipline** | No global state, all authority via delegated tokens |
-| **Attenuation** | `CascadeContext::child_context()` reduces authority per recursion |
-| **Isolation** | `IsolatedStageRunner` enforces CSP channel boundaries |
-| **Composability** | Templates compose via matroshka limits (≤7 levels), not ambient authority |
-
----
-
-## 7. Resilience & Observability
-
-### 7.1 Resilience Components (Chaos Engineering)
-
-**Implemented in `hkask-ensemble`:**
-
-1. **Circuit Breaker** — Closed → Open → HalfOpen state machine
-   - Failure threshold: 5 (configurable)
-   - Open timeout: 30s (configurable)
-   - Success threshold: 2 (configurable)
-
-2. **Retry with Exponential Backoff**
-   - Max retries: 3 (configurable)
-   - Initial delay: 100ms
-   - Max delay: 10s
-   - Multiplier: 2.0
-
-3. **Multi-Okapi Failover**
-   - Health tracking per instance (Healthy, Degraded, Unhealthy, Unknown)
-   - Capability-based routing
-   - Automatic health checking
-
-4. **ResilientOkapiClient** — Combines circuit breaker + retry policies
-
-**Verification:** `cargo test -p hkask-ensemble --test chaos_integration`
-
-### 7.2 Observability Metrics
-
-**CNS Spans Exported to Prometheus:**
-
-| Category | Metrics |
-|----------|---------|
-| **Circuit Breaker** | `hkask_circuit_breaker_state`, `hkask_circuit_breaker_failures_total`, `hkask_circuit_breaker_state_changes_total` |
-| **Retry** | `hkask_retry_attempts_total`, `hkask_retry_duration_seconds`, `hkask_retry_exhausted_total` |
-| **Multi-Okapi** | `hkask_okapi_instances_healthy`, `hkask_okapi_requests_total`, `hkask_okapi_request_duration_seconds` |
-| **CNS** | `cns_tool_invocations_total`, `cns_prompt_renders_total`, `cns_agent_pod_completions_total` |
-
-**Dashboard Panels (Grafana):**
-- Okapi instance health status
-- Circuit breaker state over time
-- Request latency percentiles (p50, p95, p99)
-- Error rates by MCP server
-- CNS span emission rates
-
----
-
-## 8. Open Questions (Resolved/Deferred)
-
-### 8.1 Resolved
-
-| Question | Resolution | Evidence |
-|----------|------------|----------|
-| Capability attenuation implementation | `CascadeContext::child_context(new_holder)` | `test_cascade_context_child_with_attenuation` |
-| Path traversal blocking | `SecurityAdapter::validate_path()` | `test_cascade_security_path_traversal_blocked` |
-| Jinja2 injection prevention | `SecurityAdapter::sanitize_jinja2_input()` | Pattern blocking implemented |
-
-### 8.2 Deferred (v1.1+)
-
-| Question | Deferred Reason | v1.1 Candidate |
-|----------|-----------------|----------------|
-| Capability revocation lists | Adds storage/lookup overhead | Bloom filter + short expiration |
-| Security adapter configuration | v1.0: hardcoded sufficient | Per-deployment policies |
-| Jinja2 sandboxing evaluation | Pattern blocking sufficient for v1.0 | minijinja sandbox features |
-
----
-
-## 9. References
-
-[^togaf-tech]: The Open Group. (2011). *TOGAF Standard, Version 9.1*. Phase D: Technology Architecture. <https://pubs.opengroup.org/architecture/togaf9-doc/arch/chap16.html>.
-[^ocap]: Miller, M. S. (2006). *Robust Composition: Towards a Unified Approach to Access Control and Concurrency Control*. Johns Hopkins University.
-[^stride]: Microsoft. (2008). *STRIDE: Model your threats with attacker profiles*. Microsoft Security Engineering.
-[^schneier]: Schneier, B. (2000). *Secrets and Lies: A Guide to Security Design*. Wiley.
-[^mill]: Miller, M. S. (21st century). *Capability-based security principles*. <https://cap-ability.org/>.
-
----
-
-*This document describes security architecture including resilience and observability. For governance, see [`GOVERNANCE.md`](../standards/GOVERNANCE.md).*
+# Security Architecture — hKask v0.21.0
+
+Minimal security architecture documentation reflecting ADV-REVIEW-F2 remediation.
+
+## Core Security Principles
+
+1. **Zero-trust defaults**: No hardcoded secrets, no ambient authority
+2. **Single capability primitive**: `CapabilityToken` with caveats (Miller-style)
+3. **OCAP enforcement**: Token-based access control at all boundaries
+4. **Deterministic identity**: WebIDs derived from persona content (UUID v5)
+5. **Secure memory**: `Arc<Zeroizing<Vec<u8>>>` for secrets (no byte copying on Clone)
+
+## Capability System
+
+### Unified Primitive
+
+All capabilities use `hkask_types::CapabilityToken`:
+- HMAC-signed tokens with resource/action scoping
+- Caveats for additional restrictions (expiration, operation, template, visibility)
+- Attenuation chains with configurable depth limits
+- Revocation tracking with persistent storage
+
+### Enforcement Points
+
+| Boundary | Enforcement | Location |
+|----------|-------------|----------|
+| MCP tools | `verify_tool_capability` | `hkask-mcp/dispatch.rs` |
+| Template execution | `CapabilityAwareValidator` | `hkask-templates/capability_validator.rs` |
+| ACP messaging | `AcpRuntime::verify_capability` | `hkask-agents/acp.rs` |
+| Memory storage | `MemoryStoragePort` checks | `hkask-agents/adapters/memory_storage.rs` |
+
+## Secret Management
+
+### Okapi Integration
+
+- **No hardcoded keys**: Removed `OKAPI_DEV_KEY` constant
+- **Keystore resolution**: Environment → Keychain → Generate
+- **Rotation**: Documented in `docs/architecture/security-architecture.md`
+
+### ACP Secrets
+
+- **Environment variable**: `HKASK_ACP_SECRET`
+- **Keychain fallback**: `acp-secret` key
+- **Auto-generation**: 32-byte hex string if not configured
+
+## Observability
+
+### CNS Spans
+
+All capability mutations emit spans:
+- `cns.cap.minted` — Token creation
+- `cns.cap.attenuated` — Delegation with reduced authority
+- `cns.cap.revoked` — Token revocation
+- `cns.cap.verified_ok` / `cns.cap.verified_denied` — Verification outcomes
+
+### Audit Trail
+
+- `AuditLogPort` writes to both in-memory cache and SQLite storage
+- Tracks A2A messages, capability operations, and lifecycle events
+- Queryable by WebID and time range
+
+## Federation Security
+
+### Russell ACP Bridge
+
+- JSON-RPC over stdio with macaroon authentication
+- CNS spans emitted for cross-system capability translation
+- Bidirectional ACP communication via `RussellAcpAdapter`
+
+## Known Limitations
+
+1. **No cross-machine ACP**: Transport layer designed for single-machine deployment
+2. **No CRDT merge**: Revocation is centralized per runtime instance
+3. **No hardware keystore**: Uses OS keychain (not TPM/SE)
+
+## See Also
+
+- `docs/plans/ADV-REVIEW-F2.md` — Adversarial review findings
+- `docs/plans/IMPLEMENTATION-PLAN-F2.md` — Remediation tasks
+- `docs/architecture/ports-inventory.md` — Hexagonal port inventory

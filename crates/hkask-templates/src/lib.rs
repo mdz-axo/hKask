@@ -64,7 +64,8 @@ pub use dependency::{DependencyGraph, parse_dependencies};
 pub use engine::{TemplateEngine, TemplateRegistry};
 pub use inference_port::{
     InferenceError, InferencePort, InferenceResult, OkapiInference, Usage,
-    invoke_template_with_okapi, invoke_template_with_selection,
+    create_shared_client, invoke_template_with_okapi_generic as invoke_template_with_okapi,
+    invoke_template_with_selection_generic as invoke_template_with_selection,
 };
 pub use manifest::{CspEnforcer, EnergyAccount, ManifestExecutorImpl, ModelRequirements, NoopCsp, SelectorConfig, SimpleExecutor};
 pub use okapi_config::{OkapiConfig, OkapiRetryConfig};

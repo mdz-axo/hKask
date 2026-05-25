@@ -109,6 +109,9 @@ pub enum AcpError {
     #[error("Transport disconnected")]
     Disconnected,
 
+    #[error("Clock error: {0}")]
+    ClockError(String),
+
     #[error("{0}")]
     LegacyError(String),
 }
@@ -405,7 +408,7 @@ impl AcpRuntime {
             webid,
             agent_type: agent_type.clone(),
             capabilities: capabilities.clone(),
-            registered_at: current_timestamp(),
+            registered_at: current_timestamp()?,
             active: true,
         };
 
@@ -529,7 +532,7 @@ impl AcpRuntime {
         // Log audit entry
         let audit_entry = AuditLogEntry {
             id: uuid::Uuid::new_v4().to_string(),
-            timestamp: current_timestamp(),
+            timestamp: current_timestamp()?,
             from: from.unwrap_or(WebID::new()),
             to,
             message_type: message_type.clone(),
@@ -722,12 +725,12 @@ impl AcpRuntime {
     }
 }
 
-fn current_timestamp() -> i64 {
+fn current_timestamp() -> Result<i64, AcpError> {
     use std::time::{SystemTime, UNIX_EPOCH};
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs() as i64
+        .map(|d| d.as_secs() as i64)
+        .map_err(|e| AcpError::ClockError(e.to_string()))
 }
 
 /// Audit log entry for A2A messages

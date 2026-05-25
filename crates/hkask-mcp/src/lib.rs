@@ -14,6 +14,7 @@ pub mod archival_service;
 pub mod dispatch;
 pub mod runtime;
 pub mod security;
+pub mod supervisor;
 pub mod transport;
 
 pub use adapter_container::AdapterContainer;
@@ -25,4 +26,5 @@ pub use security::{
     AuditAction, AuditEntry, SecurityError, SecurityGateway, SecurityPolicy, UrlValidationConfig,
     validate_url,
 };
+pub use supervisor::{McpSupervisor, RestartPolicy, ServerConfig, ServerStatus, SupervisionError};
 pub use transport::{HttpMcpTransport, InProcessMcpTransport, McpTransport, StdioMcpTransport};
