@@ -331,6 +331,7 @@ impl CapabilityToken {
     }
 
     /// Sign the token
+    #[allow(clippy::too_many_arguments)]
     fn sign(
         id: &str,
         resource: &CapabilityResource,
@@ -440,10 +441,10 @@ impl CapabilityToken {
                 uuid::Uuid::new_v4()
             )),
         );
-        
+
         // Preserve parent's caveats
         child.caveats = self.caveats.clone();
-        
+
         // Re-sign with caveats
         child.signature = Self::sign(
             &child.id,
@@ -455,7 +456,7 @@ impl CapabilityToken {
             &child.caveats,
             secret,
         );
-        
+
         Some(child)
     }
 
@@ -486,10 +487,10 @@ impl CapabilityToken {
                 uuid::Uuid::new_v4()
             )),
         );
-        
+
         // Preserve parent's caveats
         child.caveats = self.caveats.clone();
-        
+
         // Re-sign with caveats
         child.signature = Self::sign(
             &child.id,
@@ -501,7 +502,7 @@ impl CapabilityToken {
             &child.caveats,
             secret,
         );
-        
+
         Some(child)
     }
 
@@ -585,7 +586,7 @@ impl CapabilityToken {
     pub fn add_caveat(&self, caveat: Caveat, secret: &[u8]) -> Self {
         let mut new_token = self.clone();
         new_token.caveats.push(caveat);
-        
+
         // Re-sign with the new caveat included
         new_token.signature = Self::sign(
             &new_token.id,
@@ -597,7 +598,7 @@ impl CapabilityToken {
             &new_token.caveats,
             secret,
         );
-        
+
         new_token
     }
 

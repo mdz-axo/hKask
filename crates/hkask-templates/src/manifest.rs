@@ -5,8 +5,8 @@
 
 use crate::context_assembly::{ContextAssembler, ContextFragment, FragmentSource};
 use crate::ports::{
-    Action, CnsPort, DEFAULT_MATROSHKA_LIMIT, InferenceConfig, SyncInferencePort,
-    ManifestExecutor, ManifestStep, McpPort, MemoryPort, ProcessManifest, Result, TemplateError,
+    Action, CnsPort, DEFAULT_MATROSHKA_LIMIT, InferenceConfig, ManifestExecutor, ManifestStep,
+    McpPort, MemoryPort, ProcessManifest, Result, SyncInferencePort, TemplateError,
     TemplateRenderer,
 };
 use serde::{Deserialize, Serialize};
@@ -91,7 +91,10 @@ pub struct EnergyAccount {
 
 impl EnergyAccount {
     pub fn new(budget: u64) -> Self {
-        Self { budget, consumed: 0 }
+        Self {
+            budget,
+            consumed: 0,
+        }
     }
 
     pub fn remaining(&self) -> u64 {
@@ -253,7 +256,9 @@ where
                 .get(context_keys::PERSPECTIVE)
                 .and_then(|v| v.as_str())
             {
-                let episodic_fragments = memory.query_episodic(entity, perspective).unwrap_or_default();
+                let episodic_fragments = memory
+                    .query_episodic(entity, perspective)
+                    .unwrap_or_default();
                 for fragment in episodic_fragments {
                     assembler.add(ContextFragment {
                         content: fragment.content,
@@ -266,7 +271,9 @@ where
 
             // Session history (if session_id available)
             if let Some(session_id) = input.get(context_keys::SESSION_ID).and_then(|v| v.as_str()) {
-                let history = memory.get_session_history(session_id, 20).unwrap_or_default();
+                let history = memory
+                    .get_session_history(session_id, 20)
+                    .unwrap_or_default();
                 for message in history {
                     assembler.add(ContextFragment {
                         content: message,
@@ -497,7 +504,9 @@ where
         let mut energy = EnergyAccount::new(self.energy_budget);
         let mut state = input;
         for step in &manifest.steps {
-            let step_result = self.execute_step(manifest, step, state.clone(), 0, &mut energy).await?;
+            let step_result = self
+                .execute_step(manifest, step, state.clone(), 0, &mut energy)
+                .await?;
             state = merge_state(state, step_result);
         }
 

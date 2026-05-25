@@ -7,10 +7,10 @@
 //! - Audit logging
 //! - URL validation (SSRF protection)
 
-use hkask_types::{CapabilityChecker, CapabilityToken};
 use hkask_cns::rate_limit::RateLimiter;
 use hkask_templates::TemplateError;
 use hkask_types::WebID;
+use hkask_types::{CapabilityChecker, CapabilityToken};
 use serde_json::Value;
 use std::collections::HashSet;
 use std::net::{IpAddr, Ipv6Addr};
@@ -261,9 +261,9 @@ pub struct UrlValidationConfig {
 /// - Rejects private IPs unless explicitly permitted
 /// - Rejects loopback addresses unless explicitly permitted
 pub fn validate_url(raw_url: &str, config: &UrlValidationConfig) -> Result<(), SecurityError> {
-    let scheme_end = raw_url.find("://").ok_or_else(|| {
-        SecurityError::InvalidUrl("No scheme separator '://' found".to_string())
-    })?;
+    let scheme_end = raw_url
+        .find("://")
+        .ok_or_else(|| SecurityError::InvalidUrl("No scheme separator '://' found".to_string()))?;
     let scheme = &raw_url[..scheme_end];
     if scheme != "http" && scheme != "https" {
         return Err(SecurityError::DisallowedScheme(scheme.to_string()));

@@ -142,9 +142,7 @@ pub trait InferencePort: Send + Sync {
         use futures_util::future::join_all;
 
         // Create n concurrent generate futures
-        let futures: Vec<_> = (0..n)
-            .map(|_| self.generate(prompt, parameters))
-            .collect();
+        let futures: Vec<_> = (0..n).map(|_| self.generate(prompt, parameters)).collect();
 
         // Execute all futures concurrently
         let results = join_all(futures).await;

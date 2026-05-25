@@ -1,8 +1,8 @@
 //! Keychain Adapter — Concrete implementation of KeystorePort using hkask-keystore
 
 use crate::adapters::keystore_port::KeystorePort;
-use hkask_keystore::keychain::Keychain;
 use hkask_keystore::KeystoreError;
+use hkask_keystore::keychain::Keychain;
 use hkask_types::WebID;
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
@@ -44,7 +44,9 @@ impl Default for KeychainAdapter {
 impl KeystorePort for KeychainAdapter {
     fn set(&self, key: &str, value: &str, service: &str) -> Result<(), KeystoreError> {
         let webid = Self::key_to_webid(key, service);
-        self.keychain.store(&webid, value).map_err(KeystoreError::from)
+        self.keychain
+            .store(&webid, value)
+            .map_err(KeystoreError::from)
     }
 
     fn get(&self, key: &str, service: &str) -> Result<String, KeystoreError> {

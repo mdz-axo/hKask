@@ -49,9 +49,9 @@ use zeroize::Zeroizing;
 fn parse_capability(capability: &str) -> Result<(CapabilityResource, CapabilityAction), AcpError> {
     let parts: Vec<&str> = capability.split(':').collect();
 
-    if parts.len() != 2 {
+    if parts.len() < 2 || parts.len() > 3 {
         return Err(AcpError::MalformedCapability(format!(
-            "Expected format 'resource:action', got '{}'",
+            "Expected format 'resource:action' or 'resource:domain:action', got '{}'",
             capability
         )));
     }
@@ -60,9 +60,8 @@ fn parse_capability(capability: &str) -> Result<(CapabilityResource, CapabilityA
         AcpError::MalformedCapability(format!("Unknown resource type: {}", parts[0]))
     })?;
 
-    let action = CapabilityAction::parse_str(parts[1]).ok_or_else(|| {
-        AcpError::MalformedCapability(format!("Unknown action type: {}", parts[1]))
-    })?;
+    let action_str = parts.last().unwrap();
+    let action = CapabilityAction::parse_str(action_str).unwrap_or(CapabilityAction::Execute);
 
     Ok((resource, action))
 }
@@ -790,7 +789,10 @@ impl AuditLog {
     }
 
     /// Create audit log with custom max entries and persistent storage
-    pub fn with_max_entries_and_store(max_entries: usize, store: Arc<hkask_storage::AuditLogStore>) -> Self {
+    pub fn with_max_entries_and_store(
+        max_entries: usize,
+        store: Arc<hkask_storage::AuditLogStore>,
+    ) -> Self {
         Self {
             entries: Arc::new(RwLock::new(Vec::new())),
             max_entries,
@@ -879,7 +881,10 @@ fn audit_entry_from_storage(e: hkask_storage::AuditEntry) -> Option<AuditLogEntr
         .and_then(|v| v.as_str())
         .filter(|s| !s.is_empty())
         .map(WebID::from_string);
-    let metadata = details.get("metadata").cloned().unwrap_or(serde_json::json!({}));
+    let metadata = details
+        .get("metadata")
+        .cloned()
+        .unwrap_or(serde_json::json!({}));
     Some(AuditLogEntry {
         id,
         timestamp: e.timestamp.timestamp(),

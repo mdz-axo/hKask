@@ -2068,6 +2068,7 @@ dependencies = [
 name = "hkask-cli"
 version = "0.21.0"
 dependencies = [
+ "chrono",
  "clap",
  "hkask-agents",
  "hkask-api",

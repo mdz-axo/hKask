@@ -226,11 +226,11 @@ impl AgentPersona {
     pub fn from_yaml(yaml: &str) -> Result<Self, AgentPodError> {
         let mut persona: Self = serde_yaml::from_str(yaml)
             .map_err(|e| AgentPodError::PersonaParseError(e.to_string()))?;
-        
+
         // Compute and cache WebID
         let canonical = serde_json::to_string(&persona.agent).unwrap_or_default();
         persona.cached_webid = Some(WebID::from_persona(canonical.as_bytes()));
-        
+
         Ok(persona)
     }
 
@@ -1069,7 +1069,7 @@ impl PodManager {
                 "timestamp": chrono::Utc::now().to_rfc3339(),
             }
         });
-        
+
         let memory = self.memory_storage.lock().await;
         let _ = memory.store_artifact(
             pod.webid,
@@ -1107,7 +1107,7 @@ impl PodManager {
                 "timestamp": chrono::Utc::now().to_rfc3339(),
             }
         });
-        
+
         let memory = self.memory_storage.lock().await;
         let _ = memory.store_artifact(
             pod.webid,
@@ -1127,7 +1127,10 @@ impl PodManager {
     }
 
     /// Recall lifecycle events for a pod
-    pub async fn recall_pod_events(&self, pod_id: &PodID) -> AgentPodResult<Vec<serde_json::Value>> {
+    pub async fn recall_pod_events(
+        &self,
+        pod_id: &PodID,
+    ) -> AgentPodResult<Vec<serde_json::Value>> {
         let pods = self.pods.read().await;
         let pod = pods
             .get(pod_id)
@@ -1220,9 +1223,12 @@ visibility:
 "#;
         let persona1 = AgentPersona::from_yaml(yaml).unwrap();
         let persona2 = AgentPersona::from_yaml(yaml).unwrap();
-        
-        assert_eq!(persona1.webid(), persona2.webid(), 
-                   "Same YAML should produce same WebID");
+
+        assert_eq!(
+            persona1.webid(),
+            persona2.webid(),
+            "Same YAML should produce same WebID"
+        );
     }
 
     #[test]
@@ -1259,9 +1265,12 @@ visibility:
 "#;
         let persona1 = AgentPersona::from_yaml(yaml1).unwrap();
         let persona2 = AgentPersona::from_yaml(yaml2).unwrap();
-        
-        assert_ne!(persona1.webid(), persona2.webid(), 
-                   "Different agents should have different WebIDs");
+
+        assert_ne!(
+            persona1.webid(),
+            persona2.webid(),
+            "Different agents should have different WebIDs"
+        );
     }
 
     #[test]
@@ -1285,7 +1294,7 @@ visibility:
         let webid1 = persona.webid();
         let webid2 = persona.webid();
         let webid3 = persona.webid();
-        
+
         assert_eq!(webid1, webid2);
         assert_eq!(webid2, webid3);
         assert_eq!(webid1, webid3);

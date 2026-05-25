@@ -146,21 +146,21 @@ impl OcapEnforcer {
         let capabilities = self.registry.get_capabilities(context.requester).await;
 
         if let Some(caps) = capabilities
-            && let Some(cap) = caps
-                .into_iter()
-                .find(|c| crate::okapi_capability::has_operation(c, context.operation) && !crate::okapi_capability::is_expired(c))
+            && let Some(cap) = caps.into_iter().find(|c| {
+                crate::okapi_capability::has_operation(c, context.operation)
+                    && !crate::okapi_capability::is_expired(c)
+            })
         {
             // Verify visibility
             let cap_visibility = cap
                 .get_caveat_data("visibility")
                 .and_then(|v| hkask_types::Visibility::parse_str(v))
                 .unwrap_or(hkask_types::Visibility::Private);
-            
+
             if cap_visibility != context.required_visibility {
                 warn!(
                     "OCAP denied: visibility mismatch. Required={:?}, Capability={:?}",
-                    context.required_visibility,
-                    cap_visibility
+                    context.required_visibility, cap_visibility
                 );
 
                 return Ok(OcapEnforcementResult {
@@ -170,8 +170,7 @@ impl OcapEnforcer {
                     capability: None,
                     error: Some(format!(
                         "Visibility mismatch: required {:?}, capability has {:?}",
-                        context.required_visibility,
-                        cap_visibility
+                        context.required_visibility, cap_visibility
                     )),
                 });
             }
@@ -262,12 +261,10 @@ pub async fn enforce_okapi_ocap(
     let result = enforcer.enforce(context).await?;
 
     if result.granted {
-        result
-            .capability
-            .ok_or(OkapiCapabilityError::Unauthorized {
-                requested: operation.to_string(),
-                granted: vec![],
-            })
+        result.capability.ok_or(OkapiCapabilityError::Unauthorized {
+            requested: operation.to_string(),
+            granted: vec![],
+        })
     } else {
         Err(OkapiCapabilityError::Unauthorized {
             requested: operation.to_string(),

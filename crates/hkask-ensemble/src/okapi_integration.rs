@@ -4,8 +4,8 @@
 //! Combines ports, adapters, capability security, and CNS integration.
 
 use hkask_cns::CnsRuntime;
-use hkask_keystore::keychain::KeychainError;
 use hkask_keystore::Keychain;
+use hkask_keystore::keychain::KeychainError;
 use hkask_types::{CapabilityToken, NuEvent, Span, WebID};
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -54,7 +54,10 @@ impl OkapiIntegration {
     /// Create new Okapi integration with default system capability
     ///
     /// Loads the encryption key from keystore (env var, keychain, or generates new).
-    pub fn new(base_url: String, cns_runtime: Arc<CnsRuntime>) -> Result<Self, OkapiIntegrationError> {
+    pub fn new(
+        base_url: String,
+        cns_runtime: Arc<CnsRuntime>,
+    ) -> Result<Self, OkapiIntegrationError> {
         let holder = WebID::new();
         let key = load_okapi_key().map_err(|e| {
             OkapiIntegrationError::CapabilityError(format!("Failed to load Okapi key: {}", e))
@@ -99,12 +102,10 @@ impl OkapiIntegration {
         let key = load_okapi_key().map_err(|e| {
             OkapiIntegrationError::CapabilityError(format!("Failed to load Okapi key: {}", e))
         })?;
-        
-        if let Err(e) = verify_okapi_capability(
-            &self.capability,
-            key.as_ref(),
-            &[OkapiOperation::Generate],
-        ) {
+
+        if let Err(e) =
+            verify_okapi_capability(&self.capability, key.as_ref(), &[OkapiOperation::Generate])
+        {
             return Err(OkapiIntegrationError::CapabilityError(format!(
                 "Capability verification failed: {:?}",
                 e
@@ -125,12 +126,10 @@ impl OkapiIntegration {
         let key = load_okapi_key().map_err(|e| {
             OkapiIntegrationError::CapabilityError(format!("Failed to load Okapi key: {}", e))
         })?;
-        
-        if let Err(e) = verify_okapi_capability(
-            &self.capability,
-            key.as_ref(),
-            &[OkapiOperation::Chat],
-        ) {
+
+        if let Err(e) =
+            verify_okapi_capability(&self.capability, key.as_ref(), &[OkapiOperation::Chat])
+        {
             return Err(OkapiIntegrationError::CapabilityError(format!(
                 "Capability verification failed: {:?}",
                 e

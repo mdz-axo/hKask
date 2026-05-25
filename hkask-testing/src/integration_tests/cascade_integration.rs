@@ -17,8 +17,8 @@ use hkask_templates::cascade::{
 };
 use hkask_templates::csp::{CspConfig, CspExecutor, StageConfig};
 use hkask_templates::ports::{
-    Action, CompositionTemplate, InferenceConfig, SyncInferencePort, ManifestExecutor, ManifestStep,
-    McpPort, ProcessManifest, TemplateError, TemplateRenderer, ToolInfo,
+    Action, CompositionTemplate, InferenceConfig, ManifestExecutor, ManifestStep, McpPort,
+    ProcessManifest, SyncInferencePort, TemplateError, TemplateRenderer, ToolInfo,
 };
 use serde_json::json;
 use std::collections::HashMap;

@@ -171,9 +171,10 @@ impl RussellAcpAdapter {
             .as_mut()
             .ok_or_else(|| AcpError::TransportError("Russell not started".to_string()))?;
 
-        let stdin = child.stdin.as_mut().ok_or_else(|| {
-            AcpError::TransportError("Russell stdin not available".to_string())
-        })?;
+        let stdin = child
+            .stdin
+            .as_mut()
+            .ok_or_else(|| AcpError::TransportError("Russell stdin not available".to_string()))?;
 
         let json = serde_json::to_string(&request)
             .map_err(|e| AcpError::TransportError(format!("Serialization failed: {}", e)))?;
@@ -191,9 +192,10 @@ impl RussellAcpAdapter {
             .await
             .map_err(|e| AcpError::TransportError(format!("Flush failed: {}", e)))?;
 
-        let stdout = child.stdout.as_mut().ok_or_else(|| {
-            AcpError::TransportError("Russell stdout not available".to_string())
-        })?;
+        let stdout = child
+            .stdout
+            .as_mut()
+            .ok_or_else(|| AcpError::TransportError("Russell stdout not available".to_string()))?;
 
         let mut reader = BufReader::new(stdout);
         let mut line = String::new();
@@ -240,43 +242,37 @@ impl RussellAcpAdapter {
                 input,
                 correlation_id,
                 ..
-            } => {
-                serde_json::json!({
-                    "type": "template_dispatch",
-                    "template_id": template_id,
-                    "input": input,
-                    "correlation_id": correlation_id,
-                })
-                .to_string()
-            }
+            } => serde_json::json!({
+                "type": "template_dispatch",
+                "template_id": template_id,
+                "input": input,
+                "correlation_id": correlation_id,
+            })
+            .to_string(),
             A2AMessage::TemplateResponse {
                 correlation_id,
                 result,
                 error,
-            } => {
-                serde_json::json!({
-                    "type": "template_response",
-                    "correlation_id": correlation_id,
-                    "result": result,
-                    "error": error,
-                })
-                .to_string()
-            }
+            } => serde_json::json!({
+                "type": "template_response",
+                "correlation_id": correlation_id,
+                "result": result,
+                "error": error,
+            })
+            .to_string(),
             A2AMessage::MemoryArtifact {
                 producer,
                 artifact_type,
                 artifact_id,
                 visibility,
-            } => {
-                serde_json::json!({
-                    "type": "memory_artifact",
-                    "producer": producer.to_string(),
-                    "artifact_type": artifact_type,
-                    "artifact_id": artifact_id,
-                    "visibility": visibility,
-                })
-                .to_string()
-            }
+            } => serde_json::json!({
+                "type": "memory_artifact",
+                "producer": producer.to_string(),
+                "artifact_type": artifact_type,
+                "artifact_id": artifact_id,
+                "visibility": visibility,
+            })
+            .to_string(),
         }
     }
 }
@@ -319,13 +315,9 @@ impl AcpPort for RussellAcpAdapter {
             .result
             .ok_or_else(|| AcpError::TransportError("Russell returned no result".to_string()))?;
 
-        let session_resp: CreateSessionResponse = serde_json::from_value(result)
-            .map_err(|e| {
-                AcpError::TransportError(format!(
-                    "Failed to parse Russell session response: {}",
-                    e
-                ))
-            })?;
+        let session_resp: CreateSessionResponse = serde_json::from_value(result).map_err(|e| {
+            AcpError::TransportError(format!("Failed to parse Russell session response: {}", e))
+        })?;
 
         // Store the session_id for this WebID
         self.store_session_id(webid, session_resp.session_id.clone())
@@ -357,9 +349,10 @@ impl AcpPort for RussellAcpAdapter {
 
     async fn unregister_agent(&self, webid: &WebID) -> Result<(), AcpError> {
         // Look up the session_id for this WebID
-        let session_id = self.get_session_id(webid).await.ok_or_else(|| {
-            AcpError::AgentNotFound(*webid)
-        })?;
+        let session_id = self
+            .get_session_id(webid)
+            .await
+            .ok_or_else(|| AcpError::AgentNotFound(*webid))?;
 
         let request = JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
@@ -396,29 +389,20 @@ impl AcpPort for RussellAcpAdapter {
     async fn send_message(&self, msg: A2AMessage) -> Result<String, AcpError> {
         // Determine the target WebID from the message
         let target_webid = match &msg {
-            A2AMessage::TemplateDispatch { to, from, .. } => {
-                to.unwrap_or(*from)
-            }
+            A2AMessage::TemplateDispatch { to, from, .. } => to.unwrap_or(*from),
             A2AMessage::TemplateResponse { .. } => {
                 // Responses don't have a clear target; use first available session
                 let sessions = self.sessions.read().await;
-                sessions
-                    .keys()
-                    .next()
-                    .copied()
-                    .ok_or_else(|| {
-                        AcpError::TransportError("No active Russell sessions".to_string())
-                    })?
+                sessions.keys().next().copied().ok_or_else(|| {
+                    AcpError::TransportError("No active Russell sessions".to_string())
+                })?
             }
             A2AMessage::MemoryArtifact { producer, .. } => *producer,
         };
 
         // Look up the session_id for the target WebID
         let session_id = self.get_session_id(&target_webid).await.ok_or_else(|| {
-            AcpError::TransportError(format!(
-                "No Russell session for WebID {}",
-                target_webid
-            ))
+            AcpError::TransportError(format!("No Russell session for WebID {}", target_webid))
         })?;
 
         // Extract message text and wrap in Russell's expected format
@@ -495,10 +479,7 @@ impl AcpPort for RussellAcpAdapter {
             .ok_or_else(|| AcpError::TransportError("Russell returned no result".to_string()))?;
 
         let caps_resp: CapabilitiesResponse = serde_json::from_value(result).map_err(|e| {
-            AcpError::TransportError(format!(
-                "Failed to parse Russell capabilities: {}",
-                e
-            ))
+            AcpError::TransportError(format!("Failed to parse Russell capabilities: {}", e))
         })?;
 
         // Map Russell skills to hKask capability strings

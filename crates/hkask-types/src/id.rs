@@ -21,7 +21,7 @@ impl WebID {
         // UUID: 686b6173-6b2d-7065-7273-6f6e612d6e73
         let namespace = Uuid::parse_str("686b6173-6b2d-7065-7273-6f6e612d6e73")
             .expect("Invalid namespace UUID");
-        
+
         Self(Uuid::new_v5(&namespace, persona_bytes))
     }
 
@@ -241,7 +241,10 @@ mod tests {
         let persona2 = b"persona-2";
         let id1 = WebID::from_persona(persona1);
         let id2 = WebID::from_persona(persona2);
-        assert_ne!(id1, id2, "Different persona bytes should produce different WebIDs");
+        assert_ne!(
+            id1, id2,
+            "Different persona bytes should produce different WebIDs"
+        );
     }
 
     #[test]

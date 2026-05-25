@@ -30,13 +30,17 @@ pub trait McpTransport: Send + Sync + fmt::Debug {
 /// Allows MCP servers to be registered as in-process handlers,
 /// avoiding network overhead for local tools.
 pub struct InProcessMcpTransport {
-    handlers: Arc<RwLock<HashMap<String, Box<dyn Fn(Value) -> Result<Value, String> + Send + Sync>>>>,
+    handlers:
+        Arc<RwLock<HashMap<String, Box<dyn Fn(Value) -> Result<Value, String> + Send + Sync>>>>,
 }
 
 impl fmt::Debug for InProcessMcpTransport {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("InProcessMcpTransport")
-            .field("handlers_count", &self.handlers.try_read().map(|h| h.len()).unwrap_or(0))
+            .field(
+                "handlers_count",
+                &self.handlers.try_read().map(|h| h.len()).unwrap_or(0),
+            )
             .finish()
     }
 }
@@ -218,7 +222,11 @@ mod tests {
 
         // Call the tool
         let result = transport
-            .call("test_server", "test_tool", serde_json::json!({"key": "value"}))
+            .call(
+                "test_server",
+                "test_tool",
+                serde_json::json!({"key": "value"}),
+            )
             .await
             .unwrap();
 

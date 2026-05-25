@@ -8,8 +8,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::okapi_capability::OkapiOperation;
 use crate::ocap_enforcement::CapabilityQueryPort;
+use crate::okapi_capability::OkapiOperation;
 
 /// WebID-to-capability mapping entry
 #[derive(Debug, Clone)]
@@ -45,16 +45,18 @@ impl WebIDCapabilityEntry {
 
     /// Check if entry has capability for operation
     pub fn has_capability(&self, operation: OkapiOperation) -> bool {
-        self.capabilities
-            .iter()
-            .any(|cap| crate::okapi_capability::has_operation(cap, operation) && !crate::okapi_capability::is_expired(cap))
+        self.capabilities.iter().any(|cap| {
+            crate::okapi_capability::has_operation(cap, operation)
+                && !crate::okapi_capability::is_expired(cap)
+        })
     }
 
     /// Get best capability for operation
     pub fn get_capability(&self, operation: OkapiOperation) -> Option<&CapabilityToken> {
-        self.capabilities
-            .iter()
-            .find(|cap| crate::okapi_capability::has_operation(cap, operation) && !crate::okapi_capability::is_expired(cap))
+        self.capabilities.iter().find(|cap| {
+            crate::okapi_capability::has_operation(cap, operation)
+                && !crate::okapi_capability::is_expired(cap)
+        })
     }
 }
 
@@ -226,7 +228,10 @@ pub async fn authorize_operation(
 
     capabilities
         .into_iter()
-        .find(|cap| crate::okapi_capability::has_operation(cap, operation) && !crate::okapi_capability::is_expired(cap))
+        .find(|cap| {
+            crate::okapi_capability::has_operation(cap, operation)
+                && !crate::okapi_capability::is_expired(cap)
+        })
         .ok_or(WebIdAuthError::CapabilityNotFound)
 }
 

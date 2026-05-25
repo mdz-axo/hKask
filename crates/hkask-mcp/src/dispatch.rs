@@ -108,10 +108,11 @@ impl McpPort for McpDispatcher {
     }
 
     async fn invoke(&self, tool_name: &str, input: Value) -> Result<Value> {
-        let tool_info =
-            self.runtime.get_tool_info(tool_name).await.ok_or_else(|| {
-                TemplateError::Mcp(format!("Tool not found: {}", tool_name))
-            })?;
+        let tool_info = self
+            .runtime
+            .get_tool_info(tool_name)
+            .await
+            .ok_or_else(|| TemplateError::Mcp(format!("Tool not found: {}", tool_name)))?;
 
         self.runtime
             .call_tool(&tool_info.server_id, tool_name, input)
@@ -120,16 +121,17 @@ impl McpPort for McpDispatcher {
     }
 
     async fn get_tool_info(&self, tool_name: &str) -> Option<hkask_templates::ports::ToolInfo> {
-        self.runtime.get_tool_info(tool_name).await.map(|t| {
-            hkask_templates::ports::ToolInfo {
+        self.runtime
+            .get_tool_info(tool_name)
+            .await
+            .map(|t| hkask_templates::ports::ToolInfo {
                 name: t.name,
                 description: t.description,
                 input_schema: t.input_schema,
                 server_id: t.server_id,
                 required_capability: t.required_capability,
                 rate_limit_hint: t.rate_limit_hint,
-            }
-        })
+            })
     }
 }
 

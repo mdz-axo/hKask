@@ -139,50 +139,37 @@ enum Commands {
         #[command(subcommand)]
         action: DocsAction,
     },
+
+    /// ACP agent registration and management
+    Agent {
+        #[command(subcommand)]
+        action: AgentAction,
+    },
 }
 
 #[derive(Subcommand)]
 enum TemplateAction {
-    /// List all registered templates
     List {
-        /// Filter by template type
         #[arg(short, long)]
         r#type: Option<String>,
     },
-
-    /// Register a new template
     Register {
-        /// Template ID (e.g., "prompt/selector")
         #[arg(short, long)]
         id: String,
-
-        /// Template file path
         #[arg(short, long)]
         path: PathBuf,
-
-        /// Template type (prompt, cognition, process, etc.)
         #[arg(short, long)]
         r#type: String,
-
-        /// Lexicon terms (comma-separated)
         #[arg(short, long)]
         lexicon: Option<String>,
-
-        /// Description
         #[arg(short, long)]
         description: Option<String>,
     },
-
-    /// Get template details
     Get {
-        /// Template ID
         #[arg()]
         id: String,
     },
-
-    /// Search templates by lexicon term
     Search {
-        /// Lexicon term
         #[arg()]
         term: String,
     },
@@ -190,22 +177,40 @@ enum TemplateAction {
 
 #[derive(Subcommand)]
 enum BotAction {
-    /// List bot capabilities
     List {
-        /// Bot WebID
         #[arg(short, long)]
-        bot_id: Option<String>,
+        kind: Option<String>,
     },
-
-    /// Grant capability to bot
+    Status {
+        #[arg()]
+        name: String,
+    },
     Grant {
-        /// Bot WebID
         #[arg(short, long)]
         bot_id: String,
-
-        /// Capability name (e.g., "inference:call")
         #[arg(short, long)]
         capability: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum AgentAction {
+    Register {
+        #[arg(long)]
+        webid: String,
+        #[arg(long)]
+        agent_type: String,
+        #[arg(long)]
+        capabilities: String,
+    },
+    Unregister {
+        #[arg(long)]
+        name: String,
+    },
+    List,
+    Capabilities {
+        #[arg(long)]
+        name: String,
     },
 }
 
@@ -811,7 +816,10 @@ fn generate_cli_markdown() -> String {
     md.push_str("- `cognition` — Cognitive processing templates\n");
     md.push_str("- `process` — Process execution templates\n\n");
     md.push_str("---\n\n");
-    md.push_str(&format!("*hKask v{} — Planck's Constant of Agent Systems*\n", env!("CARGO_PKG_VERSION")));
+    md.push_str(&format!(
+        "*hKask v{} — Planck's Constant of Agent Systems*\n",
+        env!("CARGO_PKG_VERSION")
+    ));
 
     md
 }
@@ -968,16 +976,95 @@ fn main() {
         },
 
         Commands::Bot { action } => match action {
-            BotAction::List { bot_id } => {
-                println!(
-                    "Bot capabilities (bot: {})",
-                    bot_id.unwrap_or("all".to_string())
-                );
-                println!("Note: Bot capability management requires ACP runtime integration.");
+            BotAction::List { kind } => {
+                let rt = tokio::runtime::Runtime::new().unwrap();
+                rt.block_on(async {
+                    match commands::bot_list(kind.as_deref()).await {
+                        Ok(agents) => {
+                            if agents.is_empty() {
+                                println!("No agents registered.");
+                                return;
+                            }
+                            println!(
+                                "{:<25} {:<12} {:<40} {}",
+                                "NAME", "KIND", "CAPABILITIES", "SOURCE"
+                            );
+                            println!("{}", "-".repeat(100));
+                            for agent in &agents {
+                                println!(
+                                    "{:<25} {:<12} {:<40} {}",
+                                    agent.definition.name,
+                                    agent.definition.agent_kind,
+                                    agent.definition.capabilities.len(),
+                                    agent.source_yaml,
+                                );
+                            }
+                            println!("\nTotal: {} agents", agents.len());
+                        }
+                        Err(e) => {
+                            eprintln!("Failed to list agents: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                });
+            }
+            BotAction::Status { name } => {
+                let rt = tokio::runtime::Runtime::new().unwrap();
+                rt.block_on(async {
+                    match commands::bot_status(&name).await {
+                        Ok(agent) => {
+                            let def = &agent.definition;
+                            println!("Agent: {}", def.name);
+                            println!("  Kind: {}", def.agent_kind);
+                            println!("  Editor: {}", def.editor);
+                            println!("  Binding contract: {}", def.binding_contract);
+                            if let Some(charter) = &def.charter {
+                                println!("  Charter: {}", charter.description);
+                                println!("  Archetype: {}", charter.archetype);
+                            }
+                            println!("  Capabilities:");
+                            for cap in &def.capabilities {
+                                println!("    - {}", cap);
+                            }
+                            if !def.rights.is_empty() {
+                                println!("  Rights:");
+                                for r in &def.rights_flat() {
+                                    println!("    - {}", r);
+                                }
+                            }
+                            if !def.responsibilities.is_empty() {
+                                println!("  Responsibilities:");
+                                for r in &def.responsibilities_flat() {
+                                    println!("    - {}", r);
+                                }
+                            }
+                            if let Some(persona) = &def.persona {
+                                println!("  Persona:");
+                                println!("    Tone: {}", persona.tone);
+                                println!("    Verbosity: {}", persona.verbosity);
+                                if !persona.forbidden.is_empty() {
+                                    println!("    Forbidden: {}", persona.forbidden.join(", "));
+                                }
+                            }
+                            if let Some(probe) = &def.readiness_probe {
+                                println!(
+                                    "  Readiness probe: {} ({})",
+                                    probe.endpoint, probe.probe_type
+                                );
+                            }
+                            println!("  Registered: {}", agent.registered_at);
+                            println!("  Source: {}", agent.source_yaml);
+                        }
+                        Err(e) => {
+                            eprintln!("Failed to get agent status: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                });
             }
             BotAction::Grant { bot_id, capability } => {
                 println!("Grant capability: {} to bot: {}", capability, bot_id);
-                println!("Note: Capability granting requires ACP runtime integration.");
+                println!("Note: Capability granting via ACP attenuation not yet wired.");
             }
         },
 
@@ -1253,12 +1340,14 @@ fn main() {
                 verbose,
             } => {
                 let mut config = if let Some(rules_path) = &transform_rules {
-                    match RussellMappingConfig::load_from_yaml(
-                        rules_path.to_str().unwrap_or(""),
-                    ) {
+                    match RussellMappingConfig::load_from_yaml(rules_path.to_str().unwrap_or("")) {
                         Ok(c) => c,
                         Err(e) => {
-                            eprintln!("Warning: Failed to load transform rules from {}: {}. Using defaults.", rules_path.display(), e);
+                            eprintln!(
+                                "Warning: Failed to load transform rules from {}: {}. Using defaults.",
+                                rules_path.display(),
+                                e
+                            );
                             RussellMappingConfig::defaults()
                         }
                     }
@@ -1288,7 +1377,8 @@ fn main() {
                         }
                     }
                 } else {
-                    match hkask_cli::commands::import_russell_with_mapper(&mapper, &source, verbose) {
+                    match hkask_cli::commands::import_russell_with_mapper(&mapper, &source, verbose)
+                    {
                         Ok(assets) => {
                             let fmt = output_format.to_lowercase();
                             match fmt.as_str() {
@@ -1300,11 +1390,17 @@ fn main() {
                                 "mermaid" => {
                                     println!("graph LR");
                                     for asset in &assets {
-                                        println!("  russell[\"{}\"] --> hkask[\"{}\"]", asset.id, asset.id);
+                                        println!(
+                                            "  russell[\"{}\"] --> hkask[\"{}\"]",
+                                            asset.id, asset.id
+                                        );
                                     }
                                 }
                                 _ => {
-                                    println!("Migration analysis complete: {} assets", assets.len());
+                                    println!(
+                                        "Migration analysis complete: {} assets",
+                                        assets.len()
+                                    );
                                     for asset in &assets {
                                         println!("\n  ID: {}", asset.id);
                                         println!("  Type: {:?}", asset.template_type);
@@ -1325,7 +1421,10 @@ fn main() {
                                         source_path: format!("russell-migrated:{}", asset.id),
                                     };
                                     if let Err(e) = registry.register(entry, None) {
-                                        eprintln!("Failed to register template {}: {}", asset.id, e);
+                                        eprintln!(
+                                            "Failed to register template {}: {}",
+                                            asset.id, e
+                                        );
                                     } else if verbose {
                                         println!("  Registered: {}", asset.id);
                                     }
@@ -1681,5 +1780,89 @@ fn main() {
                 }
             }
         }
+
+        Commands::Agent { action } => match action {
+            AgentAction::Register {
+                webid,
+                agent_type,
+                capabilities,
+            } => {
+                let rt = tokio::runtime::Runtime::new().unwrap();
+                rt.block_on(async {
+                    let caps: Vec<String> = capabilities
+                        .split(',')
+                        .map(|s| s.trim().to_string())
+                        .collect();
+                    match commands::agent_register(&webid, &agent_type, caps).await {
+                        Ok(receipt) => {
+                            println!("Agent registered:");
+                            println!("  WebID: {}", receipt.webid);
+                            println!("  Token: {}...", &receipt.token_hash[..16]);
+                            println!("  Registered at: {}", receipt.registered_at);
+                        }
+                        Err(e) => {
+                            eprintln!("Registration failed: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                });
+            }
+            AgentAction::Unregister { name } => {
+                let rt = tokio::runtime::Runtime::new().unwrap();
+                rt.block_on(async {
+                    match commands::agent_unregister(&name).await {
+                        Ok(()) => println!("Agent unregistered: {}", name),
+                        Err(e) => {
+                            eprintln!("Unregister failed: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                });
+            }
+            AgentAction::List => {
+                let rt = tokio::runtime::Runtime::new().unwrap();
+                rt.block_on(async {
+                    match commands::bot_list(None).await {
+                        Ok(agents) => {
+                            if agents.is_empty() {
+                                println!("No agents registered.");
+                                return;
+                            }
+                            println!("{:<25} {:<12} {:<40}", "NAME", "KIND", "CAPABILITIES");
+                            println!("{}", "-".repeat(80));
+                            for agent in &agents {
+                                println!(
+                                    "{:<25} {:<12} {:<40}",
+                                    agent.definition.name,
+                                    agent.definition.agent_kind,
+                                    agent.definition.capabilities.join(", "),
+                                );
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("Failed to list agents: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                });
+            }
+            AgentAction::Capabilities { name } => {
+                let rt = tokio::runtime::Runtime::new().unwrap();
+                rt.block_on(async {
+                    match commands::bot_status(&name).await {
+                        Ok(agent) => {
+                            println!("Capabilities for {}:", agent.definition.name);
+                            for cap in &agent.definition.capabilities {
+                                println!("  - {}", cap);
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("Failed to get capabilities: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                });
+            }
+        },
     }
 }

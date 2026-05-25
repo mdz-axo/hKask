@@ -1,5 +1,6 @@
 //! hKask Storage — SQLite + SQLCipher storage backend
 
+pub mod agent_registry;
 pub mod audit_log;
 pub mod blobs;
 pub mod database;
@@ -12,6 +13,7 @@ pub mod sovereignty;
 pub mod spec_store;
 pub mod triples;
 
+pub use agent_registry::{AgentRegistryError, AgentRegistryStore};
 pub use audit_log::{AuditEntry, AuditLogError, AuditLogStore};
 pub use blobs::{Blob, BlobError, BlobStore};
 pub use database::Database;

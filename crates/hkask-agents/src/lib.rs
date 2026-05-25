@@ -42,6 +42,7 @@ pub mod error;
 pub mod ocap;
 pub mod pod;
 pub mod ports;
+pub mod registry_loader;
 pub mod replicant;
 pub mod revocation_store;
 pub mod security;
@@ -50,16 +51,17 @@ pub mod sovereignty;
 pub use acp::{A2AMessage, AcpAgent, AcpError, AcpRuntime, TemplateDispatchHandler};
 pub use adapters::{LoopbackHttpTransport, StdioTransport};
 pub use bot::Bot;
-pub use hkask_types::{BotCapabilities, CapabilityChecker, CapabilityToken};
 pub use consent::ConsentManager;
 pub use curator::escalation::{
     EscalationEntry, EscalationQueue, EscalationStats, EscalationStatus,
 };
 pub use error::{GitError, McpError, MemoryError};
+pub use hkask_types::{BotCapabilities, CapabilityChecker, CapabilityToken};
 pub use pod::{
     AgentPersona, AgentPod, AgentPodError, AgentPodResult, AgentType, GitCASPort, MCPRuntimePort,
     MemoryStoragePort, PodID, PodLifecycleState, PodManager, PodStatus, TemplateCrate,
 };
 pub use ports::{AcpPort, AcpTransport, AcpWireMessage, AcpWireResponse};
+pub use registry_loader::{BotRegistryLoader, RegistryLoaderError};
 pub use replicant::{Replicant, ReplicantCapabilities};
 pub use sovereignty::SovereigntyChecker;

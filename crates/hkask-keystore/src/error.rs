@@ -38,9 +38,7 @@ impl From<crate::encryption::EncryptionError> for KeystoreError {
                 KeystoreError::KeyDerivation(msg)
             }
             crate::encryption::EncryptionError::Encryption(msg) => KeystoreError::Encryption(msg),
-            crate::encryption::EncryptionError::Decryption(msg) => {
-                KeystoreError::Encryption(msg)
-            }
+            crate::encryption::EncryptionError::Decryption(msg) => KeystoreError::Encryption(msg),
             crate::encryption::EncryptionError::InvalidPassphrase => {
                 KeystoreError::Encryption("Invalid passphrase".to_string())
             }

@@ -63,17 +63,20 @@ pub use curator_pipeline::{CuratorPipeline, EvaluationResult, merge_outputs};
 pub use dependency::{DependencyGraph, parse_dependencies};
 pub use engine::{TemplateEngine, TemplateRegistry};
 pub use inference_port::{
-    InferenceError, InferencePort, InferenceResult, OkapiInference, Usage,
-    create_shared_client, invoke_template_with_okapi_generic as invoke_template_with_okapi,
+    InferenceError, InferencePort, InferenceResult, OkapiInference, Usage, create_shared_client,
+    invoke_template_with_okapi_generic as invoke_template_with_okapi,
     invoke_template_with_selection_generic as invoke_template_with_selection,
 };
-pub use manifest::{CspEnforcer, EnergyAccount, ManifestExecutorImpl, ModelRequirements, NoopCsp, SelectorConfig, SimpleExecutor};
+pub use manifest::{
+    CspEnforcer, EnergyAccount, ManifestExecutorImpl, ModelRequirements, NoopCsp, SelectorConfig,
+    SimpleExecutor,
+};
 pub use okapi_config::{OkapiConfig, OkapiRetryConfig};
 pub use ports::{
     Action, CnsPort, CompositionTemplate, DEFAULT_MATROSHKA_LIMIT, FAST_LOCAL_MODEL,
-    InferenceConfig, ManifestExecutor, ManifestStep, McpPort,
-    MemoryFragment, MemoryPort, ProcessManifest, RegistryEntry, RegistryIndex, Result,
-    SyncInferencePort, TemplateContract, TemplateError, TemplateRenderer,
+    InferenceConfig, ManifestExecutor, ManifestStep, McpPort, MemoryFragment, MemoryPort,
+    ProcessManifest, RegistryEntry, RegistryIndex, Result, SyncInferencePort, TemplateContract,
+    TemplateError, TemplateRenderer,
 };
 pub use provenance::{ProvenanceManager, TemplateProvenance};
 pub use registry::{Registry, TemplateEntry};

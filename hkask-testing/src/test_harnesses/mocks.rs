@@ -88,15 +88,16 @@ impl McpPort for MockMcpPort {
             .collect()
     }
 
-    async fn invoke(&self, tool_name: &str, _input: Value) -> hkask_templates::ports::Result<Value> {
+    async fn invoke(
+        &self,
+        tool_name: &str,
+        _input: Value,
+    ) -> hkask_templates::ports::Result<Value> {
         let tools = self.tools.read().unwrap();
         if tools.get(tool_name).copied().unwrap_or(false) {
             Ok(serde_json::json!({"status": "success"}))
         } else {
-            Err(TemplateError::Mcp(format!(
-                "Tool not found: {}",
-                tool_name
-            )))
+            Err(TemplateError::Mcp(format!("Tool not found: {}", tool_name)))
         }
     }
 

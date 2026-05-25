@@ -1,8 +1,8 @@
 //! hKask Keystore — OS keychain and encryption
 
 pub mod encryption;
-pub mod keychain;
 pub mod error;
+pub mod keychain;
 
 pub use encryption::derive_key;
 pub use error::KeystoreError;

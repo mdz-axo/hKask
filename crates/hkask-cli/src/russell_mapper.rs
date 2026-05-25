@@ -363,7 +363,10 @@ fn select_model_tier(russell: &RussellSkillManifest, config: &ModelTierSelection
 }
 
 /// Calculate energy budget for mapped template
-fn calculate_energy_budget(russell: &RussellSkillManifest, budget_cfg: Option<&EnergyBudget>) -> u64 {
+fn calculate_energy_budget(
+    russell: &RussellSkillManifest,
+    budget_cfg: Option<&EnergyBudget>,
+) -> u64 {
     let base_cost: u64 = budget_cfg.map(|b| b.base_cost).unwrap_or(1000);
     let per_probe_cost: u64 = budget_cfg.map(|b| b.per_probe_cost).unwrap_or(200);
     let per_intervention_cost: u64 = budget_cfg.map(|b| b.per_intervention_cost).unwrap_or(500);

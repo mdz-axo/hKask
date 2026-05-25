@@ -573,3 +573,150 @@ pub async fn ensemble_deliberation_list() -> Result<Vec<String>, String> {
     };
     Ok(sessions)
 }
+
+fn registry_db_path() -> String {
+    std::env::var("HKASK_DB_PATH").unwrap_or_else(|_| "hkask.db".to_string())
+}
+
+fn registry_yaml_path() -> PathBuf {
+    let p = std::env::var("HKASK_REGISTRY_PATH").unwrap_or_else(|_| "registry/bots".to_string());
+    PathBuf::from(p)
+}
+
+async fn init_registry() -> Result<
+    (
+        Arc<hkask_agents::AcpRuntime>,
+        hkask_storage::AgentRegistryStore,
+    ),
+    String,
+> {
+    let secret = std::env::var("HKASK_ACP_SECRET")
+        .unwrap_or_else(|_| "hkask-dev-secret-minimum-eight-chars".to_string());
+    let acp = Arc::new(hkask_agents::AcpRuntime::new(secret.as_bytes(), None));
+
+    let db_path = registry_db_path();
+    let passphrase = std::env::var("HKASK_DB_PASSPHRASE")
+        .unwrap_or_else(|_| "hkask-dev-passphrase-minimum-eight".to_string());
+
+    let db = if db_path == ":memory:" {
+        hkask_storage::Database::in_memory().map_err(|e| format!("Database error: {}", e))?
+    } else {
+        hkask_storage::Database::open(&db_path, &passphrase)
+            .map_err(|e| format!("Database error: {}", e))?
+    };
+
+    let store = hkask_storage::AgentRegistryStore::new(db.conn_arc());
+    store
+        .initialize_schema()
+        .map_err(|e| format!("Schema init error: {}", e))?;
+
+    Ok((acp, store))
+}
+
+pub struct AgentReceipt {
+    pub webid: String,
+    pub token_hash: String,
+    pub registered_at: String,
+}
+
+pub async fn bot_list(
+    kind_filter: Option<&str>,
+) -> Result<Vec<hkask_types::RegisteredAgent>, String> {
+    let (_acp, store) = init_registry().await?;
+
+    let loader = hkask_agents::BotRegistryLoader::new(registry_yaml_path(), _acp, store);
+
+    let agents = loader
+        .boot()
+        .await
+        .map_err(|e| format!("Registry load error: {}", e))?;
+
+    let filtered = if let Some(kind_str) = kind_filter {
+        let kind = hkask_types::AgentKind::parse(kind_str)
+            .ok_or_else(|| format!("Unknown agent kind: {}", kind_str))?;
+        agents
+            .into_iter()
+            .filter(|a| a.definition.agent_kind == kind)
+            .collect()
+    } else {
+        agents
+    };
+
+    Ok(filtered)
+}
+
+pub async fn bot_status(name: &str) -> Result<hkask_types::RegisteredAgent, String> {
+    let (_acp, store) = init_registry().await?;
+
+    let loader = hkask_agents::BotRegistryLoader::new(registry_yaml_path(), _acp, store);
+
+    let agents = loader
+        .boot()
+        .await
+        .map_err(|e| format!("Registry load error: {}", e))?;
+
+    agents
+        .into_iter()
+        .find(|a| a.definition.name == name)
+        .ok_or_else(|| format!("Agent '{}' not found", name))
+}
+
+pub async fn agent_register(
+    webid_str: &str,
+    agent_type: &str,
+    capabilities: Vec<String>,
+) -> Result<AgentReceipt, String> {
+    let (acp, store) = init_registry().await?;
+
+    let webid = hkask_types::WebID::from_string(webid_str);
+
+    let token = acp
+        .register_agent(webid, agent_type.to_string(), capabilities)
+        .await
+        .map_err(|e| format!("ACP registration error: {}", e))?;
+
+    let definition = hkask_types::AgentDefinition {
+        name: webid_str.to_string(),
+        agent_kind: hkask_types::AgentKind::parse(agent_type)
+            .unwrap_or(hkask_types::AgentKind::Bot),
+        binding_contract: false,
+        editor: "cli".to_string(),
+        charter: None,
+        capabilities: vec![],
+        rights: vec![],
+        responsibilities: vec![],
+        reporting: None,
+        standing_session: None,
+        persona: None,
+        depends_on: vec![],
+        readiness_probe: None,
+        process_manifest: None,
+    };
+
+    let registered = hkask_types::RegisteredAgent {
+        definition,
+        token_hash: token.signature.clone(),
+        registered_at: chrono::Utc::now().to_rfc3339(),
+        source_yaml: "cli-register".to_string(),
+    };
+
+    store
+        .insert(&registered)
+        .map_err(|e| format!("Storage error: {}", e))?;
+
+    Ok(AgentReceipt {
+        webid: webid_str.to_string(),
+        token_hash: token.signature,
+        registered_at: registered.registered_at,
+    })
+}
+
+pub async fn agent_unregister(name: &str) -> Result<(), String> {
+    let (_acp, store) = init_registry().await?;
+
+    store
+        .remove(name)
+        .map_err(|e| format!("Unregister error: {}", e))?;
+
+    Ok(())
+}

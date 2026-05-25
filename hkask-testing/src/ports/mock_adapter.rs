@@ -5,7 +5,7 @@
 
 use async_trait::async_trait;
 use hkask_templates::ports::{
-    CnsPort, SyncInferencePort, McpPort, Result as TemplateResult, TemplateError,
+    CnsPort, McpPort, Result as TemplateResult, SyncInferencePort, TemplateError,
 };
 use serde_json::Value;
 use std::cell::Cell;
@@ -144,7 +144,9 @@ impl McpPort for MockMcpAdapter {
             return Err(TemplateError::Mcp("Mock MCP failure".to_string()));
         }
 
-        let count = self.invoke_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let count = self
+            .invoke_count
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 
         if count >= self.responses.len() {
             return Ok(Value::Null);

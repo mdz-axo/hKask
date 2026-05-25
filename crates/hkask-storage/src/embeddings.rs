@@ -150,9 +150,7 @@ impl EmbeddingStore {
                 Ok((
                     Embedding {
                         id,
-                        entity_ref: entity_ref
-                            .and_then(|s| s.parse().ok())
-                            .map(TripleID),
+                        entity_ref: entity_ref.and_then(|s| s.parse().ok()).map(TripleID),
                         vector,
                         dimensions: dimensions as usize,
                         model,

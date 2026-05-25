@@ -16,7 +16,10 @@ use tracing::{error, info, warn};
 #[derive(Error, Debug)]
 pub enum SupervisionError {
     #[error("Failed to spawn server {name}: {source}")]
-    SpawnFailed { name: String, source: std::io::Error },
+    SpawnFailed {
+        name: String,
+        source: std::io::Error,
+    },
 
     #[error("Server {name} not found")]
     ServerNotFound { name: String },
@@ -25,7 +28,10 @@ pub enum SupervisionError {
     AlreadyRunning { name: String },
 
     #[error("Failed to stop server {name}: {source}")]
-    StopFailed { name: String, source: std::io::Error },
+    StopFailed {
+        name: String,
+        source: std::io::Error,
+    },
 }
 
 /// Server configuration
@@ -55,7 +61,10 @@ pub enum RestartPolicy {
     /// Always restart
     Always,
     /// Restart with backoff (max restarts, backoff duration)
-    OnFailure { max_restarts: u32, backoff: Duration },
+    OnFailure {
+        max_restarts: u32,
+        backoff: Duration,
+    },
 }
 
 /// Server status
@@ -130,10 +139,11 @@ impl McpSupervisor {
             });
         }
 
-        let child = Self::spawn_server(&state.config).map_err(|e| SupervisionError::SpawnFailed {
-            name: name.to_string(),
-            source: e,
-        })?;
+        let child =
+            Self::spawn_server(&state.config).map_err(|e| SupervisionError::SpawnFailed {
+                name: name.to_string(),
+                source: e,
+            })?;
 
         state.child = Some(child);
         state.started_at = Some(Instant::now());
@@ -152,10 +162,13 @@ impl McpSupervisor {
             })?;
 
         if let Some(mut child) = state.child.take() {
-            child.kill().await.map_err(|e| SupervisionError::StopFailed {
-                name: name.to_string(),
-                source: e,
-            })?;
+            child
+                .kill()
+                .await
+                .map_err(|e| SupervisionError::StopFailed {
+                    name: name.to_string(),
+                    source: e,
+                })?;
             state.started_at = None;
             info!(server = %name, "MCP server stopped");
         }
@@ -260,9 +273,7 @@ impl McpSupervisor {
                             RestartPolicy::OnFailure {
                                 max_restarts,
                                 backoff: _,
-                            } => {
-                                !status.success() && state.restart_count < max_restarts
-                            }
+                            } => !status.success() && state.restart_count < max_restarts,
                         };
 
                         if should_restart {

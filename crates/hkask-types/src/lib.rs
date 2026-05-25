@@ -13,6 +13,7 @@
 //! - Goal types (minimal coordination substrate for multi-agent collaboration)
 //! - Spec types (DDMVSS domain types, completeness predicates, curation integration)
 
+pub mod agent_def;
 pub mod capability;
 pub mod cns;
 pub mod curation;
@@ -29,6 +30,10 @@ pub mod template;
 pub mod text;
 pub mod visibility;
 
+pub use agent_def::{
+    AgentDefinition, AgentKind, Charter, PersonaConstraints, ReadinessProbe, RegisteredAgent,
+    ReportingConfig, StandingSessionConfig,
+};
 pub use capability::*;
 pub use cns::*;
 pub use curation::*;

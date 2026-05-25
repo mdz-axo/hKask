@@ -217,7 +217,10 @@ impl McpRuntime {
             .ok_or_else(|| format!("No transport registered for server '{}'", server_id))?;
 
         if !transport.is_connected() {
-            return Err(format!("Transport for server '{}' is not connected", server_id));
+            return Err(format!(
+                "Transport for server '{}' is not connected",
+                server_id
+            ));
         }
 
         // Dispatch to transport

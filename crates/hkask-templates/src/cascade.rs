@@ -471,10 +471,7 @@ impl CascadeEngine {
                 "cascade.energy.exhausted",
                 serde_json::json!({"stage": stage.name, "remaining": context.energy_remaining}),
             );
-            TemplateError::Manifest(format!(
-                "Energy exhausted at stage '{}'",
-                stage.name
-            ))
+            TemplateError::Manifest(format!("Energy exhausted at stage '{}'", stage.name))
         })?;
 
         let mut current = input;

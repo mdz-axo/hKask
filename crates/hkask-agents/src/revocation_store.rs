@@ -40,7 +40,7 @@ impl RevocationStore {
     pub fn in_memory() -> Result<Self, RevocationError> {
         let conn = rusqlite::Connection::open_in_memory()
             .map_err(|e| RevocationError::Database(e.to_string()))?;
-        
+
         conn.execute(
             "CREATE TABLE IF NOT EXISTS revoked_tokens (
                 token_id TEXT PRIMARY KEY,
@@ -57,10 +57,14 @@ impl RevocationStore {
     }
 
     /// Record a token revocation
-    pub async fn revoke(&self, token_id: &str, reason: Option<&str>) -> Result<(), RevocationError> {
+    pub async fn revoke(
+        &self,
+        token_id: &str,
+        reason: Option<&str>,
+    ) -> Result<(), RevocationError> {
         let conn = self.conn.lock().await;
         let now = chrono::Utc::now().timestamp();
-        
+
         conn.execute(
             "INSERT OR REPLACE INTO revoked_tokens (token_id, revoked_at, reason) VALUES (?1, ?2, ?3)",
             params![token_id, now, reason],
@@ -73,7 +77,7 @@ impl RevocationStore {
     /// Check if a token has been revoked
     pub async fn is_revoked(&self, token_id: &str) -> Result<bool, RevocationError> {
         let conn = self.conn.lock().await;
-        
+
         let count: i64 = conn
             .query_row(
                 "SELECT COUNT(*) FROM revoked_tokens WHERE token_id = ?1",
@@ -88,7 +92,7 @@ impl RevocationStore {
     /// Get all revoked token IDs
     pub async fn list_revoked(&self) -> Result<Vec<String>, RevocationError> {
         let conn = self.conn.lock().await;
-        
+
         let mut stmt = conn
             .prepare("SELECT token_id FROM revoked_tokens")
             .map_err(|e| RevocationError::Database(e.to_string()))?;

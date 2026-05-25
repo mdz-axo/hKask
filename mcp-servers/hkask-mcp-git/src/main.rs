@@ -111,7 +111,9 @@ fn git_commit(base_path: &Path, message: &str, _branch: &str) -> Result<String, 
                 .current_dir(base_path)
                 .output()
                 .map_err(|e| format!("git rev-parse failed: {}", e))?;
-            let sha = String::from_utf8_lossy(&sha_output.stdout).trim().to_string();
+            let sha = String::from_utf8_lossy(&sha_output.stdout)
+                .trim()
+                .to_string();
             return Ok(sha);
         }
         return Err(format!("git commit failed: {}", stderr.trim()));
@@ -123,7 +125,9 @@ fn git_commit(base_path: &Path, message: &str, _branch: &str) -> Result<String, 
         .output()
         .map_err(|e| format!("git rev-parse failed: {}", e))?;
 
-    let sha = String::from_utf8_lossy(&sha_output.stdout).trim().to_string();
+    let sha = String::from_utf8_lossy(&sha_output.stdout)
+        .trim()
+        .to_string();
 
     Ok(sha)
 }
