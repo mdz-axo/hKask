@@ -21,11 +21,11 @@
 //! use std::sync::Arc;
 //!
 //! // Create adapters
-//! let git_cas = GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-templates"));
+//! let git_cas = Arc::new(GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-templates")));
 //! let acp_runtime = Arc::new(AcpRuntime::default());
-//! let cns_emitter = CnsEmitterAdapter::new(hkask_types::WebID::new());
-//! let mcp_runtime = McpRuntimeAdapter::new();
-//! let memory_storage = MemoryStorageAdapter::in_memory()?;
+//! let cns_emitter = Arc::new(CnsEmitterAdapter::new(hkask_types::WebID::new()));
+//! let mcp_runtime = Arc::new(McpRuntimeAdapter::new());
+//! let memory_storage = Arc::new(MemoryStorageAdapter::in_memory()?);
 //!
 //! // Create pod manager
 //! let manager = PodManager::new(git_cas, acp_runtime, cns_emitter, mcp_runtime, memory_storage);
@@ -58,10 +58,10 @@ pub use curator::escalation::{
 pub use error::{GitError, McpError, MemoryError};
 pub use hkask_types::{BotCapabilities, CapabilityChecker, CapabilityToken};
 pub use pod::{
-    AgentPersona, AgentPod, AgentPodError, AgentPodResult, AgentType, GitCASPort, MCPRuntimePort,
-    MemoryStoragePort, PodID, PodLifecycleState, PodManager, PodStatus, TemplateCrate,
+    AgentPersona, AgentPod, AgentPodError, AgentPodResult, AgentType, PodID, PodLifecycleState,
+    PodManager, PodStatus, TemplateCrate,
 };
-pub use ports::{AcpPort, AcpTransport, AcpWireMessage, AcpWireResponse};
+pub use ports::{AcpPort, AcpTransport, AcpWireMessage, AcpWireResponse, GitCASPort, MCPRuntimePort, MemoryStoragePort};
 pub use registry_loader::{BotRegistryLoader, RegistryLoaderError};
 pub use replicant::{Replicant, ReplicantCapabilities};
 pub use sovereignty::SovereigntyChecker;

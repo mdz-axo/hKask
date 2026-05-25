@@ -2,7 +2,7 @@
 
 use crate::acp::{AcpError, AcpRuntime};
 use hkask_storage::{AgentRegistryError, AgentRegistryStore};
-use hkask_types::{AgentDefinition, AgentKind, CapabilityToken, RegisteredAgent, WebID};
+use hkask_types::{AgentDefinition, AgentKind, RegisteredAgent, WebID};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -166,12 +166,10 @@ impl RawYamlAgent {
                     Some(hkask_types::Right::Coordinate {
                         scope: scope.clone(),
                     })
-                } else if let Some(target) = map.get("escalate_to") {
-                    Some(hkask_types::Right::EscalateTo {
+                } else {
+                    map.get("escalate_to").map(|target| hkask_types::Right::EscalateTo {
                         target: target.clone(),
                     })
-                } else {
-                    None
                 }
             })
             .collect()
@@ -188,8 +186,6 @@ impl RawYamlAgent {
                         target: target.clone(),
                     })
                 } else if let Some(input) = map.get("synthesize") {
-                    // For synthesize, we need both input and output, but the YAML format only has one value
-                    // We'll use the value as input and leave output empty for now
                     Some(hkask_types::Responsibility::Synthesize {
                         input: input.clone(),
                         output: String::new(),
@@ -203,7 +199,6 @@ impl RawYamlAgent {
                         target: target.clone(),
                     })
                 } else if let Some(trigger) = map.get("escalate") {
-                    // Similar to synthesize, escalate needs trigger and target
                     Some(hkask_types::Responsibility::Escalate {
                         trigger: trigger.clone(),
                         target: String::new(),
@@ -222,12 +217,10 @@ impl RawYamlAgent {
                     Some(hkask_types::Responsibility::Record {
                         target: target.clone(),
                     })
-                } else if let Some(artifact) = map.get("produce") {
-                    Some(hkask_types::Responsibility::Produce {
+                } else {
+                    map.get("produce").map(|artifact| hkask_types::Responsibility::Produce {
                         artifact: artifact.clone(),
                     })
-                } else {
-                    None
                 }
             })
             .collect()
@@ -398,16 +391,15 @@ impl BotRegistryLoader {
             Ok(token) => token,
             Err(AcpError::AgentAlreadyRegistered(_)) => {
                 let tokens = self.acp_runtime.get_capabilities(&webid).await;
-                tokens.into_iter().next().unwrap_or_else(|| {
-                    CapabilityToken::new(
-                        hkask_types::CapabilityResource::Tool,
-                        definition.name.clone(),
-                        hkask_types::CapabilityAction::Execute,
-                        webid,
-                        webid,
-                        b"fallback",
-                    )
-                })
+                tokens
+                    .into_iter()
+                    .next()
+                    .ok_or_else(|| {
+                        RegistryLoaderError::InvalidDefinition(format!(
+                            "Agent '{}' already registered but has no capability tokens in ACP runtime",
+                            definition.name
+                        ))
+                    })?
             }
             Err(e) => return Err(RegistryLoaderError::Acp(e)),
         };

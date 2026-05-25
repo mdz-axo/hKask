@@ -1003,8 +1003,8 @@ fn main() {
                                 return;
                             }
                             println!(
-                                "{:<25} {:<12} {:<40} {}",
-                                "NAME", "KIND", "CAPABILITIES", "SOURCE"
+                                "{:<25} {:<12} {:<40} SOURCE",
+                                "NAME", "KIND", "CAPABILITIES"
                             );
                             println!("{}", "-".repeat(100));
                             for agent in &agents {

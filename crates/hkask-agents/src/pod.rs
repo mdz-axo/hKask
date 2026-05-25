@@ -61,7 +61,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use thiserror::Error;
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::RwLock;
 use tracing::info;
 use zeroize::Zeroizing;
 
@@ -755,9 +755,10 @@ impl PodManager {
 /// use hkask_agents::pod::PodManagerBuilder;
 /// use hkask_agents::adapters::git_cas::GitCasAdapter;
 /// use std::path::PathBuf;
+/// use std::sync::Arc;
 ///
 /// let pod_manager = PodManagerBuilder::new()
-///     .git_cas(GitCasAdapter::from_path(PathBuf::from("./registry/templates")))
+///     .git_cas(Arc::new(GitCasAdapter::from_path(PathBuf::from("./registry/templates"))))
 ///     .with_in_memory_storage()
 ///     .build();
 /// ```
@@ -920,7 +921,7 @@ impl PodManager {
             .validate(&input)
             .map_err(|e| AgentPodError::PersonaParseError(e.to_string()))?;
 
-        let pod = AgentPod::new(template_name, persona, &self.git_cas)?;
+        let pod = AgentPod::new(template_name, persona, self.git_cas.as_ref())?;
         let pod_id = pod.id;
 
         let mut pods = self.pods.write().await;
@@ -993,7 +994,7 @@ impl PodManager {
             info!("Agent pod {} registered with ACP", pod.id);
         }
 
-        pod.activate(&self.mcp_runtime, self.cns_emitter.as_ref())?;
+        pod.activate(self.mcp_runtime.as_ref(), self.cns_emitter.as_ref())?;
 
         // Persist activation event to memory storage
         let event = serde_json::json!({
@@ -1030,7 +1031,31 @@ impl PodManager {
             .get_mut(pod_id)
             .ok_or_else(|| AgentPodError::ACPRegistrationError("Pod not found".to_string()))?;
 
+        let token_id = pod.capability_token.id.clone();
+        let webid = pod.webid;
+
         pod.deactivate(self.cns_emitter.as_ref())?;
+
+        // W6: Revoke capability token on deactivation
+        if let Err(e) = self.acp_runtime.revoke_capability(&token_id, &webid).await {
+            tracing::warn!(
+                target: "hkask.pod",
+                pod_id = %pod_id,
+                token_id = %token_id,
+                error = %e,
+                "Failed to revoke capability token on deactivation (pod is still deactivated)"
+            );
+            self.cns_emitter.emit_event(
+                "cns.agent_pod.revocation_warning",
+                "revocation_warning",
+                &serde_json::json!({
+                    "pod_id": pod_id.to_string(),
+                    "token_id": token_id,
+                    "error": e.to_string(),
+                }),
+                0.8,
+            );
+        }
 
         // Persist deactivation event to memory storage
         let event = serde_json::json!({
@@ -1142,9 +1167,9 @@ pub struct PodContext {
     pub webid: WebID,
     pub capability_token: CapabilityToken,
     inference_port: Option<Arc<dyn hkask_templates::InferencePort>>,
-    memory_storage: Arc<Mutex<MemoryStorageAdapter>>,
-    mcp_runtime: Arc<McpRuntimeAdapter>,
-    cns_emitter: Arc<CnsEmitterAdapter>,
+    memory_storage: Arc<dyn MemoryStoragePort>,
+    mcp_runtime: Arc<dyn MCPRuntimePort>,
+    cns_emitter: Arc<dyn hkask_cns::CnsEmit + Send + Sync>,
 }
 
 impl PodContext {
@@ -1167,8 +1192,8 @@ impl PodContext {
             capability_token: pod.capability_token.clone(),
             inference_port: manager.inference_port.clone(),
             memory_storage: Arc::clone(&manager.memory_storage),
-            mcp_runtime: Arc::new(manager.mcp_runtime.clone()),
-            cns_emitter: Arc::new(CnsEmitterAdapter::new(pod.webid)),
+            mcp_runtime: Arc::clone(&manager.mcp_runtime),
+            cns_emitter: Arc::clone(&manager.cns_emitter),
         })
     }
 
@@ -1179,21 +1204,18 @@ impl PodContext {
 
     /// Recall memory artifacts for this pod's agent
     pub async fn recall_memory(&self, query: &str) -> Result<Vec<serde_json::Value>, String> {
-        let memory = self.memory_storage.lock().await;
-        memory
+        self.memory_storage
             .recall(query, &self.capability_token)
             .map_err(|e| format!("Memory recall error: {}", e))
     }
 
-    /// Store a memory artifact for this pod's agent
     pub async fn store_memory(
         &self,
         artifact_type: &str,
         content: serde_json::Value,
         visibility: &str,
     ) -> Result<String, String> {
-        let memory = self.memory_storage.lock().await;
-        memory
+        self.memory_storage
             .store_artifact(
                 self.webid,
                 artifact_type,
@@ -1204,7 +1226,6 @@ impl PodContext {
             .map_err(|e| format!("Memory store error: {}", e))
     }
 
-    /// Invoke an MCP tool with capability authorization
     pub fn invoke_tool(
         &self,
         tool_name: &str,
@@ -1217,7 +1238,6 @@ impl PodContext {
 
     /// Emit a CNS span for observability
     pub fn emit_span(&self, span_type: &str, action: &str, data: serde_json::Value) {
-        use hkask_cns::CnsEmit;
         self.cns_emitter.emit_event(
             span_type,
             "action",

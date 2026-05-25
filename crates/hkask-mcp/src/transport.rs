@@ -29,9 +29,10 @@ pub trait McpTransport: Send + Sync + fmt::Debug {
 ///
 /// Allows MCP servers to be registered as in-process handlers,
 /// avoiding network overhead for local tools.
+type HandlerFn = Box<dyn Fn(Value) -> Result<Value, String> + Send + Sync>;
+
 pub struct InProcessMcpTransport {
-    handlers:
-        Arc<RwLock<HashMap<String, Box<dyn Fn(Value) -> Result<Value, String> + Send + Sync>>>>,
+    handlers: Arc<RwLock<HashMap<String, HandlerFn>>>,
 }
 
 impl fmt::Debug for InProcessMcpTransport {

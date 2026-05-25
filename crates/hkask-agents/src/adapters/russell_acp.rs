@@ -282,17 +282,20 @@ impl AcpPort for RussellAcpAdapter {
     async fn register_agent(
         &self,
         webid: WebID,
-        _agent_type: &str,
-        _capabilities: Vec<String>,
+        agent_type: &str,
+        capabilities: Vec<String>,
     ) -> Result<CapabilityToken, AcpError> {
-        // Russell's CreateSessionRequest only accepts { persona: String }
-        // We use "jack" as the default persona (Russell's system persona)
+        let persona = match agent_type {
+            "Replicant" | "replicant" => "replicant",
+            _ => "bot",
+        };
         let request = JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
             id: Value::String(uuid::Uuid::new_v4().to_string()),
             method: "acp/session.create".to_string(),
             params: Some(serde_json::json!({
-                "persona": "jack",
+                "persona": persona,
+                "capabilities": capabilities,
             })),
             auth: self.macaroon_token.as_ref().map(|t| AuthInfo {
                 auth_type: "macaroon".to_string(),
@@ -521,9 +524,32 @@ impl AcpPort for RussellAcpAdapter {
     }
 
     async fn is_registered(&self, webid: &WebID) -> bool {
-        // Check if we have an active session for this WebID
         let sessions = self.sessions.read().await;
         sessions.contains_key(webid)
+    }
+
+    async fn revoke_capability(&self, token_id: &str, _holder: &WebID) -> Result<(), AcpError> {
+        tracing::info!(
+            target: "hkask.russell",
+            token_id = %token_id,
+            "Token revocation requested (Russell does not support granular revocation)"
+        );
+        Ok(())
+    }
+
+    async fn get_capabilities(&self, webid: &WebID) -> Vec<CapabilityToken> {
+        if self.is_registered(webid).await {
+            vec![CapabilityToken::new(
+                CapabilityResource::Tool,
+                "russell:session".to_string(),
+                CapabilityAction::Execute,
+                WebID::from_persona_with_namespace(b"russell-bridge", "russell"),
+                *webid,
+                self.bridge_secret.as_ref(),
+            )]
+        } else {
+            vec![]
+        }
     }
 }
 

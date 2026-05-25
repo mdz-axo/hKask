@@ -113,11 +113,11 @@ impl ApiState {
         let mcp_runtime_adapter = McpRuntimeAdapter::new();
         let memory_storage = MemoryStorageAdapter::in_memory().unwrap();
         let pod_manager = PodManager::new(
-            git_cas,
+            Arc::new(git_cas),
             acp_runtime,
-            cns_emitter_adapter,
-            mcp_runtime_adapter,
-            memory_storage,
+            Arc::new(cns_emitter_adapter),
+            Arc::new(mcp_runtime_adapter),
+            Arc::new(memory_storage),
         );
         Self::new(
             registry,

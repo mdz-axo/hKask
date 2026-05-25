@@ -3,7 +3,7 @@
 //! This MCP server provides Git operations by composing the GitCasAdapter
 //! from hkask-agents. Implements hexagonal architecture pattern.
 
-use hkask_agents::pod::GitCASPort;
+use hkask_agents::GitCASPort;
 use hkask_mcp::adapter_container::AdapterContainer;
 use rmcp::{ServiceExt, handler::server::wrapper::Parameters, tool, tool_router, transport::stdio};
 use schemars::JsonSchema;

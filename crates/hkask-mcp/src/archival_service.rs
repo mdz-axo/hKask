@@ -4,8 +4,8 @@
 //! Implements hexagonal architecture with adapter container,
 //! sovereignty enforcement, and CNS observability.
 
+use hkask_agents::GitCASPort;
 use hkask_agents::SovereigntyChecker;
-use hkask_agents::pod::GitCASPort;
 use hkask_cns::spans::SpanEmitter;
 use hkask_types::{ArchivalResult, DataCategory, GitArchivalError, WebID};
 use serde_json::json;

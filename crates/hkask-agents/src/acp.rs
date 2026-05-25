@@ -28,6 +28,7 @@
 //!                                                   Response to Agent A
 //! ```
 
+use crate::ports::{AuditLogStoragePort, AuditStorageEntry};
 use hkask_cns::rate_limit::{RateLimitConfig, RateLimiter};
 use hkask_types::{CapabilityAction, CapabilityResource, CapabilityToken, WebID};
 use serde::{Deserialize, Serialize};
@@ -795,7 +796,7 @@ pub struct AuditLogEntry {
 pub struct AuditLog {
     entries: Arc<RwLock<Vec<AuditLogEntry>>>,
     max_entries: usize,
-    store: Option<Arc<hkask_storage::AuditLogStore>>,
+    store: Option<Arc<dyn AuditLogStoragePort>>,
 }
 
 impl AuditLog {
@@ -817,8 +818,7 @@ impl AuditLog {
         }
     }
 
-    /// Create audit log backed by persistent SQLite storage
-    pub fn with_store(store: Arc<hkask_storage::AuditLogStore>) -> Self {
+    pub fn with_store(store: Arc<dyn AuditLogStoragePort>) -> Self {
         Self {
             entries: Arc::new(RwLock::new(Vec::new())),
             max_entries: 10000,
@@ -826,10 +826,9 @@ impl AuditLog {
         }
     }
 
-    /// Create audit log with custom max entries and persistent storage
     pub fn with_max_entries_and_store(
         max_entries: usize,
-        store: Arc<hkask_storage::AuditLogStore>,
+        store: Arc<dyn AuditLogStoragePort>,
     ) -> Self {
         Self {
             entries: Arc::new(RwLock::new(Vec::new())),
@@ -838,22 +837,31 @@ impl AuditLog {
         }
     }
 
-    /// Log an A2A message event
     pub async fn log(&self, entry: AuditLogEntry) {
         if let Some(ref store) = self.store {
-            let storage_entry = hkask_storage::AuditEntry::new(
-                &entry.from.to_string(),
-                &entry.event_type,
-                &entry.message_type,
-                "success",
-            )
-            .with_details(serde_json::json!({
-                "id": entry.id,
-                "correlation_id": entry.correlation_id,
-                "to": entry.to.map(|t| t.to_string()),
-                "metadata": entry.metadata,
-            }));
-            let _ = store.insert(&storage_entry);
+            let storage_entry = AuditStorageEntry {
+                id: entry.id.clone(),
+                timestamp: 0,
+                actor_webid: entry.from.to_string(),
+                action: entry.event_type.clone(),
+                resource: entry.message_type.clone(),
+                outcome: "success".to_string(),
+                details: Some(serde_json::json!({
+                    "correlation_id": entry.correlation_id,
+                    "to": entry.to.map(|t| t.to_string()),
+                    "metadata": entry.metadata,
+                })),
+                ip_address: None,
+            };
+            if let Err(e) = store.insert(&storage_entry) {
+                tracing::error!(
+                    target: "cns.audit.write_failed",
+                    error = %e,
+                    event_type = %entry.event_type,
+                    from = %entry.from,
+                    "Audit log storage write failed"
+                );
+            }
         }
 
         let mut entries = self.entries.write().await;
@@ -865,28 +873,26 @@ impl AuditLog {
         }
     }
 
-    /// Get recent entries
     pub async fn get_recent(&self, count: usize) -> Vec<AuditLogEntry> {
         if let Some(ref store) = self.store
             && let Ok(storage_entries) = store.query_recent(count)
         {
             return storage_entries
                 .into_iter()
-                .filter_map(audit_entry_from_storage)
+                .filter_map(audit_entry_from_port)
                 .collect();
         }
         let entries = self.entries.read().await;
         entries.iter().rev().take(count).cloned().collect()
     }
 
-    /// Get entries by WebID
     pub async fn get_by_webid(&self, webid: &WebID, count: usize) -> Vec<AuditLogEntry> {
         if let Some(ref store) = self.store
             && let Ok(storage_entries) = store.query_by_actor(&webid.to_string(), count)
         {
             return storage_entries
                 .into_iter()
-                .filter_map(audit_entry_from_storage)
+                .filter_map(audit_entry_from_port)
                 .collect();
         }
         let entries = self.entries.read().await;
@@ -899,7 +905,6 @@ impl AuditLog {
             .collect()
     }
 
-    /// Get entries by correlation ID
     pub async fn get_by_correlation(&self, correlation_id: &str) -> Vec<AuditLogEntry> {
         let entries = self.entries.read().await;
         entries
@@ -910,9 +915,8 @@ impl AuditLog {
     }
 }
 
-fn audit_entry_from_storage(e: hkask_storage::AuditEntry) -> Option<AuditLogEntry> {
+fn audit_entry_from_port(e: AuditStorageEntry) -> Option<AuditLogEntry> {
     let details = e.details.as_ref()?;
-    let id = details.get("id")?.as_str()?.to_string();
     let correlation_id = details.get("correlation_id")?.as_str()?.to_string();
     let to = details
         .get("to")
@@ -924,8 +928,8 @@ fn audit_entry_from_storage(e: hkask_storage::AuditEntry) -> Option<AuditLogEntr
         .cloned()
         .unwrap_or(serde_json::json!({}));
     Some(AuditLogEntry {
-        id,
-        timestamp: e.timestamp.timestamp(),
+        id: e.id,
+        timestamp: e.timestamp,
         from: WebID::from_string(&e.actor_webid),
         to,
         message_type: e.resource,
@@ -957,18 +961,32 @@ pub trait AuditLogPort: Send + Sync {
 #[async_trait::async_trait]
 impl AuditLogPort for AuditLog {
     async fn log(&self, entry: AuditLogEntry) {
-        // Write to persistent storage if available
         if let Some(ref store) = self.store {
-            let storage_entry = hkask_storage::AuditEntry::new(
-                &entry.from.to_string(),
-                &entry.message_type,
-                &entry.event_type,
-                &entry.correlation_id,
-            );
-            let _ = store.insert(&storage_entry);
+            let storage_entry = AuditStorageEntry {
+                id: entry.id.clone(),
+                timestamp: 0,
+                actor_webid: entry.from.to_string(),
+                action: entry.event_type.clone(),
+                resource: entry.message_type.clone(),
+                outcome: "success".to_string(),
+                details: Some(serde_json::json!({
+                    "correlation_id": entry.correlation_id,
+                    "to": entry.to.map(|t| t.to_string()),
+                    "metadata": entry.metadata,
+                })),
+                ip_address: None,
+            };
+            if let Err(e) = store.insert(&storage_entry) {
+                tracing::error!(
+                    target: "cns.audit.write_failed",
+                    error = %e,
+                    event_type = %entry.event_type,
+                    from = %entry.from,
+                    "Audit log storage write failed (port impl)"
+                );
+            }
         }
 
-        // Write to in-memory cache
         let mut entries = self.entries.write().await;
         entries.push(entry);
 
@@ -979,51 +997,29 @@ impl AuditLogPort for AuditLog {
     }
 
     async fn get_recent(&self, count: usize) -> Vec<AuditLogEntry> {
-        // Try storage first
         if let Some(ref store) = self.store
             && let Ok(entries) = store.query_recent(count)
         {
             return entries
                 .into_iter()
-                .map(|e| AuditLogEntry {
-                    id: e.id,
-                    timestamp: e.timestamp.timestamp(),
-                    from: WebID::from_string(&e.actor_webid),
-                    to: None,
-                    message_type: e.action,
-                    correlation_id: String::new(),
-                    event_type: e.outcome,
-                    metadata: e.details.unwrap_or(serde_json::Value::Null),
-                })
+                .filter_map(audit_entry_from_port)
                 .collect();
         }
 
-        // Fallback to in-memory
         let entries = self.entries.read().await;
         entries.iter().rev().take(count).cloned().collect()
     }
 
     async fn get_by_webid(&self, webid: &WebID, count: usize) -> Vec<AuditLogEntry> {
-        // Try storage first
         if let Some(ref store) = self.store
             && let Ok(entries) = store.query_by_actor(&webid.to_string(), count)
         {
             return entries
                 .into_iter()
-                .map(|e| AuditLogEntry {
-                    id: e.id,
-                    timestamp: e.timestamp.timestamp(),
-                    from: WebID::from_string(&e.actor_webid),
-                    to: None,
-                    message_type: e.action,
-                    correlation_id: String::new(),
-                    event_type: e.outcome,
-                    metadata: e.details.unwrap_or(serde_json::Value::Null),
-                })
+                .filter_map(audit_entry_from_port)
                 .collect();
         }
 
-        // Fallback to in-memory
         let entries = self.entries.read().await;
         entries
             .iter()
@@ -1084,6 +1080,15 @@ impl crate::ports::AcpPort for AcpRuntime {
 
     async fn is_registered(&self, webid: &WebID) -> bool {
         AcpRuntime::is_registered(self, webid).await
+    }
+
+    async fn revoke_capability(&self, token_id: &str, _holder: &WebID) -> Result<(), AcpError> {
+        AcpRuntime::revoke_capability(self, token_id).await;
+        Ok(())
+    }
+
+    async fn get_capabilities(&self, webid: &WebID) -> Vec<CapabilityToken> {
+        AcpRuntime::get_capabilities(self, webid).await
     }
 }
 

@@ -16,16 +16,6 @@ use crate::acp::{A2AMessage, AcpError};
 /// adapted for remote ACP servers via transport adapters.
 #[async_trait]
 pub trait AcpPort: Send + Sync {
-    /// Register an agent with the ACP runtime
-    ///
-    /// # Arguments
-    /// * `webid` — Agent's WebID
-    /// * `agent_type` — "Bot" or "Replicant"
-    /// * `capabilities` — Explicit capability list (no wildcards)
-    ///
-    /// # Returns
-    /// * `Ok(CapabilityToken)` — Primary capability token
-    /// * `Err(AcpError)` — Registration failure
     async fn register_agent(
         &self,
         webid: WebID,
@@ -33,22 +23,17 @@ pub trait AcpPort: Send + Sync {
         capabilities: Vec<String>,
     ) -> Result<CapabilityToken, AcpError>;
 
-    /// Unregister an agent and revoke its capabilities
     async fn unregister_agent(&self, webid: &WebID) -> Result<(), AcpError>;
 
-    /// Send an A2A message
-    ///
-    /// # Arguments
-    /// * `msg` — A2A message (TemplateDispatch, TemplateResponse, MemoryArtifact)
-    ///
-    /// # Returns
-    /// * `Ok(String)` — Correlation ID for tracking
-    /// * `Err(AcpError)` — Send failure
     async fn send_message(&self, msg: A2AMessage) -> Result<String, AcpError>;
 
-    /// List capabilities for a registered agent
     async fn list_capabilities(&self, webid: &WebID) -> Result<Vec<String>, AcpError>;
 
-    /// Check if an agent is registered
     async fn is_registered(&self, webid: &WebID) -> bool;
+
+    /// Revoke a capability token by ID
+    async fn revoke_capability(&self, token_id: &str, holder: &WebID) -> Result<(), AcpError>;
+
+    /// Get all capability tokens for a registered agent
+    async fn get_capabilities(&self, webid: &WebID) -> Vec<CapabilityToken>;
 }

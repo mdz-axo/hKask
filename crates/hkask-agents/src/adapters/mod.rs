@@ -12,6 +12,7 @@
 //! - Memory storage (hkask-storage crate)
 
 pub mod agent_registry;
+pub mod audit_log_store;
 pub mod cns_emitter;
 pub mod cns_runtime;
 pub mod git_cas;
@@ -20,10 +21,13 @@ pub mod keystore_port;
 pub mod loopback_http_transport;
 pub mod mcp_runtime;
 pub mod memory_storage;
+pub mod metacognition_store;
 pub mod russell_acp;
+pub mod standing_session_store;
 pub mod stdio_transport;
 
 pub use agent_registry::AgentRegistryAdapter;
+pub use audit_log_store::AuditLogStoreAdapter;
 pub use cns_emitter::CnsEmitterAdapter;
 pub use cns_runtime::CnsRuntimeAdapter;
 pub use git_cas::{GitCasAdapter, MockGitCas};
@@ -32,5 +36,7 @@ pub use keystore_port::{KeystorePort, Secret};
 pub use loopback_http_transport::LoopbackHttpTransport;
 pub use mcp_runtime::McpRuntimeAdapter;
 pub use memory_storage::MemoryStorageAdapter;
+pub use metacognition_store::MetacognitionStoreAdapter;
 pub use russell_acp::RussellAcpAdapter;
+pub use standing_session_store::StandingSessionStoreAdapter;
 pub use stdio_transport::StdioTransport;

@@ -4,7 +4,7 @@
 //! report status and the Curator orchestrates metacognition.
 
 use crate::chat::{ChatMessage, ChatParticipant, EnsembleChat, ParticipantRole};
-use hkask_storage::{StandingSessionStore, StoredMessage, StoredSession};
+use hkask_agents::ports::{MessageRecord, SessionRecord, StandingSessionPort};
 use hkask_types::WebID;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -89,8 +89,7 @@ pub struct StandingSession {
     pub session_id: String,
     pub chat: EnsembleChat,
     pub participant_names: HashMap<WebID, String>,
-    /// Persistent storage for session state (R5: Persist Standing Session State)
-    store: Option<Arc<StandingSessionStore>>,
+    store: Option<Arc<dyn StandingSessionPort>>,
 }
 
 impl StandingSession {
@@ -137,33 +136,30 @@ impl StandingSession {
         }
     }
 
-    /// Set persistent storage for this session (R5: Persist Standing Session State)
-    pub fn with_store(mut self, store: Arc<StandingSessionStore>) -> Self {
+    pub fn with_store(mut self, store: Arc<dyn StandingSessionPort>) -> Self {
         self.store = Some(store);
         self
     }
 
-    /// Persist session state to storage
     pub fn persist_session(&self, config_yaml: &str) -> Result<(), String> {
         if let Some(ref store) = self.store {
             let now = chrono::Utc::now().to_rfc3339();
-            let stored = StoredSession {
+            let record = SessionRecord {
                 session_id: self.session_id.clone(),
                 config_yaml: config_yaml.to_string(),
                 created_at: now.clone(),
                 last_active: now,
             };
             store
-                .save_session(&stored)
+                .save_session(&record)
                 .map_err(|e| format!("Failed to persist session: {}", e))?;
         }
         Ok(())
     }
 
-    /// Persist a message to storage
     pub fn persist_message(&self, message: &ChatMessage) -> Result<(), String> {
         if let Some(ref store) = self.store {
-            let stored = StoredMessage {
+            let record = MessageRecord {
                 id: 0,
                 session_id: self.session_id.clone(),
                 from_webid: message.from.to_string(),
@@ -172,7 +168,7 @@ impl StandingSession {
                 template_id: message.template_id.clone(),
             };
             store
-                .save_message(&stored)
+                .save_message(&record)
                 .map_err(|e| format!("Failed to persist message: {}", e))?;
             store
                 .update_last_active(&self.session_id)
@@ -181,7 +177,6 @@ impl StandingSession {
         Ok(())
     }
 
-    /// Load messages from storage into chat history
     pub fn load_messages_from_storage(&mut self) -> Result<(), String> {
         if let Some(ref store) = self.store {
             let messages = store
@@ -285,10 +280,9 @@ pub fn bootstrap_standing_session(path: &Path) -> Result<StandingSession, Standi
     Ok(session)
 }
 
-/// Bootstrap standing session with persistent storage (R5: Persist Standing Session State)
 pub fn bootstrap_standing_session_with_store(
     path: &Path,
-    store: Arc<StandingSessionStore>,
+    store: Arc<dyn StandingSessionPort>,
 ) -> Result<StandingSession, StandingSessionError> {
     let config = load_standing_session_config(path)?;
     let config_yaml = std::fs::read_to_string(path)?;

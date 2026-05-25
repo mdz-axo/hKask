@@ -9,8 +9,7 @@
 //! - Posts summaries to standing session
 
 use crate::curator::escalation::EscalationQueue;
-use crate::ports::CnsQueryPort;
-use hkask_storage::{MetacognitionStore, StoredSnapshot};
+use crate::ports::{CnsQueryPort, HealthStatus, MetacognitionPort, StoredHealthSnapshot};
 use hkask_types::BotID;
 use std::sync::Arc;
 use std::time::Duration;
@@ -113,8 +112,7 @@ pub struct MetacognitionLoop {
     escalation_queue: tokio::sync::Mutex<Arc<EscalationQueue>>,
     config: MetacognitionConfig,
     bot_reports: Arc<RwLock<Vec<BotStatusReport>>>,
-    /// Persistent storage for snapshots (R6: Persist Metacognition State)
-    store: Option<Arc<MetacognitionStore>>,
+    store: Option<Arc<dyn MetacognitionPort>>,
 }
 
 impl MetacognitionLoop {
@@ -132,8 +130,7 @@ impl MetacognitionLoop {
         }
     }
 
-    /// Set persistent storage for snapshots (R6: Persist Metacognition State)
-    pub fn with_store(mut self, store: Arc<MetacognitionStore>) -> Self {
+    pub fn with_store(mut self, store: Arc<dyn MetacognitionPort>) -> Self {
         self.store = Some(store);
         self
     }
@@ -154,22 +151,17 @@ impl MetacognitionLoop {
         self.bot_reports.read().await.clone()
     }
 
-    /// Run a single metacognition cycle
     pub async fn run_cycle(&self) -> Result<SystemHealthSnapshot, MetacognitionError> {
         info!(target: "curator.metacognition", "Starting metacognition cycle");
 
-        // Query CNS health
         let cns_health = self.cns.health().await;
-        let cns_health_str = format!("{:?}", cns_health);
+        let cns_health_str = format_health_status(&cns_health);
 
-        // Query variety counters
         let variety_counters = self.cns.variety().await;
 
-        // Query alerts
         let all_alerts = self.cns.alerts().await;
         let critical_alerts = self.cns.critical_alerts().await;
 
-        // Get bot reports
         let bot_reports = self.get_bot_reports().await;
 
         let snapshot = SystemHealthSnapshot {
@@ -181,13 +173,10 @@ impl MetacognitionLoop {
             bot_status_reports: bot_reports.clone(),
         };
 
-        // Check escalation triggers
         self.check_escalation_triggers(&snapshot).await?;
 
-        // R6: Persist snapshot to storage
         if let Some(ref store) = self.store {
-            let stored = StoredSnapshot {
-                id: 0,
+            let stored = StoredHealthSnapshot {
                 timestamp: snapshot.timestamp.to_rfc3339(),
                 cns_health: snapshot.cns_health.clone(),
                 critical_alerts: snapshot.critical_alerts as i32,
@@ -354,6 +343,20 @@ impl MetacognitionLoop {
         }
 
         summary
+    }
+}
+
+fn format_health_status(h: &HealthStatus) -> String {
+    if h.healthy {
+        format!(
+            "Healthy (deficit={}, warnings={})",
+            h.overall_deficit, h.warning_count
+        )
+    } else {
+        format!(
+            "Degraded (deficit={}, critical={}, warnings={})",
+            h.overall_deficit, h.critical_count, h.warning_count
+        )
     }
 }
 

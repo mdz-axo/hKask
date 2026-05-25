@@ -586,6 +586,46 @@ fn registry_yaml_path() -> PathBuf {
     PathBuf::from(p)
 }
 
+fn resolve_acp_secret() -> Result<String, RegistryError> {
+    std::env::var("HKASK_ACP_SECRET").or_else(|_| {
+        hkask_keystore::keychain::Keychain::default()
+            .retrieve(&hkask_types::WebID::from_persona(b"hkask-acp-secret"))
+            .or_else(|_| {
+                if std::env::var("HKASK_INSECURE_DEV").as_deref() == Ok("1") {
+                    tracing::warn!("⚠ INSECURE DEV MODE: Using random ACP secret. Tokens will not survive restarts.");
+                    use rand::RngCore;
+                    let mut bytes = [0u8; 32];
+                    rand::rng().fill_bytes(&mut bytes);
+                    Ok(hex::encode(bytes))
+                } else {
+                    Err(RegistryError::InitFailed(
+                        "HKASK_ACP_SECRET not set. Set it explicitly or use HKASK_INSECURE_DEV=1 for local development.".to_string(),
+                    ))
+                }
+            })
+    })
+}
+
+fn resolve_db_passphrase() -> Result<String, RegistryError> {
+    std::env::var("HKASK_DB_PASSPHRASE").or_else(|_| {
+        hkask_keystore::keychain::Keychain::default()
+            .retrieve(&hkask_types::WebID::from_persona(b"hkask-db-passphrase"))
+            .or_else(|_| {
+                if std::env::var("HKASK_INSECURE_DEV").as_deref() == Ok("1") {
+                    tracing::warn!("⚠ INSECURE DEV MODE: Using random DB passphrase.");
+                    use rand::RngCore;
+                    let mut bytes = [0u8; 32];
+                    rand::rng().fill_bytes(&mut bytes);
+                    Ok(hex::encode(bytes))
+                } else {
+                    Err(RegistryError::InitFailed(
+                        "HKASK_DB_PASSPHRASE not set. Set it explicitly or use HKASK_INSECURE_DEV=1 for local development.".to_string(),
+                    ))
+                }
+            })
+    })
+}
+
 async fn init_registry() -> Result<
     (
         Arc<hkask_agents::AcpRuntime>,
@@ -593,13 +633,11 @@ async fn init_registry() -> Result<
     ),
     RegistryError,
 > {
-    let secret = std::env::var("HKASK_ACP_SECRET")
-        .unwrap_or_else(|_| "hkask-dev-secret-minimum-eight-chars".to_string());
+    let secret = resolve_acp_secret()?;
     let acp = Arc::new(hkask_agents::AcpRuntime::new(secret.as_bytes(), None));
 
     let db_path = registry_db_path();
-    let passphrase = std::env::var("HKASK_DB_PASSPHRASE")
-        .unwrap_or_else(|_| "hkask-dev-passphrase-minimum-eight".to_string());
+    let passphrase = resolve_db_passphrase()?;
 
     let db = if db_path == ":memory:" {
         hkask_storage::Database::in_memory()
@@ -804,8 +842,10 @@ pub async fn chat_with_agent(input: &str, agent_name: Option<&str>) -> String {
             .unwrap_or_else(|_| "russell-acp-server".to_string());
 
         // Get bridge secret from environment or use default
-        let bridge_secret_str = std::env::var("HKASK_ACP_SECRET")
-            .unwrap_or_else(|_| "hkask-dev-secret-minimum-eight-chars".to_string());
+        let bridge_secret_str = match resolve_acp_secret() {
+            Ok(s) => s,
+            Err(e) => return format!("Bridge secret resolution: {}", e),
+        };
         let bridge_secret = Arc::new(Zeroizing::new(bridge_secret_str.into_bytes()));
 
         // Create Russell adapter
@@ -834,8 +874,8 @@ pub async fn chat_with_agent(input: &str, agent_name: Option<&str>) -> String {
         };
 
         match russell_adapter.send_message(message).await {
-            Ok(response) => return response,
-            Err(e) => return format!("Russell error: {}", e),
+            Ok(response) => response,
+            Err(e) => format!("Russell error: {}", e),
         }
     } else {
         // Standard chat flow for non-Russell agents
@@ -851,7 +891,6 @@ pub async fn chat_with_agent(input: &str, agent_name: Option<&str>) -> String {
             Err(e) => return format!("Okapi init error: {}", e),
         };
 
-        // Create PodManager with inference port (R1: Restore Pod Invariant)
         let pod_manager = PodManagerBuilder::new()
             .acp_runtime(acp)
             .inference_port(inference.clone())
@@ -945,6 +984,7 @@ visibility:
     }
 }
 
+#[allow(clippy::arc_with_non_send_sync)]
 pub async fn curator_escalations() -> Result<Vec<hkask_agents::EscalationEntry>, CuratorError> {
     use rusqlite::Connection;
     use std::sync::Arc;
@@ -964,6 +1004,7 @@ pub async fn curator_escalations() -> Result<Vec<hkask_agents::EscalationEntry>,
         .map_err(|e| CuratorError::EscalationNotFound(e.to_string()))
 }
 
+#[allow(clippy::arc_with_non_send_sync)]
 pub async fn curator_resolve(id: &str) -> Result<(), CuratorError> {
     use rusqlite::Connection;
     use std::sync::Arc;
@@ -983,6 +1024,7 @@ pub async fn curator_resolve(id: &str) -> Result<(), CuratorError> {
         .map_err(|e| CuratorError::EscalationResolutionFailed(e.to_string()))
 }
 
+#[allow(clippy::arc_with_non_send_sync)]
 pub async fn curator_dismiss(id: &str) -> Result<(), CuratorError> {
     use rusqlite::Connection;
     use std::sync::Arc;
@@ -1002,6 +1044,7 @@ pub async fn curator_dismiss(id: &str) -> Result<(), CuratorError> {
         .map_err(|e| CuratorError::EscalationResolutionFailed(e.to_string()))
 }
 
+#[allow(clippy::arc_with_non_send_sync)]
 pub async fn curator_metacognition() -> Result<String, CuratorError> {
     use hkask_agents::adapters::CnsRuntimeAdapter;
     use hkask_agents::curator::{MetacognitionConfig, MetacognitionLoop};

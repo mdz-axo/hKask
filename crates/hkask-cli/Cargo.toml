@@ -18,6 +18,7 @@ hkask-mcp = { path = "../hkask-mcp" }
 hkask-cns = { path = "../hkask-cns" }
 hkask-api = { path = "../hkask-api" }
 hkask-ensemble = { path = "../hkask-ensemble" }
+hkask-keystore = { path = "../hkask-keystore" }
 clap.workspace = true
 chrono.workspace = true
 serde.workspace = true
@@ -31,3 +32,5 @@ uuid.workspace = true
 minijinja.workspace = true
 rusqlite.workspace = true
 zeroize.workspace = true
+rand.workspace = true
+hex.workspace = true

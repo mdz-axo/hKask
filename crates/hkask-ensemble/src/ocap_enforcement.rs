@@ -4,7 +4,6 @@
 //! Enforces principle of least authority (Mark Miller / Bruce Schneier).
 
 use crate::okapi_capability::{OkapiCapabilityError, OkapiOperation};
-use crate::webid_registry::WebIDCapabilityRegistry;
 use hkask_types::{CapabilityToken, Visibility, WebID};
 use std::sync::Arc;
 use tracing::{debug, info, warn};
@@ -82,22 +81,20 @@ impl OcapContext {
 
 /// OCAP enforcement engine with CNS metrics
 pub struct OcapEnforcer {
-    registry: Arc<WebIDCapabilityRegistry>,
+    registry: Arc<dyn CapabilityQueryPort>,
     metrics: Option<Arc<dyn SecurityMetricPort>>,
 }
 
 impl OcapEnforcer {
-    /// Create new enforcer without metrics
-    pub fn new(registry: Arc<WebIDCapabilityRegistry>) -> Self {
+    pub fn new(registry: Arc<dyn CapabilityQueryPort>) -> Self {
         Self {
             registry,
             metrics: None,
         }
     }
 
-    /// Create new enforcer with metrics adapter
     pub fn with_metrics(
-        registry: Arc<WebIDCapabilityRegistry>,
+        registry: Arc<dyn CapabilityQueryPort>,
         metrics: Arc<dyn SecurityMetricPort>,
     ) -> Self {
         Self {
