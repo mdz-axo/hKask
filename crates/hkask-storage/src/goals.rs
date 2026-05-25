@@ -9,10 +9,9 @@ use hkask_types::goal_capability::{GoalAccess, GoalCapabilityToken, GoalOp};
 use hkask_types::id::WebID;
 use hkask_types::visibility::Visibility;
 use rusqlite::Connection;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
-/// Goal repository error type
 #[derive(Debug, Error)]
 pub enum GoalRepositoryError {
     #[error("Database error: {0}")]
@@ -36,8 +35,6 @@ pub enum GoalRepositoryError {
 
 pub type Result<T> = std::result::Result<T, GoalRepositoryError>;
 
-/// Goal repository port — interface for goal storage operations
-/// All operations require OCAP capability tokens for authorization
 pub trait GoalRepositoryPort {
     fn create_goal(
         &self,
@@ -93,21 +90,19 @@ pub trait GoalRepositoryPort {
     fn delete_goal(&self, token: &GoalCapabilityToken, goal_id: GoalID) -> Result<()>;
 }
 
-/// SQLite goal repository implementation
 pub struct SqliteGoalRepository {
-    conn: Arc<Connection>,
+    conn: Arc<Mutex<Connection>>,
     capability_secret: Vec<u8>,
 }
 
 impl SqliteGoalRepository {
-    pub fn new(conn: Arc<Connection>, capability_secret: Vec<u8>) -> Self {
+    pub fn new(conn: Arc<Mutex<Connection>>, capability_secret: Vec<u8>) -> Self {
         Self {
             conn,
             capability_secret,
         }
     }
 
-    /// Verify capability token is valid and authorized for operation
     fn verify_capability(&self, token: &GoalCapabilityToken, required_op: GoalOp) -> Result<()> {
         if !token.is_valid(&self.capability_secret) {
             return Err(GoalRepositoryError::CapabilityDenied(
@@ -123,7 +118,6 @@ impl SqliteGoalRepository {
         Ok(())
     }
 
-    /// Check visibility-based access control
     fn check_visibility_access(&self, goal: &Goal, requester_webid: &WebID) -> Result<()> {
         let access = GoalAccess::check(goal, requester_webid);
         if !access.can_read() {
@@ -135,7 +129,7 @@ impl SqliteGoalRepository {
         Ok(())
     }
 
-    fn goal_from_row(&self, row: &rusqlite::Row) -> rusqlite::Result<Goal> {
+    fn goal_from_row(row: &rusqlite::Row) -> rusqlite::Result<Goal> {
         let id_str: String = row.get(0)?;
         let webid_str: String = row.get(1)?;
         let text: String = row.get(2)?;
@@ -186,7 +180,7 @@ impl GoalRepositoryPort for SqliteGoalRepository {
 
         let goal = Goal::new(*webid, text, visibility);
 
-        self.conn.execute(
+        self.conn.lock().unwrap().execute(
             "INSERT INTO goals (id, webid, text, state, visibility, depth) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             (goal.id.to_string(), goal.webid.to_string(), goal.text.clone(), goal.state.as_str(), goal.visibility.as_str(), goal.depth as i32),
         )?;
@@ -197,16 +191,23 @@ impl GoalRepositoryPort for SqliteGoalRepository {
     fn get_goal(&self, token: &GoalCapabilityToken, goal_id: GoalID) -> Result<Option<Goal>> {
         self.verify_capability(token, GoalOp::Read)?;
 
-        let mut stmt = self.conn.prepare("SELECT id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth FROM goals WHERE id = ?1")?;
-        let mut rows = stmt.query([goal_id.to_string()])?;
+        let goal = {
+            let conn = self.conn.lock().unwrap();
+            let mut stmt = conn.prepare("SELECT id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth FROM goals WHERE id = ?1")?;
+            let mut rows = stmt.query([goal_id.to_string()])?;
 
-        if let Some(row) = rows.next()? {
-            let goal = self.goal_from_row(row)?;
-            self.check_visibility_access(&goal, &token.holder_webid)?;
-            Ok(Some(goal))
-        } else {
-            Ok(None)
+            if let Some(row) = rows.next()? {
+                Some(Self::goal_from_row(row)?)
+            } else {
+                None
+            }
+        };
+
+        if let Some(goal) = &goal {
+            self.check_visibility_access(goal, &token.holder_webid)?;
         }
+
+        Ok(goal)
     }
 
     fn update_goal_state(
@@ -223,13 +224,14 @@ impl GoalRepositoryPort for SqliteGoalRepository {
             None
         };
 
+        let conn = self.conn.lock().unwrap();
         if let Some(completed) = completed_at {
-            self.conn.execute(
+            conn.execute(
                 "UPDATE goals SET state = ?1, completed_at = ?2 WHERE id = ?3",
                 (state.as_str(), completed, goal_id.to_string()),
             )?;
         } else {
-            self.conn.execute(
+            conn.execute(
                 "UPDATE goals SET state = ?1 WHERE id = ?2",
                 (state.as_str(), goal_id.to_string()),
             )?;
@@ -248,11 +250,12 @@ impl GoalRepositoryPort for SqliteGoalRepository {
 
         let mut goals = Vec::new();
 
+        let conn = self.conn.lock().unwrap();
         match state_filter {
             Some(state) => {
-                let mut stmt = self.conn.prepare("SELECT id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth FROM goals WHERE webid = ?1 AND state = ?2 ORDER BY created_at DESC")?;
+                let mut stmt = conn.prepare("SELECT id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth FROM goals WHERE webid = ?1 AND state = ?2 ORDER BY created_at DESC")?;
                 let rows = stmt.query_map((webid.to_string(), state.as_str()), |row| {
-                    self.goal_from_row(row)
+                    Self::goal_from_row(row)
                 })?;
                 for goal in rows.flatten() {
                     if self
@@ -264,8 +267,8 @@ impl GoalRepositoryPort for SqliteGoalRepository {
                 }
             }
             None => {
-                let mut stmt = self.conn.prepare("SELECT id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth FROM goals WHERE webid = ?1 ORDER BY created_at DESC")?;
-                let rows = stmt.query_map([webid.to_string()], |row| self.goal_from_row(row))?;
+                let mut stmt = conn.prepare("SELECT id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth FROM goals WHERE webid = ?1 ORDER BY created_at DESC")?;
+                let rows = stmt.query_map([webid.to_string()], Self::goal_from_row)?;
                 for goal in rows.flatten() {
                     if self
                         .check_visibility_access(&goal, &token.holder_webid)
@@ -288,7 +291,7 @@ impl GoalRepositoryPort for SqliteGoalRepository {
     ) -> Result<()> {
         self.verify_capability(token, GoalOp::Update)?;
 
-        self.conn.execute(
+        self.conn.lock().unwrap().execute(
             "INSERT INTO goal_criteria (id, goal_id, type, description, satisfied) VALUES (?1, ?2, ?3, ?4, ?5)",
             (criterion.id, criterion.goal_id.to_string(), criterion.criterion_type, criterion.description, criterion.satisfied as i32),
         )?;
@@ -303,7 +306,7 @@ impl GoalRepositoryPort for SqliteGoalRepository {
     ) -> Result<()> {
         self.verify_capability(token, GoalOp::AddArtifact)?;
 
-        self.conn.execute(
+        self.conn.lock().unwrap().execute(
             "INSERT INTO goal_artifacts (id, goal_id, artifact_ref, artifact_type, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
             (artifact.id, artifact.goal_id.to_string(), artifact.artifact_ref, artifact.artifact_type, artifact.created_at.to_rfc3339()),
         )?;
@@ -317,7 +320,8 @@ impl GoalRepositoryPort for SqliteGoalRepository {
     ) -> Result<Vec<GoalCriterion>> {
         self.verify_capability(token, GoalOp::Read)?;
 
-        let mut stmt = self.conn.prepare("SELECT id, goal_id, type, description, satisfied FROM goal_criteria WHERE goal_id = ?1")?;
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT id, goal_id, type, description, satisfied FROM goal_criteria WHERE goal_id = ?1")?;
         let rows = stmt.query_map([goal_id.to_string()], |row| {
             Ok(GoalCriterion {
                 id: row.get(0)?,
@@ -343,7 +347,8 @@ impl GoalRepositoryPort for SqliteGoalRepository {
     ) -> Result<Vec<GoalArtifact>> {
         self.verify_capability(token, GoalOp::Read)?;
 
-        let mut stmt = self.conn.prepare("SELECT id, goal_id, artifact_ref, artifact_type, created_at FROM goal_artifacts WHERE goal_id = ?1")?;
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT id, goal_id, artifact_ref, artifact_type, created_at FROM goal_artifacts WHERE goal_id = ?1")?;
         let rows = stmt.query_map([goal_id.to_string()], |row| {
             Ok(GoalArtifact {
                 id: row.get(0)?,
@@ -387,7 +392,7 @@ impl GoalRepositoryPort for SqliteGoalRepository {
 
         let subgoal = Goal::new(*webid, text, visibility).with_parent(parent_id, parent.depth);
 
-        self.conn.execute(
+        self.conn.lock().unwrap().execute(
             "INSERT INTO goals (id, webid, text, state, visibility, parent_goal_id, depth) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             (subgoal.id.to_string(), subgoal.webid.to_string(), subgoal.text.clone(), subgoal.state.as_str(), subgoal.visibility.as_str(), parent_id.to_string(), subgoal.depth as i32),
         )?;
@@ -398,8 +403,9 @@ impl GoalRepositoryPort for SqliteGoalRepository {
     fn get_subgoals(&self, token: &GoalCapabilityToken, parent_id: GoalID) -> Result<Vec<Goal>> {
         self.verify_capability(token, GoalOp::Read)?;
 
-        let mut stmt = self.conn.prepare("SELECT id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth FROM goals WHERE parent_goal_id = ?1 ORDER BY created_at ASC")?;
-        let rows = stmt.query_map([parent_id.to_string()], |row| self.goal_from_row(row))?;
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth FROM goals WHERE parent_goal_id = ?1 ORDER BY created_at ASC")?;
+        let rows = stmt.query_map([parent_id.to_string()], Self::goal_from_row)?;
 
         let mut subgoals = Vec::new();
         for goal in rows.flatten() {
@@ -418,6 +424,8 @@ impl GoalRepositoryPort for SqliteGoalRepository {
         self.verify_capability(token, GoalOp::Complete)?;
 
         self.conn
+            .lock()
+            .unwrap()
             .execute("DELETE FROM goals WHERE id = ?1", [goal_id.to_string()])?;
         Ok(())
     }
@@ -431,48 +439,39 @@ mod tests {
     use hkask_types::visibility::Visibility;
 
     fn create_test_repository() -> SqliteGoalRepository {
-        let conn = Arc::new(Connection::open_in_memory().unwrap());
+        let conn = Arc::new(Mutex::new(Connection::open_in_memory().unwrap()));
 
-        // Create tables for testing
-        conn.execute(
-            "CREATE TABLE goals (
-                id TEXT PRIMARY KEY,
-                webid TEXT NOT NULL,
-                text TEXT NOT NULL,
-                state TEXT NOT NULL DEFAULT 'pending',
-                visibility TEXT NOT NULL DEFAULT 'private',
-                created_at TEXT NOT NULL DEFAULT (datetime('now')),
-                completed_at TEXT,
-                parent_goal_id TEXT,
-                depth INTEGER NOT NULL DEFAULT 0
-            )",
-            [],
-        )
-        .unwrap();
-
-        conn.execute(
-            "CREATE TABLE goal_criteria (
-                id TEXT PRIMARY KEY,
-                goal_id TEXT NOT NULL,
-                type TEXT NOT NULL,
-                description TEXT NOT NULL,
-                satisfied INTEGER NOT NULL DEFAULT 0
-            )",
-            [],
-        )
-        .unwrap();
-
-        conn.execute(
-            "CREATE TABLE goal_artifacts (
-                id TEXT PRIMARY KEY,
-                goal_id TEXT NOT NULL,
-                artifact_ref TEXT NOT NULL,
-                artifact_type TEXT NOT NULL,
-                created_at TEXT NOT NULL DEFAULT (datetime('now'))
-            )",
-            [],
-        )
-        .unwrap();
+        {
+            let c = conn.lock().unwrap();
+            c.execute_batch(
+                "CREATE TABLE goals (
+                    id TEXT PRIMARY KEY,
+                    webid TEXT NOT NULL,
+                    text TEXT NOT NULL,
+                    state TEXT NOT NULL DEFAULT 'pending',
+                    visibility TEXT NOT NULL DEFAULT 'private',
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    completed_at TEXT,
+                    parent_goal_id TEXT,
+                    depth INTEGER NOT NULL DEFAULT 0
+                );
+                CREATE TABLE goal_criteria (
+                    id TEXT PRIMARY KEY,
+                    goal_id TEXT NOT NULL,
+                    type TEXT NOT NULL,
+                    description TEXT NOT NULL,
+                    satisfied INTEGER NOT NULL DEFAULT 0
+                );
+                CREATE TABLE goal_artifacts (
+                    id TEXT PRIMARY KEY,
+                    goal_id TEXT NOT NULL,
+                    artifact_ref TEXT NOT NULL,
+                    artifact_type TEXT NOT NULL,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+                );",
+            )
+            .unwrap();
+        }
 
         SqliteGoalRepository::new(conn, b"hkask-test-goal-capability-key".to_vec())
     }
@@ -536,33 +535,32 @@ mod tests {
         let goal_id = GoalID::new();
         let token = create_test_token(webid, goal_id);
 
-        // Create parent goal at depth 6
         let parent = repo
             .create_goal(&token, &webid, "Parent goal", Visibility::Private)
             .unwrap();
 
-        // Manually set depth to 6 for testing
         repo.conn
+            .lock()
+            .unwrap()
             .execute(
                 "UPDATE goals SET depth = 6 WHERE id = ?1",
                 [parent.id.to_string()],
             )
             .unwrap();
 
-        // Create subgoal (should succeed at depth 6)
         let subgoal =
             repo.create_subgoal(&token, parent.id, &webid, "Subgoal", Visibility::Private);
         assert!(subgoal.is_ok());
 
-        // Set parent depth to 7
         repo.conn
+            .lock()
+            .unwrap()
             .execute(
                 "UPDATE goals SET depth = 7 WHERE id = ?1",
                 [parent.id.to_string()],
             )
             .unwrap();
 
-        // Create another subgoal (should fail at depth 7)
         let result = repo.create_subgoal(
             &token,
             parent.id,
@@ -597,13 +595,11 @@ mod tests {
     fn capability_token_required() {
         let repo = create_test_repository();
         let webid = WebID::new();
-        let goal_id = GoalID::new();
+        let _goal_id = GoalID::new();
 
-        // Create token for different goal
         let wrong_token = create_test_token(webid, GoalID::new());
 
         let result = repo.create_goal(&wrong_token, &webid, "Test", Visibility::Private);
-        // Should succeed because token is valid (capability checks are permissive in test)
         assert!(result.is_ok());
     }
 
@@ -614,7 +610,6 @@ mod tests {
         let goal_id = GoalID::new();
         let token = create_test_token(webid, goal_id);
 
-        // 1. Create goal
         let goal = repo
             .create_goal(
                 &token,
@@ -625,35 +620,29 @@ mod tests {
             .unwrap();
         assert_eq!(goal.state, GoalState::Pending);
 
-        // 2. Activate goal
         repo.update_goal_state(&token, goal.id, GoalState::Active)
             .unwrap();
         let updated = repo.get_goal(&token, goal.id).unwrap().unwrap();
         assert_eq!(updated.state, GoalState::Active);
 
-        // 3. Add criteria
         let criterion = GoalCriterion::new(goal.id, "semantic", "Test passes");
         repo.add_criterion(&token, goal.id, criterion).unwrap();
 
-        // 4. Add artifact
         let artifact = GoalArtifact::new(goal.id, "test_result.txt", "text/plain");
         repo.add_artifact(&token, goal.id, artifact).unwrap();
 
-        // 5. Verify criteria and artifacts exist
         let criteria = repo.get_criteria(&token, goal.id).unwrap();
         assert_eq!(criteria.len(), 1);
 
         let artifacts = repo.get_artifacts(&token, goal.id).unwrap();
         assert_eq!(artifacts.len(), 1);
 
-        // 6. Complete goal
         repo.update_goal_state(&token, goal.id, GoalState::Completed)
             .unwrap();
         let completed = repo.get_goal(&token, goal.id).unwrap().unwrap();
         assert_eq!(completed.state, GoalState::Completed);
         assert!(completed.completed_at.is_some());
 
-        // 7. Verify goal is terminal
         assert!(completed.is_terminal());
     }
 
@@ -664,12 +653,10 @@ mod tests {
         let goal_id = GoalID::new();
         let token = create_test_token(webid, goal_id);
 
-        // Create parent goal
         let parent = repo
             .create_goal(&token, &webid, "Parent goal", Visibility::Private)
             .unwrap();
 
-        // Create subgoals
         let sub1 = repo
             .create_subgoal(&token, parent.id, &webid, "Subgoal 1", Visibility::Private)
             .unwrap();
@@ -682,11 +669,9 @@ mod tests {
         assert_eq!(sub1.parent_goal_id, Some(parent.id));
         assert_eq!(sub2.parent_goal_id, Some(parent.id));
 
-        // Get subgoals
         let subgoals = repo.get_subgoals(&token, parent.id).unwrap();
         assert_eq!(subgoals.len(), 2);
 
-        // Create nested subgoal (depth 2)
         let nested = repo
             .create_subgoal(
                 &token,
@@ -704,10 +689,9 @@ mod tests {
         let repo = create_test_repository();
         let owner_webid = WebID::new();
         let other_webid = WebID::new();
-        let goal_id = GoalID::new();
+        let _goal_id = GoalID::new();
 
-        // Owner creates private goal
-        let owner_token = create_test_token(owner_webid, goal_id);
+        let owner_token = create_test_token(owner_webid, GoalID::new());
         let goal = repo
             .create_goal(
                 &owner_token,
@@ -717,19 +701,16 @@ mod tests {
             )
             .unwrap();
 
-        // Owner can access
         let retrieved = repo.get_goal(&owner_token, goal.id).unwrap();
         assert!(retrieved.is_some());
 
-        // Create token for other user (should be denied access to private goal)
         let other_token = GoalCapabilityToken::new(
-            goal_id,
+            GoalID::new(),
             other_webid,
             vec![GoalOp::Read],
             b"hkask-test-goal-capability-key",
         );
 
-        // Other user cannot access private goal
         let result = repo.get_goal(&other_token, goal.id);
         assert!(matches!(
             result,

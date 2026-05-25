@@ -6,11 +6,10 @@ use chrono::{DateTime, Utc};
 use hkask_types::{BotID, TemplateID};
 use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use thiserror::Error;
 use uuid::Uuid;
 
-/// Escalation entry
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EscalationEntry {
     pub id: String,
@@ -26,7 +25,6 @@ pub struct EscalationEntry {
     pub resolved_by: Option<String>,
 }
 
-/// Escalation status
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum EscalationStatus {
@@ -36,9 +34,8 @@ pub enum EscalationStatus {
     Dismissed,
 }
 
-/// Escalation queue
 pub struct EscalationQueue {
-    conn: Arc<Connection>,
+    conn: Arc<Mutex<Connection>>,
 }
 
 #[derive(Error, Debug)]
@@ -56,14 +53,14 @@ impl From<rusqlite::Error> for EscalationError {
 }
 
 impl EscalationQueue {
-    pub fn new(conn: Arc<Connection>) -> Result<Self, EscalationError> {
+    pub fn new(conn: Arc<Mutex<Connection>>) -> Result<Self, EscalationError> {
         let queue = Self { conn };
         queue.init()?;
         Ok(queue)
     }
 
     fn init(&self) -> Result<(), EscalationError> {
-        self.conn.execute_batch(
+        self.conn.lock().unwrap().execute_batch(
             "CREATE TABLE IF NOT EXISTS escalations (
                 id TEXT PRIMARY KEY,
                 template_id TEXT NOT NULL,
@@ -94,7 +91,7 @@ impl EscalationQueue {
         let id = format!("esc_{}", Uuid::new_v4().simple());
         let now = Utc::now().to_rfc3339();
 
-        self.conn.execute(
+        self.conn.lock().unwrap().execute(
             "INSERT INTO escalations (id, template_id, bot_id, output, confidence, retry_count, error_context, created_at, status)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'pending')",
             params![
@@ -113,7 +110,8 @@ impl EscalationQueue {
     }
 
     pub fn list_pending(&self) -> Result<Vec<EscalationEntry>, EscalationError> {
-        let mut stmt = self.conn.prepare(
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
             "SELECT id, template_id, bot_id, output, confidence, retry_count, error_context, created_at, status, resolved_at, resolved_by
              FROM escalations WHERE status = 'pending' ORDER BY created_at ASC"
         )?;
@@ -150,7 +148,8 @@ impl EscalationQueue {
     }
 
     pub fn get(&self, id: &str) -> Result<Option<EscalationEntry>, EscalationError> {
-        let mut stmt = self.conn.prepare(
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
             "SELECT id, template_id, bot_id, output, confidence, retry_count, error_context, created_at, status, resolved_at, resolved_by
              FROM escalations WHERE id = ?1"
         )?;
@@ -202,7 +201,7 @@ impl EscalationQueue {
 
     pub fn resolve(&self, id: &str, resolved_by: &str) -> Result<(), EscalationError> {
         let now = Utc::now().to_rfc3339();
-        self.conn.execute(
+        self.conn.lock().unwrap().execute(
             "UPDATE escalations SET status = 'resolved', resolved_at = ?1, resolved_by = ?2 WHERE id = ?3",
             params![now, resolved_by, id],
         )?;
@@ -211,7 +210,7 @@ impl EscalationQueue {
 
     pub fn dismiss(&self, id: &str, resolved_by: &str) -> Result<(), EscalationError> {
         let now = Utc::now().to_rfc3339();
-        self.conn.execute(
+        self.conn.lock().unwrap().execute(
             "UPDATE escalations SET status = 'dismissed', resolved_at = ?1, resolved_by = ?2 WHERE id = ?3",
             params![now, resolved_by, id],
         )?;
@@ -219,7 +218,8 @@ impl EscalationQueue {
     }
 
     pub fn stats(&self) -> Result<EscalationStats, EscalationError> {
-        let mut stmt = self.conn.prepare(
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
             "SELECT 
                 COUNT(*) as total,
                 SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
@@ -261,7 +261,7 @@ mod tests {
     fn test_escalation_queue() {
         let temp_dir = tempdir().unwrap();
         let db_path = temp_dir.path().join("escalations.db");
-        let conn = Arc::new(Connection::open(db_path).unwrap());
+        let conn = Arc::new(Mutex::new(Connection::open(db_path).unwrap()));
         let queue = EscalationQueue::new(conn).unwrap();
 
         let template_id = TemplateID::new();

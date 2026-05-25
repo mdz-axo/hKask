@@ -796,7 +796,7 @@ impl PodManager {
     }
 
     #[cfg(test)]
-    fn create_test_pod_manager_with_templates() -> PodManager {
+    fn _create_test_pod_manager_with_templates() -> PodManager {
         Self {
             pods: Arc::new(RwLock::new(HashMap::new())),
             _keystore: Keychain::default(),

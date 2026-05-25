@@ -71,7 +71,7 @@ status: VERIFIED
 
 **Enabled (16):**
 - `hkask-mcp-inference` — Okapi LLM inference
-- `hkask-mcp-condenser` — Template condensation
+- `hkask-mcp-condenser` — General-purpose context reranking and condensation
 - `hkask-mcp-web` — Search, scrape, extract
 - `hkask-mcp-scholar` — Academic research
 - `hkask-mcp-ocap` — Capability management

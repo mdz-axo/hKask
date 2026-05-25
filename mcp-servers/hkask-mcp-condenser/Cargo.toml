@@ -3,7 +3,7 @@ name = "hkask-mcp-condenser"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Template condensation MCP server"
+description = "General-purpose context reranking and condensation MCP server"
 
 [dependencies]
 hkask-types = { path = "../../crates/hkask-types" }

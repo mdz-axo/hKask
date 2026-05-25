@@ -9,12 +9,11 @@ use hkask_types::LLMParameters;
 use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use thiserror::Error;
 use tracing::{debug, info};
 
-/// Cache entry
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CacheEntry {
     pub key: String,
@@ -28,7 +27,6 @@ pub struct CacheEntry {
     pub last_accessed: i64,
 }
 
-/// TTL configuration by model category
 #[derive(Debug, Clone)]
 pub struct CacheTtlConfig {
     pub instruct: Duration,
@@ -50,7 +48,6 @@ impl Default for CacheTtlConfig {
     }
 }
 
-/// Cache configuration
 #[derive(Debug, Clone)]
 pub struct PromptCacheConfig {
     pub max_size_mb: i64,
@@ -66,9 +63,8 @@ impl Default for PromptCacheConfig {
     }
 }
 
-/// Prompt cache
 pub struct PromptCache {
-    conn: Arc<Connection>,
+    conn: Arc<Mutex<Connection>>,
     config: PromptCacheConfig,
     current_size: Arc<std::sync::atomic::AtomicI64>,
 }
@@ -96,7 +92,7 @@ impl From<serde_json::Error> for CacheError {
 }
 
 impl PromptCache {
-    pub fn new(conn: Arc<Connection>, config: PromptCacheConfig) -> Result<Self, CacheError> {
+    pub fn new(conn: Arc<Mutex<Connection>>, config: PromptCacheConfig) -> Result<Self, CacheError> {
         let cache = Self {
             conn,
             config,
@@ -107,7 +103,8 @@ impl PromptCache {
     }
 
     fn init(&self) -> Result<(), CacheError> {
-        self.conn.execute_batch(
+        let conn = self.conn.lock().unwrap();
+        conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS prompt_cache (
                 key TEXT PRIMARY KEY,
                 prompt TEXT NOT NULL,
@@ -123,7 +120,7 @@ impl PromptCache {
         ",
         )?;
 
-        let size: i64 = self.conn.query_row(
+        let size: i64 = conn.query_row(
             "SELECT COALESCE(SUM(size_bytes), 0) FROM prompt_cache",
             [],
             |row| row.get(0),
@@ -163,7 +160,8 @@ impl PromptCache {
     pub fn get(&self, key: &str) -> Result<InferenceResult, CacheError> {
         let now = Instant::now().elapsed().as_secs() as i64;
 
-        let mut stmt = self.conn.prepare(
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
             "SELECT result, size_bytes FROM prompt_cache WHERE key = ?1 AND expires_at > ?2",
         )?;
 
@@ -172,7 +170,7 @@ impl PromptCache {
 
         match result {
             Ok((result_json, _size)) => {
-                self.conn.execute(
+                conn.execute(
                     "UPDATE prompt_cache SET access_count = access_count + 1, last_accessed = ?1 WHERE key = ?2",
                     params![now, key],
                 )?;
@@ -205,7 +203,7 @@ impl PromptCache {
 
         self.evict_if_needed(size_bytes)?;
 
-        self.conn.execute(
+        self.conn.lock().unwrap().execute(
             "INSERT OR REPLACE INTO prompt_cache (key, prompt, model, result, created_at, expires_at, size_bytes, access_count, last_accessed)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0, ?8)",
             params![key, prompt, model, result_json, now, expires_at, size_bytes, now],
@@ -226,7 +224,8 @@ impl PromptCache {
             return Ok(());
         }
 
-        let mut stmt = self.conn.prepare(
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
             "SELECT key, size_bytes FROM prompt_cache 
              ORDER BY access_count ASC, last_accessed ASC 
              LIMIT 10",
@@ -249,8 +248,7 @@ impl PromptCache {
         }
 
         for (key, size) in to_delete {
-            self.conn
-                .execute("DELETE FROM prompt_cache WHERE key = ?1", params![key])?;
+            conn.execute("DELETE FROM prompt_cache WHERE key = ?1", params![key])?;
             self.current_size
                 .fetch_sub(size, std::sync::atomic::Ordering::Relaxed);
             info!(target: "hkask.cache", key = %key, "Cache entry evicted");
@@ -262,9 +260,8 @@ impl PromptCache {
     pub fn clear_expired(&self) -> Result<i64, CacheError> {
         let now = Instant::now().elapsed().as_secs() as i64;
 
-        let mut stmt = self
-            .conn
-            .prepare("SELECT size_bytes FROM prompt_cache WHERE expires_at <= ?1")?;
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT size_bytes FROM prompt_cache WHERE expires_at <= ?1")?;
 
         let mut freed = 0i64;
         let rows = stmt.query_map([now], |row| row.get::<_, i64>(0))?;
@@ -273,8 +270,7 @@ impl PromptCache {
             freed += size;
         }
 
-        let deleted = self
-            .conn
+        let deleted = conn
             .execute("DELETE FROM prompt_cache WHERE expires_at <= ?1", [now])?
             as i64;
 
@@ -286,7 +282,8 @@ impl PromptCache {
     }
 
     pub fn stats(&self) -> Result<CacheStats, CacheError> {
-        let row = self.conn.query_row(
+        let conn = self.conn.lock().unwrap();
+        let row = conn.query_row(
             "SELECT 
                 COUNT(*) as count,
                 COALESCE(SUM(size_bytes), 0) as total_size,
@@ -322,7 +319,7 @@ mod tests {
     fn test_prompt_cache() {
         let temp_dir = tempdir().unwrap();
         let db_path = temp_dir.path().join("cache.db");
-        let conn = Arc::new(Connection::open(db_path).unwrap());
+        let conn = Arc::new(Mutex::new(Connection::open(db_path).unwrap()));
         let cache = PromptCache::new(conn, PromptCacheConfig::default()).unwrap();
 
         let key = PromptCache::generate_key("test prompt", "test-model", &LLMParameters::default());

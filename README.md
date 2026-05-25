@@ -41,7 +41,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 
 ### MCP Servers (16 crates)
 - `hkask-mcp-inference` — Okapi-backed LLM inference
-- `hkask-mcp-condenser` — Template condensation
+- `hkask-mcp-condenser` — General-purpose context reranking and condensation
 - `hkask-mcp-web` — Web search, scrape
 - `hkask-mcp-scholar` — Academic research
 - `hkask-mcp-ocap` — Capability management

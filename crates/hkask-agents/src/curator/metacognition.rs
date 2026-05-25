@@ -387,13 +387,14 @@ mod tests {
     use crate::adapters::CnsRuntimeAdapter;
     use hkask_cns::CnsRuntime;
     use rusqlite::Connection;
+    use std::sync::Mutex;
     use tempfile::tempdir;
 
     #[tokio::test]
     async fn test_metacognition_cycle() {
         let temp_dir = tempdir().unwrap();
         let db_path = temp_dir.path().join("escalations.db");
-        let conn = Arc::new(Connection::open(db_path).unwrap());
+        let conn = Arc::new(Mutex::new(Connection::open(db_path).unwrap()));
         let queue = Arc::new(EscalationQueue::new(conn).unwrap());
         let cns = Arc::new(CnsRuntimeAdapter::new(Arc::new(CnsRuntime::new())));
 
@@ -412,7 +413,7 @@ mod tests {
     async fn test_escalation_on_critical_alerts() {
         let temp_dir = tempdir().unwrap();
         let db_path = temp_dir.path().join("escalations.db");
-        let conn = Arc::new(Connection::open(db_path).unwrap());
+        let conn = Arc::new(Mutex::new(Connection::open(db_path).unwrap()));
         let queue = Arc::new(EscalationQueue::new(conn).unwrap());
         let cns = Arc::new(CnsRuntimeAdapter::new(Arc::new(CnsRuntime::new())));
 
@@ -451,7 +452,7 @@ mod tests {
     async fn test_summary_generation() {
         let temp_dir = tempdir().unwrap();
         let db_path = temp_dir.path().join("escalations.db");
-        let conn = Arc::new(Connection::open(db_path).unwrap());
+        let conn = Arc::new(Mutex::new(Connection::open(db_path).unwrap()));
         let queue = Arc::new(EscalationQueue::new(conn).unwrap());
         let cns = Arc::new(CnsRuntimeAdapter::new(Arc::new(CnsRuntime::new())));
 

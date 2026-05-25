@@ -96,7 +96,7 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-na
 | Server | LOC | Status | Purpose |
 |--------|-----|--------|---------|
 | `hkask-mcp-inference` | 432 | ✅ Complete | Okapi LLM inference |
-| `hkask-mcp-condenser` | 5 | ⚠️ Stub | Template condensation |
+| `hkask-mcp-condenser` | 5 | ⚠️ Stub | General-purpose context reranking and condensation |
 | `hkask-mcp-web` | 5 | ⚠️ Stub | Web search, scrape |
 | `hkask-mcp-scholar` | 5 | ⚠️ Stub | Academic research |
 | `hkask-mcp-ocap` | 266 | ✅ Complete | Capability management |

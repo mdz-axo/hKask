@@ -1103,7 +1103,7 @@ erDiagram
 
     CONDENSER_SERVER {
         string id "hkask-mcp-condenser"
-        string purpose "Template condensation"
+        string purpose "General-purpose context reranking and condensation"
     }
 
     WEB_SERVER {

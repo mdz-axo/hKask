@@ -178,12 +178,12 @@ fn test_escalation_queue_crud() {
     use hkask_agents::{EscalationQueue, EscalationStatus};
     use hkask_types::{BotID, TemplateId};
     use rusqlite::Connection;
-    use std::sync::Arc;
+    use std::sync::{Arc, Mutex};
     use tempfile::tempdir;
 
     let temp_dir = tempdir().unwrap();
     let db_path = temp_dir.path().join("escalations.db");
-    let conn = Arc::new(Connection::open(db_path).unwrap());
+    let conn = Arc::new(Mutex::new(Connection::open(db_path).unwrap()));
     let queue = EscalationQueue::new(conn).unwrap();
 
     let template_id = TemplateId::new();
