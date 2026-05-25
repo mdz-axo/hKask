@@ -129,13 +129,18 @@ The Magna Carta principle enforces user sovereignty:[^westin-data]
 | **Acquisition resistance** | Default `Maximum` resistance level |
 | **Kill-zone detection** | VC investment < 0.5 after acquisition attempt → CNS alert |
 
-**SovereigntyPort** (`crates/hkask-agents/src/ports/sovereignty.rs:79`):
+**SovereigntyPort** (`crates/hkask-agents/src/ports/sovereignty.rs`):
 
 ```rust
-pub trait SovereigntyPort: Send + Sync {
-    fn check(&self, operation: &SovereigntyOperation) -> SovereigntyCheckResult;
-    fn revoke(&self, capability_id: &str) -> Result<(), SovereigntyError>;
-    fn visibility(&self, category: &DataCategory) -> Visibility;
+pub trait SovereigntyPort {
+    fn check(&self, data_category: DataCategory, operation: SovereigntyOperation, requester: &WebID) -> SovereigntyCheckResult;
+    fn can_access(&self, data_category: DataCategory, requester: &WebID) -> bool;
+    fn mark_acquisition_attempt(&mut self, details: &Value);
+    fn update_vc_investment(&mut self, vc_investment: f32);
+    fn is_compromised(&self) -> bool;
+    fn grant_consent(&mut self);
+    fn revoke_consent(&mut self);
+    fn owner_webid(&self) -> WebID;
 }
 ```
 

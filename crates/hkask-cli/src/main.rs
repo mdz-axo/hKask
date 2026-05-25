@@ -1432,7 +1432,7 @@ fn main() {
                                 for asset in &assets {
                                     let entry = hkask_templates::RegistryEntry {
                                         id: asset.id.clone(),
-                                        template_type: asset.template_type.clone(),
+                                        template_type: asset.template_type,
                                         lexicon_terms: vec!["russell-migrated".to_string()],
                                         description: asset.description.clone(),
                                         source_path: format!("russell-migrated:{}", asset.id),
@@ -1924,8 +1924,8 @@ fn main() {
                                 return;
                             }
                             println!(
-                                "{:<20} {:<15} {:<10} {}",
-                                "ID", "BOT", "CONFIDENCE", "CONTEXT"
+                                "{:<20} {:<15} {:<10} CONTEXT",
+                                "ID", "BOT", "CONFIDENCE"
                             );
                             println!("{}", "-".repeat(80));
                             for esc in &escalations {

@@ -551,10 +551,13 @@ impl AcpPort for RussellAcpAdapter {
             vec![]
         }
     }
+
+    fn set_cns_emitter(&self, _emitter: Arc<dyn hkask_cns::CnsEmit + Send + Sync>) {
+        tracing::debug!(target: "hkask.russell", "CNS emitter set (Russell adapter uses internal CNS emission)");
+    }
 }
 
-#[cfg(test)]
-mod tests {
+#[cfg(test)]mod tests {
     use super::*;
 
     fn test_secret() -> Arc<Zeroizing<Vec<u8>>> {

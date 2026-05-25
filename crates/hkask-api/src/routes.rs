@@ -245,9 +245,9 @@ async fn list_pods(State(state): State<ApiState>) -> Json<ListPodsResponse> {
         .map(|s| PodStatusResponse {
             pod_id: s.pod_id,
             name: s.name,
-            state: s.state,
+            state: s.state.to_string(),
             webid: s.webid,
-            agent_type: s.agent_type,
+            agent_type: s.agent_type.to_string(),
             template: s.template,
             created_at: s.created_at,
         })
@@ -470,16 +470,16 @@ async fn pod_status(
         "api.pod.status.success",
         serde_json::json!({
             "pod_id": id,
-            "state": status.state,
+            "state": status.state.to_string(),
         }),
     );
 
     Ok(Json(PodStatusResponse {
         pod_id: status.pod_id,
         name: status.name,
-        state: status.state,
+        state: status.state.to_string(),
         webid: status.webid,
-        agent_type: status.agent_type,
+        agent_type: status.agent_type.to_string(),
         template: status.template,
         created_at: status.created_at,
     }))

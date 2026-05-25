@@ -184,18 +184,18 @@ pub struct AccessRight {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VisibilitySettings {
-    #[serde(default = "default_public")]
-    pub default: String,
-    #[serde(default = "default_private")]
-    pub episodic_override: String,
+    #[serde(default = "default_public_visibility")]
+    pub default: hkask_types::Visibility,
+    #[serde(default = "default_private_visibility")]
+    pub episodic_override: hkask_types::Visibility,
 }
 
-fn default_public() -> String {
-    "public".to_string()
+fn default_public_visibility() -> hkask_types::Visibility {
+    hkask_types::Visibility::Public
 }
 
-fn default_private() -> String {
-    "private".to_string()
+fn default_private_visibility() -> hkask_types::Visibility {
+    hkask_types::Visibility::Private
 }
 
 impl AgentPersona {
@@ -351,6 +351,21 @@ pub enum AgentPodError {
 
     #[error("Clock error: {0}")]
     ClockError(String),
+
+    #[error("Capability denied: token does not grant {resource:?} {action:?}")]
+    CapabilityDenied {
+        resource: CapabilityResource,
+        action: CapabilityAction,
+    },
+
+    #[error("Inference port unavailable: {0}")]
+    InferenceUnavailable(String),
+
+    #[error("Memory operation failed: {0}")]
+    MemoryError(String),
+
+    #[error("Tool invocation failed: {0}")]
+    ToolError(String),
 }
 
 /// Result type for agent pod operations
@@ -654,9 +669,9 @@ pub struct PodManager {
 pub struct PodStatus {
     pub pod_id: String,
     pub name: Option<String>,
-    pub state: String,
+    pub state: PodLifecycleState,
     pub webid: String,
-    pub agent_type: String,
+    pub agent_type: AgentType,
     pub template: String,
     pub created_at: i64,
 }
@@ -1112,18 +1127,14 @@ impl PodManager {
         Ok(PodStatus {
             pod_id: pod.id.to_string(),
             name: Some(pod.persona.agent.name.clone()),
-            state: pod.state.to_string(),
+            state: pod.state,
             webid: pod.webid.to_string(),
-            agent_type: match pod.agent_type {
-                AgentType::Bot => "bot".to_string(),
-                AgentType::Replicant => "replicant".to_string(),
-            },
+            agent_type: pod.agent_type,
             template: pod.template_crate.name.clone(),
             created_at: pod.created_at,
         })
     }
 
-    /// List all pods
     pub async fn list_pods(&self) -> AgentPodResult<Vec<PodStatus>> {
         let pods = self.pods.read().await;
         let statuses = pods
@@ -1131,12 +1142,9 @@ impl PodManager {
             .map(|pod| PodStatus {
                 pod_id: pod.id.to_string(),
                 name: Some(pod.persona.agent.name.clone()),
-                state: pod.state.to_string(),
+                state: pod.state,
                 webid: pod.webid.to_string(),
-                agent_type: match pod.agent_type {
-                    AgentType::Bot => "bot".to_string(),
-                    AgentType::Replicant => "replicant".to_string(),
-                },
+                agent_type: pod.agent_type,
                 template: pod.template_crate.name.clone(),
                 created_at: pod.created_at,
             })
@@ -1173,7 +1181,6 @@ pub struct PodContext {
 }
 
 impl PodContext {
-    /// Create a new pod context from a pod manager and pod ID
     pub async fn from_manager(manager: &PodManager, pod_id: &PodID) -> AgentPodResult<Self> {
         let pods = manager.pods.read().await;
         let pod = pods
@@ -1197,16 +1204,30 @@ impl PodContext {
         })
     }
 
-    /// Get the inference port if available
-    pub fn inference_port(&self) -> Option<Arc<dyn hkask_templates::InferencePort>> {
-        self.inference_port.clone()
+    fn require_capability(
+        &self,
+        resource: CapabilityResource,
+        resource_id: &str,
+        action: CapabilityAction,
+    ) -> AgentPodResult<()> {
+        if !self.capability_token.is_valid_for(resource, resource_id, action) {
+            return Err(AgentPodError::CapabilityDenied { resource, action });
+        }
+        Ok(())
     }
 
-    /// Recall memory artifacts for this pod's agent
-    pub async fn recall_memory(&self, query: &str) -> Result<Vec<serde_json::Value>, String> {
+    pub fn inference_port(&self) -> AgentPodResult<Arc<dyn hkask_templates::InferencePort>> {
+        self.require_capability(CapabilityResource::Template, "inference", CapabilityAction::Render)?;
+        self.inference_port
+            .clone()
+            .ok_or_else(|| AgentPodError::InferenceUnavailable("No inference port configured".to_string()))
+    }
+
+    pub async fn recall_memory(&self, query: &str) -> AgentPodResult<Vec<serde_json::Value>> {
+        self.require_capability(CapabilityResource::Manifest, "memory", CapabilityAction::Read)?;
         self.memory_storage
             .recall(query, &self.capability_token)
-            .map_err(|e| format!("Memory recall error: {}", e))
+            .map_err(|e| AgentPodError::MemoryError(e.to_string()))
     }
 
     pub async fn store_memory(
@@ -1214,7 +1235,8 @@ impl PodContext {
         artifact_type: &str,
         content: serde_json::Value,
         visibility: &str,
-    ) -> Result<String, String> {
+    ) -> AgentPodResult<String> {
+        self.require_capability(CapabilityResource::Manifest, "memory", CapabilityAction::Write)?;
         self.memory_storage
             .store_artifact(
                 self.webid,
@@ -1223,20 +1245,39 @@ impl PodContext {
                 visibility,
                 &self.capability_token,
             )
-            .map_err(|e| format!("Memory store error: {}", e))
+            .map_err(|e| AgentPodError::MemoryError(e.to_string()))
     }
 
     pub fn invoke_tool(
         &self,
         tool_name: &str,
         input: serde_json::Value,
-    ) -> Result<serde_json::Value, String> {
-        self.mcp_runtime
+    ) -> AgentPodResult<serde_json::Value> {
+        self.require_capability(CapabilityResource::Tool, tool_name, CapabilityAction::Execute)?;
+        self.emit_span(
+            &format!("cns.tool.{}", tool_name),
+            "invoked",
+            serde_json::json!({ "input_keys": input.as_object().map(|o| o.keys().collect::<Vec<_>>()) }),
+        );
+        let result = self
+            .mcp_runtime
             .invoke_tool(tool_name, input, &self.capability_token)
-            .map_err(|e| format!("Tool invocation error: {}", e))
+            .map_err(|e| AgentPodError::ToolError(e.to_string()));
+        match &result {
+            Ok(_) => self.emit_span(
+                &format!("cns.tool.{}.completed", tool_name),
+                "completed",
+                serde_json::json!({}),
+            ),
+            Err(_) => self.emit_span(
+                &format!("cns.tool.{}.failed", tool_name),
+                "failed",
+                serde_json::json!({}),
+            ),
+        }
+        result
     }
 
-    /// Emit a CNS span for observability
     pub fn emit_span(&self, span_type: &str, action: &str, data: serde_json::Value) {
         self.cns_emitter.emit_event(
             span_type,

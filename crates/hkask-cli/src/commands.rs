@@ -122,7 +122,7 @@ pub async fn get_pod_status(pod_id: &str) -> Result<PodStatus, String> {
     Ok(PodStatus {
         pod_id: status.pod_id,
         name: status.name,
-        state: status.state,
+        state: status.state.to_string(),
         webid: status.webid,
         created_at: status.created_at.to_string(),
     })
@@ -140,7 +140,7 @@ pub async fn list_pods() -> Vec<PodStatus> {
         .map(|s| PodStatus {
             pod_id: s.pod_id,
             name: s.name,
-            state: s.state,
+            state: s.state.to_string(),
             webid: s.webid,
             created_at: s.created_at.to_string(),
         })
@@ -635,6 +635,9 @@ async fn init_registry() -> Result<
 > {
     let secret = resolve_acp_secret()?;
     let acp = Arc::new(hkask_agents::AcpRuntime::new(secret.as_bytes(), None));
+    let cns_emitter = Arc::new(hkask_agents::adapters::CnsEmitterAdapter::new(hkask_types::WebID::new()));
+    use hkask_agents::ports::AcpPort;
+    acp.set_cns_emitter(cns_emitter);
 
     let db_path = registry_db_path();
     let passphrase = resolve_db_passphrase()?;
@@ -973,8 +976,8 @@ visibility:
 
         // Use inference port from PodContext (R1: pod-mediated inference)
         let inference_port = match pod_context.inference_port() {
-            Some(port) => port,
-            None => return "No inference port available in pod context".to_string(),
+            Ok(port) => port,
+            Err(e) => return format!("Inference port unavailable: {}", e),
         };
 
         match inference_port.generate(&full_prompt, &params).await {

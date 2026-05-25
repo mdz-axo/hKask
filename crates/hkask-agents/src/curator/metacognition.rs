@@ -212,14 +212,14 @@ impl MetacognitionLoop {
         snapshot: &SystemHealthSnapshot,
     ) -> Result<(), MetacognitionError> {
         // Check variety deficit
-        let mut _total_variety_deficit = 0u64;
+        let mut total_variety_deficit = 0u64;
         for (domain, variety) in &snapshot.variety_counters {
             let deficit = self
                 .config
                 .expected_variety_per_domain
                 .saturating_sub(*variety);
             if deficit > 0 {
-                _total_variety_deficit += deficit;
+                total_variety_deficit += deficit;
                 if deficit > self.config.thresholds.variety_deficit {
                     warn!(
                         target: "curator.metacognition",
@@ -230,6 +230,27 @@ impl MetacognitionLoop {
                     );
                 }
             }
+        }
+
+        if total_variety_deficit > self.config.thresholds.variety_deficit {
+            let template_id = hkask_types::TemplateID::new();
+            let bot_id = BotID::new();
+            let error_context = format!(
+                "Total variety deficit ({}) exceeds threshold ({})",
+                total_variety_deficit, self.config.thresholds.variety_deficit
+            );
+
+            let queue = self.escalation_queue.lock().await;
+            queue
+                .add(
+                    template_id,
+                    bot_id,
+                    format!("Variety deficit: {}", total_variety_deficit),
+                    0.6,
+                    0,
+                    error_context,
+                )
+                .map_err(|e| MetacognitionError::Escalation(e.to_string()))?;
         }
 
         // Check critical alerts

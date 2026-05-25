@@ -5,6 +5,7 @@
 
 use async_trait::async_trait;
 use hkask_types::{CapabilityToken, WebID};
+use std::sync::Arc;
 
 use crate::acp::{A2AMessage, AcpError};
 
@@ -36,4 +37,7 @@ pub trait AcpPort: Send + Sync {
 
     /// Get all capability tokens for a registered agent
     async fn get_capabilities(&self, webid: &WebID) -> Vec<CapabilityToken>;
+
+    /// Wire a CNS emitter for ACP observability spans
+    fn set_cns_emitter(&self, emitter: Arc<dyn hkask_cns::CnsEmit + Send + Sync>);
 }

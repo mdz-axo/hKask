@@ -295,7 +295,7 @@ pub struct AcpRuntime {
     /// Revoked capability token IDs
     revoked_tokens: Arc<RwLock<std::collections::HashSet<String>>>,
     /// CNS emitter for observability (optional)
-    cns_emitter: Option<Arc<dyn hkask_cns::CnsEmit + Send + Sync>>,
+    cns_emitter: std::sync::RwLock<Option<Arc<dyn hkask_cns::CnsEmit + Send + Sync>>>,
 }
 
 impl AcpRuntime {
@@ -336,7 +336,7 @@ impl AcpRuntime {
             audit_log,
             root_authority,
             revoked_tokens: Arc::new(RwLock::new(std::collections::HashSet::new())),
-            cns_emitter: None,
+            cns_emitter: std::sync::RwLock::new(None),
         })
     }
 
@@ -365,13 +365,13 @@ impl AcpRuntime {
             audit_log: Arc::new(AuditLog::new()),
             root_authority,
             revoked_tokens: Arc::new(RwLock::new(std::collections::HashSet::new())),
-            cns_emitter: None,
+            cns_emitter: std::sync::RwLock::new(None),
         }
     }
 
     /// Set CNS emitter for observability
-    pub fn with_cns_emitter(mut self, emitter: Arc<dyn hkask_cns::CnsEmit + Send + Sync>) -> Self {
-        self.cns_emitter = Some(emitter);
+    pub fn with_cns_emitter(self, emitter: Arc<dyn hkask_cns::CnsEmit + Send + Sync>) -> Self {
+        *self.cns_emitter.write().unwrap() = Some(emitter);
         self
     }
 
@@ -444,7 +444,7 @@ impl AcpRuntime {
         );
 
         // Emit CNS span for capability minting
-        if let Some(ref cns) = self.cns_emitter {
+        if let Some(ref cns) = *self.cns_emitter.read().unwrap() {
             cns.emit_event(
                 "cns.cap.minted",
                 "minted",
@@ -609,7 +609,7 @@ impl AcpRuntime {
         };
 
         // Emit CNS span for capability verification
-        if let Some(ref cns) = self.cns_emitter {
+        if let Some(ref cns) = *self.cns_emitter.read().unwrap() {
             let span_name = if valid {
                 "cns.cap.verified_ok"
             } else {
@@ -637,7 +637,7 @@ impl AcpRuntime {
         revoked.insert(token_id.to_string());
 
         // Emit CNS span for capability revocation
-        if let Some(ref cns) = self.cns_emitter {
+        if let Some(ref cns) = *self.cns_emitter.read().unwrap() {
             cns.emit_event(
                 "cns.cap.revoked",
                 "revoked",
@@ -694,7 +694,7 @@ impl AcpRuntime {
             })?;
 
         // Emit CNS span for capability attenuation
-        if let Some(ref cns) = self.cns_emitter {
+        if let Some(ref cns) = *self.cns_emitter.read().unwrap() {
             cns.emit_event(
                 "cns.cap.attenuated",
                 "attenuated",
@@ -1089,6 +1089,11 @@ impl crate::ports::AcpPort for AcpRuntime {
 
     async fn get_capabilities(&self, webid: &WebID) -> Vec<CapabilityToken> {
         AcpRuntime::get_capabilities(self, webid).await
+    }
+
+    fn set_cns_emitter(&self, emitter: Arc<dyn hkask_cns::CnsEmit + Send + Sync>) {
+        let mut cns = self.cns_emitter.write().unwrap();
+        *cns = Some(emitter);
     }
 }
 

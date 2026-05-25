@@ -21,6 +21,8 @@ pub enum StandingSessionError {
     YamlParse(#[from] serde_yaml::Error),
     #[error("Bootstrap error: {0}")]
     Bootstrap(String),
+    #[error("Storage error: {0}")]
+    Storage(String),
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -141,7 +143,7 @@ impl StandingSession {
         self
     }
 
-    pub fn persist_session(&self, config_yaml: &str) -> Result<(), String> {
+    pub fn persist_session(&self, config_yaml: &str) -> Result<(), StandingSessionError> {
         if let Some(ref store) = self.store {
             let now = chrono::Utc::now().to_rfc3339();
             let record = SessionRecord {
@@ -152,12 +154,12 @@ impl StandingSession {
             };
             store
                 .save_session(&record)
-                .map_err(|e| format!("Failed to persist session: {}", e))?;
+                .map_err(|e| StandingSessionError::Storage(e.to_string()))?;
         }
         Ok(())
     }
 
-    pub fn persist_message(&self, message: &ChatMessage) -> Result<(), String> {
+    pub fn persist_message(&self, message: &ChatMessage) -> Result<(), StandingSessionError> {
         if let Some(ref store) = self.store {
             let record = MessageRecord {
                 id: 0,
@@ -169,19 +171,19 @@ impl StandingSession {
             };
             store
                 .save_message(&record)
-                .map_err(|e| format!("Failed to persist message: {}", e))?;
+                .map_err(|e| StandingSessionError::Storage(e.to_string()))?;
             store
                 .update_last_active(&self.session_id)
-                .map_err(|e| format!("Failed to update last_active: {}", e))?;
+                .map_err(|e| StandingSessionError::Storage(e.to_string()))?;
         }
         Ok(())
     }
 
-    pub fn load_messages_from_storage(&mut self) -> Result<(), String> {
+    pub fn load_messages_from_storage(&mut self) -> Result<(), StandingSessionError> {
         if let Some(ref store) = self.store {
             let messages = store
                 .get_messages(&self.session_id)
-                .map_err(|e| format!("Failed to load messages: {}", e))?;
+                .map_err(|e| StandingSessionError::Storage(e.to_string()))?;
 
             for stored in messages {
                 let webid = WebID::from_string(&stored.from_webid);
@@ -209,13 +211,17 @@ impl StandingSession {
             config.bootstrap.initial_message.content.clone(),
         );
         self.chat.add_message(initial_msg.clone());
-        let _ = self.persist_message(&initial_msg);
+        if let Err(e) = self.persist_message(&initial_msg) {
+            tracing::warn!(target: "standing_session", error = %e, "Failed to persist initial message");
+        }
 
         for report in &config.bootstrap.initial_reports {
             let webid = WebID::from_persona(report.from.as_bytes());
             let msg = ChatMessage::new(webid, report.content.clone());
             self.chat.add_message(msg.clone());
-            let _ = self.persist_message(&msg);
+            if let Err(e) = self.persist_message(&msg) {
+                tracing::warn!(target: "standing_session", error = %e, "Failed to persist report message");
+            }
         }
 
         info!(
@@ -293,19 +299,13 @@ pub fn bootstrap_standing_session_with_store(
     let mut session = StandingSession::from_config(config.clone()).with_store(store.clone());
 
     if session_exists {
-        // Load existing messages from storage
-        session
-            .load_messages_from_storage()
-            .map_err(StandingSessionError::Bootstrap)?;
+        session.load_messages_from_storage()?;
         info!(
             session_id = %session.session_id,
             "Restored standing session from storage"
         );
     } else {
-        // New session - persist and post initial messages
-        session
-            .persist_session(&config_yaml)
-            .map_err(StandingSessionError::Bootstrap)?;
+        session.persist_session(&config_yaml)?;
         session.post_initial_messages(&config);
         info!(
             session_id = %session.session_id,
