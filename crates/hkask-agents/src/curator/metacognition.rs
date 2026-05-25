@@ -9,7 +9,8 @@
 //! - Posts summaries to standing session
 
 use crate::curator::escalation::EscalationQueue;
-use hkask_cns::CnsRuntime;
+use crate::ports::CnsQueryPort;
+use hkask_storage::{MetacognitionStore, StoredSnapshot};
 use hkask_types::BotID;
 use std::sync::Arc;
 use std::time::Duration;
@@ -58,7 +59,7 @@ pub struct SystemHealthSnapshot {
 }
 
 /// Bot status report from standing session
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BotStatusReport {
     pub bot_name: String,
     pub status: BotHealthStatus,
@@ -66,7 +67,7 @@ pub struct BotStatusReport {
     pub issues: Vec<String>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum BotHealthStatus {
     Healthy,
     Degraded,
@@ -108,16 +109,18 @@ impl Default for MetacognitionConfig {
 
 /// Metacognition loop — Curator's system governance mechanism
 pub struct MetacognitionLoop {
-    cns: Arc<CnsRuntime>,
+    cns: Arc<dyn CnsQueryPort>,
     escalation_queue: tokio::sync::Mutex<Arc<EscalationQueue>>,
     config: MetacognitionConfig,
     bot_reports: Arc<RwLock<Vec<BotStatusReport>>>,
     running: Arc<RwLock<bool>>,
+    /// Persistent storage for snapshots (R6: Persist Metacognition State)
+    store: Option<Arc<MetacognitionStore>>,
 }
 
 impl MetacognitionLoop {
     pub fn new(
-        cns: Arc<CnsRuntime>,
+        cns: Arc<dyn CnsQueryPort>,
         escalation_queue: Arc<EscalationQueue>,
         config: MetacognitionConfig,
     ) -> Self {
@@ -127,7 +130,14 @@ impl MetacognitionLoop {
             config,
             bot_reports: Arc::new(RwLock::new(Vec::new())),
             running: Arc::new(RwLock::new(false)),
+            store: None,
         }
+    }
+
+    /// Set persistent storage for snapshots (R6: Persist Metacognition State)
+    pub fn with_store(mut self, store: Arc<MetacognitionStore>) -> Self {
+        self.store = Some(store);
+        self
     }
 
     /// Submit a bot status report
@@ -175,6 +185,28 @@ impl MetacognitionLoop {
 
         // Check escalation triggers
         self.check_escalation_triggers(&snapshot).await?;
+
+        // R6: Persist snapshot to storage
+        if let Some(ref store) = self.store {
+            let stored = StoredSnapshot {
+                id: 0,
+                timestamp: snapshot.timestamp.to_rfc3339(),
+                cns_health: snapshot.cns_health.clone(),
+                critical_alerts: snapshot.critical_alerts as i32,
+                total_alerts: snapshot.total_alerts as i32,
+                variety_counters_json: serde_json::to_string(&snapshot.variety_counters)
+                    .unwrap_or_else(|_| "{}".to_string()),
+                bot_reports_json: serde_json::to_string(&snapshot.bot_status_reports)
+                    .unwrap_or_else(|_| "[]".to_string()),
+            };
+            if let Err(e) = store.save_snapshot(&stored) {
+                warn!(
+                    target: "curator.metacognition",
+                    error = %e,
+                    "Failed to persist metacognition snapshot"
+                );
+            }
+        }
 
         info!(
             target: "curator.metacognition",

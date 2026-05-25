@@ -157,6 +157,8 @@ pub struct RegistryEntry {
     pub lexicon_terms: Vec<String>,
     pub description: String,
     pub source_path: String,
+    /// Required capabilities for this template (R4: Capability Intersection)
+    pub required_capabilities: Vec<String>,
 }
 
 /// Registry index port

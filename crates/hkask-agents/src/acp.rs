@@ -599,12 +599,15 @@ impl AcpRuntime {
         pending.remove(correlation_id)
     }
 
-    /// Verify capability token (HMAC signature + revocation check)
+    /// Verify capability token (HMAC signature + revocation check + expiry check)
     pub async fn verify_capability(&self, token: &CapabilityToken) -> bool {
-        let valid = token.verify(self.secret.as_ref()) && {
-            let revoked = self.revoked_tokens.read().await;
-            !revoked.contains(&token.id)
-        };
+        let current_time = chrono::Utc::now().timestamp();
+        let valid = token.verify(self.secret.as_ref()) 
+            && !token.is_expired(current_time)
+            && {
+                let revoked = self.revoked_tokens.read().await;
+                !revoked.contains(&token.id)
+            };
 
         // Emit CNS span for capability verification
         if let Some(ref cns) = self.cns_emitter {
@@ -620,6 +623,7 @@ impl AcpRuntime {
                     "token_id": token.id,
                     "holder": token.delegated_to.to_string(),
                     "resource": token.resource_id,
+                    "expired": token.is_expired(current_time),
                 }),
                 1.0,
             );

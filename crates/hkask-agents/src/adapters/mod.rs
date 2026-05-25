@@ -6,11 +6,13 @@
 //! - ACP transport (stdio, loopback HTTP)
 //! - MCP runtime (rmcp crate)
 //! - CNS emitter (hkask-cns crate)
+//! - CNS runtime (hkask-cns crate)
 //! - Git CAS (gix crate)
 //! - Keystore (hkask-keystore crate)
 //! - Memory storage (hkask-storage crate)
 
 pub mod cns_emitter;
+pub mod cns_runtime;
 pub mod git_cas;
 pub mod keychain_adapter;
 pub mod keystore_port;
@@ -21,6 +23,7 @@ pub mod russell_acp;
 pub mod stdio_transport;
 
 pub use cns_emitter::CnsEmitterAdapter;
+pub use cns_runtime::CnsRuntimeAdapter;
 pub use git_cas::{GitCasAdapter, MockGitCas};
 pub use keychain_adapter::KeychainAdapter;
 pub use keystore_port::{KeystorePort, Secret};

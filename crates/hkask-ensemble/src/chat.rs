@@ -44,6 +44,8 @@ pub struct ChatParticipant {
     pub webid: WebID,
     pub role: ParticipantRole,
     pub pod_id: Option<String>,
+    /// Capabilities granted to this participant (R4: Capability Intersection)
+    pub capabilities: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -64,6 +66,8 @@ pub struct EnsembleChat {
     messages: Vec<ChatMessage>,
     span_emitter: SpanEmitter,
     sovereignty_checker: SovereigntyChecker,
+    /// Template registry for capability lookup (R4: Capability Intersection)
+    template_registry: Option<Arc<dyn hkask_templates::RegistryIndex + Send + Sync>>,
 }
 
 impl EnsembleChat {
@@ -79,6 +83,7 @@ impl EnsembleChat {
                 webid: curator_webid,
                 role: ParticipantRole::Curator,
                 pod_id: None,
+                capabilities: vec![],
             },
         );
 
@@ -88,7 +93,17 @@ impl EnsembleChat {
             messages: Vec::new(),
             span_emitter,
             sovereignty_checker,
+            template_registry: None,
         }
+    }
+
+    /// Set template registry for capability intersection checks (R4)
+    pub fn with_template_registry(
+        mut self,
+        registry: Arc<dyn hkask_templates::RegistryIndex + Send + Sync>,
+    ) -> Self {
+        self.template_registry = Some(registry);
+        self
     }
 
     /// Register a bot participant in the chat
@@ -149,12 +164,46 @@ impl EnsembleChat {
         }
 
         // Check participant exists
-        if !self.participants.contains_key(bot_webid) {
-            self.span_emitter.emit_tool(
-                "chat_dispatch.outcome",
-                json!({"outcome": "participant_not_found"}),
-            );
-            return Err(EnsembleError::ParticipantNotFound(bot_webid.to_string()));
+        let participant = match self.participants.get(bot_webid) {
+            Some(p) => p,
+            None => {
+                self.span_emitter.emit_tool(
+                    "chat_dispatch.outcome",
+                    json!({"outcome": "participant_not_found"}),
+                );
+                return Err(EnsembleError::ParticipantNotFound(bot_webid.to_string()));
+            }
+        };
+
+        // R4: Capability Intersection — check if bot has required capabilities for template
+        if let Some(ref registry) = self.template_registry {
+            if let Ok(entry) = registry.get(template_id) {
+                let required_caps = &entry.required_capabilities;
+                if !required_caps.is_empty() {
+                    let bot_caps = &participant.capabilities;
+                    let intersection: Vec<_> = required_caps
+                        .iter()
+                        .filter(|cap| bot_caps.contains(cap))
+                        .collect();
+
+                    if intersection.is_empty() {
+                        self.span_emitter.emit_tool(
+                            "chat_dispatch.outcome",
+                            json!({
+                                "outcome": "capability_denied",
+                                "bot": bot_webid.to_string(),
+                                "template": template_id,
+                                "required": required_caps,
+                                "granted": bot_caps,
+                            }),
+                        );
+                        return Err(EnsembleError::CapabilityDenied(format!(
+                            "Bot {} lacks required capabilities {:?} for template {}",
+                            bot_webid, required_caps, template_id
+                        )));
+                    }
+                }
+            }
         }
 
         self.span_emitter.emit_tool(
@@ -235,6 +284,9 @@ pub enum EnsembleError {
 
     #[error("Chat session error: {0}")]
     ChatError(String),
+
+    #[error("Capability denied: {0}")]
+    CapabilityDenied(String),
 }
 
 /// Ensemble chat manager (handles multiple chat sessions)

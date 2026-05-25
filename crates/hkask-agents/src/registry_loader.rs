@@ -122,9 +122,9 @@ struct RawYamlAgent {
     #[serde(default)]
     capabilities: Vec<String>,
     #[serde(default)]
-    rights: Vec<HashMap<String, String>>,
+    rights: Vec<hkask_types::Right>,
     #[serde(default)]
-    responsibilities: Vec<HashMap<String, String>>,
+    responsibilities: Vec<hkask_types::Responsibility>,
     #[serde(default)]
     reporting: Option<YamlReporting>,
     #[serde(default)]

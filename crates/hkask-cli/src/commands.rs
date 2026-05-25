@@ -34,6 +34,7 @@ pub fn register_template(
         lexicon_terms,
         description,
         source_path,
+        required_capabilities: vec![],
     };
 
     registry.register(entry, None)
@@ -475,6 +476,7 @@ pub async fn ensemble_chat_register(
         webid: WebID::new(),
         role: participant_role,
         pod_id: None,
+        capabilities: vec![],
     });
 
     Ok(format!(
@@ -991,7 +993,7 @@ pub async fn curator_metacognition() -> Result<String, String> {
             .map_err(|e| format!("Escalation queue error: {}", e))?,
     );
 
-    let cns = Arc::new(CnsRuntime::new());
+    let cns = Arc::new(hkask_agents::adapters::CnsRuntimeAdapter::new(Arc::new(CnsRuntime::new())));
     let config = MetacognitionConfig::default();
     let loop_instance = MetacognitionLoop::new(cns, queue, config);
 

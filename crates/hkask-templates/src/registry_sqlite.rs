@@ -175,6 +175,7 @@ impl SqliteRegistry {
                 lexicon_terms,
                 description,
                 source_path,
+                required_capabilities: vec![],
             };
 
             self.templates.insert(id, entry);
@@ -233,6 +234,7 @@ impl SqliteRegistry {
                 lexicon_terms,
                 description,
                 source_path,
+                required_capabilities: vec![],
             });
         }
 

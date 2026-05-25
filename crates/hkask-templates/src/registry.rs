@@ -74,6 +74,7 @@ impl TemplateEntry {
             lexicon_terms: self.lexicon_terms.clone(),
             description: self.description.clone(),
             source_path: self.source_path.clone(),
+            required_capabilities: self.required_capabilities.clone(),
         }
     }
 }

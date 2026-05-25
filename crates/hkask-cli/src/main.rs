@@ -1436,6 +1436,7 @@ fn main() {
                                         lexicon_terms: vec!["russell-migrated".to_string()],
                                         description: asset.description.clone(),
                                         source_path: format!("russell-migrated:{}", asset.id),
+                                        required_capabilities: vec![],
                                     };
                                     if let Err(e) = registry.register(entry, None) {
                                         eprintln!(

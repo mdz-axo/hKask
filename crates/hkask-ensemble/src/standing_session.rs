@@ -4,10 +4,12 @@
 //! report status and the Curator orchestrates metacognition.
 
 use crate::chat::{ChatMessage, ChatParticipant, EnsembleChat, ParticipantRole};
+use hkask_storage::{StandingSessionStore, StoredMessage, StoredSession};
 use hkask_types::WebID;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::Path;
+use std::sync::Arc;
 use thiserror::Error;
 use tracing::info;
 
@@ -87,6 +89,8 @@ pub struct StandingSession {
     pub session_id: String,
     pub chat: EnsembleChat,
     pub participant_names: HashMap<WebID, String>,
+    /// Persistent storage for session state (R5: Persist Standing Session State)
+    store: Option<Arc<StandingSessionStore>>,
 }
 
 impl StandingSession {
@@ -112,6 +116,7 @@ impl StandingSession {
                 webid,
                 role,
                 pod_id: None,
+                capabilities: vec![],
             };
 
             chat.register_participant(participant);
@@ -128,7 +133,71 @@ impl StandingSession {
             session_id: config.session.id,
             chat,
             participant_names,
+            store: None,
         }
+    }
+
+    /// Set persistent storage for this session (R5: Persist Standing Session State)
+    pub fn with_store(mut self, store: Arc<StandingSessionStore>) -> Self {
+        self.store = Some(store);
+        self
+    }
+
+    /// Persist session state to storage
+    pub fn persist_session(&self, config_yaml: &str) -> Result<(), String> {
+        if let Some(ref store) = self.store {
+            let now = chrono::Utc::now().to_rfc3339();
+            let stored = StoredSession {
+                session_id: self.session_id.clone(),
+                config_yaml: config_yaml.to_string(),
+                created_at: now.clone(),
+                last_active: now,
+            };
+            store.save_session(&stored).map_err(|e| format!("Failed to persist session: {}", e))?;
+        }
+        Ok(())
+    }
+
+    /// Persist a message to storage
+    pub fn persist_message(&self, message: &ChatMessage) -> Result<(), String> {
+        if let Some(ref store) = self.store {
+            let stored = StoredMessage {
+                id: 0,
+                session_id: self.session_id.clone(),
+                from_webid: message.from.to_string(),
+                content: message.content.clone(),
+                timestamp: message.timestamp.to_rfc3339(),
+                template_id: message.template_id.clone(),
+            };
+            store.save_message(&stored).map_err(|e| format!("Failed to persist message: {}", e))?;
+            store.update_last_active(&self.session_id).map_err(|e| format!("Failed to update last_active: {}", e))?;
+        }
+        Ok(())
+    }
+
+    /// Load messages from storage into chat history
+    pub fn load_messages_from_storage(&mut self) -> Result<(), String> {
+        if let Some(ref store) = self.store {
+            let messages = store.get_messages(&self.session_id)
+                .map_err(|e| format!("Failed to load messages: {}", e))?;
+            
+            for stored in messages {
+                let webid = WebID::from_string(&stored.from_webid);
+                let mut msg = ChatMessage::new(webid, stored.content);
+                msg.timestamp = chrono::DateTime::parse_from_rfc3339(&stored.timestamp)
+                    .map(|dt| dt.with_timezone(&chrono::Utc))
+                    .unwrap_or_else(|_| chrono::Utc::now());
+                msg.template_id = stored.template_id;
+                self.chat.add_message(msg);
+            }
+            
+            info!(
+                session_id = %self.session_id,
+                messages = self.chat.get_history().len(),
+                "Messages loaded from storage"
+            );
+        }
+        Ok(())
     }
 
     pub fn post_initial_messages(&mut self, config: &StandingSessionConfig) {
@@ -137,12 +206,14 @@ impl StandingSession {
             curator_webid,
             config.bootstrap.initial_message.content.clone(),
         );
-        self.chat.add_message(initial_msg);
+        self.chat.add_message(initial_msg.clone());
+        let _ = self.persist_message(&initial_msg);
 
         for report in &config.bootstrap.initial_reports {
             let webid = WebID::from_persona(report.from.as_bytes());
             let msg = ChatMessage::new(webid, report.content.clone());
-            self.chat.add_message(msg);
+            self.chat.add_message(msg.clone());
+            let _ = self.persist_message(&msg);
         }
 
         info!(
@@ -204,6 +275,42 @@ pub fn bootstrap_standing_session(path: &Path) -> Result<StandingSession, Standi
     let config = load_standing_session_config(path)?;
     let mut session = StandingSession::from_config(config.clone());
     session.post_initial_messages(&config);
+    Ok(session)
+}
+
+/// Bootstrap standing session with persistent storage (R5: Persist Standing Session State)
+pub fn bootstrap_standing_session_with_store(
+    path: &Path,
+    store: Arc<StandingSessionStore>,
+) -> Result<StandingSession, StandingSessionError> {
+    let config = load_standing_session_config(path)?;
+    let config_yaml = std::fs::read_to_string(path)?;
+    
+    // Check if session already exists in storage
+    let session_exists = store.get_session(&config.session.id).is_ok();
+    
+    let mut session = StandingSession::from_config(config.clone())
+        .with_store(store.clone());
+    
+    if session_exists {
+        // Load existing messages from storage
+        session.load_messages_from_storage()
+            .map_err(|e| StandingSessionError::Bootstrap(e))?;
+        info!(
+            session_id = %session.session_id,
+            "Restored standing session from storage"
+        );
+    } else {
+        // New session - persist and post initial messages
+        session.persist_session(&config_yaml)
+            .map_err(|e| StandingSessionError::Bootstrap(e))?;
+        session.post_initial_messages(&config);
+        info!(
+            session_id = %session.session_id,
+            "Created new standing session with persistence"
+        );
+    }
+    
     Ok(session)
 }
 

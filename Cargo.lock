@@ -2115,6 +2115,7 @@ dependencies = [
  "hkask-agents",
  "hkask-cns",
  "hkask-keystore",
+ "hkask-storage",
  "hkask-templates",
  "hkask-types",
  "hmac",

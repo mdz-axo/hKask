@@ -7,6 +7,66 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+/// Access right granted to an agent (R9: Structured Data Modeling)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum Right {
+    Read { resource: String },
+    Write { resource: String },
+    Execute { action: String },
+    Coordinate { scope: String },
+    EscalateTo { target: String },
+}
+
+impl Right {
+    pub fn to_display_string(&self) -> String {
+        match self {
+            Right::Read { resource } => format!("read: {}", resource),
+            Right::Write { resource } => format!("write: {}", resource),
+            Right::Execute { action } => format!("execute: {}", action),
+            Right::Coordinate { scope } => format!("coordinate: {}", scope),
+            Right::EscalateTo { target } => format!("escalate_to: {}", target),
+        }
+    }
+}
+
+/// Responsibility assigned to an agent (R9: Structured Data Modeling)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum Responsibility {
+    Monitor { target: String },
+    Synthesize { input: String, output: String },
+    Perform { action: String },
+    Calibrate { target: String },
+    Escalate { trigger: String, target: String },
+    Maintain { resource: String },
+    Emit { span: String },
+    Orchestrate { session: String },
+    Record { target: String },
+    Produce { artifact: String },
+}
+
+impl Responsibility {
+    pub fn to_display_string(&self) -> String {
+        match self {
+            Responsibility::Monitor { target } => format!("monitor: {}", target),
+            Responsibility::Synthesize { input, output } => {
+                format!("synthesize: {} -> {}", input, output)
+            }
+            Responsibility::Perform { action } => format!("perform: {}", action),
+            Responsibility::Calibrate { target } => format!("calibrate: {}", target),
+            Responsibility::Escalate { trigger, target } => {
+                format!("escalate: {} -> {}", trigger, target)
+            }
+            Responsibility::Maintain { resource } => format!("maintain: {}", resource),
+            Responsibility::Emit { span } => format!("emit: {}", span),
+            Responsibility::Orchestrate { session } => format!("orchestrate: {}", session),
+            Responsibility::Record { target } => format!("record: {}", target),
+            Responsibility::Produce { artifact } => format!("produce: {}", artifact),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AgentKind {
     Bot,
@@ -122,9 +182,9 @@ pub struct AgentDefinition {
     pub charter: Option<Charter>,
     pub capabilities: Vec<String>,
     #[serde(default)]
-    pub rights: Vec<HashMap<String, String>>,
+    pub rights: Vec<Right>,
     #[serde(default)]
-    pub responsibilities: Vec<HashMap<String, String>>,
+    pub responsibilities: Vec<Responsibility>,
     #[serde(default)]
     pub reporting: Option<ReportingConfig>,
     #[serde(default)]
@@ -141,16 +201,13 @@ pub struct AgentDefinition {
 
 impl AgentDefinition {
     pub fn rights_flat(&self) -> Vec<String> {
-        self.rights
-            .iter()
-            .flat_map(|m| m.iter().map(|(k, v)| format!("{}: {}", k, v)))
-            .collect()
+        self.rights.iter().map(|r| r.to_display_string()).collect()
     }
 
     pub fn responsibilities_flat(&self) -> Vec<String> {
         self.responsibilities
             .iter()
-            .flat_map(|m| m.iter().map(|(k, v)| format!("{}: {}", k, v)))
+            .map(|r| r.to_display_string())
             .collect()
     }
 

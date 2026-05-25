@@ -8,9 +8,11 @@ pub mod embeddings;
 pub mod git_cas;
 pub mod goal_judge;
 pub mod goals;
+pub mod metacognition;
 pub mod nu_event_store;
 pub mod sovereignty;
 pub mod spec_store;
+pub mod standing_session;
 pub mod triples;
 
 pub use agent_registry::{AgentRegistryError, AgentRegistryStore};
@@ -23,10 +25,12 @@ pub use goal_judge::{GoalJudgeAdapter, GoalJudgeError, GoalVerifier};
 pub use goals::{
     GoalRepositoryError, GoalRepositoryPort, Result as GoalResult, SqliteGoalRepository,
 };
+pub use metacognition::{MetacognitionError, MetacognitionStore, StoredSnapshot};
 pub use nu_event_store::{NuEventError, NuEventStore};
 pub use sovereignty::{
     SovereigntyBoundaryEntry, SovereigntyBoundaryStore, SovereigntyStoreError,
     SovereigntyStoreStats,
 };
 pub use spec_store::{CnsSpecObserver, DefaultSpecCurator, SqliteSpecStore};
+pub use standing_session::{StandingSessionError, StandingSessionStore, StoredMessage, StoredSession};
 pub use triples::{Triple, TripleError, TripleStore};
