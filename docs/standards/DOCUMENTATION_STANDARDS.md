@@ -106,7 +106,7 @@ status: VERIFIED
 Git history is the project's Architecture Repository[^archrepo]. Retired
 documents are recoverable through `git log --all --diff-filter=D -- <path>`
 followed by `git show <sha>:<path>`. The `docs/archive/` directory is
-tracked in git for team reference and organized by date
+gitignored and kept on disk for personal reference, organized by date
 (`docs/archive/YYYY-MM-DD-<label>/`). Archived documents must not be
 linked from the active tree. No active-tree document may describe retired
 or removed subsystems — per [`AGENTS.md`](../../AGENTS.md) §2.4.
@@ -258,7 +258,7 @@ Naming conventions below align with POSIX portable filename rules[^posix-filenam
 | Document | UPPER_SNAKE_CASE for canonical specifications; `README.md` per directory |
 | ADR | `ADR-NNN-kebab-case-title.md`, three-digit zero-padded numbering |
 | Diagram id | `DIAG-<AREA>-<NNN>` — area is a 3–10 letter scope tag (`STD`, `VISION`, `APP`, `DATA`, etc.) |
-| Local archive snapshot | `docs/archive/YYYY-MM-DD-<label>/` — tracked in git for team reference |
+| Local archive snapshot | `docs/archive/YYYY-MM-DD-<label>/` — gitignored, kept on disk for personal reference |
 
 ## 8. Cross-references
 
