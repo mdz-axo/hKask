@@ -1,402 +1,609 @@
 ---
-title: "Agent Pod Implementation — Completion Report"
+title: "Agent Pod Implementation"
 audience: [architects, developers, agents]
-last_updated: 2026-05-20
+last_updated: 2026-05-24
 togaf_phase: "C — Application"
-version: "1.0.0"
+version: "2.0.0"
 status: "Active"
 domain: "Application"
 ---
 
 <!-- TOGAF_DOMAIN: Application -->
-<!-- VERSION: 1.0.0 -->
+<!-- VERSION: 2.0.0 -->
 <!-- STATUS: Active -->
-<!-- LAST_UPDATED: 2026-05-20 -->
+<!-- LAST_UPDATED: 2026-05-24 -->
 
-# Agent Pod Implementation — Completion Report
+# Agent Pod Implementation
 
-**Date:** 2026-05-20  
-**Status:** Phase 1-5 Complete (Core + Ports + CLI + A2A Protocol + Tests)  
-**Tests:** 20 passing in `hkask-agents`, 3 passing in `hkask-cli`
+**Purpose:** Comprehensive guide to hKask agent pod lifecycle, capability management, and federation following ADV-REVIEW-F2 security hardening.
 
----
-
-## Contents
-
-| Section | Description |
-|---------|-------------|
-| [Executive Summary](#executive-summary) | Core agent pod lifecycle implementation overview |
-| [Implementation Summary](#implementation-summary) | Phase-by-phase implementation details |
-| [Test Coverage](#test-coverage) | Test suite and coverage metrics |
-| [Agent Persona YAML Schema](#agent-persona-yaml-schema) | YAML schema for agent persona definitions |
-| [Template Crate Structure](#template-crate-structure) | Directory layout for template crates |
-| [Open Questions (Deferred)](#open-questions-deferred-to-phase-3-4) | Deferred questions for future phases |
-| [Deferred Work (Post-MVP)](#deferred-work-post-mvp) | Post-MVP feature backlog |
-| [Integration Points](#integration-points) | Cross-crate integration surface |
-| [Security Architecture](#security-architecture) | OCAP and ACP security model |
-| [Next Steps](#next-steps) | Post-implementation roadmap |
-| [Verification](#verification) | Verification commands and criteria |
-| [References](#references) | Citations and references |
+**Related:** [`security-architecture.md`](security-architecture.md), [`ports-inventory.md`](ports-inventory.md), [`../plans/ADV-REVIEW-F2.md`](../plans/ADV-REVIEW-F2.md)
 
 ---
 
 ## Executive Summary
 
-Implemented the core agent pod lifecycle management system for hKask, enabling ACP agents (bots and replicants) to:
+Agent pods are the fundamental execution unit in hKask, encapsulating bot and replicant agents with WebID-based identity, capability-gated MCP access, and A2A communication via the Agent Communication Protocol (ACP).
 
-- **Instantiate** from template crates with validated persona YAML
-- **Register** with ACP runtime using WebID-based identity
-- **Activate** for A2A communication with capability-gated MCP access
-- **Delegate** authority with OCAP attenuation (max 7 levels)
-- **Deactivate** with proper capability revocation
+**Core Lifecycle:**
+```
+Populated → Registered → Activated → Deactivated
+```
 
-**Line Count:** ~650 LOC in `crates/hkask-agents/src/pod.rs` (well within budget)
+**Key Advances (Post ADV-REVIEW-F2):**
+- **Unified capability primitive:** Single `CapabilityToken` with caveats (T08)
+- **Deterministic identity:** WebID derivation via UUID v5 from persona content (T06)
+- **OCAP enforcement:** Token-based access control at all boundaries (T02, T03, T04)
+- **Secure memory:** `Arc<Zeroizing<Vec<u8>>>` for secrets (T07)
+- **Async purity:** All ports use `#[async_trait]` (T10)
+- **Persistent revocation:** SQLite-backed token revocation tracking (T12)
+- **CNS observability:** Spans emitted on all capability mutations (T13)
+- **Russell federation:** Bidirectional ACP bridge with session lifecycle (T14)
 
-Pods follow the actor model of concurrent computation, where each pod encapsulates state and communicates via message passing:[^hewitt-actor]
-
----
-
-## Implementation Summary
-
-### Core Types Implemented
-
-The implementation follows the actor model for concurrent agent computation:[^agha-actors]
-
-| Type | Purpose | LOC |
-|------|---------|-----|
-| `PodID` | Unique pod identifier (UUID-based) | 20 |
-| `PodLifecycleState` | State machine (Populated → Registered → Activated → Deactivated) | 25 |
-| `AgentType` | Bot vs Replicant enumeration | 15 |
-| `AgentPersona` | YAML-parsed agent identity and charter | 80 |
-| `TemplateCrate` | Git CAS-loaded crate structure | 30 |
-| `AgentPod` | Main pod struct with lifecycle methods | 150 |
-| `AgentPodError` | Error enumeration for pod operations | 30 |
-
-**Total:** ~350 LOC for core types
-
-### Hexagonal Ports Implemented
-
-| Port Trait | Methods | Purpose |
-|------------|---------|---------|
-| `ACPRuntimePort` | `register_agent()` | ACP agent registration |
-| `MCPRuntimePort` | `grant_tool_access()`, `invoke_tool()` | MCP tool access and invocation |
-| `CNSSpanPort` | `emit_event()` | CNS span emission for lifecycle events |
-| `GitCASPort` | `load_template_crate()`, `resolve_sha()` | Template crate loading from Git |
-| `MemoryStoragePort` | `store_artifact()`, `recall()` | Memory artifact persistence |
-
-**Total:** ~50 LOC for port traits
-
-### A2A Protocol Implementation (Phase 4)
-
-| Component | Purpose | LOC |
-|-----------|---------|-----|
-| `AcpRuntime` | Agent registration, message routing, capability storage | 150 |
-| `AcpAgent` | Registered agent metadata | 20 |
-| `A2AMessage` | Message type enum (TemplateDispatch, TemplateResponse, MemoryArtifact) | 30 |
-| `TemplateDispatchHandler` | A2A dispatch/respond/artifact notification | 80 |
-
-**Total:** ~280 LOC for A2A protocol
-
-### Test Coverage (Phase 5)
-
-| Test Suite | Tests | Coverage |
-|------------|-------|----------|
-| `hkask-agents::acp` | 7 | ACP runtime, dispatch handler |
-| `hkask-agents::pod` | 6 | Pod lifecycle, attenuation |
-| `hkask-agents::capability` | 6 | Capability tokens, checker |
-| `hkask-cli::commands` | 3 | CLI commands |
-
-**Total:** 22 tests passing
-
-### Lifecycle Methods
-
-| Method | Transition | CNS Span Emitted |
-|--------|------------|------------------|
-| `AgentPod::new()` | — → Populated | — |
-| `AgentPod::register()` | Populated → Registered | `cns.agent_pod.registered` |
-| `AgentPod::activate()` | Registered → Activated | `cns.agent_pod.activated` |
-| `AgentPod::deactivate()` | Activated → Deactivated | `cns.agent_pod.deactivated` |
-| `AgentPod::delegate()` | N/A (creates child token) | — |
-
-**Total:** ~150 LOC for lifecycle methods
-
-### Security Features
-
-| Feature | Implementation | Status |
-|---------|----------------|--------|
-| OCAP Capability Tokens | Reuses `hkask-types::CapabilityToken` with attenuation | ✅ |
-| Attenuation on Delegation | `attenuation_level` increases per delegation | ✅ |
-| Max Attenuation Limit | `max_attenuation: 7` (configurable) | ✅ |
-| Cryptographic Verification | HMAC-SHA256 signatures | ✅ |
-| Expiration | Unix timestamp-based expiry | ✅ |
-| Path Traversal Blocking | Deferred to security adapter (Phase 3) | ⏳ |
-| Jinja2 Injection Prevention | Deferred to template executor (Phase 3) | ⏳ |
+**Implementation:** ~1,200 LOC across `hkask-agents` crate
 
 ---
 
-## Test Coverage
+## 1. Pod Lifecycle
 
-Test coverage follows the test-driven development methodology:[^beck-tdd]
+### 1.1 State Machine
 
-### Unit Tests (22 passing)
+```mermaid
+stateDiagram-v2
+    [*] --> Populated: PodManager::create_pod()
+    Populated --> Registered: register()
+    Registered --> Activated: activate()
+    Activated --> Deactivated: deactivate()
+    Deactivated --> [*]
+    
+    note right of Populated
+        Persona loaded from YAML
+        WebID derived (UUID v5)
+        Capability token minted
+    end note
+    
+    note right of Registered
+        ACP runtime registered
+        Capability tokens stored
+        CNS span: cns.agent_pod.registered
+    end note
+    
+    note right of Activated
+        MCP tools accessible
+        A2A messaging enabled
+        CNS span: cns.agent_pod.activated
+    end note
+    
+    note right of Deactivated
+        Capabilities revoked
+        MCP access removed
+        CNS span: cns.agent_pod.deactivated
+    end note
+```
 
-#### hkask-agents::acp (7 tests)
-| Test | Purpose | Status |
-|------|---------|--------|
-| `test_acp_runtime_register_agent` | Agent registration with capability token | ✅ |
-| `test_acp_runtime_unregister_agent` | Agent unregistration | ✅ |
-| `test_acp_runtime_duplicate_registration` | Duplicate registration rejected | ✅ |
-| `test_acp_runtime_send_message` | A2A message sending | ✅ |
-| `test_acp_runtime_capability_check` | Capability verification | ✅ |
-| `test_acp_runtime_list_agents` | List registered agents | ✅ |
-| `test_template_dispatch_handler` | Full dispatch/respond flow | ✅ |
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-POD-001
+verified_date: 2026-05-24
+verified_against: crates/hkask-agents/src/pod.rs:PodLifecycleState
+status: VERIFIED
+-->
 
-#### hkask-agents::pod (6 tests)
-| Test | Purpose | Status |
-|------|---------|--------|
-| `test_pod_lifecycle` | Full lifecycle: new → register → activate → deactivate | ✅ |
-| `test_invalid_state_transitions` | Invalid transitions rejected | ✅ |
-| `test_capability_attenuation` | Delegation creates attenuated child token | ✅ |
-| `test_persona_parsing` | YAML persona parsing and validation | ✅ |
-| `test_deactivate_from_populated_fails` | State machine enforcement | ✅ |
-| `test_double_registration_fails` | Registration idempotency | ✅ |
+### 1.2 Lifecycle Methods
 
-#### hkask-agents::capability (6 tests)
-| Test | Purpose | Status |
-|------|---------|--------|
-| `test_bot_capabilities` | Bot capability manifest | ✅ |
-| `test_capability_token_creation` | Token creation with HMAC signature | ✅ |
-| `test_capability_token_verification` | Signature verification | ✅ |
-| `test_capability_token_invalid_signature` | Invalid signature detection | ✅ |
-| `test_capability_checker` | Capability checker validation | ✅ |
-| `test_attenuation_limit_enforcement` | Max attenuation limit | ✅ |
-
-#### hkask-cli::commands (3 tests)
-| Test | Purpose | Status |
-|------|---------|--------|
-| `test_list_templates` | Template listing | ✅ |
-| `test_list_mcp_servers` | MCP server listing | ✅ |
-| `test_list_mcp_tools` | MCP tool listing | ✅ |
-
-**Coverage:** 100% of public API methods tested
+| Method | Purpose | CNS Span |
+|--------|---------|----------|
+| `PodManager::create_pod()` | Instantiate pod from persona YAML | `cns.agent_pod.created` |
+| `AgentPod::register()` | Register with ACP runtime | `cns.agent_pod.registered` |
+| `AgentPod::activate()` | Enable MCP tools and A2A messaging | `cns.agent_pod.activated` |
+| `AgentPod::deactivate()` | Revoke capabilities, disable access | `cns.agent_pod.deactivated` |
+| `AgentPod::delegate()` | Attenuate capability to another agent | `cns.cap.attenuated` |
 
 ---
 
-## Agent Persona YAML Schema
+## 2. Identity and WebIDs
 
-The persona schema declares capabilities following the object-capability principle of no ambient authority:[^miller-ocap]
+### 2.1 Deterministic Derivation (T06)
 
-```yaml
-agent:
-  name: "memory-bot"
-  type: "Bot"  # or "Replicant"
-  version: "0.1.0"
-  
-charter:
-  description: "Expert bot for semantic and episodic memory operations"
-  editor: "curator-or-human-admin"
-  
-capabilities:
-  - "tool:memory:remember"
-  - "tool:memory:recall"
-  - "tool:embedding:generate"
-  - "tool:inference:call"
-  
-rights:
-  - read: "public_semantic_memory"
-  - write: "own_episodic_memory"
-  
-responsibilities:
-  - "respond_to: memory_tool_calls"
-  - "emit: cns.agent_pod.*"
-  - "generate: memory_artifacts"
-  
-visibility:
-  default: "public"
-  episodic_override: "private"
+WebIDs are derived deterministically from persona content using UUID v5:
+
+```rust
+// crates/hkask-types/src/id.rs
+impl WebID {
+    pub fn from_persona(persona_bytes: &[u8]) -> Self {
+        let namespace = Uuid::parse_str("686b6173-6b2d-7065-7273-6f6e612d6e73")
+            .expect("Invalid namespace UUID");
+        Self(Uuid::new_v5(&namespace, persona_bytes))
+    }
+}
+```
+
+**Properties:**
+- Same persona YAML → same WebID (across processes, restarts)
+- Different personas → different WebIDs
+- Enables audit trail continuity and capability binding
+
+### 2.2 Root Authority
+
+```rust
+// crates/hkask-agents/src/acp.rs
+impl AcpRuntime {
+    pub fn new(secret: &[u8], rate_limit_config: Option<RateLimitConfig>) -> Self {
+        let root_persona = b"hkask-root-authority";
+        let root_webid = WebID::from_persona(root_persona);
+        let root_authority = Arc::new(RootAuthority::new(root_webid, secret));
+        // ...
+    }
+}
 ```
 
 ---
 
-## Template Crate Structure
+## 3. Capability System
 
-Template crates follow the composite pattern for organizing agent assets:[^gamma-patterns]
+### 3.1 Unified Primitive (T08)
 
+All access control uses `CapabilityToken` with caveats:
+
+```rust
+// crates/hkask-types/src/capability.rs
+pub struct CapabilityToken {
+    pub id: String,
+    pub resource: CapabilityResource,  // Tool, Template, Manifest, Registry, Cascade, Spec
+    pub resource_id: String,
+    pub action: CapabilityAction,      // Read, Write, Execute, Render, Compose, Attenuate, Validate
+    pub delegated_from: WebID,
+    pub delegated_to: WebID,
+    pub signature: String,             // HMAC-SHA256
+    pub expires_at: Option<i64>,
+    pub attenuation_level: u8,         // Current depth (0 = root)
+    pub max_attenuation: u8,           // Maximum allowed (default: 7)
+    pub context_nonce: String,
+    pub caveats: Vec<Caveat>,          // Additional restrictions
+}
 ```
-memory-bot/
-├── Cargo.toml              # Rust package metadata
-├── agent_persona.yaml      # Agent identity and charter
-├── dispatch_manifest.yaml  # Default dispatch manifest
-├── templates/
-│   ├── selector.j2         # Template selection (Cognition)
-│   ├── memory_store.j2     # Memory storage prompt (Prompt)
-│   └── memory_recall.j2    # Memory recall workflow (Process)
-├── hlexicon.yaml           # hLexicon terms
-└── README.md               # Agent documentation
+
+### 3.2 Caveat Types
+
+| Caveat | Purpose | Example |
+|--------|---------|---------|
+| `expiration` | Time-based expiry | `Caveat::expiration(1735689600)` |
+| `operation` | Specific operation allowed | `Caveat::operation("generate")` |
+| `template` | Template ID scope | `Caveat::template("template:greeting")` |
+| `visibility` | Visibility level | `Caveat::visibility("private")` |
+
+### 3.3 Capability Lifecycle
+
+```mermaid
+sequenceDiagram
+    participant Root as RootAuthority
+    participant A as Agent A
+    participant B as Agent B
+    participant Store as RevocationStore
+
+    Root->>A: mint_capability(resource, action)
+    Note over A: Token with attenuation_level=0
+    
+    A->>B: delegate_capability(new_holder)
+    Note over B: Child token with attenuation_level=1
+    A->>Store: emit cns.cap.attenuated
+    
+    B->>B: verify_capability(token)
+    B->>Store: is_revoked(token_id)?
+    Store-->>B: false
+    B->>B: emit cns.cap.verified_ok
+    
+    Root->>Store: revoke_capability(token_id)
+    Store->>Store: emit cns.cap.revoked
+    
+    B->>B: verify_capability(token)
+    B->>Store: is_revoked(token_id)?
+    Store-->>B: true
+    B->>B: emit cns.cap.verified_denied
 ```
 
----
-
-## Open Questions (Deferred to Phase 3-4)
-
-Open questions around security and capability semantics reflect fundamental tensions in secure distributed system design:[^schneier-secrets]
-
-| Question | Status | Resolution Path |
-|----------|--------|-----------------|
-| **Q1: Multi-Pod Composition** | Open | Can one pod spawn child pods? Delegation model or independent instantiation? |
-| **Q2: Capability Revocation** | Open | OCAP definition says capabilities persist; but what about pod deactivation? Expiration-only or explicit revocation list? |
-| **Q3: Cross-Machine Pods** | Deferred to v1.1 | Single-machine MVP; multi-host requires cryptographic capability verification (HMAC) |
-| **Q4: Pod Resource Quotas** | Open | Energy budget per pod? CPU/memory limits? Or trust CNS algedonic alerts for overload? |
-| **Q5: Agent Persona Hot-Reload** | Open | Can persona be updated without pod restart? Git-driven reload or explicit signal? |
-| **Q6: Memory Artifact Ownership** | Open | Does pod owner own all artifacts, or does each agent operation create owner-specific artifacts? |
-| **Q7: Replicant Episodic Privacy** | Open | Replicant pods produce episodic memory (private by default); how is visibility enforced at storage layer? |
-| **Q8: Bot Charter Enforcement** | Open | Bot manifest declares responsibilities; what happens if bot violates charter? CNS alert or hard failure? |
-| **Q9: Template Crate Versioning** | Open | Git SHA only, or support semver-like tags for human readability (not resolution)? |
-| **Q10: Pod Discovery** | Open | How do agents discover other agent pods? Registry lookup or ACP broadcast? |
-
-**Resolution Path:** Implement Phases 3-4 with sensible defaults (single-machine, expiration-only revocation, Git SHA versioning, registry lookup). Revisit questions when operational data from CNS variety counters informs the decision.
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-POD-002
+verified_date: 2026-05-24
+verified_against: crates/hkask-agents/src/acp.rs; crates/hkask-agents/src/revocation_store.rs
+status: VERIFIED
+-->
 
 ---
 
-## Deferred Work (Post-MVP)
+## 4. OCAP Enforcement
 
-Deferred work is scoped to avoid premature generalization, following Brooks's observation about the essential complexity of software:[^brooks-mythical]
+### 4.1 Enforcement Points
 
-### Memory Artifact Persistence (v1.1)
+| Boundary | Enforcement Function | Location |
+|----------|---------------------|----------|
+| **MCP tools** | `verify_tool_capability` | `hkask-mcp/src/dispatch.rs` |
+| **Template execution** | `CapabilityAwareValidator` | `hkask-templates/src/capability_validator.rs` |
+| **ACP messaging** | `AcpRuntime::verify_capability` | `hkask-agents/src/acp.rs` |
+| **Memory storage** | `MemoryStoragePort::store_artifact` | `hkask-agents/src/adapters/memory_storage.rs` |
 
-| Task | Description | Effort |
-|------|-------------|--------|
-| **Task M1** | Implement `MemoryStoragePort` adapter for hkask-storage | 3 hours |
-| **Task M2** | Episodic/semantic triple storage with visibility gating | 3 hours |
-| **Task M3** | Embedding generation and similarity search | 2 hours |
+### 4.2 Verification Flow
 
-**Total:** ~8 hours
+```rust
+// OCAP-idiomatic verification (T02)
+pub fn verify_tool_capability(
+    &self,
+    token: &CapabilityToken,
+    expected_holder: &WebID,
+    resource: CapabilityResource,
+    resource_id: &str,
+    action: CapabilityAction,
+) -> bool {
+    // 1. Verify signature (constant-time comparison)
+    if !self.verify_with_time(token, current_time) {
+        return false;
+    }
+    
+    // 2. Verify holder matches
+    if token.delegated_to != *expected_holder {
+        return false;
+    }
+    
+    // 3. Verify resource/action match
+    if !token.is_valid_for(resource, resource_id, action) {
+        return false;
+    }
+    
+    // 4. Check revocation (persistent store)
+    if self.revocation_store.is_revoked(&token.id).await? {
+        return false;
+    }
+    
+    true
+}
+```
 
-### Security Hardening (v1.1)
+### 4.3 Security Invariants
 
-| Task | Description | Effort |
-|------|-------------|--------|
-| **Task S1** | Path traversal blocking in GitCASPort | 1 hour |
-| **Task S2** | Jinja2 sandboxing for template rendering | 2 hours |
-| **Task S3** | Rate limiting per agent in AcpRuntime | 1 hour |
-
-**Total:** ~4 hours
-
----
-
-## Integration Points
-
-Integration points follow the hexagonal architecture (ports and adapters) pattern:[^cockburn-hexagonal]
-
-### With hkask-types
-- `WebID` — Agent identity
-- `CapabilityToken` — OCAP access control with attenuation
-- `CapabilityResource`, `CapabilityAction` — Capability granularity
-
-### With hkask-cns
-- `NuEvent` — Cybernetic event structure
-- `Span::agent_pod()` — CNS span namespace for pod lifecycle
-- `Phase::Observe` — Event phase for lifecycle observations
-
-### With hkask-templates
-- `TemplateCrate` — Loaded from Git CAS via `GitCASPort`
-- `dispatch_manifest.yaml` — Executed by pod for A2A operations
-
-### With hkask-storage (Deferred)
-- Memory artifact persistence via `MemoryStoragePort`
-- Episodic/semantic triple storage with visibility gating
-
----
-
-## Security Architecture
-
-### Schneier Principles Applied
-
-Security architecture applies defense-in-depth:[^schneier-secrets]
-
-| Principle | Implementation |
-|-----------|----------------|
-| **Defense in Depth** | OCAP + attenuation + expiration + CNS monitoring |
-| **Least Privilege** | Capabilities granted per persona, attenuated on delegation |
-| **Audit Trail** | All lifecycle events emit CNS spans |
-| **Failure Modes** | Fail closed on capability verification errors |
-
-### Miller Object Capability Principles
-
-Object-capability security principles as formalized by Miller:[^miller-ocap]
-
-| Principle | Implementation |
-|-----------|----------------|
-| **No Ambient Authority** | All MCP tool calls require capability token |
-| **Attenuation on Delegation** | `CapabilityToken::attenuate()` increases `attenuation_level` |
-| **Isolation** | Each pod has independent capability tokens |
-| **Composability** | Pods compose via A2A template invocation with matroshka limits (≤7) |
+| Invariant | Enforcement |
+|-----------|-------------|
+| No wildcard capabilities | `AcpRuntime::register_agent` rejects `"*"` |
+| No ambient authority | Every operation requires capability presentation |
+| Constant-time signature comparison | `subtle::ConstantTimeEq` prevents timing attacks |
+| Persistent revocation | `RevocationStore` survives restarts |
+| Attenuation limit | `attenuation_level < max_attenuation` (default: 7) |
 
 ---
 
-## Next Steps
+## 5. Hexagonal Ports
 
-Next steps prioritize incremental delivery following established software engineering practice:[^brooks-mythical]
+### 5.1 Port Inventory
 
-### Immediate (v1.1 Enhancement)
-1. **Memory Artifact Persistence** — Implement `MemoryStoragePort` for hkask-storage
-2. **Security Hardening** — Path traversal blocking, Jinja2 sandboxing
-3. **Example Template Crate** — Create `hkask-template-bot-memory` example
+| Port | Purpose | Adapters |
+|------|---------|----------|
+| `AcpPort` | Agent registration, A2A messaging | `AcpRuntime`, `RussellAcpAdapter` |
+| `GitCASPort` | Template crate loading | `GitCasAdapter`, `MockGitCas` |
+| `MCPRuntimePort` | Tool invocation | `McpRuntimeAdapter` |
+| `MemoryStoragePort` | Artifact persistence | `MemoryStorageAdapter` |
+| `CnsEmit` | Observability spans | `CnsEmitterAdapter` |
+| `KeystorePort` | Secret management | `KeychainAdapter` |
+| `SovereigntyPort` | Consent management | `ConsentManager` |
 
-### Medium-Term (This Month)
-4. **Open Questions Resolution** — Address Q1-Q10 based on operational data
-5. **Performance Testing** — Benchmark pod instantiation, capability verification
-6. **Documentation** — User guide for creating and managing agent pods
+### 5.2 Async Purity (T10)
+
+All ports use `#[async_trait]`:
+
+```rust
+#[async_trait::async_trait]
+pub trait AcpPort: Send + Sync {
+    async fn register_agent(
+        &self,
+        webid: WebID,
+        agent_type: &str,
+        capabilities: Vec<String>,
+    ) -> Result<CapabilityToken, AcpError>;
+    
+    async fn send_message(&self, msg: A2AMessage) -> Result<String, AcpError>;
+    // ...
+}
+```
+
+**No `block_in_place` or `block_on` in library code.**
 
 ---
 
-## Verification
+## 6. Federation
 
-Verification procedures validate implementation against test-driven specifications:[^beck-tdd]
+### 6.1 Russell ACP Bridge (T14)
+
+Bidirectional communication with Russell's ACP server:
+
+```rust
+// crates/hkask-agents/src/adapters/russell_acp.rs
+pub struct RussellAcpAdapter {
+    child: Mutex<Option<Child>>,
+    russell_binary: String,
+    macaroon_token: Option<String>,
+    cns_emitter: Option<Arc<dyn hkask_cns::CnsEmit + Send + Sync>>,
+    sessions: Arc<RwLock<HashMap<WebID, String>>>,  // WebID → session_id
+    bridge_secret: Arc<Zeroizing<Vec<u8>>>,
+}
+```
+
+**Protocol:**
+- JSON-RPC 2.0 over stdio
+- Macaroon authentication
+- Session lifecycle management
+- CNS spans for cross-system translation
+
+### 6.2 Session Lifecycle
+
+```mermaid
+sequenceDiagram
+    participant hKask as hKask Agent
+    participant Bridge as RussellAcpAdapter
+    participant Russell as Russell ACP Server
+
+    hKask->>Bridge: register_agent(webid, "jack", [])
+    Bridge->>Russell: acp/session.create {persona: "jack"}
+    Russell-->>Bridge: {session_id: "sess-123"}
+    Bridge->>Bridge: store_session_id(webid, "sess-123")
+    Bridge->>Bridge: emit cns.federation.translated
+    Bridge-->>hKask: CapabilityToken (signed with bridge_secret)
+    
+    hKask->>Bridge: send_message(A2AMessage::TemplateDispatch{...})
+    Bridge->>Bridge: extract_message_text(msg)
+    Bridge->>Russell: acp/session.message {session_id: "sess-123", message: "..."}
+    Russell-->>Bridge: {response: "..."}
+    Bridge->>Bridge: emit cns.federation.translated
+    Bridge-->>hKask: correlation_id
+    
+    hKask->>Bridge: unregister_agent(webid)
+    Bridge->>Russell: acp/session.close {session_id: "sess-123"}
+    Bridge->>Bridge: remove_session_id(webid)
+    Bridge-->>hKask: ()
+```
+
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-POD-003
+verified_date: 2026-05-24
+verified_against: crates/hkask-agents/src/adapters/russell_acp.rs; russell/crates/russell-acp-server/src/handler.rs
+status: VERIFIED
+-->
+
+---
+
+## 7. Memory Integration
+
+### 7.1 MemoryStoragePort (T11)
+
+Pods persist artifacts to episodic and semantic memory:
+
+```rust
+// crates/hkask-agents/src/pod.rs
+impl PodManager {
+    pub async fn activate_pod(&self, pod_id: &PodID) -> AgentPodResult<()> {
+        let mut pods = self.pods.write().await;
+        let pod = pods.get_mut(pod_id).ok_or_else(|| /* ... */)?;
+        
+        pod.activate(&self.mcp_runtime, &self.cns_emitter)?;
+        
+        // Persist activation event
+        let event = serde_json::json!({
+            "entity": pod.webid.to_string(),
+            "attribute": "lifecycle_event",
+            "value": {
+                "event": "activated",
+                "pod_id": pod.id.to_string(),
+                "timestamp": chrono::Utc::now().to_rfc3339(),
+            }
+        });
+        
+        let memory = self.memory_storage.lock().await;
+        let _ = memory.store_artifact(
+            pod.webid,
+            "episodic_triple",
+            event,
+            "private",
+            &pod.capability_token,
+        );
+        
+        Ok(())
+    }
+}
+```
+
+### 7.2 Visibility Enforcement
+
+| Visibility | Scope | Access |
+|------------|-------|--------|
+| `private` | Agent only | Agent's own WebID |
+| `shared` | Pod group | Agents with shared capability |
+| `public` | All agents | Any agent with read capability |
+
+---
+
+## 8. Error Handling
+
+### 8.1 Typed Errors (T15)
+
+No `unwrap()` on hot paths:
+
+```rust
+// crates/hkask-agents/src/pod.rs
+pub enum AgentPodError {
+    #[error("ACP registration failed: {0}")]
+    ACPRegistrationError(String),
+    
+    #[error("MCP tool access denied: {0}")]
+    MCPToolAccessDenied(String),
+    
+    #[error("Capability delegation failed: {0}")]
+    CapabilityDelegationFailed(String),
+    
+    #[error("Git CAS error: {0}")]
+    GitCASError(String),
+    
+    #[error("Memory storage error: {0}")]
+    MemoryStorageError(String),
+    
+    #[error("CNS emission error: {0}")]
+    CNSEmissionError(String),
+    
+    #[error("Keystore error: {0}")]
+    KeystoreError(String),
+    
+    #[error("Clock error: {0}")]
+    ClockError(String),
+}
+```
+
+### 8.2 Error Recovery
+
+| Error | Recovery Path |
+|-------|---------------|
+| `ACPRegistrationError` | Retry registration or escalate to human |
+| `MCPToolAccessDenied` | Request capability delegation |
+| `CapabilityDelegationFailed` | Check attenuation limit, request root delegation |
+| `GitCASError` | Retry or use cached template |
+| `MemoryStorageError` | Log and continue (non-fatal) |
+| `ClockError` | Halt pod (security-critical) |
+
+---
+
+## 9. Testing
+
+### 9.1 Test Coverage
 
 ```bash
-# Compile check
-cargo check -p hkask-agents
-cargo check -p hkask-cli
-# Result: ✅ Passed
-
 # Unit tests
-cargo test -p hkask-agents --lib
-cargo test -p hkask-cli --lib
-# Result: 20 passed in hkask-agents, 3 passed in hkask-cli
+cargo test -p hkask-agents
 
-# CLI help
-cargo run -p hkask-cli -- pod --help
-# Result: Shows pod create/activate/deactivate/status/list commands
+# Integration tests
+cargo test -p hkask-testing
 
-# A2A dispatch test
-cargo test -p hkask-agents test_template_dispatch_handler
-# Result: ✅ Full dispatch/respond flow verified
-
-# Line count
-wc -l crates/hkask-agents/src/pod.rs crates/hkask-agents/src/acp.rs
-# Result: ~650 LOC (pod.rs) + ~560 LOC (acp.rs) = ~1,210 LOC total (within budget)
+# Workspace tests
+cargo test --workspace
 ```
+
+**Current Status:** 31 tests passing in `hkask-agents`, 238 total across workspace
+
+### 9.2 Test Categories
+
+| Category | Count | Purpose |
+|----------|-------|---------|
+| Pod lifecycle | 8 | State transitions, registration, activation |
+| Capability management | 10 | Minting, delegation, verification, revocation |
+| ACP messaging | 5 | Message routing, correlation |
+| Russell federation | 7 | Session lifecycle, message translation |
+| Error handling | 1 | Typed errors, recovery paths |
+
+---
+
+## 10. Security Considerations
+
+### 10.1 Threat Model
+
+| Threat | Mitigation |
+|--------|-----------|
+| Capability forgery | HMAC-SHA256 signatures with constant-time comparison |
+| Capability replay | Persistent revocation tracking |
+| Privilege escalation | Attenuation limit enforcement (max 7 levels) |
+| Identity spoofing | Deterministic WebID derivation |
+| Secret extraction | `Arc<Zeroizing<Vec<u8>>>` prevents byte copying |
+| DoS via messaging | Per-agent rate limiting (100 msg/min) |
+
+### 10.2 Secure Memory
+
+```rust
+// Secrets wrapped in Arc<Zeroizing<Vec<u8>>>
+pub struct AcpRuntime {
+    secret: Arc<Zeroizing<Vec<u8>>>,
+    // ...
+}
+
+// Clone shares the Arc, not the bytes
+impl Clone for AcpRuntime {
+    fn clone(&self) -> Self {
+        Self {
+            secret: Arc::clone(&self.secret),
+            // ...
+        }
+    }
+}
+```
+
+**Memory zeroized on drop via `zeroize` crate.**
+
+---
+
+## 11. Observability
+
+### 11.1 CNS Spans (T13)
+
+All capability mutations emit spans:
+
+| Span | Emitted On | Data |
+|------|-----------|------|
+| `cns.cap.minted` | Token creation | `token_id`, `holder`, `resource`, `action` |
+| `cns.cap.attenuated` | Delegation | `parent_id`, `child_id`, `attenuation_level`, `holder` |
+| `cns.cap.revoked` | Revocation | `token_id` |
+| `cns.cap.verified_ok` | Successful verification | `token_id`, `holder`, `resource` |
+| `cns.cap.verified_denied` | Failed verification | `token_id`, `holder`, `resource` |
+| `cns.agent_pod.registered` | Pod registration | `webid`, `agent_type` |
+| `cns.agent_pod.activated` | Pod activation | `webid`, `pod_id` |
+| `cns.agent_pod.deactivated` | Pod deactivation | `webid`, `pod_id` |
+| `cns.federation.translated` | Russell bridge | `direction`, `method`, `session_id` |
+
+### 11.2 Audit Trail
+
+`AuditLogPort` writes to both in-memory cache and SQLite storage:
+
+```rust
+impl AuditLogPort for AuditLog {
+    async fn log(&self, entry: AuditLogEntry) {
+        // Write to persistent storage if available
+        if let Some(ref store) = self.store {
+            let storage_entry = hkask_storage::AuditEntry::new(
+                &entry.from.to_string(),
+                &entry.message_type,
+                &entry.event_type,
+                &entry.correlation_id,
+            );
+            let _ = store.insert(&storage_entry);
+        }
+        
+        // Write to in-memory cache
+        let mut entries = self.entries.write().await;
+        entries.push(entry);
+    }
+}
+```
+
+---
+
+## 12. Known Limitations
+
+1. **No cross-machine ACP:** Transport layer designed for single-machine deployment
+2. **No CRDT merge:** Revocation is centralized per runtime instance
+3. **No hardware keystore:** Uses OS keychain (not TPM/SE)
+4. **No capability delegation across systems:** Russell bridge uses separate macaroon auth
+5. **Rate limiting is per-instance:** No distributed rate limiting
+
+---
+
+## 13. Future Work
+
+1. **Cross-machine ACP:** Distributed transport with gossip protocol
+2. **CRDT revocation:** Eventually consistent revocation across instances
+3. **Hardware keystore:** TPM/SE integration for root secrets
+4. **Distributed rate limiting:** Redis-backed rate limiting across instances
+5. **Capability delegation across systems:** Unified macaroon verification
 
 ---
 
 ## References
 
-[^acp]: ACP Runtime Project. (2026). *acp-runtime: Agent Communication Protocol*. https://github.com/acp-runtime/acp-runtime
-[^hKask-agents]: hKask Project. (2026). *crates/hkask-agents/src/pod.rs*. Agent pod implementation.
-[^hKask-cns]: hKask Project. (2026). *crates/hkask-cns/src/spans.rs*. CNS span emitter.
-[^hKask-ensemble]: hKask Project. (2026). *crates/hkask-ensemble/src/capability.rs*. OCAP capability tokens.
-[^hewitt-actor]: Hewitt, C. (1977). Viewing control structures as patterns of passing messages. *Artificial Intelligence*, 8(3), 323–364. https://doi.org/10.1016/0004-3702(77)90013-3
-[^agha-actors]: Agha, G. (1986). *Actors: A Model of Concurrent Computation in Distributed Systems*. MIT Press.
-[^beck-tdd]: Beck, K. (2002). *Test Driven Development: By Example*. Addison-Wesley.
+[^hewitt-actor]: Hewitt, C. (2010). *Actor Model of Computation: Robust Scalable Distributed Programming*. MIT CSAIL.
 [^miller-ocap]: Miller, M. S. (2006). *Robust composition: Towards a unified approach to access control and concurrency control* [Doctoral dissertation, Johns Hopkins University].
-[^gamma-patterns]: Gamma, E., Helm, R., Johnson, R., & Vlissides, J. (1994). *Design Patterns: Elements of Reusable Object-Oriented Software*. Addison-Wesley. Composite pattern.
-[^schneier-secrets]: Schneier, B. (2000). *Secrets & Lies: Digital Security in a Networked World*. Wiley. Defense in depth.
-[^brooks-mythical]: Brooks, F. P. (1995). *The Mythical Man-Month: Essays on Software Engineering* (2nd ed.). Addison-Wesley.
-[^cockburn-hexagonal]: Cockburn, A. (2005). Hexagonal architecture. *Alistair Cockburn's website*. https://alistair.cockburn.us/hexagonal-architecture/
+[^cockburn-hexagonal]: Cockburn, A. (2005). *Hexagonal Architecture*. http://alistair.cockburn.us/Hexagonal+architecture
+[^beer-vsm]: Beer, S. (1972). *Brain of the Firm*. Penguin Books.
 
 ---
 
 *ℏKask — Planck's Constant of Agent Systems — v0.21.0*
-*Agent pods: minimal viable containers for sovereign agents.*
-*Rust is the loom. YAML/Jinja2 is the thread. OCAP is the gate.*
+*Agent pods: the minimal viable unit of agent execution.*

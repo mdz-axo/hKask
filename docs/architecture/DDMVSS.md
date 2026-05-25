@@ -1,9 +1,9 @@
 ---
 title: "DDMVSS — Domain-Driven Minimum Viable Specification Set"
 audience: [architects, developers, agents]
-last_updated: 2026-05-23
+last_updated: 2026-05-24
 togaf_phase: "Preliminary + A"
-version: "0.2.0"
+version: "0.2.1"
 status: "Draft"
 domain: "Cross-cutting"
 ---
@@ -1149,6 +1149,41 @@ status: VERIFIED
 | Cultivate collection | `spec:*` | Write | `spec:curate` | No (Curator only) | `cns.spec.curate` |
 
 **POLA enforcement:** Every spec operation requires presenting a `CapabilityToken` with matching `(resource, resource_id, action)`. No ambient authority. The MVSDD tool itself holds only `spec:*` capabilities — it cannot access `tool:*` or `template:*` resources. Curation operations are attenuatable except `cultivate`, which requires CuratorId authority.
+
+### 7.3 Implementation Status (Post ADV-REVIEW-F2)
+
+The security hardening completed in ADV-REVIEW-F2 (T01-T22, 2026-05-24) implements the following DDMVSS categories:
+
+| Category | Implementation | Status | Evidence |
+|----------|---------------|--------|----------|
+| **Trust & Security** | Unified CapabilityToken with caveats, OCAP enforcement at all boundaries, secure memory (`Arc<Zeroizing<Vec<u8>>>`) | ✅ Complete | [`security-architecture.md`](security-architecture.md), [`ADR-022-comprehensive-security-hardening.md`](ADR-022-comprehensive-security-hardening.md) |
+| **Capability** | Single primitive (`CapabilityToken`), attenuation chains (max 7 levels), persistent revocation tracking | ✅ Complete | [`AGENT_POD_IMPLEMENTATION.md`](AGENT_POD_IMPLEMENTATION.md) §3 |
+| **Observability** | CNS spans on all capability mutations (`cns.cap.minted`, `cns.cap.attenuated`, `cns.cap.revoked`, `cns.cap.verified_ok`, `cns.cap.verified_denied`) | ✅ Complete | [`AGENT_POD_IMPLEMENTATION.md`](AGENT_POD_IMPLEMENTATION.md) §11 |
+| **Lifecycle** | Deterministic WebID derivation (UUID v5 from persona content), persistent revocation survives restarts | ✅ Complete | [`AGENT_POD_IMPLEMENTATION.md`](AGENT_POD_IMPLEMENTATION.md) §2 |
+| **Curation** | `AuditLogPort` dual-write (in-memory cache + SQLite storage), CNS span emission for audit trail | ⚠️ Partial | Curation decisions not yet gradient-evaluated (Merge/Revise/Defer/Discard) |
+| **Domain** | Bounded context: "Agentic AI tooling". ν-events: `cns.agent_pod.*`, `cns.cap.*`. Entities: `AgentPod`, `CapabilityToken`, `WebID` | ✅ Complete | [`hKask-architecture-master.md`](hKask-architecture-master.md) |
+| **Interface** | Hexagonal ports: `AcpPort`, `GitCASPort`, `MCPRuntimePort`, `MemoryStoragePort`, `CnsEmit`, `KeystorePort`, `SovereigntyPort`. All async (`#[async_trait]`) | ✅ Complete | [`ports-inventory.md`](ports-inventory.md) |
+| **Composition** | Russell ACP bridge with session lifecycle, bidirectional federation via JSON-RPC 2.0 over stdio | ✅ Complete | [`AGENT_POD_IMPLEMENTATION.md`](AGENT_POD_IMPLEMENTATION.md) §6 |
+| **Persistence** | `MemoryStoragePort` wired into pod lifecycle, episodic/semantic memory for lifecycle events | ✅ Complete | [`AGENT_POD_IMPLEMENTATION.md`](AGENT_POD_IMPLEMENTATION.md) §7 |
+
+**Gaps Identified:**
+
+1. **No `cns.spec.*` span namespace** for specification operations (capture, compose, validate, sign, curate)
+2. **No `Spec` resource** in `CapabilityResource` enum (currently: Tool, Template, Manifest, Registry, Cascade)
+3. **No `Validate` action** in `CapabilityAction` enum (currently: Read, Write, Execute, Render, Compose, Attenuate)
+4. **Spec templates not yet registered** in unified registry (`template_type: Specification`)
+5. **`hkask-mcp-spec` MCP server does not yet exist** (8 tools specified in §6.3, not implemented)
+6. **Curation decisions not gradient-evaluated** — current `AuditLogPort` is binary (log/don't log), not Merge/Revise/Defer/Discard
+
+**Next Steps:**
+
+- Implement `hkask-mcp-spec` MCP server (~500 LOC, see §6.4 LOC budget)
+- Add `Spec` resource and `Validate` action to `hkask-types/src/capability.rs`
+- Add `cns.spec.*` span namespace to `hkask-types/src/event.rs`
+- Register spec templates in unified registry
+- Implement gradient curation evaluation in `AuditLogPort`
+
+See [`security-architecture.md`](security-architecture.md) for implementation details and [`../plans/IMPLEMENTATION-PLAN-F2.md`](../plans/IMPLEMENTATION-PLAN-F2.md) for task-level breakdown.
 
 ---
 

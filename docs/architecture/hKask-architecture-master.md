@@ -17,7 +17,7 @@ domain: "Cross-cutting"
 
 **Purpose:** Sole authoritative specification for hKask v0.21.0 — the minimal viable unit of an agent platform.
 
-**Related:** [`PRINCIPLES.md`](PRINCIPLES.md), [`hKask-erd.md`](hKask-erd.md), [`business-architecture.md`](business-architecture.md), [`application-architecture.md`](application-architecture.md), [`data-architecture.md`](data-architecture.md), [`security-architecture.md`](security-architecture.md)
+**Related:** [`PRINCIPLES.md`](PRINCIPLES.md), [`hKask-erd.md`](hKask-erd.md), [`business-architecture.md`](business-architecture.md), [`application-architecture.md`](application-architecture.md), [`data-architecture.md`](data-architecture.md), [`security-architecture.md`](security-architecture.md), [`ADR-022-comprehensive-security-hardening.md`](ADR-022-comprehensive-security-hardening.md), [`AGENT_POD_IMPLEMENTATION.md`](AGENT_POD_IMPLEMENTATION.md)
 
 ---
 
@@ -28,7 +28,7 @@ domain: "Cross-cutting"
 **Crate prefix:** `hkask-`
 
 **Version:** v0.21.0 — MVP in progress  
-**Status:** Pre-alpha — Phase 7 complete (Ensemble & CNS), Phase 8 complete (UI/API)
+**Status:** Pre-alpha — Phase 7 complete (Ensemble & CNS), Phase 8 complete (UI/API), **ADV-REVIEW-F2 security hardening complete (T01-T22)**
 
 ---
 

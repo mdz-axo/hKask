@@ -326,6 +326,77 @@ Before a document is merged:
 
 ---
 
+## 11. DDMVSS Alignment
+
+All architecture documents MUST map to at least one of the 9 DDMVSS categories defined in [`../architecture/DDMVSS.md`](../architecture/DDMVSS.md) §3:
+
+1. **Domain** — Bounded context, ν-events, entities, hLexicon terms
+2. **Capability** — Verbs, OCAP tokens, attenuation policy
+3. **Interface** — MCP, CLI, API surfaces, equivalence matrix
+4. **Composition** — Registry, cascade rules, template types
+5. **Trust & Security** — Threat model, OCAP boundaries, keystore
+6. **Observability** — CNS spans, variety counters, algedonic alerts
+7. **Persistence** — Storage schema, memory pipelines, encryption
+8. **Lifecycle** — Bootstrap, evolution, deprecation
+9. **Curation** — Evaluation gradient, coherence metric, curator authority
+
+### 11.1 Metadata Extension
+
+Documents spanning multiple categories SHOULD list all applicable categories in the metadata header using the `ddmvss_categories` field:
+
+```yaml
+---
+title: "Security Architecture"
+audience: [architects, security engineers, developers]
+last_updated: 2026-05-24
+togaf_phase: "A"
+version: "1.0.0"
+status: "Active"
+domain: "Technology"
+ddmvss_categories: [trust, capability, observability]
+---
+```
+
+### 11.2 Verification
+
+The verification checklist (§10) is extended with DDMVSS alignment checks:
+
+- [ ] Document maps to ≥1 DDMVSS category
+- [ ] `ddmvss_categories` field present in metadata (if applicable)
+- [ ] Category-specific completeness criteria addressed (see [`DDMVSS.md`](../architecture/DDMVSS.md) §3.2)
+
+### 11.3 Category-Specific Requirements
+
+| Category | Required Content | Verification |
+|----------|-----------------|--------------|
+| **Domain** | Bounded context, ν-event types, entity definitions | hLexicon terms allocated |
+| **Capability** | Verb inventory, OCAP policy, attenuation rules | Capability grant table present |
+| **Interface** | Surface definitions, equivalence matrix | MCP ≡ CLI ≡ API verified |
+| **Composition** | Registry schema, cascade rules | Template types documented |
+| **Trust & Security** | Threat model, mitigations, keystore config | STRIDE-lite analysis complete |
+| **Observability** | CNS span registry, variety counters | All operations emit spans |
+| **Persistence** | Storage schema, encryption config | Bitemporal semantics documented |
+| **Lifecycle** | Bootstrap sequence, evolution rules | Deprecation policy specified |
+| **Curation** | Decision gradient, coherence metric | Curator authority bounded |
+
+### 11.4 Self-Application
+
+This documentation standard itself maps to DDMVSS categories:
+
+- **Domain:** Documentation corpus, metadata schema, lifecycle states
+- **Capability:** Publication gates, verification commands, citation requirements
+- **Interface:** Markdown format, Mermaid diagrams, relative links
+- **Composition:** Cross-references, ADR template, diagram registry
+- **Trust & Security:** Sourced-ideas mandate, citation density requirements
+- **Observability:** DIAGRAM_ALIGNMENT metadata, verification checklist
+- **Persistence:** Git history, archive directory, lifecycle states
+- **Lifecycle:** Draft → Active → Deprecated → Superseded → Removed
+- **Curation:** Writing Excellence protocol (Hopper, Lovelace, Schriver, Gentle tests)
+
+**Completeness:** 9/9 categories satisfied. This standard is DDMVSS-complete.
+
+---
+
 ## References
 
 [^togaflite]: The Open Group. (2022). *TOGAF Standard, 10th Edition*. <https://www.opengroup.org/togaf>. The governing enterprise architecture framework from which this documentation standard derives its structural taxonomy.
