@@ -22,6 +22,8 @@ pub struct TemplateEntry {
     pub source_path: String,
     pub cascade_level: u32,
     pub matroshka_limit: u32,
+    /// Required capabilities for this template (R4: Capability Intersection)
+    pub required_capabilities: Vec<String>,
 }
 
 impl TemplateEntry {
@@ -35,6 +37,7 @@ impl TemplateEntry {
             source_path: format!("registry/templates/{}.j2", id.replace('/', "_")),
             cascade_level: 0,
             matroshka_limit: 7,
+            required_capabilities: vec![],
         }
     }
 
@@ -55,6 +58,12 @@ impl TemplateEntry {
 
     pub fn with_matroshka_limit(mut self, limit: u32) -> Self {
         self.matroshka_limit = limit;
+        self
+    }
+
+    /// Set required capabilities for this template (R4: Capability Intersection)
+    pub fn with_required_capabilities(mut self, capabilities: Vec<&str>) -> Self {
+        self.required_capabilities = capabilities.into_iter().map(String::from).collect();
         self
     }
 
