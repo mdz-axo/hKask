@@ -3,7 +3,7 @@
 //! Concrete implementation of MCPRuntimePort using rmcp crate.
 
 use crate::error::McpError;
-use crate::pod::MCPRuntimePort;
+use crate::ports::MCPRuntimePort;
 use hkask_types::CapabilityToken;
 
 /// MCP Runtime Adapter — Concrete implementation for tool access

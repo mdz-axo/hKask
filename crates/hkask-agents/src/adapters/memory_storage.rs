@@ -3,7 +3,7 @@
 //! Concrete implementation of MemoryStoragePort using hkask-storage crate.
 
 use crate::error::MemoryError;
-use crate::pod::MemoryStoragePort;
+use crate::ports::MemoryStoragePort;
 use hkask_storage::{Database, Embedding, EmbeddingStore, Triple, TripleStore};
 use hkask_types::{CapabilityToken, TripleID, Visibility, WebID};
 use serde_json::Value;

@@ -35,7 +35,7 @@ else
 fi
 
 # Check 4: Core architecture docs have headers
-for doc in "PRINCIPLES.md" "hKask-erd.md" "business-architecture.md" "application-architecture.md" "data-architecture.md" "security-architecture.md"; do
+for doc in "PRINCIPLES.md" "DDMVSS.md" "domain-and-capability.md" "interface-and-composition.md" "magna-carta.md" "persistence-and-lifecycle.md" "trust-security-observability.md"; do
     file="$DOCS_DIR/architecture/$doc"
     if [[ -f "$file" ]]; then
         first_line=$(head -n 1 "$file")

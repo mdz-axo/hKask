@@ -69,6 +69,7 @@ use crate::adapters::cns_emitter::CnsEmitterAdapter;
 use crate::adapters::git_cas::GitCasAdapter;
 use crate::adapters::mcp_runtime::McpRuntimeAdapter;
 use crate::adapters::memory_storage::MemoryStorageAdapter;
+use crate::ports::{GitCASPort, MCPRuntimePort, MemoryStoragePort};
 use crate::security::{AgentPersonaInput, InputValidator, SecurityContext};
 use std::path::PathBuf;
 
@@ -622,103 +623,10 @@ fn generate_secure_ocap_secret() -> String {
     hex::encode(bytes)
 }
 
-// ============================================================================
-// Hexagonal Architecture Ports (Traits)
-// ============================================================================
-
-pub trait MCPRuntimePort {
-    /// Grant tool access to an agent
-    ///
-    /// # Arguments
-    /// * `token` — Capability token to authorize
-    ///
-    /// # Returns
-    /// * `Ok(())` — Access granted
-    /// * `Err(McpError)` — Access denied error
-    fn grant_tool_access(&self, token: CapabilityToken) -> Result<(), crate::error::McpError>;
-
-    /// Invoke a tool with capability authorization
-    ///
-    /// # Arguments
-    /// * `tool_name` — Name of the tool to invoke
-    /// * `input` — Tool input as JSON value
-    /// * `token` — Capability token authorizing the call
-    ///
-    /// # Returns
-    /// * `Ok(serde_json::Value)` — Tool result
-    /// * `Err(McpError)` — Invocation error
-    fn invoke_tool(
-        &self,
-        tool_name: &str,
-        input: serde_json::Value,
-        token: &CapabilityToken,
-    ) -> Result<serde_json::Value, crate::error::McpError>;
-}
-
-/// Git CAS Port — Template crate loading
-pub trait GitCASPort {
-    /// Load a template crate from Git CAS
-    ///
-    /// # Arguments
-    /// * `crate_name` — Name of the crate to load
-    ///
-    /// # Returns
-    /// * `Ok(TemplateCrate)` — Loaded crate structure
-    /// * `Err(GitError)` — Load error
-    fn load_template_crate(
-        &self,
-        crate_name: &str,
-    ) -> Result<TemplateCrate, crate::error::GitError>;
-
-    /// Resolve the current Git SHA for a crate
-    ///
-    /// # Arguments
-    /// * `crate_name` — Name of the crate
-    ///
-    /// # Returns
-    /// * `Ok(String)` — Git SHA (40 hex characters)
-    /// * `Err(GitError)` — Resolution error
-    fn resolve_sha(&self, crate_name: &str) -> Result<String, crate::error::GitError>;
-}
-
-/// Memory Storage Port — Artifact persistence
-pub trait MemoryStoragePort {
-    /// Store a memory artifact (triple or embedding)
-    ///
-    /// # Arguments
-    /// * `producer_webid` — WebID of the producing agent
-    /// * `artifact_type` — Type of artifact ("episodic_triple", "semantic_triple", "embedding")
-    /// * `content` — Artifact content as JSON
-    /// * `visibility` — Visibility setting ("private", "public", "shared")
-    /// * `token` — Capability token authorizing the write
-    ///
-    /// # Returns
-    /// * `Ok(String)` — Artifact ID
-    /// * `Err(MemoryError)` — Storage error
-    fn store_artifact(
-        &self,
-        producer_webid: WebID,
-        artifact_type: &str,
-        content: serde_json::Value,
-        visibility: &str,
-        token: &CapabilityToken,
-    ) -> Result<String, crate::error::MemoryError>;
-
-    /// Recall memory artifacts matching a query
-    ///
-    /// # Arguments
-    /// * `query` — Search query
-    /// * `token` — Capability token authorizing the read
-    ///
-    /// # Returns
-    /// * `Ok(Vec<serde_json::Value>)` — Matching artifacts
-    /// * `Err(MemoryError)` — Query error
-    fn recall(
-        &self,
-        query: &str,
-        token: &CapabilityToken,
-    ) -> Result<Vec<serde_json::Value>, crate::error::MemoryError>;
-}
+// Port traits are now defined in crate::ports — re-exported here for backward compatibility.
+// MCPRuntimePort → crate::ports::MCPRuntimePort
+// GitCASPort → crate::ports::GitCASPort
+// MemoryStoragePort → crate::ports::MemoryStoragePort
 
 /// Pod Manager — Manages collection of agent pods
 ///
@@ -732,11 +640,11 @@ pub trait MemoryStoragePort {
 pub struct PodManager {
     pods: Arc<RwLock<HashMap<PodID, AgentPod>>>,
     _keystore: Keychain,
-    git_cas: GitCasAdapter,
+    git_cas: Arc<dyn GitCASPort>,
     acp_runtime: Arc<dyn crate::ports::AcpPort + Send + Sync>,
-    cns_emitter: CnsEmitterAdapter,
-    mcp_runtime: McpRuntimeAdapter,
-    memory_storage: Arc<Mutex<MemoryStorageAdapter>>,
+    cns_emitter: Arc<dyn hkask_cns::CnsEmit + Send + Sync>,
+    mcp_runtime: Arc<dyn MCPRuntimePort>,
+    memory_storage: Arc<dyn MemoryStoragePort>,
     security_context: SecurityContext,
     inference_port: Option<Arc<dyn hkask_templates::InferencePort>>,
 }
@@ -754,13 +662,13 @@ pub struct PodStatus {
 }
 
 impl PodManager {
-    /// Create a new pod manager with real adapters
+    /// Create a new pod manager with trait-object adapters
     pub fn new(
-        git_cas: GitCasAdapter,
+        git_cas: Arc<dyn GitCASPort>,
         acp_runtime: Arc<dyn crate::ports::AcpPort + Send + Sync>,
-        cns_emitter: CnsEmitterAdapter,
-        mcp_runtime: McpRuntimeAdapter,
-        memory_storage: MemoryStorageAdapter,
+        cns_emitter: Arc<dyn hkask_cns::CnsEmit + Send + Sync>,
+        mcp_runtime: Arc<dyn MCPRuntimePort>,
+        memory_storage: Arc<dyn MemoryStoragePort>,
     ) -> Self {
         Self {
             pods: Arc::new(RwLock::new(HashMap::new())),
@@ -769,7 +677,7 @@ impl PodManager {
             acp_runtime,
             cns_emitter,
             mcp_runtime,
-            memory_storage: Arc::new(Mutex::new(memory_storage)),
+            memory_storage,
             security_context: SecurityContext::default(),
             inference_port: None,
         }
@@ -777,11 +685,11 @@ impl PodManager {
 
     /// Create a new pod manager with inference port
     pub fn with_inference(
-        git_cas: GitCasAdapter,
+        git_cas: Arc<dyn GitCASPort>,
         acp_runtime: Arc<dyn crate::ports::AcpPort + Send + Sync>,
-        cns_emitter: CnsEmitterAdapter,
-        mcp_runtime: McpRuntimeAdapter,
-        memory_storage: MemoryStorageAdapter,
+        cns_emitter: Arc<dyn hkask_cns::CnsEmit + Send + Sync>,
+        mcp_runtime: Arc<dyn MCPRuntimePort>,
+        memory_storage: Arc<dyn MemoryStoragePort>,
         inference_port: Arc<dyn hkask_templates::InferencePort>,
     ) -> Self {
         Self {
@@ -791,7 +699,7 @@ impl PodManager {
             acp_runtime,
             cns_emitter,
             mcp_runtime,
-            memory_storage: Arc::new(Mutex::new(memory_storage)),
+            memory_storage,
             security_context: SecurityContext::default(),
             inference_port: Some(inference_port),
         }
@@ -807,14 +715,14 @@ impl PodManager {
         Self {
             pods: Arc::new(RwLock::new(HashMap::new())),
             _keystore: Keychain::default(),
-            git_cas: GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-mock")),
+            git_cas: Arc::new(GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-mock"))),
             acp_runtime: Arc::new(crate::acp::AcpRuntime::default()),
-            cns_emitter: CnsEmitterAdapter::new(WebID::new()),
-            mcp_runtime: McpRuntimeAdapter::new(),
-            memory_storage: Arc::new(Mutex::new(
+            cns_emitter: Arc::new(CnsEmitterAdapter::new(WebID::new())),
+            mcp_runtime: Arc::new(McpRuntimeAdapter::new()),
+            memory_storage: Arc::new(
                 MemoryStorageAdapter::in_memory()
                     .expect("In-memory storage initialization should never fail"),
-            )),
+            ),
             security_context: SecurityContext::default(),
             inference_port: None,
         }
@@ -825,14 +733,14 @@ impl PodManager {
         Self {
             pods: Arc::new(RwLock::new(HashMap::new())),
             _keystore: Keychain::default(),
-            git_cas: GitCasAdapter::from_path(PathBuf::from("./registry/templates")),
+            git_cas: Arc::new(GitCasAdapter::from_path(PathBuf::from("./registry/templates"))),
             acp_runtime: Arc::new(crate::acp::AcpRuntime::default()),
-            cns_emitter: CnsEmitterAdapter::new(WebID::new()),
-            mcp_runtime: McpRuntimeAdapter::new(),
-            memory_storage: Arc::new(Mutex::new(
+            cns_emitter: Arc::new(CnsEmitterAdapter::new(WebID::new())),
+            mcp_runtime: Arc::new(McpRuntimeAdapter::new()),
+            memory_storage: Arc::new(
                 MemoryStorageAdapter::in_memory()
                     .expect("In-memory storage initialization should never fail"),
-            )),
+            ),
             security_context: SecurityContext::default(),
             inference_port: None,
         }
@@ -854,17 +762,16 @@ impl PodManager {
 ///     .build();
 /// ```
 pub struct PodManagerBuilder {
-    git_cas: Option<GitCasAdapter>,
+    git_cas: Option<Arc<dyn GitCASPort>>,
     acp_runtime: Option<Arc<dyn crate::ports::AcpPort + Send + Sync>>,
-    cns_emitter: Option<CnsEmitterAdapter>,
-    mcp_runtime: Option<McpRuntimeAdapter>,
-    memory_storage: Option<MemoryStorageAdapter>,
+    cns_emitter: Option<Arc<dyn hkask_cns::CnsEmit + Send + Sync>>,
+    mcp_runtime: Option<Arc<dyn MCPRuntimePort>>,
+    memory_storage: Option<Arc<dyn MemoryStoragePort>>,
     security_context: Option<SecurityContext>,
     inference_port: Option<Arc<dyn hkask_templates::InferencePort>>,
 }
 
 impl PodManagerBuilder {
-    /// Create new builder with default adapters
     pub fn new() -> Self {
         Self {
             git_cas: None,
@@ -877,56 +784,47 @@ impl PodManagerBuilder {
         }
     }
 
-    /// Set Git CAS adapter
-    pub fn git_cas(mut self, adapter: GitCasAdapter) -> Self {
+    pub fn git_cas(mut self, adapter: Arc<dyn GitCASPort>) -> Self {
         self.git_cas = Some(adapter);
         self
     }
 
-    /// Set Git CAS adapter from path
     pub fn git_cas_from_path<P: Into<PathBuf>>(self, path: P) -> Self {
-        self.git_cas(GitCasAdapter::from_path(path.into()))
+        self.git_cas(Arc::new(GitCasAdapter::from_path(path.into())))
     }
 
-    /// Set ACP runtime (accepts any AcpPort implementation)
     pub fn acp_runtime(mut self, adapter: Arc<dyn crate::ports::AcpPort + Send + Sync>) -> Self {
         self.acp_runtime = Some(adapter);
         self
     }
 
-    /// Set CNS emitter adapter
-    pub fn cns_emitter(mut self, adapter: CnsEmitterAdapter) -> Self {
+    pub fn cns_emitter(mut self, adapter: Arc<dyn hkask_cns::CnsEmit + Send + Sync>) -> Self {
         self.cns_emitter = Some(adapter);
         self
     }
 
-    /// Set MCP runtime adapter
-    pub fn mcp_runtime(mut self, adapter: McpRuntimeAdapter) -> Self {
+    pub fn mcp_runtime(mut self, adapter: Arc<dyn MCPRuntimePort>) -> Self {
         self.mcp_runtime = Some(adapter);
         self
     }
 
-    /// Set memory storage adapter
-    pub fn memory_storage(mut self, adapter: MemoryStorageAdapter) -> Self {
+    pub fn memory_storage(mut self, adapter: Arc<dyn MemoryStoragePort>) -> Self {
         self.memory_storage = Some(adapter);
         self
     }
 
-    /// Set inference port for LLM access
     pub fn inference_port(mut self, adapter: Arc<dyn hkask_templates::InferencePort>) -> Self {
         self.inference_port = Some(adapter);
         self
     }
 
-    /// Use in-memory storage (convenience method)
     pub fn with_in_memory_storage(self) -> Self {
-        self.memory_storage(
+        self.memory_storage(Arc::new(
             MemoryStorageAdapter::in_memory()
                 .expect("In-memory storage initialization should never fail"),
-        )
+        ))
     }
 
-    /// Use encrypted storage from path (convenience method)
     pub fn with_encrypted_storage<P: AsRef<std::path::Path>>(
         self,
         path: P,
@@ -936,43 +834,38 @@ impl PodManagerBuilder {
             .as_ref()
             .to_str()
             .expect("Storage path must be valid UTF-8");
-        self.memory_storage(
+        self.memory_storage(Arc::new(
             MemoryStorageAdapter::from_path(path_str, passphrase)
                 .expect("Encrypted storage initialization should succeed"),
-        )
+        ))
     }
 
-    /// Set security context
     pub fn security_context(mut self, context: SecurityContext) -> Self {
         self.security_context = Some(context);
         self
     }
 
-    /// Build the PodManager
-    ///
-    /// Missing adapters are created with defaults:
-    /// - Git CAS: `./registry/templates`
-    /// - ACP Runtime: `Arc::new(AcpRuntime::default())`
-    /// - CNS Emitter: `CnsEmitterAdapter::new(WebID::new())`
-    /// - MCP Runtime: `McpRuntimeAdapter::new()`
-    /// - Memory Storage: In-memory database
-    /// - Security Context: Default rate limiter and expiry enforcer
-    /// - Inference Port: None (must be set explicitly if needed)
     pub fn build(self) -> PodManager {
         let mut manager = PodManager::new(
             self.git_cas
-                .unwrap_or_else(|| GitCasAdapter::from_path(PathBuf::from("./registry/templates"))),
+                .unwrap_or_else(|| Arc::new(GitCasAdapter::from_path(PathBuf::from("./registry/templates")))),
             self.acp_runtime
                 .unwrap_or_else(|| Arc::new(crate::acp::AcpRuntime::default())),
             self.cns_emitter
-                .unwrap_or_else(|| CnsEmitterAdapter::new(WebID::new())),
-            self.mcp_runtime.unwrap_or_default(),
+                .unwrap_or_else(|| Arc::new(CnsEmitterAdapter::new(WebID::new()))),
+            self.mcp_runtime
+                .unwrap_or_else(|| Arc::new(McpRuntimeAdapter::new())),
             self.memory_storage.unwrap_or_else(|| {
-                MemoryStorageAdapter::in_memory()
-                    .expect("In-memory storage initialization should never fail")
+                Arc::new(
+                    MemoryStorageAdapter::in_memory()
+                        .expect("In-memory storage initialization should never fail"),
+                )
             }),
         );
         manager.inference_port = self.inference_port;
+        if let Some(ctx) = self.security_context {
+            manager.security_context = ctx;
+        }
         manager
     }
 }
@@ -1100,7 +993,7 @@ impl PodManager {
             info!("Agent pod {} registered with ACP", pod.id);
         }
 
-        pod.activate(&self.mcp_runtime, &self.cns_emitter)?;
+        pod.activate(&self.mcp_runtime, self.cns_emitter.as_ref())?;
 
         // Persist activation event to memory storage
         let event = serde_json::json!({
@@ -1113,8 +1006,7 @@ impl PodManager {
             }
         });
 
-        let memory = self.memory_storage.lock().await;
-        let _ = memory.store_artifact(
+        let _ = self.memory_storage.store_artifact(
             pod.webid,
             "episodic_triple",
             event,
@@ -1138,7 +1030,7 @@ impl PodManager {
             .get_mut(pod_id)
             .ok_or_else(|| AgentPodError::ACPRegistrationError("Pod not found".to_string()))?;
 
-        pod.deactivate(&self.cns_emitter)?;
+        pod.deactivate(self.cns_emitter.as_ref())?;
 
         // Persist deactivation event to memory storage
         let event = serde_json::json!({
@@ -1151,8 +1043,7 @@ impl PodManager {
             }
         });
 
-        let memory = self.memory_storage.lock().await;
-        let _ = memory.store_artifact(
+        let _ = self.memory_storage.store_artifact(
             pod.webid,
             "episodic_triple",
             event,
@@ -1179,8 +1070,7 @@ impl PodManager {
             .get(pod_id)
             .ok_or_else(|| AgentPodError::ACPRegistrationError("Pod not found".to_string()))?;
 
-        let memory = self.memory_storage.lock().await;
-        let results = memory
+        let results = self.memory_storage
             .recall(&pod.webid.to_string(), &pod.capability_token)
             .map_err(|e| AgentPodError::StorageError(e.to_string()))?;
 

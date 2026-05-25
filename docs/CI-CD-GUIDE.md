@@ -77,7 +77,7 @@ The install script automatically detects and supports:
 ### System Requirements
 
 **Minimum:**
-- Rust 1.70+ (stable)
+- Rust 1.91 (pinned via rust-toolchain.toml, edition 2024)
 - 4GB RAM
 - 2GB disk space
 - GCC/Clang
@@ -226,6 +226,7 @@ cargo fmt
 **Jobs:**
 - **Generate Documentation** — `cargo doc --workspace`
 - **Deploy to GitHub Pages** — Auto-deploy from main branch
+- **Documentation Health** — Runs docs-health, link, and metadata checks
 - **Link Check** — Validates markdown links
 - **Documentation Coverage** — Checks API documentation completeness
 
@@ -237,13 +238,13 @@ cargo fmt
 
 ```toml
 [toolchain]
-channel = "stable"
+channel = "1.91"
 components = ["rustfmt", "clippy", "rust-src"]
 targets = []
 profile = "default"
 ```
 
-**Purpose:** Ensures consistent Rust version across all developers and CI.
+**Purpose:** Pins the Rust toolchain to 1.91 for edition 2024 compatibility across all developers and CI.
 
 ### `.cargo/config.toml`
 
@@ -264,9 +265,9 @@ debug = true
 split-debuginfo = "unpacked"
 panic = "unwind"
 
-# Target-specific optimizations
-[target.x86_64-unknown-linux-gnu]
-rustflags = ["-C", "target-cpu=native"]
+# Cross-compilation target
+[target.aarch64-unknown-linux-gnu]
+linker = "aarch64-linux-gnu-gcc"
 ```
 
 **Purpose:** Optimizes build performance and binary size.

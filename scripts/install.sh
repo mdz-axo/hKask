@@ -190,7 +190,7 @@ install_rust() {
         local rust_version=$(rustc --version)
         log "Rust already installed: $rust_version"
         
-        # Check if version is acceptable (1.70+)
+        # Check if version is acceptable (1.85+ for edition 2024)
         local rust_minor=$(rustc --version | grep -oP '\d+\.\d+' | head -1 | cut -d. -f2)
         if [ "$rust_minor" -lt 85 ]; then
             log_warning "Rust version too old for edition 2024 (requires 1.85+). Consider updating with 'rustup update'"

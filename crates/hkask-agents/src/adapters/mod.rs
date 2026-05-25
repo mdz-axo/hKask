@@ -11,6 +11,7 @@
 //! - Keystore (hkask-keystore crate)
 //! - Memory storage (hkask-storage crate)
 
+pub mod agent_registry;
 pub mod cns_emitter;
 pub mod cns_runtime;
 pub mod git_cas;
@@ -22,6 +23,7 @@ pub mod memory_storage;
 pub mod russell_acp;
 pub mod stdio_transport;
 
+pub use agent_registry::AgentRegistryAdapter;
 pub use cns_emitter::CnsEmitterAdapter;
 pub use cns_runtime::CnsRuntimeAdapter;
 pub use git_cas::{GitCasAdapter, MockGitCas};
