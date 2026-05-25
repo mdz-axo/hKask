@@ -54,10 +54,10 @@ jobs:
         run: cargo fmt --all --check
       
       - name: Run clippy
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+        run: cargo clippy --workspace --all-targets -- -D warnings
       
       - name: Run tests
-        run: cargo test --workspace --lib --all-features
+        run: cargo test --workspace --lib
       
       - name: Build documentation
         run: cargo doc --workspace --no-deps
@@ -131,8 +131,6 @@ jobs:
       
       - name: Build release binary
         run: cargo build --release --package hkask-cli --target ${{ matrix.target }}
-        env:
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
       

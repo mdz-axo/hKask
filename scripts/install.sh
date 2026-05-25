@@ -484,8 +484,8 @@ main() {
             echo "  2. Run hKask:"
             echo "     kask --help"
             echo ""
-            echo "  3. Initialize a new project:"
-            echo "     kask init"
+            echo "  3. Start interactive chat:"
+            echo "     kask chat --interactive"
             echo ""
             ;;
         uninstall)

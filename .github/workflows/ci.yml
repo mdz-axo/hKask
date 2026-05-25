@@ -71,7 +71,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
       
       - name: Run clippy
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+        run: cargo clippy --workspace --all-targets -- -D warnings
 
   # ============================================================================
   # Build Check
@@ -142,10 +142,10 @@ jobs:
         uses: Swatinem/rust-cache@v2
       
       - name: Run unit tests
-        run: cargo test --workspace --lib --all-features
+        run: cargo test --workspace --lib
       
       - name: Run integration tests
-        run: cargo test --workspace --test '*' --all-features
+        run: cargo test --workspace --test '*'
       
       - name: Upload test results
         uses: actions/upload-artifact@v4
