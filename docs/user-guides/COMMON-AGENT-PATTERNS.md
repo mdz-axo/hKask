@@ -2,7 +2,6 @@
 title: "Common Agent Patterns and Templates"
 audience: [developers, agent designers]
 last_updated: 2026-05-24
-togaf_phase: "G"
 version: "0.21.0"
 status: "Active"
 domain: "Application"

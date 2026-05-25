@@ -2,15 +2,10 @@
 title: "Writing Excellence Protocol"
 audience: [contributors, developers, agents]
 last_updated: 2026-05-13
-togaf_phase: "Preliminary"
 version: "0.3.0"
 status: "Active"
 ---
 
-<!-- TOGAF_DOMAIN: Cross-cutting -->
-<!-- VERSION: 0.3.0 -->
-<!-- STATUS: Active -->
-<!-- LAST_UPDATED: 2026-05-13 -->
 
 # Writing Excellence Protocol
 

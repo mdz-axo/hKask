@@ -2,7 +2,6 @@
 title: "Template Header Standard — hLexicon Functional Roles"
 audience: [developers, template authors]
 last_updated: 2026-05-24
-togaf_phase: "C — Application"
 version: "0.21.0"
 status: "Active"
 domain: "Application"

@@ -2,16 +2,11 @@
 title: "utoipa Implementation — API and CLI Documentation"
 audience: [API developers, CLI operators, integration engineers]
 last_updated: 2026-05-20
-togaf_phase: "C — Application"
 version: "1.0.0"
 status: "Active"
 domain: "Application"
 ---
 
-<!-- TOGAF_DOMAIN: Application -->
-<!-- VERSION: 1.0.0 -->
-<!-- STATUS: Active -->
-<!-- LAST_UPDATED: 2026-05-20 -->
 
 # utoipa Implementation — API and CLI Documentation
 

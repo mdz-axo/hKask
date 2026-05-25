@@ -2,7 +2,6 @@
 title: "hKask Subsystem Entity Relationship Diagrams"
 audience: [data architects, developers, agents]
 last_updated: 2026-05-24
-togaf_phase: "C — Data"
 version: "1.0.0"
 status: "Active"
 domain: "Data"
@@ -12,7 +11,7 @@ domain: "Data"
 
 **Purpose:** Mermaid ERDs for all 11 core crates, grounded in actual Rust source types. Supplements [`hKask-erd.md`](hKask-erd.md) (conceptual model) and [`registry-erd.md`](registry-erd.md) (high-temp tables).
 
-**Related:** [`hKask-erd.md`](hKask-erd.md), [`application-architecture.md`](application-architecture.md), [`data-architecture.md`](data-architecture.md)
+**Related:** [`hKask-erd.md`](hKask-erd.md), [`../interface-and-composition.md`](../interface-and-composition.md), [`../persistence-and-lifecycle.md`](../persistence-and-lifecycle.md)
 
 ---
 

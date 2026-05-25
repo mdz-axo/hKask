@@ -2,16 +2,11 @@
 title: "hKask Entity Relationship Diagram"
 audience: [data architects, database developers, agents]
 last_updated: 2026-05-24
-togaf_phase: "C — Data"
 version: "0.21.0"
 status: "Active"
 domain: "Data"
 ---
 
-<!-- TOGAF_DOMAIN: Data -->
-<!-- VERSION: 0.21.0 -->
-<!-- STATUS: Active -->
-<!-- LAST_UPDATED: 2026-05-22 -->
 
 # hKask Entity Relationship Diagram
 

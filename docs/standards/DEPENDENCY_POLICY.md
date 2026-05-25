@@ -2,22 +2,17 @@
 title: "hKask Dependency Policy"
 audience: [developers, maintainers, agents]
 last_updated: 2026-05-22
-togaf_phase: "Preliminary"
 version: "1.0.0"
 status: "Active"
 domain: "Cross-cutting"
 ---
 
-<!-- TOGAF_DOMAIN: Cross-cutting -->
-<!-- VERSION: 1.0.0 -->
-<!-- STATUS: Active -->
-<!-- LAST_UPDATED: 2026-05-22 -->
 
 # hKask Dependency Policy
 
 **Purpose:** Ensure hKask runs on the most recent stable versions of Rust and dependencies while maintaining build stability.
 
-**Related:** [`DOCUMENTATION_STANDARDS.md`](DOCUMENTATION_STANDARDS.md), [`GOVERNANCE.md`](GOVERNANCE.md)
+**Related:** [`DOCUMENTATION_STANDARDS.md`](DOCUMENTATION_STANDARDS.md)
 
 ---
 

@@ -2,16 +2,11 @@
 title: "hKask Architecture Principles"
 audience: [architects, developers, agents]
 last_updated: 2026-05-24
-togaf_phase: "Preliminary"
 version: "1.0.0"
 status: "Active"
 domain: "Cross-cutting"
 ---
 
-<!-- TOGAF_DOMAIN: Cross-cutting -->
-<!-- VERSION: 1.0.0 -->
-<!-- STATUS: Active -->
-<!-- LAST_UPDATED: 2026-05-20 -->
 
 # hKask Architecture Principles
 

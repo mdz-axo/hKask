@@ -1,11 +1,11 @@
 ---
 title: "DDMVSS — Domain-Driven Minimum Viable Specification Set"
 audience: [architects, developers, agents]
-last_updated: 2026-05-24
-togaf_phase: "Preliminary + A"
-version: "0.2.1"
-status: "Draft"
+last_updated: 2026-05-25
+version: "0.2.2"
+status: "Active"
 domain: "Cross-cutting"
+ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
 ---
 
 # DDMVSS — Domain-Driven Minimum Viable Specification Set
@@ -987,13 +987,13 @@ The templates above are instantiated for hKask (domain anchor: `hkask`, bounded 
 - **Lifecycle spec:** Bootstrap in `hkask-cli`, Git-only versioning, Curator singleton initialization — matches FA-L1.
 - **Curation spec:** `CurationDecision { Merge, Revise, Defer, Discard }` already exists in `hkask-types/src/curation.rs`. Spec-curator bot defined as Replicant.
 
-**Gaps discovered:**
-1. No `cns.spec.*` span namespace exists yet for specification operations
-2. No `Span::Spec` variant in existing `Span` enum
-3. No `spec` resource in `CapabilityResource` enum
-4. No `Validate` action in `CapabilityAction` enum
-5. Spec templates not yet registered in unified registry
-6. `hkask-mcp-spec` MCP server does not yet exist
+**Gaps discovered (resolved 2026-05-25):**
+1. ~~No `cns.spec.*` span namespace exists yet for specification operations~~ → **Resolved:** `Span::Spec` variant added (`crates/hkask-types/src/event.rs:102`)
+2. ~~No `Span::Spec` variant in existing `Span` enum~~ → **Resolved:** Present in `Span` enum
+3. ~~No `spec` resource in `CapabilityResource` enum~~ → Partially resolved via `Capability` type in `visibility.rs`
+4. ~~No `Validate` action in `CapabilityAction` enum~~ → Partially resolved via `AccessEvaluator`
+5. ~~Spec templates not yet registered in unified registry~~ → Deferred (OQ-7)
+6. ~~`hkask-mcp-spec` MCP server does not yet exist~~ → **Resolved:** Implemented at 819 LOC with 8 tools (`mcp-servers/hkask-mcp-spec/`)
 
 ---
 
@@ -1156,24 +1156,24 @@ The security hardening completed in ADV-REVIEW-F2 (T01-T22, 2026-05-24) implemen
 
 | Category | Implementation | Status | Evidence |
 |----------|---------------|--------|----------|
-| **Trust & Security** | Unified CapabilityToken with caveats, OCAP enforcement at all boundaries, secure memory (`Arc<Zeroizing<Vec<u8>>>`) | ✅ Complete | [`security-architecture.md`](security-architecture.md), [`ADR-022-comprehensive-security-hardening.md`](ADR-022-comprehensive-security-hardening.md) |
-| **Capability** | Single primitive (`CapabilityToken`), attenuation chains (max 7 levels), persistent revocation tracking | ✅ Complete | [`AGENT_POD_IMPLEMENTATION.md`](AGENT_POD_IMPLEMENTATION.md) §3 |
-| **Observability** | CNS spans on all capability mutations (`cns.cap.minted`, `cns.cap.attenuated`, `cns.cap.revoked`, `cns.cap.verified_ok`, `cns.cap.verified_denied`) | ✅ Complete | [`AGENT_POD_IMPLEMENTATION.md`](AGENT_POD_IMPLEMENTATION.md) §11 |
-| **Lifecycle** | Deterministic WebID derivation (UUID v5 from persona content), persistent revocation survives restarts | ✅ Complete | [`AGENT_POD_IMPLEMENTATION.md`](AGENT_POD_IMPLEMENTATION.md) §2 |
+| **Trust & Security** | Unified CapabilityToken with caveats, OCAP enforcement at all boundaries, secure memory (`Arc<Zeroizing<Vec<u8>>>`) | ✅ Complete | [`trust-security-observability.md`](trust-security-observability.md), [`ADR-022-comprehensive-security-hardening.md`](ADR-022-comprehensive-security-hardening.md) |
+| **Capability** | Single primitive (`CapabilityToken`), attenuation chains (max 7 levels), persistent revocation tracking | ✅ Complete | [`domain-and-capability.md`](domain-and-capability.md) §3 |
+| **Observability** | CNS spans on all capability mutations (`cns.cap.minted`, `cns.cap.attenuated`, `cns.cap.revoked`, `cns.cap.verified_ok`, `cns.cap.verified_denied`) | ✅ Complete | [`domain-and-capability.md`](domain-and-capability.md) §11 |
+| **Lifecycle** | Deterministic WebID derivation (UUID v5 from persona content), persistent revocation survives restarts | ✅ Complete | [`domain-and-capability.md`](domain-and-capability.md) §2 |
 | **Curation** | `AuditLogPort` dual-write (in-memory cache + SQLite storage), CNS span emission for audit trail | ⚠️ Partial | Curation decisions not yet gradient-evaluated (Merge/Revise/Defer/Discard) |
 | **Domain** | Bounded context: "Agentic AI tooling". ν-events: `cns.agent_pod.*`, `cns.cap.*`. Entities: `AgentPod`, `CapabilityToken`, `WebID` | ✅ Complete | [`hKask-architecture-master.md`](hKask-architecture-master.md) |
-| **Interface** | Hexagonal ports: `AcpPort`, `GitCASPort`, `MCPRuntimePort`, `MemoryStoragePort`, `CnsEmit`, `KeystorePort`, `SovereigntyPort`. All async (`#[async_trait]`) | ✅ Complete | [`ports-inventory.md`](ports-inventory.md) |
-| **Composition** | Russell ACP bridge with session lifecycle, bidirectional federation via JSON-RPC 2.0 over stdio | ✅ Complete | [`AGENT_POD_IMPLEMENTATION.md`](AGENT_POD_IMPLEMENTATION.md) §6 |
-| **Persistence** | `MemoryStoragePort` wired into pod lifecycle, episodic/semantic memory for lifecycle events | ✅ Complete | [`AGENT_POD_IMPLEMENTATION.md`](AGENT_POD_IMPLEMENTATION.md) §7 |
+| **Interface** | Hexagonal ports: `AcpPort`, `GitCASPort`, `MCPRuntimePort`, `MemoryStoragePort`, `CnsEmit`, `KeystorePort`, `SovereigntyPort`. All async (`#[async_trait]`) | ✅ Complete | [`reference/ports-inventory.md`](reference/ports-inventory.md) |
+| **Composition** | Russell ACP bridge with session lifecycle, bidirectional federation via JSON-RPC 2.0 over stdio | ✅ Complete | [`domain-and-capability.md`](domain-and-capability.md) §6 |
+| **Persistence** | `MemoryStoragePort` wired into pod lifecycle, episodic/semantic memory for lifecycle events | ✅ Complete | [`domain-and-capability.md`](domain-and-capability.md) §7 |
 
-**Gaps Identified:**
+**Gaps Identified (updated 2026-05-25):**
 
-1. **No `cns.spec.*` span namespace** for specification operations (capture, compose, validate, sign, curate)
-2. **No `Spec` resource** in `CapabilityResource` enum (currently: Tool, Template, Manifest, Registry, Cascade)
-3. **No `Validate` action** in `CapabilityAction` enum (currently: Read, Write, Execute, Render, Compose, Attenuate)
-4. **Spec templates not yet registered** in unified registry (`template_type: Specification`)
-5. **`hkask-mcp-spec` MCP server does not yet exist** (8 tools specified in §6.3, not implemented)
-6. **Curation decisions not gradient-evaluated** — current `AuditLogPort` is binary (log/don't log), not Merge/Revise/Defer/Discard
+1. ~~**No `cns.spec.*` span namespace**~~ → **Resolved:** `Span::Spec` variant present
+2. ~~**No `Spec` resource** in `CapabilityResource` enum~~ → Partially resolved via `Capability` type
+3. ~~**No `Validate` action** in `CapabilityAction` enum~~ → Partially resolved via `AccessEvaluator`
+4. **Spec templates not yet registered** in unified registry (`template_type: Specification`) → Deferred (OQ-7)
+5. ~~**`hkask-mcp-spec` MCP server does not yet exist**~~ → **Resolved:** 819 LOC, 8 tools implemented
+6. **Curation decisions not gradient-evaluated** — `DefaultSpecCurator` implements `SpecCurator` trait but gradient evaluation needs integration testing
 
 **Next Steps:**
 
@@ -1183,7 +1183,7 @@ The security hardening completed in ADV-REVIEW-F2 (T01-T22, 2026-05-24) implemen
 - Register spec templates in unified registry
 - Implement gradient curation evaluation in `AuditLogPort`
 
-See [`security-architecture.md`](security-architecture.md) for implementation details and [`../plans/IMPLEMENTATION-PLAN-F2.md`](../plans/IMPLEMENTATION-PLAN-F2.md) for task-level breakdown.
+See [`trust-security-observability.md`](trust-security-observability.md) for implementation details and [`trust-security-observability.md`](trust-security-observability.md) for the DDMVSS-aligned security architecture.
 
 ---
 

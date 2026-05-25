@@ -2,7 +2,6 @@
 title: "ADR Template"
 audience: [architects, developers]
 last_updated: 2026-05-24
-togaf_phase: "Preliminary"
 version: "1.0.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -23,7 +22,6 @@ domain: "Cross-cutting"
 title: "ADR-NNN: Title"
 audience: [architects, developers, <domain-specific roles>]
 last_updated: YYYY-MM-DD
-togaf_phase: "Preliminary | A | B | C — Data | C — Application | D | E | F | G | H"
 version: "MAJOR.MINOR.PATCH"
 status: "Draft | Active | Deprecated | Superseded"
 domain: "Cross-cutting | Business | Data | Application | Technology"

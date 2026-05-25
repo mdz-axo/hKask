@@ -2,7 +2,6 @@
 title: "GML Architecture (Aspirational)"
 audience: [architects, developers]
 last_updated: 2026-05-24
-togaf_phase: "C — Application"
 version: "0.1.0"
 status: "Draft"
 domain: "Application"

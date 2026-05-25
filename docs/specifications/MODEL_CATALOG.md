@@ -2,15 +2,10 @@
 title: "Model Catalog Governance"
 audience: [kask sysadmins, catalog maintainers]
 last_updated: 2026-05-09
-togaf_phase: "G - Implementation Governance"
 version: "0.3.0"
 status: "Active"
 ---
 
-<!-- TOGAF_DOMAIN: Cross-cutting -->
-<!-- VERSION: 0.2.0 -->
-<!-- STATUS: Active -->
-<!-- LAST_UPDATED: 2026-05-09 -->
 
 ## 1. Purpose
 

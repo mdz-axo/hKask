@@ -2,7 +2,6 @@
 title: "ADR-022: Comprehensive Security Hardening"
 audience: [architects, security engineers, developers]
 last_updated: 2026-05-24
-togaf_phase: "A"
 version: "1.0.0"
 status: "Active"
 domain: "Technology"
@@ -133,11 +132,11 @@ Implement all 22 remediation tasks to establish a zero-trust, capability-based s
 **Impact:** Monomorphization, better performance
 
 #### T21: Port Inventory
-**Solution:** Comprehensive `ports-inventory.md`  
+**Solution:** Comprehensive `reference/ports-inventory.md`  
 **Impact:** Clear hexagonal architecture mapping
 
 #### T22: Documentation Alignment
-**Solution:** Expanded `security-architecture.md`, `ports-inventory.md`  
+**Solution:** Expanded `trust-security-observability.md`, `reference/ports-inventory.md`  
 **Impact:** Documentation matches implementation
 
 ## Consequences
@@ -242,11 +241,12 @@ grep -r "block_in_place\|block_on" crates/hkask-agents/src/ crates/hkask-templat
 
 ## Related Documents
 
-- [`security-architecture.md`](security-architecture.md) — Comprehensive security model
-- [`ports-inventory.md`](ports-inventory.md) — Hexagonal port inventory
-- [`../plans/ADV-REVIEW-F2.md`](../plans/ADV-REVIEW-F2.md) — Adversarial review findings
-- [`../plans/IMPLEMENTATION-PLAN-F2.md`](../plans/IMPLEMENTATION-PLAN-F2.md) — Detailed implementation tasks
-- [`AGENT_POD_IMPLEMENTATION.md`](AGENT_POD_IMPLEMENTATION.md) — Agent pod lifecycle and capability management
+- [`trust-security-observability.md`](trust-security-observability.md) — Comprehensive security model
+- [`reference/ports-inventory.md`](reference/ports-inventory.md) — Hexagonal port inventory
+- [`trust-security-observability.md`](trust-security-observability.md) — Security architecture
+- [`trust-security-observability.md`](trust-security-observability.md) — DDMVSS-aligned security architecture
+- [`ADR-022-comprehensive-security-hardening.md`](ADR-022-comprehensive-security-hardening.md) — This document
+- [`domain-and-capability.md`](domain-and-capability.md) — Agent pod lifecycle and capability management
 
 ## References
 

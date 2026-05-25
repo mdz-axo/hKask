@@ -1,248 +1,120 @@
 ---
 title: "hKask Architecture Master"
 audience: [architects, developers, agents]
-last_updated: 2026-05-24
-togaf_phase: "All Phases"
-version: "0.21.0"
+last_updated: 2026-05-25
+version: "2.0.0"
 status: "Active"
 domain: "Cross-cutting"
+ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
 ---
-
-<!-- TOGAF_DOMAIN: Cross-cutting -->
-<!-- VERSION: 0.21.0 -->
-<!-- STATUS: Active -->
-<!-- LAST_UPDATED: 2026-05-23 -->
 
 # hKask Architecture Master
 
-**Purpose:** Sole authoritative specification for hKask v0.21.0 — the minimal viable unit of an agent platform.
+**Purpose:** Index to the four authoritative DDMVSS specification documents and supporting reference artifacts.
 
-**Related:** [`PRINCIPLES.md`](PRINCIPLES.md), [`hKask-erd.md`](hKask-erd.md), [`business-architecture.md`](business-architecture.md), [`application-architecture.md`](application-architecture.md), [`data-architecture.md`](data-architecture.md), [`security-architecture.md`](security-architecture.md), [`ADR-022-comprehensive-security-hardening.md`](ADR-022-comprehensive-security-hardening.md), [`AGENT_POD_IMPLEMENTATION.md`](AGENT_POD_IMPLEMENTATION.md)
-
----
-
-## Project Identity
-
-**Name:** hKask (pronounced *h-bar-kask*)  
+**Project:** hKask (ℏKask — "Planck's Constant of Agent Systems") v0.21.0  
 **Binary:** `kask`  
 **Crate prefix:** `hkask-`
 
-**Version:** v0.21.0 — MVP in progress  
-**Status:** Pre-alpha — Phase 7 complete (Ensemble & CNS), Phase 8 complete (UI/API), **ADV-REVIEW-F2 security hardening complete (T01-T22)**
+---
+
+## DDMVSS Specification Documents
+
+The architecture is specified in four DDMVSS-aligned documents, each authoritative for its category cluster:
+
+| Document | DDMVSS Categories | Scope |
+|----------|-------------------|-------|
+| [`domain-and-capability.md`](domain-and-capability.md) | Domain, Capability | Bounded context, entities, agent taxonomy, capability model, MCP tool surface, hLexicon |
+| [`interface-and-composition.md`](interface-and-composition.md) | Interface, Composition | MCP/CLI/API equivalence, hexagonal ports, unified registry, template cascade, rendering pipeline |
+| [`trust-security-observability.md`](trust-security-observability.md) | Trust, Observability | Zero-trust model, OCAP enforcement, encryption stack, CNS spans, algedonic alerts, threat model |
+| [`persistence-and-lifecycle.md`](persistence-and-lifecycle.md) | Persistence, Lifecycle | SQLite + SQLCipher, bitemporal triples, embeddings, bootstrap sequence, evolution rules |
 
 ---
 
-## Five Anchor Capabilities
+## Framework Documents
 
-| # | Anchor | Implementation |
-|---|--------|----------------|
-| 1 | **Agent Enablement** | Bots + Replicants in pods with WebID, ACP |
-| 2 | **Essential Tools** | 16 MCP servers + Okapi |
-| 3 | **User Sovereignty** | OCAP, SQLCipher, private/public gating [^miller-ocap] |
-| 4 | **CNS** | `cns.*` spans, variety counters, algedonic alerts [^beer-vsm][^ashby-law] |
-| 5 | **Composition** | **Unified registry** with template_type discriminator |
+| Document | Purpose |
+|----------|---------|
+| [`DDMVSS.md`](DDMVSS.md) | Domain-Driven Minimum Viable Specification Set — 9-category taxonomy and MVSDD methodology |
+| [`PRINCIPLES.md`](PRINCIPLES.md) | Architecture principles (P1-P7, C1-C7), five anchors, anti-patterns |
+| [`magna-carta.md`](magna-carta.md) | User sovereignty charter — catch-and-release, kill-zone detection |
 
 ---
 
-## Architecture Overview
+## Reference Artifacts
 
-```mermaid
-graph TB
-    subgraph Test[Test Crate]
-        testing[hkask-testing]
-    end
-    
-    types --> storage
-    storage --> memory
-    memory --> cns
-    cns --> templates
-    templates --> agents
-    agents --> ensemble
-    keystore --> agents
-    mcp --> agents
-    cli --> api
-    api --> agents
-    
-    MCP -.-> mcp
-    ```
+Detailed lookup tables and diagrams in `reference/`:
 
-<!-- DIAGRAM_ALIGNMENT
-id: DIAG-MASTER-001
-verified_date: 2026-05-24
-verified_against: Cargo.toml workspace definition
-status: VERIFIED
--->
+| Artifact | Purpose |
+|----------|---------|
+| [`reference/hKask-erd.md`](reference/hKask-erd.md) | Core entity relationship diagrams |
+| [`reference/registry-erd.md`](reference/registry-erd.md) | Registry schema diagrams |
+| [`reference/subsystem-erds.md`](reference/subsystem-erds.md) | Per-crate ERDs |
+| [`reference/hKask-hLexicon.md`](reference/hKask-hLexicon.md) | Full 89-term vocabulary catalog |
+| [`reference/ports-inventory.md`](reference/ports-inventory.md) | Hexagonal port trait signatures |
+| [`reference/utoipa-implementation.md`](reference/utoipa-implementation.md) | OpenAPI generation guide |
+| [`reference/template-header-standard.md`](reference/template-header-standard.md) | Template metadata format |
+| [`reference/hKask-Curator-persona.md`](reference/hKask-Curator-persona.md) | Curator persona specification |
+| [`reference/okapi-integration.md`](reference/okapi-integration.md) | Okapi LLM API contract |
+| [`reference/okapi-integration.md`](reference/okapi-integration.md) | Okapi LLM API contract |
 
 ---
 
-## Workspace Structure
+## Decision Records
 
-```
-hkask-workspace/
-├── hkask-types         # ID types, ν-event, hLexicon
-├── hkask-storage       # SQLite + SQLCipher + sqlite-vec
-├── hkask-memory        # Semantic/episodic pipelines
-├── hkask-cns           # Cybernetic Nervous System
-├── hkask-templates     # Registry, hLexicon, cascade
-├── hkask-agents        # Pods, ACP, bot/replicant
-├── hkask-ensemble      # Multi-agent chat (NO swarms)
-├── hkask-keystore      # OS keychain, AES-256-GCM
-├── hkask-mcp           # MCP runtime, dispatch
-├── hkask-cli           # CLI commands
-├── hkask-api           # HTTP API, utoipa
-│
-├── hkask-mcp-inference     # Okapi-backed LLM
-├── hkask-mcp-condenser     # Condensation, summarization
-├── hkask-mcp-web           # Web search, scrape
-├── hkask-mcp-scholar       # Academic research
-├── hkask-mcp-ocap          # Capability management
-├── hkask-mcp-keystore      # Keystore operations
-├── hkask-mcp-cns           # CNS operations
-├── hkask-mcp-git           # Git CAS
-├── hkask-mcp-registry      # Registry operations
-├── hkask-mcp-gml           # GML allosteric engine
-├── hkask-mcp-spec          # DDMVSS spec capture
-├── hkask-mcp-github        # GitHub integration
-├── hkask-mcp-fmp           # Financial data (FMP)
-├── hkask-mcp-telnyx        # Communications (Telnyx)
-├── hkask-mcp-fal           # Media generation (FAL)
-├── hkask-mcp-rss-reader    # RSS feed reader
-│
-├── hkask-testing           # single test crate
-│   ├── unit-tests/         # Unit tests moved from inline modules
-│   ├── integration-tests/  # Cross-crate integration tests
-│   └── test-harnesses/     # Test utilities, fixtures, mocks
-│
-└── External
-    ├── Okapi (mdz-axo/Okapi)
-    ├── ACP (acp-runtime)
-    └── MCP (rmcp) [^mcp-spec]
-```
+| ADR | Topic |
+|-----|-------|
+| [`ADR-022-comprehensive-security-hardening.md`](ADR-022-comprehensive-security-hardening.md) | ADV-REVIEW-F2 security hardening (T01-T22) |
 
 ---
 
-## CNS (Cybernetic Nervous System)
+## Specifications
 
-**Namespace:** `cns.*` (replaces `okh.*`)
-
-**Key spans:**
-- `cns.tool.*` — tool governance, invocation
-- `cns.prompt.*` — render, validate, outcome
-- `cns.agent_pod.*` — lifecycle, delegation
-- `cns.connector.*` — external I/O (LLM, embeddings)
-
-**Algedonic Alert:** Variety deficit >100 → escalate to Curator/human [^ashby-law]
+| Document | Purpose |
+|----------|---------|
+| [`../specifications/REQUIREMENTS.md`](../specifications/REQUIREMENTS.md) | 22 implemented + 6 deferred goal specs |
+| [`../specifications/TRACEABILITY_MATRIX.md`](../specifications/TRACEABILITY_MATRIX.md) | Bidirectional code→test traceability |
+| [`../specifications/MODEL_CATALOG.md`](../specifications/MODEL_CATALOG.md) | LLM model catalog |
 
 ---
 
-## Agent Taxonomy
-
-| Type | Purpose | Interaction | Visibility |
-|------|---------|-------------|------------|
-| **Bot** | Process execution | Machine-to-machine (A2A) | Public/Shared |
-| **Replicant** | Human assistance | Human-to-agent (H2A) | Episodic=Private, Semantic=Public |
-
-**Curator:** Single replicant, system persona, user's counterpart in `kask chat`.
-
----
-
-## Constraint-Driven Design [^gabriel-worse]
-
-### Principles (P1–P7)
-
-| # | Principle | Description |
-|---|-----------|-------------|
-| **P1** | No trait without two consumers | Traits must have ≥2 implementations |
-| **P2** | No generic without two instantiations | Generics must have ≥2 concrete uses |
-| **P3** | No module directory without encapsulation | Directories must encapsulate functionality |
-| **P4** | No builder without fallibility or complexity | Builders must handle errors or complexity |
-| **P5** | No feature flag without an activator | Feature flags must have runtime activation |
-| **P6** | Delete stubs, don't publish them | Remove incomplete code |
-| **P7** | Prefer deletion over deprecation | Delete rather than deprecate |
-
-### Constraints (C1–C7)
-
-| # | Constraint | Description |
-|---|------------|-------------|
-| **C1** | A type must be worn before it's tailored | Types must be used before refinement |
-| **C2** | Distinguish dead from unwired | Dead code vs. unwired code |
-| **C3** | Unwired code has a shelf life | Time limit for wiring unwired code |
-| **C4** | Repetition is a missing primitive | Duplicates indicate missing abstraction |
-| **C5** | Every error variant is a unique recovery path | Errors must have distinct handling |
-| **C6** | A stub is a debt receipt | Stubs create technical debt |
-| **C7** | When implementations diverge, one must yield | Converge or eliminate divergence |
-
----
-
-## Hallucinations (Do NOT Implement)
-
-The following are **explicitly out of scope** for hKask v0.21.0:
-
-- Bot reputation systems
-- Bot swarms / consensus mechanisms
-- Cross-machine sync
-- Bot marketplace
-- Curator customization
-- SemVer versioning (Git-only)
-- Separate feedback crate (CNS handles all)
-- Promotion pipeline (episodic/semantic categorical)
-- Escalation primitive
-- Visibility type system (OCAP-enforced)
-- OCT-H currency
-- Fine-tuning (axolotl)
-- OpenCode-style condenser
-- OpenHands-style condenser
-- UCAN for h-bar (OCAP-only)
-- **Three separate registries** (unified registry with `template_type` discriminator)
-- **Rust-based template selection** (selection intelligence in Jinja2/LLM) [^jinja2]
-
----
-
-## Essential Commands
+## Verification
 
 ```bash
-# Build verification
-cargo check -p <crate>
-cargo test -p <crate>
-cargo clippy -p <crate> -- -D warnings
-cargo fmt
-
-# Workspace verification
-cargo check --workspace
-cargo clippy --workspace -- -D warnings
-cargo fmt --check
+cargo check --workspace                    # Build
+cargo test --workspace                     # Test
+cargo clippy --workspace -- -D warnings    # Lint
+cargo fmt --check                          # Format
 ```
 
 ---
 
-## Documentation
+## Document Structure
 
-| Topic | Location |
-|-------|----------|
-| GML (Allosteric Thinking) | `docs/gml/README.md` |
-| Architecture | `docs/architecture/` |
-| CI/CD | `docs/CI-CD-GUIDE.md` |
-| Okapi Integration | `docs/integrations/okapi-integration.md` |
-| Entity Relationships | `docs/architecture/hKask-erd.md` |
-| Registry & Templating | `docs/architecture/registry-templating-prompt-v2.md` |
-| Agent Operating Guide | `AGENTS.md` |
+```
+docs/architecture/
+├── hKask-architecture-master.md           # THIS FILE (index)
+├── DDMVSS.md                              # Framework
+├── PRINCIPLES.md                          # Framework
+├── magna-carta.md                         # Framework
+├── domain-and-capability.md               # SPEC (Domain + Capability)
+├── interface-and-composition.md           # SPEC (Interface + Composition)
+├── trust-security-observability.md        # SPEC (Trust + Observability)
+├── persistence-and-lifecycle.md           # SPEC (Persistence + Lifecycle)
+├── ADR-022-comprehensive-security-hardening.md  # Decision record
+└── reference/
+    ├── hKask-erd.md                       # Diagram artifact
+    ├── registry-erd.md                    # Diagram artifact
+    ├── subsystem-erds.md                  # Diagram artifact
+    ├── hKask-hLexicon.md                  # Vocabulary catalog
+    ├── ports-inventory.md                 # Port reference
+    ├── utoipa-implementation.md           # API guide
+    ├── template-header-standard.md        # Format reference
+    └── hKask-Curator-persona.md           # Persona spec
+```
 
----
-
-## References
-
-[^beer-vsm]: Beer, S. (1972). *Brain of the Firm*. Penguin Books. Viable System Model.
-[^ashby-law]: Ashby, W. R. (1956). *An Introduction to Cybernetics*. Chapman & Hall. Law of Requisite Variety.
-[^von-foerster]: Von Foerster, H. (1974). *Cybernetics of Cybernetics*. Biological Computer Laboratory.
-[^togaf-adm]: The Open Group. TOGAF Standard, Version 10. Architecture Development Method.
-[^miller-ocap]: Miller, M. S. (2006). *Robust composition: Towards a unified approach to access control and concurrency control* [Doctoral dissertation, Johns Hopkins University]. https://miller.emulab.net/papers/robust-composition.pdf
-[^gabriel-worse]: Gabriel, R. P. (1991). *Lisp: Good news, bad news, how to win big*. AI Expert, 6(6). https://www.dreamsongs.com/WorseIsBetter.html
-[^mcp-spec]: Model Context Protocol. (2024). *MCP Specification*. https://spec.modelcontextprotocol.io/
-[^jinja2]: Ronacher, A. (2024). *Jinja*. Pallets Projects. https://jinja.palletsprojects.com/
+**Total:** 14 active architecture documents (4 specs + 3 framework + 1 index + 1 ADR + 9 reference artifacts).
 
 ---
 
 *ℏKask — Planck's Constant of Agent Systems — v0.21.0*
-*As simple as possible, but no simpler.*
-*Rust is the loom. YAML/Jinja2 is the thread.*
-*MVP in progress.*

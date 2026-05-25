@@ -1,13 +1,13 @@
 ---
 title: "Documentation Standards"
 audience: [all contributors authoring or editing documentation in `docs/`]
-last_updated: 2026-05-12
-togaf_phase: "Preliminary"
-version: "0.3.0"
+last_updated: 2026-05-25
+version: "0.4.0"
 status: "Active"
+domain: "Cross-cutting"
+ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
 ---
 
-<!-- TOGAF_DOMAIN: Cross-cutting -->
 <!-- VERSION: 0.3.0 -->
 <!-- STATUS: Active -->
 <!-- LAST_UPDATED: 2026-05-12 -->
@@ -62,8 +62,8 @@ title:
 **Last-Updated:** YYYY-MM-DD
 **Status:** Active | Draft | Deprecated | Superseded
 **Audience:** Brief role list
-**TOGAF Phase:** Preliminary | A | B | C — Data | C — Application | D | E | F | G | H | Requirements Management
-**Domain:** Cross-cutting | Business | Data | Application | Technology
+**DDMVSS Categories:** domain | capability | interface | composition | trust | observability | persistence | lifecycle | curation
+**Domain:** Cross-cutting | specific domain
 ```
 
 Conventions:
@@ -74,8 +74,8 @@ Conventions:
 | Last-Updated | ISO 8601 date on every content-bearing edit[^iso8601]. |
 | Status | Exactly one of the four values. `Deprecated` and `Superseded` documents are removed from the active tree (`git rm`) at the next review; git history is the canonical archive of record. A local `docs/archive/` snapshot may be kept on a maintainer's disk for personal reference but is gitignored. |
 | Audience | Named roles; avoid "everyone." |
-| TOGAF Phase | Must match the ADM phase directory structure per this document's Verification Checklist (§10). |
-| Domain | Optional for Preliminary and Phase A; mandatory for Phases B–D. |
+| DDMVSS Categories | One or more of the 9 DDMVSS categories defined in [`../architecture/DDMVSS.md`](../architecture/DDMVSS.md) §3. See [`../DDMVSS_SCAFFOLD.md`](../DDMVSS_SCAFFOLD.md) for category → directory mapping. |
+| Domain | Optional for cross-cutting documents; mandatory for domain-specific documents. |
 
 ## 3. Lifecycle
 
@@ -311,7 +311,7 @@ This checklist is the publication quality gate per Hackos's Information Process 
 Before a document is merged:
 
 - [ ] Six-field metadata header present and correct
-- [ ] `TOGAF Phase` matches directory-to-phase table
+- [ ] `DDMVSS Categories` field present with ≥1 category
 - [ ] Every `##` section has ≥ 1 footnoted citation with URL
 - [ ] Every Mermaid block has a `DIAGRAM_ALIGNMENT` metadata comment
 - [ ] All internal links resolve
@@ -346,14 +346,13 @@ Documents spanning multiple categories SHOULD list all applicable categories in 
 
 ```yaml
 ---
-title: "Security Architecture"
-audience: [architects, security engineers, developers]
-last_updated: 2026-05-24
-togaf_phase: "A"
-version: "1.0.0"
+title: "Documentation Standards"
+audience: [all contributors authoring or editing documentation in `docs/`]
+last_updated: 2026-05-25
+version: "0.4.0"
 status: "Active"
-domain: "Technology"
-ddmvss_categories: [trust, capability, observability]
+domain: "Cross-cutting"
+ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
 ---
 ```
 

@@ -2,7 +2,6 @@
 title: "The Magna Carta of hKask"
 audience: [architects, users, agents]
 last_updated: 2026-05-24
-togaf_phase: "A"
 version: "0.21.0"
 status: "Active"
 domain: "Cross-cutting"
