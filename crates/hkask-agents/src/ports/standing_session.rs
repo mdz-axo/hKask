@@ -40,7 +40,10 @@ pub trait StandingSessionPort: Send + Sync {
 
     fn save_message(&self, message: &MessageRecord) -> Result<i64, StandingSessionPortError>;
 
-    fn get_messages(&self, session_id: &str) -> Result<Vec<MessageRecord>, StandingSessionPortError>;
+    fn get_messages(
+        &self,
+        session_id: &str,
+    ) -> Result<Vec<MessageRecord>, StandingSessionPortError>;
 
     fn update_last_active(&self, session_id: &str) -> Result<(), StandingSessionPortError>;
 }

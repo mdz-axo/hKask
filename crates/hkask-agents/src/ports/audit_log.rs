@@ -29,5 +29,6 @@ pub trait AuditLogPort: Send + Sync {
 
     fn get_recent(&self, limit: usize) -> Result<Vec<AuditEntry>, AuditLogPortError>;
 
-    fn get_by_webid(&self, webid: &str, limit: usize) -> Result<Vec<AuditEntry>, AuditLogPortError>;
+    fn get_by_webid(&self, webid: &str, limit: usize)
+    -> Result<Vec<AuditEntry>, AuditLogPortError>;
 }

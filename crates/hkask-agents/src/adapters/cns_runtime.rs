@@ -57,7 +57,12 @@ impl CnsQueryPort for CnsRuntimeAdapter {
     }
 
     async fn alerts(&self) -> Vec<AlertInfo> {
-        self.runtime.alerts().await.into_iter().map(map_alert).collect()
+        self.runtime
+            .alerts()
+            .await
+            .into_iter()
+            .map(map_alert)
+            .collect()
     }
 
     async fn critical_alerts(&self) -> Vec<AlertInfo> {

@@ -1923,10 +1923,7 @@ fn main() {
                                 println!("No pending escalations.");
                                 return;
                             }
-                            println!(
-                                "{:<20} {:<15} {:<10} CONTEXT",
-                                "ID", "BOT", "CONFIDENCE"
-                            );
+                            println!("{:<20} {:<15} {:<10} CONTEXT", "ID", "BOT", "CONFIDENCE");
                             println!("{}", "-".repeat(80));
                             for esc in &escalations {
                                 println!(

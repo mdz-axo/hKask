@@ -30,4 +30,6 @@ pub use memory_storage::MemoryStoragePort;
 pub use metacognition::{MetacognitionPort, MetacognitionPortError, StoredHealthSnapshot};
 pub use security_port::{RateLimitPort, ValidationError as RateLimitValidationError};
 pub use sovereignty::{SovereigntyCheckResult, SovereigntyOperation, SovereigntyPort};
-pub use standing_session::{MessageRecord, SessionRecord, StandingSessionPort, StandingSessionPortError};
+pub use standing_session::{
+    MessageRecord, SessionRecord, StandingSessionPort, StandingSessionPortError,
+};

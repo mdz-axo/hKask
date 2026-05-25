@@ -32,7 +32,14 @@ pub struct AuditStorageEntry {
 pub trait AuditLogStoragePort: Send + Sync {
     fn insert(&self, entry: &AuditStorageEntry) -> Result<(), AuditLogStoragePortError>;
 
-    fn query_recent(&self, limit: usize) -> Result<Vec<AuditStorageEntry>, AuditLogStoragePortError>;
+    fn query_recent(
+        &self,
+        limit: usize,
+    ) -> Result<Vec<AuditStorageEntry>, AuditLogStoragePortError>;
 
-    fn query_by_actor(&self, actor_webid: &str, limit: usize) -> Result<Vec<AuditStorageEntry>, AuditLogStoragePortError>;
+    fn query_by_actor(
+        &self,
+        actor_webid: &str,
+        limit: usize,
+    ) -> Result<Vec<AuditStorageEntry>, AuditLogStoragePortError>;
 }

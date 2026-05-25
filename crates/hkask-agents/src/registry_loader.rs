@@ -167,9 +167,10 @@ impl RawYamlAgent {
                         scope: scope.clone(),
                     })
                 } else {
-                    map.get("escalate_to").map(|target| hkask_types::Right::EscalateTo {
-                        target: target.clone(),
-                    })
+                    map.get("escalate_to")
+                        .map(|target| hkask_types::Right::EscalateTo {
+                            target: target.clone(),
+                        })
                 }
             })
             .collect()
@@ -218,9 +219,10 @@ impl RawYamlAgent {
                         target: target.clone(),
                     })
                 } else {
-                    map.get("produce").map(|artifact| hkask_types::Responsibility::Produce {
-                        artifact: artifact.clone(),
-                    })
+                    map.get("produce")
+                        .map(|artifact| hkask_types::Responsibility::Produce {
+                            artifact: artifact.clone(),
+                        })
                 }
             })
             .collect()
@@ -391,15 +393,12 @@ impl BotRegistryLoader {
             Ok(token) => token,
             Err(AcpError::AgentAlreadyRegistered(_)) => {
                 let tokens = self.acp_runtime.get_capabilities(&webid).await;
-                tokens
-                    .into_iter()
-                    .next()
-                    .ok_or_else(|| {
-                        RegistryLoaderError::InvalidDefinition(format!(
-                            "Agent '{}' already registered but has no capability tokens in ACP runtime",
-                            definition.name
-                        ))
-                    })?
+                tokens.into_iter().next().ok_or_else(|| {
+                    RegistryLoaderError::InvalidDefinition(format!(
+                        "Agent '{}' already registered but has no capability tokens in ACP runtime",
+                        definition.name
+                    ))
+                })?
             }
             Err(e) => return Err(RegistryLoaderError::Acp(e)),
         };

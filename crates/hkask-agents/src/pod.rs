@@ -800,7 +800,9 @@ impl PodManager {
         Self {
             pods: Arc::new(RwLock::new(HashMap::new())),
             _keystore: Keychain::default(),
-            git_cas: Arc::new(GitCasAdapter::from_path(PathBuf::from("./registry/templates"))),
+            git_cas: Arc::new(GitCasAdapter::from_path(PathBuf::from(
+                "./registry/templates",
+            ))),
             acp_runtime: Arc::new(crate::acp::AcpRuntime::default()),
             cns_emitter: Arc::new(CnsEmitterAdapter::new(WebID::new())),
             mcp_runtime: Arc::new(McpRuntimeAdapter::new()),
@@ -915,8 +917,11 @@ impl PodManagerBuilder {
 
     pub fn build(self) -> PodManager {
         let mut manager = PodManager::new(
-            self.git_cas
-                .unwrap_or_else(|| Arc::new(GitCasAdapter::from_path(PathBuf::from("./registry/templates")))),
+            self.git_cas.unwrap_or_else(|| {
+                Arc::new(GitCasAdapter::from_path(PathBuf::from(
+                    "./registry/templates",
+                )))
+            }),
             self.acp_runtime
                 .unwrap_or_else(|| Arc::new(crate::acp::AcpRuntime::default())),
             self.cns_emitter
@@ -1162,7 +1167,8 @@ impl PodManager {
             .get(pod_id)
             .ok_or_else(|| AgentPodError::ACPRegistrationError("Pod not found".to_string()))?;
 
-        let results = self.memory_storage
+        let results = self
+            .memory_storage
             .recall(&pod.webid.to_string(), &pod.capability_token)
             .map_err(|e| AgentPodError::StorageError(e.to_string()))?;
 
@@ -1262,21 +1268,32 @@ impl PodContext {
         resource_id: &str,
         action: CapabilityAction,
     ) -> AgentPodResult<()> {
-        if !self.capability_token.is_valid_for(resource, resource_id, action) {
+        if !self
+            .capability_token
+            .is_valid_for(resource, resource_id, action)
+        {
             return Err(AgentPodError::CapabilityDenied { resource, action });
         }
         Ok(())
     }
 
     pub fn inference_port(&self) -> AgentPodResult<Arc<dyn hkask_templates::InferencePort>> {
-        self.require_capability(CapabilityResource::Template, "inference", CapabilityAction::Render)?;
-        self.inference_port
-            .clone()
-            .ok_or_else(|| AgentPodError::InferenceUnavailable("No inference port configured".to_string()))
+        self.require_capability(
+            CapabilityResource::Template,
+            "inference",
+            CapabilityAction::Render,
+        )?;
+        self.inference_port.clone().ok_or_else(|| {
+            AgentPodError::InferenceUnavailable("No inference port configured".to_string())
+        })
     }
 
     pub async fn recall_memory(&self, query: &str) -> AgentPodResult<Vec<serde_json::Value>> {
-        self.require_capability(CapabilityResource::Manifest, "memory", CapabilityAction::Read)?;
+        self.require_capability(
+            CapabilityResource::Manifest,
+            "memory",
+            CapabilityAction::Read,
+        )?;
         self.memory_storage
             .recall(query, &self.capability_token)
             .map_err(|e| AgentPodError::MemoryError(e.to_string()))
@@ -1288,7 +1305,11 @@ impl PodContext {
         content: serde_json::Value,
         visibility: &str,
     ) -> AgentPodResult<String> {
-        self.require_capability(CapabilityResource::Manifest, "memory", CapabilityAction::Write)?;
+        self.require_capability(
+            CapabilityResource::Manifest,
+            "memory",
+            CapabilityAction::Write,
+        )?;
         self.memory_storage
             .store_artifact(
                 self.webid,
@@ -1305,7 +1326,11 @@ impl PodContext {
         tool_name: &str,
         input: serde_json::Value,
     ) -> AgentPodResult<serde_json::Value> {
-        self.require_capability(CapabilityResource::Tool, tool_name, CapabilityAction::Execute)?;
+        self.require_capability(
+            CapabilityResource::Tool,
+            tool_name,
+            CapabilityAction::Execute,
+        )?;
         self.emit_span(
             &format!("cns.tool.{}", tool_name),
             "invoked",

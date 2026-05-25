@@ -26,7 +26,11 @@ pub struct StoredHealthSnapshot {
 /// - `MetacognitionStoreAdapter` — Production adapter via SQLite
 /// - Mock implementations for testing
 pub trait MetacognitionPort: Send + Sync {
-    fn save_snapshot(&self, snapshot: &StoredHealthSnapshot) -> Result<i64, MetacognitionPortError>;
+    fn save_snapshot(&self, snapshot: &StoredHealthSnapshot)
+    -> Result<i64, MetacognitionPortError>;
 
-    fn list_snapshots(&self, limit: usize) -> Result<Vec<StoredHealthSnapshot>, MetacognitionPortError>;
+    fn list_snapshots(
+        &self,
+        limit: usize,
+    ) -> Result<Vec<StoredHealthSnapshot>, MetacognitionPortError>;
 }

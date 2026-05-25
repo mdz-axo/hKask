@@ -53,7 +53,10 @@ impl StandingSessionPort for StandingSessionStoreAdapter {
             .map_err(|e| StandingSessionPortError::Storage(e.to_string()))
     }
 
-    fn get_messages(&self, session_id: &str) -> Result<Vec<MessageRecord>, StandingSessionPortError> {
+    fn get_messages(
+        &self,
+        session_id: &str,
+    ) -> Result<Vec<MessageRecord>, StandingSessionPortError> {
         self.store
             .get_messages(session_id)
             .map(|v| {

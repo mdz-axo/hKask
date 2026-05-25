@@ -33,14 +33,21 @@ impl AuditLogStoragePort for AuditLogStoreAdapter {
             .map_err(|e| AuditLogStoragePortError::Storage(e.to_string()))
     }
 
-    fn query_recent(&self, limit: usize) -> Result<Vec<AuditStorageEntry>, AuditLogStoragePortError> {
+    fn query_recent(
+        &self,
+        limit: usize,
+    ) -> Result<Vec<AuditStorageEntry>, AuditLogStoragePortError> {
         self.store
             .query_recent(limit)
             .map(|v| v.into_iter().map(storage_to_domain).collect())
             .map_err(|e| AuditLogStoragePortError::Storage(e.to_string()))
     }
 
-    fn query_by_actor(&self, actor_webid: &str, limit: usize) -> Result<Vec<AuditStorageEntry>, AuditLogStoragePortError> {
+    fn query_by_actor(
+        &self,
+        actor_webid: &str,
+        limit: usize,
+    ) -> Result<Vec<AuditStorageEntry>, AuditLogStoragePortError> {
         self.store
             .query_by_actor(actor_webid, limit)
             .map(|v| v.into_iter().map(storage_to_domain).collect())

@@ -15,7 +15,10 @@ impl MetacognitionStoreAdapter {
 }
 
 impl MetacognitionPort for MetacognitionStoreAdapter {
-    fn save_snapshot(&self, snapshot: &StoredHealthSnapshot) -> Result<i64, MetacognitionPortError> {
+    fn save_snapshot(
+        &self,
+        snapshot: &StoredHealthSnapshot,
+    ) -> Result<i64, MetacognitionPortError> {
         let stored = hkask_storage::StoredSnapshot {
             id: 0,
             timestamp: snapshot.timestamp.clone(),
@@ -30,7 +33,10 @@ impl MetacognitionPort for MetacognitionStoreAdapter {
             .map_err(|e| MetacognitionPortError::Storage(e.to_string()))
     }
 
-    fn list_snapshots(&self, limit: usize) -> Result<Vec<StoredHealthSnapshot>, MetacognitionPortError> {
+    fn list_snapshots(
+        &self,
+        limit: usize,
+    ) -> Result<Vec<StoredHealthSnapshot>, MetacognitionPortError> {
         self.store
             .list_snapshots(limit)
             .map(|v| {

@@ -557,7 +557,8 @@ impl AcpPort for RussellAcpAdapter {
     }
 }
 
-#[cfg(test)]mod tests {
+#[cfg(test)]
+mod tests {
     use super::*;
 
     fn test_secret() -> Arc<Zeroizing<Vec<u8>>> {
