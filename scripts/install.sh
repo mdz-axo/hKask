@@ -267,7 +267,8 @@ setup_environment() {
     if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
         log "Adding $BIN_DIR to PATH..."
         
-        # Detect shell and update appropriate config
+        export PATH="$BIN_DIR:$PATH"
+        
         local shell_config=""
         if [ -n "$ZSH_VERSION" ]; then
             shell_config="$HOME/.zshrc"
@@ -275,7 +276,7 @@ setup_environment() {
             shell_config="$HOME/.bashrc"
         fi
         
-        if [ -n "$shell_config" ] && [ -f "$shell_config" ]; then
+        if [ -n "$shell_config" ]; then
             if ! grep -q "$BIN_DIR" "$shell_config" 2>/dev/null; then
                 echo "" >> "$shell_config"
                 echo "# hKask" >> "$shell_config"
