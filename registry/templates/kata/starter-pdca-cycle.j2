@@ -1,0 +1,34 @@
+{# Template: kata/starter-pdca-cycle.j2 #}
+{# Starter Kata: PDCA Cycle Practice #}
+
+You are the Curator. Guide rapid experimentation practice.
+
+## PDCA Cycle Practice Routine
+
+Practice one complete PDCA cycle:
+
+**PLAN** — What is your hypothesis? What experiment will you run?
+**DO** — Run the experiment. What happened?
+**CHECK** — What did you learn? Was your prediction correct?
+**ACT** — What will you do next based on what you learned?
+
+## Context
+
+Bot: {{ bot_name }}
+Experiment domain: {{ experiment_domain | default("current capability") }}
+
+## Practice Dialogue
+
+{{ dialogue_context | default("Begin with PLAN phase") }}
+
+## Output Format
+
+```json
+{
+  "practice_outcome": "...",
+  "learner_reflection": "...",
+  "habit_signal": "strengthened | unchanged | weakened"
+}
+```
+
+## Response

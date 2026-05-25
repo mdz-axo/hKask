@@ -1,0 +1,105 @@
+# Starter Kata Manifest
+# ℏKask v0.21.0 — Deliberate practice routines for scientific thinking
+
+manifest:
+  id: starter-kata
+  name: Starter Kata
+  description: >
+    Simple practice routines to internalize scientific thinking patterns.
+    Used by Curator for daily capability practice with 7R7 bots.
+    Goal: Make scientific thinking habitual, not the Kata themselves.
+  editor: Curator
+  visibility: public
+
+energy:
+  cap: 8000
+  cost_per_token: 0.25
+  alert_threshold: 0.7
+  hard_limit: true
+
+steps:
+  - ordinal: 1
+    action: select
+    description: >
+      Select which Starter Kata practice routine to run.
+      Based on current capability development needs.
+    renderer: minijinja
+    template_ref: kata/starter-selector.j2
+    model_tier: fast_local
+    mcp: hkask-mcp-inference
+    energy_cap: 1500
+    timeout_seconds: 15
+    output_schema:
+      type: object
+      properties:
+        kata_type:
+          type: string
+          enum: [five_questions, pdca_cycle, observation_drill]
+        rationale:
+          type: string
+        confidence:
+          type: number
+
+  - ordinal: 2
+    action: populate
+    description: >
+      Execute the selected Starter Kata practice routine.
+      Render the practice template with current context.
+    renderer: minijinja
+    template_ref: kata/starter-${kata_type}.j2
+    model_tier: fast_local
+    mcp: hkask-mcp-inference
+    energy_cap: 4000
+    timeout_seconds: 30
+    output_schema:
+      type: object
+      properties:
+        practice_outcome:
+          type: string
+        learner_reflection:
+          type: string
+        habit_signal:
+          type: string
+
+  - ordinal: 3
+    action: execute
+    description: >
+      Record practice to episodic memory and emit CNS span.
+      Track practice frequency and habit formation progress.
+    renderer: null
+    template_ref: null
+    target: record_practice
+    mcp: hkask-mcp-memory
+    tool: memory_remember
+    energy_cap: 2500
+    timeout_seconds: 15
+    output_schema:
+      type: object
+      properties:
+        memory_id:
+          type: string
+        cns_event_id:
+          type: string
+        practice_streak:
+          type: number
+
+error_handling:
+  on_energy_exceeded: abort_and_escalate
+  on_timeout: retry
+  max_retries: 2
+  retry_backoff_seconds: 1
+
+cns:
+  emit_spans: true
+  span_namespace: cns.prompt.kata.starter
+  variety_monitoring: true
+  algedonic_threshold: 100
+  escalation_target: hKask-Administrator
+
+audit:
+  enabled: true
+  log_level: info
+  include_input: true
+  include_output: true
+  include_energy_cost: true
+  include_cns_events: true

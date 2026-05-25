@@ -69,8 +69,13 @@ use crate::adapters::cns_emitter::CnsEmitterAdapter;
 use crate::adapters::git_cas::GitCasAdapter;
 use crate::adapters::mcp_runtime::McpRuntimeAdapter;
 use crate::adapters::memory_storage::MemoryStorageAdapter;
+<<<<<<< HEAD
 use crate::ports::{GitCASPort, MCPRuntimePort, MemoryStoragePort};
 use crate::security::{AgentPersonaInput, InputValidator, SecurityContext};
+=======
+use crate::security::{AgentPersonaInput, InputValidator, SecurityContext};
+use crate::sovereignty::SovereigntyChecker;
+>>>>>>> origin/main
 use std::path::PathBuf;
 
 /// Pod lifecycle state machine
@@ -308,6 +313,8 @@ pub struct AgentPod {
     pub max_attenuation: u8,
     /// Keystore for secure secret storage
     pub keystore: Keychain,
+    /// Sovereignty checker for this pod
+    pub sovereignty_checker: SovereigntyChecker,
 }
 
 /// Maximum attenuation level (OCAP security limit)
@@ -413,6 +420,9 @@ impl AgentPod {
             ocap_secret.as_bytes(),
         );
 
+        // Initialize sovereignty checker for this pod
+        let sovereignty_checker = SovereigntyChecker::new(persona.webid());
+
         Ok(Self {
             id: PodID::new(),
             webid: persona.webid(),
@@ -424,6 +434,7 @@ impl AgentPod {
             created_at: current_timestamp()?,
             max_attenuation: MAX_ATTENUATION_LEVEL,
             keystore,
+            sovereignty_checker,
         })
     }
 
@@ -583,6 +594,51 @@ impl AgentPod {
     /// Get the current lifecycle state
     pub fn state(&self) -> PodLifecycleState {
         self.state
+    }
+
+    /// Execute action with sovereignty check
+    ///
+    /// This method performs an OCAP sovereignty check before executing
+    /// any action that accesses data categories.
+    ///
+    /// # Arguments
+    /// * `action` — The action to execute
+    /// * `data_category` — The data category being accessed
+    /// * `requester` — The WebID requesting the action
+    ///
+    /// # Returns
+    /// * `Ok(true)` — Action is permitted
+    /// * `Ok(false)` — Action denied by sovereignty check
+    /// * `Err(AgentPodError)` — Sovereignty check error
+    pub fn check_sovereignty(
+        &self,
+        action: &str,
+        data_category: &str,
+        requester: &WebID,
+    ) -> Result<bool, AgentPodError> {
+        let checker = &self.sovereignty_checker;
+
+        // Check if operation is permitted
+        if !checker.check_operation(action, data_category) {
+            return Ok(false);
+        }
+
+        // Check if requester can access the data category
+        if !checker.can_access(data_category, requester) {
+            return Ok(false);
+        }
+
+        Ok(true)
+    }
+
+    /// Get sovereignty checker reference
+    pub fn sovereignty_checker(&self) -> &SovereigntyChecker {
+        &self.sovereignty_checker
+    }
+
+    /// Get mutable sovereignty checker reference
+    pub fn sovereignty_checker_mut(&mut self) -> &mut SovereigntyChecker {
+        &mut self.sovereignty_checker
     }
 }
 
@@ -1297,9 +1353,75 @@ impl PodContext {
 mod tests {
     use super::*;
 
+<<<<<<< HEAD
     #[test]
     fn test_persona_webid_deterministic() {
         let yaml = r#"
+=======
+    pub struct MockMCPRuntime;
+    impl MCPRuntimePort for MockMCPRuntime {
+        fn grant_tool_access(&self, _token: CapabilityToken) -> Result<(), String> {
+            Ok(())
+        }
+
+        fn invoke_tool(
+            &self,
+            _tool_name: &str,
+            _input: serde_json::Value,
+            _token: &CapabilityToken,
+        ) -> Result<serde_json::Value, String> {
+            Ok(serde_json::json!({"result": "success"}))
+        }
+    }
+
+    pub struct MockCNSSpan;
+    impl CNSSpanPort for MockCNSSpan {
+        fn emit_event(
+            &self,
+            _span: &str,
+            _phase: &str,
+            _observation: &serde_json::Value,
+            _confidence: f64,
+        ) {
+            // No-op for tests
+        }
+    }
+
+    pub struct MockGitCAS;
+    impl GitCASPort for MockGitCAS {
+        fn load_template_crate(&self, _crate_name: &str) -> Result<TemplateCrate, String> {
+            Ok(TemplateCrate {
+                name: "test-crate".to_string(),
+                git_sha: "abc123".to_string(),
+                persona_yaml: String::new(),
+                dispatch_manifest_yaml: String::new(),
+                templates: vec![],
+                hlexicon_terms: vec![],
+            })
+        }
+
+        fn resolve_sha(&self, _crate_name: &str) -> Result<String, String> {
+            Ok("abc123".to_string())
+        }
+    }
+
+    #[tokio::test]
+    async fn test_pod_manager_security_context() {
+        let manager = PodManager::new_mock();
+        assert!(
+            manager
+                .security_context()
+                .rate_limiter
+                .get_available("test")
+                .await
+                > 0.0
+        );
+    }
+
+    #[tokio::test]
+    async fn test_pod_creation_validation() {
+        let persona_yaml = r#"
+>>>>>>> origin/main
 agent:
   name: test-bot
   type: Bot
@@ -1342,6 +1464,7 @@ visibility:
   default: public
   episodic_override: private
 "#;
+<<<<<<< HEAD
         let yaml2 = r#"
 agent:
   name: bot-2
@@ -1392,5 +1515,20 @@ visibility:
         assert_eq!(webid1, webid2);
         assert_eq!(webid2, webid3);
         assert_eq!(webid1, webid3);
+=======
+        let persona = AgentPersona::from_yaml(persona_yaml).unwrap();
+
+        // Validate persona input
+        let input = AgentPersonaInput {
+            name: persona.agent.name.clone(),
+            agent_type: persona.agent.agent_type.to_string().to_lowercase(),
+            version: persona.agent.version.clone(),
+            description: persona.charter.description.clone(),
+            editor: persona.charter.editor.clone(),
+            capabilities: persona.capabilities.clone(),
+        };
+
+        assert!(input.validate(&input).is_ok());
+>>>>>>> origin/main
     }
 }

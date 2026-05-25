@@ -18,7 +18,15 @@ use clap::{Parser, Subcommand};
 use hkask_cli::commands;
 use hkask_cli::russell_mapper::RussellMappingConfig;
 use hkask_mcp::runtime::McpRuntime;
+<<<<<<< HEAD
 use hkask_templates::SqliteRegistry;
+=======
+use hkask_templates::{
+    FieldMapping, FieldMappings, IdTransformation, MappedTemplate, MappingMeta, ModelTierSelection,
+    RegistryEntry, RegistryIndex, RussellMapper, RussellMappingConfig, SqliteRegistry,
+    TemplateTypeInference,
+};
+>>>>>>> origin/main
 use hkask_types::TemplateType as Type;
 use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
@@ -1274,12 +1282,18 @@ fn main() {
                 let checker = hkask_agents::SovereigntyChecker::new(owner);
                 let state = checker.get_state();
 
+<<<<<<< HEAD
                 // Parse category string to DataCategory
                 let data_category = parse_data_category(&category);
 
                 let is_sovereign = state.boundary.is_sovereign(&data_category);
                 let is_shared = state.boundary.is_shared(&data_category);
                 let is_public = state.boundary.is_public(&data_category);
+=======
+                let is_sovereign = state.boundary.is_sovereign(&category);
+                let is_shared = state.boundary.shared_data.contains(&category);
+                let is_public = state.boundary.public_data.contains(&category);
+>>>>>>> origin/main
 
                 println!("Data access check for '{}':", category);
                 if is_sovereign {

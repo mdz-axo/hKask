@@ -1,0 +1,242 @@
+# File: registry/manifests/superforecasting-pipeline.yaml
+# Superforecasting Pipeline Process Manifest
+# ℏKask v0.21.0 — Planck's Constant of Agent Systems
+# 
+# Based on Tetlock's Ten Commandments for Aspiring Superforecasters
+# and the Good Judgment Project's Fermi-ization methodology
+
+manifest:
+  id: superforecasting-pipeline
+  name: Superforecasting Pipeline
+  description: >
+    Multi-stage iterative estimation pipeline for quality forecasting.
+    Implements Tetlock's Fermi-ization methodology with outside/inside view,
+    Bayesian updating, and causal synthesis.
+  version: 0.21.0
+  editor: curator-or-human-admin
+  visibility: Shared
+
+# Energy Budget Configuration
+energy:
+  cap: 25000
+  cost_per_token: 0.25
+  alert_threshold: 0.8
+  hard_limit: true
+
+# Process Steps - The Fermi-ization Pipeline
+steps:
+  # Stage 0: Triage - Filter questions before investing effort
+  - ordinal: 1
+    action: populate
+    description: >
+      Triage stage: Classify question difficulty and determine if forecasting
+      effort will likely pay off (Goldilocks zone assessment).
+    renderer: minijinja
+    template_ref: superforecasting/stage_0_triage
+    model_tier: fast_local
+    mcp: hkask-mcp-inference
+    energy_cap: 3000
+    timeout_seconds: 30
+    output_schema:
+      difficulty_level: string
+      goldilocks_zone: boolean
+      proceed_recommendation: boolean
+      rationale: string
+
+  # Stage 1: Fermi Decomposition - Break problem into tractable sub-problems
+  - ordinal: 2
+    action: populate
+    description: >
+      Fermi-ization stage: Decompose the forecasting question into independent,
+      tractable sub-questions. Separate knowable from unknowable components.
+    renderer: minijinja
+    template_ref: superforecasting/stage_1_fermi_decompose
+    model_tier: reasoning_local
+    mcp: hkask-mcp-inference
+    energy_cap: 5000
+    timeout_seconds: 60
+    output_schema:
+      sub_questions: array
+      assumptions: array
+      knowns: array
+      unknowns: array
+
+  # Stage 2: Outside View - Establish base rates from reference classes
+  - ordinal: 3
+    action: populate
+    description: >
+      Outside view stage: Identify reference classes and establish base rates.
+      Anchor on how often similar events occur in similar situations.
+    renderer: minijinja
+    template_ref: superforecasting/stage_2_outside_view
+    model_tier: reasoning_local
+    mcp: hkask-mcp-inference
+    energy_cap: 5000
+    timeout_seconds: 60
+    output_schema:
+      reference_classes: array
+      base_rates: array
+      starting_probability: float
+
+  # Stage 3: Inside View - Evaluate case-specific hypotheses
+  - ordinal: 4
+    action: populate
+    description: >
+      Inside view stage: Generate and evaluate multiple causal hypotheses.
+      For each hypothesis, identify required conditions and gather evidence.
+    renderer: minijinja
+    template_ref: superforecasting/stage_3_inside_view
+    model_tier: reasoning_local
+    mcp: hkask-mcp-inference
+    energy_cap: 6000
+    timeout_seconds: 90
+    output_schema:
+      hypotheses: array
+      hypothesis_probabilities: object
+
+  # Stage 4: Evidence Updating - Bayesian belief revision
+  - ordinal: 5
+    action: populate
+    description: >
+      Bayesian updating stage: Incorporate new evidence and update probabilities.
+      Calculate likelihood ratios and adjust from prior to posterior.
+    renderer: minijinja
+    template_ref: superforecasting/stage_4_evidence_update
+    model_tier: reasoning_local
+    mcp: hkask-mcp-inference
+    energy_cap: 4000
+    timeout_seconds: 45
+    output_schema:
+      evidence_items: array
+      likelihood_ratios: array
+      updated_probability: float
+
+  # Stage 5: Causal Synthesis - Dragonfly eye perspective aggregation
+  - ordinal: 6
+    action: populate
+    description: >
+      Synthesis stage: Integrate multiple causal models and perspectives.
+      Practice steelmanning opposing arguments and aggregate judgments.
+    renderer: minijinja
+    template_ref: superforecasting/stage_5_synthesis
+    model_tier: reasoning_local
+    mcp: hkask-mcp-inference
+    energy_cap: 4000
+    timeout_seconds: 45
+    output_schema:
+      causal_models: array
+      synthesized_probability: float
+      dissenting_views: array
+
+  # Stage 6: Precision Calibration - Assign specific probabilities
+  - ordinal: 7
+    action: populate
+    description: >
+      Calibration stage: Assign precise probability using full 0-100% scale.
+      Justify precision level and confidence based on evidence quality.
+    renderer: minijinja
+    template_ref: superforecasting/stage_6_calibration
+    model_tier: fast_local
+    mcp: hkask-mcp-inference
+    energy_cap: 2000
+    timeout_seconds: 30
+    output_schema:
+      final_probability: float
+      confidence_level: string
+      precision_justification: string
+
+  # Stage 7: Error Tracking - Post-forecast audit preparation
+  - ordinal: 8
+    action: feedback
+    description: >
+      Audit stage: Record forecast for later post-mortem analysis.
+      Set up tracking for outcome comparison and error classification.
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: hkask-mcp-memory
+    energy_cap: 500
+    timeout_seconds: 10
+    cns_spans:
+      - cns.prompt.select
+      - cns.prompt.render
+      - cns.prompt.outcome
+    output_schema:
+      forecast_recorded: boolean
+      cns_event_id: string
+      tracking_id: string
+
+# Error Handling
+error_handling:
+  on_energy_exceeded: abort
+  on_timeout: retry
+  max_retries: 2
+  retry_backoff_seconds: 2
+  on_validation_failure: abort
+  on_capability_denied: escalate
+
+# OCAP Configuration
+ocap:
+  required_capabilities:
+    - resource: template
+      action: render
+      template_id: superforecasting/stage_0_triage
+      energy_budget: 3000
+    - resource: template
+      action: render
+      template_id: superforecasting/stage_1_fermi_decompose
+      energy_budget: 5000
+    - resource: template
+      action: render
+      template_id: superforecasting/stage_2_outside_view
+      energy_budget: 5000
+    - resource: template
+      action: render
+      template_id: superforecasting/stage_3_inside_view
+      energy_budget: 6000
+    - resource: template
+      action: render
+      template_id: superforecasting/stage_4_evidence_update
+      energy_budget: 4000
+    - resource: template
+      action: render
+      template_id: superforecasting/stage_5_synthesis
+      energy_budget: 4000
+    - resource: template
+      action: render
+      template_id: superforecasting/stage_6_calibration
+      energy_budget: 2000
+    - resource: manifest
+      action: execute
+      template_id: superforecasting-pipeline
+      energy_budget: 500
+    - resource: cns
+      action: emit
+      template_id: superforecasting-pipeline
+      energy_budget: 500
+  delegation_chain_required: true
+  signature_algorithm: ed25519
+  capability_expiry_seconds: 3600
+  template_scoped: true
+
+# CNS Monitoring
+cns:
+  emit_spans: true
+  span_namespace: cns.prompt
+  variety_monitoring: true
+  algedonic_threshold: 100
+  escalation_target: Curator
+  variety_counters:
+    - hypothesis_count
+    - reference_class_count
+    - evidence_item_count
+
+# Audit Trail
+audit:
+  enabled: true
+  log_level: info
+  include_input: true
+  include_output: true
+  include_energy_cost: true
+  include_cns_events: true
+  include_stage_outputs: true

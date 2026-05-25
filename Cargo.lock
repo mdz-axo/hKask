@@ -2048,6 +2048,7 @@ dependencies = [
  "hkask-ensemble",
  "hkask-keystore",
  "hkask-mcp",
+ "hkask-storage",
  "hkask-templates",
  "hkask-types",
  "parking_lot",

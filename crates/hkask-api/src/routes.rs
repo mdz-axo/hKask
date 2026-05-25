@@ -14,11 +14,16 @@ use utoipa::ToSchema;
 
 use crate::{
     ApiState, ChatRequest, ChatResponse, CnsHealthResponse, CnsVarietyResponse, CreatePodRequest,
+<<<<<<< HEAD
     CreatePodResponse, GrantCapabilityRequest, InferenceSpan, ListPodsResponse, PodStatusResponse,
     SoapInferAuthRequest, SoapInferRequest, SoapInferResponse, SoapInferenceConfig,
     SpecCaptureRequest, SpecCaptureResponse, SpecCultivateResponse, SpecListResponse,
     SpecValidateRequest, SpecValidateResponse, TemplateResponse, ToolResponse, ValidationErrorType,
     VarietyCounterResponse,
+=======
+    CreatePodResponse, GrantCapabilityRequest, ListPodsResponse, PodStatusResponse,
+    TemplateResponse, VarietyCounterResponse,
+>>>>>>> origin/main
 };
 use hkask_types::SpecCategory;
 
@@ -514,24 +519,24 @@ async fn list_tools(State(state): State<ApiState>) -> Json<Vec<String>> {
     Json(tools)
 }
 
-/// Get tool definition
-async fn get_tool(
-    State(state): State<ApiState>,
-    Path(name): Path<String>,
-) -> Result<Json<ToolResponse>, StatusCode> {
-    let tool = state
-        .mcp_runtime
-        .get_tool(&name)
-        .await
-        .ok_or(StatusCode::NOT_FOUND)?;
-
-    Ok(Json(ToolResponse {
-        name: tool.name,
-        description: tool.description,
-        input_schema: tool.input_schema,
-        server_id: tool.server_id,
-    }))
-}
+// TODO: Get tool definition - currently unused
+// async fn get_tool(
+//     State(state): State<ApiState>,
+//     Path(name): Path<String>,
+// ) -> Result<Json<ToolResponse>, StatusCode> {
+//     let tool = state
+//         .mcp_runtime
+//         .get_tool(&name)
+//         .await
+//         .ok_or(StatusCode::NOT_FOUND)?;
+//
+//     Ok(Json(ToolResponse {
+//         name: tool.name,
+//         description: tool.description,
+//         input_schema: tool.input_schema,
+//         server_id: tool.server_id,
+//     }))
+// }
 
 /// CNS health endpoint
 #[utoipa::path(
@@ -860,6 +865,7 @@ async fn sovereignty_check_access(
 ) -> Json<AccessCheckResponse> {
     use hkask_types::UserSovereigntyState;
 
+<<<<<<< HEAD
     let category_str = params.get("category").map(|s| s.as_str()).unwrap_or("");
     let state = UserSovereigntyState::new();
 
@@ -868,16 +874,30 @@ async fn sovereignty_check_access(
     let category_name = category.as_str();
 
     let (classification, access_required) = if state.boundary.is_sovereign(&category) {
+=======
+    let category = params.get("category").map(|s| s.as_str()).unwrap_or("");
+    let state = UserSovereigntyState::new();
+
+    let (classification, access_required) = if state.boundary.is_sovereign(category) {
+>>>>>>> origin/main
         (
             "SOVEREIGN".to_string(),
             "Requires explicit consent AND owner".to_string(),
         )
+<<<<<<< HEAD
     } else if state.boundary.is_shared(&category) {
+=======
+    } else if state.boundary.shared_data.contains(&category.to_string()) {
+>>>>>>> origin/main
         (
             "SHARED".to_string(),
             "Requires explicit consent".to_string(),
         )
+<<<<<<< HEAD
     } else if state.boundary.is_public(&category) {
+=======
+    } else if state.boundary.public_data.contains(&category.to_string()) {
+>>>>>>> origin/main
         ("PUBLIC".to_string(), "Always accessible".to_string())
     } else {
         ("UNKNOWN".to_string(), "Denied by default".to_string())

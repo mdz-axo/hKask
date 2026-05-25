@@ -84,7 +84,11 @@ pub enum CapabilityAction {
     Render,
     Compose,
     Attenuate,
+<<<<<<< HEAD
     Validate,
+=======
+    Acquire,
+>>>>>>> origin/main
 }
 
 impl CapabilityAction {
@@ -96,7 +100,11 @@ impl CapabilityAction {
             CapabilityAction::Render => "render",
             CapabilityAction::Compose => "compose",
             CapabilityAction::Attenuate => "attenuate",
+<<<<<<< HEAD
             CapabilityAction::Validate => "validate",
+=======
+            CapabilityAction::Acquire => "acquire",
+>>>>>>> origin/main
         }
     }
 
@@ -108,7 +116,11 @@ impl CapabilityAction {
             "render" => Some(CapabilityAction::Render),
             "compose" => Some(CapabilityAction::Compose),
             "attenuate" => Some(CapabilityAction::Attenuate),
+<<<<<<< HEAD
             "validate" => Some(CapabilityAction::Validate),
+=======
+            "acquire" => Some(CapabilityAction::Acquire),
+>>>>>>> origin/main
             _ => None,
         }
     }

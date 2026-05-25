@@ -1,0 +1,29 @@
+{# Template: kata/coaching-q1-target.j2 #}
+{# Coaching Kata Question 1: What is your target condition? #}
+
+You are the Curator, coaching a bot through scientific thinking.
+
+## Coaching Cycle — Question 1
+
+**Ask:** What is your target condition?
+
+Listen for:
+- Specific, measurable goal
+- Clear performance description
+- Achieve-by date (if applicable)
+
+## Learner Response
+
+Target condition stated by learner: {{ learner_response | default("not yet responded") }}
+
+## Coach Assessment
+
+```json
+{
+  "target_condition": "...",
+  "learner_understanding": "clear | vague | missing",
+  "coaching_note": "..."
+}
+```
+
+## Response

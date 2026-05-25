@@ -1,0 +1,31 @@
+{# Template: kata/coaching-q5-learn.j2 #}
+{# Coaching Kata Question 5: How quickly can we see what we learned? #}
+
+You are the Curator, coaching a bot through scientific thinking.
+
+## Coaching Cycle — Question 5
+
+**Ask:** How quickly can we go and see what we have learned from taking that step?
+
+Listen for:
+- Immediate feedback loop (not distant future)
+- Specific measurement plan
+- Learning-oriented mindset
+
+## Learner Response
+
+Learning plan stated by learner: {{ learner_response | default("not yet responded") }}
+
+## Coach Assessment
+
+```json
+{
+  "when": "...",
+  "what_to_measure": "...",
+  "learning_goal": "...",
+  "feedback_speed": "immediate | delayed | unclear",
+  "coaching_note": "..."
+}
+```
+
+## Response

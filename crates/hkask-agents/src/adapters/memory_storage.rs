@@ -56,12 +56,20 @@ impl MemoryStoragePort for MemoryStorageAdapter {
 
         match artifact_type {
             "episodic_triple" | "semantic_triple" => {
+<<<<<<< HEAD
                 let entity = content["entity"].as_str().ok_or_else(|| {
                     MemoryError::Serialization("Missing 'entity' field".to_string())
                 })?;
                 let attribute = content["attribute"].as_str().ok_or_else(|| {
                     MemoryError::Serialization("Missing 'attribute' field".to_string())
                 })?;
+=======
+                // Extract entity, attribute, value from content
+                let entity = content["entity"].as_str().ok_or("Missing 'entity' field")?;
+                let attribute = content["attribute"]
+                    .as_str()
+                    .ok_or("Missing 'attribute' field")?;
+>>>>>>> origin/main
                 let value = content["value"].clone();
 
                 let mut triple = Triple::new(entity, attribute, value, producer_webid)
@@ -109,6 +117,7 @@ impl MemoryStoragePort for MemoryStorageAdapter {
         }
     }
 
+<<<<<<< HEAD
     fn recall(&self, query: &str, _token: &CapabilityToken) -> Result<Vec<Value>, MemoryError> {
         let triples = self
             .triple_store
@@ -131,13 +140,130 @@ impl MemoryStoragePort for MemoryStorageAdapter {
             })
             .collect();
 
+=======
+    fn recall(&self, query: &str, _token: &CapabilityToken) -> Result<Vec<Value>, String> {
+        // For now, return empty results
+        // TODO: Implement actual search using sqlite-vec
+>>>>>>> origin/main
         tracing::debug!(
             target: "hkask.memory",
             query = %query,
             results = results.len(),
             "Memory recall"
         );
+<<<<<<< HEAD
 
         Ok(results)
+=======
+        Ok(Vec::new())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_types::CapabilityToken;
+    use serde_json::json;
+
+    #[test]
+    fn test_memory_storage_in_memory() {
+        let adapter = MemoryStorageAdapter::in_memory().unwrap();
+        assert!(true);
+    }
+
+    #[test]
+    fn test_store_semantic_triple() {
+        let adapter = MemoryStorageAdapter::in_memory().unwrap();
+        let producer_webid = WebID::new();
+        let content = json!({
+            "entity": "test-entity",
+            "attribute": "test-attribute",
+            "value": "test-value"
+        });
+
+        let token = CapabilityToken::new(
+            hkask_types::CapabilityResource::Tool,
+            "test".to_string(),
+            hkask_types::CapabilityAction::Execute,
+            WebID::new(),
+            producer_webid,
+            b"test-secret",
+        );
+
+        let result =
+            adapter.store_artifact(producer_webid, "semantic_triple", content, "public", &token);
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_store_episodic_triple() {
+        let adapter = MemoryStorageAdapter::in_memory().unwrap();
+        let producer_webid = WebID::new();
+        let content = json!({
+            "entity": "test-entity",
+            "attribute": "test-attribute",
+            "value": "test-value"
+        });
+
+        let token = CapabilityToken::new(
+            hkask_types::CapabilityResource::Tool,
+            "test".to_string(),
+            hkask_types::CapabilityAction::Execute,
+            WebID::new(),
+            producer_webid,
+            b"test-secret",
+        );
+
+        let result = adapter.store_artifact(
+            producer_webid,
+            "episodic_triple",
+            content,
+            "private",
+            &token,
+        );
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_store_embedding() {
+        let adapter = MemoryStorageAdapter::in_memory().unwrap();
+        let producer_webid = WebID::new();
+        let content = json!({
+            "vector": [0.1, 0.2, 0.3, 0.4, 0.5],
+            "model": "test-model"
+        });
+
+        let token = CapabilityToken::new(
+            hkask_types::CapabilityResource::Tool,
+            "test".to_string(),
+            hkask_types::CapabilityAction::Execute,
+            WebID::new(),
+            producer_webid,
+            b"test-secret",
+        );
+
+        let result = adapter.store_artifact(producer_webid, "embedding", content, "public", &token);
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_recall_memory() {
+        let adapter = MemoryStorageAdapter::in_memory().unwrap();
+        let token = CapabilityToken::new(
+            hkask_types::CapabilityResource::Tool,
+            "test".to_string(),
+            hkask_types::CapabilityAction::Execute,
+            WebID::new(),
+            WebID::new(),
+            b"test-secret",
+        );
+
+        let result = adapter.recall("test query", &token);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_empty());
+>>>>>>> origin/main
     }
 }

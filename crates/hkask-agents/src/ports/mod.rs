@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 //! Hexagonal Ports (Traits)
 //!
 //! Port definitions for hexagonal architecture.
@@ -31,3 +32,14 @@ pub use metacognition::{MetacognitionPort, MetacognitionPortError, StoredHealthS
 pub use security_port::{RateLimitPort, ValidationError as RateLimitValidationError};
 pub use sovereignty::{SovereigntyCheckResult, SovereigntyOperation, SovereigntyPort};
 pub use standing_session::{MessageRecord, SessionRecord, StandingSessionPort, StandingSessionPortError};
+=======
+//! Port definitions for hexagonal architecture
+
+pub mod ocap_port;
+pub mod security_port;
+pub mod sovereignty;
+
+pub use ocap_port::{DelegationEntry, OCAPConfig, OCAPPort, OCAPResult};
+pub use security_port::{ExpiryPort, InputValidationPort, RateLimitPort, SecurityPolicyPort, ValidationResult};
+pub use sovereignty::{SovereigntyError, SovereigntyPort, SovereigntyResult};
+>>>>>>> origin/main
