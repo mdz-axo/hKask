@@ -2,7 +2,7 @@
 # hKask Installation Script for Linux
 # 
 # This script installs hKask and its dependencies on Linux systems.
-# Supports: Debian/Ubuntu, Fedora/RHEL, Arch Linux, openSUSE
+# Supports: Debian/Ubuntu, Fedora/RHEL, Arch Linux, openSUSE, Alpine
 #
 # Usage: curl -fsSL https://raw.githubusercontent.com/mdz-axolotl/hKask/main/scripts/install.sh | bash
 # Or: wget -O - https://raw.githubusercontent.com/mdz-axolotl/hKask/main/scripts/install.sh | bash
@@ -191,15 +191,15 @@ install_rust() {
         log "Rust already installed: $rust_version"
         
         # Check if version is acceptable (1.70+)
-        local rust_minor=$(rustc --version | cut -d. -f2 | cut -d' ' -f1)
-        if [ "$rust_minor" -lt 70 ]; then
-            log_warning "Rust version may be too old. Consider updating with 'rustup update'"
+        local rust_minor=$(rustc --version | grep -oP '\d+\.\d+' | head -1 | cut -d. -f2)
+        if [ "$rust_minor" -lt 85 ]; then
+            log_warning "Rust version too old for edition 2024 (requires 1.85+). Consider updating with 'rustup update'"
         fi
     else
         log "Installing Rust toolchain..."
         
         if [ "$CI" != "true" ]; then
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.91
             
             # Source cargo environment
             if [ -f "$HOME/.cargo/env" ]; then
@@ -222,26 +222,56 @@ install_rust() {
 # Build and Install
 # ============================================================================
 
+HKASK_REPO_URL="${HKASK_REPO_URL:-https://github.com/mdz-axolotl/hKask.git}"
+HKASK_SOURCE_DIR="${HKASK_SOURCE_DIR:-}"
+
+clone_repo() {
+    if [ -n "$HKASK_SOURCE_DIR" ]; then
+        log "Using existing source directory: $HKASK_SOURCE_DIR"
+        return 0
+    fi
+
+    if [ -f "Cargo.toml" ] && grep -q "hkask-cli" Cargo.toml 2>/dev/null; then
+        HKASK_SOURCE_DIR="$(pwd)"
+        log "Running from within hKask repo: $HKASK_SOURCE_DIR"
+        return 0
+    fi
+
+    if [ -n "${BASH_SOURCE[0]:-}" ] && [ -f "$(dirname "${BASH_SOURCE[0]}")/../Cargo.toml" ]; then
+        HKASK_SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+        log "Detected repo from script location: $HKASK_SOURCE_DIR"
+        return 0
+    fi
+
+    local clone_dir="${XDG_CACHE_HOME:-$HOME/.cache}/hkask-build"
+    log "Cloning hKask repository..."
+    rm -rf "$clone_dir"
+    git clone --depth 1 --branch "${HKASK_VERSION}" "$HKASK_REPO_URL" "$clone_dir" 2>/dev/null || \
+        git clone --depth 1 "$HKASK_REPO_URL" "$clone_dir"
+    HKASK_SOURCE_DIR="$clone_dir"
+    log_success "Repository cloned to $HKASK_SOURCE_DIR"
+}
+
 build_hkask() {
-    local workspace_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-    
+    clone_repo
+    local workspace_root="$HKASK_SOURCE_DIR"
+
     log "Building hKask in $workspace_root..."
     cd "$workspace_root"
-    
-    # Release build for production
+
     if [ "${HKASK_BUILD_TYPE:-release}" = "release" ]; then
         log "Building in release mode..."
-        cargo build --release --workspace
+        cargo build --release --package hkask-cli
     else
         log "Building in debug mode..."
-        cargo build --workspace
+        cargo build --package hkask-cli
     fi
-    
+
     log_success "Build complete"
 }
 
 install_binary() {
-    local workspace_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    local workspace_root="$HKASK_SOURCE_DIR"
     
     log "Installing hKask binary..."
     
@@ -369,11 +399,13 @@ Options:
     --help              Show this help message
 
 Environment Variables:
-    HKASK_VERSION       Version to install (default: 0.1.0)
+    HKASK_VERSION       Version to install (default: 0.21.0)
     HKASK_BUILD_TYPE    Build type: release or debug (default: release)
     INSTALL_DIR         Installation directory (default: \$HOME/.local)
     CARGO_HOME          Cargo installation directory (default: \$HOME/.cargo)
     HKASK_REMOVE_CONFIG Remove config and data on uninstall (default: false)
+    HKASK_SOURCE_DIR    Use existing source directory instead of cloning
+    HKASK_REPO_URL      Git repository URL (default: https://github.com/mdz-axolotl/hKask.git)
 
 Examples:
     # Install hKask

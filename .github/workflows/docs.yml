@@ -34,7 +34,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.91
         with:
           components: rust-docs
       
@@ -118,26 +118,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run documentation health check (placeholder)
+      - name: Run documentation health check
         run: |
-          echo "Documentation health check placeholder"
-          echo "TODO: Implement docs/ci/docs-health.sh"
-          # chmod +x docs/ci/docs-health.sh
-          # ./docs/ci/docs-health.sh
+          chmod +x docs/ci/docs-health.sh
+          ./docs/ci/docs-health.sh
 
-      - name: Run link check (placeholder)
+      - name: Run link check
         run: |
-          echo "Link check placeholder"
-          echo "TODO: Implement docs/ci/check-links.sh"
-          # chmod +x docs/ci/check-links.sh
-          # ./docs/ci/check-links.sh || echo "::warning::Some broken links found"
+          chmod +x docs/ci/check-links.sh
+          ./docs/ci/check-links.sh || echo "::warning::Some broken links found"
 
-      - name: Run metadata check (placeholder)
+      - name: Run metadata check
         run: |
-          echo "Metadata check placeholder"
-          echo "TODO: Implement docs/ci/check-metadata.sh"
-          # chmod +x docs/ci/check-metadata.sh
-          # ./docs/ci/check-metadata.sh || echo "::warning::Some metadata missing"
+          chmod +x docs/ci/check-metadata.sh
+          ./docs/ci/check-metadata.sh || echo "::warning::Some metadata missing"
 
   # ============================================================================
   # Check Documentation Links
@@ -174,7 +168,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.91
       
       - name: Install system dependencies
         run: |
