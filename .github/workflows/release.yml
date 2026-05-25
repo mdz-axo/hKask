@@ -48,13 +48,7 @@ jobs:
             libprotobuf-dev
       
       - name: Cache cargo registry
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+        uses: Swatinem/rust-cache@v2
       
       - name: Check formatting
         run: cargo fmt --all --check
@@ -110,7 +104,13 @@ jobs:
         if: matrix.target == 'x86_64-unknown-linux-musl'
         run: |
           sudo apt-get update
-          sudo apt-get install -y musl-tools
+          sudo apt-get install -y \
+            musl-tools \
+            pkg-config \
+            libclang-dev \
+            llvm-dev \
+            cmake \
+            protobuf-compiler
       
       - name: Install cross-compilation tools (AArch64)
         if: matrix.target == 'aarch64-unknown-linux-gnu'
@@ -119,20 +119,22 @@ jobs:
           sudo apt-get install -y \
             gcc-aarch64-linux-gnu \
             pkg-config \
-            libssl-dev \
-            libsqlite3-dev
+            libclang-dev \
+            llvm-dev \
+            cmake \
+            protobuf-compiler
       
       - name: Cache cargo registry
-        uses: actions/cache@v4
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ matrix.target }}
       
       - name: Build release binary
         run: cargo build --release --package hkask-cli --target ${{ matrix.target }}
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
       
       - name: Package binary
         run: |

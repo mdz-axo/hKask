@@ -42,7 +42,7 @@ fn parse_data_category(s: &str) -> hkask_types::DataCategory {
 #[derive(Parser)]
 #[command(name = "kask")]
 #[command(author = "hKask Team")]
-#[command(version = "0.1.0")]
+#[command(version)]
 #[command(about = "Planck's Constant of Agent Systems - CLI", long_about = None)]
 struct Cli {
     /// Enable verbose output
@@ -811,7 +811,7 @@ fn generate_cli_markdown() -> String {
     md.push_str("- `cognition` — Cognitive processing templates\n");
     md.push_str("- `process` — Process execution templates\n\n");
     md.push_str("---\n\n");
-    md.push_str("*hKask v0.1.0 — Planck's Constant of Agent Systems*\n");
+    md.push_str(&format!("*hKask v{} — Planck's Constant of Agent Systems*\n", env!("CARGO_PKG_VERSION")));
 
     md
 }

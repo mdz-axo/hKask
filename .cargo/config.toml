@@ -5,15 +5,11 @@
 # Uncomment for development:
 # profile = "dev"
 
-# Target-specific optimizations
-[target.x86_64-unknown-linux-gnu]
-rustflags = ["-C", "target-cpu=native"]
-
+# Target-specific linker configuration for cross-compilation
 [target.aarch64-unknown-linux-gnu]
-rustflags = ["-C", "target-cpu=native"]
+linker = "aarch64-linux-gnu-gcc"
 
-# Linker configuration for faster linking
-# Uncomment if you have mold or lld installed:
+# Uncomment for local development with mold/lld:
 # [target.x86_64-unknown-linux-gnu]
 # linker = "clang"
 # rustflags = ["-C", "link-arg=-fuse-ld=lld"]
