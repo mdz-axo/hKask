@@ -74,6 +74,7 @@ secrecy = "0.10"
 zeroize = { version = "1", features = ["zeroize_derive"] }
 hex = "0.4"
 subtle = "2"
+password-hash = "0.5"
 
 # Git
 gix = "0.81"
@@ -103,6 +104,7 @@ uuid = { version = "1", features = ["v4", "v5", "serde", "fast-rng"] }
 chrono = { version = "0.4", features = ["serde"] }
 parking_lot = "0.12"
 rand = "0.9"
+base64 = "0.22"
 
 # Keychain / Secrets
 keyring = "3"

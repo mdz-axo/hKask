@@ -14,6 +14,7 @@ pub mod sovereignty;
 pub mod spec_store;
 pub mod standing_session;
 pub mod triples;
+pub mod user_store;
 
 pub use agent_registry::{AgentRegistryError, AgentRegistryStore};
 pub use audit_log::{AuditEntry, AuditLogError, AuditLogStore};
@@ -36,3 +37,4 @@ pub use standing_session::{
     StandingSessionError, StandingSessionStore, StoredMessage, StoredSession,
 };
 pub use triples::{Triple, TripleError, TripleStore};
+pub use user_store::{UserStore, UserStoreError};

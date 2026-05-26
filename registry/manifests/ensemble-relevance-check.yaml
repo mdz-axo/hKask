@@ -1,0 +1,47 @@
+# Ensemble Relevance Check — Should-you-speak? prompt
+# ℏKask v0.21.0 — Generative Improvisation Engine
+#
+# Lightweight inference call that asks each agent whether they have
+# something unique to contribute to the current conversation.
+# Uses fast_local model tier for speed; 100 max tokens.
+
+manifest:
+  name: ensemble-relevance-check
+  version: "0.1.0"
+  description: Relevance self-assessment for improvisational ensemble participation
+  functional_role: flowdef
+
+steps:
+  - ordinal: 1
+    action: populate
+    template_ref: ensemble/selectors/relevance-check.j2
+    renderer: minijinja
+    bindings:
+      agent_name: "${participant.name}"
+      agent_description: "${participant.description}"
+      user_message: "${input.message}"
+      conversation_context: "${input.context_summary}"
+    model_tier: fast_local
+    output_schema:
+      type: object
+      properties:
+        confidence:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+        reason:
+          type: string
+
+matroshka:
+  max_depth: 1
+  enforce: true
+
+cns:
+  spans:
+    - cns.ensemble.improv.relevance_check
+    - cns.ensemble.improv.speaker_selected
+
+constraints:
+  max_tokens: 100
+  temperature: 0.3
+  no_tool_calls: true

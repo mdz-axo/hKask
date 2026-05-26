@@ -78,8 +78,32 @@ const SLASH_COMMANDS: &[SlashCommand] = &[
     SlashCommand {
         primary: "ensemble",
         aliases: &["ens"],
-        args: "sessions|create|join|send",
+        args: "sessions|create|join|send|invite|participants",
         about: "Multi-agent ensemble operations",
+    },
+    SlashCommand {
+        primary: "into",
+        aliases: &["i"],
+        args: "[SESSION]",
+        about: "Enter ensemble session, or leave it",
+    },
+    SlashCommand {
+        primary: "filter",
+        aliases: &["thresh"],
+        args: "[0.0-1.0]",
+        about: "Set/show participation threshold",
+    },
+    SlashCommand {
+        primary: "mode",
+        aliases: &[],
+        args: "[freeform|curator_led|round_robin]",
+        about: "Set/show ensemble orchestration mode",
+    },
+    SlashCommand {
+        primary: "ask",
+        aliases: &[],
+        args: "<AGENT> <MESSAGE>",
+        about: "Force a specific agent to respond",
     },
     SlashCommand {
         primary: "escalations",
@@ -241,35 +265,51 @@ impl Validator for KaskHelper {}
 impl rustyline::Helper for KaskHelper {}
 
 fn print_banner(agent: &str, template: Option<&str>) {
-    let kask = r#"
-    ╭──────────────────────────────────────╮
-    │                                      │
-    │      ╷   ┌───────┐   ╷              │
-    │      │   │       │   │              │
-    │      ╰───┤  ◉    ├───╯              │
-    │          │       │                  │
-    │          │  KASK │                  │
-    │          │       │                  │
-    │          └───────┘                  │
-    │          Planck's Constant          │
-    │          of Agent Systems           │
-    │                                      │
-    ╰──────────────────────────────────────╯"#;
+    let ghost = "\x1b[2;36m";
+    let body = "\x1b[1;36m";
+    let bright = "\x1b[1;37m";
+    let dim = "\x1b[2;37m";
+    let gold = "\x1b[1;33m";
+    let r = "\x1b[0m";
 
-    println!("\x1b[1;36m{}\x1b[0m", kask);
-    println!();
+    let eye_frames: &[&str] = &["center", "right", "center", "left"];
+
+    for (i, gaze) in eye_frames.iter().enumerate() {
+        if i > 0 {
+            print!("\x1b[10A");
+        }
+
+        let eye = match *gaze {
+            "right" => format!("{bright}.::{gold}>{bright}:.{r}"),
+            "left" => format!("{bright}.:{gold}<{bright}::.{r}"),
+            _ => format!("{bright}.:{dim}:{bright}:.{r}"),
+        };
+
+        println!("{ghost}  __          {body}    ___________    __    {r}");
+        println!("{ghost} /  \\         {body}   /  \\   {eye}   /  \\   {r}");
+        println!("{ghost}|    |        {body}  |    |           |    |  {r}");
+        println!("{ghost} \\__/         {body}  |    |    KASK   |    |  {r}");
+        println!("{ghost}              {body}  |    |           |    |  {r}");
+        println!("{ghost}              {body}   \\__/~~~~~~~~~~~\\__/   {r}");
+        println!("  {ghost}shadow{r}       {body}    hKask v{VERSION}{r}");
+        println!();
+        println!("{body}     Planck's Constant of Agent Systems{r}");
+        println!();
+
+        std::io::Write::flush(&mut std::io::stdout()).ok();
+
+        if i < eye_frames.len() - 1 {
+            std::thread::sleep(std::time::Duration::from_millis(350));
+        }
+    }
+
     println!(
-        "  \x1b[1mℏKask v{}\x1b[0m — Planck's Constant of Agent Systems",
-        VERSION
-    );
-    println!(
-        "  Agent: \x1b[1m{}\x1b[0m  |  Template: \x1b[1m{}\x1b[0m",
+        "  \x1b[1mAgent:\x1b[0m \x1b[1m{}\x1b[0m  \x1b[1mTemplate:\x1b[0m \x1b[1m{}\x1b[0m",
         agent,
         template.unwrap_or("auto-select")
     );
-    println!();
     println!(
-        "  Type \x1b[1;36m/help\x1b[0m for commands, \x1b[2m<TAB>\x1b[0m to autocomplete, \x1b[2m/quit\x1b[0m to exit"
+        "  \x1b[1;36m/help\x1b[0m for commands  \x1b[2m<TAB>\x1b[0m autocomplete  \x1b[2m/quit\x1b[0m exit"
     );
     println!();
 }
@@ -282,8 +322,8 @@ fn print_help() {
     let categories = [
         ("Session", &["help", "quit", "clear", "history"] as &[&str]),
         ("Agent", &["agent", "agents", "pods"]),
+        ("Ensemble", &["into", "ensemble", "filter", "mode", "ask"]),
         ("System", &["status", "tools", "templates", "sovereignty"]),
-        ("Ensemble", &["ensemble"]),
         (
             "Governance",
             &["escalations", "resolve", "dismiss", "metacognition"],
@@ -342,8 +382,54 @@ fn print_command_help(cmd_name: &str) {
                 println!(
                     "    \x1b[36m/ensemble send\x1b[0m <id> <msg> — Send a message to a session"
                 );
+                println!(
+                    "    \x1b[36m/ensemble invite\x1b[0m <bot> [role] — Invite agent into current session"
+                );
+                println!(
+                    "    \x1b[36m/ensemble participants\x1b[0m — Show who's in the current session"
+                );
                 println!();
                 println!("  Roles: memory_bot, spandrel_bot, okapi_bot, scholar_bot");
+                println!("  Use \x1b[36m/into <session>\x1b[0m to enter ensemble mode");
+            }
+            "into" => {
+                println!();
+                println!(
+                    "  \x1b[2m/into research-team\x1b[0m  — Enter ensemble session 'research-team'"
+                );
+                println!(
+                    "  \x1b[2m/into\x1b[0m               — Leave ensemble mode, return to single-agent"
+                );
+                println!();
+                println!("  In ensemble mode, messages go to the group. Agents self-select");
+                println!("  to speak based on relevance confidence (generative improvisation).");
+            }
+            "filter" => {
+                println!();
+                println!("  \x1b[2m/filter\x1b[0m          — Show current participation threshold");
+                println!(
+                    "  \x1b[2m/filter 0.8\x1b[0m      — Set threshold (0.0-1.0, higher = more selective)"
+                );
+                println!();
+                println!("  Controls how confident an agent must be to speak in ensemble mode.");
+                println!(
+                    "  Default: 0.75. Increase for focused discussion, decrease for more voices."
+                );
+            }
+            "mode" => {
+                println!();
+                println!("  \x1b[2m/mode\x1b[0m                     — Show current ensemble mode");
+                println!(
+                    "  \x1b[2m/mode freeform\x1b[0m            — Agents self-select by relevance (default)"
+                );
+                println!("  \x1b[2m/mode curator_led\x1b[0m         — Curator picks speakers");
+                println!("  \x1b[2m/mode round_robin\x1b[0m         — All agents speak in turn");
+            }
+            "ask" => {
+                println!();
+                println!("  \x1b[2m/ask ScholarBot What do you think?\x1b[0m");
+                println!();
+                println!("  Force a specific agent to respond, bypassing relevance filter.");
             }
             "agent" => {
                 println!();
@@ -376,6 +462,7 @@ pub fn run(
 ) {
     let mut current_agent = agent_name.to_string();
     let mut session_history = SessionHistory::new();
+    let mut active_session: Option<String> = None;
 
     let helper = KaskHelper::new();
 
@@ -402,7 +489,11 @@ pub fn run(
     print_banner(&current_agent, template_id);
 
     loop {
-        let prompt = format!("\x1b[1mℏKask\x1b[0m [\x1b[36m{}\x1b[0m]> ", current_agent);
+        let prompt = if let Some(ref session) = active_session {
+            format!("\x1b[1mℏKask\x1b[0m [\x1b[33m{}\x1b[0m]> ", session)
+        } else {
+            format!("\x1b[1mℏKask\x1b[0m [\x1b[36m{}\x1b[0m]> ", current_agent)
+        };
         match rl.readline(&prompt) {
             Ok(line) => {
                 let input = line.trim();
@@ -417,6 +508,7 @@ pub fn run(
                         &mut current_agent,
                         &mut session_history,
                         template_id,
+                        &mut active_session,
                     ) {
                         let _ = rl.save_history(&history_path());
                         break;
@@ -431,12 +523,47 @@ pub fn run(
                 }
 
                 let rt = tokio::runtime::Runtime::new().unwrap();
-                let response = rt.block_on(crate::commands::chat_with_agent(
-                    input,
-                    Some(&current_agent),
-                ));
-                println!("{}: {}\n", current_agent, response);
-                session_history.record(&current_agent, &response);
+
+                if let Some(ref session) = active_session {
+                    match rt.block_on(crate::commands::ensemble_improv_turn(session, input)) {
+                        Ok(turn) => {
+                            if turn.responses.is_empty() {
+                                println!("  \x1b[2m(no agents chose to speak)\x1b[0m");
+                            } else {
+                                for response in &turn.responses {
+                                    println!(
+                                        "\x1b[1m{}\x1b[0m (conf: {:.2}): {}\n",
+                                        response.agent_webid, response.confidence, response.content
+                                    );
+                                    session_history.record(
+                                        &response.agent_webid.to_string(),
+                                        &response.content,
+                                    );
+                                }
+                                if let Some(ref synthesis) = turn.curator_synthesis {
+                                    println!("\x1b[1;33mCurator:\x1b[0m {}\n", synthesis);
+                                    session_history.record("Curator", synthesis);
+                                }
+                            }
+                            for j in &turn.judgments {
+                                if !j.should_speak {
+                                    println!(
+                                        "  \x1b[2m{}: silent ({:.2} — {})\x1b[0m",
+                                        j.agent_name, j.confidence, j.reason
+                                    );
+                                }
+                            }
+                        }
+                        Err(e) => println!("  \x1b[31mEnsemble error:\x1b[0m {}", e),
+                    }
+                } else {
+                    let response = rt.block_on(crate::commands::chat_with_agent(
+                        input,
+                        Some(&current_agent),
+                    ));
+                    println!("{}: {}\n", current_agent, response);
+                    session_history.record(&current_agent, &response);
+                }
             }
             Err(ReadlineError::Interrupted) => {
                 println!("(Ctrl+C — type /quit to exit)");
@@ -468,6 +595,7 @@ fn handle_slash_command(
     current_agent: &mut String,
     session_history: &mut SessionHistory,
     template_id: Option<&str>,
+    active_session: &mut Option<String>,
 ) -> bool {
     let without_slash = &input[1..];
     let parts: Vec<&str> = without_slash.splitn(3, ' ').collect();
@@ -509,10 +637,25 @@ fn handle_slash_command(
         "status" | "st" => {
             let agent_display = current_agent.clone();
             let tpl = template_id.unwrap_or("auto-select");
+            let rt = tokio::runtime::Runtime::new().unwrap();
             println!("  Agent:      \x1b[1m{}\x1b[0m", agent_display);
             println!("  Template:   {}", tpl);
             println!("  CNS:        \x1b[32mHEALTHY\x1b[0m (no alerts)");
             println!("  Turns:      {}", session_history.turns.len());
+            match &active_session {
+                Some(session) => {
+                    let config = rt.block_on(crate::commands::ensemble_improv_config());
+                    println!(
+                        "  Ensemble:   \x1b[33m{}\x1b[0m (mode: {}, threshold: {:.2})",
+                        session,
+                        config.mode.as_str(),
+                        config.participation_threshold
+                    );
+                }
+                None => {
+                    println!("  Ensemble:   single-agent");
+                }
+            }
             println!();
         }
         "agent" | "a" => {
@@ -666,7 +809,19 @@ fn handle_slash_command(
             println!();
         }
         "ensemble" | "ens" => {
-            handle_ensemble(arg1, arg2);
+            handle_ensemble(arg1, arg2, active_session);
+        }
+        "into" | "i" => {
+            handle_into(arg1, active_session);
+        }
+        "filter" | "thresh" => {
+            handle_filter(arg1);
+        }
+        "mode" => {
+            handle_mode(arg1);
+        }
+        "ask" => {
+            handle_ask(arg1, arg2, active_session);
         }
         _ => {
             let fuzzy = fuzzy_match_command(&cmd);
@@ -685,7 +840,7 @@ fn handle_slash_command(
     false
 }
 
-fn handle_ensemble(subcmd: &str, rest: &str) {
+fn handle_ensemble(subcmd: &str, rest: &str, active_session: &mut Option<String>) {
     let rt = tokio::runtime::Runtime::new().unwrap();
     match subcmd {
         "sessions" | "list" | "" => {
@@ -698,7 +853,11 @@ fn handle_ensemble(subcmd: &str, rest: &str) {
                         } else {
                             println!("  \x1b[1mEnsemble sessions:\x1b[0m");
                             for s in &sessions {
-                                println!("    \x1b[36m•\x1b[0m {}", s);
+                                let active = match &active_session {
+                                    Some(a) if a == s => " \x1b[1;33m← active\x1b[0m",
+                                    _ => "",
+                                };
+                                println!("    \x1b[36m•\x1b[0m {}{}", s, active);
                             }
                         }
                     }
@@ -739,6 +898,67 @@ fn handle_ensemble(subcmd: &str, rest: &str) {
                 });
             }
         }
+        "invite" => match &active_session {
+            Some(session) => {
+                let parts: Vec<&str> = rest.split_whitespace().collect();
+                if parts.is_empty() {
+                    println!("  Usage: \x1b[36m/ensemble invite <bot> [role]\x1b[0m");
+                    println!(
+                        "  Roles: memory_bot, spandrel_bot, okapi_bot, scholar_bot (default: custom)"
+                    );
+                } else {
+                    let bot = parts[0];
+                    let role = parts
+                        .get(1)
+                        .map(|s| s.to_string())
+                        .unwrap_or_else(|| "custom".to_string());
+                    rt.block_on(async {
+                        match crate::commands::ensemble_chat_register(
+                            session.clone(),
+                            bot.to_string(),
+                            role,
+                        )
+                        .await
+                        {
+                            Ok(msg) => println!("  \x1b[32m✓\x1b[0m {}", msg),
+                            Err(e) => println!("  Error: {}", e),
+                        }
+                    });
+                }
+            }
+            None => {
+                println!(
+                    "  \x1b[31mNo active session.\x1b[0m Use \x1b[36m/into <session>\x1b[0m first."
+                );
+            }
+        },
+        "participants" | "who" => match &active_session {
+            Some(session) => {
+                rt.block_on(async {
+                    match crate::commands::ensemble_participants(session).await {
+                        Ok(participants) => {
+                            if participants.is_empty() {
+                                println!("  No participants in session.");
+                            } else {
+                                println!("  \x1b[1mParticipants ({}):\x1b[0m", participants.len());
+                                for (name, role, caps) in &participants {
+                                    println!(
+                                        "    \x1b[36m{}\x1b[0m ({}) caps: {}",
+                                        name, role, caps
+                                    );
+                                }
+                            }
+                        }
+                        Err(e) => println!("  Error: {}", e),
+                    }
+                });
+            }
+            None => {
+                println!(
+                    "  \x1b[31mNo active session.\x1b[0m Use \x1b[36m/into <session>\x1b[0m first."
+                );
+            }
+        },
         "send" | "say" => {
             let parts: Vec<&str> = rest.splitn(2, ' ').collect();
             if parts.len() < 2 {
@@ -759,9 +979,163 @@ fn handle_ensemble(subcmd: &str, rest: &str) {
         }
         other => {
             println!("  Unknown ensemble subcommand: \x1b[31m{}\x1b[0m", other);
-            println!("  Use: sessions, create, join, send");
+            println!("  Use: sessions, create, join, invite, participants, send");
             println!("  Type \x1b[36m/help ensemble\x1b[0m for details.");
         }
     }
     println!();
+}
+
+fn handle_into(arg: &str, active_session: &mut Option<String>) {
+    if arg.is_empty() {
+        match active_session {
+            Some(_) => {
+                let leaving = active_session.take().unwrap();
+                println!(
+                    "  Left ensemble session \x1b[33m{}\x1b[0m. Back to single-agent mode.",
+                    leaving
+                );
+            }
+            None => {
+                println!("  Not in an ensemble session.");
+                println!("  Use \x1b[36m/into <session-id>\x1b[0m to enter one.");
+                println!("  Use \x1b[36m/ensemble create <id>\x1b[0m to create one first.");
+            }
+        }
+    } else {
+        let session = arg.trim().to_string();
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let exists = rt.block_on(async {
+            match crate::commands::ensemble_chat_list().await {
+                Ok(sessions) => sessions.contains(&session),
+                Err(_) => false,
+            }
+        });
+
+        if exists {
+            *active_session = Some(session.clone());
+            let config = rt.block_on(crate::commands::ensemble_improv_config());
+            println!("  Entered ensemble session \x1b[33m{}\x1b[0m", session);
+            println!(
+                "  Mode: \x1b[1m{}\x1b[0m  Threshold: \x1b[1m{:.2}\x1b[0m",
+                config.mode.as_str(),
+                config.participation_threshold
+            );
+            println!("  Messages now go to the ensemble. \x1b[2m/into\x1b[0m to leave.");
+        } else {
+            println!(
+                "  Session \x1b[31m{}\x1b[0m not found. Create it first with \x1b[36m/ensemble create {}\x1b[0m",
+                session, session
+            );
+        }
+    }
+    println!();
+}
+
+fn handle_filter(arg: &str) {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    if arg.is_empty() {
+        let config = rt.block_on(crate::commands::ensemble_improv_config());
+        println!(
+            "  Participation threshold: \x1b[1m{:.2}\x1b[0m",
+            config.participation_threshold
+        );
+        println!("  (0.0 = all speak, 1.0 = nobody speaks, 0.75 = default)");
+    } else {
+        match arg.parse::<f64>() {
+            Ok(threshold) => {
+                rt.block_on(async {
+                    match crate::commands::ensemble_improv_set_threshold(threshold).await {
+                        Ok(()) => {
+                            let clamped = threshold.clamp(0.0, 1.0);
+                            println!(
+                                "  Participation threshold set to \x1b[1m{:.2}\x1b[0m",
+                                clamped
+                            );
+                            if clamped < 0.5 {
+                                println!("  \x1b[2m(low — most agents will speak)\x1b[0m");
+                            } else if clamped > 0.9 {
+                                println!("  \x1b[2m(high — very selective)\x1b[0m");
+                            }
+                        }
+                        Err(e) => println!("  Error: {}", e),
+                    }
+                });
+            }
+            Err(_) => {
+                println!(
+                    "  Invalid threshold: \x1b[31m{}\x1b[0m. Must be 0.0-1.0",
+                    arg
+                );
+            }
+        }
+    }
+    println!();
+}
+
+fn handle_mode(arg: &str) {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    if arg.is_empty() {
+        let config = rt.block_on(crate::commands::ensemble_improv_config());
+        println!("  Ensemble mode: \x1b[1m{}\x1b[0m", config.mode.as_str());
+        println!("  Options: freeform, curator_led, round_robin");
+    } else {
+        match hkask_ensemble::ImprovMode::parse_mode(arg.trim()) {
+            Some(mode) => {
+                rt.block_on(async {
+                    match crate::commands::ensemble_improv_set_mode(mode.clone()).await {
+                        Ok(()) => {
+                            println!("  Ensemble mode set to \x1b[1m{}\x1b[0m", mode.as_str());
+                            match mode {
+                                hkask_ensemble::ImprovMode::Freeform => {
+                                    println!("  \x1b[2m(agents self-select by relevance)\x1b[0m");
+                                }
+                                hkask_ensemble::ImprovMode::CuratorLed => {
+                                    println!("  \x1b[2m(Curator picks who speaks)\x1b[0m");
+                                }
+                                hkask_ensemble::ImprovMode::RoundRobin => {
+                                    println!("  \x1b[2m(all agents speak in turn)\x1b[0m");
+                                }
+                            }
+                        }
+                        Err(e) => println!("  Error: {}", e),
+                    }
+                });
+            }
+            None => {
+                println!("  Unknown mode: \x1b[31m{}\x1b[0m", arg);
+                println!("  Options: freeform, curator_led, round_robin");
+            }
+        }
+    }
+    println!();
+}
+
+fn handle_ask(arg1: &str, arg2: &str, active_session: &Option<String>) {
+    if arg1.is_empty() || arg2.is_empty() {
+        println!("  Usage: \x1b[36m/ask <agent> <message>\x1b[0m");
+        return;
+    }
+
+    match active_session {
+        Some(session) => {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            let response = rt.block_on(crate::commands::chat_with_agent(arg2, Some(arg1)));
+            println!("\x1b[1m{}\x1b[0m: {}\n", arg1, response);
+
+            let manager_session = session.clone();
+            rt.block_on(async {
+                let _ = crate::commands::ensemble_chat_send(
+                    manager_session,
+                    format!("[direct to {}] {}", arg1, arg2),
+                )
+                .await;
+            });
+        }
+        None => {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            let response = rt.block_on(crate::commands::chat_with_agent(arg2, Some(arg1)));
+            println!("\x1b[1m{}\x1b[0m: {}\n", arg1, response);
+        }
+    }
 }

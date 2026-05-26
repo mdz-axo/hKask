@@ -150,6 +150,12 @@ enum Commands {
         #[command(subcommand)]
         action: CuratorAction,
     },
+
+    /// Replicant identity management
+    Replicant {
+        #[command(subcommand)]
+        action: ReplicantAction,
+    },
 }
 
 #[derive(Subcommand)]
@@ -581,6 +587,68 @@ enum CuratorAction {
 
     /// Run a metacognition cycle and display system health
     Metacognition,
+}
+
+/// Replicant identity actions
+#[derive(Subcommand)]
+enum ReplicantAction {
+    /// Register a new replicant identity
+    Register {
+        /// Replicant name (login identifier)
+        #[arg()]
+        replicant_name: String,
+
+        /// Human first name
+        #[arg(long)]
+        first_name: String,
+
+        /// Human last name
+        #[arg(long)]
+        last_name: String,
+
+        /// Human email (for recovery only)
+        #[arg(long)]
+        email: String,
+
+        /// Human phone in E.164 format (optional, for recovery)
+        #[arg(long)]
+        phone: Option<String>,
+    },
+
+    /// Login as a replicant identity
+    Login {
+        /// Replicant name to login as
+        #[arg()]
+        replicant_name: String,
+    },
+
+    /// Logout from a session
+    Logout {
+        /// Session ID to invalidate
+        #[arg()]
+        session_id: String,
+    },
+
+    /// List active sessions for a replicant
+    Sessions {
+        /// Replicant name
+        #[arg()]
+        replicant_name: String,
+    },
+
+    /// List replicant identities for a human user
+    List {
+        /// User ID
+        #[arg(long)]
+        user_id: Option<String>,
+    },
+
+    /// Show replicant identity info
+    Show {
+        /// Replicant name
+        #[arg()]
+        replicant_name: String,
+    },
 }
 
 /// Specification actions (DDMVSS)
@@ -1931,6 +1999,273 @@ fn main() {
                         }
                     }
                 });
+            }
+        },
+
+        Commands::Replicant { action } => match action {
+            ReplicantAction::Register {
+                replicant_name,
+                first_name,
+                last_name,
+                email,
+                phone,
+            } => {
+                let store = hkask_storage::user_store::UserStore::new(std::sync::Arc::new(
+                    std::sync::Mutex::new(
+                        rusqlite::Connection::open("hask.db")
+                            .unwrap_or_else(|_| rusqlite::Connection::open_in_memory().unwrap()),
+                    ),
+                ));
+                let store = std::sync::Arc::new(std::sync::Mutex::new(store));
+                store.lock().unwrap().initialize_schema().unwrap();
+
+                match commands::user::register_replicant(
+                    store,
+                    &replicant_name,
+                    &first_name,
+                    &last_name,
+                    &email,
+                    phone.as_deref(),
+                ) {
+                    Ok(()) => {}
+                    Err(e) => {
+                        eprintln!("Registration failed: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+            ReplicantAction::Login { replicant_name } => {
+                let store = hkask_storage::user_store::UserStore::new(std::sync::Arc::new(
+                    std::sync::Mutex::new(
+                        rusqlite::Connection::open("hask.db")
+                            .unwrap_or_else(|_| rusqlite::Connection::open_in_memory().unwrap()),
+                    ),
+                ));
+                let store = std::sync::Arc::new(std::sync::Mutex::new(store));
+                store.lock().unwrap().initialize_schema().unwrap();
+
+                match commands::user::login_replicant(store, &replicant_name) {
+                    Ok(session) => {
+                        println!("Session ID: {}", session.session_id);
+                        println!("\nTo logout: kask replicant logout {}", &session.session_id[..8]);
+                    }
+                    Err(e) => {
+                        eprintln!("Login failed: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+            ReplicantAction::Logout { session_id } => {
+                let store = hkask_storage::user_store::UserStore::new(std::sync::Arc::new(
+                    std::sync::Mutex::new(
+                        rusqlite::Connection::open("hask.db")
+                            .unwrap_or_else(|_| rusqlite::Connection::open_in_memory().unwrap()),
+                    ),
+                ));
+                let store = std::sync::Arc::new(std::sync::Mutex::new(store));
+                store.lock().unwrap().initialize_schema().unwrap();
+
+                match commands::user::logout(store, &session_id) {
+                    Ok(()) => {}
+                    Err(e) => {
+                        eprintln!("Logout failed: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+            ReplicantAction::Sessions { replicant_name } => {
+                let store = hkask_storage::user_store::UserStore::new(std::sync::Arc::new(
+                    std::sync::Mutex::new(
+                        rusqlite::Connection::open("hask.db")
+                            .unwrap_or_else(|_| rusqlite::Connection::open_in_memory().unwrap()),
+                    ),
+                ));
+                let store = std::sync::Arc::new(std::sync::Mutex::new(store));
+                store.lock().unwrap().initialize_schema().unwrap();
+
+                match commands::user::list_sessions(store, &replicant_name) {
+                    Ok(()) => {}
+                    Err(e) => {
+                        eprintln!("Failed to list sessions: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+            ReplicantAction::List { user_id } => {
+                let store = hkask_storage::user_store::UserStore::new(std::sync::Arc::new(
+                    std::sync::Mutex::new(
+                        rusqlite::Connection::open("hask.db")
+                            .unwrap_or_else(|_| rusqlite::Connection::open_in_memory().unwrap()),
+                    ),
+                ));
+                let store = std::sync::Arc::new(std::sync::Mutex::new(store));
+                store.lock().unwrap().initialize_schema().unwrap();
+
+                if let Some(uid) = user_id {
+                    let user_id = hkask_types::UserID::from_string(&uid);
+                    match commands::user::list_replicants(store, &user_id) {
+                        Ok(_) => {}
+                        Err(e) => {
+                            eprintln!("Failed to list identities: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                } else {
+                    eprintln!("--user-id is required");
+                    std::process::exit(1);
+                }
+            }
+            ReplicantAction::Show { replicant_name } => {
+                let store = hkask_storage::user_store::UserStore::new(std::sync::Arc::new(
+                    std::sync::Mutex::new(
+                        rusqlite::Connection::open("hask.db")
+                            .unwrap_or_else(|_| rusqlite::Connection::open_in_memory().unwrap()),
+                    ),
+                ));
+                let store = std::sync::Arc::new(std::sync::Mutex::new(store));
+                store.lock().unwrap().initialize_schema().unwrap();
+
+                match commands::user::show_replicant(store, &replicant_name) {
+                    Ok(()) => {}
+                    Err(e) => {
+                        eprintln!("Failed to show replicant: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+        },
+    }
+}
+        Commands::Replicant { action } => match action {
+            ReplicantAction::Register {
+                replicant_name,
+                first_name,
+                last_name,
+                email,
+                phone,
+            } => {
+                let store = hkask_storage::user_store::UserStore::new(std::sync::Arc::new(
+                    std::sync::Mutex::new(
+                        rusqlite::Connection::open("hask.db")
+                            .unwrap_or_else(|_| rusqlite::Connection::open_in_memory().unwrap()),
+                    ),
+                ));
+                let store = std::sync::Arc::new(std::sync::Mutex::new(store));
+                store.lock().unwrap().initialize_schema().unwrap();
+
+                match commands::user::register_replicant(
+                    store,
+                    &replicant_name,
+                    &first_name,
+                    &last_name,
+                    &email,
+                    phone.as_deref(),
+                ) {
+                    Ok(()) => {}
+                    Err(e) => {
+                        eprintln!("Registration failed: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+            ReplicantAction::Login { replicant_name } => {
+                let store = hkask_storage::user_store::UserStore::new(std::sync::Arc::new(
+                    std::sync::Mutex::new(
+                        rusqlite::Connection::open("hask.db")
+                            .unwrap_or_else(|_| rusqlite::Connection::open_in_memory().unwrap()),
+                    ),
+                ));
+                let store = std::sync::Arc::new(std::sync::Mutex::new(store));
+                store.lock().unwrap().initialize_schema().unwrap();
+
+                match commands::user::login_replicant(store, &replicant_name) {
+                    Ok(session) => {
+                        println!("Session ID: {}", session.session_id);
+                        println!("\nTo logout: kask replicant logout {}", &session.session_id[..8]);
+                    }
+                    Err(e) => {
+                        eprintln!("Login failed: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+            ReplicantAction::Logout { session_id } => {
+                let store = hkask_storage::user_store::UserStore::new(std::sync::Arc::new(
+                    std::sync::Mutex::new(
+                        rusqlite::Connection::open("hask.db")
+                            .unwrap_or_else(|_| rusqlite::Connection::open_in_memory().unwrap()),
+                    ),
+                ));
+                let store = std::sync::Arc::new(std::sync::Mutex::new(store));
+                store.lock().unwrap().initialize_schema().unwrap();
+
+                match commands::user::logout(store, &session_id) {
+                    Ok(()) => {}
+                    Err(e) => {
+                        eprintln!("Logout failed: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+            ReplicantAction::Sessions { replicant_name } => {
+                let store = hkask_storage::user_store::UserStore::new(std::sync::Arc::new(
+                    std::sync::Mutex::new(
+                        rusqlite::Connection::open("hask.db")
+                            .unwrap_or_else(|_| rusqlite::Connection::open_in_memory().unwrap()),
+                    ),
+                ));
+                let store = std::sync::Arc::new(std::sync::Mutex::new(store));
+                store.lock().unwrap().initialize_schema().unwrap();
+
+                match commands::user::list_sessions(store, &replicant_name) {
+                    Ok(()) => {}
+                    Err(e) => {
+                        eprintln!("Failed to list sessions: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+            ReplicantAction::List { user_id } => {
+                let store = hkask_storage::user_store::UserStore::new(std::sync::Arc::new(
+                    std::sync::Mutex::new(
+                        rusqlite::Connection::open("hask.db")
+                            .unwrap_or_else(|_| rusqlite::Connection::open_in_memory().unwrap()),
+                    ),
+                ));
+                let store = std::sync::Arc::new(std::sync::Mutex::new(store));
+                store.lock().unwrap().initialize_schema().unwrap();
+
+                if let Some(uid) = user_id {
+                    let user_id = hkask_types::UserID::from_string(&uid);
+                    match commands::user::list_replicants(store, &user_id) {
+                        Ok(_) => {}
+                        Err(e) => {
+                            eprintln!("Failed to list identities: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                } else {
+                    eprintln!("--user-id is required");
+                    std::process::exit(1);
+                }
+            }
+            ReplicantAction::Show { replicant_name } => {
+                let store = hkask_storage::user_store::UserStore::new(std::sync::Arc::new(
+                    std::sync::Mutex::new(
+                        rusqlite::Connection::open("hask.db")
+                            .unwrap_or_else(|_| rusqlite::Connection::open_in_memory().unwrap()),
+                    ),
+                ));
+                let store = std::sync::Arc::new(std::sync::Mutex::new(store));
+                store.lock().unwrap().initialize_schema().unwrap();
+
+                match commands::user::show_replicant(store, &replicant_name) {
+                    Ok(()) => {}
+                    Err(e) => {
+                        eprintln!("Failed to show replicant: {}", e);
+                        std::process::exit(1);
+                    }
+                }
             }
         },
     }

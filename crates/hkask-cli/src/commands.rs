@@ -2,6 +2,8 @@
 //!
 //! This module contains the actual command handlers.
 
+pub mod user;
+
 use crate::errors::{AgentError, CuratorError, EnsembleError, RegistryError};
 use crate::russell_mapper::{MappedTemplate, RussellMapper, RussellMappingConfig};
 use hkask_mcp::runtime::{McpRuntime, McpServer, McpTool};
@@ -427,15 +429,17 @@ pub use super::git_archival::{
 
 // Ensemble multi-agent commands (Phase 7)
 use hkask_ensemble::{
-    ChatMessage, ChatParticipant, DeliberationCoordinator, EnsembleChatManager, ParticipantRole,
+    ChatMessage, ChatParticipant, ConversationTurn, DeliberationCoordinator, EnsembleChatManager,
+    ImprovMode, Improvisor, ImprovisorConfig, ParticipantRole,
 };
 use hkask_types::WebID;
 use tokio::sync::RwLock;
 
-/// Ensemble chat manager (singleton for CLI)
 static CHAT_MANAGER: std::sync::OnceLock<Arc<RwLock<EnsembleChatManager>>> =
     std::sync::OnceLock::new();
 static DELIBERATION_COORDINATOR: std::sync::OnceLock<Arc<RwLock<DeliberationCoordinator>>> =
+    std::sync::OnceLock::new();
+static IMPROVISOR: std::sync::OnceLock<Arc<RwLock<Improvisor<OkapiImprovClient>>>> =
     std::sync::OnceLock::new();
 
 fn get_chat_manager() -> Arc<RwLock<EnsembleChatManager>> {
@@ -516,6 +520,250 @@ pub async fn ensemble_chat_list() -> Result<Vec<String>, String> {
         manager_read.list_sessions().await
     };
     Ok(sessions)
+}
+
+pub struct OkapiImprovClient {
+    base_url: String,
+}
+
+impl OkapiImprovClient {
+    pub fn new() -> Self {
+        let base_url =
+            std::env::var("OKAPI_BASE_URL").unwrap_or_else(|_| "http://localhost:8001".to_string());
+        Self { base_url }
+    }
+}
+
+impl Default for OkapiImprovClient {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ImprovClientError {
+    #[error("HTTP error: {0}")]
+    Http(#[from] reqwest::Error),
+    #[error("Parse error: {0}")]
+    Parse(String),
+}
+
+#[async_trait::async_trait]
+impl hkask_ensemble::ports::InferenceClient for OkapiImprovClient {
+    type Error = ImprovClientError;
+
+    async fn generate(
+        &self,
+        request: &hkask_ensemble::ports::GenerateRequest,
+    ) -> Result<hkask_ensemble::ports::GenerateResponse, Self::Error> {
+        let client = reqwest::Client::new();
+        let body = serde_json::json!({
+            "model": request.model,
+            "prompt": request.prompt,
+            "stream": false,
+            "options": request.options.as_ref().map(|opts| serde_json::json!({
+                "num_predict": opts.max_tokens,
+                "temperature": opts.temperature,
+                "num_probs": opts.n_probs,
+            })),
+        });
+
+        let resp = client
+            .post(format!("{}/api/generate", self.base_url))
+            .json(&body)
+            .send()
+            .await?;
+
+        let json: serde_json::Value = resp
+            .json()
+            .await
+            .map_err(|e| ImprovClientError::Parse(format!("Failed to parse response: {}", e)))?;
+
+        let response_text = json
+            .get("response")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+
+        let model = json
+            .get("model")
+            .and_then(|v| v.as_str())
+            .unwrap_or(&request.model)
+            .to_string();
+
+        let completion_probs = json
+            .get("completion_probabilities")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|item| {
+                        let token = item.get("token")?.as_str()?.to_string();
+                        let prob = item.get("prob")?.as_f64()?;
+                        let top_k = item
+                            .get("top_k")
+                            .and_then(|v| v.as_array())
+                            .map(|a| {
+                                a.iter()
+                                    .filter_map(|t| {
+                                        Some(hkask_ensemble::ports::TokenProb {
+                                            token: t.get("token")?.as_str()?.to_string(),
+                                            prob: t.get("prob")?.as_f64()?,
+                                        })
+                                    })
+                                    .collect::<Vec<_>>()
+                            })
+                            .unwrap_or_default();
+                        Some(hkask_ensemble::ports::TokenProbability { token, prob, top_k })
+                    })
+                    .collect::<Vec<_>>()
+            });
+
+        Ok(hkask_ensemble::ports::GenerateResponse {
+            response: response_text,
+            model,
+            completion_probabilities: completion_probs,
+        })
+    }
+
+    async fn chat(
+        &self,
+        messages: Vec<serde_json::Value>,
+        model: String,
+    ) -> Result<serde_json::Value, Self::Error> {
+        let client = reqwest::Client::new();
+        let body = serde_json::json!({
+            "model": model,
+            "messages": messages,
+            "stream": false,
+        });
+
+        let resp = client
+            .post(format!("{}/api/chat", self.base_url))
+            .json(&body)
+            .send()
+            .await?;
+
+        resp.json()
+            .await
+            .map_err(|e| ImprovClientError::Parse(format!("Failed to parse chat response: {}", e)))
+    }
+}
+
+fn get_improvisor() -> Arc<RwLock<Improvisor<OkapiImprovClient>>> {
+    IMPROVISOR
+        .get_or_init(|| {
+            let client = OkapiImprovClient::new();
+            let config = ImprovisorConfig::default();
+            let improvisor =
+                Improvisor::new(config, Arc::new(client), WebID::from_persona(b"Curator"));
+            Arc::new(RwLock::new(improvisor))
+        })
+        .clone()
+}
+
+pub async fn ensemble_improv_turn(
+    session_id: &str,
+    user_message: &str,
+) -> Result<hkask_ensemble::ImprovTurn, String> {
+    let manager = get_chat_manager();
+    let chat = {
+        let manager_read = manager.read().await;
+        manager_read.get_chat(session_id).await
+    }
+    .ok_or_else(|| format!("Chat session '{}' not found", session_id))?;
+
+    let participants = {
+        let chat_read = chat.read().await;
+        let parts = chat_read.get_participants();
+        let mut result = Vec::new();
+        for p in parts.values() {
+            let name = format!("{:?}", p.role);
+            let description = format!("Agent with role {:?}", p.role);
+            result.push((name, description, p.clone()));
+        }
+        result
+    };
+
+    let history = {
+        let chat_read = chat.read().await;
+        chat_read
+            .get_history()
+            .iter()
+            .map(|msg| ConversationTurn {
+                agent: msg.from.to_string(),
+                content: msg.content.clone(),
+            })
+            .collect::<Vec<_>>()
+    };
+
+    let improvisor = get_improvisor();
+    let turn = {
+        let improv = improvisor.read().await;
+        improv
+            .improv_turn(user_message, &participants, &history)
+            .await
+            .map_err(|e| format!("Improv error: {}", e))?
+    };
+
+    {
+        let mut chat_write = chat.write().await;
+        let curator_webid = *chat_write.curator();
+        chat_write.add_message(ChatMessage::new(curator_webid, user_message.to_string()));
+        for response in &turn.responses {
+            chat_write.add_message(ChatMessage::new(
+                response.agent_webid,
+                response.content.clone(),
+            ));
+        }
+    }
+
+    Ok(turn)
+}
+
+pub async fn ensemble_improv_config() -> ImprovisorConfig {
+    let improvisor = get_improvisor();
+    let improv = improvisor.read().await;
+    improv.config().clone()
+}
+
+pub async fn ensemble_improv_set_threshold(threshold: f64) -> Result<(), String> {
+    let improvisor = get_improvisor();
+    let mut improv = improvisor.write().await;
+    improv.set_participation_threshold(threshold);
+    Ok(())
+}
+
+pub async fn ensemble_improv_set_mode(mode: ImprovMode) -> Result<(), String> {
+    let improvisor = get_improvisor();
+    let mut improv = improvisor.write().await;
+    improv.set_mode(mode);
+    Ok(())
+}
+
+pub async fn ensemble_participants(
+    session_id: &str,
+) -> Result<Vec<(String, String, String)>, String> {
+    let manager = get_chat_manager();
+    let chat = {
+        let manager_read = manager.read().await;
+        manager_read.get_chat(session_id).await
+    }
+    .ok_or_else(|| format!("Chat session '{}' not found", session_id))?;
+
+    let chat_read = chat.read().await;
+    let participants = chat_read.get_participants();
+    let mut result = Vec::new();
+    for p in participants.values() {
+        let name = format!("{:?}", p.role);
+        let role_str = format!("{:?}", p.role);
+        let caps = if p.capabilities.is_empty() {
+            "none".to_string()
+        } else {
+            p.capabilities.join(", ")
+        };
+        result.push((name, role_str, caps));
+    }
+    Ok(result)
 }
 
 /// Create deliberation session

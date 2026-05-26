@@ -21,13 +21,11 @@ This document describes the CI/CD pipeline, installation process, and build conf
 hKask/
 ├── .github/workflows/          # GitHub Actions workflows
 │   ├── ci.yml                  # Main CI pipeline (format, lint, build, test)
-│   ├── chaos-testing.yml       # Chaos engineering tests
 │   ├── release.yml             # Release pipeline
 │   └── docs.yml                # Documentation generation
 ├── scripts/
 │   ├── install.sh              # Installation script for Linux
-│   ├── build.sh                # Build script
-│   └── chaos-injection.sh      # Chaos injection tests
+│   └── build.sh                # Build script
 ├── .cargo/
 │   └── config.toml             # Cargo configuration
 ├── rust-toolchain.toml         # Rust toolchain specification
@@ -179,29 +177,7 @@ cargo fmt
 - Timeout limits to prevent hung builds
 - Artifact upload for binaries and test results
 
-### 2. Chaos Testing (`.github/workflows/chaos-testing.yml`)
-
-**Triggers:** Schedule (daily 2 AM UTC), manual dispatch
-
-**Jobs:**
-- **Chaos Unit Tests** — Resilience and failover unit tests
-- **Integration Tests** — Mock Okapi integration tests
-- **Daily Chaos Tests** — Scheduled chaos injection (self-hosted)
-- **Weekly Chaos Suite** — Full chaos test suite (self-hosted, Sundays)
-
-**Test Categories:**
-1. **Instance Failures** — Single/cascading instance termination
-2. **Network Partitions** — Network isolation and latency injection
-3. **Resource Exhaustion** — Memory pressure testing
-4. **Circuit Breaker** — Trip and recovery testing
-5. **Retry Policies** — Exponential backoff and exhaustion
-
-**Requirements:**
-- Self-hosted runners for daily/weekly tests
-- Okapi instances (Docker containers)
-- Tools: `stress-ng`, `iperf3`, `tc`, `jq`
-
-### 3. Release Pipeline (`.github/workflows/release.yml`)
+### 2. Release Pipeline (`.github/workflows/release.yml`)
 
 **Triggers:** Git tag push (`v*`), manual dispatch
 
@@ -219,7 +195,7 @@ cargo fmt
 - SHA256 checksums
 - Changelog (auto-generated from Git)
 
-### 4. Documentation (`.github/workflows/docs.yml`)
+### 3. Documentation (`.github/workflows/docs.yml`)
 
 **Triggers:** Push to `main`/`develop`, PRs, manual dispatch
 
@@ -362,9 +338,10 @@ cargo clean
 
 **Chaos tests fail:**
 
-1. Check if Okapi instances are healthy
-2. Verify network connectivity between containers
-3. Review chaos injection logs in artifacts
+Chaos injection testing has been removed from CI. Resilience and circuit breaker
+logic is covered by unit tests in `hkask-ensemble` via the main CI pipeline.
+E2E chaos tests against live Okapi can be run manually with
+`OKAPI_E2E_TEST=1 cargo test --package hkask-testing --test chaos_integration`.
 
 ---
 
@@ -384,12 +361,6 @@ cargo clean
 - **Consistency:** Shared dependencies and versions
 - **Atomic commits:** Changes across crates in single commit
 - **Testing:** Integration tests can access all crates
-
-### Why Self-Hosted Runners for Chaos Tests?
-
-- **Resource Requirements:** Chaos tests need multiple Okapi instances
-- **Cost:** Long-running tests (3+ hours) are expensive on GitHub-hosted
-- **Control:** Full control over system tools (`tc`, `stress-ng`)
 
 ### Why Not Windows/macOS?
 

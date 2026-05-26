@@ -2110,6 +2110,9 @@ dependencies = [
 name = "hkask-cli"
 version = "0.21.0"
 dependencies = [
+ "aes-gcm",
+ "async-trait",
+ "base64 0.22.1",
  "chrono",
  "clap",
  "dirs",
@@ -2125,11 +2128,13 @@ dependencies = [
  "hkask-types",
  "minijinja",
  "rand 0.9.4",
+ "reqwest",
  "rusqlite",
  "rustyline",
  "serde",
  "serde_json",
  "serde_yaml",
+ "sha2",
  "thiserror",
  "tokio",
  "tracing",
@@ -2528,7 +2533,9 @@ dependencies = [
 name = "hkask-storage"
 version = "0.21.0"
 dependencies = [
+ "aes-gcm",
  "argon2",
+ "base64 0.22.1",
  "blake3",
  "chrono",
  "gix",
@@ -2540,7 +2547,9 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
+ "sha2",
  "sqlite-vec",
+ "subtle",
  "tempfile",
  "thiserror",
  "tracing",

@@ -10,6 +10,7 @@ pub mod cns_integration;
 pub mod cns_spans;
 pub mod confidence_router;
 pub mod deliberation;
+pub mod improv;
 pub mod metrics;
 pub mod ocap_enforcement;
 pub mod okapi_capability;
@@ -30,6 +31,10 @@ pub use confidence_router::{ConfidenceConfig, ConfidenceRouter, RouterError, com
 pub use deliberation::{
     AgentResponse, DeliberationCoordinator, DeliberationRequest, DeliberationResult,
     DeliberationSession, DeliberationStatus,
+};
+pub use improv::{
+    ConversationTurn, ImprovError, ImprovMode, ImprovTurn, Improvisor, ImprovisorConfig,
+    RelevanceJudgment, SynthesisMode,
 };
 pub use okapi_capability::{
     OkapiCapabilityError, OkapiOperation, attenuate_for_template, create_okapi_capability,

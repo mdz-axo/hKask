@@ -22,6 +22,7 @@ pub mod event;
 pub mod goal;
 pub mod goal_capability;
 pub mod id;
+pub mod identity;
 pub mod lexicon;
 pub mod secret;
 pub mod sovereignty;
@@ -42,6 +43,7 @@ pub use event::*;
 pub use goal::*;
 pub use goal_capability::*;
 pub use id::*;
+pub use identity::*;
 pub use lexicon::{Domain, HLexicon, LexiconTerm, TemplateType};
 pub use secret::SecretRef;
 pub use sovereignty::{
