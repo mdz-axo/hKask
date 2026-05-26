@@ -644,13 +644,22 @@ fn handle_slash_command(
             println!("  Turns:      {}", session_history.turns.len());
             match &active_session {
                 Some(session) => {
-                    let config = rt.block_on(crate::commands::ensemble_improv_config());
-                    println!(
-                        "  Ensemble:   \x1b[33m{}\x1b[0m (mode: {}, threshold: {:.2})",
-                        session,
-                        config.mode.as_str(),
-                        config.participation_threshold
-                    );
+                    let config = rt.block_on(async {
+                        crate::commands::ensemble_improv_config(session).await
+                    });
+                    match config {
+                        Ok(cfg) => {
+                            println!(
+                                "  Ensemble:   \x1b[33m{}\x1b[0m (mode: {}, threshold: {:.2})",
+                                session,
+                                cfg.mode.as_str(),
+                                cfg.participation_threshold
+                            );
+                        }
+                        Err(e) => {
+                            println!("  Ensemble:   \x1b[33m{}\x1b[0m (config error: {})", session, e);
+                        }
+                    }
                 }
                 None => {
                     println!("  Ensemble:   single-agent");
@@ -815,10 +824,10 @@ fn handle_slash_command(
             handle_into(arg1, active_session);
         }
         "filter" | "thresh" => {
-            handle_filter(arg1);
+            handle_filter(arg1, active_session);
         }
         "mode" => {
-            handle_mode(arg1);
+            handle_mode(arg1, active_session);
         }
         "ask" => {
             handle_ask(arg1, arg2, active_session);
@@ -1014,14 +1023,23 @@ fn handle_into(arg: &str, active_session: &mut Option<String>) {
 
         if exists {
             *active_session = Some(session.clone());
-            let config = rt.block_on(crate::commands::ensemble_improv_config());
-            println!("  Entered ensemble session \x1b[33m{}\x1b[0m", session);
-            println!(
-                "  Mode: \x1b[1m{}\x1b[0m  Threshold: \x1b[1m{:.2}\x1b[0m",
-                config.mode.as_str(),
-                config.participation_threshold
-            );
-            println!("  Messages now go to the ensemble. \x1b[2m/into\x1b[0m to leave.");
+            let config_result = rt.block_on(async {
+                crate::commands::ensemble_improv_config(&session).await
+            });
+            match config_result {
+                Ok(config) => {
+                    println!("  Entered ensemble session \x1b[33m{}\x1b[0m", session);
+                    println!(
+                        "  Mode: \x1b[1m{}\x1b[0m  Threshold: \x1b[1m{:.2}\x1b[0m",
+                        config.mode.as_str(),
+                        config.participation_threshold
+                    );
+                    println!("  Messages now go to the ensemble. \x1b[2m/into\x1b[0m to leave.");
+                }
+                Err(e) => {
+                    println!("  Entered ensemble session \x1b[33m{}\x1b[0m (config error: {})", session, e);
+                }
+            }
         } else {
             println!(
                 "  Session \x1b[31m{}\x1b[0m not found. Create it first with \x1b[36m/ensemble create {}\x1b[0m",
@@ -1032,20 +1050,35 @@ fn handle_into(arg: &str, active_session: &mut Option<String>) {
     println!();
 }
 
-fn handle_filter(arg: &str) {
+fn handle_filter(arg: &str, active_session: &Option<String>) {
     let rt = tokio::runtime::Runtime::new().unwrap();
+    let session_id = match active_session {
+        Some(s) => s.clone(),
+        None => {
+            println!("  \x1b[31mNo active session.\x1b[0m Use \x1b[36m/into <session>\x1b[0m first.");
+            println!();
+            return;
+        }
+    };
     if arg.is_empty() {
-        let config = rt.block_on(crate::commands::ensemble_improv_config());
-        println!(
-            "  Participation threshold: \x1b[1m{:.2}\x1b[0m",
-            config.participation_threshold
-        );
-        println!("  (0.0 = all speak, 1.0 = nobody speaks, 0.75 = default)");
+        let config = rt.block_on(async {
+            crate::commands::ensemble_improv_config(&session_id).await
+        });
+        match config {
+            Ok(cfg) => {
+                println!(
+                    "  Participation threshold: \x1b[1m{:.2}\x1b[0m",
+                    cfg.participation_threshold
+                );
+                println!("  (0.0 = all speak, 1.0 = nobody speaks, 0.75 = default)");
+            }
+            Err(e) => println!("  Error: {}", e),
+        }
     } else {
         match arg.parse::<f64>() {
             Ok(threshold) => {
                 rt.block_on(async {
-                    match crate::commands::ensemble_improv_set_threshold(threshold).await {
+                    match crate::commands::ensemble_improv_set_threshold(&session_id, threshold).await {
                         Ok(()) => {
                             let clamped = threshold.clamp(0.0, 1.0);
                             println!(
@@ -1073,17 +1106,32 @@ fn handle_filter(arg: &str) {
     println!();
 }
 
-fn handle_mode(arg: &str) {
+fn handle_mode(arg: &str, active_session: &Option<String>) {
     let rt = tokio::runtime::Runtime::new().unwrap();
+    let session_id = match active_session {
+        Some(s) => s.clone(),
+        None => {
+            println!("  \x1b[31mNo active session.\x1b[0m Use \x1b[36m/into <session>\x1b[0m first.");
+            println!();
+            return;
+        }
+    };
     if arg.is_empty() {
-        let config = rt.block_on(crate::commands::ensemble_improv_config());
-        println!("  Ensemble mode: \x1b[1m{}\x1b[0m", config.mode.as_str());
-        println!("  Options: freeform, curator_led, round_robin");
+        let config = rt.block_on(async {
+            crate::commands::ensemble_improv_config(&session_id).await
+        });
+        match config {
+            Ok(cfg) => {
+                println!("  Ensemble mode: \x1b[1m{}\x1b[0m", cfg.mode.as_str());
+                println!("  Options: freeform, curator_led, round_robin");
+            }
+            Err(e) => println!("  Error: {}", e),
+        }
     } else {
         match hkask_ensemble::ImprovMode::parse_mode(arg.trim()) {
             Some(mode) => {
                 rt.block_on(async {
-                    match crate::commands::ensemble_improv_set_mode(mode.clone()).await {
+                    match crate::commands::ensemble_improv_set_mode(&session_id, mode.clone()).await {
                         Ok(()) => {
                             println!("  Ensemble mode set to \x1b[1m{}\x1b[0m", mode.as_str());
                             match mode {

@@ -2111,7 +2111,6 @@ name = "hkask-cli"
 version = "0.21.0"
 dependencies = [
  "aes-gcm",
- "async-trait",
  "base64 0.22.1",
  "chrono",
  "clap",
@@ -2128,7 +2127,6 @@ dependencies = [
  "hkask-types",
  "minijinja",
  "rand 0.9.4",
- "reqwest",
  "rusqlite",
  "rustyline",
  "serde",

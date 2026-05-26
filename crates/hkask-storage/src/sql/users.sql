@@ -12,8 +12,8 @@ CREATE TABLE IF NOT EXISTS human_users (
     master_salt TEXT NOT NULL,
     
     -- Metadata
-    created_at TEXT NOT NULL,
-    last_active TEXT
+    created_at INTEGER NOT NULL,
+    last_active INTEGER
 );
 
 -- Replicant identities (user logs in AS a replicant)
@@ -26,8 +26,8 @@ CREATE TABLE IF NOT EXISTS replicant_identities (
     last_name_enc BLOB NOT NULL,
     persona_yaml TEXT,
     is_primary INTEGER DEFAULT 0,
-    created_at TEXT NOT NULL,
-    last_login TEXT,
+    created_at INTEGER NOT NULL,
+    last_login INTEGER,
     FOREIGN KEY (user_id) REFERENCES human_users(user_id)
 );
 
@@ -38,8 +38,8 @@ CREATE TABLE IF NOT EXISTS user_sessions (
     replicant_webid TEXT NOT NULL,
     user_id TEXT NOT NULL,
     session_key_salt TEXT NOT NULL,
-    expires_at TEXT NOT NULL,
-    last_active TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,
+    last_active INTEGER NOT NULL,
     FOREIGN KEY (replicant_name) REFERENCES replicant_identities(replicant_name),
     FOREIGN KEY (user_id) REFERENCES human_users(user_id)
 );

@@ -46,18 +46,13 @@ impl ImprovMode {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum SynthesisMode {
     Always,
+    #[default]
     Optional,
     Never,
-}
-
-impl Default for SynthesisMode {
-    fn default() -> Self {
-        Self::Optional
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -256,7 +251,7 @@ fn parse_relevance(config: &ImprovSessionConfig, webid: &WebID, name: &str, raw:
     let should_speak = confidence >= config.participation_threshold;
 
     RelevanceJudgment {
-        agent_webid: webid.clone(),
+        agent_webid: *webid,
         agent_name: name.to_string(),
         confidence,
         reason,
@@ -279,7 +274,7 @@ fn curator_selected(participants: &[(WebID, String, String)]) -> Vec<RelevanceJu
     participants
         .iter()
         .map(|(webid, name, desc)| RelevanceJudgment {
-            agent_webid: webid.clone(),
+            agent_webid: *webid,
             agent_name: name.clone(),
             confidence: 1.0,
             reason: format!("Curator selected {} ({})", name, desc),
@@ -292,7 +287,7 @@ fn all_speakers(participants: &[(WebID, String, String)]) -> Vec<RelevanceJudgme
     participants
         .iter()
         .map(|(webid, name, _)| RelevanceJudgment {
-            agent_webid: webid.clone(),
+            agent_webid: *webid,
             agent_name: name.clone(),
             confidence: 1.0,
             reason: format!("round_robin: {} speaks", name),
@@ -306,7 +301,7 @@ fn filter_speakers(config: &ImprovSessionConfig, judgments: &[RelevanceJudgment]
         .iter()
         .filter(|j| j.should_speak)
         .map(|j| Speaker {
-            webid: j.agent_webid.clone(),
+            webid: j.agent_webid,
             name: j.agent_name.clone(),
             confidence: j.confidence,
         })
@@ -368,12 +363,12 @@ async fn sequential_speak<C: InferenceClient>(
             .unwrap_or(speaker.confidence);
 
         let agent_response = AgentResponse::new(
-            speaker.webid.clone(),
+            speaker.webid,
             response.response.trim().to_string(),
             confidence,
         );
 
-        turn_context.push((speaker.webid.clone(), agent_response.content.clone()));
+        turn_context.push((speaker.webid, agent_response.content.clone()));
         responses.push(agent_response);
     }
 

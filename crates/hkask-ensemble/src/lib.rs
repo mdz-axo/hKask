@@ -21,6 +21,7 @@ pub mod standing_session;
 pub mod webid_registry;
 
 // Re-export commonly used types
+pub use adapters::{ImprovClientError, OkapiImprovClient};
 pub use chat::{
     ChatMessage, ChatParticipant, EnsembleChat, EnsembleChatManager, EnsembleError, ParticipantRole,
 };
@@ -33,7 +34,7 @@ pub use deliberation::{
     DeliberationSession, DeliberationStatus,
 };
 pub use improv::{
-    ImprovError, ImprovMode, ImprovSessionConfig, ImprovTurn, RelevanceJudgment, SynthesisMode,
+    ImprovMode, ImprovSessionConfig, ImprovTurn, RelevanceJudgment, SynthesisMode,
     improv_turn,
 };
 pub use okapi_capability::{

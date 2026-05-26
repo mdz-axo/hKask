@@ -294,10 +294,11 @@ impl EnsembleChat {
 
     /// Set improv mode
     pub fn set_improv_mode(&mut self, mode: ImprovMode) {
+        let mode_str = mode.as_str().to_string();
         self.improv_config.set_mode(mode);
         self.span_emitter.emit_tool(
             "improv_mode_set",
-            json!({"mode": mode.as_str()}),
+            json!({"mode": mode_str}),
         );
     }
 
@@ -314,14 +315,14 @@ impl EnsembleChat {
             .map(|p| {
                 let name = format!("{:?}", p.role);
                 let desc = format!("Agent with role {:?}", p.role);
-                (p.webid.clone(), name, desc)
+                (p.webid, name, desc)
             })
             .collect();
 
         let chat_history: Vec<(WebID, String)> = self
             .messages
             .iter()
-            .map(|msg| (msg.from.clone(), msg.content.clone()))
+            .map(|msg| (msg.from, msg.content.clone()))
             .collect();
 
         improv_turn(
