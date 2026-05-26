@@ -77,8 +77,6 @@ pub struct ReplicantIdentity {
     pub replicant_webid: WebID,
     pub first_name_enc: Vec<u8>,
     pub last_name_enc: Vec<u8>,
-    pub email_enc: Vec<u8>,
-    pub phone_enc: Option<Vec<u8>>,
     pub persona_yaml: Option<String>,
     pub is_primary: bool,
     pub created_at: i64,
@@ -98,8 +96,7 @@ impl ReplicantIdentity {
         user_id: UserID,
         first_name_enc: Vec<u8>,
         last_name_enc: Vec<u8>,
-        email_enc: Vec<u8>,
-        phone_enc: Option<Vec<u8>>,
+        is_primary: bool,
     ) -> Self {
         Self {
             replicant_webid: Self::derive_webid(&replicant_name),
@@ -107,10 +104,8 @@ impl ReplicantIdentity {
             user_id,
             first_name_enc,
             last_name_enc,
-            email_enc,
-            phone_enc,
             persona_yaml: None,
-            is_primary: false,
+            is_primary,
             created_at: chrono::Utc::now().timestamp(),
             last_login: None,
         }

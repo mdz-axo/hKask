@@ -13,6 +13,9 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::info;
 
+use crate::improv::{ImprovMode, ImprovSessionConfig, ImprovTurn, ImprovError, improv_turn};
+use crate::ports::InferenceClient;
+
 /// Chat message in multi-agent conversation
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatMessage {
@@ -66,8 +69,8 @@ pub struct EnsembleChat {
     messages: Vec<ChatMessage>,
     span_emitter: SpanEmitter,
     sovereignty_checker: SovereigntyChecker,
-    /// Template registry for capability lookup (R4: Capability Intersection)
     template_registry: Option<Arc<dyn hkask_templates::RegistryIndex + Send + Sync>>,
+    improv_config: ImprovSessionConfig,
 }
 
 impl EnsembleChat {
@@ -94,6 +97,7 @@ impl EnsembleChat {
             span_emitter,
             sovereignty_checker,
             template_registry: None,
+            improv_config: ImprovSessionConfig::default(),
         }
     }
 
@@ -267,6 +271,67 @@ impl EnsembleChat {
         self.sovereignty_checker.grant_consent();
         self.span_emitter
             .emit_agent_pod("chat_consent_granted", json!({}));
+    }
+
+    /// Get improv session config
+    pub fn improv_config(&self) -> &ImprovSessionConfig {
+        &self.improv_config
+    }
+
+    /// Get mutable improv session config
+    pub fn improv_config_mut(&mut self) -> &mut ImprovSessionConfig {
+        &mut self.improv_config
+    }
+
+    /// Set participation threshold
+    pub fn set_participation_threshold(&mut self, threshold: f64) {
+        self.improv_config.set_threshold(threshold);
+        self.span_emitter.emit_tool(
+            "improv_threshold_set",
+            json!({"threshold": self.improv_config.participation_threshold}),
+        );
+    }
+
+    /// Set improv mode
+    pub fn set_improv_mode(&mut self, mode: ImprovMode) {
+        self.improv_config.set_mode(mode);
+        self.span_emitter.emit_tool(
+            "improv_mode_set",
+            json!({"mode": mode.as_str()}),
+        );
+    }
+
+    /// Execute an improvisation turn using this session's config and participants
+    pub async fn improv_turn<C: InferenceClient>(
+        &self,
+        inference_client: &Arc<C>,
+        user_message: &str,
+    ) -> Result<ImprovTurn, ImprovError<C::Error>> {
+        let participants: Vec<(WebID, String, String)> = self
+            .participants
+            .values()
+            .filter(|p| !matches!(p.role, ParticipantRole::Curator))
+            .map(|p| {
+                let name = format!("{:?}", p.role);
+                let desc = format!("Agent with role {:?}", p.role);
+                (p.webid.clone(), name, desc)
+            })
+            .collect();
+
+        let chat_history: Vec<(WebID, String)> = self
+            .messages
+            .iter()
+            .map(|msg| (msg.from.clone(), msg.content.clone()))
+            .collect();
+
+        improv_turn(
+            &self.improv_config,
+            inference_client,
+            user_message,
+            &participants,
+            &chat_history,
+        )
+        .await
     }
 }
 

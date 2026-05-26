@@ -17,14 +17,13 @@ CREATE TABLE IF NOT EXISTS human_users (
 );
 
 -- Replicant identities (user logs in AS a replicant)
+-- Note: email/phone stored ONLY in human_users to avoid duplication
 CREATE TABLE IF NOT EXISTS replicant_identities (
     replicant_name TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
     replicant_webid TEXT UNIQUE NOT NULL,
     first_name_enc BLOB NOT NULL,
     last_name_enc BLOB NOT NULL,
-    email_enc BLOB NOT NULL,
-    phone_enc BLOB,
     persona_yaml TEXT,
     is_primary INTEGER DEFAULT 0,
     created_at TEXT NOT NULL,
@@ -50,3 +49,4 @@ CREATE INDEX IF NOT EXISTS idx_replicant_identities_user ON replicant_identities
 CREATE INDEX IF NOT EXISTS idx_replicant_identities_webid ON replicant_identities(replicant_webid);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_replicant ON user_sessions(replicant_name);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_expiry ON user_sessions(expires_at);
