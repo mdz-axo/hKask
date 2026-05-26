@@ -5,9 +5,9 @@
 //! - **ReplicantIdentity**: In-system persona that users log in AS
 //! - **UserSession**: Active authenticated sessions
 
+use crate::WebID;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::WebID;
 
 /// Human user ID — shared across all their replicant identities
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -17,7 +17,7 @@ impl UserID {
     pub fn new() -> Self {
         Self(Uuid::new_v4())
     }
-    
+
     pub fn from_string(s: &str) -> Self {
         Self(Uuid::parse_str(s).unwrap_or_else(|_| Uuid::new_v4()))
     }
@@ -85,12 +85,9 @@ pub struct ReplicantIdentity {
 
 impl ReplicantIdentity {
     pub fn derive_webid(replicant_name: &str) -> WebID {
-        WebID::from_persona_with_namespace(
-            replicant_name.as_bytes(),
-            "hkask-replicant"
-        )
+        WebID::from_persona_with_namespace(replicant_name.as_bytes(), "hkask-replicant")
     }
-    
+
     pub fn new(
         replicant_name: String,
         user_id: UserID,
@@ -149,7 +146,11 @@ impl RegistrationRequest {
         if self.replicant_name.len() > 64 {
             return Err(RegistrationError::ReplicantNameTooLong);
         }
-        if !self.replicant_name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+        if !self
+            .replicant_name
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+        {
             return Err(RegistrationError::InvalidReplicantName);
         }
         if self.first_name.is_empty() {
@@ -161,15 +162,15 @@ impl RegistrationRequest {
         if self.email.is_empty() || !self.email.contains('@') {
             return Err(RegistrationError::InvalidEmail);
         }
-        if let Some(phone) = &self.phone {
-            if !phone.starts_with('+') {
-                return Err(RegistrationError::InvalidPhone);
-            }
+        if let Some(phone) = &self.phone
+            && !phone.starts_with('+')
+        {
+            return Err(RegistrationError::InvalidPhone);
         }
         Self::validate_passphrase(&self.passphrase)?;
         Ok(())
     }
-    
+
     /// Validate passphrase: alphanumeric only (upper + lowercase), min 8 chars
     pub fn validate_passphrase(passphrase: &str) -> Result<(), RegistrationError> {
         if passphrase.len() < 8 {
@@ -219,16 +220,16 @@ mod tests {
     fn test_passphrase_validation() {
         // Valid passphrase
         assert!(RegistrationRequest::validate_passphrase("AlicePass123").is_ok());
-        
+
         // Too short
         assert!(RegistrationRequest::validate_passphrase("Ab1").is_err());
-        
+
         // No uppercase
         assert!(RegistrationRequest::validate_passphrase("alicepass123").is_err());
-        
+
         // No lowercase
         assert!(RegistrationRequest::validate_passphrase("ALICEPASS123").is_err());
-        
+
         // Special characters not allowed
         assert!(RegistrationRequest::validate_passphrase("Alice@Pass123").is_err());
     }

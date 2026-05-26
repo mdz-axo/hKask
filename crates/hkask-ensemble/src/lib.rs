@@ -34,8 +34,7 @@ pub use deliberation::{
     DeliberationSession, DeliberationStatus,
 };
 pub use improv::{
-    ImprovMode, ImprovSessionConfig, ImprovTurn, RelevanceJudgment, SynthesisMode,
-    improv_turn,
+    ImprovMode, ImprovSessionConfig, ImprovTurn, RelevanceJudgment, SynthesisMode, improv_turn,
 };
 pub use okapi_capability::{
     OkapiCapabilityError, OkapiOperation, attenuate_for_template, create_okapi_capability,

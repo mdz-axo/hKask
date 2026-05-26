@@ -227,9 +227,16 @@ jobs:
       
       - name: Install cargo-outdated
         uses: taiki-e/install-action@cargo-outdated
+        continue-on-error: true
+        id: install-outdated
       
       - name: Check for outdated dependencies
+        if: steps.install-outdated.outcome == 'success'
         run: cargo outdated || echo "::warning::Outdated dependencies found. Review cargo-outdated output."
+      
+      - name: Skip dependency check
+        if: steps.install-outdated.outcome != 'success'
+        run: echo "::warning::cargo-outdated could not be installed. Skipping dependency check."
 
   # ============================================================================
   # Build Binary (Release)

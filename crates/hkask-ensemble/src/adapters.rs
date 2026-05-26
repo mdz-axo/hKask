@@ -3,8 +3,8 @@
 //! Concrete implementations of port traits for Okapi HTTP infrastructure.
 
 use crate::ports::{
-    CapabilityProvider, GenerateRequest, GenerateResponse, InferenceClient,
-    MetricsSource, OkapiCapabilities, OkapiMetrics, TokenProb, TokenProbability,
+    CapabilityProvider, GenerateRequest, GenerateResponse, InferenceClient, MetricsSource,
+    OkapiCapabilities, OkapiMetrics, TokenProb, TokenProbability,
 };
 use async_trait::async_trait;
 use thiserror::Error;
@@ -57,10 +57,7 @@ impl Default for OkapiImprovClient {
 impl InferenceClient for OkapiImprovClient {
     type Error = ImprovClientError;
 
-    async fn generate(
-        &self,
-        request: &GenerateRequest,
-    ) -> Result<GenerateResponse, Self::Error> {
+    async fn generate(&self, request: &GenerateRequest) -> Result<GenerateResponse, Self::Error> {
         let client = reqwest::Client::new();
         let body = serde_json::json!({
             "model": request.model,

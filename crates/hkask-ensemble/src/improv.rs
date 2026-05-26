@@ -135,8 +135,14 @@ pub async fn improv_turn<C: InferenceClient>(
 ) -> Result<ImprovTurn, ImprovError<C::Error>> {
     let judgments = match config.mode {
         ImprovMode::Freeform => {
-            relevance_check(config, inference_client, user_message, participants, chat_history)
-                .await?
+            relevance_check(
+                config,
+                inference_client,
+                user_message,
+                participants,
+                chat_history,
+            )
+            .await?
         }
         ImprovMode::CuratorLed => curator_selected(participants),
         ImprovMode::RoundRobin => all_speakers(participants),
@@ -153,11 +159,19 @@ pub async fn improv_turn<C: InferenceClient>(
         });
     }
 
-    let responses = sequential_speak(config, inference_client, user_message, &speakers, chat_history)
-        .await?;
+    let responses = sequential_speak(
+        config,
+        inference_client,
+        user_message,
+        &speakers,
+        chat_history,
+    )
+    .await?;
 
     let curator_synthesis = match config.synthesis {
-        SynthesisMode::Always => Some(synthesize(config, inference_client, user_message, &responses).await),
+        SynthesisMode::Always => {
+            Some(synthesize(config, inference_client, user_message, &responses).await)
+        }
         SynthesisMode::Optional if responses.len() > 3 => {
             Some(synthesize(config, inference_client, user_message, &responses).await)
         }
@@ -223,7 +237,12 @@ async fn relevance_check<C: InferenceClient>(
     Ok(judgments)
 }
 
-fn parse_relevance(config: &ImprovSessionConfig, webid: &WebID, name: &str, raw: &str) -> RelevanceJudgment {
+fn parse_relevance(
+    config: &ImprovSessionConfig,
+    webid: &WebID,
+    name: &str,
+    raw: &str,
+) -> RelevanceJudgment {
     let cleaned = raw
         .trim()
         .trim_start_matches("```json")
@@ -261,10 +280,10 @@ fn parse_relevance(config: &ImprovSessionConfig, webid: &WebID, name: &str, raw:
 
 fn extract_first_float(s: &str) -> Option<f64> {
     for part in s.split_whitespace() {
-        if let Ok(f) = part.parse::<f64>() {
-            if (0.0..=1.0).contains(&f) {
-                return Some(f);
-            }
+        if let Ok(f) = part.parse::<f64>()
+            && (0.0..=1.0).contains(&f)
+        {
+            return Some(f);
         }
     }
     None
@@ -433,9 +452,7 @@ fn format_context_with_earlier(
     earlier_responses: &[AgentResponse],
 ) -> String {
     let mut parts = Vec::new();
-    let window = previous_turns
-        .len()
-        .saturating_sub(config.context_window);
+    let window = previous_turns.len().saturating_sub(config.context_window);
     for (_, content) in &previous_turns[window..] {
         parts.push(content.clone());
     }
@@ -498,17 +515,37 @@ mod tests {
 
     fn test_participants() -> Vec<(WebID, String, String)> {
         vec![
-            (WebID::from_persona(b"ScholarBot"), "ScholarBot".to_string(), "Research and analysis".to_string()),
-            (WebID::from_persona(b"MemoryBot"), "MemoryBot".to_string(), "Memory operations".to_string()),
+            (
+                WebID::from_persona(b"ScholarBot"),
+                "ScholarBot".to_string(),
+                "Research and analysis".to_string(),
+            ),
+            (
+                WebID::from_persona(b"MemoryBot"),
+                "MemoryBot".to_string(),
+                "Memory operations".to_string(),
+            ),
         ]
     }
 
     #[test]
     fn test_improv_mode_parse() {
-        assert_eq!(ImprovMode::parse_mode("freeform"), Some(ImprovMode::Freeform));
-        assert_eq!(ImprovMode::parse_mode("curator_led"), Some(ImprovMode::CuratorLed));
-        assert_eq!(ImprovMode::parse_mode("curator-led"), Some(ImprovMode::CuratorLed));
-        assert_eq!(ImprovMode::parse_mode("round_robin"), Some(ImprovMode::RoundRobin));
+        assert_eq!(
+            ImprovMode::parse_mode("freeform"),
+            Some(ImprovMode::Freeform)
+        );
+        assert_eq!(
+            ImprovMode::parse_mode("curator_led"),
+            Some(ImprovMode::CuratorLed)
+        );
+        assert_eq!(
+            ImprovMode::parse_mode("curator-led"),
+            Some(ImprovMode::CuratorLed)
+        );
+        assert_eq!(
+            ImprovMode::parse_mode("round_robin"),
+            Some(ImprovMode::RoundRobin)
+        );
         assert_eq!(ImprovMode::parse_mode("invalid"), None);
     }
 
@@ -533,8 +570,12 @@ mod tests {
     fn test_parse_relevance_json() {
         let config = ImprovSessionConfig::default();
         let webid = WebID::from_persona(b"ScholarBot");
-        let j = parse_relevance(&config, &webid, "ScholarBot",
-            r#"{"confidence": 0.87, "reason": "I have research on this"}"#);
+        let j = parse_relevance(
+            &config,
+            &webid,
+            "ScholarBot",
+            r#"{"confidence": 0.87, "reason": "I have research on this"}"#,
+        );
         assert!((j.confidence - 0.87).abs() < f64::EPSILON);
         assert!(j.should_speak);
     }
@@ -543,8 +584,12 @@ mod tests {
     fn test_parse_relevance_below_threshold() {
         let config = ImprovSessionConfig::default();
         let webid = WebID::from_persona(b"Bot");
-        let j = parse_relevance(&config, &webid, "Bot",
-            r#"{"confidence": 0.5, "reason": "tangential"}"#);
+        let j = parse_relevance(
+            &config,
+            &webid,
+            "Bot",
+            r#"{"confidence": 0.5, "reason": "tangential"}"#,
+        );
         assert!(!j.should_speak);
     }
 
@@ -552,8 +597,12 @@ mod tests {
     fn test_parse_relevance_markdown_wrapped() {
         let config = ImprovSessionConfig::default();
         let webid = WebID::from_persona(b"Bot");
-        let j = parse_relevance(&config, &webid, "Bot",
-            "```json\n{\"confidence\": 0.6, \"reason\": \"maybe\"}\n```");
+        let j = parse_relevance(
+            &config,
+            &webid,
+            "Bot",
+            "```json\n{\"confidence\": 0.6, \"reason\": \"maybe\"}\n```",
+        );
         assert!((j.confidence - 0.6).abs() < f64::EPSILON);
         assert!(!j.should_speak);
     }
@@ -568,7 +617,8 @@ mod tests {
         let participants = test_participants();
 
         let result = improv_turn(&config, &mock, "What do you think?", &participants, &[])
-            .await.unwrap();
+            .await
+            .unwrap();
 
         assert_eq!(result.responses.len(), 2);
         assert!(result.judgments.iter().all(|j| j.should_speak));
@@ -576,12 +626,32 @@ mod tests {
 
     #[test]
     fn test_filter_speakers_respects_max() {
-        let mut config = ImprovSessionConfig::default();
-        config.max_speakers_per_turn = 2;
+        let config = ImprovSessionConfig {
+            max_speakers_per_turn: 2,
+            ..Default::default()
+        };
         let judgments = vec![
-            RelevanceJudgment { agent_webid: WebID::from_persona(b"a"), agent_name: "a".to_string(), confidence: 0.95, reason: String::new(), should_speak: true },
-            RelevanceJudgment { agent_webid: WebID::from_persona(b"b"), agent_name: "b".to_string(), confidence: 0.90, reason: String::new(), should_speak: true },
-            RelevanceJudgment { agent_webid: WebID::from_persona(b"c"), agent_name: "c".to_string(), confidence: 0.85, reason: String::new(), should_speak: true },
+            RelevanceJudgment {
+                agent_webid: WebID::from_persona(b"a"),
+                agent_name: "a".to_string(),
+                confidence: 0.95,
+                reason: String::new(),
+                should_speak: true,
+            },
+            RelevanceJudgment {
+                agent_webid: WebID::from_persona(b"b"),
+                agent_name: "b".to_string(),
+                confidence: 0.90,
+                reason: String::new(),
+                should_speak: true,
+            },
+            RelevanceJudgment {
+                agent_webid: WebID::from_persona(b"c"),
+                agent_name: "c".to_string(),
+                confidence: 0.85,
+                reason: String::new(),
+                should_speak: true,
+            },
         ];
         let speakers = filter_speakers(&config, &judgments);
         assert_eq!(speakers.len(), 2);
@@ -591,8 +661,20 @@ mod tests {
     fn test_nan_confidence_no_panic() {
         let config = ImprovSessionConfig::default();
         let judgments = vec![
-            RelevanceJudgment { agent_webid: WebID::from_persona(b"a"), agent_name: "a".to_string(), confidence: f64::NAN, reason: String::new(), should_speak: true },
-            RelevanceJudgment { agent_webid: WebID::from_persona(b"b"), agent_name: "b".to_string(), confidence: 0.9, reason: String::new(), should_speak: true },
+            RelevanceJudgment {
+                agent_webid: WebID::from_persona(b"a"),
+                agent_name: "a".to_string(),
+                confidence: f64::NAN,
+                reason: String::new(),
+                should_speak: true,
+            },
+            RelevanceJudgment {
+                agent_webid: WebID::from_persona(b"b"),
+                agent_name: "b".to_string(),
+                confidence: 0.9,
+                reason: String::new(),
+                should_speak: true,
+            },
         ];
         let speakers = filter_speakers(&config, &judgments);
         assert_eq!(speakers.len(), 2);

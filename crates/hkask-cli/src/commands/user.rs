@@ -29,7 +29,7 @@ pub fn register_replicant(
     println!("  - At least 8 characters");
     println!("  - Only alphanumeric (a-z, A-Z, 0-9)");
     println!("  - Must contain both uppercase and lowercase\n");
-    
+
     loop {
         print!("Enter passphrase: ");
         io::stdout().flush().unwrap();
@@ -125,9 +125,16 @@ pub fn list_replicants(
 
     println!("\n📋 Replicant identities:");
     for (i, identity) in identities.iter().enumerate() {
-        let primary = if identity.is_primary { " (primary)" } else { "" };
+        let primary = if identity.is_primary {
+            " (primary)"
+        } else {
+            ""
+        };
         println!("  {}. {}{}", i + 1, identity.replicant_name, primary);
-        println!("     WebID: {}", identity.replicant_webid.redacted_display());
+        println!(
+            "     WebID: {}",
+            identity.replicant_webid.redacted_display()
+        );
         if let Some(last) = identity.last_login {
             let dt = chrono::DateTime::from_timestamp(last, 0).unwrap();
             println!("     Last login: {}", dt.format("%Y-%m-%d %H:%M"));
@@ -138,22 +145,31 @@ pub fn list_replicants(
 }
 
 /// Show replicant identity info
-pub fn show_replicant(
-    store: Arc<Mutex<UserStore>>,
-    replicant_name: &str,
-) -> Result<(), String> {
+pub fn show_replicant(store: Arc<Mutex<UserStore>>, replicant_name: &str) -> Result<(), String> {
     let store = store.lock().unwrap();
-    let identity = store.get_replicant(replicant_name)
+    let identity = store
+        .get_replicant(replicant_name)
         .map_err(|e| e.to_string())?
         .ok_or_else(|| format!("Replicant '{}' not found", replicant_name))?;
 
     println!("\n👤 Replicant Info:");
     println!("  Replicant name: {}", identity.replicant_name);
     println!("  WebID: {}", identity.replicant_webid.redacted_display());
-    println!("  User ID: {}", identity.user_id.0.to_string()[..8].to_string() + "...");
-    println!("  Primary: {}", if identity.is_primary { "yes" } else { "no" });
-    println!("  Created: {}", chrono::DateTime::from_timestamp(identity.created_at, 0).unwrap().format("%Y-%m-%d"));
-    
+    println!(
+        "  User ID: {}",
+        identity.user_id.0.to_string()[..8].to_string() + "..."
+    );
+    println!(
+        "  Primary: {}",
+        if identity.is_primary { "yes" } else { "no" }
+    );
+    println!(
+        "  Created: {}",
+        chrono::DateTime::from_timestamp(identity.created_at, 0)
+            .unwrap()
+            .format("%Y-%m-%d")
+    );
+
     if let Some(last) = identity.last_login {
         let dt = chrono::DateTime::from_timestamp(last, 0).unwrap();
         println!("  Last login: {}", dt.format("%Y-%m-%d %H:%M"));
@@ -163,39 +179,36 @@ pub fn show_replicant(
 }
 
 /// Logout - invalidate a session
-pub fn logout(
-    store: Arc<Mutex<UserStore>>,
-    session_id: &str,
-) -> Result<(), String> {
+pub fn logout(store: Arc<Mutex<UserStore>>, session_id: &str) -> Result<(), String> {
     let store = store.lock().unwrap();
-    
+
     // Check if session exists
-    let session = store.get_session(session_id)
+    let session = store
+        .get_session(session_id)
         .map_err(|e| e.to_string())?
         .ok_or_else(|| format!("Session '{}' not found", session_id))?;
-    
+
     store.logout(session_id).map_err(|e| e.to_string())?;
-    
+
     println!("\n✅ Logged out successfully!");
     println!("  Replicant: {}", session.replicant_name);
     println!("  Session: {}", &session_id[..8]);
-    
+
     Ok(())
 }
 
 /// List active sessions for a replicant
-pub fn list_sessions(
-    store: Arc<Mutex<UserStore>>,
-    replicant_name: &str,
-) -> Result<(), String> {
+pub fn list_sessions(store: Arc<Mutex<UserStore>>, replicant_name: &str) -> Result<(), String> {
     let store = store.lock().unwrap();
-    let sessions = store.list_sessions(replicant_name).map_err(|e| e.to_string())?;
-    
+    let sessions = store
+        .list_sessions(replicant_name)
+        .map_err(|e| e.to_string())?;
+
     if sessions.is_empty() {
         println!("  No active sessions for '{}'.", replicant_name);
         return Ok(());
     }
-    
+
     println!("\n📱 Active sessions for '{}':", replicant_name);
     for (i, session) in sessions.iter().enumerate() {
         let expires = chrono::DateTime::from_timestamp(session.expires_at, 0).unwrap();
@@ -204,7 +217,7 @@ pub fn list_sessions(
         println!("     Last active: {}", last_active.format("%Y-%m-%d %H:%M"));
         println!("     Expires: {}", expires.format("%Y-%m-%d %H:%M"));
     }
-    
+
     Ok(())
 }
 
@@ -233,7 +246,7 @@ mod tests {
             "test@test.ai",
             None,
         );
-        
+
         // Note: This test would fail because we can't simulate stdin in tests
         // The actual registration requires interactive input
         assert!(result.is_err());

@@ -6,14 +6,14 @@
 //! - Passphrase-based authentication using Argon2id
 //! - Session management
 
-use hkask_types::{HumanUser, RegistrationRequest, ReplicantIdentity, UserSession, UserID};
-use rusqlite::{params, Connection};
+use argon2::{PasswordHasher, PasswordVerifier, password_hash::PasswordHash};
+use base64::Engine;
+use hkask_types::{HumanUser, RegistrationRequest, ReplicantIdentity, UserID, UserSession};
+use rand::RngCore;
+use rusqlite::{Connection, params};
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
 use zeroize::Zeroizing;
-use rand::RngCore;
-use argon2::{PasswordHasher, PasswordVerifier, password_hash::PasswordHash};
-use base64::Engine;
 
 #[derive(Error, Debug)]
 pub enum UserStoreError {
@@ -141,7 +141,10 @@ impl UserStore {
 
     pub fn logout(&self, session_id: &str) -> Result<()> {
         let conn = self.conn.lock().unwrap();
-        conn.execute("DELETE FROM user_sessions WHERE session_id = ?1", params![session_id])?;
+        conn.execute(
+            "DELETE FROM user_sessions WHERE session_id = ?1",
+            params![session_id],
+        )?;
         Ok(())
     }
 
@@ -161,7 +164,10 @@ impl UserStore {
                     rusqlite::Error::FromSqlConversionFailure(
                         0,
                         rusqlite::types::Type::Text,
-                        Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid UUID")),
+                        Box::new(std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
+                            "Invalid UUID",
+                        )),
                     )
                 })?),
                 session_key_salt: row.get(4)?,
@@ -192,7 +198,10 @@ impl UserStore {
                         rusqlite::Error::FromSqlConversionFailure(
                             0,
                             rusqlite::types::Type::Text,
-                            Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid UUID")),
+                            Box::new(std::io::Error::new(
+                                std::io::ErrorKind::InvalidData,
+                                "Invalid UUID",
+                            )),
                         )
                     })?),
                     session_key_salt: row.get(4)?,
@@ -231,7 +240,10 @@ impl UserStore {
                     rusqlite::Error::FromSqlConversionFailure(
                         0,
                         rusqlite::types::Type::Text,
-                        Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid UUID")),
+                        Box::new(std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
+                            "Invalid UUID",
+                        )),
                     )
                 })?),
                 replicant_webid: hkask_types::WebID::from_string(&row.get::<_, String>(2)?),
@@ -267,7 +279,8 @@ impl UserStore {
                 created_at: row.get(6)?,
                 last_active: row.get(7)?,
             })
-        }).map_err(|_| UserStoreError::NotFound(user_id.0.to_string()))
+        })
+        .map_err(|_| UserStoreError::NotFound(user_id.0.to_string()))
     }
 
     pub fn list_replicants(&self, user_id: &UserID) -> Result<Vec<ReplicantIdentity>> {
@@ -286,7 +299,10 @@ impl UserStore {
                         rusqlite::Error::FromSqlConversionFailure(
                             0,
                             rusqlite::types::Type::Text,
-                            Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, "Invalid UUID")),
+                            Box::new(std::io::Error::new(
+                                std::io::ErrorKind::InvalidData,
+                                "Invalid UUID",
+                            )),
                         )
                     })?),
                     replicant_webid: hkask_types::WebID::from_string(&row.get::<_, String>(2)?),
@@ -353,32 +369,33 @@ impl UserStore {
     }
 
     fn hash_passphrase(passphrase: &str, salt: &str) -> Result<String> {
-        use argon2::{Argon2, Algorithm, Version, Params};
         use argon2::password_hash::SaltString;
-        
+        use argon2::{Algorithm, Argon2, Params, Version};
+
         let salt_bytes = hex::decode(salt)
             .map_err(|e| UserStoreError::KeyDerivation(format!("Invalid salt hex: {}", e)))?;
-        
+
         let salt_string = SaltString::from_b64(
-            &base64::engine::general_purpose::STANDARD_NO_PAD.encode(&salt_bytes)
-        ).map_err(|e| UserStoreError::KeyDerivation(format!("Salt error: {}", e)))?;
-        
+            &base64::engine::general_purpose::STANDARD_NO_PAD.encode(&salt_bytes),
+        )
+        .map_err(|e| UserStoreError::KeyDerivation(format!("Salt error: {}", e)))?;
+
         let params = Params::new(19456, 2, 1, None)
             .map_err(|e| UserStoreError::KeyDerivation(e.to_string()))?;
-        
+
         let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
-        
+
         let password_hash = argon2
             .hash_password(passphrase.as_bytes(), &salt_string)
             .map_err(|e| UserStoreError::PasswordHash(e.to_string()))?;
-        
+
         Ok(password_hash.to_string())
     }
 
     fn verify_passphrase(passphrase: &str, hash: &str) -> Result<bool> {
-        let parsed_hash = PasswordHash::new(hash)
-            .map_err(|e| UserStoreError::PasswordHash(e.to_string()))?;
-        
+        let parsed_hash =
+            PasswordHash::new(hash).map_err(|e| UserStoreError::PasswordHash(e.to_string()))?;
+
         match argon2::Argon2::default().verify_password(passphrase.as_bytes(), &parsed_hash) {
             Ok(_) => Ok(true),
             Err(_) => Ok(false),
@@ -387,9 +404,11 @@ impl UserStore {
 
     fn derive_pii_key(passphrase: &str, master_salt: &str) -> Result<Zeroizing<[u8; 32]>> {
         use hkask_keystore::encryption::derive_key;
-        derive_key(passphrase, &hex::decode(master_salt).map_err(|e| {
-            UserStoreError::KeyDerivation(e.to_string())
-        })?).map_err(|e| UserStoreError::KeyDerivation(e.to_string()))
+        derive_key(
+            passphrase,
+            &hex::decode(master_salt).map_err(|e| UserStoreError::KeyDerivation(e.to_string()))?,
+        )
+        .map_err(|e| UserStoreError::KeyDerivation(e.to_string()))
     }
 
     fn encrypt_pii(plaintext: &[u8], key: &Zeroizing<[u8; 32]>) -> Result<Vec<u8>> {
@@ -425,7 +444,9 @@ impl UserStore {
         let nonce = Nonce::from_slice(&ciphertext[..12]);
         let data = &ciphertext[12..];
 
-        cipher.decrypt(nonce, data).map_err(|e| UserStoreError::Decryption(e.to_string()))
+        cipher
+            .decrypt(nonce, data)
+            .map_err(|e| UserStoreError::Decryption(e.to_string()))
     }
 }
 
@@ -506,11 +527,11 @@ mod tests {
 
         store.register_replicant(request).unwrap();
         let session = store.login("dave", "DavePass123").unwrap();
-        
+
         assert!(store.get_session(&session.session_id).unwrap().is_some());
-        
+
         store.logout(&session.session_id).unwrap();
-        
+
         assert!(store.get_session(&session.session_id).unwrap().is_none());
     }
 

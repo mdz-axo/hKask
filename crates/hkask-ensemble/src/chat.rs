@@ -13,7 +13,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::info;
 
-use crate::improv::{ImprovMode, ImprovSessionConfig, ImprovTurn, ImprovError, improv_turn};
+use crate::improv::{ImprovError, ImprovMode, ImprovSessionConfig, ImprovTurn, improv_turn};
 use crate::ports::InferenceClient;
 
 /// Chat message in multi-agent conversation
@@ -296,10 +296,8 @@ impl EnsembleChat {
     pub fn set_improv_mode(&mut self, mode: ImprovMode) {
         let mode_str = mode.as_str().to_string();
         self.improv_config.set_mode(mode);
-        self.span_emitter.emit_tool(
-            "improv_mode_set",
-            json!({"mode": mode_str}),
-        );
+        self.span_emitter
+            .emit_tool("improv_mode_set", json!({"mode": mode_str}));
     }
 
     /// Execute an improvisation turn using this session's config and participants

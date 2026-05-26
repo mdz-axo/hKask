@@ -429,8 +429,8 @@ pub use super::git_archival::{
 
 // Ensemble multi-agent commands (Phase 7)
 use hkask_ensemble::{
-    ChatMessage, ChatParticipant, DeliberationCoordinator, EnsembleChatManager,
-    ImprovMode, ImprovSessionConfig, OkapiImprovClient, ParticipantRole,
+    ChatMessage, ChatParticipant, DeliberationCoordinator, EnsembleChatManager, ImprovMode,
+    ImprovSessionConfig, OkapiImprovClient, ParticipantRole,
 };
 use hkask_types::WebID;
 use tokio::sync::RwLock;
@@ -439,8 +439,7 @@ static CHAT_MANAGER: std::sync::OnceLock<Arc<RwLock<EnsembleChatManager>>> =
     std::sync::OnceLock::new();
 static DELIBERATION_COORDINATOR: std::sync::OnceLock<Arc<RwLock<DeliberationCoordinator>>> =
     std::sync::OnceLock::new();
-static IMPROV_CLIENT: std::sync::OnceLock<Arc<OkapiImprovClient>> =
-    std::sync::OnceLock::new();
+static IMPROV_CLIENT: std::sync::OnceLock<Arc<OkapiImprovClient>> = std::sync::OnceLock::new();
 
 fn get_chat_manager() -> Arc<RwLock<EnsembleChatManager>> {
     CHAT_MANAGER
@@ -575,10 +574,7 @@ pub async fn ensemble_improv_config(session_id: &str) -> Result<ImprovSessionCon
     Ok(chat_read.improv_config().clone())
 }
 
-pub async fn ensemble_improv_set_threshold(
-    session_id: &str,
-    threshold: f64,
-) -> Result<(), String> {
+pub async fn ensemble_improv_set_threshold(session_id: &str, threshold: f64) -> Result<(), String> {
     let manager = get_chat_manager();
     let chat = {
         let manager_read = manager.read().await;
@@ -591,10 +587,7 @@ pub async fn ensemble_improv_set_threshold(
     Ok(())
 }
 
-pub async fn ensemble_improv_set_mode(
-    session_id: &str,
-    mode: ImprovMode,
-) -> Result<(), String> {
+pub async fn ensemble_improv_set_mode(session_id: &str, mode: ImprovMode) -> Result<(), String> {
     let manager = get_chat_manager();
     let chat = {
         let manager_read = manager.read().await;

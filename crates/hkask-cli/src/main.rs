@@ -2047,7 +2047,10 @@ fn main() {
                 match commands::user::login_replicant(store, &replicant_name) {
                     Ok(session) => {
                         println!("Session ID: {}", session.session_id);
-                        println!("\nTo logout: kask replicant logout {}", &session.session_id[..8]);
+                        println!(
+                            "\nTo logout: kask replicant logout {}",
+                            &session.session_id[..8]
+                        );
                     }
                     Err(e) => {
                         eprintln!("Login failed: {}", e);
