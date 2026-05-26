@@ -226,7 +226,9 @@ jobs:
         uses: dtolnay/rust-toolchain@1.91
       
       - name: Install cargo-outdated
-        uses: taiki-e/install-action@cargo-outdated
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-outdated
         continue-on-error: true
         id: install-outdated
       
