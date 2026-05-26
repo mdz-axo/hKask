@@ -992,7 +992,7 @@ visibility:
 #[allow(clippy::arc_with_non_send_sync)]
 pub async fn curator_escalations() -> Result<Vec<hkask_agents::EscalationEntry>, CuratorError> {
     use rusqlite::Connection;
-    use std::sync::Arc;
+    use std::sync::{Arc, Mutex};
 
     let db_path = registry_db_path();
     let conn = if db_path == ":memory:" {
@@ -1001,7 +1001,7 @@ pub async fn curator_escalations() -> Result<Vec<hkask_agents::EscalationEntry>,
         Connection::open(&db_path).map_err(|e| CuratorError::DatabaseError(e.to_string()))?
     };
 
-    let queue = hkask_agents::EscalationQueue::new(Arc::new(conn))
+    let queue = hkask_agents::EscalationQueue::new(Arc::new(Mutex::new(conn)))
         .map_err(|e| CuratorError::DatabaseError(e.to_string()))?;
 
     queue
@@ -1012,7 +1012,7 @@ pub async fn curator_escalations() -> Result<Vec<hkask_agents::EscalationEntry>,
 #[allow(clippy::arc_with_non_send_sync)]
 pub async fn curator_resolve(id: &str) -> Result<(), CuratorError> {
     use rusqlite::Connection;
-    use std::sync::Arc;
+    use std::sync::{Arc, Mutex};
 
     let db_path = registry_db_path();
     let conn = if db_path == ":memory:" {
@@ -1021,7 +1021,7 @@ pub async fn curator_resolve(id: &str) -> Result<(), CuratorError> {
         Connection::open(&db_path).map_err(|e| CuratorError::DatabaseError(e.to_string()))?
     };
 
-    let queue = hkask_agents::EscalationQueue::new(Arc::new(conn))
+    let queue = hkask_agents::EscalationQueue::new(Arc::new(Mutex::new(conn)))
         .map_err(|e| CuratorError::DatabaseError(e.to_string()))?;
 
     queue
@@ -1032,7 +1032,7 @@ pub async fn curator_resolve(id: &str) -> Result<(), CuratorError> {
 #[allow(clippy::arc_with_non_send_sync)]
 pub async fn curator_dismiss(id: &str) -> Result<(), CuratorError> {
     use rusqlite::Connection;
-    use std::sync::Arc;
+    use std::sync::{Arc, Mutex};
 
     let db_path = registry_db_path();
     let conn = if db_path == ":memory:" {
@@ -1041,7 +1041,7 @@ pub async fn curator_dismiss(id: &str) -> Result<(), CuratorError> {
         Connection::open(&db_path).map_err(|e| CuratorError::DatabaseError(e.to_string()))?
     };
 
-    let queue = hkask_agents::EscalationQueue::new(Arc::new(conn))
+    let queue = hkask_agents::EscalationQueue::new(Arc::new(Mutex::new(conn)))
         .map_err(|e| CuratorError::DatabaseError(e.to_string()))?;
 
     queue
@@ -1055,7 +1055,7 @@ pub async fn curator_metacognition() -> Result<String, CuratorError> {
     use hkask_agents::curator::{MetacognitionConfig, MetacognitionLoop};
     use hkask_cns::CnsRuntime;
     use rusqlite::Connection;
-    use std::sync::Arc;
+    use std::sync::{Arc, Mutex};
 
     let db_path = registry_db_path();
     let conn = if db_path == ":memory:" {
@@ -1065,7 +1065,7 @@ pub async fn curator_metacognition() -> Result<String, CuratorError> {
     };
 
     let queue = Arc::new(
-        hkask_agents::EscalationQueue::new(Arc::new(conn))
+        hkask_agents::EscalationQueue::new(Arc::new(Mutex::new(conn)))
             .map_err(|e| CuratorError::DatabaseError(e.to_string()))?,
     );
 

@@ -49,8 +49,9 @@ jobs:
             llvm-dev \
             cmake \
             protobuf-compiler \
-            libprotobuf-dev
-      
+            libprotobuf-dev \
+            libzstd-dev
+       
       - name: Cache cargo registry
         uses: Swatinem/rust-cache@v2
       
@@ -181,7 +182,8 @@ jobs:
             llvm-dev \
             cmake \
             protobuf-compiler \
-            libprotobuf-dev
+            libprotobuf-dev \
+            libzstd-dev
       
       - name: Check documentation coverage
         run: |

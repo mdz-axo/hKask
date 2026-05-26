@@ -293,7 +293,7 @@ async fn test_csp_executor_error_classification() {
     assert!(result.output.is_err());
     // Should have attempted multiple times (initial + retries)
     // Duration might be 0 if test runs very fast, so just check it completed
-    assert!(result.duration_ms >= 0);
+    let _duration = result.duration_ms;
 }
 
 #[tokio::test]

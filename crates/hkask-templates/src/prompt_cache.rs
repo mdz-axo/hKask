@@ -92,7 +92,10 @@ impl From<serde_json::Error> for CacheError {
 }
 
 impl PromptCache {
-    pub fn new(conn: Arc<Mutex<Connection>>, config: PromptCacheConfig) -> Result<Self, CacheError> {
+    pub fn new(
+        conn: Arc<Mutex<Connection>>,
+        config: PromptCacheConfig,
+    ) -> Result<Self, CacheError> {
         let cache = Self {
             conn,
             config,
@@ -261,7 +264,8 @@ impl PromptCache {
         let now = Instant::now().elapsed().as_secs() as i64;
 
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT size_bytes FROM prompt_cache WHERE expires_at <= ?1")?;
+        let mut stmt =
+            conn.prepare("SELECT size_bytes FROM prompt_cache WHERE expires_at <= ?1")?;
 
         let mut freed = 0i64;
         let rows = stmt.query_map([now], |row| row.get::<_, i64>(0))?;
@@ -270,9 +274,8 @@ impl PromptCache {
             freed += size;
         }
 
-        let deleted = conn
-            .execute("DELETE FROM prompt_cache WHERE expires_at <= ?1", [now])?
-            as i64;
+        let deleted =
+            conn.execute("DELETE FROM prompt_cache WHERE expires_at <= ?1", [now])? as i64;
 
         self.current_size
             .fetch_sub(freed, std::sync::atomic::Ordering::Relaxed);
