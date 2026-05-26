@@ -1,6 +1,29 @@
+<p align="center">
+  <img src="assets/kask-logo.svg" alt="Kask Logo" width="120"/>
+</p>
+
 # hKask (ℏKask) — Planck's Constant of Agent Systems
 
-**Version:** v0.21.0 (Pre-alpha MVP in progress)
+**Version:** v0.21.1 | **Status:** Phase 8 complete — Core implementation done, MCP stubs in progress
+
+---
+
+## Logo & Brand
+
+The Kask logo synthesizes four elements into a single mark:
+
+| Element | Represents | Visual Form |
+|---------|-----------|-------------|
+| **The Kask (Container)** | Typed container, governed surface | Rectangular amphora with handles |
+| **Calligraphy (Art)** | Human craft, temporal mark | Varied stroke width, pressure-sensitive |
+| **Curator's Eye (Vision)** | Observation, governance, loyalty | Almond eye with iris, pupil, reflection |
+| **Bitemporal Shadow (Perspective)** | Valid-time + transaction-time | Offset shadow, reduced opacity |
+
+> *A simple container, drawn by hand, watching from within, remembering in two times.*
+
+**Core principles:** Recognition <400ms | Scalable 16px–16ft | Monochrome-first | No gradients/effects
+
+Full design principles → [`assets/LOGO-DESIGN-PRINCIPLES.md`](assets/LOGO-DESIGN-PRINCIPLES.md)
 
 ---
 
@@ -63,6 +86,19 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 
 ---
 
+## Current Metrics
+
+| Metric | Value |
+|--------|-------|
+| **Core LOC (Rust)** | ~40,814 |
+| **MCP Server LOC (Rust)** | ~4,890 |
+| **Test Files** | 36 |
+| **Core Crates** | 11 (all complete) |
+| **MCP Servers** | 16 (13 complete, 3 stubs) |
+| **Build/Clippy/Fmt** | All passing |
+
+---
+
 ## Implementation Roadmap
 
 ### Phase 0: Workspace Skeleton ✓
@@ -71,26 +107,46 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 - [x] Empty crate stubs for all 21 crates
 - [x] CI verification: `cargo check`, `test`, `clippy`, `fmt`
 
-### Phase 1: Foundation (Weeks 1-3)
-- [ ] `hkask-keystore` (600 LOC) — encrypted KV, interactive passphrase
-- [ ] `hkask-types` (2,000 LOC) — ID types, ν-event, hLexicon enum
-- [ ] `hkask-storage` (4,000 LOC) — SQLite + SQLCipher + sqlite-vec + BLAKE3 + gix
-- [ ] `hkask-memory` (3,000 LOC) — semantic/episodic pipelines + Bayesian ops
+### Phase 1: Security Foundation ✓
+- [x] `hkask-keystore` — encrypted KV, interactive passphrase
+- [x] `hkask-types` — ID types, ν-event, hLexicon enum
+- [x] `hkask-storage` — SQLite + SQLCipher + sqlite-vec + BLAKE3 + gix
+- [x] `hkask-memory` — semantic/episodic pipelines
 
-### Phase 2: CNS + Templates (Weeks 4-6)
-- [ ] `hkask-cns` (1,200 LOC) — outcome ingestion, `cns.*` span emission
-- [ ] `hkask-templates` (5,000 LOC) — registry, hLexicon, minijinja, cascade
-- [ ] `hkask-agents` (2,500 LOC) — pod lifecycle, ACP, bot/replicant, OCAP
+### Phase 2: Bot System & A2A ✓
+- [x] `hkask-agents` — pod lifecycle, ACP, bot/replicant, OCAP
+- [x] `hkask-keystore` — OS keychain, AES-256-GCM
 
-### Phase 3: Surface (Weeks 7-8)
-- [ ] `hkask-mcp` (2,500 LOC) — MCP runtime, dispatch, security
-- [ ] `hkask-api` (1,800 LOC) — axum + utoipa, CLI/API parity
-- [ ] `hkask-cli` (2,000 LOC) — clap-based CLI from OpenAPI
+### Phase 3: Templates & Registry ✓
+- [x] `hkask-templates` — registry, hLexicon, minijinja, cascade
 
-### Phase 4: MCP Servers (Weeks 9-10)
-- [ ] All 10 MCP servers implemented
+### Phase 4: Security Hardening & Testing ✓
+- [x] Comprehensive security hardening (ADR-022)
+- [x] Test coverage across core crates
 
-### Phase 5: Integration + Verification
+### Phase 5: Okapi Integration Hardening ✓
+- [x] `hkask-mcp-inference` — Okapi-backed LLM inference
+
+### Phase 6: Ensemble & CNS Integration ✓
+- [x] `hkask-cns` — outcome ingestion, `cns.*` span emission, variety counters
+- [x] `hkask-ensemble` — multi-agent chat, confidence escalation
+
+### Phase 7: CLI/API Commands ✓
+- [x] `hkask-mcp` — MCP runtime, dispatch, security
+- [x] `hkask-api` — axum + utoipa, 11 route groups
+- [x] `hkask-cli` — 14 subcommand groups
+
+### Phase 8: Documentation Refresh ✓
+- [x] DDMVSS-aligned architecture documentation (9/9 categories)
+- [x] 94 documents archived, 36 active documents curated
+
+### In Progress
+- [ ] MCP server stubs: `condenser`, `web`, `scholar`
+- [ ] Integration tests for inference pipeline
+- [ ] `hkask-storage` trait mismatches (goals.rs)
+
+### Upcoming
+- [ ] Remaining MCP server implementations
 - [ ] Seed templates (prompt/process/cognition)
 - [ ] Curator instantiation
 - [ ] Success criterion test (16 items from master spec)
@@ -137,6 +193,8 @@ cargo fmt --check
 - `docs/architecture/hKask-architecture-master.md` — Sole authoritative spec (v0.21.0)
 - `docs/architecture/hKask-erd.md` — Entity relationship diagrams
 - `docs/architecture/registry-templating-prompt-v2.md` — Registry & templating design
+- `docs/status/PROJECT_STATUS.md` — Project status (single source of truth)
+- `assets/LOGO-DESIGN-PRINCIPLES.md` — Logo design principles
 - `AGENTS.md` — Agent operating guide
 
 ---
@@ -182,6 +240,6 @@ cargo fmt --check
 
 ---
 
-*ℏKask — Planck's Constant of Agent Systems — v0.21.0*  
+*ℏKask — Planck's Constant of Agent Systems — v0.21.1*  
 *Rust is the loom. YAML/Jinja2 is the thread.*  
-*MVP in progress.*
+*Phase 8 complete. Operational hardening in progress.*

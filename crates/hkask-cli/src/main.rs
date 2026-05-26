@@ -20,7 +20,6 @@ use hkask_cli::russell_mapper::RussellMappingConfig;
 use hkask_mcp::runtime::McpRuntime;
 use hkask_templates::SqliteRegistry;
 use hkask_types::TemplateType as Type;
-use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
@@ -59,23 +58,19 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Curator chat interface
+    /// Curator chat interface (interactive by default)
     Chat {
+        /// Agent to chat with (default: Curator)
+        #[arg(default_value = "Curator")]
+        agent: String,
+
         /// Optional: template ID to use
         #[arg(short, long)]
         template: Option<String>,
 
-        /// Optional: input file
+        /// Optional: input file (non-interactive mode)
         #[arg(short = 'f', long)]
         input: Option<PathBuf>,
-
-        /// Interactive mode
-        #[arg(short, long)]
-        interactive: bool,
-
-        /// Agent to chat with (default: Curator)
-        #[arg(short, long)]
-        agent: Option<String>,
     },
 
     /// Template management
@@ -564,6 +559,9 @@ enum EnsembleAction {
 /// Curator governance actions
 #[derive(Subcommand)]
 enum CuratorAction {
+    /// Open interactive chat with Curator
+    Chat,
+
     /// List pending escalations
     Escalations,
 
@@ -666,60 +664,6 @@ fn parse_template_type(type_str: &str) -> Option<Type> {
     }
 }
 
-fn run_chat_interactive(
-    registry: &SqliteRegistry,
-    _runtime: &McpRuntime,
-    template_id: Option<&str>,
-    agent_name: Option<&str>,
-) {
-    let display_name = agent_name.unwrap_or("Curator");
-    println!("ℏKask Chat - Interactive Mode");
-    println!("Agent: {}", display_name);
-    println!("Template: {}", template_id.unwrap_or("auto-select"));
-    println!("Type 'quit' or 'exit' to end session\n");
-
-    let stdin = io::stdin();
-    let mut stdout = io::stdout();
-
-    loop {
-        print!("> ");
-        stdout.flush().unwrap();
-
-        let mut input = String::new();
-        if stdin.lock().read_line(&mut input).is_err() {
-            break;
-        }
-
-        let input = input.trim();
-        if input.is_empty() {
-            continue;
-        }
-
-        if input.eq_ignore_ascii_case("quit") || input.eq_ignore_ascii_case("exit") {
-            println!("Goodbye!");
-            break;
-        }
-
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        let response = rt.block_on(process_chat_input_async(
-            registry,
-            input,
-            template_id,
-            agent_name,
-        ));
-        println!("{}: {}\n", display_name, response);
-    }
-}
-
-async fn process_chat_input_async(
-    _registry: &SqliteRegistry,
-    input: &str,
-    _template_id: Option<&str>,
-    agent_name: Option<&str>,
-) -> String {
-    commands::chat_with_agent(input, agent_name).await
-}
-
 fn generate_cli_markdown() -> String {
     let mut md = String::new();
 
@@ -737,14 +681,30 @@ fn generate_cli_markdown() -> String {
     md.push_str("- `-h`, `--help` — Print help\n");
     md.push_str("- `-V`, `--version` — Print version\n\n");
     md.push_str("## Commands\n\n");
-    md.push_str("### `kask chat` — Curator chat interface\n\n");
+    md.push_str("### `kask chat` — Interactive agent chat\n\n");
     md.push_str("```bash\n");
-    md.push_str("kask chat [OPTIONS]\n");
+    md.push_str("kask chat [AGENT]       # Default: Curator\n");
+    md.push_str("kask chat russell       # Chat with Russell\n");
+    md.push_str("kask chat -f input.txt  # Non-interactive (file input)\n");
     md.push_str("```\n\n");
+    md.push_str("Arguments:\n");
+    md.push_str("- `[AGENT]` — Agent to chat with (default: Curator)\n\n");
     md.push_str("Options:\n");
-    md.push_str("- `-t`, `--template <TEMPLATE>` — Optional: template ID to use\n");
-    md.push_str("- `-f`, `--input <INPUT>` — Optional: input file\n");
-    md.push_str("- `-i`, `--interactive` — Interactive mode\n\n");
+    md.push_str("- `-t`, `--template <TEMPLATE>` — Template ID to use\n");
+    md.push_str("- `-f`, `--input <INPUT>` — Input file (non-interactive mode)\n\n");
+    md.push_str("Slash commands (inside chat):\n");
+    md.push_str("- `/help` — Show categorized help, `/help <cmd>` for details\n");
+    md.push_str("- `/status` — System status (CNS, agent, pods)\n");
+    md.push_str("- `/agent [NAME]` — Show or switch agent\n");
+    md.push_str("- `/agents` — List registered agents\n");
+    md.push_str("- `/pods` — List agent pods\n");
+    md.push_str("- `/templates` — List registered templates\n");
+    md.push_str("- `/ensemble` — Multi-agent ensemble (sessions, create, join, send)\n");
+    md.push_str("- `/escalations` — List pending escalations\n");
+    md.push_str("- `/metacognition` — Run metacognition cycle\n");
+    md.push_str("- `/sovereignty` — Show sovereignty status\n");
+    md.push_str("- `/history` — Show session turn history\n");
+    md.push_str("- `/quit` — End session\n\n");
     md.push_str("### `kask template` — Template management\n\n");
     md.push_str("```bash\n");
     md.push_str("kask template <SUBCOMMAND>\n");
@@ -815,8 +775,10 @@ fn generate_cli_markdown() -> String {
     md.push_str("  - `-o`, `--output <OUTPUT>` — Output directory\n\n");
     md.push_str("## Examples\n\n");
     md.push_str("```bash\n");
-    md.push_str("# Start interactive chat session\n");
-    md.push_str("kask chat --interactive\n\n");
+    md.push_str("# Start chat session\n");
+    md.push_str("kask chat\n\n");
+    md.push_str("# Chat with a specific agent\n");
+    md.push_str("kask chat Russell\n\n");
     md.push_str("# List all templates\n");
     md.push_str("kask template list\n\n");
     md.push_str("# Register a new template\n");
@@ -864,23 +826,15 @@ fn main() {
         Commands::Chat {
             template,
             input,
-            interactive,
             agent,
         } => {
-            let agent_name = agent.as_deref();
-            if interactive {
-                run_chat_interactive(&registry, &runtime, template.as_deref(), agent_name);
-            } else if let Some(input_path) = input {
+            if let Some(input_path) = input {
                 match std::fs::read_to_string(&input_path) {
                     Ok(content) => {
                         let rt = tokio::runtime::Runtime::new().unwrap();
-                        let response = rt.block_on(process_chat_input_async(
-                            &registry,
-                            &content,
-                            template.as_deref(),
-                            agent_name,
-                        ));
-                        println!("{}: {}", agent_name.unwrap_or("Curator"), response);
+                        let response =
+                            rt.block_on(commands::chat_with_agent(content.trim(), Some(&agent)));
+                        println!("{}: {}", agent, response);
                     }
                     Err(e) => {
                         eprintln!("Failed to read input file: {}", e);
@@ -888,17 +842,7 @@ fn main() {
                     }
                 }
             } else {
-                let mut input = String::new();
-                if io::stdin().read_line(&mut input).is_ok() {
-                    let rt = tokio::runtime::Runtime::new().unwrap();
-                    let response = rt.block_on(process_chat_input_async(
-                        &registry,
-                        input.trim(),
-                        template.as_deref(),
-                        agent_name,
-                    ));
-                    println!("{}: {}", agent_name.unwrap_or("Curator"), response);
-                }
+                hkask_cli::repl::run(&registry, &runtime, template.as_deref(), &agent);
             }
         }
 
@@ -1914,6 +1858,9 @@ fn main() {
         },
 
         Commands::Curator { action } => match action {
+            CuratorAction::Chat => {
+                hkask_cli::repl::run(&registry, &runtime, None, "Curator");
+            }
             CuratorAction::Escalations => {
                 let rt = tokio::runtime::Runtime::new().unwrap();
                 rt.block_on(async {

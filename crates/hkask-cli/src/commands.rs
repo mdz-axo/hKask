@@ -20,6 +20,12 @@ pub fn list_templates(
     registry.list(template_type)
 }
 
+/// Template list command (local in-memory, for REPL use)
+pub fn list_templates_local() -> Vec<RegistryEntry> {
+    let registry = SqliteRegistry::new(None).unwrap_or_else(|_| SqliteRegistry::new(None).unwrap());
+    registry.list(None)
+}
+
 /// Register template command
 pub fn register_template(
     registry: &mut SqliteRegistry,
