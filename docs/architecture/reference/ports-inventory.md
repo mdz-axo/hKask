@@ -1,3 +1,10 @@
+---
+title: "Hexagonal Port Inventory — hKask v0.21.0"
+version: "0.21.0"
+status: "Active"
+last_updated: "2026-05-24"
+---
+
 # Hexagonal Port Inventory — hKask v0.21.0
 
 Comprehensive inventory of all hexagonal ports, adapters, and architectural patterns in hKask v0.21.0.

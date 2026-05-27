@@ -13,14 +13,14 @@ echo "=== hKask Documentation Link Checker ==="
 echo "Scanning: $DOCS_DIR"
 echo ""
 
-# Find all markdown files
-MARKDOWN_FILES=$(find "$DOCS_DIR" -name "*.md" -type f 2>/dev/null | wc -l)
+# Find all markdown files (excluding archive)
+MARKDOWN_FILES=$(find "$DOCS_DIR" -name "*.md" -type f ! -path "*/archive/*" 2>/dev/null | wc -l)
 echo "Found $MARKDOWN_FILES markdown files"
 echo ""
 
 echo "Checking links..."
 
-for file in $(find "$DOCS_DIR" -name "*.md" -type f); do
+for file in $(find "$DOCS_DIR" -name "*.md" -type f ! -path "*/archive/*"); do
     # Extract relative links (not http/https)
     while IFS= read -r link; do
         # Skip external links

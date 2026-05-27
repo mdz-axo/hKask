@@ -1,3 +1,10 @@
+---
+title: "Okapi Integration — API Contract"
+version: "0.21.0"
+status: "Active"
+last_updated: "2026-05-24"
+---
+
 # Okapi Integration — API Contract
 
 **Version:** 0.21.0

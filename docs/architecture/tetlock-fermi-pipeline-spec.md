@@ -1,3 +1,10 @@
+---
+title: "Tetlock Fermi-ization Pipeline Specification"
+version: "0.21.0"
+status: "Draft"
+last_updated: "2026-05-21"
+---
+
 # Tetlock Fermi-ization Pipeline Specification
 
 **Document Type:** Technical Specification  

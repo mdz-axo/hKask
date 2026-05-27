@@ -1,3 +1,10 @@
+---
+title: "Tetlock Fermi-ization Pipeline — User Guide"
+version: "0.21.0"
+status: "Active"
+last_updated: "2026-05-21"
+---
+
 # Tetlock Fermi-ization Pipeline — User Guide
 
 **For:** Forecasters, analysts, decision-makers  

@@ -31,7 +31,7 @@ domain: "Cross-cutting | Business | Data | Application | Technology"
 
 **Date:** YYYY-MM-DD  
 **Status:** Draft | Active | Deprecated | Superseded  
-**Supersedes:** [ADR-XXX](link-to-superseded-adr) (if applicable)
+**Supersedes:** ADR-XXX (if applicable)
 
 ## Context
 

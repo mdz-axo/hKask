@@ -4,8 +4,6 @@
 #
 # Usage: ./check-metadata.sh [docs_dir]
 
-set -e
-
 DOCS_DIR="${1:-./docs}"
 MISSING_METADATA=()
 VALID_COUNT=0

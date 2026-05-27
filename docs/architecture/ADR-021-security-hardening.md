@@ -1,3 +1,10 @@
+---
+title: "ADR-021: Security Hardening Implementation"
+version: "0.21.0"
+status: "Implemented"
+last_updated: "2026-05-21"
+---
+
 # Security Architecture
 
 **ADR-021** — Security Hardening Implementation  

@@ -11,7 +11,7 @@ domain: "Technology"
 
 **Date:** 2026-05-24  
 **Status:** Implemented  
-**Supersedes:** [ADR-021](../archive/2026-05-24-adv-review-f2/ADR-021-security-hardening-v1.md)
+**Supersedes:** [ADR-021](ADR-021-security-hardening.md)
 
 ## Context
 
