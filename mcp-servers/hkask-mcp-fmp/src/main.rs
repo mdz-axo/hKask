@@ -15,8 +15,8 @@
 //! - `fmp_dcf` — Discounted cash flow analysis
 
 use hkask_mcp::server::{
-    CredentialRequirement, McpToolError, McpToolOutput, classify_http_error, emit_tool_span,
-    resolve_credential, run_stdio_server, validate_identifier,
+    CredentialRequirement, McpToolError, McpToolOutput, ServerContext, classify_http_error,
+    emit_tool_span, resolve_credential, run_stdio_server, validate_identifier,
 };
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -371,7 +371,7 @@ async fn main() -> anyhow::Result<()> {
     run_stdio_server(
         "hkask-mcp-fmp",
         SERVER_VERSION,
-        FmpServer::new,
+        |_ctx: ServerContext| FmpServer::new(),
         vec![CredentialRequirement::required(
             "HKASK_FMP_API_KEY",
             "Financial Modeling Prep API key",

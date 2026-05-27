@@ -4,8 +4,8 @@
 //! Phase 9: Git archival via GitHub MCP tool calls.
 
 use hkask_mcp::server::{
-    CredentialRequirement, McpToolError, McpToolOutput, api_get, api_post, classify_http_error,
-    emit_tool_span, resolve_credential, run_stdio_server, validate_identifier,
+    CredentialRequirement, McpToolError, McpToolOutput, ServerContext, api_get, api_post,
+    classify_http_error, emit_tool_span, resolve_credential, run_stdio_server, validate_identifier,
 };
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -498,7 +498,7 @@ async fn main() -> anyhow::Result<()> {
     run_stdio_server(
         "hkask-mcp-github",
         SERVER_VERSION,
-        GithubServer::new,
+        |_ctx: ServerContext| GithubServer::new(),
         vec![CredentialRequirement::required(
             "HKASK_GITHUB_TOKEN",
             "GitHub personal access token for API authentication",

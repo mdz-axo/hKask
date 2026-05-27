@@ -1,46 +1,54 @@
 //! MCP server scaffolding — shared helpers for hKask MCP server binaries.
 //!
 //! Each server uses `rmcp`'s `#[tool]` + `#[tool_router(server_handler)]` macros
-//! for the wire protocol. This module adds:
+//! for the wire protocol. This module provides:
 //!
+//! - `CredentialRequirement` — declarative credential needs (bridges to keystore)
+//! - `ServerContext` — resolved credentials + shared infrastructure (no ambient authority)
 //! - `McpToolError` — structured errors with `McpErrorKind` classification
 //! - `McpToolOutput` — structured output with optional metadata
-//! - `CredentialRequirement` — declarative credential needs (bridges to keystore)
-//! - `run_stdio_server()` — common main() boilerplate (tracing, credential check, rmcp serve)
-//! - `classify_http_error()` — HTTP status → McpToolError mapping (shared across all API servers)
+//! - `run_stdio_server()` — common main() bootstrap (tracing, credential check, rmcp serve)
+//! - `classify_http_error()` — HTTP status → McpToolError mapping
 //! - `api_get()` / `api_post()` — shared HTTP helpers with automatic error classification
+//! - `build_authenticated_client()` — shared reqwest::Client factory
 //! - `resolve_credential()` — credential resolution via hkask-keystore with env var fallback
 //! - `emit_tool_span()` — CNS tool span emission for observability
 //!
 //! ## Usage
 //!
 //! ```rust,ignore
-//! use hkask_mcp::server::{run_stdio_server, CredentialRequirement};
+//! use hkask_mcp::server::{run_stdio_server, CredentialRequirement, ServerContext};
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
 //!     run_stdio_server(
 //!         "hkask-mcp-github",
 //!         env!("CARGO_PKG_VERSION"),
-//!         || Ok(GithubServer::new()),
+//!         |ctx: ServerContext| {
+//!             let token = ctx.credentials.get("HKASK_GITHUB_TOKEN")
+//!                 .expect("credential checked by run_stdio_server")
+//!                 .clone();
+//!             Ok(GithubServer::new(token))
+//!         },
 //!         vec![CredentialRequirement::required("HKASK_GITHUB_TOKEN", "GitHub PAT")],
 //!     ).await
 //! }
 //! ```
+//!
+//! The factory closure receives a `ServerContext` containing resolved credentials,
+//! a shared rate limiter, and an adapter container — no ambient authority via
+//! `std::env::var`. All configuration flows through the context.
 
 use hkask_types::McpErrorKind;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashMap;
 use std::time::Instant;
-
-// =============================================================================
-// CredentialRequirement
-// =============================================================================
 
 /// A credential that an MCP server requires to function.
 ///
 /// Servers declare these; the runtime resolves them from `hkask-keystore`
-/// and injects the values into the server process environment at launch.
+/// and passes them into the `ServerContext` at server construction time.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CredentialRequirement {
     /// Environment variable name the server expects (e.g., `"HKASK_GITHUB_TOKEN"`).
@@ -70,6 +78,32 @@ impl CredentialRequirement {
             required: false,
         }
     }
+}
+
+// =============================================================================
+// ServerContext — Resolved dependencies for server construction
+// =============================================================================
+
+/// Context provided to the server factory by `run_stdio_server`.
+///
+/// Contains all resolved dependencies. Servers receive this context
+/// rather than reading `std::env::var` or global singletons —
+/// no ambient authority. Credentials are resolved once at bootstrap
+/// via `resolve_credential` (keystore → env var) and injected here.
+pub struct ServerContext {
+    /// Resolved credential values, keyed by env var name.
+    /// Only credentials declared in the `CredentialRequirement` list are present.
+    /// Required credentials are guaranteed to be present; optional ones
+    /// may be absent (check with `ctx.credentials.get("KEY")`).
+    pub credentials: HashMap<String, String>,
+
+    /// Rate limiter from `hkask_cns`.
+    /// Servers should call `rate_limiter.check(&webid)` instead of
+    /// implementing their own rate limiting.
+    pub rate_limiter: hkask_cns::RateLimiter,
+
+    /// Adapter container for shared adapters (GitCAS, etc.).
+    pub adapters: crate::AdapterContainer,
 }
 
 // =============================================================================
@@ -442,12 +476,14 @@ pub fn emit_tool_span(
 /// 4. rmcp stdio serve
 ///
 /// The factory pattern ensures server constructors that need credentials
-/// only run AFTER credential availability is confirmed.
+/// only run AFTER credential availability is confirmed. The factory receives
+/// a `ServerContext` containing resolved credentials and shared infrastructure
+/// — no ambient authority via `std::env::var`.
 ///
 /// # Arguments
 /// - `server_name` — Human-readable server name for logging (e.g., `"hkask-mcp-github"`)
 /// - `version` — SemVer version string (use `env!("CARGO_PKG_VERSION")`)
-/// - `server_factory` — Closure that constructs the server (called after credential checks)
+/// - `server_factory` — Closure that constructs the server, receiving a `ServerContext`
 /// - `credentials` — Declared credential requirements
 ///
 /// # Errors
@@ -461,7 +497,7 @@ pub async fn run_stdio_server<S, F>(
 where
     S: rmcp::ServiceExt<rmcp::RoleServer>,
     S: rmcp::Service<rmcp::RoleServer>,
-    F: FnOnce() -> anyhow::Result<S>,
+    F: FnOnce(ServerContext) -> anyhow::Result<S>,
 {
     // 1. Tracing initialization
     tracing_subscriber::fmt()
@@ -472,14 +508,14 @@ where
         .init();
 
     // 2. Credential checks (keystore → env var)
+    let mut resolved = HashMap::new();
     let mut missing_required = Vec::new();
+
     for cred in &credentials {
         match resolve_credential(&cred.env_var) {
-            Ok(_) => {
-                tracing::debug!(
-                    credential = %cred.env_var,
-                    "Credential resolved"
-                );
+            Ok(val) => {
+                tracing::debug!(credential = %cred.env_var, "Credential resolved");
+                resolved.insert(cred.env_var.clone(), val);
             }
             Err(_) if cred.required => {
                 tracing::error!(
@@ -506,10 +542,17 @@ where
         );
     }
 
-    // 3. Construct server (only after credential checks pass)
-    let server = server_factory()?;
+    // 3. Build server context (no ambient authority)
+    let ctx = ServerContext {
+        credentials: resolved,
+        rate_limiter: hkask_cns::RateLimiter::default(),
+        adapters: crate::AdapterContainer::new(),
+    };
 
-    // 4. Serve via rmcp stdio transport
+    // 4. Construct server (only after credential checks pass)
+    let server = server_factory(ctx)?;
+
+    // 5. Serve via rmcp stdio transport
     tracing::info!(
         server = server_name,
         version = version,
@@ -518,4 +561,73 @@ where
     let service = server.serve(rmcp::transport::stdio());
     service.await?;
     Ok(())
+}
+
+// =============================================================================
+// build_authenticated_client — Shared HTTP client factory
+// =============================================================================
+
+/// Authentication configuration for an HTTP client.
+pub enum AuthConfig {
+    /// Bearer token in Authorization header (e.g., GitHub, Telnyx).
+    Bearer { token: String },
+    /// Custom header with key prefix (e.g., Fal: "Key {key}").
+    CustomHeader { header: String, value: String },
+    /// API key as query parameter (e.g., FMP: ?apikey={key}).
+    QueryParam { param: String, value: String },
+    /// No authentication.
+    None,
+}
+
+/// Build a `reqwest::Client` with authentication defaults and sensible timeouts.
+///
+/// All hKask API servers should use this factory instead of constructing
+/// `reqwest::Client::new()` directly. This ensures:
+/// - Consistent User-Agent header
+/// - Consistent timeout configuration (30s default, configurable)
+/// - Proper authentication headers
+pub fn build_authenticated_client(
+    service: &str,
+    auth: AuthConfig,
+    timeout_secs: Option<u64>,
+) -> Result<reqwest::Client, McpToolError> {
+    let timeout = std::time::Duration::from_secs(timeout_secs.unwrap_or(30));
+
+    let mut headers = reqwest::header::HeaderMap::new();
+    headers.insert(
+        reqwest::header::USER_AGENT,
+        reqwest::header::HeaderValue::from_str(&format!("hkask-mcp-{service}/1.0"))
+            .unwrap_or_else(|_| reqwest::header::HeaderValue::from_static("hkask-mcp-unknown/1.0")),
+    );
+
+    match &auth {
+        AuthConfig::Bearer { token } => {
+            headers.insert(
+                reqwest::header::AUTHORIZATION,
+                reqwest::header::HeaderValue::from_str(&format!("Bearer {token}"))
+                    .map_err(|e| McpToolError::internal(format!("Invalid bearer token: {e}")))?,
+            );
+        }
+        AuthConfig::CustomHeader { header, value } => {
+            let header_name: reqwest::header::HeaderName = header.parse().map_err(|e| {
+                McpToolError::internal(format!("Invalid header name '{header}': {e}"))
+            })?;
+            let header_value = reqwest::header::HeaderValue::from_str(value)
+                .map_err(|e| McpToolError::internal(format!("Invalid header value: {e}")))?;
+            headers.insert(header_name, header_value);
+        }
+        AuthConfig::QueryParam { .. } | AuthConfig::None => {
+            // No auth headers needed
+        }
+    }
+
+    let client = reqwest::Client::builder()
+        .default_headers(headers)
+        .timeout(timeout)
+        .build()
+        .map_err(|e| {
+            McpToolError::internal(format!("Failed to build HTTP client for {service}: {e}"))
+        })?;
+
+    Ok(client)
 }

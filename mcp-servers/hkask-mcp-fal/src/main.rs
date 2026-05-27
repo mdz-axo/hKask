@@ -1,8 +1,8 @@
 //! hKask MCP Fal — Fal.ai API integration (image, video, audio generation)
 
 use hkask_mcp::server::{
-    CredentialRequirement, McpToolError, McpToolOutput, classify_http_error, emit_tool_span,
-    resolve_credential, run_stdio_server, validate_tool_url,
+    CredentialRequirement, McpToolError, McpToolOutput, ServerContext, classify_http_error,
+    emit_tool_span, resolve_credential, run_stdio_server, validate_tool_url,
 };
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -466,7 +466,7 @@ async fn main() -> anyhow::Result<()> {
     run_stdio_server(
         "hkask-mcp-fal",
         env!("CARGO_PKG_VERSION"),
-        FalServer::new,
+        |_ctx: ServerContext| FalServer::new(),
         vec![CredentialRequirement::required(
             "HKASK_FAL_API_KEY",
             "Fal.ai API key for AI image generation",

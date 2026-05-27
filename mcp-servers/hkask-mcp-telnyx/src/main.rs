@@ -1,8 +1,8 @@
 //! hKask MCP Telnyx — Telnyx API v2 integration (SMS, voice, WhatsApp)
 
 use hkask_mcp::server::{
-    CredentialRequirement, McpToolOutput, api_get, api_post, emit_tool_span, resolve_credential,
-    run_stdio_server, validate_tool_url,
+    CredentialRequirement, McpToolOutput, ServerContext, api_get, api_post, emit_tool_span,
+    resolve_credential, run_stdio_server, validate_tool_url,
 };
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -323,7 +323,7 @@ async fn main() -> anyhow::Result<()> {
     run_stdio_server(
         "hkask-mcp-telnyx",
         env!("CARGO_PKG_VERSION"),
-        TelnyxServer::new,
+        |_ctx: ServerContext| TelnyxServer::new(),
         vec![CredentialRequirement::required(
             "HKASK_TELNYX_API_KEY",
             "Telnyx API key for messaging and number management",

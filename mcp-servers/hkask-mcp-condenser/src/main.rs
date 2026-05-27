@@ -8,7 +8,9 @@
 mod algorithms;
 mod types;
 
-use hkask_mcp::server::{McpToolError, McpToolOutput, emit_tool_span, run_stdio_server};
+use hkask_mcp::server::{
+    McpToolError, McpToolOutput, ServerContext, emit_tool_span, run_stdio_server,
+};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use std::sync::Mutex;
 use std::time::Instant;
@@ -31,7 +33,12 @@ impl CondenserEngine {
         }
     }
 
-    fn compress(&mut self, tool_name: &str, output: &str, category: Option<ContextCategory>) -> CompressedOutput {
+    fn compress(
+        &mut self,
+        tool_name: &str,
+        output: &str,
+        category: Option<ContextCategory>,
+    ) -> CompressedOutput {
         let cat = category.unwrap_or_else(|| classify_tool(tool_name));
         let algo = self.registry.select(cat);
         let algorithm_name = algo.name().to_string();
@@ -48,8 +55,16 @@ impl CondenserEngine {
             (1.0 - (compressed_bytes as f64 / original_bytes as f64)) * 100.0
         };
 
-        *self.stats.algorithm_usage.entry(algorithm_name.clone()).or_insert(0) += 1;
-        *self.stats.category_usage.entry(cat.label().to_string()).or_insert(0) += 1;
+        *self
+            .stats
+            .algorithm_usage
+            .entry(algorithm_name.clone())
+            .or_insert(0) += 1;
+        *self
+            .stats
+            .category_usage
+            .entry(cat.label().to_string())
+            .or_insert(0) += 1;
         self.stats.total_compressions += 1;
         self.stats.total_original_bytes += original_bytes as u64;
         self.stats.total_compressed_bytes += compressed_bytes as u64;
@@ -106,16 +121,27 @@ impl CondenserServer {
     #[tool(description = "Compress tool output using context-aware algorithms")]
     async fn condenser_compress(
         &self,
-        Parameters(CompressRequest { tool_name, output, category }): Parameters<CompressRequest>,
+        Parameters(CompressRequest {
+            tool_name,
+            output,
+            category,
+        }): Parameters<CompressRequest>,
     ) -> String {
         let start = Instant::now();
         if output.is_empty() {
             return McpToolError::invalid_argument("output must not be empty").to_json_string();
         }
-        let cat = category.as_deref().and_then(|c| c.parse::<ContextCategory>().ok());
+        let cat = category
+            .as_deref()
+            .and_then(|c| c.parse::<ContextCategory>().ok());
         let mut engine = self.engine.lock().unwrap();
         let result = engine.compress(&tool_name, &output, cat);
-        emit_tool_span("condenser_compress", "ok", start.elapsed().as_millis() as u64, None);
+        emit_tool_span(
+            "condenser_compress",
+            "ok",
+            start.elapsed().as_millis() as u64,
+            None,
+        );
         McpToolOutput::with_timing(serde_json::to_value(&result).unwrap_or_default(), start)
             .to_json_string()
     }
@@ -132,7 +158,12 @@ impl CondenserServer {
         };
         let mut engine = self.engine.lock().unwrap();
         engine.set_profile(p);
-        emit_tool_span("condenser_set_profile", "ok", start.elapsed().as_millis() as u64, None);
+        emit_tool_span(
+            "condenser_set_profile",
+            "ok",
+            start.elapsed().as_millis() as u64,
+            None,
+        );
         McpToolOutput::new(serde_json::json!({
             "profile": p.to_string(),
             "retention_pct": p.retention_pct(),
@@ -144,7 +175,8 @@ impl CondenserServer {
     #[tool(description = "Cumulative compression statistics")]
     async fn condenser_stats(&self) -> String {
         let engine = self.engine.lock().unwrap();
-        McpToolOutput::new(serde_json::to_value(engine.get_stats()).unwrap_or_default()).to_json_string()
+        McpToolOutput::new(serde_json::to_value(engine.get_stats()).unwrap_or_default())
+            .to_json_string()
     }
 
     #[tool(description = "Classify tool name to context category")]
@@ -169,7 +201,7 @@ async fn main() -> anyhow::Result<()> {
     run_stdio_server(
         "hkask-mcp-condenser",
         SERVER_VERSION,
-        CondenserServer::new,
+        |_ctx: ServerContext| CondenserServer::new(),
         vec![],
     )
     .await

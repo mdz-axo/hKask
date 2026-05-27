@@ -18,7 +18,7 @@ members = [
     "mcp-servers/hkask-mcp-inference",
     "mcp-servers/hkask-mcp-condenser",
     "mcp-servers/hkask-mcp-web",
-    "mcp-servers/hkask-mcp-scholar",
+    # "mcp-servers/hkask-mcp-scholar",  # Removed — deprecated stub, see registry/manifests/mcp_scholar_extract.yaml
     # "mcp-servers/hkask-mcp-spandrel",  # Converted to templates (Action 1)
     # "mcp-servers/hkask-mcp-doc-knowledge", # Converted to templates (Action 1)
     # New: Core infrastructure (5)

@@ -13,7 +13,7 @@
 use base64::Engine;
 use chrono::Utc;
 use hkask_mcp::server::{
-    McpToolError, McpToolOutput, emit_tool_span, run_stdio_server, validate_tool_url,
+    McpToolError, McpToolOutput, ServerContext, emit_tool_span, run_stdio_server, validate_tool_url,
 };
 use reqwest::Client;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
@@ -1336,7 +1336,7 @@ async fn main() -> anyhow::Result<()> {
     run_stdio_server(
         "hkask-mcp-rss-reader",
         env!("CARGO_PKG_VERSION"),
-        RssServer::new,
+        |_ctx: ServerContext| RssServer::new(),
         vec![],
     )
     .await

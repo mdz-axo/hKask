@@ -4,8 +4,8 @@ pub mod strip_html;
 pub mod types;
 
 use hkask_mcp::server::{
-    CredentialRequirement, McpToolError, McpToolOutput, emit_tool_span, resolve_credential,
-    run_stdio_server, validate_tool_url,
+    CredentialRequirement, McpToolError, McpToolOutput, ServerContext, emit_tool_span,
+    resolve_credential, run_stdio_server, validate_tool_url,
 };
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use std::sync::Arc;
@@ -565,7 +565,7 @@ async fn main() -> anyhow::Result<()> {
     run_stdio_server(
         "hkask-mcp-web",
         SERVER_VERSION,
-        || {
+        |_ctx: ServerContext| {
             WebServer::new(
                 brave_key.clone(),
                 firecrawl_key.clone(),

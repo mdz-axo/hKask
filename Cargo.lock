@@ -2375,6 +2375,7 @@ name = "hkask-mcp-inference"
 version = "0.21.0"
 dependencies = [
  "anyhow",
+ "hkask-mcp",
  "hkask-templates",
  "hkask-types",
  "rmcp",
@@ -2468,23 +2469,6 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "uuid",
-]
-
-[[package]]
-name = "hkask-mcp-scholar"
-version = "0.21.0"
-dependencies = [
- "anyhow",
- "hkask-mcp",
- "hkask-types",
- "rmcp",
- "schemars",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]
