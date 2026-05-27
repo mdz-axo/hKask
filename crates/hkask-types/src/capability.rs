@@ -370,41 +370,6 @@ impl CapabilityToken {
             .sign(secret)
     }
 
-    /// Create a new capability token with attenuation settings.
-    ///
-    /// For complex token construction, prefer [`CapabilityTokenBuilder`] which
-    /// provides a more ergonomic interface and avoids positional parameter confusion.
-    #[deprecated(note = "Use CapabilityTokenBuilder instead")]
-    #[allow(clippy::too_many_arguments)]
-    pub fn new_with_attenuation(
-        resource: CapabilityResource,
-        resource_id: String,
-        action: CapabilityAction,
-        delegated_from: WebID,
-        delegated_to: WebID,
-        secret: &[u8],
-        expires_at: Option<i64>,
-        attenuation_level: u8,
-        max_attenuation: u8,
-        context_nonce: Option<String>,
-    ) -> Self {
-        let mut builder = CapabilityTokenBuilder::new(
-            resource,
-            resource_id,
-            action,
-            delegated_from,
-            delegated_to,
-        );
-        if let Some(ts) = expires_at {
-            builder = builder.expires_at(ts);
-        }
-        builder = builder.attenuation(attenuation_level, max_attenuation);
-        if let Some(nonce) = context_nonce {
-            builder = builder.context_nonce(nonce);
-        }
-        builder.sign(secret)
-    }
-
     /// Generate unique token ID
     fn generate_id(
         resource: &CapabilityResource,
