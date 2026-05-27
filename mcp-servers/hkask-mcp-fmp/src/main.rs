@@ -114,7 +114,14 @@ impl FmpServer {
     #[tool(description = "Ping FMP API")]
     async fn fmp_ping(&self) -> String {
         let start = Instant::now();
-        match fmp_get(&self.client, "/profile", &self.api_key, &[("symbol", "AAPL")]).await {
+        match fmp_get(
+            &self.client,
+            "/profile",
+            &self.api_key,
+            &[("symbol", "AAPL")],
+        )
+        .await
+        {
             Ok(_) => McpToolOutput::with_timing(
                 serde_json::json!({
                     "status": "ok",
@@ -140,7 +147,14 @@ impl FmpServer {
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
         let start = Instant::now();
-        match fmp_get(&self.client, "/profile", &self.api_key, &[("symbol", &symbol)]).await {
+        match fmp_get(
+            &self.client,
+            "/profile",
+            &self.api_key,
+            &[("symbol", &symbol)],
+        )
+        .await
+        {
             Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
             Err(e) => e.to_json_string(),
         }
@@ -152,7 +166,14 @@ impl FmpServer {
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
         let start = Instant::now();
-        match fmp_get(&self.client, "/quote", &self.api_key, &[("symbol", &symbol)]).await {
+        match fmp_get(
+            &self.client,
+            "/quote",
+            &self.api_key,
+            &[("symbol", &symbol)],
+        )
+        .await
+        {
             Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
             Err(e) => e.to_json_string(),
         }
@@ -165,7 +186,14 @@ impl FmpServer {
     ) -> String {
         let start = Instant::now();
         let limit_str = limit.unwrap_or(5).to_string();
-        match fmp_get(&self.client, "/income-statement", &self.api_key, &[("symbol", &symbol), ("limit", &limit_str)]).await {
+        match fmp_get(
+            &self.client,
+            "/income-statement",
+            &self.api_key,
+            &[("symbol", &symbol), ("limit", &limit_str)],
+        )
+        .await
+        {
             Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
             Err(e) => e.to_json_string(),
         }
@@ -178,7 +206,14 @@ impl FmpServer {
     ) -> String {
         let start = Instant::now();
         let limit_str = limit.unwrap_or(5).to_string();
-        match fmp_get(&self.client, "/balance-sheet-statement", &self.api_key, &[("symbol", &symbol), ("limit", &limit_str)]).await {
+        match fmp_get(
+            &self.client,
+            "/balance-sheet-statement",
+            &self.api_key,
+            &[("symbol", &symbol), ("limit", &limit_str)],
+        )
+        .await
+        {
             Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
             Err(e) => e.to_json_string(),
         }
@@ -191,7 +226,14 @@ impl FmpServer {
     ) -> String {
         let start = Instant::now();
         let limit_str = limit.unwrap_or(5).to_string();
-        match fmp_get(&self.client, "/cash-flow-statement", &self.api_key, &[("symbol", &symbol), ("limit", &limit_str)]).await {
+        match fmp_get(
+            &self.client,
+            "/cash-flow-statement",
+            &self.api_key,
+            &[("symbol", &symbol), ("limit", &limit_str)],
+        )
+        .await
+        {
             Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
             Err(e) => e.to_json_string(),
         }
@@ -204,7 +246,14 @@ impl FmpServer {
     ) -> String {
         let start = Instant::now();
         let limit_str = limit.unwrap_or(5).to_string();
-        match fmp_get(&self.client, "/key-metrics", &self.api_key, &[("symbol", &symbol), ("limit", &limit_str)]).await {
+        match fmp_get(
+            &self.client,
+            "/key-metrics",
+            &self.api_key,
+            &[("symbol", &symbol), ("limit", &limit_str)],
+        )
+        .await
+        {
             Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
             Err(e) => e.to_json_string(),
         }
@@ -216,7 +265,14 @@ impl FmpServer {
         Parameters(HistoricalRequest { symbol, from, to }): Parameters<HistoricalRequest>,
     ) -> String {
         let start = Instant::now();
-        match fmp_get(&self.client, "/historical-price-full", &self.api_key, &[("symbol", &symbol), ("from", &from), ("to", &to)]).await {
+        match fmp_get(
+            &self.client,
+            "/historical-price-full",
+            &self.api_key,
+            &[("symbol", &symbol), ("from", &from), ("to", &to)],
+        )
+        .await
+        {
             Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
             Err(e) => e.to_json_string(),
         }
@@ -229,7 +285,14 @@ impl FmpServer {
     ) -> String {
         let start = Instant::now();
         let limit_str = limit.unwrap_or(10).to_string();
-        match fmp_get(&self.client, "/search-name", &self.api_key, &[("query", &query), ("limit", &limit_str)]).await {
+        match fmp_get(
+            &self.client,
+            "/search-name",
+            &self.api_key,
+            &[("query", &query), ("limit", &limit_str)],
+        )
+        .await
+        {
             Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
             Err(e) => e.to_json_string(),
         }
@@ -241,7 +304,14 @@ impl FmpServer {
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
         let start = Instant::now();
-        match fmp_get(&self.client, "/analyst-estimates", &self.api_key, &[("symbol", &symbol), ("period", "annual")]).await {
+        match fmp_get(
+            &self.client,
+            "/analyst-estimates",
+            &self.api_key,
+            &[("symbol", &symbol), ("period", "annual")],
+        )
+        .await
+        {
             Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
             Err(e) => e.to_json_string(),
         }
@@ -253,7 +323,14 @@ impl FmpServer {
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
         let start = Instant::now();
-        match fmp_get(&self.client, "/discounted-cash-flow", &self.api_key, &[("symbol", &symbol)]).await {
+        match fmp_get(
+            &self.client,
+            "/discounted-cash-flow",
+            &self.api_key,
+            &[("symbol", &symbol)],
+        )
+        .await
+        {
             Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
             Err(e) => e.to_json_string(),
         }

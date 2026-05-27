@@ -55,17 +55,23 @@ fn classify_api_error(status: reqwest::StatusCode, body: &str) -> McpToolError {
     }
 }
 
-async fn telnyx_get(client: &reqwest::Client, path: &str) -> Result<serde_json::Value, McpToolError> {
+async fn telnyx_get(
+    client: &reqwest::Client,
+    path: &str,
+) -> Result<serde_json::Value, McpToolError> {
     let url = format!("{BASE_URL}{path}");
-    let resp = client.get(&url).send().await.map_err(|e| {
-        McpToolError::unavailable(format!("Telnyx request failed: {e}"))
-    })?;
+    let resp = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| McpToolError::unavailable(format!("Telnyx request failed: {e}")))?;
     let status = resp.status();
     let body = resp.text().await.unwrap_or_default();
     if !status.is_success() {
         return Err(classify_api_error(status, &body));
     }
-    serde_json::from_str(&body).map_err(|e| McpToolError::internal(format!("Failed to parse response: {e}")))
+    serde_json::from_str(&body)
+        .map_err(|e| McpToolError::internal(format!("Failed to parse response: {e}")))
 }
 
 async fn telnyx_post(
@@ -74,15 +80,19 @@ async fn telnyx_post(
     payload: &serde_json::Value,
 ) -> Result<serde_json::Value, McpToolError> {
     let url = format!("{BASE_URL}{path}");
-    let resp = client.post(&url).json(payload).send().await.map_err(|e| {
-        McpToolError::unavailable(format!("Telnyx request failed: {e}"))
-    })?;
+    let resp = client
+        .post(&url)
+        .json(payload)
+        .send()
+        .await
+        .map_err(|e| McpToolError::unavailable(format!("Telnyx request failed: {e}")))?;
     let status = resp.status();
     let body = resp.text().await.unwrap_or_default();
     if !status.is_success() {
         return Err(classify_api_error(status, &body));
     }
-    serde_json::from_str(&body).map_err(|e| McpToolError::internal(format!("Failed to parse response: {e}")))
+    serde_json::from_str(&body)
+        .map_err(|e| McpToolError::internal(format!("Failed to parse response: {e}")))
 }
 
 pub struct TelnyxServer {

@@ -2449,6 +2449,7 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "feed-rs",
+ "hkask-mcp",
  "hkask-types",
  "regex",
  "reqwest",

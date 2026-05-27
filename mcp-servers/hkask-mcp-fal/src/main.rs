@@ -168,14 +168,13 @@ impl FalServer {
 
             match self.client.get(&status_url).send().await {
                 Ok(resp) => {
-                    let v: Value = resp
-                        .json()
-                        .await
-                        .map_err(|e| McpToolError::internal(format!("Failed to parse status: {e}")))?;
+                    let v: Value = resp.json().await.map_err(|e| {
+                        McpToolError::internal(format!("Failed to parse status: {e}"))
+                    })?;
                     match v.get("status").and_then(|s| s.as_str()) {
                         Some("COMPLETED") => break,
                         Some("FAILED") => {
-                            return Err(McpToolError::internal(format!("Job failed: {v}")))
+                            return Err(McpToolError::internal(format!("Job failed: {v}")));
                         }
                         _ => {}
                     }
@@ -183,7 +182,7 @@ impl FalServer {
                 Err(e) => {
                     return Err(McpToolError::unavailable(format!(
                         "Status check failed: {e}"
-                    )))
+                    )));
                 }
             }
 

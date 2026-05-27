@@ -11,18 +11,15 @@
 //! - Continuation-token pagination
 
 use base64::Engine;
+use chrono::Utc;
 use hkask_mcp::server::{McpToolError, McpToolOutput, run_stdio_server};
-use rmcp::{
-    handler::server::wrapper::Parameters,
-    tool, tool_router,
-};
+use reqwest::Client;
+use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
+use rusqlite::Connection;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Instant;
-use rusqlite::Connection;
-use reqwest::Client;
-use chrono::Utc;
 
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 const DEFAULT_PAGE_SIZE: usize = 20;
@@ -188,21 +185,33 @@ fn init_db(path: &str) -> Result<Connection, anyhow::Error> {
             INSERT INTO entries_fts(entries_fts, rowid, title, content, summary)
                 VALUES ('delete', old.id, old.title, old.content, old.summary);
         END;
-        "
+        ",
     )?;
     Ok(conn)
 }
 
-fn upsert_feed(conn: &Connection, url: &str, feed: &feed_rs::model::Feed) -> Result<i64, anyhow::Error> {
-    let title = feed.title.as_ref().map(|t| t.content.as_str()).unwrap_or("");
-    let description = feed.description.as_ref().map(|t| t.content.as_str()).unwrap_or("");
+fn upsert_feed(
+    conn: &Connection,
+    url: &str,
+    feed: &feed_rs::model::Feed,
+) -> Result<i64, anyhow::Error> {
+    let title = feed
+        .title
+        .as_ref()
+        .map(|t| t.content.as_str())
+        .unwrap_or("");
+    let description = feed
+        .description
+        .as_ref()
+        .map(|t| t.content.as_str())
+        .unwrap_or("");
     let site_url = feed.links.first().map(|l| l.href.as_str()).unwrap_or("");
 
-    let existing_id: Option<i64> = conn.query_row(
-        "SELECT id FROM feeds WHERE url = ?1",
-        [url],
-        |row| row.get(0),
-    ).ok();
+    let existing_id: Option<i64> = conn
+        .query_row("SELECT id FROM feeds WHERE url = ?1", [url], |row| {
+            row.get(0)
+        })
+        .ok();
 
     if let Some(id) = existing_id {
         conn.execute(
@@ -219,26 +228,55 @@ fn upsert_feed(conn: &Connection, url: &str, feed: &feed_rs::model::Feed) -> Res
     }
 }
 
-fn insert_entries(conn: &Connection, feed_id: i64, entries: &[feed_rs::model::Entry]) -> Result<usize, anyhow::Error> {
+fn insert_entries(
+    conn: &Connection,
+    feed_id: i64,
+    entries: &[feed_rs::model::Entry],
+) -> Result<usize, anyhow::Error> {
     let mut new_count = 0;
     for entry in entries {
         let entry_id = entry.id.clone();
-        let exists: bool = conn.query_row(
-            "SELECT COUNT(*) FROM entries WHERE feed_id = ?1 AND entry_id = ?2",
-            rusqlite::params![feed_id, entry_id],
-            |row| row.get::<_, i64>(0),
-        ).map(|c| c > 0)?;
+        let exists: bool = conn
+            .query_row(
+                "SELECT COUNT(*) FROM entries WHERE feed_id = ?1 AND entry_id = ?2",
+                rusqlite::params![feed_id, entry_id],
+                |row| row.get::<_, i64>(0),
+            )
+            .map(|c| c > 0)?;
 
         if exists {
             continue;
         }
 
-        let title = entry.title.as_ref().map(|t| t.content.clone()).unwrap_or_default();
-        let url = entry.links.first().map(|l| l.href.clone()).unwrap_or_default();
-        let author = entry.authors.first().map(|a| a.name.clone()).unwrap_or_default();
-        let content = entry.content.as_ref().and_then(|c| c.body.clone()).unwrap_or_default();
-        let summary = entry.summary.as_ref().map(|t| t.content.clone()).unwrap_or_default();
-        let published_at = entry.published.map(|dt| dt.to_rfc3339()).unwrap_or_default();
+        let title = entry
+            .title
+            .as_ref()
+            .map(|t| t.content.clone())
+            .unwrap_or_default();
+        let url = entry
+            .links
+            .first()
+            .map(|l| l.href.clone())
+            .unwrap_or_default();
+        let author = entry
+            .authors
+            .first()
+            .map(|a| a.name.clone())
+            .unwrap_or_default();
+        let content = entry
+            .content
+            .as_ref()
+            .and_then(|c| c.body.clone())
+            .unwrap_or_default();
+        let summary = entry
+            .summary
+            .as_ref()
+            .map(|t| t.content.clone())
+            .unwrap_or_default();
+        let published_at = entry
+            .published
+            .map(|dt| dt.to_rfc3339())
+            .unwrap_or_default();
         let updated_at = entry.updated.map(|dt| dt.to_rfc3339()).unwrap_or_default();
 
         conn.execute(
@@ -251,7 +289,12 @@ fn insert_entries(conn: &Connection, feed_id: i64, entries: &[feed_rs::model::En
     Ok(new_count)
 }
 
-fn update_feed_cache_headers(conn: &Connection, feed_id: i64, etag: Option<&str>, last_modified: Option<&str>) -> Result<(), anyhow::Error> {
+fn update_feed_cache_headers(
+    conn: &Connection,
+    feed_id: i64,
+    etag: Option<&str>,
+    last_modified: Option<&str>,
+) -> Result<(), anyhow::Error> {
     conn.execute(
         "UPDATE feeds SET etag = ?1, last_modified = ?2 WHERE id = ?3",
         rusqlite::params![etag, last_modified, feed_id],
@@ -307,7 +350,14 @@ fn build_stream_where(stream_id: &str) -> (String, Vec<Box<dyn rusqlite::types::
     (format!("{join_clause} {where_clause}"), params)
 }
 
-fn query_entries(conn: &Connection, stream_id: &str, unread_only: bool, starred_only: bool, offset: usize, limit: usize) -> Result<Vec<serde_json::Value>, anyhow::Error> {
+fn query_entries(
+    conn: &Connection,
+    stream_id: &str,
+    unread_only: bool,
+    starred_only: bool,
+    offset: usize,
+    limit: usize,
+) -> Result<Vec<serde_json::Value>, anyhow::Error> {
     let (join_where, mut params) = build_stream_where(stream_id);
 
     let mut extra_where = Vec::new();
@@ -365,7 +415,11 @@ fn query_entries(conn: &Connection, stream_id: &str, unread_only: bool, starred_
     Ok(results)
 }
 
-fn count_entries(conn: &Connection, stream_id: &str, unread_only: bool) -> Result<usize, anyhow::Error> {
+fn count_entries(
+    conn: &Connection,
+    stream_id: &str,
+    unread_only: bool,
+) -> Result<usize, anyhow::Error> {
     let (join_where, params) = build_stream_where(stream_id);
 
     let extra = if unread_only {
@@ -378,7 +432,9 @@ fn count_entries(conn: &Connection, stream_id: &str, unread_only: bool) -> Resul
         ""
     };
 
-    let sql = format!("SELECT COUNT(*) FROM entries e LEFT JOIN entry_states s ON e.id = s.entry_id {join_where}{extra}");
+    let sql = format!(
+        "SELECT COUNT(*) FROM entries e LEFT JOIN entry_states s ON e.id = s.entry_id {join_where}{extra}"
+    );
     let param_refs: Vec<&dyn rusqlite::types::ToSql> = params.iter().map(|p| p.as_ref()).collect();
     let count: i64 = conn.query_row(&sql, param_refs.as_slice(), |row| row.get(0))?;
     Ok(count as usize)
@@ -398,7 +454,10 @@ fn mark_stream_read(conn: &Connection, stream_id: &str) -> Result<usize, anyhow:
     );
     let param_refs: Vec<&dyn rusqlite::types::ToSql> = params.iter().map(|p| p.as_ref()).collect();
     let mut stmt = conn.prepare(&find_sql)?;
-    let entry_ids: Vec<i64> = stmt.query_map(param_refs.as_slice(), |row| row.get(0))?.filter_map(|r| r.ok()).collect();
+    let entry_ids: Vec<i64> = stmt
+        .query_map(param_refs.as_slice(), |row| row.get(0))?
+        .filter_map(|r| r.ok())
+        .collect();
 
     let now = Utc::now().to_rfc3339();
     for id in &entry_ids {
@@ -416,11 +475,11 @@ fn edit_tags(conn: &Connection, req: &EditTagRequest) -> Result<serde_json::Valu
     let mut updated = 0u64;
 
     for id in &req.entry_ids {
-        let exists: bool = conn.query_row(
-            "SELECT COUNT(*) FROM entries WHERE id = ?1",
-            [id],
-            |row| row.get::<_, i64>(0),
-        ).map(|c| c > 0)?;
+        let exists: bool = conn
+            .query_row("SELECT COUNT(*) FROM entries WHERE id = ?1", [id], |row| {
+                row.get::<_, i64>(0)
+            })
+            .map(|c| c > 0)?;
         if !exists {
             continue;
         }
@@ -479,7 +538,11 @@ fn edit_tags(conn: &Connection, req: &EditTagRequest) -> Result<serde_json::Valu
     }))
 }
 
-fn search_entries(conn: &Connection, query: &str, limit: usize) -> Result<Vec<serde_json::Value>, anyhow::Error> {
+fn search_entries(
+    conn: &Connection,
+    query: &str,
+    limit: usize,
+) -> Result<Vec<serde_json::Value>, anyhow::Error> {
     let sql = "SELECT e.id, e.entry_id, e.title, e.url, e.author, e.summary, e.published_at,
                 COALESCE(s.is_read, 0) as is_read, COALESCE(s.is_starred, 0) as is_starred
          FROM entries e
@@ -512,7 +575,10 @@ fn search_entries(conn: &Connection, query: &str, limit: usize) -> Result<Vec<se
     Ok(results)
 }
 
-fn list_subscriptions(conn: &Connection, folder: Option<&str>) -> Result<Vec<serde_json::Value>, anyhow::Error> {
+fn list_subscriptions(
+    conn: &Connection,
+    folder: Option<&str>,
+) -> Result<Vec<serde_json::Value>, anyhow::Error> {
     let sql = if folder.is_some() {
         "SELECT s.stream_id, s.title, s.label, s.folder, s.added_at, f.url, f.title as feed_title
          FROM subscriptions s JOIN feeds f ON s.feed_id = f.id
@@ -540,9 +606,13 @@ fn list_subscriptions(conn: &Connection, folder: Option<&str>) -> Result<Vec<ser
 
     let mut stmt = conn.prepare(sql)?;
     let results = if let Some(f) = folder {
-        stmt.query_map([f], map_row)?.filter_map(|r| r.ok()).collect()
+        stmt.query_map([f], map_row)?
+            .filter_map(|r| r.ok())
+            .collect()
     } else {
-        stmt.query_map([], map_row)?.filter_map(|r| r.ok()).collect()
+        stmt.query_map([], map_row)?
+            .filter_map(|r| r.ok())
+            .collect()
     };
     Ok(results)
 }
@@ -550,7 +620,8 @@ fn list_subscriptions(conn: &Connection, folder: Option<&str>) -> Result<Vec<ser
 fn export_opml(conn: &Connection) -> Result<String, anyhow::Error> {
     let subs = list_subscriptions(conn, None)?;
 
-    let mut folders: std::collections::BTreeMap<String, Vec<&serde_json::Value>> = std::collections::BTreeMap::new();
+    let mut folders: std::collections::BTreeMap<String, Vec<&serde_json::Value>> =
+        std::collections::BTreeMap::new();
     let mut unfiled: Vec<&serde_json::Value> = Vec::new();
 
     for sub in &subs {
@@ -563,14 +634,25 @@ fn export_opml(conn: &Connection) -> Result<String, anyhow::Error> {
         unfiled.push(sub);
     }
 
-    let mut xml = String::from("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<opml version=\"2.0\">\n  <head>\n    <title>hKask RSS Subscriptions</title>\n  </head>\n  <body>\n");
+    let mut xml = String::from(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<opml version=\"2.0\">\n  <head>\n    <title>hKask RSS Subscriptions</title>\n  </head>\n  <body>\n",
+    );
 
     for (folder, subs) in &folders {
-        xml.push_str(&format!("    <outline text=\"{}\" title=\"{}\">\n", xml_escape(folder), xml_escape(folder)));
+        xml.push_str(&format!(
+            "    <outline text=\"{}\" title=\"{}\">\n",
+            xml_escape(folder),
+            xml_escape(folder)
+        ));
         for sub in subs {
             let url = sub["url"].as_str().unwrap_or("");
             let title = sub["title"].as_str().unwrap_or("");
-            xml.push_str(&format!("      <outline type=\"rss\" text=\"{}\" title=\"{}\" xmlUrl=\"{}\" />\n", xml_escape(title), xml_escape(title), xml_escape(url)));
+            xml.push_str(&format!(
+                "      <outline type=\"rss\" text=\"{}\" title=\"{}\" xmlUrl=\"{}\" />\n",
+                xml_escape(title),
+                xml_escape(title),
+                xml_escape(url)
+            ));
         }
         xml.push_str("    </outline>\n");
     }
@@ -578,7 +660,12 @@ fn export_opml(conn: &Connection) -> Result<String, anyhow::Error> {
     for sub in &unfiled {
         let url = sub["url"].as_str().unwrap_or("");
         let title = sub["title"].as_str().unwrap_or("");
-        xml.push_str(&format!("    <outline type=\"rss\" text=\"{}\" title=\"{}\" xmlUrl=\"{}\" />\n", xml_escape(title), xml_escape(title), xml_escape(url)));
+        xml.push_str(&format!(
+            "    <outline type=\"rss\" text=\"{}\" title=\"{}\" xmlUrl=\"{}\" />\n",
+            xml_escape(title),
+            xml_escape(title),
+            xml_escape(url)
+        ));
     }
 
     xml.push_str("  </body>\n</opml>");
@@ -586,7 +673,11 @@ fn export_opml(conn: &Connection) -> Result<String, anyhow::Error> {
 }
 
 fn xml_escape(s: &str) -> String {
-    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;").replace('\'', "&apos;")
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&apos;")
 }
 
 fn import_opml(conn: &Connection, opml_content: &str) -> Result<serde_json::Value, anyhow::Error> {
@@ -596,17 +687,21 @@ fn import_opml(conn: &Connection, opml_content: &str) -> Result<serde_json::Valu
     let mut skipped = 0u32;
     let mut errors = 0u32;
 
-    let feeds: Vec<String> = re.captures_iter(opml_content)
+    let feeds: Vec<String> = re
+        .captures_iter(opml_content)
         .filter_map(|cap| Some(cap.get(1)?.as_str().to_string()))
         .collect();
 
     for url in feeds {
         let stream_id = format!("feed/{url}");
-        let exists: bool = conn.query_row(
-            "SELECT COUNT(*) FROM subscriptions WHERE stream_id = ?1",
-            [&stream_id],
-            |row| row.get::<_, i64>(0),
-        ).map(|c| c > 0).unwrap_or(false);
+        let exists: bool = conn
+            .query_row(
+                "SELECT COUNT(*) FROM subscriptions WHERE stream_id = ?1",
+                [&stream_id],
+                |row| row.get::<_, i64>(0),
+            )
+            .map(|c| c > 0)
+            .unwrap_or(false);
 
         if exists {
             skipped += 1;
@@ -618,11 +713,11 @@ fn import_opml(conn: &Connection, opml_content: &str) -> Result<serde_json::Valu
             [&url],
         )?;
 
-        let feed_id: i64 = conn.query_row(
-            "SELECT id FROM feeds WHERE url = ?1",
-            [&url],
-            |row| row.get(0),
-        ).unwrap_or(0);
+        let feed_id: i64 = conn
+            .query_row("SELECT id FROM feeds WHERE url = ?1", [&url], |row| {
+                row.get(0)
+            })
+            .unwrap_or(0);
 
         if feed_id == 0 {
             errors += 1;
@@ -649,7 +744,12 @@ fn import_opml(conn: &Connection, opml_content: &str) -> Result<serde_json::Valu
 // Feed fetching & parsing
 // ---------------------------------------------------------------------------
 
-async fn fetch_feed(client: &Client, url: &str, etag: Option<&str>, last_modified: Option<&str>) -> Result<FetchResult, anyhow::Error> {
+async fn fetch_feed(
+    client: &Client,
+    url: &str,
+    etag: Option<&str>,
+    last_modified: Option<&str>,
+) -> Result<FetchResult, anyhow::Error> {
     let mut request = client.get(url);
     if let Some(e) = etag {
         request = request.header("If-None-Match", e);
@@ -675,22 +775,43 @@ async fn fetch_feed(client: &Client, url: &str, etag: Option<&str>, last_modifie
         anyhow::bail!("HTTP {} fetching {}", response.status(), url);
     }
 
-    let etag = response.headers().get("etag").and_then(|v| v.to_str().ok()).map(|s| s.to_string());
-    let last_modified = response.headers().get("last-modified").and_then(|v| v.to_str().ok()).map(|s| s.to_string());
+    let etag = response
+        .headers()
+        .get("etag")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
+    let last_modified = response
+        .headers()
+        .get("last-modified")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
     let body = response.bytes().await?;
     let feed = feed_rs::parser::parse(body.as_ref())?;
 
-    Ok(FetchResult { feed, etag, last_modified, status })
+    Ok(FetchResult {
+        feed,
+        etag,
+        last_modified,
+        status,
+    })
 }
 
-async fn discover_feeds(client: &Client, url: &str) -> Result<Vec<serde_json::Value>, anyhow::Error> {
+async fn discover_feeds(
+    client: &Client,
+    url: &str,
+) -> Result<Vec<serde_json::Value>, anyhow::Error> {
     let response = client.get(url).send().await?;
-    let content_type = response.headers().get("content-type")
+    let content_type = response
+        .headers()
+        .get("content-type")
         .and_then(|v| v.to_str().ok())
         .unwrap_or("")
         .to_lowercase();
 
-    if content_type.contains("rss") || content_type.contains("atom") || content_type.contains("feed") {
+    if content_type.contains("rss")
+        || content_type.contains("atom")
+        || content_type.contains("feed")
+    {
         return Ok(vec![serde_json::json!({
             "url": url,
             "type": "feed",
@@ -701,8 +822,12 @@ async fn discover_feeds(client: &Client, url: &str) -> Result<Vec<serde_json::Va
     let body = response.text().await?;
     let mut feeds = Vec::new();
 
-    let re1 = regex::Regex::new(r#"<link[^>]+rel\s*=\s*["']alternate["'][^>]+type\s*=\s*["']application/(rss|atom)\+xml["'][^>]+href\s*=\s*["']([^"']+)["']"#)?;
-    let re2 = regex::Regex::new(r#"<link[^>]+type\s*=\s*["']application/(rss|atom)\+xml["'][^>]+href\s*=\s*["']([^"']+)["']"#)?;
+    let re1 = regex::Regex::new(
+        r#"<link[^>]+rel\s*=\s*["']alternate["'][^>]+type\s*=\s*["']application/(rss|atom)\+xml["'][^>]+href\s*=\s*["']([^"']+)["']"#,
+    )?;
+    let re2 = regex::Regex::new(
+        r#"<link[^>]+type\s*=\s*["']application/(rss|atom)\+xml["'][^>]+href\s*=\s*["']([^"']+)["']"#,
+    )?;
 
     for re in [&re1, &re2] {
         for cap in re.captures_iter(&body) {
@@ -712,9 +837,14 @@ async fn discover_feeds(client: &Client, url: &str) -> Result<Vec<serde_json::Va
                 href.to_string()
             } else {
                 let base = url::Url::parse(url)?;
-                base.join(href).map(|u| u.to_string()).unwrap_or_else(|_| href.to_string())
+                base.join(href)
+                    .map(|u| u.to_string())
+                    .unwrap_or_else(|_| href.to_string())
             };
-            if !feeds.iter().any(|f: &serde_json::Value| f["url"].as_str() == Some(feed_url.as_str())) {
+            if !feeds
+                .iter()
+                .any(|f: &serde_json::Value| f["url"].as_str() == Some(feed_url.as_str()))
+            {
                 feeds.push(serde_json::json!({
                     "url": feed_url,
                     "type": feed_type,
@@ -737,7 +867,8 @@ pub struct RssServer {
 
 impl RssServer {
     pub fn new() -> Self {
-        let db_path = std::env::var("HKASK_RSS_DB").unwrap_or_else(|_| "hkask-rss-reader.db".to_string());
+        let db_path =
+            std::env::var("HKASK_RSS_DB").unwrap_or_else(|_| "hkask-rss-reader.db".to_string());
         let conn = init_db(&db_path).expect("Failed to initialize RSS database");
         let client = Client::builder()
             .user_agent(format!("hkask-mcp-rss-reader/{}", SERVER_VERSION))
@@ -757,7 +888,10 @@ impl Default for RssServer {
     }
 }
 
-fn spawn_db<F, T>(db: Arc<std::sync::Mutex<Connection>>, f: F) -> tokio::task::JoinHandle<Result<T, anyhow::Error>>
+fn spawn_db<F, T>(
+    db: Arc<std::sync::Mutex<Connection>>,
+    f: F,
+) -> tokio::task::JoinHandle<Result<T, anyhow::Error>>
 where
     F: FnOnce(&Connection) -> Result<T, anyhow::Error> + Send + 'static,
     T: Send + 'static,
@@ -778,7 +912,9 @@ impl RssServer {
         let start = Instant::now();
         let fetch_result = match fetch_feed(&self.client, &url, None, None).await {
             Ok(r) => r,
-            Err(e) => return McpToolError::unavailable(format!("Fetch failed: {}", e)).to_json_string(),
+            Err(e) => {
+                return McpToolError::unavailable(format!("Fetch failed: {}", e)).to_json_string();
+            }
         };
 
         let stream_id = format!("feed/{url}");
@@ -788,7 +924,12 @@ impl RssServer {
         let folder_c = folder;
         let etag = fetch_result.etag.clone();
         let lm = fetch_result.last_modified.clone();
-        let feed_title = fetch_result.feed.title.as_ref().map(|t| t.content.clone()).unwrap_or_default();
+        let feed_title = fetch_result
+            .feed
+            .title
+            .as_ref()
+            .map(|t| t.content.clone())
+            .unwrap_or_default();
         let entry_count = fetch_result.feed.entries.len();
 
         let result = spawn_db(db, move |conn| {
@@ -841,19 +982,18 @@ impl RssServer {
         let db = self.db.clone();
         let sid = stream_id.clone();
         let result = spawn_db(db, move |conn| {
-            let removed = conn.execute(
-                "DELETE FROM subscriptions WHERE stream_id = ?1",
-                [&sid],
-            )?;
+            let removed = conn.execute("DELETE FROM subscriptions WHERE stream_id = ?1", [&sid])?;
             Ok::<usize, anyhow::Error>(removed)
-        }).await;
+        })
+        .await;
 
         match result {
             Ok(Ok(removed)) => McpToolOutput::new(serde_json::json!({
                 "stream_id": stream_id,
                 "unsubscribed": removed > 0,
                 "removed": removed,
-            })).to_json_string(),
+            }))
+            .to_json_string(),
             Ok(Err(e)) => McpToolError::internal(e.to_string()).to_json_string(),
             Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
         }
@@ -865,15 +1005,14 @@ impl RssServer {
         Parameters(ListSubscriptionsRequest { folder }): Parameters<ListSubscriptionsRequest>,
     ) -> String {
         let db = self.db.clone();
-        let result = spawn_db(db, move |conn| {
-            list_subscriptions(conn, folder.as_deref())
-        }).await;
+        let result = spawn_db(db, move |conn| list_subscriptions(conn, folder.as_deref())).await;
 
         match result {
             Ok(Ok(subs)) => McpToolOutput::new(serde_json::json!({
                 "count": subs.len(),
                 "subscriptions": subs,
-            })).to_json_string(),
+            }))
+            .to_json_string(),
             Ok(Err(e)) => McpToolError::internal(e.to_string()).to_json_string(),
             Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
         }
@@ -891,10 +1030,21 @@ impl RssServer {
             let conn = db1.lock().unwrap();
             let url = resolve_feed_url(&conn, &sid1)
                 .ok_or_else(|| anyhow::anyhow!("Feed URL not found for stream_id"))?;
-            let etag: Option<String> = conn.query_row("SELECT etag FROM feeds WHERE url = ?1", [&url], |row| row.get(0)).ok();
-            let lm: Option<String> = conn.query_row("SELECT last_modified FROM feeds WHERE url = ?1", [&url], |row| row.get(0)).ok();
+            let etag: Option<String> = conn
+                .query_row("SELECT etag FROM feeds WHERE url = ?1", [&url], |row| {
+                    row.get(0)
+                })
+                .ok();
+            let lm: Option<String> = conn
+                .query_row(
+                    "SELECT last_modified FROM feeds WHERE url = ?1",
+                    [&url],
+                    |row| row.get(0),
+                )
+                .ok();
             Ok::<(String, Option<String>, Option<String>), anyhow::Error>((url, etag, lm))
-        }).await;
+        })
+        .await;
 
         let (feed_url, cached_etag, cached_lm) = match lookup {
             Ok(Ok(v)) => v,
@@ -902,18 +1052,31 @@ impl RssServer {
             Err(e) => return McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
         };
 
-        let fetch_result = match fetch_feed(&self.client, &feed_url, cached_etag.as_deref(), cached_lm.as_deref()).await {
+        let fetch_result = match fetch_feed(
+            &self.client,
+            &feed_url,
+            cached_etag.as_deref(),
+            cached_lm.as_deref(),
+        )
+        .await
+        {
             Ok(r) => r,
-            Err(e) => return McpToolError::unavailable(format!("Fetch failed: {}", e)).to_json_string(),
+            Err(e) => {
+                return McpToolError::unavailable(format!("Fetch failed: {}", e)).to_json_string();
+            }
         };
 
         if fetch_result.status == 304 {
-            return McpToolOutput::with_timing(serde_json::json!({
-                "stream_id": stream_id,
-                "new_entries": 0,
-                "fetched": true,
-                "not_modified": true,
-            }), start).to_json_string();
+            return McpToolOutput::with_timing(
+                serde_json::json!({
+                    "stream_id": stream_id,
+                    "new_entries": 0,
+                    "fetched": true,
+                    "not_modified": true,
+                }),
+                start,
+            )
+            .to_json_string();
         }
 
         let db2 = self.db.clone();
@@ -926,35 +1089,60 @@ impl RssServer {
             let new_count = insert_entries(conn, feed_id, &fetch_result.feed.entries)?;
             update_feed_cache_headers(conn, feed_id, etag.as_deref(), lm.as_deref())?;
             Ok::<usize, anyhow::Error>(new_count)
-        }).await;
+        })
+        .await;
 
         match result {
-            Ok(Ok(new_count)) => McpToolOutput::with_timing(serde_json::json!({
-                "stream_id": sid2,
-                "new_entries": new_count,
-                "fetched": true,
-            }), start).to_json_string(),
+            Ok(Ok(new_count)) => McpToolOutput::with_timing(
+                serde_json::json!({
+                    "stream_id": sid2,
+                    "new_entries": new_count,
+                    "fetched": true,
+                }),
+                start,
+            )
+            .to_json_string(),
             Ok(Err(e)) => McpToolError::internal(e.to_string()).to_json_string(),
             Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
         }
     }
 
-    #[tool(description = "Get entries from a stream (Google Reader stream IDs: feed/*, user/-/state/*, user/-/label/*)")]
+    #[tool(
+        description = "Get entries from a stream (Google Reader stream IDs: feed/*, user/-/state/*, user/-/label/*)"
+    )]
     async fn rss_get_entries(
         &self,
-        Parameters(GetEntriesRequest { stream_id, unread_only, starred_only, count, continuation_token }): Parameters<GetEntriesRequest>,
+        Parameters(GetEntriesRequest {
+            stream_id,
+            unread_only,
+            starred_only,
+            count,
+            continuation_token,
+        }): Parameters<GetEntriesRequest>,
     ) -> String {
         let limit = (count.unwrap_or(DEFAULT_PAGE_SIZE as u32) as usize).min(MAX_PAGE_SIZE);
-        let offset = continuation_token.as_ref().and_then(|t| {
-            let bytes = base64::engine::general_purpose::STANDARD.decode(t).ok()?;
-            serde_json::from_slice::<Continuation>(&bytes).ok()
-        }).map(|c| c.offset).unwrap_or(0);
+        let offset = continuation_token
+            .as_ref()
+            .and_then(|t| {
+                let bytes = base64::engine::general_purpose::STANDARD.decode(t).ok()?;
+                serde_json::from_slice::<Continuation>(&bytes).ok()
+            })
+            .map(|c| c.offset)
+            .unwrap_or(0);
 
         let db = self.db.clone();
         let sid = stream_id.clone();
         let result = spawn_db(db, move |conn| {
-            query_entries(conn, &sid, unread_only.unwrap_or(false), starred_only.unwrap_or(false), offset, limit + 1)
-        }).await;
+            query_entries(
+                conn,
+                &sid,
+                unread_only.unwrap_or(false),
+                starred_only.unwrap_or(false),
+                offset,
+                limit + 1,
+            )
+        })
+        .await;
 
         match result {
             Ok(Ok(mut entries)) => {
@@ -963,8 +1151,14 @@ impl RssServer {
                     entries.truncate(limit);
                 }
                 let next_token = if has_more {
-                    let cont = Continuation { offset: offset + limit, stream_id: stream_id.clone() };
-                    Some(base64::engine::general_purpose::STANDARD.encode(serde_json::to_vec(&cont).unwrap_or_default()))
+                    let cont = Continuation {
+                        offset: offset + limit,
+                        stream_id: stream_id.clone(),
+                    };
+                    Some(
+                        base64::engine::general_purpose::STANDARD
+                            .encode(serde_json::to_vec(&cont).unwrap_or_default()),
+                    )
                 } else {
                     None
                 };
@@ -973,7 +1167,8 @@ impl RssServer {
                     "entries": entries,
                     "count": entries.len(),
                     "continuation_token": next_token,
-                })).to_json_string()
+                }))
+                .to_json_string()
             }
             Ok(Err(e)) => McpToolError::internal(e.to_string()).to_json_string(),
             Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
@@ -987,15 +1182,14 @@ impl RssServer {
     ) -> String {
         let db = self.db.clone();
         let sid = stream_id.clone();
-        let result = spawn_db(db, move |conn| {
-            mark_stream_read(conn, &sid)
-        }).await;
+        let result = spawn_db(db, move |conn| mark_stream_read(conn, &sid)).await;
 
         match result {
             Ok(Ok(marked)) => McpToolOutput::new(serde_json::json!({
                 "stream_id": stream_id,
                 "marked_read": marked,
-            })).to_json_string(),
+            }))
+            .to_json_string(),
             Ok(Err(e)) => McpToolError::internal(e.to_string()).to_json_string(),
             Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
         }
@@ -1008,15 +1202,14 @@ impl RssServer {
     ) -> String {
         let db = self.db.clone();
         let sid = stream_id.clone();
-        let result = spawn_db(db, move |conn| {
-            count_entries(conn, &sid, true)
-        }).await;
+        let result = spawn_db(db, move |conn| count_entries(conn, &sid, true)).await;
 
         match result {
             Ok(Ok(count)) => McpToolOutput::new(serde_json::json!({
                 "stream_id": stream_id,
                 "unread_count": count,
-            })).to_json_string(),
+            }))
+            .to_json_string(),
             Ok(Err(e)) => McpToolError::internal(e.to_string()).to_json_string(),
             Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
         }
@@ -1030,16 +1223,15 @@ impl RssServer {
         let limit = (limit.unwrap_or(10) as usize).min(MAX_PAGE_SIZE);
         let db = self.db.clone();
         let q = query.clone();
-        let result = spawn_db(db, move |conn| {
-            search_entries(conn, &q, limit)
-        }).await;
+        let result = spawn_db(db, move |conn| search_entries(conn, &q, limit)).await;
 
         match result {
             Ok(Ok(results)) => McpToolOutput::new(serde_json::json!({
                 "query": query,
                 "results": results,
                 "count": results.len(),
-            })).to_json_string(),
+            }))
+            .to_json_string(),
             Ok(Err(e)) => McpToolError::internal(e.to_string()).to_json_string(),
             Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
         }
@@ -1048,9 +1240,7 @@ impl RssServer {
     #[tool(description = "Export subscriptions as OPML 2.0")]
     async fn rss_export_opml(&self) -> String {
         let db = self.db.clone();
-        let result = spawn_db(db, move |conn| {
-            export_opml(conn)
-        }).await;
+        let result = spawn_db(db, move |conn| export_opml(conn)).await;
 
         match result {
             Ok(Ok(opml)) => McpToolOutput::new(serde_json::json!({"opml": opml})).to_json_string(),
@@ -1065,9 +1255,7 @@ impl RssServer {
         Parameters(ImportOpmlRequest { opml_content }): Parameters<ImportOpmlRequest>,
     ) -> String {
         let db = self.db.clone();
-        let result = spawn_db(db, move |conn| {
-            import_opml(conn, &opml_content)
-        }).await;
+        let result = spawn_db(db, move |conn| import_opml(conn, &opml_content)).await;
 
         match result {
             Ok(Ok(v)) => McpToolOutput::new(v).to_json_string(),
@@ -1086,27 +1274,24 @@ impl RssServer {
                 "url": url,
                 "feeds": feeds,
                 "count": feeds.len(),
-            })).to_json_string(),
+            }))
+            .to_json_string(),
             Err(e) => McpToolError::unavailable(e.to_string()).to_json_string(),
         }
     }
 
-    #[tool(description = "Edit tags on entries: mark read/unread, star/unstar, add/remove labels (Google Reader edit-tag)")]
-    async fn rss_edit_tag(
-        &self,
-        Parameters(req): Parameters<EditTagRequest>,
-    ) -> String {
+    #[tool(
+        description = "Edit tags on entries: mark read/unread, star/unstar, add/remove labels (Google Reader edit-tag)"
+    )]
+    async fn rss_edit_tag(&self, Parameters(req): Parameters<EditTagRequest>) -> String {
         let db = self.db.clone();
-        let result = spawn_db(db, move |conn| {
-            edit_tags(conn, &req)
-        }).await;
+        let result = spawn_db(db, move |conn| edit_tags(conn, &req)).await;
 
         match result {
             Ok(Ok(v)) => McpToolOutput::new(v).to_json_string(),
             Ok(Err(e)) => McpToolError::internal(e.to_string()).to_json_string(),
             Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
         }
-    }
     }
 }
 

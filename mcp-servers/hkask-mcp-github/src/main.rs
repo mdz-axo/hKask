@@ -158,16 +158,22 @@ fn extract_pr_summary(v: &serde_json::Value) -> serde_json::Value {
     })
 }
 
-async fn github_get(client: &reqwest::Client, url: &str) -> Result<serde_json::Value, McpToolError> {
-    let resp = client.get(url).send().await.map_err(|e| {
-        McpToolError::unavailable(format!("GitHub request failed: {e}"))
-    })?;
+async fn github_get(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<serde_json::Value, McpToolError> {
+    let resp = client
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| McpToolError::unavailable(format!("GitHub request failed: {e}")))?;
     let status = resp.status();
     let body = resp.text().await.unwrap_or_default();
     if !status.is_success() {
         return Err(classify_api_error(status, &body));
     }
-    serde_json::from_str(&body).map_err(|e| McpToolError::internal(format!("Failed to parse response: {e}")))
+    serde_json::from_str(&body)
+        .map_err(|e| McpToolError::internal(format!("Failed to parse response: {e}")))
 }
 
 async fn github_post(
@@ -175,15 +181,19 @@ async fn github_post(
     url: &str,
     payload: &serde_json::Value,
 ) -> Result<serde_json::Value, McpToolError> {
-    let resp = client.post(url).json(payload).send().await.map_err(|e| {
-        McpToolError::unavailable(format!("GitHub request failed: {e}"))
-    })?;
+    let resp = client
+        .post(url)
+        .json(payload)
+        .send()
+        .await
+        .map_err(|e| McpToolError::unavailable(format!("GitHub request failed: {e}")))?;
     let status = resp.status();
     let body = resp.text().await.unwrap_or_default();
     if !status.is_success() {
         return Err(classify_api_error(status, &body));
     }
-    serde_json::from_str(&body).map_err(|e| McpToolError::internal(format!("Failed to parse response: {e}")))
+    serde_json::from_str(&body)
+        .map_err(|e| McpToolError::internal(format!("Failed to parse response: {e}")))
 }
 
 pub struct GithubServer {
@@ -250,7 +260,11 @@ impl GithubServer {
     #[tool(description = "Get a specific issue")]
     async fn github_get_issue(
         &self,
-        Parameters(IssueRequest { owner, repo, issue_number }): Parameters<IssueRequest>,
+        Parameters(IssueRequest {
+            owner,
+            repo,
+            issue_number,
+        }): Parameters<IssueRequest>,
     ) -> String {
         let start = Instant::now();
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/issues/{issue_number}");
@@ -258,7 +272,11 @@ impl GithubServer {
             Ok(v) => {
                 let labels: Vec<serde_json::Value> = v["labels"]
                     .as_array()
-                    .map(|arr| arr.iter().map(|l| serde_json::json!({ "name": l["name"], "color": l["color"] })).collect())
+                    .map(|arr| {
+                        arr.iter()
+                            .map(|l| serde_json::json!({ "name": l["name"], "color": l["color"] }))
+                            .collect()
+                    })
                     .unwrap_or_default();
                 McpToolOutput::with_timing(
                     serde_json::json!({
@@ -280,7 +298,13 @@ impl GithubServer {
     #[tool(description = "Create a new issue")]
     async fn github_create_issue(
         &self,
-        Parameters(CreateIssueRequest { owner, repo, title, body, labels }): Parameters<CreateIssueRequest>,
+        Parameters(CreateIssueRequest {
+            owner,
+            repo,
+            title,
+            body,
+            labels,
+        }): Parameters<CreateIssueRequest>,
     ) -> String {
         let start = Instant::now();
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/issues");
@@ -289,7 +313,11 @@ impl GithubServer {
             payload["body"] = serde_json::Value::String(b.clone());
         }
         if let Some(ref l) = labels {
-            payload["labels"] = serde_json::Value::Array(l.iter().map(|s| serde_json::Value::String(s.clone())).collect());
+            payload["labels"] = serde_json::Value::Array(
+                l.iter()
+                    .map(|s| serde_json::Value::String(s.clone()))
+                    .collect(),
+            );
         }
         match github_post(&self.client, &url, &payload).await {
             Ok(v) => McpToolOutput::with_timing(
@@ -308,7 +336,12 @@ impl GithubServer {
     #[tool(description = "Add a comment to an issue or PR")]
     async fn github_add_comment(
         &self,
-        Parameters(CommentRequest { owner, repo, issue_number, body }): Parameters<CommentRequest>,
+        Parameters(CommentRequest {
+            owner,
+            repo,
+            issue_number,
+            body,
+        }): Parameters<CommentRequest>,
     ) -> String {
         let start = Instant::now();
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/issues/{issue_number}/comments");
@@ -353,7 +386,11 @@ impl GithubServer {
     #[tool(description = "Get a specific pull request")]
     async fn github_get_pr(
         &self,
-        Parameters(PrRequest { owner, repo, pr_number }): Parameters<PrRequest>,
+        Parameters(PrRequest {
+            owner,
+            repo,
+            pr_number,
+        }): Parameters<PrRequest>,
     ) -> String {
         let start = Instant::now();
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/pulls/{pr_number}");
@@ -414,10 +451,13 @@ impl GithubServer {
                         )
                         .to_json_string()
                     }
-                    Err(e) => McpToolError::internal(format!("Failed to parse response: {e}")).to_json_string(),
+                    Err(e) => McpToolError::internal(format!("Failed to parse response: {e}"))
+                        .to_json_string(),
                 }
             }
-            Err(e) => McpToolError::unavailable(format!("GitHub request failed: {e}")).to_json_string(),
+            Err(e) => {
+                McpToolError::unavailable(format!("GitHub request failed: {e}")).to_json_string()
+            }
         }
     }
 }
