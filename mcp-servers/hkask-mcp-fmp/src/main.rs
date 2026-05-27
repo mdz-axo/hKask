@@ -14,7 +14,10 @@
 //! - `fmp_analyst_estimates` — Analyst estimates
 //! - `fmp_dcf` — Discounted cash flow analysis
 
-use hkask_mcp::server::{CredentialRequirement, McpToolError, McpToolOutput, run_stdio_server};
+use hkask_mcp::server::{
+    CredentialRequirement, McpToolError, McpToolOutput, classify_http_error,
+    emit_tool_span, resolve_credential, run_stdio_server,
+};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -48,19 +51,6 @@ pub struct SearchRequest {
     pub limit: Option<u32>,
 }
 
-fn classify_api_error(status: reqwest::StatusCode, body: &str) -> McpToolError {
-    let msg = format!("FMP API returned {}: {}", status, body.trim());
-    match status.as_u16() {
-        401 | 403 => McpToolError::permission_denied(msg),
-        404 => McpToolError::not_found(msg),
-        422 => McpToolError::invalid_argument(msg),
-        429 => McpToolError::rate_limited(msg),
-        502 | 503 => McpToolError::unavailable(msg),
-        _ if status.is_server_error() => McpToolError::unavailable(msg),
-        _ => McpToolError::internal(msg),
-    }
-}
-
 async fn fmp_get(
     client: &reqwest::Client,
     path: &str,
@@ -81,31 +71,25 @@ async fn fmp_get(
     let status = resp.status();
     let body = resp.text().await.unwrap_or_default();
     if !status.is_success() {
-        return Err(classify_api_error(status, &body));
+        return Err(classify_http_error("FMP", status, &body));
     }
 
     serde_json::from_str(&body)
         .map_err(|e| McpToolError::internal(format!("failed to parse response: {e}")))
 }
 
-#[derive(Debug)]
 pub struct FmpServer {
     client: reqwest::Client,
     api_key: String,
 }
 
-impl Default for FmpServer {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl FmpServer {
-    pub fn new() -> Self {
-        let api_key = std::env::var("HKASK_FMP_API_KEY")
-            .expect("HKASK_FMP_API_KEY environment variable must be set");
+    pub fn new() -> Result<Self, anyhow::Error> {
+        let api_key = resolve_credential("HKASK_FMP_API_KEY").map_err(|_| {
+            anyhow::anyhow!("HKASK_FMP_API_KEY not found in keychain or environment")
+        })?;
         let client = reqwest::Client::new();
-        Self { client, api_key }
+        Ok(Self { client, api_key })
     }
 }
 
@@ -122,22 +106,28 @@ impl FmpServer {
         )
         .await
         {
-            Ok(_) => McpToolOutput::with_timing(
-                serde_json::json!({
-                    "status": "ok",
-                    "message": "FMP API is reachable"
-                }),
-                start,
-            )
-            .to_json_string(),
-            Err(e) => McpToolOutput::with_timing(
-                serde_json::json!({
-                    "status": "not_ok",
-                    "error": e.message,
-                }),
-                start,
-            )
-            .to_json_string(),
+            Ok(_) => {
+                emit_tool_span("fmp_ping", "ok", start.elapsed().as_millis() as u64, None);
+                McpToolOutput::with_timing(
+                    serde_json::json!({
+                        "status": "ok",
+                        "message": "FMP API is reachable"
+                    }),
+                    start,
+                )
+                .to_json_string()
+            }
+            Err(e) => {
+                emit_tool_span("fmp_ping", "error", start.elapsed().as_millis() as u64, Some(&e.kind));
+                McpToolOutput::with_timing(
+                    serde_json::json!({
+                        "status": "not_ok",
+                        "error": e.message,
+                    }),
+                    start,
+                )
+                .to_json_string()
+            }
         }
     }
 
@@ -342,7 +332,7 @@ async fn main() -> anyhow::Result<()> {
     run_stdio_server(
         "hkask-mcp-fmp",
         SERVER_VERSION,
-        FmpServer::new(),
+        FmpServer::new,
         vec![CredentialRequirement::required(
             "HKASK_FMP_API_KEY",
             "Financial Modeling Prep API key",

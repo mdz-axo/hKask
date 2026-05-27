@@ -1,6 +1,9 @@
 //! hKask MCP Fal — Fal.ai API integration (image, video, audio generation)
 
-use hkask_mcp::server::{CredentialRequirement, McpToolError, McpToolOutput, run_stdio_server};
+use hkask_mcp::server::{
+    CredentialRequirement, McpToolError, McpToolOutput, classify_http_error,
+    emit_tool_span, resolve_credential, run_stdio_server,
+};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -13,8 +16,8 @@ const MAX_POLL_SECS: u64 = 60;
 const POLL_INTERVAL_SECS: u64 = 2;
 
 fn build_client() -> Result<reqwest::Client, McpToolError> {
-    let key = std::env::var("HKASK_FAL_API_KEY").map_err(|_| {
-        McpToolError::failed_precondition("HKASK_FAL_API_KEY environment variable is not set")
+    let key = resolve_credential("HKASK_FAL_API_KEY").map_err(|_| {
+        McpToolError::failed_precondition("HKASK_FAL_API_KEY not found in keychain or environment")
     })?;
 
     let mut headers = reqwest::header::HeaderMap::new();
@@ -32,19 +35,6 @@ fn build_client() -> Result<reqwest::Client, McpToolError> {
         .map_err(|e| McpToolError::internal(format!("Failed to build HTTP client: {e}")))
 }
 
-fn classify_fal_error(status: reqwest::StatusCode, body: &str) -> McpToolError {
-    let msg = format!("Fal API returned {}: {}", status, body.trim());
-    match status.as_u16() {
-        401 | 403 => McpToolError::permission_denied(msg),
-        404 => McpToolError::not_found(msg),
-        422 => McpToolError::invalid_argument(msg),
-        429 => McpToolError::rate_limited(msg),
-        502 | 503 => McpToolError::unavailable(msg),
-        _ if status.is_server_error() => McpToolError::unavailable(msg),
-        _ => McpToolError::internal(msg),
-    }
-}
-
 async fn fal_post(
     client: &reqwest::Client,
     endpoint: &str,
@@ -60,7 +50,7 @@ async fn fal_post(
     let status = resp.status();
     let text = resp.text().await.unwrap_or_default();
     if !status.is_success() {
-        return Err(classify_fal_error(status, &text));
+        return Err(classify_http_error("Fal", status, &text));
     }
     serde_json::from_str(&text)
         .map_err(|e| McpToolError::internal(format!("Failed to parse response: {e}")))
@@ -124,9 +114,9 @@ pub struct FalServer {
 }
 
 impl FalServer {
-    pub fn new() -> Self {
-        let client = build_client().expect("Failed to create Fal.ai API client");
-        Self { client }
+    pub fn new() -> Result<Self, anyhow::Error> {
+        let client = build_client()?;
+        Ok(Self { client })
     }
 
     async fn queue_post(&self, endpoint: &str, body: Value) -> Result<Value, McpToolError> {
@@ -147,7 +137,7 @@ impl FalServer {
             .map_err(|e| McpToolError::internal(format!("Failed to parse submission: {e}")))?;
 
         if !status.is_success() {
-            return Err(classify_fal_error(status, &v.to_string()));
+            return Err(classify_http_error("Fal", status, &v.to_string()));
         }
 
         let request_id = v
@@ -200,17 +190,11 @@ impl FalServer {
         let status = resp.status();
         let text = resp.text().await.unwrap_or_default();
         if !status.is_success() {
-            return Err(classify_fal_error(status, &text));
+            return Err(classify_http_error("Fal", status, &text));
         }
 
         serde_json::from_str(&text)
             .map_err(|e| McpToolError::internal(format!("Failed to parse result: {e}")))
-    }
-}
-
-impl Default for FalServer {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -232,9 +216,11 @@ impl FalServer {
                 if status == reqwest::StatusCode::UNAUTHORIZED
                     || status == reqwest::StatusCode::FORBIDDEN
                 {
-                    McpToolError::permission_denied("Fal.ai API key is invalid or unauthorized")
-                        .to_json_string()
+                    let err = McpToolError::permission_denied("Fal.ai API key is invalid or unauthorized");
+                    emit_tool_span("fal_ping", "error", start.elapsed().as_millis() as u64, Some(&err.kind));
+                    err.to_json_string()
                 } else {
+                    emit_tool_span("fal_ping", "ok", start.elapsed().as_millis() as u64, None);
                     McpToolOutput::with_timing(
                         serde_json::json!({
                             "status": "ok",
@@ -266,8 +252,14 @@ impl FalServer {
             "num_images": num_images.unwrap_or(1),
         });
         match fal_post(&self.client, "fal-ai/flux/schnell", body).await {
-            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
-            Err(e) => e.to_json_string(),
+            Ok(v) => {
+                emit_tool_span("fal_generate_image", "ok", start.elapsed().as_millis() as u64, None);
+                McpToolOutput::with_timing(v, start).to_json_string()
+            }
+            Err(e) => {
+                emit_tool_span("fal_generate_image", "error", start.elapsed().as_millis() as u64, Some(&e.kind));
+                e.to_json_string()
+            }
         }
     }
 
@@ -341,8 +333,14 @@ impl FalServer {
             body["duration"] = serde_json::json!(d);
         }
         match self.queue_post("fal-ai/minimax/video-01-live", body).await {
-            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
-            Err(e) => e.to_json_string(),
+            Ok(v) => {
+                emit_tool_span("fal_generate_video", "ok", start.elapsed().as_millis() as u64, None);
+                McpToolOutput::with_timing(v, start).to_json_string()
+            }
+            Err(e) => {
+                emit_tool_span("fal_generate_video", "error", start.elapsed().as_millis() as u64, Some(&e.kind));
+                e.to_json_string()
+            }
         }
     }
 
@@ -426,7 +424,7 @@ async fn main() -> anyhow::Result<()> {
     run_stdio_server(
         "hkask-mcp-fal",
         env!("CARGO_PKG_VERSION"),
-        FalServer::new(),
+        FalServer::new,
         vec![CredentialRequirement::required(
             "HKASK_FAL_API_KEY",
             "Fal.ai API key for AI image generation",

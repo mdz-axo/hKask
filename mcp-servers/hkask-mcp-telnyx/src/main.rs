@@ -1,6 +1,9 @@
 //! hKask MCP Telnyx — Telnyx API v2 integration (SMS, voice, WhatsApp)
 
-use hkask_mcp::server::{CredentialRequirement, McpToolError, McpToolOutput, run_stdio_server};
+use hkask_mcp::server::{
+    CredentialRequirement, McpToolOutput, api_get, api_post,
+    emit_tool_span, resolve_credential, run_stdio_server,
+};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -42,83 +45,25 @@ pub struct TtsRequest {
     pub voice: Option<String>,
 }
 
-fn classify_api_error(status: reqwest::StatusCode, body: &str) -> McpToolError {
-    let msg = format!("Telnyx API returned {}: {}", status, body.trim());
-    match status.as_u16() {
-        401 | 403 => McpToolError::permission_denied(msg),
-        404 => McpToolError::not_found(msg),
-        422 => McpToolError::invalid_argument(msg),
-        429 => McpToolError::rate_limited(msg),
-        502 | 503 => McpToolError::unavailable(msg),
-        _ if status.is_server_error() => McpToolError::unavailable(msg),
-        _ => McpToolError::internal(msg),
-    }
-}
-
-async fn telnyx_get(
-    client: &reqwest::Client,
-    path: &str,
-) -> Result<serde_json::Value, McpToolError> {
-    let url = format!("{BASE_URL}{path}");
-    let resp = client
-        .get(&url)
-        .send()
-        .await
-        .map_err(|e| McpToolError::unavailable(format!("Telnyx request failed: {e}")))?;
-    let status = resp.status();
-    let body = resp.text().await.unwrap_or_default();
-    if !status.is_success() {
-        return Err(classify_api_error(status, &body));
-    }
-    serde_json::from_str(&body)
-        .map_err(|e| McpToolError::internal(format!("Failed to parse response: {e}")))
-}
-
-async fn telnyx_post(
-    client: &reqwest::Client,
-    path: &str,
-    payload: &serde_json::Value,
-) -> Result<serde_json::Value, McpToolError> {
-    let url = format!("{BASE_URL}{path}");
-    let resp = client
-        .post(&url)
-        .json(payload)
-        .send()
-        .await
-        .map_err(|e| McpToolError::unavailable(format!("Telnyx request failed: {e}")))?;
-    let status = resp.status();
-    let body = resp.text().await.unwrap_or_default();
-    if !status.is_success() {
-        return Err(classify_api_error(status, &body));
-    }
-    serde_json::from_str(&body)
-        .map_err(|e| McpToolError::internal(format!("Failed to parse response: {e}")))
-}
-
 pub struct TelnyxServer {
     client: reqwest::Client,
 }
 
-impl Default for TelnyxServer {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl TelnyxServer {
-    pub fn new() -> Self {
-        let api_key = std::env::var("HKASK_TELNYX_API_KEY").unwrap_or_default();
+    pub fn new() -> Result<Self, anyhow::Error> {
+        let api_key = resolve_credential("HKASK_TELNYX_API_KEY").map_err(|_| {
+            anyhow::anyhow!("HKASK_TELNYX_API_KEY not found in keychain or environment")
+        })?;
+
         let mut headers = reqwest::header::HeaderMap::new();
-        if !api_key.is_empty()
-            && let Ok(val) = reqwest::header::HeaderValue::from_str(&format!("Bearer {api_key}"))
-        {
+        if let Ok(val) = reqwest::header::HeaderValue::from_str(&format!("Bearer {api_key}")) {
             headers.insert(reqwest::header::AUTHORIZATION, val);
         }
         let client = reqwest::Client::builder()
             .default_headers(headers)
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
-        Self { client }
+        Ok(Self { client })
     }
 }
 
@@ -127,24 +72,32 @@ impl TelnyxServer {
     #[tool(description = "Ping Telnyx API")]
     async fn telnyx_ping(&self) -> String {
         let start = Instant::now();
-        match telnyx_get(&self.client, "/phone_numbers?page_size=1").await {
-            Ok(body) => McpToolOutput::with_timing(
-                serde_json::json!({
-                    "status": "ok",
-                    "message": "Telnyx API is reachable",
-                    "data": body,
-                }),
-                start,
-            )
-            .to_json_string(),
-            Err(e) => e.to_json_string(),
+        let url = format!("{BASE_URL}/phone_numbers?page_size=1");
+        match api_get(&self.client, "Telnyx", &url).await {
+            Ok(body) => {
+                emit_tool_span("telnyx_ping", "ok", start.elapsed().as_millis() as u64, None);
+                McpToolOutput::with_timing(
+                    serde_json::json!({
+                        "status": "ok",
+                        "message": "Telnyx API is reachable",
+                        "data": body,
+                    }),
+                    start,
+                )
+                .to_json_string()
+            }
+            Err(e) => {
+                emit_tool_span("telnyx_ping", "error", start.elapsed().as_millis() as u64, Some(&e.kind));
+                e.to_json_string()
+            }
         }
     }
 
     #[tool(description = "List phone numbers")]
     async fn telnyx_list_numbers(&self) -> String {
         let start = Instant::now();
-        match telnyx_get(&self.client, "/phone_numbers").await {
+        let url = format!("{BASE_URL}/phone_numbers");
+        match api_get(&self.client, "Telnyx", &url).await {
             Ok(body) => McpToolOutput::with_timing(body, start).to_json_string(),
             Err(e) => e.to_json_string(),
         }
@@ -159,13 +112,20 @@ impl TelnyxServer {
         }): Parameters<BuyNumberRequest>,
     ) -> String {
         let start = Instant::now();
-        let body = serde_json::json!({
+        let url = format!("{BASE_URL}/number_orders");
+        let payload = serde_json::json!({
             "phone_numbers": [{"phone_number": phone_number}],
             "messaging_profile_id": messaging_profile_id,
         });
-        match telnyx_post(&self.client, "/number_orders", &body).await {
-            Ok(resp_body) => McpToolOutput::with_timing(resp_body, start).to_json_string(),
-            Err(e) => e.to_json_string(),
+        match api_post(&self.client, "Telnyx", &url, &payload).await {
+            Ok(resp_body) => {
+                emit_tool_span("telnyx_buy_number", "ok", start.elapsed().as_millis() as u64, None);
+                McpToolOutput::with_timing(resp_body, start).to_json_string()
+            }
+            Err(e) => {
+                emit_tool_span("telnyx_buy_number", "error", start.elapsed().as_millis() as u64, Some(&e.kind));
+                e.to_json_string()
+            }
         }
     }
 
@@ -175,14 +135,21 @@ impl TelnyxServer {
         Parameters(SendSmsRequest { from, to, text }): Parameters<SendSmsRequest>,
     ) -> String {
         let start = Instant::now();
-        let body = serde_json::json!({
+        let url = format!("{BASE_URL}/messages");
+        let payload = serde_json::json!({
             "from": from,
             "to": to,
             "text": text,
         });
-        match telnyx_post(&self.client, "/messages", &body).await {
-            Ok(resp_body) => McpToolOutput::with_timing(resp_body, start).to_json_string(),
-            Err(e) => e.to_json_string(),
+        match api_post(&self.client, "Telnyx", &url, &payload).await {
+            Ok(resp_body) => {
+                emit_tool_span("telnyx_send_sms", "ok", start.elapsed().as_millis() as u64, None);
+                McpToolOutput::with_timing(resp_body, start).to_json_string()
+            }
+            Err(e) => {
+                emit_tool_span("telnyx_send_sms", "error", start.elapsed().as_millis() as u64, Some(&e.kind));
+                e.to_json_string()
+            }
         }
     }
 
@@ -196,14 +163,21 @@ impl TelnyxServer {
         }): Parameters<MakeCallRequest>,
     ) -> String {
         let start = Instant::now();
-        let body = serde_json::json!({
+        let url = format!("{BASE_URL}/calls");
+        let payload = serde_json::json!({
             "from": from,
             "to": to,
             "webhook_url": webhook_url,
         });
-        match telnyx_post(&self.client, "/calls", &body).await {
-            Ok(resp_body) => McpToolOutput::with_timing(resp_body, start).to_json_string(),
-            Err(e) => e.to_json_string(),
+        match api_post(&self.client, "Telnyx", &url, &payload).await {
+            Ok(resp_body) => {
+                emit_tool_span("telnyx_make_call", "ok", start.elapsed().as_millis() as u64, None);
+                McpToolOutput::with_timing(resp_body, start).to_json_string()
+            }
+            Err(e) => {
+                emit_tool_span("telnyx_make_call", "error", start.elapsed().as_millis() as u64, Some(&e.kind));
+                e.to_json_string()
+            }
         }
     }
 
@@ -218,7 +192,8 @@ impl TelnyxServer {
         }): Parameters<SendWhatsAppRequest>,
     ) -> String {
         let start = Instant::now();
-        let body = serde_json::json!({
+        let url = format!("{BASE_URL}/messages");
+        let payload = serde_json::json!({
             "from": from,
             "to": to,
             "type": "whatsapp",
@@ -227,9 +202,15 @@ impl TelnyxServer {
                 "content": content,
             },
         });
-        match telnyx_post(&self.client, "/messages", &body).await {
-            Ok(resp_body) => McpToolOutput::with_timing(resp_body, start).to_json_string(),
-            Err(e) => e.to_json_string(),
+        match api_post(&self.client, "Telnyx", &url, &payload).await {
+            Ok(resp_body) => {
+                emit_tool_span("telnyx_send_whatsapp", "ok", start.elapsed().as_millis() as u64, None);
+                McpToolOutput::with_timing(resp_body, start).to_json_string()
+            }
+            Err(e) => {
+                emit_tool_span("telnyx_send_whatsapp", "error", start.elapsed().as_millis() as u64, Some(&e.kind));
+                e.to_json_string()
+            }
         }
     }
 
@@ -240,7 +221,8 @@ impl TelnyxServer {
     ) -> String {
         let start = Instant::now();
         let voice_name = voice.unwrap_or_else(|| "female".to_string());
-        let body = serde_json::json!({
+        let url = format!("{BASE_URL}/calls");
+        let payload = serde_json::json!({
             "from": "+18001234567",
             "to": "+18007654321",
             "webhook_url": "https://example.com/tts-webhook",
@@ -249,7 +231,7 @@ impl TelnyxServer {
                 "voice": voice_name,
             },
         });
-        match telnyx_post(&self.client, "/calls", &body).await {
+        match api_post(&self.client, "Telnyx", &url, &payload).await {
             Ok(resp_body) => McpToolOutput::with_timing(
                 serde_json::json!({
                     "data": resp_body,
@@ -288,7 +270,7 @@ async fn main() -> anyhow::Result<()> {
     run_stdio_server(
         "hkask-mcp-telnyx",
         env!("CARGO_PKG_VERSION"),
-        TelnyxServer::new(),
+        TelnyxServer::new,
         vec![CredentialRequirement::required(
             "HKASK_TELNYX_API_KEY",
             "Telnyx API key for messaging and number management",

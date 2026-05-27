@@ -2228,6 +2228,7 @@ dependencies = [
  "hkask-keystore",
  "hkask-templates",
  "hkask-types",
+ "reqwest",
  "rmcp",
  "serde",
  "serde_json",

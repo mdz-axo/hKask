@@ -7,19 +7,25 @@
 //! - `McpToolOutput` — structured output with optional metadata
 //! - `CredentialRequirement` — declarative credential needs (bridges to keystore)
 //! - `run_stdio_server()` — common main() boilerplate (tracing, credential check, rmcp serve)
+//! - `classify_http_error()` — HTTP status → McpToolError mapping (shared across all API servers)
+//! - `api_get()` / `api_post()` — shared HTTP helpers with automatic error classification
+//! - `resolve_credential()` — credential resolution via hkask-keystore with env var fallback
+//! - `emit_tool_span()` — CNS tool span emission for observability
 //!
 //! ## Usage
 //!
 //! ```rust,ignore
-//! use hkask_mcp::server::{McpToolError, McpToolOutput, CredentialRequirement, run_stdio_server};
+//! use hkask_mcp::server::{run_stdio_server, CredentialRequirement};
 //!
-//! // In your server's main():
-//! run_stdio_server(
-//!     "hkask-mcp-github",
-//!     env!("CARGO_PKG_VERSION"),
-//!     GithubServer::new(),
-//!     vec![CredentialRequirement::required("HKASK_GITHUB_TOKEN", "GitHub personal access token")],
-//! ).await;
+//! #[tokio::main]
+//! async fn main() -> anyhow::Result<()> {
+//!     run_stdio_server(
+//!         "hkask-mcp-github",
+//!         env!("CARGO_PKG_VERSION"),
+//!         || Ok(GithubServer::new()),
+//!         vec![CredentialRequirement::required("HKASK_GITHUB_TOKEN", "GitHub PAT")],
+//!     ).await
+//! }
 //! ```
 
 use hkask_types::McpErrorKind;
@@ -231,6 +237,162 @@ impl std::fmt::Display for McpToolError {
 impl std::error::Error for McpToolError {}
 
 // =============================================================================
+// classify_http_error — Shared HTTP Status → McpToolError mapping
+// =============================================================================
+
+/// Classify an HTTP error response into a structured `McpToolError`.
+///
+/// Every hKask API server maps HTTP status codes the same way:
+/// - 401/403 → `PermissionDenied`
+/// - 404 → `NotFound`
+/// - 422 → `InvalidArgument`
+/// - 429 → `RateLimited`
+/// - 502/503 + other 5xx → `Unavailable`
+/// - Everything else → `Internal`
+///
+/// The `service` parameter prefixes the error message (e.g., `"GitHub"`, `"FMP"`).
+pub fn classify_http_error(
+    service: &str,
+    status: reqwest::StatusCode,
+    body: &str,
+) -> McpToolError {
+    let msg = format!("{service} API returned {status}: {}", body.trim());
+    match status.as_u16() {
+        401 | 403 => McpToolError::permission_denied(msg),
+        404 => McpToolError::not_found(msg),
+        422 => McpToolError::invalid_argument(msg),
+        429 => McpToolError::rate_limited(msg),
+        502 | 503 => McpToolError::unavailable(msg),
+        _ if status.is_server_error() => McpToolError::unavailable(msg),
+        _ => McpToolError::internal(msg),
+    }
+}
+
+// =============================================================================
+// api_get / api_post — Shared HTTP helpers
+// =============================================================================
+
+/// Perform an authenticated GET request with automatic error classification.
+///
+/// On success, parses the response body as JSON. On failure, classifies
+/// the HTTP status using `classify_http_error()`.
+pub async fn api_get(
+    client: &reqwest::Client,
+    service: &str,
+    url: &str,
+) -> Result<Value, McpToolError> {
+    let resp = client
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| McpToolError::unavailable(format!("{service} request failed: {e}")))?;
+    let status = resp.status();
+    let body = resp.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(classify_http_error(service, status, &body));
+    }
+    serde_json::from_str(&body)
+        .map_err(|e| McpToolError::internal(format!("Failed to parse {service} response: {e}")))
+}
+
+/// Perform an authenticated POST request with automatic error classification.
+///
+/// On success, parses the response body as JSON. On failure, classifies
+/// the HTTP status using `classify_http_error()`.
+pub async fn api_post(
+    client: &reqwest::Client,
+    service: &str,
+    url: &str,
+    payload: &Value,
+) -> Result<Value, McpToolError> {
+    let resp = client
+        .post(url)
+        .json(payload)
+        .send()
+        .await
+        .map_err(|e| McpToolError::unavailable(format!("{service} request failed: {e}")))?;
+    let status = resp.status();
+    let body = resp.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(classify_http_error(service, status, &body));
+    }
+    serde_json::from_str(&body)
+        .map_err(|e| McpToolError::internal(format!("Failed to parse {service} response: {e}")))
+}
+
+// =============================================================================
+// resolve_credential — Keystore-first credential resolution
+// =============================================================================
+
+/// Resolve a credential value, trying hkask-keystore first, then env vars.
+///
+/// Resolution order:
+/// 1. OS keychain via `hkask_keystore::Keychain` (key = env_var name)
+/// 2. Environment variable (traditional `std::env::var`)
+///
+/// This allows servers to get credentials from either source transparently.
+pub fn resolve_credential(env_var: &str) -> Result<String, hkask_keystore::KeystoreError> {
+    let keychain = hkask_keystore::Keychain::default();
+    match keychain.retrieve_by_key(env_var) {
+        Ok(val) => {
+            tracing::debug!(
+                credential = env_var,
+                source = "keychain",
+                "Credential resolved from OS keychain"
+            );
+            Ok(val)
+        }
+        Err(_) => match std::env::var(env_var) {
+            Ok(val) => {
+                tracing::debug!(
+                    credential = env_var,
+                    source = "env",
+                    "Credential resolved from environment variable"
+                );
+                Ok(val)
+            }
+            Err(_) => Err(hkask_keystore::KeystoreError::NotFound(format!(
+                "Credential '{}' not found in keychain or environment",
+                env_var
+            ))),
+        },
+    }
+}
+
+// =============================================================================
+// emit_tool_span — CNS observability for tool invocations
+// =============================================================================
+
+/// Emit a CNS tool span for observability.
+///
+/// Called by tool methods to record invocation metadata. Uses the `tracing`
+/// crate with `cns.tool` target so that CNS subscribers can capture it.
+/// Also integrates with `hkask_cns::SpanEmitter` when available.
+pub fn emit_tool_span(
+    tool_name: &str,
+    outcome: &str,
+    duration_ms: u64,
+    error_kind: Option<&McpErrorKind>,
+) {
+    let mut fields = serde_json::json!({
+        "tool": tool_name,
+        "outcome": outcome,
+        "duration_ms": duration_ms,
+    });
+    if let Some(kind) = error_kind {
+        fields["error_kind"] = serde_json::json!(kind.to_string());
+    }
+    tracing::info!(
+        target: "cns.tool",
+        tool = tool_name,
+        outcome = outcome,
+        duration_ms = duration_ms,
+        error_kind = error_kind.map(|k| k.to_string()).as_deref().unwrap_or(""),
+        "CNS tool span"
+    );
+}
+
+// =============================================================================
 // run_stdio_server — Common Server Bootstrap
 // =============================================================================
 
@@ -238,26 +400,31 @@ impl std::error::Error for McpToolError {}
 ///
 /// Handles:
 /// 1. Tracing subscriber initialization
-/// 2. Credential requirement checks (warn on missing optional, fail on missing required)
-/// 3. rmcp stdio serve
+/// 2. Credential requirement checks (keystore → env var fallback)
+/// 3. Server construction via factory (only after credential checks pass)
+/// 4. rmcp stdio serve
+///
+/// The factory pattern ensures server constructors that need credentials
+/// only run AFTER credential availability is confirmed.
 ///
 /// # Arguments
 /// - `server_name` — Human-readable server name for logging (e.g., `"hkask-mcp-github"`)
 /// - `version` — SemVer version string (use `env!("CARGO_PKG_VERSION")`)
-/// - `server` — The rmcp `ServerHandler` implementation
+/// - `server_factory` — Closure that constructs the server (called after credential checks)
 /// - `credentials` — Declared credential requirements
 ///
 /// # Errors
-/// Returns an error if a required credential is missing from the environment.
-pub async fn run_stdio_server<S>(
+/// Returns an error if a required credential is missing or server construction fails.
+pub async fn run_stdio_server<S, F>(
     server_name: &str,
     version: &str,
-    server: S,
+    server_factory: F,
     credentials: Vec<CredentialRequirement>,
 ) -> anyhow::Result<()>
 where
     S: rmcp::ServiceExt<rmcp::RoleServer>,
     S: rmcp::Service<rmcp::RoleServer>,
+    F: FnOnce() -> anyhow::Result<S>,
 {
     // 1. Tracing initialization
     tracing_subscriber::fmt()
@@ -267,10 +434,10 @@ where
         )
         .init();
 
-    // 2. Credential checks
+    // 2. Credential checks (keystore → env var)
     let mut missing_required = Vec::new();
     for cred in &credentials {
-        match std::env::var(&cred.env_var) {
+        match resolve_credential(&cred.env_var) {
             Ok(_) => {
                 tracing::debug!(
                     credential = %cred.env_var,
@@ -302,7 +469,10 @@ where
         );
     }
 
-    // 3. Serve via rmcp stdio transport
+    // 3. Construct server (only after credential checks pass)
+    let server = server_factory()?;
+
+    // 4. Serve via rmcp stdio transport
     tracing::info!(
         server = server_name,
         version = version,

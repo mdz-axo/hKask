@@ -3,7 +3,10 @@
 //! This MCP server provides GitHub operations for repository, issue, and PR management.
 //! Phase 9: Git archival via GitHub MCP tool calls.
 
-use hkask_mcp::server::{CredentialRequirement, McpToolError, McpToolOutput, run_stdio_server};
+use hkask_mcp::server::{
+    CredentialRequirement, McpToolError, McpToolOutput, api_get, api_post,
+    classify_http_error, emit_tool_span, resolve_credential, run_stdio_server,
+};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -70,8 +73,8 @@ pub struct SearchReposRequest {
 }
 
 fn build_client() -> Result<reqwest::Client, McpToolError> {
-    let token = std::env::var("HKASK_GITHUB_TOKEN").map_err(|_| {
-        McpToolError::failed_precondition("HKASK_GITHUB_TOKEN environment variable is not set")
+    let token = resolve_credential("HKASK_GITHUB_TOKEN").map_err(|_| {
+        McpToolError::failed_precondition("HKASK_GITHUB_TOKEN not found in keychain or environment")
     })?;
 
     let mut headers = reqwest::header::HeaderMap::new();
@@ -92,19 +95,6 @@ fn build_client() -> Result<reqwest::Client, McpToolError> {
         .default_headers(headers)
         .build()
         .map_err(|e| McpToolError::internal(format!("Failed to build HTTP client: {e}")))
-}
-
-fn classify_api_error(status: reqwest::StatusCode, body: &str) -> McpToolError {
-    let msg = format!("GitHub API returned {}: {}", status, body.trim());
-    match status.as_u16() {
-        401 | 403 => McpToolError::permission_denied(msg),
-        404 => McpToolError::not_found(msg),
-        422 => McpToolError::invalid_argument(msg),
-        429 => McpToolError::rate_limited(msg),
-        503 | 502 => McpToolError::unavailable(msg),
-        _ if status.is_server_error() => McpToolError::unavailable(msg),
-        _ => McpToolError::internal(msg),
-    }
 }
 
 fn extract_repo_summary(v: &serde_json::Value) -> serde_json::Value {
@@ -158,58 +148,14 @@ fn extract_pr_summary(v: &serde_json::Value) -> serde_json::Value {
     })
 }
 
-async fn github_get(
-    client: &reqwest::Client,
-    url: &str,
-) -> Result<serde_json::Value, McpToolError> {
-    let resp = client
-        .get(url)
-        .send()
-        .await
-        .map_err(|e| McpToolError::unavailable(format!("GitHub request failed: {e}")))?;
-    let status = resp.status();
-    let body = resp.text().await.unwrap_or_default();
-    if !status.is_success() {
-        return Err(classify_api_error(status, &body));
-    }
-    serde_json::from_str(&body)
-        .map_err(|e| McpToolError::internal(format!("Failed to parse response: {e}")))
-}
-
-async fn github_post(
-    client: &reqwest::Client,
-    url: &str,
-    payload: &serde_json::Value,
-) -> Result<serde_json::Value, McpToolError> {
-    let resp = client
-        .post(url)
-        .json(payload)
-        .send()
-        .await
-        .map_err(|e| McpToolError::unavailable(format!("GitHub request failed: {e}")))?;
-    let status = resp.status();
-    let body = resp.text().await.unwrap_or_default();
-    if !status.is_success() {
-        return Err(classify_api_error(status, &body));
-    }
-    serde_json::from_str(&body)
-        .map_err(|e| McpToolError::internal(format!("Failed to parse response: {e}")))
-}
-
 pub struct GithubServer {
     client: reqwest::Client,
 }
 
 impl GithubServer {
-    pub fn new() -> Self {
-        let client = build_client().expect("Failed to create GitHub API client");
-        Self { client }
-    }
-}
-
-impl Default for GithubServer {
-    fn default() -> Self {
-        Self::new()
+    pub fn new() -> Result<Self, anyhow::Error> {
+        let client = build_client()?;
+        Ok(Self { client })
     }
 }
 
@@ -222,9 +168,16 @@ impl GithubServer {
     ) -> String {
         let start = Instant::now();
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}");
-        match github_get(&self.client, &url).await {
-            Ok(v) => McpToolOutput::with_timing(extract_repo_summary(&v), start).to_json_string(),
-            Err(e) => e.to_json_string(),
+        match api_get(&self.client, "GitHub", &url).await {
+            Ok(v) => {
+                let out = McpToolOutput::with_timing(extract_repo_summary(&v), start);
+                emit_tool_span("github_get_repo", "ok", start.elapsed().as_millis() as u64, None);
+                out.to_json_string()
+            }
+            Err(e) => {
+                emit_tool_span("github_get_repo", "error", start.elapsed().as_millis() as u64, Some(&e.kind));
+                e.to_json_string()
+            }
         }
     }
 
@@ -236,7 +189,7 @@ impl GithubServer {
         let start = Instant::now();
         let state = state.unwrap_or_else(|| "open".to_string());
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/issues?state={state}");
-        match github_get(&self.client, &url).await {
+        match api_get(&self.client, "GitHub", &url).await {
             Ok(v) => {
                 let issues: Vec<serde_json::Value> = v
                     .as_array()
@@ -268,7 +221,7 @@ impl GithubServer {
     ) -> String {
         let start = Instant::now();
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/issues/{issue_number}");
-        match github_get(&self.client, &url).await {
+        match api_get(&self.client, "GitHub", &url).await {
             Ok(v) => {
                 let labels: Vec<serde_json::Value> = v["labels"]
                     .as_array()
@@ -319,17 +272,23 @@ impl GithubServer {
                     .collect(),
             );
         }
-        match github_post(&self.client, &url, &payload).await {
-            Ok(v) => McpToolOutput::with_timing(
-                serde_json::json!({
-                    "owner": owner, "repo": repo,
-                    "number": v["number"], "title": v["title"],
-                    "state": v["state"], "html_url": v["html_url"], "created": true,
-                }),
-                start,
-            )
-            .to_json_string(),
-            Err(e) => e.to_json_string(),
+        match api_post(&self.client, "GitHub", &url, &payload).await {
+            Ok(v) => {
+                emit_tool_span("github_create_issue", "ok", start.elapsed().as_millis() as u64, None);
+                McpToolOutput::with_timing(
+                    serde_json::json!({
+                        "owner": owner, "repo": repo,
+                        "number": v["number"], "title": v["title"],
+                        "state": v["state"], "html_url": v["html_url"], "created": true,
+                    }),
+                    start,
+                )
+                .to_json_string()
+            }
+            Err(e) => {
+                emit_tool_span("github_create_issue", "error", start.elapsed().as_millis() as u64, Some(&e.kind));
+                e.to_json_string()
+            }
         }
     }
 
@@ -346,16 +305,22 @@ impl GithubServer {
         let start = Instant::now();
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/issues/{issue_number}/comments");
         let payload = serde_json::json!({ "body": body });
-        match github_post(&self.client, &url, &payload).await {
-            Ok(v) => McpToolOutput::with_timing(
-                serde_json::json!({
-                    "owner": owner, "repo": repo, "issue": issue_number,
-                    "comment_id": v["id"], "html_url": v["html_url"], "created": true,
-                }),
-                start,
-            )
-            .to_json_string(),
-            Err(e) => e.to_json_string(),
+        match api_post(&self.client, "GitHub", &url, &payload).await {
+            Ok(v) => {
+                emit_tool_span("github_add_comment", "ok", start.elapsed().as_millis() as u64, None);
+                McpToolOutput::with_timing(
+                    serde_json::json!({
+                        "owner": owner, "repo": repo, "issue": issue_number,
+                        "comment_id": v["id"], "html_url": v["html_url"], "created": true,
+                    }),
+                    start,
+                )
+                .to_json_string()
+            }
+            Err(e) => {
+                emit_tool_span("github_add_comment", "error", start.elapsed().as_millis() as u64, Some(&e.kind));
+                e.to_json_string()
+            }
         }
     }
 
@@ -367,7 +332,7 @@ impl GithubServer {
         let start = Instant::now();
         let state = state.unwrap_or_else(|| "open".to_string());
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/pulls?state={state}");
-        match github_get(&self.client, &url).await {
+        match api_get(&self.client, "GitHub", &url).await {
             Ok(v) => {
                 let prs: Vec<serde_json::Value> = v
                     .as_array()
@@ -394,7 +359,7 @@ impl GithubServer {
     ) -> String {
         let start = Instant::now();
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/pulls/{pr_number}");
-        match github_get(&self.client, &url).await {
+        match api_get(&self.client, "GitHub", &url).await {
             Ok(v) => McpToolOutput::with_timing(
                 serde_json::json!({
                     "owner": owner, "repo": repo,
@@ -434,7 +399,7 @@ impl GithubServer {
                 let status = http_resp.status();
                 let body = http_resp.text().await.unwrap_or_default();
                 if !status.is_success() {
-                    return classify_api_error(status, &body).to_json_string();
+                    return classify_http_error("GitHub", status, &body).to_json_string();
                 }
                 match serde_json::from_str::<serde_json::Value>(&body) {
                     Ok(v) => {
@@ -467,7 +432,7 @@ async fn main() -> anyhow::Result<()> {
     run_stdio_server(
         "hkask-mcp-github",
         SERVER_VERSION,
-        GithubServer::new(),
+        GithubServer::new,
         vec![CredentialRequirement::required(
             "HKASK_GITHUB_TOKEN",
             "GitHub personal access token for API authentication",

@@ -12,7 +12,7 @@
 
 use base64::Engine;
 use chrono::Utc;
-use hkask_mcp::server::{McpToolError, McpToolOutput, run_stdio_server};
+use hkask_mcp::server::{McpToolError, McpToolOutput, emit_tool_span, run_stdio_server};
 use reqwest::Client;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use rusqlite::Connection;
@@ -866,25 +866,24 @@ pub struct RssServer {
 }
 
 impl RssServer {
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self, anyhow::Error> {
         let db_path =
             std::env::var("HKASK_RSS_DB").unwrap_or_else(|_| "hkask-rss-reader.db".to_string());
-        let conn = init_db(&db_path).expect("Failed to initialize RSS database");
+        let conn = init_db(&db_path)?;
         let client = Client::builder()
             .user_agent(format!("hkask-mcp-rss-reader/{}", SERVER_VERSION))
-            .build()
-            .expect("Failed to create HTTP client");
+            .build()?;
 
-        Self {
+        Ok(Self {
             db: Arc::new(std::sync::Mutex::new(conn)),
             client,
-        }
+        })
     }
 }
 
 impl Default for RssServer {
     fn default() -> Self {
-        Self::new()
+        Self::new().expect("Failed to create RssServer")
     }
 }
 
@@ -968,8 +967,14 @@ impl RssServer {
         }).await;
 
         match result {
-            Ok(Ok(v)) => McpToolOutput::with_timing(v, start).to_json_string(),
-            Ok(Err(e)) => McpToolError::internal(e.to_string()).to_json_string(),
+            Ok(Ok(v)) => {
+                emit_tool_span("rss_subscribe", "ok", start.elapsed().as_millis() as u64, None);
+                McpToolOutput::with_timing(v, start).to_json_string()
+            }
+            Ok(Err(e)) => {
+                emit_tool_span("rss_subscribe", "error", start.elapsed().as_millis() as u64, None);
+                McpToolError::internal(e.to_string()).to_json_string()
+            }
             Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
         }
     }
@@ -979,6 +984,7 @@ impl RssServer {
         &self,
         Parameters(UnsubscribeRequest { stream_id }): Parameters<UnsubscribeRequest>,
     ) -> String {
+        let start = Instant::now();
         let db = self.db.clone();
         let sid = stream_id.clone();
         let result = spawn_db(db, move |conn| {
@@ -988,12 +994,15 @@ impl RssServer {
         .await;
 
         match result {
-            Ok(Ok(removed)) => McpToolOutput::new(serde_json::json!({
-                "stream_id": stream_id,
-                "unsubscribed": removed > 0,
-                "removed": removed,
-            }))
-            .to_json_string(),
+            Ok(Ok(removed)) => {
+                emit_tool_span("rss_unsubscribe", "ok", start.elapsed().as_millis() as u64, None);
+                McpToolOutput::new(serde_json::json!({
+                    "stream_id": stream_id,
+                    "unsubscribed": removed > 0,
+                    "removed": removed,
+                }))
+                .to_json_string()
+            }
             Ok(Err(e)) => McpToolError::internal(e.to_string()).to_json_string(),
             Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
         }
@@ -1304,7 +1313,7 @@ async fn main() -> anyhow::Result<()> {
     run_stdio_server(
         "hkask-mcp-rss-reader",
         env!("CARGO_PKG_VERSION"),
-        RssServer::new(),
+        RssServer::new,
         vec![],
     )
     .await
