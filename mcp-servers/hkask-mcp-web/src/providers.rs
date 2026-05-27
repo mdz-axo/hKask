@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use super::types::*;
+use hkask_mcp::server::validate_tool_url;
 
 #[derive(Default)]
 pub struct ProviderSearchOutput {
@@ -14,12 +15,23 @@ pub struct ProviderSearchOutput {
 }
 
 #[async_trait]
-#[allow(dead_code)]
-pub trait WebSearchProvider: Send + Sync {
+pub(crate) trait WebSearchProvider: Send + Sync {
     fn kind(&self) -> &str;
     fn capabilities(&self) -> Vec<SearchCapability>;
     async fn search(&self, query: &SearchQuery) -> Result<ProviderSearchOutput, WebError>;
     async fn health(&self) -> Result<(), WebError>;
+}
+
+// =============================================================================
+// Provider-level URL validation (Task 6: SSRF protection)
+//
+// Every provider's extract() and browse() calls this before making
+// outbound requests. This is a capability boundary: the MCP server
+// never sends a request to a URL it hasn't validated.
+// =============================================================================
+
+pub fn validate_provider_url(url: &str) -> Result<(), WebError> {
+    validate_tool_url(url).map_err(|e| WebError::BadArgs(e.message))
 }
 
 // =============================================================================
@@ -41,27 +53,33 @@ pub trait WebSearchPort: Send + Sync {
         &self,
         query: &SearchQuery,
         strategy: SearchStrategy,
+        ctx: Option<&CapabilityContext>,
     ) -> Result<CompoundSearchResult, WebError>;
     async fn find_similar(
         &self,
         url: &str,
         num_results: u32,
+        ctx: Option<&CapabilityContext>,
     ) -> Result<ProviderSearchOutput, WebError>;
-    async fn extract(&self, url: &str, opts: &ExtractOptions)
-    -> Result<ExtractedContent, WebError>;
+    async fn extract(
+        &self,
+        url: &str,
+        opts: &ExtractOptions,
+        ctx: Option<&CapabilityContext>,
+    ) -> Result<ExtractedContent, WebError>;
     async fn browse(
         &self,
         url: &str,
         instruction: &str,
         timeout: Duration,
+        ctx: Option<&CapabilityContext>,
     ) -> Result<BrowseResult, WebError>;
     async fn health_check(&self) -> Vec<ProviderHealthEntry>;
     fn provider_fingerprint(&self) -> String;
 }
 
 #[async_trait]
-#[allow(dead_code)]
-pub trait WebExtractProvider: Send + Sync {
+pub(crate) trait WebExtractProvider: Send + Sync {
     fn kind(&self) -> &str;
     async fn extract(&self, url: &str, opts: &ExtractOptions)
     -> Result<ExtractedContent, WebError>;
@@ -69,8 +87,7 @@ pub trait WebExtractProvider: Send + Sync {
 }
 
 #[async_trait]
-#[allow(dead_code)]
-pub trait WebBrowseProvider: Send + Sync {
+pub(crate) trait WebBrowseProvider: Send + Sync {
     fn kind(&self) -> &str;
     async fn browse(
         &self,
@@ -82,10 +99,10 @@ pub trait WebBrowseProvider: Send + Sync {
 }
 
 pub struct ProviderPool {
-    pub search_providers: Vec<Box<dyn WebSearchProvider>>,
-    pub extract_providers: Vec<Box<dyn WebExtractProvider>>,
-    pub browse_providers: Vec<Box<dyn WebBrowseProvider>>,
-    pub exa: Option<ExaProvider>,
+    pub(crate) search_providers: Vec<Box<dyn WebSearchProvider>>,
+    pub(crate) extract_providers: Vec<Box<dyn WebExtractProvider>>,
+    pub(crate) browse_providers: Vec<Box<dyn WebBrowseProvider>>,
+    pub(crate) exa: Option<ExaProvider>,
 }
 
 impl ProviderPool {
@@ -446,6 +463,7 @@ impl WebSearchPort for ProviderPool {
         &self,
         query: &SearchQuery,
         strategy: SearchStrategy,
+        _ctx: Option<&CapabilityContext>,
     ) -> Result<CompoundSearchResult, WebError> {
         let mut compound = if strategy == SearchStrategy::Quick {
             // Quick strategy: use the first keyword-capable provider instead of
@@ -509,6 +527,7 @@ impl WebSearchPort for ProviderPool {
         &self,
         url: &str,
         num_results: u32,
+        _ctx: Option<&CapabilityContext>,
     ) -> Result<ProviderSearchOutput, WebError> {
         match self.exa {
             Some(ref exa) => exa.find_similar(url, num_results).await,
@@ -520,6 +539,7 @@ impl WebSearchPort for ProviderPool {
         &self,
         url: &str,
         opts: &ExtractOptions,
+        _ctx: Option<&CapabilityContext>,
     ) -> Result<ExtractedContent, WebError> {
         self.extract_with_fallback(url, opts).await
     }
@@ -529,6 +549,7 @@ impl WebSearchPort for ProviderPool {
         url: &str,
         instruction: &str,
         timeout: Duration,
+        _ctx: Option<&CapabilityContext>,
     ) -> Result<BrowseResult, WebError> {
         self.browse_with_fallback(url, instruction, timeout).await
     }
@@ -551,6 +572,7 @@ impl BraveProvider {
     pub fn new(api_key: String) -> Self {
         let client = reqwest::Client::builder()
             .user_agent(format!("hkask-mcp-web/{SERVER_VERSION}"))
+            .timeout(Duration::from_secs(DEFAULT_REQUEST_TIMEOUT_SECS))
             .build()
             .expect("Failed to build HTTP client");
         Self { client, api_key }
@@ -1400,7 +1422,29 @@ impl WebBrowseProvider for BrowserbaseProvider {
     }
 
     async fn health(&self) -> Result<(), WebError> {
-        Ok(())
+        // Task 1: Substantive health check — liveness test via example.com
+        let resp = self
+            .client
+            .get("https://api.browserbase.com/v1/sessions")
+            .header("x-bb-api-key", &self.api_key)
+            .timeout(Duration::from_secs(5))
+            .send()
+            .await
+            .map_err(|e| {
+                WebError::ProviderUnavailable(format!("Browserbase health check failed: {e}"))
+            })?;
+        let status = resp.status();
+        if status.is_success() || status.as_u16() == 429 {
+            Ok(())
+        } else if status.as_u16() == 401 || status.as_u16() == 403 {
+            Err(WebError::ProviderUnavailable(
+                "Browserbase authentication failed".to_string(),
+            ))
+        } else {
+            Err(WebError::ProviderUnavailable(format!(
+                "Browserbase health check returned {status}"
+            )))
+        }
     }
 }
 
@@ -1418,6 +1462,7 @@ impl RawFetchProvider {
     pub fn new() -> Self {
         let client = reqwest::Client::builder()
             .user_agent(format!("hkask-mcp-web/{SERVER_VERSION}"))
+            .timeout(Duration::from_secs(DEFAULT_REQUEST_TIMEOUT_SECS))
             .build()
             .expect("Failed to build HTTP client");
         Self { client }
@@ -1435,6 +1480,8 @@ impl WebExtractProvider for RawFetchProvider {
         url: &str,
         _opts: &ExtractOptions,
     ) -> Result<ExtractedContent, WebError> {
+        // Task 6: Validate URL at provider boundary — RawFetch is the most SSRF-sensitive provider
+        validate_provider_url(url)?;
         let resp =
             self.client.get(url).send().await.map_err(|e| {
                 WebError::ProviderUnavailable(format!("RawFetch request failed: {e}"))
@@ -1459,7 +1506,24 @@ impl WebExtractProvider for RawFetchProvider {
     }
 
     async fn health(&self) -> Result<(), WebError> {
-        Ok(())
+        // Task 1: Liveness check — fetch example.com
+        let resp = self
+            .client
+            .get("https://example.com")
+            .timeout(Duration::from_secs(5))
+            .send()
+            .await
+            .map_err(|e| {
+                WebError::ProviderUnavailable(format!("RawFetch health check failed: {e}"))
+            })?;
+        if resp.status().is_success() {
+            Ok(())
+        } else {
+            Err(WebError::ProviderUnavailable(format!(
+                "RawFetch health check returned {}",
+                resp.status()
+            )))
+        }
     }
 }
 

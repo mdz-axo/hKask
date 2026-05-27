@@ -53,9 +53,7 @@ struct AuthInfo {
 /// Russell JSON-RPC response
 #[derive(Debug, Deserialize)]
 struct JsonRpcResponse {
-    #[allow(dead_code)]
     jsonrpc: String,
-    #[allow(dead_code)]
     id: Value,
     result: Option<Value>,
     error: Option<JsonRpcError>,
@@ -65,7 +63,6 @@ struct JsonRpcResponse {
 struct JsonRpcError {
     code: i32,
     message: String,
-    #[allow(dead_code)]
     data: Option<Value>,
 }
 
@@ -79,7 +76,6 @@ struct CreateSessionResponse {
 #[derive(Debug, Deserialize)]
 struct CapabilitiesResponse {
     skills: Vec<SkillInfo>,
-    #[allow(dead_code)]
     probes: Vec<ProbeInfo>,
 }
 
@@ -87,9 +83,7 @@ struct CapabilitiesResponse {
 #[derive(Debug, Deserialize)]
 struct SkillInfo {
     id: String,
-    #[allow(dead_code)]
     version: String,
-    #[allow(dead_code)]
     description: String,
     symptoms: Vec<String>,
 }
@@ -98,7 +92,6 @@ struct SkillInfo {
 #[derive(Debug, Deserialize)]
 struct ProbeInfo {
     id: String,
-    #[allow(dead_code)]
     description: String,
 }
 
@@ -166,6 +159,8 @@ impl RussellAcpAdapter {
     async fn send_request(&self, request: JsonRpcRequest) -> Result<JsonRpcResponse, AcpError> {
         self.ensure_started().await?;
 
+        let request_id = request.id.clone();
+
         let mut child_opt = self.child.lock().await;
         let child = child_opt
             .as_mut()
@@ -206,6 +201,14 @@ impl RussellAcpAdapter {
 
         let response: JsonRpcResponse = serde_json::from_str(line.trim())
             .map_err(|e| AcpError::TransportError(format!("Parse failed: {}", e)))?;
+
+        if response.jsonrpc != "2.0" {
+            warn!(target: "hkask.russell", "Unexpected JSON-RPC version: {}", response.jsonrpc);
+        }
+
+        if response.id != request_id {
+            warn!(target: "hkask.russell", "Response ID mismatch: expected {:?}, got {:?}", request_id, response.id);
+        }
 
         Ok(response)
     }
@@ -307,9 +310,14 @@ impl AcpPort for RussellAcpAdapter {
         let response = self.send_request(request).await?;
 
         if let Some(error) = response.error {
+            let detail = error
+                .data
+                .as_ref()
+                .map(|d| format!(": {}", d))
+                .unwrap_or_default();
             return Err(AcpError::TransportError(format!(
-                "Russell error {}: {}",
-                error.code, error.message
+                "Russell error {}: {}{}",
+                error.code, error.message, detail
             )));
         }
 
@@ -374,10 +382,16 @@ impl AcpPort for RussellAcpAdapter {
         let response = self.send_request(request).await?;
 
         if let Some(error) = response.error {
+            let detail = error
+                .data
+                .as_ref()
+                .map(|d| format!(": {}", d))
+                .unwrap_or_default();
             warn!(
                 webid = %webid,
                 code = error.code,
                 message = %error.message,
+                detail = %detail,
                 "Russell session close returned error"
             );
             // Still remove the session mapping even if close failed
@@ -429,9 +443,14 @@ impl AcpPort for RussellAcpAdapter {
         let response = self.send_request(request).await?;
 
         if let Some(error) = response.error {
+            let detail = error
+                .data
+                .as_ref()
+                .map(|d| format!(": {}", d))
+                .unwrap_or_default();
             return Err(AcpError::TransportError(format!(
-                "Russell error {}: {}",
-                error.code, error.message
+                "Russell error {}: {}{}",
+                error.code, error.message, detail
             )));
         }
 
@@ -471,9 +490,14 @@ impl AcpPort for RussellAcpAdapter {
         let response = self.send_request(request).await?;
 
         if let Some(error) = response.error {
+            let detail = error
+                .data
+                .as_ref()
+                .map(|d| format!(": {}", d))
+                .unwrap_or_default();
             return Err(AcpError::TransportError(format!(
-                "Russell error {}: {}",
-                error.code, error.message
+                "Russell error {}: {}{}",
+                error.code, error.message, detail
             )));
         }
 
@@ -491,7 +515,7 @@ impl AcpPort for RussellAcpAdapter {
             .skills
             .iter()
             .flat_map(|skill| {
-                let mut caps = vec![format!("russell:{}", skill.id)];
+                let mut caps = vec![format!("russell:{}@{}", skill.id, skill.version)];
                 // Also add symptom-based capabilities for hLexicon mapping
                 for symptom in &skill.symptoms {
                     caps.push(format!("russell:symptom:{}", symptom));
@@ -500,9 +524,33 @@ impl AcpPort for RussellAcpAdapter {
             })
             .collect();
 
+        // Emit CNS spans for skill discovery
+        for skill in &caps_resp.skills {
+            self.emit_cns_span(
+                "cns.agent.skill_discovered",
+                serde_json::json!({
+                    "skill_id": skill.id,
+                    "version": skill.version,
+                    "description": skill.description,
+                    "symptom_count": skill.symptoms.len(),
+                }),
+            );
+        }
+
         // Add probe capabilities
         for probe in &caps_resp.probes {
             capabilities.push(format!("russell:probe:{}", probe.id));
+        }
+
+        // Emit CNS spans for probe discovery
+        for probe in &caps_resp.probes {
+            self.emit_cns_span(
+                "cns.agent.probe_discovered",
+                serde_json::json!({
+                    "probe_id": probe.id,
+                    "description": probe.description,
+                }),
+            );
         }
 
         // Deduplicate

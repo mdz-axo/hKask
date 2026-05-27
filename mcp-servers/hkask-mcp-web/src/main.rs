@@ -19,7 +19,7 @@ use providers::{
 use types::*;
 
 pub struct WebServer {
-    pub pool: ProviderPool,
+    pool: Arc<dyn WebSearchPort>,
     cache: Arc<ResponseCache>,
     rate_limiter: RateLimiter,
 }
@@ -84,12 +84,12 @@ impl WebServer {
         }
 
         Ok(Self {
-            pool: ProviderPool {
+            pool: Arc::new(ProviderPool {
                 search_providers,
                 extract_providers,
                 browse_providers,
                 exa: exa_provider,
-            },
+            }),
             cache: Arc::new(ResponseCache::new(
                 cache_max,
                 Duration::from_secs(cache_ttl),
@@ -122,8 +122,16 @@ impl WebServer {
             return e.to_json_string();
         }
 
+        // Task 5: Input validation bounds
         if req.query.is_empty() {
             return McpToolError::invalid_argument("query must not be empty").to_json_string();
+        }
+        if req.query.len() > MAX_QUERY_LENGTH {
+            return McpToolError::invalid_argument(format!(
+                "query exceeds maximum length of {} characters",
+                MAX_QUERY_LENGTH
+            ))
+            .to_json_string();
         }
 
         let strat = req
@@ -134,11 +142,17 @@ impl WebServer {
 
         let num_results = req.num_results.unwrap_or(10).min(50);
 
+        // Task 9: Normalize freshness from free-form string to canonical enum
+        let freshness = req
+            .freshness
+            .as_deref()
+            .and_then(|f| f.parse::<Freshness>().ok());
+
         let fingerprint = self.pool.provider_fingerprint();
         let ckey = cache_key(
             &strat.to_string(),
             &req.query,
-            &serde_json::json!({ "num_results": num_results }),
+            &serde_json::json!({ "num_results": num_results, "freshness": freshness }),
             &fingerprint,
         );
 
@@ -151,10 +165,11 @@ impl WebServer {
             num_results,
             include_domains: req.include_domains.unwrap_or_default(),
             exclude_domains: req.exclude_domains.unwrap_or_default(),
-            freshness: req.freshness.clone(),
+            freshness: freshness.map(|f| f.to_string()).or(req.freshness.clone()),
         };
 
-        let mut compound = match self.pool.search(&search_query, strat).await {
+        // Task 13: CapabilityContext passed as None for now
+        let mut compound = match self.pool.search(&search_query, strat, None).await {
             Ok(c) => c,
             Err(e) => {
                 emit_tool_span(
@@ -230,7 +245,8 @@ impl WebServer {
 
         let num = num_results.unwrap_or(5).min(20);
 
-        match self.pool.find_similar(&url, num).await {
+        // Task 13: CapabilityContext passed as None for now
+        match self.pool.find_similar(&url, num, None).await {
             Ok(output) => {
                 let results: Vec<FindSimilarResultOutput> = output
                     .results
@@ -299,6 +315,34 @@ impl WebServer {
             return e.to_json_string();
         }
 
+        // Task 5: Input validation bounds
+        if url.len() > MAX_URL_LENGTH {
+            return McpToolError::invalid_argument(format!(
+                "url exceeds maximum length of {} characters",
+                MAX_URL_LENGTH
+            ))
+            .to_json_string();
+        }
+        if let Some(ref prompt) = json_prompt
+            && prompt.len() > MAX_JSON_PROMPT_LENGTH
+        {
+            return McpToolError::invalid_argument(format!(
+                "json_prompt exceeds maximum length of {} characters",
+                MAX_JSON_PROMPT_LENGTH
+            ))
+            .to_json_string();
+        }
+        if let Some(ref schema) = json_schema
+            && let Ok(bytes) = serde_json::to_string(schema)
+            && bytes.len() > MAX_JSON_SCHEMA_BYTES
+        {
+            return McpToolError::invalid_argument(format!(
+                "json_schema exceeds maximum size of {} bytes",
+                MAX_JSON_SCHEMA_BYTES
+            ))
+            .to_json_string();
+        }
+
         if let Err(e) = validate_tool_url(&url) {
             return e.to_json_string();
         }
@@ -321,7 +365,7 @@ impl WebServer {
             return McpToolOutput::with_timing(cached, start).to_json_string();
         }
 
-        match self.pool.extract(&url, &opts).await {
+        match self.pool.extract(&url, &opts, None).await {
             Ok(result) => {
                 emit_tool_span(
                     "web_extract",
@@ -367,6 +411,24 @@ impl WebServer {
             return e.to_json_string();
         }
 
+        // Task 5: Input validation bounds
+        if url.len() > MAX_URL_LENGTH {
+            return McpToolError::invalid_argument(format!(
+                "url exceeds maximum length of {} characters",
+                MAX_URL_LENGTH
+            ))
+            .to_json_string();
+        }
+        if let Some(ref instr) = instruction
+            && instr.len() > MAX_INSTRUCTION_LENGTH
+        {
+            return McpToolError::invalid_argument(format!(
+                "instruction exceeds maximum length of {} characters",
+                MAX_INSTRUCTION_LENGTH
+            ))
+            .to_json_string();
+        }
+
         if let Err(e) = validate_tool_url(&url) {
             return e.to_json_string();
         }
@@ -374,7 +436,8 @@ impl WebServer {
         let instr = instruction.unwrap_or_else(|| "Extract page content".to_string());
         let timeout = Duration::from_secs(timeout_secs.unwrap_or(30)).min(Duration::from_secs(120));
 
-        match self.pool.browse(&url, &instr, timeout).await {
+        // Task 13: CapabilityContext passed as None for now
+        match self.pool.browse(&url, &instr, timeout, None).await {
             Ok(result) => {
                 emit_tool_span("web_browse", "ok", start.elapsed().as_millis() as u64, None);
                 let output = BrowseOutput {
@@ -561,10 +624,13 @@ mod live_tests {
             exclude_domains: vec![],
             freshness: None,
         };
-        let result = server.pool.search_with_fallback(&query, "brave").await;
-        assert!(result.is_ok(), "Brave search failed: {:?}", result.err());
-        let results = result.unwrap();
-        assert!(!results.is_empty(), "Brave returned no results");
+        let result = server
+            .pool
+            .search(&query, SearchStrategy::Quick, None)
+            .await;
+        assert!(result.is_ok(), "Search failed: {:?}", result.err());
+        let compound = result.unwrap();
+        assert!(!compound.results.is_empty(), "Search returned no results");
     }
 
     #[tokio::test]
@@ -578,10 +644,10 @@ mod live_tests {
             exclude_domains: vec![],
             freshness: None,
         };
-        let result = server.pool.search_with_fallback(&query, "exa").await;
-        assert!(result.is_ok(), "Exa search failed: {:?}", result.err());
-        let results = result.unwrap();
-        assert!(!results.is_empty(), "Exa returned no results");
+        let result = server.pool.search(&query, SearchStrategy::Web, None).await;
+        assert!(result.is_ok(), "Search failed: {:?}", result.err());
+        let compound = result.unwrap();
+        assert!(!compound.results.is_empty(), "Search returned no results");
     }
 
     #[tokio::test]
@@ -590,7 +656,7 @@ mod live_tests {
         let server = make_server();
         let result = server
             .pool
-            .find_similar("https://www.rust-lang.org", 3)
+            .find_similar("https://www.rust-lang.org", 3, None)
             .await;
         assert!(result.is_ok(), "Exa findSimilar failed: {:?}", result.err());
         let output = result.unwrap();
@@ -611,16 +677,15 @@ mod live_tests {
             exclude_domains: vec![],
             freshness: None,
         };
-        let result = server
-            .pool
-            .search_compound(&query, SearchStrategy::Web)
-            .await;
+        let result = server.pool.search(&query, SearchStrategy::Web, None).await;
+        assert!(result.is_ok(), "Compound search failed: {:?}", result.err());
+        let compound = result.unwrap();
         assert!(
-            !result.results.is_empty(),
+            !compound.results.is_empty(),
             "Compound search returned no results"
         );
         assert!(
-            !result.providers_succeeded.is_empty(),
+            !compound.providers_succeeded.is_empty(),
             "No providers succeeded"
         );
     }
@@ -638,7 +703,7 @@ mod live_tests {
         };
         let result = server
             .pool
-            .extract_with_fallback("https://example.com", &opts)
+            .extract("https://example.com", &opts, None)
             .await;
         assert!(result.is_ok(), "Extract failed: {:?}", result.err());
         let content = result.unwrap();

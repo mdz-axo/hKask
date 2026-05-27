@@ -2,8 +2,11 @@
 //!
 //! Tests for CNS span emission during operations.
 
+#[allow(unused_imports)] // TODO: used only in #[test] functions
 use hkask_cns::SpanEmitter;
+#[allow(unused_imports)] // TODO: used only in #[test] functions
 use hkask_types::WebID;
+#[allow(unused_imports)] // TODO: used only in #[test] functions
 use serde_json::json;
 
 #[test]

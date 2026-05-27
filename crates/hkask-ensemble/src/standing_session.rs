@@ -29,9 +29,8 @@ pub enum StandingSessionError {
 pub struct StandingSessionConfig {
     pub session: SessionMetadata,
     pub participants: Vec<ParticipantEntry>,
-    #[allow(dead_code)]
+    #[allow(dead_code)] // TODO(governance): Wire into ensemble decision-making.
     pub rules: SessionRules,
-    #[allow(dead_code)]
     pub bootstrap: BootstrapConfig,
 }
 
@@ -39,7 +38,6 @@ pub struct StandingSessionConfig {
 pub struct SessionMetadata {
     pub id: String,
     pub name: String,
-    #[allow(dead_code)]
     pub description: String,
 }
 
@@ -49,23 +47,22 @@ pub struct ParticipantEntry {
     #[serde(rename = "type")]
     pub agent_type: String,
     pub role: String,
-    #[allow(dead_code)]
+    #[allow(dead_code)] // TODO(governance): Wire into vote counting for ensemble decisions.
     pub voting: bool,
-    #[allow(dead_code)]
     pub description: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct SessionRules {
-    #[allow(dead_code)]
+    #[allow(dead_code)] // TODO(governance): Wire into ensemble decision-making.
     pub consensus_required: bool,
-    #[allow(dead_code)]
+    #[allow(dead_code)] // TODO(governance): Wire into ensemble decision-making.
     pub orchestration_model: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct BootstrapConfig {
-    #[allow(dead_code)]
+    #[allow(dead_code)] // TODO(lifecycle): Wire into session auto-start on daemon initialization.
     pub auto_start: bool,
     pub initial_message: InitialMessage,
     pub initial_reports: Vec<InitialReport>,
@@ -73,9 +70,7 @@ pub struct BootstrapConfig {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct InitialMessage {
-    #[allow(dead_code)]
     pub from: String,
-    #[allow(dead_code)]
     #[serde(rename = "type")]
     pub message_type: String,
     pub content: String,
@@ -89,8 +84,10 @@ pub struct InitialReport {
 
 pub struct StandingSession {
     pub session_id: String,
+    pub description: String,
     pub chat: EnsembleChat,
     pub participant_names: HashMap<WebID, String>,
+    participant_descriptions: HashMap<WebID, String>,
     store: Option<Arc<dyn StandingSessionPort>>,
 }
 
@@ -102,8 +99,16 @@ impl StandingSession {
 
         participant_names.insert(curator_webid, "Curator".to_string());
 
+        let mut participant_descriptions = HashMap::new();
+
+        participant_descriptions.insert(curator_webid, "".to_string());
+
         for entry in &config.participants {
             if entry.agent == "Curator" {
+                participant_descriptions.insert(
+                    WebID::from_persona(entry.agent.as_bytes()),
+                    entry.description.clone(),
+                );
                 continue;
             }
 
@@ -122,6 +127,7 @@ impl StandingSession {
 
             chat.register_participant(participant);
             participant_names.insert(webid, entry.agent.clone());
+            participant_descriptions.insert(webid, entry.description.clone());
         }
 
         info!(
@@ -132,8 +138,10 @@ impl StandingSession {
 
         Self {
             session_id: config.session.id,
+            description: config.session.description.clone(),
             chat,
             participant_names,
+            participant_descriptions,
             store: None,
         }
     }
@@ -206,14 +214,27 @@ impl StandingSession {
 
     pub fn post_initial_messages(&mut self, config: &StandingSessionConfig) {
         let curator_webid = *self.chat.curator();
+        let initial_from = config
+            .participants
+            .iter()
+            .find(|p| p.agent == config.bootstrap.initial_message.from)
+            .map(|p| WebID::from_persona(p.agent.as_bytes()))
+            .unwrap_or(curator_webid);
         let initial_msg = ChatMessage::new(
-            curator_webid,
+            initial_from,
             config.bootstrap.initial_message.content.clone(),
         );
         self.chat.add_message(initial_msg.clone());
         if let Err(e) = self.persist_message(&initial_msg) {
             tracing::warn!(target: "standing_session", error = %e, "Failed to persist initial message");
         }
+
+        info!(
+            session_id = %self.session_id,
+            from = %config.bootstrap.initial_message.from,
+            message_type = %config.bootstrap.initial_message.message_type,
+            "Initial message posted"
+        );
 
         for report in &config.bootstrap.initial_reports {
             let webid = WebID::from_persona(report.from.as_bytes());
@@ -244,11 +265,17 @@ impl StandingSession {
                     .get(webid)
                     .map(|p| format!("{:?}", p.role))
                     .unwrap_or_else(|| "unknown".to_string()),
+                description: self
+                    .participant_descriptions
+                    .get(webid)
+                    .cloned()
+                    .unwrap_or_default(),
             })
             .collect();
 
         StandingSessionStatus {
             session_id: self.session_id.clone(),
+            description: self.description.clone(),
             participant_count: participants.len(),
             message_count: self.chat.get_history().len(),
             participants,
@@ -259,6 +286,7 @@ impl StandingSession {
 #[derive(Debug)]
 pub struct StandingSessionStatus {
     pub session_id: String,
+    pub description: String,
     pub participant_count: usize,
     pub message_count: usize,
     pub participants: Vec<ParticipantStatus>,
@@ -269,6 +297,7 @@ pub struct ParticipantStatus {
     pub name: String,
     pub webid: String,
     pub role: String,
+    pub description: String,
 }
 
 pub fn load_standing_session_config(
@@ -376,6 +405,7 @@ bootstrap:
         let session = StandingSession::from_config(config);
 
         assert_eq!(session.session_id, "test-standing-session");
+        assert_eq!(session.description, "A test session");
         assert_eq!(session.participant_names.len(), 3);
         assert!(session.participant_names.values().any(|n| n == "Curator"));
         assert!(

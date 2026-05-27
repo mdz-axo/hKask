@@ -2,8 +2,11 @@
 //!
 //! Tests for rate limiting and basic inference operations.
 
+#[allow(unused_imports)] // TODO: used only in #[test] functions
 use hkask_cns::{RateLimitConfig, RateLimiter};
+#[allow(unused_imports)] // TODO: used only in #[test] functions
 use hkask_types::WebID;
+#[allow(unused_imports)] // TODO: used only in #[test] functions
 use std::time::Duration;
 
 /// Test rate limiting blocks excess requests

@@ -3,22 +3,25 @@
 //! Tests the complete cascade execution model including:
 //! - Stage execution with ManifestExecutor
 //! - Named operations in CspExecutor
-#![allow(dead_code)]
 //! - Jinja2 rendering in Populate action
 //! - Inference/MCP dispatch in Execute action
 //! - Error classification and retry logic
 //! - Condition evaluation for stage skipping
 //! - Energy accounting and budget enforcement
 
+#[allow(unused_imports)] // TODO: used only in #[tokio::test] functions
 use hkask_templates::cascade::{
     CapabilityConfig, CascadeConfig, CascadeContext, CascadeEngine, CascadeLimits,
     CnsFeedbackConfig, CycleDetectionConfig, EnergyConfig, ManifestCascadeConfig,
     TemplateCascadeConfig,
 };
+#[allow(unused_imports)] // TODO: used only in #[tokio::test] functions
 use hkask_templates::csp::{CspConfig, CspExecutor, StageConfig};
+#[allow(unused_imports)] // TODO: used only in #[tokio::test] functions
+use hkask_templates::ports::{Action, ManifestExecutor, ManifestStep, ProcessManifest};
 use hkask_templates::ports::{
-    Action, CompositionTemplate, InferenceConfig, ManifestExecutor, ManifestStep, McpPort,
-    ProcessManifest, SyncInferencePort, TemplateError, TemplateRenderer, ToolInfo,
+    CompositionTemplate, InferenceConfig, McpPort, SyncInferencePort, TemplateError,
+    TemplateRenderer, ToolInfo,
 };
 use serde_json::json;
 use std::collections::HashMap;
@@ -26,10 +29,12 @@ use std::path::Path;
 
 // Mock implementations for testing
 
+#[allow(dead_code)] // TODO: used only in #[tokio::test] functions
 struct MockRenderer {
     templates: HashMap<String, String>,
 }
 
+#[allow(dead_code)] // TODO: used only in #[tokio::test] functions
 impl MockRenderer {
     fn new() -> Self {
         Self {
@@ -87,10 +92,12 @@ impl TemplateRenderer for MockRenderer {
     }
 }
 
+#[allow(dead_code)] // TODO: used only in #[tokio::test] functions
 struct MockInference {
     responses: HashMap<String, serde_json::Value>,
 }
 
+#[allow(dead_code)] // TODO: used only in #[tokio::test] functions
 impl MockInference {
     fn new() -> Self {
         Self {
@@ -120,10 +127,12 @@ impl SyncInferencePort for MockInference {
     }
 }
 
+#[allow(dead_code)] // TODO: used only in #[tokio::test] functions
 struct MockMcp {
     tools: HashMap<String, Box<dyn Fn(serde_json::Value) -> serde_json::Value + Send + Sync>>,
 }
 
+#[allow(dead_code)] // TODO: used only in #[tokio::test] functions
 impl MockMcp {
     fn new() -> Self {
         Self {
@@ -173,6 +182,7 @@ impl McpPort for MockMcp {
     }
 }
 
+#[allow(dead_code)] // TODO: used only in #[tokio::test] functions
 struct MockCns;
 
 impl hkask_cns::CnsEmit for MockCns {
@@ -188,6 +198,7 @@ impl hkask_cns::CnsEmit for MockCns {
 }
 
 // Helper function to create a default CascadeConfig
+#[allow(dead_code)] // TODO: used only in #[tokio::test] functions
 fn default_cascade_config() -> CascadeConfig {
     CascadeConfig {
         cascade_limits: CascadeLimits {

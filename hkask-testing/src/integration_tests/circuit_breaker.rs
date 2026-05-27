@@ -2,7 +2,9 @@
 //!
 //! Tests for circuit breaker state transitions.
 
+#[allow(unused_imports)] // TODO: used only in #[test] functions
 use hkask_templates::resilience::{CircuitBreaker, CircuitBreakerConfig, CircuitState};
+#[allow(unused_imports)] // TODO: used only in #[test] functions
 use std::time::Duration;
 
 /// Test circuit breaker opens after failure threshold

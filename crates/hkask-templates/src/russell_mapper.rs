@@ -114,7 +114,6 @@ pub struct MappedTemplate {
 
 /// Russell mapper — generic YAML processor
 pub struct RussellMapper {
-    #[allow(dead_code)]
     config: RussellMappingConfig,
 }
 
@@ -184,9 +183,9 @@ impl RussellMapper {
 
     /// Map Russell manifest to hKask template
     pub fn map_to_hkask(&self, russell: &RussellSkillManifest) -> MappedTemplate {
-        let hkask_id = transform_id(&russell.id, &self.config.id_transformation);
-        let template_type = infer_template_type(russell, &self.config.template_type_inference);
-        let model_tier = select_model_tier(russell, &self.config.model_tier_selection);
+        let hkask_id = self.transform_id(&russell.id);
+        let template_type = self.infer_template_type(russell);
+        let model_tier = self.select_model_tier(russell);
         let description = russell.symptoms.join("\n");
         let energy_cap = calculate_energy_budget(russell);
 
@@ -198,39 +197,32 @@ impl RussellMapper {
             energy_cap,
         }
     }
-}
 
-/// Transform Russell ID to hKask ID
-fn transform_id(russell_id: &str, config: &IdTransformation) -> String {
-    let suffix = russell_id
-        .strip_prefix("skill/russell/")
-        .unwrap_or(russell_id);
-    format!("{}{}", config.prefix, suffix)
-}
-
-/// Infer template type from Russell manifest
-fn infer_template_type(
-    russell: &RussellSkillManifest,
-    _config: &TemplateTypeInference,
-) -> TemplateType {
-    let probe_count = russell.probes.len();
-    let intervention_count = russell.interventions.len();
-
-    if probe_count > 0 && intervention_count > 0 {
-        TemplateType::Process
-    } else if probe_count > 0 {
-        TemplateType::Prompt
-    } else {
-        TemplateType::Cognition
+    fn transform_id(&self, russell_id: &str) -> String {
+        let suffix = russell_id
+            .strip_prefix("skill/russell/")
+            .unwrap_or(russell_id);
+        format!("{}{}", self.config.id_transformation.prefix, suffix)
     }
-}
 
-/// Select model tier based on Russell manifest
-fn select_model_tier(russell: &RussellSkillManifest, config: &ModelTierSelection) -> String {
-    if russell.symptoms.len() <= 3 {
-        "fast_local".to_string()
-    } else {
-        config.default.clone()
+    fn infer_template_type(&self, russell: &RussellSkillManifest) -> TemplateType {
+        let probe_count = russell.probes.len();
+        let intervention_count = russell.interventions.len();
+        if probe_count > 0 && intervention_count > 0 {
+            TemplateType::Process
+        } else if probe_count > 0 {
+            TemplateType::Prompt
+        } else {
+            TemplateType::Cognition
+        }
+    }
+
+    fn select_model_tier(&self, russell: &RussellSkillManifest) -> String {
+        if russell.symptoms.len() <= 3 {
+            "fast_local".to_string()
+        } else {
+            self.config.model_tier_selection.default.clone()
+        }
     }
 }
 
@@ -251,12 +243,9 @@ mod tests {
 
     #[test]
     fn test_id_transformation() {
-        let config = IdTransformation {
-            prefix: "skill/hkask/".to_string(),
-            preserve_suffix: true,
-        };
+        let mapper = RussellMapper::new();
         assert_eq!(
-            transform_id("skill/russell/semantic", &config),
+            mapper.transform_id("skill/russell/semantic"),
             "skill/hkask/semantic"
         );
     }
@@ -271,14 +260,8 @@ mod tests {
             interventions: vec![Value::String("test".to_string())],
             safety: Value::Null,
         };
-        let config = TemplateTypeInference {
-            rules: vec![],
-            default: "Process".to_string(),
-        };
-        assert_eq!(
-            infer_template_type(&russell, &config),
-            TemplateType::Process
-        );
+        let mapper = RussellMapper::new();
+        assert_eq!(mapper.infer_template_type(&russell), TemplateType::Process);
     }
 
     #[test]

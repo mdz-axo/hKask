@@ -224,8 +224,17 @@ impl SearchStrategy {
 pub enum ProviderFilter {
     All,
     Capabilities(Vec<SearchCapability>),
-    #[allow(dead_code)]
     Kinds(Vec<&'static str>),
+}
+
+impl ProviderFilter {
+    pub fn matches(&self, provider_kind: &str) -> bool {
+        match self {
+            ProviderFilter::All => true,
+            ProviderFilter::Capabilities(_caps) => true, // capabilities filtering is done separately
+            ProviderFilter::Kinds(kinds) => kinds.contains(&provider_kind),
+        }
+    }
 }
 
 impl std::fmt::Display for SearchStrategy {
@@ -469,6 +478,17 @@ pub fn freshness_serpapi(freshness: &Freshness) -> String {
         Freshness::Week => "qdr:w".to_string(),
         Freshness::Month => "qdr:m".to_string(),
         Freshness::Year => "qdr:y".to_string(),
+    }
+}
+
+impl std::fmt::Display for Freshness {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Freshness::Day => write!(f, "day"),
+            Freshness::Week => write!(f, "week"),
+            Freshness::Month => write!(f, "month"),
+            Freshness::Year => write!(f, "year"),
+        }
     }
 }
 
