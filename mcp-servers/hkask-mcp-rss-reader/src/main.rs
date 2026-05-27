@@ -1240,7 +1240,7 @@ impl RssServer {
     #[tool(description = "Export subscriptions as OPML 2.0")]
     async fn rss_export_opml(&self) -> String {
         let db = self.db.clone();
-        let result = spawn_db(db, move |conn| export_opml(conn)).await;
+        let result = spawn_db(db, export_opml).await;
 
         match result {
             Ok(Ok(opml)) => McpToolOutput::new(serde_json::json!({"opml": opml})).to_json_string(),
