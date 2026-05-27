@@ -1,8 +1,8 @@
 //! hKask MCP Fal — Fal.ai API integration (image, video, audio generation)
 
 use hkask_mcp::server::{
-    CredentialRequirement, McpToolError, McpToolOutput, classify_http_error,
-    emit_tool_span, resolve_credential, run_stdio_server, validate_tool_url,
+    CredentialRequirement, McpToolError, McpToolOutput, classify_http_error, emit_tool_span,
+    resolve_credential, run_stdio_server, validate_tool_url,
 };
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -216,8 +216,15 @@ impl FalServer {
                 if status == reqwest::StatusCode::UNAUTHORIZED
                     || status == reqwest::StatusCode::FORBIDDEN
                 {
-                    let err = McpToolError::permission_denied("Fal.ai API key is invalid or unauthorized");
-                    emit_tool_span("fal_ping", "error", start.elapsed().as_millis() as u64, Some(&err.kind));
+                    let err = McpToolError::permission_denied(
+                        "Fal.ai API key is invalid or unauthorized",
+                    );
+                    emit_tool_span(
+                        "fal_ping",
+                        "error",
+                        start.elapsed().as_millis() as u64,
+                        Some(&err.kind),
+                    );
                     err.to_json_string()
                 } else {
                     emit_tool_span("fal_ping", "ok", start.elapsed().as_millis() as u64, None);
@@ -253,11 +260,21 @@ impl FalServer {
         });
         match fal_post(&self.client, "fal-ai/flux/schnell", body).await {
             Ok(v) => {
-                emit_tool_span("fal_generate_image", "ok", start.elapsed().as_millis() as u64, None);
+                emit_tool_span(
+                    "fal_generate_image",
+                    "ok",
+                    start.elapsed().as_millis() as u64,
+                    None,
+                );
                 McpToolOutput::with_timing(v, start).to_json_string()
             }
             Err(e) => {
-                emit_tool_span("fal_generate_image", "error", start.elapsed().as_millis() as u64, Some(&e.kind));
+                emit_tool_span(
+                    "fal_generate_image",
+                    "error",
+                    start.elapsed().as_millis() as u64,
+                    Some(&e.kind),
+                );
                 e.to_json_string()
             }
         }
@@ -340,11 +357,21 @@ impl FalServer {
         }
         match self.queue_post("fal-ai/minimax/video-01-live", body).await {
             Ok(v) => {
-                emit_tool_span("fal_generate_video", "ok", start.elapsed().as_millis() as u64, None);
+                emit_tool_span(
+                    "fal_generate_video",
+                    "ok",
+                    start.elapsed().as_millis() as u64,
+                    None,
+                );
                 McpToolOutput::with_timing(v, start).to_json_string()
             }
             Err(e) => {
-                emit_tool_span("fal_generate_video", "error", start.elapsed().as_millis() as u64, Some(&e.kind));
+                emit_tool_span(
+                    "fal_generate_video",
+                    "error",
+                    start.elapsed().as_millis() as u64,
+                    Some(&e.kind),
+                );
                 e.to_json_string()
             }
         }

@@ -245,11 +245,7 @@ impl std::error::Error for McpToolError {}
 /// Rejects empty strings, strings longer than `max_len`, and strings
 /// containing characters outside the allowed set `[a-zA-Z0-9_.-]`.
 /// This prevents injection in URL paths and query parameters.
-pub fn validate_identifier(
-    name: &str,
-    value: &str,
-    max_len: usize,
-) -> Result<(), McpToolError> {
+pub fn validate_identifier(name: &str, value: &str, max_len: usize) -> Result<(), McpToolError> {
     if value.is_empty() {
         return Err(McpToolError::invalid_argument(format!(
             "{name} must not be empty"
@@ -277,9 +273,8 @@ pub fn validate_identifier(
 /// Delegates to `hkask_mcp::validate_url()` with the default (strict) config.
 /// Use this for any tool that accepts a user-provided URL.
 pub fn validate_tool_url(url: &str) -> Result<(), McpToolError> {
-    crate::validate_url(url, &crate::UrlValidationConfig::default()).map_err(|e| {
-        McpToolError::invalid_argument(format!("URL validation failed: {e}"))
-    })
+    crate::validate_url(url, &crate::UrlValidationConfig::default())
+        .map_err(|e| McpToolError::invalid_argument(format!("URL validation failed: {e}")))
 }
 
 // =============================================================================
@@ -297,11 +292,7 @@ pub fn validate_tool_url(url: &str) -> Result<(), McpToolError> {
 /// - Everything else → `Internal`
 ///
 /// The `service` parameter prefixes the error message (e.g., `"GitHub"`, `"FMP"`).
-pub fn classify_http_error(
-    service: &str,
-    status: reqwest::StatusCode,
-    body: &str,
-) -> McpToolError {
+pub fn classify_http_error(service: &str, status: reqwest::StatusCode, body: &str) -> McpToolError {
     let msg = format!("{service} API returned {status}: {}", body.trim());
     match status.as_u16() {
         401 | 403 => McpToolError::permission_denied(msg),

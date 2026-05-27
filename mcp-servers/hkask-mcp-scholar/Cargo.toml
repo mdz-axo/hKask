@@ -3,14 +3,22 @@ name = "hkask-mcp-scholar"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Academic research MCP server"
+description = "Academic research MCP server via Semantic Scholar Graph API"
 
 [dependencies]
+hkask-mcp = { path = "../../crates/hkask-mcp" }
 hkask-types = { path = "../../crates/hkask-types" }
-rmcp.workspace = true
+rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
 reqwest.workspace = true
+tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+schemars.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
-tokio.workspace = true
+tracing-subscriber.workspace = true
+chrono.workspace = true
+anyhow.workspace = true
+async-trait.workspace = true
+rusqlite.workspace = true
+urlencoding.workspace = true

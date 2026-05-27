@@ -4,9 +4,8 @@
 //! Phase 9: Git archival via GitHub MCP tool calls.
 
 use hkask_mcp::server::{
-    CredentialRequirement, McpToolError, McpToolOutput, api_get, api_post,
-    classify_http_error, emit_tool_span, resolve_credential, run_stdio_server,
-    validate_identifier,
+    CredentialRequirement, McpToolError, McpToolOutput, api_get, api_post, classify_http_error,
+    emit_tool_span, resolve_credential, run_stdio_server, validate_identifier,
 };
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -181,11 +180,21 @@ impl GithubServer {
         match api_get(&self.client, "GitHub", &url).await {
             Ok(v) => {
                 let out = McpToolOutput::with_timing(extract_repo_summary(&v), start);
-                emit_tool_span("github_get_repo", "ok", start.elapsed().as_millis() as u64, None);
+                emit_tool_span(
+                    "github_get_repo",
+                    "ok",
+                    start.elapsed().as_millis() as u64,
+                    None,
+                );
                 out.to_json_string()
             }
             Err(e) => {
-                emit_tool_span("github_get_repo", "error", start.elapsed().as_millis() as u64, Some(&e.kind));
+                emit_tool_span(
+                    "github_get_repo",
+                    "error",
+                    start.elapsed().as_millis() as u64,
+                    Some(&e.kind),
+                );
                 e.to_json_string()
             }
         }
@@ -296,7 +305,12 @@ impl GithubServer {
         }
         match api_post(&self.client, "GitHub", &url, &payload).await {
             Ok(v) => {
-                emit_tool_span("github_create_issue", "ok", start.elapsed().as_millis() as u64, None);
+                emit_tool_span(
+                    "github_create_issue",
+                    "ok",
+                    start.elapsed().as_millis() as u64,
+                    None,
+                );
                 McpToolOutput::with_timing(
                     serde_json::json!({
                         "owner": owner, "repo": repo,
@@ -308,7 +322,12 @@ impl GithubServer {
                 .to_json_string()
             }
             Err(e) => {
-                emit_tool_span("github_create_issue", "error", start.elapsed().as_millis() as u64, Some(&e.kind));
+                emit_tool_span(
+                    "github_create_issue",
+                    "error",
+                    start.elapsed().as_millis() as u64,
+                    Some(&e.kind),
+                );
                 e.to_json_string()
             }
         }
@@ -335,7 +354,12 @@ impl GithubServer {
         let payload = serde_json::json!({ "body": body });
         match api_post(&self.client, "GitHub", &url, &payload).await {
             Ok(v) => {
-                emit_tool_span("github_add_comment", "ok", start.elapsed().as_millis() as u64, None);
+                emit_tool_span(
+                    "github_add_comment",
+                    "ok",
+                    start.elapsed().as_millis() as u64,
+                    None,
+                );
                 McpToolOutput::with_timing(
                     serde_json::json!({
                         "owner": owner, "repo": repo, "issue": issue_number,
@@ -346,7 +370,12 @@ impl GithubServer {
                 .to_json_string()
             }
             Err(e) => {
-                emit_tool_span("github_add_comment", "error", start.elapsed().as_millis() as u64, Some(&e.kind));
+                emit_tool_span(
+                    "github_add_comment",
+                    "error",
+                    start.elapsed().as_millis() as u64,
+                    Some(&e.kind),
+                );
                 e.to_json_string()
             }
         }

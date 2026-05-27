@@ -1,8 +1,8 @@
 //! hKask MCP Telnyx — Telnyx API v2 integration (SMS, voice, WhatsApp)
 
 use hkask_mcp::server::{
-    CredentialRequirement, McpToolOutput, api_get, api_post,
-    emit_tool_span, resolve_credential, run_stdio_server, validate_tool_url,
+    CredentialRequirement, McpToolOutput, api_get, api_post, emit_tool_span, resolve_credential,
+    run_stdio_server, validate_tool_url,
 };
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -75,7 +75,12 @@ impl TelnyxServer {
         let url = format!("{BASE_URL}/phone_numbers?page_size=1");
         match api_get(&self.client, "Telnyx", &url).await {
             Ok(body) => {
-                emit_tool_span("telnyx_ping", "ok", start.elapsed().as_millis() as u64, None);
+                emit_tool_span(
+                    "telnyx_ping",
+                    "ok",
+                    start.elapsed().as_millis() as u64,
+                    None,
+                );
                 McpToolOutput::with_timing(
                     serde_json::json!({
                         "status": "ok",
@@ -87,7 +92,12 @@ impl TelnyxServer {
                 .to_json_string()
             }
             Err(e) => {
-                emit_tool_span("telnyx_ping", "error", start.elapsed().as_millis() as u64, Some(&e.kind));
+                emit_tool_span(
+                    "telnyx_ping",
+                    "error",
+                    start.elapsed().as_millis() as u64,
+                    Some(&e.kind),
+                );
                 e.to_json_string()
             }
         }
@@ -119,11 +129,21 @@ impl TelnyxServer {
         });
         match api_post(&self.client, "Telnyx", &url, &payload).await {
             Ok(resp_body) => {
-                emit_tool_span("telnyx_buy_number", "ok", start.elapsed().as_millis() as u64, None);
+                emit_tool_span(
+                    "telnyx_buy_number",
+                    "ok",
+                    start.elapsed().as_millis() as u64,
+                    None,
+                );
                 McpToolOutput::with_timing(resp_body, start).to_json_string()
             }
             Err(e) => {
-                emit_tool_span("telnyx_buy_number", "error", start.elapsed().as_millis() as u64, Some(&e.kind));
+                emit_tool_span(
+                    "telnyx_buy_number",
+                    "error",
+                    start.elapsed().as_millis() as u64,
+                    Some(&e.kind),
+                );
                 e.to_json_string()
             }
         }
@@ -143,11 +163,21 @@ impl TelnyxServer {
         });
         match api_post(&self.client, "Telnyx", &url, &payload).await {
             Ok(resp_body) => {
-                emit_tool_span("telnyx_send_sms", "ok", start.elapsed().as_millis() as u64, None);
+                emit_tool_span(
+                    "telnyx_send_sms",
+                    "ok",
+                    start.elapsed().as_millis() as u64,
+                    None,
+                );
                 McpToolOutput::with_timing(resp_body, start).to_json_string()
             }
             Err(e) => {
-                emit_tool_span("telnyx_send_sms", "error", start.elapsed().as_millis() as u64, Some(&e.kind));
+                emit_tool_span(
+                    "telnyx_send_sms",
+                    "error",
+                    start.elapsed().as_millis() as u64,
+                    Some(&e.kind),
+                );
                 e.to_json_string()
             }
         }
@@ -174,11 +204,21 @@ impl TelnyxServer {
         });
         match api_post(&self.client, "Telnyx", &url, &payload).await {
             Ok(resp_body) => {
-                emit_tool_span("telnyx_make_call", "ok", start.elapsed().as_millis() as u64, None);
+                emit_tool_span(
+                    "telnyx_make_call",
+                    "ok",
+                    start.elapsed().as_millis() as u64,
+                    None,
+                );
                 McpToolOutput::with_timing(resp_body, start).to_json_string()
             }
             Err(e) => {
-                emit_tool_span("telnyx_make_call", "error", start.elapsed().as_millis() as u64, Some(&e.kind));
+                emit_tool_span(
+                    "telnyx_make_call",
+                    "error",
+                    start.elapsed().as_millis() as u64,
+                    Some(&e.kind),
+                );
                 e.to_json_string()
             }
         }
@@ -207,11 +247,21 @@ impl TelnyxServer {
         });
         match api_post(&self.client, "Telnyx", &url, &payload).await {
             Ok(resp_body) => {
-                emit_tool_span("telnyx_send_whatsapp", "ok", start.elapsed().as_millis() as u64, None);
+                emit_tool_span(
+                    "telnyx_send_whatsapp",
+                    "ok",
+                    start.elapsed().as_millis() as u64,
+                    None,
+                );
                 McpToolOutput::with_timing(resp_body, start).to_json_string()
             }
             Err(e) => {
-                emit_tool_span("telnyx_send_whatsapp", "error", start.elapsed().as_millis() as u64, Some(&e.kind));
+                emit_tool_span(
+                    "telnyx_send_whatsapp",
+                    "error",
+                    start.elapsed().as_millis() as u64,
+                    Some(&e.kind),
+                );
                 e.to_json_string()
             }
         }

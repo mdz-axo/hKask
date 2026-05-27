@@ -12,7 +12,9 @@
 
 use base64::Engine;
 use chrono::Utc;
-use hkask_mcp::server::{McpToolError, McpToolOutput, emit_tool_span, run_stdio_server, validate_tool_url};
+use hkask_mcp::server::{
+    McpToolError, McpToolOutput, emit_tool_span, run_stdio_server, validate_tool_url,
+};
 use reqwest::Client;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use rusqlite::Connection;
@@ -971,11 +973,21 @@ impl RssServer {
 
         match result {
             Ok(Ok(v)) => {
-                emit_tool_span("rss_subscribe", "ok", start.elapsed().as_millis() as u64, None);
+                emit_tool_span(
+                    "rss_subscribe",
+                    "ok",
+                    start.elapsed().as_millis() as u64,
+                    None,
+                );
                 McpToolOutput::with_timing(v, start).to_json_string()
             }
             Ok(Err(e)) => {
-                emit_tool_span("rss_subscribe", "error", start.elapsed().as_millis() as u64, None);
+                emit_tool_span(
+                    "rss_subscribe",
+                    "error",
+                    start.elapsed().as_millis() as u64,
+                    None,
+                );
                 McpToolError::internal(e.to_string()).to_json_string()
             }
             Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
@@ -998,7 +1010,12 @@ impl RssServer {
 
         match result {
             Ok(Ok(removed)) => {
-                emit_tool_span("rss_unsubscribe", "ok", start.elapsed().as_millis() as u64, None);
+                emit_tool_span(
+                    "rss_unsubscribe",
+                    "ok",
+                    start.elapsed().as_millis() as u64,
+                    None,
+                );
                 McpToolOutput::new(serde_json::json!({
                     "stream_id": stream_id,
                     "unsubscribed": removed > 0,

@@ -15,8 +15,8 @@
 //! - `fmp_dcf` — Discounted cash flow analysis
 
 use hkask_mcp::server::{
-    CredentialRequirement, McpToolError, McpToolOutput, classify_http_error,
-    emit_tool_span, resolve_credential, run_stdio_server, validate_identifier,
+    CredentialRequirement, McpToolError, McpToolOutput, classify_http_error, emit_tool_span,
+    resolve_credential, run_stdio_server, validate_identifier,
 };
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -122,7 +122,12 @@ impl FmpServer {
                 .to_json_string()
             }
             Err(e) => {
-                emit_tool_span("fmp_ping", "error", start.elapsed().as_millis() as u64, Some(&e.kind));
+                emit_tool_span(
+                    "fmp_ping",
+                    "error",
+                    start.elapsed().as_millis() as u64,
+                    Some(&e.kind),
+                );
                 McpToolOutput::with_timing(
                     serde_json::json!({
                         "status": "not_ok",
