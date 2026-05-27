@@ -1,10 +1,26 @@
 //! hKask MCP FMP — Financial Modeling Prep API integration
+//!
+//! Uses the FMP /stable/ API endpoints (v3 endpoints deprecated Aug 2025).
+//! Tools:
+//! - `fmp_ping` — API reachability check
+//! - `fmp_company_profile` — Company profile by symbol
+//! - `fmp_quote` — Real-time stock quote
+//! - `fmp_income_statement` — Income statements
+//! - `fmp_balance_sheet` — Balance sheet statements
+//! - `fmp_cash_flow_statement` — Cash flow statements
+//! - `fmp_key_metrics` — Key financial metrics
+//! - `fmp_historical_price` — Historical price data
+//! - `fmp_search` — Symbol search
+//! - `fmp_analyst_estimates` — Analyst estimates
+//! - `fmp_dcf` — Discounted cash flow analysis
 
 use rmcp::{ServiceExt, handler::server::wrapper::Parameters, tool, tool_router, transport::stdio};
 use schemars::JsonSchema;
 use serde::Deserialize;
+use serde_json::Value;
 
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
+const BASE_URL: &str = "https://financialmodelingprep.com/stable";
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct SymbolRequest {
@@ -30,12 +46,56 @@ pub struct SearchRequest {
     pub limit: Option<u32>,
 }
 
-#[derive(Debug, Default)]
-pub struct FmpServer;
+#[derive(Debug)]
+pub struct FmpServer {
+    client: reqwest::Client,
+    api_key: String,
+}
+
+impl Default for FmpServer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl FmpServer {
     pub fn new() -> Self {
-        Self
+        let api_key = std::env::var("HKASK_FMP_API_KEY")
+            .expect("HKASK_FMP_API_KEY environment variable must be set");
+        let client = reqwest::Client::new();
+        Self { client, api_key }
+    }
+
+    async fn get_with_params(
+        &self,
+        path: &str,
+        params: &[(&str, &str)],
+    ) -> Result<Value, String> {
+        let url = format!("{BASE_URL}{path}");
+        let mut query: Vec<(&str, &str)> = params.to_vec();
+        query.push(("apikey", &self.api_key));
+
+        let resp = self
+            .client
+            .get(&url)
+            .query(&query)
+            .send()
+            .await
+            .map_err(|e| format!("request failed: {e}"))?;
+
+        let status = resp.status();
+        if !status.is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            return Err(format!("API returned {status}: {body}"));
+        }
+
+        resp.json::<Value>()
+            .await
+            .map_err(|e| format!("failed to parse response: {e}"))
+    }
+
+    fn err_json(msg: &str) -> String {
+        serde_json::json!({ "error": msg }).to_string()
     }
 }
 
@@ -43,7 +103,18 @@ impl FmpServer {
 impl FmpServer {
     #[tool(description = "Ping FMP API")]
     async fn fmp_ping(&self) -> String {
-        r#"{"status":"ok","message":"FMP API is reachable"}"#.to_string()
+        match self.get_with_params("/profile", &[("symbol", "AAPL")]).await {
+            Ok(_) => serde_json::json!({
+                "status": "ok",
+                "message": "FMP API is reachable"
+            })
+            .to_string(),
+            Err(e) => serde_json::json!({
+                "status": "not_ok",
+                "error": e
+            })
+            .to_string(),
+        }
     }
 
     #[tool(description = "Get company profile")]
@@ -51,12 +122,10 @@ impl FmpServer {
         &self,
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
-        serde_json::json!({
-            "symbol": symbol,
-            "name": "Company Inc",
-            "sector": "Technology",
-        })
-        .to_string()
+        match self.get_with_params("/profile", &[("symbol", &symbol)]).await {
+            Ok(v) => v.to_string(),
+            Err(e) => Self::err_json(&e),
+        }
     }
 
     #[tool(description = "Get stock quote")]
@@ -64,12 +133,10 @@ impl FmpServer {
         &self,
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
-        serde_json::json!({
-            "symbol": symbol,
-            "price": 150.25,
-            "change": 2.5,
-        })
-        .to_string()
+        match self.get_with_params("/quote", &[("symbol", &symbol)]).await {
+            Ok(v) => v.to_string(),
+            Err(e) => Self::err_json(&e),
+        }
     }
 
     #[tool(description = "Get income statement")]
@@ -77,12 +144,14 @@ impl FmpServer {
         &self,
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
-        serde_json::json!({
-            "symbol": symbol,
-            "limit": limit.unwrap_or(1),
-            "statements": [],
-        })
-        .to_string()
+        let limit_str = limit.unwrap_or(5).to_string();
+        match self
+            .get_with_params("/income-statement", &[("symbol", &symbol), ("limit", &limit_str)])
+            .await
+        {
+            Ok(v) => v.to_string(),
+            Err(e) => Self::err_json(&e),
+        }
     }
 
     #[tool(description = "Get balance sheet")]
@@ -90,12 +159,14 @@ impl FmpServer {
         &self,
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
-        serde_json::json!({
-            "symbol": symbol,
-            "limit": limit.unwrap_or(1),
-            "sheets": [],
-        })
-        .to_string()
+        let limit_str = limit.unwrap_or(5).to_string();
+        match self
+            .get_with_params("/balance-sheet-statement", &[("symbol", &symbol), ("limit", &limit_str)])
+            .await
+        {
+            Ok(v) => v.to_string(),
+            Err(e) => Self::err_json(&e),
+        }
     }
 
     #[tool(description = "Get cash flow statement")]
@@ -103,12 +174,14 @@ impl FmpServer {
         &self,
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
-        serde_json::json!({
-            "symbol": symbol,
-            "limit": limit.unwrap_or(1),
-            "flows": [],
-        })
-        .to_string()
+        let limit_str = limit.unwrap_or(5).to_string();
+        match self
+            .get_with_params("/cash-flow-statement", &[("symbol", &symbol), ("limit", &limit_str)])
+            .await
+        {
+            Ok(v) => v.to_string(),
+            Err(e) => Self::err_json(&e),
+        }
     }
 
     #[tool(description = "Get key metrics")]
@@ -116,12 +189,14 @@ impl FmpServer {
         &self,
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
-        serde_json::json!({
-            "symbol": symbol,
-            "limit": limit.unwrap_or(1),
-            "metrics": {},
-        })
-        .to_string()
+        let limit_str = limit.unwrap_or(5).to_string();
+        match self
+            .get_with_params("/key-metrics", &[("symbol", &symbol), ("limit", &limit_str)])
+            .await
+        {
+            Ok(v) => v.to_string(),
+            Err(e) => Self::err_json(&e),
+        }
     }
 
     #[tool(description = "Get historical price data")]
@@ -129,13 +204,13 @@ impl FmpServer {
         &self,
         Parameters(HistoricalRequest { symbol, from, to }): Parameters<HistoricalRequest>,
     ) -> String {
-        serde_json::json!({
-            "symbol": symbol,
-            "from": from,
-            "to": to,
-            "prices": [],
-        })
-        .to_string()
+        match self
+            .get_with_params("/historical-price-full", &[("symbol", &symbol), ("from", &from), ("to", &to)])
+            .await
+        {
+            Ok(v) => v.to_string(),
+            Err(e) => Self::err_json(&e),
+        }
     }
 
     #[tool(description = "Search for symbols")]
@@ -143,12 +218,14 @@ impl FmpServer {
         &self,
         Parameters(SearchRequest { query, limit }): Parameters<SearchRequest>,
     ) -> String {
-        serde_json::json!({
-            "query": query,
-            "limit": limit.unwrap_or(10),
-            "results": [],
-        })
-        .to_string()
+        let limit_str = limit.unwrap_or(10).to_string();
+        match self
+            .get_with_params("/search-name", &[("query", &query), ("limit", &limit_str)])
+            .await
+        {
+            Ok(v) => v.to_string(),
+            Err(e) => Self::err_json(&e),
+        }
     }
 
     #[tool(description = "Get analyst estimates")]
@@ -156,11 +233,13 @@ impl FmpServer {
         &self,
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
-        serde_json::json!({
-            "symbol": symbol,
-            "estimates": {},
-        })
-        .to_string()
+        match self
+            .get_with_params("/analyst-estimates", &[("symbol", &symbol), ("period", "annual")])
+            .await
+        {
+            Ok(v) => v.to_string(),
+            Err(e) => Self::err_json(&e),
+        }
     }
 
     #[tool(description = "Get discounted cash flow analysis")]
@@ -168,12 +247,10 @@ impl FmpServer {
         &self,
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
-        serde_json::json!({
-            "symbol": symbol,
-            "dcf_value": 175.50,
-            "current_price": 150.25,
-        })
-        .to_string()
+        match self.get_with_params("/discounted-cash-flow", &[("symbol", &symbol)]).await {
+            Ok(v) => v.to_string(),
+            Err(e) => Self::err_json(&e),
+        }
     }
 }
 

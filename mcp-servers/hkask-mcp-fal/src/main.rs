@@ -3,8 +3,36 @@
 use rmcp::{ServiceExt, handler::server::wrapper::Parameters, tool, tool_router, transport::stdio};
 use schemars::JsonSchema;
 use serde::Deserialize;
+use serde_json::Value;
+use std::time::Duration;
 
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
+const SYNC_BASE: &str = "https://fal.run";
+const QUEUE_BASE: &str = "https://queue.fal.run";
+const MAX_POLL_SECS: u64 = 60;
+const POLL_INTERVAL_SECS: u64 = 2;
+
+fn err_json(msg: impl std::fmt::Display) -> String {
+    serde_json::json!({"error": msg.to_string()}).to_string()
+}
+
+fn build_client() -> Result<reqwest::Client, anyhow::Error> {
+    let key = std::env::var("HKASK_FAL_API_KEY")
+        .map_err(|_| anyhow::anyhow!("HKASK_FAL_API_KEY environment variable is not set"))?;
+
+    let mut headers = reqwest::header::HeaderMap::new();
+    headers.insert(
+        reqwest::header::AUTHORIZATION,
+        format!("Key {key}").parse()?,
+    );
+
+    let client = reqwest::Client::builder()
+        .default_headers(headers)
+        .timeout(Duration::from_secs(300))
+        .build()?;
+
+    Ok(client)
+}
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GenerateImageRequest {
@@ -59,20 +87,125 @@ pub struct Generate3dRequest {
     pub image_url: String,
 }
 
-#[derive(Debug, Default)]
-pub struct FalServer;
+pub struct FalServer {
+    client: reqwest::Client,
+}
 
 impl FalServer {
     pub fn new() -> Self {
-        Self
+        let client = build_client().expect("Failed to create Fal.ai API client");
+        Self { client }
+    }
+
+    async fn sync_post(&self, endpoint: &str, body: Value) -> String {
+        let url = format!("{SYNC_BASE}/{endpoint}");
+        match self.client.post(&url).json(&body).send().await {
+            Ok(resp) => {
+                let status = resp.status();
+                match resp.text().await {
+                    Ok(text) if status.is_success() => text,
+                    Ok(text) => err_json(format!("Fal API error ({status}): {text}")),
+                    Err(e) => err_json(format!("Failed to read response: {e}")),
+                }
+            }
+            Err(e) => err_json(format!("Request failed: {e}")),
+        }
+    }
+
+    async fn queue_post(&self, endpoint: &str, body: Value) -> String {
+        let submit_url = format!("{QUEUE_BASE}/{endpoint}");
+
+        let request_id = match self.client.post(&submit_url).json(&body).send().await {
+            Ok(resp) => {
+                let status = resp.status();
+                match resp.json::<Value>().await {
+                    Ok(v) if status.is_success() => v
+                        .get("request_id")
+                        .and_then(|r| r.as_str())
+                        .map(|s| s.to_string())
+                        .unwrap_or_else(|| "unknown".to_string()),
+                    Ok(v) => return v.to_string(),
+                    Err(e) => return err_json(format!("Failed to parse submission: {e}")),
+                }
+            }
+            Err(e) => return err_json(format!("Submit failed: {e}")),
+        };
+
+        let status_url = format!("{QUEUE_BASE}/{endpoint}/requests/{request_id}/status");
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(MAX_POLL_SECS);
+
+        loop {
+            if tokio::time::Instant::now() > deadline {
+                return err_json(format!(
+                    "Polling timed out after {MAX_POLL_SECS}s (request_id: {request_id})"
+                ));
+            }
+
+            match self.client.get(&status_url).send().await {
+                Ok(resp) => match resp.json::<Value>().await {
+                    Ok(v) => match v.get("status").and_then(|s| s.as_str()) {
+                        Some("COMPLETED") => break,
+                        Some("FAILED") => return err_json(format!("Job failed: {v}")),
+                        _ => {}
+                    },
+                    Err(e) => return err_json(format!("Failed to parse status: {e}")),
+                },
+                Err(e) => return err_json(format!("Status check failed: {e}")),
+            }
+
+            tokio::time::sleep(Duration::from_secs(POLL_INTERVAL_SECS)).await;
+        }
+
+        let result_url = format!("{QUEUE_BASE}/{endpoint}/requests/{request_id}");
+        match self.client.get(&result_url).send().await {
+            Ok(resp) => {
+                let status = resp.status();
+                match resp.text().await {
+                    Ok(text) if status.is_success() => text,
+                    Ok(text) => err_json(format!("Result fetch error ({status}): {text}")),
+                    Err(e) => err_json(format!("Failed to read result: {e}")),
+                }
+            }
+            Err(e) => err_json(format!("Result fetch failed: {e}")),
+        }
+    }
+}
+
+impl Default for FalServer {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
 #[tool_router(server_handler)]
 impl FalServer {
-    #[tool(description = "Ping Fal.ai API")]
+    #[tool(description = "Ping Fal.ai API to verify connectivity and authentication")]
     async fn fal_ping(&self) -> String {
-        r#"{"status":"ok","message":"Fal.ai API is reachable"}"#.to_string()
+        let url = format!("{SYNC_BASE}/fal-ai/flux/schnell");
+        match self
+            .client
+            .post(&url)
+            .json(&serde_json::json!({}))
+            .send()
+            .await
+        {
+            Ok(resp) => {
+                let status = resp.status();
+                if status == reqwest::StatusCode::UNAUTHORIZED
+                    || status == reqwest::StatusCode::FORBIDDEN
+                {
+                    err_json("Fal.ai API key is invalid or unauthorized")
+                } else {
+                    serde_json::json!({
+                        "status": "ok",
+                        "message": "Fal.ai API is reachable and authenticated",
+                        "http_status": status.as_u16(),
+                    })
+                    .to_string()
+                }
+            }
+            Err(e) => err_json(format!("Connection failed: {e}")),
+        }
     }
 
     #[tool(description = "Generate an image from a prompt")]
@@ -84,13 +217,12 @@ impl FalServer {
             num_images,
         }): Parameters<GenerateImageRequest>,
     ) -> String {
-        serde_json::json!({
+        let body = serde_json::json!({
             "prompt": prompt,
             "image_size": image_size.unwrap_or_else(|| "1024x1024".to_string()),
             "num_images": num_images.unwrap_or(1),
-            "images": ["https://example.com/image1.png"],
-        })
-        .to_string()
+        });
+        self.sync_post("fal-ai/flux/schnell", body).await
     }
 
     #[tool(description = "Generate an image quickly")]
@@ -100,12 +232,11 @@ impl FalServer {
             GenerateImageFastRequest,
         >,
     ) -> String {
-        serde_json::json!({
+        let body = serde_json::json!({
             "prompt": prompt,
             "image_size": image_size.unwrap_or_else(|| "1024x1024".to_string()),
-            "image": "https://example.com/fast_image.png",
-        })
-        .to_string()
+        });
+        self.sync_post("fal-ai/flux/schnell", body).await
     }
 
     #[tool(description = "Transform an image with a prompt")]
@@ -117,13 +248,14 @@ impl FalServer {
             strength,
         }): Parameters<ImageToImageRequest>,
     ) -> String {
-        serde_json::json!({
+        let mut body = serde_json::json!({
             "prompt": prompt,
             "image_url": image_url,
-            "strength": strength.unwrap_or(0.7),
-            "output": "https://example.com/transformed.png",
-        })
-        .to_string()
+        });
+        if let Some(s) = strength {
+            body["strength"] = serde_json::json!(s);
+        }
+        self.sync_post("fal-ai/flux/dev/image-to-image", body).await
     }
 
     #[tool(description = "Upscale an image")]
@@ -131,12 +263,11 @@ impl FalServer {
         &self,
         Parameters(UpscaleRequest { image_url, scale }): Parameters<UpscaleRequest>,
     ) -> String {
-        serde_json::json!({
+        let body = serde_json::json!({
             "image_url": image_url,
             "scale": scale.unwrap_or(4),
-            "output": "https://example.com/upscaled.png",
-        })
-        .to_string()
+        });
+        self.sync_post("fal-ai/imageutils/u2net", body).await
     }
 
     #[tool(description = "Generate a video from a prompt")]
@@ -144,12 +275,13 @@ impl FalServer {
         &self,
         Parameters(GenerateVideoRequest { prompt, duration }): Parameters<GenerateVideoRequest>,
     ) -> String {
-        serde_json::json!({
+        let mut body = serde_json::json!({
             "prompt": prompt,
-            "duration": duration.unwrap_or(5.0),
-            "video": "https://example.com/video.mp4",
-        })
-        .to_string()
+        });
+        if let Some(d) = duration {
+            body["duration"] = serde_json::json!(d);
+        }
+        self.queue_post("fal-ai/minimax/video-01-live", body).await
     }
 
     #[tool(description = "Generate music from a prompt")]
@@ -160,12 +292,13 @@ impl FalServer {
             duration_seconds,
         }): Parameters<GenerateMusicRequest>,
     ) -> String {
-        serde_json::json!({
+        let mut body = serde_json::json!({
             "prompt": prompt,
-            "duration": duration_seconds.unwrap_or(30.0),
-            "audio": "https://example.com/music.mp3",
-        })
-        .to_string()
+        });
+        if let Some(d) = duration_seconds {
+            body["duration"] = serde_json::json!(d);
+        }
+        self.queue_post("fal-ai/stable-audio", body).await
     }
 
     #[tool(description = "Transcribe audio to text")]
@@ -173,11 +306,10 @@ impl FalServer {
         &self,
         Parameters(WhisperRequest { audio_url }): Parameters<WhisperRequest>,
     ) -> String {
-        serde_json::json!({
+        let body = serde_json::json!({
             "audio_url": audio_url,
-            "transcription": "Simulated transcription text",
-        })
-        .to_string()
+        });
+        self.sync_post("fal-ai/whisper", body).await
     }
 
     #[tool(description = "Generate a caption for an image")]
@@ -185,11 +317,18 @@ impl FalServer {
         &self,
         Parameters(CaptionRequest { image_url }): Parameters<CaptionRequest>,
     ) -> String {
-        serde_json::json!({
-            "image_url": image_url,
-            "caption": "A beautiful image",
-        })
-        .to_string()
+        let body = serde_json::json!({
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "Provide a detailed caption for this image."},
+                        {"type": "image_url", "image_url": {"url": image_url}}
+                    ]
+                }
+            ]
+        });
+        self.sync_post("fal-ai/any-llm", body).await
     }
 
     #[tool(description = "Generate a 3D model from an image")]
@@ -197,11 +336,10 @@ impl FalServer {
         &self,
         Parameters(Generate3dRequest { image_url }): Parameters<Generate3dRequest>,
     ) -> String {
-        serde_json::json!({
+        let body = serde_json::json!({
             "image_url": image_url,
-            "model_3d": "https://example.com/model.obj",
-        })
-        .to_string()
+        });
+        self.queue_post("fal-ai/hunyuan3d", body).await
     }
 }
 

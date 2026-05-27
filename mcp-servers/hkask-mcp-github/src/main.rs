@@ -1,4 +1,4 @@
-//! hKask MCP GitHub — GitHub API operations
+//! hKask MCP GitHub — GitHub REST API v3 operations
 //!
 //! This MCP server provides GitHub operations for repository, issue, and PR management.
 //! Phase 9: Git archival via GitHub MCP tool calls.
@@ -8,6 +8,7 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
+const GITHUB_API_BASE: &str = "https://api.github.com";
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct RepoRequest {
@@ -66,12 +67,110 @@ pub struct SearchReposRequest {
     pub limit: Option<u32>,
 }
 
-#[derive(Debug, Default)]
-pub struct GithubServer;
+fn build_client() -> Result<reqwest::Client, anyhow::Error> {
+    let token = std::env::var("HKASK_GITHUB_TOKEN").map_err(|_| {
+        anyhow::anyhow!("HKASK_GITHUB_TOKEN environment variable is not set")
+    })?;
+
+    let mut headers = reqwest::header::HeaderMap::new();
+    headers.insert(
+        reqwest::header::ACCEPT,
+        "application/vnd.github+json".parse()?,
+    );
+    headers.insert(
+        reqwest::header::USER_AGENT,
+        "hkask-mcp-github".parse()?,
+    );
+    headers.insert(
+        reqwest::header::AUTHORIZATION,
+        format!("Bearer {token}").parse()?,
+    );
+
+    let client = reqwest::Client::builder()
+        .default_headers(headers)
+        .build()?;
+
+    Ok(client)
+}
+
+fn api_error(status: reqwest::StatusCode, body: &str) -> String {
+    serde_json::json!({
+        "error": format!("GitHub API returned {}: {}", status, body.trim()),
+        "status": status.as_u16(),
+    })
+    .to_string()
+}
+
+fn extract_repo_summary(v: &serde_json::Value) -> serde_json::Value {
+    serde_json::json!({
+        "owner": v["owner"]["login"].as_str().unwrap_or(""),
+        "repo": v["name"].as_str().unwrap_or(""),
+        "full_name": v["full_name"].as_str().unwrap_or(""),
+        "description": v["description"],
+        "stars": v["stargazers_count"],
+        "forks": v["forks_count"],
+        "open_issues": v["open_issues_count"],
+        "language": v["language"],
+        "default_branch": v["default_branch"],
+        "private": v["private"],
+        "html_url": v["html_url"],
+    })
+}
+
+fn extract_issue_summary(v: &serde_json::Value) -> serde_json::Value {
+    let labels: Vec<serde_json::Value> = v["labels"]
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .map(|l| {
+                    serde_json::json!({
+                        "name": l["name"],
+                        "color": l["color"],
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    serde_json::json!({
+        "number": v["number"],
+        "title": v["title"],
+        "state": v["state"],
+        "labels": labels,
+        "user": v["user"]["login"],
+        "created_at": v["created_at"],
+        "updated_at": v["updated_at"],
+    })
+}
+
+fn extract_pr_summary(v: &serde_json::Value) -> serde_json::Value {
+    serde_json::json!({
+        "number": v["number"],
+        "title": v["title"],
+        "state": v["state"],
+        "user": v["user"]["login"],
+        "head": v["head"]["ref"],
+        "base": v["base"]["ref"],
+        "created_at": v["created_at"],
+        "updated_at": v["updated_at"],
+        "draft": v["draft"],
+    })
+}
+
+pub struct GithubServer {
+    client: reqwest::Client,
+}
 
 impl GithubServer {
     pub fn new() -> Self {
-        Self
+        let client = build_client().expect("Failed to create GitHub API client");
+        Self { client }
+    }
+}
+
+impl Default for GithubServer {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -82,13 +181,21 @@ impl GithubServer {
         &self,
         Parameters(RepoRequest { owner, repo }): Parameters<RepoRequest>,
     ) -> String {
-        serde_json::json!({
-            "owner": owner,
-            "repo": repo,
-            "description": "Simulated repo",
-            "stars": 100,
-        })
-        .to_string()
+        let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}");
+        match self.client.get(&url).send().await {
+            Ok(resp) => {
+                let status = resp.status();
+                let body = resp.text().await.unwrap_or_default();
+                if !status.is_success() {
+                    return api_error(status, &body);
+                }
+                match serde_json::from_str::<serde_json::Value>(&body) {
+                    Ok(v) => extract_repo_summary(&v).to_string(),
+                    Err(e) => serde_json::json!({"error": format!("Failed to parse response: {e}")}).to_string(),
+                }
+            }
+            Err(e) => serde_json::json!({"error": format!("Request failed: {e}")}).to_string(),
+        }
     }
 
     #[tool(description = "List issues in a repository")]
@@ -96,13 +203,39 @@ impl GithubServer {
         &self,
         Parameters(ListIssuesRequest { owner, repo, state }): Parameters<ListIssuesRequest>,
     ) -> String {
-        serde_json::json!({
-            "owner": owner,
-            "repo": repo,
-            "state": state.unwrap_or_else(|| "open".to_string()),
-            "issues": [],
-        })
-        .to_string()
+        let state = state.unwrap_or_else(|| "open".to_string());
+        let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/issues?state={state}");
+        match self.client.get(&url).send().await {
+            Ok(resp) => {
+                let status = resp.status();
+                let body = resp.text().await.unwrap_or_default();
+                if !status.is_success() {
+                    return api_error(status, &body);
+                }
+                match serde_json::from_str::<serde_json::Value>(&body) {
+                    Ok(v) => {
+                        let issues: Vec<serde_json::Value> = v
+                            .as_array()
+                            .map(|arr| {
+                                arr.iter()
+                                    .filter(|i| i.get("pull_request").is_none())
+                                    .map(extract_issue_summary)
+                                    .collect()
+                            })
+                            .unwrap_or_default();
+                        serde_json::json!({
+                            "owner": owner,
+                            "repo": repo,
+                            "state": state,
+                            "issues": issues,
+                        })
+                        .to_string()
+                    }
+                    Err(e) => serde_json::json!({"error": format!("Failed to parse response: {e}")}).to_string(),
+                }
+            }
+            Err(e) => serde_json::json!({"error": format!("Request failed: {e}")}).to_string(),
+        }
     }
 
     #[tool(description = "Get a specific issue")]
@@ -114,13 +247,52 @@ impl GithubServer {
             issue_number,
         }): Parameters<IssueRequest>,
     ) -> String {
-        serde_json::json!({
-            "owner": owner,
-            "repo": repo,
-            "number": issue_number,
-            "title": format!("Issue #{}", issue_number),
-        })
-        .to_string()
+        let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/issues/{issue_number}");
+        match self.client.get(&url).send().await {
+            Ok(resp) => {
+                let status = resp.status();
+                let body = resp.text().await.unwrap_or_default();
+                if !status.is_success() {
+                    return api_error(status, &body);
+                }
+                match serde_json::from_str::<serde_json::Value>(&body) {
+                    Ok(v) => {
+                        let labels: Vec<serde_json::Value> = v["labels"]
+                            .as_array()
+                            .map(|arr| {
+                                arr.iter()
+                                    .map(|l| {
+                                        serde_json::json!({
+                                            "name": l["name"],
+                                            "color": l["color"],
+                                        })
+                                    })
+                                    .collect()
+                            })
+                            .unwrap_or_default();
+                        serde_json::json!({
+                            "owner": owner,
+                            "repo": repo,
+                            "number": v["number"],
+                            "title": v["title"],
+                            "state": v["state"],
+                            "body": v["body"],
+                            "labels": labels,
+                            "user": v["user"]["login"],
+                            "assignees": v["assignees"],
+                            "milestone": v["milestone"],
+                            "comments": v["comments"],
+                            "created_at": v["created_at"],
+                            "updated_at": v["updated_at"],
+                            "html_url": v["html_url"],
+                        })
+                        .to_string()
+                    }
+                    Err(e) => serde_json::json!({"error": format!("Failed to parse response: {e}")}).to_string(),
+                }
+            }
+            Err(e) => serde_json::json!({"error": format!("Request failed: {e}")}).to_string(),
+        }
     }
 
     #[tool(description = "Create a new issue")]
@@ -130,18 +302,45 @@ impl GithubServer {
             owner,
             repo,
             title,
-            body: _,
-            labels: _,
+            body,
+            labels,
         }): Parameters<CreateIssueRequest>,
     ) -> String {
-        serde_json::json!({
-            "owner": owner,
-            "repo": repo,
+        let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/issues");
+        let mut payload = serde_json::json!({
             "title": title,
-            "number": 1,
-            "created": true,
-        })
-        .to_string()
+        });
+        if let Some(ref b) = body {
+            payload["body"] = serde_json::Value::String(b.clone());
+        }
+        if let Some(ref l) = labels {
+            payload["labels"] = serde_json::Value::Array(
+                l.iter().map(|s| serde_json::Value::String(s.clone())).collect(),
+            );
+        }
+        match self.client.post(&url).json(&payload).send().await {
+            Ok(resp) => {
+                let status = resp.status();
+                let resp_body = resp.text().await.unwrap_or_default();
+                if !status.is_success() {
+                    return api_error(status, &resp_body);
+                }
+                match serde_json::from_str::<serde_json::Value>(&resp_body) {
+                    Ok(v) => serde_json::json!({
+                        "owner": owner,
+                        "repo": repo,
+                        "number": v["number"],
+                        "title": v["title"],
+                        "state": v["state"],
+                        "html_url": v["html_url"],
+                        "created": true,
+                    })
+                    .to_string(),
+                    Err(e) => serde_json::json!({"error": format!("Failed to parse response: {e}")}).to_string(),
+                }
+            }
+            Err(e) => serde_json::json!({"error": format!("Request failed: {e}")}).to_string(),
+        }
     }
 
     #[tool(description = "Add a comment to an issue or PR")]
@@ -151,17 +350,33 @@ impl GithubServer {
             owner,
             repo,
             issue_number,
-            body: _,
+            body,
         }): Parameters<CommentRequest>,
     ) -> String {
-        serde_json::json!({
-            "owner": owner,
-            "repo": repo,
-            "issue": issue_number,
-            "comment_id": 1,
-            "created": true,
-        })
-        .to_string()
+        let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/issues/{issue_number}/comments");
+        let payload = serde_json::json!({ "body": body });
+        match self.client.post(&url).json(&payload).send().await {
+            Ok(resp) => {
+                let status = resp.status();
+                let resp_body = resp.text().await.unwrap_or_default();
+                if !status.is_success() {
+                    return api_error(status, &resp_body);
+                }
+                match serde_json::from_str::<serde_json::Value>(&resp_body) {
+                    Ok(v) => serde_json::json!({
+                        "owner": owner,
+                        "repo": repo,
+                        "issue": issue_number,
+                        "comment_id": v["id"],
+                        "html_url": v["html_url"],
+                        "created": true,
+                    })
+                    .to_string(),
+                    Err(e) => serde_json::json!({"error": format!("Failed to parse response: {e}")}).to_string(),
+                }
+            }
+            Err(e) => serde_json::json!({"error": format!("Request failed: {e}")}).to_string(),
+        }
     }
 
     #[tool(description = "List pull requests")]
@@ -169,13 +384,34 @@ impl GithubServer {
         &self,
         Parameters(ListPrsRequest { owner, repo, state }): Parameters<ListPrsRequest>,
     ) -> String {
-        serde_json::json!({
-            "owner": owner,
-            "repo": repo,
-            "state": state.unwrap_or_else(|| "open".to_string()),
-            "prs": [],
-        })
-        .to_string()
+        let state = state.unwrap_or_else(|| "open".to_string());
+        let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/pulls?state={state}");
+        match self.client.get(&url).send().await {
+            Ok(resp) => {
+                let status = resp.status();
+                let body = resp.text().await.unwrap_or_default();
+                if !status.is_success() {
+                    return api_error(status, &body);
+                }
+                match serde_json::from_str::<serde_json::Value>(&body) {
+                    Ok(v) => {
+                        let prs: Vec<serde_json::Value> = v
+                            .as_array()
+                            .map(|arr| arr.iter().map(extract_pr_summary).collect())
+                            .unwrap_or_default();
+                        serde_json::json!({
+                            "owner": owner,
+                            "repo": repo,
+                            "state": state,
+                            "prs": prs,
+                        })
+                        .to_string()
+                    }
+                    Err(e) => serde_json::json!({"error": format!("Failed to parse response: {e}")}).to_string(),
+                }
+            }
+            Err(e) => serde_json::json!({"error": format!("Request failed: {e}")}).to_string(),
+        }
     }
 
     #[tool(description = "Get a specific pull request")]
@@ -187,13 +423,42 @@ impl GithubServer {
             pr_number,
         }): Parameters<PrRequest>,
     ) -> String {
-        serde_json::json!({
-            "owner": owner,
-            "repo": repo,
-            "number": pr_number,
-            "title": format!("PR #{}", pr_number),
-        })
-        .to_string()
+        let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/pulls/{pr_number}");
+        match self.client.get(&url).send().await {
+            Ok(resp) => {
+                let status = resp.status();
+                let body = resp.text().await.unwrap_or_default();
+                if !status.is_success() {
+                    return api_error(status, &body);
+                }
+                match serde_json::from_str::<serde_json::Value>(&body) {
+                    Ok(v) => serde_json::json!({
+                        "owner": owner,
+                        "repo": repo,
+                        "number": v["number"],
+                        "title": v["title"],
+                        "state": v["state"],
+                        "body": v["body"],
+                        "user": v["user"]["login"],
+                        "head": v["head"]["ref"],
+                        "head_repo": v["head"]["repo"]["full_name"],
+                        "base": v["base"]["ref"],
+                        "merged": v["merged"],
+                        "mergeable": v["mergeable"],
+                        "draft": v["draft"],
+                        "additions": v["additions"],
+                        "deletions": v["deletions"],
+                        "changed_files": v["changed_files"],
+                        "created_at": v["created_at"],
+                        "updated_at": v["updated_at"],
+                        "html_url": v["html_url"],
+                    })
+                    .to_string(),
+                    Err(e) => serde_json::json!({"error": format!("Failed to parse response: {e}")}).to_string(),
+                }
+            }
+            Err(e) => serde_json::json!({"error": format!("Request failed: {e}")}).to_string(),
+        }
     }
 
     #[tool(description = "Search repositories")]
@@ -202,12 +467,39 @@ impl GithubServer {
         Parameters(SearchReposRequest { query, limit }): Parameters<SearchReposRequest>,
     ) -> String {
         let limit = limit.unwrap_or(10);
-        serde_json::json!({
-            "query": query,
-            "limit": limit,
-            "results": [],
-        })
-        .to_string()
+        let url = format!("{GITHUB_API_BASE}/search/repositories");
+        match self
+            .client
+            .get(url)
+            .query(&[("q", query.as_str()), ("per_page", &limit.to_string())])
+            .send()
+            .await
+        {
+            Ok(resp) => {
+                let status = resp.status();
+                let body = resp.text().await.unwrap_or_default();
+                if !status.is_success() {
+                    return api_error(status, &body);
+                }
+                match serde_json::from_str::<serde_json::Value>(&body) {
+                    Ok(v) => {
+                        let results: Vec<serde_json::Value> = v["items"]
+                            .as_array()
+                            .map(|arr| arr.iter().map(extract_repo_summary).collect())
+                            .unwrap_or_default();
+                        serde_json::json!({
+                            "query": query,
+                            "limit": limit,
+                            "total_count": v["total_count"],
+                            "results": results,
+                        })
+                        .to_string()
+                    }
+                    Err(e) => serde_json::json!({"error": format!("Failed to parse response: {e}")}).to_string(),
+                }
+            }
+            Err(e) => serde_json::json!({"error": format!("Request failed: {e}")}).to_string(),
+        }
     }
 }
 
