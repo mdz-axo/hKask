@@ -2,7 +2,7 @@
 
 use hkask_mcp::server::{
     CredentialRequirement, McpToolError, McpToolOutput, classify_http_error,
-    emit_tool_span, resolve_credential, run_stdio_server,
+    emit_tool_span, resolve_credential, run_stdio_server, validate_tool_url,
 };
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -291,6 +291,9 @@ impl FalServer {
         }): Parameters<ImageToImageRequest>,
     ) -> String {
         let start = Instant::now();
+        if let Err(e) = validate_tool_url(&image_url) {
+            return e.to_json_string();
+        }
         let mut body = serde_json::json!({
             "prompt": prompt,
             "image_url": image_url,
@@ -310,6 +313,9 @@ impl FalServer {
         Parameters(UpscaleRequest { image_url, scale }): Parameters<UpscaleRequest>,
     ) -> String {
         let start = Instant::now();
+        if let Err(e) = validate_tool_url(&image_url) {
+            return e.to_json_string();
+        }
         let body = serde_json::json!({
             "image_url": image_url,
             "scale": scale.unwrap_or(4),
@@ -371,6 +377,9 @@ impl FalServer {
         Parameters(WhisperRequest { audio_url }): Parameters<WhisperRequest>,
     ) -> String {
         let start = Instant::now();
+        if let Err(e) = validate_tool_url(&audio_url) {
+            return e.to_json_string();
+        }
         let body = serde_json::json!({
             "audio_url": audio_url,
         });
@@ -386,6 +395,9 @@ impl FalServer {
         Parameters(CaptionRequest { image_url }): Parameters<CaptionRequest>,
     ) -> String {
         let start = Instant::now();
+        if let Err(e) = validate_tool_url(&image_url) {
+            return e.to_json_string();
+        }
         let body = serde_json::json!({
             "messages": [
                 {
@@ -409,6 +421,9 @@ impl FalServer {
         Parameters(Generate3dRequest { image_url }): Parameters<Generate3dRequest>,
     ) -> String {
         let start = Instant::now();
+        if let Err(e) = validate_tool_url(&image_url) {
+            return e.to_json_string();
+        }
         let body = serde_json::json!({
             "image_url": image_url,
         });

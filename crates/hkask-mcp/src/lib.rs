@@ -31,6 +31,7 @@ pub use security::{
 pub use server::{
     CredentialRequirement, McpToolError, McpToolOutput, api_get, api_post,
     classify_http_error, emit_tool_span, resolve_credential, run_stdio_server,
+    validate_identifier, validate_tool_url,
 };
 pub use supervisor::{McpSupervisor, RestartPolicy, ServerConfig, ServerStatus, SupervisionError};
 pub use transport::{HttpMcpTransport, InProcessMcpTransport, McpTransport, StdioMcpTransport};

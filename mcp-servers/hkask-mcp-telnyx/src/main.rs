@@ -2,7 +2,7 @@
 
 use hkask_mcp::server::{
     CredentialRequirement, McpToolOutput, api_get, api_post,
-    emit_tool_span, resolve_credential, run_stdio_server,
+    emit_tool_span, resolve_credential, run_stdio_server, validate_tool_url,
 };
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -163,6 +163,9 @@ impl TelnyxServer {
         }): Parameters<MakeCallRequest>,
     ) -> String {
         let start = Instant::now();
+        if let Err(e) = validate_tool_url(&webhook_url) {
+            return e.to_json_string();
+        }
         let url = format!("{BASE_URL}/calls");
         let payload = serde_json::json!({
             "from": from,

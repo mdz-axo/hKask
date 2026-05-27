@@ -16,7 +16,7 @@
 
 use hkask_mcp::server::{
     CredentialRequirement, McpToolError, McpToolOutput, classify_http_error,
-    emit_tool_span, resolve_credential, run_stdio_server,
+    emit_tool_span, resolve_credential, run_stdio_server, validate_identifier,
 };
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -78,6 +78,10 @@ async fn fmp_get(
         .map_err(|e| McpToolError::internal(format!("failed to parse response: {e}")))
 }
 
+fn validate_symbol(symbol: &str) -> Result<(), McpToolError> {
+    validate_identifier("symbol", symbol, 16)
+}
+
 pub struct FmpServer {
     client: reqwest::Client,
     api_key: String,
@@ -137,6 +141,9 @@ impl FmpServer {
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
         let start = Instant::now();
+        if let Err(e) = validate_symbol(&symbol) {
+            return e.to_json_string();
+        }
         match fmp_get(
             &self.client,
             "/profile",
@@ -156,6 +163,9 @@ impl FmpServer {
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
         let start = Instant::now();
+        if let Err(e) = validate_symbol(&symbol) {
+            return e.to_json_string();
+        }
         match fmp_get(
             &self.client,
             "/quote",
@@ -175,6 +185,9 @@ impl FmpServer {
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
         let start = Instant::now();
+        if let Err(e) = validate_symbol(&symbol) {
+            return e.to_json_string();
+        }
         let limit_str = limit.unwrap_or(5).to_string();
         match fmp_get(
             &self.client,
@@ -195,6 +208,9 @@ impl FmpServer {
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
         let start = Instant::now();
+        if let Err(e) = validate_symbol(&symbol) {
+            return e.to_json_string();
+        }
         let limit_str = limit.unwrap_or(5).to_string();
         match fmp_get(
             &self.client,
@@ -215,6 +231,9 @@ impl FmpServer {
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
         let start = Instant::now();
+        if let Err(e) = validate_symbol(&symbol) {
+            return e.to_json_string();
+        }
         let limit_str = limit.unwrap_or(5).to_string();
         match fmp_get(
             &self.client,
@@ -235,6 +254,9 @@ impl FmpServer {
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
         let start = Instant::now();
+        if let Err(e) = validate_symbol(&symbol) {
+            return e.to_json_string();
+        }
         let limit_str = limit.unwrap_or(5).to_string();
         match fmp_get(
             &self.client,
@@ -255,6 +277,9 @@ impl FmpServer {
         Parameters(HistoricalRequest { symbol, from, to }): Parameters<HistoricalRequest>,
     ) -> String {
         let start = Instant::now();
+        if let Err(e) = validate_symbol(&symbol) {
+            return e.to_json_string();
+        }
         match fmp_get(
             &self.client,
             "/historical-price-full",
@@ -274,6 +299,9 @@ impl FmpServer {
         Parameters(SearchRequest { query, limit }): Parameters<SearchRequest>,
     ) -> String {
         let start = Instant::now();
+        if query.is_empty() {
+            return McpToolError::invalid_argument("query must not be empty").to_json_string();
+        }
         let limit_str = limit.unwrap_or(10).to_string();
         match fmp_get(
             &self.client,
@@ -294,6 +322,9 @@ impl FmpServer {
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
         let start = Instant::now();
+        if let Err(e) = validate_symbol(&symbol) {
+            return e.to_json_string();
+        }
         match fmp_get(
             &self.client,
             "/analyst-estimates",
@@ -313,6 +344,9 @@ impl FmpServer {
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
         let start = Instant::now();
+        if let Err(e) = validate_symbol(&symbol) {
+            return e.to_json_string();
+        }
         match fmp_get(
             &self.client,
             "/discounted-cash-flow",

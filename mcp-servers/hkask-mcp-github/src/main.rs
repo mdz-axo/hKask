@@ -6,6 +6,7 @@
 use hkask_mcp::server::{
     CredentialRequirement, McpToolError, McpToolOutput, api_get, api_post,
     classify_http_error, emit_tool_span, resolve_credential, run_stdio_server,
+    validate_identifier,
 };
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -97,6 +98,12 @@ fn build_client() -> Result<reqwest::Client, McpToolError> {
         .map_err(|e| McpToolError::internal(format!("Failed to build HTTP client: {e}")))
 }
 
+fn validate_owner_repo(owner: &str, repo: &str) -> Result<(), McpToolError> {
+    validate_identifier("owner", owner, 64)?;
+    validate_identifier("repo", repo, 128)?;
+    Ok(())
+}
+
 fn extract_repo_summary(v: &serde_json::Value) -> serde_json::Value {
     serde_json::json!({
         "owner": v["owner"]["login"].as_str().unwrap_or(""),
@@ -167,6 +174,9 @@ impl GithubServer {
         Parameters(RepoRequest { owner, repo }): Parameters<RepoRequest>,
     ) -> String {
         let start = Instant::now();
+        if let Err(e) = validate_owner_repo(&owner, &repo) {
+            return e.to_json_string();
+        }
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}");
         match api_get(&self.client, "GitHub", &url).await {
             Ok(v) => {
@@ -187,6 +197,9 @@ impl GithubServer {
         Parameters(ListIssuesRequest { owner, repo, state }): Parameters<ListIssuesRequest>,
     ) -> String {
         let start = Instant::now();
+        if let Err(e) = validate_owner_repo(&owner, &repo) {
+            return e.to_json_string();
+        }
         let state = state.unwrap_or_else(|| "open".to_string());
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/issues?state={state}");
         match api_get(&self.client, "GitHub", &url).await {
@@ -220,6 +233,9 @@ impl GithubServer {
         }): Parameters<IssueRequest>,
     ) -> String {
         let start = Instant::now();
+        if let Err(e) = validate_owner_repo(&owner, &repo) {
+            return e.to_json_string();
+        }
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/issues/{issue_number}");
         match api_get(&self.client, "GitHub", &url).await {
             Ok(v) => {
@@ -260,6 +276,12 @@ impl GithubServer {
         }): Parameters<CreateIssueRequest>,
     ) -> String {
         let start = Instant::now();
+        if let Err(e) = validate_owner_repo(&owner, &repo) {
+            return e.to_json_string();
+        }
+        if title.is_empty() {
+            return McpToolError::invalid_argument("title must not be empty").to_json_string();
+        }
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/issues");
         let mut payload = serde_json::json!({ "title": title });
         if let Some(ref b) = body {
@@ -303,6 +325,12 @@ impl GithubServer {
         }): Parameters<CommentRequest>,
     ) -> String {
         let start = Instant::now();
+        if let Err(e) = validate_owner_repo(&owner, &repo) {
+            return e.to_json_string();
+        }
+        if body.is_empty() {
+            return McpToolError::invalid_argument("body must not be empty").to_json_string();
+        }
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/issues/{issue_number}/comments");
         let payload = serde_json::json!({ "body": body });
         match api_post(&self.client, "GitHub", &url, &payload).await {
@@ -330,6 +358,9 @@ impl GithubServer {
         Parameters(ListPrsRequest { owner, repo, state }): Parameters<ListPrsRequest>,
     ) -> String {
         let start = Instant::now();
+        if let Err(e) = validate_owner_repo(&owner, &repo) {
+            return e.to_json_string();
+        }
         let state = state.unwrap_or_else(|| "open".to_string());
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/pulls?state={state}");
         match api_get(&self.client, "GitHub", &url).await {
@@ -358,6 +389,9 @@ impl GithubServer {
         }): Parameters<PrRequest>,
     ) -> String {
         let start = Instant::now();
+        if let Err(e) = validate_owner_repo(&owner, &repo) {
+            return e.to_json_string();
+        }
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/pulls/{pr_number}");
         match api_get(&self.client, "GitHub", &url).await {
             Ok(v) => McpToolOutput::with_timing(
@@ -386,6 +420,9 @@ impl GithubServer {
         Parameters(SearchReposRequest { query, limit }): Parameters<SearchReposRequest>,
     ) -> String {
         let start = Instant::now();
+        if query.is_empty() {
+            return McpToolError::invalid_argument("query must not be empty").to_json_string();
+        }
         let limit = limit.unwrap_or(10);
         let url = format!("{GITHUB_API_BASE}/search/repositories");
         let resp = self

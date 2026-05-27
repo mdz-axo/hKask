@@ -12,7 +12,7 @@
 
 use base64::Engine;
 use chrono::Utc;
-use hkask_mcp::server::{McpToolError, McpToolOutput, emit_tool_span, run_stdio_server};
+use hkask_mcp::server::{McpToolError, McpToolOutput, emit_tool_span, run_stdio_server, validate_tool_url};
 use reqwest::Client;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use rusqlite::Connection;
@@ -909,6 +909,9 @@ impl RssServer {
         Parameters(SubscribeRequest { url, label, folder }): Parameters<SubscribeRequest>,
     ) -> String {
         let start = Instant::now();
+        if let Err(e) = validate_tool_url(&url) {
+            return e.to_json_string();
+        }
         let fetch_result = match fetch_feed(&self.client, &url, None, None).await {
             Ok(r) => r,
             Err(e) => {
@@ -1278,6 +1281,9 @@ impl RssServer {
         &self,
         Parameters(DiscoverRequest { url }): Parameters<DiscoverRequest>,
     ) -> String {
+        if let Err(e) = validate_tool_url(&url) {
+            return e.to_json_string();
+        }
         match discover_feeds(&self.client, &url).await {
             Ok(feeds) => McpToolOutput::new(serde_json::json!({
                 "url": url,
