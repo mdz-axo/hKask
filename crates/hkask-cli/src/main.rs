@@ -2020,7 +2020,7 @@ fn main() {
                 store.lock().unwrap().initialize_schema().unwrap();
 
                 match commands::user::register_replicant(
-                    store,
+                    &store,
                     &replicant_name,
                     &first_name,
                     &last_name,
@@ -2044,7 +2044,7 @@ fn main() {
                 let store = std::sync::Arc::new(std::sync::Mutex::new(store));
                 store.lock().unwrap().initialize_schema().unwrap();
 
-                match commands::user::login_replicant(store, &replicant_name) {
+                match commands::user::login_replicant(&store, &replicant_name) {
                     Ok(session) => {
                         println!("Session ID: {}", session.session_id);
                         println!(
@@ -2068,7 +2068,7 @@ fn main() {
                 let store = std::sync::Arc::new(std::sync::Mutex::new(store));
                 store.lock().unwrap().initialize_schema().unwrap();
 
-                match commands::user::logout(store, &session_id) {
+                match commands::user::logout(&store, &session_id) {
                     Ok(()) => {}
                     Err(e) => {
                         eprintln!("Logout failed: {}", e);
@@ -2086,8 +2086,8 @@ fn main() {
                 let store = std::sync::Arc::new(std::sync::Mutex::new(store));
                 store.lock().unwrap().initialize_schema().unwrap();
 
-                match commands::user::list_sessions(store, &replicant_name) {
-                    Ok(()) => {}
+                match commands::user::list_sessions(&store, &replicant_name) {
+                    Ok(_) => {}
                     Err(e) => {
                         eprintln!("Failed to list sessions: {}", e);
                         std::process::exit(1);
@@ -2106,7 +2106,7 @@ fn main() {
 
                 if let Some(uid) = user_id {
                     let user_id = hkask_types::UserID::from_string(&uid);
-                    match commands::user::list_replicants(store, &user_id) {
+                    match commands::user::list_replicants(&store, &user_id) {
                         Ok(_) => {}
                         Err(e) => {
                             eprintln!("Failed to list identities: {}", e);
@@ -2128,7 +2128,7 @@ fn main() {
                 let store = std::sync::Arc::new(std::sync::Mutex::new(store));
                 store.lock().unwrap().initialize_schema().unwrap();
 
-                match commands::user::show_replicant(store, &replicant_name) {
+                match commands::user::show_replicant(&store, &replicant_name) {
                     Ok(()) => {}
                     Err(e) => {
                         eprintln!("Failed to show replicant: {}", e);

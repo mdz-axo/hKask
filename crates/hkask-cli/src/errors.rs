@@ -135,6 +135,31 @@ pub enum RegistryError {
     SchemaError(String),
 }
 
+/// Errors that can occur during user operations
+#[derive(Debug, Error)]
+pub enum UserError {
+    #[error("User not found: {0}")]
+    NotFound(String),
+
+    #[error("Registration failed: {0}")]
+    RegistrationFailed(String),
+
+    #[error("Login failed: {0}")]
+    LoginFailed(String),
+
+    #[error("Session not found: {0}")]
+    SessionNotFound(String),
+
+    #[error("Invalid passphrase: {0}")]
+    InvalidPassphrase(String),
+
+    #[error("Validation error: {0}")]
+    ValidationError(String),
+
+    #[error("Database error: {0}")]
+    DatabaseError(String),
+}
+
 /// Top-level CLI error that wraps all command-specific errors
 #[derive(Debug, Error)]
 pub enum CliError {
@@ -158,6 +183,9 @@ pub enum CliError {
 
     #[error(transparent)]
     Registry(#[from] RegistryError),
+
+    #[error(transparent)]
+    User(#[from] UserError),
 
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),

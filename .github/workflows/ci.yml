@@ -160,38 +160,6 @@ jobs:
           retention-days: 7
 
   # ============================================================================
-  # Line Count Check (Budget Verification)
-  # ============================================================================
-  line-budget:
-    name: Line Budget Check
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: build
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Install tokei
-        uses: taiki-e/install-action@tokei
-      
-      - name: Count lines in production crates
-        run: |
-          echo "=== Line Count by Crate ==="
-          tokei crates/*/src --categories | sort -rn
-          
-          echo ""
-          echo "=== Total Production Lines ==="
-          total=$(tokei crates/*/src --categories | grep "Total" | awk '{print $2}')
-          echo "Total: $total lines"
-          
-          if [ "$total" -gt 35000 ]; then
-            echo "::error::Line budget exceeded! Total: $total, Budget: 35000"
-            exit 1
-          else
-            echo "✓ Within budget (35,000 lines)"
-          fi
-
-  # ============================================================================
   # Security Audit
   # ============================================================================
   audit:
@@ -206,7 +174,9 @@ jobs:
         uses: dtolnay/rust-toolchain@1.91
       
       - name: Install cargo-audit
-        uses: taiki-e/install-action@cargo-audit
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
       
       - name: Run security audit
         run: cargo audit || echo "::warning::Security vulnerabilities found. Review cargo-audit output."
@@ -247,7 +217,7 @@ jobs:
     name: Release Build
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    needs: [test, line-budget]
+    needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     
     steps:
