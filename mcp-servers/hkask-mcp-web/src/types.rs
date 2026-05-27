@@ -1186,4 +1186,190 @@ mod tests {
         assert_eq!(meta.duplicates_removed, 1);
         assert_eq!(meta.top_rrf_scores.len(), 1);
     }
+
+    // === Task 10: Tests for new code paths ===
+
+    #[test]
+    fn sanitize_health_error_strips_api_keys() {
+        // When the input contains an API key pattern, it gets replaced with [REDACTED]
+        // before categorization. The function first strips keys, then categorizes.
+        // Input with key but no auth/rate/timeout keywords → categorized as "unhealthy"
+        let result = sanitize_health_error("Provider failed with sk-abc123def456");
+        // The key is stripped; the result is a generic category string
+        assert!(!result.contains("sk-abc123def456"));
+        // Input that triggers auth categorization also strips the key first
+        let result2 = sanitize_health_error("Auth failed: sk-abc123def456");
+        assert!(!result2.contains("sk-abc123def456"));
+        assert_eq!(result2, "authentication failed");
+    }
+
+    #[test]
+    fn sanitize_health_error_categorizes_auth() {
+        assert_eq!(
+            sanitize_health_error("Got 401 unauthorized"),
+            "authentication failed"
+        );
+        assert_eq!(
+            sanitize_health_error("Got 403 forbidden"),
+            "authentication failed"
+        );
+        assert_eq!(
+            sanitize_health_error("Auth error occurred"),
+            "authentication failed"
+        );
+    }
+
+    #[test]
+    fn sanitize_health_error_categorizes_rate_limit() {
+        assert_eq!(sanitize_health_error("Got 429 rate limit"), "rate limited");
+        assert_eq!(
+            sanitize_health_error("Rate limited by provider"),
+            "rate limited"
+        );
+    }
+
+    #[test]
+    fn sanitize_health_error_categorizes_timeout() {
+        assert_eq!(sanitize_health_error("Connection timed out"), "timeout");
+        assert_eq!(
+            sanitize_health_error("Request timeout after 30s"),
+            "timeout"
+        );
+    }
+
+    #[test]
+    fn sanitize_health_error_categorizes_unreachable() {
+        assert_eq!(sanitize_health_error("Host unreachable"), "unreachable");
+        assert_eq!(
+            sanitize_health_error("DNS connection refused"),
+            "unreachable"
+        );
+    }
+
+    #[test]
+    fn sanitize_health_error_defaults_to_unhealthy() {
+        assert_eq!(sanitize_health_error("Some random error"), "unhealthy");
+    }
+
+    #[test]
+    fn freshness_parse_aliases() {
+        assert_eq!("day".parse::<Freshness>().unwrap(), Freshness::Day);
+        assert_eq!("d".parse::<Freshness>().unwrap(), Freshness::Day);
+        assert_eq!("1d".parse::<Freshness>().unwrap(), Freshness::Day);
+        assert_eq!("past_day".parse::<Freshness>().unwrap(), Freshness::Day);
+        assert_eq!("week".parse::<Freshness>().unwrap(), Freshness::Week);
+        assert_eq!("w".parse::<Freshness>().unwrap(), Freshness::Week);
+        assert_eq!("1w".parse::<Freshness>().unwrap(), Freshness::Week);
+        assert_eq!("month".parse::<Freshness>().unwrap(), Freshness::Month);
+        assert_eq!("m".parse::<Freshness>().unwrap(), Freshness::Month);
+        assert_eq!("year".parse::<Freshness>().unwrap(), Freshness::Year);
+        assert_eq!("y".parse::<Freshness>().unwrap(), Freshness::Year);
+    }
+
+    #[test]
+    fn freshness_parse_invalid() {
+        assert!("invalid".parse::<Freshness>().is_err());
+        assert!("tomorrow".parse::<Freshness>().is_err());
+    }
+
+    #[test]
+    fn freshness_display_roundtrip() {
+        assert_eq!(Freshness::Day.to_string(), "day");
+        assert_eq!(Freshness::Week.to_string(), "week");
+        assert_eq!(Freshness::Month.to_string(), "month");
+        assert_eq!(Freshness::Year.to_string(), "year");
+    }
+
+    #[test]
+    fn capability_context_allows_all_when_empty() {
+        let ctx = CapabilityContext::default();
+        assert!(ctx.allows("web_search"));
+        assert!(ctx.allows("web_extract"));
+        assert!(ctx.allows("any_tool"));
+    }
+
+    #[test]
+    fn capability_context_allows_listed() {
+        let ctx = CapabilityContext {
+            requester_id: Some("test".into()),
+            capabilities: vec!["web_search".into(), "web_browse".into()],
+        };
+        assert!(ctx.allows("web_search"));
+        assert!(ctx.allows("web_browse"));
+        assert!(!ctx.allows("web_extract"));
+        assert!(!ctx.allows("web_find_similar"));
+    }
+
+    #[test]
+    fn search_depth_enum_values() {
+        assert_eq!(SearchDepth::Basic as u8, 0u8);
+        assert_eq!(SearchDepth::Advanced as u8, 1u8);
+    }
+
+    #[test]
+    fn compound_provider_timeout_constant() {
+        assert_eq!(COMPOUND_PROVIDER_TIMEOUT_SECS, 10);
+    }
+
+    #[test]
+    fn validate_search_request_rejects_empty() {
+        let req = SearchRequest {
+            query: "".into(),
+            num_results: Some(10),
+            include_domains: None,
+            exclude_domains: None,
+            freshness: None,
+            strategy: None,
+        };
+        assert!(validate_search_request(&req).is_err());
+    }
+
+    #[test]
+    fn validate_search_request_accepts_valid() {
+        let req = SearchRequest {
+            query: "test query".into(),
+            num_results: Some(10),
+            include_domains: None,
+            exclude_domains: None,
+            freshness: None,
+            strategy: None,
+        };
+        assert!(validate_search_request(&req).is_ok());
+    }
+
+    #[test]
+    fn validate_search_request_rejects_too_long() {
+        let req = SearchRequest {
+            query: "a".repeat(MAX_QUERY_LENGTH + 1),
+            num_results: Some(10),
+            include_domains: None,
+            exclude_domains: None,
+            freshness: None,
+            strategy: None,
+        };
+        assert!(validate_search_request(&req).is_err());
+    }
+
+    #[test]
+    fn validate_extract_request_rejects_long_url() {
+        let req = ExtractRequest {
+            url: "a".repeat(MAX_URL_LENGTH + 1),
+            format: Some("markdown".into()),
+            json_prompt: None,
+            json_schema: None,
+            main_content_only: None,
+            wait_for_ms: None,
+        };
+        assert!(validate_extract_request(&req).is_err());
+    }
+
+    #[test]
+    fn validate_browse_request_rejects_long_url() {
+        let req = BrowseRequest {
+            url: "a".repeat(MAX_URL_LENGTH + 1),
+            instruction: None,
+            timeout_secs: None,
+        };
+        assert!(validate_browse_request(&req).is_err());
+    }
 }

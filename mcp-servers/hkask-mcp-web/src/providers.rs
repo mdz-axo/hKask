@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::Duration;
 
 use super::types::*;
@@ -103,6 +104,30 @@ pub struct ProviderPool {
     pub(crate) extract_providers: Vec<Box<dyn WebExtractProvider>>,
     pub(crate) browse_providers: Vec<Box<dyn WebBrowseProvider>>,
     pub(crate) exa: Option<ExaProvider>,
+    #[allow(dead_code)] // Task 2: Wired for future per-request credential resolution
+    pub(crate) credential_resolver: Arc<dyn CredentialResolver>,
+}
+
+impl ProviderPool {
+    /// Construct a new `ProviderPool` with the given providers and credential resolver.
+    ///
+    /// This is the authoritative constructor — all pool creation should go through
+    /// here rather than setting fields directly, to maintain the hexagonal boundary.
+    pub(crate) fn new(
+        search_providers: Vec<Box<dyn WebSearchProvider>>,
+        extract_providers: Vec<Box<dyn WebExtractProvider>>,
+        browse_providers: Vec<Box<dyn WebBrowseProvider>>,
+        exa: Option<ExaProvider>,
+        credential_resolver: Arc<dyn CredentialResolver>,
+    ) -> Self {
+        Self {
+            search_providers,
+            extract_providers,
+            browse_providers,
+            exa,
+            credential_resolver,
+        }
+    }
 }
 
 impl ProviderPool {
@@ -649,7 +674,7 @@ impl WebSearchProvider for BraveProvider {
             ("count", query.num_results.to_string()),
         ];
         if let Some(ref freshness) = query.freshness {
-            params.push(("freshness", freshness.clone()));
+            params.push(("freshness", freshness_brave(freshness)));
         }
 
         let resp = self
@@ -1102,15 +1127,9 @@ impl WebSearchProvider for SerapiProvider {
             params.push(("as_sitesearch", query.include_domains.join(",")));
         }
         if let Some(ref freshness) = query.freshness {
-            let tbs = match freshness.as_str() {
-                "day" => "qdr:d",
-                "week" => "qdr:w",
-                "month" => "qdr:m",
-                "year" => "qdr:y",
-                _ => "",
-            };
+            let tbs = freshness_serpapi(freshness);
             if !tbs.is_empty() {
-                params.push(("tbs", tbs.to_string()));
+                params.push(("tbs", tbs));
             }
         }
 
