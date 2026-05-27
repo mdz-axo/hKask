@@ -8,10 +8,18 @@ use serde::{Deserialize, Serialize};
 pub const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const BRAVE_API_BASE: &str = "https://api.search.brave.com/res/v1";
 pub const FIRECRAWL_API_BASE: &str = "https://api.firecrawl.dev/v1";
+pub const TAVILY_API_BASE: &str = "https://api.tavily.com";
+pub const SERPAPI_BASE: &str = "https://serpapi.com/search";
+pub const EXA_API_BASE: &str = "https://api.exa.ai";
+pub const BROWSERBASE_API_BASE: &str = "https://api.browserbase.com/v1";
 pub const DEFAULT_CACHE_TTL_SECS: u64 = 300;
 pub const MAX_CACHE_TTL_SECS: u64 = 7200;
 pub const DEFAULT_CACHE_MAX_ENTRIES: usize = 50;
 pub const MAX_CACHE_MAX_ENTRIES: usize = 200;
+
+// =============================================================================
+// Request types
+// =============================================================================
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct SearchRequest {
@@ -50,6 +58,10 @@ pub struct ResearchRequest {
     pub freshness: Option<String>,
 }
 
+// =============================================================================
+// Domain types
+// =============================================================================
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchResult {
     pub title: String,
@@ -57,6 +69,8 @@ pub struct SearchResult {
     pub description: Option<String>,
     pub source: Option<String>,
     pub published: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -94,6 +108,10 @@ pub struct ExtractOptions {
     pub wait_for_ms: u64,
 }
 
+// =============================================================================
+// Error types
+// =============================================================================
+
 #[derive(Debug, thiserror::Error)]
 pub enum WebError {
     #[error("Bad arguments: {0}")]
@@ -129,14 +147,115 @@ impl From<WebError> for McpToolError {
     }
 }
 
+// =============================================================================
+// Provider capabilities
+// =============================================================================
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SearchCapability {
+    Keyword,
+    News,
+    Freshness,
+    Semantic,
+}
+
+// =============================================================================
+// Compound search result types
+// =============================================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RankedResult {
+    pub title: String,
+    pub url: String,
+    pub description: Option<String>,
+    pub source: Option<String>,
+    pub published: Option<String>,
+    pub consensus_score: f64,
+    pub provider_count: usize,
+    pub providers: Vec<String>,
+    pub best_rank: Option<usize>,
+    pub content_preview: Option<String>,
+    pub semantic_score: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AnswerBox {
+    pub title: Option<String>,
+    pub snippet: Option<String>,
+    pub url: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProviderInfo {
+    pub kind: String,
+    pub capabilities: Vec<SearchCapability>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProviderError {
+    pub kind: String,
+    pub error: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompoundSearchResult {
+    pub query: String,
+    pub strategy: String,
+    pub results: Vec<RankedResult>,
+    pub answer_box: Option<AnswerBox>,
+    pub related_questions: Vec<String>,
+    pub providers_queried: Vec<ProviderInfo>,
+    pub providers_succeeded: Vec<String>,
+    pub providers_failed: Vec<ProviderError>,
+    pub total_before_dedup: usize,
+    pub duplicates_removed: usize,
+}
+
+// =============================================================================
+// Search strategy
+// =============================================================================
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum SearchStrategy {
     Quick,
     Semantic,
+    News,
+    Research,
     Extract,
     Deep,
     Fetch,
+}
+
+impl SearchStrategy {
+    pub fn required_capabilities(&self) -> Vec<SearchCapability> {
+        match self {
+            SearchStrategy::Quick | SearchStrategy::Extract => vec![SearchCapability::Keyword],
+            SearchStrategy::Semantic => vec![SearchCapability::Semantic],
+            SearchStrategy::News => vec![SearchCapability::News],
+            SearchStrategy::Research => vec![],
+            SearchStrategy::Deep => vec![],
+            SearchStrategy::Fetch => vec![],
+        }
+    }
+
+    pub fn provider_filter(&self) -> ProviderFilter {
+        match self {
+            SearchStrategy::Quick | SearchStrategy::Extract => ProviderFilter::Capabilities(vec![SearchCapability::Keyword]),
+            SearchStrategy::Semantic => ProviderFilter::Capabilities(vec![SearchCapability::Semantic]),
+            SearchStrategy::News => ProviderFilter::Capabilities(vec![SearchCapability::News]),
+            SearchStrategy::Research => ProviderFilter::All,
+            SearchStrategy::Deep => ProviderFilter::All,
+            SearchStrategy::Fetch => ProviderFilter::None,
+        }
+    }
+}
+
+pub enum ProviderFilter {
+    All,
+    None,
+    Capabilities(Vec<SearchCapability>),
+    Kinds(Vec<&'static str>),
 }
 
 impl std::fmt::Display for SearchStrategy {
@@ -144,6 +263,8 @@ impl std::fmt::Display for SearchStrategy {
         match self {
             SearchStrategy::Quick => write!(f, "quick"),
             SearchStrategy::Semantic => write!(f, "semantic"),
+            SearchStrategy::News => write!(f, "news"),
+            SearchStrategy::Research => write!(f, "research"),
             SearchStrategy::Extract => write!(f, "extract"),
             SearchStrategy::Deep => write!(f, "deep"),
             SearchStrategy::Fetch => write!(f, "fetch"),
@@ -157,11 +278,13 @@ impl std::str::FromStr for SearchStrategy {
         match s.to_lowercase().as_str() {
             "quick" => Ok(SearchStrategy::Quick),
             "semantic" => Ok(SearchStrategy::Semantic),
+            "news" => Ok(SearchStrategy::News),
+            "research" => Ok(SearchStrategy::Research),
             "extract" => Ok(SearchStrategy::Extract),
             "deep" => Ok(SearchStrategy::Deep),
             "fetch" => Ok(SearchStrategy::Fetch),
             _ => Err(WebError::BadArgs(format!(
-                "Unknown strategy: {s}. Use: quick, semantic, extract, deep, fetch"
+                "Unknown strategy: {s}. Use: quick, semantic, news, research, extract, deep, fetch"
             ))),
         }
     }

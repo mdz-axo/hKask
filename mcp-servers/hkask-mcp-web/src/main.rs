@@ -1,8 +1,13 @@
-//! hKask MCP Web — Unified web search, content extraction, and interactive browsing
+//! hKask MCP Web — Compound web search, content extraction, and interactive browsing
 //!
-//! Provides multi-provider routing across Brave (search) and Firecrawl (search/extract/browse)
-//! with a RawFetch fallback for basic extraction. Strategy engine supports quick, semantic,
-//! extract, deep, and fetch modes. In-memory cache with TTL-based eviction.
+//! Multi-provider routing across Brave, Firecrawl, Tavily, SerpAPI, Exa (search),
+//! Firecrawl/RawFetch (extract), and Firecrawl/Browserbase (browse).
+//! Strategy engine supports:
+//! - quick: single-provider fallback (Brave primary)
+//! - semantic: compound concurrent search (Exa + Tavily + Firecrawl)
+//! - extract: search + extract top results
+//! - deep: compound search all providers + extract + cross-ref
+//! - fetch: URL → content extraction
 
 mod cache;
 mod providers;
@@ -19,7 +24,8 @@ use std::time::{Duration, Instant};
 
 use cache::{cache_key, ResponseCache};
 use providers::{
-    BraveProvider, FirecrawlProvider, ProviderPool, RawFetchProvider,
+    BraveProvider, BrowserbaseProvider, ExaProvider, FirecrawlProvider, ProviderPool,
+    RawFetchProvider, SerapiProvider, TavilyProvider,
 };
 use types::*;
 
@@ -32,6 +38,10 @@ impl WebServer {
     fn new(
         brave_api_key: Option<String>,
         firecrawl_api_key: Option<String>,
+        tavily_api_key: Option<String>,
+        serpapi_api_key: Option<String>,
+        exa_api_key: Option<String>,
+        browserbase_api_key: Option<String>,
     ) -> Result<Self, anyhow::Error> {
         let cache_ttl = std::env::var("HKASK_WEB_CACHE_TTL_SECS")
             .ok()
@@ -52,14 +62,31 @@ impl WebServer {
             search_providers.push(Box::new(BraveProvider::new(key.clone())));
         }
         if let Some(ref key) = firecrawl_api_key {
-            extract_providers.push(Box::new(FirecrawlProvider::new(Some(key.clone()))));
             search_providers.push(Box::new(FirecrawlProvider::new(Some(key.clone()))));
+            extract_providers.push(Box::new(FirecrawlProvider::new(Some(key.clone()))));
             browse_providers.push(Box::new(FirecrawlProvider::new(Some(key.clone()))));
         }
+        if let Some(ref key) = tavily_api_key {
+            search_providers.push(Box::new(TavilyProvider::new(key.clone())));
+        }
+        if let Some(ref key) = serpapi_api_key {
+            search_providers.push(Box::new(SerapiProvider::new(key.clone())));
+        }
+        if let Some(ref key) = exa_api_key {
+            search_providers.push(Box::new(ExaProvider::new(key.clone())));
+        }
+        if let Some(ref key) = browserbase_api_key {
+            browse_providers.push(Box::new(BrowserbaseProvider::new(key.clone())));
+        }
+
         extract_providers.push(Box::new(RawFetchProvider::new()));
 
         if search_providers.is_empty() {
-            anyhow::bail!("No search providers configured. Set HKASK_BRAVE_API_KEY or HKASK_FIRECRAWL_API_KEY.");
+            anyhow::bail!(
+                "No search providers configured. Set at least one of: \
+                 HKASK_BRAVE_API_KEY, HKASK_FIRECRAWL_API_KEY, HKASK_TAVILY_API_KEY, \
+                 HKASK_SERPAPI_API_KEY, HKASK_EXA_API_KEY"
+            );
         }
 
         Ok(Self {
@@ -77,25 +104,17 @@ impl WebServer {
 impl WebServer {
     #[tool(description = "Liveness and provider health check")]
     async fn web_ping(&self) -> String {
-        let mut providers = Vec::new();
-        for p in &self.pool.search_providers {
-            providers.push(format!("search:{}", p.kind()));
-        }
-        for p in &self.pool.extract_providers {
-            providers.push(format!("extract:{}", p.kind()));
-        }
-        for p in &self.pool.browse_providers {
-            providers.push(format!("browse:{}", p.kind()));
-        }
         McpToolOutput::new(serde_json::json!({
             "status": "ok",
             "version": SERVER_VERSION,
-            "providers": providers,
+            "search_providers": self.pool.search_provider_kinds(),
+            "extract_providers": self.pool.extract_provider_kinds(),
+            "browse_providers": self.pool.browse_provider_kinds(),
         }))
         .to_json_string()
     }
 
-    #[tool(description = "Search the web using keyword/semantic queries with multi-provider routing")]
+    #[tool(description = "Search the web — compound multi-provider with dedup or single-provider fallback")]
     async fn web_search(
         &self,
         Parameters(SearchRequest {
@@ -140,26 +159,67 @@ impl WebServer {
             return McpToolOutput::with_timing(cached, start).to_json_string();
         }
 
-        let primary = match strat {
-            SearchStrategy::Quick | SearchStrategy::Extract | SearchStrategy::Fetch => "brave",
-            SearchStrategy::Semantic | SearchStrategy::Deep => "firecrawl",
-        };
-
-        match self.pool.search_with_fallback(&search_query, primary).await {
-            Ok(results) => {
+        match strat {
+            SearchStrategy::Quick | SearchStrategy::Extract => {
+                let primary = "brave";
+                match self.pool.search_with_fallback(&search_query, primary).await {
+                    Ok(results) => {
+                        emit_tool_span("web_search", "ok", start.elapsed().as_millis() as u64, None);
+                        let output = serde_json::json!({
+                            "query": query,
+                            "strategy": strat.to_string(),
+                            "mode": "fallback",
+                            "results": results,
+                            "count": results.len(),
+                        });
+                        self.cache.insert(ckey, output.clone()).await;
+                        McpToolOutput::with_timing(output, start).to_json_string()
+                    }
+                    Err(e) => {
+                        emit_tool_span("web_search", "error", start.elapsed().as_millis() as u64, Some(&e.kind()));
+                        McpToolError::from(e).to_json_string()
+                    }
+                }
+            }
+            SearchStrategy::Semantic => {
+                let filter = ["exa", "tavily", "firecrawl"];
+                let compound = self.pool.search_compound(&search_query, Some(&filter)).await;
                 emit_tool_span("web_search", "ok", start.elapsed().as_millis() as u64, None);
                 let output = serde_json::json!({
                     "query": query,
                     "strategy": strat.to_string(),
-                    "results": results,
-                    "count": results.len(),
+                    "mode": "compound",
+                    "providers_queried": compound.providers_queried,
+                    "providers_succeeded": compound.providers_succeeded,
+                    "providers_failed": compound.providers_failed,
+                    "total_before_dedup": compound.total_before_dedup,
+                    "duplicates_removed": compound.duplicates_removed,
+                    "results": compound.results,
+                    "count": compound.results.len(),
                 });
                 self.cache.insert(ckey, output.clone()).await;
                 McpToolOutput::with_timing(output, start).to_json_string()
             }
-            Err(e) => {
-                emit_tool_span("web_search", "error", start.elapsed().as_millis() as u64, Some(&e.kind()));
-                McpToolError::from(e).to_json_string()
+            SearchStrategy::Deep => {
+                let compound = self.pool.search_compound(&search_query, None).await;
+                emit_tool_span("web_search", "ok", start.elapsed().as_millis() as u64, None);
+                let output = serde_json::json!({
+                    "query": query,
+                    "strategy": strat.to_string(),
+                    "mode": "compound",
+                    "providers_queried": compound.providers_queried,
+                    "providers_succeeded": compound.providers_succeeded,
+                    "providers_failed": compound.providers_failed,
+                    "total_before_dedup": compound.total_before_dedup,
+                    "duplicates_removed": compound.duplicates_removed,
+                    "results": compound.results,
+                    "count": compound.results.len(),
+                });
+                self.cache.insert(ckey, output.clone()).await;
+                McpToolOutput::with_timing(output, start).to_json_string()
+            }
+            SearchStrategy::Fetch => {
+                McpToolError::invalid_argument("Fetch strategy requires a URL — use web_extract instead").to_json_string()
             }
         }
     }
@@ -216,7 +276,7 @@ impl WebServer {
         }
     }
 
-    #[tool(description = "Interactive browsing of JS-heavy pages")]
+    #[tool(description = "Interactive browsing of JS-heavy pages via headless browser")]
     async fn web_browse(
         &self,
         Parameters(BrowseRequest {
@@ -254,7 +314,7 @@ impl WebServer {
         }
     }
 
-    #[tool(description = "Deep multi-step research cascade across search and extraction")]
+    #[tool(description = "Deep multi-step research cascade: compound search → extract → cross-ref")]
     async fn web_research(
         &self,
         Parameters(ResearchRequest {
@@ -281,18 +341,12 @@ impl WebServer {
             search_type: None,
         };
 
-        let search_results = match self.pool.search_with_fallback(&search_query, "brave").await {
-            Ok(r) => r,
-            Err(e) => {
-                emit_tool_span("web_research", "error", start.elapsed().as_millis() as u64, Some(&e.kind()));
-                return McpToolError::from(e).to_json_string();
-            }
-        };
+        let compound = self.pool.search_compound(&search_query, None).await;
 
         let mut pages = Vec::new();
         let mut urls_seen = std::collections::HashSet::new();
 
-        for result in search_results.iter().take(max_pages) {
+        for result in compound.results.iter().take(max_pages) {
             if urls_seen.contains(&result.url) {
                 continue;
             }
@@ -329,6 +383,10 @@ impl WebServer {
         McpToolOutput::with_timing(
             serde_json::json!({
                 "query": query,
+                "mode": "compound",
+                "search_providers_queried": compound.providers_queried,
+                "search_providers_succeeded": compound.providers_succeeded,
+                "search_providers_failed": compound.providers_failed,
                 "pages_extracted": pages.len(),
                 "pages": pages,
             }),
@@ -354,19 +412,36 @@ fn truncate_str(s: &str, max_len: usize) -> String {
 async fn main() -> anyhow::Result<()> {
     let brave_key = resolve_credential("HKASK_BRAVE_API_KEY").ok();
     let firecrawl_key = resolve_credential("HKASK_FIRECRAWL_API_KEY").ok();
+    let tavily_key = resolve_credential("HKASK_TAVILY_API_KEY").ok();
+    let serpapi_key = resolve_credential("HKASK_SERPAPI_API_KEY").ok();
+    let exa_key = resolve_credential("HKASK_EXA_API_KEY").ok();
+    let browserbase_key = resolve_credential("HKASK_BROWSERBASE_API_KEY").ok();
 
     let mut required_creds = Vec::new();
-    if brave_key.is_none() && firecrawl_key.is_none() {
+    if brave_key.is_none() && firecrawl_key.is_none() && tavily_key.is_none()
+        && serpapi_key.is_none() && exa_key.is_none()
+    {
         required_creds.push(CredentialRequirement::required(
             "HKASK_BRAVE_API_KEY",
-            "Brave Search API key (or HKASK_FIRECRAWL_API_KEY for Firecrawl)",
+            "At least one search provider API key is required \
+             (HKASK_BRAVE_API_KEY, HKASK_TAVILY_API_KEY, HKASK_SERPAPI_API_KEY, \
+             HKASK_FIRECRAWL_API_KEY, or HKASK_EXA_API_KEY)",
         ));
     }
 
     run_stdio_server(
         "hkask-mcp-web",
         SERVER_VERSION,
-        || WebServer::new(brave_key.clone(), firecrawl_key.clone()),
+        || {
+            WebServer::new(
+                brave_key.clone(),
+                firecrawl_key.clone(),
+                tavily_key.clone(),
+                serpapi_key.clone(),
+                exa_key.clone(),
+                browserbase_key.clone(),
+            )
+        },
         required_creds,
     )
     .await
