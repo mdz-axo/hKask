@@ -99,7 +99,18 @@ pub struct SearchQuery {
     pub num_results: u32,
     pub include_domains: Vec<String>,
     pub exclude_domains: Vec<String>,
-    pub freshness: Option<String>,
+    pub freshness: Option<Freshness>,
+    /// Search depth hint for providers that support it (e.g., Tavily "basic"/"advanced").
+    /// Set by `ProviderPool` based on `SearchStrategy` before calling individual providers.
+    pub depth: SearchDepth,
+}
+
+/// Search depth hint derived from `SearchStrategy`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SearchDepth {
+    Basic,
+    Advanced,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -383,17 +394,20 @@ pub struct PingOutput {
 // Task 3: Sanitize health error messages to prevent credential leakage
 // =============================================================================
 
-/// Regex pattern matching common API key prefixes followed by 8+ alphanumeric chars.
-static API_KEY_PATTERN: &str = r"(?:sk-|pk-|fc-|ts-|br-|xai-|ghp_)[a-zA-Z0-9]{8,}";
+/// Lazily compiled API key regex pattern for sanitization.
+/// Avoids re-compiling the regex on every call to `sanitize_health_error`.
+static API_KEY_REGEX: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+    regex::Regex::new(r"(?:sk-|pk-|fc-|ts-|br-|xai-|ghp_)[a-zA-Z0-9]{8,}").unwrap()
+});
 
-/// Sanitize a provider health error to prevent credential leakage.
+/// Sanitize a provider error to prevent credential leakage.
 ///
 /// Replaces detailed error messages with generic categories and strips
 /// any substrings that look like API keys (matching common prefix patterns).
+/// Used in both `health_check_all()` and `search_compound()` to ensure
+/// no credentials leak through CNS tracing or compound result metadata.
 pub fn sanitize_health_error(error: &str) -> String {
-    let sanitized = regex::Regex::new(API_KEY_PATTERN)
-        .map(|re| re.replace_all(error, "[REDACTED]").to_string())
-        .unwrap_or_else(|_| error.to_string());
+    let sanitized = API_KEY_REGEX.replace_all(error, "[REDACTED]").to_string();
 
     let lower = sanitized.to_lowercase();
     if lower.contains("401") || lower.contains("403") || lower.contains("auth") {
@@ -496,16 +510,31 @@ impl std::fmt::Display for Freshness {
 // Task 13: CapabilityContext — OCAP preparation
 // =============================================================================
 
-/// Optional capability context for future OCAP enforcement.
+/// Capability context for OCAP-style enforcement at the port boundary.
 ///
-/// For now, pass `None` everywhere. When `hkask-keystore` and `hkask-agents`
-/// ACP are ready, the MCP server will extract capabilities from the session
-/// and pass them through. This follows Miller's principle: design the
-/// authority boundary now, populate it later.
+/// When `Some(ctx)` is provided, each `WebSearchPort` method checks
+/// `ctx.allows(tool_name)` before proceeding. When `None`, all
+/// capabilities are allowed (current default behavior).
+///
+/// When `hkask-keystore` and `hkask-agents` ACP are ready, the MCP server
+/// will extract capabilities from the session and pass them through.
 #[derive(Debug, Clone, Default)]
 pub struct CapabilityContext {
     pub requester_id: Option<String>,
     pub capabilities: Vec<String>,
+}
+
+impl CapabilityContext {
+    /// Check whether the given tool name is in the capability set.
+    ///
+    /// If `capabilities` is empty, allows all (open policy).
+    /// Otherwise, requires an explicit match.
+    pub fn allows(&self, tool: &str) -> bool {
+        if self.capabilities.is_empty() {
+            return true;
+        }
+        self.capabilities.iter().any(|c| c == tool)
+    }
 }
 
 // =============================================================================
@@ -752,6 +781,73 @@ pub fn normalize_date_bucket(published: &str) -> &'static str {
 
 use std::collections::HashMap;
 use std::sync::Mutex;
+
+// --- Task 6: Compound provider timeout (shorter than client timeout) ---
+pub const COMPOUND_PROVIDER_TIMEOUT_SECS: u64 = 10;
+
+/// Validate a `SearchRequest` at the port boundary.
+///
+/// This is the authoritative enforcement point per the Cockburn principle:
+/// the port defines the contract, not the adapter entry point.
+pub fn validate_search_request(req: &SearchRequest) -> Result<(), WebError> {
+    if req.query.is_empty() {
+        return Err(WebError::BadArgs("query must not be empty".into()));
+    }
+    if req.query.len() > MAX_QUERY_LENGTH {
+        return Err(WebError::BadArgs(format!(
+            "query exceeds maximum length of {} characters",
+            MAX_QUERY_LENGTH
+        )));
+    }
+    Ok(())
+}
+
+/// Validate an `ExtractRequest` at the port boundary.
+pub fn validate_extract_request(req: &ExtractRequest) -> Result<(), WebError> {
+    if req.url.len() > MAX_URL_LENGTH {
+        return Err(WebError::BadArgs(format!(
+            "url exceeds maximum length of {} characters",
+            MAX_URL_LENGTH
+        )));
+    }
+    if let Some(ref prompt) = req.json_prompt
+        && prompt.len() > MAX_JSON_PROMPT_LENGTH
+    {
+        return Err(WebError::BadArgs(format!(
+            "json_prompt exceeds maximum length of {} characters",
+            MAX_JSON_PROMPT_LENGTH
+        )));
+    }
+    if let Some(ref schema) = req.json_schema
+        && let Ok(bytes) = serde_json::to_string(schema)
+        && bytes.len() > MAX_JSON_SCHEMA_BYTES
+    {
+        return Err(WebError::BadArgs(format!(
+            "json_schema exceeds maximum size of {} bytes",
+            MAX_JSON_SCHEMA_BYTES
+        )));
+    }
+    Ok(())
+}
+
+/// Validate a `BrowseRequest` at the port boundary.
+pub fn validate_browse_request(req: &BrowseRequest) -> Result<(), WebError> {
+    if req.url.len() > MAX_URL_LENGTH {
+        return Err(WebError::BadArgs(format!(
+            "url exceeds maximum length of {} characters",
+            MAX_URL_LENGTH
+        )));
+    }
+    if let Some(ref instr) = req.instruction
+        && instr.len() > MAX_INSTRUCTION_LENGTH
+    {
+        return Err(WebError::BadArgs(format!(
+            "instruction exceeds maximum length of {} characters",
+            MAX_INSTRUCTION_LENGTH
+        )));
+    }
+    Ok(())
+}
 
 pub struct RateLimiter {
     windows: Mutex<HashMap<String, RateWindow>>,

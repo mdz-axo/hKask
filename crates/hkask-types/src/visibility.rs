@@ -377,6 +377,18 @@ impl AccessDecision {
     }
 }
 
+/// Parameter object for access evaluation
+pub struct AccessRequest<'a> {
+    pub visibility: Visibility,
+    pub owner: &'a str,
+    pub requester: &'a str,
+    pub capabilities: &'a [Capability],
+    pub resource: &'a str,
+    pub action: &'a str,
+    pub public_keys: &'a std::collections::HashMap<String, Vec<u8>>,
+    pub current_time: i64,
+}
+
 /// Access evaluator with separated responsibilities
 pub struct AccessEvaluator {
     public_keys: std::collections::HashMap<String, Vec<u8>>,
@@ -403,6 +415,18 @@ impl AccessEvaluator {
     pub fn with_revocation_list(mut self, list: RevocationList) -> Self {
         self.revocation_list = list;
         self
+    }
+
+    /// Evaluate access using a parameter object (preferred API)
+    pub fn evaluate_request(&self, req: &AccessRequest<'_>) -> AccessDecision {
+        self.evaluate(
+            req.visibility,
+            req.owner,
+            req.requester,
+            req.capabilities,
+            req.resource,
+            req.action,
+        )
     }
 
     pub fn evaluate(
@@ -457,24 +481,11 @@ impl AccessEvaluator {
     }
 }
 
-/// Evaluate access based on visibility and capabilities with cryptographic verification
+/// Evaluate access based on visibility and capabilities with cryptographic verification.
 ///
-/// Uses WebID-based comparison and verifies capability signatures.
-/// Per architecture v0.21.0 §3.1 §3.2.
-///
-/// # Arguments
-/// * `visibility` - The visibility level of the resource
-/// * `owner` - WebID of the resource owner
-/// * `requester` - WebID of the requesting party
-/// * `capabilities` - List of capabilities to check
-/// * `resource` - Resource identifier being accessed
-/// * `action` - Action being requested
-/// * `public_keys` - Map of WebID to public key for signature verification
-/// * `current_time` - Current timestamp for expiry checking (Unix epoch seconds)
-///
-/// # Returns
-/// AccessDecision with allowed status and metadata
-#[allow(clippy::too_many_arguments)]
+/// For new code, prefer constructing an [`AccessRequest`] and calling
+/// [`AccessEvaluator::evaluate_request`] for better readability.
+#[deprecated(note = "Use AccessRequest with AccessEvaluator::evaluate_request instead")]
 pub fn evaluate_access(
     visibility: Visibility,
     owner: &str,
@@ -485,6 +496,16 @@ pub fn evaluate_access(
     public_keys: &std::collections::HashMap<String, Vec<u8>>,
     current_time: i64,
 ) -> AccessDecision {
+    let req = AccessRequest {
+        visibility,
+        owner,
+        requester,
+        capabilities,
+        resource,
+        action,
+        public_keys,
+        current_time,
+    };
     let evaluator = AccessEvaluator::new(public_keys.clone(), current_time);
-    evaluator.evaluate(visibility, owner, requester, capabilities, resource, action)
+    evaluator.evaluate_request(&req)
 }

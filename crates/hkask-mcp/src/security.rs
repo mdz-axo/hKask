@@ -307,6 +307,7 @@ fn is_private_ip(ip: &IpAddr) -> bool {
             octets[0] == 10
                 || (octets[0] == 172 && octets[1] >= 16 && octets[1] <= 31)
                 || (octets[0] == 192 && octets[1] == 168)
+                || (octets[0] == 169 && octets[1] == 254)
                 || octets[0] == 127
         }
         IpAddr::V6(v6) => {
@@ -405,5 +406,14 @@ mod url_validation_tests {
     fn test_rejects_file_scheme() {
         let result = validate_url("file:///etc/passwd", &UrlValidationConfig::default());
         assert!(matches!(result, Err(SecurityError::DisallowedScheme(_))));
+    }
+
+    #[test]
+    fn test_rejects_link_local_ip() {
+        let result = validate_url(
+            "http://169.254.169.254/latest/meta-data/",
+            &UrlValidationConfig::default(),
+        );
+        assert!(matches!(result, Err(SecurityError::PrivateIpNotAllowed(_))));
     }
 }

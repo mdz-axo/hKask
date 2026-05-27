@@ -84,12 +84,13 @@ impl WebServer {
         }
 
         Ok(Self {
-            pool: Arc::new(ProviderPool {
+            pool: Arc::new(ProviderPool::new(
                 search_providers,
                 extract_providers,
                 browse_providers,
-                exa: exa_provider,
-            }),
+                exa_provider,
+                Arc::new(EnvCredentialResolver),
+            )),
             cache: Arc::new(ResponseCache::new(
                 cache_max,
                 Duration::from_secs(cache_ttl),
@@ -103,6 +104,23 @@ impl WebServer {
 impl WebServer {
     #[tool(description = "Liveness and provider health check")]
     async fn web_ping(&self) -> String {
+        // Task 9: Rate limit web_ping to prevent DoS amplification
+        if let Err(e) = self.rate_limiter.check("web_ping") {
+            // Task 11: Return PingOutput with rate_limited status instead of McpToolError
+            let output = PingOutput {
+                status: "rate_limited".to_string(),
+                version: SERVER_VERSION.to_string(),
+                providers: vec![],
+            };
+            tracing::warn!(
+                target: "cns.web",
+                message = %e.message,
+                "web_ping rate limited"
+            );
+            return McpToolOutput::new(serde_json::to_value(&output).unwrap_or_default())
+                .to_json_string();
+        }
+
         let providers = self.pool.health_check().await;
         let output = PingOutput {
             status: "ok".to_string(),
@@ -165,7 +183,8 @@ impl WebServer {
             num_results,
             include_domains: req.include_domains.unwrap_or_default(),
             exclude_domains: req.exclude_domains.unwrap_or_default(),
-            freshness: freshness.map(|f| f.to_string()).or(req.freshness.clone()),
+            freshness, // Task 3: Type-safe Freshness enum flows to providers
+            depth: SearchDepth::Basic, // Will be overridden by ProviderPool based on strategy
         };
 
         // Task 13: CapabilityContext passed as None for now
@@ -623,6 +642,7 @@ mod live_tests {
             include_domains: vec![],
             exclude_domains: vec![],
             freshness: None,
+            depth: SearchDepth::Basic,
         };
         let result = server
             .pool
@@ -643,6 +663,7 @@ mod live_tests {
             include_domains: vec![],
             exclude_domains: vec![],
             freshness: None,
+            depth: SearchDepth::Basic,
         };
         let result = server.pool.search(&query, SearchStrategy::Web, None).await;
         assert!(result.is_ok(), "Search failed: {:?}", result.err());
@@ -676,6 +697,7 @@ mod live_tests {
             include_domains: vec![],
             exclude_domains: vec![],
             freshness: None,
+            depth: SearchDepth::Basic,
         };
         let result = server.pool.search(&query, SearchStrategy::Web, None).await;
         assert!(result.is_ok(), "Compound search failed: {:?}", result.err());
@@ -731,7 +753,7 @@ mod live_tests {
         );
         assert!(
             parsed
-                .get("result")
+                .get("content")
                 .and_then(|r| r.get("results"))
                 .is_some(),
             "No results in output"

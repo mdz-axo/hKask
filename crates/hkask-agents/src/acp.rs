@@ -30,7 +30,9 @@
 
 use crate::ports::{AuditLogStoragePort, AuditStorageEntry};
 use hkask_cns::rate_limit::{RateLimitConfig, RateLimiter};
-use hkask_types::{CapabilityAction, CapabilityResource, CapabilityToken, WebID};
+use hkask_types::{
+    CapabilityAction, CapabilityResource, CapabilityToken, CapabilityTokenBuilder, WebID,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -171,18 +173,16 @@ impl RootAuthority {
 
         let context_nonce = format!("root-{}-{}", self.root_webid, token_id);
 
-        let token = CapabilityToken::new_with_attenuation(
+        let token = CapabilityTokenBuilder::new(
             resource,
             resource_id,
             action,
             self.root_webid,
             delegated_to,
-            self.root_secret.as_ref(),
-            None,
-            0,
-            7,
-            Some(context_nonce),
-        );
+        )
+        .attenuation(0, 7)
+        .context_nonce(context_nonce)
+        .sign(self.root_secret.as_ref());
 
         Ok(token)
     }

@@ -410,7 +410,7 @@ impl ProviderPool {
             entries.push(ProviderHealthEntry {
                 kind,
                 healthy: result.is_ok(),
-                error: result.err().map(|e| e.to_string()),
+                error: result.err().map(|e| sanitize_health_error(&e.to_string())),
             });
         }
 
@@ -423,7 +423,7 @@ impl ProviderPool {
             entries.push(ProviderHealthEntry {
                 kind,
                 healthy: result.is_ok(),
-                error: result.err().map(|e| e.to_string()),
+                error: result.err().map(|e| sanitize_health_error(&e.to_string())),
             });
         }
 
@@ -436,7 +436,7 @@ impl ProviderPool {
             entries.push(ProviderHealthEntry {
                 kind,
                 healthy: result.is_ok(),
-                error: result.err().map(|e| e.to_string()),
+                error: result.err().map(|e| sanitize_health_error(&e.to_string())),
             });
         }
 
@@ -445,7 +445,7 @@ impl ProviderPool {
             entries.push(ProviderHealthEntry {
                 kind: "exa-similar".into(),
                 healthy: result.is_ok(),
-                error: result.err().map(|e| e.to_string()),
+                error: result.err().map(|e| sanitize_health_error(&e.to_string())),
             });
         }
 
@@ -463,13 +463,40 @@ impl WebSearchPort for ProviderPool {
         &self,
         query: &SearchQuery,
         strategy: SearchStrategy,
-        _ctx: Option<&CapabilityContext>,
+        ctx: Option<&CapabilityContext>,
     ) -> Result<CompoundSearchResult, WebError> {
+        // Task 1: CapabilityContext enforcement at port boundary
+        if let Some(ctx) = ctx {
+            if !ctx.allows("web_search") {
+                return Err(WebError::ProviderUnavailable(
+                    "capability not authorized".into(),
+                ));
+            }
+        }
+
+        // Task 8: Validation at port boundary (authoritative enforcement point)
+        if query.query.is_empty() {
+            return Err(WebError::BadArgs("query must not be empty".into()));
+        }
+        if query.query.len() > MAX_QUERY_LENGTH {
+            return Err(WebError::BadArgs(format!(
+                "query exceeds maximum length of {} characters",
+                MAX_QUERY_LENGTH
+            )));
+        }
+
+        // Build a query with depth set based on strategy
+        let query_with_depth = SearchQuery {
+            depth: match strategy {
+                SearchStrategy::Deep => SearchDepth::Advanced,
+                _ => SearchDepth::Basic,
+            },
+            ..query.clone()
+        };
+
         let mut compound = if strategy == SearchStrategy::Quick {
-            // Quick strategy: use the first keyword-capable provider instead of
-            // hardcoding "brave". Falls back across providers automatically.
             let results = self
-                .search_by_capability(query, &[SearchCapability::Keyword])
+                .search_by_capability(&query_with_depth, &[SearchCapability::Keyword])
                 .await?;
             let provider_name = self
                 .search_providers
@@ -513,7 +540,7 @@ impl WebSearchPort for ProviderPool {
                 duplicates_removed: 0,
             }
         } else {
-            self.search_compound(query, strategy).await
+            self.search_compound(&query_with_depth, strategy).await
         };
 
         apply_rerank(&mut compound.results, RerankSignal::Recency);
@@ -527,8 +554,16 @@ impl WebSearchPort for ProviderPool {
         &self,
         url: &str,
         num_results: u32,
-        _ctx: Option<&CapabilityContext>,
+        ctx: Option<&CapabilityContext>,
     ) -> Result<ProviderSearchOutput, WebError> {
+        // Task 1: CapabilityContext enforcement at port boundary
+        if let Some(ctx) = ctx {
+            if !ctx.allows("web_find_similar") {
+                return Err(WebError::ProviderUnavailable(
+                    "capability not authorized".into(),
+                ));
+            }
+        }
         match self.exa {
             Some(ref exa) => exa.find_similar(url, num_results).await,
             None => Err(WebError::NoProvider),
@@ -539,8 +574,16 @@ impl WebSearchPort for ProviderPool {
         &self,
         url: &str,
         opts: &ExtractOptions,
-        _ctx: Option<&CapabilityContext>,
+        ctx: Option<&CapabilityContext>,
     ) -> Result<ExtractedContent, WebError> {
+        // Task 1: CapabilityContext enforcement at port boundary
+        if let Some(ctx) = ctx {
+            if !ctx.allows("web_extract") {
+                return Err(WebError::ProviderUnavailable(
+                    "capability not authorized".into(),
+                ));
+            }
+        }
         self.extract_with_fallback(url, opts).await
     }
 
@@ -549,8 +592,16 @@ impl WebSearchPort for ProviderPool {
         url: &str,
         instruction: &str,
         timeout: Duration,
-        _ctx: Option<&CapabilityContext>,
+        ctx: Option<&CapabilityContext>,
     ) -> Result<BrowseResult, WebError> {
+        // Task 1: CapabilityContext enforcement at port boundary
+        if let Some(ctx) = ctx {
+            if !ctx.allows("web_browse") {
+                return Err(WebError::ProviderUnavailable(
+                    "capability not authorized".into(),
+                ));
+            }
+        }
         self.browse_with_fallback(url, instruction, timeout).await
     }
 

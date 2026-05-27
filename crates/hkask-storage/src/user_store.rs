@@ -105,7 +105,7 @@ impl UserStore {
         );
 
         tx.execute(
-            "INSERT INTO replicant_identities 
+            "INSERT INTO replicant_identities
              (replicant_name, user_id, replicant_webid, first_name_enc, last_name_enc, is_primary, created_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             params![
@@ -228,7 +228,7 @@ impl UserStore {
     pub fn get_replicant(&self, replicant_name: &str) -> Result<Option<ReplicantIdentity>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT replicant_name, user_id, replicant_webid, first_name_enc, last_name_enc, 
+            "SELECT replicant_name, user_id, replicant_webid, first_name_enc, last_name_enc,
                     persona_yaml, is_primary, created_at, last_login
              FROM replicant_identities WHERE replicant_name = ?1",
         )?;
@@ -286,7 +286,7 @@ impl UserStore {
     pub fn list_replicants(&self, user_id: &UserID) -> Result<Vec<ReplicantIdentity>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT replicant_name, user_id, replicant_webid, first_name_enc, last_name_enc, 
+            "SELECT replicant_name, user_id, replicant_webid, first_name_enc, last_name_enc,
                     persona_yaml, is_primary, created_at, last_login
              FROM replicant_identities WHERE user_id = ?1 ORDER BY is_primary DESC, created_at ASC",
         )?;
@@ -328,7 +328,7 @@ impl UserStore {
 
         let conn = self.conn.lock().unwrap();
         conn.execute(
-            "INSERT INTO user_sessions 
+            "INSERT INTO user_sessions
              (session_id, replicant_name, replicant_webid, user_id, session_key_salt, expires_at, last_active)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             params![
@@ -402,7 +402,10 @@ impl UserStore {
         }
     }
 
-    fn derive_pii_key(passphrase: &str, master_salt: &str) -> Result<Zeroizing<[u8; 32]>> {
+    pub(crate) fn derive_pii_key(
+        passphrase: &str,
+        master_salt: &str,
+    ) -> Result<Zeroizing<[u8; 32]>> {
         use hkask_keystore::encryption::derive_key;
         derive_key(
             passphrase,
@@ -411,7 +414,7 @@ impl UserStore {
         .map_err(|e| UserStoreError::KeyDerivation(e.to_string()))
     }
 
-    fn encrypt_pii(plaintext: &[u8], key: &Zeroizing<[u8; 32]>) -> Result<Vec<u8>> {
+    pub(crate) fn encrypt_pii(plaintext: &[u8], key: &Zeroizing<[u8; 32]>) -> Result<Vec<u8>> {
         use aes_gcm::{Aes256Gcm, KeyInit, Nonce, aead::Aead};
 
         let cipher = Aes256Gcm::new_from_slice(&**key)
@@ -430,8 +433,7 @@ impl UserStore {
         Ok(result)
     }
 
-    #[allow(dead_code)]
-    fn decrypt_pii(ciphertext: &[u8], key: &Zeroizing<[u8; 32]>) -> Result<Vec<u8>> {
+    pub(crate) fn decrypt_pii(ciphertext: &[u8], key: &Zeroizing<[u8; 32]>) -> Result<Vec<u8>> {
         use aes_gcm::{Aes256Gcm, KeyInit, Nonce, aead::Aead};
 
         if ciphertext.len() < 12 {
@@ -448,6 +450,100 @@ impl UserStore {
             .decrypt(nonce, data)
             .map_err(|e| UserStoreError::Decryption(e.to_string()))
     }
+
+    /// Decrypt a PII field from a database row
+    fn read_encrypted_field(
+        row: &rusqlite::Row,
+        column: &str,
+        key: &Zeroizing<[u8; 32]>,
+    ) -> Result<String> {
+        let ciphertext: Vec<u8> = row.get::<_, Vec<u8>>(column)?;
+        let plaintext = Self::decrypt_pii(&ciphertext, key)?;
+        String::from_utf8(plaintext).map_err(|e| UserStoreError::Decryption(e.to_string()))
+    }
+
+    /// Decrypt all PII fields for a human user
+    ///
+    /// Returns a `DecryptedUser` with email and phone as plaintext strings.
+    /// Requires the user's passphrase to derive the PII decryption key.
+    pub fn decrypt_user_pii(&self, user: &HumanUser, passphrase: &str) -> Result<DecryptedUser> {
+        let key = Self::derive_pii_key(passphrase, &user.master_salt)?;
+        let email = String::from_utf8(Self::decrypt_pii(&user.email_enc, &key)?)
+            .map_err(|e| UserStoreError::Decryption(e.to_string()))?;
+        let phone = user
+            .phone_enc
+            .as_ref()
+            .map(|p| {
+                String::from_utf8(Self::decrypt_pii(p, &key)?)
+                    .map_err(|e| UserStoreError::Decryption(e.to_string()))
+            })
+            .transpose()?;
+
+        Ok(DecryptedUser {
+            user_id: user.user_id,
+            email,
+            phone,
+            passphrase_hash: user.passphrase_hash.clone(),
+            salt: user.salt.clone(),
+            master_salt: user.master_salt.clone(),
+            created_at: user.created_at,
+            last_active: user.last_active,
+        })
+    }
+
+    /// Decrypt first/last names for a replicant identity
+    ///
+    /// Requires the user's passphrase (to look up the master_salt) and the
+    /// replicant identity to decrypt.
+    pub fn decrypt_replicant_names(
+        &self,
+        identity: &ReplicantIdentity,
+        passphrase: &str,
+    ) -> Result<DecryptedReplicant> {
+        let user = self.get_user(&identity.user_id)?;
+        let key = Self::derive_pii_key(passphrase, &user.master_salt)?;
+        let first_name = String::from_utf8(Self::decrypt_pii(&identity.first_name_enc, &key)?)
+            .map_err(|e| UserStoreError::Decryption(e.to_string()))?;
+        let last_name = String::from_utf8(Self::decrypt_pii(&identity.last_name_enc, &key)?)
+            .map_err(|e| UserStoreError::Decryption(e.to_string()))?;
+
+        Ok(DecryptedReplicant {
+            replicant_name: identity.replicant_name.clone(),
+            user_id: identity.user_id,
+            replicant_webid: identity.replicant_webid,
+            first_name,
+            last_name,
+            is_primary: identity.is_primary,
+            created_at: identity.created_at,
+            last_login: identity.last_login,
+        })
+    }
+}
+
+/// Decrypted user PII — email and phone as plaintext
+#[derive(Debug)]
+pub struct DecryptedUser {
+    pub user_id: UserID,
+    pub email: String,
+    pub phone: Option<String>,
+    pub passphrase_hash: String,
+    pub salt: String,
+    pub master_salt: String,
+    pub created_at: i64,
+    pub last_active: Option<i64>,
+}
+
+/// Decrypted replicant identity — first/last names as plaintext
+#[derive(Debug)]
+pub struct DecryptedReplicant {
+    pub replicant_name: String,
+    pub user_id: UserID,
+    pub replicant_webid: hkask_types::WebID,
+    pub first_name: String,
+    pub last_name: String,
+    pub is_primary: bool,
+    pub created_at: i64,
+    pub last_login: Option<i64>,
 }
 
 #[cfg(test)]
@@ -542,5 +638,14 @@ mod tests {
         assert!(RegistrationRequest::validate_passphrase("alicepass123").is_err());
         assert!(RegistrationRequest::validate_passphrase("ALICEPASS123").is_err());
         assert!(RegistrationRequest::validate_passphrase("Alice@Pass123").is_err());
+    }
+
+    #[test]
+    fn test_encrypt_decrypt_pii_round_trip() {
+        let key = UserStore::derive_pii_key("test-passphrase", &hex::encode([0u8; 16])).unwrap();
+        let plaintext = b"sensitive data";
+        let encrypted = UserStore::encrypt_pii(plaintext, &key).unwrap();
+        let decrypted = UserStore::decrypt_pii(&encrypted, &key).unwrap();
+        assert_eq!(&decrypted, plaintext);
     }
 }

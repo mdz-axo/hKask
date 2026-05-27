@@ -239,8 +239,125 @@ pub struct CapabilityToken {
     pub caveats: Vec<Caveat>,
 }
 
+/// Internal signing payload extracted from builder state.
+struct SigningPayload {
+    id: String,
+    resource: CapabilityResource,
+    resource_id: String,
+    action: CapabilityAction,
+    from: WebID,
+    to: WebID,
+    caveats: Vec<Caveat>,
+}
+
+/// Builder for constructing capability tokens with the OCAP pattern.
+///
+/// Each method returns `Self`, so the builder itself is an unforgeable authority
+/// that can only be exercised by its holder. No ambient authority is leaked
+/// through parameter ordering.
+pub struct CapabilityTokenBuilder {
+    resource: CapabilityResource,
+    resource_id: String,
+    action: CapabilityAction,
+    delegated_from: WebID,
+    delegated_to: WebID,
+    expires_at: Option<i64>,
+    attenuation_level: u8,
+    max_attenuation: u8,
+    context_nonce: Option<String>,
+    caveats: Vec<Caveat>,
+}
+
+impl CapabilityTokenBuilder {
+    /// Create a new builder with the required fields.
+    pub fn new(
+        resource: CapabilityResource,
+        resource_id: String,
+        action: CapabilityAction,
+        delegated_from: WebID,
+        delegated_to: WebID,
+    ) -> Self {
+        Self {
+            resource,
+            resource_id,
+            action,
+            delegated_from,
+            delegated_to,
+            expires_at: None,
+            attenuation_level: 0,
+            max_attenuation: 7,
+            context_nonce: None,
+            caveats: Vec::new(),
+        }
+    }
+
+    /// Set expiration timestamp.
+    pub fn expires_at(mut self, ts: i64) -> Self {
+        self.expires_at = Some(ts);
+        self
+    }
+
+    /// Set attenuation level and max.
+    pub fn attenuation(mut self, level: u8, max: u8) -> Self {
+        self.attenuation_level = level;
+        self.max_attenuation = max;
+        self
+    }
+
+    /// Set context nonce.
+    pub fn context_nonce(mut self, nonce: String) -> Self {
+        self.context_nonce = Some(nonce);
+        self
+    }
+
+    /// Add a caveat.
+    pub fn caveat(mut self, caveat: Caveat) -> Self {
+        self.caveats.push(caveat);
+        self
+    }
+
+    /// Build and sign the capability token.
+    pub fn sign(self, secret: &[u8]) -> CapabilityToken {
+        let id = CapabilityToken::generate_id(
+            &self.resource,
+            &self.resource_id,
+            &self.action,
+            &self.delegated_from,
+            &self.delegated_to,
+        );
+        let payload = SigningPayload {
+            id,
+            resource: self.resource,
+            resource_id: self.resource_id,
+            action: self.action,
+            from: self.delegated_from,
+            to: self.delegated_to,
+            caveats: self.caveats,
+        };
+        let signature = CapabilityToken::sign_payload(&payload, secret);
+        let context_nonce = self
+            .context_nonce
+            .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+
+        CapabilityToken {
+            id: payload.id,
+            resource: payload.resource,
+            resource_id: payload.resource_id,
+            action: payload.action,
+            delegated_from: payload.from,
+            delegated_to: payload.to,
+            signature,
+            expires_at: self.expires_at,
+            attenuation_level: self.attenuation_level,
+            max_attenuation: self.max_attenuation,
+            context_nonce,
+            caveats: payload.caveats,
+        }
+    }
+}
+
 impl CapabilityToken {
-    /// Create a new capability token with default settings
+    /// Create a new capability token with default settings.
     pub fn new(
         resource: CapabilityResource,
         resource_id: String,
@@ -249,21 +366,15 @@ impl CapabilityToken {
         delegated_to: WebID,
         secret: &[u8],
     ) -> Self {
-        Self::new_with_attenuation(
-            resource,
-            resource_id,
-            action,
-            delegated_from,
-            delegated_to,
-            secret,
-            None,
-            0,
-            7,
-            None,
-        )
+        CapabilityTokenBuilder::new(resource, resource_id, action, delegated_from, delegated_to)
+            .sign(secret)
     }
 
-    /// Create a new capability token with attenuation settings
+    /// Create a new capability token with attenuation settings.
+    ///
+    /// For complex token construction, prefer [`CapabilityTokenBuilder`] which
+    /// provides a more ergonomic interface and avoids positional parameter confusion.
+    #[deprecated(note = "Use CapabilityTokenBuilder instead")]
     #[allow(clippy::too_many_arguments)]
     pub fn new_with_attenuation(
         resource: CapabilityResource,
@@ -277,40 +388,21 @@ impl CapabilityToken {
         max_attenuation: u8,
         context_nonce: Option<String>,
     ) -> Self {
-        let id = Self::generate_id(
-            &resource,
-            &resource_id,
-            &action,
-            &delegated_from,
-            &delegated_to,
-        );
-        let caveats = Vec::new();
-        let signature = Self::sign(
-            &id,
-            &resource,
-            &resource_id,
-            &action,
-            &delegated_from,
-            &delegated_to,
-            &caveats,
-            secret,
-        );
-        let context_nonce = context_nonce.unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
-
-        Self {
-            id,
+        let mut builder = CapabilityTokenBuilder::new(
             resource,
             resource_id,
             action,
             delegated_from,
             delegated_to,
-            signature,
-            expires_at,
-            attenuation_level,
-            max_attenuation,
-            context_nonce,
-            caveats,
+        );
+        if let Some(ts) = expires_at {
+            builder = builder.expires_at(ts);
         }
+        builder = builder.attenuation(attenuation_level, max_attenuation);
+        if let Some(nonce) = context_nonce {
+            builder = builder.context_nonce(nonce);
+        }
+        builder.sign(secret)
     }
 
     /// Generate unique token ID
@@ -330,48 +422,38 @@ impl CapabilityToken {
         hex::encode(hasher.finalize())
     }
 
-    /// Sign the token
-    #[allow(clippy::too_many_arguments)]
-    fn sign(
-        id: &str,
-        resource: &CapabilityResource,
-        resource_id: &str,
-        action: &CapabilityAction,
-        from: &WebID,
-        to: &WebID,
-        caveats: &[Caveat],
-        secret: &[u8],
-    ) -> String {
+    /// Sign the token payload using HMAC-SHA256.
+    fn sign_payload(payload: &SigningPayload, secret: &[u8]) -> String {
         use hmac::{Hmac, Mac};
         type HmacSha256 = Hmac<Sha256>;
 
         let mut mac = HmacSha256::new_from_slice(secret).expect("HMAC can take key of any size");
-        mac.update(id.as_bytes());
-        mac.update(resource.as_str().as_bytes());
-        mac.update(resource_id.as_bytes());
-        mac.update(action.as_str().as_bytes());
-        mac.update(to_string(from).as_bytes());
-        mac.update(to_string(to).as_bytes());
+        mac.update(payload.id.as_bytes());
+        mac.update(payload.resource.as_str().as_bytes());
+        mac.update(payload.resource_id.as_bytes());
+        mac.update(payload.action.as_str().as_bytes());
+        mac.update(to_string(&payload.from).as_bytes());
+        mac.update(to_string(&payload.to).as_bytes());
         // Include caveats in signature for tamper-evidence
-        for caveat in caveats {
+        for caveat in &payload.caveats {
             mac.update(caveat.caveat_id.as_bytes());
             mac.update(caveat.data.as_bytes());
         }
         hex::encode(mac.finalize().into_bytes())
     }
 
-    /// Verify the token signature using constant-time comparison
+    /// Verify the token signature using constant-time comparison.
     pub fn verify(&self, secret: &[u8]) -> bool {
-        let expected = Self::sign(
-            &self.id,
-            &self.resource,
-            &self.resource_id,
-            &self.action,
-            &self.delegated_from,
-            &self.delegated_to,
-            &self.caveats,
-            secret,
-        );
+        let payload = SigningPayload {
+            id: self.id.clone(),
+            resource: self.resource,
+            resource_id: self.resource_id.clone(),
+            action: self.action,
+            from: self.delegated_from,
+            to: self.delegated_to,
+            caveats: self.caveats.clone(),
+        };
+        let expected = Self::sign_payload(&payload, secret);
 
         // Constant-time comparison to prevent timing attacks
         use subtle::ConstantTimeEq;
@@ -412,7 +494,7 @@ impl CapabilityToken {
         self.attenuation_level < self.max_attenuation
     }
 
-    /// Create attenuated child token for delegation
+    /// Create attenuated child token for delegation.
     pub fn attenuate(
         &self,
         new_to: WebID,
@@ -425,42 +507,30 @@ impl CapabilityToken {
 
         // Attenuate: reduce max_attenuation and increase attenuation_level
         // Preserve parent's context nonce for traceability
-        let mut child = CapabilityToken::new_with_attenuation(
+        let mut builder = CapabilityTokenBuilder::new(
             self.resource,
             self.resource_id.clone(),
             self.action,
             self.delegated_to,
             new_to,
-            secret,
-            Some(current_time + 3600), // 1 hour expiry for attenuated tokens
-            self.attenuation_level + 1,
-            self.max_attenuation,
-            Some(format!(
-                "{}-attenuated-{}",
-                self.context_nonce,
-                uuid::Uuid::new_v4()
-            )),
-        );
+        )
+        .expires_at(current_time + 3600) // 1 hour expiry for attenuated tokens
+        .attenuation(self.attenuation_level + 1, self.max_attenuation)
+        .context_nonce(format!(
+            "{}-attenuated-{}",
+            self.context_nonce,
+            uuid::Uuid::new_v4()
+        ));
 
         // Preserve parent's caveats
-        child.caveats = self.caveats.clone();
+        for caveat in &self.caveats {
+            builder = builder.caveat(caveat.clone());
+        }
 
-        // Re-sign with caveats
-        child.signature = Self::sign(
-            &child.id,
-            &child.resource,
-            &child.resource_id,
-            &child.action,
-            &child.delegated_from,
-            &child.delegated_to,
-            &child.caveats,
-            secret,
-        );
-
-        Some(child)
+        Some(builder.sign(secret))
     }
 
-    /// Create attenuated child token with custom expiry
+    /// Create attenuated child token with custom expiry.
     pub fn attenuate_with_expiry(
         &self,
         new_to: WebID,
@@ -471,39 +541,30 @@ impl CapabilityToken {
             return None;
         }
 
-        let mut child = CapabilityToken::new_with_attenuation(
+        let mut builder = CapabilityTokenBuilder::new(
             self.resource,
             self.resource_id.clone(),
             self.action,
             self.delegated_to,
             new_to,
-            secret,
-            expires_at,
-            self.attenuation_level + 1,
-            self.max_attenuation,
-            Some(format!(
-                "{}-attenuated-{}",
-                self.context_nonce,
-                uuid::Uuid::new_v4()
-            )),
-        );
+        )
+        .attenuation(self.attenuation_level + 1, self.max_attenuation)
+        .context_nonce(format!(
+            "{}-attenuated-{}",
+            self.context_nonce,
+            uuid::Uuid::new_v4()
+        ));
+
+        if let Some(ts) = expires_at {
+            builder = builder.expires_at(ts);
+        }
 
         // Preserve parent's caveats
-        child.caveats = self.caveats.clone();
+        for caveat in &self.caveats {
+            builder = builder.caveat(caveat.clone());
+        }
 
-        // Re-sign with caveats
-        child.signature = Self::sign(
-            &child.id,
-            &child.resource,
-            &child.resource_id,
-            &child.action,
-            &child.delegated_from,
-            &child.delegated_to,
-            &child.caveats,
-            secret,
-        );
-
-        Some(child)
+        Some(builder.sign(secret))
     }
 
     /// Check if this token is valid for a given resource and action
@@ -588,16 +649,16 @@ impl CapabilityToken {
         new_token.caveats.push(caveat);
 
         // Re-sign with the new caveat included
-        new_token.signature = Self::sign(
-            &new_token.id,
-            &new_token.resource,
-            &new_token.resource_id,
-            &new_token.action,
-            &new_token.delegated_from,
-            &new_token.delegated_to,
-            &new_token.caveats,
-            secret,
-        );
+        let payload = SigningPayload {
+            id: new_token.id.clone(),
+            resource: new_token.resource,
+            resource_id: new_token.resource_id.clone(),
+            action: new_token.action,
+            from: new_token.delegated_from,
+            to: new_token.delegated_to,
+            caveats: new_token.caveats.clone(),
+        };
+        new_token.signature = Self::sign_payload(&payload, secret);
 
         new_token
     }

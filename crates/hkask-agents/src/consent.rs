@@ -6,11 +6,12 @@
 //! - Audit consent history
 //! - Check consent status
 
-use hkask_storage::SovereigntyBoundaryStore;
+use hkask_storage::Database;
 use hkask_types::DataCategory;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use std::sync::RwLock;
 use thiserror::Error;
 use tracing::{debug, info};
 
@@ -70,16 +71,15 @@ impl ConsentRecord {
 
 /// Consent manager
 pub struct ConsentManager {
-    _store: Arc<RwLock<SovereigntyBoundaryStore>>,
+    db: Arc<Database>,
     consent_cache: Arc<RwLock<Vec<ConsentRecord>>>,
 }
 
 impl ConsentManager {
     /// Create new consent manager
-    #[allow(clippy::arc_with_non_send_sync)]
-    pub fn new(store: SovereigntyBoundaryStore) -> Self {
+    pub fn new(db: Arc<Database>) -> Self {
         Self {
-            _store: Arc::new(RwLock::new(store)),
+            db,
             consent_cache: Arc::new(RwLock::new(Vec::new())),
         }
     }

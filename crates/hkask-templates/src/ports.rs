@@ -78,17 +78,23 @@ pub enum Action {
     Execute,
 }
 
-impl Action {
-    #[allow(clippy::should_implement_trait)]
-    pub fn from_str(s: &str) -> Option<Self> {
+impl std::str::FromStr for Action {
+    type Err = TemplateError;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s {
-            "select" => Some(Action::Select),
-            "populate" => Some(Action::Populate),
-            "execute" => Some(Action::Execute),
-            _ => None,
+            "select" => Ok(Action::Select),
+            "populate" => Ok(Action::Populate),
+            "execute" => Ok(Action::Execute),
+            other => Err(TemplateError::Validation(format!(
+                "Unknown action: {}",
+                other
+            ))),
         }
     }
+}
 
+impl Action {
     pub fn as_str(&self) -> &'static str {
         match self {
             Action::Select => "select",

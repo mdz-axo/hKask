@@ -6,7 +6,7 @@ use serde_json::json;
 
 mod templates_agents_integration {
     use super::*;
-    use hkask_templates::ports::{Action, CnsPort, InferenceConfig, SyncInferencePort, McpPort};
+    use hkask_templates::ports::{Action, CnsPort, InferenceConfig, McpPort, SyncInferencePort};
     use hkask_testing::{MockCnsAdapterMut, MockInferenceAdapter, MockMcpAdapter};
 
     #[test]
@@ -136,10 +136,13 @@ mod templates_agents_integration {
         assert_eq!(Action::Populate.as_str(), "populate");
         assert_eq!(Action::Execute.as_str(), "execute");
 
-        assert_eq!(Action::from_str("select"), Some(Action::Select));
-        assert_eq!(Action::from_str("populate"), Some(Action::Populate));
-        assert_eq!(Action::from_str("execute"), Some(Action::Execute));
-        assert_eq!(Action::from_str("invalid"), None);
+        assert_eq!("select".parse::<Action>(), Ok(Action::Select));
+        assert_eq!("populate".parse::<Action>(), Ok(Action::Populate));
+        assert_eq!("execute".parse::<Action>(), Ok(Action::Execute));
+        assert!(matches!(
+            "invalid".parse::<Action>(),
+            Err(TemplateError::Validation(_))
+        ));
     }
 
     #[test]
