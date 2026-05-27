@@ -1054,7 +1054,7 @@ status: VERIFIED
 
 ## 11. MCP Server Composite ERD
 
-All 16 MCP servers share a thin-adapter pattern: each implements one or more port traits from `hkask-mcp` and delegates to an external service or internal crate. This composite ERD shows the shared structure and per-server specializations.[^mcp-spec]
+All 15 MCP servers share a thin-adapter pattern: each implements one or more port traits from `hkask-mcp` and delegates to an external service or internal crate. This composite ERD shows the shared structure and per-server specializations.[^mcp-spec]
 
 ```mermaid
 erDiagram
@@ -1064,7 +1064,7 @@ erDiagram
     INFERENCE_SERVER ||--|| OKAPI_CONNECTOR : "delegates_to"
     CONDENSER_SERVER ||--|| TEMPLATE_ABSTRACTION : "delegates_to"
     WEB_SERVER ||--|| FIRECRAWL_CONNECTOR : "delegates_to"
-    SCHOLAR_SERVER ||--|| SEMANTIC_SCHOLAR_API : "delegates_to"
+
     OCAP_SERVER ||--|| CAPABILITY_MANAGER : "delegates_to"
     KEYSTORE_SERVER ||--|| OS_KEYCHAIN : "delegates_to"
     CNS_SERVER ||--|| SPAN_EMITTER : "delegates_to"
@@ -1111,10 +1111,7 @@ erDiagram
         string purpose "Search, scrape, extract"
     }
 
-    SCHOLAR_SERVER {
-        string id "hkask-mcp-scholar"
-        string purpose "Academic research"
-    }
+
 
     OCAP_SERVER {
         string id "hkask-mcp-ocap"

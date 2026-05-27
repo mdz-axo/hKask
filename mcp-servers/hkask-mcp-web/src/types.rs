@@ -222,39 +222,36 @@ pub enum SearchStrategy {
     Semantic,
     News,
     Research,
-    Extract,
     Deep,
-    Fetch,
 }
 
 impl SearchStrategy {
+    #[allow(dead_code)]
     pub fn required_capabilities(&self) -> Vec<SearchCapability> {
         match self {
-            SearchStrategy::Quick | SearchStrategy::Extract => vec![SearchCapability::Keyword],
+            SearchStrategy::Quick => vec![SearchCapability::Keyword],
             SearchStrategy::Semantic => vec![SearchCapability::Semantic],
             SearchStrategy::News => vec![SearchCapability::News],
             SearchStrategy::Research => vec![],
             SearchStrategy::Deep => vec![],
-            SearchStrategy::Fetch => vec![],
         }
     }
 
     pub fn provider_filter(&self) -> ProviderFilter {
         match self {
-            SearchStrategy::Quick | SearchStrategy::Extract => ProviderFilter::Capabilities(vec![SearchCapability::Keyword]),
+            SearchStrategy::Quick => ProviderFilter::Capabilities(vec![SearchCapability::Keyword]),
             SearchStrategy::Semantic => ProviderFilter::Capabilities(vec![SearchCapability::Semantic]),
             SearchStrategy::News => ProviderFilter::Capabilities(vec![SearchCapability::News]),
             SearchStrategy::Research => ProviderFilter::All,
             SearchStrategy::Deep => ProviderFilter::All,
-            SearchStrategy::Fetch => ProviderFilter::None,
         }
     }
 }
 
 pub enum ProviderFilter {
     All,
-    None,
     Capabilities(Vec<SearchCapability>),
+    #[allow(dead_code)]
     Kinds(Vec<&'static str>),
 }
 
@@ -265,9 +262,7 @@ impl std::fmt::Display for SearchStrategy {
             SearchStrategy::Semantic => write!(f, "semantic"),
             SearchStrategy::News => write!(f, "news"),
             SearchStrategy::Research => write!(f, "research"),
-            SearchStrategy::Extract => write!(f, "extract"),
             SearchStrategy::Deep => write!(f, "deep"),
-            SearchStrategy::Fetch => write!(f, "fetch"),
         }
     }
 }
@@ -280,11 +275,9 @@ impl std::str::FromStr for SearchStrategy {
             "semantic" => Ok(SearchStrategy::Semantic),
             "news" => Ok(SearchStrategy::News),
             "research" => Ok(SearchStrategy::Research),
-            "extract" => Ok(SearchStrategy::Extract),
             "deep" => Ok(SearchStrategy::Deep),
-            "fetch" => Ok(SearchStrategy::Fetch),
             _ => Err(WebError::BadArgs(format!(
-                "Unknown strategy: {s}. Use: quick, semantic, news, research, extract, deep, fetch"
+                "Unknown strategy: {s}. Use: quick, semantic, news, research, deep"
             ))),
         }
     }

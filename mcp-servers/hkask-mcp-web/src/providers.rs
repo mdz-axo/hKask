@@ -1,24 +1,26 @@
-//! hKask MCP Web — Outbound port traits and provider implementations
-//!
-//! Providers: Brave, Firecrawl, Tavily, SerpAPI, Exa, RawFetch (extract),
-//! Browserbase (browse). ProviderPool supports both fallback and compound
-//! (concurrent multi-provider merge+dedup) search modes.
-
 use async_trait::async_trait;
+use std::collections::HashMap;
 use std::time::Duration;
 
 use super::types::*;
 
-// =============================================================================
-// Port traits
-// =============================================================================
+#[derive(Default)]
+pub struct ProviderSearchOutput {
+    pub results: Vec<SearchResult>,
+    pub answer_box: Option<AnswerBox>,
+    pub related_questions: Vec<String>,
+    pub content_previews: HashMap<String, String>,
+    pub semantic_scores: HashMap<String, f64>,
+}
+
+
 
 #[async_trait]
 #[allow(dead_code)]
 pub trait WebSearchProvider: Send + Sync {
     fn kind(&self) -> &str;
     fn capabilities(&self) -> Vec<SearchCapability>;
-    async fn search(&self, query: &SearchQuery) -> Result<Vec<SearchResult>, WebError>;
+    async fn search(&self, query: &SearchQuery) -> Result<ProviderSearchOutput, WebError>;
     async fn health(&self) -> Result<(), WebError>;
 }
 
@@ -44,10 +46,6 @@ pub trait WebBrowseProvider: Send + Sync {
     async fn health(&self) -> Result<(), WebError>;
 }
 
-// =============================================================================
-// ProviderPool — fallback + compound search
-// =============================================================================
-
 pub struct ProviderPool {
     pub search_providers: Vec<Box<dyn WebSearchProvider>>,
     pub extract_providers: Vec<Box<dyn WebExtractProvider>>,
@@ -72,7 +70,7 @@ impl ProviderPool {
         let mut last_err = WebError::NoProvider;
         for provider in ordered {
             match provider.search(query).await {
-                Ok(results) => return Ok(results),
+                Ok(output) => return Ok(output.results),
                 Err(e) => {
                     tracing::warn!(provider = provider.kind(), error = %e, "Search provider failed, trying next");
                     last_err = e;
@@ -85,49 +83,163 @@ impl ProviderPool {
     pub async fn search_compound(
         &self,
         query: &SearchQuery,
-        providers_filter: Option<&[&str]>,
+        strategy: SearchStrategy,
     ) -> CompoundSearchResult {
-        let _provider_kinds: Vec<String> = self.search_providers.iter().map(|p| p.kind().to_string()).collect();
-        let queried: Vec<String> = self.search_providers.iter()
-            .filter(|p| providers_filter.is_none_or(|f| f.contains(&p.kind())))
-            .map(|p| p.kind().to_string())
+        let filtered: Vec<&dyn WebSearchProvider> = match strategy.provider_filter() {
+            ProviderFilter::All => self.search_providers.iter().map(|p| p.as_ref()).collect(),
+            ProviderFilter::Capabilities(caps) => self
+                .search_providers
+                .iter()
+                .filter(|p| {
+                    let p_caps = p.capabilities();
+                    caps.iter().all(|c| p_caps.contains(c))
+                })
+                .map(|p| p.as_ref())
+                .collect(),
+            ProviderFilter::Kinds(kinds) => self
+                .search_providers
+                .iter()
+                .filter(|p| kinds.contains(&p.kind()))
+                .map(|p| p.as_ref())
+                .collect(),
+        };
+
+        let providers_queried: Vec<ProviderInfo> = filtered
+            .iter()
+            .map(|p| ProviderInfo {
+                kind: p.kind().to_string(),
+                capabilities: p.capabilities(),
+            })
             .collect();
 
-        let futures: Vec<_> = self.search_providers.iter()
-            .filter(|p| providers_filter.is_none_or(|f| f.contains(&p.kind())))
+        let total_providers_queried = filtered.len().max(1);
+
+        let futures: Vec<_> = filtered
+            .iter()
             .map(|p| async { (p.kind().to_string(), p.search(query).await) })
             .collect();
 
         let results = futures_util::future::join_all(futures).await;
 
-        let mut succeeded = Vec::new();
-        let mut failed = Vec::new();
-        let mut all_results: Vec<SearchResult> = Vec::new();
+        let mut succeeded: Vec<String> = Vec::new();
+        let mut failed: Vec<ProviderError> = Vec::new();
+        let mut all_results: Vec<(String, usize, SearchResult)> = Vec::new();
+        let mut merged_answer_box: Option<AnswerBox> = None;
+        let mut merged_related_questions: Vec<String> = Vec::new();
+        let mut merged_content_previews: HashMap<String, String> = HashMap::new();
+        let mut merged_semantic_scores: HashMap<String, f64> = HashMap::new();
 
         for (kind, result) in results {
             match result {
-                Ok(mut r) => {
-                    for item in &mut r {
-                        item.provider = Some(kind.clone());
+                Ok(output) => {
+                    for (rank, item) in output.results.into_iter().enumerate() {
+                        all_results.push((kind.clone(), rank, item));
                     }
-                    all_results.extend(r);
+                    if output.answer_box.is_some() && merged_answer_box.is_none() {
+                        merged_answer_box = output.answer_box;
+                    }
+                    merged_related_questions.extend(output.related_questions);
+                    merged_content_previews.extend(output.content_previews);
+                    merged_semantic_scores.extend(output.semantic_scores);
                     succeeded.push(kind);
                 }
                 Err(e) => {
                     tracing::warn!(provider = %kind, error = %e, "Compound search provider failed");
-                    failed.push(kind);
+                    failed.push(ProviderError {
+                        kind: kind.clone(),
+                        error: e.to_string(),
+                    });
                 }
             }
         }
 
         let total_before_dedup = all_results.len();
-        let deduped = dedup_results(all_results);
-        let duplicates_removed = total_before_dedup - deduped.len();
+
+        struct UrlEntry {
+            url_original: String,
+            title: String,
+            description: Option<String>,
+            source: Option<String>,
+            published: Option<String>,
+            providers: Vec<String>,
+            ranks: Vec<usize>,
+        }
+
+        let mut url_map: HashMap<String, UrlEntry> = HashMap::new();
+
+        for (provider, rank, result) in all_results {
+            let key = result.url.to_lowercase();
+            match url_map.get_mut(&key) {
+                Some(entry) => {
+                    entry.providers.push(provider);
+                    entry.ranks.push(rank);
+                }
+                None => {
+                    url_map.insert(
+                        key,
+                        UrlEntry {
+                            url_original: result.url,
+                            title: result.title,
+                            description: result.description,
+                            source: result.source,
+                            published: result.published,
+                            providers: vec![provider],
+                            ranks: vec![rank],
+                        },
+                    );
+                }
+            }
+        }
+
+        let alpha: f64 = 0.4;
+        let beta: f64 = 0.2;
+        let gamma: f64 = 0.2;
+        let delta: f64 = 0.2;
+
+        let mut ranked: Vec<RankedResult> = url_map
+            .into_iter()
+            .map(|(key, entry)| {
+                let provider_count = entry.providers.len();
+                let best_rank = *entry.ranks.iter().min().unwrap_or(&0);
+                let content_preview = merged_content_previews.get(&key).cloned();
+                let semantic_score = merged_semantic_scores.get(&key).copied();
+
+                let consensus_score = alpha * (provider_count as f64 / total_providers_queried as f64)
+                    + beta * if content_preview.is_some() { 1.0 } else { 0.0 }
+                    + gamma * (1.0 / (best_rank as f64 + 1.0))
+                    + delta * semantic_score.unwrap_or(0.0);
+
+                RankedResult {
+                    title: entry.title,
+                    url: entry.url_original,
+                    description: entry.description,
+                    source: entry.source,
+                    published: entry.published,
+                    consensus_score,
+                    provider_count,
+                    providers: entry.providers,
+                    best_rank: Some(best_rank),
+                    content_preview,
+                    semantic_score,
+                }
+            })
+            .collect();
+
+        ranked.sort_by(|a, b| {
+            b.consensus_score
+                .partial_cmp(&a.consensus_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        let duplicates_removed = total_before_dedup - ranked.len();
 
         CompoundSearchResult {
             query: query.query.clone(),
-            results: deduped,
-            providers_queried: queried,
+            strategy: strategy.to_string(),
+            results: ranked,
+            answer_box: merged_answer_box,
+            related_questions: merged_related_questions,
+            providers_queried,
             providers_succeeded: succeeded,
             providers_failed: failed,
             total_before_dedup,
@@ -185,22 +297,6 @@ impl ProviderPool {
     }
 }
 
-fn dedup_results(results: Vec<SearchResult>) -> Vec<SearchResult> {
-    let mut seen = std::collections::HashSet::new();
-    let mut deduped = Vec::new();
-    for r in results {
-        let key = r.url.to_lowercase();
-        if seen.insert(key) {
-            deduped.push(r);
-        }
-    }
-    deduped
-}
-
-// =============================================================================
-// Brave Provider
-// =============================================================================
-
 pub struct BraveProvider {
     client: reqwest::Client,
     api_key: String,
@@ -223,7 +319,7 @@ impl WebSearchProvider for BraveProvider {
         vec![SearchCapability::Keyword, SearchCapability::News, SearchCapability::Freshness]
     }
 
-    async fn search(&self, query: &SearchQuery) -> Result<Vec<SearchResult>, WebError> {
+    async fn search(&self, query: &SearchQuery) -> Result<ProviderSearchOutput, WebError> {
         let mut params: Vec<(&str, String)> = vec![
             ("q", query.query.clone()),
             ("count", query.num_results.to_string()),
@@ -257,19 +353,26 @@ impl WebSearchProvider for BraveProvider {
         let parsed: serde_json::Value = serde_json::from_str(&body)
             .map_err(|e| WebError::ProviderError(format!("Failed to parse Brave response: {e}")))?;
 
-        Ok(parsed["web"]["results"]
+        let results = parsed["web"]["results"]
             .as_array()
-            .map(|arr| arr.iter().filter_map(|item| {
-                Some(SearchResult {
-                    title: item["title"].as_str()?.to_string(),
-                    url: item["url"].as_str()?.to_string(),
-                    description: item["description"].as_str().map(|s| s.to_string()),
-                    source: item["source"].as_str().map(|s| s.to_string()),
-                    published: item["age"].as_str().map(|s| s.to_string()),
-                    provider: None,
-                })
-            }).collect::<Vec<_>>())
-            .unwrap_or_default())
+            .map(|arr| {
+                arr.iter().filter_map(|item| {
+                    Some(SearchResult {
+                        title: item["title"].as_str()?.to_string(),
+                        url: item["url"].as_str()?.to_string(),
+                        description: item["description"].as_str().map(|s| s.to_string()),
+                        source: item["source"].as_str().map(|s| s.to_string()),
+                        published: item["age"].as_str().map(|s| s.to_string()),
+                        provider: None,
+                    })
+                }).collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+
+        Ok(ProviderSearchOutput {
+            results,
+            ..Default::default()
+        })
     }
 
     async fn health(&self) -> Result<(), WebError> {
@@ -283,10 +386,6 @@ impl WebSearchProvider for BraveProvider {
         else { Err(WebError::ProviderUnavailable(format!("Brave health check returned {}", resp.status()))) }
     }
 }
-
-// =============================================================================
-// Firecrawl Provider (search + extract + browse)
-// =============================================================================
 
 pub struct FirecrawlProvider {
     client: reqwest::Client,
@@ -314,7 +413,7 @@ impl WebSearchProvider for FirecrawlProvider {
         vec![SearchCapability::Keyword, SearchCapability::Semantic]
     }
 
-    async fn search(&self, query: &SearchQuery) -> Result<Vec<SearchResult>, WebError> {
+    async fn search(&self, query: &SearchQuery) -> Result<ProviderSearchOutput, WebError> {
         let auth = self.auth_header()?;
         let payload = serde_json::json!({ "query": query.query, "limit": query.num_results });
         let resp = self.client
@@ -338,18 +437,25 @@ impl WebSearchProvider for FirecrawlProvider {
         let parsed: serde_json::Value = serde_json::from_str(&body)
             .map_err(|e| WebError::ProviderError(format!("Failed to parse Firecrawl response: {e}")))?;
 
-        Ok(parsed["data"].as_array()
-            .map(|arr| arr.iter().filter_map(|item| {
-                Some(SearchResult {
-                    title: item["title"].as_str()?.to_string(),
-                    url: item["url"].as_str()?.to_string(),
-                    description: item["description"].as_str().or_else(|| item["snippet"].as_str()).map(|s| s.to_string()),
-                    source: None,
-                    published: None,
-                    provider: None,
-                })
-            }).collect::<Vec<_>>())
-            .unwrap_or_default())
+        let results = parsed["data"].as_array()
+            .map(|arr| {
+                arr.iter().filter_map(|item| {
+                    Some(SearchResult {
+                        title: item["title"].as_str()?.to_string(),
+                        url: item["url"].as_str()?.to_string(),
+                        description: item["description"].as_str().or_else(|| item["snippet"].as_str()).map(|s| s.to_string()),
+                        source: None,
+                        published: None,
+                        provider: None,
+                    })
+                }).collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+
+        Ok(ProviderSearchOutput {
+            results,
+            ..Default::default()
+        })
     }
 
     async fn health(&self) -> Result<(), WebError> {
@@ -447,10 +553,6 @@ impl WebBrowseProvider for FirecrawlProvider {
     }
 }
 
-// =============================================================================
-// Tavily Provider (search — AI-optimized)
-// =============================================================================
-
 pub struct TavilyProvider {
     client: reqwest::Client,
     api_key: String,
@@ -473,7 +575,7 @@ impl WebSearchProvider for TavilyProvider {
         vec![SearchCapability::Keyword, SearchCapability::Semantic]
     }
 
-    async fn search(&self, query: &SearchQuery) -> Result<Vec<SearchResult>, WebError> {
+    async fn search(&self, query: &SearchQuery) -> Result<ProviderSearchOutput, WebError> {
         let mut payload = serde_json::json!({
             "api_key": self.api_key,
             "query": query.query,
@@ -507,26 +609,35 @@ impl WebSearchProvider for TavilyProvider {
         let parsed: serde_json::Value = serde_json::from_str(&body)
             .map_err(|e| WebError::ProviderError(format!("Failed to parse Tavily response: {e}")))?;
 
-        Ok(parsed["results"].as_array()
-            .map(|arr| arr.iter().filter_map(|item| {
-                Some(SearchResult {
-                    title: item["title"].as_str()?.to_string(),
-                    url: item["url"].as_str()?.to_string(),
-                    description: item["content"].as_str().or_else(|| item["snippet"].as_str()).map(|s| s.to_string()),
-                    source: None,
-                    published: item["published_date"].as_str().map(|s| s.to_string()),
-                    provider: None,
-                })
-            }).collect::<Vec<_>>())
-            .unwrap_or_default())
+        let mut content_previews = HashMap::new();
+        let results = parsed["results"].as_array()
+            .map(|arr| {
+                arr.iter().filter_map(|item| {
+                    let url = item["url"].as_str()?;
+                    if let Some(content) = item["content"].as_str() {
+                        content_previews.insert(url.to_lowercase(), content.to_string());
+                    }
+                    Some(SearchResult {
+                        title: item["title"].as_str()?.to_string(),
+                        url: url.to_string(),
+                        description: item["content"].as_str().or_else(|| item["snippet"].as_str()).map(|s| s.to_string()),
+                        source: None,
+                        published: item["published_date"].as_str().map(|s| s.to_string()),
+                        provider: None,
+                    })
+                }).collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+
+        Ok(ProviderSearchOutput {
+            results,
+            content_previews,
+            ..Default::default()
+        })
     }
 
     async fn health(&self) -> Result<(), WebError> { Ok(()) }
 }
-
-// =============================================================================
-// SerpAPI Provider (search — Google results via SerpAPI)
-// =============================================================================
 
 pub struct SerapiProvider {
     client: reqwest::Client,
@@ -550,7 +661,7 @@ impl WebSearchProvider for SerapiProvider {
         vec![SearchCapability::Keyword, SearchCapability::News, SearchCapability::Freshness]
     }
 
-    async fn search(&self, query: &SearchQuery) -> Result<Vec<SearchResult>, WebError> {
+    async fn search(&self, query: &SearchQuery) -> Result<ProviderSearchOutput, WebError> {
         let mut params: Vec<(&str, String)> = vec![
             ("q", query.query.clone()),
             ("api_key", self.api_key.clone()),
@@ -592,42 +703,65 @@ impl WebSearchProvider for SerapiProvider {
             .map_err(|e| WebError::ProviderError(format!("Failed to parse SerpAPI response: {e}")))?;
 
         let organic = parsed["organic_results"].as_array()
-            .map(|arr| arr.iter().filter_map(|item| {
-                Some(SearchResult {
-                    title: item["title"].as_str()?.to_string(),
-                    url: item["link"].as_str()?.to_string(),
-                    description: item["snippet"].as_str().map(|s| s.to_string()),
-                    source: Some("google".to_string()),
-                    published: None,
-                    provider: None,
-                })
-            }).collect::<Vec<_>>())
+            .map(|arr| {
+                arr.iter().filter_map(|item| {
+                    Some(SearchResult {
+                        title: item["title"].as_str()?.to_string(),
+                        url: item["link"].as_str()?.to_string(),
+                        description: item["snippet"].as_str().map(|s| s.to_string()),
+                        source: Some("google".to_string()),
+                        published: None,
+                        provider: None,
+                    })
+                }).collect::<Vec<_>>()
+            })
             .unwrap_or_default();
 
         let news = parsed["news_results"].as_array()
-            .map(|arr| arr.iter().filter_map(|item| {
-                Some(SearchResult {
-                    title: item["title"].as_str()?.to_string(),
-                    url: item["link"].as_str()?.to_string(),
-                    description: item["snippet"].as_str().map(|s| s.to_string()),
-                    source: item["source"].as_str().map(|s| s.to_string()),
-                    published: item["date"].as_str().map(|s| s.to_string()),
-                    provider: None,
-                })
-            }).collect::<Vec<_>>())
+            .map(|arr| {
+                arr.iter().filter_map(|item| {
+                    Some(SearchResult {
+                        title: item["title"].as_str()?.to_string(),
+                        url: item["link"].as_str()?.to_string(),
+                        description: item["snippet"].as_str().map(|s| s.to_string()),
+                        source: item["source"].as_str().map(|s| s.to_string()),
+                        published: item["date"].as_str().map(|s| s.to_string()),
+                        provider: None,
+                    })
+                }).collect::<Vec<_>>()
+            })
             .unwrap_or_default();
 
         let mut results = organic;
         results.extend(news);
-        Ok(results)
+
+        let answer_box = parsed["answer_box"].as_object().map(|ab| AnswerBox {
+                title: ab.get("title").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                snippet: ab.get("snippet").or_else(|| ab.get("answer"))
+                    .and_then(|v| v.as_str()).map(|s| s.to_string()),
+                url: ab.get("link").or_else(|| ab.get("displayed_link"))
+                    .and_then(|v| v.as_str()).map(|s| s.to_string()),
+            });
+
+        let related_questions: Vec<String> = parsed["related_questions"]
+            .as_array()
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|item| item["question"].as_str().map(|s| s.to_string()))
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        Ok(ProviderSearchOutput {
+            results,
+            answer_box,
+            related_questions,
+            ..Default::default()
+        })
     }
 
     async fn health(&self) -> Result<(), WebError> { Ok(()) }
 }
-
-// =============================================================================
-// Exa Provider (search — neural/semantic)
-// =============================================================================
 
 pub struct ExaProvider {
     client: reqwest::Client,
@@ -651,7 +785,7 @@ impl WebSearchProvider for ExaProvider {
         vec![SearchCapability::Semantic, SearchCapability::Keyword]
     }
 
-    async fn search(&self, query: &SearchQuery) -> Result<Vec<SearchResult>, WebError> {
+    async fn search(&self, query: &SearchQuery) -> Result<ProviderSearchOutput, WebError> {
         let mut payload = serde_json::json!({
             "query": query.query,
             "numResults": query.num_results,
@@ -686,29 +820,38 @@ impl WebSearchProvider for ExaProvider {
         let parsed: serde_json::Value = serde_json::from_str(&body)
             .map_err(|e| WebError::ProviderError(format!("Failed to parse Exa response: {e}")))?;
 
-        Ok(parsed["results"].as_array()
-            .map(|arr| arr.iter().filter_map(|item| {
-                Some(SearchResult {
-                    title: item["title"].as_str()?.to_string(),
-                    url: item["url"].as_str()?.to_string(),
-                    description: item["text"].as_str().map(|s| {
-                        let s = s.to_string();
-                        if s.len() > 300 { format!("{}…", &s[..300]) } else { s }
-                    }),
-                    source: item["author"].as_str().map(|s| s.to_string()),
-                    published: item["publishedDate"].as_str().map(|s| s.to_string()),
-                    provider: None,
-                })
-            }).collect::<Vec<_>>())
-            .unwrap_or_default())
+        let mut semantic_scores = HashMap::new();
+        let results = parsed["results"].as_array()
+            .map(|arr| {
+                arr.iter().filter_map(|item| {
+                    let url = item["url"].as_str()?;
+                    if let Some(score) = item["score"].as_f64() {
+                        semantic_scores.insert(url.to_lowercase(), score);
+                    }
+                    Some(SearchResult {
+                        title: item["title"].as_str()?.to_string(),
+                        url: url.to_string(),
+                        description: item["text"].as_str().map(|s| {
+                            let s = s.to_string();
+                            if s.len() > 300 { format!("{}…", &s[..300]) } else { s }
+                        }),
+                        source: item["author"].as_str().map(|s| s.to_string()),
+                        published: item["publishedDate"].as_str().map(|s| s.to_string()),
+                        provider: None,
+                    })
+                }).collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+
+        Ok(ProviderSearchOutput {
+            results,
+            semantic_scores,
+            ..Default::default()
+        })
     }
 
     async fn health(&self) -> Result<(), WebError> { Ok(()) }
 }
-
-// =============================================================================
-// Browserbase Provider (browse — headless browser)
-// =============================================================================
 
 pub struct BrowserbaseProvider {
     client: reqwest::Client,
@@ -768,10 +911,6 @@ impl WebBrowseProvider for BrowserbaseProvider {
 
     async fn health(&self) -> Result<(), WebError> { Ok(()) }
 }
-
-// =============================================================================
-// RawFetch Provider (extract fallback — no API key)
-// =============================================================================
 
 pub struct RawFetchProvider {
     client: reqwest::Client,

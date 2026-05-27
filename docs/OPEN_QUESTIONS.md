@@ -164,7 +164,7 @@ The `hkask-mcp-spec` MCP server implements 8 DDMVSS tools. Whether the documenta
 **Status:** Deferred  
 **Impact:** Feature completeness
 
-Three MCP servers are stubs (5 LOC each): `hkask-mcp-condenser`, `hkask-mcp-scholar`, `hkask-mcp-web`.
+Two MCP servers are stubs (5 LOC each): `hkask-mcp-condenser`, `hkask-mcp-web`.
 
 **Decision options:**
 1. Implement in next development phase

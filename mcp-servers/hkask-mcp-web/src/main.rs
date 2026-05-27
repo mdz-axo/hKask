@@ -1,14 +1,3 @@
-//! hKask MCP Web — Compound web search, content extraction, and interactive browsing
-//!
-//! Multi-provider routing across Brave, Firecrawl, Tavily, SerpAPI, Exa (search),
-//! Firecrawl/RawFetch (extract), and Firecrawl/Browserbase (browse).
-//! Strategy engine supports:
-//! - quick: single-provider fallback (Brave primary)
-//! - semantic: compound concurrent search (Exa + Tavily + Firecrawl)
-//! - extract: search + extract top results
-//! - deep: compound search all providers + extract + cross-ref
-//! - fetch: URL → content extraction
-
 mod cache;
 mod providers;
 mod strip_html;
@@ -114,7 +103,7 @@ impl WebServer {
         .to_json_string()
     }
 
-    #[tool(description = "Search the web — compound multi-provider with dedup or single-provider fallback")]
+    #[tool(description = "Search the web — compound multi-provider with consensus ranking or single-provider fallback")]
     async fn web_search(
         &self,
         Parameters(SearchRequest {
@@ -160,7 +149,7 @@ impl WebServer {
         }
 
         match strat {
-            SearchStrategy::Quick | SearchStrategy::Extract => {
+            SearchStrategy::Quick => {
                 let primary = "brave";
                 match self.pool.search_with_fallback(&search_query, primary).await {
                     Ok(results) => {
@@ -181,45 +170,19 @@ impl WebServer {
                     }
                 }
             }
-            SearchStrategy::Semantic => {
-                let filter = ["exa", "tavily", "firecrawl"];
-                let compound = self.pool.search_compound(&search_query, Some(&filter)).await;
+            SearchStrategy::Semantic
+            | SearchStrategy::News
+            | SearchStrategy::Research
+            | SearchStrategy::Deep => {
+                let compound = self.pool.search_compound(&search_query, strat).await;
                 emit_tool_span("web_search", "ok", start.elapsed().as_millis() as u64, None);
-                let output = serde_json::json!({
-                    "query": query,
-                    "strategy": strat.to_string(),
-                    "mode": "compound",
-                    "providers_queried": compound.providers_queried,
-                    "providers_succeeded": compound.providers_succeeded,
-                    "providers_failed": compound.providers_failed,
-                    "total_before_dedup": compound.total_before_dedup,
-                    "duplicates_removed": compound.duplicates_removed,
-                    "results": compound.results,
-                    "count": compound.results.len(),
-                });
+                let mut output = serde_json::to_value(&compound).unwrap_or_else(|_| serde_json::json!({}));
+                if let Some(obj) = output.as_object_mut() {
+                    obj.insert("mode".to_string(), serde_json::json!("compound"));
+                    obj.insert("count".to_string(), serde_json::json!(compound.results.len()));
+                }
                 self.cache.insert(ckey, output.clone()).await;
                 McpToolOutput::with_timing(output, start).to_json_string()
-            }
-            SearchStrategy::Deep => {
-                let compound = self.pool.search_compound(&search_query, None).await;
-                emit_tool_span("web_search", "ok", start.elapsed().as_millis() as u64, None);
-                let output = serde_json::json!({
-                    "query": query,
-                    "strategy": strat.to_string(),
-                    "mode": "compound",
-                    "providers_queried": compound.providers_queried,
-                    "providers_succeeded": compound.providers_succeeded,
-                    "providers_failed": compound.providers_failed,
-                    "total_before_dedup": compound.total_before_dedup,
-                    "duplicates_removed": compound.duplicates_removed,
-                    "results": compound.results,
-                    "count": compound.results.len(),
-                });
-                self.cache.insert(ckey, output.clone()).await;
-                McpToolOutput::with_timing(output, start).to_json_string()
-            }
-            SearchStrategy::Fetch => {
-                McpToolError::invalid_argument("Fetch strategy requires a URL — use web_extract instead").to_json_string()
             }
         }
     }
@@ -341,7 +304,7 @@ impl WebServer {
             search_type: None,
         };
 
-        let compound = self.pool.search_compound(&search_query, None).await;
+        let compound = self.pool.search_compound(&search_query, SearchStrategy::Research).await;
 
         let mut pages = Vec::new();
         let mut urls_seen = std::collections::HashSet::new();

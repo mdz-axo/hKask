@@ -65,15 +65,14 @@ status: VERIFIED
 
 ### 1.2 Essential Tools
 
-**Principle:** Sixteen MCP servers provide all external tooling — no direct HTTP calls from agents.[^mcp]
+**Principle:** Fifteen MCP servers provide all external tooling — no direct HTTP calls from agents.[^mcp]
 
-**Implementation (16 Total):**
+**Implementation (15 Total):**
 
-**Enabled (16):**
+**Enabled (15):**
 - `hkask-mcp-inference` — Okapi LLM inference
 - `hkask-mcp-condenser` — General-purpose context reranking and condensation
 - `hkask-mcp-web` — Search, scrape, extract
-- `hkask-mcp-scholar` — Academic research
 - `hkask-mcp-ocap` — Capability management
 - `hkask-mcp-keystore` — OS keychain
 - `hkask-mcp-cns` — CNS operations

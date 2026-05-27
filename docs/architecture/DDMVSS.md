@@ -517,7 +517,7 @@ interface:
 
 surfaces:
   mcp:
-    servers: [inference, storage, memory, embedding, condenser, web, scholar, ocap, keystore, cns, git, registry, gml, github, spec]
+    servers: [inference, storage, memory, embedding, condenser, web, ocap, keystore, cns, git, registry, gml, github, spec]
     protocol: rmcp
   cli:
     binary: kask

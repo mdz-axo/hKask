@@ -54,7 +54,7 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-na
 | Component | Count | Description |
 |-----------|-------|-------------|
 | **Core Crates** | 11 | `hkask-*` in `crates/` |
-| **MCP Servers** | 16 | `hkask-mcp-*` in `mcp-servers/` |
+| **MCP Servers** | 15 | `hkask-mcp-*` in `mcp-servers/` |
 | **Test Crate** | 1 | `hkask-testing` |
 | **Total** | 28 | All in workspace |
 
@@ -91,14 +91,13 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-na
 | `hkask-cli` | 3,741 | CLI commands (14 subcommand groups) | ✅ Complete |
 | `hkask-api` | 2,449 | HTTP API (11 route groups), utoipa | ✅ Complete |
 
-### 3.3 MCP Servers (16)
+### 3.3 MCP Servers (15)
 
 | Server | LOC | Status | Purpose |
 |--------|-----|--------|---------|
 | `hkask-mcp-inference` | 432 | ✅ Complete | Okapi LLM inference |
 | `hkask-mcp-condenser` | 5 | ⚠️ Stub | General-purpose context reranking and condensation |
 | `hkask-mcp-web` | 5 | ⚠️ Stub | Web search, scrape |
-| `hkask-mcp-scholar` | 5 | ⚠️ Stub | Academic research |
 | `hkask-mcp-ocap` | 266 | ✅ Complete | Capability management |
 | `hkask-mcp-keystore` | 365 | ✅ Complete | Keystore operations |
 | `hkask-mcp-cns` | 230 | ✅ Complete | CNS operations |

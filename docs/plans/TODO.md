@@ -33,7 +33,7 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | **P1-04** | ADR creation for key decisions | Architect | Medium | Pending | New ADRs in `docs/architecture/adr/` |
 | **P1-05** | Link checker script | DevOps | Low | Pending | `docs/ci/check-links.sh` |
 | **P1-06** | Citation compliance audit | Curator | Medium | Pending | Grep for uncited sections |
-| **P1-07** | Complete stub MCP servers | Dev | Medium | Deferred | condenser, scholar, web (5 LOC each) |
+| **P1-07** | Complete stub MCP servers | Dev | Medium | Deferred | condenser, web (5 LOC each) |
 | **P1-08** | Metadata migration for legacy docs | Curator | Low | Pending | Add `ddmvss_categories` to older docs |
 
 ---

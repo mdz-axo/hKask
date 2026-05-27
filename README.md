@@ -40,7 +40,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 | # | Anchor | Implementation |
 |---|--------|----------------|
 | 1 | **Agent Enablement** | Bots + Replicants in pods with WebID, ACP |
-| 2 | **Essential Tools** | 16 MCP servers + Okapi |
+| 2 | **Essential Tools** | 15 MCP servers + Okapi |
 | 3 | **User Sovereignty** | OCAP, SQLCipher, private/public gating |
 | 4 | **CNS** | `cns.*` spans, variety counters, algedonic alerts |
 | 5 | **Composition** | Unified registry with template_type discriminator |
@@ -62,11 +62,10 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 - `hkask-cli` — CLI commands
 - `hkask-api` — HTTP API, utoipa OpenAPI
 
-### MCP Servers (16 crates)
+### MCP Servers (15 crates)
 - `hkask-mcp-inference` — Okapi-backed LLM inference
 - `hkask-mcp-condenser` — General-purpose context reranking and condensation
 - `hkask-mcp-web` — Web search, scrape
-- `hkask-mcp-scholar` — Academic research
 - `hkask-mcp-ocap` — Capability management
 - `hkask-mcp-keystore` — Keystore operations
 - `hkask-mcp-cns` — CNS operations
@@ -94,7 +93,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 | **MCP Server LOC (Rust)** | ~4,890 |
 | **Test Files** | 36 |
 | **Core Crates** | 11 (all complete) |
-| **MCP Servers** | 16 (13 complete, 3 stubs) |
+| **MCP Servers** | 15 (12 complete, 2 stubs) |
 | **Build/Clippy/Fmt** | All passing |
 
 ---
@@ -141,7 +140,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 - [x] 94 documents archived, 36 active documents curated
 
 ### In Progress
-- [ ] MCP server stubs: `condenser`, `web`, `scholar`
+- [ ] MCP server stubs: `condenser`, `web`
 - [ ] Integration tests for inference pipeline
 - [ ] `hkask-storage` trait mismatches (goals.rs)
 
@@ -162,7 +161,7 @@ hKask is "done" when a single user can:
 3. Observe ≥3 subsystem-curator bots spawn at startup
 4. Trigger ensemble session with ≥2 subsystem-curators deliberating
 5. Invoke any operation through CLI or HTTP API with identical behavior
-6. Invoke any tool from 16 MCP set; observe routing
+6. Invoke any tool from 15 MCP set; observe routing
 7. Compose two tools via process template
 8. Record episodic memory with confidence
 9. Retrieve memory; observe `as-of` query returns historical state

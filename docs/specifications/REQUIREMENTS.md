@@ -120,7 +120,7 @@ Curation: Merge | Revise | Defer | Discard
   - [x] Three transport options (in-process, stdio, HTTP)
 - **Implementation:** `hkask-mcp::runtime::McpRuntime`, `hkask-mcp::security::SecurityGateway`, `hkask-mcp::transport::*`
 - **Tests:** `crates/hkask-mcp/src/` (1 test file)
-- **Status:** Implemented (3 servers are stubs: condenser, scholar, web)
+- **Status:** Implemented (2 servers are stubs: condenser, web)
 - **Curation:** Merge — stubs documented, not blocking
 
 ---
@@ -359,7 +359,7 @@ Curation: Merge | Revise | Defer | Discard
 | ID | Requirement | Reason | ADR |
 |----|------------|--------|-----|
 | REQ-CAP-D01 | Full condenser MCP server | Stub (5 LOC) — not minimal for MVP | ADR pending |
-| REQ-CAP-D02 | Full scholar MCP server | Stub (5 LOC) — not minimal for MVP | ADR pending |
+
 | REQ-CAP-D03 | Full web MCP server | Stub (5 LOC) — not minimal for MVP | ADR pending |
 | REQ-IFC-D01 | Remote LLM fallback | Local-first invariant | ADR pending |
 | REQ-COM-D01 | Federation transport | Complexity exceeds budget | ADR pending |

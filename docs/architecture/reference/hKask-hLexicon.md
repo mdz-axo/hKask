@@ -437,7 +437,7 @@ cascade:
     - template:
         type: Process
         flowdef: [parallel]
-        skills: [web-search, scholar-search]
+        skills: [web-search]
     - template:
         type: Process
         flowdef: [aggregate]

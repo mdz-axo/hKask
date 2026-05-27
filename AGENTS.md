@@ -38,7 +38,7 @@
 | `hkask-cli` | CLI commands |
 | `hkask-api` | HTTP API (utoipa) |
 
-**MCP Servers:** `inference` (Okapi LLM), `condenser`, `web`, `scholar`, `ocap`, `keystore`, `cns`, `git`, `registry`, `gml`, `spec`, `github`, `fmp`, `telnyx`, `fal`, `rss-reader`
+**MCP Servers:** `inference` (Okapi LLM), `condenser`, `web`, `ocap`, `keystore`, `cns`, `git`, `registry`, `gml`, `spec`, `github`, `fmp`, `telnyx`, `fal`, `rss-reader`
 
 **External deps:** Okapi (mdz-axo/Okapi), ACP (acp-runtime), MCP (rmcp)
 

@@ -303,14 +303,13 @@ status: VERIFIED
 
 ### 6.1 Server Inventory
 
-16 MCP servers provide the tool surface, each gated through `SecurityGateway` (`crates/hkask-mcp/src/security.rs:51`):
+15 MCP servers provide the tool surface, each gated through `SecurityGateway` (`crates/hkask-mcp/src/security.rs:51`):
 
 | MCP Server | Crate | LOC | Status | Domain |
 |-----------|-------|-----|--------|--------|
 | inference | `hkask-mcp-inference` | 432 | ✅ Complete | Okapi LLM |
 | condenser | `hkask-mcp-condenser` | 5 | ⚠️ Stub | Text condensation |
 | web | `hkask-mcp-web` | 5 | ⚠️ Stub | Web search |
-| scholar | `hkask-mcp-scholar` | 5 | ⚠️ Stub | Academic search |
 | ocap | `hkask-mcp-ocap` | 266 | ✅ Complete | Trust |
 | keystore | `hkask-mcp-keystore` | 365 | ✅ Complete | Trust |
 | cns | `hkask-mcp-cns` | 230 | ✅ Complete | Observability |
