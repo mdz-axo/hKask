@@ -8,12 +8,14 @@
 //! - Tool discovery and metadata
 //! - Adapter container for shared adapter lifecycle
 //! - Archival service for git operations
+//! - Server scaffolding (McpToolError, McpToolOutput, CredentialRequirement, run_stdio_server)
 
 pub mod adapter_container;
 pub mod archival_service;
 pub mod dispatch;
 pub mod runtime;
 pub mod security;
+pub mod server;
 pub mod supervisor;
 pub mod transport;
 
@@ -25,6 +27,9 @@ pub use runtime::{McpRuntime, McpServer, McpTool};
 pub use security::{
     AuditAction, AuditEntry, SecurityError, SecurityGateway, SecurityPolicy, UrlValidationConfig,
     validate_url,
+};
+pub use server::{
+    CredentialRequirement, McpToolError, McpToolOutput, run_stdio_server,
 };
 pub use supervisor::{McpSupervisor, RestartPolicy, ServerConfig, ServerStatus, SupervisionError};
 pub use transport::{HttpMcpTransport, InProcessMcpTransport, McpTransport, StdioMcpTransport};

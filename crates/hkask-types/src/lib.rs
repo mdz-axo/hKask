@@ -38,7 +38,7 @@ pub use agent_def::{
 pub use capability::*;
 pub use cns::*;
 pub use curation::*;
-pub use error::{ArchivalResult, AuthorizationError, GitArchivalError};
+pub use error::{ArchivalResult, AuthorizationError, GitArchivalError, McpErrorKind};
 pub use event::*;
 pub use goal::*;
 pub use goal_capability::*;

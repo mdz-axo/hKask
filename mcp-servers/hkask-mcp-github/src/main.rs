@@ -3,9 +3,11 @@
 //! This MCP server provides GitHub operations for repository, issue, and PR management.
 //! Phase 9: Git archival via GitHub MCP tool calls.
 
-use rmcp::{ServiceExt, handler::server::wrapper::Parameters, tool, tool_router, transport::stdio};
+use hkask_mcp::server::{CredentialRequirement, McpToolError, McpToolOutput, run_stdio_server};
+use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
+use std::time::Instant;
 
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 const GITHUB_API_BASE: &str = "https://api.github.com";
@@ -67,38 +69,42 @@ pub struct SearchReposRequest {
     pub limit: Option<u32>,
 }
 
-fn build_client() -> Result<reqwest::Client, anyhow::Error> {
+fn build_client() -> Result<reqwest::Client, McpToolError> {
     let token = std::env::var("HKASK_GITHUB_TOKEN").map_err(|_| {
-        anyhow::anyhow!("HKASK_GITHUB_TOKEN environment variable is not set")
+        McpToolError::failed_precondition("HKASK_GITHUB_TOKEN environment variable is not set")
     })?;
 
     let mut headers = reqwest::header::HeaderMap::new();
     headers.insert(
         reqwest::header::ACCEPT,
-        "application/vnd.github+json".parse()?,
+        "application/vnd.github+json".parse().unwrap(),
     );
     headers.insert(
         reqwest::header::USER_AGENT,
-        "hkask-mcp-github".parse()?,
+        "hkask-mcp-github".parse().unwrap(),
     );
     headers.insert(
         reqwest::header::AUTHORIZATION,
-        format!("Bearer {token}").parse()?,
+        format!("Bearer {token}").parse().unwrap(),
     );
 
-    let client = reqwest::Client::builder()
+    reqwest::Client::builder()
         .default_headers(headers)
-        .build()?;
-
-    Ok(client)
+        .build()
+        .map_err(|e| McpToolError::internal(format!("Failed to build HTTP client: {e}")))
 }
 
-fn api_error(status: reqwest::StatusCode, body: &str) -> String {
-    serde_json::json!({
-        "error": format!("GitHub API returned {}: {}", status, body.trim()),
-        "status": status.as_u16(),
-    })
-    .to_string()
+fn classify_api_error(status: reqwest::StatusCode, body: &str) -> McpToolError {
+    let msg = format!("GitHub API returned {}: {}", status, body.trim());
+    match status.as_u16() {
+        401 | 403 => McpToolError::permission_denied(msg),
+        404 => McpToolError::not_found(msg),
+        422 => McpToolError::invalid_argument(msg),
+        429 => McpToolError::rate_limited(msg),
+        503 | 502 => McpToolError::unavailable(msg),
+        _ if status.is_server_error() => McpToolError::unavailable(msg),
+        _ => McpToolError::internal(msg),
+    }
 }
 
 fn extract_repo_summary(v: &serde_json::Value) -> serde_json::Value {
@@ -122,12 +128,7 @@ fn extract_issue_summary(v: &serde_json::Value) -> serde_json::Value {
         .as_array()
         .map(|arr| {
             arr.iter()
-                .map(|l| {
-                    serde_json::json!({
-                        "name": l["name"],
-                        "color": l["color"],
-                    })
-                })
+                .map(|l| serde_json::json!({ "name": l["name"], "color": l["color"] }))
                 .collect()
         })
         .unwrap_or_default();
@@ -157,6 +158,34 @@ fn extract_pr_summary(v: &serde_json::Value) -> serde_json::Value {
     })
 }
 
+async fn github_get(client: &reqwest::Client, url: &str) -> Result<serde_json::Value, McpToolError> {
+    let resp = client.get(url).send().await.map_err(|e| {
+        McpToolError::unavailable(format!("GitHub request failed: {e}"))
+    })?;
+    let status = resp.status();
+    let body = resp.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(classify_api_error(status, &body));
+    }
+    serde_json::from_str(&body).map_err(|e| McpToolError::internal(format!("Failed to parse response: {e}")))
+}
+
+async fn github_post(
+    client: &reqwest::Client,
+    url: &str,
+    payload: &serde_json::Value,
+) -> Result<serde_json::Value, McpToolError> {
+    let resp = client.post(url).json(payload).send().await.map_err(|e| {
+        McpToolError::unavailable(format!("GitHub request failed: {e}"))
+    })?;
+    let status = resp.status();
+    let body = resp.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(classify_api_error(status, &body));
+    }
+    serde_json::from_str(&body).map_err(|e| McpToolError::internal(format!("Failed to parse response: {e}")))
+}
+
 pub struct GithubServer {
     client: reqwest::Client,
 }
@@ -181,20 +210,11 @@ impl GithubServer {
         &self,
         Parameters(RepoRequest { owner, repo }): Parameters<RepoRequest>,
     ) -> String {
+        let start = Instant::now();
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}");
-        match self.client.get(&url).send().await {
-            Ok(resp) => {
-                let status = resp.status();
-                let body = resp.text().await.unwrap_or_default();
-                if !status.is_success() {
-                    return api_error(status, &body);
-                }
-                match serde_json::from_str::<serde_json::Value>(&body) {
-                    Ok(v) => extract_repo_summary(&v).to_string(),
-                    Err(e) => serde_json::json!({"error": format!("Failed to parse response: {e}")}).to_string(),
-                }
-            }
-            Err(e) => serde_json::json!({"error": format!("Request failed: {e}")}).to_string(),
+        match github_get(&self.client, &url).await {
+            Ok(v) => McpToolOutput::with_timing(extract_repo_summary(&v), start).to_json_string(),
+            Err(e) => e.to_json_string(),
         }
     }
 
@@ -203,179 +223,106 @@ impl GithubServer {
         &self,
         Parameters(ListIssuesRequest { owner, repo, state }): Parameters<ListIssuesRequest>,
     ) -> String {
+        let start = Instant::now();
         let state = state.unwrap_or_else(|| "open".to_string());
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/issues?state={state}");
-        match self.client.get(&url).send().await {
-            Ok(resp) => {
-                let status = resp.status();
-                let body = resp.text().await.unwrap_or_default();
-                if !status.is_success() {
-                    return api_error(status, &body);
-                }
-                match serde_json::from_str::<serde_json::Value>(&body) {
-                    Ok(v) => {
-                        let issues: Vec<serde_json::Value> = v
-                            .as_array()
-                            .map(|arr| {
-                                arr.iter()
-                                    .filter(|i| i.get("pull_request").is_none())
-                                    .map(extract_issue_summary)
-                                    .collect()
-                            })
-                            .unwrap_or_default();
-                        serde_json::json!({
-                            "owner": owner,
-                            "repo": repo,
-                            "state": state,
-                            "issues": issues,
-                        })
-                        .to_string()
-                    }
-                    Err(e) => serde_json::json!({"error": format!("Failed to parse response: {e}")}).to_string(),
-                }
+        match github_get(&self.client, &url).await {
+            Ok(v) => {
+                let issues: Vec<serde_json::Value> = v
+                    .as_array()
+                    .map(|arr| {
+                        arr.iter()
+                            .filter(|i| i.get("pull_request").is_none())
+                            .map(extract_issue_summary)
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                McpToolOutput::with_timing(
+                    serde_json::json!({ "owner": owner, "repo": repo, "state": state, "issues": issues }),
+                    start,
+                )
+                .to_json_string()
             }
-            Err(e) => serde_json::json!({"error": format!("Request failed: {e}")}).to_string(),
+            Err(e) => e.to_json_string(),
         }
     }
 
     #[tool(description = "Get a specific issue")]
     async fn github_get_issue(
         &self,
-        Parameters(IssueRequest {
-            owner,
-            repo,
-            issue_number,
-        }): Parameters<IssueRequest>,
+        Parameters(IssueRequest { owner, repo, issue_number }): Parameters<IssueRequest>,
     ) -> String {
+        let start = Instant::now();
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/issues/{issue_number}");
-        match self.client.get(&url).send().await {
-            Ok(resp) => {
-                let status = resp.status();
-                let body = resp.text().await.unwrap_or_default();
-                if !status.is_success() {
-                    return api_error(status, &body);
-                }
-                match serde_json::from_str::<serde_json::Value>(&body) {
-                    Ok(v) => {
-                        let labels: Vec<serde_json::Value> = v["labels"]
-                            .as_array()
-                            .map(|arr| {
-                                arr.iter()
-                                    .map(|l| {
-                                        serde_json::json!({
-                                            "name": l["name"],
-                                            "color": l["color"],
-                                        })
-                                    })
-                                    .collect()
-                            })
-                            .unwrap_or_default();
-                        serde_json::json!({
-                            "owner": owner,
-                            "repo": repo,
-                            "number": v["number"],
-                            "title": v["title"],
-                            "state": v["state"],
-                            "body": v["body"],
-                            "labels": labels,
-                            "user": v["user"]["login"],
-                            "assignees": v["assignees"],
-                            "milestone": v["milestone"],
-                            "comments": v["comments"],
-                            "created_at": v["created_at"],
-                            "updated_at": v["updated_at"],
-                            "html_url": v["html_url"],
-                        })
-                        .to_string()
-                    }
-                    Err(e) => serde_json::json!({"error": format!("Failed to parse response: {e}")}).to_string(),
-                }
+        match github_get(&self.client, &url).await {
+            Ok(v) => {
+                let labels: Vec<serde_json::Value> = v["labels"]
+                    .as_array()
+                    .map(|arr| arr.iter().map(|l| serde_json::json!({ "name": l["name"], "color": l["color"] })).collect())
+                    .unwrap_or_default();
+                McpToolOutput::with_timing(
+                    serde_json::json!({
+                        "owner": owner, "repo": repo,
+                        "number": v["number"], "title": v["title"], "state": v["state"],
+                        "body": v["body"], "labels": labels, "user": v["user"]["login"],
+                        "assignees": v["assignees"], "milestone": v["milestone"],
+                        "comments": v["comments"], "created_at": v["created_at"],
+                        "updated_at": v["updated_at"], "html_url": v["html_url"],
+                    }),
+                    start,
+                )
+                .to_json_string()
             }
-            Err(e) => serde_json::json!({"error": format!("Request failed: {e}")}).to_string(),
+            Err(e) => e.to_json_string(),
         }
     }
 
     #[tool(description = "Create a new issue")]
     async fn github_create_issue(
         &self,
-        Parameters(CreateIssueRequest {
-            owner,
-            repo,
-            title,
-            body,
-            labels,
-        }): Parameters<CreateIssueRequest>,
+        Parameters(CreateIssueRequest { owner, repo, title, body, labels }): Parameters<CreateIssueRequest>,
     ) -> String {
+        let start = Instant::now();
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/issues");
-        let mut payload = serde_json::json!({
-            "title": title,
-        });
+        let mut payload = serde_json::json!({ "title": title });
         if let Some(ref b) = body {
             payload["body"] = serde_json::Value::String(b.clone());
         }
         if let Some(ref l) = labels {
-            payload["labels"] = serde_json::Value::Array(
-                l.iter().map(|s| serde_json::Value::String(s.clone())).collect(),
-            );
+            payload["labels"] = serde_json::Value::Array(l.iter().map(|s| serde_json::Value::String(s.clone())).collect());
         }
-        match self.client.post(&url).json(&payload).send().await {
-            Ok(resp) => {
-                let status = resp.status();
-                let resp_body = resp.text().await.unwrap_or_default();
-                if !status.is_success() {
-                    return api_error(status, &resp_body);
-                }
-                match serde_json::from_str::<serde_json::Value>(&resp_body) {
-                    Ok(v) => serde_json::json!({
-                        "owner": owner,
-                        "repo": repo,
-                        "number": v["number"],
-                        "title": v["title"],
-                        "state": v["state"],
-                        "html_url": v["html_url"],
-                        "created": true,
-                    })
-                    .to_string(),
-                    Err(e) => serde_json::json!({"error": format!("Failed to parse response: {e}")}).to_string(),
-                }
-            }
-            Err(e) => serde_json::json!({"error": format!("Request failed: {e}")}).to_string(),
+        match github_post(&self.client, &url, &payload).await {
+            Ok(v) => McpToolOutput::with_timing(
+                serde_json::json!({
+                    "owner": owner, "repo": repo,
+                    "number": v["number"], "title": v["title"],
+                    "state": v["state"], "html_url": v["html_url"], "created": true,
+                }),
+                start,
+            )
+            .to_json_string(),
+            Err(e) => e.to_json_string(),
         }
     }
 
     #[tool(description = "Add a comment to an issue or PR")]
     async fn github_add_comment(
         &self,
-        Parameters(CommentRequest {
-            owner,
-            repo,
-            issue_number,
-            body,
-        }): Parameters<CommentRequest>,
+        Parameters(CommentRequest { owner, repo, issue_number, body }): Parameters<CommentRequest>,
     ) -> String {
+        let start = Instant::now();
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/issues/{issue_number}/comments");
         let payload = serde_json::json!({ "body": body });
-        match self.client.post(&url).json(&payload).send().await {
-            Ok(resp) => {
-                let status = resp.status();
-                let resp_body = resp.text().await.unwrap_or_default();
-                if !status.is_success() {
-                    return api_error(status, &resp_body);
-                }
-                match serde_json::from_str::<serde_json::Value>(&resp_body) {
-                    Ok(v) => serde_json::json!({
-                        "owner": owner,
-                        "repo": repo,
-                        "issue": issue_number,
-                        "comment_id": v["id"],
-                        "html_url": v["html_url"],
-                        "created": true,
-                    })
-                    .to_string(),
-                    Err(e) => serde_json::json!({"error": format!("Failed to parse response: {e}")}).to_string(),
-                }
-            }
-            Err(e) => serde_json::json!({"error": format!("Request failed: {e}")}).to_string(),
+        match github_post(&self.client, &url, &payload).await {
+            Ok(v) => McpToolOutput::with_timing(
+                serde_json::json!({
+                    "owner": owner, "repo": repo, "issue": issue_number,
+                    "comment_id": v["id"], "html_url": v["html_url"], "created": true,
+                }),
+                start,
+            )
+            .to_json_string(),
+            Err(e) => e.to_json_string(),
         }
     }
 
@@ -384,80 +331,50 @@ impl GithubServer {
         &self,
         Parameters(ListPrsRequest { owner, repo, state }): Parameters<ListPrsRequest>,
     ) -> String {
+        let start = Instant::now();
         let state = state.unwrap_or_else(|| "open".to_string());
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/pulls?state={state}");
-        match self.client.get(&url).send().await {
-            Ok(resp) => {
-                let status = resp.status();
-                let body = resp.text().await.unwrap_or_default();
-                if !status.is_success() {
-                    return api_error(status, &body);
-                }
-                match serde_json::from_str::<serde_json::Value>(&body) {
-                    Ok(v) => {
-                        let prs: Vec<serde_json::Value> = v
-                            .as_array()
-                            .map(|arr| arr.iter().map(extract_pr_summary).collect())
-                            .unwrap_or_default();
-                        serde_json::json!({
-                            "owner": owner,
-                            "repo": repo,
-                            "state": state,
-                            "prs": prs,
-                        })
-                        .to_string()
-                    }
-                    Err(e) => serde_json::json!({"error": format!("Failed to parse response: {e}")}).to_string(),
-                }
+        match github_get(&self.client, &url).await {
+            Ok(v) => {
+                let prs: Vec<serde_json::Value> = v
+                    .as_array()
+                    .map(|arr| arr.iter().map(extract_pr_summary).collect())
+                    .unwrap_or_default();
+                McpToolOutput::with_timing(
+                    serde_json::json!({ "owner": owner, "repo": repo, "state": state, "prs": prs }),
+                    start,
+                )
+                .to_json_string()
             }
-            Err(e) => serde_json::json!({"error": format!("Request failed: {e}")}).to_string(),
+            Err(e) => e.to_json_string(),
         }
     }
 
     #[tool(description = "Get a specific pull request")]
     async fn github_get_pr(
         &self,
-        Parameters(PrRequest {
-            owner,
-            repo,
-            pr_number,
-        }): Parameters<PrRequest>,
+        Parameters(PrRequest { owner, repo, pr_number }): Parameters<PrRequest>,
     ) -> String {
+        let start = Instant::now();
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/pulls/{pr_number}");
-        match self.client.get(&url).send().await {
-            Ok(resp) => {
-                let status = resp.status();
-                let body = resp.text().await.unwrap_or_default();
-                if !status.is_success() {
-                    return api_error(status, &body);
-                }
-                match serde_json::from_str::<serde_json::Value>(&body) {
-                    Ok(v) => serde_json::json!({
-                        "owner": owner,
-                        "repo": repo,
-                        "number": v["number"],
-                        "title": v["title"],
-                        "state": v["state"],
-                        "body": v["body"],
-                        "user": v["user"]["login"],
-                        "head": v["head"]["ref"],
-                        "head_repo": v["head"]["repo"]["full_name"],
-                        "base": v["base"]["ref"],
-                        "merged": v["merged"],
-                        "mergeable": v["mergeable"],
-                        "draft": v["draft"],
-                        "additions": v["additions"],
-                        "deletions": v["deletions"],
-                        "changed_files": v["changed_files"],
-                        "created_at": v["created_at"],
-                        "updated_at": v["updated_at"],
-                        "html_url": v["html_url"],
-                    })
-                    .to_string(),
-                    Err(e) => serde_json::json!({"error": format!("Failed to parse response: {e}")}).to_string(),
-                }
-            }
-            Err(e) => serde_json::json!({"error": format!("Request failed: {e}")}).to_string(),
+        match github_get(&self.client, &url).await {
+            Ok(v) => McpToolOutput::with_timing(
+                serde_json::json!({
+                    "owner": owner, "repo": repo,
+                    "number": v["number"], "title": v["title"], "state": v["state"],
+                    "body": v["body"], "user": v["user"]["login"],
+                    "head": v["head"]["ref"], "head_repo": v["head"]["repo"]["full_name"],
+                    "base": v["base"]["ref"], "merged": v["merged"],
+                    "mergeable": v["mergeable"], "draft": v["draft"],
+                    "additions": v["additions"], "deletions": v["deletions"],
+                    "changed_files": v["changed_files"],
+                    "created_at": v["created_at"], "updated_at": v["updated_at"],
+                    "html_url": v["html_url"],
+                }),
+                start,
+            )
+            .to_json_string(),
+            Err(e) => e.to_json_string(),
         }
     }
 
@@ -466,20 +383,21 @@ impl GithubServer {
         &self,
         Parameters(SearchReposRequest { query, limit }): Parameters<SearchReposRequest>,
     ) -> String {
+        let start = Instant::now();
         let limit = limit.unwrap_or(10);
         let url = format!("{GITHUB_API_BASE}/search/repositories");
-        match self
+        let resp = self
             .client
             .get(url)
             .query(&[("q", query.as_str()), ("per_page", &limit.to_string())])
             .send()
-            .await
-        {
-            Ok(resp) => {
-                let status = resp.status();
-                let body = resp.text().await.unwrap_or_default();
+            .await;
+        match resp {
+            Ok(http_resp) => {
+                let status = http_resp.status();
+                let body = http_resp.text().await.unwrap_or_default();
                 if !status.is_success() {
-                    return api_error(status, &body);
+                    return classify_api_error(status, &body).to_json_string();
                 }
                 match serde_json::from_str::<serde_json::Value>(&body) {
                     Ok(v) => {
@@ -487,31 +405,33 @@ impl GithubServer {
                             .as_array()
                             .map(|arr| arr.iter().map(extract_repo_summary).collect())
                             .unwrap_or_default();
-                        serde_json::json!({
-                            "query": query,
-                            "limit": limit,
-                            "total_count": v["total_count"],
-                            "results": results,
-                        })
-                        .to_string()
+                        McpToolOutput::with_timing(
+                            serde_json::json!({
+                                "query": query, "limit": limit,
+                                "total_count": v["total_count"], "results": results,
+                            }),
+                            start,
+                        )
+                        .to_json_string()
                     }
-                    Err(e) => serde_json::json!({"error": format!("Failed to parse response: {e}")}).to_string(),
+                    Err(e) => McpToolError::internal(format!("Failed to parse response: {e}")).to_json_string(),
                 }
             }
-            Err(e) => serde_json::json!({"error": format!("Request failed: {e}")}).to_string(),
+            Err(e) => McpToolError::unavailable(format!("GitHub request failed: {e}")).to_json_string(),
         }
     }
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-        .init();
-
-    let server = GithubServer::new();
-    let service = server.serve(stdio());
-    tracing::info!("hkask-mcp-github started (v{})", SERVER_VERSION);
-    service.await?;
-    Ok(())
+    run_stdio_server(
+        "hkask-mcp-github",
+        SERVER_VERSION,
+        GithubServer::new(),
+        vec![CredentialRequirement::required(
+            "HKASK_GITHUB_TOKEN",
+            "GitHub personal access token for API authentication",
+        )],
+    )
+    .await
 }

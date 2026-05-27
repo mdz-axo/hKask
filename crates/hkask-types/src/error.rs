@@ -1,11 +1,87 @@
 //! Error types for hKask operations
 //!
 //! Domain-specific error types with recovery semantics.
+//! Includes the canonical `McpErrorKind` taxonomy for MCP tool dispatch
+//! classification — every MCP error variant maps to a kind so the dispatch
+//! layer can reason about failures without parsing message strings.
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-/// Git archival operation errors
+// =============================================================================
+// McpErrorKind — Canonical MCP Error Taxonomy
+// =============================================================================
+
+/// Semantic classification of MCP tool errors.
+///
+/// Inspired by `stack-domain-types::ErrorKind` (ADR-T7) and gRPC status codes.
+/// Every MCP error variant maps to one `McpErrorKind`, enabling:
+/// - Retry logic (retry on `Timeout`/`Unavailable`, don't on `InvalidArgument`)
+/// - User-facing error categorization
+/// - CNS observability bucketing by error class
+/// - OCAP policy decisions (distinguish `PermissionDenied` from `NotFound`)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum McpErrorKind {
+    /// Internal server error (bug, unexpected state).
+    Internal,
+    /// External service unavailable (network, upstream down).
+    Unavailable,
+    /// Operation timed out.
+    Timeout,
+    /// Resource or tool not found.
+    NotFound,
+    /// Invalid arguments or schema validation failure.
+    InvalidArgument,
+    /// OCAP capability denied or insufficient permissions.
+    PermissionDenied,
+    /// Rate limit exceeded (retryable after backoff).
+    RateLimited,
+    /// Precondition not met (server not initialized, feature disabled).
+    FailedPrecondition,
+    /// Resource already exists (idempotent rejection).
+    AlreadyExists,
+    /// Data corruption or loss (deserialization failure).
+    DataLoss,
+    /// Operation cancelled by caller or supervisor.
+    Cancelled,
+}
+
+impl McpErrorKind {
+    /// Whether errors of this kind are retryable with backoff.
+    pub fn is_retryable(self) -> bool {
+        matches!(
+            self,
+            Self::Unavailable | Self::Timeout | Self::RateLimited | Self::Cancelled
+        )
+    }
+
+    /// Whether this error requires user/admin intervention.
+    pub fn requires_intervention(self) -> bool {
+        matches!(self, Self::PermissionDenied | Self::FailedPrecondition)
+    }
+}
+
+impl std::fmt::Display for McpErrorKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Internal => write!(f, "internal"),
+            Self::Unavailable => write!(f, "unavailable"),
+            Self::Timeout => write!(f, "timeout"),
+            Self::NotFound => write!(f, "not_found"),
+            Self::InvalidArgument => write!(f, "invalid_argument"),
+            Self::PermissionDenied => write!(f, "permission_denied"),
+            Self::RateLimited => write!(f, "rate_limited"),
+            Self::FailedPrecondition => write!(f, "failed_precondition"),
+            Self::AlreadyExists => write!(f, "already_exists"),
+            Self::DataLoss => write!(f, "data_loss"),
+            Self::Cancelled => write!(f, "cancelled"),
+        }
+    }
+}
+
+// =============================================================================
+// GitArchivalError
+// =============================================================================
 #[derive(Debug, Error, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum GitArchivalError {
     /// Adapter not configured or found

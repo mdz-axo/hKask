@@ -11,14 +11,15 @@
 //! - Continuation-token pagination
 
 use base64::Engine;
+use hkask_mcp::server::{McpToolError, McpToolOutput, run_stdio_server};
 use rmcp::{
-    ServiceExt,
     handler::server::wrapper::Parameters,
-    tool, tool_router, transport::stdio,
+    tool, tool_router,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use std::time::Instant;
 use rusqlite::Connection;
 use reqwest::Client;
 use chrono::Utc;
@@ -774,9 +775,10 @@ impl RssServer {
         &self,
         Parameters(SubscribeRequest { url, label, folder }): Parameters<SubscribeRequest>,
     ) -> String {
+        let start = Instant::now();
         let fetch_result = match fetch_feed(&self.client, &url, None, None).await {
             Ok(r) => r,
-            Err(e) => return serde_json::json!({"error": format!("Fetch failed: {}", e)}).to_string(),
+            Err(e) => return McpToolError::unavailable(format!("Fetch failed: {}", e)).to_json_string(),
         };
 
         let stream_id = format!("feed/{url}");
@@ -825,9 +827,9 @@ impl RssServer {
         }).await;
 
         match result {
-            Ok(Ok(v)) => v.to_string(),
-            Ok(Err(e)) => serde_json::json!({"error": e.to_string()}).to_string(),
-            Err(e) => serde_json::json!({"error": format!("Task error: {}", e)}).to_string(),
+            Ok(Ok(v)) => McpToolOutput::with_timing(v, start).to_json_string(),
+            Ok(Err(e)) => McpToolError::internal(e.to_string()).to_json_string(),
+            Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
         }
     }
 
@@ -847,13 +849,13 @@ impl RssServer {
         }).await;
 
         match result {
-            Ok(Ok(removed)) => serde_json::json!({
+            Ok(Ok(removed)) => McpToolOutput::new(serde_json::json!({
                 "stream_id": stream_id,
                 "unsubscribed": removed > 0,
                 "removed": removed,
-            }).to_string(),
-            Ok(Err(e)) => serde_json::json!({"error": e.to_string()}).to_string(),
-            Err(e) => serde_json::json!({"error": format!("Task error: {}", e)}).to_string(),
+            })).to_json_string(),
+            Ok(Err(e)) => McpToolError::internal(e.to_string()).to_json_string(),
+            Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
         }
     }
 
@@ -868,12 +870,12 @@ impl RssServer {
         }).await;
 
         match result {
-            Ok(Ok(subs)) => serde_json::json!({
+            Ok(Ok(subs)) => McpToolOutput::new(serde_json::json!({
                 "count": subs.len(),
                 "subscriptions": subs,
-            }).to_string(),
-            Ok(Err(e)) => serde_json::json!({"error": e.to_string()}).to_string(),
-            Err(e) => serde_json::json!({"error": format!("Task error: {}", e)}).to_string(),
+            })).to_json_string(),
+            Ok(Err(e)) => McpToolError::internal(e.to_string()).to_json_string(),
+            Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
         }
     }
 
@@ -882,6 +884,7 @@ impl RssServer {
         &self,
         Parameters(FetchRequest { stream_id }): Parameters<FetchRequest>,
     ) -> String {
+        let start = Instant::now();
         let db1 = self.db.clone();
         let sid1 = stream_id.clone();
         let lookup = tokio::task::spawn_blocking(move || {
@@ -895,22 +898,22 @@ impl RssServer {
 
         let (feed_url, cached_etag, cached_lm) = match lookup {
             Ok(Ok(v)) => v,
-            Ok(Err(e)) => return serde_json::json!({"error": format!("DB error: {}", e)}).to_string(),
-            Err(e) => return serde_json::json!({"error": format!("Task error: {}", e)}).to_string(),
+            Ok(Err(e)) => return McpToolError::not_found(e.to_string()).to_json_string(),
+            Err(e) => return McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
         };
 
         let fetch_result = match fetch_feed(&self.client, &feed_url, cached_etag.as_deref(), cached_lm.as_deref()).await {
             Ok(r) => r,
-            Err(e) => return serde_json::json!({"error": format!("Fetch failed: {}", e)}).to_string(),
+            Err(e) => return McpToolError::unavailable(format!("Fetch failed: {}", e)).to_json_string(),
         };
 
         if fetch_result.status == 304 {
-            return serde_json::json!({
+            return McpToolOutput::with_timing(serde_json::json!({
                 "stream_id": stream_id,
                 "new_entries": 0,
                 "fetched": true,
                 "not_modified": true,
-            }).to_string();
+            }), start).to_json_string();
         }
 
         let db2 = self.db.clone();
@@ -926,13 +929,13 @@ impl RssServer {
         }).await;
 
         match result {
-            Ok(Ok(new_count)) => serde_json::json!({
+            Ok(Ok(new_count)) => McpToolOutput::with_timing(serde_json::json!({
                 "stream_id": sid2,
                 "new_entries": new_count,
                 "fetched": true,
-            }).to_string(),
-            Ok(Err(e)) => serde_json::json!({"error": e.to_string()}).to_string(),
-            Err(e) => serde_json::json!({"error": format!("Task error: {}", e)}).to_string(),
+            }), start).to_json_string(),
+            Ok(Err(e)) => McpToolError::internal(e.to_string()).to_json_string(),
+            Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
         }
     }
 
@@ -965,15 +968,15 @@ impl RssServer {
                 } else {
                     None
                 };
-                serde_json::json!({
+                McpToolOutput::new(serde_json::json!({
                     "stream_id": stream_id,
                     "entries": entries,
                     "count": entries.len(),
                     "continuation_token": next_token,
-                }).to_string()
+                })).to_json_string()
             }
-            Ok(Err(e)) => serde_json::json!({"error": e.to_string()}).to_string(),
-            Err(e) => serde_json::json!({"error": format!("Task error: {}", e)}).to_string(),
+            Ok(Err(e)) => McpToolError::internal(e.to_string()).to_json_string(),
+            Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
         }
     }
 
@@ -989,12 +992,12 @@ impl RssServer {
         }).await;
 
         match result {
-            Ok(Ok(marked)) => serde_json::json!({
+            Ok(Ok(marked)) => McpToolOutput::new(serde_json::json!({
                 "stream_id": stream_id,
                 "marked_read": marked,
-            }).to_string(),
-            Ok(Err(e)) => serde_json::json!({"error": e.to_string()}).to_string(),
-            Err(e) => serde_json::json!({"error": format!("Task error: {}", e)}).to_string(),
+            })).to_json_string(),
+            Ok(Err(e)) => McpToolError::internal(e.to_string()).to_json_string(),
+            Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
         }
     }
 
@@ -1010,12 +1013,12 @@ impl RssServer {
         }).await;
 
         match result {
-            Ok(Ok(count)) => serde_json::json!({
+            Ok(Ok(count)) => McpToolOutput::new(serde_json::json!({
                 "stream_id": stream_id,
                 "unread_count": count,
-            }).to_string(),
-            Ok(Err(e)) => serde_json::json!({"error": e.to_string()}).to_string(),
-            Err(e) => serde_json::json!({"error": format!("Task error: {}", e)}).to_string(),
+            })).to_json_string(),
+            Ok(Err(e)) => McpToolError::internal(e.to_string()).to_json_string(),
+            Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
         }
     }
 
@@ -1032,13 +1035,13 @@ impl RssServer {
         }).await;
 
         match result {
-            Ok(Ok(results)) => serde_json::json!({
+            Ok(Ok(results)) => McpToolOutput::new(serde_json::json!({
                 "query": query,
                 "results": results,
                 "count": results.len(),
-            }).to_string(),
-            Ok(Err(e)) => serde_json::json!({"error": e.to_string()}).to_string(),
-            Err(e) => serde_json::json!({"error": format!("Task error: {}", e)}).to_string(),
+            })).to_json_string(),
+            Ok(Err(e)) => McpToolError::internal(e.to_string()).to_json_string(),
+            Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
         }
     }
 
@@ -1050,9 +1053,9 @@ impl RssServer {
         }).await;
 
         match result {
-            Ok(Ok(opml)) => serde_json::json!({"opml": opml}).to_string(),
-            Ok(Err(e)) => serde_json::json!({"error": e.to_string()}).to_string(),
-            Err(e) => serde_json::json!({"error": format!("Task error: {}", e)}).to_string(),
+            Ok(Ok(opml)) => McpToolOutput::new(serde_json::json!({"opml": opml})).to_json_string(),
+            Ok(Err(e)) => McpToolError::internal(e.to_string()).to_json_string(),
+            Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
         }
     }
 
@@ -1067,9 +1070,9 @@ impl RssServer {
         }).await;
 
         match result {
-            Ok(Ok(v)) => v.to_string(),
-            Ok(Err(e)) => serde_json::json!({"error": e.to_string()}).to_string(),
-            Err(e) => serde_json::json!({"error": format!("Task error: {}", e)}).to_string(),
+            Ok(Ok(v)) => McpToolOutput::new(v).to_json_string(),
+            Ok(Err(e)) => McpToolError::internal(e.to_string()).to_json_string(),
+            Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
         }
     }
 
@@ -1079,12 +1082,12 @@ impl RssServer {
         Parameters(DiscoverRequest { url }): Parameters<DiscoverRequest>,
     ) -> String {
         match discover_feeds(&self.client, &url).await {
-            Ok(feeds) => serde_json::json!({
+            Ok(feeds) => McpToolOutput::new(serde_json::json!({
                 "url": url,
                 "feeds": feeds,
                 "count": feeds.len(),
-            }).to_string(),
-            Err(e) => serde_json::json!({"error": e.to_string()}).to_string(),
+            })).to_json_string(),
+            Err(e) => McpToolError::unavailable(e.to_string()).to_json_string(),
         }
     }
 
@@ -1099,10 +1102,11 @@ impl RssServer {
         }).await;
 
         match result {
-            Ok(Ok(v)) => v.to_string(),
-            Ok(Err(e)) => serde_json::json!({"error": e.to_string()}).to_string(),
-            Err(e) => serde_json::json!({"error": format!("Task error: {}", e)}).to_string(),
+            Ok(Ok(v)) => McpToolOutput::new(v).to_json_string(),
+            Ok(Err(e)) => McpToolError::internal(e.to_string()).to_json_string(),
+            Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
         }
+    }
     }
 }
 
@@ -1112,13 +1116,11 @@ impl RssServer {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-        .init();
-
-    let server = RssServer::new();
-    let service = server.serve(stdio());
-    tracing::info!("hkask-mcp-rss-reader started (v{})", SERVER_VERSION);
-    service.await?;
-    Ok(())
+    run_stdio_server(
+        "hkask-mcp-rss-reader",
+        env!("CARGO_PKG_VERSION"),
+        RssServer::new(),
+        vec![],
+    )
+    .await
 }

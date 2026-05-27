@@ -2220,6 +2220,7 @@ dependencies = [
 name = "hkask-mcp"
 version = "0.21.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "chrono",
  "hkask-agents",
@@ -2233,6 +2234,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
+ "tracing-subscriber",
  "url",
  "uuid",
 ]
@@ -2275,18 +2277,13 @@ name = "hkask-mcp-fal"
 version = "0.21.0"
 dependencies = [
  "anyhow",
- "chrono",
- "hkask-types",
+ "hkask-mcp",
  "reqwest",
  "rmcp",
  "schemars",
  "serde",
  "serde_json",
- "thiserror",
  "tokio",
- "tracing",
- "tracing-subscriber",
- "uuid",
 ]
 
 [[package]]
@@ -2294,7 +2291,7 @@ name = "hkask-mcp-fmp"
 version = "0.21.0"
 dependencies = [
  "anyhow",
- "chrono",
+ "hkask-mcp",
  "hkask-types",
  "reqwest",
  "rmcp",
@@ -2304,8 +2301,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
- "tracing-subscriber",
- "uuid",
 ]
 
 [[package]]
@@ -2335,6 +2330,7 @@ version = "0.21.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "hkask-mcp",
  "hkask-types",
  "reqwest",
  "rmcp",
@@ -2508,7 +2504,7 @@ name = "hkask-mcp-telnyx"
 version = "0.21.0"
 dependencies = [
  "anyhow",
- "chrono",
+ "hkask-mcp",
  "hkask-types",
  "reqwest",
  "rmcp",
@@ -2518,8 +2514,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
- "tracing-subscriber",
- "uuid",
 ]
 
 [[package]]

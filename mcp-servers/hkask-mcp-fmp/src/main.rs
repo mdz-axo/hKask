@@ -14,10 +14,12 @@
 //! - `fmp_analyst_estimates` — Analyst estimates
 //! - `fmp_dcf` — Discounted cash flow analysis
 
-use rmcp::{ServiceExt, handler::server::wrapper::Parameters, tool, tool_router, transport::stdio};
+use hkask_mcp::server::{CredentialRequirement, McpToolError, McpToolOutput, run_stdio_server};
+use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::Value;
+use std::time::Instant;
 
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 const BASE_URL: &str = "https://financialmodelingprep.com/stable";
@@ -46,6 +48,46 @@ pub struct SearchRequest {
     pub limit: Option<u32>,
 }
 
+fn classify_api_error(status: reqwest::StatusCode, body: &str) -> McpToolError {
+    let msg = format!("FMP API returned {}: {}", status, body.trim());
+    match status.as_u16() {
+        401 | 403 => McpToolError::permission_denied(msg),
+        404 => McpToolError::not_found(msg),
+        422 => McpToolError::invalid_argument(msg),
+        429 => McpToolError::rate_limited(msg),
+        502 | 503 => McpToolError::unavailable(msg),
+        _ if status.is_server_error() => McpToolError::unavailable(msg),
+        _ => McpToolError::internal(msg),
+    }
+}
+
+async fn fmp_get(
+    client: &reqwest::Client,
+    path: &str,
+    api_key: &str,
+    params: &[(&str, &str)],
+) -> Result<Value, McpToolError> {
+    let url = format!("{BASE_URL}{path}");
+    let mut query: Vec<(&str, &str)> = params.to_vec();
+    query.push(("apikey", api_key));
+
+    let resp = client
+        .get(&url)
+        .query(&query)
+        .send()
+        .await
+        .map_err(|e| McpToolError::unavailable(format!("request failed: {e}")))?;
+
+    let status = resp.status();
+    let body = resp.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(classify_api_error(status, &body));
+    }
+
+    serde_json::from_str(&body)
+        .map_err(|e| McpToolError::internal(format!("failed to parse response: {e}")))
+}
+
 #[derive(Debug)]
 pub struct FmpServer {
     client: reqwest::Client,
@@ -65,55 +107,30 @@ impl FmpServer {
         let client = reqwest::Client::new();
         Self { client, api_key }
     }
-
-    async fn get_with_params(
-        &self,
-        path: &str,
-        params: &[(&str, &str)],
-    ) -> Result<Value, String> {
-        let url = format!("{BASE_URL}{path}");
-        let mut query: Vec<(&str, &str)> = params.to_vec();
-        query.push(("apikey", &self.api_key));
-
-        let resp = self
-            .client
-            .get(&url)
-            .query(&query)
-            .send()
-            .await
-            .map_err(|e| format!("request failed: {e}"))?;
-
-        let status = resp.status();
-        if !status.is_success() {
-            let body = resp.text().await.unwrap_or_default();
-            return Err(format!("API returned {status}: {body}"));
-        }
-
-        resp.json::<Value>()
-            .await
-            .map_err(|e| format!("failed to parse response: {e}"))
-    }
-
-    fn err_json(msg: &str) -> String {
-        serde_json::json!({ "error": msg }).to_string()
-    }
 }
 
 #[tool_router(server_handler)]
 impl FmpServer {
     #[tool(description = "Ping FMP API")]
     async fn fmp_ping(&self) -> String {
-        match self.get_with_params("/profile", &[("symbol", "AAPL")]).await {
-            Ok(_) => serde_json::json!({
-                "status": "ok",
-                "message": "FMP API is reachable"
-            })
-            .to_string(),
-            Err(e) => serde_json::json!({
-                "status": "not_ok",
-                "error": e
-            })
-            .to_string(),
+        let start = Instant::now();
+        match fmp_get(&self.client, "/profile", &self.api_key, &[("symbol", "AAPL")]).await {
+            Ok(_) => McpToolOutput::with_timing(
+                serde_json::json!({
+                    "status": "ok",
+                    "message": "FMP API is reachable"
+                }),
+                start,
+            )
+            .to_json_string(),
+            Err(e) => McpToolOutput::with_timing(
+                serde_json::json!({
+                    "status": "not_ok",
+                    "error": e.message,
+                }),
+                start,
+            )
+            .to_json_string(),
         }
     }
 
@@ -122,9 +139,10 @@ impl FmpServer {
         &self,
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
-        match self.get_with_params("/profile", &[("symbol", &symbol)]).await {
-            Ok(v) => v.to_string(),
-            Err(e) => Self::err_json(&e),
+        let start = Instant::now();
+        match fmp_get(&self.client, "/profile", &self.api_key, &[("symbol", &symbol)]).await {
+            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
+            Err(e) => e.to_json_string(),
         }
     }
 
@@ -133,9 +151,10 @@ impl FmpServer {
         &self,
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
-        match self.get_with_params("/quote", &[("symbol", &symbol)]).await {
-            Ok(v) => v.to_string(),
-            Err(e) => Self::err_json(&e),
+        let start = Instant::now();
+        match fmp_get(&self.client, "/quote", &self.api_key, &[("symbol", &symbol)]).await {
+            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
+            Err(e) => e.to_json_string(),
         }
     }
 
@@ -144,13 +163,11 @@ impl FmpServer {
         &self,
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
+        let start = Instant::now();
         let limit_str = limit.unwrap_or(5).to_string();
-        match self
-            .get_with_params("/income-statement", &[("symbol", &symbol), ("limit", &limit_str)])
-            .await
-        {
-            Ok(v) => v.to_string(),
-            Err(e) => Self::err_json(&e),
+        match fmp_get(&self.client, "/income-statement", &self.api_key, &[("symbol", &symbol), ("limit", &limit_str)]).await {
+            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
+            Err(e) => e.to_json_string(),
         }
     }
 
@@ -159,13 +176,11 @@ impl FmpServer {
         &self,
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
+        let start = Instant::now();
         let limit_str = limit.unwrap_or(5).to_string();
-        match self
-            .get_with_params("/balance-sheet-statement", &[("symbol", &symbol), ("limit", &limit_str)])
-            .await
-        {
-            Ok(v) => v.to_string(),
-            Err(e) => Self::err_json(&e),
+        match fmp_get(&self.client, "/balance-sheet-statement", &self.api_key, &[("symbol", &symbol), ("limit", &limit_str)]).await {
+            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
+            Err(e) => e.to_json_string(),
         }
     }
 
@@ -174,13 +189,11 @@ impl FmpServer {
         &self,
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
+        let start = Instant::now();
         let limit_str = limit.unwrap_or(5).to_string();
-        match self
-            .get_with_params("/cash-flow-statement", &[("symbol", &symbol), ("limit", &limit_str)])
-            .await
-        {
-            Ok(v) => v.to_string(),
-            Err(e) => Self::err_json(&e),
+        match fmp_get(&self.client, "/cash-flow-statement", &self.api_key, &[("symbol", &symbol), ("limit", &limit_str)]).await {
+            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
+            Err(e) => e.to_json_string(),
         }
     }
 
@@ -189,13 +202,11 @@ impl FmpServer {
         &self,
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
+        let start = Instant::now();
         let limit_str = limit.unwrap_or(5).to_string();
-        match self
-            .get_with_params("/key-metrics", &[("symbol", &symbol), ("limit", &limit_str)])
-            .await
-        {
-            Ok(v) => v.to_string(),
-            Err(e) => Self::err_json(&e),
+        match fmp_get(&self.client, "/key-metrics", &self.api_key, &[("symbol", &symbol), ("limit", &limit_str)]).await {
+            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
+            Err(e) => e.to_json_string(),
         }
     }
 
@@ -204,12 +215,10 @@ impl FmpServer {
         &self,
         Parameters(HistoricalRequest { symbol, from, to }): Parameters<HistoricalRequest>,
     ) -> String {
-        match self
-            .get_with_params("/historical-price-full", &[("symbol", &symbol), ("from", &from), ("to", &to)])
-            .await
-        {
-            Ok(v) => v.to_string(),
-            Err(e) => Self::err_json(&e),
+        let start = Instant::now();
+        match fmp_get(&self.client, "/historical-price-full", &self.api_key, &[("symbol", &symbol), ("from", &from), ("to", &to)]).await {
+            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
+            Err(e) => e.to_json_string(),
         }
     }
 
@@ -218,13 +227,11 @@ impl FmpServer {
         &self,
         Parameters(SearchRequest { query, limit }): Parameters<SearchRequest>,
     ) -> String {
+        let start = Instant::now();
         let limit_str = limit.unwrap_or(10).to_string();
-        match self
-            .get_with_params("/search-name", &[("query", &query), ("limit", &limit_str)])
-            .await
-        {
-            Ok(v) => v.to_string(),
-            Err(e) => Self::err_json(&e),
+        match fmp_get(&self.client, "/search-name", &self.api_key, &[("query", &query), ("limit", &limit_str)]).await {
+            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
+            Err(e) => e.to_json_string(),
         }
     }
 
@@ -233,12 +240,10 @@ impl FmpServer {
         &self,
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
-        match self
-            .get_with_params("/analyst-estimates", &[("symbol", &symbol), ("period", "annual")])
-            .await
-        {
-            Ok(v) => v.to_string(),
-            Err(e) => Self::err_json(&e),
+        let start = Instant::now();
+        match fmp_get(&self.client, "/analyst-estimates", &self.api_key, &[("symbol", &symbol), ("period", "annual")]).await {
+            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
+            Err(e) => e.to_json_string(),
         }
     }
 
@@ -247,22 +252,24 @@ impl FmpServer {
         &self,
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
-        match self.get_with_params("/discounted-cash-flow", &[("symbol", &symbol)]).await {
-            Ok(v) => v.to_string(),
-            Err(e) => Self::err_json(&e),
+        let start = Instant::now();
+        match fmp_get(&self.client, "/discounted-cash-flow", &self.api_key, &[("symbol", &symbol)]).await {
+            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
+            Err(e) => e.to_json_string(),
         }
     }
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-        .init();
-
-    let server = FmpServer::new();
-    let service = server.serve(stdio());
-    tracing::info!("hkask-mcp-fmp started (v{})", SERVER_VERSION);
-    service.await?;
-    Ok(())
+    run_stdio_server(
+        "hkask-mcp-fmp",
+        SERVER_VERSION,
+        FmpServer::new(),
+        vec![CredentialRequirement::required(
+            "HKASK_FMP_API_KEY",
+            "Financial Modeling Prep API key",
+        )],
+    )
+    .await
 }

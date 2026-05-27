@@ -7,6 +7,7 @@ description = "GitHub MCP server for repository, issue, and PR operations"
 
 [dependencies]
 hkask-types = { path = "../../crates/hkask-types" }
+hkask-mcp = { path = "../../crates/hkask-mcp" }
 rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
 reqwest.workspace = true
 tokio.workspace = true

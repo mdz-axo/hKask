@@ -1,37 +1,69 @@
 //! hKask MCP Fal — Fal.ai API integration (image, video, audio generation)
 
-use rmcp::{ServiceExt, handler::server::wrapper::Parameters, tool, tool_router, transport::stdio};
+use hkask_mcp::server::{CredentialRequirement, McpToolError, McpToolOutput, run_stdio_server};
+use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::Value;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
-const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 const SYNC_BASE: &str = "https://fal.run";
 const QUEUE_BASE: &str = "https://queue.fal.run";
 const MAX_POLL_SECS: u64 = 60;
 const POLL_INTERVAL_SECS: u64 = 2;
 
-fn err_json(msg: impl std::fmt::Display) -> String {
-    serde_json::json!({"error": msg.to_string()}).to_string()
-}
-
-fn build_client() -> Result<reqwest::Client, anyhow::Error> {
-    let key = std::env::var("HKASK_FAL_API_KEY")
-        .map_err(|_| anyhow::anyhow!("HKASK_FAL_API_KEY environment variable is not set"))?;
+fn build_client() -> Result<reqwest::Client, McpToolError> {
+    let key = std::env::var("HKASK_FAL_API_KEY").map_err(|_| {
+        McpToolError::failed_precondition("HKASK_FAL_API_KEY environment variable is not set")
+    })?;
 
     let mut headers = reqwest::header::HeaderMap::new();
     headers.insert(
         reqwest::header::AUTHORIZATION,
-        format!("Key {key}").parse()?,
+        format!("Key {key}")
+            .parse()
+            .map_err(|e| McpToolError::internal(format!("Invalid header: {e}")))?,
     );
 
-    let client = reqwest::Client::builder()
+    reqwest::Client::builder()
         .default_headers(headers)
         .timeout(Duration::from_secs(300))
-        .build()?;
+        .build()
+        .map_err(|e| McpToolError::internal(format!("Failed to build HTTP client: {e}")))
+}
 
-    Ok(client)
+fn classify_fal_error(status: reqwest::StatusCode, body: &str) -> McpToolError {
+    let msg = format!("Fal API returned {}: {}", status, body.trim());
+    match status.as_u16() {
+        401 | 403 => McpToolError::permission_denied(msg),
+        404 => McpToolError::not_found(msg),
+        422 => McpToolError::invalid_argument(msg),
+        429 => McpToolError::rate_limited(msg),
+        502 | 503 => McpToolError::unavailable(msg),
+        _ if status.is_server_error() => McpToolError::unavailable(msg),
+        _ => McpToolError::internal(msg),
+    }
+}
+
+async fn fal_post(
+    client: &reqwest::Client,
+    endpoint: &str,
+    body: Value,
+) -> Result<Value, McpToolError> {
+    let url = format!("{SYNC_BASE}/{endpoint}");
+    let resp = client
+        .post(&url)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| McpToolError::unavailable(format!("Request failed: {e}")))?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(classify_fal_error(status, &text));
+    }
+    serde_json::from_str(&text)
+        .map_err(|e| McpToolError::internal(format!("Failed to parse response: {e}")))
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -97,77 +129,83 @@ impl FalServer {
         Self { client }
     }
 
-    async fn sync_post(&self, endpoint: &str, body: Value) -> String {
-        let url = format!("{SYNC_BASE}/{endpoint}");
-        match self.client.post(&url).json(&body).send().await {
-            Ok(resp) => {
-                let status = resp.status();
-                match resp.text().await {
-                    Ok(text) if status.is_success() => text,
-                    Ok(text) => err_json(format!("Fal API error ({status}): {text}")),
-                    Err(e) => err_json(format!("Failed to read response: {e}")),
-                }
-            }
-            Err(e) => err_json(format!("Request failed: {e}")),
-        }
-    }
-
-    async fn queue_post(&self, endpoint: &str, body: Value) -> String {
+    async fn queue_post(&self, endpoint: &str, body: Value) -> Result<Value, McpToolError> {
         let submit_url = format!("{QUEUE_BASE}/{endpoint}");
 
-        let request_id = match self.client.post(&submit_url).json(&body).send().await {
-            Ok(resp) => {
-                let status = resp.status();
-                match resp.json::<Value>().await {
-                    Ok(v) if status.is_success() => v
-                        .get("request_id")
-                        .and_then(|r| r.as_str())
-                        .map(|s| s.to_string())
-                        .unwrap_or_else(|| "unknown".to_string()),
-                    Ok(v) => return v.to_string(),
-                    Err(e) => return err_json(format!("Failed to parse submission: {e}")),
-                }
-            }
-            Err(e) => return err_json(format!("Submit failed: {e}")),
-        };
+        let resp = self
+            .client
+            .post(&submit_url)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| McpToolError::unavailable(format!("Submit failed: {e}")))?;
+
+        let status = resp.status();
+        let v: Value = resp
+            .json()
+            .await
+            .map_err(|e| McpToolError::internal(format!("Failed to parse submission: {e}")))?;
+
+        if !status.is_success() {
+            return Err(classify_fal_error(status, &v.to_string()));
+        }
+
+        let request_id = v
+            .get("request_id")
+            .and_then(|r| r.as_str())
+            .unwrap_or("unknown")
+            .to_string();
 
         let status_url = format!("{QUEUE_BASE}/{endpoint}/requests/{request_id}/status");
         let deadline = tokio::time::Instant::now() + Duration::from_secs(MAX_POLL_SECS);
 
         loop {
             if tokio::time::Instant::now() > deadline {
-                return err_json(format!(
+                return Err(McpToolError::timeout(format!(
                     "Polling timed out after {MAX_POLL_SECS}s (request_id: {request_id})"
-                ));
+                )));
             }
 
             match self.client.get(&status_url).send().await {
-                Ok(resp) => match resp.json::<Value>().await {
-                    Ok(v) => match v.get("status").and_then(|s| s.as_str()) {
+                Ok(resp) => {
+                    let v: Value = resp
+                        .json()
+                        .await
+                        .map_err(|e| McpToolError::internal(format!("Failed to parse status: {e}")))?;
+                    match v.get("status").and_then(|s| s.as_str()) {
                         Some("COMPLETED") => break,
-                        Some("FAILED") => return err_json(format!("Job failed: {v}")),
+                        Some("FAILED") => {
+                            return Err(McpToolError::internal(format!("Job failed: {v}")))
+                        }
                         _ => {}
-                    },
-                    Err(e) => return err_json(format!("Failed to parse status: {e}")),
-                },
-                Err(e) => return err_json(format!("Status check failed: {e}")),
+                    }
+                }
+                Err(e) => {
+                    return Err(McpToolError::unavailable(format!(
+                        "Status check failed: {e}"
+                    )))
+                }
             }
 
             tokio::time::sleep(Duration::from_secs(POLL_INTERVAL_SECS)).await;
         }
 
         let result_url = format!("{QUEUE_BASE}/{endpoint}/requests/{request_id}");
-        match self.client.get(&result_url).send().await {
-            Ok(resp) => {
-                let status = resp.status();
-                match resp.text().await {
-                    Ok(text) if status.is_success() => text,
-                    Ok(text) => err_json(format!("Result fetch error ({status}): {text}")),
-                    Err(e) => err_json(format!("Failed to read result: {e}")),
-                }
-            }
-            Err(e) => err_json(format!("Result fetch failed: {e}")),
+        let resp = self
+            .client
+            .get(&result_url)
+            .send()
+            .await
+            .map_err(|e| McpToolError::unavailable(format!("Result fetch failed: {e}")))?;
+
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        if !status.is_success() {
+            return Err(classify_fal_error(status, &text));
         }
+
+        serde_json::from_str(&text)
+            .map_err(|e| McpToolError::internal(format!("Failed to parse result: {e}")))
     }
 }
 
@@ -181,6 +219,7 @@ impl Default for FalServer {
 impl FalServer {
     #[tool(description = "Ping Fal.ai API to verify connectivity and authentication")]
     async fn fal_ping(&self) -> String {
+        let start = Instant::now();
         let url = format!("{SYNC_BASE}/fal-ai/flux/schnell");
         match self
             .client
@@ -194,17 +233,21 @@ impl FalServer {
                 if status == reqwest::StatusCode::UNAUTHORIZED
                     || status == reqwest::StatusCode::FORBIDDEN
                 {
-                    err_json("Fal.ai API key is invalid or unauthorized")
+                    McpToolError::permission_denied("Fal.ai API key is invalid or unauthorized")
+                        .to_json_string()
                 } else {
-                    serde_json::json!({
-                        "status": "ok",
-                        "message": "Fal.ai API is reachable and authenticated",
-                        "http_status": status.as_u16(),
-                    })
-                    .to_string()
+                    McpToolOutput::with_timing(
+                        serde_json::json!({
+                            "status": "ok",
+                            "message": "Fal.ai API is reachable and authenticated",
+                            "http_status": status.as_u16(),
+                        }),
+                        start,
+                    )
+                    .to_json_string()
                 }
             }
-            Err(e) => err_json(format!("Connection failed: {e}")),
+            Err(e) => McpToolError::unavailable(format!("Connection failed: {e}")).to_json_string(),
         }
     }
 
@@ -217,12 +260,16 @@ impl FalServer {
             num_images,
         }): Parameters<GenerateImageRequest>,
     ) -> String {
+        let start = Instant::now();
         let body = serde_json::json!({
             "prompt": prompt,
             "image_size": image_size.unwrap_or_else(|| "1024x1024".to_string()),
             "num_images": num_images.unwrap_or(1),
         });
-        self.sync_post("fal-ai/flux/schnell", body).await
+        match fal_post(&self.client, "fal-ai/flux/schnell", body).await {
+            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
+            Err(e) => e.to_json_string(),
+        }
     }
 
     #[tool(description = "Generate an image quickly")]
@@ -232,11 +279,15 @@ impl FalServer {
             GenerateImageFastRequest,
         >,
     ) -> String {
+        let start = Instant::now();
         let body = serde_json::json!({
             "prompt": prompt,
             "image_size": image_size.unwrap_or_else(|| "1024x1024".to_string()),
         });
-        self.sync_post("fal-ai/flux/schnell", body).await
+        match fal_post(&self.client, "fal-ai/flux/schnell", body).await {
+            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
+            Err(e) => e.to_json_string(),
+        }
     }
 
     #[tool(description = "Transform an image with a prompt")]
@@ -248,6 +299,7 @@ impl FalServer {
             strength,
         }): Parameters<ImageToImageRequest>,
     ) -> String {
+        let start = Instant::now();
         let mut body = serde_json::json!({
             "prompt": prompt,
             "image_url": image_url,
@@ -255,7 +307,10 @@ impl FalServer {
         if let Some(s) = strength {
             body["strength"] = serde_json::json!(s);
         }
-        self.sync_post("fal-ai/flux/dev/image-to-image", body).await
+        match fal_post(&self.client, "fal-ai/flux/dev/image-to-image", body).await {
+            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
+            Err(e) => e.to_json_string(),
+        }
     }
 
     #[tool(description = "Upscale an image")]
@@ -263,11 +318,15 @@ impl FalServer {
         &self,
         Parameters(UpscaleRequest { image_url, scale }): Parameters<UpscaleRequest>,
     ) -> String {
+        let start = Instant::now();
         let body = serde_json::json!({
             "image_url": image_url,
             "scale": scale.unwrap_or(4),
         });
-        self.sync_post("fal-ai/imageutils/u2net", body).await
+        match fal_post(&self.client, "fal-ai/imageutils/u2net", body).await {
+            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
+            Err(e) => e.to_json_string(),
+        }
     }
 
     #[tool(description = "Generate a video from a prompt")]
@@ -275,13 +334,17 @@ impl FalServer {
         &self,
         Parameters(GenerateVideoRequest { prompt, duration }): Parameters<GenerateVideoRequest>,
     ) -> String {
+        let start = Instant::now();
         let mut body = serde_json::json!({
             "prompt": prompt,
         });
         if let Some(d) = duration {
             body["duration"] = serde_json::json!(d);
         }
-        self.queue_post("fal-ai/minimax/video-01-live", body).await
+        match self.queue_post("fal-ai/minimax/video-01-live", body).await {
+            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
+            Err(e) => e.to_json_string(),
+        }
     }
 
     #[tool(description = "Generate music from a prompt")]
@@ -292,13 +355,17 @@ impl FalServer {
             duration_seconds,
         }): Parameters<GenerateMusicRequest>,
     ) -> String {
+        let start = Instant::now();
         let mut body = serde_json::json!({
             "prompt": prompt,
         });
         if let Some(d) = duration_seconds {
             body["duration"] = serde_json::json!(d);
         }
-        self.queue_post("fal-ai/stable-audio", body).await
+        match self.queue_post("fal-ai/stable-audio", body).await {
+            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
+            Err(e) => e.to_json_string(),
+        }
     }
 
     #[tool(description = "Transcribe audio to text")]
@@ -306,10 +373,14 @@ impl FalServer {
         &self,
         Parameters(WhisperRequest { audio_url }): Parameters<WhisperRequest>,
     ) -> String {
+        let start = Instant::now();
         let body = serde_json::json!({
             "audio_url": audio_url,
         });
-        self.sync_post("fal-ai/whisper", body).await
+        match fal_post(&self.client, "fal-ai/whisper", body).await {
+            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
+            Err(e) => e.to_json_string(),
+        }
     }
 
     #[tool(description = "Generate a caption for an image")]
@@ -317,6 +388,7 @@ impl FalServer {
         &self,
         Parameters(CaptionRequest { image_url }): Parameters<CaptionRequest>,
     ) -> String {
+        let start = Instant::now();
         let body = serde_json::json!({
             "messages": [
                 {
@@ -328,7 +400,10 @@ impl FalServer {
                 }
             ]
         });
-        self.sync_post("fal-ai/any-llm", body).await
+        match fal_post(&self.client, "fal-ai/any-llm", body).await {
+            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
+            Err(e) => e.to_json_string(),
+        }
     }
 
     #[tool(description = "Generate a 3D model from an image")]
@@ -336,22 +411,27 @@ impl FalServer {
         &self,
         Parameters(Generate3dRequest { image_url }): Parameters<Generate3dRequest>,
     ) -> String {
+        let start = Instant::now();
         let body = serde_json::json!({
             "image_url": image_url,
         });
-        self.queue_post("fal-ai/hunyuan3d", body).await
+        match self.queue_post("fal-ai/hunyuan3d", body).await {
+            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
+            Err(e) => e.to_json_string(),
+        }
     }
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-        .init();
-
-    let server = FalServer::new();
-    let service = server.serve(stdio());
-    tracing::info!("hkask-mcp-fal started (v{})", SERVER_VERSION);
-    service.await?;
-    Ok(())
+    run_stdio_server(
+        "hkask-mcp-fal",
+        env!("CARGO_PKG_VERSION"),
+        FalServer::new(),
+        vec![CredentialRequirement::required(
+            "HKASK_FAL_API_KEY",
+            "Fal.ai API key for AI image generation",
+        )],
+    )
+    .await
 }
