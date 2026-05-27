@@ -1,0 +1,24 @@
+# Web Quick Search — Manifest
+# Status: draft — not yet executable by hkask-templates cascade engine
+# Variable binding syntax (${step1.results[0].url}) is the target execution model.
+
+id: web-quick
+version: "0.1.0"
+status: draft
+description: Single-provider keyword search for fast results
+
+tools:
+  - web_search
+
+steps:
+  - id: step1
+    tool: web_search
+    arguments:
+      query: "{{query}}"
+      strategy: quick
+      num_results: "{{num_results}}"
+    output_var: search_results
+
+output:
+  type: raw
+  source: search_results

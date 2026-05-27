@@ -22,3 +22,4 @@ anyhow.workspace = true
 async-trait.workspace = true
 blake3.workspace = true
 futures-util.workspace = true
+regex.workspace = true

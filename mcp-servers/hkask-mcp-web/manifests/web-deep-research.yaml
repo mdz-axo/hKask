@@ -1,0 +1,48 @@
+# Web Deep Research — Manifest
+# Status: draft — not yet executable by hkask-templates cascade engine
+# Variable binding syntax (${step1.results[0].url}) is the target execution model.
+#
+# This manifest replaces the removed web_research MCP tool.
+# The orchestration (search → find_similar → extract loop → synthesize)
+# belongs here, not in the MCP tool layer.
+
+id: web-deep-research
+version: "0.1.0"
+status: draft
+description: Multi-step deep research — search, find similar, extract, synthesize
+
+tools:
+  - web_search
+  - web_find_similar
+  - web_extract
+
+steps:
+  - id: step1
+    tool: web_search
+    arguments:
+      query: "{{query}}"
+      strategy: deep
+      num_results: 15
+    output_var: search_results
+
+  - id: step2
+    tool: web_find_similar
+    arguments:
+      url: "${step1.results[0].url}"
+      num_results: 5
+    output_var: similar_results
+    condition: "step1.results.length > 0"
+
+  - id: step3
+    tool: web_extract
+    arguments:
+      url: "{{url}}"
+      format: markdown
+      main_content_only: true
+    output_var: extracted_content
+    loop_over: "${step1.results[].url}"
+    max_iterations: 5
+
+output:
+  type: synthesis
+  source: [search_results, similar_results, extracted_content]

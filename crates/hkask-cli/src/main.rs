@@ -156,6 +156,12 @@ enum Commands {
         #[command(subcommand)]
         action: ReplicantAction,
     },
+
+    /// Keystore management (OS keychain)
+    Keystore {
+        #[command(subcommand)]
+        action: KeystoreAction,
+    },
 }
 
 #[derive(Subcommand)]
@@ -648,6 +654,52 @@ enum ReplicantAction {
         /// Replicant name
         #[arg()]
         replicant_name: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum KeystoreAction {
+    /// Load API keys from .env file into OS keychain
+    Load {
+        /// Path to .env file (default: .env in current directory)
+        #[arg(short, long, default_value = ".env")]
+        path: PathBuf,
+
+        /// Key prefix to filter (default: HKASK_)
+        #[arg(short = 'x', long, default_value = "HKASK_")]
+        prefix: String,
+
+        /// Overwrite existing keys
+        #[arg(long)]
+        overwrite: bool,
+    },
+
+    /// List keys stored in OS keychain
+    List,
+
+    /// Get a specific key value from OS keychain
+    Get {
+        /// Key name (e.g. HKASK_BRAVE_API_KEY)
+        #[arg()]
+        key: String,
+    },
+
+    /// Set a specific key value in OS keychain
+    Set {
+        /// Key name
+        #[arg()]
+        key: String,
+
+        /// Value to store
+        #[arg()]
+        value: String,
+    },
+
+    /// Delete a key from OS keychain
+    Delete {
+        /// Key name
+        #[arg()]
+        key: String,
     },
 }
 
@@ -1837,9 +1889,9 @@ fn main() {
                         eprintln!("Standing status failed: {}", e);
                         std::process::exit(1);
                     }
-                },
+                }
             }
-        }
+        },
 
         Commands::Agent { action } => match action {
             AgentAction::Register {
@@ -2132,6 +2184,98 @@ fn main() {
                     Ok(()) => {}
                     Err(e) => {
                         eprintln!("Failed to show replicant: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+        },
+
+        Commands::Keystore { action } => match action {
+            KeystoreAction::Load {
+                path,
+                prefix,
+                overwrite,
+            } => {
+                let keychain = hkask_keystore::Keychain::default();
+                let content = match std::fs::read_to_string(&path) {
+                    Ok(c) => c,
+                    Err(e) => {
+                        eprintln!("Failed to read {}: {}", path.display(), e);
+                        std::process::exit(1);
+                    }
+                };
+                let mut loaded = 0usize;
+                let mut skipped = 0usize;
+                for line in content.lines() {
+                    let line = line.trim();
+                    if line.is_empty() || line.starts_with('#') {
+                        continue;
+                    }
+                    if let Some((key, value)) = line.split_once('=') {
+                        let key = key.trim();
+                        let value = value.trim();
+                        if !key.starts_with(&prefix) {
+                            continue;
+                        }
+                        if value.is_empty() {
+                            continue;
+                        }
+                        match keychain.retrieve_by_key(key) {
+                            Ok(_) if !overwrite => {
+                                println!("  skipped {} (already in keychain, use --overwrite)", key);
+                                skipped += 1;
+                            }
+                            _ => {
+                                match keychain.store_by_key(key, value) {
+                                    Ok(()) => {
+                                        println!("  stored {}", key);
+                                        loaded += 1;
+                                    }
+                                    Err(e) => {
+                                        eprintln!("  failed {} : {}", key, e);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                println!("\nLoaded {} keys, skipped {}", loaded, skipped);
+            }
+            KeystoreAction::List => {
+                eprintln!("OS keychain does not support listing. Use 'kask keystore get <KEY>' to check individual keys.");
+            }
+            KeystoreAction::Get { key } => {
+                let keychain = hkask_keystore::Keychain::default();
+                match keychain.retrieve_by_key(&key) {
+                    Ok(val) => {
+                        if val.len() > 8 {
+                            println!("{}={}**{}", key, &val[..4], &val[val.len()-4..]);
+                        } else {
+                            println!("{}=****", key);
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Key '{}' not found: {}", key, e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+            KeystoreAction::Set { key, value } => {
+                let keychain = hkask_keystore::Keychain::default();
+                match keychain.store_by_key(&key, &value) {
+                    Ok(()) => println!("Stored {}", key),
+                    Err(e) => {
+                        eprintln!("Failed to store {}: {}", key, e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+            KeystoreAction::Delete { key } => {
+                let keychain = hkask_keystore::Keychain::default();
+                match keychain.delete_by_key(&key) {
+                    Ok(()) => println!("Deleted {}", key),
+                    Err(e) => {
+                        eprintln!("Failed to delete {}: {}", key, e);
                         std::process::exit(1);
                     }
                 }

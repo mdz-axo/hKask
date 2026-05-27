@@ -1,0 +1,26 @@
+{# Template: web/search/quick.j2 #}
+{# functional_role: knowact #}
+{# implementation_type: jinja2 #}
+{# produces: web_search_quick #}
+{# Purpose: Quick single-provider web search for fast results #}
+
+Perform a quick web search for the following query. Use the `web_search` tool with strategy "quick".
+
+## Query
+
+{{ query }}
+
+## Instructions
+
+1. Call `web_search` with:
+   - query: "{{ query }}"
+   - strategy: "quick"
+   - num_results: {{ num_results | default(5) }}
+
+2. Return the top results as a concise list with title, URL, and description.
+
+## Output Format
+
+For each result:
+- **{{ title }}** — {{ url }}
+  {{ description }}

@@ -1,0 +1,87 @@
+# Web News Timeline Manifest
+# ℏKask v0.21.0 — Planck's Constant of Agent Systems
+
+manifest:
+  id: mcp/web-news-timeline
+  name: Web News Timeline
+  description: >
+    News-oriented search with recency ranking and timeline output.
+    Searches news-capable providers, buckets results by recency, and produces a chronological summary.
+  version: 0.21.0
+  functional_role: flowdef
+  editor: curator-or-human-admin
+  visibility: Shared
+
+energy:
+  cap: 4096
+  cost_per_token: 0.25
+  alert_threshold: 0.8
+  hard_limit: true
+
+steps:
+  - ordinal: 1
+    action: execute
+    description: >
+      Search news-capable providers with recency bias.
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: hkask-mcp-web
+    tool: web_search
+    arguments:
+      query: "${input.query}"
+      strategy: "news"
+      num_results: "${input.num_results | default(10)}"
+      freshness: "${input.freshness | default('week')}"
+    energy_cap: 2048
+    timeout_seconds: 20
+    output_schema:
+      results: array
+      related_questions: array
+
+  - ordinal: 2
+    action: populate
+    description: >
+      Render results into a timeline format bucketed by recency.
+    renderer: minijinja
+    template_ref: web/search-news
+    model_tier: null
+    energy_cap: 500
+    timeout_seconds: 10
+    output_schema:
+      timeline: object
+
+  - ordinal: 3
+    action: feedback
+    description: >
+      Emit news search outcome to CNS.
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: hkask-cns
+    energy_cap: 500
+    timeout_seconds: 5
+    feedback:
+      result_count: integer
+      recency_distribution: object
+    output_schema:
+      cns_event_id: string
+
+error_handling:
+  on_energy_exceeded: abort
+  on_timeout: retry
+  max_retries: 2
+  retry_backoff_seconds: 1
+  on_search_failure: fallback
+
+cns:
+  emit_spans: true
+  span_namespace: cns.web.news_timeline
+  variety_monitoring: true
+  algedonic_threshold: 100
+
+audit:
+  enabled: true
+  log_level: info
+  include_input: false
+  include_output: true

@@ -13,8 +13,6 @@ pub struct ProviderSearchOutput {
     pub semantic_scores: HashMap<String, f64>,
 }
 
-
-
 #[async_trait]
 #[allow(dead_code)]
 pub trait WebSearchProvider: Send + Sync {
@@ -22,6 +20,43 @@ pub trait WebSearchProvider: Send + Sync {
     fn capabilities(&self) -> Vec<SearchCapability>;
     async fn search(&self, query: &SearchQuery) -> Result<ProviderSearchOutput, WebError>;
     async fn health(&self) -> Result<(), WebError>;
+}
+
+// =============================================================================
+// WebSearchPort — Application core port (hexagonal boundary)
+//
+// The application core depends on this trait, not on ProviderPool directly.
+// ProviderPool implements it as the adapter. This decouples tool handlers
+// from concrete provider infrastructure.
+// =============================================================================
+
+/// Port trait for web search operations at the application core boundary.
+///
+/// Tool handlers depend on this trait; `ProviderPool` implements it as the
+/// adapter. This keeps provider-specific details (like `pool.exa` direct
+/// access) out of the tool layer.
+#[async_trait]
+pub trait WebSearchPort: Send + Sync {
+    async fn search(
+        &self,
+        query: &SearchQuery,
+        strategy: SearchStrategy,
+    ) -> Result<CompoundSearchResult, WebError>;
+    async fn find_similar(
+        &self,
+        url: &str,
+        num_results: u32,
+    ) -> Result<ProviderSearchOutput, WebError>;
+    async fn extract(&self, url: &str, opts: &ExtractOptions)
+    -> Result<ExtractedContent, WebError>;
+    async fn browse(
+        &self,
+        url: &str,
+        instruction: &str,
+        timeout: Duration,
+    ) -> Result<BrowseResult, WebError>;
+    async fn health_check(&self) -> Vec<ProviderHealthEntry>;
+    fn provider_fingerprint(&self) -> String;
 }
 
 #[async_trait]
@@ -50,6 +85,7 @@ pub struct ProviderPool {
     pub search_providers: Vec<Box<dyn WebSearchProvider>>,
     pub extract_providers: Vec<Box<dyn WebExtractProvider>>,
     pub browse_providers: Vec<Box<dyn WebBrowseProvider>>,
+    pub exa: Option<ExaProvider>,
 }
 
 impl ProviderPool {
@@ -73,6 +109,34 @@ impl ProviderPool {
                 Ok(output) => return Ok(output.results),
                 Err(e) => {
                     tracing::warn!(provider = provider.kind(), error = %e, "Search provider failed, trying next");
+                    last_err = e;
+                }
+            }
+        }
+        Err(last_err)
+    }
+
+    pub async fn search_by_capability(
+        &self,
+        query: &SearchQuery,
+        required_caps: &[SearchCapability],
+    ) -> Result<Vec<SearchResult>, WebError> {
+        let filtered: Vec<&dyn WebSearchProvider> = self
+            .search_providers
+            .iter()
+            .filter(|p| {
+                let p_caps = p.capabilities();
+                required_caps.iter().all(|c| p_caps.contains(c))
+            })
+            .map(|p| p.as_ref())
+            .collect();
+
+        let mut last_err = WebError::NoProvider;
+        for provider in filtered {
+            match provider.search(query).await {
+                Ok(output) => return Ok(output.results),
+                Err(e) => {
+                    tracing::warn!(provider = provider.kind(), error = %e, "Capability search provider failed");
                     last_err = e;
                 }
             }
@@ -111,8 +175,6 @@ impl ProviderPool {
                 capabilities: p.capabilities(),
             })
             .collect();
-
-        let total_providers_queried = filtered.len().max(1);
 
         let futures: Vec<_> = filtered
             .iter()
@@ -191,11 +253,6 @@ impl ProviderPool {
             }
         }
 
-        let alpha: f64 = 0.4;
-        let beta: f64 = 0.2;
-        let gamma: f64 = 0.2;
-        let delta: f64 = 0.2;
-
         let mut ranked: Vec<RankedResult> = url_map
             .into_iter()
             .map(|(key, entry)| {
@@ -203,11 +260,7 @@ impl ProviderPool {
                 let best_rank = *entry.ranks.iter().min().unwrap_or(&0);
                 let content_preview = merged_content_previews.get(&key).cloned();
                 let semantic_score = merged_semantic_scores.get(&key).copied();
-
-                let consensus_score = alpha * (provider_count as f64 / total_providers_queried as f64)
-                    + beta * if content_preview.is_some() { 1.0 } else { 0.0 }
-                    + gamma * (1.0 / (best_rank as f64 + 1.0))
-                    + delta * semantic_score.unwrap_or(0.0);
+                let rrf_score = rrf_score(&entry.ranks);
 
                 RankedResult {
                     title: entry.title,
@@ -215,19 +268,20 @@ impl ProviderPool {
                     description: entry.description,
                     source: entry.source,
                     published: entry.published,
-                    consensus_score,
+                    rrf_score,
                     provider_count,
                     providers: entry.providers,
                     best_rank: Some(best_rank),
                     content_preview,
                     semantic_score,
+                    extracted_content: None,
                 }
             })
             .collect();
 
         ranked.sort_by(|a, b| {
-            b.consensus_score
-                .partial_cmp(&a.consensus_score)
+            b.rrf_score
+                .partial_cmp(&a.rrf_score)
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
 
@@ -244,6 +298,17 @@ impl ProviderPool {
             providers_failed: failed,
             total_before_dedup,
             duplicates_removed,
+        }
+    }
+
+    pub async fn find_similar(
+        &self,
+        url: &str,
+        num_results: u32,
+    ) -> Result<ProviderSearchOutput, WebError> {
+        match self.exa {
+            Some(ref exa) => exa.find_similar(url, num_results).await,
+            None => Err(WebError::NoProvider),
         }
     }
 
@@ -285,15 +350,195 @@ impl ProviderPool {
     }
 
     pub fn search_provider_kinds(&self) -> Vec<String> {
-        self.search_providers.iter().map(|p| p.kind().to_string()).collect()
+        self.search_providers
+            .iter()
+            .map(|p| p.kind().to_string())
+            .collect()
     }
 
     pub fn extract_provider_kinds(&self) -> Vec<String> {
-        self.extract_providers.iter().map(|p| p.kind().to_string()).collect()
+        self.extract_providers
+            .iter()
+            .map(|p| p.kind().to_string())
+            .collect()
     }
 
     pub fn browse_provider_kinds(&self) -> Vec<String> {
-        self.browse_providers.iter().map(|p| p.kind().to_string()).collect()
+        self.browse_providers
+            .iter()
+            .map(|p| p.kind().to_string())
+            .collect()
+    }
+
+    pub fn provider_fingerprint(&self) -> String {
+        let mut kinds: Vec<String> = self.search_provider_kinds();
+        kinds.extend(self.extract_provider_kinds());
+        kinds.extend(self.browse_provider_kinds());
+        if self.exa.is_some() {
+            kinds.push("exa-similar".into());
+        }
+        kinds.sort();
+        kinds.join(",")
+    }
+
+    pub async fn health_check_all(&self) -> Vec<ProviderHealthEntry> {
+        let mut entries = Vec::new();
+
+        let search_futures: Vec<_> = self
+            .search_providers
+            .iter()
+            .map(|p| async { (p.kind().to_string(), p.health().await) })
+            .collect();
+        for (kind, result) in futures_util::future::join_all(search_futures).await {
+            entries.push(ProviderHealthEntry {
+                kind,
+                healthy: result.is_ok(),
+                error: result.err().map(|e| e.to_string()),
+            });
+        }
+
+        let extract_futures: Vec<_> = self
+            .extract_providers
+            .iter()
+            .map(|p| async { (p.kind().to_string(), p.health().await) })
+            .collect();
+        for (kind, result) in futures_util::future::join_all(extract_futures).await {
+            entries.push(ProviderHealthEntry {
+                kind,
+                healthy: result.is_ok(),
+                error: result.err().map(|e| e.to_string()),
+            });
+        }
+
+        let browse_futures: Vec<_> = self
+            .browse_providers
+            .iter()
+            .map(|p| async { (p.kind().to_string(), p.health().await) })
+            .collect();
+        for (kind, result) in futures_util::future::join_all(browse_futures).await {
+            entries.push(ProviderHealthEntry {
+                kind,
+                healthy: result.is_ok(),
+                error: result.err().map(|e| e.to_string()),
+            });
+        }
+
+        if let Some(ref exa) = self.exa {
+            let result = exa.health().await;
+            entries.push(ProviderHealthEntry {
+                kind: "exa-similar".into(),
+                healthy: result.is_ok(),
+                error: result.err().map(|e| e.to_string()),
+            });
+        }
+
+        entries
+    }
+}
+
+// =============================================================================
+// WebSearchPort implementation - ProviderPool as the adapter
+// =============================================================================
+
+#[async_trait]
+impl WebSearchPort for ProviderPool {
+    async fn search(
+        &self,
+        query: &SearchQuery,
+        strategy: SearchStrategy,
+    ) -> Result<CompoundSearchResult, WebError> {
+        let mut compound = if strategy == SearchStrategy::Quick {
+            // Quick strategy: use the first keyword-capable provider instead of
+            // hardcoding "brave". Falls back across providers automatically.
+            let results = self
+                .search_by_capability(query, &[SearchCapability::Keyword])
+                .await?;
+            let provider_name = self
+                .search_providers
+                .iter()
+                .find(|p| {
+                    let caps = p.capabilities();
+                    caps.contains(&SearchCapability::Keyword)
+                })
+                .map(|p| p.kind())
+                .unwrap_or("unknown");
+            CompoundSearchResult {
+                query: query.query.clone(),
+                strategy: strategy.to_string(),
+                results: results
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, r)| RankedResult {
+                        title: r.title,
+                        url: r.url,
+                        description: r.description,
+                        source: r.source,
+                        published: r.published,
+                        rrf_score: rrf_score(&[i]),
+                        provider_count: 1,
+                        providers: vec![provider_name.to_string()],
+                        best_rank: Some(i),
+                        content_preview: None,
+                        semantic_score: None,
+                        extracted_content: None,
+                    })
+                    .collect(),
+                answer_box: None,
+                related_questions: Vec::new(),
+                providers_queried: vec![ProviderInfo {
+                    kind: provider_name.to_string(),
+                    capabilities: vec![SearchCapability::Keyword],
+                }],
+                providers_succeeded: vec![provider_name.to_string()],
+                providers_failed: Vec::new(),
+                total_before_dedup: 0,
+                duplicates_removed: 0,
+            }
+        } else {
+            self.search_compound(query, strategy).await
+        };
+
+        apply_rerank(&mut compound.results, RerankSignal::Recency);
+        apply_rerank(&mut compound.results, RerankSignal::Semantic);
+        apply_rerank(&mut compound.results, RerankSignal::ContentQuality);
+
+        Ok(compound)
+    }
+
+    async fn find_similar(
+        &self,
+        url: &str,
+        num_results: u32,
+    ) -> Result<ProviderSearchOutput, WebError> {
+        match self.exa {
+            Some(ref exa) => exa.find_similar(url, num_results).await,
+            None => Err(WebError::NoProvider),
+        }
+    }
+
+    async fn extract(
+        &self,
+        url: &str,
+        opts: &ExtractOptions,
+    ) -> Result<ExtractedContent, WebError> {
+        self.extract_with_fallback(url, opts).await
+    }
+
+    async fn browse(
+        &self,
+        url: &str,
+        instruction: &str,
+        timeout: Duration,
+    ) -> Result<BrowseResult, WebError> {
+        self.browse_with_fallback(url, instruction, timeout).await
+    }
+
+    async fn health_check(&self) -> Vec<ProviderHealthEntry> {
+        self.health_check_all().await
+    }
+
+    fn provider_fingerprint(&self) -> String {
+        ProviderPool::provider_fingerprint(self)
     }
 }
 
@@ -314,9 +559,15 @@ impl BraveProvider {
 
 #[async_trait]
 impl WebSearchProvider for BraveProvider {
-    fn kind(&self) -> &str { "brave" }
+    fn kind(&self) -> &str {
+        "brave"
+    }
     fn capabilities(&self) -> Vec<SearchCapability> {
-        vec![SearchCapability::Keyword, SearchCapability::News, SearchCapability::Freshness]
+        vec![
+            SearchCapability::Keyword,
+            SearchCapability::News,
+            SearchCapability::Freshness,
+        ]
     }
 
     async fn search(&self, query: &SearchQuery) -> Result<ProviderSearchOutput, WebError> {
@@ -327,11 +578,9 @@ impl WebSearchProvider for BraveProvider {
         if let Some(ref freshness) = query.freshness {
             params.push(("freshness", freshness.clone()));
         }
-        if let Some(ref search_type) = query.search_type {
-            params.push(("search_type", search_type.clone()));
-        }
 
-        let resp = self.client
+        let resp = self
+            .client
             .get(format!("{BRAVE_API_BASE}/web/search"))
             .header("X-Subscription-Token", &self.api_key)
             .header("Accept", "application/json")
@@ -346,7 +595,10 @@ impl WebSearchProvider for BraveProvider {
             return Err(match status.as_u16() {
                 401 | 403 => WebError::ProviderUnavailable(format!("Brave auth error: {status}")),
                 429 => WebError::RateLimited(format!("Brave rate limited: {status}")),
-                _ => WebError::ProviderError(format!("Brave API error {status}: {}", body.chars().take(200).collect::<String>())),
+                _ => WebError::ProviderError(format!(
+                    "Brave API error {status}: {}",
+                    body.chars().take(200).collect::<String>()
+                )),
             });
         }
 
@@ -356,16 +608,18 @@ impl WebSearchProvider for BraveProvider {
         let results = parsed["web"]["results"]
             .as_array()
             .map(|arr| {
-                arr.iter().filter_map(|item| {
-                    Some(SearchResult {
-                        title: item["title"].as_str()?.to_string(),
-                        url: item["url"].as_str()?.to_string(),
-                        description: item["description"].as_str().map(|s| s.to_string()),
-                        source: item["source"].as_str().map(|s| s.to_string()),
-                        published: item["age"].as_str().map(|s| s.to_string()),
-                        provider: None,
+                arr.iter()
+                    .filter_map(|item| {
+                        Some(SearchResult {
+                            title: item["title"].as_str()?.to_string(),
+                            url: item["url"].as_str()?.to_string(),
+                            description: item["description"].as_str().map(|s| s.to_string()),
+                            source: item["source"].as_str().map(|s| s.to_string()),
+                            published: item["age"].as_str().map(|s| s.to_string()),
+                            provider: None,
+                        })
                     })
-                }).collect::<Vec<_>>()
+                    .collect::<Vec<_>>()
             })
             .unwrap_or_default();
 
@@ -376,14 +630,24 @@ impl WebSearchProvider for BraveProvider {
     }
 
     async fn health(&self) -> Result<(), WebError> {
-        let resp = self.client
+        let resp = self
+            .client
             .get(format!("{BRAVE_API_BASE}/web/search"))
             .header("X-Subscription-Token", &self.api_key)
             .query(&[("q", "test"), ("count", "1")])
-            .send().await
-            .map_err(|e| WebError::ProviderUnavailable(format!("Brave health check failed: {e}")))?;
-        if resp.status().is_success() || resp.status().as_u16() == 429 { Ok(()) }
-        else { Err(WebError::ProviderUnavailable(format!("Brave health check returned {}", resp.status()))) }
+            .send()
+            .await
+            .map_err(|e| {
+                WebError::ProviderUnavailable(format!("Brave health check failed: {e}"))
+            })?;
+        if resp.status().is_success() || resp.status().as_u16() == 429 {
+            Ok(())
+        } else {
+            Err(WebError::ProviderUnavailable(format!(
+                "Brave health check returned {}",
+                resp.status()
+            )))
+        }
     }
 }
 
@@ -402,13 +666,18 @@ impl FirecrawlProvider {
     }
 
     fn auth_header(&self) -> Result<String, WebError> {
-        self.api_key.as_ref().map(|k| format!("Bearer {k}")).ok_or(WebError::NoProvider)
+        self.api_key
+            .as_ref()
+            .map(|k| format!("Bearer {k}"))
+            .ok_or(WebError::NoProvider)
     }
 }
 
 #[async_trait]
 impl WebSearchProvider for FirecrawlProvider {
-    fn kind(&self) -> &str { "firecrawl" }
+    fn kind(&self) -> &str {
+        "firecrawl"
+    }
     fn capabilities(&self) -> Vec<SearchCapability> {
         vec![SearchCapability::Keyword, SearchCapability::Semantic]
     }
@@ -416,39 +685,50 @@ impl WebSearchProvider for FirecrawlProvider {
     async fn search(&self, query: &SearchQuery) -> Result<ProviderSearchOutput, WebError> {
         let auth = self.auth_header()?;
         let payload = serde_json::json!({ "query": query.query, "limit": query.num_results });
-        let resp = self.client
+        let resp = self
+            .client
             .post(format!("{FIRECRAWL_API_BASE}/search"))
             .header("Authorization", &auth)
             .header("Content-Type", "application/json")
             .json(&payload)
-            .send().await
+            .send()
+            .await
             .map_err(|e| WebError::ProviderUnavailable(format!("Firecrawl request failed: {e}")))?;
 
         let status = resp.status();
         let body = resp.text().await.unwrap_or_default();
         if !status.is_success() {
             return Err(match status.as_u16() {
-                401 | 403 => WebError::ProviderUnavailable(format!("Firecrawl auth error: {status}")),
+                401 | 403 => {
+                    WebError::ProviderUnavailable(format!("Firecrawl auth error: {status}"))
+                }
                 429 => WebError::RateLimited(format!("Firecrawl rate limited: {status}")),
                 _ => WebError::ProviderError(format!("Firecrawl API error {status}")),
             });
         }
 
-        let parsed: serde_json::Value = serde_json::from_str(&body)
-            .map_err(|e| WebError::ProviderError(format!("Failed to parse Firecrawl response: {e}")))?;
+        let parsed: serde_json::Value = serde_json::from_str(&body).map_err(|e| {
+            WebError::ProviderError(format!("Failed to parse Firecrawl response: {e}"))
+        })?;
 
-        let results = parsed["data"].as_array()
+        let results = parsed["data"]
+            .as_array()
             .map(|arr| {
-                arr.iter().filter_map(|item| {
-                    Some(SearchResult {
-                        title: item["title"].as_str()?.to_string(),
-                        url: item["url"].as_str()?.to_string(),
-                        description: item["description"].as_str().or_else(|| item["snippet"].as_str()).map(|s| s.to_string()),
-                        source: None,
-                        published: None,
-                        provider: None,
+                arr.iter()
+                    .filter_map(|item| {
+                        Some(SearchResult {
+                            title: item["title"].as_str()?.to_string(),
+                            url: item["url"].as_str()?.to_string(),
+                            description: item["description"]
+                                .as_str()
+                                .or_else(|| item["snippet"].as_str())
+                                .map(|s| s.to_string()),
+                            source: None,
+                            published: None,
+                            provider: None,
+                        })
                     })
-                }).collect::<Vec<_>>()
+                    .collect::<Vec<_>>()
             })
             .unwrap_or_default();
 
@@ -459,16 +739,24 @@ impl WebSearchProvider for FirecrawlProvider {
     }
 
     async fn health(&self) -> Result<(), WebError> {
-        if self.api_key.is_none() { return Err(WebError::NoProvider); }
+        if self.api_key.is_none() {
+            return Err(WebError::NoProvider);
+        }
         Ok(())
     }
 }
 
 #[async_trait]
 impl WebExtractProvider for FirecrawlProvider {
-    fn kind(&self) -> &str { "firecrawl" }
+    fn kind(&self) -> &str {
+        "firecrawl"
+    }
 
-    async fn extract(&self, url: &str, opts: &ExtractOptions) -> Result<ExtractedContent, WebError> {
+    async fn extract(
+        &self,
+        url: &str,
+        opts: &ExtractOptions,
+    ) -> Result<ExtractedContent, WebError> {
         let auth = self.auth_header()?;
         let mut payload = serde_json::json!({ "url": url });
         match opts.format.as_str() {
@@ -478,77 +766,123 @@ impl WebExtractProvider for FirecrawlProvider {
                     payload["jsonOptions"] = serde_json::json!({ "prompt": prompt });
                 }
             }
-            _ => { payload["formats"] = serde_json::json!(["markdown"]); }
+            _ => {
+                payload["formats"] = serde_json::json!(["markdown"]);
+            }
         }
-        if opts.main_content_only { payload["onlyMainContent"] = serde_json::json!(true); }
-        if opts.wait_for_ms > 0 { payload["waitFor"] = serde_json::json!(opts.wait_for_ms); }
+        if opts.main_content_only {
+            payload["onlyMainContent"] = serde_json::json!(true);
+        }
+        if opts.wait_for_ms > 0 {
+            payload["waitFor"] = serde_json::json!(opts.wait_for_ms);
+        }
 
-        let resp = self.client
+        let resp = self
+            .client
             .post(format!("{FIRECRAWL_API_BASE}/scrape"))
-            .header("Authorization", &auth).header("Content-Type", "application/json")
-            .json(&payload).send().await
+            .header("Authorization", &auth)
+            .header("Content-Type", "application/json")
+            .json(&payload)
+            .send()
+            .await
             .map_err(|e| WebError::ProviderUnavailable(format!("Firecrawl extract failed: {e}")))?;
 
         let status = resp.status();
         let body = resp.text().await.unwrap_or_default();
         if !status.is_success() {
-            return Err(WebError::ProviderError(format!("Firecrawl extract error {status}: {}", body.chars().take(200).collect::<String>())));
+            return Err(WebError::ProviderError(format!(
+                "Firecrawl extract error {status}: {}",
+                body.chars().take(200).collect::<String>()
+            )));
         }
 
-        let parsed: serde_json::Value = serde_json::from_str(&body)
-            .map_err(|e| WebError::ProviderError(format!("Failed to parse Firecrawl extract response: {e}")))?;
+        let parsed: serde_json::Value = serde_json::from_str(&body).map_err(|e| {
+            WebError::ProviderError(format!("Failed to parse Firecrawl extract response: {e}"))
+        })?;
 
         let content = if opts.format == "json" {
             parsed["data"]["json"].to_string()
         } else {
-            parsed["data"]["markdown"].as_str().unwrap_or("").to_string()
+            parsed["data"]["markdown"]
+                .as_str()
+                .unwrap_or("")
+                .to_string()
         };
-        let metadata = parsed["data"]["metadata"].as_object().map(|m| serde_json::Value::Object(m.clone()));
+        let metadata = parsed["data"]["metadata"]
+            .as_object()
+            .map(|m| serde_json::Value::Object(m.clone()));
 
-        Ok(ExtractedContent { url: url.to_string(), content, format: opts.format.clone(), metadata })
+        Ok(ExtractedContent {
+            url: url.to_string(),
+            content,
+            format: opts.format.clone(),
+            metadata,
+        })
     }
 
     async fn health(&self) -> Result<(), WebError> {
-        if self.api_key.is_none() { return Err(WebError::NoProvider); }
+        if self.api_key.is_none() {
+            return Err(WebError::NoProvider);
+        }
         Ok(())
     }
 }
 
 #[async_trait]
 impl WebBrowseProvider for FirecrawlProvider {
-    fn kind(&self) -> &str { "firecrawl" }
+    fn kind(&self) -> &str {
+        "firecrawl"
+    }
 
-    async fn browse(&self, url: &str, instruction: &str, timeout: Duration) -> Result<BrowseResult, WebError> {
+    async fn browse(
+        &self,
+        url: &str,
+        instruction: &str,
+        timeout: Duration,
+    ) -> Result<BrowseResult, WebError> {
         let auth = self.auth_header()?;
         let payload = serde_json::json!({
             "url": url, "formats": ["markdown"],
             "actions": [{ "type": "wait", "milliseconds": 2000u64 }],
         });
-        let resp = self.client
+        let resp = self
+            .client
             .post(format!("{FIRECRAWL_API_BASE}/scrape"))
-            .header("Authorization", &auth).header("Content-Type", "application/json")
-            .json(&payload).timeout(timeout).send().await
+            .header("Authorization", &auth)
+            .header("Content-Type", "application/json")
+            .json(&payload)
+            .timeout(timeout)
+            .send()
+            .await
             .map_err(|e| WebError::ProviderUnavailable(format!("Firecrawl browse failed: {e}")))?;
 
         let status = resp.status();
         let body = resp.text().await.unwrap_or_default();
         if !status.is_success() {
-            return Err(WebError::ProviderError(format!("Firecrawl browse error {status}")));
+            return Err(WebError::ProviderError(format!(
+                "Firecrawl browse error {status}"
+            )));
         }
 
-        let parsed: serde_json::Value = serde_json::from_str(&body)
-            .map_err(|e| WebError::ProviderError(format!("Failed to parse Firecrawl browse response: {e}")))?;
+        let parsed: serde_json::Value = serde_json::from_str(&body).map_err(|e| {
+            WebError::ProviderError(format!("Failed to parse Firecrawl browse response: {e}"))
+        })?;
 
         Ok(BrowseResult {
             url: url.to_string(),
-            content: parsed["data"]["markdown"].as_str().unwrap_or("").to_string(),
+            content: parsed["data"]["markdown"]
+                .as_str()
+                .unwrap_or("")
+                .to_string(),
             instruction: Some(instruction.to_string()),
             actions_taken: vec!["scrape".to_string()],
         })
     }
 
     async fn health(&self) -> Result<(), WebError> {
-        if self.api_key.is_none() { return Err(WebError::NoProvider); }
+        if self.api_key.is_none() {
+            return Err(WebError::NoProvider);
+        }
         Ok(())
     }
 }
@@ -570,7 +904,9 @@ impl TavilyProvider {
 
 #[async_trait]
 impl WebSearchProvider for TavilyProvider {
-    fn kind(&self) -> &str { "tavily" }
+    fn kind(&self) -> &str {
+        "tavily"
+    }
     fn capabilities(&self) -> Vec<SearchCapability> {
         vec![SearchCapability::Keyword, SearchCapability::Semantic]
     }
@@ -589,11 +925,13 @@ impl WebSearchProvider for TavilyProvider {
             payload["exclude_domains"] = serde_json::json!(query.exclude_domains);
         }
 
-        let resp = self.client
+        let resp = self
+            .client
             .post(format!("{TAVILY_API_BASE}/search"))
             .header("Content-Type", "application/json")
             .json(&payload)
-            .send().await
+            .send()
+            .await
             .map_err(|e| WebError::ProviderUnavailable(format!("Tavily request failed: {e}")))?;
 
         let status = resp.status();
@@ -602,30 +940,40 @@ impl WebSearchProvider for TavilyProvider {
             return Err(match status.as_u16() {
                 401 | 403 => WebError::ProviderUnavailable(format!("Tavily auth error: {status}")),
                 429 => WebError::RateLimited(format!("Tavily rate limited: {status}")),
-                _ => WebError::ProviderError(format!("Tavily API error {status}: {}", body.chars().take(200).collect::<String>())),
+                _ => WebError::ProviderError(format!(
+                    "Tavily API error {status}: {}",
+                    body.chars().take(200).collect::<String>()
+                )),
             });
         }
 
-        let parsed: serde_json::Value = serde_json::from_str(&body)
-            .map_err(|e| WebError::ProviderError(format!("Failed to parse Tavily response: {e}")))?;
+        let parsed: serde_json::Value = serde_json::from_str(&body).map_err(|e| {
+            WebError::ProviderError(format!("Failed to parse Tavily response: {e}"))
+        })?;
 
         let mut content_previews = HashMap::new();
-        let results = parsed["results"].as_array()
+        let results = parsed["results"]
+            .as_array()
             .map(|arr| {
-                arr.iter().filter_map(|item| {
-                    let url = item["url"].as_str()?;
-                    if let Some(content) = item["content"].as_str() {
-                        content_previews.insert(url.to_lowercase(), content.to_string());
-                    }
-                    Some(SearchResult {
-                        title: item["title"].as_str()?.to_string(),
-                        url: url.to_string(),
-                        description: item["content"].as_str().or_else(|| item["snippet"].as_str()).map(|s| s.to_string()),
-                        source: None,
-                        published: item["published_date"].as_str().map(|s| s.to_string()),
-                        provider: None,
+                arr.iter()
+                    .filter_map(|item| {
+                        let url = item["url"].as_str()?;
+                        if let Some(content) = item["content"].as_str() {
+                            content_previews.insert(url.to_lowercase(), content.to_string());
+                        }
+                        Some(SearchResult {
+                            title: item["title"].as_str()?.to_string(),
+                            url: url.to_string(),
+                            description: item["content"]
+                                .as_str()
+                                .or_else(|| item["snippet"].as_str())
+                                .map(|s| s.to_string()),
+                            source: None,
+                            published: item["published_date"].as_str().map(|s| s.to_string()),
+                            provider: None,
+                        })
                     })
-                }).collect::<Vec<_>>()
+                    .collect::<Vec<_>>()
             })
             .unwrap_or_default();
 
@@ -636,7 +984,9 @@ impl WebSearchProvider for TavilyProvider {
         })
     }
 
-    async fn health(&self) -> Result<(), WebError> { Ok(()) }
+    async fn health(&self) -> Result<(), WebError> {
+        Ok(())
+    }
 }
 
 pub struct SerapiProvider {
@@ -656,9 +1006,15 @@ impl SerapiProvider {
 
 #[async_trait]
 impl WebSearchProvider for SerapiProvider {
-    fn kind(&self) -> &str { "serpapi" }
+    fn kind(&self) -> &str {
+        "serpapi"
+    }
     fn capabilities(&self) -> Vec<SearchCapability> {
-        vec![SearchCapability::Keyword, SearchCapability::News, SearchCapability::Freshness]
+        vec![
+            SearchCapability::Keyword,
+            SearchCapability::News,
+            SearchCapability::Freshness,
+        ]
     }
 
     async fn search(&self, query: &SearchQuery) -> Result<ProviderSearchOutput, WebError> {
@@ -680,13 +1036,17 @@ impl WebSearchProvider for SerapiProvider {
                 "year" => "qdr:y",
                 _ => "",
             };
-            if !tbs.is_empty() { params.push(("tbs", tbs.to_string())); }
+            if !tbs.is_empty() {
+                params.push(("tbs", tbs.to_string()));
+            }
         }
 
-        let resp = self.client
+        let resp = self
+            .client
             .get(SERPAPI_BASE)
             .query(&params)
-            .send().await
+            .send()
+            .await
             .map_err(|e| WebError::ProviderUnavailable(format!("SerpAPI request failed: {e}")))?;
 
         let status = resp.status();
@@ -695,40 +1055,50 @@ impl WebSearchProvider for SerapiProvider {
             return Err(match status.as_u16() {
                 401 | 403 => WebError::ProviderUnavailable(format!("SerpAPI auth error: {status}")),
                 429 => WebError::RateLimited(format!("SerpAPI rate limited: {status}")),
-                _ => WebError::ProviderError(format!("SerpAPI error {status}: {}", body.chars().take(200).collect::<String>())),
+                _ => WebError::ProviderError(format!(
+                    "SerpAPI error {status}: {}",
+                    body.chars().take(200).collect::<String>()
+                )),
             });
         }
 
-        let parsed: serde_json::Value = serde_json::from_str(&body)
-            .map_err(|e| WebError::ProviderError(format!("Failed to parse SerpAPI response: {e}")))?;
+        let parsed: serde_json::Value = serde_json::from_str(&body).map_err(|e| {
+            WebError::ProviderError(format!("Failed to parse SerpAPI response: {e}"))
+        })?;
 
-        let organic = parsed["organic_results"].as_array()
+        let organic = parsed["organic_results"]
+            .as_array()
             .map(|arr| {
-                arr.iter().filter_map(|item| {
-                    Some(SearchResult {
-                        title: item["title"].as_str()?.to_string(),
-                        url: item["link"].as_str()?.to_string(),
-                        description: item["snippet"].as_str().map(|s| s.to_string()),
-                        source: Some("google".to_string()),
-                        published: None,
-                        provider: None,
+                arr.iter()
+                    .filter_map(|item| {
+                        Some(SearchResult {
+                            title: item["title"].as_str()?.to_string(),
+                            url: item["link"].as_str()?.to_string(),
+                            description: item["snippet"].as_str().map(|s| s.to_string()),
+                            source: Some("google".to_string()),
+                            published: None,
+                            provider: None,
+                        })
                     })
-                }).collect::<Vec<_>>()
+                    .collect::<Vec<_>>()
             })
             .unwrap_or_default();
 
-        let news = parsed["news_results"].as_array()
+        let news = parsed["news_results"]
+            .as_array()
             .map(|arr| {
-                arr.iter().filter_map(|item| {
-                    Some(SearchResult {
-                        title: item["title"].as_str()?.to_string(),
-                        url: item["link"].as_str()?.to_string(),
-                        description: item["snippet"].as_str().map(|s| s.to_string()),
-                        source: item["source"].as_str().map(|s| s.to_string()),
-                        published: item["date"].as_str().map(|s| s.to_string()),
-                        provider: None,
+                arr.iter()
+                    .filter_map(|item| {
+                        Some(SearchResult {
+                            title: item["title"].as_str()?.to_string(),
+                            url: item["link"].as_str()?.to_string(),
+                            description: item["snippet"].as_str().map(|s| s.to_string()),
+                            source: item["source"].as_str().map(|s| s.to_string()),
+                            published: item["date"].as_str().map(|s| s.to_string()),
+                            provider: None,
+                        })
                     })
-                }).collect::<Vec<_>>()
+                    .collect::<Vec<_>>()
             })
             .unwrap_or_default();
 
@@ -736,12 +1106,21 @@ impl WebSearchProvider for SerapiProvider {
         results.extend(news);
 
         let answer_box = parsed["answer_box"].as_object().map(|ab| AnswerBox {
-                title: ab.get("title").and_then(|v| v.as_str()).map(|s| s.to_string()),
-                snippet: ab.get("snippet").or_else(|| ab.get("answer"))
-                    .and_then(|v| v.as_str()).map(|s| s.to_string()),
-                url: ab.get("link").or_else(|| ab.get("displayed_link"))
-                    .and_then(|v| v.as_str()).map(|s| s.to_string()),
-            });
+            title: ab
+                .get("title")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
+            snippet: ab
+                .get("snippet")
+                .or_else(|| ab.get("answer"))
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
+            url: ab
+                .get("link")
+                .or_else(|| ab.get("displayed_link"))
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
+        });
 
         let related_questions: Vec<String> = parsed["related_questions"]
             .as_array()
@@ -760,7 +1139,9 @@ impl WebSearchProvider for SerapiProvider {
         })
     }
 
-    async fn health(&self) -> Result<(), WebError> { Ok(()) }
+    async fn health(&self) -> Result<(), WebError> {
+        Ok(())
+    }
 }
 
 pub struct ExaProvider {
@@ -776,11 +1157,92 @@ impl ExaProvider {
             .expect("Failed to build HTTP client");
         Self { client, api_key }
     }
+
+    pub async fn find_similar(
+        &self,
+        url: &str,
+        num_results: u32,
+    ) -> Result<ProviderSearchOutput, WebError> {
+        let payload = serde_json::json!({
+            "url": url,
+            "numResults": num_results,
+            "contents": { "text": { "maxCharacters": 300 } },
+        });
+
+        let resp = self
+            .client
+            .post(format!("{EXA_API_BASE}/findSimilar"))
+            .header("x-api-key", &self.api_key)
+            .header("Content-Type", "application/json")
+            .json(&payload)
+            .send()
+            .await
+            .map_err(|e| WebError::ProviderUnavailable(format!("Exa findSimilar failed: {e}")))?;
+
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        if !status.is_success() {
+            return Err(match status.as_u16() {
+                401 | 403 => {
+                    WebError::ProviderUnavailable(format!("Exa findSimilar auth error: {status}"))
+                }
+                429 => WebError::RateLimited(format!("Exa findSimilar rate limited: {status}")),
+                _ => WebError::ProviderError(format!(
+                    "Exa findSimilar error {status}: {}",
+                    body.chars().take(200).collect::<String>()
+                )),
+            });
+        }
+
+        let parsed: serde_json::Value = serde_json::from_str(&body).map_err(|e| {
+            WebError::ProviderError(format!("Failed to parse Exa findSimilar response: {e}"))
+        })?;
+
+        let mut semantic_scores = HashMap::new();
+        let mut content_previews = HashMap::new();
+        let results = parsed["results"]
+            .as_array()
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|item| {
+                        let url = item["url"].as_str()?;
+                        if let Some(score) = item["score"].as_f64() {
+                            semantic_scores.insert(url.to_lowercase(), score);
+                        }
+                        if let Some(text) = item["text"].as_str() {
+                            content_previews.insert(url.to_lowercase(), text.to_string());
+                        }
+                        Some(SearchResult {
+                            title: item["title"].as_str()?.to_string(),
+                            url: url.to_string(),
+                            description: item["text"].as_str().map(|s| truncate_str(s, 300)),
+                            source: item["author"].as_str().map(|s| s.to_string()),
+                            published: item["publishedDate"].as_str().map(|s| s.to_string()),
+                            provider: None,
+                        })
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+
+        Ok(ProviderSearchOutput {
+            results,
+            semantic_scores,
+            content_previews,
+            ..Default::default()
+        })
+    }
+
+    async fn health(&self) -> Result<(), WebError> {
+        Ok(())
+    }
 }
 
 #[async_trait]
 impl WebSearchProvider for ExaProvider {
-    fn kind(&self) -> &str { "exa" }
+    fn kind(&self) -> &str {
+        "exa"
+    }
     fn capabilities(&self) -> Vec<SearchCapability> {
         vec![SearchCapability::Semantic, SearchCapability::Keyword]
     }
@@ -799,12 +1261,14 @@ impl WebSearchProvider for ExaProvider {
             payload["excludeDomains"] = serde_json::json!(query.exclude_domains);
         }
 
-        let resp = self.client
+        let resp = self
+            .client
             .post(format!("{EXA_API_BASE}/search"))
             .header("x-api-key", &self.api_key)
             .header("Content-Type", "application/json")
             .json(&payload)
-            .send().await
+            .send()
+            .await
             .map_err(|e| WebError::ProviderUnavailable(format!("Exa request failed: {e}")))?;
 
         let status = resp.status();
@@ -813,7 +1277,10 @@ impl WebSearchProvider for ExaProvider {
             return Err(match status.as_u16() {
                 401 | 403 => WebError::ProviderUnavailable(format!("Exa auth error: {status}")),
                 429 => WebError::RateLimited(format!("Exa rate limited: {status}")),
-                _ => WebError::ProviderError(format!("Exa API error {status}: {}", body.chars().take(200).collect::<String>())),
+                _ => WebError::ProviderError(format!(
+                    "Exa API error {status}: {}",
+                    body.chars().take(200).collect::<String>()
+                )),
             });
         }
 
@@ -821,36 +1288,43 @@ impl WebSearchProvider for ExaProvider {
             .map_err(|e| WebError::ProviderError(format!("Failed to parse Exa response: {e}")))?;
 
         let mut semantic_scores = HashMap::new();
-        let results = parsed["results"].as_array()
+        let mut content_previews = HashMap::new();
+        let results = parsed["results"]
+            .as_array()
             .map(|arr| {
-                arr.iter().filter_map(|item| {
-                    let url = item["url"].as_str()?;
-                    if let Some(score) = item["score"].as_f64() {
-                        semantic_scores.insert(url.to_lowercase(), score);
-                    }
-                    Some(SearchResult {
-                        title: item["title"].as_str()?.to_string(),
-                        url: url.to_string(),
-                        description: item["text"].as_str().map(|s| {
-                            let s = s.to_string();
-                            if s.len() > 300 { format!("{}…", &s[..300]) } else { s }
-                        }),
-                        source: item["author"].as_str().map(|s| s.to_string()),
-                        published: item["publishedDate"].as_str().map(|s| s.to_string()),
-                        provider: None,
+                arr.iter()
+                    .filter_map(|item| {
+                        let url = item["url"].as_str()?;
+                        if let Some(score) = item["score"].as_f64() {
+                            semantic_scores.insert(url.to_lowercase(), score);
+                        }
+                        if let Some(text) = item["text"].as_str() {
+                            content_previews.insert(url.to_lowercase(), text.to_string());
+                        }
+                        Some(SearchResult {
+                            title: item["title"].as_str()?.to_string(),
+                            url: url.to_string(),
+                            description: item["text"].as_str().map(|s| truncate_str(s, 300)),
+                            source: item["author"].as_str().map(|s| s.to_string()),
+                            published: item["publishedDate"].as_str().map(|s| s.to_string()),
+                            provider: None,
+                        })
                     })
-                }).collect::<Vec<_>>()
+                    .collect::<Vec<_>>()
             })
             .unwrap_or_default();
 
         Ok(ProviderSearchOutput {
             results,
             semantic_scores,
+            content_previews,
             ..Default::default()
         })
     }
 
-    async fn health(&self) -> Result<(), WebError> { Ok(()) }
+    async fn health(&self) -> Result<(), WebError> {
+        Ok(())
+    }
 }
 
 pub struct BrowserbaseProvider {
@@ -870,33 +1344,49 @@ impl BrowserbaseProvider {
 
 #[async_trait]
 impl WebBrowseProvider for BrowserbaseProvider {
-    fn kind(&self) -> &str { "browserbase" }
+    fn kind(&self) -> &str {
+        "browserbase"
+    }
 
-    async fn browse(&self, url: &str, instruction: &str, timeout: Duration) -> Result<BrowseResult, WebError> {
+    async fn browse(
+        &self,
+        url: &str,
+        instruction: &str,
+        timeout: Duration,
+    ) -> Result<BrowseResult, WebError> {
         let payload = serde_json::json!({
             "url": url,
             "actions": [{ "type": "wait", "milliseconds": 2000u64 }],
         });
 
-        let resp = self.client
+        let resp = self
+            .client
             .post(format!("{BROWSERBASE_API_BASE}/sessions"))
             .header("x-bb-api-key", &self.api_key)
             .header("Content-Type", "application/json")
             .json(&payload)
             .timeout(timeout)
-            .send().await
-            .map_err(|e| WebError::ProviderUnavailable(format!("Browserbase request failed: {e}")))?;
+            .send()
+            .await
+            .map_err(|e| {
+                WebError::ProviderUnavailable(format!("Browserbase request failed: {e}"))
+            })?;
 
         let status = resp.status();
         let body = resp.text().await.unwrap_or_default();
         if !status.is_success() {
-            return Err(WebError::ProviderError(format!("Browserbase error {status}: {}", body.chars().take(200).collect::<String>())));
+            return Err(WebError::ProviderError(format!(
+                "Browserbase error {status}: {}",
+                body.chars().take(200).collect::<String>()
+            )));
         }
 
-        let parsed: serde_json::Value = serde_json::from_str(&body)
-            .map_err(|e| WebError::ProviderError(format!("Failed to parse Browserbase response: {e}")))?;
+        let parsed: serde_json::Value = serde_json::from_str(&body).map_err(|e| {
+            WebError::ProviderError(format!("Failed to parse Browserbase response: {e}"))
+        })?;
 
-        let content = parsed["content"].as_str()
+        let content = parsed["content"]
+            .as_str()
             .or_else(|| parsed["data"]["markdown"].as_str())
             .unwrap_or("")
             .to_string();
@@ -909,11 +1399,19 @@ impl WebBrowseProvider for BrowserbaseProvider {
         })
     }
 
-    async fn health(&self) -> Result<(), WebError> { Ok(()) }
+    async fn health(&self) -> Result<(), WebError> {
+        Ok(())
+    }
 }
 
 pub struct RawFetchProvider {
     client: reqwest::Client,
+}
+
+impl Default for RawFetchProvider {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl RawFetchProvider {
@@ -928,17 +1426,28 @@ impl RawFetchProvider {
 
 #[async_trait]
 impl WebExtractProvider for RawFetchProvider {
-    fn kind(&self) -> &str { "rawfetch" }
+    fn kind(&self) -> &str {
+        "rawfetch"
+    }
 
-    async fn extract(&self, url: &str, _opts: &ExtractOptions) -> Result<ExtractedContent, WebError> {
-        let resp = self.client.get(url).send().await
-            .map_err(|e| WebError::ProviderUnavailable(format!("RawFetch request failed: {e}")))?;
+    async fn extract(
+        &self,
+        url: &str,
+        _opts: &ExtractOptions,
+    ) -> Result<ExtractedContent, WebError> {
+        let resp =
+            self.client.get(url).send().await.map_err(|e| {
+                WebError::ProviderUnavailable(format!("RawFetch request failed: {e}"))
+            })?;
         let status = resp.status();
-        let body = resp.text().await
+        let body = resp
+            .text()
+            .await
             .map_err(|e| WebError::ProviderError(format!("RawFetch read error: {e}")))?;
         if !status.is_success() {
             return Err(WebError::ProviderError(format!(
-                "RawFetch error {status}: {}", body.chars().take(200).collect::<String>()
+                "RawFetch error {status}: {}",
+                body.chars().take(200).collect::<String>()
             )));
         }
         Ok(ExtractedContent {
@@ -949,5 +1458,36 @@ impl WebExtractProvider for RawFetchProvider {
         })
     }
 
-    async fn health(&self) -> Result<(), WebError> { Ok(()) }
+    async fn health(&self) -> Result<(), WebError> {
+        Ok(())
+    }
+}
+
+pub fn truncate_str(s: &str, max_len: usize) -> String {
+    if s.len() <= max_len {
+        s.to_string()
+    } else {
+        let mut end = max_len;
+        while end > 0 && !s.is_char_boundary(end) {
+            end -= 1;
+        }
+        format!("{}…", &s[..end])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn truncate_str_short() {
+        assert_eq!(truncate_str("hi", 10), "hi");
+    }
+
+    #[test]
+    fn truncate_str_long() {
+        let result = truncate_str("hello world 12345", 8);
+        assert!(result.ends_with('…'));
+        assert!(result.len() <= 12);
+    }
 }
