@@ -160,29 +160,7 @@ jobs:
           retention-days: 7
 
   # ============================================================================
-  # Security Audit
-  # ============================================================================
-  audit:
-    name: Security Audit
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.91
-      
-      - name: Install cargo-audit
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-audit
-      
-      - name: Run security audit
-        run: cargo audit || echo "::warning::Security vulnerabilities found. Review cargo-audit output."
-
-  # ============================================================================
-  # Dependency Check
+  # Dependency Policy Check
   # ============================================================================
   deps:
     name: Dependency Check
@@ -195,20 +173,13 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@1.91
       
-      - name: Install cargo-outdated
+      - name: Install cargo-deny
         uses: taiki-e/install-action@v2
         with:
-          tool: cargo-outdated
-        continue-on-error: true
-        id: install-outdated
+          tool: cargo-deny
       
-      - name: Check for outdated dependencies
-        if: steps.install-outdated.outcome == 'success'
-        run: cargo outdated || echo "::warning::Outdated dependencies found. Review cargo-outdated output."
-      
-      - name: Skip dependency check
-        if: steps.install-outdated.outcome != 'success'
-        run: echo "::warning::cargo-outdated could not be installed. Skipping dependency check."
+      - name: Check dependency policy
+        run: cargo deny check
 
   # ============================================================================
   # Build Binary (Release)

@@ -35,6 +35,7 @@ else
 fi
 
 # Check 4: Core architecture docs have headers
+FAILED=0
 for doc in "PRINCIPLES.md" "DDMVSS.md" "domain-and-capability.md" "interface-and-composition.md" "magna-carta.md" "persistence-and-lifecycle.md" "trust-security-observability.md"; do
     file="$DOCS_DIR/architecture/$doc"
     if [[ -f "$file" ]]; then
@@ -43,9 +44,11 @@ for doc in "PRINCIPLES.md" "DDMVSS.md" "domain-and-capability.md" "interface-and
             echo "✓ $doc has YAML frontmatter"
         else
             echo "✗ $doc missing YAML frontmatter"
+            FAILED=1
         fi
     else
         echo "✗ $doc not found"
+        FAILED=1
     fi
 done
 
@@ -54,3 +57,5 @@ echo "=== Summary ==="
 echo "Documentation refresh complete"
 echo "Run './docs/ci/check-links.sh' to verify all links"
 echo "Run './docs/ci/check-metadata.sh' to verify metadata headers"
+
+exit $FAILED

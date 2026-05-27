@@ -88,12 +88,12 @@ jobs:
       - name: Run link check
         run: |
           chmod +x docs/ci/check-links.sh
-          ./docs/ci/check-links.sh || echo "::warning::Some broken links found"
+          ./docs/ci/check-links.sh
 
       - name: Run metadata check
         run: |
           chmod +x docs/ci/check-metadata.sh
-          ./docs/ci/check-metadata.sh || echo "::warning::Some metadata missing"
+          ./docs/ci/check-metadata.sh
 
   # ============================================================================
   # Check Documentation Links
@@ -111,51 +111,9 @@ jobs:
         run: npm install -g markdown-link-check
       
       - name: Check README links
-        run: |
-          markdown-link-check README.md || echo "::warning::Broken links found in README.md"
+        run: markdown-link-check README.md
       
       - name: Check documentation links
-        run: |
-          find docs -name "*.md" -exec markdown-link-check {} \; || echo "::warning::Some broken links found"
+        run: find docs -name "*.md" -exec markdown-link-check {} \;
 
-  # ============================================================================
-  # Validate Documentation Coverage
-  # ============================================================================
-  doc-coverage:
-    name: Documentation Coverage
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.91
-      
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            pkg-config \
-            libssl-dev \
-            libsqlite3-dev \
-            libclang-dev \
-            llvm-dev \
-            cmake \
-            protobuf-compiler \
-            libprotobuf-dev \
-            libzstd-dev
-      
-      - name: Check documentation coverage
-        run: |
-          echo "=== Documentation Coverage ==="
-          cargo doc --workspace --document-private-items 2>&1 | grep -E "(documenting|finished)" || true
-          
-          # Count documented items
-          echo ""
-          echo "=== Public API Documentation ==="
-          for crate in crates/hkask-*; do
-            crate_name=$(basename $crate)
-            echo "Checking $crate_name..."
-            cargo doc --package $crate_name --no-deps 2>&1 | tail -5
-          done
+

@@ -143,7 +143,7 @@ jobs:
           mkdir -p release
           cp target/${{ matrix.target }}/release/kask release/
           cp README.md release/
-          cp LICENSE release/ 2>/dev/null || echo "No LICENSE file"
+          if [ -f LICENSE ]; then cp LICENSE release/; fi
           cd release
           tar -czf kask-${{ matrix.target }}.tar.gz *
           sha256sum kask-${{ matrix.target }}.tar.gz > kask-${{ matrix.target }}.tar.gz.sha256
@@ -202,30 +202,4 @@ jobs:
           draft: false
           generate_release_notes: true
 
-  # ============================================================================
-  # Publish to crates.io (Optional)
-  # ============================================================================
-  publish-crates:
-    name: Publish to crates.io
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    needs: create-release
-    if: github.event_name == 'push'
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.91
-      
-      - name: Publish crates
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: |
-          # Publish workspace crates in dependency order
-          # Note: Adjust based on your actual publishing strategy
-          echo "Publishing crates..."
-          # cargo publish --package hkask-types
-          # cargo publish --package hkask-storage
-          # etc.
-          echo "Publishing disabled by default. Enable in CI when ready."
+
