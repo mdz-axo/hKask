@@ -5,7 +5,7 @@
 //! - `SpecCategory` — 9 DDMVSS categories
 //! - `CompletenessCheck` — trait for MVP completeness verification
 //! - `SpecCurationRecord` — curation integration with existing `CurationDecision`
-//! - Port traits: `SpecStore`, `SpecSigner`, `SpecObserver`, `SpecCurator`
+//! - Port traits: `SpecStore`, `SpecObserver`, `SpecCurator`
 
 use crate::curation::{CurationDecision, OCAPBoundary};
 use crate::id::{GoalID, WebID};
@@ -317,11 +317,6 @@ pub trait SpecStore {
     fn delete(&self, id: SpecId) -> Result<(), SpecError>;
     fn list_all(&self) -> Result<Vec<Spec>, SpecError>;
     fn list_by_category(&self, cat: SpecCategory) -> Result<Vec<Spec>, SpecError>;
-}
-
-pub trait SpecSigner {
-    fn sign(&self, spec: &mut Spec) -> Result<(), SpecError>;
-    fn verify(&self, spec: &Spec) -> Result<bool, SpecError>;
 }
 
 pub trait SpecObserver {

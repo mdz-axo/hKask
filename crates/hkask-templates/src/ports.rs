@@ -174,20 +174,6 @@ pub trait RegistryIndex {
     fn bootstrap_manifest(&self) -> Option<ProcessManifest>;
 }
 
-/// Sync inference port for manifest executor
-///
-/// NOTE: For new code, prefer the async `InferencePort` in `inference_port.rs`.
-/// This synchronous trait exists for the manifest executor which operates
-/// synchronously. When the manifest executor is migrated to async, this trait
-/// should be removed in favor of the async version.
-pub trait SyncInferencePort {
-    fn call(&self, model_tier: &str, prompt: &str, config: &InferenceConfig) -> Result<Value>;
-
-    fn call_default(&self, model_tier: &str, prompt: &str) -> Result<Value> {
-        self.call(model_tier, prompt, &InferenceConfig::default())
-    }
-}
-
 /// Tool information metadata
 #[derive(Debug, Clone)]
 pub struct ToolInfo {

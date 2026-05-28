@@ -139,10 +139,10 @@ impl std::fmt::Display for WebID {
     }
 }
 
-/// TemplateID — Unique identifier for templates
+// TemplateID — Unique identifier for templates
 define_id_type!(TemplateID, from_string);
 
-/// BotID — Unique identifier for bots
+// BotID — Unique identifier for bots
 define_id_type!(BotID);
 
 impl From<BotID> for WebID {
@@ -151,19 +151,19 @@ impl From<BotID> for WebID {
     }
 }
 
-/// ManifestID — Unique identifier for manifests
+// ManifestID — Unique identifier for manifests
 define_id_type!(ManifestID);
 
-/// TripleID — Unique identifier for bitemporal triples
+// TripleID — Unique identifier for bitemporal triples
 define_id_type!(TripleID);
 
-/// EventID — Unique identifier for ν-events
+// EventID — Unique identifier for ν-events
 define_id_type!(EventID);
 
-/// SessionID — Unique identifier for agent sessions
+// SessionID — Unique identifier for agent sessions
 define_id_type!(SessionID);
 
-/// GoalID — Unique identifier for goals
+// GoalID — Unique identifier for goals
 define_id_type!(GoalID, from_string);
 
 #[cfg(test)]

@@ -18,18 +18,6 @@ pub trait CapabilityQueryPort: Send + Sync {
     async fn get_capabilities(&self, webid: WebID) -> Option<Vec<CapabilityToken>>;
 }
 
-/// Port for security metrics (hexagonal architecture)
-pub trait SecurityMetricPort: Send + Sync {
-    /// Record OCAP enforcement metric
-    fn record_ocap_event(
-        &self,
-        granted: bool,
-        requester: &str,
-        operation: &str,
-        error: Option<&str>,
-    );
-}
-
 /// OCAP enforcement result
 #[derive(Debug, Clone)]
 pub struct OcapEnforcementResult {
@@ -79,28 +67,14 @@ impl OcapContext {
     }
 }
 
-/// OCAP enforcement engine with CNS metrics
+/// OCAP enforcement engine
 pub struct OcapEnforcer {
     registry: Arc<dyn CapabilityQueryPort>,
-    metrics: Option<Arc<dyn SecurityMetricPort>>,
 }
 
 impl OcapEnforcer {
     pub fn new(registry: Arc<dyn CapabilityQueryPort>) -> Self {
-        Self {
-            registry,
-            metrics: None,
-        }
-    }
-
-    pub fn with_metrics(
-        registry: Arc<dyn CapabilityQueryPort>,
-        metrics: Arc<dyn SecurityMetricPort>,
-    ) -> Self {
-        Self {
-            registry,
-            metrics: Some(metrics),
-        }
+        Self { registry }
     }
 
     /// Enforce capability for an operation
@@ -135,7 +109,6 @@ impl OcapEnforcer {
                     context.operation
                 )),
             };
-            self.record_ocap_metric(&result);
             return Ok(result);
         }
 
@@ -193,23 +166,6 @@ impl OcapEnforcer {
             capability: None,
             error: Some("Capability not found".to_string()),
         })
-    }
-
-    /// Record OCAP enforcement metric
-    fn record_ocap_metric(&self, result: &OcapEnforcementResult) {
-        if let Some(metrics) = &self.metrics {
-            metrics.record_ocap_event(
-                result.granted,
-                &result.requester.to_string(),
-                &format!("{:?}", result.operation),
-                result.error.as_deref(),
-            );
-            info!(
-                target: "cns",
-                granted = result.granted,
-                "OCAP enforcement event recorded"
-            );
-        }
     }
     /// Authorize Okapi generate operation
     pub async fn authorize_generate(

@@ -7,16 +7,6 @@ use hkask_types::TemplateType;
 use std::collections::HashSet;
 use thiserror::Error;
 
-/// Trait for capability providers (mirrors hkask_ensemble::ports::CapabilityProvider)
-pub trait CapabilityProviderPort {
-    type Capabilities: Into<OkapiCapabilities>;
-    type Error: std::error::Error;
-
-    fn get_capabilities(
-        &self,
-    ) -> impl std::future::Future<Output = Result<Self::Capabilities, Self::Error>>;
-}
-
 /// Enhanced contract validator with capability checking
 pub struct CapabilityAwareValidator {
     capabilities: OkapiCapabilities,
@@ -29,20 +19,6 @@ impl CapabilityAwareValidator {
             capabilities,
             hlexicon_terms: hlexicon_terms.into_iter().collect(),
         }
-    }
-
-    /// Create from port capability provider
-    pub async fn from_provider<CP>(
-        provider: &CP,
-        hlexicon_terms: Vec<String>,
-    ) -> Result<Self, CP::Error>
-    where
-        CP: CapabilityProviderPort,
-        CP::Capabilities: Into<OkapiCapabilities>,
-    {
-        let caps = provider.get_capabilities().await?;
-        let okapi_caps = caps.into();
-        Ok(Self::new(okapi_caps, hlexicon_terms))
     }
 
     /// Validate template with capability awareness
