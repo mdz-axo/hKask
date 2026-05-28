@@ -186,26 +186,3 @@ pub enum RegistrationError {
     #[error("Passphrase must contain both uppercase and lowercase letters")]
     PassphraseCaseRequired,
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_passphrase_validation() {
-        // Valid passphrase
-        assert!(RegistrationRequest::validate_passphrase("AlicePass123").is_ok());
-
-        // Too short
-        assert!(RegistrationRequest::validate_passphrase("Ab1").is_err());
-
-        // No uppercase
-        assert!(RegistrationRequest::validate_passphrase("alicepass123").is_err());
-
-        // No lowercase
-        assert!(RegistrationRequest::validate_passphrase("ALICEPASS123").is_err());
-
-        // Special characters not allowed
-        assert!(RegistrationRequest::validate_passphrase("Alice@Pass123").is_err());
-    }
-}

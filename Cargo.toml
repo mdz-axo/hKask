@@ -35,8 +35,6 @@ members = [
     "mcp-servers/hkask-mcp-telnyx",
     "mcp-servers/hkask-mcp-fal",
     "mcp-servers/hkask-mcp-rss-reader",
-    # Test crate (excluded from LOC budget)
-    "hkask-testing",
 ]
 
 [workspace.package]

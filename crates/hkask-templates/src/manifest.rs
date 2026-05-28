@@ -4,10 +4,9 @@
 //! Per architecture v0.21.0: ~50 lines of Rust that never changes when templates are added/edited.
 
 use crate::adapters::AppMemoryAdapter;
-use crate::context_assembly::{ContextAssembler, ContextFragment, FragmentSource};
 use crate::ports::{
     Action, CnsPort, DEFAULT_MATROSHKA_LIMIT, InferenceConfig, ManifestStep, McpPort,
-    ProcessManifest, Result, SyncInferencePort, TemplateError,
+    ProcessManifest, Result, TemplateError,
 };
 use crate::renderer::TemplateRendererImpl;
 use serde::{Deserialize, Serialize};
@@ -125,9 +124,8 @@ impl NoopCsp {
 /// This is the "loom" that weaves the "thread" (YAML/Jinja2 templates).
 /// It doesn't change when templates are added, edited, or removed.
 /// Only changes if the grammar of steps themselves changes.
-pub struct ManifestExecutorImpl<I, M, C> {
+pub struct ManifestExecutorImpl<M, C> {
     renderer: TemplateRendererImpl,
-    inference: I,
     mcp: M,
     cns: C,
     memory: Option<AppMemoryAdapter>,
@@ -139,16 +137,14 @@ pub struct ManifestExecutorImpl<I, M, C> {
     energy_budget: u64,
 }
 
-impl<I, M, C> ManifestExecutorImpl<I, M, C>
+impl<M, C> ManifestExecutorImpl<M, C>
 where
-    I: SyncInferencePort,
     M: McpPort,
     C: CnsPort,
 {
-    pub fn new(renderer: TemplateRendererImpl, inference: I, mcp: M, cns: C) -> Self {
+    pub fn new(renderer: TemplateRendererImpl, mcp: M, cns: C) -> Self {
         Self {
             renderer,
-            inference,
             mcp,
             cns,
             memory: None,
@@ -181,110 +177,6 @@ where
         self
     }
 
-    /// Assemble context from all sources with deduplication
-    ///
-    /// Priority order:
-    /// 1. System instructions (from manifest metadata)
-    /// 2. User message (from input state)
-    /// 3. Memory context (semantic + episodic triples)
-    /// 4. Session history (most recent first)
-    fn assemble_context(
-        &self,
-        manifest: &ProcessManifest,
-        input: &Value,
-    ) -> (String, crate::context_assembly::AssemblyStats) {
-        let mut assembler = ContextAssembler::new(self.context_budget);
-
-        // Priority 1: System instructions from manifest
-        let system_prompt = format!(
-            "You are executing the {} manifest. {}",
-            manifest.name, manifest.description
-        );
-        assembler.add(ContextFragment {
-            content: system_prompt,
-            source: FragmentSource::System,
-            embedding: None,
-            priority: 0,
-        });
-
-        // Priority 2: User message from input
-        if let Some(user_msg) = input
-            .get(context_keys::USER_MESSAGE)
-            .and_then(|v| v.as_str())
-        {
-            assembler.add(ContextFragment {
-                content: user_msg.to_string(),
-                source: FragmentSource::User,
-                embedding: None,
-                priority: 1,
-            });
-        } else if let Some(prompt) = input.get(context_keys::PROMPT).and_then(|v| v.as_str()) {
-            assembler.add(ContextFragment {
-                content: prompt.to_string(),
-                source: FragmentSource::User,
-                embedding: None,
-                priority: 1,
-            });
-        }
-
-        // Priority 3: Memory context (if memory port available)
-        if let Some(memory) = &self.memory {
-            // Extract entity from input for memory queries
-            let entity = input
-                .get(context_keys::ENTITY)
-                .and_then(|v| v.as_str())
-                .unwrap_or("default");
-
-            // Semantic memory
-            let semantic_fragments = memory.query_semantic(entity).unwrap_or_default();
-            for fragment in semantic_fragments {
-                assembler.add(ContextFragment {
-                    content: fragment.content,
-                    source: FragmentSource::SemanticMemory,
-                    embedding: None,
-                    priority: 2,
-                });
-            }
-
-            // Episodic memory (if perspective available)
-            if let Some(perspective) = input
-                .get(context_keys::PERSPECTIVE)
-                .and_then(|v| v.as_str())
-            {
-                let episodic_fragments = memory
-                    .query_episodic(entity, perspective)
-                    .unwrap_or_default();
-                for fragment in episodic_fragments {
-                    assembler.add(ContextFragment {
-                        content: fragment.content,
-                        source: FragmentSource::EpisodicMemory,
-                        embedding: None,
-                        priority: 2,
-                    });
-                }
-            }
-
-            // Session history (if session_id available)
-            if let Some(session_id) = input.get(context_keys::SESSION_ID).and_then(|v| v.as_str()) {
-                let history = memory
-                    .get_session_history(session_id, 20)
-                    .unwrap_or_default();
-                for message in history {
-                    assembler.add(ContextFragment {
-                        content: message,
-                        source: FragmentSource::SessionHistory,
-                        embedding: None,
-                        priority: 3,
-                    });
-                }
-            }
-        }
-
-        let stats = assembler.stats().clone();
-        let prompt = assembler.render();
-        (prompt, stats)
-    }
-
     pub fn with_max_depth(mut self, depth: u8) -> Self {
         self.max_depth = depth;
         self
@@ -302,7 +194,7 @@ where
 
     async fn execute_step(
         &self,
-        manifest: &ProcessManifest,
+        _manifest: &ProcessManifest,
         step: &ManifestStep,
         state: Value,
         depth: u8,
@@ -341,40 +233,9 @@ where
 
         let result = match step.action {
             Action::Select => {
-                let prompt = format!("Select template for: {:?}", state);
-                let selection_result = self.inference.call(
-                    step.model_tier.as_deref().unwrap_or("fast_local"),
-                    &prompt,
-                    &self.inference_config,
-                )?;
-
-                if let Some(confidence) =
-                    selection_result.get("confidence").and_then(|v| v.as_f64())
-                {
-                    if confidence < self.selector_config.confidence_threshold {
-                        self.cns.emit(
-                            "cns.prompt.selector_fallback",
-                            Value::String(format!(
-                                "Confidence {} below threshold {}",
-                                confidence, self.selector_config.confidence_threshold
-                            )),
-                            confidence,
-                        );
-                        let mut fallback_result = selection_result;
-                        if let Some(obj) = fallback_result.as_object_mut() {
-                            obj.insert(
-                                "selected_template_id".to_string(),
-                                Value::String(self.selector_config.fallback_template_id.clone()),
-                            );
-                            obj.insert("fallback_applied".to_string(), Value::Bool(true));
-                        }
-                        fallback_result
-                    } else {
-                        selection_result
-                    }
-                } else {
-                    selection_result
-                }
+                return Err(TemplateError::Manifest(
+                    "Select action requires inference (SyncInferencePort removed)".to_string(),
+                ));
             }
             Action::Populate => {
                 let template_id = state
@@ -454,9 +315,8 @@ where
     }
 }
 
-impl<I, M, C> ManifestExecutorImpl<I, M, C>
+impl<M, C> ManifestExecutorImpl<M, C>
 where
-    I: SyncInferencePort + Send + Sync,
     M: McpPort,
     C: CnsPort + Send + Sync,
 {
