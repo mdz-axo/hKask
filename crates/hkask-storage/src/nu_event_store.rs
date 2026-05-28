@@ -187,6 +187,10 @@ fn span_to_columns(span: &Span) -> (&'static str, &str) {
         Span::Pipeline(s) => ("pipeline", s.as_str()),
         Span::Energy(s) => ("energy", s.as_str()),
         Span::Review(s) => ("review", s.as_str()),
+        Span::Template(s) => ("template", s.as_str()),
+        Span::Curation(s) => ("curation", s.as_str()),
+        Span::Variety(s) => ("variety", s.as_str()),
+        Span::KillZone(s) => ("killzone", s.as_str()),
         Span::Sovereignty(s) => ("sovereignty", s.as_str()),
         Span::Goal(s) => ("goal", s.as_str()),
         Span::Spec(s) => ("spec", s.as_str()),
@@ -205,6 +209,10 @@ fn span_from_columns(category: &str, path: &str) -> Span {
         "sovereignty" => Span::Sovereignty(path.to_string()),
         "goal" => Span::Goal(path.to_string()),
         "spec" => Span::Spec(path.to_string()),
+        "template" => Span::Template(path.to_string()),
+        "curation" => Span::Curation(path.to_string()),
+        "variety" => Span::Variety(path.to_string()),
+        "killzone" => Span::KillZone(path.to_string()),
         _ => Span::Tool(path.to_string()),
     }
 }

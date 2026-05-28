@@ -50,6 +50,14 @@ pub enum SpanCategory {
     Review,
     /// Spec primitive (spec validation, compliance, verification)
     Spec,
+    /// Template invocation, registry
+    Template,
+    /// Curation decisions, OCAP boundaries
+    Curation,
+    /// Variety monitoring, algedonic alerts
+    Variety,
+    /// Kill zone detection
+    KillZone,
 }
 
 impl SpanCategory {
@@ -65,6 +73,10 @@ impl SpanCategory {
             SpanCategory::Goal => "cns.goal",
             SpanCategory::Review => "cns.review",
             SpanCategory::Spec => "cns.spec",
+            SpanCategory::Template => "cns.template",
+            SpanCategory::Curation => "cns.curation",
+            SpanCategory::Variety => "cns.variety",
+            SpanCategory::KillZone => "cns.killzone",
         }
     }
 
@@ -80,6 +92,10 @@ impl SpanCategory {
             "goal" | "cns.goal" => Some(SpanCategory::Goal),
             "review" | "cns.review" => Some(SpanCategory::Review),
             "spec" | "cns.spec" => Some(SpanCategory::Spec),
+            "template" | "cns.template" => Some(SpanCategory::Template),
+            "curation" | "cns.curation" => Some(SpanCategory::Curation),
+            "variety" | "cns.variety" => Some(SpanCategory::Variety),
+            "killzone" | "cns.killzone" => Some(SpanCategory::KillZone),
             _ => None,
         }
     }
@@ -288,6 +304,10 @@ fn span_to_category(span: &Span) -> SpanCategory {
         Span::AgentPod(_) => SpanCategory::AgentPod,
         Span::Energy(_) => SpanCategory::Energy,
         Span::Review(_) => SpanCategory::Review,
+        Span::Template(_) => SpanCategory::Template,
+        Span::Curation(_) => SpanCategory::Curation,
+        Span::Variety(_) => SpanCategory::Variety,
+        Span::KillZone(_) => SpanCategory::KillZone,
         Span::Sovereignty(_) => SpanCategory::Sovereignty,
         Span::Goal(_) => SpanCategory::Goal,
         Span::Spec(_) => SpanCategory::Spec,
@@ -317,6 +337,14 @@ impl CnsEmit for SpanScope {
             SpanCategory::Goal
         } else if span.starts_with("cns.spec") {
             SpanCategory::Spec
+        } else if span.starts_with("cns.template") {
+            SpanCategory::Template
+        } else if span.starts_with("cns.curation") {
+            SpanCategory::Curation
+        } else if span.starts_with("cns.variety") {
+            SpanCategory::Variety
+        } else if span.starts_with("cns.killzone") {
+            SpanCategory::KillZone
         } else {
             SpanCategory::AgentPod // default fallback
         };
@@ -334,6 +362,10 @@ impl CnsEmit for SpanScope {
                 SpanCategory::Sovereignty => Span::Sovereignty(span.to_string()),
                 SpanCategory::Goal => Span::Goal(span.to_string()),
                 SpanCategory::Spec => Span::Spec(span.to_string()),
+                SpanCategory::Template => Span::Template(span.to_string()),
+                SpanCategory::Curation => Span::Curation(span.to_string()),
+                SpanCategory::Variety => Span::Variety(span.to_string()),
+                SpanCategory::KillZone => Span::KillZone(span.to_string()),
             };
             self.emitter.emit(span_variant, observation.clone());
         } else {

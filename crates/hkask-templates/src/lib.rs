@@ -60,6 +60,7 @@ pub use contracts::{
 pub use curator_pipeline::{CuratorPipeline, EvaluationResult, merge_outputs};
 pub use dependency::{DependencyGraph, parse_dependencies};
 pub use engine::{TemplateEngine, TemplateRegistry};
+pub use hkask_types::cns::RetryConfig;
 pub use inference_port::{
     InferenceError, InferencePort, InferenceResult, OkapiInference, Usage, create_shared_client,
     invoke_template_with_okapi_generic as invoke_template_with_okapi,
@@ -69,7 +70,7 @@ pub use manifest::{
     CspEnforcer, EnergyAccount, ManifestExecutorImpl, ModelRequirements, NoopCsp, SelectorConfig,
     SimpleExecutor,
 };
-pub use okapi_config::{OkapiConfig, OkapiRetryConfig};
+pub use okapi_config::OkapiConfig;
 pub use ports::{
     Action, CnsPort, CompositionTemplate, DEFAULT_MATROSHKA_LIMIT, FAST_LOCAL_MODEL,
     InferenceConfig, ManifestExecutor, ManifestStep, McpPort, MemoryFragment, MemoryPort,

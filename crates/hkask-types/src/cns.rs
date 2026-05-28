@@ -128,6 +128,12 @@ pub enum CnsSpan {
     AgentPod,
     /// External I/O: LLM, embeddings (cns.connector.*)
     Connector,
+    /// Multi-stage processing flows (cns.pipeline.*)
+    Pipeline,
+    /// Energy cost tracking (cns.energy.*)
+    Energy,
+    /// Review queue events (cns.review.*)
+    Review,
     /// Template invocation, registry (cns.template.*)
     Template,
     /// Curation decisions, OCAP boundaries (cns.curation.*)
@@ -140,7 +146,7 @@ pub enum CnsSpan {
     Sovereignty,
     /// Goal primitive (cns.goal.*)
     Goal,
-    /// Specification operations: capture, compose, validate, sign, curate (cns.spec.*)
+    /// Specification operations (cns.spec.*)
     Spec,
 }
 
@@ -152,6 +158,9 @@ impl CnsSpan {
             CnsSpan::Prompt => "cns.prompt".to_string(),
             CnsSpan::AgentPod => "cns.agent_pod".to_string(),
             CnsSpan::Connector => "cns.connector".to_string(),
+            CnsSpan::Pipeline => "cns.pipeline".to_string(),
+            CnsSpan::Energy => "cns.energy".to_string(),
+            CnsSpan::Review => "cns.review".to_string(),
             CnsSpan::Template => "cns.template".to_string(),
             CnsSpan::Curation => "cns.curation".to_string(),
             CnsSpan::Variety => "cns.variety".to_string(),

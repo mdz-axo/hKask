@@ -78,9 +78,6 @@ impl OkapiConfig {
     }
 }
 
-/// Retry configuration — alias for the canonical RetryConfig
-pub type OkapiRetryConfig = hkask_types::cns::RetryConfig;
-
 /// Prompt validation
 pub fn validate_prompt(prompt: &str) -> Result<(), String> {
     if prompt.is_empty() {

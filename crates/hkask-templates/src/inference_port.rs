@@ -24,10 +24,11 @@
 //! ```
 
 use crate::manifest::ModelRequirements;
-use crate::okapi_config::{OkapiConfig, OkapiRetryConfig, validate_prompt};
+use crate::okapi_config::{OkapiConfig, validate_prompt};
 use crate::resilience::CircuitBreaker;
 use async_trait::async_trait;
 use hkask_cns::{RateLimiter, SpanEmitter};
+use hkask_types::cns::RetryConfig;
 use hkask_types::{BotID, LLMParameters, TemplateId, TemplateInvocation, TemplateOutcome, WebID};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -156,7 +157,7 @@ pub trait InferencePort: Send + Sync {
 pub struct OkapiInference {
     model: String,
     config: OkapiConfig,
-    retry_config: OkapiRetryConfig,
+    retry_config: RetryConfig,
     client: Arc<reqwest::Client>,
     /// Rate limiter for inference boundary
     rate_limiter: Option<Arc<RateLimiter>>,
@@ -188,7 +189,7 @@ impl OkapiInference {
 
         Ok(Self {
             model: model.to_string(),
-            retry_config: OkapiRetryConfig::default(),
+            retry_config: RetryConfig::default(),
             config,
             client,
             rate_limiter: None,
@@ -209,7 +210,7 @@ impl OkapiInference {
     ) -> Self {
         Self {
             model: model.to_string(),
-            retry_config: OkapiRetryConfig::default(),
+            retry_config: RetryConfig::default(),
             config,
             client,
             rate_limiter: None,
@@ -222,7 +223,7 @@ impl OkapiInference {
     pub fn with_retry_config(
         model: &str,
         config: OkapiConfig,
-        retry_config: OkapiRetryConfig,
+        retry_config: RetryConfig,
     ) -> Result<Self, InferenceError> {
         let client = config
             .build_client()
@@ -244,7 +245,7 @@ impl OkapiInference {
     pub fn with_rate_limiting(
         model: &str,
         config: OkapiConfig,
-        retry_config: OkapiRetryConfig,
+        retry_config: RetryConfig,
         rate_limiter: RateLimiter,
         bot_id: WebID,
     ) -> Result<Self, InferenceError> {
@@ -268,7 +269,7 @@ impl OkapiInference {
     pub fn with_circuit_breaker(
         model: &str,
         config: OkapiConfig,
-        retry_config: OkapiRetryConfig,
+        retry_config: RetryConfig,
         circuit_breaker: CircuitBreaker,
     ) -> Result<Self, InferenceError> {
         let client = config

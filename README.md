@@ -1,8 +1,7 @@
 <p align="center">
   <img src="assets/kask-logo.svg" alt="Kask Logo" width="120"/>
 </p>
-
-# hKask (ℏKask) — Planck's Constant of Agent Systems
+# *ℏKask - A Minimal Viable Container for Agents*
 
 **Version:** v0.21.1 | **Status:** Phase 8 complete — Core implementation done, MCP stubs in progress
 

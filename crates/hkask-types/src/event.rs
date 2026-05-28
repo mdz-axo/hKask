@@ -97,6 +97,10 @@ pub enum Span {
     Pipeline(String),
     Energy(String),
     Review(String),
+    Template(String),
+    Curation(String),
+    Variety(String),
+    KillZone(String),
     Sovereignty(String),
     Goal(String),
     Spec(String),
@@ -131,6 +135,22 @@ impl Span {
         Span::Review(format!("cns.review.{}", path))
     }
 
+    pub fn template(path: &str) -> Self {
+        Span::Template(format!("cns.template.{}", path))
+    }
+
+    pub fn curation(path: &str) -> Self {
+        Span::Curation(format!("cns.curation.{}", path))
+    }
+
+    pub fn variety(path: &str) -> Self {
+        Span::Variety(format!("cns.variety.{}", path))
+    }
+
+    pub fn kill_zone(path: &str) -> Self {
+        Span::KillZone(format!("cns.killzone.{}", path))
+    }
+
     pub fn sovereignty(path: &str) -> Self {
         Span::Sovereignty(format!("cns.sovereignty.{}", path))
     }
@@ -152,6 +172,10 @@ impl Span {
             Span::Pipeline(s) => s,
             Span::Energy(s) => s,
             Span::Review(s) => s,
+            Span::Template(s) => s,
+            Span::Curation(s) => s,
+            Span::Variety(s) => s,
+            Span::KillZone(s) => s,
             Span::Sovereignty(s) => s,
             Span::Goal(s) => s,
             Span::Spec(s) => s,
