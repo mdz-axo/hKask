@@ -1,15 +1,15 @@
 //! hKask MCP Fal — Fal.ai API integration (image, video, audio generation)
 
 use hkask_mcp::server::{
-    CredentialRequirement, McpToolError, McpToolOutput, ServerContext, classify_http_error,
-    emit_tool_span, resolve_credential, run_stdio_server, validate_tool_url,
+    CredentialRequirement, McpToolError, McpToolOutput, ServerContext, ToolSpanGuard,
+    classify_http_error, resolve_credential, run_stdio_server, validate_tool_url,
 };
-use hkask_types::WebID;
+use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::Value;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 const SYNC_BASE: &str = "https://fal.run";
 const QUEUE_BASE: &str = "https://queue.fal.run";
@@ -204,7 +204,7 @@ impl FalServer {
 impl FalServer {
     #[tool(description = "Ping Fal.ai API to verify connectivity and authentication")]
     async fn fal_ping(&self) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("fal:ping", &self.webid);
         let url = format!("{SYNC_BASE}/fal-ai/flux/schnell");
         match self
             .client
@@ -221,27 +221,20 @@ impl FalServer {
                     let err = McpToolError::permission_denied(
                         "Fal.ai API key is invalid or unauthorized",
                     );
-                    emit_tool_span(
-                        "fal_ping",
-                        "error",
-                        start.elapsed().as_millis() as u64,
-                        Some(&err.kind),
-                    );
-                    err.to_json_string()
+                    span.error(err.kind, err.to_json_string())
                 } else {
-                    emit_tool_span("fal_ping", "ok", start.elapsed().as_millis() as u64, None);
-                    McpToolOutput::with_timing(
-                        serde_json::json!({
-                            "status": "ok",
-                            "message": "Fal.ai API is reachable and authenticated",
-                            "http_status": status.as_u16(),
-                        }),
-                        start,
-                    )
-                    .to_json_string()
+                    span.ok(McpToolOutput::new(serde_json::json!({
+                        "status": "ok",
+                        "message": "Fal.ai API is reachable and authenticated",
+                        "http_status": status.as_u16(),
+                    }))
+                    .to_json_string())
                 }
             }
-            Err(e) => McpToolError::unavailable(format!("Connection failed: {e}")).to_json_string(),
+            Err(e) => span.error(
+                McpErrorKind::Unavailable,
+                McpToolError::unavailable(format!("Connection failed: {e}")).to_json_string(),
+            ),
         }
     }
 
@@ -254,31 +247,15 @@ impl FalServer {
             num_images,
         }): Parameters<GenerateImageRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("fal:generate_image", &self.webid);
         let body = serde_json::json!({
             "prompt": prompt,
             "image_size": image_size.unwrap_or_else(|| "1024x1024".to_string()),
             "num_images": num_images.unwrap_or(1),
         });
         match fal_post(&self.client, "fal-ai/flux/schnell", body).await {
-            Ok(v) => {
-                emit_tool_span(
-                    "fal_generate_image",
-                    "ok",
-                    start.elapsed().as_millis() as u64,
-                    None,
-                );
-                McpToolOutput::with_timing(v, start).to_json_string()
-            }
-            Err(e) => {
-                emit_tool_span(
-                    "fal_generate_image",
-                    "error",
-                    start.elapsed().as_millis() as u64,
-                    Some(&e.kind),
-                );
-                e.to_json_string()
-            }
+            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
 
@@ -289,14 +266,14 @@ impl FalServer {
             GenerateImageFastRequest,
         >,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("fal:generate_image_fast", &self.webid);
         let body = serde_json::json!({
             "prompt": prompt,
             "image_size": image_size.unwrap_or_else(|| "1024x1024".to_string()),
         });
         match fal_post(&self.client, "fal-ai/flux/schnell", body).await {
-            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
-            Err(e) => e.to_json_string(),
+            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
 
@@ -309,9 +286,9 @@ impl FalServer {
             strength,
         }): Parameters<ImageToImageRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("fal:image_to_image", &self.webid);
         if let Err(e) = validate_tool_url(&image_url) {
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
         let mut body = serde_json::json!({
             "prompt": prompt,
@@ -321,8 +298,8 @@ impl FalServer {
             body["strength"] = serde_json::json!(s);
         }
         match fal_post(&self.client, "fal-ai/flux/dev/image-to-image", body).await {
-            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
-            Err(e) => e.to_json_string(),
+            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
 
@@ -331,17 +308,17 @@ impl FalServer {
         &self,
         Parameters(UpscaleRequest { image_url, scale }): Parameters<UpscaleRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("fal:upscale", &self.webid);
         if let Err(e) = validate_tool_url(&image_url) {
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
         let body = serde_json::json!({
             "image_url": image_url,
             "scale": scale.unwrap_or(4),
         });
         match fal_post(&self.client, "fal-ai/imageutils/u2net", body).await {
-            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
-            Err(e) => e.to_json_string(),
+            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
 
@@ -350,7 +327,7 @@ impl FalServer {
         &self,
         Parameters(GenerateVideoRequest { prompt, duration }): Parameters<GenerateVideoRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("fal:generate_video", &self.webid);
         let mut body = serde_json::json!({
             "prompt": prompt,
         });
@@ -358,24 +335,8 @@ impl FalServer {
             body["duration"] = serde_json::json!(d);
         }
         match self.queue_post("fal-ai/minimax/video-01-live", body).await {
-            Ok(v) => {
-                emit_tool_span(
-                    "fal_generate_video",
-                    "ok",
-                    start.elapsed().as_millis() as u64,
-                    None,
-                );
-                McpToolOutput::with_timing(v, start).to_json_string()
-            }
-            Err(e) => {
-                emit_tool_span(
-                    "fal_generate_video",
-                    "error",
-                    start.elapsed().as_millis() as u64,
-                    Some(&e.kind),
-                );
-                e.to_json_string()
-            }
+            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
 
@@ -387,7 +348,7 @@ impl FalServer {
             duration_seconds,
         }): Parameters<GenerateMusicRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("fal:generate_music", &self.webid);
         let mut body = serde_json::json!({
             "prompt": prompt,
         });
@@ -395,8 +356,8 @@ impl FalServer {
             body["duration"] = serde_json::json!(d);
         }
         match self.queue_post("fal-ai/stable-audio", body).await {
-            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
-            Err(e) => e.to_json_string(),
+            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
 
@@ -405,16 +366,16 @@ impl FalServer {
         &self,
         Parameters(WhisperRequest { audio_url }): Parameters<WhisperRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("fal:whisper", &self.webid);
         if let Err(e) = validate_tool_url(&audio_url) {
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
         let body = serde_json::json!({
             "audio_url": audio_url,
         });
         match fal_post(&self.client, "fal-ai/whisper", body).await {
-            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
-            Err(e) => e.to_json_string(),
+            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
 
@@ -423,9 +384,9 @@ impl FalServer {
         &self,
         Parameters(CaptionRequest { image_url }): Parameters<CaptionRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("fal:caption", &self.webid);
         if let Err(e) = validate_tool_url(&image_url) {
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
         let body = serde_json::json!({
             "messages": [
@@ -439,8 +400,8 @@ impl FalServer {
             ]
         });
         match fal_post(&self.client, "fal-ai/any-llm", body).await {
-            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
-            Err(e) => e.to_json_string(),
+            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
 
@@ -449,16 +410,16 @@ impl FalServer {
         &self,
         Parameters(Generate3dRequest { image_url }): Parameters<Generate3dRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("fal:generate_3d", &self.webid);
         if let Err(e) = validate_tool_url(&image_url) {
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
         let body = serde_json::json!({
             "image_url": image_url,
         });
         match self.queue_post("fal-ai/hunyuan3d", body).await {
-            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
-            Err(e) => e.to_json_string(),
+            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
 }

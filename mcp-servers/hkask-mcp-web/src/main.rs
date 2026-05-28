@@ -4,13 +4,13 @@ pub mod strip_html;
 pub mod types;
 
 use hkask_mcp::server::{
-    CredentialRequirement, McpToolError, McpToolOutput, ServerContext, emit_tool_span,
+    CredentialRequirement, McpToolError, McpToolOutput, ServerContext, ToolSpanGuard,
     resolve_credential, run_stdio_server, validate_tool_url,
 };
 use hkask_types::WebID;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use cache::{ResponseCache, cache_key};
 use providers::{
@@ -108,6 +108,7 @@ impl WebServer {
 impl WebServer {
     #[tool(description = "Liveness and provider health check")]
     async fn web_ping(&self) -> String {
+        let span = ToolSpanGuard::new("web_ping", &self.webid);
         // Task 9: Rate limit web_ping to prevent DoS amplification
         if let Err(e) = self.rate_limiter.check("web_ping") {
             // Task 11: Return PingOutput with rate_limited status instead of McpToolError
@@ -121,8 +122,11 @@ impl WebServer {
                 message = %e.message,
                 "web_ping rate limited"
             );
-            return McpToolOutput::new(serde_json::to_value(&output).unwrap_or_default())
-                .to_json_string();
+            return span.error(
+                McpErrorKind::RateLimited,
+                McpToolOutput::new(serde_json::to_value(&output).unwrap_or_default())
+                    .to_json_string(),
+            );
         }
 
         let providers = self.pool.health_check().await;
@@ -131,29 +135,37 @@ impl WebServer {
             version: SERVER_VERSION.to_string(),
             providers,
         };
-        McpToolOutput::new(serde_json::to_value(&output).unwrap_or_default()).to_json_string()
+        span.ok(
+            McpToolOutput::new(serde_json::to_value(&output).unwrap_or_default()).to_json_string(),
+        )
     }
 
     #[tool(
         description = "Search the web with RRF fusion across providers. Strategy selects providers: quick (single keyword), web (all), news (news-capable), deep (all + rerank)"
     )]
     async fn web_search(&self, Parameters(req): Parameters<SearchRequest>) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("web_search", &self.webid);
 
         if let Err(e) = self.rate_limiter.check("web_search") {
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
 
         // Task 5: Input validation bounds
         if req.query.is_empty() {
-            return McpToolError::invalid_argument("query must not be empty").to_json_string();
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument("query must not be empty").to_json_string(),
+            );
         }
         if req.query.len() > MAX_QUERY_LENGTH {
-            return McpToolError::invalid_argument(format!(
-                "query exceeds maximum length of {} characters",
-                MAX_QUERY_LENGTH
-            ))
-            .to_json_string();
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(format!(
+                    "query exceeds maximum length of {} characters",
+                    MAX_QUERY_LENGTH
+                ))
+                .to_json_string(),
+            );
         }
 
         let strat = req
@@ -179,7 +191,7 @@ impl WebServer {
         );
 
         if let Some(cached) = self.cache.get(&ckey).await {
-            return McpToolOutput::with_timing(cached, start).to_json_string();
+            return span.ok(McpToolOutput::new(cached).to_json_string());
         }
 
         let search_query = SearchQuery {
@@ -195,20 +207,14 @@ impl WebServer {
         let mut compound = match self.pool.search(&search_query, strat, None).await {
             Ok(c) => c,
             Err(e) => {
-                emit_tool_span(
-                    "web_search",
-                    "error",
-                    start.elapsed().as_millis() as u64,
-                    Some(&e.kind()),
-                );
-                return McpToolOutput::with_timing(
-                    serde_json::json!({
+                return span.error(
+                    e.kind(),
+                    McpToolOutput::new(serde_json::json!({
                         "error": e.to_string(),
                         "strategy": strat.to_string(),
-                    }),
-                    start,
-                )
-                .to_json_string();
+                    }))
+                    .to_json_string(),
+                );
             }
         };
 
@@ -229,7 +235,6 @@ impl WebServer {
         };
 
         let metadata = SearchMetadata::from(&compound);
-        emit_tool_span("web_search", "ok", start.elapsed().as_millis() as u64, None);
         // Emit metadata to CNS (not to MCP client)
         tracing::info!(
             target: "cns.web",
@@ -247,7 +252,7 @@ impl WebServer {
             .unwrap_or_else(|_| serde_json::json!({ "error": "serialization failed" }));
 
         self.cache.insert(ckey, output.clone()).await;
-        McpToolOutput::with_timing(output, start).to_json_string()
+        span.ok(McpToolOutput::new(output).to_json_string())
     }
 
     #[tool(description = "Find pages similar to a given URL using Exa findSimilar")]
@@ -255,15 +260,15 @@ impl WebServer {
         &self,
         Parameters(FindSimilarRequest { url, num_results }): Parameters<FindSimilarRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("web_find_similar", &self.webid);
 
         if let Err(e) = self.rate_limiter.check("web_find_similar") {
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
 
         // URL validation — prevent SSRF-adjacent probing of internal URLs
         if let Err(e) = validate_tool_url(&url) {
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
 
         let num = num_results.unwrap_or(5).min(20);
@@ -294,29 +299,13 @@ impl WebServer {
                     results,
                 };
 
-                emit_tool_span(
-                    "web_find_similar",
-                    "ok",
-                    start.elapsed().as_millis() as u64,
-                    None,
-                );
-
-                McpToolOutput::with_timing(
+                span.ok(McpToolOutput::new(
                     serde_json::to_value(&fs_output)
                         .unwrap_or_else(|_| serde_json::json!({ "error": "serialization failed" })),
-                    start,
                 )
-                .to_json_string()
+                .to_json_string())
             }
-            Err(e) => {
-                emit_tool_span(
-                    "web_find_similar",
-                    "error",
-                    start.elapsed().as_millis() as u64,
-                    Some(&e.kind()),
-                );
-                McpToolError::from(e).to_json_string()
-            }
+            Err(e) => span.error(e.kind(), McpToolError::from(e).to_json_string()),
         }
     }
 
@@ -332,42 +321,51 @@ impl WebServer {
             wait_for_ms,
         }): Parameters<ExtractRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("web_extract", &self.webid);
 
         if let Err(e) = self.rate_limiter.check("web_extract") {
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
 
         // Task 5: Input validation bounds
         if url.len() > MAX_URL_LENGTH {
-            return McpToolError::invalid_argument(format!(
-                "url exceeds maximum length of {} characters",
-                MAX_URL_LENGTH
-            ))
-            .to_json_string();
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(format!(
+                    "url exceeds maximum length of {} characters",
+                    MAX_URL_LENGTH
+                ))
+                .to_json_string(),
+            );
         }
         if let Some(ref prompt) = json_prompt
             && prompt.len() > MAX_JSON_PROMPT_LENGTH
         {
-            return McpToolError::invalid_argument(format!(
-                "json_prompt exceeds maximum length of {} characters",
-                MAX_JSON_PROMPT_LENGTH
-            ))
-            .to_json_string();
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(format!(
+                    "json_prompt exceeds maximum length of {} characters",
+                    MAX_JSON_PROMPT_LENGTH
+                ))
+                .to_json_string(),
+            );
         }
         if let Some(ref schema) = json_schema
             && let Ok(bytes) = serde_json::to_string(schema)
             && bytes.len() > MAX_JSON_SCHEMA_BYTES
         {
-            return McpToolError::invalid_argument(format!(
-                "json_schema exceeds maximum size of {} bytes",
-                MAX_JSON_SCHEMA_BYTES
-            ))
-            .to_json_string();
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(format!(
+                    "json_schema exceeds maximum size of {} bytes",
+                    MAX_JSON_SCHEMA_BYTES
+                ))
+                .to_json_string(),
+            );
         }
 
         if let Err(e) = validate_tool_url(&url) {
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
 
         let fmt = format.unwrap_or_else(|| "markdown".to_string());
@@ -385,17 +383,11 @@ impl WebServer {
         let ckey = cache_key("extract", &url, &cache_params, &fingerprint);
 
         if let Some(cached) = self.cache.get(&ckey).await {
-            return McpToolOutput::with_timing(cached, start).to_json_string();
+            return span.ok(McpToolOutput::new(cached).to_json_string());
         }
 
         match self.pool.extract(&url, &opts, None).await {
             Ok(result) => {
-                emit_tool_span(
-                    "web_extract",
-                    "ok",
-                    start.elapsed().as_millis() as u64,
-                    None,
-                );
                 let output = ExtractOutput {
                     url: result.url,
                     format: result.format,
@@ -405,17 +397,9 @@ impl WebServer {
                 let json = serde_json::to_value(&output)
                     .unwrap_or_else(|_| serde_json::json!({ "error": "serialization failed" }));
                 self.cache.insert(ckey, json.clone()).await;
-                McpToolOutput::with_timing(json, start).to_json_string()
+                span.ok(McpToolOutput::new(json).to_json_string())
             }
-            Err(e) => {
-                emit_tool_span(
-                    "web_extract",
-                    "error",
-                    start.elapsed().as_millis() as u64,
-                    Some(&e.kind()),
-                );
-                McpToolError::from(e).to_json_string()
-            }
+            Err(e) => span.error(e.kind(), McpToolError::from(e).to_json_string()),
         }
     }
 
@@ -428,32 +412,38 @@ impl WebServer {
             timeout_secs,
         }): Parameters<BrowseRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("web_browse", &self.webid);
 
         if let Err(e) = self.rate_limiter.check("web_browse") {
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
 
         // Task 5: Input validation bounds
         if url.len() > MAX_URL_LENGTH {
-            return McpToolError::invalid_argument(format!(
-                "url exceeds maximum length of {} characters",
-                MAX_URL_LENGTH
-            ))
-            .to_json_string();
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(format!(
+                    "url exceeds maximum length of {} characters",
+                    MAX_URL_LENGTH
+                ))
+                .to_json_string(),
+            );
         }
         if let Some(ref instr) = instruction
             && instr.len() > MAX_INSTRUCTION_LENGTH
         {
-            return McpToolError::invalid_argument(format!(
-                "instruction exceeds maximum length of {} characters",
-                MAX_INSTRUCTION_LENGTH
-            ))
-            .to_json_string();
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(format!(
+                    "instruction exceeds maximum length of {} characters",
+                    MAX_INSTRUCTION_LENGTH
+                ))
+                .to_json_string(),
+            );
         }
 
         if let Err(e) = validate_tool_url(&url) {
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
 
         let instr = instruction.unwrap_or_else(|| "Extract page content".to_string());
@@ -462,29 +452,19 @@ impl WebServer {
         // Task 13: CapabilityContext passed as None for now
         match self.pool.browse(&url, &instr, timeout, None).await {
             Ok(result) => {
-                emit_tool_span("web_browse", "ok", start.elapsed().as_millis() as u64, None);
                 let output = BrowseOutput {
                     url: result.url,
                     content: result.content,
                     instruction: result.instruction,
                     actions_taken: result.actions_taken,
                 };
-                McpToolOutput::with_timing(
+                span.ok(McpToolOutput::new(
                     serde_json::to_value(&output)
                         .unwrap_or_else(|_| serde_json::json!({ "error": "serialization failed" })),
-                    start,
                 )
-                .to_json_string()
+                .to_json_string())
             }
-            Err(e) => {
-                emit_tool_span(
-                    "web_browse",
-                    "error",
-                    start.elapsed().as_millis() as u64,
-                    Some(&e.kind()),
-                );
-                McpToolError::from(e).to_json_string()
-            }
+            Err(e) => span.error(e.kind(), McpToolError::from(e).to_json_string()),
         }
     }
 }

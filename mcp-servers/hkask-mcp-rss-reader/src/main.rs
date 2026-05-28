@@ -13,16 +13,15 @@
 use base64::Engine;
 use chrono::Utc;
 use hkask_mcp::server::{
-    McpToolError, McpToolOutput, ServerContext, emit_tool_span, run_stdio_server, validate_tool_url,
+    McpToolError, McpToolOutput, ServerContext, ToolSpanGuard, run_stdio_server, validate_tool_url,
 };
-use hkask_types::WebID;
+use hkask_types::{McpErrorKind, WebID};
 use reqwest::Client;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use rusqlite::Connection;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use std::time::Instant;
 
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 const DEFAULT_PAGE_SIZE: usize = 20;
@@ -913,14 +912,17 @@ impl RssServer {
         &self,
         Parameters(SubscribeRequest { url, label, folder }): Parameters<SubscribeRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("rss_subscribe", &self.webid);
         if let Err(e) = validate_tool_url(&url) {
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
         let fetch_result = match fetch_feed(&self.client, &url, None, None).await {
             Ok(r) => r,
             Err(e) => {
-                return McpToolError::unavailable(format!("Fetch failed: {}", e)).to_json_string();
+                return span.error(
+                    McpErrorKind::Unavailable,
+                    McpToolError::unavailable(format!("Fetch failed: {}", e)).to_json_string(),
+                );
             }
         };
 
@@ -975,25 +977,15 @@ impl RssServer {
         }).await;
 
         match result {
-            Ok(Ok(v)) => {
-                emit_tool_span(
-                    "rss_subscribe",
-                    "ok",
-                    start.elapsed().as_millis() as u64,
-                    None,
-                );
-                McpToolOutput::with_timing(v, start).to_json_string()
-            }
-            Ok(Err(e)) => {
-                emit_tool_span(
-                    "rss_subscribe",
-                    "error",
-                    start.elapsed().as_millis() as u64,
-                    None,
-                );
-                McpToolError::internal(e.to_string()).to_json_string()
-            }
-            Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
+            Ok(Ok(v)) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Ok(Err(e)) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(e.to_string()).to_json_string(),
+            ),
+            Err(e) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
+            ),
         }
     }
 
@@ -1002,7 +994,7 @@ impl RssServer {
         &self,
         Parameters(UnsubscribeRequest { stream_id }): Parameters<UnsubscribeRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("rss_unsubscribe", &self.webid);
         let db = self.db.clone();
         let sid = stream_id.clone();
         let result = spawn_db(db, move |conn| {
@@ -1012,22 +1004,20 @@ impl RssServer {
         .await;
 
         match result {
-            Ok(Ok(removed)) => {
-                emit_tool_span(
-                    "rss_unsubscribe",
-                    "ok",
-                    start.elapsed().as_millis() as u64,
-                    None,
-                );
-                McpToolOutput::new(serde_json::json!({
-                    "stream_id": stream_id,
-                    "unsubscribed": removed > 0,
-                    "removed": removed,
-                }))
-                .to_json_string()
-            }
-            Ok(Err(e)) => McpToolError::internal(e.to_string()).to_json_string(),
-            Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
+            Ok(Ok(removed)) => span.ok(McpToolOutput::new(serde_json::json!({
+                "stream_id": stream_id,
+                "unsubscribed": removed > 0,
+                "removed": removed,
+            }))
+            .to_json_string()),
+            Ok(Err(e)) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(e.to_string()).to_json_string(),
+            ),
+            Err(e) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
+            ),
         }
     }
 
@@ -1036,17 +1026,24 @@ impl RssServer {
         &self,
         Parameters(ListSubscriptionsRequest { folder }): Parameters<ListSubscriptionsRequest>,
     ) -> String {
+        let span = ToolSpanGuard::new("rss_list_subscriptions", &self.webid);
         let db = self.db.clone();
         let result = spawn_db(db, move |conn| list_subscriptions(conn, folder.as_deref())).await;
 
         match result {
-            Ok(Ok(subs)) => McpToolOutput::new(serde_json::json!({
+            Ok(Ok(subs)) => span.ok(McpToolOutput::new(serde_json::json!({
                 "count": subs.len(),
                 "subscriptions": subs,
             }))
-            .to_json_string(),
-            Ok(Err(e)) => McpToolError::internal(e.to_string()).to_json_string(),
-            Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
+            .to_json_string()),
+            Ok(Err(e)) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(e.to_string()).to_json_string(),
+            ),
+            Err(e) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
+            ),
         }
     }
 
@@ -1055,7 +1052,7 @@ impl RssServer {
         &self,
         Parameters(FetchRequest { stream_id }): Parameters<FetchRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("rss_fetch", &self.webid);
         let db1 = self.db.clone();
         let sid1 = stream_id.clone();
         let lookup = tokio::task::spawn_blocking(move || {
@@ -1080,8 +1077,18 @@ impl RssServer {
 
         let (feed_url, cached_etag, cached_lm) = match lookup {
             Ok(Ok(v)) => v,
-            Ok(Err(e)) => return McpToolError::not_found(e.to_string()).to_json_string(),
-            Err(e) => return McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
+            Ok(Err(e)) => {
+                return span.error(
+                    McpErrorKind::NotFound,
+                    McpToolError::not_found(e.to_string()).to_json_string(),
+                );
+            }
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
+                );
+            }
         };
 
         let fetch_result = match fetch_feed(
@@ -1094,21 +1101,21 @@ impl RssServer {
         {
             Ok(r) => r,
             Err(e) => {
-                return McpToolError::unavailable(format!("Fetch failed: {}", e)).to_json_string();
+                return span.error(
+                    McpErrorKind::Unavailable,
+                    McpToolError::unavailable(format!("Fetch failed: {}", e)).to_json_string(),
+                );
             }
         };
 
         if fetch_result.status == 304 {
-            return McpToolOutput::with_timing(
-                serde_json::json!({
-                    "stream_id": stream_id,
-                    "new_entries": 0,
-                    "fetched": true,
-                    "not_modified": true,
-                }),
-                start,
-            )
-            .to_json_string();
+            return span.ok(McpToolOutput::new(serde_json::json!({
+                "stream_id": stream_id,
+                "new_entries": 0,
+                "fetched": true,
+                "not_modified": true,
+            }))
+            .to_json_string());
         }
 
         let db2 = self.db.clone();
@@ -1125,17 +1132,20 @@ impl RssServer {
         .await;
 
         match result {
-            Ok(Ok(new_count)) => McpToolOutput::with_timing(
-                serde_json::json!({
-                    "stream_id": sid2,
-                    "new_entries": new_count,
-                    "fetched": true,
-                }),
-                start,
-            )
-            .to_json_string(),
-            Ok(Err(e)) => McpToolError::internal(e.to_string()).to_json_string(),
-            Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
+            Ok(Ok(new_count)) => span.ok(McpToolOutput::new(serde_json::json!({
+                "stream_id": sid2,
+                "new_entries": new_count,
+                "fetched": true,
+            }))
+            .to_json_string()),
+            Ok(Err(e)) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(e.to_string()).to_json_string(),
+            ),
+            Err(e) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
+            ),
         }
     }
 
@@ -1152,6 +1162,7 @@ impl RssServer {
             continuation_token,
         }): Parameters<GetEntriesRequest>,
     ) -> String {
+        let span = ToolSpanGuard::new("rss_get_entries", &self.webid);
         let limit = (count.unwrap_or(DEFAULT_PAGE_SIZE as u32) as usize).min(MAX_PAGE_SIZE);
         let offset = continuation_token
             .as_ref()
@@ -1194,16 +1205,22 @@ impl RssServer {
                 } else {
                     None
                 };
-                McpToolOutput::new(serde_json::json!({
+                span.ok(McpToolOutput::new(serde_json::json!({
                     "stream_id": stream_id,
                     "entries": entries,
                     "count": entries.len(),
                     "continuation_token": next_token,
                 }))
-                .to_json_string()
+                .to_json_string())
             }
-            Ok(Err(e)) => McpToolError::internal(e.to_string()).to_json_string(),
-            Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
+            Ok(Err(e)) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(e.to_string()).to_json_string(),
+            ),
+            Err(e) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
+            ),
         }
     }
 
@@ -1212,18 +1229,25 @@ impl RssServer {
         &self,
         Parameters(MarkReadRequest { stream_id }): Parameters<MarkReadRequest>,
     ) -> String {
+        let span = ToolSpanGuard::new("rss_mark_all_read", &self.webid);
         let db = self.db.clone();
         let sid = stream_id.clone();
         let result = spawn_db(db, move |conn| mark_stream_read(conn, &sid)).await;
 
         match result {
-            Ok(Ok(marked)) => McpToolOutput::new(serde_json::json!({
+            Ok(Ok(marked)) => span.ok(McpToolOutput::new(serde_json::json!({
                 "stream_id": stream_id,
                 "marked_read": marked,
             }))
-            .to_json_string(),
-            Ok(Err(e)) => McpToolError::internal(e.to_string()).to_json_string(),
-            Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
+            .to_json_string()),
+            Ok(Err(e)) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(e.to_string()).to_json_string(),
+            ),
+            Err(e) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
+            ),
         }
     }
 
@@ -1232,18 +1256,25 @@ impl RssServer {
         &self,
         Parameters(UnreadCountRequest { stream_id }): Parameters<UnreadCountRequest>,
     ) -> String {
+        let span = ToolSpanGuard::new("rss_get_unread_count", &self.webid);
         let db = self.db.clone();
         let sid = stream_id.clone();
         let result = spawn_db(db, move |conn| count_entries(conn, &sid, true)).await;
 
         match result {
-            Ok(Ok(count)) => McpToolOutput::new(serde_json::json!({
+            Ok(Ok(count)) => span.ok(McpToolOutput::new(serde_json::json!({
                 "stream_id": stream_id,
                 "unread_count": count,
             }))
-            .to_json_string(),
-            Ok(Err(e)) => McpToolError::internal(e.to_string()).to_json_string(),
-            Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
+            .to_json_string()),
+            Ok(Err(e)) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(e.to_string()).to_json_string(),
+            ),
+            Err(e) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
+            ),
         }
     }
 
@@ -1252,32 +1283,48 @@ impl RssServer {
         &self,
         Parameters(SearchRequest { query, limit }): Parameters<SearchRequest>,
     ) -> String {
+        let span = ToolSpanGuard::new("rss_search", &self.webid);
         let limit = (limit.unwrap_or(10) as usize).min(MAX_PAGE_SIZE);
         let db = self.db.clone();
         let q = query.clone();
         let result = spawn_db(db, move |conn| search_entries(conn, &q, limit)).await;
 
         match result {
-            Ok(Ok(results)) => McpToolOutput::new(serde_json::json!({
+            Ok(Ok(results)) => span.ok(McpToolOutput::new(serde_json::json!({
                 "query": query,
                 "results": results,
                 "count": results.len(),
             }))
-            .to_json_string(),
-            Ok(Err(e)) => McpToolError::internal(e.to_string()).to_json_string(),
-            Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
+            .to_json_string()),
+            Ok(Err(e)) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(e.to_string()).to_json_string(),
+            ),
+            Err(e) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
+            ),
         }
     }
 
     #[tool(description = "Export subscriptions as OPML 2.0")]
     async fn rss_export_opml(&self) -> String {
+        let span = ToolSpanGuard::new("rss_export_opml", &self.webid);
         let db = self.db.clone();
         let result = spawn_db(db, export_opml).await;
 
         match result {
-            Ok(Ok(opml)) => McpToolOutput::new(serde_json::json!({"opml": opml})).to_json_string(),
-            Ok(Err(e)) => McpToolError::internal(e.to_string()).to_json_string(),
-            Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
+            Ok(Ok(opml)) => {
+                span.ok(McpToolOutput::new(serde_json::json!({"opml": opml})).to_json_string())
+            }
+            Ok(Err(e)) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(e.to_string()).to_json_string(),
+            ),
+            Err(e) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
+            ),
         }
     }
 
@@ -1286,13 +1333,20 @@ impl RssServer {
         &self,
         Parameters(ImportOpmlRequest { opml_content }): Parameters<ImportOpmlRequest>,
     ) -> String {
+        let span = ToolSpanGuard::new("rss_import_opml", &self.webid);
         let db = self.db.clone();
         let result = spawn_db(db, move |conn| import_opml(conn, &opml_content)).await;
 
         match result {
-            Ok(Ok(v)) => McpToolOutput::new(v).to_json_string(),
-            Ok(Err(e)) => McpToolError::internal(e.to_string()).to_json_string(),
-            Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
+            Ok(Ok(v)) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Ok(Err(e)) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(e.to_string()).to_json_string(),
+            ),
+            Err(e) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
+            ),
         }
     }
 
@@ -1301,17 +1355,21 @@ impl RssServer {
         &self,
         Parameters(DiscoverRequest { url }): Parameters<DiscoverRequest>,
     ) -> String {
+        let span = ToolSpanGuard::new("rss_discover_feeds", &self.webid);
         if let Err(e) = validate_tool_url(&url) {
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
         match discover_feeds(&self.client, &url).await {
-            Ok(feeds) => McpToolOutput::new(serde_json::json!({
+            Ok(feeds) => span.ok(McpToolOutput::new(serde_json::json!({
                 "url": url,
                 "feeds": feeds,
                 "count": feeds.len(),
             }))
-            .to_json_string(),
-            Err(e) => McpToolError::unavailable(e.to_string()).to_json_string(),
+            .to_json_string()),
+            Err(e) => span.error(
+                McpErrorKind::Unavailable,
+                McpToolError::unavailable(e.to_string()).to_json_string(),
+            ),
         }
     }
 
@@ -1319,13 +1377,20 @@ impl RssServer {
         description = "Edit tags on entries: mark read/unread, star/unstar, add/remove labels (Google Reader edit-tag)"
     )]
     async fn rss_edit_tag(&self, Parameters(req): Parameters<EditTagRequest>) -> String {
+        let span = ToolSpanGuard::new("rss_edit_tag", &self.webid);
         let db = self.db.clone();
         let result = spawn_db(db, move |conn| edit_tags(conn, &req)).await;
 
         match result {
-            Ok(Ok(v)) => McpToolOutput::new(v).to_json_string(),
-            Ok(Err(e)) => McpToolError::internal(e.to_string()).to_json_string(),
-            Err(e) => McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
+            Ok(Ok(v)) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Ok(Err(e)) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(e.to_string()).to_json_string(),
+            ),
+            Err(e) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
+            ),
         }
     }
 }

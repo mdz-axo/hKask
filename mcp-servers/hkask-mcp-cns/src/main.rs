@@ -13,7 +13,7 @@ use hkask_mcp::server::{
     CredentialRequirement, McpToolOutput, ServerContext, ToolSpanGuard, run_stdio_server,
     validate_identifier,
 };
-use hkask_types::{McpErrorKind, Span, WebID};
+use hkask_types::{Span, WebID};
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
 use schemars::JsonSchema;

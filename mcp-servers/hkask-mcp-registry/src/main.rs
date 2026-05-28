@@ -1,17 +1,17 @@
 //! hKask MCP Registry — Template registry with real registry operations
 
 use hkask_mcp::server::{
-    CredentialRequirement, McpToolError, McpToolOutput, ServerContext, emit_tool_span,
+    CredentialRequirement, McpToolError, McpToolOutput, ServerContext, ToolSpanGuard,
     run_stdio_server, validate_identifier,
 };
 use hkask_templates::{Registry, RegistryIndex, SqliteRegistry};
-use hkask_types::{TemplateType, WebID};
+use hkask_types::{McpErrorKind, TemplateType, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::json;
 use std::sync::Arc;
-use std::time::Instant;
+
 use tokio::sync::RwLock;
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -104,27 +104,23 @@ impl RegistryServer {
             template_type,
         }): Parameters<IndexRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("registry:index", &self.webid);
 
         if let Err(e) = validate_identifier("root_path", &root_path, 512) {
-            let duration_ms = start.elapsed().as_millis() as u64;
-            emit_tool_span("registry:index", "error", duration_ms, Some(&e.kind));
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
 
         let type_filter = Self::parse_template_type(&template_type);
         let registry = self.registry.read().await;
         let entries = registry.list(type_filter);
 
-        let output = McpToolOutput::new(json!({
+        span.ok(McpToolOutput::new(json!({
             "root": root_path,
             "template_type": template_type.unwrap_or_else(|| "all".to_string()),
             "templates_found": entries.len(),
             "indexed": true,
-        }));
-        let duration_ms = start.elapsed().as_millis() as u64;
-        emit_tool_span("registry:index", "ok", duration_ms, None);
-        output.to_json_string()
+        }))
+        .to_json_string())
     }
 
     #[tool(description = "Discover templates by type and domain via real registry search")]
@@ -136,7 +132,7 @@ impl RegistryServer {
             limit,
         }): Parameters<DiscoverRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("registry:discover", &self.webid);
 
         let type_filter = Self::parse_template_type(&template_type);
         let limit = limit.unwrap_or(10) as usize;
@@ -167,15 +163,13 @@ impl RegistryServer {
             })
             .collect();
 
-        let output = McpToolOutput::new(json!({
+        span.ok(McpToolOutput::new(json!({
             "template_type": template_type.unwrap_or_else(|| "all".to_string()),
             "domain": domain_hint.unwrap_or_else(|| "any".to_string()),
             "limit": limit,
             "templates": truncated,
-        }));
-        let duration_ms = start.elapsed().as_millis() as u64;
-        emit_tool_span("registry:discover", "ok", duration_ms, None);
-        output.to_json_string()
+        }))
+        .to_json_string())
     }
 
     #[tool(description = "Validate a template via real registry lookup")]
@@ -183,12 +177,10 @@ impl RegistryServer {
         &self,
         Parameters(ValidateRequest { template_id }): Parameters<ValidateRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("registry:validate", &self.webid);
 
         if let Err(e) = validate_identifier("template_id", &template_id, 256) {
-            let duration_ms = start.elapsed().as_millis() as u64;
-            emit_tool_span("registry:validate", "error", duration_ms, Some(&e.kind));
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
 
         let registry = self.registry.read().await;
@@ -200,24 +192,18 @@ impl RegistryServer {
         }
 
         match registry.get(&template_id) {
-            Some(entry) => {
-                let output = McpToolOutput::new(json!({
-                    "template_id": template_id,
-                    "valid": errors.is_empty(),
-                    "errors": errors,
-                    "template_type": entry.template_type.as_str(),
-                    "description": entry.description,
-                }));
-                let duration_ms = start.elapsed().as_millis() as u64;
-                emit_tool_span("registry:validate", "ok", duration_ms, None);
-                output.to_json_string()
-            }
+            Some(entry) => span.ok(McpToolOutput::new(json!({
+                "template_id": template_id,
+                "valid": errors.is_empty(),
+                "errors": errors,
+                "template_type": entry.template_type.as_str(),
+                "description": entry.description,
+            }))
+            .to_json_string()),
             None => {
                 errors.push(format!("Template '{}' not found in registry", template_id));
                 let err = McpToolError::not_found(errors.join("; "));
-                let duration_ms = start.elapsed().as_millis() as u64;
-                emit_tool_span("registry:validate", "error", duration_ms, Some(&err.kind));
-                err.to_json_string()
+                span.error(err.kind, err.to_json_string())
             }
         }
     }
@@ -227,24 +213,20 @@ impl RegistryServer {
         &self,
         Parameters(ReloadRequest { path }): Parameters<ReloadRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("registry:reload", &self.webid);
 
         if let Err(e) = validate_identifier("path", &path, 512) {
-            let duration_ms = start.elapsed().as_millis() as u64;
-            emit_tool_span("registry:reload", "error", duration_ms, Some(&e.kind));
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
 
         let mut registry = self.registry.write().await;
         registry.reload();
-        let output = McpToolOutput::new(json!({
+        span.ok(McpToolOutput::new(json!({
             "path": path,
             "reloaded": true,
             "templates_loaded": registry.count(),
-        }));
-        let duration_ms = start.elapsed().as_millis() as u64;
-        emit_tool_span("registry:reload", "ok", duration_ms, None);
-        output.to_json_string()
+        }))
+        .to_json_string())
     }
 
     #[tool(description = "Compose templates with cascade")]
@@ -255,12 +237,10 @@ impl RegistryServer {
             cascade_template_ids,
         }): Parameters<ComposeRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("registry:compose", &self.webid);
 
         if let Err(e) = validate_identifier("template_id", &root_template_id, 256) {
-            let duration_ms = start.elapsed().as_millis() as u64;
-            emit_tool_span("registry:compose", "error", duration_ms, Some(&e.kind));
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
 
         let registry = self.registry.read().await;
@@ -275,15 +255,13 @@ impl RegistryServer {
             })
             .collect();
 
-        let output = McpToolOutput::new(json!({
+        span.ok(McpToolOutput::new(json!({
             "root": root_template_id,
             "root_found": root_found,
             "cascade": cascade_results,
             "composed": root_found,
-        }));
-        let duration_ms = start.elapsed().as_millis() as u64;
-        emit_tool_span("registry:compose", "ok", duration_ms, None);
-        output.to_json_string()
+        }))
+        .to_json_string())
     }
 
     #[tool(description = "Get a template by ID via real registry lookup")]
@@ -291,12 +269,10 @@ impl RegistryServer {
         &self,
         Parameters(GetRequest { template_id }): Parameters<GetRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("registry:get", &self.webid);
 
         if let Err(e) = validate_identifier("template_id", &template_id, 256) {
-            let duration_ms = start.elapsed().as_millis() as u64;
-            emit_tool_span("registry:get", "error", duration_ms, Some(&e.kind));
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
 
         let registry = self.registry.read().await;
@@ -304,25 +280,21 @@ impl RegistryServer {
         match registry.get(&template_id) {
             Some(entry) => {
                 let re = entry.as_registry_entry();
-                let output = McpToolOutput::new(json!({
+                span.ok(McpToolOutput::new(json!({
                     "template_id": re.id,
                     "template_type": re.template_type.as_str(),
                     "description": re.description,
                     "source_path": re.source_path,
                     "lexicon_terms": re.lexicon_terms,
-                }));
-                let duration_ms = start.elapsed().as_millis() as u64;
-                emit_tool_span("registry:get", "ok", duration_ms, None);
-                output.to_json_string()
+                }))
+                .to_json_string())
             }
             None => {
                 let err = McpToolError::not_found(format!(
                     "Template '{}' not found in registry",
                     template_id
                 ));
-                let duration_ms = start.elapsed().as_millis() as u64;
-                emit_tool_span("registry:get", "error", duration_ms, Some(&err.kind));
-                err.to_json_string()
+                span.error(err.kind, err.to_json_string())
             }
         }
     }

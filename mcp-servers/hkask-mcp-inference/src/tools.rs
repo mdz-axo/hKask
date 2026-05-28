@@ -5,9 +5,9 @@
 //! - `inference:metrics` — Get current inference metrics
 //! - `inference:models` — List available model tiers
 
-use hkask_mcp::server::{McpToolError, McpToolOutput, emit_tool_span, validate_identifier};
+use hkask_mcp::server::{McpToolError, McpToolOutput, ToolSpanGuard, validate_identifier};
 use hkask_templates::{InferencePort, OkapiConfig, OkapiInference};
-use hkask_types::{LLMParameters, WebID};
+use hkask_types::{LLMParameters, McpErrorKind, WebID};
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
 use schemars::JsonSchema;
@@ -180,26 +180,14 @@ impl InferenceServer {
             caller_id,
         }): Parameters<GenerateRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("inference:generate", &self.webid);
 
         // Validate identifiers
         if let Err(e) = validate_identifier("model", &model, 128) {
-            emit_tool_span(
-                "inference:generate",
-                "error",
-                start.elapsed().as_millis() as u64,
-                Some(&hkask_types::McpErrorKind::InvalidArgument),
-            );
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
         if let Err(e) = validate_identifier("caller_id", &caller_id, 128) {
-            emit_tool_span(
-                "inference:generate",
-                "error",
-                start.elapsed().as_millis() as u64,
-                Some(&hkask_types::McpErrorKind::InvalidArgument),
-            );
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
 
         self.metrics.total_requests.fetch_add(1, Ordering::Relaxed);
@@ -213,17 +201,14 @@ impl InferenceServer {
                 caller_id = %caller_id,
                 "Rate limit exceeded"
             );
-            emit_tool_span(
-                "inference:generate",
-                "rate_limited",
-                start.elapsed().as_millis() as u64,
-                Some(&hkask_types::McpErrorKind::RateLimited),
+            return span.error(
+                McpErrorKind::RateLimited,
+                McpToolError::rate_limited(format!(
+                    "Rate limit exceeded for caller: {}",
+                    caller_id
+                ))
+                .to_json_string(),
             );
-            return McpToolError::rate_limited(format!(
-                "Rate limit exceeded for caller: {}",
-                caller_id
-            ))
-            .to_json_string();
         }
 
         info!(
@@ -266,32 +251,23 @@ impl InferenceServer {
                         Ok(r) => r,
                         Err(fallback_err) => {
                             self.metrics.total_errors.fetch_add(1, Ordering::Relaxed);
-                            emit_tool_span(
-                                "inference:generate",
-                                "error",
-                                start.elapsed().as_millis() as u64,
-                                Some(&hkask_types::McpErrorKind::Unavailable),
+                            return span.error(
+                                McpErrorKind::Unavailable,
+                                McpToolError::unavailable(format!(
+                                    "All models failed. Primary: {}, Fallback: {}",
+                                    primary_err, fallback_err
+                                ))
+                                .to_json_string(),
                             );
-                            return McpToolError::unavailable(format!(
-                                "All models failed. Primary: {}, Fallback: {}",
-                                primary_err, fallback_err
-                            ))
-                            .to_json_string();
                         }
                     }
                 } else {
                     self.metrics.total_errors.fetch_add(1, Ordering::Relaxed);
-                    emit_tool_span(
-                        "inference:generate",
-                        "error",
-                        start.elapsed().as_millis() as u64,
-                        Some(&hkask_types::McpErrorKind::Unavailable),
+                    return span.error(
+                        McpErrorKind::Unavailable,
+                        McpToolError::unavailable(format!("Generation failed: {}", primary_err))
+                            .to_json_string(),
                     );
-                    return McpToolError::unavailable(format!(
-                        "Generation failed: {}",
-                        primary_err
-                    ))
-                    .to_json_string();
                 }
             }
         };
@@ -305,27 +281,17 @@ impl InferenceServer {
             models.push(result.model.clone());
         }
 
-        emit_tool_span(
-            "inference:generate",
-            "ok",
-            start.elapsed().as_millis() as u64,
-            None,
-        );
-
-        McpToolOutput::with_timing(
-            serde_json::json!({
-                "text": result.text,
-                "model": result.model,
-                "usage": {
-                    "prompt_tokens": result.usage.prompt_tokens,
-                    "completion_tokens": result.usage.completion_tokens,
-                    "total_tokens": result.usage.total_tokens,
-                },
-                "finish_reason": result.finish_reason,
-            }),
-            start,
-        )
-        .to_json_string()
+        span.ok(McpToolOutput::new(serde_json::json!({
+            "text": result.text,
+            "model": result.model,
+            "usage": {
+                "prompt_tokens": result.usage.prompt_tokens,
+                "completion_tokens": result.usage.completion_tokens,
+                "total_tokens": result.usage.total_tokens,
+            },
+            "finish_reason": result.finish_reason,
+        }))
+        .to_json_string())
     }
 
     #[tool(
@@ -335,7 +301,7 @@ impl InferenceServer {
         &self,
         Parameters(MetricsRequest { reset }): Parameters<MetricsRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("inference:metrics", &self.webid);
 
         let load_or_swap = |counter: &AtomicU64| -> u64 {
             if reset {
@@ -351,25 +317,15 @@ impl InferenceServer {
         let total_failovers = load_or_swap(&self.metrics.total_failovers);
         let total_rate_limited = load_or_swap(&self.metrics.total_rate_limited);
 
-        emit_tool_span(
-            "inference:metrics",
-            "ok",
-            start.elapsed().as_millis() as u64,
-            None,
-        );
-
-        McpToolOutput::with_timing(
-            serde_json::json!({
-                "total_requests": total_requests,
-                "total_tokens_generated": total_tokens,
-                "total_errors": total_errors,
-                "total_failovers": total_failovers,
-                "total_rate_limited": total_rate_limited,
-                "reset": reset,
-            }),
-            start,
-        )
-        .to_json_string()
+        span.ok(McpToolOutput::new(serde_json::json!({
+            "total_requests": total_requests,
+            "total_tokens_generated": total_tokens,
+            "total_errors": total_errors,
+            "total_failovers": total_failovers,
+            "total_rate_limited": total_rate_limited,
+            "reset": reset,
+        }))
+        .to_json_string())
     }
 
     #[tool(description = "List available model tiers and their configurations.")]
@@ -377,7 +333,7 @@ impl InferenceServer {
         &self,
         Parameters(ModelsRequest { filter }): Parameters<ModelsRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("inference:models", &self.webid);
 
         let models = self.active_models.read().await;
         let filtered: Vec<&String> = if filter.is_empty() {
@@ -406,21 +362,11 @@ impl InferenceServer {
             })
             .collect();
 
-        emit_tool_span(
-            "inference:models",
-            "ok",
-            start.elapsed().as_millis() as u64,
-            None,
-        );
-
-        McpToolOutput::with_timing(
-            serde_json::json!({
-                "models": model_entries,
-                "count": model_entries.len(),
-            }),
-            start,
-        )
-        .to_json_string()
+        span.ok(McpToolOutput::new(serde_json::json!({
+            "models": model_entries,
+            "count": model_entries.len(),
+        }))
+        .to_json_string())
     }
 }
 

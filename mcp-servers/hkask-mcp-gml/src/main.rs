@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use ed25519_dalek::{Signature, SignatureError, SigningKey, VerifyingKey};
 use hkask_cns::spans::SpanEmitter;
 use hkask_mcp::server::{
-    McpToolError, McpToolOutput, ServerContext, emit_tool_span, run_stdio_server,
+    McpToolError, McpToolOutput, ServerContext, ToolSpanGuard, run_stdio_server,
     validate_identifier,
 };
 use hkask_types::{McpErrorKind, WebID};
@@ -14,7 +14,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
-use std::time::Instant;
 use thiserror::Error;
 use tokio::sync::RwLock;
 
@@ -473,7 +472,7 @@ impl GmlServer {
             capability,
         }): Parameters<ComputeEquilibriumRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("gml_compute_equilibrium", &self.webid);
 
         self.cns_emitter.emit_prompt(
             "compute_equilibrium.start",
@@ -502,18 +501,14 @@ impl GmlServer {
                                 "error": result.error
                             }),
                         );
-                        let duration = start.elapsed().as_millis() as u64;
-                        emit_tool_span(
-                            "gml_compute_equilibrium",
-                            "error",
-                            duration,
-                            Some(&McpErrorKind::PermissionDenied),
+                        return span.error(
+                            McpErrorKind::PermissionDenied,
+                            McpToolError::permission_denied(format!(
+                                "Capability denied: {}",
+                                result.error.unwrap_or_default()
+                            ))
+                            .to_json_string(),
                         );
-                        return McpToolError::permission_denied(format!(
-                            "Capability denied: {}",
-                            result.error.unwrap_or_default()
-                        ))
-                        .to_json_string();
                     }
                     Err(e) => {
                         self.cns_emitter.emit_prompt(
@@ -523,18 +518,14 @@ impl GmlServer {
                                 "error": e.to_string()
                             }),
                         );
-                        let duration = start.elapsed().as_millis() as u64;
-                        emit_tool_span(
-                            "gml_compute_equilibrium",
-                            "error",
-                            duration,
-                            Some(&McpErrorKind::Internal),
+                        return span.error(
+                            McpErrorKind::Internal,
+                            McpToolError::internal(format!(
+                                "Capability verification failed: {}",
+                                e
+                            ))
+                            .to_json_string(),
                         );
-                        return McpToolError::internal(format!(
-                            "Capability verification failed: {}",
-                            e
-                        ))
-                        .to_json_string();
                     }
                     _ => {}
                 }
@@ -561,16 +552,14 @@ impl GmlServer {
                         "delta_g": delta_g
                     }),
                 );
-                let duration = start.elapsed().as_millis() as u64;
-                emit_tool_span("gml_compute_equilibrium", "success", duration, None);
-                McpToolOutput::new(json!({
+                span.ok(McpToolOutput::new(json!({
                     "success": true,
                     "r_bar": r_bar,
                     "n_h": n_h,
                     "alpha": alpha,
                     "delta_g": delta_g
                 }))
-                .to_json_string()
+                .to_json_string())
             }
             Err(e) => {
                 self.cns_emitter.emit_prompt(
@@ -580,14 +569,10 @@ impl GmlServer {
                         "error": e.to_string()
                     }),
                 );
-                let duration = start.elapsed().as_millis() as u64;
-                emit_tool_span(
-                    "gml_compute_equilibrium",
-                    "error",
-                    duration,
-                    Some(&McpErrorKind::InvalidArgument),
-                );
-                McpToolError::invalid_argument(e.to_string()).to_json_string()
+                span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(e.to_string()).to_json_string(),
+                )
             }
         }
     }
@@ -602,7 +587,7 @@ impl GmlServer {
             capability,
         }): Parameters<BindEffectorRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("gml_bind_effector", &self.webid);
 
         self.cns_emitter.emit_prompt(
             "bind_effector.start",
@@ -632,18 +617,14 @@ impl GmlServer {
                                 "error": result.error
                             }),
                         );
-                        let duration = start.elapsed().as_millis() as u64;
-                        emit_tool_span(
-                            "gml_bind_effector",
-                            "error",
-                            duration,
-                            Some(&McpErrorKind::PermissionDenied),
+                        return span.error(
+                            McpErrorKind::PermissionDenied,
+                            McpToolError::permission_denied(format!(
+                                "Capability denied: {}",
+                                result.error.unwrap_or_default()
+                            ))
+                            .to_json_string(),
                         );
-                        return McpToolError::permission_denied(format!(
-                            "Capability denied: {}",
-                            result.error.unwrap_or_default()
-                        ))
-                        .to_json_string();
                     }
                     Err(e) => {
                         self.cns_emitter.emit_prompt(
@@ -653,18 +634,14 @@ impl GmlServer {
                                 "error": e.to_string()
                             }),
                         );
-                        let duration = start.elapsed().as_millis() as u64;
-                        emit_tool_span(
-                            "gml_bind_effector",
-                            "error",
-                            duration,
-                            Some(&McpErrorKind::Internal),
+                        return span.error(
+                            McpErrorKind::Internal,
+                            McpToolError::internal(format!(
+                                "Capability verification failed: {}",
+                                e
+                            ))
+                            .to_json_string(),
                         );
-                        return McpToolError::internal(format!(
-                            "Capability verification failed: {}",
-                            e
-                        ))
-                        .to_json_string();
                     }
                     _ => {}
                 }
@@ -680,19 +657,15 @@ impl GmlServer {
                                 "budget": token.effector_budget.unwrap()
                             }),
                         );
-                        let duration = start.elapsed().as_millis() as u64;
-                        emit_tool_span(
-                            "gml_bind_effector",
-                            "error",
-                            duration,
-                            Some(&McpErrorKind::PermissionDenied),
+                        return span.error(
+                            McpErrorKind::PermissionDenied,
+                            McpToolError::permission_denied(format!(
+                                "Effector budget exceeded: concentration {} exceeds budget {}",
+                                effector.concentration,
+                                token.effector_budget.unwrap()
+                            ))
+                            .to_json_string(),
                         );
-                        return McpToolError::permission_denied(format!(
-                            "Effector budget exceeded: concentration {} exceeds budget {}",
-                            effector.concentration,
-                            token.effector_budget.unwrap()
-                        ))
-                        .to_json_string();
                     }
                     Err(e) => {
                         self.cns_emitter.emit_prompt(
@@ -702,14 +675,10 @@ impl GmlServer {
                                 "error": e.to_string()
                             }),
                         );
-                        let duration = start.elapsed().as_millis() as u64;
-                        emit_tool_span(
-                            "gml_bind_effector",
-                            "error",
-                            duration,
-                            Some(&McpErrorKind::Internal),
+                        return span.error(
+                            McpErrorKind::Internal,
+                            McpToolError::internal(e.to_string()).to_json_string(),
                         );
-                        return McpToolError::internal(e.to_string()).to_json_string();
                     }
                 }
             } else {
@@ -719,15 +688,10 @@ impl GmlServer {
                         "reason": "capability_missing"
                     }),
                 );
-                let duration = start.elapsed().as_millis() as u64;
-                emit_tool_span(
-                    "gml_bind_effector",
-                    "error",
-                    duration,
-                    Some(&McpErrorKind::PermissionDenied),
+                return span.error(
+                    McpErrorKind::PermissionDenied,
+                    McpToolError::permission_denied("Capability token required").to_json_string(),
                 );
-                return McpToolError::permission_denied("Capability token required")
-                    .to_json_string();
             }
         }
 
@@ -740,18 +704,14 @@ impl GmlServer {
                     "max": concept.ports.len() - 1
                 }),
             );
-            let duration = start.elapsed().as_millis() as u64;
-            emit_tool_span(
-                "gml_bind_effector",
-                "error",
-                duration,
-                Some(&McpErrorKind::InvalidArgument),
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(format!(
+                    "Invalid port index: max {}",
+                    concept.ports.len() - 1
+                ))
+                .to_json_string(),
             );
-            return McpToolError::invalid_argument(format!(
-                "Invalid port index: max {}",
-                concept.ports.len() - 1
-            ))
-            .to_json_string();
         }
 
         let port = &concept.ports[port_index];
@@ -764,18 +724,14 @@ impl GmlServer {
                     "effector_shape": effector.shape
                 }),
             );
-            let duration = start.elapsed().as_millis() as u64;
-            emit_tool_span(
-                "gml_bind_effector",
-                "error",
-                duration,
-                Some(&McpErrorKind::InvalidArgument),
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(format!(
+                    "Shape mismatch: port expects '{}' but effector has '{}'",
+                    port.effector_shape, effector.shape
+                ))
+                .to_json_string(),
             );
-            return McpToolError::invalid_argument(format!(
-                "Shape mismatch: port expects '{}' but effector has '{}'",
-                port.effector_shape, effector.shape
-            ))
-            .to_json_string();
         }
 
         let effectors = vec![effector.clone()];
@@ -794,9 +750,7 @@ impl GmlServer {
                         "alpha": alpha
                     }),
                 );
-                let duration = start.elapsed().as_millis() as u64;
-                emit_tool_span("gml_bind_effector", "success", duration, None);
-                McpToolOutput::new(json!({
+                span.ok(McpToolOutput::new(json!({
                     "success": true,
                     "bound": true,
                     "port": port.name,
@@ -805,7 +759,7 @@ impl GmlServer {
                     "n_h": n_h,
                     "alpha": alpha
                 }))
-                .to_json_string()
+                .to_json_string())
             }
             Err(e) => {
                 self.cns_emitter.emit_prompt(
@@ -815,14 +769,10 @@ impl GmlServer {
                         "error": e.to_string()
                     }),
                 );
-                let duration = start.elapsed().as_millis() as u64;
-                emit_tool_span(
-                    "gml_bind_effector",
-                    "error",
-                    duration,
-                    Some(&McpErrorKind::InvalidArgument),
-                );
-                McpToolError::invalid_argument(e.to_string()).to_json_string()
+                span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(e.to_string()).to_json_string(),
+                )
             }
         }
     }
@@ -832,27 +782,13 @@ impl GmlServer {
         &self,
         Parameters(request): Parameters<CreateCapabilityRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("gml_create_capability", &self.webid);
 
         if let Err(e) = validate_identifier("issuer", &request.issuer, 256) {
-            let duration = start.elapsed().as_millis() as u64;
-            emit_tool_span(
-                "gml_create_capability",
-                "error",
-                duration,
-                Some(&McpErrorKind::InvalidArgument),
-            );
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
         if let Err(e) = validate_identifier("subject", &request.subject, 256) {
-            let duration = start.elapsed().as_millis() as u64;
-            emit_tool_span(
-                "gml_create_capability",
-                "error",
-                duration,
-                Some(&McpErrorKind::InvalidArgument),
-            );
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
 
         self.cns_emitter.emit_prompt(
@@ -876,9 +812,7 @@ impl GmlServer {
                         "expires_at": token.expires_at
                     }),
                 );
-                let duration = start.elapsed().as_millis() as u64;
-                emit_tool_span("gml_create_capability", "success", duration, None);
-                McpToolOutput::new(json!({
+                span.ok(McpToolOutput::new(json!({
                     "success": true,
                     "token_id": token.id,
                     "issuer": token.issuer,
@@ -886,7 +820,7 @@ impl GmlServer {
                     "operations": token.operations,
                     "expires_at": token.expires_at
                 }))
-                .to_json_string()
+                .to_json_string())
             }
             Err(e) => {
                 self.cns_emitter.emit_prompt(
@@ -896,14 +830,10 @@ impl GmlServer {
                         "error": e.to_string()
                     }),
                 );
-                let duration = start.elapsed().as_millis() as u64;
-                emit_tool_span(
-                    "gml_create_capability",
-                    "error",
-                    duration,
-                    Some(&McpErrorKind::Internal),
-                );
-                McpToolError::internal(e.to_string()).to_json_string()
+                span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(e.to_string()).to_json_string(),
+                )
             }
         }
     }
@@ -917,17 +847,10 @@ impl GmlServer {
             scope,
         }): Parameters<VerifyCapabilityRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("gml_verify_capability", &self.webid);
 
         if let Err(e) = validate_identifier("token_id", &token.id, 256) {
-            let duration = start.elapsed().as_millis() as u64;
-            emit_tool_span(
-                "gml_verify_capability",
-                "error",
-                duration,
-                Some(&McpErrorKind::InvalidArgument),
-            );
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
 
         self.cns_emitter.emit_prompt(
@@ -959,16 +882,14 @@ impl GmlServer {
                         "error": verification.error
                     }),
                 );
-                let duration = start.elapsed().as_millis() as u64;
-                emit_tool_span("gml_verify_capability", "success", duration, None);
-                McpToolOutput::new(json!({
+                span.ok(McpToolOutput::new(json!({
                     "valid": verification.valid,
                     "token_id": verification.token_id,
                     "subject": verification.subject,
                     "operations": verification.operations,
                     "error": verification.error
                 }))
-                .to_json_string()
+                .to_json_string())
             }
             Err(e) => {
                 self.cns_emitter.emit_prompt(
@@ -978,21 +899,17 @@ impl GmlServer {
                         "error": e.to_string()
                     }),
                 );
-                let duration = start.elapsed().as_millis() as u64;
-                emit_tool_span(
-                    "gml_verify_capability",
-                    "error",
-                    duration,
-                    Some(&McpErrorKind::Internal),
-                );
-                McpToolError::internal(e.to_string()).to_json_string()
+                span.error(
+                    McpErrorKind::Internal,
+                    McpToolError::internal(e.to_string()).to_json_string(),
+                )
             }
         }
     }
 
     #[tool(description = "Compute Hill coefficient for a concept")]
     async fn gml_compute_hill(&self, Parameters(concept): Parameters<Concept>) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("gml_compute_hill", &self.webid);
 
         let n = concept.ports.len() as u32;
         let avg_c = concept.ports.iter().map(|p| p.affinity_c).sum::<f64>() / (n as f64);
@@ -1001,9 +918,7 @@ impl GmlServer {
             Ok(r_bar) => {
                 let n_h =
                     MwcEngine::compute_hill(concept.l, avg_c, n, concept.current_alpha, r_bar);
-                let duration = start.elapsed().as_millis() as u64;
-                emit_tool_span("gml_compute_hill", "success", duration, None);
-                McpToolOutput::new(json!({
+                span.ok(McpToolOutput::new(json!({
                     "success": true,
                     "r_bar": r_bar,
                     "n_h": n_h,
@@ -1011,24 +926,18 @@ impl GmlServer {
                     "c_avg": avg_c,
                     "alpha": concept.current_alpha
                 }))
-                .to_json_string()
+                .to_json_string())
             }
-            Err(e) => {
-                let duration = start.elapsed().as_millis() as u64;
-                emit_tool_span(
-                    "gml_compute_hill",
-                    "error",
-                    duration,
-                    Some(&McpErrorKind::InvalidArgument),
-                );
-                McpToolError::invalid_argument(e.to_string()).to_json_string()
-            }
+            Err(e) => span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument(e.to_string()).to_json_string(),
+            ),
         }
     }
 
     #[tool(description = "Assess cooperativity of a concept")]
     async fn gml_assess_cooperativity(&self, Parameters(concept): Parameters<Concept>) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("gml_assess_cooperativity", &self.webid);
 
         let n = concept.ports.len();
         let avg_c = concept.ports.iter().map(|p| p.affinity_c).sum::<f64>() / (n as f64);
@@ -1051,9 +960,7 @@ impl GmlServer {
             "moderate sensitivity"
         };
 
-        let duration = start.elapsed().as_millis() as u64;
-        emit_tool_span("gml_assess_cooperativity", "success", duration, None);
-        McpToolOutput::new(json!({
+        span.ok(McpToolOutput::new(json!({
             "success": true,
             "cooperativity": cooperativity_level,
             "sensitivity": sensitivity,
@@ -1061,7 +968,7 @@ impl GmlServer {
             "c_avg": avg_c,
             "l": concept.l
         }))
-        .to_json_string()
+        .to_json_string())
     }
 }
 

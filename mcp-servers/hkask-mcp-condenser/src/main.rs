@@ -9,12 +9,11 @@ mod algorithms;
 mod types;
 
 use hkask_mcp::server::{
-    McpToolError, McpToolOutput, ServerContext, emit_tool_span, run_stdio_server,
+    McpToolError, McpToolOutput, ServerContext, ToolSpanGuard, run_stdio_server,
 };
-use hkask_types::WebID;
+use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use std::sync::Mutex;
-use std::time::Instant;
 
 use algorithms::AlgorithmRegistry;
 use types::*;
@@ -111,14 +110,15 @@ impl CondenserServer {
 impl CondenserServer {
     #[tool(description = "Liveness and profile info")]
     async fn condenser_ping(&self) -> String {
+        let span = ToolSpanGuard::new("condenser:ping", &self.webid);
         let engine = self.engine.lock().unwrap();
-        McpToolOutput::new(serde_json::json!({
+        span.ok(McpToolOutput::new(serde_json::json!({
             "status": "ok",
             "version": SERVER_VERSION,
             "profile": engine.stats.current_profile,
             "algorithms": engine.registry.list_algorithms(),
         }))
-        .to_json_string()
+        .to_json_string())
     }
 
     #[tool(description = "Compress tool output using context-aware algorithms")]
@@ -130,23 +130,21 @@ impl CondenserServer {
             category,
         }): Parameters<CompressRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("condenser:compress", &self.webid);
         if output.is_empty() {
-            return McpToolError::invalid_argument("output must not be empty").to_json_string();
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument("output must not be empty").to_json_string(),
+            );
         }
         let cat = category
             .as_deref()
             .and_then(|c| c.parse::<ContextCategory>().ok());
         let mut engine = self.engine.lock().unwrap();
         let result = engine.compress(&tool_name, &output, cat);
-        emit_tool_span(
-            "condenser_compress",
-            "ok",
-            start.elapsed().as_millis() as u64,
-            None,
-        );
-        McpToolOutput::with_timing(serde_json::to_value(&result).unwrap_or_default(), start)
-            .to_json_string()
+        span.ok(
+            McpToolOutput::new(serde_json::to_value(&result).unwrap_or_default()).to_json_string(),
+        )
     }
 
     #[tool(description = "Set compression profile (heavy/normal/soft/light)")]
@@ -154,32 +152,29 @@ impl CondenserServer {
         &self,
         Parameters(SetProfileRequest { profile }): Parameters<SetProfileRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("condenser:set_profile", &self.webid);
         let p = match profile.parse::<Profile>() {
             Ok(p) => p,
-            Err(e) => return e.to_json_string(),
+            Err(e) => return span.error(McpErrorKind::InvalidArgument, e.to_json_string()),
         };
         let mut engine = self.engine.lock().unwrap();
         engine.set_profile(p);
-        emit_tool_span(
-            "condenser_set_profile",
-            "ok",
-            start.elapsed().as_millis() as u64,
-            None,
-        );
-        McpToolOutput::new(serde_json::json!({
+        span.ok(McpToolOutput::new(serde_json::json!({
             "profile": p.to_string(),
             "retention_pct": p.retention_pct(),
             "max_lines": p.max_lines(),
         }))
-        .to_json_string()
+        .to_json_string())
     }
 
     #[tool(description = "Cumulative compression statistics")]
     async fn condenser_stats(&self) -> String {
+        let span = ToolSpanGuard::new("condenser:stats", &self.webid);
         let engine = self.engine.lock().unwrap();
-        McpToolOutput::new(serde_json::to_value(engine.get_stats()).unwrap_or_default())
-            .to_json_string()
+        span.ok(
+            McpToolOutput::new(serde_json::to_value(engine.get_stats()).unwrap_or_default())
+                .to_json_string(),
+        )
     }
 
     #[tool(description = "Classify tool name to context category")]
@@ -187,15 +182,16 @@ impl CondenserServer {
         &self,
         Parameters(ClassifyRequest { tool_name }): Parameters<ClassifyRequest>,
     ) -> String {
+        let span = ToolSpanGuard::new("condenser:classify", &self.webid);
         let category = classify_tool(&tool_name);
         let engine = self.engine.lock().unwrap();
         let algo = engine.registry.select(category);
-        McpToolOutput::new(serde_json::json!({
+        span.ok(McpToolOutput::new(serde_json::json!({
             "tool_name": tool_name,
             "category": category.label(),
             "algorithm": algo.name(),
         }))
-        .to_json_string()
+        .to_json_string())
     }
 }
 

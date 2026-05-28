@@ -1,7 +1,7 @@
 ---
 title: "hKask Architecture Master"
 audience: [architects, developers, agents]
-last_updated: 2026-05-25
+last_updated: 2026-05-27
 version: "2.0.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -26,7 +26,7 @@ The architecture is specified in four DDMVSS-aligned documents, each authoritati
 |----------|-------------------|-------|
 | [`domain-and-capability.md`](domain-and-capability.md) | Domain, Capability | Bounded context, entities, agent taxonomy, capability model, MCP tool surface, hLexicon |
 | [`interface-and-composition.md`](interface-and-composition.md) | Interface, Composition | MCP/CLI/API equivalence, hexagonal ports, unified registry, template cascade, rendering pipeline |
-| [`trust-security-observability.md`](trust-security-observability.md) | Trust, Observability | Zero-trust model, OCAP enforcement, encryption stack, CNS spans, algedonic alerts, threat model |
+| [`trust-security-observability.md`](trust-security-observability.md) | Trust, Observability | Zero-trust model, OCAP enforcement, master key derivation, encryption stack, CNS spans, algedonic alerts, threat model |
 | [`persistence-and-lifecycle.md`](persistence-and-lifecycle.md) | Persistence, Lifecycle | SQLite + SQLCipher, bitemporal triples, embeddings, bootstrap sequence, evolution rules |
 
 ---
@@ -65,6 +65,7 @@ Detailed lookup tables and diagrams in `reference/`:
 | ADR | Topic |
 |-----|-------|
 | [`ADR-022-comprehensive-security-hardening.md`](ADR-022-comprehensive-security-hardening.md) | ADV-REVIEW-F2 security hardening (T01-T22) |
+| [`ADR-023-master-key-derivation.md`](ADR-023-master-key-derivation.md) | Master key derivation via HKDF-SHA256, eliminate random secret generation, keystore persistence |
 
 ---
 

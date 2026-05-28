@@ -33,7 +33,7 @@
 | `hkask-templates` | Registry, hLexicon, cascade |
 | `hkask-agents` | Pods, ACP, bot/replicant |
 | `hkask-ensemble` | Multi-agent chat |
-| `hkask-keystore` | OS keychain, AES-256-GCM |
+| `hkask-keystore` | OS keychain, AES-256-GCM, master key derivation (HKDF-SHA256) |
 | `hkask-mcp` | MCP runtime, dispatch |
 | `hkask-cli` | CLI commands |
 | `hkask-api` | HTTP API (utoipa) |

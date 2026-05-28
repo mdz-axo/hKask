@@ -4,14 +4,13 @@
 //! Phase 9: Git archival via GitHub MCP tool calls.
 
 use hkask_mcp::server::{
-    CredentialRequirement, McpToolError, McpToolOutput, ServerContext, api_get, api_post,
-    classify_http_error, emit_tool_span, resolve_credential, run_stdio_server, validate_identifier,
+    CredentialRequirement, McpToolError, McpToolOutput, ServerContext, ToolSpanGuard, api_get,
+    api_post, classify_http_error, resolve_credential, run_stdio_server, validate_identifier,
 };
-use hkask_types::WebID;
+use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
-use std::time::Instant;
 
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 const GITHUB_API_BASE: &str = "https://api.github.com";
@@ -174,31 +173,14 @@ impl GithubServer {
         &self,
         Parameters(RepoRequest { owner, repo }): Parameters<RepoRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("github_get_repo", &self.webid);
         if let Err(e) = validate_owner_repo(&owner, &repo) {
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}");
         match api_get(&self.client, "GitHub", &url).await {
-            Ok(v) => {
-                let out = McpToolOutput::with_timing(extract_repo_summary(&v), start);
-                emit_tool_span(
-                    "github_get_repo",
-                    "ok",
-                    start.elapsed().as_millis() as u64,
-                    None,
-                );
-                out.to_json_string()
-            }
-            Err(e) => {
-                emit_tool_span(
-                    "github_get_repo",
-                    "error",
-                    start.elapsed().as_millis() as u64,
-                    Some(&e.kind),
-                );
-                e.to_json_string()
-            }
+            Ok(v) => span.ok(McpToolOutput::new(extract_repo_summary(&v)).to_json_string()),
+            Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
 
@@ -207,9 +189,9 @@ impl GithubServer {
         &self,
         Parameters(ListIssuesRequest { owner, repo, state }): Parameters<ListIssuesRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("github_list_issues", &self.webid);
         if let Err(e) = validate_owner_repo(&owner, &repo) {
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
         let state = state.unwrap_or_else(|| "open".to_string());
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/issues?state={state}");
@@ -224,13 +206,14 @@ impl GithubServer {
                             .collect()
                     })
                     .unwrap_or_default();
-                McpToolOutput::with_timing(
-                    serde_json::json!({ "owner": owner, "repo": repo, "state": state, "issues": issues }),
-                    start,
+                span.ok(
+                    McpToolOutput::new(
+                        serde_json::json!({ "owner": owner, "repo": repo, "state": state, "issues": issues }),
+                    )
+                    .to_json_string(),
                 )
-                .to_json_string()
             }
-            Err(e) => e.to_json_string(),
+            Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
 
@@ -243,9 +226,9 @@ impl GithubServer {
             issue_number,
         }): Parameters<IssueRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("github_get_issue", &self.webid);
         if let Err(e) = validate_owner_repo(&owner, &repo) {
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/issues/{issue_number}");
         match api_get(&self.client, "GitHub", &url).await {
@@ -258,20 +241,17 @@ impl GithubServer {
                             .collect()
                     })
                     .unwrap_or_default();
-                McpToolOutput::with_timing(
-                    serde_json::json!({
-                        "owner": owner, "repo": repo,
-                        "number": v["number"], "title": v["title"], "state": v["state"],
-                        "body": v["body"], "labels": labels, "user": v["user"]["login"],
-                        "assignees": v["assignees"], "milestone": v["milestone"],
-                        "comments": v["comments"], "created_at": v["created_at"],
-                        "updated_at": v["updated_at"], "html_url": v["html_url"],
-                    }),
-                    start,
-                )
-                .to_json_string()
+                span.ok(McpToolOutput::new(serde_json::json!({
+                    "owner": owner, "repo": repo,
+                    "number": v["number"], "title": v["title"], "state": v["state"],
+                    "body": v["body"], "labels": labels, "user": v["user"]["login"],
+                    "assignees": v["assignees"], "milestone": v["milestone"],
+                    "comments": v["comments"], "created_at": v["created_at"],
+                    "updated_at": v["updated_at"], "html_url": v["html_url"],
+                }))
+                .to_json_string())
             }
-            Err(e) => e.to_json_string(),
+            Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
 
@@ -286,12 +266,15 @@ impl GithubServer {
             labels,
         }): Parameters<CreateIssueRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("github_create_issue", &self.webid);
         if let Err(e) = validate_owner_repo(&owner, &repo) {
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
         if title.is_empty() {
-            return McpToolError::invalid_argument("title must not be empty").to_json_string();
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument("title must not be empty").to_json_string(),
+            );
         }
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/issues");
         let mut payload = serde_json::json!({ "title": title });
@@ -306,32 +289,13 @@ impl GithubServer {
             );
         }
         match api_post(&self.client, "GitHub", &url, &payload).await {
-            Ok(v) => {
-                emit_tool_span(
-                    "github_create_issue",
-                    "ok",
-                    start.elapsed().as_millis() as u64,
-                    None,
-                );
-                McpToolOutput::with_timing(
-                    serde_json::json!({
-                        "owner": owner, "repo": repo,
-                        "number": v["number"], "title": v["title"],
-                        "state": v["state"], "html_url": v["html_url"], "created": true,
-                    }),
-                    start,
-                )
-                .to_json_string()
-            }
-            Err(e) => {
-                emit_tool_span(
-                    "github_create_issue",
-                    "error",
-                    start.elapsed().as_millis() as u64,
-                    Some(&e.kind),
-                );
-                e.to_json_string()
-            }
+            Ok(v) => span.ok(McpToolOutput::new(serde_json::json!({
+                "owner": owner, "repo": repo,
+                "number": v["number"], "title": v["title"],
+                "state": v["state"], "html_url": v["html_url"], "created": true,
+            }))
+            .to_json_string()),
+            Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
 
@@ -345,41 +309,25 @@ impl GithubServer {
             body,
         }): Parameters<CommentRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("github_add_comment", &self.webid);
         if let Err(e) = validate_owner_repo(&owner, &repo) {
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
         if body.is_empty() {
-            return McpToolError::invalid_argument("body must not be empty").to_json_string();
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument("body must not be empty").to_json_string(),
+            );
         }
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/issues/{issue_number}/comments");
         let payload = serde_json::json!({ "body": body });
         match api_post(&self.client, "GitHub", &url, &payload).await {
-            Ok(v) => {
-                emit_tool_span(
-                    "github_add_comment",
-                    "ok",
-                    start.elapsed().as_millis() as u64,
-                    None,
-                );
-                McpToolOutput::with_timing(
-                    serde_json::json!({
-                        "owner": owner, "repo": repo, "issue": issue_number,
-                        "comment_id": v["id"], "html_url": v["html_url"], "created": true,
-                    }),
-                    start,
-                )
-                .to_json_string()
-            }
-            Err(e) => {
-                emit_tool_span(
-                    "github_add_comment",
-                    "error",
-                    start.elapsed().as_millis() as u64,
-                    Some(&e.kind),
-                );
-                e.to_json_string()
-            }
+            Ok(v) => span.ok(McpToolOutput::new(serde_json::json!({
+                "owner": owner, "repo": repo, "issue": issue_number,
+                "comment_id": v["id"], "html_url": v["html_url"], "created": true,
+            }))
+            .to_json_string()),
+            Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
 
@@ -388,9 +336,9 @@ impl GithubServer {
         &self,
         Parameters(ListPrsRequest { owner, repo, state }): Parameters<ListPrsRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("github_list_prs", &self.webid);
         if let Err(e) = validate_owner_repo(&owner, &repo) {
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
         let state = state.unwrap_or_else(|| "open".to_string());
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/pulls?state={state}");
@@ -400,13 +348,12 @@ impl GithubServer {
                     .as_array()
                     .map(|arr| arr.iter().map(extract_pr_summary).collect())
                     .unwrap_or_default();
-                McpToolOutput::with_timing(
+                span.ok(McpToolOutput::new(
                     serde_json::json!({ "owner": owner, "repo": repo, "state": state, "prs": prs }),
-                    start,
                 )
-                .to_json_string()
+                .to_json_string())
             }
-            Err(e) => e.to_json_string(),
+            Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
 
@@ -419,29 +366,26 @@ impl GithubServer {
             pr_number,
         }): Parameters<PrRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("github_get_pr", &self.webid);
         if let Err(e) = validate_owner_repo(&owner, &repo) {
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/pulls/{pr_number}");
         match api_get(&self.client, "GitHub", &url).await {
-            Ok(v) => McpToolOutput::with_timing(
-                serde_json::json!({
-                    "owner": owner, "repo": repo,
-                    "number": v["number"], "title": v["title"], "state": v["state"],
-                    "body": v["body"], "user": v["user"]["login"],
-                    "head": v["head"]["ref"], "head_repo": v["head"]["repo"]["full_name"],
-                    "base": v["base"]["ref"], "merged": v["merged"],
-                    "mergeable": v["mergeable"], "draft": v["draft"],
-                    "additions": v["additions"], "deletions": v["deletions"],
-                    "changed_files": v["changed_files"],
-                    "created_at": v["created_at"], "updated_at": v["updated_at"],
-                    "html_url": v["html_url"],
-                }),
-                start,
-            )
-            .to_json_string(),
-            Err(e) => e.to_json_string(),
+            Ok(v) => span.ok(McpToolOutput::new(serde_json::json!({
+                "owner": owner, "repo": repo,
+                "number": v["number"], "title": v["title"], "state": v["state"],
+                "body": v["body"], "user": v["user"]["login"],
+                "head": v["head"]["ref"], "head_repo": v["head"]["repo"]["full_name"],
+                "base": v["base"]["ref"], "merged": v["merged"],
+                "mergeable": v["mergeable"], "draft": v["draft"],
+                "additions": v["additions"], "deletions": v["deletions"],
+                "changed_files": v["changed_files"],
+                "created_at": v["created_at"], "updated_at": v["updated_at"],
+                "html_url": v["html_url"],
+            }))
+            .to_json_string()),
+            Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
 
@@ -450,9 +394,12 @@ impl GithubServer {
         &self,
         Parameters(SearchReposRequest { query, limit }): Parameters<SearchReposRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("github_search_repos", &self.webid);
         if query.is_empty() {
-            return McpToolError::invalid_argument("query must not be empty").to_json_string();
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument("query must not be empty").to_json_string(),
+            );
         }
         let limit = limit.unwrap_or(10);
         let url = format!("{GITHUB_API_BASE}/search/repositories");
@@ -467,7 +414,8 @@ impl GithubServer {
                 let status = http_resp.status();
                 let body = http_resp.text().await.unwrap_or_default();
                 if !status.is_success() {
-                    return classify_http_error("GitHub", status, &body).to_json_string();
+                    let e = classify_http_error("GitHub", status, &body);
+                    return span.error(e.kind, e.to_json_string());
                 }
                 match serde_json::from_str::<serde_json::Value>(&body) {
                     Ok(v) => {
@@ -475,22 +423,23 @@ impl GithubServer {
                             .as_array()
                             .map(|arr| arr.iter().map(extract_repo_summary).collect())
                             .unwrap_or_default();
-                        McpToolOutput::with_timing(
-                            serde_json::json!({
-                                "query": query, "limit": limit,
-                                "total_count": v["total_count"], "results": results,
-                            }),
-                            start,
-                        )
-                        .to_json_string()
+                        span.ok(McpToolOutput::new(serde_json::json!({
+                            "query": query, "limit": limit,
+                            "total_count": v["total_count"], "results": results,
+                        }))
+                        .to_json_string())
                     }
-                    Err(e) => McpToolError::internal(format!("Failed to parse response: {e}"))
-                        .to_json_string(),
+                    Err(e) => span.error(
+                        McpErrorKind::Internal,
+                        McpToolError::internal(format!("Failed to parse response: {e}"))
+                            .to_json_string(),
+                    ),
                 }
             }
-            Err(e) => {
-                McpToolError::unavailable(format!("GitHub request failed: {e}")).to_json_string()
-            }
+            Err(e) => span.error(
+                McpErrorKind::Unavailable,
+                McpToolError::unavailable(format!("GitHub request failed: {e}")).to_json_string(),
+            ),
         }
     }
 }

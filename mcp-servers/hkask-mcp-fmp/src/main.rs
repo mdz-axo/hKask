@@ -15,15 +15,14 @@
 //! - `fmp_dcf` — Discounted cash flow analysis
 
 use hkask_mcp::server::{
-    CredentialRequirement, McpToolError, McpToolOutput, ServerContext, classify_http_error,
-    emit_tool_span, resolve_credential, run_stdio_server, validate_identifier,
+    CredentialRequirement, McpToolError, McpToolOutput, ServerContext, ToolSpanGuard,
+    classify_http_error, resolve_credential, run_stdio_server, validate_identifier,
 };
-use hkask_types::WebID;
+use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::Value;
-use std::time::Instant;
 
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 const BASE_URL: &str = "https://financialmodelingprep.com/stable";
@@ -107,7 +106,7 @@ impl FmpServer {
 impl FmpServer {
     #[tool(description = "Ping FMP API")]
     async fn fmp_ping(&self) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("fmp:ping", &self.webid);
         match fmp_get(
             &self.client,
             "/profile",
@@ -116,33 +115,19 @@ impl FmpServer {
         )
         .await
         {
-            Ok(_) => {
-                emit_tool_span("fmp_ping", "ok", start.elapsed().as_millis() as u64, None);
-                McpToolOutput::with_timing(
-                    serde_json::json!({
-                        "status": "ok",
-                        "message": "FMP API is reachable"
-                    }),
-                    start,
-                )
-                .to_json_string()
-            }
-            Err(e) => {
-                emit_tool_span(
-                    "fmp_ping",
-                    "error",
-                    start.elapsed().as_millis() as u64,
-                    Some(&e.kind),
-                );
-                McpToolOutput::with_timing(
-                    serde_json::json!({
-                        "status": "not_ok",
-                        "error": e.message,
-                    }),
-                    start,
-                )
-                .to_json_string()
-            }
+            Ok(_) => span.ok(McpToolOutput::new(serde_json::json!({
+                "status": "ok",
+                "message": "FMP API is reachable"
+            }))
+            .to_json_string()),
+            Err(e) => span.error(
+                e.kind,
+                McpToolOutput::new(serde_json::json!({
+                    "status": "not_ok",
+                    "error": e.message,
+                }))
+                .to_json_string(),
+            ),
         }
     }
 
@@ -151,9 +136,9 @@ impl FmpServer {
         &self,
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("fmp:company_profile", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
         match fmp_get(
             &self.client,
@@ -163,8 +148,8 @@ impl FmpServer {
         )
         .await
         {
-            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
-            Err(e) => e.to_json_string(),
+            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
 
@@ -173,9 +158,9 @@ impl FmpServer {
         &self,
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("fmp:quote", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
         match fmp_get(
             &self.client,
@@ -185,8 +170,8 @@ impl FmpServer {
         )
         .await
         {
-            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
-            Err(e) => e.to_json_string(),
+            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
 
@@ -195,9 +180,9 @@ impl FmpServer {
         &self,
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("fmp:income_statement", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
         let limit_str = limit.unwrap_or(5).to_string();
         match fmp_get(
@@ -208,8 +193,8 @@ impl FmpServer {
         )
         .await
         {
-            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
-            Err(e) => e.to_json_string(),
+            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
 
@@ -218,9 +203,9 @@ impl FmpServer {
         &self,
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("fmp:balance_sheet", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
         let limit_str = limit.unwrap_or(5).to_string();
         match fmp_get(
@@ -231,8 +216,8 @@ impl FmpServer {
         )
         .await
         {
-            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
-            Err(e) => e.to_json_string(),
+            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
 
@@ -241,9 +226,9 @@ impl FmpServer {
         &self,
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("fmp:cash_flow_statement", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
         let limit_str = limit.unwrap_or(5).to_string();
         match fmp_get(
@@ -254,8 +239,8 @@ impl FmpServer {
         )
         .await
         {
-            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
-            Err(e) => e.to_json_string(),
+            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
 
@@ -264,9 +249,9 @@ impl FmpServer {
         &self,
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("fmp:key_metrics", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
         let limit_str = limit.unwrap_or(5).to_string();
         match fmp_get(
@@ -277,8 +262,8 @@ impl FmpServer {
         )
         .await
         {
-            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
-            Err(e) => e.to_json_string(),
+            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
 
@@ -287,9 +272,9 @@ impl FmpServer {
         &self,
         Parameters(HistoricalRequest { symbol, from, to }): Parameters<HistoricalRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("fmp:historical_price", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
         match fmp_get(
             &self.client,
@@ -299,8 +284,8 @@ impl FmpServer {
         )
         .await
         {
-            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
-            Err(e) => e.to_json_string(),
+            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
 
@@ -309,9 +294,12 @@ impl FmpServer {
         &self,
         Parameters(SearchRequest { query, limit }): Parameters<SearchRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("fmp:search", &self.webid);
         if query.is_empty() {
-            return McpToolError::invalid_argument("query must not be empty").to_json_string();
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument("query must not be empty").to_json_string(),
+            );
         }
         let limit_str = limit.unwrap_or(10).to_string();
         match fmp_get(
@@ -322,8 +310,8 @@ impl FmpServer {
         )
         .await
         {
-            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
-            Err(e) => e.to_json_string(),
+            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
 
@@ -332,9 +320,9 @@ impl FmpServer {
         &self,
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("fmp:analyst_estimates", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
         match fmp_get(
             &self.client,
@@ -344,8 +332,8 @@ impl FmpServer {
         )
         .await
         {
-            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
-            Err(e) => e.to_json_string(),
+            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
 
@@ -354,9 +342,9 @@ impl FmpServer {
         &self,
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
-        let start = Instant::now();
+        let span = ToolSpanGuard::new("fmp:dcf", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
-            return e.to_json_string();
+            return span.error(e.kind, e.to_json_string());
         }
         match fmp_get(
             &self.client,
@@ -366,8 +354,8 @@ impl FmpServer {
         )
         .await
         {
-            Ok(v) => McpToolOutput::with_timing(v, start).to_json_string(),
-            Err(e) => e.to_json_string(),
+            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
 }

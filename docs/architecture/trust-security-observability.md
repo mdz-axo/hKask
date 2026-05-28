@@ -58,15 +58,19 @@ WebIDs derived from persona content via UUID v5:
 ### 1.4 Encryption Stack
 
 | Layer | Algorithm | Crate | Purpose |
-|-------|-----------|-------|---------|
+|-------|-----------|-------|--------|
 | Database at rest | SQLCipher (AES-256-CBC) | `rusqlite` + `bundled-sqlcipher` | Encrypted storage |
+| Master key derivation | Argon2id → HKDF-SHA256 | `argon2` v0.5 + `hmac`/`sha2` | One passphrase → all internal secrets[^master-key] |
 | Key derivation | Argon2id | `argon2` v0.5 | Passphrase → key[^argon2] |
+| Sub-key expansion | HKDF-SHA256 (RFC 5869) | `hmac` + `sha2` | Master key → independent sub-keys |
 | Capability signing | HMAC-SHA256 | `hmac` + `sha2` | Token integrity |
 | Manifest signing | Ed25519 | `ed25519-dalek` v2 | Template provenance |
 | Symmetric encryption | AES-256-GCM | `aes-gcm` v0.10 | Secret encryption |
 | Content hashing | BLAKE3 | `blake3` v1 | Git CAS addressing |
 | Memory protection | Zeroize on drop | `zeroize` + `zeroize_derive` | Prevent leakage |
 | Secret wrapping | `secrecy` | `secrecy` crate | No accidental logging |
+
+[^master-key]: The master key derivation chain uses Argon2id once (slow, memory-hard, ~100ms) to stretch the user's passphrase into a 256-bit master key, then HKDF-SHA256 (fast, deterministic, ~1μs each) to derive each internal secret. This ensures the same passphrase always produces the same secrets across restarts.
 
 [^argon2]: Biryukov, A., Dinu, D., & Khovratovich, D. (2016). *Argon2: The Memory-Hard Function for Password Hashing*. Selected for GPU/ASIC resistance.
 
@@ -91,9 +95,66 @@ WebIDs derived from persona content via UUID v5:
 | Persistent revocation | `RevocationStore` survives restarts |
 | Attenuation limit | `attenuation_level < max_attenuation` |
 | Deterministic identity | UUID v5 from persona |
+| Deterministic secrets | All internal secrets derived from master key via HKDF-SHA256 |
+| No random secret fallback | `SecretRef::Generated` prohibited in production code paths |
 | Secure memory | Secrets zeroized on drop |
 | Async purity | No `block_in_place`/`block_on` |
 | Typed errors | No `unwrap()` on hot paths |
+
+### 1.7 Master Key Derivation
+
+All internal secrets (ACP signing key, capability token key, MCP security key, OCAP secret) are derived deterministically from a single master passphrase using HKDF-SHA256. This eliminates the previous class of bugs where secrets were silently generated at random on each process start, invalidating all previously-issued tokens.
+
+**Derivation chain:**
+
+```
+Master passphrase (user-provided, stored in OS keychain or env var HKASK_MASTER_KEY)
+  │
+  ├── Argon2id(passphrase, fixed_salt) → 256-bit master key  [~100ms, memory-hard]
+  │
+  ├── HKDF-SHA256(master_key, "hkask:acp-secret")     → ACP HMAC signing secret
+  ├── HKDF-SHA256(master_key, "hkask:capability-key")  → API capability token key
+  ├── HKDF-SHA256(master_key, "hkask:mcp-security-key") → MCP security gateway key
+  └── HKDF-SHA256(master_key, "hkask:ocap-secret")     → OCAP signing secret
+```
+
+**Resolution priority:**
+
+1. `SecretRef::Derived` — HKDF-SHA256 from master key (preferred, deterministic)
+2. `SecretRef::Env` — Direct environment variable (for override)
+3. `SecretRef::Keychain` — OS keychain entry (for override)
+4. `SecretRef::Generated` — Random bytes (⚠️ not restart-safe; only for salts/nonces)
+
+**Implementation:**
+
+| Component | Location |
+|-----------|----------|
+| `SecretRef::Derived` variant | `crates/hkask-types/src/secret.rs` |
+| `derivation_contexts` constants | `crates/hkask-types/src/secret.rs` |
+| `derive_all_internal_secrets()` | `crates/hkask-keystore/src/master_key.rs` |
+| `derive_sub_key()` (HKDF-SHA256) | `crates/hkask-keystore/src/master_key.rs` |
+| `resolve()` extended for `Derived` | `crates/hkask-keystore/src/keychain.rs` |
+| Call-site updates | `crates/hkask-agents/src/acp.rs`, `crates/hkask-mcp/src/security.rs`, `crates/hkask-api/src/lib.rs` |
+
+**Security properties:**
+
+- Same passphrase → same secrets (restart-safe, cluster-safe)
+- Different contexts → cryptographically independent sub-keys
+- Compromise of one sub-key does not compromise the master key or other sub-keys (HKDF extraction step)
+- Master key never stored; only derived sub-keys are held in memory with `Zeroizing` protection
+- Argon2id with OWASP parameters (64 MiB, 3 iterations, 4 lanes) resists GPU/ASIC attacks
+
+### 1.8 Keystore Persistence
+
+The MCP keystore server persists encrypted entries to a file-based vault at `~/.hkask/keystore/vault.json` (configurable via `HKASK_KEYSTORE_DIR`). Each entry is AES-256-GCM encrypted with a per-entry salt and serialized as JSON. The vault is loaded at startup and saved after each mutation using atomic writes (temp file + rename).
+
+| Property | Implementation |
+|----------|---------------|
+| Encryption | AES-256-GCM with per-entry Argon2id-derived key |
+| Access control | OCAP-gated: only owner WebID can read |
+| Persistence | JSON vault file, atomic writes |
+| Vault location | `~/.hkask/keystore/vault.json` or `HKASK_KEYSTORE_DIR` |
+| Schema versioning | `Vault.version` field for forward compatibility |
 
 ---
 
@@ -109,6 +170,8 @@ WebIDs derived from persona content via UUID v5:
 | Supply chain compromise | Tampering | Pinned versions, `cargo deny` | `Cargo.toml` |
 | Path traversal | Elevation | Path validation | `hkask-storage` guards |
 | Spec tampering | Tampering | Ed25519 signing | `hkask-keystore` |
+| Master key compromise | Info Disclosure | Argon2id memory-hardness, `Zeroizing` protection | `hkask-keystore/master_key.rs` |
+| Vault file read | Info Disclosure | AES-256-GCM encryption at rest | `hkask-mcp-keystore` |
 | Audit log tampering | Repudiation | Append-only + git CAS | `GitCas` + `NuEventStore` |
 
 [^shostack-threat]: Shostack, A. (2014). *Threat Modeling: Designing for Security*. Wiley. STRIDE methodology.
