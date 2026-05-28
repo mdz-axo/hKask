@@ -2,7 +2,6 @@
 //!
 //! Tests the complete cascade execution model including:
 //! - Stage execution with ManifestExecutor
-//! - Named operations in CspExecutor
 //! - Jinja2 rendering in Populate action
 //! - Inference/MCP dispatch in Execute action
 //! - Error classification and retry logic
@@ -15,9 +14,6 @@ use hkask_templates::cascade::{
     CnsFeedbackConfig, CycleDetectionConfig, EnergyConfig, ManifestCascadeConfig,
     TemplateCascadeConfig,
 };
-#[allow(unused_imports)] // TODO: used only in #[tokio::test] functions
-use hkask_templates::csp::{CspConfig, CspExecutor, StageConfig};
-#[allow(unused_imports)] // TODO: used only in #[tokio::test] functions
 use hkask_templates::ports::{Action, ManifestExecutor, ManifestStep, ProcessManifest};
 use hkask_templates::ports::{
     CompositionTemplate, InferenceConfig, McpPort, SyncInferencePort, TemplateError,
@@ -232,79 +228,6 @@ async fn test_cascade_context_energy_accounting() {
     // Should fail when insufficient energy
     assert!(context.consume_energy(200).is_err());
     assert_eq!(context.energy_remaining, 100);
-}
-
-#[tokio::test]
-async fn test_csp_executor_named_operations() {
-    let config = CspConfig::default();
-    let mut executor = CspExecutor::new(config);
-
-    // Register named operations
-    executor.register_operation("double", |input| {
-        let value = input.get("value").and_then(|v| v.as_i64()).unwrap_or(0);
-        Ok(json!({"value": value * 2}))
-    });
-
-    executor.register_operation("increment", |input| {
-        let value = input.get("value").and_then(|v| v.as_i64()).unwrap_or(0);
-        Ok(json!({"value": value + 1}))
-    });
-
-    // Create stages
-    let stage1 = StageConfig {
-        name: "double".to_string(),
-        timeout_ms: 1000,
-        retry_on_failure: false,
-    };
-
-    let stage2 = StageConfig {
-        name: "increment".to_string(),
-        timeout_ms: 1000,
-        retry_on_failure: false,
-    };
-
-    // Execute stages
-    let input = json!({"value": 5});
-    let result1 = executor.execute_stage(&stage1, input).await;
-    assert!(result1.output.is_ok());
-    assert_eq!(result1.output.unwrap()["value"], 10);
-
-    let input2 = json!({"value": 10});
-    let result2 = executor.execute_stage(&stage2, input2).await;
-    assert!(result2.output.is_ok());
-    assert_eq!(result2.output.unwrap()["value"], 11);
-}
-
-#[tokio::test]
-async fn test_csp_executor_error_classification() {
-    let mut config = CspConfig::default();
-    config.error_handling.classification.retryable = vec!["timeout".to_string()];
-    config.error_handling.classification.non_retryable = vec!["invalid".to_string()];
-    config.stage_execution.retry.max_retries = 2;
-    config.stage_execution.retry.initial_delay_ms = 10;
-    config.stage_execution.retry.max_delay_ms = 50;
-
-    let mut executor = CspExecutor::new(config);
-
-    // Register operation that always fails with retryable error
-    executor.register_operation("fail_timeout", |_| {
-        Err(TemplateError::Timeout("operation timed out".to_string()))
-    });
-
-    let stage = StageConfig {
-        name: "fail_timeout".to_string(),
-        timeout_ms: 1000,
-        retry_on_failure: true,
-    };
-
-    let input = json!({});
-    let result = executor.execute_stage(&stage, input).await;
-
-    // Should fail after retries
-    assert!(result.output.is_err());
-    // Should have attempted multiple times (initial + retries)
-    // Duration might be 0 if test runs very fast, so just check it completed
-    let _duration = result.duration_ms;
 }
 
 #[tokio::test]

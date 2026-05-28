@@ -167,6 +167,8 @@ pub struct OkapiInference {
     span_emitter: SpanEmitter,
     /// Circuit breaker for resilience
     circuit_breaker: Option<Arc<CircuitBreaker>>,
+    /// Prompt cache for skipping redundant LLM calls
+    prompt_cache: Option<Arc<crate::prompt_cache::PromptCache>>,
 }
 
 /// Create a shared HTTP client for Okapi inference
@@ -196,13 +198,11 @@ impl OkapiInference {
             bot_id: None,
             span_emitter: SpanEmitter::default(),
             circuit_breaker: None,
+            prompt_cache: None,
         })
     }
 
     /// Create OkapiInference with a shared HTTP client
-    ///
-    /// Use this constructor when creating multiple OkapiInference instances
-    /// that should share the same connection pool.
     pub fn with_shared_client(
         model: &str,
         config: OkapiConfig,
@@ -217,6 +217,7 @@ impl OkapiInference {
             bot_id: None,
             span_emitter: SpanEmitter::default(),
             circuit_breaker: None,
+            prompt_cache: None,
         }
     }
 
@@ -239,6 +240,7 @@ impl OkapiInference {
             bot_id: None,
             span_emitter: SpanEmitter::default(),
             circuit_breaker: None,
+            prompt_cache: None,
         })
     }
 
@@ -263,6 +265,7 @@ impl OkapiInference {
             bot_id: Some(bot_id),
             span_emitter: SpanEmitter::default(),
             circuit_breaker: None,
+            prompt_cache: None,
         })
     }
 
@@ -286,6 +289,7 @@ impl OkapiInference {
             bot_id: None,
             span_emitter: SpanEmitter::default(),
             circuit_breaker: Some(Arc::new(circuit_breaker)),
+            prompt_cache: None,
         })
     }
 
@@ -297,6 +301,12 @@ impl OkapiInference {
     /// Fast local model preset
     pub fn fast_local() -> Result<Self, InferenceError> {
         Self::local("fast-local-model")
+    }
+
+    /// Attach a prompt cache to skip redundant LLM calls
+    pub fn with_cache(mut self, cache: crate::prompt_cache::PromptCache) -> Self {
+        self.prompt_cache = Some(Arc::new(cache));
+        self
     }
 
     /// Execute HTTP request to Okapi API
@@ -469,6 +479,33 @@ impl InferencePort for OkapiInference {
             )));
         }
 
+        // Check prompt cache before API call
+        if let Some(ref cache) = self.prompt_cache {
+            let cache_key =
+                crate::prompt_cache::PromptCache::generate_key(prompt, &self.model, parameters);
+            match cache.get(&cache_key) {
+                Ok(result) => {
+                    info!(
+                        target: "hkask.inference",
+                        model = %result.model,
+                        cache_key = %cache_key,
+                        "Cache hit - returning cached result"
+                    );
+                    return Ok(result);
+                }
+                Err(crate::prompt_cache::CacheError::Miss) => {
+                    // Cache miss, proceed with API call
+                }
+                Err(e) => {
+                    warn!(
+                        target: "hkask.inference",
+                        error = %e,
+                        "Cache lookup error, proceeding with API call"
+                    );
+                }
+            }
+        }
+
         let request = OkapiRequest {
             model: self.model.clone(),
             messages: vec![Message {
@@ -486,6 +523,19 @@ impl InferencePort for OkapiInference {
         };
 
         let result = self.execute_with_retry(request).await?;
+
+        // Cache the successful result
+        if let Some(ref cache) = self.prompt_cache {
+            let cache_key =
+                crate::prompt_cache::PromptCache::generate_key(prompt, &self.model, parameters);
+            if let Err(e) = cache.put(&cache_key, prompt, &self.model, &result) {
+                warn!(
+                    target: "hkask.inference",
+                    error = %e,
+                    "Failed to cache inference result"
+                );
+            }
+        }
 
         info!(
             target: "hkask.inference",

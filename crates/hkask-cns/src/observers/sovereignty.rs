@@ -63,14 +63,21 @@ pub struct SovereigntyObserver {
 }
 
 impl SovereigntyObserver {
-    /// Create new sovereignty observer
-    ///
-    /// # Arguments
-    /// * `algedonic_manager` — Manager for escalating algedonic alerts
+    /// Create new sovereignty observer with its own AlgedonicManager
     pub fn new(algedonic_manager: AlgedonicManager) -> Self {
         Self {
             state: Arc::new(RwLock::new(SovereigntyObserverState::default())),
             algedonic_manager: Arc::new(RwLock::new(algedonic_manager)),
+            acquisition_threshold: 5,
+            violation_threshold: 3,
+        }
+    }
+
+    /// Create new sovereignty observer sharing an existing AlgedonicManager
+    pub fn with_manager(algedonic_manager: Arc<RwLock<AlgedonicManager>>) -> Self {
+        Self {
+            state: Arc::new(RwLock::new(SovereigntyObserverState::default())),
+            algedonic_manager,
             acquisition_threshold: 5,
             violation_threshold: 3,
         }

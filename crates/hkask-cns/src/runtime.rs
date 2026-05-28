@@ -6,22 +6,28 @@
 //! Uses shared state with RwLock for compatibility with sync and async contexts.
 
 use crate::algedonic::{AlgedonicManager, CnsHealth, DEFAULT_THRESHOLD, RuntimeAlert};
+use crate::observers::sovereignty::SovereigntyObserver;
 use crate::variety::{VarietyMonitor, VarietyTracker};
 use std::sync::Arc;
+use std::sync::RwLock as StdRwLock;
 use tokio::sync::RwLock;
 use tracing::info;
 
 /// CNS state shared between threads
 struct CnsState {
-    algedonic: AlgedonicManager,
+    algedonic: Arc<StdRwLock<AlgedonicManager>>,
     variety: VarietyMonitor,
+    sovereignty_observer: SovereigntyObserver,
 }
 
 impl CnsState {
     fn new(threshold: u64) -> Self {
+        let algedonic = Arc::new(StdRwLock::new(AlgedonicManager::new(threshold)));
+        let sovereignty_observer = SovereigntyObserver::with_manager(algedonic.clone());
         Self {
-            algedonic: AlgedonicManager::new(threshold),
+            algedonic,
             variety: VarietyMonitor::new(),
+            sovereignty_observer,
         }
     }
 }
@@ -47,13 +53,13 @@ impl CnsRuntime {
     /// Get CNS health status
     pub async fn health(&self) -> CnsHealth {
         let state = self.state.read().await;
-        CnsHealth::check(&state.algedonic)
+        CnsHealth::check(&state.algedonic.read().unwrap())
     }
 
     /// Get all algedonic alerts
     pub async fn alerts(&self) -> Vec<RuntimeAlert> {
         let state = self.state.read().await;
-        state.algedonic.alerts().to_vec()
+        state.algedonic.read().unwrap().alerts().to_vec()
     }
 
     /// Get critical alerts only
@@ -61,6 +67,8 @@ impl CnsRuntime {
         let state = self.state.read().await;
         state
             .algedonic
+            .read()
+            .unwrap()
             .critical_alerts()
             .into_iter()
             .cloned()
@@ -114,7 +122,12 @@ impl CnsRuntime {
         };
 
         let mut state = self.state.write().await;
-        state.algedonic.check(&counter, domain).cloned()
+        state
+            .algedonic
+            .write()
+            .unwrap()
+            .check(&counter, domain)
+            .cloned()
     }
 
     /// Check all domains and return count of alerts generated
@@ -138,7 +151,13 @@ impl CnsRuntime {
 
             if let Some(counter) = counter {
                 let mut state = self.state.write().await;
-                if state.algedonic.check(&counter, &domain).is_some() {
+                if state
+                    .algedonic
+                    .write()
+                    .unwrap()
+                    .check(&counter, &domain)
+                    .is_some()
+                {
                     count += 1;
                 }
             }
@@ -149,19 +168,36 @@ impl CnsRuntime {
     /// Reset all alerts
     pub async fn reset_alerts(&self) {
         let mut state = self.state.write().await;
-        state.algedonic.reset();
+        state.algedonic.write().unwrap().reset();
     }
 
     /// Clear old alerts (older than specified duration)
     pub async fn clear_old_alerts(&self, max_age: std::time::Duration) {
         let mut state = self.state.write().await;
-        state.algedonic.clear_old(max_age);
+        state.algedonic.write().unwrap().clear_old(max_age);
     }
 
     /// Get total variety deficit across all domains
     pub async fn total_deficit(&self) -> u64 {
         let state = self.state.read().await;
         state.variety.total_deficit(DEFAULT_THRESHOLD)
+    }
+
+    /// Process a sovereignty event through the SovereigntyObserver
+    pub async fn process_sovereignty_event(
+        &self,
+        event: crate::observers::sovereignty::SovereigntyEvent,
+    ) {
+        let state = self.state.read().await;
+        state.sovereignty_observer.process_event(event);
+    }
+
+    /// Get current sovereignty observer state
+    pub async fn sovereignty_state(
+        &self,
+    ) -> crate::observers::sovereignty::SovereigntyObserverState {
+        let state = self.state.read().await;
+        state.sovereignty_observer.get_state()
     }
 }
 

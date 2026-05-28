@@ -36,9 +36,6 @@ pub use bot_metrics::{
 };
 pub use energy::{EnergyAccount, EnergyBudget, EnergyError, OpportunityCost};
 pub use goal_variety::{GoalVarietyCounter, GoalVarietyMonitor};
-pub use observers::composition::{
-    CompositionMetrics, CompositionObserver, CompositionObserverState,
-};
 pub use observers::sovereignty::{
     SovereigntyEvent, SovereigntyEventType, SovereigntyObserver, SovereigntyObserverState,
 };

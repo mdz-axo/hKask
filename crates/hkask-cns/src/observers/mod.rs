@@ -2,9 +2,4 @@
 //!
 //! Observer modules for CNS monitoring and feedback.
 
-pub mod composition;
 pub mod sovereignty;
-
-pub use sovereignty::{
-    SovereigntyEvent, SovereigntyEventType, SovereigntyObserver, SovereigntyObserverState,
-};
