@@ -420,15 +420,15 @@ impl OkapiInference {
                     last_error = Some(e);
 
                     if attempt < self.retry_config.max_retries {
-                        let delay = self.retry_config.delay_for_attempt(attempt);
+                        let delay_ms = self.retry_config.delay_for_attempt(attempt);
                         warn!(
                             target: "hkask.inference",
                             attempt = %attempt,
-                            delay_ms = %delay.as_millis(),
+                            delay_ms = %delay_ms,
                             error = ?last_error,
                             "Retryable error, waiting before retry"
                         );
-                        tokio::time::sleep(delay).await;
+                        tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
                     }
                 }
             }

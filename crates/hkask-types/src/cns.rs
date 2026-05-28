@@ -267,50 +267,6 @@ impl KillZoneState {
     }
 }
 
-/// TokenBucket — General-purpose token bucket rate limiter
-///
-/// Uses f64 for fractional token accumulation. Suitable for
-/// rate limiting across all hKask subsystems.
-#[derive(Debug, Clone)]
-pub struct TokenBucket {
-    tokens: f64,
-    max_tokens: f64,
-    refill_rate: f64,
-    last_refill: std::time::Instant,
-}
-
-impl TokenBucket {
-    pub fn new(max_tokens: f64, refill_rate: f64) -> Self {
-        Self {
-            tokens: max_tokens,
-            max_tokens,
-            refill_rate,
-            last_refill: std::time::Instant::now(),
-        }
-    }
-
-    fn refill(&mut self) {
-        let now = std::time::Instant::now();
-        let elapsed = now.duration_since(self.last_refill).as_secs_f64();
-        self.tokens = (self.tokens + elapsed * self.refill_rate).min(self.max_tokens);
-        self.last_refill = now;
-    }
-
-    pub fn consume(&mut self, tokens: f64) -> bool {
-        self.refill();
-        if self.tokens >= tokens {
-            self.tokens -= tokens;
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn available(&self) -> f64 {
-        self.tokens
-    }
-}
-
 /// RetryConfig — Canonical retry configuration for all hKask subsystems
 ///
 /// Combines exponential backoff with retryable status codes.
@@ -354,6 +310,16 @@ impl RetryConfig {
     pub fn delay_for_attempt(&self, attempt: u32) -> u64 {
         let delay = self.initial_delay_ms * (self.multiplier as u64).pow(attempt);
         delay.min(self.max_delay_ms)
+    }
+
+    /// Check if retry should continue (attempt < max_retries)
+    pub fn should_retry(&self, attempt: u32) -> bool {
+        attempt < self.max_retries
+    }
+
+    /// Check if a status code is retryable
+    pub fn is_retryable_status(&self, status: u16) -> bool {
+        self.retryable_status.contains(&status)
     }
 }
 

@@ -48,21 +48,11 @@ pub struct StageExecutionConfig {
     #[serde(default = "default_channel_capacity")]
     pub channel_capacity: usize,
     #[serde(default)]
-    pub retry: CspCspRetryConfig,
+    pub retry: hkask_types::cns::RetryConfig,
 }
 
 fn default_channel_capacity() -> usize {
     1
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct CspCspRetryConfig {
-    #[serde(default)]
-    pub max_retries: u32,
-    #[serde(default)]
-    pub initial_delay_ms: u64,
-    #[serde(default)]
-    pub max_delay_ms: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

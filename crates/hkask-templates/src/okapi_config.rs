@@ -78,38 +78,8 @@ impl OkapiConfig {
     }
 }
 
-/// Retry configuration
-#[derive(Debug, Clone)]
-pub struct OkapiRetryConfig {
-    pub max_retries: u32,
-    pub backoff_base_ms: u64,
-    pub max_delay_ms: u64,
-    pub retryable_status: Vec<u16>,
-}
-
-impl Default for OkapiRetryConfig {
-    fn default() -> Self {
-        Self {
-            max_retries: 3,
-            backoff_base_ms: 500,
-            max_delay_ms: 30000,
-            retryable_status: vec![408, 429, 500, 502, 503, 504],
-        }
-    }
-}
-
-impl OkapiRetryConfig {
-    pub fn is_retryable_status(&self, status: u16) -> bool {
-        self.retryable_status.contains(&status)
-    }
-
-    pub fn delay_for_attempt(&self, attempt: u32) -> std::time::Duration {
-        use std::cmp;
-        let exponential = self.backoff_base_ms * 2u64.pow(attempt);
-        let capped = cmp::min(exponential, self.max_delay_ms);
-        std::time::Duration::from_millis(capped)
-    }
-}
+/// Retry configuration — alias for the canonical RetryConfig
+pub type OkapiRetryConfig = hkask_types::cns::RetryConfig;
 
 /// Prompt validation
 pub fn validate_prompt(prompt: &str) -> Result<(), String> {
