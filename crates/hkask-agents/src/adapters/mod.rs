@@ -8,7 +8,6 @@
 //! - CNS emitter (hkask-cns crate)
 //! - CNS runtime (hkask-cns crate)
 //! - Git CAS (gix crate)
-//! - Keystore (hkask-keystore crate)
 //! - Memory storage (hkask-storage crate)
 
 pub mod agent_registry;
@@ -34,6 +33,7 @@ pub use loopback_http_transport::LoopbackHttpTransport;
 pub use mcp_runtime::McpRuntimeAdapter;
 pub use memory_storage::MemoryStorageAdapter;
 pub use metacognition_store::MetacognitionStoreAdapter;
+pub use rate_limiter::RateLimiterAdapter;
 pub use russell_acp::RussellAcpAdapter;
 pub use standing_session_store::StandingSessionStoreAdapter;
 pub use stdio_transport::StdioTransport;

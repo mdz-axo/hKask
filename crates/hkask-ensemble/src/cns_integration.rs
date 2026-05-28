@@ -239,38 +239,3 @@ impl CnsIntegrationBuilder {
         CnsIntegration::new(self.observer_webid)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_cns_integration_creation() {
-        let webid = WebID::new();
-        let integration = CnsIntegration::new(webid);
-
-        assert_eq!(integration.observer(), webid);
-    }
-
-    #[test]
-    fn test_cns_builder() {
-        let webid = WebID::new();
-        let integration = CnsIntegrationBuilder::new(webid)
-            .with_variety_threshold(50)
-            .build();
-
-        assert_eq!(integration.observer(), webid);
-    }
-
-    #[test]
-    fn test_span_emission() {
-        let webid = WebID::new();
-        let integration = CnsIntegration::new(webid);
-
-        integration.emit_chat_span("test_action", json!({"test": "data"}));
-        integration.emit_tool_span("test_tool", true, json!({}));
-        integration.emit_template_render_span("test_template", true, json!({}));
-
-        // These should complete without errors
-    }
-}

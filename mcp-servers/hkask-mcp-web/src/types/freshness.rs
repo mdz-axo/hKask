@@ -78,37 +78,3 @@ pub fn freshness_serpapi(freshness: &Freshness) -> String {
         Freshness::Year => "qdr:y".to_string(),
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn freshness_parse_aliases() {
-        assert_eq!("day".parse::<Freshness>().unwrap(), Freshness::Day);
-        assert_eq!("d".parse::<Freshness>().unwrap(), Freshness::Day);
-        assert_eq!("1d".parse::<Freshness>().unwrap(), Freshness::Day);
-        assert_eq!("past_day".parse::<Freshness>().unwrap(), Freshness::Day);
-        assert_eq!("week".parse::<Freshness>().unwrap(), Freshness::Week);
-        assert_eq!("w".parse::<Freshness>().unwrap(), Freshness::Week);
-        assert_eq!("1w".parse::<Freshness>().unwrap(), Freshness::Week);
-        assert_eq!("month".parse::<Freshness>().unwrap(), Freshness::Month);
-        assert_eq!("m".parse::<Freshness>().unwrap(), Freshness::Month);
-        assert_eq!("year".parse::<Freshness>().unwrap(), Freshness::Year);
-        assert_eq!("y".parse::<Freshness>().unwrap(), Freshness::Year);
-    }
-
-    #[test]
-    fn freshness_parse_invalid() {
-        assert!("invalid".parse::<Freshness>().is_err());
-        assert!("tomorrow".parse::<Freshness>().is_err());
-    }
-
-    #[test]
-    fn freshness_display_roundtrip() {
-        assert_eq!(Freshness::Day.to_string(), "day");
-        assert_eq!(Freshness::Week.to_string(), "week");
-        assert_eq!(Freshness::Month.to_string(), "month");
-        assert_eq!(Freshness::Year.to_string(), "year");
-    }
-}

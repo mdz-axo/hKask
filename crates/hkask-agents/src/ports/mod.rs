@@ -14,6 +14,7 @@ pub mod git_cas;
 pub mod mcp_runtime;
 pub mod memory_storage;
 pub mod metacognition;
+pub mod security_port;
 pub mod sovereignty;
 pub mod standing_session;
 
@@ -31,6 +32,7 @@ pub use metacognition::{
     CapabilityGap, DirectiveType, EvaluationResult, GapType, KataDirective, KataType,
     MetacognitionPort, MetacognitionPortError, RecommendedAction, StoredHealthSnapshot,
 };
+pub use security_port::ValidationError as RateLimitValidationError;
 pub use sovereignty::{SovereigntyCheckResult, SovereigntyOperation};
 pub use standing_session::{
     AcpSessionMessage, BotReport, MessageRecord, SessionMessageType, SessionRecord,

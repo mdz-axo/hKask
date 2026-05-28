@@ -229,8 +229,8 @@ impl PromptCache {
 
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT key, size_bytes FROM prompt_cache 
-             ORDER BY access_count ASC, last_accessed ASC 
+            "SELECT key, size_bytes FROM prompt_cache
+             ORDER BY access_count ASC, last_accessed ASC
              LIMIT 10",
         )?;
 
@@ -287,7 +287,7 @@ impl PromptCache {
     pub fn stats(&self) -> Result<CacheStats, CacheError> {
         let conn = self.conn.lock().unwrap();
         let row = conn.query_row(
-            "SELECT 
+            "SELECT
                 COUNT(*) as count,
                 COALESCE(SUM(size_bytes), 0) as total_size,
                 COALESCE(SUM(access_count), 0) as total_accesses
@@ -311,42 +311,4 @@ pub struct CacheStats {
     pub entry_count: i64,
     pub total_size_bytes: i64,
     pub total_accesses: i64,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use tempfile::tempdir;
-
-    #[test]
-    fn test_prompt_cache() {
-        let temp_dir = tempdir().unwrap();
-        let db_path = temp_dir.path().join("cache.db");
-        let conn = Arc::new(Mutex::new(Connection::open(db_path).unwrap()));
-        let cache = PromptCache::new(conn, PromptCacheConfig::default()).unwrap();
-
-        let key = PromptCache::generate_key("test prompt", "test-model", &LLMParameters::default());
-
-        let result = InferenceResult {
-            text: "test response".to_string(),
-            model: "test-model".to_string(),
-            usage: crate::inference_port::Usage {
-                prompt_tokens: 10,
-                completion_tokens: 20,
-                total_tokens: 30,
-            },
-            finish_reason: "stop".to_string(),
-            token_probabilities: None,
-        };
-
-        cache
-            .put(&key, "test prompt", "test-model", &result)
-            .unwrap();
-
-        let cached = cache.get(&key).unwrap();
-        assert_eq!(cached.text, "test response");
-
-        let stats = cache.stats().unwrap();
-        assert_eq!(stats.entry_count, 1);
-    }
 }

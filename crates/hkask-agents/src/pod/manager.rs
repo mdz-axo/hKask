@@ -118,25 +118,7 @@ impl PodManager {
         }
     }
 
-    #[cfg(test)]
-    fn _create_test_pod_manager_with_templates() -> PodManager {
-        Self {
-            pods: Arc::new(RwLock::new(HashMap::new())),
-            _keystore: Keychain::default(),
-            git_cas: Arc::new(GitCasAdapter::from_path(PathBuf::from(
-                "./registry/templates",
-            ))),
-            acp_runtime: Arc::new(crate::acp::AcpRuntime::default()),
-            cns_emitter: Arc::new(CnsEmitterAdapter::new(WebID::new())),
-            mcp_runtime: Arc::new(McpRuntimeAdapter::new()),
-            memory_storage: Arc::new(
-                MemoryStorageAdapter::in_memory()
-                    .expect("In-memory storage initialization should never fail"),
-            ),
-            security_context: SecurityContext::default(),
-            inference_port: None,
-        }
-    }
+
 }
 
 /// Builder for constructing [`PodManager`] with explicit adapter configuration

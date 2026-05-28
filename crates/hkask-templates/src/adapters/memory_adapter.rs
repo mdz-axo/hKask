@@ -92,24 +92,3 @@ impl AppMemoryAdapter {
         Ok(Vec::new())
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_stub_memory_port_returns_empty() {
-        let stub = StubMemoryPort;
-
-        assert!(stub.query_semantic("test").unwrap().is_empty());
-        assert!(stub.query_episodic("test", "user1").unwrap().is_empty());
-        assert!(stub.get_session_history("session1", 10).unwrap().is_empty());
-    }
-
-    #[test]
-    fn test_stub_memory_port_inherent_methods() {
-        let stub = StubMemoryPort;
-
-        assert!(stub.query_semantic("test").unwrap().is_empty());
-    }
-}

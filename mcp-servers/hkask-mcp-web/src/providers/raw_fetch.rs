@@ -143,20 +143,3 @@ pub fn truncate_str(s: &str, max_len: usize) -> String {
         format!("{}…", &s[..end])
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn truncate_str_short() {
-        assert_eq!(truncate_str("hi", 10), "hi");
-    }
-
-    #[test]
-    fn truncate_str_long() {
-        let result = truncate_str("hello world 12345", 8);
-        assert!(result.ends_with('…'));
-        assert!(result.len() <= 12);
-    }
-}

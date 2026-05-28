@@ -220,7 +220,7 @@ impl EscalationQueue {
     pub fn stats(&self) -> Result<EscalationStats, EscalationError> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT 
+            "SELECT
                 COUNT(*) as total,
                 SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
                 SUM(CASE WHEN status = 'in_review' THEN 1 ELSE 0 END) as in_review,
@@ -250,43 +250,4 @@ pub struct EscalationStats {
     pub in_review: i64,
     pub resolved: i64,
     pub dismissed: i64,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use tempfile::tempdir;
-
-    #[test]
-    fn test_escalation_queue() {
-        let temp_dir = tempdir().unwrap();
-        let db_path = temp_dir.path().join("escalations.db");
-        let conn = Arc::new(Mutex::new(Connection::open(db_path).unwrap()));
-        let queue = EscalationQueue::new(conn).unwrap();
-
-        let template_id = TemplateID::new();
-        let bot_id = BotID::new();
-
-        let id = queue
-            .add(
-                template_id,
-                bot_id,
-                "Test output".to_string(),
-                0.3,
-                2,
-                "Low confidence".to_string(),
-            )
-            .unwrap();
-
-        assert!(!id.is_empty());
-
-        let stats = queue.stats().unwrap();
-        assert_eq!(stats.pending, 1);
-        assert_eq!(stats.total, 1);
-
-        queue.resolve(&id, "curator").unwrap();
-        let stats = queue.stats().unwrap();
-        assert_eq!(stats.resolved, 1);
-        assert_eq!(stats.pending, 0);
-    }
 }

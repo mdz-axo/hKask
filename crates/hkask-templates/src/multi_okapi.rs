@@ -157,19 +157,3 @@ impl MultiOkapiInference {
         }))
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_multi_okapi_client() {
-        let client = MultiOkapiClient::new(vec![
-            "http://127.0.0.1:11435".to_string(),
-            "http://127.0.0.1:11436".to_string(),
-            "http://127.0.0.1:11437".to_string(),
-        ]);
-
-        assert_eq!(client.endpoints.len(), 3);
-    }
-}

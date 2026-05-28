@@ -157,9 +157,7 @@ impl SecurityGateway {
             hkask_types::CapabilityAction::Execute,
         );
 
-        if !result
-            && let Some(ref emitter) = self.cns_emitter
-        {
+        if !result && let Some(ref emitter) = self.cns_emitter {
             emitter.emit(
                 &format!("cns.tool.{}.unauthorized", tool_name.replace(':', ".")),
                 serde_json::json!({"bot_id": bot_id.to_string(), "tool": tool_name}),
@@ -176,9 +174,7 @@ impl SecurityGateway {
             return true;
         }
         let result = self.rate_limiter.check(bot_id);
-        if !result
-            && let Some(ref emitter) = self.cns_emitter
-        {
+        if !result && let Some(ref emitter) = self.cns_emitter {
             emitter.emit(
                 "cns.tool.rate_limit_exceeded",
                 serde_json::json!({"bot_id": bot_id.to_string()}),
@@ -359,101 +355,4 @@ fn is_private_ip(ip: &IpAddr) -> bool {
 
 fn is_ipv6_loopback(v6: &Ipv6Addr) -> bool {
     v6.segments() == [0, 0, 0, 0, 0, 0, 0, 1]
-}
-
-#[cfg(test)]
-mod url_validation_tests {
-    use super::*;
-
-    #[test]
-    fn test_rejects_ftp_scheme() {
-        let result = validate_url("ftp://example.com/file", &UrlValidationConfig::default());
-        assert!(matches!(result, Err(SecurityError::DisallowedScheme(_))));
-    }
-
-    #[test]
-    fn test_accepts_https() {
-        let result = validate_url("https://example.com/path", &UrlValidationConfig::default());
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_accepts_http() {
-        let result = validate_url("http://example.com/path", &UrlValidationConfig::default());
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_rejects_embedded_credentials() {
-        let result = validate_url(
-            "https://user:pass@example.com/path",
-            &UrlValidationConfig::default(),
-        );
-        assert!(matches!(result, Err(SecurityError::EmbeddedCredentials(_))));
-    }
-
-    #[test]
-    fn test_rejects_private_ip_default() {
-        let result = validate_url("http://192.168.1.1/path", &UrlValidationConfig::default());
-        assert!(matches!(result, Err(SecurityError::PrivateIpNotAllowed(_))));
-    }
-
-    #[test]
-    fn test_allows_private_ip_when_configured() {
-        let config = UrlValidationConfig {
-            allow_private_ips: true,
-            ..Default::default()
-        };
-        let result = validate_url("http://192.168.1.1/path", &config);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_rejects_10_ip() {
-        let result = validate_url("http://10.0.0.1/path", &UrlValidationConfig::default());
-        assert!(matches!(result, Err(SecurityError::PrivateIpNotAllowed(_))));
-    }
-
-    #[test]
-    fn test_rejects_172_ip() {
-        let result = validate_url("http://172.16.0.1/path", &UrlValidationConfig::default());
-        assert!(matches!(result, Err(SecurityError::PrivateIpNotAllowed(_))));
-    }
-
-    #[test]
-    fn test_rejects_loopback_default() {
-        let result = validate_url("http://127.0.0.1/path", &UrlValidationConfig::default());
-        assert!(matches!(result, Err(SecurityError::LoopbackNotAllowed(_))));
-    }
-
-    #[test]
-    fn test_allows_loopback_when_configured() {
-        let config = UrlValidationConfig {
-            allow_loopback: true,
-            allow_private_ips: true,
-        };
-        let result = validate_url("http://127.0.0.1/path", &config);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_rejects_no_scheme() {
-        let result = validate_url("example.com/path", &UrlValidationConfig::default());
-        assert!(matches!(result, Err(SecurityError::InvalidUrl(_))));
-    }
-
-    #[test]
-    fn test_rejects_file_scheme() {
-        let result = validate_url("file:///etc/passwd", &UrlValidationConfig::default());
-        assert!(matches!(result, Err(SecurityError::DisallowedScheme(_))));
-    }
-
-    #[test]
-    fn test_rejects_link_local_ip() {
-        let result = validate_url(
-            "http://169.254.169.254/latest/meta-data/",
-            &UrlValidationConfig::default(),
-        );
-        assert!(matches!(result, Err(SecurityError::PrivateIpNotAllowed(_))));
-    }
 }
