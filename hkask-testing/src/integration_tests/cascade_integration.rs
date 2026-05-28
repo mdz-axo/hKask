@@ -14,6 +14,7 @@ use hkask_templates::cascade::{
     CnsFeedbackConfig, CycleDetectionConfig, EnergyConfig, ManifestCascadeConfig,
     TemplateCascadeConfig,
 };
+#[allow(unused_imports)]
 use hkask_templates::ports::{Action, ManifestExecutor, ManifestStep, ProcessManifest};
 use hkask_templates::ports::{
     CompositionTemplate, McpPort, TemplateError, TemplateRenderer, ToolInfo,

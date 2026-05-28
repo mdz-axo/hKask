@@ -7,10 +7,7 @@
 //! - `ocap:enumerate` — Enumerate capabilities for a subject
 //! - `ocap:list_tokens` — List all capability tokens
 
-use hkask_mcp::server::{
-    McpToolError, McpToolOutput, ToolSpanGuard,
-    validate_identifier,
-};
+use hkask_mcp::server::{McpToolError, McpToolOutput, ToolSpanGuard, validate_identifier};
 use hkask_types::{
     CapabilityAction, CapabilityChecker, CapabilityResource, CapabilityToken, McpErrorKind, WebID,
 };

@@ -3,11 +3,14 @@
 //! Tests for boot verification, credential resolution, input validation,
 //! JSON output validity, SSRF protection, WebID resolution, and CNS span naming.
 
+#[allow(unused_imports)] // used only in #[test] functions
 use hkask_mcp::server::{
     CredentialRequirement, McpToolError, McpToolOutput, ServerContext, ToolSpanGuard,
     validate_identifier, validate_tool_url,
 };
+#[allow(unused_imports)]
 use hkask_types::{McpErrorKind, WebID};
+#[allow(unused_imports)]
 use std::collections::HashMap;
 
 // =============================================================================

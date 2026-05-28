@@ -1,9 +1,6 @@
 //! hKask MCP Registry — Template registry with real registry operations
 
-use hkask_mcp::server::{
-    McpToolError, McpToolOutput, ToolSpanGuard,
-    validate_identifier,
-};
+use hkask_mcp::server::{McpToolError, McpToolOutput, ToolSpanGuard, validate_identifier};
 use hkask_templates::{Registry, RegistryIndex, SqliteRegistry};
 use hkask_types::{TemplateType, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};

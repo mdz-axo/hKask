@@ -8,33 +8,6 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
-/// Mock struct for inference
-pub struct MockInferencePort {
-    responses: Arc<RwLock<HashMap<String, String>>>,
-}
-
-impl MockInferencePort {
-    pub fn new() -> Self {
-        Self {
-            responses: Arc::new(RwLock::new(HashMap::new())),
-        }
-    }
-
-    pub fn with_response(self, prompt: &str, response: &str) -> Self {
-        self.responses
-            .write()
-            .unwrap()
-            .insert(prompt.to_string(), response.to_string());
-        self
-    }
-}
-
-impl Default for MockInferencePort {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 /// Mock implementation of McpPort
 pub struct MockMcpPort {
     tools: Arc<RwLock<HashMap<String, bool>>>,
