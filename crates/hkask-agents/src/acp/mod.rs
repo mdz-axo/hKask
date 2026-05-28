@@ -281,6 +281,13 @@ impl AcpRuntime {
         self
     }
 
+    /// Emit a CNS event if an emitter is configured
+    fn emit_cns(&self, span: &str, verb: &str, payload: &serde_json::Value, confidence: f64) {
+        if let Some(ref cns) = *self.cns_emitter.read().unwrap() {
+            cns.emit_event(span, verb, payload, confidence);
+        }
+    }
+
     /// Register an agent with the ACP runtime
     ///
     /// # Arguments
@@ -350,19 +357,17 @@ impl AcpRuntime {
         );
 
         // Emit CNS span for capability minting
-        if let Some(ref cns) = *self.cns_emitter.read().unwrap() {
-            cns.emit_event(
-                "cns.cap.minted",
-                "minted",
-                &serde_json::json!({
-                    "token_id": token.id,
-                    "holder": token.delegated_to.to_string(),
-                    "resource": token.resource_id,
-                    "action": token.action.as_str(),
-                }),
-                1.0,
-            );
-        }
+        self.emit_cns(
+            "cns.cap.minted",
+            "minted",
+            &serde_json::json!({
+                "token_id": token.id,
+                "holder": token.delegated_to.to_string(),
+                "resource": token.resource_id,
+                "action": token.action.as_str(),
+            }),
+            1.0,
+        );
 
         Ok(token)
     }
@@ -515,24 +520,22 @@ impl AcpRuntime {
         };
 
         // Emit CNS span for capability verification
-        if let Some(ref cns) = *self.cns_emitter.read().unwrap() {
-            let span_name = if valid {
-                "cns.cap.verified_ok"
-            } else {
-                "cns.cap.verified_denied"
-            };
-            cns.emit_event(
-                span_name,
-                "verified",
-                &serde_json::json!({
-                    "token_id": token.id,
-                    "holder": token.delegated_to.to_string(),
-                    "resource": token.resource_id,
-                    "expired": token.is_expired(current_time),
-                }),
-                1.0,
-            );
-        }
+        let span_name = if valid {
+            "cns.cap.verified_ok"
+        } else {
+            "cns.cap.verified_denied"
+        };
+        self.emit_cns(
+            span_name,
+            "verified",
+            &serde_json::json!({
+                "token_id": token.id,
+                "holder": token.delegated_to.to_string(),
+                "resource": token.resource_id,
+                "expired": token.is_expired(current_time),
+            }),
+            1.0,
+        );
 
         valid
     }
@@ -543,16 +546,14 @@ impl AcpRuntime {
         revoked.insert(token_id.to_string());
 
         // Emit CNS span for capability revocation
-        if let Some(ref cns) = *self.cns_emitter.read().unwrap() {
-            cns.emit_event(
-                "cns.cap.revoked",
-                "revoked",
-                &serde_json::json!({
-                    "token_id": token_id,
-                }),
-                1.0,
-            );
-        }
+        self.emit_cns(
+            "cns.cap.revoked",
+            "revoked",
+            &serde_json::json!({
+                "token_id": token_id,
+            }),
+            1.0,
+        );
     }
 
     /// Check if a capability token has been revoked
@@ -600,19 +601,17 @@ impl AcpRuntime {
             })?;
 
         // Emit CNS span for capability attenuation
-        if let Some(ref cns) = *self.cns_emitter.read().unwrap() {
-            cns.emit_event(
-                "cns.cap.attenuated",
-                "attenuated",
-                &serde_json::json!({
-                    "parent_id": parent_token.id,
-                    "child_id": child.id,
-                    "attenuation_level": child.attenuation_level,
-                    "holder": child.delegated_to.to_string(),
-                }),
-                1.0,
-            );
-        }
+        self.emit_cns(
+            "cns.cap.attenuated",
+            "attenuated",
+            &serde_json::json!({
+                "parent_id": parent_token.id,
+                "child_id": child.id,
+                "attenuation_level": child.attenuation_level,
+                "holder": child.delegated_to.to_string(),
+            }),
+            1.0,
+        );
 
         Ok(child)
     }

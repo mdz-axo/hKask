@@ -1,114 +1,10 @@
 //! Rate Limiting for Manifest Operations
 //!
-//! Implements token bucket rate limiting to prevent DoS attacks and resource exhaustion.
-//! Per architecture v0.21.0: rate limits are configurable per deployment.
+//! Re-exports unified rate limiter from hkask-cns.
+//! Provides rate-limited repository wrapper for manifest operations.
 
-use parking_lot::Mutex;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{Duration, Instant};
-
-/// Token bucket rate limiter
-///
-/// Allows burst of requests up to `max_tokens`, then refills at `refill_rate` tokens per second.
-/// Thread-safe and lock-free for the common case (tokens available).
-pub struct RateLimiter {
-    /// Maximum tokens in bucket (burst capacity)
-    max_tokens: u64,
-    /// Tokens added per second
-    refill_rate: u64,
-    /// Current token count (atomic for lock-free reads)
-    tokens: AtomicU64,
-    /// Last refill time
-    last_refill: Mutex<Instant>,
-}
-
-impl RateLimiter {
-    /// Create new rate limiter
-    ///
-    /// # Arguments
-    /// * `max_tokens` - Maximum burst capacity
-    /// * `refill_rate` - Tokens added per second
-    pub fn new(max_tokens: u64, refill_rate: u64) -> Self {
-        Self {
-            max_tokens,
-            refill_rate,
-            tokens: AtomicU64::new(max_tokens),
-            last_refill: Mutex::new(Instant::now()),
-        }
-    }
-
-    /// Create rate limiter with sensible defaults
-    /// Default: 10 requests/second burst, 100 requests/second sustained
-    pub fn with_defaults() -> Self {
-        Self::new(10, 100)
-    }
-
-    /// Try to consume a token
-    ///
-    /// Returns `true` if token was consumed (request allowed),
-    /// `false` if rate limit exceeded (request should be rejected).
-    pub fn try_acquire(&self) -> bool {
-        // First try lock-free path
-        let current = self.tokens.load(Ordering::Relaxed);
-        if current == 0 {
-            // Need to refill - take lock
-            self.refill();
-            // Try again after refill
-            let current = self.tokens.load(Ordering::Relaxed);
-            if current == 0 {
-                return false;
-            }
-        }
-
-        // Try to consume token
-        loop {
-            let current = self.tokens.load(Ordering::Relaxed);
-            if current == 0 {
-                return false;
-            }
-            if self
-                .tokens
-                .compare_exchange(current, current - 1, Ordering::SeqCst, Ordering::Relaxed)
-                .is_ok()
-            {
-                return true;
-            }
-            // CAS failed, retry
-        }
-    }
-
-    /// Refill tokens based on elapsed time
-    fn refill(&self) {
-        let mut last_refill = self.last_refill.lock();
-        let now = Instant::now();
-        let elapsed = now.duration_since(*last_refill);
-
-        // Calculate tokens to add
-        let tokens_to_add = (elapsed.as_secs_f64() * self.refill_rate as f64) as u64;
-
-        if tokens_to_add > 0 {
-            let current = self.tokens.load(Ordering::Relaxed);
-            let new_tokens = (current + tokens_to_add).min(self.max_tokens);
-            self.tokens.store(new_tokens, Ordering::Relaxed);
-            *last_refill = now;
-        }
-    }
-
-    /// Get current token count (for monitoring)
-    pub fn tokens_available(&self) -> u64 {
-        self.tokens.load(Ordering::Relaxed)
-    }
-
-    /// Get maximum tokens (burst capacity)
-    pub fn max_tokens(&self) -> u64 {
-        self.max_tokens
-    }
-
-    /// Get refill rate (tokens per second)
-    pub fn refill_rate(&self) -> u64 {
-        self.refill_rate
-    }
-}
+pub use hkask_cns::rate_limit::{RateLimitConfig, RateLimiter, StringRateLimiter};
+use std::time::Duration;
 
 /// Rate limit exceeded error
 #[derive(Debug, thiserror::Error)]
@@ -130,15 +26,15 @@ impl RateLimitExceededError {
 /// Rate-limited manifest repository wrapper
 pub struct RateLimitedRepository<R> {
     inner: R,
-    rate_limiter: RateLimiter,
+    rate_limiter: StringRateLimiter,
 }
 
 impl<R> RateLimitedRepository<R> {
     /// Create rate-limited repository
-    pub fn new(inner: R, max_tokens: u64, refill_rate: u64) -> Self {
+    pub fn new(inner: R, config: RateLimitConfig) -> Self {
         Self {
             inner,
-            rate_limiter: RateLimiter::new(max_tokens, refill_rate),
+            rate_limiter: RateLimiter::new(config),
         }
     }
 
@@ -153,10 +49,11 @@ impl<R> RateLimitedRepository<R> {
     }
 
     /// Check rate limit before operation
-    fn check_rate_limit(&self) -> Result<(), RateLimitExceededError> {
-        if !self.rate_limiter.try_acquire() {
-            // Calculate retry-after based on refill rate
-            let retry_after = Duration::from_secs_f64(1.0 / self.rate_limiter.refill_rate() as f64);
+    pub fn check_rate_limit(&self, operation: &str) -> Result<(), RateLimitExceededError> {
+        if !self.rate_limiter.check(&operation.to_string()) {
+            let retry_after = Duration::from_millis(
+                self.rate_limiter.remaining(&operation.to_string()).max(1) as u64 * 100,
+            );
             return Err(RateLimitExceededError::new(
                 "Manifest operation rate limit exceeded",
                 retry_after,
@@ -165,10 +62,3 @@ impl<R> RateLimitedRepository<R> {
         Ok(())
     }
 }
-
-    }
-
-
-
-
-

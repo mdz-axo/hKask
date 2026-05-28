@@ -93,26 +93,7 @@ impl std::fmt::Display for DataCategory {
 }
 
 /// SovereigntyId — Unique identifier for sovereignty boundaries
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct SovereigntyId(pub Uuid);
-
-impl SovereigntyId {
-    pub fn new() -> Self {
-        Self(Uuid::new_v4())
-    }
-}
-
-impl Default for SovereigntyId {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl std::fmt::Display for SovereigntyId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
+crate::id::define_id_type!(SovereigntyId);
 
 /// Acquisition resistance level
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]

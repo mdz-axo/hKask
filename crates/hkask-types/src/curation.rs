@@ -33,6 +33,7 @@ impl std::fmt::Display for CuratorId {
         write!(f, "{}", self.0)
     }
 }
+// Note: CuratorId kept manual due to special system() method
 
 /// CurationDecision — The Curator's evaluation of template outputs
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

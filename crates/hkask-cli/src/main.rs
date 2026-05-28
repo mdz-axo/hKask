@@ -37,6 +37,21 @@ fn or_exit<T, E: std::fmt::Display>(result: Result<T, E>, label: &str) -> T {
     }
 }
 
+/// Write `content` to `output` if given, otherwise print to stdout.
+/// Exits with an error message on write failure.
+fn write_or_print(content: &str, output: Option<&std::path::Path>, label: &str) {
+    match output {
+        Some(path) => {
+            if let Err(e) = std::fs::write(path, content) {
+                eprintln!("Failed to write {}: {}", label, e);
+                std::process::exit(1);
+            }
+            println!("{} written to: {}", label, path.display());
+        }
+        None => println!("{}", content),
+    }
+}
+
 /// Open a UserStore for replicant commands, using the same DB path logic.
 fn open_user_store() -> std::sync::Arc<std::sync::Mutex<hkask_storage::user_store::UserStore>> {
     let db_path = std::env::var("HKASK_DB_PATH").unwrap_or_else(|_| "hkask.db".to_string());
@@ -440,44 +455,33 @@ fn main() {
         Commands::Docs { action } => match action {
             DocsAction::Openapi { output } => {
                 let spec = hkask_api::create_openapi();
-                let json =
-                    serde_json::to_string_pretty(&spec).expect("Failed to serialize OpenAPI spec");
-
-                match output {
-                    Some(path) => {
-                        std::fs::write(&path, &json).expect("Failed to write OpenAPI spec");
-                        println!("OpenAPI specification written to: {}", path.display());
-                    }
-                    None => println!("{}", json),
-                }
+                let json = or_exit(
+                    serde_json::to_string_pretty(&spec),
+                    "Failed to serialize OpenAPI spec",
+                );
+                write_or_print(&json, output.as_deref(), "OpenAPI specification");
             }
             DocsAction::Cli { output } => {
                 let help = cli::generate_cli_markdown();
-                match output {
-                    Some(path) => {
-                        std::fs::write(&path, &help).expect("Failed to write CLI documentation");
-                        println!("CLI documentation written to: {}", path.display());
-                    }
-                    None => println!("{}", help),
-                }
+                write_or_print(&help, output.as_deref(), "CLI documentation");
             }
             DocsAction::All { output } => {
-                std::fs::create_dir_all(&output).expect("Failed to create output directory");
+                or_exit(
+                    std::fs::create_dir_all(&output),
+                    "Failed to create output directory",
+                );
 
                 let spec = hkask_api::create_openapi();
-                let json =
-                    serde_json::to_string_pretty(&spec).expect("Failed to serialize OpenAPI spec");
-                let openapi_path = output.join("openapi.json");
-                std::fs::write(&openapi_path, &json).expect("Failed to write OpenAPI spec");
-                println!(
-                    "OpenAPI specification written to: {}",
-                    openapi_path.display()
+                let json = or_exit(
+                    serde_json::to_string_pretty(&spec),
+                    "Failed to serialize OpenAPI spec",
                 );
+                let openapi_path = output.join("openapi.json");
+                write_or_print(&json, Some(&openapi_path), "OpenAPI specification");
 
                 let help = cli::generate_cli_markdown();
                 let cli_path = output.join("cli.md");
-                std::fs::write(&cli_path, &help).expect("Failed to write CLI documentation");
-                println!("CLI documentation written to: {}", cli_path.display());
+                write_or_print(&help, Some(&cli_path), "CLI documentation");
 
                 println!(
                     "\nDocumentation generated successfully in: {}",
@@ -732,56 +736,36 @@ fn main() {
                 use minijinja::UndefinedBehavior;
 
                 let template_path = format!("registry/templates/{}", template);
-                let template_content = match std::fs::read_to_string(&template_path) {
-                    Ok(content) => content,
-                    Err(_) => {
-                        eprintln!("Template not found: {}", template_path);
-                        std::process::exit(1);
-                    }
-                };
+                let template_content = or_exit(
+                    std::fs::read_to_string(&template_path),
+                    "Template not found",
+                );
 
                 let db_path =
                     std::env::var("HKASK_DB_PATH").unwrap_or_else(|_| "hkask.db".to_string());
-                let conn = match rusqlite::Connection::open(&db_path) {
-                    Ok(c) => c,
-                    Err(e) => {
-                        eprintln!("Failed to open database: {}", e);
-                        std::process::exit(1);
-                    }
-                };
+                let conn = or_exit(
+                    rusqlite::Connection::open(&db_path),
+                    "Failed to open database",
+                );
                 let store = SqliteSpecStore::new(std::sync::Arc::new(std::sync::Mutex::new(conn)));
-                if let Err(e) = store.init_schema() {
-                    eprintln!("Failed to initialize spec schema: {}", e);
-                    std::process::exit(1);
-                }
+                or_exit(store.init_schema(), "Failed to initialize spec schema");
 
                 let ctx = if let Some(sid) = spec_id {
-                    let parsed_id = match SpecId::from_string(&sid) {
-                        Ok(id) => id,
-                        Err(e) => {
-                            eprintln!("Invalid spec ID: {}", e);
-                            std::process::exit(1);
-                        }
-                    };
-                    match store.load(parsed_id) {
-                        Ok(spec) => minijinja::context! {
-                            spec_id => spec.id.to_string(),
-                            goal_name => spec.name,
-                            spec_category => spec.category.as_str(),
-                            domain_anchor => spec.domain_anchor.as_str(),
-                            goals => spec.goals.iter().map(|g| minijinja::context! {
-                                text => g.text,
-                                depth => g.depth,
-                                criteria => g.criteria.iter().map(|c| minijinja::context! {
-                                    description => c.description,
-                                    satisfied => c.satisfied,
-                                }).collect::<Vec<_>>(),
+                    let parsed_id = or_exit(SpecId::from_string(&sid), "Invalid spec ID");
+                    let spec = or_exit(store.load(parsed_id), "Failed to load spec");
+                    minijinja::context! {
+                        spec_id => spec.id.to_string(),
+                        goal_name => spec.name,
+                        spec_category => spec.category.as_str(),
+                        domain_anchor => spec.domain_anchor.as_str(),
+                        goals => spec.goals.iter().map(|g| minijinja::context! {
+                            text => g.text,
+                            depth => g.depth,
+                            criteria => g.criteria.iter().map(|c| minijinja::context! {
+                                description => c.description,
+                                satisfied => c.satisfied,
                             }).collect::<Vec<_>>(),
-                        },
-                        Err(e) => {
-                            eprintln!("Failed to load spec: {}", e);
-                            std::process::exit(1);
-                        }
+                        }).collect::<Vec<_>>(),
                     }
                 } else {
                     minijinja::context! {}
@@ -789,13 +773,11 @@ fn main() {
 
                 let mut env = minijinja::Environment::new();
                 env.set_undefined_behavior(UndefinedBehavior::Strict);
-                match env.render_str(&template_content, ctx) {
-                    Ok(rendered) => println!("{}", rendered),
-                    Err(e) => {
-                        eprintln!("Template render error: {}", e);
-                        std::process::exit(1);
-                    }
-                }
+                let rendered = or_exit(
+                    env.render_str(&template_content, ctx),
+                    "Template render error",
+                );
+                println!("{}", rendered);
             }
         },
 

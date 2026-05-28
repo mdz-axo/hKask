@@ -1,0 +1,209 @@
+//! Canonical audit entry types for hKask
+//!
+//! This module provides unified audit logging types used across all crates,
+//! eliminating duplication in:
+//! - hkask-agents/src/acp/audit.rs (AuditLogEntry)
+//! - hkask-agents/src/ports/audit_log.rs (AuditEntry)
+//! - hkask-agents/src/ports/audit_log_storage.rs (AuditStorageEntry)
+//! - hkask-storage/src/audit_log.rs (AuditEntry)
+//! - hkask-mcp/src/security.rs (AuditEntry)
+
+use crate::WebID;
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+
+/// Unified audit entry for all hKask operations
+///
+/// This consolidates 5 duplicate audit entry types into a single canonical structure.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuditEntry {
+    /// Unique entry identifier
+    pub id: String,
+    /// Timestamp of the event
+    pub timestamp: DateTime<Utc>,
+    /// Actor WebID (who performed the action)
+    pub actor: WebID,
+    /// Action performed (e.g., "template_dispatch", "tool_invoke")
+    pub action: String,
+    /// Resource affected (e.g., template ID, tool name)
+    pub resource: String,
+    /// Outcome (success, failure, denied)
+    pub outcome: AuditOutcome,
+    /// Additional context/metadata
+    pub context: AuditContext,
+}
+
+/// Audit outcome classification
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AuditOutcome {
+    Success,
+    Failure,
+    Denied,
+    Error,
+}
+
+impl std::fmt::Display for AuditOutcome {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AuditOutcome::Success => write!(f, "success"),
+            AuditOutcome::Failure => write!(f, "failure"),
+            AuditOutcome::Denied => write!(f, "denied"),
+            AuditOutcome::Error => write!(f, "error"),
+        }
+    }
+}
+
+impl std::str::FromStr for AuditOutcome {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "success" => Ok(AuditOutcome::Success),
+            "failure" => Ok(AuditOutcome::Failure),
+            "denied" => Ok(AuditOutcome::Denied),
+            "error" => Ok(AuditOutcome::Error),
+            _ => Err(format!("Invalid audit outcome: {}", s)),
+        }
+    }
+}
+
+/// Additional context for audit entries
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct AuditContext {
+    /// Correlation ID for distributed tracing
+    pub correlation_id: Option<String>,
+    /// Recipient WebID (for message passing)
+    pub recipient: Option<WebID>,
+    /// IP address (for network operations)
+    pub ip_address: Option<String>,
+    /// Error message (if outcome is failure/error)
+    pub error_message: Option<String>,
+    /// Arbitrary metadata
+    pub metadata: serde_json::Value,
+}
+
+impl AuditEntry {
+    /// Create a new audit entry
+    pub fn new(
+        actor: WebID,
+        action: impl Into<String>,
+        resource: impl Into<String>,
+        outcome: AuditOutcome,
+    ) -> Self {
+        Self {
+            id: uuid::Uuid::new_v4().to_string(),
+            timestamp: Utc::now(),
+            actor,
+            action: action.into(),
+            resource: resource.into(),
+            outcome,
+            context: AuditContext::default(),
+        }
+    }
+
+    /// Add correlation ID
+    pub fn with_correlation_id(mut self, correlation_id: impl Into<String>) -> Self {
+        self.context.correlation_id = Some(correlation_id.into());
+        self
+    }
+
+    /// Add recipient
+    pub fn with_recipient(mut self, recipient: WebID) -> Self {
+        self.context.recipient = Some(recipient);
+        self
+    }
+
+    /// Add IP address
+    pub fn with_ip_address(mut self, ip: impl Into<String>) -> Self {
+        self.context.ip_address = Some(ip.into());
+        self
+    }
+
+    /// Add error message
+    pub fn with_error(mut self, error: impl Into<String>) -> Self {
+        self.context.error_message = Some(error.into());
+        self
+    }
+
+    /// Add metadata
+    pub fn with_metadata(mut self, metadata: serde_json::Value) -> Self {
+        self.context.metadata = metadata;
+        self
+    }
+
+    /// Check if entry represents a success
+    pub fn is_success(&self) -> bool {
+        matches!(self.outcome, AuditOutcome::Success)
+    }
+
+    /// Check if entry represents a failure
+    pub fn is_failure(&self) -> bool {
+        matches!(self.outcome, AuditOutcome::Failure | AuditOutcome::Error)
+    }
+
+    /// Check if entry represents a denial
+    pub fn is_denied(&self) -> bool {
+        matches!(self.outcome, AuditOutcome::Denied)
+    }
+}
+
+/// Audit log port trait (hexagonal architecture boundary)
+///
+/// Implementations:
+/// - In-memory buffer (for testing)
+/// - SQLite persistence (production)
+/// - External audit systems
+pub trait AuditLogPort: Send + Sync {
+    /// Record an audit entry
+    fn log(&self, entry: AuditEntry);
+
+    /// Query recent entries
+    fn query_recent(&self, limit: usize) -> Vec<AuditEntry>;
+
+    /// Query entries by actor
+    fn query_by_actor(&self, actor: &WebID, limit: usize) -> Vec<AuditEntry>;
+
+    /// Query entries by correlation ID
+    fn query_by_correlation(&self, correlation_id: &str) -> Vec<AuditEntry>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_audit_entry_creation() {
+        let actor = WebID::new();
+        let entry = AuditEntry::new(actor, "test_action", "test_resource", AuditOutcome::Success);
+
+        assert_eq!(entry.actor, actor);
+        assert_eq!(entry.action, "test_action");
+        assert_eq!(entry.resource, "test_resource");
+        assert!(entry.is_success());
+        assert!(!entry.is_failure());
+    }
+
+    #[test]
+    fn test_audit_entry_with_context() {
+        let actor = WebID::new();
+        let recipient = WebID::new();
+        let entry = AuditEntry::new(actor, "send_message", "template_123", AuditOutcome::Success)
+            .with_correlation_id("corr_456")
+            .with_recipient(recipient)
+            .with_ip_address("127.0.0.1");
+
+        assert_eq!(entry.context.correlation_id, Some("corr_456".to_string()));
+        assert_eq!(entry.context.recipient, Some(recipient));
+        assert_eq!(entry.context.ip_address, Some("127.0.0.1".to_string()));
+    }
+
+    #[test]
+    fn test_audit_outcome_parsing() {
+        assert_eq!("success".parse::<AuditOutcome>(), Ok(AuditOutcome::Success));
+        assert_eq!("failure".parse::<AuditOutcome>(), Ok(AuditOutcome::Failure));
+        assert_eq!("denied".parse::<AuditOutcome>(), Ok(AuditOutcome::Denied));
+        assert_eq!("error".parse::<AuditOutcome>(), Ok(AuditOutcome::Error));
+        assert!("invalid".parse::<AuditOutcome>().is_err());
+    }
+}

@@ -1,7 +1,16 @@
-//! Rate limiting for template dispatch
+//! Rate limiting for hKask — Unified implementation
 //!
-//! Implements token bucket rate limiting per bot/WebID.
-//! Algedonic alert on rate limit exceeded.
+//! Provides token bucket rate limiting with multiple strategies:
+//! - Per-key limiting (WebID, tool name, etc.)
+//! - Configurable token counts and refill rates
+//! - Thread-safe with async support
+//!
+//! This consolidates 5 duplicate rate limiter implementations across:
+//! - hkask-cns (this file)
+//! - hkask-agents/security.rs
+//! - hkask-agents/adapters/rate_limiter.rs
+//! - hkask-templates/rate_limiter.rs
+//! - hkask-mcp-web/rate_limiter.rs
 
 use hkask_types::WebID;
 use parking_lot::Mutex;
@@ -75,13 +84,16 @@ impl CnsTokenBucket {
     }
 }
 
-/// Rate limiter for template dispatch
-pub struct RateLimiter {
-    buckets: Mutex<HashMap<WebID, CnsTokenBucket>>,
+/// Unified rate limiter for hKask
+///
+/// Generic over key type K (WebID, String, tool name, etc.)
+/// Thread-safe with parking_lot::Mutex for performance.
+pub struct RateLimiter<K = WebID> {
+    buckets: Mutex<HashMap<K, CnsTokenBucket>>,
     config: RateLimitConfig,
 }
 
-impl RateLimiter {
+impl<K: std::hash::Hash + Eq + Clone> RateLimiter<K> {
     pub fn new(config: RateLimitConfig) -> Self {
         Self {
             buckets: Mutex::new(HashMap::new()),
@@ -89,37 +101,49 @@ impl RateLimiter {
         }
     }
 
-    /// Check if a bot can dispatch. Returns true if allowed.
-    pub fn check(&self, bot_id: &WebID) -> bool {
+    /// Check if a key can proceed. Returns true if allowed.
+    pub fn check(&self, key: &K) -> bool {
         let mut buckets = self.buckets.lock();
 
         let bucket = buckets
-            .entry(*bot_id)
+            .entry(key.clone())
             .or_insert_with(|| CnsTokenBucket::new(self.config.clone()));
 
         bucket.try_consume()
     }
 
-    /// Get remaining tokens for a bot
-    pub fn remaining(&self, bot_id: &WebID) -> u32 {
+    /// Get remaining tokens for a key
+    pub fn remaining(&self, key: &K) -> u32 {
         let mut buckets = self.buckets.lock();
 
         let bucket = buckets
-            .entry(*bot_id)
+            .entry(key.clone())
             .or_insert_with(|| CnsTokenBucket::new(self.config.clone()));
 
         bucket.tokens()
     }
 
-    /// Update rate limit config for a specific bot
-    pub fn configure_bot(&self, bot_id: &WebID, config: RateLimitConfig) {
+    /// Update rate limit config for a specific key
+    pub fn configure(&self, key: &K, config: RateLimitConfig) {
         let mut buckets = self.buckets.lock();
-        buckets.insert(*bot_id, CnsTokenBucket::new(config));
+        buckets.insert(key.clone(), CnsTokenBucket::new(config));
+    }
+
+    /// Remove a key's bucket (reset)
+    pub fn reset(&self, key: &K) {
+        let mut buckets = self.buckets.lock();
+        buckets.remove(key);
     }
 }
 
-impl Default for RateLimiter {
+impl<K: std::hash::Hash + Eq + Clone> Default for RateLimiter<K> {
     fn default() -> Self {
         Self::new(RateLimitConfig::default())
     }
 }
+
+/// Type alias for WebID-based rate limiter (most common case)
+pub type WebIdRateLimiter = RateLimiter<WebID>;
+
+/// Type alias for String-based rate limiter (tool names, etc.)
+pub type StringRateLimiter = RateLimiter<String>;

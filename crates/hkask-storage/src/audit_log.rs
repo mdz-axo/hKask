@@ -1,4 +1,8 @@
 //! AuditLogStore — Persistent SQL-backed audit log
+//!
+//! This module provides SQL persistence for audit entries.
+//! It maintains a storage-layer `AuditEntry` type optimized for SQL serialization,
+//! with conversion methods to/from the canonical `hkask_types::AuditEntry`.
 
 use chrono::{DateTime, Utc};
 use rusqlite::Connection;
@@ -15,6 +19,7 @@ pub enum AuditLogError {
     Serialization(#[from] serde_json::Error),
 }
 
+/// Storage-layer audit entry optimized for SQL serialization
 #[derive(Debug, Clone)]
 pub struct AuditEntry {
     pub id: String,
@@ -49,6 +54,49 @@ impl AuditEntry {
     pub fn with_ip(mut self, ip: &str) -> Self {
         self.ip_address = Some(ip.to_string());
         self
+    }
+}
+
+/// Convert canonical AuditEntry to storage AuditEntry
+impl From<hkask_types::AuditEntry> for AuditEntry {
+    fn from(canonical: hkask_types::AuditEntry) -> Self {
+        Self {
+            id: canonical.id,
+            timestamp: canonical.timestamp,
+            actor_webid: canonical.actor.to_string(),
+            action: canonical.action,
+            resource: canonical.resource,
+            outcome: canonical.outcome.to_string(),
+            details: if canonical.context.metadata.is_null() {
+                None
+            } else {
+                Some(canonical.context.metadata)
+            },
+            ip_address: canonical.context.ip_address,
+        }
+    }
+}
+
+/// Convert storage AuditEntry to canonical AuditEntry
+impl From<AuditEntry> for hkask_types::AuditEntry {
+    fn from(storage: AuditEntry) -> Self {
+        use hkask_types::{AuditContext, AuditOutcome, WebID};
+
+        Self {
+            id: storage.id,
+            timestamp: storage.timestamp,
+            actor: WebID::from_string(&storage.actor_webid),
+            action: storage.action,
+            resource: storage.resource,
+            outcome: storage.outcome.parse().unwrap_or(AuditOutcome::Success),
+            context: AuditContext {
+                correlation_id: None,
+                recipient: None,
+                ip_address: storage.ip_address,
+                error_message: None,
+                metadata: storage.details.unwrap_or(Value::Null),
+            },
+        }
     }
 }
 

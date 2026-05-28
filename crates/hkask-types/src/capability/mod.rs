@@ -464,39 +464,14 @@ impl CapabilityToken {
     }
 
     /// Create attenuated child token for delegation.
+    /// Uses a 1-hour expiry from `current_time`.
     pub fn attenuate(
         &self,
         new_to: WebID,
         secret: &[u8],
         current_time: i64,
     ) -> Option<CapabilityToken> {
-        if !self.can_attenuate() {
-            return None;
-        }
-
-        // Attenuate: reduce max_attenuation and increase attenuation_level
-        // Preserve parent's context nonce for traceability
-        let mut builder = CapabilityTokenBuilder::new(
-            self.resource,
-            self.resource_id.clone(),
-            self.action,
-            self.delegated_to,
-            new_to,
-        )
-        .expires_at(current_time + 3600) // 1 hour expiry for attenuated tokens
-        .attenuation(self.attenuation_level + 1, self.max_attenuation)
-        .context_nonce(format!(
-            "{}-attenuated-{}",
-            self.context_nonce,
-            uuid::Uuid::new_v4()
-        ));
-
-        // Preserve parent's caveats
-        for caveat in &self.caveats {
-            builder = builder.caveat(caveat.clone());
-        }
-
-        Some(builder.sign(secret))
+        self.attenuate_with_expiry(new_to, secret, Some(current_time + 3600))
     }
 
     /// Create attenuated child token with custom expiry.

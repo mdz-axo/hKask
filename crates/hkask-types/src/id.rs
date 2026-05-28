@@ -3,6 +3,67 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+/// Macro to define UUID-based ID types with common functionality
+///
+/// # Example
+/// ```ignore
+/// define_id_type!(BotID);
+/// define_id_type!(TemplateID, from_string);
+/// ```
+macro_rules! define_id_type {
+    // Basic ID type with just new()
+    ($name:ident) => {
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+        pub struct $name(pub Uuid);
+
+        impl $name {
+            pub fn new() -> Self {
+                Self(Uuid::new_v4())
+            }
+        }
+
+        impl Default for $name {
+            fn default() -> Self {
+                Self::new()
+            }
+        }
+
+        impl std::fmt::Display for $name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "{}", self.0)
+            }
+        }
+    };
+
+    // ID type with from_string() method
+    ($name:ident, from_string) => {
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+        pub struct $name(pub Uuid);
+
+        impl $name {
+            pub fn new() -> Self {
+                Self(Uuid::new_v4())
+            }
+
+            pub fn from_string(s: &str) -> Self {
+                Self(Uuid::parse_str(s).unwrap_or_else(|_| Uuid::new_v4()))
+            }
+        }
+
+        impl Default for $name {
+            fn default() -> Self {
+                Self::new()
+            }
+        }
+
+        impl std::fmt::Display for $name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "{}", self.0)
+            }
+        }
+    };
+}
+
 /// WebID — Unique identifier for agents (bots and replicants)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct WebID(pub Uuid);
@@ -76,52 +137,10 @@ impl std::fmt::Display for WebID {
 }
 
 /// TemplateID — Unique identifier for templates
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct TemplateID(pub Uuid);
-
-impl TemplateID {
-    pub fn new() -> Self {
-        Self(Uuid::new_v4())
-    }
-
-    pub fn from_string(s: &str) -> Self {
-        TemplateID(Uuid::parse_str(s).unwrap_or_else(|_| Uuid::new_v4()))
-    }
-}
-
-impl Default for TemplateID {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl std::fmt::Display for TemplateID {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
+define_id_type!(TemplateID, from_string);
 
 /// BotID — Unique identifier for bots
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct BotID(pub Uuid);
-
-impl BotID {
-    pub fn new() -> Self {
-        Self(Uuid::new_v4())
-    }
-}
-
-impl Default for BotID {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl std::fmt::Display for BotID {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
+define_id_type!(BotID);
 
 impl From<BotID> for WebID {
     fn from(bot_id: BotID) -> Self {
@@ -130,118 +149,19 @@ impl From<BotID> for WebID {
 }
 
 /// ManifestID — Unique identifier for manifests
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ManifestID(pub Uuid);
-
-impl ManifestID {
-    pub fn new() -> Self {
-        Self(Uuid::new_v4())
-    }
-}
-
-impl Default for ManifestID {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl std::fmt::Display for ManifestID {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
+define_id_type!(ManifestID);
 
 /// TripleID — Unique identifier for bitemporal triples
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct TripleID(pub Uuid);
-
-impl TripleID {
-    pub fn new() -> Self {
-        Self(Uuid::new_v4())
-    }
-}
-
-impl Default for TripleID {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl std::fmt::Display for TripleID {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
+define_id_type!(TripleID);
 
 /// EventID — Unique identifier for ν-events
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct EventID(pub Uuid);
-
-impl EventID {
-    pub fn new() -> Self {
-        Self(Uuid::new_v4())
-    }
-}
-
-impl Default for EventID {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl std::fmt::Display for EventID {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
+define_id_type!(EventID);
 
 /// SessionID — Unique identifier for agent sessions
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct SessionID(pub Uuid);
-
-impl SessionID {
-    pub fn new() -> Self {
-        Self(Uuid::new_v4())
-    }
-}
-
-impl Default for SessionID {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl std::fmt::Display for SessionID {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
+define_id_type!(SessionID);
 
 /// GoalID — Unique identifier for goals
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct GoalID(pub Uuid);
-
-impl GoalID {
-    pub fn new() -> Self {
-        Self(Uuid::new_v4())
-    }
-
-    pub fn from_string(s: &str) -> Self {
-        GoalID(uuid::Uuid::parse_str(s).unwrap_or_else(|_| uuid::Uuid::new_v4()))
-    }
-}
-
-impl Default for GoalID {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl std::fmt::Display for GoalID {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
+define_id_type!(GoalID, from_string);
 
 #[cfg(test)]
 mod tests {

@@ -1,74 +1,50 @@
+//! Rate Limiter Adapter — Wraps unified hkask-cns RateLimiter for port interface
+//!
+//! This adapter implements the RateLimitPort trait using the unified RateLimiter
+//! from hkask-cns, eliminating duplicate token bucket implementations.
+
 use crate::ports::security_port::{RateLimitPort, ValidationError};
-use hkask_types::TokenBucket;
-use std::collections::HashMap;
+use hkask_cns::rate_limit::{RateLimiter, StringRateLimiter};
 use std::sync::Arc;
-use tokio::sync::RwLock;
 
 pub struct RateLimiterAdapter {
-    buckets: Arc<RwLock<HashMap<String, TokenBucket>>>,
-    default_max_tokens: f64,
-    default_refill_rate: f64,
+    inner: Arc<StringRateLimiter>,
 }
 
 impl RateLimiterAdapter {
-    pub fn new(default_max_tokens: f64, default_refill_rate: f64) -> Self {
+    pub fn new(config: hkask_cns::rate_limit::RateLimitConfig) -> Self {
         Self {
-            buckets: Arc::new(RwLock::new(HashMap::new())),
-            default_max_tokens,
-            default_refill_rate,
+            inner: Arc::new(RateLimiter::new(config)),
         }
     }
 
-    pub async fn acquire_async(&self, key: &str, tokens: f64) -> Result<(), ValidationError> {
-        let mut buckets = self.buckets.write().await;
-        let bucket = buckets
-            .entry(key.to_string())
-            .or_insert_with(|| TokenBucket::new(self.default_max_tokens, self.default_refill_rate));
-
-        if bucket.consume(tokens) {
-            Ok(())
-        } else {
-            Err(ValidationError::RateLimitExceeded)
+    pub fn with_defaults() -> Self {
+        Self {
+            inner: Arc::new(StringRateLimiter::default()),
         }
     }
 }
 
 impl RateLimitPort for RateLimiterAdapter {
-    fn acquire(&self, key: &str, tokens: f64) -> Result<(), ValidationError> {
-        let buckets = self.buckets.blocking_read();
-        if let Some(bucket) = buckets.get(key) {
-            if bucket.consume(tokens) {
-                return Ok(());
-            }
+    fn acquire(&self, key: &str, _tokens: f64) -> Result<(), ValidationError> {
+        if self.inner.check(&key.to_string()) {
+            Ok(())
         } else {
-            drop(buckets);
-            let mut buckets = self.buckets.blocking_write();
-            let bucket = buckets
-                .entry(key.to_string())
-                .or_insert_with(|| TokenBucket::new(self.default_max_tokens, self.default_refill_rate));
-            if bucket.consume(tokens) {
-                return Ok(());
-            }
+            Err(ValidationError::RateLimitExceeded)
         }
-        Err(ValidationError::RateLimitExceeded)
     }
 
     fn available(&self, key: &str) -> f64 {
-        let buckets = self.buckets.blocking_read();
-        buckets
-            .get(key)
-            .map(|b| b.available())
-            .unwrap_or(self.default_max_tokens)
+        self.inner.remaining(&key.to_string()) as f64
     }
 
     fn reset(&self, key: &str) {
-        let mut buckets = self.buckets.blocking_write();
-        buckets.remove(key);
+        self.inner.reset(&key.to_string());
     }
 }
 
 impl Default for RateLimiterAdapter {
     fn default() -> Self {
-        Self::new(10.0, 1.0)
+        Self::with_defaults()
     }
 }

@@ -14,6 +14,7 @@
 //! - Spec types (DDMVSS domain types, completeness predicates, curation integration)
 
 pub mod agent_def;
+pub mod audit;
 pub mod capability;
 pub mod cns;
 pub mod curation;
@@ -35,10 +36,11 @@ pub use agent_def::{
     AgentDefinition, AgentKind, AgentStandingSessionConfig, Charter, PersonaConstraints,
     ReadinessProbe, RegisteredAgent, ReportingConfig, Responsibility, Right,
 };
+pub use audit::{AuditContext, AuditEntry, AuditLogPort, AuditOutcome};
 pub use capability::*;
 pub use cns::*;
 pub use curation::*;
-pub use error::{ArchivalResult, AuthorizationError, GitArchivalError, McpErrorKind};
+pub use error::{ArchivalResult, AuthorizationError, GitArchivalError, HkaskError, McpErrorKind};
 pub use event::*;
 pub use goal::*;
 pub use goal_capability::*;

@@ -2,15 +2,16 @@
 //!
 //! This module provides:
 //! - **Input Validation**: Schema-based validation for pod operations
-//! - **Rate Limiting**: Token bucket algorithm for abuse prevention
+//! - **Rate Limiting**: Re-exports unified implementation from hkask-cns
 //! - **OCAP Enhancement**: Attenuation history tracking and expiry enforcement
 
-use hkask_types::TokenBucket;
+// Re-export unified rate limiter from hkask-cns
+pub use hkask_cns::rate_limit::{
+    RateLimitConfig, RateLimiter, StringRateLimiter, WebIdRateLimiter,
+};
+
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::RwLock;
 
 /// Input validation errors
 #[derive(Debug, Clone, thiserror::Error)]
@@ -116,49 +117,8 @@ impl InputValidator<AgentPersonaInput> for AgentPersonaInput {
     }
 }
 
-/// Rate limiter for pod operations
-pub struct RateLimiter {
-    buckets: Arc<RwLock<HashMap<String, TokenBucket>>>,
-    default_max_tokens: f64,
-    default_refill_rate: f64,
-}
-
-impl RateLimiter {
-    pub fn new(default_max_tokens: f64, default_refill_rate: f64) -> Self {
-        Self {
-            buckets: Arc::new(RwLock::new(HashMap::new())),
-            default_max_tokens,
-            default_refill_rate,
-        }
-    }
-
-    pub async fn acquire(&self, key: &str, tokens: f64) -> Result<(), ValidationError> {
-        let mut buckets = self.buckets.write().await;
-        let bucket = buckets
-            .entry(key.to_string())
-            .or_insert_with(|| TokenBucket::new(self.default_max_tokens, self.default_refill_rate));
-
-        if bucket.consume(tokens) {
-            Ok(())
-        } else {
-            Err(ValidationError::RateLimitExceeded)
-        }
-    }
-
-    pub async fn get_available(&self, key: &str) -> f64 {
-        let buckets = self.buckets.read().await;
-        buckets
-            .get(key)
-            .map(|b| b.available())
-            .unwrap_or(self.default_max_tokens)
-    }
-}
-
-impl Default for RateLimiter {
-    fn default() -> Self {
-        Self::new(10.0, 1.0) // 10 requests burst, 1 request/second refill
-    }
-}
+// RateLimiter is now re-exported from hkask_cns::rate_limit
+// See hkask-cns/src/rate_limit.rs for the unified implementation
 
 /// OCAP attenuation history tracker
 #[derive(Debug, Clone, Serialize, Deserialize)]

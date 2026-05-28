@@ -30,26 +30,7 @@ impl std::fmt::Display for PodLifecycleState {
 }
 
 /// Agent pod unique identifier
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct PodID(pub uuid::Uuid);
-
-impl PodID {
-    pub fn new() -> Self {
-        Self(uuid::Uuid::new_v4())
-    }
-}
-
-impl Default for PodID {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl std::fmt::Display for PodID {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
+hkask_types::id::define_id_type!(PodID);
 
 /// Agent type enumeration
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

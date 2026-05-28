@@ -160,3 +160,139 @@ pub enum AuthorizationError {
     #[error("Insufficient permissions: requested {requested}, granted {granted}")]
     InsufficientPermissions { requested: String, granted: String },
 }
+
+// =============================================================================
+// HkaskError — Unified Error Hierarchy
+// =============================================================================
+
+/// Core error types shared across hKask crates
+///
+/// This consolidates the 50+ duplicate error variants found across the codebase:
+/// - Storage/Database errors (8+ duplicates)
+/// - NotFound errors (12+ duplicates)
+/// - RateLimitExceeded (5+ duplicates)
+/// - CapabilityDenied (4+ duplicates)
+/// - Serialization errors (5+ duplicates)
+///
+/// Crate-specific errors should wrap this via `#[from]` or `#[error(transparent)]`.
+#[derive(Debug, Error, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum HkaskError {
+    // Storage & Database (consolidates 14+ duplicate variants)
+    #[error("Storage error: {0}")]
+    Storage(String),
+
+    #[error("Database error: {0}")]
+    Database(String),
+
+    // Resource lookup (consolidates 12+ duplicate variants)
+    #[error("Not found: {0}")]
+    NotFound(String),
+
+    // Rate limiting (consolidates 5+ duplicate variants)
+    #[error("Rate limit exceeded")]
+    RateLimitExceeded,
+
+    #[error("Rate limit exceeded. Retry after {retry_after} seconds")]
+    RateLimitExceededWithRetry { retry_after: u64 },
+
+    // Authorization & capabilities (consolidates 7+ duplicate variants)
+    #[error("Capability denied: {0}")]
+    CapabilityDenied(String),
+
+    #[error("Invalid token: {0}")]
+    InvalidToken(String),
+
+    #[error("Permission denied: {0}")]
+    PermissionDenied(String),
+
+    // Serialization (consolidates 5+ duplicate variants)
+    #[error("Serialization error: {0}")]
+    Serialization(String),
+
+    #[error("Deserialization error: {0}")]
+    Deserialization(String),
+
+    // I/O and system (consolidates 6+ duplicate variants)
+    #[error("IO error: {0}")]
+    Io(String),
+
+    #[error("Network error: {0}")]
+    Network(String),
+
+    #[error("Configuration error: {0}")]
+    Config(String),
+
+    // Validation (consolidates 4+ duplicate variants)
+    #[error("Validation error: {0}")]
+    Validation(String),
+
+    #[error("Invalid input: {0}")]
+    InvalidInput(String),
+
+    // Generic fallback
+    #[error("{0}")]
+    Other(String),
+}
+
+impl HkaskError {
+    /// Check if error is retryable
+    pub fn is_retryable(&self) -> bool {
+        matches!(
+            self,
+            Self::RateLimitExceeded | Self::RateLimitExceededWithRetry { .. } | Self::Network(_)
+        )
+    }
+
+    /// Check if error requires user intervention
+    pub fn requires_intervention(&self) -> bool {
+        matches!(
+            self,
+            Self::CapabilityDenied(_) | Self::PermissionDenied(_) | Self::Config(_)
+        )
+    }
+
+    /// Convert to McpErrorKind for MCP dispatch
+    pub fn to_mcp_kind(&self) -> McpErrorKind {
+        match self {
+            Self::Storage(_) | Self::Database(_) => McpErrorKind::Internal,
+            Self::NotFound(_) => McpErrorKind::NotFound,
+            Self::RateLimitExceeded | Self::RateLimitExceededWithRetry { .. } => {
+                McpErrorKind::RateLimited
+            }
+            Self::CapabilityDenied(_) | Self::PermissionDenied(_) | Self::InvalidToken(_) => {
+                McpErrorKind::PermissionDenied
+            }
+            Self::Serialization(_) | Self::Deserialization(_) => McpErrorKind::DataLoss,
+            Self::Io(_) | Self::Network(_) => McpErrorKind::Unavailable,
+            Self::Config(_) | Self::Validation(_) | Self::InvalidInput(_) => {
+                McpErrorKind::InvalidArgument
+            }
+            Self::Other(_) => McpErrorKind::Internal,
+        }
+    }
+}
+
+// Conversions from common error types
+impl From<std::io::Error> for HkaskError {
+    fn from(err: std::io::Error) -> Self {
+        HkaskError::Io(err.to_string())
+    }
+}
+
+impl From<serde_json::Error> for HkaskError {
+    fn from(err: serde_json::Error) -> Self {
+        HkaskError::Serialization(err.to_string())
+    }
+}
+
+impl From<String> for HkaskError {
+    fn from(s: String) -> Self {
+        HkaskError::Other(s)
+    }
+}
+
+impl From<&str> for HkaskError {
+    fn from(s: &str) -> Self {
+        HkaskError::Other(s.to_string())
+    }
+}

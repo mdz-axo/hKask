@@ -10,30 +10,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// Human user ID — shared across all their replicant identities
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct UserID(pub Uuid);
-
-impl UserID {
-    pub fn new() -> Self {
-        Self(Uuid::new_v4())
-    }
-
-    pub fn from_string(s: &str) -> Self {
-        Self(Uuid::parse_str(s).unwrap_or_else(|_| Uuid::new_v4()))
-    }
-}
-
-impl Default for UserID {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl std::fmt::Display for UserID {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
+crate::id::define_id_type!(UserID, from_string);
 
 /// Human user — owns contact info (email, phone for recovery only)
 #[derive(Debug, Clone, Serialize, Deserialize)]
