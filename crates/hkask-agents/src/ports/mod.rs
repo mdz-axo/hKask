@@ -36,5 +36,6 @@ pub use metacognition::{
 pub use security_port::{RateLimitPort, ValidationError as RateLimitValidationError};
 pub use sovereignty::{SovereigntyCheckResult, SovereigntyOperation, SovereigntyPort};
 pub use standing_session::{
-    MessageRecord, SessionRecord, StandingSessionPort, StandingSessionPortError,
+    AcpSessionMessage, BotReport, MessageRecord, SessionMessageType, SessionRecord,
+    StandingSessionPort, StandingSessionPortError,
 };

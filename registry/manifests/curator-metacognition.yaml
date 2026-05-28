@@ -13,6 +13,9 @@ manifest:
   editor: hKask-Administrator
   visibility: Primary
 
+# Metacognition Template Reference
+metacognition_template: registry/templates/curator-metacognition.yaml
+
 # Energy Budget Configuration
 energy:
   cap: 25000
@@ -110,6 +113,29 @@ steps:
           type: string
         administrator_report:
           type: string
+
+  - ordinal: 5
+    action: populate
+    description: >
+      Render Kata coaching directives when capability gaps are detected.
+      Uses the curator-metacognition template kata_directives section.
+    renderer: minijinja
+    template_ref: curator/curator-metacognition.yaml#kata_directives
+    model_tier: balanced
+    mcp: hkask-mcp-inference
+    energy_cap: 3000
+    timeout_seconds: 30
+    output_schema:
+      type: object
+      properties:
+        kata_directives:
+          type: array
+          description: Array of Kata coaching directives for bots with capability gaps
+        recommended_kata_type:
+          type: string
+          enum: [improvement, coaching, starter]
+        target_bots:
+          type: array
 
 # Error Handling
 error_handling:

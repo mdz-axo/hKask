@@ -4,10 +4,14 @@
 manifest:
   id: improvement-kata
   name: Improvement Kata
+  kata_type: improvement
   description: >
     4-step scientific pattern for achieving challenging goals
     through iterative experimentation. Used by Curator to develop
     bot capabilities systematically.
+    Improvement Kata for systematic capability development.
+    4-step cycle: Understand Direction → Grasp Current Condition →
+    Establish Target → Experiment Toward Target
   editor: Curator
   visibility: public
 
@@ -116,6 +120,28 @@ cns:
   variety_monitoring: true
   algedonic_threshold: 100
   escalation_target: hKask-Administrator
+
+outcomes:
+  - name: success
+    condition: "metric_after >= threshold"
+    action: "Close capability gap, update CNS metrics"
+  - name: partial
+    condition: "improvement > 0 but metric_after < threshold"
+    action: "Repeat kata with adjusted target"
+  - name: failure
+    condition: "no improvement or regression"
+    action: "Escalate to Curator for different approach"
+
+metrics:
+  - name: metric_before
+    description: "Bot metric value before kata cycle"
+    span: "cns.prompt.kata.metric_before"
+  - name: metric_after
+    description: "Bot metric value after kata cycle"
+    span: "cns.prompt.kata.metric_after"
+  - name: improvement
+    description: "Calculated improvement (metric_after - metric_before)"
+    span: "cns.prompt.kata.improvement"
 
 audit:
   enabled: true

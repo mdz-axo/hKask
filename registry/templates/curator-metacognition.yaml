@@ -1,0 +1,125 @@
+# Curator Metacognition Template
+# Renders system state summaries and coaching directives
+# Triggered by MetacognitionLoop during each cycle
+
+template:
+  name: curator-metacognition
+  version: "1.0.0"
+  description: >
+    Curator metacognition rendering template. Produces system state summaries,
+    bot evaluation reports, and Kata coaching directives based on capability gaps.
+  type: metacognition
+  temperature: 0.3 # Low temperature for precise analysis
+  max_tokens: 2048
+
+inputs:
+  - name: bot_evaluations
+    type: array
+    description: Array of BotEvaluationMetrics objects
+    required: true
+  - name: critical_alerts
+    type: array
+    description: Array of critical algedonic alerts
+    required: true
+  - name: warning_alerts
+    type: array
+    description: Array of warning algedonic alerts
+  - name: variety_counters
+    type: array
+    description: Array of (domain, count) variety counter pairs
+  - name: calibration_history
+    type: array
+    description: Array of recent CalibrationRecord objects
+  - name: kata_outcomes
+    type: array
+    description: Array of recent Kata cycle outcomes
+
+sections:
+  - name: system_state
+    template: |
+      # System State Summary
+      {{ timestamp }}
+
+      ## CNS Health
+      Overall deficit: {{ overall_deficit }}
+      Critical alerts: {{ critical_alerts | length }}
+      Warning alerts: {{ warning_alerts | length }}
+      Healthy: {{ healthy }}
+
+      ## Variety Counters
+      {% for domain, count in variety_counters %}
+      - {{ domain }}: {{ count }}
+      {% endfor %}
+
+  - name: bot_evaluations
+    template: |
+      ## Bot Evaluations
+      {% for eval in bot_evaluations %}
+      ### {{ eval.bot_name }}
+      - Health: {{ eval.health }}
+      - Success rate: {{ eval.success_rate | round(2) }}%
+      - Variety deficit: {{ eval.variety_deficit }}
+      - Sovereignty violations: {{ eval.sovereignty_violations }}
+      - Energy utilization: {{ (eval.energy_consumed / eval.energy_budget * 100) | round(1) }}%
+      {% if eval.gaps %}
+      **Capability Gaps:**
+      {% for gap in eval.gaps %}
+      - {{ gap.gap_type }}: {{ gap.description }}
+      {% endfor %}
+      {% endif %}
+      {% endfor %}
+
+  - name: kata_directives
+    template: |
+      ## Kata Directives
+      {% for eval in bot_evaluations %}
+      {% if eval.recommended_action != "none" and eval.recommended_action != "monitor" %}
+      ### {{ eval.bot_name }} — {{ eval.recommended_action }}
+      {% if eval.recommended_action == "coach_improvement" %}
+      **Improvement Kata** for {{ eval.bot_name }}:
+      1. What is the target condition? → {{ eval.gaps[0].description }}
+      2. What is the actual condition now? → {{ eval.gaps[0].current_value }}
+      3. What obstacles prevent reaching the target? → Analyze {{ eval.bot_name }} spans
+      4. What is the next experiment? → One-step experiment to close the gap
+      {% elif eval.recommended_action == "coach_coaching" %}
+      **Coaching Kata** for {{ eval.bot_name }}:
+      1. What is your target condition?
+      2. What is the actual condition now?
+      3. What obstacles do you see?
+      4. What is your next step?
+      5. What do you expect to happen?
+      {% elif eval.recommended_action == "coach_starter" %}
+      **Starter Kata** for {{ eval.bot_name }}:
+      - Practice routine: {{ eval.gaps[0].gap_type }} improvement
+      - Frequency: Daily 15-minute practice cycles
+      - Metric: {{ eval.gaps[0].threshold }} threshold target
+      {% elif eval.recommended_action == "calibrate" %}
+      **Calibration** for {{ eval.bot_name }}:
+      - Domain: {{ eval.gaps[0].gap_type }}
+      - Recommended threshold adjustment: {{ eval.gaps[0].threshold }}
+      {% elif eval.recommended_action == "escalate" %}
+      **ESCALATION** for {{ eval.bot_name }}:
+      - Critical: {{ eval.gaps[0].description }}
+      - Requires human administrator review
+      {% endif %}
+      {% endif %}
+      {% endfor %}
+
+  - name: calibration_log
+    template: |
+      ## Recent Calibrations
+      {% for cal in calibration_history %}
+      - {{ cal.domain }}: {{ cal.threshold_before }} → {{ cal.threshold_after }} ({{ cal.reason }})
+      {% endfor %}
+
+  - name: kata_progress
+    template: |
+      ## Kata Progress
+      {% for outcome in kata_outcomes %}
+      ### {{ outcome.bot_name }} — {{ outcome.kata_type }} Kata
+      - Cycle: {{ outcome.cycle_number }}
+      - Status: {{ outcome.status }}
+      - Before metric: {{ outcome.metric_before }}
+      - After metric: {{ outcome.metric_after }}
+      - Improvement: {{ outcome.improvement }}
+      {% endfor %}

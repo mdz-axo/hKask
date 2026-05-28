@@ -48,7 +48,10 @@ reporting:
     - habit_formation_signals
     - obstacles_encountered
 
-process_manifest: registry/manifests/improvement-kata.yaml
+kata_manifests:
+  improvement: registry/manifests/improvement-kata.yaml
+  coaching: registry/manifests/coaching-kata.yaml
+  starter: registry/manifests/starter-kata.yaml
 
 depends_on:
   - memory-curator-bot
@@ -60,7 +63,9 @@ readiness_probe:
   endpoint: kata::practice_status
   expected:
     kata_templates_loaded: true
-    manifests_valid: true
+    improvement_manifest_valid: true
+    coaching_manifest_valid: true
+    starter_manifest_valid: true
     memory_accessible: true
   timeout_seconds: 10
   retry_count: 3

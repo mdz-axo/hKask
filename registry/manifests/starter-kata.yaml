@@ -4,10 +4,13 @@
 manifest:
   id: starter-kata
   name: Starter Kata
+  kata_type: starter
   description: >
     Simple practice routines to internalize scientific thinking patterns.
     Used by Curator for daily capability practice with 7R7 bots.
     Goal: Make scientific thinking habitual, not the Kata themselves.
+    Starter Kata for building foundational capability habits.
+    3 practice routines for bots with low success rates or basic gaps.
   editor: Curator
   visibility: public
 
@@ -16,6 +19,65 @@ energy:
   cost_per_token: 0.25
   alert_threshold: 0.7
   hard_limit: true
+
+practices:
+  - name: daily_cns_report
+    description: "Practice routine: Submit accurate CNS status reports"
+    frequency: "hourly"
+    duration_minutes: 5
+    cns_spans:
+      - "cns.prompt.kata.starter.report"
+    steps:
+      - "Collect current variety counters"
+      - "Check for algedonic alerts"
+      - "Submit status report to standing session"
+    success_criteria:
+      - "Report submitted within 1 minute of schedule"
+      - "All span categories covered"
+      - "No sovereignty violations"
+
+  - name: span_emission_practice
+    description: "Practice routine: Emit correct CNS spans for each operation"
+    frequency: "per_operation"
+    duration_minutes: 1
+    cns_spans:
+      - "cns.prompt.kata.starter.emit"
+    steps:
+      - "Identify the span category for the current operation"
+      - "Emit Observe phase span before operation"
+      - "Emit Outcome phase span after operation"
+      - "Verify no sovereignty boundary violations"
+    success_criteria:
+      - "Correct span category used"
+      - "Both Observe and Outcome phases emitted"
+      - "Confidence score > 0.8"
+
+  - name: energy_awareness
+    description: "Practice routine: Track and report energy consumption"
+    frequency: "hourly"
+    duration_minutes: 3
+    cns_spans:
+      - "cns.prompt.kata.starter.energy"
+    steps:
+      - "Check current energy budget"
+      - "Calculate energy utilization ratio"
+      - "Report energy status to standing session"
+      - "Flag if utilization > 80%"
+    success_criteria:
+      - "Energy report accuracy > 95%"
+      - "Budget overruns flagged correctly"
+      - "No unreported energy consumption"
+
+starter_outcomes:
+  - name: habits_formed
+    condition: "success_rate >= 0.9 for 3 consecutive cycles"
+    action: "Graduate to coaching kata"
+  - name: improving
+    condition: "success_rate improving over 3 cycles"
+    action: "Continue starter kata"
+  - name: not_progressing
+    condition: "success_rate not improving after 5 cycles"
+    action: "Escalate to Curator for intervention"
 
 steps:
   - ordinal: 1
@@ -103,3 +165,4 @@ audit:
   include_output: true
   include_energy_cost: true
   include_cns_events: true
+  include_practice_progress: true

@@ -4,10 +4,13 @@
 manifest:
   id: coaching-kata
   name: Coaching Kata
+  kata_type: coaching
   description: >
     5-question coaching cycle used by Curator to teach scientific
     thinking to bots. Each cycle ~20 minutes. Questions reveal
     learner's thinking pattern and reinforce Improvement Kata.
+    Coaching Kata for teaching scientific thinking patterns.
+    5-question dialogue to guide the bot through PDCA thinking.
   editor: Curator
   visibility: public
 
@@ -16,6 +19,48 @@ energy:
   cost_per_token: 0.25
   alert_threshold: 0.7
   hard_limit: true
+
+questions:
+  - number: 1
+    question: "What is your target condition?"
+    description: "Where do you want to be?"
+    cns_span: "cns.prompt.kata.coaching.target"
+    expected_output: "Clear, measurable target condition"
+
+  - number: 2
+    question: "What is the actual condition now?"
+    description: "Where are you currently?"
+    cns_span: "cns.prompt.kata.coaching.current"
+    expected_output: "Data-driven assessment of current state"
+
+  - number: 3
+    question: "What obstacles do you see between you and the target?"
+    description: "What's preventing progress?"
+    cns_span: "cns.prompt.kata.coaching.obstacles"
+    expected_output: "Prioritized list of obstacles"
+
+  - number: 4
+    question: "What is your next step? (What experiment will you run?)"
+    description: "What one step will you take next?"
+    cns_span: "cns.prompt.kata.coaching.next_step"
+    expected_output: "Specific, measurable experiment"
+
+  - number: 5
+    question: "What do you expect to happen?"
+    description: "What's your prediction?"
+    cns_span: "cns.prompt.kata.coaching.prediction"
+    expected_output: "Testable prediction about experiment outcome"
+
+evaluation_criteria:
+  - name: scientific_thinking
+    description: "Uses data and evidence rather than assumptions"
+    weight: 0.4
+  - name: iterative_approach
+    description: "Breaks problems into small, testable steps"
+    weight: 0.3
+  - name: measurable_progress
+    description: "Defines clear, measurable success criteria"
+    weight: 0.3
 
 steps:
   - ordinal: 1
@@ -153,6 +198,17 @@ cns:
   variety_monitoring: true
   algedonic_threshold: 100
   escalation_target: hKask-Administrator
+
+coaching_outcomes:
+  - name: demonstrates_thinking
+    condition: "bot shows scientific thinking patterns"
+    action: "Close gap, record in episodic memory"
+  - name: needs_practice
+    condition: "thinking patterns improving but not yet consistent"
+    action: "Repeat coaching kata with adjusted questions"
+  - name: resistance
+    condition: "bot not engaging with thinking process"
+    action: "Switch to starter kata for foundational habits"
 
 audit:
   enabled: true
