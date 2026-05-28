@@ -5,24 +5,29 @@
 
 use hkask_agents::GitCASPort;
 use hkask_mcp::adapter_container::AdapterContainer;
-use rmcp::{ServiceExt, handler::server::wrapper::Parameters, tool, tool_router, transport::stdio};
+use hkask_mcp::server::{
+    CredentialRequirement, McpToolError, McpToolOutput, ServerContext, emit_tool_span,
+    run_stdio_server, validate_identifier, validate_tool_url,
+};
+use hkask_types::McpErrorKind;
+use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
+use serde_json::json;
 use std::path::Path;
+use std::time::Instant;
 
-const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
-
-const ENV_GIT_BASE_PATH: &str = "HKASK_GIT_BASE_PATH";
-
-fn validate_path(path: &str) -> Result<(), String> {
+fn validate_path(path: &str) -> Result<(), McpToolError> {
     if path.contains('\0') {
-        return Err("Path contains null bytes".to_string());
+        return Err(McpToolError::invalid_argument("Path contains null bytes"));
     }
     if Path::new(path).is_absolute() {
-        return Err("Absolute paths not allowed".to_string());
+        return Err(McpToolError::invalid_argument("Absolute paths not allowed"));
     }
     if path.contains("..") {
-        return Err("Parent directory traversal not allowed".to_string());
+        return Err(McpToolError::invalid_argument(
+            "Parent directory traversal not allowed",
+        ));
     }
     Ok(())
 }
@@ -64,21 +69,24 @@ pub struct ListRequest {
     pub path: Option<String>,
 }
 
-#[derive(Default)]
 pub struct GitServer {
     adapter_container: AdapterContainer,
 }
 
 impl GitServer {
+    /// Create an unconfigured server (no base path set).
     pub fn new() -> Self {
         Self {
             adapter_container: AdapterContainer::new(),
         }
     }
 
-    pub fn with_base_path(base_path: std::path::PathBuf) -> Self {
+    /// Create a server with the given base path, or unconfigured if `None`.
+    pub fn with_base_path_or_default(base_path: Option<std::path::PathBuf>) -> Self {
         let container = AdapterContainer::new();
-        container.configure_git_cas(base_path).ok();
+        if let Some(bp) = base_path {
+            container.configure_git_cas(bp).ok();
+        }
         Self {
             adapter_container: container,
         }
@@ -139,26 +147,52 @@ impl GitServer {
         &self,
         Parameters(ResolveRequest { git_ref }): Parameters<ResolveRequest>,
     ) -> String {
+        let start = Instant::now();
+
+        if let Err(e) = validate_identifier("git_ref", &git_ref, 256) {
+            emit_tool_span(
+                "git:resolve",
+                "error",
+                start.elapsed().as_millis() as u64,
+                Some(&McpErrorKind::InvalidArgument),
+            );
+            return e.to_json_string();
+        }
+
         if let Some(adapter) = self.adapter_container.get_git_cas() {
             match adapter.resolve_sha(&git_ref) {
-                Ok(sha) => serde_json::json!({
-                    "ref": git_ref,
-                    "sha": sha,
-                    "resolved": true,
-                })
-                .to_string(),
-                Err(e) => serde_json::json!({
-                    "ref": git_ref,
-                    "error": e.to_string(),
-                })
-                .to_string(),
+                Ok(sha) => {
+                    emit_tool_span(
+                        "git:resolve",
+                        "ok",
+                        start.elapsed().as_millis() as u64,
+                        None,
+                    );
+                    McpToolOutput::new(json!({
+                        "ref": git_ref,
+                        "sha": sha,
+                        "resolved": true,
+                    }))
+                    .to_json_string()
+                }
+                Err(e) => {
+                    emit_tool_span(
+                        "git:resolve",
+                        "error",
+                        start.elapsed().as_millis() as u64,
+                        Some(&McpErrorKind::Internal),
+                    );
+                    McpToolError::internal(e.to_string()).to_json_string()
+                }
             }
         } else {
-            serde_json::json!({
-                "ref": git_ref,
-                "error": "No adapter configured",
-            })
-            .to_string()
+            emit_tool_span(
+                "git:resolve",
+                "error",
+                start.elapsed().as_millis() as u64,
+                Some(&McpErrorKind::FailedPrecondition),
+            );
+            McpToolError::failed_precondition("No adapter configured").to_json_string()
         }
     }
 
@@ -167,33 +201,44 @@ impl GitServer {
         &self,
         Parameters(SnapshotRequest { message, branch }): Parameters<SnapshotRequest>,
     ) -> String {
+        let start = Instant::now();
         let branch_name = branch.unwrap_or_else(|| "main".to_string());
 
         if let Some(base_path) = self.adapter_container.get_base_path() {
             match git_commit(&base_path, &message, &branch_name) {
-                Ok(sha) => serde_json::json!({
-                    "sha": sha,
-                    "message": message,
-                    "branch": branch_name,
-                    "committed": true,
-                })
-                .to_string(),
-                Err(e) => serde_json::json!({
-                    "message": message,
-                    "branch": branch_name,
-                    "committed": false,
-                    "error": e,
-                })
-                .to_string(),
+                Ok(sha) => {
+                    emit_tool_span(
+                        "git:snapshot",
+                        "ok",
+                        start.elapsed().as_millis() as u64,
+                        None,
+                    );
+                    McpToolOutput::new(json!({
+                        "sha": sha,
+                        "message": message,
+                        "branch": branch_name,
+                        "committed": true,
+                    }))
+                    .to_json_string()
+                }
+                Err(e) => {
+                    emit_tool_span(
+                        "git:snapshot",
+                        "error",
+                        start.elapsed().as_millis() as u64,
+                        Some(&McpErrorKind::Internal),
+                    );
+                    McpToolError::internal(e).to_json_string()
+                }
             }
         } else {
-            serde_json::json!({
-                "message": message,
-                "branch": branch_name,
-                "committed": false,
-                "error": "No adapter configured",
-            })
-            .to_string()
+            emit_tool_span(
+                "git:snapshot",
+                "error",
+                start.elapsed().as_millis() as u64,
+                Some(&McpErrorKind::FailedPrecondition),
+            );
+            McpToolError::failed_precondition("No adapter configured").to_json_string()
         }
     }
 
@@ -206,17 +251,27 @@ impl GitServer {
             branch,
         }): Parameters<CloneRequest>,
     ) -> String {
+        let start = Instant::now();
         let branch_name = branch.unwrap_or_else(|| "main".to_string());
 
+        if let Err(e) = validate_tool_url(&url) {
+            emit_tool_span(
+                "git:clone",
+                "error",
+                start.elapsed().as_millis() as u64,
+                Some(&McpErrorKind::InvalidArgument),
+            );
+            return e.to_json_string();
+        }
+
         if let Err(e) = validate_path(&target_path) {
-            return serde_json::json!({
-                "url": url,
-                "path": target_path,
-                "branch": branch_name,
-                "cloned": false,
-                "error": e,
-            })
-            .to_string();
+            emit_tool_span(
+                "git:clone",
+                "error",
+                start.elapsed().as_millis() as u64,
+                Some(&McpErrorKind::InvalidArgument),
+            );
+            return e.to_json_string();
         }
 
         if let Some(base_path) = self.adapter_container.get_base_path() {
@@ -227,42 +282,44 @@ impl GitServer {
                 .output();
 
             match output {
-                Ok(out) if out.status.success() => serde_json::json!({
-                    "url": url,
-                    "path": target_path,
-                    "branch": branch_name,
-                    "cloned": true,
-                })
-                .to_string(),
-                Ok(out) => {
-                    let stderr = String::from_utf8_lossy(&out.stderr);
-                    serde_json::json!({
+                Ok(out) if out.status.success() => {
+                    emit_tool_span("git:clone", "ok", start.elapsed().as_millis() as u64, None);
+                    McpToolOutput::new(json!({
                         "url": url,
                         "path": target_path,
                         "branch": branch_name,
-                        "cloned": false,
-                        "error": stderr.trim(),
-                    })
-                    .to_string()
+                        "cloned": true,
+                    }))
+                    .to_json_string()
                 }
-                Err(e) => serde_json::json!({
-                    "url": url,
-                    "path": target_path,
-                    "branch": branch_name,
-                    "cloned": false,
-                    "error": e.to_string(),
-                })
-                .to_string(),
+                Ok(out) => {
+                    let stderr = String::from_utf8_lossy(&out.stderr);
+                    emit_tool_span(
+                        "git:clone",
+                        "error",
+                        start.elapsed().as_millis() as u64,
+                        Some(&McpErrorKind::Internal),
+                    );
+                    McpToolError::internal(stderr.trim()).to_json_string()
+                }
+                Err(e) => {
+                    emit_tool_span(
+                        "git:clone",
+                        "error",
+                        start.elapsed().as_millis() as u64,
+                        Some(&McpErrorKind::Unavailable),
+                    );
+                    McpToolError::unavailable(e.to_string()).to_json_string()
+                }
             }
         } else {
-            serde_json::json!({
-                "url": url,
-                "path": target_path,
-                "branch": branch_name,
-                "cloned": false,
-                "error": "No adapter configured",
-            })
-            .to_string()
+            emit_tool_span(
+                "git:clone",
+                "error",
+                start.elapsed().as_millis() as u64,
+                Some(&McpErrorKind::FailedPrecondition),
+            );
+            McpToolError::failed_precondition("No adapter configured").to_json_string()
         }
     }
 
@@ -275,33 +332,45 @@ impl GitServer {
             organization,
         }): Parameters<ForkRequest>,
     ) -> String {
+        let start = Instant::now();
         let org = organization.unwrap_or_else(|| "forked".to_string());
 
+        if let Err(e) = validate_tool_url(&source_url) {
+            emit_tool_span(
+                "git:fork",
+                "error",
+                start.elapsed().as_millis() as u64,
+                Some(&McpErrorKind::InvalidArgument),
+            );
+            return e.to_json_string();
+        }
+
         if let Err(e) = validate_path(&target_name) {
-            return serde_json::json!({
-                "source": source_url,
-                "target": format!("{}/{}", org, target_name),
-                "forked": false,
-                "error": e,
-            })
-            .to_string();
+            emit_tool_span(
+                "git:fork",
+                "error",
+                start.elapsed().as_millis() as u64,
+                Some(&McpErrorKind::InvalidArgument),
+            );
+            return e.to_json_string();
         }
 
         if self.adapter_container.has_git_cas() {
-            serde_json::json!({
+            emit_tool_span("git:fork", "ok", start.elapsed().as_millis() as u64, None);
+            McpToolOutput::new(json!({
                 "source": source_url,
                 "target": format!("{}/{}", org, target_name),
                 "forked": true,
-            })
-            .to_string()
+            }))
+            .to_json_string()
         } else {
-            serde_json::json!({
-                "source": source_url,
-                "target": format!("{}/{}", org, target_name),
-                "forked": false,
-                "error": "No adapter configured",
-            })
-            .to_string()
+            emit_tool_span(
+                "git:fork",
+                "error",
+                start.elapsed().as_millis() as u64,
+                Some(&McpErrorKind::FailedPrecondition),
+            );
+            McpToolError::failed_precondition("No adapter configured").to_json_string()
         }
     }
 
@@ -310,16 +379,17 @@ impl GitServer {
         &self,
         Parameters(DiffRequest { sha1, sha2, path }): Parameters<DiffRequest>,
     ) -> String {
+        let start = Instant::now();
         let path_filter = path.unwrap_or_else(|| "all".to_string());
 
         if let Err(e) = validate_path(&path_filter) {
-            return serde_json::json!({
-                "sha1": sha1,
-                "sha2": sha2,
-                "path": path_filter,
-                "error": e,
-            })
-            .to_string();
+            emit_tool_span(
+                "git:diff",
+                "error",
+                start.elapsed().as_millis() as u64,
+                Some(&McpErrorKind::InvalidArgument),
+            );
+            return e.to_json_string();
         }
 
         if let Some(base_path) = self.adapter_container.get_base_path() {
@@ -337,43 +407,49 @@ impl GitServer {
             match output {
                 Ok(out) => {
                     let diff = String::from_utf8_lossy(&out.stdout);
-                    serde_json::json!({
+                    emit_tool_span("git:diff", "ok", start.elapsed().as_millis() as u64, None);
+                    McpToolOutput::new(json!({
                         "sha1": sha1,
                         "sha2": sha2,
                         "path": path_filter,
                         "diff": diff,
-                    })
-                    .to_string()
+                    }))
+                    .to_json_string()
                 }
-                Err(e) => serde_json::json!({
-                    "sha1": sha1,
-                    "sha2": sha2,
-                    "path": path_filter,
-                    "error": e.to_string(),
-                })
-                .to_string(),
+                Err(e) => {
+                    emit_tool_span(
+                        "git:diff",
+                        "error",
+                        start.elapsed().as_millis() as u64,
+                        Some(&McpErrorKind::Unavailable),
+                    );
+                    McpToolError::unavailable(e.to_string()).to_json_string()
+                }
             }
         } else {
-            serde_json::json!({
-                "sha1": sha1,
-                "sha2": sha2,
-                "path": path_filter,
-                "error": "No adapter configured",
-            })
-            .to_string()
+            emit_tool_span(
+                "git:diff",
+                "error",
+                start.elapsed().as_millis() as u64,
+                Some(&McpErrorKind::FailedPrecondition),
+            );
+            McpToolError::failed_precondition("No adapter configured").to_json_string()
         }
     }
 
     #[tool(description = "List files in a git path")]
     async fn git_list(&self, Parameters(ListRequest { path }): Parameters<ListRequest>) -> String {
+        let start = Instant::now();
         let p = path.unwrap_or_else(|| ".".to_string());
 
         if let Err(e) = validate_path(&p) {
-            return serde_json::json!({
-                "path": p,
-                "error": e,
-            })
-            .to_string();
+            emit_tool_span(
+                "git:list",
+                "error",
+                start.elapsed().as_millis() as u64,
+                Some(&McpErrorKind::InvalidArgument),
+            );
+            return e.to_json_string();
         }
 
         if let Some(base_path) = self.adapter_container.get_base_path() {
@@ -386,56 +462,66 @@ impl GitServer {
                 Ok(out) if out.status.success() => {
                     let listing = String::from_utf8_lossy(&out.stdout);
                     let files: Vec<&str> = listing.lines().collect();
-                    serde_json::json!({
+                    emit_tool_span("git:list", "ok", start.elapsed().as_millis() as u64, None);
+                    McpToolOutput::new(json!({
                         "path": p,
                         "files": files,
-                    })
-                    .to_string()
+                    }))
+                    .to_json_string()
                 }
                 Ok(out) => {
                     let stderr = String::from_utf8_lossy(&out.stderr);
-                    serde_json::json!({
-                        "path": p,
-                        "error": stderr.trim(),
-                    })
-                    .to_string()
+                    emit_tool_span(
+                        "git:list",
+                        "error",
+                        start.elapsed().as_millis() as u64,
+                        Some(&McpErrorKind::Internal),
+                    );
+                    McpToolError::internal(stderr.trim()).to_json_string()
                 }
-                Err(e) => serde_json::json!({
-                    "path": p,
-                    "error": e.to_string(),
-                })
-                .to_string(),
+                Err(e) => {
+                    emit_tool_span(
+                        "git:list",
+                        "error",
+                        start.elapsed().as_millis() as u64,
+                        Some(&McpErrorKind::Unavailable),
+                    );
+                    McpToolError::unavailable(e.to_string()).to_json_string()
+                }
             }
         } else {
-            serde_json::json!({
-                "path": p,
-                "error": "No adapter configured",
-            })
-            .to_string()
+            emit_tool_span(
+                "git:list",
+                "error",
+                start.elapsed().as_millis() as u64,
+                Some(&McpErrorKind::FailedPrecondition),
+            );
+            McpToolError::failed_precondition("No adapter configured").to_json_string()
         }
     }
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-        .init();
-
-    let server = if let Ok(base_path) = std::env::var(ENV_GIT_BASE_PATH) {
-        let path = std::path::PathBuf::from(&base_path);
-        tracing::info!("Using GIT base path: {}", base_path);
-        GitServer::with_base_path(path)
-    } else {
-        tracing::warn!(
-            "{} not set, Git adapter unconfigured — server will reject operations",
-            ENV_GIT_BASE_PATH
-        );
-        GitServer::new()
-    };
-
-    let service = server.serve(stdio());
-    tracing::info!("hkask-mcp-git started (v{})", SERVER_VERSION);
-    service.await?;
-    Ok(())
+    run_stdio_server(
+        "hkask-mcp-git",
+        env!("CARGO_PKG_VERSION"),
+        |ctx: ServerContext| {
+            let base_path = ctx
+                .credentials
+                .get("HKASK_GIT_BASE_PATH")
+                .map(|p| std::path::PathBuf::from(p));
+            if let Some(ref bp) = base_path {
+                tracing::info!("Using GIT base path: {}", bp.display());
+            } else {
+                tracing::warn!("HKASK_GIT_BASE_PATH not set, Git adapter unconfigured");
+            }
+            Ok(GitServer::with_base_path_or_default(base_path))
+        },
+        vec![CredentialRequirement::optional(
+            "HKASK_GIT_BASE_PATH",
+            "Base path for Git operations",
+        )],
+    )
+    .await
 }

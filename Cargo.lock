@@ -2247,6 +2247,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "hkask-cns",
+ "hkask-mcp",
  "hkask-types",
  "rmcp",
  "schemars",
@@ -2255,7 +2256,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
- "tracing-subscriber",
  "uuid",
 ]
 
@@ -2324,7 +2324,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
- "tracing-subscriber",
  "uuid",
 ]
 
@@ -2357,6 +2356,7 @@ dependencies = [
  "ed25519-dalek",
  "hex",
  "hkask-cns",
+ "hkask-mcp",
  "hkask-types",
  "rand 0.8.6",
  "rmcp",
@@ -2367,7 +2367,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]
@@ -2395,6 +2394,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "hkask-keystore",
+ "hkask-mcp",
  "hkask-types",
  "rmcp",
  "schemars",
@@ -2403,7 +2403,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
- "tracing-subscriber",
  "uuid",
 ]
 
@@ -2413,6 +2412,7 @@ version = "0.21.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "hkask-mcp",
  "hkask-types",
  "rmcp",
  "schemars",
@@ -2421,7 +2421,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
- "tracing-subscriber",
  "uuid",
 ]
 
@@ -2431,6 +2430,7 @@ version = "0.21.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "hkask-mcp",
  "hkask-storage",
  "hkask-templates",
  "hkask-types",
@@ -2442,7 +2442,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
- "tracing-subscriber",
  "uuid",
 ]
 
@@ -2477,6 +2476,7 @@ version = "0.21.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "hkask-mcp",
  "hkask-storage",
  "hkask-types",
  "rmcp",
@@ -2487,7 +2487,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
- "tracing-subscriber",
  "uuid",
 ]
 

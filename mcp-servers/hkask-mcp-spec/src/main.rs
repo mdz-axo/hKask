@@ -10,17 +10,21 @@
 //! - spec/graph/query — Query specification graph
 //! - spec/graph/validate — Validate collection coherence
 
+use hkask_mcp::server::{
+    McpToolError, McpToolOutput, ServerContext, emit_tool_span, run_stdio_server,
+    validate_identifier,
+};
 use hkask_types::{
     CapabilityAction, CapabilityChecker, CapabilityResource, CapabilityToken, CollectionCoherence,
-    CompletenessCheck, CurationDecision, DomainAnchor, GoalSpec, OCAPBoundary, Spec, SpecCategory,
-    SpecError, SpecId, SpecObserver, SpecStore,
+    CompletenessCheck, CurationDecision, DomainAnchor, GoalSpec, McpErrorKind, OCAPBoundary, Spec,
+    SpecCategory, SpecError, SpecId, SpecObserver, SpecStore,
 };
-use rmcp::{ServiceExt, handler::server::wrapper::Parameters, tool, tool_router, transport::stdio};
+use rmcp::handler::server::wrapper::Parameters;
+use rmcp::{tool, tool_router};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-
-const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
+use std::time::Instant;
 
 // ── Response types ───────────────────────────────────────────
 
@@ -105,11 +109,6 @@ pub struct GraphValidateResponse {
     pub violations: Vec<String>,
     pub suggestions: Vec<String>,
     pub spec_count: usize,
-}
-
-#[derive(Debug, Serialize)]
-pub struct ErrorResponse {
-    pub error: String,
 }
 
 // ── Request types ────────────────────────────────────────────
@@ -231,7 +230,7 @@ impl SpecServer {
         token_b64: Option<&str>,
         resource_id: &str,
         action: CapabilityAction,
-    ) -> Result<(), SpecError> {
+    ) -> Result<(), McpToolError> {
         match (&self.capability_checker, token_b64) {
             (None, None) => {
                 tracing::warn!(
@@ -241,7 +240,7 @@ impl SpecServer {
                 );
                 Ok(())
             }
-            (Some(_checker), None) => Err(SpecError::CapabilityDenied(format!(
+            (Some(_checker), None) => Err(McpToolError::permission_denied(format!(
                 "No capability token provided for spec:{}:{}",
                 resource_id,
                 action.as_str()
@@ -249,19 +248,19 @@ impl SpecServer {
             (_, Some(b64)) => {
                 let checker = self.capability_checker.as_ref().unwrap();
                 let token = CapabilityToken::from_base64(b64).map_err(|e| {
-                    SpecError::CapabilityDenied(format!("Invalid token encoding: {}", e))
+                    McpToolError::permission_denied(format!("Invalid token encoding: {}", e))
                 })?;
                 if !checker.verify(&token) {
-                    return Err(SpecError::CapabilityDenied(
+                    return Err(McpToolError::permission_denied(
                         "Token signature verification failed".to_string(),
                     ));
                 }
                 let now = chrono::Utc::now().timestamp();
                 if token.is_expired(now) {
-                    return Err(SpecError::CapabilityDenied("Token expired".to_string()));
+                    return Err(McpToolError::permission_denied("Token expired".to_string()));
                 }
                 if !token.is_valid_for(CapabilityResource::Spec, resource_id, action) {
-                    return Err(SpecError::CapabilityDenied(format!(
+                    return Err(McpToolError::permission_denied(format!(
                         "Token does not grant spec:{}:{}",
                         resource_id,
                         action.as_str()
@@ -286,15 +285,16 @@ impl SpecServer {
             capability_token,
         }): Parameters<GoalCaptureRequest>,
     ) -> String {
+        let start = Instant::now();
+
         if let Err(e) = self.verify_capability(
             capability_token.as_deref(),
             "capture",
             CapabilityAction::Write,
         ) {
-            return serde_json::to_string(&ErrorResponse {
-                error: e.to_string(),
-            })
-            .unwrap_or_else(|_| "{}".into());
+            let duration_ms = start.elapsed().as_millis() as u64;
+            emit_tool_span("spec:goal_capture", "error", duration_ms, Some(&e.kind));
+            return e.to_json_string();
         }
 
         let cat = SpecCategory::parse_str(&category).unwrap_or(SpecCategory::Domain);
@@ -311,19 +311,30 @@ impl SpecServer {
         let id = spec.id;
 
         if let Err(e) = self.save_and_observe(&spec, "spec.capture") {
-            return serde_json::to_string(&ErrorResponse {
-                error: format!("Failed to persist spec: {}", e),
-            })
-            .unwrap_or_else(|_| "{}".into());
+            let duration_ms = start.elapsed().as_millis() as u64;
+            emit_tool_span(
+                "spec:goal_capture",
+                "error",
+                duration_ms,
+                Some(&McpErrorKind::Internal),
+            );
+            return McpToolError::internal(format!("Failed to persist spec: {}", e))
+                .to_json_string();
         }
 
-        serde_json::to_string(&GoalCaptureResponse {
-            spec_id: id.to_string(),
-            category: cat.as_str().to_string(),
-            domain_anchor: anchor.as_str().to_string(),
-            status: "captured".to_string(),
-        })
-        .unwrap_or_else(|_| "{}".into())
+        let duration_ms = start.elapsed().as_millis() as u64;
+        emit_tool_span("spec:goal_capture", "ok", duration_ms, None);
+
+        McpToolOutput::new(
+            serde_json::to_value(GoalCaptureResponse {
+                spec_id: id.to_string(),
+                category: cat.as_str().to_string(),
+                domain_anchor: anchor.as_str().to_string(),
+                status: "captured".to_string(),
+            })
+            .unwrap_or_default(),
+        )
+        .to_json_string()
     }
 
     #[tool(description = "Decompose a goal into ordered sub-goals (max depth 7)")]
@@ -336,40 +347,65 @@ impl SpecServer {
             capability_token,
         }): Parameters<GoalDecomposeRequest>,
     ) -> String {
+        let start = Instant::now();
+
+        if let Err(e) = validate_identifier("spec_id", &spec_id, 256) {
+            let duration_ms = start.elapsed().as_millis() as u64;
+            emit_tool_span("spec:goal_decompose", "error", duration_ms, Some(&e.kind));
+            return e.to_json_string();
+        }
+
         if let Err(e) = self.verify_capability(
             capability_token.as_deref(),
             &spec_id,
             CapabilityAction::Write,
         ) {
-            return serde_json::to_string(&ErrorResponse {
-                error: e.to_string(),
-            })
-            .unwrap_or_else(|_| "{}".into());
+            let duration_ms = start.elapsed().as_millis() as u64;
+            emit_tool_span("spec:goal_decompose", "error", duration_ms, Some(&e.kind));
+            return e.to_json_string();
         }
 
         let spec_id_parsed = SpecId::from_string(&spec_id).unwrap_or_default();
         let mut spec = match self.store.load(spec_id_parsed) {
             Ok(s) => s,
             Err(_) => {
-                return serde_json::to_string(&ErrorResponse {
-                    error: format!("Spec not found: {}", spec_id),
-                })
-                .unwrap_or_else(|_| "{}".into());
+                let duration_ms = start.elapsed().as_millis() as u64;
+                emit_tool_span(
+                    "spec:goal_decompose",
+                    "error",
+                    duration_ms,
+                    Some(&McpErrorKind::NotFound),
+                );
+                return McpToolError::not_found(format!("Spec not found: {}", spec_id))
+                    .to_json_string();
             }
         };
 
         let Some(goal) = spec.goals.get_mut(goal_index) else {
-            return serde_json::to_string(&ErrorResponse {
-                error: format!("Goal index {} out of range", goal_index),
-            })
-            .unwrap_or_else(|_| "{}".into());
+            let duration_ms = start.elapsed().as_millis() as u64;
+            emit_tool_span(
+                "spec:goal_decompose",
+                "error",
+                duration_ms,
+                Some(&McpErrorKind::InvalidArgument),
+            );
+            return McpToolError::invalid_argument(format!(
+                "Goal index {} out of range",
+                goal_index
+            ))
+            .to_json_string();
         };
 
         if !goal.can_have_subgoals() {
-            return serde_json::to_string(&ErrorResponse {
-                error: "Depth limit reached (max 7)".to_string(),
-            })
-            .unwrap_or_else(|_| "{}".into());
+            let duration_ms = start.elapsed().as_millis() as u64;
+            emit_tool_span(
+                "spec:goal_decompose",
+                "error",
+                duration_ms,
+                Some(&McpErrorKind::InvalidArgument),
+            );
+            return McpToolError::invalid_argument("Depth limit reached (max 7)".to_string())
+                .to_json_string();
         }
 
         let added = sub_goals.len();
@@ -380,18 +416,29 @@ impl SpecServer {
         }
 
         if let Err(e) = self.save_and_observe(&spec, "spec.decompose") {
-            return serde_json::to_string(&ErrorResponse {
-                error: format!("Failed to persist spec: {}", e),
-            })
-            .unwrap_or_else(|_| "{}".into());
+            let duration_ms = start.elapsed().as_millis() as u64;
+            emit_tool_span(
+                "spec:goal_decompose",
+                "error",
+                duration_ms,
+                Some(&McpErrorKind::Internal),
+            );
+            return McpToolError::internal(format!("Failed to persist spec: {}", e))
+                .to_json_string();
         }
 
-        serde_json::to_string(&GoalDecomposeResponse {
-            spec_id,
-            goal_index,
-            sub_goals_added: added,
-        })
-        .unwrap_or_else(|_| "{}".into())
+        let duration_ms = start.elapsed().as_millis() as u64;
+        emit_tool_span("spec:goal_decompose", "ok", duration_ms, None);
+
+        McpToolOutput::new(
+            serde_json::to_value(GoalDecomposeResponse {
+                spec_id,
+                goal_index,
+                sub_goals_added: added,
+            })
+            .unwrap_or_default(),
+        )
+        .to_json_string()
     }
 
     #[tool(description = "Bind OCAP boundaries to a goal as a constraint")]
@@ -405,32 +452,52 @@ impl SpecServer {
             capability_token,
         }): Parameters<RequireBindRequest>,
     ) -> String {
+        let start = Instant::now();
+
+        if let Err(e) = validate_identifier("spec_id", &spec_id, 256) {
+            let duration_ms = start.elapsed().as_millis() as u64;
+            emit_tool_span("spec:require_bind", "error", duration_ms, Some(&e.kind));
+            return e.to_json_string();
+        }
+
         if let Err(e) = self.verify_capability(
             capability_token.as_deref(),
             &spec_id,
             CapabilityAction::Write,
         ) {
-            return serde_json::to_string(&ErrorResponse {
-                error: e.to_string(),
-            })
-            .unwrap_or_else(|_| "{}".into());
+            let duration_ms = start.elapsed().as_millis() as u64;
+            emit_tool_span("spec:require_bind", "error", duration_ms, Some(&e.kind));
+            return e.to_json_string();
         }
 
         let spec_id_parsed = SpecId::from_string(&spec_id).unwrap_or_default();
         let mut spec = match self.store.load(spec_id_parsed) {
             Ok(s) => s,
             Err(_) => {
-                return serde_json::to_string(&ErrorResponse {
-                    error: format!("Spec not found: {}", spec_id),
-                })
-                .unwrap_or_else(|_| "{}".into());
+                let duration_ms = start.elapsed().as_millis() as u64;
+                emit_tool_span(
+                    "spec:require_bind",
+                    "error",
+                    duration_ms,
+                    Some(&McpErrorKind::NotFound),
+                );
+                return McpToolError::not_found(format!("Spec not found: {}", spec_id))
+                    .to_json_string();
             }
         };
         if goal_index >= spec.goals.len() {
-            return serde_json::to_string(&ErrorResponse {
-                error: format!("Goal index {} out of range", goal_index),
-            })
-            .unwrap_or_else(|_| "{}".into());
+            let duration_ms = start.elapsed().as_millis() as u64;
+            emit_tool_span(
+                "spec:require_bind",
+                "error",
+                duration_ms,
+                Some(&McpErrorKind::InvalidArgument),
+            );
+            return McpToolError::invalid_argument(format!(
+                "Goal index {} out of range",
+                goal_index
+            ))
+            .to_json_string();
         }
 
         let boundary = match authority.as_str() {
@@ -441,20 +508,31 @@ impl SpecServer {
         spec.goals[goal_index].constraints.push(boundary);
 
         if let Err(e) = self.save_and_observe(&spec, "spec.bind") {
-            return serde_json::to_string(&ErrorResponse {
-                error: format!("Failed to persist spec: {}", e),
-            })
-            .unwrap_or_else(|_| "{}".into());
+            let duration_ms = start.elapsed().as_millis() as u64;
+            emit_tool_span(
+                "spec:require_bind",
+                "error",
+                duration_ms,
+                Some(&McpErrorKind::Internal),
+            );
+            return McpToolError::internal(format!("Failed to persist spec: {}", e))
+                .to_json_string();
         }
 
-        serde_json::to_string(&RequireBindResponse {
-            spec_id,
-            goal_index,
-            capability,
-            authority,
-            enforced: true,
-        })
-        .unwrap_or_else(|_| "{}".into())
+        let duration_ms = start.elapsed().as_millis() as u64;
+        emit_tool_span("spec:require_bind", "ok", duration_ms, None);
+
+        McpToolOutput::new(
+            serde_json::to_value(RequireBindResponse {
+                spec_id,
+                goal_index,
+                capability,
+                authority,
+                enforced: true,
+            })
+            .unwrap_or_default(),
+        )
+        .to_json_string()
     }
 
     #[tool(description = "Evaluate a specification for collection coherence (curation)")]
@@ -466,25 +544,37 @@ impl SpecServer {
             capability_token,
         }): Parameters<CurateEvaluateRequest>,
     ) -> String {
+        let start = Instant::now();
+
+        if let Err(e) = validate_identifier("spec_id", &spec_id, 256) {
+            let duration_ms = start.elapsed().as_millis() as u64;
+            emit_tool_span("spec:curate_evaluate", "error", duration_ms, Some(&e.kind));
+            return e.to_json_string();
+        }
+
         if let Err(e) = self.verify_capability(
             capability_token.as_deref(),
             &spec_id,
             CapabilityAction::Read,
         ) {
-            return serde_json::to_string(&ErrorResponse {
-                error: e.to_string(),
-            })
-            .unwrap_or_else(|_| "{}".into());
+            let duration_ms = start.elapsed().as_millis() as u64;
+            emit_tool_span("spec:curate_evaluate", "error", duration_ms, Some(&e.kind));
+            return e.to_json_string();
         }
 
         let spec_id_parsed = SpecId::from_string(&spec_id).unwrap_or_default();
         let spec = match self.store.load(spec_id_parsed) {
             Ok(s) => s,
             Err(_) => {
-                return serde_json::to_string(&ErrorResponse {
-                    error: format!("Spec not found: {}", spec_id),
-                })
-                .unwrap_or_else(|_| "{}".into());
+                let duration_ms = start.elapsed().as_millis() as u64;
+                emit_tool_span(
+                    "spec:curate_evaluate",
+                    "error",
+                    duration_ms,
+                    Some(&McpErrorKind::NotFound),
+                );
+                return McpToolError::not_found(format!("Spec not found: {}", spec_id))
+                    .to_json_string();
             }
         };
 
@@ -507,13 +597,19 @@ impl SpecServer {
 
         let coherence = spec.coherence();
 
-        serde_json::to_string(&CurateEvaluateResponse {
-            spec_id,
-            decision: decision.to_string(),
-            rationale,
-            coherence_score: coherence,
-        })
-        .unwrap_or_else(|_| "{}".into())
+        let duration_ms = start.elapsed().as_millis() as u64;
+        emit_tool_span("spec:curate_evaluate", "ok", duration_ms, None);
+
+        McpToolOutput::new(
+            serde_json::to_value(CurateEvaluateResponse {
+                spec_id,
+                decision: decision.to_string(),
+                rationale,
+                coherence_score: coherence,
+            })
+            .unwrap_or_default(),
+        )
+        .to_json_string()
     }
 
     #[tool(description = "Reconcile tensions between specifications without collapsing them")]
@@ -525,15 +621,16 @@ impl SpecServer {
             capability_token,
         }): Parameters<CurateReconcileRequest>,
     ) -> String {
+        let start = Instant::now();
+
         if let Err(e) = self.verify_capability(
             capability_token.as_deref(),
             "reconcile",
             CapabilityAction::Compose,
         ) {
-            return serde_json::to_string(&ErrorResponse {
-                error: e.to_string(),
-            })
-            .unwrap_or_else(|_| "{}".into());
+            let duration_ms = start.elapsed().as_millis() as u64;
+            emit_tool_span("spec:curate_reconcile", "error", duration_ms, Some(&e.kind));
+            return e.to_json_string();
         }
 
         let mut found = Vec::new();
@@ -549,10 +646,15 @@ impl SpecServer {
         }
 
         if !missing.is_empty() {
-            return serde_json::to_string(&ErrorResponse {
-                error: format!("Specs not found: {:?}", missing),
-            })
-            .unwrap_or_else(|_| "{}".into());
+            let duration_ms = start.elapsed().as_millis() as u64;
+            emit_tool_span(
+                "spec:curate_reconcile",
+                "error",
+                duration_ms,
+                Some(&McpErrorKind::NotFound),
+            );
+            return McpToolError::not_found(format!("Specs not found: {:?}", missing))
+                .to_json_string();
         }
 
         let mut loaded_specs = Vec::new();
@@ -606,14 +708,20 @@ impl SpecServer {
             "tensions_identified"
         };
 
-        serde_json::to_string(&CurateReconcileResponse {
-            resolution: resolution.to_string(),
-            spec_ids: found,
-            tension: tension_description,
-            tensions,
-            status: "reconciled".to_string(),
-        })
-        .unwrap_or_else(|_| "{}".into())
+        let duration_ms = start.elapsed().as_millis() as u64;
+        emit_tool_span("spec:curate_reconcile", "ok", duration_ms, None);
+
+        McpToolOutput::new(
+            serde_json::to_value(CurateReconcileResponse {
+                resolution: resolution.to_string(),
+                spec_ids: found,
+                tension: tension_description,
+                tensions,
+                status: "reconciled".to_string(),
+            })
+            .unwrap_or_default(),
+        )
+        .to_json_string()
     }
 
     #[tool(description = "Cultivate the specification collection toward coherence")]
@@ -624,25 +732,31 @@ impl SpecServer {
             capability_token,
         }): Parameters<CurateCultivateRequest>,
     ) -> String {
+        let start = Instant::now();
+
         if let Err(e) = self.verify_capability(
             capability_token.as_deref(),
             "cultivate",
             CapabilityAction::Compose,
         ) {
-            return serde_json::to_string(&ErrorResponse {
-                error: e.to_string(),
-            })
-            .unwrap_or_else(|_| "{}".into());
+            let duration_ms = start.elapsed().as_millis() as u64;
+            emit_tool_span("spec:curate_cultivate", "error", duration_ms, Some(&e.kind));
+            return e.to_json_string();
         }
 
         let threshold = coherence_threshold.unwrap_or(0.7);
         let all_specs: Vec<Spec> = match self.store.list_all() {
             Ok(specs) => specs,
             Err(e) => {
-                return serde_json::to_string(&ErrorResponse {
-                    error: format!("Failed to load specs: {}", e),
-                })
-                .unwrap_or_else(|_| "{}".into());
+                let duration_ms = start.elapsed().as_millis() as u64;
+                emit_tool_span(
+                    "spec:curate_cultivate",
+                    "error",
+                    duration_ms,
+                    Some(&McpErrorKind::Internal),
+                );
+                return McpToolError::internal(format!("Failed to load specs: {}", e))
+                    .to_json_string();
             }
         };
         let coherence = all_specs.as_slice().collection_coherence();
@@ -660,15 +774,21 @@ impl SpecServer {
 
         let above_threshold = coherence >= threshold;
 
-        serde_json::to_string(&CurateCultivateResponse {
-            coherence_score: coherence,
-            threshold,
-            above_threshold,
-            spec_count: all_specs.len(),
-            categories_covered,
-            categories_missing,
-        })
-        .unwrap_or_else(|_| "{}".into())
+        let duration_ms = start.elapsed().as_millis() as u64;
+        emit_tool_span("spec:curate_cultivate", "ok", duration_ms, None);
+
+        McpToolOutput::new(
+            serde_json::to_value(CurateCultivateResponse {
+                coherence_score: coherence,
+                threshold,
+                above_threshold,
+                spec_count: all_specs.len(),
+                categories_covered,
+                categories_missing,
+            })
+            .unwrap_or_default(),
+        )
+        .to_json_string()
     }
 
     #[tool(description = "Query the specification graph by category or domain anchor")]
@@ -680,22 +800,28 @@ impl SpecServer {
             capability_token,
         }): Parameters<GraphQueryRequest>,
     ) -> String {
+        let start = Instant::now();
+
         if let Err(e) =
             self.verify_capability(capability_token.as_deref(), "query", CapabilityAction::Read)
         {
-            return serde_json::to_string(&ErrorResponse {
-                error: e.to_string(),
-            })
-            .unwrap_or_else(|_| "{}".into());
+            let duration_ms = start.elapsed().as_millis() as u64;
+            emit_tool_span("spec:graph_query", "error", duration_ms, Some(&e.kind));
+            return e.to_json_string();
         }
 
         let all_specs: Vec<Spec> = match self.store.list_all() {
             Ok(specs) => specs,
             Err(e) => {
-                return serde_json::to_string(&ErrorResponse {
-                    error: format!("Failed to load specs: {}", e),
-                })
-                .unwrap_or_else(|_| "{}".into());
+                let duration_ms = start.elapsed().as_millis() as u64;
+                emit_tool_span(
+                    "spec:graph_query",
+                    "error",
+                    duration_ms,
+                    Some(&McpErrorKind::Internal),
+                );
+                return McpToolError::internal(format!("Failed to load specs: {}", e))
+                    .to_json_string();
             }
         };
         let results: Vec<&Spec> = all_specs
@@ -723,11 +849,17 @@ impl SpecServer {
             })
             .collect();
 
-        serde_json::to_string(&GraphQueryResponse {
-            count: nodes.len(),
-            specs: nodes,
-        })
-        .unwrap_or_else(|_| "{}".into())
+        let duration_ms = start.elapsed().as_millis() as u64;
+        emit_tool_span("spec:graph_query", "ok", duration_ms, None);
+
+        McpToolOutput::new(
+            serde_json::to_value(GraphQueryResponse {
+                count: nodes.len(),
+                specs: nodes,
+            })
+            .unwrap_or_default(),
+        )
+        .to_json_string()
     }
 
     #[tool(
@@ -740,25 +872,31 @@ impl SpecServer {
             capability_token,
         }): Parameters<GraphValidateRequest>,
     ) -> String {
+        let start = Instant::now();
+
         if let Err(e) = self.verify_capability(
             capability_token.as_deref(),
             "validate",
             CapabilityAction::Validate,
         ) {
-            return serde_json::to_string(&ErrorResponse {
-                error: e.to_string(),
-            })
-            .unwrap_or_else(|_| "{}".into());
+            let duration_ms = start.elapsed().as_millis() as u64;
+            emit_tool_span("spec:graph_validate", "error", duration_ms, Some(&e.kind));
+            return e.to_json_string();
         }
 
         let threshold = coherence_threshold.unwrap_or(0.7);
         let all_specs: Vec<Spec> = match self.store.list_all() {
             Ok(specs) => specs,
             Err(e) => {
-                return serde_json::to_string(&ErrorResponse {
-                    error: format!("Failed to load specs: {}", e),
-                })
-                .unwrap_or_else(|_| "{}".into());
+                let duration_ms = start.elapsed().as_millis() as u64;
+                emit_tool_span(
+                    "spec:graph_validate",
+                    "error",
+                    duration_ms,
+                    Some(&McpErrorKind::Internal),
+                );
+                return McpToolError::internal(format!("Failed to load specs: {}", e))
+                    .to_json_string();
             }
         };
         let coherence = all_specs.as_slice().collection_coherence();
@@ -788,32 +926,37 @@ impl SpecServer {
             }
         }
 
-        serde_json::to_string(&GraphValidateResponse {
-            valid: violations.is_empty(),
-            coherence_score: coherence,
-            threshold,
-            violations,
-            suggestions,
-            spec_count: all_specs.len(),
-        })
-        .unwrap_or_else(|_| "{}".into())
+        let duration_ms = start.elapsed().as_millis() as u64;
+        emit_tool_span("spec:graph_validate", "ok", duration_ms, None);
+
+        McpToolOutput::new(
+            serde_json::to_value(GraphValidateResponse {
+                valid: violations.is_empty(),
+                coherence_score: coherence,
+                threshold,
+                violations,
+                suggestions,
+                spec_count: all_specs.len(),
+            })
+            .unwrap_or_default(),
+        )
+        .to_json_string()
     }
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-        .init();
-
-    let conn = rusqlite::Connection::open_in_memory()?;
-    let conn = std::sync::Arc::new(std::sync::Mutex::new(conn));
-    let store = std::sync::Arc::new(hkask_storage::SqliteSpecStore::new(conn));
-    store.init_schema().map_err(|e| anyhow::anyhow!("{}", e))?;
-
-    let server = SpecServer::new(store);
-    let service = server.serve(stdio());
-    tracing::info!("hkask-mcp-spec started (v{})", SERVER_VERSION);
-    service.await?;
-    Ok(())
+    run_stdio_server(
+        "hkask-mcp-spec",
+        env!("CARGO_PKG_VERSION"),
+        |_ctx: ServerContext| {
+            let conn = rusqlite::Connection::open_in_memory()?;
+            let conn = std::sync::Arc::new(std::sync::Mutex::new(conn));
+            let store = std::sync::Arc::new(hkask_storage::SqliteSpecStore::new(conn));
+            store.init_schema().map_err(|e| anyhow::anyhow!("{}", e))?;
+            Ok(SpecServer::new(store))
+        },
+        vec![],
+    )
+    .await
 }

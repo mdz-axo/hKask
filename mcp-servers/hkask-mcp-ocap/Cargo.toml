@@ -7,6 +7,7 @@ description = "OCAP delegation and capability management MCP server"
 
 [dependencies]
 hkask-types = { path = "../../crates/hkask-types" }
+hkask-mcp = { path = "../../crates/hkask-mcp" }
 rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
 tokio.workspace = true
 serde.workspace = true
@@ -14,7 +15,7 @@ serde_json.workspace = true
 schemars.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
-tracing-subscriber.workspace = true
+
 uuid.workspace = true
 chrono.workspace = true
 anyhow.workspace = true

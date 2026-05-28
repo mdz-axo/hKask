@@ -1,14 +1,18 @@
 //! hKask MCP Registry — Template registry with real registry operations
 
+use hkask_mcp::server::{
+    CredentialRequirement, McpToolError, McpToolOutput, ServerContext, emit_tool_span,
+    run_stdio_server, validate_identifier,
+};
 use hkask_templates::{Registry, RegistryIndex, SqliteRegistry};
 use hkask_types::TemplateType;
-use rmcp::{ServiceExt, handler::server::wrapper::Parameters, tool, tool_router, transport::stdio};
+use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
+use serde_json::json;
 use std::sync::Arc;
+use std::time::Instant;
 use tokio::sync::RwLock;
-
-const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct IndexRequest {
@@ -48,17 +52,11 @@ pub struct RegistryServer {
     registry: Arc<RwLock<Registry>>,
 }
 
-impl Default for RegistryServer {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl RegistryServer {
-    pub fn new() -> Self {
+    pub fn new(db_path: Option<String>) -> Self {
         let mut registry = Registry::bootstrap();
 
-        if let Ok(sqlite) = Self::try_sqlite_load() {
+        if let Ok(sqlite) = Self::try_sqlite_load(db_path.as_deref()) {
             let entries = sqlite.list(None);
             for entry in entries {
                 if registry.get(&entry.id).is_none() {
@@ -81,9 +79,8 @@ impl RegistryServer {
         }
     }
 
-    fn try_sqlite_load() -> Result<SqliteRegistry, String> {
-        let db_path = std::env::var("HKASK_REGISTRY_DB").ok();
-        let mut reg = SqliteRegistry::new(db_path.as_deref())
+    fn try_sqlite_load(db_path: Option<&str>) -> Result<SqliteRegistry, String> {
+        let mut reg = SqliteRegistry::new(db_path)
             .map_err(|e| format!("Failed to create SQLite registry: {}", e))?;
         reg.load_all()
             .map_err(|e| format!("Failed to load from SQLite: {}", e))?;
@@ -105,15 +102,27 @@ impl RegistryServer {
             template_type,
         }): Parameters<IndexRequest>,
     ) -> String {
+        let start = Instant::now();
+
+        if let Err(e) = validate_identifier("root_path", &root_path, 512) {
+            let duration_ms = start.elapsed().as_millis() as u64;
+            emit_tool_span("registry:index", "error", duration_ms, Some(&e.kind));
+            return e.to_json_string();
+        }
+
         let type_filter = Self::parse_template_type(&template_type);
         let registry = self.registry.read().await;
         let entries = registry.list(type_filter);
-        format!(
-            r#"{{"root":"{}","template_type":"{}","templates_found":{},"indexed":true}}"#,
-            root_path,
-            template_type.unwrap_or_else(|| "all".to_string()),
-            entries.len()
-        )
+
+        let output = McpToolOutput::new(json!({
+            "root": root_path,
+            "template_type": template_type.unwrap_or_else(|| "all".to_string()),
+            "templates_found": entries.len(),
+            "indexed": true,
+        }));
+        let duration_ms = start.elapsed().as_millis() as u64;
+        emit_tool_span("registry:index", "ok", duration_ms, None);
+        output.to_json_string()
     }
 
     #[tool(description = "Discover templates by type and domain via real registry search")]
@@ -125,6 +134,8 @@ impl RegistryServer {
             limit,
         }): Parameters<DiscoverRequest>,
     ) -> String {
+        let start = Instant::now();
+
         let type_filter = Self::parse_template_type(&template_type);
         let limit = limit.unwrap_or(10) as usize;
         let registry = self.registry.read().await;
@@ -154,13 +165,15 @@ impl RegistryServer {
             })
             .collect();
 
-        format!(
-            r#"{{"template_type":"{}","domain":"{}","limit":{},"templates":{}}}"#,
-            template_type.unwrap_or_else(|| "all".to_string()),
-            domain_hint.unwrap_or_else(|| "any".to_string()),
-            limit,
-            serde_json::to_string(&truncated).unwrap()
-        )
+        let output = McpToolOutput::new(json!({
+            "template_type": template_type.unwrap_or_else(|| "all".to_string()),
+            "domain": domain_hint.unwrap_or_else(|| "any".to_string()),
+            "limit": limit,
+            "templates": truncated,
+        }));
+        let duration_ms = start.elapsed().as_millis() as u64;
+        emit_tool_span("registry:discover", "ok", duration_ms, None);
+        output.to_json_string()
     }
 
     #[tool(description = "Validate a template via real registry lookup")]
@@ -168,6 +181,14 @@ impl RegistryServer {
         &self,
         Parameters(ValidateRequest { template_id }): Parameters<ValidateRequest>,
     ) -> String {
+        let start = Instant::now();
+
+        if let Err(e) = validate_identifier("template_id", &template_id, 256) {
+            let duration_ms = start.elapsed().as_millis() as u64;
+            emit_tool_span("registry:validate", "error", duration_ms, Some(&e.kind));
+            return e.to_json_string();
+        }
+
         let registry = self.registry.read().await;
 
         let mut errors: Vec<String> = Vec::new();
@@ -177,21 +198,24 @@ impl RegistryServer {
         }
 
         match registry.get(&template_id) {
-            Some(entry) => format!(
-                r#"{{"template_id":"{}","valid":{},"errors":{},"template_type":"{}","description":"{}"}}"#,
-                template_id,
-                errors.is_empty(),
-                serde_json::to_string(&errors).unwrap(),
-                entry.template_type.as_str(),
-                entry.description
-            ),
+            Some(entry) => {
+                let output = McpToolOutput::new(json!({
+                    "template_id": template_id,
+                    "valid": errors.is_empty(),
+                    "errors": errors,
+                    "template_type": entry.template_type.as_str(),
+                    "description": entry.description,
+                }));
+                let duration_ms = start.elapsed().as_millis() as u64;
+                emit_tool_span("registry:validate", "ok", duration_ms, None);
+                output.to_json_string()
+            }
             None => {
                 errors.push(format!("Template '{}' not found in registry", template_id));
-                format!(
-                    r#"{{"template_id":"{}","valid":false,"errors":{}}}"#,
-                    template_id,
-                    serde_json::to_string(&errors).unwrap()
-                )
+                let err = McpToolError::not_found(errors.join("; "));
+                let duration_ms = start.elapsed().as_millis() as u64;
+                emit_tool_span("registry:validate", "error", duration_ms, Some(&err.kind));
+                err.to_json_string()
             }
         }
     }
@@ -201,13 +225,24 @@ impl RegistryServer {
         &self,
         Parameters(ReloadRequest { path }): Parameters<ReloadRequest>,
     ) -> String {
+        let start = Instant::now();
+
+        if let Err(e) = validate_identifier("path", &path, 512) {
+            let duration_ms = start.elapsed().as_millis() as u64;
+            emit_tool_span("registry:reload", "error", duration_ms, Some(&e.kind));
+            return e.to_json_string();
+        }
+
         let mut registry = self.registry.write().await;
         registry.reload();
-        format!(
-            r#"{{"path":"{}","reloaded":true,"templates_loaded":{}}}"#,
-            path,
-            registry.count()
-        )
+        let output = McpToolOutput::new(json!({
+            "path": path,
+            "reloaded": true,
+            "templates_loaded": registry.count(),
+        }));
+        let duration_ms = start.elapsed().as_millis() as u64;
+        emit_tool_span("registry:reload", "ok", duration_ms, None);
+        output.to_json_string()
     }
 
     #[tool(description = "Compose templates with cascade")]
@@ -218,6 +253,14 @@ impl RegistryServer {
             cascade_template_ids,
         }): Parameters<ComposeRequest>,
     ) -> String {
+        let start = Instant::now();
+
+        if let Err(e) = validate_identifier("template_id", &root_template_id, 256) {
+            let duration_ms = start.elapsed().as_millis() as u64;
+            emit_tool_span("registry:compose", "error", duration_ms, Some(&e.kind));
+            return e.to_json_string();
+        }
+
         let registry = self.registry.read().await;
 
         let root_found = registry.get(&root_template_id).is_some();
@@ -230,13 +273,15 @@ impl RegistryServer {
             })
             .collect();
 
-        format!(
-            r#"{{"root":"{}","root_found":{},"cascade":{},"composed":{}}}"#,
-            root_template_id,
-            root_found,
-            serde_json::to_string(&cascade_results).unwrap(),
-            root_found
-        )
+        let output = McpToolOutput::new(json!({
+            "root": root_template_id,
+            "root_found": root_found,
+            "cascade": cascade_results,
+            "composed": root_found,
+        }));
+        let duration_ms = start.elapsed().as_millis() as u64;
+        emit_tool_span("registry:compose", "ok", duration_ms, None);
+        output.to_json_string()
     }
 
     #[tool(description = "Get a template by ID via real registry lookup")]
@@ -244,37 +289,56 @@ impl RegistryServer {
         &self,
         Parameters(GetRequest { template_id }): Parameters<GetRequest>,
     ) -> String {
+        let start = Instant::now();
+
+        if let Err(e) = validate_identifier("template_id", &template_id, 256) {
+            let duration_ms = start.elapsed().as_millis() as u64;
+            emit_tool_span("registry:get", "error", duration_ms, Some(&e.kind));
+            return e.to_json_string();
+        }
+
         let registry = self.registry.read().await;
 
         match registry.get(&template_id) {
             Some(entry) => {
                 let re = entry.as_registry_entry();
-                format!(
-                    r#"{{"template_id":"{}","template_type":"{}","description":"{}","source_path":"{}","lexicon_terms":{}}}"#,
-                    re.id,
-                    re.template_type.as_str(),
-                    re.description,
-                    re.source_path,
-                    serde_json::to_string(&re.lexicon_terms).unwrap()
-                )
+                let output = McpToolOutput::new(json!({
+                    "template_id": re.id,
+                    "template_type": re.template_type.as_str(),
+                    "description": re.description,
+                    "source_path": re.source_path,
+                    "lexicon_terms": re.lexicon_terms,
+                }));
+                let duration_ms = start.elapsed().as_millis() as u64;
+                emit_tool_span("registry:get", "ok", duration_ms, None);
+                output.to_json_string()
             }
-            None => format!(
-                r#"{{"template_id":"{}","error":"not found","found":false}}"#,
-                template_id
-            ),
+            None => {
+                let err = McpToolError::not_found(format!(
+                    "Template '{}' not found in registry",
+                    template_id
+                ));
+                let duration_ms = start.elapsed().as_millis() as u64;
+                emit_tool_span("registry:get", "error", duration_ms, Some(&err.kind));
+                err.to_json_string()
+            }
         }
     }
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-        .init();
-
-    let server = RegistryServer::new();
-    let service = server.serve(stdio());
-    tracing::info!("hkask-mcp-registry started (v{})", SERVER_VERSION);
-    service.await?;
-    Ok(())
+    run_stdio_server(
+        "hkask-mcp-registry",
+        env!("CARGO_PKG_VERSION"),
+        |ctx: ServerContext| {
+            let db_path = ctx.credentials.get("HKASK_REGISTRY_DB").cloned();
+            Ok(RegistryServer::new(db_path))
+        },
+        vec![CredentialRequirement::optional(
+            "HKASK_REGISTRY_DB",
+            "Path to registry SQLite database",
+        )],
+    )
+    .await
 }

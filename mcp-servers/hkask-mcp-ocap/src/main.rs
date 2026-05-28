@@ -1,16 +1,27 @@
 //! hKask MCP OCAP — Capability-based access control and delegation
+//!
+//! 5 tools:
+//! - `ocap:delegate` — Create a delegated capability token with HMAC signature
+//! - `ocap:verify` — Verify a capability token with cryptographic HMAC verification
+//! - `ocap:revoke` — Revoke a capability token
+//! - `ocap:enumerate` — Enumerate capabilities for a subject
+//! - `ocap:list_tokens` — List all capability tokens
 
+use hkask_mcp::server::{
+    CredentialRequirement, McpToolError, McpToolOutput, ServerContext, emit_tool_span,
+    run_stdio_server, validate_identifier,
+};
 use hkask_types::{
     CapabilityAction, CapabilityChecker, CapabilityResource, CapabilityToken, WebID,
 };
-use rmcp::{ServiceExt, handler::server::wrapper::Parameters, tool, tool_router, transport::stdio};
+use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
+use serde_json::json;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use std::time::Instant;
 use tokio::sync::RwLock;
-
-const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct DelegateRequest {
@@ -42,24 +53,14 @@ pub struct OcapServer {
     secret: Vec<u8>,
 }
 
-impl Default for OcapServer {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl OcapServer {
-    pub fn new() -> Self {
-        let secret = std::env::var("HKASK_OCAP_SECRET")
-            .unwrap_or_else(|_| "hkask-default-ocap-secret-change-me".to_string());
-        let secret_bytes = secret.as_bytes().to_vec();
-        let checker = CapabilityChecker::new(&secret_bytes);
-
+    pub fn new(secret: Vec<u8>) -> Self {
+        let checker = CapabilityChecker::new(&secret);
         Self {
             checker,
             tokens: Arc::new(RwLock::new(HashMap::new())),
             revoked: Arc::new(RwLock::new(HashSet::new())),
-            secret: secret_bytes,
+            secret,
         }
     }
 
@@ -101,6 +102,27 @@ impl OcapServer {
             capabilities,
         }): Parameters<DelegateRequest>,
     ) -> String {
+        let start = Instant::now();
+
+        if let Err(e) = validate_identifier("issuer", &issuer, 256) {
+            emit_tool_span(
+                "ocap:delegate",
+                "error",
+                start.elapsed().as_millis() as u64,
+                Some(&hkask_types::McpErrorKind::InvalidArgument),
+            );
+            return e.to_json_string();
+        }
+        if let Err(e) = validate_identifier("subject", &subject, 256) {
+            emit_tool_span(
+                "ocap:delegate",
+                "error",
+                start.elapsed().as_millis() as u64,
+                Some(&hkask_types::McpErrorKind::InvalidArgument),
+            );
+            return e.to_json_string();
+        }
+
         let issuer_webid = WebID::from_string(&issuer);
         let subject_webid = WebID::from_string(&subject);
 
@@ -125,10 +147,21 @@ impl OcapServer {
         let mut tokens = self.tokens.write().await;
         tokens.insert(token_id.clone(), token);
 
-        format!(
-            r#"{{"id":"{}","issuer":"{}","subject":"{}","capabilities":"{}","signature_valid":{}}}"#,
-            token_id, issuer_str, holder, capabilities, sig_valid
-        )
+        emit_tool_span(
+            "ocap:delegate",
+            "ok",
+            start.elapsed().as_millis() as u64,
+            None,
+        );
+
+        McpToolOutput::new(json!({
+            "id": token_id,
+            "issuer": issuer_str,
+            "subject": holder,
+            "capabilities": capabilities,
+            "signature_valid": sig_valid,
+        }))
+        .to_json_string()
     }
 
     #[tool(description = "Verify a capability token with real cryptographic HMAC verification")]
@@ -139,16 +172,35 @@ impl OcapServer {
             capability,
         }): Parameters<VerifyRequest>,
     ) -> String {
+        let start = Instant::now();
+
+        if let Err(e) = validate_identifier("token_id", &token_id, 256) {
+            emit_tool_span(
+                "ocap:verify",
+                "error",
+                start.elapsed().as_millis() as u64,
+                Some(&hkask_types::McpErrorKind::InvalidArgument),
+            );
+            return e.to_json_string();
+        }
+
         let tokens = self.tokens.read().await;
         let revoked = self.revoked.read().await;
 
         match tokens.get(&token_id) {
             Some(token) => {
                 if revoked.contains(&token_id) {
-                    return format!(
-                        r#"{{"token_id":"{}","valid":false,"capability":"{}","error":"token revoked"}}"#,
-                        token_id, capability
+                    emit_tool_span(
+                        "ocap:verify",
+                        "error",
+                        start.elapsed().as_millis() as u64,
+                        Some(&hkask_types::McpErrorKind::FailedPrecondition),
                     );
+                    return McpToolError::failed_precondition(format!(
+                        "Token {} has been revoked",
+                        token_id
+                    ))
+                    .to_json_string();
                 }
 
                 let sig_valid = self.checker.verify(token);
@@ -163,15 +215,31 @@ impl OcapServer {
                 let matches_cap = token.is_valid_for(resource, &capability, action);
 
                 let valid = sig_valid && not_expired && matches_cap;
-                format!(
-                    r#"{{"token_id":"{}","valid":{},"capability":"{}","signature_valid":{},"not_expired":{},"matches_capability":{}}}"#,
-                    token_id, valid, capability, sig_valid, not_expired, matches_cap
-                )
+                emit_tool_span(
+                    "ocap:verify",
+                    "ok",
+                    start.elapsed().as_millis() as u64,
+                    None,
+                );
+                McpToolOutput::new(json!({
+                    "token_id": token_id,
+                    "valid": valid,
+                    "capability": capability,
+                    "signature_valid": sig_valid,
+                    "not_expired": not_expired,
+                    "matches_capability": matches_cap,
+                }))
+                .to_json_string()
             }
-            None => format!(
-                r#"{{"token_id":"{}","valid":false,"capability":"{}","error":"token not found"}}"#,
-                token_id, capability
-            ),
+            None => {
+                emit_tool_span(
+                    "ocap:verify",
+                    "error",
+                    start.elapsed().as_millis() as u64,
+                    Some(&hkask_types::McpErrorKind::NotFound),
+                );
+                McpToolError::not_found(format!("Token {} not found", token_id)).to_json_string()
+            }
         }
     }
 
@@ -180,17 +248,42 @@ impl OcapServer {
         &self,
         Parameters(RevokeRequest { token_id }): Parameters<RevokeRequest>,
     ) -> String {
+        let start = Instant::now();
+
+        if let Err(e) = validate_identifier("token_id", &token_id, 256) {
+            emit_tool_span(
+                "ocap:revoke",
+                "error",
+                start.elapsed().as_millis() as u64,
+                Some(&hkask_types::McpErrorKind::InvalidArgument),
+            );
+            return e.to_json_string();
+        }
+
         let mut revoked = self.revoked.write().await;
         let tokens = self.tokens.read().await;
 
         if tokens.contains_key(&token_id) || revoked.contains(&token_id) {
             revoked.insert(token_id.clone());
-            format!(r#"{{"token_id":"{}","revoked":true}}"#, token_id)
+            emit_tool_span(
+                "ocap:revoke",
+                "ok",
+                start.elapsed().as_millis() as u64,
+                None,
+            );
+            McpToolOutput::new(json!({
+                "token_id": token_id,
+                "revoked": true,
+            }))
+            .to_json_string()
         } else {
-            format!(
-                r#"{{"token_id":"{}","revoked":false,"error":"Token not found"}}"#,
-                token_id
-            )
+            emit_tool_span(
+                "ocap:revoke",
+                "error",
+                start.elapsed().as_millis() as u64,
+                Some(&hkask_types::McpErrorKind::NotFound),
+            );
+            McpToolError::not_found(format!("Token {} not found", token_id)).to_json_string()
         }
     }
 
@@ -199,6 +292,18 @@ impl OcapServer {
         &self,
         Parameters(EnumerateRequest { subject }): Parameters<EnumerateRequest>,
     ) -> String {
+        let start = Instant::now();
+
+        if let Err(e) = validate_identifier("subject", &subject, 256) {
+            emit_tool_span(
+                "ocap:enumerate",
+                "error",
+                start.elapsed().as_millis() as u64,
+                Some(&hkask_types::McpErrorKind::InvalidArgument),
+            );
+            return e.to_json_string();
+        }
+
         let tokens = self.tokens.read().await;
         let revoked = self.revoked.read().await;
         let subject_webid = WebID::from_string(&subject);
@@ -208,7 +313,7 @@ impl OcapServer {
             .filter(|t| t.delegated_to == subject_webid)
             .filter(|t| !revoked.contains(&t.id))
             .map(|t| {
-                serde_json::json!({
+                json!({
                     "id": t.id,
                     "resource": t.resource.as_str(),
                     "resource_id": t.resource_id,
@@ -218,23 +323,31 @@ impl OcapServer {
             })
             .collect();
 
-        format!(
-            r#"{{"subject":"{}","token_count":{},"tokens":{}}}"#,
-            subject,
-            matching.len(),
-            serde_json::to_string(&matching).unwrap()
-        )
+        emit_tool_span(
+            "ocap:enumerate",
+            "ok",
+            start.elapsed().as_millis() as u64,
+            None,
+        );
+        McpToolOutput::new(json!({
+            "subject": subject,
+            "token_count": matching.len(),
+            "tokens": matching,
+        }))
+        .to_json_string()
     }
 
     #[tool(description = "List all capability tokens")]
     async fn ocap_list_tokens(&self) -> String {
+        let start = Instant::now();
+
         let tokens = self.tokens.read().await;
         let revoked = self.revoked.read().await;
 
         let token_list: Vec<serde_json::Value> = tokens
             .values()
             .map(|t| {
-                serde_json::json!({
+                json!({
                     "id": t.id,
                     "resource": t.resource.as_str(),
                     "action": t.action.as_str(),
@@ -244,23 +357,38 @@ impl OcapServer {
             })
             .collect();
 
-        format!(
-            r#"{{"token_count":{},"tokens":{}}}"#,
-            token_list.len(),
-            serde_json::to_string(&token_list).unwrap()
-        )
+        emit_tool_span(
+            "ocap:list_tokens",
+            "ok",
+            start.elapsed().as_millis() as u64,
+            None,
+        );
+        McpToolOutput::new(json!({
+            "token_count": token_list.len(),
+            "tokens": token_list,
+        }))
+        .to_json_string()
     }
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-        .init();
-
-    let server = OcapServer::new();
-    let service = server.serve(stdio());
-    tracing::info!("hkask-mcp-ocap started (v{})", SERVER_VERSION);
-    service.await?;
-    Ok(())
+    run_stdio_server(
+        "hkask-mcp-ocap",
+        env!("CARGO_PKG_VERSION"),
+        |ctx: ServerContext| {
+            let secret = ctx
+                .credentials
+                .get("HKASK_OCAP_SECRET")
+                .expect("required credential")
+                .as_bytes()
+                .to_vec();
+            Ok(OcapServer::new(secret))
+        },
+        vec![CredentialRequirement::required(
+            "HKASK_OCAP_SECRET",
+            "OCAP signing secret for capability token HMAC",
+        )],
+    )
+    .await
 }
