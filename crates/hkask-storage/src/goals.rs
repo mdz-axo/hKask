@@ -36,8 +36,8 @@ pub enum GoalRepositoryError {
 pub type Result<T> = std::result::Result<T, GoalRepositoryError>;
 
 pub struct SqliteGoalRepository {
-    conn: Arc<Mutex<Connection>>,
-    capability_secret: Vec<u8>,
+    pub conn: Arc<Mutex<Connection>>,
+    pub capability_secret: Vec<u8>,
 }
 
 impl SqliteGoalRepository {
@@ -48,7 +48,11 @@ impl SqliteGoalRepository {
         }
     }
 
-    fn verify_capability(&self, token: &GoalCapabilityToken, required_op: GoalOp) -> Result<()> {
+    pub fn verify_capability(
+        &self,
+        token: &GoalCapabilityToken,
+        required_op: GoalOp,
+    ) -> Result<()> {
         if !token.is_valid(&self.capability_secret) {
             return Err(GoalRepositoryError::CapabilityDenied(
                 "Token invalid or expired".to_string(),
@@ -63,7 +67,7 @@ impl SqliteGoalRepository {
         Ok(())
     }
 
-    fn check_visibility_access(&self, goal: &Goal, requester_webid: &WebID) -> Result<()> {
+    pub fn check_visibility_access(&self, goal: &Goal, requester_webid: &WebID) -> Result<()> {
         let access = GoalAccess::check(goal, requester_webid);
         if !access.can_read() {
             return Err(GoalRepositoryError::VisibilityDenied(format!(
@@ -74,7 +78,7 @@ impl SqliteGoalRepository {
         Ok(())
     }
 
-    fn goal_from_row(row: &rusqlite::Row) -> rusqlite::Result<Goal> {
+    pub fn goal_from_row(row: &rusqlite::Row) -> rusqlite::Result<Goal> {
         let id_str: String = row.get(0)?;
         let webid_str: String = row.get(1)?;
         let text: String = row.get(2)?;
@@ -114,7 +118,7 @@ impl SqliteGoalRepository {
 }
 
 impl SqliteGoalRepository {
-    fn create_goal(
+    pub fn create_goal(
         &self,
         token: &GoalCapabilityToken,
         webid: &WebID,
@@ -133,7 +137,7 @@ impl SqliteGoalRepository {
         Ok(goal)
     }
 
-    fn get_goal(&self, token: &GoalCapabilityToken, goal_id: GoalID) -> Result<Option<Goal>> {
+    pub fn get_goal(&self, token: &GoalCapabilityToken, goal_id: GoalID) -> Result<Option<Goal>> {
         self.verify_capability(token, GoalOp::Read)?;
 
         let goal = {
@@ -155,7 +159,7 @@ impl SqliteGoalRepository {
         Ok(goal)
     }
 
-    fn update_goal_state(
+    pub fn update_goal_state(
         &self,
         token: &GoalCapabilityToken,
         goal_id: GoalID,
@@ -185,7 +189,7 @@ impl SqliteGoalRepository {
         Ok(())
     }
 
-    fn list_goals(
+    pub fn list_goals(
         &self,
         token: &GoalCapabilityToken,
         webid: &WebID,
@@ -228,7 +232,7 @@ impl SqliteGoalRepository {
         Ok(goals)
     }
 
-    fn add_criterion(
+    pub fn add_criterion(
         &self,
         token: &GoalCapabilityToken,
         _goal_id: GoalID,
@@ -243,7 +247,7 @@ impl SqliteGoalRepository {
         Ok(())
     }
 
-    fn add_artifact(
+    pub fn add_artifact(
         &self,
         token: &GoalCapabilityToken,
         _goal_id: GoalID,
@@ -258,7 +262,7 @@ impl SqliteGoalRepository {
         Ok(())
     }
 
-    fn get_criteria(
+    pub fn get_criteria(
         &self,
         token: &GoalCapabilityToken,
         goal_id: GoalID,
@@ -285,7 +289,7 @@ impl SqliteGoalRepository {
         Ok(criteria)
     }
 
-    fn get_artifacts(
+    pub fn get_artifacts(
         &self,
         token: &GoalCapabilityToken,
         goal_id: GoalID,
@@ -314,7 +318,7 @@ impl SqliteGoalRepository {
         Ok(artifacts)
     }
 
-    fn create_subgoal(
+    pub fn create_subgoal(
         &self,
         token: &GoalCapabilityToken,
         parent_id: GoalID,
@@ -345,7 +349,11 @@ impl SqliteGoalRepository {
         Ok(subgoal)
     }
 
-    fn get_subgoals(&self, token: &GoalCapabilityToken, parent_id: GoalID) -> Result<Vec<Goal>> {
+    pub fn get_subgoals(
+        &self,
+        token: &GoalCapabilityToken,
+        parent_id: GoalID,
+    ) -> Result<Vec<Goal>> {
         self.verify_capability(token, GoalOp::Read)?;
 
         let conn = self.conn.lock().unwrap();
@@ -365,7 +373,7 @@ impl SqliteGoalRepository {
         Ok(subgoals)
     }
 
-    fn delete_goal(&self, token: &GoalCapabilityToken, goal_id: GoalID) -> Result<()> {
+    pub fn delete_goal(&self, token: &GoalCapabilityToken, goal_id: GoalID) -> Result<()> {
         self.verify_capability(token, GoalOp::Complete)?;
 
         self.conn

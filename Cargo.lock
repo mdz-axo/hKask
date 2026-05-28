@@ -2426,10 +2426,12 @@ dependencies = [
  "chrono",
  "hkask-storage",
  "hkask-types",
+ "rusqlite",
  "serde",
  "serde_json",
  "thiserror",
  "tracing",
+ "uuid",
 ]
 
 [[package]]
