@@ -14,29 +14,8 @@ pub use hkask_templates::resilience::{
     CircuitBreaker, CircuitBreakerConfig, CircuitBreakerStats, CircuitState,
 };
 
-/// Retry configuration
-#[derive(Debug, Clone)]
-pub struct EnsembleEnsembleRetryConfig {
-    /// Maximum number of retry attempts
-    pub max_retries: u32,
-    /// Initial delay between retries
-    pub initial_delay: Duration,
-    /// Maximum delay between retries
-    pub max_delay: Duration,
-    /// Multiplier for exponential backoff
-    pub multiplier: f64,
-}
-
-impl Default for EnsembleEnsembleRetryConfig {
-    fn default() -> Self {
-        Self {
-            max_retries: 3,
-            initial_delay: Duration::from_millis(100),
-            max_delay: Duration::from_secs(10),
-            multiplier: 2.0,
-        }
-    }
-}
+/// Retry configuration — alias for the canonical RetryConfig
+pub type EnsembleEnsembleRetryConfig = hkask_types::cns::RetryConfig;
 
 /// Retry with exponential backoff
 pub async fn retry_with_backoff<F, Fut, T>(
@@ -47,7 +26,7 @@ where
     F: FnMut() -> Fut,
     Fut: std::future::Future<Output = Result<T, RetryError>>,
 {
-    let mut delay = config.initial_delay;
+    let mut delay_ms = config.initial_delay_ms;
 
     for attempt in 0..=config.max_retries {
         match operation().await {
@@ -61,17 +40,17 @@ where
                     target: "hkask.retry",
                     attempt = %attempt,
                     max_retries = %config.max_retries,
-                    delay_ms = %delay.as_millis(),
+                    delay_ms = %delay_ms,
                     error = %e,
                     "Retry attempt failed, backing off"
                 );
 
-                tokio::time::sleep(delay).await;
+                tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
 
                 // Exponential backoff with max cap
-                delay = std::cmp::min(
-                    Duration::from_millis((delay.as_millis() as f64 * config.multiplier) as u64),
-                    config.max_delay,
+                delay_ms = std::cmp::min(
+                    (delay_ms as f64 * config.multiplier) as u64,
+                    config.max_delay_ms,
                 );
             }
         }

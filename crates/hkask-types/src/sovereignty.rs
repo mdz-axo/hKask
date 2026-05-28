@@ -5,10 +5,6 @@
 //! - Acquisition resistance mechanisms
 //! - Kill-zone detection for VC investment patterns
 
-pub mod category;
-
-pub use category::DataSovereignty;
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use uuid::Uuid;

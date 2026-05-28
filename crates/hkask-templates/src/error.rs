@@ -205,44 +205,5 @@ impl CompositionError {
     }
 }
 
-/// Retry configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ErrorErrorRetryConfig {
-    /// Maximum retry attempts
-    pub max_retries: u32,
-    /// Base delay for exponential backoff (ms)
-    pub base_delay_ms: u64,
-    /// Maximum delay cap (ms)
-    pub max_delay_ms: u64,
-}
-
-impl ErrorErrorRetryConfig {
-    pub fn new(max_retries: u32, base_delay_ms: u64, max_delay_ms: u64) -> Self {
-        Self {
-            max_retries,
-            base_delay_ms,
-            max_delay_ms,
-        }
-    }
-
-    /// Calculate backoff delay for given attempt
-    pub fn backoff_delay(&self, attempt: u32) -> u64 {
-        let delay = self.base_delay_ms * 2u64.pow(attempt);
-        delay.min(self.max_delay_ms)
-    }
-
-    /// Check if retry should continue
-    pub fn should_retry(&self, attempt: u32) -> bool {
-        attempt < self.max_retries
-    }
-}
-
-impl Default for ErrorErrorRetryConfig {
-    fn default() -> Self {
-        Self {
-            max_retries: 3,
-            base_delay_ms: 1000,
-            max_delay_ms: 10000,
-        }
-    }
-}
+/// Retry configuration — alias for the canonical RetryConfig
+pub type ErrorErrorRetryConfig = hkask_types::cns::RetryConfig;

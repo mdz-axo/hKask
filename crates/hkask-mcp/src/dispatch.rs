@@ -9,32 +9,13 @@ use hkask_templates::{CnsPort, McpPort, Result, TemplateError};
 use hkask_types::{CapabilityChecker, CapabilityToken, WebID};
 use serde_json::Value;
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::sync::RwLock;
 use tracing::info;
 
 use crate::runtime::{McpRuntime, McpTool};
 
-/// Retry configuration for transient errors
-#[derive(Debug, Clone)]
-pub struct McpMcpRetryConfig {
-    /// Maximum number of retries
-    pub max_retries: u32,
-    /// Base delay for exponential backoff
-    pub backoff_base: Duration,
-    /// Retryable error codes (HTTP-style)
-    pub retryable_status: Vec<u16>,
-}
-
-impl Default for McpMcpRetryConfig {
-    fn default() -> Self {
-        Self {
-            max_retries: 3,
-            backoff_base: Duration::from_millis(500),
-            retryable_status: vec![503, 408, 429], // Service unavailable, timeout, rate limit
-        }
-    }
-}
+/// Retry configuration — alias for the canonical RetryConfig
+pub type McpMcpRetryConfig = hkask_types::cns::RetryConfig;
 
 /// MCP dispatcher with security and rate limiting
 pub struct McpDispatcher {

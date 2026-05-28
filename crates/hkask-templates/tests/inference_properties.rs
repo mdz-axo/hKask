@@ -108,7 +108,7 @@ fn test_retry_exponential_backoff() {
     assert!(delay_1 > delay_0);
     assert!(delay_2 > delay_1);
     assert!(delay_3 > delay_2);
-    assert!(delay_3 <= std::time::Duration::from_millis(config.max_delay_ms));
+    assert!(delay_3 <= config.max_delay_ms);
 }
 
 /// Property: Circuit breaker state transitions
