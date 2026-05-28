@@ -1,6 +1,5 @@
 //! Template and MCP command handlers
 
-use crate::errors::RegistryError;
 use hkask_mcp::runtime::{McpRuntime, McpServer, McpTool};
 use hkask_mcp::transport::McpTransport;
 use hkask_templates::{RegistryEntry, RegistryIndex, SqliteRegistry, TemplateError};
@@ -98,11 +97,4 @@ pub async fn register_mcp_server(
     };
 
     runtime.register_server(server, transport).await;
-}
-
-/// Open a registry database for template operations
-pub fn open_template_registry() -> Result<SqliteRegistry, RegistryError> {
-    use super::config::registry_db_path;
-    let db_path = registry_db_path();
-    SqliteRegistry::new(Some(&db_path)).map_err(|e| RegistryError::InitFailed(e.to_string()))
 }

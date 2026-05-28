@@ -14,33 +14,55 @@
 //! - `kask mcp tools` — List available tools
 //! - `kask cns health` — CNS monitoring
 
+use clap::Parser;
 use hkask_cli::cli::{
-    self, BotAction, CnsAction, Commands, CuratorAction, DocsAction, EnsembleAction, GitAction,
-    KeystoreAction, McpAction, PodAction, RegistryAction, ReplicantAction, SovereigntyAction,
-    SpecAction, TemplateAction,
+    self, AgentAction, BotAction, CnsAction, Commands, CuratorAction, DocsAction, EnsembleAction,
+    GitAction, KeystoreAction, McpAction, PodAction, RegistryAction, ReplicantAction,
+    SovereigntyAction, SpecAction, TemplateAction,
 };
 use hkask_cli::commands;
 use hkask_cli::russell_mapper::RussellMappingConfig;
 use hkask_mcp::runtime::McpRuntime;
 use hkask_templates::SqliteRegistry;
 
+/// Print an error and exit if the result is Err.
+/// Returns the Ok value on success.
+fn or_exit<T, E: std::fmt::Display>(result: Result<T, E>, label: &str) -> T {
+    match result {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("{}: {}", label, e);
+            std::process::exit(1);
+        }
+    }
+}
+
+/// Open a UserStore for replicant commands, using the same DB path logic.
+fn open_user_store() -> std::sync::Arc<std::sync::Mutex<hkask_storage::user_store::UserStore>> {
+    let db_path = std::env::var("HKASK_DB_PATH").unwrap_or_else(|_| "hkask.db".to_string());
+    let conn = rusqlite::Connection::open(&db_path)
+        .unwrap_or_else(|_| rusqlite::Connection::open_in_memory().unwrap());
+    let store =
+        hkask_storage::user_store::UserStore::new(std::sync::Arc::new(std::sync::Mutex::new(conn)));
+    let store = std::sync::Arc::new(std::sync::Mutex::new(store));
+    store.lock().unwrap().initialize_schema().unwrap();
+    store
+}
+
 fn main() {
     let cli = cli::Cli::parse();
     cli::init_logging(cli.verbose);
 
-    // Initialize registry
-    let registry_result = match &cli.registry {
-        Some(path) => SqliteRegistry::new(Some(path.to_str().unwrap())),
-        None => SqliteRegistry::new(None),
-    };
+    let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
 
-    let mut registry = match registry_result {
-        Ok(r) => r,
-        Err(e) => {
-            eprintln!("Failed to initialize registry: {}", e);
-            std::process::exit(1);
-        }
-    };
+    // Initialize registry
+    let mut registry = or_exit(
+        match &cli.registry {
+            Some(path) => SqliteRegistry::new(Some(path.to_str().unwrap())),
+            None => SqliteRegistry::new(None),
+        },
+        "Failed to initialize registry",
+    );
 
     // Initialize MCP runtime
     let runtime = McpRuntime::new();
@@ -52,18 +74,12 @@ fn main() {
             agent,
         } => {
             if let Some(input_path) = input {
-                match std::fs::read_to_string(&input_path) {
-                    Ok(content) => {
-                        let rt = tokio::runtime::Runtime::new().unwrap();
-                        let response =
-                            rt.block_on(commands::chat_with_agent(content.trim(), Some(&agent)));
-                        println!("{}: {}", agent, response);
-                    }
-                    Err(e) => {
-                        eprintln!("Failed to read input file: {}", e);
-                        std::process::exit(1);
-                    }
-                }
+                let content = or_exit(
+                    std::fs::read_to_string(&input_path),
+                    "Failed to read input file",
+                );
+                let response = rt.block_on(commands::chat_with_agent(content.trim(), Some(&agent)));
+                println!("{}: {}", agent, response);
             } else {
                 hkask_cli::repl::run(&registry, &runtime, template.as_deref(), &agent);
             }
@@ -113,138 +129,115 @@ fn main() {
 
                 let desc = description.unwrap_or_else(|| format!("Template {}", id));
 
-                match commands::register_template(
-                    &mut registry,
-                    id.clone(),
-                    template_type,
-                    path.to_string_lossy().to_string(),
-                    lexicon_terms,
-                    desc,
-                ) {
-                    Ok(()) => println!("Registered template: {}", id),
-                    Err(e) => {
-                        eprintln!("Failed to register template: {}", e);
-                        std::process::exit(1);
+                or_exit(
+                    commands::register_template(
+                        &mut registry,
+                        id.clone(),
+                        template_type,
+                        path.to_string_lossy().to_string(),
+                        lexicon_terms,
+                        desc,
+                    ),
+                    "Failed to register template",
+                );
+                println!("Registered template: {}", id);
+            }
+            TemplateAction::Get { id } => {
+                let entry = or_exit(commands::get_template(&registry, &id), "Template not found");
+                println!("Template: {}", entry.id);
+                println!("  Type: {}", entry.template_type.as_str());
+                println!("  Description: {}", entry.description);
+                println!("  Path: {}", entry.source_path);
+                println!("  Lexicon: {}", entry.lexicon_terms.join(", "));
+            }
+            TemplateAction::Search { term } => {
+                let results = or_exit(
+                    commands::search_templates(&registry, &term),
+                    "Search failed",
+                );
+                if results.is_empty() {
+                    println!("No templates found with lexicon term: {}", term);
+                } else {
+                    println!("Templates matching '{}':\n", term);
+                    for entry in results {
+                        println!("  {} ({})", entry.id, entry.template_type.as_str());
                     }
                 }
             }
-            TemplateAction::Get { id } => match commands::get_template(&registry, &id) {
-                Ok(entry) => {
-                    println!("Template: {}", entry.id);
-                    println!("  Type: {}", entry.template_type.as_str());
-                    println!("  Description: {}", entry.description);
-                    println!("  Path: {}", entry.source_path);
-                    println!("  Lexicon: {}", entry.lexicon_terms.join(", "));
-                }
-                Err(e) => {
-                    eprintln!("Template not found: {}", e);
-                    std::process::exit(1);
-                }
-            },
-            TemplateAction::Search { term } => match commands::search_templates(&registry, &term) {
-                Ok(results) => {
-                    if results.is_empty() {
-                        println!("No templates found with lexicon term: {}", term);
-                    } else {
-                        println!("Templates matching '{}':\n", term);
-                        for entry in results {
-                            println!("  {} ({})", entry.id, entry.template_type.as_str());
-                        }
-                    }
-                }
-                Err(e) => {
-                    eprintln!("Search failed: {}", e);
-                    std::process::exit(1);
-                }
-            },
         },
 
         Commands::Bot { action } => match action {
             BotAction::List { kind } => {
-                let rt = tokio::runtime::Runtime::new().unwrap();
-                rt.block_on(async {
-                    match commands::bot_list(kind.as_deref()).await {
-                        Ok(agents) => {
-                            if agents.is_empty() {
-                                println!("No agents registered.");
-                                return;
-                            }
-                            println!(
-                                "{:<25} {:<12} {:<40} SOURCE",
-                                "NAME", "KIND", "CAPABILITIES"
-                            );
-                            println!("{}", "-".repeat(100));
-                            for agent in &agents {
-                                println!(
-                                    "{:<25} {:<12} {:<40} {}",
-                                    agent.definition.name,
-                                    agent.definition.agent_kind,
-                                    agent.definition.capabilities.len(),
-                                    agent.source_yaml,
-                                );
-                            }
-                            println!("\nTotal: {} agents", agents.len());
-                        }
-                        Err(e) => {
-                            eprintln!("Failed to list agents: {}", e);
-                            std::process::exit(1);
-                        }
+                let agents = or_exit(
+                    rt.block_on(commands::bot_list(kind.as_deref())),
+                    "Failed to list agents",
+                );
+                if agents.is_empty() {
+                    println!("No agents registered.");
+                } else {
+                    println!(
+                        "{:<25} {:<12} {:<40} SOURCE",
+                        "NAME", "KIND", "CAPABILITIES"
+                    );
+                    println!("{}", "-".repeat(100));
+                    for agent in &agents {
+                        println!(
+                            "{:<25} {:<12} {:<40} {}",
+                            agent.definition.name,
+                            agent.definition.agent_kind,
+                            agent.definition.capabilities.len(),
+                            agent.source_yaml,
+                        );
                     }
-                });
+                    println!("\nTotal: {} agents", agents.len());
+                }
             }
             BotAction::Status { name } => {
-                let rt = tokio::runtime::Runtime::new().unwrap();
-                rt.block_on(async {
-                    match commands::bot_status(&name).await {
-                        Ok(agent) => {
-                            let def = &agent.definition;
-                            println!("Agent: {}", def.name);
-                            println!("  Kind: {}", def.agent_kind);
-                            println!("  Editor: {}", def.editor);
-                            println!("  Binding contract: {}", def.binding_contract);
-                            if let Some(charter) = &def.charter {
-                                println!("  Charter: {}", charter.description);
-                                println!("  Archetype: {}", charter.archetype);
-                            }
-                            println!("  Capabilities:");
-                            for cap in &def.capabilities {
-                                println!("    - {}", cap);
-                            }
-                            if !def.rights.is_empty() {
-                                println!("  Rights:");
-                                for r in &def.rights_flat() {
-                                    println!("    - {}", r);
-                                }
-                            }
-                            if !def.responsibilities.is_empty() {
-                                println!("  Responsibilities:");
-                                for r in &def.responsibilities_flat() {
-                                    println!("    - {}", r);
-                                }
-                            }
-                            if let Some(persona) = &def.persona {
-                                println!("  Persona:");
-                                println!("    Tone: {}", persona.tone);
-                                println!("    Verbosity: {}", persona.verbosity);
-                                if !persona.forbidden.is_empty() {
-                                    println!("    Forbidden: {}", persona.forbidden.join(", "));
-                                }
-                            }
-                            if let Some(probe) = &def.readiness_probe {
-                                println!(
-                                    "  Readiness probe: {} ({})",
-                                    probe.endpoint, probe.probe_type
-                                );
-                            }
-                            println!("  Registered: {}", agent.registered_at);
-                            println!("  Source: {}", agent.source_yaml);
-                        }
-                        Err(e) => {
-                            eprintln!("Failed to get agent status: {}", e);
-                            std::process::exit(1);
-                        }
+                let agent = or_exit(
+                    rt.block_on(commands::bot_status(&name)),
+                    "Failed to get agent status",
+                );
+                let def = &agent.definition;
+                println!("Agent: {}", def.name);
+                println!("  Kind: {}", def.agent_kind);
+                println!("  Editor: {}", def.editor);
+                println!("  Binding contract: {}", def.binding_contract);
+                if let Some(charter) = &def.charter {
+                    println!("  Charter: {}", charter.description);
+                    println!("  Archetype: {}", charter.archetype);
+                }
+                println!("  Capabilities:");
+                for cap in &def.capabilities {
+                    println!("    - {}", cap);
+                }
+                if !def.rights.is_empty() {
+                    println!("  Rights:");
+                    for r in &def.rights_flat() {
+                        println!("    - {}", r);
                     }
-                });
+                }
+                if !def.responsibilities.is_empty() {
+                    println!("  Responsibilities:");
+                    for r in &def.responsibilities_flat() {
+                        println!("    - {}", r);
+                    }
+                }
+                if let Some(persona) = &def.persona {
+                    println!("  Persona:");
+                    println!("    Tone: {}", persona.tone);
+                    println!("    Verbosity: {}", persona.verbosity);
+                    if !persona.forbidden.is_empty() {
+                        println!("    Forbidden: {}", persona.forbidden.join(", "));
+                    }
+                }
+                if let Some(probe) = &def.readiness_probe {
+                    println!(
+                        "  Readiness probe: {} ({})",
+                        probe.endpoint, probe.probe_type
+                    );
+                }
+                println!("  Registered: {}", agent.registered_at);
+                println!("  Source: {}", agent.source_yaml);
             }
             BotAction::Grant { bot_id, capability } => {
                 println!("Grant capability: {} to bot: {}", capability, bot_id);
@@ -258,68 +251,47 @@ fn main() {
                 persona,
                 name,
             } => {
-                let rt = tokio::runtime::Runtime::new().unwrap();
-                match rt.block_on(commands::create_pod(&template, &persona, name.as_deref())) {
-                    Ok(pod_id) => {
-                        println!("Created agent pod: {}", pod_id);
-                        println!("Template: {}", template);
-                        println!("Persona file: {}", persona.display());
-                        if let Some(n) = &name {
-                            println!("Pod name: {}", n);
-                        }
-                    }
-                    Err(e) => {
-                        eprintln!("Failed to create pod: {}", e);
-                        std::process::exit(1);
-                    }
+                let pod_id = or_exit(
+                    rt.block_on(commands::create_pod(&template, &persona, name.as_deref())),
+                    "Failed to create pod",
+                );
+                println!("Created agent pod: {}", pod_id);
+                println!("Template: {}", template);
+                println!("Persona file: {}", persona.display());
+                if let Some(n) = &name {
+                    println!("Pod name: {}", n);
                 }
             }
             PodAction::Activate { pod_id } => {
-                let rt = tokio::runtime::Runtime::new().unwrap();
-                match rt.block_on(commands::activate_pod(&pod_id)) {
-                    Ok(_) => {
-                        println!("Activated agent pod: {}", pod_id);
-                    }
-                    Err(e) => {
-                        eprintln!("Failed to activate pod: {}", e);
-                        std::process::exit(1);
-                    }
-                }
+                or_exit(
+                    rt.block_on(commands::activate_pod(&pod_id)),
+                    "Failed to activate pod",
+                );
+                println!("Activated agent pod: {}", pod_id);
             }
             PodAction::Deactivate { pod_id } => {
-                let rt = tokio::runtime::Runtime::new().unwrap();
-                match rt.block_on(commands::deactivate_pod(&pod_id)) {
-                    Ok(_) => {
-                        println!("Deactivated agent pod: {}", pod_id);
-                    }
-                    Err(e) => {
-                        eprintln!("Failed to deactivate pod: {}", e);
-                        std::process::exit(1);
-                    }
-                }
+                or_exit(
+                    rt.block_on(commands::deactivate_pod(&pod_id)),
+                    "Failed to deactivate pod",
+                );
+                println!("Deactivated agent pod: {}", pod_id);
             }
             PodAction::Status { pod_id, verbose } => {
-                let rt = tokio::runtime::Runtime::new().unwrap();
-                match rt.block_on(commands::get_pod_status(&pod_id)) {
-                    Ok(status) => {
-                        println!("Agent pod status: {}", pod_id);
-                        println!("  State: {}", status.state);
-                        println!("  WebID: {}", status.webid);
-                        if let Some(name) = &status.name {
-                            println!("  Name: {}", name);
-                        }
-                        if verbose {
-                            println!("  Created at: {}", status.created_at);
-                        }
-                    }
-                    Err(e) => {
-                        eprintln!("Failed to get pod status: {}", e);
-                        std::process::exit(1);
-                    }
+                let status = or_exit(
+                    rt.block_on(commands::get_pod_status(&pod_id)),
+                    "Failed to get pod status",
+                );
+                println!("Agent pod status: {}", pod_id);
+                println!("  State: {}", status.state);
+                println!("  WebID: {}", status.webid);
+                if let Some(name) = &status.name {
+                    println!("  Name: {}", name);
+                }
+                if verbose {
+                    println!("  Created at: {}", status.created_at);
                 }
             }
             PodAction::List => {
-                let rt = tokio::runtime::Runtime::new().unwrap();
                 let pods = rt.block_on(commands::list_pods());
 
                 if pods.is_empty() {
@@ -548,77 +520,59 @@ fn main() {
                 let mapper = hkask_cli::russell_mapper::RussellMapper::with_config(config.clone());
 
                 if validate_only {
-                    match hkask_cli::commands::import_russell(&source, &config, verbose) {
-                        Ok(assets) => {
-                            println!("Validation complete: {} manifests parsed", assets.len());
-                            for asset in &assets {
-                                println!("\n  ID: {} [VALID]", asset.id);
-                            }
-                        }
-                        Err(e) => {
-                            eprintln!("Validation failed: {}", e);
-                            std::process::exit(1);
-                        }
+                    let assets = or_exit(
+                        hkask_cli::commands::import_russell(&source, &config, verbose),
+                        "Validation failed",
+                    );
+                    println!("Validation complete: {} manifests parsed", assets.len());
+                    for asset in &assets {
+                        println!("\n  ID: {} [VALID]", asset.id);
                     }
                 } else {
-                    match hkask_cli::commands::import_russell_with_mapper(&mapper, &source, verbose)
-                    {
-                        Ok(assets) => {
-                            let fmt = output_format.to_lowercase();
-                            match fmt.as_str() {
-                                "json" => {
-                                    let json = serde_json::to_string_pretty(&assets)
-                                        .unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e));
-                                    println!("{}", json);
-                                }
-                                "mermaid" => {
-                                    println!("graph LR");
-                                    for asset in &assets {
-                                        println!(
-                                            "  russell[\"{}\"] --> hkask[\"{}\"]",
-                                            asset.id, asset.id
-                                        );
-                                    }
-                                }
-                                _ => {
-                                    println!(
-                                        "Migration analysis complete: {} assets",
-                                        assets.len()
-                                    );
-                                    for asset in &assets {
-                                        println!("\n  ID: {}", asset.id);
-                                        println!("  Type: {:?}", asset.template_type);
-                                        println!("  Description: {}", asset.description);
-                                        println!("  Model Tier: {}", asset.model_tier);
-                                        println!("  Energy Cap: {}", asset.energy_cap);
-                                    }
-                                }
-                            }
-
-                            if !dry_run {
-                                for asset in &assets {
-                                    let entry = hkask_templates::RegistryEntry {
-                                        id: asset.id.clone(),
-                                        template_type: asset.template_type,
-                                        lexicon_terms: vec!["russell-migrated".to_string()],
-                                        description: asset.description.clone(),
-                                        source_path: format!("russell-migrated:{}", asset.id),
-                                        required_capabilities: vec![],
-                                    };
-                                    if let Err(e) = registry.register(entry, None) {
-                                        eprintln!(
-                                            "Failed to register template {}: {}",
-                                            asset.id, e
-                                        );
-                                    } else if verbose {
-                                        println!("  Registered: {}", asset.id);
-                                    }
-                                }
+                    let assets = or_exit(
+                        hkask_cli::commands::import_russell_with_mapper(&mapper, &source, verbose),
+                        "Migration failed",
+                    );
+                    let fmt = output_format.to_lowercase();
+                    match fmt.as_str() {
+                        "json" => {
+                            let json = serde_json::to_string_pretty(&assets)
+                                .unwrap_or_else(|e| format!("{{\"error\": \"{}\"}}", e));
+                            println!("{}", json);
+                        }
+                        "mermaid" => {
+                            println!("graph LR");
+                            for asset in &assets {
+                                println!("  russell[\"{}\"] --> hkask[\"{}\"]", asset.id, asset.id);
                             }
                         }
-                        Err(e) => {
-                            eprintln!("Migration failed: {}", e);
-                            std::process::exit(1);
+                        _ => {
+                            println!("Migration analysis complete: {} assets", assets.len());
+                            for asset in &assets {
+                                println!("\n  ID: {}", asset.id);
+                                println!("  Type: {:?}", asset.template_type);
+                                println!("  Description: {}", asset.description);
+                                println!("  Model Tier: {}", asset.model_tier);
+                                println!("  Energy Cap: {}", asset.energy_cap);
+                            }
+                        }
+                    }
+
+                    if !dry_run {
+                        for asset in &assets {
+                            let entry = hkask_templates::RegistryEntry {
+                                id: asset.id.clone(),
+                                template_type: asset.template_type,
+                                lexicon_terms: vec!["russell-migrated".to_string()],
+                                description: asset.description.clone(),
+                                source_path: format!("russell-migrated:{}", asset.id),
+                                required_capabilities: vec![],
+                            };
+                            if let Err(e) = registry.register(entry, None) {
+                                eprintln!("Failed to register template {}: {}", asset.id, e);
+                            } else if verbose {
+                                println!("  Registered: {}", asset.id);
+                            }
                         }
                     }
                 }
@@ -630,7 +584,6 @@ fn main() {
         },
 
         Commands::Git { action } => {
-            let rt = tokio::runtime::Runtime::new().unwrap();
             let runtime = hkask_mcp::runtime::McpRuntime::new();
 
             match action {
@@ -645,29 +598,26 @@ fn main() {
                     let content_str = if let Some(c) = content {
                         c
                     } else if let Some(f) = file {
-                        std::fs::read_to_string(&f).unwrap_or_else(|e| {
-                            eprintln!("Failed to read file: {}", e);
-                            std::process::exit(1);
-                        })
+                        or_exit(std::fs::read_to_string(&f), "Failed to read file")
                     } else {
                         eprintln!("Either --content or --file must be provided");
                         std::process::exit(1);
                     };
 
-                    match rt.block_on(commands::archive_registry_to_git(
-                        &runtime,
-                        &owner,
-                        &repo,
-                        &branch,
-                        &path,
-                        &content_str,
-                    )) {
-                        Ok(result) => println!("{}", result),
-                        Err(e) => {
-                            eprintln!("Archive failed: {}", e);
-                            std::process::exit(1);
-                        }
-                    }
+                    println!(
+                        "{}",
+                        or_exit(
+                            rt.block_on(commands::archive_registry_to_git(
+                                &runtime,
+                                &owner,
+                                &repo,
+                                &branch,
+                                &path,
+                                &content_str,
+                            )),
+                            "Archive failed",
+                        )
+                    );
                 }
 
                 GitAction::Restore {
@@ -676,29 +626,25 @@ fn main() {
                     r#ref,
                     target,
                 } => {
-                    match rt.block_on(commands::restore_registry_from_git(
-                        &runtime, &owner, &repo, &r#ref, &target,
-                    )) {
-                        Ok(result) => println!("{}", result),
-                        Err(e) => {
-                            eprintln!("Restore failed: {}", e);
-                            std::process::exit(1);
-                        }
-                    }
+                    println!(
+                        "{}",
+                        or_exit(
+                            rt.block_on(commands::restore_registry_from_git(
+                                &runtime, &owner, &repo, &r#ref, &target,
+                            )),
+                            "Restore failed",
+                        )
+                    );
                 }
 
                 GitAction::List { owner, repo } => {
-                    match rt.block_on(commands::list_registry_archives(&runtime, &owner, &repo)) {
-                        Ok(commits) => {
-                            println!("Archived versions for {}/{}:", owner, repo);
-                            for (i, sha) in commits.iter().enumerate() {
-                                println!("  {}. {}", i + 1, sha);
-                            }
-                        }
-                        Err(e) => {
-                            eprintln!("List failed: {}", e);
-                            std::process::exit(1);
-                        }
+                    let commits = or_exit(
+                        rt.block_on(commands::list_registry_archives(&runtime, &owner, &repo)),
+                        "List failed",
+                    );
+                    println!("Archived versions for {}/{}:", owner, repo);
+                    for (i, sha) in commits.iter().enumerate() {
+                        println!("  {}. {}", i + 1, sha);
                     }
                 }
 
@@ -707,15 +653,15 @@ fn main() {
                     repo,
                     message,
                 } => {
-                    match rt.block_on(commands::create_registry_snapshot(
-                        &runtime, &owner, &repo, &message,
-                    )) {
-                        Ok(result) => println!("{}", result),
-                        Err(e) => {
-                            eprintln!("Snapshot failed: {}", e);
-                            std::process::exit(1);
-                        }
-                    }
+                    println!(
+                        "{}",
+                        or_exit(
+                            rt.block_on(commands::create_registry_snapshot(
+                                &runtime, &owner, &repo, &message,
+                            )),
+                            "Snapshot failed",
+                        )
+                    );
                 }
             }
         }
@@ -853,148 +799,132 @@ fn main() {
             }
         },
 
-        Commands::Ensemble { action } => {
-            let rt = tokio::runtime::Runtime::new().unwrap();
-
-            match action {
-                EnsembleAction::ChatCreate { session } => {
-                    match rt.block_on(commands::ensemble_chat_create(session.clone())) {
-                        Ok(result) => println!("{}", result),
-                        Err(e) => {
-                            eprintln!("Chat create failed: {}", e);
-                            std::process::exit(1);
-                        }
-                    }
-                }
-                EnsembleAction::ChatRegister { session, bot, role } => {
-                    match rt.block_on(commands::ensemble_chat_register(
-                        session.clone(),
-                        bot.clone(),
-                        role.clone(),
-                    )) {
-                        Ok(result) => println!("{}", result),
-                        Err(e) => {
-                            eprintln!("Chat register failed: {}", e);
-                            std::process::exit(1);
-                        }
-                    }
-                }
-                EnsembleAction::ChatSend { session, message } => {
-                    match rt.block_on(commands::ensemble_chat_send(
-                        session.clone(),
-                        message.clone(),
-                    )) {
-                        Ok(result) => println!("{}", result),
-                        Err(e) => {
-                            eprintln!("Chat send failed: {}", e);
-                            std::process::exit(1);
-                        }
-                    }
-                }
-                EnsembleAction::ChatList => match rt.block_on(commands::ensemble_chat_list()) {
-                    Ok(sessions) => {
-                        println!("Active chat sessions:");
-                        for s in sessions {
-                            println!("  - {}", s);
-                        }
-                    }
-                    Err(e) => {
-                        eprintln!("Chat list failed: {}", e);
-                        std::process::exit(1);
-                    }
-                },
-                EnsembleAction::DeliberationCreate { session } => {
-                    match rt.block_on(commands::ensemble_deliberation_create(session.clone())) {
-                        Ok(result) => println!("{}", result),
-                        Err(e) => {
-                            eprintln!("Deliberation create failed: {}", e);
-                            std::process::exit(1);
-                        }
-                    }
-                }
-                EnsembleAction::DeliberationStart { session } => {
-                    match rt.block_on(commands::ensemble_deliberation_start(session.clone())) {
-                        Ok(result) => println!("{}", result),
-                        Err(e) => {
-                            eprintln!("Deliberation start failed: {}", e);
-                            std::process::exit(1);
-                        }
-                    }
-                }
-                EnsembleAction::DeliberationRecord {
-                    session,
-                    agent,
-                    content,
-                    confidence,
-                } => {
-                    match rt.block_on(commands::ensemble_deliberation_record(
-                        session.clone(),
-                        agent.clone(),
-                        content.clone(),
-                        confidence,
-                    )) {
-                        Ok(result) => println!("{}", result),
-                        Err(e) => {
-                            eprintln!("Deliberation record failed: {}", e);
-                            std::process::exit(1);
-                        }
-                    }
-                }
-                EnsembleAction::DeliberationSynthesize { session } => {
-                    match rt.block_on(commands::ensemble_deliberation_synthesize(session.clone())) {
-                        Ok(result) => println!("Synthesized response:\n{}", result),
-                        Err(e) => {
-                            eprintln!("Deliberation synthesize failed: {}", e);
-                            std::process::exit(1);
-                        }
-                    }
-                }
-                EnsembleAction::DeliberationList => {
-                    match rt.block_on(commands::ensemble_deliberation_list()) {
-                        Ok(sessions) => {
-                            println!("Active deliberation sessions:");
-                            for s in sessions {
-                                println!("  - {}", s);
-                            }
-                        }
-                        Err(e) => {
-                            eprintln!("Deliberation list failed: {}", e);
-                            std::process::exit(1);
-                        }
-                    }
-                }
-                EnsembleAction::StandingStart { config } => {
-                    match commands::ensemble_standing_start(&config) {
-                        Ok(status) => {
-                            println!("Standing session bootstrapped:");
-                            println!("  Session ID: {}", status.session_id);
-                            println!("  Participants: {}", status.participant_count);
-                            println!("  Initial messages: {}", status.message_count);
-                        }
-                        Err(e) => {
-                            eprintln!("Standing session bootstrap failed: {}", e);
-                            std::process::exit(1);
-                        }
-                    }
-                }
-                EnsembleAction::StandingStatus => match commands::ensemble_standing_status() {
-                    Ok(status) => {
-                        println!("Standing session status:");
-                        println!("  Session ID: {}", status.session_id);
-                        println!("  Participants: {}", status.participant_count);
-                        println!("  Messages: {}", status.message_count);
-                        println!("\nParticipants:");
-                        for p in &status.participants {
-                            println!("  - {} ({})", p.name, p.role);
-                        }
-                    }
-                    Err(e) => {
-                        eprintln!("Standing status failed: {}", e);
-                        std::process::exit(1);
-                    }
-                },
+        Commands::Ensemble { action } => match action {
+            EnsembleAction::ChatCreate { session } => {
+                println!(
+                    "{}",
+                    or_exit(
+                        rt.block_on(commands::ensemble_chat_create(session.clone())),
+                        "Chat create failed",
+                    )
+                );
             }
-        }
+            EnsembleAction::ChatRegister { session, bot, role } => {
+                println!(
+                    "{}",
+                    or_exit(
+                        rt.block_on(commands::ensemble_chat_register(
+                            session.clone(),
+                            bot.clone(),
+                            role.clone(),
+                        )),
+                        "Chat register failed",
+                    )
+                );
+            }
+            EnsembleAction::ChatSend { session, message } => {
+                println!(
+                    "{}",
+                    or_exit(
+                        rt.block_on(commands::ensemble_chat_send(
+                            session.clone(),
+                            message.clone(),
+                        )),
+                        "Chat send failed",
+                    )
+                );
+            }
+            EnsembleAction::ChatList => {
+                let sessions = or_exit(
+                    rt.block_on(commands::ensemble_chat_list()),
+                    "Chat list failed",
+                );
+                println!("Active chat sessions:");
+                for s in sessions {
+                    println!("  - {}", s);
+                }
+            }
+            EnsembleAction::DeliberationCreate { session } => {
+                println!(
+                    "{}",
+                    or_exit(
+                        rt.block_on(commands::ensemble_deliberation_create(session.clone())),
+                        "Deliberation create failed",
+                    )
+                );
+            }
+            EnsembleAction::DeliberationStart { session } => {
+                println!(
+                    "{}",
+                    or_exit(
+                        rt.block_on(commands::ensemble_deliberation_start(session.clone())),
+                        "Deliberation start failed",
+                    )
+                );
+            }
+            EnsembleAction::DeliberationRecord {
+                session,
+                agent,
+                content,
+                confidence,
+            } => {
+                println!(
+                    "{}",
+                    or_exit(
+                        rt.block_on(commands::ensemble_deliberation_record(
+                            session.clone(),
+                            agent.clone(),
+                            content.clone(),
+                            confidence,
+                        )),
+                        "Deliberation record failed",
+                    )
+                );
+            }
+            EnsembleAction::DeliberationSynthesize { session } => {
+                println!(
+                    "Synthesized response:\n{}",
+                    or_exit(
+                        rt.block_on(commands::ensemble_deliberation_synthesize(session.clone())),
+                        "Deliberation synthesize failed",
+                    )
+                );
+            }
+            EnsembleAction::DeliberationList => {
+                let sessions = or_exit(
+                    rt.block_on(commands::ensemble_deliberation_list()),
+                    "Deliberation list failed",
+                );
+                println!("Active deliberation sessions:");
+                for s in sessions {
+                    println!("  - {}", s);
+                }
+            }
+            EnsembleAction::StandingStart { config } => {
+                let status = or_exit(
+                    commands::ensemble_standing_start(&config),
+                    "Standing session bootstrap failed",
+                );
+                println!("Standing session bootstrapped:");
+                println!("  Session ID: {}", status.session_id);
+                println!("  Participants: {}", status.participant_count);
+                println!("  Initial messages: {}", status.message_count);
+            }
+            EnsembleAction::StandingStatus => {
+                let status = or_exit(
+                    commands::ensemble_standing_status(),
+                    "Standing status failed",
+                );
+                println!("Standing session status:");
+                println!("  Session ID: {}", status.session_id);
+                println!("  Participants: {}", status.participant_count);
+                println!("  Messages: {}", status.message_count);
+                println!("\nParticipants:");
+                for p in &status.participants {
+                    println!("  - {} ({})", p.name, p.role);
+                }
+            }
+        },
 
         Commands::Agent { action } => match action {
             AgentAction::Register {
@@ -1002,81 +932,55 @@ fn main() {
                 agent_type,
                 capabilities,
             } => {
-                let rt = tokio::runtime::Runtime::new().unwrap();
-                rt.block_on(async {
-                    let caps: Vec<String> = capabilities
-                        .split(',')
-                        .map(|s| s.trim().to_string())
-                        .collect();
-                    match commands::agent_register(&webid, &agent_type, caps).await {
-                        Ok(receipt) => {
-                            println!("Agent registered:");
-                            println!("  WebID: {}", receipt.webid);
-                            println!("  Token: {}...", &receipt.token_hash[..16]);
-                            println!("  Registered at: {}", receipt.registered_at);
-                        }
-                        Err(e) => {
-                            eprintln!("Registration failed: {}", e);
-                            std::process::exit(1);
-                        }
-                    }
-                });
+                let caps: Vec<String> = capabilities
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .collect();
+                let receipt = or_exit(
+                    rt.block_on(commands::agent_register(&webid, &agent_type, caps)),
+                    "Registration failed",
+                );
+                println!("Agent registered:");
+                println!("  WebID: {}", receipt.webid);
+                println!("  Token: {}...", &receipt.token_hash[..16]);
+                println!("  Registered at: {}", receipt.registered_at);
             }
             AgentAction::Unregister { name } => {
-                let rt = tokio::runtime::Runtime::new().unwrap();
-                rt.block_on(async {
-                    match commands::agent_unregister(&name).await {
-                        Ok(()) => println!("Agent unregistered: {}", name),
-                        Err(e) => {
-                            eprintln!("Unregister failed: {}", e);
-                            std::process::exit(1);
-                        }
-                    }
-                });
+                or_exit(
+                    rt.block_on(commands::agent_unregister(&name)),
+                    "Unregister failed",
+                );
+                println!("Agent unregistered: {}", name);
             }
             AgentAction::List => {
-                let rt = tokio::runtime::Runtime::new().unwrap();
-                rt.block_on(async {
-                    match commands::bot_list(None).await {
-                        Ok(agents) => {
-                            if agents.is_empty() {
-                                println!("No agents registered.");
-                                return;
-                            }
-                            println!("{:<25} {:<12} {:<40}", "NAME", "KIND", "CAPABILITIES");
-                            println!("{}", "-".repeat(80));
-                            for agent in &agents {
-                                println!(
-                                    "{:<25} {:<12} {:<40}",
-                                    agent.definition.name,
-                                    agent.definition.agent_kind,
-                                    agent.definition.capabilities.join(", "),
-                                );
-                            }
-                        }
-                        Err(e) => {
-                            eprintln!("Failed to list agents: {}", e);
-                            std::process::exit(1);
-                        }
+                let agents = or_exit(
+                    rt.block_on(commands::bot_list(None)),
+                    "Failed to list agents",
+                );
+                if agents.is_empty() {
+                    println!("No agents registered.");
+                } else {
+                    println!("{:<25} {:<12} {:<40}", "NAME", "KIND", "CAPABILITIES");
+                    println!("{}", "-".repeat(80));
+                    for agent in &agents {
+                        println!(
+                            "{:<25} {:<12} {:<40}",
+                            agent.definition.name,
+                            agent.definition.agent_kind,
+                            agent.definition.capabilities.join(", "),
+                        );
                     }
-                });
+                }
             }
             AgentAction::Capabilities { name } => {
-                let rt = tokio::runtime::Runtime::new().unwrap();
-                rt.block_on(async {
-                    match commands::bot_status(&name).await {
-                        Ok(agent) => {
-                            println!("Capabilities for {}:", agent.definition.name);
-                            for cap in &agent.definition.capabilities {
-                                println!("  - {}", cap);
-                            }
-                        }
-                        Err(e) => {
-                            eprintln!("Failed to get capabilities: {}", e);
-                            std::process::exit(1);
-                        }
-                    }
-                });
+                let agent = or_exit(
+                    rt.block_on(commands::bot_status(&name)),
+                    "Failed to get capabilities",
+                );
+                println!("Capabilities for {}:", agent.definition.name);
+                for cap in &agent.definition.capabilities {
+                    println!("  - {}", cap);
+                }
             }
         },
 
@@ -1085,75 +989,54 @@ fn main() {
                 hkask_cli::repl::run(&registry, &runtime, None, "Curator");
             }
             CuratorAction::Escalations => {
-                let rt = tokio::runtime::Runtime::new().unwrap();
-                rt.block_on(async {
-                    match commands::curator_escalations().await {
-                        Ok(escalations) => {
-                            if escalations.is_empty() {
-                                println!("No pending escalations.");
-                                return;
-                            }
-                            println!("{:<20} {:<15} {:<10} CONTEXT", "ID", "BOT", "CONFIDENCE");
-                            println!("{}", "-".repeat(80));
-                            for esc in &escalations {
-                                println!(
-                                    "{:<20} {:<15} {:<10.2} {}",
-                                    &esc.id[..std::cmp::min(20, esc.id.len())],
-                                    esc.bot_id
-                                        .0
-                                        .to_string()
-                                        .split('-')
-                                        .next()
-                                        .unwrap_or("unknown"),
-                                    esc.confidence,
-                                    &esc.error_context
-                                        [..std::cmp::min(40, esc.error_context.len())],
-                                );
-                            }
-                            println!("\nTotal: {} pending escalations", escalations.len());
-                        }
-                        Err(e) => {
-                            eprintln!("Failed to list escalations: {}", e);
-                            std::process::exit(1);
-                        }
+                let escalations = or_exit(
+                    rt.block_on(commands::curator_escalations()),
+                    "Failed to list escalations",
+                );
+                if escalations.is_empty() {
+                    println!("No pending escalations.");
+                } else {
+                    println!("{:<20} {:<15} {:<10} CONTEXT", "ID", "BOT", "CONFIDENCE");
+                    println!("{}", "-".repeat(80));
+                    for esc in &escalations {
+                        println!(
+                            "{:<20} {:<15} {:<10.2} {}",
+                            &esc.id[..std::cmp::min(20, esc.id.len())],
+                            esc.bot_id
+                                .0
+                                .to_string()
+                                .split('-')
+                                .next()
+                                .unwrap_or("unknown"),
+                            esc.confidence,
+                            &esc.error_context[..std::cmp::min(40, esc.error_context.len())],
+                        );
                     }
-                });
+                    println!("\nTotal: {} pending escalations", escalations.len());
+                }
             }
             CuratorAction::Resolve { id } => {
-                let rt = tokio::runtime::Runtime::new().unwrap();
-                rt.block_on(async {
-                    match commands::curator_resolve(&id).await {
-                        Ok(()) => println!("Escalation {} resolved.", id),
-                        Err(e) => {
-                            eprintln!("Failed to resolve escalation: {}", e);
-                            std::process::exit(1);
-                        }
-                    }
-                });
+                or_exit(
+                    rt.block_on(commands::curator_resolve(&id)),
+                    "Failed to resolve escalation",
+                );
+                println!("Escalation {} resolved.", id);
             }
             CuratorAction::Dismiss { id } => {
-                let rt = tokio::runtime::Runtime::new().unwrap();
-                rt.block_on(async {
-                    match commands::curator_dismiss(&id).await {
-                        Ok(()) => println!("Escalation {} dismissed.", id),
-                        Err(e) => {
-                            eprintln!("Failed to dismiss escalation: {}", e);
-                            std::process::exit(1);
-                        }
-                    }
-                });
+                or_exit(
+                    rt.block_on(commands::curator_dismiss(&id)),
+                    "Failed to dismiss escalation",
+                );
+                println!("Escalation {} dismissed.", id);
             }
             CuratorAction::Metacognition => {
-                let rt = tokio::runtime::Runtime::new().unwrap();
-                rt.block_on(async {
-                    match commands::curator_metacognition().await {
-                        Ok(summary) => println!("{}", summary),
-                        Err(e) => {
-                            eprintln!("Metacognition cycle failed: {}", e);
-                            std::process::exit(1);
-                        }
-                    }
-                });
+                println!(
+                    "{}",
+                    or_exit(
+                        rt.block_on(commands::curator_metacognition()),
+                        "Metacognition cycle failed",
+                    )
+                );
             }
         },
 
@@ -1165,131 +1048,61 @@ fn main() {
                 email,
                 phone,
             } => {
-                let store = hkask_storage::user_store::UserStore::new(std::sync::Arc::new(
-                    std::sync::Mutex::new(
-                        rusqlite::Connection::open("hask.db")
-                            .unwrap_or_else(|_| rusqlite::Connection::open_in_memory().unwrap()),
+                let store = open_user_store();
+                or_exit(
+                    commands::user::register_replicant(
+                        &store,
+                        &replicant_name,
+                        &first_name,
+                        &last_name,
+                        &email,
+                        phone.as_deref(),
                     ),
-                ));
-                let store = std::sync::Arc::new(std::sync::Mutex::new(store));
-                store.lock().unwrap().initialize_schema().unwrap();
-
-                match commands::user::register_replicant(
-                    &store,
-                    &replicant_name,
-                    &first_name,
-                    &last_name,
-                    &email,
-                    phone.as_deref(),
-                ) {
-                    Ok(()) => {}
-                    Err(e) => {
-                        eprintln!("Registration failed: {}", e);
-                        std::process::exit(1);
-                    }
-                }
+                    "Registration failed",
+                );
             }
             ReplicantAction::Login { replicant_name } => {
-                let store = hkask_storage::user_store::UserStore::new(std::sync::Arc::new(
-                    std::sync::Mutex::new(
-                        rusqlite::Connection::open("hask.db")
-                            .unwrap_or_else(|_| rusqlite::Connection::open_in_memory().unwrap()),
-                    ),
-                ));
-                let store = std::sync::Arc::new(std::sync::Mutex::new(store));
-                store.lock().unwrap().initialize_schema().unwrap();
-
-                match commands::user::login_replicant(&store, &replicant_name) {
-                    Ok(session) => {
-                        println!("Session ID: {}", session.session_id);
-                        println!(
-                            "\nTo logout: kask replicant logout {}",
-                            &session.session_id[..8]
-                        );
-                    }
-                    Err(e) => {
-                        eprintln!("Login failed: {}", e);
-                        std::process::exit(1);
-                    }
-                }
+                let store = open_user_store();
+                let session = or_exit(
+                    commands::user::login_replicant(&store, &replicant_name),
+                    "Login failed",
+                );
+                println!("Session ID: {}", session.session_id);
+                println!(
+                    "\nTo logout: kask replicant logout {}",
+                    &session.session_id[..8]
+                );
             }
             ReplicantAction::Logout { session_id } => {
-                let store = hkask_storage::user_store::UserStore::new(std::sync::Arc::new(
-                    std::sync::Mutex::new(
-                        rusqlite::Connection::open("hask.db")
-                            .unwrap_or_else(|_| rusqlite::Connection::open_in_memory().unwrap()),
-                    ),
-                ));
-                let store = std::sync::Arc::new(std::sync::Mutex::new(store));
-                store.lock().unwrap().initialize_schema().unwrap();
-
-                match commands::user::logout(&store, &session_id) {
-                    Ok(()) => {}
-                    Err(e) => {
-                        eprintln!("Logout failed: {}", e);
-                        std::process::exit(1);
-                    }
-                }
+                let store = open_user_store();
+                or_exit(commands::user::logout(&store, &session_id), "Logout failed");
             }
             ReplicantAction::Sessions { replicant_name } => {
-                let store = hkask_storage::user_store::UserStore::new(std::sync::Arc::new(
-                    std::sync::Mutex::new(
-                        rusqlite::Connection::open("hask.db")
-                            .unwrap_or_else(|_| rusqlite::Connection::open_in_memory().unwrap()),
-                    ),
-                ));
-                let store = std::sync::Arc::new(std::sync::Mutex::new(store));
-                store.lock().unwrap().initialize_schema().unwrap();
-
-                match commands::user::list_sessions(&store, &replicant_name) {
-                    Ok(_) => {}
-                    Err(e) => {
-                        eprintln!("Failed to list sessions: {}", e);
-                        std::process::exit(1);
-                    }
-                }
+                let store = open_user_store();
+                or_exit(
+                    commands::user::list_sessions(&store, &replicant_name),
+                    "Failed to list sessions",
+                );
             }
             ReplicantAction::List { user_id } => {
-                let store = hkask_storage::user_store::UserStore::new(std::sync::Arc::new(
-                    std::sync::Mutex::new(
-                        rusqlite::Connection::open("hask.db")
-                            .unwrap_or_else(|_| rusqlite::Connection::open_in_memory().unwrap()),
-                    ),
-                ));
-                let store = std::sync::Arc::new(std::sync::Mutex::new(store));
-                store.lock().unwrap().initialize_schema().unwrap();
-
+                let store = open_user_store();
                 if let Some(uid) = user_id {
                     let user_id = hkask_types::UserID::from_string(&uid);
-                    match commands::user::list_replicants(&store, &user_id) {
-                        Ok(_) => {}
-                        Err(e) => {
-                            eprintln!("Failed to list identities: {}", e);
-                            std::process::exit(1);
-                        }
-                    }
+                    or_exit(
+                        commands::user::list_replicants(&store, &user_id),
+                        "Failed to list identities",
+                    );
                 } else {
                     eprintln!("--user-id is required");
                     std::process::exit(1);
                 }
             }
             ReplicantAction::Show { replicant_name } => {
-                let store = hkask_storage::user_store::UserStore::new(std::sync::Arc::new(
-                    std::sync::Mutex::new(
-                        rusqlite::Connection::open("hask.db")
-                            .unwrap_or_else(|_| rusqlite::Connection::open_in_memory().unwrap()),
-                    ),
-                ));
-                let store = std::sync::Arc::new(std::sync::Mutex::new(store));
-                store.lock().unwrap().initialize_schema().unwrap();
-
-                match commands::user::show_replicant(&store, &replicant_name) {
-                    Ok(()) => {}
-                    Err(e) => {
-                        eprintln!("Failed to show replicant: {}", e);
-                        std::process::exit(1);
-                    }
-                }
+                let store = open_user_store();
+                or_exit(
+                    commands::user::show_replicant(&store, &replicant_name),
+                    "Failed to show replicant",
+                );
             }
         },
 
@@ -1352,39 +1165,22 @@ fn main() {
             }
             KeystoreAction::Get { key } => {
                 let keychain = hkask_keystore::Keychain::default();
-                match keychain.retrieve_by_key(&key) {
-                    Ok(val) => {
-                        if val.len() > 8 {
-                            println!("{}={}**{}", key, &val[..4], &val[val.len() - 4..]);
-                        } else {
-                            println!("{}=****", key);
-                        }
-                    }
-                    Err(e) => {
-                        eprintln!("Key '{}' not found: {}", key, e);
-                        std::process::exit(1);
-                    }
+                let val = or_exit(keychain.retrieve_by_key(&key), "Key not found");
+                if val.len() > 8 {
+                    println!("{}={}**{}", key, &val[..4], &val[val.len() - 4..]);
+                } else {
+                    println!("{}=****", key);
                 }
             }
             KeystoreAction::Set { key, value } => {
                 let keychain = hkask_keystore::Keychain::default();
-                match keychain.store_by_key(&key, &value) {
-                    Ok(()) => println!("Stored {}", key),
-                    Err(e) => {
-                        eprintln!("Failed to store {}: {}", key, e);
-                        std::process::exit(1);
-                    }
-                }
+                or_exit(keychain.store_by_key(&key, &value), "Failed to store key");
+                println!("Stored {}", key);
             }
             KeystoreAction::Delete { key } => {
                 let keychain = hkask_keystore::Keychain::default();
-                match keychain.delete_by_key(&key) {
-                    Ok(()) => println!("Deleted {}", key),
-                    Err(e) => {
-                        eprintln!("Failed to delete {}: {}", key, e);
-                        std::process::exit(1);
-                    }
-                }
+                or_exit(keychain.delete_by_key(&key), "Failed to delete key");
+                println!("Deleted {}", key);
             }
         },
     }

@@ -443,55 +443,38 @@ impl ProviderPool {
     pub async fn health_check_all(&self) -> Vec<ProviderHealthEntry> {
         let mut entries = Vec::new();
 
-        let search_futures: Vec<_> = self
-            .search_providers
-            .iter()
-            .map(|p| async { (p.kind().to_string(), p.health().await) })
-            .collect();
-        for (kind, result) in futures_util::future::join_all(search_futures).await {
-            entries.push(ProviderHealthEntry {
-                kind,
-                healthy: result.is_ok(),
-                error: result.err().map(|e| sanitize_health_error(&e.to_string())),
-            });
+        for p in &self.search_providers {
+            let kind = p.kind().to_string();
+            let result = p.health().await;
+            entries.push(health_entry(kind, result));
         }
 
-        let extract_futures: Vec<_> = self
-            .extract_providers
-            .iter()
-            .map(|p| async { (p.kind().to_string(), p.health().await) })
-            .collect();
-        for (kind, result) in futures_util::future::join_all(extract_futures).await {
-            entries.push(ProviderHealthEntry {
-                kind,
-                healthy: result.is_ok(),
-                error: result.err().map(|e| sanitize_health_error(&e.to_string())),
-            });
+        for p in &self.extract_providers {
+            let kind = p.kind().to_string();
+            let result = p.health().await;
+            entries.push(health_entry(kind, result));
         }
 
-        let browse_futures: Vec<_> = self
-            .browse_providers
-            .iter()
-            .map(|p| async { (p.kind().to_string(), p.health().await) })
-            .collect();
-        for (kind, result) in futures_util::future::join_all(browse_futures).await {
-            entries.push(ProviderHealthEntry {
-                kind,
-                healthy: result.is_ok(),
-                error: result.err().map(|e| sanitize_health_error(&e.to_string())),
-            });
+        for p in &self.browse_providers {
+            let kind = p.kind().to_string();
+            let result = p.health().await;
+            entries.push(health_entry(kind, result));
         }
 
         if let Some(ref exa) = self.exa {
             let result = exa.health().await;
-            entries.push(ProviderHealthEntry {
-                kind: "exa-similar".into(),
-                healthy: result.is_ok(),
-                error: result.err().map(|e| sanitize_health_error(&e.to_string())),
-            });
+            entries.push(health_entry("exa-similar".into(), result));
         }
 
         entries
+    }
+}
+
+fn health_entry(kind: String, result: Result<(), WebError>) -> ProviderHealthEntry {
+    ProviderHealthEntry {
+        kind,
+        healthy: result.is_ok(),
+        error: result.err().map(|e| sanitize_health_error(&e.to_string())),
     }
 }
 

@@ -1,10 +1,8 @@
 use std::sync::Arc;
 
 use base64::Engine;
-use hkask_mcp::server::{
-    McpErrorKind, McpToolError, McpToolOutput, ServerContext, ToolSpanGuard, validate_tool_url,
-};
-use hkask_types::WebID;
+use hkask_mcp::server::{McpToolError, McpToolOutput, ToolSpanGuard, validate_tool_url};
+use hkask_types::{McpErrorKind, WebID};
 use reqwest::Client;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
