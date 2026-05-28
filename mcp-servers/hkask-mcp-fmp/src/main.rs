@@ -24,7 +24,6 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::Value;
 
-const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 const BASE_URL: &str = "https://financialmodelingprep.com/stable";
 
 #[derive(Debug, Deserialize, JsonSchema)]

@@ -4,7 +4,7 @@
 //! Uses hexagonal architecture: depends on InferenceClient port, not concrete HTTP client.
 
 use crate::ports::{GenerateRequest, GenerateResponse, InferenceClient, TokenProbability};
-use serde::{Deserialize, Serialize};
+
 use thiserror::Error;
 
 /// Confidence configuration (from template frontmatter or default)

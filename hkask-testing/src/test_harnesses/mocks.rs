@@ -8,7 +8,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
-/// Mock struct for inference (SyncInferencePort removed)
+/// Mock struct for inference
 pub struct MockInferencePort {
     responses: Arc<RwLock<HashMap<String, String>>>,
 }

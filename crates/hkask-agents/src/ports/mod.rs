@@ -35,7 +35,7 @@ pub use metacognition::{
 };
 pub use ocap_port::{DelegationEntry, OCAPConfig, OCAPResult};
 
-pub use sovereignty::{SovereigntyCheckResult, SovereigntyOperation, SovereigntyPort};
+pub use sovereignty::{SovereigntyCheckResult, SovereigntyOperation};
 pub use standing_session::{
     AcpSessionMessage, BotReport, MessageRecord, SessionMessageType, SessionRecord,
     StandingSessionPort, StandingSessionPortError,

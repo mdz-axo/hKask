@@ -1,6 +1,5 @@
 //! Keystore — Secure storage types for secrets
 
-use hkask_keystore::KeystoreError;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize)]

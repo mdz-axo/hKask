@@ -3,8 +3,6 @@
 //! Defines types for sovereignty verification operations.
 //! The concrete SovereigntyChecker implements these operations as inherent methods.
 
-use hkask_types::WebID;
-
 /// Sovereignty operation types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SovereigntyOperation {

@@ -57,7 +57,7 @@ pub struct OcapServer {
 impl OcapServer {
     pub fn new(secret: Vec<u8>, webid: WebID) -> Self {
         let checked_secret = Zeroizing::new(secret);
-        let checker = CapabilityChecker::new(&*checked_secret);
+        let checker = CapabilityChecker::new(&checked_secret);
         Self {
             checker,
             tokens: Arc::new(RwLock::new(HashMap::new())),

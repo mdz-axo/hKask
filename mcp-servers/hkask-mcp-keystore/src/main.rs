@@ -15,7 +15,8 @@
 use hkask_keystore::Keychain;
 use hkask_keystore::encryption::EncryptionService;
 use hkask_mcp::server::{
-    McpToolError, McpToolOutput, ToolSpanGuard,
+    CredentialRequirement, McpToolError, McpToolOutput, ServerContext, ToolSpanGuard,
+    run_stdio_server,
 };
 use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
@@ -182,11 +183,11 @@ impl KeystoreServer {
         drop(entries); // Release read lock before I/O
 
         // Ensure parent directory exists
-        if let Some(parent) = self.vault_path.parent() {
-            if let Err(e) = std::fs::create_dir_all(parent) {
-                tracing::error!(path = %parent.display(), error = %e, "Failed to create vault directory");
-                return;
-            }
+        if let Some(parent) = self.vault_path.parent()
+            && let Err(e) = std::fs::create_dir_all(parent)
+        {
+            tracing::error!(path = %parent.display(), error = %e, "Failed to create vault directory");
+            return;
         }
 
         let json = match serde_json::to_string_pretty(&vault) {
