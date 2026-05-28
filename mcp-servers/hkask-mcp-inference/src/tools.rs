@@ -7,7 +7,7 @@
 
 use hkask_mcp::server::{McpToolError, McpToolOutput, emit_tool_span, validate_identifier};
 use hkask_templates::{InferencePort, OkapiConfig, OkapiInference};
-use hkask_types::LLMParameters;
+use hkask_types::{LLMParameters, WebID};
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
 use schemars::JsonSchema;
@@ -122,16 +122,18 @@ impl Default for InferenceMetrics {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct InferenceServer {
+    webid: WebID,
     metrics: Arc<InferenceMetrics>,
     active_models: Arc<RwLock<Vec<String>>>,
     rate_buckets: Arc<RwLock<HashMap<String, RateBucket>>>,
 }
 
 impl InferenceServer {
-    pub fn new() -> Self {
+    pub fn new(webid: WebID) -> Self {
         Self {
+            webid,
             metrics: Arc::new(InferenceMetrics::default()),
             active_models: Arc::new(RwLock::new(vec![
                 "ollama/llama-3.1-8b-instruct".to_string(),
@@ -438,14 +440,14 @@ mod tests {
 
     #[test]
     fn test_server_default_models() {
-        let server = InferenceServer::new();
+        let server = InferenceServer::new(WebID::new());
         let models = server.active_models.blocking_read();
         assert_eq!(models.len(), 3);
     }
 
     #[tokio::test]
     async fn test_rate_limit_allows_initial_requests() {
-        let server = InferenceServer::new();
+        let server = InferenceServer::new(WebID::new());
         for _ in 0..10 {
             assert!(server.check_rate_limit("test-caller").await);
         }
@@ -453,7 +455,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_rate_limit_blocks_after_exhaustion() {
-        let server = InferenceServer::new();
+        let server = InferenceServer::new(WebID::new());
         for _ in 0..10 {
             server.check_rate_limit("test-caller").await;
         }
@@ -462,7 +464,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_rate_limit_independent_per_caller() {
-        let server = InferenceServer::new();
+        let server = InferenceServer::new(WebID::new());
         for _ in 0..10 {
             server.check_rate_limit("caller-a").await;
         }

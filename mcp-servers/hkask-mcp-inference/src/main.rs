@@ -13,7 +13,7 @@ async fn main() -> anyhow::Result<()> {
     run_stdio_server(
         "hkask-mcp-inference",
         env!("CARGO_PKG_VERSION"),
-        |_ctx: ServerContext| Ok(InferenceServer::new()),
+        |ctx: ServerContext| Ok(InferenceServer::new(ctx.webid)),
         vec![], // no credentials required — Okapi uses default config
     )
     .await

@@ -17,7 +17,7 @@ use hkask_mcp::server::{
 use hkask_types::{
     CapabilityAction, CapabilityChecker, CapabilityResource, CapabilityToken, CollectionCoherence,
     CompletenessCheck, CurationDecision, DomainAnchor, GoalSpec, McpErrorKind, OCAPBoundary, Spec,
-    SpecCategory, SpecError, SpecId, SpecObserver, SpecStore,
+    SpecCategory, SpecError, SpecId, SpecObserver, SpecStore, WebID,
 };
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
@@ -178,6 +178,7 @@ pub struct SpecServer {
     store: Arc<dyn SpecStore + Send + Sync>,
     capability_checker: Option<Arc<CapabilityChecker>>,
     observer: Option<Arc<dyn SpecObserver + Send + Sync>>,
+    webid: WebID,
 }
 
 impl std::fmt::Debug for SpecServer {
@@ -186,16 +187,18 @@ impl std::fmt::Debug for SpecServer {
             .field("store", &"<dyn SpecStore>")
             .field("capability_checker", &self.capability_checker.is_some())
             .field("observer", &self.observer.is_some())
+            .field("webid", &self.webid)
             .finish()
     }
 }
 
 impl SpecServer {
-    pub fn new(store: Arc<dyn SpecStore + Send + Sync>) -> Self {
+    pub fn new(store: Arc<dyn SpecStore + Send + Sync>, webid: WebID) -> Self {
         Self {
             store,
             capability_checker: None,
             observer: None,
+            webid,
         }
     }
 
@@ -949,12 +952,12 @@ async fn main() -> anyhow::Result<()> {
     run_stdio_server(
         "hkask-mcp-spec",
         env!("CARGO_PKG_VERSION"),
-        |_ctx: ServerContext| {
+        |ctx: ServerContext| {
             let conn = rusqlite::Connection::open_in_memory()?;
             let conn = std::sync::Arc::new(std::sync::Mutex::new(conn));
             let store = std::sync::Arc::new(hkask_storage::SqliteSpecStore::new(conn));
             store.init_schema().map_err(|e| anyhow::anyhow!("{}", e))?;
-            Ok(SpecServer::new(store))
+            Ok(SpecServer::new(store, ctx.webid))
         },
         vec![],
     )

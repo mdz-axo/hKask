@@ -4,15 +4,28 @@
 //! for the wire protocol. This module provides:
 //!
 //! - `CredentialRequirement` — declarative credential needs (bridges to keystore)
-//! - `ServerContext` — resolved credentials + shared infrastructure (no ambient authority)
+//! - `ServerContext` — resolved credentials, WebID identity, shared infrastructure (no ambient authority)
 //! - `McpToolError` — structured errors with `McpErrorKind` classification
 //! - `McpToolOutput` — structured output with optional metadata
-//! - `run_stdio_server()` — common main() bootstrap (tracing, credential check, rmcp serve)
+//! - `run_stdio_server()` — common main() bootstrap (tracing, credential check, WebID, rmcp serve)
 //! - `classify_http_error()` — HTTP status → McpToolError mapping
 //! - `api_get()` / `api_post()` — shared HTTP helpers with automatic error classification
 //! - `build_authenticated_client()` — shared reqwest::Client factory
 //! - `resolve_credential()` — credential resolution via hkask-keystore with env var fallback
 //! - `emit_tool_span()` — CNS tool span emission for observability
+//!
+//! ## WebID Resolution
+//!
+//! `run_stdio_server` resolves the calling agent's identity from environment
+//! variables (no ambient authority inside tool handlers):
+//!
+//! 1. `HKASK_WEBID` — direct UUID string (highest precedence)
+//! 2. `HKASK_AGENT_PERSONA` — deterministic derivation via `WebID::from_persona`
+//! 3. Anonymous — `WebID::new()` (random UUID, for unauthenticated callers)
+//!
+//! The resolved `WebID` is available as `ctx.webid` in the factory closure
+//! and can be used for rate limiting (`ctx.rate_limiter.check(&ctx.webid)`),
+//! OCAP gating, and CNS span attribution.
 //!
 //! ## Usage
 //!
@@ -36,8 +49,9 @@
 //! ```
 //!
 //! The factory closure receives a `ServerContext` containing resolved credentials,
-//! a shared rate limiter, and an adapter container — no ambient authority via
-//! `std::env::var`. All configuration flows through the context.
+//! a shared rate limiter, an adapter container, and the calling agent's `WebID` —
+//! no ambient authority via `std::env::var`. All configuration and identity flows
+//! through the context.
 
 use hkask_types::McpErrorKind;
 use serde::{Deserialize, Serialize};
@@ -90,20 +104,135 @@ impl CredentialRequirement {
 /// rather than reading `std::env::var` or global singletons —
 /// no ambient authority. Credentials are resolved once at bootstrap
 /// via `resolve_credential` (keystore → env var) and injected here.
+///
+/// The `webid` field carries the calling agent's identity, derived
+/// from `HKASK_WEBID` (direct UUID) or `HKASK_AGENT_PERSONA` (deterministic
+/// derivation via `WebID::from_persona`). If neither is set, an anonymous
+/// WebID is generated. This enables rate limiting, OCAP gating, and CNS
+/// attribution without ambient authority.
 pub struct ServerContext {
     /// Resolved credential values, keyed by env var name.
     /// Only credentials declared in the `CredentialRequirement` list are present.
     /// Required credentials are guaranteed to be present; optional ones
-    /// may be absent (check with `ctx.credentials.get("KEY")`).
+    /// may be absent (check with `ctx.credentials.get("KEY")).
     pub credentials: HashMap<String, String>,
 
     /// Rate limiter from `hkask_cns`.
-    /// Servers should call `rate_limiter.check(&webid)` instead of
-    /// implementing their own rate limiting.
+    /// Use `rate_limiter.check(&ctx.webid)` for per-agent rate limiting.
     pub rate_limiter: hkask_cns::RateLimiter,
 
     /// Adapter container for shared adapters (GitCAS, etc.).
     pub adapters: crate::AdapterContainer,
+
+    /// Identity of the calling agent.
+    ///
+    /// Resolved from (in order of precedence):
+    /// 1. `HKASK_WEBID` — direct UUID string
+    /// 2. `HKASK_AGENT_PERSONA` — deterministic derivation via `WebID::from_persona`
+    /// 3. Anonymous — `WebID::new()` (random UUID)
+    ///
+    /// Use this for rate limiting, OCAP gating, and CNS span attribution.
+    pub webid: hkask_types::WebID,
+}
+
+// =============================================================================
+// ToolSpanGuard — RAII guard for automatic CNS tool span emission
+// =============================================================================
+
+/// RAII guard that automatically emits a CNS tool span when dropped.
+///
+/// This eliminates the need for manual `emit_tool_span` / `emit_tool_span_with_caller`
+/// calls at every exit point in a tool handler. Instead, create the guard at the
+/// start of a tool method, and it will emit the span when the guard goes out of scope.
+///
+/// # Usage
+///
+/// ```rust,ignore
+/// async fn my_tool(&self, ...) -> String {
+///     let span = ToolSpanGuard::new("my:tool", Some(&self.webid));
+///     // ... tool logic ...
+///     span.ok(McpToolOutput::new(json!({...})).to_json_string())
+/// }
+/// ```
+///
+/// For error paths, use `span.error(kind, output)` which sets the error kind
+/// and returns the output string. If the guard is dropped without calling `ok()`
+/// or `error()`, it emits a span with outcome `"dropped"` (indicating a bug).
+pub struct ToolSpanGuard {
+    tool_name: String,
+    start: Instant,
+    caller: Option<hkask_types::WebID>,
+    outcome: Option<String>,
+    error_kind: Option<McpErrorKind>,
+    emitted: bool,
+}
+
+impl ToolSpanGuard {
+    /// Create a new tool span guard with timing starting now.
+    ///
+    /// Pass `Some(&webid)` to include caller identity in the CNS span,
+    /// or `None` for servers that don't yet store a WebID.
+    pub fn new(tool_name: &str, caller: Option<&hkask_types::WebID>) -> Self {
+        Self {
+            tool_name: tool_name.to_string(),
+            start: Instant::now(),
+            caller: caller.cloned(),
+            outcome: None,
+            error_kind: None,
+            emitted: false,
+        }
+    }
+
+    /// Mark the tool invocation as successful and return the output string.
+    ///
+    /// Emits a CNS span with outcome `"ok"` and no error kind.
+    pub fn ok(mut self, output: String) -> String {
+        self.outcome = Some("ok".to_string());
+        self.emitted = true;
+        let duration_ms = self.start.elapsed().as_millis() as u64;
+        emit_tool_span_with_caller(
+            &self.tool_name,
+            "ok",
+            duration_ms,
+            None,
+            self.caller.as_ref(),
+        );
+        output
+    }
+
+    /// Mark the tool invocation as an error and return the output string.
+    ///
+    /// Emits a CNS span with outcome `"error"` and the given error kind.
+    pub fn error(mut self, kind: McpErrorKind, output: String) -> String {
+        self.outcome = Some("error".to_string());
+        self.error_kind = Some(kind.clone());
+        self.emitted = true;
+        let duration_ms = self.start.elapsed().as_millis() as u64;
+        emit_tool_span_with_caller(
+            &self.tool_name,
+            "error",
+            duration_ms,
+            Some(&kind),
+            self.caller.as_ref(),
+        );
+        output
+    }
+}
+
+impl Drop for ToolSpanGuard {
+    fn drop(&mut self) {
+        if !self.emitted {
+            // Guard dropped without calling ok() or error() — emit a warning span
+            let duration_ms = self.start.elapsed().as_millis() as u64;
+            emit_tool_span_with_caller(
+                &self.tool_name,
+                "dropped",
+                duration_ms,
+                self.error_kind.as_ref(),
+                self.caller.as_ref(),
+            );
+        }
+    }
 }
 
 // =============================================================================
@@ -445,6 +574,24 @@ pub fn emit_tool_span(
     duration_ms: u64,
     error_kind: Option<&McpErrorKind>,
 ) {
+    emit_tool_span_with_caller(tool_name, outcome, duration_ms, error_kind, None)
+}
+
+/// Emit a CNS tool span with caller identity (WebID) for observability.
+///
+/// Like `emit_tool_span`, but includes the calling agent's identity in the
+/// span. Use this in servers that have access to `self.webid` for full
+/// CNS attribution — it records *who* called the tool, not just *what* happened.
+///
+/// For servers that don't yet store a `webid`, `emit_tool_span` still works
+/// and omits the caller field.
+pub fn emit_tool_span_with_caller(
+    tool_name: &str,
+    outcome: &str,
+    duration_ms: u64,
+    error_kind: Option<&McpErrorKind>,
+    caller: Option<&hkask_types::WebID>,
+) {
     let mut fields = serde_json::json!({
         "tool": tool_name,
         "outcome": outcome,
@@ -453,12 +600,16 @@ pub fn emit_tool_span(
     if let Some(kind) = error_kind {
         fields["error_kind"] = serde_json::json!(kind.to_string());
     }
+    if let Some(webid) = caller {
+        fields["caller"] = serde_json::json!(webid.to_string());
+    }
     tracing::info!(
         target: "cns.tool",
         tool = tool_name,
         outcome = outcome,
         duration_ms = duration_ms,
         error_kind = error_kind.map(|k| k.to_string()).as_deref().unwrap_or(""),
+        caller = caller.map(|w| w.to_string()).as_deref().unwrap_or(""),
         "CNS tool span"
     );
 }
@@ -471,9 +622,10 @@ pub fn emit_tool_span(
 ///
 /// Handles:
 /// 1. Tracing subscriber initialization
-/// 2. Credential requirement checks (keystore → env var fallback)
-/// 3. Server construction via factory (only after credential checks pass)
-/// 4. rmcp stdio serve
+/// 2. Credential requirement checks (keystore → env var)
+/// 3. WebID resolution (HKASK_WEBID → HKASK_AGENT_PERSONA → anonymous)
+/// 4. Server construction via factory (only after credential checks pass)
+/// 5. rmcp stdio serve
 ///
 /// The factory pattern ensures server constructors that need credentials
 /// only run AFTER credential availability is confirmed. The factory receives
@@ -542,17 +694,35 @@ where
         );
     }
 
-    // 3. Build server context (no ambient authority)
+    // 3. Resolve calling agent identity (WebID)
+    let webid = if let Ok(uuid_str) = std::env::var("HKASK_WEBID") {
+        // Direct UUID — highest precedence
+        hkask_types::WebID::from_string(&uuid_str)
+    } else if let Ok(persona) = std::env::var("HKASK_AGENT_PERSONA") {
+        // Deterministic derivation from persona name
+        hkask_types::WebID::from_persona(persona.as_bytes())
+    } else {
+        // Anonymous caller — random UUID
+        hkask_types::WebID::new()
+    };
+
+    tracing::info!(
+        webid = %webid.redacted_display(),
+        "Agent identity resolved"
+    );
+
+    // 4. Build server context (no ambient authority)
     let ctx = ServerContext {
         credentials: resolved,
         rate_limiter: hkask_cns::RateLimiter::default(),
         adapters: crate::AdapterContainer::new(),
+        webid,
     };
 
-    // 4. Construct server (only after credential checks pass)
+    // 5. Construct server (only after credential checks pass)
     let server = server_factory(ctx)?;
 
-    // 5. Serve via rmcp stdio transport
+    // 6. Serve via rmcp stdio transport
     tracing::info!(
         server = server_name,
         version = version,

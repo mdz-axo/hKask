@@ -15,6 +15,7 @@ use chrono::Utc;
 use hkask_mcp::server::{
     McpToolError, McpToolOutput, ServerContext, emit_tool_span, run_stdio_server, validate_tool_url,
 };
+use hkask_types::WebID;
 use reqwest::Client;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use rusqlite::Connection;
@@ -863,12 +864,13 @@ async fn discover_feeds(
 // ---------------------------------------------------------------------------
 
 pub struct RssServer {
+    webid: WebID,
     db: Arc<std::sync::Mutex<Connection>>,
     client: Client,
 }
 
 impl RssServer {
-    pub fn new() -> Result<Self, anyhow::Error> {
+    pub fn new(webid: WebID) -> Result<Self, anyhow::Error> {
         let db_path =
             std::env::var("HKASK_RSS_DB").unwrap_or_else(|_| "hkask-rss-reader.db".to_string());
         let conn = init_db(&db_path)?;
@@ -877,6 +879,7 @@ impl RssServer {
             .build()?;
 
         Ok(Self {
+            webid,
             db: Arc::new(std::sync::Mutex::new(conn)),
             client,
         })
@@ -885,7 +888,7 @@ impl RssServer {
 
 impl Default for RssServer {
     fn default() -> Self {
-        Self::new().expect("Failed to create RssServer")
+        Self::new(WebID::new()).expect("Failed to create RssServer")
     }
 }
 
@@ -1336,7 +1339,7 @@ async fn main() -> anyhow::Result<()> {
     run_stdio_server(
         "hkask-mcp-rss-reader",
         env!("CARGO_PKG_VERSION"),
-        |_ctx: ServerContext| RssServer::new(),
+        |ctx: ServerContext| RssServer::new(ctx.webid),
         vec![],
     )
     .await

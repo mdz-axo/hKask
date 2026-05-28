@@ -11,6 +11,7 @@ mod types;
 use hkask_mcp::server::{
     McpToolError, McpToolOutput, ServerContext, emit_tool_span, run_stdio_server,
 };
+use hkask_types::WebID;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use std::sync::Mutex;
 use std::time::Instant;
@@ -93,12 +94,14 @@ impl CondenserEngine {
 }
 
 pub struct CondenserServer {
+    webid: WebID,
     engine: Mutex<CondenserEngine>,
 }
 
 impl CondenserServer {
-    fn new() -> Result<Self, anyhow::Error> {
+    fn new(webid: WebID) -> Result<Self, anyhow::Error> {
         Ok(Self {
+            webid,
             engine: Mutex::new(CondenserEngine::new()),
         })
     }
@@ -201,7 +204,7 @@ async fn main() -> anyhow::Result<()> {
     run_stdio_server(
         "hkask-mcp-condenser",
         SERVER_VERSION,
-        |_ctx: ServerContext| CondenserServer::new(),
+        |ctx: ServerContext| CondenserServer::new(ctx.webid),
         vec![],
     )
     .await

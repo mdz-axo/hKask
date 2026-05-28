@@ -18,6 +18,7 @@ use hkask_mcp::server::{
     CredentialRequirement, McpToolError, McpToolOutput, ServerContext, classify_http_error,
     emit_tool_span, resolve_credential, run_stdio_server, validate_identifier,
 };
+use hkask_types::WebID;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -83,17 +84,22 @@ fn validate_symbol(symbol: &str) -> Result<(), McpToolError> {
 }
 
 pub struct FmpServer {
+    webid: WebID,
     client: reqwest::Client,
     api_key: String,
 }
 
 impl FmpServer {
-    pub fn new() -> Result<Self, anyhow::Error> {
+    pub fn new(webid: WebID) -> Result<Self, anyhow::Error> {
         let api_key = resolve_credential("HKASK_FMP_API_KEY").map_err(|_| {
             anyhow::anyhow!("HKASK_FMP_API_KEY not found in keychain or environment")
         })?;
         let client = reqwest::Client::new();
-        Ok(Self { client, api_key })
+        Ok(Self {
+            webid,
+            client,
+            api_key,
+        })
     }
 }
 
@@ -371,7 +377,7 @@ async fn main() -> anyhow::Result<()> {
     run_stdio_server(
         "hkask-mcp-fmp",
         SERVER_VERSION,
-        |_ctx: ServerContext| FmpServer::new(),
+        |ctx: ServerContext| FmpServer::new(ctx.webid),
         vec![CredentialRequirement::required(
             "HKASK_FMP_API_KEY",
             "Financial Modeling Prep API key",

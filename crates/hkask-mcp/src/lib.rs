@@ -29,9 +29,10 @@ pub use security::{
     validate_url,
 };
 pub use server::{
-    AuthConfig, CredentialRequirement, McpToolError, McpToolOutput, ServerContext, api_get,
-    api_post, build_authenticated_client, classify_http_error, emit_tool_span, resolve_credential,
-    run_stdio_server, validate_identifier, validate_tool_url,
+    AuthConfig, CredentialRequirement, McpToolError, McpToolOutput, ServerContext, ToolSpanGuard,
+    api_get, api_post, build_authenticated_client, classify_http_error, emit_tool_span,
+    emit_tool_span_with_caller, resolve_credential, run_stdio_server, validate_identifier,
+    validate_tool_url,
 };
 pub use supervisor::{McpSupervisor, RestartPolicy, ServerConfig, ServerStatus, SupervisionError};
 pub use transport::{HttpMcpTransport, InProcessMcpTransport, McpTransport, StdioMcpTransport};

@@ -4,6 +4,7 @@ use hkask_mcp::server::{
     CredentialRequirement, McpToolError, McpToolOutput, ServerContext, classify_http_error,
     emit_tool_span, resolve_credential, run_stdio_server, validate_tool_url,
 };
+use hkask_types::WebID;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -110,13 +111,14 @@ pub struct Generate3dRequest {
 }
 
 pub struct FalServer {
+    webid: WebID,
     client: reqwest::Client,
 }
 
 impl FalServer {
-    pub fn new() -> Result<Self, anyhow::Error> {
+    pub fn new(webid: WebID) -> Result<Self, anyhow::Error> {
         let client = build_client()?;
-        Ok(Self { client })
+        Ok(Self { webid, client })
     }
 
     async fn queue_post(&self, endpoint: &str, body: Value) -> Result<Value, McpToolError> {
@@ -466,7 +468,7 @@ async fn main() -> anyhow::Result<()> {
     run_stdio_server(
         "hkask-mcp-fal",
         env!("CARGO_PKG_VERSION"),
-        |_ctx: ServerContext| FalServer::new(),
+        |ctx: ServerContext| FalServer::new(ctx.webid),
         vec![CredentialRequirement::required(
             "HKASK_FAL_API_KEY",
             "Fal.ai API key for AI image generation",

@@ -2282,6 +2282,7 @@ version = "0.21.0"
 dependencies = [
  "anyhow",
  "hkask-mcp",
+ "hkask-types",
  "reqwest",
  "rmcp",
  "schemars",

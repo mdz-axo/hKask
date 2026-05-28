@@ -9,7 +9,7 @@ use hkask_mcp::server::{
     CredentialRequirement, McpToolError, McpToolOutput, ServerContext, emit_tool_span,
     run_stdio_server, validate_identifier, validate_tool_url,
 };
-use hkask_types::McpErrorKind;
+use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -71,24 +71,27 @@ pub struct ListRequest {
 
 pub struct GitServer {
     adapter_container: AdapterContainer,
+    webid: WebID,
 }
 
 impl GitServer {
     /// Create an unconfigured server (no base path set).
-    pub fn new() -> Self {
+    pub fn new(webid: WebID) -> Self {
         Self {
             adapter_container: AdapterContainer::new(),
+            webid,
         }
     }
 
     /// Create a server with the given base path, or unconfigured if `None`.
-    pub fn with_base_path_or_default(base_path: Option<std::path::PathBuf>) -> Self {
+    pub fn with_base_path_or_default(base_path: Option<std::path::PathBuf>, webid: WebID) -> Self {
         let container = AdapterContainer::new();
         if let Some(bp) = base_path {
             container.configure_git_cas(bp).ok();
         }
         Self {
             adapter_container: container,
+            webid,
         }
     }
 }
@@ -516,7 +519,7 @@ async fn main() -> anyhow::Result<()> {
             } else {
                 tracing::warn!("HKASK_GIT_BASE_PATH not set, Git adapter unconfigured");
             }
-            Ok(GitServer::with_base_path_or_default(base_path))
+            Ok(GitServer::with_base_path_or_default(base_path, ctx.webid))
         },
         vec![CredentialRequirement::optional(
             "HKASK_GIT_BASE_PATH",

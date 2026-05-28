@@ -7,6 +7,7 @@ description = "Fal.ai media generation MCP server (image, video, audio, 3D)"
 
 [dependencies]
 hkask-mcp = { path = "../../crates/hkask-mcp" }
+hkask-types = { path = "../../crates/hkask-types" }
 rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
 reqwest.workspace = true
 tokio.workspace = true

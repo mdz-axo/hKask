@@ -51,16 +51,18 @@ pub struct OcapServer {
     tokens: Arc<RwLock<HashMap<String, CapabilityToken>>>,
     revoked: Arc<RwLock<HashSet<String>>>,
     secret: Vec<u8>,
+    webid: WebID,
 }
 
 impl OcapServer {
-    pub fn new(secret: Vec<u8>) -> Self {
+    pub fn new(secret: Vec<u8>, webid: WebID) -> Self {
         let checker = CapabilityChecker::new(&secret);
         Self {
             checker,
             tokens: Arc::new(RwLock::new(HashMap::new())),
             revoked: Arc::new(RwLock::new(HashSet::new())),
             secret,
+            webid,
         }
     }
 
@@ -383,7 +385,7 @@ async fn main() -> anyhow::Result<()> {
                 .expect("required credential")
                 .as_bytes()
                 .to_vec();
-            Ok(OcapServer::new(secret))
+            Ok(OcapServer::new(secret, ctx.webid))
         },
         vec![CredentialRequirement::required(
             "HKASK_OCAP_SECRET",

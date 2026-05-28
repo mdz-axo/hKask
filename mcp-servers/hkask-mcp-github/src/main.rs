@@ -7,6 +7,7 @@ use hkask_mcp::server::{
     CredentialRequirement, McpToolError, McpToolOutput, ServerContext, api_get, api_post,
     classify_http_error, emit_tool_span, resolve_credential, run_stdio_server, validate_identifier,
 };
+use hkask_types::WebID;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -155,13 +156,14 @@ fn extract_pr_summary(v: &serde_json::Value) -> serde_json::Value {
 }
 
 pub struct GithubServer {
+    webid: WebID,
     client: reqwest::Client,
 }
 
 impl GithubServer {
-    pub fn new() -> Result<Self, anyhow::Error> {
+    pub fn new(webid: WebID) -> Result<Self, anyhow::Error> {
         let client = build_client()?;
-        Ok(Self { client })
+        Ok(Self { webid, client })
     }
 }
 
@@ -498,7 +500,7 @@ async fn main() -> anyhow::Result<()> {
     run_stdio_server(
         "hkask-mcp-github",
         SERVER_VERSION,
-        |_ctx: ServerContext| GithubServer::new(),
+        |ctx: ServerContext| GithubServer::new(ctx.webid),
         vec![CredentialRequirement::required(
             "HKASK_GITHUB_TOKEN",
             "GitHub personal access token for API authentication",

@@ -4,6 +4,7 @@ use hkask_mcp::server::{
     CredentialRequirement, McpToolOutput, ServerContext, api_get, api_post, emit_tool_span,
     resolve_credential, run_stdio_server, validate_tool_url,
 };
+use hkask_types::WebID;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -46,11 +47,12 @@ pub struct TtsRequest {
 }
 
 pub struct TelnyxServer {
+    webid: WebID,
     client: reqwest::Client,
 }
 
 impl TelnyxServer {
-    pub fn new() -> Result<Self, anyhow::Error> {
+    pub fn new(webid: WebID) -> Result<Self, anyhow::Error> {
         let api_key = resolve_credential("HKASK_TELNYX_API_KEY").map_err(|_| {
             anyhow::anyhow!("HKASK_TELNYX_API_KEY not found in keychain or environment")
         })?;
@@ -63,7 +65,7 @@ impl TelnyxServer {
             .default_headers(headers)
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
-        Ok(Self { client })
+        Ok(Self { webid, client })
     }
 }
 
@@ -323,7 +325,7 @@ async fn main() -> anyhow::Result<()> {
     run_stdio_server(
         "hkask-mcp-telnyx",
         env!("CARGO_PKG_VERSION"),
-        |_ctx: ServerContext| TelnyxServer::new(),
+        |ctx: ServerContext| TelnyxServer::new(ctx.webid),
         vec![CredentialRequirement::required(
             "HKASK_TELNYX_API_KEY",
             "Telnyx API key for messaging and number management",

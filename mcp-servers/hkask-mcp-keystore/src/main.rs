@@ -68,13 +68,15 @@ struct EncryptedEntry {
 pub struct KeystoreServer {
     keychain: Keychain,
     entries: Arc<RwLock<HashMap<String, EncryptedEntry>>>,
+    webid: WebID,
 }
 
 impl KeystoreServer {
-    pub fn new(service_name: &str) -> Self {
+    pub fn new(service_name: &str, webid: WebID) -> Self {
         Self {
             keychain: Keychain::new(service_name),
             entries: Arc::new(RwLock::new(HashMap::new())),
+            webid,
         }
     }
 
@@ -467,7 +469,7 @@ async fn main() -> anyhow::Result<()> {
                 .get("HKASK_KEYSTORE_SERVICE")
                 .cloned()
                 .unwrap_or_else(|| "hkask-keystore".to_string());
-            Ok(KeystoreServer::new(&service_name))
+            Ok(KeystoreServer::new(&service_name, ctx.webid))
         },
         vec![CredentialRequirement::optional(
             "HKASK_KEYSTORE_SERVICE",

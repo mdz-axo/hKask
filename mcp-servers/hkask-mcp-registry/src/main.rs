@@ -5,7 +5,7 @@ use hkask_mcp::server::{
     run_stdio_server, validate_identifier,
 };
 use hkask_templates::{Registry, RegistryIndex, SqliteRegistry};
-use hkask_types::TemplateType;
+use hkask_types::{TemplateType, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -50,10 +50,11 @@ pub struct GetRequest {
 
 pub struct RegistryServer {
     registry: Arc<RwLock<Registry>>,
+    webid: WebID,
 }
 
 impl RegistryServer {
-    pub fn new(db_path: Option<String>) -> Self {
+    pub fn new(db_path: Option<String>, webid: WebID) -> Self {
         let mut registry = Registry::bootstrap();
 
         if let Ok(sqlite) = Self::try_sqlite_load(db_path.as_deref()) {
@@ -76,6 +77,7 @@ impl RegistryServer {
 
         Self {
             registry: Arc::new(RwLock::new(registry)),
+            webid,
         }
     }
 
@@ -333,7 +335,7 @@ async fn main() -> anyhow::Result<()> {
         env!("CARGO_PKG_VERSION"),
         |ctx: ServerContext| {
             let db_path = ctx.credentials.get("HKASK_REGISTRY_DB").cloned();
-            Ok(RegistryServer::new(db_path))
+            Ok(RegistryServer::new(db_path, ctx.webid))
         },
         vec![CredentialRequirement::optional(
             "HKASK_REGISTRY_DB",

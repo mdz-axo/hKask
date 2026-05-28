@@ -7,6 +7,7 @@ use hkask_mcp::server::{
     CredentialRequirement, McpToolError, McpToolOutput, ServerContext, emit_tool_span,
     resolve_credential, run_stdio_server, validate_tool_url,
 };
+use hkask_types::WebID;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -19,6 +20,7 @@ use providers::{
 use types::*;
 
 pub struct WebServer {
+    webid: WebID,
     pool: Arc<dyn WebSearchPort>,
     cache: Arc<ResponseCache>,
     rate_limiter: RateLimiter,
@@ -26,6 +28,7 @@ pub struct WebServer {
 
 impl WebServer {
     fn new(
+        webid: WebID,
         brave_api_key: Option<String>,
         firecrawl_api_key: Option<String>,
         tavily_api_key: Option<String>,
@@ -84,6 +87,7 @@ impl WebServer {
         }
 
         Ok(Self {
+            webid,
             pool: Arc::new(ProviderPool::new(
                 search_providers,
                 extract_providers,
@@ -567,6 +571,7 @@ async fn main() -> anyhow::Result<()> {
         SERVER_VERSION,
         |_ctx: ServerContext| {
             WebServer::new(
+                _ctx.webid,
                 brave_key.clone(),
                 firecrawl_key.clone(),
                 tavily_key.clone(),
@@ -622,6 +627,7 @@ mod live_tests {
     fn make_server() -> WebServer {
         load_env();
         WebServer::new(
+            WebID::new(),
             std::env::var("HKASK_BRAVE_API_KEY").ok(),
             std::env::var("HKASK_FIRECRAWL_API_KEY").ok(),
             std::env::var("HKASK_TAVILY_API_KEY").ok(),

@@ -440,13 +440,15 @@ impl CapabilityManager {
 pub struct GmlServer {
     capability_manager: Arc<RwLock<Option<CapabilityManager>>>,
     cns_emitter: SpanEmitter,
+    webid: WebID,
 }
 
 impl GmlServer {
-    pub fn new() -> Self {
+    pub fn new(webid: WebID) -> Self {
         Self {
             capability_manager: Arc::new(RwLock::new(None)),
-            cns_emitter: SpanEmitter::new(WebID::new()),
+            cns_emitter: SpanEmitter::new(webid.clone()),
+            webid,
         }
     }
 
@@ -1072,7 +1074,7 @@ async fn main() -> anyhow::Result<()> {
     run_stdio_server(
         "hkask-mcp-gml",
         env!("CARGO_PKG_VERSION"),
-        |_ctx: ServerContext| Ok(GmlServer::new()),
+        |ctx: ServerContext| Ok(GmlServer::new(ctx.webid)),
         vec![],
     )
     .await

@@ -56,10 +56,11 @@ pub struct CnsServer {
     runtime: Arc<CnsRuntime>,
     emitter: Arc<RwLock<SpanEmitter>>,
     threshold: u64,
+    webid: WebID,
 }
 
 impl CnsServer {
-    pub fn new(threshold: Option<u64>) -> Self {
+    pub fn new(threshold: Option<u64>, webid: WebID) -> Self {
         let threshold = threshold.unwrap_or(DEFAULT_THRESHOLD);
 
         let runtime = CnsRuntime::with_threshold(threshold);
@@ -70,6 +71,7 @@ impl CnsServer {
             runtime: Arc::new(runtime),
             emitter: Arc::new(RwLock::new(emitter)),
             threshold,
+            webid,
         }
     }
 
@@ -343,7 +345,7 @@ async fn main() -> anyhow::Result<()> {
                 .credentials
                 .get("HKASK_CNS_THRESHOLD")
                 .and_then(|s| s.parse().ok());
-            Ok(CnsServer::new(threshold))
+            Ok(CnsServer::new(threshold, ctx.webid))
         },
         vec![CredentialRequirement::optional(
             "HKASK_CNS_THRESHOLD",
