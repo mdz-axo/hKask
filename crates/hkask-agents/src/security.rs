@@ -33,11 +33,6 @@ pub enum ValidationError {
 /// Validation result type
 pub type ValidationResult<T> = Result<T, ValidationError>;
 
-/// Input validator trait for pod operations
-pub trait InputValidator<T> {
-    fn validate(&self, input: &T) -> ValidationResult<()>;
-}
-
 /// Agent persona input for validation
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentPersonaInput {
@@ -49,8 +44,8 @@ pub struct AgentPersonaInput {
     pub capabilities: Vec<String>,
 }
 
-impl InputValidator<AgentPersonaInput> for AgentPersonaInput {
-    fn validate(&self, input: &AgentPersonaInput) -> ValidationResult<()> {
+impl AgentPersonaInput {
+    pub fn validate(&self, input: &AgentPersonaInput) -> ValidationResult<()> {
         // Name validation: 1-64 chars, alphanumeric + hyphens
         if input.name.is_empty() {
             return Err(ValidationError::MissingField("name".to_string()));

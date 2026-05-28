@@ -16,7 +16,7 @@ use crate::adapters::git_cas::GitCasAdapter;
 use crate::adapters::mcp_runtime::McpRuntimeAdapter;
 use crate::adapters::memory_storage::MemoryStorageAdapter;
 use crate::ports::{GitCASPort, MCPRuntimePort, MemoryStoragePort};
-use crate::security::{AgentPersonaInput, InputValidator, SecurityContext};
+use crate::security::{AgentPersonaInput, SecurityContext};
 
 /// Pod Manager — Manages collection of agent pods
 ///
@@ -117,8 +117,6 @@ impl PodManager {
             inference_port: None,
         }
     }
-
-
 }
 
 /// Builder for constructing [`PodManager`] with explicit adapter configuration

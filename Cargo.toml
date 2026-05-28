@@ -13,15 +13,10 @@ members = [
     "crates/hkask-mcp",
     "crates/hkask-cli",
     "crates/hkask-api",
-    # MCP servers (excluded from budget)
-    # Original 10 (subset - some not yet implemented)
+    # MCP servers
     "mcp-servers/hkask-mcp-inference",
     "mcp-servers/hkask-mcp-condenser",
     "mcp-servers/hkask-mcp-web",
-    # "mcp-servers/hkask-mcp-scholar",  # Removed — deprecated stub, see registry/manifests/mcp_scholar_extract.yaml
-    # "mcp-servers/hkask-mcp-spandrel",  # Converted to templates (Action 1)
-    # "mcp-servers/hkask-mcp-doc-knowledge", # Converted to templates (Action 1)
-    # New: Core infrastructure (5)
     "mcp-servers/hkask-mcp-ocap",
     "mcp-servers/hkask-mcp-keystore",
     "mcp-servers/hkask-mcp-cns",
@@ -29,7 +24,6 @@ members = [
     "mcp-servers/hkask-mcp-registry",
     "mcp-servers/hkask-mcp-gml",
     "mcp-servers/hkask-mcp-spec",
-    # New: External integrations (5)
     "mcp-servers/hkask-mcp-github",
     "mcp-servers/hkask-mcp-fmp",
     "mcp-servers/hkask-mcp-telnyx",
@@ -110,12 +104,8 @@ keyring = "3"
 # HTTP client (for MCP servers)
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
 
-# Testing
 tempfile = "3"
 async-trait = "0.1"
-pretty_assertions = "1.4"
-insta = { version = "1.42", features = ["yaml", "json"] }
-proptest = "1.6"
 
 # Pattern matching (for migration)
 regex = "1"

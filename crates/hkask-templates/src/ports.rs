@@ -125,13 +125,6 @@ pub struct ProcessManifest {
     pub steps: Vec<ManifestStep>,
 }
 
-/// Manifest executor port
-#[async_trait::async_trait]
-pub trait ManifestExecutor: Send + Sync {
-    fn load(&self, path: &Path) -> Result<ProcessManifest>;
-    async fn execute(&self, manifest: &ProcessManifest, input: Value) -> Result<Value>;
-}
-
 /// Template composition definition
 #[derive(Debug, Clone)]
 pub struct CompositionTemplate {
@@ -216,15 +209,6 @@ pub struct MemoryFragment {
     pub content: String,
     pub source: String,
     pub confidence: f64,
-}
-
-/// Memory port for semantic/episodic recall
-pub trait MemoryPort: Send + Sync {
-    fn query_semantic(&self, entity: &str) -> Result<Vec<MemoryFragment>>;
-
-    fn query_episodic(&self, entity: &str, perspective: &str) -> Result<Vec<MemoryFragment>>;
-
-    fn get_session_history(&self, session_id: &str, max_messages: usize) -> Result<Vec<String>>;
 }
 
 /// Maximum Matroshka nesting depth (configurable per template)

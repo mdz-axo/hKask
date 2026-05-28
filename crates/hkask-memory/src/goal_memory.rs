@@ -153,19 +153,8 @@ impl GoalMemory {
             })
             .unwrap_or_default()
     }
-}
-
-/// Goal memory port — interface for memory operations
-pub trait GoalMemoryPort {
-    fn store_semantic(&self, memory: GoalSemanticMemory) -> Result<(), MemoryError>;
-    fn store_episodic(&self, memory: GoalEpisodicMemory) -> Result<(), MemoryError>;
-    fn recall_semantic(&self, goal_id: GoalID) -> Result<GoalSemanticMemory, MemoryError>;
-    fn recall_episodic(&self, goal_id: GoalID) -> Result<GoalEpisodicMemory, MemoryError>;
-    fn list_goals(&self, webid: WebID) -> Result<Vec<GoalSemanticMemory>, MemoryError>;
-}
-
-impl GoalMemoryPort for GoalMemory {
-    fn store_semantic(&self, memory: GoalSemanticMemory) -> Result<(), MemoryError> {
+    /// Store a semantic goal memory
+    pub fn store_semantic(&self, memory: GoalSemanticMemory) -> Result<(), MemoryError> {
         if let Ok(mut store) = self.semantic_store.write() {
             store.insert(memory.goal_id.to_string(), memory);
             Ok(())
@@ -176,7 +165,8 @@ impl GoalMemoryPort for GoalMemory {
         }
     }
 
-    fn store_episodic(&self, memory: GoalEpisodicMemory) -> Result<(), MemoryError> {
+    /// Store an episodic goal memory
+    pub fn store_episodic(&self, memory: GoalEpisodicMemory) -> Result<(), MemoryError> {
         if let Ok(mut store) = self.episodic_store.write() {
             store.insert(memory.goal_id.to_string(), memory);
             Ok(())
@@ -187,17 +177,20 @@ impl GoalMemoryPort for GoalMemory {
         }
     }
 
-    fn recall_semantic(&self, goal_id: GoalID) -> Result<GoalSemanticMemory, MemoryError> {
+    /// Recall semantic goal memory with error handling
+    pub fn recall_semantic(&self, goal_id: GoalID) -> Result<GoalSemanticMemory, MemoryError> {
         self.recall_goal_semantic(goal_id)
             .ok_or_else(|| MemoryError::NotFound(goal_id.to_string()))
     }
 
-    fn recall_episodic(&self, goal_id: GoalID) -> Result<GoalEpisodicMemory, MemoryError> {
+    /// Recall episodic goal memory with error handling
+    pub fn recall_episodic(&self, goal_id: GoalID) -> Result<GoalEpisodicMemory, MemoryError> {
         self.recall_goal_experience(goal_id)
             .ok_or_else(|| MemoryError::NotFound(goal_id.to_string()))
     }
 
-    fn list_goals(&self, webid: WebID) -> Result<Vec<GoalSemanticMemory>, MemoryError> {
+    /// List goals with error handling
+    pub fn list_goals_result(&self, webid: WebID) -> Result<Vec<GoalSemanticMemory>, MemoryError> {
         Ok(self.list_goals(webid))
     }
 }

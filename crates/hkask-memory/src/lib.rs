@@ -13,8 +13,6 @@ pub mod semantic;
 
 pub use bayesian::BayesianOps;
 pub use episodic::EpisodicMemory;
-pub use goal_memory::{
-    GoalEpisodicMemory, GoalMemory, GoalMemoryPort, GoalSemanticMemory, MemoryError,
-};
+pub use goal_memory::{GoalEpisodicMemory, GoalMemory, GoalSemanticMemory, MemoryError};
 pub use recall_dedup::{DedupResult, dedup_triples, dedup_triples_with_stats, eav_hash};
 pub use semantic::SemanticMemory;
