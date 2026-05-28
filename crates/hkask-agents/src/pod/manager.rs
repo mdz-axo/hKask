@@ -9,7 +9,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::info;
 
-use super::types::{AgentPersona, AgentType, PodID, PodLifecycleState};
+use super::types::{AgentKind, AgentPersona, PodID, PodLifecycleState};
 use super::{AgentPod, AgentPodError, AgentPodResult};
 use crate::adapters::cns_emitter::CnsEmitterAdapter;
 use crate::adapters::git_cas::GitCasAdapter;
@@ -46,7 +46,7 @@ pub struct PodStatus {
     pub name: Option<String>,
     pub state: PodLifecycleState,
     pub webid: String,
-    pub agent_type: AgentType,
+    pub agent_type: AgentKind,
     pub template: String,
     pub created_at: i64,
 }

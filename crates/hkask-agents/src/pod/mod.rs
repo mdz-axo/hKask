@@ -71,7 +71,7 @@ use crate::ports::GitCASPort;
 pub use context::PodContext;
 pub use manager::{PodManager, PodManagerBuilder, PodStatus};
 pub use types::{
-    AccessRight, AgentCharter, AgentIdentity, AgentPersona, AgentType, PodID, PodLifecycleState,
+    AccessRight, AgentCharter, AgentIdentity, AgentKind, AgentPersona, PodID, PodLifecycleState,
     TemplateCrate, TemplateFile, VisibilitySettings,
 };
 
@@ -84,7 +84,7 @@ pub struct AgentPod {
     /// Agent's WebID
     pub webid: WebID,
     /// Agent type (Bot or Replicant)
-    pub agent_type: AgentType,
+    pub agent_type: AgentKind,
     /// Agent persona
     pub persona: AgentPersona,
     /// Template crate reference

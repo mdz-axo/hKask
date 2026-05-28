@@ -10,7 +10,6 @@
 //!
 //! **Registry Adapters:**
 //! - `Registry` — In-memory filesystem-based registry (MVP default)
-//! - `GitRegistry` — Git CAS-backed registry (production)
 //! - `SqliteRegistry` — SQLite-backed registry (production with search)
 //!
 //! **High-Temperature Templates:**
@@ -43,7 +42,6 @@ pub mod ports;
 pub mod prompt_cache;
 pub mod provenance;
 pub mod registry;
-pub mod registry_git;
 pub mod registry_sqlite;
 pub mod renderer;
 pub mod resilience;
@@ -80,6 +78,5 @@ pub use ports::{
 };
 pub use provenance::{ProvenanceManager, TemplateProvenance};
 pub use registry::{Registry, TemplateEntry};
-pub use registry_git::GitRegistry;
 pub use registry_sqlite::SqliteRegistry;
 pub use resilience::{CircuitBreaker, CircuitBreakerConfig, CircuitState};

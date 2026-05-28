@@ -11,9 +11,6 @@ use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
-/// Maximum cascade depth (Miller's law)
-pub const MAX_CASCADE_DEPTH: u8 = 7;
-
 /// Cascade configuration (loaded from YAML)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CascadeConfig {

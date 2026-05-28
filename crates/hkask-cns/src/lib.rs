@@ -22,7 +22,6 @@ pub mod energy;
 pub mod goal_variety;
 pub mod observers;
 pub mod rate_limit;
-pub mod review_queue;
 pub mod runtime;
 pub mod spans;
 pub mod variety;
@@ -35,10 +34,7 @@ pub use algedonic_escalation::{
 pub use bot_metrics::{
     BotEvaluationMetrics, BotHealthStatus, BotMetricsCollector, CapabilityGap, GapType,
 };
-pub use energy::{
-    EnergyAccount, EnergyBudget, EnergyEmitter, EnergyError, EnergySpanType, OpportunityCost,
-    calculate_energy_cost, estimate_tokens,
-};
+pub use energy::{EnergyAccount, EnergyBudget, EnergyError, OpportunityCost};
 pub use goal_variety::{GoalVarietyCounter, GoalVarietyMonitor};
 pub use observers::composition::{
     CompositionMetrics, CompositionObserver, CompositionObserverState,
@@ -47,7 +43,6 @@ pub use observers::sovereignty::{
     SovereigntyEvent, SovereigntyEventType, SovereigntyObserver, SovereigntyObserverState,
 };
 pub use rate_limit::{RateLimitConfig, RateLimiter};
-pub use review_queue::{ReviewQueue, Violation};
 pub use runtime::CnsRuntime;
 pub use spans::{CnsEmit, SpanCategory, SpanEmitter, SpanScope, SpanViolation, span_scope_for_bot};
 pub use variety::{VarietyMonitor, VarietyTracker};

@@ -58,7 +58,7 @@ pub use curator::escalation::{
 pub use error::{GitError, McpError, MemoryError};
 pub use hkask_types::{BotCapabilities, CapabilityChecker, CapabilityToken};
 pub use pod::{
-    AgentPersona, AgentPod, AgentPodError, AgentPodResult, AgentType, PodID, PodLifecycleState,
+    AgentKind, AgentPersona, AgentPod, AgentPodError, AgentPodResult, PodID, PodLifecycleState,
     PodManager, PodStatus, TemplateCrate,
 };
 pub use ports::{

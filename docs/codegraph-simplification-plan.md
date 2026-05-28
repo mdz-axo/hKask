@@ -19,24 +19,31 @@ domain: "Cross-cutting"
 
 A comprehensive RDF code graph of the full hKask codebase (26 crates, 1,336 triples) revealed 19 structural redundancies, security gaps, transparency issues, and efficiency bottlenecks. This plan addresses the **P1** (highest priority) items with concrete, verified patches. P2–P4 items are catalogued for future work.
 
-**Applied patches (9 of 12 P1–P2 items):**
+**Applied patches (11 of 19 findings resolved):**
 
 | # | Finding | Action | Status |
 |---|---------|--------|--------|
 | P1a | Deprecated `evaluate_access` function | **Removed** | ✅ Done |
 | P1b | `OcapServer.secret` stored as plain `Vec<u8>` | **Zeroized** (`Zeroizing<Vec<u8>>`) | ✅ Done |
 | P1c | `CapabilityChecker.secret` stored as plain `Vec<u8>` | **Zeroized** (`Zeroizing<Vec<u8>>`) | ✅ Done |
-| P1d | `.expect()` on OCAP credential in OcapServer factory | **Replaced** with `anyhow::anyhow!` error | ✅ Done |
-| P1e | Orphaned/unreachable test modules | **Deleted** (9 files total) | ✅ Done |
+| P1d | `.expect()` on OCAP credential | **Replaced** with `anyhow::anyhow!` | ✅ Done |
+| P1e | Orphaned/unreachable test modules (9 files) | **Deleted** | ✅ Done |
 | P1f | Fixed master key salt | **No change** — accepted by ADR-023 | ⏭️ Deferred |
 | P2a | Unused `TokenBucket` in `hkask-types::cns` | **Removed** | ✅ Done |
 | P2b | 6 duplicate `RetryConfig` structs | **Unified** to `hkask_types::cns::RetryConfig` | ✅ Done |
-| P2c | Dead tagged `DataCategory` + `DataSovereignty` in `category.rs` | **Removed** (completely unused) | ✅ Done |
-| P2d | `GoalMemory` not persisted | **Deferred** — requires new implementation | ⏭️ P2 |
-| P2e | `Arc<Mutex<Connection>>` bottleneck | **Deferred** — architectural change | ⏭️ P2 |
-| P2f | Dual `RussellMapper` | **Deferred** — requires span injection refactor | ⏭️ P2 |
+| P2c | Dead tagged `DataCategory` + `DataSovereignty` | **Removed** (240 lines) | ✅ Done |
+| P3a | Duplicate mock adapters (`ports/mock_adapter.rs`) | **Removed** (consolidated to `test_harnesses/mocks.rs`) | ✅ Done |
+| P4a | Unused `MAX_CASCADE_DEPTH` constant | **Removed** | ✅ Done |
+| P4b | Circuit breaker "duplication" | **No change** — confirmed as re-export, not duplication | ✅ Verified |
+| P2d | `GoalMemory` not persisted | **Deferred** — new implementation needed | ⏭️ |
+| P2e | `Arc<Mutex<Connection>>` bottleneck | **Deferred** — architectural change | ⏭️ |
+| P2f | Dual `RussellMapper` | **Deferred** — span injection refactor | ⏭️ |
+| P3b | Triple span system | **Deferred** — complex CNS core refactor | ⏭️ |
+| P3c | 35+ port traits | **Deferred** — design decision, hexagonal boundaries | ⏭️ |
+| P3d | Two `RateLimiter` impls | **Deferred** — different algorithms (sliding window vs token bucket) | ⏭️ |
+| P3e | Double-nested lock in `EnsembleChatManager` | **Deferred** — API requires independent chat references | ⏭️ |
 
-**Totals:** 9 applied, 4 deferred (P2 complexity), 7 catalogued for P3–P4
+**Totals:** 11 applied, 1 verified-not-a-bug, 7 deferred (complexity/architecture)
 
 **Constraints preserved:**
 - Headless system constraint (no visual UI) ✅
@@ -295,35 +302,70 @@ pub fn is_retryable_status(&self, status: u16) -> bool { ... }
 
 ---
 
-## Remaining P2–P4 Findings
+## Completed P3–P4 Changes
 
-### P2 (Medium Impact / Medium–High Effort)
+### 9. Removed duplicate mock adapters
+
+**File:** `hkask-testing/src/ports/mock_adapter.rs` (entire file, ~300 lines)  
+**Also:** `hkask-testing/src/ports/mod.rs` (removed `pub mod mock_adapter;` and re-export)
+
+**Analysis:** Two sets of mock implementations existed for the same port traits:
+- `ports/mock_adapter.rs` — used `Cell<usize>` call counts, had unit tests
+- `test_harnesses/mocks.rs` — used `Arc<RwLock<HashMap>>`, integrated with `TestMocks`
+
+Only `test_harnesses/mocks.rs` was used externally (via `TestMocks`). `mock_adapter.rs` had zero external callers.
+
+**Impact:** Removed ~300 lines of duplicate mock code. All tests use `TestMocks` via `test_harnesses/mocks.rs`.
+
+---
+
+### 10. Removed unused `MAX_CASCADE_DEPTH` constant
+
+**File:** `crates/hkask-templates/src/cascade.rs`
+
+**Before:** `pub const MAX_CASCADE_DEPTH: u8 = 7;` — defined but never referenced.
+
+**After:** Removed. The configurable `CascadeLimits::max_depth` (defaulting to 7 via `default_max_depth()`) is the canonical value. `DEFAULT_MATROSHKA_LIMIT` in `ports.rs` serves a different concept (matroshka nesting depth) and remains.
+
+**Impact:** Cleaned up unused constant.
+
+---
+
+### 11. Verified: Circuit breaker is NOT duplicated
+
+**Analysis:** The original analysis identified "OkapiInference circuit breaker duplication" but this was incorrect:
+- `hkask-templates::resilience::CircuitBreaker` is the single canonical implementation
+- `hkask-ensemble::resilience` re-exports it: `pub use hkask_templates::resilience::{CircuitBreaker, ...};`
+- `OkapiInference` uses `crate::resilience::CircuitBreaker` directly
+
+**Impact:** No change needed. The re-export pattern is already correct.
+
+---
+
+## Deferred Items (7 remaining)
+
+These findings require significant architectural changes, new implementations, or design decisions:
+
+| Finding | Reason Deferred |
+|---------|----------------|
+| `GoalMemory` persistence | Requires new `SqliteGoalMemory` implementation using `TripleStore` |
+| `Arc<Mutex<Connection>>` bottleneck | Requires WAL mode + connection pooling migration |
+| Dual `RussellMapper` | Requires `SpanEmitter` injection refactor in CLI |
+| Triple span system | Complex CNS core refactor touching `Span`, `CnsSpan`, `SpanCategory` |
+| 35+ port traits | Design decision — traits serve different hexagonal boundaries |
+| Two `RateLimiter` impls | Different algorithms (sliding window vs token bucket) for different domains |
+| Double-nested `EnsembleChatManager` lock | API design requires independent `Arc<RwLock<EnsembleChat>>` references |
+
+### P3–P4 Catalogued for Future Work
 
 | Finding | Proposed Change |
 |---------|-----------------|
-| Dual `RussellMapper` | Move canonical to `hkask-templates`; inject `SpanEmitter` optional; remove CLI copy |
-| `GoalMemory` not persisted | Implement `SqliteGoalMemory` using `TripleStore` |
-| `Arc<Mutex<Connection>>` bottleneck | Migrate to WAL mode + connection pooling (`r2d2`/`deadpool`) |
-
-### P3 (Medium Impact / Medium Effort)
-
-| Finding | Current State | Proposed Change |
-|---------|---------------|-----------------|
-| Dual `DataCategory` enums | Simple (unit variants) in `sovereignty.rs` + Tagged-union in `sovereignty/category.rs` | Unify to tagged-union; update `DataSovereigntyBoundary` |
-| Triple span system | `Span` (hkask-types/event), `CnsSpan` (hkask-types/cns), `SpanCategory` (hkask-cns/spans) | Unify to single `Span` enum with category method |
-| 35+ port traits | 4 inference, 4 CNS, 3 MCP, 2 memory, 2 capability query interfaces | Consolidate to canonical per-domain traits |
-| Two `RateLimiter` impls | `hkask-cns` (token-bucket) + `hkask-mcp-web` (sliding-window) | Extract shared `RateLimitStrategy` trait |
-| Duplicate mock adapters | `ports/mock_adapter.rs` + `test_harnesses/mocks.rs` both implementing same port traits | Consolidate to `test_harnesses/mocks.rs` |
-| 4 capability token systems | HMAC-SHA256 (ACP, goal, Okapi) + Ed25519 (GML MWC) | Unify to `hkask-types::capability`; document Ed25519 as separate trust domain |
-| Double-nested lock | `EnsembleChatManager` uses `Arc<RwLock<HashMap<String, Arc<RwLock<EnsembleChat>>>>` | Use `DashMap` or single lock |
-
-### P4 (Low Impact / High Effort)
-
-| Finding | Current State | Proposed Change |
-|---------|---------------|-----------------|
-| Web MCP server size | ~2,500 lines, 6 provider impls, own rate limiter/cache/URL validation | Extract shared `hkask-mcp-web-core`; reuse `hkask-cns::RateLimiter` and `hkask-mcp::security::validate_url` |
-| OkapiInference circuit breaker | Duplicates logic from `hkask-templates::resilience::CircuitBreaker` | Use canonical implementation directly |
-| Hardcoded cascade constants | `MAX_CASCADE_DEPTH = 7` and `DEFAULT_MATROSHKA_LIMIT = 7` hardcoded | Reference `CascadeConfig` value in both places |
+| Triple span system | Unify to single `Span` enum with category method; remove `CnsSpan` and `SpanCategory` |
+| 35+ port traits | Consolidate to canonical per-domain traits (`InferencePort`, `CnsEmit`, `McpPort`, `MemoryStoragePort`) |
+| Two `RateLimiter` impls | Extract shared `RateLimitStrategy` trait; make web server use CNS `RateLimiter` with sliding-window strategy |
+| 4 capability token systems | Unify to `hkask-types::capability`; document Ed25519 (GML) as separate trust domain |
+| Double-nested lock | Use `DashMap` or single lock (requires API migration) |
+| Web MCP server size | Extract shared `hkask-mcp-web-core`; reuse `hkask-cns::RateLimiter` and `hkask-mcp::security` |
 
 ---
 

@@ -1,4 +1,4 @@
-//! Pod value types — PodLifecycleState, PodID, AgentType, persona types, template types
+//! Pod value types — PodLifecycleState, PodID, persona types, template types
 
 use hkask_types::{CapabilityResource, WebID};
 use serde::{Deserialize, Serialize};
@@ -6,6 +6,8 @@ use uuid::Uuid;
 
 // Import macro for PodID generation
 use hkask_types::define_id_type;
+
+pub use hkask_types::AgentKind;
 
 use super::AgentPodError;
 
@@ -36,24 +38,6 @@ impl std::fmt::Display for PodLifecycleState {
 /// Agent pod unique identifier
 define_id_type!(PodID);
 
-/// Agent type enumeration
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum AgentType {
-    /// Bot — Process execution, machine-to-machine (A2A)
-    Bot,
-    /// Replicant — Human assistance, human-to-agent (H2A)
-    Replicant,
-}
-
-impl std::fmt::Display for AgentType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            AgentType::Bot => write!(f, "Bot"),
-            AgentType::Replicant => write!(f, "Replicant"),
-        }
-    }
-}
-
 /// Agent persona definition (from YAML)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentPersona {
@@ -78,7 +62,7 @@ pub struct AgentPersona {
 pub struct AgentIdentity {
     pub name: String,
     #[serde(rename = "type")]
-    pub agent_type: AgentType,
+    pub agent_type: AgentKind,
     #[serde(default = "default_version")]
     pub version: String,
 }
