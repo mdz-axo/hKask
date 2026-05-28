@@ -5,6 +5,7 @@
 
 pub mod integration_tests;
 pub mod ports;
+pub mod security;
 pub mod test_harnesses;
 
 pub use ports::*;
