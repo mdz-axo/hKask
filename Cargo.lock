@@ -2208,9 +2208,11 @@ dependencies = [
  "argon2",
  "hex",
  "hkask-types",
+ "hmac",
  "keyring",
  "rand 0.9.4",
  "serde",
+ "sha2",
  "thiserror",
  "tracing",
  "zeroize",
@@ -2393,6 +2395,7 @@ name = "hkask-mcp-keystore"
 version = "0.21.0"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
  "chrono",
  "hkask-keystore",
  "hkask-mcp",

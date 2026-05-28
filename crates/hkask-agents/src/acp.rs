@@ -1033,20 +1033,18 @@ impl AuditLogPort for AuditLog {
 
 impl Default for AcpRuntime {
     fn default() -> Self {
-        let keychain = hkask_keystore::Keychain::new("hkask");
-        let secret = hkask_keystore::resolve(&hkask_types::SecretRef::env("HKASK_ACP_SECRET_KEY"))
-            .or_else(|_| keychain.retrieve_by_key("acp-secret").map(|s| zeroize::Zeroizing::new(s.into_bytes())))
-            .unwrap_or_else(|_| {
-                let generated: String = (0..32)
-                    .map(|_| rand::random::<u8>())
-                    .map(|b| format!("{:02x}", b))
-                    .collect();
-                match keychain.store_by_key("acp-secret", &generated) {
-                    Ok(()) => info!(target: "hkask.acp", "Generated and stored new ACP secret in OS keychain"),
-                    Err(_) => tracing::warn!("Failed to store ACP secret in OS keychain; secret will not persist across restarts"),
-                }
-                zeroize::Zeroizing::new(generated.into_bytes())
-            });
+        let secret = hkask_keystore::resolve(&hkask_types::SecretRef::derived(
+            hkask_types::derivation_contexts::MASTER_KEY_ENV,
+            hkask_types::derivation_contexts::ACP_SECRET,
+        ))
+        .or_else(|_| hkask_keystore::resolve(&hkask_types::SecretRef::env("HKASK_ACP_SECRET_KEY")))
+        .or_else(|_| {
+            hkask_keystore::resolve(&hkask_types::SecretRef::Keychain("acp-secret".to_string()))
+        })
+        .expect(
+            "ACP secret not available: set HKASK_MASTER_KEY or HKASK_ACP_SECRET_KEY, \
+             or store 'acp-secret' in the OS keychain",
+        );
         Self::new(&secret, None)
     }
 }

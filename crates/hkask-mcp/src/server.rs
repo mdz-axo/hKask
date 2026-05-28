@@ -143,13 +143,13 @@ pub struct ServerContext {
 ///
 /// This eliminates the need for manual `emit_tool_span` / `emit_tool_span_with_caller`
 /// calls at every exit point in a tool handler. Instead, create the guard at the
-/// start of a tool method, and it will emit the span when the guard goes out of scope.
+/// start of a tool method, and it will emit the span when the guard is consumed.
 ///
 /// # Usage
 ///
 /// ```rust,ignore
 /// async fn my_tool(&self, ...) -> String {
-///     let span = ToolSpanGuard::new("my:tool", Some(&self.webid));
+///     let span = ToolSpanGuard::new("my:tool", &self.webid);
 ///     // ... tool logic ...
 ///     span.ok(McpToolOutput::new(json!({...})).to_json_string())
 /// }
@@ -161,24 +161,20 @@ pub struct ServerContext {
 pub struct ToolSpanGuard {
     tool_name: String,
     start: Instant,
-    caller: Option<hkask_types::WebID>,
-    outcome: Option<String>,
-    error_kind: Option<McpErrorKind>,
+    caller: hkask_types::WebID,
     emitted: bool,
 }
 
 impl ToolSpanGuard {
     /// Create a new tool span guard with timing starting now.
     ///
-    /// Pass `Some(&webid)` to include caller identity in the CNS span,
-    /// or `None` for servers that don't yet store a WebID.
-    pub fn new(tool_name: &str, caller: Option<&hkask_types::WebID>) -> Self {
+    /// The `caller` parameter is the calling agent's WebID, used for
+    /// CNS attribution in the emitted span.
+    pub fn new(tool_name: &str, caller: &hkask_types::WebID) -> Self {
         Self {
             tool_name: tool_name.to_string(),
             start: Instant::now(),
-            caller: caller.cloned(),
-            outcome: None,
-            error_kind: None,
+            caller: caller.clone(),
             emitted: false,
         }
     }
@@ -186,34 +182,23 @@ impl ToolSpanGuard {
     /// Mark the tool invocation as successful and return the output string.
     ///
     /// Emits a CNS span with outcome `"ok"` and no error kind.
-    pub fn ok(mut self, output: String) -> String {
-        self.outcome = Some("ok".to_string());
-        self.emitted = true;
+    pub fn ok(self, output: String) -> String {
         let duration_ms = self.start.elapsed().as_millis() as u64;
-        emit_tool_span_with_caller(
-            &self.tool_name,
-            "ok",
-            duration_ms,
-            None,
-            self.caller.as_ref(),
-        );
+        emit_tool_span_with_caller(&self.tool_name, "ok", duration_ms, None, Some(&self.caller));
         output
     }
 
     /// Mark the tool invocation as an error and return the output string.
     ///
     /// Emits a CNS span with outcome `"error"` and the given error kind.
-    pub fn error(mut self, kind: McpErrorKind, output: String) -> String {
-        self.outcome = Some("error".to_string());
-        self.error_kind = Some(kind.clone());
-        self.emitted = true;
+    pub fn error(self, kind: McpErrorKind, output: String) -> String {
         let duration_ms = self.start.elapsed().as_millis() as u64;
         emit_tool_span_with_caller(
             &self.tool_name,
             "error",
             duration_ms,
             Some(&kind),
-            self.caller.as_ref(),
+            Some(&self.caller),
         );
         output
     }
@@ -228,8 +213,8 @@ impl Drop for ToolSpanGuard {
                 &self.tool_name,
                 "dropped",
                 duration_ms,
-                self.error_kind.as_ref(),
-                self.caller.as_ref(),
+                None,
+                Some(&self.caller),
             );
         }
     }

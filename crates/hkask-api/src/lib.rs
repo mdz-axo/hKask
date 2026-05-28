@@ -432,23 +432,27 @@ pub struct SoapInferenceConfig {
 
 impl Default for SoapInferenceConfig {
     fn default() -> Self {
-        let capability_secret =
-            hkask_keystore::resolve(&hkask_types::SecretRef::env("HKASK_CAPABILITY_KEY"))
-                .map(|s| {
-                    let mut arr = [0u8; 32];
-                    let bytes: &[u8] = &s;
-                    let len = bytes.len().min(32);
-                    arr[..len].copy_from_slice(&bytes[..len]);
-                    arr
-                })
-                .unwrap_or_else(|_| {
-                    let mut arr = [0u8; 32];
-                    for b in arr.iter_mut() {
-                        *b = rand::random();
-                    }
-                    tracing::warn!("HKASK_CAPABILITY_KEY not set, using generated secret");
-                    arr
-                });
+        let capability_secret = hkask_keystore::resolve(&hkask_types::SecretRef::derived(
+            hkask_types::derivation_contexts::MASTER_KEY_ENV,
+            hkask_types::derivation_contexts::CAPABILITY_KEY,
+        ))
+        .or_else(|_| hkask_keystore::resolve(&hkask_types::SecretRef::env("HKASK_CAPABILITY_KEY")))
+        .or_else(|_| {
+            hkask_keystore::resolve(&hkask_types::SecretRef::Keychain(
+                "capability-key".to_string(),
+            ))
+        })
+        .map(|s| {
+            let mut arr = [0u8; 32];
+            let bytes: &[u8] = &s;
+            let len = bytes.len().min(32);
+            arr[..len].copy_from_slice(&bytes[..len]);
+            arr
+        })
+        .expect(
+            "Capability key not available: set HKASK_MASTER_KEY or HKASK_CAPABILITY_KEY, \
+                 or store 'capability-key' in the OS keychain",
+        );
 
         Self {
             capability_secret,

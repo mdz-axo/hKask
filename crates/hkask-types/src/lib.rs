@@ -45,7 +45,7 @@ pub use goal_capability::*;
 pub use id::*;
 pub use identity::*;
 pub use lexicon::{Domain, HLexicon, LexiconTerm, TemplateType};
-pub use secret::SecretRef;
+pub use secret::{SecretRef, derivation_contexts};
 pub use sovereignty::{
     AcquisitionResistance, DataCategory, DataSovereigntyBoundary, KillZoneDetector, SovereigntyId,
     UserSovereigntyState,

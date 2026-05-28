@@ -144,7 +144,17 @@ pub fn get_or_create_ocap_secret(
     }
 }
 
-/// Resolve a SecretRef to actual secret bytes
+/// Resolve a SecretRef to actual secret bytes.
+///
+/// Resolution priority:
+/// 1. `Env` — read from environment variable
+/// 2. `Keychain` — read from OS keychain
+/// 3. `Derived` — look up master key (env → keychain), then HKDF-SHA256 derive sub-key
+/// 4. `Generated` — random bytes (⚠️ not reproducible; avoid in production)
+///
+/// For `Derived`, the master key is resolved first (env var → keychain),
+/// then HKDF-SHA256 is applied with the given context string to produce
+/// a deterministic 256-bit sub-key.
 pub fn resolve(secret_ref: &SecretRef) -> Result<Zeroizing<Vec<u8>>, KeychainError> {
     match secret_ref {
         SecretRef::Env(var_name) => {
@@ -160,6 +170,25 @@ pub fn resolve(secret_ref: &SecretRef) -> Result<Zeroizing<Vec<u8>>, KeychainErr
                 .get_password()
                 .map_err(|e| KeychainError::NotFound(e.to_string()))?;
             Ok(Zeroizing::new(secret.into_bytes()))
+        }
+        SecretRef::Derived {
+            master_key_env,
+            context,
+        } => {
+            // Resolve master key: env var first, then keychain
+            let master_key_bytes = resolve(&SecretRef::Env(master_key_env.clone()))
+                .or_else(|_| resolve(&SecretRef::Keychain(master_key_env.clone())))
+                .map_err(|_| {
+                    KeychainError::NotFound(format!(
+                        "Master key '{}' not found in environment or keychain; \
+                     set {} or run `kask init` to derive secrets from a master passphrase",
+                        master_key_env, master_key_env
+                    ))
+                })?;
+
+            // HKDF-SHA256 derive sub-key
+            let sub_key = crate::master_key::derive_sub_key(&master_key_bytes, context);
+            Ok(sub_key)
         }
         SecretRef::Generated(length) => {
             let bytes: Vec<u8> = (0..*length as usize)

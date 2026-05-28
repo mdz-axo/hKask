@@ -212,7 +212,8 @@ fn test_mcp_tool_error_retryable() {
 
 #[test]
 fn test_tool_span_guard_ok() {
-    let span = ToolSpanGuard::new("test:tool", Some(&WebID::from_persona(b"test-agent")));
+    let webid = WebID::from_persona(b"test-agent");
+    let span = ToolSpanGuard::new("test:tool", &webid);
     let result = span.ok(McpToolOutput::new(serde_json::json!({"status": "ok"})).to_json_string());
     let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
     assert_eq!(parsed["content"]["status"], "ok");
@@ -220,7 +221,8 @@ fn test_tool_span_guard_ok() {
 
 #[test]
 fn test_tool_span_guard_error() {
-    let span = ToolSpanGuard::new("test:tool", None);
+    let webid = WebID::new();
+    let span = ToolSpanGuard::new("test:tool", &webid);
     let result = span.error(
         hkask_types::McpErrorKind::NotFound,
         McpToolError::not_found("Item not found").to_json_string(),
@@ -233,7 +235,8 @@ fn test_tool_span_guard_error() {
 fn test_tool_span_guard_drop_without_emit() {
     // Creating a guard and dropping it without calling ok() or error()
     // should still emit a span with outcome "dropped" (no panic).
-    let _span = ToolSpanGuard::new("test:dropped_tool", None);
+    let webid = WebID::new();
+    let _span = ToolSpanGuard::new("test:dropped_tool", &webid);
     // Guard is dropped here — should emit "dropped" span, not panic.
 }
 

@@ -701,22 +701,29 @@ fn registry_yaml_path() -> PathBuf {
 }
 
 fn resolve_acp_secret() -> Result<String, RegistryError> {
-    std::env::var("HKASK_ACP_SECRET").or_else(|_| {
-        hkask_keystore::keychain::Keychain::default()
+    // Resolution chain: master key derivation → env var → keychain → insecure dev
+    hkask_keystore::resolve(&hkask_types::SecretRef::derived(
+        hkask_types::derivation_contexts::MASTER_KEY_ENV,
+        hkask_types::derivation_contexts::ACP_SECRET,
+    ))
+    .map(|s| String::from_utf8_lossy(&* s).to_string())
+    .or_else(|_| std::env::var("HKASK_ACP_SECRET"))
+    .or_else(|_| {
+        hkask_keystore::Keychain::default()
             .retrieve(&hkask_types::WebID::from_persona(b"hkask-acp-secret"))
-            .or_else(|_| {
-                if std::env::var("HKASK_INSECURE_DEV").as_deref() == Ok("1") {
-                    tracing::warn!("⚠ INSECURE DEV MODE: Using random ACP secret. Tokens will not survive restarts.");
-                    use rand::RngCore;
-                    let mut bytes = [0u8; 32];
-                    rand::rng().fill_bytes(&mut bytes);
-                    Ok(hex::encode(bytes))
-                } else {
-                    Err(RegistryError::InitFailed(
-                        "HKASK_ACP_SECRET not set. Set it explicitly or use HKASK_INSECURE_DEV=1 for local development.".to_string(),
-                    ))
-                }
-            })
+    })
+    .or_else(|_| {
+        if std::env::var("HKASK_INSECURE_DEV").as_deref() == Ok("1") {
+            tracing::warn!("⚠ INSECURE DEV MODE: Using random ACP secret. Tokens will not survive restarts.");
+            use rand::RngCore;
+            let mut bytes = [0u8; 32];
+            rand::rng().fill_bytes(&mut bytes);
+            Ok(hex::encode(bytes))
+        } else {
+            Err(RegistryError::InitFailed(
+                "HKASK_ACP_SECRET not set. Set HKASK_MASTER_KEY, HKASK_ACP_SECRET, or use HKASK_INSECURE_DEV=1 for local development.".to_string(),
+            ))
+        }
     })
 }
 
