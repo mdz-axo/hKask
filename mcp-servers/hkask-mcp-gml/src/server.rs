@@ -19,12 +19,12 @@ pub struct GmlServer {
 }
 
 impl GmlServer {
-    pub fn new(webid: WebID) -> Self {
-        Self {
+    pub fn new(webid: WebID) -> anyhow::Result<Self> {
+        Ok(Self {
             capability_manager: Arc::new(RwLock::new(None)),
             cns_emitter: SpanEmitter::new(webid.clone()),
             webid,
-        }
+        })
     }
 
     async fn init_capability_manager(&self) -> Result<(), GmlError> {

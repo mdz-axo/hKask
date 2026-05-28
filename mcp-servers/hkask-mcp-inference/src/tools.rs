@@ -131,8 +131,8 @@ pub struct InferenceServer {
 }
 
 impl InferenceServer {
-    pub fn new(webid: WebID) -> Self {
-        Self {
+    pub fn new(webid: WebID) -> anyhow::Result<Self> {
+        Ok(Self {
             webid,
             metrics: Arc::new(InferenceMetrics::default()),
             active_models: Arc::new(RwLock::new(vec![
@@ -141,7 +141,7 @@ impl InferenceServer {
                 "ollama/codellama-34b".to_string(),
             ])),
             rate_buckets: Arc::new(RwLock::new(HashMap::new())),
-        }
+        })
     }
 
     async fn check_rate_limit(&self, caller_id: &str) -> bool {
