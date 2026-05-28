@@ -149,12 +149,6 @@ pub struct TemplateContract {
     pub output_fields: Vec<String>,
 }
 
-/// Template renderer port
-pub trait TemplateRenderer {
-    fn load(&self, path: &Path) -> Result<CompositionTemplate>;
-    fn render(&self, template: &CompositionTemplate, bindings: Value) -> Result<String>;
-}
-
 /// Registry entry for template discovery
 #[derive(Debug, Clone)]
 pub struct RegistryEntry {

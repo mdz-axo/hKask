@@ -71,10 +71,11 @@ pub use manifest::{
 pub use okapi_config::OkapiConfig;
 pub use ports::{
     Action, CnsPort, CompositionTemplate, DEFAULT_MATROSHKA_LIMIT, FAST_LOCAL_MODEL,
-    InferenceConfig, ManifestExecutor, ManifestStep, McpPort, MemoryFragment, ProcessManifest,
-    RegistryEntry, RegistryIndex, Result, SyncInferencePort, TemplateContract, TemplateError,
+    InferenceConfig, ManifestStep, McpPort, MemoryFragment, MemoryPort, ProcessManifest,
+    RegistryEntry, RegistryIndex, Result, TemplateContract, TemplateError,
 };
 pub use provenance::{ProvenanceManager, TemplateProvenance};
 pub use registry::{Registry, TemplateEntry};
 pub use registry_sqlite::SqliteRegistry;
+pub use renderer::TemplateRendererImpl;
 pub use resilience::{CircuitBreaker, CircuitBreakerConfig, CircuitState};

@@ -6,7 +6,6 @@
 //! CircuitBreaker is re-exported from hkask-templates (canonical implementation).
 
 use std::sync::Arc;
-use std::time::Duration;
 use tracing::warn;
 
 // Re-export canonical CircuitBreaker types from hkask-templates

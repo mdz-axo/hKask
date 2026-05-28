@@ -1,6 +1,6 @@
 //! Template renderer — Jinja2 rendering via minijinja
 //!
-//! Implements the TemplateRenderer port for template composition.
+//! Provides template composition and rendering for the manifest executor.
 //! Per architecture v0.21.0: Rust renders Jinja2, doesn't own template content.
 
 use crate::ports::{CompositionTemplate, Result, TemplateContract, TemplateError};

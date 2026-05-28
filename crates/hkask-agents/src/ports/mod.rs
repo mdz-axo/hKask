@@ -15,7 +15,6 @@ pub mod mcp_runtime;
 pub mod memory_storage;
 pub mod metacognition;
 pub mod ocap_port;
-pub mod security_port;
 pub mod sovereignty;
 pub mod standing_session;
 
@@ -24,19 +23,17 @@ pub use acp_transport::{AcpTransport, AcpWireMessage, AcpWireResponse};
 pub use agent_registry::{AgentRegistryPort, AgentRegistryPortError};
 pub use audit_log::{AuditContext, AuditEntry, AuditLogPort, AuditLogPortError, AuditOutcome};
 pub use audit_log_storage::AuditLogStoragePortError;
-pub use cns_query::{AlertInfo, AlertLevel, CnsQueryPort, HealthStatus};
+pub use cns_query::{AlertInfo, AlertLevel, HealthStatus};
 pub use git_cas::GitCASPort;
 pub use mcp_runtime::MCPRuntimePort;
 pub use memory_storage::MemoryStoragePort;
 pub use metacognition::{
     BotDirective, BotEvaluationMetrics, BotHealthStatus as MetacognitionBotHealthStatus,
-    CapabilityGap, CuratorMetacognitionPort, DirectiveType, EvaluationResult, GapType,
-    KataDirective, KataType, MetacognitionPort, MetacognitionPortError, RecommendedAction,
-    StoredHealthSnapshot,
+    CapabilityGap, DirectiveType, EvaluationResult, GapType, KataDirective, KataType,
+    MetacognitionPort, MetacognitionPortError, RecommendedAction, StoredHealthSnapshot,
 };
-pub use ocap_port::{DelegationEntry, OCAPConfig, OCAPPort, OCAPResult};
-pub use security_port::{RateLimitPort, ValidationError as RateLimitValidationError};
-pub use sovereignty::{SovereigntyCheckResult, SovereigntyOperation, SovereigntyPort};
+pub use ocap_port::{DelegationEntry, OCAPConfig, OCAPResult};
+pub use sovereignty::{SovereigntyCheckResult, SovereigntyOperation};
 pub use standing_session::{
     AcpSessionMessage, BotReport, MessageRecord, SessionMessageType, SessionRecord,
     StandingSessionPort, StandingSessionPortError,

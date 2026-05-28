@@ -2,7 +2,6 @@
 
 use hkask_types::{CapabilityResource, WebID};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 // Import macro for PodID generation
 use hkask_types::define_id_type;
@@ -35,7 +34,6 @@ impl std::fmt::Display for PodLifecycleState {
     }
 }
 
-/// Agent pod unique identifier
 define_id_type!(PodID);
 
 /// Agent persona definition (from YAML)

@@ -157,14 +157,14 @@ impl SecurityGateway {
             hkask_types::CapabilityAction::Execute,
         );
 
-        if !result {
-            if let Some(ref emitter) = self.cns_emitter {
-                emitter.emit(
-                    &format!("cns.tool.{}.unauthorized", tool_name.replace(':', ".")),
-                    serde_json::json!({"bot_id": bot_id.to_string(), "tool": tool_name}),
-                    0.0,
-                );
-            }
+        if !result
+            && let Some(ref emitter) = self.cns_emitter
+        {
+            emitter.emit(
+                &format!("cns.tool.{}.unauthorized", tool_name.replace(':', ".")),
+                serde_json::json!({"bot_id": bot_id.to_string(), "tool": tool_name}),
+                0.0,
+            );
         }
 
         result
@@ -176,14 +176,14 @@ impl SecurityGateway {
             return true;
         }
         let result = self.rate_limiter.check(bot_id);
-        if !result {
-            if let Some(ref emitter) = self.cns_emitter {
-                emitter.emit(
-                    "cns.tool.rate_limit_exceeded",
-                    serde_json::json!({"bot_id": bot_id.to_string()}),
-                    0.0,
-                );
-            }
+        if !result
+            && let Some(ref emitter) = self.cns_emitter
+        {
+            emitter.emit(
+                "cns.tool.rate_limit_exceeded",
+                serde_json::json!({"bot_id": bot_id.to_string()}),
+                0.0,
+            );
         }
         result
     }

@@ -3,12 +3,13 @@
 //! Implements the fixed logic that executes ANY manifest without modification.
 //! Per architecture v0.21.0: ~50 lines of Rust that never changes when templates are added/edited.
 
-use crate::context_assembly::{ContextAssembler, ContextFragment, FragmentSource};
 use crate::adapters::AppMemoryAdapter;
+use crate::context_assembly::{ContextAssembler, ContextFragment, FragmentSource};
 use crate::ports::{
     Action, CnsPort, DEFAULT_MATROSHKA_LIMIT, InferenceConfig, ManifestStep, McpPort,
-    ProcessManifest, Result, SyncInferencePort, TemplateError, TemplateRenderer,
+    ProcessManifest, Result, SyncInferencePort, TemplateError,
 };
+use crate::renderer::TemplateRendererImpl;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::info;
@@ -124,8 +125,8 @@ impl NoopCsp {
 /// This is the "loom" that weaves the "thread" (YAML/Jinja2 templates).
 /// It doesn't change when templates are added, edited, or removed.
 /// Only changes if the grammar of steps themselves changes.
-pub struct ManifestExecutorImpl<R, I, M, C> {
-    renderer: R,
+pub struct ManifestExecutorImpl<I, M, C> {
+    renderer: TemplateRendererImpl,
     inference: I,
     mcp: M,
     cns: C,
@@ -138,14 +139,13 @@ pub struct ManifestExecutorImpl<R, I, M, C> {
     energy_budget: u64,
 }
 
-impl<R, I, M, C> ManifestExecutorImpl<R, I, M, C>
+impl<I, M, C> ManifestExecutorImpl<I, M, C>
 where
-    R: TemplateRenderer,
     I: SyncInferencePort,
     M: McpPort,
     C: CnsPort,
 {
-    pub fn new(renderer: R, inference: I, mcp: M, cns: C) -> Self {
+    pub fn new(renderer: TemplateRendererImpl, inference: I, mcp: M, cns: C) -> Self {
         Self {
             renderer,
             inference,
@@ -436,28 +436,10 @@ where
                         self.mcp.invoke(mcp, state.clone()).await?
                     }
                 } else {
-                    let (assembled_prompt, assembly_stats) =
-                        self.assemble_context(manifest, &state);
-
-                    self.cns.emit(
-                        "cns.prompt.context_assembly",
-                        serde_json::json!({
-                            "fragments_offered": assembly_stats.fragments_offered,
-                            "fragments_accepted": assembly_stats.fragments_accepted,
-                            "duplicates_exact": assembly_stats.duplicates_exact,
-                            "duplicates_similar": assembly_stats.duplicates_similar,
-                            "budget_rejected": assembly_stats.budget_rejected,
-                            "tokens_used": assembly_stats.tokens_used,
-                            "tokens_budget": assembly_stats.tokens_budget,
-                        }),
-                        1.0,
-                    );
-
-                    self.inference.call(
-                        step.model_tier.as_deref().unwrap_or("balanced"),
-                        &assembled_prompt,
-                        &self.inference_config,
-                    )?
+                    return Err(TemplateError::Manifest(
+                        "Execute action requires an MCP step or inference (SyncInferencePort removed)"
+                            .to_string(),
+                    ));
                 }
             }
         };
@@ -472,16 +454,13 @@ where
     }
 }
 
-impl<R, I, M, C> ManifestExecutorImpl<R, I, M, C>
+impl<I, M, C> ManifestExecutorImpl<I, M, C>
 where
-    R: TemplateRenderer + Send + Sync,
     I: SyncInferencePort + Send + Sync,
     M: McpPort,
     C: CnsPort + Send + Sync,
 {
     pub fn load(&self, _path: &std::path::Path) -> Result<ProcessManifest> {
-        // In production, this would load from YAML file
-        // For now, return bootstrap manifest from registry
         Err(TemplateError::Manifest(
             "Use RegistryIndex::bootstrap_manifest() instead".to_string(),
         ))

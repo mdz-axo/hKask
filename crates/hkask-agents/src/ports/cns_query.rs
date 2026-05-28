@@ -1,12 +1,7 @@
-//! CNS Query Port — Hexagonal boundary for CNS observability
-//!
-//! This port trait decouples the MetacognitionLoop from the concrete CnsRuntime
-//! implementation, following hexagonal architecture principles (R7).
+//! CNS Query Types — Domain-native types for CNS observability
 //!
 //! Domain-native types (`HealthStatus`, `AlertInfo`, `AlertLevel`) are defined
-//! here so that consumers of the port do not need to depend on `hkask_cns`.
-
-use async_trait::async_trait;
+//! here so that consumers do not need to depend on `hkask_cns`.
 
 /// Domain-native alert severity level
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -34,22 +29,4 @@ pub struct HealthStatus {
     pub critical_count: usize,
     pub warning_count: usize,
     pub healthy: bool,
-}
-
-/// Port trait for querying CNS observability data
-///
-/// Implementations:
-/// - `CnsRuntimeAdapter` (hkask-agents) — Production adapter wrapping CnsRuntime
-/// - Mock implementations for testing
-#[async_trait]
-pub trait CnsQueryPort: Send + Sync {
-    async fn health(&self) -> HealthStatus;
-
-    async fn variety(&self) -> Vec<(String, u64)>;
-
-    async fn alerts(&self) -> Vec<AlertInfo>;
-
-    async fn critical_alerts(&self) -> Vec<AlertInfo>;
-
-    async fn variety_for_domain(&self, domain: &str) -> u64;
 }

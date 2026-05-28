@@ -8,12 +8,13 @@
 //! - Triggers escalations when thresholds are exceeded
 //! - Posts summaries to standing session
 
+use crate::adapters::CnsRuntimeAdapter;
 use crate::curator::escalation::EscalationQueue;
+use crate::ports::HealthStatus;
 use crate::ports::metacognition::{
     BotDirective, EvaluationResult, KataDirective, KataType, MetacognitionPort, RecommendedAction,
     StoredHealthSnapshot,
 };
-use crate::ports::{CnsQueryPort, HealthStatus};
 use hkask_cns::bot_metrics::{
     BotEvaluationMetrics, BotHealthStatus as CnsBotHealthStatus, GapType,
 };
@@ -115,7 +116,7 @@ impl Default for MetacognitionConfig {
 
 /// Metacognition loop — Curator's system governance mechanism
 pub struct MetacognitionLoop {
-    cns: Arc<dyn CnsQueryPort>,
+    cns: Arc<CnsRuntimeAdapter>,
     escalation_queue: tokio::sync::Mutex<Arc<EscalationQueue>>,
     config: MetacognitionConfig,
     bot_reports: Arc<RwLock<Vec<BotStatusReport>>>,
@@ -124,7 +125,7 @@ pub struct MetacognitionLoop {
 
 impl MetacognitionLoop {
     pub fn new(
-        cns: Arc<dyn CnsQueryPort>,
+        cns: Arc<CnsRuntimeAdapter>,
         escalation_queue: Arc<EscalationQueue>,
         config: MetacognitionConfig,
     ) -> Self {

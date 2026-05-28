@@ -1,10 +1,9 @@
-//! CNS Runtime Adapter — Implements CnsQueryPort for CnsRuntime
+//! CNS Runtime Adapter — Wraps CnsRuntime with domain-native types
 //!
-//! This adapter bridges the concrete CnsRuntime implementation to the
-//! CnsQueryPort trait, mapping `hkask_cns` types to domain-native port types.
+//! Bridges the concrete CnsRuntime implementation to domain-native types,
+//! mapping `hkask_cns` types to the types defined in the ports module.
 
-use crate::ports::{AlertInfo, AlertLevel, CnsQueryPort, HealthStatus};
-use async_trait::async_trait;
+use crate::ports::{AlertInfo, AlertLevel, HealthStatus};
 use hkask_cns::CnsRuntime;
 use std::sync::Arc;
 
@@ -44,19 +43,16 @@ impl CnsRuntimeAdapter {
     pub fn new(runtime: Arc<CnsRuntime>) -> Self {
         Self { runtime }
     }
-}
 
-#[async_trait]
-impl CnsQueryPort for CnsRuntimeAdapter {
-    async fn health(&self) -> HealthStatus {
+    pub async fn health(&self) -> HealthStatus {
         map_health(self.runtime.health().await)
     }
 
-    async fn variety(&self) -> Vec<(String, u64)> {
+    pub async fn variety(&self) -> Vec<(String, u64)> {
         self.runtime.variety().await
     }
 
-    async fn alerts(&self) -> Vec<AlertInfo> {
+    pub async fn alerts(&self) -> Vec<AlertInfo> {
         self.runtime
             .alerts()
             .await
@@ -65,7 +61,7 @@ impl CnsQueryPort for CnsRuntimeAdapter {
             .collect()
     }
 
-    async fn critical_alerts(&self) -> Vec<AlertInfo> {
+    pub async fn critical_alerts(&self) -> Vec<AlertInfo> {
         self.runtime
             .critical_alerts()
             .await
@@ -74,7 +70,7 @@ impl CnsQueryPort for CnsRuntimeAdapter {
             .collect()
     }
 
-    async fn variety_for_domain(&self, domain: &str) -> u64 {
+    pub async fn variety_for_domain(&self, domain: &str) -> u64 {
         self.runtime.variety_for_domain(domain).await
     }
 }
