@@ -7,7 +7,7 @@ use hkask_mcp::server::{
     CredentialRequirement, McpToolError, McpToolOutput, ServerContext, ToolSpanGuard,
     resolve_credential, run_stdio_server, validate_tool_url,
 };
-use hkask_types::WebID;
+use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use std::sync::Arc;
 use std::time::Duration;
