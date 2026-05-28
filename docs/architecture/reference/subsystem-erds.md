@@ -29,7 +29,7 @@ domain: "Data"
 | [§8 hkask-storage — SQLite & SQLCipher](#8-hkask-storage--sqlite-persistence--sqlcipher) | Bitemporal triples, sqlite-vec, encryption |
 | [§9 hkask-cns — Cybernetic Nervous System](#9-hkask-cns--cybernetic-nervous-system) | Spans, variety counters, algedonic alerts |
 | [§10 hkask-templates — Registry & Cascade](#10-hkask-templates--registry-cascade--manifest-execution) | Template registry, cascade, and manifest execution |
-| [§11 MCP Server Composite ERD](#11-mcp-server-composite-erd) | All 16 MCP servers in composite view |
+| [§11 MCP Server Composite ERD](#11-mcp-server-composite-erd) | All 15 MCP servers in composite view |
 | [§12 Cross-Crate Dependency Graph](#12-cross-crate-dependency-graph) | Workspace-wide crate dependency relationships |
 | [References](#references) | Citations and references |
 

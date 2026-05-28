@@ -40,7 +40,7 @@ The **Curator** is the canonical **replicant** for the hKask system — the defa
 - Output: natural language markdown (not JSON/triples)
 - Latency target: <3s (human perception, not <100ms machine time)
 - Error handling: explain and offer alternatives (not retry/fallback)
-- Orchestrates bots behind the scenes (Memory, Spandrel, Scholar, etc.)
+Orchestrates bots behind the scenes (Memory, Spandrel, etc.)
 
 ---
 
@@ -289,7 +289,7 @@ Open questions reflect the need for ongoing system diagnosis and adaptation:[^be
 
 1. **Persona Switching**
    - How does user select a different persona?
-   - Can personas be composed (Curator + Scholar)?
+   - Can personas be composed (Curator + other personas)?
    - Should persona switching be a template or a skill?
 
 2. **Persona Customization**

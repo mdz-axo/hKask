@@ -27,7 +27,12 @@ pub use cns_query::{AlertInfo, AlertLevel, CnsQueryPort, HealthStatus};
 pub use git_cas::GitCASPort;
 pub use mcp_runtime::MCPRuntimePort;
 pub use memory_storage::MemoryStoragePort;
-pub use metacognition::{MetacognitionPort, MetacognitionPortError, StoredHealthSnapshot};
+pub use metacognition::{
+    BotDirective, BotEvaluationMetrics, BotHealthStatus as MetacognitionBotHealthStatus,
+    CapabilityGap, CuratorMetacognitionPort, DirectiveType, EvaluationResult, GapType,
+    KataDirective, KataType, MetacognitionPort, MetacognitionPortError, RecommendedAction,
+    StoredHealthSnapshot,
+};
 pub use security_port::{RateLimitPort, ValidationError as RateLimitValidationError};
 pub use sovereignty::{SovereigntyCheckResult, SovereigntyOperation, SovereigntyPort};
 pub use standing_session::{

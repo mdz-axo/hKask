@@ -56,7 +56,7 @@ No federation crates (`hkask-federation`, `hkask-federation-transport`, `hkask-f
 **Status:** Undecided  
 **Impact:** Documentation maintenance burden
 
-16 MCP servers exist with varying implementation depth (3 are stubs at 5 LOC each). Documentation granularity needs decision.
+15 MCP servers exist (scholar removed; was an empty stub). Documentation granularity needs decision.
 
 **Decision options:**
 1. Each MCP server gets its own specification entry in REQUIREMENTS.md

@@ -9,8 +9,15 @@
 //! - Posts summaries to standing session
 
 use crate::curator::escalation::EscalationQueue;
-use crate::ports::{CnsQueryPort, HealthStatus, MetacognitionPort, StoredHealthSnapshot};
-use hkask_types::BotID;
+use crate::ports::metacognition::{
+    BotDirective, EvaluationResult, KataDirective, KataType, MetacognitionPort, RecommendedAction,
+    StoredHealthSnapshot,
+};
+use crate::ports::{CnsQueryPort, HealthStatus};
+use hkask_cns::bot_metrics::{
+    BotEvaluationMetrics, BotHealthStatus as CnsBotHealthStatus, GapType,
+};
+use hkask_types::{BotID, WebID};
 use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
@@ -364,6 +371,86 @@ impl MetacognitionLoop {
         }
 
         summary
+    }
+
+    // -----------------------------------------------------------------------
+    // Curator metacognition: evaluate, coach, direct
+    // -----------------------------------------------------------------------
+
+    /// Evaluate a single bot's performance using its metrics
+    pub fn evaluate_bot(&self, bot_id: &WebID, metrics: &BotEvaluationMetrics) -> EvaluationResult {
+        let health = metrics.health_status();
+        let gaps = metrics.capability_gaps(0.8, 100);
+
+        let recommended_action = if gaps.is_empty() {
+            RecommendedAction::None
+        } else if gaps
+            .iter()
+            .any(|g| g.gap_type == GapType::SovereigntyViolations)
+        {
+            RecommendedAction::Escalate
+        } else if gaps.iter().any(|g| g.gap_type == GapType::VarietyDeficit) {
+            if metrics.success_rate < 0.5 {
+                RecommendedAction::Coach(KataType::Improvement)
+            } else {
+                RecommendedAction::Coach(KataType::Coaching)
+            }
+        } else if gaps.iter().any(|g| g.gap_type == GapType::LowSuccessRate) {
+            RecommendedAction::Coach(KataType::Starter)
+        } else {
+            RecommendedAction::Monitor
+        };
+
+        EvaluationResult {
+            bot_id: *bot_id,
+            bot_name: metrics.bot_name.clone(),
+            health,
+            gaps,
+            recommended_action,
+            timestamp: chrono::Utc::now().to_rfc3339(),
+        }
+    }
+
+    /// Identify a capability gap and create a Kata directive
+    pub fn identify_capability_gap(&self, evaluation: &EvaluationResult) -> Option<KataDirective> {
+        let primary_gap = evaluation.gaps.first()?;
+
+        let kata_type = match primary_gap.gap_type {
+            GapType::LowSuccessRate => {
+                if evaluation.health == CnsBotHealthStatus::Critical {
+                    KataType::Improvement
+                } else {
+                    KataType::Starter
+                }
+            }
+            GapType::VarietyDeficit => KataType::Coaching,
+            GapType::SovereigntyViolations => KataType::Coaching,
+            GapType::EnergyBudgetCritical => KataType::Starter,
+        };
+
+        Some(KataDirective {
+            bot_id: evaluation.bot_id,
+            bot_name: evaluation.bot_name.clone(),
+            kata_type,
+            gap_description: primary_gap.description.clone(),
+            gap: primary_gap.clone(),
+        })
+    }
+
+    /// Direct a bot to take action via ACP message
+    pub async fn direct_bot(&self, directive: BotDirective) -> Result<(), MetacognitionError> {
+        info!(
+            target: "curator.metacognition",
+            bot = %directive.bot_name,
+            directive_type = ?directive.directive_type,
+            "Directing bot"
+        );
+
+        // The actual ACP message delivery happens through the standing session
+        // which is wired in the bootstrap sequence. For now, log the directive.
+        // The standing session integration (Task 2) will deliver this.
+
+        Ok(())
     }
 }
 

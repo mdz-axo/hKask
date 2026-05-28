@@ -114,7 +114,7 @@ Curation: Merge | Revise | Defer | Discard
 - **Category:** Capability, Interface
 - **Text:** When an agent needs a tool, I want MCP server dispatch, so I can route tool calls to the correct server.
 - **Criteria:**
-  - [x] 16 MCP servers registered in workspace
+  15 MCP servers registered in workspace
   - [x] `McpRuntime` manages server lifecycle
   - [x] `SecurityGateway` enforces OCAP before dispatch
   - [x] Three transport options (in-process, stdio, HTTP)
@@ -134,7 +134,7 @@ Curation: Merge | Revise | Defer | Discard
 - **Criteria:**
   - [x] CLI binary `kask` with 14 subcommand groups
   - [x] HTTP API with 11 route groups
-  - [x] MCP with 16 servers
+  [x] MCP with 15 servers
   - [x] All route through `hkask-agents` domain core
 - **Implementation:** `hkask-cli::main`, `hkask-api::lib::create_router`, `hkask-mcp::runtime`
 - **Status:** Implemented
