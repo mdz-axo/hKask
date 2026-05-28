@@ -3,7 +3,7 @@
 //! Ensures agent operations respect user sovereignty boundaries.
 //! Integrates with CNS for sovereignty event emission.
 
-use crate::ports::sovereignty::{SovereigntyCheckResult, SovereigntyOperation, SovereigntyPort};
+use crate::ports::sovereignty::{SovereigntyCheckResult, SovereigntyOperation};
 use hkask_cns::spans::SpanEmitter;
 use hkask_types::{DataCategory, UserSovereigntyState, WebID};
 use serde_json::Value;
@@ -34,7 +34,69 @@ impl SovereigntyChecker {
         }
     }
 
-    /// Check if data category is accessible
+    /// Check if operation respects sovereignty boundaries
+    ///
+    /// # Arguments
+    /// * `data_category` — Category of data being accessed
+    /// * `operation` — Type of operation (read, write, acquisition, composition)
+    /// * `requester` — WebID of the requesting agent
+    ///
+    /// # Returns
+    /// * `SovereigntyCheckResult` — Check result with allowance and reason
+    pub fn check(
+        &self,
+        data_category: DataCategory,
+        operation: SovereigntyOperation,
+        requester: &WebID,
+    ) -> SovereigntyCheckResult {
+        // Check acquisition operations
+        if operation == SovereigntyOperation::Acquisition {
+            if !self
+                .state
+                .boundary
+                .resistance
+                .prevents_passive_acquisition()
+            {
+                return SovereigntyCheckResult::allowed(data_category, operation);
+            } else {
+                return SovereigntyCheckResult::denied(
+                    data_category,
+                    operation,
+                    "Acquisition resistance prevents passive acquisition",
+                );
+            }
+        }
+
+        // Check data category sovereignty
+        if self.state.boundary.is_sovereign(&data_category) {
+            // Sovereign data requires explicit consent and must be owner
+            if self.state.explicit_consent && requester == &self.owner_webid {
+                SovereigntyCheckResult::allowed(data_category, operation)
+            } else {
+                SovereigntyCheckResult::denied(
+                    data_category,
+                    operation,
+                    "Sovereign data requires owner consent",
+                )
+            }
+        } else if self.state.boundary.is_shared(&data_category) {
+            // Shared data requires consent
+            if self.state.explicit_consent {
+                SovereigntyCheckResult::allowed(data_category, operation)
+            } else {
+                SovereigntyCheckResult::denied(
+                    data_category,
+                    operation,
+                    "Shared data requires explicit consent",
+                )
+            }
+        } else {
+            // Public data is always accessible
+            SovereigntyCheckResult::allowed(data_category, operation)
+        }
+    }
+
+    /// Check if data category is accessible by requester
     pub fn can_access(&self, data_category: &DataCategory, requester: &WebID) -> bool {
         // Sovereign data requires explicit consent and owner
         if self.state.boundary.is_sovereign(data_category) {
@@ -124,118 +186,9 @@ impl SovereigntyChecker {
     pub fn kill_zone_active(&self) -> bool {
         self.state.detector.kill_zone_active
     }
-}
 
-impl SovereigntyPort for SovereigntyChecker {
-    fn check(
-        &self,
-        data_category: DataCategory,
-        operation: SovereigntyOperation,
-        requester: &WebID,
-    ) -> SovereigntyCheckResult {
-        // Check acquisition operations
-        if operation == SovereigntyOperation::Acquisition {
-            if !self
-                .state
-                .boundary
-                .resistance
-                .prevents_passive_acquisition()
-            {
-                return SovereigntyCheckResult::allowed(data_category, operation);
-            } else {
-                return SovereigntyCheckResult::denied(
-                    data_category,
-                    operation,
-                    "Acquisition resistance prevents passive acquisition",
-                );
-            }
-        }
-
-        // Check data category sovereignty
-        if self.state.boundary.is_sovereign(&data_category) {
-            // Sovereign data requires explicit consent and must be owner
-            if self.state.explicit_consent && requester == &self.owner_webid {
-                SovereigntyCheckResult::allowed(data_category, operation)
-            } else {
-                SovereigntyCheckResult::denied(
-                    data_category,
-                    operation,
-                    "Sovereign data requires owner consent",
-                )
-            }
-        } else if self.state.boundary.is_shared(&data_category) {
-            // Shared data requires consent
-            if self.state.explicit_consent {
-                SovereigntyCheckResult::allowed(data_category, operation)
-            } else {
-                SovereigntyCheckResult::denied(
-                    data_category,
-                    operation,
-                    "Shared data requires explicit consent",
-                )
-            }
-        } else {
-            // Public data is always accessible
-            SovereigntyCheckResult::allowed(data_category, operation)
-        }
-    }
-
-    fn can_access(&self, data_category: DataCategory, requester: &WebID) -> bool {
-        if self.state.boundary.is_sovereign(&data_category) {
-            self.state.explicit_consent && requester == &self.owner_webid
-        } else if self.state.boundary.is_shared(&data_category) {
-            self.state.explicit_consent
-        } else {
-            self.state.boundary.is_public(&data_category)
-        }
-    }
-
-    fn mark_acquisition_attempt(&mut self, details: &Value) {
-        self.state.mark_acquisition_attempt();
-        self.span_emitter
-            .emit_sovereignty("acquisition_attempt", details.clone());
-    }
-
-    fn update_vc_investment(&mut self, vc_investment: f32) {
-        self.state.update_vc_investment(vc_investment);
-
-        if self.state.is_compromised() {
-            self.span_emitter.emit_sovereignty_alert(
-                "killzone",
-                serde_json::json!({
-                    "vc_investment": vc_investment,
-                    "threshold": self.state.detector.threshold,
-                    "compromised": true
-                }),
-            );
-        }
-    }
-
-    fn is_compromised(&self) -> bool {
-        self.state.is_compromised()
-    }
-
-    fn grant_consent(&mut self) {
-        self.state.grant_consent();
-        self.span_emitter.emit_sovereignty(
-            "consent_granted",
-            serde_json::json!({
-                "consent": true
-            }),
-        );
-    }
-
-    fn revoke_consent(&mut self) {
-        self.state.revoke_consent();
-        self.span_emitter.emit_sovereignty(
-            "consent_revoked",
-            serde_json::json!({
-                "consent": false
-            }),
-        );
-    }
-
-    fn owner_webid(&self) -> WebID {
+    /// Get owner WebID
+    pub fn owner_webid(&self) -> WebID {
         self.owner_webid
     }
 }

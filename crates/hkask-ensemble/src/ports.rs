@@ -88,12 +88,3 @@ pub trait InferenceClient: Send + Sync {
         model: String,
     ) -> Result<serde_json::Value, Self::Error>;
 }
-
-/// Port for Okapi capability discovery
-#[async_trait]
-pub trait CapabilityProvider: Send + Sync {
-    type Capabilities: Clone + Debug;
-    type Error: std::error::Error + Send + Sync;
-
-    async fn get_capabilities(&self) -> Result<Self::Capabilities, Self::Error>;
-}

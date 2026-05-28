@@ -677,7 +677,7 @@ fn main() {
                 domain,
                 criteria,
             } => {
-                use hkask_types::{CompletenessCheck, DomainAnchor, GoalSpec, Spec, SpecCategory};
+                use hkask_types::{DomainAnchor, GoalSpec, Spec, SpecCategory};
 
                 let cat = SpecCategory::parse_str(&category).unwrap_or(SpecCategory::Domain);
                 let anchor = DomainAnchor::parse_str(&domain).unwrap_or(DomainAnchor::Hkask);

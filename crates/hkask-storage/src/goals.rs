@@ -35,61 +35,6 @@ pub enum GoalRepositoryError {
 
 pub type Result<T> = std::result::Result<T, GoalRepositoryError>;
 
-pub trait GoalRepositoryPort {
-    fn create_goal(
-        &self,
-        token: &GoalCapabilityToken,
-        webid: &WebID,
-        text: &str,
-        visibility: Visibility,
-    ) -> Result<Goal>;
-    fn get_goal(&self, token: &GoalCapabilityToken, goal_id: GoalID) -> Result<Option<Goal>>;
-    fn update_goal_state(
-        &self,
-        token: &GoalCapabilityToken,
-        goal_id: GoalID,
-        state: GoalState,
-    ) -> Result<()>;
-    fn list_goals(
-        &self,
-        token: &GoalCapabilityToken,
-        webid: &WebID,
-        state_filter: Option<GoalState>,
-    ) -> Result<Vec<Goal>>;
-    fn add_criterion(
-        &self,
-        token: &GoalCapabilityToken,
-        goal_id: GoalID,
-        criterion: GoalCriterion,
-    ) -> Result<()>;
-    fn add_artifact(
-        &self,
-        token: &GoalCapabilityToken,
-        goal_id: GoalID,
-        artifact: GoalArtifact,
-    ) -> Result<()>;
-    fn get_criteria(
-        &self,
-        token: &GoalCapabilityToken,
-        goal_id: GoalID,
-    ) -> Result<Vec<GoalCriterion>>;
-    fn get_artifacts(
-        &self,
-        token: &GoalCapabilityToken,
-        goal_id: GoalID,
-    ) -> Result<Vec<GoalArtifact>>;
-    fn create_subgoal(
-        &self,
-        token: &GoalCapabilityToken,
-        parent_id: GoalID,
-        webid: &WebID,
-        text: &str,
-        visibility: Visibility,
-    ) -> Result<Goal>;
-    fn get_subgoals(&self, token: &GoalCapabilityToken, parent_id: GoalID) -> Result<Vec<Goal>>;
-    fn delete_goal(&self, token: &GoalCapabilityToken, goal_id: GoalID) -> Result<()>;
-}
-
 pub struct SqliteGoalRepository {
     conn: Arc<Mutex<Connection>>,
     capability_secret: Vec<u8>,
@@ -168,7 +113,7 @@ impl SqliteGoalRepository {
     }
 }
 
-impl GoalRepositoryPort for SqliteGoalRepository {
+impl SqliteGoalRepository {
     fn create_goal(
         &self,
         token: &GoalCapabilityToken,

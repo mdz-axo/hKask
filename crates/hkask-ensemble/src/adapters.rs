@@ -3,8 +3,8 @@
 //! Concrete implementations of port traits for Okapi HTTP infrastructure.
 
 use crate::ports::{
-    CapabilityProvider, GenerateRequest, GenerateResponse, InferenceClient, MetricsSource,
-    OkapiCapabilities, OkapiMetrics, TokenProb, TokenProbability,
+    GenerateRequest, GenerateResponse, InferenceClient, MetricsSource, OkapiCapabilities,
+    OkapiMetrics, TokenProb, TokenProbability,
 };
 use async_trait::async_trait;
 use thiserror::Error;
@@ -266,14 +266,8 @@ impl OkapiCapabilityFetcher {
             base_url: okapi_base_url.to_string(),
         }
     }
-}
 
-#[async_trait]
-impl CapabilityProvider for OkapiCapabilityFetcher {
-    type Capabilities = OkapiCapabilities;
-    type Error = OkapiAdapterError;
-
-    async fn get_capabilities(&self) -> Result<Self::Capabilities, Self::Error> {
+    pub async fn get_capabilities(&self) -> Result<OkapiCapabilities, OkapiAdapterError> {
         let response = self
             .client
             .get(format!("{}/api/engine/status", self.base_url))
@@ -348,50 +342,5 @@ impl InferenceClient for MockInferenceClient {
         _model: String,
     ) -> Result<serde_json::Value, Self::Error> {
         Err(OkapiAdapterError::SseStreamEnded)
-    }
-}
-
-/// Mock capability provider for testing
-pub struct MockCapabilityProvider {
-    capabilities: OkapiCapabilities,
-}
-
-impl MockCapabilityProvider {
-    pub fn new(capabilities: OkapiCapabilities) -> Self {
-        Self { capabilities }
-    }
-
-    pub fn with_limited_capabilities() -> Self {
-        Self {
-            capabilities: OkapiCapabilities {
-                runner_type: "llamarunner".to_string(),
-                lora_hot_swap: false,
-                token_probs: false,
-                grammar_native: false,
-                advanced_sampling: false,
-            },
-        }
-    }
-
-    pub fn with_full_capabilities() -> Self {
-        Self {
-            capabilities: OkapiCapabilities {
-                runner_type: "ollamarunner".to_string(),
-                lora_hot_swap: true,
-                token_probs: true,
-                grammar_native: true,
-                advanced_sampling: true,
-            },
-        }
-    }
-}
-
-#[async_trait]
-impl CapabilityProvider for MockCapabilityProvider {
-    type Capabilities = OkapiCapabilities;
-    type Error = OkapiAdapterError;
-
-    async fn get_capabilities(&self) -> Result<Self::Capabilities, Self::Error> {
-        Ok(self.capabilities.clone())
     }
 }

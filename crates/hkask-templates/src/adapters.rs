@@ -4,6 +4,6 @@ pub mod http_adapter;
 pub mod memory_adapter;
 
 pub use http_adapter::{
-    HttpAdapter, HttpAdapterError, HttpMethod, HttpRequest, HttpResponse, ReqwestHttpAdapter,
+    HttpAdapterError, HttpMethod, HttpRequest, HttpResponse, ReqwestHttpAdapter,
 };
 pub use memory_adapter::{AppMemoryAdapter, MemoryAdapter, StubMemoryPort};

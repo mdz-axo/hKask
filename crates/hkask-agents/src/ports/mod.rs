@@ -6,7 +6,6 @@
 
 pub mod acp;
 pub mod acp_transport;
-pub mod agent_registry;
 pub mod audit_log;
 pub mod audit_log_storage;
 pub mod cns_query;
@@ -20,7 +19,6 @@ pub mod standing_session;
 
 pub use acp::AcpPort;
 pub use acp_transport::{AcpTransport, AcpWireMessage, AcpWireResponse};
-pub use agent_registry::{AgentRegistryPort, AgentRegistryPortError};
 pub use audit_log::{AuditContext, AuditEntry, AuditLogPort, AuditLogPortError, AuditOutcome};
 pub use audit_log_storage::AuditLogStoragePortError;
 pub use cns_query::{AlertInfo, AlertLevel, HealthStatus};

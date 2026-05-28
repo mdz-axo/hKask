@@ -3,9 +3,7 @@
 use hkask_types::spec::{
     Spec, SpecCategory, SpecCurationRecord, SpecError, SpecObserver, SpecStore,
 };
-use hkask_types::{
-    CollectionCoherence, CompletenessCheck, CurationDecision, OCAPBoundary, SpecCurator, SpecId,
-};
+use hkask_types::{CurationDecision, OCAPBoundary, SpecCurator, SpecId};
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 
@@ -181,7 +179,7 @@ impl SpecCurator for DefaultSpecCurator {
     }
 
     fn cultivate(&self, specs: &mut Vec<Spec>) -> Result<f64, SpecError> {
-        let coherence = specs.as_slice().collection_coherence();
+        let coherence = Spec::collection_coherence(specs);
         if coherence < self.coherence_threshold {
             return Err(SpecError::CoherenceInsufficient(coherence));
         }

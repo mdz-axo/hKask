@@ -2,7 +2,6 @@
 //!
 //! Enables mocking for tests and swapping HTTP implementations.
 
-use async_trait::async_trait;
 use serde_json::Value;
 use thiserror::Error;
 
@@ -76,20 +75,6 @@ pub struct HttpResponse {
     pub body: Value,
 }
 
-/// HTTP adapter trait
-#[async_trait]
-pub trait HttpAdapter: Send + Sync {
-    async fn execute(&self, request: HttpRequest) -> Result<HttpResponse, HttpAdapterError>;
-
-    async fn get(&self, url: &str) -> Result<HttpResponse, HttpAdapterError> {
-        self.execute(HttpRequest::get(url.to_string())).await
-    }
-
-    async fn post(&self, url: &str, body: Value) -> Result<HttpResponse, HttpAdapterError> {
-        self.execute(HttpRequest::post(url.to_string(), body)).await
-    }
-}
-
 /// Reqwest HTTP adapter implementation
 pub struct ReqwestHttpAdapter {
     client: reqwest::Client,
@@ -108,11 +93,8 @@ impl ReqwestHttpAdapter {
     pub fn with_default_timeout() -> Result<Self, HttpAdapterError> {
         Self::new(30)
     }
-}
 
-#[async_trait]
-impl HttpAdapter for ReqwestHttpAdapter {
-    async fn execute(&self, request: HttpRequest) -> Result<HttpResponse, HttpAdapterError> {
+    pub async fn execute(&self, request: HttpRequest) -> Result<HttpResponse, HttpAdapterError> {
         let mut req = match request.method {
             HttpMethod::Get => self.client.get(&request.url),
             HttpMethod::Post => self.client.post(&request.url),
@@ -154,5 +136,13 @@ impl HttpAdapter for ReqwestHttpAdapter {
             headers,
             body,
         })
+    }
+
+    pub async fn get(&self, url: &str) -> Result<HttpResponse, HttpAdapterError> {
+        self.execute(HttpRequest::get(url.to_string())).await
+    }
+
+    pub async fn post(&self, url: &str, body: Value) -> Result<HttpResponse, HttpAdapterError> {
+        self.execute(HttpRequest::post(url.to_string(), body)).await
     }
 }

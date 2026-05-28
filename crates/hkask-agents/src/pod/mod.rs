@@ -26,7 +26,7 @@
 //! ```rust,no_run
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! use hkask_agents::pod::{AgentPod, AgentPersona, PodLifecycleState};
-//! use hkask_agents::adapters::git_cas::MockGitCas;
+//! use hkask_agents::adapters::git_cas::GitCasAdapter;
 //! use hkask_agents::acp::AcpRuntime;
 //! use hkask_agents::adapters::cns_emitter::CnsEmitterAdapter;
 //! use hkask_agents::adapters::mcp_runtime::McpRuntimeAdapter;
@@ -34,7 +34,7 @@
 //! use std::sync::Arc;
 //!
 //! // Create adapters
-//! let git_adapter = MockGitCas::new();
+//! let git_adapter = GitCasAdapter::from_path(std::path::PathBuf::from("/tmp/hkask-templates"));
 //! let acp_runtime = Arc::new(AcpRuntime::default());
 //! let cns_emitter = CnsEmitterAdapter::new(WebID::new());
 //! let mcp_runtime = McpRuntimeAdapter::new();

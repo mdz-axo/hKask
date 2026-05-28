@@ -63,7 +63,7 @@ pub use pod::{
 };
 pub use ports::{
     AcpPort, AcpTransport, AcpWireMessage, AcpWireResponse, GitCASPort, MCPRuntimePort,
-    MemoryStoragePort,
+    MemoryStoragePort, SovereigntyCheckResult, SovereigntyOperation,
 };
 pub use registry_loader::{BotRegistryLoader, RegistryLoaderError};
 pub use replicant::{Replicant, ReplicantCapabilities};

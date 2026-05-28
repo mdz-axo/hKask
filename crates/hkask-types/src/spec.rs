@@ -3,7 +3,6 @@
 //! Load-bearing types for the specification toolset:
 //! - `Spec`, `GoalSpec`, `Criterion` — recursive goal decomposition
 //! - `SpecCategory` — 9 DDMVSS categories
-//! - `CompletenessCheck` — trait for MVP completeness verification
 //! - `SpecCurationRecord` — curation integration with existing `CurationDecision`
 //! - Port traits: `SpecStore`, `SpecObserver`, `SpecCurator`
 
@@ -184,6 +183,26 @@ impl GoalSpec {
     pub fn can_have_subgoals(&self) -> bool {
         self.depth < 7
     }
+
+    pub fn is_complete(&self) -> bool {
+        !self.criteria.is_empty()
+            && self.criteria.iter().all(|c| c.satisfied)
+            && self.sub_goals.iter().all(|g| g.is_complete())
+    }
+
+    pub fn coherence(&self) -> f64 {
+        if self.criteria.is_empty() {
+            return 0.0;
+        }
+        let satisfied = self.criteria.iter().filter(|c| c.satisfied).count();
+        let ratio = satisfied as f64 / self.criteria.len() as f64;
+        let sub_coherence = if self.sub_goals.is_empty() {
+            1.0
+        } else {
+            self.sub_goals.iter().map(|g| g.coherence()).sum::<f64>() / self.sub_goals.len() as f64
+        };
+        ((ratio + sub_coherence) / 2.0).clamp(0.0, 1.0)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -214,71 +233,35 @@ impl Spec {
         self.goals.push(goal);
         self
     }
-}
 
-pub trait CompletenessCheck {
-    fn is_complete(&self) -> bool;
-    fn coherence(&self) -> f64;
-}
-
-impl CompletenessCheck for GoalSpec {
-    fn is_complete(&self) -> bool {
-        !self.criteria.is_empty()
-            && self.criteria.iter().all(|c| c.satisfied)
-            && self.sub_goals.iter().all(|g| g.is_complete())
-    }
-
-    fn coherence(&self) -> f64 {
-        if self.criteria.is_empty() {
-            return 0.0;
-        }
-        let satisfied = self.criteria.iter().filter(|c| c.satisfied).count();
-        let ratio = satisfied as f64 / self.criteria.len() as f64;
-        let sub_coherence = if self.sub_goals.is_empty() {
-            1.0
-        } else {
-            self.sub_goals.iter().map(|g| g.coherence()).sum::<f64>() / self.sub_goals.len() as f64
-        };
-        ((ratio + sub_coherence) / 2.0).clamp(0.0, 1.0)
-    }
-}
-
-impl CompletenessCheck for Spec {
-    fn is_complete(&self) -> bool {
+    pub fn is_complete(&self) -> bool {
         !self.goals.is_empty() && self.goals.iter().all(|g| g.is_complete())
     }
 
-    fn coherence(&self) -> f64 {
+    pub fn coherence(&self) -> f64 {
         if self.goals.is_empty() {
             return 0.0;
         }
         self.goals.iter().map(|g| g.coherence()).sum::<f64>() / self.goals.len() as f64
     }
-}
 
-pub trait CollectionCoherence {
-    fn collection_coherence(&self) -> f64;
-    fn is_collection_complete(&self) -> bool;
-}
-
-impl CollectionCoherence for [Spec] {
-    fn is_collection_complete(&self) -> bool {
-        !self.is_empty() && self.iter().all(|s| s.is_complete())
-    }
-
-    fn collection_coherence(&self) -> f64 {
-        if self.is_empty() {
+    pub fn collection_coherence(specs: &[Spec]) -> f64 {
+        if specs.is_empty() {
             return 0.0;
         }
-        let complete_count = self.iter().filter(|s| s.is_complete()).count();
-        let categories_coveraged = self
+        let complete_count = specs.iter().filter(|s| s.is_complete()).count();
+        let categories_coveraged = specs
             .iter()
             .map(|s| s.category.as_str())
             .collect::<HashSet<_>>()
             .len();
         let coverage = categories_coveraged as f64 / SpecCategory::all().len() as f64;
-        let completeness = complete_count as f64 / self.len() as f64;
+        let completeness = complete_count as f64 / specs.len() as f64;
         ((coverage + completeness) / 2.0).clamp(0.0, 1.0)
+    }
+
+    pub fn is_collection_complete(specs: &[Spec]) -> bool {
+        !specs.is_empty() && specs.iter().all(|s| s.is_complete())
     }
 }
 

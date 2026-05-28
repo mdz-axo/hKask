@@ -24,11 +24,11 @@ pub mod russell_acp;
 pub mod standing_session_store;
 pub mod stdio_transport;
 
-pub use agent_registry::AgentRegistryAdapter;
+pub use agent_registry::{AgentRegistryAdapter, AgentRegistryError};
 pub use audit_log_store::AuditLogStoreAdapter;
 pub use cns_emitter::CnsEmitterAdapter;
 pub use cns_runtime::CnsRuntimeAdapter;
-pub use git_cas::{GitCasAdapter, MockGitCas};
+pub use git_cas::GitCasAdapter;
 pub use loopback_http_transport::LoopbackHttpTransport;
 pub use mcp_runtime::McpRuntimeAdapter;
 pub use memory_storage::MemoryStorageAdapter;

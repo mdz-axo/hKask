@@ -6,7 +6,6 @@ use crate::pod::TemplateCrate;
 ///
 /// Implementations:
 /// - `GitCasAdapter` — Production adapter using gix
-/// - `MockGitCas` — Testing adapter
 pub trait GitCASPort: Send + Sync {
     fn load_template_crate(
         &self,

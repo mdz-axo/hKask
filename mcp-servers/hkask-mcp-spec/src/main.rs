@@ -15,9 +15,9 @@ use hkask_mcp::server::{
     validate_identifier,
 };
 use hkask_types::{
-    CapabilityAction, CapabilityChecker, CapabilityResource, CapabilityToken, CollectionCoherence,
-    CompletenessCheck, CurationDecision, DomainAnchor, GoalSpec, McpErrorKind, OCAPBoundary, Spec,
-    SpecCategory, SpecError, SpecId, SpecObserver, SpecStore, WebID,
+    CapabilityAction, CapabilityChecker, CapabilityResource, CapabilityToken, CurationDecision,
+    DomainAnchor, GoalSpec, McpErrorKind, OCAPBoundary, Spec, SpecCategory, SpecError, SpecId,
+    SpecObserver, SpecStore, WebID,
 };
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
@@ -673,7 +673,7 @@ impl SpecServer {
                 );
             }
         };
-        let coherence = all_specs.as_slice().collection_coherence();
+        let coherence = Spec::collection_coherence(&all_specs);
         let categories_covered: Vec<String> = all_specs
             .iter()
             .map(|s| s.category.as_str().to_string())
@@ -793,9 +793,7 @@ impl SpecServer {
                 );
             }
         };
-        let coherence = all_specs.as_slice().collection_coherence();
-
-        let mut violations = Vec::new();
+        let coherence = Spec::collection_coherence(&all_specs);
         let mut suggestions = Vec::new();
 
         if coherence < threshold {

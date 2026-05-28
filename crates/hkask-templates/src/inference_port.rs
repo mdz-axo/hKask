@@ -56,26 +56,6 @@ pub enum InferenceError {
 /// Inference result from Okapi
 ///
 /// Contains the generated text, model used, token usage, and optional token probabilities.
-///
-/// # Example
-///
-/// ```rust
-/// use hkask_templates::InferenceResult;
-///
-/// let result = InferenceResult {
-///     text: "The meaning of life is 42.".to_string(),
-///     model: "ollama/llama-3.1-8b-instruct".to_string(),
-///     usage: hkask_templates::Usage {
-///         prompt_tokens: 10,
-///         completion_tokens: 20,
-///         total_tokens: 30,
-///     },
-///     finish_reason: "stop".to_string(),
-///     token_probabilities: None,
-/// };
-///
-/// assert_eq!(result.text, "The meaning of life is 42.");
-/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InferenceResult {
     pub text: String,
@@ -87,7 +67,6 @@ pub struct InferenceResult {
 }
 
 /// Token probability from Okapi response
-///
 /// Contains the token and its probability, plus top-k alternatives.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenProbability {
@@ -111,7 +90,6 @@ pub struct Usage {
 }
 
 /// Okapi inference port
-///
 /// Trait for LLM backends. Okapi is the default implementation.
 #[async_trait]
 pub trait InferencePort: Send + Sync {
@@ -172,7 +150,6 @@ pub struct OkapiInference {
 }
 
 /// Create a shared HTTP client for Okapi inference
-///
 /// This client can be shared across multiple OkapiInference instances
 /// to reuse connection pools and reduce overhead.
 pub fn create_shared_client(config: &OkapiConfig) -> Result<Arc<reqwest::Client>, InferenceError> {
@@ -668,22 +645,9 @@ struct Message {
 }
 
 /// Invoke template with generic inference port (no boxing)
-///
 /// Uses generics instead of `Box<dyn InferencePort>` for better performance.
-///
-/// # Example
-///
 /// ```rust,no_run
-/// use hkask_templates::{OkapiInference, OkapiConfig, InferencePort};
-/// use hkask_types::{BotID, TemplateId, LLMParameters};
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-///
-/// let inference = OkapiInference::new("test-model", OkapiConfig::local_dev())?;
-/// let template_id = TemplateId::new();
-/// let bot_id = BotID::new();
-/// let params = LLMParameters::default();
-///
-/// let result = inference.generate("Test prompt", &params).await?;
 /// # Ok(())
 /// # }
 /// ```
