@@ -6,8 +6,7 @@
 use hkask_agents::GitCASPort;
 use hkask_mcp::adapter_container::AdapterContainer;
 use hkask_mcp::server::{
-    CredentialRequirement, McpToolError, McpToolOutput, ServerContext, ToolSpanGuard,
-    run_stdio_server, validate_identifier, validate_tool_url,
+    McpToolError, McpToolOutput, ToolSpanGuard, validate_identifier, validate_tool_url,
 };
 use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
@@ -396,7 +395,7 @@ hkask_mcp::mcp_server_main!(
         let base_path = ctx
             .credentials
             .get("HKASK_GIT_BASE_PATH")
-            .map(|p| std::path::PathBuf::from(p));
+            .map(std::path::PathBuf::from);
         if let Some(ref bp) = base_path {
             tracing::info!("Using GIT base path: {}", bp.display());
         } else {
