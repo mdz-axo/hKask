@@ -174,7 +174,7 @@ impl ToolSpanGuard {
         Self {
             tool_name: tool_name.to_string(),
             start: Instant::now(),
-            caller: caller.clone(),
+            caller: *caller,
             emitted: false,
         }
     }

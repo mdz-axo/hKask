@@ -7,22 +7,6 @@ use crate::ports::{GenerateRequest, GenerateResponse, InferenceClient, TokenProb
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-/// Okapi generate/chat response (legacy compatibility)
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct OkapiResponse {
-    pub response: String,
-    pub completion_probabilities: Option<Vec<TokenProbability>>,
-}
-
-impl From<crate::ports::GenerateResponse> for OkapiResponse {
-    fn from(response: crate::ports::GenerateResponse) -> Self {
-        Self {
-            response: response.response,
-            completion_probabilities: response.completion_probabilities,
-        }
-    }
-}
-
 /// Confidence configuration (from template frontmatter or default)
 #[derive(Debug, Clone)]
 pub struct ConfidenceConfig {
@@ -154,51 +138,4 @@ pub fn compute_confidence(probs: &[TokenProbability]) -> f64 {
 pub enum RouterError<E: std::error::Error + Send + Sync> {
     #[error("Inference error: {0}")]
     InferenceError(E),
-}
-
-/// Legacy error type for backward compatibility
-#[derive(Debug, Error)]
-pub enum LegacyRouterError {
-    #[error("Inference error: {0}")]
-    InferenceError(String),
-}
-
-/// Legacy client trait for backward compatibility
-#[async_trait::async_trait]
-pub trait OkapiClientTrait {
-    async fn generate(&self, request: &GenerateRequest)
-    -> Result<OkapiResponse, LegacyRouterError>;
-}
-
-/// Wrapper for legacy client implementations
-pub struct OkapiClient<C: InferenceClient> {
-    inner: C,
-}
-
-impl<C: InferenceClient> OkapiClient<C>
-where
-    C::Error: std::fmt::Display + 'static,
-{
-    pub fn new(inner: C) -> Self {
-        Self { inner }
-    }
-}
-
-#[async_trait::async_trait]
-impl<C: InferenceClient> OkapiClientTrait for OkapiClient<C>
-where
-    C::Error: std::fmt::Display + 'static,
-{
-    async fn generate(
-        &self,
-        request: &GenerateRequest,
-    ) -> Result<OkapiResponse, LegacyRouterError> {
-        let response = self
-            .inner
-            .generate(request)
-            .await
-            .map_err(|e| LegacyRouterError::InferenceError(e.to_string()))?;
-
-        Ok(OkapiResponse::from(response))
-    }
 }

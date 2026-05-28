@@ -1,6 +1,6 @@
 //! OCAP Adapter with Cryptographic Binding
 
-use crate::ports::ocap_port::{DelegationEntry, OCAPConfig, OCAPPort, OCAPResult};
+use crate::ports::ocap_port::{DelegationEntry, OCAPConfig, OCAPResult};
 use hkask_types::CapabilityToken;
 use hkask_types::WebID;
 use sha2::Sha256;
@@ -41,14 +41,12 @@ impl OCAPAdapter {
         mac.update(&[level]);
         hex::encode(mac.finalize().into_bytes())
     }
-}
 
-impl OCAPPort for OCAPAdapter {
-    fn verify_signature(&self, token: &CapabilityToken) -> bool {
+    pub fn verify_signature(&self, token: &CapabilityToken) -> bool {
         token.verify(&self.config.hmac_secret)
     }
 
-    fn verify_attenuation_chain(&self, token: &CapabilityToken) -> OCAPResult {
+    pub fn verify_attenuation_chain(&self, token: &CapabilityToken) -> OCAPResult {
         if !self.verify_signature(token) {
             return OCAPResult::InvalidSignature;
         }
@@ -67,14 +65,19 @@ impl OCAPPort for OCAPAdapter {
         OCAPResult::Valid
     }
 
-    fn is_expired(&self, token: &CapabilityToken, current_time: i64) -> bool {
+    pub fn is_expired(&self, token: &CapabilityToken, current_time: i64) -> bool {
         token
             .expires_at
             .map(|exp| current_time > exp)
             .unwrap_or(false)
     }
 
-    fn record_delegation(&self, parent: &CapabilityToken, child: &CapabilityToken, timestamp: i64) {
+    pub fn record_delegation(
+        &self,
+        parent: &CapabilityToken,
+        child: &CapabilityToken,
+        timestamp: i64,
+    ) {
         let root = parent.root_context_nonce();
         let hash = self.compute_chain_hash(
             root,
@@ -94,7 +97,7 @@ impl OCAPPort for OCAPAdapter {
         map.entry(root.to_string()).or_default().push(entry);
     }
 
-    fn get_delegation_history(&self, root_nonce: &str) -> Vec<DelegationEntry> {
+    pub fn get_delegation_history(&self, root_nonce: &str) -> Vec<DelegationEntry> {
         self.delegation_history
             .blocking_read()
             .get(root_nonce)
@@ -102,13 +105,13 @@ impl OCAPPort for OCAPAdapter {
             .unwrap_or_default()
     }
 
-    fn is_revoked(&self, token: &CapabilityToken) -> bool {
+    pub fn is_revoked(&self, token: &CapabilityToken) -> bool {
         self.revoked_tokens
             .blocking_read()
             .contains(&token.fingerprint())
     }
 
-    fn revoke(&self, token: &CapabilityToken) {
+    pub fn revoke(&self, token: &CapabilityToken) {
         self.revoked_tokens
             .blocking_write()
             .insert(token.fingerprint());

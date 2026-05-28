@@ -15,7 +15,7 @@ use crate::adapters::cns_emitter::CnsEmitterAdapter;
 use crate::adapters::git_cas::GitCasAdapter;
 use crate::adapters::mcp_runtime::McpRuntimeAdapter;
 use crate::adapters::memory_storage::MemoryStorageAdapter;
-use crate::ports::{GitCASPort, MCPRuntimePort, MemoryStoragePort, RateLimitPort};
+use crate::ports::{GitCASPort, MCPRuntimePort, MemoryStoragePort};
 use crate::security::{AgentPersonaInput, InputValidator, SecurityContext};
 
 /// Pod Manager — Manages collection of agent pods

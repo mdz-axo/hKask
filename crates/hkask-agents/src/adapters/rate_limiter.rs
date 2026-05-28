@@ -1,9 +1,9 @@
-//! Rate Limiter Adapter — Wraps unified hkask-cns RateLimiter for port interface
+//! Rate Limiter Adapter — Wraps unified hkask-cns RateLimiter
 //!
-//! This adapter implements the RateLimitPort trait using the unified RateLimiter
-//! from hkask-cns, eliminating duplicate token bucket implementations.
+//! Provides rate limiting using the unified RateLimiter from hkask-cns,
+//! eliminating duplicate token bucket implementations.
 
-use crate::ports::security_port::{RateLimitPort, ValidationError};
+use crate::security::ValidationError;
 use hkask_cns::rate_limit::{RateLimiter, StringRateLimiter};
 use std::sync::Arc;
 
@@ -23,10 +23,8 @@ impl RateLimiterAdapter {
             inner: Arc::new(StringRateLimiter::default()),
         }
     }
-}
 
-impl RateLimitPort for RateLimiterAdapter {
-    fn acquire(&self, key: &str, _tokens: f64) -> Result<(), ValidationError> {
+    pub fn acquire(&self, key: &str, _tokens: f64) -> Result<(), ValidationError> {
         if self.inner.check(&key.to_string()) {
             Ok(())
         } else {
@@ -34,11 +32,11 @@ impl RateLimitPort for RateLimiterAdapter {
         }
     }
 
-    fn available(&self, key: &str) -> f64 {
+    pub fn available(&self, key: &str) -> f64 {
         self.inner.remaining(&key.to_string()) as f64
     }
 
-    fn reset(&self, key: &str) {
+    pub fn reset(&self, key: &str) {
         self.inner.reset(&key.to_string());
     }
 }

@@ -35,7 +35,7 @@ pub use cns_emitter::CnsEmitterAdapter;
 pub use cns_runtime::CnsRuntimeAdapter;
 pub use git_cas::{GitCasAdapter, MockGitCas};
 pub use keychain_adapter::KeychainAdapter;
-pub use keystore_port::{KeystorePort, Secret};
+pub use keystore_port::Secret;
 pub use loopback_http_transport::LoopbackHttpTransport;
 pub use mcp_runtime::McpRuntimeAdapter;
 pub use memory_storage::MemoryStorageAdapter;

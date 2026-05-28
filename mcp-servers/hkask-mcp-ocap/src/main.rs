@@ -8,8 +8,8 @@
 //! - `ocap:list_tokens` — List all capability tokens
 
 use hkask_mcp::server::{
-    CredentialRequirement, McpToolError, McpToolOutput, ServerContext, ToolSpanGuard,
-    run_stdio_server, validate_identifier,
+    McpToolError, McpToolOutput, ToolSpanGuard,
+    validate_identifier,
 };
 use hkask_types::{
     CapabilityAction, CapabilityChecker, CapabilityResource, CapabilityToken, McpErrorKind, WebID,

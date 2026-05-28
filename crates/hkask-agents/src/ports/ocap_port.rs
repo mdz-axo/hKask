@@ -1,6 +1,9 @@
-//! OCAP Port — Object Capability Security Interface
+//! OCAP Port — Object Capability Security Types
+//!
+//! Type definitions for object capability security.
+//! The concrete OCAPAdapter implements these operations as inherent methods.
 
-use hkask_types::{CapabilityToken, WebID};
+use hkask_types::WebID;
 
 /// OCAP verification result
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -10,17 +13,6 @@ pub enum OCAPResult {
     InvalidSignature,
     InvalidChain,
     Revoked,
-}
-
-/// OCAP Port — Object capability security interface
-pub trait OCAPPort {
-    fn verify_signature(&self, token: &CapabilityToken) -> bool;
-    fn verify_attenuation_chain(&self, token: &CapabilityToken) -> OCAPResult;
-    fn is_expired(&self, token: &CapabilityToken, current_time: i64) -> bool;
-    fn record_delegation(&self, parent: &CapabilityToken, child: &CapabilityToken, timestamp: i64);
-    fn get_delegation_history(&self, root_nonce: &str) -> Vec<DelegationEntry>;
-    fn is_revoked(&self, token: &CapabilityToken) -> bool;
-    fn revoke(&self, token: &CapabilityToken);
 }
 
 /// Delegation entry for history tracking

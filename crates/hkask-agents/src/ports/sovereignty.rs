@@ -1,10 +1,9 @@
-//! Sovereignty Port — Hexagonal interface for sovereignty checking
+//! Sovereignty — Type definitions for sovereignty checking
 //!
-//! Defines the trait for sovereignty verification operations.
-//! Implementations enforce user sovereignty boundaries at pod level.
+//! Defines types for sovereignty verification operations.
+//! The concrete SovereigntyChecker implements these operations as inherent methods.
 
-use hkask_types::{DataCategory, WebID};
-use serde_json::Value;
+use hkask_types::WebID;
 
 /// Sovereignty operation types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -27,13 +26,16 @@ pub struct SovereigntyCheckResult {
     /// Reason for denial (if any)
     pub denial_reason: Option<String>,
     /// Data category being accessed
-    pub data_category: DataCategory,
+    pub data_category: hkask_types::DataCategory,
     /// Operation type
     pub operation: SovereigntyOperation,
 }
 
 impl SovereigntyCheckResult {
-    pub fn allowed(data_category: DataCategory, operation: SovereigntyOperation) -> Self {
+    pub fn allowed(
+        data_category: hkask_types::DataCategory,
+        operation: SovereigntyOperation,
+    ) -> Self {
         Self {
             allowed: true,
             denial_reason: None,
@@ -43,7 +45,7 @@ impl SovereigntyCheckResult {
     }
 
     pub fn denied(
-        data_category: DataCategory,
+        data_category: hkask_types::DataCategory,
         operation: SovereigntyOperation,
         reason: &str,
     ) -> Self {
@@ -54,81 +56,4 @@ impl SovereigntyCheckResult {
             operation,
         }
     }
-}
-
-/// Sovereignty Port — Interface for sovereignty enforcement
-///
-/// This trait defines the hexagonal port for sovereignty checking.
-/// Implementations enforce user sovereignty boundaries and emit
-/// CNS events for sovereignty violations.
-///
-/// # Example
-///
-/// ```rust,no_run
-/// use hkask_agents::ports::sovereignty::{SovereigntyPort, SovereigntyOperation};
-/// use hkask_types::{DataCategory, WebID};
-///
-/// fn check_sovereignty<P: SovereigntyPort>(
-///     port: &P,
-///     data: DataCategory,
-///     requester: &WebID,
-/// ) -> bool {
-///     port.check(data, SovereigntyOperation::Read, requester).allowed
-/// }
-/// ```
-pub trait SovereigntyPort {
-    /// Check if operation respects sovereignty boundaries
-    ///
-    /// # Arguments
-    /// * `data_category` — Category of data being accessed
-    /// * `operation` — Type of operation (read, write, acquisition, composition)
-    /// * `requester` — WebID of the requesting agent
-    ///
-    /// # Returns
-    /// * `SovereigntyCheckResult` — Check result with allowance and reason
-    fn check(
-        &self,
-        data_category: DataCategory,
-        operation: SovereigntyOperation,
-        requester: &WebID,
-    ) -> SovereigntyCheckResult;
-
-    /// Check if data category is accessible by requester
-    ///
-    /// # Arguments
-    /// * `data_category` — Category of data
-    /// * `requester` — WebID of the requester
-    ///
-    /// # Returns
-    /// * `true` — Data is accessible
-    /// * `false` — Access denied
-    fn can_access(&self, data_category: DataCategory, requester: &WebID) -> bool;
-
-    /// Mark acquisition attempt for monitoring
-    ///
-    /// # Arguments
-    /// * `details` — Acquisition attempt details
-    fn mark_acquisition_attempt(&mut self, details: &Value);
-
-    /// Update VC investment level
-    ///
-    /// # Arguments
-    /// * `vc_investment` — Current VC investment (0.0 to 1.0)
-    fn update_vc_investment(&mut self, vc_investment: f32);
-
-    /// Check if sovereignty is compromised (kill zone active)
-    ///
-    /// # Returns
-    /// * `true` — Sovereignty compromised, kill zone active
-    /// * `false` — Sovereignty intact
-    fn is_compromised(&self) -> bool;
-
-    /// Grant explicit consent for data sharing
-    fn grant_consent(&mut self);
-
-    /// Revoke explicit consent
-    fn revoke_consent(&mut self);
-
-    /// Get owner WebID
-    fn owner_webid(&self) -> WebID;
 }

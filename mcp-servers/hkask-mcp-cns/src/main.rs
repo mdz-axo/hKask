@@ -9,10 +9,7 @@
 //! - `cns_health` — Get CNS health status
 
 use hkask_cns::{CnsRuntime, DEFAULT_THRESHOLD, SpanEmitter};
-use hkask_mcp::server::{
-    CredentialRequirement, McpToolOutput, ServerContext, ToolSpanGuard, run_stdio_server,
-    validate_identifier,
-};
+use hkask_mcp::server::{McpToolOutput, ToolSpanGuard, validate_identifier};
 use hkask_types::{Span, WebID};
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
