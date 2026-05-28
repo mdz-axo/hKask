@@ -480,32 +480,3 @@ impl AccessEvaluator {
         delegation.verify_chain(&self.public_keys, self.current_time, &self.delegation_store)
     }
 }
-
-/// Evaluate access based on visibility and capabilities with cryptographic verification.
-///
-/// For new code, prefer constructing an [`AccessRequest`] and calling
-/// [`AccessEvaluator::evaluate_request`] for better readability.
-#[deprecated(note = "Use AccessRequest with AccessEvaluator::evaluate_request instead")]
-pub fn evaluate_access(
-    visibility: Visibility,
-    owner: &str,
-    requester: &str,
-    capabilities: &[Capability],
-    resource: &str,
-    action: &str,
-    public_keys: &std::collections::HashMap<String, Vec<u8>>,
-    current_time: i64,
-) -> AccessDecision {
-    let req = AccessRequest {
-        visibility,
-        owner,
-        requester,
-        capabilities,
-        resource,
-        action,
-        public_keys,
-        current_time,
-    };
-    let evaluator = AccessEvaluator::new(public_keys.clone(), current_time);
-    evaluator.evaluate_request(&req)
-}

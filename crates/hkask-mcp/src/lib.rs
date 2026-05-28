@@ -37,6 +37,26 @@ pub use server::{
 pub use supervisor::{McpSupervisor, RestartPolicy, ServerConfig, ServerStatus, SupervisionError};
 pub use transport::{HttpMcpTransport, InProcessMcpTransport, McpTransport, StdioMcpTransport};
 
+/// Trait to uniformly convert both `T` and `Result<T, E>` into `anyhow::Result<T>`.
+///
+/// This allows `mcp_server_main!` to accept servers whose `new()` returns either
+/// `Self` or `Result<Self, E>`, without per-site workarounds.
+pub trait IntoAnyhowResult<T> {
+    fn into_anyhow_result(self) -> anyhow::Result<T>;
+}
+
+impl<T> IntoAnyhowResult<T> for T {
+    fn into_anyhow_result(self) -> anyhow::Result<T> {
+        Ok(self)
+    }
+}
+
+impl<T, E: std::error::Error + Send + Sync + 'static> IntoAnyhowResult<T> for Result<T, E> {
+    fn into_anyhow_result(self) -> anyhow::Result<T> {
+        self.map_err(Into::into)
+    }
+}
+
 /// Macro to eliminate MCP server boilerplate
 ///
 /// Generates a complete `main()` function for an MCP server with stdio transport.
@@ -75,10 +95,11 @@ macro_rules! mcp_server_main {
     ($name:expr, $server_type:ty) => {
         #[tokio::main]
         async fn main() -> anyhow::Result<()> {
+            use $crate::IntoAnyhowResult as _;
             $crate::run_stdio_server(
                 $name,
                 env!("CARGO_PKG_VERSION"),
-                |ctx: $crate::ServerContext| Ok(<$server_type>::new(ctx.webid)),
+                |ctx: $crate::ServerContext| <$server_type>::new(ctx.webid).into_anyhow_result(),
                 vec![],
             )
             .await
@@ -89,10 +110,11 @@ macro_rules! mcp_server_main {
     ($name:expr, $server_type:ty, credentials: $creds:expr) => {
         #[tokio::main]
         async fn main() -> anyhow::Result<()> {
+            use $crate::IntoAnyhowResult as _;
             $crate::run_stdio_server(
                 $name,
                 env!("CARGO_PKG_VERSION"),
-                |ctx: $crate::ServerContext| Ok(<$server_type>::new(ctx.webid)),
+                |ctx: $crate::ServerContext| <$server_type>::new(ctx.webid).into_anyhow_result(),
                 $creds,
             )
             .await

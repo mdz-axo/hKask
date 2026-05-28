@@ -195,4 +195,4 @@ impl CondenserServer {
     }
 }
 
-hkask_mcp::mcp_server_main!("hkask-mcp-condenser", factory: |ctx: hkask_mcp::ServerContext| CondenserServer::new(ctx.webid));
+hkask_mcp::mcp_server_main!("hkask-mcp-condenser", CondenserServer);

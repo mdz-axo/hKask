@@ -5,6 +5,7 @@
 
 use super::{CapabilityAction, CapabilityResource, CapabilityToken};
 use crate::WebID;
+use zeroize::Zeroizing;
 
 /// Cryptographic verification result for distributed verification
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -40,14 +41,14 @@ impl VerificationResult {
 
 /// Capability checker for composition operations
 pub struct CapabilityChecker {
-    secret: Vec<u8>,
+    secret: Zeroizing<Vec<u8>>,
 }
 
 impl CapabilityChecker {
     /// Create a new capability checker with the given secret
     pub fn new(secret: &[u8]) -> Self {
         Self {
-            secret: secret.to_vec(),
+            secret: Zeroizing::new(secret.to_vec()),
         }
     }
 

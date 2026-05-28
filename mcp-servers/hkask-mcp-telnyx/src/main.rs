@@ -237,7 +237,7 @@ impl TelnyxServer {
 
 hkask_mcp::mcp_server_main!(
     "hkask-mcp-telnyx",
-    factory: |ctx: hkask_mcp::ServerContext| TelnyxServer::new(ctx.webid),
+    TelnyxServer,
     credentials: vec![hkask_mcp::CredentialRequirement::required(
         "HKASK_TELNYX_API_KEY",
         "Telnyx API key for messaging and number management",

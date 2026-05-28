@@ -21,6 +21,7 @@ use serde_json::json;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use zeroize::Zeroizing;
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct DelegateRequest {
@@ -49,18 +50,19 @@ pub struct OcapServer {
     checker: CapabilityChecker,
     tokens: Arc<RwLock<HashMap<String, CapabilityToken>>>,
     revoked: Arc<RwLock<HashSet<String>>>,
-    secret: Vec<u8>,
+    secret: Zeroizing<Vec<u8>>,
     webid: WebID,
 }
 
 impl OcapServer {
     pub fn new(secret: Vec<u8>, webid: WebID) -> Self {
-        let checker = CapabilityChecker::new(&secret);
+        let checked_secret = Zeroizing::new(secret);
+        let checker = CapabilityChecker::new(&checked_secret);
         Self {
             checker,
             tokens: Arc::new(RwLock::new(HashMap::new())),
             revoked: Arc::new(RwLock::new(HashSet::new())),
-            secret,
+            secret: checked_secret,
             webid,
         }
     }
@@ -306,7 +308,9 @@ hkask_mcp::mcp_server_main!(
         let secret = ctx
             .credentials
             .get("HKASK_OCAP_SECRET")
-            .expect("required credential")
+            .ok_or_else(|| anyhow::anyhow!(
+                "Missing required credential HKASK_OCAP_SECRET. Set it via environment variable or keystore."
+            ))?
             .as_bytes()
             .to_vec();
         Ok(OcapServer::new(secret, ctx.webid))
