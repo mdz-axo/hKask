@@ -6,7 +6,6 @@
 use hkask_types::TemplateType;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::path::Path;
 use std::time::Duration;
 
 /// Configuration for inference calls with timeout and retry
