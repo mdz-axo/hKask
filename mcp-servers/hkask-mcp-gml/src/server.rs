@@ -1,10 +1,7 @@
 //! GML MCP Server — tool handlers for allosteric thinking operations
 
 use hkask_cns::spans::SpanEmitter;
-use hkask_mcp::server::{
-    McpToolError, McpToolOutput, ServerContext, ToolSpanGuard, run_stdio_server,
-    validate_identifier,
-};
+use hkask_mcp::server::{McpToolError, McpToolOutput, ToolSpanGuard, validate_identifier};
 use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use serde_json::json;

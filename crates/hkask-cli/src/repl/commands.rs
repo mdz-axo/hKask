@@ -1,26 +1,20 @@
-//! Interactive REPL for hKask — discoverable, self-documenting, alive.
-//!
-//! Design principles:
-//! - Every capability is reachable from `/help`
-//! - Tab completion for slash commands and agent names
-//! - Fuzzy matching on slash commands (like russell's `/model`)
-//! - Welcome banner with the Kask amphora logo
-//! - Categorized help so the menu is scannable
+use super::display::{print_command_help, print_help};
+use super::helper::SessionHistory;
 
-use hkask_mcp::runtime::McpRuntime;
-use hkask_templates::SqliteRegistry;
-use rustyline::completion::Completer;
-use rustyline::error::ReadlineError;
-use rustyline::highlight::CmdKind;
-use rustyline::highlight::Highlighter;
-use rustyline::hint::Hinter;
-use rustyline::validate::Validator;
-use rustyline::{CompletionType, Config as ReadlineConfig, Context, Editor};
-use std::borrow::Cow;
+pub(super) struct SlashCommand {
+    pub primary: &'static str,
+    pub aliases: &'static [&'static str],
+    pub args: &'static str,
+    pub about: &'static str,
+}
 
-const VERSION: &str = env!("CARGO_PKG_VERSION");
+impl SlashCommand {
+    pub(super) fn matches(&self, input: &str) -> bool {
+        input == self.primary || self.aliases.contains(&input)
+    }
+}
 
-const SLASH_COMMANDS: &[SlashCommand] = &[
+pub(super) const SLASH_COMMANDS: &[SlashCommand] = &[
     SlashCommand {
         primary: "help",
         aliases: &["h", "?"],
@@ -143,24 +137,11 @@ const SLASH_COMMANDS: &[SlashCommand] = &[
     },
 ];
 
-struct SlashCommand {
-    primary: &'static str,
-    aliases: &'static [&'static str],
-    args: &'static str,
-    about: &'static str,
-}
-
-impl SlashCommand {
-    fn matches(&self, input: &str) -> bool {
-        input == self.primary || self.aliases.contains(&input)
-    }
-}
-
-fn find_command(input: &str) -> Option<&'static SlashCommand> {
+pub(super) fn find_command(input: &str) -> Option<&'static SlashCommand> {
     SLASH_COMMANDS.iter().find(|c| c.matches(input))
 }
 
-fn fuzzy_match_command(input: &str) -> Vec<&'static SlashCommand> {
+pub(super) fn fuzzy_match_command(input: &str) -> Vec<&'static SlashCommand> {
     let lower = input.to_lowercase();
     SLASH_COMMANDS
         .iter()
@@ -172,425 +153,7 @@ fn fuzzy_match_command(input: &str) -> Vec<&'static SlashCommand> {
         .collect()
 }
 
-#[derive(Debug, Clone)]
-struct SessionHistory {
-    turns: Vec<(String, String)>,
-}
-
-impl SessionHistory {
-    fn new() -> Self {
-        Self { turns: Vec::new() }
-    }
-    fn record(&mut self, agent: &str, response: &str) {
-        self.turns.push((agent.to_string(), response.to_string()));
-    }
-}
-
-struct KaskHelper {
-    slash_completions: Vec<String>,
-}
-
-impl KaskHelper {
-    fn new() -> Self {
-        let mut slash_completions = Vec::new();
-        for cmd in SLASH_COMMANDS {
-            slash_completions.push(format!("/{}", cmd.primary));
-            for alias in cmd.aliases {
-                slash_completions.push(format!("/{}", alias));
-            }
-        }
-        Self { slash_completions }
-    }
-}
-
-impl Completer for KaskHelper {
-    type Candidate = String;
-
-    fn complete(
-        &self,
-        line: &str,
-        pos: usize,
-        _ctx: &Context<'_>,
-    ) -> rustyline::Result<(usize, Vec<String>)> {
-        if !line.starts_with('/') || pos == 0 {
-            return Ok((0, Vec::new()));
-        }
-
-        let partial = &line[..pos];
-        let matches: Vec<String> = self
-            .slash_completions
-            .iter()
-            .filter(|c| c.starts_with(partial))
-            .cloned()
-            .collect();
-
-        Ok((0, matches))
-    }
-}
-
-impl Hinter for KaskHelper {
-    type Hint = String;
-
-    fn hint(&self, line: &str, pos: usize, _ctx: &Context<'_>) -> Option<String> {
-        if !line.starts_with('/') || pos == 0 {
-            return None;
-        }
-        let partial = &line[..pos];
-        self.slash_completions
-            .iter()
-            .find(|c| c.starts_with(partial) && c.len() > partial.len())
-            .map(|c| c[partial.len()..].to_string())
-    }
-}
-
-impl Highlighter for KaskHelper {
-    fn highlight_hint<'h>(&self, hint: &'h str) -> Cow<'h, str> {
-        Cow::Owned(format!("\x1b[2m{}\x1b[0m", hint))
-    }
-
-    fn highlight<'l>(&self, line: &'l str, _pos: usize) -> Cow<'l, str> {
-        if line.starts_with('/') {
-            Cow::Owned(format!("\x1b[1;36m{}\x1b[0m", line))
-        } else {
-            Cow::Borrowed(line)
-        }
-    }
-
-    fn highlight_char(&self, line: &str, _pos: usize, _cmd_kind: CmdKind) -> bool {
-        line.starts_with('/')
-    }
-}
-
-impl Validator for KaskHelper {}
-impl rustyline::Helper for KaskHelper {}
-
-fn print_banner(agent: &str, template: Option<&str>) {
-    let ghost = "\x1b[2;36m";
-    let body = "\x1b[1;36m";
-    let bright = "\x1b[1;37m";
-    let dim = "\x1b[2;37m";
-    let gold = "\x1b[1;33m";
-    let r = "\x1b[0m";
-
-    let eye_frames: &[&str] = &["center", "right", "center", "left"];
-
-    for (i, gaze) in eye_frames.iter().enumerate() {
-        if i > 0 {
-            print!("\x1b[10A");
-        }
-
-        let eye = match *gaze {
-            "right" => format!("{bright}.::{gold}>{bright}:.{r}"),
-            "left" => format!("{bright}.:{gold}<{bright}::.{r}"),
-            _ => format!("{bright}.:{dim}:{bright}:.{r}"),
-        };
-
-        println!("{ghost}  __          {body}    ___________    __    {r}");
-        println!("{ghost} /  \\         {body}   /  \\   {eye}   /  \\   {r}");
-        println!("{ghost}|    |        {body}  |    |           |    |  {r}");
-        println!("{ghost} \\__/         {body}  |    |    KASK   |    |  {r}");
-        println!("{ghost}              {body}  |    |           |    |  {r}");
-        println!("{ghost}              {body}   \\__/~~~~~~~~~~~\\__/   {r}");
-        println!("  {ghost}shadow{r}       {body}    hKask v{VERSION}{r}");
-        println!();
-        println!("{body}     Planck's Constant of Agent Systems{r}");
-        println!();
-
-        std::io::Write::flush(&mut std::io::stdout()).ok();
-
-        if i < eye_frames.len() - 1 {
-            std::thread::sleep(std::time::Duration::from_millis(350));
-        }
-    }
-
-    println!(
-        "  \x1b[1mAgent:\x1b[0m \x1b[1m{}\x1b[0m  \x1b[1mTemplate:\x1b[0m \x1b[1m{}\x1b[0m",
-        agent,
-        template.unwrap_or("auto-select")
-    );
-    println!(
-        "  \x1b[1;36m/help\x1b[0m for commands  \x1b[2m<TAB>\x1b[0m autocomplete  \x1b[2m/quit\x1b[0m exit"
-    );
-    println!();
-}
-
-fn print_help() {
-    println!();
-    println!("\x1b[1mℏKask Commands\x1b[0m");
-    println!();
-
-    let categories = [
-        ("Session", &["help", "quit", "clear", "history"] as &[&str]),
-        ("Agent", &["agent", "agents", "pods"]),
-        ("Ensemble", &["into", "ensemble", "filter", "mode", "ask"]),
-        ("System", &["status", "tools", "templates", "sovereignty"]),
-        (
-            "Governance",
-            &["escalations", "resolve", "dismiss", "metacognition"],
-        ),
-    ];
-
-    for (category, cmds) in &categories {
-        println!("  \x1b[1;33m{}\x1b[0m", category);
-        for &cmd_name in *cmds {
-            if let Some(cmd) = find_command(cmd_name) {
-                let alias_str = if cmd.aliases.is_empty() {
-                    String::new()
-                } else {
-                    format!(", /{}", cmd.aliases.join(", /"))
-                };
-                let args_str = if cmd.args.is_empty() {
-                    String::new()
-                } else {
-                    format!(" {}", cmd.args)
-                };
-                println!(
-                    "    \x1b[36m/{}{}\x1b[0m{}  — {}",
-                    cmd.primary, args_str, alias_str, cmd.about
-                );
-            }
-        }
-        println!();
-    }
-
-    println!("  \x1b[2mTip: /help <command> for details on a specific command\x1b[0m");
-    println!();
-}
-
-fn print_command_help(cmd_name: &str) {
-    if let Some(cmd) = find_command(cmd_name) {
-        println!();
-        println!("  \x1b[1;36m/{} {}\x1b[0m", cmd.primary, cmd.args);
-        if !cmd.aliases.is_empty() {
-            println!("  Aliases: /{}", cmd.aliases.join(", /"));
-        }
-        println!("  {}", cmd.about);
-
-        match cmd.primary {
-            "ensemble" => {
-                println!();
-                println!("  Subcommands:");
-                println!(
-                    "    \x1b[36m/ensemble sessions\x1b[0m    — List active ensemble sessions"
-                );
-                println!(
-                    "    \x1b[36m/ensemble create\x1b[0m <id> — Create a new ensemble chat session"
-                );
-                println!(
-                    "    \x1b[36m/ensemble join\x1b[0m <id> <bot> <role> — Register a bot in a session"
-                );
-                println!(
-                    "    \x1b[36m/ensemble send\x1b[0m <id> <msg> — Send a message to a session"
-                );
-                println!(
-                    "    \x1b[36m/ensemble invite\x1b[0m <bot> [role] — Invite agent into current session"
-                );
-                println!(
-                    "    \x1b[36m/ensemble participants\x1b[0m — Show who's in the current session"
-                );
-                println!();
-                println!("  Roles: memory_bot, spandrel_bot, okapi_bot, scholar_bot");
-                println!("  Use \x1b[36m/into <session>\x1b[0m to enter ensemble mode");
-            }
-            "into" => {
-                println!();
-                println!(
-                    "  \x1b[2m/into research-team\x1b[0m  — Enter ensemble session 'research-team'"
-                );
-                println!(
-                    "  \x1b[2m/into\x1b[0m               — Leave ensemble mode, return to single-agent"
-                );
-                println!();
-                println!("  In ensemble mode, messages go to the group. Agents self-select");
-                println!("  to speak based on relevance confidence (generative improvisation).");
-            }
-            "filter" => {
-                println!();
-                println!("  \x1b[2m/filter\x1b[0m          — Show current participation threshold");
-                println!(
-                    "  \x1b[2m/filter 0.8\x1b[0m      — Set threshold (0.0-1.0, higher = more selective)"
-                );
-                println!();
-                println!("  Controls how confident an agent must be to speak in ensemble mode.");
-                println!(
-                    "  Default: 0.75. Increase for focused discussion, decrease for more voices."
-                );
-            }
-            "mode" => {
-                println!();
-                println!("  \x1b[2m/mode\x1b[0m                     — Show current ensemble mode");
-                println!(
-                    "  \x1b[2m/mode freeform\x1b[0m            — Agents self-select by relevance (default)"
-                );
-                println!("  \x1b[2m/mode curator_led\x1b[0m         — Curator picks speakers");
-                println!("  \x1b[2m/mode round_robin\x1b[0m         — All agents speak in turn");
-            }
-            "ask" => {
-                println!();
-                println!("  \x1b[2m/ask ScholarBot What do you think?\x1b[0m");
-                println!();
-                println!("  Force a specific agent to respond, bypassing relevance filter.");
-            }
-            "agent" => {
-                println!();
-                println!("  \x1b[2m/agent\x1b[0m          — Show current agent");
-                println!("  \x1b[2m/agent Russell\x1b[0m  — Switch to Russell");
-                println!("  \x1b[2m/agents\x1b[0m         — List all available agents");
-            }
-            _ => {}
-        }
-        println!();
-    } else {
-        let fuzzy = fuzzy_match_command(cmd_name);
-        if fuzzy.is_empty() {
-            println!("  Unknown command: /{}", cmd_name);
-        } else {
-            println!("  Unknown command: /{} — did you mean:", cmd_name);
-            for cmd in &fuzzy {
-                println!("    /{} — {}", cmd.primary, cmd.about);
-            }
-        }
-        println!("  Type /help for available commands.");
-    }
-}
-
-pub fn run(
-    _registry: &SqliteRegistry,
-    _runtime: &McpRuntime,
-    template_id: Option<&str>,
-    agent_name: &str,
-) {
-    let mut current_agent = agent_name.to_string();
-    let mut session_history = SessionHistory::new();
-    let mut active_session: Option<String> = None;
-
-    let helper = KaskHelper::new();
-
-    let rl_config = ReadlineConfig::builder()
-        .history_ignore_space(true)
-        .history_ignore_dups(true)
-        .expect("invalid readline config")
-        .completion_type(CompletionType::List)
-        .build();
-
-    let mut rl = match Editor::with_config(rl_config) {
-        Ok(editor) => editor,
-        Err(e) => {
-            eprintln!("Failed to initialize readline: {}", e);
-            return;
-        }
-    };
-    rl.set_helper(Some(helper));
-
-    if rl.load_history(&history_path()).is_err() {
-        // No history file yet — that's fine
-    }
-
-    print_banner(&current_agent, template_id);
-
-    loop {
-        let prompt = if let Some(ref session) = active_session {
-            format!("\x1b[1mℏKask\x1b[0m [\x1b[33m{}\x1b[0m]> ", session)
-        } else {
-            format!("\x1b[1mℏKask\x1b[0m [\x1b[36m{}\x1b[0m]> ", current_agent)
-        };
-        match rl.readline(&prompt) {
-            Ok(line) => {
-                let input = line.trim();
-                if input.is_empty() {
-                    continue;
-                }
-                let _ = rl.add_history_entry(input.to_owned());
-
-                if input.starts_with('/') {
-                    if handle_slash_command(
-                        input,
-                        &mut current_agent,
-                        &mut session_history,
-                        template_id,
-                        &mut active_session,
-                    ) {
-                        let _ = rl.save_history(&history_path());
-                        break;
-                    }
-                    continue;
-                }
-
-                if input.eq_ignore_ascii_case("quit") || input.eq_ignore_ascii_case("exit") {
-                    println!("Goodbye!");
-                    let _ = rl.save_history(&history_path());
-                    break;
-                }
-
-                let rt = tokio::runtime::Runtime::new().unwrap();
-
-                if let Some(ref session) = active_session {
-                    match rt.block_on(crate::commands::ensemble_improv_turn(session, input)) {
-                        Ok(turn) => {
-                            if turn.responses.is_empty() {
-                                println!("  \x1b[2m(no agents chose to speak)\x1b[0m");
-                            } else {
-                                for response in &turn.responses {
-                                    println!(
-                                        "\x1b[1m{}\x1b[0m (conf: {:.2}): {}\n",
-                                        response.agent_webid, response.confidence, response.content
-                                    );
-                                    session_history.record(
-                                        &response.agent_webid.to_string(),
-                                        &response.content,
-                                    );
-                                }
-                                if let Some(ref synthesis) = turn.curator_synthesis {
-                                    println!("\x1b[1;33mCurator:\x1b[0m {}\n", synthesis);
-                                    session_history.record("Curator", synthesis);
-                                }
-                            }
-                            for j in &turn.judgments {
-                                if !j.should_speak {
-                                    println!(
-                                        "  \x1b[2m{}: silent ({:.2} — {})\x1b[0m",
-                                        j.agent_name, j.confidence, j.reason
-                                    );
-                                }
-                            }
-                        }
-                        Err(e) => println!("  \x1b[31mEnsemble error:\x1b[0m {}", e),
-                    }
-                } else {
-                    let response = rt.block_on(crate::commands::chat_with_agent(
-                        input,
-                        Some(&current_agent),
-                    ));
-                    println!("{}: {}\n", current_agent, response);
-                    session_history.record(&current_agent, &response);
-                }
-            }
-            Err(ReadlineError::Interrupted) => {
-                println!("(Ctrl+C — type /quit to exit)");
-            }
-            Err(ReadlineError::Eof) => {
-                println!("Goodbye!");
-                let _ = rl.save_history(&history_path());
-                break;
-            }
-            Err(err) => {
-                eprintln!("Readline error: {}", err);
-                let _ = rl.save_history(&history_path());
-                break;
-            }
-        }
-    }
-}
-
-fn history_path() -> std::path::PathBuf {
-    let mut path = dirs::data_local_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
-    path.push("hkask");
-    let _ = std::fs::create_dir_all(&path);
-    path.push("kask_history.txt");
-    path
-}
-
-fn handle_slash_command(
+pub(super) fn handle_slash_command(
     input: &str,
     current_agent: &mut String,
     session_history: &mut SessionHistory,
@@ -851,7 +414,7 @@ fn handle_slash_command(
     false
 }
 
-fn handle_ensemble(subcmd: &str, rest: &str, active_session: &mut Option<String>) {
+pub(super) fn handle_ensemble(subcmd: &str, rest: &str, active_session: &mut Option<String>) {
     let rt = tokio::runtime::Runtime::new().unwrap();
     match subcmd {
         "sessions" | "list" | "" => {
@@ -997,7 +560,7 @@ fn handle_ensemble(subcmd: &str, rest: &str, active_session: &mut Option<String>
     println!();
 }
 
-fn handle_into(arg: &str, active_session: &mut Option<String>) {
+pub(super) fn handle_into(arg: &str, active_session: &mut Option<String>) {
     if arg.is_empty() {
         match active_session {
             Some(_) => {
@@ -1054,7 +617,7 @@ fn handle_into(arg: &str, active_session: &mut Option<String>) {
     println!();
 }
 
-fn handle_filter(arg: &str, active_session: &Option<String>) {
+pub(super) fn handle_filter(arg: &str, active_session: &Option<String>) {
     let rt = tokio::runtime::Runtime::new().unwrap();
     let session_id = match active_session {
         Some(s) => s.clone(),
@@ -1113,7 +676,7 @@ fn handle_filter(arg: &str, active_session: &Option<String>) {
     println!();
 }
 
-fn handle_mode(arg: &str, active_session: &Option<String>) {
+pub(super) fn handle_mode(arg: &str, active_session: &Option<String>) {
     let rt = tokio::runtime::Runtime::new().unwrap();
     let session_id = match active_session {
         Some(s) => s.clone(),
@@ -1168,7 +731,7 @@ fn handle_mode(arg: &str, active_session: &Option<String>) {
     println!();
 }
 
-fn handle_ask(arg1: &str, arg2: &str, active_session: &Option<String>) {
+pub(super) fn handle_ask(arg1: &str, arg2: &str, active_session: &Option<String>) {
     if arg1.is_empty() || arg2.is_empty() {
         println!("  Usage: \x1b[36m/ask <agent> <message>\x1b[0m");
         return;

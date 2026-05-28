@@ -6,7 +6,7 @@ use rustyline::hint::Hinter;
 use rustyline::validate::Validator;
 use std::borrow::Cow;
 
-use super::commands::{SLASH_COMMANDS, SlashCommand};
+use super::commands::SLASH_COMMANDS;
 
 #[derive(Debug, Clone)]
 pub(super) struct SessionHistory {

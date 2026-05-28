@@ -13,7 +13,7 @@ pub(crate) fn registry_yaml_path() -> PathBuf {
     PathBuf::from(p)
 }
 
-fn resolve_acp_secret() -> Result<String, RegistryError> {
+pub(crate) fn resolve_acp_secret() -> Result<String, RegistryError> {
     // Resolution chain: master key derivation → env var → keychain → insecure dev
     hkask_keystore::resolve(&hkask_types::SecretRef::derived(
         hkask_types::derivation_contexts::MASTER_KEY_ENV,

@@ -11,7 +11,6 @@ pub use server::GmlServer;
 pub use types::*;
 
 use hkask_mcp::server::{ServerContext, run_stdio_server};
-use hkask_types::WebID;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
