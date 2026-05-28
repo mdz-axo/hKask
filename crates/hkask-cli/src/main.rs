@@ -1,4 +1,4 @@
-//! hKask CLI — Command-line interface
+//! hKask CLI — Binary entry point
 //!
 //! **Commands:**
 //! - `kask chat` — Curator chat interface
@@ -14,916 +14,19 @@
 //! - `kask mcp tools` — List available tools
 //! - `kask cns health` — CNS monitoring
 
-use clap::{Parser, Subcommand};
+use hkask_cli::cli::{
+    self, BotAction, CnsAction, Commands, CuratorAction, DocsAction, EnsembleAction, GitAction,
+    KeystoreAction, McpAction, PodAction, RegistryAction, ReplicantAction, SovereigntyAction,
+    SpecAction, TemplateAction,
+};
 use hkask_cli::commands;
 use hkask_cli::russell_mapper::RussellMappingConfig;
 use hkask_mcp::runtime::McpRuntime;
 use hkask_templates::SqliteRegistry;
-use hkask_types::TemplateType as Type;
-use std::path::PathBuf;
-use tracing_subscriber::{EnvFilter, FmtSubscriber};
-
-/// Parse a string into a DataCategory
-fn parse_data_category(s: &str) -> hkask_types::DataCategory {
-    match s {
-        "episodic_memory" => hkask_types::DataCategory::EpisodicMemory,
-        "semantic_memory" => hkask_types::DataCategory::SemanticMemory,
-        "personal_context" => hkask_types::DataCategory::PersonalContext,
-        "capability_tokens" => hkask_types::DataCategory::CapabilityTokens,
-        "ocap_boundaries" => hkask_types::DataCategory::OcapBoundaries,
-        "template_invocations" => hkask_types::DataCategory::TemplateInvocations,
-        "hlexicon_terms" => hkask_types::DataCategory::HLexiconTerms,
-        "template_registry" => hkask_types::DataCategory::TemplateRegistry,
-        _ => hkask_types::DataCategory::Custom(s.to_string()),
-    }
-}
-
-#[derive(Parser)]
-#[command(name = "kask")]
-#[command(author = "hKask Team")]
-#[command(version)]
-#[command(about = "Planck's Constant of Agent Systems - CLI", long_about = None)]
-struct Cli {
-    /// Enable verbose output
-    #[arg(short, long)]
-    verbose: bool,
-
-    /// Registry database path (default: in-memory)
-    #[arg(short, long)]
-    registry: Option<PathBuf>,
-
-    #[command(subcommand)]
-    command: Commands,
-}
-
-#[derive(Subcommand)]
-enum Commands {
-    /// Curator chat interface (interactive by default)
-    Chat {
-        /// Agent to chat with (default: Curator)
-        #[arg(default_value = "Curator")]
-        agent: String,
-
-        /// Optional: template ID to use
-        #[arg(short, long)]
-        template: Option<String>,
-
-        /// Optional: input file (non-interactive mode)
-        #[arg(short = 'f', long)]
-        input: Option<PathBuf>,
-    },
-
-    /// Template management
-    Template {
-        #[command(subcommand)]
-        action: TemplateAction,
-    },
-
-    /// Bot capability management
-    Bot {
-        #[command(subcommand)]
-        action: BotAction,
-    },
-
-    /// Agent pod management
-    Pod {
-        #[command(subcommand)]
-        action: PodAction,
-    },
-
-    /// MCP server/tool management
-    Mcp {
-        #[command(subcommand)]
-        action: McpAction,
-    },
-
-    /// CNS monitoring
-    Cns {
-        #[command(subcommand)]
-        action: CnsAction,
-    },
-
-    /// User sovereignty management (Magna Carta enforcement)
-    Sovereignty {
-        #[command(subcommand)]
-        action: SovereigntyAction,
-    },
-
-    /// Registry management
-    Registry {
-        #[command(subcommand)]
-        action: RegistryAction,
-    },
-
-    /// Git archival management (Phase 9)
-    Git {
-        #[command(subcommand)]
-        action: GitAction,
-    },
-
-    /// Multi-agent ensemble management (Phase 7)
-    Ensemble {
-        #[command(subcommand)]
-        action: EnsembleAction,
-    },
-
-    /// Specification authoring, curation, and validation (DDMVSS)
-    Spec {
-        #[command(subcommand)]
-        action: SpecAction,
-    },
-
-    /// Documentation generation
-    Docs {
-        #[command(subcommand)]
-        action: DocsAction,
-    },
-
-    /// ACP agent registration and management
-    Agent {
-        #[command(subcommand)]
-        action: AgentAction,
-    },
-
-    /// Curator governance and metacognition
-    Curator {
-        #[command(subcommand)]
-        action: CuratorAction,
-    },
-
-    /// Replicant identity management
-    Replicant {
-        #[command(subcommand)]
-        action: ReplicantAction,
-    },
-
-    /// Keystore management (OS keychain)
-    Keystore {
-        #[command(subcommand)]
-        action: KeystoreAction,
-    },
-}
-
-#[derive(Subcommand)]
-enum TemplateAction {
-    List {
-        #[arg(short, long)]
-        r#type: Option<String>,
-    },
-    Register {
-        #[arg(short, long)]
-        id: String,
-        #[arg(short, long)]
-        path: PathBuf,
-        #[arg(short, long)]
-        r#type: String,
-        #[arg(short, long)]
-        lexicon: Option<String>,
-        #[arg(short, long)]
-        description: Option<String>,
-    },
-    Get {
-        #[arg()]
-        id: String,
-    },
-    Search {
-        #[arg()]
-        term: String,
-    },
-}
-
-#[derive(Subcommand)]
-enum BotAction {
-    List {
-        #[arg(short, long)]
-        kind: Option<String>,
-    },
-    Status {
-        #[arg()]
-        name: String,
-    },
-    Grant {
-        #[arg(short, long)]
-        bot_id: String,
-        #[arg(short, long)]
-        capability: String,
-    },
-}
-
-#[derive(Subcommand)]
-enum AgentAction {
-    Register {
-        #[arg(long)]
-        webid: String,
-        #[arg(long)]
-        agent_type: String,
-        #[arg(long)]
-        capabilities: String,
-    },
-    Unregister {
-        #[arg(long)]
-        name: String,
-    },
-    List,
-    Capabilities {
-        #[arg(long)]
-        name: String,
-    },
-}
-
-#[derive(Subcommand)]
-enum PodAction {
-    /// Create agent pod from template crate
-    Create {
-        /// Template crate name
-        #[arg(short, long)]
-        template: String,
-
-        /// Agent persona YAML file path
-        #[arg(short, long)]
-        persona: PathBuf,
-
-        /// Pod name (optional, defaults to UUID)
-        #[arg(short, long)]
-        name: Option<String>,
-    },
-
-    /// Activate agent pod for A2A communication
-    Activate {
-        /// Pod ID or name
-        #[arg()]
-        pod_id: String,
-    },
-
-    /// Deactivate agent pod
-    Deactivate {
-        /// Pod ID or name
-        #[arg()]
-        pod_id: String,
-    },
-
-    /// Show agent pod status
-    Status {
-        /// Pod ID or name
-        #[arg()]
-        pod_id: String,
-
-        /// Show verbose details
-        #[arg(short, long)]
-        verbose: bool,
-    },
-
-    /// List all agent pods
-    List,
-}
-
-#[derive(Subcommand)]
-enum McpAction {
-    /// List MCP servers
-    ListServers,
-
-    /// List available tools
-    ListTools,
-
-    /// Get tool definition
-    GetTool {
-        /// Tool name
-        #[arg()]
-        name: String,
-    },
-}
-
-#[derive(Subcommand)]
-enum CnsAction {
-    /// Get CNS health status
-    Health,
-
-    /// Get algedonic alerts
-    Alerts,
-
-    /// Get variety counters
-    Variety,
-}
-
-#[derive(Subcommand)]
-enum SovereigntyAction {
-    /// Get current sovereignty state
-    Status,
-
-    /// Grant explicit consent for data sharing
-    GrantConsent,
-
-    /// Revoke explicit consent
-    RevokeConsent,
-
-    /// Mark acquisition attempt (for testing)
-    MarkAcquisition {
-        /// VC investment level (0.0-1.0)
-        #[arg(short, long, default_value = "0.3")]
-        vc_investment: f32,
-    },
-
-    /// Check if kill zone is active
-    KillZone,
-
-    /// Check data access permissions
-    CheckAccess {
-        /// Data category to check
-        #[arg(short, long)]
-        category: String,
-    },
-}
-
-#[derive(Subcommand)]
-enum DocsAction {
-    /// Generate OpenAPI specification (JSON)
-    Openapi {
-        /// Output file path (default: stdout)
-        #[arg(short, long)]
-        output: Option<PathBuf>,
-    },
-
-    /// Generate CLI help documentation (markdown)
-    Cli {
-        /// Output file path (default: stdout)
-        #[arg(short, long)]
-        output: Option<PathBuf>,
-    },
-
-    /// Generate all documentation
-    All {
-        /// Output directory
-        #[arg(short, long)]
-        output: PathBuf,
-    },
-}
-
-#[derive(Subcommand)]
-enum RegistryAction {
-    /// Import Russell skill manifests and prompt templates
-    ImportRussell {
-        /// Source path (Russell skills directory or manifest file)
-        #[arg(short, long)]
-        source: PathBuf,
-
-        /// Dry run - analyze without writing
-        #[arg(long)]
-        dry_run: bool,
-
-        /// Validate only - run hLexicon validation only
-        #[arg(long)]
-        validate_only: bool,
-
-        /// Output format (yaml, json, mermaid)
-        #[arg(short, long, default_value = "yaml")]
-        output_format: String,
-
-        /// Custom transformation rules (YAML file)
-        #[arg(short, long)]
-        transform_rules: Option<PathBuf>,
-
-        /// Verbose output
-        #[arg(short, long)]
-        verbose: bool,
-    },
-
-    /// List migrated assets with provenance
-    ListMigrated {
-        /// Filter by origin (e.g., "russell/web-search")
-        #[arg(short, long)]
-        origin: Option<String>,
-    },
-}
-
-/// Git archival actions (Phase 9)
-#[derive(Subcommand)]
-enum GitAction {
-    /// Archive registry to GitHub repository
-    Archive {
-        /// GitHub repository owner
-        #[arg(short, long)]
-        owner: String,
-
-        /// GitHub repository name
-        #[arg(short, long)]
-        repo: String,
-
-        /// Branch to archive to
-        #[arg(short, long, default_value = "main")]
-        branch: String,
-
-        /// Path in repository
-        #[arg(short, long, default_value = "registry")]
-        path: String,
-
-        /// Content to archive (or use --file)
-        #[arg(short, long)]
-        content: Option<String>,
-
-        /// File to archive
-        #[arg(short, long)]
-        file: Option<PathBuf>,
-    },
-
-    /// Restore registry from GitHub repository
-    Restore {
-        /// GitHub repository owner
-        #[arg(short, long)]
-        owner: String,
-
-        /// GitHub repository name
-        #[arg(short, long)]
-        repo: String,
-
-        /// Git ref (branch, tag, or SHA)
-        #[arg(short, long)]
-        r#ref: String,
-
-        /// Target path to restore to
-        #[arg(short, long, default_value = ".")]
-        target: String,
-    },
-
-    /// List archived registry versions
-    List {
-        /// GitHub repository owner
-        #[arg(short, long)]
-        owner: String,
-
-        /// GitHub repository name
-        #[arg(short, long)]
-        repo: String,
-    },
-
-    /// Create registry snapshot (commit)
-    Snapshot {
-        /// GitHub repository owner
-        #[arg(short, long)]
-        owner: String,
-
-        /// GitHub repository name
-        #[arg(short, long)]
-        repo: String,
-
-        /// Commit message
-        #[arg(short, long)]
-        message: String,
-    },
-}
-
-/// Ensemble multi-agent actions (Phase 7)
-#[derive(Subcommand)]
-enum EnsembleAction {
-    /// Create a new chat session
-    ChatCreate {
-        /// Session ID
-        #[arg(short, long)]
-        session: String,
-    },
-
-    /// Register a bot in a chat session
-    ChatRegister {
-        /// Session ID
-        #[arg(short, long)]
-        session: String,
-
-        /// Bot WebID
-        #[arg(short, long)]
-        bot: String,
-
-        /// Bot role (memory_bot, spandrel_bot, okapi_bot, scholar_bot)
-        #[arg(short, long)]
-        role: String,
-    },
-
-    /// Send a message to chat
-    ChatSend {
-        /// Session ID
-        #[arg(short, long)]
-        session: String,
-
-        /// Message content
-        #[arg(short, long)]
-        message: String,
-    },
-
-    /// List active chat sessions
-    ChatList,
-
-    /// Create a deliberation session
-    DeliberationCreate {
-        /// Session ID
-        #[arg(short, long)]
-        session: String,
-    },
-
-    /// Start deliberation
-    DeliberationStart {
-        /// Session ID
-        #[arg(short, long)]
-        session: String,
-    },
-
-    /// Record a response in deliberation
-    DeliberationRecord {
-        /// Session ID
-        #[arg(short, long)]
-        session: String,
-
-        /// Agent WebID
-        #[arg(short, long)]
-        agent: String,
-
-        /// Response content
-        #[arg(short, long)]
-        content: String,
-
-        /// Confidence score (0.0-1.0)
-        #[arg(short, long)]
-        confidence: f64,
-    },
-
-    /// Synthesize deliberation responses
-    DeliberationSynthesize {
-        /// Session ID
-        #[arg(short, long)]
-        session: String,
-    },
-
-    /// List active deliberation sessions
-    DeliberationList,
-
-    /// Bootstrap the standing ensemble session from YAML
-    StandingStart {
-        /// Path to standing-ensemble-session.yaml
-        #[arg(
-            short,
-            long,
-            default_value = "registry/manifests/standing-ensemble-session.yaml"
-        )]
-        config: PathBuf,
-    },
-
-    /// Show standing session status
-    StandingStatus,
-}
-
-/// Curator governance actions
-#[derive(Subcommand)]
-enum CuratorAction {
-    /// Open interactive chat with Curator
-    Chat,
-
-    /// List pending escalations
-    Escalations,
-
-    /// Resolve an escalation by ID
-    Resolve {
-        /// Escalation ID
-        #[arg()]
-        id: String,
-    },
-
-    /// Dismiss an escalation by ID
-    Dismiss {
-        /// Escalation ID
-        #[arg()]
-        id: String,
-    },
-
-    /// Run a metacognition cycle and display system health
-    Metacognition,
-}
-
-/// Replicant identity actions
-#[derive(Subcommand)]
-enum ReplicantAction {
-    /// Register a new replicant identity
-    Register {
-        /// Replicant name (login identifier)
-        #[arg()]
-        replicant_name: String,
-
-        /// Human first name
-        #[arg(long)]
-        first_name: String,
-
-        /// Human last name
-        #[arg(long)]
-        last_name: String,
-
-        /// Human email (for recovery only)
-        #[arg(long)]
-        email: String,
-
-        /// Human phone in E.164 format (optional, for recovery)
-        #[arg(long)]
-        phone: Option<String>,
-    },
-
-    /// Login as a replicant identity
-    Login {
-        /// Replicant name to login as
-        #[arg()]
-        replicant_name: String,
-    },
-
-    /// Logout from a session
-    Logout {
-        /// Session ID to invalidate
-        #[arg()]
-        session_id: String,
-    },
-
-    /// List active sessions for a replicant
-    Sessions {
-        /// Replicant name
-        #[arg()]
-        replicant_name: String,
-    },
-
-    /// List replicant identities for a human user
-    List {
-        /// User ID
-        #[arg(long)]
-        user_id: Option<String>,
-    },
-
-    /// Show replicant identity info
-    Show {
-        /// Replicant name
-        #[arg()]
-        replicant_name: String,
-    },
-}
-
-#[derive(Subcommand)]
-enum KeystoreAction {
-    /// Load API keys from .env file into OS keychain
-    Load {
-        /// Path to .env file (default: .env in current directory)
-        #[arg(short, long, default_value = ".env")]
-        path: PathBuf,
-
-        /// Key prefix to filter (default: HKASK_)
-        #[arg(short = 'x', long, default_value = "HKASK_")]
-        prefix: String,
-
-        /// Overwrite existing keys
-        #[arg(long)]
-        overwrite: bool,
-    },
-
-    /// List keys stored in OS keychain
-    List,
-
-    /// Get a specific key value from OS keychain
-    Get {
-        /// Key name (e.g. HKASK_BRAVE_API_KEY)
-        #[arg()]
-        key: String,
-    },
-
-    /// Set a specific key value in OS keychain
-    Set {
-        /// Key name
-        #[arg()]
-        key: String,
-
-        /// Value to store
-        #[arg()]
-        value: String,
-    },
-
-    /// Delete a key from OS keychain
-    Delete {
-        /// Key name
-        #[arg()]
-        key: String,
-    },
-}
-
-/// Specification actions (DDMVSS)
-#[derive(Subcommand)]
-enum SpecAction {
-    /// Capture a goal as a binding specification
-    Capture {
-        /// Goal description
-        #[arg()]
-        description: String,
-
-        /// Spec category (domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation)
-        #[arg(short, long, default_value = "domain")]
-        category: String,
-
-        /// Domain anchor (okapi, russell, hkask)
-        #[arg(short, long, default_value = "hkask")]
-        domain: String,
-
-        /// Completion criteria (comma-separated)
-        #[arg(short, long)]
-        criteria: Option<String>,
-    },
-
-    /// List all specifications
-    List {
-        /// Filter by category
-        #[arg(short, long)]
-        category: Option<String>,
-    },
-
-    /// Evaluate a specification for coherence (curation)
-    Evaluate {
-        /// Specification ID
-        #[arg()]
-        spec_id: String,
-    },
-
-    /// Validate the full specification collection
-    Validate {
-        /// Coherence threshold (0.0-1.0)
-        #[arg(short, long, default_value = "0.7")]
-        threshold: f64,
-    },
-
-    /// Show collection coherence and missing categories
-    Cultivate {
-        /// Coherence threshold (0.0-1.0)
-        #[arg(short, long, default_value = "0.7")]
-        threshold: f64,
-    },
-
-    /// Render a specification template with spec data
-    Render {
-        /// Template path (e.g., spec/goal-capture.j2)
-        #[arg()]
-        template: String,
-
-        /// Specification ID to populate template with
-        #[arg(short, long)]
-        spec_id: Option<String>,
-    },
-}
-
-fn init_logging(verbose: bool) {
-    let filter = if verbose {
-        EnvFilter::new("debug")
-    } else {
-        EnvFilter::from_default_env()
-    };
-    let subscriber = FmtSubscriber::builder().with_env_filter(filter).finish();
-    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
-}
-
-fn parse_template_type(type_str: &str) -> Option<Type> {
-    match type_str.to_lowercase().as_str() {
-        "prompt" => Some(Type::Prompt),
-        "cognition" => Some(Type::Cognition),
-        "process" => Some(Type::Process),
-        _ => None,
-    }
-}
-
-fn generate_cli_markdown() -> String {
-    let mut md = String::new();
-
-    md.push_str("# hKask CLI Documentation\n\n");
-    md.push_str(
-        "**hKask** (ℏKask — \"Planck's Constant of Agent Systems\") - Command-line interface\n\n",
-    );
-    md.push_str("## Usage\n\n");
-    md.push_str("```bash\n");
-    md.push_str("kask [OPTIONS] <COMMAND>\n");
-    md.push_str("```\n\n");
-    md.push_str("## Options\n\n");
-    md.push_str("- `-v`, `--verbose` — Enable verbose output\n");
-    md.push_str("- `-r`, `--registry <PATH>` — Registry database path (default: in-memory)\n");
-    md.push_str("- `-h`, `--help` — Print help\n");
-    md.push_str("- `-V`, `--version` — Print version\n\n");
-    md.push_str("## Commands\n\n");
-    md.push_str("### `kask chat` — Interactive agent chat\n\n");
-    md.push_str("```bash\n");
-    md.push_str("kask chat [AGENT]       # Default: Curator\n");
-    md.push_str("kask chat russell       # Chat with Russell\n");
-    md.push_str("kask chat -f input.txt  # Non-interactive (file input)\n");
-    md.push_str("```\n\n");
-    md.push_str("Arguments:\n");
-    md.push_str("- `[AGENT]` — Agent to chat with (default: Curator)\n\n");
-    md.push_str("Options:\n");
-    md.push_str("- `-t`, `--template <TEMPLATE>` — Template ID to use\n");
-    md.push_str("- `-f`, `--input <INPUT>` — Input file (non-interactive mode)\n\n");
-    md.push_str("Slash commands (inside chat):\n");
-    md.push_str("- `/help` — Show categorized help, `/help <cmd>` for details\n");
-    md.push_str("- `/status` — System status (CNS, agent, pods)\n");
-    md.push_str("- `/agent [NAME]` — Show or switch agent\n");
-    md.push_str("- `/agents` — List registered agents\n");
-    md.push_str("- `/pods` — List agent pods\n");
-    md.push_str("- `/templates` — List registered templates\n");
-    md.push_str("- `/ensemble` — Multi-agent ensemble (sessions, create, join, send)\n");
-    md.push_str("- `/escalations` — List pending escalations\n");
-    md.push_str("- `/metacognition` — Run metacognition cycle\n");
-    md.push_str("- `/sovereignty` — Show sovereignty status\n");
-    md.push_str("- `/history` — Show session turn history\n");
-    md.push_str("- `/quit` — End session\n\n");
-    md.push_str("### `kask template` — Template management\n\n");
-    md.push_str("```bash\n");
-    md.push_str("kask template <SUBCOMMAND>\n");
-    md.push_str("```\n\n");
-    md.push_str("Subcommands:\n");
-    md.push_str("- `list` — List all registered templates\n");
-    md.push_str("  - `-t`, `--type <TYPE>` — Filter by template type\n");
-    md.push_str("- `register` — Register a new template\n");
-    md.push_str("  - `-i`, `--id <ID>` — Template ID (e.g., \"prompt/selector\")\n");
-    md.push_str("  - `-p`, `--path <PATH>` — Template file path\n");
-    md.push_str("  - `-t`, `--type <TYPE>` — Template type (prompt, cognition, process)\n");
-    md.push_str("  - `-l`, `--lexicon <LEXICON>` — Lexicon terms (comma-separated)\n");
-    md.push_str("  - `-d`, `--description <DESC>` — Description\n");
-    md.push_str("- `get <ID>` — Get template details\n");
-    md.push_str("- `search <TERM>` — Search templates by lexicon term\n\n");
-    md.push_str("### `kask bot` — Bot capability management\n\n");
-    md.push_str("```bash\n");
-    md.push_str("kask bot <SUBCOMMAND>\n");
-    md.push_str("```\n\n");
-    md.push_str("Subcommands:\n");
-    md.push_str("- `list` — List bot capabilities\n");
-    md.push_str("  - `-b`, `--bot-id <BOT_ID>` — Bot WebID\n");
-    md.push_str("- `grant` — Grant capability to bot\n");
-    md.push_str("  - `-b`, `--bot-id <BOT_ID>` — Bot WebID\n");
-    md.push_str(
-        "  - `-c`, `--capability <CAPABILITY>` — Capability name (e.g., \"inference:call\")\n\n",
-    );
-    md.push_str("### `kask pod` — Agent pod management\n\n");
-    md.push_str("```bash\n");
-    md.push_str("kask pod <SUBCOMMAND>\n");
-    md.push_str("```\n\n");
-    md.push_str("Subcommands:\n");
-    md.push_str("- `create` — Create agent pod from template crate\n");
-    md.push_str("  - `-t`, `--template <TEMPLATE>` — Template crate name\n");
-    md.push_str("  - `-p`, `--persona <PERSONA>` — Agent persona YAML file path\n");
-    md.push_str("  - `-n`, `--name <NAME>` — Pod name (optional, defaults to UUID)\n");
-    md.push_str("- `activate <POD_ID>` — Activate agent pod for A2A communication\n");
-    md.push_str("- `deactivate <POD_ID>` — Deactivate agent pod\n");
-    md.push_str("- `status <POD_ID>` — Show agent pod status\n");
-    md.push_str("  - `-v`, `--verbose` — Show verbose details\n");
-    md.push_str("- `list` — List all agent pods\n\n");
-    md.push_str("### `kask mcp` — MCP server/tool management\n\n");
-    md.push_str("```bash\n");
-    md.push_str("kask mcp <SUBCOMMAND>\n");
-    md.push_str("```\n\n");
-    md.push_str("Subcommands:\n");
-    md.push_str("- `list-servers` — List MCP servers\n");
-    md.push_str("- `list-tools` — List available tools\n");
-    md.push_str("- `get-tool <NAME>` — Get tool definition\n\n");
-    md.push_str("### `kask cns` — CNS monitoring\n\n");
-    md.push_str("```bash\n");
-    md.push_str("kask cns <SUBCOMMAND>\n");
-    md.push_str("```\n\n");
-    md.push_str("Subcommands:\n");
-    md.push_str("- `health` — Get CNS health status\n");
-    md.push_str("- `alerts` — Get algedonic alerts\n");
-    md.push_str("- `variety` — Get variety counters\n\n");
-    md.push_str("### `kask docs` — Documentation generation\n\n");
-    md.push_str("```bash\n");
-    md.push_str("kask docs <SUBCOMMAND>\n");
-    md.push_str("```\n\n");
-    md.push_str("Subcommands:\n");
-    md.push_str("- `openapi` — Generate OpenAPI specification (JSON)\n");
-    md.push_str("  - `-o`, `--output <OUTPUT>` — Output file path (default: stdout)\n");
-    md.push_str("- `cli` — Generate CLI help documentation (markdown)\n");
-    md.push_str("  - `-o`, `--output <OUTPUT>` — Output file path (default: stdout)\n");
-    md.push_str("- `all` — Generate all documentation\n");
-    md.push_str("  - `-o`, `--output <OUTPUT>` — Output directory\n\n");
-    md.push_str("## Examples\n\n");
-    md.push_str("```bash\n");
-    md.push_str("# Start chat session\n");
-    md.push_str("kask chat\n\n");
-    md.push_str("# Chat with a specific agent\n");
-    md.push_str("kask chat Russell\n\n");
-    md.push_str("# List all templates\n");
-    md.push_str("kask template list\n\n");
-    md.push_str("# Register a new template\n");
-    md.push_str("kask template register -i prompt/selector -p templates/selector.j2 -t prompt -l \"select,route,dispatch\"\n\n");
-    md.push_str("# Generate OpenAPI spec\n");
-    md.push_str("kask docs openapi -o docs/openapi.json\n\n");
-    md.push_str("# Generate all documentation\n");
-    md.push_str("kask docs all -o docs/\n");
-    md.push_str("```\n\n");
-    md.push_str("## Template Types\n\n");
-    md.push_str("- `prompt` — Prompt templates for LLM interaction\n");
-    md.push_str("- `cognition` — Cognitive processing templates\n");
-    md.push_str("- `process` — Process execution templates\n\n");
-    md.push_str("---\n\n");
-    md.push_str(&format!(
-        "*hKask v{} — Planck's Constant of Agent Systems*\n",
-        env!("CARGO_PKG_VERSION")
-    ));
-
-    md
-}
 
 fn main() {
-    let cli = Cli::parse();
-    init_logging(cli.verbose);
+    let cli = cli::Cli::parse();
+    cli::init_logging(cli.verbose);
 
     // Initialize registry
     let registry_result = match &cli.registry {
@@ -968,7 +71,7 @@ fn main() {
 
         Commands::Template { action } => match action {
             TemplateAction::List { r#type } => {
-                let template_type = r#type.as_deref().and_then(parse_template_type);
+                let template_type = r#type.as_deref().and_then(cli::parse_template_type);
                 let entries = commands::list_templates(&registry, template_type);
 
                 if entries.is_empty() {
@@ -993,7 +96,7 @@ fn main() {
                 lexicon,
                 description,
             } => {
-                let template_type = match parse_template_type(&r#type) {
+                let template_type = match cli::parse_template_type(&r#type) {
                     Some(t) => t,
                     None => {
                         eprintln!(
@@ -1339,7 +442,7 @@ fn main() {
                 let state = checker.get_state();
 
                 // Parse category string to DataCategory
-                let data_category = parse_data_category(&category);
+                let data_category = cli::parse_data_category(&category);
 
                 let is_sovereign = state.boundary.is_sovereign(&data_category);
                 let is_shared = state.boundary.is_shared(&data_category);
@@ -1377,7 +480,7 @@ fn main() {
                 }
             }
             DocsAction::Cli { output } => {
-                let help = generate_cli_markdown();
+                let help = cli::generate_cli_markdown();
                 match output {
                     Some(path) => {
                         std::fs::write(&path, &help).expect("Failed to write CLI documentation");
@@ -1399,7 +502,7 @@ fn main() {
                     openapi_path.display()
                 );
 
-                let help = generate_cli_markdown();
+                let help = cli::generate_cli_markdown();
                 let cli_path = output.join("cli.md");
                 std::fs::write(&cli_path, &help).expect("Failed to write CLI documentation");
                 println!("CLI documentation written to: {}", cli_path.display());
@@ -1889,9 +992,9 @@ fn main() {
                         eprintln!("Standing status failed: {}", e);
                         std::process::exit(1);
                     }
-                }
+                },
             }
-        },
+        }
 
         Commands::Agent { action } => match action {
             AgentAction::Register {
@@ -2222,34 +1325,37 @@ fn main() {
                         }
                         match keychain.retrieve_by_key(key) {
                             Ok(_) if !overwrite => {
-                                println!("  skipped {} (already in keychain, use --overwrite)", key);
+                                println!(
+                                    "  skipped {} (already in keychain, use --overwrite)",
+                                    key
+                                );
                                 skipped += 1;
                             }
-                            _ => {
-                                match keychain.store_by_key(key, value) {
-                                    Ok(()) => {
-                                        println!("  stored {}", key);
-                                        loaded += 1;
-                                    }
-                                    Err(e) => {
-                                        eprintln!("  failed {} : {}", key, e);
-                                    }
+                            _ => match keychain.store_by_key(key, value) {
+                                Ok(()) => {
+                                    println!("  stored {}", key);
+                                    loaded += 1;
                                 }
-                            }
+                                Err(e) => {
+                                    eprintln!("  failed {} : {}", key, e);
+                                }
+                            },
                         }
                     }
                 }
                 println!("\nLoaded {} keys, skipped {}", loaded, skipped);
             }
             KeystoreAction::List => {
-                eprintln!("OS keychain does not support listing. Use 'kask keystore get <KEY>' to check individual keys.");
+                eprintln!(
+                    "OS keychain does not support listing. Use 'kask keystore get <KEY>' to check individual keys."
+                );
             }
             KeystoreAction::Get { key } => {
                 let keychain = hkask_keystore::Keychain::default();
                 match keychain.retrieve_by_key(&key) {
                     Ok(val) => {
                         if val.len() > 8 {
-                            println!("{}={}**{}", key, &val[..4], &val[val.len()-4..]);
+                            println!("{}={}**{}", key, &val[..4], &val[val.len() - 4..]);
                         } else {
                             println!("{}=****", key);
                         }
