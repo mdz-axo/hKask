@@ -234,7 +234,7 @@ where
         let result = match step.action {
             Action::Select => {
                 return Err(TemplateError::Manifest(
-                    "Select action requires inference (SyncInferencePort removed)".to_string(),
+                    "Select action is not available — use Populate or Execute".to_string(),
                 ));
             }
             Action::Populate => {
@@ -298,8 +298,7 @@ where
                     }
                 } else {
                     return Err(TemplateError::Manifest(
-                        "Execute action requires an MCP step or inference (SyncInferencePort removed)"
-                            .to_string(),
+                        "Execute action requires an MCP step".to_string(),
                     ));
                 }
             }

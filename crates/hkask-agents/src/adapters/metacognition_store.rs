@@ -1,6 +1,6 @@
-//! Metacognition Store Adapter — Bridges hkask_storage::MetacognitionStore to MetacognitionPort
+//! Metacognition Store Adapter — Bridges hkask_storage::MetacognitionStore
 
-use crate::ports::{MetacognitionPort, MetacognitionPortError, StoredHealthSnapshot};
+use crate::ports::{MetacognitionPortError, StoredHealthSnapshot};
 use hkask_storage::MetacognitionStore;
 use std::sync::Arc;
 
@@ -12,10 +12,8 @@ impl MetacognitionStoreAdapter {
     pub fn new(store: Arc<MetacognitionStore>) -> Self {
         Self { store }
     }
-}
 
-impl MetacognitionPort for MetacognitionStoreAdapter {
-    fn save_snapshot(
+    pub fn save_snapshot(
         &self,
         snapshot: &StoredHealthSnapshot,
     ) -> Result<i64, MetacognitionPortError> {
@@ -33,7 +31,7 @@ impl MetacognitionPort for MetacognitionStoreAdapter {
             .map_err(|e| MetacognitionPortError::Storage(e.to_string()))
     }
 
-    fn list_snapshots(
+    pub fn list_snapshots(
         &self,
         limit: usize,
     ) -> Result<Vec<StoredHealthSnapshot>, MetacognitionPortError> {

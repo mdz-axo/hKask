@@ -9,10 +9,11 @@
 //! - Posts summaries to standing session
 
 use crate::adapters::CnsRuntimeAdapter;
+use crate::adapters::MetacognitionStoreAdapter;
 use crate::curator::escalation::EscalationQueue;
 use crate::ports::HealthStatus;
 use crate::ports::metacognition::{
-    BotDirective, EvaluationResult, KataDirective, KataType, MetacognitionPort, RecommendedAction,
+    BotDirective, EvaluationResult, KataDirective, KataType, RecommendedAction,
     StoredHealthSnapshot,
 };
 use hkask_cns::bot_metrics::{
@@ -120,7 +121,7 @@ pub struct MetacognitionLoop {
     escalation_queue: tokio::sync::Mutex<Arc<EscalationQueue>>,
     config: MetacognitionConfig,
     bot_reports: Arc<RwLock<Vec<BotStatusReport>>>,
-    store: Option<Arc<dyn MetacognitionPort>>,
+    store: Option<Arc<MetacognitionStoreAdapter>>,
 }
 
 impl MetacognitionLoop {
@@ -138,7 +139,7 @@ impl MetacognitionLoop {
         }
     }
 
-    pub fn with_store(mut self, store: Arc<dyn MetacognitionPort>) -> Self {
+    pub fn with_store(mut self, store: Arc<MetacognitionStoreAdapter>) -> Self {
         self.store = Some(store);
         self
     }

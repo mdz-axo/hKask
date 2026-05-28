@@ -794,6 +794,8 @@ impl SpecServer {
             }
         };
         let coherence = Spec::collection_coherence(&all_specs);
+
+        let mut violations = Vec::new();
         let mut suggestions = Vec::new();
 
         if coherence < threshold {

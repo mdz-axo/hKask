@@ -7,7 +7,6 @@
 pub mod acp;
 pub mod acp_transport;
 pub mod audit_log;
-pub mod audit_log_storage;
 pub mod cns_query;
 pub mod git_cas;
 pub mod mcp_runtime;
@@ -20,7 +19,6 @@ pub mod standing_session;
 pub use acp::AcpPort;
 pub use acp_transport::{AcpTransport, AcpWireMessage, AcpWireResponse};
 pub use audit_log::{AuditContext, AuditEntry, AuditLogPort, AuditLogPortError, AuditOutcome};
-pub use audit_log_storage::AuditLogStoragePortError;
 pub use cns_query::{AlertInfo, AlertLevel, HealthStatus};
 pub use git_cas::GitCASPort;
 pub use mcp_runtime::MCPRuntimePort;
@@ -28,7 +26,7 @@ pub use memory_storage::MemoryStoragePort;
 pub use metacognition::{
     BotDirective, BotEvaluationMetrics, BotHealthStatus as MetacognitionBotHealthStatus,
     CapabilityGap, DirectiveType, EvaluationResult, GapType, KataDirective, KataType,
-    MetacognitionPort, MetacognitionPortError, RecommendedAction, StoredHealthSnapshot,
+    MetacognitionPortError, RecommendedAction, StoredHealthSnapshot,
 };
 pub use security_port::ValidationError as RateLimitValidationError;
 pub use sovereignty::{SovereigntyCheckResult, SovereigntyOperation};
