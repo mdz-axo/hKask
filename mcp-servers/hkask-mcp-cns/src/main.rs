@@ -267,22 +267,17 @@ impl CnsServer {
     }
 }
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    run_stdio_server(
-        "hkask-mcp-cns",
-        env!("CARGO_PKG_VERSION"),
-        |ctx: ServerContext| {
-            let threshold: Option<u64> = ctx
-                .credentials
-                .get("HKASK_CNS_THRESHOLD")
-                .and_then(|s| s.parse().ok());
-            Ok(CnsServer::new(threshold, ctx.webid))
-        },
-        vec![CredentialRequirement::optional(
-            "HKASK_CNS_THRESHOLD",
-            "CNS variety deficit threshold (default: 100)",
-        )],
-    )
-    .await
-}
+hkask_mcp::mcp_server_main!(
+    "hkask-mcp-cns",
+    factory: |ctx: hkask_mcp::ServerContext| {
+        let threshold: Option<u64> = ctx
+            .credentials
+            .get("HKASK_CNS_THRESHOLD")
+            .and_then(|s| s.parse().ok());
+        Ok(CnsServer::new(threshold, ctx.webid))
+    },
+    credentials: vec![hkask_mcp::CredentialRequirement::optional(
+        "HKASK_CNS_THRESHOLD",
+        "CNS variety deficit threshold (default: 100)",
+    )]
+);

@@ -2,167 +2,17 @@
 //!
 //! Provides circuit breaker, retry policies, and exponential backoff
 //! for resilient Okapi communication in production environments.
+//!
+//! CircuitBreaker is re-exported from hkask-templates (canonical implementation).
 
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::RwLock;
-use tracing::{error, info, warn};
+use tracing::warn;
 
-/// Circuit breaker states
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CircuitState {
-    /// Circuit is closed, requests flow normally
-    Closed,
-    /// Circuit is open, requests are rejected immediately
-    Open,
-    /// Circuit is half-open, testing if service recovered
-    HalfOpen,
-}
-
-/// Circuit breaker configuration
-#[derive(Debug, Clone)]
-pub struct CircuitBreakerConfig {
-    /// Number of failures before opening circuit
-    pub failure_threshold: u32,
-    /// Duration circuit stays open before half-open
-    pub open_timeout: Duration,
-    /// Number of successes in half-open to close circuit
-    pub success_threshold: u32,
-}
-
-impl Default for CircuitBreakerConfig {
-    fn default() -> Self {
-        Self {
-            failure_threshold: 5,
-            open_timeout: Duration::from_secs(30),
-            success_threshold: 2,
-        }
-    }
-}
-
-/// Circuit breaker for Okapi calls
-pub struct CircuitBreaker {
-    state: RwLock<CircuitState>,
-    failure_count: RwLock<u32>,
-    success_count: RwLock<u32>,
-    last_failure_time: RwLock<Option<std::time::Instant>>,
-    config: CircuitBreakerConfig,
-    name: String,
-}
-
-impl CircuitBreaker {
-    /// Create new circuit breaker
-    pub fn new(name: String, config: CircuitBreakerConfig) -> Self {
-        Self {
-            state: RwLock::new(CircuitState::Closed),
-            failure_count: RwLock::new(0),
-            success_count: RwLock::new(0),
-            last_failure_time: RwLock::new(None),
-            config,
-            name,
-        }
-    }
-
-    /// Check if request should be allowed
-    pub async fn allow_request(&self) -> bool {
-        let state = *self.state.read().await;
-
-        match state {
-            CircuitState::Closed => true,
-            CircuitState::Open => {
-                // Check if timeout has elapsed
-                if let Some(last_failure) = *self.last_failure_time.read().await {
-                    if last_failure.elapsed() >= self.config.open_timeout {
-                        // Transition to half-open
-                        *self.state.write().await = CircuitState::HalfOpen;
-                        *self.success_count.write().await = 0;
-                        info!(
-                            target: "hkask.circuit_breaker",
-                            name = %self.name,
-                            "Circuit transitioned to Half-Open"
-                        );
-                        true
-                    } else {
-                        false
-                    }
-                } else {
-                    false
-                }
-            }
-            CircuitState::HalfOpen => true,
-        }
-    }
-
-    /// Record successful call
-    pub async fn record_success(&self) {
-        let state = *self.state.read().await;
-
-        match state {
-            CircuitState::HalfOpen => {
-                let mut success_count = self.success_count.write().await;
-                *success_count += 1;
-
-                if *success_count >= self.config.success_threshold {
-                    *self.state.write().await = CircuitState::Closed;
-                    *self.failure_count.write().await = 0;
-                    *success_count = 0;
-                    info!(
-                        target: "hkask.circuit_breaker",
-                        name = %self.name,
-                        "Circuit transitioned to Closed"
-                    );
-                }
-            }
-            CircuitState::Closed => {
-                // Reset failure count on success
-                *self.failure_count.write().await = 0;
-            }
-            CircuitState::Open => {}
-        }
-    }
-
-    /// Record failed call
-    pub async fn record_failure(&self) {
-        let mut failure_count = self.failure_count.write().await;
-        *failure_count += 1;
-        *self.last_failure_time.write().await = Some(std::time::Instant::now());
-
-        let state = *self.state.read().await;
-
-        if state == CircuitState::HalfOpen || *failure_count >= self.config.failure_threshold {
-            *self.state.write().await = CircuitState::Open;
-            *failure_count = 0;
-            error!(
-                target: "hkask.circuit_breaker",
-                name = %self.name,
-                "Circuit transitioned to Open (failures: {})",
-                self.config.failure_threshold
-            );
-        }
-    }
-
-    /// Get current state
-    pub async fn state(&self) -> CircuitState {
-        *self.state.read().await
-    }
-
-    /// Get statistics
-    pub async fn stats(&self) -> CircuitBreakerStats {
-        CircuitBreakerStats {
-            state: self.state().await,
-            failure_count: *self.failure_count.read().await,
-            success_count: *self.success_count.read().await,
-        }
-    }
-}
-
-/// Circuit breaker statistics
-#[derive(Debug, Clone)]
-pub struct CircuitBreakerStats {
-    pub state: CircuitState,
-    pub failure_count: u32,
-    pub success_count: u32,
-}
+// Re-export canonical CircuitBreaker types from hkask-templates
+pub use hkask_templates::resilience::{
+    CircuitBreaker, CircuitBreakerConfig, CircuitBreakerStats, CircuitState,
+};
 
 /// Retry configuration
 #[derive(Debug, Clone)]

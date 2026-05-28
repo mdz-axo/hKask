@@ -300,19 +300,14 @@ impl RegistryServer {
     }
 }
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    run_stdio_server(
-        "hkask-mcp-registry",
-        env!("CARGO_PKG_VERSION"),
-        |ctx: ServerContext| {
-            let db_path = ctx.credentials.get("HKASK_REGISTRY_DB").cloned();
-            Ok(RegistryServer::new(db_path, ctx.webid))
-        },
-        vec![CredentialRequirement::optional(
-            "HKASK_REGISTRY_DB",
-            "Path to registry SQLite database",
-        )],
-    )
-    .await
-}
+hkask_mcp::mcp_server_main!(
+    "hkask-mcp-registry",
+    factory: |ctx: hkask_mcp::ServerContext| {
+        let db_path = ctx.credentials.get("HKASK_REGISTRY_DB").cloned();
+        Ok(RegistryServer::new(db_path, ctx.webid))
+    },
+    credentials: vec![hkask_mcp::CredentialRequirement::optional(
+        "HKASK_REGISTRY_DB",
+        "Path to registry SQLite database",
+    )]
+);

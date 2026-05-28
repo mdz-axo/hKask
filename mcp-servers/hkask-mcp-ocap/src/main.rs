@@ -300,24 +300,19 @@ impl OcapServer {
     }
 }
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    run_stdio_server(
-        "hkask-mcp-ocap",
-        env!("CARGO_PKG_VERSION"),
-        |ctx: ServerContext| {
-            let secret = ctx
-                .credentials
-                .get("HKASK_OCAP_SECRET")
-                .expect("required credential")
-                .as_bytes()
-                .to_vec();
-            Ok(OcapServer::new(secret, ctx.webid))
-        },
-        vec![CredentialRequirement::required(
-            "HKASK_OCAP_SECRET",
-            "OCAP signing secret for capability token HMAC",
-        )],
-    )
-    .await
-}
+hkask_mcp::mcp_server_main!(
+    "hkask-mcp-ocap",
+    factory: |ctx: hkask_mcp::ServerContext| {
+        let secret = ctx
+            .credentials
+            .get("HKASK_OCAP_SECRET")
+            .expect("required credential")
+            .as_bytes()
+            .to_vec();
+        Ok(OcapServer::new(secret, ctx.webid))
+    },
+    credentials: vec![hkask_mcp::CredentialRequirement::required(
+        "HKASK_OCAP_SECRET",
+        "OCAP signing secret for capability token HMAC",
+    )]
+);

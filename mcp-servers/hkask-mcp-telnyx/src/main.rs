@@ -235,16 +235,11 @@ impl TelnyxServer {
     }
 }
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    run_stdio_server(
-        "hkask-mcp-telnyx",
-        env!("CARGO_PKG_VERSION"),
-        |ctx: ServerContext| TelnyxServer::new(ctx.webid),
-        vec![CredentialRequirement::required(
-            "HKASK_TELNYX_API_KEY",
-            "Telnyx API key for messaging and number management",
-        )],
-    )
-    .await
-}
+hkask_mcp::mcp_server_main!(
+    "hkask-mcp-telnyx",
+    TelnyxServer,
+    credentials: vec![hkask_mcp::CredentialRequirement::required(
+        "HKASK_TELNYX_API_KEY",
+        "Telnyx API key for messaging and number management",
+    )]
+);

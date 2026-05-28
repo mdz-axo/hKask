@@ -14,17 +14,6 @@ mod db;
 mod server;
 mod types;
 
-use hkask_mcp::server::{ServerContext, run_stdio_server};
 use server::RssServer;
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    run_stdio_server(
-        "hkask-mcp-rss-reader",
-        env!("CARGO_PKG_VERSION"),
-        |ctx: ServerContext| RssServer::new(ctx.webid),
-        vec![],
-    )
-    .await
-}
-
+hkask_mcp::mcp_server_main!("hkask-mcp-rss-reader", RssServer);

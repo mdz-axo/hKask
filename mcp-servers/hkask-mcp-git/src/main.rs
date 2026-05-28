@@ -390,27 +390,22 @@ impl GitServer {
     }
 }
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    run_stdio_server(
-        "hkask-mcp-git",
-        env!("CARGO_PKG_VERSION"),
-        |ctx: ServerContext| {
-            let base_path = ctx
-                .credentials
-                .get("HKASK_GIT_BASE_PATH")
-                .map(|p| std::path::PathBuf::from(p));
-            if let Some(ref bp) = base_path {
-                tracing::info!("Using GIT base path: {}", bp.display());
-            } else {
-                tracing::warn!("HKASK_GIT_BASE_PATH not set, Git adapter unconfigured");
-            }
-            Ok(GitServer::with_base_path_or_default(base_path, ctx.webid))
-        },
-        vec![CredentialRequirement::optional(
-            "HKASK_GIT_BASE_PATH",
-            "Base path for Git operations",
-        )],
-    )
-    .await
-}
+hkask_mcp::mcp_server_main!(
+    "hkask-mcp-git",
+    factory: |ctx: hkask_mcp::ServerContext| {
+        let base_path = ctx
+            .credentials
+            .get("HKASK_GIT_BASE_PATH")
+            .map(|p| std::path::PathBuf::from(p));
+        if let Some(ref bp) = base_path {
+            tracing::info!("Using GIT base path: {}", bp.display());
+        } else {
+            tracing::warn!("HKASK_GIT_BASE_PATH not set, Git adapter unconfigured");
+        }
+        Ok(GitServer::with_base_path_or_default(base_path, ctx.webid))
+    },
+    credentials: vec![hkask_mcp::CredentialRequirement::optional(
+        "HKASK_GIT_BASE_PATH",
+        "Base path for Git operations",
+    )]
+);

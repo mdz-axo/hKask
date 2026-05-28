@@ -8,13 +8,4 @@
 use hkask_mcp::server::{ServerContext, run_stdio_server};
 use hkask_mcp_inference::tools::InferenceServer;
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    run_stdio_server(
-        "hkask-mcp-inference",
-        env!("CARGO_PKG_VERSION"),
-        |ctx: ServerContext| Ok(InferenceServer::new(ctx.webid)),
-        vec![], // no credentials required — Okapi uses default config
-    )
-    .await
-}
+hkask_mcp::mcp_server_main!("hkask-mcp-inference", InferenceServer);

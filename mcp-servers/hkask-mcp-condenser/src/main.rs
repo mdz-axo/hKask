@@ -195,13 +195,4 @@ impl CondenserServer {
     }
 }
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    run_stdio_server(
-        "hkask-mcp-condenser",
-        SERVER_VERSION,
-        |ctx: ServerContext| CondenserServer::new(ctx.webid),
-        vec![],
-    )
-    .await
-}
+hkask_mcp::mcp_server_main!("hkask-mcp-condenser", CondenserServer);

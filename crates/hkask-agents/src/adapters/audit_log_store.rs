@@ -1,7 +1,10 @@
-//! Audit Log Store Adapter — Bridges hkask_storage::AuditLogStore to AuditLogStoragePort
+//! Audit Log Store Adapter — Bridges hkask_storage::AuditLogStore to AuditLogPort
+//!
+//! This adapter implements the canonical `AuditLogPort` trait from `hkask-types`
+//! using the SQL-backed `AuditLogStore` from `hkask-storage`.
 
-use crate::ports::{AuditLogStoragePort, AuditLogStoragePortError, AuditStorageEntry};
 use hkask_storage::AuditLogStore;
+use hkask_types::{AuditEntry, AuditLogPort, WebID};
 use std::sync::Arc;
 
 pub struct AuditLogStoreAdapter {
@@ -14,56 +17,31 @@ impl AuditLogStoreAdapter {
     }
 }
 
-impl AuditLogStoragePort for AuditLogStoreAdapter {
-    fn insert(&self, entry: &AuditStorageEntry) -> Result<(), AuditLogStoragePortError> {
-        let mut storage_entry = hkask_storage::AuditEntry::new(
-            &entry.actor_webid,
-            &entry.action,
-            &entry.resource,
-            &entry.outcome,
-        );
-        if let Some(ref details) = entry.details {
-            storage_entry = storage_entry.with_details(details.clone());
+impl AuditLogPort for AuditLogStoreAdapter {
+    fn log(&self, entry: AuditEntry) {
+        let storage_entry: hkask_storage::AuditEntry = entry.into();
+        if let Err(e) = self.store.insert(&storage_entry) {
+            tracing::error!(error = %e, "Failed to insert audit entry");
         }
-        if let Some(ref ip) = entry.ip_address {
-            storage_entry = storage_entry.with_ip(ip);
-        }
-        self.store
-            .insert(&storage_entry)
-            .map_err(|e| AuditLogStoragePortError::Storage(e.to_string()))
     }
 
-    fn query_recent(
-        &self,
-        limit: usize,
-    ) -> Result<Vec<AuditStorageEntry>, AuditLogStoragePortError> {
+    fn query_recent(&self, limit: usize) -> Vec<AuditEntry> {
         self.store
             .query_recent(limit)
-            .map(|v| v.into_iter().map(storage_to_domain).collect())
-            .map_err(|e| AuditLogStoragePortError::Storage(e.to_string()))
+            .map(|v| v.into_iter().map(|e| e.into()).collect())
+            .unwrap_or_default()
     }
 
-    fn query_by_actor(
-        &self,
-        actor_webid: &str,
-        limit: usize,
-    ) -> Result<Vec<AuditStorageEntry>, AuditLogStoragePortError> {
+    fn query_by_actor(&self, actor: &WebID, limit: usize) -> Vec<AuditEntry> {
         self.store
-            .query_by_actor(actor_webid, limit)
-            .map(|v| v.into_iter().map(storage_to_domain).collect())
-            .map_err(|e| AuditLogStoragePortError::Storage(e.to_string()))
+            .query_by_actor(&actor.to_string(), limit)
+            .map(|v| v.into_iter().map(|e| e.into()).collect())
+            .unwrap_or_default()
     }
-}
 
-fn storage_to_domain(e: hkask_storage::AuditEntry) -> AuditStorageEntry {
-    AuditStorageEntry {
-        id: e.id,
-        timestamp: e.timestamp.timestamp(),
-        actor_webid: e.actor_webid,
-        action: e.action,
-        resource: e.resource,
-        outcome: e.outcome,
-        details: e.details,
-        ip_address: e.ip_address,
+    fn query_by_correlation(&self, _correlation_id: &str) -> Vec<AuditEntry> {
+        // Storage layer doesn't currently support correlation queries
+        // This would require adding a correlation_id column to the schema
+        Vec::new()
     }
 }

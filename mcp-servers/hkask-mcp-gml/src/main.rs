@@ -10,18 +10,7 @@ pub use engine::MwcEngine;
 pub use server::GmlServer;
 pub use types::*;
 
-use hkask_mcp::server::{ServerContext, run_stdio_server};
-
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    run_stdio_server(
-        "hkask-mcp-gml",
-        env!("CARGO_PKG_VERSION"),
-        |ctx: ServerContext| Ok(GmlServer::new(ctx.webid)),
-        vec![],
-    )
-    .await
-}
+hkask_mcp::mcp_server_main!("hkask-mcp-gml", GmlServer);
 
 // ============================================================================
 // Unit Tests
