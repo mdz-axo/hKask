@@ -3,8 +3,7 @@
 //! Tests for hkask-agents security operations
 
 use hkask_agents::security::{
-    AgentPersonaInput, AttenuationHistory, ExpiryEnforcer, InputValidator, RateLimiter,
-    ValidationError,
+    AgentPersonaInput, AttenuationHistory, ExpiryEnforcer, RateLimiter, ValidationError,
 };
 use std::time::Duration;
 
@@ -19,7 +18,7 @@ fn test_validate_valid_persona() {
         capabilities: vec!["tool:inference".to_string()],
     };
 
-    assert!(input.validate(&input).is_ok());
+    assert!(input.validate().is_ok());
 }
 
 #[test]
@@ -34,7 +33,7 @@ fn test_validate_empty_name() {
     };
 
     assert!(matches!(
-        input.validate(&input),
+        input.validate(),
         Err(ValidationError::MissingField(_))
     ));
 }
@@ -51,7 +50,7 @@ fn test_validate_invalid_agent_type() {
     };
 
     assert!(matches!(
-        input.validate(&input),
+        input.validate(),
         Err(ValidationError::InvalidFormat { .. })
     ));
 }
@@ -68,7 +67,7 @@ fn test_validate_name_too_long() {
     };
 
     assert!(matches!(
-        input.validate(&input),
+        input.validate(),
         Err(ValidationError::FieldTooLong { .. })
     ));
 }

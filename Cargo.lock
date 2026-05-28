@@ -2079,7 +2079,6 @@ dependencies = [
  "hkask-storage",
  "hkask-templates",
  "hkask-types",
- "hmac",
  "rand 0.9.4",
  "reqwest",
  "rmcp",

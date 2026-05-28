@@ -17,7 +17,6 @@ pub mod cns_emitter;
 pub mod cns_runtime;
 pub mod git_cas;
 pub mod keychain_adapter;
-pub mod keystore_port;
 pub mod loopback_http_transport;
 pub mod mcp_runtime;
 pub mod memory_storage;
@@ -26,7 +25,6 @@ pub mod russell_acp;
 pub mod standing_session_store;
 pub mod stdio_transport;
 
-pub mod ocap_adapter;
 pub mod rate_limiter;
 
 pub use agent_registry::AgentRegistryAdapter;
@@ -35,7 +33,6 @@ pub use cns_emitter::CnsEmitterAdapter;
 pub use cns_runtime::CnsRuntimeAdapter;
 pub use git_cas::{GitCasAdapter, MockGitCas};
 pub use keychain_adapter::KeychainAdapter;
-pub use keystore_port::Secret;
 pub use loopback_http_transport::LoopbackHttpTransport;
 pub use mcp_runtime::McpRuntimeAdapter;
 pub use memory_storage::MemoryStorageAdapter;

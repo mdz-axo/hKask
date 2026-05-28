@@ -2,9 +2,7 @@
 //!
 //! Tests for hkask-agents pod management
 
-use hkask_agents::security::{
-    AgentPersonaInput, ExpiryEnforcer, InputValidator, RateLimiter, ValidationError,
-};
+use hkask_agents::security::{AgentPersonaInput, ExpiryEnforcer, RateLimiter, ValidationError};
 use hkask_agents::{
     AgentPersona, CNSSpanPort, GitCASPort, MCPRuntimePort, PodID, PodManager, TemplateCrate,
 };
@@ -103,5 +101,5 @@ visibility:
         capabilities: persona.capabilities.clone(),
     };
 
-    assert!(input.validate(&input).is_ok());
+    assert!(input.validate().is_ok());
 }
