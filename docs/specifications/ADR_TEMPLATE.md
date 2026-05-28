@@ -213,7 +213,7 @@ ADRs must include at least one external citation per major section:
 - **Decision:** Cite the chosen approach (e.g., design pattern, framework documentation)
 - **Consequences:** Cite trade-off analysis (e.g., academic papers, industry case studies)
 
-See [`../standards/DOCUMENTATION_STANDARDS.md`](../standards/DOCUMENTATION_STANDARDS.md) §5 for citation format.
+See [`../standards/DOCUMENTATION_STANDARDS.md`](../specifications/DOCUMENTATION_STANDARDS.md) §5 for citation format.
 
 ---
 

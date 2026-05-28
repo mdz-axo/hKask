@@ -16,4 +16,4 @@ mod types;
 
 use server::RssServer;
 
-hkask_mcp::mcp_server_main!("hkask-mcp-rss-reader", RssServer);
+hkask_mcp::mcp_server_main!("hkask-mcp-rss-reader", factory: |ctx: hkask_mcp::ServerContext| RssServer::new(ctx.webid));

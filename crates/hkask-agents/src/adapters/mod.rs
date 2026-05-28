@@ -26,6 +26,9 @@ pub mod russell_acp;
 pub mod standing_session_store;
 pub mod stdio_transport;
 
+pub mod ocap_adapter;
+pub mod rate_limiter;
+
 pub use agent_registry::AgentRegistryAdapter;
 pub use audit_log_store::AuditLogStoreAdapter;
 pub use cns_emitter::CnsEmitterAdapter;

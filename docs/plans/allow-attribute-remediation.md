@@ -1,3 +1,10 @@
+---
+title: "Allow-Attribute Remediation Plan"
+version: "0.21.0"
+status: "Draft"
+last_updated: 2026-05-27
+---
+
 # Allow-Attribute Remediation Plan
 
 > **ℏKask — v0.21.x**  

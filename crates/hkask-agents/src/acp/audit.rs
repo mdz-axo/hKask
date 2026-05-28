@@ -5,7 +5,7 @@
 //!
 //! Uses canonical `AuditEntry` from `hkask-types`.
 
-use hkask_types::{AuditContext, AuditEntry, AuditLogPort, AuditOutcome, WebID};
+pub use hkask_types::{AuditEntry, AuditLogPort, WebID};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -105,6 +105,3 @@ impl Default for AuditLog {
         Self::new()
     }
 }
-
-// Re-export AuditLogPort from hkask-types for backward compatibility
-pub use hkask_types::AuditLogPort;

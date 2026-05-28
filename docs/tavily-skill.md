@@ -1,4 +1,8 @@
 ---
+title: "Tavily Best Practices"
+version: "0.21.0"
+status: "Active"
+last_updated: 2026-05-27
 name: tavily-best-practices
 description: "Build production-ready Tavily integrations with best practices baked in. Reference documentation for developers using coding assistants (Claude Code, Cursor, etc.) to implement web search, content extraction, crawling, and research in agentic workflows, RAG systems, or autonomous agents."
 ---
@@ -19,7 +23,7 @@ pip install tavily-python
 npm install @tavily/core
 ```
 
-See **[references/sdk.md](references/sdk.md)** for complete SDK reference.
+See **`references/sdk.md`** for complete SDK reference.
 
 ## Client Initialization
 
@@ -68,7 +72,7 @@ print(response)
 ```
 Key parameters: `query`, `max_results`, `search_depth` (ultra-fast/fast/basic/advanced), `include_domains`, `exclude_domains`, `time_range`
 
-See **[references/search.md](references/search.md)** for complete search reference.
+See **`references/search.md`** for complete search reference.
 
 ### extract() - URL Content Extraction
 
@@ -82,7 +86,7 @@ print(response)
 ```
 Key parameters: `urls` (max 20), `extract_depth`, `query`, `chunks_per_source` (1-5)
 
-See **[references/extract.md](references/extract.md)** for complete extract reference.
+See **`references/extract.md`** for complete extract reference.
 
 ### crawl() - Site-Wide Extraction
 
@@ -96,7 +100,7 @@ print(response)
 ```
 Key parameters: `url`, `max_depth`, `max_breadth`, `limit`, `instructions`, `chunks_per_source`, `select_paths`, `exclude_paths`
 
-See **[references/crawl.md](references/crawl.md)** for complete crawl reference.
+See **`references/crawl.md`** for complete crawl reference.
 
 ### map() - URL Discovery
 
@@ -130,15 +134,15 @@ print(response["content"])  # The research report
 
 Key parameters: `input`, `model` ("mini"/"pro"/"auto"), `stream`, `output_schema`, `citation_format`
 
-See **[references/research.md](references/research.md)** for complete research reference.
+See **`references/research.md`** for complete research reference.
 
 ## Detailed Guides
 
 For complete parameters, response fields, patterns, and examples:
 
-- **[references/sdk.md](references/sdk.md)** - Python & JavaScript SDK reference, async patterns, Hybrid RAG
-- **[references/search.md](references/search.md)** - Query optimization, search depth selection, domain filtering, async patterns, post-filtering
-- **[references/extract.md](references/extract.md)** - One-step vs two-step extraction, query/chunks for targeting, advanced mode
-- **[references/crawl.md](references/crawl.md)** - Crawl vs Map, instructions for semantic focus, use cases, Map-then-Extract pattern
-- **[references/research.md](references/research.md)** - Prompting best practices, model selection, streaming, structured output schemas
-- **[references/integrations.md](references/integrations.md)** - LangChain, LlamaIndex, CrewAI, Vercel AI SDK, and framework integrations
+- **`references/sdk.md`** - Python & JavaScript SDK reference, async patterns, Hybrid RAG
+- **`references/search.md`** - Query optimization, search depth selection, domain filtering, async patterns, post-filtering
+- **`references/extract.md`** - One-step vs two-step extraction, query/chunks for targeting, advanced mode
+- **`references/crawl.md`** - Crawl vs Map, instructions for semantic focus, use cases, Map-then-Extract pattern
+- **`references/research.md`** - Prompting best practices, model selection, streaming, structured output schemas
+- **`references/integrations.md`** - LangChain, LlamaIndex, CrewAI, Vercel AI SDK, and framework integrations

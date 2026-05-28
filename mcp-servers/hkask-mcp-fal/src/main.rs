@@ -426,7 +426,7 @@ impl FalServer {
 
 hkask_mcp::mcp_server_main!(
     "hkask-mcp-fal",
-    FalServer,
+    factory: |ctx: hkask_mcp::ServerContext| FalServer::new(ctx.webid),
     credentials: vec![hkask_mcp::CredentialRequirement::required(
         "HKASK_FAL_API_KEY",
         "Fal.ai API key for AI image generation",

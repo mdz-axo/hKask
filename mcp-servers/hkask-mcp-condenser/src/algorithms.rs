@@ -13,13 +13,26 @@ pub trait CondenserAlgorithm: Send + Sync {
 pub struct RtkStyleAlgorithm;
 
 impl CondenserAlgorithm for RtkStyleAlgorithm {
-    fn name(&self) -> &str { "rtk_style" }
-    fn description(&self) -> &str { "Command-specific rules: filter, group, truncate, dedup" }
+    fn name(&self) -> &str {
+        "rtk_style"
+    }
+    fn description(&self) -> &str {
+        "Command-specific rules: filter, group, truncate, dedup"
+    }
     fn default_for(&self) -> &[ContextCategory] {
-        &[ContextCategory::ShellCommand, ContextCategory::TestOutput, ContextCategory::BuildOutput]
+        &[
+            ContextCategory::ShellCommand,
+            ContextCategory::TestOutput,
+            ContextCategory::BuildOutput,
+        ]
     }
     fn handles(&self, category: ContextCategory) -> bool {
-        matches!(category, ContextCategory::ShellCommand | ContextCategory::TestOutput | ContextCategory::BuildOutput)
+        matches!(
+            category,
+            ContextCategory::ShellCommand
+                | ContextCategory::TestOutput
+                | ContextCategory::BuildOutput
+        )
     }
     fn compress(&self, input: &str, profile: Profile, _category: ContextCategory) -> String {
         let lines: Vec<&str> = input.lines().collect();
@@ -90,7 +103,8 @@ impl SaliencyRankAlgorithm {
         if words.is_empty() {
             return 0.0;
         }
-        let tf_sum: f64 = words.iter()
+        let tf_sum: f64 = words
+            .iter()
             .map(|w| freq.get(&w.to_lowercase()).copied().unwrap_or(0.0))
             .sum();
 
@@ -112,13 +126,26 @@ impl SaliencyRankAlgorithm {
 }
 
 impl CondenserAlgorithm for SaliencyRankAlgorithm {
-    fn name(&self) -> &str { "saliency_rank" }
-    fn description(&self) -> &str { "TF-IDF + entropy scoring with structural bonus" }
+    fn name(&self) -> &str {
+        "saliency_rank"
+    }
+    fn description(&self) -> &str {
+        "TF-IDF + entropy scoring with structural bonus"
+    }
     fn default_for(&self) -> &[ContextCategory] {
-        &[ContextCategory::ConversationHistory, ContextCategory::LogOutput, ContextCategory::Unknown]
+        &[
+            ContextCategory::ConversationHistory,
+            ContextCategory::LogOutput,
+            ContextCategory::Unknown,
+        ]
     }
     fn handles(&self, category: ContextCategory) -> bool {
-        matches!(category, ContextCategory::ConversationHistory | ContextCategory::LogOutput | ContextCategory::Unknown)
+        matches!(
+            category,
+            ContextCategory::ConversationHistory
+                | ContextCategory::LogOutput
+                | ContextCategory::Unknown
+        )
     }
     fn compress(&self, input: &str, profile: Profile, _category: ContextCategory) -> String {
         let lines: Vec<&str> = input.lines().collect();
@@ -166,8 +193,15 @@ pub struct FlashrankAlgorithm;
 impl FlashrankAlgorithm {
     fn relevance_score(line: &str, query_terms: &[String]) -> f64 {
         let lower = line.to_lowercase();
-        query_terms.iter()
-            .map(|term| if lower.contains(&term.to_lowercase()) { 1.0 } else { 0.0 })
+        query_terms
+            .iter()
+            .map(|term| {
+                if lower.contains(&term.to_lowercase()) {
+                    1.0
+                } else {
+                    0.0
+                }
+            })
             .sum()
     }
 
@@ -178,31 +212,48 @@ impl FlashrankAlgorithm {
         let mut total = 0usize;
         for prev in selected {
             let prev_lower = prev.to_lowercase();
-            let prev_words: std::collections::HashSet<&str> = prev_lower.split_whitespace().collect();
+            let prev_words: std::collections::HashSet<&str> =
+                prev_lower.split_whitespace().collect();
             for w in &words {
                 total += 1;
-                if prev_words.contains(w) { overlap += 1; }
+                if prev_words.contains(w) {
+                    overlap += 1;
+                }
             }
         }
-        if total == 0 { return 1.0; }
+        if total == 0 {
+            return 1.0;
+        }
         1.0 - (overlap as f64 / total as f64)
     }
 
     fn brevity_score(line: &str) -> f64 {
         let len = line.len() as f64;
-        if len == 0.0 { return 0.0; }
+        if len == 0.0 {
+            return 0.0;
+        }
         1.0 / (1.0 + len / 100.0)
     }
 }
 
 impl CondenserAlgorithm for FlashrankAlgorithm {
-    fn name(&self) -> &str { "flashrank" }
-    fn description(&self) -> &str { "Greedy marginal-utility selection under token budget" }
+    fn name(&self) -> &str {
+        "flashrank"
+    }
+    fn description(&self) -> &str {
+        "Greedy marginal-utility selection under token budget"
+    }
     fn default_for(&self) -> &[ContextCategory] {
-        &[ContextCategory::FileContents, ContextCategory::StructuredData]
+        &[
+            ContextCategory::FileContents,
+            ContextCategory::StructuredData,
+        ]
     }
     fn handles(&self, category: ContextCategory) -> bool {
-        matches!(category, ContextCategory::FileContents | ContextCategory::StructuredData)
+        matches!(
+            category,
+            ContextCategory::FileContents | ContextCategory::StructuredData
+        )
     }
     fn compress(&self, input: &str, profile: Profile, _category: ContextCategory) -> String {
         let lines: Vec<&str> = input.lines().collect();
@@ -218,10 +269,13 @@ impl CondenserAlgorithm for FlashrankAlgorithm {
         let beta = 0.3f64;
         let gamma = 0.3f64;
 
-        let query_terms: Vec<String> = lines.iter()
+        let query_terms: Vec<String> = lines
+            .iter()
             .take(5)
             .flat_map(|l| {
-                l.split_whitespace().filter(|w| w.len() > 3).map(|s| s.to_string())
+                l.split_whitespace()
+                    .filter(|w| w.len() > 3)
+                    .map(|s| s.to_string())
             })
             .take(20)
             .collect();
@@ -234,7 +288,9 @@ impl CondenserAlgorithm for FlashrankAlgorithm {
             let mut best_score = f64::NEG_INFINITY;
 
             for (i, line) in lines.iter().enumerate() {
-                if selected_indices.contains(&i) { continue; }
+                if selected_indices.contains(&i) {
+                    continue;
+                }
 
                 let rel = Self::relevance_score(line, &query_terms);
                 let nov = Self::novelty_score(line, &selected_lines);
@@ -299,16 +355,22 @@ impl AlgorithmRegistry {
                 return algo.as_ref();
             }
         }
-        self.algorithms.last().expect("at least one algorithm").as_ref()
+        self.algorithms
+            .last()
+            .expect("at least one algorithm")
+            .as_ref()
     }
 
     pub fn list_algorithms(&self) -> Vec<serde_json::Value> {
-        self.algorithms.iter().map(|a| {
-            serde_json::json!({
-                "name": a.name(),
-                "description": a.description(),
-                "default_for": a.default_for().iter().map(|c| c.label()).collect::<Vec<_>>(),
+        self.algorithms
+            .iter()
+            .map(|a| {
+                serde_json::json!({
+                    "name": a.name(),
+                    "description": a.description(),
+                    "default_for": a.default_for().iter().map(|c| c.label()).collect::<Vec<_>>(),
+                })
             })
-        }).collect()
+            .collect()
     }
 }

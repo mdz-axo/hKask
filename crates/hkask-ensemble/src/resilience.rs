@@ -136,17 +136,17 @@ where
             let op = operation(inner);
 
             async move {
-                if !cb.allow_request().await {
+                if !cb.allow_request() {
                     return Err(RetryError::CircuitOpen);
                 }
 
                 match op.await {
                     Ok(result) => {
-                        cb.record_success().await;
+                        cb.record_success();
                         Ok(result)
                     }
                     Err(e) => {
-                        cb.record_failure().await;
+                        cb.record_failure();
                         Err(e)
                     }
                 }
@@ -157,6 +157,6 @@ where
 
     /// Get circuit breaker stats
     pub async fn circuit_stats(&self) -> CircuitBreakerStats {
-        self.circuit_breaker.stats().await
+        self.circuit_breaker.stats()
     }
 }

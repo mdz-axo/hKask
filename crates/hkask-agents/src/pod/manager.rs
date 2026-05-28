@@ -15,7 +15,7 @@ use crate::adapters::cns_emitter::CnsEmitterAdapter;
 use crate::adapters::git_cas::GitCasAdapter;
 use crate::adapters::mcp_runtime::McpRuntimeAdapter;
 use crate::adapters::memory_storage::MemoryStorageAdapter;
-use crate::ports::{GitCASPort, MCPRuntimePort, MemoryStoragePort};
+use crate::ports::{GitCASPort, MCPRuntimePort, MemoryStoragePort, RateLimitPort};
 use crate::security::{AgentPersonaInput, InputValidator, SecurityContext};
 
 /// Pod Manager — Manages collection of agent pods
@@ -294,7 +294,6 @@ impl PodManager {
         self.security_context
             .rate_limiter
             .acquire(&rate_key, 1.0)
-            .await
             .map_err(|e| match e {
                 crate::security::ValidationError::RateLimitExceeded => {
                     AgentPodError::ACPRegistrationError("Rate limit exceeded".to_string())

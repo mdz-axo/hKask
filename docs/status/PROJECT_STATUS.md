@@ -245,8 +245,8 @@ find mcp-servers -name "*.rs" -type f | xargs wc -l
 ## 8. References
 
 - [`AGENTS.md`](../../AGENTS.md) — Agent operating guide
-- [`DOCUMENTATION_STANDARDS.md`](../standards/DOCUMENTATION_STANDARDS.md) — Documentation standards
-- [`DDMVSS_SCAFFOLD.md`](../DDMVSS_SCAFFOLD.md) — DDMVSS category → directory mapping
+- [`DOCUMENTATION_STANDARDS.md`](../specifications/DOCUMENTATION_STANDARDS.md) — Documentation standards
+- [`DDMVSS_SCAFFOLD.md`](../specifications/DDMVSS_SCAFFOLD.md) — DDMVSS category → directory mapping
 - [`hKask-architecture-master.md`](../architecture/hKask-architecture-master.md) — Master specification
 - [`domain-and-capability.md`](../architecture/domain-and-capability.md) — Domain & Capability architecture
 - [`interface-and-composition.md`](../architecture/interface-and-composition.md) — Interface & Composition architecture

@@ -362,7 +362,7 @@ impl FmpServer {
 
 hkask_mcp::mcp_server_main!(
     "hkask-mcp-fmp",
-    FmpServer,
+    factory: |ctx: hkask_mcp::ServerContext| FmpServer::new(ctx.webid),
     credentials: vec![hkask_mcp::CredentialRequirement::required(
         "HKASK_FMP_API_KEY",
         "Financial Modeling Prep API key",

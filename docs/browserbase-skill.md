@@ -1,4 +1,8 @@
 ---
+title: "Browserbase Search API"
+version: "0.21.0"
+status: "Active"
+last_updated: 2026-05-27
 name: search
 description: "Use this skill when the user wants to search the web without a full browser session: find URLs, titles, and metadata for a query. Prefer it over a browser when you just need search results, not page content. Returns structured results with titles, URLs, authors, and dates."
 license: MIT
@@ -103,5 +107,5 @@ curl -X POST "https://api.browserbase.com/v1/search" \
 5. **Chain with Fetch** to get page content: search for URLs, then fetch the ones you need
 6. **Fall back to Browser** if you need to interact with search results or render JavaScript
 
-For detailed examples, see [EXAMPLES.md](EXAMPLES.md).
-For API reference, see [REFERENCE.md](REFERENCE.md).
+For detailed examples, see `EXAMPLES.md`.
+For API reference, see `REFERENCE.md`.

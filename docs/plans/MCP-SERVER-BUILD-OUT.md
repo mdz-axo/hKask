@@ -1,3 +1,10 @@
+---
+title: "MCP Server Build-Out Specification & Architecture"
+version: "0.21.0"
+status: "Draft"
+last_updated: 2026-05-27
+---
+
 # hKask MCP Server Specification & Architecture
 
 **Version:** 0.21.0  

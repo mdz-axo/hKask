@@ -74,7 +74,7 @@ Conventions:
 | Last-Updated | ISO 8601 date on every content-bearing edit[^iso8601]. |
 | Status | Exactly one of the four values. `Deprecated` and `Superseded` documents are removed from the active tree (`git rm`) at the next review; git history is the canonical archive of record. A local `docs/archive/` snapshot may be kept on a maintainer's disk for personal reference but is gitignored. |
 | Audience | Named roles; avoid "everyone." |
-| DDMVSS Categories | One or more of the 9 DDMVSS categories defined in [`../architecture/DDMVSS.md`](../architecture/DDMVSS.md) §3. See [`../DDMVSS_SCAFFOLD.md`](../DDMVSS_SCAFFOLD.md) for category → directory mapping. |
+| DDMVSS Categories | One or more of the 9 DDMVSS categories defined in [`../architecture/DDMVSS.md`](../architecture/DDMVSS.md) §3. See [`../DDMVSS_SCAFFOLD.md`](DDMVSS_SCAFFOLD.md) for category → directory mapping. |
 | Domain | Optional for cross-cutting documents; mandatory for domain-specific documents. |
 
 ## 3. Lifecycle

@@ -23,7 +23,14 @@ impl OCAPAdapter {
         }
     }
 
-    fn compute_chain_hash(&self, parent_hash: &str, from: &WebID, to: &WebID, ts: i64, level: u8) -> String {
+    fn compute_chain_hash(
+        &self,
+        parent_hash: &str,
+        from: &WebID,
+        to: &WebID,
+        ts: i64,
+        level: u8,
+    ) -> String {
         use hmac::{Hmac, Mac};
         type HmacSha256 = Hmac<Sha256>;
         let mut mac = HmacSha256::new_from_slice(&self.config.hmac_secret).unwrap();
@@ -61,7 +68,10 @@ impl OCAPPort for OCAPAdapter {
     }
 
     fn is_expired(&self, token: &CapabilityToken, current_time: i64) -> bool {
-        token.expires_at.map(|exp| current_time > exp).unwrap_or(false)
+        token
+            .expires_at
+            .map(|exp| current_time > exp)
+            .unwrap_or(false)
     }
 
     fn record_delegation(&self, parent: &CapabilityToken, child: &CapabilityToken, timestamp: i64) {
@@ -81,7 +91,9 @@ impl OCAPPort for OCAPAdapter {
             chain_hash: hash,
         };
         let mut map = self.delegation_history.blocking_write();
-        map.entry(root.to_string()).or_insert_with(Vec::new).push(entry);
+        map.entry(root.to_string())
+            .or_insert_with(Vec::new)
+            .push(entry);
     }
 
     fn get_delegation_history(&self, root_nonce: &str) -> Vec<DelegationEntry> {
@@ -93,10 +105,14 @@ impl OCAPPort for OCAPAdapter {
     }
 
     fn is_revoked(&self, token: &CapabilityToken) -> bool {
-        self.revoked_tokens.blocking_read().contains(&token.fingerprint())
+        self.revoked_tokens
+            .blocking_read()
+            .contains(&token.fingerprint())
     }
 
     fn revoke(&self, token: &CapabilityToken) {
-        self.revoked_tokens.blocking_write().insert(token.fingerprint());
+        self.revoked_tokens
+            .blocking_write()
+            .insert(token.fingerprint());
     }
 }

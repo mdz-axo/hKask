@@ -14,6 +14,7 @@ pub mod git_cas;
 pub mod mcp_runtime;
 pub mod memory_storage;
 pub mod metacognition;
+pub mod ocap_port;
 pub mod security_port;
 pub mod sovereignty;
 pub mod standing_session;
@@ -33,6 +34,7 @@ pub use metacognition::{
     KataDirective, KataType, MetacognitionPort, MetacognitionPortError, RecommendedAction,
     StoredHealthSnapshot,
 };
+pub use ocap_port::{DelegationEntry, OCAPConfig, OCAPPort, OCAPResult};
 pub use security_port::{RateLimitPort, ValidationError as RateLimitValidationError};
 pub use sovereignty::{SovereigntyCheckResult, SovereigntyOperation, SovereigntyPort};
 pub use standing_session::{

@@ -2,6 +2,7 @@
 title: "ADR-023: Master Key Derivation via HKDF-SHA256"
 audience: [architects, security engineers, developers]
 last_updated: 2026-05-27
+version: "0.21.0"
 status: "Accepted"
 ---
 

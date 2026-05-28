@@ -1,4 +1,8 @@
 ---
+title: "SerpApi Web Search Skill"
+version: "0.21.0"
+status: "Active"
+last_updated: 2026-05-27
 name: serpapi-web-search
 description: >-
   Search the web using SerpApi's 100+ search engines. Use this skill whenever
@@ -38,7 +42,7 @@ Install: `brew tap serpapi/homebrew-tap && brew install serpapi-cli`
 Auth: `SERPAPI_KEY` env var, `--api-key` flag, or `serpapi login`.  
 Exit codes: `0` success · `1` API error · `2` usage error. Errors are JSON on stderr.
 
-**3. SDK** — when writing code: see [rules/sdks.md](rules/sdks.md) — Python, JS, Go, Ruby, PHP, Java, .NET.
+**3. SDK** — when writing code: see `rules/sdks.md` — Python, JS, Go, Ruby, PHP, Java, .NET.
 
 **4. curl** — universal fallback:
 ```bash
@@ -68,7 +72,7 @@ Pick the engine that matches the user's intent:
 
 Prefer `_light` variants — they're faster and cheaper. Use the full engine only when you need knowledge graph, local pack, or featured snippets.
 
-For engines not listed above (flights, hotels, jobs, finance, patents, etc.), read [rules/ENGINES.md](rules/ENGINES.md).
+For engines not listed above (flights, hotels, jobs, finance, patents, etc.), read `rules/ENGINES.md`.
 
 ## Error Reference
 
@@ -93,8 +97,8 @@ Official reference (link these when agents need deeper detail):
 
 Read these files when you need more detail:
 
-- **Parameters** (locale, time filter, pagination, safe search): [rules/parameters.md](rules/parameters.md)
-- **Response format** (result keys, JSON shape, pagination): [rules/response.md](rules/response.md)
-- **Examples** (news, shopping, time-filtered, Bing): [rules/examples.md](rules/examples.md)
-- **SDKs** (Python, JS, Go, Ruby, PHP, Java, .NET): [rules/sdks.md](rules/sdks.md)
-- **All 100+ engines** (flights, hotels, jobs, finance, patents…): [rules/ENGINES.md](rules/ENGINES.md)
+- **Parameters** (locale, time filter, pagination, safe search): `rules/parameters.md`
+- **Response format** (result keys, JSON shape, pagination): `rules/response.md`
+- **Examples** (news, shopping, time-filtered, Bing): `rules/examples.md`
+- **SDKs** (Python, JS, Go, Ruby, PHP, Java, .NET): `rules/sdks.md`
+- **All 100+ engines** (flights, hotels, jobs, finance, patents…): `rules/ENGINES.md`

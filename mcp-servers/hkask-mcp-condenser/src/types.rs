@@ -124,9 +124,14 @@ impl std::str::FromStr for ContextCategory {
 
 pub fn classify_tool(tool_name: &str) -> ContextCategory {
     let lower = tool_name.to_lowercase();
-    if lower.contains("git") || lower.contains("docker") || lower.contains("cargo")
-        || lower.contains("npm") || lower.contains("shell") || lower.contains("exec")
-        || lower.contains("run") || lower.contains("bash")
+    if lower.contains("git")
+        || lower.contains("docker")
+        || lower.contains("cargo")
+        || lower.contains("npm")
+        || lower.contains("shell")
+        || lower.contains("exec")
+        || lower.contains("run")
+        || lower.contains("bash")
     {
         ContextCategory::ShellCommand
     } else if lower.contains("test") || lower.contains("pytest") || lower.contains("spec") {
@@ -135,7 +140,8 @@ pub fn classify_tool(tool_name: &str) -> ContextCategory {
         ContextCategory::BuildOutput
     } else if lower.contains("file") || lower.contains("read") || lower.contains("cat") {
         ContextCategory::FileContents
-    } else if lower.contains("chat") || lower.contains("conversation") || lower.contains("message") {
+    } else if lower.contains("chat") || lower.contains("conversation") || lower.contains("message")
+    {
         ContextCategory::ConversationHistory
     } else if lower.contains("json") || lower.contains("api") || lower.contains("query") {
         ContextCategory::StructuredData

@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use super::{ProviderSearchOutput, WebSearchProvider, WebError};
+use super::{ProviderSearchOutput, WebError, WebSearchProvider};
 use crate::types::*;
 
 pub struct SerapiProvider {

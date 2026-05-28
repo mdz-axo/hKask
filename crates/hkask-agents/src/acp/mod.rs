@@ -32,12 +32,13 @@ mod audit;
 mod dispatch;
 mod root_authority;
 
-pub use audit::{AuditLog, AuditLogEntry, AuditLogPort};
+pub use audit::{AuditEntry, AuditLog};
 pub use dispatch::TemplateDispatchHandler;
+pub use hkask_types::AuditLogPort;
 pub use root_authority::RootAuthority;
 
 use hkask_cns::rate_limit::{RateLimitConfig, RateLimiter};
-use hkask_types::{CapabilityAction, CapabilityResource, CapabilityToken, WebID};
+use hkask_types::{AuditOutcome, CapabilityAction, CapabilityResource, CapabilityToken, WebID};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -477,16 +478,20 @@ impl AcpRuntime {
         pending.insert(correlation_id.clone(), message);
 
         // Log audit entry
-        let audit_entry = AuditLogEntry {
-            id: uuid::Uuid::new_v4().to_string(),
-            timestamp: current_timestamp()?,
-            from: from.unwrap_or(WebID::new()),
-            to,
-            message_type: message_type.clone(),
-            correlation_id: correlation_id.clone(),
-            event_type: "sent".to_string(),
-            metadata: serde_json::json!({}),
-        };
+        let mut audit_entry = AuditEntry::new(
+            from.unwrap_or(WebID::new()),
+            "sent".to_string(),
+            message_type.clone(),
+            AuditOutcome::Success,
+        )
+        .with_correlation_id(correlation_id.clone())
+        .with_metadata(serde_json::json!({
+            "event_type": "sent",
+            "message_type": &message_type
+        }));
+        if let Some(recipient) = to {
+            audit_entry = audit_entry.with_recipient(recipient);
+        }
         self.audit_log.log(audit_entry).await;
 
         info!(

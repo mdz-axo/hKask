@@ -1,4 +1,8 @@
 ---
+title: "Firecrawl Skill"
+version: "0.21.0"
+status: "Active"
+last_updated: 2026-05-27
 name: firecrawl
 description: |
   Firecrawl gives AI agents and apps fast, reliable web context with

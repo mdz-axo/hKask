@@ -10,15 +10,16 @@ use uuid::Uuid;
 /// define_id_type!(BotID);
 /// define_id_type!(TemplateID, from_string);
 /// ```
+#[macro_export]
 macro_rules! define_id_type {
     // Basic ID type with just new()
     ($name:ident) => {
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-        pub struct $name(pub Uuid);
+        pub struct $name(pub ::uuid::Uuid);
 
         impl $name {
             pub fn new() -> Self {
-                Self(Uuid::new_v4())
+                Self(::uuid::Uuid::new_v4())
             }
         }
 
@@ -38,15 +39,15 @@ macro_rules! define_id_type {
     // ID type with from_string() method
     ($name:ident, from_string) => {
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-        pub struct $name(pub Uuid);
+        pub struct $name(pub ::uuid::Uuid);
 
         impl $name {
             pub fn new() -> Self {
-                Self(Uuid::new_v4())
+                Self(::uuid::Uuid::new_v4())
             }
 
             pub fn from_string(s: &str) -> Self {
-                Self(Uuid::parse_str(s).unwrap_or_else(|_| Uuid::new_v4()))
+                Self(::uuid::Uuid::parse_str(s).unwrap_or_else(|_| ::uuid::Uuid::new_v4()))
             }
         }
 
@@ -63,6 +64,8 @@ macro_rules! define_id_type {
         }
     };
 }
+
+pub use crate::define_id_type;
 
 /// WebID — Unique identifier for agents (bots and replicants)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

@@ -12,7 +12,7 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 
 **Purpose:** Maps the DDMVSS 9-category goal-group taxonomy to directory locations and enforces the lifecycle policy.
 
-**DDMVSS Reference:** [`architecture/DDMVSS.md`](architecture/DDMVSS.md) §3
+**DDMVSS Reference:** [`architecture/DDMVSS.md`](../architecture/DDMVSS.md) §3
 
 ---
 
@@ -20,15 +20,15 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 
 | # | DDMVSS Category | Authoritative Document | Supporting References |
 |---|----------------|----------------------|----------------------|
-| 1 | **Domain** | [`domain-and-capability.md`](architecture/domain-and-capability.md) | [`reference/hKask-hLexicon.md`](architecture/reference/hKask-hLexicon.md), [`reference/hKask-Curator-persona.md`](architecture/reference/hKask-Curator-persona.md) |
-| 2 | **Capability** | [`domain-and-capability.md`](architecture/domain-and-capability.md) | [`reference/ports-inventory.md`](architecture/reference/ports-inventory.md) |
-| 3 | **Interface** | [`interface-and-composition.md`](architecture/interface-and-composition.md) | [`reference/utoipa-implementation.md`](architecture/reference/utoipa-implementation.md), [`reference/ports-inventory.md`](architecture/reference/ports-inventory.md) |
-| 4 | **Composition** | [`interface-and-composition.md`](architecture/interface-and-composition.md) | [`reference/template-header-standard.md`](architecture/reference/template-header-standard.md) |
-| 5 | **Trust & Security** | [`trust-security-observability.md`](architecture/trust-security-observability.md) | [`magna-carta.md`](architecture/magna-carta.md) |
-| 6 | **Observability** | [`trust-security-observability.md`](architecture/trust-security-observability.md) | — |
-| 7 | **Persistence** | [`persistence-and-lifecycle.md`](architecture/persistence-and-lifecycle.md) | [`reference/hKask-erd.md`](architecture/reference/hKask-erd.md), [`reference/registry-erd.md`](architecture/reference/registry-erd.md), [`reference/subsystem-erds.md`](architecture/reference/subsystem-erds.md) |
-| 8 | **Lifecycle** | [`persistence-and-lifecycle.md`](architecture/persistence-and-lifecycle.md) | [`CI-CD-GUIDE.md`](CI-CD-GUIDE.md), [`DEPLOYMENT.md`](DEPLOYMENT.md) |
-| 9 | **Curation** | [`DDMVSS.md`](architecture/DDMVSS.md) + [`WRITING_EXCELLENCE.md`](standards/WRITING_EXCELLENCE.md) | — |
+| 1 | **Domain** | [`domain-and-capability.md`](../architecture/domain-and-capability.md) | [`reference/hKask-hLexicon.md`](../architecture/reference/hKask-hLexicon.md), [`reference/hKask-Curator-persona.md`](../architecture/reference/hKask-Curator-persona.md) |
+| 2 | **Capability** | [`domain-and-capability.md`](../architecture/domain-and-capability.md) | [`reference/ports-inventory.md`](../architecture/reference/ports-inventory.md) |
+| 3 | **Interface** | [`interface-and-composition.md`](../architecture/interface-and-composition.md) | [`reference/utoipa-implementation.md`](../architecture/reference/utoipa-implementation.md), [`reference/ports-inventory.md`](../architecture/reference/ports-inventory.md) |
+| 4 | **Composition** | [`interface-and-composition.md`](../architecture/interface-and-composition.md) | [`reference/template-header-standard.md`](../architecture/reference/template-header-standard.md) |
+| 5 | **Trust & Security** | [`trust-security-observability.md`](../architecture/trust-security-observability.md) | [`magna-carta.md`](../architecture/magna-carta.md) |
+| 6 | **Observability** | [`trust-security-observability.md`](../architecture/trust-security-observability.md) | — |
+| 7 | **Persistence** | [`persistence-and-lifecycle.md`](../architecture/persistence-and-lifecycle.md) | [`reference/hKask-erd.md`](../architecture/reference/hKask-erd.md), [`reference/registry-erd.md`](../architecture/reference/registry-erd.md), [`reference/subsystem-erds.md`](../architecture/reference/subsystem-erds.md) |
+| 8 | **Lifecycle** | [`persistence-and-lifecycle.md`](../architecture/persistence-and-lifecycle.md) | [`CI-CD-GUIDE.md`](CI-CD-GUIDE.md), [`DEPLOYMENT.md`](DEPLOYMENT.md) |
+| 9 | **Curation** | [`DDMVSS.md`](../architecture/DDMVSS.md) + [`WRITING_EXCELLENCE.md`](../specifications/WRITING_EXCELLENCE.md) | — |
 
 ---
 
@@ -81,7 +81,7 @@ docs/
 
 ## 3. Lifecycle Enforcement
 
-Per [`DOCUMENTATION_STANDARDS.md`](standards/DOCUMENTATION_STANDARDS.md) §3:
+Per [`DOCUMENTATION_STANDARDS.md`](../specifications/DOCUMENTATION_STANDARDS.md) §3:
 
 ```
 Draft → Active → Deprecated → Superseded → Removed
@@ -96,7 +96,7 @@ Draft → Active → Deprecated → Superseded → Removed
 
 ## 4. Completeness Predicate
 
-Per [`DDMVSS.md`](architecture/DDMVSS.md) §3.2:
+Per [`DDMVSS.md`](../architecture/DDMVSS.md) §3.2:
 
 | Category | Authoritative Document | Complete? | Curated? |
 |----------|----------------------|-----------|----------|

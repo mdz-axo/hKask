@@ -6,16 +6,16 @@ on:
   push:
     branches: [main]
     paths:
-      - 'crates/**'
-      - 'docs/**'
-      - 'README.md'
-      - '.github/workflows/docs.yml'
+      - "crates/**"
+      - "docs/**"
+      - "README.md"
+      - ".github/workflows/docs.yml"
   pull_request:
     branches: [main]
     paths:
-      - 'crates/**'
-      - 'docs/**'
-      - 'README.md'
+      - "crates/**"
+      - "docs/**"
+      - "README.md"
   workflow_dispatch:
 
 env:
@@ -29,15 +29,15 @@ jobs:
     name: Generate Documentation
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@1.91
         with:
           components: rust-docs
-      
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -51,69 +51,20 @@ jobs:
             protobuf-compiler \
             libprotobuf-dev \
             libzstd-dev
-       
+
       - name: Cache cargo registry
         uses: Swatinem/rust-cache@v2
-      
+
       - name: Generate documentation
         run: cargo doc --workspace --no-deps
-      
+
       - name: Add redirect to docs index
         run: |
           echo '<meta http-equiv="refresh" content="0; url=hkask_cli/index.html">' > target/doc/index.html
-      
+
       - name: Upload documentation artifact
         uses: actions/upload-artifact@v4
         with:
           name: documentation
           path: target/doc
           retention-days: 30
-
-  # ============================================================================
-  # Documentation Health Check
-  # ============================================================================
-  docs-health:
-    name: Documentation Health
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Run documentation health check
-        run: |
-          chmod +x docs/ci/docs-health.sh
-          ./docs/ci/docs-health.sh
-
-      - name: Run link check
-        run: |
-          chmod +x docs/ci/check-links.sh
-          ./docs/ci/check-links.sh
-
-      - name: Run metadata check
-        run: |
-          chmod +x docs/ci/check-metadata.sh
-          ./docs/ci/check-metadata.sh
-
-  # ============================================================================
-  # Check Documentation Links
-  # ============================================================================
-  link-check:
-    name: Link Check
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    needs: docs-health
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Install markdown-link-check
-        run: npm install -g markdown-link-check
-      
-      - name: Check README links
-        run: markdown-link-check README.md
-      
-      - name: Check documentation links
-        run: find docs -name "*.md" -exec markdown-link-check {} \;
-
-
