@@ -3,9 +3,7 @@
 //! Implements the TemplateRenderer port for template composition.
 //! Per architecture v0.21.0: Rust renders Jinja2, doesn't own template content.
 
-use crate::ports::{
-    CompositionTemplate, Result, TemplateContract, TemplateError, TemplateRenderer,
-};
+use crate::ports::{CompositionTemplate, Result, TemplateContract, TemplateError};
 use hkask_types::TemplateType;
 use minijinja::{Environment, UndefinedBehavior};
 use serde_json::Value;
@@ -84,8 +82,9 @@ impl Default for TemplateRendererImpl {
     }
 }
 
-impl TemplateRenderer for TemplateRendererImpl {
-    fn load(&self, path: &Path) -> Result<CompositionTemplate> {
+impl TemplateRendererImpl {
+    /// Load a template from filesystem
+    pub fn load(&self, path: &Path) -> Result<CompositionTemplate> {
         // Load template from filesystem
         let source = std::fs::read_to_string(path)
             .map_err(|e| TemplateError::NotFound(format!("Failed to load {:?}: {}", path, e)))?;
@@ -115,7 +114,8 @@ impl TemplateRenderer for TemplateRendererImpl {
         })
     }
 
-    fn render(&self, template: &CompositionTemplate, bindings: Value) -> Result<String> {
+    /// Render a template with bindings
+    pub fn render(&self, template: &CompositionTemplate, bindings: Value) -> Result<String> {
         // Check if template exists, if not add it
         let needs_add = {
             let env = self.env.read().map_err(|_| {

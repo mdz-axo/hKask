@@ -35,7 +35,7 @@ pub use server::{
     validate_tool_url,
 };
 pub use supervisor::{McpSupervisor, RestartPolicy, ServerConfig, ServerStatus, SupervisionError};
-pub use transport::{HttpMcpTransport, InProcessMcpTransport, McpTransport, StdioMcpTransport};
+pub use transport::{InProcessMcpTransport, McpTransport};
 
 /// Macro to eliminate MCP server boilerplate
 ///

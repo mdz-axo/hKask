@@ -5,22 +5,26 @@
 //! - `MemoryAdapter`: Generic wrapper (for custom types)
 //! - `AppMemoryAdapter`: Concrete adapter for SemanticMemory + EpisodicMemory
 
-use crate::ports::{MemoryFragment, MemoryPort, Result};
+use crate::ports::{MemoryFragment, Result};
 use hkask_memory::{EpisodicMemory, SemanticMemory};
 use hkask_types::WebID;
 
 pub struct StubMemoryPort;
 
-impl MemoryPort for StubMemoryPort {
-    fn query_semantic(&self, _entity: &str) -> Result<Vec<MemoryFragment>> {
+impl StubMemoryPort {
+    pub fn query_semantic(&self, _entity: &str) -> Result<Vec<MemoryFragment>> {
         Ok(Vec::new())
     }
 
-    fn query_episodic(&self, _entity: &str, _perspective: &str) -> Result<Vec<MemoryFragment>> {
+    pub fn query_episodic(&self, _entity: &str, _perspective: &str) -> Result<Vec<MemoryFragment>> {
         Ok(Vec::new())
     }
 
-    fn get_session_history(&self, _session_id: &str, _max_messages: usize) -> Result<Vec<String>> {
+    pub fn get_session_history(
+        &self,
+        _session_id: &str,
+        _max_messages: usize,
+    ) -> Result<Vec<String>> {
         Ok(Vec::new())
     }
 }
@@ -50,8 +54,8 @@ impl AppMemoryAdapter {
     }
 }
 
-impl MemoryPort for AppMemoryAdapter {
-    fn query_semantic(&self, entity: &str) -> Result<Vec<MemoryFragment>> {
+impl AppMemoryAdapter {
+    pub fn query_semantic(&self, entity: &str) -> Result<Vec<MemoryFragment>> {
         Ok(self
             .semantic
             .query_deduped(entity)
@@ -65,7 +69,7 @@ impl MemoryPort for AppMemoryAdapter {
             .collect())
     }
 
-    fn query_episodic(&self, entity: &str, perspective: &str) -> Result<Vec<MemoryFragment>> {
+    pub fn query_episodic(&self, entity: &str, perspective: &str) -> Result<Vec<MemoryFragment>> {
         let webid = WebID::from_string(perspective);
         Ok(self
             .episodic
@@ -80,7 +84,11 @@ impl MemoryPort for AppMemoryAdapter {
             .collect())
     }
 
-    fn get_session_history(&self, _session_id: &str, _max_messages: usize) -> Result<Vec<String>> {
+    pub fn get_session_history(
+        &self,
+        _session_id: &str,
+        _max_messages: usize,
+    ) -> Result<Vec<String>> {
         Ok(Vec::new())
     }
 }
@@ -99,8 +107,8 @@ mod tests {
     }
 
     #[test]
-    fn test_stub_memory_port_can_be_boxed() {
-        let stub: Box<dyn MemoryPort> = Box::new(StubMemoryPort);
+    fn test_stub_memory_port_inherent_methods() {
+        let stub = StubMemoryPort;
 
         assert!(stub.query_semantic("test").unwrap().is_empty());
     }

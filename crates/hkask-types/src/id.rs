@@ -10,10 +10,14 @@ use uuid::Uuid;
 /// define_id_type!(BotID);
 /// define_id_type!(TemplateID, from_string);
 /// ```
+///
+/// Doc comments can be placed before the invocation — they will be attached
+/// to the generated struct when using the `$(#[$meta:meta])*` capture.
 #[macro_export]
 macro_rules! define_id_type {
-    // Basic ID type with just new()
-    ($name:ident) => {
+    // Basic ID type with just new() + optional attributes
+    ($(#[$meta:meta])* $name:ident) => {
+        $(#[$meta])*
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
         pub struct $name(pub ::uuid::Uuid);
 
@@ -36,8 +40,9 @@ macro_rules! define_id_type {
         }
     };
 
-    // ID type with from_string() method
-    ($name:ident, from_string) => {
+    // ID type with from_string() method + optional attributes
+    ($(#[$meta:meta])* $name:ident, from_string) => {
+        $(#[$meta])*
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
         pub struct $name(pub ::uuid::Uuid);
 
@@ -139,10 +144,8 @@ impl std::fmt::Display for WebID {
     }
 }
 
-/// TemplateID — Unique identifier for templates
 define_id_type!(TemplateID, from_string);
 
-/// BotID — Unique identifier for bots
 define_id_type!(BotID);
 
 impl From<BotID> for WebID {
@@ -151,19 +154,14 @@ impl From<BotID> for WebID {
     }
 }
 
-/// ManifestID — Unique identifier for manifests
 define_id_type!(ManifestID);
 
-/// TripleID — Unique identifier for bitemporal triples
 define_id_type!(TripleID);
 
-/// EventID — Unique identifier for ν-events
 define_id_type!(EventID);
 
-/// SessionID — Unique identifier for agent sessions
 define_id_type!(SessionID);
 
-/// GoalID — Unique identifier for goals
 define_id_type!(GoalID, from_string);
 
 #[cfg(test)]

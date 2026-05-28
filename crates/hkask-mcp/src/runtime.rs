@@ -41,7 +41,7 @@ pub struct McpTool {
 }
 
 /// MCP server registration
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct McpServer {
     /// Server ID
     pub id: String,
@@ -52,19 +52,7 @@ pub struct McpServer {
     /// Connection status
     pub connected: bool,
     /// Transport for tool invocation
-    pub transport: Option<Arc<dyn McpTransport>>,
-}
-
-impl Clone for McpServer {
-    fn clone(&self) -> Self {
-        Self {
-            id: self.id.clone(),
-            name: self.name.clone(),
-            tools: self.tools.clone(),
-            connected: self.connected,
-            transport: self.transport.clone(),
-        }
-    }
+    pub transport: Option<Arc<McpTransport>>,
 }
 
 /// MCP runtime manager
@@ -85,7 +73,7 @@ impl McpRuntime {
     }
 
     /// Register an MCP server with a transport
-    pub async fn register_server(&self, mut server: McpServer, transport: Arc<dyn McpTransport>) {
+    pub async fn register_server(&self, mut server: McpServer, transport: Arc<McpTransport>) {
         let mut servers = self.servers.write().await;
         let mut tool_registry = self.tool_registry.write().await;
 

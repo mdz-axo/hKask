@@ -3,26 +3,61 @@
 //! Defines transport abstractions for MCP server communication.
 //! Supports in-process, stdio, and HTTP transports.
 
-use async_trait::async_trait;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-/// MCP transport trait for tool invocation
-#[async_trait]
-pub trait McpTransport: Send + Sync + fmt::Debug {
+/// MCP transport enum for tool invocation
+///
+/// Replaces the former `McpTransport` trait with a concrete enum,
+/// eliminating dynamic dispatch and simplifying the type system.
+#[derive(Debug, Clone)]
+pub enum McpTransport {
+    /// In-process transport for co-located servers
+    InProcess(InProcessMcpTransport),
+    /// Stdio transport for child process servers (not yet implemented)
+    Stdio,
+    /// HTTP transport for remote servers (not yet implemented)
+    Http,
+}
+
+impl McpTransport {
     /// Call a tool on the MCP server
-    async fn call(
+    pub async fn call(
         &self,
         server_id: &str,
         tool_name: &str,
         arguments: Value,
-    ) -> Result<Value, String>;
+    ) -> Result<Value, String> {
+        match self {
+            McpTransport::InProcess(inner) => inner.call(server_id, tool_name, arguments).await,
+            McpTransport::Stdio => Err(format!(
+                "StdioMcpTransport not yet implemented for tool '{}'",
+                tool_name
+            )),
+            McpTransport::Http => Err(format!(
+                "HttpMcpTransport not yet implemented for tool '{}'",
+                tool_name
+            )),
+        }
+    }
 
     /// Check if transport is connected
-    fn is_connected(&self) -> bool;
+    pub fn is_connected(&self) -> bool {
+        match self {
+            McpTransport::InProcess(_) => true,
+            McpTransport::Stdio => false,
+            McpTransport::Http => false,
+        }
+    }
+}
+
+impl From<InProcessMcpTransport> for McpTransport {
+    fn from(inner: InProcessMcpTransport) -> Self {
+        McpTransport::InProcess(inner)
+    }
 }
 
 /// In-process MCP transport for co-located servers
@@ -43,6 +78,14 @@ impl fmt::Debug for InProcessMcpTransport {
                 &self.handlers.try_read().map(|h| h.len()).unwrap_or(0),
             )
             .finish()
+    }
+}
+
+impl Clone for InProcessMcpTransport {
+    fn clone(&self) -> Self {
+        Self {
+            handlers: Arc::clone(&self.handlers),
+        }
     }
 }
 
@@ -68,16 +111,8 @@ impl InProcessMcpTransport {
         let mut handlers = self.handlers.write().await;
         handlers.remove(tool_name);
     }
-}
 
-impl Default for InProcessMcpTransport {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[async_trait]
-impl McpTransport for InProcessMcpTransport {
+    /// Call a tool handler directly
     async fn call(
         &self,
         _server_id: &str,
@@ -90,116 +125,11 @@ impl McpTransport for InProcessMcpTransport {
             .ok_or_else(|| format!("No handler registered for tool '{}'", tool_name))?;
         handler(arguments)
     }
-
-    fn is_connected(&self) -> bool {
-        true
-    }
 }
 
-/// Stdio MCP transport for child process servers
-///
-/// Communicates with MCP servers spawned as child processes
-/// using JSON-RPC over stdin/stdout.
-pub struct StdioMcpTransport {
-    // TODO: Implement stdio transport with child process management
-    // This requires:
-    // - Spawning child process
-    // - JSON-RPC framing over stdin/stdout
-    // - Process lifecycle management
-    // - Error handling and reconnection
-    _placeholder: (),
-}
-
-impl fmt::Debug for StdioMcpTransport {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("StdioMcpTransport")
-            .field("status", &"not_implemented")
-            .finish()
-    }
-}
-
-impl StdioMcpTransport {
-    /// Create new stdio transport (not yet implemented)
-    pub fn new() -> Self {
-        Self { _placeholder: () }
-    }
-}
-
-impl Default for StdioMcpTransport {
+impl Default for InProcessMcpTransport {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-#[async_trait]
-impl McpTransport for StdioMcpTransport {
-    async fn call(
-        &self,
-        _server_id: &str,
-        tool_name: &str,
-        _arguments: Value,
-    ) -> Result<Value, String> {
-        Err(format!(
-            "StdioMcpTransport not yet implemented for tool '{}'",
-            tool_name
-        ))
-    }
-
-    fn is_connected(&self) -> bool {
-        false
-    }
-}
-
-/// HTTP MCP transport for remote servers
-///
-/// Communicates with MCP servers over HTTP using JSON-RPC.
-pub struct HttpMcpTransport {
-    // TODO: Implement HTTP transport
-    // This requires:
-    // - HTTP client (reqwest)
-    // - JSON-RPC request/response handling
-    // - Authentication (capability tokens)
-    // - Connection pooling and timeouts
-    _placeholder: (),
-}
-
-impl fmt::Debug for HttpMcpTransport {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("HttpMcpTransport")
-            .field("status", &"not_implemented")
-            .finish()
-    }
-}
-
-impl HttpMcpTransport {
-    /// Create new HTTP transport (not yet implemented)
-    pub fn new() -> Self {
-        Self { _placeholder: () }
-    }
-}
-
-impl Default for HttpMcpTransport {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[async_trait]
-impl McpTransport for HttpMcpTransport {
-    async fn call(
-        &self,
-        _server_id: &str,
-        tool_name: &str,
-        _arguments: Value,
-    ) -> Result<Value, String> {
-        Err(format!(
-            "HttpMcpTransport not yet implemented for tool '{}'",
-            tool_name
-        ))
-    }
-
-    fn is_connected(&self) -> bool {
-        false
     }
 }
 
@@ -221,8 +151,9 @@ mod tests {
             })
             .await;
 
-        // Call the tool
-        let result = transport
+        // Call the tool via the enum
+        let enum_transport = McpTransport::InProcess(transport);
+        let result = enum_transport
             .call(
                 "test_server",
                 "test_tool",
@@ -239,7 +170,8 @@ mod tests {
     async fn test_in_process_transport_missing_tool() {
         let transport = InProcessMcpTransport::new();
 
-        let result = transport
+        let enum_transport = McpTransport::InProcess(transport);
+        let result = enum_transport
             .call("test_server", "nonexistent_tool", serde_json::json!({}))
             .await;
 
@@ -257,10 +189,39 @@ mod tests {
 
         transport.unregister_handler("test_tool").await;
 
-        let result = transport
+        let enum_transport = McpTransport::InProcess(transport);
+        let result = enum_transport
             .call("test_server", "test_tool", serde_json::json!({}))
             .await;
 
         assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_stdio_transport_not_implemented() {
+        let transport = McpTransport::Stdio;
+        assert!(!transport.is_connected());
+        let result = transport
+            .call("server", "tool", serde_json::json!({}))
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not yet implemented"));
+    }
+
+    #[tokio::test]
+    async fn test_http_transport_not_implemented() {
+        let transport = McpTransport::Http;
+        assert!(!transport.is_connected());
+        let result = transport
+            .call("server", "tool", serde_json::json!({}))
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("not yet implemented"));
+    }
+
+    #[tokio::test]
+    async fn test_from_in_process_conversion() {
+        let inner = InProcessMcpTransport::new();
+        let _enum_transport: McpTransport = inner.into();
     }
 }

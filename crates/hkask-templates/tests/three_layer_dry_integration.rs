@@ -7,7 +7,6 @@ use hkask_memory::recall_dedup::{dedup_triples, eav_hash};
 use hkask_storage::Triple;
 use hkask_templates::adapters::StubMemoryPort;
 use hkask_templates::context_assembly::{ContextAssembler, ContextFragment, FragmentSource};
-use hkask_templates::ports::MemoryPort;
 use hkask_types::WebID;
 use serde_json::json;
 use uuid::Uuid;

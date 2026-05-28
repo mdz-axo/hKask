@@ -1,7 +1,7 @@
 //! Template and MCP command handlers
 
+use hkask_mcp::McpTransport;
 use hkask_mcp::runtime::{McpRuntime, McpServer, McpTool};
-use hkask_mcp::transport::McpTransport;
 use hkask_templates::{RegistryEntry, RegistryIndex, SqliteRegistry, TemplateError};
 use hkask_types::TemplateType;
 use serde_json::Value;
@@ -86,7 +86,7 @@ pub async fn register_mcp_server(
     id: String,
     name: String,
     tools: Vec<McpTool>,
-    transport: Arc<dyn McpTransport>,
+    transport: Arc<McpTransport>,
 ) {
     let server = McpServer {
         id,

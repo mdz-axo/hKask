@@ -386,14 +386,14 @@ mod tests {
 
     #[test]
     fn test_server_default_models() {
-        let server = InferenceServer::new(WebID::new());
+        let server = InferenceServer::new(WebID::new()).expect("server init");
         let models = server.active_models.blocking_read();
         assert_eq!(models.len(), 3);
     }
 
     #[tokio::test]
     async fn test_rate_limit_allows_initial_requests() {
-        let server = InferenceServer::new(WebID::new());
+        let server = InferenceServer::new(WebID::new()).expect("server init");
         for _ in 0..10 {
             assert!(server.check_rate_limit("test-caller").await);
         }
@@ -401,7 +401,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_rate_limit_blocks_after_exhaustion() {
-        let server = InferenceServer::new(WebID::new());
+        let server = InferenceServer::new(WebID::new()).expect("server init");
         for _ in 0..10 {
             server.check_rate_limit("test-caller").await;
         }
@@ -410,7 +410,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_rate_limit_independent_per_caller() {
-        let server = InferenceServer::new(WebID::new());
+        let server = InferenceServer::new(WebID::new()).expect("server init");
         for _ in 0..10 {
             server.check_rate_limit("caller-a").await;
         }

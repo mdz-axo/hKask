@@ -4,10 +4,10 @@
 //! Per architecture v0.21.0: ~50 lines of Rust that never changes when templates are added/edited.
 
 use crate::context_assembly::{ContextAssembler, ContextFragment, FragmentSource};
+use crate::adapters::AppMemoryAdapter;
 use crate::ports::{
-    Action, CnsPort, DEFAULT_MATROSHKA_LIMIT, InferenceConfig, ManifestExecutor, ManifestStep,
-    McpPort, MemoryPort, ProcessManifest, Result, SyncInferencePort, TemplateError,
-    TemplateRenderer,
+    Action, CnsPort, DEFAULT_MATROSHKA_LIMIT, InferenceConfig, ManifestStep, McpPort,
+    ProcessManifest, Result, SyncInferencePort, TemplateError, TemplateRenderer,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -110,16 +110,11 @@ impl EnergyAccount {
     }
 }
 
-/// CSP enforcement hook — implemented by the CSP module to gate steps
-pub trait CspEnforcer: Send + Sync {
-    fn enforce(&self, step: &ManifestStep, state: &Value) -> Result<()>;
-}
-
 /// No-op CSP enforcer for when CSP is not configured
 pub struct NoopCsp;
 
-impl CspEnforcer for NoopCsp {
-    fn enforce(&self, _step: &ManifestStep, _state: &Value) -> Result<()> {
+impl NoopCsp {
+    pub fn enforce(&self, _step: &ManifestStep, _state: &Value) -> Result<()> {
         Ok(())
     }
 }
@@ -134,8 +129,8 @@ pub struct ManifestExecutorImpl<R, I, M, C> {
     inference: I,
     mcp: M,
     cns: C,
-    memory: Option<Box<dyn MemoryPort>>,
-    csp: Option<Box<dyn CspEnforcer>>,
+    memory: Option<AppMemoryAdapter>,
+    csp: Option<Box<NoopCsp>>,
     max_depth: u8,
     selector_config: SelectorConfig,
     inference_config: InferenceConfig,
@@ -166,12 +161,12 @@ where
         }
     }
 
-    pub fn with_memory(mut self, memory: Box<dyn MemoryPort>) -> Self {
+    pub fn with_memory(mut self, memory: AppMemoryAdapter) -> Self {
         self.memory = Some(memory);
         self
     }
 
-    pub fn with_csp(mut self, csp: Box<dyn CspEnforcer>) -> Self {
+    pub fn with_csp(mut self, csp: Box<NoopCsp>) -> Self {
         self.csp = Some(csp);
         self
     }
@@ -477,15 +472,14 @@ where
     }
 }
 
-#[async_trait::async_trait]
-impl<R, I, M, C> ManifestExecutor for ManifestExecutorImpl<R, I, M, C>
+impl<R, I, M, C> ManifestExecutorImpl<R, I, M, C>
 where
     R: TemplateRenderer + Send + Sync,
     I: SyncInferencePort + Send + Sync,
     M: McpPort,
     C: CnsPort + Send + Sync,
 {
-    fn load(&self, _path: &std::path::Path) -> Result<ProcessManifest> {
+    pub fn load(&self, _path: &std::path::Path) -> Result<ProcessManifest> {
         // In production, this would load from YAML file
         // For now, return bootstrap manifest from registry
         Err(TemplateError::Manifest(
@@ -493,7 +487,7 @@ where
         ))
     }
 
-    async fn execute(&self, manifest: &ProcessManifest, input: Value) -> Result<Value> {
+    pub async fn execute(&self, manifest: &ProcessManifest, input: Value) -> Result<Value> {
         info!(
             target: "hkask.templates",
             manifest = %manifest.id,
@@ -539,15 +533,14 @@ fn merge_state(mut base: Value, step_output: Value) -> Value {
 /// Simple manifest executor for testing
 pub struct SimpleExecutor;
 
-#[async_trait::async_trait]
-impl ManifestExecutor for SimpleExecutor {
-    fn load(&self, _path: &std::path::Path) -> Result<ProcessManifest> {
+impl SimpleExecutor {
+    pub fn load(&self, _path: &std::path::Path) -> Result<ProcessManifest> {
         Err(TemplateError::Manifest(
             "SimpleExecutor does not support loading".to_string(),
         ))
     }
 
-    async fn execute(&self, manifest: &ProcessManifest, input: Value) -> Result<Value> {
+    pub async fn execute(&self, manifest: &ProcessManifest, input: Value) -> Result<Value> {
         let mut state = input;
         for step in &manifest.steps {
             state = match step.action {

@@ -614,7 +614,7 @@ code:TemplateRendererImpl a hkask:Struct ; hkask:description "Jinja2 template re
 code:ManifestExecutorImpl a hkask:Struct ; hkask:description "Process manifest executor with CSP isolation" ;
     hkask:hasField [ hkask:fieldType "R" ], [ hkask:fieldType "I" ], [ hkask:fieldType "M" ],
                     [ hkask:fieldType "C" ], [ hkask:fieldType "Option<Box<dyn MemoryPort>>" ],
-                    [ hkask:fieldType "Option<Box<dyn CspEnforcer>>" ], [ hkask:fieldType "u8" ],
+                    [ hkask:fieldType "Option<Box<NoopCsp>>" ], [ hkask:fieldType "u8" ],
                     [ hkask:fieldType "SelectorConfig" ], [ hkask:fieldType "InferenceConfig" ],
                     [ hkask:fieldType "usize" ], [ hkask:fieldType "u64" ] .
 

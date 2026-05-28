@@ -932,7 +932,7 @@ erDiagram
     ManifestExecutorImpl ||--|| McpPort : "dispatches_via"
     ManifestExecutorImpl ||--|| CnsPort : "observes_via"
     ManifestExecutorImpl ||--o| MemoryPort : "recalls_via"
-    ManifestExecutorImpl ||--o| CspEnforcer : "enforces_via"
+    ManifestExecutorImpl ||--o| NoopCsp : "enforces_via"
 
     ContextAssembler ||--o{ ContextFragment : "assembles"
     ContextFragment }o--|| FragmentSource : "from"

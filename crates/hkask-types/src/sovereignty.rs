@@ -7,7 +7,6 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use uuid::Uuid;
 
 /// Data category for sovereignty classification
 ///
@@ -88,7 +87,6 @@ impl std::fmt::Display for DataCategory {
     }
 }
 
-/// SovereigntyId — Unique identifier for sovereignty boundaries
 crate::id::define_id_type!(SovereigntyId);
 
 /// Acquisition resistance level

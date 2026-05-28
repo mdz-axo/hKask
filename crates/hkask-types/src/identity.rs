@@ -7,9 +7,7 @@
 
 use crate::WebID;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
-/// Human user ID — shared across all their replicant identities
 crate::id::define_id_type!(UserID, from_string);
 
 /// Human user — owns contact info (email, phone for recovery only)
