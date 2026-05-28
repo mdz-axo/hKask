@@ -1301,11 +1301,6 @@ pub trait SpecStore {
     fn list_by_category(&self, cat: SpecCategory) -> Result<Vec<Spec>, SpecError>;
 }
 
-pub trait SpecSigner {
-    fn sign(&self, spec: &mut Spec) -> Result<(), SpecError>;
-    fn verify(&self, spec: &Spec) -> Result<bool, SpecError>;
-}
-
 pub trait SpecObserver {
     fn emit_span(&self, spec_id: SpecId, operation: &str, outcome: &serde_json::Value);
 }

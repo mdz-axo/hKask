@@ -927,11 +927,10 @@ erDiagram
     TemplateEngine ||--|| TemplateRegistry : "wraps"
     TemplateEngine ||--|| Environment : "renders_via"
 
-    ManifestExecutorImpl ||--|| TemplateRenderer : "renders_via"
-    ManifestExecutorImpl ||--|| SyncInferencePort : "infers_via"
+    ManifestExecutorImpl ||--|| TemplateRendererImpl : "renders_via"
     ManifestExecutorImpl ||--|| McpPort : "dispatches_via"
-    ManifestExecutorImpl ||--|| CnsPort : "observes_via"
-    ManifestExecutorImpl ||--o| MemoryPort : "recalls_via"
+    ManifestExecutorImpl ||--|| CnsEmit : "observes_via"
+    ManifestExecutorImpl ||--o| AppMemoryAdapter : "recalls_via"
     ManifestExecutorImpl ||--o| NoopCsp : "enforces_via"
 
     ContextAssembler ||--o{ ContextFragment : "assembles"

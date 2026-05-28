@@ -224,7 +224,7 @@ Okapi inference emits CNS spans at key boundary points:
 
 ## Architecture Notes
 
-- `InferencePort` is async; `SyncInferencePort` exists for synchronous manifest executor compatibility[^gamma1994]
+- `InferencePort` is the single async inference trait; the synchronous `SyncInferencePort` was removed in v0.21.0-p4.
 - `OkapiInference` supports four construction modes: `new`, `with_retry_config`, `with_rate_limiting`, `with_circuit_breaker`
 - Token probabilities (`n_probs`) are enabled by default (5 top tokens) for confidence scoring
 - Anti-normative generation patterns use `generate_n` for multi-output selection

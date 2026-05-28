@@ -146,20 +146,26 @@ hKask uses hexagonal architecture with explicit port traits defining integration
 
 | Port | Trait | Crate | Purpose |
 |------|-------|-------|---------|
-| ACP | `AcpPort` (`ports/acp.rs:18`) | `hkask-agents` | Agent registration, A2A messaging |
-| Git CAS | `GitCASPort` (`pod.rs:659`) | `hkask-agents` | Content-addressed template storage |
-| Memory Storage | `MemoryStoragePort` (`pod.rs:685`) | `hkask-agents` | Episodic/semantic persistence |
-| MCP Runtime | `MCPRuntimePort` (`pod.rs:629`) | `hkask-agents` | Tool dispatch |
-| CNS Emit | `NuEventSink` (`event.rs:185`) | `hkask-types` | Cybernetic event emission |
-| CNS Query | `CnsQueryPort` (`ports/cns_query.rs:15`) | `hkask-agents` | Health/metrics queries |
-| Sovereignty | `SovereigntyPort` (`ports/sovereignty.rs:79`) | `hkask-agents` | User sovereignty enforcement |
-| Rate Limit | `RateLimitPort` (`ports/security_port.rs:3`) | `hkask-agents` | Token bucket rate limiting |
-| Keystore | (trait in keystore crate) | `hkask-keystore` | Key derivation, secrets |
-| Inference | `InferencePort` (`inference_port.rs:116`) | `hkask-templates` | LLM inference (Okapi) |
-| Spec Store | `SpecStore` (`spec.rs:314`) | `hkask-types` | Specification persistence |
-| Spec Signer | `SpecSigner` (`spec.rs:322`) | `hkask-types` | Manifest signing |
-| Spec Observer | `SpecObserver` (`spec.rs:327`) | `hkask-types` | Spec CNS spans |
-| Spec Curator | `SpecCurator` (`spec.rs:331`) | `hkask-types` | Curation evaluation |
+| ACP | `AcpPort` (`ports/acp.rs`) | `hkask-agents` | Agent registration, A2A messaging |
+| Git CAS | `GitCASPort` (`ports/git_cas.rs`) | `hkask-agents` | Content-addressed template storage |
+| Memory Storage | `MemoryStoragePort` (`ports/memory_storage.rs`) | `hkask-agents` | Episodic/semantic persistence |
+| MCP Runtime | `MCPRuntimePort` (`ports/mcp_runtime.rs`) | `hkask-agents` | Tool dispatch |
+| CNS Emit | `NuEventSink` (`event.rs`) | `hkask-types` | Cybernetic event emission |
+| CNS Emit | `CnsEmit` (`spans.rs`) | `hkask-cns` | Structured span emission |
+| Sovereignty | `SovereigntyChecker` (concrete) | `hkask-agents` | User sovereignty enforcement |
+| Inference | `InferencePort` (`inference_port.rs`) | `hkask-templates` | LLM inference (Okapi) |
+| Spec Store | `SpecStore` (`spec.rs`) | `hkask-types` | Specification persistence |
+| Spec Observer | `SpecObserver` (`spec.rs`) | `hkask-types` | Spec CNS spans |
+| Spec Curator | `SpecCurator` (`spec.rs`) | `hkask-types` | Curation evaluation |
+| Audit | `AuditLogPort` (`audit.rs`) | `hkask-types` | Audit trail persistence |
+| MCP Dispatch | `McpPort` (`ports.rs`) | `hkask-templates` | MCP tool invocation |
+| Metacognition | `MetacognitionStoreAdapter` (concrete) | `hkask-agents` | Health snapshot persistence |
+| Standing Session | `StandingSessionPort` (`ports/standing_session.rs`) | `hkask-agents` | Session state persistence |
+| ACP Transport | `AcpTransport` (`ports/acp_transport.rs`) | `hkask-agents` | Wire-level transport |
+| Ensemble Inference | `InferenceClient` (`ports.rs`) | `hkask-ensemble` | Inference with retry/circuit breaker |
+| Ensemble Metrics | `MetricsSource` (`ports.rs`) | `hkask-ensemble` | SSE metrics streaming |
+| Capability Query | `CapabilityQueryPort` (`ocap_enforcement.rs`) | `hkask-ensemble` | OCAP capability lookups |
+| Registry | `RegistryIndex` (`ports.rs`) | `hkask-templates` | Template discovery |
 
 ### 2.3 Port Composition Patterns
 
