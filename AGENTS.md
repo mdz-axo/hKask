@@ -15,7 +15,7 @@
 | Anchor | What It Does |
 |--------|-------------|
 | **Agent Enablement** | Bots + Replicants run in pods with WebID, ACP |
-| **Essential Tools** | 16 MCP servers + Okapi for inference |
+| **Essential Tools** | 15 MCP servers + Okapi for inference |
 | **User Sovereignty** | OCAP, SQLCipher encryption, private/public gating |
 | **CNS** | Observability via `cns.*` spans, variety counters, algedonic alerts |
 | **Composition** | Unified registry with `template_type` discriminator |

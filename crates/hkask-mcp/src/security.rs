@@ -7,7 +7,7 @@
 //! - Audit logging
 //! - URL validation (SSRF protection)
 
-use hkask_cns::rate_limit::RateLimiter;
+use hkask_cns::{CnsEmit, rate_limit::RateLimiter};
 use hkask_templates::TemplateError;
 use hkask_types::WebID;
 use hkask_types::{CapabilityChecker, CapabilityToken};
@@ -57,6 +57,8 @@ pub struct SecurityGateway {
     policy: SecurityPolicy,
     /// Audit log (in-memory, replace with persistent storage in production)
     audit_log: Arc<RwLock<Vec<AuditEntry>>>,
+    /// Optional CNS emitter for security event span emission
+    cns_emitter: Option<Arc<dyn CnsEmit + Send + Sync>>,
 }
 
 /// Audit log entry
@@ -87,12 +89,19 @@ impl SecurityGateway {
             rate_limiter: RateLimiter::default(),
             policy,
             audit_log: Arc::new(RwLock::new(Vec::new())),
+            cns_emitter: None,
         }
     }
 
     /// Create with default policy
     pub fn with_default_policy(secret: &[u8]) -> Self {
         Self::new(secret, SecurityPolicy::default())
+    }
+
+    /// Set the CNS emitter for security event span emission
+    pub fn with_cns_emitter(mut self, emitter: Arc<dyn CnsEmit + Send + Sync>) -> Self {
+        self.cns_emitter = Some(emitter);
+        self
     }
 
     /// Validate input size
@@ -140,13 +149,25 @@ impl SecurityGateway {
         bot_id: &WebID,
         tool_name: &str,
     ) -> bool {
-        self.capability_checker.check(
+        let result = self.capability_checker.check(
             token,
             bot_id,
             hkask_types::CapabilityResource::Tool,
             tool_name,
             hkask_types::CapabilityAction::Execute,
-        )
+        );
+
+        if !result {
+            if let Some(ref emitter) = self.cns_emitter {
+                emitter.emit(
+                    &format!("cns.tool.{}.unauthorized", tool_name.replace(':', ".")),
+                    serde_json::json!({"bot_id": bot_id.to_string(), "tool": tool_name}),
+                    0.0,
+                );
+            }
+        }
+
+        result
     }
 
     /// Check rate limit
@@ -154,7 +175,17 @@ impl SecurityGateway {
         if !self.policy.enable_rate_limiting {
             return true;
         }
-        self.rate_limiter.check(bot_id)
+        let result = self.rate_limiter.check(bot_id);
+        if !result {
+            if let Some(ref emitter) = self.cns_emitter {
+                emitter.emit(
+                    "cns.tool.rate_limit_exceeded",
+                    serde_json::json!({"bot_id": bot_id.to_string()}),
+                    0.0,
+                );
+            }
+        }
+        result
     }
 
     /// Get remaining rate limit tokens

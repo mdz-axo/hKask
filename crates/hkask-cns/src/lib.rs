@@ -10,10 +10,14 @@
 //! - `cns.prompt.*` — Prompt feedback loop (render, validate, outcome)
 //! - `cns.agent_pod.*` — Agent lifecycle (populate, register, activate, delegate)
 //! - `cns.goal.*` — Goal primitive (create, transition, verify, complete, subgoal)
+//! - `cns.review.*` — Review queue (submitted, reviewed, approved, rejected)
+//! - `cns.spec.*` — Spec primitive (spec validation, compliance, verification)
 //!
 //! **Algedonic Alert:** Variety deficit >100 → escalate to Curator/human
 
 pub mod algedonic;
+pub mod algedonic_escalation;
+pub mod bot_metrics;
 pub mod energy;
 pub mod goal_variety;
 pub mod observers;
@@ -24,6 +28,13 @@ pub mod spans;
 pub mod variety;
 
 pub use algedonic::{AlertSeverity, AlgedonicManager, CnsHealth, DEFAULT_THRESHOLD, RuntimeAlert};
+pub use algedonic_escalation::{
+    AlgedonicEscalationAdapter, CalibrationRecord, EscalationAction, EscalationResult,
+    create_escalation_callback,
+};
+pub use bot_metrics::{
+    BotEvaluationMetrics, BotHealthStatus, BotMetricsCollector, CapabilityGap, GapType,
+};
 pub use energy::{
     EnergyAccount, EnergyBudget, EnergyEmitter, EnergyError, EnergySpanType, OpportunityCost,
     calculate_energy_cost, estimate_tokens,
@@ -38,5 +49,5 @@ pub use observers::sovereignty::{
 pub use rate_limit::{RateLimitConfig, RateLimiter};
 pub use review_queue::{ReviewQueue, Violation};
 pub use runtime::CnsRuntime;
-pub use spans::{CnsEmit, SpanCategory, SpanEmitter};
+pub use spans::{CnsEmit, SpanCategory, SpanEmitter, SpanScope, SpanViolation, span_scope_for_bot};
 pub use variety::{VarietyMonitor, VarietyTracker};

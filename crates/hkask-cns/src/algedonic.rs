@@ -6,8 +6,14 @@
 //! Per architecture v0.21.0: Variety deficit >100 → escalate to Curator/human
 
 use crate::variety::{VarietyMonitor, VarietyTracker};
+use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 use tracing::{error, warn};
+
+/// Default Instant for serde skip deserialization
+fn default_instant() -> Instant {
+    Instant::now()
+}
 
 /// Callback type for escalation notifications
 pub type EscalationCallback = dyn Fn(&RuntimeAlert) + Send + Sync;
@@ -16,7 +22,7 @@ pub type EscalationCallback = dyn Fn(&RuntimeAlert) + Send + Sync;
 pub const DEFAULT_THRESHOLD: u64 = 100;
 
 /// Alert severity levels
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AlertSeverity {
     /// Informational - deficit detected but below threshold
     Info,
@@ -27,13 +33,14 @@ pub enum AlertSeverity {
 }
 
 /// Algedonic alert
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RuntimeAlert {
     pub domain: String,
     pub deficit: u64,
     pub threshold: u64,
     pub severity: AlertSeverity,
     pub escalated: bool,
+    #[serde(skip, default = "default_instant")]
     pub timestamp: Instant,
     pub message: String,
 }

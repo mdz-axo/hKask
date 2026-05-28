@@ -4,7 +4,7 @@
 //! and rate limiting integration.
 
 use hkask_agents::BotCapabilities;
-use hkask_cns::RateLimiter;
+use hkask_cns::{CnsEmit, RateLimiter};
 use hkask_templates::{CnsPort, McpPort, Result, TemplateError};
 use hkask_types::{CapabilityChecker, CapabilityToken, WebID};
 use serde_json::Value;
@@ -48,6 +48,8 @@ pub struct McpDispatcher {
     bot_capabilities: Arc<RwLock<std::collections::HashMap<WebID, BotCapabilities>>>,
     /// Retry configuration (future: use in invoke_async)
     _retry_config: McpMcpRetryConfig,
+    /// Optional CNS emitter for structured span emission
+    cns_emitter: Option<Arc<dyn CnsEmit + Send + Sync>>,
 }
 
 impl McpDispatcher {
@@ -58,7 +60,14 @@ impl McpDispatcher {
             rate_limiter: RateLimiter::default(),
             bot_capabilities: Arc::new(RwLock::new(std::collections::HashMap::new())),
             _retry_config: retry_config,
+            cns_emitter: None,
         }
+    }
+
+    /// Set the CNS emitter for structured span emission
+    pub fn with_cns_emitter(mut self, emitter: Arc<dyn CnsEmit + Send + Sync>) -> Self {
+        self.cns_emitter = Some(emitter);
+        self
     }
 
     /// Register bot capabilities
@@ -146,6 +155,14 @@ impl McpDispatcher {
     ) -> Result<Value> {
         // Check rate limit first
         if !self.check_rate_limit(bot_id) {
+            if let Some(ref emitter) = self.cns_emitter {
+                emitter.emit_event(
+                    "cns.tool.rate_limit_exceeded",
+                    "observe",
+                    &serde_json::json!({"bot_id": bot_id.to_string(), "tool": tool_name}),
+                    0.0,
+                );
+            }
             cns.emit(
                 "cns.tool.rate_limit_exceeded",
                 Value::String(format!("Rate limit exceeded for tool: {}", tool_name)),
@@ -160,6 +177,14 @@ impl McpDispatcher {
 
         // Check capability
         if !self.check_capability(bot_id, tool_name).await {
+            if let Some(ref emitter) = self.cns_emitter {
+                emitter.emit_event(
+                    &format!("cns.tool.{}.unauthorized", tool_name.replace(':', ".")),
+                    "observe",
+                    &serde_json::json!({"bot_id": bot_id.to_string(), "tool": tool_name}),
+                    0.0,
+                );
+            }
             cns.emit(
                 "cns.tool.access_denied",
                 Value::String(format!("Capability denied for tool: {}", tool_name)),
@@ -174,10 +199,25 @@ impl McpDispatcher {
 
         // Check if tool exists
         if !self.runtime.tool_exists(tool_name).await {
+            if let Some(ref emitter) = self.cns_emitter {
+                emitter.emit(
+                    &format!("cns.tool.{}.not_found", tool_name.replace(':', ".")),
+                    serde_json::json!({"tool": tool_name}),
+                    0.0,
+                );
+            }
             return Err(TemplateError::Mcp(format!("Tool not found: {}", tool_name)));
         }
 
-        // Emit CNS event for tool invocation
+        // Emit CNS event for tool invocation (Observe phase)
+        if let Some(ref emitter) = self.cns_emitter {
+            emitter.emit_event(
+                &format!("cns.tool.{}.invoked", tool_name.replace(':', ".")),
+                "observe",
+                &serde_json::json!({"bot_id": bot_id.to_string(), "tool": tool_name, "input": input}),
+                1.0,
+            );
+        }
         cns.emit(
             &format!("cns.tool.{}", tool_name.replace(':', ".")),
             input.clone(),
@@ -201,8 +241,27 @@ impl McpDispatcher {
             .runtime
             .call_tool(&tool_info.server_id, tool_name, input)
             .await
-            .map_err(|e| TemplateError::Mcp(format!("Tool call failed: {}", e)))?;
+            .map_err(|e| {
+                if let Some(ref emitter) = self.cns_emitter {
+                    emitter.emit_event(
+                        &format!("cns.tool.{}.failed", tool_name.replace(':', ".")),
+                        "outcome",
+                        &serde_json::json!({"tool": tool_name, "error": e.to_string()}),
+                        0.0,
+                    );
+                }
+                TemplateError::Mcp(format!("Tool call failed: {}", e))
+            })?;
 
+        // Emit CNS event for tool completion (Outcome phase)
+        if let Some(ref emitter) = self.cns_emitter {
+            emitter.emit_event(
+                &format!("cns.tool.{}.completed", tool_name.replace(':', ".")),
+                "outcome",
+                &serde_json::json!({"tool": tool_name}),
+                1.0,
+            );
+        }
         cns.emit(
             &format!("cns.tool.{}.result", tool_name.replace(':', ".")),
             result.clone(),

@@ -3,6 +3,8 @@
 //! Provides process supervision for MCP servers with automatic restart
 //! and health monitoring capabilities.
 
+use hkask_cns::CnsEmit;
+use serde_json::json;
 use std::collections::HashMap;
 use std::process::Stdio;
 use std::sync::Arc;
@@ -99,6 +101,8 @@ struct ServerState {
 /// restart and health monitoring.
 pub struct McpSupervisor {
     servers: Arc<RwLock<HashMap<String, ServerState>>>,
+    /// Optional CNS emitter for connector lifecycle events
+    cns_emitter: Option<Arc<dyn CnsEmit + Send + Sync>>,
 }
 
 impl McpSupervisor {
@@ -106,7 +110,14 @@ impl McpSupervisor {
     pub fn new() -> Self {
         Self {
             servers: Arc::new(RwLock::new(HashMap::new())),
+            cns_emitter: None,
         }
+    }
+
+    /// Set the CNS emitter for connector lifecycle span emission
+    pub fn with_cns_emitter(mut self, emitter: Arc<dyn CnsEmit + Send + Sync>) -> Self {
+        self.cns_emitter = Some(emitter);
+        self
     }
 
     /// Register a server configuration
@@ -148,6 +159,15 @@ impl McpSupervisor {
         state.child = Some(child);
         state.started_at = Some(Instant::now());
 
+        if let Some(ref emitter) = self.cns_emitter {
+            emitter.emit_event(
+                &format!("cns.connector.{}.started", name),
+                "observe",
+                &json!({"server": name}),
+                1.0,
+            );
+        }
+
         info!(server = %name, "MCP server started");
         Ok(())
     }
@@ -170,6 +190,14 @@ impl McpSupervisor {
                     source: e,
                 })?;
             state.started_at = None;
+            if let Some(ref emitter) = self.cns_emitter {
+                emitter.emit_event(
+                    &format!("cns.connector.{}.stopped", name),
+                    "observe",
+                    &json!({"server": name}),
+                    1.0,
+                );
+            }
             info!(server = %name, "MCP server stopped");
         }
 
@@ -189,6 +217,15 @@ impl McpSupervisor {
         if let Some(state) = servers.get_mut(name) {
             state.restart_count += 1;
             state.last_restart = Some(Instant::now());
+        }
+
+        if let Some(ref emitter) = self.cns_emitter {
+            emitter.emit_event(
+                &format!("cns.connector.{}.restarted", name),
+                "observe",
+                &json!({"server": name}),
+                1.0,
+            );
         }
 
         info!(server = %name, "MCP server restarted");
@@ -260,6 +297,14 @@ impl McpSupervisor {
                 match child.try_wait() {
                     Ok(Some(status)) => {
                         // Process has exited
+                        if let Some(ref emitter) = self.cns_emitter {
+                            emitter.emit_event(
+                                &format!("cns.connector.{}.error", name),
+                                "observe",
+                                &json!({"server": name, "exit_status": status.to_string()}),
+                                0.0,
+                            );
+                        }
                         warn!(
                             server = %name,
                             status = %status,

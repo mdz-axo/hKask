@@ -30,7 +30,7 @@ hKask is a **minimal agent-native container platform** — the unit of compositi
 
 **Delegated (out of scope):**
 - LLM inference → Okapi (external service)
-- External service integration → 16 MCP servers (tool surface)
+- External service integration → 15 MCP servers (tool surface)
 - Storage encryption → SQLCipher (library dependency)
 - Key management → OS keychain (platform service)
 
@@ -45,7 +45,7 @@ graph TD
 
     subgraph Delegated["Delegated"]
         OKAPI["Okapi<br/>LLM inference"]
-        MCP_EXT["16 MCP Servers<br/>tool surface"]
+        MCP_EXT["15 MCP Servers<br/>tool surface"]
         SQLITE["SQLite + SQLCipher<br/>encrypted storage"]
         KEYCHAIN["OS Keychain<br/>key management"]
     end
@@ -77,7 +77,7 @@ hKask is built on five non-negotiable anchor capabilities:[^wiener-cybernetics]
 | # | Anchor | Implementation | DDMVSS Category |
 |---|--------|---------------|-----------------|
 | 1 | **Agent Enablement** | Bots + Replicants in pods with WebID, ACP | Domain |
-| 2 | **Essential Tools** | 16 MCP servers + Okapi | Capability |
+| 2 | **Essential Tools** | 15 MCP servers + Okapi | Capability |
 | 3 | **User Sovereignty** | OCAP, SQLCipher, private/public gating | Trust |
 | 4 | **CNS** | `cns.*` spans, variety counters, algedonic alerts | Observability |
 | 5 | **Composition** | Unified registry with `template_type` discriminator | Composition |
