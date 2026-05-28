@@ -1262,7 +1262,7 @@ status: VERIFIED
 
 [^rust-newtype]: The Rust Project. (2024). *Rust API Guidelines — Newtype pattern*. <https://rust-lang.github.io/api-guidelines/type-safety.html#c-newtype>. The newtype pattern used for all ID types ensures type safety across UUID-based identifiers.
 
-[^cockburn-hexagonal]: Cockburn, A. (2005). *Hexagonal Architecture*. <https://alistair.cockburn.us/hexagonal-architecture/>. The port/adapter pattern used throughout hkask-agents (GitCASPort, AcpPort, MemoryStoragePort, MCPRuntimePort, KeystorePort, SovereigntyPort).
+[^cockburn-hexagonal]: Cockburn, A. (2005). *Hexagonal Architecture*. <https://alistair.cockburn.us/hexagonal-architecture/>. The port/adapter pattern used throughout hkask-agents (GitCASPort, AcpPort, MemoryStoragePort, MCPRuntimePort, StandingSessionPort).
 
 [^beer-vsm]: Beer, S. (1972). *Brain of the Firm*. Penguin Books. Viable System Model — the ensemble crate's multi-agent deliberation maps to Beer's System 4 (intelligence) and System 5 (policy).
 
