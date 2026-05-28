@@ -54,7 +54,7 @@ pub use sovereignty::{
 };
 pub use spec::{
     CollectionCoherence, CompletenessCheck, Criterion, DomainAnchor, GoalSpec, Spec, SpecCategory,
-    SpecCurationRecord, SpecCurator, SpecError, SpecId, SpecObserver, SpecStore,
+    SpecCurationRecord, SpecCurator, SpecError, SpecId, SpecObserver, SpecSigner, SpecStore,
 };
 pub use template::{
     HighTempTemplateType, LLMParameters, TemperatureRange, TemplateId, TemplateInvocation,

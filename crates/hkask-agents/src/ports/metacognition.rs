@@ -1,4 +1,7 @@
 //! Metacognition Port — Hexagonal boundary for metacognition snapshot persistence
+//!
+//! Extended with Curator metacognition capabilities (evaluate, coach, direct)
+//! in the `CuratorMetacognitionPort` trait.
 
 use hkask_types::WebID;
 use thiserror::Error;
@@ -137,4 +140,31 @@ pub enum RecommendedAction {
     Calibrate(String, u64),
     /// Escalate to human
     Escalate,
+}
+
+/// Port trait for Curator metacognition operations
+///
+/// This extends the basic `MetacognitionPort` (which handles snapshot persistence)
+/// with evaluation, coaching, and direction capabilities.
+#[async_trait::async_trait]
+pub trait CuratorMetacognitionPort: Send + Sync {
+    /// Evaluate a bot's performance
+    async fn evaluate_bot(
+        &self,
+        bot_id: &WebID,
+        metrics: &BotEvaluationMetrics,
+    ) -> EvaluationResult;
+
+    /// Identify capability gaps and recommend a Kata directive
+    fn identify_capability_gap(&self, evaluation: &EvaluationResult) -> Option<KataDirective>;
+
+    /// Calibrate a CNS threshold
+    async fn calibrate_threshold(
+        &self,
+        domain: &str,
+        new_threshold: u64,
+    ) -> Result<(), MetacognitionPortError>;
+
+    /// Direct a bot via ACP message in the standing session
+    async fn direct_bot(&self, directive: BotDirective) -> Result<(), MetacognitionPortError>;
 }

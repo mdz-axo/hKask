@@ -33,6 +33,11 @@ pub enum ValidationError {
 /// Validation result type
 pub type ValidationResult<T> = Result<T, ValidationError>;
 
+/// Input validator trait for pod operations
+pub trait InputValidator<T> {
+    fn validate(&self, input: &T) -> ValidationResult<()>;
+}
+
 /// Agent persona input for validation
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentPersonaInput {
@@ -44,20 +49,19 @@ pub struct AgentPersonaInput {
     pub capabilities: Vec<String>,
 }
 
-impl AgentPersonaInput {
-    /// Validate agent persona input
-    pub fn validate(&self) -> ValidationResult<()> {
+impl InputValidator<AgentPersonaInput> for AgentPersonaInput {
+    fn validate(&self, input: &AgentPersonaInput) -> ValidationResult<()> {
         // Name validation: 1-64 chars, alphanumeric + hyphens
-        if self.name.is_empty() {
+        if input.name.is_empty() {
             return Err(ValidationError::MissingField("name".to_string()));
         }
-        if self.name.len() > 64 {
+        if input.name.len() > 64 {
             return Err(ValidationError::FieldTooLong {
                 field: "name".to_string(),
                 max: 64,
             });
         }
-        if !self
+        if !input
             .name
             .chars()
             .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
@@ -68,21 +72,21 @@ impl AgentPersonaInput {
         }
 
         // Agent type validation
-        if !["bot", "replicant"].contains(&self.agent_type.as_str()) {
+        if !["bot", "replicant"].contains(&input.agent_type.as_str()) {
             return Err(ValidationError::InvalidFormat {
                 field: "agent_type".to_string(),
             });
         }
 
         // Version validation: semver-like
-        if self.version.is_empty() || self.version.len() > 32 {
+        if input.version.is_empty() || input.version.len() > 32 {
             return Err(ValidationError::InvalidFormat {
                 field: "version".to_string(),
             });
         }
 
         // Description validation: optional but max 1000 chars
-        if self.description.len() > 1000 {
+        if input.description.len() > 1000 {
             return Err(ValidationError::FieldTooLong {
                 field: "description".to_string(),
                 max: 1000,
@@ -90,19 +94,19 @@ impl AgentPersonaInput {
         }
 
         // Editor validation
-        if self.editor.is_empty() || self.editor.len() > 256 {
+        if input.editor.is_empty() || input.editor.len() > 256 {
             return Err(ValidationError::InvalidFormat {
                 field: "editor".to_string(),
             });
         }
 
         // Capabilities validation: max 20 capabilities, each max 128 chars
-        if self.capabilities.len() > 20 {
+        if input.capabilities.len() > 20 {
             return Err(ValidationError::InvalidFormat {
                 field: "capabilities".to_string(),
             });
         }
-        for cap in &self.capabilities {
+        for cap in &input.capabilities {
             if cap.len() > 128 {
                 return Err(ValidationError::FieldTooLong {
                     field: "capability".to_string(),
@@ -114,6 +118,8 @@ impl AgentPersonaInput {
         Ok(())
     }
 }
+
+// RateLimiter is now re-exported from hkask_cns::rate_limit
 // See hkask-cns/src/rate_limit.rs for the unified implementation
 
 /// OCAP attenuation history tracker

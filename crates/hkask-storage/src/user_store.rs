@@ -452,7 +452,6 @@ impl UserStore {
     }
 
     /// Decrypt a PII field from a database row
-    #[allow(dead_code)]
     fn read_encrypted_field(
         row: &rusqlite::Row,
         column: &str,

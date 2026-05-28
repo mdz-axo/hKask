@@ -7,7 +7,10 @@
 //! - `ocap:enumerate` — Enumerate capabilities for a subject
 //! - `ocap:list_tokens` — List all capability tokens
 
-use hkask_mcp::server::{McpToolError, McpToolOutput, ToolSpanGuard, validate_identifier};
+use hkask_mcp::server::{
+    CredentialRequirement, McpToolError, McpToolOutput, ServerContext, ToolSpanGuard,
+    run_stdio_server, validate_identifier,
+};
 use hkask_types::{
     CapabilityAction, CapabilityChecker, CapabilityResource, CapabilityToken, McpErrorKind, WebID,
 };
@@ -54,7 +57,7 @@ pub struct OcapServer {
 impl OcapServer {
     pub fn new(secret: Vec<u8>, webid: WebID) -> Self {
         let checked_secret = Zeroizing::new(secret);
-        let checker = CapabilityChecker::new(&checked_secret);
+        let checker = CapabilityChecker::new(&*checked_secret);
         Self {
             checker,
             tokens: Arc::new(RwLock::new(HashMap::new())),

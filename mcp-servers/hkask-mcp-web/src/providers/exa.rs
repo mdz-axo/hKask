@@ -94,7 +94,6 @@ impl ExaProvider {
         })
     }
 
-    #[allow(dead_code)]
     async fn health(&self) -> Result<(), WebError> {
         Ok(())
     }

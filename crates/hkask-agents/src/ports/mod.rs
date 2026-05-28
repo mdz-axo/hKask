@@ -14,6 +14,8 @@ pub mod git_cas;
 pub mod mcp_runtime;
 pub mod memory_storage;
 pub mod metacognition;
+pub mod ocap_port;
+pub mod security_port;
 pub mod sovereignty;
 pub mod standing_session;
 
@@ -28,10 +30,13 @@ pub use mcp_runtime::MCPRuntimePort;
 pub use memory_storage::MemoryStoragePort;
 pub use metacognition::{
     BotDirective, BotEvaluationMetrics, BotHealthStatus as MetacognitionBotHealthStatus,
-    CapabilityGap, DirectiveType, EvaluationResult, GapType, KataDirective, KataType,
-    MetacognitionPort, MetacognitionPortError, RecommendedAction, StoredHealthSnapshot,
+    CapabilityGap, CuratorMetacognitionPort, DirectiveType, EvaluationResult, GapType,
+    KataDirective, KataType, MetacognitionPort, MetacognitionPortError, RecommendedAction,
+    StoredHealthSnapshot,
 };
-pub use sovereignty::{SovereigntyCheckResult, SovereigntyOperation};
+pub use ocap_port::{DelegationEntry, OCAPConfig, OCAPPort, OCAPResult};
+pub use security_port::{RateLimitPort, ValidationError as RateLimitValidationError};
+pub use sovereignty::{SovereigntyCheckResult, SovereigntyOperation, SovereigntyPort};
 pub use standing_session::{
     AcpSessionMessage, BotReport, MessageRecord, SessionMessageType, SessionRecord,
     StandingSessionPort, StandingSessionPortError,

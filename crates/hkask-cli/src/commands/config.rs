@@ -19,7 +19,7 @@ pub(crate) fn resolve_acp_secret() -> Result<String, RegistryError> {
         hkask_types::derivation_contexts::MASTER_KEY_ENV,
         hkask_types::derivation_contexts::ACP_SECRET,
     ))
-    .map(|s| String::from_utf8_lossy(&s).to_string())
+    .map(|s| String::from_utf8_lossy(&* s).to_string())
     .or_else(|_| std::env::var("HKASK_ACP_SECRET"))
     .or_else(|_| {
         hkask_keystore::Keychain::default()

@@ -6,6 +6,7 @@
 use hkask_agents::adapters::{
     cns_emitter::{self, CnsEmitterAdapter},
     git_cas::{GitCasAdapter, MockGitCas},
+    keystore_port::Secret,
     mcp_runtime::McpRuntimeAdapter,
     memory_storage::MemoryStorageAdapter,
 };
@@ -108,6 +109,18 @@ fn test_mock_git_cas() {
         template_crate.git_sha,
         "0000000000000000000000000000000000000000"
     );
+}
+
+// ============================================================================
+// Keystore Port Tests
+// ============================================================================
+
+#[test]
+fn test_secret_debug_redaction() {
+    let secret = Secret::new("my-secret-value");
+    let debug_str = format!("{:?}", secret);
+    assert!(debug_str.contains("REDACTED"));
+    assert!(!debug_str.contains("my-secret-value"));
 }
 
 // ============================================================================

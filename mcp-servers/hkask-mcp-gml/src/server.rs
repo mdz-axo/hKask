@@ -22,7 +22,7 @@ impl GmlServer {
     pub fn new(webid: WebID) -> anyhow::Result<Self> {
         Ok(Self {
             capability_manager: Arc::new(RwLock::new(None)),
-            cns_emitter: SpanEmitter::new(webid),
+            cns_emitter: SpanEmitter::new(webid.clone()),
             webid,
         })
     }

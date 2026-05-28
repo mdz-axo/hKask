@@ -109,11 +109,12 @@ impl StandingSessionPort for StandingSessionStoreAdapter {
             .map_err(|e| StandingSessionPortError::Storage(e.to_string()))?;
         let mut reports = Vec::new();
         for msg in messages {
-            if msg.template_id.as_deref() == Some("bot_report")
-                && let Ok(report) = serde_json::from_str::<BotReport>(&msg.content)
-                && report.bot_name == bot_name
-            {
-                reports.push(report);
+            if msg.template_id.as_deref() == Some("bot_report") {
+                if let Ok(report) = serde_json::from_str::<BotReport>(&msg.content) {
+                    if report.bot_name == bot_name {
+                        reports.push(report);
+                    }
+                }
             }
         }
         Ok(reports)

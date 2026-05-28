@@ -3,10 +3,52 @@
 //! This module provides mock implementations of production port traits
 //! for use in testing. Each mock implements the corresponding port trait.
 
-use hkask_templates::ports::{CnsPort, McpPort, TemplateError, ToolInfo};
+use hkask_templates::ports::{CnsPort, McpPort, SyncInferencePort, TemplateError, ToolInfo};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
+
+/// Mock implementation of SyncInferencePort
+pub struct MockInferencePort {
+    responses: Arc<RwLock<HashMap<String, String>>>,
+}
+
+impl MockInferencePort {
+    pub fn new() -> Self {
+        Self {
+            responses: Arc::new(RwLock::new(HashMap::new())),
+        }
+    }
+
+    pub fn with_response(self, prompt: &str, response: &str) -> Self {
+        self.responses
+            .write()
+            .unwrap()
+            .insert(prompt.to_string(), response.to_string());
+        self
+    }
+}
+
+impl Default for MockInferencePort {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl SyncInferencePort for MockInferencePort {
+    fn call(
+        &self,
+        _model_tier: &str,
+        prompt: &str,
+        _config: &hkask_templates::ports::InferenceConfig,
+    ) -> hkask_templates::ports::Result<Value> {
+        let responses = self.responses.read().unwrap();
+        responses
+            .get(prompt)
+            .map(|r| serde_json::from_str(r).unwrap_or(Value::String(r.clone())))
+            .ok_or_else(|| TemplateError::Inference("No mock response for prompt".to_string()))
+    }
+}
 
 /// Mock implementation of McpPort
 pub struct MockMcpPort {
@@ -108,6 +150,7 @@ impl CnsPort for MockCnsPort {
 
 /// Composite mock for complex test scenarios
 pub struct TestMocks {
+    pub inference: MockInferencePort,
     pub mcp: MockMcpPort,
     pub cns: MockCnsPort,
 }
@@ -115,6 +158,7 @@ pub struct TestMocks {
 impl TestMocks {
     pub fn new() -> Self {
         Self {
+            inference: MockInferencePort::new(),
             mcp: MockMcpPort::new(),
             cns: MockCnsPort::new(),
         }

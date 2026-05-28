@@ -491,12 +491,12 @@ impl WebSearchPort for ProviderPool {
         ctx: Option<&CapabilityContext>,
     ) -> Result<CompoundSearchResult, WebError> {
         // Task 1: CapabilityContext enforcement at port boundary
-        if let Some(ctx) = ctx
-            && !ctx.allows("web_search")
-        {
-            return Err(WebError::ProviderUnavailable(
-                "capability not authorized".into(),
-            ));
+        if let Some(ctx) = ctx {
+            if !ctx.allows("web_search") {
+                return Err(WebError::ProviderUnavailable(
+                    "capability not authorized".into(),
+                ));
+            }
         }
 
         // Task 8: Validation at port boundary (authoritative enforcement point)
@@ -582,12 +582,12 @@ impl WebSearchPort for ProviderPool {
         ctx: Option<&CapabilityContext>,
     ) -> Result<ProviderSearchOutput, WebError> {
         // Task 1: CapabilityContext enforcement at port boundary
-        if let Some(ctx) = ctx
-            && !ctx.allows("web_find_similar")
-        {
-            return Err(WebError::ProviderUnavailable(
-                "capability not authorized".into(),
-            ));
+        if let Some(ctx) = ctx {
+            if !ctx.allows("web_find_similar") {
+                return Err(WebError::ProviderUnavailable(
+                    "capability not authorized".into(),
+                ));
+            }
         }
         match self.exa {
             Some(ref exa) => exa.find_similar(url, num_results).await,
@@ -602,12 +602,12 @@ impl WebSearchPort for ProviderPool {
         ctx: Option<&CapabilityContext>,
     ) -> Result<ExtractedContent, WebError> {
         // Task 1: CapabilityContext enforcement at port boundary
-        if let Some(ctx) = ctx
-            && !ctx.allows("web_extract")
-        {
-            return Err(WebError::ProviderUnavailable(
-                "capability not authorized".into(),
-            ));
+        if let Some(ctx) = ctx {
+            if !ctx.allows("web_extract") {
+                return Err(WebError::ProviderUnavailable(
+                    "capability not authorized".into(),
+                ));
+            }
         }
         self.extract_with_fallback(url, opts).await
     }
@@ -620,12 +620,12 @@ impl WebSearchPort for ProviderPool {
         ctx: Option<&CapabilityContext>,
     ) -> Result<BrowseResult, WebError> {
         // Task 1: CapabilityContext enforcement at port boundary
-        if let Some(ctx) = ctx
-            && !ctx.allows("web_browse")
-        {
-            return Err(WebError::ProviderUnavailable(
-                "capability not authorized".into(),
-            ));
+        if let Some(ctx) = ctx {
+            if !ctx.allows("web_browse") {
+                return Err(WebError::ProviderUnavailable(
+                    "capability not authorized".into(),
+                ));
+            }
         }
         self.browse_with_fallback(url, instruction, timeout).await
     }

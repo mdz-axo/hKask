@@ -2,7 +2,7 @@
 //!
 //! Tests for: hkask-agents/src/sovereignty.rs and hkask-cns/src/observers/sovereignty.rs
 
-use hkask_agents::ports::sovereignty::SovereigntyOperation;
+use hkask_agents::ports::sovereignty::{SovereigntyOperation, SovereigntyPort};
 use hkask_agents::sovereignty::SovereigntyChecker;
 use hkask_cns::algedonic::{AlgedonicManager, DEFAULT_THRESHOLD};
 use hkask_cns::observers::sovereignty::{

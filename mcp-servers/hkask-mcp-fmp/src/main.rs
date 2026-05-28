@@ -15,8 +15,8 @@
 //! - `fmp_dcf` — Discounted cash flow analysis
 
 use hkask_mcp::server::{
-    McpToolError, McpToolOutput, ToolSpanGuard, classify_http_error, resolve_credential,
-    validate_identifier,
+    CredentialRequirement, McpToolError, McpToolOutput, ServerContext, ToolSpanGuard,
+    classify_http_error, resolve_credential, run_stdio_server, validate_identifier,
 };
 use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
@@ -24,6 +24,7 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::Value;
 
+const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 const BASE_URL: &str = "https://financialmodelingprep.com/stable";
 
 #[derive(Debug, Deserialize, JsonSchema)]

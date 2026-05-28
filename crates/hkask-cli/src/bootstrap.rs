@@ -96,13 +96,25 @@ pub struct BotDefinition {
 }
 
 /// Bootstrap state — tracks completed phases for idempotent restart
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BootstrapState {
     pub completed_phases: Vec<BootstrapPhase>,
     pub current_phase: Option<BootstrapPhase>,
     pub bot_webids: Vec<(String, String)>, // (bot_name, webid_hex)
     pub curator_webid: Option<String>,
     pub session_id: Option<String>,
+}
+
+impl Default for BootstrapState {
+    fn default() -> Self {
+        Self {
+            completed_phases: Vec::new(),
+            current_phase: None,
+            bot_webids: Vec::new(),
+            curator_webid: None,
+            session_id: None,
+        }
+    }
 }
 
 /// Bootstrap sequence — orchestrates hKask initialization
@@ -141,7 +153,7 @@ impl BootstrapSequence {
         let energy_budgets = vec![10_000, 10_000, 15_000, 12_000, 8_000, 8_000, 10_000, 8_000];
 
         bots.into_iter()
-            .zip(energy_budgets)
+            .zip(energy_budgets.into_iter())
             .map(|(name, budget)| BotDefinition {
                 name: name.to_string(),
                 webid: WebID::from_persona(name.as_bytes()),

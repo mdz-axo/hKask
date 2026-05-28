@@ -1,9 +1,10 @@
 //! hKask MCP Telnyx — Telnyx API v2 integration (SMS, voice, WhatsApp)
 
 use hkask_mcp::server::{
-    McpToolOutput, ToolSpanGuard, api_get, api_post, resolve_credential, validate_tool_url,
+    CredentialRequirement, McpToolOutput, ServerContext, ToolSpanGuard, api_get, api_post,
+    resolve_credential, run_stdio_server, validate_tool_url,
 };
-use hkask_types::WebID;
+use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;

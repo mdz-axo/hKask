@@ -5,6 +5,7 @@
 //! - `inference:metrics` — Get current inference metrics
 //! - `inference:models` — List available model tiers
 
+use hkask_mcp::server::{ServerContext, run_stdio_server};
 use hkask_mcp_inference::tools::InferenceServer;
 
 hkask_mcp::mcp_server_main!("hkask-mcp-inference", InferenceServer);
