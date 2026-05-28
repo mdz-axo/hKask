@@ -334,12 +334,11 @@ impl BotMetricsCollector {
 
     /// Update success rate for a bot from tracking data
     fn update_success_rate(&mut self, bot_id: &WebID) {
-        if let Some((observe, outcome)) = self.success_tracking.get(bot_id) {
-            if let Some(metrics) = self.metrics.get_mut(bot_id) {
-                if *observe > 0 {
-                    metrics.success_rate = *outcome as f64 / *observe as f64;
-                }
-            }
+        if let Some((observe, outcome)) = self.success_tracking.get(bot_id)
+            && let Some(metrics) = self.metrics.get_mut(bot_id)
+            && *observe > 0
+        {
+            metrics.success_rate = *outcome as f64 / *observe as f64;
         }
     }
 }

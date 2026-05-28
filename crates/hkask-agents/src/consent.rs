@@ -71,6 +71,7 @@ impl ConsentRecord {
 
 /// Consent manager
 pub struct ConsentManager {
+    #[allow(dead_code)]
     db: Arc<Database>,
     consent_cache: Arc<RwLock<Vec<ConsentRecord>>>,
 }

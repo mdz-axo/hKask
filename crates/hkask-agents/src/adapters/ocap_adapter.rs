@@ -3,7 +3,7 @@
 use crate::ports::ocap_port::{DelegationEntry, OCAPConfig, OCAPPort, OCAPResult};
 use hkask_types::CapabilityToken;
 use hkask_types::WebID;
-use sha2::{Digest, Sha256};
+use sha2::Sha256;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -91,9 +91,7 @@ impl OCAPPort for OCAPAdapter {
             chain_hash: hash,
         };
         let mut map = self.delegation_history.blocking_write();
-        map.entry(root.to_string())
-            .or_insert_with(Vec::new)
-            .push(entry);
+        map.entry(root.to_string()).or_default().push(entry);
     }
 
     fn get_delegation_history(&self, root_nonce: &str) -> Vec<DelegationEntry> {

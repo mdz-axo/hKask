@@ -16,8 +16,7 @@ use hkask_templates::cascade::{
 };
 use hkask_templates::ports::{Action, ManifestExecutor, ManifestStep, ProcessManifest};
 use hkask_templates::ports::{
-    CompositionTemplate, InferenceConfig, McpPort, SyncInferencePort, TemplateError,
-    TemplateRenderer, ToolInfo,
+    CompositionTemplate, McpPort, TemplateError, TemplateRenderer, ToolInfo,
 };
 use serde_json::json;
 use std::collections::HashMap;
@@ -103,23 +102,6 @@ impl MockInference {
 
     fn add_response(&mut self, prompt_pattern: &str, response: serde_json::Value) {
         self.responses.insert(prompt_pattern.to_string(), response);
-    }
-}
-
-impl SyncInferencePort for MockInference {
-    fn call(
-        &self,
-        _model_tier: &str,
-        prompt: &str,
-        _config: &InferenceConfig,
-    ) -> Result<serde_json::Value, TemplateError> {
-        // Find matching response by substring match
-        for (pattern, response) in &self.responses {
-            if prompt.contains(pattern) {
-                return Ok(response.clone());
-            }
-        }
-        Ok(json!({"result": "default response"}))
     }
 }
 
@@ -242,8 +224,7 @@ async fn test_manifest_executor_populate() {
     let mcp = MockMcp::new();
     let cns = MockCns;
 
-    let executor =
-        hkask_templates::manifest::ManifestExecutorImpl::new(renderer, inference, mcp, cns);
+    let executor = hkask_templates::manifest::ManifestExecutorImpl::new(renderer, mcp, cns);
 
     let manifest = ProcessManifest {
         id: "test_populate".to_string(),
@@ -286,8 +267,7 @@ async fn test_manifest_executor_execute_inference() {
     let mcp = MockMcp::new();
     let cns = MockCns;
 
-    let executor =
-        hkask_templates::manifest::ManifestExecutorImpl::new(renderer, inference, mcp, cns);
+    let executor = hkask_templates::manifest::ManifestExecutorImpl::new(renderer, mcp, cns);
 
     let manifest = ProcessManifest {
         id: "test_inference".to_string(),
@@ -307,10 +287,8 @@ async fn test_manifest_executor_execute_inference() {
     let input = json!({"prompt": "What is the capital of France?"});
     let result = executor.execute(&manifest, input).await;
 
-    assert!(result.is_ok());
-    let output = result.unwrap();
-    assert_eq!(output["answer"], "Paris");
-    assert_eq!(output["confidence"], 0.95);
+    // Inference is no longer available — expect an error
+    assert!(result.is_err());
 }
 
 #[tokio::test]

@@ -121,7 +121,7 @@ impl CnsRuntime {
                 .unwrap_or_else(VarietyTracker::new)
         };
 
-        let mut state = self.state.write().await;
+        let state = self.state.write().await;
         state
             .algedonic
             .write()
@@ -150,7 +150,7 @@ impl CnsRuntime {
             };
 
             if let Some(counter) = counter {
-                let mut state = self.state.write().await;
+                let state = self.state.write().await;
                 if state
                     .algedonic
                     .write()
@@ -167,13 +167,13 @@ impl CnsRuntime {
 
     /// Reset all alerts
     pub async fn reset_alerts(&self) {
-        let mut state = self.state.write().await;
+        let state = self.state.write().await;
         state.algedonic.write().unwrap().reset();
     }
 
     /// Clear old alerts (older than specified duration)
     pub async fn clear_old_alerts(&self, max_age: std::time::Duration) {
-        let mut state = self.state.write().await;
+        let state = self.state.write().await;
         state.algedonic.write().unwrap().clear_old(max_age);
     }
 

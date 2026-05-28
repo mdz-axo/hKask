@@ -5,9 +5,8 @@
 
 use crate::context_assembly::{ContextAssembler, ContextFragment, FragmentSource};
 use crate::ports::{
-    Action, CnsPort, DEFAULT_MATROSHKA_LIMIT, InferenceConfig, ManifestExecutor, ManifestStep,
-    McpPort, MemoryPort, ProcessManifest, Result, SyncInferencePort, TemplateError,
-    TemplateRenderer,
+    Action, CnsPort, DEFAULT_MATROSHKA_LIMIT, ManifestExecutor, ManifestStep, McpPort, MemoryPort,
+    ProcessManifest, Result, TemplateError, TemplateRenderer,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -129,38 +128,33 @@ impl CspEnforcer for NoopCsp {
 /// This is the "loom" that weaves the "thread" (YAML/Jinja2 templates).
 /// It doesn't change when templates are added, edited, or removed.
 /// Only changes if the grammar of steps themselves changes.
-pub struct ManifestExecutorImpl<R, I, M, C> {
+pub struct ManifestExecutorImpl<R, M, C> {
     renderer: R,
-    inference: I,
     mcp: M,
     cns: C,
     memory: Option<Box<dyn MemoryPort>>,
     csp: Option<Box<dyn CspEnforcer>>,
     max_depth: u8,
     selector_config: SelectorConfig,
-    inference_config: InferenceConfig,
     context_budget: usize,
     energy_budget: u64,
 }
 
-impl<R, I, M, C> ManifestExecutorImpl<R, I, M, C>
+impl<R, M, C> ManifestExecutorImpl<R, M, C>
 where
     R: TemplateRenderer,
-    I: SyncInferencePort,
     M: McpPort,
     C: CnsPort,
 {
-    pub fn new(renderer: R, inference: I, mcp: M, cns: C) -> Self {
+    pub fn new(renderer: R, mcp: M, cns: C) -> Self {
         Self {
             renderer,
-            inference,
             mcp,
             cns,
             memory: None,
             csp: None,
             max_depth: DEFAULT_MATROSHKA_LIMIT,
             selector_config: SelectorConfig::default(),
-            inference_config: InferenceConfig::default(),
             context_budget: 4096,
             energy_budget: 10_000,
         }
@@ -300,11 +294,6 @@ where
         self
     }
 
-    pub fn with_inference_config(mut self, config: InferenceConfig) -> Self {
-        self.inference_config = config;
-        self
-    }
-
     async fn execute_step(
         &self,
         manifest: &ProcessManifest,
@@ -346,40 +335,10 @@ where
 
         let result = match step.action {
             Action::Select => {
-                let prompt = format!("Select template for: {:?}", state);
-                let selection_result = self.inference.call(
-                    step.model_tier.as_deref().unwrap_or("fast_local"),
-                    &prompt,
-                    &self.inference_config,
-                )?;
-
-                if let Some(confidence) =
-                    selection_result.get("confidence").and_then(|v| v.as_f64())
-                {
-                    if confidence < self.selector_config.confidence_threshold {
-                        self.cns.emit(
-                            "cns.prompt.selector_fallback",
-                            Value::String(format!(
-                                "Confidence {} below threshold {}",
-                                confidence, self.selector_config.confidence_threshold
-                            )),
-                            confidence,
-                        );
-                        let mut fallback_result = selection_result;
-                        if let Some(obj) = fallback_result.as_object_mut() {
-                            obj.insert(
-                                "selected_template_id".to_string(),
-                                Value::String(self.selector_config.fallback_template_id.clone()),
-                            );
-                            obj.insert("fallback_applied".to_string(), Value::Bool(true));
-                        }
-                        fallback_result
-                    } else {
-                        selection_result
-                    }
-                } else {
-                    selection_result
-                }
+                return Err(TemplateError::Manifest(
+                    "Select action requires an inference port (SyncInferencePort removed)"
+                        .to_string(),
+                ));
             }
             Action::Populate => {
                 let template_id = state
@@ -441,7 +400,7 @@ where
                         self.mcp.invoke(mcp, state.clone()).await?
                     }
                 } else {
-                    let (assembled_prompt, assembly_stats) =
+                    let (_assembled_prompt, assembly_stats) =
                         self.assemble_context(manifest, &state);
 
                     self.cns.emit(
@@ -458,11 +417,9 @@ where
                         1.0,
                     );
 
-                    self.inference.call(
-                        step.model_tier.as_deref().unwrap_or("balanced"),
-                        &assembled_prompt,
-                        &self.inference_config,
-                    )?
+                    return Err(TemplateError::Manifest(
+                        "Execute action requires an MCP step or inference port (SyncInferencePort removed)".to_string(),
+                    ));
                 }
             }
         };
@@ -478,10 +435,9 @@ where
 }
 
 #[async_trait::async_trait]
-impl<R, I, M, C> ManifestExecutor for ManifestExecutorImpl<R, I, M, C>
+impl<R, M, C> ManifestExecutor for ManifestExecutorImpl<R, M, C>
 where
     R: TemplateRenderer + Send + Sync,
-    I: SyncInferencePort + Send + Sync,
     M: McpPort,
     C: CnsPort + Send + Sync,
 {
