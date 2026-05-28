@@ -380,8 +380,7 @@ E2E chaos tests against live Okapi can be run manually with
    - Homebrew formula for macOS (if needed)
 
 2. **Container Images:**
-   - Docker image for hKask runtime
-   - Docker Compose for full stack (hKask + Okapi + Prometheus)
+   - Docker image for hKask runtime (future)
 
 3. **Performance Benchmarks:**
    - Automated benchmark suite

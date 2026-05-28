@@ -371,8 +371,8 @@ impl Default for RetryConfig {
 
 /// ObservabilityPort — Canonical observability trait for hKask
 ///
-/// Provides metrics recording and health checking across all subsystems.
-/// Implementations may delegate to Prometheus, OpenTelemetry, or logging.
+/// Provides CNS span emission and health checking across all subsystems.
+/// Implementations emit structured telemetry via `NuEventSink`.
 pub trait ObservabilityPort: Send + Sync {
     /// Record a counter metric
     fn record_counter(&self, name: &str, value: u64, labels: &[(&str, &str)]);

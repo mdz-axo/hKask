@@ -126,6 +126,36 @@ status: VERIFIED
 
 **Constraint:** Selection intelligence in Jinja2/LLM, not Rust code.
 
+### 1.6 Headless System Constraint
+
+**Principle:** hKask has **no visual user interface** — all interaction is through CLI, MCP, or API.[^headless]
+
+**Implementation:**
+- `hkask-cli` — Terminal-based REPL and subcommands
+- `hkask-mcp-*` — Machine-to-machine tool calls (15 servers)
+- `hkask-api` — HTTP API with auto-generated OpenAPI docs
+
+**Constraints:**
+- No Grafana, dashboards, or visualization tooling
+- No web frontend or GUI components
+- No Prometheus/Alertmanager infrastructure
+- CNS provides programmatic observability only (spans, variety counters, algedonic alerts)
+
+**Rationale:** Visual interfaces add complexity without enabling core agent platform capabilities. All monitoring, debugging, and operation occurs through:
+1. Structured logs (CNS spans)
+2. Programmatic queries (CNS APIs)
+3. CLI commands (kask subcommands)
+4. MCP tool calls (machine-to-machine)
+
+**Verification Command:**
+```bash
+# Check for visual UI violations
+if grep -r "grafana\|prometheus\|dashboard\|visual.*ui\|web.*frontend" crates/ --include="*.rs"; then
+  echo "VIOLATION: Visual UI detected"
+  exit 1
+fi
+```
+
 ---
 
 ## 2. Constraint-Driven Design (P1–P7, C1–C7)
@@ -302,11 +332,18 @@ done
 | UCAN for h-bar | ❌ Excluded | OCAP-only for v0.21.0 |
 | Three separate registries | ❌ Excluded | Unified registry |
 | Rust-based template selection | ❌ Excluded | Jinja2/LLM selection |
+| **Visual UI / dashboards** | ❌ Excluded | Headless system — CLI/MCP/API only |
+| **Grafana / monitoring stacks** | ❌ Excluded | CNS provides programmatic observability |
+| **Prometheus integration** | ❌ Excluded | Not minimal for MVP; CNS handles telemetry |
+| **Alertmanager / alerting infrastructure** | ❌ Excluded | Algedonic alerts are programmatic, not external |
 
 **Verification Command:**
 ```bash
 # Check for anti-pattern implementation
 grep -r "reputation\|swarm\|marketplace\|OCT-H\|axolotl" crates/ --include="*.rs"
+
+# Check for visual UI / monitoring infrastructure
+grep -r "grafana\|prometheus\|dashboard\|visual.*ui" crates/ docs/ --include="*.rs" --include="*.md"
 ```
 
 ---
@@ -314,6 +351,7 @@ grep -r "reputation\|swarm\|marketplace\|OCT-H\|axolotl" crates/ --include="*.rs
 ## 7. References
 
 [^cybernetics]: Wiener, N. (1948). *Cybernetics: Or Control and Communication in the Animal and the Machine*. MIT Press.
+[^headless]: Raymond, E. S. (2003). *The Art of Unix Programming*. Addison-Wesley. Rule of Diversity: "Trust complexity to self-assemble."
 [^webid]: Berners-Lee, T. (2009). *WebID: Secure, decentralized, human-friendly identification*. W3C. <https://www.w3.org/2005/Incubator/webid/>.
 [^ucan]: Dialo, D. (2021). *UCAN: User-Controlled Authorization Networks*. Protocol Labs. <https://github.com/ucan-wg/spec>.
 [^acp]: ACP Runtime. (2026). *Agent Communication Protocol Specification*. <https://github.com/acp-runtime/acp>.

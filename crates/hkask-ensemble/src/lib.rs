@@ -11,7 +11,6 @@ pub mod cns_spans;
 pub mod confidence_router;
 pub mod deliberation;
 pub mod improv;
-pub mod metrics;
 pub mod ocap_enforcement;
 pub mod okapi_capability;
 pub mod okapi_integration;

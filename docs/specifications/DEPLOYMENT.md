@@ -426,12 +426,19 @@ journalctl -u hkask-api | grep "ALGEDONIC ALERT"
 journalctl -u hkask-api | grep "variety"
 ```
 
-### 7.3 CNS Dashboard (Future)
+### 7.3 Observability via CNS
 
-CNS metrics can be exported to Prometheus via future integration. Track:
-- `hkask_cns_variety_deficit` — Current variety deficit
-- `hkask_cns_algedonic_alerts_total` — Total alerts triggered
-- `hkask_inference_latency_ms` — Inference request latency
+CNS provides programmatic observability through:
+- `cns.*` spans emitted via `NuEventSink`
+- Variety counters tracked per bot/capability
+- Algedonic alerts escalated to Curator/human when variety deficit >100
+
+**No visual dashboards.** All monitoring is programmatic:
+- Query CNS spans via `hkask-cns` crate APIs
+- Check variety counters in application logs
+- Algedonic alerts appear in journal logs: `journalctl -u hkask-api | grep "ALGEDONIC ALERT"`
+
+This is a deliberate design decision: hKask is a headless system with no visual UI.
 
 ---
 

@@ -102,6 +102,51 @@ For deeper understanding of system behavior:
 
 ---
 
+## Design Constraints (Read This First)
+
+**hKask is a headless system with no visual UI.** This is a non-negotiable design principle.
+
+### What This Means
+
+| Constraint | What It Excludes | Why |
+|------------|------------------|-----|
+| **No Visual UI** | Grafana, dashboards, web frontends, GUIs | CLI/MCP/API only — visual interfaces add complexity without enabling core capabilities |
+| **No Monitoring Stacks** | Prometheus, Alertmanager, external observability | CNS provides programmatic observability via spans, variety counters, algedonic alerts |
+| **No Excess Complexity** | Unused traits, stubs, deprecations, feature flags | P1-P7, C1-C7 constraints enforce minimal viable complexity |
+
+### How to Operate hKask
+
+All interaction occurs through:
+1. **CLI** — `kask <subcommand>` (terminal-based)
+2. **MCP** — Machine-to-machine tool calls (15 servers)
+3. **API** — HTTP API with OpenAPI docs (programmatic)
+
+All monitoring occurs through:
+1. **CNS Spans** — `cns.*` namespaces in structured logs
+2. **Variety Counters** — Per-bot/capability tracking
+3. **Algedonic Alerts** — Escalation when variety deficit >100
+
+### Verification
+
+Before adding any feature, check:
+```bash
+# Does this introduce visual UI or monitoring infrastructure?
+if grep -r "grafana\|prometheus\|dashboard\|visual.*ui" crates/ docs/; then
+  echo "VIOLATION: Headless constraint violated"
+  exit 1
+fi
+
+# Does this introduce excess complexity?
+if grep -r "todo!\|unimplemented!\|#\[deprecated\]" crates/; then
+  echo "VIOLATION: P6/P7 constraints violated"
+  exit 1
+fi
+```
+
+**If you violate these constraints, your work will be deleted.** See `docs/architecture/PRINCIPLES.md` for full rationale.
+
+---
+
 ## Documentation
 
 | Topic | Location |
