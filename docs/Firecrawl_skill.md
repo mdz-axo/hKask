@@ -10,6 +10,9 @@ description: |
   sets up three skill segments: live CLI tools, app-integration build
   skills, and outcome-focused workflow skills. Route the reader to the
   right usage path after install.
+audience: [developers]
+domain: "Application"
+ddmvss_categories: [capability]
 ---
 
 # Firecrawl

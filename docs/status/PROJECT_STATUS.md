@@ -1,8 +1,8 @@
 ---
 title: "hKask Project Status"
 audience: [project maintainers, contributors, stakeholders]
-last_updated: 2026-05-25
-version: "0.21.1"
+last_updated: 2026-05-28
+version: "0.21.2"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -16,7 +16,7 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 
 hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-native container platform** enabling sovereign agents (bots and replicants) to communicate, compose capabilities, and learn through unified template-driven architecture.
 
-**Current Phase:** Phase 8 complete — Documentation refresh (DDMVSS-aligned) complete  
+**Current Phase:** Phase 8 complete — Documentation refresh (DDMVSS-aligned) refreshed 2026-05-28  
 **Next Phase:** Operational hardening and stub MCP server completion
 
 ---
@@ -131,13 +131,14 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-na
 | **Architecture ADR** | 1 | `docs/architecture/ADR-022-*.md` |
 | **Reference Artifacts** | 9 | `docs/architecture/reference/` (incl. okapi-integration) |
 | **Specifications** | 3 | `docs/specifications/` (REQUIREMENTS, TRACEABILITY, MODEL_CATALOG) |
-| **Standards** | 4 | `docs/standards/` (DOCUMENTATION_STANDARDS, WRITING_EXCELLENCE, DEPENDENCY_POLICY, ADR_TEMPLATE) |
+| **Standards** | 4 | `docs/specifications/` (DOCUMENTATION_STANDARDS, WRITING_EXCELLENCE, DEPENDENCY_POLICY, ADR_TEMPLATE) |
 | **Plans** | 1 | `docs/plans/` (TODO) |
 | **User Guides** | 2 | `docs/user-guides/` (AGENT-POD-CREATION-GUIDE, COMMON-AGENT-PATTERNS) |
 | **GML** | 3 | `docs/gml/` |
 | **Status** | 1 | `docs/status/` (PROJECT_STATUS) |
-| **Cross-cutting** | 4 | `docs/` root (DDMVSS_SCAFFOLD, OPEN_QUESTIONS, CI-CD-GUIDE, DEPLOYMENT) |
-| **Total** | 36 | — |
+| **Cross-cutting** | 5 | `docs/` root (DDMVSS_SCAFFOLD, OPEN_QUESTIONS, DIAGRAMS_INDEX, CI-CD-GUIDE, DEPLOYMENT) |
+| **CI Scripts** | 2 | `docs/ci/` (check-links.sh, check-metadata.sh) |
+| **Total** | 37 | — |
 
 ### 4.2 Archived Documents
 
@@ -173,11 +174,10 @@ hKask (ℏKask — "Planck's Constant of Agent Systems") is a **minimal agent-na
 | **Tests** | ✅ Pass | 2026-05-25 |
 | **Lint** | ✅ Pass | 2026-05-25 |
 | **Format** | ✅ Pass | 2026-05-25 |
-| **Metadata Headers** | ✅ All new docs compliant | 2026-05-25 |
-| **Citation Compliance** | ✅ New docs have citations | 2026-05-25 |
-| **Diagram Alignment** | ✅ New diagrams verified | 2026-05-25 |
-| **Link Integrity** | ✅ 1 intentional placeholder only | 2026-05-25 |
-| **Link Integrity** | ✅ 1 intentional placeholder only | 2026-05-25 |
+| **Metadata Headers** | ✅ All 48 docs compliant | 2026-05-28 |
+| **Citation Compliance** | ✅ New docs have citations | 2026-05-28 |
+| **Diagram Alignment** | ✅ 28 diagrams verified in DIAGRAMS_INDEX.md | 2026-05-28 |
+| **Link Integrity** | ✅ `docs/ci/check-links.sh` passes with 0 broken | 2026-05-28 |
 
 ---
 

@@ -5,6 +5,7 @@ last_updated: 2026-05-24
 version: "0.1.0"
 status: "Draft"
 domain: "Application"
+ddmvss_categories: [domain]
 ---
 
 # GML Architecture

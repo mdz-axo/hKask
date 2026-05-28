@@ -59,22 +59,26 @@ docs/
 ├── specifications/
 │   ├── REQUIREMENTS.md                    # Goal specs
 │   ├── TRACEABILITY_MATRIX.md             # Code→test traceability
-│   └── MODEL_CATALOG.md                   # LLM model catalog
-├── standards/
+│   ├── MODEL_CATALOG.md                   # LLM model catalog
 │   ├── DOCUMENTATION_STANDARDS.md         # Documentation standards
 │   ├── WRITING_EXCELLENCE.md              # Writing quality protocol
 │   ├── DEPENDENCY_POLICY.md               # Dependency policy
-│   └── ADR_TEMPLATE.md                    # ADR template
+│   ├── ADR_TEMPLATE.md                    # ADR template
+│   ├── CI-CD-GUIDE.md                     # CI/CD guide
+│   └── DEPLOYMENT.md                      # Deployment guide
 ├── plans/
 │   └── TODO.md                            # Open work
 ├── status/
 │   └── PROJECT_STATUS.md                  # Single source of truth
 ├── user-guides/                           # User-facing guides
 ├── gml/                                   # GML (Allosteric Thinking)
+├── ci/                                     # CI verification scripts
+│   ├── check-links.sh                     # Link integrity checker
+│   └── check-metadata.sh                  # Metadata compliance checker
 ├── DDMVSS_SCAFFOLD.md                     # THIS FILE
 ├── OPEN_QUESTIONS.md                      # Unresolved aspects
-├── CI-CD-GUIDE.md                         # CI/CD guide
-└── DEPLOYMENT.md                          # Deployment guide
+└── generated/                             # Auto-generated artifacts
+    └── openapi.json                       # OpenAPI specification
 ```
 
 ---

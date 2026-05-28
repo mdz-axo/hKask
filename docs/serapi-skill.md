@@ -17,6 +17,9 @@ compatibility: >-
   serpapi/homebrew-tap && brew install serpapi-cli); or an SDK; or outbound network
   access with curl. All paths require a SERPAPI_KEY.
 license: MIT
+audience: [developers]
+domain: "Application"
+ddmvss_categories: [capability]
 ---
 
 ## Invocation

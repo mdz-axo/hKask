@@ -4,6 +4,8 @@ audience: [kask sysadmins, catalog maintainers]
 last_updated: 2026-05-09
 version: "0.3.0"
 status: "Active"
+domain: "Cross-cutting"
+ddmvss_categories: [curation]
 ---
 
 

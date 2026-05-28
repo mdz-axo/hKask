@@ -5,6 +5,7 @@ last_updated: 2026-05-24
 version: "1.0.0"
 status: "Active"
 domain: "Technology"
+ddmvss_categories: [trust]
 ---
 
 # ADR-022: Comprehensive Security Hardening

@@ -4,6 +4,8 @@ audience: [contributors, developers, agents]
 last_updated: 2026-05-13
 version: "0.3.0"
 status: "Active"
+domain: "Cross-cutting"
+ddmvss_categories: [curation]
 ---
 
 

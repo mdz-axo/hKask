@@ -3,6 +3,9 @@ title: "Tetlock Fermi-ization Pipeline Specification"
 version: "0.21.0"
 status: "Draft"
 last_updated: "2026-05-21"
+audience: [forecasters, analysts, developers]
+domain: "Application"
+ddmvss_categories: [domain]
 ---
 
 # Tetlock Fermi-ization Pipeline Specification

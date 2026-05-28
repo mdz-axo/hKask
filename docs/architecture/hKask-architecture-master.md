@@ -56,7 +56,6 @@ Detailed lookup tables and diagrams in `reference/`:
 | [`reference/template-header-standard.md`](reference/template-header-standard.md) | Template metadata format |
 | [`reference/hKask-Curator-persona.md`](reference/hKask-Curator-persona.md) | Curator persona specification |
 | [`reference/okapi-integration.md`](reference/okapi-integration.md) | Okapi LLM API contract |
-| [`reference/okapi-integration.md`](reference/okapi-integration.md) | Okapi LLM API contract |
 
 ---
 

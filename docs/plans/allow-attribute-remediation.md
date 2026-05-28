@@ -3,6 +3,9 @@ title: "Allow-Attribute Remediation Plan"
 version: "0.21.0"
 status: "Draft"
 last_updated: 2026-05-27
+audience: [developers, architects]
+domain: "Application"
+ddmvss_categories: [capability]
 ---
 
 # Allow-Attribute Remediation Plan

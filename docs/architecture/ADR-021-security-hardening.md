@@ -3,6 +3,9 @@ title: "ADR-021: Security Hardening Implementation"
 version: "0.21.0"
 status: "Implemented"
 last_updated: "2026-05-21"
+audience: [architects, security engineers]
+domain: "Technology"
+ddmvss_categories: [trust]
 ---
 
 # Security Architecture

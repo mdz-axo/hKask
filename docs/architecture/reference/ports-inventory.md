@@ -3,6 +3,9 @@ title: Hexagonal Port Inventory
 version: v0.21.0-p4-parity
 status: accurate
 last_updated: 2026-05-28
+audience: [architects, developers]
+domain: "Application"
+ddmvss_categories: [interface]
 ---
 
 # Hexagonal Port Inventory — hKask v0.21.0

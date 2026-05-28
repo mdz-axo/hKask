@@ -5,6 +5,7 @@ last_updated: 2026-05-24
 version: "0.21.0"
 status: "Active"
 domain: "Data"
+ddmvss_categories: [persistence]
 ---
 
 # Template Registry — Entity Relationship Diagram

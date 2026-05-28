@@ -5,6 +5,7 @@ last_updated: 2026-05-24
 version: "1.0.0"
 status: "Active"
 domain: "Cross-cutting"
+ddmvss_categories: [curation]
 ---
 
 # ADR Template

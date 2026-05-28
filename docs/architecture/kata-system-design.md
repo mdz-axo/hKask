@@ -3,6 +3,9 @@ title: "Toyota Kata System for hKask — Design Specification"
 version: "0.1.0"
 status: "Draft"
 last_updated: "2026-05-21"
+audience: [architects, developers]
+domain: "Application"
+ddmvss_categories: [lifecycle]
 ---
 
 # Toyota Kata System for hKask — Design Specification

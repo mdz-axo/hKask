@@ -95,10 +95,10 @@ cargo run --bin kask -- <subcommand>
 
 For deeper understanding of system behavior:
 
-1. `docs/architecture/hKask-architecture-master.md` — authoritative spec (v0.21.0)
-2. `docs/architecture/hKask-erd.md` — entity relationship diagrams
-3. `docs/architecture/subsystem-erds.md` — per-crate ERDs grounded in Rust source
-4. `docs/architecture/registry-templating-prompt-v2.md` — registry & templating design
+1. `docs/architecture/hKask-architecture-master.md` — authoritative index (v0.21.0)
+2. `docs/architecture/reference/hKask-erd.md` — entity relationship diagrams
+3. `docs/architecture/reference/subsystem-erds.md` — per-crate ERDs grounded in Rust source
+4. `docs/architecture/interface-and-composition.md` — registry & templating design (§2-§6)
 
 ---
 
@@ -154,7 +154,7 @@ fi
 | GML (Allosteric Thinking) | `docs/gml/README.md` |
 | Architecture | `docs/architecture/` |
 | CI/CD | `docs/CI-CD-GUIDE.md` |
-| Okapi Integration | `docs/P0_OKAPI_INTEGRATION_PLAN.md` |
+| Okapi Integration | `docs/architecture/reference/okapi-integration.md` |
 
 ---
 

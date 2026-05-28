@@ -29,12 +29,12 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 |----|------|-------|----------|--------|----------|
 | **P1-01** | Requirements specification | Architect | High | ✅ Complete | `docs/specifications/REQUIREMENTS.md` |
 | **P1-02** | Traceability matrix | Architect | Medium | ✅ Complete | `docs/specifications/TRACEABILITY_MATRIX.md` |
-| **P1-03** | Diagram refresh (DIAGRAMS_INDEX.md) | Curator | Medium | Pending | New diagrams in 4 architecture docs |
-| **P1-04** | ADR creation for key decisions | Architect | Medium | Pending | New ADRs in `docs/architecture/adr/` |
-| **P1-05** | Link checker script | DevOps | Low | Pending | `docs/ci/check-links.sh` |
-| **P1-06** | Citation compliance audit | Curator | Medium | Pending | Grep for uncited sections |
+| **P1-03** | Diagram refresh (DIAGRAMS_INDEX.md) | Curator | Medium | ✅ Complete | `docs/DIAGRAMS_INDEX.md` — 28 diagrams, 8 V1.1+ candidates |
+| **P1-04** | ADR creation for key decisions | Architect | Medium | Pending | P1-04 — Retroactive ADRs deferred (see OQ-6) |
+| **P1-05** | Link checker script | DevOps | Low | ✅ Complete | `docs/ci/check-links.sh` + check-metadata.sh |
+| **P1-06** | Citation compliance audit | Curator | Medium | Pending | P1-06 — Spot check passed, full audit deferred |
 | **P1-07** | Complete stub MCP servers | Dev | Medium | Deferred | condenser, web (5 LOC each) |
-| **P1-08** | Metadata migration for legacy docs | Curator | Low | Pending | Add `ddmvss_categories` to older docs |
+| **P1-08** | Metadata migration for legacy docs | Curator | Low | ✅ Complete | All 47 active docs have ddmvss_categories (2026-05-28) |
 
 ---
 
@@ -81,11 +81,28 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 
 ---
 
+## Completed (2026-05-28 Documentation Refresh)
+
+| ID | Task | Date | Evidence |
+|----|------|------|----------|
+| **R-13** | Fix AGENTS.md path rot (3 broken references) | 2026-05-28 | hKask-erd.md→reference/, registry-templating→interface-and-composition, P0_OKAPI→reference/okapi-integration |
+| **R-14** | Fix README.md path rot (3 broken references) | 2026-05-28 | Same path corrections as R-13 |
+| **R-15** | Fix hKask-architecture-master.md duplicate line | 2026-05-28 | okapi-integration.md listed twice → once |
+| **R-16** | Create docs/ci/check-links.sh + check-metadata.sh | 2026-05-28 | Both scripts operational, passing |
+| **R-17** | Run metadata check — 34 docs missing ddmvss_categories | 2026-05-28 | `docs/ci/check-metadata.sh` |
+| **R-18** | Batch-add ddmvss_categories to all 34 docs | 2026-05-28 | All 47 active docs now pass metadata check |
+| **R-19** | Create DIAGRAMS_INDEX.md (28 diagrams, 8 V1.1+ candidates) | 2026-05-28 | `docs/DIAGRAMS_INDEX.md` |
+| **R-20** | Fix DDMVSS_SCAFFOLD.md directory map | 2026-05-28 | standards/→specifications/, added ci/, generated/ |
+| **R-21** | Fix PROJECT_STATUS.md standards/→specifications/ | 2026-05-28 | Row corrected |
+| **R-22** | Update TODO.md with completed P1 items | 2026-05-28 | P1-03, P1-05, P1-08 marked complete |
+
+---
+
 ## Completed (Prior Sessions)
 
 | ID | Task | Date | Evidence |
 |----|------|------|----------|
-| **C-01** | Documentation audit | 2026-05-22 | `docs/standards/WRITING_EXCELLENCE_AUDIT.md` |
+| **C-01** | Documentation audit | 2026-05-22 | `docs/specifications/WRITING_EXCELLENCE.md` |
 | **C-02** | Archive stale documents (73 files) | 2026-05-22 | `docs/archive/2026-05-22-documentation-refresh/` |
 | **C-03** | Fix hkask-testing compilation failures | 2026-05-22 | All tests passing |
 | **C-04** | Resolve clippy warnings | 2026-05-22 | `cargo clippy -- -D warnings` passes |

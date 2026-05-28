@@ -5,6 +5,9 @@ status: "Active"
 last_updated: 2026-05-27
 name: tavily-best-practices
 description: "Build production-ready Tavily integrations with best practices baked in. Reference documentation for developers using coding assistants (Claude Code, Cursor, etc.) to implement web search, content extraction, crawling, and research in agentic workflows, RAG systems, or autonomous agents."
+audience: [developers]
+domain: "Application"
+ddmvss_categories: [capability]
 ---
 
 # Tavily

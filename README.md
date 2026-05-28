@@ -188,9 +188,9 @@ cargo fmt --check
 
 ## Documentation
 
-- `docs/architecture/hKask-architecture-master.md` — Sole authoritative spec (v0.21.0)
-- `docs/architecture/hKask-erd.md` — Entity relationship diagrams
-- `docs/architecture/registry-templating-prompt-v2.md` — Registry & templating design
+- `docs/architecture/hKask-architecture-master.md` — Architecture index (v0.21.0)
+- `docs/architecture/reference/hKask-erd.md` — Entity relationship diagrams
+- `docs/architecture/interface-and-composition.md` — Registry & templating design
 - `docs/status/PROJECT_STATUS.md` — Project status (single source of truth)
 - `assets/LOGO-DESIGN-PRINCIPLES.md` — Logo design principles
 - `AGENTS.md` — Agent operating guide
