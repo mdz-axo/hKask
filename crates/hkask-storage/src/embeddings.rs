@@ -94,7 +94,10 @@ impl EmbeddingStore {
             });
         }
 
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| EmbeddingError::LockPoisoned(e.to_string()))?;
         let query_bytes = Self::vector_to_bytes(query);
 
         let mut stmt = conn.prepare(
@@ -127,7 +130,10 @@ impl EmbeddingStore {
             });
         }
 
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| EmbeddingError::LockPoisoned(e.to_string()))?;
         let query_bytes = Self::vector_to_bytes(query);
 
         let mut stmt = conn.prepare(
@@ -170,7 +176,10 @@ impl EmbeddingStore {
     }
 
     pub fn delete(&self, id: &str) -> Result<(), EmbeddingError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| EmbeddingError::LockPoisoned(e.to_string()))?;
         conn.execute(
             "DELETE FROM embeddings WHERE id = ?1",
             rusqlite::params![id],

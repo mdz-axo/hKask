@@ -60,7 +60,11 @@ fn open_user_store() -> std::sync::Arc<std::sync::Mutex<hkask_storage::user_stor
     let store =
         hkask_storage::user_store::UserStore::new(std::sync::Arc::new(std::sync::Mutex::new(conn)));
     let store = std::sync::Arc::new(std::sync::Mutex::new(store));
-    store.lock().unwrap().initialize_schema().unwrap();
+    store
+        .lock()
+        .unwrap()
+        .initialize_schema()
+        .expect("Failed to initialize user store schema");
     store
 }
 

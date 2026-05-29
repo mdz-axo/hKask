@@ -26,6 +26,9 @@ pub enum ConsentError {
 
     #[error("Invalid data category: {0}")]
     InvalidCategory(String),
+
+    #[error("Lock poisoned: {0}")]
+    LockPoisoned(String),
 }
 
 /// Consent record
@@ -126,54 +129,55 @@ impl ConsentManager {
     }
 
     /// Check if consent is granted for a data category
-    pub fn has_consent(&self, webid: &str, category: &DataCategory) -> bool {
+    pub fn has_consent(&self, webid: &str, category: &DataCategory) -> Result<bool, ConsentError> {
         let cache = self
             .consent_cache
             .read()
-            .expect("Consent cache lock poisoned");
+            .map_err(|e| ConsentError::LockPoisoned(e.to_string()))?;
 
-        cache
+        Ok(cache
             .iter()
             .find(|r| r.webid == webid)
             .map(|r| r.has_category(category.as_str()))
-            .unwrap_or(false)
+            .unwrap_or(false))
     }
 
     /// Get all granted categories for a WebID
-    pub fn get_granted_categories(&self, webid: &str) -> HashSet<String> {
+    pub fn get_granted_categories(&self, webid: &str) -> Result<HashSet<String>, ConsentError> {
         let cache = self
             .consent_cache
             .read()
-            .expect("Consent cache lock poisoned");
+            .map_err(|e| ConsentError::LockPoisoned(e.to_string()))?;
 
-        cache
+        Ok(cache
             .iter()
             .find(|r| r.webid == webid)
             .map(|r| r.granted_categories.clone())
-            .unwrap_or_default()
+            .unwrap_or_default())
     }
 
     /// Check if any consent is active for a WebID
-    pub fn has_any_consent(&self, webid: &str) -> bool {
+    pub fn has_any_consent(&self, webid: &str) -> Result<bool, ConsentError> {
         let cache = self
             .consent_cache
             .read()
-            .expect("Consent cache lock poisoned");
+            .map_err(|e| ConsentError::LockPoisoned(e.to_string()))?;
 
-        cache
+        Ok(cache
             .iter()
             .find(|r| r.webid == webid)
             .map(|r| r.is_active())
-            .unwrap_or(false)
+            .unwrap_or(false))
     }
 
     /// Clear all consent records
-    pub fn clear(&self) {
+    pub fn clear(&self) -> Result<(), ConsentError> {
         let mut cache = self
             .consent_cache
             .write()
-            .expect("Consent cache lock poisoned");
+            .map_err(|e| ConsentError::LockPoisoned(e.to_string()))?;
         cache.clear();
         info!("Cleared all consent records");
+        Ok(())
     }
 }

@@ -131,12 +131,21 @@ ddmvss_categories: [interface, composition, capability, observability, curation,
 
 ## Open Crossroads (Future)
 
-### F1: OCAP Secret Generation vs. HKDF Derivation
+#### F1: OCAP Secret Generation vs. HKDF Derivation ✅ RESOLVED
 
 **DDMVSS Category:** Trust  
-**Status:** Open  
+**Status:** **Resolved**  
+**Resolution Date:** 2026-05-29
 
-`AgentPod::new()` generates random OCAP secrets via `rand::rng()` when no keystore entry exists. This contradicts ADR-027 (HKDF-SHA256 deterministic derivation). Tradeoff: determinism (cluster-safe, same passphrase → same secrets) vs. forward secrecy (new pod → new random secret).
+**Decision:** HKDF-SHA256 derivation per WebID (`"hkask:ocap-secret:<webid>"`).
+
+`AgentPod::new()` now calls `derive_ocap_secret(&webid)` which uses `HKDF-SHA256(master_key, "hkask:ocap-secret:" || webid)` to produce a deterministic, per-agent OCAP signing key. This eliminates `SecretRef::Generated` from the pod creation hot path (ADR-027 compliance) while preserving per-agent key isolation (Miller designation).
+
+- Same passphrase + same WebID → same OCAP secret (restart-safe)
+- Different WebIDs → cryptographically independent sub-keys (HKDF domain separation)
+- No keystore dependency per pod — only the master key needs storage
+
+**See:** `crates/hkask-agents/src/pod/mod.rs::derive_ocap_secret()`, ADR-027
 
 ### F2: Russell ACP Bridge Provenance
 

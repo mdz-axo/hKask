@@ -154,7 +154,7 @@ impl GitServer {
             return span.error(e.kind, e.to_json_string());
         }
 
-        if let Some(adapter) = self.adapter_container.get_git_cas() {
+        if let Ok(Some(adapter)) = self.adapter_container.get_git_cas() {
             match adapter.resolve_sha(&git_ref) {
                 Ok(sha) => span.ok(McpToolOutput::new(json!({
                     "ref": git_ref,
@@ -183,7 +183,7 @@ impl GitServer {
         let span = ToolSpanGuard::new("git:snapshot", &self.webid);
         let branch_name = branch.unwrap_or_else(|| "main".to_string());
 
-        if let Some(base_path) = self.adapter_container.get_base_path() {
+        if let Ok(Some(base_path)) = self.adapter_container.get_base_path() {
             match git_commit(&base_path, &message, &branch_name) {
                 Ok(sha) => span.ok(McpToolOutput::new(json!({
                     "sha": sha,
@@ -225,7 +225,7 @@ impl GitServer {
             return span.error(e.kind, e.to_json_string());
         }
 
-        if let Some(base_path) = self.adapter_container.get_base_path() {
+        if let Ok(Some(base_path)) = self.adapter_container.get_base_path() {
             let full_path = base_path.join(&target_path);
             let output = std::process::Command::new("git")
                 .args(["clone", "--branch", &branch_name, &url])
@@ -280,7 +280,7 @@ impl GitServer {
             return span.error(e.kind, e.to_json_string());
         }
 
-        if self.adapter_container.has_git_cas() {
+        if self.adapter_container.has_git_cas().unwrap_or(false) {
             span.ok(McpToolOutput::new(json!({
                 "source": source_url,
                 "target": format!("{}/{}", org, target_name),
@@ -307,7 +307,7 @@ impl GitServer {
             return span.error(e.kind, e.to_json_string());
         }
 
-        if let Some(base_path) = self.adapter_container.get_base_path() {
+        if let Ok(Some(base_path)) = self.adapter_container.get_base_path() {
             let mut args = vec!["diff", &sha1, &sha2];
             if path_filter != "all" {
                 args.push("--");
@@ -352,7 +352,7 @@ impl GitServer {
             return span.error(e.kind, e.to_json_string());
         }
 
-        if let Some(base_path) = self.adapter_container.get_base_path() {
+        if let Ok(Some(base_path)) = self.adapter_container.get_base_path() {
             let output = std::process::Command::new("git")
                 .args(["ls-tree", "--name-only", "HEAD", &p])
                 .current_dir(base_path)

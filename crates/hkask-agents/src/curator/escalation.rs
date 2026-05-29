@@ -62,8 +62,11 @@ impl EscalationQueue {
     }
 
     fn init(&self) -> Result<(), EscalationError> {
-        self.conn.lock().map_err(|e| EscalationError::LockPoisoned(e.to_string()))?.execute_batch(
-            "CREATE TABLE IF NOT EXISTS escalations (
+        self.conn
+            .lock()
+            .map_err(|e| EscalationError::LockPoisoned(e.to_string()))?
+            .execute_batch(
+                r#"CREATE TABLE IF NOT EXISTS escalations (
                 id TEXT PRIMARY KEY,
                 template_id TEXT NOT NULL,
                 bot_id TEXT NOT NULL,
@@ -76,8 +79,8 @@ impl EscalationQueue {
                 resolved_at TEXT,
                 resolved_by TEXT
             )
-        ",
-        )?;
+        "#,
+            )?;
         Ok(())
     }
 
@@ -94,7 +97,8 @@ impl EscalationQueue {
         let now = Utc::now().to_rfc3339();
 
         self.conn.lock().map_err(|e| EscalationError::LockPoisoned(e.to_string()))?.execute(
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'pending')",
+            r#"INSERT INTO escalations (id, template_id, bot_id, output, confidence, retry_count, error_context, created_at, status)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'pending')"#,
             params![
                 id,
                 template_id.to_string(),
@@ -111,10 +115,13 @@ impl EscalationQueue {
     }
 
     pub fn list_pending(&self) -> Result<Vec<EscalationEntry>, EscalationError> {
-        let conn = self.conn.lock().map_err(|e| EscalationError::LockPoisoned(e.to_string()))?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| EscalationError::LockPoisoned(e.to_string()))?;
         let mut stmt = conn.prepare(
-            "SELECT id, template_id, bot_id, output, confidence, retry_count, error_context, created_at, status, resolved_at, resolved_by
-             FROM escalations WHERE status = 'pending' ORDER BY created_at ASC"
+            r#"SELECT id, template_id, bot_id, output, confidence, retry_count, error_context, created_at, status, resolved_at, resolved_by
+             FROM escalations WHERE status = 'pending' ORDER BY created_at ASC"#
         )?;
 
         let rows = stmt.query_map([], |row| {
@@ -149,7 +156,10 @@ impl EscalationQueue {
     }
 
     pub fn get(&self, id: &str) -> Result<Option<EscalationEntry>, EscalationError> {
-        let conn = self.conn.lock().map_err(|e| EscalationError::LockPoisoned(e.to_string()))?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| EscalationError::LockPoisoned(e.to_string()))?;
         let mut stmt = conn.prepare(
             "SELECT id, template_id, bot_id, output, confidence, retry_count, error_context, created_at, status, resolved_at, resolved_by
              FROM escalations WHERE id = ?1"
@@ -203,7 +213,7 @@ impl EscalationQueue {
     pub fn resolve(&self, id: &str, resolved_by: &str) -> Result<(), EscalationError> {
         let now = Utc::now().to_rfc3339();
         self.conn.lock().map_err(|e| EscalationError::LockPoisoned(e.to_string()))?.execute(
-            "UPDATE escalations SET status = 'resolved', resolved_at = ?1, resolved_by = ?2 WHERE id = ?3",
+            r#"UPDATE escalations SET status = 'resolved', resolved_at = ?1, resolved_by = ?2 WHERE id = ?3"#,
             params![now, resolved_by, id],
         )?;
         Ok(())
@@ -212,22 +222,25 @@ impl EscalationQueue {
     pub fn dismiss(&self, id: &str, resolved_by: &str) -> Result<(), EscalationError> {
         let now = Utc::now().to_rfc3339();
         self.conn.lock().map_err(|e| EscalationError::LockPoisoned(e.to_string()))?.execute(
-            "UPDATE escalations SET status = 'dismissed', resolved_at = ?1, resolved_by = ?2 WHERE id = ?3",
+            r#"UPDATE escalations SET status = 'dismissed', resolved_at = ?1, resolved_by = ?2 WHERE id = ?3"#,
             params![now, resolved_by, id],
         )?;
         Ok(())
     }
 
     pub fn stats(&self) -> Result<EscalationStats, EscalationError> {
-        let conn = self.conn.lock().map_err(|e| EscalationError::LockPoisoned(e.to_string()))?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| EscalationError::LockPoisoned(e.to_string()))?;
         let mut stmt = conn.prepare(
-            "SELECT
+            r#"SELECT
                 COUNT(*) as total,
                 SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
                 SUM(CASE WHEN status = 'in_review' THEN 1 ELSE 0 END) as in_review,
                 SUM(CASE WHEN status = 'resolved' THEN 1 ELSE 0 END) as resolved,
                 SUM(CASE WHEN status = 'dismissed' THEN 1 ELSE 0 END) as dismissed
-             FROM escalations",
+             FROM escalations"#,
         )?;
 
         let row = stmt.query_row([], |row| {

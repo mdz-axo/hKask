@@ -23,6 +23,8 @@ use thiserror::Error;
 pub enum RevocationError {
     #[error("Database error: {0}")]
     Database(#[from] rusqlite::Error),
+    #[error("Lock poisoned: {0}")]
+    LockPoisoned(String),
 }
 
 /// A persisted revocation record
@@ -57,7 +59,10 @@ impl RevocationStore {
     }
 
     fn initialize_schema(&self) -> Result<(), RevocationError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| RevocationError::LockPoisoned(e.to_string()))?;
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS revocations (
                 id TEXT PRIMARY KEY,
@@ -80,7 +85,10 @@ impl RevocationStore {
         reason: &str,
         revoked_by: &str,
     ) -> Result<bool, RevocationError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| RevocationError::LockPoisoned(e.to_string()))?;
 
         // Check if already revoked
         let already_revoked: bool = conn
@@ -105,7 +113,10 @@ impl RevocationStore {
 
     /// Check whether a capability or delegation ID has been revoked.
     pub fn is_revoked(&self, id: &str) -> Result<bool, RevocationError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| RevocationError::LockPoisoned(e.to_string()))?;
         let count: i64 = conn.query_row(
             "SELECT COUNT(*) FROM revocations WHERE id = ?1",
             rusqlite::params![id],
@@ -118,7 +129,10 @@ impl RevocationStore {
     ///
     /// Returns `true` if the revocation was removed, `false` if it wasn't found.
     pub fn unrevoke(&self, id: &str) -> Result<bool, RevocationError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| RevocationError::LockPoisoned(e.to_string()))?;
         let deleted = conn.execute(
             "DELETE FROM revocations WHERE id = ?1",
             rusqlite::params![id],
@@ -128,7 +142,10 @@ impl RevocationStore {
 
     /// List all active revocations.
     pub fn list_active(&self) -> Result<Vec<RevocationRecord>, RevocationError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| RevocationError::LockPoisoned(e.to_string()))?;
         let mut stmt = conn.prepare(
             "SELECT id, revoked_at, reason, revoked_by FROM revocations ORDER BY revoked_at DESC",
         )?;
@@ -150,7 +167,10 @@ impl RevocationStore {
 
     /// Count total revocations.
     pub fn count(&self) -> Result<usize, RevocationError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| RevocationError::LockPoisoned(e.to_string()))?;
         let count: i64 =
             conn.query_row("SELECT COUNT(*) FROM revocations", [], |row| row.get(0))?;
         Ok(count as usize)
@@ -158,7 +178,10 @@ impl RevocationStore {
 
     /// Get the revocation record for a given ID, if it exists.
     pub fn get(&self, id: &str) -> Result<Option<RevocationRecord>, RevocationError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| RevocationError::LockPoisoned(e.to_string()))?;
         let mut stmt = conn
             .prepare("SELECT id, revoked_at, reason, revoked_by FROM revocations WHERE id = ?1")?;
 
