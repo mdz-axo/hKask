@@ -33,7 +33,7 @@ fn write_or_print(content: &str, output: Option<&Path>, label: &str) {
                 eprintln!("Failed to write {}: {}", label, e);
                 std::process::exit(1);
             }
-            println!("{} written to: {}", path.display());
+            println!("{} written to {}", label, path.display());
         }
         None => println!("{}", content),
     }
@@ -86,7 +86,7 @@ fn main() {
             &rt, &registry, &runtime, &handle, template, input, agent, model,
         ),
 
-        Commands::Template { action } => run_template(&registry, action),
+        Commands::Template { action } => run_template(&mut registry, action),
 
         Commands::Bot { action } => run_bot(&rt, action),
 
@@ -169,7 +169,7 @@ fn run_chat(
     }
 }
 
-fn run_template(registry: &SqliteRegistry, action: TemplateAction) {
+fn run_template(registry: &mut SqliteRegistry, action: TemplateAction) {
     match action {
         TemplateAction::List { r#type } => {
             let template_type = r#type.as_deref().and_then(cli::parse_template_type);
@@ -414,6 +414,7 @@ fn run_mcp(rt: &tokio::runtime::Runtime, action: McpAction) {
             input,
         } => {
             use hkask_mcp::dispatch::McpDispatcher;
+            use hkask_templates::McpPort;
             use hkask_types::WebID;
             use hkask_types::cns::RetryConfig;
 
@@ -424,7 +425,7 @@ fn run_mcp(rt: &tokio::runtime::Runtime, action: McpAction) {
             let secret = b"hkask-devel-mcp-secret-key-32byte!";
             let dispatcher = McpDispatcher::new(runtime, secret, RetryConfig::default());
 
-            let tools = rt.block_on(dispatcher.discover_tools());
+            let tools = rt.block_on(dispatcher.list_tools());
             if tools.is_empty() {
                 eprintln!("Warning: No tools registered in MCP runtime.");
             } else {
@@ -1468,6 +1469,7 @@ fn run_admin(action: AdminAction) {
 
 fn run_models(rt: &tokio::runtime::Runtime) {
     use hkask_mcp::dispatch::McpDispatcher;
+    use hkask_templates::McpPort;
     use hkask_types::WebID;
     use hkask_types::cns::RetryConfig;
 
@@ -1513,6 +1515,7 @@ fn run_models(rt: &tokio::runtime::Runtime) {
 
 fn run_web_search(rt: &tokio::runtime::Runtime, query: String, max_results: usize) {
     use hkask_mcp::dispatch::McpDispatcher;
+    use hkask_templates::McpPort;
     use hkask_types::WebID;
     use hkask_types::cns::RetryConfig;
 

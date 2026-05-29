@@ -151,24 +151,22 @@ impl ApiState {
 
     /// Create ApiState with default adapters.
     ///
-    /// # Panics
+    /// The `acp_secret` is the HMAC secret for ACP token signing. It should be
+    /// derived from the master key (via `hkask_keystore::master_key::derive_all_internal_secrets`)
+    /// or resolved from the environment/keychain (via `hkask_keystore::resolve`).
     ///
-    /// Panics if the ACP secret is not configured. The API server is headless and
-    /// cannot run interactive onboarding. Ensure one of these is available before
-    /// calling this constructor:
-    ///
-    /// - `HKASK_MASTER_KEY` or `HKASK_ACP_SECRET_KEY` environment variable, or
-    /// - ACP secret stored in the OS keychain (via `kask chat` onboarding)
-    ///
-    /// To set these up, run `kask chat` interactively to complete onboarding.
+    /// The API server is headless and cannot run interactive onboarding — the caller
+    /// is responsible for providing a valid ACP secret. Run `kask chat` interactively
+    /// first to complete onboarding and store secrets.
     pub fn with_defaults(
         registry: SqliteRegistry,
         mcp_runtime: hkask_mcp::runtime::McpRuntime,
         capability_secret: &[u8],
+        acp_secret: &[u8],
         system_webid: WebID,
     ) -> Self {
         let git_cas = GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-templates"));
-        let acp_runtime = Arc::new(AcpRuntime::default());
+        let acp_runtime = Arc::new(AcpRuntime::new(acp_secret, None));
         let observer_webid = WebID::new();
         let cns_emitter_adapter = CnsEmitterAdapter::new(observer_webid);
         let mcp_runtime_adapter = McpRuntimeAdapter::new();

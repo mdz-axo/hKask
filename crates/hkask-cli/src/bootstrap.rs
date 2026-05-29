@@ -122,7 +122,7 @@ impl BootstrapSequence {
         let bots = default_r7_bots();
         // Span scopes are computed from domain ownership via span_scope_for_r7_bot()
         // at point of use, since they derive from the bot's domains field.
-        bots
+        bots.to_vec()
     }
 
     /// Run the complete bootstrap sequence
@@ -321,19 +321,21 @@ impl BootstrapSequence {
 
             // Register bot in metrics collector
             {
+                let webid = bot.webid();
                 let mut metrics = self.bot_metrics.write().await;
-                metrics.register_bot(bot.webid, bot.id.clone());
-                metrics.set_energy_budget(&bot.webid, bot.energy_budget);
+                metrics.register_bot(webid, bot.id.clone());
+                metrics.set_energy_budget(&webid, bot.energy_budget);
             }
 
             // Store the WebID for later phases
+            let webid = bot.webid();
             self.state
                 .bot_webids
-                .push((bot.id.clone(), bot.webid.to_string()));
+                .push((bot.id.clone(), webid.to_string()));
 
             // Create scoped SpanEmitter for this bot
-            let emitter = SpanEmitter::new(bot.webid);
-            let _scope = SpanScope::new(emitter, scope, bot.webid);
+            let emitter = SpanEmitter::new(webid);
+            let _scope = SpanScope::new(emitter, scope, webid);
             // The scope is created but stored separately in the PodManager
 
             info!(

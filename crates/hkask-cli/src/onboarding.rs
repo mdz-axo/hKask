@@ -38,28 +38,23 @@ pub enum OnboardingError {
 
 /// Outcome of the onboarding flow
 pub struct OnboardingOutcome {
-    pub acp_runtime: Arc<AcpRuntime>,
-    pub agent_store: AgentRegistryStore,
     /// The replicant name the user signed in as
     pub signed_in_agent: String,
 }
 
 /// Run the onboarding/sign-in flow.
 ///
-/// Returns the initialized ACP runtime, agent store, and the agent name
-/// the user signed in as. If the user already has keys configured
-/// (HKASK_MASTER_KEY, HKASK_ACP_SECRET, or keychain entry), this will
-/// transparently initialize and return without prompting.
+/// Returns the replicant name the user signed in as. If the user already has
+/// keys configured (HKASK_MASTER_KEY, HKASK_ACP_SECRET, or keychain entry),
+/// this transparently initializes and returns without prompting.
 pub async fn run_onboarding() -> Result<OnboardingOutcome, OnboardingError> {
     // First, try the fast path: if keys are already configured, just init
     match init_registry().await {
-        Ok((acp, store)) => {
+        Ok((_acp, store)) => {
             // Keys work — check if there's a replicant to sign into
             let replicants = list_replicants(&store)?;
             let agent_name = pick_or_default_replicant(&replicants)?;
             return Ok(OnboardingOutcome {
-                acp_runtime: acp,
-                agent_store: store,
                 signed_in_agent: agent_name,
             });
         }
@@ -171,8 +166,6 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
     println!();
 
     Ok(OnboardingOutcome {
-        acp_runtime: acp,
-        agent_store: store,
         signed_in_agent: name,
     })
 }
@@ -197,7 +190,7 @@ async fn sign_in_flow(replicant_name: &str) -> Result<OnboardingOutcome, Onboard
         }
 
         match init_registry().await {
-            Ok((acp, store)) => {
+            Ok((_acp, store)) => {
                 // Verify the replicant exists
                 match store.get(replicant_name) {
                     Ok(_) => {
@@ -209,8 +202,6 @@ async fn sign_in_flow(replicant_name: &str) -> Result<OnboardingOutcome, Onboard
                         );
                         println!();
                         return Ok(OnboardingOutcome {
-                            acp_runtime: acp,
-                            agent_store: store,
                             signed_in_agent: replicant_name.to_string(),
                         });
                     }

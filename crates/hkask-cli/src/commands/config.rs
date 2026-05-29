@@ -92,7 +92,7 @@ pub(crate) fn open_registry_db() -> Result<Arc<std::sync::Mutex<rusqlite::Connec
 
 /// Open a SovereigntyBoundaryStore (used by `kask sovereignty` subcommands).
 /// Opens the shared database and wraps it in a sovereignty store.
-pub(crate) fn open_sovereignty_store()
+pub fn open_sovereignty_store()
 -> Result<hkask_storage::SovereigntyBoundaryStore, crate::errors::RegistryError> {
     let db_path = registry_db_path();
     let conn = rusqlite::Connection::open(&db_path)
@@ -104,8 +104,7 @@ pub(crate) fn open_sovereignty_store()
 
 /// Open a SqliteSpecStore (used by `kask spec` subcommands).
 /// Opens the shared database and initializes the spec schema.
-pub(crate) fn open_spec_store()
--> Result<hkask_storage::SqliteSpecStore, crate::errors::RegistryError> {
+pub fn open_spec_store() -> Result<hkask_storage::SqliteSpecStore, crate::errors::RegistryError> {
     let db_path = registry_db_path();
     let conn = rusqlite::Connection::open(&db_path)
         .map_err(|e| crate::errors::RegistryError::DatabaseError(e.to_string()))?;
@@ -119,7 +118,7 @@ pub(crate) fn open_spec_store()
 
 /// Create an MCP dispatcher wired to a fresh runtime with a capability token.
 /// Returns (McpDispatcher, token) for invoking tools.
-pub(crate) fn create_mcp_dispatcher() -> (hkask_mcp::McpDispatcher, hkask_types::CapabilityToken) {
+pub fn create_mcp_dispatcher() -> (hkask_mcp::McpDispatcher, hkask_types::CapabilityToken) {
     let runtime = hkask_mcp::runtime::McpRuntime::new();
     let secret = b"hkask-devel-mcp-secret-key-32byte!";
     let dispatcher =
