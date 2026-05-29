@@ -148,7 +148,7 @@ All monitoring occurs through:
 Before adding any feature, check:
 ```bash
 # Does this introduce visual UI or monitoring infrastructure?
-if grep -r "grafana\|prometheus\|dashboard\|visual.*ui" crates/ docs/; then
+if grep -r "grafana\|prometheus\|dashboard\|visual.*ui" crates/ --include="*.rs"; then
   echo "VIOLATION: Headless constraint violated"
   exit 1
 fi

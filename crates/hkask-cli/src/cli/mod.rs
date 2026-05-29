@@ -139,4 +139,16 @@ pub enum Commands {
         #[command(subcommand)]
         action: KeystoreAction,
     },
+
+    /// List available LLM models
+    Models,
+
+    /// Search the web
+    WebSearch {
+        /// Search query
+        query: String,
+        /// Maximum number of results
+        #[arg(long, default_value = "5")]
+        max_results: usize,
+    },
 }

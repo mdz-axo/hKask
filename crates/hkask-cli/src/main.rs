@@ -1487,5 +1487,95 @@ fn main() {
                 println!("Deleted {}", key);
             }
         },
+
+        Commands::Models => {
+            let runtime = McpRuntime::new();
+            let secret = b"hkask-devel-mcp-secret-key-32byte!";
+            let dispatcher = McpDispatcher::new(runtime, secret, RetryConfig::default());
+            let from = WebID::new();
+            let to = WebID::new();
+            let token = dispatcher.issue_capability("models".to_string(), from, to);
+            match rt.block_on(dispatcher.invoke("inference:models", serde_json::json!({}), &token))
+            {
+                Ok(result) => {
+                    if let Some(tiers) = result.get("model_tiers").and_then(|t| t.as_array()) {
+                        println!("\n=== Available Model Tiers ===");
+                        for tier in tiers {
+                            let label = tier
+                                .get("tier")
+                                .and_then(|t| t.as_str())
+                                .unwrap_or("unknown");
+                            let count = tier.get("count").and_then(|c| c.as_u64()).unwrap_or(0);
+                            println!("  {}: {} models", label, count);
+                            if let Some(models) = tier.get("models").and_then(|m| m.as_array()) {
+                                for model in models {
+                                    let name =
+                                        model.get("name").and_then(|n| n.as_str()).unwrap_or("?");
+                                    let size =
+                                        model.get("size").and_then(|s| s.as_str()).unwrap_or("");
+                                    println!("    - {}  {}", name, size);
+                                }
+                            }
+                        }
+                    } else {
+                        println!(
+                            "{}",
+                            serde_json::to_string_pretty(&result).unwrap_or_default()
+                        );
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Failed to list models: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+
+        Commands::WebSearch { query, max_results } => {
+            let runtime = McpRuntime::new();
+            let secret = b"hkask-devel-mcp-secret-key-32byte!";
+            let dispatcher = McpDispatcher::new(runtime, secret, RetryConfig::default());
+            let from = WebID::new();
+            let to = WebID::new();
+            let token = dispatcher.issue_capability("web".to_string(), from, to);
+            match rt.block_on(dispatcher.invoke(
+                "web:search",
+                serde_json::json!({"query": query, "max_results": max_results}),
+                &token,
+            )) {
+                Ok(result) => {
+                    if let Some(results) = result.get("results").and_then(|r| r.as_array()) {
+                        println!("\n=== Web Search: {} ===\n", query);
+                        for (i, item) in results.iter().enumerate() {
+                            let title = item
+                                .get("title")
+                                .and_then(|t| t.as_str())
+                                .unwrap_or("Untitled");
+                            let url = item.get("url").and_then(|u| u.as_str()).unwrap_or("");
+                            let snippet =
+                                item.get("snippet").and_then(|s| s.as_str()).unwrap_or("");
+                            println!("{}. {}", i + 1, title);
+                            println!("   URL: {}", url);
+                            if !snippet.is_empty() {
+                                println!("   {}", snippet);
+                            }
+                            println!();
+                        }
+                    } else if let Some(error) = result.get("error") {
+                        eprintln!("Search error: {}", error);
+                        std::process::exit(1);
+                    } else {
+                        println!(
+                            "{}",
+                            serde_json::to_string_pretty(&result).unwrap_or_default()
+                        );
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Web search failed: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
     }
 }

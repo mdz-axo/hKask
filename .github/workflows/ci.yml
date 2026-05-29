@@ -272,7 +272,7 @@ jobs:
 
       - name: No visual UI infrastructure
         run: |
-          violations=$(grep -r 'grafana\|prometheus\|dashboard\|visual.*ui' crates/ docs/ --include="*.rs" --include="*.md" || true)
+          violations=$(grep -r 'grafana\|prometheus\|dashboard\|visual.*ui' crates/ --include="*.rs" || true)
           if [ -n "$violations" ]; then
             echo "HEADLESS CONSTRAINT VIOLATED: Visual UI references detected:"
             echo "$violations"

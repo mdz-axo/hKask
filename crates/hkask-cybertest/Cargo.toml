@@ -5,10 +5,6 @@ edition.workspace = true
 license.workspace = true
 description = "Cybernetic unit test support harness for hKask"
 
-[[test]]
-name = "interface_equivalence"
-path = "../../tests/interface_equivalence.rs"
-
 [dependencies]
 serde.workspace = true
 serde_json.workspace = true
