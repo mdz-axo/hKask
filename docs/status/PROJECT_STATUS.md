@@ -123,18 +123,18 @@ hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent
 | **Architecture Specs** | 4 | `docs/architecture/` (domain-and-capability, interface-and-composition, trust-security-observability, persistence-and-lifecycle) |
 | **Architecture Framework** | 3 | `docs/architecture/` (DDMVSS, PRINCIPLES, magna-carta) |
 | **Architecture Index** | 1 | `docs/architecture/hKask-architecture-master.md` |
-| **Architecture ADR** | 2 | `docs/architecture/` (ADR-022, ADR-023) |
+| **Architecture ADR** | 7 | `docs/architecture/` (ADR-022 through ADR-028) |
 | **Reference Artifacts** | 9 | `docs/architecture/reference/` (incl. okapi-integration) |
 | **Specifications** | 9 | `docs/specifications/` (REQUIREMENTS, TRACEABILITY, DDMVSS_SCAFFOLD, DOCUMENTATION_STANDARDS, WRITING_EXCELLENCE, DEPENDENCY_POLICY, ADR_TEMPLATE, CI-CD-GUIDE, DEPLOYMENT) |
 | **Plans** | 1 | `docs/plans/` (TODO) |
 | **User Guides** | 2 | `docs/user-guides/` (AGENT-POD-CREATION-GUIDE, COMMON-AGENT-PATTERNS) |
 | **GML** | 1 | `docs/gml/` |
-| **Status** | 1 | `docs/status/` (PROJECT_STATUS) |
+| **Status** | 2 | `docs/status/` (PROJECT_STATUS, mcp-server-audit) |
 | **Cross-cutting** | 2 | `docs/` root (DIAGRAMS_INDEX, OPEN_QUESTIONS) |
 | **Artifacts** | 1 | `docs/artifacts/` (README) |
 | **Generated** | 1 | `docs/generated/` (cli-reference) |
 | **CI Scripts** | 2 | `docs/ci/` (check-links.sh, check-metadata.sh) |
-| **Total** | 37 | — |
+| **Total** | 43 | — |
 
 ### 4.2 Archived Documents
 

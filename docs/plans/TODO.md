@@ -30,7 +30,7 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | **P1-01** | Requirements specification | Architect | High | ✅ Complete | `docs/specifications/REQUIREMENTS.md` |
 | **P1-02** | Traceability matrix | Architect | Medium | ✅ Complete | `docs/specifications/TRACEABILITY_MATRIX.md` |
 | **P1-03** | Diagram refresh (DIAGRAMS_INDEX.md) | Curator | Medium | ✅ Complete | `docs/DIAGRAMS_INDEX.md` — 28 diagrams, 8 V1.1+ candidates |
-| **P1-04** | ADR creation for key decisions | Architect | Medium | Pending | P1-04 — Retroactive ADRs deferred (see OQ-6) |
+| **P1-04** | ADR creation for key decisions | Architect | Medium | ✅ Complete | ADR-024 through ADR-028 created 2026-05-29 (5 retroactive ADRs per OQ-6) |
 | **P1-05** | Link checker script | DevOps | Low | ✅ Complete | `docs/ci/check-links.sh` + check-metadata.sh |
 | **P1-06** | Citation compliance audit | Curator | Medium | Pending | P1-06 — Spot check passed, full audit deferred |
 | **P1-07** | Complete stub MCP servers | Dev | Medium | ✅ Complete | hkask-mcp-condenser: 761 LOC, hkask-mcp-web: 3,389 LOC (verified 2026-05-28) |
@@ -140,4 +140,4 @@ cargo fmt --check
 
 ---
 
-*This TODO is the single source of truth for open work. Last updated after 2026-05-22 documentation refresh.*
+*This TODO is the single source of truth for open work. Last updated after 2026-05-29 documentation refresh.*

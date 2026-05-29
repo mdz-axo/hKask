@@ -130,6 +130,19 @@ pub enum McpAction {
         #[arg()]
         name: String,
     },
+
+    /// Invoke an MCP tool directly
+    Invoke {
+        /// MCP server name
+        #[arg(long)]
+        server: String,
+        /// Tool name to invoke
+        #[arg(long)]
+        tool: String,
+        /// JSON input arguments
+        #[arg(long)]
+        input: String,
+    },
 }
 
 #[derive(Subcommand)]

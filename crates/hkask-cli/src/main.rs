@@ -22,8 +22,12 @@ use hkask_cli::cli::{
 };
 use hkask_cli::commands;
 use hkask_cli::russell_mapper::RussellMappingConfig;
+use hkask_mcp::dispatch::McpDispatcher;
 use hkask_mcp::runtime::McpRuntime;
+use hkask_templates::McpPort;
 use hkask_templates::SqliteRegistry;
+use hkask_types::cns::RetryConfig;
+use hkask_types::{CapabilityToken, WebID};
 
 /// Print an error and exit if the result is Err.
 /// Returns the Ok value on success.
@@ -358,6 +362,48 @@ fn main() {
                 McpAction::GetTool { name } => {
                     println!("Get tool: {}", name);
                     println!("Note: Tool lookup requires MCP runtime integration.");
+                }
+                McpAction::Invoke {
+                    server,
+                    tool,
+                    input,
+                } => {
+                    let input_value: serde_json::Value =
+                        or_exit(serde_json::from_str(&input), "parse JSON input");
+
+                    // Create MCP runtime and dispatcher
+                    let runtime = McpRuntime::new();
+                    let secret = b"hkask-devel-mcp-secret-key-32byte!";
+                    let dispatcher = McpDispatcher::new(runtime, secret, RetryConfig::default());
+
+                    // List available tools for diagnostics
+                    let tools = rt.block_on(dispatcher.discover_tools());
+                    if tools.is_empty() {
+                        eprintln!("Warning: No tools registered in MCP runtime.");
+                    } else {
+                        eprintln!("Available tools: {:?}", tools);
+                    }
+
+                    // Create capability token from user
+                    let from = WebID::new();
+                    let to = WebID::new();
+                    let token = dispatcher.issue_capability(tool.clone(), from, to);
+
+                    // Invoke the tool
+                    let result = match rt.block_on(dispatcher.invoke(&tool, input_value, &token)) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            eprintln!("Tool invocation error: {}", e);
+                            std::process::exit(1);
+                        }
+                    };
+
+                    // Print result as formatted JSON
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&result)
+                            .unwrap_or_else(|_| result.to_string())
+                    );
                 }
             }
         }

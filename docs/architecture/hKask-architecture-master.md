@@ -65,6 +65,11 @@ Detailed lookup tables and diagrams in `reference/`:
 |-----|-------|
 | [`ADR-022-comprehensive-security-hardening.md`](ADR-022-comprehensive-security-hardening.md) | ADV-REVIEW-F2 security hardening (T01-T22) |
 | [`ADR-023-master-key-derivation.md`](ADR-023-master-key-derivation.md) | Master key derivation via HKDF-SHA256, eliminate random secret generation, keystore persistence |
+| [`ADR-024-unified-registry.md`](ADR-024-unified-registry.md) | Unified registry with `template_type` discriminator (retroactive) |
+| [`ADR-025-attenuation-depth-limit.md`](ADR-025-attenuation-depth-limit.md) | 7-level attenuation depth limit (retroactive) |
+| [`ADR-026-bitemporal-triple-schema.md`](ADR-026-bitemporal-triple-schema.md) | Bitemporal triple schema with valid-time × transaction-time (retroactive) |
+| [`ADR-027-argon2-hkdf-master-key.md`](ADR-027-argon2-hkdf-master-key.md) | Argon2id + HKDF-SHA256 master key derivation (retroactive) |
+| [`ADR-028-acp-protocol-design.md`](ADR-028-acp-protocol-design.md) | ACP protocol design — JSON-RPC 2.0 over stdio (retroactive) |
 
 ---
 
@@ -103,6 +108,11 @@ docs/architecture/
 ├── persistence-and-lifecycle.md           # SPEC (Persistence + Lifecycle)
 ├── ADR-022-comprehensive-security-hardening.md  # Decision record
 ├── ADR-023-master-key-derivation.md       # Decision record
+├── ADR-024-unified-registry.md            # Decision record
+├── ADR-025-attenuation-depth-limit.md     # Decision record
+├── ADR-026-bitemporal-triple-schema.md    # Decision record
+├── ADR-027-argon2-hkdf-master-key.md      # Decision record
+├── ADR-028-acp-protocol-design.md         # Decision record
 └── reference/
     ├── hKask-erd.md                       # Diagram artifact
     ├── registry-erd.md                    # Diagram artifact
@@ -115,7 +125,7 @@ docs/architecture/
     └── okapi-integration.md               # Okapi API contract
 ```
 
-**Total:** 19 active architecture documents (4 specs + 3 framework + 1 index + 2 ADRs + 9 reference artifacts).
+**Total:** 24 active architecture documents (4 specs + 3 framework + 1 index + 7 ADRs + 9 reference artifacts).
 
 ---
 

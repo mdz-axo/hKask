@@ -1,3 +1,13 @@
+---
+title: "MCP Server Completeness Audit"
+audience: [architects, developers, agents]
+last_updated: 2026-05-29
+version: "1.0.0"
+status: "Active"
+domain: "Capability"
+ddmvss_categories: [capability, observability]
+---
+
 # MCP Server Completeness Audit
 
 **Date:** 2026-05-29
