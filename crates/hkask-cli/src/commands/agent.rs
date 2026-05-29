@@ -1,6 +1,6 @@
 //! Agent registration and bot listing command handlers
 
-use crate::commands::config::{init_registry, open_registry_db, registry_yaml_path};
+use crate::commands::config::{init_registry, registry_yaml_path};
 use crate::errors::AgentError;
 use std::sync::Arc;
 

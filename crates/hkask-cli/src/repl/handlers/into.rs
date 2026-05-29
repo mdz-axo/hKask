@@ -1,6 +1,6 @@
 //! REPL /into handler — enter/leave ensemble sessions
 
-pub(super) fn handle_into(
+pub(crate) fn handle_into(
     arg: &str,
     active_session: &mut Option<String>,
     rt: &tokio::runtime::Handle,

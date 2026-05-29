@@ -1,6 +1,6 @@
 //! REPL /model handler — model listing, switching, and fuzzy search
 
-pub(super) fn handle_model(arg1: &str, current_model: &mut String, rt: &tokio::runtime::Handle) {
+pub(crate) fn handle_model(arg1: &str, current_model: &mut String, rt: &tokio::runtime::Handle) {
     use hkask_templates::{OkapiConfig, search_okapi_models};
 
     if arg1.is_empty() || arg1.eq_ignore_ascii_case("list") {

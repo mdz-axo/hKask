@@ -1,6 +1,6 @@
 //! REPL /ensemble handler — multi-agent session management
 
-pub(super) fn handle_ensemble(
+pub(crate) fn handle_ensemble(
     subcmd: &str,
     rest: &str,
     active_session: &mut Option<String>,
