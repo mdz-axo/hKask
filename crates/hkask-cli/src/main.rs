@@ -107,6 +107,7 @@ fn main() {
                     template.as_deref(),
                     &agent,
                     model.as_deref(),
+                    rt.handle().clone(),
                 );
             }
         }
@@ -979,7 +980,14 @@ fn main() {
 
         Commands::Curator { action } => match action {
             CuratorAction::Chat => {
-                hkask_cli::repl::run(&registry, &runtime, None, "Curator", None);
+                hkask_cli::repl::run(
+                    &registry,
+                    &runtime,
+                    None,
+                    "Curator",
+                    None,
+                    rt.handle().clone(),
+                );
             }
             CuratorAction::Escalations => {
                 let escalations = or_exit(

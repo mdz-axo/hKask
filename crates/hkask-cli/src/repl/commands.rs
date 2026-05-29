@@ -166,6 +166,7 @@ pub(super) fn handle_slash_command(
     session_history: &mut SessionHistory,
     template_id: Option<&str>,
     active_session: &mut Option<String>,
+    rt: &tokio::runtime::Handle,
 ) -> bool {
     let without_slash = &input[1..];
     let parts: Vec<&str> = without_slash.splitn(3, ' ').collect();
@@ -207,7 +208,6 @@ pub(super) fn handle_slash_command(
         "status" | "st" => {
             let agent_display = current_agent.clone();
             let tpl = template_id.unwrap_or("auto-select");
-            let rt = tokio::runtime::Runtime::new().unwrap();
             println!("  Agent:      \x1b[1m{}\x1b[0m", agent_display);
             println!(
                 "  Model:      \x1b[1m{}\x1b[0m",
@@ -260,7 +260,6 @@ pub(super) fn handle_slash_command(
             println!();
         }
         "agents" | "ls" => {
-            let rt = tokio::runtime::Runtime::new().unwrap();
             rt.block_on(async {
                 match crate::commands::bot_list(None).await {
                     Ok(agents) => {
@@ -286,7 +285,6 @@ pub(super) fn handle_slash_command(
             println!();
         }
         "escalations" | "esc" => {
-            let rt = tokio::runtime::Runtime::new().unwrap();
             rt.block_on(async {
                 match crate::commands::curator_escalations().await {
                     Ok(escalations) => {
@@ -317,7 +315,6 @@ pub(super) fn handle_slash_command(
             if arg1.is_empty() {
                 println!("  Usage: /resolve <ID>");
             } else {
-                let rt = tokio::runtime::Runtime::new().unwrap();
                 rt.block_on(async {
                     match crate::commands::curator_resolve(arg1).await {
                         Ok(()) => println!("  Escalation \x1b[32m{}\x1b[0m resolved.", arg1),
@@ -331,7 +328,6 @@ pub(super) fn handle_slash_command(
             if arg1.is_empty() {
                 println!("  Usage: /dismiss <ID>");
             } else {
-                let rt = tokio::runtime::Runtime::new().unwrap();
                 rt.block_on(async {
                     match crate::commands::curator_dismiss(arg1).await {
                         Ok(()) => println!("  Escalation \x1b[33m{}\x1b[0m dismissed.", arg1),
@@ -342,7 +338,6 @@ pub(super) fn handle_slash_command(
             println!();
         }
         "metacognition" | "meta" => {
-            let rt = tokio::runtime::Runtime::new().unwrap();
             rt.block_on(async {
                 match crate::commands::curator_metacognition().await {
                     Ok(summary) => println!("  {}", summary),
@@ -360,7 +355,6 @@ pub(super) fn handle_slash_command(
             println!();
         }
         "pods" => {
-            let rt = tokio::runtime::Runtime::new().unwrap();
             let pods = rt.block_on(crate::commands::list_pods());
             if pods.is_empty() {
                 println!("  No pods registered.");
@@ -377,7 +371,6 @@ pub(super) fn handle_slash_command(
             println!();
         }
         "templates" | "tpl" => {
-            let rt = tokio::runtime::Runtime::new().unwrap();
             let entries = rt.block_on(async { crate::commands::list_templates_local() });
             if entries.is_empty() {
                 println!("  No templates registered.");
@@ -398,22 +391,22 @@ pub(super) fn handle_slash_command(
             println!();
         }
         "ensemble" | "ens" => {
-            handle_ensemble(arg1, arg2, active_session);
+            handle_ensemble(arg1, arg2, active_session, rt);
         }
         "into" | "i" => {
-            handle_into(arg1, active_session);
+            handle_into(arg1, active_session, rt);
         }
         "filter" | "thresh" => {
-            handle_filter(arg1, active_session);
+            handle_filter(arg1, active_session, rt);
         }
         "mode" => {
-            handle_mode(arg1, active_session);
+            handle_mode(arg1, active_session, rt);
         }
         "ask" => {
-            handle_ask(arg1, arg2, active_session);
+            handle_ask(arg1, arg2, active_session, rt);
         }
         "model" | "m" => {
-            handle_model(arg1, current_model);
+            handle_model(arg1, current_model, rt);
         }
         _ => {
             let fuzzy = fuzzy_match_command(&cmd);
@@ -432,8 +425,12 @@ pub(super) fn handle_slash_command(
     false
 }
 
-pub(super) fn handle_ensemble(subcmd: &str, rest: &str, active_session: &mut Option<String>) {
-    let rt = tokio::runtime::Runtime::new().unwrap();
+pub(super) fn handle_ensemble(
+    subcmd: &str,
+    rest: &str,
+    active_session: &mut Option<String>,
+    rt: &tokio::runtime::Handle,
+) {
     match subcmd {
         "sessions" | "list" | "" => {
             rt.block_on(async {
@@ -578,7 +575,11 @@ pub(super) fn handle_ensemble(subcmd: &str, rest: &str, active_session: &mut Opt
     println!();
 }
 
-pub(super) fn handle_into(arg: &str, active_session: &mut Option<String>) {
+pub(super) fn handle_into(
+    arg: &str,
+    active_session: &mut Option<String>,
+    rt: &tokio::runtime::Handle,
+) {
     if arg.is_empty() {
         match active_session {
             Some(_) => {
@@ -596,7 +597,6 @@ pub(super) fn handle_into(arg: &str, active_session: &mut Option<String>) {
         }
     } else {
         let session = arg.trim().to_string();
-        let rt = tokio::runtime::Runtime::new().unwrap();
         let exists = rt.block_on(async {
             match crate::commands::ensemble_chat_list().await {
                 Ok(sessions) => sessions.contains(&session),
@@ -635,8 +635,11 @@ pub(super) fn handle_into(arg: &str, active_session: &mut Option<String>) {
     println!();
 }
 
-pub(super) fn handle_filter(arg: &str, active_session: &Option<String>) {
-    let rt = tokio::runtime::Runtime::new().unwrap();
+pub(super) fn handle_filter(
+    arg: &str,
+    active_session: &Option<String>,
+    rt: &tokio::runtime::Handle,
+) {
     let session_id = match active_session {
         Some(s) => s.clone(),
         None => {
@@ -694,8 +697,7 @@ pub(super) fn handle_filter(arg: &str, active_session: &Option<String>) {
     println!();
 }
 
-pub(super) fn handle_mode(arg: &str, active_session: &Option<String>) {
-    let rt = tokio::runtime::Runtime::new().unwrap();
+pub(super) fn handle_mode(arg: &str, active_session: &Option<String>, rt: &tokio::runtime::Handle) {
     let session_id = match active_session {
         Some(s) => s.clone(),
         None => {
@@ -749,7 +751,12 @@ pub(super) fn handle_mode(arg: &str, active_session: &Option<String>) {
     println!();
 }
 
-pub(super) fn handle_ask(arg1: &str, arg2: &str, active_session: &Option<String>) {
+pub(super) fn handle_ask(
+    arg1: &str,
+    arg2: &str,
+    active_session: &Option<String>,
+    rt: &tokio::runtime::Handle,
+) {
     if arg1.is_empty() || arg2.is_empty() {
         println!("  Usage: \x1b[36m/ask <agent> <message>\x1b[0m");
         return;
@@ -757,7 +764,6 @@ pub(super) fn handle_ask(arg1: &str, arg2: &str, active_session: &Option<String>
 
     match active_session {
         Some(session) => {
-            let rt = tokio::runtime::Runtime::new().unwrap();
             let response = rt.block_on(crate::commands::chat_with_agent(arg2, Some(arg1), None));
             println!("\x1b[1m{}\x1b[0m: {}\n", arg1, response);
 
@@ -771,14 +777,13 @@ pub(super) fn handle_ask(arg1: &str, arg2: &str, active_session: &Option<String>
             });
         }
         None => {
-            let rt = tokio::runtime::Runtime::new().unwrap();
             let response = rt.block_on(crate::commands::chat_with_agent(arg2, Some(arg1), None));
             println!("\x1b[1m{}\x1b[0m: {}\n", arg1, response);
         }
     }
 }
 
-fn handle_model(arg1: &str, current_model: &mut String) {
+fn handle_model(arg1: &str, current_model: &mut String, rt: &tokio::runtime::Handle) {
     use hkask_templates::{OkapiConfig, search_okapi_models};
 
     if arg1.is_empty() {
@@ -793,7 +798,6 @@ fn handle_model(arg1: &str, current_model: &mut String) {
         );
     } else {
         let config = OkapiConfig::local_dev();
-        let rt = tokio::runtime::Runtime::new().unwrap();
         let matches = rt.block_on(search_okapi_models(&config, arg1));
 
         if matches.is_empty() {

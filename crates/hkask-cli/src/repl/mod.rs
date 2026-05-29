@@ -25,6 +25,7 @@ pub fn run(
     template_id: Option<&str>,
     agent_name: &str,
     initial_model: Option<&str>,
+    rt_handle: tokio::runtime::Handle,
 ) {
     let mut current_agent = agent_name.to_string();
     let mut current_model = initial_model.unwrap_or("").to_string();
@@ -77,6 +78,7 @@ pub fn run(
                         &mut session_history,
                         template_id,
                         &mut active_session,
+                        &rt_handle,
                     ) {
                         let _ = rl.save_history(&history_path());
                         break;
@@ -90,7 +92,7 @@ pub fn run(
                     break;
                 }
 
-                let rt = tokio::runtime::Runtime::new().unwrap();
+                let rt = rt_handle.clone();
 
                 if let Some(ref session) = active_session {
                     match rt.block_on(crate::commands::ensemble_improv_turn(session, input)) {

@@ -9,6 +9,7 @@ use crate::ports::{
     ProcessManifest, Result, TemplateError,
 };
 use crate::renderer::TemplateRendererImpl;
+use hkask_cns::EnergyBudget;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::info;
@@ -83,10 +84,15 @@ impl Default for SelectorConfig {
 }
 
 /// Energy budget tracker for manifest execution
+///
+/// Mirrors `hkask_cns::EnergyBudget` for local step-based accounting.
+/// Integrates token-based cost estimation via `hkask_types::estimate_tokens()`.
 #[derive(Debug, Clone)]
 pub struct EnergyAccount {
     pub budget: u64,
     pub consumed: u64,
+    /// Optional CNS budget for algedonic integration
+    pub cns_budget: Option<hkask_cns::EnergyBudget>,
 }
 
 impl EnergyAccount {
@@ -94,6 +100,16 @@ impl EnergyAccount {
         Self {
             budget,
             consumed: 0,
+            cns_budget: None,
+        }
+    }
+
+    /// Create with a CNS energy budget for alerting
+    pub fn with_cns_budget(budget: u64, cns_budget: hkask_cns::EnergyBudget) -> Self {
+        Self {
+            budget,
+            consumed: 0,
+            cns_budget: Some(cns_budget),
         }
     }
 
@@ -106,7 +122,22 @@ impl EnergyAccount {
             return false;
         }
         self.consumed += cost;
+
+        // Mirror debit to CNS budget for token-based algedonic alerts
+        if let Some(ref mut cns_budget) = self.cns_budget {
+            // Map step cost to approximate tokens (1 energy ≈ 4 tokens)
+            let approx_tokens = cost * 4;
+            let _ = cns_budget.allocate(approx_tokens);
+        }
         true
+    }
+
+    /// Check if CNS budget alert threshold has been exceeded
+    pub fn should_alert(&self) -> bool {
+        self.cns_budget
+            .as_ref()
+            .map(|b| b.should_alert())
+            .unwrap_or(false)
     }
 }
 
@@ -333,7 +364,10 @@ where
             "Executing manifest"
         );
 
-        let mut energy = EnergyAccount::new(self.energy_budget);
+        let mut energy = EnergyAccount::with_cns_budget(
+            self.energy_budget,
+            EnergyBudget::new(self.energy_budget).with_alert_threshold(0.8),
+        );
         let mut state = input;
         for step in &manifest.steps {
             let step_result = self
