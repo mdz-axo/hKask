@@ -55,8 +55,10 @@ pub struct SecurityGateway {
     rate_limiter: RateLimiter,
     /// Security policy
     policy: SecurityPolicy,
-    /// Audit log (in-memory, replace with persistent storage in production)
+    /// Audit log (persistent via AuditLogStore adapter, in-memory fallback)
     audit_log: Arc<RwLock<Vec<AuditEntry>>>,
+    /// Optional persistent audit store (wired when database is available)
+    audit_store: Option<Arc<dyn hkask_types::AuditLogPort + Send + Sync>>,
     /// Optional CNS emitter for security event span emission
     cns_emitter: Option<Arc<dyn CnsEmit + Send + Sync>>,
 }
@@ -89,6 +91,7 @@ impl SecurityGateway {
             rate_limiter: RateLimiter::default(),
             policy,
             audit_log: Arc::new(RwLock::new(Vec::new())),
+            audit_store: None,
             cns_emitter: None,
         }
     }
@@ -101,6 +104,15 @@ impl SecurityGateway {
     /// Set the CNS emitter for security event span emission
     pub fn with_cns_emitter(mut self, emitter: Arc<dyn CnsEmit + Send + Sync>) -> Self {
         self.cns_emitter = Some(emitter);
+        self
+    }
+
+    /// Set the persistent audit store for durable audit logging
+    pub fn with_audit_store(
+        mut self,
+        store: Arc<dyn hkask_types::AuditLogPort + Send + Sync>,
+    ) -> Self {
+        self.audit_store = Some(store);
         self
     }
 
@@ -191,6 +203,31 @@ impl SecurityGateway {
 
     /// Record audit entry
     pub async fn audit(&self, entry: AuditEntry) {
+        // Persist to durable store if available
+        if let Some(ref store) = self.audit_store {
+            let canonical = hkask_types::AuditEntry {
+                id: uuid::Uuid::new_v4().to_string(),
+                timestamp: entry.timestamp,
+                actor: entry.bot_id,
+                action: format!("{:?}", entry.action),
+                resource: entry.tool_name.clone(),
+                outcome: if entry.success {
+                    hkask_types::AuditOutcome::Success
+                } else {
+                    hkask_types::AuditOutcome::Denied
+                },
+                context: hkask_types::AuditContext {
+                    correlation_id: None,
+                    recipient: None,
+                    ip_address: None,
+                    error_message: entry.error_message.clone(),
+                    metadata: serde_json::Value::Null,
+                },
+            };
+            store.log(canonical);
+        }
+
+        // Maintain in-memory cache for fast querying
         let mut log = self.audit_log.write().await;
         log.push(entry);
 

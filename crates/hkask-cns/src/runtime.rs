@@ -4,14 +4,26 @@
 //! Provides health status and alert querying for CLI and API integration.
 //!
 //! Uses shared state with RwLock for compatibility with sync and async contexts.
+//! All lock operations return `Result` — CNS must not panic (CNS monitors panics).
 
 use crate::algedonic::{AlgedonicManager, CnsHealth, DEFAULT_THRESHOLD, RuntimeAlert};
 use crate::observers::sovereignty::SovereigntyObserver;
 use crate::variety::{VarietyMonitor, VarietyTracker};
 use std::sync::Arc;
 use std::sync::RwLock as StdRwLock;
+use thiserror::Error;
 use tokio::sync::RwLock;
-use tracing::info;
+use tracing::{info, warn};
+
+/// CNS runtime errors
+#[derive(Debug, Error)]
+pub enum CnsError {
+    #[error("Lock poisoned: {0}")]
+    LockPoisoned(String),
+}
+
+/// Result alias for CNS operations
+pub type CnsResult<T> = Result<T, CnsError>;
 
 /// CNS state shared between threads
 struct CnsState {
@@ -50,29 +62,57 @@ impl CnsRuntime {
         }
     }
 
+    /// Read-lock the algedonic manager, propagating poison errors
+    fn read_algedonic(
+        algedonic: &Arc<StdRwLock<AlgedonicManager>>,
+    ) -> CnsResult<std::sync::RwLockReadGuard<'_, AlgedonicManager>> {
+        algedonic
+            .read()
+            .map_err(|e| CnsError::LockPoisoned(e.to_string()))
+    }
+
+    /// Write-lock the algedonic manager, propagating poison errors
+    fn write_algedonic(
+        algedonic: &Arc<StdRwLock<AlgedonicManager>>,
+    ) -> CnsResult<std::sync::RwLockWriteGuard<'_, AlgedonicManager>> {
+        algedonic
+            .write()
+            .map_err(|e| CnsError::LockPoisoned(e.to_string()))
+    }
+
     /// Get CNS health status
     pub async fn health(&self) -> CnsHealth {
         let state = self.state.read().await;
-        CnsHealth::check(&state.algedonic.read().unwrap())
+        match Self::read_algedonic(&state.algedonic) {
+            Ok(mgr) => CnsHealth::check(&mgr),
+            Err(e) => {
+                warn!("CNS lock poisoned during health check: {}", e);
+                CnsHealth {
+                    overall_deficit: 0,
+                    critical_count: 1,
+                    warning_count: 0,
+                    healthy: false,
+                }
+            }
+        }
     }
 
     /// Get all algedonic alerts
     pub async fn alerts(&self) -> Vec<RuntimeAlert> {
         let state = self.state.read().await;
-        state.algedonic.read().unwrap().alerts().to_vec()
+        match Self::read_algedonic(&state.algedonic) {
+            Ok(mgr) => mgr.alerts().to_vec(),
+            Err(_) => Vec::new(),
+        }
     }
 
     /// Get critical alerts only
     pub async fn critical_alerts(&self) -> Vec<RuntimeAlert> {
         let state = self.state.read().await;
-        state
-            .algedonic
-            .read()
-            .unwrap()
-            .critical_alerts()
-            .into_iter()
-            .cloned()
-            .collect()
+        match Self::read_algedonic(&state.algedonic) {
+            Ok(mgr) => mgr.critical_alerts().into_iter().cloned().collect(),
+            Err(_) => Vec::new(),
+        }
     }
 
     /// Get variety counters for all domains
@@ -122,12 +162,13 @@ impl CnsRuntime {
         };
 
         let state = self.state.write().await;
-        state
-            .algedonic
-            .write()
-            .unwrap()
-            .check(&counter, domain)
-            .cloned()
+        match Self::write_algedonic(&state.algedonic) {
+            Ok(mut mgr) => mgr.check(&counter, domain).cloned(),
+            Err(e) => {
+                warn!("CNS lock poisoned during variety check: {}", e);
+                None
+            }
+        }
     }
 
     /// Check all domains and return count of alerts generated
@@ -151,14 +192,15 @@ impl CnsRuntime {
 
             if let Some(counter) = counter {
                 let state = self.state.write().await;
-                if state
-                    .algedonic
-                    .write()
-                    .unwrap()
-                    .check(&counter, &domain)
-                    .is_some()
-                {
-                    count += 1;
+                match Self::write_algedonic(&state.algedonic) {
+                    Ok(mut mgr) => {
+                        if mgr.check(&counter, &domain).is_some() {
+                            count += 1;
+                        }
+                    }
+                    Err(e) => {
+                        warn!("CNS lock poisoned during check_all: {}", e);
+                    }
                 }
             }
         }
@@ -168,13 +210,19 @@ impl CnsRuntime {
     /// Reset all alerts
     pub async fn reset_alerts(&self) {
         let state = self.state.write().await;
-        state.algedonic.write().unwrap().reset();
+        match Self::write_algedonic(&state.algedonic) {
+            Ok(mut mgr) => mgr.reset(),
+            Err(e) => warn!("CNS lock poisoned during reset: {}", e),
+        }
     }
 
     /// Clear old alerts (older than specified duration)
     pub async fn clear_old_alerts(&self, max_age: std::time::Duration) {
         let state = self.state.write().await;
-        state.algedonic.write().unwrap().clear_old(max_age);
+        match Self::write_algedonic(&state.algedonic) {
+            Ok(mut mgr) => mgr.clear_old(max_age),
+            Err(e) => warn!("CNS lock poisoned during clear_old: {}", e),
+        }
     }
 
     /// Get total variety deficit across all domains
