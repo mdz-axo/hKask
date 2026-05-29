@@ -1,4 +1,8 @@
 //! Curator chat routes
+//!
+//! The `POST /api/chat` endpoint accepts an optional `model` field that
+//! switches the LLM used for inference. Use `GET /api/models` to discover
+//! valid model identifiers.
 
 use axum::{Json, extract::State, routing::Router};
 
@@ -9,7 +13,14 @@ pub fn chat_router() -> Router<ApiState> {
     Router::new().route("/api/chat", axum::routing::post(chat))
 }
 
-/// Curator chat endpoint
+/// Chat with the Curator or a specified agent.
+///
+/// Accepts an optional `model` field to switch the LLM at request time.
+/// When omitted, the server default (`qwen3:8b`) is used. The response
+/// echoes the `model` used, confirming which LLM generated the output.
+///
+/// Use `GET /api/models` or `GET /api/models/search?q=...` to discover
+/// available model identifiers.
 #[utoipa::path(
     post,
     path = "/api/chat",

@@ -2,7 +2,7 @@
 title: "hKask Project Status"
 audience: [project maintainers, contributors, stakeholders]
 last_updated: 2026-05-28
-version: "0.21.2"
+version: "0.21.3"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -27,25 +27,25 @@ hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent
 
 | Metric | Value | Status |
 |--------|-------|--------|
-| **Core LOC (Rust)** | ~40,814 | Measured 2026-05-25 |
-| **MCP Server LOC (Rust)** | ~4,890 | Excluded from budget |
-| **Total Rust LOC** | ~45,704 | — |
+| **Core LOC (Rust)** | ~40,794 | Measured 2026-05-28 |
+| **MCP Server LOC (Rust)** | ~11,178 | Excluded from budget |
+| **Total Rust LOC** | ~51,972 | — |
 | **Excluded** | Jinja2 templates, YAML manifests | Not counted |
 
 ### 2.2 Test Metrics
 
-| Workspace | Test Files | Status |
-|-----------|-----------|--------|
-| **Core Crates** | 33 test files | ✅ |
-| **MCP Servers** | 3 test files | ✅ |
-| **Total** | 36 test files | ✅ |
+| Workspace | Tests | Status |
+|-----------|-------|--------|
+| **Core Crates** | 6 doctest blocks (3 ok, 3 ignored) | ✅ |
+| **MCP Servers** | 0 | — |
+| **Total** | 6 doctest blocks (3 ok, 3 ignored) | ✅ |
 
 ### 2.3 Build Status
 
 | Command | Status | Warnings |
 |---------|--------|----------|
 | `cargo check --workspace` | ✅ Pass | None |
-| `cargo test --workspace` | ✅ Pass | All passing |
+| `cargo test --workspace` | ✅ Pass | 3 doctests ok, 3 ignored |
 | `cargo clippy --workspace -- -D warnings` | ✅ Pass | None |
 | `cargo fmt --check` | ✅ Pass | — |
 
@@ -55,8 +55,7 @@ hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent
 |-----------|-------|-------------|
 | **Core Crates** | 11 | `hkask-*` in `crates/` |
 | **MCP Servers** | 15 | `hkask-mcp-*` in `mcp-servers/` |
-| **Test Crate** | 1 | `hkask-testing` |
-| **Total** | 28 | All in workspace |
+| **Total** | 26 | All in workspace |
 
 ---
 
@@ -95,25 +94,21 @@ hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent
 
 | Server | LOC | Status | Purpose |
 |--------|-----|--------|---------|
-| `hkask-mcp-inference` | 432 | ✅ Complete | Okapi LLM inference |
-| `hkask-mcp-condenser` | 5 | ⚠️ Stub | General-purpose context reranking and condensation |
-| `hkask-mcp-web` | 5 | ⚠️ Stub | Web search, scrape |
-| `hkask-mcp-ocap` | 266 | ✅ Complete | Capability management |
-| `hkask-mcp-keystore` | 365 | ✅ Complete | Keystore operations |
-| `hkask-mcp-cns` | 230 | ✅ Complete | CNS operations |
-| `hkask-mcp-git` | 441 | ✅ Complete | Git CAS |
-| `hkask-mcp-registry` | 280 | ✅ Complete | Registry operations |
-| `hkask-mcp-gml` | 1,022 | ✅ Complete | GML allosteric engine |
-| `hkask-mcp-spec` | 819 | ✅ Complete | DDMVSS spec tools (8 tools) |
-| `hkask-mcp-github` | 225 | ✅ Complete | GitHub integration |
-| `hkask-mcp-fmp` | 191 | ✅ Complete | Financial data (FMP) |
-| `hkask-mcp-telnyx` | 161 | ✅ Complete | Communications (Telnyx) |
-| `hkask-mcp-fal` | 219 | ✅ Complete | Media generation (FAL) |
-| `hkask-mcp-rss-reader` | 224 | ✅ Complete | RSS feed reader |
-
-**Converted to Templates (per AGENTS.md):**
-- `hkask-mcp-spandrel` → `templates/spandrel/` (graph analysis)
-- `hkask-mcp-doc-knowledge` → `templates/doc-knowledge/` (document extraction)
+| `hkask-mcp-inference` | 391 | ✅ Complete | Okapi LLM inference |
+| `hkask-mcp-condenser` | 761 | ⚠️ Stub | General-purpose context reranking and condensation |
+| `hkask-mcp-web` | 3,389 | ⚠️ Stub | Web search, scrape |
+| `hkask-mcp-ocap` | 319 | ✅ Complete | Capability management |
+| `hkask-mcp-keystore` | 529 | ✅ Complete | Keystore operations |
+| `hkask-mcp-cns` | 280 | ✅ Complete | CNS operations |
+| `hkask-mcp-git` | 410 | ✅ Complete | Git CAS |
+| `hkask-mcp-registry` | 310 | ✅ Complete | Registry operations |
+| `hkask-mcp-gml` | 987 | ✅ Complete | GML allosteric engine |
+| `hkask-mcp-spec` | 853 | ✅ Complete | DDMVSS spec tools (8 tools) |
+| `hkask-mcp-github` | 459 | ✅ Complete | GitHub integration |
+| `hkask-mcp-fmp` | 369 | ✅ Complete | Financial data (FMP) |
+| `hkask-mcp-telnyx` | 244 | ✅ Complete | Communications (Telnyx) |
+| `hkask-mcp-fal` | 434 | ✅ Complete | Media generation (FAL) |
+| `hkask-mcp-rss-reader` | 1,443 | ✅ Complete | RSS feed reader |
 
 **Note:** MCP servers are excluded from count per [`AGENTS.md`](../../AGENTS.md).
 
@@ -128,17 +123,16 @@ hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent
 | **Architecture Specs** | 4 | `docs/architecture/` (domain-and-capability, interface-and-composition, trust-security-observability, persistence-and-lifecycle) |
 | **Architecture Framework** | 3 | `docs/architecture/` (DDMVSS, PRINCIPLES, magna-carta) |
 | **Architecture Index** | 1 | `docs/architecture/hKask-architecture-master.md` |
-| **Architecture ADR** | 1 | `docs/architecture/ADR-022-*.md` |
+| **Architecture ADR** | 2 | `docs/architecture/` (ADR-022, ADR-023) |
 | **Reference Artifacts** | 9 | `docs/architecture/reference/` (incl. okapi-integration) |
-| **Specifications** | 3 | `docs/specifications/` (REQUIREMENTS, TRACEABILITY, MODEL_CATALOG) |
-| **Standards** | 4 | `docs/specifications/` (DOCUMENTATION_STANDARDS, WRITING_EXCELLENCE, DEPENDENCY_POLICY, ADR_TEMPLATE) |
+| **Specifications** | 9 | `docs/specifications/` (REQUIREMENTS, TRACEABILITY, DDMVSS_SCAFFOLD, DOCUMENTATION_STANDARDS, WRITING_EXCELLENCE, DEPENDENCY_POLICY, ADR_TEMPLATE, CI-CD-GUIDE, DEPLOYMENT) |
 | **Plans** | 1 | `docs/plans/` (TODO) |
 | **User Guides** | 2 | `docs/user-guides/` (AGENT-POD-CREATION-GUIDE, COMMON-AGENT-PATTERNS) |
-| **GML** | 3 | `docs/gml/` |
+| **GML** | 1 | `docs/gml/` |
 | **Status** | 1 | `docs/status/` (PROJECT_STATUS) |
-| **Cross-cutting** | 5 | `docs/` root (DDMVSS_SCAFFOLD, OPEN_QUESTIONS, DIAGRAMS_INDEX, CI-CD-GUIDE, DEPLOYMENT) |
+| **Cross-cutting** | 2 | `docs/` root (DIAGRAMS_INDEX, OPEN_QUESTIONS) |
 | **CI Scripts** | 2 | `docs/ci/` (check-links.sh, check-metadata.sh) |
-| **Total** | 37 | — |
+| **Total** | 35 | — |
 
 ### 4.2 Archived Documents
 
@@ -147,8 +141,9 @@ hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent
 | `2026-05-22-documentation-refresh` | 73 | Initial documentation audit |
 | `2026-05-25-documentation-refresh` | 12 | TOGAF→DDMVSS migration |
 | `2026-05-25-ddmvss-reset` | 3 | Pre-DDDMVSS docs absorbed into 4 specs |
-| `2026-05-25-bloat-removal` | 6 | Content absorbed into DDMVSS specs or stale (GOVERNANCE, roadmap, KNOWN_ISSUES, SECURITY guide, questionnaire, pod index) |
-| **Total** | 94 | — |
+| `2026-05-25-bloat-removal` | 6 | Content absorbed into DDMVSS specs or stale |
+| `2026-05-28-documentation-refresh` | 10 (+ 4 deleted) | Stale/historical docs archived; MODEL_CATALOG, 2 plan files, and 1 other deleted |
+| **Total** | 104 | — |
 
 ### 4.3 DDMVSS Completeness
 
@@ -174,7 +169,7 @@ hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent
 | **Tests** | ✅ Pass | 2026-05-25 |
 | **Lint** | ✅ Pass | 2026-05-25 |
 | **Format** | ✅ Pass | 2026-05-25 |
-| **Metadata Headers** | ✅ All 48 docs compliant | 2026-05-28 |
+| **Metadata Headers** | ✅ All 35 docs compliant | 2026-05-28 |
 | **Citation Compliance** | ✅ New docs have citations | 2026-05-28 |
 | **Diagram Alignment** | ✅ 28 diagrams verified in DIAGRAMS_INDEX.md | 2026-05-28 |
 | **Link Integrity** | ✅ `docs/ci/check-links.sh` passes with 0 broken | 2026-05-28 |
@@ -187,7 +182,7 @@ hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent
 
 | ID | Task | Owner | Status |
 |----|------|-------|--------|
-| **P0-01** | Fix hkask-storage/src/goals.rs trait mismatches | Storage bot | Pending |
+| **P0-01** | Fix hkask-storage trait mismatches (goals.rs compile errors) | Storage bot | Pending |
 | **P0-02** | Integration tests for inference pipeline | Testing bot | Pending |
 
 ### 5.2 P1 — Important

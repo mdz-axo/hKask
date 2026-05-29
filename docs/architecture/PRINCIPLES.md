@@ -1,8 +1,8 @@
 ---
 title: "hKask Architecture Principles"
 audience: [architects, developers, agents]
-last_updated: 2026-05-24
-version: "1.0.0"
+last_updated: 2026-05-28
+version: "1.1.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, curation]
@@ -289,7 +289,7 @@ status: VERIFIED
 | **PS-08** | Mermaid-First | Diagrams inline, not external links |
 | **PS-09** | DIAGRAM_ALIGNMENT | Every diagram verified with metadata |
 | **PS-10** | Writing Excellence | 3 of 4 dimensions pass (Hopper/Lovelace/Schriver/Gentle) |
-| **PS-11** | TOGAF Alignment | Every document classified by phase |
+| **PS-11** | DDMVSS Alignment | Every document classified by DDMVSS category |
 | **PS-12** | Git is Archive | Retired docs recoverable via `git show` |
 
 **Verification Command:**

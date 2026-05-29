@@ -3,7 +3,7 @@ title: "GML (Allosteric Thinking) Documentation"
 audience: [architects, developers]
 last_updated: 2026-05-24
 version: "0.1.0"
-status: "Draft"
+status: "Active"
 domain: "Application"
 ddmvss_categories: [domain]
 ---
@@ -12,14 +12,18 @@ ddmvss_categories: [domain]
 
 **Generalized Monad Logic — KnowAct for conceptual analysis**
 
-**Status:** Draft — GML is currently implemented as `hkask-mcp-gml` (1,022 LOC, 5 MCP tools). The multi-crate decomposition described in sub-documents is aspirational for v1.1+.
+**Implementation:** GML is currently implemented as `hkask-mcp-gml` (1,022 LOC, 5 MCP tools: `recognize`, `equilibrium`, `parse`, `discriminate`, `analogy`). Multi-crate decomposition is deferred to v1.1+.
 
 ---
 
 ## Quick Start
 
-1. **Implementing GML?** See the [Architecture](./gml-architecture.md) — crate structure, types, algebra
-2. **Using the API?** Check the [API Reference](./gml-api.md) — function signatures, examples
+GML is available as an MCP server. Invoke its tools through the standard `kask` surfaces:
+
+```bash
+kask chat              # Interactive chat with GML tools
+kask mcp call gml recognize --args '{"concept": "democracy"}'
+```
 
 ---
 
@@ -27,8 +31,9 @@ ddmvss_categories: [domain]
 
 | Document | Purpose | Audience |
 |----------|---------|----------|
-| [gml-architecture.md](./gml-architecture.md) | System design and implementation | Developers, architects |
-| [gml-api.md](./gml-api.md) | API reference and SQL schema | Developers integrating GML |
+| This document | GML overview and quick start | All |
+
+> **Note:** The aspirational multi-crate GML architecture and API reference documents were archived during the 2026-05-28 documentation refresh. They described a planned decomposition that has not been implemented. The current implementation is the single `hkask-mcp-gml` crate.
 
 ---
 

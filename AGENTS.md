@@ -15,6 +15,7 @@
 | Anchor | What It Does |
 |--------|-------------|
 | **Agent Enablement** | Bots + Replicants run in pods with WebID, ACP |
+| **Model Selection** | Switch LLM per-agent via `/model` (CLI) or `model` field (API) |
 | **Essential Tools** | 15 MCP servers + Okapi for inference |
 | **User Sovereignty** | OCAP, SQLCipher encryption, private/public gating |
 | **CNS** | Observability via `cns.*` spans, variety counters, algedonic alerts |
@@ -87,7 +88,23 @@ cargo fmt --check
 
 # Run
 cargo run --bin kask -- <subcommand>
+
+# Chat with model selection
+kask chat                           # Interactive (Curator, default model)
+kask chat -m qwen3:8b               # Interactive with specific model
+kask chat Russell -m llama3.1:70b   # Chat with Russell using 70B model
+echo "hello" | kask chat -f - -m qwen3:8b  # Non-interactive with model
 ```
+
+### Slash Commands (inside `kask chat`)
+
+| Command | Purpose |
+|---------|---------|
+| `/model` | Show current model |
+| `/model <name>` | Switch to a specific model |
+| `/model <query>` | Fuzzy search models matching query |
+| `/agent [NAME]` | Show or switch agent |
+| `/status` | System status (CNS, agent, model, pods) |
 
 ---
 

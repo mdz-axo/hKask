@@ -46,7 +46,7 @@ graph LR
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-IC-001
 verified_date: 2026-05-28
-verified_against: crates/hkask-cli/src/cli/actions.rs; crates/hkask-api/src/lib.rs:628; crates/hkask-mcp/src/runtime.rs:71
+verified_against: crates/hkask-cli/src/cli/mod.rs:33; crates/hkask-api/src/lib.rs:636; crates/hkask-mcp/src/runtime.rs:59
 status: VERIFIED
 -->
 
@@ -56,7 +56,7 @@ status: VERIFIED
 
 **Protocol:** rmcp (Rust MCP) — JSON-RPC 2.0 over stdio, in-process, or HTTP transport
 
-**Runtime:** `McpRuntime` (`crates/hkask-mcp/src/runtime.rs:71`)
+**Runtime:** `McpRuntime` (`crates/hkask-mcp/src/runtime.rs:59`)
 
 **Transport options:**
 
@@ -72,11 +72,11 @@ status: VERIFIED
 
 **Binary:** `kask` (built from `hkask-cli`, 3,741 LOC)
 
-**15 subcommand groups** (`crates/hkask-cli/src/cli/actions.rs`):
+**15 subcommand groups** (`crates/hkask-cli/src/cli/mod.rs:33`):
 
 | Subcommand | Purpose |
 |-----------|---------|
-| `kask chat` | Curator chat interface |
+| `kask chat` | Curator chat interface with `/model` switching and `-m` flag |
 | `kask template` | Template management (list, register, get, search, render) |
 | `kask bot` | Bot capability management |
 | `kask pod` | Agent pod lifecycle (create, activate, deactivate, status) |
@@ -97,17 +97,18 @@ status: VERIFIED
 
 **Framework:** axum v0.8 with utoipa v5.5 OpenAPI documentation
 
-**11 route groups** (`crates/hkask-api/src/lib.rs:628-641`):
+**12 route groups** (`crates/hkask-api/src/lib.rs:636-642`):
 
 | Route Group | Purpose |
-|------------|---------|
+|------------|----------|
 | `templates_router` | Template CRUD and rendering |
 | `bots_router` | Bot capability management |
 | `pods_router` | Agent pod lifecycle |
 | `mcp_router` | MCP server/tool operations |
 | `cns_router` | CNS health and monitoring |
 | `sovereignty_router` | User sovereignty enforcement |
-| `chat_router` | Chat interface |
+| `chat_router` | Chat interface (supports `model` field) |
+| `models_router` | Okapi model catalog (list, search) |
 | `ensemble_router` | Multi-agent ensemble |
 | `soap_infer_router` | SOAP inference (Okapi bridge) |
 | `acp_router` | ACP agent registration |
@@ -126,6 +127,9 @@ status: VERIFIED
 | Query CNS | `cns_health()` | `kask cns health` | `GET /api/v1/cns/health` |
 | Capture goal | `spec/goal/capture` | `kask spec capture` | `POST /api/v1/specs` |
 | List templates | `registry_list(type)` | `kask template list` | `GET /api/v1/templates` |
+| Switch model | `inference:models` | `/model <name>` or `-m` flag | `POST /api/chat {model}` |
+| List models | `inference:models` | `/model <query>` | `GET /api/models` |
+| Search models | `inference:models(filter)` | `/model qwen` | `GET /api/models/search?q=...` |
 
 ---
 
@@ -259,7 +263,7 @@ status: VERIFIED
 | Stage | Implementation | Purpose |
 |-------|---------------|---------|
 | Select | `SqliteRegistry.get()` | Retrieve by ID and type |
-| Resolve | `TemplateResolver` (`resolver.rs:13`) | Dependency graph, cascade |
+| Resolve | `DependencyGraph` + `SqliteRegistry` (`dependency.rs:21`) | Dependency graph, cascade |
 | Assemble | `ContextAssembler` (`context_assembly.rs:126`) | Build context from fragments |
 | Validate | `CapabilityAwareValidator` (`capability_validator.rs:21`) | Verify capabilities |
 | Render | `TemplateRendererImpl` (`renderer.rs:16`) | Jinja2 via minijinja |

@@ -20,35 +20,51 @@
     "schemas": {
       "ChatRequest": {
         "type": "object",
-        "description": "Chat request",
+        "description": "Chat request sent to the Curator or a specified agent.\n\nThe `model` field allows switching the LLM at request time. When omitted,\nthe server default (qwen3:8b) is used. Use `GET /api/models` to discover\navailable models, and `GET /api/models/search?q=...` for fuzzy matching.",
         "required": [
           "input"
         ],
         "properties": {
           "input": {
-            "type": "string"
+            "type": "string",
+            "description": "User input message"
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Model override for inference (e.g., \"qwen3:8b\"). If unset, uses the server default."
           },
           "template_id": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Optional template ID to contextualize the prompt"
           }
         }
       },
       "ChatResponse": {
         "type": "object",
-        "description": "Chat response",
+        "description": "Chat response from the Curator or agent.\n\nThe `model` field echoes which LLM was used, confirming model switching.",
         "required": [
           "output",
-          "template_id"
+          "template_id",
+          "model"
         ],
         "properties": {
+          "model": {
+            "type": "string",
+            "description": "Model identifier used for inference"
+          },
           "output": {
-            "type": "string"
+            "type": "string",
+            "description": "Generated response text"
           },
           "template_id": {
-            "type": "string"
+            "type": "string",
+            "description": "Template ID that was applied (or \"auto-select\")"
           }
         }
       },
@@ -111,6 +127,40 @@
           }
         }
       },
+      "CreatePodRequest": {
+        "type": "object",
+        "description": "Create pod request",
+        "required": [
+          "template",
+          "persona_yaml"
+        ],
+        "properties": {
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "persona_yaml": {
+            "type": "string"
+          },
+          "template": {
+            "type": "string"
+          }
+        }
+      },
+      "CreatePodResponse": {
+        "type": "object",
+        "description": "Create pod response",
+        "required": [
+          "pod_id"
+        ],
+        "properties": {
+          "pod_id": {
+            "type": "string"
+          }
+        }
+      },
       "ErrorResponse": {
         "type": "object",
         "description": "Error response",
@@ -136,6 +186,137 @@
         ],
         "properties": {
           "capability": {
+            "type": "string"
+          }
+        }
+      },
+      "ListPodsResponse": {
+        "type": "object",
+        "description": "List pods response",
+        "required": [
+          "pods"
+        ],
+        "properties": {
+          "pods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PodStatusResponse"
+            }
+          }
+        }
+      },
+      "ModelEntry": {
+        "type": "object",
+        "description": "A model available through Okapi.\n\nIncludes metadata from Okapi's `/api/tags` endpoint: model family,\nparameter count, quantization level, and disk size.",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "family": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Model family (e.g., \"llama\", \"qwen2\")"
+          },
+          "name": {
+            "type": "string",
+            "description": "Model identifier (e.g., \"qwen3:8b\", \"llama3.1:70b\")"
+          },
+          "parameter_size": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Parameter count (e.g., \"8B\", \"70B\")"
+          },
+          "quantization_level": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Quantization level (e.g., \"Q4_0\", \"Q5_K_M\")"
+          },
+          "size_gb": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Model size in gigabytes"
+          }
+        }
+      },
+      "ModelListResponse": {
+        "type": "object",
+        "description": "Response containing available Okapi models.\n\nReturned by `GET /api/models` and `GET /api/models/search`.\nModel names from this response can be used as the `model` field\nin `POST /api/chat` requests.",
+        "required": [
+          "models",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "description": "Total number of models in the list",
+            "minimum": 0
+          },
+          "models": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModelEntry"
+            },
+            "description": "List of available models"
+          }
+        }
+      },
+      "ModelSearchQuery": {
+        "type": "object",
+        "description": "Query parameters for fuzzy model search.\n\nThe `q` parameter performs case-insensitive substring matching\nagainst model names. For example, `q=llama` matches \"llama3.1:8b\",\n\"llama3.1:70b\", etc.",
+        "required": [
+          "q"
+        ],
+        "properties": {
+          "q": {
+            "type": "string",
+            "description": "Fuzzy search query — matches model name (case-insensitive substring)"
+          }
+        }
+      },
+      "PodStatusResponse": {
+        "type": "object",
+        "description": "Pod status response",
+        "required": [
+          "pod_id",
+          "state",
+          "webid",
+          "agent_type",
+          "template",
+          "created_at"
+        ],
+        "properties": {
+          "agent_type": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pod_id": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "template": {
+            "type": "string"
+          },
+          "webid": {
             "type": "string"
           }
         }
@@ -230,6 +411,10 @@
       "description": "Bot capability management"
     },
     {
+      "name": "pods",
+      "description": "Agent pod lifecycle management"
+    },
+    {
       "name": "mcp",
       "description": "MCP servers and tools"
     },
@@ -240,6 +425,10 @@
     {
       "name": "chat",
       "description": "Curator chat interface"
+    },
+    {
+      "name": "models",
+      "description": "Okapi model catalog"
     }
   ]
 }

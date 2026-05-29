@@ -12,7 +12,7 @@ ddmvss_categories: [trust]
 
 **Date:** 2026-05-24  
 **Status:** Implemented  
-**Supersedes:** [ADR-021](ADR-021-security-hardening.md)
+**Supersedes:** ADR-021 (archived to `docs/archive/2026-05-28-documentation-refresh/`)
 
 ## Context
 
@@ -235,10 +235,10 @@ grep -r "block_in_place\|block_on" crates/hkask-agents/src/ crates/hkask-templat
 ```
 
 **Test Results:**
-- `hkask-agents`: 31 tests passing
-- `hkask-templates`: 42 tests passing
-- `hkask-mcp`: 18 tests passing
-- Workspace total: 238 tests passing
+- `hkask-agents`: 0 unit tests (6 doctests: 3 ok, 3 ignored)
+- `hkask-templates`: 0 unit tests (doctests only)
+- `hkask-mcp`: 0 unit tests (doctests only)
+- Workspace total: 0 #[test] unit tests; 6 doctests (3 ok, 3 ignored)
 
 ## Related Documents
 

@@ -1,21 +1,18 @@
 ---
 title: "Documentation Standards"
 audience: [all contributors authoring or editing documentation in `docs/`]
-last_updated: 2026-05-25
-version: "0.4.0"
+last_updated: 2026-05-28
+version: "0.5.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
 ---
 
-<!-- VERSION: 0.3.0 -->
-<!-- STATUS: Active -->
-<!-- LAST_UPDATED: 2026-05-12 -->
 
 ## 1. Purpose
 
 This standard governs every markdown document under `docs/`. It
-operationalises the TOGAF-Lite pattern[^togaflite] and enforces the
+operationalises the DDMVSS taxonomy[^ddmvss] and enforces the
 non-negotiable biases of this project:
 
 1. **Mermaid-First Visualization Mandate** — diagrams live inline in
@@ -398,7 +395,7 @@ This documentation standard itself maps to DDMVSS categories:
 
 ## References
 
-[^togaflite]: The Open Group. (2022). *TOGAF Standard, 10th Edition*. <https://www.opengroup.org/togaf>. The governing enterprise architecture framework from which this documentation standard derives its structural taxonomy.
+[^ddmvss]: hKask Project. (2026). *DDMVSS — Domain-Driven Minimal Viable System Structure*. <../architecture/DDMVSS.md>. The structural taxonomy that classifies every document by its DDMVSS category.
 
 [^semver]: Preston-Werner, T. (2013). *Semantic Versioning 2.0.0*. <https://semver.org/>. The MAJOR.MINOR.PATCH convention adapted here for documentation.
 

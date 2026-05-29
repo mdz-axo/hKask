@@ -5,7 +5,7 @@ use utoipa::OpenApi;
 use crate::{
     ChatRequest, ChatResponse, CnsHealthResponse, CnsVarietyResponse, CreatePodRequest,
     CreatePodResponse, ErrorResponse, GrantCapabilityRequest, ListPodsResponse, ModelEntry,
-    ModelListResponse, PodStatusResponse, TemplateResponse, ToolResponse,
+    ModelListResponse, ModelSearchQuery, PodStatusResponse, TemplateResponse, ToolResponse,
 };
 
 /// API documentation
@@ -26,6 +26,7 @@ use crate::{
         ChatResponse,
         ModelEntry,
         ModelListResponse,
+        ModelSearchQuery,
     )),
     tags(
         (name = "templates", description = "Template management"),

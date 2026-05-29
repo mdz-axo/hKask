@@ -979,7 +979,7 @@ fn main() {
 
         Commands::Curator { action } => match action {
             CuratorAction::Chat => {
-                hkask_cli::repl::run(&registry, &runtime, None, "Curator");
+                hkask_cli::repl::run(&registry, &runtime, None, "Curator", None);
             }
             CuratorAction::Escalations => {
                 let escalations = or_exit(

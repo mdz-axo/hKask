@@ -20,9 +20,12 @@ pub fn generate_cli_markdown() -> String {
     md.push_str("## Commands\n\n");
     md.push_str("### `kask chat` — Interactive agent chat\n\n");
     md.push_str("```bash\n");
-    md.push_str("kask chat [AGENT]       # Default: Curator\n");
-    md.push_str("kask chat russell       # Chat with Russell\n");
-    md.push_str("kask chat -f input.txt  # Non-interactive (file input)\n");
+    md.push_str("kask chat [AGENT]             # Default: Curator\n");
+    md.push_str("kask chat -m qwen3:8b        # Start with specific model\n");
+    md.push_str("kask chat russell             # Chat with Russell\n");
+    md.push_str("kask chat Russell -m llama3.1:70b  # Chat with Russell using 70B\n");
+    md.push_str("kask chat -f input.txt        # Non-interactive (file input)\n");
+    md.push_str("echo \"hello\" | kask chat -f - -m qwen3:8b  # Pipe with model\n");
     md.push_str("```\n\n");
     md.push_str("Arguments:\n");
     md.push_str("- `[AGENT]` — Agent to chat with (default: Curator)\n\n");
@@ -32,14 +35,18 @@ pub fn generate_cli_markdown() -> String {
     md.push_str("- `-f`, `--input <INPUT>` — Input file (non-interactive mode)\n\n");
     md.push_str("Slash commands (inside chat):\n");
     md.push_str("- `/help` — Show categorized help, `/help <cmd>` for details\n");
-    md.push_str("- `/status` — System status (CNS, agent, pods)\n");
+    md.push_str("- `/status` — System status (CNS, agent, model, pods)\n");
     md.push_str("- `/agent [NAME]` — Show or switch agent\n");
     md.push_str("- `/agents` — List registered agents\n");
+    md.push_str("- `/model` — Show current model\n");
+    md.push_str("- `/model <name>` — Switch to a specific model (e.g., `/model qwen3:8b`)\n");
+    md.push_str(
+        "- `/model <query>` — Fuzzy search models (e.g., `/model qwen` lists all Qwen models)\n",
+    );
     md.push_str("- `/pods` — List agent pods\n");
     md.push_str("- `/templates` — List registered templates\n");
     md.push_str("- `/ensemble` — Multi-agent ensemble (sessions, create, join, send)\n");
     md.push_str("- `/escalations` — List pending escalations\n");
-    md.push_str("- `/model [NAME|QUERY]` — Switch model or fuzzy search\n");
     md.push_str("- `/metacognition` — Run metacognition cycle\n");
     md.push_str("- `/sovereignty` — Show sovereignty status\n");
     md.push_str("- `/history` — Show session turn history\n");
@@ -118,6 +125,15 @@ pub fn generate_cli_markdown() -> String {
     md.push_str("kask chat\n\n");
     md.push_str("# Chat with a specific agent\n");
     md.push_str("kask chat Russell\n\n");
+    md.push_str("# Chat with model selection\n");
+    md.push_str("kask chat -m qwen3:8b\n");
+    md.push_str("kask chat Russell -m llama3.1:70b\n\n");
+    md.push_str("# Non-interactive with model\n");
+    md.push_str("echo \"Summarize this\" | kask chat -f - -m qwen3:8b\n\n");
+    md.push_str("# Inside chat: switch models\n");
+    md.push_str("/model              # Show current model\n");
+    md.push_str("/model qwen         # Fuzzy search for Qwen models\n");
+    md.push_str("/model qwen3:8b     # Switch to qwen3:8b\n\n");
     md.push_str("# List all templates\n");
     md.push_str("kask template list\n\n");
     md.push_str("# Register a new template\n");

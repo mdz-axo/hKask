@@ -131,8 +131,8 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 
 ### Phase 7: CLI/API Commands ✓
 - [x] `hkask-mcp` — MCP runtime, dispatch, security
-- [x] `hkask-api` — axum + utoipa, 11 route groups
-- [x] `hkask-cli` — 14 subcommand groups
+- [x] `hkask-api` — axum + utoipa, 12 route groups
+- [x] `hkask-cli` — 14 subcommand groups + `/model` slash command
 
 ### Phase 8: Documentation Refresh ✓
 - [x] DDMVSS-aligned architecture documentation (9/9 categories)
@@ -151,26 +151,27 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 
 ---
 
-## Success Criterion (16 Items)
+## Success Criterion (17 Items)
 
 hKask is "done" when a single user can:
 
 1. Run `kask`, get prompted for passphrase, observe Curator pod start
 2. Open `kask chat` and converse with Curator (episodic memory recorded)
-3. Observe ≥3 subsystem-curator bots spawn at startup
-4. Trigger ensemble session with ≥2 subsystem-curators deliberating
-5. Invoke any operation through CLI or HTTP API with identical behavior
-6. Invoke any tool from 15 MCP set; observe routing
-7. Compose two tools via process template
-8. Record episodic memory with confidence
-9. Retrieve memory; observe `as-of` query returns historical state
-10. Observe another agent cannot read private memory without OCAP delegation
-11. Generate embedding via embedding MCP; stored in same SQLite transaction
-12. `fork` public template via storage MCP; observe divergent branch
-13. Merge two branches; observe structural success + conflict requiring ensemble
-14. Attempt to clone private artifact; observe OCAP rejection
-15. Observe okapi-curator reflect on inference outcomes, propose template revision
-16. CNS records change, observes new outcomes
+3. Use `/model qwen` to fuzzy search models; `/model qwen3:8b` to switch the LLM
+4. Observe ≥3 subsystem-curator bots spawn at startup
+5. Trigger ensemble session with ≥2 subsystem-curators deliberating
+6. Invoke any operation through CLI or HTTP API with identical behavior
+7. Invoke any tool from 15 MCP set; observe routing
+8. Compose two tools via process template
+9. Record episodic memory with confidence
+10. Retrieve memory; observe `as-of` query returns historical state
+11. Observe another agent cannot read private memory without OCAP delegation
+12. Generate embedding via embedding MCP; stored in same SQLite transaction
+13. `fork` public template via storage MCP; observe divergent branch
+14. Merge two branches; observe structural success + conflict requiring ensemble
+15. Attempt to clone private artifact; observe OCAP rejection
+16. Observe okapi-curator reflect on inference outcomes, propose template revision
+17. CNS records change, observes new outcomes
 
 ---
 

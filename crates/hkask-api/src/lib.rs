@@ -49,7 +49,7 @@ pub mod routes;
 pub mod services;
 
 // Re-export route types for OpenAPI schema generation
-pub use routes::{ModelEntry, ModelListResponse};
+pub use routes::{ModelEntry, ModelListResponse, ModelSearchQuery};
 
 use openapi::ApiDoc;
 
@@ -187,22 +187,32 @@ pub struct CnsHealthResponse {
     pub healthy: bool,
 }
 
-/// Chat request
+/// Chat request sent to the Curator or a specified agent.
+///
+/// The `model` field allows switching the LLM at request time. When omitted,
+/// the server default (qwen3:8b) is used. Use `GET /api/models` to discover
+/// available models, and `GET /api/models/search?q=...` for fuzzy matching.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ChatRequest {
+    /// User input message
     pub input: String,
+    /// Optional template ID to contextualize the prompt
     pub template_id: Option<String>,
-    /// Model override for inference (e.g., "qwen3:8b"). If unset, uses the default.
+    /// Model override for inference (e.g., "qwen3:8b"). If unset, uses the server default.
     #[serde(default)]
     pub model: Option<String>,
 }
 
-/// Chat response
+/// Chat response from the Curator or agent.
+///
+/// The `model` field echoes which LLM was used, confirming model switching.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ChatResponse {
+    /// Generated response text
     pub output: String,
+    /// Template ID that was applied (or "auto-select")
     pub template_id: String,
-    /// Model used for inference
+    /// Model identifier used for inference
     pub model: String,
 }
 

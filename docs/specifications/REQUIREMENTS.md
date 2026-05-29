@@ -1,8 +1,8 @@
 ---
 title: "hKask Requirements Specification"
 audience: [architects, developers, agents]
-last_updated: 2026-05-25
-version: "1.0.0"
+last_updated: 2026-05-28
+version: "1.1.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -48,7 +48,7 @@ Curation: Merge | Revise | Defer | Discard
   - [x] External dependencies (Okapi, SQLCipher) are delegated, not owned
   - [x] All domain entities have corresponding Rust types
 - **Implementation:** `hkask-types::id`, `hkask-types::event`, `hkask-types::agent_def`
-- **Tests:** `crates/hkask-types/src/` (6 test files)
+- **Tests:** —
 - **Status:** Implemented
 - **Curation:** Merge — foundational requirement, fully satisfied
 
@@ -61,7 +61,7 @@ Curation: Merge | Revise | Defer | Discard
   - [x] 10 span namespaces covering all operations
   - [x] `NuEventSink` trait for emission
 - **Implementation:** `hkask-types::event::NuEvent`, `hkask-types::event::Span`, `hkask-types::event::NuEventSink`
-- **Tests:** `crates/hkask-types/src/event.rs` tests
+- **Tests:** —
 - **Status:** Implemented
 - **Curation:** Merge
 

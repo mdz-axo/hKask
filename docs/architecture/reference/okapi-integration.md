@@ -190,9 +190,30 @@ Okapi supports any model identifier string [^gguf-spec]. Convention: `<provider>
 | `ollama/llama-3.1-8b-instruct` | (example) | Full inference with instruction following |
 
 Models are selected by:
-1. `ModelRequirements.required` if provided (via `generate_with_model`)
-2. `OkapiInference.model` default (set at construction)
-3. `ModelTierSelection` rules in Russell mapping config
+1. **Runtime override** — `/model` CLI slash command or `model` field in API `POST /api/chat` request
+2. `ModelRequirements.required` if provided (via `generate_with_model`)
+3. `OkapiInference.model` default (set at construction)
+4. `ModelTierSelection` rules in Russell mapping config
+
+### Discovering Models
+
+Available models are discovered from Okapi's `GET /api/tags` endpoint:
+
+- **CLI:** `/model` shows the current model; `/model <query>` performs fuzzy search against locally loaded models
+- **API:** `GET /api/models` lists all available models; `GET /api/models/search?q=<query>` performs fuzzy search
+- **Source:** `crates/hkask-templates/src/okapi_config.rs` (`list_okapi_models`, `search_okapi_models`)
+
+### Switching Models
+
+| Interface | How |
+|-----------|-----|
+| CLI flag | `kask chat -m qwen3:8b` |
+| CLI slash | `/model qwen3:8b` inside `kask chat` |
+| API request | `{ "input": "...", "model": "qwen3:8b" }` in `POST /api/chat` |
+| API search | `GET /api/models/search?q=qwen` to find matching models |
+
+When Okapi is unreachable, the model name is still stored — it will be used
+on the next inference attempt (graceful degradation).
 
 ---
 

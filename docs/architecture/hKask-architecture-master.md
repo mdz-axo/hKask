@@ -74,7 +74,7 @@ Detailed lookup tables and diagrams in `reference/`:
 |----------|---------|
 | [`../specifications/REQUIREMENTS.md`](../specifications/REQUIREMENTS.md) | 22 implemented + 6 deferred goal specs |
 | [`../specifications/TRACEABILITY_MATRIX.md`](../specifications/TRACEABILITY_MATRIX.md) | Bidirectional code→test traceability |
-| [`../specifications/MODEL_CATALOG.md`](../specifications/MODEL_CATALOG.md) | LLM model catalog |
+
 
 ---
 

@@ -62,7 +62,7 @@ graph TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-DC-001
 verified_date: 2026-05-28
-verified_against: crates/hkask-agents/src/pod/mod.rs:81; crates/hkask-types/src/capability/mod.rs:219; Cargo.toml workspace members
+verified_against: crates/hkask-agents/src/pod/mod.rs:81; crates/hkask-types/src/visibility.rs:145; Cargo.toml workspace members
 status: VERIFIED
 -->
 
@@ -94,7 +94,7 @@ hKask is built on five non-negotiable anchor capabilities:[^wiener-cybernetics]
 |--------|-------|--------|-------------|
 | **AgentPod** | `hkask-agents` | `AgentPod` (`pod/mod.rs:81`) | Container for agent lifecycle |
 | **WebID** | `hkask-types` | `WebID(Uuid)` (`id.rs:75`) | Deterministic identity (UUID v5) |
-| **CapabilityToken** | `hkask-types` | `CapabilityToken` (`capability/mod.rs:219`) | OCAP token with caveats |
+| **CapabilityToken** | `hkask-types` | `CapabilityToken` (`visibility.rs:145`) | OCAP token with caveats |
 | **Delegation** | `hkask-types` | `Delegation` (`visibility.rs:201`) | Delegation record |
 | **NuEvent** | `hkask-types` | `NuEvent` (`event.rs:27`) | Cybernetic event primitive |
 | **Goal** | `hkask-types` | `Goal` (`goal.rs:112`) | Specification goal artifact |
@@ -227,7 +227,7 @@ An `AgentPod` composes:
 
 ### 5.1 Single Capability Primitive
 
-All access control uses `CapabilityToken` (`crates/hkask-types/src/capability/mod.rs:219`):[^miller-ocap]
+All access control uses `CapabilityToken` (`crates/hkask-types/src/visibility.rs:145`):[^miller-ocap]
 
 | Property | Implementation |
 |----------|---------------|
@@ -242,7 +242,7 @@ All access control uses `CapabilityToken` (`crates/hkask-types/src/capability/mo
 
 | Type | Location | Purpose |
 |------|----------|---------|
-| `CapabilityToken` | `capability/mod.rs:219` | Core OCAP token |
+| `CapabilityToken` | `visibility.rs:145` | Core OCAP token |
 | `CapabilityTokenBuilder` | `capability/mod.rs:262` | Builder with caveats, attenuation |
 | `SignatureAlgorithm` | `visibility.rs:58` | Ed25519 or HMAC-SHA256 |
 | `CapabilitySignature` | `visibility.rs:82` | Signature + algorithm |
@@ -409,7 +409,7 @@ graph TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-DC-004
 verified_date: 2026-05-28
-verified_against: Cargo.toml workspace members; crates/*/Cargo.toml; crates/hkask-cli/src/cli/actions.rs; crates/hkask-api/src/lib.rs:628
+verified_against: Cargo.toml workspace members; crates/*/Cargo.toml; crates/hkask-cli/src/cli/mod.rs:33; crates/hkask-api/src/lib.rs:636
 status: VERIFIED
 -->
 

@@ -1,8 +1,8 @@
 ---
 title: "hKask Traceability Matrix"
 audience: [architects, developers, auditors]
-last_updated: 2026-05-25
-version: "1.0.0"
+last_updated: 2026-05-28
+version: "1.1.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -22,17 +22,17 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 
 | Goal ID | Requirement | Crate | Module | Type/Function | Tests | Status |
 |---------|------------|-------|--------|---------------|-------|--------|
-| REQ-DOM-001 | Bounded context identity | `hkask-types` | `id`, `event`, `agent_def` | `WebID`, `NuEvent`, `AgentDefinition` | 6 test files | ✅ Implemented |
-| REQ-DOM-002 | ν-event observability primitive | `hkask-types` | `event` | `NuEvent`, `Span`, `NuEventSink` | event.rs tests | ✅ Implemented |
+| REQ-DOM-001 | Bounded context identity | `hkask-types` | `id`, `event`, `agent_def` | `WebID`, `NuEvent`, `AgentDefinition` | — | ✅ Implemented |
+| REQ-DOM-002 | ν-event observability primitive | `hkask-types` | `event` | `NuEvent`, `Span`, `NuEventSink` | — | ✅ Implemented |
 | REQ-DOM-003 | hLexicon vocabulary grounding | `hkask-types` | lexicon | Bootstrap terms | — | ✅ Implemented |
 
 ## Capability
 
 | Goal ID | Requirement | Crate | Module | Type/Function | Tests | Status |
 |---------|------------|-------|--------|---------------|-------|--------|
-| REQ-CAP-001 | OCAP access control | `hkask-types` | `visibility` | `Capability`, `AccessEvaluator` | visibility.rs tests | ✅ Implemented |
-| REQ-CAP-002 | Capability attenuation | `hkask-types` | `visibility` | `Delegation`, `DelegationStore`, `RevocationList` | visibility.rs tests | ✅ Implemented |
-| REQ-CAP-003 | MCP tool surface | `hkask-mcp` | `runtime`, `security`, `transport` | `McpRuntime`, `SecurityGateway`, `McpTransport` | 1 test file | ✅ Implemented |
+| REQ-CAP-001 | OCAP access control | `hkask-types` | `visibility` | `Capability`, `AccessEvaluator` | — | ✅ Implemented |
+| REQ-CAP-002 | Capability attenuation | `hkask-types` | `visibility` | `Delegation`, `DelegationStore`, `RevocationList` | — | ✅ Implemented |
+| REQ-CAP-003 | MCP tool surface | `hkask-mcp` | `runtime`, `security`, `transport` | `McpRuntime`, `SecurityGateway`, `McpTransport` | — | ✅ Implemented |
 
 ## Interface
 
@@ -45,16 +45,16 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 
 | Goal ID | Requirement | Crate | Module | Type/Function | Tests | Status |
 |---------|------------|-------|--------|---------------|-------|--------|
-| REQ-COM-001 | Unified template registry | `hkask-templates` | root | `SqliteRegistry`, `ContractValidator` | 6 test files | ✅ Implemented |
+| REQ-COM-001 | Unified template registry | `hkask-templates` | root | `SqliteRegistry`, `ContractValidator` | Doctests only (3 ok, 1 ignored) | ✅ Implemented |
 | REQ-COM-002 | Template cascade depth limit | `hkask-templates` | `dependency`, `resolver` | `DependencyGraph`, `TemplateResolver` | — | ✅ Implemented |
-| REQ-COM-003 | Agent pod composition | `hkask-agents` | `pod`, `consent` | `AgentPod`, `PodManager`, `ConsentManager` | 7 test files | ✅ Implemented |
+| REQ-COM-003 | Agent pod composition | `hkask-agents` | `pod`, `consent` | `AgentPod`, `PodManager`, `ConsentManager` | — | ✅ Implemented |
 
 ## Trust & Security
 
 | Goal ID | Requirement | Crate | Module | Type/Function | Tests | Status |
 |---------|------------|-------|--------|---------------|-------|--------|
 | REQ-TRU-001 | Zero-trust defaults | `hkask-mcp` | `security` | `SecurityPolicy`, `SecurityGateway` | — | ✅ Implemented |
-| REQ-TRU-002 | Encrypted storage at rest | `hkask-storage` | `database` | `Database` (SQLCipher) | 8 test files | ✅ Implemented |
+| REQ-TRU-002 | Encrypted storage at rest | `hkask-storage` | `database` | `Database` (SQLCipher) | — | ✅ Implemented |
 | REQ-TRU-003 | Deterministic identity | `hkask-types`, `hkask-agents` | `id`, `pod` | `WebID`, `AgentIdentity` | — | ✅ Implemented |
 
 ## Observability
@@ -68,8 +68,8 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 
 | Goal ID | Requirement | Crate | Module | Type/Function | Tests | Status |
 |---------|------------|-------|--------|---------------|-------|--------|
-| REQ-PER-001 | Bitemporal triple storage | `hkask-storage` | `triples` | `TripleStore`, `Triple` | triples.rs tests | ✅ Implemented |
-| REQ-PER-002 | Embedding vector search | `hkask-storage` | `embeddings` | `EmbeddingStore`, `KnnResult` | embeddings.rs tests | ✅ Implemented |
+| REQ-PER-001 | Bitemporal triple storage | `hkask-storage` | `triples` | `TripleStore`, `Triple` | — | ✅ Implemented |
+| REQ-PER-002 | Embedding vector search | `hkask-storage` | `embeddings` | `EmbeddingStore`, `KnnResult` | — | ✅ Implemented |
 
 ## Lifecycle
 
@@ -103,3 +103,5 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | **Total** | **22** | **0** | **6** | **28** |
 
 **DDMVSS completeness:** 22/22 implemented requirements satisfied. 6 deferred with documented rationale. `curated?` holds — every requirement has a curation decision.
+
+**Test coverage note:** The workspace has zero `#[test]` unit tests. Only 5 doctests exist (3 ok, 2 ignored), all in `hkask-templates` and `hkask-types`. No crate has dedicated test files.

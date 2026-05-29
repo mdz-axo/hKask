@@ -33,7 +33,7 @@ pub use ensemble::{
     CreateChatRequest, EnsembleResponse, RecordResponseRequest, RegisterBotRequest,
     SendMessageRequest,
 };
-pub use models::{ModelEntry, ModelListResponse};
+pub use models::{ModelEntry, ModelListResponse, ModelSearchQuery};
 pub use sovereignty::{
     AccessCheckResponse, KillZoneResponse, SovereigntyConsentResponse, SovereigntyStatusResponse,
 };
