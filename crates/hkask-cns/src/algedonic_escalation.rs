@@ -17,7 +17,14 @@ use tracing::{error, info, warn};
 /// Implemented by ACP runtime or test doubles.
 pub trait AcpSender: Send + Sync {
     /// Send an algedonic alert notification to the Curator via ACP.
-    fn send_alert(&self, domain: &str, severity: &str, deficit: u64, message: &str);
+    fn send_alert(
+        &self,
+        domain: &str,
+        severity: &str,
+        deficit: u64,
+        drift_magnitude: f64,
+        message: &str,
+    );
 }
 
 /// Calibration record — tracks threshold changes made by Curator
@@ -71,6 +78,19 @@ pub struct EscalationResult {
     pub applied: bool,
     /// Timestamp
     pub timestamp: chrono::DateTime<chrono::Utc>,
+}
+
+/// Compute the magnitude of divergence between specification goals and
+/// actual implementation state.
+///
+/// Returns a f64 between 0.0 (perfect alignment) and 1.0 (complete drift).
+/// The drift is computed as the ratio of unmet goals to total goals.
+pub fn compute_spec_drift(goals_total: u64, goals_met: u64) -> f64 {
+    if goals_total == 0 {
+        return 0.0; // No goals = no drift possible
+    }
+    let unmet = goals_total.saturating_sub(goals_met);
+    (unmet as f64) / (goals_total as f64)
 }
 
 /// Algedonic escalation adapter
@@ -162,9 +182,21 @@ impl AlgedonicEscalationAdapter {
                     "Escalating alert to Curator"
                 );
 
+                // Compute spec drift as deficit-to-threshold ratio
+                let drift = compute_spec_drift(
+                    alert.threshold,
+                    alert.threshold.saturating_sub(alert.deficit),
+                );
+
                 // Deliver ACP notification to Curator
                 if let Some(ref sender) = self.acp_sender {
-                    sender.send_alert(&alert.domain, "critical", alert.deficit, &alert.message);
+                    sender.send_alert(
+                        &alert.domain,
+                        "critical",
+                        alert.deficit,
+                        drift,
+                        &alert.message,
+                    );
                 }
 
                 // Emit cns.spec.drift span for critical severity
@@ -173,12 +205,13 @@ impl AlgedonicEscalationAdapter {
                         "cns.spec.drift",
                         serde_json::json!({
                             "domain": alert.domain,
+                            "drift_magnitude": drift,
                             "severity": "critical",
                             "deficit": alert.deficit,
                             "threshold": alert.threshold,
                             "message": alert.message,
                         }),
-                        0.0,
+                        drift,
                     );
                 }
 

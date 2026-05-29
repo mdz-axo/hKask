@@ -15,6 +15,7 @@
 //!
 //! **Algedonic Alert:** Variety deficit >100 → escalate to Curator/human
 
+pub mod acp_alert_sender;
 pub mod algedonic;
 pub mod algedonic_escalation;
 pub mod bot_metrics;
@@ -26,13 +27,14 @@ pub mod runtime;
 pub mod spans;
 pub mod variety;
 
+pub use acp_alert_sender::AcpAlertSender;
 pub use algedonic::{
     AlertSeverity, AlgedonicManager, CnsHealth, DEFAULT_EXPECTED_VARIETY, DEFAULT_THRESHOLD,
     RuntimeAlert,
 };
 pub use algedonic_escalation::{
     AcpSender, AlgedonicEscalationAdapter, CalibrationRecord, EscalationAction, EscalationResult,
-    create_escalation_callback,
+    compute_spec_drift, create_escalation_callback,
 };
 pub use bot_metrics::{
     BotEvaluationMetrics, BotHealthStatus, BotMetricsCollector, CapabilityGap, GapType,
