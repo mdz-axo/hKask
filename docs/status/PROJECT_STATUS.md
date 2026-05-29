@@ -1,8 +1,8 @@
 ---
 title: "hKask Project Status"
 audience: [project maintainers, contributors, stakeholders]
-last_updated: 2026-05-28
-version: "0.21.3"
+last_updated: 2026-05-29
+version: "0.21.4"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -16,7 +16,7 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 
 hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent-native container platform** enabling sovereign agents (bots and replicants) to communicate, compose capabilities, and learn through unified template-driven architecture.
 
-**Current Phase:** Phase 8 complete — Documentation refresh (DDMVSS-aligned) refreshed 2026-05-28  
+**Current Phase:** Phase 8 complete — Documentation refresh (DDMVSS-aligned); documentation portal added and metadata gate fully green 2026-05-29  
 **Next Phase:** Operational hardening and stub MCP server completion
 
 ---
@@ -36,9 +36,9 @@ hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent
 
 | Workspace | Tests | Status |
 |-----------|-------|--------|
-| **Core Crates** | 6 doctest blocks (3 ok, 3 ignored) | ✅ |
+| **Core Crates** | Unit + integration tests across crates (incl. goal-capability forgery, confused-deputy, and lifecycle-transition tests added 2026-05-29) plus doctest blocks | ✅ |
 | **MCP Servers** | 0 | — |
-| **Total** | 6 doctest blocks (3 ok, 3 ignored) | ✅ |
+| **Total** | `cargo test --workspace` green (0 failures) | ✅ |
 
 ### 2.3 Build Status
 
@@ -100,7 +100,7 @@ hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent
 | `hkask-mcp-ocap` | 319 | ✅ Complete | Capability management |
 | `hkask-mcp-keystore` | 529 | ✅ Complete | Keystore operations |
 | `hkask-mcp-cns` | 280 | ✅ Complete | CNS operations |
-| `hkask-mcp-git` | 410 | ✅ Complete | Git CAS |
+| `hkask-mcp-git` | 412 | ✅ Complete | Git CAS |
 | `hkask-mcp-registry` | 310 | ✅ Complete | Registry operations |
 | `hkask-mcp-gml` | 987 | ✅ Complete | GML allosteric engine |
 | `hkask-mcp-spec` | 853 | ✅ Complete | DDMVSS spec tools (8 tools) |
@@ -126,15 +126,16 @@ hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent
 | **Architecture ADR** | 7 | `docs/architecture/` (ADR-022 through ADR-028) |
 | **Reference Artifacts** | 9 | `docs/architecture/reference/` (incl. okapi-integration) |
 | **Specifications** | 9 | `docs/specifications/` (REQUIREMENTS, TRACEABILITY, DDMVSS_SCAFFOLD, DOCUMENTATION_STANDARDS, WRITING_EXCELLENCE, DEPENDENCY_POLICY, ADR_TEMPLATE, CI-CD-GUIDE, DEPLOYMENT) |
-| **Plans** | 1 | `docs/plans/` (TODO) |
+| **Plans** | 6 | `docs/plans/` (TODO + 5 persona/template drafts: curator, curator-persona, backstory-r7, personas-r7, high-temp-templates) |
 | **User Guides** | 2 | `docs/user-guides/` (AGENT-POD-CREATION-GUIDE, COMMON-AGENT-PATTERNS) |
 | **GML** | 1 | `docs/gml/` |
 | **Status** | 2 | `docs/status/` (PROJECT_STATUS, mcp-server-audit) |
 | **Cross-cutting** | 2 | `docs/` root (DIAGRAMS_INDEX, OPEN_QUESTIONS) |
+| **Portal** | 1 | `docs/README.md` (documentation portal, indexes all active docs by DDMVSS category) |
 | **Artifacts** | 1 | `docs/artifacts/` (README) |
 | **Generated** | 1 | `docs/generated/` (cli-reference) |
 | **CI Scripts** | 2 | `docs/ci/` (check-links.sh, check-metadata.sh) |
-| **Total** | 43 | — |
+| **Total** | 49 (.md, excl. archive) + 2 CI scripts | — |
 
 ### 4.2 Archived Documents
 
@@ -167,14 +168,14 @@ hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent
 
 | Gate | Status | Last Run |
 |------|--------|----------|
-| **Build** | ✅ Pass | 2026-05-25 |
+| **Build** (`cargo check --workspace`) | ✅ Pass | 2026-05-29 |
 | **Tests** | ✅ Pass | 2026-05-25 |
 | **Lint** | ✅ Pass | 2026-05-25 |
-| **Format** | ✅ Pass | 2026-05-25 |
-| **Metadata Headers** | ✅ All 37 docs compliant | 2026-05-28 |
+| **Format** (`cargo fmt --check`) | ✅ Pass | 2026-05-29 |
+| **Metadata Headers** (`docs/ci/check-metadata.sh`) | ✅ 49/49 docs compliant, 0 missing | 2026-05-29 |
 | **Citation Compliance** | ✅ New docs have citations | 2026-05-28 |
 | **Diagram Alignment** | ✅ 28 diagrams verified in DIAGRAMS_INDEX.md | 2026-05-28 |
-| **Link Integrity** | ✅ `docs/ci/check-links.sh` passes with 0 broken | 2026-05-28 |
+| **Link Integrity** (`docs/ci/check-links.sh`) | ✅ 223 links checked, 0 broken, 0 placeholders | 2026-05-29 |
 
 ---
 
@@ -184,8 +185,9 @@ hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent
 
 | ID | Task | Owner | Status |
 |----|------|-------|--------|
-| **P0-01** | Fix hkask-storage trait mismatches (goals.rs compile errors) | Storage bot | Pending |
+| **P0-01** | ~~Fix hkask-storage trait mismatches (goals.rs compile errors)~~ — **superseded**: `goals.rs` compiles cleanly; the real defect was a capability-forgery / confused-deputy gap in the goal subsystem (see P0-03) | Storage bot | ✅ Closed (2026-05-29) |
 | **P0-02** | Integration tests for inference pipeline | Testing bot | Pending |
+| **P0-03** | Harden goal capability subsystem: bind all authority into the HMAC signature, constant-time verify, owner/visibility checks on every write, legal state-transition enforcement, fail-loud persistence read-back | Storage/Security bot | ✅ Complete (2026-05-29) |
 
 ### 5.2 P1 — Important
 
@@ -216,6 +218,16 @@ hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent
 |-------|----------|--------|
 | None — all compilation errors resolved | — | ✅ Fixed |
 
+**Resolved 2026-05-29 (goal capability hardening, P0-03):**
+
+| Finding | Lens | Resolution |
+|---------|------|-----------|
+| `GoalCapabilityToken` HMAC omitted `operations` and `expires` → forgeable authority | Security | Signature now binds all authority-bearing fields; constant-time verify |
+| Goal write paths verified the token but not the holder's ownership → confused deputy | Capability | Every write enforces `GoalAccess::can_write`/`can_admin` against the holder WebID |
+| `update_goal_state` accepted any transition despite an unused `InvalidTransition` variant | Correctness | `GoalState::can_transition_to` total function enforced at the repository boundary |
+| `goal_from_row` silently coerced corrupt state/visibility/timestamps to defaults | Persistence | Corruption now surfaces as an error; INSERTs persist RFC3339 `created_at` so timestamps round-trip |
+| `delete_goal` panicked via `.expect("mutex lock")` while siblings mapped `LockPoisoned` | Robustness | Unified on the `LockPoisoned` mapping; no panic path remains |
+
 ---
 
 ## 7. Verification Commands
@@ -229,8 +241,8 @@ cargo fmt --check
 
 # Documentation verification
 find docs -type f -name "*.md" ! -path "docs/archive/*" | wc -l
-grep -L "^Version:\|^version:" docs/**/*.md 2>/dev/null
-.github/scripts/check_links.sh  # To be created
+bash docs/ci/check-metadata.sh   # mandatory metadata headers
+bash docs/ci/check-links.sh      # link integrity
 
 # Line count verification
 find crates -name "*.rs" -type f | xargs wc -l
@@ -256,4 +268,4 @@ find mcp-servers -name "*.rs" -type f | xargs wc -l
 
 *This is the single source of truth for project status. All other status reports reference this document.*
 
-**Next Update:** 2026-05-30 (weekly cadence)
+**Next Update:** 2026-06-05 (weekly cadence)

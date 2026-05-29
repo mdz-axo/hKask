@@ -2,7 +2,7 @@
 title: "hKask Architecture Master"
 audience: [architects, developers, agents]
 last_updated: 2026-05-29
-version: "2.2.0"
+version: "2.2.1"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -50,7 +50,7 @@ Detailed lookup tables and diagrams in `reference/`:
 | [`reference/hKask-erd.md`](reference/hKask-erd.md) | Core entity relationship diagrams |
 | [`reference/registry-erd.md`](reference/registry-erd.md) | Registry schema diagrams |
 | [`reference/subsystem-erds.md`](reference/subsystem-erds.md) | Per-crate ERDs |
-| [`reference/hKask-hLexicon.md`](reference/hKask-hLexicon.md) | Full 89-term vocabulary catalog |
+| [`reference/hKask-hLexicon.md`](reference/hKask-hLexicon.md) | Full 88-term vocabulary catalog |
 | [`reference/ports-inventory.md`](reference/ports-inventory.md) | Hexagonal port trait signatures |
 | [`reference/utoipa-implementation.md`](reference/utoipa-implementation.md) | OpenAPI generation guide |
 | [`reference/template-header-standard.md`](reference/template-header-standard.md) | Template metadata format |
@@ -77,7 +77,7 @@ Detailed lookup tables and diagrams in `reference/`:
 
 | Document | Purpose |
 |----------|---------|
-| [`../specifications/REQUIREMENTS.md`](../specifications/REQUIREMENTS.md) | 22 implemented + 6 deferred goal specs |
+| [`../specifications/REQUIREMENTS.md`](../specifications/REQUIREMENTS.md) | 22 implemented + 5 deferred goal specs |
 | [`../specifications/TRACEABILITY_MATRIX.md`](../specifications/TRACEABILITY_MATRIX.md) | Bidirectional code→test traceability |
 
 

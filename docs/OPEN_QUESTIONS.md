@@ -2,7 +2,7 @@
 title: "hKask Open Questions and Underspecified Aspects"
 audience: [architects, developers, decision-makers]
 last_updated: 2026-05-29
-version: "1.2.0"
+version: "1.3.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [interface, composition, capability, observability, curation, lifecycle]
@@ -36,9 +36,9 @@ ddmvss_categories: [interface, composition, capability, observability, curation,
 **Status:** **Resolved — Option 1**  
 **Resolution Date:** 2026-05-29
 
-**Decision:** Document federation as a deferred architectural direction with an ADR. The bidirectional ACP bridge via `RussellAcpAdapter` (606 LOC) provides practical cross-system agent communication without requiring dedicated federation crates. Federation as a first-class concept (separate crates, discovery protocol, resource negotiation) is deferred.
+**Decision:** Document federation as a deferred architectural direction (no dedicated ADR yet). The bidirectional ACP bridge via `RussellAcpAdapter` (606 LOC) provides practical cross-system agent communication without requiring dedicated federation crates. Federation as a first-class concept (separate crates, discovery protocol, resource negotiation) is deferred until essential, at which point a forward ADR will record the decision.
 
-**Rationale:** The Russell ACP bridge demonstrates that inter-system communication works. True federation (discovery, resource negotiation, capability composition across independent hKask instances) is a complexity that exceeds the current essential architecture scope. See `docs/architecture/deferred/federation.md` (ADR-024).
+**Rationale:** The Russell ACP bridge demonstrates that inter-system communication works. True federation (discovery, resource negotiation, capability composition across independent hKask instances) is a complexity that exceeds the current essential architecture scope. No dedicated federation crate, deferred-design doc, or ADR exists yet; a forward ADR will be authored if/when federation becomes essential. The ACP protocol design is recorded in [`ADR-028`](architecture/ADR-028-acp-protocol-design.md).
 
 ---
 
@@ -104,6 +104,8 @@ ddmvss_categories: [interface, composition, capability, observability, curation,
 **Resolution Date:** 2026-05-29
 
 **Decision:** Defer template regeneration to the next documentation refresh cycle. The current templates in `docs/artifacts/` and `registry/templates/spec/` are functional. DDMVSS metadata requirements are documented in `DDMVSS.md` and the four architecture specifications.
+
+**Update (2026-05-29):** A documentation portal ([`README.md`](README.md)) was added that indexes every active document by DDMVSS category and demonstrates the compliant metadata header. When OQ-7 is taken up, the portal and the four architecture specifications are the recommended "best example" sources from which to regenerate the artifact templates.
 
 ---
 
@@ -180,6 +182,40 @@ ddmvss_categories: [interface, composition, capability, observability, curation,
 **Decision:** Standard adopted and enforced: zero `unwrap()` on hot paths; `expect("reason")` preferred over `unwrap()` everywhere; legitimate infallible calls documented with `expect()`.
 
 **Result:** 139 → 0 `unwrap()` calls in production code across all 11 core crates. All 139 converted to `expect("reason")` with explicit invariant documentation. CI `security-invariants` job enforces this permanently.
+
+### F6: Goal Capability — Revocation and Lineage Unification ⚠️ OPEN
+
+**DDMVSS Category:** Trust  
+**Status:** **Open** (surfaced by the 2026-05-29 goal-capability hardening, P0-03)  
+**Raised:** 2026-05-29
+
+The goal-capability subsystem was hardened (authority bound into the HMAC,
+constant-time verify, owner/visibility checks on writes, legal-transition
+enforcement, fail-loud read-back). Several aspects remain underspecified and are
+deliberately **not** pre-built (P5 — code not needed today is debt):
+
+1. **Revocation.** `GoalCapabilityToken` carries only `expires`; there is no way
+   to revoke a leaked token before expiry. Options: short-TTL-only (current),
+   an epoch counter folded into the HMAC, or Miller-style revocable forwarders
+   (membranes). Decision needed before goal tokens cross trust boundaries.
+2. **Operation-set canonicalization encoding.** The signature now binds a
+   sorted, deduplicated, length-delimited operation list. Whether to switch to
+   a stable bitset (smaller, ordering-free by construction) should be recorded
+   in an ADR if the `GoalOp` set grows.
+3. **Single vs. dual capability primitive.** `GoalCapabilityToken` now mirrors
+   the canonical `CapabilityToken` (shared `SYSTEM_MAX_ATTENUATION`,
+   `can_attenuate()`), but remains a distinct type. Whether to collapse it into
+   a typed projection over `CapabilityToken` (true OCAP lineage unification,
+   including root-nonce chain verification) is an architectural decision
+   warranting its own ADR.
+4. **Persistence corruption response.** Corruption now surfaces as
+   `GoalRepositoryError::Corrupt`; the system-level policy (quarantine, CNS
+   algedonic alert, repair) is unspecified.
+5. **Recursion-bound coherence.** Attenuation depth, template cascade depth, and
+   subgoal depth all use "7". Confirm whether these should reference one shared
+   constant (`SYSTEM_MAX_ATTENUATION`) rather than three coincidental literals.
+
+**See:** `crates/hkask-types/src/goal_capability.rs`, `crates/hkask-storage/src/goals.rs`, `docs/architecture/reference/subsystem-erds.md` §13, ADR-025.
 
 ### F5: 41,339 LOC vs. 35K Budget ✅ DEPRECATED
 

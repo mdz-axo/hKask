@@ -266,7 +266,7 @@ mod tests {
     #[test]
     fn extending_expiry_breaks_the_signature() {
         let mut t = token(vec![GoalOp::Read]);
-        t.expires = t.expires + chrono::Duration::days(3650);
+        t.expires += chrono::Duration::days(3650);
         assert!(
             !t.verify_signature(SECRET),
             "forged expiry must invalidate the token"

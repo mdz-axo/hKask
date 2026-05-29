@@ -2,7 +2,7 @@
 title: "hKask Persistence & Lifecycle Specification"
 audience: [architects, database developers, DevOps engineers]
 last_updated: 2026-05-29
-version: "2.2.0"
+version: "2.2.1"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [persistence, lifecycle]
@@ -222,7 +222,7 @@ sequenceDiagram
     participant MCP as MCP Runtime
 
     CLI->>DB: Initialize SQLCipher database
-    CLI->>LEX: Load hLexicon terms (89 terms)
+    CLI->>LEX: Load hLexicon terms (88 terms)
     CLI->>REG: Register built-in templates
     CLI->>CAP: Mint root capability token
     CLI->>CUR: Initialize Curator singleton
@@ -243,7 +243,7 @@ status: VERIFIED
 | Step | Operation | Implementation |
 |------|-----------|---------------|
 | 1 | Initialize SQLCipher database | `Database::new()` |
-| 2 | Load hLexicon terms (89 terms) | Bootstrap lexicon |
+| 2 | Load hLexicon terms (88 terms) | Bootstrap lexicon |
 | 3 | Register built-in templates | `SqliteRegistry` |
 | 4 | Mint root capability token | `CapabilityToken` with `hkask-root-authority` WebID |
 | 5 | Initialize Curator singleton | `AgentPod` or `Replicant` + system persona |

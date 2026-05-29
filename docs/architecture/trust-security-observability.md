@@ -2,7 +2,7 @@
 title: "hKask Trust, Security & Observability Specification"
 audience: [architects, security engineers, developers]
 last_updated: 2026-05-29
-version: "2.2.0"
+version: "2.2.1"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [trust, observability]
@@ -33,7 +33,7 @@ hKask implements a **zero-trust, capability-based security model**:[^miller-robu
 
 ### 1.2 Single Capability Primitive
 
-All access control uses `CapabilityToken` (`crates/hkask-types/src/capability/mod.rs:219`):
+All access control uses `CapabilityToken` (`crates/hkask-types/src/capability/mod.rs:223`):
 
 | Property | Implementation |
 |----------|---------------|
@@ -53,7 +53,7 @@ WebIDs derived from persona content via UUID v5:
 - Root authority from fixed `"hkask-root-authority"` persona
 - Namespace UUID: `686b6173-6b2d-7065-7273-6f6e612d6e73`
 
-**Implementation:** `WebID::from_persona()` (`crates/hkask-types/src/id.rs:75`)
+**Implementation:** `WebID::from_persona()` (`crates/hkask-types/src/id.rs:91`)
 
 ### 1.4 Encryption Stack
 

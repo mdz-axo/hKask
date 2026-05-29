@@ -1,8 +1,8 @@
 ---
 title: "DDMVSS Documentation Scaffold"
 audience: [architects, documentation maintainers, agents]
-last_updated: 2026-05-28
-version: "2.1.0"
+last_updated: 2026-05-29
+version: "2.2.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -36,6 +36,7 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 
 ```
 docs/
+├── README.md                              # PORTAL (indexes all active docs by DDMVSS category)
 ├── architecture/
 │   ├── hKask-architecture-master.md       # INDEX (thin pointer)
 │   ├── DDMVSS.md                          # FRAMEWORK (taxonomy + methodology)
@@ -68,7 +69,12 @@ docs/
 │   ├── CI-CD-GUIDE.md                     # CI/CD guide
 │   └── DEPLOYMENT.md                      # Deployment guide
 ├── plans/
-│   └── TODO.md                            # Open work
+│   ├── TODO.md                            # Open work
+│   ├── curator.md                         # Persona draft
+│   ├── curator-persona.md                 # Persona draft
+│   ├── backstory-r7.md                    # Persona draft
+│   ├── personas-r7.md                     # Persona draft
+│   └── high-temp-templates.md             # Template design draft
 ├── status/
 │   └── PROJECT_STATUS.md                  # Single source of truth
 ├── user-guides/                           # User-facing guides

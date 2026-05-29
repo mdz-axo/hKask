@@ -1,8 +1,8 @@
 ---
 title: "hKask Traceability Matrix"
 audience: [architects, developers, auditors]
-last_updated: 2026-05-28
-version: "1.1.0"
+last_updated: 2026-05-29
+version: "1.1.1"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -92,7 +92,7 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | Category | Implemented | Partially | Deferred | Total |
 |----------|------------|-----------|----------|-------|
 | Domain | 3 | 0 | 0 | 3 |
-| Capability | 3 | 0 | 3 | 6 |
+| Capability | 3 | 0 | 2 | 5 |
 | Interface | 2 | 0 | 1 | 3 |
 | Composition | 3 | 0 | 1 | 4 |
 | Trust & Security | 3 | 0 | 0 | 3 |
@@ -100,8 +100,8 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | Persistence | 2 | 0 | 1 | 3 |
 | Lifecycle | 2 | 0 | 0 | 2 |
 | Curation | 2 | 0 | 0 | 2 |
-| **Total** | **22** | **0** | **6** | **28** |
+| **Total** | **22** | **0** | **5** | **27** |
 
-**DDMVSS completeness:** 22/22 implemented requirements satisfied. 6 deferred with documented rationale. `curated?` holds — every requirement has a curation decision.
+**DDMVSS completeness:** 22/22 implemented requirements satisfied. 5 deferred with documented rationale (see [`REQUIREMENTS.md`](REQUIREMENTS.md) §11). `curated?` holds — every requirement has a curation decision.
 
 **Test coverage note:** The workspace has zero `#[test]` unit tests. Only 5 doctests exist (3 ok, 2 ignored), all in `hkask-templates` and `hkask-types`. No crate has dedicated test files.

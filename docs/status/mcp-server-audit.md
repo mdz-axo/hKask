@@ -2,7 +2,7 @@
 title: "MCP Server Completeness Audit"
 audience: [architects, developers, agents]
 last_updated: 2026-05-29
-version: "1.0.0"
+version: "1.1.0"
 status: "Active"
 domain: "Capability"
 ddmvss_categories: [capability, observability]
@@ -13,7 +13,7 @@ ddmvss_categories: [capability, observability]
 **Date:** 2026-05-29
 **Version:** hKask v0.21.0
 **Total servers:** 15
-**Total tools:** 100
+**Total tools:** 105
 
 ---
 
@@ -26,11 +26,11 @@ ddmvss_categories: [capability, observability]
 | `hkask-mcp-gml` | 987 | 6 | **Full** | GML allosteric engine with capability gating |
 | `hkask-mcp-spec` | 853 | 8 | **Full** | 8 DDMVSS spec tools (capture, decompose, curate, validate) |
 | `hkask-mcp-condenser` | 761 | 5 | **Full** | Context reranking and condensation algorithms |
-| `hkask-mcp-web` | 749 | 5 | **Full** | Search, scrape, extract with SSRF protection |
+| `hkask-mcp-web` | 3,389 | 5 | **Full** | Search, scrape, extract with SSRF protection |
 | `hkask-mcp-keystore` | 529 | 6 | **Full** | OS keychain with AES-256-GCM vault persistence |
 | `hkask-mcp-github` | 459 | 8 | **Full** | GitHub API integration |
 | `hkask-mcp-fal` | 434 | 10 | **Full** | FAL image generation service |
-| `hkask-mcp-git` | 410 | 6 | **Full** | Git CAS (content-addressed storage) operations |
+| `hkask-mcp-git` | 412 | 6 | **Full** | Git CAS (content-addressed storage) operations |
 | `hkask-mcp-fmp` | 369 | 11 | **Full** | Financial Modeling Prep API integration |
 | `hkask-mcp-ocap` | 319 | 5 | **Full** | Capability grant, verify, revoke, list operations |
 | `hkask-mcp-registry` | 310 | 6 | **Full** | Template registry CRUD and search operations |
@@ -68,15 +68,15 @@ ddmvss_categories: [capability, observability]
 
 ### `hkask-mcp-spec` (853 LOC, 8 tools)
 - **Status:** Full
-- **Tools:** goal/capture, goal/decompose, goal/refine, goal/validate, curate/evaluate, curate/reconcile, curate/cultivate, spec/validate
-- **Notes:** DDMVSS specification tools. 4 goal operations + 3 curation operations + 1 validation.
+- **Tools:** spec/goal/capture, spec/goal/decompose, spec/require/bind, spec/curate/evaluate, spec/curate/reconcile, spec/curate/cultivate, spec/graph/query, spec/graph/validate
+- **Notes:** DDMVSS specification tools. 2 goal operations + 1 require-bind + 3 curation operations + 2 graph operations.
 
 ### `hkask-mcp-condenser` (761 LOC, 5 tools)
 - **Status:** Full
 - **Tools:** Context reranking, condensation, deduplication algorithms
 - **Notes:** Multiple condensation strategies (rank, compress, deduplicate). Configurable via parameters.
 
-### `hkask-mcp-web` (749 LOC, 5 tools)
+### `hkask-mcp-web` (3,389 LOC, 5 tools)
 - **Status:** Full
 - **Tools:** Web search, scrape, extract operations
 - **Notes:** SSRF protection (private IP/loopback rejection), URL validation, strip-html utilities. Multiple search providers.
@@ -96,7 +96,7 @@ ddmvss_categories: [capability, observability]
 - **Tools:** Image generation with FAL API, model selection, parameter control
 - **Notes:** Ten distinct generation pipelines. Model-specific parameter schemas.
 
-### `hkask-mcp-git` (410 LOC, 6 tools)
+### `hkask-mcp-git` (412 LOC, 6 tools)
 - **Status:** Full
 - **Tools:** clone, fetch, commit, push, log, status operations
 - **Notes:** Git CAS integration via `gix` crate. Content-addressed storage for templates and specs.
@@ -142,4 +142,4 @@ ddmvss_categories: [capability, observability]
 
 ---
 
-*ℏKask MCP Arsenal — 15 servers, 100 tools, 0 stubs — v0.21.0*
+*ℏKask MCP Arsenal — 15 servers, 105 tools, 0 stubs — v0.21.0*

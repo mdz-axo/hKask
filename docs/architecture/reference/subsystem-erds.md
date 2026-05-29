@@ -1259,6 +1259,109 @@ status: VERIFIED
 
 ---
 
+## 13. Goal Capability Subsystem (hardened)
+
+**Grounded in:** `crates/hkask-types/src/goal.rs`, `crates/hkask-types/src/goal_capability.rs`, `crates/hkask-storage/src/goals.rs` (verified against source 2026-05-29).
+
+The goal subsystem is the minimal multi-agent coordination substrate. Authority
+over a goal is expressed by a `GoalCapabilityToken` whose HMAC signature binds
+**every authority-bearing field** (operations, expiry, attenuation ceiling), and
+every write additionally checks that the holder is the goal owner (or has been
+granted access). This co-locates authority with the effect it gates and closes
+the confused-deputy gap.
+
+### 13.1 Lean RDF model
+
+The subsystem reduced to its essential triples (subject — predicate — object):
+
+```
+Goal           hasOwner            WebID
+Goal           hasState            GoalState
+Goal           hasVisibility       Visibility
+Goal           hasParent           Goal            # optional, depth <= 7
+GoalCriterion  belongsTo           Goal
+GoalArtifact   belongsTo           Goal
+GoalToken      boundTo             Goal            # token.goal_id
+GoalToken      heldBy              WebID           # token.holder_webid
+GoalToken      authorizes          GoalOp          # signed operation set
+GoalToken      attenuates          GoalToken       # child, level+1, level <= max
+WebID          ownerWrite          Goal            # GoalAccess::can_write/admin
+```
+
+The authority invariant in one line:
+*a write succeeds iff `token.is_valid(secret) ∧ token.authorizes(op) ∧ GoalAccess(goal, token.holder).can_write()`.*
+
+### 13.2 Entity relationship diagram
+
+```mermaid
+erDiagram
+    WEBID ||--o{ GOAL : owns
+    GOAL ||--o{ GOAL : "parent-of (depth<=7)"
+    GOAL ||--o{ GOAL_CRITERION : has
+    GOAL ||--o{ GOAL_ARTIFACT : has
+    GOAL ||--o{ GOAL_TOKEN : "gated-by"
+    GOAL_TOKEN ||--o{ GOAL_TOKEN : "attenuates-to"
+    WEBID ||--o{ GOAL_TOKEN : holds
+
+    GOAL {
+        GoalID id PK
+        WebID webid "owner"
+        GoalState state "lifecycle"
+        Visibility visibility
+        GoalID parent_goal_id FK "nullable"
+        u8 depth "<= 7"
+    }
+    GOAL_TOKEN {
+        string id PK
+        GoalID goal_id "signed"
+        WebID holder_webid "signed"
+        GoalOp operations "signed, canonical"
+        DateTime expires "signed"
+        u8 attenuation_level "signed"
+        u8 max_attenuation "signed, <= SYSTEM_MAX_ATTENUATION"
+        string hmac_signature
+    }
+    GOAL_CRITERION {
+        string id PK
+        GoalID goal_id FK
+        bool satisfied
+    }
+    GOAL_ARTIFACT {
+        string id PK
+        GoalID goal_id FK
+        string artifact_ref
+    }
+```
+
+### 13.3 Lifecycle (legal transitions only)
+
+`GoalState::can_transition_to` is a total function; the repository rejects any
+move not shown below. Terminal states (Completed, Abandoned) admit no outgoing
+transitions.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Pending
+    Pending --> Active
+    Pending --> Abandoned
+    Active --> Blocked
+    Active --> Completed
+    Active --> Abandoned
+    Blocked --> Active
+    Blocked --> Abandoned
+    Completed --> [*]
+    Abandoned --> [*]
+```
+
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-SUBSYS-009
+verified_date: 2026-05-29
+verified_against: crates/hkask-types/src/goal.rs; crates/hkask-types/src/goal_capability.rs; crates/hkask-storage/src/goals.rs
+status: VERIFIED
+-->
+
+---
+
 ## References
 
 [^rust-newtype]: The Rust Project. (2024). *Rust API Guidelines — Newtype pattern*. <https://rust-lang.github.io/api-guidelines/type-safety.html#c-newtype>. The newtype pattern used for all ID types ensures type safety across UUID-based identifiers.

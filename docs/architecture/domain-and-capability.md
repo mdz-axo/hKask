@@ -2,7 +2,7 @@
 title: "hKask Domain & Capability Specification"
 audience: [architects, developers, agents]
 last_updated: 2026-05-29
-version: "2.2.0"
+version: "2.2.1"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability]
@@ -333,7 +333,7 @@ status: VERIFIED
 | fal | `hkask-mcp-fal` | 434 | ✅ Complete | Media generation (FAL) |
 | rss-reader | `hkask-mcp-rss-reader` | 1,443 | ✅ Complete | RSS feed management |
 
-**Total:** 15 servers, 100 tools, 0 stubs (P6 compliance).
+**Total:** 15 servers, 105 tools, 0 stubs (P6 compliance).
 
 **Audit:** [`docs/status/mcp-server-audit.md`](../status/mcp-server-audit.md)
 
@@ -366,7 +366,7 @@ The hLexicon grounds all domain vocabulary across three domains:[^austin-speech]
 | **FlowDef** | Do — process | 27 terms | Workflow Patterns (van der Aalst) |
 | **KnowAct** | Think — cognition | 25 terms | Enactive Cognition (Varela) |
 
-**Total:** 80 base terms + 9 spec-curation terms = 89 terms
+**Total:** 88 terms (per the authoritative catalog; spec-curation and git-evolution terms are included within the three domain allocations)
 
 **Full vocabulary catalog:** [`reference/hKask-hLexicon.md`](reference/hKask-hLexicon.md)
 

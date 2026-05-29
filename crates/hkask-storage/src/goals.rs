@@ -200,11 +200,23 @@ impl SqliteGoalRepository {
     ) -> Result<Goal> {
         self.verify_capability(token, GoalOp::Create)?;
 
+        // A holder may only create goals it will own. Creating a goal owned by
+        // another WebID would manufacture authority out of thin air.
+        if token.holder_webid != *webid {
+            return Err(GoalRepositoryError::VisibilityDenied(format!(
+                "Token holder {} cannot create a goal owned by {}",
+                token.holder_webid, webid
+            )));
+        }
+
         let goal = Goal::new(*webid, text, visibility);
 
+        // Persist created_at explicitly in RFC3339 so it round-trips through
+        // the strict reader. The SQLite `datetime('now')` default produces a
+        // non-RFC3339 string that the reader (correctly) rejects as corrupt.
         self.conn.lock().map_err(|e| GoalRepositoryError::LockPoisoned(e.to_string()))?.execute(
-            "INSERT INTO goals (id, webid, text, state, visibility, depth) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            (goal.id.to_string(), goal.webid.to_string(), goal.text.clone(), goal.state.as_str(), goal.visibility.as_str(), goal.depth as i32),
+            "INSERT INTO goals (id, webid, text, state, visibility, depth, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            (goal.id.to_string(), goal.webid.to_string(), goal.text.clone(), goal.state.as_str(), goal.visibility.as_str(), goal.depth as i32, goal.created_at.to_rfc3339()),
         )?;
 
         Ok(goal)
@@ -242,6 +254,19 @@ impl SqliteGoalRepository {
         state: GoalState,
     ) -> Result<()> {
         self.verify_capability(token, GoalOp::Update)?;
+
+        let goal = self.load_goal(goal_id)?;
+        self.check_write_access(&goal, &token.holder_webid)?;
+
+        // Reject illegal lifecycle transitions (e.g. reopening a terminal goal).
+        if !goal.state.can_transition_to(state) {
+            return Err(GoalRepositoryError::InvalidTransition(format!(
+                "{} -> {} is not a legal transition for goal {}",
+                goal.state.as_str(),
+                state.as_str(),
+                goal_id
+            )));
+        }
 
         let completed_at = if state.is_terminal() {
             Some(Utc::now().to_rfc3339())
@@ -317,10 +342,21 @@ impl SqliteGoalRepository {
     pub fn add_criterion(
         &self,
         token: &GoalCapabilityToken,
-        _goal_id: GoalID,
+        goal_id: GoalID,
         criterion: GoalCriterion,
     ) -> Result<()> {
         self.verify_capability(token, GoalOp::Update)?;
+
+        // The criterion must target the goal named by the caller, and the
+        // holder must have write access to that goal.
+        if criterion.goal_id != goal_id {
+            return Err(GoalRepositoryError::InvalidTransition(format!(
+                "Criterion targets goal {} but operation named goal {}",
+                criterion.goal_id, goal_id
+            )));
+        }
+        let goal = self.load_goal(goal_id)?;
+        self.check_write_access(&goal, &token.holder_webid)?;
 
         self.conn.lock().map_err(|e| GoalRepositoryError::LockPoisoned(e.to_string()))?.execute(
             "INSERT INTO goal_criteria (id, goal_id, type, description, satisfied) VALUES (?1, ?2, ?3, ?4, ?5)",
@@ -332,10 +368,19 @@ impl SqliteGoalRepository {
     pub fn add_artifact(
         &self,
         token: &GoalCapabilityToken,
-        _goal_id: GoalID,
+        goal_id: GoalID,
         artifact: GoalArtifact,
     ) -> Result<()> {
         self.verify_capability(token, GoalOp::AddArtifact)?;
+
+        if artifact.goal_id != goal_id {
+            return Err(GoalRepositoryError::InvalidTransition(format!(
+                "Artifact targets goal {} but operation named goal {}",
+                artifact.goal_id, goal_id
+            )));
+        }
+        let goal = self.load_goal(goal_id)?;
+        self.check_write_access(&goal, &token.holder_webid)?;
 
         self.conn.lock().map_err(|e| GoalRepositoryError::LockPoisoned(e.to_string()))?.execute(
             "INSERT INTO goal_artifacts (id, goal_id, artifact_ref, artifact_type, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
@@ -392,9 +437,12 @@ impl SqliteGoalRepository {
                 goal_id: GoalID::from_string(&row.get::<_, String>(1)?),
                 artifact_ref: row.get(2)?,
                 artifact_type: row.get(3)?,
-                created_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(4)?)
-                    .map(|dt| dt.with_timezone(&Utc))
-                    .unwrap_or_else(|_| Utc::now()),
+                created_at: {
+                    let raw: String = row.get(4)?;
+                    chrono::DateTime::parse_from_rfc3339(&raw)
+                        .map(|dt| dt.with_timezone(&Utc))
+                        .map_err(|_| corrupt_column(4, &raw))?
+                },
             })
         })?;
 
@@ -416,9 +464,20 @@ impl SqliteGoalRepository {
     ) -> Result<Goal> {
         self.verify_capability(token, GoalOp::CreateSubgoal)?;
 
+        // A holder may only create subgoals it will own.
+        if token.holder_webid != *webid {
+            return Err(GoalRepositoryError::VisibilityDenied(format!(
+                "Token holder {} cannot create a subgoal owned by {}",
+                token.holder_webid, webid
+            )));
+        }
+
         let parent = self.get_goal(token, parent_id)?.ok_or_else(|| {
             GoalRepositoryError::NotFound(format!("Parent goal {} not found", parent_id))
         })?;
+        // Adding a subgoal mutates the parent's tree, so write access to the
+        // parent is required (not merely read visibility).
+        self.check_write_access(&parent, &token.holder_webid)?;
 
         if !parent.can_have_subgoals() {
             return Err(GoalRepositoryError::MaxDepthExceeded(format!(
@@ -430,8 +489,8 @@ impl SqliteGoalRepository {
         let subgoal = Goal::new(*webid, text, visibility).with_parent(parent_id, parent.depth);
 
         self.conn.lock().map_err(|e| GoalRepositoryError::LockPoisoned(e.to_string()))?.execute(
-            "INSERT INTO goals (id, webid, text, state, visibility, parent_goal_id, depth) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-            (subgoal.id.to_string(), subgoal.webid.to_string(), subgoal.text.clone(), subgoal.state.as_str(), subgoal.visibility.as_str(), parent_id.to_string(), subgoal.depth as i32),
+            "INSERT INTO goals (id, webid, text, state, visibility, parent_goal_id, depth, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            (subgoal.id.to_string(), subgoal.webid.to_string(), subgoal.text.clone(), subgoal.state.as_str(), subgoal.visibility.as_str(), parent_id.to_string(), subgoal.depth as i32, subgoal.created_at.to_rfc3339()),
         )?;
 
         Ok(subgoal)
@@ -467,10 +526,140 @@ impl SqliteGoalRepository {
     pub fn delete_goal(&self, token: &GoalCapabilityToken, goal_id: GoalID) -> Result<()> {
         self.verify_capability(token, GoalOp::Complete)?;
 
+        // Deletion is an administrative act reserved to the goal owner.
+        let goal = self.load_goal(goal_id)?;
+        self.check_admin_access(&goal, &token.holder_webid)?;
+
         self.conn
             .lock()
-            .expect("mutex lock")
+            .map_err(|e| GoalRepositoryError::LockPoisoned(e.to_string()))?
             .execute("DELETE FROM goals WHERE id = ?1", [goal_id.to_string()])?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_types::goal_capability::GoalOp;
+
+    const SECRET: &[u8] = b"goal-repo-test-secret-32-bytes!!";
+
+    fn repo() -> SqliteGoalRepository {
+        let conn = Connection::open_in_memory().expect("in-memory sqlite");
+        conn.execute_batch(
+            "CREATE TABLE goals (id TEXT PRIMARY KEY, webid TEXT NOT NULL, text TEXT NOT NULL, \
+             state TEXT NOT NULL DEFAULT 'pending', visibility TEXT NOT NULL DEFAULT 'private', \
+             created_at TEXT DEFAULT (datetime('now')), completed_at TEXT, parent_goal_id TEXT, \
+             depth INTEGER NOT NULL DEFAULT 0);\
+             CREATE TABLE goal_criteria (id TEXT PRIMARY KEY, goal_id TEXT, type TEXT NOT NULL, \
+             description TEXT NOT NULL, satisfied INTEGER NOT NULL DEFAULT 0);\
+             CREATE TABLE goal_artifacts (id TEXT PRIMARY KEY, goal_id TEXT, artifact_ref TEXT NOT NULL, \
+             artifact_type TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));",
+        )
+        .expect("schema");
+        SqliteGoalRepository::new(Arc::new(Mutex::new(conn)), SECRET.to_vec())
+    }
+
+    fn token_for(webid: &WebID, ops: Vec<GoalOp>) -> GoalCapabilityToken {
+        GoalCapabilityToken::new(GoalID::new(), *webid, ops, SECRET)
+    }
+
+    #[test]
+    fn owner_can_create_and_read_own_goal() {
+        let r = repo();
+        let alice = WebID::from_string("did:web:alice");
+        let token = token_for(&alice, vec![GoalOp::Create, GoalOp::Read]);
+        let goal = r
+            .create_goal(&token, &alice, "ship the thing", Visibility::Private)
+            .expect("owner create");
+        let fetched = r.get_goal(&token, goal.id).expect("read").expect("some");
+        assert_eq!(fetched.id, goal.id);
+        assert_eq!(fetched.webid, alice);
+    }
+
+    #[test]
+    fn holder_cannot_create_goal_owned_by_another() {
+        let r = repo();
+        let alice = WebID::from_string("did:web:alice");
+        let bob = WebID::from_string("did:web:bob");
+        let token = token_for(&alice, vec![GoalOp::Create]);
+        // Alice's token tries to mint a goal owned by Bob.
+        let err = r
+            .create_goal(&token, &bob, "forge", Visibility::Private)
+            .expect_err("cross-owner create must be denied");
+        assert!(matches!(err, GoalRepositoryError::VisibilityDenied(_)));
+    }
+
+    #[test]
+    fn non_owner_cannot_mutate_private_goal() {
+        let r = repo();
+        let alice = WebID::from_string("did:web:alice");
+        let mallory = WebID::from_string("did:web:mallory");
+        let alice_token = token_for(&alice, vec![GoalOp::Create]);
+        let goal = r
+            .create_goal(&alice_token, &alice, "secret", Visibility::Private)
+            .expect("create");
+
+        // Mallory holds a perfectly valid Update token (for her own goal id),
+        // but it must not let her mutate Alice's private goal.
+        let mallory_token = token_for(&mallory, vec![GoalOp::Update]);
+        let err = r
+            .update_goal_state(&mallory_token, goal.id, GoalState::Active)
+            .expect_err("confused-deputy write must be denied");
+        assert!(matches!(err, GoalRepositoryError::VisibilityDenied(_)));
+    }
+
+    #[test]
+    fn illegal_state_transition_is_rejected() {
+        let r = repo();
+        let alice = WebID::from_string("did:web:alice");
+        let token = token_for(&alice, vec![GoalOp::Create, GoalOp::Update]);
+        let goal = r
+            .create_goal(&token, &alice, "task", Visibility::Private)
+            .expect("create");
+
+        // Pending -> Completed is illegal (must pass through Active).
+        let err = r
+            .update_goal_state(&token, goal.id, GoalState::Completed)
+            .expect_err("illegal transition must be rejected");
+        assert!(matches!(err, GoalRepositoryError::InvalidTransition(_)));
+
+        // Legal progression succeeds.
+        r.update_goal_state(&token, goal.id, GoalState::Active)
+            .expect("pending -> active");
+        r.update_goal_state(&token, goal.id, GoalState::Completed)
+            .expect("active -> completed");
+
+        // Terminal goal cannot be reopened.
+        let err = r
+            .update_goal_state(&token, goal.id, GoalState::Active)
+            .expect_err("reopening terminal goal must be rejected");
+        assert!(matches!(err, GoalRepositoryError::InvalidTransition(_)));
+    }
+
+    #[test]
+    fn non_owner_cannot_delete_goal() {
+        let r = repo();
+        let alice = WebID::from_string("did:web:alice");
+        let mallory = WebID::from_string("did:web:mallory");
+        let goal = r
+            .create_goal(
+                &token_for(&alice, vec![GoalOp::Create]),
+                &alice,
+                "x",
+                Visibility::Shared,
+            )
+            .expect("create");
+
+        // Shared visibility grants Mallory write (Granted) but not admin.
+        let err = r
+            .delete_goal(&token_for(&mallory, vec![GoalOp::Complete]), goal.id)
+            .expect_err("non-owner delete must be denied");
+        assert!(matches!(err, GoalRepositoryError::VisibilityDenied(_)));
+
+        // Owner can delete.
+        r.delete_goal(&token_for(&alice, vec![GoalOp::Complete]), goal.id)
+            .expect("owner delete");
     }
 }
