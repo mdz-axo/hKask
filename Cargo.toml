@@ -35,7 +35,7 @@ members = [
 version = "0.21.0"
 edition = "2024"
 license = "MIT"
-repository = "https://github.com/mdz-axolotl/hKask"
+repository = "https://github.com/mdz-axo/hKask"
 
 [workspace.dependencies]
 # Async runtime

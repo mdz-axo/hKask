@@ -5,11 +5,11 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (e.g., v0.21.0)'
+        description: "Version to release (e.g., v0.21.0)"
         required: true
         type: string
 
@@ -25,15 +25,16 @@ jobs:
     name: Pre-Release Checks
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.91
+        uses: dtolnay/rust-toolchain@v1
         with:
+          toolchain: "1.91"
           components: rustfmt, clippy
-      
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -47,19 +48,19 @@ jobs:
             protobuf-compiler \
             libprotobuf-dev \
             libzstd-dev
-      
+
       - name: Cache cargo registry
         uses: Swatinem/rust-cache@v2
-      
+
       - name: Check formatting
         run: cargo fmt --all --check
-      
+
       - name: Run clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
-      
+
       - name: Run tests
         run: cargo test --workspace --lib
-      
+
       - name: Build documentation
         run: cargo doc --workspace --no-deps
 
@@ -71,22 +72,23 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     needs: pre-release-checks
-    
+
     strategy:
       matrix:
         target:
           - x86_64-unknown-linux-gnu
           - x86_64-unknown-linux-musl
           - aarch64-unknown-linux-gnu
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.91
+        uses: dtolnay/rust-toolchain@v1
         with:
+          toolchain: "1.91"
           targets: ${{ matrix.target }}
-      
+
       - name: Install system dependencies (GNU)
         if: matrix.target == 'x86_64-unknown-linux-gnu'
         run: |
@@ -101,7 +103,7 @@ jobs:
             protobuf-compiler \
             libprotobuf-dev \
             libzstd-dev
-      
+
       - name: Install musl-tools (musl)
         if: matrix.target == 'x86_64-unknown-linux-musl'
         run: |
@@ -114,7 +116,7 @@ jobs:
             cmake \
             protobuf-compiler \
             libzstd-dev
-      
+
       - name: Install cross-compilation tools (AArch64)
         if: matrix.target == 'aarch64-unknown-linux-gnu'
         run: |
@@ -127,17 +129,17 @@ jobs:
             cmake \
             protobuf-compiler \
             libzstd-dev
-      
+
       - name: Cache cargo registry
         uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}
-      
+
       - name: Build release binary
         run: cargo build --release --package hkask-cli --target ${{ matrix.target }}
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-      
+
       - name: Package binary
         run: |
           mkdir -p release
@@ -147,7 +149,7 @@ jobs:
           cd release
           tar -czf kask-${{ matrix.target }}.tar.gz *
           sha256sum kask-${{ matrix.target }}.tar.gz > kask-${{ matrix.target }}.tar.gz.sha256
-      
+
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
         with:
@@ -165,21 +167,21 @@ jobs:
     needs: build-release
     permissions:
       contents: write
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: release-artifacts
-      
+
       - name: Prepare release assets
         run: |
           mkdir -p release-assets
           cp release-artifacts/kask-*/kask-*.tar.gz release-assets/
           cp release-artifacts/kask-*/kask-*.tar.gz.sha256 release-assets/
-      
+
       - name: Generate changelog
         run: |
           echo "# Release ${{ github.event.inputs.version || github.ref_name }}" > changelog.md
@@ -192,7 +194,7 @@ jobs:
           echo '```bash' >> changelog.md
           echo 'curl -fsSL https://raw.githubusercontent.com/mdz-axo/hKask/main/scripts/install.sh | bash' >> changelog.md
           echo '```' >> changelog.md
-      
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -201,5 +203,3 @@ jobs:
           files: release-assets/*
           draft: false
           generate_release_notes: true
-
-

@@ -1,6 +1,6 @@
 #!/bin/bash
 # hKask Installation Script for Linux
-# 
+#
 # This script installs hKask and its dependencies on Linux systems.
 # Supports: Debian/Ubuntu, Fedora/RHEL, Arch Linux, openSUSE, Alpine
 #
@@ -83,15 +83,15 @@ detect_os() {
 install_system_dependencies() {
     local pkg_mgr=$(detect_package_manager)
     local os=$(detect_os)
-    
+
     log "Detected package manager: $pkg_mgr"
     log "Detected OS: $os"
-    
+
     case "$pkg_mgr" in
         apt)
             log "Updating package lists..."
             sudo apt-get update -qq
-            
+
             log "Installing build dependencies (Debian/Ubuntu)..."
             sudo apt-get install -y -qq \
                 build-essential \
@@ -181,7 +181,7 @@ install_system_dependencies() {
             return 1
             ;;
     esac
-    
+
     log_success "System dependencies installed"
 }
 
@@ -189,16 +189,16 @@ install_rust() {
     if command -v rustc &> /dev/null; then
         local rust_version=$(rustc --version)
         log "Rust already installed: $rust_version"
-        
+
         if ! rustc --version | grep -qE 'rustc (1\.(8[5-9]|9[0-9]|[1-9][0-9]{2})\.)'; then
             log_warning "Rust version too old for edition 2024 (requires 1.85+). Consider updating with 'rustup update'"
         fi
     else
         log "Installing Rust toolchain..."
-        
+
         if [ "$CI" != "true" ]; then
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.91
-            
+
             if [ -f "$HOME/.cargo/env" ]; then
                 source "$HOME/.cargo/env"
             fi
@@ -206,10 +206,10 @@ install_rust() {
             log "Running in CI environment, skipping Rust installation"
         fi
     fi
-    
+
     log "Adding Rust components..."
     rustup component add rustfmt clippy rust-src 2>/dev/null || true
-    
+
     log_success "Rust toolchain ready"
 }
 
@@ -267,40 +267,40 @@ build_hkask() {
 
 install_binary() {
     local workspace_root="$HKASK_SOURCE_DIR"
-    
+
     log "Installing hKask binary..."
-    
+
     # Create bin directory if it doesn't exist
     mkdir -p "$BIN_DIR"
-    
+
     # Copy binary
     if [ "${HKASK_BUILD_TYPE:-release}" = "release" ]; then
         cp "$workspace_root/target/release/kask" "$BIN_DIR/kask"
     else
         cp "$workspace_root/target/debug/kask" "$BIN_DIR/kask"
     fi
-    
+
     chmod +x "$BIN_DIR/kask"
-    
+
     log_success "Binary installed to $BIN_DIR/kask"
 }
 
 setup_environment() {
     log "Setting up environment..."
-    
+
     # Add to PATH if not already present
     if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
         log "Adding $BIN_DIR to PATH..."
-        
+
         export PATH="$BIN_DIR:$PATH"
-        
+
         local shell_config=""
         if [ -n "${ZSH_VERSION:-}" ]; then
             shell_config="$HOME/.zshrc"
         elif [ -n "${BASH_VERSION:-}" ]; then
             shell_config="$HOME/.bashrc"
         fi
-        
+
         if [ -n "$shell_config" ]; then
             if ! grep -q "$BIN_DIR" "$shell_config" 2>/dev/null; then
                 echo "" >> "$shell_config"
@@ -312,21 +312,21 @@ setup_environment() {
             log_warning "Could not detect shell config. Please add $BIN_DIR to your PATH manually."
         fi
     fi
-    
+
     # Create config directory
     local config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/hkask"
     if [ ! -d "$config_dir" ]; then
         mkdir -p "$config_dir"
         log "Created config directory: $config_dir"
     fi
-    
+
     # Create data directory
     local data_dir="${XDG_DATA_HOME:-$HOME/.local/share}/hkask"
     if [ ! -d "$data_dir" ]; then
         mkdir -p "$data_dir"
         log "Created data directory: $data_dir"
     fi
-    
+
     log_success "Environment configured"
 }
 
@@ -336,7 +336,7 @@ setup_environment() {
 
 verify_installation() {
     log "Verifying installation..."
-    
+
     if command -v kask &> /dev/null; then
         local version=$(kask --version 2>&1 || echo "unknown")
         log_success "hKask installed successfully: $version"
@@ -352,24 +352,24 @@ verify_installation() {
 
 uninstall_hkask() {
     log "Uninstalling hKask..."
-    
+
     # Remove binary
     if [ -f "$BIN_DIR/kask" ]; then
         rm -f "$BIN_DIR/kask"
         log "Removed $BIN_DIR/kask"
     fi
-    
+
     # Remove config (optional)
     if [ "${HKASK_REMOVE_CONFIG:-false}" = "true" ]; then
         local config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/hkask"
         rm -rf "$config_dir"
         log "Removed config directory: $config_dir"
-        
+
         local data_dir="${XDG_DATA_HOME:-$HOME/.local/share}/hkask"
         rm -rf "$data_dir"
         log "Removed data directory: $data_dir"
     fi
-    
+
     log_success "hKask uninstalled"
 }
 
@@ -405,16 +405,16 @@ Environment Variables:
 Examples:
     # Install hKask
     curl -fsSL https://raw.githubusercontent.com/mdz-axo/hKask/main/scripts/install.sh | bash
-    
+
     # Install with custom directory
     INSTALL_DIR=/opt/hkask bash install.sh
-    
+
     # Debug build
     HKASK_BUILD_TYPE=debug bash install.sh
-    
+
     # Uninstall
     bash install.sh --uninstall
-    
+
     # Uninstall with config
     HKASK_REMOVE_CONFIG=true bash install.sh --uninstall
 
@@ -429,7 +429,7 @@ main() {
     local action="install"
     local skip_deps=false
     local skip_rust=false
-    
+
     # Parse arguments
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -473,35 +473,35 @@ main() {
                 ;;
         esac
     done
-    
+
     echo ""
     echo "╔═══════════════════════════════════════════════════════════╗"
     echo "║                    hKask Installer                        ║"
     echo "║              ℏKask — Planck's Constant of Agents          ║"
     echo "╚═══════════════════════════════════════════════════════════╝"
     echo ""
-    
+
     case "$action" in
         install)
             log "Starting hKask installation..."
-            
+
             if [ "$skip_deps" = false ]; then
                 install_system_dependencies
             else
                 log "Skipping system dependency installation"
             fi
-            
+
             if [ "$skip_rust" = false ]; then
                 install_rust
             else
                 log "Skipping Rust installation"
             fi
-            
+
             build_hkask
             install_binary
             setup_environment
             verify_installation
-            
+
             echo ""
             log_success "Installation complete!"
             echo ""

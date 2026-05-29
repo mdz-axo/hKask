@@ -41,14 +41,14 @@ hKask/
 ### Quick Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/mdz-axolotl/hKask/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/mdz-axo/hKask/main/scripts/install.sh | bash
 ```
 
 ### Manual Installation
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/mdz-axolotl/hKask.git
+   git clone https://github.com/mdz-axo/hKask.git
    cd hKask
    ```
 
@@ -404,9 +404,9 @@ E2E chaos tests against live Okapi can be run manually with
 
 ## Contact and Support
 
-- **Issues:** https://github.com/mdz-axolotl/hKask/issues
-- **Discussions:** https://github.com/mdz-axolotl/hKask/discussions
-- **Documentation:** https://mdz-axolotl.github.io/hKask/
+- **Issues:** https://github.com/mdz-axo/hKask/issues
+- **Discussions:** https://github.com/mdz-axo/hKask/discussions
+- **Documentation:** https://mdz-axo.github.io/hKask/
 
 ---
 

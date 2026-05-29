@@ -1,8 +1,8 @@
 ---
 title: "hKask Trust, Security & Observability Specification"
 audience: [architects, security engineers, developers]
-last_updated: 2026-05-25
-version: "2.0.0"
+last_updated: 2026-05-28
+version: "2.1.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [trust, observability]
@@ -33,16 +33,16 @@ hKask implements a **zero-trust, capability-based security model**:[^miller-robu
 
 ### 1.2 Single Capability Primitive
 
-All access control uses `Capability` (`crates/hkask-types/src/visibility.rs:145`):
+All access control uses `CapabilityToken` (`crates/hkask-types/src/capability/mod.rs:219`):
 
 | Property | Implementation |
 |----------|---------------|
-| **Signing** | HMAC-SHA256 + `subtle::ConstantTimeEq` |
-| **Scoping** | Resource + action pairs |
+| **Signing** | Ed25519 or HMAC-SHA256 + `subtle::ConstantTimeEq` |
+| **Scoping** | Resource + action pairs (`CapabilityResource`, `CapabilityAction`) |
 | **Caveats** | Expiration, operation, template, visibility |
 | **Attenuation** | Max depth 7 (configurable) |
-| **Revocation** | Persistent SQLite |
-| **Secure memory** | `Arc<Zeroizing<Vec<u8>>>` |
+| **Revocation** | Persistent SQLite via `RevocationList` |
+| **Secure memory** | Arc-wrapped |
 
 **Full capability model:** [`domain-and-capability.md`](domain-and-capability.md) §5
 
@@ -53,7 +53,7 @@ WebIDs derived from persona content via UUID v5:
 - Root authority from fixed `"hkask-root-authority"` persona
 - Namespace UUID: `686b6173-6b2d-7065-7273-6f6e612d6e73`
 
-**Implementation:** `WebID::from_persona()` (`crates/hkask-types/src/id.rs:8`)
+**Implementation:** `WebID::from_persona()` (`crates/hkask-types/src/id.rs:75`)
 
 ### 1.4 Encryption Stack
 
@@ -81,9 +81,9 @@ WebIDs derived from persona content via UUID v5:
 | MCP tool invocation | `SecurityGateway` | `hkask-mcp/src/security.rs:51` |
 | Template execution | `CapabilityAwareValidator` | `hkask-templates/src/capability_validator.rs:21` |
 | ACP message routing | `SovereigntyPort` | `hkask-agents/src/ports/sovereignty.rs:79` |
-| Memory storage | `MemoryStoragePort` | `hkask-agents/src/pod.rs:685` |
+| Memory storage | `MemoryStoragePort` | `hkask-agents/src/pod/context.rs:50` |
 | API requests | Capability in Authorization header | `hkask-api/src/lib.rs` |
-| Pod creation | Root capability required | `hkask-agents/src/pod.rs:289` |
+| Pod creation | Root capability required | `hkask-agents/src/pod/manager.rs:266` |
 
 ### 1.6 Security Invariants
 
@@ -163,9 +163,9 @@ The MCP keystore server persists encrypted entries to a file-based vault at `~/.
 | Threat | Category | Mitigation | hKask Primitive |
 |--------|----------|-----------|-----------------|
 | Template injection | Tampering | Jinja2 sandbox | `minijinja` sandboxing |
-| Capability forgery | Spoofing | HMAC-SHA256 + constant-time | `Capability::verify()` |
-| Capability escalation | Elevation | Attenuation enforcement | `Capability::attenuate()` |
-| Replay attacks | Spoofing | Context nonce + expiry | `Capability.context_nonce` |
+| Capability forgery | Spoofing | Ed25519 or HMAC-SHA256 + constant-time | `CapabilityToken` integrity |
+| Capability escalation | Elevation | Attenuation enforcement | `CapabilityTokenBuilder` attenuation |
+| Replay attacks | Spoofing | Context nonce + expiry | `CapabilityToken.context_nonce` |
 | Data at rest exposure | Info Disclosure | SQLCipher | `hkask-storage` |
 | Supply chain compromise | Tampering | Pinned versions, `cargo deny` | `Cargo.toml` |
 | Path traversal | Elevation | Path validation | `hkask-storage` guards |
@@ -248,7 +248,7 @@ status: VERIFIED
 
 ### 4.2 Span Namespaces
 
-Every capability invocation emits a `NuEvent` with typed `Span` (`event.rs:92`):
+Every capability invocation emits a `NuEvent` with typed `Span` (`event.rs:92-106`):
 
 | Span | Variant | Covers |
 |------|---------|--------|
@@ -259,11 +259,15 @@ Every capability invocation emits a `NuEvent` with typed `Span` (`event.rs:92`):
 | `cns.pipeline.*` | `Pipeline` | Memory pipeline operations |
 | `cns.energy.*` | `Energy` | Energy budget tracking |
 | `cns.review.*` | `Review` | Review queue operations |
+| `cns.template.*` | `Template` | Template lifecycle |
+| `cns.curation.*` | `Curation` | Curation operations |
+| `cns.variety.*` | `Variety` | Variety counter tracking |
+| `cns.killzone.*` | `KillZone` | User sovereignty kill-zone events |
 | `cns.sovereignty.*` | `Sovereignty` | User sovereignty enforcement |
 | `cns.goal.*` | `Goal` | Goal lifecycle operations |
 | `cns.spec.*` | `Spec` | DDMVSS specification operations |
 
-**Event structure:** `NuEvent` (`event.rs:27`) — span, phase (Observe/Regulate/Outcome), observer WebID, timestamp, JSON payload.
+**Event structure:** `NuEvent` (`event.rs:27`) — id, timestamp, observer_webid, span, phase (Observe/Regulate/Outcome), observation, regulation, outcome, recursion_depth, parent_event, visibility.
 
 ### 4.3 Variety Counters
 

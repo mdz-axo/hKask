@@ -1,8 +1,8 @@
 ---
 title: "hKask Persistence & Lifecycle Specification"
 audience: [architects, database developers, DevOps engineers]
-last_updated: 2026-05-25
-version: "2.0.0"
+last_updated: 2026-05-28
+version: "2.1.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [persistence, lifecycle]
@@ -62,8 +62,8 @@ graph TD
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-PL-001
-verified_date: 2026-05-25
-verified_against: crates/hkask-storage/src/database.rs:59; triples.rs:77; nu_event_store.rs:19; embeddings.rs:49; spec_store.rs:12
+verified_date: 2026-05-28
+verified_against: crates/hkask-storage/src/database.rs:59; triples.rs:77; nu_event_store.rs:19; embeddings.rs:49; spec_store.rs:10
 status: VERIFIED
 -->
 
@@ -233,8 +233,8 @@ sequenceDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-PL-002
-verified_date: 2026-05-25
-verified_against: crates/hkask-cli/src/main.rs; hkask-storage/src/database.rs:59; hkask-agents/src/pod.rs:732
+verified_date: 2026-05-28
+verified_against: crates/hkask-cli/src/main.rs; crates/hkask-storage/src/database.rs:59; crates/hkask-agents/src/pod/manager.rs:30
 status: VERIFIED
 -->
 
@@ -245,8 +245,8 @@ status: VERIFIED
 | 1 | Initialize SQLCipher database | `Database::new()` |
 | 2 | Load hLexicon terms (89 terms) | Bootstrap lexicon |
 | 3 | Register built-in templates | `SqliteRegistry` |
-| 4 | Mint root capability token | `Capability` with `hkask-root-authority` WebID |
-| 5 | Initialize Curator singleton | `AgentPod` + system persona |
+| 4 | Mint root capability token | `CapabilityToken` with `hkask-root-authority` WebID |
+| 5 | Initialize Curator singleton | `AgentPod` or `Replicant` + system persona |
 | 6 | Start CNS runtime | `CnsRuntime` with all observers |
 | 7 | Connect MCP servers | `McpRuntime` discovers 15 servers |
 

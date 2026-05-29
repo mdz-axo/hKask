@@ -78,7 +78,7 @@ hKask requires Okapi for inference. Options:
 **Option A: Local Okapi (Development)**
 ```bash
 # Install Okapi (mdz-axo/Okapi)
-git clone https://github.com/mdz-axolotl/Okapi.git
+git clone https://github.com/mdz-axo/Okapi.git
 cd Okapi
 cargo run --release
 
@@ -113,7 +113,7 @@ export OKAPI_BASE_URL="http://localhost:11434"
 
 ```bash
 # Clone repository
-git clone https://github.com/mdz-axolotl/hKask.git
+git clone https://github.com/mdz-axo/hKask.git
 cd hKask
 
 # Build release binary
@@ -555,7 +555,7 @@ curl http://127.0.0.1:11435/api/generate \
 ### 10.4 Support
 
 - Documentation: `docs/` directory
-- Issue tracker: https://github.com/mdz-axolotl/hKask/issues
+- Issue tracker: https://github.com/mdz-axo/hKask/issues
 - Architecture: `docs/architecture/hKask-architecture-master.md`
 - API Reference: `kask docs openapi` or `docs/openapi.json`
 

@@ -1,8 +1,8 @@
 ---
 title: "hKask Interface & Composition Specification"
 audience: [architects, developers, agents]
-last_updated: 2026-05-25
-version: "2.0.0"
+last_updated: 2026-05-28
+version: "2.1.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [interface, composition]
@@ -45,8 +45,8 @@ graph LR
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-IC-001
-verified_date: 2026-05-25
-verified_against: crates/hkask-cli/src/main.rs:42; crates/hkask-api/src/lib.rs:623; crates/hkask-mcp/src/runtime.rs:71
+verified_date: 2026-05-28
+verified_against: crates/hkask-cli/src/cli/actions.rs; crates/hkask-api/src/lib.rs:628; crates/hkask-mcp/src/runtime.rs:71
 status: VERIFIED
 -->
 
@@ -72,7 +72,7 @@ status: VERIFIED
 
 **Binary:** `kask` (built from `hkask-cli`, 3,741 LOC)
 
-**14 subcommand groups** (`crates/hkask-cli/src/main.rs:60-158`):
+**15 subcommand groups** (`crates/hkask-cli/src/cli/actions.rs`):
 
 | Subcommand | Purpose |
 |-----------|---------|
@@ -90,12 +90,14 @@ status: VERIFIED
 | `kask docs` | Documentation generation |
 | `kask agent` | ACP agent registration |
 | `kask curator` | Curator governance and metacognition |
+| `kask replicant` | Replicant identity management |
+| `kask keystore` | OS keychain secret management |
 
 ### 1.3 HTTP API Surface
 
 **Framework:** axum v0.8 with utoipa v5.5 OpenAPI documentation
 
-**11 route groups** (`crates/hkask-api/src/lib.rs:623-635`):
+**11 route groups** (`crates/hkask-api/src/lib.rs:628-641`):
 
 | Route Group | Purpose |
 |------------|---------|
@@ -171,7 +173,7 @@ hKask uses hexagonal architecture with explicit port traits defining integration
 
 **Adapter chaining:** Adapters wrap other adapters for cross-cutting concerns (e.g., `SecurityGateway` wraps `McpRuntime` to add OCAP verification).
 
-**Port aggregation:** `PodManager` aggregates multiple ports into a single facade (`pod.rs:732`).
+**Port aggregation:** `PodManager` aggregates multiple ports into a single facade (`pod/manager.rs:30`).
 
 **Optional CNS:** CNS emitter is `Option<Arc<dyn CnsEmit>>` to avoid breaking tests.
 
