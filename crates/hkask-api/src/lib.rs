@@ -149,7 +149,18 @@ impl ApiState {
         }
     }
 
-    /// Create ApiState with default adapters
+    /// Create ApiState with default adapters.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the ACP secret is not configured. The API server is headless and
+    /// cannot run interactive onboarding. Ensure one of these is available before
+    /// calling this constructor:
+    ///
+    /// - `HKASK_MASTER_KEY` or `HKASK_ACP_SECRET_KEY` environment variable, or
+    /// - ACP secret stored in the OS keychain (via `kask chat` onboarding)
+    ///
+    /// To set these up, run `kask chat` interactively to complete onboarding.
     pub fn with_defaults(
         registry: SqliteRegistry,
         mcp_runtime: hkask_mcp::runtime::McpRuntime,

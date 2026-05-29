@@ -137,9 +137,12 @@ fn run_chat(
     model: Option<String>,
 ) {
     if let Some(input_path) = input {
-        // Non-interactive mode: verify registry is initialized. Can't run
-        // interactive onboarding since stdin may be piped.
-        if let Err(e) = rt.block_on(commands::init_registry()) {
+        // Non-interactive mode: run onboarding to ensure keys are configured.
+        // Fast path: if keys are already set (env vars or keychain), this is transparent.
+        // Otherwise, walks through interactive onboarding (creates replicant or signs in).
+        // Falls back to the old error if stdin is piped (rpassword reads /dev/tty, but
+        // prompt_line uses stdin which may be the pipe).
+        if let Err(e) = rt.block_on(hkask_cli::onboarding::run_onboarding()) {
             eprintln!("Cannot chat: {}", e);
             eprintln!("Run `kask chat` first to complete onboarding interactively.");
             std::process::exit(1);

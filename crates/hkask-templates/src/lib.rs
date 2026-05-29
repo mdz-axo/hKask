@@ -75,7 +75,7 @@ pub use okapi_config::{
 pub use ports::{
     Action, CnsPort, CompositionTemplate, DEFAULT_MATROSHKA_LIMIT, FAST_LOCAL_MODEL,
     InferenceConfig, ManifestStep, McpPort, MemoryFragment, ProcessManifest, RegistryEntry,
-    RegistryIndex, Result, TemplateContract, TemplateError,
+    RegistryIndex, Result, TemplateContract, TemplateError, YamlManifestFile,
 };
 pub use provenance::{ProvenanceManager, TemplateProvenance};
 pub use registry::{Registry, TemplateEntry};

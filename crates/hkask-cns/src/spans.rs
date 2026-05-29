@@ -421,7 +421,14 @@ pub fn span_scope_for_domain(domain: &str) -> HashSet<SpanCategory> {
         "rss-reader" => HashSet::from([SpanCategory::Connector]),
         "cli" => HashSet::from([SpanCategory::Prompt, SpanCategory::Tool]),
         "api" => HashSet::from([SpanCategory::Prompt, SpanCategory::Tool]),
-        _ => HashSet::from([SpanCategory::AgentPod]), // minimal default
+        unknown => {
+            tracing::warn!(
+                target: "cns.spans",
+                domain = %unknown,
+                "Unknown domain - using minimal AgentPod span scope"
+            );
+            HashSet::from([SpanCategory::AgentPod])
+        }
     }
 }
 

@@ -70,7 +70,8 @@ pub enum TemplateError {
 pub type Result<T> = std::result::Result<T, TemplateError>;
 
 /// Manifest step action types
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Action {
     Select,
     Populate,
@@ -104,10 +105,11 @@ impl Action {
 }
 
 /// Manifest step definition
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ManifestStep {
     pub ordinal: u32,
     pub action: Action,
+    #[serde(default)]
     pub description: String,
     pub template_ref: String,
     pub model_tier: Option<String>,
@@ -116,12 +118,30 @@ pub struct ManifestStep {
 }
 
 /// Process manifest (YAML-based workflow definition)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProcessManifest {
     pub id: String,
     pub name: String,
+    #[serde(default)]
     pub description: String,
     pub steps: Vec<ManifestStep>,
+}
+
+/// YAML wrapper for deserializing manifest files that nest under a `manifest:` key
+#[derive(Debug, Clone, Deserialize)]
+pub struct YamlManifestFile {
+    pub manifest: ProcessManifest,
+}
+
+impl ProcessManifest {
+    /// Load a process manifest from a YAML file path
+    pub fn load_from_yaml(path: &std::path::Path) -> std::result::Result<Self, TemplateError> {
+        let content = std::fs::read_to_string(path)
+            .map_err(|e| TemplateError::Manifest(format!("Failed to read {}: {}", path.display(), e)))?;
+        let file: YamlManifestFile = serde_yaml::from_str(&content)
+            .map_err(|e| TemplateError::Manifest(format!("Failed to parse {}: {}", path.display(), e)))?;
+        Ok(file.manifest)
+    }
 }
 
 /// Template composition definition
