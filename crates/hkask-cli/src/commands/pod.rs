@@ -1,6 +1,6 @@
 //! Pod management command handlers
 
-use hkask_agents::pod::{AgentPersona, PodID, PodManager};
+use hkask_agents::pod::{AgentPersona, PodID, PodManager, PodManagerBuilder};
 use std::path::PathBuf;
 use uuid::Uuid;
 
@@ -32,11 +32,19 @@ pub async fn get_pod_status(pod_id: &str) -> Result<PodStatus, String> {
 }
 
 /// List all pods
-pub async fn list_pods() -> Vec<PodStatus> {
-    let manager = PodManager::new_mock();
-    let statuses = manager.list_pods().await.unwrap_or_default();
+pub async fn list_pods() -> Result<Vec<PodStatus>, String> {
+    let (acp, _store) = crate::commands::config::init_registry()
+        .await
+        .map_err(|e| format!("Registry not initialized: {}. Set HKASK_MASTER_KEY, HKASK_ACP_SECRET, or HKASK_INSECURE_DEV=1.", e))?;
 
-    statuses
+    let manager = PodManagerBuilder::new()
+        .acp_runtime(acp)
+        .with_in_memory_storage()
+        .build();
+
+    let statuses = manager.list_pods().await.map_err(|e| e.to_string())?;
+
+    Ok(statuses
         .into_iter()
         .map(|s| PodStatus {
             pod_id: s.pod_id,
@@ -45,7 +53,7 @@ pub async fn list_pods() -> Vec<PodStatus> {
             webid: s.webid,
             created_at: s.created_at.to_string(),
         })
-        .collect()
+        .collect())
 }
 
 /// Create pod from template crate

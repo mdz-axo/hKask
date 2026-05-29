@@ -329,23 +329,24 @@ fn main() {
                     println!("  Created at: {}", status.created_at);
                 }
             }
-            PodAction::List => {
-                let pods = rt.block_on(commands::list_pods());
-
-                if pods.is_empty() {
-                    println!("No pods registered.");
-                } else {
-                    println!("Agent pods ({}):\n", pods.len());
-                    for pod in pods {
-                        println!("  {} ({})", pod.pod_id, pod.state);
-                        println!("    WebID: {}", pod.webid);
-                        if let Some(name) = &pod.name {
-                            println!("    Name: {}", name);
+            PodAction::List => match rt.block_on(commands::list_pods()) {
+                Ok(pods) => {
+                    if pods.is_empty() {
+                        println!("No pods registered.");
+                    } else {
+                        println!("Agent pods ({}):\n", pods.len());
+                        for pod in pods {
+                            println!("  {} ({})", pod.pod_id, pod.state);
+                            println!("    WebID: {}", pod.webid);
+                            if let Some(name) = &pod.name {
+                                println!("    Name: {}", name);
+                            }
+                            println!();
                         }
-                        println!();
                     }
                 }
-            }
+                Err(e) => eprintln!("Pod listing unavailable: {}", e),
+            },
         },
 
         Commands::Mcp { action } => {

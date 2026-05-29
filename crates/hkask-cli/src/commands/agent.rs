@@ -82,10 +82,16 @@ pub async fn agent_register(
         .await
         .map_err(|e| AgentError::RegistrationFailed(e.to_string()))?;
 
+    let agent_kind = hkask_types::AgentKind::parse(agent_type).ok_or_else(|| {
+        AgentError::RegistrationFailed(format!(
+            "Unknown agent type '{}'. Must be 'Bot' or 'Replicant'.",
+            agent_type
+        ))
+    })?;
+
     let definition = hkask_types::AgentDefinition {
         name: webid_str.to_string(),
-        agent_kind: hkask_types::AgentKind::parse(agent_type)
-            .unwrap_or(hkask_types::AgentKind::Bot),
+        agent_kind,
         binding_contract: false,
         editor: "cli".to_string(),
         charter: None,
@@ -221,7 +227,17 @@ pub async fn chat_with_agent(
 
         // Create inference port
         let config = OkapiConfig::local_dev();
-        let model = model_override.unwrap_or("deepseek-v4-pro");
+        let agent_kind = match agent {
+            Some(registered) => &registered.definition.agent_kind,
+            None => {
+                return "Agent not registered — run `kask agent register` first.".to_string();
+            }
+        };
+        let default_model = match agent_kind {
+            hkask_types::AgentKind::Bot => "deepseek-v4-flash",
+            hkask_types::AgentKind::Replicant => "deepseek-v4-pro",
+        };
+        let model = model_override.unwrap_or(default_model);
         let inference = match OkapiInference::new(model, config) {
             Ok(i) => Arc::new(i) as Arc<dyn InferencePort>,
             Err(e) => return format!("Okapi init error: {}", e),

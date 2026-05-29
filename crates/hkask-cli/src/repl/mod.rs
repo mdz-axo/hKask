@@ -8,7 +8,7 @@
 //! - Categorized help so the menu is scannable
 
 mod commands;
-mod display;
+pub(crate) mod display;
 mod helper;
 
 use hkask_mcp::runtime::McpRuntime;
@@ -23,14 +23,28 @@ pub fn run(
     _registry: &SqliteRegistry,
     _runtime: &McpRuntime,
     template_id: Option<&str>,
-    agent_name: &str,
+    _agent_name: &str,
     initial_model: Option<&str>,
     rt_handle: tokio::runtime::Handle,
 ) {
-    let mut current_agent = agent_name.to_string();
     let mut current_model = initial_model.unwrap_or("deepseek-v4-pro").to_string();
     let mut session_history = SessionHistory::new();
     let mut active_session: Option<String> = None;
+
+    // ── Onboarding / Sign-in ──────────────────────────────────────────
+    // Runs before the interactive loop. If keys are already configured,
+    // this is transparent. Otherwise, walks the user through creating or
+    // signing into a replicant.
+    let mut current_agent = match rt_handle.block_on(crate::onboarding::run_onboarding()) {
+        Ok(outcome) => outcome.signed_in_agent,
+        Err(e) => {
+            eprintln!("Onboarding failed: {}", e);
+            eprintln!(
+                "Set HKASK_MASTER_KEY, HKASK_ACP_SECRET, or HKASK_INSECURE_DEV=1 to skip onboarding."
+            );
+            return;
+        }
+    };
 
     let helper = KaskHelper::new();
 

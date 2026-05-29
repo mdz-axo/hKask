@@ -348,18 +348,22 @@ pub(super) fn handle_slash_command(
             println!();
         }
         "pods" => {
-            let pods = rt.block_on(crate::commands::list_pods());
-            if pods.is_empty() {
-                println!("  No pods registered.");
-            } else {
-                println!("  \x1b[1mAgent pods ({}):\x1b[0m", pods.len());
-                for pod in &pods {
-                    println!("  \x1b[36m{}\x1b[0m ({})", pod.pod_id, pod.state);
-                    println!("    WebID: {}", pod.webid);
-                    if let Some(name) = &pod.name {
-                        println!("    Name:  {}", name);
+            match rt.block_on(crate::commands::list_pods()) {
+                Ok(pods) => {
+                    if pods.is_empty() {
+                        println!("  No pods registered.");
+                    } else {
+                        println!("  \x1b[1mAgent pods ({}):\x1b[0m", pods.len());
+                        for pod in &pods {
+                            println!("  \x1b[36m{}\x1b[0m ({})", pod.pod_id, pod.state);
+                            println!("    WebID: {}", pod.webid);
+                            if let Some(name) = &pod.name {
+                                println!("    Name:  {}", name);
+                            }
+                        }
                     }
                 }
+                Err(e) => println!("  \x1b[31mPod listing unavailable:\x1b[0m {}", e),
             }
             println!();
         }

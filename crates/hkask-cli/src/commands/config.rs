@@ -40,7 +40,7 @@ pub(crate) fn resolve_acp_secret() -> Result<String, RegistryError> {
     })
 }
 
-fn resolve_db_passphrase() -> Result<String, RegistryError> {
+pub(crate) fn resolve_db_passphrase() -> Result<String, RegistryError> {
     std::env::var("HKASK_DB_PASSPHRASE").or_else(|_| {
         hkask_keystore::keychain::Keychain::default()
             .retrieve(&hkask_types::WebID::from_persona(b"hkask-db-passphrase"))

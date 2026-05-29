@@ -2,6 +2,25 @@ use super::commands::{find_command, fuzzy_match_command};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+/// Banner shown during onboarding (simpler than the main banner)
+pub fn print_onboarding_banner() {
+    let body = "\x1b[1;36m";
+    let dim = "\x1b[2;37m";
+    let r = "\x1b[0m";
+
+    println!();
+    println!("{body}  __          {dim}    ___________    __    {r}");
+    println!("{body} /  \\         {dim}   /  \\             /  \\   {r}");
+    println!("{body}|    |        {dim}  |    |    KASK    |    |  {r}");
+    println!("{body} \\__/         {dim}  |    |            |    |  {r}");
+    println!("{dim}              {body}  |    |            |    |  {r}");
+    println!("{dim}              {body}   \\__/~~~~~~~~~~~~\\__/   {r}");
+    println!("  {dim}shadow{r}       {body}    hKask v{VERSION}{r}");
+    println!();
+    println!("{body}     A Minimal Viable Container for Agents{r}");
+    println!();
+}
+
 pub(super) fn print_banner(agent: &str, template: Option<&str>, model: &str) {
     let ghost = "\x1b[2;36m";
     let body = "\x1b[1;36m";

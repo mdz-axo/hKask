@@ -39,3 +39,4 @@ sha2.workspace = true
   aes-gcm.workspace = true
   rustyline = "18.0.0"
 dirs = "6"
+rpassword = "7"
