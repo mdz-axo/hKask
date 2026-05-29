@@ -1,6 +1,6 @@
 use hkask_cns::{CnsEmit, SpanCategory, SpanEmitter, SpanScope};
 use hkask_cybertest::{
-    CaptureSink, CyberExpectation, CyberTestSpec, Disturbance, DisturbanceKind, DisturbanceMode,
+    CaptureSink, CyberTestSpec, Disturbance, DisturbanceKind, DisturbanceMode,
     EscalationExpectation, TelemetryCapture,
 };
 use hkask_types::WebID;
@@ -9,14 +9,14 @@ use std::collections::HashSet;
 
 #[test]
 fn cyber_span_scope_capability_denied_emits_sovereignty_violation() {
-    let spec = CyberTestSpec::new(
+    let spec = CyberTestSpec::builder(
         "must deny out-of-scope emissions and surface sovereignty telemetry",
         "span scope allows tool only",
         Disturbance::new(DisturbanceKind::CapabilityDenied, DisturbanceMode::Always),
-        CyberExpectation::default()
-            .with_spans(vec!["Sovereignty(\"alert.boundary_violation\")"])
-            .with_escalation(EscalationExpectation::None),
-    );
+    )
+    .must_emit("Sovereignty(\"alert.boundary_violation\")")
+    .with_escalation(EscalationExpectation::None)
+    .build();
 
     let capture = TelemetryCapture::default();
     let emitter =

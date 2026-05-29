@@ -183,6 +183,33 @@ cargo check
 cargo test
 cargo clippy -- -D warnings
 cargo fmt --check
+
+# Cybernetic unit tests (policy + disturbance + telemetry assertions)
+cargo test -p hkask-cns cyber_
+cargo test -p hkask-mcp cyber_
+```
+
+---
+
+## Cybernetic Unit Tests
+
+hKask now includes a minimal cybernetic test harness (`hkask-cybertest`) for unit-scale control-loop testing.
+
+### Conventions
+
+- Use `*_cybertests.rs` for cybernetic test files.
+- Prefix test names with `cyber_` for selective execution.
+- Each cybernetic test should define:
+  - policy objective,
+  - disturbance injected,
+  - expected telemetry (`cns.*` spans),
+  - adaptation/escalation expectation.
+
+### Local commands
+
+```bash
+cargo test -p hkask-cns cyber_
+cargo test -p hkask-mcp cyber_
 ```
 
 ---

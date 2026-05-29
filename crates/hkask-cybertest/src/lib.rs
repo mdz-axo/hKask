@@ -8,5 +8,7 @@ pub use assertions::{
     assert_variety_deficit_below,
 };
 pub use disturbance::{Disturbance, DisturbanceKind, DisturbanceMode};
-pub use spec::{CyberExpectation, CyberTestSpec, EscalationExpectation, VarietyBudget};
+pub use spec::{
+    CyberExpectation, CyberTestSpec, CyberTestSpecBuilder, EscalationExpectation, VarietyBudget,
+};
 pub use telemetry::{CaptureSink, CapturedEvent, TelemetryCapture};

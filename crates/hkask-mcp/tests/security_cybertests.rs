@@ -1,7 +1,6 @@
 use hkask_cns::{CnsEmit, SpanCategory, SpanEmitter, SpanScope};
 use hkask_cybertest::{
-    CaptureSink, CyberExpectation, CyberTestSpec, Disturbance, EscalationExpectation,
-    TelemetryCapture,
+    CaptureSink, CyberTestSpec, Disturbance, EscalationExpectation, TelemetryCapture,
 };
 use hkask_types::WebID;
 use serde_json::json;
@@ -9,15 +8,15 @@ use std::collections::HashSet;
 
 #[test]
 fn cyber_mcp_connector_transient_failure_stays_non_escalatory_when_tool_scope_allows() {
-    let spec = CyberTestSpec::new(
+    let spec = CyberTestSpec::builder(
         "tool-scoped MCP paths should emit tool telemetry without sovereignty escalation",
         "span scope allows tool category",
         Disturbance::transient_failures(2),
-        CyberExpectation::default()
-            .with_spans(vec!["Tool(cns.tool.mcp.dispatch.retry)"])
-            .without_spans(vec!["Sovereignty(alert.boundary_violation)"])
-            .with_escalation(EscalationExpectation::None),
-    );
+    )
+    .must_emit("Tool(\"cns.tool.mcp.dispatch.retry\")")
+    .must_not_emit("Sovereignty(\"alert.boundary_violation\")")
+    .with_escalation(EscalationExpectation::None)
+    .build();
 
     let capture = TelemetryCapture::default();
     let emitter =

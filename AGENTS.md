@@ -167,11 +167,12 @@ fi
 ## Documentation
 
 | Topic | Location |
-|-------|----------|
+|------|----------|
 | GML (Allosteric Thinking) | `docs/gml/README.md` |
 | Architecture | `docs/architecture/` |
 | CI/CD | `docs/CI-CD-GUIDE.md` |
 | Okapi Integration | `docs/architecture/reference/okapi-integration.md` |
+| Cybernetic Unit Tests (conventions + commands) | `README.md#cybernetic-unit-tests` |
 
 ---
 
