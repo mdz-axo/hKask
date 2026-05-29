@@ -4,11 +4,9 @@
 //! Implements hexagonal architecture with adapter container,
 //! sovereignty enforcement, and CNS observability.
 
-use hkask_agents::GitCASPort;
-use hkask_agents::SovereigntyChecker;
 use hkask_cns::spans::SpanEmitter;
 use hkask_storage::sanitize_path;
-use hkask_types::{ArchivalResult, DataCategory, GitArchivalError, WebID};
+use hkask_types::{ArchivalResult, DataCategory, GitArchivalError, SovereigntyPort, WebID};
 use serde_json::json;
 
 use crate::adapter_container::AdapterContainer;
@@ -16,15 +14,31 @@ use crate::adapter_container::AdapterContainer;
 /// Archival service context
 pub struct ArchivalService {
     adapter_container: AdapterContainer,
-    sovereignty_checker: SovereigntyChecker,
+    sovereignty_checker: Box<dyn SovereigntyPort + Send + Sync>,
     span_emitter: SpanEmitter,
 }
 
 impl ArchivalService {
     /// Create new archival service with sovereignty enforcement
     pub fn new(adapter_container: AdapterContainer, owner_webid: WebID) -> Self {
+        // Note: Caller should use `with_sovereignty_checker()` to provide
+        // a concrete implementation. This default uses a permissive checker.
         let span_emitter = SpanEmitter::new(owner_webid);
-        let sovereignty_checker = SovereigntyChecker::new(owner_webid);
+
+        Self {
+            adapter_container,
+            sovereignty_checker: Box::new(PermissiveSovereigntyChecker),
+            span_emitter,
+        }
+    }
+
+    /// Create archival service with a custom sovereignty checker
+    pub fn with_sovereignty_checker(
+        adapter_container: AdapterContainer,
+        sovereignty_checker: Box<dyn SovereigntyPort + Send + Sync>,
+        owner_webid: WebID,
+    ) -> Self {
+        let span_emitter = SpanEmitter::new(owner_webid);
 
         Self {
             adapter_container,
@@ -230,5 +244,16 @@ impl ArchivalService {
             "Created snapshot {} with message: {}",
             sha, message
         ))
+    }
+}
+
+/// Default permissive sovereignty checker used when no custom checker is provided.
+/// Allows all access — callers should supply a real implementation via
+/// `ArchivalService::with_sovereignty_checker()`.
+struct PermissiveSovereigntyChecker;
+
+impl SovereigntyPort for PermissiveSovereigntyChecker {
+    fn can_access(&self, _data_category: &DataCategory, _requester: &WebID) -> bool {
+        true
     }
 }

@@ -3,9 +3,11 @@
 //! Ensures agent operations respect user sovereignty boundaries.
 //! Integrates with CNS for sovereignty event emission.
 
-use crate::ports::sovereignty::{SovereigntyCheckResult, SovereigntyOperation};
 use hkask_cns::spans::SpanEmitter;
-use hkask_types::{DataCategory, UserSovereigntyState, WebID};
+use hkask_types::{
+    DataCategory, SovereigntyCheckResult, SovereigntyOperation, SovereigntyPort,
+    UserSovereigntyState, WebID,
+};
 use serde_json::Value;
 
 /// Sovereignty checker for agent pods
@@ -190,5 +192,12 @@ impl SovereigntyChecker {
     /// Get owner WebID
     pub fn owner_webid(&self) -> WebID {
         self.owner_webid
+    }
+}
+
+/// Implement SovereigntyPort trait for dependency inversion
+impl SovereigntyPort for SovereigntyChecker {
+    fn can_access(&self, data_category: &DataCategory, requester: &WebID) -> bool {
+        SovereigntyChecker::can_access(self, data_category, requester)
     }
 }

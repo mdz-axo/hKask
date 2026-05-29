@@ -235,6 +235,31 @@ pub struct TemplateInvocation {
     pub capability_token: Option<CapabilityToken>,
 }
 
+/// Template file within a crate
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TemplateFile {
+    pub path: String,
+    pub content: String,
+    pub template_type: String, // Prompt, Process, Cognition
+}
+
+/// Template crate structure (loaded from Git CAS)
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct TemplateCrate {
+    /// Crate name
+    pub name: String,
+    /// Git SHA (pinned version)
+    pub git_sha: String,
+    /// Agent persona YAML content
+    pub persona_yaml: String,
+    /// Dispatch manifest YAML content
+    pub dispatch_manifest_yaml: String,
+    /// Template files (path -> content)
+    pub templates: Vec<TemplateFile>,
+    /// hLexicon terms used
+    pub hlexicon_terms: Vec<String>,
+}
+
 impl TemplateInvocation {
     pub fn new(
         template_id: TemplateId,

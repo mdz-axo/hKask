@@ -3,7 +3,7 @@
 //! This MCP server provides Git operations by composing the GitCasAdapter
 //! from hkask-agents. Implements hexagonal architecture pattern.
 
-use hkask_agents::GitCASPort;
+use hkask_agents::adapters::git_cas::GitCasAdapter;
 use hkask_mcp::adapter_container::AdapterContainer;
 use hkask_mcp::server::{
     McpToolError, McpToolOutput, ToolSpanGuard, validate_identifier, validate_tool_url,
@@ -85,7 +85,9 @@ impl GitServer {
     pub fn with_base_path_or_default(base_path: Option<std::path::PathBuf>, webid: WebID) -> Self {
         let container = AdapterContainer::new();
         if let Some(bp) = base_path {
-            container.configure_git_cas(bp).ok();
+            let adapter = std::sync::Arc::new(GitCasAdapter::from_path(bp.clone()));
+            container.configure_git_cas(adapter).ok();
+            container.set_base_path(bp).ok();
         }
         Self {
             adapter_container: container,

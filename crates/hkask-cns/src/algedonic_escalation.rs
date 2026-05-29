@@ -6,11 +6,19 @@
 //! Calibration actions emit cns.energy.calibrate spans recording before/after thresholds.
 
 use crate::algedonic::{AlertSeverity, DEFAULT_THRESHOLD, RuntimeAlert};
+use crate::spans::CnsEmit;
 use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{error, info, warn};
+
+/// Trait for sending ACP messages to the Curator.
+/// Implemented by ACP runtime or test doubles.
+pub trait AcpSender: Send + Sync {
+    /// Send an algedonic alert notification to the Curator via ACP.
+    fn send_alert(&self, domain: &str, severity: &str, deficit: u64, message: &str);
+}
 
 /// Calibration record — tracks threshold changes made by Curator
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -80,6 +88,10 @@ pub struct AlgedonicEscalationAdapter {
     pending_alerts: Arc<RwLock<Vec<RuntimeAlert>>>,
     /// Default variety deficit threshold
     default_threshold: u64,
+    /// ACP sender for delivering alerts to Curator
+    acp_sender: Option<Arc<dyn AcpSender + Send + Sync>>,
+    /// CNS emitter for spec drift spans
+    cns_emitter: Option<Arc<dyn CnsEmit + Send + Sync>>,
 }
 
 impl AlgedonicEscalationAdapter {
@@ -91,12 +103,26 @@ impl AlgedonicEscalationAdapter {
             calibration_history: Arc::new(RwLock::new(Vec::new())),
             pending_alerts: Arc::new(RwLock::new(Vec::new())),
             default_threshold: DEFAULT_THRESHOLD,
+            acp_sender: None,
+            cns_emitter: None,
         }
     }
 
     /// Create with custom default threshold
     pub fn with_threshold(mut self, threshold: u64) -> Self {
         self.default_threshold = threshold;
+        self
+    }
+
+    /// Wire in an ACP sender for delivering alerts to Curator
+    pub fn with_acp_sender(mut self, sender: Arc<dyn AcpSender + Send + Sync>) -> Self {
+        self.acp_sender = Some(sender);
+        self
+    }
+
+    /// Wire in a CNS emitter for spec drift spans
+    pub fn with_cns_emitter(mut self, emitter: Arc<dyn CnsEmit + Send + Sync>) -> Self {
+        self.cns_emitter = Some(emitter);
         self
     }
 
@@ -135,6 +161,26 @@ impl AlgedonicEscalationAdapter {
                     severity = "critical",
                     "Escalating alert to Curator"
                 );
+
+                // Deliver ACP notification to Curator
+                if let Some(ref sender) = self.acp_sender {
+                    sender.send_alert(&alert.domain, "critical", alert.deficit, &alert.message);
+                }
+
+                // Emit cns.spec.drift span for critical severity
+                if let Some(ref emitter) = self.cns_emitter {
+                    emitter.emit(
+                        "cns.spec.drift",
+                        serde_json::json!({
+                            "domain": alert.domain,
+                            "severity": "critical",
+                            "deficit": alert.deficit,
+                            "threshold": alert.threshold,
+                            "message": alert.message,
+                        }),
+                        0.0,
+                    );
+                }
 
                 let result = EscalationResult {
                     alert: alert.clone(),

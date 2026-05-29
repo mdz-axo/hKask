@@ -2,9 +2,7 @@
 //!
 //! Concrete implementation of GitCASPort using gix crate.
 
-use crate::error::GitError;
-use crate::pod::{TemplateCrate, TemplateFile};
-use crate::ports::GitCASPort;
+use hkask_types::{GitCASPort, GitError, TemplateCrate, TemplateFile};
 use std::path::{Component, Path};
 
 /// Git CAS Adapter — Concrete implementation for template crate loading

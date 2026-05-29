@@ -56,10 +56,10 @@ pub use curator::escalation::{
     EscalationEntry, EscalationQueue, EscalationStats, EscalationStatus,
 };
 pub use error::{GitError, McpError, MemoryError, RegistryError};
-pub use hkask_types::{BotCapabilities, CapabilityChecker, CapabilityToken};
+pub use hkask_types::{BotCapabilities, CapabilityChecker, CapabilityToken, SovereigntyPort};
 pub use pod::{
     AgentKind, AgentPersona, AgentPod, AgentPodError, AgentPodResult, PodID, PodLifecycleState,
-    PodManager, PodStatus, TemplateCrate,
+    PodManager, PodStatus, TemplateCrate, TemplateFile,
 };
 pub use ports::{
     AcpPort, AcpTransport, AcpWireMessage, AcpWireResponse, GitCASPort, MCPRuntimePort,

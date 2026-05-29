@@ -3,7 +3,7 @@
 //! Provides thread-safe container for adapter instances used by MCP servers.
 //! Prevents per-call adapter creation and enables runtime configuration.
 
-use hkask_agents::adapters::git_cas::GitCasAdapter;
+use hkask_types::GitCASPort;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
@@ -13,7 +13,7 @@ use std::sync::{Arc, RwLock};
 /// Thread-safe via Arc<RwLock<>> pattern.
 #[derive(Clone)]
 pub struct AdapterContainer {
-    git_cas: Arc<RwLock<Option<Arc<GitCasAdapter>>>>,
+    git_cas: Arc<RwLock<Option<Arc<dyn GitCASPort + Send + Sync>>>>,
     base_path: Arc<RwLock<Option<PathBuf>>>,
 }
 
@@ -26,13 +26,19 @@ impl AdapterContainer {
         }
     }
 
-    /// Configure Git CAS adapter with base path
-    pub fn configure_git_cas(&self, base_path: PathBuf) -> Result<(), String> {
-        let adapter = GitCasAdapter::from_path(base_path.clone());
-
+    /// Configure Git CAS adapter with a pre-built implementation
+    pub fn configure_git_cas(
+        &self,
+        adapter: Arc<dyn GitCASPort + Send + Sync>,
+    ) -> Result<(), String> {
         let mut cas_lock = self.git_cas.write().map_err(|e| e.to_string())?;
-        *cas_lock = Some(Arc::new(adapter));
+        *cas_lock = Some(adapter);
 
+        Ok(())
+    }
+
+    /// Set the base path for future adapter configuration
+    pub fn set_base_path(&self, base_path: PathBuf) -> Result<(), String> {
         let mut path_lock = self.base_path.write().map_err(|e| e.to_string())?;
         *path_lock = Some(base_path);
 
@@ -40,7 +46,7 @@ impl AdapterContainer {
     }
 
     /// Get Git CAS adapter instance
-    pub fn get_git_cas(&self) -> Result<Option<Arc<GitCasAdapter>>, String> {
+    pub fn get_git_cas(&self) -> Result<Option<Arc<dyn GitCASPort + Send + Sync>>, String> {
         let cas_lock = self.git_cas.read().map_err(|e| e.to_string())?;
         Ok(cas_lock.clone())
     }

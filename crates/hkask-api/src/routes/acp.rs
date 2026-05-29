@@ -1,6 +1,6 @@
 //! ACP registration and listing routes
 
-use axum::extract::Extension;
+use axum::extract::{Extension, Path};
 use axum::{Json, extract::State, http::StatusCode, routing::Router};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -29,6 +29,10 @@ pub fn acp_router() -> Router<ApiState> {
     Router::new()
         .route("/api/v1/acp/register", axum::routing::post(acp_register))
         .route("/api/v1/acp/agents", axum::routing::get(acp_list_agents))
+        .route(
+            "/api/v1/acp/agents/:agent_id",
+            axum::routing::delete(acp_unregister_agent),
+        )
 }
 
 /// Register an agent with the ACP runtime
@@ -144,4 +148,86 @@ async fn acp_list_agents(
     Ok(Json(AgentListResponse {
         agents: agent_responses,
     }))
+}
+
+/// Unregister an ACP agent
+#[utoipa::path(
+    delete,
+    path = "/api/v1/acp/agents/{agent_id}",
+    tag = "acp",
+    responses(
+        (status = 200, description = "Agent unregistered"),
+        (status = 400, description = "Invalid agent ID"),
+        (status = 401, description = "Unauthorized"),
+        (status = 404, description = "Agent not found"),
+        (status = 500, description = "Internal server error"),
+    ),
+)]
+async fn acp_unregister_agent(
+    State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
+    Path(agent_id): Path<String>,
+) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+    state.cns_emitter.emit_agent_pod(
+        "api.acp.unregister.start",
+        serde_json::json!({
+            "agent_id": agent_id,
+        }),
+    );
+
+    let webid = uuid::Uuid::parse_str(&agent_id)
+        .map_err(|_| {
+            state.cns_emitter.emit_agent_pod(
+                "api.acp.unregister.error",
+                serde_json::json!({ "reason": "invalid_webid" }),
+            );
+            (
+                StatusCode::BAD_REQUEST,
+                Json(ErrorResponse {
+                    error: "invalid_webid".to_string(),
+                    code: "ACP_BAD_REQUEST".to_string(),
+                    details: Some(serde_json::json!({
+                        "message": format!("Invalid WebID format: {}", agent_id)
+                    })),
+                }),
+            )
+        })
+        .map(hkask_types::WebID)?;
+
+    let acp = state.pod_manager.acp_runtime();
+    acp.unregister_agent(&webid).await.map_err(|e| match e {
+        hkask_agents::AcpError::AgentNotFound(_) => {
+            state.cns_emitter.emit_agent_pod(
+                "api.acp.unregister.not_found",
+                serde_json::json!({ "agent_id": agent_id }),
+            );
+            (
+                StatusCode::NOT_FOUND,
+                Json(ErrorResponse {
+                    error: "agent_not_found".to_string(),
+                    code: "ACP_NOT_FOUND".to_string(),
+                    details: Some(serde_json::json!({
+                        "message": format!("Agent '{}' not found", agent_id)
+                    })),
+                }),
+            )
+        }
+        _ => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                error: "unregister_failed".to_string(),
+                code: "ACP_ERROR".to_string(),
+                details: Some(serde_json::json!({
+                    "message": e.to_string()
+                })),
+            }),
+        ),
+    })?;
+
+    state.cns_emitter.emit_agent_pod(
+        "api.acp.unregister.success",
+        serde_json::json!({ "agent_id": agent_id }),
+    );
+
+    Ok(StatusCode::NO_CONTENT)
 }

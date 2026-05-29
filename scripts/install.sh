@@ -476,10 +476,10 @@ main() {
     done
 
     echo ""
-    echo "╔═══════════════════════════════════════════════════════════╗"
-    echo "║                    hKask Installer                        ║"
-    echo "║              ℏKask — Planck's Constant of Agents          ║"
-    echo "╚═══════════════════════════════════════════════════════════╝"
+    echo "╔══════════════════════════════════════════════════════════╗"
+    echo "║                   hKask Installer                        ║"
+    echo "║           ℏKask — Planck's Constant of Agents           ║"
+    echo "╚══════════════════════════════════════════════════════════╝"
     echo ""
 
     case "$action" in

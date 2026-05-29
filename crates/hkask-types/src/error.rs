@@ -267,6 +267,29 @@ impl HkaskError {
     }
 }
 
+// =============================================================================
+// GitError — Git CAS errors
+// =============================================================================
+
+/// Git CAS errors for content-addressable storage operations
+#[derive(Debug, Error, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum GitError {
+    #[error("Crate not found: {0}")]
+    CrateNotFound(String),
+
+    #[error("Invalid path: {0}")]
+    InvalidPath(String),
+
+    #[error("IO error: {0}")]
+    Io(String),
+
+    #[error("Git error: {0}")]
+    Git(String),
+
+    #[error("Parse error: {0}")]
+    Parse(String),
+}
+
 // Conversions from common error types
 impl From<std::io::Error> for HkaskError {
     fn from(err: std::io::Error) -> Self {

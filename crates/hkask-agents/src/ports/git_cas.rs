@@ -1,16 +1,6 @@
 //! Git CAS Port — Hexagonal boundary for template crate loading
+//!
+//! The canonical `GitCASPort` trait definition lives in `hkask_types::ports`.
+//! This module re-exports it for backward compatibility.
 
-use crate::pod::TemplateCrate;
-
-/// Port trait for Git CAS operations
-///
-/// Implementations:
-/// - `GitCasAdapter` — Production adapter using gix
-pub trait GitCASPort: Send + Sync {
-    fn load_template_crate(
-        &self,
-        crate_name: &str,
-    ) -> Result<TemplateCrate, crate::error::GitError>;
-
-    fn resolve_sha(&self, crate_name: &str) -> Result<String, crate::error::GitError>;
-}
+pub use hkask_types::GitCASPort;

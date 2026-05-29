@@ -25,6 +25,7 @@ pub mod goal_capability;
 pub mod id;
 pub mod identity;
 pub mod lexicon;
+pub mod ports;
 pub mod secret;
 pub mod sovereignty;
 pub mod spec;
@@ -40,16 +41,20 @@ pub use audit::{AuditContext, AuditEntry, AuditLogPort, AuditOutcome};
 pub use capability::*;
 pub use cns::*;
 pub use curation::*;
-pub use error::{ArchivalResult, AuthorizationError, GitArchivalError, HkaskError, McpErrorKind};
+pub use error::{
+    ArchivalResult, AuthorizationError, GitArchivalError, GitError, HkaskError, McpErrorKind,
+};
 pub use event::*;
 pub use goal::*;
 pub use goal_capability::*;
 pub use id::*;
 pub use identity::*;
 pub use lexicon::{Domain, HLexicon, LexiconTerm, TemplateType};
+pub use ports::GitCASPort;
 pub use secret::{SecretRef, derivation_contexts};
 pub use sovereignty::{
-    AcquisitionResistance, DataCategory, DataSovereigntyBoundary, KillZoneDetector, SovereigntyId,
+    AcquisitionResistance, DataCategory, DataSovereigntyBoundary, KillZoneDetector,
+    SovereigntyCheckResult, SovereigntyId, SovereigntyOperation, SovereigntyPort,
     UserSovereigntyState,
 };
 pub use spec::{
@@ -57,8 +62,8 @@ pub use spec::{
     SpecError, SpecId, SpecObserver, SpecStore,
 };
 pub use template::{
-    HighTempTemplateType, LLMParameters, TemperatureRange, TemplateId, TemplateInvocation,
-    TemplateOutcome,
+    HighTempTemplateType, LLMParameters, TemperatureRange, TemplateCrate, TemplateFile, TemplateId,
+    TemplateInvocation, TemplateOutcome,
 };
 pub use text::{blake3_hash, estimate_tokens};
 pub use visibility::*;

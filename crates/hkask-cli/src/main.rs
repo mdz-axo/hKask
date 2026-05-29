@@ -479,7 +479,7 @@ fn main() {
                     println!("  [ALERT] Kill zone active - sovereignty compromised!");
                 }
             }
-            SovereigntyAction::CheckAccess { category } => {
+            SovereigntyAction::Access { category } => {
                 let owner = hkask_types::WebID::new();
                 let checker = hkask_agents::SovereigntyChecker::new(owner);
                 let state = checker.get_state();
@@ -728,25 +728,37 @@ fn main() {
 
         Commands::Spec { action } => match action {
             SpecAction::Capture {
-                description,
+                name,
                 category,
                 domain,
                 criteria,
             } => {
-                use hkask_types::{DomainAnchor, GoalSpec, Spec, SpecCategory};
+                use hkask_storage::SqliteSpecStore;
+                use hkask_types::{DomainAnchor, GoalSpec, Spec, SpecCategory, SpecId, SpecStore};
 
                 let cat = SpecCategory::parse_str(&category).unwrap_or(SpecCategory::Domain);
                 let anchor = DomainAnchor::parse_str(&domain).unwrap_or(DomainAnchor::Hkask);
 
-                let mut goal = GoalSpec::new(&description);
+                let mut goal = GoalSpec::new(&name);
                 if let Some(crits) = criteria {
                     for c in crits.split(',') {
                         goal = goal.with_criterion(c.trim());
                     }
                 }
 
-                let spec = Spec::new(&description, cat, anchor).with_goal(goal);
+                let spec = Spec::new(&name, cat, anchor).with_goal(goal);
                 let complete = spec.is_complete();
+
+                // Persist the spec to the database
+                let db_path =
+                    std::env::var("HKASK_DB_PATH").unwrap_or_else(|_| "hkask.db".to_string());
+                let conn = or_exit(
+                    rusqlite::Connection::open(&db_path),
+                    "Failed to open database",
+                );
+                let store = SqliteSpecStore::new(std::sync::Arc::new(std::sync::Mutex::new(conn)));
+                or_exit(store.init_schema(), "Failed to initialize spec schema");
+                or_exit(store.save(&spec), "Failed to save specification");
 
                 println!("Specification captured:");
                 println!("  ID: {}", spec.id);
@@ -766,25 +778,67 @@ fn main() {
                 println!("Evaluating specification: {}", spec_id);
                 println!("  Note: Evaluation requires hkask-mcp-spec server.");
             }
-            SpecAction::Validate { threshold } => {
-                println!(
-                    "Validating specification collection (threshold: {:.2})",
-                    threshold
-                );
-                println!("  Note: Validation requires hkask-mcp-spec server.");
-            }
-            SpecAction::Cultivate { threshold } => {
-                use hkask_types::SpecCategory;
+            SpecAction::Validate { id } => {
+                use hkask_storage::{DefaultSpecCurator, SqliteSpecStore};
+                use hkask_types::{SpecCurator, SpecId, SpecStore};
 
-                println!(
-                    "Cultivating specification collection (threshold: {:.2})",
-                    threshold
+                let spec_id = or_exit(SpecId::from_string(&id), "Invalid spec ID");
+
+                let db_path =
+                    std::env::var("HKASK_DB_PATH").unwrap_or_else(|_| "hkask.db".to_string());
+                let conn = or_exit(
+                    rusqlite::Connection::open(&db_path),
+                    "Failed to open database",
                 );
-                println!("  Categories required:");
+                let store = SqliteSpecStore::new(std::sync::Arc::new(std::sync::Mutex::new(conn)));
+                or_exit(store.init_schema(), "Failed to initialize spec schema");
+
+                let spec = or_exit(store.load(spec_id), "Failed to load specification");
+
+                let curator = DefaultSpecCurator::default();
+                let record = or_exit(curator.evaluate(&spec), "Failed to evaluate specification");
+
+                println!("Specification validation:");
+                println!("  ID: {}", record.spec_id);
+                println!("  Decision: {:?}", record.decision);
+                println!("  Rationale: {}", record.rationale);
+                println!("  Coherence: {:.2}", record.coherence_score);
+                println!("  Curated at: {}", record.curated_at);
+            }
+            SpecAction::Cultivate { id } => {
+                use hkask_storage::{DefaultSpecCurator, SqliteSpecStore};
+                use hkask_types::{SpecCategory, SpecCurator, SpecId, SpecStore};
+
+                let spec_id = or_exit(SpecId::from_string(&id), "Invalid spec ID");
+
+                let db_path =
+                    std::env::var("HKASK_DB_PATH").unwrap_or_else(|_| "hkask.db".to_string());
+                let conn = or_exit(
+                    rusqlite::Connection::open(&db_path),
+                    "Failed to open database",
+                );
+                let store = SqliteSpecStore::new(std::sync::Arc::new(std::sync::Mutex::new(conn)));
+                or_exit(store.init_schema(), "Failed to initialize spec schema");
+
+                let spec = or_exit(store.load(spec_id), "Failed to load specification");
+
+                let curator = DefaultSpecCurator::default();
+
+                // Evaluate the individual spec
+                let record = or_exit(curator.evaluate(&spec), "Failed to cultivate specification");
+
+                println!("Specification cultivation:");
+                println!("  ID: {}", record.spec_id);
+                println!("  Decision: {:?}", record.decision);
+                println!("  Rationale: {}", record.rationale);
+                println!("  Coherence: {:.2}", record.coherence_score);
+                println!("  Spec completeness: {}", spec.is_complete());
+                println!("  Spec coherence: {:.2}", spec.coherence());
+                println!();
+                println!("  Required categories for full collection coherence:");
                 for cat in SpecCategory::all() {
                     println!("    - {}", cat.as_str());
                 }
-                println!("  Note: Full cultivation requires hkask-mcp-spec server.");
             }
             SpecAction::Render { template, spec_id } => {
                 use hkask_storage::SqliteSpecStore;

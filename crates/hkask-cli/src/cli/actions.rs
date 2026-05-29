@@ -174,7 +174,7 @@ pub enum SovereigntyAction {
     KillZone,
 
     /// Check data access permissions
-    CheckAccess {
+    Access {
         /// Data category to check
         #[arg(short, long)]
         category: String,
@@ -555,9 +555,9 @@ pub enum KeystoreAction {
 pub enum SpecAction {
     /// Capture a goal as a binding specification
     Capture {
-        /// Goal description
-        #[arg()]
-        description: String,
+        /// Spec name (human-readable goal description)
+        #[arg(short, long)]
+        name: String,
 
         /// Spec category (domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation)
         #[arg(short, long, default_value = "domain")]
@@ -586,18 +586,18 @@ pub enum SpecAction {
         spec_id: String,
     },
 
-    /// Validate the full specification collection
+    /// Validate a specification by ID
     Validate {
-        /// Coherence threshold (0.0-1.0)
-        #[arg(short, long, default_value = "0.7")]
-        threshold: f64,
+        /// Specification ID to validate
+        #[arg(short, long)]
+        id: String,
     },
 
-    /// Show collection coherence and missing categories
+    /// Cultivate (evaluate) a specification by ID
     Cultivate {
-        /// Coherence threshold (0.0-1.0)
-        #[arg(short, long, default_value = "0.7")]
-        threshold: f64,
+        /// Specification ID to cultivate
+        #[arg(short, long)]
+        id: String,
     },
 
     /// Render a specification template with spec data

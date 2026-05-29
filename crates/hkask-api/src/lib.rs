@@ -32,6 +32,7 @@ use hkask_agents::adapters::git_cas::GitCasAdapter;
 use hkask_agents::adapters::mcp_runtime::McpRuntimeAdapter;
 use hkask_agents::adapters::memory_storage::MemoryStorageAdapter;
 use hkask_agents::consent::ConsentManager;
+use hkask_agents::curator::escalation::EscalationQueue;
 use hkask_agents::pod::PodManager;
 use hkask_cns::rate_limit::{RateLimitConfig, RateLimiter};
 use hkask_cns::spans::SpanEmitter;
@@ -79,6 +80,16 @@ pub struct ApiState {
     pub spec_store: Option<Arc<dyn hkask_types::SpecStore + Send + Sync>>,
     /// Consent manager for user sovereignty
     pub consent_manager: Arc<ConsentManager>,
+    /// Escalation queue for Curator escalations
+    pub escalation_queue: Arc<EscalationQueue>,
+    /// Git CAS adapter for template archival
+    pub git_cas: Arc<dyn hkask_agents::ports::GitCASPort>,
+    /// Standing ensemble sessions (keyed by session ID)
+    pub standing_sessions: Arc<
+        tokio::sync::RwLock<
+            HashMap<String, Arc<tokio::sync::RwLock<hkask_ensemble::StandingSession>>>,
+        >,
+    >,
 }
 
 impl ApiState {
@@ -100,6 +111,17 @@ impl ApiState {
                 .expect("in-memory db")
                 .conn_arc(),
         )));
+        let escalation_queue = Arc::new(
+            EscalationQueue::new(
+                hkask_storage::Database::in_memory()
+                    .expect("in-memory db")
+                    .conn_arc(),
+            )
+            .expect("escalation queue init"),
+        );
+        let git_cas: Arc<dyn hkask_agents::ports::GitCASPort> = Arc::new(GitCasAdapter::from_path(
+            PathBuf::from("/tmp/hkask-templates"),
+        ));
         Self {
             registry: Arc::new(tokio::sync::Mutex::new(registry)),
             mcp_runtime: Arc::new(mcp_runtime),
@@ -111,6 +133,9 @@ impl ApiState {
             ensemble_inferencer,
             spec_store: None,
             consent_manager,
+            escalation_queue,
+            git_cas,
+            standing_sessions: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
         }
     }
 
@@ -679,6 +704,8 @@ pub fn create_router(state: ApiState) -> OpenApiRouter {
         .merge(routes::soap_infer_router().into())
         .merge(routes::acp_router().into())
         .merge(routes::spec_router().into())
+        .merge(routes::curator_router().into())
+        .merge(routes::git_router().into())
         .layer(axum::middleware::from_fn_with_state(
             auth_service,
             middleware::auth_middleware,

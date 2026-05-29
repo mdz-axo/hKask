@@ -25,23 +25,10 @@ pub enum McpError {
 }
 
 /// Git CAS errors
-#[derive(Debug, Error)]
-pub enum GitError {
-    #[error("Crate not found: {0}")]
-    CrateNotFound(String),
-
-    #[error("Invalid path: {0}")]
-    InvalidPath(String),
-
-    #[error("IO error: {0}")]
-    Io(String),
-
-    #[error("Git error: {0}")]
-    Git(String),
-
-    #[error("Parse error: {0}")]
-    Parse(String),
-}
+///
+/// Re-exported from `hkask_types::GitError` for backward compatibility.
+/// The canonical definition lives in `hkask_types`.
+pub use hkask_types::GitError;
 
 /// Memory storage errors
 #[derive(Debug, Error)]

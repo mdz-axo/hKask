@@ -31,7 +31,7 @@ pub use algedonic::{
     RuntimeAlert,
 };
 pub use algedonic_escalation::{
-    AlgedonicEscalationAdapter, CalibrationRecord, EscalationAction, EscalationResult,
+    AcpSender, AlgedonicEscalationAdapter, CalibrationRecord, EscalationAction, EscalationResult,
     create_escalation_callback,
 };
 pub use bot_metrics::{

@@ -8,6 +8,14 @@ use crate::{
     ModelListResponse, ModelSearchQuery, PodStatusResponse, TemplateResponse, ToolResponse,
 };
 
+use crate::routes::{ArchiveRequest, ArchiveResponse, ResolveShaResponse};
+use crate::routes::{
+    DismissEscalationRequest, DismissEscalationResponse, EscalationEntryResponse,
+    EscalationStatsResponse, ListEscalationsResponse, MetacognitionStatusResponse,
+    ResolveEscalationRequest, ResolveEscalationResponse,
+};
+use crate::routes::{StandingStartRequest, StandingStartResponse, StandingStatusResponse};
+
 /// API documentation
 #[derive(OpenApi)]
 #[openapi(
@@ -27,6 +35,23 @@ use crate::{
         ModelEntry,
         ModelListResponse,
         ModelSearchQuery,
+        // Curator schemas
+        ListEscalationsResponse,
+        EscalationEntryResponse,
+        ResolveEscalationRequest,
+        ResolveEscalationResponse,
+        DismissEscalationRequest,
+        DismissEscalationResponse,
+        EscalationStatsResponse,
+        MetacognitionStatusResponse,
+        // Ensemble standing session schemas
+        StandingStartRequest,
+        StandingStartResponse,
+        StandingStatusResponse,
+        // Git schemas
+        ArchiveRequest,
+        ArchiveResponse,
+        ResolveShaResponse,
     )),
     tags(
         (name = "templates", description = "Template management"),
@@ -36,6 +61,10 @@ use crate::{
         (name = "cns", description = "CNS monitoring"),
         (name = "chat", description = "Curator chat interface"),
         (name = "models", description = "Okapi model catalog"),
+        (name = "curator", description = "Curator escalation and metacognition"),
+        (name = "ensemble", description = "Ensemble multi-agent coordination"),
+        (name = "git", description = "Git archival and resolution"),
+        (name = "acp", description = "ACP agent registration and management"),
     ),
     info(
         title = "hKask API",
