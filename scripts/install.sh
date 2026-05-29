@@ -197,7 +197,7 @@ install_rust() {
     else
         log "Installing Rust toolchain..."
 
-        if [ "$CI" != "true" ]; then
+        if [ "${CI:-}" != "true" ]; then
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.91
 
             if [ -f "$HOME/.cargo/env" ]; then
@@ -477,8 +477,8 @@ main() {
 
     echo ""
     echo "╔══════════════════════════════════════════════════════════╗"
-    echo "║                   hKask Installer                        ║"
-    echo "║           ℏKask — Planck's Constant of Agents           ║"
+    echo "║                    hKask Installer                      ║"
+    echo "║          ℏKask — Planck's Constant of Agents           ║"
     echo "╚══════════════════════════════════════════════════════════╝"
     echo ""
 

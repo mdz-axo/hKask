@@ -174,9 +174,9 @@ pub enum SovereigntyAction {
     KillZone,
 
     /// Check data access permissions
-    Access {
+    Check {
         /// Data category to check
-        #[arg(short, long)]
+        #[arg(long)]
         category: String,
     },
 }

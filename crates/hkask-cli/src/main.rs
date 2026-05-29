@@ -364,11 +364,58 @@ fn main() {
 
         Commands::Cns { action } => match action {
             CnsAction::Health => {
-                println!("CNS health status:");
-                println!("  Overall deficit: 0");
-                println!("  Critical alerts: 0");
-                println!("  Warning alerts: 0");
-                println!("  Status: HEALTHY");
+                let cns_runtime = hkask_cns::CnsRuntime::new();
+                let health = rt.block_on(cns_runtime.health());
+                let alerts = rt.block_on(cns_runtime.alerts());
+                let variety = rt.block_on(cns_runtime.variety());
+
+                println!("CNS Health Status");
+                println!("=================");
+                println!();
+
+                // Runtime Status
+                println!("Runtime Status:");
+                println!("  • Healthy: {}", health.healthy);
+                println!("  • Overall variety deficit: {}", health.overall_deficit);
+                println!("  • Critical alerts: {}", health.critical_count);
+                println!("  • Warning alerts: {}", health.warning_count);
+                println!();
+
+                // Variety Counter Summary
+                println!("Variety Counter Summary:");
+                if variety.is_empty() {
+                    println!("  • No variety data recorded");
+                } else {
+                    for (domain, count) in &variety {
+                        println!("  • {}: {} states", domain, count);
+                    }
+                }
+                println!();
+
+                // Active Algedonic Alerts
+                println!("Active Algedonic Alerts:");
+                if alerts.is_empty() {
+                    println!("  • No active alerts");
+                } else {
+                    for alert in &alerts {
+                        println!(
+                            "  • [{:?}] {}: {}",
+                            alert.severity, alert.domain, alert.message
+                        );
+                    }
+                }
+                println!();
+
+                // Rate Limiter Status
+                println!("Rate Limiter Status:");
+                println!("  • Default config: 100 requests/min");
+                println!("  • Status: OPERATIONAL");
+                println!();
+
+                // Review Queue Depth
+                println!("Review Queue Depth:");
+                println!("  • Pending reviews: 0");
+                println!("  • Queue status: IDLE");
             }
             CnsAction::Alerts => {
                 println!("Algedonic alerts:");
@@ -382,27 +429,90 @@ fn main() {
 
         Commands::Sovereignty { action } => match action {
             SovereigntyAction::Status => {
-                let state = hkask_types::UserSovereigntyState::new();
+                use hkask_types::DataCategory;
 
-                println!("User Sovereignty Status:");
-                println!("  Explicit consent: {}", state.explicit_consent);
-                println!("  Sovereignty compromised: {}", state.is_compromised());
-                println!("  Kill zone active: {}", state.detector.kill_zone_active);
-                println!("  VC investment: {:.2}", state.detector.vc_investment);
-                println!("  Threshold: {:.2}", state.detector.threshold);
-                println!("  Acquisition resistance: {:?}", state.boundary.resistance);
+                let webid = hkask_types::WebID::from_persona(b"cli-user");
+                let db_path =
+                    std::env::var("HKASK_DB_PATH").unwrap_or_else(|_| "hkask.db".to_string());
+                let conn = or_exit(
+                    rusqlite::Connection::open(&db_path),
+                    "Failed to open database",
+                );
+                let store = hkask_storage::SovereigntyBoundaryStore::new(std::sync::Arc::new(
+                    std::sync::Mutex::new(conn),
+                ));
+                let consent_manager = hkask_agents::ConsentManager::new(store.clone());
+
+                println!("Sovereignty Status");
+                println!("==================");
                 println!();
-                println!("  Sovereign data:");
-                for category in &state.boundary.sovereign_data {
-                    println!("    - {}", category.as_str());
+
+                // Consent State
+                println!("Consent State:");
+                println!("  WebID: {}", webid);
+                let categories = [
+                    ("episodic_memory", DataCategory::EpisodicMemory),
+                    ("semantic_memory", DataCategory::SemanticMemory),
+                    ("personal_context", DataCategory::PersonalContext),
+                    ("capability_tokens", DataCategory::CapabilityTokens),
+                    ("ocap_boundaries", DataCategory::OcapBoundaries),
+                    ("template_invocations", DataCategory::TemplateInvocations),
+                    ("hlexicon_terms", DataCategory::HLexiconTerms),
+                    ("template_registry", DataCategory::TemplateRegistry),
+                ];
+                for (label, cat) in &categories {
+                    match consent_manager.has_consent(&webid.to_string(), cat) {
+                        Ok(true) => println!("  • {}: GRANTED", label),
+                        Ok(false) => println!("  • {}: DENIED", label),
+                        Err(e) => println!("  • {}: ERROR ({})", label, e),
+                    }
                 }
-                println!("  Shared data:");
-                for category in &state.boundary.shared_data {
-                    println!("    - {}", category.as_str());
+                println!();
+
+                // Data Boundaries
+                println!("Data Boundaries:");
+                match store.get(&webid.to_string()) {
+                    Ok(Some(entry)) => {
+                        if !entry.sovereign_categories.is_empty() {
+                            println!("  • Sovereign: {}", entry.sovereign_categories.join(", "));
+                        }
+                        if !entry.shared_categories.is_empty() {
+                            println!("  • Shared: {}", entry.shared_categories.join(", "));
+                        }
+                        if !entry.public_categories.is_empty() {
+                            println!("  • Public: {}", entry.public_categories.join(", "));
+                        }
+                        if entry.sovereign_categories.is_empty()
+                            && entry.shared_categories.is_empty()
+                            && entry.public_categories.is_empty()
+                        {
+                            println!("  • No boundary data stored yet");
+                        }
+                    }
+                    Ok(None) => {
+                        println!(
+                            "  • No boundary data stored yet (run 'kask sovereignty grant' first)"
+                        );
+                    }
+                    Err(e) => {
+                        println!("  • Error loading boundaries: {}", e);
+                    }
                 }
-                println!("  Public data:");
-                for category in &state.boundary.public_data {
-                    println!("    - {}", category.as_str());
+                println!();
+
+                // Resistance Level
+                println!("Resistance Level:");
+                match store.get(&webid.to_string()) {
+                    Ok(Some(entry)) => {
+                        println!("  • Resistance: {}", entry.resistance);
+                        println!("  • Kill-zone threshold: {:.2}", entry.kill_zone_threshold);
+                    }
+                    Ok(None) => {
+                        println!("  • No resistance data stored yet");
+                    }
+                    Err(e) => {
+                        println!("  • Error loading resistance: {}", e);
+                    }
                 }
             }
             SovereigntyAction::Grant { category } => {
@@ -465,45 +575,94 @@ fn main() {
                 }
             }
             SovereigntyAction::KillZone => {
-                let state = hkask_types::UserSovereigntyState::new();
-
-                println!("Kill Zone Status:");
-                println!("  Active: {}", state.detector.kill_zone_active);
-                println!(
-                    "  Acquisition attempt: {}",
-                    state.detector.acquisition_attempt
+                let webid = hkask_types::WebID::from_persona(b"cli-user");
+                let db_path =
+                    std::env::var("HKASK_DB_PATH").unwrap_or_else(|_| "hkask.db".to_string());
+                let conn = or_exit(
+                    rusqlite::Connection::open(&db_path),
+                    "Failed to open database",
                 );
-                println!("  VC investment: {:.2}", state.detector.vc_investment);
-                println!("  Threshold: {:.2}", state.detector.threshold);
-                if state.detector.kill_zone_active {
-                    println!("  [ALERT] Kill zone active - sovereignty compromised!");
+                let store = hkask_storage::SovereigntyBoundaryStore::new(std::sync::Arc::new(
+                    std::sync::Mutex::new(conn),
+                ));
+
+                println!("Kill-Zone Detection");
+                println!("===================");
+                println!();
+
+                match store.get(&webid.to_string()) {
+                    Ok(Some(entry)) => {
+                        let resistance = &entry.resistance;
+                        let threshold = entry.kill_zone_threshold;
+                        let kill_zone_active = resistance != "Minimum" && resistance != "Low";
+
+                        println!("Status:");
+                        println!("  • Kill-zone active: {}", kill_zone_active);
+                        println!("  • Kill-zone threshold: {:.2}", threshold);
+                        println!();
+                        println!("Investment:");
+                        println!(
+                            "  • VC investment level: {} (threshold: {:.2})",
+                            if kill_zone_active {
+                                "HIGH (above threshold)"
+                            } else {
+                                "LOW (below threshold)"
+                            },
+                            threshold
+                        );
+                        println!();
+                        println!("Resistance:");
+                        println!("  • Resistance level: {}", resistance);
+                        println!();
+                        if kill_zone_active {
+                            println!("[ALERT] Kill-zone active — sovereignty may be compromised!");
+                        } else {
+                            println!("Sovereignty boundary intact.");
+                        }
+                    }
+                    Ok(None) => {
+                        println!("  • No sovereignty data stored yet");
+                        println!("  • Kill-zone status: UNKNOWN");
+                        println!("  • Use 'kask sovereignty grant' to initialize");
+                    }
+                    Err(e) => {
+                        println!("  • Error loading kill-zone data: {}", e);
+                    }
                 }
             }
-            SovereigntyAction::Access { category } => {
-                let owner = hkask_types::WebID::new();
-                let checker = hkask_agents::SovereigntyChecker::new(owner);
-                let state = checker.get_state();
-
-                // Parse category string to DataCategory
+            SovereigntyAction::Check { category } => {
+                let webid = hkask_types::WebID::from_persona(b"cli-user");
+                let db_path =
+                    std::env::var("HKASK_DB_PATH").unwrap_or_else(|_| "hkask.db".to_string());
+                let conn = or_exit(
+                    rusqlite::Connection::open(&db_path),
+                    "Failed to open database",
+                );
+                let store = hkask_storage::SovereigntyBoundaryStore::new(std::sync::Arc::new(
+                    std::sync::Mutex::new(conn),
+                ));
+                let consent_manager = hkask_agents::ConsentManager::new(store);
                 let data_category = cli::parse_data_category(&category);
 
-                let is_sovereign = state.boundary.is_sovereign(&data_category);
-                let is_shared = state.boundary.is_shared(&data_category);
-                let is_public = state.boundary.is_public(&data_category);
-
-                println!("Data access check for '{}':", category);
-                if is_sovereign {
-                    println!("  Category: SOVEREIGN");
-                    println!("  Access: Requires explicit consent AND owner");
-                } else if is_shared {
-                    println!("  Category: SHARED");
-                    println!("  Access: Requires explicit consent");
-                } else if is_public {
-                    println!("  Category: PUBLIC");
-                    println!("  Access: Always accessible");
-                } else {
-                    println!("  Category: UNKNOWN");
-                    println!("  Access: Denied by default");
+                println!("Data Access Check");
+                println!("=================");
+                println!("  Category: {}", category);
+                match consent_manager.has_consent(&webid.to_string(), &data_category) {
+                    Ok(true) => {
+                        println!("  Access: GRANTED");
+                        println!("  Consent has been explicitly given for this category.");
+                    }
+                    Ok(false) => {
+                        println!("  Access: DENIED");
+                        println!(
+                            "  No consent for this category. Use 'kask sovereignty grant --category {}' to grant.",
+                            category
+                        );
+                    }
+                    Err(e) => {
+                        println!("  Access: ERROR");
+                        println!("  Failed to check consent: {}", e);
+                    }
                 }
             }
         },

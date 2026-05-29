@@ -152,8 +152,6 @@ jobs:
 
       - name: Build release binary
         run: cargo build --release --package hkask-cli --target ${{ matrix.target }}
-        env:
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
 
       - name: Package binary
         run: |
