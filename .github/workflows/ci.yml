@@ -158,14 +158,15 @@ jobs:
       - name: Run integration tests
         run: cargo test --workspace --tests
 
-      - name: Upload test results
+      - name: Upload test binary metadata
         uses: actions/upload-artifact@v4
-        if: always()
+        if: failure()
         with:
-          name: test-results
+          name: test-failure-logs
           path: |
-            target/debug/deps/*.d
-          retention-days: 7
+            target/debug/deps/*.log
+            target/debug/.fingerprint/
+          retention-days: 3
 
   # ============================================================================
   # Cybernetic Unit Tests
@@ -229,7 +230,7 @@ jobs:
 
       - name: No wildcard capabilities
         run: |
-          violations=$(grep -rn '"\\*"' crates/ --include="*.rs" | grep -v "cfg(test)" | grep -v "test_" | grep -v "registry.rs" || true)
+          violations=$(grep -rn '"\*"' crates/ --include="*.rs" | grep -v "cfg(test)" | grep -v "test_" | grep -v "registry.rs" || true)
           if [ -n "$violations" ]; then
             echo "SECURITY INVARIANT VIOLATED: Wildcard capabilities detected:"
             echo "$violations"
@@ -238,7 +239,7 @@ jobs:
 
       - name: No hardcoded secrets
         run: |
-          violations=$(grep -rn 'OKAPI_DEV_KEY\|password\s*=\s*"' crates/ --include="*.rs" || true)
+          violations=$(grep -rn 'OKAPI_DEV_KEY\|password[[:space:]]*=[[:space:]]*"' crates/ --include="*.rs" || true)
           if [ -n "$violations" ]; then
             echo "SECURITY INVARIANT VIOLATED: Hardcoded secrets detected:"
             echo "$violations"
