@@ -241,7 +241,7 @@ clone_repo() {
     local clone_dir="${XDG_CACHE_HOME:-$HOME/.cache}/hkask-build"
     log "Cloning hKask repository..."
     rm -rf "$clone_dir"
-    git clone --depth 1 --branch "${HKASK_VERSION}" "$HKASK_REPO_URL" "$clone_dir" 2>/dev/null || \
+    git clone --depth 1 --branch "v${HKASK_VERSION}" "$HKASK_REPO_URL" "$clone_dir" 2>/dev/null || \
         git clone --depth 1 "$HKASK_REPO_URL" "$clone_dir"
     HKASK_SOURCE_DIR="$clone_dir"
     log_success "Repository cloned to $HKASK_SOURCE_DIR"
