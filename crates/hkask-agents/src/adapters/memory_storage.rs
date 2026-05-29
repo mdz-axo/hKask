@@ -46,8 +46,14 @@ impl MemoryStoragePort for MemoryStorageAdapter {
         artifact_type: &str,
         content: Value,
         visibility: &str,
-        _token: &CapabilityToken,
+        token: &CapabilityToken,
     ) -> Result<String, MemoryError> {
+        // Validate capability token allows storage operations
+        if token.action == hkask_types::CapabilityAction::Read {
+            return Err(MemoryError::CapabilityDenied(
+                "Token has read-only action, write required for storage".to_string(),
+            ));
+        }
         let visibility = match visibility.to_lowercase().as_str() {
             "public" => Visibility::Public,
             "shared" => Visibility::Shared,
@@ -109,7 +115,19 @@ impl MemoryStoragePort for MemoryStorageAdapter {
         }
     }
 
-    fn recall(&self, query: &str, _token: &CapabilityToken) -> Result<Vec<Value>, MemoryError> {
+    fn recall(&self, query: &str, token: &CapabilityToken) -> Result<Vec<Value>, MemoryError> {
+        // Validate capability token allows read operations
+        match token.action {
+            hkask_types::CapabilityAction::Read
+            | hkask_types::CapabilityAction::Execute
+            | hkask_types::CapabilityAction::Validate => {}
+            _ => {
+                return Err(MemoryError::CapabilityDenied(
+                    "Token does not grant read access for recall".to_string(),
+                ));
+            }
+        }
+
         let triples = self
             .triple_store
             .query_by_entity(query)

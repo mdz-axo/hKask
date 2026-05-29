@@ -17,6 +17,8 @@ pub enum AuditLogError {
     Database(#[from] rusqlite::Error),
     #[error("Serialization error: {0}")]
     Serialization(#[from] serde_json::Error),
+    #[error("Lock poisoned: {0}")]
+    LockPoisoned(String),
 }
 
 /// Storage-layer audit entry optimized for SQL serialization
@@ -119,7 +121,10 @@ impl AuditLogStore {
     }
 
     pub fn insert(&self, entry: &AuditEntry) -> Result<(), AuditLogError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| AuditLogError::LockPoisoned(e.to_string()))?;
         conn.execute(
             "INSERT INTO audit_log (id, timestamp, actor_webid, action, resource, outcome, details, ip_address)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
@@ -138,7 +143,10 @@ impl AuditLogStore {
     }
 
     pub fn query_recent(&self, limit: usize) -> Result<Vec<AuditEntry>, AuditLogError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| AuditLogError::LockPoisoned(e.to_string()))?;
         let mut stmt = conn.prepare(
             "SELECT id, timestamp, actor_webid, action, resource, outcome, details, ip_address
              FROM audit_log
@@ -171,7 +179,10 @@ impl AuditLogStore {
         actor_webid: &str,
         limit: usize,
     ) -> Result<Vec<AuditEntry>, AuditLogError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| AuditLogError::LockPoisoned(e.to_string()))?;
         let mut stmt = conn.prepare(
             "SELECT id, timestamp, actor_webid, action, resource, outcome, details, ip_address
              FROM audit_log
@@ -201,7 +212,10 @@ impl AuditLogStore {
     }
 
     pub fn prune_retain_last(&self, keep: usize) -> Result<usize, AuditLogError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| AuditLogError::LockPoisoned(e.to_string()))?;
         let deleted = conn.execute(
             "DELETE FROM audit_log WHERE id NOT IN (SELECT id FROM audit_log ORDER BY timestamp DESC LIMIT ?1)",
             rusqlite::params![keep as i64],
@@ -210,7 +224,10 @@ impl AuditLogStore {
     }
 
     pub fn count(&self) -> Result<usize, AuditLogError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| AuditLogError::LockPoisoned(e.to_string()))?;
         let count: i64 = conn.query_row("SELECT COUNT(*) FROM audit_log", [], |row| row.get(0))?;
         Ok(count as usize)
     }

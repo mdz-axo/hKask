@@ -11,6 +11,7 @@ pub mod goals;
 pub mod metacognition;
 pub mod nu_event_store;
 pub mod revocation_store;
+pub mod security;
 pub mod sovereignty;
 pub mod spec_store;
 pub mod standing_session;
@@ -28,6 +29,7 @@ pub use goals::{GoalRepositoryError, Result as GoalResult, SqliteGoalRepository}
 pub use metacognition::{MetacognitionError, MetacognitionStore, StoredSnapshot};
 pub use nu_event_store::{NuEventError, NuEventStore};
 pub use revocation_store::{RevocationError, RevocationRecord, RevocationStore};
+pub use security::sanitize_path;
 pub use sovereignty::{
     SovereigntyBoundaryEntry, SovereigntyBoundaryStore, SovereigntyStoreError,
     SovereigntyStoreStats,

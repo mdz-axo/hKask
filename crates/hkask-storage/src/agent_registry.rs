@@ -15,6 +15,8 @@ pub enum AgentRegistryError {
     NotFound(String),
     #[error("Agent already registered: {0}")]
     AlreadyRegistered(String),
+    #[error("Lock poisoned: {0}")]
+    LockPoisoned(String),
 }
 
 #[derive(Clone)]
@@ -28,7 +30,10 @@ impl AgentRegistryStore {
     }
 
     pub fn initialize_schema(&self) -> Result<(), AgentRegistryError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| AgentRegistryError::LockPoisoned(e.to_string()))?;
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS agent_registry (
                 name TEXT PRIMARY KEY,
@@ -44,7 +49,10 @@ impl AgentRegistryStore {
     }
 
     pub fn insert(&self, agent: &RegisteredAgent) -> Result<(), AgentRegistryError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| AgentRegistryError::LockPoisoned(e.to_string()))?;
         let definition_json = serde_json::to_string(&agent.definition)?;
 
         conn.execute(
@@ -63,7 +71,10 @@ impl AgentRegistryStore {
     }
 
     pub fn get(&self, name: &str) -> Result<RegisteredAgent, AgentRegistryError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| AgentRegistryError::LockPoisoned(e.to_string()))?;
         let mut stmt = conn.prepare(
             "SELECT definition_json, token_hash, registered_at, source_yaml
              FROM agent_registry WHERE name = ?1",
@@ -89,7 +100,10 @@ impl AgentRegistryStore {
     }
 
     pub fn list(&self) -> Result<Vec<RegisteredAgent>, AgentRegistryError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| AgentRegistryError::LockPoisoned(e.to_string()))?;
         let mut stmt = conn.prepare(
             "SELECT definition_json, token_hash, registered_at, source_yaml
              FROM agent_registry ORDER BY name",
@@ -122,7 +136,10 @@ impl AgentRegistryStore {
         &self,
         kind: AgentKind,
     ) -> Result<Vec<RegisteredAgent>, AgentRegistryError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| AgentRegistryError::LockPoisoned(e.to_string()))?;
         let mut stmt = conn.prepare(
             "SELECT definition_json, token_hash, registered_at, source_yaml
              FROM agent_registry WHERE agent_kind = ?1 ORDER BY name",
@@ -152,7 +169,10 @@ impl AgentRegistryStore {
     }
 
     pub fn exists(&self, name: &str) -> Result<bool, AgentRegistryError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| AgentRegistryError::LockPoisoned(e.to_string()))?;
         let count: i64 = conn.query_row(
             "SELECT COUNT(*) FROM agent_registry WHERE name = ?1",
             rusqlite::params![name],
@@ -162,7 +182,10 @@ impl AgentRegistryStore {
     }
 
     pub fn remove(&self, name: &str) -> Result<(), AgentRegistryError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| AgentRegistryError::LockPoisoned(e.to_string()))?;
         let deleted = conn.execute(
             "DELETE FROM agent_registry WHERE name = ?1",
             rusqlite::params![name],
@@ -174,7 +197,10 @@ impl AgentRegistryStore {
     }
 
     pub fn count(&self) -> Result<usize, AgentRegistryError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| AgentRegistryError::LockPoisoned(e.to_string()))?;
         let count: i64 =
             conn.query_row("SELECT COUNT(*) FROM agent_registry", [], |row| row.get(0))?;
         Ok(count as usize)

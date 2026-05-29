@@ -154,10 +154,11 @@ impl VarietyMonitor {
     }
 
     /// Check if any domain exceeds the deficit threshold
-    pub fn exceeds_threshold(&self, threshold: u64) -> bool {
+    /// Uses `expected_variety` as the baseline for deficit calculation
+    pub fn exceeds_threshold(&self, threshold: u64, expected_variety: u64) -> bool {
         self.counters
             .values()
-            .any(|c| c.deficit(u64::MAX) > threshold)
+            .any(|c| c.deficit(expected_variety) > threshold)
     }
 }
 

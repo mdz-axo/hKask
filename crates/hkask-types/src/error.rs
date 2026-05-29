@@ -228,10 +228,6 @@ pub enum HkaskError {
 
     #[error("Invalid input: {0}")]
     InvalidInput(String),
-
-    // Generic fallback
-    #[error("{0}")]
-    Other(String),
 }
 
 impl HkaskError {
@@ -267,7 +263,6 @@ impl HkaskError {
             Self::Config(_) | Self::Validation(_) | Self::InvalidInput(_) => {
                 McpErrorKind::InvalidArgument
             }
-            Self::Other(_) => McpErrorKind::Internal,
         }
     }
 }
@@ -282,17 +277,5 @@ impl From<std::io::Error> for HkaskError {
 impl From<serde_json::Error> for HkaskError {
     fn from(err: serde_json::Error) -> Self {
         HkaskError::Serialization(err.to_string())
-    }
-}
-
-impl From<String> for HkaskError {
-    fn from(s: String) -> Self {
-        HkaskError::Other(s)
-    }
-}
-
-impl From<&str> for HkaskError {
-    fn from(s: &str) -> Self {
-        HkaskError::Other(s.to_string())
     }
 }

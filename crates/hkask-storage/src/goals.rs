@@ -31,6 +31,9 @@ pub enum GoalRepositoryError {
 
     #[error("Subgoal depth exceeded (max 7): {0}")]
     MaxDepthExceeded(String),
+
+    #[error("Lock poisoned: {0}")]
+    LockPoisoned(String),
 }
 
 pub type Result<T> = std::result::Result<T, GoalRepositoryError>;
@@ -129,7 +132,7 @@ impl SqliteGoalRepository {
 
         let goal = Goal::new(*webid, text, visibility);
 
-        self.conn.lock().unwrap().execute(
+        self.conn.lock().map_err(|e| GoalRepositoryError::LockPoisoned(e.to_string()))?.execute(
             "INSERT INTO goals (id, webid, text, state, visibility, depth) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             (goal.id.to_string(), goal.webid.to_string(), goal.text.clone(), goal.state.as_str(), goal.visibility.as_str(), goal.depth as i32),
         )?;
@@ -141,7 +144,10 @@ impl SqliteGoalRepository {
         self.verify_capability(token, GoalOp::Read)?;
 
         let goal = {
-            let conn = self.conn.lock().unwrap();
+            let conn = self
+                .conn
+                .lock()
+                .map_err(|e| GoalRepositoryError::LockPoisoned(e.to_string()))?;
             let mut stmt = conn.prepare("SELECT id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth FROM goals WHERE id = ?1")?;
             let mut rows = stmt.query([goal_id.to_string()])?;
 
@@ -173,7 +179,10 @@ impl SqliteGoalRepository {
             None
         };
 
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| GoalRepositoryError::LockPoisoned(e.to_string()))?;
         if let Some(completed) = completed_at {
             conn.execute(
                 "UPDATE goals SET state = ?1, completed_at = ?2 WHERE id = ?3",
@@ -199,7 +208,10 @@ impl SqliteGoalRepository {
 
         let mut goals = Vec::new();
 
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| GoalRepositoryError::LockPoisoned(e.to_string()))?;
         match state_filter {
             Some(state) => {
                 let mut stmt = conn.prepare("SELECT id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth FROM goals WHERE webid = ?1 AND state = ?2 ORDER BY created_at DESC")?;
@@ -240,7 +252,7 @@ impl SqliteGoalRepository {
     ) -> Result<()> {
         self.verify_capability(token, GoalOp::Update)?;
 
-        self.conn.lock().unwrap().execute(
+        self.conn.lock().map_err(|e| GoalRepositoryError::LockPoisoned(e.to_string()))?.execute(
             "INSERT INTO goal_criteria (id, goal_id, type, description, satisfied) VALUES (?1, ?2, ?3, ?4, ?5)",
             (criterion.id, criterion.goal_id.to_string(), criterion.criterion_type, criterion.description, criterion.satisfied as i32),
         )?;
@@ -255,7 +267,7 @@ impl SqliteGoalRepository {
     ) -> Result<()> {
         self.verify_capability(token, GoalOp::AddArtifact)?;
 
-        self.conn.lock().unwrap().execute(
+        self.conn.lock().map_err(|e| GoalRepositoryError::LockPoisoned(e.to_string()))?.execute(
             "INSERT INTO goal_artifacts (id, goal_id, artifact_ref, artifact_type, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
             (artifact.id, artifact.goal_id.to_string(), artifact.artifact_ref, artifact.artifact_type, artifact.created_at.to_rfc3339()),
         )?;
@@ -269,7 +281,10 @@ impl SqliteGoalRepository {
     ) -> Result<Vec<GoalCriterion>> {
         self.verify_capability(token, GoalOp::Read)?;
 
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| GoalRepositoryError::LockPoisoned(e.to_string()))?;
         let mut stmt = conn.prepare("SELECT id, goal_id, type, description, satisfied FROM goal_criteria WHERE goal_id = ?1")?;
         let rows = stmt.query_map([goal_id.to_string()], |row| {
             Ok(GoalCriterion {
@@ -296,7 +311,10 @@ impl SqliteGoalRepository {
     ) -> Result<Vec<GoalArtifact>> {
         self.verify_capability(token, GoalOp::Read)?;
 
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| GoalRepositoryError::LockPoisoned(e.to_string()))?;
         let mut stmt = conn.prepare("SELECT id, goal_id, artifact_ref, artifact_type, created_at FROM goal_artifacts WHERE goal_id = ?1")?;
         let rows = stmt.query_map([goal_id.to_string()], |row| {
             Ok(GoalArtifact {
@@ -341,7 +359,7 @@ impl SqliteGoalRepository {
 
         let subgoal = Goal::new(*webid, text, visibility).with_parent(parent_id, parent.depth);
 
-        self.conn.lock().unwrap().execute(
+        self.conn.lock().map_err(|e| GoalRepositoryError::LockPoisoned(e.to_string()))?.execute(
             "INSERT INTO goals (id, webid, text, state, visibility, parent_goal_id, depth) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             (subgoal.id.to_string(), subgoal.webid.to_string(), subgoal.text.clone(), subgoal.state.as_str(), subgoal.visibility.as_str(), parent_id.to_string(), subgoal.depth as i32),
         )?;
@@ -356,7 +374,10 @@ impl SqliteGoalRepository {
     ) -> Result<Vec<Goal>> {
         self.verify_capability(token, GoalOp::Read)?;
 
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| GoalRepositoryError::LockPoisoned(e.to_string()))?;
         let mut stmt = conn.prepare("SELECT id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth FROM goals WHERE parent_goal_id = ?1 ORDER BY created_at ASC")?;
         let rows = stmt.query_map([parent_id.to_string()], Self::goal_from_row)?;
 

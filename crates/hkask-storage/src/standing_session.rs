@@ -13,6 +13,8 @@ pub enum StandingSessionError {
     Serialization(#[from] serde_json::Error),
     #[error("Session not found: {0}")]
     NotFound(String),
+    #[error("Lock poisoned: {0}")]
+    LockPoisoned(String),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,7 +46,10 @@ impl StandingSessionStore {
     }
 
     pub fn initialize_schema(&self) -> Result<(), StandingSessionError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| StandingSessionError::LockPoisoned(e.to_string()))?;
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS standing_sessions (
                 session_id TEXT PRIMARY KEY,
@@ -67,7 +72,10 @@ impl StandingSessionStore {
     }
 
     pub fn save_session(&self, session: &StoredSession) -> Result<(), StandingSessionError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| StandingSessionError::LockPoisoned(e.to_string()))?;
         conn.execute(
             "INSERT OR REPLACE INTO standing_sessions (session_id, config_yaml, created_at, last_active)
              VALUES (?1, ?2, ?3, ?4)",
@@ -82,7 +90,10 @@ impl StandingSessionStore {
     }
 
     pub fn get_session(&self, session_id: &str) -> Result<StoredSession, StandingSessionError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| StandingSessionError::LockPoisoned(e.to_string()))?;
         let mut stmt = conn.prepare(
             "SELECT session_id, config_yaml, created_at, last_active
              FROM standing_sessions WHERE session_id = ?1",
@@ -108,7 +119,10 @@ impl StandingSessionStore {
     }
 
     pub fn list_sessions(&self) -> Result<Vec<StoredSession>, StandingSessionError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| StandingSessionError::LockPoisoned(e.to_string()))?;
         let mut stmt = conn.prepare(
             "SELECT session_id, config_yaml, created_at, last_active
              FROM standing_sessions ORDER BY last_active DESC",
@@ -136,7 +150,10 @@ impl StandingSessionStore {
     }
 
     pub fn save_message(&self, message: &StoredMessage) -> Result<i64, StandingSessionError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| StandingSessionError::LockPoisoned(e.to_string()))?;
         conn.execute(
             "INSERT INTO session_messages (session_id, from_webid, content, timestamp, template_id)
              VALUES (?1, ?2, ?3, ?4, ?5)",
@@ -155,7 +172,10 @@ impl StandingSessionStore {
         &self,
         session_id: &str,
     ) -> Result<Vec<StoredMessage>, StandingSessionError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| StandingSessionError::LockPoisoned(e.to_string()))?;
         let mut stmt = conn.prepare(
             "SELECT id, session_id, from_webid, content, timestamp, template_id
              FROM session_messages WHERE session_id = ?1 ORDER BY id ASC",
@@ -187,7 +207,10 @@ impl StandingSessionStore {
     }
 
     pub fn update_last_active(&self, session_id: &str) -> Result<(), StandingSessionError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| StandingSessionError::LockPoisoned(e.to_string()))?;
         let now = chrono::Utc::now().to_rfc3339();
         conn.execute(
             "UPDATE standing_sessions SET last_active = ?1 WHERE session_id = ?2",
@@ -197,7 +220,10 @@ impl StandingSessionStore {
     }
 
     pub fn delete_session(&self, session_id: &str) -> Result<(), StandingSessionError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| StandingSessionError::LockPoisoned(e.to_string()))?;
         conn.execute(
             "DELETE FROM session_messages WHERE session_id = ?1",
             rusqlite::params![session_id],

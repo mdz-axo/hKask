@@ -15,6 +15,10 @@
 //! - Distributed verification via Paxos/CRDT lazy consistency
 //! - No central authority required — capabilities verified cryptographically
 
+/// System-wide maximum attenuation depth.
+/// Tokens with max_attenuation exceeding this value are rejected at verification time.
+pub const SYSTEM_MAX_ATTENUATION: u8 = 7;
+
 mod verification;
 
 pub use verification::{CapabilityChecker, VerificationResult};
@@ -546,8 +550,14 @@ impl CapabilityToken {
     /// Returns true if:
     /// - Root nonce matches expected_root
     /// - attenuation_level <= expected_level
+    /// - max_attenuation does not exceed SYSTEM_MAX_ATTENUATION
     /// - Nonce format is valid (root-attenuated-uuid-attenuated-uuid...)
     pub fn verify_attenuation_chain(&self, expected_root: &str, expected_level: u8) -> bool {
+        // Reject tokens whose self-attested max_attenuation exceeds the system limit
+        if self.max_attenuation > SYSTEM_MAX_ATTENUATION {
+            return false;
+        }
+
         let root = self.root_context_nonce();
         if root != expected_root {
             return false;

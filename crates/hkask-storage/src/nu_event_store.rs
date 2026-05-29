@@ -14,6 +14,8 @@ pub enum NuEventError {
     Database(#[from] rusqlite::Error),
     #[error("Serialization error: {0}")]
     Serialization(#[from] serde_json::Error),
+    #[error("Lock poisoned: {0}")]
+    LockPoisoned(String),
 }
 
 pub struct NuEventStore {
@@ -26,7 +28,10 @@ impl NuEventStore {
     }
 
     pub fn insert(&self, event: &NuEvent) -> Result<(), NuEventError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| NuEventError::LockPoisoned(e.to_string()))?;
         let (span_category, span_path) = span_to_columns(&event.span);
 
         conn.execute(
@@ -55,7 +60,10 @@ impl NuEventStore {
         span_category: &str,
         limit: usize,
     ) -> Result<Vec<NuEvent>, NuEventError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| NuEventError::LockPoisoned(e.to_string()))?;
         let mut stmt = conn.prepare(
             "SELECT id, timestamp, observer_webid, span_category, span_path, phase, observation, regulation, outcome, recursion_depth, parent_event, visibility
              FROM nu_events
@@ -93,7 +101,10 @@ impl NuEventStore {
         observer: &WebID,
         limit: usize,
     ) -> Result<Vec<NuEvent>, NuEventError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| NuEventError::LockPoisoned(e.to_string()))?;
         let mut stmt = conn.prepare(
             "SELECT id, timestamp, observer_webid, span_category, span_path, phase, observation, regulation, outcome, recursion_depth, parent_event, visibility
              FROM nu_events
@@ -130,7 +141,10 @@ impl NuEventStore {
     }
 
     pub fn query_recent(&self, limit: usize) -> Result<Vec<NuEvent>, NuEventError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| NuEventError::LockPoisoned(e.to_string()))?;
         let mut stmt = conn.prepare(
             "SELECT id, timestamp, observer_webid, span_category, span_path, phase, observation, regulation, outcome, recursion_depth, parent_event, visibility
              FROM nu_events
@@ -163,7 +177,10 @@ impl NuEventStore {
     }
 
     pub fn prune_older_than(&self, cutoff: DateTime<Utc>) -> Result<usize, NuEventError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| NuEventError::LockPoisoned(e.to_string()))?;
         let deleted = conn.execute(
             "DELETE FROM nu_events WHERE timestamp < ?1",
             rusqlite::params![cutoff.to_rfc3339()],
@@ -172,7 +189,10 @@ impl NuEventStore {
     }
 
     pub fn count(&self) -> Result<usize, NuEventError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| NuEventError::LockPoisoned(e.to_string()))?;
         let count: i64 = conn.query_row("SELECT COUNT(*) FROM nu_events", [], |row| row.get(0))?;
         Ok(count as usize)
     }
@@ -275,6 +295,7 @@ impl hkask_types::NuEventSink for NuEventStore {
             NuEventError::Serialization(msg) => {
                 hkask_types::NuEventSinkError::Serialization(msg.to_string())
             }
+            NuEventError::LockPoisoned(msg) => hkask_types::NuEventSinkError::Database(msg),
         })
     }
 }

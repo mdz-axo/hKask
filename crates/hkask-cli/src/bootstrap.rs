@@ -14,12 +14,13 @@ use hkask_cns::{
     AlgedonicEscalationAdapter, BotMetricsCollector, CnsRuntime, SpanCategory, SpanEmitter,
     SpanScope, span_scope_for_bot,
 };
+use hkask_keystore::derive_all_internal_secrets;
 use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::sync::Arc;
 use thiserror::Error;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 /// Bootstrap phase identifiers
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -246,6 +247,25 @@ impl BootstrapSequence {
     /// Phase 2: Security — Bootstrap SecurityGateway, mint root capability, create OCAP boundaries
     fn phase_security(&self) -> Result<(), BootstrapError> {
         info!(target: "bootstrap", "Security phase: Creating root capability");
+
+        // Derive all internal secrets from master key if available
+        match std::env::var("HKASK_MASTER_KEY") {
+            Ok(master_key) => {
+                let secrets = derive_all_internal_secrets(&master_key);
+                info!(
+                    target: "bootstrap",
+                    "Security phase: Derived all 4 internal secrets from HKASK_MASTER_KEY"
+                );
+                let _ = secrets; // Secrets will be used by ACP, MCP, API, OCAP subsystems
+            }
+            Err(_) => {
+                warn!(
+                    target: "bootstrap",
+                    "HKASK_MASTER_KEY not set — falling back to per-secret env vars or keychain. \
+                     Set HKASK_MASTER_KEY for deterministic secret derivation across restarts."
+                );
+            }
+        }
 
         let bot_definitions = Self::r7_bot_definitions();
         for bot_def in &bot_definitions {

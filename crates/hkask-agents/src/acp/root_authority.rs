@@ -9,7 +9,8 @@
 //! - Attenuation chain: each delegation reduces authority
 
 use hkask_types::{
-    CapabilityAction, CapabilityResource, CapabilityToken, CapabilityTokenBuilder, WebID,
+    CapabilityAction, CapabilityResource, CapabilityToken, CapabilityTokenBuilder,
+    SYSTEM_MAX_ATTENUATION, WebID,
 };
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -71,7 +72,7 @@ impl RootAuthority {
             self.root_webid,
             delegated_to,
         )
-        .attenuation(0, 7)
+        .attenuation(0, SYSTEM_MAX_ATTENUATION)
         .context_nonce(context_nonce)
         .sign(self.root_secret.as_ref());
 

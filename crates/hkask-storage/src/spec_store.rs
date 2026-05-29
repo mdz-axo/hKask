@@ -17,7 +17,10 @@ impl SqliteSpecStore {
     }
 
     pub fn init_schema(&self) -> Result<(), SpecError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| SpecError::Storage(format!("Lock poisoned: {}", e)))?;
         conn.execute(
             "CREATE TABLE IF NOT EXISTS specs (
                 id TEXT PRIMARY KEY,
@@ -37,7 +40,10 @@ impl SqliteSpecStore {
 
 impl SpecStore for SqliteSpecStore {
     fn load(&self, id: SpecId) -> Result<Spec, SpecError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| SpecError::Storage(format!("Lock poisoned: {}", e)))?;
         let mut stmt = conn
             .prepare("SELECT data FROM specs WHERE id = ?1")
             .map_err(|e| SpecError::Storage(e.to_string()))?;
@@ -48,7 +54,10 @@ impl SpecStore for SqliteSpecStore {
     }
 
     fn save(&self, spec: &Spec) -> Result<(), SpecError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| SpecError::Storage(format!("Lock poisoned: {}", e)))?;
         let data = serde_json::to_string(spec).map_err(|e| SpecError::Storage(e.to_string()))?;
         let signed_by = spec.signed_by.map(|w| w.to_string());
         conn.execute(
@@ -69,7 +78,10 @@ impl SpecStore for SqliteSpecStore {
     }
 
     fn delete(&self, id: SpecId) -> Result<(), SpecError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| SpecError::Storage(format!("Lock poisoned: {}", e)))?;
         let changed = conn
             .execute(
                 "DELETE FROM specs WHERE id = ?1",
@@ -83,7 +95,10 @@ impl SpecStore for SqliteSpecStore {
     }
 
     fn list_all(&self) -> Result<Vec<Spec>, SpecError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| SpecError::Storage(format!("Lock poisoned: {}", e)))?;
         let mut stmt = conn
             .prepare("SELECT data FROM specs")
             .map_err(|e| SpecError::Storage(e.to_string()))?;
@@ -104,7 +119,10 @@ impl SpecStore for SqliteSpecStore {
     }
 
     fn list_by_category(&self, cat: SpecCategory) -> Result<Vec<Spec>, SpecError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| SpecError::Storage(format!("Lock poisoned: {}", e)))?;
         let mut stmt = conn
             .prepare("SELECT data FROM specs WHERE category = ?1")
             .map_err(|e| SpecError::Storage(e.to_string()))?;

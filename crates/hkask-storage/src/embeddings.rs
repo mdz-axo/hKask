@@ -11,6 +11,8 @@ pub enum EmbeddingError {
     Database(#[from] rusqlite::Error),
     #[error("Dimension mismatch: expected {expected}, got {got}")]
     DimensionMismatch { expected: usize, got: usize },
+    #[error("Lock poisoned: {0}")]
+    LockPoisoned(String),
 }
 
 #[derive(Debug, Clone)]
@@ -60,7 +62,10 @@ impl EmbeddingStore {
     }
 
     pub fn insert(&self, embedding: &Embedding) -> Result<(), EmbeddingError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| EmbeddingError::LockPoisoned(e.to_string()))?;
         let vector_bytes = Self::vector_to_bytes(&embedding.vector);
         let entity_ref = embedding.entity_ref.map(|e| e.0.to_string());
 

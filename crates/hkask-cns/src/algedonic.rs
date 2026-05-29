@@ -6,13 +6,15 @@
 //! Per architecture v0.21.0: Variety deficit >100 → escalate to Curator/human
 
 use crate::variety::{VarietyMonitor, VarietyTracker};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::time::{Duration, Instant};
+use std::collections::HashMap;
+use std::time::Duration;
 use tracing::{error, warn};
 
-/// Default Instant for serde skip deserialization
-fn default_instant() -> Instant {
-    Instant::now()
+/// Default DateTime for serde deserialization
+fn default_datetime() -> DateTime<Utc> {
+    Utc::now()
 }
 
 /// Callback type for escalation notifications
@@ -20,6 +22,9 @@ pub type EscalationCallback = dyn Fn(&RuntimeAlert) + Send + Sync;
 
 /// Default algedonic alert threshold (variety deficit)
 pub const DEFAULT_THRESHOLD: u64 = 100;
+
+/// Default expected variety per domain
+pub const DEFAULT_EXPECTED_VARIETY: u64 = 10;
 
 /// Alert severity levels
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -40,8 +45,8 @@ pub struct RuntimeAlert {
     pub threshold: u64,
     pub severity: AlertSeverity,
     pub escalated: bool,
-    #[serde(skip, default = "default_instant")]
-    pub timestamp: Instant,
+    #[serde(default = "default_datetime")]
+    pub timestamp: DateTime<Utc>,
     pub message: String,
 }
 
@@ -61,7 +66,7 @@ impl RuntimeAlert {
             threshold,
             severity,
             escalated: severity == AlertSeverity::Critical,
-            timestamp: Instant::now(),
+            timestamp: Utc::now(),
             message: format!(
                 "Variety deficit {} in domain '{}' (threshold: {})",
                 deficit, domain, threshold
@@ -85,17 +90,25 @@ impl RuntimeAlert {
 /// Algedonic alert manager
 pub struct AlgedonicManager {
     threshold: u64,
+    default_expected_variety: u64,
+    expected_variety: HashMap<String, u64>,
     alerts: Vec<RuntimeAlert>,
     escalation_callback: Option<Box<EscalationCallback>>,
-}
 
 impl AlgedonicManager {
-    pub fn new(threshold: u64) -> Self {
+    pub fn new(threshold: u64, default_expected_variety: u64) -> Self {
         Self {
             threshold,
+            default_expected_variety,
+            expected_variety: HashMap::new(),
             alerts: Vec::new(),
             escalation_callback: None,
         }
+    }
+
+    /// Set expected variety for a specific domain
+    pub fn set_expected_variety(&mut self, domain: &str, expected: u64) {
+        self.expected_variety.insert(domain.to_string(), expected);
     }
 
     pub fn with_escalation_callback<F>(mut self, callback: F) -> Self
@@ -108,7 +121,12 @@ impl AlgedonicManager {
 
     /// Check variety counter and generate alert if needed
     pub fn check(&mut self, counter: &VarietyTracker, domain: &str) -> Option<&RuntimeAlert> {
-        let deficit = counter.deficit(u64::MAX); // Total variety deficit
+        let expected = self
+            .expected_variety
+            .get(domain)
+            .copied()
+            .unwrap_or(self.default_expected_variety);
+        let deficit = counter.deficit(expected);
         let alert = RuntimeAlert::new(domain, deficit, self.threshold);
 
         if alert.should_escalate() {
@@ -167,7 +185,8 @@ impl AlgedonicManager {
 
     /// Clear old alerts (older than duration)
     pub fn clear_old(&mut self, max_age: Duration) {
-        let cutoff = Instant::now() - max_age;
+        let chrono_dur = chrono::Duration::from_std(max_age).unwrap_or(chrono::Duration::zero());
+        let cutoff = Utc::now() - chrono_dur;
         self.alerts.retain(|a| a.timestamp > cutoff);
     }
 

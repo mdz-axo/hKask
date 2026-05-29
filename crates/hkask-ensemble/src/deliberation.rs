@@ -169,7 +169,11 @@ impl DeliberationSession {
 
         let mut individual_responses: Vec<AgentResponse> =
             self.responses.values().cloned().collect();
-        individual_responses.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap());
+        individual_responses.sort_by(|a, b| {
+            b.confidence
+                .partial_cmp(&a.confidence)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         let synthesized = individual_responses
             .iter()

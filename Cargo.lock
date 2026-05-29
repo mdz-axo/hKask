@@ -2126,6 +2126,7 @@ dependencies = [
  "hkask-cns",
  "hkask-cybertest",
  "hkask-keystore",
+ "hkask-storage",
  "hkask-templates",
  "hkask-types",
  "reqwest",

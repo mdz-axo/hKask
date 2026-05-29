@@ -7,6 +7,7 @@
 use hkask_agents::GitCASPort;
 use hkask_agents::SovereigntyChecker;
 use hkask_cns::spans::SpanEmitter;
+use hkask_storage::sanitize_path;
 use hkask_types::{ArchivalResult, DataCategory, GitArchivalError, WebID};
 use serde_json::json;
 
@@ -81,6 +82,11 @@ impl ArchivalService {
             }),
         );
 
+        // Validate path to prevent traversal attacks
+        let base = std::path::Path::new("/");
+        let sanitized_path =
+            sanitize_path(base, path).map_err(|e| GitArchivalError::InvalidPath(e.to_string()))?;
+
         self.check_sovereignty(requester, "git_archive")?;
         self.check_git_adapter("git_archive")?;
 
@@ -89,7 +95,7 @@ impl ArchivalService {
         })?;
 
         let sha = git_cas
-            .resolve_sha(&format!("{}/{}/{}", owner, repo, path))
+            .resolve_sha(&format!("{}/{}/{}", owner, repo, sanitized_path.display()))
             .map_err(|e| GitArchivalError::CommitFailed(e.to_string()))?;
 
         self.span_emitter.emit_tool(

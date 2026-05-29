@@ -26,7 +26,10 @@ pub mod runtime;
 pub mod spans;
 pub mod variety;
 
-pub use algedonic::{AlertSeverity, AlgedonicManager, CnsHealth, DEFAULT_THRESHOLD, RuntimeAlert};
+pub use algedonic::{
+    AlertSeverity, AlgedonicManager, CnsHealth, DEFAULT_EXPECTED_VARIETY, DEFAULT_THRESHOLD,
+    RuntimeAlert,
+};
 pub use algedonic_escalation::{
     AlgedonicEscalationAdapter, CalibrationRecord, EscalationAction, EscalationResult,
     create_escalation_callback,
