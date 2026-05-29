@@ -27,7 +27,7 @@ const ADMIN_SALT: &[u8; 14] = b"hkask-admin-v1";
 fn hash_admin_passphrase(passphrase: &str) -> Result<String, KeychainError> {
     let key = crate::encryption::derive_key(passphrase, ADMIN_SALT)
         .map_err(|e| KeychainError::Encryption(e.to_string()))?;
-    Ok(hex::encode(&*key))
+    Ok(hex::encode(*key))
 }
 
 /// Store the admin passphrase hash in the OS keychain.

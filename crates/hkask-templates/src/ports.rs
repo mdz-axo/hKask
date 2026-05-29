@@ -136,10 +136,12 @@ pub struct YamlManifestFile {
 impl ProcessManifest {
     /// Load a process manifest from a YAML file path
     pub fn load_from_yaml(path: &std::path::Path) -> std::result::Result<Self, TemplateError> {
-        let content = std::fs::read_to_string(path)
-            .map_err(|e| TemplateError::Manifest(format!("Failed to read {}: {}", path.display(), e)))?;
-        let file: YamlManifestFile = serde_yaml::from_str(&content)
-            .map_err(|e| TemplateError::Manifest(format!("Failed to parse {}: {}", path.display(), e)))?;
+        let content = std::fs::read_to_string(path).map_err(|e| {
+            TemplateError::Manifest(format!("Failed to read {}: {}", path.display(), e))
+        })?;
+        let file: YamlManifestFile = serde_yaml::from_str(&content).map_err(|e| {
+            TemplateError::Manifest(format!("Failed to parse {}: {}", path.display(), e))
+        })?;
         Ok(file.manifest)
     }
 }

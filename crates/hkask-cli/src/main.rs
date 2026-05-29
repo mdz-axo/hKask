@@ -126,6 +126,7 @@ fn main() {
 
 // ── Command Handlers ───────────────────────────────────────────────────────
 
+#[allow(clippy::too_many_arguments)]
 fn run_chat(
     rt: &tokio::runtime::Runtime,
     registry: &SqliteRegistry,
@@ -745,7 +746,7 @@ fn run_docs(action: DocsAction) {
 }
 
 fn run_registry(
-    rt: &tokio::runtime::Runtime,
+    _rt: &tokio::runtime::Runtime,
     registry: &mut SqliteRegistry,
     action: RegistryAction,
 ) {

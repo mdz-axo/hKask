@@ -134,10 +134,10 @@ impl StandingSession {
 
             // If this entry matches an R7 bot identity, use its domains
             // (the YAML domains take precedence, then fall back to R7 bot defaults)
-            if capabilities.is_empty() {
-                if let Some(r7_bot) = r7_bots.get(&entry.agent) {
-                    capabilities = r7_bot.domains.clone();
-                }
+            if capabilities.is_empty()
+                && let Some(r7_bot) = r7_bots.get(&entry.agent)
+            {
+                capabilities = r7_bot.domains.clone();
             }
 
             let participant = ChatParticipant {

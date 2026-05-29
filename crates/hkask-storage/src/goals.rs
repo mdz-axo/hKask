@@ -34,6 +34,9 @@ pub enum GoalRepositoryError {
 
     #[error("Lock poisoned: {0}")]
     LockPoisoned(String),
+
+    #[error("Corrupt persisted goal data: {0}")]
+    Corrupt(String),
 }
 
 pub type Result<T> = std::result::Result<T, GoalRepositoryError>;
@@ -81,6 +84,50 @@ impl SqliteGoalRepository {
         Ok(())
     }
 
+    /// Authority must be co-located with the effect it gates: a write needs not
+    /// only a valid capability for the operation, but also that the holder's
+    /// WebID is the goal owner (or has been granted access). This closes the
+    /// confused-deputy gap where any valid Update/Complete token could mutate
+    /// *any* goal regardless of ownership.
+    fn check_write_access(&self, goal: &Goal, requester_webid: &WebID) -> Result<()> {
+        if !GoalAccess::check(goal, requester_webid).can_write() {
+            return Err(GoalRepositoryError::VisibilityDenied(format!(
+                "WebID {} cannot modify goal {} (visibility {:?})",
+                requester_webid, goal.id, goal.visibility
+            )));
+        }
+        Ok(())
+    }
+
+    /// Admin authority (delete) is restricted to the goal owner.
+    fn check_admin_access(&self, goal: &Goal, requester_webid: &WebID) -> Result<()> {
+        if !GoalAccess::check(goal, requester_webid).can_admin() {
+            return Err(GoalRepositoryError::VisibilityDenied(format!(
+                "WebID {} is not the owner of goal {} and cannot administer it",
+                requester_webid, goal.id
+            )));
+        }
+        Ok(())
+    }
+
+    /// Load a goal directly (no capability gate) for internal authorization
+    /// checks. Callers must have already verified the capability token.
+    fn load_goal(&self, goal_id: GoalID) -> Result<Goal> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| GoalRepositoryError::LockPoisoned(e.to_string()))?;
+        let mut stmt = conn.prepare("SELECT id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth FROM goals WHERE id = ?1")?;
+        let mut rows = stmt.query([goal_id.to_string()])?;
+        match rows.next()? {
+            Some(row) => Ok(Self::goal_from_row(row)?),
+            None => Err(GoalRepositoryError::NotFound(format!(
+                "Goal {} not found",
+                goal_id
+            ))),
+        }
+    }
+
     pub fn goal_from_row(row: &rusqlite::Row) -> rusqlite::Result<Goal> {
         let id_str: String = row.get(0)?;
         let webid_str: String = row.get(1)?;
@@ -94,17 +141,28 @@ impl SqliteGoalRepository {
 
         let id = GoalID::from_string(&id_str);
         let webid = WebID::from_string(&webid_str);
-        let state = GoalState::parse_str(&state_str).unwrap_or(GoalState::Pending);
-        let visibility = Visibility::parse_str(&visibility_str).unwrap_or(Visibility::Private);
+        // Persisted enum/timestamp columns are authority- and lifecycle-bearing.
+        // Corruption must surface as an error, never be silently coerced to a
+        // default (which could, e.g., reopen a terminal goal or downgrade
+        // visibility). Map parse failures to a real SQLite conversion error so
+        // they propagate through `query_map` and become `GoalRepositoryError`.
+        let state =
+            GoalState::parse_str(&state_str).ok_or_else(|| corrupt_column(3, &state_str))?;
+        let visibility = Visibility::parse_str(&visibility_str)
+            .ok_or_else(|| corrupt_column(4, &visibility_str))?;
         let created_at = chrono::DateTime::parse_from_rfc3339(&created_at)
             .map(|dt| dt.with_timezone(&Utc))
-            .unwrap_or_else(|_| Utc::now());
-        let completed_at = completed_at.and_then(|s| {
-            chrono::DateTime::parse_from_rfc3339(&s)
-                .map(|dt| dt.with_timezone(&Utc))
-                .ok()
-        });
+            .map_err(|_| corrupt_column(5, &created_at))?;
+        let completed_at = match completed_at {
+            Some(s) => Some(
+                chrono::DateTime::parse_from_rfc3339(&s)
+                    .map(|dt| dt.with_timezone(&Utc))
+                    .map_err(|_| corrupt_column(6, &s))?,
+            ),
+            None => None,
+        };
         let parent_goal_id = parent_goal_id.map(|s| GoalID::from_string(&s));
+        let depth = u8::try_from(depth).map_err(|_| corrupt_column(8, &depth.to_string()))?;
 
         Ok(Goal {
             id,
@@ -115,9 +173,21 @@ impl SqliteGoalRepository {
             created_at,
             completed_at,
             parent_goal_id,
-            depth: depth as u8,
+            depth,
         })
     }
+}
+
+/// Build a SQLite conversion error describing a corrupt persisted column.
+fn corrupt_column(index: usize, value: &str) -> rusqlite::Error {
+    rusqlite::Error::FromSqlConversionFailure(
+        index,
+        rusqlite::types::Type::Text,
+        Box::new(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!("unparseable goal column {index}: {value:?}"),
+        )),
+    )
 }
 
 impl SqliteGoalRepository {

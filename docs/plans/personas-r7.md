@@ -1,3 +1,13 @@
+---
+title: "R7 Personas — Individual Threads in the Legion"
+audience: [persona designers, replicant authors, contributors]
+last_updated: 2026-05-29
+version: "0.1.0"
+status: "Draft"
+domain: "Curation"
+ddmvss_categories: [curation, capability]
+---
+
 # R7 Personas — Individual Threads in the Legion
 
 ## Shared Core

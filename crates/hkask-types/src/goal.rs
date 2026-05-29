@@ -57,6 +57,30 @@ impl GoalState {
             GoalState::Completed | GoalState::Blocked | GoalState::Abandoned
         )
     }
+
+    /// Whether a transition from `self` to `next` is legal.
+    ///
+    /// The lifecycle is expressed as a total match so illegal transitions are
+    /// caught at the repository boundary rather than silently applied. A
+    /// terminal state (Completed/Abandoned) admits no further transitions;
+    /// `Blocked` may resume to `Active`. Re-stating the current state is a
+    /// no-op and always permitted.
+    pub fn can_transition_to(&self, next: GoalState) -> bool {
+        if *self == next {
+            return true;
+        }
+        match (self, next) {
+            (GoalState::Pending, GoalState::Active)
+            | (GoalState::Pending, GoalState::Abandoned)
+            | (GoalState::Active, GoalState::Blocked)
+            | (GoalState::Active, GoalState::Completed)
+            | (GoalState::Active, GoalState::Abandoned)
+            | (GoalState::Blocked, GoalState::Active)
+            | (GoalState::Blocked, GoalState::Abandoned) => true,
+            // Completed and Abandoned are terminal; all other moves illegal.
+            _ => false,
+        }
+    }
 }
 
 /// Goal criterion — completion condition (LLM-judged)
@@ -203,5 +227,60 @@ impl GoalVerification {
             reason: reason.to_string(),
             confidence: confidence.clamp(0.0, 1.0),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn legal_lifecycle_transitions_are_permitted() {
+        assert!(GoalState::Pending.can_transition_to(GoalState::Active));
+        assert!(GoalState::Active.can_transition_to(GoalState::Completed));
+        assert!(GoalState::Active.can_transition_to(GoalState::Blocked));
+        assert!(GoalState::Blocked.can_transition_to(GoalState::Active));
+        assert!(GoalState::Pending.can_transition_to(GoalState::Abandoned));
+    }
+
+    #[test]
+    fn terminal_states_admit_no_transitions_to_other_states() {
+        // Self-restatement is always a no-op; a terminal state must reject every
+        // move to a *different* state.
+        for terminal in [GoalState::Completed, GoalState::Abandoned] {
+            for next in [
+                GoalState::Pending,
+                GoalState::Active,
+                GoalState::Completed,
+                GoalState::Blocked,
+                GoalState::Abandoned,
+            ] {
+                if next == terminal {
+                    continue;
+                }
+                assert!(
+                    !terminal.can_transition_to(next),
+                    "{terminal:?} must be terminal (attempted -> {next:?})"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn restating_current_state_is_a_noop() {
+        for state in [
+            GoalState::Pending,
+            GoalState::Active,
+            GoalState::Completed,
+            GoalState::Blocked,
+            GoalState::Abandoned,
+        ] {
+            assert!(state.can_transition_to(state));
+        }
+    }
+
+    #[test]
+    fn pending_cannot_jump_to_completed() {
+        assert!(!GoalState::Pending.can_transition_to(GoalState::Completed));
     }
 }
