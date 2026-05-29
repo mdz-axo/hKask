@@ -1077,23 +1077,22 @@ status: VERIFIED
 | `spec/graph/query` | `{query, depth}` | `{nodes[], edges[], paths[]}` | `recognize`, `match` |
 | `spec/graph/validate` | `{collection_id}` | `{violations[], suggestions[]}` | `evaluate`, `ground` |
 
-### 6.4 LOC Budget
+### 6.4 Implementation Estimate
 
-| Component | Estimated LOC |
-|-----------|--------------|
-| `hkask-mcp-spec` (3-file MCP server) | ~500 |
-| `hkask-types/src/spec.rs` (domain types) | ~120 |
-| `hkask-types/src/event.rs` (Span::Spec variant) | ~10 |
-| `hkask-types/src/capability.rs` (Spec resource, Validate action) | ~20 |
-| `hkask-types/src/lexicon.rs` (9 bootstrap terms) | ~30 |
-| `hkask-cli` (spec subcommands) | ~150 |
-| `hkask-api` (spec routes) | ~100 |
-| Jinja2 templates (6 files) | ~120 |
-| YAML manifests + bot manifest | ~100 |
-| Tests (unit + integration) | ~200 |
-| **Total** | **~1,350** |
+| Component | Estimated Scope |
+|-----------|----------------|
+| `hkask-mcp-spec` (3-file MCP server) | Core server |
+| `hkask-types/src/spec.rs` (domain types) | Domain types |
+| `hkask-types/src/event.rs` (Span::Spec variant) | Span variant |
+| `hkask-types/src/capability.rs` (Spec resource, Validate action) | Capability types |
+| `hkask-types/src/lexicon.rs` (9 bootstrap terms) | Lexicon terms |
+| `hkask-cli` (spec subcommands) | CLI surface |
+| `hkask-api` (spec routes) | API surface |
+| Jinja2 templates (6 files) | Templates |
+| YAML manifests + bot manifest | Manifests |
+| Tests (unit + integration) | Test coverage |
 
-**Budget constraint:** Total new code ≤ 1,500 LOC. `hkask-mcp-spec` ≤ 500 LOC.
+**Discipline:** Every component is essential and minimal — ask "is this necessary?" before "how big is it?"
 
 ---
 
@@ -1177,7 +1176,7 @@ The security hardening completed in ADV-REVIEW-F2 (T01-T22, 2026-05-24) implemen
 
 **Next Steps:**
 
-- Implement `hkask-mcp-spec` MCP server (~500 LOC, see §6.4 LOC budget)
+- Implement `hkask-mcp-spec` MCP server (~500 LOC, see §6.4 Implementation Estimate)
 - Add `Spec` resource and `Validate` action to `hkask-types/src/capability.rs`
 - Add `cns.spec.*` span namespace to `hkask-types/src/event.rs`
 - Register spec templates in unified registry

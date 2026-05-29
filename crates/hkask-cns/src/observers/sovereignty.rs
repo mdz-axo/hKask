@@ -102,10 +102,13 @@ impl SovereigntyObserver {
     /// # Arguments
     /// * `event` — Sovereignty event to process
     pub fn process_event(&self, event: SovereigntyEvent) {
-        let mut state = self
-            .state
-            .write()
-            .expect("SovereigntyObserver state lock poisoned");
+        let mut state = match self.state.write() {
+            Ok(guard) => guard,
+            Err(e) => {
+                error!(target: "cns.observer.sovereignty", error = %e, "State lock poisoned during process_event");
+                return;
+            }
+        };
 
         state.total_events += 1;
 
@@ -171,10 +174,13 @@ impl SovereigntyObserver {
 
     /// Trigger an algedonic alert
     fn trigger_algedonic_alert(&self, webid: &WebID, domain: &str, deficit: u64, message: &str) {
-        let mut manager = self
-            .algedonic_manager
-            .write()
-            .expect("AlgedonicManager lock poisoned");
+        let mut manager = match self.algedonic_manager.write() {
+            Ok(guard) => guard,
+            Err(e) => {
+                error!(target: "cns.observer.sovereignty", error = %e, "AlgedonicManager lock poisoned during trigger_algedonic_alert");
+                return;
+            }
+        };
 
         error!(
             target: "cns.observer.sovereignty",
@@ -205,41 +211,44 @@ impl SovereigntyObserver {
 
     /// Get current observer state
     pub fn get_state(&self) -> SovereigntyObserverState {
-        let state = self
-            .state
-            .read()
-            .expect("SovereigntyObserver state lock poisoned");
-        (*state).clone()
+        match self.state.read() {
+            Ok(state) => (*state).clone(),
+            Err(e) => {
+                error!(target: "cns.observer.sovereignty", error = %e, "State lock poisoned during get_state");
+                SovereigntyObserverState::default()
+            }
+        }
     }
 
     /// Get acquisition attempt count for a WebID
     pub fn get_acquisition_count(&self, webid: &WebID) -> u64 {
-        self.state
-            .read()
-            .expect("SovereigntyObserver state lock poisoned")
-            .acquisition_attempts
-            .get(webid)
-            .copied()
-            .unwrap_or(0)
+        match self.state.read() {
+            Ok(state) => state.acquisition_attempts.get(webid).copied().unwrap_or(0),
+            Err(e) => {
+                error!(target: "cns.observer.sovereignty", error = %e, "State lock poisoned during get_acquisition_count");
+                0
+            }
+        }
     }
 
     /// Get boundary violation count for a WebID
     pub fn get_violation_count(&self, webid: &WebID) -> u64 {
-        self.state
-            .read()
-            .expect("SovereigntyObserver state lock poisoned")
-            .boundary_violations
-            .get(webid)
-            .copied()
-            .unwrap_or(0)
+        match self.state.read() {
+            Ok(state) => state.boundary_violations.get(webid).copied().unwrap_or(0),
+            Err(e) => {
+                error!(target: "cns.observer.sovereignty", error = %e, "State lock poisoned during get_violation_count");
+                0
+            }
+        }
     }
 
     /// Reset observer state
     pub fn reset(&self) {
-        let mut state = self
-            .state
-            .write()
-            .expect("SovereigntyObserver state lock poisoned");
-        *state = SovereigntyObserverState::default();
+        match self.state.write() {
+            Ok(mut state) => *state = SovereigntyObserverState::default(),
+            Err(e) => {
+                error!(target: "cns.observer.sovereignty", error = %e, "State lock poisoned during reset")
+            }
+        }
     }
 }

@@ -131,7 +131,7 @@ graph TB
         MD[Cascade Files<br/>.yaml]
     end
     
-    subgraph "Hard Layer (Fixed — 35k LOC Budget)"
+    subgraph "Hard Layer (Fixed)"
         HKASK_TYPES[hkask-types<br/>ID types, ν-event, hLexicon]
         HKASK_STORAGE[hkask-storage<br/>SQLite + SQLCipher]
         HKASK_TEMPLATES[hkask-templates<br/>Registry, Manifest Executor]
