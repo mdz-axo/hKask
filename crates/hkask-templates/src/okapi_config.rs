@@ -88,3 +88,82 @@ pub fn validate_prompt(prompt: &str) -> Result<(), String> {
     }
     Ok(())
 }
+
+// ---------------------------------------------------------------------------
+// Okapi Model Catalog — /api/tags
+// ---------------------------------------------------------------------------
+
+/// A model entry from Okapi's `/api/tags` endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OkapiModelEntry {
+    pub name: String,
+    pub model: String,
+    #[serde(default)]
+    pub modified_at: Option<String>,
+    #[serde(default)]
+    pub size: Option<u64>,
+    #[serde(default)]
+    pub details: Option<OkapiModelDetails>,
+}
+
+/// Model details from Okapi.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OkapiModelDetails {
+    #[serde(default)]
+    pub parent_model: Option<String>,
+    #[serde(default)]
+    pub format: Option<String>,
+    #[serde(default)]
+    pub family: Option<String>,
+    #[serde(default)]
+    pub families: Option<Vec<String>>,
+    #[serde(default)]
+    pub parameter_size: Option<String>,
+    #[serde(default)]
+    pub quantization_level: Option<String>,
+}
+
+/// Response from Okapi's `/api/tags` endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OkapiTagsResponse {
+    pub models: Vec<OkapiModelEntry>,
+}
+
+/// List available models from Okapi via the `/api/tags` endpoint.
+///
+/// Returns model entries with name, size, family, and parameter info.
+/// If Okapi is unreachable, returns an empty list (graceful degradation).
+pub async fn list_okapi_models(config: &OkapiConfig) -> Vec<OkapiModelEntry> {
+    let client = match config.build_client() {
+        Ok(c) => c,
+        Err(_) => return Vec::new(),
+    };
+
+    let mut request = client.get(format!("{}/api/tags", config.base_url));
+    if let Some(ref auth) = config.api_key {
+        request = request.bearer_auth(auth);
+    }
+
+    match request.send().await {
+        Ok(resp) => match resp.json::<OkapiTagsResponse>().await {
+            Ok(tags) => tags.models,
+            Err(_) => Vec::new(),
+        },
+        Err(_) => Vec::new(),
+    }
+}
+
+/// Fuzzy-search available models from Okapi.
+///
+/// Filters model names case-insensitively by the query string.
+pub async fn search_okapi_models(config: &OkapiConfig, query: &str) -> Vec<OkapiModelEntry> {
+    let models = list_okapi_models(config).await;
+    if query.is_empty() {
+        return models;
+    }
+    let lower = query.to_lowercase();
+    models
+        .into_iter()
+        .filter(|m| m.name.to_lowercase().contains(&lower))
+        .collect()
+}

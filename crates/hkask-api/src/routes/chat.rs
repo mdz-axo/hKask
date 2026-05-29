@@ -26,7 +26,7 @@ async fn chat(State(_state): State<ApiState>, Json(req): Json<ChatRequest>) -> J
     use hkask_types::LLMParameters;
 
     let config = OkapiConfig::local_dev();
-    let model = "qwen3:8b";
+    let model = req.model.as_deref().unwrap_or("qwen3:8b");
 
     let inference = match OkapiInference::new(model, config) {
         Ok(i) => i,
@@ -34,6 +34,7 @@ async fn chat(State(_state): State<ApiState>, Json(req): Json<ChatRequest>) -> J
             return Json(ChatResponse {
                 output: format!("Failed to initialize Okapi: {}", e),
                 template_id: req.template_id.unwrap_or("error".to_string()),
+                model: model.to_string(),
             });
         }
     };
@@ -72,5 +73,6 @@ async fn chat(State(_state): State<ApiState>, Json(req): Json<ChatRequest>) -> J
     Json(ChatResponse {
         output,
         template_id: req.template_id.unwrap_or("auto-select".to_string()),
+        model: model.to_string(),
     })
 }

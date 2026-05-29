@@ -15,7 +15,7 @@ pub use markdown::generate_cli_markdown;
 #[command(name = "kask")]
 #[command(author = "hKask Team")]
 #[command(version)]
-#[command(about = "Planck's Constant of Agent Systems - CLI", long_about = None)]
+#[command(about = "A Minimal Viable Container for Agents - CLI", long_about = None)]
 pub struct Cli {
     /// Enable verbose output
     #[arg(short, long)]
@@ -40,6 +40,10 @@ pub enum Commands {
         /// Optional: template ID to use
         #[arg(short, long)]
         template: Option<String>,
+
+        /// Optional: model to use for inference (e.g., "qwen3:8b")
+        #[arg(short, long)]
+        model: Option<String>,
 
         /// Optional: input file (non-interactive mode)
         #[arg(short = 'f', long)]

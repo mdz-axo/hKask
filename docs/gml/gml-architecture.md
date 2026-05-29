@@ -534,4 +534,4 @@ impl HybridConcept {
 
 ---
 
-*ℏKask — Planck's Constant of Agent Systems — GML v0.1.0*
+*ℏKask — A Minimal Viable Container for Agents — GML v0.1.0*

@@ -291,5 +291,5 @@ registry/registries/kata/
 
 ---
 
-*ℏKask — Planck's Constant of Agent Systems — v0.21.0*
+*ℏKask — A Minimal Viable Container for Agents — v0.21.0*
 *Toyota Kata System — Scientific capability development for 7R7*

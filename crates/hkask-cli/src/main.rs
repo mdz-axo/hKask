@@ -87,16 +87,27 @@ fn main() {
             template,
             input,
             agent,
+            model,
         } => {
             if let Some(input_path) = input {
                 let content = or_exit(
                     std::fs::read_to_string(&input_path),
                     "Failed to read input file",
                 );
-                let response = rt.block_on(commands::chat_with_agent(content.trim(), Some(&agent)));
+                let response = rt.block_on(commands::chat_with_agent(
+                    content.trim(),
+                    Some(&agent),
+                    model.as_deref(),
+                ));
                 println!("{}: {}", agent, response);
             } else {
-                hkask_cli::repl::run(&registry, &runtime, template.as_deref(), &agent);
+                hkask_cli::repl::run(
+                    &registry,
+                    &runtime,
+                    template.as_deref(),
+                    &agent,
+                    model.as_deref(),
+                );
             }
         }
 

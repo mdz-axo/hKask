@@ -10,7 +10,7 @@ ddmvss_categories: [trust]
 
 # The Magna Carta of hKask
 
-## ℏKask v0.21.2 — Planck's Constant of Agent Systems
+## ℏKask v0.21.2 — A Minimal Viable Container for Agents
 
 **User Sovereignty is Non-Negotiable.**
 
@@ -233,7 +233,7 @@ The Magna Carta is not aspirational. It is enforced:
 
 ## Version
 
-ℏKask v0.21.2 — Planck's Constant of Agent Systems
+ℏKask v0.21.2 — A Minimal Viable Container for Agents
 
 *As simple as possible, but no simpler.*
 

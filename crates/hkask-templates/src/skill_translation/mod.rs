@@ -2,7 +2,7 @@
 //!
 //! Generic skill importer that applies skill-translation.yaml configuration.
 //! Rust is the loom. YAML is the thread.
-//! ℏKask v0.21.2 — Planck's Constant of Agent Systems
+//! ℏKask v0.21.2 — A Minimal Viable Container for Agents
 
 pub use crate::ports::TemplateContract;
 use crate::ports::TemplateContract as TemplateContractType;

@@ -238,6 +238,6 @@ cargo fmt --check
 
 ---
 
-*ℏKask — Planck's Constant of Agent Systems — v0.21.1*  
+*ℏKask — A Minimal Viable Container for Agents — v0.21.1*  
 *Rust is the loom. YAML/Jinja2 is the thread.*  
 *Phase 8 complete. Operational hardening in progress.*

@@ -69,6 +69,9 @@ pub use manifest::{
     EnergyAccount, ManifestExecutorImpl, ModelRequirements, NoopCsp, SelectorConfig, SimpleExecutor,
 };
 pub use okapi_config::OkapiConfig;
+pub use okapi_config::{
+    OkapiModelDetails, OkapiModelEntry, OkapiTagsResponse, list_okapi_models, search_okapi_models,
+};
 pub use ports::{
     Action, CnsPort, CompositionTemplate, DEFAULT_MATROSHKA_LIMIT, FAST_LOCAL_MODEL,
     InferenceConfig, ManifestStep, McpPort, MemoryFragment, ProcessManifest, RegistryEntry,

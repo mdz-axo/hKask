@@ -4,8 +4,8 @@ use utoipa::OpenApi;
 
 use crate::{
     ChatRequest, ChatResponse, CnsHealthResponse, CnsVarietyResponse, CreatePodRequest,
-    CreatePodResponse, ErrorResponse, GrantCapabilityRequest, ListPodsResponse, PodStatusResponse,
-    TemplateResponse, ToolResponse,
+    CreatePodResponse, ErrorResponse, GrantCapabilityRequest, ListPodsResponse, ModelEntry,
+    ModelListResponse, PodStatusResponse, TemplateResponse, ToolResponse,
 };
 
 /// API documentation
@@ -24,6 +24,8 @@ use crate::{
         ListPodsResponse,
         ChatRequest,
         ChatResponse,
+        ModelEntry,
+        ModelListResponse,
     )),
     tags(
         (name = "templates", description = "Template management"),
@@ -32,11 +34,12 @@ use crate::{
         (name = "mcp", description = "MCP servers and tools"),
         (name = "cns", description = "CNS monitoring"),
         (name = "chat", description = "Curator chat interface"),
+        (name = "models", description = "Okapi model catalog"),
     ),
     info(
         title = "hKask API",
         version = "0.1.0",
-        description = "Planck's Constant of Agent Systems - HTTP API",
+        description = "A Minimal Viable Container for Agents - HTTP API"
     ),
     servers(
         (url = "/api", description = "hKask API server"),

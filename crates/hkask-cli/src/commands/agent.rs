@@ -120,7 +120,11 @@ pub async fn agent_unregister(name: &str) -> Result<(), AgentError> {
     Ok(())
 }
 
-pub async fn chat_with_agent(input: &str, agent_name: Option<&str>) -> String {
+pub async fn chat_with_agent(
+    input: &str,
+    agent_name: Option<&str>,
+    model_override: Option<&str>,
+) -> String {
     use hkask_agents::pod::{PodContext, PodManagerBuilder};
     use hkask_templates::{InferencePort, OkapiConfig, OkapiInference};
     use hkask_types::LLMParameters;
@@ -207,7 +211,8 @@ pub async fn chat_with_agent(input: &str, agent_name: Option<&str>) -> String {
 
         // Create inference port
         let config = OkapiConfig::local_dev();
-        let inference = match OkapiInference::new("qwen3:8b", config) {
+        let model = model_override.unwrap_or("qwen3:8b");
+        let inference = match OkapiInference::new(model, config) {
             Ok(i) => Arc::new(i) as Arc<dyn InferencePort>,
             Err(e) => return format!("Okapi init error: {}", e),
         };

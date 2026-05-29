@@ -100,6 +100,12 @@ pub(super) const SLASH_COMMANDS: &[SlashCommand] = &[
         about: "Force a specific agent to respond",
     },
     SlashCommand {
+        primary: "model",
+        aliases: &["m"],
+        args: "[NAME|QUERY]",
+        about: "Switch model, fuzzy search, or show current",
+    },
+    SlashCommand {
         primary: "escalations",
         aliases: &["esc"],
         args: "",
@@ -156,6 +162,7 @@ pub(super) fn fuzzy_match_command(input: &str) -> Vec<&'static SlashCommand> {
 pub(super) fn handle_slash_command(
     input: &str,
     current_agent: &mut String,
+    current_model: &mut String,
     session_history: &mut SessionHistory,
     template_id: Option<&str>,
     active_session: &mut Option<String>,
@@ -202,6 +209,7 @@ pub(super) fn handle_slash_command(
             let tpl = template_id.unwrap_or("auto-select");
             let rt = tokio::runtime::Runtime::new().unwrap();
             println!("  Agent:      \x1b[1m{}\x1b[0m", agent_display);
+            println!("  Model:      \x1b[1m{}\x1b[0m", if current_model.is_empty() { "default" } else { current_model });
             println!("  Template:   {}", tpl);
             println!("  CNS:        \x1b[32mHEALTHY\x1b[0m (no alerts)");
             println!("  Turns:      {}", session_history.turns.len());
@@ -396,6 +404,9 @@ pub(super) fn handle_slash_command(
         }
         "ask" => {
             handle_ask(arg1, arg2, active_session);
+        }
+        "model" | "m" => {
+            handle_model(arg1, current_model);
         }
         _ => {
             let fuzzy = fuzzy_match_command(&cmd);
@@ -740,7 +751,7 @@ pub(super) fn handle_ask(arg1: &str, arg2: &str, active_session: &Option<String>
     match active_session {
         Some(session) => {
             let rt = tokio::runtime::Runtime::new().unwrap();
-            let response = rt.block_on(crate::commands::chat_with_agent(arg2, Some(arg1)));
+            let response = rt.block_on(crate::commands::chat_with_agent(arg2, Some(arg1), None));
             println!("\x1b[1m{}\x1b[0m: {}\n", arg1, response);
 
             let manager_session = session.clone();
@@ -754,8 +765,63 @@ pub(super) fn handle_ask(arg1: &str, arg2: &str, active_session: &Option<String>
         }
         None => {
             let rt = tokio::runtime::Runtime::new().unwrap();
-            let response = rt.block_on(crate::commands::chat_with_agent(arg2, Some(arg1)));
+            let response = rt.block_on(crate::commands::chat_with_agent(arg2, Some(arg1), None));
             println!("\x1b[1m{}\x1b[0m: {}\n", arg1, response);
         }
     }
+}
+
+fn handle_model(arg1: &str, current_model: &mut String) {
+    use hkask_templates::{OkapiConfig, search_okapi_models};
+
+    if arg1.is_empty() {
+        // Show current model
+        if current_model.is_empty() {
+            println!("  Current model: \x1b[2mdefault\x1b[0m (Okapi default)");
+        } else {
+            println!("  Current model: \x1b[1m{}\x1b[0m", current_model);
+        }
+        println!("  Use \x1b[36m/model <name>\x1b[0m to switch, \x1b[36m/model <query>\x1b[0m to search");
+    } else {
+        let config = OkapiConfig::local_dev();
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let matches = rt.block_on(search_okapi_models(&config, arg1));
+
+        if matches.is_empty() {
+            // No matches — Okapi may be unreachable or no matching models
+            // Set the model anyway (user may know a valid model name)
+            *current_model = arg1.to_string();
+            println!("  Model set to: \x1b[1m{}\x1b[0m", current_model);
+            println!("  \x1b[2m(Okapi unreachable — model name stored for next inference)\x1b[0m");
+        } else if matches.len() == 1 {
+            // Exact single match — switch to it
+            *current_model = matches[0].name.clone();
+            println!("  Model set to: \x1b[1m{}\x1b[0m", current_model);
+            if let Some(ref details) = matches[0].details {
+                if let Some(ref fam) = details.family {
+                    println!("  Family: {}", fam);
+                }
+                if let Some(ref params) = details.parameter_size {
+                    println!("  Parameters: {}", params);
+                }
+                if let Some(ref quant) = details.quantization_level {
+                    println!("  Quantization: {}", quant);
+                }
+            }
+        } else {
+            // Multiple matches — show fuzzy search results
+            println!("  \x1b[1mModels matching '\x1b[36m{}\x1b[0m\x1b[1m' ({}):\x1b[0m", arg1, matches.len());
+            println!("  {:<30} {:<12} {:<15} SIZE", "NAME", "FAMILY", "PARAMS");
+            println!("  {}", \"-\".repeat(70));
+            for m in &matches {
+                let family = m.details.as_ref().and_then(|d| d.family.as_deref()).unwrap_or(\"-\");
+                let params = m.details.as_ref().and_then(|d| d.parameter_size.as_deref()).unwrap_or(\"-\");
+                let size_str = m.size.map(|s| format!("{:.1} GB", s as f64 / 1_073_741_824.0)).unwrap_or_else(|| \"-\".to_string());
+                println!("  \x1b[36m{:<30}\x1b[0m {:<12} {:<15} {}", m.name, family, params, size_str);
+            }
+            println!();
+            println!("  Use \x1b[36m/model <name>\x1b[0m to switch to a specific model");
+        }
+    }
+    println!();
 }

@@ -12,7 +12,7 @@ ddmvss_categories: [lifecycle]
 
 ## Overview
 
-This document describes the CI/CD pipeline, installation process, and build configuration for hKask (ℏKask — "Planck's Constant of Agent Systems").
+This document describes the CI/CD pipeline, installation process, and build configuration for hKask (ℏKask — "A Minimal Viable Container for Agents").
 
 ---
 
@@ -410,5 +410,5 @@ E2E chaos tests against live Okapi can be run manually with
 
 ---
 
-*ℏKask — Planck's Constant of Agent Systems — v0.21.0*
+*ℏKask — A Minimal Viable Container for Agents — v0.21.0*
 *As simple as possible, but no simpler.*

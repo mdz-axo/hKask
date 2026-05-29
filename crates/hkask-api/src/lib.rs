@@ -48,6 +48,9 @@ pub mod openapi;
 pub mod routes;
 pub mod services;
 
+// Re-export route types for OpenAPI schema generation
+pub use routes::{ModelEntry, ModelListResponse};
+
 use openapi::ApiDoc;
 
 /// API state
@@ -189,6 +192,9 @@ pub struct CnsHealthResponse {
 pub struct ChatRequest {
     pub input: String,
     pub template_id: Option<String>,
+    /// Model override for inference (e.g., "qwen3:8b"). If unset, uses the default.
+    #[serde(default)]
+    pub model: Option<String>,
 }
 
 /// Chat response
@@ -196,6 +202,8 @@ pub struct ChatRequest {
 pub struct ChatResponse {
     pub output: String,
     pub template_id: String,
+    /// Model used for inference
+    pub model: String,
 }
 
 /// CNS variety counter response
@@ -634,6 +642,7 @@ pub fn create_router(state: ApiState) -> OpenApiRouter {
         .merge(routes::cns_router().into())
         .merge(routes::sovereignty_router().into())
         .merge(routes::chat_router().into())
+        .merge(routes::models_router().into())
         .merge(routes::ensemble_router().into())
         .merge(routes::soap_infer_router().into())
         .merge(routes::acp_router().into())

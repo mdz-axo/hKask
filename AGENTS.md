@@ -2,7 +2,7 @@
 
 ## Project Identity
 
-**hKask** (ℏKask — "Planck's Constant of Agent Systems") is the minimal viable unit of an agent platform.
+**hKask** (ℏKask — "A Minimal Viable Container for Agents") is the minimal viable unit of an agent platform.
 
 **Name:** hKask (pronounced *h-bar-kask*)  
 **Binary:** `kask`  
@@ -158,4 +158,4 @@ fi
 
 ---
 
-*ℏKask — Planck's Constant of Agent Systems — v0.21.0*
+*ℏKask — A Minimal Viable Container for Agents — v0.21.0*

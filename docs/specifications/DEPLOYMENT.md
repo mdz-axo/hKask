@@ -33,7 +33,7 @@ ddmvss_categories: [lifecycle]
 
 ## 1. Overview
 
-hKask (ℏKask — "Planck's Constant of Agent Systems") is a minimal agent-native container platform. This guide covers production deployment of the `kask` binary and supporting infrastructure.
+hKask (ℏKask — "A Minimal Viable Container for Agents") is a minimal agent-native container platform. This guide covers production deployment of the `kask` binary and supporting infrastructure.
 
 **Components:**
 - `kask` CLI binary — User-facing command interface (interactive chat, template management, pod operations)
@@ -679,4 +679,4 @@ curl http://127.0.0.1:11435/api/openapi.json -o openapi.json
 
 *This deployment guide is part of hKask v0.21.0 documentation. For architecture details, see `docs/architecture/hKask-architecture-master.md`.*
 
-**ℏKask — Planck's Constant of Agent Systems**
+**ℏKask — A Minimal Viable Container for Agents**

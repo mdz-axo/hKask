@@ -854,4 +854,4 @@ At each stage:
 
 ---
 
-*Document Version: 0.21.0 | ℏKask — Planck's Constant of Agent Systems*
+*Document Version: 0.21.0 | ℏKask — A Minimal Viable Container for Agents*

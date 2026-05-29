@@ -6,6 +6,7 @@ mod chat;
 mod cns;
 mod ensemble;
 mod mcp;
+mod models;
 mod pods;
 mod soap_infer;
 mod sovereignty;
@@ -19,6 +20,7 @@ pub use chat::chat_router;
 pub use cns::cns_router;
 pub use ensemble::ensemble_router;
 pub use mcp::mcp_router;
+pub use models::models_router;
 pub use pods::pods_router;
 pub use soap_infer::soap_infer_router;
 pub use soap_infer::validate_soap_request;
@@ -31,6 +33,7 @@ pub use ensemble::{
     CreateChatRequest, EnsembleResponse, RecordResponseRequest, RegisterBotRequest,
     SendMessageRequest,
 };
+pub use models::{ModelEntry, ModelListResponse};
 pub use sovereignty::{
     AccessCheckResponse, KillZoneResponse, SovereigntyConsentResponse, SovereigntyStatusResponse,
 };

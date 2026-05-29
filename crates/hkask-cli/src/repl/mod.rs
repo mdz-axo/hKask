@@ -24,8 +24,10 @@ pub fn run(
     _runtime: &McpRuntime,
     template_id: Option<&str>,
     agent_name: &str,
+    initial_model: Option<&str>,
 ) {
     let mut current_agent = agent_name.to_string();
+    let mut current_model = initial_model.unwrap_or("").to_string();
     let mut session_history = SessionHistory::new();
     let mut active_session: Option<String> = None;
 
@@ -51,7 +53,7 @@ pub fn run(
         // No history file yet — that's fine
     }
 
-    display::print_banner(&current_agent, template_id);
+    display::print_banner(&current_agent, template_id, &current_model);
 
     loop {
         let prompt = if let Some(ref session) = active_session {
@@ -71,6 +73,7 @@ pub fn run(
                     if handle_slash_command(
                         input,
                         &mut current_agent,
+                        &mut current_model,
                         &mut session_history,
                         template_id,
                         &mut active_session,
@@ -125,6 +128,11 @@ pub fn run(
                     let response = rt.block_on(crate::commands::chat_with_agent(
                         input,
                         Some(&current_agent),
+                        if current_model.is_empty() {
+                            None
+                        } else {
+                            Some(&current_model)
+                        },
                     ));
                     println!("{}: {}\n", current_agent, response);
                     session_history.record(&current_agent, &response);

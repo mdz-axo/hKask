@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "hKask API",
-    "description": "Planck's Constant of Agent Systems - HTTP API",
+    "description": "A Minimal Viable Container for Agents - HTTP API",
     "license": {
       "name": "MIT",
       "identifier": "MIT"

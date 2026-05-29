@@ -1,5 +1,5 @@
 # hKask Pragmatic Composition — RDF Semantic Graph
-# ℏKask v0.21.0 — Planck's Constant of Agent Systems
+# ℏKask v0.21.0 — A Minimal Viable Container for Agents
 # Composability is the atomic primitive of agent systems.
 # Energy is the universal economic substrate.
 

@@ -1279,5 +1279,5 @@ status: VERIFIED
 
 ---
 
-*ℏKask — Planck's Constant of Agent Systems — v0.21.0*
+*ℏKask — A Minimal Viable Container for Agents — v0.21.0*
 *Every ERD grounded in Rust source. Every relationship verified against code.*

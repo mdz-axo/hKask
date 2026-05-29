@@ -128,7 +128,7 @@ grep -r "pattern" crates/ | wc -l
 
 ---
 
-*ℏKask — Planck's Constant of Agent Systems — v0.21.0*
+*ℏKask — A Minimal Viable Container for Agents — v0.21.0*
 ```
 
 ---
@@ -252,5 +252,5 @@ See [`../standards/DOCUMENTATION_STANDARDS.md`](../specifications/DOCUMENTATION_
 
 ---
 
-*ℏKask — Planck's Constant of Agent Systems — v0.21.0*
+*ℏKask — A Minimal Viable Container for Agents — v0.21.0*
 *Decisions are the atoms of architecture.*

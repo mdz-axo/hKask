@@ -1,6 +1,6 @@
 # GML Allosteric Reasoning Cascade
 
-**Type:** FlowDef  
+**Type:** FlowDef
 **Version:** 0.1.0
 
 ---
@@ -12,7 +12,7 @@ process:
   name: "allosteric-reframing"
   type: FlowDef
   description: "Apply GML to shift conceptual interpretation under contextual pressure"
-  
+
   inputs:
     - name: target_concept
       type: Concept
@@ -35,7 +35,7 @@ process:
       type: Capability
       description: "OCAP capability token for authorization"
       required: false
-  
+
   steps:
     - id: recognize
       action: template.render
@@ -45,7 +45,7 @@ process:
         parameters: $.mwc_parameters
       output: concept_analysis
       cns_span: "cns.gml.recognize"
-      
+
     - id: bind
       action: template.render
       template: gml/bind-effector.j2
@@ -54,7 +54,7 @@ process:
         effectors: $.contextual_effectors
       output: shifted_concept
       cns_span: "cns.gml.bind"
-      
+
     - id: equilibrate
       action: template.render
       template: gml/compute-equilibrium.j2
@@ -63,7 +63,7 @@ process:
         after: $.shifted_concept
       output: equilibrium_shift
       cns_span: "cns.gml.equilibrate"
-      
+
     - id: assess
       action: template.render
       template: gml/assess-coherence.j2
@@ -72,7 +72,7 @@ process:
         network: $.network_context
       output: coherence_analysis
       cns_span: "cns.gml.assess"
-      
+
     - id: reframe
       action: template.render
       template: gml/reframe-concept.j2
@@ -81,7 +81,7 @@ process:
         shift: $.equilibrium_shift
       output: reframed_concept
       cns_span: "cns.gml.reframe"
-      
+
   outputs:
     - name: coherence_analysis
       type: CoherenceReport
@@ -155,4 +155,4 @@ contextual_effectors:
 
 ---
 
-*ℏKask — Planck's Constant of Agent Systems — GML v0.1.0*
+*ℏKask — A Minimal Viable Container for Agents — GML v0.1.0*

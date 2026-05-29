@@ -2,7 +2,7 @@ use super::commands::{find_command, fuzzy_match_command};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-pub(super) fn print_banner(agent: &str, template: Option<&str>) {
+pub(super) fn print_banner(agent: &str, template: Option<&str>, model: &str) {
     let ghost = "\x1b[2;36m";
     let body = "\x1b[1;36m";
     let bright = "\x1b[1;37m";
@@ -31,7 +31,7 @@ pub(super) fn print_banner(agent: &str, template: Option<&str>) {
         println!("{ghost}              {body}   \\__/~~~~~~~~~~~\\__/   {r}");
         println!("  {ghost}shadow{r}       {body}    hKask v{VERSION}{r}");
         println!();
-        println!("{body}     Planck's Constant of Agent Systems{r}");
+        println!("{body}     A Minimal Viable Container for Agents{r}");
         println!();
 
         std::io::Write::flush(&mut std::io::stdout()).ok();
@@ -42,8 +42,9 @@ pub(super) fn print_banner(agent: &str, template: Option<&str>) {
     }
 
     println!(
-        "  \x1b[1mAgent:\x1b[0m \x1b[1m{}\x1b[0m  \x1b[1mTemplate:\x1b[0m \x1b[1m{}\x1b[0m",
+        "  \x1b[1mAgent:\x1b[0m \x1b[1m{}\x1b[0m  \x1b[1mModel:\x1b[0m \x1b[1m{}\x1b[0m  \x1b[1mTemplate:\x1b[0m \x1b[1m{}\x1b[0m",
         agent,
+        if model.is_empty() { "default" } else { model },
         template.unwrap_or("auto-select")
     );
     println!(
@@ -60,6 +61,7 @@ pub(super) fn print_help() {
     let categories = [
         ("Session", &["help", "quit", "clear", "history"] as &[&str]),
         ("Agent", &["agent", "agents", "pods"]),
+        ("Model", &["model"]),
         ("Ensemble", &["into", "ensemble", "filter", "mode", "ask"]),
         ("System", &["status", "tools", "templates", "sovereignty"]),
         (
@@ -174,6 +176,15 @@ pub(super) fn print_command_help(cmd_name: &str) {
                 println!("  \x1b[2m/agent\x1b[0m          — Show current agent");
                 println!("  \x1b[2m/agent Russell\x1b[0m  — Switch to Russell");
                 println!("  \x1b[2m/agents\x1b[0m         — List all available agents");
+            }
+            "model" => {
+                println!();
+                println!("  \x1b[2m/model\x1b[0m                    — Show current model");
+                println!("  \x1b[2m/model qwen3:8b\x1b[0m       — Switch to a specific model");
+                println!("  \x1b[2m/model qwen\x1b[0m            — Fuzzy search for models matching 'qwen'");
+                println!();
+                println!("  Models are loaded from Okapi. Use a model name from /model");
+                println!("  to change the LLM used by the current agent.");
             }
             _ => {}
         }
