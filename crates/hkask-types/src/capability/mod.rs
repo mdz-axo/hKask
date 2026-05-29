@@ -891,7 +891,7 @@ mod tests {
         for i in 0..7 {
             current = current
                 .attenuate(test_webid(&format!("bot-{}", i + 1)), &secret, 10000)
-                .expect(&format!("attenuation should succeed at level {}", i));
+                .unwrap_or_else(|| panic!("attenuation should succeed at level {}", i));
         }
         // 8th should fail (level 8 > max 7)
         assert!(
