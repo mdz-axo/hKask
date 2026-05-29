@@ -202,12 +202,13 @@ deliberately **not** pre-built (P5 — code not needed today is debt):
    sorted, deduplicated, length-delimited operation list. Whether to switch to
    a stable bitset (smaller, ordering-free by construction) should be recorded
    in an ADR if the `GoalOp` set grows.
-3. **Single vs. dual capability primitive.** `GoalCapabilityToken` now mirrors
-   the canonical `CapabilityToken` (shared `SYSTEM_MAX_ATTENUATION`,
-   `can_attenuate()`), but remains a distinct type. Whether to collapse it into
-   a typed projection over `CapabilityToken` (true OCAP lineage unification,
-   including root-nonce chain verification) is an architectural decision
-   warranting its own ADR.
+3. **Single vs. dual capability primitive.** **Decided in ADR-029** —
+   `GoalCapabilityToken` is kept as a distinct type aligned with the canonical
+   `CapabilityToken`'s invariants (shared `SYSTEM_MAX_ATTENUATION`,
+   `can_attenuate()`, all-fields HMAC, constant-time verify), *not* collapsed
+   into it. Full lineage unification (typed projection with root-nonce chain
+   verification) remains open and revisitable if goal tokens cross trust
+   boundaries. See `docs/architecture/ADR-029-goal-capability-primitive.md`.
 4. **Persistence corruption response.** Corruption now surfaces as
    `GoalRepositoryError::Corrupt`; the system-level policy (quarantine, CNS
    algedonic alert, repair) is unspecified.
@@ -215,7 +216,7 @@ deliberately **not** pre-built (P5 — code not needed today is debt):
    subgoal depth all use "7". Confirm whether these should reference one shared
    constant (`SYSTEM_MAX_ATTENUATION`) rather than three coincidental literals.
 
-**See:** `crates/hkask-types/src/goal_capability.rs`, `crates/hkask-storage/src/goals.rs`, `docs/architecture/reference/subsystem-erds.md` §13, ADR-025.
+**See:** `crates/hkask-types/src/goal_capability.rs`, `crates/hkask-storage/src/goals.rs`, `crates/hkask-cns/tests/goal_capability_cybertests.rs`, `docs/architecture/reference/subsystem-erds.md` §13, ADR-025, ADR-029.
 
 ### F5: 41,339 LOC vs. 35K Budget ✅ DEPRECATED
 

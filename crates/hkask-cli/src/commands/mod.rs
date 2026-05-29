@@ -9,6 +9,7 @@ pub mod chat;
 pub mod config;
 pub mod curator;
 pub mod ensemble;
+pub mod goal;
 pub mod pod;
 pub mod template;
 pub mod user;

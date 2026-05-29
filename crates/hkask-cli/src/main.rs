@@ -98,6 +98,8 @@ fn main() {
 
         Commands::Sovereignty { action } => run_sovereignty(action),
 
+        Commands::Goal { action } => run_goal(action),
+
         Commands::Docs { action } => run_docs(action),
 
         Commands::Registry { action } => run_registry(&rt, &mut registry, action),

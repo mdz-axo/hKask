@@ -4,11 +4,13 @@
 //! Long-term retention lives in agent memory (episodic/semantic).
 
 use chrono::Utc;
+use hkask_types::event::{NuEvent, NuEventSink, Phase, Span};
 use hkask_types::goal::{Goal, GoalArtifact, GoalCriterion, GoalID, GoalState};
 use hkask_types::goal_capability::{GoalAccess, GoalCapabilityToken, GoalOp};
 use hkask_types::id::WebID;
 use hkask_types::visibility::Visibility;
 use rusqlite::Connection;
+use serde_json::json;
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
@@ -44,6 +46,11 @@ pub type Result<T> = std::result::Result<T, GoalRepositoryError>;
 pub struct SqliteGoalRepository {
     pub conn: Arc<Mutex<Connection>>,
     pub capability_secret: Vec<u8>,
+    /// Optional CNS telemetry sink. When present, capability and visibility
+    /// denials emit a `cns.tool.goal.capability.denied` outcome event so the
+    /// Cybernetic Nervous System can observe authority failures. Injected as a
+    /// port (hexagonal seam) so storage stays decoupled from `hkask-cns`.
+    telemetry: Option<Arc<dyn NuEventSink>>,
 }
 
 impl SqliteGoalRepository {
@@ -51,6 +58,42 @@ impl SqliteGoalRepository {
         Self {
             conn,
             capability_secret,
+            telemetry: None,
+        }
+    }
+
+    /// Attach a CNS telemetry sink so authority denials are observable.
+    #[must_use = "builder returns the configured repository"]
+    pub fn with_telemetry(mut self, sink: Arc<dyn NuEventSink>) -> Self {
+        self.telemetry = Some(sink);
+        self
+    }
+
+    /// Emit a capability/visibility denial as a CNS ν-event. Non-fatal: a sink
+    /// failure must never alter or block the security decision, so errors are
+    /// logged and swallowed. The span is `cns.tool.goal.capability.denied`.
+    fn emit_denial(&self, holder: &WebID, op: &str, reason: &str) {
+        if let Some(sink) = &self.telemetry {
+            let event = NuEvent::new(
+                *holder,
+                Span::tool("goal.capability.denied"),
+                Phase::Outcome,
+                json!({
+                    "holder": holder.to_string(),
+                    "attempted_op": op,
+                    "reason": reason,
+                }),
+                0,
+            )
+            .with_outcome(json!({ "decision": "denied" }))
+            .with_visibility("private");
+            if let Err(e) = sink.persist(&event) {
+                tracing::warn!(
+                    target: "cns.tool.goal.capability.denied",
+                    error = %e,
+                    "failed to persist goal capability denial event"
+                );
+            }
         }
     }
 
@@ -60,11 +103,17 @@ impl SqliteGoalRepository {
         required_op: GoalOp,
     ) -> Result<()> {
         if !token.is_valid(&self.capability_secret) {
+            self.emit_denial(&token.holder_webid, required_op.as_str(), "token_invalid");
             return Err(GoalRepositoryError::CapabilityDenied(
                 "Token invalid or expired".to_string(),
             ));
         }
         if !token.can_perform(required_op, &self.capability_secret) {
+            self.emit_denial(
+                &token.holder_webid,
+                required_op.as_str(),
+                "operation_not_authorized",
+            );
             return Err(GoalRepositoryError::CapabilityDenied(format!(
                 "Missing capability for operation: {:?}",
                 required_op
@@ -76,6 +125,7 @@ impl SqliteGoalRepository {
     pub fn check_visibility_access(&self, goal: &Goal, requester_webid: &WebID) -> Result<()> {
         let access = GoalAccess::check(goal, requester_webid);
         if !access.can_read() {
+            self.emit_denial(requester_webid, "READ", "not_visible");
             return Err(GoalRepositoryError::VisibilityDenied(format!(
                 "WebID {} cannot access goal with visibility {:?}",
                 requester_webid, goal.visibility
@@ -91,6 +141,7 @@ impl SqliteGoalRepository {
     /// *any* goal regardless of ownership.
     fn check_write_access(&self, goal: &Goal, requester_webid: &WebID) -> Result<()> {
         if !GoalAccess::check(goal, requester_webid).can_write() {
+            self.emit_denial(requester_webid, "WRITE", "not_owner_or_granted");
             return Err(GoalRepositoryError::VisibilityDenied(format!(
                 "WebID {} cannot modify goal {} (visibility {:?})",
                 requester_webid, goal.id, goal.visibility
@@ -102,6 +153,7 @@ impl SqliteGoalRepository {
     /// Admin authority (delete) is restricted to the goal owner.
     fn check_admin_access(&self, goal: &Goal, requester_webid: &WebID) -> Result<()> {
         if !GoalAccess::check(goal, requester_webid).can_admin() {
+            self.emit_denial(requester_webid, "ADMIN", "not_owner");
             return Err(GoalRepositoryError::VisibilityDenied(format!(
                 "WebID {} is not the owner of goal {} and cannot administer it",
                 requester_webid, goal.id
@@ -203,6 +255,7 @@ impl SqliteGoalRepository {
         // A holder may only create goals it will own. Creating a goal owned by
         // another WebID would manufacture authority out of thin air.
         if token.holder_webid != *webid {
+            self.emit_denial(&token.holder_webid, "CREATE", "owner_mismatch");
             return Err(GoalRepositoryError::VisibilityDenied(format!(
                 "Token holder {} cannot create a goal owned by {}",
                 token.holder_webid, webid
@@ -466,6 +519,7 @@ impl SqliteGoalRepository {
 
         // A holder may only create subgoals it will own.
         if token.holder_webid != *webid {
+            self.emit_denial(&token.holder_webid, "CREATE_SUBGOAL", "owner_mismatch");
             return Err(GoalRepositoryError::VisibilityDenied(format!(
                 "Token holder {} cannot create a subgoal owned by {}",
                 token.holder_webid, webid
@@ -565,6 +619,36 @@ mod tests {
         GoalCapabilityToken::new(GoalID::new(), *webid, ops, SECRET)
     }
 
+    /// Test sink that records every persisted event.
+    #[derive(Default, Clone)]
+    struct CapturingSink {
+        events: Arc<Mutex<Vec<NuEvent>>>,
+    }
+
+    impl NuEventSink for CapturingSink {
+        fn persist(
+            &self,
+            event: &NuEvent,
+        ) -> std::result::Result<(), hkask_types::event::NuEventSinkError> {
+            self.events.lock().expect("sink lock").push(event.clone());
+            Ok(())
+        }
+    }
+
+    /// Test sink that always fails, to prove emission is non-fatal.
+    struct FailingSink;
+
+    impl NuEventSink for FailingSink {
+        fn persist(
+            &self,
+            _event: &NuEvent,
+        ) -> std::result::Result<(), hkask_types::event::NuEventSinkError> {
+            Err(hkask_types::event::NuEventSinkError::Unavailable(
+                "test sink down".to_string(),
+            ))
+        }
+    }
+
     #[test]
     fn owner_can_create_and_read_own_goal() {
         let r = repo();
@@ -661,5 +745,79 @@ mod tests {
         // Owner can delete.
         r.delete_goal(&token_for(&alice, vec![GoalOp::Complete]), goal.id)
             .expect("owner delete");
+    }
+
+    #[test]
+    fn confused_deputy_write_emits_denial_telemetry() {
+        let sink = CapturingSink::default();
+        let conn = Connection::open_in_memory().expect("in-memory sqlite");
+        conn.execute_batch(
+            "CREATE TABLE goals (id TEXT PRIMARY KEY, webid TEXT NOT NULL, text TEXT NOT NULL, \
+             state TEXT NOT NULL DEFAULT 'pending', visibility TEXT NOT NULL DEFAULT 'private', \
+             created_at TEXT DEFAULT (datetime('now')), completed_at TEXT, parent_goal_id TEXT, \
+             depth INTEGER NOT NULL DEFAULT 0);",
+        )
+        .expect("schema");
+        let r = SqliteGoalRepository::new(Arc::new(Mutex::new(conn)), SECRET.to_vec())
+            .with_telemetry(Arc::new(sink.clone()));
+
+        let alice = WebID::from_string("did:web:alice");
+        let mallory = WebID::from_string("did:web:mallory");
+        let goal = r
+            .create_goal(
+                &token_for(&alice, vec![GoalOp::Create]),
+                &alice,
+                "secret",
+                Visibility::Private,
+            )
+            .expect("create");
+
+        let _ = r
+            .update_goal_state(
+                &token_for(&mallory, vec![GoalOp::Update]),
+                goal.id,
+                GoalState::Active,
+            )
+            .expect_err("confused-deputy write must be denied");
+
+        let events = sink.events.lock().expect("sink lock");
+        assert!(
+            events.iter().any(|e| matches!(
+                &e.span,
+                Span::Tool(p) if p == "cns.tool.goal.capability.denied"
+            )),
+            "a denial must emit a cns.tool.goal.capability.denied span, got {:?}",
+            events.iter().map(|e| &e.span).collect::<Vec<_>>()
+        );
+        // The denial event names the holder who was rejected.
+        assert!(events.iter().any(|e| e.observer_webid == mallory));
+    }
+
+    #[test]
+    fn telemetry_sink_failure_is_non_fatal() {
+        let conn = Connection::open_in_memory().expect("in-memory sqlite");
+        conn.execute_batch(
+            "CREATE TABLE goals (id TEXT PRIMARY KEY, webid TEXT NOT NULL, text TEXT NOT NULL, \
+             state TEXT NOT NULL DEFAULT 'pending', visibility TEXT NOT NULL DEFAULT 'private', \
+             created_at TEXT DEFAULT (datetime('now')), completed_at TEXT, parent_goal_id TEXT, \
+             depth INTEGER NOT NULL DEFAULT 0);",
+        )
+        .expect("schema");
+        let r = SqliteGoalRepository::new(Arc::new(Mutex::new(conn)), SECRET.to_vec())
+            .with_telemetry(Arc::new(FailingSink));
+
+        let alice = WebID::from_string("did:web:alice");
+        let bob = WebID::from_string("did:web:bob");
+        // Even though the sink errors on the denial event, the security
+        // decision (denial) must still be returned correctly.
+        let err = r
+            .create_goal(
+                &token_for(&alice, vec![GoalOp::Create]),
+                &bob,
+                "forge",
+                Visibility::Private,
+            )
+            .expect_err("cross-owner create must still be denied despite sink failure");
+        assert!(matches!(err, GoalRepositoryError::VisibilityDenied(_)));
     }
 }

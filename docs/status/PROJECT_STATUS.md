@@ -123,7 +123,7 @@ hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent
 | **Architecture Specs** | 4 | `docs/architecture/` (domain-and-capability, interface-and-composition, trust-security-observability, persistence-and-lifecycle) |
 | **Architecture Framework** | 3 | `docs/architecture/` (DDMVSS, PRINCIPLES, magna-carta) |
 | **Architecture Index** | 1 | `docs/architecture/hKask-architecture-master.md` |
-| **Architecture ADR** | 7 | `docs/architecture/` (ADR-022 through ADR-028) |
+| **Architecture ADR** | 8 | `docs/architecture/` (ADR-022 through ADR-029; ADR-029 = goal capability primitive) |
 | **Reference Artifacts** | 9 | `docs/architecture/reference/` (incl. okapi-integration) |
 | **Specifications** | 9 | `docs/specifications/` (REQUIREMENTS, TRACEABILITY, DDMVSS_SCAFFOLD, DOCUMENTATION_STANDARDS, WRITING_EXCELLENCE, DEPENDENCY_POLICY, ADR_TEMPLATE, CI-CD-GUIDE, DEPLOYMENT) |
 | **Plans** | 6 | `docs/plans/` (TODO + 5 persona/template drafts: curator, curator-persona, backstory-r7, personas-r7, high-temp-templates) |

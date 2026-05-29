@@ -50,7 +50,7 @@ Detailed lookup tables and diagrams in `reference/`:
 | [`reference/hKask-erd.md`](reference/hKask-erd.md) | Core entity relationship diagrams |
 | [`reference/registry-erd.md`](reference/registry-erd.md) | Registry schema diagrams |
 | [`reference/subsystem-erds.md`](reference/subsystem-erds.md) | Per-crate ERDs |
-| [`reference/hKask-hLexicon.md`](reference/hKask-hLexicon.md) | Full 88-term vocabulary catalog |
+| [`reference/hKask-hLexicon.md`](reference/hKask-hLexicon.md) | Full 87-term vocabulary catalog |
 | [`reference/ports-inventory.md`](reference/ports-inventory.md) | Hexagonal port trait signatures |
 | [`reference/utoipa-implementation.md`](reference/utoipa-implementation.md) | OpenAPI generation guide |
 | [`reference/template-header-standard.md`](reference/template-header-standard.md) | Template metadata format |

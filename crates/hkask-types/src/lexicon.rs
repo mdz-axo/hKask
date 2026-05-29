@@ -129,28 +129,34 @@ impl HLexicon {
         self.terms.values()
     }
 
-    /// Create default hLexicon with bootstrap terms
+    /// Create the default bootstrap hLexicon.
+    ///
+    /// This is a minimal startup subset (17 terms), NOT the full vocabulary.
+    /// The authoritative 87-term catalog lives in
+    /// `docs/architecture/reference/hKask-hLexicon.md`; additional terms are
+    /// loaded per-template from registry `hlexicon.yaml` files at runtime.
+    /// Domain assignments here MUST match the catalog's domain classification.
     pub fn bootstrap() -> Self {
         let mut lexicon = Self::new();
 
-        // WordAct terms (Prompt templates)
+        // KnowAct terms — pattern recognition (catalog §3.1 Recognition)
         lexicon.add(LexiconTerm::new(
             "recognize",
-            Domain::WordAct,
+            Domain::KnowAct,
             "Identify and classify input patterns",
         ));
         lexicon.add(LexiconTerm::new(
             "classify",
-            Domain::WordAct,
+            Domain::KnowAct,
             "Assign category or type to input",
         ));
         lexicon.add(LexiconTerm::new(
             "discriminate",
-            Domain::WordAct,
+            Domain::KnowAct,
             "Distinguish between similar patterns",
         ));
 
-        // FlowDef terms (Process templates)
+        // FlowDef terms — MVSDD pipeline steps (select → populate → execute)
         lexicon.add(LexiconTerm::new(
             "select",
             Domain::FlowDef,
@@ -167,7 +173,7 @@ impl HLexicon {
             "Invoke target model or tool",
         ));
 
-        // KnowAct terms (Cognition templates)
+        // KnowAct terms — reflective cognition (catalog §3.4 Metacognition)
         lexicon.add(LexiconTerm::new(
             "reflect",
             Domain::KnowAct,

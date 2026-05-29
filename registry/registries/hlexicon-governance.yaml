@@ -8,7 +8,7 @@ governance:
       path: registry/registries/hlexicon-workspace.yaml
       scope: all_templates_manifests_ports
       owner: hKask-Administrator
-    
+
     subsystem:
       path: registry/registries/{subsystem}/hlexicon-{subsystem}.yaml
       scope: subsystem_specific
@@ -16,7 +16,7 @@ governance:
         - registry/registries/kata/kata-hlexicon.yaml
         - registry/registries/cognition/cognition-hlexicon.yaml
         - registry/registries/process/process-hlexicon.yaml
-    
+
     template_inline:
       path: registry/templates/**/{template}.j2
       scope: single_template
@@ -29,10 +29,12 @@ governance:
       wordact: 28
       flowdef: 34
       knowact: 28
-    current_usage: 88
+    current_usage: 87
     overage_justification: |
-      Git evolution terms (fork, clone, branch, merge, rebase, pr, upstream, downstream)
+      Git evolution terms (clone, branch, merge, rebase, pr, upstream, downstream)
       were deemed essential for artifact management despite exceeding the original allocation.
+      Note: `fork` is a control-flow term (FlowDef 2.1) reused for git semantics, so it is
+      counted once in control flow, not duplicated in the git-evolution group.
       hLexicon terms are allocated, not consumed. Terms are not depleted by use;
       they are deliberately placed and reused infinitely. Allocation implies intentional
       distribution across domains, not resource depletion.
@@ -54,17 +56,17 @@ governance:
       description: Every template/manifest MUST declare functional_role
       check: functional_role in [wordact, flowdef, knowact]
       enforcement: cargo test -p hkask-templates
-    
+
     rule_2_implementation_declared:
       description: Every template/manifest MUST declare implementation_type
       check: implementation_type in [jinja2, yaml_manifest, yaml_port]
       enforcement: cargo test -p hkask-templates
-    
+
     rule_3_orthogonal_mapping:
       description: Functional and implementation MUST be orthogonal (no coupling)
       check: No functional_role is tied to specific implementation_type
       enforcement: manual_review_quarterly
-    
+
     rule_4_distribution_balance:
       description: Warn if functional distribution is heavily skewed
       check: No category > 60% of total
@@ -112,14 +114,14 @@ functional_roles:
       - habit-intervention.j2 (generate intervention message)
       - cns:emit:kata port (emit CNS span)
     test: Does it produce an output artifact (message, span, triple)?
-    
+
   flowdef:
     definition: Flow definition — orchestrates multi-step processes
     examples:
       - improvement-cycle.j2 (4-step Kata process)
       - kata-pattern.yaml (5+3 step execution flow)
     test: Does it define a sequence of steps or stages?
-    
+
   knowact:
     definition: Knowledge-action hybrid — makes judgments, assessments, decisions
     examples:
@@ -133,12 +135,12 @@ implementation_types:
     definition: Jinja2 template — rendered by minijinja engine
     use_for: Prompts, classifiers, comparisons, generators
     limitations: Cannot orchestrate steps (that's FlowDef via manifest)
-    
+
   yaml_manifest:
     definition: YAML manifest — defines step sequences, energy budgets, CNS integration
     use_for: Process orchestration, capability enforcement, carbon accounting
     limitations: Cannot directly generate text (that's WordAct via template)
-    
+
   yaml_port:
     definition: YAML port specification — defines inbound/outbound interfaces
     use_for: Interface contracts, authorization, capability grants
@@ -166,16 +168,16 @@ compliance:
       - description
       - produces (for WordAct/KnowAct)
       - steps (for FlowDef)
-    
+
     manifests:
       - functional_role
       - description
       - steps
-    
+
     ports:
       - functional_role
       - input_schema (inbound)
       - output_schema (outbound)
-  
+
   compliance_rate_target: 100%
   current_compliance_rate: 0%  # Will be calculated by validation script

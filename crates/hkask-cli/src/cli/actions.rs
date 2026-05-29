@@ -634,3 +634,37 @@ pub enum AdminAction {
     /// Remove the admin passphrase (disables insecure dev mode entirely)
     Reset,
 }
+
+/// Goal actions — minimal multi-agent coordination substrate.
+///
+/// All operations are OCAP-gated: a `GoalCapabilityToken` is minted from the
+/// resolved OCAP secret, and authority denials are recorded as
+/// `cns.tool.goal.capability.denied` CNS events.
+#[derive(Subcommand)]
+pub enum GoalAction {
+    /// Create a new goal owned by the current user.
+    Create {
+        /// Goal text.
+        text: String,
+
+        /// Visibility: private | shared | public.
+        #[arg(long, default_value = "private")]
+        visibility: String,
+    },
+
+    /// List the current user's goals.
+    List {
+        /// Optional state filter: pending | active | completed | blocked | abandoned.
+        #[arg(long)]
+        state: Option<String>,
+    },
+
+    /// Transition a goal to a new state (e.g. active, completed).
+    SetState {
+        /// Goal ID.
+        id: String,
+
+        /// Target state: pending | active | completed | blocked | abandoned.
+        state: String,
+    },
+}

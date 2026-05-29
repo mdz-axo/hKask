@@ -1,8 +1,8 @@
 ---
 title: "hKask hLexicon — Minimal Composition Vocabulary"
 audience: [architects, developers, agents]
-last_updated: 2026-05-28
-version: "0.21.1"
+last_updated: 2026-05-29
+version: "0.21.2"
 status: "Active"
 domain: "Application"
 ddmvss_categories: [domain]
@@ -16,12 +16,12 @@ ddmvss_categories: [domain]
 |---------|-------------|
 | [Executive Summary](#executive-summary) | Overview of the 75-term minimal composition vocabulary |
 | [Domain 1: WordAct — Prompting Language](#domain-1-wordact--prompting-language-28-terms) | Speech act theory terms for LLM interactions (28 terms) |
-| [Domain 2: FlowDef — Process Flow Language](#domain-2-flowdef--process-flow-language-27-terms) | Workflow pattern terms for skill composition (27 terms) |
+| [Domain 2: FlowDef — Process Flow Language](#domain-2-flowdef--process-flow-language-34-terms) | Workflow pattern terms for skill composition (34 terms) |
 | [Domain 3: KnowAct — Cognition Language](#domain-3-knowact--cognition-language-25-terms) | Enactive cognition terms for metacognition (25 terms) |
 | [Cross-Domain Composition Patterns](#cross-domain-composition-patterns) | How terms from different domains compose together |
 | [hLexicon Grammar](#hlexicon-grammar) | Formal grammar for term usage and validation |
 | [Academic Grounding References](#academic-grounding-references) | Academic sources for each domain |
-| [hLexicon Term Index](#hlexicon-term-index-88-terms) | Alphabetical index of all 88 terms |
+| [hLexicon Term Index](#hlexicon-term-index-87-terms) | Alphabetical index of all 87 terms |
 | [Expansion Capacity](#expansion-capacity) | Reserved term slots for domain extensions |
 | [Usage Examples](#usage-examples) | Practical template integration examples |
 | [References](#references) | Citations and references |
@@ -35,7 +35,7 @@ ddmvss_categories: [domain]
 3. **KnowAct** — Language for cognition and metacognition (enactive cognition)[^varela]
 
 **Design Principles:**
-- **Minimal:** 75 terms allocated across 3 domains (currently 80)
+- **Minimal:** 75-term original allocation across 3 domains (currently 87 term-slots: 28 WordAct + 34 FlowDef + 25 KnowAct)
 - **Composable:** Terms combine to express complex patterns
 - **Academic Grounding:** Based on established theory (Austin, Searle, van der Aalst, Varela)
 - **LLM-Optimized:** Terms selected for LLM comprehension and consistent interpretation
@@ -125,7 +125,7 @@ Speech acts distinguish between:
 
 ---
 
-## Domain 2: FlowDef — Process Flow Language (27 terms)
+## Domain 2: FlowDef — Process Flow Language (34 terms)
 
 **Theoretical Basis:** Workflow Patterns (Wil van der Aalst), Cascade Skill Manifests[^van-der-aalst]
 
@@ -180,11 +180,10 @@ Speech acts distinguish between:
 | `compose` | Combine flows | "compose: [search, extract, summarize]" |
 | `decompose` | Break into parts | "decompose: complex question" |
 
-### 2.6 Git Evolution (8 terms) — Artifact versioning and forking
+### 2.6 Git Evolution (7 terms) — Artifact versioning and forking
 
 | Term | Definition | Example Usage |
 |------|------------|---------------|
-| `fork` | Create divergent copy for modification | "fork: template for customization" |
 | `clone` | Copy without modification intent | "clone: template for local use" |
 | `branch` | Divergent development line | "branch: experimental-feature" |
 | `merge` | Combine divergent versions | "merge: fork back into main" |
@@ -384,18 +383,18 @@ Terminology validation follows ISO principles for vocabulary management.[^iso704
 
 ---
 
-## hLexicon Term Index (88 terms)
+## hLexicon Term Index (87 terms)
 
 ### WordAct (28)
 `query`, `request`, `instruct`, `command`, `prompt`, `probe`, `challenge`, `summon`, `pledge`, `propose`, `promise`, `undertake`, `commit`, `assert`, `claim`, `report`, `declare`, `affirm`, `testify`, `acknowledge`, `apologize`, `celebrate`, `create`, `abolish`, `transform`, `specify`, `require`, `constrain`
 
-### FlowDef (27)
-`sequence`, `parallel`, `choice`, `iteration`, `fork`, `join`, `sync`, `async`, `transform`, `filter`, `aggregate`, `route`, `broadcast`, `catch`, `fallback`, `compensate`, `escalate`, `abort`, `delay`, `timeout`, `schedule`, `expire`, `compose`, `decompose`, `fork`, `clone`, `branch`, `merge`, `rebase`, `pr`, `upstream`, `downstream`, `curate`, `elicit`, `reconcile`
+### FlowDef (34)
+`sequence`, `parallel`, `choice`, `iteration`, `fork`, `join`, `sync`, `async`, `transform`, `filter`, `aggregate`, `route`, `broadcast`, `catch`, `fallback`, `compensate`, `escalate`, `abort`, `delay`, `timeout`, `schedule`, `expire`, `compose`, `decompose`, `clone`, `branch`, `merge`, `rebase`, `pr`, `upstream`, `downstream`, `curate`, `elicit`, `reconcile`
 
 ### KnowAct (25)
 `recognize`, `classify`, `detect`, `match`, `discriminate`, `parse`, `infer`, `deduce`, `induce`, `abduct`, `analogy`, `critique`, `acquire`, `integrate`, `crystallize`, `adapt`, `calibrate`, `reflect`, `monitor`, `evaluate`, `regulate`, `orient`, `ground`, `contextualise`, `cultivate`
 
-**Total: 88 terms** (13 over 75 allocation — git evolution terms and spec-curation terms are essential for artifact management and participatory goal elicitation)
+**Total: 87 term-slots** (28 WordAct + 34 FlowDef + 25 KnowAct; `transform` appears in both WordAct and FlowDef, so 86 globally-unique strings). 12 over the original 75-term allocation — git evolution terms and spec-curation terms are essential for artifact management and participatory goal elicitation.
 
 ---
 
@@ -481,4 +480,4 @@ Recommend adjustments: {{ regulate(pass_rate) }}
 
 ---
 
-*hLexicon v1.1 — 88 terms allocated across 3 domains, 1 unified composition substrate*
+*hLexicon v1.1 — 87 term-slots defined across 3 domains (28 WordAct + 34 FlowDef + 25 KnowAct), 1 unified composition substrate*

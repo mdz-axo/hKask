@@ -363,10 +363,10 @@ The hLexicon grounds all domain vocabulary across three domains:[^austin-speech]
 | Domain | Description | Allocated Terms | Theoretical Basis |
 |--------|-------------|----------------|-------------------|
 | **WordAct** | Say — communication | 28 terms | Speech Act Theory (Austin, Searle) |
-| **FlowDef** | Do — process | 27 terms | Workflow Patterns (van der Aalst) |
+| **FlowDef** | Do — process | 34 terms | Workflow Patterns (van der Aalst) |
 | **KnowAct** | Think — cognition | 25 terms | Enactive Cognition (Varela) |
 
-**Total:** 88 terms (per the authoritative catalog; spec-curation and git-evolution terms are included within the three domain allocations)
+**Total:** 87 term-slots (per the authoritative catalog [`reference/hKask-hLexicon.md`](reference/hKask-hLexicon.md); spec-curation and git-evolution terms are included within the three domain allocations)
 
 **Full vocabulary catalog:** [`reference/hKask-hLexicon.md`](reference/hKask-hLexicon.md)
 

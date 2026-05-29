@@ -86,6 +86,12 @@ pub enum Commands {
         action: SovereigntyAction,
     },
 
+    /// Goal coordination substrate (OCAP-gated, CNS-observed)
+    Goal {
+        #[command(subcommand)]
+        action: GoalAction,
+    },
+
     /// Registry management
     Registry {
         #[command(subcommand)]

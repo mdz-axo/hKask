@@ -222,7 +222,7 @@ sequenceDiagram
     participant MCP as MCP Runtime
 
     CLI->>DB: Initialize SQLCipher database
-    CLI->>LEX: Load hLexicon terms (88 terms)
+    CLI->>LEX: Load hLexicon bootstrap terms (17 of 87 cataloged)
     CLI->>REG: Register built-in templates
     CLI->>CAP: Mint root capability token
     CLI->>CUR: Initialize Curator singleton
@@ -243,7 +243,7 @@ status: VERIFIED
 | Step | Operation | Implementation |
 |------|-----------|---------------|
 | 1 | Initialize SQLCipher database | `Database::new()` |
-| 2 | Load hLexicon terms (88 terms) | Bootstrap lexicon |
+| 2 | Load hLexicon bootstrap terms (17 loaded by `Lexicon::bootstrap()`; 87 cataloged) | Bootstrap lexicon |
 | 3 | Register built-in templates | `SqliteRegistry` |
 | 4 | Mint root capability token | `CapabilityToken` with `hkask-root-authority` WebID |
 | 5 | Initialize Curator singleton | `AgentPod` or `Replicant` + system persona |
