@@ -377,7 +377,7 @@ impl BotRegistryLoader {
         let content = self
             .source
             .load_yaml(path)
-            .map_err(RegistryLoaderError::Io)?;
+            .map_err(|e| RegistryLoaderError::Io(e.to_string()))?;
         let raw: RawYamlAgent =
             serde_yaml::from_str(&content).map_err(|e| RegistryLoaderError::YamlParse {
                 path: path.to_string(),
@@ -435,7 +435,7 @@ impl BotRegistryLoader {
         let files = self
             .source
             .list_yaml_files(registry_dir)
-            .map_err(RegistryLoaderError::Io)?;
+            .map_err(|e| RegistryLoaderError::Io(e.to_string()))?;
         let mut files = files;
         files.sort();
         Ok(files)

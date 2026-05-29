@@ -10,7 +10,7 @@ use hkask_storage::SovereigntyBoundaryStore;
 use hkask_types::DataCategory;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 use thiserror::Error;
 use tracing::{debug, info};
 

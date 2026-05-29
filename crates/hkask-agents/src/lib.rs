@@ -51,7 +51,7 @@ pub mod sovereignty;
 pub use acp::{A2AMessage, AcpAgent, AcpError, AcpRuntime, TemplateDispatchHandler};
 pub use adapters::{LoopbackHttpTransport, StdioTransport};
 pub use bot::Bot;
-pub use consent::ConsentManager;
+pub use consent::{ConsentError, ConsentManager};
 pub use curator::escalation::{
     EscalationEntry, EscalationQueue, EscalationStats, EscalationStatus,
 };

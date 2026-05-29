@@ -13,6 +13,7 @@ hkask-mcp = { path = "../hkask-mcp" }
 hkask-cns = { path = "../hkask-cns" }
 hkask-ensemble = { path = "../hkask-ensemble" }
 hkask-keystore = { path = "../hkask-keystore" }
+hkask-storage = { path = "../hkask-storage" }
 axum.workspace = true
 utoipa.workspace = true
 utoipa-axum.workspace = true

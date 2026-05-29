@@ -149,11 +149,19 @@ pub enum SovereigntyAction {
     /// Get current sovereignty state
     Status,
 
-    /// Grant explicit consent for data sharing
-    GrantConsent,
+    /// Grant consent for data sharing (per-category)
+    Grant {
+        /// Data category to grant consent for
+        #[arg(long)]
+        category: String,
+    },
 
-    /// Revoke explicit consent
-    RevokeConsent,
+    /// Revoke consent for data sharing
+    Revoke {
+        /// Data category to revoke consent for
+        #[arg(long)]
+        category: String,
+    },
 
     /// Mark acquisition attempt (for testing)
     MarkAcquisition {

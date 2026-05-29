@@ -12,6 +12,8 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::info;
 
+use crate::security::SecurityGateway;
+
 use crate::runtime::{McpRuntime, McpTool};
 
 /// Retry configuration — alias for the canonical RetryConfig
@@ -31,6 +33,8 @@ pub struct McpDispatcher {
     _retry_config: McpMcpRetryConfig,
     /// Optional CNS emitter for structured span emission
     cns_emitter: Option<Arc<dyn CnsEmit + Send + Sync>>,
+    /// Optional security gateway for input validation, tool allow/deny, rate limiting
+    security_gateway: Option<SecurityGateway>,
 }
 
 impl McpDispatcher {
@@ -42,12 +46,19 @@ impl McpDispatcher {
             bot_capabilities: Arc::new(RwLock::new(std::collections::HashMap::new())),
             _retry_config: retry_config,
             cns_emitter: None,
+            security_gateway: None,
         }
     }
 
     /// Set the CNS emitter for structured span emission
     pub fn with_cns_emitter(mut self, emitter: Arc<dyn CnsEmit + Send + Sync>) -> Self {
         self.cns_emitter = Some(emitter);
+        self
+    }
+
+    /// Wire in the security gateway for input validation, tool allow/deny, and rate limiting
+    pub fn with_security_gateway(mut self, sg: SecurityGateway) -> Self {
+        self.security_gateway = Some(sg);
         self
     }
 
@@ -131,6 +142,35 @@ impl McpPort for McpDispatcher {
         ) {
             return Err(TemplateError::CapabilityDenied(format!(
                 "Capability token does not authorize tool: {}",
+                tool_name
+            )));
+        }
+
+        // Security gateway: input size validation
+        self.security_gateway
+            .as_ref()
+            .map_or(Ok(()), |sg| sg.validate_input_size(&input))?;
+
+        // Security gateway: tool allow/deny check
+        if !self
+            .security_gateway
+            .as_ref()
+            .map_or(true, |sg| sg.is_tool_allowed(tool_name))
+        {
+            return Err(TemplateError::CapabilityDenied(format!(
+                "Tool denied by security policy: {}",
+                tool_name
+            )));
+        }
+
+        // Security gateway: rate limiting
+        if !self
+            .security_gateway
+            .as_ref()
+            .map_or(true, |sg| sg.check_rate_limit(&token.holder()))
+        {
+            return Err(TemplateError::RateLimitExceeded(format!(
+                "Rate limit exceeded for tool: {}",
                 tool_name
             )));
         }

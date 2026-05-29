@@ -1,7 +1,13 @@
 //! Pod lifecycle management routes
 
-use axum::{Json, extract::Path, extract::State, http::StatusCode, routing::Router};
+use axum::{
+    Json,
+    extract::{Extension, Path, State},
+    http::StatusCode,
+    routing::Router,
+};
 
+use crate::middleware::auth::AuthContext;
 use crate::{ApiState, CreatePodRequest, CreatePodResponse, ListPodsResponse, PodStatusResponse};
 
 /// Create pods router
@@ -54,6 +60,7 @@ async fn list_pods(State(state): State<ApiState>) -> Json<ListPodsResponse> {
 /// Create a new pod
 async fn create_pod(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Json(req): Json<CreatePodRequest>,
 ) -> Result<Json<CreatePodResponse>, StatusCode> {
     use hkask_agents::pod::AgentPersona;
@@ -67,15 +74,10 @@ async fn create_pod(
         }),
     );
 
-    let user_webid = state.system_webid;
-
-    let has_capability = state.capability_checker.check_resource(
-        &state
+    let has_capability =
+        state
             .capability_checker
-            .grant_tool("pod".to_string(), state.system_webid, user_webid),
-        &user_webid,
-        CapabilityResource::Tool,
-    );
+            .check_resource(&auth.token, &auth.webid, CapabilityResource::Tool);
 
     if !has_capability {
         state.cns_emitter.emit_agent_pod(
@@ -119,7 +121,12 @@ async fn create_pod(
 }
 
 /// Activate a pod
-async fn activate_pod(State(state): State<ApiState>, Path(id): Path<String>) -> StatusCode {
+async fn activate_pod(
+    State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
+    Path(id): Path<String>,
+) -> Result<StatusCode, StatusCode> {
+    let _ = _auth; // Auth verified by middleware; handler does not use token
     use hkask_agents::pod::PodID;
     use uuid::Uuid;
 
@@ -139,7 +146,7 @@ async fn activate_pod(State(state): State<ApiState>, Path(id): Path<String>) -> 
                     "reason": "invalid_pod_id",
                 }),
             );
-            return StatusCode::BAD_REQUEST;
+            return Err(StatusCode::BAD_REQUEST);
         }
     };
     let pod_id = PodID(uuid);
@@ -152,7 +159,7 @@ async fn activate_pod(State(state): State<ApiState>, Path(id): Path<String>) -> 
                     "pod_id": id,
                 }),
             );
-            StatusCode::NO_CONTENT
+            Ok(StatusCode::NO_CONTENT)
         }
         Err(e) => {
             state.cns_emitter.emit_agent_pod(
@@ -161,13 +168,18 @@ async fn activate_pod(State(state): State<ApiState>, Path(id): Path<String>) -> 
                     "reason": e.to_string(),
                 }),
             );
-            StatusCode::NOT_FOUND
+            Err(StatusCode::NOT_FOUND)
         }
     }
 }
 
 /// Deactivate a pod
-async fn deactivate_pod(State(state): State<ApiState>, Path(id): Path<String>) -> StatusCode {
+async fn deactivate_pod(
+    State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
+    Path(id): Path<String>,
+) -> Result<StatusCode, StatusCode> {
+    let _ = _auth; // Auth verified by middleware; handler does not use token
     use hkask_agents::pod::PodID;
     use uuid::Uuid;
 
@@ -187,7 +199,7 @@ async fn deactivate_pod(State(state): State<ApiState>, Path(id): Path<String>) -
                     "reason": "invalid_pod_id",
                 }),
             );
-            return StatusCode::BAD_REQUEST;
+            return Err(StatusCode::BAD_REQUEST);
         }
     };
     let pod_id = PodID(uuid);
@@ -200,7 +212,7 @@ async fn deactivate_pod(State(state): State<ApiState>, Path(id): Path<String>) -
                     "pod_id": id,
                 }),
             );
-            StatusCode::NO_CONTENT
+            Ok(StatusCode::NO_CONTENT)
         }
         Err(e) => {
             state.cns_emitter.emit_agent_pod(
@@ -209,7 +221,7 @@ async fn deactivate_pod(State(state): State<ApiState>, Path(id): Path<String>) -
                     "reason": e.to_string(),
                 }),
             );
-            StatusCode::NOT_FOUND
+            Err(StatusCode::NOT_FOUND)
         }
     }
 }
@@ -217,8 +229,10 @@ async fn deactivate_pod(State(state): State<ApiState>, Path(id): Path<String>) -
 /// Get pod status
 async fn pod_status(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Result<Json<PodStatusResponse>, StatusCode> {
+    let _ = _auth; // Auth verified by middleware; handler does not use token
     use hkask_agents::pod::PodID;
     use uuid::Uuid;
 

@@ -405,15 +405,52 @@ fn main() {
                     println!("    - {}", category.as_str());
                 }
             }
-            SovereigntyAction::GrantConsent => {
-                println!("Explicit consent granted.");
-                println!("  Data sharing is now enabled for shared data categories.");
-                println!("  Sovereign data remains protected.");
+            SovereigntyAction::Grant { category } => {
+                let webid = hkask_types::WebID::new();
+                let data_category = cli::parse_data_category(&category);
+                let store = hkask_storage::SovereigntyBoundaryStore::new(
+                    hkask_storage::Database::in_memory()
+                        .expect("in-memory db")
+                        .conn_arc(),
+                );
+                let consent_manager = hkask_agents::ConsentManager::new(store);
+
+                match consent_manager.grant_consent(&webid.to_string(), &data_category) {
+                    Ok(()) => {
+                        println!("Consent granted for category: {}", category);
+                        println!("  Data sharing is now enabled for this category.");
+                        if data_category.is_typically_sovereign() {
+                            println!("  Note: Sovereign data still requires owner verification.");
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Error granting consent: {}", e);
+                    }
+                }
             }
-            SovereigntyAction::RevokeConsent => {
-                println!("Explicit consent revoked.");
-                println!("  Data sharing is now disabled.");
-                println!("  Only public data is accessible.");
+            SovereigntyAction::Revoke { category } => {
+                let webid = hkask_types::WebID::new();
+                let store = hkask_storage::SovereigntyBoundaryStore::new(
+                    hkask_storage::Database::in_memory()
+                        .expect("in-memory db")
+                        .conn_arc(),
+                );
+                let consent_manager = hkask_agents::ConsentManager::new(store);
+
+                // First grant consent so there's something to revoke
+                let data_category = cli::parse_data_category(&category);
+                let _ = consent_manager.grant_consent(&webid.to_string(), &data_category);
+
+                match consent_manager.revoke_consent(&webid.to_string()) {
+                    Ok(()) => {
+                        println!("Consent revoked for category: {}", category);
+                        println!("  Data sharing is now disabled for this category.");
+                        println!("  Only public data is accessible.");
+                    }
+                    Err(e) => {
+                        eprintln!("Error revoking consent: {}", e);
+                    }
+                }
             }
             SovereigntyAction::MarkAcquisition { vc_investment } => {
                 let mut state = hkask_types::UserSovereigntyState::new();

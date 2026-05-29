@@ -31,9 +31,11 @@ use hkask_agents::adapters::cns_emitter::CnsEmitterAdapter;
 use hkask_agents::adapters::git_cas::GitCasAdapter;
 use hkask_agents::adapters::mcp_runtime::McpRuntimeAdapter;
 use hkask_agents::adapters::memory_storage::MemoryStorageAdapter;
+use hkask_agents::consent::ConsentManager;
 use hkask_agents::pod::PodManager;
 use hkask_cns::rate_limit::{RateLimitConfig, RateLimiter};
 use hkask_cns::spans::SpanEmitter;
+use hkask_storage::SovereigntyBoundaryStore;
 use hkask_templates::SqliteRegistry;
 use hkask_types::{CapabilityChecker, WebID};
 use serde::{Deserialize, Serialize};
@@ -75,6 +77,8 @@ pub struct ApiState {
     pub ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::OkapiHttpClient>>,
     /// Spec store for DDMVSS specifications
     pub spec_store: Option<Arc<dyn hkask_types::SpecStore + Send + Sync>>,
+    /// Consent manager for user sovereignty
+    pub consent_manager: Arc<ConsentManager>,
 }
 
 impl ApiState {
@@ -91,6 +95,11 @@ impl ApiState {
             max_tokens: 100,
             refill_interval: std::time::Duration::from_millis(600),
         });
+        let consent_manager = Arc::new(ConsentManager::new(SovereigntyBoundaryStore::new(
+            hkask_storage::Database::in_memory()
+                .expect("in-memory db")
+                .conn_arc(),
+        )));
         Self {
             registry: Arc::new(tokio::sync::Mutex::new(registry)),
             mcp_runtime: Arc::new(mcp_runtime),
@@ -101,6 +110,7 @@ impl ApiState {
             rate_limiter: Arc::new(rate_limiter),
             ensemble_inferencer,
             spec_store: None,
+            consent_manager,
         }
     }
 
@@ -132,6 +142,12 @@ impl ApiState {
             system_webid,
             None,
         )
+    }
+
+    /// Create ApiState with consent manager
+    pub fn with_consent_manager(mut self, consent_manager: ConsentManager) -> Self {
+        self.consent_manager = Arc::new(consent_manager);
+        self
     }
 
     /// Create ApiState with ensemble inferencer

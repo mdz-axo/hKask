@@ -29,6 +29,7 @@ pub use spec::spec_router;
 pub use templates::templates_router;
 
 // Re-export domain-local types that may be used externally
+pub use acp::{AcpAgentResponse, AgentListResponse};
 pub use ensemble::{
     CreateChatRequest, EnsembleResponse, RecordResponseRequest, RegisterBotRequest,
     SendMessageRequest,

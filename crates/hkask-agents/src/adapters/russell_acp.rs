@@ -613,4 +613,18 @@ impl AcpPort for RussellAcpAdapter {
     fn set_cns_emitter(&self, _emitter: Arc<dyn hkask_cns::CnsEmit + Send + Sync>) {
         tracing::debug!(target: "hkask.russell", "CNS emitter set (Russell adapter uses internal CNS emission)");
     }
+
+    async fn list_agents(&self) -> Vec<crate::acp::AcpAgent> {
+        let sessions = self.sessions.read().await;
+        sessions
+            .keys()
+            .map(|webid| crate::acp::AcpAgent {
+                webid: *webid,
+                agent_type: "unknown".to_string(),
+                capabilities: vec![],
+                registered_at: 0,
+                active: true,
+            })
+            .collect()
+    }
 }

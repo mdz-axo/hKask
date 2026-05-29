@@ -761,4 +761,8 @@ impl crate::ports::AcpPort for AcpRuntime {
             Err(e) => tracing::error!("CNS emitter lock poisoned: {}", e),
         }
     }
+
+    async fn list_agents(&self) -> Vec<AcpAgent> {
+        AcpRuntime::list_agents(self).await
+    }
 }

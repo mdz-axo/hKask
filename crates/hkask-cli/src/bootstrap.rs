@@ -259,11 +259,23 @@ impl BootstrapSequence {
                 let _ = secrets; // Secrets will be used by ACP, MCP, API, OCAP subsystems
             }
             Err(_) => {
-                warn!(
-                    target: "bootstrap",
-                    "HKASK_MASTER_KEY not set — falling back to per-secret env vars or keychain. \
-                     Set HKASK_MASTER_KEY for deterministic secret derivation across restarts."
-                );
+                // Check if running in insecure dev mode
+                if std::env::var("HKASK_INSECURE_DEV").is_ok() {
+                    warn!(
+                        target: "bootstrap",
+                        "HKASK_MASTER_KEY not set and HKASK_INSECURE_DEV is active. \
+                         Secrets will be derived from per-subsystem env vars or OS keychain. \
+                         THIS MODE IS INSECURE — do not use in production."
+                    );
+                } else {
+                    error!(
+                        target: "bootstrap",
+                        "HKASK_MASTER_KEY not set and HKASK_INSECURE_DEV not active. \
+                         Secret derivation will use per-subsystem env vars or OS keychain. \
+                         Set HKASK_MASTER_KEY=<passphrase> for deterministic secret derivation, \
+                         or set HKASK_INSECURE_DEV=1 for local development."
+                    );
+                }
             }
         }
 

@@ -15,10 +15,7 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use hkask_keystore;
-use hkask_types::{
-    CapabilityAction, CapabilityResource, CapabilityToken, SecretRef, WebID, derivation_contexts,
-};
+use hkask_types::{CapabilityToken, SecretRef, WebID, derivation_contexts};
 use std::sync::Arc;
 
 /// Routes that bypass authentication (health checks, model listing).
@@ -101,6 +98,7 @@ pub enum TokenVerification {
 /// Axum layer wrapping `AuthService`.
 #[derive(Clone)]
 pub struct AuthLayer {
+    #[allow(dead_code)] // Available for alternative wiring patterns
     service: Arc<AuthService>,
 }
 
