@@ -26,8 +26,8 @@ use hkask_mcp::dispatch::McpDispatcher;
 use hkask_mcp::runtime::McpRuntime;
 use hkask_templates::McpPort;
 use hkask_templates::SqliteRegistry;
+use hkask_types::WebID;
 use hkask_types::cns::RetryConfig;
-use hkask_types::{CapabilityToken, WebID};
 
 /// Print an error and exit if the result is Err.
 /// Returns the Ok value on success.
@@ -364,7 +364,7 @@ fn main() {
                     println!("Note: Tool lookup requires MCP runtime integration.");
                 }
                 McpAction::Invoke {
-                    server,
+                    server: _server,
                     tool,
                     input,
                 } => {

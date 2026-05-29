@@ -1,8 +1,8 @@
 ---
 title: "hKask Interface & Composition Specification"
 audience: [architects, developers, agents]
-last_updated: 2026-05-28
-version: "2.1.0"
+last_updated: 2026-05-29
+version: "2.2.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [interface, composition]
@@ -62,17 +62,19 @@ status: VERIFIED
 
 | Transport | Implementation | Use Case | Security |
 |-----------|---------------|----------|----------|
-| In-process | `InProcessMcpTransport` (`transport.rs:32`) | Co-located servers | No network |
-| Stdio | `StdioMcpTransport` (`transport.rs:102`) | Child process servers | Process isolation |
-| HTTP | `HttpMcpTransport` (`transport.rs:155`) | Remote servers | HTTPS + OCAP tokens |
+| In-process | `InProcessMcpTransport` (`transport.rs:69`) | Co-located servers | No network |
+| Stdio | `McpTransport::Stdio` (not yet implemented) | Child process servers | Process isolation |
+| HTTP | `McpTransport::Http` (not yet implemented) | Remote servers | HTTPS + OCAP tokens |
 
-**Security:** `SecurityGateway` (`security.rs:51`) enforces OCAP before dispatch. `McpSupervisor` (`supervisor.rs:100`) manages health with configurable restart policies.
+**Transport type:** `McpTransport` enum (`transport.rs:17`) replaces the former trait with concrete variants, eliminating dynamic dispatch.
+
+**Security:** `SecurityGateway` (`security.rs:51`) enforces OCAP before dispatch. `McpSupervisor` (`supervisor.rs:102`) manages health with configurable restart policies.
 
 ### 1.2 CLI Surface
 
 **Binary:** `kask` (built from `hkask-cli`, 3,741 LOC)
 
-**15 subcommand groups** (`crates/hkask-cli/src/cli/mod.rs:33`):
+**16 subcommand groups** (`crates/hkask-cli/src/cli/mod.rs:33`):
 
 | Subcommand | Purpose |
 |-----------|---------|
@@ -263,10 +265,10 @@ status: VERIFIED
 | Stage | Implementation | Purpose |
 |-------|---------------|---------|
 | Select | `SqliteRegistry.get()` | Retrieve by ID and type |
-| Resolve | `DependencyGraph` + `SqliteRegistry` (`dependency.rs:21`) | Dependency graph, cascade |
+| Resolve | `DependencyGraph` + `SqliteRegistry` (`dependency.rs:29`) | Dependency graph, cascade |
 | Assemble | `ContextAssembler` (`context_assembly.rs:126`) | Build context from fragments |
-| Validate | `CapabilityAwareValidator` (`capability_validator.rs:21`) | Verify capabilities |
-| Render | `TemplateRendererImpl` (`renderer.rs:16`) | Jinja2 via minijinja |
+| Validate | `CapabilityAwareValidator` (`capability_validator.rs:11`) | Verify capabilities |
+| Render | `TemplateRendererImpl` (`renderer.rs:14`) | Jinja2 via minijinja |
 | Audit | `AuditTrail` (`audit.rs:87`) | Record execution + timing |
 
 ### 4.1 Manifest Step Grammar
@@ -326,8 +328,8 @@ See [`domain-and-capability.md`](domain-and-capability.md) §4 for pod lifecycle
 ### 5.3 ACP (Agent Communication Protocol)
 
 Bidirectional federation via JSON-RPC 2.0 over stdio:
-- `AcpPort` trait (`ports/acp.rs:18`) — bridge interface
-- `AcpTransport` trait (`ports/acp_transport.rs:86`) — wire protocol
+- `AcpPort` trait (`ports/acp.rs`) — bridge interface
+- `AcpTransport` trait (`ports/acp_transport.rs`) — wire protocol
 - `AcpWireMessage` / `AcpWireResponse` — message format
 
 ---

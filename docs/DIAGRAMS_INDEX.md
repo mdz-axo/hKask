@@ -1,7 +1,7 @@
 ---
 title: "hKask Diagram Index — Mermaid Verification Registry"
 audience: [architects, developers, agents]
-last_updated: 2026-05-28
+last_updated: 2026-05-29
 version: "1.0.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -12,7 +12,7 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 
 **Purpose:** Verifiable registry of all Mermaid diagrams in the hKask documentation corpus. Per the Mermaid-First Mandate from `DOCUMENTATION_STANDARDS.md` §4: every interaction pattern, data flow, and object model is diagrammed. Every diagram carries `DIAGRAM_ALIGNMENT` metadata.
 
-**Verification status:** All diagram `verified-against` paths checked against current workspace at 2026-05-28.
+**Verification status:** All diagram `verified-against` paths checked against current workspace at 2026-05-29.
 
 ---
 
@@ -20,10 +20,10 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 
 | Diagram ID | Description | Document | Verified Against | Status |
 |-----------|-------------|----------|-----------------|--------|
-| DIAG-DC-001 | hKask Bounded Context (POD → CAP → TPL → CNS) + delegated dependencies | [`domain-and-capability.md`](architecture/domain-and-capability.md) §1 | `crates/hkask-agents/src/pod/mod.rs:81`, `crates/hkask-types/src/visibility.rs:145`, `Cargo.toml` workspace members | ✅ VERIFIED |
+| DIAG-DC-001 | hKask Bounded Context (POD → CAP → TPL → CNS) + delegated dependencies | [`domain-and-capability.md`](architecture/domain-and-capability.md) §1 | `crates/hkask-agents/src/pod/mod.rs:83`, `crates/hkask-types/src/capability/mod.rs:223`, `Cargo.toml` workspace members | ✅ VERIFIED |
 | DIAG-DC-002 | Domain Entity Map — 9 entities with crate/struct locations | [`domain-and-capability.md`](architecture/domain-and-capability.md) §3.1 | `crates/hkask-types/src/`, `crates/hkask-agents/src/` | ✅ VERIFIED |
 | DIAG-DC-003 | Agent Taxonomy (Bot/Replicant branching) | [`domain-and-capability.md`](architecture/domain-and-capability.md) §4 | `crates/hkask-agents/src/bot.rs:14`, `crates/hkask-agents/src/replicant.rs:14` | ✅ VERIFIED |
-| DIAG-DC-004 | OCAP Capability Attenuation Chain (depth ≤ 7) | [`domain-and-capability.md`](architecture/domain-and-capability.md) §5 | `crates/hkask-types/src/visibility.rs:145` | ✅ VERIFIED |
+| DIAG-DC-004 | OCAP Capability Attenuation Chain (depth ≤ 7) | [`domain-and-capability.md`](architecture/domain-and-capability.md) §5 | `crates/hkask-types/src/capability/mod.rs:223` | ✅ VERIFIED |
 | DIAG-DC-005 | MCP Tool Dispatch with OCAP constraint enforcement | [`domain-and-capability.md`](architecture/domain-and-capability.md) §6 | `crates/hkask-mcp/src/runtime.rs:59`, `crates/hkask-mcp/src/security.rs` | ✅ VERIFIED |
 | DIAG-DC-006 | hLexicon Allocation Table (WordAct/FlowDef/KnowAct) | [`domain-and-capability.md`](architecture/domain-and-capability.md) §7 | `docs/architecture/reference/hKask-hLexicon.md` | ✅ VERIFIED |
 
@@ -51,8 +51,8 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 
 | Diagram ID | Description | Document | Verified Against | Status |
 |-----------|-------------|----------|-----------------|--------|
-| DIAG-PL-001 | Database Architecture — SQLCipher with 9 specialized stores | [`persistence-and-lifecycle.md`](architecture/persistence-and-lifecycle.md) §1 | `crates/hkask-storage/src/database.rs` | ✅ VERIFIED |
-| DIAG-PL-002 | Bitemporal Triple Schema (valid-time × transaction-time) | [`persistence-and-lifecycle.md`](architecture/persistence-and-lifecycle.md) §2 | `crates/hkask-storage/src/triples.rs` | ✅ VERIFIED |
+| DIAG-PL-001 | Database Architecture — SQLCipher with 9 specialized stores | [`persistence-and-lifecycle.md`](architecture/persistence-and-lifecycle.md) §1 | `crates/hkask-storage/src/database.rs:74` | ✅ VERIFIED |
+| DIAG-PL-002 | Bitemporal Triple Schema (valid-time × transaction-time) | [`persistence-and-lifecycle.md`](architecture/persistence-and-lifecycle.md) §2 | `crates/hkask-storage/src/triples.rs:79` | ✅ VERIFIED |
 | DIAG-PL-003 | Memory Architecture — Episodic/Semantic public/private gating | [`persistence-and-lifecycle.md`](architecture/persistence-and-lifecycle.md) §3 | `crates/hkask-memory/src/` | ✅ VERIFIED |
 | DIAG-PL-004 | Bootstrap Sequence (DB → hLexicon → Registry → Capability → Curator → CNS → MCP) | [`persistence-and-lifecycle.md`](architecture/persistence-and-lifecycle.md) §5 | `crates/hkask-cli/src/main.rs` | ✅ VERIFIED |
 | DIAG-PL-005 | Embedding Vector Lifecycle (model → sqlite-vec → KNN search) | [`persistence-and-lifecycle.md`](architecture/persistence-and-lifecycle.md) §4 | `crates/hkask-storage/src/embeddings.rs` | ✅ VERIFIED |
@@ -103,7 +103,7 @@ These interaction patterns exist in the codebase but lack dedicated diagram cove
 | Reference | 3 | 3 | 0 |
 | **Total** | **28** | **28** | **8** |
 
-**DDMVSS completeness:** All 9 DDMVSS categories have diagram coverage. 28 diagrams verified against current code (2026-05-28). 8 undocumented patterns identified for v1.1+.
+**DDMVSS completeness:** All 9 DDMVSS categories have diagram coverage. 28 diagrams verified against current code (2026-05-29). 8 undocumented patterns identified for v1.1+.
 
 ---
 

@@ -1,8 +1,8 @@
 ---
 title: "hKask Persistence & Lifecycle Specification"
 audience: [architects, database developers, DevOps engineers]
-last_updated: 2026-05-28
-version: "2.1.0"
+last_updated: 2026-05-29
+version: "2.2.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [persistence, lifecycle]
@@ -63,7 +63,7 @@ graph TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-PL-001
 verified_date: 2026-05-28
-verified_against: crates/hkask-storage/src/database.rs:59; triples.rs:77; nu_event_store.rs:19; embeddings.rs:49; spec_store.rs:10
+verified_against: crates/hkask-storage/src/database.rs:74; triples.rs:79; nu_event_store.rs:21; embeddings.rs:49; spec_store.rs:10
 status: VERIFIED
 -->
 
@@ -112,7 +112,7 @@ CREATE INDEX idx_triples_valid ON triples(valid_from, valid_to);
 CREATE INDEX idx_triples_tx ON triples(tx_from, tx_to);
 ```
 
-**Implementation:** `TripleStore` (`triples.rs:77`), `Triple` (`triples.rs:20`)
+**Implementation:** `TripleStore` (`triples.rs:79`), `Triple` (`triples.rs:22`)
 
 [^snodgrass-bitemporal]: Snodgrass, R. T. (1999). *Developing Time-Oriented Database Applications in SQL*. Morgan Kaufmann.
 
@@ -162,7 +162,7 @@ pub fn knn_search(&self, query: &[f32], k: usize) -> Result<Vec<KnnResult>, Embe
 |-----------|---------|-------|
 | **Dimensions** | 384 | Model-dependent (all-MiniLM-L6-v2) |
 | **Distance** | Cosine | Standard for text embeddings |
-| **Backend** | Candle | Local via FastEmbed |
+| **Backend** | FastEmbed | Local via sqlite-vec |
 | **Contingency** | Qdrant | External vector DB (deferred) |
 
 ---

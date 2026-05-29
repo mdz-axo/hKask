@@ -107,7 +107,7 @@ async fn mcp_invoke(
                 code,
                 Json(ErrorResponse {
                     error: e.to_string(),
-                    code: code.as_u16(),
+                    code: code.as_u16().to_string(),
                     details: None,
                 }),
             )

@@ -10,6 +10,7 @@
 //! - `GET /api/mcp/servers` — List MCP servers
 //! - `GET /api/mcp/tools` — List tools
 //! - `GET /api/mcp/tools/:name` — Get tool definition
+//! - `POST /api/mcp/invoke` — Invoke an MCP tool
 //! - `GET /api/cns/health` — CNS health status
 //! - `GET /api/cns/alerts` — Algedonic alerts
 //! - `GET /api/cns/variety` — CNS variety counters
@@ -64,6 +65,8 @@ pub struct ApiState {
     pub registry: Arc<tokio::sync::Mutex<SqliteRegistry>>,
     /// MCP runtime
     pub mcp_runtime: Arc<hkask_mcp::runtime::McpRuntime>,
+    /// MCP dispatcher for OCAP-protected tool invocation
+    pub mcp_dispatcher: Arc<hkask_mcp::dispatch::McpDispatcher>,
     /// Pod manager
     pub pod_manager: Arc<PodManager>,
     /// Capability checker for OCAP verification
@@ -122,9 +125,16 @@ impl ApiState {
         let git_cas: Arc<dyn hkask_agents::ports::GitCASPort> = Arc::new(GitCasAdapter::from_path(
             PathBuf::from("/tmp/hkask-templates"),
         ));
+        let dispatcher_runtime = hkask_mcp::runtime::McpRuntime::new();
+        let mcp_dispatcher = Arc::new(hkask_mcp::dispatch::McpDispatcher::new(
+            dispatcher_runtime,
+            capability_secret,
+            hkask_types::cns::RetryConfig::default(),
+        ));
         Self {
             registry: Arc::new(tokio::sync::Mutex::new(registry)),
             mcp_runtime: Arc::new(mcp_runtime),
+            mcp_dispatcher,
             pod_manager: Arc::new(pod_manager),
             capability_checker: Arc::new(CapabilityChecker::new(capability_secret)),
             system_webid,

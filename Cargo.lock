@@ -2065,11 +2065,15 @@ name = "hkask-cybertest"
 version = "0.21.0"
 dependencies = [
  "hkask-cns",
+ "hkask-storage",
+ "hkask-templates",
  "hkask-types",
  "parking_lot",
+ "rusqlite",
  "serde",
  "serde_json",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]

@@ -1,8 +1,8 @@
 ---
 title: "hKask Trust, Security & Observability Specification"
 audience: [architects, security engineers, developers]
-last_updated: 2026-05-28
-version: "2.1.0"
+last_updated: 2026-05-29
+version: "2.2.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [trust, observability]
@@ -37,12 +37,12 @@ All access control uses `CapabilityToken` (`crates/hkask-types/src/capability/mo
 
 | Property | Implementation |
 |----------|---------------|
-| **Signing** | Ed25519 or HMAC-SHA256 + `subtle::ConstantTimeEq` |
+| **Signing** | HMAC-SHA256 + `subtle::ConstantTimeEq` |
 | **Scoping** | Resource + action pairs (`CapabilityResource`, `CapabilityAction`) |
 | **Caveats** | Expiration, operation, template, visibility |
 | **Attenuation** | Max depth 7 (configurable) |
-| **Revocation** | Persistent SQLite via `RevocationList` |
-| **Secure memory** | Arc-wrapped |
+| **Revocation** | Persistent SQLite via `RevocationStore` (`hkask-agents/src/revocation_store.rs:16`) |
+| **Secure memory** | Arc-wrapped, `Zeroizing` on drop |
 
 **Full capability model:** [`domain-and-capability.md`](domain-and-capability.md) §5
 
@@ -163,7 +163,7 @@ The MCP keystore server persists encrypted entries to a file-based vault at `~/.
 | Threat | Category | Mitigation | hKask Primitive |
 |--------|----------|-----------|-----------------|
 | Template injection | Tampering | Jinja2 sandbox | `minijinja` sandboxing |
-| Capability forgery | Spoofing | Ed25519 or HMAC-SHA256 + constant-time | `CapabilityToken` integrity |
+| Capability forgery | Spoofing | HMAC-SHA256 + constant-time | `CapabilityToken` integrity |
 | Capability escalation | Elevation | Attenuation enforcement | `CapabilityTokenBuilder` attenuation |
 | Replay attacks | Spoofing | Context nonce + expiry | `CapabilityToken.context_nonce` |
 | Data at rest exposure | Info Disclosure | SQLCipher | `hkask-storage` |
@@ -347,7 +347,7 @@ Energy tracking for resource-conscious execution:
 
 ### 5.1 NuEvent Store
 
-All CNS events persisted in `NuEventStore` (`hkask-storage/src/nu_event_store.rs:19`):
+All CNS events persisted in `NuEventStore` (`hkask-storage/src/nu_event_store.rs:21`):
 - Append-only event log with observer identity
 - Queryable by span, time range, observer
 - SQLCipher-encrypted SQLite
