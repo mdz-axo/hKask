@@ -868,6 +868,7 @@ mod tests {
             .attenuate(test_webid("bot-b"), &secret, 1000)
             .expect("attenuation should succeed at level 0");
         assert_eq!(child.attenuation_level, 1);
+        // After attenuation, delegated_from becomes the original holder (bot-a)
         assert_eq!(child.delegated_from, test_webid("bot-a"));
         assert_eq!(child.delegated_to, test_webid("bot-b"));
         assert!(child.verify(&secret));
@@ -950,12 +951,11 @@ mod tests {
             test_webid("curator"),
             test_webid("bot-a"),
         )
+        .expires_at(100)
         .caveat(Caveat::expiration(100))
         .sign(&secret);
 
-        let ctx = CaveatContext::new();
-        // With current_time = 200, the 100-expiry caveat should block
-        // CaveatContext controls allowed operations; verify via is_expired on the token itself
+        // With current_time = 200, the expires_at should block use
         assert!(token.is_expired(200));
         assert!(!token.is_expired(50));
     }
