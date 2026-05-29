@@ -788,7 +788,8 @@ mod tests {
     use super::*;
 
     fn test_webid(name: &str) -> WebID {
-        WebID::from_string(name)
+        // Use deterministic UUID v5 from persona for test reproducibility
+        WebID::from_persona_with_namespace(name.as_bytes(), "test")
     }
 
     fn test_secret() -> Vec<u8> {
