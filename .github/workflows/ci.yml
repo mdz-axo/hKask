@@ -205,6 +205,71 @@ jobs:
           cargo test -p hkask-mcp cyber_
 
   # ============================================================================
+  # Security Invariant Verification
+  # ============================================================================
+  security-invariants:
+    name: Security Invariants
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: No unwrap on hot paths (CNS, agents)
+        run: |
+          violations=$(grep -rn "unwrap()" crates/hkask-cns/src/ crates/hkask-agents/src/pod/ --include="*.rs" | grep -v "cfg(test)" | grep -v "test_" || true)
+          if [ -n "$violations" ]; then
+            echo "SECURITY INVARIANT VIOLATED: unwrap() on hot paths:"
+            echo "$violations"
+            exit 1
+          fi
+
+      - name: No wildcard capabilities
+        run: |
+          violations=$(grep -rn '"\\*"' crates/ --include="*.rs" | grep -v "cfg(test)" | grep -v "test_" | grep -v "registry.rs" || true)
+          if [ -n "$violations" ]; then
+            echo "SECURITY INVARIANT VIOLATED: Wildcard capabilities detected:"
+            echo "$violations"
+            exit 1
+          fi
+
+      - name: No hardcoded secrets
+        run: |
+          violations=$(grep -rn 'OKAPI_DEV_KEY\|password\s*=\s*"' crates/ --include="*.rs" || true)
+          if [ -n "$violations" ]; then
+            echo "SECURITY INVARIANT VIOLATED: Hardcoded secrets detected:"
+            echo "$violations"
+            exit 1
+          fi
+
+      - name: No todo!/unimplemented! stubs (P6)
+        run: |
+          violations=$(grep -rn 'todo!\|unimplemented!' crates/ --include="*.rs" | grep -v "cfg(test)" || true)
+          if [ -n "$violations" ]; then
+            echo "CONSTRAINT P6 VIOLATED: Stubs detected in production code:"
+            echo "$violations"
+            exit 1
+          fi
+
+      - name: No deprecated (P7)
+        run: |
+          violations=$(grep -rn '#\[deprecated\]' crates/ --include="*.rs" || true)
+          if [ -n "$violations" ]; then
+            echo "CONSTRAINT P7 VIOLATED: Deprecated code detected:"
+            echo "$violations"
+            exit 1
+          fi
+
+      - name: No visual UI infrastructure
+        run: |
+          violations=$(grep -r 'grafana\|prometheus\|dashboard\|visual.*ui' crates/ --include="*.rs" --include="*.md" || true)
+          if [ -n "$violations" ]; then
+            echo "HEADLESS CONSTRAINT VIOLATED: Visual UI references detected:"
+            echo "$violations"
+            exit 1
+          fi
+
+  # ============================================================================
   # Dependency Policy Check
   # ============================================================================
   deps:
@@ -235,7 +300,7 @@ jobs:
     name: Release Build
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    needs: [test, cyber-tests]
+    needs: [test, cyber-tests, security-invariants]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
