@@ -299,7 +299,7 @@ steps:
 LLM inference delegated to Okapi via `InferencePort`:
 
 ```rust
-// crates/hkask-templates/src/inference_port.rs:116
+// crates/hkask-templates/src/inference_port.rs:95
 pub trait InferencePort: Send + Sync {
     async fn infer(&self, request: InferenceRequest) -> Result<InferenceResult, InferenceError>;
     async fn models(&self) -> Result<Vec<ModelInfo>, InferenceError>;
