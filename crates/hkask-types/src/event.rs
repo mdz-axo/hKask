@@ -200,6 +200,15 @@ impl Phase {
             Phase::Outcome => "outcome",
         }
     }
+
+    /// Parse a phase string into a Phase variant, defaulting to Observe
+    pub fn from_str(s: &str) -> Self {
+        match s {
+            "regulate" => Phase::Regulate,
+            "outcome" => Phase::Outcome,
+            _ => Phase::Observe,
+        }
+    }
 }
 
 /// NuEventSink — Trait for persisting CNS events

@@ -50,14 +50,17 @@ impl ArchivalService {
     }
 
     fn check_git_adapter(&self, operation: &str) -> ArchivalResult<()> {
-        if !self.adapter_container.has_git_cas() {
-            self.span_emitter.emit_tool(
-                &format!("{}.outcome", operation),
-                json!({ "outcome": "adapter_not_configured" }),
-            );
-            return Err(GitArchivalError::AdapterNotFound(
-                "Git CAS adapter not configured".to_string(),
-            ));
+        match self.adapter_container.has_git_cas() {
+            Ok(true) => {}
+            Ok(false) | Err(_) => {
+                self.span_emitter.emit_tool(
+                    &format!("{}.outcome", operation),
+                    json!({ "outcome": "adapter_not_configured" }),
+                );
+                return Err(GitArchivalError::AdapterNotFound(
+                    "Git CAS adapter not configured".to_string(),
+                ));
+            }
         }
         Ok(())
     }
@@ -90,9 +93,13 @@ impl ArchivalService {
         self.check_sovereignty(requester, "git_archive")?;
         self.check_git_adapter("git_archive")?;
 
-        let git_cas = self.adapter_container.get_git_cas().ok_or_else(|| {
-            GitArchivalError::AdapterNotFound("Git CAS adapter unavailable".to_string())
-        })?;
+        let git_cas = self
+            .adapter_container
+            .get_git_cas()
+            .map_err(|e| GitArchivalError::AdapterNotFound(e))?
+            .ok_or_else(|| {
+                GitArchivalError::AdapterNotFound("Git CAS adapter unavailable".to_string())
+            })?;
 
         let sha = git_cas
             .resolve_sha(&format!("{}/{}/{}", owner, repo, sanitized_path.display()))
@@ -198,9 +205,13 @@ impl ArchivalService {
         self.check_sovereignty(requester, "git_snapshot")?;
         self.check_git_adapter("git_snapshot")?;
 
-        let git_cas = self.adapter_container.get_git_cas().ok_or_else(|| {
-            GitArchivalError::AdapterNotFound("Git CAS adapter unavailable".to_string())
-        })?;
+        let git_cas = self
+            .adapter_container
+            .get_git_cas()
+            .map_err(|e| GitArchivalError::AdapterNotFound(e))?
+            .ok_or_else(|| {
+                GitArchivalError::AdapterNotFound("Git CAS adapter unavailable".to_string())
+            })?;
 
         let sha = git_cas
             .resolve_sha(&format!("{}/{}", owner, repo))

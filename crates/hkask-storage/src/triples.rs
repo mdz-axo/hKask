@@ -13,6 +13,8 @@ pub enum TripleError {
     Database(#[from] rusqlite::Error),
     #[error("Serialization error: {0}")]
     Serialization(#[from] serde_json::Error),
+    #[error("Lock poisoned: {0}")]
+    LockPoisoned(String),
 }
 
 /// Bitemporal triple
@@ -85,7 +87,10 @@ impl TripleStore {
 
     /// Insert a triple
     pub fn insert(&self, triple: &Triple) -> Result<(), TripleError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| TripleError::LockPoisoned(e.to_string()))?;
         conn.execute(
             "INSERT INTO triples (id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
@@ -107,7 +112,10 @@ impl TripleStore {
 
     /// Query triples by entity
     pub fn query_by_entity(&self, entity: &str) -> Result<Vec<Triple>, TripleError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| TripleError::LockPoisoned(e.to_string()))?;
         let mut stmt = conn.prepare(
             "SELECT id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid
              FROM triples
@@ -154,7 +162,10 @@ impl TripleStore {
         entity: &str,
         attribute: &str,
     ) -> Result<Vec<Triple>, TripleError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| TripleError::LockPoisoned(e.to_string()))?;
         let mut stmt = conn.prepare(
             "SELECT id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid
              FROM triples
@@ -197,7 +208,10 @@ impl TripleStore {
 
     /// Query all triples for a perspective (episodic memories)
     pub fn query_by_perspective(&self, perspective: &WebID) -> Result<Vec<Triple>, TripleError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| TripleError::LockPoisoned(e.to_string()))?;
         let mut stmt = conn.prepare(
             "SELECT id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid
              FROM triples
@@ -245,7 +259,10 @@ impl TripleStore {
         new_value: Value,
         new_confidence: f64,
     ) -> Result<(), TripleError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| TripleError::LockPoisoned(e.to_string()))?;
         let now = Utc::now().to_rfc3339();
 
         conn.execute(
@@ -290,7 +307,10 @@ impl TripleStore {
 
     /// Delete a triple (soft delete via valid_to)
     pub fn delete(&self, id: &TripleID) -> Result<(), TripleError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| TripleError::LockPoisoned(e.to_string()))?;
         let now = Utc::now().to_rfc3339();
         conn.execute(
             "UPDATE triples SET valid_to = ?1 WHERE id = ?2 AND valid_to IS NULL",
@@ -301,7 +321,10 @@ impl TripleStore {
 
     /// Hard delete a triple
     pub fn hard_delete(&self, id: &TripleID) -> Result<(), TripleError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| TripleError::LockPoisoned(e.to_string()))?;
         conn.execute(
             "DELETE FROM triples WHERE id = ?1",
             rusqlite::params![id.0.to_string()],

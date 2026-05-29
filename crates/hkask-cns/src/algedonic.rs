@@ -94,6 +94,7 @@ pub struct AlgedonicManager {
     expected_variety: HashMap<String, u64>,
     alerts: Vec<RuntimeAlert>,
     escalation_callback: Option<Box<EscalationCallback>>,
+}
 
 impl AlgedonicManager {
     pub fn new(threshold: u64, default_expected_variety: u64) -> Self {

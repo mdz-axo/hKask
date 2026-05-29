@@ -40,30 +40,32 @@ impl AdapterContainer {
     }
 
     /// Get Git CAS adapter instance
-    pub fn get_git_cas(&self) -> Option<Arc<GitCasAdapter>> {
-        let cas_lock = self.git_cas.read().expect("Adapter lock poisoned");
-        cas_lock.clone()
+    pub fn get_git_cas(&self) -> Result<Option<Arc<GitCasAdapter>>, String> {
+        let cas_lock = self.git_cas.read().map_err(|e| e.to_string())?;
+        Ok(cas_lock.clone())
     }
 
     /// Check if Git CAS adapter is configured
-    pub fn has_git_cas(&self) -> bool {
-        let cas_lock = self.git_cas.read().expect("Adapter lock poisoned");
-        cas_lock.is_some()
+    pub fn has_git_cas(&self) -> Result<bool, String> {
+        let cas_lock = self.git_cas.read().map_err(|e| e.to_string())?;
+        Ok(cas_lock.is_some())
     }
 
     /// Get configured base path
-    pub fn get_base_path(&self) -> Option<PathBuf> {
-        let path_lock = self.base_path.read().expect("Base path lock poisoned");
-        path_lock.clone()
+    pub fn get_base_path(&self) -> Result<Option<PathBuf>, String> {
+        let path_lock = self.base_path.read().map_err(|e| e.to_string())?;
+        Ok(path_lock.clone())
     }
 
     /// Clear adapter configuration
-    pub fn clear(&self) {
-        let mut cas_lock = self.git_cas.write().expect("Adapter lock poisoned");
-        *cas_lock = None;
-
-        let mut path_lock = self.base_path.write().expect("Base path lock poisoned");
+    pub fn clear(&self) -> Result<(), String> {
+        {
+            let mut cas_lock = self.git_cas.write().map_err(|e| e.to_string())?;
+            *cas_lock = None;
+        }
+        let mut path_lock = self.base_path.write().map_err(|e| e.to_string())?;
         *path_lock = None;
+        Ok(())
     }
 }
 

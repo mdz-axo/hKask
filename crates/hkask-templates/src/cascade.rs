@@ -33,7 +33,7 @@ pub struct CascadeConfig {
 pub struct CascadeLimits {
     #[serde(default = "default_max_depth")]
     pub max_depth: u8,
-    #[serde(default)]
+    #[serde(default = "default_energy_per_level")]
     pub energy_per_level: u64,
     #[serde(default = "default_timeout")]
     pub timeout_ms: u64,
@@ -41,6 +41,10 @@ pub struct CascadeLimits {
 
 fn default_max_depth() -> u8 {
     7
+}
+
+fn default_energy_per_level() -> u64 {
+    100
 }
 
 fn default_timeout() -> u64 {

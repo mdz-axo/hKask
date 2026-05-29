@@ -6,7 +6,9 @@
 //! Uses shared state with RwLock for compatibility with sync and async contexts.
 //! All lock operations return `Result` — CNS must not panic (CNS monitors panics).
 
-use crate::algedonic::{AlgedonicManager, CnsHealth, DEFAULT_THRESHOLD, RuntimeAlert};
+use crate::algedonic::{
+    AlgedonicManager, CnsHealth, DEFAULT_EXPECTED_VARIETY, DEFAULT_THRESHOLD, RuntimeAlert,
+};
 use crate::observers::sovereignty::SovereigntyObserver;
 use crate::variety::{VarietyMonitor, VarietyTracker};
 use std::sync::Arc;
@@ -34,7 +36,10 @@ struct CnsState {
 
 impl CnsState {
     fn new(threshold: u64) -> Self {
-        let algedonic = Arc::new(StdRwLock::new(AlgedonicManager::new(threshold)));
+        let algedonic = Arc::new(StdRwLock::new(AlgedonicManager::new(
+            threshold,
+            DEFAULT_EXPECTED_VARIETY,
+        )));
         let sovereignty_observer = SovereigntyObserver::with_manager(algedonic.clone());
         Self {
             algedonic,

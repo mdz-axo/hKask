@@ -4,7 +4,7 @@
 
 use hkask_cns::CnsEmit;
 use hkask_cns::spans::SpanEmitter;
-use hkask_types::{Span, WebID};
+use hkask_types::{Phase, Span, WebID};
 
 /// CNS Emitter Adapter — Concrete implementation for span emission
 pub struct CnsEmitterAdapter {
@@ -27,12 +27,14 @@ impl CnsEmit for CnsEmitterAdapter {
     fn emit_event(
         &self,
         span: &str,
-        _phase: &str,
+        phase: &str,
         observation: &serde_json::Value,
         _confidence: f64,
     ) {
         let span = parse_span(span);
-        self.emitter.emit(span, observation.clone());
+        let parsed_phase = Phase::from_str(phase);
+        self.emitter
+            .emit_with_phase(span, parsed_phase, observation.clone());
     }
 }
 

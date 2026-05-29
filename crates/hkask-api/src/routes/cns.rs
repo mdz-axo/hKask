@@ -33,7 +33,7 @@ async fn cns_health(State(state): State<ApiState>) -> Json<CnsHealthResponse> {
         }),
     );
 
-    let health = CnsHealth::check(&AlgedonicManager::new(100));
+    let health = CnsHealth::check(&AlgedonicManager::new(100, 10));
 
     Json(CnsHealthResponse {
         overall_deficit: health.overall_deficit,

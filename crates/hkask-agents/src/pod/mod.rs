@@ -59,7 +59,8 @@ mod manager;
 mod types;
 
 use hkask_cns::CnsEmit;
-use hkask_keystore::keychain::Keychain;
+use hkask_types::derivation_contexts;
+use hkask_types::secret::SecretRef;
 use hkask_types::{CapabilityAction, CapabilityResource, CapabilityToken, DataCategory, WebID};
 use thiserror::Error;
 use tracing::info;
@@ -97,8 +98,6 @@ pub struct AgentPod {
     pub created_at: i64,
     /// Maximum attenuation level for delegation
     pub max_attenuation: u8,
-    /// Keystore for secure secret storage
-    pub keystore: Keychain,
     /// Sovereignty checker for this pod
     pub sovereignty_checker: SovereigntyChecker,
 }
@@ -136,9 +135,6 @@ pub enum AgentPodError {
     #[error("CNS event emission failed: {0}")]
     CNSEmissionError(String),
 
-    #[error("Keystore error: {0}")]
-    KeystoreError(String),
-
     #[error("Storage error: {0}")]
     StorageError(String),
 
@@ -159,6 +155,9 @@ pub enum AgentPodError {
 
     #[error("Tool invocation failed: {0}")]
     ToolError(String),
+
+    #[error("Key derivation failed: {0}")]
+    KeyDerivation(String),
 }
 
 /// Result type for agent pod operations
@@ -184,11 +183,9 @@ impl AgentPod {
             .load_template_crate(crate_name)
             .map_err(|e| AgentPodError::CrateLoadError(e.to_string()))?;
 
-        // Initialize keystore for secure secret storage
-        let keystore = Keychain::default();
-
-        // Retrieve or generate OCAP secret from keystore
-        let ocap_secret = get_or_create_ocap_secret(&keystore, &persona.webid())?;
+        // Derive OCAP secret per WebID via HKDF-SHA256 from master key
+        // (ADR-027: deterministic, restart-safe, per-agent isolation)
+        let ocap_secret = derive_ocap_secret(&persona.webid())?;
 
         // Use first capability from persona, or default to "tool:execute"
         let first_capability = persona
@@ -219,7 +216,6 @@ impl AgentPod {
             state: PodLifecycleState::Populated,
             created_at: current_timestamp()?,
             max_attenuation: MAX_ATTENUATION_LEVEL,
-            keystore,
             sovereignty_checker,
         })
     }
@@ -368,8 +364,8 @@ impl AgentPod {
             return Err(AgentPodError::AttenuationLimitExceeded);
         }
 
-        // Retrieve OCAP secret from keystore for attenuation
-        let ocap_secret = get_or_create_ocap_secret(&self.keystore, &self.webid)?;
+        // Derive OCAP secret for attenuation (same HKDF derivation)
+        let ocap_secret = derive_ocap_secret(&self.webid)?;
 
         self.capability_token
             .attenuate(new_holder, ocap_secret.as_bytes(), current_time)
@@ -442,46 +438,24 @@ fn current_timestamp() -> Result<i64, AgentPodError> {
         .map_err(|e| AgentPodError::ClockError(e.to_string()))
 }
 
-/// Get or create OCAP secret for a WebID from the keystore
+/// Derive OCAP secret per WebID from master key via HKDF-SHA256.
 ///
-/// This function retrieves an existing OCAP secret from the keystore,
-/// or generates and stores a new one if it doesn't exist.
+/// Uses the per-agent context `"hkask:ocap-secret:<webid>"`
+/// to produce cryptographically independent signing keys for each
+/// agent, while remaining deterministic (same passphrase + same
+/// WebID → same secret) for restart safety.
 ///
-/// # Arguments
-/// * `keystore` — Keychain instance for secure storage
-/// * `webid` — WebID to associate with the secret
+/// # Security
 ///
-/// # Returns
-/// * `Ok(Zeroizing<String>)` — OCAP secret (zeroized for security)
-/// * `Err(AgentPodError)` — Keystore error
-fn get_or_create_ocap_secret(
-    keystore: &Keychain,
-    webid: &WebID,
-) -> AgentPodResult<Zeroizing<String>> {
-    // Try to retrieve existing secret
-    match keystore.retrieve(webid) {
-        Ok(secret) => Ok(Zeroizing::new(secret)),
-        Err(_) => {
-            // Generate new random secret
-            let secret = generate_secure_ocap_secret();
-
-            // Store in keystore
-            keystore
-                .store(webid, &secret)
-                .map_err(|e| AgentPodError::KeystoreError(e.to_string()))?;
-
-            Ok(Zeroizing::new(secret))
-        }
-    }
-}
-
-/// Generate a secure random OCAP secret
-///
-/// Creates a 32-byte random secret encoded as hex string (64 characters).
-/// This provides 256 bits of entropy for cryptographic security.
-fn generate_secure_ocap_secret() -> String {
-    use rand::RngCore;
-    let mut bytes = [0u8; 32];
-    rand::rng().fill_bytes(&mut bytes);
-    hex::encode(bytes)
+/// - Derives from the master passphrase via Argon2id → HKDF-SHA256
+/// - Different WebIDs produce independent sub-keys (HKDF domain separation)
+/// - Same WebID always produces the same key (UUID v5 from persona)
+/// - No random generation — ADR-027 compliant
+/// - No keystore dependency per pod — only the master key needs storage
+fn derive_ocap_secret(webid: &WebID) -> AgentPodResult<Zeroizing<String>> {
+    let context = format!("{}:{}", derivation_contexts::OCAP_SECRET, webid);
+    let secret_ref = SecretRef::derived(derivation_contexts::MASTER_KEY_ENV, &context);
+    let bytes = hkask_keystore::resolve(&secret_ref)
+        .map_err(|e| AgentPodError::KeyDerivation(e.to_string()))?;
+    Ok(Zeroizing::new(hex::encode(&*bytes)))
 }

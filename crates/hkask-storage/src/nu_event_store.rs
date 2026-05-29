@@ -1,7 +1,7 @@
 //! NuEventStore — Persistent storage for CNS ν-events
 
 use chrono::{DateTime, Utc};
-use hkask_types::{EventID, NuEvent, Phase, Span, WebID};
+use hkask_types::{EventID, NuEvent, NuEventSink, NuEventSinkError, Phase, Span, WebID};
 use rusqlite::Connection;
 use serde_json::Value;
 use std::sync::{Arc, Mutex};
@@ -288,14 +288,12 @@ struct NuEventRow {
     visibility: String,
 }
 
-impl hkask_types::NuEventSink for NuEventStore {
-    fn persist(&self, event: &NuEvent) -> Result<(), hkask_types::NuEventSinkError> {
+impl NuEventSink for NuEventStore {
+    fn persist(&self, event: &NuEvent) -> Result<(), NuEventSinkError> {
         self.insert(event).map_err(|e| match e {
-            NuEventError::Database(msg) => hkask_types::NuEventSinkError::Database(msg.to_string()),
-            NuEventError::Serialization(msg) => {
-                hkask_types::NuEventSinkError::Serialization(msg.to_string())
-            }
-            NuEventError::LockPoisoned(msg) => hkask_types::NuEventSinkError::Database(msg),
+            NuEventError::Database(msg) => NuEventSinkError::Database(msg.to_string()),
+            NuEventError::Serialization(msg) => NuEventSinkError::Serialization(msg.to_string()),
+            NuEventError::LockPoisoned(msg) => NuEventSinkError::Database(msg),
         })
     }
 }

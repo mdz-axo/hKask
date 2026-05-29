@@ -122,6 +122,9 @@ pub enum AcpError {
 
     #[error("{0}")]
     LegacyError(String),
+
+    #[error("Lock poisoned: {0}")]
+    LockPoisoned(String),
 }
 
 impl From<String> for AcpError {
@@ -277,15 +280,23 @@ impl AcpRuntime {
     }
 
     /// Set CNS emitter for observability
-    pub fn with_cns_emitter(self, emitter: Arc<dyn hkask_cns::CnsEmit + Send + Sync>) -> Self {
-        *self.cns_emitter.write().unwrap() = Some(emitter);
-        self
+    pub fn with_cns_emitter(
+        self,
+        emitter: Arc<dyn hkask_cns::CnsEmit + Send + Sync>,
+    ) -> Result<Self, AcpError> {
+        *self
+            .cns_emitter
+            .write()
+            .map_err(|e| AcpError::LockPoisoned(e.to_string()))? = Some(emitter);
+        Ok(self)
     }
 
     /// Emit a CNS event if an emitter is configured
     fn emit_cns(&self, span: &str, verb: &str, payload: &serde_json::Value, confidence: f64) {
-        if let Some(ref cns) = *self.cns_emitter.read().unwrap() {
-            cns.emit_event(span, verb, payload, confidence);
+        if let Ok(guard) = self.cns_emitter.read() {
+            if let Some(ref cns) = *guard {
+                cns.emit_event(span, verb, payload, confidence);
+            }
         }
     }
 
@@ -740,7 +751,9 @@ impl crate::ports::AcpPort for AcpRuntime {
     }
 
     fn set_cns_emitter(&self, emitter: Arc<dyn hkask_cns::CnsEmit + Send + Sync>) {
-        let mut cns = self.cns_emitter.write().unwrap();
-        *cns = Some(emitter);
+        match self.cns_emitter.write() {
+            Ok(mut cns) => *cns = Some(emitter),
+            Err(e) => tracing::error!("CNS emitter lock poisoned: {}", e),
+        }
     }
 }

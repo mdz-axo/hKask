@@ -77,6 +77,8 @@ pub enum CacheError {
     Miss,
     #[error("Serialization error: {0}")]
     Serialization(String),
+    #[error("Lock poisoned: {0}")]
+    LockPoisoned(String),
 }
 
 impl From<rusqlite::Error> for CacheError {
@@ -106,7 +108,10 @@ impl PromptCache {
     }
 
     fn init(&self) -> Result<(), CacheError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| CacheError::LockPoisoned(e.to_string()))?;
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS prompt_cache (
                 key TEXT PRIMARY KEY,
@@ -163,7 +168,10 @@ impl PromptCache {
     pub fn get(&self, key: &str) -> Result<InferenceResult, CacheError> {
         let now = Instant::now().elapsed().as_secs() as i64;
 
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| CacheError::LockPoisoned(e.to_string()))?;
         let mut stmt = conn.prepare(
             "SELECT result, size_bytes FROM prompt_cache WHERE key = ?1 AND expires_at > ?2",
         )?;
@@ -206,7 +214,7 @@ impl PromptCache {
 
         self.evict_if_needed(size_bytes)?;
 
-        self.conn.lock().unwrap().execute(
+        self.conn.lock().map_err(|e| CacheError::LockPoisoned(e.to_string()))?.execute(
             "INSERT OR REPLACE INTO prompt_cache (key, prompt, model, result, created_at, expires_at, size_bytes, access_count, last_accessed)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0, ?8)",
             params![key, prompt, model, result_json, now, expires_at, size_bytes, now],
@@ -227,7 +235,10 @@ impl PromptCache {
             return Ok(());
         }
 
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| CacheError::LockPoisoned(e.to_string()))?;
         let mut stmt = conn.prepare(
             "SELECT key, size_bytes FROM prompt_cache
              ORDER BY access_count ASC, last_accessed ASC
@@ -263,7 +274,10 @@ impl PromptCache {
     pub fn clear_expired(&self) -> Result<i64, CacheError> {
         let now = Instant::now().elapsed().as_secs() as i64;
 
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| CacheError::LockPoisoned(e.to_string()))?;
         let mut stmt =
             conn.prepare("SELECT size_bytes FROM prompt_cache WHERE expires_at <= ?1")?;
 
@@ -285,7 +299,10 @@ impl PromptCache {
     }
 
     pub fn stats(&self) -> Result<CacheStats, CacheError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| CacheError::LockPoisoned(e.to_string()))?;
         let row = conn.query_row(
             "SELECT
                 COUNT(*) as count,

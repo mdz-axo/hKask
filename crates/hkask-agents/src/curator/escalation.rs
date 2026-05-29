@@ -44,6 +44,8 @@ pub enum EscalationError {
     Database(String),
     #[error("Escalation not found: {0}")]
     NotFound(String),
+    #[error("Lock poisoned: {0}")]
+    LockPoisoned(String),
 }
 
 impl From<rusqlite::Error> for EscalationError {
@@ -60,7 +62,7 @@ impl EscalationQueue {
     }
 
     fn init(&self) -> Result<(), EscalationError> {
-        self.conn.lock().unwrap().execute_batch(
+        self.conn.lock().map_err(|e| EscalationError::LockPoisoned(e.to_string()))?.execute_batch(
             "CREATE TABLE IF NOT EXISTS escalations (
                 id TEXT PRIMARY KEY,
                 template_id TEXT NOT NULL,
@@ -91,8 +93,7 @@ impl EscalationQueue {
         let id = format!("esc_{}", Uuid::new_v4().simple());
         let now = Utc::now().to_rfc3339();
 
-        self.conn.lock().unwrap().execute(
-            "INSERT INTO escalations (id, template_id, bot_id, output, confidence, retry_count, error_context, created_at, status)
+        self.conn.lock().map_err(|e| EscalationError::LockPoisoned(e.to_string()))?.execute(
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'pending')",
             params![
                 id,
@@ -110,7 +111,7 @@ impl EscalationQueue {
     }
 
     pub fn list_pending(&self) -> Result<Vec<EscalationEntry>, EscalationError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|e| EscalationError::LockPoisoned(e.to_string()))?;
         let mut stmt = conn.prepare(
             "SELECT id, template_id, bot_id, output, confidence, retry_count, error_context, created_at, status, resolved_at, resolved_by
              FROM escalations WHERE status = 'pending' ORDER BY created_at ASC"
@@ -148,7 +149,7 @@ impl EscalationQueue {
     }
 
     pub fn get(&self, id: &str) -> Result<Option<EscalationEntry>, EscalationError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|e| EscalationError::LockPoisoned(e.to_string()))?;
         let mut stmt = conn.prepare(
             "SELECT id, template_id, bot_id, output, confidence, retry_count, error_context, created_at, status, resolved_at, resolved_by
              FROM escalations WHERE id = ?1"
@@ -201,7 +202,7 @@ impl EscalationQueue {
 
     pub fn resolve(&self, id: &str, resolved_by: &str) -> Result<(), EscalationError> {
         let now = Utc::now().to_rfc3339();
-        self.conn.lock().unwrap().execute(
+        self.conn.lock().map_err(|e| EscalationError::LockPoisoned(e.to_string()))?.execute(
             "UPDATE escalations SET status = 'resolved', resolved_at = ?1, resolved_by = ?2 WHERE id = ?3",
             params![now, resolved_by, id],
         )?;
@@ -210,7 +211,7 @@ impl EscalationQueue {
 
     pub fn dismiss(&self, id: &str, resolved_by: &str) -> Result<(), EscalationError> {
         let now = Utc::now().to_rfc3339();
-        self.conn.lock().unwrap().execute(
+        self.conn.lock().map_err(|e| EscalationError::LockPoisoned(e.to_string()))?.execute(
             "UPDATE escalations SET status = 'dismissed', resolved_at = ?1, resolved_by = ?2 WHERE id = ?3",
             params![now, resolved_by, id],
         )?;
@@ -218,7 +219,7 @@ impl EscalationQueue {
     }
 
     pub fn stats(&self) -> Result<EscalationStats, EscalationError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|e| EscalationError::LockPoisoned(e.to_string()))?;
         let mut stmt = conn.prepare(
             "SELECT
                 COUNT(*) as total,

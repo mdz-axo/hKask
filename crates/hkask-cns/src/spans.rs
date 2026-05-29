@@ -1,6 +1,6 @@
 //! CNS span emission with full categorization
 
-use hkask_types::{NuEvent, NuEventSink, Span, WebID};
+use hkask_types::{NuEvent, NuEventSink, Phase, Span, WebID};
 use serde_json::Value;
 use std::collections::HashSet;
 use tracing::info;
@@ -131,13 +131,12 @@ impl SpanEmitter {
 
     /// Emit a CNS span event
     pub fn emit(&self, span: Span, observation: Value) {
-        let event = NuEvent::new(
-            self.observer_webid,
-            span,
-            hkask_types::Phase::Observe,
-            observation,
-            0,
-        );
+        self.emit_with_phase(span, Phase::Observe, observation);
+    }
+
+    /// Emit a CNS span event with an explicit phase
+    pub fn emit_with_phase(&self, span: Span, phase: Phase, observation: Value) {
+        let event = NuEvent::new(self.observer_webid, span, phase, observation, 0);
 
         if let Some(sink) = &self.sink
             && let Err(e) = sink.persist(&event)
@@ -315,7 +314,9 @@ fn span_to_category(span: &Span) -> SpanCategory {
 }
 
 impl CnsEmit for SpanScope {
-    fn emit_event(&self, span: &str, _phase: &str, observation: &Value, confidence: f64) {
+    fn emit_event(&self, span: &str, phase: &str, observation: &Value, confidence: f64) {
+        // Parse the phase string into a Phase variant
+        let parsed_phase = Phase::from_str(phase);
         // Parse the span string to determine category
         let category = if span.starts_with("cns.connector") {
             SpanCategory::Connector
@@ -367,7 +368,8 @@ impl CnsEmit for SpanScope {
                 SpanCategory::Variety => Span::Variety(span.to_string()),
                 SpanCategory::KillZone => Span::KillZone(span.to_string()),
             };
-            self.emitter.emit(span_variant, observation.clone());
+            self.emitter
+                .emit_with_phase(span_variant, parsed_phase, observation.clone());
         } else {
             // Emit sovereignty boundary violation
             self.emitter.emit_sovereignty_alert(
@@ -379,6 +381,7 @@ impl CnsEmit for SpanScope {
                     "allowed_categories": self.allowed_categories.iter().map(|c| c.as_str()).collect::<Vec<_>>(),
                     "violation_type": "span_scope_violation",
                     "original_confidence": confidence,
+                    "original_phase": phase,
                 }),
             );
         }
