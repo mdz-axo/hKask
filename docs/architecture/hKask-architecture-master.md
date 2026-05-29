@@ -1,8 +1,8 @@
 ---
 title: "hKask Architecture Master"
 audience: [architects, developers, agents]
-last_updated: 2026-05-27
-version: "2.0.0"
+last_updated: 2026-05-28
+version: "2.1.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -102,6 +102,7 @@ docs/architecture/
 ├── trust-security-observability.md        # SPEC (Trust + Observability)
 ├── persistence-and-lifecycle.md           # SPEC (Persistence + Lifecycle)
 ├── ADR-022-comprehensive-security-hardening.md  # Decision record
+├── ADR-023-master-key-derivation.md       # Decision record
 └── reference/
     ├── hKask-erd.md                       # Diagram artifact
     ├── registry-erd.md                    # Diagram artifact
@@ -110,10 +111,11 @@ docs/architecture/
     ├── ports-inventory.md                 # Port reference
     ├── utoipa-implementation.md           # API guide
     ├── template-header-standard.md        # Format reference
-    └── hKask-Curator-persona.md           # Persona spec
+    ├── hKask-Curator-persona.md           # Persona spec
+    └── okapi-integration.md               # Okapi API contract
 ```
 
-**Total:** 14 active architecture documents (4 specs + 3 framework + 1 index + 1 ADR + 9 reference artifacts).
+**Total:** 19 active architecture documents (4 specs + 3 framework + 1 index + 2 ADRs + 9 reference artifacts).
 
 ---
 

@@ -1,8 +1,8 @@
 ---
 title: "ADR-022: Comprehensive Security Hardening"
 audience: [architects, security engineers, developers]
-last_updated: 2026-05-24
-version: "1.0.0"
+last_updated: 2026-05-28
+version: "1.1.0"
 status: "Active"
 domain: "Technology"
 ddmvss_categories: [trust]

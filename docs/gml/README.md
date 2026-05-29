@@ -1,8 +1,8 @@
 ---
 title: "GML (Allosteric Thinking) Documentation"
 audience: [architects, developers]
-last_updated: 2026-05-24
-version: "0.1.0"
+last_updated: 2026-05-28
+version: "0.1.1"
 status: "Active"
 domain: "Application"
 ddmvss_categories: [domain]

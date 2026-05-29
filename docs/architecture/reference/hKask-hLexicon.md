@@ -1,8 +1,8 @@
 ---
 title: "hKask hLexicon — Minimal Composition Vocabulary"
 audience: [architects, developers, agents]
-last_updated: 2026-05-24
-version: "0.21.0"
+last_updated: 2026-05-28
+version: "0.21.1"
 status: "Active"
 domain: "Application"
 ddmvss_categories: [domain]
@@ -22,7 +22,7 @@ ddmvss_categories: [domain]
 | [hLexicon Grammar](#hlexicon-grammar) | Formal grammar for term usage and validation |
 | [Academic Grounding References](#academic-grounding-references) | Academic sources for each domain |
 | [hLexicon Term Index](#hlexicon-term-index-88-terms) | Alphabetical index of all 88 terms |
-| [Future Expansion](#future-expansion) | Planned term additions and domain extensions |
+| [Expansion Capacity](#expansion-capacity) | Reserved term slots for domain extensions |
 | [Usage Examples](#usage-examples) | Practical template integration examples |
 | [References](#references) | Citations and references |
 
@@ -399,12 +399,12 @@ Terminology validation follows ISO principles for vocabulary management.[^iso704
 
 ---
 
-## Future Expansion
+## Expansion Capacity
 
-Reserved slots (3 remaining):
-- Domain 4: **???** (TBD — possibly social/collective cognition)
-- Cross-domain: **???** (TBD — emergent patterns)
-- Reserved: **???** (TBD — unknown unknowns)
+The hLexicon has 3 reserved slots for future domain extension. These are **not planned additions** — they represent headroom in the allocation table should new domains emerge through actual usage:
+- Domain 4: Reserved (currently unallocated)
+- Cross-domain: Reserved (emergent patterns from composition)
+- Reserved: Unallocated (unknown unknowns)
 
 ---
 

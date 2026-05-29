@@ -181,7 +181,9 @@ pub(super) fn print_command_help(cmd_name: &str) {
                 println!();
                 println!("  \x1b[2m/model\x1b[0m                    — Show current model");
                 println!("  \x1b[2m/model qwen3:8b\x1b[0m       — Switch to a specific model");
-                println!("  \x1b[2m/model qwen\x1b[0m            — Fuzzy search for models matching 'qwen'");
+                println!(
+                    "  \x1b[2m/model qwen\x1b[0m            — Fuzzy search for models matching 'qwen'"
+                );
                 println!();
                 println!("  Models are loaded from Okapi. Use a model name from /model");
                 println!("  to change the LLM used by the current agent.");

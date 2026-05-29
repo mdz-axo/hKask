@@ -34,7 +34,7 @@ pub struct GoalJudgeAdapter {
 impl GoalJudgeAdapter {
     pub fn new() -> Self {
         Self {
-            template_ref: "registry/templates/goal_judge.j2".to_string(),
+            template_ref: "registry/templates/goal/judge.j2".to_string(),
         }
     }
 

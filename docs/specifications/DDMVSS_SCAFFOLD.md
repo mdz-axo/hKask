@@ -1,8 +1,8 @@
 ---
 title: "DDMVSS Documentation Scaffold"
 audience: [architects, documentation maintainers, agents]
-last_updated: 2026-05-25
-version: "2.0.0"
+last_updated: 2026-05-28
+version: "2.1.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -46,6 +46,7 @@ docs/
 │   ├── trust-security-observability.md    # SPEC (Trust + Observability)
 │   ├── persistence-and-lifecycle.md       # SPEC (Persistence + Lifecycle)
 │   ├── ADR-022-*.md                       # DECISION RECORD
+│   ├── ADR-023-*.md                       # DECISION RECORD
 │   └── reference/
 │       ├── hKask-erd.md                   # Diagram artifact
 │       ├── registry-erd.md                # Diagram artifact
@@ -57,9 +58,9 @@ docs/
 │       ├── hKask-Curator-persona.md       # Persona spec
 │       └── okapi-integration.md           # Okapi API contract
 ├── specifications/
+│   ├── DDMVSS_SCAFFOLD.md                 # THIS FILE
 │   ├── REQUIREMENTS.md                    # Goal specs
 │   ├── TRACEABILITY_MATRIX.md             # Code→test traceability
-│   ├── MODEL_CATALOG.md                   # LLM model catalog
 │   ├── DOCUMENTATION_STANDARDS.md         # Documentation standards
 │   ├── WRITING_EXCELLENCE.md              # Writing quality protocol
 │   ├── DEPENDENCY_POLICY.md               # Dependency policy
@@ -72,13 +73,15 @@ docs/
 │   └── PROJECT_STATUS.md                  # Single source of truth
 ├── user-guides/                           # User-facing guides
 ├── gml/                                   # GML (Allosteric Thinking)
+├── artifacts/                              # Jinja2/YAML prompt artifacts
+├── archive/                                # Archived documents (gitignored)
 ├── ci/                                     # CI verification scripts
 │   ├── check-links.sh                     # Link integrity checker
 │   └── check-metadata.sh                  # Metadata compliance checker
-├── DDMVSS_SCAFFOLD.md                     # THIS FILE
-├── OPEN_QUESTIONS.md                      # Unresolved aspects
+├── DIAGRAMS_INDEX.md                       # Diagram index
+├── OPEN_QUESTIONS.md                        # Unresolved aspects
 └── generated/                             # Auto-generated artifacts
-    └── openapi.json                       # OpenAPI specification
+    └── openapi.json                        # OpenAPI specification
 ```
 
 ---

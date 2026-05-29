@@ -91,7 +91,7 @@ Curation: Merge | Revise | Defer | Discard
   - [x] Caveats for additional restrictions
   - [x] Constant-time comparison via `subtle`
 - **Implementation:** `hkask-types::visibility::Capability`, `hkask-types::visibility::AccessEvaluator`
-- **Tests:** `crates/hkask-types/src/visibility.rs` tests
+- **Tests:** —
 - **Status:** Implemented
 - **Curation:** Merge
 
@@ -105,7 +105,7 @@ Curation: Merge | Revise | Defer | Discard
   - [x] `DelegationStore` for persistent tracking
   - [x] `RevocationList` for revoked capabilities
 - **Implementation:** `hkask-types::visibility::Delegation`, `hkask-types::visibility::DelegationStore`, `hkask-types::visibility::RevocationList`
-- **Tests:** `crates/hkask-types/src/visibility.rs` tests
+- **Tests:** —
 - **Status:** Implemented
 - **Curation:** Merge
 
@@ -119,9 +119,9 @@ Curation: Merge | Revise | Defer | Discard
   - [x] `SecurityGateway` enforces OCAP before dispatch
   - [x] Three transport options (in-process, stdio, HTTP)
 - **Implementation:** `hkask-mcp::runtime::McpRuntime`, `hkask-mcp::security::SecurityGateway`, `hkask-mcp::transport::*`
-- **Tests:** `crates/hkask-mcp/src/` (1 test file)
-- **Status:** Implemented (2 servers are stubs: condenser, web)
-- **Curation:** Merge — stubs documented, not blocking
+- **Tests:** —
+- **Status:** Implemented
+- **Curation:** Merge — formerly listed as stubs, now implemented
 
 ---
 
@@ -166,7 +166,7 @@ Curation: Merge | Revise | Defer | Discard
   - [x] Lexicon-term-based search
   - [x] Contract validation on registration
 - **Implementation:** `hkask-templates::SqliteRegistry`, `hkask-templates::contract_validator::ContractValidator`
-- **Tests:** `crates/hkask-templates/src/` (6 test files)
+- **Tests:** Doctests only (3 ok, 1 ignored)
 - **Status:** Implemented
 - **Curation:** Merge
 
@@ -192,7 +192,7 @@ Curation: Merge | Revise | Defer | Discard
   - [x] `PodLifecycleState` state machine
   - [x] `ConsentManager` for user authorization
 - **Implementation:** `hkask-agents::pod::AgentPod`, `hkask-agents::pod::PodManager`, `hkask-agents::consent::ConsentManager`
-- **Tests:** `crates/hkask-agents/src/` (7 test files)
+- **Tests:** —
 - **Status:** Implemented
 - **Curation:** Merge
 
@@ -222,7 +222,7 @@ Curation: Merge | Revise | Defer | Discard
   - [x] Argon2id key derivation
   - [x] No cross-machine sync
 - **Implementation:** `hkask-storage::database::Database` (rusqlite with bundled-sqlcipher)
-- **Tests:** `crates/hkask-storage/src/` (8 test files)
+- **Tests:** —
 - **Status:** Implemented
 - **Curation:** Merge
 
@@ -279,7 +279,7 @@ Curation: Merge | Revise | Defer | Discard
   - [x] Confidence as first-class field
   - [x] Observer identity on every triple
 - **Implementation:** `hkask-storage::triples::TripleStore`, `hkask-storage::triples::Triple`
-- **Tests:** `crates/hkask-storage/src/triples.rs` tests
+- **Tests:** —
 - **Status:** Implemented
 - **Curation:** Merge
 
@@ -292,7 +292,7 @@ Curation: Merge | Revise | Defer | Discard
   - [x] KNN search implementation
   - [x] Model-agnostic dimensions
 - **Implementation:** `hkask-storage::embeddings::EmbeddingStore`
-- **Tests:** `crates/hkask-storage/src/embeddings.rs` tests
+- **Tests:** —
 - **Status:** Implemented
 - **Curation:** Merge
 
@@ -358,9 +358,8 @@ Curation: Merge | Revise | Defer | Discard
 
 | ID | Requirement | Reason | ADR |
 |----|------------|--------|-----|
-| REQ-CAP-D01 | Full condenser MCP server | Stub (5 LOC) — not minimal for MVP | ADR pending |
-
-| REQ-CAP-D03 | Full web MCP server | Stub (5 LOC) — not minimal for MVP | ADR pending |
+| REQ-CAP-D01 | Full condenser MCP server | Implemented (761 LOC) — no longer a stub | — |
+| REQ-CAP-D03 | Full web MCP server | Implemented (3,389 LOC) — no longer a stub | — |
 | REQ-IFC-D01 | Remote LLM fallback | Local-first invariant | ADR pending |
 | REQ-COM-D01 | Federation transport | Complexity exceeds budget | ADR pending |
 | REQ-PER-D01 | Qdrant vector search | sqlite-vec sufficient for MVP | ADR pending |

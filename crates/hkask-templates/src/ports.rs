@@ -156,6 +156,17 @@ pub struct RegistryEntry {
 /// Registry index port
 pub trait RegistryIndex {
     fn list(&self, domain_hint: Option<TemplateType>) -> Vec<RegistryEntry>;
+    fn list_with_capabilities(&self, capabilities: &[String]) -> Vec<RegistryEntry> {
+        self.list(None)
+            .into_iter()
+            .filter(|e| {
+                e.required_capabilities.is_empty()
+                    || e.required_capabilities
+                        .iter()
+                        .all(|c| capabilities.contains(c))
+            })
+            .collect()
+    }
     fn get(&self, id: &str) -> Result<RegistryEntry>;
     fn bootstrap_manifest(&self) -> Option<ProcessManifest>;
 }

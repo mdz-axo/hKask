@@ -1,8 +1,8 @@
 ---
 title: "hKask Open Questions and Underspecified Aspects"
 audience: [architects, developers, decision-makers]
-last_updated: 2026-05-25
-version: "1.0.0"
+last_updated: 2026-05-28
+version: "1.1.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [interface, composition, capability, observability, curation, lifecycle]
@@ -56,7 +56,7 @@ No federation crates (`hkask-federation`, `hkask-federation-transport`, `hkask-f
 **Status:** Undecided  
 **Impact:** Documentation maintenance burden
 
-15 MCP servers exist (scholar removed; was an empty stub). Documentation granularity needs decision.
+15 MCP servers exist (scholar removed earlier). Documentation granularity needs decision.
 
 **Decision options:**
 1. Each MCP server gets its own specification entry in REQUIREMENTS.md
@@ -161,17 +161,17 @@ The `hkask-mcp-spec` MCP server implements 8 DDMVSS tools. Whether the documenta
 ## OQ-9: Stub MCP Server Completion
 
 **DDMVSS Category:** Capability  
-**Status:** Deferred  
+**Status:** Resolved  
 **Impact:** Feature completeness
 
-Two MCP servers are stubs (5 LOC each): `hkask-mcp-condenser`, `hkask-mcp-web`.
+Both servers fully implemented: `hkask-mcp-condenser` (761 LOC), `hkask-mcp-web` (3,389 LOC). Verified 2026-05-28.
 
 **Decision options:**
 1. Implement in next development phase
 2. Remove from workspace if not needed for MVP
 3. Keep as stubs with documented intent
 
-**Recommendation:** Option 3 — keep as stubs with documented intent, implement in v1.1+.
+**Recommendation:** ~~Option 3~~ — Resolved: both servers are now fully implemented, no longer stubs.
 
 ---
 

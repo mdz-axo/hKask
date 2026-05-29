@@ -1,8 +1,8 @@
 ---
 title: "hKask TODO — Open Work"
 audience: [project maintainers, contributors]
-last_updated: 2026-05-25
-version: "1.2.0"
+last_updated: 2026-05-28
+version: "1.3.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -33,7 +33,7 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | **P1-04** | ADR creation for key decisions | Architect | Medium | Pending | P1-04 — Retroactive ADRs deferred (see OQ-6) |
 | **P1-05** | Link checker script | DevOps | Low | ✅ Complete | `docs/ci/check-links.sh` + check-metadata.sh |
 | **P1-06** | Citation compliance audit | Curator | Medium | Pending | P1-06 — Spot check passed, full audit deferred |
-| **P1-07** | Complete stub MCP servers | Dev | Medium | Deferred | condenser, web (5 LOC each) |
+| **P1-07** | Complete stub MCP servers | Dev | Medium | ✅ Complete | hkask-mcp-condenser: 761 LOC, hkask-mcp-web: 3,389 LOC (verified 2026-05-28) |
 | **P1-08** | Metadata migration for legacy docs | Curator | Low | ✅ Complete | All 47 active docs have ddmvss_categories (2026-05-28) |
 
 ---
@@ -46,7 +46,7 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | **P2-02** | Remote LLM fallback | Inference bot | Low | Deferred |
 | **P2-03** | GPU acceleration (CUDA) | Infrastructure | Low | Optional |
 | **P2-04** | Qdrant vector search | Storage bot | Low | Contingency |
-| **P2-05** | CI automation for doc quality | DevOps | Low | Pending |
+| **P2-05** | CI automation for doc quality | DevOps | Low | ✅ Complete | docs/ci/check-links.sh + check-metadata.sh operational |
 
 ---
 
@@ -95,6 +95,14 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | **R-20** | Fix DDMVSS_SCAFFOLD.md directory map | 2026-05-28 | standards/→specifications/, added ci/, generated/ |
 | **R-21** | Fix PROJECT_STATUS.md standards/→specifications/ | 2026-05-28 | Row corrected |
 | **R-22** | Update TODO.md with completed P1 items | 2026-05-28 | P1-03, P1-05, P1-08 marked complete |
+| **R-23** | Archive 10 stale documents (Task 2) | 2026-05-28 | docs/archive/2026-05-28-documentation-refresh/ |
+| **R-24** | Delete 4 third-party skill guides (Task 2) | 2026-05-28 | Firecrawl, Browserbase, SerpApi, Tavily removed |
+| **R-25** | Fix stale code references in architecture docs (Task 4) | 2026-05-28 | 15+ line number and path corrections |
+| **R-26** | Fix test coverage claims in TRACEABILITY_MATRIX + REQUIREMENTS (Task 5) | 2026-05-28 | 0 #[test] unit tests corrected |
+| **R-27** | Fix TOGAF→DDMVSS references (Task 3) | 2026-05-28 | DOCUMENTATION_STANDARDS §1, PRINCIPLES PS-11 |
+| **R-28** | Fix PROJECT_STATUS factual inaccuracies (Task 7) | 2026-05-28 | LOC, test counts, crate counts corrected |
+| **R-29** | Fix hkask-cli build error (Task 1) | 2026-05-28 | repl::run() 4→5 argument mismatch fixed |
+| **R-30** | Update GML README status Draft→Active (Task 3) | 2026-05-28 | Aspirational sub-docs archived |
 
 ---
 

@@ -131,8 +131,10 @@ hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent
 | **GML** | 1 | `docs/gml/` |
 | **Status** | 1 | `docs/status/` (PROJECT_STATUS) |
 | **Cross-cutting** | 2 | `docs/` root (DIAGRAMS_INDEX, OPEN_QUESTIONS) |
+| **Artifacts** | 1 | `docs/artifacts/` (README) |
+| **Generated** | 1 | `docs/generated/` (cli-reference) |
 | **CI Scripts** | 2 | `docs/ci/` (check-links.sh, check-metadata.sh) |
-| **Total** | 35 | — |
+| **Total** | 37 | — |
 
 ### 4.2 Archived Documents
 
@@ -169,7 +171,7 @@ hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent
 | **Tests** | ✅ Pass | 2026-05-25 |
 | **Lint** | ✅ Pass | 2026-05-25 |
 | **Format** | ✅ Pass | 2026-05-25 |
-| **Metadata Headers** | ✅ All 35 docs compliant | 2026-05-28 |
+| **Metadata Headers** | ✅ All 37 docs compliant | 2026-05-28 |
 | **Citation Compliance** | ✅ New docs have citations | 2026-05-28 |
 | **Diagram Alignment** | ✅ 28 diagrams verified in DIAGRAMS_INDEX.md | 2026-05-28 |
 | **Link Integrity** | ✅ `docs/ci/check-links.sh` passes with 0 broken | 2026-05-28 |

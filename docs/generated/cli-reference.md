@@ -1,3 +1,13 @@
+---
+title: "hKask CLI Reference (auto-generated)"
+audience: [developers, users]
+last_updated: 2026-05-28
+version: "0.21.0"
+status: "Active"
+domain: "Application"
+ddmvss_categories: [interface]
+---
+
 # hKask CLI Documentation
 
 **hKask** (ℏKask — "A Minimal Viable Container for Agents") - Command-line interface

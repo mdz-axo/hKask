@@ -20,21 +20,21 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 
 | Diagram ID | Description | Document | Verified Against | Status |
 |-----------|-------------|----------|-----------------|--------|
-| DIAG-DC-001 | hKask Bounded Context (POD → CAP → TPL → CNS) + delegated dependencies | [`domain-and-capability.md`](architecture/domain-and-capability.md) §1 | `crates/hkask-agents/src/pod/mod.rs:81`, `crates/hkask-types/src/capability/mod.rs:219`, `Cargo.toml` workspace members | ✅ VERIFIED |
+| DIAG-DC-001 | hKask Bounded Context (POD → CAP → TPL → CNS) + delegated dependencies | [`domain-and-capability.md`](architecture/domain-and-capability.md) §1 | `crates/hkask-agents/src/pod/mod.rs:81`, `crates/hkask-types/src/visibility.rs:145`, `Cargo.toml` workspace members | ✅ VERIFIED |
 | DIAG-DC-002 | Domain Entity Map — 9 entities with crate/struct locations | [`domain-and-capability.md`](architecture/domain-and-capability.md) §3.1 | `crates/hkask-types/src/`, `crates/hkask-agents/src/` | ✅ VERIFIED |
 | DIAG-DC-003 | Agent Taxonomy (Bot/Replicant branching) | [`domain-and-capability.md`](architecture/domain-and-capability.md) §4 | `crates/hkask-agents/src/bot.rs:14`, `crates/hkask-agents/src/replicant.rs:14` | ✅ VERIFIED |
-| DIAG-DC-004 | OCAP Capability Attenuation Chain (depth ≤ 7) | [`domain-and-capability.md`](architecture/domain-and-capability.md) §5 | `crates/hkask-types/src/capability/mod.rs:219` | ✅ VERIFIED |
-| DIAG-DC-005 | MCP Tool Dispatch with OCAP constraint enforcement | [`domain-and-capability.md`](architecture/domain-and-capability.md) §6 | `crates/hkask-mcp/src/runtime.rs:71`, `crates/hkask-mcp/src/security.rs` | ✅ VERIFIED |
+| DIAG-DC-004 | OCAP Capability Attenuation Chain (depth ≤ 7) | [`domain-and-capability.md`](architecture/domain-and-capability.md) §5 | `crates/hkask-types/src/visibility.rs:145` | ✅ VERIFIED |
+| DIAG-DC-005 | MCP Tool Dispatch with OCAP constraint enforcement | [`domain-and-capability.md`](architecture/domain-and-capability.md) §6 | `crates/hkask-mcp/src/runtime.rs:59`, `crates/hkask-mcp/src/security.rs` | ✅ VERIFIED |
 | DIAG-DC-006 | hLexicon Allocation Table (WordAct/FlowDef/KnowAct) | [`domain-and-capability.md`](architecture/domain-and-capability.md) §7 | `docs/architecture/reference/hKask-hLexicon.md` | ✅ VERIFIED |
 
 ## 2. Interface & Composition Diagrams
 
 | Diagram ID | Description | Document | Verified Against | Status |
 |-----------|-------------|----------|-----------------|--------|
-| DIAG-IC-001 | MCP ≡ CLI ≡ API Equivalence Model | [`interface-and-composition.md`](architecture/interface-and-composition.md) §1 | `crates/hkask-cli/src/cli/actions.rs`, `crates/hkask-api/src/lib.rs:628`, `crates/hkask-mcp/src/runtime.rs:71` | ✅ VERIFIED |
+| DIAG-IC-001 | MCP ≡ CLI ≡ API Equivalence Model | [`interface-and-composition.md`](architecture/interface-and-composition.md) §1 | `crates/hkask-cli/src/cli/mod.rs:33`, `crates/hkask-api/src/lib.rs:636`, `crates/hkask-mcp/src/runtime.rs:59` | ✅ VERIFIED |
 | DIAG-IC-002 | Hexagonal Architecture — Ports, Adapters, Core | [`interface-and-composition.md`](architecture/interface-and-composition.md) §2 | `docs/architecture/reference/ports-inventory.md` (19 traits) | ✅ VERIFIED |
 | DIAG-IC-003 | Unified Registry with template_type discriminator | [`interface-and-composition.md`](architecture/interface-and-composition.md) §4 | `crates/hkask-templates/src/` (SqliteRegistry) | ✅ VERIFIED |
-| DIAG-IC-004 | Template Cascade Flow (depth ≤ 7, DependencyGraph acyclic) | [`interface-and-composition.md`](architecture/interface-and-composition.md) §5 | `crates/hkask-templates/src/dependency.rs`, `crates/hkask-templates/src/resolver.rs` | ✅ VERIFIED |
+| DIAG-IC-004 | Template Cascade Flow (depth ≤ 7, DependencyGraph acyclic) | [`interface-and-composition.md`](architecture/interface-and-composition.md) §5 | `crates/hkask-templates/src/dependency.rs` | ✅ VERIFIED |
 | DIAG-IC-005 | Rendering Pipeline — Template → Jinja2 → LLM | [`interface-and-composition.md`](architecture/interface-and-composition.md) §6 | `crates/hkask-templates/src/` (minijinja integration) | ✅ VERIFIED |
 
 ## 3. Trust & Observability Diagrams
