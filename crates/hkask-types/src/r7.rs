@@ -11,17 +11,18 @@
 
 use crate::{Visibility, WebID};
 use serde::{Deserialize, Serialize};
+use std::sync::OnceLock;
 
 /// An R7 bot identity — one of the seven "c" curators
+///
+/// Invariant: `webid` is always `WebID::from_persona(id.as_bytes())`.
+/// The `webid` field is computed on construction, not serialized.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct R7BotIdentity {
     /// Bot identifier (e.g., "R7.1")
     pub id: String,
     /// Display name
     pub name: String,
-    /// Deterministic WebID derived from persona
-    #[serde(skip)]
-    pub webid: WebID,
     /// Primary hKask crate this bot is responsible for
     pub primary_crate: String,
     /// Bot description / persona fragment
@@ -32,18 +33,47 @@ pub struct R7BotIdentity {
     pub memory_visibility: Visibility,
     /// Template domains this bot owns
     pub domains: Vec<String>,
+    // Invariant: always WebID::from_persona(id.as_bytes())
+    #[serde(skip)]
+    webid: WebID,
 }
 
 impl R7BotIdentity {
-    /// Derive the deterministic WebID for this bot
+    /// Derive the deterministic WebID for a bot id
     pub fn derive_webid(id: &str) -> WebID {
         WebID::from_persona(id.as_bytes())
     }
 
-    /// Compute the WebID after deserialization
-    pub fn with_webid(mut self) -> Self {
+    /// Get the bot's WebID (always valid by construction)
+    pub fn webid(&self) -> WebID {
+        self.webid
+    }
+
+    /// Construct a new R7BotIdentity. Sets webid deterministically.
+    pub fn new(
+        id: String,
+        primary_crate: String,
+        description: String,
+        energy_budget: u64,
+        domains: Vec<String>,
+    ) -> Self {
+        let webid = Self::derive_webid(&id);
+        Self {
+            webid,
+            id: id.clone(),
+            name: id,
+            primary_crate,
+            description,
+            energy_budget,
+            memory_visibility: Visibility::Shared,
+            domains,
+        }
+    }
+
+    /// Post-deserialization: resolve the webid from the id field.
+    /// Must be called after deserializing from YAML.
+    pub fn resolve_webid(&mut self) {
         self.webid = Self::derive_webid(&self.id);
-        self
     }
 }
 
@@ -57,7 +87,7 @@ impl R7BotRegistry {
     /// Resolve WebIDs for all bots after deserialization
     pub fn resolve_webids(&mut self) {
         for bot in &mut self.bots {
-            bot.webid = R7BotIdentity::derive_webid(&bot.id);
+            bot.resolve_webid();
         }
     }
 
@@ -87,88 +117,71 @@ impl R7BotRegistry {
     }
 }
 
-/// Default 7R7 bot definitions, embedded at compile time
+/// Cached default 7R7 bot definitions — allocated once, shared everywhere.
+static DEFAULT_R7_BOTS: OnceLock<Vec<R7BotIdentity>> = OnceLock::new();
+
+/// Default 7R7 bot definitions, embedded at compile time.
 ///
 /// This is the canonical 7R7 roster. Domain assignments can be changed
 /// by the Curator at runtime, but the identity roster is fixed.
-pub fn default_r7_bots() -> Vec<R7BotIdentity> {
-    let bots = vec![
-        (
-            "R7.1",
-            "hkask-storage",
-            "Holds the data. The data must persist. The data must be encrypted. The data must be queryable.",
-            10000,
-            vec!["storage"],
-        ),
-        (
-            "R7.2",
-            "hkask-memory",
-            "Holds the past. Semantic is public. Episodic is private. Knows the difference. Enforces OCAP.",
-            10000,
-            vec!["memory"],
-        ),
-        (
-            "R7.3",
-            "hkask-cns",
-            "Holds the nervous system. Monitors variety. Sounds the alert when variety deficit >100.",
-            10000,
-            vec!["cns"],
-        ),
-        (
-            "R7.4",
-            "hkask-templates",
-            "Holds the patterns. The registry is unified. The template_type discriminates.",
-            10000,
-            vec!["templates", "registry"],
-        ),
-        (
-            "R7.5",
-            "hkask-agents",
-            "Holds the agents. Bots are public. Replicants are private or public. Curator is single.",
-            8000,
-            vec!["agents", "ensemble", "kata"],
-        ),
-        (
-            "R7.6",
-            "hkask-mcp",
-            "Holds the tools. Fifteen MCP servers. Dispatches. Does not accumulate.",
-            12000,
-            vec![
-                "mcp",
-                "inference",
-                "git",
-                "web",
-                "condenser",
-                "github",
-                "gml",
-                "spec",
-                "fmp",
-                "telnyx",
-                "fal",
-                "rss-reader",
-            ],
-        ),
-        (
-            "R7.7",
-            "hkask-cli",
-            "Holds the interface. Humans need words. Gives them words. Does not meow at other bots.",
-            8000,
-            vec!["cli", "api"],
-        ),
-    ];
-
-    bots.into_iter()
-        .map(
-            |(id, primary_crate, description, energy_budget, domains)| R7BotIdentity {
-                webid: R7BotIdentity::derive_webid(id),
-                id: id.to_string(),
-                name: id.to_string(),
-                primary_crate: primary_crate.to_string(),
-                description: description.to_string(),
-                energy_budget,
-                memory_visibility: Visibility::Shared,
-                domains: domains.into_iter().map(String::from).collect(),
-            },
-        )
-        .collect()
+///
+/// Returns a reference to a statically cached `Vec<R7BotIdentity>`.
+pub fn default_r7_bots() -> &'static [R7BotIdentity] {
+    DEFAULT_R7_BOTS.get_or_init(|| {
+        vec![
+            R7BotIdentity::new(
+                "R7.1".into(),
+                "hkask-storage".into(),
+                "Holds the data. The data must persist. The data must be encrypted. The data must be queryable.".into(),
+                10000,
+                vec!["storage".into()],
+            ),
+            R7BotIdentity::new(
+                "R7.2".into(),
+                "hkask-memory".into(),
+                "Holds the past. Semantic is public. Episodic is private. Knows the difference. Enforces OCAP.".into(),
+                10000,
+                vec!["memory".into()],
+            ),
+            R7BotIdentity::new(
+                "R7.3".into(),
+                "hkask-cns".into(),
+                "Holds the nervous system. Monitors variety. Sounds the alert when variety deficit >100.".into(),
+                10000,
+                vec!["cns".into()],
+            ),
+            R7BotIdentity::new(
+                "R7.4".into(),
+                "hkask-templates".into(),
+                "Holds the patterns. The registry is unified. The template_type discriminates.".into(),
+                10000,
+                vec!["templates".into(), "registry".into()],
+            ),
+            R7BotIdentity::new(
+                "R7.5".into(),
+                "hkask-agents".into(),
+                "Holds the agents. Bots are public. Replicants are private or public. Curator is single.".into(),
+                8000,
+                vec!["agents".into(), "ensemble".into(), "kata".into()],
+            ),
+            R7BotIdentity::new(
+                "R7.6".into(),
+                "hkask-mcp".into(),
+                "Holds the tools. Fifteen MCP servers. Dispatches. Does not accumulate.".into(),
+                12000,
+                vec![
+                    "mcp".into(), "inference".into(), "git".into(), "web".into(),
+                    "condenser".into(), "github".into(), "gml".into(), "spec".into(),
+                    "fmp".into(), "telnyx".into(), "fal".into(), "rss-reader".into(),
+                ],
+            ),
+            R7BotIdentity::new(
+                "R7.7".into(),
+                "hkask-cli".into(),
+                "Holds the interface. Humans need words. Gives them words. Does not meow at other bots.".into(),
+                8000,
+                vec!["cli".into(), "api".into()],
+            ),
+        ]
+    })
 }

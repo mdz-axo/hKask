@@ -4,7 +4,7 @@ use crate::errors::{CuratorError, RegistryError};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-pub(crate) fn registry_db_path() -> String {
+pub fn registry_db_path() -> String {
     std::env::var("HKASK_DB_PATH").unwrap_or_else(|_| "hkask.db".to_string())
 }
 

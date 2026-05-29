@@ -9,6 +9,7 @@
 
 mod commands;
 pub(crate) mod display;
+mod handlers;
 mod helper;
 
 use hkask_mcp::runtime::McpRuntime;

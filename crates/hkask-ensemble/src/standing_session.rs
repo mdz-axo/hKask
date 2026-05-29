@@ -109,8 +109,8 @@ impl StandingSession {
 
         // Build R7 bot lookup for domain→capability resolution
         let r7_bots: HashMap<String, R7BotIdentity> = default_r7_bots()
-            .into_iter()
-            .map(|b| (b.id.clone(), b))
+            .iter()
+            .map(|b| (b.id.clone(), b.clone()))
             .collect();
 
         for entry in &config.participants {

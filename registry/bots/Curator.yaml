@@ -51,13 +51,13 @@ responsibilities:
 
 reporting:
   receives_from:
-    - cns-curator-bot
-    - memory-curator-bot
-    - inference-curator-bot
-    - mcp-dispatch-bot
-    - ensemble-curator-bot
-    - git-curator-bot
-    - registry-dispatch-bot
+    - R7.1
+    - R7.2
+    - R7.3
+    - R7.4
+    - R7.5
+    - R7.6
+    - R7.7
   report_format: synthesized_system_state
   report_to: standing_ensemble_session
   escalate_to: hKask-Administrator
@@ -95,13 +95,13 @@ persona:
     - no unnecessary questions
 
 depends_on:
-  - cns-curator-bot
-  - memory-curator-bot
-  - inference-curator-bot
-  - mcp-dispatch-bot
-  - ensemble-curator-bot
-  - git-curator-bot
-  - registry-dispatch-bot
+  - R7.1
+  - R7.2
+  - R7.3
+  - R7.4
+  - R7.5
+  - R7.6
+  - R7.7
 
 readiness_probe:
   type: health_check
