@@ -160,21 +160,16 @@ pub async fn chat_with_agent(
         use hkask_agents::adapters::RussellAcpAdapter;
         use hkask_agents::ports::AcpPort;
         use hkask_types::WebID;
-        use zeroize::Zeroizing;
 
         // Get Russell binary path from environment or use default
         let russell_binary = std::env::var("HKASK_RUSSELL_BINARY")
             .unwrap_or_else(|_| "russell-acp-server".to_string());
 
-        // Get bridge secret from environment or use default
-        let bridge_secret_str = match super::config::resolve_acp_secret() {
-            Ok(s) => s,
-            Err(e) => return format!("Bridge secret resolution: {}", e),
+        // Create Russell adapter (bridge secret derived from master key via HKDF)
+        let russell_adapter = match RussellAcpAdapter::new(russell_binary) {
+            Ok(adapter) => adapter,
+            Err(e) => return format!("Failed to initialize Russell bridge: {}", e),
         };
-        let bridge_secret = Arc::new(Zeroizing::new(bridge_secret_str.into_bytes()));
-
-        // Create Russell adapter
-        let russell_adapter = RussellAcpAdapter::new(russell_binary, bridge_secret);
 
         // Create a WebID for this chat session
         let webid = WebID::from_persona_with_namespace(b"russell-chat-session", "russell");

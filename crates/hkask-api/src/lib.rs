@@ -115,7 +115,7 @@ impl ApiState {
         let observer_webid = WebID::new();
         let cns_emitter_adapter = CnsEmitterAdapter::new(observer_webid);
         let mcp_runtime_adapter = McpRuntimeAdapter::new();
-        let memory_storage = MemoryStorageAdapter::in_memory().unwrap();
+        let memory_storage = MemoryStorageAdapter::in_memory().expect("in-memory adapter creation");
         let pod_manager = PodManager::new(
             Arc::new(git_cas),
             acp_runtime,

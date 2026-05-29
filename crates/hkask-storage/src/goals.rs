@@ -399,7 +399,7 @@ impl SqliteGoalRepository {
 
         self.conn
             .lock()
-            .unwrap()
+            .expect("mutex lock")
             .execute("DELETE FROM goals WHERE id = ?1", [goal_id.to_string()])?;
         Ok(())
     }

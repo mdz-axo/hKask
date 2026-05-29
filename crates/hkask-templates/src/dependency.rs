@@ -128,7 +128,10 @@ impl DependencyGraph {
                     self.find_cycles_dfs(callee, visited, rec_stack, path, cycles);
                 } else if rec_stack.contains(callee) {
                     // Found a cycle
-                    let cycle_start = path.iter().position(|x| x == callee).unwrap();
+                    let cycle_start = path
+                        .iter()
+                        .position(|x| x == callee)
+                        .expect("callee found in rec_stack, must be in path");
                     let cycle = path[cycle_start..].to_vec();
                     cycles.push(cycle);
                 }
@@ -195,7 +198,10 @@ pub fn parse_dependencies(_template_id: &str, source: &str) -> Vec<String> {
         if let Some(include_start) = line.find("{% include") {
             let rest = &line[include_start..];
             if let Some(quote_start) = rest.find('"').or_else(|| rest.find('\'')) {
-                let quote_char = rest.chars().nth(quote_start).unwrap();
+                let quote_char = rest
+                    .chars()
+                    .nth(quote_start)
+                    .expect("quote_start is valid index from find()");
                 let after_quote = &rest[quote_start + 1..];
                 if let Some(quote_end) = after_quote.find(quote_char) {
                     let included = &after_quote[..quote_end];
@@ -210,7 +216,10 @@ pub fn parse_dependencies(_template_id: &str, source: &str) -> Vec<String> {
         if let Some(call_start) = line.find("{% call") {
             let rest = &line[call_start..];
             if let Some(quote_start) = rest.find('"').or_else(|| rest.find('\'')) {
-                let quote_char = rest.chars().nth(quote_start).unwrap();
+                let quote_char = rest
+                    .chars()
+                    .nth(quote_start)
+                    .expect("quote_start is valid index from find()");
                 let after_quote = &rest[quote_start + 1..];
                 if let Some(quote_end) = after_quote.find(quote_char) {
                     let called = &after_quote[..quote_end];

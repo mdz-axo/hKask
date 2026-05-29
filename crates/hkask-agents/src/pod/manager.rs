@@ -295,7 +295,12 @@ impl PodManager {
             .validate(&input)
             .map_err(|e| AgentPodError::PersonaParseError(e.to_string()))?;
 
-        let pod = AgentPod::new(template_name, persona, self.git_cas.as_ref())?;
+        let pod = AgentPod::new_with_memory(
+            template_name,
+            persona,
+            self.git_cas.as_ref(),
+            Some(Arc::clone(&self.memory_storage)),
+        )?;
         let pod_id = pod.id;
 
         let mut pods = self.pods.write().await;

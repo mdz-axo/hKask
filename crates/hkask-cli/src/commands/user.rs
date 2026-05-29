@@ -154,9 +154,11 @@ pub fn register_replicant(
 
     loop {
         print!("Enter passphrase: ");
-        io::stdout().flush().unwrap();
+        io::stdout().flush().expect("stdout flush failed");
         let mut passphrase = String::new();
-        io::stdin().read_line(&mut passphrase).unwrap();
+        io::stdin()
+            .read_line(&mut passphrase)
+            .expect("stdin read failed");
         let passphrase = passphrase.trim().to_string();
 
         if let Err(e) = RegistrationRequest::validate_passphrase(&passphrase) {
@@ -165,9 +167,11 @@ pub fn register_replicant(
         }
 
         print!("Confirm passphrase: ");
-        io::stdout().flush().unwrap();
+        io::stdout().flush().expect("stdout flush failed");
         let mut confirm = String::new();
-        io::stdin().read_line(&mut confirm).unwrap();
+        io::stdin()
+            .read_line(&mut confirm)
+            .expect("stdin read failed");
         let confirm = confirm.trim().to_string();
 
         if passphrase != confirm {
@@ -210,9 +214,11 @@ pub fn login_replicant(
     use std::io::{self, Write};
 
     print!("Enter passphrase for replicant '{}': ", replicant_name);
-    io::stdout().flush().unwrap();
+    io::stdout().flush().expect("stdout flush failed");
     let mut passphrase = String::new();
-    io::stdin().read_line(&mut passphrase).unwrap();
+    io::stdin()
+        .read_line(&mut passphrase)
+        .expect("stdin read failed");
     let passphrase = Zeroizing::new(passphrase.trim().to_string());
 
     let session = login_with_passphrase(store, replicant_name, passphrase)?;
@@ -243,12 +249,12 @@ pub fn show_replicant(
     println!(
         "  Created: {}",
         chrono::DateTime::from_timestamp(identity.created_at, 0)
-            .unwrap()
+            .expect("valid unix timestamp from creation")
             .format("%Y-%m-%d")
     );
 
     if let Some(last) = identity.last_login {
-        let dt = chrono::DateTime::from_timestamp(last, 0).unwrap();
+        let dt = chrono::DateTime::from_timestamp(last, 0).expect("valid unix timestamp");
         println!("  Last login: {}", dt.format("%Y-%m-%d %H:%M"));
     }
 
@@ -280,7 +286,7 @@ pub fn list_replicants(
             identity.replicant_webid.redacted_display()
         );
         if let Some(last) = identity.last_login {
-            let dt = chrono::DateTime::from_timestamp(last, 0).unwrap();
+            let dt = chrono::DateTime::from_timestamp(last, 0).expect("valid unix timestamp");
             println!("     Last login: {}", dt.format("%Y-%m-%d %H:%M"));
         }
     }
@@ -311,8 +317,10 @@ pub fn list_sessions(
 
     println!("\n📱 Active sessions for '{}':", replicant_name);
     for (i, session) in sessions.iter().enumerate() {
-        let expires = chrono::DateTime::from_timestamp(session.expires_at, 0).unwrap();
-        let last_active = chrono::DateTime::from_timestamp(session.last_active, 0).unwrap();
+        let expires =
+            chrono::DateTime::from_timestamp(session.expires_at, 0).expect("valid unix timestamp");
+        let last_active =
+            chrono::DateTime::from_timestamp(session.last_active, 0).expect("valid unix timestamp");
         println!("  {}. Session: {}", i + 1, &session.session_id[..8]);
         println!("     Last active: {}", last_active.format("%Y-%m-%d %H:%M"));
         println!("     Expires: {}", expires.format("%Y-%m-%d %H:%M"));

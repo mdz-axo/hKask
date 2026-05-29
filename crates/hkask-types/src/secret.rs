@@ -90,4 +90,7 @@ pub mod derivation_contexts {
 
     /// Master key environment variable name.
     pub const MASTER_KEY_ENV: &str = "HKASK_MASTER_KEY";
+
+    /// Russell ACP bridge HMAC signing secret.
+    pub const RUSSELL_BRIDGE_SECRET: &str = "hkask:russell-bridge-secret";
 }

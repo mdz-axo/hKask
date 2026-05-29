@@ -99,7 +99,7 @@ impl AlgedonicAlert {
         use std::time::{SystemTime, UNIX_EPOCH};
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .expect("system clock after 1970")
             .as_nanos() as u64
     }
 }

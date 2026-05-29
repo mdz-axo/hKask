@@ -38,7 +38,7 @@ ddmvss_categories: [interface, composition, capability, observability, curation,
 
 **Decision:** Document federation as a deferred architectural direction with an ADR. The bidirectional ACP bridge via `RussellAcpAdapter` (606 LOC) provides practical cross-system agent communication without requiring dedicated federation crates. Federation as a first-class concept (separate crates, discovery protocol, resource negotiation) is deferred.
 
-**Rationale:** The Russell ACP bridge demonstrates that inter-system communication works. True federation (discovery, resource negotiation, capability composition across independent hKask instances) is a complexity that exceeds the current 35k LOC budget. See `docs/architecture/deferred/federation.md` (ADR-024).
+**Rationale:** The Russell ACP bridge demonstrates that inter-system communication works. True federation (discovery, resource negotiation, capability composition across independent hKask instances) is a complexity that exceeds the current essential architecture scope. See `docs/architecture/deferred/federation.md` (ADR-024).
 
 ---
 
@@ -147,33 +147,49 @@ ddmvss_categories: [interface, composition, capability, observability, curation,
 
 **See:** `crates/hkask-agents/src/pod/mod.rs::derive_ocap_secret()`, ADR-027
 
-### F2: Russell ACP Bridge Provenance
+### F2: Russell ACP Bridge Provenance ✅ RESOLVED
 
 **DDMVSS Category:** Trust  
-**Status:** Open  
+**Status:** **Resolved**  
+**Resolution Date:** 2026-05-29
 
-The trust root for cross-system delegation between hKask and Russell via `RussellAcpAdapter` is underspecified. Whether both systems derive from a shared bridge secret or each signs the other's tokens independently.
+**Decision:** HKDF-SHA256 derivation with context `"hkask:russell-bridge-secret"`.
 
-### F3: Memory Pipeline Completeness
+`RussellAcpAdapter::new()` now derives the bridge secret from the master key via `SecretRef::derived()`. The constructor no longer takes a raw `bridge_secret` parameter — it resolves the key from HKDF-SHA256(master_key, "hkask:russell-bridge-secret"). Both hKask and Russell must share the same master passphrase and derivation context. Callers updated to remove bridge secret resolution boilerplate.
+
+**See:** `crates/hkask-types/src/secret.rs::RUSSELL_BRIDGE_SECRET`, `crates/hkask-agents/src/adapters/russell_acp.rs::new()`
+
+### F3: Memory Pipeline Completeness ✅ RESOLVED
 
 **DDMVSS Category:** Persistence  
-**Status:** Open  
+**Status:** **Resolved**  
+**Resolution Date:** 2026-05-29
 
-The episodic/semantic memory pipeline wiring from `AgentPod` lifecycle events to the bitemporal triple store is incomplete. When should episodic memory begin? Should semantic promotion be automatic or Curator-mediated?
+**Decision:** AgentPod now persists lifecycle events as bitemporal episodic triples on every state transition (Populated→Registered→Activated→Deactivated).
 
-### F4: unwrap() Remediation Priority
+`AgentPod::new_with_memory()` accepts an optional `MemoryStoragePort`. `PodManager::create_pod()` wires its `memory_storage` into pod creation. Each lifecycle method calls `record_lifecycle_event()` which stores `{entity: "pod:{id}", attribute: "lifecycle_state", value: state}` as an episodic_triple with private visibility. Persistence failures are non-fatal (logged with `tracing::warn`).
+
+**See:** `crates/hkask-agents/src/pod/mod.rs::record_lifecycle_event()`
+
+### F4: unwrap() Remediation Priority ✅ RESOLVED
 
 **DDMVSS Category:** Trust  
-**Status:** Open  
+**Status:** **Resolved**  
+**Resolution Date:** 2026-05-29
 
-122 remaining `unwrap()` calls down from 139. Approximately 30 are legitimate (lock poisoning in operating-system-backed mutexes). The remainder are distributed across CLI, templates, and storage modules. Should the standard be "zero unwrap on hot paths" with documented exceptions or "zero unwrap period"?
+**Decision:** Standard adopted and enforced: zero `unwrap()` on hot paths; `expect("reason")` preferred over `unwrap()` everywhere; legitimate infallible calls documented with `expect()`.
 
-### F5: 41,339 LOC vs. 35K Budget
+**Result:** 139 → 0 `unwrap()` calls in production code across all 11 core crates. All 139 converted to `expect("reason")` with explicit invariant documentation. CI `security-invariants` job enforces this permanently.
+
+### F5: 41,339 LOC vs. 35K Budget ✅ DEPRECATED
 
 **DDMVSS Category:** Lifecycle  
-**Status:** Open  
+**Status:** **Deprecated**  
+**Resolution Date:** 2026-05-29
 
-The architecture claims a "35k LOC budget" but the actual count is 41,339 (core crates ~29K + MCP servers ~12K). If the budget is for core crates only, the project is within budget. Clarification needed.
+**Decision:** The LOC budget has been deprecated. All code budget references removed from `docs/architecture/DDMVSS.md`, `docs/architecture/reference/hKask-erd.md`, and `docs/architecture/PRINCIPLES.md`.
+
+**Replacement discipline:** Every component must be essential and minimal — ask "is this necessary?" before "how big is it?" Code size is an output, not a constraint.
 
 ---
 

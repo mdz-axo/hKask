@@ -55,7 +55,7 @@ impl CapabilityAwareValidator {
 
             if reqs.adapter.is_some() && !self.capabilities.lora_hot_swap {
                 errors.push(ValidationError::AdapterNotSupported {
-                    adapter: reqs.adapter.clone().unwrap(),
+                    adapter: reqs.adapter.clone().expect("adapter is_some checked above"),
                     runner_type: self.capabilities.runner_type.clone(),
                 });
             }

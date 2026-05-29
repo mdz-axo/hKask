@@ -583,7 +583,7 @@ pub(super) fn handle_into(
     if arg.is_empty() {
         match active_session {
             Some(_) => {
-                let leaving = active_session.take().unwrap();
+                let leaving = active_session.take().expect("active session exists");
                 println!(
                     "  Left ensemble session \x1b[33m{}\x1b[0m. Back to single-agent mode.",
                     leaving

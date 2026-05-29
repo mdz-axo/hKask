@@ -15,6 +15,8 @@
 //! are routed to the correct Russell session.
 
 use async_trait::async_trait;
+use hkask_types::derivation_contexts;
+use hkask_types::secret::SecretRef;
 use hkask_types::{CapabilityAction, CapabilityResource, CapabilityToken, WebID};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -106,27 +108,35 @@ pub struct RussellAcpAdapter {
     cns_emitter: Option<Arc<dyn hkask_cns::CnsEmit + Send + Sync>>,
     /// WebID → Russell session_id mapping
     sessions: Arc<RwLock<HashMap<WebID, String>>>,
-    /// Shared secret for signing bridge capability tokens
+    /// Bridge secret derived from master key via HKDF-SHA256 (ADR-027)
     bridge_secret: Arc<Zeroizing<Vec<u8>>>,
 }
 
 impl RussellAcpAdapter {
-    /// Create new Russell ACP adapter
+    /// Create new Russell ACP adapter.
+    ///
+    /// The bridge secret is derived from the master key via
+    /// HKDF-SHA256 with context `"hkask:russell-bridge-secret"`.
+    /// Both hKask and Russell must share the same master passphrase
+    /// and derivation context to produce matching HMAC signing keys.
     ///
     /// # Arguments
     /// * `russell_binary` — Path to the Russell ACP server binary
-    /// * `bridge_secret` — Shared HMAC secret for signing bridge capability tokens.
-    ///   This should be the same secret used by `AcpRuntime` so that tokens
-    ///   minted by the bridge are verifiable by the local runtime.
-    pub fn new(russell_binary: String, bridge_secret: Arc<Zeroizing<Vec<u8>>>) -> Self {
-        Self {
+    pub fn new(russell_binary: String) -> Result<Self, AcpError> {
+        let bridge_secret = hkask_keystore::resolve(&SecretRef::derived(
+            derivation_contexts::MASTER_KEY_ENV,
+            derivation_contexts::RUSSELL_BRIDGE_SECRET,
+        ))
+        .map_err(|e| AcpError::KeyDerivation(e.to_string()))?;
+
+        Ok(Self {
             child: Mutex::new(None),
             russell_binary,
             macaroon_token: None,
             cns_emitter: None,
             sessions: Arc::new(RwLock::new(HashMap::new())),
-            bridge_secret,
-        }
+            bridge_secret: Arc::new(bridge_secret),
+        })
     }
 
     /// Set macaroon token for authentication

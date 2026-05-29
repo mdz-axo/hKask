@@ -58,7 +58,7 @@ impl TemperatureRange {
         use std::time::{SystemTime, UNIX_EPOCH};
         let nanos = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .expect("system clock is set after 1970")
             .subsec_nanos();
         let normalized = (nanos % 1000) as f32 / 1000.0;
         self.min + normalized * (self.max - self.min)

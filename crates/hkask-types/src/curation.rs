@@ -18,7 +18,7 @@ impl CuratorId {
     pub fn system() -> Self {
         // Deterministic UUID for the single Curator instance
         // Using a valid UUID v4 hex string
-        Self(Uuid::parse_str("c000ca00-0000-4000-8000-000000000001").unwrap())
+        Self(Uuid::parse_str("c000ca00-0000-4000-8000-000000000001").expect("valid curator UUID"))
     }
 }
 

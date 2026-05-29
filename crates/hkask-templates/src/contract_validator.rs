@@ -142,7 +142,7 @@ impl ContractValidator {
 
             if reqs.adapter.is_some() && !self.okapi_capabilities.lora_hot_swap {
                 errors.push(ValidationError::AdapterNotSupported {
-                    adapter: reqs.adapter.clone().unwrap(),
+                    adapter: reqs.adapter.clone().expect("adapter is_some checked above"),
                     runner_type: self.okapi_capabilities.runner_type.clone(),
                 });
             }

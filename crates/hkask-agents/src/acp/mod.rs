@@ -69,7 +69,9 @@ fn parse_capability(capability: &str) -> Result<(CapabilityResource, CapabilityA
         AcpError::MalformedCapability(format!("Unknown resource type: {}", parts[0]))
     })?;
 
-    let action_str = parts.last().unwrap();
+    let action_str = parts
+        .last()
+        .expect("splitn always produces at least one element");
     let action = CapabilityAction::parse_str(action_str).unwrap_or(CapabilityAction::Execute);
 
     Ok((resource, action))
@@ -119,6 +121,9 @@ pub enum AcpError {
 
     #[error("Clock error: {0}")]
     ClockError(String),
+
+    #[error("Key derivation failed: {0}")]
+    KeyDerivation(String),
 
     #[error("{0}")]
     LegacyError(String),

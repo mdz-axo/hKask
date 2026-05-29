@@ -55,14 +55,15 @@ fn write_or_print(content: &str, output: Option<&std::path::Path>, label: &str) 
 /// Open a UserStore for replicant commands, using the same DB path logic.
 fn open_user_store() -> std::sync::Arc<std::sync::Mutex<hkask_storage::user_store::UserStore>> {
     let db_path = std::env::var("HKASK_DB_PATH").unwrap_or_else(|_| "hkask.db".to_string());
-    let conn = rusqlite::Connection::open(&db_path)
-        .unwrap_or_else(|_| rusqlite::Connection::open_in_memory().unwrap());
+    let conn = rusqlite::Connection::open(&db_path).unwrap_or_else(|_| {
+        rusqlite::Connection::open_in_memory().expect("in-memory connection always succeeds")
+    });
     let store =
         hkask_storage::user_store::UserStore::new(std::sync::Arc::new(std::sync::Mutex::new(conn)));
     let store = std::sync::Arc::new(std::sync::Mutex::new(store));
     store
         .lock()
-        .unwrap()
+        .expect("mutex lock")
         .initialize_schema()
         .expect("Failed to initialize user store schema");
     store
@@ -77,7 +78,9 @@ fn main() {
     // Initialize registry
     let mut registry = or_exit(
         match &cli.registry {
-            Some(path) => SqliteRegistry::new(Some(path.to_str().unwrap())),
+            Some(path) => {
+                SqliteRegistry::new(Some(path.to_str().expect("path must be valid UTF-8")))
+            }
             None => SqliteRegistry::new(None),
         },
         "Failed to initialize registry",
