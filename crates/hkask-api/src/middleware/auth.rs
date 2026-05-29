@@ -172,11 +172,7 @@ pub async fn auth_middleware(
 
             // Attach auth context to request extensions
             let mut req = req;
-            req.extensions_mut().insert(AuthContext {
-                token,
-                webid: webid.clone(),
-            });
-            req.extensions_mut().insert(webid);
+            req.extensions_mut().insert(AuthContext { token, webid });
 
             next.run(req).await
         }

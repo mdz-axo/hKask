@@ -734,7 +734,7 @@ fn main() {
                 criteria,
             } => {
                 use hkask_storage::SqliteSpecStore;
-                use hkask_types::{DomainAnchor, GoalSpec, Spec, SpecCategory, SpecId, SpecStore};
+                use hkask_types::{DomainAnchor, GoalSpec, Spec, SpecCategory, SpecStore};
 
                 let cat = SpecCategory::parse_str(&category).unwrap_or(SpecCategory::Domain);
                 let anchor = DomainAnchor::parse_str(&domain).unwrap_or(DomainAnchor::Hkask);

@@ -11,6 +11,12 @@ use std::fs;
 /// Filesystem-backed registry source
 pub struct FilesystemRegistrySource;
 
+impl Default for FilesystemRegistrySource {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FilesystemRegistrySource {
     pub fn new() -> Self {
         Self
@@ -33,12 +39,11 @@ impl RegistrySourcePort for FilesystemRegistrySource {
         for entry in dir {
             let entry = entry.map_err(|e| RegistryError::Io(e.to_string()))?;
             let path = entry.path();
-            if path.extension().and_then(|e| e.to_str()) == Some("yaml")
-                || path.extension().and_then(|e| e.to_str()) == Some("yml")
+            if (path.extension().and_then(|e| e.to_str()) == Some("yaml")
+                || path.extension().and_then(|e| e.to_str()) == Some("yml"))
+                && let Some(path_str) = path.to_str()
             {
-                if let Some(path_str) = path.to_str() {
-                    files.push(path_str.to_string());
-                }
+                files.push(path_str.to_string());
             }
         }
         Ok(files)

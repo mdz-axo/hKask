@@ -298,10 +298,10 @@ impl AcpRuntime {
 
     /// Emit a CNS event if an emitter is configured
     fn emit_cns(&self, span: &str, verb: &str, payload: &serde_json::Value, confidence: f64) {
-        if let Ok(guard) = self.cns_emitter.read() {
-            if let Some(ref cns) = *guard {
-                cns.emit_event(span, verb, payload, confidence);
-            }
+        if let Ok(guard) = self.cns_emitter.read()
+            && let Some(ref cns) = *guard
+        {
+            cns.emit_event(span, verb, payload, confidence);
         }
     }
 

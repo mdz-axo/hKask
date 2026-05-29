@@ -202,6 +202,7 @@ impl Phase {
     }
 
     /// Parse a phase string into a Phase variant, defaulting to Observe
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s {
             "regulate" => Phase::Regulate,

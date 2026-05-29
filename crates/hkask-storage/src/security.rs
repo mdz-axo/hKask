@@ -22,13 +22,13 @@ pub fn sanitize_path(base: &Path, input: &str) -> Result<PathBuf, HkaskError> {
     let joined = base.join(input_path);
     let canonical_base = base.canonicalize().unwrap_or_else(|_| base.to_path_buf());
     // For non-existent paths, verify the parent is within base
-    if let Some(canonical_joined) = joined.parent().and_then(|p| p.canonicalize().ok()) {
-        if !canonical_joined.starts_with(&canonical_base) {
-            return Err(HkaskError::Validation(format!(
-                "Path escapes base directory: {}",
-                input
-            )));
-        }
+    if let Some(canonical_joined) = joined.parent().and_then(|p| p.canonicalize().ok())
+        && !canonical_joined.starts_with(&canonical_base)
+    {
+        return Err(HkaskError::Validation(format!(
+            "Path escapes base directory: {}",
+            input
+        )));
     }
     Ok(joined)
 }

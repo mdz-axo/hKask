@@ -110,7 +110,7 @@ impl ArchivalService {
         let git_cas = self
             .adapter_container
             .get_git_cas()
-            .map_err(|e| GitArchivalError::AdapterNotFound(e))?
+            .map_err(GitArchivalError::AdapterNotFound)?
             .ok_or_else(|| {
                 GitArchivalError::AdapterNotFound("Git CAS adapter unavailable".to_string())
             })?;
@@ -222,7 +222,7 @@ impl ArchivalService {
         let git_cas = self
             .adapter_container
             .get_git_cas()
-            .map_err(|e| GitArchivalError::AdapterNotFound(e))?
+            .map_err(GitArchivalError::AdapterNotFound)?
             .ok_or_else(|| {
                 GitArchivalError::AdapterNotFound("Git CAS adapter unavailable".to_string())
             })?;
