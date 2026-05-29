@@ -39,6 +39,7 @@ pub fn generate_cli_markdown() -> String {
     md.push_str("- `/agent [NAME]` — Show or switch agent\n");
     md.push_str("- `/agents` — List registered agents\n");
     md.push_str("- `/model` — Show current model\n");
+    md.push_str("- `/model list` — List all available models\n");
     md.push_str("- `/model <name>` — Switch to a specific model (e.g., `/model qwen3:8b`)\n");
     md.push_str(
         "- `/model <query>` — Fuzzy search models (e.g., `/model qwen` lists all Qwen models)\n",
@@ -132,6 +133,7 @@ pub fn generate_cli_markdown() -> String {
     md.push_str("echo \"Summarize this\" | kask chat -f - -m qwen3:8b\n\n");
     md.push_str("# Inside chat: switch models\n");
     md.push_str("/model              # Show current model\n");
+    md.push_str("/model list         # List all available models\n");
     md.push_str("/model qwen         # Fuzzy search for Qwen models\n");
     md.push_str("/model qwen3:8b     # Switch to qwen3:8b\n\n");
     md.push_str("# List all templates\n");

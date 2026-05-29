@@ -221,7 +221,7 @@ pub async fn chat_with_agent(
 
         // Create inference port
         let config = OkapiConfig::local_dev();
-        let model = model_override.unwrap_or("qwen3:8b");
+        let model = model_override.unwrap_or("deepseek-v4-pro");
         let inference = match OkapiInference::new(model, config) {
             Ok(i) => Arc::new(i) as Arc<dyn InferencePort>,
             Err(e) => return format!("Okapi init error: {}", e),

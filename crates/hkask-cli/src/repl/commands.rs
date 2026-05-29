@@ -209,14 +209,7 @@ pub(super) fn handle_slash_command(
             let agent_display = current_agent.clone();
             let tpl = template_id.unwrap_or("auto-select");
             println!("  Agent:      \x1b[1m{}\x1b[0m", agent_display);
-            println!(
-                "  Model:      \x1b[1m{}\x1b[0m",
-                if current_model.is_empty() {
-                    "default"
-                } else {
-                    current_model
-                }
-            );
+            println!("  Model:      \x1b[1m{}\x1b[0m", current_model);
             println!("  Template:   {}", tpl);
             println!("  CNS:        \x1b[32mHEALTHY\x1b[0m (no alerts)");
             println!("  Turns:      {}", session_history.turns.len());
@@ -786,16 +779,46 @@ pub(super) fn handle_ask(
 fn handle_model(arg1: &str, current_model: &mut String, rt: &tokio::runtime::Handle) {
     use hkask_templates::{OkapiConfig, search_okapi_models};
 
-    if arg1.is_empty() {
-        // Show current model
-        if current_model.is_empty() {
-            println!("  Current model: \x1b[2mdefault\x1b[0m (Okapi default)");
+    if arg1.is_empty() || arg1.eq_ignore_ascii_case("list") {
+        // Show current model or list all models
+        if arg1.eq_ignore_ascii_case("list") {
+            let config = OkapiConfig::local_dev();
+            let matches = rt.block_on(search_okapi_models(&config, ""));
+            if matches.is_empty() {
+                println!("  No models found — Okapi may be unreachable.");
+            } else {
+                println!("  \x1b[1mAvailable models ({}):\x1b[0m", matches.len());
+                println!("  {:<30} {:<12} {:<15} SIZE", "NAME", "FAMILY", "PARAMS");
+                println!("  {}", "-".repeat(70));
+                for m in &matches {
+                    let family = m
+                        .details
+                        .as_ref()
+                        .and_then(|d| d.family.as_deref())
+                        .unwrap_or("-");
+                    let params = m
+                        .details
+                        .as_ref()
+                        .and_then(|d| d.parameter_size.as_deref())
+                        .unwrap_or("-");
+                    let size_str = m
+                        .size
+                        .map(|s| format!("{:.1} GB", s as f64 / 1_073_741_824.0))
+                        .unwrap_or_else(|| "-".to_string());
+                    println!(
+                        "  \x1b[36m{:<30}\x1b[0m {:<12} {:<15} {}",
+                        m.name, family, params, size_str
+                    );
+                }
+                println!();
+                println!("  Use \x1b[36m/model <name>\x1b[0m to switch to a specific model");
+            }
         } else {
             println!("  Current model: \x1b[1m{}\x1b[0m", current_model);
+            println!(
+                "  Use \x1b[36m/model <name>\x1b[0m to switch, \x1b[36m/model <query>\x1b[0m to search"
+            );
         }
-        println!(
-            "  Use \x1b[36m/model <name>\x1b[0m to switch, \x1b[36m/model <query>\x1b[0m to search"
-        );
     } else {
         let config = OkapiConfig::local_dev();
         let matches = rt.block_on(search_okapi_models(&config, arg1));

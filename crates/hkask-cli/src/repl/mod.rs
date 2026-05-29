@@ -28,7 +28,7 @@ pub fn run(
     rt_handle: tokio::runtime::Handle,
 ) {
     let mut current_agent = agent_name.to_string();
-    let mut current_model = initial_model.unwrap_or("").to_string();
+    let mut current_model = initial_model.unwrap_or("deepseek-v4-pro").to_string();
     let mut session_history = SessionHistory::new();
     let mut active_session: Option<String> = None;
 
@@ -130,11 +130,7 @@ pub fn run(
                     let response = rt.block_on(crate::commands::chat_with_agent(
                         input,
                         Some(&current_agent),
-                        if current_model.is_empty() {
-                            None
-                        } else {
-                            Some(&current_model)
-                        },
+                        Some(&current_model),
                     ));
                     println!("{}: {}\n", current_agent, response);
                     session_history.record(&current_agent, &response);

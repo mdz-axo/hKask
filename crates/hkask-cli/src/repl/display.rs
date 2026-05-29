@@ -44,7 +44,7 @@ pub(super) fn print_banner(agent: &str, template: Option<&str>, model: &str) {
     println!(
         "  \x1b[1mAgent:\x1b[0m \x1b[1m{}\x1b[0m  \x1b[1mModel:\x1b[0m \x1b[1m{}\x1b[0m  \x1b[1mTemplate:\x1b[0m \x1b[1m{}\x1b[0m",
         agent,
-        if model.is_empty() { "default" } else { model },
+        model,
         template.unwrap_or("auto-select")
     );
     println!(
@@ -180,6 +180,7 @@ pub(super) fn print_command_help(cmd_name: &str) {
             "model" => {
                 println!();
                 println!("  \x1b[2m/model\x1b[0m                    — Show current model");
+                println!("  \x1b[2m/model list\x1b[0m               — List all available models");
                 println!("  \x1b[2m/model qwen3:8b\x1b[0m       — Switch to a specific model");
                 println!(
                     "  \x1b[2m/model qwen\x1b[0m            — Fuzzy search for models matching 'qwen'"
