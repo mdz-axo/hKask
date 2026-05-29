@@ -10,7 +10,7 @@
 
 use axum::{
     body::Body,
-    extract::FromRequestParts,
+    extract::State,
     http::{Request, StatusCode},
     middleware::Next,
     response::Response,
@@ -129,7 +129,7 @@ pub struct AuthContext {
 /// - `403 Forbidden` for expired tokens
 /// - Passes through for routes listed in `PUBLIC_PATHS`
 pub async fn auth_middleware(
-    service: Arc<AuthService>,
+    State(service): State<Arc<AuthService>>,
     req: Request<Body>,
     next: Next,
 ) -> Response {

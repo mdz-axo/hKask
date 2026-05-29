@@ -55,7 +55,7 @@ pub use consent::ConsentManager;
 pub use curator::escalation::{
     EscalationEntry, EscalationQueue, EscalationStats, EscalationStatus,
 };
-pub use error::{GitError, McpError, MemoryError};
+pub use error::{GitError, McpError, MemoryError, RegistryError};
 pub use hkask_types::{BotCapabilities, CapabilityChecker, CapabilityToken};
 pub use pod::{
     AgentKind, AgentPersona, AgentPod, AgentPodError, AgentPodResult, PodID, PodLifecycleState,

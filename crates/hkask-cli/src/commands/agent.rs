@@ -17,7 +17,12 @@ pub async fn bot_list(
         .await
         .map_err(|e| AgentError::CapabilityError(e.to_string()))?;
 
-    let loader = hkask_agents::BotRegistryLoader::new(registry_yaml_path(), _acp, store);
+    let loader = hkask_agents::BotRegistryLoader::new(
+        registry_yaml_path(),
+        _acp,
+        store,
+        Arc::new(hkask_agents::adapters::FilesystemRegistrySource::new()),
+    );
 
     let agents = loader
         .boot()
@@ -43,7 +48,12 @@ pub async fn bot_status(name: &str) -> Result<hkask_types::RegisteredAgent, Agen
         .await
         .map_err(|e| AgentError::CapabilityError(e.to_string()))?;
 
-    let loader = hkask_agents::BotRegistryLoader::new(registry_yaml_path(), _acp, store);
+    let loader = hkask_agents::BotRegistryLoader::new(
+        registry_yaml_path(),
+        _acp,
+        store,
+        Arc::new(hkask_agents::adapters::FilesystemRegistrySource::new()),
+    );
 
     let agents = loader
         .boot()
@@ -138,7 +148,12 @@ pub async fn chat_with_agent(
         Err(e) => return format!("Registry init error: {}", e),
     };
 
-    let loader = hkask_agents::BotRegistryLoader::new(registry_yaml_path(), acp.clone(), store);
+    let loader = hkask_agents::BotRegistryLoader::new(
+        registry_yaml_path(),
+        acp.clone(),
+        store,
+        Arc::new(hkask_agents::adapters::FilesystemRegistrySource::new()),
+    );
 
     let agents = match loader.boot().await {
         Ok(a) => a,

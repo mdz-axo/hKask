@@ -169,7 +169,7 @@ impl SovereigntyBoundaryStore {
             .conn
             .lock()
             .map_err(|e| SovereigntyStoreError::LockPoisoned(e.to_string()))?;
-        conn.execute_batch
+        conn.execute_batch(
             "
             CREATE TABLE IF NOT EXISTS sovereignty_boundaries (
                 id TEXT PRIMARY KEY,
@@ -396,8 +396,8 @@ impl SovereigntyBoundaryStore {
             .map_err(|e| SovereigntyStoreError::LockPoisoned(e.to_string()))?;
         let total: i64 =
             conn.query_row("SELECT COUNT(*) FROM sovereignty_boundaries", [], |row| {
-                    row.get(0)
-                })?;
+                row.get(0)
+            })?;
 
         let sovereign: i64 = conn.query_row(
             "SELECT COUNT(*) FROM sovereignty_boundaries WHERE resistance = 'Maximum'",

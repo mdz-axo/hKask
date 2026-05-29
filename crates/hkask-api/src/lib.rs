@@ -643,8 +643,13 @@ pub struct SpecCultivateResponse {
     pub categories_missing: Vec<String>,
 }
 
-/// Create API router with OpenAPI documentation
+/// Create API router with OpenAPI documentation and authentication
 pub fn create_router(state: ApiState) -> OpenApiRouter {
+    let auth_service = std::sync::Arc::new(
+        middleware::AuthService::new()
+            .expect("Failed to initialize auth service: MCP security key not available"),
+    );
+
     OpenApiRouter::with_openapi(ApiDoc::openapi())
         .merge(routes::templates_router().into())
         .merge(routes::bots_router().into())
@@ -658,6 +663,10 @@ pub fn create_router(state: ApiState) -> OpenApiRouter {
         .merge(routes::soap_infer_router().into())
         .merge(routes::acp_router().into())
         .merge(routes::spec_router().into())
+        .layer(axum::middleware::from_fn_with_state(
+            auth_service,
+            middleware::auth_middleware,
+        ))
         .with_state(state)
 }
 

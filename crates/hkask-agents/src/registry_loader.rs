@@ -1,11 +1,12 @@
 //! BotRegistryLoader — Load agent YAML definitions, register with ACP, persist to storage
 
 use crate::acp::{AcpError, AcpRuntime};
+use crate::ports::RegistrySourcePort;
 use hkask_storage::{AgentRegistryError, AgentRegistryStore};
 use hkask_types::{AgentDefinition, AgentKind, RegisteredAgent, WebID};
 use serde::Deserialize;
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 use thiserror::Error;
 use tracing::{info, warn};
@@ -13,7 +14,7 @@ use tracing::{info, warn};
 #[derive(Error, Debug)]
 pub enum RegistryLoaderError {
     #[error("IO error: {0}")]
-    Io(#[from] std::io::Error),
+    Io(String),
     #[error("YAML parse error in {path}: {source}")]
     YamlParse {
         path: String,
@@ -301,6 +302,7 @@ pub struct BotRegistryLoader {
     registry_path: PathBuf,
     acp_runtime: Arc<AcpRuntime>,
     store: AgentRegistryStore,
+    source: Arc<dyn RegistrySourcePort>,
 }
 
 impl BotRegistryLoader {
@@ -308,11 +310,13 @@ impl BotRegistryLoader {
         registry_path: PathBuf,
         acp_runtime: Arc<AcpRuntime>,
         store: AgentRegistryStore,
+        source: Arc<dyn RegistrySourcePort>,
     ) -> Self {
         Self {
             registry_path,
             acp_runtime,
             store,
+            source,
         }
     }
 
@@ -345,14 +349,14 @@ impl BotRegistryLoader {
                         kind = %agent.definition.agent_kind,
                         capabilities = agent.definition.capabilities.len(),
                         "Registered agent from {}",
-                        path.display()
+                        path
                     );
                     registered.push(agent);
                 }
                 Err(e) => {
                     warn!(
                         target: "hkask.registry",
-                        path = %path.display(),
+                        path = %path,
                         error = %e,
                         "Failed to load agent YAML"
                     );
@@ -369,15 +373,18 @@ impl BotRegistryLoader {
         Ok(registered)
     }
 
-    async fn load_and_register(&self, path: &Path) -> Result<RegisteredAgent, RegistryLoaderError> {
-        let content = std::fs::read_to_string(path)?;
+    async fn load_and_register(&self, path: &str) -> Result<RegisteredAgent, RegistryLoaderError> {
+        let content = self
+            .source
+            .load_yaml(path)
+            .map_err(RegistryLoaderError::Io)?;
         let raw: RawYamlAgent =
             serde_yaml::from_str(&content).map_err(|e| RegistryLoaderError::YamlParse {
-                path: path.display().to_string(),
+                path: path.to_string(),
                 source: e,
             })?;
 
-        let definition = raw.into_agent_definition(&path.display().to_string())?;
+        let definition = raw.into_agent_definition(path)?;
 
         let webid = WebID::from_persona(definition.name.as_bytes());
 
@@ -407,7 +414,7 @@ impl BotRegistryLoader {
             definition: definition.clone(),
             token_hash: token.signature.clone(),
             registered_at: chrono::Utc::now().to_rfc3339(),
-            source_yaml: path.display().to_string(),
+            source_yaml: path.to_string(),
         };
 
         self.store.insert(&registered)?;
@@ -415,21 +422,21 @@ impl BotRegistryLoader {
         Ok(registered)
     }
 
-    fn discover_yaml_files(&self) -> Result<Vec<PathBuf>, RegistryLoaderError> {
-        if !self.registry_path.exists() {
-            return Ok(Vec::new());
-        }
+    fn discover_yaml_files(&self) -> Result<Vec<String>, RegistryLoaderError> {
+        let registry_dir = self.registry_path.to_str().ok_or_else(|| {
+            RegistryLoaderError::Io(format!(
+                "Invalid registry path: {}",
+                self.registry_path.display()
+            ))
+        })?;
 
-        let mut files = Vec::new();
-        for entry in std::fs::read_dir(&self.registry_path)? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.extension().and_then(|e| e.to_str()) == Some("yaml")
-                || path.extension().and_then(|e| e.to_str()) == Some("yml")
-            {
-                files.push(path);
-            }
-        }
+        // If the path doesn't exist, the source adapter will return an empty list
+        // (filesystem adapter returns Io error; callers handle missing dirs gracefully)
+        let files = self
+            .source
+            .list_yaml_files(registry_dir)
+            .map_err(RegistryLoaderError::Io)?;
+        let mut files = files;
         files.sort();
         Ok(files)
     }
