@@ -4,15 +4,15 @@
 //!
 //! `HKASK_INSECURE_DEV=1` enables development conveniences like random secret
 //! generation. This module gates that behind an admin passphrase — set once
-//! via `kask admin init`, verified once per session — so that insecure mode
-//! is not trivially accessible to anyone who can set an environment variable.
+//! via `kask admin init`, required every time `HKASK_INSECURE_DEV=1` is used.
+//! No persistent unlock, no backdoor.
 //!
 //! ## Flow
 //!
 //! 1. `kask admin init` — Admin sets a passphrase, hashed with Argon2id, stored in OS keychain
-//! 2. `kask admin unlock` — Admin enters passphrase, verified against keychain, sets `HKASK_ADMIN_VERIFIED=1` for the shell session
-//! 3. Any code checking `HKASK_INSECURE_DEV` also checks `HKASK_ADMIN_VERIFIED` — no prompt, just fails with instructions
-//! 4. Dev convenience: `kask admin unlock` once per shell, then all tools work
+//! 2. Any code that encounters `HKASK_INSECURE_DEV=1` prompts for the admin passphrase
+//! 3. Passphrase verified against stored hash — no caching, no session unlock
+//! 4. `kask admin reset` — Remove the passphrase, disabling insecure dev mode entirely
 
 use crate::KeychainError;
 use crate::keychain::Keychain;

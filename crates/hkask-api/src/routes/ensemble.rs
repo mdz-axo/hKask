@@ -111,7 +111,6 @@ async fn create_chat(
     State(_state): State<ApiState>,
     Json(req): Json<CreateChatRequest>,
 ) -> impl IntoResponse {
-    // For now, just return success - actual implementation would use EnsembleChatManager
     let response = EnsembleResponse {
         success: true,
         message: format!("Chat session '{}' created", req.session_id),
@@ -216,20 +215,15 @@ async fn list_deliberations(State(_state): State<ApiState>) -> impl IntoResponse
     Json(vec![String::from("default_deliberation")])
 }
 
-// ── Standing session request/response types ─────────────────────────────
+// Standing session request/response types
 
 /// Standing session start request
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct StandingStartRequest {
-    /// Session identifier
     pub session_id: String,
-    /// Session name
     pub name: String,
-    /// Session description
     pub description: String,
-    /// Initial context message
     pub initial_context: String,
-    /// Participant entries (agent name + role + description)
     pub participants: Vec<ParticipantEntryRequest>,
 }
 
@@ -271,7 +265,7 @@ pub struct StandingStatusResponse {
     pub participants: Vec<ParticipantStatusResponse>,
 }
 
-// ── Standing session handlers ───────────────────────────────────────────
+// Standing session handlers
 
 /// Start a standing ensemble session with initial context
 #[utoipa::path(
@@ -314,6 +308,7 @@ async fn standing_start(
                 role: p.role,
                 voting: false,
                 description: p.description,
+                domains: vec![],
             })
             .collect(),
         rules: hkask_ensemble::standing_session::SessionRules {

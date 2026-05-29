@@ -631,9 +631,6 @@ pub enum AdminAction {
     /// Set the admin passphrase for gating HKASK_INSECURE_DEV mode
     Init,
 
-    /// Unlock insecure dev mode for this session (requires passphrase)
-    Unlock,
-
     /// Remove the admin passphrase (disables insecure dev mode entirely)
     Reset,
 }

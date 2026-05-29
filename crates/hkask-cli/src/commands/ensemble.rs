@@ -1,4 +1,8 @@
-//! Ensemble singleton factory functions and multi-agent command handlers
+//! Ensemble command handlers — chat, deliberation, improv, and standing sessions
+//!
+//! Manages multi-agent ensemble sessions via singleton patterns for chat
+//! manager, deliberation coordinator, and improv client. Also handles
+//! standing session bootstrap via hkask-ensemble registry manifests.
 
 use hkask_ensemble::{
     ChatMessage, ChatParticipant, DeliberationCoordinator, EnsembleChatManager, ImprovMode,
@@ -25,6 +29,14 @@ fn get_deliberation_coordinator() -> Arc<RwLock<DeliberationCoordinator>> {
         .get_or_init(|| Arc::new(RwLock::new(DeliberationCoordinator::new(WebID::new()))))
         .clone()
 }
+
+fn get_improv_client() -> Arc<OkapiImprovClient> {
+    IMPROV_CLIENT
+        .get_or_init(|| Arc::new(OkapiImprovClient::new()))
+        .clone()
+}
+
+// ── Chat Sessions ──────────────────────────────────────────────────────────
 
 /// Create chat session
 pub async fn ensemble_chat_create(session: String) -> Result<String, String> {
@@ -91,11 +103,7 @@ pub async fn ensemble_chat_list() -> Result<Vec<String>, String> {
     Ok(sessions)
 }
 
-fn get_improv_client() -> Arc<OkapiImprovClient> {
-    IMPROV_CLIENT
-        .get_or_init(|| Arc::new(OkapiImprovClient::new()))
-        .clone()
-}
+// ── Improv ─────────────────────────────────────────────────────────────────
 
 pub async fn ensemble_improv_turn(
     session_id: &str,
@@ -196,14 +204,14 @@ pub async fn ensemble_participants(
     Ok(result)
 }
 
-/// Create deliberation session
+// ── Deliberation ───────────────────────────────────────────────────────────
+
 pub async fn ensemble_deliberation_create(session: String) -> Result<String, String> {
     let coordinator = get_deliberation_coordinator();
     coordinator.write().await.create_session(&session);
     Ok(format!("Deliberation session '{}' created", session))
 }
 
-/// Start deliberation
 pub async fn ensemble_deliberation_start(session: String) -> Result<String, String> {
     let coordinator = get_deliberation_coordinator();
     let mut coord_write = coordinator.write().await;
@@ -214,7 +222,6 @@ pub async fn ensemble_deliberation_start(session: String) -> Result<String, Stri
     Ok("Deliberation started".to_string())
 }
 
-/// Record response in deliberation
 pub async fn ensemble_deliberation_record(
     session: String,
     _agent: String,
@@ -234,7 +241,6 @@ pub async fn ensemble_deliberation_record(
     Ok("Response recorded".to_string())
 }
 
-/// Synthesize deliberation
 pub async fn ensemble_deliberation_synthesize(session: String) -> Result<String, String> {
     let coordinator = get_deliberation_coordinator();
     let result = {
@@ -247,7 +253,6 @@ pub async fn ensemble_deliberation_synthesize(session: String) -> Result<String,
     Ok(result.synthesized_response)
 }
 
-/// List deliberation sessions
 pub async fn ensemble_deliberation_list() -> Result<Vec<String>, String> {
     let coordinator = get_deliberation_coordinator();
     let sessions = {
@@ -259,4 +264,31 @@ pub async fn ensemble_deliberation_list() -> Result<Vec<String>, String> {
             .collect()
     };
     Ok(sessions)
+}
+
+// ── Standing Session ───────────────────────────────────────────────────────
+
+/// Bootstrap the standing ensemble session from a YAML manifest.
+pub fn ensemble_standing_start(
+    config_path: &std::path::Path,
+) -> Result<hkask_ensemble::StandingSessionStatus, crate::errors::EnsembleError> {
+    let session = hkask_ensemble::bootstrap_standing_session(config_path)
+        .map_err(|e| crate::errors::EnsembleError::SessionCreationFailed(e.to_string()))?;
+    Ok(session.get_status())
+}
+
+/// Get the current standing session status.
+pub fn ensemble_standing_status()
+-> Result<hkask_ensemble::StandingSessionStatus, crate::errors::EnsembleError> {
+    let config_path = std::path::Path::new("registry/manifests/standing-ensemble-session.yaml");
+    if !config_path.exists() {
+        return Err(crate::errors::EnsembleError::SessionNotFound(
+            "Standing session not bootstrapped. Run 'kask ensemble standing-start' first."
+                .to_string(),
+        ));
+    }
+
+    let session = hkask_ensemble::bootstrap_standing_session(config_path)
+        .map_err(|e| crate::errors::EnsembleError::SessionCreationFailed(e.to_string()))?;
+    Ok(session.get_status())
 }

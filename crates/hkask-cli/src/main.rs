@@ -16,12 +16,12 @@
 
 use clap::Parser;
 use hkask_cli::cli::{
-    self, AgentAction, BotAction, CnsAction, Commands, CuratorAction, DocsAction, EnsembleAction,
-    GitAction, KeystoreAction, McpAction, PodAction, RegistryAction, ReplicantAction,
-    SovereigntyAction, SpecAction, TemplateAction,
+    self, AdminAction, AgentAction, BotAction, CnsAction, Commands, CuratorAction, DocsAction,
+    EnsembleAction, GitAction, KeystoreAction, McpAction, PodAction, RegistryAction,
+    ReplicantAction, SovereigntyAction, SpecAction, TemplateAction,
 };
 use hkask_cli::commands;
-use hkask_cli::russell_mapper::RussellMappingConfig;
+use hkask_cli::commands::russell::RussellMappingConfig;
 use hkask_mcp::dispatch::McpDispatcher;
 use hkask_mcp::runtime::McpRuntime;
 use hkask_templates::McpPort;
@@ -783,7 +783,8 @@ fn main() {
 
                 config.dry_run = dry_run;
 
-                let mapper = hkask_cli::russell_mapper::RussellMapper::with_config(config.clone());
+                let mapper =
+                    hkask_cli::commands::russell::RussellMapper::with_config(config.clone());
 
                 if validate_only {
                     let assets = or_exit(
@@ -1486,6 +1487,15 @@ fn main() {
                 let keychain = hkask_keystore::Keychain::default();
                 or_exit(keychain.delete_by_key(&key), "Failed to delete key");
                 println!("Deleted {}", key);
+            }
+        },
+
+        Commands::Admin { action } => match action {
+            AdminAction::Init => {
+                commands::admin::admin_init();
+            }
+            AdminAction::Reset => {
+                commands::admin::admin_reset();
             }
         },
 

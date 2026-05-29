@@ -17,7 +17,7 @@ use std::collections::HashMap;
 pub struct BotEvaluationMetrics {
     /// The bot's WebID
     pub bot_id: WebID,
-    /// Human-readable bot name (e.g., "cns-curator-bot")
+    /// Human-readable bot name (e.g., "R7.3")
     pub bot_name: String,
     /// Span counts per category
     pub span_counts: HashMap<SpanCategory, u64>,

@@ -26,15 +26,21 @@ pub(crate) fn resolve_acp_secret() -> Result<String, RegistryError> {
             .retrieve(&hkask_types::WebID::from_persona(b"hkask-acp-secret"))
     })
     .or_else(|_| {
-        if std::env::var("HKASK_INSECURE_DEV").as_deref() == Ok("1") {
-            tracing::warn!("⚠ INSECURE DEV MODE: Using random ACP secret. Tokens will not survive restarts.");
+        if std::env::var("HKASK_INSECURE_DEV").as_deref() == Ok("1")
+            && crate::commands::admin::verify_admin_for_dev_mode()
+        {
+            tracing::warn!(
+                "⚠ INSECURE DEV MODE: Using random ACP secret. Tokens will not survive restarts."
+            );
             use rand::RngCore;
             let mut bytes = [0u8; 32];
             rand::rng().fill_bytes(&mut bytes);
             Ok(hex::encode(bytes))
         } else {
             Err(RegistryError::InitFailed(
-                "HKASK_ACP_SECRET not set. Set HKASK_MASTER_KEY, HKASK_ACP_SECRET, or use HKASK_INSECURE_DEV=1 for local development.".to_string(),
+                "HKASK_ACP_SECRET not set. Run `kask chat` to complete onboarding, \
+                 set HKASK_MASTER_KEY, or use HKASK_INSECURE_DEV=1 with `kask admin unlock`."
+                    .to_string(),
             ))
         }
     })
@@ -45,7 +51,9 @@ pub(crate) fn resolve_db_passphrase() -> Result<String, RegistryError> {
         hkask_keystore::keychain::Keychain::default()
             .retrieve(&hkask_types::WebID::from_persona(b"hkask-db-passphrase"))
             .or_else(|_| {
-                if std::env::var("HKASK_INSECURE_DEV").as_deref() == Ok("1") {
+                if std::env::var("HKASK_INSECURE_DEV").as_deref() == Ok("1")
+                    && crate::commands::admin::verify_admin_for_dev_mode()
+                {
                     tracing::warn!("⚠ INSECURE DEV MODE: Using random DB passphrase.");
                     use rand::RngCore;
                     let mut bytes = [0u8; 32];
@@ -53,7 +61,9 @@ pub(crate) fn resolve_db_passphrase() -> Result<String, RegistryError> {
                     Ok(hex::encode(bytes))
                 } else {
                     Err(RegistryError::InitFailed(
-                        "HKASK_DB_PASSPHRASE not set. Set it explicitly or use HKASK_INSECURE_DEV=1 for local development.".to_string(),
+                        "HKASK_DB_PASSPHRASE not set. Run `kask chat` to complete onboarding, \
+                         or use HKASK_INSECURE_DEV=1 with `kask admin unlock`."
+                            .to_string(),
                     ))
                 }
             })
@@ -77,6 +87,50 @@ pub(crate) fn open_registry_db() -> Result<Arc<std::sync::Mutex<rusqlite::Connec
 
     Ok(db.conn_arc())
 }
+
+// ── Shared Database Initialization Helpers ──────────────────────────────────
+
+/// Open a SovereigntyBoundaryStore (used by `kask sovereignty` subcommands).
+/// Opens the shared database and wraps it in a sovereignty store.
+pub(crate) fn open_sovereignty_store()
+-> Result<hkask_storage::SovereigntyBoundaryStore, crate::errors::RegistryError> {
+    let db_path = registry_db_path();
+    let conn = rusqlite::Connection::open(&db_path)
+        .map_err(|e| crate::errors::RegistryError::DatabaseError(e.to_string()))?;
+    Ok(hkask_storage::SovereigntyBoundaryStore::new(
+        std::sync::Arc::new(std::sync::Mutex::new(conn)),
+    ))
+}
+
+/// Open a SqliteSpecStore (used by `kask spec` subcommands).
+/// Opens the shared database and initializes the spec schema.
+pub(crate) fn open_spec_store()
+-> Result<hkask_storage::SqliteSpecStore, crate::errors::RegistryError> {
+    let db_path = registry_db_path();
+    let conn = rusqlite::Connection::open(&db_path)
+        .map_err(|e| crate::errors::RegistryError::DatabaseError(e.to_string()))?;
+    let store =
+        hkask_storage::SqliteSpecStore::new(std::sync::Arc::new(std::sync::Mutex::new(conn)));
+    store
+        .init_schema()
+        .map_err(|e| crate::errors::RegistryError::SchemaError(e.to_string()))?;
+    Ok(store)
+}
+
+/// Create an MCP dispatcher wired to a fresh runtime with a capability token.
+/// Returns (McpDispatcher, token) for invoking tools.
+pub(crate) fn create_mcp_dispatcher() -> (hkask_mcp::McpDispatcher, hkask_types::CapabilityToken) {
+    let runtime = hkask_mcp::runtime::McpRuntime::new();
+    let secret = b"hkask-devel-mcp-secret-key-32byte!";
+    let dispatcher =
+        hkask_mcp::McpDispatcher::new(runtime, secret, hkask_types::cns::RetryConfig::default());
+    let from = hkask_types::WebID::new();
+    let to = hkask_types::WebID::new();
+    let token = dispatcher.issue_capability("tools".to_string(), from, to);
+    (dispatcher, token)
+}
+
+// ── Registry Initialization ─────────────────────────────────────────────────
 
 pub(crate) async fn init_registry() -> Result<
     (

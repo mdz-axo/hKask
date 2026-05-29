@@ -1,6 +1,7 @@
 //! Russell import command handlers
 
-use crate::russell_mapper::{MappedTemplate, RussellMapper, RussellMappingConfig};
+mod mapper;
+pub use mapper::{MappedTemplate, RussellMapper, RussellMappingConfig};
 use std::path::Path;
 
 /// Import Russell assets into hKask registry

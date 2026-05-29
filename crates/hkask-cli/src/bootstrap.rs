@@ -232,21 +232,23 @@ impl BootstrapSequence {
                 let _ = secrets; // Secrets will be used by ACP, MCP, API, OCAP subsystems
             }
             Err(_) => {
-                // Check if running in insecure dev mode
-                if std::env::var("HKASK_INSECURE_DEV").is_ok() {
+                // Check if running in insecure dev mode with admin authorization
+                if std::env::var("HKASK_INSECURE_DEV").is_ok()
+                    && crate::commands::admin::verify_admin_for_dev_mode()
+                {
                     warn!(
                         target: "bootstrap",
-                        "HKASK_MASTER_KEY not set and HKASK_INSECURE_DEV is active. \
+                        "HKASK_MASTER_KEY not set and HKASK_INSECURE_DEV is active (admin verified). \
                          Secrets will be derived from per-subsystem env vars or OS keychain. \
                          THIS MODE IS INSECURE — do not use in production."
                     );
                 } else {
                     error!(
                         target: "bootstrap",
-                        "HKASK_MASTER_KEY not set and HKASK_INSECURE_DEV not active. \
-                         Secret derivation will use per-subsystem env vars or OS keychain. \
-                         Set HKASK_MASTER_KEY=<passphrase> for deterministic secret derivation, \
-                         or set HKASK_INSECURE_DEV=1 for local development."
+                        "HKASK_MASTER_KEY not set. \
+                         Run `kask chat` to complete onboarding, \
+                         set HKASK_MASTER_KEY=<passphrase> for deterministic secret derivation, \
+                         or use HKASK_INSECURE_DEV=1 with `kask admin unlock` for development."
                     );
                 }
             }
