@@ -101,6 +101,7 @@ install_system_dependencies() {
                 libclang-dev \
                 llvm-dev \
                 liblldb-dev \
+                libzstd-dev \
                 cmake \
                 git \
                 curl \
@@ -190,7 +191,7 @@ install_rust() {
         local rust_version=$(rustc --version)
         log "Rust already installed: $rust_version"
 
-        if ! rustc --version | grep -qE 'rustc (1\.(8[5-9]|9[0-9]|[1-9][0-9]{2})\.)'; then
+        if ! rustc --version | grep -qE 'rustc 1\.(8[5-9]|9[0-9]|[1-9][0-9]{2,})\.'; then
             log_warning "Rust version too old for edition 2024 (requires 1.85+). Consider updating with 'rustup update'"
         fi
     else
@@ -513,7 +514,7 @@ main() {
             echo "     kask --help"
             echo ""
             echo "  3. Start interactive chat:"
-            echo "     kask chat --interactive"
+            echo "     kask chat"
             echo ""
             ;;
         uninstall)

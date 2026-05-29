@@ -33,7 +33,7 @@ jobs:
         uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: "1.91"
-          components: rustfmt, clippy
+          components: rustfmt, clippy, rust-src
 
       - name: Install system dependencies
         run: |
@@ -88,6 +88,7 @@ jobs:
         with:
           toolchain: "1.91"
           targets: ${{ matrix.target }}
+          components: rust-src
 
       - name: Install system dependencies (GNU)
         if: matrix.target == 'x86_64-unknown-linux-gnu'
@@ -117,6 +118,11 @@ jobs:
             protobuf-compiler \
             libzstd-dev
 
+      - name: Configure musl static build
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: |
+          echo "RUSTFLAGS=-C target-feature=+crt-static" >> $GITHUB_ENV
+
       - name: Install cross-compilation tools (AArch64)
         if: matrix.target == 'aarch64-unknown-linux-gnu'
         run: |
@@ -129,6 +135,11 @@ jobs:
             cmake \
             protobuf-compiler \
             libzstd-dev
+
+      - name: Configure AArch64 cross-compilation
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
 
       - name: Cache cargo registry
         uses: Swatinem/rust-cache@v2

@@ -780,3 +780,201 @@ impl BotCapabilities {
         self.capabilities.iter().any(|cap| cap == tool_name)
     }
 }
+
+// ── Tests: Capability token security invariants ────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_webid(name: &str) -> WebID {
+        WebID::from_string(name)
+    }
+
+    fn test_secret() -> Vec<u8> {
+        b"0123456789abcdef0123456789abcdef".to_vec() // 32 bytes
+    }
+
+    // ── Sign + verify round-trip ─────────────────────────────────────
+
+    #[test]
+    fn sign_and_verify() {
+        let secret = test_secret();
+        let issuer = test_webid("curator");
+        let holder = test_webid("bot-a");
+        let token = CapabilityToken::new(
+            CapabilityResource::Tool,
+            "search".to_string(),
+            CapabilityAction::Execute,
+            issuer,
+            holder,
+            &secret,
+        );
+        assert!(token.verify(&secret));
+    }
+
+    #[test]
+    fn verify_fails_with_wrong_secret() {
+        let secret = test_secret();
+        let wrong = b"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx".to_vec();
+        let token = CapabilityToken::new(
+            CapabilityResource::Tool,
+            "search".to_string(),
+            CapabilityAction::Execute,
+            test_webid("curator"),
+            test_webid("bot-a"),
+            &secret,
+        );
+        assert!(!token.verify(&wrong));
+    }
+
+    #[test]
+    fn verify_fails_for_wrong_holder() {
+        let secret = test_secret();
+        let token = CapabilityToken::new(
+            CapabilityResource::Tool,
+            "search".to_string(),
+            CapabilityAction::Execute,
+            test_webid("curator"),
+            test_webid("bot-a"),
+            &secret,
+        );
+        let checker = CapabilityChecker::new(&secret);
+        assert!(!checker.check(
+            &token,
+            &test_webid("bot-b"),
+            CapabilityResource::Tool,
+            "search",
+            CapabilityAction::Execute,
+        ));
+    }
+
+    // ── Attenuation ───────────────────────────────────────────────────
+
+    #[test]
+    fn attenuation_delegates_correctly() {
+        let secret = test_secret();
+        let root = CapabilityToken::new(
+            CapabilityResource::Registry,
+            "templates".to_string(),
+            CapabilityAction::Read,
+            test_webid("curator"),
+            test_webid("bot-a"),
+            &secret,
+        );
+        assert_eq!(root.attenuation_level, 0);
+
+        let child = root
+            .attenuate(test_webid("bot-b"), &secret, 1000)
+            .expect("attenuation should succeed at level 0");
+        assert_eq!(child.attenuation_level, 1);
+        assert_eq!(child.delegated_from, test_webid("bot-a"));
+        assert_eq!(child.delegated_to, test_webid("bot-b"));
+        assert!(child.verify(&secret));
+    }
+
+    #[test]
+    fn attenuation_hits_hard_limit_at_7() {
+        let secret = test_secret();
+        let root = CapabilityTokenBuilder::new(
+            CapabilityResource::Tool,
+            "inference".to_string(),
+            CapabilityAction::Execute,
+            test_webid("curator"),
+            test_webid("bot-0"),
+        )
+        .sign(&secret);
+
+        let mut current = root;
+        for i in 0..7 {
+            current = current
+                .attenuate(test_webid(&format!("bot-{}", i + 1)), &secret, 10000)
+                .expect(&format!("attenuation should succeed at level {}", i));
+        }
+        // 8th should fail (level 8 > max 7)
+        assert!(
+            current
+                .attenuate(test_webid("bot-8"), &secret, 10000)
+                .is_none()
+        );
+    }
+
+    // ── Expiry ───────────────────────────────────────────────────────
+
+    #[test]
+    fn expired_token_is_rejected() {
+        let secret = test_secret();
+        let token = CapabilityTokenBuilder::new(
+            CapabilityResource::Tool,
+            "search".to_string(),
+            CapabilityAction::Execute,
+            test_webid("curator"),
+            test_webid("bot-a"),
+        )
+        .expires_at(100) // expired at t=100
+        .sign(&secret);
+
+        let checker = CapabilityChecker::new(&secret);
+        assert!(!checker.verify_with_time(&token, 200));
+        assert!(checker.verify_with_time(&token, 50));
+    }
+
+    // ── Checker tool access ──────────────────────────────────────────
+
+    #[test]
+    fn checker_grant_tool_and_verify() {
+        let secret = test_secret();
+        let checker = CapabilityChecker::new(&secret);
+        let curator = test_webid("curator");
+        let bot = test_webid("bot-c");
+
+        let token = checker.grant_tool("inference".to_string(), curator, bot);
+        assert!(checker.verify_tool_capability(
+            &token,
+            &bot,
+            CapabilityResource::Tool,
+            "inference",
+            CapabilityAction::Execute,
+        ));
+    }
+
+    // ── Caveats ──────────────────────────────────────────────────────
+
+    #[test]
+    fn caveat_expiration_blocks_use() {
+        let secret = test_secret();
+        let token = CapabilityTokenBuilder::new(
+            CapabilityResource::Tool,
+            "sensitive".to_string(),
+            CapabilityAction::Execute,
+            test_webid("curator"),
+            test_webid("bot-a"),
+        )
+        .caveat(Caveat::expiration(100))
+        .sign(&secret);
+
+        let ctx = CaveatContext::new();
+        // With current_time = 200, the 100-expiry caveat should block
+        // CaveatContext controls allowed operations; verify via is_expired on the token itself
+        assert!(token.is_expired(200));
+        assert!(!token.is_expired(50));
+    }
+
+    // ── Visibility ───────────────────────────────────────────────────
+
+    #[test]
+    fn visibility_private_is_default() {
+        use crate::Visibility;
+        let v = Visibility::default();
+        assert!(v.is_private());
+        assert!(!v.is_public());
+    }
+
+    #[test]
+    fn visibility_parse_roundtrip() {
+        use crate::Visibility;
+        assert_eq!(Visibility::parse_str("public"), Some(Visibility::Public));
+        assert_eq!(Visibility::parse_str("shared"), Some(Visibility::Shared));
+        assert_eq!(Visibility::parse_str("nonsense"), None);
+    }
+}
