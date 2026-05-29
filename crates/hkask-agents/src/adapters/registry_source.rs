@@ -23,9 +23,14 @@ impl RegistrySourcePort for FilesystemRegistrySource {
     }
 
     fn list_yaml_files(&self, directory: &str) -> Result<Vec<String>, RegistryError> {
+        // If the directory doesn't exist, return an empty list (matching original behavior)
+        let dir = match fs::read_dir(directory) {
+            Ok(d) => d,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+            Err(e) => return Err(RegistryError::Io(e.to_string())),
+        };
         let mut files = Vec::new();
-        let entries = fs::read_dir(directory).map_err(|e| RegistryError::Io(e.to_string()))?;
-        for entry in entries {
+        for entry in dir {
             let entry = entry.map_err(|e| RegistryError::Io(e.to_string()))?;
             let path = entry.path();
             if path.extension().and_then(|e| e.to_str()) == Some("yaml")
