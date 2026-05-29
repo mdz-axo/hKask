@@ -1,8 +1,8 @@
 ---
 title: "hKask Domain & Capability Specification"
 audience: [architects, developers, agents]
-last_updated: 2026-05-25
-version: "2.0.0"
+last_updated: 2026-05-28
+version: "2.1.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability]
@@ -61,8 +61,8 @@ graph TD
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-DC-001
-verified_date: 2026-05-25
-verified_against: crates/hkask-agents/src/pod.rs:289; crates/hkask-types/src/visibility.rs:145; Cargo.toml workspace members
+verified_date: 2026-05-28
+verified_against: crates/hkask-agents/src/pod/mod.rs:81; crates/hkask-types/src/capability/mod.rs:219; Cargo.toml workspace members
 status: VERIFIED
 -->
 
@@ -92,9 +92,9 @@ hKask is built on five non-negotiable anchor capabilities:[^wiener-cybernetics]
 
 | Entity | Crate | Struct | Description |
 |--------|-------|--------|-------------|
-| **AgentPod** | `hkask-agents` | `AgentPod` (`pod.rs:289`) | Container for agent lifecycle |
-| **WebID** | `hkask-types` | `WebID(Uuid)` (`id.rs:8`) | Deterministic identity (UUID v5) |
-| **Capability** | `hkask-types` | `Capability` (`visibility.rs:145`) | OCAP token with caveats |
+| **AgentPod** | `hkask-agents` | `AgentPod` (`pod/mod.rs:81`) | Container for agent lifecycle |
+| **WebID** | `hkask-types` | `WebID(Uuid)` (`id.rs:75`) | Deterministic identity (UUID v5) |
+| **CapabilityToken** | `hkask-types` | `CapabilityToken` (`capability/mod.rs:219`) | OCAP token with caveats |
 | **Delegation** | `hkask-types` | `Delegation` (`visibility.rs:201`) | Delegation record |
 | **NuEvent** | `hkask-types` | `NuEvent` (`event.rs:27`) | Cybernetic event primitive |
 | **Goal** | `hkask-types` | `Goal` (`goal.rs:112`) | Specification goal artifact |
@@ -107,7 +107,7 @@ hKask is built on five non-negotiable anchor capabilities:[^wiener-cybernetics]
 | Type | Struct | Purpose | Interaction | Visibility |
 |------|--------|---------|-------------|------------|
 | **Bot** | `Bot` (`bot.rs:14`) | Process execution | Machine-to-machine (A2A) | Public/Shared |
-| **Replicant** | `AgentPod` + `AgentType::Replicant` | Human assistance | Human-to-agent (H2A) | Episodic=Private, Semantic=Public |
+| **Replicant** | `Replicant` (`replicant.rs:14`) | Human assistance | Human-to-agent (H2A) | Episodic=Private, Semantic=Public |
 | **Curator** | Singleton replicant | System persona | User's counterpart in `kask chat` | System-wide |
 
 **Constraint:** No escalation primitive between bots and replicants. Algedonic alerts handle severity escalation to human.[^beer-vsm]
@@ -143,13 +143,18 @@ The `NuEvent` struct is the fundamental observability primitive:
 
 | Field | Type | Purpose |
 |-------|------|---------|
-| `span` | `Span` enum | Typed namespace (10 variants) |
+| `id` | `EventID` | Unique event identifier |
+| `timestamp` | `DateTime<Utc>` | Timestamp of event |
+| `observer_webid` | `WebID` | Emitting agent identity |
+| `span` | `Span` enum | Typed namespace (13 variants) |
 | `phase` | `Phase` enum | Observe / Regulate / Outcome |
-| `observer_id` | `WebID` | Emitting agent identity |
-| `timestamp` | `i64` | Unix timestamp |
-| `payload` | `Value` | JSON event data |
+| `observation` | `Value` | Observed state |
+| `regulation` | `Option<Value>` | Regulatory action taken |
+| `outcome` | `Option<Value>` | Outcome of regulation |
+| `recursion_depth` | `u8` | Recursion depth counter |
+| `parent_event` | `Option<EventID>` | Parent event for chaining |
 
-**Span namespaces** (`crates/hkask-types/src/event.rs:92-103`):
+**Span namespaces** (`crates/hkask-types/src/event.rs:92-106`):
 
 | Variant | Namespace | Covers |
 |---------|-----------|--------|
@@ -160,6 +165,10 @@ The `NuEvent` struct is the fundamental observability primitive:
 | `Pipeline` | `cns.pipeline.*` | Memory pipeline operations |
 | `Energy` | `cns.energy.*` | Energy budget tracking |
 | `Review` | `cns.review.*` | Review queue operations |
+| `Template` | `cns.template.*` | Template lifecycle |
+| `Curation` | `cns.curation.*` | Curation operations |
+| `Variety` | `cns.variety.*` | Variety counter tracking |
+| `KillZone` | `cns.killzone.*` | User sovereignty kill-zone events |
 | `Sovereignty` | `cns.sovereignty.*` | User sovereignty enforcement |
 | `Goal` | `cns.goal.*` | Goal lifecycle operations |
 | `Spec` | `cns.spec.*` | DDMVSS specification operations |
@@ -218,28 +227,30 @@ An `AgentPod` composes:
 
 ### 5.1 Single Capability Primitive
 
-All access control uses `Capability` (`crates/hkask-types/src/visibility.rs:145`):[^miller-ocap]
+All access control uses `CapabilityToken` (`crates/hkask-types/src/capability/mod.rs:219`):[^miller-ocap]
 
 | Property | Implementation |
 |----------|---------------|
-| **Signing** | HMAC-SHA256 with `subtle::ConstantTimeEq` |
-| **Scoping** | Resource + action pairs |
+| **Signing** | Ed25519 or HMAC-SHA256 with `subtle::ConstantTimeEq` |
+| **Scoping** | Resource + action pairs (`CapabilityResource`, `CapabilityAction`) |
 | **Caveats** | Expiration, operation, template, visibility |
 | **Attenuation** | Chains with max depth (default: 7) |
-| **Revocation** | Persistent SQLite tracking |
-| **Secure memory** | `Arc<Zeroizing<Vec<u8>>>` |
+| **Revocation** | Persistent SQLite tracking via `RevocationList` |
+| **Secure memory** | Arc-wrapped |
 
 **Supporting types:**
 
 | Type | Location | Purpose |
 |------|----------|---------|
-| `Capability` | `visibility.rs:145` | Core OCAP token |
-| `Delegation` | `visibility.rs:201` | Grantor/grantee/scope |
+| `CapabilityToken` | `capability/mod.rs:219` | Core OCAP token |
+| `CapabilityTokenBuilder` | `capability/mod.rs:262` | Builder with caveats, attenuation |
+| `SignatureAlgorithm` | `visibility.rs:58` | Ed25519 or HMAC-SHA256 |
+| `CapabilitySignature` | `visibility.rs:82` | Signature + algorithm |
+| `Delegation` | `visibility.rs:201` | Delegator/delegate/scope |
 | `DelegationStore` | `visibility.rs:304` | Persistent delegation |
 | `RevocationList` | `visibility.rs:330` | Revoked tokens |
 | `AccessDecision` | `visibility.rs:356` | Allow/deny + reason |
-| `AccessEvaluator` | `visibility.rs:381` | Policy evaluation |
-| `CapabilitySignature` | `visibility.rs:82` | Ed25519 signing |
+| `AccessEvaluator` | `visibility.rs:393` | Policy evaluation |
 
 [^miller-ocap]: Miller, M. S. (2006). *Robust Composition: Towards a Unified Approach to Access Control and Concurrency Control*. Johns Hopkins University.
 
@@ -273,8 +284,8 @@ sequenceDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-DC-003
-verified_date: 2026-05-25
-verified_against: crates/hkask-types/src/visibility.rs; crates/hkask-agents/src/pod.rs
+verified_date: 2026-05-28
+verified_against: crates/hkask-types/src/capability/mod.rs; crates/hkask-agents/src/pod/mod.rs
 status: VERIFIED
 -->
 
@@ -376,8 +387,8 @@ The hLexicon grounds all domain vocabulary across three domains:[^austin-speech]
 | `hkask-ensemble` | 4,698 | Multi-agent chat | Ensemble coordination |
 | `hkask-keystore` | 384 | OS keychain, AES-256-GCM | Key derivation, secret storage |
 | `hkask-mcp` | 1,911 | MCP runtime, dispatch | `McpRuntime`, `McpServer`, `SecurityGateway` |
-| `hkask-cli` | 3,741 | CLI commands (`kask` binary) | 14 subcommand groups |
-| `hkask-api` | 2,449 | HTTP API (utoipa) | 11 route groups |
+| `hkask-cli` | 3,741 | CLI commands (`kask` binary) | 15 subcommand groups (template, bot, agent, pod, mcp, cns, sovereignty, docs, registry, git, ensemble, curator, replicant, keystore, spec) |
+| `hkask-api` | 2,449 | HTTP API (utoipa) | 12 route groups (templates, bots, pods, mcp, cns, sovereignty, chat, ensemble, soap_infer, acp, spec, curation) |
 
 ### 8.2 Dependency Graph
 
@@ -397,8 +408,8 @@ graph TD
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-DC-004
-verified_date: 2026-05-25
-verified_against: Cargo.toml workspace members; crates/*/Cargo.toml
+verified_date: 2026-05-28
+verified_against: Cargo.toml workspace members; crates/*/Cargo.toml; crates/hkask-cli/src/cli/actions.rs; crates/hkask-api/src/lib.rs:628
 status: VERIFIED
 -->
 
