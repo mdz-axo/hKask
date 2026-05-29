@@ -97,7 +97,44 @@ impl McpPort for McpDispatcher {
         self.runtime.discover_tools().await
     }
 
-    async fn invoke(&self, tool_name: &str, input: Value) -> Result<Value> {
+    async fn invoke(
+        &self,
+        tool_name: &str,
+        input: Value,
+        token: &CapabilityToken,
+    ) -> Result<Value> {
+        // Validate the capability token before dispatching
+        if !self.capability_checker.verify(token) {
+            return Err(TemplateError::CapabilityDenied(format!(
+                "Invalid capability token for tool: {}",
+                tool_name
+            )));
+        }
+
+        // Check token expiry
+        let current_time = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64;
+        if token.is_expired(current_time) {
+            return Err(TemplateError::CapabilityDenied(format!(
+                "Expired capability token for tool: {}",
+                tool_name
+            )));
+        }
+
+        // Verify the token authorizes this tool execution
+        if !token.is_valid_for(
+            hkask_types::CapabilityResource::Tool,
+            tool_name,
+            hkask_types::CapabilityAction::Execute,
+        ) {
+            return Err(TemplateError::CapabilityDenied(format!(
+                "Capability token does not authorize tool: {}",
+                tool_name
+            )));
+        }
+
         let tool_info = self
             .runtime
             .get_tool_info(tool_name)

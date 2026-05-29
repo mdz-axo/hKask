@@ -57,7 +57,7 @@ pub use contracts::{
     parse_frontmatter, validate_lexicon_terms,
 };
 pub use curator_pipeline::{CuratorPipeline, EvaluationResult, merge_outputs};
-pub use dependency::{DependencyGraph, parse_dependencies};
+pub use dependency::{DependencyError, DependencyGraph, parse_dependencies};
 pub use engine::{TemplateEngine, TemplateRegistry};
 pub use hkask_types::cns::RetryConfig;
 pub use inference_port::{

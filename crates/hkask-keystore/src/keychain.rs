@@ -2,8 +2,10 @@
 
 use hkask_types::SecretRef;
 use hkask_types::WebID;
+use hkask_types::derivation_contexts;
 use keyring::{Entry, Error as KeyringError};
 use thiserror::Error;
+use tracing::warn;
 use zeroize::Zeroizing;
 
 #[derive(Error, Debug)]
@@ -123,24 +125,33 @@ impl KeyRing {
     }
 }
 
-/// Get or create OCAP secret for a WebID
-pub fn get_or_create_ocap_secret(
-    keychain: &Keychain,
-    webid: &WebID,
-) -> Result<String, KeychainError> {
-    // Try to retrieve existing secret
-    match keychain.retrieve(webid) {
-        Ok(secret) => Ok(secret),
-        Err(KeychainError::NotFound(_)) => {
-            // Generate new secret and store it
-            let secret: String = (0..32)
-                .map(|_| rand::random::<u8>())
-                .map(|b| format!("{:02x}", b))
-                .collect();
-            keychain.store(webid, &secret)?;
-            Ok(secret)
+/// Get or create OCAP secret
+///
+/// Resolution chain:
+/// 1. Deterministic derivation from master key (preferred — survives restarts)
+/// 2. OS keychain (backward compat)
+/// 3. Random generation (last resort — tokens will not survive restart)
+pub fn get_or_create_ocap_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
+    // Prefer deterministic derivation from master key
+    let derived = resolve(&SecretRef::derived(
+        derivation_contexts::MASTER_KEY_ENV,
+        derivation_contexts::OCAP_SECRET,
+    ));
+
+    match derived {
+        Ok(key) => Ok(key),
+        Err(_) => {
+            // Fallback to keychain for backward compat
+            resolve(&SecretRef::Keychain("hkask-ocap-secret".to_string())).or_else(|_| {
+                // Last resort: generate random (with warning)
+                warn!(
+                    "OCAP secret not available via derivation or keychain; \
+                     generating random secret. Tokens will not survive restart."
+                );
+                let secret: Vec<u8> = (0..32).map(|_| rand::random::<u8>()).collect();
+                Ok(Zeroizing::new(secret))
+            })
         }
-        Err(e) => Err(e),
     }
 }
 
@@ -150,7 +161,7 @@ pub fn get_or_create_ocap_secret(
 /// 1. `Env` — read from environment variable
 /// 2. `Keychain` — read from OS keychain
 /// 3. `Derived` — look up master key (env → keychain), then HKDF-SHA256 derive sub-key
-/// 4. `Generated` — random bytes (⚠️ not reproducible; avoid in production)
+/// 4. `Generated` — random bytes (⚠️ not reproducible; debug builds only)
 ///
 /// For `Derived`, the master key is resolved first (env var → keychain),
 /// then HKDF-SHA256 is applied with the given context string to produce
@@ -190,6 +201,7 @@ pub fn resolve(secret_ref: &SecretRef) -> Result<Zeroizing<Vec<u8>>, KeychainErr
             let sub_key = crate::master_key::derive_sub_key(&master_key_bytes, context);
             Ok(sub_key)
         }
+        #[cfg(debug_assertions)]
         SecretRef::Generated(length) => {
             let bytes: Vec<u8> = (0..*length as usize)
                 .map(|_| rand::random::<u8>())

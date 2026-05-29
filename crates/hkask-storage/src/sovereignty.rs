@@ -13,7 +13,7 @@ use hkask_types::{
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use std::path::Path;
+use std::sync::{Arc, Mutex};
 use thiserror::Error;
 use tracing::debug;
 
@@ -34,6 +34,9 @@ pub enum SovereigntyStoreError {
 
     #[error("UUID parse error: {0}")]
     UuidParse(String),
+
+    #[error("Lock poisoned: {0}")]
+    LockPoisoned(String),
 }
 
 /// Stored sovereignty boundary entry
@@ -149,29 +152,24 @@ pub struct SovereigntyStoreStats {
 }
 
 /// Sovereignty Boundary Store
+#[derive(Clone)]
 pub struct SovereigntyBoundaryStore {
-    conn: Connection,
+    conn: Arc<Mutex<Connection>>,
 }
 
 impl SovereigntyBoundaryStore {
-    /// Create new store at path
-    pub fn new(path: &Path) -> Result<Self, SovereigntyStoreError> {
-        let conn = Connection::open(path)?;
-        let store = Self { conn };
-        store.initialize_schema()?;
-        Ok(store)
+    /// Create new store with a shared encrypted connection
+    pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
+        Self { conn }
     }
 
-    /// Create in-memory store
-    pub fn in_memory() -> Result<Self, SovereigntyStoreError> {
-        let conn = Connection::open_in_memory()?;
-        let store = Self { conn };
-        store.initialize_schema()?;
-        Ok(store)
-    }
-
-    fn initialize_schema(&self) -> Result<(), SovereigntyStoreError> {
-        self.conn.execute_batch(
+    /// Initialize the database schema
+    pub fn initialize_schema(&self) -> Result<(), SovereigntyStoreError> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| SovereigntyStoreError::LockPoisoned(e.to_string()))?;
+        conn.execute_batch
             "
             CREATE TABLE IF NOT EXISTS sovereignty_boundaries (
                 id TEXT PRIMARY KEY,
@@ -193,14 +191,18 @@ impl SovereigntyBoundaryStore {
 
     /// Store sovereignty boundary for a WebID
     pub fn store(&self, entry: &SovereigntyBoundaryEntry) -> Result<(), SovereigntyStoreError> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| SovereigntyStoreError::LockPoisoned(e.to_string()))?;
         let sovereign_json = serde_json::to_string(&entry.sovereign_categories)?;
         let shared_json = serde_json::to_string(&entry.shared_categories)?;
         let public_json = serde_json::to_string(&entry.public_categories)?;
         let now = chrono::Utc::now().timestamp();
 
-        self.conn.execute(
-            "INSERT INTO sovereignty_boundaries 
-             (id, webid, sovereign_categories, shared_categories, public_categories, 
+        conn.execute(
+            "INSERT INTO sovereignty_boundaries
+             (id, webid, sovereign_categories, shared_categories, public_categories,
               resistance, kill_zone_threshold, created_at, updated_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
              ON CONFLICT(webid) DO UPDATE SET
@@ -232,7 +234,11 @@ impl SovereigntyBoundaryStore {
         &self,
         webid: &str,
     ) -> Result<Option<SovereigntyBoundaryEntry>, SovereigntyStoreError> {
-        let mut stmt = self.conn.prepare(
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| SovereigntyStoreError::LockPoisoned(e.to_string()))?;
+        let mut stmt = conn.prepare(
             "SELECT id, webid, sovereign_categories, shared_categories, public_categories,
                     resistance, kill_zone_threshold, created_at, updated_at
              FROM sovereignty_boundaries WHERE webid = ?1",
@@ -276,7 +282,11 @@ impl SovereigntyBoundaryStore {
 
     /// Delete sovereignty boundary for a WebID
     pub fn delete(&self, webid: &str) -> Result<(), SovereigntyStoreError> {
-        self.conn.execute(
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| SovereigntyStoreError::LockPoisoned(e.to_string()))?;
+        conn.execute(
             "DELETE FROM sovereignty_boundaries WHERE webid = ?1",
             params![webid],
         )?;
@@ -286,7 +296,11 @@ impl SovereigntyBoundaryStore {
 
     /// List all sovereignty boundaries
     pub fn list_all(&self) -> Result<Vec<SovereigntyBoundaryEntry>, SovereigntyStoreError> {
-        let mut stmt = self.conn.prepare(
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| SovereigntyStoreError::LockPoisoned(e.to_string()))?;
+        let mut stmt = conn.prepare(
             "SELECT id, webid, sovereign_categories, shared_categories, public_categories,
                     resistance, kill_zone_threshold, created_at, updated_at
              FROM sovereignty_boundaries ORDER BY created_at DESC",
@@ -335,8 +349,12 @@ impl SovereigntyBoundaryStore {
         webid: &str,
         threshold: f32,
     ) -> Result<(), SovereigntyStoreError> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| SovereigntyStoreError::LockPoisoned(e.to_string()))?;
         let now = chrono::Utc::now().timestamp();
-        self.conn.execute(
+        conn.execute(
             "UPDATE sovereignty_boundaries SET kill_zone_threshold = ?1, updated_at = ?2 WHERE webid = ?3",
             params![threshold, now, webid],
         )?;
@@ -353,9 +371,13 @@ impl SovereigntyBoundaryStore {
         webid: &str,
         resistance: AcquisitionResistance,
     ) -> Result<(), SovereigntyStoreError> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| SovereigntyStoreError::LockPoisoned(e.to_string()))?;
         let now = chrono::Utc::now().timestamp();
         let resistance_str = format!("{:?}", resistance);
-        self.conn.execute(
+        conn.execute(
             "UPDATE sovereignty_boundaries SET resistance = ?1, updated_at = ?2 WHERE webid = ?3",
             params![resistance_str, now, webid],
         )?;
@@ -368,13 +390,16 @@ impl SovereigntyBoundaryStore {
 
     /// Get store statistics
     pub fn stats(&self) -> Result<SovereigntyStoreStats, SovereigntyStoreError> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| SovereigntyStoreError::LockPoisoned(e.to_string()))?;
         let total: i64 =
-            self.conn
-                .query_row("SELECT COUNT(*) FROM sovereignty_boundaries", [], |row| {
+            conn.query_row("SELECT COUNT(*) FROM sovereignty_boundaries", [], |row| {
                     row.get(0)
                 })?;
 
-        let sovereign: i64 = self.conn.query_row(
+        let sovereign: i64 = conn.query_row(
             "SELECT COUNT(*) FROM sovereignty_boundaries WHERE resistance = 'Maximum'",
             [],
             |row| row.get(0),

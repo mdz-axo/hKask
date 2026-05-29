@@ -1,8 +1,6 @@
 //! Blob storage with BLAKE3 hashing
 
 use hkask_types::{Visibility, WebID};
-use rusqlite::Connection;
-use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -38,15 +36,5 @@ impl Blob {
 
     pub fn verify(&self) -> bool {
         blake3::hash(&self.data).to_string() == self.blake3_hash
-    }
-}
-
-pub struct BlobStore {
-    _conn: Arc<Mutex<Connection>>,
-}
-
-impl BlobStore {
-    pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
-        Self { _conn: conn }
     }
 }

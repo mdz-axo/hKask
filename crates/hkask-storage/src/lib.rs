@@ -20,7 +20,7 @@ pub mod user_store;
 
 pub use agent_registry::{AgentRegistryError, AgentRegistryStore};
 pub use audit_log::{AuditEntry, AuditLogError, AuditLogStore};
-pub use blobs::{Blob, BlobError, BlobStore};
+pub use blobs::{Blob, BlobError};
 pub use database::Database;
 pub use embeddings::{Embedding, EmbeddingError, EmbeddingStore};
 pub use git_cas::GitCas;

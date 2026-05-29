@@ -44,6 +44,7 @@ use utoipa::OpenApi;
 use utoipa::ToSchema;
 use utoipa_axum::router::OpenApiRouter;
 
+pub mod middleware;
 pub mod openapi;
 pub mod routes;
 pub mod services;

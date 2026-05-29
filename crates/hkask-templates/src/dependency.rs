@@ -4,6 +4,14 @@
 //! Builds dependency graph at parse time with cycle detection.
 
 use std::collections::{HashMap, HashSet};
+use thiserror::Error;
+
+/// Errors for dependency graph operations
+#[derive(Error, Debug)]
+pub enum DependencyError {
+    #[error("Adding edge {caller} -> {callee} would create a cycle")]
+    CycleDetected { caller: String, callee: String },
+}
 
 /// Dependency edge in the template graph
 #[derive(Debug, Clone)]
@@ -33,8 +41,20 @@ impl DependencyGraph {
         }
     }
 
-    /// Add a dependency edge
-    pub fn add_edge(&mut self, caller: String, callee: String, depth: u8) {
+    /// Add a dependency edge, rejecting cycles
+    ///
+    /// Returns `Err(DependencyError::CycleDetected)` if adding this edge
+    /// would create a cycle in the dependency graph.
+    pub fn add_edge(
+        &mut self,
+        caller: String,
+        callee: String,
+        depth: u8,
+    ) -> Result<(), DependencyError> {
+        if self.would_create_cycle(&caller, &callee) {
+            return Err(DependencyError::CycleDetected { caller, callee });
+        }
+
         let edge = DependencyEdge {
             caller: caller.clone(),
             callee: callee.clone(),
@@ -44,6 +64,8 @@ impl DependencyGraph {
         self.edges.entry(caller.clone()).or_default().push(edge);
 
         self.reverse_edges.entry(callee).or_default().push(caller);
+
+        Ok(())
     }
 
     /// Get all templates called by a template
@@ -128,10 +150,7 @@ impl DependencyGraph {
                     self.find_cycles_dfs(callee, visited, rec_stack, path, cycles);
                 } else if rec_stack.contains(callee) {
                     // Found a cycle
-                    let cycle_start = path
-                        .iter()
-                        .position(|x| x == callee)
-                        .expect("callee found in rec_stack, must be in path");
+                    let cycle_start = path.iter().position(|x| x == callee).unwrap_or(0);
                     let cycle = path[cycle_start..].to_vec();
                     cycles.push(cycle);
                 }
@@ -198,10 +217,10 @@ pub fn parse_dependencies(_template_id: &str, source: &str) -> Vec<String> {
         if let Some(include_start) = line.find("{% include") {
             let rest = &line[include_start..];
             if let Some(quote_start) = rest.find('"').or_else(|| rest.find('\'')) {
-                let quote_char = rest
-                    .chars()
-                    .nth(quote_start)
-                    .expect("quote_start is valid index from find()");
+                let quote_char = match rest.chars().nth(quote_start) {
+                    Some(c) => c,
+                    None => continue,
+                };
                 let after_quote = &rest[quote_start + 1..];
                 if let Some(quote_end) = after_quote.find(quote_char) {
                     let included = &after_quote[..quote_end];
@@ -216,10 +235,10 @@ pub fn parse_dependencies(_template_id: &str, source: &str) -> Vec<String> {
         if let Some(call_start) = line.find("{% call") {
             let rest = &line[call_start..];
             if let Some(quote_start) = rest.find('"').or_else(|| rest.find('\'')) {
-                let quote_char = rest
-                    .chars()
-                    .nth(quote_start)
-                    .expect("quote_start is valid index from find()");
+                let quote_char = match rest.chars().nth(quote_start) {
+                    Some(c) => c,
+                    None => continue,
+                };
                 let after_quote = &rest[quote_start + 1..];
                 if let Some(quote_end) = after_quote.find(quote_char) {
                     let called = &after_quote[..quote_end];

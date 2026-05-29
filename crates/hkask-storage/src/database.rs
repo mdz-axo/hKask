@@ -67,7 +67,7 @@ pub enum DatabaseError {
 /// Database wrapper with SQLCipher support
 ///
 /// Uses `Arc<Mutex<>>` for connection sharing across threads.
-/// The `Arc<Mutex<>>` allows multiple stores (TripleStore, EmbeddingStore, BlobStore) to share
+/// The `Arc<Mutex<>>` allows multiple stores (TripleStore, EmbeddingStore, etc.) to share
 /// the same connection in a thread-safe manner.
 ///
 /// **Thread Safety:** This type is `Send` and `Sync` for multi-threaded access.

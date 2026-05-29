@@ -61,3 +61,13 @@ pub enum MemoryError {
     #[error("Serialization error: {0}")]
     Serialization(String),
 }
+
+/// Registry source errors
+#[derive(Debug, Error)]
+pub enum RegistryError {
+    #[error("IO error: {0}")]
+    Io(String),
+
+    #[error("YAML parse error: {0}")]
+    YamlParse(String),
+}

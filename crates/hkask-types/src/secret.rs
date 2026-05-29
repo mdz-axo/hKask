@@ -37,6 +37,9 @@ pub enum SecretRef {
     /// **⚠️ Not reproducible.** Every call produces a different value.
     /// Use only for one-time secrets (salts, nonces) that don't need to
     /// survive a restart. For persistent secrets, use `Derived`.
+    ///
+    /// Only available in debug builds — never use in production.
+    #[cfg(debug_assertions)]
     Generated(u32),
 }
 
@@ -51,7 +54,7 @@ impl SecretRef {
         Self::Keychain(service.to_string())
     }
 
-    /// Derive a secret deterministically from a master key via HKDF-SHA256.
+    /// Deterministically derive a sub-key from a master key using HKDF-SHA256.
     ///
     /// The `master_key_env` names the env var or keychain key that holds
     /// the master key. The `context` provides domain separation:
@@ -65,6 +68,8 @@ impl SecretRef {
     }
 
     /// Generate random bytes. **Not reproducible across restarts.**
+    /// Only available in debug builds — never use in production.
+    #[cfg(debug_assertions)]
     pub fn generated(length: u32) -> Self {
         Self::Generated(length)
     }

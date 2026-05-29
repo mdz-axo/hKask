@@ -10,6 +10,7 @@ use crate::ports::{
 };
 use crate::renderer::TemplateRendererImpl;
 use hkask_cns::EnergyBudget;
+use hkask_types::CapabilityToken;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::info;
@@ -230,6 +231,7 @@ where
         state: Value,
         depth: u8,
         energy: &mut EnergyAccount,
+        token: &CapabilityToken,
     ) -> Result<Value> {
         if depth > self.max_depth {
             return Err(TemplateError::RecursionLimit {
@@ -314,7 +316,7 @@ where
                             .cloned()
                             .unwrap_or_else(|| template_id.to_string());
 
-                        let result = self.mcp.invoke(&target_tool, state.clone()).await?;
+                        let result = self.mcp.invoke(&target_tool, state.clone(), token).await?;
                         self.cns.emit(
                             "cns.prompt.execute_contract",
                             serde_json::json!({
@@ -325,7 +327,7 @@ where
                         );
                         result
                     } else {
-                        self.mcp.invoke(mcp, state.clone()).await?
+                        self.mcp.invoke(mcp, state.clone(), token).await?
                     }
                 } else {
                     return Err(TemplateError::Manifest(
@@ -356,7 +358,12 @@ where
         ))
     }
 
-    pub async fn execute(&self, manifest: &ProcessManifest, input: Value) -> Result<Value> {
+    pub async fn execute(
+        &self,
+        manifest: &ProcessManifest,
+        input: Value,
+        token: &CapabilityToken,
+    ) -> Result<Value> {
         info!(
             target: "hkask.templates",
             manifest = %manifest.id,
@@ -371,7 +378,7 @@ where
         let mut state = input;
         for step in &manifest.steps {
             let step_result = self
-                .execute_step(manifest, step, state.clone(), 0, &mut energy)
+                .execute_step(manifest, step, state.clone(), 0, &mut energy, token)
                 .await?;
             state = merge_state(state, step_result);
         }

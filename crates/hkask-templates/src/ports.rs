@@ -3,7 +3,7 @@
 //! Defines the hexagonal architecture ports for template dispatch system.
 //! Per architecture v0.21.0: Rust is the loom, YAML/Jinja2 is the thread.
 
-use hkask_types::TemplateType;
+use hkask_types::{CapabilityToken, TemplateType};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::time::Duration;
@@ -192,7 +192,8 @@ pub struct ToolInfo {
 #[async_trait::async_trait]
 pub trait McpPort: Send + Sync {
     async fn discover_tools(&self) -> Vec<String>;
-    async fn invoke(&self, tool_name: &str, input: Value) -> Result<Value>;
+    async fn invoke(&self, tool_name: &str, input: Value, token: &CapabilityToken)
+    -> Result<Value>;
     async fn get_tool_info(&self, tool_name: &str) -> Option<ToolInfo>;
 }
 
