@@ -2,6 +2,7 @@
 //!
 //! This module contains the actual command handlers, organized into focused submodules.
 
+pub mod admin;
 pub mod agent;
 pub mod config;
 pub mod factories;

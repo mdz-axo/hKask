@@ -26,6 +26,7 @@ pub mod id;
 pub mod identity;
 pub mod lexicon;
 pub mod ports;
+pub mod r7;
 pub mod secret;
 pub mod sovereignty;
 pub mod spec;
@@ -51,6 +52,7 @@ pub use id::*;
 pub use identity::*;
 pub use lexicon::{Domain, HLexicon, LexiconTerm, TemplateType};
 pub use ports::GitCASPort;
+pub use r7::{R7BotIdentity, R7BotRegistry, default_r7_bots};
 pub use secret::{SecretRef, derivation_contexts};
 pub use sovereignty::{
     AcquisitionResistance, DataCategory, DataSovereigntyBoundary, KillZoneDetector,

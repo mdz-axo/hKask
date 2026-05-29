@@ -4,18 +4,18 @@
 //! 1. Infrastructure — CNS runtime, algedonic manager, variety monitor, observers
 //! 2. Security — SecurityGateway, root capability, OCAP boundaries
 //! 3. MCP — Supervisor, server registration, health checks
-//! 4. Bots — Pod creation, span scoping, capability tokens
+//! 4. Bots — Pod creation for R7.1–R7.7, span scoping, memory stacks
 //! 5. Curator — Replicant pod with full access
-//! 6. Standing Session — Initialize, register participants
-//! 7. Kata Readiness — Verify kata-bot, emit readiness span
+//! 6. Standing Session — Initialize, register R7 participants
+//! 7. Kata Readiness — Verify kata domain owned, emit readiness span
 //! 8. CNS Active — Activate all bots, begin monitoring
 
 use hkask_cns::{
     AlgedonicEscalationAdapter, BotMetricsCollector, CnsRuntime, SpanCategory, SpanEmitter,
-    SpanScope, span_scope_for_bot,
+    SpanScope, curator_span_scope, span_scope_for_r7_bot,
 };
 use hkask_keystore::derive_all_internal_secrets;
-use hkask_types::WebID;
+use hkask_types::{R7BotIdentity, WebID, default_r7_bots};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -87,15 +87,6 @@ impl BootstrapError {
     }
 }
 
-/// R7 Bot definition for bootstrap
-#[derive(Debug, Clone)]
-pub struct BotDefinition {
-    pub name: String,
-    pub webid: WebID,
-    pub allowed_spans: HashSet<SpanCategory>,
-    pub energy_budget: u64,
-}
-
 /// Bootstrap state — tracks completed phases for idempotent restart
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct BootstrapState {
@@ -126,30 +117,12 @@ impl BootstrapSequence {
         }
     }
 
-    /// Get the 7R7 bot definitions with their allowed span categories
-    pub fn r7_bot_definitions() -> Vec<BotDefinition> {
-        let bots = vec![
-            "cns-curator-bot",
-            "memory-curator-bot",
-            "inference-curator-bot",
-            "mcp-dispatch-bot",
-            "ensemble-curator-bot",
-            "git-curator-bot",
-            "registry-dispatch-bot",
-            "kata-bot",
-        ];
-
-        let energy_budgets = vec![10_000, 10_000, 15_000, 12_000, 8_000, 8_000, 10_000, 8_000];
-
-        bots.into_iter()
-            .zip(energy_budgets)
-            .map(|(name, budget)| BotDefinition {
-                name: name.to_string(),
-                webid: WebID::from_persona(name.as_bytes()),
-                allowed_spans: span_scope_for_bot(name),
-                energy_budget: budget,
-            })
-            .collect()
+    /// Get the 7R7 bot identities with their derived span scopes
+    pub fn r7_bot_identities() -> Vec<R7BotIdentity> {
+        let bots = default_r7_bots();
+        // Span scopes are computed from domain ownership via span_scope_for_r7_bot()
+        // at point of use, since they derive from the bot's domains field.
+        bots
     }
 
     /// Run the complete bootstrap sequence
@@ -279,13 +252,15 @@ impl BootstrapSequence {
             }
         }
 
-        let bot_definitions = Self::r7_bot_definitions();
-        for bot_def in &bot_definitions {
+        let bot_identities = Self::r7_bot_identities();
+        for bot in &bot_identities {
+            let scope = span_scope_for_r7_bot(bot);
             info!(
                 target: "bootstrap",
-                bot = %bot_def.name,
-                spans = ?bot_def.allowed_spans.iter().map(|c| c.as_str()).collect::<Vec<_>>(),
-                "Creating OCAP span scope for bot"
+                bot = %bot.id,
+                domains = ?bot.domains,
+                spans = ?scope.iter().map(|c| c.as_str()).collect::<Vec<_>>(),
+                "Creating OCAP span scope for R7 bot"
             );
         }
 
@@ -329,37 +304,39 @@ impl BootstrapSequence {
         Ok(())
     }
 
-    /// Phase 4: Bots — Create pods for each R7 bot
+    /// Phase 4: Bots — Create pods for each R7.x bot
     async fn phase_bots(&mut self) -> Result<(), BootstrapError> {
-        let bot_definitions = Self::r7_bot_definitions();
+        let bot_identities = Self::r7_bot_identities();
 
-        for bot_def in &bot_definitions {
+        for bot in &bot_identities {
+            let scope = span_scope_for_r7_bot(bot);
             info!(
                 target: "bootstrap",
-                bot = %bot_def.name,
+                bot = %bot.id,
+                domains = ?bot.domains,
                 "Creating pod for R7 bot"
             );
 
             // Register bot in metrics collector
             {
                 let mut metrics = self.bot_metrics.write().await;
-                metrics.register_bot(bot_def.webid, bot_def.name.clone());
-                metrics.set_energy_budget(&bot_def.webid, bot_def.energy_budget);
+                metrics.register_bot(bot.webid, bot.id.clone());
+                metrics.set_energy_budget(&bot.webid, bot.energy_budget);
             }
 
             // Store the WebID for later phases
             self.state
                 .bot_webids
-                .push((bot_def.name.clone(), bot_def.webid.to_string()));
+                .push((bot.id.clone(), bot.webid.to_string()));
 
             // Create scoped SpanEmitter for this bot
-            let emitter = SpanEmitter::new(bot_def.webid);
-            let _scope = SpanScope::new(emitter, bot_def.allowed_spans.clone(), bot_def.webid);
+            let emitter = SpanEmitter::new(bot.webid);
+            let _scope = SpanScope::new(emitter, scope, bot.webid);
             // The scope is created but stored separately in the PodManager
 
             info!(
                 target: "bootstrap",
-                bot = %bot_def.name,
+                bot = %bot.id,
                 "Pod created with scoped span emitter"
             );
         }
@@ -376,7 +353,7 @@ impl BootstrapSequence {
         );
 
         // Curator has full span scope (all categories)
-        let curator_scope: HashSet<SpanCategory> = span_scope_for_bot("Curator");
+        let curator_scope: HashSet<SpanCategory> = curator_span_scope();
         let curator_emitter = SpanEmitter::new(self.curator_webid);
         let _scope = SpanScope::new(curator_emitter, curator_scope, self.curator_webid);
 
@@ -397,36 +374,47 @@ impl BootstrapSequence {
         Ok(())
     }
 
-    /// Phase 7: Kata Readiness — Verify kata-bot manifest and templates
+    /// Phase 7: Kata Readiness — Verify kata domain is owned by an R7 bot
     fn phase_kata_readiness(&self) -> Result<(), BootstrapError> {
-        info!(target: "bootstrap", "Kata Readiness phase: Verifying kata-bot manifest");
+        info!(target: "bootstrap", "Kata Readiness phase: Verifying kata domain ownership");
 
-        let bot_definitions = Self::r7_bot_definitions();
-        let kata_bot = bot_definitions.iter().find(|b| b.name == "kata-bot");
+        let bot_identities = Self::r7_bot_identities();
+        let kata_owner = bot_identities
+            .iter()
+            .find(|b| b.domains.contains(&"kata".to_string()));
 
-        if kata_bot.is_none() {
-            return Err(BootstrapError::KataReadiness(
-                "kata-bot definition not found".to_string(),
-            ));
+        match kata_owner {
+            Some(bot) => {
+                info!(
+                    target: "bootstrap",
+                    bot = %bot.id,
+                    "Kata domain owned, readiness verified"
+                );
+            }
+            None => {
+                return Err(BootstrapError::KataReadiness(
+                    "kata domain not assigned to any R7 bot".to_string(),
+                ));
+            }
         }
 
-        info!(target: "bootstrap", "Kata Readiness phase: kata-bot manifest verified");
         Ok(())
     }
 
-    /// Phase 8: CNS Active — Activate all bots, mark healthy, begin algedonic monitoring
+    /// Phase 8: CNS Active — Activate all R7 bots, mark healthy, begin algedonic monitoring
     async fn phase_cns_active(&self) -> Result<(), BootstrapError> {
-        info!(target: "bootstrap", "CNS Active phase: Activating all bots");
+        info!(target: "bootstrap", "CNS Active phase: Activating all R7 bots");
 
-        let bot_definitions = Self::r7_bot_definitions();
-        for bot_def in &bot_definitions {
+        let bot_identities = Self::r7_bot_identities();
+        for bot in &bot_identities {
             self.cns_runtime
-                .increment_variety("agent_pod", &format!("{}_activated", bot_def.name))
+                .increment_variety("agent_pod", &format!("{}_activated", bot.id))
                 .await;
             info!(
                 target: "bootstrap",
-                bot = %bot_def.name,
-                "Bot activated"
+                bot = %bot.id,
+                domains = ?bot.domains,
+                "R7 bot activated"
             );
         }
 

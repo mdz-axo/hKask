@@ -47,10 +47,7 @@ pub async fn ensemble_chat_register(
     .ok_or_else(|| format!("Chat session '{}' not found", session))?;
 
     let participant_role = match role.as_str() {
-        "memory_bot" => ParticipantRole::MemoryBot,
-        "spandrel_bot" => ParticipantRole::SpandrelBot,
-        "okapi_bot" => ParticipantRole::OkapiBot,
-        "scholar_bot" => ParticipantRole::ScholarBot,
+        "orchestrator" => ParticipantRole::Curator,
         _ => ParticipantRole::Custom(role.clone()),
     };
 

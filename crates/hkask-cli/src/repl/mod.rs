@@ -39,9 +39,7 @@ pub fn run(
         Ok(outcome) => outcome.signed_in_agent,
         Err(e) => {
             eprintln!("Onboarding failed: {}", e);
-            eprintln!(
-                "Set HKASK_MASTER_KEY, HKASK_ACP_SECRET, or HKASK_INSECURE_DEV=1 to skip onboarding."
-            );
+            eprintln!("Run `kask chat` to set up your replicant identity.");
             return;
         }
     };

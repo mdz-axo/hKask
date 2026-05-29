@@ -36,7 +36,10 @@ async fn soap_infer(
     use std::time::Instant;
     use tokio::time::{Duration, timeout};
 
-    let config = SoapInferenceConfig::from_env();
+    let config = SoapInferenceConfig::from_env().map_err(|e| {
+        tracing::error!("SOAP inference config error: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
     let start = Instant::now();
 
     // Validate request size (DoS prevention)

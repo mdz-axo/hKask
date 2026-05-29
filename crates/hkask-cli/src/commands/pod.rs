@@ -35,7 +35,12 @@ pub async fn get_pod_status(pod_id: &str) -> Result<PodStatus, String> {
 pub async fn list_pods() -> Result<Vec<PodStatus>, String> {
     let (acp, _store) = crate::commands::config::init_registry()
         .await
-        .map_err(|e| format!("Registry not initialized: {}. Set HKASK_MASTER_KEY, HKASK_ACP_SECRET, or HKASK_INSECURE_DEV=1.", e))?;
+        .map_err(|e| {
+            format!(
+                "Registry not initialized: {}. Run `kask chat` to complete onboarding.",
+                e
+            )
+        })?;
 
     let manager = PodManagerBuilder::new()
         .acp_runtime(acp)

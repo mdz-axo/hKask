@@ -1,11 +1,11 @@
 //! Standing Ensemble Session — Bootstrap and lifecycle management
 //!
-//! The standing session is the persistent coordination channel where the 7R7 bots
+//! The standing session is the persistent coordination channel where the R7 bots
 //! report status and the Curator orchestrates metacognition.
 
 use crate::chat::{ChatMessage, ChatParticipant, EnsembleChat, ParticipantRole};
 use hkask_agents::ports::{MessageRecord, SessionRecord, StandingSessionPort};
-use hkask_types::WebID;
+use hkask_types::{R7BotIdentity, WebID, default_r7_bots};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::Path;
@@ -29,7 +29,7 @@ pub enum StandingSessionError {
 pub struct StandingSessionConfig {
     pub session: SessionMetadata,
     pub participants: Vec<ParticipantEntry>,
-    #[allow(dead_code)] // TODO(governance): Wire into ensemble decision-making.
+    #[allow(dead_code)]
     pub rules: SessionRules,
     pub bootstrap: BootstrapConfig,
 }
@@ -47,22 +47,26 @@ pub struct ParticipantEntry {
     #[serde(rename = "type")]
     pub agent_type: String,
     pub role: String,
-    #[allow(dead_code)] // TODO(governance): Wire into vote counting for ensemble decisions.
+    #[allow(dead_code)]
     pub voting: bool,
     pub description: String,
+    /// Template domains this participant owns. Used to populate capabilities
+    /// for R4 capability intersection checks. Curator has no domains.
+    #[serde(default)]
+    pub domains: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct SessionRules {
-    #[allow(dead_code)] // TODO(governance): Wire into ensemble decision-making.
+    #[allow(dead_code)]
     pub consensus_required: bool,
-    #[allow(dead_code)] // TODO(governance): Wire into ensemble decision-making.
+    #[allow(dead_code)]
     pub orchestration_model: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct BootstrapConfig {
-    #[allow(dead_code)] // TODO(lifecycle): Wire into session auto-start on daemon initialization.
+    #[allow(dead_code)]
     pub auto_start: bool,
     pub initial_message: InitialMessage,
     pub initial_reports: Vec<InitialReport>,
@@ -103,6 +107,12 @@ impl StandingSession {
 
         participant_descriptions.insert(curator_webid, "".to_string());
 
+        // Build R7 bot lookup for domain→capability resolution
+        let r7_bots: HashMap<String, R7BotIdentity> = default_r7_bots()
+            .into_iter()
+            .map(|b| (b.id.clone(), b))
+            .collect();
+
         for entry in &config.participants {
             if entry.agent == "Curator" {
                 participant_descriptions.insert(
@@ -115,14 +125,26 @@ impl StandingSession {
             let webid = WebID::from_persona(entry.agent.as_bytes());
             let role = match entry.role.as_str() {
                 "orchestrator" => ParticipantRole::Curator,
-                _ => ParticipantRole::Custom(entry.agent.clone()),
+                _ => ParticipantRole::Custom(entry.role.clone()),
             };
+
+            // Load capabilities from domains declared in YAML.
+            // If the agent is a known R7.x bot, also include its R7 bot capabilities.
+            let mut capabilities: Vec<String> = entry.domains.clone();
+
+            // If this entry matches an R7 bot identity, use its domains
+            // (the YAML domains take precedence, then fall back to R7 bot defaults)
+            if capabilities.is_empty() {
+                if let Some(r7_bot) = r7_bots.get(&entry.agent) {
+                    capabilities = r7_bot.domains.clone();
+                }
+            }
 
             let participant = ChatParticipant {
                 webid,
                 role,
                 pod_id: None,
-                capabilities: vec![],
+                capabilities,
             };
 
             chat.register_participant(participant);

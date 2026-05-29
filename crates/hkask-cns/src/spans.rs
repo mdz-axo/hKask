@@ -388,29 +388,71 @@ impl CnsEmit for SpanScope {
     }
 }
 
-/// Get the allowed span categories for a given R7 bot
-pub fn span_scope_for_bot(bot_name: &str) -> HashSet<SpanCategory> {
-    match bot_name {
-        "cns-curator-bot" => HashSet::from([SpanCategory::AgentPod, SpanCategory::Energy]),
-        "memory-curator-bot" => HashSet::from([SpanCategory::Pipeline]),
-        "inference-curator-bot" => HashSet::from([SpanCategory::Connector, SpanCategory::Energy]),
-        "mcp-dispatch-bot" => HashSet::from([SpanCategory::Tool]),
-        "ensemble-curator-bot" => HashSet::from([SpanCategory::AgentPod]),
-        "git-curator-bot" => HashSet::from([SpanCategory::Tool]),
-        "registry-dispatch-bot" => HashSet::from([SpanCategory::Prompt]),
-        "kata-bot" => HashSet::from([SpanCategory::Prompt]),
-        "Curator" => HashSet::from([
+/// Get the allowed span categories for a given domain
+///
+/// Each domain maps to the CNS span categories its templates/manifests
+/// are expected to emit. The mapping is derived from the domain's
+/// responsibilities declared in its YAML manifest.
+pub fn span_scope_for_domain(domain: &str) -> HashSet<SpanCategory> {
+    match domain {
+        "storage" => HashSet::from([SpanCategory::Pipeline, SpanCategory::Energy]),
+        "memory" => HashSet::from([SpanCategory::Pipeline, SpanCategory::Prompt]),
+        "cns" => HashSet::from([
             SpanCategory::AgentPod,
             SpanCategory::Energy,
-            SpanCategory::Connector,
-            SpanCategory::Pipeline,
-            SpanCategory::Tool,
-            SpanCategory::Prompt,
-            SpanCategory::Goal,
-            SpanCategory::Sovereignty,
-            SpanCategory::Spec,
-            SpanCategory::Review,
+            SpanCategory::Variety,
         ]),
+        "templates" => HashSet::from([SpanCategory::Prompt, SpanCategory::Template]),
+        "registry" => HashSet::from([SpanCategory::Prompt, SpanCategory::Template]),
+        "agents" => HashSet::from([SpanCategory::AgentPod]),
+        "ensemble" => HashSet::from([SpanCategory::AgentPod, SpanCategory::Prompt]),
+        "kata" => HashSet::from([SpanCategory::Prompt, SpanCategory::Goal]),
+        "mcp" => HashSet::from([SpanCategory::Tool]),
+        "inference" => HashSet::from([SpanCategory::Connector, SpanCategory::Energy]),
+        "git" => HashSet::from([SpanCategory::Tool]),
+        "web" => HashSet::from([SpanCategory::Connector, SpanCategory::Tool]),
+        "condenser" => HashSet::from([SpanCategory::Connector, SpanCategory::Pipeline]),
+        "github" => HashSet::from([SpanCategory::Tool]),
+        "gml" => HashSet::from([SpanCategory::Prompt, SpanCategory::Pipeline]),
+        "spec" => HashSet::from([SpanCategory::Spec, SpanCategory::Goal]),
+        "fmp" => HashSet::from([SpanCategory::Tool]),
+        "telnyx" => HashSet::from([SpanCategory::Connector]),
+        "fal" => HashSet::from([SpanCategory::Connector]),
+        "rss-reader" => HashSet::from([SpanCategory::Connector]),
+        "cli" => HashSet::from([SpanCategory::Prompt, SpanCategory::Tool]),
+        "api" => HashSet::from([SpanCategory::Prompt, SpanCategory::Tool]),
         _ => HashSet::from([SpanCategory::AgentPod]), // minimal default
     }
+}
+
+/// Get the allowed span categories for an R7 bot by unioning all owned domains
+pub fn span_scope_for_r7_bot(bot: &hkask_types::R7BotIdentity) -> HashSet<SpanCategory> {
+    let mut scope = HashSet::new();
+    for domain in &bot.domains {
+        scope.extend(span_scope_for_domain(domain));
+    }
+    if scope.is_empty() {
+        scope.insert(SpanCategory::AgentPod);
+    }
+    scope
+}
+
+/// Curator has full span scope — all categories
+pub fn curator_span_scope() -> HashSet<SpanCategory> {
+    HashSet::from([
+        SpanCategory::AgentPod,
+        SpanCategory::Energy,
+        SpanCategory::Connector,
+        SpanCategory::Pipeline,
+        SpanCategory::Tool,
+        SpanCategory::Prompt,
+        SpanCategory::Goal,
+        SpanCategory::Sovereignty,
+        SpanCategory::Spec,
+        SpanCategory::Review,
+        SpanCategory::Template,
+        SpanCategory::Curation,
+        SpanCategory::Variety,
+        SpanCategory::KillZone,
+    ])
 }

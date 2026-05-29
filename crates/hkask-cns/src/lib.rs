@@ -46,5 +46,8 @@ pub use observers::sovereignty::{
 };
 pub use rate_limit::{RateLimitConfig, RateLimiter};
 pub use runtime::CnsRuntime;
-pub use spans::{CnsEmit, SpanCategory, SpanEmitter, SpanScope, SpanViolation, span_scope_for_bot};
+pub use spans::{
+    CnsEmit, SpanCategory, SpanEmitter, SpanScope, SpanViolation, curator_span_scope,
+    span_scope_for_domain, span_scope_for_r7_bot,
+};
 pub use variety::{VarietyMonitor, VarietyTracker};

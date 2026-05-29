@@ -500,8 +500,12 @@ pub struct SoapInferenceConfig {
     pub jack_persona_path: String,
 }
 
-impl Default for SoapInferenceConfig {
-    fn default() -> Self {
+impl SoapInferenceConfig {
+    /// Load configuration from environment variables.
+    ///
+    /// Returns an error if the capability key cannot be resolved from
+    /// HKASK_MASTER_KEY, HKASK_CAPABILITY_KEY, or the OS keychain.
+    pub fn from_env() -> Result<Self, String> {
         let capability_secret = hkask_keystore::resolve(&hkask_types::SecretRef::derived(
             hkask_types::derivation_contexts::MASTER_KEY_ENV,
             hkask_types::derivation_contexts::CAPABILITY_KEY,
@@ -519,12 +523,15 @@ impl Default for SoapInferenceConfig {
             arr[..len].copy_from_slice(&bytes[..len]);
             arr
         })
-        .expect(
-            "Capability key not available: set HKASK_MASTER_KEY or HKASK_CAPABILITY_KEY, \
-                 or store 'capability-key' in the OS keychain",
-        );
+        .map_err(|e| {
+            format!(
+                "Capability key not available: {}. Run `kask chat` to complete onboarding, \
+                 or set HKASK_MASTER_KEY or HKASK_CAPABILITY_KEY.",
+                e
+            )
+        })?;
 
-        Self {
+        let mut config = Self {
             capability_secret,
             max_events: 100,
             max_subjective_len: 4096,
@@ -534,14 +541,7 @@ impl Default for SoapInferenceConfig {
             temperature: 0.2,
             max_tokens: 2048,
             jack_persona_path: "hkask-templates/personas/jack-nurse.md".to_string(),
-        }
-    }
-}
-
-impl SoapInferenceConfig {
-    /// Load configuration from environment variables
-    pub fn from_env() -> Self {
-        let mut config = Self::default();
+        };
 
         if let Ok(val) = std::env::var("HKASK_SOAP_MODEL") {
             config.model = val;
@@ -559,7 +559,7 @@ impl SoapInferenceConfig {
             config.jack_persona_path = val;
         }
 
-        config
+        Ok(config)
     }
 
     /// Load Jack persona from file at runtime
@@ -695,13 +695,13 @@ pub struct SpecCultivateResponse {
 }
 
 /// Create API router with OpenAPI documentation and authentication
-pub fn create_router(state: ApiState) -> OpenApiRouter {
+pub fn create_router(state: ApiState) -> Result<OpenApiRouter, String> {
     let auth_service = std::sync::Arc::new(
         middleware::AuthService::new()
-            .expect("Failed to initialize auth service: MCP security key not available"),
+            .map_err(|e| format!("Failed to initialize auth service: {}", e))?,
     );
 
-    OpenApiRouter::with_openapi(ApiDoc::openapi())
+    Ok(OpenApiRouter::with_openapi(ApiDoc::openapi())
         .merge(routes::templates_router().into())
         .merge(routes::bots_router().into())
         .merge(routes::pods_router().into())
@@ -720,7 +720,7 @@ pub fn create_router(state: ApiState) -> OpenApiRouter {
             auth_service,
             middleware::auth_middleware,
         ))
-        .with_state(state)
+        .with_state(state))
 }
 
 /// Build OpenAPI spec

@@ -1,11 +1,11 @@
 # Standing Ensemble Session — System Coordination Chat
-# ℏKask v0.21.0 — A Minimal Viable Container for Agents
+# hKask v0.21.0 — A Minimal Viable Container for Agents
 
 session:
   id: system-coordination-standing-session
   name: System Coordination Standing Session
   description: >
-    Persistent ensemble session where all system bots report status,
+    Persistent ensemble session where the 7 R7 bots report status,
     Curator orchestrates metacognition, and Administrator can observe/participate.
   functional_role: flowdef
   type: standing
@@ -13,7 +13,9 @@ session:
   created_by: hKask-Administrator
   created_at: system_bootstrap
 
-# Participants
+# Participants — the 7 R7 bots + Curator
+# Each R7.x bot owns one or more template domains.
+# Per personas-r7.md: "They share all registries. They can swap. They do swap."
 participants:
   - agent: Curator
     type: Replicant
@@ -21,68 +23,89 @@ participants:
     voting: false
     description: System metacognition, Administrator liaison
 
-  - agent: cns-curator-bot
+  - agent: R7.1
     type: Bot
     role: participant
     voting: true
-    description: CNS monitoring, variety counters, algedonic alerts
+    description: Storage (hkask-storage). Data persistence, encryption, query.
+    domains: [storage]
 
-  - agent: memory-curator-bot
+  - agent: R7.2
     type: Bot
     role: participant
     voting: true
-    description: Memory operations, confidence tracking
+    description: Memory (hkask-memory). Semantic/episodic pipelines, OCAP.
+    domains: [memory]
 
-  - agent: inference-curator-bot
+  - agent: R7.3
     type: Bot
     role: participant
     voting: true
-    description: Inference orchestration, model tier selection
+    description: CNS (hkask-cns). Variety counters, algedonic alerts, spans.
+    domains: [cns]
 
-  - agent: mcp-dispatch-bot
+  - agent: R7.4
     type: Bot
     role: participant
     voting: true
-    description: MCP tool dispatch, OCAP verification
+    description: Templates (hkask-templates). Registry, hLexicon, Jinja2.
+    domains: [templates, registry]
 
-  - agent: ensemble-curator-bot
+  - agent: R7.5
     type: Bot
     role: participant
     voting: true
-    description: Multi-agent coordination (self-management)
+    description: Agents (hkask-agents). Pods, ACP, ensemble, kata.
+    domains: [agents, ensemble, kata]
 
-  - agent: git-curator-bot
+  - agent: R7.6
     type: Bot
     role: participant
     voting: true
-    description: Git CAS operations, versioning
+    description: MCP (hkask-mcp). Tool dispatch, inference, git, web, spec.
+    domains:
+      [
+        mcp,
+        inference,
+        git,
+        web,
+        condenser,
+        github,
+        gml,
+        spec,
+        fmp,
+        telnyx,
+        fal,
+        rss-reader,
+      ]
 
-  - agent: registry-dispatch-bot
+  - agent: R7.7
     type: Bot
     role: participant
     voting: true
-    description: Template dispatch orchestration
+    description: CLI/API (hkask-cli). Human interface, commands, utoipa.
+    domains: [cli, api]
 
 # Session Rules
 rules:
   # No swarm consensus — explicit coordination only
   consensus_required: false
-  
+
   # Curator orchestrates, bots report
   orchestration_model: curator_led
-  
+
   # Administrator can join/observe anytime
   administrator_access:
     observe: true
     participate: true
     override: true
-  
+
   # Bots report on schedule and on events
   reporting:
     scheduled: hourly
     on_event: true
     on_curator_request: true
-  
+
   # Message retention
   retention:
     keep_messages: 1000
@@ -93,17 +116,17 @@ rules:
 curator_authority:
   # Can request status from any bot
   can_request_status: true
-  
+
   # Can calibrate bot thresholds
   can_calibrate_thresholds: true
-  
+
   # Can adjust energy budgets (within limits)
   can_adjust_energy_budgets: true
   max_adjustment_percent: 25
-  
+
   # Can escalate to Administrator
   can_escalate_to_administrator: true
-  
+
   # Can spawn ad-hoc sub-ensembles
   can_spawn_sub_ensembles: true
   max_sub_ensemble_size: 4
@@ -112,19 +135,19 @@ curator_authority:
 administrator_access:
   # Can observe all messages
   observe_all: true
-  
+
   # Can participate in discussions
   participate: true
-  
+
   # Can override Curator decisions
   override_curator: true
-  
+
   # Can modify bot charters
   modify_bot_charters: true
-  
+
   # Can adjust session rules
   modify_session_rules: true
-  
+
   # Can terminate/restart session
   control_session: true
 
@@ -271,30 +294,30 @@ health:
 bootstrap:
   # Session starts automatically on system bootstrap
   auto_start: true
-  
+
   # Initial message from Curator
   initial_message:
     from: Curator
     type: metacognition_update
     content: |
       ## System Coordination Standing Session — Initialized
-      
-      All participants: report status.
+
+      All R7 bots: report status.
       Administrator: session is open for observation/participation.
 
-  # Initial bot status reports
+  # Initial bot status reports from each R7.x
   initial_reports:
-    - from: cns-curator-bot
-      content: "CNS monitoring active. Variety counters initialized."
-    - from: memory-curator-bot
+    - from: R7.1
+      content: "Storage ready. SQLite encrypted. sqlite-vec indexed."
+    - from: R7.2
       content: "Memory operations ready. Visibility gating enabled."
-    - from: inference-curator-bot
-      content: "Inference dispatch ready. Model tiers configured."
-    - from: mcp-dispatch-bot
-      content: "MCP dispatch active. OCAP verification enabled."
-    - from: ensemble-curator-bot
-      content: "Ensemble coordination ready. Standing session initialized."
-    - from: git-curator-bot
-      content: "Git CAS ready. SHA versioning enabled."
-    - from: registry-dispatch-bot
-      content: "Registry dispatch ready. Template selection active."
+    - from: R7.3
+      content: "CNS monitoring active. Variety counters initialized."
+    - from: R7.4
+      content: "Template registry ready. hLexicon loaded. Jinja2 active."
+    - from: R7.5
+      content: "Agent pods ready. ACP runtime initialized. Kata templates loaded."
+    - from: R7.6
+      content: "MCP dispatch ready. 15 servers registered. OCAP verification enabled."
+    - from: R7.7
+      content: "CLI interface ready. API endpoints active. Listening for commands."

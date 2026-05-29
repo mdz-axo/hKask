@@ -1,6 +1,6 @@
 //! Multi-agent chat coordination
 //!
-//! Orchestrates conversation between Curator (replicant) and expert bots
+//! Orchestrates conversation between Curator (replicant) and R7 bots
 //! via template-mediated A2A communication. No swarms, no consensus mechanisms.
 
 use hkask_agents::SovereigntyChecker;
@@ -41,7 +41,7 @@ impl ChatMessage {
     }
 }
 
-/// Chat participant (Curator or expert bot)
+/// Chat participant (Curator or R7 bot)
 #[derive(Debug, Clone)]
 pub struct ChatParticipant {
     pub webid: WebID,
@@ -55,10 +55,7 @@ pub struct ChatParticipant {
 #[serde(rename_all = "snake_case")]
 pub enum ParticipantRole {
     Curator,
-    MemoryBot,
-    SpandrelBot,
-    OkapiBot,
-    ScholarBot,
+    /// Dynamic role from YAML config (e.g., "participant", "orchestrator")
     Custom(String),
 }
 

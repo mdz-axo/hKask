@@ -140,6 +140,12 @@ pub enum Commands {
         action: KeystoreAction,
     },
 
+    /// Admin passphrase management (gates HKASK_INSECURE_DEV)
+    Admin {
+        #[command(subcommand)]
+        action: AdminAction,
+    },
+
     /// List available LLM models
     Models,
 

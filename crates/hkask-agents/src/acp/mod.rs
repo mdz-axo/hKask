@@ -38,7 +38,6 @@ pub use hkask_types::AuditLogPort;
 pub use root_authority::RootAuthority;
 
 use hkask_cns::rate_limit::{RateLimitConfig, RateLimiter};
-use hkask_keystore::KeychainError;
 use hkask_types::{AuditOutcome, CapabilityAction, CapabilityResource, CapabilityToken, WebID};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -708,22 +707,9 @@ impl Default for AcpRuntime {
         .or_else(|_| {
             hkask_keystore::resolve(&hkask_types::SecretRef::Keychain("acp-secret".to_string()))
         })
-        .or_else(|_| {
-            if std::env::var("HKASK_INSECURE_DEV").as_deref() == Ok("1") {
-                tracing::warn!("⚠ INSECURE DEV MODE: Using random ACP secret. Tokens will not survive restarts.");
-                use rand::RngCore;
-                let mut bytes = [0u8; 32];
-                rand::rng().fill_bytes(&mut bytes);
-                Ok(Zeroizing::new(bytes.to_vec()))
-            } else {
-                Err(KeychainError::NotFound(
-                    "ACP secret not available".to_string(),
-                ))
-            }
-        })
         .expect(
-            "ACP secret not available: set HKASK_MASTER_KEY or HKASK_ACP_SECRET_KEY, \
-             store 'acp-secret' in the OS keychain, or set HKASK_INSECURE_DEV=1 for local development",
+            "ACP secret not available. Run `kask chat` to complete onboarding, \
+             or set HKASK_MASTER_KEY or HKASK_ACP_SECRET_KEY.",
         );
         Self::new(&secret, None)
     }
