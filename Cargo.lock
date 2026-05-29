@@ -2277,6 +2277,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "hkask-mcp-goal"
+version = "0.21.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "hex",
+ "hkask-mcp",
+ "hkask-storage",
+ "hkask-types",
+ "rmcp",
+ "schemars",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "hkask-mcp-inference"
 version = "0.21.0"
 dependencies = [

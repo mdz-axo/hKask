@@ -2,7 +2,7 @@
 title: "hKask hLexicon — Minimal Composition Vocabulary"
 audience: [architects, developers, agents]
 last_updated: 2026-05-29
-version: "0.21.2"
+version: "0.22.0"
 status: "Active"
 domain: "Application"
 ddmvss_categories: [domain]
@@ -51,6 +51,47 @@ contract:
   input: {question: string, context: array}
   output: {answer: string, confidence: float}
 ```
+
+---
+
+## Canonicality & Derivation
+
+**This document is the single source of truth for the hLexicon vocabulary.**
+The term tables below are canonical. Code does not hand-maintain a parallel
+list; it derives one from this file.
+
+```mermaid
+flowchart LR
+    MD["hKask-hLexicon.md<br/>(CANONICAL)"] -->|generate-hlexicon.py| RS["hlexicon_generated.rs<br/>(derived, committed)"]
+    RS -->|include! at compile time| FN["HLexicon::canonical()"]
+    MD -.->|check-hlexicon.sh| GATE{committed ==<br/>regenerated?}
+    RS -.-> GATE
+    GATE -->|drift| FAIL["CI fails:<br/>regenerate + commit"]
+```
+
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-LEX-001
+verified_date: 2026-05-29
+verified_against: scripts/generate-hlexicon.py; crates/hkask-types/src/hlexicon_generated.rs; crates/hkask-types/src/lexicon.rs (HLexicon::canonical); docs/ci/check-hlexicon.sh
+status: VERIFIED
+-->
+
+**Process when the vocabulary changes:**
+
+1. Edit the term tables in this file (add/remove/recategorize a term).
+2. Run `python3 scripts/generate-hlexicon.py` to regenerate the derived Rust.
+3. Commit both this file and `crates/hkask-types/src/hlexicon_generated.rs`.
+4. `docs/ci/check-hlexicon.sh` (wired into `.github/workflows/docs.yml`) fails
+   the build if step 2 was skipped, preventing the silent drift this process
+   was introduced to eliminate.
+
+**Counting note:** the tables define **87 term-slots** (28 WordAct + 34 FlowDef
++ 25 KnowAct). One term, `transform`, is intentionally shared between WordAct
+(Declarative) and FlowDef (Data Flow), so there are **86 globally-unique term
+strings**. The `HLexicon` map is keyed by term string and therefore holds 86
+entries; `transform` takes its first/primary domain (WordAct). The derived
+`CANONICAL_TERMS` array and `HLexicon::canonical()` both reflect this 86-term
+functional set. Requirement: [`REQ-DOM-004`](../../specifications/REQUIREMENTS.md).
 
 ---
 

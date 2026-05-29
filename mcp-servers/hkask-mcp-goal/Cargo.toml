@@ -1,0 +1,22 @@
+[package]
+name = "hkask-mcp-goal"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Goal coordination substrate MCP server (OCAP-gated, CNS-observed)"
+
+[dependencies]
+hkask-types = { path = "../../crates/hkask-types" }
+hkask-storage = { path = "../../crates/hkask-storage" }
+hkask-mcp = { path = "../../crates/hkask-mcp" }
+rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+schemars.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+anyhow.workspace = true
+hex.workspace = true

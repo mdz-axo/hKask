@@ -7,6 +7,7 @@ mod cns;
 mod curator;
 mod ensemble;
 mod git;
+mod goal;
 mod mcp;
 mod models;
 mod pods;
@@ -23,6 +24,7 @@ pub use cns::cns_router;
 pub use curator::curator_router;
 pub use ensemble::ensemble_router;
 pub use git::git_router;
+pub use goal::goal_router;
 pub use mcp::mcp_router;
 pub use models::models_router;
 pub use pods::pods_router;
@@ -44,6 +46,7 @@ pub use ensemble::{
     SendMessageRequest, StandingStartRequest, StandingStartResponse, StandingStatusResponse,
 };
 pub use git::{ArchiveRequest, ArchiveResponse, ResolveShaResponse};
+pub use goal::{CreateGoalRequest, GoalListResponse, GoalResponse, SetGoalStateRequest};
 pub use models::{ModelEntry, ModelListResponse, ModelSearchQuery};
 pub use sovereignty::{
     AccessCheckResponse, KillZoneResponse, SovereigntyConsentResponse, SovereigntyStatusResponse,

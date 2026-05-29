@@ -93,6 +93,12 @@ pub struct ApiState {
             HashMap<String, Arc<tokio::sync::RwLock<hkask_ensemble::StandingSession>>>,
         >,
     >,
+    /// Goal repository (OCAP-gated, telemetry-wired) for the goal coordination
+    /// substrate. Mirrors the CLI `kask goal` surface for MCP ≡ CLI ≡ API parity.
+    pub goal_repo: Arc<hkask_storage::SqliteGoalRepository>,
+    /// Capability secret used to mint goal capability tokens (same secret used
+    /// by the OCAP system).
+    pub goal_capability_secret: Arc<Vec<u8>>,
 }
 
 impl ApiState {
@@ -131,6 +137,18 @@ impl ApiState {
             capability_secret,
             hkask_types::cns::RetryConfig::default(),
         ));
+        // Goal repository wired with a CNS denial sink over a shared connection,
+        // mirroring the CLI integration (ADR-029). Capability denials persist
+        // as `cns.tool.goal.capability.denied` ν-events.
+        let goal_conn = hkask_storage::Database::in_memory()
+            .expect("in-memory db")
+            .conn_arc();
+        let goal_sink: Arc<dyn hkask_types::event::NuEventSink> =
+            Arc::new(hkask_storage::NuEventStore::new(Arc::clone(&goal_conn)));
+        let goal_repo = Arc::new(
+            hkask_storage::SqliteGoalRepository::new(goal_conn, capability_secret.to_vec())
+                .with_telemetry(goal_sink),
+        );
         Self {
             registry: Arc::new(tokio::sync::Mutex::new(registry)),
             mcp_runtime: Arc::new(mcp_runtime),
@@ -146,6 +164,8 @@ impl ApiState {
             escalation_queue,
             git_cas,
             standing_sessions: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
+            goal_repo,
+            goal_capability_secret: Arc::new(capability_secret.to_vec()),
         }
     }
 
@@ -725,6 +745,7 @@ pub fn create_router(state: ApiState) -> Result<OpenApiRouter, String> {
         .merge(routes::spec_router().into())
         .merge(routes::curator_router().into())
         .merge(routes::git_router().into())
+        .merge(routes::goal_router().into())
         .layer(axum::middleware::from_fn_with_state(
             auth_service,
             middleware::auth_middleware,

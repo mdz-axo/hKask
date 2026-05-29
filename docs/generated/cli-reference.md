@@ -1,13 +1,3 @@
----
-title: "hKask CLI Reference (auto-generated)"
-audience: [developers, users]
-last_updated: 2026-05-28
-version: "0.21.0"
-status: "Active"
-domain: "Application"
-ddmvss_categories: [interface]
----
-
 # hKask CLI Documentation
 
 **hKask** (ℏKask — "A Minimal Viable Container for Agents") - Command-line interface
@@ -52,6 +42,7 @@ Slash commands (inside chat):
 - `/agent [NAME]` — Show or switch agent
 - `/agents` — List registered agents
 - `/model` — Show current model
+- `/model list` — List all available models
 - `/model <name>` — Switch to a specific model (e.g., `/model qwen3:8b`)
 - `/model <query>` — Fuzzy search models (e.g., `/model qwen` lists all Qwen models)
 - `/pods` — List agent pods
@@ -133,6 +124,17 @@ Subcommands:
 - `alerts` — Get algedonic alerts
 - `variety` — Get variety counters
 
+### `kask goal` — Goal coordination substrate (OCAP-gated, CNS-observed)
+
+```bash
+kask goal <SUBCOMMAND>
+```
+
+Subcommands:
+- `create <TEXT> [--visibility private|shared|public]` — Create a goal you own
+- `list [--state <STATE>]` — List your goals
+- `set-state <ID> <STATE>` — Transition a goal (legal transitions only)
+
 ### `kask docs` — Documentation generation
 
 ```bash
@@ -165,6 +167,7 @@ echo "Summarize this" | kask chat -f - -m qwen3:8b
 
 # Inside chat: switch models
 /model              # Show current model
+/model list         # List all available models
 /model qwen         # Fuzzy search for Qwen models
 /model qwen3:8b     # Switch to qwen3:8b
 

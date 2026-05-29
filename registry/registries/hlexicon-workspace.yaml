@@ -1,0 +1,183 @@
+# hLexicon Workspace Registry
+# DERIVED ARTIFACT — do not hand-edit term definitions.
+# Canonical source: docs/architecture/reference/hKask-hLexicon.md
+# Regenerate after editing the markdown:
+#   cargo test -p hkask-templates regenerate_workspace_yaml -- --ignored
+# The hlexicon_yaml_matches_markdown test fails if this drifts.
+
+hlexicon:
+  wordact:
+    - term: query
+      definition: "Ask for information"
+    - term: request
+      definition: "Ask for action"
+    - term: instruct
+      definition: "Give step-by-step direction"
+    - term: command
+      definition: "Authoritative directive"
+    - term: prompt
+      definition: "Elicit a response"
+    - term: probe
+      definition: "Deep inquiry"
+    - term: challenge
+      definition: "Question validity"
+    - term: summon
+      definition: "Call forth knowledge"
+    - term: pledge
+      definition: "Commit to action"
+    - term: propose
+      definition: "Offer a plan"
+    - term: promise
+      definition: "Guarantee outcome"
+    - term: undertake
+      definition: "Accept task"
+    - term: commit
+      definition: "Bind to course"
+    - term: assert
+      definition: "State as fact"
+    - term: claim
+      definition: "State with uncertainty"
+    - term: report
+      definition: "Present findings"
+    - term: declare
+      definition: "Formal statement"
+    - term: affirm
+      definition: "Confirm truth"
+    - term: testify
+      definition: "Witness-based statement"
+    - term: acknowledge
+      definition: "Recognize receipt"
+    - term: apologize
+      definition: "Express regret"
+    - term: celebrate
+      definition: "Express joy"
+    - term: create
+      definition: "Bring into existence"
+    - term: abolish
+      definition: "End existence"
+    - term: transform
+      definition: "Change state"
+    - term: specify
+      definition: "Define a binding constraint or intent"
+    - term: require
+      definition: "State a non-negotiable condition"
+    - term: constrain
+      definition: "Limit the solution space"
+  flowdef:
+    - term: sequence
+      definition: "Linear ordering"
+    - term: parallel
+      definition: "Concurrent execution"
+    - term: choice
+      definition: "Exclusive branching"
+    - term: iteration
+      definition: "Repetition"
+    - term: fork
+      definition: "Split into branches"
+    - term: join
+      definition: "Merge branches"
+    - term: sync
+      definition: "Synchronization point"
+    - term: async
+      definition: "Non-blocking"
+    - term: filter
+      definition: "Select subset"
+    - term: aggregate
+      definition: "Combine results"
+    - term: route
+      definition: "Direct to destination"
+    - term: broadcast
+      definition: "Send to multiple"
+    - term: catch
+      definition: "Handle error"
+    - term: fallback
+      definition: "Alternative path"
+    - term: compensate
+      definition: "Undo action"
+    - term: escalate
+      definition: "Raise to higher level"
+    - term: abort
+      definition: "Terminate"
+    - term: delay
+      definition: "Wait duration"
+    - term: timeout
+      definition: "Maximum wait"
+    - term: schedule
+      definition: "Plan for time"
+    - term: expire
+      definition: "Become invalid"
+    - term: compose
+      definition: "Combine flows"
+    - term: decompose
+      definition: "Break into parts"
+    - term: clone
+      definition: "Copy without modification intent"
+    - term: branch
+      definition: "Divergent development line"
+    - term: merge
+      definition: "Combine divergent versions"
+    - term: rebase
+      definition: "Reapply changes on new base"
+    - term: pr
+      definition: "Pull request to merge fork"
+    - term: upstream
+      definition: "Original source of fork"
+    - term: downstream
+      definition: "Forks of this artifact"
+    - term: curate
+      definition: "Select, contextualise, and integrate artifacts"
+    - term: elicit
+      definition: "Draw out latent goals or requirements"
+    - term: reconcile
+      definition: "Resolve conflicts between goals or requirements"
+  knowact:
+    - term: recognize
+      definition: "Identify pattern"
+    - term: classify
+      definition: "Categorize"
+    - term: detect
+      definition: "Notice anomaly"
+    - term: match
+      definition: "Find similarity"
+    - term: discriminate
+      definition: "Distinguish"
+    - term: parse
+      definition: "Analyze structure"
+    - term: infer
+      definition: "Draw conclusion"
+    - term: deduce
+      definition: "Logical derivation"
+    - term: induce
+      definition: "Generalize"
+    - term: abduct
+      definition: "Best explanation"
+    - term: analogy
+      definition: "Map similarity"
+    - term: critique
+      definition: "Evaluate reasoning"
+    - term: acquire
+      definition: "Gain knowledge"
+    - term: integrate
+      definition: "Merge with existing"
+    - term: crystallize
+      definition: "Stabilize memory"
+    - term: adapt
+      definition: "Adjust to context"
+    - term: calibrate
+      definition: "Tune accuracy"
+    - term: reflect
+      definition: "Observe own process"
+    - term: monitor
+      definition: "Track performance"
+    - term: evaluate
+      definition: "Assess quality"
+    - term: regulate
+      definition: "Adjust behavior"
+    - term: orient
+      definition: "Direct attention"
+    - term: ground
+      definition: "Anchor in reality"
+    - term: contextualise
+      definition: "Situate an artifact within its meaningful environment"
+    - term: cultivate
+      definition: "Nurture growth and coherence over time"

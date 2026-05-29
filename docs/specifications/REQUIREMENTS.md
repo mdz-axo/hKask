@@ -70,12 +70,28 @@ Curation: Merge | Revise | Defer | Discard
 - **Category:** Domain
 - **Text:** When authoring templates or specifications, I want a bounded vocabulary, so I can ensure consistent terminology.
 - **Criteria:**
-  - [x] 84 terms allocated across WordAct/FlowDef/KnowAct
-  - [x] 9 spec-curation terms defined
-  - [x] Terms referenced in template lexicon_terms field
-- **Implementation:** `hkask-types` lexicon module, `hkask-templates` registry lexicon_terms
+  - [x] 87 term-slots allocated across WordAct (28) / FlowDef (34) / KnowAct (25); 86 unique term strings (`transform` shared across two domains)
+  - [x] Spec-curation terms (`specify`, `require`, `constrain`, `curate`, `elicit`, `reconcile`, `contextualise`, `cultivate`) defined
+  - [x] Terms referenced in template `lexicon_terms` field and enforced at registration by `ContractValidator`
+- **Implementation:** `hkask-types::lexicon` (`HLexicon::canonical`), `hkask-templates::contract_validator::ContractValidator`
+- **Tests:** `hkask-types::lexicon::tests::canonical_lexicon_matches_catalog`
 - **Status:** Implemented
 - **Curation:** Merge
+
+### REQ-DOM-004: hLexicon Single-Source Derivation
+
+- **Category:** Domain, Lifecycle, Curation
+- **Text:** When the hLexicon vocabulary evolves, I want the markdown catalog to be the single source of truth from which code is derived, so the documentation and the code cannot silently drift apart.
+- **Criteria:**
+  - [x] `docs/architecture/reference/hKask-hLexicon.md` is the canonical source; its term tables define the vocabulary
+  - [x] `scripts/generate-hlexicon.py` derives `crates/hkask-types/src/hlexicon_generated.rs` from the markdown
+  - [x] `HLexicon::canonical()` loads the derived terms at compile time via `include!` (no new runtime dependency)
+  - [x] `docs/ci/check-hlexicon.sh` fails CI when the committed derived file does not match a fresh regeneration
+  - [x] The gate is wired into `.github/workflows/docs.yml` (`doc-gates` job)
+- **Implementation:** `scripts/generate-hlexicon.py`, `crates/hkask-types/src/hlexicon_generated.rs`, `hkask-types::lexicon::HLexicon::canonical`, `docs/ci/check-hlexicon.sh`, `.github/workflows/docs.yml`
+- **Tests:** `hkask-types::lexicon::tests::canonical_lexicon_matches_catalog`, `bootstrap_is_a_subset_of_canonical`; `docs/ci/check-hlexicon.sh` (drift gate)
+- **Status:** Implemented
+- **Curation:** Merge — closes the drift gap that allowed the doc/code term counts to diverge
 
 ---
 

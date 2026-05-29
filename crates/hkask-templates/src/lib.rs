@@ -33,6 +33,7 @@ pub mod curator_pipeline;
 pub mod dependency;
 pub mod engine;
 pub mod error;
+pub mod hlexicon_source;
 pub mod inference_port;
 pub mod manifest;
 pub mod multi_okapi;

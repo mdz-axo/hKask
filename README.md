@@ -61,7 +61,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 - `hkask-cli` — CLI commands
 - `hkask-api` — HTTP API, utoipa OpenAPI
 
-### MCP Servers (15 crates)
+### MCP Servers (16 crates)
 - `hkask-mcp-inference` — Okapi-backed LLM inference
 - `hkask-mcp-condenser` — General-purpose context reranking and condensation
 - `hkask-mcp-web` — Web search, scrape
@@ -77,6 +77,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 - `hkask-mcp-telnyx` — Communications (Telnyx)
 - `hkask-mcp-fal` — Media generation (FAL)
 - `hkask-mcp-rss-reader` — RSS feed reader
+- `hkask-mcp-goal` — Goal coordination substrate (OCAP-gated, CNS-observed); mirrors CLI/API
 
 **Converted to templates** (not MCP servers):
 - `spandrel` → `templates/spandrel/` (graph analysis)

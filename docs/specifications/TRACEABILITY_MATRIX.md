@@ -24,7 +24,8 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 |---------|------------|-------|--------|---------------|-------|--------|
 | REQ-DOM-001 | Bounded context identity | `hkask-types` | `id`, `event`, `agent_def` | `WebID`, `NuEvent`, `AgentDefinition` | — | ✅ Implemented |
 | REQ-DOM-002 | ν-event observability primitive | `hkask-types` | `event` | `NuEvent`, `Span`, `NuEventSink` | — | ✅ Implemented |
-| REQ-DOM-003 | hLexicon vocabulary grounding | `hkask-types` | lexicon | Bootstrap terms | — | ✅ Implemented |
+| REQ-DOM-003 | hLexicon vocabulary grounding | `hkask-types`, `hkask-templates` | `lexicon`, `contract_validator` | `HLexicon::canonical`, `ContractValidator` | `lexicon::tests::canonical_lexicon_matches_catalog` | ✅ Implemented |
+| REQ-DOM-004 | hLexicon single-source derivation (markdown → Rust, CI drift gate) | `hkask-types` | `lexicon`, `hlexicon_generated` | `HLexicon::canonical`, `generate-hlexicon.py`, `check-hlexicon.sh` | `lexicon::tests::*`, `docs/ci/check-hlexicon.sh` | ✅ Implemented |
 
 ## Capability
 
@@ -40,6 +41,7 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | Goal ID | Requirement | Crate | Module | Type/Function | Tests | Status |
 |---------|------------|-------|--------|---------------|-------|--------|
 | REQ-IFC-001 | MCP ≡ CLI ≡ API equivalence | `hkask-cli`, `hkask-api`, `hkask-mcp` | `main`, `lib`, `runtime` | `Commands`, `create_router`, `McpRuntime` | — | ✅ Implemented |
+| REQ-IFC-001a (P0-05) | Goal subsystem exposed on all three surfaces (parity exemplar) | `hkask-cli`, `hkask-api`, `hkask-mcp-goal` | `commands/goal`, `routes/goal`, `main` | `kask goal`, `goal_router`, `GoalServer` (`goal_create`/`goal_list`/`goal_set_state`) | `hkask-mcp-goal` tests (create/list round-trip, illegal transition, invalid visibility) | ✅ Implemented |
 | REQ-IFC-002 | OpenAPI documentation | `hkask-api` | `openapi` | `ApiDoc` | — | ✅ Implemented |
 
 ## Composition
@@ -64,7 +66,7 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 |---------|------------|-------|--------|---------------|-------|--------|
 | REQ-OBS-001 | CNS span emission | `hkask-types`, `hkask-cns` | `event`, `runtime` | `Span`, `CnsRuntime` | — | ✅ Implemented |
 | REQ-OBS-002 | Algedonic alerting | `hkask-cns`, `hkask-types` | `algedonic`, `cns` | `AlgedonicManager`, `AlgedonicAlert` | — | ✅ Implemented |
-| REQ-OBS-003 (ADR-029, P0-03) | Goal capability denials are observable — emit `cns.tool.goal.capability.denied` ν-events via injected `NuEventSink` port (non-fatal) | `hkask-storage`, `hkask-types` | `goals`, `event` | `SqliteGoalRepository::{with_telemetry, emit_denial}`, `NuEventSink` | `goals::tests` (denial telemetry, non-fatal sink), `hkask-cns` `goal_capability_cybertests` (cyber_) | ✅ Implemented |
+| REQ-OBS-003 (ADR-029, P0-03) | Goal capability denials are observable — emit `cns.tool.goal.capability.denied` ν-events via injected `NuEventSink` port (non-fatal) | `hkask-storage`, `hkask-types`, `hkask-api`, `hkask-mcp-goal` | `goals`, `event`, `routes/goal`, `main` | `SqliteGoalRepository::{with_telemetry, emit_denial}`, `NuEventSink`, `ApiState.goal_repo`, `GoalServer` | `goals::tests` (denial telemetry, non-fatal sink), `hkask-cns` `goal_capability_cybertests` (cyber_), `hkask-mcp-goal` tests | ✅ Implemented |
 
 ## Persistence
 
@@ -95,15 +97,15 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 |----------|------------|-----------|----------|-------|
 | Domain | 3 | 0 | 0 | 3 |
 | Capability | 4 | 0 | 2 | 6 |
-| Interface | 2 | 0 | 1 | 3 |
+| Interface | 3 | 0 | 1 | 4 |
 | Composition | 3 | 0 | 1 | 4 |
 | Trust & Security | 3 | 0 | 0 | 3 |
 | Observability | 3 | 0 | 0 | 3 |
 | Persistence | 2 | 0 | 1 | 3 |
 | Lifecycle | 2 | 0 | 0 | 2 |
 | Curation | 2 | 0 | 0 | 2 |
-| **Total** | **24** | **0** | **5** | **29** |
+| **Total** | **25** | **0** | **5** | **30** |
 
-**DDMVSS completeness:** 24/24 implemented requirements satisfied. 5 deferred with documented rationale (see [`REQUIREMENTS.md`](REQUIREMENTS.md) §11). `curated?` holds — every requirement has a curation decision.
+**DDMVSS completeness:** 25/25 implemented requirements satisfied. 5 deferred with documented rationale (see [`REQUIREMENTS.md`](REQUIREMENTS.md) §11). `curated?` holds — every requirement has a curation decision.
 
 **Test coverage note (updated 2026-05-29):** The goal-capability hardening (ADR-029, P0-03) added dedicated `#[test]` coverage: forgery/expiry/attenuation and transition tests in `hkask-types` (`goal_capability`, `goal`), confused-deputy/transition/owner-only-delete and denial-telemetry tests in `hkask-storage` (`goals`), and two `cyber_`-prefixed cybernetic tests in `hkask-cns` (`goal_capability_cybertests`). `cargo test --workspace` is green. Other DDMVSS requirements remain primarily doctest- or inspection-verified pending broader test expansion (P0-02).

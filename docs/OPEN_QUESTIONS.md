@@ -191,32 +191,43 @@ ddmvss_categories: [interface, composition, capability, observability, curation,
 
 The goal-capability subsystem was hardened (authority bound into the HMAC,
 constant-time verify, owner/visibility checks on writes, legal-transition
-enforcement, fail-loud read-back). Several aspects remain underspecified and are
-deliberately **not** pre-built (P5 — code not needed today is debt):
+enforcement, fail-loud read-back) and is now exposed on all three surfaces —
+CLI (`kask goal create|list|set-state`), HTTP API (`/api/goals`,
+`/api/goals/{id}/state`), and MCP (`hkask-mcp-goal`: `goal_create`,
+`goal_list`, `goal_set_state`) — each wired to the `NuEventStore` CNS denial
+sink. Several aspects remain underspecified and are deliberately **not**
+pre-built (P5 — code not needed today is debt):
 
 1. **Revocation.** `GoalCapabilityToken` carries only `expires`; there is no way
    to revoke a leaked token before expiry. Options: short-TTL-only (current),
    an epoch counter folded into the HMAC, or Miller-style revocable forwarders
-   (membranes). Decision needed before goal tokens cross trust boundaries.
-2. **Operation-set canonicalization encoding.** The signature now binds a
+   (membranes). Decision needed before goal tokens cross trust boundaries. Now
+   that a CLI surface exists, this is the highest-priority open item.
+2. **API/MCP parity.** ✅ **Resolved** — HTTP API routes (`hkask-api`
+   `routes/goal.rs`) and an MCP tool surface (`mcp-servers/hkask-mcp-goal`)
+   now mirror the CLI, satisfying MCP ≡ CLI ≡ API (REQ-IFC-001). A remaining
+   nuance: the API/MCP surfaces use per-process repository connections; a
+   shared-store wiring across surfaces is a deployment concern, not a
+   correctness one.
+3. **Operation-set canonicalization encoding.** The signature now binds a
    sorted, deduplicated, length-delimited operation list. Whether to switch to
    a stable bitset (smaller, ordering-free by construction) should be recorded
    in an ADR if the `GoalOp` set grows.
-3. **Single vs. dual capability primitive.** **Decided in ADR-029** —
+4. **Single vs. dual capability primitive.** **Decided in ADR-029** —
    `GoalCapabilityToken` is kept as a distinct type aligned with the canonical
    `CapabilityToken`'s invariants (shared `SYSTEM_MAX_ATTENUATION`,
    `can_attenuate()`, all-fields HMAC, constant-time verify), *not* collapsed
    into it. Full lineage unification (typed projection with root-nonce chain
    verification) remains open and revisitable if goal tokens cross trust
    boundaries. See `docs/architecture/ADR-029-goal-capability-primitive.md`.
-4. **Persistence corruption response.** Corruption now surfaces as
+5. **Persistence corruption response.** Corruption now surfaces as
    `GoalRepositoryError::Corrupt`; the system-level policy (quarantine, CNS
    algedonic alert, repair) is unspecified.
-5. **Recursion-bound coherence.** Attenuation depth, template cascade depth, and
+6. **Recursion-bound coherence.** Attenuation depth, template cascade depth, and
    subgoal depth all use "7". Confirm whether these should reference one shared
    constant (`SYSTEM_MAX_ATTENUATION`) rather than three coincidental literals.
 
-**See:** `crates/hkask-types/src/goal_capability.rs`, `crates/hkask-storage/src/goals.rs`, `crates/hkask-cns/tests/goal_capability_cybertests.rs`, `docs/architecture/reference/subsystem-erds.md` §13, ADR-025, ADR-029.
+**See:** `crates/hkask-types/src/goal_capability.rs`, `crates/hkask-storage/src/goals.rs`, `crates/hkask-cli/src/commands/goal.rs`, `crates/hkask-api/src/routes/goal.rs`, `mcp-servers/hkask-mcp-goal/src/main.rs`, `crates/hkask-cns/tests/goal_capability_cybertests.rs`, `docs/architecture/reference/subsystem-erds.md` §13, ADR-025, ADR-029.
 
 ### F5: 41,339 LOC vs. 35K Budget ✅ DEPRECATED
 

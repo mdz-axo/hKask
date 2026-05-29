@@ -1,4 +1,12 @@
-//! hLexicon — Canonical vocabulary for hKask
+//! hLexicon — vocabulary types for hKask
+//!
+//! The canonical vocabulary is authored in
+//! `docs/architecture/reference/hKask-hLexicon.md` (the single source of truth)
+//! and derived into the workspace lexicon registry
+//! `registry/registries/hlexicon-workspace.yaml`. Loading the full vocabulary
+//! from that YAML lives in `hkask-templates` (which owns lexicon validation and
+//! already depends on a YAML parser); this crate provides the plain types and a
+//! minimal [`HLexicon::bootstrap`] fixture.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -132,10 +140,11 @@ impl HLexicon {
     /// Create the default bootstrap hLexicon.
     ///
     /// This is a minimal startup subset (17 terms), NOT the full vocabulary.
-    /// The authoritative 87-term catalog lives in
-    /// `docs/architecture/reference/hKask-hLexicon.md`; additional terms are
-    /// loaded per-template from registry `hlexicon.yaml` files at runtime.
-    /// Domain assignments here MUST match the catalog's domain classification.
+    /// The full canonical vocabulary is authored in
+    /// `docs/architecture/reference/hKask-hLexicon.md` and loaded from
+    /// `registry/registries/hlexicon-workspace.yaml` by `hkask-templates`. This
+    /// fixture is retained for lightweight tests and seeds; domain assignments
+    /// here MUST match the catalog's domain classification.
     pub fn bootstrap() -> Self {
         let mut lexicon = Self::new();
 
@@ -237,5 +246,24 @@ impl HLexicon {
         ));
 
         lexicon
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bootstrap_domains_match_catalog() {
+        let lexicon = HLexicon::bootstrap();
+        // Recognition terms are KnowAct per the catalog (§3.1), not WordAct.
+        assert_eq!(
+            lexicon.get("recognize").map(|t| t.domain),
+            Some(Domain::KnowAct)
+        );
+        assert_eq!(
+            lexicon.get("reflect").map(|t| t.domain),
+            Some(Domain::KnowAct)
+        );
     }
 }

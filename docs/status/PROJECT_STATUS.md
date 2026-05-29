@@ -54,8 +54,8 @@ hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent
 | Component | Count | Description |
 |-----------|-------|-------------|
 | **Core Crates** | 11 | `hkask-*` in `crates/` |
-| **MCP Servers** | 15 | `hkask-mcp-*` in `mcp-servers/` |
-| **Total** | 26 | All in workspace |
+| **MCP Servers** | 16 | `hkask-mcp-*` in `mcp-servers/` (incl. `hkask-mcp-goal`) |
+| **Total** | 27 | All in workspace |
 
 ---
 
@@ -109,6 +109,7 @@ hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent
 | `hkask-mcp-telnyx` | 244 | ✅ Complete | Communications (Telnyx) |
 | `hkask-mcp-fal` | 434 | ✅ Complete | Media generation (FAL) |
 | `hkask-mcp-rss-reader` | 1,443 | ✅ Complete | RSS feed reader |
+| `hkask-mcp-goal` | ~235 | ✅ Complete | Goal coordination substrate (OCAP-gated, CNS-observed); mirrors CLI/API |
 
 **Note:** MCP servers are excluded from count per [`AGENTS.md`](../../AGENTS.md).
 
@@ -188,6 +189,8 @@ hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent
 | **P0-01** | ~~Fix hkask-storage trait mismatches (goals.rs compile errors)~~ — **superseded**: `goals.rs` compiles cleanly; the real defect was a capability-forgery / confused-deputy gap in the goal subsystem (see P0-03) | Storage bot | ✅ Closed (2026-05-29) |
 | **P0-02** | Integration tests for inference pipeline | Testing bot | Pending |
 | **P0-03** | Harden goal capability subsystem: bind all authority into the HMAC signature, constant-time verify, owner/visibility checks on every write, legal state-transition enforcement, fail-loud persistence read-back | Storage/Security bot | ✅ Complete (2026-05-29) |
+| **P0-04** | Wire goal subsystem into CLI (`kask goal create|list|set-state`) over the shared encrypted DB, with denials emitted to the `NuEventStore` CNS sink (ADR-029) | CLI bot | ✅ Complete (2026-05-29) |
+| **P0-05** | Goal subsystem API/MCP parity: HTTP routes (`/api/goals`, `/api/goals/{id}/state`) + `hkask-mcp-goal` server (`goal_create`/`goal_list`/`goal_set_state`), satisfying MCP ≡ CLI ≡ API (REQ-IFC-001) | API/MCP bot | ✅ Complete (2026-05-29) |
 
 ### 5.2 P1 — Important
 
@@ -227,6 +230,7 @@ hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent
 | `update_goal_state` accepted any transition despite an unused `InvalidTransition` variant | Correctness | `GoalState::can_transition_to` total function enforced at the repository boundary |
 | `goal_from_row` silently coerced corrupt state/visibility/timestamps to defaults | Persistence | Corruption now surfaces as an error; INSERTs persist RFC3339 `created_at` so timestamps round-trip |
 | `delete_goal` panicked via `.expect("mutex lock")` while siblings mapped `LockPoisoned` | Robustness | Unified on the `LockPoisoned` mapping; no panic path remains |
+| Goal subsystem had no live surface (telemetry seam unused) | Interface/Observability | Wired into CLI via `kask goal` with the `NuEventStore` denial sink; API/MCP parity tracked as OQ-F6 |
 
 ---
 

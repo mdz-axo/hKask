@@ -9,6 +9,7 @@ use crate::{
 };
 
 use crate::routes::{ArchiveRequest, ArchiveResponse, ResolveShaResponse};
+use crate::routes::{CreateGoalRequest, GoalListResponse, GoalResponse, SetGoalStateRequest};
 use crate::routes::{
     DismissEscalationRequest, DismissEscalationResponse, EscalationEntryResponse,
     EscalationStatsResponse, ListEscalationsResponse, MetacognitionStatusResponse,
@@ -52,6 +53,11 @@ use crate::routes::{StandingStartRequest, StandingStartResponse, StandingStatusR
         ArchiveRequest,
         ArchiveResponse,
         ResolveShaResponse,
+        // Goal schemas
+        CreateGoalRequest,
+        SetGoalStateRequest,
+        GoalResponse,
+        GoalListResponse,
     )),
     tags(
         (name = "templates", description = "Template management"),
@@ -65,6 +71,7 @@ use crate::routes::{StandingStartRequest, StandingStartResponse, StandingStatusR
         (name = "ensemble", description = "Ensemble multi-agent coordination"),
         (name = "git", description = "Git archival and resolution"),
         (name = "acp", description = "ACP agent registration and management"),
+        (name = "goals", description = "Goal coordination substrate (OCAP-gated)"),
     ),
     info(
         title = "hKask API",

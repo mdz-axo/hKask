@@ -109,6 +109,14 @@ pub fn generate_cli_markdown() -> String {
     md.push_str("- `health` — Get CNS health status\n");
     md.push_str("- `alerts` — Get algedonic alerts\n");
     md.push_str("- `variety` — Get variety counters\n\n");
+    md.push_str("### `kask goal` — Goal coordination substrate (OCAP-gated, CNS-observed)\n\n");
+    md.push_str("```bash\n");
+    md.push_str("kask goal <SUBCOMMAND>\n");
+    md.push_str("```\n\n");
+    md.push_str("Subcommands:\n");
+    md.push_str("- `create <TEXT> [--visibility private|shared|public]` — Create a goal you own\n");
+    md.push_str("- `list [--state <STATE>]` — List your goals\n");
+    md.push_str("- `set-state <ID> <STATE>` — Transition a goal (legal transitions only)\n\n");
     md.push_str("### `kask docs` — Documentation generation\n\n");
     md.push_str("```bash\n");
     md.push_str("kask docs <SUBCOMMAND>\n");

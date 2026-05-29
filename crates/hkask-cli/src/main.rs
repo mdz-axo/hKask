@@ -6,7 +6,7 @@
 use clap::Parser;
 use hkask_cli::cli::{
     self, AdminAction, AgentAction, BotAction, CnsAction, Commands, CuratorAction, DocsAction,
-    EnsembleAction, GitAction, KeystoreAction, McpAction, PodAction, RegistryAction,
+    EnsembleAction, GitAction, GoalAction, KeystoreAction, McpAction, PodAction, RegistryAction,
     ReplicantAction, SovereigntyAction, SpecAction, TemplateAction,
 };
 use hkask_cli::commands;
@@ -510,6 +510,15 @@ fn run_cns(rt: &tokio::runtime::Runtime, action: CnsAction) {
             println!("  (no variety data)");
         }
     }
+}
+
+fn run_goal(action: GoalAction) {
+    let result = match action {
+        GoalAction::Create { text, visibility } => commands::goal::create(&text, &visibility),
+        GoalAction::List { state } => commands::goal::list(state.as_deref()),
+        GoalAction::SetState { id, state } => commands::goal::set_state(&id, &state),
+    };
+    or_exit(result, "Goal command failed");
 }
 
 fn run_sovereignty(action: SovereigntyAction) {
