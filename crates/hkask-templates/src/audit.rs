@@ -2,6 +2,13 @@
 //!
 //! Logs bot ID, template ID, input hash, and outcome event ID for each dispatch.
 //! Stored in SQLite for correlation with CNS ν-events.
+//!
+//! **Bitemporal semantics:**
+//! - `executed_at` is transaction-time: when the render actually completed.
+//! - `context_timestamp` is valid-time: when the rendering context was assembled
+//!   (may predate `executed_at` if the template used stale or cached data).
+//! - The `triple()` method produces a subject-predicate-object representation
+//!   suitable for insertion into the bitemporal triple store.
 
 use chrono::{DateTime, Utc};
 use hkask_types::WebID;
@@ -21,8 +28,11 @@ pub struct ExecutionAudit {
     pub input_hash: String,
     /// CNS ν-event ID for outcome correlation
     pub outcome_event_id: Option<Uuid>,
-    /// Execution timestamp
+    /// Execution timestamp (transaction-time — when the render completed)
     pub executed_at: DateTime<Utc>,
+    /// Context assembly timestamp (valid-time — when the rendering context
+    /// was assembled; may predate `executed_at` for stale/cached contexts)
+    pub context_timestamp: Option<DateTime<Utc>>,
     /// Execution duration in milliseconds
     pub duration_ms: u64,
     /// Success or failure
@@ -48,10 +58,38 @@ impl ExecutionAudit {
             input_hash,
             outcome_event_id: None,
             executed_at: Utc::now(),
+            context_timestamp: None,
             duration_ms: 0,
             success: true,
             error_message: None,
             matroshka_depth,
+        }
+    }
+
+    /// Set context assembly timestamp (valid-time).
+    /// When the rendering context was assembled — may predate `executed_at`.
+    pub fn with_context_timestamp(mut self, ts: DateTime<Utc>) -> Self {
+        self.context_timestamp = Some(ts);
+        self
+    }
+
+    /// Produce a bitemporal triple representation of this audit.
+    ///
+    /// Returns a tuple of `(subject, predicate, object, valid_from, tx_from)`
+    /// suitable for insertion into the `TripleStore`. The `valid_from` is
+    /// the context assembly moment (or `executed_at` if not recorded);
+    /// the `tx_from` is when the render completed.
+    pub fn triple(&self) -> BitemporalTriple {
+        BitemporalTriple {
+            subject: format!(
+                "template:{}:render:invocation:{}",
+                self.template_id,
+                self.id.simple()
+            ),
+            predicate: "rendered".to_string(),
+            object: self.input_hash.clone(),
+            valid_from: self.context_timestamp.unwrap_or(self.executed_at),
+            tx_from: self.executed_at,
         }
     }
 
@@ -81,6 +119,19 @@ impl ExecutionAudit {
         hasher.update(input.as_bytes());
         hex::encode(hasher.finalize())
     }
+}
+
+/// A bitemporal triple — subject-predicate-object with valid-time and transaction-time.
+///
+/// Mirrors the schema in `hkask-storage::triples` for interop between
+/// the template audit layer and the bitemporal triple store.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BitemporalTriple {
+    pub subject: String,
+    pub predicate: String,
+    pub object: String,
+    pub valid_from: DateTime<Utc>,
+    pub tx_from: DateTime<Utc>,
 }
 
 /// Audit trail manager

@@ -1,8 +1,8 @@
 ---
 title: "hKask Requirements Specification"
 audience: [architects, developers, agents]
-last_updated: 2026-05-28
-version: "1.1.0"
+last_updated: 2026-05-29
+version: "1.2.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -73,25 +73,26 @@ Curation: Merge | Revise | Defer | Discard
   - [x] 87 term-slots allocated across WordAct (28) / FlowDef (34) / KnowAct (25); 86 unique term strings (`transform` shared across two domains)
   - [x] Spec-curation terms (`specify`, `require`, `constrain`, `curate`, `elicit`, `reconcile`, `contextualise`, `cultivate`) defined
   - [x] Terms referenced in template `lexicon_terms` field and enforced at registration by `ContractValidator`
-- **Implementation:** `hkask-types::lexicon` (`HLexicon::canonical`), `hkask-templates::contract_validator::ContractValidator`
-- **Tests:** `hkask-types::lexicon::tests::canonical_lexicon_matches_catalog`
+- **Implementation:** `hkask-types::lexicon` (`HLexicon`), `hkask-templates::hlexicon_source::load_workspace_lexicon`, `hkask-templates::contract_validator::ContractValidator`
+- **Tests:** `hkask-templates::hlexicon_source::tests::workspace_yaml_loads`
 - **Status:** Implemented
 - **Curation:** Merge
 
 ### REQ-DOM-004: hLexicon Single-Source Derivation
 
 - **Category:** Domain, Lifecycle, Curation
-- **Text:** When the hLexicon vocabulary evolves, I want the markdown catalog to be the single source of truth from which code is derived, so the documentation and the code cannot silently drift apart.
+- **Text:** When the hLexicon vocabulary evolves, I want the markdown catalog to be the single source of truth from which the YAML registry is derived, with regeneration kept explicit and human-driven, so the documentation and the data cannot silently drift apart and the derived YAML is never invisibly rewritten.
 - **Criteria:**
   - [x] `docs/architecture/reference/hKask-hLexicon.md` is the canonical source; its term tables define the vocabulary
-  - [x] `scripts/generate-hlexicon.py` derives `crates/hkask-types/src/hlexicon_generated.rs` from the markdown
-  - [x] `HLexicon::canonical()` loads the derived terms at compile time via `include!` (no new runtime dependency)
-  - [x] `docs/ci/check-hlexicon.sh` fails CI when the committed derived file does not match a fresh regeneration
-  - [x] The gate is wired into `.github/workflows/docs.yml` (`doc-gates` job)
-- **Implementation:** `scripts/generate-hlexicon.py`, `crates/hkask-types/src/hlexicon_generated.rs`, `hkask-types::lexicon::HLexicon::canonical`, `docs/ci/check-hlexicon.sh`, `.github/workflows/docs.yml`
-- **Tests:** `hkask-types::lexicon::tests::canonical_lexicon_matches_catalog`, `bootstrap_is_a_subset_of_canonical`; `docs/ci/check-hlexicon.sh` (drift gate)
+  - [x] `registry/registries/hlexicon-workspace.yaml` is a committed, derived artifact with its own data lifecycle (customizable/extensible, unlike compiled Rust)
+  - [x] Derivation lives in Rust only — no new language toolchain: `hkask-templates::hlexicon_source` parses the markdown and renders the YAML
+  - [x] Regeneration is explicit and opt-in (`#[ignore]`d `regenerate_workspace_yaml` test); the YAML is never auto-overwritten
+  - [x] `load_workspace_lexicon()` loads the 86-term vocabulary from the committed YAML for validation
+  - [x] Consistency check `hlexicon_yaml_matches_markdown` rides `cargo test --workspace` and fails on drift, prompting the maintainer to regenerate or restore the markdown from git
+- **Implementation:** `hkask-templates::hlexicon_source` (`parse_markdown_catalog`, `render_workspace_yaml`, `load_workspace_lexicon`, `regenerate_workspace_yaml`), `registry/registries/hlexicon-workspace.yaml`
+- **Tests:** `hkask-templates::hlexicon_source::tests::{markdown_parses_to_expected_counts, hlexicon_yaml_matches_markdown, workspace_yaml_loads}` (consistency rides `cargo test --workspace`); `hkask-types::lexicon::tests::bootstrap_domains_match_catalog`
 - **Status:** Implemented
-- **Curation:** Merge — closes the drift gap that allowed the doc/code term counts to diverge
+- **Curation:** Merge — closes the drift gap that allowed the doc/code term counts to diverge; markdown/YAML/Rust have distinct, intentional lifecycles
 
 ---
 

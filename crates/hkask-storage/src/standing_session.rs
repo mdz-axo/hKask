@@ -1,4 +1,12 @@
 //! StandingSessionStore — Persistent storage for standing ensemble sessions
+//!
+//! Session lifecycle under master key rotation:
+//! - Each session records the `key_version` under which it was created.
+//! - On master key rotation, old sessions are sealed (read-only) via
+//!   `seal_sessions_before_version()`. New sessions use the new key version.
+//! - Sealed sessions remain readable but cannot accept new messages —
+//!   they are archival, consistent with the architecture's forward-only
+//!   migration policy (no automatic re-encryption).
 
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
@@ -13,6 +21,8 @@ pub enum StandingSessionError {
     Serialization(#[from] serde_json::Error),
     #[error("Session not found: {0}")]
     NotFound(String),
+    #[error("Session is sealed (key version mismatch): {0}")]
+    Sealed(String),
     #[error("Lock poisoned: {0}")]
     LockPoisoned(String),
 }
@@ -23,6 +33,12 @@ pub struct StoredSession {
     pub config_yaml: String,
     pub created_at: String,
     pub last_active: String,
+    /// Key derivation version at session creation.
+    /// Incremented when the master key is rotated.
+    pub key_version: u32,
+    /// `true` when the session's key version predates the current derivation
+    /// context — sealed sessions are read-only archives.
+    pub sealed: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -55,7 +71,9 @@ impl StandingSessionStore {
                 session_id TEXT PRIMARY KEY,
                 config_yaml TEXT NOT NULL,
                 created_at TEXT NOT NULL,
-                last_active TEXT NOT NULL
+                last_active TEXT NOT NULL,
+                key_version INTEGER NOT NULL DEFAULT 1,
+                sealed INTEGER NOT NULL DEFAULT 0
             );
             CREATE TABLE IF NOT EXISTS session_messages (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -77,13 +95,15 @@ impl StandingSessionStore {
             .lock()
             .map_err(|e| StandingSessionError::LockPoisoned(e.to_string()))?;
         conn.execute(
-            "INSERT OR REPLACE INTO standing_sessions (session_id, config_yaml, created_at, last_active)
-             VALUES (?1, ?2, ?3, ?4)",
+            "INSERT OR REPLACE INTO standing_sessions (session_id, config_yaml, created_at, last_active, key_version, sealed)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             rusqlite::params![
                 session.session_id,
                 session.config_yaml,
                 session.created_at,
                 session.last_active,
+                session.key_version as i32,
+                session.sealed as i32,
             ],
         )?;
         Ok(())
@@ -95,7 +115,7 @@ impl StandingSessionStore {
             .lock()
             .map_err(|e| StandingSessionError::LockPoisoned(e.to_string()))?;
         let mut stmt = conn.prepare(
-            "SELECT session_id, config_yaml, created_at, last_active
+            "SELECT session_id, config_yaml, created_at, last_active, key_version, sealed
              FROM standing_sessions WHERE session_id = ?1",
         )?;
 
@@ -106,6 +126,8 @@ impl StandingSessionStore {
                     row.get::<_, String>(1)?,
                     row.get::<_, String>(2)?,
                     row.get::<_, String>(3)?,
+                    row.get::<_, i32>(4)? as u32,
+                    row.get::<_, i32>(5)? != 0,
                 ))
             })
             .map_err(|_| StandingSessionError::NotFound(session_id.to_string()))?;
@@ -115,6 +137,8 @@ impl StandingSessionStore {
             config_yaml: session.1,
             created_at: session.2,
             last_active: session.3,
+            key_version: session.4,
+            sealed: session.5,
         })
     }
 

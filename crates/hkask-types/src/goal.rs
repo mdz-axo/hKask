@@ -10,8 +10,9 @@
 //! - Transient: goals aren't retained long-term; agent memory holds the experience
 //! - LLM-judged: verification uses LLM to avoid Goodhart's law
 //! - Cross-agent: works equally for human, replicant, bot
-//! - Hierarchical: sub-goals decompose large goals (max depth 7)
+//! - Hierarchical: sub-goals decompose large goals (max depth = SYSTEM_MAX_RECURSION)
 
+use crate::capability::SYSTEM_MAX_RECURSION;
 pub use crate::id::GoalID;
 use crate::id::WebID;
 use crate::visibility::Visibility;
@@ -198,7 +199,7 @@ impl Goal {
     }
 
     pub fn can_have_subgoals(&self) -> bool {
-        !self.is_terminal() && self.depth < 7
+        !self.is_terminal() && self.depth < SYSTEM_MAX_RECURSION
     }
 }
 

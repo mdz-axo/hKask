@@ -32,6 +32,16 @@ struct CnsState {
     algedonic: Arc<StdRwLock<AlgedonicManager>>,
     variety: VarietyMonitor,
     sovereignty_observer: SovereigntyObserver,
+    /// Subscribers for headless escalation delivery.
+    /// Each subscriber is a callback invoked on Critical alerts.
+    /// This is how "Escalate to Human" works in a headless system —
+    /// the human connects via MCP/CLI and registers a subscriber,
+    /// and the CnsRuntime delivers the alert to their interface.
+    ///
+    /// Uses std::sync::Mutex (not tokio) so subscribers can be
+    /// unregistered from any thread, including Drop implementations.
+    subscribers: std::sync::Mutex<Vec<(u64, Arc<dyn Fn(&RuntimeAlert) + Send + Sync>)>>,
+    next_subscriber_id: std::sync::atomic::AtomicU64,
 }
 
 impl CnsState {
@@ -45,6 +55,8 @@ impl CnsState {
             algedonic,
             variety: VarietyMonitor::new(),
             sovereignty_observer,
+            subscribers: std::sync::Mutex::new(Vec::new()),
+            next_subscriber_id: std::sync::atomic::AtomicU64::new(1),
         }
     }
 }
@@ -166,14 +178,40 @@ impl CnsRuntime {
                 .unwrap_or_else(VarietyTracker::new)
         };
 
-        let state = self.state.write().await;
-        match Self::write_algedonic(&state.algedonic) {
-            Ok(mut mgr) => mgr.check(&counter, domain).cloned(),
-            Err(e) => {
-                warn!("CNS lock poisoned during variety check: {}", e);
-                None
+        let alert = {
+            let state = self.state.write().await;
+            match Self::write_algedonic(&state.algedonic) {
+                Ok(mut mgr) => mgr.check(&counter, domain).cloned(),
+                Err(e) => {
+                    warn!("CNS lock poisoned during variety check: {}", e);
+                    None
+                }
+            }
+        };
+
+        // Headless escalation: if a Critical alert was produced,
+        // deliver it to all registered subscribers immediately.
+        // Uses std::sync::Mutex so the lock is held for a minimal
+        // duration (no await point inside the lock scope).
+        if let Some(ref alert) = alert
+            && alert.is_critical()
+        {
+            let subs: Vec<Arc<dyn Fn(&RuntimeAlert) + Send + Sync>> = {
+                let state = self.state.read().await;
+                state
+                    .subscribers
+                    .lock()
+                    .expect("subscriber lock should not be poisoned")
+                    .iter()
+                    .map(|(_, f)| f.clone())
+                    .collect()
+            };
+            for subscriber in &subs {
+                subscriber(alert);
             }
         }
+
+        alert
     }
 
     /// Check all domains and return count of alerts generated
@@ -251,6 +289,56 @@ impl CnsRuntime {
     ) -> crate::observers::sovereignty::SovereigntyObserverState {
         let state = self.state.read().await;
         state.sovereignty_observer.get_state()
+    }
+
+    /// Subscribe to algedonic alert delivery.
+    ///
+    /// The subscriber is invoked on every Critical alert produced by
+    /// [`check_variety`]. This is the headless equivalent of
+    /// "Escalate to Human" — the human connects via MCP/CLI,
+    /// registers a subscriber, and receives push notifications.
+    ///
+    /// Returns an opaque subscription handle. Drop it to unsubscribe.
+    pub async fn subscribe(
+        &self,
+        f: impl Fn(&RuntimeAlert) + Send + Sync + 'static,
+    ) -> AlertSubscription {
+        let id = {
+            let state = self.state.read().await;
+            state
+                .next_subscriber_id
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        };
+        let arc: Arc<dyn Fn(&RuntimeAlert) + Send + Sync> = Arc::new(f);
+        {
+            let state = self.state.read().await;
+            state
+                .subscribers
+                .lock()
+                .expect("subscriber lock should not be poisoned")
+                .push((id, arc.clone()));
+        }
+        AlertSubscription {
+            id,
+            state: self.state.clone(),
+        }
+    }
+}
+
+/// Opaque handle returned by [`CnsRuntime::subscribe`].
+/// Dropping this handle unregisters the subscriber.
+pub struct AlertSubscription {
+    id: u64,
+    state: Arc<RwLock<CnsState>>,
+}
+
+impl Drop for AlertSubscription {
+    fn drop(&mut self) {
+        if let Ok(state) = self.state.try_read() {
+            if let Ok(mut subs) = state.subscribers.lock() {
+                subs.retain(|(sid, _)| *sid != self.id);
+            }
+        }
     }
 }
 

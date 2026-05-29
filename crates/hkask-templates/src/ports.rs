@@ -230,8 +230,10 @@ pub struct MemoryFragment {
     pub confidence: f64,
 }
 
-/// Maximum Matroshka nesting depth (configurable per template)
-pub const DEFAULT_MATROSHKA_LIMIT: u8 = 7;
+/// Maximum Matroshka nesting depth (configurable per template).
+/// Defaults to [`hkask_types::capability::SYSTEM_MAX_RECURSION`] — the
+/// system-wide recursion bound shared by attenuation, cascade, and subgoals.
+pub const DEFAULT_MATROSHKA_LIMIT: u8 = hkask_types::capability::SYSTEM_MAX_RECURSION;
 
 /// Default model tier for fast local inference
 pub const FAST_LOCAL_MODEL: &str = "fast_local";

@@ -15,9 +15,23 @@
 //! - Distributed verification via Paxos/CRDT lazy consistency
 //! - No central authority required — capabilities verified cryptographically
 
+/// System-wide maximum recursion depth.
+///
+/// Grounds all structurally-bounded recursion across the system:
+/// capability attenuation levels, template cascade depth, subgoal nesting.
+/// Each domain may further restrict (≤ this value) but none may exceed.
+///
+/// The name `RECURSION` is the structural bound; `SYSTEM_MAX_ATTENUATION`
+/// is the capability-specific alias — same number, different Miller designation
+/// (naming is a security boundary for least-authority reasoning).
+pub const SYSTEM_MAX_RECURSION: u8 = 7;
+
 /// System-wide maximum attenuation depth.
 /// Tokens with max_attenuation exceeding this value are rejected at verification time.
-pub const SYSTEM_MAX_ATTENUATION: u8 = 7;
+///
+/// This is a capability-domain alias for [`SYSTEM_MAX_RECURSION`] — sharing one
+/// literal prevents accidental drift between attenuation, cascade, and subgoal bounds.
+pub const SYSTEM_MAX_ATTENUATION: u8 = SYSTEM_MAX_RECURSION;
 
 mod verification;
 

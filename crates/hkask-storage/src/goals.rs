@@ -31,7 +31,7 @@ pub enum GoalRepositoryError {
     #[error("Invalid goal state transition: {0}")]
     InvalidTransition(String),
 
-    #[error("Subgoal depth exceeded (max 7): {0}")]
+    #[error("Subgoal depth exceeded: {0}")]
     MaxDepthExceeded(String),
 
     #[error("Lock poisoned: {0}")]
@@ -535,7 +535,7 @@ impl SqliteGoalRepository {
 
         if !parent.can_have_subgoals() {
             return Err(GoalRepositoryError::MaxDepthExceeded(format!(
-                "Parent goal at depth {} cannot have subgoals (max depth 7)",
+                "Parent goal at depth {} cannot have subgoals",
                 parent.depth
             )));
         }

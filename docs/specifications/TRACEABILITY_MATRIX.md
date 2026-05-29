@@ -2,7 +2,7 @@
 title: "hKask Traceability Matrix"
 audience: [architects, developers, auditors]
 last_updated: 2026-05-29
-version: "1.1.1"
+version: "1.2.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -24,8 +24,8 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 |---------|------------|-------|--------|---------------|-------|--------|
 | REQ-DOM-001 | Bounded context identity | `hkask-types` | `id`, `event`, `agent_def` | `WebID`, `NuEvent`, `AgentDefinition` | — | ✅ Implemented |
 | REQ-DOM-002 | ν-event observability primitive | `hkask-types` | `event` | `NuEvent`, `Span`, `NuEventSink` | — | ✅ Implemented |
-| REQ-DOM-003 | hLexicon vocabulary grounding | `hkask-types`, `hkask-templates` | `lexicon`, `contract_validator` | `HLexicon::canonical`, `ContractValidator` | `lexicon::tests::canonical_lexicon_matches_catalog` | ✅ Implemented |
-| REQ-DOM-004 | hLexicon single-source derivation (markdown → Rust, CI drift gate) | `hkask-types` | `lexicon`, `hlexicon_generated` | `HLexicon::canonical`, `generate-hlexicon.py`, `check-hlexicon.sh` | `lexicon::tests::*`, `docs/ci/check-hlexicon.sh` | ✅ Implemented |
+| REQ-DOM-003 | hLexicon vocabulary grounding | `hkask-types`, `hkask-templates` | `lexicon`, `hlexicon_source`, `contract_validator` | `HLexicon`, `load_workspace_lexicon`, `ContractValidator` | `hlexicon_source::tests::workspace_yaml_loads` | ✅ Implemented |
+| REQ-DOM-004 | hLexicon single-source derivation (markdown → YAML, explicit regen, drift test) | `hkask-templates` | `hlexicon_source` | `parse_markdown_catalog`, `render_workspace_yaml`, `load_workspace_lexicon`, `regenerate_workspace_yaml` | `hlexicon_source::tests::{markdown_parses_to_expected_counts, hlexicon_yaml_matches_markdown, workspace_yaml_loads}` | ✅ Implemented |
 
 ## Capability
 

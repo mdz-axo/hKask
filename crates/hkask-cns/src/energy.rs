@@ -87,6 +87,38 @@ impl EnergyBudget {
         Ok(cost)
     }
 
+    /// Try to consume energy for a named operation.
+    ///
+    /// This is the enforcement gate — callers that wish to be quota-gated
+    /// pass through this method before performing an operation. If the
+    /// budget is exhausted, the operation is rejected with `BudgetExceeded`.
+    ///
+    /// This turns energy *observation* into energy *regulation* — a complete
+    /// cybernetic loop (Observe → Regulate → Outcome).
+    pub fn try_consume(
+        &mut self,
+        operation: &str,
+        estimated_tokens: u64,
+    ) -> Result<u64, EnergyError> {
+        let cost = self.calculate_cost(estimated_tokens);
+        if self.hard_limit && cost > self.remaining {
+            return Err(EnergyError::BudgetExceeded {
+                requested: cost,
+                remaining: self.remaining,
+            });
+        }
+        self.remaining = self.remaining.saturating_sub(cost);
+        tracing::debug!(
+            target: "cns.energy.consume",
+            operation = %operation,
+            tokens = estimated_tokens,
+            cost = cost,
+            remaining = self.remaining,
+            "Energy consumed"
+        );
+        Ok(cost)
+    }
+
     /// Check if alert should be triggered
     pub fn should_alert(&self) -> bool {
         let usage_ratio = 1.0 - (self.remaining as f64 / self.cap as f64);

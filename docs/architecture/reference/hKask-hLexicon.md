@@ -60,38 +60,48 @@ contract:
 The term tables below are canonical. Code does not hand-maintain a parallel
 list; it derives one from this file.
 
+The three representations have deliberately different lifecycles:
+
+| Artifact | Lifecycle | Editable by |
+|----------|-----------|-------------|
+| `hKask-hLexicon.md` (this file) | **Canonical** — human-authored | Maintainers (prose + tables) |
+| `registry/registries/hlexicon-workspace.yaml` | **Derived data** — committed; can be customized/extended | Tooling (regen) + subsystem registries |
+| `hkask-types::lexicon` types | **Compiled** | Not user-editable |
+
 ```mermaid
 flowchart LR
-    MD["hKask-hLexicon.md<br/>(CANONICAL)"] -->|generate-hlexicon.py| RS["hlexicon_generated.rs<br/>(derived, committed)"]
-    RS -->|include! at compile time| FN["HLexicon::canonical()"]
-    MD -.->|check-hlexicon.sh| GATE{committed ==<br/>regenerated?}
-    RS -.-> GATE
-    GATE -->|drift| FAIL["CI fails:<br/>regenerate + commit"]
+    MD["hKask-hLexicon.md<br/>(CANONICAL)"] -->|regenerate_workspace_yaml<br/>(explicit, opt-in)| YAML["hlexicon-workspace.yaml<br/>(derived, committed)"]
+    YAML -->|load_workspace_lexicon| FN["HLexicon (runtime)"]
+    MD -.->|hlexicon_yaml_matches_markdown<br/>(rides cargo test)| GATE{YAML ==<br/>markdown?}
+    YAML -.-> GATE
+    GATE -->|drift| ASK["test fails:<br/>regenerate OR<br/>restore markdown from git"]
 ```
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-LEX-001
 verified_date: 2026-05-29
-verified_against: scripts/generate-hlexicon.py; crates/hkask-types/src/hlexicon_generated.rs; crates/hkask-types/src/lexicon.rs (HLexicon::canonical); docs/ci/check-hlexicon.sh
+verified_against: crates/hkask-templates/src/hlexicon_source.rs (parse_markdown_catalog, render_workspace_yaml, load_workspace_lexicon, hlexicon_yaml_matches_markdown, regenerate_workspace_yaml); registry/registries/hlexicon-workspace.yaml
 status: VERIFIED
 -->
 
 **Process when the vocabulary changes:**
 
 1. Edit the term tables in this file (add/remove/recategorize a term).
-2. Run `python3 scripts/generate-hlexicon.py` to regenerate the derived Rust.
-3. Commit both this file and `crates/hkask-types/src/hlexicon_generated.rs`.
-4. `docs/ci/check-hlexicon.sh` (wired into `.github/workflows/docs.yml`) fails
-   the build if step 2 was skipped, preventing the silent drift this process
-   was introduced to eliminate.
+2. Regenerate the derived YAML explicitly (never automatic):
+   `cargo test -p hkask-templates regenerate_workspace_yaml -- --ignored`
+3. Commit both this file and `registry/registries/hlexicon-workspace.yaml`.
+4. The `hlexicon_yaml_matches_markdown` test (runs under `cargo test --workspace`)
+   fails if the YAML and markdown disagree. On failure the maintainer decides:
+   the markdown was corrupted → restore from git; or it evolved intentionally →
+   run step 2 and commit. The derived YAML is **never** silently overwritten.
 
 **Counting note:** the tables define **87 term-slots** (28 WordAct + 34 FlowDef
 + 25 KnowAct). One term, `transform`, is intentionally shared between WordAct
 (Declarative) and FlowDef (Data Flow), so there are **86 globally-unique term
-strings**. The `HLexicon` map is keyed by term string and therefore holds 86
-entries; `transform` takes its first/primary domain (WordAct). The derived
-`CANONICAL_TERMS` array and `HLexicon::canonical()` both reflect this 86-term
-functional set. Requirement: [`REQ-DOM-004`](../../specifications/REQUIREMENTS.md).
+strings**. The lexicon is keyed by term string and therefore holds 86 entries;
+`transform` takes its first/primary domain (WordAct), leaving 33 unique FlowDef
+keys. `load_workspace_lexicon()` reflects this 86-term functional set.
+Requirement: [`REQ-DOM-004`](../../specifications/REQUIREMENTS.md).
 
 ---
 

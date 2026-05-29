@@ -13,7 +13,7 @@ set -euo pipefail
 # Configuration
 # ============================================================================
 
-HKASK_VERSION="${HKASK_VERSION:-0.21.0}"
+HKASK_VERSION="${HKASK_VERSION:-0.21.1}"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local}"
 BIN_DIR="${INSTALL_DIR}/bin"
 CARGO_BIN="${CARGO_HOME:-$HOME/.cargo}/bin"
