@@ -24,3 +24,6 @@ uuid.workspace = true
 url.workspace = true
 anyhow.workspace = true
 reqwest.workspace = true
+
+[dev-dependencies]
+hkask-cybertest = { path = "../hkask-cybertest" }

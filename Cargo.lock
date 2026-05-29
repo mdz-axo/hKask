@@ -2048,6 +2048,7 @@ name = "hkask-cns"
 version = "0.21.0"
 dependencies = [
  "chrono",
+ "hkask-cybertest",
  "hkask-types",
  "parking_lot",
  "serde",
@@ -2056,6 +2057,18 @@ dependencies = [
  "tokio",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "hkask-cybertest"
+version = "0.21.0"
+dependencies = [
+ "hkask-cns",
+ "hkask-types",
+ "parking_lot",
+ "serde",
+ "serde_json",
+ "thiserror",
 ]
 
 [[package]]
@@ -2111,6 +2124,7 @@ dependencies = [
  "chrono",
  "hkask-agents",
  "hkask-cns",
+ "hkask-cybertest",
  "hkask-keystore",
  "hkask-templates",
  "hkask-types",

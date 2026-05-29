@@ -1,0 +1,14 @@
+[package]
+name = "hkask-cybertest"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Cybernetic unit test support harness for hKask"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+parking_lot.workspace = true
+hkask-types = { path = "../hkask-types" }
+hkask-cns = { path = "../hkask-cns" }

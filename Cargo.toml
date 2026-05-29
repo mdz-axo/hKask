@@ -13,6 +13,7 @@ members = [
     "crates/hkask-mcp",
     "crates/hkask-cli",
     "crates/hkask-api",
+    "crates/hkask-cybertest",
     # MCP servers
     "mcp-servers/hkask-mcp-inference",
     "mcp-servers/hkask-mcp-condenser",
