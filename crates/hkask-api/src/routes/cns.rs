@@ -28,7 +28,7 @@ pub fn cns_router() -> Router<ApiState> {
 async fn cns_health(State(state): State<ApiState>) -> Json<CnsHealthResponse> {
     state.cns_emitter.emit_with_phase(
         Span::tool("cns.health.check"),
-        Phase::Observe,,
+        Phase::Observe,
         serde_json::json!({
             "timestamp": chrono::Utc::now().to_rfc3339(),
         }),

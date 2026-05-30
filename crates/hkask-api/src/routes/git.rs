@@ -74,7 +74,7 @@ async fn archive(
 ) -> Result<Json<ArchiveResponse>, (StatusCode, Json<ErrorResponse>)> {
     state.cns_emitter.emit_with_phase(
         Span::agent_pod("api.git.archive.start"),
-        Phase::Observe,,
+        Phase::Observe,
         serde_json::json!({
             "owner": req.owner,
             "repo": req.repo,
@@ -105,7 +105,7 @@ async fn archive(
     let template_crate = git_cas.load_template_crate(&crate_name).map_err(|e| {
         state.cns_emitter.emit_with_phase(
         Span::agent_pod("api.git.archive.error"),
-        Phase::Observe,,
+        Phase::Observe,
             serde_json::json!({ "error": e.to_string() }),
         );
         match e {
@@ -159,7 +159,7 @@ async fn archive(
 
     state.cns_emitter.emit_with_phase(
         Span::agent_pod("api.git.archive.success"),
-        Phase::Observe,,
+        Phase::Observe,
         serde_json::json!({
             "crate_name": crate_name,
             "sha": sha,
@@ -192,7 +192,7 @@ async fn resolve_sha(
 ) -> Result<Json<ResolveShaResponse>, (StatusCode, Json<ErrorResponse>)> {
     state.cns_emitter.emit_with_phase(
         Span::agent_pod("api.git.resolve.start"),
-        Phase::Observe,,
+        Phase::Observe,
         serde_json::json!({
             "sha": sha,
         }),
@@ -205,7 +205,7 @@ async fn resolve_sha(
     let resolved = git_cas.resolve_sha(&sha).map_err(|e| {
         state.cns_emitter.emit_with_phase(
         Span::agent_pod("api.git.resolve.error"),
-        Phase::Observe,,
+        Phase::Observe,
             serde_json::json!({ "error": e.to_string() }),
         );
         (
@@ -222,7 +222,7 @@ async fn resolve_sha(
 
     state.cns_emitter.emit_with_phase(
         Span::agent_pod("api.git.resolve.success"),
-        Phase::Observe,,
+        Phase::Observe,
         serde_json::json!({
             "resolved_sha": resolved,
         }),

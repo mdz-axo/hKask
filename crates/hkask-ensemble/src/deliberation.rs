@@ -112,7 +112,7 @@ impl DeliberationSession {
 
         span_emitter.emit_with_phase(
         Span::agent_pod("deliberation_started"),
-        Phase::Observe,,
+        Phase::Observe,
             json!({
                 "session_id": session_id,
             }),
@@ -131,7 +131,7 @@ impl DeliberationSession {
     pub fn add_participant(&mut self, participant: ChatParticipant) {
         self.span_emitter.emit_with_phase(
         Span::agent_pod("deliberation_participant_added"),
-        Phase::Observe,,
+        Phase::Observe,
             json!({
                 "webid": participant.webid.to_string(),
                 "role": format!("{:?}", participant.role),
@@ -145,7 +145,7 @@ impl DeliberationSession {
     pub fn record_response(&mut self, response: AgentResponse) {
         self.span_emitter.emit_with_phase(
         Span::tool("deliberation_response"),
-        Phase::Observe,,
+        Phase::Observe,
             json!({
                 "agent": response.agent_webid.to_string(),
                 "confidence": response.confidence,
@@ -165,7 +165,7 @@ impl DeliberationSession {
     pub fn synthesize(&self) -> DeliberationResult {
         self.span_emitter.emit_with_phase(
         Span::tool("deliberation_synthesize"),
-        Phase::Observe,,
+        Phase::Observe,
             json!({
                 "response_count": self.responses.len(),
             }),
@@ -187,7 +187,7 @@ impl DeliberationSession {
 
         self.span_emitter.emit_with_phase(
         Span::agent_pod("deliberation_completed"),
-        Phase::Observe,,
+        Phase::Observe,
             json!({
                 "session_id": self.session_id,
                 "response_count": individual_responses.len(),
@@ -213,7 +213,7 @@ impl DeliberationSession {
         self.span_emitter
             .emit_with_phase(
         Span::agent_pod("deliberation_started"),
-        Phase::Observe,, json!({}));
+        Phase::Observe, json!({}));
     }
 
     /// Mark deliberation as completed
@@ -222,7 +222,7 @@ impl DeliberationSession {
         self.span_emitter
             .emit_with_phase(
         Span::agent_pod("deliberation_completed"),
-        Phase::Observe,, json!({}));
+        Phase::Observe, json!({}));
         info!("Deliberation session {} completed", self.session_id);
     }
 
@@ -232,7 +232,7 @@ impl DeliberationSession {
         self.span_emitter
             .emit_with_phase(
         Span::agent_pod("deliberation_cancelled"),
-        Phase::Observe,, json!({}));
+        Phase::Observe, json!({}));
         info!("Deliberation session {} cancelled", self.session_id);
     }
 

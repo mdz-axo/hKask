@@ -52,7 +52,7 @@ impl GmlServer {
 
         self.cns_emitter.emit_with_phase(
         Span::prompt("compute_equilibrium.start"),
-        Phase::Observe,,
+        Phase::Observe,
             serde_json::json!({
                 "concept": concept.name,
                 "effectors_count": effectors.as_ref().map(|e| e.len()).unwrap_or(0)
@@ -73,7 +73,7 @@ impl GmlServer {
                     Ok(result) if !result.valid => {
                         self.cns_emitter.emit_with_phase(
         Span::prompt("compute_equilibrium.error"),
-        Phase::Observe,,
+        Phase::Observe,
                             serde_json::json!({
                                 "reason": "capability_denied",
                                 "error": result.error
@@ -91,7 +91,7 @@ impl GmlServer {
                     Err(e) => {
                         self.cns_emitter.emit_with_phase(
         Span::prompt("compute_equilibrium.error"),
-        Phase::Observe,,
+        Phase::Observe,
                             serde_json::json!({
                                 "reason": "verification_failed",
                                 "error": e.to_string()
@@ -125,7 +125,7 @@ impl GmlServer {
                 let delta_g = MwcEngine::compute_delta_g(r_bar, 298.0);
                 self.cns_emitter.emit_with_phase(
         Span::prompt("compute_equilibrium.success"),
-        Phase::Observe,,
+        Phase::Observe,
                     serde_json::json!({
                         "r_bar": r_bar,
                         "n_h": n_h,
@@ -144,7 +144,7 @@ impl GmlServer {
             Err(e) => {
                 self.cns_emitter.emit_with_phase(
         Span::prompt("compute_equilibrium.error"),
-        Phase::Observe,,
+        Phase::Observe,
                     serde_json::json!({
                         "reason": "computation_failed",
                         "error": e.to_string()
@@ -172,7 +172,7 @@ impl GmlServer {
 
         self.cns_emitter.emit_with_phase(
         Span::prompt("bind_effector.start"),
-        Phase::Observe,,
+        Phase::Observe,
             serde_json::json!({
                 "concept": concept.name,
                 "effector": effector.name,
@@ -194,7 +194,7 @@ impl GmlServer {
                     Ok(result) if !result.valid => {
                         self.cns_emitter.emit_with_phase(
         Span::prompt("bind_effector.error"),
-        Phase::Observe,,
+        Phase::Observe,
                             serde_json::json!({
                                 "reason": "capability_denied",
                                 "error": result.error
@@ -212,7 +212,7 @@ impl GmlServer {
                     Err(e) => {
                         self.cns_emitter.emit_with_phase(
         Span::prompt("bind_effector.error"),
-        Phase::Observe,,
+        Phase::Observe,
                             serde_json::json!({
                                 "reason": "verification_failed",
                                 "error": e.to_string()
@@ -235,7 +235,7 @@ impl GmlServer {
                     Ok(false) => {
                         self.cns_emitter.emit_with_phase(
         Span::prompt("bind_effector.error"),
-        Phase::Observe,,
+        Phase::Observe,
                             serde_json::json!({
                                 "reason": "budget_exceeded",
                                 "concentration": effector.concentration,
@@ -255,7 +255,7 @@ impl GmlServer {
                     Err(e) => {
                         self.cns_emitter.emit_with_phase(
         Span::prompt("bind_effector.error"),
-        Phase::Observe,,
+        Phase::Observe,
                             serde_json::json!({
                                 "reason": "budget_check_failed",
                                 "error": e.to_string()
@@ -270,7 +270,7 @@ impl GmlServer {
             } else {
                 self.cns_emitter.emit_with_phase(
         Span::prompt("bind_effector.error"),
-        Phase::Observe,,
+        Phase::Observe,
                     serde_json::json!({
                         "reason": "capability_missing"
                     }),
@@ -285,7 +285,7 @@ impl GmlServer {
         if port_index >= concept.ports.len() {
             self.cns_emitter.emit_with_phase(
         Span::prompt("bind_effector.error"),
-        Phase::Observe,,
+        Phase::Observe,
                 serde_json::json!({
                     "reason": "invalid_port_index",
                     "provided": port_index,
@@ -306,7 +306,7 @@ impl GmlServer {
         if port.effector_shape != effector.shape {
             self.cns_emitter.emit_with_phase(
         Span::prompt("bind_effector.error"),
-        Phase::Observe,,
+        Phase::Observe,
                 serde_json::json!({
                     "reason": "shape_mismatch",
                     "port_shape": port.effector_shape,
@@ -330,7 +330,7 @@ impl GmlServer {
             Ok((r_bar, n_h, alpha)) => {
                 self.cns_emitter.emit_with_phase(
         Span::prompt("bind_effector.success"),
-        Phase::Observe,,
+        Phase::Observe,
                     serde_json::json!({
                         "bound": true,
                         "port": port.name,
@@ -354,7 +354,7 @@ impl GmlServer {
             Err(e) => {
                 self.cns_emitter.emit_with_phase(
         Span::prompt("bind_effector.error"),
-        Phase::Observe,,
+        Phase::Observe,
                     serde_json::json!({
                         "reason": "computation_failed",
                         "error": e.to_string()
@@ -384,7 +384,7 @@ impl GmlServer {
 
         self.cns_emitter.emit_with_phase(
         Span::prompt("create_capability.start"),
-        Phase::Observe,,
+        Phase::Observe,
             serde_json::json!({
                 "issuer": request.issuer,
                 "subject": request.subject,
@@ -399,7 +399,7 @@ impl GmlServer {
             Ok(token) => {
                 self.cns_emitter.emit_with_phase(
         Span::prompt("create_capability.success"),
-        Phase::Observe,,
+        Phase::Observe,
                     serde_json::json!({
                         "token_id": token.id,
                         "expires_at": token.expires_at
@@ -418,7 +418,7 @@ impl GmlServer {
             Err(e) => {
                 self.cns_emitter.emit_with_phase(
         Span::prompt("create_capability.error"),
-        Phase::Observe,,
+        Phase::Observe,
                     serde_json::json!({
                         "reason": "creation_failed",
                         "error": e.to_string()
@@ -449,7 +449,7 @@ impl GmlServer {
 
         self.cns_emitter.emit_with_phase(
         Span::prompt("verify_capability.start"),
-        Phase::Observe,,
+        Phase::Observe,
             serde_json::json!({
                 "token_id": token.id,
                 "operation": operation,
@@ -471,7 +471,7 @@ impl GmlServer {
             Ok(verification) => {
                 self.cns_emitter.emit_with_phase(
         Span::prompt("verify_capability.outcome"),
-        Phase::Observe,,
+        Phase::Observe,
                     serde_json::json!({
                         "valid": verification.valid,
                         "token_id": verification.token_id,
@@ -490,7 +490,7 @@ impl GmlServer {
             Err(e) => {
                 self.cns_emitter.emit_with_phase(
         Span::prompt("verify_capability.error"),
-        Phase::Observe,,
+        Phase::Observe,
                     serde_json::json!({
                         "reason": "verification_failed",
                         "error": e.to_string()

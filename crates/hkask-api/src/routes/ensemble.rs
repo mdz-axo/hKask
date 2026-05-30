@@ -286,7 +286,7 @@ async fn standing_start(
 ) -> Result<impl IntoResponse, (StatusCode, Json<ErrorResponse>)> {
     state.cns_emitter.emit_with_phase(
         Span::agent_pod("api.ensemble.standing_start.start"),
-        Phase::Observe,,
+        Phase::Observe,
         serde_json::json!({
             "session_id": req.session_id,
             "participants": req.participants.len(),
@@ -335,7 +335,7 @@ async fn standing_start(
 
     state.cns_emitter.emit_with_phase(
         Span::agent_pod("api.ensemble.standing_start.success"),
-        Phase::Observe,,
+        Phase::Observe,
         serde_json::json!({
             "session_id": req.session_id,
             "participant_count": participant_count,
@@ -370,7 +370,7 @@ async fn standing_status(
 ) -> Result<Json<StandingStatusResponse>, (StatusCode, Json<ErrorResponse>)> {
     state.cns_emitter.emit_with_phase(
         Span::agent_pod("api.ensemble.standing_status.start"),
-        Phase::Observe,,
+        Phase::Observe,
         serde_json::json!({
             "timestamp": chrono::Utc::now().to_rfc3339(),
         }),
@@ -406,7 +406,7 @@ async fn standing_status(
 
             state.cns_emitter.emit_with_phase(
         Span::agent_pod("api.ensemble.standing_status.success"),
-        Phase::Observe,,
+        Phase::Observe,
                 serde_json::json!({
                     "session_id": response.session_id,
                 }),

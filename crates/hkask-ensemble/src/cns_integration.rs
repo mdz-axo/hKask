@@ -70,7 +70,7 @@ impl CnsIntegration {
 
         self.span_emitter.emit_with_phase(
         Span::prompt("escalation"),
-        Phase::Observe,, json!(span));
+        Phase::Observe, json!(span));
 
         info!(
             target: "hkask.cns.confidence",

@@ -277,7 +277,7 @@ impl RussellMapper {
         if self.should_emit_cns() {
             self.cns.emit_with_phase(
         Span::pipeline("russell_manifest_analyzed"),
-        Phase::Observe,,
+        Phase::Observe,
                 serde_json::json!({
                     "manifest_id": manifest.id,
                     "version": manifest.version,
@@ -300,7 +300,7 @@ impl RussellMapper {
         if self.should_emit_cns() {
             self.cns.emit_with_phase(
         Span::pipeline("russell_mapping_complete"),
-        Phase::Observe,,
+        Phase::Observe,
                 serde_json::json!({
                     "source_id": russell.id,
                     "mapped_id": hkask_id,

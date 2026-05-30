@@ -61,7 +61,7 @@ impl MemoryFeedbackAdapter {
         // Emit CNS span
         self.span_emitter.emit_with_phase(
         Span::pipeline("relevance"),
-        Phase::Observe,,
+        Phase::Observe,
             serde_json::json!({
                 "entity": entity,
                 "recall_count": recall_count,

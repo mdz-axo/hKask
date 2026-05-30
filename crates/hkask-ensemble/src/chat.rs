@@ -111,7 +111,7 @@ impl EnsembleChat {
     pub fn register_participant(&mut self, participant: ChatParticipant) {
         self.span_emitter.emit_with_phase(
         Span::agent_pod("chat_participant_registered"),
-        Phase::Observe,,
+        Phase::Observe,
             json!({
                 "webid": participant.webid.to_string(),
                 "role": format!("{:?}", participant.role),
@@ -125,7 +125,7 @@ impl EnsembleChat {
     pub fn add_message(&mut self, message: ChatMessage) {
         self.span_emitter.emit_with_phase(
         Span::tool("chat_message"),
-        Phase::Observe,,
+        Phase::Observe,
             json!({
                 "from": message.from.to_string(),
                 "content_length": message.content.len(),
@@ -159,7 +159,7 @@ impl EnsembleChat {
         ) {
             self.span_emitter.emit_with_phase(
         Span::tool("chat_dispatch.outcome"),
-        Phase::Observe,,
+        Phase::Observe,
                 json!({"outcome": "sovereignty_denied"}),
             );
             return Err(EnsembleError::SovereigntyDenied(
@@ -173,7 +173,7 @@ impl EnsembleChat {
             None => {
                 self.span_emitter.emit_with_phase(
         Span::tool("chat_dispatch.outcome"),
-        Phase::Observe,,
+        Phase::Observe,
                     json!({"outcome": "participant_not_found"}),
                 );
                 return Err(EnsembleError::ParticipantNotFound(bot_webid.to_string()));
@@ -195,7 +195,7 @@ impl EnsembleChat {
                 if intersection.is_empty() {
                     self.span_emitter.emit_with_phase(
         Span::tool("chat_dispatch.outcome"),
-        Phase::Observe,,
+        Phase::Observe,
                         json!({
                             "outcome": "capability_denied",
                             "bot": bot_webid.to_string(),
@@ -214,7 +214,7 @@ impl EnsembleChat {
 
         self.span_emitter.emit_with_phase(
         Span::tool("chat_dispatch"),
-        Phase::Observe,,
+        Phase::Observe,
             json!({
                 "bot": bot_webid.to_string(),
                 "template": template_id,
@@ -226,7 +226,7 @@ impl EnsembleChat {
 
         self.span_emitter.emit_with_phase(
         Span::tool("chat_dispatch.outcome"),
-        Phase::Observe,,
+        Phase::Observe,
             json!({
                 "outcome": "success",
                 "response": response
@@ -240,7 +240,7 @@ impl EnsembleChat {
     pub fn aggregate_responses(&self, bot_responses: HashMap<WebID, String>) -> String {
         self.span_emitter.emit_with_phase(
         Span::tool("chat_aggregate"),
-        Phase::Observe,,
+        Phase::Observe,
             json!({
                 "response_count": bot_responses.len(),
             }),
@@ -269,7 +269,7 @@ impl EnsembleChat {
         self.messages.clear();
         self.span_emitter.emit_with_phase(
         Span::agent_pod("chat_cleared"),
-        Phase::Observe,, json!({}));
+        Phase::Observe, json!({}));
         info!("Chat history cleared");
     }
 
@@ -279,7 +279,7 @@ impl EnsembleChat {
         self.span_emitter
             .emit_with_phase(
         Span::agent_pod("chat_consent_granted"),
-        Phase::Observe,, json!({}));
+        Phase::Observe, json!({}));
     }
 
     /// Get improv session config
@@ -297,7 +297,7 @@ impl EnsembleChat {
         self.improv_config.set_threshold(threshold);
         self.span_emitter.emit_with_phase(
         Span::tool("improv_threshold_set"),
-        Phase::Observe,,
+        Phase::Observe,
             json!({"threshold": self.improv_config.participation_threshold}),
         );
     }
@@ -309,7 +309,7 @@ impl EnsembleChat {
         self.span_emitter
             .emit_with_phase(
         Span::tool("improv_mode_set"),
-        Phase::Observe,, json!({"mode": mode_str}));
+        Phase::Observe, json!({"mode": mode_str}));
     }
 
     /// Execute an improvisation turn using this session's config and participants

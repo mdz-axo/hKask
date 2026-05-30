@@ -91,7 +91,7 @@ impl ArchivalService {
     ) -> ArchivalResult<String> {
         self.span_emitter.emit_with_phase(
         Span::tool("git_archive"),
-        Phase::Observe,,
+        Phase::Observe,
             json!({
                 "owner": owner,
                 "repo": repo,
@@ -122,7 +122,7 @@ impl ArchivalService {
 
         self.span_emitter.emit_with_phase(
         Span::tool("git_archive.outcome"),
-        Phase::Observe,,
+        Phase::Observe,
             json!({
                 "outcome": "success",
                 "sha": sha,
@@ -147,7 +147,7 @@ impl ArchivalService {
     ) -> ArchivalResult<String> {
         self.span_emitter.emit_with_phase(
         Span::tool("git_restore"),
-        Phase::Observe,,
+        Phase::Observe,
             json!({
                 "owner": owner,
                 "repo": repo,
@@ -161,7 +161,7 @@ impl ArchivalService {
 
         self.span_emitter.emit_with_phase(
         Span::tool("git_restore.outcome"),
-        Phase::Observe,,
+        Phase::Observe,
             json!({
                 "outcome": "success",
                 "source": format!("{}/{}/{}", owner, repo, git_ref),
@@ -184,7 +184,7 @@ impl ArchivalService {
     ) -> ArchivalResult<Vec<String>> {
         self.span_emitter.emit_with_phase(
         Span::tool("git_list_archives"),
-        Phase::Observe,,
+        Phase::Observe,
             json!({
                 "owner": owner,
                 "repo": repo
@@ -195,7 +195,7 @@ impl ArchivalService {
 
         self.span_emitter.emit_with_phase(
         Span::tool("git_list_archives.outcome"),
-        Phase::Observe,,
+        Phase::Observe,
             json!({
                 "outcome": "success",
                 "count": 0
@@ -215,7 +215,7 @@ impl ArchivalService {
     ) -> ArchivalResult<String> {
         self.span_emitter.emit_with_phase(
         Span::tool("git_snapshot"),
-        Phase::Observe,,
+        Phase::Observe,
             json!({
                 "owner": owner,
                 "repo": repo,
@@ -240,7 +240,7 @@ impl ArchivalService {
 
         self.span_emitter.emit_with_phase(
         Span::tool("git_snapshot.outcome"),
-        Phase::Observe,,
+        Phase::Observe,
             json!({
                 "outcome": "success",
                 "sha": sha,

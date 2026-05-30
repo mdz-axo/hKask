@@ -170,7 +170,7 @@ async fn acp_unregister_agent(
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
     state.cns_emitter.emit_with_phase(
         Span::agent_pod("api.acp.unregister.start"),
-        Phase::Observe,,
+        Phase::Observe,
         serde_json::json!({
             "agent_id": agent_id,
         }),
@@ -180,7 +180,7 @@ async fn acp_unregister_agent(
         .map_err(|_| {
             state.cns_emitter.emit_with_phase(
         Span::agent_pod("api.acp.unregister.error"),
-        Phase::Observe,,
+        Phase::Observe,
                 serde_json::json!({ "reason": "invalid_webid" }),
             );
             (
@@ -201,7 +201,7 @@ async fn acp_unregister_agent(
         hkask_agents::AcpError::AgentNotFound(_) => {
             state.cns_emitter.emit_with_phase(
         Span::agent_pod("api.acp.unregister.not_found"),
-        Phase::Observe,,
+        Phase::Observe,
                 serde_json::json!({ "agent_id": agent_id }),
             );
             (
@@ -229,7 +229,7 @@ async fn acp_unregister_agent(
 
     state.cns_emitter.emit_with_phase(
         Span::agent_pod("api.acp.unregister.success"),
-        Phase::Observe,,
+        Phase::Observe,
         serde_json::json!({ "agent_id": agent_id }),
     );
 
