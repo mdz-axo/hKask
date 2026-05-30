@@ -321,7 +321,6 @@ mod tests {
 mod cyber_tests {
     use super::*;
     use hkask_types::loops::curation::CuratorDirective;
-    use hkask_types::loops::dispatch::LoopOrigin;
 
     /// PR 9g/9h, Loop 6.3: DAMPEN — Suppress repeated directives within a time window.
     ///

@@ -152,6 +152,8 @@ impl EpisodicMemory {
     ///
     /// Decays confidence based on time since `valid_from` using
     /// `bayesian::decay()`, then deduplicates by EAV hash.
+    ///
+    /// Emits `cns.memory.decay` span for each triple that undergoes decay.
     pub fn query_for_deduped(
         &self,
         entity: &str,
@@ -165,7 +167,18 @@ impl EpisodicMemory {
             .map(|mut t| {
                 // Apply confidence decay (5a): e^(-λt)
                 let time_since = (now - t.valid_from).num_seconds() as f64;
+                let original_confidence = t.confidence;
                 t.confidence = bayesian::decay(t.confidence, self.decay_rate, time_since);
+                tracing::debug!(
+                    target: "cns.memory.decay",
+                    entity = %t.entity,
+                    attribute = %t.attribute,
+                    original_confidence = original_confidence,
+                    decayed_confidence = t.confidence,
+                    time_since_secs = time_since,
+                    decay_rate = self.decay_rate,
+                    "Episodic confidence decayed"
+                );
                 t
             })
             .collect();
@@ -181,6 +194,8 @@ impl EpisodicMemory {
     ///
     /// Returns `RecalledTriple` structs that include the decayed confidence
     /// and recency weight alongside the original triple.
+    ///
+    /// Emits `cns.memory.decay` span for each triple that undergoes decay.
     pub fn query_for_weighted(
         &self,
         entity: &str,
@@ -194,6 +209,18 @@ impl EpisodicMemory {
             .map(|t| {
                 let time_since = (now - t.valid_from).num_seconds() as f64;
                 let decayed_confidence = bayesian::decay(t.confidence, self.decay_rate, time_since);
+                if decayed_confidence < t.confidence {
+                    tracing::debug!(
+                        target: "cns.memory.decay",
+                        entity = %t.entity,
+                        attribute = %t.attribute,
+                        original_confidence = t.confidence,
+                        decayed_confidence,
+                        time_since_secs = time_since,
+                        decay_rate = self.decay_rate,
+                        "Episodic confidence decayed (weighted recall)"
+                    );
+                }
                 let recency_weight = (-self.temporal_lambda * time_since).exp();
                 RecalledTriple {
                     triple: t,
@@ -226,6 +253,8 @@ impl EpisodicMemory {
     ///
     /// Returns the retracted confidence value, or an error if no matching
     /// triple is found for the given entity/attribute/perspective.
+    ///
+    /// Emits `cns.memory.retract` span documenting the confidence reduction.
     pub fn retract_triple(
         &self,
         entity: &str,
@@ -245,6 +274,15 @@ impl EpisodicMemory {
             })?;
 
         let retracted = bayesian::retract(triple.confidence, retraction_confidence);
+        tracing::info!(
+            target: "cns.memory.retract",
+            entity = %entity,
+            attribute = %attribute,
+            original_confidence = triple.confidence,
+            retraction_confidence,
+            new_confidence = retracted,
+            "Episodic confidence retracted (not deleted)"
+        );
         self.triple_store
             .update(&triple.id, triple.value.clone(), retracted)?;
 

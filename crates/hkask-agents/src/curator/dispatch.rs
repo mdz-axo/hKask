@@ -452,7 +452,7 @@ mod tests {
 #[cfg(test)]
 mod cyber_tests {
     use super::*;
-    use hkask_types::loops::dispatch::{LoopOrigin, LoopPayload, MessagePriority, TraceId};
+    use hkask_types::loops::dispatch::{LoopOrigin, LoopPayload, MessagePriority};
 
     /// PR 9h, Loop 6.1: Dispatch priority ordering — Critical before Warning before Info.
     ///

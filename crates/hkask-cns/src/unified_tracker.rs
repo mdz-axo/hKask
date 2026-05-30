@@ -673,7 +673,6 @@ mod cyber_tests {
     use super::*;
     use crate::observers::sovereignty::{SovereigntyEvent, SovereigntyEventType};
     use crate::{AlgedonicManager, DEFAULT_EXPECTED_VARIETY, DEFAULT_THRESHOLD};
-    use hkask_types::event::SpanCategory;
     use hkask_types::{DataCategory, SovereigntyId};
 
     /// PR 9g, Loop 5.3: ADAPT — Threshold calibration adjusts variety thresholds.

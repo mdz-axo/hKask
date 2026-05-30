@@ -10,9 +10,11 @@
 //! 7. Kata Readiness — Verify kata domain owned, emit readiness span
 //! 8. CNS Active — Activate all bots, begin monitoring
 
+#[allow(deprecated)] // BotMetricsCollector — migrate to UnifiedVarietyTracker
+use hkask_cns::BotMetricsCollector;
 use hkask_cns::{
-    AlgedonicEscalationAdapter, BotMetricsCollector, CnsRuntime, SpanCategory, SpanEmitter,
-    SpanScope, curator_span_scope, span_scope_for_r7_bot,
+    AlgedonicEscalationAdapter, CnsRuntime, SpanCategory, SpanEmitter, SpanScope,
+    curator_span_scope, span_scope_for_r7_bot,
 };
 use hkask_keystore::derive_all_internal_secrets;
 use hkask_types::{R7BotIdentity, WebID, default_r7_bots};
@@ -102,11 +104,13 @@ pub struct BootstrapSequence {
     cns_runtime: Arc<CnsRuntime>,
     curator_webid: WebID,
     state: BootstrapState,
+    #[allow(deprecated)] // BotMetricsCollector — migrate to UnifiedVarietyTracker
     bot_metrics: Arc<tokio::sync::RwLock<BotMetricsCollector>>,
 }
 
 impl BootstrapSequence {
     /// Create a new bootstrap sequence
+    #[allow(deprecated)] // BotMetricsCollector — migrate to UnifiedVarietyTracker
     pub fn new(cns_runtime: Arc<CnsRuntime>) -> Self {
         let curator_webid = WebID::from_persona(b"Curator");
         Self {
@@ -320,6 +324,7 @@ impl BootstrapSequence {
             );
 
             // Register bot in metrics collector
+            #[allow(deprecated)] // BotMetricsCollector — migrate to UnifiedVarietyTracker
             {
                 let webid = bot.webid();
                 let mut metrics = self.bot_metrics.write().await;
@@ -437,6 +442,12 @@ impl BootstrapSequence {
     }
 
     /// Get the bot metrics collector
+    ///
+    /// # Deprecation
+    ///
+    /// This accessor returns a deprecated `BotMetricsCollector`.
+    /// Migrate to `UnifiedVarietyTracker` via `CnsRuntime`.
+    #[allow(deprecated)] // BotMetricsCollector — migrate to UnifiedVarietyTracker
     pub fn bot_metrics(&self) -> Arc<tokio::sync::RwLock<BotMetricsCollector>> {
         self.bot_metrics.clone()
     }

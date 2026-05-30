@@ -1,9 +1,15 @@
 //! Bot Evaluation Metrics — Per-bot CNS variety counters
 //!
 //! Each R7 bot's pod emits spans with its own WebID as observer_id.
-//! BotMetricsCollector groups NuEvent observations by observer_id and span
-//! category, producing BotEvaluationMetrics on demand for the Curator's
-//! metacognition loop.
+//! BotEvaluationMetrics, BotHealthStatus, CapabilityGap, and GapType are
+//! the data contract consumed by Curation's metacognition loop.
+//!
+//! **Note:** `BotMetricsCollector` is deprecated. Use `UnifiedVarietyTracker`
+//! (in the `unified_tracker` module) for all bot metric collection.
+//! `UnifiedVarietyTracker` consolidates domain variety (4.1), bot metrics (4.3),
+//! sovereignty events (4.4), and goal variety into a single SENSE point.
+
+#![allow(deprecated)] // BotMetricsCollector is deprecated but still used in bootstrap
 
 use crate::variety::VarietyTracker;
 use chrono::{DateTime, Utc};
@@ -182,8 +188,19 @@ pub enum GapType {
 /// Collector for per-bot evaluation metrics
 ///
 /// Aggregates NuEvent observations by observer_id and span category,
-/// producing BotEvaluationMetrics on demand. Wired into CnsRuntime
-/// alongside the existing VarietyMonitor.
+/// producing BotEvaluationMetrics on demand.
+///
+/// # Deprecation
+///
+/// This collector is superseded by [`UnifiedVarietyTracker`](crate::UnifiedVarietyTracker),
+/// which consolidates domain variety (4.1), bot metrics (4.3), sovereignty
+/// events (4.4), and goal variety into a single SENSE point. The tracker
+/// provides equivalent methods (`register_bot`, `record_bot_span`, etc.)
+/// and is wired into `CnsRuntime`.
+#[deprecated(
+    since = "0.21.0",
+    note = "Use UnifiedVarietyTracker instead — it consolidates all bot metrics alongside variety and sovereignty tracking"
+)]
 pub struct BotMetricsCollector {
     /// Per-bot metrics, keyed by WebID
     metrics: HashMap<WebID, BotEvaluationMetrics>,
@@ -341,6 +358,7 @@ impl BotMetricsCollector {
     }
 }
 
+#[allow(deprecated)]
 impl Default for BotMetricsCollector {
     fn default() -> Self {
         Self::new()

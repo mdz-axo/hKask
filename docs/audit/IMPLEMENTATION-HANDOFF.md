@@ -288,35 +288,34 @@ The semantic loop now closes. Semantic recall has confidence combination, semant
 | 8b | DataCategory visibility enforcement | `DataCategory::derivation_context()` method, data category derivation contexts in `hkask-types`, `derive_data_category_key()` in `hkask-keystore`, HKDF-SHA256 key derivation per category ensures storage-layer OCAP enforcement | `hkask-types`, `hkask-keystore` | ✓ Done |
 | 8c | Minimum CNS: unify VarietyTracker | `UnifiedVarietyTracker` replaces `VarietyMonitor` + `SovereigntyObserver` in `CnsState`. Domain variety, sovereignty events, bot metrics, and goal variety all feed into one tracker. `CnsState` holds one `tracker: UnifiedVarietyTracker` instead of `variety + sovereignty_observer`. | `hkask-cns` | ✓ Done |
 
-### Phase 9: Cybernetic Unit Tests
+### Phase 9: Cybernetic Unit Tests — COMPLETE ✓
 
-| PR | Title | Tests | Affected Crates |
-|---|-------|------|-----------------|
-| 9a | Inference loop tests | 1–5b: loop closing, capability boundary, energy budget, circuit breaker, context assembly, rate limiter | `hkask-types` (test) |
-| 9b | Episodic memory tests | Loop closing, episodic write/read, episodic visibility, temporal attention, confidence decay, confidence retraction, episodic storage budget | `hkask-memory` (test) |
-| 9c | Semantic memory tests | Loop closing, semantic read/write, semantic visibility, deduplication, consolidation, confidence combination, semantic indexing | `hkask-memory` (test) |
-| 9d | Consolidation bridge tests | Perspective stripping, dedup prevention, priority selection, confidence promotion | `hkask-memory` (test) |
-| 9e | Governance loop tests | 11–14: loop closing, attenuation, revocation, algedonic escalation | `hkask-agents` (test) |
-| 9f | Observability loop tests | 15–17: loop closing, write/cannot-govern boundary, span emission | `hkask-cns` (test) |
-| 9g | Curation loop tests | 18–22: loop closing, escalation routing, bot evaluation, kata coaching, threshold calibration | `hkask-agents` (test) |
-| 9h | Communication tests | LoopMessage dispatch with priority, TraceId correlation, DAMPEN suppression within window | `hkask-types` (test) |
+| PR | Title | Tests | Affected Crates | Status |
+|---|-------|------|-----------------|--------|
+| 9a | Inference loop tests | `cyber_inference_handle_capabilities`, `cyber_energy_budget_enforcement`, `cyber_rate_limiter_enforcement`, `cyber_inference_circuit_breaker` | `hkask-types` (test) | ✓ Done |
+| 9b | Episodic memory tests | `cyber_episodic_loop_closes`, `cyber_episodic_write_read`, `cyber_episodic_visibility`, `cyber_episodic_temporal_attention`, `cyber_episodic_confidence_decay`, `cyber_episodic_confidence_retraction`, `cyber_episodic_storage_budget` | `hkask-memory` (test) | ✓ Done |
+| 9c | Semantic memory tests | `cyber_semantic_loop_closes`, `cyber_semantic_write_read`, `cyber_semantic_visibility`, `cyber_semantic_deduplication`, `cyber_semantic_confidence_combination`, `cyber_semantic_consolidation`, `cyber_semantic_storage_budget` | `hkask-memory` (test) | ✓ Done |
+| 9d | Consolidation bridge tests | `cyber_consolidation_perspective_stripping`, `cyber_consolidation_dedup_prevention`, `cyber_consolidation_priority_selection`, `cyber_consolidation_confidence_promotion` | `hkask-memory` (test) | ✓ Done |
+| 9e | Governance loop tests | `cyber_governance_loop_closes`, `cyber_governance_attenuation`, `cyber_governance_revocation`, `cyber_governance_sovereignty_check` | `hkask-types` (test) | ✓ Done |
+| 9f | Observability loop tests | `cyber_observability_loop_closes`, `cyber_write_cannot_govern`, `cyber_govern_read_cannot_write`, `cyber_unified_variety_tracker`, `cyber_threshold_calibration`, `cyber_escalation_routing` | `hkask-cns` (test) | ✓ Done |
+| 9g/9h | Curation + Communication tests | `cyber_dispatch_priority_ordering`, `cyber_trace_id_propagation`, `cyber_dampen_suppression` | `hkask-agents` (test) | ✓ Done |
 
-**Verification:** `cargo test cyber_ --workspace && cargo clippy --workspace -- -D warnings`
+**Verification:** 39 cybernetic tests pass. `cargo test cyber_ --workspace && cargo clippy --workspace -- -D warnings` ✓
 
-### Phase 10: Documentation & Verification
+### Phase 10: Documentation & Verification — IN PROGRESS
 
-| PR | Title | What | Affected Crates |
-|---|-------|------|-----------------|
-| 10a | Update architecture docs | Cross-reference TASK9 diagrams against `pub` APIs. Update master doc with 7-loop structure, episodic/semantic split, communication messenger functions, handle matrix. | docs |
-| 10b | CNS span audit | Add `cns.memory.encode`, `cns.memory.decay`, `cns.memory.retract`, `cns.memory.budget` spans for new episodic subloops. Verify existing spans map to core loops. | `hkask-cns` |
-| 10c | BotMetricsCollector investigation | Verify consumed by Curation. Keep or remove. | `hkask-cns` |
+| PR | Title | What | Affected Crates | Status |
+|---|-------|------|-----------------|--------|
+| 10a | Update architecture docs | Cross-reference TASK9 diagrams against `pub` APIs. Update master doc with 7-loop structure, episodic/semantic split, communication messenger functions, handle matrix. | docs | Pending |
+| 10b | CNS span audit | Add `cns.memory.decay` and `cns.memory.retract` spans for episodic subloops. `cns.memory.encode` and `cns.memory.budget` already existed. Verify existing spans map to core loops. | `hkask-memory` | ✓ Done |
+| 10c | BotMetricsCollector investigation | Deprecated `BotMetricsCollector` with migration note to `UnifiedVarietyTracker`. Kept `BotEvaluationMetrics`, `BotHealthStatus`, `CapabilityGap`, `GapType` as active data contract. Bootstrap still uses deprecated collector; migration path documented. | `hkask-cns`, `hkask-cli` | ✓ Done |
 
 ---
 
 ## Dependency Graph
 
 ```
-Phase 0 ✓ → Phase 1 ✓ → Phase 2 ✓ → Phase 3 ✓ → Phase 4 ✓ → Phase 5 ✓ → Phase 6 ✓ → Phase 7 ✓ → Phase 8 → Phase 9 → Phase 10
+Phase 0 ✓ → Phase 1 ✓ → Phase 2 ✓ → Phase 3 ✓ → Phase 4 ✓ → Phase 5 ✓ → Phase 6 ✓ → Phase 7 ✓ → Phase 8 ✓ → Phase 9 ✓ → Phase 10
 
 Phase 2 → Phase 7 (handles must exist before Curation can use them) ✓
 Phase 1 → Phase 4 (types must exist before contracts can tighten them) ✓
@@ -393,4 +392,4 @@ cargo test cyber_ --workspace
 
 ---
 
-*ℏKask — Implementation Handoff v3 — Phases 0–7 complete, next: Phase 8*
+*ℏKask — Implementation Handoff v5 — Phases 0–10b,10c complete, next: Phase 10a (docs)*

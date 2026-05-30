@@ -37,9 +37,9 @@ pub use algedonic_escalation::{
     AcpSender, AlgedonicEscalationAdapter, CalibrationRecord, EscalationAction, EscalationResult,
     compute_spec_drift, create_escalation_callback,
 };
-pub use bot_metrics::{
-    BotEvaluationMetrics, BotHealthStatus, BotMetricsCollector, CapabilityGap, GapType,
-};
+#[allow(deprecated)] // BotMetricsCollector is deprecated; use UnifiedVarietyTracker
+pub use bot_metrics::BotMetricsCollector;
+pub use bot_metrics::{BotEvaluationMetrics, BotHealthStatus, CapabilityGap, GapType};
 pub use energy::{EnergyAccount, EnergyBudget, EnergyError, OpportunityCost};
 pub use goal_variety::{GoalVarietyCounter, GoalVarietyMonitor};
 pub use hkask_types::SpanCategory;
