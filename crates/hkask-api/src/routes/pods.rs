@@ -66,7 +66,7 @@ async fn create_pod(
     Json(req): Json<CreatePodRequest>,
 ) -> Result<Json<CreatePodResponse>, StatusCode> {
     use hkask_agents::pod::AgentPersona;
-    use hkask_types::CapabilityResource;
+    use hkask_types::{CapabilityResource, Phase, Span};
 
     state.cns_emitter.emit_with_phase(
         Span::agent_pod("api.pod.create.start"),

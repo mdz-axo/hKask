@@ -29,7 +29,9 @@ use crate::resilience::CircuitBreaker;
 use async_trait::async_trait;
 use hkask_cns::{RateLimiter, SpanEmitter};
 use hkask_types::cns::RetryConfig;
-use hkask_types::{BotID, LLMParameters, TemplateId, TemplateInvocation, TemplateOutcome, WebID};
+use hkask_types::{
+    BotID, LLMParameters, Phase, Span, TemplateId, TemplateInvocation, TemplateOutcome, WebID,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
@@ -297,8 +299,8 @@ impl OkapiInference {
         {
             // Emit CNS span for circuit open
             self.span_emitter.emit_with_phase(
-        Span::connector("circuit_open"),
-        Phase::Observe,
+                Span::connector("circuit_open"),
+                Phase::Observe,
                 serde_json::json!({
                     "model": self.model,
                     "action": "inference.execute_request",
@@ -443,8 +445,8 @@ impl InferencePort for OkapiInference {
         {
             // Emit CNS span for rate limit exceeded
             self.span_emitter.emit_with_phase(
-        Span::tool("rate_limit_exceeded"),
-        Phase::Observe,
+                Span::tool("rate_limit_exceeded"),
+                Phase::Observe,
                 serde_json::json!({
                     "bot_id": bot_id.to_string(),
                     "model": self.model,
@@ -542,8 +544,8 @@ impl InferencePort for OkapiInference {
         {
             // Emit CNS span for rate limit exceeded
             self.span_emitter.emit_with_phase(
-        Span::tool("rate_limit_exceeded"),
-        Phase::Observe,
+                Span::tool("rate_limit_exceeded"),
+                Phase::Observe,
                 serde_json::json!({
                     "bot_id": bot_id.to_string(),
                     "model": self.model,

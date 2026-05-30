@@ -7,6 +7,7 @@
 //! and the template engine to factor recall quality into future selections.
 
 use hkask_cns::spans::SpanEmitter;
+use hkask_types::{Phase, Span};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -60,8 +61,8 @@ impl MemoryFeedbackAdapter {
     ) {
         // Emit CNS span
         self.span_emitter.emit_with_phase(
-        Span::pipeline("relevance"),
-        Phase::Observe,
+            Span::pipeline("relevance"),
+            Phase::Observe,
             serde_json::json!({
                 "entity": entity,
                 "recall_count": recall_count,
@@ -97,7 +98,7 @@ impl MemoryFeedbackAdapter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_types::WebID;
+    use hkask_types::{Phase, Span, WebID};
 
     #[tokio::test]
     async fn test_default_relevance_is_one() {

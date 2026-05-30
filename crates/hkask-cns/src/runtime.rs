@@ -74,11 +74,6 @@ pub struct CnsRuntime {
 }
 
 impl CnsRuntime {
-    /// Create new CNS runtime with default threshold
-    pub fn new() -> Self {
-        Self::with_threshold(DEFAULT_THRESHOLD)
-    }
-
     /// Create CNS runtime with custom threshold
     pub fn with_threshold(threshold: u64) -> Self {
         Self {
@@ -362,7 +357,7 @@ impl Drop for AlertSubscription {
 
 impl Default for CnsRuntime {
     fn default() -> Self {
-        Self::new()
+        Self::with_threshold(DEFAULT_THRESHOLD)
     }
 }
 

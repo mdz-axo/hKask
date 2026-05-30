@@ -11,7 +11,7 @@
 use hkask_cns::{CnsRuntime, DEFAULT_THRESHOLD, SpanEmitter};
 use hkask_mcp::server::{McpToolOutput, ToolSpanGuard, validate_identifier};
 use hkask_types::WebID;
-use hkask_types::event::{Span, SpanCategory};
+use hkask_types::event::{Phase, Span, SpanCategory};
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
 use schemars::JsonSchema;
@@ -128,7 +128,7 @@ impl CnsServer {
             .unwrap_or(serde_json::Value::String(observation.clone()));
 
         let emitter = self.emitter.read().await;
-        emitter.emit(span_enum, observation_value);
+        emitter.emit_with_phase(span_enum, Phase::Observe, observation_value);
 
         self.runtime.increment_variety(&span, &phase).await;
 

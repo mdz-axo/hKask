@@ -201,9 +201,10 @@ impl AlgedonicEscalationAdapter {
 
                 // Emit cns.spec.drift span for critical severity
                 if let Some(ref emitter) = self.cns_emitter {
-                    emitter.emit(
+                    emitter.emit_event(
                         "cns.spec.drift",
-                        serde_json::json!({
+                        "observe",
+                        &serde_json::json!({
                             "domain": alert.domain,
                             "drift_magnitude": drift,
                             "severity": "critical",

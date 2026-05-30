@@ -5,6 +5,7 @@
 //! ℏKask v0.21.2 — A Minimal Viable Container for Agents
 
 use hkask_types::lexicon::TemplateType;
+use hkask_types::{Phase, Span};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
@@ -276,8 +277,8 @@ impl RussellMapper {
 
         if self.should_emit_cns() {
             self.cns.emit_with_phase(
-        Span::pipeline("russell_manifest_analyzed"),
-        Phase::Observe,
+                Span::pipeline("russell_manifest_analyzed"),
+                Phase::Observe,
                 serde_json::json!({
                     "manifest_id": manifest.id,
                     "version": manifest.version,
@@ -299,8 +300,8 @@ impl RussellMapper {
 
         if self.should_emit_cns() {
             self.cns.emit_with_phase(
-        Span::pipeline("russell_mapping_complete"),
-        Phase::Observe,
+                Span::pipeline("russell_mapping_complete"),
+                Phase::Observe,
                 serde_json::json!({
                     "source_id": russell.id,
                     "mapped_id": hkask_id,

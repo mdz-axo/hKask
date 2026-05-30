@@ -25,15 +25,17 @@ pub use adapters::{ImprovClientError, OkapiImprovClient};
 #[allow(deprecated)]
 pub use adapters::{OkapiClient, OkapiClientError, OkapiHttpClient};
 pub use chat::{
-    ChatMessage, ChatParticipant, EnsembleChat, EnsembleChatManager, EnsembleError, ParticipantRole,
+    ChatMessage, ChatParticipant, EnsembleChat, EnsembleChatManager, EnsembleError,
+    ParticipantRole, SessionManager,
 };
 pub use chat_dedup::{DedupStats, SessionDedup, extract_context_window};
 pub use cns_integration::{CnsIntegration, CnsIntegrationBuilder};
 pub use cns_spans::{OkapiCnsSpan, ValidationResult};
 pub use confidence_router::{ConfidenceConfig, ConfidenceRouter, RouterError, compute_confidence};
+#[allow(deprecated)]
+pub use deliberation::DeliberationCoordinator;
 pub use deliberation::{
-    AgentResponse, DeliberationCoordinator, DeliberationRequest, DeliberationResult,
-    DeliberationSession, DeliberationStatus,
+    AgentResponse, DeliberationRequest, DeliberationResult, DeliberationSession, DeliberationStatus,
 };
 pub use improv::{
     ImprovMode, ImprovSessionConfig, ImprovTurn, RelevanceJudgment, SynthesisMode, improv_turn,

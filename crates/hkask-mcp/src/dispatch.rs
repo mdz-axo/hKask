@@ -214,9 +214,10 @@ impl McpDispatcher {
                     0.0,
                 );
             }
-            cns.emit(
+            cns.emit_event(
                 "cns.tool.rate_limit_exceeded",
-                Value::String(format!("Rate limit exceeded for tool: {}", tool_name)),
+                "observe",
+                &Value::String(format!("Rate limit exceeded for tool: {}", tool_name)),
                 1.0,
             );
 
@@ -236,9 +237,10 @@ impl McpDispatcher {
                     0.0,
                 );
             }
-            cns.emit(
+            cns.emit_event(
                 "cns.tool.access_denied",
-                Value::String(format!("Capability denied for tool: {}", tool_name)),
+                "observe",
+                &Value::String(format!("Capability denied for tool: {}", tool_name)),
                 1.0,
             );
 
@@ -251,9 +253,10 @@ impl McpDispatcher {
         // Check if tool exists
         if !self.runtime.tool_exists(tool_name).await {
             if let Some(ref emitter) = self.cns_emitter {
-                emitter.emit(
+                emitter.emit_event(
                     &format!("cns.tool.{}.not_found", tool_name.replace(':', ".")),
-                    serde_json::json!({"tool": tool_name}),
+                    "observe",
+                    &serde_json::json!({"tool": tool_name}),
                     0.0,
                 );
             }
@@ -269,9 +272,10 @@ impl McpDispatcher {
                 1.0,
             );
         }
-        cns.emit(
+        cns.emit_event(
             &format!("cns.tool.{}", tool_name.replace(':', ".")),
-            input.clone(),
+            "observe",
+            &input,
             1.0,
         );
 
@@ -313,9 +317,10 @@ impl McpDispatcher {
                 1.0,
             );
         }
-        cns.emit(
+        cns.emit_event(
             &format!("cns.tool.{}.result", tool_name.replace(':', ".")),
-            result.clone(),
+            "outcome",
+            &result,
             1.0,
         );
 

@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::middleware::AuthContext;
+use hkask_types::{Phase, Span};
 use crate::{ApiState, ErrorResponse};
 
 // ── Request / Response types ──────────────────────────────────────────────

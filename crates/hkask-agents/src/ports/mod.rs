@@ -25,6 +25,7 @@ pub use git_cas::GitCASPort;
 pub use mcp_runtime::MCPRuntimePort;
 #[allow(deprecated)]
 pub use memory_storage::{EpisodicStoragePort, MemoryStoragePort, SemanticStoragePort};
+#[allow(deprecated)]
 pub use metacognition::{
     BotDirective, BotEvaluationMetrics, BotHealthStatus as MetacognitionBotHealthStatus,
     CapabilityGap, DirectiveType, EvaluationResult, GapType, KataDirective, KataType,

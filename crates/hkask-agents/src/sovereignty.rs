@@ -148,8 +148,11 @@ impl SovereigntyChecker {
     /// Mark acquisition attempt and emit CNS event
     pub fn mark_acquisition_attempt(&mut self, details: &Value) {
         self.state.mark_acquisition_attempt();
-        self.span_emitter
-            .emit_sovereignty("acquisition_attempt", details.clone());
+        self.span_emitter.emit_with_phase(
+            Span::sovereignty("acquisition_attempt"),
+            Phase::Observe,
+            details.clone(),
+        );
     }
 
     /// Update VC investment and check for kill zone
@@ -157,8 +160,9 @@ impl SovereigntyChecker {
         self.state.update_vc_investment(vc_investment);
 
         if self.state.is_compromised() {
-            self.span_emitter.emit_sovereignty_alert(
-                "killzone",
+            self.span_emitter.emit_with_phase(
+                Span::sovereignty("alert.killzone"),
+                Phase::Observe,
                 serde_json::json!({
                     "vc_investment": vc_investment,
                     "threshold": self.state.detector.threshold,
@@ -176,8 +180,9 @@ impl SovereigntyChecker {
     /// Grant explicit consent
     pub fn grant_consent(&mut self) {
         self.state.grant_consent();
-        self.span_emitter.emit_sovereignty(
-            "consent_granted",
+        self.span_emitter.emit_with_phase(
+            Span::sovereignty("consent_granted"),
+            Phase::Observe,
             serde_json::json!({
                 "consent": true
             }),
@@ -187,8 +192,9 @@ impl SovereigntyChecker {
     /// Revoke explicit consent
     pub fn revoke_consent(&mut self) {
         self.state.revoke_consent();
-        self.span_emitter.emit_sovereignty(
-            "consent_revoked",
+        self.span_emitter.emit_with_phase(
+            Span::sovereignty("consent_revoked"),
+            Phase::Observe,
             serde_json::json!({
                 "consent": false
             }),

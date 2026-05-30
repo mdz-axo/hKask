@@ -12,18 +12,22 @@ use hkask_types::WebID;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+#[allow(deprecated)]
 static CHAT_MANAGER: std::sync::OnceLock<Arc<RwLock<EnsembleChatManager>>> =
     std::sync::OnceLock::new();
+#[allow(deprecated)]
 static DELIBERATION_COORDINATOR: std::sync::OnceLock<Arc<RwLock<DeliberationCoordinator>>> =
     std::sync::OnceLock::new();
 static IMPROV_CLIENT: std::sync::OnceLock<Arc<OkapiClient>> = std::sync::OnceLock::new();
 
+#[allow(deprecated)]
 fn get_chat_manager() -> Arc<RwLock<EnsembleChatManager>> {
     CHAT_MANAGER
         .get_or_init(|| Arc::new(RwLock::new(EnsembleChatManager::new(WebID::new()))))
         .clone()
 }
 
+#[allow(deprecated)]
 fn get_deliberation_coordinator() -> Arc<RwLock<DeliberationCoordinator>> {
     DELIBERATION_COORDINATOR
         .get_or_init(|| Arc::new(RwLock::new(DeliberationCoordinator::new(WebID::new()))))

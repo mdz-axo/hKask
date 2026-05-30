@@ -5,7 +5,7 @@
 
 use hkask_agents::SovereigntyChecker;
 use hkask_cns::spans::SpanEmitter;
-use hkask_types::WebID;
+use hkask_types::{Phase, Span, WebID};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::HashMap;
@@ -110,8 +110,8 @@ impl EnsembleChat {
     /// Register a bot participant in the chat
     pub fn register_participant(&mut self, participant: ChatParticipant) {
         self.span_emitter.emit_with_phase(
-        Span::agent_pod("chat_participant_registered"),
-        Phase::Observe,
+            Span::agent_pod("chat_participant_registered"),
+            Phase::Observe,
             json!({
                 "webid": participant.webid.to_string(),
                 "role": format!("{:?}", participant.role),
@@ -124,8 +124,8 @@ impl EnsembleChat {
     /// Add a message to the chat
     pub fn add_message(&mut self, message: ChatMessage) {
         self.span_emitter.emit_with_phase(
-        Span::tool("chat_message"),
-        Phase::Observe,
+            Span::tool("chat_message"),
+            Phase::Observe,
             json!({
                 "from": message.from.to_string(),
                 "content_length": message.content.len(),
@@ -158,8 +158,8 @@ impl EnsembleChat {
             &self.curator_webid,
         ) {
             self.span_emitter.emit_with_phase(
-        Span::tool("chat_dispatch.outcome"),
-        Phase::Observe,
+                Span::tool("chat_dispatch.outcome"),
+                Phase::Observe,
                 json!({"outcome": "sovereignty_denied"}),
             );
             return Err(EnsembleError::SovereigntyDenied(
@@ -172,8 +172,8 @@ impl EnsembleChat {
             Some(p) => p,
             None => {
                 self.span_emitter.emit_with_phase(
-        Span::tool("chat_dispatch.outcome"),
-        Phase::Observe,
+                    Span::tool("chat_dispatch.outcome"),
+                    Phase::Observe,
                     json!({"outcome": "participant_not_found"}),
                 );
                 return Err(EnsembleError::ParticipantNotFound(bot_webid.to_string()));
@@ -194,8 +194,8 @@ impl EnsembleChat {
 
                 if intersection.is_empty() {
                     self.span_emitter.emit_with_phase(
-        Span::tool("chat_dispatch.outcome"),
-        Phase::Observe,
+                        Span::tool("chat_dispatch.outcome"),
+                        Phase::Observe,
                         json!({
                             "outcome": "capability_denied",
                             "bot": bot_webid.to_string(),
@@ -213,8 +213,8 @@ impl EnsembleChat {
         }
 
         self.span_emitter.emit_with_phase(
-        Span::tool("chat_dispatch"),
-        Phase::Observe,
+            Span::tool("chat_dispatch"),
+            Phase::Observe,
             json!({
                 "bot": bot_webid.to_string(),
                 "template": template_id,
@@ -225,8 +225,8 @@ impl EnsembleChat {
         let response = format!("Bot {} processed via template {}", bot_webid, template_id);
 
         self.span_emitter.emit_with_phase(
-        Span::tool("chat_dispatch.outcome"),
-        Phase::Observe,
+            Span::tool("chat_dispatch.outcome"),
+            Phase::Observe,
             json!({
                 "outcome": "success",
                 "response": response
@@ -239,8 +239,8 @@ impl EnsembleChat {
     /// Aggregate responses from multiple bots (no consensus, just collection)
     pub fn aggregate_responses(&self, bot_responses: HashMap<WebID, String>) -> String {
         self.span_emitter.emit_with_phase(
-        Span::tool("chat_aggregate"),
-        Phase::Observe,
+            Span::tool("chat_aggregate"),
+            Phase::Observe,
             json!({
                 "response_count": bot_responses.len(),
             }),
@@ -256,7 +256,8 @@ impl EnsembleChat {
 
     /// Emit CNS span for chat activity
     pub fn emit_chat_span(&self, event_type: &str, data: Value) {
-        self.span_emitter.emit_agent_pod(event_type, data);
+        self.span_emitter
+            .emit_with_phase(Span::agent_pod(event_type), Phase::Observe, data);
     }
 
     /// Get curator WebID
@@ -268,18 +269,21 @@ impl EnsembleChat {
     pub fn clear(&mut self) {
         self.messages.clear();
         self.span_emitter.emit_with_phase(
-        Span::agent_pod("chat_cleared"),
-        Phase::Observe, json!({}));
+            Span::agent_pod("chat_cleared"),
+            Phase::Observe,
+            json!({}),
+        );
         info!("Chat history cleared");
     }
 
     /// Grant explicit consent for template invocations
     pub fn grant_consent(&mut self) {
         self.sovereignty_checker.grant_consent();
-        self.span_emitter
-            .emit_with_phase(
-        Span::agent_pod("chat_consent_granted"),
-        Phase::Observe, json!({}));
+        self.span_emitter.emit_with_phase(
+            Span::agent_pod("chat_consent_granted"),
+            Phase::Observe,
+            json!({}),
+        );
     }
 
     /// Get improv session config
@@ -296,8 +300,8 @@ impl EnsembleChat {
     pub fn set_participation_threshold(&mut self, threshold: f64) {
         self.improv_config.set_threshold(threshold);
         self.span_emitter.emit_with_phase(
-        Span::tool("improv_threshold_set"),
-        Phase::Observe,
+            Span::tool("improv_threshold_set"),
+            Phase::Observe,
             json!({"threshold": self.improv_config.participation_threshold}),
         );
     }
@@ -306,10 +310,11 @@ impl EnsembleChat {
     pub fn set_improv_mode(&mut self, mode: ImprovMode) {
         let mode_str = mode.as_str().to_string();
         self.improv_config.set_mode(mode);
-        self.span_emitter
-            .emit_with_phase(
-        Span::tool("improv_mode_set"),
-        Phase::Observe, json!({"mode": mode_str}));
+        self.span_emitter.emit_with_phase(
+            Span::tool("improv_mode_set"),
+            Phase::Observe,
+            json!({"mode": mode_str}),
+        );
     }
 
     /// Execute an improvisation turn using this session's config and participants
@@ -365,12 +370,20 @@ pub enum EnsembleError {
     CapabilityDenied(String),
 }
 
-/// Ensemble chat manager (handles multiple chat sessions)
+/// **Deprecated:** Use `SessionManager` instead.
+///
+/// `EnsembleChatManager` has been collapsed into `SessionManager` which handles
+/// both chat and deliberation sessions.
+#[deprecated(
+    since = "0.21.0",
+    note = "Use `SessionManager` instead. EnsembleChatManager has been collapsed into SessionManager."
+)]
 pub struct EnsembleChatManager {
     chats: Arc<RwLock<HashMap<String, Arc<RwLock<EnsembleChat>>>>>,
     curator_webid: WebID,
 }
 
+#[allow(deprecated)]
 impl EnsembleChatManager {
     /// Create new chat manager
     pub fn new(curator_webid: WebID) -> Self {
@@ -409,7 +422,131 @@ impl EnsembleChatManager {
     }
 }
 
+#[allow(deprecated)]
 impl Default for EnsembleChatManager {
+    fn default() -> Self {
+        Self::new(WebID::new())
+    }
+}
+
+/// Unified session manager for both chat and deliberation sessions.
+///
+/// Collapses the former `EnsembleChatManager` and `DeliberationCoordinator` into
+/// a single manager that handles both session types.
+pub struct SessionManager {
+    chats: Arc<RwLock<HashMap<String, Arc<RwLock<EnsembleChat>>>>>,
+    deliberations: Arc<RwLock<HashMap<String, crate::deliberation::DeliberationSession>>>,
+    curator_webid: WebID,
+}
+
+impl SessionManager {
+    /// Create a new session manager
+    pub fn new(curator_webid: WebID) -> Self {
+        Self {
+            chats: Arc::new(RwLock::new(HashMap::new())),
+            deliberations: Arc::new(RwLock::new(HashMap::new())),
+            curator_webid,
+        }
+    }
+
+    /// Create a new chat session
+    pub async fn create_chat(&self, session_id: &str) -> Arc<RwLock<EnsembleChat>> {
+        let chat = Arc::new(RwLock::new(EnsembleChat::new(self.curator_webid)));
+
+        let mut chats = self.chats.write().await;
+        chats.insert(session_id.to_string(), chat.clone());
+
+        chat
+    }
+
+    /// Get a chat session
+    pub async fn get_chat(&self, session_id: &str) -> Option<Arc<RwLock<EnsembleChat>>> {
+        let chats = self.chats.read().await;
+        chats.get(session_id).cloned()
+    }
+
+    /// Delete a chat session
+    pub async fn delete_chat(&self, session_id: &str) -> bool {
+        let mut chats = self.chats.write().await;
+        chats.remove(session_id).is_some()
+    }
+
+    /// Create a new deliberation session
+    pub async fn create_deliberation(
+        &self,
+        session_id: &str,
+    ) -> &mut crate::deliberation::DeliberationSession {
+        use std::collections::hash_map::Entry;
+
+        let mut deliberations = self.deliberations.write().await;
+        match deliberations.entry(session_id.to_string()) {
+            Entry::Vacant(entry) = {
+                let session = crate::deliberation::DeliberationSession::new(
+                    session_id.to_string(),
+                    self.curator_webid,
+                );
+                entry.insert(session)
+            }
+            Entry::Occupied(entry) => entry.into_mut(),
+        }
+    }
+
+    /// Get a deliberation session reference
+    pub async fn get_deliberation_ref(
+        &self,
+        session_id: &str,
+    ) -> Option<&mut crate::deliberation::DeliberationSession> {
+        let mut deliberations = self.deliberations.write().await;
+        deliberations.get_mut(session_id)
+    }
+
+    /// Get a mutable deliberation session
+    pub async fn get_deliberation_mut(
+        &self,
+        session_id: &str,
+    ) -> Option<&mut crate::deliberation::DeliberationSession> {
+        let mut deliberations = self.deliberations.write().await;
+        deliberations.get_mut(session_id)
+    }
+
+    /// Remove a deliberation session
+    pub async fn remove_deliberation(
+        &self,
+        session_id: &str,
+    ) -> Option<crate::deliberation::DeliberationSession> {
+        let mut deliberations = self.deliberations.write().await;
+        deliberations.remove(session_id)
+    }
+
+    /// List all active chat sessions
+    pub async fn list_chat_sessions(&self) -> Vec<String> {
+        let chats = self.chats.read().await;
+        chats.keys().cloned().collect()
+    }
+
+    /// List all active deliberation sessions
+    pub async fn list_deliberation_sessions(&self) -> Vec<String> {
+        let deliberations = self.deliberations.read().await;
+        deliberations.keys().cloned().collect()
+    }
+
+    /// List all session IDs (both chat and deliberation)
+    pub async fn list_all_sessions(&self) -> Vec<String> {
+        let chats = self.chats.read().await;
+        let deliberations = self.deliberations.read().await;
+        let mut all = Vec::with_capacity(chats.len() + deliberations.len());
+        all.extend(chats.keys().cloned());
+        all.extend(deliberations.keys().cloned());
+        all
+    }
+
+    /// Get curator WebID
+    pub fn curator_webid(&self) -> WebID {
+        self.curator_webid
+    }
+}
+
+impl Default for SessionManager {
     fn default() -> Self {
         Self::new(WebID::new())
     }

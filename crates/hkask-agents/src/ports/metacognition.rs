@@ -16,8 +16,16 @@ pub enum MetacognitionPortError {
     NotFound(i64),
 }
 
-/// Snapshot of CNS health persisted to storage
+/// **Deprecated:** Use `HealthSnapshot` instead.
+///
+/// `StoredHealthSnapshot` used JSON strings for storage serialization.
+/// Migrate to using `HealthSnapshot` directly and call `.into()` when
+/// you need storage-compatible fields.
 #[derive(Debug, Clone)]
+#[deprecated(
+    since = "0.21.0",
+    note = "Use `HealthSnapshot` instead. StoredHealthSnapshot has been collapsed into HealthSnapshot."
+)]
 pub struct StoredHealthSnapshot {
     pub timestamp: String,
     pub cns_health: String,
@@ -25,6 +33,22 @@ pub struct StoredHealthSnapshot {
     pub total_alerts: i32,
     pub variety_counters_json: String,
     pub bot_reports_json: String,
+}
+
+#[allow(deprecated)]
+impl From<crate::curator::metacognition::HealthSnapshot> for StoredHealthSnapshot {
+    fn from(snapshot: crate::curator::metacognition::HealthSnapshot) -> Self {
+        Self {
+            timestamp: snapshot.timestamp.to_rfc3339(),
+            cns_health: snapshot.cns_health,
+            critical_alerts: snapshot.critical_alerts as i32,
+            total_alerts: snapshot.total_alerts as i32,
+            variety_counters_json: serde_json::to_string(&snapshot.variety_counters)
+                .unwrap_or_else(|_| "{}".to_string()),
+            bot_reports_json: serde_json::to_string(&snapshot.bot_status_reports)
+                .unwrap_or_else(|_| "[]".to_string()),
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------

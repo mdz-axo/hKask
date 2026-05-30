@@ -4,7 +4,9 @@ pub mod escalation;
 pub mod metacognition;
 
 pub use escalation::{EscalationEntry, EscalationQueue, EscalationStats, EscalationStatus};
+#[allow(deprecated)]
+pub use metacognition::SystemHealthSnapshot;
 pub use metacognition::{
-    BotHealthStatus, BotStatusReport, EscalationThresholds, MetacognitionConfig,
-    MetacognitionError, MetacognitionLoop, SystemHealthSnapshot,
+    BotHealthStatus, BotStatusReport, EscalationThresholds, HealthSnapshot, MetacognitionConfig,
+    MetacognitionError, MetacognitionLoop,
 };

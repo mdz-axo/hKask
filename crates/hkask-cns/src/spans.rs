@@ -18,13 +18,6 @@ pub trait CnsEmit {
     /// * `observation` — Event observation as JSON
     /// * `confidence` — Confidence score (0.0 to 1.0)
     fn emit_event(&self, span: &str, phase: &str, observation: &Value, confidence: f64);
-
-    /// Emit a CNS span event with default phase ("observe")
-    ///
-    /// Convenience method for callers that don't need explicit phase tracking.
-    fn emit(&self, span: &str, outcome: Value, confidence: f64) {
-        self.emit_event(span, "observe", &outcome, confidence);
-    }
 }
 
 /// CNS span emitter
@@ -76,11 +69,6 @@ impl SpanEmitter {
         self
     }
 
-    /// Emit a CNS span event
-    pub fn emit(&self, span: Span, observation: Value) {
-        self.emit_with_phase(span, Phase::Observe, observation);
-    }
-
     /// Emit a CNS span event with an explicit phase
     pub fn emit_with_phase(&self, span: Span, phase: Phase, observation: Value) {
         let event = NuEvent::new(self.observer_webid, span, phase, observation, 0);
@@ -98,59 +86,6 @@ impl SpanEmitter {
             phase = ?event.phase,
             "CNS event emitted"
         );
-    }
-
-    /// Emit connector span (external I/O)
-    pub fn emit_connector(&self, action: &str, observation: Value) {
-        self.emit(Span::connector(action), observation);
-    }
-
-    /// Emit pipeline span (multi-stage processing)
-    pub fn emit_pipeline(&self, stage: &str, observation: Value) {
-        self.emit(Span::pipeline(stage), observation);
-    }
-
-    /// Emit tool span (tool invocation)
-    pub fn emit_tool(&self, tool_name: &str, observation: Value) {
-        self.emit(Span::tool(tool_name), observation);
-    }
-
-    /// Emit prompt span (template rendering/execution)
-    pub fn emit_prompt(&self, phase: &str, observation: Value) {
-        self.emit(Span::prompt(phase), observation);
-    }
-
-    /// Emit agent pod span (lifecycle event)
-    pub fn emit_agent_pod(&self, lifecycle_event: &str, observation: Value) {
-        self.emit(Span::agent_pod(lifecycle_event), observation);
-    }
-
-    /// Emit energy span (cost tracking)
-    pub fn emit_energy(&self, energy_event: &str, observation: Value) {
-        self.emit(Span::energy(energy_event), observation);
-    }
-
-    /// Emit sovereignty span (boundary, acquisition, kill-zone)
-    pub fn emit_sovereignty(&self, sovereignty_event: &str, observation: Value) {
-        self.emit(Span::sovereignty(sovereignty_event), observation);
-    }
-
-    /// Emit sovereignty alert (kill-zone detected)
-    pub fn emit_sovereignty_alert(&self, alert_type: &str, observation: Value) {
-        self.emit(
-            Span::sovereignty(&format!("alert.{}", alert_type)),
-            observation,
-        );
-    }
-
-    /// Emit goal span (lifecycle event)
-    pub fn emit_goal(&self, goal_event: &str, observation: Value) {
-        self.emit(Span::goal(goal_event), observation);
-    }
-
-    /// Emit goal alert (variety deficit, algedonic)
-    pub fn emit_goal_alert(&self, alert_type: &str, observation: Value) {
-        self.emit(Span::goal(&format!("alert.{}", alert_type)), observation);
     }
 }
 
@@ -195,13 +130,15 @@ impl SpanScope {
     /// Returns Ok(()) if allowed, Err with the violation details if not
     pub fn emit_scoped(&self, span: Span, observation: Value) -> Result<(), SpanViolation> {
         if self.allowed_categories.contains(&span.category) {
-            self.emitter.emit(span, observation);
+            self.emitter
+                .emit_with_phase(span, Phase::Observe, observation);
             Ok(())
         } else {
             // Emit sovereignty boundary violation via the emitter itself
             // (sovereignty violations are always emitted, regardless of scope)
-            self.emitter.emit_sovereignty_alert(
-                "boundary_violation",
+            self.emitter.emit_with_phase(
+                Span::sovereignty("alert.boundary_violation"),
+                Phase::Observe,
                 serde_json::json!({
                     "observer": self.observer_webid.to_string(),
                     "attempted_category": span.category.as_str(),
@@ -360,8 +297,9 @@ impl CnsEmit for SpanScope {
                 .emit_with_phase(span_event, parsed_phase, observation.clone());
         } else {
             // Emit sovereignty boundary violation
-            self.emitter.emit_sovereignty_alert(
-                "boundary_violation",
+            self.emitter.emit_with_phase(
+                Span::sovereignty("alert.boundary_violation"),
+                Phase::Observe,
                 serde_json::json!({
                     "observer": self.observer_webid.to_string(),
                     "attempted_span": span,

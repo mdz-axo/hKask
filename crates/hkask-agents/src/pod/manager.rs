@@ -19,6 +19,7 @@ use crate::adapters::memory_storage::MemoryStorageAdapter;
 use crate::ports::{
     EpisodicStoragePort, GitCASPort, MCPRuntimePort, MemoryStoragePort, SemanticStoragePort,
 };
+#[allow(deprecated)]
 use crate::security::{AgentPersonaInput, SecurityContext};
 
 /// Pod Manager — Manages collection of agent pods
@@ -335,6 +336,8 @@ impl PodManager {
             })?;
 
         // Validate persona input
+        // TODO: Migrate to AgentPersona::validate_fields() directly
+        #[allow(deprecated)]
         let input = AgentPersonaInput {
             name: persona.agent.name.clone(),
             agent_type: persona.agent.agent_type.to_string().to_lowercase(),
@@ -344,6 +347,7 @@ impl PodManager {
             capabilities: persona.capabilities.clone(),
         };
 
+        #[allow(deprecated)]
         input
             .validate(&input)
             .map_err(|e| AgentPodError::PersonaParseError(e.to_string()))?;

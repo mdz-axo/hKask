@@ -1,6 +1,8 @@
 //! Metacognition Store Adapter — Bridges hkask_storage::MetacognitionStore
 
-use crate::ports::{MetacognitionPortError, StoredHealthSnapshot};
+use crate::ports::MetacognitionPortError;
+#[allow(deprecated)]
+use crate::ports::StoredHealthSnapshot;
 use hkask_storage::MetacognitionStore;
 use std::sync::Arc;
 
@@ -13,6 +15,7 @@ impl MetacognitionStoreAdapter {
         Self { store }
     }
 
+    #[allow(deprecated)]
     pub fn save_snapshot(
         &self,
         snapshot: &StoredHealthSnapshot,
@@ -31,6 +34,7 @@ impl MetacognitionStoreAdapter {
             .map_err(|e| MetacognitionPortError::Storage(e.to_string()))
     }
 
+    #[allow(deprecated)]
     pub fn list_snapshots(
         &self,
         limit: usize,

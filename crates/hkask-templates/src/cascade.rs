@@ -7,7 +7,7 @@
 use crate::config::load_yaml_config;
 use crate::ports::TemplateError;
 use hkask_cns::spans::SpanEmitter;
-use hkask_types::WebID;
+use hkask_types::{Phase, Span, WebID};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
@@ -313,8 +313,8 @@ impl CascadeEngine {
         );
 
         self.emitter.emit_with_phase(
-        Span::tool("cascade.start"),
-        Phase::Observe,
+            Span::tool("cascade.start"),
+            Phase::Observe,
             serde_json::json!({
                 "max_depth": self.config.cascade_limits.max_depth,
                 "energy_budget": self.config.cascade_limits.energy_per_level,
@@ -330,8 +330,8 @@ impl CascadeEngine {
         let result = self.execute_stages(input, &mut context).await;
 
         self.emitter.emit_with_phase(
-        Span::tool("cascade.complete"),
-        Phase::Observe,
+            Span::tool("cascade.complete"),
+            Phase::Observe,
             serde_json::json!({
                 "depth_reached": context.current_depth,
                 "energy_remaining": context.energy_remaining,
@@ -451,8 +451,8 @@ impl CascadeEngine {
         context: &mut CascadeContext,
     ) -> Result<serde_json::Value, TemplateError> {
         self.emitter.emit_with_phase(
-        Span::tool("cascade.stage"),
-        Phase::Observe,
+            Span::tool("cascade.stage"),
+            Phase::Observe,
             serde_json::json!({
                 "stage": stage.name,
                 "templates": stage.templates,
@@ -463,8 +463,8 @@ impl CascadeEngine {
             && !self.evaluate_condition(condition, &input, context)
         {
             self.emitter.emit_with_phase(
-        Span::tool("cascade.stage.skipped"),
-        Phase::Observe,
+                Span::tool("cascade.stage.skipped"),
+                Phase::Observe,
                 serde_json::json!({"stage": stage.name, "condition": condition}),
             );
             return Ok(input);
@@ -473,8 +473,8 @@ impl CascadeEngine {
         let energy_cost = self.config.cascade_limits.energy_per_level;
         context.consume_energy(energy_cost).map_err(|_| {
             self.emitter.emit_with_phase(
-        Span::tool("cascade.energy.exhausted"),
-        Phase::Observe,
+                Span::tool("cascade.energy.exhausted"),
+                Phase::Observe,
                 serde_json::json!({"stage": stage.name, "remaining": context.energy_remaining}),
             );
             TemplateError::Manifest(format!("Energy exhausted at stage '{}'", stage.name))
@@ -483,8 +483,8 @@ impl CascadeEngine {
         let mut current = input;
         for template_id in &stage.templates {
             self.emitter.emit_with_phase(
-        Span::prompt("cascade.render"),
-        Phase::Observe,
+                Span::prompt("cascade.render"),
+                Phase::Observe,
                 serde_json::json!({"template": template_id}),
             );
             let _ = template_id;

@@ -57,9 +57,14 @@ impl Default for EscalationThresholds {
     }
 }
 
-/// System health snapshot
+/// Health snapshot — unified type for system health state.
+///
+/// Collapses the former `SystemHealthSnapshot` and `StoredHealthSnapshot` into
+/// a single type with rich types. `StoredHealthSnapshot` is deprecated in favor
+/// of this type; use `From<HealthSnapshot> for StoredHealthSnapshot` for
+/// storage-layer conversion.
 #[derive(Debug, Clone)]
-pub struct SystemHealthSnapshot {
+pub struct HealthSnapshot {
     pub timestamp: chrono::DateTime<chrono::Utc>,
     pub cns_health: String,
     pub variety_counters: Vec<(String, u64)>,
@@ -67,6 +72,15 @@ pub struct SystemHealthSnapshot {
     pub total_alerts: usize,
     pub bot_status_reports: Vec<BotStatusReport>,
 }
+
+/// **Deprecated:** Use `HealthSnapshot` instead.
+///
+/// `SystemHealthSnapshot` has been renamed to `HealthSnapshot`.
+#[deprecated(
+    since = "0.21.0",
+    note = "Use `HealthSnapshot` instead. SystemHealthSnapshot has been renamed."
+)]
+pub type SystemHealthSnapshot = HealthSnapshot;
 
 /// Bot status report from standing session
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -186,7 +200,7 @@ impl MetacognitionLoop {
         self.bot_reports.read().await.clone()
     }
 
-    pub async fn run_cycle(&self) -> Result<SystemHealthSnapshot, MetacognitionError> {
+    pub async fn run_cycle(&self) -> Result<HealthSnapshot, MetacognitionError> {
         info!(target: "curator.metacognition", "Starting metacognition cycle");
 
         let cns_health = self.cns.health().await;
@@ -199,7 +213,7 @@ impl MetacognitionLoop {
 
         let bot_reports = self.get_bot_reports().await;
 
-        let snapshot = SystemHealthSnapshot {
+        let snapshot = HealthSnapshot {
             timestamp: chrono::Utc::now(),
             cns_health: cns_health_str,
             variety_counters: variety_counters.clone(),
@@ -211,16 +225,8 @@ impl MetacognitionLoop {
         self.check_escalation_triggers(&snapshot).await?;
 
         if let Some(ref store) = self.store {
-            let stored = StoredHealthSnapshot {
-                timestamp: snapshot.timestamp.to_rfc3339(),
-                cns_health: snapshot.cns_health.clone(),
-                critical_alerts: snapshot.critical_alerts as i32,
-                total_alerts: snapshot.total_alerts as i32,
-                variety_counters_json: serde_json::to_string(&snapshot.variety_counters)
-                    .unwrap_or_else(|_| "{}".to_string()),
-                bot_reports_json: serde_json::to_string(&snapshot.bot_status_reports)
-                    .unwrap_or_else(|_| "[]".to_string()),
-            };
+            #[allow(deprecated)]
+            let stored: StoredHealthSnapshot = snapshot.clone().into();
             if let Err(e) = store.save_snapshot(&stored) {
                 warn!(
                     target: "curator.metacognition",
@@ -244,7 +250,7 @@ impl MetacognitionLoop {
     /// Check escalation triggers and post escalations if needed
     async fn check_escalation_triggers(
         &self,
-        snapshot: &SystemHealthSnapshot,
+        snapshot: &HealthSnapshot,
     ) -> Result<(), MetacognitionError> {
         // Check variety deficit
         let mut total_variety_deficit = 0u64;
@@ -363,7 +369,7 @@ impl MetacognitionLoop {
     }
 
     /// Generate a system state summary for posting to standing session
-    pub fn generate_summary(&self, snapshot: &SystemHealthSnapshot) -> String {
+    pub fn generate_summary(&self, snapshot: &HealthSnapshot) -> String {
         let mut summary = String::new();
         summary.push_str("## Metacognition Update\n\n");
         summary.push_str(&format!(

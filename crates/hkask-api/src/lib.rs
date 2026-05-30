@@ -504,7 +504,11 @@ impl InferenceSpan {
     }
 
     pub fn emit(&self, emitter: &crate::SpanEmitter) {
-        emitter.emit_tool(self.span_name(), self.observation());
+        emitter.emit_with_phase(
+            hkask_types::Span::tool(self.span_name()),
+            hkask_types::Phase::Observe,
+            self.observation(),
+        );
     }
 }
 

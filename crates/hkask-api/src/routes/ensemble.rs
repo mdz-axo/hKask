@@ -12,6 +12,7 @@ use tokio::sync::RwLock;
 use utoipa::ToSchema;
 
 use crate::middleware::AuthContext;
+use hkask_types::{Phase, Span};
 use crate::{ApiState, ErrorResponse};
 
 /// Create ensemble router

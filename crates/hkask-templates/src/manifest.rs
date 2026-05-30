@@ -245,9 +245,10 @@ where
             Action::Execute => 500,
         };
         if !energy.debit(step_cost) {
-            self.cns.emit(
+            self.cns.emit_event(
                 "cns.energy.algedonic",
-                serde_json::json!({
+                "observe",
+                &serde_json::json!({
                     "consumed": energy.consumed,
                     "budget": energy.budget,
                     "step": step.action.as_str(),
@@ -284,9 +285,10 @@ where
                 let template = self.renderer.load(template_path)?;
                 let rendered = self.renderer.render(&template, state.clone())?;
 
-                self.cns.emit(
+                self.cns.emit_event(
                     "cns.prompt.populate",
-                    serde_json::json!({
+                    "observe",
+                    &serde_json::json!({
                         "template_id": template_id,
                         "rendered_length": rendered.len(),
                     }),
@@ -317,9 +319,10 @@ where
                             .unwrap_or_else(|| template_id.to_string());
 
                         let result = self.mcp.invoke(&target_tool, state.clone(), token).await?;
-                        self.cns.emit(
+                        self.cns.emit_event(
                             "cns.prompt.execute_contract",
-                            serde_json::json!({
+                            "observe",
+                            &serde_json::json!({
                                 "template_id": template_id,
                                 "target_tool": target_tool,
                             }),
@@ -337,9 +340,10 @@ where
             }
         };
 
-        self.cns.emit(
+        self.cns.emit_event(
             &format!("cns.prompt.{}", step.action.as_str()),
-            result.clone(),
+            "observe",
+            &result,
             1.0,
         );
 
@@ -383,15 +387,17 @@ where
             state = merge_state(state, step_result);
         }
 
-        self.cns.emit(
+        self.cns.emit_event(
             "cns.energy.final",
-            serde_json::json!({
+            "observe",
+            &serde_json::json!({
                 "consumed": energy.consumed,
                 "budget": energy.budget,
             }),
             1.0,
         );
-        self.cns.emit("cns.prompt.outcome", state.clone(), 1.0);
+        self.cns
+            .emit_event("cns.prompt.outcome", "observe", &state, 1.0);
 
         Ok(state)
     }

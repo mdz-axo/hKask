@@ -60,6 +60,9 @@ pub use consent::{ConsentError, ConsentManager};
 pub use curator::escalation::{
     EscalationEntry, EscalationQueue, EscalationStats, EscalationStatus,
 };
+pub use curator::metacognition::HealthSnapshot;
+#[allow(deprecated)]
+pub use curator::metacognition::SystemHealthSnapshot;
 pub use error::{GitError, McpError, MemoryError, RegistryError};
 pub use hkask_types::{BotCapabilities, CapabilityChecker, CapabilityToken, SovereigntyPort};
 pub use pod::{

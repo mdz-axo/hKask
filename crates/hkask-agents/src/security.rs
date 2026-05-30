@@ -33,7 +33,15 @@ pub enum ValidationError {
 /// Validation result type
 pub type ValidationResult<T> = Result<T, ValidationError>;
 
-/// Agent persona input for validation
+/// **Deprecated:** Construct `AgentPersona` directly from its fields instead.
+///
+/// `AgentPersonaInput` was used as a separate validation input struct. Now,
+/// `AgentPersona::validate_fields()` accepts the same fields directly, and
+/// `From<AgentPersonaInput> for AgentPersona` enables migration.
+#[deprecated(
+    since = "0.21.0",
+    note = "Use AgentPersona::validate_fields() instead. AgentPersonaInput has been collapsed into AgentPersona."
+)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentPersonaInput {
     pub name: String,
@@ -44,6 +52,7 @@ pub struct AgentPersonaInput {
     pub capabilities: Vec<String>,
 }
 
+#[allow(deprecated)]
 impl AgentPersonaInput {
     pub fn validate(&self, input: &AgentPersonaInput) -> ValidationResult<()> {
         // Name validation: 1-64 chars, alphanumeric + hyphens

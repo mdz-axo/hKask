@@ -159,6 +159,116 @@ impl AgentPersona {
             })
             .collect()
     }
+
+    /// Validate persona fields directly, replacing the need for `AgentPersonaInput`.
+    ///
+    /// Validates name, agent_type, version, description, editor, and capabilities
+    /// against the same rules previously enforced by `AgentPersonaInput::validate()`.
+    pub fn validate_fields(
+        name: &str,
+        agent_type: &str,
+        version: &str,
+        description: &str,
+        editor: &str,
+        capabilities: &[String],
+    ) -> Result<(), crate::security::ValidationError> {
+        use crate::security::ValidationError;
+
+        if name.is_empty() {
+            return Err(ValidationError::MissingField("name".to_string()));
+        }
+        if name.len() > 64 {
+            return Err(ValidationError::FieldTooLong {
+                field: "name".to_string(),
+                max: 64,
+            });
+        }
+        if !name
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+        {
+            return Err(ValidationError::InvalidFormat {
+                field: "name".to_string(),
+            });
+        }
+
+        if !["bot", "replicant"].contains(&agent_type) {
+            return Err(ValidationError::InvalidFormat {
+                field: "agent_type".to_string(),
+            });
+        }
+
+        if version.is_empty() || version.len() > 32 {
+            return Err(ValidationError::InvalidFormat {
+                field: "version".to_string(),
+            });
+        }
+
+        if description.len() > 1000 {
+            return Err(ValidationError::FieldTooLong {
+                field: "description".to_string(),
+                max: 1000,
+            });
+        }
+
+        if editor.is_empty() || editor.len() > 256 {
+            return Err(ValidationError::InvalidFormat {
+                field: "editor".to_string(),
+            });
+        }
+
+        if capabilities.len() > 20 {
+            return Err(ValidationError::InvalidFormat {
+                field: "capabilities".to_string(),
+            });
+        }
+        for cap in capabilities {
+            if cap.len() > 128 {
+                return Err(ValidationError::FieldTooLong {
+                    field: "capability".to_string(),
+                    max: 128,
+                });
+            }
+        }
+
+        Ok(())
+    }
+}
+
+/// **Deprecated:** Use `AgentPersona` directly instead.
+///
+/// `AgentPersonaInput` has been collapsed into `AgentPersona`.
+/// Use `AgentPersona::validate_fields()` for validation and construct
+/// `AgentPersona` directly from its fields.
+#[allow(deprecated)]
+impl From<crate::security::AgentPersonaInput> for AgentPersona {
+    fn from(input: crate::security::AgentPersonaInput) -> Self {
+        let agent_type = match input.agent_type.as_str() {
+            "bot" => AgentKind::Bot,
+            _ => AgentKind::Replicant,
+        };
+        let agent = AgentIdentity {
+            name: input.name,
+            agent_type,
+            version: input.version,
+        };
+        let charter = AgentCharter {
+            description: input.description,
+            editor: input.editor,
+        };
+        let visibility = VisibilitySettings {
+            default: hkask_types::Visibility::Public,
+            episodic_override: hkask_types::Visibility::Private,
+        };
+        Self::new(
+            agent,
+            charter,
+            input.capabilities,
+            vec![], // rights — not in AgentPersonaInput
+            vec![], // responsibilities — not in AgentPersonaInput
+            visibility,
+        )
+    }
 }
 
 /// Template crate structure (loaded from Git CAS)

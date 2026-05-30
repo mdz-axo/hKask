@@ -5,7 +5,7 @@
 
 use crate::chat::ChatParticipant;
 use hkask_cns::spans::SpanEmitter;
-use hkask_types::WebID;
+use hkask_types::{Phase, Span, WebID};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::HashMap;
@@ -111,8 +111,8 @@ impl DeliberationSession {
         let span_emitter = SpanEmitter::new(curator_webid);
 
         span_emitter.emit_with_phase(
-        Span::agent_pod("deliberation_started"),
-        Phase::Observe,
+            Span::agent_pod("deliberation_started"),
+            Phase::Observe,
             json!({
                 "session_id": session_id,
             }),
@@ -130,8 +130,8 @@ impl DeliberationSession {
     /// Add a participant to deliberation
     pub fn add_participant(&mut self, participant: ChatParticipant) {
         self.span_emitter.emit_with_phase(
-        Span::agent_pod("deliberation_participant_added"),
-        Phase::Observe,
+            Span::agent_pod("deliberation_participant_added"),
+            Phase::Observe,
             json!({
                 "webid": participant.webid.to_string(),
                 "role": format!("{:?}", participant.role),
@@ -144,8 +144,8 @@ impl DeliberationSession {
     /// Record an agent's response
     pub fn record_response(&mut self, response: AgentResponse) {
         self.span_emitter.emit_with_phase(
-        Span::tool("deliberation_response"),
-        Phase::Observe,
+            Span::tool("deliberation_response"),
+            Phase::Observe,
             json!({
                 "agent": response.agent_webid.to_string(),
                 "confidence": response.confidence,
@@ -164,8 +164,8 @@ impl DeliberationSession {
     /// Synthesize responses (simple concatenation, no consensus)
     pub fn synthesize(&self) -> DeliberationResult {
         self.span_emitter.emit_with_phase(
-        Span::tool("deliberation_synthesize"),
-        Phase::Observe,
+            Span::tool("deliberation_synthesize"),
+            Phase::Observe,
             json!({
                 "response_count": self.responses.len(),
             }),
@@ -186,8 +186,8 @@ impl DeliberationSession {
             .join("\n\n");
 
         self.span_emitter.emit_with_phase(
-        Span::agent_pod("deliberation_completed"),
-        Phase::Observe,
+            Span::agent_pod("deliberation_completed"),
+            Phase::Observe,
             json!({
                 "session_id": self.session_id,
                 "response_count": individual_responses.len(),
@@ -210,29 +210,32 @@ impl DeliberationSession {
     /// Mark deliberation as in progress
     pub fn start(&mut self) {
         self.status = DeliberationStatus::InProgress;
-        self.span_emitter
-            .emit_with_phase(
-        Span::agent_pod("deliberation_started"),
-        Phase::Observe, json!({}));
+        self.span_emitter.emit_with_phase(
+            Span::agent_pod("deliberation_started"),
+            Phase::Observe,
+            json!({}),
+        );
     }
 
     /// Mark deliberation as completed
     pub fn complete(&mut self) {
         self.status = DeliberationStatus::Completed;
-        self.span_emitter
-            .emit_with_phase(
-        Span::agent_pod("deliberation_completed"),
-        Phase::Observe, json!({}));
+        self.span_emitter.emit_with_phase(
+            Span::agent_pod("deliberation_completed"),
+            Phase::Observe,
+            json!({}),
+        );
         info!("Deliberation session {} completed", self.session_id);
     }
 
     /// Cancel deliberation
     pub fn cancel(&mut self) {
         self.status = DeliberationStatus::Cancelled;
-        self.span_emitter
-            .emit_with_phase(
-        Span::agent_pod("deliberation_cancelled"),
-        Phase::Observe, json!({}));
+        self.span_emitter.emit_with_phase(
+            Span::agent_pod("deliberation_cancelled"),
+            Phase::Observe,
+            json!({}),
+        );
         info!("Deliberation session {} cancelled", self.session_id);
     }
 
@@ -247,12 +250,20 @@ impl DeliberationSession {
     }
 }
 
-/// Deliberation coordinator for managing multiple sessions
+/// **Deprecated:** Use `SessionManager` instead.
+///
+/// `DeliberationCoordinator` has been collapsed into `SessionManager` which handles
+/// both chat and deliberation sessions.
+#[deprecated(
+    since = "0.21.0",
+    note = "Use `SessionManager` instead. DeliberationCoordinator has been collapsed into SessionManager."
+)]
 pub struct DeliberationCoordinator {
     sessions: HashMap<String, DeliberationSession>,
     curator_webid: WebID,
 }
 
+#[allow(deprecated)]
 impl DeliberationCoordinator {
     /// Create new coordinator
     pub fn new(curator_webid: WebID) -> Self {
@@ -301,6 +312,7 @@ impl DeliberationCoordinator {
     }
 }
 
+#[allow(deprecated)]
 impl Default for DeliberationCoordinator {
     fn default() -> Self {
         Self::new(WebID::new())

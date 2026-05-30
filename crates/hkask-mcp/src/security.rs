@@ -170,9 +170,10 @@ impl SecurityGateway {
         );
 
         if !result && let Some(ref emitter) = self.cns_emitter {
-            emitter.emit(
+            emitter.emit_event(
                 &format!("cns.tool.{}.unauthorized", tool_name.replace(':', ".")),
-                serde_json::json!({"bot_id": bot_id.to_string(), "tool": tool_name}),
+                "observe",
+                &serde_json::json!({"bot_id": bot_id.to_string(), "tool": tool_name}),
                 0.0,
             );
         }
@@ -187,9 +188,10 @@ impl SecurityGateway {
         }
         let result = self.rate_limiter.check(bot_id);
         if !result && let Some(ref emitter) = self.cns_emitter {
-            emitter.emit(
+            emitter.emit_event(
                 "cns.tool.rate_limit_exceeded",
-                serde_json::json!({"bot_id": bot_id.to_string()}),
+                "observe",
+                &serde_json::json!({"bot_id": bot_id.to_string()}),
                 0.0,
             );
         }
