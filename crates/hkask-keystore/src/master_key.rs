@@ -174,3 +174,34 @@ pub fn resolve_derived(secret_ref: &SecretRef) -> Result<Zeroizing<Vec<u8>>, cra
         )),
     }
 }
+
+/// Derive an HKDF-SHA256 sub-key for a specific data category.
+///
+/// This function enforces OCAP visibility boundaries at the storage layer.
+/// Each `DataCategory` has a unique derivation context that produces a
+/// cryptographically independent 256-bit AES-256-GCM key. A key derived
+/// for `EpisodicMemory` cannot decrypt data stored under `SemanticMemory`,
+/// even if the type system is bypassed.
+///
+/// # Security
+///
+/// - Uses HKDF-SHA256 with the same fixed salt as other sub-key derivations
+/// - The context string provides domain separation per `hkask:data-category:*`
+/// - Different categories produce completely independent sub-keys
+/// - Compromising one category's key does not compromise others or the master key
+///
+/// # Arguments
+///
+/// * `master_key` — 32-byte master key (typically from Argon2id passphrase stretching)
+/// * `category` — The data category whose encryption key to derive
+///
+/// # Returns
+///
+/// A `Zeroizing<Vec<u8>>` containing the 32-byte derived key.
+pub fn derive_data_category_key(
+    master_key: &[u8],
+    category: &hkask_types::DataCategory,
+) -> Zeroizing<Vec<u8>> {
+    let context = category.derivation_context();
+    derive_sub_key(master_key, context)
+}

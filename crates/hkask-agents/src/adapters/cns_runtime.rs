@@ -297,6 +297,14 @@ impl CnsGovernWriteAdapter {
         self.handle.check_all().await
     }
 
+    /// Calibrate the algedonic threshold for a specific domain.
+    ///
+    /// This is the Curation loop's ADAPT subloop (5.3): adjust observability
+    /// thresholds based on system evaluation.
+    pub async fn calibrate_threshold(&self, domain: &str, new_threshold: u64) {
+        self.handle.calibrate_threshold(domain, new_threshold).await
+    }
+
     /// Increment variety and check thresholds.
     pub async fn increment_and_check(&self, domain: &str, state_name: &str) -> Option<AlertInfo> {
         self.handle

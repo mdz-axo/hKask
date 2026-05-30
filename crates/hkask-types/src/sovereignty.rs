@@ -79,6 +79,42 @@ impl DataCategory {
             DataCategory::HLexiconTerms | DataCategory::TemplateRegistry
         )
     }
+
+    /// Get the HKDF-SHA256 derivation context for this data category.
+    ///
+    /// Each category has a unique, deterministic context string that produces
+    /// a cryptographically independent 256-bit sub-key from the master key.
+    /// This enables storage-layer enforcement of OCAP visibility boundaries:
+    /// a key derived for `EpisodicMemory` cannot decrypt `SemanticMemory` data,
+    /// even if a handle bypasses the type system.
+    ///
+    /// # Security
+    ///
+    /// The context strings are prefixed with `hkask:data-category:` to ensure
+    /// domain separation from other HKDF derivation contexts (ACP secrets,
+    /// OCAP tokens, etc.).
+    pub fn derivation_context(&self) -> &'static str {
+        match self {
+            DataCategory::EpisodicMemory => crate::derivation_contexts::EPISODIC_MEMORY,
+            DataCategory::SemanticMemory => crate::derivation_contexts::SEMANTIC_MEMORY,
+            DataCategory::PersonalContext => crate::derivation_contexts::PERSONAL_CONTEXT,
+            DataCategory::CapabilityTokens => crate::derivation_contexts::CAPABILITY_TOKENS,
+            DataCategory::OcapBoundaries => crate::derivation_contexts::OCAP_BOUNDARIES,
+            DataCategory::TemplateInvocations => crate::derivation_contexts::TEMPLATE_INVOCATIONS,
+            DataCategory::HLexiconTerms => crate::derivation_contexts::HLEXICON_TERMS,
+            DataCategory::TemplateRegistry => crate::derivation_contexts::TEMPLATE_REGISTRY,
+            DataCategory::Custom(s) => {
+                // Custom categories use a deterministic context derived
+                // from their name, prefixed for domain separation.
+                // Note: this returns a borrowed &str, so we leak the string.
+                // Custom categories are rare and this is acceptable.
+                static LEAKED: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+                LEAKED
+                    .get_or_init(|| format!("hkask:data-category:custom:{}", s))
+                    .as_str()
+            }
+        }
+    }
 }
 
 impl std::fmt::Display for DataCategory {

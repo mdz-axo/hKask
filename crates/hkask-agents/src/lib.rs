@@ -57,6 +57,9 @@ pub use adapters::{LoopbackHttpTransport, StdioTransport};
 pub use bot::Bot;
 pub use capabilities::{AgentCapabilities, MemoryAccess};
 pub use consent::{ConsentError, ConsentManager};
+pub use curator::context::CuratorContext;
+pub use curator::dampener::Dampener;
+pub use curator::dispatch::MessageDispatch;
 pub use curator::escalation::{
     EscalationEntry, EscalationQueue, EscalationStats, EscalationStatus,
 };

@@ -8,11 +8,8 @@
 //! - Triggers escalations when thresholds are exceeded
 //! - Posts summaries to standing session
 
-use crate::adapters::CnsGovernWriteAdapter;
-#[allow(deprecated)]
-use crate::adapters::CnsRuntimeAdapter;
 use crate::adapters::MetacognitionStoreAdapter;
-use crate::curator::escalation::EscalationQueue;
+use crate::curator::context::CuratorContext;
 use crate::ports::HealthStatus;
 #[allow(deprecated)]
 use crate::ports::metacognition::StoredHealthSnapshot;
@@ -22,6 +19,8 @@ use crate::ports::metacognition::{
 use hkask_cns::bot_metrics::{
     BotEvaluationMetrics, BotHealthStatus as CnsBotHealthStatus, GapType,
 };
+use hkask_types::loops::curation::CuratorDirective;
+use hkask_types::loops::dispatch::TraceId;
 use hkask_types::{BotID, WebID};
 use std::sync::Arc;
 use std::time::Duration;
@@ -131,53 +130,33 @@ impl Default for MetacognitionConfig {
 }
 
 /// Metacognition loop — Curator's system governance mechanism
+///
+/// Uses `CuratorContext` for capability-disciplined access to all
+/// Curation subloops. The context provides:
+/// - CNS governance writes (threshold calibration)
+/// - Message dispatch (inter-loop directive delivery)
+/// - Escalation queue (human review routing)
 pub struct MetacognitionLoop {
-    cns: Arc<CnsGovernWriteAdapter>,
-    escalation_queue: tokio::sync::Mutex<Arc<EscalationQueue>>,
+    context: Arc<CuratorContext>,
     config: MetacognitionConfig,
     bot_reports: Arc<RwLock<Vec<BotStatusReport>>>,
     store: Option<Arc<MetacognitionStoreAdapter>>,
 }
 
 impl MetacognitionLoop {
-    /// Create a new metacognition loop with a governance write adapter.
+    /// Create a new metacognition loop with a CuratorContext.
     ///
-    /// Uses `CnsGovernWriteAdapter` which provides read + calibration access
-    /// to CNS observability. This enforces OCAP discipline: the Curation
-    /// loop can read variety and calibrate thresholds, but CANNOT emit
-    /// spans directly or reset alerts.
-    pub fn new(
-        cns: Arc<CnsGovernWriteAdapter>,
-        escalation_queue: Arc<EscalationQueue>,
-        config: MetacognitionConfig,
-    ) -> Self {
+    /// Uses `CuratorContext` which provides capability-disciplined access
+    /// to all Curation subloops: CNS governance writes (threshold calibration),
+    /// message dispatch (inter-loop directives), and escalation queue
+    /// (human review routing).
+    pub fn new(context: Arc<CuratorContext>, config: MetacognitionConfig) -> Self {
         Self {
-            cns,
-            escalation_queue: tokio::sync::Mutex::new(escalation_queue),
+            context,
             config,
             bot_reports: Arc::new(RwLock::new(Vec::new())),
             store: None,
         }
-    }
-
-    /// Create a new metacognition loop from a legacy CnsRuntimeAdapter.
-    ///
-    /// **Deprecated:** Use `new()` with a `CnsGovernWriteAdapter` instead.
-    #[allow(deprecated)]
-    #[deprecated(note = "Use new() with CnsGovernWriteAdapter instead")]
-    pub fn from_legacy_adapter(
-        cns: Arc<CnsRuntimeAdapter>,
-        _escalation_queue: Arc<EscalationQueue>,
-        _config: MetacognitionConfig,
-    ) -> Self {
-        // This constructor exists for backward compatibility during migration.
-        // The CnsRuntimeAdapter will be removed in a future version.
-        // For now, we construct a CnsGovernWriteAdapter from the same runtime.
-        // This is a temporary bridge — consumers should migrate to passing
-        // a CnsGovernWriteAdapter directly.
-        let _ = cns; // Intentionally unused — we need the CnsGovernWriteAdapter instead
-        // TODO: Remove this bridge once all consumers pass CnsGovernWriteAdapter
-        unimplemented!("Migrate to MetacognitionLoop::new() with CnsGovernWriteAdapter")
     }
 
     pub fn with_store(mut self, store: Arc<MetacognitionStoreAdapter>) -> Self {
@@ -204,13 +183,13 @@ impl MetacognitionLoop {
     pub async fn run_cycle(&self) -> Result<HealthSnapshot, MetacognitionError> {
         info!(target: "curator.metacognition", "Starting metacognition cycle");
 
-        let cns_health = self.cns.health().await;
+        let cns_health = self.context.cns().health().await;
         let cns_health_str = format_health_status(&cns_health);
 
-        let variety_counters = self.cns.variety().await;
+        let variety_counters = self.context.cns().variety().await;
 
-        let all_alerts = self.cns.alerts().await;
-        let critical_alerts = self.cns.critical_alerts().await;
+        let all_alerts = self.context.cns().alerts().await;
+        let critical_alerts = self.context.cns().critical_alerts().await;
 
         let bot_reports = self.get_bot_reports().await;
 
@@ -282,8 +261,8 @@ impl MetacognitionLoop {
                 total_variety_deficit, self.config.thresholds.variety_deficit
             );
 
-            let queue = self.escalation_queue.lock().await;
-            queue
+            self.context
+                .escalation_queue()
                 .add(
                     template_id,
                     bot_id,
@@ -293,6 +272,23 @@ impl MetacognitionLoop {
                     error_context,
                 )
                 .map_err(|e| MetacognitionError::Escalation(e.to_string()))?;
+
+            // Issue CalibrateThreshold directive through dispatch (5.3 Threshold Calibration)
+            let directive = CuratorDirective::CalibrateThreshold {
+                domain: "variety".to_string(),
+                new_threshold: total_variety_deficit
+                    .saturating_add(self.config.thresholds.variety_deficit),
+            };
+            self.issue_directive(directive).await;
+
+            // Calibrate CNS threshold directly (5.3 ADAPT subloop)
+            self.context
+                .cns()
+                .calibrate_threshold(
+                    "variety",
+                    total_variety_deficit.saturating_add(self.config.thresholds.variety_deficit),
+                )
+                .await;
         }
 
         // Check critical alerts
@@ -312,8 +308,8 @@ impl MetacognitionLoop {
                 snapshot.critical_alerts, self.config.thresholds.critical_alerts
             );
 
-            let queue = self.escalation_queue.lock().await;
-            queue
+            self.context
+                .escalation_queue()
                 .add(
                     template_id,
                     bot_id,
@@ -353,8 +349,8 @@ impl MetacognitionLoop {
                     .join(", ")
             );
 
-            let queue = self.escalation_queue.lock().await;
-            queue
+            self.context
+                .escalation_queue()
                 .add(
                     template_id,
                     bot_id,
@@ -484,6 +480,27 @@ impl MetacognitionLoop {
         // The standing session integration (Task 2) will deliver this.
 
         Ok(())
+    }
+
+    // -----------------------------------------------------------------------
+    // Directive issuance — Curation → Governance/Observability
+    // -----------------------------------------------------------------------
+
+    /// Issue a CuratorDirective through the message dispatch with DAMPEN filtering.
+    ///
+    /// Delegates to `CuratorContext::issue_directive()` which:
+    /// 1. Checks the dampener (6.3 DAMPEN) for repeated directives
+    /// 2. If dampened, returns `None` without sending
+    /// 3. If not dampened, sends through dispatch and returns the `TraceId`
+    ///
+    /// # Subloops served
+    ///
+    /// - 5.2 Bot Evaluation / Kata Coaching (ADAPT) — UpdateCapabilities
+    /// - 5.3 Threshold Calibration (ADAPT) — CalibrateThreshold
+    /// - Energy budget adjustment — AdjustEnergyBudget
+    /// - 6.3 DAMPEN — Suppresses repeated directives within time window
+    pub async fn issue_directive(&self, directive: CuratorDirective) -> Option<TraceId> {
+        self.context.issue_directive(directive).await
     }
 }
 

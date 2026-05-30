@@ -25,6 +25,7 @@ pub mod observers;
 pub mod rate_limit;
 pub mod runtime;
 pub mod spans;
+pub mod unified_tracker;
 pub mod variety;
 
 pub use acp_alert_sender::AcpAlertSender;
@@ -54,4 +55,5 @@ pub use spans::{
     CnsEmit, SpanEmitter, SpanScope, SpanViolation, curator_span_scope, span_scope_for_domain,
     span_scope_for_r7_bot,
 };
+pub use unified_tracker::UnifiedVarietyTracker;
 pub use variety::{VarietyMonitor, VarietyTracker};

@@ -4,7 +4,7 @@
 
 This document is a self-contained continuation prompt for an agent executing the hKask loop architecture implementation. It contains all architectural decisions, the complete revised implementation plan, and the context needed to start work without access to prior conversation.
 
-**Status:** Phase 0 (security + dead code) is COMPLETE. Start with Phase 1.
+**Status:** Phases 0–7 are COMPLETE. Next: Phase 8 (Implementation-Phase Open Questions).
 
 ---
 
@@ -104,7 +104,9 @@ B.1 Consolidation Priority (DISPATCH) | B.2 Perspective Stripping (FILTER) | B.3
 1. **Subloops are domain-specific instances of control primitives.** The primitive is the pattern; the subloop is the instantiation.
 2. **Communication has no subloops** because all subloops ARE communication pattern instances. Communication delivers messenger functions that sit on every inter-loop edge.
 3. **Memory is a paired domain loop.** Episodic and Semantic share an origin (experience) but immediately diverge. They are connected by a one-way bridge (Consolidation).
-4. **The episodic loop currently does not close.** `EpisodicMemory` is a passthrough CRUD wrapper — no decay, no retraction, no temporal attention, no storage budget, no encoding, no context assembly. Phase 5 closes it.
+4. **The episodic loop now closes.** Phases 5–6 wired all subloops: experience encoding, confidence decay, temporal attention, confidence retraction, storage budget, context assembly (episodic); dedup, confidence combination, indexing, storage budget, consolidation with confidence promotion (semantic).
+5. **The Curation loop now closes.** Phase 7 wired the metacognition loop to `CuratorContext`, directive delivery through `MessageDispatch`, threshold calibration through `CnsGovernWriteHandle::calibrate_threshold()`, and DAMPEN on feedback edges.
+6. **The Communication messenger functions are now wired.** DISPATCH (6.1) via `MessageDispatch`, DAMPEN (6.3) via `Dampener`. CORRELATE (6.2), CIRCUIT (6.4), and ACKNOWLEDGE (6.5) are not yet implemented but the types exist in `hkask-types/src/loops/dispatch.rs`.
 
 ---
 
@@ -151,7 +153,7 @@ These questions were debated and resolved during the audit. **Do not revisit the
 
 ## Implementation Plan (TASK8 v2 — Authoritative)
 
-**10 phases, 53 PRs, ~5–6 weeks. Phase 0 is COMPLETE.**
+**10 phases, 53 PRs, ~5–6 weeks. Phases 0–7 COMPLETE. Next: Phase 8.**
 
 ### Phase 0: COMPLETE ✓
 
@@ -161,7 +163,7 @@ These questions were debated and resolved during the audit. **Do not revisit the
 | 0b | Wire or remove dead session fields | ✓ Done |
 | 0c | Prune dead code | ✓ Done |
 
-### Phase 1: Type Foundation — START HERE
+### Phase 1: Type Foundation — COMPLETE ✓
 
 Define all handle types as struct definitions in `hkask-types/src/loops/`. **Additive only — no existing code changes.**
 
@@ -174,7 +176,7 @@ Define all handle types as struct definitions in `hkask-types/src/loops/`. **Add
 
 **Verification:** `cargo check -p hkask-types && cargo test -p hkask-types && cargo clippy -p hkask-types -- -D warnings`
 
-### Phase 2: CnsGovernHandle Split + Memory Handle Split
+### Phase 2: CnsGovernHandle Split + Memory Handle Split — COMPLETE ✓
 
 Two most invasive refactors.
 
@@ -187,7 +189,7 @@ Two most invasive refactors.
 
 **Verification:** `cargo check --workspace && cargo test --workspace && cargo clippy --workspace -- -D warnings`
 
-### Phase 3: Collapse, Fold, Delete
+### Phase 3: Collapse, Fold, Delete — COMPLETE ✓
 
 | PR | Title | What | Lines |
 |---|-------|------|:-----:|
@@ -199,7 +201,7 @@ Two most invasive refactors.
 
 **Verification:** `cargo check --workspace && cargo test --workspace && cargo clippy --workspace -- -D warnings && cargo fmt --check`
 
-### Phase 4: Contract Tightening
+### Phase 4: Contract Tightening — COMPLETE ✓
 
 | PR | Title | What | Affected Crates |
 |---|-------|------|-----------------|
@@ -242,17 +244,29 @@ The semantic loop now closes. Semantic recall has confidence combination, semant
 
 **Verification:** `cargo check --workspace && cargo test --workspace && cargo clippy --workspace -- -D warnings`
 
-### Phase 7: Curation Loop Wiring + Communication Foundation
+### Phase 7: Curation Loop Wiring + Communication Foundation — COMPLETE ✓
 
-| PR | Title | What | Affected Crates |
-|---|-------|------|-----------------|
-| 7a | Wire MetacognitionLoop to CuratorHandle | Replace `Arc<CnsRuntimeAdapter>` with `CuratorHandle`. Note: `MemoryWriteHandle` → `SemanticWriteHandle` (Curation writes to semantic memory). | `hkask-agents` |
-| 7b | Wire Curation → Governance directive delivery | `DirectiveType::CalibrateThreshold`, `UpdateCapabilities` through `GovernanceHandle`. `AdjustEnergyBudget` through `EnergyBudgetAdminHandle`. | `hkask-agents`, `hkask-types` |
-| 7c | Wire Curation → Observability threshold calibration | `CnsGovernWriteHandle.calibrate_threshold()`. | `hkask-agents`, `hkask-cns` |
-| 7d | Implement LoopMessage dispatch | `dispatch.send(LoopMessage)` with priority queuing. Wrap `EscalationQueue` as first DISPATCH. `TraceId` propagation across all inter-loop calls. | `hkask-types`, `hkask-agents` |
-| 7e | Implement DAMPEN on feedback edges | Dampen Curation→Governance→Observability→Curation cycle. Same directive within configurable time window is suppressed. | `hkask-agents` |
+| PR | Title | What | Affected Crates | Status |
+|---|-------|------|-----------------|--------|
+| 7d | Implement LoopMessage dispatch | `MessageDispatch` with priority queuing (Critical/Warning/Info), `send()`, `receive()`, `send_curator_directive()`, `send_escalation()`, `TraceId` propagation. 10 unit tests. | `hkask-agents` | ✓ Done |
+| 7a | Wire MetacognitionLoop to CuratorContext | Replaced `Arc<CnsGovernWriteAdapter>` + `tokio::sync::Mutex<Arc<EscalationQueue>>` with `CuratorContext` (aggregates `CuratorHandle`, `CnsGovernWriteAdapter`, `MessageDispatch`, `EscalationQueue`, `Dampener`). Removed deprecated `from_legacy_adapter()`. | `hkask-agents` | ✓ Done |
+| 7b | Wire Curation → Governance directive delivery | `MetacognitionLoop::issue_directive()` sends `CuratorDirective` through `CuratorContext::issue_directive()` → `MessageDispatch::send_curator_directive()`. `CalibrateThreshold` wired in `check_escalation_triggers()`. `AdjustEnergyBudget` and `UpdateCapabilities` supported via `CuratorDirective` enum. | `hkask-agents`, `hkask-cli` | ✓ Done |
+| 7c | Wire Curation → Observability threshold calibration | `CnsGovernWriteHandle::calibrate_threshold()` + `CnsGovernWriteAdapter::calibrate_threshold()` + `CnsRuntime::calibrate_threshold()`. `MetacognitionLoop` calls `context.cns().calibrate_threshold()` in `check_escalation_triggers()`. 2 unit tests. | `hkask-agents`, `hkask-cns` | ✓ Done |
+| 7e | Implement DAMPEN on feedback edges | `Dampener` struct with fingerprint-based suppression (type + target). Configurable time window (default 60s). Lazy garbage collection. `CuratorContext::issue_directive()` integrates DAMPEN — returns `None` if dampened. 6 unit tests. | `hkask-agents` | ✓ Done |
 
 **Verification:** `cargo check --workspace && cargo test --workspace && cargo clippy --workspace -- -D warnings`
+
+### Phase 7 Discoveries
+
+1. **`CnsRuntime::calibrate_threshold()` was a missing method.** The `AlgedonicManager::set_expected_variety()` existed but was not exposed through `CnsGovernWriteHandle`. Phase 7c wired it: `CnsRuntime::calibrate_threshold()` → `CnsGovernWriteHandle::calibrate_threshold()` → `CnsGovernWriteAdapter::calibrate_threshold()`. The Curation loop now has a direct write path to adjust observability thresholds.
+
+2. **`EscalationQueue` doesn't need `tokio::sync::Mutex` wrapping.** The original `MetacognitionLoop` wrapped `Arc<EscalationQueue>` in `tokio::sync::Mutex`, but `EscalationQueue` already uses `Arc<Mutex<Connection>>` internally. Phase 7a removed the redundant outer mutex — calls go through `CuratorContext::escalation_queue()` directly.
+
+3. **`CuratorContext` aggregates OCAP boundaries.** The `CuratorHandle` type in `hkask-types` defines what the Curator *can* do (read all, write policy). `CuratorContext` in `hkask-agents` holds the *runtime adapters* that implement those capabilities. This two-layer pattern (types handle + runtime context) mirrors the `CnsWriteHandle`/`CnsWriteAdapter` pattern established in Phase 2.
+
+4. **DAMPEN uses `DirectiveFingerprint` (type + target), not content.** Two `CalibrateThreshold` directives for different domains are NOT dampened against each other — only identical (type, target) fingerprints are suppressed. This is intentional: the Curator must be able to calibrate multiple domains in the same cycle.
+
+5. **`from_legacy_adapter()` was fully removed.** The deprecated bridge method that panics with `unimplemented!()` has been deleted. All consumers now pass `CuratorContext` to `MetacognitionLoop::new()`.
 
 ### Phase 8: Implementation-Phase Open Questions
 
@@ -290,13 +304,13 @@ The semantic loop now closes. Semantic recall has confidence combination, semant
 ## Dependency Graph
 
 ```
-Phase 0 ✓ → Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5 → Phase 6 → Phase 7 → Phase 8 → Phase 9 → Phase 10
+Phase 0 ✓ → Phase 1 ✓ → Phase 2 ✓ → Phase 3 ✓ → Phase 4 ✓ → Phase 5 ✓ → Phase 6 ✓ → Phase 7 ✓ → Phase 8 → Phase 9 → Phase 10
 
-Phase 2 → Phase 7 (handles must exist before Curation can use them)
-Phase 1 → Phase 4 (types must exist before contracts can tighten them)
-Phase 1 → Phase 5 (episodic handles must exist before episodic subloops can be wired)
-Phase 4 → Phase 7 (contracts must be tight before Curation wiring and communication)
-Phase 5 can partially overlap with Phase 6 (5a–5c before 6a–6c; 5f before 6a)
+Phase 2 → Phase 7 (handles must exist before Curation can use them) ✓
+Phase 1 → Phase 4 (types must exist before contracts can tighten them) ✓
+Phase 1 → Phase 5 (episodic handles must exist before episodic subloops can be wired) ✓
+Phase 4 → Phase 7 (contracts must be tight before Curation wiring and communication) ✓
+Phase 5 → Phase 6 partially overlapped (5a–5c before 6a–6c; 5f before 6a) ✓
 ```
 
 Within each phase, most PRs can run in parallel. **Exception:** Phase 3, PR 3a must land before 3b.
@@ -339,8 +353,12 @@ cargo test cyber_ --workspace
 | `crates/hkask-agents/src/adapters/memory_storage.rs` | `MemoryStorageAdapter` — concrete impl of all storage ports |
 | `crates/hkask-storage/src/triples.rs` | `TripleStore` with `is_episodic()`/`is_semantic()`, `query_by_perspective()`, `update()` for versioned retraction |
 | `crates/hkask-templates/src/context_assembly.rs` | `assemble_episodic_context()`, `assemble_episodic_context_from_recalled()`, `assemble_semantic_context()` |
-| `crates/hkask-agents/src/curator/metacognition.rs` | Existing `MetacognitionLoop` — the Curation loop already works |
-| `crates/hkask-agents/src/curator/escalation.rs` | `EscalationQueue` — only queued channel in codebase, pattern for DISPATCH |
+| `crates/hkask-agents/src/curator/metacognition.rs` | `MetacognitionLoop` — uses `CuratorContext` for capability-disciplined access. `issue_directive()` with DAMPEN filtering. |
+| `crates/hkask-agents/src/curator/context.rs` | `CuratorContext` — aggregates `CuratorHandle`, `CnsGovernWriteAdapter`, `MessageDispatch`, `EscalationQueue`, `Dampener`. `issue_directive()` with DAMPEN. |
+| `crates/hkask-agents/src/curator/dispatch.rs` | `MessageDispatch` — priority-ordered (Critical/Warning/Info) inter-loop message queue. `send()`, `receive()`, `send_curator_directive()`, `send_escalation()`. |
+| `crates/hkask-agents/src/curator/dampener.rs` | `Dampener` — DAMPEN messenger function (6.3). Fingerprint-based directive suppression with configurable time window. |
+| `crates/hkask-agents/src/curator/escalation.rs` | `EscalationQueue` — persistent queue for escalated outputs that require human review. |
+| `crates/hkask-cns/src/runtime.rs` | `CnsRuntime` with 4 handle types. `CnsGovernWriteHandle::calibrate_threshold()` for threshold calibration (5.3 ADAPT). |
 
 ---
 
@@ -353,9 +371,11 @@ cargo test cyber_ --workspace
 - **Do NOT** create parallel infrastructures — capability handles wrap existing types, not new ones (TASK5 principle)
 - **Do NOT** combine episodic and semantic memory back into one loop — they are structurally different with different subloops, different sovereignty models, and different confidence directions (TASK9 resolved)
 - **Do NOT** treat the Consolidation Bridge as a subloop of either memory loop — it's an inter-loop bridge that sits on the communication edge between 2a and 2b (TASK9 resolved)
-- **Do NOT** skip Phase 5 (close the episodic loop) — it's DONE now. The loop closes: experience is classified, stored with confidence, recalled with decay and temporal attention, assembled with recency weighting, and budgeted.
-- **Do NOT** skip Phase 6 (close the semantic gaps) — it's DONE now. Semantic recall has confidence combination, semantic indexing is wired, consolidation promotes confidence, and per-entity storage budgets are enforced.
+- **Do NOT** skip Phase 5 — it's DONE now
+- **Do NOT** skip Phase 6 — it's DONE now
+- **Do NOT** skip Phase 7 — it's DONE now
+- **Do NOT** assume `CnsRuntimeAdapter` is the way to access CNS — use the 4 handle types (`CnsWriteHandle`, `CnsGovernReadHandle`, `CnsGovernWriteHandle`, `CnsAdminHandle`) or their adapters. The monolithic adapter is deprecated.
 
 ---
 
-*ℏKask — Implementation Handoff v2 — Phases 0–6 complete, next: Phase 7*
+*ℏKask — Implementation Handoff v3 — Phases 0–7 complete, next: Phase 8*

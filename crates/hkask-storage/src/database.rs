@@ -72,7 +72,7 @@ pub enum DatabaseError {
 ///
 /// **Thread Safety:** This type is `Send` and `Sync` for multi-threaded access.
 pub struct Database {
-    conn: Arc<Mutex<Connection>>,
+    pub(crate) conn: Arc<Mutex<Connection>>,
     salt: [u8; SQLCIPHER_SALT_SIZE],
 }
 
