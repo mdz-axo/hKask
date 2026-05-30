@@ -262,6 +262,7 @@ Every capability invocation emits a `NuEvent` with typed `Span` (`event.rs:92-10
 | `cns.sovereignty.*` | `Sovereignty` | User sovereignty enforcement |
 | `cns.goal.*` | `Goal` | Goal lifecycle operations |
 | `cns.spec.*` | `Spec` | DDMVSS specification operations |
+| `cns.memory.*` | (Pattern A) | Memory pipeline: encode, budget, decay, retract |
 
 **Event structure:** `NuEvent` (`event.rs:27`) — id, timestamp, observer_webid, span, phase (Observe/Regulate/Outcome), observation, regulation, outcome, recursion_depth, parent_event, visibility.
 
@@ -272,10 +273,9 @@ Following Ashby's Law of Requisite Variety:[^ashby-law]
 | Counter | Type | Purpose |
 |---------|------|---------|
 | `VarietyCounter` | `u64` wrapper | Unique element count per category |
-| `CompositionMetrics` | struct | Template diversity, cascade depth |
-| `VarietyMetrics` | struct | Aggregated variety across categories |
+| `UnifiedVarietyTracker` | struct | Single SENSE point for domain variety (4.1), bot metrics (4.3), sovereignty events (4.4), and goal variety |
 
-**Implementation:** `VarietyCounter` (`cns.rs:12`), `CompositionObserver` (`observers/composition.rs:216`)
+**Implementation:** `UnifiedVarietyTracker` (`unified_tracker.rs`), `VarietyMonitor` (`variety.rs`)
 
 [^ashby-law]: Ashby, W. R. (1956). *An Introduction to Cybernetics*. Wiley. "Only variety can absorb variety."
 

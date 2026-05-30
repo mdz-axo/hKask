@@ -247,7 +247,7 @@ status: VERIFIED
 | 3 | Register built-in templates | `SqliteRegistry` |
 | 4 | Mint root capability token | `CapabilityToken` with `hkask-root-authority` WebID |
 | 5 | Initialize Curator singleton | `AgentPod` or `Replicant` + system persona |
-| 6 | Start CNS runtime | `CnsRuntime` with all observers |
+| 6 | Start CNS runtime | `CnsRuntime` with `UnifiedVarietyTracker` |
 | 7 | Connect MCP servers | `McpRuntime` discovers 15 servers |
 
 ---
