@@ -1,4 +1,7 @@
-//! Bitemporal triples storage
+//! Uni-temporal triples storage
+//!
+//! Uses `entity/attribute/value` naming (aligned with hKask schema conventions)
+//! and `valid_from`/`valid_to` for temporal tracking.
 
 use chrono::{DateTime, Utc};
 use hkask_types::{InfrastructureError, TripleID, Visibility, WebID};

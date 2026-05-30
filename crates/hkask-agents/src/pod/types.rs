@@ -23,6 +23,28 @@ pub enum PodLifecycleState {
     Deactivated,
 }
 
+impl PodLifecycleState {
+    /// Whether a transition from `self` to `next` is legal.
+    ///
+    /// The lifecycle is a linear progression:
+    /// `Populated → Registered → Activated → Deactivated`
+    ///
+    /// Re-stating the current state is a no-op and always permitted.
+    /// Terminal state `Deactivated` admits no further transitions.
+    pub fn can_transition_to(&self, next: PodLifecycleState) -> bool {
+        if *self == next {
+            return true;
+        }
+        match (self, next) {
+            (PodLifecycleState::Populated, PodLifecycleState::Registered)
+            | (PodLifecycleState::Registered, PodLifecycleState::Activated)
+            | (PodLifecycleState::Activated, PodLifecycleState::Deactivated) => true,
+            // Deactivated is terminal; all other moves illegal.
+            _ => false,
+        }
+    }
+}
+
 impl std::fmt::Display for PodLifecycleState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

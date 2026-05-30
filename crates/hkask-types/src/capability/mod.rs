@@ -307,7 +307,7 @@ impl CapabilityTokenBuilder {
             delegated_to,
             expires_at: None,
             attenuation_level: 0,
-            max_attenuation: 7,
+            max_attenuation: SYSTEM_MAX_ATTENUATION,
             context_nonce: None,
             caveats: Vec::new(),
         }

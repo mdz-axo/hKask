@@ -61,7 +61,10 @@ mod types;
 use hkask_cns::CnsEmit;
 use hkask_types::derivation_contexts;
 use hkask_types::secret::SecretRef;
-use hkask_types::{CapabilityAction, CapabilityResource, CapabilityToken, DataCategory, WebID};
+use hkask_types::{
+    CapabilityAction, CapabilityResource, CapabilityToken, DataCategory, SYSTEM_MAX_ATTENUATION,
+    WebID,
+};
 use std::sync::Arc;
 use thiserror::Error;
 use tracing::info;
@@ -106,9 +109,6 @@ pub struct AgentPod {
     #[allow(deprecated)]
     memory: Option<Arc<dyn MemoryStoragePort>>,
 }
-
-/// Maximum attenuation level (OCAP security limit)
-pub const MAX_ATTENUATION_LEVEL: u8 = 7;
 
 /// Agent pod error types
 #[derive(Debug, Error)]
@@ -222,7 +222,7 @@ impl AgentPod {
             capability_token,
             state: PodLifecycleState::Populated,
             created_at: current_timestamp()?,
-            max_attenuation: MAX_ATTENUATION_LEVEL,
+            max_attenuation: SYSTEM_MAX_ATTENUATION,
             sovereignty_checker,
             memory,
         })
@@ -244,7 +244,7 @@ impl AgentPod {
         acp: &dyn crate::ports::AcpPort,
         cns: &dyn CnsEmit,
     ) -> AgentPodResult<()> {
-        if self.state != PodLifecycleState::Populated {
+        if !self.state.can_transition_to(PodLifecycleState::Registered) {
             return Err(AgentPodError::InvalidStateTransition(
                 self.state,
                 PodLifecycleState::Registered,
@@ -293,7 +293,7 @@ impl AgentPod {
         mcp: &dyn crate::ports::MCPRuntimePort,
         cns: &dyn CnsEmit,
     ) -> AgentPodResult<()> {
-        if self.state != PodLifecycleState::Registered {
+        if !self.state.can_transition_to(PodLifecycleState::Activated) {
             return Err(AgentPodError::InvalidStateTransition(
                 self.state,
                 PodLifecycleState::Activated,
@@ -331,7 +331,7 @@ impl AgentPod {
     /// # Returns
     /// * `Ok(())` — Deactivation successful
     pub fn deactivate(&mut self, cns: &dyn CnsEmit) -> AgentPodResult<()> {
-        if self.state != PodLifecycleState::Activated {
+        if !self.state.can_transition_to(PodLifecycleState::Deactivated) {
             return Err(AgentPodError::InvalidStateTransition(
                 self.state,
                 PodLifecycleState::Deactivated,

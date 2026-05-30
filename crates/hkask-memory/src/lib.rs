@@ -11,7 +11,7 @@ pub mod goal_memory;
 pub mod recall_dedup;
 pub mod semantic;
 
-pub use bayesian::BayesianOps;
+pub use bayesian::{combine, decay, join, retract, weighted_average};
 pub use episodic::EpisodicMemory;
 pub use goal_memory::{GoalEpisodicMemory, GoalMemory, GoalSemanticMemory, MemoryError};
 pub use recall_dedup::{DedupResult, dedup_triples, dedup_triples_with_stats, eav_hash};

@@ -1,7 +1,7 @@
 //! Context assembly with semantic deduplication
 //!
 //! The `ContextAssembler` builds prompts from multiple context sources
-//! (system instructions, user messages, memory triples, session history)
+//! (system instructions, user messages, memory triples, episodic memory)
 //! while filtering out redundant content using BLAKE3 content hashing.
 //!
 //! This is Layer 3 of the three-layer DRY system:
@@ -21,8 +21,9 @@
 //! Fragments are added in priority order:
 //! 1. System instructions (highest priority)
 //! 2. User message
-//! 3. Memory context (semantic + episodic triples)
-//! 4. Session history (most recent first)
+//! 3. Semantic memory (knowledge triples)
+//! 4. Episodic memory (session history + experiences)
+//! 5. Tool results
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -47,10 +48,8 @@ pub struct ContextFragment {
 pub enum FragmentSource {
     System,
     User,
-    SemanticMemory,
     EpisodicMemory,
-    SessionHistory,
-    TemplateOutput,
+    SemanticMemory,
     ToolResult,
 }
 
@@ -211,10 +210,8 @@ impl ContextAssembler {
             let prefix = match fragment.source {
                 FragmentSource::System => "[SYSTEM]",
                 FragmentSource::User => "[USER]",
-                FragmentSource::SemanticMemory => "[MEMORY]",
                 FragmentSource::EpisodicMemory => "[EXPERIENCE]",
-                FragmentSource::SessionHistory => "[HISTORY]",
-                FragmentSource::TemplateOutput => "[TEMPLATE]",
+                FragmentSource::SemanticMemory => "[MEMORY]",
                 FragmentSource::ToolResult => "[TOOL]",
             };
             output.push_str(prefix);

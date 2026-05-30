@@ -3,7 +3,7 @@
 //!
 //! `MemoryFeedbackAdapter` bridges the gap between `AppMemoryAdapter`'s one-directional
 //! query access and the template engine. It consumes `MemoryFragment.confidence` (computed
-//! by `BayesianOps`) and emits `cns.pipeline.relevance` spans, enabling `CuratorPipeline`
+//! by bayesian `combine`) and emits `cns.pipeline.relevance` spans, enabling `CuratorPipeline`
 //! and the template engine to factor recall quality into future selections.
 
 use hkask_cns::spans::SpanEmitter;

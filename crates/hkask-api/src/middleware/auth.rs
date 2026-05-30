@@ -15,7 +15,7 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use hkask_types::{CapabilityToken, SecretRef, WebID, derivation_contexts};
+use hkask_types::{CapabilityToken, SYSTEM_MAX_ATTENUATION, SecretRef, WebID, derivation_contexts};
 use std::sync::Arc;
 
 /// Routes that bypass authentication (health checks, model listing).
@@ -80,9 +80,6 @@ impl AuthService {
         TokenVerification::Valid
     }
 }
-
-/// System-wide maximum attenuation depth (mirrors hkask-types constant).
-const SYSTEM_MAX_ATTENUATION: u8 = 7;
 
 /// Result of token verification.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

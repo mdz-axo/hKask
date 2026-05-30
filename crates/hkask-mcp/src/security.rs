@@ -10,7 +10,7 @@
 use hkask_cns::{CnsEmit, rate_limit::RateLimiter};
 use hkask_templates::TemplateError;
 use hkask_types::WebID;
-use hkask_types::{CapabilityChecker, CapabilityToken};
+use hkask_types::{CapabilityAction, CapabilityChecker, CapabilityResource, CapabilityToken};
 use serde_json::Value;
 use std::collections::HashSet;
 use std::net::{IpAddr, Ipv6Addr};
@@ -181,6 +181,65 @@ impl SecurityGateway {
         result
     }
 
+    /// Authorize a capability token for tool invocation.
+    ///
+    /// Performs full OCAP verification: cryptographic signature, expiry, holder
+    /// identity, and resource/action match. Returns the verified token (or an
+    /// attenuated copy) on success, or a descriptive `SecurityError` on denial.
+    pub fn authorize(
+        &self,
+        token: &CapabilityToken,
+        bot_id: &WebID,
+        tool_name: &str,
+    ) -> Result<CapabilityToken, SecurityError> {
+        // 1. Cryptographic signature verification
+        if !self.capability_checker.verify(token) {
+            return Err(SecurityError::CapabilityDenied {
+                webid: *bot_id,
+                tool: tool_name.to_string(),
+                reason: "cryptographic signature verification failed".to_string(),
+            });
+        }
+
+        // 2. Expiry check
+        let current_time = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64;
+
+        if token.is_expired(current_time) {
+            return Err(SecurityError::TokenExpired {
+                token_id: token.id.clone(),
+            });
+        }
+
+        // 3. Holder (delegated_to) must match the requesting bot
+        if token.delegated_to != *bot_id {
+            return Err(SecurityError::CapabilityDenied {
+                webid: *bot_id,
+                tool: tool_name.to_string(),
+                reason: format!(
+                    "token holder mismatch: token delegates to {}, but {} requested",
+                    token.delegated_to, bot_id
+                ),
+            });
+        }
+
+        // 4. Resource/action match — must grant Execute on the requested Tool
+        let required = format!("{}/{}", CapabilityResource::Tool.as_str(), tool_name);
+        if !token.is_valid_for(
+            CapabilityResource::Tool,
+            tool_name,
+            CapabilityAction::Execute,
+        ) {
+            let provided = format!("{}/{}", token.resource.as_str(), token.resource_id);
+            return Err(SecurityError::InsufficientCapability { required, provided });
+        }
+
+        // All checks passed — return the verified token
+        Ok(token.clone())
+    }
+
     /// Check rate limit
     pub fn check_rate_limit(&self, bot_id: &WebID) -> bool {
         if !self.policy.enable_rate_limiting {
@@ -317,6 +376,19 @@ pub enum SecurityError {
 
     #[error("Invalid URL: {0}")]
     InvalidUrl(String),
+
+    #[error("capability denied for {webid} on {tool}: {reason}")]
+    CapabilityDenied {
+        webid: WebID,
+        tool: String,
+        reason: String,
+    },
+
+    #[error("capability token expired: {token_id}")]
+    TokenExpired { token_id: String },
+
+    #[error("insufficient capability: required {required}, provided {provided}")]
+    InsufficientCapability { required: String, provided: String },
 }
 
 /// URL validation configuration
