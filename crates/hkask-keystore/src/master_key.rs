@@ -203,5 +203,81 @@ pub fn derive_data_category_key(
     category: &hkask_types::DataCategory,
 ) -> Zeroizing<Vec<u8>> {
     let context = category.derivation_context();
-    derive_sub_key(master_key, context)
+    derive_sub_key(master_key, &context)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_types::DataCategory;
+
+    #[test]
+    fn derive_data_category_key_produces_unique_keys() {
+        let master_key = [0u8; 32];
+
+        let episodic_key = derive_data_category_key(&master_key, &DataCategory::EpisodicMemory);
+        let semantic_key = derive_data_category_key(&master_key, &DataCategory::SemanticMemory);
+        let personal_key = derive_data_category_key(&master_key, &DataCategory::PersonalContext);
+        let ocap_key = derive_data_category_key(&master_key, &DataCategory::OcapBoundaries);
+
+        // All keys should be 32 bytes (256 bits)
+        assert_eq!(episodic_key.len(), 32);
+        assert_eq!(semantic_key.len(), 32);
+        assert_eq!(personal_key.len(), 32);
+        assert_eq!(ocap_key.len(), 32);
+
+        // All keys should be different (domain separation)
+        assert_ne!(
+            *episodic_key, *semantic_key,
+            "Episodic and Semantic keys must differ"
+        );
+        assert_ne!(
+            *episodic_key, *personal_key,
+            "Episodic and Personal keys must differ"
+        );
+        assert_ne!(
+            *semantic_key, *personal_key,
+            "Semantic and Personal keys must differ"
+        );
+        assert_ne!(
+            *ocap_key, *episodic_key,
+            "OCAP and Episodic keys must differ"
+        );
+    }
+
+    #[test]
+    fn derive_data_category_key_deterministic() {
+        let master_key = [0u8; 32];
+
+        let key1 = derive_data_category_key(&master_key, &DataCategory::EpisodicMemory);
+        let key2 = derive_data_category_key(&master_key, &DataCategory::EpisodicMemory);
+
+        // Same inputs should produce same key
+        assert_eq!(*key1, *key2);
+    }
+
+    #[test]
+    fn derive_data_category_key_different_master_keys() {
+        let master_key_1 = [0u8; 32];
+        let master_key_2 = [1u8; 32];
+
+        let key1 = derive_data_category_key(&master_key_1, &DataCategory::EpisodicMemory);
+        let key2 = derive_data_category_key(&master_key_2, &DataCategory::EpisodicMemory);
+
+        // Different master keys should produce different category keys
+        assert_ne!(*key1, *key2);
+    }
+
+    #[test]
+    fn derive_data_category_key_custom_category() {
+        let master_key = [0u8; 32];
+        let custom = DataCategory::Custom("my_app_data".to_string());
+
+        let key = derive_data_category_key(&master_key, &custom);
+        assert_eq!(key.len(), 32);
+
+        // Should differ from standard categories
+        let episodic_key = derive_data_category_key(&master_key, &DataCategory::EpisodicMemory);
+        assert_ne!(*key, *episodic_key);
+    }
 }

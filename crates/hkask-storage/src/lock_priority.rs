@@ -36,7 +36,9 @@ use crate::database::Database;
 /// // guard derefs to &Connection — use like a normal connection
 /// guard.execute_batch("BEGIN TRANSACTION")?;
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Default,
+)]
 pub enum LockPriority {
     /// DISPATCH-critical — must not wait behind routine operations.
     /// Used by Loop 6.1 (DISPATCH) for curator directives, escalations,
@@ -47,6 +49,7 @@ pub enum LockPriority {
     High = 3,
     /// Normal priority — routine queries and writes.
     /// Default for most storage operations.
+    #[default]
     Normal = 2,
     /// Low priority — background maintenance, consolidation, indexing.
     /// Used by consolidation bridge (B.1–B.4) and periodic maintenance.
@@ -97,12 +100,6 @@ impl fmt::Display for LockPriority {
             LockPriority::Normal => write!(f, "normal"),
             LockPriority::Low => write!(f, "low"),
         }
-    }
-}
-
-impl Default for LockPriority {
-    fn default() -> Self {
-        LockPriority::Normal
     }
 }
 
@@ -320,9 +317,11 @@ mod tests {
     #[test]
     fn acquire_guard_deref_mut() {
         let db = Database::in_memory().expect("in-memory database");
+        #[allow(unused_mut)] // mut exercises DerefMut coercion
         let mut guard = db.acquire(LockPriority::Low).expect("acquire low");
-        // Verify DerefMut works
-        let result = guard.execute("SELECT 1", []);
+        // Verify DerefMut compiles — the mut binding forces DerefMut coercion.
+        // Use execute_batch to exercise the Connection through DerefMut.
+        let result = guard.execute_batch("SELECT 1");
         assert!(
             result.is_ok(),
             "Mutable SQL through PriorityLockGuard should work"

@@ -582,3 +582,303 @@ mod tests {
         assert!(results[0].time_since_storage_secs < 5.0);
     }
 }
+
+// =============================================================================
+// PR 9b: Episodic Memory Cybernetic Unit Tests (Loop 2a)
+// =============================================================================
+
+#[cfg(test)]
+mod cyber_tests {
+    use super::*;
+    use crate::bayesian;
+    use hkask_storage::{Database, Triple, TripleStore};
+    use hkask_types::{DataCategory, EpisodicReadHandle, EpisodicWriteHandle, WebID};
+
+    fn test_store() -> TripleStore {
+        let db = Database::in_memory().expect("in-memory db");
+        TripleStore::new(db.conn_arc())
+    }
+
+    fn test_webid() -> WebID {
+        WebID::new()
+    }
+
+    // ========================================================================
+    // Loop 2a: Episodic Memory — write → recall → verify
+    // ========================================================================
+
+    /// Cyber test: Loop 2a closes — experience → store → recall → context.
+    ///
+    /// Proves the full episodic loop: store a triple with perspective,
+    /// recall it via `query_for_weighted`, and verify that the recalled
+    /// triple has both decayed_confidence > 0 and recency_weight > 0.
+    #[test]
+    fn cyber_episodic_loop_closes() {
+        let store = test_store();
+        let mem = EpisodicMemory::new(store);
+        let wid = test_webid();
+
+        mem.store(
+            Triple::new("agent", "action", serde_json::json!("observed"), wid)
+                .with_perspective(wid)
+                .with_confidence(0.8),
+        )
+        .unwrap();
+
+        let results = mem.query_for_weighted("agent", wid).unwrap();
+        assert_eq!(
+            results.len(),
+            1,
+            "Loop 2a: episodic recall must return the stored triple"
+        );
+
+        let recalled = &results[0];
+        assert_eq!(recalled.triple.entity, "agent");
+        assert_eq!(recalled.triple.attribute, "action");
+        assert!(
+            recalled.decayed_confidence > 0.0,
+            "Loop 2a.3: decayed confidence must be positive, got {}",
+            recalled.decayed_confidence
+        );
+        assert!(
+            recalled.recency_weight > 0.0,
+            "Loop 2a.2: recency weight must be positive, got {}",
+            recalled.recency_weight
+        );
+    }
+
+    /// Cyber test: OCAP boundary — EpisodicWriteHandle can write but not read;
+    /// EpisodicReadHandle can read but not write.
+    ///
+    /// Proves that the capability handles enforce the correct OCAP discipline:
+    /// - Write handle: `within_budget()` and `record_stored()` are available
+    /// - Read handle: `query_budget()` and `can_access()` are available
+    /// - Read handle: `can_access(EpisodicMemory)` → true
+    /// - Read handle: `can_access(SemanticMemory)` → false
+    /// - Write handle: no `can_access()` method (OCAP: cannot read)
+    /// - Read handle: no `within_budget()` method (OCAP: cannot write)
+    #[test]
+    fn cyber_episodic_write_read() {
+        let wid = test_webid();
+        let mut write_handle = EpisodicWriteHandle::new(wid, 10000, 0);
+        let read_handle = EpisodicReadHandle::new(wid, 100);
+
+        // Write handle CAN check budget and record storage
+        assert!(
+            write_handle.within_budget(100),
+            "Write handle must be within budget"
+        );
+        assert!(
+            write_handle.record_stored(1).is_ok(),
+            "Write handle must accept storage"
+        );
+        assert_eq!(write_handle.storage_used(), 1);
+
+        // Read handle CAN check query budget and data access
+        assert_eq!(
+            read_handle.query_budget(),
+            100,
+            "Read handle must expose query budget"
+        );
+        assert!(
+            read_handle.can_access(&DataCategory::EpisodicMemory),
+            "Read handle must access EpisodicMemory"
+        );
+
+        // OCAP: Read handle CANNOT access SemanticMemory
+        assert!(
+            !read_handle.can_access(&DataCategory::SemanticMemory),
+            "OCAP violation: episodic read handle must not access SemanticMemory"
+        );
+
+        // OCAP: Write handle has no can_access() method — compile-time guarantee
+        // (verified by absence of the method on EpisodicWriteHandle)
+        // OCAP: Read handle has no within_budget() method — compile-time guarantee
+        // (verified by absence of the method on EpisodicReadHandle)
+        // These are enforced at the type level, not runtime.
+    }
+
+    /// Cyber test: EpisodicReadHandle visibility enforcement.
+    ///
+    /// Proves that the episodic read handle grants access only to
+    /// EpisodicMemory — no other DataCategory is accessible.
+    #[test]
+    fn cyber_episodic_visibility() {
+        let wid = test_webid();
+        let handle = EpisodicReadHandle::new(wid, 100);
+
+        assert!(
+            handle.can_access(&DataCategory::EpisodicMemory),
+            "Episodic read handle must access EpisodicMemory"
+        );
+        assert!(
+            !handle.can_access(&DataCategory::SemanticMemory),
+            "Episodic read handle must NOT access SemanticMemory"
+        );
+        assert!(
+            !handle.can_access(&DataCategory::PersonalContext),
+            "Episodic read handle must NOT access PersonalContext"
+        );
+        assert!(
+            !handle.can_access(&DataCategory::CapabilityTokens),
+            "Episodic read handle must NOT access CapabilityTokens"
+        );
+    }
+
+    /// Cyber test: Loop 2a.2 ADAPT — temporal attention weights by recency.
+    ///
+    /// Stores two triples for the same entity with different timestamps,
+    /// queries with `query_for_weighted`, and verifies that results
+    /// are sorted by recency_weight descending — more recent triples
+    /// should have higher recency_weight.
+    #[test]
+    fn cyber_episodic_temporal_attention() {
+        let store = test_store();
+        let mem = EpisodicMemory::new(store).with_temporal_lambda(0.1);
+        let wid = test_webid();
+
+        // Store two triples — both get valid_from = now, but the
+        // second one is stored after the first, so it will have a
+        // marginally newer timestamp (or same). We use different
+        // attributes to distinguish them.
+        mem.store(
+            Triple::new("entity1", "earlier", serde_json::json!("v1"), wid)
+                .with_perspective(wid)
+                .with_confidence(0.8),
+        )
+        .unwrap();
+
+        // Small sleep to ensure different timestamps
+        std::thread::sleep(std::time::Duration::from_millis(50));
+
+        mem.store(
+            Triple::new("entity1", "later", serde_json::json!("v2"), wid)
+                .with_perspective(wid)
+                .with_confidence(0.8),
+        )
+        .unwrap();
+
+        let results = mem.query_for_weighted("entity1", wid).unwrap();
+        assert_eq!(results.len(), 2, "Both triples should be recalled");
+
+        // Results are sorted by recency_weight descending
+        // The later triple should have a higher recency_weight
+        assert!(
+            results[0].recency_weight >= results[1].recency_weight,
+            "Loop 2a.2 ADAPT: results must be sorted by recency_weight descending, got {} then {}",
+            results[0].recency_weight,
+            results[1].recency_weight
+        );
+
+        // Both recency weights should be positive
+        for r in &results {
+            assert!(
+                r.recency_weight > 0.0,
+                "Loop 2a.2: recency_weight must be positive, got {}",
+                r.recency_weight
+            );
+        }
+    }
+
+    /// Cyber test: Loop 2a.3 RECONCILE — confidence decays over time.
+    ///
+    /// Uses `bayesian::decay(0.9, 0.001, 100.0)` to verify that
+    /// confidence decreases with time elapsed, but remains positive.
+    #[test]
+    fn cyber_episodic_confidence_decay() {
+        let original_confidence = 0.9;
+        let decayed = bayesian::decay(original_confidence, 0.001, 100.0);
+
+        assert!(
+            decayed > 0.0,
+            "Loop 2a.3: decayed confidence must be positive, got {}",
+            decayed
+        );
+        assert!(
+            decayed < original_confidence,
+            "Loop 2a.3: decayed confidence ({}) must be less than original ({})",
+            decayed,
+            original_confidence
+        );
+    }
+
+    /// Cyber test: Loop 2a.4 RECONCILE — confidence retraction reduces without deletion.
+    ///
+    /// Uses `bayesian::retract(0.8, 0.5)` to verify that retraction
+    /// reduces confidence but keeps it >= 0 (no negative confidence).
+    #[test]
+    fn cyber_episodic_confidence_retraction() {
+        let original_confidence = 0.8;
+        let retraction_amount = 0.5;
+        let retracted = bayesian::retract(original_confidence, retraction_amount);
+
+        assert!(
+            retracted < original_confidence,
+            "Loop 2a.4: retracted confidence ({}) must be less than original ({})",
+            retracted,
+            original_confidence
+        );
+        assert!(
+            retracted >= 0.0,
+            "Loop 2a.4: retracted confidence must be >= 0, got {}",
+            retracted
+        );
+        // Verify the formula: retract(0.8, 0.5) = 0.8 * (1 - 0.5) = 0.4
+        let expected = 0.8 * (1.0 - 0.5);
+        assert!(
+            (retracted - expected).abs() < 0.01,
+            "Loop 2a.4: retract(0.8, 0.5) should be {}, got {}",
+            expected,
+            retracted
+        );
+    }
+
+    /// Cyber test: Loop 2a.5 GUARD — episodic storage budget enforcement.
+    ///
+    /// Creates an EpisodicMemory with budget 10, stores triples one
+    /// by one, and verifies that after storing 10, `check_budget`
+    /// returns an error. Also verifies that `consolidation_candidates()`
+    /// returns the oldest/lowest-confidence triples.
+    #[test]
+    fn cyber_episodic_storage_budget() {
+        let store = test_store();
+        let mem = EpisodicMemory::new(store).with_storage_budget(10);
+        let wid = test_webid();
+
+        // Store 10 triples — should be within budget
+        for i in 0..10 {
+            mem.store(
+                Triple::new(
+                    "budget_entity",
+                    &format!("attr{}", i),
+                    serde_json::json!(format!("val{}", i)),
+                    wid,
+                )
+                .with_perspective(wid)
+                .with_confidence(1.0 - (i as f64 * 0.05)),
+            )
+            .unwrap();
+        }
+
+        // After storing 10, adding 1 more should exceed budget
+        let budget_result = mem.check_budget(wid, 1);
+        assert!(
+            budget_result.is_err(),
+            "Loop 2a.5 GUARD: budget of 10 must be exceeded after storing 10 triples"
+        );
+
+        // Consolidation candidates should return oldest/lowest-confidence triples
+        let candidates = mem.consolidation_candidates(wid, 3).unwrap();
+        assert!(
+            !candidates.is_empty(),
+            "Loop 2a.5 GUARD: consolidation candidates must not be empty"
+        );
+        // Candidates should be sorted by confidence ascending (lowest first)
+        for window in candidates.windows(2) {
+            assert!(
+                window[0].confidence <= window[1].confidence,
+                "Loop 2a.5: consolidation candidates must be sorted by confidence ascending"
+            );
+        }
+    }
+}

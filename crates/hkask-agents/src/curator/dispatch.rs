@@ -448,3 +448,110 @@ mod tests {
         assert!(dispatch.is_empty().await);
     }
 }
+
+#[cfg(test)]
+mod cyber_tests {
+    use super::*;
+    use hkask_types::loops::dispatch::{LoopOrigin, LoopPayload, MessagePriority, TraceId};
+
+    /// PR 9h, Loop 6.1: Dispatch priority ordering — Critical before Warning before Info.
+    ///
+    /// Proves: MessageDispatch enforces priority ordering regardless of
+    /// insertion order, ensuring algedonic alerts are processed before routine observations.
+    #[tokio::test]
+    async fn cyber_dispatch_priority_ordering() {
+        let dispatch = MessageDispatch::new();
+
+        // Send in reverse priority order: Warning, then Critical, then Info
+        let warning_msg = LoopMessage::warning(
+            LoopOrigin::Governance,
+            LoopPayload::Observation {
+                category: "warning".to_string(),
+                data: serde_json::json!({}),
+            },
+        );
+        let critical_msg = LoopMessage::critical(
+            LoopOrigin::Observability,
+            LoopPayload::Observation {
+                category: "critical".to_string(),
+                data: serde_json::json!({}),
+            },
+        );
+        let info_msg = LoopMessage::info(
+            LoopOrigin::Inference,
+            LoopPayload::Observation {
+                category: "info".to_string(),
+                data: serde_json::json!({}),
+            },
+        );
+
+        dispatch.send(warning_msg.clone()).await;
+        dispatch.send(critical_msg.clone()).await;
+        dispatch.send(info_msg.clone()).await;
+
+        // Dequeue: Critical first, then Warning, then Info
+        let received = dispatch.receive().await.unwrap();
+        assert_eq!(
+            received.priority,
+            MessagePriority::Critical,
+            "Critical should be dequeued first"
+        );
+        assert_eq!(received.trace_id, critical_msg.trace_id);
+
+        let received = dispatch.receive().await.unwrap();
+        assert_eq!(
+            received.priority,
+            MessagePriority::Warning,
+            "Warning should be dequeued second"
+        );
+        assert_eq!(received.trace_id, warning_msg.trace_id);
+
+        let received = dispatch.receive().await.unwrap();
+        assert_eq!(
+            received.priority,
+            MessagePriority::Info,
+            "Info should be dequeued last"
+        );
+        assert_eq!(received.trace_id, info_msg.trace_id);
+    }
+
+    /// PR 9h, Loop 6.2: Trace ID propagation — CORRELATE (SENSE) subloop.
+    ///
+    /// Proves: LoopMessage carries a trace_id that is preserved through
+    /// send and receive, enabling cross-loop correlation.
+    #[tokio::test]
+    async fn cyber_trace_id_propagation() {
+        let dispatch = MessageDispatch::new();
+
+        // Create a message and capture its trace_id
+        let msg = LoopMessage::warning(
+            LoopOrigin::Curation,
+            LoopPayload::Observation {
+                category: "test".to_string(),
+                data: serde_json::json!({"key": "value"}),
+            },
+        );
+        let original_trace_id = msg.trace_id;
+
+        // Send through dispatch
+        let returned_trace_id = dispatch.send(msg).await;
+        assert_eq!(
+            original_trace_id, returned_trace_id,
+            "send should return the same trace_id"
+        );
+
+        // Receive from dispatch
+        let received = dispatch.receive().await.unwrap();
+        assert_eq!(
+            received.trace_id, original_trace_id,
+            "trace_id should be preserved through send/receive"
+        );
+
+        // Trace ID is a proper UUID
+        assert_ne!(
+            received.trace_id.0,
+            uuid::Uuid::nil(),
+            "trace_id should be a real UUID"
+        );
+    }
+}

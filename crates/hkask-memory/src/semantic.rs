@@ -905,3 +905,282 @@ mod tests {
         assert!(stats.triples.is_empty());
     }
 }
+
+// =============================================================================
+// PR 9c: Semantic Memory Cybernetic Unit Tests (Loop 2b)
+// =============================================================================
+
+#[cfg(test)]
+mod cyber_tests {
+    use super::*;
+    use crate::bayesian;
+    use crate::recall_dedup;
+    use hkask_storage::{Database, EmbeddingStore, Triple, TripleStore};
+    use hkask_types::{DataCategory, SemanticReadHandle, SemanticWriteHandle, Visibility, WebID};
+
+    fn test_db() -> (TripleStore, EmbeddingStore) {
+        let db = Database::in_memory().expect("in-memory db");
+        let ts = TripleStore::new(db.conn_arc());
+        let es = EmbeddingStore::new(db.conn_arc());
+        (ts, es)
+    }
+
+    fn test_webid() -> WebID {
+        WebID::new()
+    }
+
+    // ========================================================================
+    // Loop 2b: Semantic Memory — store → query → dedup → combine → context
+    // ========================================================================
+
+    /// Cyber test: Loop 2b closes — store → query → dedup → combine → context.
+    ///
+    /// Proves the full semantic loop: store triples for the same entity,
+    /// recall them with `recall_combined`, and verify that combined
+    /// triples exist with combined confidence.
+    #[test]
+    fn cyber_semantic_loop_closes() {
+        let (ts, es) = test_db();
+        let mem = SemanticMemory::new(ts, es);
+        let wid = test_webid();
+
+        // Store two triples for the same entity/attribute with different confidence
+        mem.store(
+            Triple::new("knowledge", "color", serde_json::json!("red"), wid).with_confidence(0.7),
+        )
+        .unwrap();
+        mem.store(
+            Triple::new("knowledge", "color", serde_json::json!("blue"), wid).with_confidence(0.8),
+        )
+        .unwrap();
+
+        let results = mem.recall_combined("knowledge").unwrap();
+        assert_eq!(
+            results.len(),
+            1,
+            "Loop 2b: combined recall must return a single combined triple"
+        );
+
+        let combined = &results[0];
+        assert_eq!(combined.entity, "knowledge");
+        assert_eq!(combined.attribute, "color");
+        // Combined confidence should be higher than either individual confidence
+        let combined_conf = bayesian::join(&[0.7, 0.8]);
+        assert!(
+            (combined.confidence - combined_conf).abs() < 0.01,
+            "Loop 2b.2: combined confidence should be {}, got {}",
+            combined_conf,
+            combined.confidence
+        );
+    }
+
+    /// Cyber test: OCAP boundary — SemanticWriteHandle and SemanticReadHandle.
+    ///
+    /// Proves that the capability handles enforce correct OCAP discipline:
+    /// - Write handle: `can_write(SemanticMemory)` → true
+    /// - Write handle: `can_write(EpisodicMemory)` → false
+    /// - Read handle: `can_access(SemanticMemory)` → true
+    /// - Read handle: `can_access(EpisodicMemory)` → false
+    #[test]
+    fn cyber_semantic_write_read() {
+        let wid = test_webid();
+        let write_handle = SemanticWriteHandle::new(wid, true, 10000);
+        let read_handle = SemanticReadHandle::new(wid, 100);
+
+        // Write handle CAN write to SemanticMemory
+        assert!(
+            write_handle.can_write(&DataCategory::SemanticMemory),
+            "Semantic write handle must be able to write to SemanticMemory"
+        );
+        // Write handle CANNOT write to EpisodicMemory
+        assert!(
+            !write_handle.can_write(&DataCategory::EpisodicMemory),
+            "OCAP violation: semantic write handle must not write to EpisodicMemory"
+        );
+
+        // Read handle CAN access SemanticMemory
+        assert!(
+            read_handle.can_access(&DataCategory::SemanticMemory),
+            "Semantic read handle must access SemanticMemory"
+        );
+        // Read handle CANNOT access EpisodicMemory
+        assert!(
+            !read_handle.can_access(&DataCategory::EpisodicMemory),
+            "OCAP violation: semantic read handle must not access EpisodicMemory"
+        );
+    }
+
+    /// Cyber test: SemanticReadHandle visibility enforcement.
+    ///
+    /// Proves that the semantic read handle grants access only to
+    /// public/shared categories — SemanticMemory, HLexiconTerms, and
+    /// TemplateRegistry — and denies access to private categories.
+    #[test]
+    fn cyber_semantic_visibility() {
+        let wid = test_webid();
+        let handle = SemanticReadHandle::new(wid, 100);
+
+        assert!(
+            handle.can_access(&DataCategory::SemanticMemory),
+            "Semantic read handle must access SemanticMemory"
+        );
+        assert!(
+            handle.can_access(&DataCategory::HLexiconTerms),
+            "Semantic read handle must access HLexiconTerms"
+        );
+        assert!(
+            handle.can_access(&DataCategory::TemplateRegistry),
+            "Semantic read handle must access TemplateRegistry"
+        );
+        assert!(
+            !handle.can_access(&DataCategory::EpisodicMemory),
+            "Semantic read handle must NOT access EpisodicMemory"
+        );
+        assert!(
+            !handle.can_access(&DataCategory::PersonalContext),
+            "Semantic read handle must NOT access PersonalContext"
+        );
+    }
+
+    /// Cyber test: Loop 2b.1 FILTER — semantic deduplication removes EAV duplicates.
+    ///
+    /// Uses `recall_dedup::dedup_triples()` on a vec with duplicate EAV content
+    /// and verifies that duplicates are removed while original ordering is preserved.
+    #[test]
+    fn cyber_semantic_deduplication() {
+        let wid = test_webid();
+
+        let triples = vec![
+            Triple::new("entity", "attr", serde_json::json!("val"), wid).with_confidence(0.8),
+            // Duplicate EAV content (same entity/attribute/value)
+            Triple::new("entity", "attr", serde_json::json!("val"), wid).with_confidence(0.6),
+            // Different attribute — not a duplicate
+            Triple::new("entity", "other", serde_json::json!("val"), wid).with_confidence(0.7),
+        ];
+
+        let deduped = recall_dedup::dedup_triples(triples);
+
+        assert_eq!(
+            deduped.len(),
+            2,
+            "Loop 2b.1 FILTER: deduplication must remove EAV duplicates"
+        );
+        // First occurrence wins — original ordering preserved
+        assert_eq!(deduped[0].attribute, "attr");
+        assert_eq!(
+            deduped[0].confidence, 0.8,
+            "First occurrence confidence preserved"
+        );
+        assert_eq!(deduped[1].attribute, "other");
+    }
+
+    /// Cyber test: Loop 2b.2 RECONCILE — confidence combination increases confidence.
+    ///
+    /// Uses `bayesian::join(&[0.7, 0.8])` to verify that combining
+    /// multiple confidence values yields a result higher than either
+    /// individual value — proving that multiple sources increase confidence.
+    #[test]
+    fn cyber_semantic_confidence_combination() {
+        let confidences = [0.7, 0.8];
+        let combined = bayesian::join(&confidences);
+
+        assert!(
+            combined > 0.8,
+            "Loop 2b.2 RECONCILE: combined confidence ({}) must be greater than max individual (0.8)",
+            combined
+        );
+        assert!(
+            combined <= 1.0,
+            "Loop 2b.2: combined confidence must be ≤ 1.0, got {}",
+            combined
+        );
+    }
+
+    /// Cyber test: Bridge B.4 — consolidation promotes episodic to semantic.
+    ///
+    /// Creates an episodic triple with a perspective, consolidates it
+    /// into semantic memory, and verifies that the consolidated triple
+    /// has `perspective: None` and confidence seeded with prior 0.5.
+    #[test]
+    fn cyber_semantic_consolidation() {
+        let (ts, es) = test_db();
+        let mem = SemanticMemory::new(ts, es);
+        let wid = test_webid();
+
+        // Create an episodic triple with perspective and known confidence
+        let episodic_confidence = 0.8;
+        let episodic_triple = Triple::new("observation", "saw", serde_json::json!("event"), wid)
+            .with_perspective(wid)
+            .with_confidence(episodic_confidence)
+            .with_visibility(Visibility::Shared);
+
+        // Consolidate: strips perspective, seeds confidence with prior 0.5
+        let count = mem.consolidate(vec![episodic_triple]).unwrap();
+        assert_eq!(count, 1, "Bridge B.4: consolidation must promote 1 triple");
+
+        // Verify consolidated triple in semantic store
+        let results = mem.query("observation").unwrap();
+        assert_eq!(results.len(), 1);
+        let consolidated = &results[0];
+        assert_eq!(
+            consolidated.perspective, None,
+            "Bridge B.4: consolidated triple must have perspective=None"
+        );
+
+        // Confidence should be combine(0.8, 0.5) — Bayesian seeding with prior
+        let expected_conf = bayesian::combine(episodic_confidence, 0.5);
+        assert!(
+            (consolidated.confidence - expected_conf).abs() < 0.01,
+            "Bridge B.4: consolidated confidence should be {}, got {}",
+            expected_conf,
+            consolidated.confidence
+        );
+    }
+
+    /// Cyber test: Loop 2b.4 GUARD — semantic storage budget enforcement.
+    ///
+    /// Creates SemanticMemory with a small budget, stores triples up to
+    /// the limit, and verifies that `check_budget` returns Err. Also
+    /// verifies that `retraction_candidates()` returns lowest-confidence triples.
+    #[test]
+    fn cyber_semantic_storage_budget() {
+        let (ts, es) = test_db();
+        let mem = SemanticMemory::new(ts, es).with_storage_budget(5);
+        let wid = test_webid();
+
+        // Store 5 triples at budget limit
+        for i in 0..5 {
+            mem.store(
+                Triple::new(
+                    "budget_entity",
+                    &format!("attr{}", i),
+                    serde_json::json!(format!("val{}", i)),
+                    wid,
+                )
+                .with_confidence(1.0 - (i as f64 * 0.1)),
+            )
+            .unwrap();
+        }
+
+        // After storing 5, adding 1 more should exceed budget
+        let budget_result = mem.check_budget("budget_entity", 1);
+        assert!(
+            budget_result.is_err(),
+            "Loop 2b.4 GUARD: budget of 5 must be exceeded after storing 5 triples"
+        );
+
+        // Retraction candidates should return lowest-confidence triples
+        let candidates = mem.retraction_candidates("budget_entity", 3).unwrap();
+        assert!(
+            !candidates.is_empty(),
+            "Loop 2b.4 GUARD: retraction candidates must not be empty"
+        );
+        // Candidates should be sorted by confidence ascending (lowest first)
+        for window in candidates.windows(2) {
+            assert!(
+                window[0].confidence <= window[1].confidence,
+                "Loop 2b.4: retraction candidates must be sorted by confidence ascending"
+            );
+        }
+    }
+}

@@ -316,3 +316,46 @@ mod tests {
         assert_eq!(dampener.tracked_count().await, 2);
     }
 }
+
+#[cfg(test)]
+mod cyber_tests {
+    use super::*;
+    use hkask_types::loops::curation::CuratorDirective;
+    use hkask_types::loops::dispatch::LoopOrigin;
+
+    /// PR 9g/9h, Loop 6.3: DAMPEN — Suppress repeated directives within a time window.
+    ///
+    /// Proves: first occurrence is not dampened, second occurrence within the
+    /// window IS dampened, and after the window expires the directive is allowed again.
+    #[tokio::test]
+    async fn cyber_dampen_suppression() {
+        // Use a short window so the test completes quickly
+        let dampener = Dampener::with_window(Duration::from_millis(100));
+
+        let directive = CuratorDirective::CalibrateThreshold {
+            domain: "variety".to_string(),
+            new_threshold: 100,
+        };
+
+        // First occurrence: NOT dampened (new fingerprint)
+        assert!(
+            !dampener.should_dampen(&directive).await,
+            "first occurrence should not be dampened"
+        );
+
+        // Second occurrence within window: IS dampened
+        assert!(
+            dampener.should_dampen(&directive).await,
+            "second occurrence within window should be dampened"
+        );
+
+        // Wait for the window to expire
+        tokio::time::sleep(Duration::from_millis(150)).await;
+
+        // After window expires: NOT dampened again (fingerprint expired)
+        assert!(
+            !dampener.should_dampen(&directive).await,
+            "directive after window expiry should not be dampened"
+        );
+    }
+}

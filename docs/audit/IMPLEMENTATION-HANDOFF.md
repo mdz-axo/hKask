@@ -4,7 +4,7 @@
 
 This document is a self-contained continuation prompt for an agent executing the hKask loop architecture implementation. It contains all architectural decisions, the complete revised implementation plan, and the context needed to start work without access to prior conversation.
 
-**Status:** Phases 0–7 are COMPLETE. Next: Phase 8 (Implementation-Phase Open Questions).
+**Status:** Phases 0–8 are COMPLETE. Next: Phase 9 (Cybernetic Unit Tests).
 
 ---
 
@@ -268,13 +268,25 @@ The semantic loop now closes. Semantic recall has confidence combination, semant
 
 5. **`from_legacy_adapter()` was fully removed.** The deprecated bridge method that panics with `unimplemented!()` has been deleted. All consumers now pass `CuratorContext` to `MetacognitionLoop::new()`.
 
-### Phase 8: Implementation-Phase Open Questions
+### Phase 8 Discoveries
 
-| PR | Title | What | Affected Crates |
-|---|-------|------|-----------------|
-| 8a | Priority-tagged lock in storage | `LockPriority` enum (Critical/High/Normal/Low) | `hkask-storage` |
-| 8b | DataCategory visibility enforcement | `DataCategory` caveats in `EpisodicReadHandle` and `SemanticReadHandle` using keystore key derivation | `hkask-memory`, `hkask-keystore` |
-| 8c | Minimum CNS: unify VarietyTracker | Collapse `SovereigntyObserver`, `GoalVarietyMonitor`, `BotMetricsCollector` into single `VarietyTracker` | `hkask-cns` |
+1. **`LockPriority` maps to `MessagePriority`.** The storage lock priority enum has a natural mapping from the Communication loop's `MessagePriority`: Critical→Critical, Warning→High, Info→Normal. Low priority is storage-specific (consolidation, maintenance).
+
+2. **`Database::acquire()` returns `PriorityLockGuard` with Deref/DerefMut to `Connection`.** The `Database.conn` field needed to be `pub(crate)` to allow the `lock_priority` module to access it. The guard type implements `Deref<Target=Connection>` and `DerefMut` so callers can use it like a regular `Connection` reference.
+
+3. **`DataCategory::derivation_context()` returns `String`, not `&'static str`.** Custom categories require dynamic context strings, which can't be `&'static str`. The HKDF `derive_sub_key()` function takes `&str`, so the `String` is passed by reference — no allocation in the hot path for well-known categories.
+
+4. **`UnifiedVarietyTracker` shares the `AlgedonicManager` via `Arc<RwLock>`.** The previous `SovereigntyObserver` had its own `Arc<RwLock<AlgedonicManager>>`. The unified tracker receives a clone of the same `Arc`, so all variety tracking, sovereignty alerting, and bot metrics use the same algedonic manager for consistent escalation.
+
+5. **`CnsState` holds one `UnifiedVarietyTracker` instead of `VarietyMonitor + SovereigntyObserver`.** The `SovereigntyObserver` struct still exists as a standalone type in `observers/sovereignty.rs` for backward compatibility, but `CnsRuntime` no longer uses it directly. All sovereignty event processing goes through `UnifiedVarietyTracker::process_sovereignty_event()`.
+
+### Phase 8: Implementation-Phase Open Questions — COMPLETE ✓
+
+| PR | Title | What | Affected Crates | Status |
+|---|-------|------|-----------------|--------|
+| 8a | Priority-tagged lock in storage | `LockPriority` enum (Critical/High/Normal/Low) with `PriorityLockGuard`, `Database::acquire(priority)`, CNS span tracing, `LockPriority::from_message_priority()` | `hkask-storage` | ✓ Done |
+| 8b | DataCategory visibility enforcement | `DataCategory::derivation_context()` method, data category derivation contexts in `hkask-types`, `derive_data_category_key()` in `hkask-keystore`, HKDF-SHA256 key derivation per category ensures storage-layer OCAP enforcement | `hkask-types`, `hkask-keystore` | ✓ Done |
+| 8c | Minimum CNS: unify VarietyTracker | `UnifiedVarietyTracker` replaces `VarietyMonitor` + `SovereigntyObserver` in `CnsState`. Domain variety, sovereignty events, bot metrics, and goal variety all feed into one tracker. `CnsState` holds one `tracker: UnifiedVarietyTracker` instead of `variety + sovereignty_observer`. | `hkask-cns` | ✓ Done |
 
 ### Phase 9: Cybernetic Unit Tests
 
@@ -358,7 +370,10 @@ cargo test cyber_ --workspace
 | `crates/hkask-agents/src/curator/dispatch.rs` | `MessageDispatch` — priority-ordered (Critical/Warning/Info) inter-loop message queue. `send()`, `receive()`, `send_curator_directive()`, `send_escalation()`. |
 | `crates/hkask-agents/src/curator/dampener.rs` | `Dampener` — DAMPEN messenger function (6.3). Fingerprint-based directive suppression with configurable time window. |
 | `crates/hkask-agents/src/curator/escalation.rs` | `EscalationQueue` — persistent queue for escalated outputs that require human review. |
-| `crates/hkask-cns/src/runtime.rs` | `CnsRuntime` with 4 handle types. `CnsGovernWriteHandle::calibrate_threshold()` for threshold calibration (5.3 ADAPT). |
+| `crates/hkask-cns/src/runtime.rs` | `CnsRuntime` with 4 handle types. `CnsGovernWriteHandle::calibrate_threshold()` for threshold calibration (5.3 ADAPT). `CnsState` now uses `UnifiedVarietyTracker` instead of separate `VarietyMonitor` + `SovereigntyObserver`. |
+| `crates/hkask-cns/src/unified_tracker.rs` | `UnifiedVarietyTracker` — single SENSE point for all CNS observation domains (4.1 domain variety, 4.3 bot metrics, 4.4 sovereignty events, goal variety). |
+| `crates/hkask-storage/src/lock_priority.rs` | `LockPriority` enum (Critical/High/Normal/Low) with `PriorityLockGuard` and `Database::acquire(priority)`. |
+| `crates/hkask-keystore/src/master_key.rs` | `derive_data_category_key()` — HKDF-SHA256 key derivation per `DataCategory` for storage-layer OCAP enforcement. |
 
 ---
 

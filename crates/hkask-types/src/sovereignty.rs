@@ -93,26 +93,25 @@ impl DataCategory {
     /// The context strings are prefixed with `hkask:data-category:` to ensure
     /// domain separation from other HKDF derivation contexts (ACP secrets,
     /// OCAP tokens, etc.).
-    pub fn derivation_context(&self) -> &'static str {
+    pub fn derivation_context(&self) -> String {
         match self {
-            DataCategory::EpisodicMemory => crate::derivation_contexts::EPISODIC_MEMORY,
-            DataCategory::SemanticMemory => crate::derivation_contexts::SEMANTIC_MEMORY,
-            DataCategory::PersonalContext => crate::derivation_contexts::PERSONAL_CONTEXT,
-            DataCategory::CapabilityTokens => crate::derivation_contexts::CAPABILITY_TOKENS,
-            DataCategory::OcapBoundaries => crate::derivation_contexts::OCAP_BOUNDARIES,
-            DataCategory::TemplateInvocations => crate::derivation_contexts::TEMPLATE_INVOCATIONS,
-            DataCategory::HLexiconTerms => crate::derivation_contexts::HLEXICON_TERMS,
-            DataCategory::TemplateRegistry => crate::derivation_contexts::TEMPLATE_REGISTRY,
-            DataCategory::Custom(s) => {
-                // Custom categories use a deterministic context derived
-                // from their name, prefixed for domain separation.
-                // Note: this returns a borrowed &str, so we leak the string.
-                // Custom categories are rare and this is acceptable.
-                static LEAKED: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-                LEAKED
-                    .get_or_init(|| format!("hkask:data-category:custom:{}", s))
-                    .as_str()
+            DataCategory::EpisodicMemory => crate::derivation_contexts::EPISODIC_MEMORY.to_string(),
+            DataCategory::SemanticMemory => crate::derivation_contexts::SEMANTIC_MEMORY.to_string(),
+            DataCategory::PersonalContext => {
+                crate::derivation_contexts::PERSONAL_CONTEXT.to_string()
             }
+            DataCategory::CapabilityTokens => {
+                crate::derivation_contexts::CAPABILITY_TOKENS.to_string()
+            }
+            DataCategory::OcapBoundaries => crate::derivation_contexts::OCAP_BOUNDARIES.to_string(),
+            DataCategory::TemplateInvocations => {
+                crate::derivation_contexts::TEMPLATE_INVOCATIONS.to_string()
+            }
+            DataCategory::HLexiconTerms => crate::derivation_contexts::HLEXICON_TERMS.to_string(),
+            DataCategory::TemplateRegistry => {
+                crate::derivation_contexts::TEMPLATE_REGISTRY.to_string()
+            }
+            DataCategory::Custom(s) => format!("hkask:data-category:custom:{}", s),
         }
     }
 }
@@ -422,4 +421,78 @@ impl SovereigntyCheckResult {
 pub trait SovereigntyPort: Send + Sync {
     /// Check if data category is accessible by requester
     fn can_access(&self, data_category: &DataCategory, requester: &crate::WebID) -> bool;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn data_category_derivation_contexts_are_unique() {
+        let categories = [
+            DataCategory::EpisodicMemory,
+            DataCategory::SemanticMemory,
+            DataCategory::PersonalContext,
+            DataCategory::CapabilityTokens,
+            DataCategory::OcapBoundaries,
+            DataCategory::TemplateInvocations,
+            DataCategory::HLexiconTerms,
+            DataCategory::TemplateRegistry,
+        ];
+
+        let contexts: Vec<String> = categories.iter().map(|c| c.derivation_context()).collect();
+
+        // All contexts should be unique
+        for i in 0..contexts.len() {
+            for j in (i + 1)..contexts.len() {
+                assert_ne!(
+                    contexts[i], contexts[j],
+                    "Categories {:?} and {:?} have the same derivation context",
+                    categories[i], categories[j]
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn data_category_derivation_context_has_prefix() {
+        // All contexts should start with the hkask:data-category: prefix
+        for category in [
+            DataCategory::EpisodicMemory,
+            DataCategory::SemanticMemory,
+            DataCategory::PersonalContext,
+        ] {
+            let ctx = category.derivation_context();
+            assert!(
+                ctx.starts_with("hkask:data-category:"),
+                "Context for {:?} should have hkask:data-category: prefix, got: {}",
+                category,
+                ctx
+            );
+        }
+    }
+
+    #[test]
+    fn custom_category_derivation_context() {
+        let custom = DataCategory::Custom("my_category".to_string());
+        let ctx = custom.derivation_context();
+        assert_eq!(ctx, "hkask:data-category:custom:my_category");
+    }
+
+    #[test]
+    fn data_category_access_episodic_read() {
+        let handle = crate::loops::episodic::EpisodicReadHandle::new_test();
+        assert!(handle.can_access(&DataCategory::EpisodicMemory));
+        assert!(!handle.can_access(&DataCategory::SemanticMemory));
+        assert!(!handle.can_access(&DataCategory::PersonalContext));
+    }
+
+    #[test]
+    fn data_category_access_semantic_read() {
+        let handle = crate::loops::semantic::SemanticReadHandle::new_test();
+        assert!(handle.can_access(&DataCategory::SemanticMemory));
+        assert!(handle.can_access(&DataCategory::HLexiconTerms));
+        assert!(handle.can_access(&DataCategory::TemplateRegistry));
+        assert!(!handle.can_access(&DataCategory::EpisodicMemory));
+    }
 }
