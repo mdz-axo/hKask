@@ -95,7 +95,7 @@ impl SpanEmitter {
 /// set of allowed SpanCategory values derived from its manifest's capabilities
 /// and responsibilities. If a bot attempts to emit a span outside its allowed
 /// categories, the emission is logged as a sovereignty boundary violation and
-/// the SovereigntyObserver is notified.
+/// the sovereignty event is recorded by `UnifiedVarietyTracker`.
 pub struct SpanScope {
     emitter: SpanEmitter,
     allowed_categories: HashSet<SpanCategory>,

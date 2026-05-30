@@ -10,8 +10,6 @@
 //! 7. Kata Readiness — Verify kata domain owned, emit readiness span
 //! 8. CNS Active — Activate all bots, begin monitoring
 
-#[allow(deprecated)] // BotMetricsCollector — migrate to UnifiedVarietyTracker
-use hkask_cns::BotMetricsCollector;
 use hkask_cns::{
     AlgedonicEscalationAdapter, CnsRuntime, SpanCategory, SpanEmitter, SpanScope,
     curator_span_scope, span_scope_for_r7_bot,
@@ -212,7 +210,7 @@ impl BootstrapSequence {
         info!(target: "bootstrap", "Infrastructure phase: CNS runtime active");
         info!(target: "bootstrap", "Infrastructure phase: AlgedonicManager with escalation adapter created");
         info!(target: "bootstrap", "Infrastructure phase: VarietyMonitor initialized");
-        info!(target: "bootstrap", "Infrastructure phase: SovereigntyObserver initialized");
+        info!(target: "bootstrap", "Infrastructure phase: UnifiedVarietyTracker initialized");
         info!(target: "bootstrap", "Infrastructure phase: CompositionObserver initialized");
         info!(target: "bootstrap", "Infrastructure phase: RateLimiter initialized");
         info!(target: "bootstrap", "Infrastructure phase: EnergyBudget initialized");

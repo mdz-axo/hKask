@@ -12,7 +12,7 @@ use crate::algedonic::{
 use crate::observers::sovereignty::SovereigntyEvent;
 use crate::unified_tracker::UnifiedVarietyTracker;
 use crate::variety::VarietyTracker;
-use hkask_types::InfrastructureError;
+use hkask_types::{InfrastructureError, WebID};
 use std::sync::Arc;
 use std::sync::RwLock as StdRwLock;
 use thiserror::Error;
@@ -39,8 +39,7 @@ pub type CnsResult<T> = Result<T, CnsError>;
 struct CnsState {
     algedonic: Arc<StdRwLock<AlgedonicManager>>,
     /// Unified variety tracker for all SENSE subloops (4.1, 4.3, 4.4).
-    /// Replaces the previous separate VarietyMonitor, SovereigntyObserver,
-    /// GoalVarietyMonitor, and BotMetricsCollector.
+    /// Single variety accounting point per Ashby's Law.
     tracker: UnifiedVarietyTracker,
     /// Subscribers for headless escalation delivery.
     /// Each subscriber is a callback invoked on Critical alerts.
@@ -311,6 +310,18 @@ impl CnsRuntime {
     pub async fn total_deficit(&self) -> u64 {
         let state = self.state.read().await;
         state.tracker.total_variety_deficit(DEFAULT_THRESHOLD)
+    }
+
+    /// Register a bot in the UnifiedVarietyTracker.
+    pub async fn register_bot(&self, bot_id: WebID, bot_name: String) {
+        let mut state = self.state.write().await;
+        state.tracker.register_bot(bot_id, bot_name);
+    }
+
+    /// Set energy budget for a bot in the UnifiedVarietyTracker.
+    pub async fn set_bot_energy_budget(&self, bot_id: &WebID, budget: u64) {
+        let mut state = self.state.write().await;
+        state.tracker.set_bot_energy_budget(bot_id, budget);
     }
 
     /// Process a sovereignty event through the UnifiedVarietyTracker

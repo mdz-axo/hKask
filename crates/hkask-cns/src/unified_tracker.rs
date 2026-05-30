@@ -1,21 +1,21 @@
 //! Unified variety tracker — single SENSE point for all CNS observation domains
 //!
-//! Replaces the separate `VarietyMonitor`, `SovereigntyObserver`,
-//! `GoalVarietyMonitor`, and `BotMetricsCollector` with a single variety
-//! accounting structure. All SENSE subloops (4.1, 4.3, 4.4) feed into this
-//! one tracker, ensuring consistent variety accounting per Ashby's Law.
+//! Consolidates domain variety (4.1), bot metrics (4.3), sovereignty events (4.4),
+//! and goal variety into a single variety accounting structure. All SENSE subloops
+//! feed into this one tracker, ensuring consistent variety accounting per Ashby's Law.
 //!
 //! # Design Rationale
 //!
-//! The previous design used three independent variety-tracking structures:
+//! The previous design used independent variety-tracking structures:
 //! - `VarietyMonitor` (Loop 4.1 — domain-based variety)
-//! - `SovereigntyObserver` (Loop 4.4 — sovereignty event variety)
-//! - `BotMetricsCollector` (Loop 4.3 — bot health variety)
+//! - `SovereigntyObserver` (Loop 4.4 — sovereignty event variety) — removed in Phase 11a
+//! - `GoalVarietyMonitor` (Loop 4.4 — goal variety) — removed in Phase 11a
+//! - `BotMetricsCollector` (Loop 4.3 — bot health variety) — removed in Phase 11b
 //!
 //! Each tracked variety independently, which meant:
 //! 1. Inconsistent variety accounting (different windows, different reset policies)
-//! 2. Duplicate state management (three HashMaps where one suffices)
-//! 3. Complex CnsState (three fields where one suffices)
+//! 2. Duplicate state management (multiple HashMaps where one suffices)
+//! 3. Complex CnsState (multiple fields where one suffices)
 //!
 //! The unified tracker uses domain-prefixed keys so all variety counting
 //! goes through a single `VarietyMonitor`, while preserving the domain-specific

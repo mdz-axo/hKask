@@ -20,7 +20,6 @@ pub mod algedonic;
 pub mod algedonic_escalation;
 pub mod bot_metrics;
 pub mod energy;
-pub mod goal_variety;
 pub mod observers;
 pub mod rate_limit;
 pub mod runtime;
@@ -41,10 +40,9 @@ pub use algedonic_escalation::{
 pub use bot_metrics::BotMetricsCollector;
 pub use bot_metrics::{BotEvaluationMetrics, BotHealthStatus, CapabilityGap, GapType};
 pub use energy::{EnergyAccount, EnergyBudget, EnergyError, OpportunityCost};
-pub use goal_variety::{GoalVarietyCounter, GoalVarietyMonitor};
 pub use hkask_types::SpanCategory;
 pub use observers::sovereignty::{
-    SovereigntyEvent, SovereigntyEventType, SovereigntyObserver, SovereigntyObserverState,
+    SovereigntyEvent, SovereigntyEventType, SovereigntyObserverState,
 };
 pub use rate_limit::{RateLimitConfig, RateLimiter};
 pub use runtime::{

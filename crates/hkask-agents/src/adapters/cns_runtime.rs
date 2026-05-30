@@ -2,10 +2,7 @@
 //!
 //! Maps `hkask_cns` types to the types defined in the ports module.
 //!
-//! # OCAP Handle Migration (Phase 2)
-//!
-//! This module provides both the legacy monolithic `CnsRuntimeAdapter` (deprecated)
-//! and the new capability-disciplined handle types:
+//! # OCAP Handle Types
 //!
 //! - `CnsWriteAdapter` — wraps `CnsWriteHandle` (emit spans, increment variety)
 //! - `CnsGovernReadAdapter` — wraps `CnsGovernReadHandle` (read variety, health, sovereignty)
@@ -44,66 +41,6 @@ fn map_health(h: hkask_cns::CnsHealth) -> HealthStatus {
         critical_count: h.critical_count,
         warning_count: h.warning_count,
         healthy: h.healthy,
-    }
-}
-
-// =============================================================================
-// Legacy monolithic adapter — DEPRECATED, use handle-specific adapters below
-// =============================================================================
-
-/// Legacy monolithic CNS adapter.
-///
-/// **Deprecated:** Use `CnsWriteAdapter`, `CnsGovernReadAdapter`,
-/// `CnsGovernWriteAdapter`, or `CnsAdminAdapter` instead.
-/// These enforce OCAP discipline at the type level.
-#[deprecated(
-    note = "Use CnsWriteAdapter, CnsGovernReadAdapter, CnsGovernWriteAdapter, or CnsAdminAdapter instead"
-)]
-pub struct CnsRuntimeAdapter {
-    runtime: Arc<CnsRuntime>,
-}
-
-#[allow(deprecated)]
-impl CnsRuntimeAdapter {
-    pub fn new(runtime: Arc<CnsRuntime>) -> Self {
-        Self { runtime }
-    }
-
-    pub async fn health(&self) -> HealthStatus {
-        map_health(self.runtime.health().await)
-    }
-
-    pub async fn variety(&self) -> Vec<(String, u64)> {
-        self.runtime.variety().await
-    }
-
-    pub async fn alerts(&self) -> Vec<AlertInfo> {
-        self.runtime
-            .alerts()
-            .await
-            .into_iter()
-            .map(map_alert)
-            .collect()
-    }
-
-    pub async fn critical_alerts(&self) -> Vec<AlertInfo> {
-        self.runtime
-            .critical_alerts()
-            .await
-            .into_iter()
-            .map(map_alert)
-            .collect()
-    }
-
-    pub async fn variety_for_domain(&self, domain: &str) -> u64 {
-        self.runtime.variety_for_domain(domain).await
-    }
-
-    /// Increment variety and check thresholds.
-    /// Returns any algedonic alert if the threshold was crossed.
-    pub async fn increment_and_check(&self, domain: &str, state_name: &str) -> Option<AlertInfo> {
-        self.runtime.increment_variety(domain, state_name).await;
-        self.runtime.check_variety(domain).await.map(map_alert)
     }
 }
 
