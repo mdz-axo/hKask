@@ -310,6 +310,16 @@ The semantic loop now closes. Semantic recall has confidence combination, semant
 | 10b | CNS span audit | Add `cns.memory.decay` and `cns.memory.retract` spans for episodic subloops. `cns.memory.encode` and `cns.memory.budget` already existed. Verify existing spans map to core loops. | `hkask-memory` | ✓ Done |
 | 10c | BotMetricsCollector investigation | Deprecated `BotMetricsCollector` with migration note to `UnifiedVarietyTracker`. Kept `BotEvaluationMetrics`, `BotHealthStatus`, `CapabilityGap`, `GapType` as active data contract. Bootstrap still uses deprecated collector; migration path documented. | `hkask-cns`, `hkask-cli` | ✓ Done |
 
+### Phase 9 Discoveries
+
+1. **`UnifiedVarietyTracker` bot health starts Degraded**: A newly registered bot has `success_rate: 0.0` which triggers the `Degraded` classification. Tests must record observations + successes before asserting `Healthy`.
+2. **`increment_variety` counts distinct keys**: Calling `increment_variety("domain", "key")` twice with the same key increments the count for that key but `variety_for_domain()` returns distinct key count, not total increments.
+3. **`DataCategory::derivation_context()` returns `String`**: Not `&'static str`, because `Custom(String)` categories need dynamic contexts. Tests must collect into `Vec<String>` not `Vec<&str>`.
+4. **`CnsRuntime::process_sovereignty_event()` requires `&mut self`**: Changed from `&self` in Phase 8. Any external callers need updating.
+5. **`BotMetricsCollector` is actively written but never read**: `BootstrapSequence` writes bot registrations to it, but no consumer reads the data. Deprecated in favor of `UnifiedVarietyTracker`.
+6. **CNS spans `cns.memory.encode` and `cns.memory.budget` already exist**: Only `cns.memory.decay` and `cns.memory.retract` were missing. Added in Phase 10b.
+7. **No `SpanCategory::Memory` variant exists**: The `SpanCategory` enum has 14 variants but no `Memory` category. Memory spans use `tracing::debug!`/`tracing::warn!` directly (Pattern A), not the `CnsEmit` trait (Pattern B).
+
 ---
 
 ## Dependency Graph
@@ -354,11 +364,15 @@ cargo test cyber_ --workspace
 
 | File | Purpose |
 |------|----------|
-| `crates/hkask-memory/src/episodic.rs` | `EpisodicMemory` with all subloops wired: decay, retraction, temporal attention, budget, consolidation candidates, weighted recall. `RecalledTriple` struct. |
+| `crates/hkask-memory/src/episodic.rs` | `EpisodicMemory` with all subloops wired: decay, retraction, temporal attention, budget, consolidation candidates, weighted recall. `RecalledTriple` struct. Now emits `cns.memory.decay` and `cns.memory.retract` spans. |
 | `crates/hkask-memory/src/semantic.rs` | `SemanticMemory` with confidence combination (`recall_combined`), semantic indexing (`query_similar`, `recall_with_similarity`), confidence promotion in `consolidate()`, storage budget, retraction candidates |
 | `crates/hkask-memory/src/bayesian.rs` | Free functions: `combine`, `retract`, `decay`, `join`, `weighted_average` — wired into episodic (5a–5b) and semantic (6b, 6d) subloops |
 | `crates/hkask-memory/src/recall_dedup.rs` | `dedup_triples` — BLAKE3-based deduplication (works for both episodic and semantic) |
 | `crates/hkask-types/src/loops/episodic.rs` | `EpisodicReadHandle`, `EpisodicWriteHandle`, `ExperienceClassification`, `EpisodicBudgetExceeded` |
+| `crates/hkask-types/src/loops/inference.rs` | `InferenceHandle`, `EnergyBudgetHandle`, `RateLimiterHandle` — Loop 1 OCAP handles |
+| `crates/hkask-types/src/loops/governance.rs` | `GovernanceHandle`, `GovernanceDenial` — Loop 3 OCAP handles, token verification, sovereignty checks |
+| `crates/hkask-types/src/loops/semantic.rs` | `SemanticReadHandle`, `SemanticWriteHandle` — Loop 2b OCAP handles |
+| `crates/hkask-types/src/sovereignty.rs` | `DataCategory`, `DataSovereigntyBoundary`, `SovereigntyPort` trait, `KillZoneDetector` |
 | `crates/hkask-agents/src/pod/context.rs` | `PodContext` — `store_episodic()`, `recall_episodic()`, `store_episodic_experience()`, `episodic_storage_usage()` |
 | `crates/hkask-agents/src/ports/memory_storage.rs` | `EpisodicStoragePort` (with `store_episodic_classified()`, `episodic_storage_usage()`), `SemanticStoragePort`, legacy `MemoryStoragePort` |
 | `crates/hkask-agents/src/adapters/memory_storage.rs` | `MemoryStorageAdapter` — concrete impl of all storage ports |
@@ -369,8 +383,9 @@ cargo test cyber_ --workspace
 | `crates/hkask-agents/src/curator/dispatch.rs` | `MessageDispatch` — priority-ordered (Critical/Warning/Info) inter-loop message queue. `send()`, `receive()`, `send_curator_directive()`, `send_escalation()`. |
 | `crates/hkask-agents/src/curator/dampener.rs` | `Dampener` — DAMPEN messenger function (6.3). Fingerprint-based directive suppression with configurable time window. |
 | `crates/hkask-agents/src/curator/escalation.rs` | `EscalationQueue` — persistent queue for escalated outputs that require human review. |
-| `crates/hkask-cns/src/runtime.rs` | `CnsRuntime` with 4 handle types. `CnsGovernWriteHandle::calibrate_threshold()` for threshold calibration (5.3 ADAPT). `CnsState` now uses `UnifiedVarietyTracker` instead of separate `VarietyMonitor` + `SovereigntyObserver`. |
+| `crates/hkask-cns/src/runtime.rs` | `CnsRuntime` with 4 handle types (`CnsWriteHandle`, `CnsGovernReadHandle`, `CnsGovernWriteHandle`, `CnsAdminHandle`). `CnsGovernWriteHandle::calibrate_threshold()` for threshold calibration (5.3 ADAPT). |
 | `crates/hkask-cns/src/unified_tracker.rs` | `UnifiedVarietyTracker` — single SENSE point for all CNS observation domains (4.1 domain variety, 4.3 bot metrics, 4.4 sovereignty events, goal variety). |
+| `crates/hkask-cns/src/bot_metrics.rs` | `BotEvaluationMetrics`, `BotHealthStatus`, `CapabilityGap`, `GapType` — data contract for Curation. `BotMetricsCollector` is **deprecated**; use `UnifiedVarietyTracker`. |
 | `crates/hkask-storage/src/lock_priority.rs` | `LockPriority` enum (Critical/High/Normal/Low) with `PriorityLockGuard` and `Database::acquire(priority)`. |
 | `crates/hkask-keystore/src/master_key.rs` | `derive_data_category_key()` — HKDF-SHA256 key derivation per `DataCategory` for storage-layer OCAP enforcement. |
 
