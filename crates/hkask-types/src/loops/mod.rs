@@ -177,4 +177,3 @@ impl std::fmt::Display for DataVisibilityTier {
         }
     }
 }
-

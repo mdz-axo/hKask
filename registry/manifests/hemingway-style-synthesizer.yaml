@@ -5,8 +5,8 @@
 manifest:
   id: hemingway-style-synthesizer
   name: Hemingway Style Synthesizer
-  description: >
   functional_role: wordact
+  description: >
     Hemingway Style Synthesizer — generates prose using Kansas City Star rules,
     Iceberg Theory, paratactic coordination, and Fish generative forms.
     Encodes authentic Hemingway prose mechanics: 73-76% coordinated clauses,
