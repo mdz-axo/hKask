@@ -12,7 +12,10 @@ pub mod recall_dedup;
 pub mod semantic;
 
 pub use bayesian::{combine, decay, join, retract, weighted_average};
-pub use episodic::EpisodicMemory;
+pub use episodic::{
+    DEFAULT_DECAY_RATE, DEFAULT_EPISODIC_BUDGET, DEFAULT_TEMPORAL_LAMBDA, EpisodicMemory,
+    EpisodicMemoryError, RecalledTriple,
+};
 pub use goal_memory::{GoalEpisodicMemory, GoalMemory, GoalSemanticMemory, MemoryError};
 pub use recall_dedup::{DedupResult, dedup_triples, dedup_triples_with_stats, eav_hash};
 pub use semantic::SemanticMemory;

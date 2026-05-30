@@ -1,6 +1,12 @@
 //! Bayesian confidence operations
+//!
+//! Free functions for the episodic and semantic memory subloops:
+//! - `decay` — Loop 2a.3: Confidence decay (RECONCILE)
+//! - `retract` — Loop 2a.4: Confidence retraction (RECONCILE)
+//! - `combine` — Bayesian combination (used in semantic recall)
+//! - `join` — Multi-source Bayesian combination
+//! - `weighted_average` — Weighted average of confidences
 
-#[allow(dead_code)]
 /// Combine two confidence values using Bayesian rule
 /// P(A,B) = P(A) * P(B) / (P(A) * P(B) + (1-P(A)) * (1-P(B)))
 pub fn combine(conf1: f64, conf2: f64) -> f64 {
@@ -14,14 +20,16 @@ pub fn combine(conf1: f64, conf2: f64) -> f64 {
     }
 }
 
-#[allow(dead_code)]
 /// Subtract confidence (retraction)
+///
+/// Reduces `conf1` proportionally by `conf2`.
+/// Used in Loop 2a.4 (Confidence Retraction) to reduce episodic triple
+/// confidence without deleting the triple.
 pub fn retract(conf1: f64, conf2: f64) -> f64 {
     // Simplified retraction: reduce confidence proportionally
     (conf1 * (1.0 - conf2)).clamp(0.0, 1.0)
 }
 
-#[allow(dead_code)]
 /// Join multiple confidence values
 pub fn join(confidences: &[f64]) -> f64 {
     if confidences.is_empty() {
@@ -35,14 +43,16 @@ pub fn join(confidences: &[f64]) -> f64 {
     result
 }
 
-#[allow(dead_code)]
 /// Decay confidence over time
+///
+/// Exponential decay: `confidence × e^(-rate × time_elapsed)`.
+/// Used in Loop 2a.3 (Confidence Decay) to reduce episodic triple
+/// confidence at recall time based on time since storage.
 pub fn decay(confidence: f64, decay_rate: f64, time_elapsed: f64) -> f64 {
     // Exponential decay: conf * e^(-rate * time)
     confidence * (-decay_rate * time_elapsed).exp()
 }
 
-#[allow(dead_code)]
 /// Weighted average of confidences
 pub fn weighted_average(confidences: &[(f64, f64)]) -> f64 {
     // confidences: Vec<(confidence, weight)>

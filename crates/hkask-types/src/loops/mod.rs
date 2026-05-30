@@ -30,7 +30,9 @@ pub mod semantic;
 
 pub use curation::CuratorHandle;
 pub use dispatch::{LoopMessage, LoopOrigin, LoopPayload, MessagePriority, TraceId};
-pub use episodic::{EpisodicReadHandle, EpisodicWriteHandle};
+pub use episodic::{
+    EpisodicBudgetExceeded, EpisodicReadHandle, EpisodicWriteHandle, ExperienceClassification,
+};
 pub use governance::GovernanceHandle;
 pub use inference::{EnergyBudgetHandle, InferenceHandle, RateLimiterHandle};
 pub use observability::{

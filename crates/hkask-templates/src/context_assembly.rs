@@ -308,6 +308,9 @@ fn estimate_tokens(text: &str) -> usize {
 /// A rate of 0.0 means no decay (all memories equally relevant);
 /// higher rates penalize older memories more aggressively.
 /// Typical values: 0.01 (slow decay) to 0.1 (aggressive decay).
+///
+/// For time-based recency weighting from `RecalledTriple`, use
+/// `assemble_episodic_context_from_recalled()` instead.
 pub fn assemble_episodic_context(
     fragments: Vec<ContextFragment>,
     token_budget: usize,
@@ -343,6 +346,71 @@ pub fn assemble_episodic_context(
 
     // Add fragments within budget (ContextAssembler handles dedup and budget)
     assembler.add_many(episodic);
+    assembler
+}
+
+/// Assemble episodic memory context from recalled triples (Loop 2a.6).
+///
+/// This is the enhanced version of `assemble_episodic_context()` that
+/// integrates with `RecalledTriple` from `hkask-memory`, which provides
+/// time-based recency weights and decayed confidence values computed
+/// at recall time by the episodic memory subloops.
+///
+/// # How it differs from `assemble_episodic_context()`
+///
+/// - Uses actual `valid_from` timestamps for ordering (not positional)
+/// - Uses computed `recency_weight` from `bayesian::decay()` for priority
+/// - Uses `decayed_confidence` for filtering low-confidence memories
+/// - Budget-constrains with recency priority (newest kept when budget exceeded)
+///
+/// # Parameters
+///
+/// - `recalled`: Triples with computed recency weights and decayed confidence
+/// - `content_formatter`: Function to convert each triple to a content string
+/// - `token_budget`: Maximum tokens for the assembled context
+/// - `confidence_threshold`: Minimum decayed confidence to include (0.0–1.0).
+///   Triples below this threshold are filtered out. Typical: 0.1–0.3.
+pub fn assemble_episodic_context_from_recalled<F>(
+    recalled: Vec<hkask_memory::RecalledTriple>,
+    content_formatter: F,
+    token_budget: usize,
+    confidence_threshold: f64,
+) -> ContextAssembler
+where
+    F: Fn(&hkask_memory::RecalledTriple) -> String,
+{
+    let mut assembler = ContextAssembler::new(token_budget);
+
+    // Filter by confidence threshold (memories that have decayed below
+    // the threshold are excluded from context).
+    let mut recalled: Vec<hkask_memory::RecalledTriple> = recalled
+        .into_iter()
+        .filter(|r| r.decayed_confidence >= confidence_threshold)
+        .collect();
+
+    // Sort by recency weight descending (highest weight = most recent = first)
+    // This is already the default order from query_for_weighted(), but we
+    // re-sort to ensure correct ordering after confidence filtering.
+    recalled.sort_by(|a, b| {
+        b.recency_weight
+            .partial_cmp(&a.recency_weight)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    // Convert RecalledTriple to ContextFragment with priority from recency weight
+    let fragments: Vec<ContextFragment> = recalled
+        .iter()
+        .map(|r| {
+            // Priority from recency weight: higher weight = lower priority number = more important
+            // Map recency_weight [0,1] to priority [0,255]: weight 1.0 → priority 0, weight 0.0 → priority 255
+            let priority = ((1.0 - r.recency_weight) * 255.0) as u8;
+            let content = content_formatter(r);
+            ContextFragment::new(content, FragmentSource::EpisodicMemory).with_priority(priority)
+        })
+        .collect();
+
+    // Add fragments within budget (ContextAssembler handles dedup and budget)
+    assembler.add_many(fragments);
     assembler
 }
 
@@ -522,5 +590,72 @@ mod tests {
         // Very small budget
         let assembler = assemble_semantic_context(fragments, 10, 0.0);
         assert!(assembler.len() < 3);
+    }
+
+    #[test]
+    fn episodic_context_from_recalled_filters_low_confidence() {
+        use hkask_memory::{EpisodicMemory, RecalledTriple};
+        use hkask_storage::{Database, Triple, TripleStore};
+        use hkask_types::WebID;
+
+        let db = Database::in_memory().expect("in-memory db");
+        let store = TripleStore::new(db.conn_arc());
+        let mem = EpisodicMemory::new(store)
+            .with_decay_rate(0.001)
+            .with_temporal_lambda(0.01);
+        let wid = WebID::new();
+
+        // Store a triple
+        mem.store(
+            Triple::new("entity1", "attr1", serde_json::json!("val1"), wid)
+                .with_perspective(wid)
+                .with_confidence(0.5),
+        )
+        .unwrap();
+
+        let recalled = mem.query_for_weighted("entity1", wid).unwrap();
+
+        // With a high confidence threshold, nothing should pass
+        let assembler = assemble_episodic_context_from_recalled(
+            recalled,
+            |r: &RecalledTriple| format!("{}: {}", r.triple.entity, r.decayed_confidence),
+            4096,
+            0.99, // Very high threshold — almost nothing passes
+        );
+        // Just-stored triple with decay ≈ 0.5 should be filtered
+        assert_eq!(assembler.len(), 0);
+    }
+
+    #[test]
+    fn episodic_context_from_recalled_accepts_recent() {
+        use hkask_memory::{EpisodicMemory, RecalledTriple};
+        use hkask_storage::{Database, Triple, TripleStore};
+        use hkask_types::WebID;
+
+        let db = Database::in_memory().expect("in-memory db");
+        let store = TripleStore::new(db.conn_arc());
+        let mem = EpisodicMemory::new(store)
+            .with_decay_rate(0.001)
+            .with_temporal_lambda(0.01);
+        let wid = WebID::new();
+
+        // Store a triple
+        mem.store(
+            Triple::new("entity1", "attr1", serde_json::json!("val1"), wid)
+                .with_perspective(wid)
+                .with_confidence(0.9),
+        )
+        .unwrap();
+
+        let recalled = mem.query_for_weighted("entity1", wid).unwrap();
+
+        // With a low threshold, the triple should be included
+        let assembler = assemble_episodic_context_from_recalled(
+            recalled,
+            |r: &RecalledTriple| format!("{}: {}", r.triple.entity, r.decayed_confidence),
+            4096,
+            0.1, // Low threshold
+        );
+        assert_eq!(assembler.len(), 1);
     }
 }

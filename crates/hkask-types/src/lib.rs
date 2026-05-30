@@ -55,9 +55,10 @@ pub use identity::*;
 pub use lexicon::{Domain, HLexicon, LexiconTerm, TemplateType};
 pub use loops::{
     CnsAdminHandle, CnsGovernReadHandle, CnsGovernWriteHandle, CnsWriteHandle, ControlPrimitive,
-    CuratorHandle, DataVisibilityTier, EnergyBudgetHandle, EpisodicReadHandle, EpisodicWriteHandle,
-    GovernanceHandle, InferenceHandle, LoopId, LoopMessage, LoopOrigin, LoopPayload,
-    MessagePriority, RateLimiterHandle, SemanticReadHandle, SemanticWriteHandle, TraceId,
+    CuratorHandle, DataVisibilityTier, EnergyBudgetHandle, EpisodicBudgetExceeded,
+    EpisodicReadHandle, EpisodicWriteHandle, ExperienceClassification, GovernanceHandle,
+    InferenceHandle, LoopId, LoopMessage, LoopOrigin, LoopPayload, MessagePriority,
+    RateLimiterHandle, SemanticReadHandle, SemanticWriteHandle, TraceId,
 };
 pub use ports::GitCASPort;
 pub use r7::{R7BotIdentity, R7BotRegistry, default_r7_bots};

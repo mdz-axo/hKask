@@ -1,5 +1,5 @@
 //! Loop 2a: Episodic Memory — Capability handles
-//!
+//
 //! The Episodic Memory loop governs private, agent-scoped experience:
 //! experience → encode → store (private) → recall → temporal attention → context
 //!
@@ -12,7 +12,7 @@
 //! - 2a.6 Episodic Context Assembly (FILTER+ADAPT) — temporal-ordered, recency-weighted, budget-constrained
 //!
 //! # Capability Discipline
-//!
+//
 //! Episodic memory is PRIVATE to the agent. Only the owning agent can store or read
 //! their own episodic triples. This is enforced by the type system:
 //!
@@ -22,6 +22,58 @@
 //!
 //! - `EpisodicWriteHandle` can store episodic triples for own WebID only.
 //!   It CANNOT delete triples, write on behalf of other agents, or write semantic triples.
+
+// =============================================================================
+// Experience Classification (Loop 2a.1 — Experience Encoding)
+// =============================================================================
+
+/// Classification of an episodic experience for encoding (Loop 2a.1).
+///
+/// Each classification carries a default confidence that informs the initial
+/// confidence of the stored triple. These defaults can be overridden by the
+/// caller via `store_episodic_experience()`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExperienceClassification {
+    /// A successful action or outcome. Default confidence: 0.9
+    Success,
+    /// A failed action or negative outcome. Default confidence: 0.3
+    Failure,
+    /// An observed fact or state. Default confidence: 0.7
+    Observation,
+    /// An inferred conclusion. Default confidence: 0.5
+    Inference,
+    /// A user-provided instruction or correction. Default confidence: 0.8
+    Instruction,
+}
+
+impl ExperienceClassification {
+    /// Default confidence for this experience classification.
+    ///
+    /// These values are used when no explicit confidence is provided
+    /// in `store_episodic_experience()`.
+    pub fn default_confidence(&self) -> f64 {
+        match self {
+            ExperienceClassification::Success => 0.9,
+            ExperienceClassification::Failure => 0.3,
+            ExperienceClassification::Observation => 0.7,
+            ExperienceClassification::Inference => 0.5,
+            ExperienceClassification::Instruction => 0.8,
+        }
+    }
+}
+
+impl std::fmt::Display for ExperienceClassification {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ExperienceClassification::Success => write!(f, "success"),
+            ExperienceClassification::Failure => write!(f, "failure"),
+            ExperienceClassification::Observation => write!(f, "observation"),
+            ExperienceClassification::Inference => write!(f, "inference"),
+            ExperienceClassification::Instruction => write!(f, "instruction"),
+        }
+    }
+}
 
 use crate::id::WebID;
 use crate::sovereignty::DataCategory;

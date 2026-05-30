@@ -12,7 +12,7 @@
 //!   Only agents with consolidation capability can store semantic triples.
 //! - `MemoryStoragePort` — legacy monolithic port (deprecated, use split ports)
 
-use hkask_types::{CapabilityToken, WebID};
+use hkask_types::{CapabilityToken, ExperienceClassification, WebID};
 
 // =============================================================================
 // Episodic Storage Port — Private, agent-scoped memory
@@ -53,6 +53,42 @@ pub trait EpisodicStoragePort: Send + Sync {
         owner: &WebID,
         token: &CapabilityToken,
     ) -> Result<Vec<serde_json::Value>, crate::error::MemoryError>;
+
+    /// Check episodic storage budget for an agent.
+    ///
+    /// Returns the number of triples currently stored for the given perspective.
+    /// Used by Loop 2a.5 (Storage Budget) to enforce per-agent limits.
+    fn episodic_storage_usage(
+        &self,
+        perspective: &WebID,
+    ) -> Result<usize, crate::error::MemoryError>;
+
+    /// Store an episodic triple with experience classification (Loop 2a.1).
+    ///
+    /// This is the enhanced store method that accepts an experience
+    /// classification. The classification determines the default confidence
+    /// if `confidence_override` is `None`:
+    ///
+    /// - `Success` → 0.9
+    /// - `Failure` → 0.3
+    /// - `Observation` → 0.7
+    /// - `Inference` → 0.5
+    /// - `Instruction` → 0.8
+    ///
+    /// # Requires
+    /// - `producer_webid` must match the agent storing the triple
+    /// - `token` must grant Write action on the Manifest resource
+    #[allow(clippy::too_many_arguments)]
+    fn store_episodic_classified(
+        &self,
+        producer_webid: WebID,
+        entity: &str,
+        attribute: &str,
+        value: serde_json::Value,
+        classification: ExperienceClassification,
+        confidence_override: Option<f64>,
+        token: &CapabilityToken,
+    ) -> Result<String, crate::error::MemoryError>;
 }
 
 // =============================================================================

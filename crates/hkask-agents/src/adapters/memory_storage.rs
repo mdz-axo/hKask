@@ -8,7 +8,7 @@ use crate::error::MemoryError;
 #[allow(deprecated)]
 use crate::ports::{EpisodicStoragePort, MemoryStoragePort, SemanticStoragePort};
 use hkask_storage::{Database, Embedding, EmbeddingStore, Triple, TripleStore};
-use hkask_types::{CapabilityToken, TripleID, Visibility, WebID};
+use hkask_types::{CapabilityToken, ExperienceClassification, TripleID, Visibility, WebID};
 use serde_json::Value;
 use uuid::Uuid;
 
@@ -126,6 +126,69 @@ impl EpisodicStoragePort for MemoryStorageAdapter {
         );
 
         Ok(results)
+    }
+
+    fn episodic_storage_usage(&self, perspective: &WebID) -> Result<usize, MemoryError> {
+        let triples = self
+            .triple_store
+            .query_by_perspective(perspective)
+            .map_err(|e| MemoryError::Query(e.to_string()))?;
+
+        let count = triples.iter().filter(|t| t.is_episodic()).count();
+
+        tracing::debug!(
+            target: "cns.memory.budget",
+            perspective = %perspective,
+            count = count,
+            "Episodic storage usage checked"
+        );
+
+        Ok(count)
+    }
+
+    fn store_episodic_classified(
+        &self,
+        producer_webid: WebID,
+        entity: &str,
+        attribute: &str,
+        value: Value,
+        classification: ExperienceClassification,
+        confidence_override: Option<f64>,
+        token: &CapabilityToken,
+    ) -> Result<String, MemoryError> {
+        // Validate capability token allows storage operations
+        if token.action == hkask_types::CapabilityAction::Read {
+            return Err(MemoryError::CapabilityDenied(
+                "Token has read-only action, write required for episodic storage".to_string(),
+            ));
+        }
+
+        let confidence = confidence_override.unwrap_or_else(|| classification.default_confidence());
+
+        let triple = Triple::new(entity, attribute, value, producer_webid)
+            .with_visibility(Visibility::Private)
+            .with_perspective(producer_webid)
+            .with_confidence(confidence);
+
+        // Store the classification in the attribute namespace for traceability
+        // e.g., "outcome" → "observation:entity:attribute"
+        // The classification is reflected in the confidence (default from class)
+        // and emitted as a cns.memory.encode span.
+
+        tracing::info!(
+            target: "cns.memory.encode",
+            classification = %classification,
+            confidence = confidence,
+            entity = entity,
+            attribute = attribute,
+            "Episodic experience encoded"
+        );
+
+        self.triple_store
+            .insert(&triple)
+            .map_err(|e| MemoryError::Storage(e.to_string()))?;
+
+        Ok(triple.id.to_string())
     }
 }
 

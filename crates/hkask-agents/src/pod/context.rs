@@ -14,7 +14,9 @@
 //! Use `recall_episodic`/`store_episodic` and `recall_semantic`/`store_semantic`
 //! instead of `recall_memory`/`store_memory`.
 
-use hkask_types::{CapabilityAction, CapabilityResource, CapabilityToken, WebID};
+use hkask_types::{
+    CapabilityAction, CapabilityResource, CapabilityToken, ExperienceClassification, WebID,
+};
 use std::sync::Arc;
 
 use super::AgentPodError;
@@ -141,6 +143,74 @@ impl PodContext {
         )?;
         self.episodic_storage
             .recall_episodic(query, &self.webid, &self.capability_token)
+            .map_err(|e| AgentPodError::MemoryError(e.to_string()))
+    }
+
+    /// Check episodic storage usage for this agent's perspective.
+    ///
+    /// Returns the number of episodic triples currently stored.
+    /// Used by Loop 2a.5 (Storage Budget) to enforce per-agent limits.
+    pub fn episodic_storage_usage(&self) -> Result<usize, AgentPodError> {
+        self.require_capability(
+            CapabilityResource::Manifest,
+            "episodic_memory",
+            CapabilityAction::Read,
+        )?;
+        self.episodic_storage
+            .episodic_storage_usage(&self.webid)
+            .map_err(|e| AgentPodError::MemoryError(e.to_string()))
+    }
+
+    /// Store an episodic experience with classification (Loop 2a.1).
+    ///
+    /// This is the enhanced store method that accepts an experience
+    /// classification. The classification determines the default confidence
+    /// if `confidence_override` is `None`. Emits a `cns.memory.encode` span.
+    ///
+    /// Experience classifications and their default confidences:
+    /// - `Success` → 0.9
+    /// - `Failure` → 0.3
+    /// - `Observation` → 0.7
+    /// - `Inference` → 0.5
+    /// - `Instruction` → 0.8
+    pub fn store_episodic_experience(
+        &self,
+        entity: &str,
+        attribute: &str,
+        value: serde_json::Value,
+        classification: ExperienceClassification,
+        confidence_override: Option<f64>,
+    ) -> Result<String, AgentPodError> {
+        self.require_capability(
+            CapabilityResource::Manifest,
+            "episodic_memory",
+            CapabilityAction::Write,
+        )?;
+
+        let confidence = confidence_override.unwrap_or_else(|| classification.default_confidence());
+
+        // Emit cns.memory.encode span (Loop 2a.1 — Experience Encoding)
+        self.emit_span(
+            "cns.memory.encode",
+            "store",
+            serde_json::json!({
+                "classification": classification.to_string(),
+                "confidence": confidence,
+                "entity": entity,
+                "attribute": attribute,
+            }),
+        );
+
+        self.episodic_storage
+            .store_episodic_classified(
+                self.webid,
+                entity,
+                attribute,
+                value,
+                classification,
+                confidence_override,
+                &self.capability_token,
+            )
             .map_err(|e| AgentPodError::MemoryError(e.to_string()))
     }
 
