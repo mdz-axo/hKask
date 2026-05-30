@@ -73,4 +73,11 @@ impl CnsRuntimeAdapter {
     pub async fn variety_for_domain(&self, domain: &str) -> u64 {
         self.runtime.variety_for_domain(domain).await
     }
+
+    /// Increment variety and check thresholds.
+    /// Returns any algedonic alert if the threshold was crossed.
+    pub async fn increment_and_check(&self, domain: &str, state_name: &str) -> Option<AlertInfo> {
+        self.runtime.increment_variety(domain, state_name).await;
+        self.runtime.check_variety(domain).await.map(map_alert)
+    }
 }

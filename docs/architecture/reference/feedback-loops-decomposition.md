@@ -209,7 +209,7 @@
     :span              "cns.agent_pod.*" .
 ```
 
-**Implementation status:** ✅ Fully implemented — `PodManager` with `create_pod/activate_pod/deactivate_pod`, `PodLifecycleState` enum with `can_transition_to()`, `AgentPod` with HKDF-SHA256 OCAP secret derivation, `AcpRuntime` for registration and capability management. ⚠️ Gap: no cascade from pod state changes to goal state changes (pod deactivation does not automatically block associated goals).
+**Implementation status:** ✅ Fully implemented — `PodManager` with `create_pod/activate_pod/deactivate_pod`, `PodLifecycleState` enum with `can_transition_to()`, `AgentPod` with HKDF-SHA256 OCAP secret derivation, `AcpRuntime` for registration and capability management. **Design decision:** Goal state and pod state are intentionally independent — pod deactivation does not cascade to goal blocking because goals are data records (not running processes), capability token revocation already prevents deactivated pods from acting on goals, and other agents may continue working on the same goal.
 
 ---
 
@@ -933,13 +933,17 @@ graph TD
 
 **Recommendation:** Wire `cns.spec.drift` into `DefaultSpecCurator` to automatically trigger `reconcile()` when drift exceeds a threshold, closing the MVSDD cycle.
 
-### 3. Goal Lifecycle ↔ Pod Lifecycle bidirectionality ❌
+### 3. Goal Lifecycle ↔ Pod Lifecycle bidirectionality ⚠️ Design decision: Keep independent
 
 **Current state:** Both have independent state machines. Pod deactivation emits `cns.agent_pod.deactivated` but no listener translates this to `GoalState::Blocked`.
 
-**Gap:** A pod's suspension does not cascade goal state changes.
+**Assessment:** This independence is **a feature, not a bug**. Goal state and pod state model different concerns:
+- `PodLifecycleState` models agent availability
+- `GoalState` models goal pursuit status
 
-**Recommendation:** Add a `PodGoalBridge` that listens to `cns.agent_pod.*` spans and cascades state changes: `Deactivated → GoalState::Blocked`, `Activated → GoalState::Active`.
+Coupling them would mean every pod deactivation silently mutates goal state without user consent — violating the sovereignty principle (C5). An `Active` goal with a deactivated pod simply means the goal is still open for work; the pod's revoked capability token prevents it from acting on the goal. Other agents or the Curator can still work on the goal.
+
+**Decision:** Keep goal and pod state independent. If a specific deployment wants cascade behavior, it should be an explicit policy layer, not a structural invariant.
 
 ### 4. Algedonic alert → automated remediation ⚠️ Partial
 

@@ -34,9 +34,6 @@ pub enum GoalRepositoryError {
 
     #[error("Subgoal depth exceeded: {0}")]
     MaxDepthExceeded(String),
-
-    #[error("Corrupt persisted goal data: {0}")]
-    Corrupt(String),
 }
 
 impl From<rusqlite::Error> for GoalRepositoryError {

@@ -228,24 +228,24 @@ impl SpecCurator for DefaultSpecCurator {
 
         if let Ok(ref recs) = records {
             for (spec, record) in specs.iter().zip(recs.iter()) {
-                if record.coherence_score < self.coherence_threshold {
-                    if let Some(ref emitter) = self.cns_emitter {
-                        let drift_magnitude = 1.0 - record.coherence_score;
-                        emitter.emit_event(
-                            "cns.spec.drift",
-                            "observe",
-                            &json!({
-                                "domain": spec.category.as_str(),
-                                "drift_magnitude": drift_magnitude,
-                                "coherence": record.coherence_score,
-                                "message": format!(
-                                    "Drift detected during reconciliation: coherence {:.3} below threshold {:.3}",
-                                    record.coherence_score, self.coherence_threshold
-                                ),
-                            }),
-                            record.coherence_score,
-                        );
-                    }
+                if record.coherence_score < self.coherence_threshold
+                    && let Some(ref emitter) = self.cns_emitter
+                {
+                    let drift_magnitude = 1.0 - record.coherence_score;
+                    emitter.emit_event(
+                        "cns.spec.drift",
+                        "observe",
+                        &json!({
+                            "domain": spec.category.as_str(),
+                            "drift_magnitude": drift_magnitude,
+                            "coherence": record.coherence_score,
+                            "message": format!(
+                                "Drift detected during reconciliation: coherence {:.3} below threshold {:.3}",
+                                record.coherence_score, self.coherence_threshold
+                            ),
+                        }),
+                        record.coherence_score,
+                    );
                 }
             }
         }

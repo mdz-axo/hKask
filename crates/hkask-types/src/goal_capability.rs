@@ -175,66 +175,6 @@ impl GoalCapabilityToken {
     }
 }
 
-/// Miller-style revocable forwarder for goal capability tokens.
-///
-/// A `GoalRevoker` wraps a `GoalCapabilityToken` and provides
-/// immediate, cryptographic revocation without key rotation.
-/// All attenuation operations check the revoker's liveness flag
-/// (`AtomicBool`, Release/Acquire ordering). Once revoked, no
-/// further child tokens can be produced — existing children remain
-/// valid until expiry (per Miller's membrane semantics, where a
-/// membrane controls forwarding, not existing delegates).
-///
-/// The owner holds the revoker; delegates receive attenuated tokens.
-pub struct GoalRevoker {
-    alive: std::sync::atomic::AtomicBool,
-    token: GoalCapabilityToken,
-    secret: Vec<u8>,
-}
-
-impl GoalRevoker {
-    /// Wrap a token in a Miller-style membrane.
-    /// The returned revoker is the single authority point for the token.
-    pub fn wrap(token: GoalCapabilityToken, secret: Vec<u8>) -> Self {
-        Self {
-            alive: std::sync::atomic::AtomicBool::new(true),
-            token,
-            secret,
-        }
-    }
-
-    /// `true` while the token is still live.
-    pub fn is_alive(&self) -> bool {
-        self.alive.load(std::sync::atomic::Ordering::Acquire)
-    }
-
-    /// Revoke the token. After this call, `attenuate` always fails.
-    /// The underlying token is not mutated — only the liveness flag is cleared.
-    pub fn revoke(&self) {
-        self.alive
-            .store(false, std::sync::atomic::Ordering::Release);
-    }
-
-    /// Issue an attenuated child token, iff the membrane is still alive.
-    /// Returns `None` if the revoker has been revoked or attenuation fails.
-    pub fn attenuate(&self, ops: &[GoalOp]) -> Option<GoalCapabilityToken> {
-        if !self.is_alive() {
-            return None;
-        }
-        // Safety: the set of ops passed to the inner token is limited by
-        // the caller's choice and by the inner token's own capability check.
-        if !ops.iter().all(|op| self.token.operations.contains(op)) {
-            return None;
-        }
-        self.token.attenuate(ops.to_vec(), &self.secret)
-    }
-
-    /// Borrow a reference to the inner token (read-only).
-    pub fn token(&self) -> &GoalCapabilityToken {
-        &self.token
-    }
-}
-
 /// Goal access control — visibility-based authorization
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GoalAccess {
@@ -378,27 +318,5 @@ mod tests {
         assert!(!GoalAccess::Denied.can_write());
         assert!(GoalAccess::Owner.can_admin());
         assert!(!GoalAccess::Granted.can_admin());
-    }
-
-    #[test]
-    fn revoker_blocks_attenuation_after_revoke() {
-        let t = token(vec![GoalOp::Read, GoalOp::Update]);
-        let revoker = GoalRevoker::wrap(t.clone(), SECRET.to_vec());
-        assert!(revoker.is_alive());
-
-        // Attenuation works before revoke.
-        let child = revoker.attenuate(&[GoalOp::Read]);
-        assert!(child.is_some());
-        assert!(child.unwrap().is_valid(SECRET));
-
-        // Revoke.
-        revoker.revoke();
-        assert!(!revoker.is_alive());
-
-        // Attenuation fails after revoke.
-        assert!(revoker.attenuate(&[GoalOp::Read]).is_none());
-
-        // The inner token is still valid — we just can't forward it.
-        assert!(revoker.token().is_valid(SECRET));
     }
 }

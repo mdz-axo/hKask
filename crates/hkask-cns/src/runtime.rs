@@ -166,14 +166,26 @@ impl CnsRuntime {
         state.variety.variety_for_domain(domain)
     }
 
-    /// Increment variety counter for domain
+    /// Increment variety counter for domain and check thresholds.
+    /// This combines the cybernetic Observe (increment) and Regulate (check)
+    /// phases into a single call — every variety increment automatically
+    /// fires the algedonic check. Callers don't need to remember to call
+    /// `check_variety` separately; the loop is closed inside the runtime.
     pub async fn increment_variety(&self, domain: &str, state_name: &str) {
-        let mut state = self.state.write().await;
-        state.variety.counter(domain).increment(state_name);
-        info!(target: "cns.variety", domain = %domain, state = %state_name, "Variety incremented");
+        {
+            let mut state = self.state.write().await;
+            state.variety.counter(domain).increment(state_name);
+            info!(target: "cns.variety", domain = %domain, state = %state_name, "Variety incremented");
+        }
+        // Delegate to check_variety for threshold alert + subscriber delivery.
+        // The alert/subscriber logic lives in one place (single source of truth).
+        self.check_variety(domain).await;
     }
 
-    /// Check variety and generate algedonic alert if needed
+    /// Check variety and generate algedonic alert if needed.
+    ///
+    /// Returns the alert if one was generated. Critical alerts are
+    /// delivered to all registered subscribers.
     pub async fn check_variety(&self, domain: &str) -> Option<RuntimeAlert> {
         let counter = {
             let state = self.state.read().await;
