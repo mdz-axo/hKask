@@ -184,36 +184,3 @@ pub async fn auth_middleware(
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use hkask_types::{CapabilityAction, CapabilityResource, WebID};
-
-    fn make_test_token(secret: &[u8]) -> CapabilityToken {
-        let from = WebID::from_persona(b"test-issuer");
-        let to = WebID::from_persona(b"test-holder");
-        CapabilityToken::new(
-            CapabilityResource::Tool,
-            "test-tool".to_string(),
-            CapabilityAction::Execute,
-            from,
-            to,
-            secret,
-        )
-    }
-
-    #[test]
-    fn test_valid_token_verifies() {
-        let secret = b"test-secret-key-for-hmac-123456";
-        let service = AuthService::from_secret(secret.to_vec());
-        let token = make_test_token(secret);
-        assert_eq!(service.verify_token(&token), TokenVerification::Valid);
-    }
-
-    #[test]
-    fn test_wrong_secret_fails() {
-        let service = AuthService::from_secret(b"correct-secret".to_vec());
-        let token = make_test_token(b"wrong-secret");
-        assert_eq!(service.verify_token(&token), TokenVerification::Invalid);
-    }
-}

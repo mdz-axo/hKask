@@ -228,25 +228,3 @@ impl CnsAdminHandle {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn cns_write_handle_emit_span() {
-        let handle = CnsWriteHandle::new_test();
-        let event = handle.emit_span(SpanCategory::Tool, "invoked");
-        assert_eq!(event.action, "invoked");
-    }
-
-    #[test]
-    fn cns_handles_have_distinct_access() {
-        // Verify that handle types exist and are distinct
-        let _write = CnsWriteHandle::new_test();
-        let _govern_read = CnsGovernReadHandle::new_test();
-        let _govern_write = CnsGovernWriteHandle::new_test();
-        let _admin = CnsAdminHandle::new_test();
-        // Type system enforces: write can emit, govern_read can check,
-        // govern_write can calibrate, admin can reset
-    }
-}

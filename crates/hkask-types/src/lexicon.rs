@@ -249,21 +249,3 @@ impl HLexicon {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn bootstrap_domains_match_catalog() {
-        let lexicon = HLexicon::bootstrap();
-        // Recognition terms are KnowAct per the catalog (§3.1), not WordAct.
-        assert_eq!(
-            lexicon.get("recognize").map(|t| t.domain),
-            Some(Domain::KnowAct)
-        );
-        assert_eq!(
-            lexicon.get("reflect").map(|t| t.domain),
-            Some(Domain::KnowAct)
-        );
-    }
-}

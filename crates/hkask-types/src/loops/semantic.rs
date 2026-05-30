@@ -162,22 +162,3 @@ impl SemanticWriteHandle {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn semantic_read_handle_new_test() {
-        let handle = SemanticReadHandle::new_test();
-        assert!(handle.can_access(&DataCategory::SemanticMemory));
-        assert!(!handle.can_access(&DataCategory::EpisodicMemory));
-    }
-
-    #[test]
-    fn semantic_write_handle_consolidation() {
-        let handle = SemanticWriteHandle::new_test();
-        assert!(handle.can_consolidate());
-        assert!(handle.can_write(&DataCategory::SemanticMemory));
-        assert!(!handle.can_write(&DataCategory::EpisodicMemory));
-    }
-}

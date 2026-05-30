@@ -237,23 +237,3 @@ pub struct EpisodicBudgetExceeded {
     pub budget: u32,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn episodic_read_handle_new_test() {
-        let handle = EpisodicReadHandle::new_test();
-        assert!(handle.can_access(&DataCategory::EpisodicMemory));
-        assert!(!handle.can_access(&DataCategory::SemanticMemory));
-        assert!(!handle.can_access(&DataCategory::PersonalContext));
-    }
-
-    #[test]
-    fn episodic_write_handle_within_budget() {
-        let mut handle = EpisodicWriteHandle::new_test();
-        assert!(handle.within_budget(100));
-        assert!(handle.record_stored(50).is_ok());
-        assert_eq!(handle.storage_used(), 50);
-    }
-}

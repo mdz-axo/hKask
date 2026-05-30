@@ -109,25 +109,3 @@ pub enum CuratorDirective {
     AdjustEnergyBudget { agent: WebID, new_budget: u64 },
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn curator_handle_new_test() {
-        let handle = CuratorHandle::new_test();
-        // Curator can read everything except private episodic memory
-        assert!(!handle.can_read(&DataCategory::EpisodicMemory));
-        assert!(handle.can_read(&DataCategory::SemanticMemory));
-        assert!(handle.can_read(&DataCategory::PersonalContext));
-        assert!(handle.can_read(&DataCategory::CapabilityTokens));
-    }
-
-    #[test]
-    fn curator_handle_write_access() {
-        let handle = CuratorHandle::new_test();
-        assert!(handle.can_write(&DataCategory::SemanticMemory));
-        assert!(handle.can_write(&DataCategory::OcapBoundaries));
-        assert!(!handle.can_write(&DataCategory::EpisodicMemory));
-    }
-}

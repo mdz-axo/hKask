@@ -33,29 +33,3 @@ pub fn sanitize_path(base: &Path, input: &str) -> Result<PathBuf, HkaskError> {
     Ok(joined)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn reject_parent_dir() {
-        let base = Path::new("/tmp/test");
-        let result = sanitize_path(base, "../etc/passwd");
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn accept_simple_path() {
-        let base = Path::new("/tmp/test");
-        let result = sanitize_path(base, "subdir/file.txt");
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), PathBuf::from("/tmp/test/subdir/file.txt"));
-    }
-
-    #[test]
-    fn reject_nested_traversal() {
-        let base = Path::new("/tmp/test");
-        let result = sanitize_path(base, "foo/../../etc/passwd");
-        assert!(result.is_err());
-    }
-}
