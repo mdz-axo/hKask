@@ -1,8 +1,10 @@
 //! Ensemble command handlers — chat, deliberation, improv, and standing sessions
-//!
+//
 //! Manages multi-agent ensemble sessions via singleton patterns for chat
 //! manager, deliberation coordinator, and improv client. Also handles
 //! standing session bootstrap via hkask-ensemble registry manifests.
+
+#![allow(deprecated)]
 
 use hkask_ensemble::{
     ChatMessage, ChatParticipant, DeliberationCoordinator, EnsembleChatManager, ImprovMode,

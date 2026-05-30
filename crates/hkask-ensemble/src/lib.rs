@@ -24,6 +24,7 @@ pub mod webid_registry;
 pub use adapters::{ImprovClientError, OkapiImprovClient};
 #[allow(deprecated)]
 pub use adapters::{OkapiClient, OkapiClientError, OkapiHttpClient};
+#[allow(deprecated)]
 pub use chat::{
     ChatMessage, ChatParticipant, EnsembleChat, EnsembleChatManager, EnsembleError,
     ParticipantRole, SessionManager,

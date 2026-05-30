@@ -53,6 +53,7 @@ pub use audit::{AuditStats, AuditTrail, ExecutionAudit};
 pub use capability_validator::CapabilityAwareValidator;
 pub use context_assembly::{
     AddResult, AssemblyStats, ContextAssembler, ContextFragment, FragmentSource,
+    assemble_episodic_context, assemble_semantic_context,
 };
 pub use contract_validator::{OkapiRequirements, RegistrationFrontmatter};
 pub use contracts::{

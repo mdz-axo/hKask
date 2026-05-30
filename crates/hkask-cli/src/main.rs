@@ -457,7 +457,7 @@ fn run_mcp(rt: &tokio::runtime::Runtime, action: McpAction) {
 fn run_cns(rt: &tokio::runtime::Runtime, action: CnsAction) {
     match action {
         CnsAction::Health => {
-            let cns_runtime = hkask_cns::CnsRuntime::new();
+            let cns_runtime = hkask_cns::CnsRuntime::with_threshold(hkask_cns::DEFAULT_THRESHOLD);
             let health = rt.block_on(cns_runtime.health());
             let alerts = rt.block_on(cns_runtime.alerts());
             let variety = rt.block_on(cns_runtime.variety());

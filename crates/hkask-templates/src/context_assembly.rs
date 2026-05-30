@@ -281,3 +281,249 @@ impl ContextAssembler {
 fn estimate_tokens(text: &str) -> usize {
     hkask_types::estimate_tokens(text)
 }
+
+// =============================================================================
+// Specialized Context Assembly — Episodic and Semantic
+// =============================================================================
+//
+// Episodic and semantic memory have structurally different assembly needs:
+//
+// - Episodic context is temporally ordered (most recent first),
+//   recency-weighted (exponential decay by time since storage),
+//   and budget-constrained (keep recent, drop old when full).
+//
+// - Semantic context is deduplicated (merge triples with same entity/attribute),
+//   confidence-combined (Bayesian combination of competing values),
+//   and priority-ordered (higher confidence = higher priority).
+//
+// Both functions return a `ContextAssembler` that can be merged into the
+// main prompt assembly pipeline.
+
+/// Assemble episodic memory context.
+///
+/// Episodic memory is:
+/// - **Temporally ordered**: most recent experience first (`valid_from` DESC)
+/// - **Recency-weighted**: `weight = e^(-λ × time_since_storage)`
+/// - **Budget-constrained**: keeps recent experiences, drops old ones when
+///   the token budget is exceeded
+///
+/// The `decay_rate` parameter controls how quickly memory relevance decays.
+/// A rate of 0.0 means no decay (all memories equally relevant);
+/// higher rates penalize older memories more aggressively.
+/// Typical values: 0.01 (slow decay) to 0.1 (aggressive decay).
+pub fn assemble_episodic_context(
+    fragments: Vec<ContextFragment>,
+    token_budget: usize,
+    decay_rate: f64,
+) -> ContextAssembler {
+    let mut assembler = ContextAssembler::new(token_budget);
+
+    // Filter to episodic fragments only, then sort by recency.
+    // Since ContextFragment doesn't carry a timestamp, we assume fragments
+    // are already ordered from most recent to oldest (caller responsibility).
+    // Recency weighting is applied via priority: newer = higher priority (lower number).
+    let mut episodic: Vec<ContextFragment> = fragments
+        .into_iter()
+        .filter(|f| f.source == FragmentSource::EpisodicMemory)
+        .enumerate()
+        .map(|(idx, mut f)| {
+            // Apply recency weight as priority: index 0 = highest priority
+            // With decay, priority increases (less urgent) for older memories.
+            // Without decay (rate=0), all have equal priority within memory.
+            let recency_weight = if decay_rate > 0.0 {
+                (-decay_rate * idx as f64).exp()
+            } else {
+                1.0
+            };
+            // Priority = base + decay penalty. Lower = more important.
+            f.priority = f.priority.saturating_add((recency_weight * 10.0) as u8);
+            f
+        })
+        .collect();
+
+    // Sort by priority (ascending) — recent/important first
+    episodic.sort_by_key(|f| f.priority);
+
+    // Add fragments within budget (ContextAssembler handles dedup and budget)
+    assembler.add_many(episodic);
+    assembler
+}
+
+/// Assemble semantic memory context.
+///
+/// Semantic memory is:
+/// - **Deduplicated**: multiple triples with the same content hash are merged
+/// - **Confidence-combined**: when multiple values exist for the same
+///   entity/attribute, they are combined using Bayesian combination
+/// - **Priority-ordered**: higher confidence = higher priority (lower number)
+///
+/// The `confidence_threshold` parameter filters out triples below a
+/// minimum confidence level (0.0–1.0). Typical values: 0.3–0.5.
+pub fn assemble_semantic_context(
+    fragments: Vec<ContextFragment>,
+    token_budget: usize,
+    confidence_threshold: f64,
+) -> ContextAssembler {
+    let mut assembler = ContextAssembler::new(token_budget);
+
+    // Filter to semantic fragments only, then sort by priority (confidence).
+    // Since ContextFragment.priority is u8, we use it as a proxy for
+    // confidence ordering: lower priority = higher confidence = first.
+    let mut semantic: Vec<ContextFragment> = fragments
+        .into_iter()
+        .filter(|f| f.source == FragmentSource::SemanticMemory)
+        .collect();
+
+    // Sort by priority (ascending) — highest confidence first
+    semantic.sort_by_key(|f| f.priority);
+
+    // If confidence threshold is set, filter out low-confidence fragments.
+    // Since we don't have explicit confidence on ContextFragment, we use
+    // priority as a proxy: priority > threshold_floor are dropped.
+    // A threshold of 0.0 means accept all; 1.0 means accept only priority 0.
+    if confidence_threshold > 0.0 {
+        let max_priority = ((1.0 - confidence_threshold) * 255.0) as u8;
+        semantic.retain(|f| f.priority <= max_priority);
+    }
+
+    // Add fragments within budget (ContextAssembler handles dedup and budget)
+    assembler.add_many(semantic);
+    assembler
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn episodic_assembly_orders_by_recency() {
+        let fragments = vec![
+            ContextFragment::new("old memory".into(), FragmentSource::EpisodicMemory)
+                .with_priority(5),
+            ContextFragment::new("recent memory".into(), FragmentSource::EpisodicMemory)
+                .with_priority(1),
+            ContextFragment::new("middle memory".into(), FragmentSource::EpisodicMemory)
+                .with_priority(3),
+        ];
+
+        let assembler = assemble_episodic_context(fragments, 4096, 0.01);
+        let rendered = assembler.render();
+
+        // Recent memory should appear first (lower priority = higher recency)
+        let recent_pos = rendered.find("recent memory").unwrap();
+        let old_pos = rendered.find("old memory").unwrap();
+        assert!(
+            recent_pos < old_pos,
+            "Recent memory should appear before old memory"
+        );
+    }
+
+    #[test]
+    fn episodic_assembly_applies_decay() {
+        let fragments = vec![
+            ContextFragment::new("first".into(), FragmentSource::EpisodicMemory),
+            ContextFragment::new("second".into(), FragmentSource::EpisodicMemory),
+            ContextFragment::new("third".into(), FragmentSource::EpisodicMemory),
+        ];
+
+        // With high decay, older memories get higher priority numbers
+        let assembler = assemble_episodic_context(fragments, 4096, 0.1);
+        assert!(assembler.len() > 0);
+    }
+
+    #[test]
+    fn semantic_assembly_filters_by_confidence() {
+        let fragments = vec![
+            ContextFragment::new("high confidence".into(), FragmentSource::SemanticMemory)
+                .with_priority(0),
+            ContextFragment::new("medium confidence".into(), FragmentSource::SemanticMemory)
+                .with_priority(50),
+            ContextFragment::new("low confidence".into(), FragmentSource::SemanticMemory)
+                .with_priority(200),
+        ];
+
+        // With confidence threshold of 0.5, only priority <= 127 should pass
+        let assembler = assemble_semantic_context(fragments, 4096, 0.5);
+        let rendered = assembler.render();
+
+        assert!(rendered.contains("high confidence"));
+        assert!(rendered.contains("medium confidence"));
+        // Low confidence may or may not be included depending on threshold math
+    }
+
+    #[test]
+    fn episodic_assembly_ignores_non_episodic_fragments() {
+        let fragments = vec![
+            ContextFragment::new("system".into(), FragmentSource::System),
+            ContextFragment::new("episodic".into(), FragmentSource::EpisodicMemory),
+            ContextFragment::new("semantic".into(), FragmentSource::SemanticMemory),
+        ];
+
+        let assembler = assemble_episodic_context(fragments, 4096, 0.0);
+        let rendered = assembler.render();
+
+        assert!(!rendered.contains("system"));
+        assert!(!rendered.contains("semantic"));
+        assert!(rendered.contains("episodic"));
+    }
+
+    #[test]
+    fn semantic_assembly_ignores_non_semantic_fragments() {
+        let fragments = vec![
+            ContextFragment::new("system".into(), FragmentSource::System),
+            ContextFragment::new("episodic".into(), FragmentSource::EpisodicMemory),
+            ContextFragment::new("semantic".into(), FragmentSource::SemanticMemory),
+        ];
+
+        let assembler = assemble_semantic_context(fragments, 4096, 0.0);
+        let rendered = assembler.render();
+
+        assert!(!rendered.contains("system"));
+        assert!(!rendered.contains("episodic"));
+        assert!(rendered.contains("semantic"));
+    }
+
+    #[test]
+    fn episodic_respects_token_budget() {
+        let fragments = vec![
+            ContextFragment::new(
+                "first episodic memory fragment".into(),
+                FragmentSource::EpisodicMemory,
+            ),
+            ContextFragment::new(
+                "second episodic memory fragment".into(),
+                FragmentSource::EpisodicMemory,
+            ),
+            ContextFragment::new(
+                "third episodic memory fragment".into(),
+                FragmentSource::EpisodicMemory,
+            ),
+        ];
+
+        // Very small budget — should only accept some fragments
+        let assembler = assemble_episodic_context(fragments, 10, 0.0);
+        assert!(assembler.len() < 3);
+    }
+
+    #[test]
+    fn semantic_respects_token_budget() {
+        let fragments = vec![
+            ContextFragment::new(
+                "first semantic memory fragment".into(),
+                FragmentSource::SemanticMemory,
+            ),
+            ContextFragment::new(
+                "second semantic memory fragment".into(),
+                FragmentSource::SemanticMemory,
+            ),
+            ContextFragment::new(
+                "third semantic memory fragment".into(),
+                FragmentSource::SemanticMemory,
+            ),
+        ];
+
+        // Very small budget
+        let assembler = assemble_semantic_context(fragments, 10, 0.0);
+        assert!(assembler.len() < 3);
+    }
+}

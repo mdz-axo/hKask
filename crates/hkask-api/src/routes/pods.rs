@@ -7,6 +7,8 @@ use axum::{
     routing::Router,
 };
 
+use hkask_types::{Phase, Span};
+
 use crate::middleware::auth::AuthContext;
 use crate::{ApiState, CreatePodRequest, CreatePodResponse, ListPodsResponse, PodStatusResponse};
 
@@ -66,7 +68,7 @@ async fn create_pod(
     Json(req): Json<CreatePodRequest>,
 ) -> Result<Json<CreatePodResponse>, StatusCode> {
     use hkask_agents::pod::AgentPersona;
-    use hkask_types::{CapabilityResource, Phase, Span};
+    use hkask_types::CapabilityResource;
 
     state.cns_emitter.emit_with_phase(
         Span::agent_pod("api.pod.create.start"),
@@ -84,8 +86,8 @@ async fn create_pod(
 
     if !has_capability {
         state.cns_emitter.emit_with_phase(
-        Span::agent_pod("api.pod.create.denied"),
-        Phase::Observe,
+            Span::agent_pod("api.pod.create.denied"),
+            Phase::Observe,
             serde_json::json!({
                 "reason": "capability_check_failed",
             }),
@@ -104,8 +106,8 @@ async fn create_pod(
         .await
         .map_err(|e| {
             state.cns_emitter.emit_with_phase(
-        Span::agent_pod("api.pod.create.error"),
-        Phase::Observe,
+                Span::agent_pod("api.pod.create.error"),
+                Phase::Observe,
                 serde_json::json!({
                     "error": e.to_string(),
                 }),
@@ -148,8 +150,8 @@ async fn activate_pod(
         Ok(u) => u,
         Err(_) => {
             state.cns_emitter.emit_with_phase(
-        Span::agent_pod("api.pod.activate.error"),
-        Phase::Observe,
+                Span::agent_pod("api.pod.activate.error"),
+                Phase::Observe,
                 serde_json::json!({
                     "reason": "invalid_pod_id",
                 }),
@@ -162,8 +164,8 @@ async fn activate_pod(
     match state.pod_manager.activate_pod(&pod_id).await {
         Ok(_) => {
             state.cns_emitter.emit_with_phase(
-        Span::agent_pod("api.pod.activate.success"),
-        Phase::Observe,
+                Span::agent_pod("api.pod.activate.success"),
+                Phase::Observe,
                 serde_json::json!({
                     "pod_id": id,
                 }),
@@ -172,8 +174,8 @@ async fn activate_pod(
         }
         Err(e) => {
             state.cns_emitter.emit_with_phase(
-        Span::agent_pod("api.pod.activate.error"),
-        Phase::Observe,
+                Span::agent_pod("api.pod.activate.error"),
+                Phase::Observe,
                 serde_json::json!({
                     "reason": e.to_string(),
                 }),
@@ -205,8 +207,8 @@ async fn deactivate_pod(
         Ok(u) => u,
         Err(_) => {
             state.cns_emitter.emit_with_phase(
-        Span::agent_pod("api.pod.deactivate.error"),
-        Phase::Observe,
+                Span::agent_pod("api.pod.deactivate.error"),
+                Phase::Observe,
                 serde_json::json!({
                     "reason": "invalid_pod_id",
                 }),
@@ -219,8 +221,8 @@ async fn deactivate_pod(
     match state.pod_manager.deactivate_pod(&pod_id).await {
         Ok(_) => {
             state.cns_emitter.emit_with_phase(
-        Span::agent_pod("api.pod.deactivate.success"),
-        Phase::Observe,
+                Span::agent_pod("api.pod.deactivate.success"),
+                Phase::Observe,
                 serde_json::json!({
                     "pod_id": id,
                 }),
@@ -229,8 +231,8 @@ async fn deactivate_pod(
         }
         Err(e) => {
             state.cns_emitter.emit_with_phase(
-        Span::agent_pod("api.pod.deactivate.error"),
-        Phase::Observe,
+                Span::agent_pod("api.pod.deactivate.error"),
+                Phase::Observe,
                 serde_json::json!({
                     "reason": e.to_string(),
                 }),
@@ -260,8 +262,8 @@ async fn pod_status(
 
     let uuid = Uuid::parse_str(&id).map_err(|_| {
         state.cns_emitter.emit_with_phase(
-        Span::agent_pod("api.pod.status.error"),
-        Phase::Observe,
+            Span::agent_pod("api.pod.status.error"),
+            Phase::Observe,
             serde_json::json!({
                 "reason": "invalid_pod_id",
             }),
@@ -276,8 +278,8 @@ async fn pod_status(
         .await
         .map_err(|e| {
             state.cns_emitter.emit_with_phase(
-        Span::agent_pod("api.pod.status.error"),
-        Phase::Observe,
+                Span::agent_pod("api.pod.status.error"),
+                Phase::Observe,
                 serde_json::json!({
                     "reason": e.to_string(),
                 }),

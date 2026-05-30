@@ -98,7 +98,7 @@ impl MemoryFeedbackAdapter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_types::{Phase, Span, WebID};
+    use hkask_types::WebID;
 
     #[tokio::test]
     async fn test_default_relevance_is_one() {

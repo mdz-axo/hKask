@@ -52,7 +52,7 @@ pub async fn curator_metacognition() -> Result<String, CuratorError> {
             .map_err(|e| CuratorError::DatabaseError(e.to_string()))?,
     );
 
-    let runtime = Arc::new(CnsRuntime::new());
+    let runtime = Arc::new(CnsRuntime::with_threshold(hkask_cns::DEFAULT_THRESHOLD));
     let curator_webid = WebID::from_persona(b"Curator");
     let cns = Arc::new(CnsGovernWriteAdapter::new(runtime, curator_webid));
     let config = MetacognitionConfig::default();

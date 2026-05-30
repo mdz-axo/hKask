@@ -5,6 +5,8 @@ use axum::{Json, extract::State, http::StatusCode, routing::Router};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use hkask_types::{Phase, Span};
+
 use crate::middleware::AuthContext;
 use crate::{AcpRegisterRequest, AcpRegisterResponse, ApiState, ErrorResponse};
 
@@ -179,8 +181,8 @@ async fn acp_unregister_agent(
     let webid = uuid::Uuid::parse_str(&agent_id)
         .map_err(|_| {
             state.cns_emitter.emit_with_phase(
-        Span::agent_pod("api.acp.unregister.error"),
-        Phase::Observe,
+                Span::agent_pod("api.acp.unregister.error"),
+                Phase::Observe,
                 serde_json::json!({ "reason": "invalid_webid" }),
             );
             (
@@ -200,8 +202,8 @@ async fn acp_unregister_agent(
     acp.unregister_agent(&webid).await.map_err(|e| match e {
         hkask_agents::AcpError::AgentNotFound(_) => {
             state.cns_emitter.emit_with_phase(
-        Span::agent_pod("api.acp.unregister.not_found"),
-        Phase::Observe,
+                Span::agent_pod("api.acp.unregister.not_found"),
+                Phase::Observe,
                 serde_json::json!({ "agent_id": agent_id }),
             );
             (

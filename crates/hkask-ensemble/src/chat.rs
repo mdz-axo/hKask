@@ -435,7 +435,8 @@ impl Default for EnsembleChatManager {
 /// a single manager that handles both session types.
 pub struct SessionManager {
     chats: Arc<RwLock<HashMap<String, Arc<RwLock<EnsembleChat>>>>>,
-    deliberations: Arc<RwLock<HashMap<String, crate::deliberation::DeliberationSession>>>,
+    deliberations:
+        Arc<RwLock<HashMap<String, Arc<RwLock<crate::deliberation::DeliberationSession>>>>>,
     curator_webid: WebID,
 }
 
@@ -475,47 +476,31 @@ impl SessionManager {
     pub async fn create_deliberation(
         &self,
         session_id: &str,
-    ) -> &mut crate::deliberation::DeliberationSession {
-        use std::collections::hash_map::Entry;
+    ) -> Arc<RwLock<crate::deliberation::DeliberationSession>> {
+        let session = Arc::new(RwLock::new(crate::deliberation::DeliberationSession::new(
+            session_id.to_string(),
+            self.curator_webid,
+        )));
 
         let mut deliberations = self.deliberations.write().await;
-        match deliberations.entry(session_id.to_string()) {
-            Entry::Vacant(entry) = {
-                let session = crate::deliberation::DeliberationSession::new(
-                    session_id.to_string(),
-                    self.curator_webid,
-                );
-                entry.insert(session)
-            }
-            Entry::Occupied(entry) => entry.into_mut(),
-        }
+        deliberations.insert(session_id.to_string(), session.clone());
+
+        session
     }
 
-    /// Get a deliberation session reference
-    pub async fn get_deliberation_ref(
+    /// Get a deliberation session
+    pub async fn get_deliberation(
         &self,
         session_id: &str,
-    ) -> Option<&mut crate::deliberation::DeliberationSession> {
-        let mut deliberations = self.deliberations.write().await;
-        deliberations.get_mut(session_id)
-    }
-
-    /// Get a mutable deliberation session
-    pub async fn get_deliberation_mut(
-        &self,
-        session_id: &str,
-    ) -> Option<&mut crate::deliberation::DeliberationSession> {
-        let mut deliberations = self.deliberations.write().await;
-        deliberations.get_mut(session_id)
+    ) -> Option<Arc<RwLock<crate::deliberation::DeliberationSession>>> {
+        let deliberations = self.deliberations.read().await;
+        deliberations.get(session_id).cloned()
     }
 
     /// Remove a deliberation session
-    pub async fn remove_deliberation(
-        &self,
-        session_id: &str,
-    ) -> Option<crate::deliberation::DeliberationSession> {
+    pub async fn remove_deliberation(&self, session_id: &str) -> bool {
         let mut deliberations = self.deliberations.write().await;
-        deliberations.remove(session_id)
+        deliberations.remove(session_id).is_some()
     }
 
     /// List all active chat sessions
