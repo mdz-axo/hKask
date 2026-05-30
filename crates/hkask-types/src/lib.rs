@@ -25,6 +25,7 @@ pub mod goal_capability;
 pub mod id;
 pub mod identity;
 pub mod lexicon;
+pub mod loops;
 pub mod ports;
 pub mod r7;
 pub mod secret;
@@ -52,6 +53,12 @@ pub use goal_capability::*;
 pub use id::*;
 pub use identity::*;
 pub use lexicon::{Domain, HLexicon, LexiconTerm, TemplateType};
+pub use loops::{
+    CnsAdminHandle, CnsGovernReadHandle, CnsGovernWriteHandle, CnsWriteHandle, ControlPrimitive,
+    CuratorHandle, DataVisibilityTier, EnergyBudgetHandle, EpisodicReadHandle, EpisodicWriteHandle,
+    GovernanceHandle, InferenceHandle, LoopId, LoopMessage, LoopOrigin, LoopPayload,
+    MessagePriority, RateLimiterHandle, SemanticReadHandle, SemanticWriteHandle, TraceId,
+};
 pub use ports::GitCASPort;
 pub use r7::{R7BotIdentity, R7BotRegistry, default_r7_bots};
 pub use secret::{SecretRef, derivation_contexts};

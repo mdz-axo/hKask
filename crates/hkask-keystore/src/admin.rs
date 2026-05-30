@@ -14,8 +14,9 @@
 //! 3. Passphrase verified against stored hash — no caching, no session unlock
 //! 4. `kask admin reset` — Remove the passphrase, disabling insecure dev mode entirely
 
-use crate::KeychainError;
-use crate::keychain::Keychain;
+use crate::KeystoreError;
+use crate::keychain::{Keychain, KeychainError};
+use subtle::ConstantTimeEq;
 
 /// Keychain key for storing the hashed admin passphrase
 const ADMIN_PASSPHRASE_KEY: &str = "hkask-admin-passphrase";
@@ -24,9 +25,9 @@ const ADMIN_PASSPHRASE_KEY: &str = "hkask-admin-passphrase";
 const ADMIN_SALT: &[u8; 14] = b"hkask-admin-v1";
 
 /// Hash an admin passphrase with Argon2id for storage in the keychain.
-fn hash_admin_passphrase(passphrase: &str) -> Result<String, KeychainError> {
+fn hash_admin_passphrase(passphrase: &str) -> Result<String, KeystoreError> {
     let key = crate::encryption::derive_key(passphrase, ADMIN_SALT)
-        .map_err(|e| KeychainError::Encryption(e.to_string()))?;
+        .map_err(|e| KeystoreError::Encryption(e.to_string()))?;
     Ok(hex::encode(*key))
 }
 
@@ -34,10 +35,12 @@ fn hash_admin_passphrase(passphrase: &str) -> Result<String, KeychainError> {
 ///
 /// Called by `kask admin init`. The passphrase is hashed with Argon2id before
 /// storage; the raw passphrase is never persisted.
-pub fn store_admin_passphrase(passphrase: &str) -> Result<(), KeychainError> {
+pub fn store_admin_passphrase(passphrase: &str) -> Result<(), KeystoreError> {
     let hash = hash_admin_passphrase(passphrase)?;
     let keychain = Keychain::default();
-    keychain.store_by_key(ADMIN_PASSPHRASE_KEY, &hash)
+    keychain
+        .store_by_key(ADMIN_PASSPHRASE_KEY, &hash)
+        .map_err(KeystoreError::from)
 }
 
 /// Check whether an admin passphrase has been set in the OS keychain.
@@ -62,7 +65,10 @@ pub fn verify_admin_passphrase(passphrase: &str) -> bool {
     };
 
     // Constant-time comparison to prevent timing attacks
-    stored_hash == computed_hash
+    stored_hash
+        .as_bytes()
+        .ct_eq(computed_hash.as_bytes())
+        .into()
 }
 
 /// Remove the admin passphrase from the OS keychain.

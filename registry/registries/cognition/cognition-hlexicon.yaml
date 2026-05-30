@@ -1,0 +1,89 @@
+# Cognition Domain hLexicon Registry
+# ℏKask v0.21.0 — Functional logic categorization
+# Cognition: reasoning, perspective-taking, and semantic analysis
+
+hlexicon:
+  # WordAct templates (action-word: generate messages, commands)
+  wordact_templates:
+    - id: hemingway-style-synthesizer
+      path: registry/templates/composition/hemingway-style-synthesizer.j2
+      description: Generate stylistic text synthesis in Hemingway style
+      functional_role: action-word
+      produces: synthesized_output
+      cross_domain: composition
+
+  # FlowDef templates (process: multi-step flows, sequences)
+  flowdef_templates:
+    - id: ellipsis-analysis
+      path: registry/manifests/ellipsis-analysis.yaml
+      description: Bloom-inspired cognition process for detecting meaning in gaps and omissions
+      functional_role: flow-definition
+      steps: [detect, classify, calibrate, analyze, reflect]
+
+    - id: falstaffian-perspective
+      path: registry/manifests/falstaffian-perspective.yaml
+      description: Multi-iteration perspective generation through semantic shape transforms
+      functional_role: flow-definition
+      steps: [calibrate, affirm, select, execute, verify]
+
+  # KnowAct templates (knowledge-action: judgments, assessments, decisions)
+  knowact_templates:
+    - id: ellipsis-analysis
+      path: registry/templates/cognition/ellipsis-analysis.j2
+      description: Detect and classify ellipsis (deliberate omission) versus leak (unintentional disclosure)
+      functional_role: knowledge-action
+      produces: ellipsis_classification, gap_analysis
+
+    - id: falstaffian-perspective
+      path: registry/templates/cognition/falstaffian-perspective.j2
+      description: Apply Falstaffian shape transforms for perspective rotation calibrated by experience and spirit
+      functional_role: knowledge-action
+      produces: perspective_rotation, shape_selection, tension_verification
+
+# Reference data supporting cognition templates
+reference_data:
+  - id: falstaffian-shapes
+    path: registry/registries/cognition/falstaffian-shapes.yaml
+    description: Semantic graph transformation operators for Falstaffian perspective-taking
+
+  - id: falstaffian-variance-analysis
+    path: registry/registries/cognition/falstaffian-variance-analysis.yaml
+    description: Three-pass variance calibration for confidence in shape identification
+
+# Functional Logic Summary
+functional_summary:
+  wordact_count: 1 # Cross-domain reference (composition/hemingway-style-synthesizer)
+  flowdef_count: 2 # Flow definitions (ellipsis-analysis, falstaffian-perspective manifests)
+  knowact_count: 2 # Knowledge-action (ellipsis-analysis, falstaffian-perspective templates)
+  total: 5
+
+# Implementation vs Functional Logic Mapping
+implementation_mapping:
+  jinja2_templates:
+    total: 3
+    as_wordact: 1 # hemingway-style-synthesizer.j2 (composition domain)
+    as_flowdef: 0
+    as_knowact: 2 # ellipsis-analysis.j2, falstaffian-perspective.j2
+
+  yaml_manifests:
+    total: 2
+    as_wordact: 0
+    as_flowdef: 2 # ellipsis-analysis, falstaffian-perspective
+    as_knowact: 0
+
+  reference_yaml:
+    total: 2
+    as_wordact: 0
+    as_flowdef: 0
+    as_knowact: 0 # Supporting data, not directly categorized as functional roles
+
+# Separation Verification
+separation_verified: true
+notes: |
+  - Cognition domain bridges reasoning (KnowAct) and process (FlowDef)
+  - ellipsis-analysis serves dual role: KnowAct template + FlowDef manifest
+  - falstaffian-perspective serves dual role: KnowAct template + FlowDef manifest
+  - hemingway-style-synthesizer is a WordAct in composition domain, referenced cross-domain
+  - Reference data (shapes, variance) supports KnowAct template selection and calibration
+  - FlowDefs orchestrate; KnowActs judge; WordActs act
+  - Cross-domain references maintain domain ownership while enabling composition

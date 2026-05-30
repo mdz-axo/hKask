@@ -306,17 +306,11 @@ async fn standing_start(
                 agent: p.agent,
                 agent_type: p.agent_type,
                 role: p.role,
-                voting: false,
                 description: p.description,
                 domains: vec![],
             })
             .collect(),
-        rules: hkask_ensemble::standing_session::SessionRules {
-            consensus_required: false,
-            orchestration_model: "curator".to_string(),
-        },
         bootstrap: hkask_ensemble::standing_session::BootstrapConfig {
-            auto_start: true,
             initial_message: hkask_ensemble::standing_session::InitialMessage {
                 from: "Curator".to_string(),
                 message_type: "system".to_string(),

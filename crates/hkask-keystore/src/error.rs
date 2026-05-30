@@ -26,7 +26,6 @@ impl From<crate::keychain::KeychainError> for KeystoreError {
         match err {
             crate::keychain::KeychainError::Platform(msg) => KeystoreError::Platform(msg),
             crate::keychain::KeychainError::NotFound(msg) => KeystoreError::NotFound(msg),
-            crate::keychain::KeychainError::Encryption(msg) => KeystoreError::Encryption(msg),
         }
     }
 }

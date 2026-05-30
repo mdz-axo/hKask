@@ -419,14 +419,13 @@ fn run_mcp(rt: &tokio::runtime::Runtime, action: McpAction) {
             use hkask_mcp::dispatch::McpDispatcher;
             use hkask_templates::McpPort;
             use hkask_types::WebID;
-            use hkask_types::cns::RetryConfig;
 
             let input_value: serde_json::Value =
                 or_exit(serde_json::from_str(&input), "parse JSON input");
 
             let runtime = McpRuntime::new();
             let secret = b"hkask-devel-mcp-secret-key-32byte!";
-            let dispatcher = McpDispatcher::new(runtime, secret, RetryConfig::default());
+            let dispatcher = McpDispatcher::new(runtime, secret);
 
             let tools = rt.block_on(dispatcher.list_tools());
             if tools.is_empty() {
@@ -1483,11 +1482,10 @@ fn run_models(rt: &tokio::runtime::Runtime) {
     use hkask_mcp::dispatch::McpDispatcher;
     use hkask_templates::McpPort;
     use hkask_types::WebID;
-    use hkask_types::cns::RetryConfig;
 
     let runtime = McpRuntime::new();
     let secret = b"hkask-devel-mcp-secret-key-32byte!";
-    let dispatcher = McpDispatcher::new(runtime, secret, RetryConfig::default());
+    let dispatcher = McpDispatcher::new(runtime, secret);
     let from = WebID::new();
     let to = WebID::new();
     let token = dispatcher.issue_capability("models".to_string(), from, to);
@@ -1529,11 +1527,10 @@ fn run_web_search(rt: &tokio::runtime::Runtime, query: String, max_results: usiz
     use hkask_mcp::dispatch::McpDispatcher;
     use hkask_templates::McpPort;
     use hkask_types::WebID;
-    use hkask_types::cns::RetryConfig;
 
     let runtime = McpRuntime::new();
     let secret = b"hkask-devel-mcp-secret-key-32byte!";
-    let dispatcher = McpDispatcher::new(runtime, secret, RetryConfig::default());
+    let dispatcher = McpDispatcher::new(runtime, secret);
     let from = WebID::new();
     let to = WebID::new();
     let token = dispatcher.issue_capability("web".to_string(), from, to);

@@ -148,7 +148,6 @@ pub enum BotHealthStatus {
     Healthy,
     Degraded,
     Critical,
-    Unresponsive,
 }
 
 impl std::fmt::Display for BotHealthStatus {
@@ -157,7 +156,6 @@ impl std::fmt::Display for BotHealthStatus {
             BotHealthStatus::Healthy => write!(f, "healthy"),
             BotHealthStatus::Degraded => write!(f, "degraded"),
             BotHealthStatus::Critical => write!(f, "critical"),
-            BotHealthStatus::Unresponsive => write!(f, "unresponsive"),
         }
     }
 }

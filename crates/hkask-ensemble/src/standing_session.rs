@@ -29,8 +29,6 @@ pub enum StandingSessionError {
 pub struct StandingSessionConfig {
     pub session: SessionMetadata,
     pub participants: Vec<ParticipantEntry>,
-    #[allow(dead_code)]
-    pub rules: SessionRules,
     pub bootstrap: BootstrapConfig,
 }
 
@@ -47,8 +45,6 @@ pub struct ParticipantEntry {
     #[serde(rename = "type")]
     pub agent_type: String,
     pub role: String,
-    #[allow(dead_code)]
-    pub voting: bool,
     pub description: String,
     /// Template domains this participant owns. Used to populate capabilities
     /// for R4 capability intersection checks. Curator has no domains.
@@ -57,17 +53,7 @@ pub struct ParticipantEntry {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct SessionRules {
-    #[allow(dead_code)]
-    pub consensus_required: bool,
-    #[allow(dead_code)]
-    pub orchestration_model: String,
-}
-
-#[derive(Debug, Clone, Deserialize)]
 pub struct BootstrapConfig {
-    #[allow(dead_code)]
-    pub auto_start: bool,
     pub initial_message: InitialMessage,
     pub initial_reports: Vec<InitialReport>,
 }

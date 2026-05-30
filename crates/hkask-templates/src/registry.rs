@@ -396,6 +396,39 @@ impl Registry {
             .with_lexicon(vec!["abduct", "generate", "synthesize"]),
         );
 
+        // Cognition — Ellipsis Analysis (Bloom Method)
+        registry.register(
+            TemplateEntry::new(
+                "cognition/ellipsis-analysis",
+                TemplateType::Cognition,
+                "Ellipsis Analysis",
+                "Bloom Method: detect meaning in gaps and omissions",
+            )
+            .with_lexicon(vec!["read", "detect", "classify", "calibrate", "analyze"]),
+        );
+
+        // Cognition — Falstaffian Perspective Engine
+        registry.register(
+            TemplateEntry::new(
+                "cognition/falstaffian-perspective",
+                TemplateType::Cognition,
+                "Falstaffian Perspective",
+                "Multi-iteration perspective generation through semantic shape transforms",
+            )
+            .with_lexicon(vec!["calibrate", "affirm", "select", "execute", "verify"]),
+        );
+
+        // Composition — Hemingway Style Synthesizer
+        registry.register(
+            TemplateEntry::new(
+                "composition/hemingway-style-synthesizer",
+                TemplateType::Prompt,
+                "Hemingway Style Synthesizer",
+                "Generate prose using Kansas City Star rules, Iceberg Theory, and Fish generative forms",
+            )
+            .with_lexicon(vec!["compose", "synthesize", "write", "edit", "refine", "render"]),
+        );
+
         registry
     }
 

@@ -1,0 +1,143 @@
+# File: registry/manifests/hemingway-style-synthesizer.yaml
+# Hemingway Style Synthesizer Process Manifest
+# ℏKask v0.21.0 — A Minimal Viable Container for Agents
+
+manifest:
+  id: hemingway-style-synthesizer
+  name: Hemingway Style Synthesizer
+  description: >
+  functional_role: wordact
+    Hemingway Style Synthesizer — generates prose using Kansas City Star rules,
+    Iceberg Theory, paratactic coordination, and Fish generative forms.
+    Encodes authentic Hemingway prose mechanics: 73-76% coordinated clauses,
+    implicit semantic subordination, strategic polysyndeton/asyndeton.
+    Generative layer uses Stanley Fish form-first approach and RDF triple model.
+  version: 0.21.0
+  editor: curator
+  visibility: Shared
+
+# Energy Budget Configuration
+energy:
+  cap: 8000
+  cost_per_token: 0.25
+  alert_threshold: 0.8
+  hard_limit: true
+
+# Process Steps
+steps:
+  - ordinal: 1
+    action: select
+    description: >
+      Select Hemingway style parameters.
+      Choose coordinated clause target, narrative voice, and thematic elements.
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: hkask-mcp-storage
+    energy_cap: 500
+    timeout_seconds: 10
+    output_schema:
+      coordinated_clause_target: float
+      voice: string
+      themes: array
+
+  - ordinal: 2
+    action: populate
+    description: >
+      Render Hemingway style synthesizer template with inputs.
+      Generate prose using Kansas City Star rules, Iceberg Theory,
+      paratactic coordination, and Fish generative forms.
+    renderer: minijinja
+    template_ref: composition/hemingway-style-synthesizer
+    model_tier: balanced
+    mcp: hkask-mcp-inference
+    energy_cap: 4096
+    timeout_seconds: 30
+    output_schema:
+      prose: string
+
+  - ordinal: 3
+    action: validate
+    description: >
+      Validate output meets Hemingway style checks.
+      Verify coordinated clause percentage, syllable count, sentence length.
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: hkask-mcp-storage
+    energy_cap: 500
+    timeout_seconds: 10
+    validation_rules:
+      - coordinated_clause_ratio
+      - syllable_count
+      - sentence_length_range
+      - adverb_audit
+      - passive_voice_audit
+      - iceberg_compliance
+    output_schema:
+      validated: boolean
+      error_reason: string|null
+
+  - ordinal: 4
+    action: feedback
+    description: >
+      Emit CNS span for variety tracking.
+      Record coordinated clause ratio and style adherence metrics.
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: hkask-cns
+    energy_cap: 500
+    timeout_seconds: 5
+    feedback:
+      variety_delta: integer
+      coordinated_clause_ratio: float
+      style_adherence: float
+    output_schema:
+      cns_event_id: string
+      outcome_recorded: boolean
+
+# Error Handling
+error_handling:
+  on_energy_exceeded: abort
+  on_timeout: retry
+  max_retries: 2
+  retry_backoff_seconds: 1
+  on_validation_failure: abort
+
+# OCAP Configuration
+ocap:
+  required_capabilities:
+    - resource: template
+      action: render
+      template_id: composition/hemingway-style-synthesizer
+      energy_budget: 4096
+    - resource: manifest
+      action: execute
+      template_id: hemingway-style-synthesizer
+      energy_budget: 500
+    - resource: cns
+      action: emit
+      template_id: hemingway-style-synthesizer
+      energy_budget: 500
+  delegation_chain_required: true
+  signature_algorithm: ed25519
+  capability_expiry_seconds: 3600
+  template_scoped: true
+
+# CNS Monitoring
+cns:
+  emit_spans: true
+  span_namespace: cns.prompt
+  variety_monitoring: true
+  algedonic_threshold: 100
+  escalation_target: Curator
+
+# Audit Trail
+audit:
+  enabled: true
+  log_level: info
+  include_input: true
+  include_output: true
+  include_energy_cost: true
+  include_cns_events: true

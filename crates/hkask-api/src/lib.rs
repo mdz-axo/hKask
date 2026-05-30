@@ -135,7 +135,6 @@ impl ApiState {
         let mcp_dispatcher = Arc::new(hkask_mcp::dispatch::McpDispatcher::new(
             dispatcher_runtime,
             capability_secret,
-            hkask_types::cns::RetryConfig::default(),
         ));
         // Goal repository wired with a CNS denial sink over a shared connection,
         // mirroring the CLI integration (ADR-029). Capability denials persist

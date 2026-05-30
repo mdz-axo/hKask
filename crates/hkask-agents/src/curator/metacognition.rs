@@ -80,7 +80,6 @@ pub enum BotHealthStatus {
     Healthy,
     Degraded,
     Critical,
-    Unresponsive,
 }
 
 impl std::fmt::Display for BotHealthStatus {
@@ -89,7 +88,6 @@ impl std::fmt::Display for BotHealthStatus {
             BotHealthStatus::Healthy => write!(f, "healthy"),
             BotHealthStatus::Degraded => write!(f, "degraded"),
             BotHealthStatus::Critical => write!(f, "critical"),
-            BotHealthStatus::Unresponsive => write!(f, "unresponsive"),
         }
     }
 }
@@ -296,9 +294,7 @@ impl MetacognitionLoop {
         let failed_bots: Vec<_> = snapshot
             .bot_status_reports
             .iter()
-            .filter(|r| {
-                r.status == BotHealthStatus::Critical || r.status == BotHealthStatus::Unresponsive
-            })
+            .filter(|r| r.status == BotHealthStatus::Critical)
             .collect();
 
         if failed_bots.len() >= self.config.thresholds.bot_failures {
@@ -313,7 +309,7 @@ impl MetacognitionLoop {
             let template_id = hkask_types::TemplateID::new();
             let bot_id = BotID::new();
             let error_context = format!(
-                "{} bots in critical/unresponsive state: {}",
+                "{} bots in critical state: {}",
                 failed_bots.len(),
                 failed_bots
                     .iter()

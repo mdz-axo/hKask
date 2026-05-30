@@ -14,8 +14,6 @@ pub enum KeychainError {
     Platform(String),
     #[error("Secret not found: {0}")]
     NotFound(String),
-    #[error("Encryption error: {0}")]
-    Encryption(String),
 }
 
 impl From<KeyringError> for KeychainError {

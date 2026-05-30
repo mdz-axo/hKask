@@ -207,10 +207,6 @@ impl Clone for EnergyBudget {
 pub enum EnergyError {
     #[error("Energy budget exceeded: requested {requested}, remaining {remaining}")]
     BudgetExceeded { requested: u64, remaining: u64 },
-    #[error("Invalid energy cost: {0}")]
-    InvalidCost(String),
-    #[error("Energy deficit detected: variety deficit {deficit}")]
-    Deficit { deficit: u64 },
 }
 
 /// Energy account for tracking costs

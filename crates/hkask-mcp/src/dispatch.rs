@@ -15,9 +15,6 @@ use crate::security::SecurityGateway;
 
 use crate::runtime::{McpRuntime, McpTool};
 
-/// Retry configuration — alias for the canonical RetryConfig
-pub type McpMcpRetryConfig = hkask_types::cns::RetryConfig;
-
 /// MCP dispatcher with security and rate limiting
 pub struct McpDispatcher {
     /// MCP runtime for tool discovery
@@ -28,8 +25,6 @@ pub struct McpDispatcher {
     rate_limiter: RateLimiter,
     /// Bot capabilities registry
     bot_capabilities: Arc<RwLock<std::collections::HashMap<WebID, BotCapabilities>>>,
-    /// Retry configuration (future: use in invoke_async)
-    _retry_config: McpMcpRetryConfig,
     /// Optional CNS emitter for structured span emission
     cns_emitter: Option<Arc<dyn CnsEmit + Send + Sync>>,
     /// Optional security gateway for input validation, tool allow/deny, rate limiting
@@ -37,13 +32,12 @@ pub struct McpDispatcher {
 }
 
 impl McpDispatcher {
-    pub fn new(runtime: McpRuntime, secret: &[u8], retry_config: McpMcpRetryConfig) -> Self {
+    pub fn new(runtime: McpRuntime, secret: &[u8]) -> Self {
         Self {
             runtime,
             capability_checker: Arc::new(CapabilityChecker::new(secret)),
             rate_limiter: RateLimiter::default(),
             bot_capabilities: Arc::new(RwLock::new(std::collections::HashMap::new())),
-            _retry_config: retry_config,
             cns_emitter: None,
             security_gateway: None,
         }

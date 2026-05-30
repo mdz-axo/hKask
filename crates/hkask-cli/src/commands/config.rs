@@ -121,8 +121,7 @@ pub fn open_spec_store() -> Result<hkask_storage::SqliteSpecStore, crate::errors
 pub fn create_mcp_dispatcher() -> (hkask_mcp::McpDispatcher, hkask_types::CapabilityToken) {
     let runtime = hkask_mcp::runtime::McpRuntime::new();
     let secret = b"hkask-devel-mcp-secret-key-32byte!";
-    let dispatcher =
-        hkask_mcp::McpDispatcher::new(runtime, secret, hkask_types::cns::RetryConfig::default());
+    let dispatcher = hkask_mcp::McpDispatcher::new(runtime, secret);
     let from = hkask_types::WebID::new();
     let to = hkask_types::WebID::new();
     let token = dispatcher.issue_capability("tools".to_string(), from, to);
