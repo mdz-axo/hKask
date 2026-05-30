@@ -2,7 +2,7 @@
 //!
 //! Defines a consistent ontology for CNS spans emitted by Okapi integration components.
 
-use hkask_types::{NuEvent, Span, WebID};
+use hkask_types::{NuEvent, Span, SpanCategory, WebID};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -89,7 +89,10 @@ impl OkapiCnsSpan {
 
     /// Convert to NuEvent
     pub fn to_nu_event(&self, observer: WebID) -> NuEvent {
-        let span = Span::Connector(self.namespace().to_string());
+        let span = Span {
+            category: SpanCategory::Connector,
+            path: self.namespace().to_string(),
+        };
         let observation = json!(self);
 
         NuEvent::new(observer, span, hkask_types::Phase::Observe, observation, 0)

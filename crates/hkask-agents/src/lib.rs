@@ -39,6 +39,7 @@
 pub mod acp;
 pub mod adapters;
 pub mod bot;
+pub mod capabilities;
 pub mod consent;
 pub mod curator;
 pub mod error;
@@ -54,6 +55,9 @@ pub mod sovereignty;
 pub use acp::{A2AMessage, AcpAgent, AcpError, AcpRuntime, TemplateDispatchHandler};
 pub use adapters::{LoopbackHttpTransport, StdioTransport};
 pub use bot::Bot;
+#[allow(deprecated)]
+pub use bot::BotCapabilities;
+pub use capabilities::{AgentCapabilities, MemoryAccess};
 pub use consent::{ConsentError, ConsentManager};
 pub use curator::escalation::{
     EscalationEntry, EscalationQueue, EscalationStats, EscalationStatus,
@@ -71,5 +75,7 @@ pub use ports::{
     SovereigntyOperation,
 };
 pub use registry_loader::{BotRegistryLoader, RegistryLoaderError};
-pub use replicant::{Replicant, ReplicantCapabilities};
+pub use replicant::Replicant;
+#[allow(deprecated)]
+pub use replicant::ReplicantCapabilities;
 pub use sovereignty::SovereigntyChecker;

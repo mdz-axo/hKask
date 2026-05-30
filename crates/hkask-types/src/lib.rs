@@ -47,7 +47,7 @@ pub use error::{
     ArchivalResult, AuthorizationError, GitArchivalError, GitError, HkaskError,
     InfrastructureError, McpErrorKind,
 };
-pub use event::*;
+pub use event::{NuEvent, NuEventSink, NuEventSinkError, Phase, Span, SpanCategory};
 pub use goal::*;
 pub use goal_capability::*;
 pub use id::*;

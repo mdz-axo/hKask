@@ -3,6 +3,7 @@
 //! Namespace: cns.* (canonical observability namespace)
 //! Key spans: cns.tool.*, cns.prompt.*, cns.agent_pod.*, cns.connector.*, cns.template.*, cns.curation.*
 
+use crate::event::SpanCategory;
 use serde::{Deserialize, Serialize};
 
 /// VarietyCounter — Tracks diversity in system behavior
@@ -72,12 +73,12 @@ pub struct AlgedonicAlert {
     pub escalated: bool,
     /// Timestamp of alert
     pub timestamp: chrono::DateTime<chrono::Utc>,
-    /// Span where deficit was detected
-    pub span: CnsSpan,
+    /// Span category where deficit was detected
+    pub span: SpanCategory,
 }
 
 impl AlgedonicAlert {
-    pub fn new(current: u64, threshold: u64, span: CnsSpan) -> Self {
+    pub fn new(current: u64, threshold: u64, span: SpanCategory) -> Self {
         let deficit = threshold.saturating_sub(current);
 
         Self {
@@ -114,69 +115,9 @@ impl std::fmt::Display for AlgedonicAlert {
     }
 }
 
-/// CnsSpan — Namespace for CNS monitoring spans
-///
-/// All CNS spans use cns.* prefix for observability.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum CnsSpan {
-    /// Tool governance, invocation (cns.tool.*)
-    Tool,
-    /// Prompt render, validate, outcome (cns.prompt.*)
-    Prompt,
-    /// Agent pod lifecycle, delegation (cns.agent_pod.*)
-    AgentPod,
-    /// External I/O: LLM, embeddings (cns.connector.*)
-    Connector,
-    /// Multi-stage processing flows (cns.pipeline.*)
-    Pipeline,
-    /// Energy cost tracking (cns.energy.*)
-    Energy,
-    /// Review queue events (cns.review.*)
-    Review,
-    /// Template invocation, registry (cns.template.*)
-    Template,
-    /// Curation decisions, OCAP boundaries (cns.curation.*)
-    Curation,
-    /// Variety monitoring, algedonic alerts (cns.variety.*)
-    Variety,
-    /// Kill zone detection (cns.killzone.*)
-    KillZone,
-    /// User sovereignty, acquisition resistance (cns.sovereignty.*)
-    Sovereignty,
-    /// Goal primitive (cns.goal.*)
-    Goal,
-    /// Specification operations (cns.spec.*)
-    Spec,
-}
-
-impl CnsSpan {
-    /// Full span name with cns. prefix
-    pub fn full_name(&self) -> String {
-        match self {
-            CnsSpan::Tool => "cns.tool".to_string(),
-            CnsSpan::Prompt => "cns.prompt".to_string(),
-            CnsSpan::AgentPod => "cns.agent_pod".to_string(),
-            CnsSpan::Connector => "cns.connector".to_string(),
-            CnsSpan::Pipeline => "cns.pipeline".to_string(),
-            CnsSpan::Energy => "cns.energy".to_string(),
-            CnsSpan::Review => "cns.review".to_string(),
-            CnsSpan::Template => "cns.template".to_string(),
-            CnsSpan::Curation => "cns.curation".to_string(),
-            CnsSpan::Variety => "cns.variety".to_string(),
-            CnsSpan::KillZone => "cns.killzone".to_string(),
-            CnsSpan::Sovereignty => "cns.sovereignty".to_string(),
-            CnsSpan::Goal => "cns.goal".to_string(),
-            CnsSpan::Spec => "cns.spec".to_string(),
-        }
-    }
-}
-
-impl std::fmt::Display for CnsSpan {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.full_name())
-    }
-}
+// CnsSpan has been collapsed into SpanCategory (in event.rs).
+// Use `SpanCategory` for category-only contexts and `Span` for
+// category + path contexts. The 14 variants are identical.
 
 /// RetryConfig — Canonical retry configuration for all hKask subsystems
 ///

@@ -5,7 +5,8 @@
 //!
 //! Algedonic Alert: >10 concurrent active goals per user → escalate
 
-use hkask_types::cns::{AlgedonicAlert, CnsSpan, VarietyCounter};
+use hkask_types::cns::{AlgedonicAlert, VarietyCounter};
+use hkask_types::event::SpanCategory;
 use hkask_types::id::WebID;
 
 /// Goal variety counter — tracks active goals per user
@@ -48,7 +49,7 @@ impl GoalVarietyCounter {
     }
 
     pub fn emit_algedonic_alert(&self) -> AlgedonicAlert {
-        AlgedonicAlert::new(self.active_goal_count, self.threshold, CnsSpan::Goal)
+        AlgedonicAlert::new(self.active_goal_count, self.threshold, SpanCategory::Goal)
     }
 
     pub fn variety_counter(&self) -> VarietyCounter {

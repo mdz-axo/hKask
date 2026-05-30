@@ -1,8 +1,9 @@
 //! NuEventStore — Persistent storage for CNS ν-events
 
 use chrono::{DateTime, Utc};
+use hkask_types::event::{Span, SpanCategory};
 use hkask_types::{
-    EventID, InfrastructureError, NuEvent, NuEventSink, NuEventSinkError, Phase, Span, WebID,
+    EventID, InfrastructureError, NuEvent, NuEventSink, NuEventSinkError, Phase, WebID,
 };
 use rusqlite::Connection;
 use serde_json::Value;
@@ -209,41 +210,30 @@ impl NuEventStore {
 }
 
 fn span_to_columns(span: &Span) -> (&'static str, &str) {
-    match span {
-        Span::Prompt(s) => ("prompt", s.as_str()),
-        Span::Tool(s) => ("tool", s.as_str()),
-        Span::AgentPod(s) => ("agent_pod", s.as_str()),
-        Span::Connector(s) => ("connector", s.as_str()),
-        Span::Pipeline(s) => ("pipeline", s.as_str()),
-        Span::Energy(s) => ("energy", s.as_str()),
-        Span::Review(s) => ("review", s.as_str()),
-        Span::Template(s) => ("template", s.as_str()),
-        Span::Curation(s) => ("curation", s.as_str()),
-        Span::Variety(s) => ("variety", s.as_str()),
-        Span::KillZone(s) => ("killzone", s.as_str()),
-        Span::Sovereignty(s) => ("sovereignty", s.as_str()),
-        Span::Goal(s) => ("goal", s.as_str()),
-        Span::Spec(s) => ("spec", s.as_str()),
-    }
+    let category_str = match span.category {
+        SpanCategory::Prompt => "prompt",
+        SpanCategory::Tool => "tool",
+        SpanCategory::AgentPod => "agent_pod",
+        SpanCategory::Connector => "connector",
+        SpanCategory::Pipeline => "pipeline",
+        SpanCategory::Energy => "energy",
+        SpanCategory::Review => "review",
+        SpanCategory::Template => "template",
+        SpanCategory::Curation => "curation",
+        SpanCategory::Variety => "variety",
+        SpanCategory::KillZone => "killzone",
+        SpanCategory::Sovereignty => "sovereignty",
+        SpanCategory::Goal => "goal",
+        SpanCategory::Spec => "spec",
+    };
+    (category_str, span.path.as_str())
 }
 
 fn span_from_columns(category: &str, path: &str) -> Span {
-    match category {
-        "prompt" => Span::Prompt(path.to_string()),
-        "tool" => Span::Tool(path.to_string()),
-        "agent_pod" => Span::AgentPod(path.to_string()),
-        "connector" => Span::Connector(path.to_string()),
-        "pipeline" => Span::Pipeline(path.to_string()),
-        "energy" => Span::Energy(path.to_string()),
-        "review" => Span::Review(path.to_string()),
-        "sovereignty" => Span::Sovereignty(path.to_string()),
-        "goal" => Span::Goal(path.to_string()),
-        "spec" => Span::Spec(path.to_string()),
-        "template" => Span::Template(path.to_string()),
-        "curation" => Span::Curation(path.to_string()),
-        "variety" => Span::Variety(path.to_string()),
-        "killzone" => Span::KillZone(path.to_string()),
-        _ => Span::Tool(path.to_string()),
+    let cat = SpanCategory::parse_str(category).unwrap_or(SpanCategory::Tool);
+    Span {
+        category: cat,
+        path: path.to_string(),
     }
 }
 

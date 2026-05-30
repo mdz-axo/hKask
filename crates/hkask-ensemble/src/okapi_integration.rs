@@ -6,6 +6,7 @@
 use hkask_cns::CnsRuntime;
 use hkask_keystore::Keychain;
 use hkask_keystore::keychain::KeychainError;
+use hkask_types::event::SpanCategory;
 use hkask_types::{CapabilityToken, NuEvent, Span, WebID};
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -160,16 +161,16 @@ impl OkapiIntegration {
         let cns_runtime = Arc::clone(&self.cns_runtime);
         tokio::spawn(async move {
             while let Some(event) = cns_rx.recv().await {
-                let domain = match &event.span {
-                    Span::Connector(s) => {
-                        if s.contains("llm") {
-                            "llm"
-                        } else {
-                            "connector"
-                        }
+                let domain = if event.span.category == SpanCategory::Connector {
+                    if event.span.path.contains("llm") {
+                        "llm"
+                    } else {
+                        "connector"
                     }
-                    Span::Tool(_) => "tool",
-                    _ => "general",
+                } else if event.span.category == SpanCategory::Tool {
+                    "tool"
+                } else {
+                    "general"
                 };
 
                 cns_runtime
@@ -266,7 +267,10 @@ where
     ) -> Result<(), MetricsTranslatorError<M::Error>> {
         if current.tokens_generated_total != last.tokens_generated_total {
             self.emit_span(
-                Span::Connector("cns.connector.llm.tokens".to_string()),
+                Span {
+                    category: SpanCategory::Connector,
+                    path: "cns.connector.llm.tokens".to_string(),
+                },
                 serde_json::json!({
                     "tokens_generated": current.tokens_generated_total,
                     "delta": current.tokens_generated_total - last.tokens_generated_total,
@@ -283,7 +287,10 @@ where
             };
 
             self.emit_span(
-                Span::Connector("cns.connector.llm.context".to_string()),
+                Span {
+                    category: SpanCategory::Connector,
+                    path: "cns.connector.llm.context".to_string(),
+                },
                 serde_json::json!({
                     "kv_cache_tokens": current.kv_cache_tokens,
                     "context_length": current.context_length,
@@ -297,7 +304,10 @@ where
             && current.adapter_swap_latency_ms != last.adapter_swap_latency_ms
         {
             self.emit_span(
-                Span::Tool("cns.tool.adapter_swap".to_string()),
+                Span {
+                    category: SpanCategory::Tool,
+                    path: "cns.tool.adapter_swap".to_string(),
+                },
                 serde_json::json!({
                     "latency_ms": current.adapter_swap_latency_ms,
                 }),
@@ -307,7 +317,10 @@ where
 
         if current.gpu_memory_used_bytes != last.gpu_memory_used_bytes {
             self.emit_span(
-                Span::Connector("cns.connector.llm.gpu_memory".to_string()),
+                Span {
+                    category: SpanCategory::Connector,
+                    path: "cns.connector.llm.gpu_memory".to_string(),
+                },
                 serde_json::json!({
                     "used_bytes": current.gpu_memory_used_bytes,
                     "delta": (current.gpu_memory_used_bytes as i64
@@ -322,7 +335,10 @@ where
             && let Some(ratio) = current.prompt_cache_hit_ratio
         {
             self.emit_span(
-                Span::Connector("cns.connector.llm.cache_hit".to_string()),
+                Span {
+                    category: SpanCategory::Connector,
+                    path: "cns.connector.llm.cache_hit".to_string(),
+                },
                 serde_json::json!({
                     "hit_ratio": ratio,
                 }),

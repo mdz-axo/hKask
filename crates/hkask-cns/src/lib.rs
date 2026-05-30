@@ -41,6 +41,7 @@ pub use bot_metrics::{
 };
 pub use energy::{EnergyAccount, EnergyBudget, EnergyError, OpportunityCost};
 pub use goal_variety::{GoalVarietyCounter, GoalVarietyMonitor};
+pub use hkask_types::SpanCategory;
 pub use observers::sovereignty::{
     SovereigntyEvent, SovereigntyEventType, SovereigntyObserver, SovereigntyObserverState,
 };
@@ -50,7 +51,7 @@ pub use runtime::{
     CnsWriteHandle,
 };
 pub use spans::{
-    CnsEmit, SpanCategory, SpanEmitter, SpanScope, SpanViolation, curator_span_scope,
-    span_scope_for_domain, span_scope_for_r7_bot,
+    CnsEmit, SpanEmitter, SpanScope, SpanViolation, curator_span_scope, span_scope_for_domain,
+    span_scope_for_r7_bot,
 };
 pub use variety::{VarietyMonitor, VarietyTracker};

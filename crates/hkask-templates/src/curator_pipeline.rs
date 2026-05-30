@@ -9,9 +9,10 @@
 //! The Curator is ideological — it builds on logical ideas.
 
 use crate::memory_feedback::MemoryFeedbackAdapter;
+use hkask_types::event::SpanCategory;
 use hkask_types::{
-    AlgedonicAlert, CnsSpan, CurationDecision, CurationRecord, CuratorId, OCAPBoundary,
-    TemplateInvocation, TemplateOutcome, UserSovereigntyState, VarietyCounter,
+    AlgedonicAlert, CurationDecision, CurationRecord, CuratorId, OCAPBoundary, TemplateInvocation,
+    TemplateOutcome, UserSovereigntyState, VarietyCounter,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -166,7 +167,7 @@ impl CuratorPipeline {
             let _alert = AlgedonicAlert::new(
                 self.variety.lock().await.0,
                 VarietyCounter::target(),
-                CnsSpan::Curation,
+                SpanCategory::Curation,
             );
             // Alert would be emitted to CNS in production
             result = result.with_rationale(&format!(

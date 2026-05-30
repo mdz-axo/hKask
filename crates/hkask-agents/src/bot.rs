@@ -6,6 +6,8 @@
 use hkask_types::{BotID, WebID};
 use serde::{Deserialize, Serialize};
 
+use crate::capabilities::AgentCapabilities;
+
 /// Bot agent
 ///
 /// Bots are public/shared agents focused on process execution.
@@ -23,10 +25,17 @@ pub struct Bot {
     /// Whether bot is active
     pub active: bool,
     /// Bot capabilities
-    pub capabilities: BotCapabilities,
+    pub capabilities: AgentCapabilities,
 }
 
-/// Bot capabilities
+/// Bot operational capabilities (deprecated — use [`AgentCapabilities`]).
+///
+/// Migrated to `AgentCapabilities` which uses `MemoryAccess` for structured
+/// episodic/semantic memory permissions instead of the flat `can_access_memory` flag.
+#[deprecated(
+    since = "0.21.0",
+    note = "Use `AgentCapabilities` with `MemoryAccess` instead. Bots map `can_access_memory = true` to `MemoryAccess::full()`."
+)]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct BotCapabilities {
     /// Can invoke MCP tools
@@ -49,7 +58,7 @@ impl Bot {
             name,
             description,
             active: false,
-            capabilities: BotCapabilities::default(),
+            capabilities: AgentCapabilities::default(),
         }
     }
 
@@ -73,9 +82,12 @@ impl Bot {
         self.capabilities.can_invoke_tools = true;
     }
 
-    /// Enable memory access
+    /// Enable full memory access (both episodic and semantic).
+    ///
+    /// For bots, memory access grants both episodic and semantic memory,
+    /// consistent with the former `can_access_memory` flag.
     pub fn enable_memory(&mut self) {
-        self.capabilities.can_access_memory = true;
+        self.capabilities.memory_access = crate::capabilities::MemoryAccess::full();
     }
 
     /// Enable template dispatch
@@ -92,5 +104,33 @@ impl Bot {
 impl Default for Bot {
     fn default() -> Self {
         Self::new("unnamed-bot".to_string(), "A bot agent".to_string())
+    }
+}
+
+#[allow(deprecated)]
+impl From<BotCapabilities> for AgentCapabilities {
+    fn from(caps: BotCapabilities) -> Self {
+        Self {
+            can_invoke_tools: caps.can_invoke_tools,
+            memory_access: if caps.can_access_memory {
+                crate::capabilities::MemoryAccess::full()
+            } else {
+                crate::capabilities::MemoryAccess::default()
+            },
+            can_dispatch_templates: caps.can_dispatch_templates,
+            can_escalate: caps.can_escalate,
+        }
+    }
+}
+
+#[allow(deprecated)]
+impl From<AgentCapabilities> for BotCapabilities {
+    fn from(caps: AgentCapabilities) -> Self {
+        Self {
+            can_invoke_tools: caps.can_invoke_tools,
+            can_access_memory: caps.memory_access.any(),
+            can_dispatch_templates: caps.can_dispatch_templates,
+            can_escalate: caps.can_escalate,
+        }
     }
 }

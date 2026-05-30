@@ -33,7 +33,7 @@ fn cyber_forged_goal_token_is_denied_and_emits_sovereignty_violation() {
         "holder may only emit within the Tool span category",
         Disturbance::new(DisturbanceKind::CapabilityDenied, DisturbanceMode::Always),
     )
-    .must_emit("Sovereignty(\"alert.boundary_violation\")")
+    .must_emit("category: Sovereignty")
     .with_escalation(EscalationExpectation::None)
     .build();
 
@@ -99,7 +99,7 @@ fn cyber_untampered_goal_token_within_scope_emits_no_violation() {
         "holder emits within the Tool span category",
         Disturbance::new(DisturbanceKind::CapabilityDenied, DisturbanceMode::Always),
     )
-    .must_not_emit("Sovereignty(\"alert.boundary_violation\")")
+    .must_not_emit("category: Sovereignty")
     .with_escalation(EscalationExpectation::None)
     .build();
 

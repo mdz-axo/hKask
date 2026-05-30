@@ -5,10 +5,10 @@
 //! category, producing BotEvaluationMetrics on demand for the Curator's
 //! metacognition loop.
 
-use crate::spans::SpanCategory;
 use crate::variety::VarietyTracker;
 use chrono::{DateTime, Utc};
 use hkask_types::WebID;
+use hkask_types::event::SpanCategory;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

@@ -14,7 +14,7 @@ fn cyber_span_scope_capability_denied_emits_sovereignty_violation() {
         "span scope allows tool only",
         Disturbance::new(DisturbanceKind::CapabilityDenied, DisturbanceMode::Always),
     )
-    .must_emit("Sovereignty(\"alert.boundary_violation\")")
+    .must_emit("category: Sovereignty")
     .with_escalation(EscalationExpectation::None)
     .build();
 

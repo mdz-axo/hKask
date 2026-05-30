@@ -30,7 +30,7 @@
 //!   Used by system administration for maintenance operations.
 //!   CANNOT emit spans or check variety (separation of concerns).
 
-use crate::cns::CnsSpan;
+use crate::event::SpanCategory;
 use crate::id::WebID;
 
 // =============================================================================
@@ -80,7 +80,7 @@ impl CnsWriteHandle {
     /// # Ensures
     /// - Span is emitted with the handle's emitter WebID
     /// - Span category is preserved
-    pub fn emit_span(&self, category: CnsSpan, action: &str) -> CnsSpanEvent {
+    pub fn emit_span(&self, category: SpanCategory, action: &str) -> CnsSpanEvent {
         CnsSpanEvent {
             emitter: self.emitter,
             category,
@@ -93,7 +93,7 @@ impl CnsWriteHandle {
 #[derive(Debug, Clone)]
 pub struct CnsSpanEvent {
     pub emitter: WebID,
-    pub category: CnsSpan,
+    pub category: SpanCategory,
     pub action: String,
 }
 
@@ -235,7 +235,7 @@ mod tests {
     #[test]
     fn cns_write_handle_emit_span() {
         let handle = CnsWriteHandle::new_test();
-        let event = handle.emit_span(CnsSpan::Tool, "invoked");
+        let event = handle.emit_span(SpanCategory::Tool, "invoked");
         assert_eq!(event.action, "invoked");
     }
 

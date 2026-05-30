@@ -119,7 +119,7 @@ impl EnergyBudget {
             // Emit Regulate-phase span recording denied consumption
             if let Some(emitter) = &self.span_emitter {
                 emitter.emit_with_phase(
-                    Span::Energy("regulate.consume".to_string()),
+                    Span::energy("regulate.consume"),
                     Phase::Regulate,
                     serde_json::json!({
                         "operation": operation,
@@ -141,7 +141,7 @@ impl EnergyBudget {
         // Emit Regulate-phase span recording allowed consumption
         if let Some(emitter) = &self.span_emitter {
             emitter.emit_with_phase(
-                Span::Energy("regulate.consume".to_string()),
+                Span::energy("regulate.consume"),
                 Phase::Regulate,
                 serde_json::json!({
                     "operation": operation,

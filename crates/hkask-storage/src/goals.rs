@@ -596,6 +596,7 @@ impl SqliteGoalRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use hkask_types::event::SpanCategory;
     use hkask_types::goal_capability::GoalOp;
 
     const SECRET: &[u8] = b"goal-repo-test-secret-32-bytes!!";
@@ -785,7 +786,7 @@ mod tests {
         assert!(
             events.iter().any(|e| matches!(
                 &e.span,
-                Span::Tool(p) if p == "cns.tool.goal.capability.denied"
+                Span { category: SpanCategory::Tool, path } if path == "cns.tool.goal.capability.denied"
             )),
             "a denial must emit a cns.tool.goal.capability.denied span, got {:?}",
             events.iter().map(|e| &e.span).collect::<Vec<_>>()

@@ -10,7 +10,8 @@
 
 use hkask_cns::{CnsRuntime, DEFAULT_THRESHOLD, SpanEmitter};
 use hkask_mcp::server::{McpToolOutput, ToolSpanGuard, validate_identifier};
-use hkask_types::{Span, WebID};
+use hkask_types::WebID;
+use hkask_types::event::{Span, SpanCategory};
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
 use schemars::JsonSchema;
@@ -72,19 +73,30 @@ impl CnsServer {
     }
 
     fn parse_span(raw: &str) -> Span {
-        let parts: Vec<&str> = raw.splitn(3, '.').collect();
-        match parts.get(1).copied() {
-            Some("connector") => Span::Connector(raw.to_string()),
-            Some("pipeline") => Span::Pipeline(raw.to_string()),
-            Some("tool") => Span::Tool(raw.to_string()),
-            Some("prompt") => Span::Prompt(raw.to_string()),
-            Some("agent_pod") => Span::AgentPod(raw.to_string()),
-            Some("energy") => Span::Energy(raw.to_string()),
-            Some("sovereignty") => Span::Sovereignty(raw.to_string()),
-            Some("goal") => Span::Goal(raw.to_string()),
-            Some("review") => Span::Review(raw.to_string()),
-            Some("spec") => Span::Spec(raw.to_string()),
-            _ => Span::Tool(raw.to_string()),
+        let category = raw
+            .split_once('.')
+            .and_then(|(prefix, _rest)| match prefix {
+                "cns.connector" => Some(SpanCategory::Connector),
+                "cns.pipeline" => Some(SpanCategory::Pipeline),
+                "cns.tool" => Some(SpanCategory::Tool),
+                "cns.prompt" => Some(SpanCategory::Prompt),
+                "cns.agent_pod" => Some(SpanCategory::AgentPod),
+                "cns.energy" => Some(SpanCategory::Energy),
+                "cns.sovereignty" => Some(SpanCategory::Sovereignty),
+                "cns.goal" => Some(SpanCategory::Goal),
+                "cns.review" => Some(SpanCategory::Review),
+                "cns.spec" => Some(SpanCategory::Spec),
+                "cns.curation" => Some(SpanCategory::Curation),
+                "cns.variety" => Some(SpanCategory::Variety),
+                "cns.killzone" => Some(SpanCategory::KillZone),
+                "cns.template" => Some(SpanCategory::Template),
+                _ => None,
+            })
+            .unwrap_or(SpanCategory::Tool);
+
+        Span {
+            category,
+            path: raw.to_string(),
         }
     }
 }

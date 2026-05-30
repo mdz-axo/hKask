@@ -13,8 +13,8 @@ fn cyber_mcp_connector_transient_failure_stays_non_escalatory_when_tool_scope_al
         "span scope allows tool category",
         Disturbance::transient_failures(2),
     )
-    .must_emit("Tool(\"cns.tool.mcp.dispatch.retry\")")
-    .must_not_emit("Sovereignty(\"alert.boundary_violation\")")
+    .must_emit("category: Tool")
+    .must_not_emit("category: Sovereignty")
     .with_escalation(EscalationExpectation::None)
     .build();
 

@@ -100,7 +100,7 @@ impl SovereigntyChecker {
 
         // Emit Regulate-phase span recording the access decision
         self.span_emitter.emit_with_phase(
-            Span::Sovereignty("regulate.access_check".to_string()),
+            Span::sovereignty("regulate.access_check"),
             Phase::Regulate,
             serde_json::json!({
                 "allowed": result.allowed,
