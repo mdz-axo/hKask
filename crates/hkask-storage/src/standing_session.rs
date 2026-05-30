@@ -8,6 +8,7 @@
 //!   they are archival, consistent with the architecture's forward-only
 //!   migration policy (no automatic re-encryption).
 
+use hkask_types::InfrastructureError;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
@@ -15,16 +16,19 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum StandingSessionError {
-    #[error("Database error: {0}")]
-    Database(#[from] rusqlite::Error),
-    #[error("Serialization error: {0}")]
-    Serialization(#[from] serde_json::Error),
+    #[error(transparent)]
+    Infra(#[from] InfrastructureError),
+
     #[error("Session not found: {0}")]
     NotFound(String),
     #[error("Session is sealed (key version mismatch): {0}")]
     Sealed(String),
-    #[error("Lock poisoned: {0}")]
-    LockPoisoned(String),
+}
+
+impl From<rusqlite::Error> for StandingSessionError {
+    fn from(e: rusqlite::Error) -> Self {
+        StandingSessionError::Infra(InfrastructureError::Database(e.to_string()))
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -65,7 +69,7 @@ impl StandingSessionStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| StandingSessionError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS standing_sessions (
                 session_id TEXT PRIMARY KEY,
@@ -93,7 +97,7 @@ impl StandingSessionStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| StandingSessionError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         conn.execute(
             "INSERT OR REPLACE INTO standing_sessions (session_id, config_yaml, created_at, last_active, key_version, sealed)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
@@ -113,7 +117,7 @@ impl StandingSessionStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| StandingSessionError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let mut stmt = conn.prepare(
             "SELECT session_id, config_yaml, created_at, last_active, key_version, sealed
              FROM standing_sessions WHERE session_id = ?1",
@@ -146,9 +150,9 @@ impl StandingSessionStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| StandingSessionError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let mut stmt = conn.prepare(
-            "SELECT session_id, config_yaml, created_at, last_active
+            "SELECT session_id, config_yaml, created_at, last_active, key_version, sealed
              FROM standing_sessions ORDER BY last_active DESC",
         )?;
 
@@ -159,6 +163,8 @@ impl StandingSessionStore {
                     row.get::<_, String>(1)?,
                     row.get::<_, String>(2)?,
                     row.get::<_, String>(3)?,
+                    row.get::<_, i32>(4)? as u32,
+                    row.get::<_, i32>(5)? != 0,
                 ))
             })?
             .filter_map(|r| r.ok())
@@ -167,6 +173,8 @@ impl StandingSessionStore {
                 config_yaml: s.1,
                 created_at: s.2,
                 last_active: s.3,
+                key_version: s.4,
+                sealed: s.5,
             })
             .collect();
 
@@ -177,7 +185,20 @@ impl StandingSessionStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| StandingSessionError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
+
+        // Check if the session is sealed before writing.
+        let sealed: bool = conn
+            .query_row(
+                "SELECT sealed FROM standing_sessions WHERE session_id = ?1",
+                [&message.session_id],
+                |row| row.get::<_, i32>(0).map(|s| s != 0),
+            )
+            .map_err(|_| StandingSessionError::NotFound(message.session_id.clone()))?;
+        if sealed {
+            return Err(StandingSessionError::Sealed(message.session_id.clone()));
+        }
+
         conn.execute(
             "INSERT INTO session_messages (session_id, from_webid, content, timestamp, template_id)
              VALUES (?1, ?2, ?3, ?4, ?5)",
@@ -199,7 +220,7 @@ impl StandingSessionStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| StandingSessionError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let mut stmt = conn.prepare(
             "SELECT id, session_id, from_webid, content, timestamp, template_id
              FROM session_messages WHERE session_id = ?1 ORDER BY id ASC",
@@ -234,7 +255,7 @@ impl StandingSessionStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| StandingSessionError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let now = chrono::Utc::now().to_rfc3339();
         conn.execute(
             "UPDATE standing_sessions SET last_active = ?1 WHERE session_id = ?2",
@@ -243,11 +264,54 @@ impl StandingSessionStore {
         Ok(())
     }
 
+    /// Seal all sessions created before the given key version.
+    ///
+    /// Called when the master key is rotated. Sealed sessions remain
+    /// readable but cannot accept new messages — they are archival.
+    /// Returns the number of sessions sealed.
+    pub fn seal_sessions_before_version(
+        &self,
+        version: u32,
+    ) -> Result<usize, StandingSessionError> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let count = conn.execute(
+            "UPDATE standing_sessions SET sealed = 1 WHERE key_version < ?1 AND sealed = 0",
+            [version as i32],
+        )?;
+        tracing::info!(
+            target: "cns.session.lifecycle",
+            sealed_count = count,
+            new_key_version = version,
+            "Sealed sessions from previous key version"
+        );
+        Ok(count)
+    }
+
+    /// Get the current key version — the highest version across all sessions.
+    /// Returns 1 for a fresh database.
+    pub fn current_key_version(&self) -> Result<u32, StandingSessionError> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let version: i32 = conn
+            .query_row(
+                "SELECT COALESCE(MAX(key_version), 1) FROM standing_sessions",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or(1);
+        Ok(version as u32)
+    }
+
     pub fn delete_session(&self, session_id: &str) -> Result<(), StandingSessionError> {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| StandingSessionError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         conn.execute(
             "DELETE FROM session_messages WHERE session_id = ?1",
             rusqlite::params![session_id],

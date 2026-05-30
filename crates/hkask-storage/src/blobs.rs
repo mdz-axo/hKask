@@ -1,12 +1,18 @@
 //! Blob storage with BLAKE3 hashing
 
-use hkask_types::{Visibility, WebID};
+use hkask_types::{InfrastructureError, Visibility, WebID};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum BlobError {
-    #[error("Database error: {0}")]
-    Database(#[from] rusqlite::Error),
+    #[error(transparent)]
+    Infra(#[from] InfrastructureError),
+}
+
+impl From<rusqlite::Error> for BlobError {
+    fn from(e: rusqlite::Error) -> Self {
+        BlobError::Infra(InfrastructureError::Database(e.to_string()))
+    }
 }
 
 #[derive(Debug, Clone)]

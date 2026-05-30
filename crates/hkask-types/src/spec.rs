@@ -330,4 +330,6 @@ pub enum SpecError {
     CurationDenied,
     #[error("Coherence below threshold: {0}")]
     CoherenceInsufficient(f64),
+    #[error("Curation depth exceeded: max iterations reached")]
+    CurationDepthExceeded,
 }

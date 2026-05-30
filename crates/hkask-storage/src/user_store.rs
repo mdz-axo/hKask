@@ -8,7 +8,9 @@
 
 use argon2::{PasswordHasher, PasswordVerifier, password_hash::PasswordHash};
 use base64::Engine;
-use hkask_types::{HumanUser, RegistrationRequest, ReplicantIdentity, UserID, UserSession};
+use hkask_types::{
+    HumanUser, InfrastructureError, RegistrationRequest, ReplicantIdentity, UserID, UserSession,
+};
 use rand::RngCore;
 use rusqlite::{Connection, params};
 use std::sync::{Arc, Mutex};
@@ -17,10 +19,9 @@ use zeroize::Zeroizing;
 
 #[derive(Error, Debug)]
 pub enum UserStoreError {
-    #[error("Database error: {0}")]
-    Database(#[from] rusqlite::Error),
-    #[error("Serialization error: {0}")]
-    Serialization(#[from] serde_json::Error),
+    #[error(transparent)]
+    Infra(#[from] InfrastructureError),
+
     #[error("User not found: {0}")]
     NotFound(String),
     #[error("Replicant name already registered: {0}")]
@@ -37,8 +38,12 @@ pub enum UserStoreError {
     KeyDerivation(String),
     #[error("Password hash error: {0}")]
     PasswordHash(String),
-    #[error("Lock poisoned: {0}")]
-    LockPoisoned(String),
+}
+
+impl From<rusqlite::Error> for UserStoreError {
+    fn from(e: rusqlite::Error) -> Self {
+        UserStoreError::Infra(InfrastructureError::Database(e.to_string()))
+    }
 }
 
 pub type Result<T> = std::result::Result<T, UserStoreError>;
@@ -57,7 +62,7 @@ impl UserStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| UserStoreError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         conn.execute_batch(include_str!("sql/users.sql"))?;
         Ok(())
     }
@@ -87,7 +92,7 @@ impl UserStore {
         let mut conn = self
             .conn
             .lock()
-            .map_err(|e| UserStoreError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let tx = conn.transaction()?;
 
         tx.execute(
@@ -151,7 +156,7 @@ impl UserStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| UserStoreError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         conn.execute(
             "DELETE FROM user_sessions WHERE session_id = ?1",
             params![session_id],
@@ -163,7 +168,7 @@ impl UserStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| UserStoreError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let mut stmt = conn.prepare(
             "SELECT session_id, replicant_name, replicant_webid, user_id, session_key_salt, expires_at, last_active
              FROM user_sessions WHERE session_id = ?1",
@@ -199,7 +204,7 @@ impl UserStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| UserStoreError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let mut stmt = conn.prepare(
             "SELECT session_id, replicant_name, replicant_webid, user_id, session_key_salt, expires_at, last_active
              FROM user_sessions WHERE replicant_name = ?1 ORDER BY last_active DESC",
@@ -236,7 +241,7 @@ impl UserStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| UserStoreError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let now = chrono::Utc::now().timestamp();
         let deleted = conn.execute(
             "DELETE FROM user_sessions WHERE expires_at < ?1",
@@ -249,7 +254,7 @@ impl UserStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| UserStoreError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let mut stmt = conn.prepare(
             "SELECT replicant_name, user_id, replicant_webid, first_name_enc, last_name_enc,
                     persona_yaml, is_primary, created_at, last_login
@@ -288,7 +293,7 @@ impl UserStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| UserStoreError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let mut stmt = conn.prepare(
             "SELECT user_id, email_enc, phone_enc, passphrase_hash, salt, master_salt, created_at, last_active
              FROM human_users WHERE user_id = ?1",
@@ -313,7 +318,7 @@ impl UserStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| UserStoreError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let mut stmt = conn.prepare(
             "SELECT replicant_name, user_id, replicant_webid, first_name_enc, last_name_enc,
                     persona_yaml, is_primary, created_at, last_login
@@ -358,7 +363,7 @@ impl UserStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| UserStoreError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         conn.execute(
             "INSERT INTO user_sessions
              (session_id, replicant_name, replicant_webid, user_id, session_key_salt, expires_at, last_active)
@@ -389,7 +394,7 @@ impl UserStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| UserStoreError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         conn.execute(
             "UPDATE replicant_identities SET last_login = ?1 WHERE replicant_name = ?2",
             params![chrono::Utc::now().timestamp(), replicant_name],

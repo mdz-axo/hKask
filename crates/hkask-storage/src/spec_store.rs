@@ -1,10 +1,13 @@
 //! SpecStore — SQLite-backed specification storage and curation
 
+use hkask_cns::CnsEmit;
 use hkask_types::spec::{
     Spec, SpecCategory, SpecCurationRecord, SpecError, SpecObserver, SpecStore,
 };
-use hkask_types::{CurationDecision, OCAPBoundary, SpecCurator, SpecId};
+use hkask_types::{CurationDecision, OCAPBoundary, SYSTEM_MAX_RECURSION, SpecCurator, SpecId};
 use rusqlite::Connection;
+use serde_json::json;
+use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
 pub struct SqliteSpecStore {
@@ -145,13 +148,27 @@ impl SpecStore for SqliteSpecStore {
 
 pub struct DefaultSpecCurator {
     coherence_threshold: f64,
+    max_iterations: u8,
+    cns_emitter: Option<Arc<dyn CnsEmit + Send + Sync>>,
 }
 
 impl DefaultSpecCurator {
     pub fn new(coherence_threshold: f64) -> Self {
         Self {
             coherence_threshold: coherence_threshold.clamp(0.0, 1.0),
+            max_iterations: SYSTEM_MAX_RECURSION,
+            cns_emitter: None,
         }
+    }
+
+    pub fn with_max_iterations(mut self, max: u8) -> Self {
+        self.max_iterations = max;
+        self
+    }
+
+    pub fn with_cns_emitter(mut self, emitter: Arc<dyn CnsEmit + Send + Sync>) -> Self {
+        self.cns_emitter = Some(emitter);
+        self
     }
 }
 
@@ -183,6 +200,19 @@ impl SpecCurator for DefaultSpecCurator {
         let coherence = spec.coherence();
         let ocap_boundary = OCAPBoundary::explicit("spec:curate".to_string());
 
+        if let Some(ref emitter) = self.cns_emitter {
+            emitter.emit_event(
+                "cns.spec.evaluate",
+                "observe",
+                &json!({
+                    "spec_id": spec.id.to_string(),
+                    "decision": decision.to_string(),
+                    "coherence": coherence,
+                }),
+                coherence,
+            );
+        }
+
         Ok(SpecCurationRecord::new(
             spec.id,
             decision,
@@ -193,15 +223,87 @@ impl SpecCurator for DefaultSpecCurator {
     }
 
     fn reconcile(&self, specs: &[Spec]) -> Result<Vec<SpecCurationRecord>, SpecError> {
-        specs.iter().map(|s| self.evaluate(s)).collect()
+        let records: Result<Vec<SpecCurationRecord>, SpecError> =
+            specs.iter().map(|s| self.evaluate(s)).collect();
+
+        if let Ok(ref recs) = records {
+            for (spec, record) in specs.iter().zip(recs.iter()) {
+                if record.coherence_score < self.coherence_threshold {
+                    if let Some(ref emitter) = self.cns_emitter {
+                        let drift_magnitude = 1.0 - record.coherence_score;
+                        emitter.emit_event(
+                            "cns.spec.drift",
+                            "observe",
+                            &json!({
+                                "domain": spec.category.as_str(),
+                                "drift_magnitude": drift_magnitude,
+                                "coherence": record.coherence_score,
+                                "message": format!(
+                                    "Drift detected during reconciliation: coherence {:.3} below threshold {:.3}",
+                                    record.coherence_score, self.coherence_threshold
+                                ),
+                            }),
+                            record.coherence_score,
+                        );
+                    }
+                }
+            }
+        }
+
+        records
     }
 
     fn cultivate(&self, specs: &mut Vec<Spec>) -> Result<f64, SpecError> {
-        let coherence = Spec::collection_coherence(specs);
-        if coherence < self.coherence_threshold {
-            return Err(SpecError::CoherenceInsufficient(coherence));
+        let mut iterations_attempted: u8 = 0;
+        for _ in 0..self.max_iterations {
+            iterations_attempted += 1;
+            let coherence = Spec::collection_coherence(specs);
+            if coherence >= self.coherence_threshold {
+                return Ok(coherence);
+            }
+
+            let records = self.reconcile(specs)?;
+
+            // Remove specs marked for discard
+            let discard_ids: HashSet<_> = records
+                .iter()
+                .filter(|r| r.decision == CurationDecision::Discard)
+                .map(|r| r.spec_id)
+                .collect();
+            specs.retain(|s| !discard_ids.contains(&s.id));
+
+            // If all remaining records are Merge, check coherence again
+            let all_merge = records
+                .iter()
+                .filter(|r| r.decision != CurationDecision::Discard)
+                .all(|r| r.decision == CurationDecision::Merge);
+            if all_merge {
+                let coherence = Spec::collection_coherence(specs);
+                if coherence >= self.coherence_threshold {
+                    return Ok(coherence);
+                }
+            }
         }
-        Ok(coherence)
+
+        // Coherence still below threshold after all iterations
+        let final_coherence = Spec::collection_coherence(specs);
+        if let Some(ref emitter) = self.cns_emitter {
+            emitter.emit_event(
+                "cns.spec.drift",
+                "outcome",
+                &json!({
+                    "final_coherence": final_coherence,
+                    "iterations_attempted": iterations_attempted,
+                    "message": format!(
+                        "Cultivation failed: coherence {:.3} below threshold {:.3} after {} iterations",
+                        final_coherence, self.coherence_threshold, iterations_attempted
+                    ),
+                }),
+                final_coherence,
+            );
+        }
+
+        Err(SpecError::CurationDepthExceeded)
     }
 }
 

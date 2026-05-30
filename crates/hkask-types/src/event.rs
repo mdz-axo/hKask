@@ -96,6 +96,7 @@ pub enum Span {
     Connector(String),
     Pipeline(String),
     Energy(String),
+    /// Review span — reserved for future implementation of the cns.review.* namespace.
     Review(String),
     Template(String),
     Curation(String),

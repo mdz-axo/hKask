@@ -3,7 +3,7 @@
 //! Persistent queue for escalated outputs that require human review.
 
 use chrono::{DateTime, Utc};
-use hkask_types::{BotID, TemplateID};
+use hkask_types::{BotID, InfrastructureError, TemplateID};
 use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
@@ -40,17 +40,16 @@ pub struct EscalationQueue {
 
 #[derive(Error, Debug)]
 pub enum EscalationError {
-    #[error("Database error: {0}")]
-    Database(String),
+    #[error(transparent)]
+    Infra(#[from] InfrastructureError),
+
     #[error("Escalation not found: {0}")]
     NotFound(String),
-    #[error("Lock poisoned: {0}")]
-    LockPoisoned(String),
 }
 
 impl From<rusqlite::Error> for EscalationError {
     fn from(e: rusqlite::Error) -> Self {
-        EscalationError::Database(e.to_string())
+        InfrastructureError::Database(e.to_string()).into()
     }
 }
 
@@ -64,7 +63,7 @@ impl EscalationQueue {
     fn init(&self) -> Result<(), EscalationError> {
         self.conn
             .lock()
-            .map_err(|e| EscalationError::LockPoisoned(e.to_string()))?
+            .map_err(|_| EscalationError::Infra(InfrastructureError::LockPoisoned))?
             .execute_batch(
                 r#"CREATE TABLE IF NOT EXISTS escalations (
                 id TEXT PRIMARY KEY,
@@ -96,7 +95,7 @@ impl EscalationQueue {
         let id = format!("esc_{}", Uuid::new_v4().simple());
         let now = Utc::now().to_rfc3339();
 
-        self.conn.lock().map_err(|e| EscalationError::LockPoisoned(e.to_string()))?.execute(
+        self.conn.lock().map_err(|_| EscalationError::Infra(InfrastructureError::LockPoisoned))?.execute(
             r#"INSERT INTO escalations (id, template_id, bot_id, output, confidence, retry_count, error_context, created_at, status)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'pending')"#,
             params![
@@ -118,7 +117,7 @@ impl EscalationQueue {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| EscalationError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| EscalationError::Infra(InfrastructureError::LockPoisoned))?;
         let mut stmt = conn.prepare(
             r#"SELECT id, template_id, bot_id, output, confidence, retry_count, error_context, created_at, status, resolved_at, resolved_by
              FROM escalations WHERE status = 'pending' ORDER BY created_at ASC"#
@@ -159,7 +158,7 @@ impl EscalationQueue {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| EscalationError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| EscalationError::Infra(InfrastructureError::LockPoisoned))?;
         let mut stmt = conn.prepare(
             "SELECT id, template_id, bot_id, output, confidence, retry_count, error_context, created_at, status, resolved_at, resolved_by
              FROM escalations WHERE id = ?1"
@@ -212,7 +211,7 @@ impl EscalationQueue {
 
     pub fn resolve(&self, id: &str, resolved_by: &str) -> Result<(), EscalationError> {
         let now = Utc::now().to_rfc3339();
-        self.conn.lock().map_err(|e| EscalationError::LockPoisoned(e.to_string()))?.execute(
+        self.conn.lock().map_err(|_| EscalationError::Infra(InfrastructureError::LockPoisoned))?.execute(
             r#"UPDATE escalations SET status = 'resolved', resolved_at = ?1, resolved_by = ?2 WHERE id = ?3"#,
             params![now, resolved_by, id],
         )?;
@@ -221,7 +220,7 @@ impl EscalationQueue {
 
     pub fn dismiss(&self, id: &str, resolved_by: &str) -> Result<(), EscalationError> {
         let now = Utc::now().to_rfc3339();
-        self.conn.lock().map_err(|e| EscalationError::LockPoisoned(e.to_string()))?.execute(
+        self.conn.lock().map_err(|_| EscalationError::Infra(InfrastructureError::LockPoisoned))?.execute(
             r#"UPDATE escalations SET status = 'dismissed', resolved_at = ?1, resolved_by = ?2 WHERE id = ?3"#,
             params![now, resolved_by, id],
         )?;
@@ -232,7 +231,7 @@ impl EscalationQueue {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| EscalationError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| EscalationError::Infra(InfrastructureError::LockPoisoned))?;
         let mut stmt = conn.prepare(
             r#"SELECT
                 COUNT(*) as total,

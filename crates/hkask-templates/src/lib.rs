@@ -36,6 +36,7 @@ pub mod error;
 pub mod hlexicon_source;
 pub mod inference_port;
 pub mod manifest;
+pub mod memory_feedback;
 pub mod multi_okapi;
 pub mod okapi_config;
 pub mod ports;
@@ -69,6 +70,7 @@ pub use inference_port::{
 pub use manifest::{
     EnergyAccount, ManifestExecutorImpl, ModelRequirements, NoopCsp, SelectorConfig, SimpleExecutor,
 };
+pub use memory_feedback::MemoryFeedbackAdapter;
 pub use okapi_config::OkapiConfig;
 pub use okapi_config::{
     OkapiModelDetails, OkapiModelEntry, OkapiTagsResponse, list_okapi_models, search_okapi_models,

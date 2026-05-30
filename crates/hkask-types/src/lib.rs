@@ -43,7 +43,8 @@ pub use capability::*;
 pub use cns::*;
 pub use curation::*;
 pub use error::{
-    ArchivalResult, AuthorizationError, GitArchivalError, GitError, HkaskError, McpErrorKind,
+    ArchivalResult, AuthorizationError, GitArchivalError, GitError, HkaskError,
+    InfrastructureError, McpErrorKind,
 };
 pub use event::*;
 pub use goal::*;

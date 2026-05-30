@@ -2485,6 +2485,7 @@ dependencies = [
  "chrono",
  "gix",
  "hex",
+ "hkask-cns",
  "hkask-keystore",
  "hkask-types",
  "parking_lot",

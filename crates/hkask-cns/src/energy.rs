@@ -15,10 +15,12 @@
 //! - Every registry write → energy cost
 //! - Default cost: 1 energy unit per 4 tokens (configurable)
 
+use hkask_types::event::{Phase, Span};
 use serde::{Deserialize, Serialize};
+use serde_json;
 
 /// Energy budget allocation
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct EnergyBudget {
     /// Maximum token budget
     pub cap: u64,
@@ -30,6 +32,9 @@ pub struct EnergyBudget {
     pub alert_threshold: f64,
     /// Hard limit enforcement
     pub hard_limit: bool,
+    /// Optional span emitter for CNS regulation events
+    #[serde(skip)]
+    pub span_emitter: Option<crate::spans::SpanEmitter>,
 }
 
 impl EnergyBudget {
@@ -40,6 +45,7 @@ impl EnergyBudget {
             cost_per_token: 0.25,
             alert_threshold: 0.8,
             hard_limit: true,
+            span_emitter: None,
         }
     }
 
@@ -55,6 +61,12 @@ impl EnergyBudget {
 
     pub fn with_hard_limit(mut self, hard: bool) -> Self {
         self.hard_limit = hard;
+        self
+    }
+
+    /// Attach a span emitter for CNS regulation events
+    pub fn with_span_emitter(mut self, emitter: crate::spans::SpanEmitter) -> Self {
+        self.span_emitter = Some(emitter);
         self
     }
 
@@ -101,13 +113,46 @@ impl EnergyBudget {
         estimated_tokens: u64,
     ) -> Result<u64, EnergyError> {
         let cost = self.calculate_cost(estimated_tokens);
-        if self.hard_limit && cost > self.remaining {
+        let allowed = !(self.hard_limit && cost > self.remaining);
+
+        if !allowed {
+            // Emit Regulate-phase span recording denied consumption
+            if let Some(emitter) = &self.span_emitter {
+                emitter.emit_with_phase(
+                    Span::Energy("regulate.consume".to_string()),
+                    Phase::Regulate,
+                    serde_json::json!({
+                        "operation": operation,
+                        "allowed": false,
+                        "reason": "budget_exceeded",
+                        "requested_cost": cost,
+                        "remaining": self.remaining,
+                    }),
+                );
+            }
             return Err(EnergyError::BudgetExceeded {
                 requested: cost,
                 remaining: self.remaining,
             });
         }
+
         self.remaining = self.remaining.saturating_sub(cost);
+
+        // Emit Regulate-phase span recording allowed consumption
+        if let Some(emitter) = &self.span_emitter {
+            emitter.emit_with_phase(
+                Span::Energy("regulate.consume".to_string()),
+                Phase::Regulate,
+                serde_json::json!({
+                    "operation": operation,
+                    "allowed": true,
+                    "reason": "within_budget",
+                    "cost": cost,
+                    "remaining": self.remaining,
+                }),
+            );
+        }
+
         tracing::debug!(
             target: "cns.energy.consume",
             operation = %operation,
@@ -128,6 +173,32 @@ impl EnergyBudget {
     /// Get usage ratio (0.0-1.0)
     pub fn usage_ratio(&self) -> f64 {
         1.0 - (self.remaining as f64 / self.cap as f64)
+    }
+}
+
+impl std::fmt::Debug for EnergyBudget {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EnergyBudget")
+            .field("cap", &self.cap)
+            .field("remaining", &self.remaining)
+            .field("cost_per_token", &self.cost_per_token)
+            .field("alert_threshold", &self.alert_threshold)
+            .field("hard_limit", &self.hard_limit)
+            .field("span_emitter", &self.span_emitter.as_ref().map(|_| ".."))
+            .finish()
+    }
+}
+
+impl Clone for EnergyBudget {
+    fn clone(&self) -> Self {
+        Self {
+            cap: self.cap,
+            remaining: self.remaining,
+            cost_per_token: self.cost_per_token,
+            alert_threshold: self.alert_threshold,
+            hard_limit: self.hard_limit,
+            span_emitter: None, // SpanEmitter is not Clone; clone without emitter
+        }
     }
 }
 

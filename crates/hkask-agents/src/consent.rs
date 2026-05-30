@@ -26,8 +26,8 @@ pub enum ConsentError {
     #[error("Invalid data category: {0}")]
     InvalidCategory(String),
 
-    #[error("Lock poisoned: {0}")]
-    LockPoisoned(String),
+    #[error(transparent)]
+    Infra(#[from] hkask_types::InfrastructureError),
 }
 
 /// Consent record
@@ -132,7 +132,7 @@ impl ConsentManager {
         let cache = self
             .consent_cache
             .read()
-            .map_err(|e| ConsentError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| ConsentError::Infra(hkask_types::InfrastructureError::LockPoisoned))?;
 
         Ok(cache
             .iter()
@@ -146,7 +146,7 @@ impl ConsentManager {
         let cache = self
             .consent_cache
             .read()
-            .map_err(|e| ConsentError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| ConsentError::Infra(hkask_types::InfrastructureError::LockPoisoned))?;
 
         Ok(cache
             .iter()
@@ -160,7 +160,7 @@ impl ConsentManager {
         let cache = self
             .consent_cache
             .read()
-            .map_err(|e| ConsentError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| ConsentError::Infra(hkask_types::InfrastructureError::LockPoisoned))?;
 
         Ok(cache
             .iter()
@@ -174,7 +174,7 @@ impl ConsentManager {
         let mut cache = self
             .consent_cache
             .write()
-            .map_err(|e| ConsentError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| ConsentError::Infra(hkask_types::InfrastructureError::LockPoisoned))?;
         cache.clear();
         info!("Cleared all consent records");
         Ok(())

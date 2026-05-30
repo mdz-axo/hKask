@@ -1,18 +1,22 @@
 //! Embedding storage with vector similarity search via sqlite-vec
 
-use hkask_types::TripleID;
+use hkask_types::{InfrastructureError, TripleID};
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum EmbeddingError {
-    #[error("Database error: {0}")]
-    Database(#[from] rusqlite::Error),
+    #[error(transparent)]
+    Infra(#[from] InfrastructureError),
     #[error("Dimension mismatch: expected {expected}, got {got}")]
     DimensionMismatch { expected: usize, got: usize },
-    #[error("Lock poisoned: {0}")]
-    LockPoisoned(String),
+}
+
+impl From<rusqlite::Error> for EmbeddingError {
+    fn from(e: rusqlite::Error) -> Self {
+        EmbeddingError::Infra(InfrastructureError::Database(e.to_string()))
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -65,7 +69,7 @@ impl EmbeddingStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| EmbeddingError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let vector_bytes = Self::vector_to_bytes(&embedding.vector);
         let entity_ref = embedding.entity_ref.map(|e| e.0.to_string());
 
@@ -97,7 +101,7 @@ impl EmbeddingStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| EmbeddingError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let query_bytes = Self::vector_to_bytes(query);
 
         let mut stmt = conn.prepare(
@@ -133,7 +137,7 @@ impl EmbeddingStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| EmbeddingError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let query_bytes = Self::vector_to_bytes(query);
 
         let mut stmt = conn.prepare(
@@ -179,7 +183,7 @@ impl EmbeddingStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| EmbeddingError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         conn.execute(
             "DELETE FROM embeddings WHERE id = ?1",
             rusqlite::params![id],

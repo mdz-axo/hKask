@@ -8,6 +8,7 @@
 //!
 //! The Curator is ideological — it builds on logical ideas.
 
+use crate::memory_feedback::MemoryFeedbackAdapter;
 use hkask_types::{
     AlgedonicAlert, CnsSpan, CurationDecision, CurationRecord, CuratorId, OCAPBoundary,
     TemplateInvocation, TemplateOutcome, UserSovereigntyState, VarietyCounter,
@@ -77,6 +78,7 @@ pub struct CuratorPipeline {
     ocap_boundaries: Arc<Mutex<Vec<OCAPBoundary>>>,
     sovereignty: Arc<Mutex<UserSovereigntyState>>,
     capability_checker: Option<Arc<hkask_types::CapabilityChecker>>,
+    memory_feedback: Option<Arc<Mutex<MemoryFeedbackAdapter>>>,
 }
 
 impl CuratorPipeline {
@@ -89,11 +91,18 @@ impl CuratorPipeline {
             ocap_boundaries: Arc::new(Mutex::new(Vec::new())),
             sovereignty: Arc::new(Mutex::new(UserSovereigntyState::new())),
             capability_checker: None,
+            memory_feedback: None,
         }
     }
 
     pub fn with_capability_checker(mut self, checker: Arc<hkask_types::CapabilityChecker>) -> Self {
         self.capability_checker = Some(checker);
+        self
+    }
+
+    /// Attach a memory feedback adapter to close the relevance loop
+    pub fn with_memory_feedback(mut self, feedback: Arc<Mutex<MemoryFeedbackAdapter>>) -> Self {
+        self.memory_feedback = Some(feedback);
         self
     }
 
@@ -164,6 +173,24 @@ impl CuratorPipeline {
                 "{} [ALGEDONIC ALERT: variety deficit > 100]",
                 rationale
             ));
+        }
+
+        // Record memory feedback relevance for this template invocation
+        if let Some(ref feedback) = self.memory_feedback {
+            let template_id = invocation.template_id.to_string();
+            let recall_count = invocation.outputs.len();
+            // Derive a confidence proxy from the variety impact:
+            // positive impact → confidence > 1, negative → < 1, zero → neutral.
+            let avg_confidence = if variety_impact == 0 {
+                1.0
+            } else {
+                1.0 + (variety_impact as f64 / 100.0)
+            };
+            feedback
+                .lock()
+                .await
+                .record_relevance(&template_id, recall_count, avg_confidence, &template_id)
+                .await;
         }
 
         result

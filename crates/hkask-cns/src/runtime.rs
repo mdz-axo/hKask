@@ -11,17 +11,24 @@ use crate::algedonic::{
 };
 use crate::observers::sovereignty::SovereigntyObserver;
 use crate::variety::{VarietyMonitor, VarietyTracker};
+use hkask_types::InfrastructureError;
 use std::sync::Arc;
 use std::sync::RwLock as StdRwLock;
 use thiserror::Error;
 use tokio::sync::RwLock;
 use tracing::{info, warn};
 
+/// A subscriber to algedonic alerts — an opaque callback.
+pub type AlertSubscriber = Arc<dyn Fn(&RuntimeAlert) + Send + Sync>;
+
+/// The list of alert subscribers, keyed by unique ID.
+type AlertSubscriberList = Vec<(u64, AlertSubscriber)>;
+
 /// CNS runtime errors
 #[derive(Debug, Error)]
 pub enum CnsError {
-    #[error("Lock poisoned: {0}")]
-    LockPoisoned(String),
+    #[error(transparent)]
+    Infra(#[from] hkask_types::InfrastructureError),
 }
 
 /// Result alias for CNS operations
@@ -40,7 +47,7 @@ struct CnsState {
     ///
     /// Uses std::sync::Mutex (not tokio) so subscribers can be
     /// unregistered from any thread, including Drop implementations.
-    subscribers: std::sync::Mutex<Vec<(u64, Arc<dyn Fn(&RuntimeAlert) + Send + Sync>)>>,
+    subscribers: std::sync::Mutex<AlertSubscriberList>,
     next_subscriber_id: std::sync::atomic::AtomicU64,
 }
 
@@ -85,7 +92,7 @@ impl CnsRuntime {
     ) -> CnsResult<std::sync::RwLockReadGuard<'_, AlgedonicManager>> {
         algedonic
             .read()
-            .map_err(|e| CnsError::LockPoisoned(e.to_string()))
+            .map_err(|_| InfrastructureError::LockPoisoned.into())
     }
 
     /// Write-lock the algedonic manager, propagating poison errors
@@ -94,7 +101,7 @@ impl CnsRuntime {
     ) -> CnsResult<std::sync::RwLockWriteGuard<'_, AlgedonicManager>> {
         algedonic
             .write()
-            .map_err(|e| CnsError::LockPoisoned(e.to_string()))
+            .map_err(|_| InfrastructureError::LockPoisoned.into())
     }
 
     /// Get CNS health status
@@ -196,16 +203,15 @@ impl CnsRuntime {
         if let Some(ref alert) = alert
             && alert.is_critical()
         {
-            let subs: Vec<Arc<dyn Fn(&RuntimeAlert) + Send + Sync>> = {
+            let mut subs: Vec<AlertSubscriber> = Vec::new();
+            {
                 let state = self.state.read().await;
-                state
-                    .subscribers
-                    .lock()
-                    .expect("subscriber lock should not be poisoned")
-                    .iter()
-                    .map(|(_, f)| f.clone())
-                    .collect()
-            };
+                if let Ok(locked) = state.subscribers.lock() {
+                    for (_, f) in locked.iter() {
+                        subs.push(f.clone());
+                    }
+                }
+            }
             for subscriber in &subs {
                 subscriber(alert);
             }
@@ -334,10 +340,10 @@ pub struct AlertSubscription {
 
 impl Drop for AlertSubscription {
     fn drop(&mut self) {
-        if let Ok(state) = self.state.try_read() {
-            if let Ok(mut subs) = state.subscribers.lock() {
-                subs.retain(|(sid, _)| *sid != self.id);
-            }
+        if let Ok(state) = self.state.try_read()
+            && let Ok(mut subs) = state.subscribers.lock()
+        {
+            subs.retain(|(sid, _)| *sid != self.id);
         }
     }
 }

@@ -1,22 +1,31 @@
 //! AgentRegistryStore — Persistent storage for registered agents
 
-use hkask_types::{AgentDefinition, AgentKind, RegisteredAgent};
+use hkask_types::{AgentDefinition, AgentKind, InfrastructureError, RegisteredAgent};
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum AgentRegistryError {
-    #[error("Database error: {0}")]
-    Database(#[from] rusqlite::Error),
-    #[error("Serialization error: {0}")]
-    Serialization(#[from] serde_json::Error),
+    #[error(transparent)]
+    Infra(#[from] InfrastructureError),
+
     #[error("Agent not found: {0}")]
     NotFound(String),
     #[error("Agent already registered: {0}")]
     AlreadyRegistered(String),
-    #[error("Lock poisoned: {0}")]
-    LockPoisoned(String),
+}
+
+impl From<rusqlite::Error> for AgentRegistryError {
+    fn from(e: rusqlite::Error) -> Self {
+        AgentRegistryError::Infra(InfrastructureError::Database(e.to_string()))
+    }
+}
+
+impl From<serde_json::Error> for AgentRegistryError {
+    fn from(e: serde_json::Error) -> Self {
+        InfrastructureError::from(e).into()
+    }
 }
 
 #[derive(Clone)]
@@ -33,7 +42,7 @@ impl AgentRegistryStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| AgentRegistryError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS agent_registry (
                 name TEXT PRIMARY KEY,
@@ -52,7 +61,7 @@ impl AgentRegistryStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| AgentRegistryError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let definition_json = serde_json::to_string(&agent.definition)?;
 
         conn.execute(
@@ -74,7 +83,7 @@ impl AgentRegistryStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| AgentRegistryError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let mut stmt = conn.prepare(
             "SELECT definition_json, token_hash, registered_at, source_yaml
              FROM agent_registry WHERE name = ?1",
@@ -103,7 +112,7 @@ impl AgentRegistryStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| AgentRegistryError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let mut stmt = conn.prepare(
             "SELECT definition_json, token_hash, registered_at, source_yaml
              FROM agent_registry ORDER BY name",
@@ -139,7 +148,7 @@ impl AgentRegistryStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| AgentRegistryError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let mut stmt = conn.prepare(
             "SELECT definition_json, token_hash, registered_at, source_yaml
              FROM agent_registry WHERE agent_kind = ?1 ORDER BY name",
@@ -172,7 +181,7 @@ impl AgentRegistryStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| AgentRegistryError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let count: i64 = conn.query_row(
             "SELECT COUNT(*) FROM agent_registry WHERE name = ?1",
             rusqlite::params![name],
@@ -185,7 +194,7 @@ impl AgentRegistryStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| AgentRegistryError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let deleted = conn.execute(
             "DELETE FROM agent_registry WHERE name = ?1",
             rusqlite::params![name],
@@ -200,7 +209,7 @@ impl AgentRegistryStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| AgentRegistryError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let count: i64 =
             conn.query_row("SELECT COUNT(*) FROM agent_registry", [], |row| row.get(0))?;
         Ok(count as usize)

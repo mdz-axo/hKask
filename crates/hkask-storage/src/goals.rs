@@ -4,6 +4,7 @@
 //! Long-term retention lives in agent memory (episodic/semantic).
 
 use chrono::Utc;
+use hkask_types::InfrastructureError;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span};
 use hkask_types::goal::{Goal, GoalArtifact, GoalCriterion, GoalID, GoalState};
 use hkask_types::goal_capability::{GoalAccess, GoalCapabilityToken, GoalOp};
@@ -16,8 +17,8 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum GoalRepositoryError {
-    #[error("Database error: {0}")]
-    Database(#[from] rusqlite::Error),
+    #[error(transparent)]
+    Infra(#[from] InfrastructureError),
 
     #[error("Capability denied: {0}")]
     CapabilityDenied(String),
@@ -34,11 +35,14 @@ pub enum GoalRepositoryError {
     #[error("Subgoal depth exceeded: {0}")]
     MaxDepthExceeded(String),
 
-    #[error("Lock poisoned: {0}")]
-    LockPoisoned(String),
-
     #[error("Corrupt persisted goal data: {0}")]
     Corrupt(String),
+}
+
+impl From<rusqlite::Error> for GoalRepositoryError {
+    fn from(e: rusqlite::Error) -> Self {
+        GoalRepositoryError::Infra(InfrastructureError::Database(e.to_string()))
+    }
 }
 
 pub type Result<T> = std::result::Result<T, GoalRepositoryError>;
@@ -168,7 +172,7 @@ impl SqliteGoalRepository {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| GoalRepositoryError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let mut stmt = conn.prepare("SELECT id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth FROM goals WHERE id = ?1")?;
         let mut rows = stmt.query([goal_id.to_string()])?;
         match rows.next()? {
@@ -267,7 +271,7 @@ impl SqliteGoalRepository {
         // Persist created_at explicitly in RFC3339 so it round-trips through
         // the strict reader. The SQLite `datetime('now')` default produces a
         // non-RFC3339 string that the reader (correctly) rejects as corrupt.
-        self.conn.lock().map_err(|e| GoalRepositoryError::LockPoisoned(e.to_string()))?.execute(
+        self.conn.lock().map_err(|_| InfrastructureError::LockPoisoned)?.execute(
             "INSERT INTO goals (id, webid, text, state, visibility, depth, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             (goal.id.to_string(), goal.webid.to_string(), goal.text.clone(), goal.state.as_str(), goal.visibility.as_str(), goal.depth as i32, goal.created_at.to_rfc3339()),
         )?;
@@ -282,7 +286,7 @@ impl SqliteGoalRepository {
             let conn = self
                 .conn
                 .lock()
-                .map_err(|e| GoalRepositoryError::LockPoisoned(e.to_string()))?;
+                .map_err(|_| InfrastructureError::LockPoisoned)?;
             let mut stmt = conn.prepare("SELECT id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth FROM goals WHERE id = ?1")?;
             let mut rows = stmt.query([goal_id.to_string()])?;
 
@@ -330,7 +334,7 @@ impl SqliteGoalRepository {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| GoalRepositoryError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         if let Some(completed) = completed_at {
             conn.execute(
                 "UPDATE goals SET state = ?1, completed_at = ?2 WHERE id = ?3",
@@ -359,7 +363,7 @@ impl SqliteGoalRepository {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| GoalRepositoryError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         match state_filter {
             Some(state) => {
                 let mut stmt = conn.prepare("SELECT id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth FROM goals WHERE webid = ?1 AND state = ?2 ORDER BY created_at DESC")?;
@@ -411,7 +415,7 @@ impl SqliteGoalRepository {
         let goal = self.load_goal(goal_id)?;
         self.check_write_access(&goal, &token.holder_webid)?;
 
-        self.conn.lock().map_err(|e| GoalRepositoryError::LockPoisoned(e.to_string()))?.execute(
+        self.conn.lock().map_err(|_| InfrastructureError::LockPoisoned)?.execute(
             "INSERT INTO goal_criteria (id, goal_id, type, description, satisfied) VALUES (?1, ?2, ?3, ?4, ?5)",
             (criterion.id, criterion.goal_id.to_string(), criterion.criterion_type, criterion.description, criterion.satisfied as i32),
         )?;
@@ -435,7 +439,7 @@ impl SqliteGoalRepository {
         let goal = self.load_goal(goal_id)?;
         self.check_write_access(&goal, &token.holder_webid)?;
 
-        self.conn.lock().map_err(|e| GoalRepositoryError::LockPoisoned(e.to_string()))?.execute(
+        self.conn.lock().map_err(|_| InfrastructureError::LockPoisoned)?.execute(
             "INSERT INTO goal_artifacts (id, goal_id, artifact_ref, artifact_type, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
             (artifact.id, artifact.goal_id.to_string(), artifact.artifact_ref, artifact.artifact_type, artifact.created_at.to_rfc3339()),
         )?;
@@ -452,7 +456,7 @@ impl SqliteGoalRepository {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| GoalRepositoryError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let mut stmt = conn.prepare("SELECT id, goal_id, type, description, satisfied FROM goal_criteria WHERE goal_id = ?1")?;
         let rows = stmt.query_map([goal_id.to_string()], |row| {
             Ok(GoalCriterion {
@@ -482,7 +486,7 @@ impl SqliteGoalRepository {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| GoalRepositoryError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let mut stmt = conn.prepare("SELECT id, goal_id, artifact_ref, artifact_type, created_at FROM goal_artifacts WHERE goal_id = ?1")?;
         let rows = stmt.query_map([goal_id.to_string()], |row| {
             Ok(GoalArtifact {
@@ -542,7 +546,7 @@ impl SqliteGoalRepository {
 
         let subgoal = Goal::new(*webid, text, visibility).with_parent(parent_id, parent.depth);
 
-        self.conn.lock().map_err(|e| GoalRepositoryError::LockPoisoned(e.to_string()))?.execute(
+        self.conn.lock().map_err(|_| InfrastructureError::LockPoisoned)?.execute(
             "INSERT INTO goals (id, webid, text, state, visibility, parent_goal_id, depth, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             (subgoal.id.to_string(), subgoal.webid.to_string(), subgoal.text.clone(), subgoal.state.as_str(), subgoal.visibility.as_str(), parent_id.to_string(), subgoal.depth as i32, subgoal.created_at.to_rfc3339()),
         )?;
@@ -560,7 +564,7 @@ impl SqliteGoalRepository {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| GoalRepositoryError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let mut stmt = conn.prepare("SELECT id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth FROM goals WHERE parent_goal_id = ?1 ORDER BY created_at ASC")?;
         let rows = stmt.query_map([parent_id.to_string()], Self::goal_from_row)?;
 
@@ -586,7 +590,7 @@ impl SqliteGoalRepository {
 
         self.conn
             .lock()
-            .map_err(|e| GoalRepositoryError::LockPoisoned(e.to_string()))?
+            .map_err(|_| InfrastructureError::LockPoisoned)?
             .execute("DELETE FROM goals WHERE id = ?1", [goal_id.to_string()])?;
         Ok(())
     }

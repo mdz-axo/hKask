@@ -5,6 +5,7 @@
 //! with conversion methods to/from the canonical `hkask_types::AuditEntry`.
 
 use chrono::{DateTime, Utc};
+use hkask_types::InfrastructureError;
 use rusqlite::Connection;
 use serde_json::Value;
 use std::sync::{Arc, Mutex};
@@ -13,12 +14,14 @@ use uuid::Uuid;
 
 #[derive(Error, Debug)]
 pub enum AuditLogError {
-    #[error("Database error: {0}")]
-    Database(#[from] rusqlite::Error),
-    #[error("Serialization error: {0}")]
-    Serialization(#[from] serde_json::Error),
-    #[error("Lock poisoned: {0}")]
-    LockPoisoned(String),
+    #[error(transparent)]
+    Infra(#[from] InfrastructureError),
+}
+
+impl From<rusqlite::Error> for AuditLogError {
+    fn from(e: rusqlite::Error) -> Self {
+        AuditLogError::Infra(InfrastructureError::Database(e.to_string()))
+    }
 }
 
 /// Storage-layer audit entry optimized for SQL serialization
@@ -124,7 +127,7 @@ impl AuditLogStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| AuditLogError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         conn.execute(
             "INSERT INTO audit_log (id, timestamp, actor_webid, action, resource, outcome, details, ip_address)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
@@ -146,7 +149,7 @@ impl AuditLogStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| AuditLogError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let mut stmt = conn.prepare(
             "SELECT id, timestamp, actor_webid, action, resource, outcome, details, ip_address
              FROM audit_log
@@ -182,7 +185,7 @@ impl AuditLogStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| AuditLogError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let mut stmt = conn.prepare(
             "SELECT id, timestamp, actor_webid, action, resource, outcome, details, ip_address
              FROM audit_log
@@ -215,7 +218,7 @@ impl AuditLogStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| AuditLogError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let deleted = conn.execute(
             "DELETE FROM audit_log WHERE id NOT IN (SELECT id FROM audit_log ORDER BY timestamp DESC LIMIT ?1)",
             rusqlite::params![keep as i64],
@@ -227,7 +230,7 @@ impl AuditLogStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| AuditLogError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let count: i64 = conn.query_row("SELECT COUNT(*) FROM audit_log", [], |row| row.get(0))?;
         Ok(count as usize)
     }

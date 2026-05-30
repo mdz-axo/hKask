@@ -107,6 +107,27 @@ pub struct SpanEmitter {
     sink: Option<Box<dyn NuEventSink>>,
 }
 
+impl std::fmt::Debug for SpanEmitter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SpanEmitter")
+            .field("observer_webid", &self.observer_webid)
+            .field("sink", &self.sink.as_ref().map(|_| "NuEventSink"))
+            .finish()
+    }
+}
+
+impl Clone for SpanEmitter {
+    fn clone(&self) -> Self {
+        // Sinks are not cloneable (trait object), so the clone drops the sink.
+        // This is intentional — sinks are optional and the clone preserves
+        // the observer identity for span emission.
+        Self {
+            observer_webid: self.observer_webid,
+            sink: None,
+        }
+    }
+}
+
 impl Default for SpanEmitter {
     fn default() -> Self {
         Self {

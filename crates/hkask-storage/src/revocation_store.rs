@@ -14,6 +14,7 @@
 //! );
 //! ```
 
+use hkask_types::InfrastructureError;
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
@@ -21,10 +22,14 @@ use thiserror::Error;
 /// Revocation store errors
 #[derive(Debug, Error)]
 pub enum RevocationError {
-    #[error("Database error: {0}")]
-    Database(#[from] rusqlite::Error),
-    #[error("Lock poisoned: {0}")]
-    LockPoisoned(String),
+    #[error(transparent)]
+    Infra(#[from] InfrastructureError),
+}
+
+impl From<rusqlite::Error> for RevocationError {
+    fn from(e: rusqlite::Error) -> Self {
+        RevocationError::Infra(InfrastructureError::Database(e.to_string()))
+    }
 }
 
 /// A persisted revocation record
@@ -62,7 +67,7 @@ impl RevocationStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| RevocationError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS revocations (
                 id TEXT PRIMARY KEY,
@@ -88,7 +93,7 @@ impl RevocationStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| RevocationError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
 
         // Check if already revoked
         let already_revoked: bool = conn
@@ -116,7 +121,7 @@ impl RevocationStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| RevocationError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let count: i64 = conn.query_row(
             "SELECT COUNT(*) FROM revocations WHERE id = ?1",
             rusqlite::params![id],
@@ -132,7 +137,7 @@ impl RevocationStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| RevocationError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let deleted = conn.execute(
             "DELETE FROM revocations WHERE id = ?1",
             rusqlite::params![id],
@@ -145,7 +150,7 @@ impl RevocationStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| RevocationError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let mut stmt = conn.prepare(
             "SELECT id, revoked_at, reason, revoked_by FROM revocations ORDER BY revoked_at DESC",
         )?;
@@ -170,7 +175,7 @@ impl RevocationStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| RevocationError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let count: i64 =
             conn.query_row("SELECT COUNT(*) FROM revocations", [], |row| row.get(0))?;
         Ok(count as usize)
@@ -181,7 +186,7 @@ impl RevocationStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| RevocationError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let mut stmt = conn
             .prepare("SELECT id, revoked_at, reason, revoked_by FROM revocations WHERE id = ?1")?;
 

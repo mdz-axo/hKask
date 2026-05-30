@@ -1,5 +1,6 @@
 //! MetacognitionStore — Persistent storage for metacognition snapshots
 
+use hkask_types::InfrastructureError;
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
@@ -7,14 +8,17 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum MetacognitionError {
-    #[error("Database error: {0}")]
-    Database(#[from] rusqlite::Error),
-    #[error("Serialization error: {0}")]
-    Serialization(#[from] serde_json::Error),
+    #[error(transparent)]
+    Infra(#[from] InfrastructureError),
+
     #[error("Snapshot not found: {0}")]
     NotFound(i64),
-    #[error("Lock poisoned: {0}")]
-    LockPoisoned(String),
+}
+
+impl From<rusqlite::Error> for MetacognitionError {
+    fn from(e: rusqlite::Error) -> Self {
+        MetacognitionError::Infra(InfrastructureError::Database(e.to_string()))
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,7 +46,7 @@ impl MetacognitionStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| MetacognitionError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS metacognition_snapshots (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -62,7 +66,7 @@ impl MetacognitionStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| MetacognitionError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         conn.execute(
             "INSERT INTO metacognition_snapshots (timestamp, cns_health, critical_alerts, total_alerts, variety_counters_json, bot_reports_json)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
@@ -82,7 +86,7 @@ impl MetacognitionStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| MetacognitionError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let mut stmt = conn.prepare(
             "SELECT id, timestamp, cns_health, critical_alerts, total_alerts, variety_counters_json, bot_reports_json
              FROM metacognition_snapshots WHERE id = ?1",
@@ -117,7 +121,7 @@ impl MetacognitionStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| MetacognitionError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let mut stmt = conn.prepare(
             "SELECT id, timestamp, cns_health, critical_alerts, total_alerts, variety_counters_json, bot_reports_json
              FROM metacognition_snapshots ORDER BY timestamp DESC LIMIT ?1",
@@ -154,7 +158,7 @@ impl MetacognitionStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| MetacognitionError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let cutoff = chrono::Utc::now() - chrono::Duration::days(days_to_keep);
         let deleted = conn.execute(
             "DELETE FROM metacognition_snapshots WHERE timestamp < ?1",

@@ -128,8 +128,8 @@ pub enum AcpError {
     #[error("{0}")]
     LegacyError(String),
 
-    #[error("Lock poisoned: {0}")]
-    LockPoisoned(String),
+    #[error(transparent)]
+    Infra(#[from] hkask_types::InfrastructureError),
 }
 
 impl From<String> for AcpError {
@@ -292,7 +292,7 @@ impl AcpRuntime {
         *self
             .cns_emitter
             .write()
-            .map_err(|e| AcpError::LockPoisoned(e.to_string()))? = Some(emitter);
+            .map_err(|_| AcpError::Infra(hkask_types::InfrastructureError::LockPoisoned))? = Some(emitter);
         Ok(self)
     }
 

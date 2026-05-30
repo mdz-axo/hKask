@@ -1,12 +1,73 @@
 //! Error types for hKask operations
 //!
-//! Domain-specific error types with recovery semantics.
-//! Includes the canonical `McpErrorKind` taxonomy for MCP tool dispatch
-//! classification — every MCP error variant maps to a kind so the dispatch
-//! layer can reason about failures without parsing message strings.
+//! Layered error architecture (Miller separation):
+//! 1. `InfrastructureError` — cross-cutting transport errors (Database, Serialization,
+//!    LockPoisoned, Io). No domain semantics. Passes through crate boundaries.
+//! 2. `HkaskError` — the legacy consolidation type; delegates to `InfrastructureError`
+//!    for generic categories and adds domain-neutral variants.
+//! 3. Domain enums (e.g. `GoalRepositoryError`, `EmbeddingError`) — compose from
+//!    `InfrastructureError` via `#[from]` and add only authority-bearing,
+//!    recovery-path-significant variants.
+//!
+//! Rule: if a variant name appears in 3+ crates with identical semantics, it
+//! belongs in `InfrastructureError`. If it carries domain-specific recovery
+//! semantics, it stays in the domain enum.
 
 use serde::{Deserialize, Serialize};
+use std::sync::PoisonError;
 use thiserror::Error;
+
+// =============================================================================
+// InfrastructureError — Cross-Crate Foundation
+// =============================================================================
+
+/// Generic infrastructure errors shared by every crate.
+///
+/// These are transport-layer failures — they carry no domain semantics.
+/// Every domain enum may compose from this via `#[from]` to eliminate
+/// the 87× repetition of `Database(String)` / `Serialization(String)` /
+/// `LockPoisoned(String)` spread across the codebase.
+///
+/// Design constraint (C5): every variant is a distinct recovery category —
+/// no catch-all, no `Other(String)`, no `Internal(String)`.
+#[derive(Debug, Error, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum InfrastructureError {
+    #[error("database: {0}")]
+    Database(String),
+
+    #[error("serialization: {0}")]
+    Serialization(String),
+
+    #[error("lock poisoned")]
+    LockPoisoned,
+
+    #[error("not found: {0}")]
+    NotFound(String),
+
+    #[error("io: {0}")]
+    Io(String),
+}
+
+// From impls for the canonical error sources.
+// Note: no From<rusqlite::Error> here — hkask-types does not depend on rusqlite.
+// Downstream crates should wrap rusqlite errors into InfrastructureError::Database(String).
+impl From<serde_json::Error> for InfrastructureError {
+    fn from(e: serde_json::Error) -> Self {
+        InfrastructureError::Serialization(e.to_string())
+    }
+}
+
+impl From<std::io::Error> for InfrastructureError {
+    fn from(e: std::io::Error) -> Self {
+        InfrastructureError::Io(e.to_string())
+    }
+}
+
+impl<T> From<PoisonError<T>> for InfrastructureError {
+    fn from(_: PoisonError<T>) -> Self {
+        InfrastructureError::LockPoisoned
+    }
+}
 
 // =============================================================================
 // McpErrorKind — Canonical MCP Error Taxonomy
@@ -165,72 +226,67 @@ pub enum AuthorizationError {
 // HkaskError — Unified Error Hierarchy
 // =============================================================================
 
-/// Core error types shared across hKask crates
+/// Core error types shared across hKask crates.
 ///
-/// This consolidates the 50+ duplicate error variants found across the codebase:
-/// - Storage/Database errors (8+ duplicates)
-/// - NotFound errors (12+ duplicates)
-/// - RateLimitExceeded (5+ duplicates)
-/// - CapabilityDenied (4+ duplicates)
-/// - Serialization errors (5+ duplicates)
-///
-/// Crate-specific errors should wrap this via `#[from]` or `#[error(transparent)]`.
+/// Infrastructure failures (Database, Serialization, LockPoisoned, I/O, NotFound)
+/// are delegated to [`InfrastructureError`] via `#[from]`. Domain enums should
+/// prefer composing from `InfrastructureError` directly; `HkaskError` remains
+/// for code that needs a single flat type with domain-neutral categories.
 #[derive(Debug, Error, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum HkaskError {
-    // Storage & Database (consolidates 14+ duplicate variants)
-    #[error("Storage error: {0}")]
-    Storage(String),
+    /// Infrastructure transport failure (Database, Serialization, etc.)
+    #[error(transparent)]
+    Infra(#[from] InfrastructureError),
 
-    #[error("Database error: {0}")]
-    Database(String),
-
-    // Resource lookup (consolidates 12+ duplicate variants)
-    #[error("Not found: {0}")]
-    NotFound(String),
-
-    // Rate limiting (consolidates 5+ duplicate variants)
-    #[error("Rate limit exceeded")]
+    #[error("rate limit exceeded")]
     RateLimitExceeded,
 
-    #[error("Rate limit exceeded. Retry after {retry_after} seconds")]
+    #[error("rate limit exceeded, retry after {retry_after}s")]
     RateLimitExceededWithRetry { retry_after: u64 },
 
-    // Authorization & capabilities (consolidates 7+ duplicate variants)
-    #[error("Capability denied: {0}")]
+    #[error("capability denied: {0}")]
     CapabilityDenied(String),
 
-    #[error("Invalid token: {0}")]
+    #[error("invalid token: {0}")]
     InvalidToken(String),
 
-    #[error("Permission denied: {0}")]
+    #[error("permission denied: {0}")]
     PermissionDenied(String),
 
-    // Serialization (consolidates 5+ duplicate variants)
-    #[error("Serialization error: {0}")]
-    Serialization(String),
-
-    #[error("Deserialization error: {0}")]
-    Deserialization(String),
-
-    // I/O and system (consolidates 6+ duplicate variants)
-    #[error("IO error: {0}")]
-    Io(String),
-
-    #[error("Network error: {0}")]
+    #[error("network: {0}")]
     Network(String),
 
-    #[error("Configuration error: {0}")]
+    #[error("configuration: {0}")]
     Config(String),
 
-    // Validation (consolidates 4+ duplicate variants)
-    #[error("Validation error: {0}")]
+    #[error("validation: {0}")]
     Validation(String),
 
-    #[error("Invalid input: {0}")]
+    #[error("invalid input: {0}")]
     InvalidInput(String),
 }
 
 impl HkaskError {
+    pub fn database(msg: impl Into<String>) -> Self {
+        InfrastructureError::Database(msg.into()).into()
+    }
+
+    pub fn serialization(msg: impl Into<String>) -> Self {
+        InfrastructureError::Serialization(msg.into()).into()
+    }
+
+    pub fn not_found(msg: impl Into<String>) -> Self {
+        InfrastructureError::NotFound(msg.into()).into()
+    }
+
+    pub fn io_error(msg: impl Into<String>) -> Self {
+        InfrastructureError::Io(msg.into()).into()
+    }
+
+    pub fn lock_poisoned() -> Self {
+        InfrastructureError::LockPoisoned.into()
+    }
+
     /// Check if error is retryable
     pub fn is_retryable(&self) -> bool {
         matches!(
@@ -250,16 +306,20 @@ impl HkaskError {
     /// Convert to McpErrorKind for MCP dispatch
     pub fn to_mcp_kind(&self) -> McpErrorKind {
         match self {
-            Self::Storage(_) | Self::Database(_) => McpErrorKind::Internal,
-            Self::NotFound(_) => McpErrorKind::NotFound,
+            Self::Infra(e) => match e {
+                InfrastructureError::Database(_) => McpErrorKind::Internal,
+                InfrastructureError::Serialization(_) => McpErrorKind::DataLoss,
+                InfrastructureError::LockPoisoned => McpErrorKind::Internal,
+                InfrastructureError::NotFound(_) => McpErrorKind::NotFound,
+                InfrastructureError::Io(_) => McpErrorKind::Unavailable,
+            },
             Self::RateLimitExceeded | Self::RateLimitExceededWithRetry { .. } => {
                 McpErrorKind::RateLimited
             }
             Self::CapabilityDenied(_) | Self::PermissionDenied(_) | Self::InvalidToken(_) => {
                 McpErrorKind::PermissionDenied
             }
-            Self::Serialization(_) | Self::Deserialization(_) => McpErrorKind::DataLoss,
-            Self::Io(_) | Self::Network(_) => McpErrorKind::Unavailable,
+            Self::Network(_) => McpErrorKind::Unavailable,
             Self::Config(_) | Self::Validation(_) | Self::InvalidInput(_) => {
                 McpErrorKind::InvalidArgument
             }
@@ -293,12 +353,12 @@ pub enum GitError {
 // Conversions from common error types
 impl From<std::io::Error> for HkaskError {
     fn from(err: std::io::Error) -> Self {
-        HkaskError::Io(err.to_string())
+        InfrastructureError::Io(err.to_string()).into()
     }
 }
 
 impl From<serde_json::Error> for HkaskError {
     fn from(err: serde_json::Error) -> Self {
-        HkaskError::Serialization(err.to_string())
+        InfrastructureError::Serialization(err.to_string()).into()
     }
 }

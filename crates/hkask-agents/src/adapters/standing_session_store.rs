@@ -19,11 +19,15 @@ impl StandingSessionStoreAdapter {
 
 impl StandingSessionPort for StandingSessionStoreAdapter {
     fn save_session(&self, session: &SessionRecord) -> Result<(), StandingSessionPortError> {
+        // Derive key_version from the store's current version.
+        let key_version = self.store.current_key_version().unwrap_or(1);
         let stored = hkask_storage::StoredSession {
             session_id: session.session_id.clone(),
             config_yaml: session.config_yaml.clone(),
             created_at: session.created_at.clone(),
             last_active: session.last_active.clone(),
+            key_version,
+            sealed: false,
         };
         self.store
             .save_session(&stored)

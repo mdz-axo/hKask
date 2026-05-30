@@ -1,7 +1,9 @@
 //! NuEventStore — Persistent storage for CNS ν-events
 
 use chrono::{DateTime, Utc};
-use hkask_types::{EventID, NuEvent, NuEventSink, NuEventSinkError, Phase, Span, WebID};
+use hkask_types::{
+    EventID, InfrastructureError, NuEvent, NuEventSink, NuEventSinkError, Phase, Span, WebID,
+};
 use rusqlite::Connection;
 use serde_json::Value;
 use std::sync::{Arc, Mutex};
@@ -10,12 +12,20 @@ use uuid::Uuid;
 
 #[derive(Error, Debug)]
 pub enum NuEventError {
-    #[error("Database error: {0}")]
-    Database(#[from] rusqlite::Error),
-    #[error("Serialization error: {0}")]
-    Serialization(#[from] serde_json::Error),
-    #[error("Lock poisoned: {0}")]
-    LockPoisoned(String),
+    #[error(transparent)]
+    Infra(#[from] InfrastructureError),
+}
+
+impl From<rusqlite::Error> for NuEventError {
+    fn from(e: rusqlite::Error) -> Self {
+        NuEventError::Infra(InfrastructureError::Database(e.to_string()))
+    }
+}
+
+impl From<serde_json::Error> for NuEventError {
+    fn from(e: serde_json::Error) -> Self {
+        InfrastructureError::from(e).into()
+    }
 }
 
 pub struct NuEventStore {
@@ -31,7 +41,7 @@ impl NuEventStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| NuEventError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let (span_category, span_path) = span_to_columns(&event.span);
 
         conn.execute(
@@ -63,7 +73,7 @@ impl NuEventStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| NuEventError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let mut stmt = conn.prepare(
             "SELECT id, timestamp, observer_webid, span_category, span_path, phase, observation, regulation, outcome, recursion_depth, parent_event, visibility
              FROM nu_events
@@ -104,7 +114,7 @@ impl NuEventStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| NuEventError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let mut stmt = conn.prepare(
             "SELECT id, timestamp, observer_webid, span_category, span_path, phase, observation, regulation, outcome, recursion_depth, parent_event, visibility
              FROM nu_events
@@ -144,7 +154,7 @@ impl NuEventStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| NuEventError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let mut stmt = conn.prepare(
             "SELECT id, timestamp, observer_webid, span_category, span_path, phase, observation, regulation, outcome, recursion_depth, parent_event, visibility
              FROM nu_events
@@ -180,7 +190,7 @@ impl NuEventStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| NuEventError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let deleted = conn.execute(
             "DELETE FROM nu_events WHERE timestamp < ?1",
             rusqlite::params![cutoff.to_rfc3339()],
@@ -192,7 +202,7 @@ impl NuEventStore {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| NuEventError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
         let count: i64 = conn.query_row("SELECT COUNT(*) FROM nu_events", [], |row| row.get(0))?;
         Ok(count as usize)
     }
@@ -291,9 +301,19 @@ struct NuEventRow {
 impl NuEventSink for NuEventStore {
     fn persist(&self, event: &NuEvent) -> Result<(), NuEventSinkError> {
         self.insert(event).map_err(|e| match e {
-            NuEventError::Database(msg) => NuEventSinkError::Database(msg.to_string()),
-            NuEventError::Serialization(msg) => NuEventSinkError::Serialization(msg.to_string()),
-            NuEventError::LockPoisoned(msg) => NuEventSinkError::Database(msg),
+            NuEventError::Infra(InfrastructureError::Database(msg)) => {
+                NuEventSinkError::Database(msg)
+            }
+            NuEventError::Infra(InfrastructureError::Serialization(msg)) => {
+                NuEventSinkError::Serialization(msg)
+            }
+            NuEventError::Infra(InfrastructureError::LockPoisoned) => {
+                NuEventSinkError::Database("lock poisoned".to_string())
+            }
+            NuEventError::Infra(InfrastructureError::NotFound(msg)) => {
+                NuEventSinkError::Database(msg)
+            }
+            NuEventError::Infra(InfrastructureError::Io(msg)) => NuEventSinkError::Database(msg),
         })
     }
 }

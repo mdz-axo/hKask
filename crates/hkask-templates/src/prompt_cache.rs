@@ -71,25 +71,22 @@ pub struct PromptCache {
 
 #[derive(Error, Debug)]
 pub enum CacheError {
-    #[error("Database error: {0}")]
-    Database(String),
+    #[error(transparent)]
+    Infra(#[from] hkask_types::InfrastructureError),
+
     #[error("Cache miss")]
     Miss,
-    #[error("Serialization error: {0}")]
-    Serialization(String),
-    #[error("Lock poisoned: {0}")]
-    LockPoisoned(String),
 }
 
 impl From<rusqlite::Error> for CacheError {
     fn from(e: rusqlite::Error) -> Self {
-        CacheError::Database(e.to_string())
+        hkask_types::InfrastructureError::Database(e.to_string()).into()
     }
 }
 
 impl From<serde_json::Error> for CacheError {
     fn from(e: serde_json::Error) -> Self {
-        CacheError::Serialization(e.to_string())
+        hkask_types::InfrastructureError::from(e).into()
     }
 }
 
@@ -111,7 +108,7 @@ impl PromptCache {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| CacheError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| CacheError::Infra(hkask_types::InfrastructureError::LockPoisoned))?;
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS prompt_cache (
                 key TEXT PRIMARY KEY,
@@ -171,7 +168,7 @@ impl PromptCache {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| CacheError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| CacheError::Infra(hkask_types::InfrastructureError::LockPoisoned))?;
         let mut stmt = conn.prepare(
             "SELECT result, size_bytes FROM prompt_cache WHERE key = ?1 AND expires_at > ?2",
         )?;
@@ -194,7 +191,7 @@ impl PromptCache {
                 debug!(target: "hkask.cache", key = %key, "Cache miss");
                 Err(CacheError::Miss)
             }
-            Err(e) => Err(CacheError::Database(e.to_string())),
+            Err(e) => Err(hkask_types::InfrastructureError::Database(e.to_string()).into()),
         }
     }
 
@@ -214,7 +211,7 @@ impl PromptCache {
 
         self.evict_if_needed(size_bytes)?;
 
-        self.conn.lock().map_err(|e| CacheError::LockPoisoned(e.to_string()))?.execute(
+        self.conn.lock().map_err(|_| CacheError::Infra(hkask_types::InfrastructureError::LockPoisoned))?.execute(
             "INSERT OR REPLACE INTO prompt_cache (key, prompt, model, result, created_at, expires_at, size_bytes, access_count, last_accessed)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0, ?8)",
             params![key, prompt, model, result_json, now, expires_at, size_bytes, now],
@@ -238,7 +235,7 @@ impl PromptCache {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| CacheError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| CacheError::Infra(hkask_types::InfrastructureError::LockPoisoned))?;
         let mut stmt = conn.prepare(
             "SELECT key, size_bytes FROM prompt_cache
              ORDER BY access_count ASC, last_accessed ASC
@@ -277,7 +274,7 @@ impl PromptCache {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| CacheError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| CacheError::Infra(hkask_types::InfrastructureError::LockPoisoned))?;
         let mut stmt =
             conn.prepare("SELECT size_bytes FROM prompt_cache WHERE expires_at <= ?1")?;
 
@@ -302,7 +299,7 @@ impl PromptCache {
         let conn = self
             .conn
             .lock()
-            .map_err(|e| CacheError::LockPoisoned(e.to_string()))?;
+            .map_err(|_| CacheError::Infra(hkask_types::InfrastructureError::LockPoisoned))?;
         let row = conn.query_row(
             "SELECT
                 COUNT(*) as count,

@@ -4,8 +4,9 @@
 //! Integrates with CNS for sovereignty event emission.
 
 use hkask_cns::spans::SpanEmitter;
+use hkask_types::event::Span;
 use hkask_types::{
-    DataCategory, SovereigntyCheckResult, SovereigntyOperation, SovereigntyPort,
+    DataCategory, Phase, SovereigntyCheckResult, SovereigntyOperation, SovereigntyPort,
     UserSovereigntyState, WebID,
 };
 use serde_json::Value;
@@ -70,7 +71,7 @@ impl SovereigntyChecker {
         }
 
         // Check data category sovereignty
-        if self.state.boundary.is_sovereign(&data_category) {
+        let result = if self.state.boundary.is_sovereign(&data_category) {
             // Sovereign data requires explicit consent and must be owner
             if self.state.explicit_consent && requester == &self.owner_webid {
                 SovereigntyCheckResult::allowed(data_category, operation)
@@ -95,7 +96,22 @@ impl SovereigntyChecker {
         } else {
             // Public data is always accessible
             SovereigntyCheckResult::allowed(data_category, operation)
-        }
+        };
+
+        // Emit Regulate-phase span recording the access decision
+        self.span_emitter.emit_with_phase(
+            Span::Sovereignty("regulate.access_check".to_string()),
+            Phase::Regulate,
+            serde_json::json!({
+                "allowed": result.allowed,
+                "denial_reason": result.denial_reason,
+                "data_category": format!("{:?}", result.data_category),
+                "operation": format!("{:?}", result.operation),
+                "requester": format!("{}", requester),
+            }),
+        );
+
+        result
     }
 
     /// Check if data category is accessible by requester
