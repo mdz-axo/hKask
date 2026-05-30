@@ -45,7 +45,10 @@ pub use observers::sovereignty::{
     SovereigntyEvent, SovereigntyEventType, SovereigntyObserver, SovereigntyObserverState,
 };
 pub use rate_limit::{RateLimitConfig, RateLimiter};
-pub use runtime::{AlertSubscription, CnsRuntime};
+pub use runtime::{
+    AlertSubscription, CnsAdminHandle, CnsGovernReadHandle, CnsGovernWriteHandle, CnsRuntime,
+    CnsWriteHandle,
+};
 pub use spans::{
     CnsEmit, SpanCategory, SpanEmitter, SpanScope, SpanViolation, curator_span_scope,
     span_scope_for_domain, span_scope_for_r7_bot,

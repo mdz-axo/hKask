@@ -23,7 +23,8 @@ pub use audit_log::{AuditContext, AuditEntry, AuditLogPort, AuditLogPortError, A
 pub use cns_query::{AlertInfo, AlertLevel, HealthStatus};
 pub use git_cas::GitCASPort;
 pub use mcp_runtime::MCPRuntimePort;
-pub use memory_storage::MemoryStoragePort;
+#[allow(deprecated)]
+pub use memory_storage::{EpisodicStoragePort, MemoryStoragePort, SemanticStoragePort};
 pub use metacognition::{
     BotDirective, BotEvaluationMetrics, BotHealthStatus as MetacognitionBotHealthStatus,
     CapabilityGap, DirectiveType, EvaluationResult, GapType, KataDirective, KataType,

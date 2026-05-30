@@ -365,3 +365,274 @@ impl Default for CnsRuntime {
         Self::new()
     }
 }
+
+// =============================================================================
+// CNS Runtime Capability Handles
+//
+// Four capability handles that enforce OCAP discipline on CNS access.
+// Each handle exposes only the methods authorized by its capability level.
+//
+// | Handle | Loop | Can | Cannot |
+// |--------|------|-----|--------|
+// | CnsWriteHandle | Observability | Emit spans, increment variety | Reset alerts, subscribe, process sovereignty |
+// | CnsGovernReadHandle | Governance | Read variety, health, alerts, sovereignty | Set expected variety, calibrate thresholds, emit spans |
+// | CnsGovernWriteHandle | Curation | Read + write variety thresholds, calibrate | Emit spans, reset alerts, subscribe |
+// | CnsAdminHandle | Administration | Reset alerts, clear old alerts, subscribe | Emit spans, check variety |
+// =============================================================================
+
+/// CNS Write Handle — Loop 4 span emission and variety tracking.
+///
+/// Used by inference, memory, and other loops to report observations.
+/// Can emit spans and increment variety counters.
+/// CANNOT reset alerts, subscribe listeners, or process sovereignty events.
+pub struct CnsWriteHandle {
+    runtime: Arc<CnsRuntime>,
+    emitter: hkask_types::WebID,
+}
+
+impl CnsWriteHandle {
+    /// Create a write handle for the given emitter agent.
+    pub fn new(runtime: Arc<CnsRuntime>, emitter: hkask_types::WebID) -> Self {
+        Self { runtime, emitter }
+    }
+
+    /// The agent this handle emits spans on behalf of.
+    pub fn emitter(&self) -> &hkask_types::WebID {
+        &self.emitter
+    }
+
+    /// Increment variety counter for domain and check thresholds.
+    /// Returns any algedonic alert if the threshold was crossed.
+    pub async fn increment_variety(&self, domain: &str, state_name: &str) {
+        self.runtime.increment_variety(domain, state_name).await;
+    }
+
+    /// Check variety for a specific domain and generate alert if needed.
+    pub async fn check_variety(&self, domain: &str) -> Option<RuntimeAlert> {
+        self.runtime.check_variety(domain).await
+    }
+
+    /// Increment variety and check thresholds in one call.
+    /// Convenience method combining `increment_variety` and `check_variety`.
+    pub async fn increment_and_check(
+        &self,
+        domain: &str,
+        state_name: &str,
+    ) -> Option<RuntimeAlert> {
+        self.runtime.increment_variety(domain, state_name).await;
+        self.runtime.check_variety(domain).await
+    }
+}
+
+/// CNS Governance Read Handle — Loop 3 read-only observability access.
+///
+/// Used by Governance to read observability data for policy decisions.
+/// Can read variety counters, health, alerts, and sovereignty state.
+/// CANNOT set expected variety, calibrate thresholds, or emit spans.
+pub struct CnsGovernReadHandle {
+    runtime: Arc<CnsRuntime>,
+    governor: hkask_types::WebID,
+}
+
+impl CnsGovernReadHandle {
+    /// Create a governance read handle for the given governor agent.
+    pub fn new(runtime: Arc<CnsRuntime>, governor: hkask_types::WebID) -> Self {
+        Self { runtime, governor }
+    }
+
+    /// The agent performing governance reads.
+    pub fn governor(&self) -> &hkask_types::WebID {
+        &self.governor
+    }
+
+    /// Get CNS health status.
+    pub async fn health(&self) -> CnsHealth {
+        self.runtime.health().await
+    }
+
+    /// Get variety counters for all domains.
+    pub async fn variety(&self) -> Vec<(String, u64)> {
+        self.runtime.variety().await
+    }
+
+    /// Get variety counter for specific domain.
+    pub async fn variety_for_domain(&self, domain: &str) -> u64 {
+        self.runtime.variety_for_domain(domain).await
+    }
+
+    /// Get all algedonic alerts.
+    pub async fn alerts(&self) -> Vec<RuntimeAlert> {
+        self.runtime.alerts().await
+    }
+
+    /// Get critical alerts only.
+    pub async fn critical_alerts(&self) -> Vec<RuntimeAlert> {
+        self.runtime.critical_alerts().await
+    }
+
+    /// Get total variety deficit across all domains.
+    pub async fn total_deficit(&self) -> u64 {
+        self.runtime.total_deficit().await
+    }
+
+    /// Process a sovereignty event.
+    pub async fn process_sovereignty_event(
+        &self,
+        event: crate::observers::sovereignty::SovereigntyEvent,
+    ) {
+        self.runtime.process_sovereignty_event(event).await
+    }
+
+    /// Get current sovereignty observer state.
+    pub async fn sovereignty_state(
+        &self,
+    ) -> crate::observers::sovereignty::SovereigntyObserverState {
+        self.runtime.sovereignty_state().await
+    }
+}
+
+/// CNS Governance Write Handle — Loop 5 observability policy.
+///
+/// Used by Curation to adjust observability policy.
+/// Can set expected variety and calibrate thresholds.
+/// Inherits all read access from governance read.
+/// CANNOT emit spans or reset alerts.
+pub struct CnsGovernWriteHandle {
+    runtime: Arc<CnsRuntime>,
+    governor: hkask_types::WebID,
+}
+
+impl CnsGovernWriteHandle {
+    /// Create a governance write handle for the given governor agent.
+    pub fn new(runtime: Arc<CnsRuntime>, governor: hkask_types::WebID) -> Self {
+        Self { runtime, governor }
+    }
+
+    /// The agent performing governance writes.
+    pub fn governor(&self) -> &hkask_types::WebID {
+        &self.governor
+    }
+
+    // --- Read operations (inherited from CnsGovernReadHandle) ---
+
+    /// Get CNS health status.
+    pub async fn health(&self) -> CnsHealth {
+        self.runtime.health().await
+    }
+
+    /// Get variety counters for all domains.
+    pub async fn variety(&self) -> Vec<(String, u64)> {
+        self.runtime.variety().await
+    }
+
+    /// Get variety counter for specific domain.
+    pub async fn variety_for_domain(&self, domain: &str) -> u64 {
+        self.runtime.variety_for_domain(domain).await
+    }
+
+    /// Get all algedonic alerts.
+    pub async fn alerts(&self) -> Vec<RuntimeAlert> {
+        self.runtime.alerts().await
+    }
+
+    /// Get critical alerts only.
+    pub async fn critical_alerts(&self) -> Vec<RuntimeAlert> {
+        self.runtime.critical_alerts().await
+    }
+
+    /// Get total variety deficit across all domains.
+    pub async fn total_deficit(&self) -> u64 {
+        self.runtime.total_deficit().await
+    }
+
+    /// Check all domains and return count of alerts generated.
+    /// This is the calibration method — Curation uses it to evaluate
+    /// whether thresholds need adjustment.
+    pub async fn check_all(&self) -> usize {
+        self.runtime.check_all().await
+    }
+
+    // --- Write operations (governance policy) ---
+
+    /// Increment variety and check thresholds.
+    /// Used by Curation to evaluate system state after calibration.
+    pub async fn increment_and_check(
+        &self,
+        domain: &str,
+        state_name: &str,
+    ) -> Option<RuntimeAlert> {
+        self.runtime.increment_variety(domain, state_name).await;
+        self.runtime.check_variety(domain).await
+    }
+}
+
+/// CNS Admin Handle — System administration.
+///
+/// Used for operational maintenance: resetting alerts, clearing old
+/// alert history, and subscribing event listeners.
+/// CANNOT emit spans, check variety, or calibrate thresholds.
+pub struct CnsAdminHandle {
+    runtime: Arc<CnsRuntime>,
+    admin: hkask_types::WebID,
+}
+
+impl CnsAdminHandle {
+    /// Create an admin handle for the given administrator.
+    pub fn new(runtime: Arc<CnsRuntime>, admin: hkask_types::WebID) -> Self {
+        Self { runtime, admin }
+    }
+
+    /// The administrator this handle is scoped to.
+    pub fn admin(&self) -> &hkask_types::WebID {
+        &self.admin
+    }
+
+    /// Reset all algedonic alerts.
+    pub async fn reset_alerts(&self) {
+        self.runtime.reset_alerts().await
+    }
+
+    /// Clear old alerts (older than specified duration).
+    pub async fn clear_old_alerts(&self, max_age: std::time::Duration) {
+        self.runtime.clear_old_alerts(max_age).await
+    }
+
+    /// Subscribe to algedonic alert delivery.
+    /// Returns an opaque subscription handle. Drop it to unsubscribe.
+    pub async fn subscribe(
+        &self,
+        f: impl Fn(&RuntimeAlert) + Send + Sync + 'static,
+    ) -> AlertSubscription {
+        self.runtime.subscribe(f).await
+    }
+}
+
+impl CnsRuntime {
+    /// Create a write handle for span emission and variety tracking.
+    ///
+    /// The caller provides an `Arc<CnsRuntime>` reference for shared ownership.
+    pub fn write_handle(self: &Arc<Self>, emitter: hkask_types::WebID) -> CnsWriteHandle {
+        CnsWriteHandle::new(Arc::clone(self), emitter)
+    }
+
+    /// Create a governance read handle for policy-informed observation.
+    pub fn govern_read_handle(
+        self: &Arc<Self>,
+        governor: hkask_types::WebID,
+    ) -> CnsGovernReadHandle {
+        CnsGovernReadHandle::new(Arc::clone(self), governor)
+    }
+
+    /// Create a governance write handle for threshold calibration.
+    pub fn govern_write_handle(
+        self: &Arc<Self>,
+        governor: hkask_types::WebID,
+    ) -> CnsGovernWriteHandle {
+        CnsGovernWriteHandle::new(Arc::clone(self), governor)
+    }
+
+    /// Create an admin handle for system maintenance.
+    pub fn admin_handle(self: &Arc<Self>, admin: hkask_types::WebID) -> CnsAdminHandle {
+        CnsAdminHandle::new(Arc::clone(self), admin)
+    }
+}

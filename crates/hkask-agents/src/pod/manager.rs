@@ -15,7 +15,10 @@ use crate::adapters::cns_emitter::CnsEmitterAdapter;
 use crate::adapters::git_cas::GitCasAdapter;
 use crate::adapters::mcp_runtime::McpRuntimeAdapter;
 use crate::adapters::memory_storage::MemoryStorageAdapter;
-use crate::ports::{GitCASPort, MCPRuntimePort, MemoryStoragePort};
+#[allow(deprecated)]
+use crate::ports::{
+    EpisodicStoragePort, GitCASPort, MCPRuntimePort, MemoryStoragePort, SemanticStoragePort,
+};
 use crate::security::{AgentPersonaInput, SecurityContext};
 
 /// Pod Manager — Manages collection of agent pods
@@ -34,6 +37,12 @@ pub struct PodManager {
     acp_runtime: Arc<dyn crate::ports::AcpPort + Send + Sync>,
     pub(crate) cns_emitter: Arc<dyn hkask_cns::CnsEmit + Send + Sync>,
     pub(crate) mcp_runtime: Arc<dyn MCPRuntimePort>,
+    /// Episodic memory storage — private, agent-scoped (OCAP: EpisodicReadHandle/EpisodicWriteHandle)
+    pub(crate) episodic_storage: Arc<dyn EpisodicStoragePort>,
+    /// Semantic memory storage — shared, public knowledge (OCAP: SemanticReadHandle/SemanticWriteHandle)
+    pub(crate) semantic_storage: Arc<dyn SemanticStoragePort>,
+    /// Legacy memory storage (deprecated — use episodic_storage/semantic_storage)
+    #[allow(deprecated)]
     pub(crate) memory_storage: Arc<dyn MemoryStoragePort>,
     pub(crate) security_context: SecurityContext,
     pub(crate) inference_port: Option<Arc<dyn hkask_templates::InferencePort>>,
@@ -58,7 +67,8 @@ impl PodManager {
         acp_runtime: Arc<dyn crate::ports::AcpPort + Send + Sync>,
         cns_emitter: Arc<dyn hkask_cns::CnsEmit + Send + Sync>,
         mcp_runtime: Arc<dyn MCPRuntimePort>,
-        memory_storage: Arc<dyn MemoryStoragePort>,
+        episodic_storage: Arc<dyn EpisodicStoragePort>,
+        semantic_storage: Arc<dyn SemanticStoragePort>,
     ) -> Self {
         Self {
             pods: Arc::new(RwLock::new(HashMap::new())),
@@ -67,7 +77,13 @@ impl PodManager {
             acp_runtime,
             cns_emitter,
             mcp_runtime,
-            memory_storage,
+            episodic_storage,
+            semantic_storage,
+            #[allow(deprecated)]
+            memory_storage: Arc::new(
+                MemoryStorageAdapter::in_memory()
+                    .expect("In-memory storage initialization should never fail"),
+            ),
             security_context: SecurityContext::default(),
             inference_port: None,
         }
@@ -79,7 +95,8 @@ impl PodManager {
         acp_runtime: Arc<dyn crate::ports::AcpPort + Send + Sync>,
         cns_emitter: Arc<dyn hkask_cns::CnsEmit + Send + Sync>,
         mcp_runtime: Arc<dyn MCPRuntimePort>,
-        memory_storage: Arc<dyn MemoryStoragePort>,
+        episodic_storage: Arc<dyn EpisodicStoragePort>,
+        semantic_storage: Arc<dyn SemanticStoragePort>,
         inference_port: Arc<dyn hkask_templates::InferencePort>,
     ) -> Self {
         Self {
@@ -89,7 +106,13 @@ impl PodManager {
             acp_runtime,
             cns_emitter,
             mcp_runtime,
-            memory_storage,
+            episodic_storage,
+            semantic_storage,
+            #[allow(deprecated)]
+            memory_storage: Arc::new(
+                MemoryStorageAdapter::in_memory()
+                    .expect("In-memory storage initialization should never fail"),
+            ),
             security_context: SecurityContext::default(),
             inference_port: Some(inference_port),
         }
@@ -102,6 +125,13 @@ impl PodManager {
 
     /// Create a new pod manager with mock adapters for testing
     pub fn new_mock() -> Self {
+        let adapter = Arc::new(
+            MemoryStorageAdapter::in_memory()
+                .expect("In-memory storage initialization should never fail"),
+        );
+        let episodic_storage: Arc<dyn EpisodicStoragePort> = adapter.clone();
+        let semantic_storage: Arc<dyn SemanticStoragePort> = adapter.clone();
+
         Self {
             pods: Arc::new(RwLock::new(HashMap::new())),
             _keystore: Keychain::default(),
@@ -109,6 +139,9 @@ impl PodManager {
             acp_runtime: Arc::new(crate::acp::AcpRuntime::default()),
             cns_emitter: Arc::new(CnsEmitterAdapter::new(WebID::new())),
             mcp_runtime: Arc::new(McpRuntimeAdapter::new()),
+            episodic_storage,
+            semantic_storage,
+            #[allow(deprecated)]
             memory_storage: Arc::new(
                 MemoryStorageAdapter::in_memory()
                     .expect("In-memory storage initialization should never fail"),
@@ -139,7 +172,8 @@ pub struct PodManagerBuilder {
     acp_runtime: Option<Arc<dyn crate::ports::AcpPort + Send + Sync>>,
     cns_emitter: Option<Arc<dyn hkask_cns::CnsEmit + Send + Sync>>,
     mcp_runtime: Option<Arc<dyn MCPRuntimePort>>,
-    memory_storage: Option<Arc<dyn MemoryStoragePort>>,
+    episodic_storage: Option<Arc<dyn EpisodicStoragePort>>,
+    semantic_storage: Option<Arc<dyn SemanticStoragePort>>,
     security_context: Option<SecurityContext>,
     inference_port: Option<Arc<dyn hkask_templates::InferencePort>>,
 }
@@ -151,7 +185,8 @@ impl PodManagerBuilder {
             acp_runtime: None,
             cns_emitter: None,
             mcp_runtime: None,
-            memory_storage: None,
+            episodic_storage: None,
+            semantic_storage: None,
             security_context: None,
             inference_port: None,
         }
@@ -181,8 +216,13 @@ impl PodManagerBuilder {
         self
     }
 
-    pub fn memory_storage(mut self, adapter: Arc<dyn MemoryStoragePort>) -> Self {
-        self.memory_storage = Some(adapter);
+    pub fn episodic_storage(mut self, adapter: Arc<dyn EpisodicStoragePort>) -> Self {
+        self.episodic_storage = Some(adapter);
+        self
+    }
+
+    pub fn semantic_storage(mut self, adapter: Arc<dyn SemanticStoragePort>) -> Self {
+        self.semantic_storage = Some(adapter);
         self
     }
 
@@ -191,13 +231,18 @@ impl PodManagerBuilder {
         self
     }
 
+    /// Configure with in-memory storage (episodic and semantic)
     pub fn with_in_memory_storage(self) -> Self {
-        self.memory_storage(Arc::new(
+        let adapter = Arc::new(
             MemoryStorageAdapter::in_memory()
                 .expect("In-memory storage initialization should never fail"),
-        ))
+        );
+        let episodic: Arc<dyn EpisodicStoragePort> = adapter.clone();
+        let semantic: Arc<dyn SemanticStoragePort> = adapter.clone();
+        self.episodic_storage(episodic).semantic_storage(semantic)
     }
 
+    /// Configure with encrypted storage (episodic and semantic)
     pub fn with_encrypted_storage<P: AsRef<std::path::Path>>(
         self,
         path: P,
@@ -207,10 +252,13 @@ impl PodManagerBuilder {
             .as_ref()
             .to_str()
             .expect("Storage path must be valid UTF-8");
-        self.memory_storage(Arc::new(
+        let adapter = Arc::new(
             MemoryStorageAdapter::from_path(path_str, passphrase)
                 .expect("Encrypted storage initialization should succeed"),
-        ))
+        );
+        let episodic: Arc<dyn EpisodicStoragePort> = adapter.clone();
+        let semantic: Arc<dyn SemanticStoragePort> = adapter.clone();
+        self.episodic_storage(episodic).semantic_storage(semantic)
     }
 
     pub fn security_context(mut self, context: SecurityContext) -> Self {
@@ -219,6 +267,15 @@ impl PodManagerBuilder {
     }
 
     pub fn build(self) -> PodManager {
+        let adapter = Arc::new(
+            MemoryStorageAdapter::in_memory()
+                .expect("In-memory storage initialization should never fail"),
+        );
+        let default_episodic: Arc<dyn EpisodicStoragePort> = adapter.clone();
+        let default_semantic: Arc<dyn SemanticStoragePort> = adapter.clone();
+        let episodic_storage = self.episodic_storage.unwrap_or(default_episodic);
+        let semantic_storage = self.semantic_storage.unwrap_or(default_semantic);
+
         let mut manager = PodManager::new(
             self.git_cas.unwrap_or_else(|| {
                 Arc::new(GitCasAdapter::from_path(PathBuf::from(
@@ -231,12 +288,8 @@ impl PodManagerBuilder {
                 .unwrap_or_else(|| Arc::new(CnsEmitterAdapter::new(WebID::new()))),
             self.mcp_runtime
                 .unwrap_or_else(|| Arc::new(McpRuntimeAdapter::new())),
-            self.memory_storage.unwrap_or_else(|| {
-                Arc::new(
-                    MemoryStorageAdapter::in_memory()
-                        .expect("In-memory storage initialization should never fail"),
-                )
-            }),
+            episodic_storage,
+            semantic_storage,
         );
         manager.inference_port = self.inference_port;
         if let Some(ctx) = self.security_context {
@@ -386,6 +439,7 @@ impl PodManager {
             }
         });
 
+        #[allow(deprecated)]
         let _ = self.memory_storage.store_artifact(
             pod.webid,
             "episodic_triple",
@@ -447,6 +501,7 @@ impl PodManager {
             }
         });
 
+        #[allow(deprecated)]
         let _ = self.memory_storage.store_artifact(
             pod.webid,
             "episodic_triple",
@@ -474,6 +529,7 @@ impl PodManager {
             .get(pod_id)
             .ok_or_else(|| AgentPodError::ACPRegistrationError("Pod not found".to_string()))?;
 
+        #[allow(deprecated)]
         let results = self
             .memory_storage
             .recall(&pod.webid.to_string(), &pod.capability_token)

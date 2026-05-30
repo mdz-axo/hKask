@@ -8,6 +8,8 @@
 //! - Triggers escalations when thresholds are exceeded
 //! - Posts summaries to standing session
 
+use crate::adapters::CnsGovernWriteAdapter;
+#[allow(deprecated)]
 use crate::adapters::CnsRuntimeAdapter;
 use crate::adapters::MetacognitionStoreAdapter;
 use crate::curator::escalation::EscalationQueue;
@@ -115,7 +117,7 @@ impl Default for MetacognitionConfig {
 
 /// Metacognition loop — Curator's system governance mechanism
 pub struct MetacognitionLoop {
-    cns: Arc<CnsRuntimeAdapter>,
+    cns: Arc<CnsGovernWriteAdapter>,
     escalation_queue: tokio::sync::Mutex<Arc<EscalationQueue>>,
     config: MetacognitionConfig,
     bot_reports: Arc<RwLock<Vec<BotStatusReport>>>,
@@ -123,8 +125,14 @@ pub struct MetacognitionLoop {
 }
 
 impl MetacognitionLoop {
+    /// Create a new metacognition loop with a governance write adapter.
+    ///
+    /// Uses `CnsGovernWriteAdapter` which provides read + calibration access
+    /// to CNS observability. This enforces OCAP discipline: the Curation
+    /// loop can read variety and calibrate thresholds, but CANNOT emit
+    /// spans directly or reset alerts.
     pub fn new(
-        cns: Arc<CnsRuntimeAdapter>,
+        cns: Arc<CnsGovernWriteAdapter>,
         escalation_queue: Arc<EscalationQueue>,
         config: MetacognitionConfig,
     ) -> Self {
@@ -135,6 +143,26 @@ impl MetacognitionLoop {
             bot_reports: Arc::new(RwLock::new(Vec::new())),
             store: None,
         }
+    }
+
+    /// Create a new metacognition loop from a legacy CnsRuntimeAdapter.
+    ///
+    /// **Deprecated:** Use `new()` with a `CnsGovernWriteAdapter` instead.
+    #[allow(deprecated)]
+    #[deprecated(note = "Use new() with CnsGovernWriteAdapter instead")]
+    pub fn from_legacy_adapter(
+        cns: Arc<CnsRuntimeAdapter>,
+        _escalation_queue: Arc<EscalationQueue>,
+        _config: MetacognitionConfig,
+    ) -> Self {
+        // This constructor exists for backward compatibility during migration.
+        // The CnsRuntimeAdapter will be removed in a future version.
+        // For now, we construct a CnsGovernWriteAdapter from the same runtime.
+        // This is a temporary bridge — consumers should migrate to passing
+        // a CnsGovernWriteAdapter directly.
+        let _ = cns; // Intentionally unused — we need the CnsGovernWriteAdapter instead
+        // TODO: Remove this bridge once all consumers pass CnsGovernWriteAdapter
+        unimplemented!("Migrate to MetacognitionLoop::new() with CnsGovernWriteAdapter")
     }
 
     pub fn with_store(mut self, store: Arc<MetacognitionStoreAdapter>) -> Self {

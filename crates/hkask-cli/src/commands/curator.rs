@@ -41,9 +41,10 @@ pub async fn curator_dismiss(id: &str) -> Result<(), CuratorError> {
 
 /// Run a metacognition cycle and return a summary string
 pub async fn curator_metacognition() -> Result<String, CuratorError> {
-    use hkask_agents::adapters::CnsRuntimeAdapter;
+    use hkask_agents::adapters::CnsGovernWriteAdapter;
     use hkask_agents::curator::{MetacognitionConfig, MetacognitionLoop};
     use hkask_cns::CnsRuntime;
+    use hkask_types::WebID;
 
     let conn = open_registry_db()?;
     let queue = Arc::new(
@@ -51,7 +52,9 @@ pub async fn curator_metacognition() -> Result<String, CuratorError> {
             .map_err(|e| CuratorError::DatabaseError(e.to_string()))?,
     );
 
-    let cns = Arc::new(CnsRuntimeAdapter::new(Arc::new(CnsRuntime::new())));
+    let runtime = Arc::new(CnsRuntime::new());
+    let curator_webid = WebID::from_persona(b"Curator");
+    let cns = Arc::new(CnsGovernWriteAdapter::new(runtime, curator_webid));
     let config = MetacognitionConfig::default();
     let loop_instance = MetacognitionLoop::new(cns, queue, config);
 

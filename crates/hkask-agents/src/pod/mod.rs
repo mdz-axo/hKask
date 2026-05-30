@@ -68,6 +68,7 @@ use tracing::info;
 use zeroize::Zeroizing;
 
 use crate::SovereigntyChecker;
+#[allow(deprecated)]
 use crate::ports::{GitCASPort, MemoryStoragePort};
 
 pub use context::PodContext;
@@ -101,7 +102,8 @@ pub struct AgentPod {
     pub max_attenuation: u8,
     /// Sovereignty checker for this pod
     pub sovereignty_checker: SovereigntyChecker,
-    /// Optional memory storage for lifecycle event persistence
+    /// Optional memory storage for lifecycle event persistence (deprecated)
+    #[allow(deprecated)]
     memory: Option<Arc<dyn MemoryStoragePort>>,
 }
 
@@ -177,6 +179,7 @@ impl AgentPod {
     }
 
     /// Create a new AgentPod with memory persistence for lifecycle events.
+    #[allow(deprecated)]
     pub fn new_with_memory(
         crate_name: &str,
         persona: &AgentPersona,
@@ -402,6 +405,7 @@ impl AgentPod {
                 "attribute": "lifecycle_state",
                 "value": new_state.to_string(),
             });
+            #[allow(deprecated)]
             if let Err(e) = memory.store_artifact(
                 self.webid,
                 "episodic_triple",

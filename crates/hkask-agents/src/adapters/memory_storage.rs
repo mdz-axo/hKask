@@ -1,9 +1,12 @@
 //! Memory Storage Adapter
 //!
-//! Concrete implementation of MemoryStoragePort using hkask-storage crate.
+//! Concrete implementations of memory storage ports using hkask-storage crate.
+//! Implements both the legacy `MemoryStoragePort` (deprecated) and the new
+//! `EpisodicStoragePort` and `SemanticStoragePort` traits.
 
 use crate::error::MemoryError;
-use crate::ports::MemoryStoragePort;
+#[allow(deprecated)]
+use crate::ports::{EpisodicStoragePort, MemoryStoragePort, SemanticStoragePort};
 use hkask_storage::{Database, Embedding, EmbeddingStore, Triple, TripleStore};
 use hkask_types::{CapabilityToken, TripleID, Visibility, WebID};
 use serde_json::Value;
@@ -39,6 +42,182 @@ impl MemoryStorageAdapter {
     }
 }
 
+// =============================================================================
+// Episodic Storage Port Implementation
+// =============================================================================
+
+impl EpisodicStoragePort for MemoryStorageAdapter {
+    fn store_episodic(
+        &self,
+        producer_webid: WebID,
+        entity: &str,
+        attribute: &str,
+        value: Value,
+        confidence: f64,
+        token: &CapabilityToken,
+    ) -> Result<String, MemoryError> {
+        // Validate capability token allows storage operations
+        if token.action == hkask_types::CapabilityAction::Read {
+            return Err(MemoryError::CapabilityDenied(
+                "Token has read-only action, write required for episodic storage".to_string(),
+            ));
+        }
+
+        let triple = Triple::new(entity, attribute, value, producer_webid)
+            .with_visibility(Visibility::Private)
+            .with_perspective(producer_webid)
+            .with_confidence(confidence);
+
+        self.triple_store
+            .insert(&triple)
+            .map_err(|e| MemoryError::Storage(e.to_string()))?;
+
+        Ok(triple.id.to_string())
+    }
+
+    fn recall_episodic(
+        &self,
+        query: &str,
+        owner: &WebID,
+        token: &CapabilityToken,
+    ) -> Result<Vec<Value>, MemoryError> {
+        // Validate capability token allows read operations
+        match token.action {
+            hkask_types::CapabilityAction::Read
+            | hkask_types::CapabilityAction::Execute
+            | hkask_types::CapabilityAction::Validate => {}
+            _ => {
+                return Err(MemoryError::CapabilityDenied(
+                    "Token does not grant read access for episodic recall".to_string(),
+                ));
+            }
+        }
+
+        // Query by entity and filter to only the owner's perspective
+        let triples = self
+            .triple_store
+            .query_by_entity(query)
+            .map_err(|e| MemoryError::Query(e.to_string()))?;
+
+        let results: Vec<Value> = triples
+            .into_iter()
+            .filter(|t| t.perspective == Some(*owner))
+            .filter(|t| t.is_episodic())
+            .map(|t| {
+                serde_json::json!({
+                    "id": t.id.to_string(),
+                    "entity": t.entity,
+                    "attribute": t.attribute,
+                    "value": t.value,
+                    "confidence": t.confidence,
+                    "perspective": t.perspective.map(|p| p.to_string()),
+                    "visibility": t.visibility.as_str(),
+                    "valid_from": t.valid_from.to_rfc3339(),
+                })
+            })
+            .collect();
+
+        tracing::debug!(
+            target: "hkask.memory.episodic",
+            query = %query,
+            owner = %owner,
+            results = results.len(),
+            "Episodic recall"
+        );
+
+        Ok(results)
+    }
+}
+
+// =============================================================================
+// Semantic Storage Port Implementation
+// =============================================================================
+
+impl SemanticStoragePort for MemoryStorageAdapter {
+    fn store_semantic(
+        &self,
+        producer_webid: WebID,
+        entity: &str,
+        attribute: &str,
+        value: Value,
+        confidence: f64,
+        token: &CapabilityToken,
+    ) -> Result<String, MemoryError> {
+        // Validate capability token allows storage operations
+        if token.action == hkask_types::CapabilityAction::Read {
+            return Err(MemoryError::CapabilityDenied(
+                "Token has read-only action, write required for semantic storage".to_string(),
+            ));
+        }
+
+        // Semantic triples are shared (not private) and have no perspective
+        let triple = Triple::new(entity, attribute, value, producer_webid)
+            .with_visibility(Visibility::Shared)
+            .with_confidence(confidence);
+
+        self.triple_store
+            .insert(&triple)
+            .map_err(|e| MemoryError::Storage(e.to_string()))?;
+
+        Ok(triple.id.to_string())
+    }
+
+    fn recall_semantic(
+        &self,
+        query: &str,
+        token: &CapabilityToken,
+    ) -> Result<Vec<Value>, MemoryError> {
+        // Validate capability token allows read operations
+        match token.action {
+            hkask_types::CapabilityAction::Read
+            | hkask_types::CapabilityAction::Execute
+            | hkask_types::CapabilityAction::Validate => {}
+            _ => {
+                return Err(MemoryError::CapabilityDenied(
+                    "Token does not grant read access for semantic recall".to_string(),
+                ));
+            }
+        }
+
+        // Query by entity and filter to only semantic triples
+        let triples = self
+            .triple_store
+            .query_by_entity(query)
+            .map_err(|e| MemoryError::Query(e.to_string()))?;
+
+        let results: Vec<Value> = triples
+            .into_iter()
+            .filter(|t| t.is_semantic())
+            .map(|t| {
+                serde_json::json!({
+                    "id": t.id.to_string(),
+                    "entity": t.entity,
+                    "attribute": t.attribute,
+                    "value": t.value,
+                    "confidence": t.confidence,
+                    "perspective": t.perspective.map(|p| p.to_string()),
+                    "visibility": t.visibility.as_str(),
+                    "valid_from": t.valid_from.to_rfc3339(),
+                })
+            })
+            .collect();
+
+        tracing::debug!(
+            target: "hkask.memory.semantic",
+            query = %query,
+            results = results.len(),
+            "Semantic recall"
+        );
+
+        Ok(results)
+    }
+}
+
+// =============================================================================
+// Legacy MemoryStoragePort Implementation (DEPRECATED)
+// =============================================================================
+
+#[allow(deprecated)]
 impl MemoryStoragePort for MemoryStorageAdapter {
     fn store_artifact(
         &self,

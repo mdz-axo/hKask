@@ -35,6 +35,7 @@ use hkask_agents::adapters::memory_storage::MemoryStorageAdapter;
 use hkask_agents::consent::ConsentManager;
 use hkask_agents::curator::escalation::EscalationQueue;
 use hkask_agents::pod::PodManager;
+use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_cns::rate_limit::{RateLimitConfig, RateLimiter};
 use hkask_cns::spans::SpanEmitter;
 use hkask_storage::SovereigntyBoundaryStore;
@@ -189,13 +190,17 @@ impl ApiState {
         let observer_webid = WebID::new();
         let cns_emitter_adapter = CnsEmitterAdapter::new(observer_webid);
         let mcp_runtime_adapter = McpRuntimeAdapter::new();
-        let memory_storage = MemoryStorageAdapter::in_memory().expect("in-memory adapter creation");
+        let memory_adapter =
+            Arc::new(MemoryStorageAdapter::in_memory().expect("in-memory adapter creation"));
+        let episodic_storage: Arc<dyn EpisodicStoragePort> = memory_adapter.clone();
+        let semantic_storage: Arc<dyn SemanticStoragePort> = memory_adapter.clone();
         let pod_manager = PodManager::new(
             Arc::new(git_cas),
             acp_runtime,
             Arc::new(cns_emitter_adapter),
             Arc::new(mcp_runtime_adapter),
-            Arc::new(memory_storage),
+            episodic_storage,
+            semantic_storage,
         );
         Self::new(
             registry,

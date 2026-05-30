@@ -28,7 +28,11 @@ pub mod stdio_transport;
 pub use agent_registry::{AgentRegistryAdapter, AgentRegistryError};
 pub use audit_log_store::AuditLogStoreAdapter;
 pub use cns_emitter::CnsEmitterAdapter;
-pub use cns_runtime::CnsRuntimeAdapter;
+#[allow(deprecated)]
+pub use cns_runtime::{
+    CnsAdminAdapter, CnsGovernReadAdapter, CnsGovernWriteAdapter, CnsRuntimeAdapter,
+    CnsWriteAdapter,
+};
 pub use git_cas::GitCasAdapter;
 pub use loopback_http_transport::LoopbackHttpTransport;
 pub use mcp_runtime::McpRuntimeAdapter;

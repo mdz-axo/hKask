@@ -17,6 +17,7 @@
 //! use hkask_agents::adapters::cns_emitter::CnsEmitterAdapter;
 //! use hkask_agents::adapters::mcp_runtime::McpRuntimeAdapter;
 //! use hkask_agents::adapters::memory_storage::MemoryStorageAdapter;
+//! use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
 //! use std::path::PathBuf;
 //! use std::sync::Arc;
 //!
@@ -25,10 +26,12 @@
 //! let acp_runtime = Arc::new(AcpRuntime::default());
 //! let cns_emitter = Arc::new(CnsEmitterAdapter::new(hkask_types::WebID::new()));
 //! let mcp_runtime = Arc::new(McpRuntimeAdapter::new());
-//! let memory_storage = Arc::new(MemoryStorageAdapter::in_memory()?);
+//! let memory_adapter = Arc::new(MemoryStorageAdapter::in_memory()?);
+//! let episodic_storage: Arc<dyn EpisodicStoragePort> = memory_adapter.clone();
+//! let semantic_storage: Arc<dyn SemanticStoragePort> = memory_adapter.clone();
 //!
 //! // Create pod manager
-//! let manager = PodManager::new(git_cas, acp_runtime, cns_emitter, mcp_runtime, memory_storage);
+//! let manager = PodManager::new(git_cas, acp_runtime, cns_emitter, mcp_runtime, episodic_storage, semantic_storage);
 //! # Ok(())
 //! # }
 //! ```
@@ -61,9 +64,11 @@ pub use pod::{
     AgentKind, AgentPersona, AgentPod, AgentPodError, AgentPodResult, PodID, PodLifecycleState,
     PodManager, PodStatus, TemplateCrate, TemplateFile,
 };
+#[allow(deprecated)]
 pub use ports::{
-    AcpPort, AcpTransport, AcpWireMessage, AcpWireResponse, GitCASPort, MCPRuntimePort,
-    MemoryStoragePort, SovereigntyCheckResult, SovereigntyOperation,
+    AcpPort, AcpTransport, AcpWireMessage, AcpWireResponse, EpisodicStoragePort, GitCASPort,
+    MCPRuntimePort, MemoryStoragePort, SemanticStoragePort, SovereigntyCheckResult,
+    SovereigntyOperation,
 };
 pub use registry_loader::{BotRegistryLoader, RegistryLoaderError};
 pub use replicant::{Replicant, ReplicantCapabilities};
