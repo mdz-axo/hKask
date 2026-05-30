@@ -102,20 +102,16 @@ pub struct BootstrapSequence {
     cns_runtime: Arc<CnsRuntime>,
     curator_webid: WebID,
     state: BootstrapState,
-    #[allow(deprecated)] // BotMetricsCollector — migrate to UnifiedVarietyTracker
-    bot_metrics: Arc<tokio::sync::RwLock<BotMetricsCollector>>,
 }
 
 impl BootstrapSequence {
     /// Create a new bootstrap sequence
-    #[allow(deprecated)] // BotMetricsCollector — migrate to UnifiedVarietyTracker
     pub fn new(cns_runtime: Arc<CnsRuntime>) -> Self {
         let curator_webid = WebID::from_persona(b"Curator");
         Self {
             cns_runtime,
             curator_webid,
             state: BootstrapState::default(),
-            bot_metrics: Arc::new(tokio::sync::RwLock::new(BotMetricsCollector::new())),
         }
     }
 
@@ -321,13 +317,13 @@ impl BootstrapSequence {
                 "Creating pod for R7 bot"
             );
 
-            // Register bot in metrics collector
-            #[allow(deprecated)] // BotMetricsCollector — migrate to UnifiedVarietyTracker
+            // Register bot in UnifiedVarietyTracker via CnsRuntime
             {
                 let webid = bot.webid();
-                let mut metrics = self.bot_metrics.write().await;
-                metrics.register_bot(webid, bot.id.clone());
-                metrics.set_energy_budget(&webid, bot.energy_budget);
+                self.cns_runtime.register_bot(webid, bot.id.clone()).await;
+                self.cns_runtime
+                    .set_bot_energy_budget(&webid, bot.energy_budget)
+                    .await;
             }
 
             // Store the WebID for later phases
@@ -437,17 +433,6 @@ impl BootstrapSequence {
     /// Get current bootstrap state
     pub fn state(&self) -> &BootstrapState {
         &self.state
-    }
-
-    /// Get the bot metrics collector
-    ///
-    /// # Deprecation
-    ///
-    /// This accessor returns a deprecated `BotMetricsCollector`.
-    /// Migrate to `UnifiedVarietyTracker` via `CnsRuntime`.
-    #[allow(deprecated)] // BotMetricsCollector — migrate to UnifiedVarietyTracker
-    pub fn bot_metrics(&self) -> Arc<tokio::sync::RwLock<BotMetricsCollector>> {
-        self.bot_metrics.clone()
     }
 
     /// Get the curator WebID

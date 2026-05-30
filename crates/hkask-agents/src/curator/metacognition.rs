@@ -73,15 +73,6 @@ pub struct HealthSnapshot {
     pub bot_status_reports: Vec<BotStatusReport>,
 }
 
-/// **Deprecated:** Use `HealthSnapshot` instead.
-///
-/// `SystemHealthSnapshot` has been renamed to `HealthSnapshot`.
-#[deprecated(
-    since = "0.21.0",
-    note = "Use `HealthSnapshot` instead. SystemHealthSnapshot has been renamed."
-)]
-pub type SystemHealthSnapshot = HealthSnapshot;
-
 /// Bot status report from standing session
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BotStatusReport {
