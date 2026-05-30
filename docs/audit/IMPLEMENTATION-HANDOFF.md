@@ -302,13 +302,22 @@ The semantic loop now closes. Semantic recall has confidence combination, semant
 
 **Verification:** 39 cybernetic tests pass. `cargo test cyber_ --workspace && cargo clippy --workspace -- -D warnings` ✓
 
-### Phase 10: Documentation & Verification — IN PROGRESS
+### Phase 10: Documentation & Verification — COMPLETE ✓
 
 | PR | Title | What | Affected Crates | Status |
 |---|-------|------|-----------------|--------|
-| 10a | Update architecture docs | Cross-reference TASK9 diagrams against `pub` APIs. Update master doc with 7-loop structure, episodic/semantic split, communication messenger functions, handle matrix. | docs | Pending |
+| 10a | Update architecture docs | Cross-reference TASK9 diagrams against `pub` APIs. Update master doc with 7-loop structure, episodic/semantic split, communication messenger functions, handle matrix. Updated for Phase 11 simplifications. | docs | ✓ Done |
 | 10b | CNS span audit | Add `cns.memory.decay` and `cns.memory.retract` spans for episodic subloops. `cns.memory.encode` and `cns.memory.budget` already existed. Verify existing spans map to core loops. | `hkask-memory` | ✓ Done |
 | 10c | BotMetricsCollector investigation | Deprecated `BotMetricsCollector` with migration note to `UnifiedVarietyTracker`. Kept `BotEvaluationMetrics`, `BotHealthStatus`, `CapabilityGap`, `GapType` as active data contract. Bootstrap still uses deprecated collector; migration path documented. | `hkask-cns`, `hkask-cli` | ✓ Done |
+
+### Phase 11: Architecture Simplification — COMPLETE ✓
+
+| PR | Title | What | Lines Removed | Affected Crates | Status |
+|---|-------|------|---------------|-----------------|--------|
+| 11a | Remove dead CNS types | Delete `GoalVarietyMonitor`, `GoalVarietyCounter`, `goal_variety.rs` (104 lines). Remove standalone `SovereigntyObserver` struct (200 lines). Remove `CnsRuntimeAdapter` (60 lines). Keep `SovereigntyEvent`, `SovereigntyEventType`, `SovereigntyObserverState` as data types used by `UnifiedVarietyTracker`. | ~364 | `hkask-cns`, `hkask-agents` | ✓ Done |
+| 11b | Migrate bootstrap off BotMetricsCollector | Add `CnsRuntime::register_bot()` and `CnsRuntime::set_bot_energy_budget()` delegating to `UnifiedVarietyTracker`. Migrate `BootstrapSequence::phase_bots()` to use `CnsRuntime`. Remove `BotMetricsCollector` struct, impl, Default. Remove `bot_metrics` field, constructor, accessor from `BootstrapSequence`. Keep `BotEvaluationMetrics`, `BotHealthStatus`, `CapabilityGap`, `GapType` as data contract. | ~200 | `hkask-cns`, `hkask-cli` | ✓ Done |
+| 11c | Remove deprecated type aliases and capability wrappers | Remove `SystemHealthSnapshot` type alias. Remove `BotCapabilities` (agents) struct + `From` impls. Remove `ReplicantCapabilities` struct + `From` impls. Remove all `#[allow(deprecated)]` for these types. | ~100 | `hkask-agents` | ✓ Done |
+| 11d | Phase 10a documentation cross-reference | Update IMPLEMENTATION-HANDOFF, trust-security-observability, persistence-and-lifecycle for simplified state. | docs | ✓ Done |
 
 ### Phase 9 Discoveries
 
@@ -316,16 +325,22 @@ The semantic loop now closes. Semantic recall has confidence combination, semant
 2. **`increment_variety` counts distinct keys**: Calling `increment_variety("domain", "key")` twice with the same key increments the count for that key but `variety_for_domain()` returns distinct key count, not total increments.
 3. **`DataCategory::derivation_context()` returns `String`**: Not `&'static str`, because `Custom(String)` categories need dynamic contexts. Tests must collect into `Vec<String>` not `Vec<&str>`.
 4. **`CnsRuntime::process_sovereignty_event()` requires `&mut self`**: Changed from `&self` in Phase 8. Any external callers need updating.
-5. **`BotMetricsCollector` is actively written but never read**: `BootstrapSequence` writes bot registrations to it, but no consumer reads the data. Deprecated in favor of `UnifiedVarietyTracker`.
+5. **`BotMetricsCollector` is actively written but never read**: `BootstrapSequence` wrote bot registrations to it, but no consumer read the data. Removed in Phase 11b.
 6. **CNS spans `cns.memory.encode` and `cns.memory.budget` already exist**: Only `cns.memory.decay` and `cns.memory.retract` were missing. Added in Phase 10b.
 7. **No `SpanCategory::Memory` variant exists**: The `SpanCategory` enum has 14 variants but no `Memory` category. Memory spans use `tracing::debug!`/`tracing::warn!` directly (Pattern A), not the `CnsEmit` trait (Pattern B).
+
+### Phase 11 Discoveries
+
+1. **`CnsRuntime` needed `register_bot` and `set_bot_energy_budget`**: These methods were only on `BotMetricsCollector`. Added delegation methods to `CnsRuntime` → `UnifiedVarietyTracker`.
+2. **`SovereigntyObserver` used `std::sync::RwLock`**: The standalone observer used `std::sync` locks internally, while `CnsRuntime` uses `tokio::sync`. The `UnifiedVarietyTracker` correctly uses `tokio` locks via `CnsRuntime`.
+3. **Zero production call sites for removed types**: `GoalVarietyMonitor`, `GoalVarietyCounter`, `SovereigntyObserver` (struct), `CnsRuntimeAdapter`, `BotCapabilities` (agents), `ReplicantCapabilities`, and `SystemHealthSnapshot` all had zero production consumers.
 
 ---
 
 ## Dependency Graph
 
 ```
-Phase 0 ✓ → Phase 1 ✓ → Phase 2 ✓ → Phase 3 ✓ → Phase 4 ✓ → Phase 5 ✓ → Phase 6 ✓ → Phase 7 ✓ → Phase 8 ✓ → Phase 9 ✓ → Phase 10
+Phase 0 ✓ → Phase 1 ✓ → Phase 2 ✓ → Phase 3 ✓ → Phase 4 ✓ → Phase 5 ✓ → Phase 6 ✓ → Phase 7 ✓ → Phase 8 ✓ → Phase 9 ✓ → Phase 10 ✓ → Phase 11 ✓
 
 Phase 2 → Phase 7 (handles must exist before Curation can use them) ✓
 Phase 1 → Phase 4 (types must exist before contracts can tighten them) ✓
@@ -385,7 +400,7 @@ cargo test cyber_ --workspace
 | `crates/hkask-agents/src/curator/escalation.rs` | `EscalationQueue` — persistent queue for escalated outputs that require human review. |
 | `crates/hkask-cns/src/runtime.rs` | `CnsRuntime` with 4 handle types (`CnsWriteHandle`, `CnsGovernReadHandle`, `CnsGovernWriteHandle`, `CnsAdminHandle`). `CnsGovernWriteHandle::calibrate_threshold()` for threshold calibration (5.3 ADAPT). |
 | `crates/hkask-cns/src/unified_tracker.rs` | `UnifiedVarietyTracker` — single SENSE point for all CNS observation domains (4.1 domain variety, 4.3 bot metrics, 4.4 sovereignty events, goal variety). |
-| `crates/hkask-cns/src/bot_metrics.rs` | `BotEvaluationMetrics`, `BotHealthStatus`, `CapabilityGap`, `GapType` — data contract for Curation. `BotMetricsCollector` is **deprecated**; use `UnifiedVarietyTracker`. |
+| `crates/hkask-cns/src/bot_metrics.rs` | `BotEvaluationMetrics`, `BotHealthStatus`, `CapabilityGap`, `GapType` — data contract for Curation. Collection is via `UnifiedVarietyTracker`. |
 | `crates/hkask-storage/src/lock_priority.rs` | `LockPriority` enum (Critical/High/Normal/Low) with `PriorityLockGuard` and `Database::acquire(priority)`. |
 | `crates/hkask-keystore/src/master_key.rs` | `derive_data_category_key()` — HKDF-SHA256 key derivation per `DataCategory` for storage-layer OCAP enforcement. |
 
@@ -403,8 +418,10 @@ cargo test cyber_ --workspace
 - **Do NOT** skip Phase 5 — it's DONE now
 - **Do NOT** skip Phase 6 — it's DONE now
 - **Do NOT** skip Phase 7 — it's DONE now
-- **Do NOT** assume `CnsRuntimeAdapter` is the way to access CNS — use the 4 handle types (`CnsWriteHandle`, `CnsGovernReadHandle`, `CnsGovernWriteHandle`, `CnsAdminHandle`) or their adapters. The monolithic adapter is deprecated.
+- **Do NOT** assume `CnsRuntimeAdapter` is the way to access CNS — it was removed in Phase 11a. Use the 4 OCAP handle adapters (`CnsWriteAdapter`, `CnsGovernReadAdapter`, `CnsGovernWriteAdapter`, `CnsAdminAdapter`) or the handle types directly.
+- **Do NOT** reintroduce `BotMetricsCollector`, `GoalVarietyMonitor`, `SovereigntyObserver`, or `CnsRuntimeAdapter` — they were replaced by `UnifiedVarietyTracker` and the OCAP handle types.
+- **Do NOT** reintroduce `BotCapabilities` (agents), `ReplicantCapabilities`, or `SystemHealthSnapshot` — they were replaced by `AgentCapabilities` and `HealthSnapshot` respectively.
 
 ---
 
-*ℏKask — Implementation Handoff v5 — Phases 0–10b,10c complete, next: Phase 10a (docs)*
+*ℏKask — Implementation Handoff v6 — Phases 0–11 complete*

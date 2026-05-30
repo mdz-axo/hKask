@@ -222,25 +222,21 @@ graph TB
     subgraph CNS["CNS Runtime"]
         RT["CnsRuntime<br/>orchestrator"]
         ALG["AlgedonicManager<br/>alert escalation"]
-        COMP["CompositionObserver<br/>variety metrics"]
-        SOV["SovereigntyObserver<br/>user rights"]
+        UVT["UnifiedVarietyTracker<br/>variety + bot metrics + sovereignty + goals"]
         RL["RateLimiter<br/>token bucket"]
-        RQ["ReviewQueue<br/>violation tracking"]
         EN["EnergyBudget<br/>resource tracking"]
     end
 
     RT --> ALG
-    RT --> COMP
-    RT --> SOV
+    RT --> UVT
     RT --> RL
-    RT --> RQ
     RT --> EN
 ```
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-TSO-001
-verified_date: 2026-05-25
-verified_against: crates/hkask-cns/src/runtime.rs:30; algedonic.rs:79; observers/composition.rs:216
+verified_date: 2026-05-30
+verified_against: crates/hkask-cns/src/runtime.rs:39-55; unified_tracker.rs
 status: VERIFIED
 -->
 

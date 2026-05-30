@@ -1,11 +1,9 @@
 //! Unified Agent Capabilities
 //!
-//! Collapsed from the former `BotCapabilities` and `ReplicantCapabilities` into
-//! a single `AgentCapabilities` type with a structured `MemoryAccess` sub-struct.
+//! Single `AgentCapabilities` type with a structured `MemoryAccess` sub-struct.
 //!
-//! Bots previously had a single `can_access_memory` flag; this now maps to
-//! `MemoryAccess { can_access_episodic: true, can_access_semantic: true }`.
-//! Replicants already had separate episodic/semantic flags, which map directly.
+//! Bots use `MemoryAccess::full()` for both episodic and semantic access.
+//! Replicants use separate `can_access_episodic`/`can_access_semantic` flags.
 
 use serde::{Deserialize, Serialize};
 
@@ -54,9 +52,7 @@ impl MemoryAccess {
 
 /// Unified capabilities for all agent types (bots and replicants).
 ///
-/// Replaces the former `BotCapabilities` and `ReplicantCapabilities` with a
-/// single type that uses `MemoryAccess` to differentiate episodic vs semantic
-/// memory permissions.
+/// Uses `MemoryAccess` to differentiate episodic vs semantic memory permissions.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AgentCapabilities {
     /// Can invoke MCP tools
@@ -71,7 +67,6 @@ pub struct AgentCapabilities {
 
 impl AgentCapabilities {
     /// Create capabilities with full memory access (both episodic and semantic).
-    /// Maps to the former `BotCapabilities.can_access_memory = true`.
     pub fn with_full_memory() -> Self {
         Self {
             can_invoke_tools: false,

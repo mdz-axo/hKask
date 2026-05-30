@@ -28,26 +28,6 @@ pub struct Bot {
     pub capabilities: AgentCapabilities,
 }
 
-/// Bot operational capabilities (deprecated — use [`AgentCapabilities`]).
-///
-/// Migrated to `AgentCapabilities` which uses `MemoryAccess` for structured
-/// episodic/semantic memory permissions instead of the flat `can_access_memory` flag.
-#[deprecated(
-    since = "0.21.0",
-    note = "Use `AgentCapabilities` with `MemoryAccess` instead. Bots map `can_access_memory = true` to `MemoryAccess::full()`."
-)]
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct BotCapabilities {
-    /// Can invoke MCP tools
-    pub can_invoke_tools: bool,
-    /// Can access memory
-    pub can_access_memory: bool,
-    /// Can dispatch templates
-    pub can_dispatch_templates: bool,
-    /// Can escalate to curator
-    pub can_escalate: bool,
-}
-
 impl Bot {
     /// Create new bot
     pub fn new(name: String, description: String) -> Self {
@@ -104,33 +84,5 @@ impl Bot {
 impl Default for Bot {
     fn default() -> Self {
         Self::new("unnamed-bot".to_string(), "A bot agent".to_string())
-    }
-}
-
-#[allow(deprecated)]
-impl From<BotCapabilities> for AgentCapabilities {
-    fn from(caps: BotCapabilities) -> Self {
-        Self {
-            can_invoke_tools: caps.can_invoke_tools,
-            memory_access: if caps.can_access_memory {
-                crate::capabilities::MemoryAccess::full()
-            } else {
-                crate::capabilities::MemoryAccess::default()
-            },
-            can_dispatch_templates: caps.can_dispatch_templates,
-            can_escalate: caps.can_escalate,
-        }
-    }
-}
-
-#[allow(deprecated)]
-impl From<AgentCapabilities> for BotCapabilities {
-    fn from(caps: AgentCapabilities) -> Self {
-        Self {
-            can_invoke_tools: caps.can_invoke_tools,
-            can_access_memory: caps.memory_access.any(),
-            can_dispatch_templates: caps.can_dispatch_templates,
-            can_escalate: caps.can_escalate,
-        }
     }
 }

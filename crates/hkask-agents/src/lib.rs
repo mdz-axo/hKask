@@ -78,6 +78,4 @@ pub use ports::{
 };
 pub use registry_loader::{BotRegistryLoader, RegistryLoaderError};
 pub use replicant::Replicant;
-#[allow(deprecated)]
-pub use replicant::ReplicantCapabilities;
 pub use sovereignty::SovereigntyChecker;

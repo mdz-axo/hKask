@@ -28,29 +28,6 @@ pub struct Replicant {
     pub capabilities: AgentCapabilities,
 }
 
-/// Replicant operational capabilities (deprecated — use [`AgentCapabilities`]).
-///
-/// Migrated to `AgentCapabilities` which uses `MemoryAccess` for structured
-/// episodic/semantic memory permissions. The former `can_access_episodic` and
-/// `can_access_semantic` fields now live in `MemoryAccess`.
-#[deprecated(
-    since = "0.21.0",
-    note = "Use `AgentCapabilities` with `MemoryAccess` instead. `can_access_episodic` maps to `memory_access.can_access_episodic`, `can_access_semantic` maps to `memory_access.can_access_semantic`."
-)]
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct ReplicantCapabilities {
-    /// Can invoke MCP tools
-    pub can_invoke_tools: bool,
-    /// Can access episodic memory (private)
-    pub can_access_episodic: bool,
-    /// Can access semantic memory (public)
-    pub can_access_semantic: bool,
-    /// Can dispatch templates
-    pub can_dispatch_templates: bool,
-    /// Can escalate to curator
-    pub can_escalate: bool,
-}
-
 impl Replicant {
     /// Create new replicant
     pub fn new(name: String, description: String, owner: WebID) -> Self {
@@ -113,33 +90,5 @@ impl Default for Replicant {
             "A replicant agent".to_string(),
             owner,
         )
-    }
-}
-
-#[allow(deprecated)]
-impl From<ReplicantCapabilities> for AgentCapabilities {
-    fn from(caps: ReplicantCapabilities) -> Self {
-        Self {
-            can_invoke_tools: caps.can_invoke_tools,
-            memory_access: crate::capabilities::MemoryAccess {
-                can_access_episodic: caps.can_access_episodic,
-                can_access_semantic: caps.can_access_semantic,
-            },
-            can_dispatch_templates: caps.can_dispatch_templates,
-            can_escalate: caps.can_escalate,
-        }
-    }
-}
-
-#[allow(deprecated)]
-impl From<AgentCapabilities> for ReplicantCapabilities {
-    fn from(caps: AgentCapabilities) -> Self {
-        Self {
-            can_invoke_tools: caps.can_invoke_tools,
-            can_access_episodic: caps.memory_access.can_access_episodic,
-            can_access_semantic: caps.memory_access.can_access_semantic,
-            can_dispatch_templates: caps.can_dispatch_templates,
-            can_escalate: caps.can_escalate,
-        }
     }
 }
