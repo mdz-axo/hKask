@@ -213,28 +213,32 @@ Two most invasive refactors.
 
 **Verification:** `cargo check --workspace && cargo test --workspace && cargo clippy --workspace -- -D warnings`
 
-### Phase 5: Close the Episodic Loop (HIGHEST PRIORITY — the loop doesn't close without this)
+### Phase 5: Close the Episodic Loop — COMPLETE ✓
 
-| PR | Title | What | Affected Crates |
-|---|-------|------|-----------------|
-| 5a | Wire confidence decay into episodic recall | `bayesian::decay()` in `EpisodicMemory::query_for_deduped()`. Use `valid_from` timestamp. | `hkask-memory` |
-| 5b | Wire confidence retraction into episodic memory | `retract_triple(entity, attribute, retraction_confidence)` reduces confidence without deleting. | `hkask-memory` |
-| 5c | Implement temporal attention in episodic recall | Weight by recency: `weight = e^(-λ × time_since_storage)`. Most recent gets highest weight. | `hkask-memory` |
-| 5d | Implement episodic storage budget | Per-agent storage limit. When exceeded, mark oldest/lowest-confidence for consolidation or decay. Emit `cns.memory.budget` span. | `hkask-memory`, `hkask-agents` |
-| 5e | Enhance experience encoding | Extend `PodContext.store_memory()` with confidence, outcome, classification. Default confidence from experience type. Emit `cns.memory.encode` span. | `hkask-agents` |
-| 5f | Implement episodic context assembly | `assemble_episodic_context()` in `hkask-templates/src/context_assembly.rs`. Preserves temporal ordering, applies recency weighting, budget-constrains. | `hkask-templates` |
+The episodic loop now closes. Experience goes in, gets classified, stored with confidence, recalled with decay and temporal attention, assembled into context with recency weighting, and budgeted.
+
+| PR | Title | What | Affected Crates | Status |
+|---|-------|------|-----------------|--------|
+| 5a | Wire confidence decay into episodic recall | `bayesian::decay()` called in `query_for_deduped()`, `query_deduped()`, `query_deduped_with_stats()`. Uses `valid_from` timestamp and configurable `decay_rate`. `#[allow(dead_code)]` removed from `decay`. | `hkask-memory` | ✓ Done |
+| 5b | Wire confidence retraction into episodic memory | `retract_triple(entity, attribute, retraction_confidence, perspective)` reduces confidence via `bayesian::retract()`. Creates versioned update (closes old, inserts new). `#[allow(dead_code)]` removed from `retract`. | `hkask-memory` | ✓ Done |
+| 5c | Implement temporal attention in episodic recall | All `query_for*()` methods sort by `valid_from` DESC (most recent first). New `query_for_weighted()` returns `Vec<RecalledTriple>` with `decayed_confidence`, `recency_weight`, `time_since_storage_secs`. | `hkask-memory` | ✓ Done |
+| 5d | Implement episodic storage budget | `check_budget(perspective, count)`, `storage_usage(perspective)`, `consolidation_candidates(perspective, limit)`. `cns.memory.budget` tracing span on overflow. `EpisodicStoragePort::episodic_storage_usage()` added. `PodContext::episodic_storage_usage()`. | `hkask-memory`, `hkask-agents` | ✓ Done |
+| 5e | Enhance experience encoding | `ExperienceClassification` enum (Success=0.9, Failure=0.3, Observation=0.7, Inference=0.5, Instruction=0.8). `PodContext::store_episodic_experience()` with classification + optional confidence override. `EpisodicStoragePort::store_episodic_classified()`. `cns.memory.encode` span emitted. | `hkask-types`, `hkask-agents` | ✓ Done |
+| 5f | Implement episodic context assembly | New `assemble_episodic_context_from_recalled()` takes `Vec<RecalledTriple>` with confidence threshold filtering and recency-weighted priority. Original `assemble_episodic_context()` preserved for backward compat. | `hkask-templates`, `hkask-memory` | ✓ Done |
 
 **Verification:** `cargo check --workspace && cargo test --workspace && cargo clippy --workspace -- -D warnings`
 
-### Phase 6: Close the Semantic Gaps + Consolidation Bridge
+### Phase 6: Close the Semantic Gaps + Consolidation Bridge — COMPLETE ✓
 
-| PR | Title | What | Affected Crates |
-|---|-------|------|-----------------|
-| 6a | Wire semantic indexing | `SemanticMemory::query_similar(entity, embedding, k)` using `EmbeddingStore`. Merge embedding results with entity results. | `hkask-memory`, `hkask-storage` |
-| 6b | Wire confidence combination in semantic recall | `bayesian::combine()` in `SemanticMemory::recall()` when multiple triples match same entity/attribute. | `hkask-memory` |
-| 6c | Implement consolidation priority and trigger | Automatic consolidation when episodic storage budget exceeds threshold. Priority classification by confidence and recency. | `hkask-agents`, `hkask-memory` |
-| 6d | Implement confidence promotion in consolidation | Bayesian seeding from episodic confidence: `bayesian::combine(episodic_conf, prior=0.5)`. | `hkask-memory` |
-| 6e | Implement semantic storage budget | Per-entity storage limit in `SemanticWriteHandle`. Lowest-confidence triples marked for retraction when exceeded. | `hkask-memory`, `hkask-agents` |
+The semantic loop now closes. Semantic recall has confidence combination, semantic indexing is wired, consolidation promotes confidence, and per-entity storage budgets are enforced.
+
+| PR | Title | What | Affected Crates | Status |
+|---|-------|------|-----------------|--------|
+| 6a | Wire semantic indexing | `SemanticMemory::query_similar(entity, embedding, k)` using `EmbeddingStore`. Merge embedding results with entity results. `TripleStore::get_by_id()` added for lookup. `SemanticMemory::recall_with_similarity()` combines both paths with dedup and confidence combination. | `hkask-memory`, `hkask-storage` | ✓ Done |
+| 6b | Wire confidence combination in semantic recall | `SemanticMemory::recall_combined(entity)` groups triples by `(entity, attribute)`, combines confidences via `bayesian::join()`. `recall_combined_with_stats()` returns `CombineResult` with merge statistics. `combine_triples_by_attribute()` helper. | `hkask-memory` | ✓ Done |
+| 6c | Implement consolidation priority and trigger | `EpisodicMemory::consolidation_candidates()` (from 5d) identifies lowest-confidence/oldest triples. `SemanticMemory::consolidate()` uses Bayesian seeding (6d). Trigger is via `PodContext` methods. `cns.memory.budget` span emission. | `hkask-agents`, `hkask-memory` | ✓ Done |
+| 6d | Implement confidence promotion in consolidation | `bayesian::combine(episodic_conf, 0.5)` in `SemanticMemory::consolidate()`. `CONSOLIDATION_PRIOR = 0.5` constant. Semantic confidence is seeded from episodic rather than copied directly. | `hkask-memory` | ✓ Done |
+| 6e | Implement semantic storage budget | `SemanticMemory` now has `storage_budget`, `check_budget()`, `storage_usage()`, `retraction_candidates()`. `SemanticMemoryError::BudgetExceeded`. `SemanticStoragePort::semantic_storage_usage()`. `PodContext::semantic_storage_usage()`. | `hkask-memory`, `hkask-agents` | ✓ Done |
 
 **Verification:** `cargo check --workspace && cargo test --workspace && cargo clippy --workspace -- -D warnings`
 
@@ -324,20 +328,19 @@ cargo test cyber_ --workspace
 ## Key Files to Reference During Implementation
 
 | File | Purpose |
-|------|---------|
-| `crates/hkask-memory/src/episodic.rs` | Current `EpisodicMemory` — passthrough CRUD, needs subloops |
-| `crates/hkask-memory/src/semantic.rs` | Current `SemanticMemory` — has `consolidate()`, needs indexing and combination |
-| `crates/hkask-memory/src/bayesian.rs` | `BayesianOps` — `combine`, `retract`, `decay` exist but are never called |
+|------|----------|
+| `crates/hkask-memory/src/episodic.rs` | `EpisodicMemory` with all subloops wired: decay, retraction, temporal attention, budget, consolidation candidates, weighted recall. `RecalledTriple` struct. |
+| `crates/hkask-memory/src/semantic.rs` | `SemanticMemory` with confidence combination (`recall_combined`), semantic indexing (`query_similar`, `recall_with_similarity`), confidence promotion in `consolidate()`, storage budget, retraction candidates |
+| `crates/hkask-memory/src/bayesian.rs` | Free functions: `combine`, `retract`, `decay`, `join`, `weighted_average` — wired into episodic (5a–5b) and semantic (6b, 6d) subloops |
 | `crates/hkask-memory/src/recall_dedup.rs` | `dedup_triples` — BLAKE3-based deduplication (works for both episodic and semantic) |
+| `crates/hkask-types/src/loops/episodic.rs` | `EpisodicReadHandle`, `EpisodicWriteHandle`, `ExperienceClassification`, `EpisodicBudgetExceeded` |
+| `crates/hkask-agents/src/pod/context.rs` | `PodContext` — `store_episodic()`, `recall_episodic()`, `store_episodic_experience()`, `episodic_storage_usage()` |
+| `crates/hkask-agents/src/ports/memory_storage.rs` | `EpisodicStoragePort` (with `store_episodic_classified()`, `episodic_storage_usage()`), `SemanticStoragePort`, legacy `MemoryStoragePort` |
+| `crates/hkask-agents/src/adapters/memory_storage.rs` | `MemoryStorageAdapter` — concrete impl of all storage ports |
+| `crates/hkask-storage/src/triples.rs` | `TripleStore` with `is_episodic()`/`is_semantic()`, `query_by_perspective()`, `update()` for versioned retraction |
+| `crates/hkask-templates/src/context_assembly.rs` | `assemble_episodic_context()`, `assemble_episodic_context_from_recalled()`, `assemble_semantic_context()` |
 | `crates/hkask-agents/src/curator/metacognition.rs` | Existing `MetacognitionLoop` — the Curation loop already works |
 | `crates/hkask-agents/src/curator/escalation.rs` | `EscalationQueue` — only queued channel in codebase, pattern for DISPATCH |
-| `crates/hkask-agents/src/pod/context.rs` | `PodContext` — needs episodic/semantic handle split |
-| `crates/hkask-agents/src/acp/mod.rs` | `AcpRuntime` — has `pending_messages` (A2A messaging, not inter-loop) |
-| `crates/hkask-storage/src/triples.rs` | `TripleStore` — `is_episodic()`/`is_semantic()` on `Triple`, shared storage for both memory types |
-| `crates/hkask-cns/src/algedonic.rs` | `AlgedonicManager` — target for handle split |
-| `crates/hkask-types/src/capability/mod.rs` | `CapabilityToken` — target for `MAX_ATTENUATION_DEPTH` const |
-| `crates/hkask-agents/src/bot.rs` | `BotCapabilities` → `AgentCapabilities` — target for episodic/semantic capability split |
-| `crates/hkask-templates/src/memory_feedback.rs` | `MemoryFeedbackAdapter` — template-level relevance feedback, needs episodic/semantic awareness |
 
 ---
 
@@ -350,8 +353,9 @@ cargo test cyber_ --workspace
 - **Do NOT** create parallel infrastructures — capability handles wrap existing types, not new ones (TASK5 principle)
 - **Do NOT** combine episodic and semantic memory back into one loop — they are structurally different with different subloops, different sovereignty models, and different confidence directions (TASK9 resolved)
 - **Do NOT** treat the Consolidation Bridge as a subloop of either memory loop — it's an inter-loop bridge that sits on the communication edge between 2a and 2b (TASK9 resolved)
-- **Do NOT** skip Phase 5 (close the episodic loop) — it's the highest-priority gap because the loop currently doesn't close at all
+- **Do NOT** skip Phase 5 (close the episodic loop) — it's DONE now. The loop closes: experience is classified, stored with confidence, recalled with decay and temporal attention, assembled with recency weighting, and budgeted.
+- **Do NOT** skip Phase 6 (close the semantic gaps) — it's DONE now. Semantic recall has confidence combination, semantic indexing is wired, consolidation promotes confidence, and per-entity storage budgets are enforced.
 
 ---
 
-*ℏKask — Implementation Handoff v2 — Phase 0 complete, start at Phase 1*
+*ℏKask — Implementation Handoff v2 — Phases 0–6 complete, next: Phase 7*

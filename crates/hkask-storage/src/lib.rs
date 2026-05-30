@@ -26,6 +26,7 @@ pub use embeddings::{Embedding, EmbeddingError, EmbeddingStore};
 pub use git_cas::GitCas;
 pub use goal_judge::{GoalJudgeAdapter, GoalJudgeError, GoalVerifier};
 pub use goals::{GoalRepositoryError, Result as GoalResult, SqliteGoalRepository};
+pub use hkask_types::TripleID;
 pub use metacognition::{MetacognitionError, MetacognitionStore, StoredSnapshot};
 pub use nu_event_store::{NuEventError, NuEventStore};
 pub use revocation_store::{RevocationError, RevocationRecord, RevocationStore};

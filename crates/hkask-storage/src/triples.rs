@@ -330,6 +330,51 @@ impl TripleStore {
         Ok(())
     }
 
+    /// Get a single triple by ID (must be current: valid_to IS NULL)
+    pub fn get_by_id(&self, id: &TripleID) -> Result<Option<Triple>, TripleError> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let mut stmt = conn.prepare(
+            "SELECT id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid
+             FROM triples
+             WHERE id = ?1 AND valid_to IS NULL",
+        )?;
+
+        let result = stmt
+            .query_map(rusqlite::params![id.0.to_string()], |row| {
+                let id_str: String = row.get(0)?;
+                let entity: String = row.get(1)?;
+                let attribute: String = row.get(2)?;
+                let value_str: String = row.get(3)?;
+                let valid_from_str: String = row.get(4)?;
+                let valid_to_str: Option<String> = row.get(5)?;
+                let confidence: f64 = row.get(6)?;
+                let perspective_str: Option<String> = row.get(7)?;
+                let visibility_str: String = row.get(8)?;
+                let owner_webid_str: String = row.get(9)?;
+
+                Ok(TripleRow {
+                    id: id_str,
+                    entity,
+                    attribute,
+                    value: value_str,
+                    valid_from: valid_from_str,
+                    valid_to: valid_to_str,
+                    confidence,
+                    perspective: perspective_str,
+                    visibility: visibility_str,
+                    owner_webid: owner_webid_str,
+                })
+            })?
+            .filter_map(|r| r.ok())
+            .filter_map(|row| Self::row_to_triple(row).ok())
+            .next();
+
+        Ok(result)
+    }
+
     /// Hard delete a triple
     pub fn hard_delete(&self, id: &TripleID) -> Result<(), TripleError> {
         let conn = self

@@ -18,4 +18,4 @@ pub use episodic::{
 };
 pub use goal_memory::{GoalEpisodicMemory, GoalMemory, GoalSemanticMemory, MemoryError};
 pub use recall_dedup::{DedupResult, dedup_triples, dedup_triples_with_stats, eav_hash};
-pub use semantic::SemanticMemory;
+pub use semantic::{CombineResult, DEFAULT_SEMANTIC_BUDGET, SemanticMemory, SemanticMemoryError};

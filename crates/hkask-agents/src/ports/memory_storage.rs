@@ -127,6 +127,12 @@ pub trait SemanticStoragePort: Send + Sync {
         query: &str,
         token: &CapabilityToken,
     ) -> Result<Vec<serde_json::Value>, crate::error::MemoryError>;
+
+    /// Check semantic storage usage for an entity.
+    ///
+    /// Returns the number of semantic triples currently stored for the given entity.
+    /// Used by Loop 6e (Semantic Storage Budget) to enforce per-entity limits.
+    fn semantic_storage_usage(&self, entity: &str) -> Result<usize, crate::error::MemoryError>;
 }
 
 // =============================================================================

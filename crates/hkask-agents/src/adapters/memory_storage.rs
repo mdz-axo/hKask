@@ -274,6 +274,24 @@ impl SemanticStoragePort for MemoryStorageAdapter {
 
         Ok(results)
     }
+
+    fn semantic_storage_usage(&self, entity: &str) -> Result<usize, MemoryError> {
+        let triples = self
+            .triple_store
+            .query_by_entity(entity)
+            .map_err(|e| MemoryError::Query(e.to_string()))?;
+
+        let count = triples.iter().filter(|t| t.is_semantic()).count();
+
+        tracing::debug!(
+            target: "cns.memory.budget",
+            entity = %entity,
+            count = count,
+            "Semantic storage usage checked"
+        );
+
+        Ok(count)
+    }
 }
 
 // =============================================================================

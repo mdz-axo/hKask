@@ -260,6 +260,21 @@ impl PodContext {
             .map_err(|e| AgentPodError::MemoryError(e.to_string()))
     }
 
+    /// Check semantic storage usage for an entity.
+    ///
+    /// Returns the number of semantic triples currently stored for the entity.
+    /// Used by Loop 6e (Semantic Storage Budget) to enforce per-entity limits.
+    pub fn semantic_storage_usage(&self, entity: &str) -> Result<usize, AgentPodError> {
+        self.require_capability(
+            CapabilityResource::Manifest,
+            "semantic_memory",
+            CapabilityAction::Read,
+        )?;
+        self.semantic_storage
+            .semantic_storage_usage(entity)
+            .map_err(|e| AgentPodError::MemoryError(e.to_string()))
+    }
+
     // ========================================================================
     // Legacy memory methods (deprecated — use episodic/semantic methods)
     // ========================================================================
