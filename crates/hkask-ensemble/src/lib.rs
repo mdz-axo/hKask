@@ -20,7 +20,10 @@ pub mod standing_session;
 pub mod webid_registry;
 
 // Re-export commonly used types
+#[allow(deprecated)]
 pub use adapters::{ImprovClientError, OkapiImprovClient};
+#[allow(deprecated)]
+pub use adapters::{OkapiClient, OkapiClientError, OkapiHttpClient};
 pub use chat::{
     ChatMessage, ChatParticipant, EnsembleChat, EnsembleChatManager, EnsembleError, ParticipantRole,
 };

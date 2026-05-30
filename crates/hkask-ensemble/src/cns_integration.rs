@@ -68,7 +68,9 @@ impl CnsIntegration {
             escalated_model: escalated_model.to_string(),
         };
 
-        self.span_emitter.emit_prompt("escalation", json!(span));
+        self.span_emitter.emit_with_phase(
+        Span::prompt("escalation"),
+        Phase::Observe,, json!(span));
 
         info!(
             target: "hkask.cns.confidence",

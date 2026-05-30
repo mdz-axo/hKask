@@ -275,8 +275,9 @@ impl RussellMapper {
         }
 
         if self.should_emit_cns() {
-            self.cns.emit_pipeline(
-                "russell_manifest_analyzed",
+            self.cns.emit_with_phase(
+        Span::pipeline("russell_manifest_analyzed"),
+        Phase::Observe,,
                 serde_json::json!({
                     "manifest_id": manifest.id,
                     "version": manifest.version,
@@ -297,8 +298,9 @@ impl RussellMapper {
         let energy_cap = calculate_energy_budget(russell, self.config.energy_budget.as_ref());
 
         if self.should_emit_cns() {
-            self.cns.emit_pipeline(
-                "russell_mapping_complete",
+            self.cns.emit_with_phase(
+        Span::pipeline("russell_mapping_complete"),
+        Phase::Observe,,
                 serde_json::json!({
                     "source_id": russell.id,
                     "mapped_id": hkask_id,

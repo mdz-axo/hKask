@@ -6,7 +6,7 @@
 
 use hkask_ensemble::{
     ChatMessage, ChatParticipant, DeliberationCoordinator, EnsembleChatManager, ImprovMode,
-    ImprovSessionConfig, OkapiImprovClient, ParticipantRole,
+    ImprovSessionConfig, OkapiClient, ParticipantRole,
 };
 use hkask_types::WebID;
 use std::sync::Arc;
@@ -16,7 +16,7 @@ static CHAT_MANAGER: std::sync::OnceLock<Arc<RwLock<EnsembleChatManager>>> =
     std::sync::OnceLock::new();
 static DELIBERATION_COORDINATOR: std::sync::OnceLock<Arc<RwLock<DeliberationCoordinator>>> =
     std::sync::OnceLock::new();
-static IMPROV_CLIENT: std::sync::OnceLock<Arc<OkapiImprovClient>> = std::sync::OnceLock::new();
+static IMPROV_CLIENT: std::sync::OnceLock<Arc<OkapiClient>> = std::sync::OnceLock::new();
 
 fn get_chat_manager() -> Arc<RwLock<EnsembleChatManager>> {
     CHAT_MANAGER
@@ -30,9 +30,9 @@ fn get_deliberation_coordinator() -> Arc<RwLock<DeliberationCoordinator>> {
         .clone()
 }
 
-fn get_improv_client() -> Arc<OkapiImprovClient> {
+fn get_improv_client() -> Arc<OkapiClient> {
     IMPROV_CLIENT
-        .get_or_init(|| Arc::new(OkapiImprovClient::new()))
+        .get_or_init(|| Arc::new(OkapiClient::from_env()))
         .clone()
 }
 

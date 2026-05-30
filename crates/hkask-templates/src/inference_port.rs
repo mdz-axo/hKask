@@ -296,8 +296,9 @@ impl OkapiInference {
             && !cb.allow_request()
         {
             // Emit CNS span for circuit open
-            self.span_emitter.emit_connector(
-                "circuit_open",
+            self.span_emitter.emit_with_phase(
+        Span::connector("circuit_open"),
+        Phase::Observe,,
                 serde_json::json!({
                     "model": self.model,
                     "action": "inference.execute_request",
@@ -441,8 +442,9 @@ impl InferencePort for OkapiInference {
             && !rate_limiter.check(bot_id)
         {
             // Emit CNS span for rate limit exceeded
-            self.span_emitter.emit_tool(
-                "rate_limit_exceeded",
+            self.span_emitter.emit_with_phase(
+        Span::tool("rate_limit_exceeded"),
+        Phase::Observe,,
                 serde_json::json!({
                     "bot_id": bot_id.to_string(),
                     "model": self.model,
@@ -539,8 +541,9 @@ impl InferencePort for OkapiInference {
             && !rate_limiter.check(bot_id)
         {
             // Emit CNS span for rate limit exceeded
-            self.span_emitter.emit_tool(
-                "rate_limit_exceeded",
+            self.span_emitter.emit_with_phase(
+        Span::tool("rate_limit_exceeded"),
+        Phase::Observe,,
                 serde_json::json!({
                     "bot_id": bot_id.to_string(),
                     "model": self.model,

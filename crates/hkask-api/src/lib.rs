@@ -79,7 +79,7 @@ pub struct ApiState {
     /// Rate limiter for API endpoints
     pub rate_limiter: Arc<RateLimiter>,
     /// Ensemble inferencer (optional - for Russell SOAP inference)
-    pub ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::OkapiHttpClient>>,
+    pub ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::OkapiClient>>,
     /// Spec store for DDMVSS specifications
     pub spec_store: Option<Arc<dyn hkask_types::SpecStore + Send + Sync>>,
     /// Consent manager for user sovereignty
@@ -109,7 +109,7 @@ impl ApiState {
         pod_manager: PodManager,
         capability_secret: &[u8],
         system_webid: WebID,
-        ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::OkapiHttpClient>>,
+        ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::OkapiClient>>,
     ) -> Self {
         let observer_webid = WebID::new();
         let rate_limiter = RateLimiter::new(RateLimitConfig {
@@ -227,9 +227,7 @@ impl ApiState {
         system_webid: WebID,
         okapi_base_url: &str,
     ) -> Self {
-        let inferencer = Arc::new(hkask_ensemble::adapters::OkapiHttpClient::new(
-            okapi_base_url,
-        ));
+        let inferencer = Arc::new(hkask_ensemble::adapters::OkapiClient::new(okapi_base_url));
         Self::new(
             registry,
             mcp_runtime,

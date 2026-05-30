@@ -25,8 +25,9 @@ pub fn pods_router() -> Router<ApiState> {
 
 /// List all pods
 async fn list_pods(State(state): State<ApiState>) -> Json<ListPodsResponse> {
-    state.cns_emitter.emit_agent_pod(
-        "api.pod.list.start",
+    state.cns_emitter.emit_with_phase(
+        Span::agent_pod("api.pod.list.start"),
+        Phase::Observe,,
         serde_json::json!({
             "timestamp": chrono::Utc::now().to_rfc3339(),
         }),
@@ -47,8 +48,9 @@ async fn list_pods(State(state): State<ApiState>) -> Json<ListPodsResponse> {
         })
         .collect();
 
-    state.cns_emitter.emit_agent_pod(
-        "api.pod.list.outcome",
+    state.cns_emitter.emit_with_phase(
+        Span::agent_pod("api.pod.list.outcome"),
+        Phase::Observe,,
         serde_json::json!({
             "count": pods.len(),
         }),
@@ -66,8 +68,9 @@ async fn create_pod(
     use hkask_agents::pod::AgentPersona;
     use hkask_types::CapabilityResource;
 
-    state.cns_emitter.emit_agent_pod(
-        "api.pod.create.start",
+    state.cns_emitter.emit_with_phase(
+        Span::agent_pod("api.pod.create.start"),
+        Phase::Observe,,
         serde_json::json!({
             "template": req.template,
             "name": req.name,
@@ -80,8 +83,9 @@ async fn create_pod(
             .check_resource(&auth.token, &auth.webid, CapabilityResource::Tool);
 
     if !has_capability {
-        state.cns_emitter.emit_agent_pod(
-            "api.pod.create.denied",
+        state.cns_emitter.emit_with_phase(
+        Span::agent_pod("api.pod.create.denied"),
+        Phase::Observe,,
             serde_json::json!({
                 "reason": "capability_check_failed",
             }),
@@ -99,8 +103,9 @@ async fn create_pod(
         .create_pod(&req.template, &persona, req.name)
         .await
         .map_err(|e| {
-            state.cns_emitter.emit_agent_pod(
-                "api.pod.create.error",
+            state.cns_emitter.emit_with_phase(
+        Span::agent_pod("api.pod.create.error"),
+        Phase::Observe,,
                 serde_json::json!({
                     "error": e.to_string(),
                 }),
@@ -108,8 +113,9 @@ async fn create_pod(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    state.cns_emitter.emit_agent_pod(
-        "api.pod.create.success",
+    state.cns_emitter.emit_with_phase(
+        Span::agent_pod("api.pod.create.success"),
+        Phase::Observe,,
         serde_json::json!({
             "pod_id": pod_id.to_string(),
         }),
@@ -130,8 +136,9 @@ async fn activate_pod(
     use hkask_agents::pod::PodID;
     use uuid::Uuid;
 
-    state.cns_emitter.emit_agent_pod(
-        "api.pod.activate.start",
+    state.cns_emitter.emit_with_phase(
+        Span::agent_pod("api.pod.activate.start"),
+        Phase::Observe,,
         serde_json::json!({
             "pod_id": id,
         }),
@@ -140,8 +147,9 @@ async fn activate_pod(
     let uuid = match Uuid::parse_str(&id) {
         Ok(u) => u,
         Err(_) => {
-            state.cns_emitter.emit_agent_pod(
-                "api.pod.activate.error",
+            state.cns_emitter.emit_with_phase(
+        Span::agent_pod("api.pod.activate.error"),
+        Phase::Observe,,
                 serde_json::json!({
                     "reason": "invalid_pod_id",
                 }),
@@ -153,8 +161,9 @@ async fn activate_pod(
 
     match state.pod_manager.activate_pod(&pod_id).await {
         Ok(_) => {
-            state.cns_emitter.emit_agent_pod(
-                "api.pod.activate.success",
+            state.cns_emitter.emit_with_phase(
+        Span::agent_pod("api.pod.activate.success"),
+        Phase::Observe,,
                 serde_json::json!({
                     "pod_id": id,
                 }),
@@ -162,8 +171,9 @@ async fn activate_pod(
             Ok(StatusCode::NO_CONTENT)
         }
         Err(e) => {
-            state.cns_emitter.emit_agent_pod(
-                "api.pod.activate.error",
+            state.cns_emitter.emit_with_phase(
+        Span::agent_pod("api.pod.activate.error"),
+        Phase::Observe,,
                 serde_json::json!({
                     "reason": e.to_string(),
                 }),
@@ -183,8 +193,9 @@ async fn deactivate_pod(
     use hkask_agents::pod::PodID;
     use uuid::Uuid;
 
-    state.cns_emitter.emit_agent_pod(
-        "api.pod.deactivate.start",
+    state.cns_emitter.emit_with_phase(
+        Span::agent_pod("api.pod.deactivate.start"),
+        Phase::Observe,,
         serde_json::json!({
             "pod_id": id,
         }),
@@ -193,8 +204,9 @@ async fn deactivate_pod(
     let uuid = match Uuid::parse_str(&id) {
         Ok(u) => u,
         Err(_) => {
-            state.cns_emitter.emit_agent_pod(
-                "api.pod.deactivate.error",
+            state.cns_emitter.emit_with_phase(
+        Span::agent_pod("api.pod.deactivate.error"),
+        Phase::Observe,,
                 serde_json::json!({
                     "reason": "invalid_pod_id",
                 }),
@@ -206,8 +218,9 @@ async fn deactivate_pod(
 
     match state.pod_manager.deactivate_pod(&pod_id).await {
         Ok(_) => {
-            state.cns_emitter.emit_agent_pod(
-                "api.pod.deactivate.success",
+            state.cns_emitter.emit_with_phase(
+        Span::agent_pod("api.pod.deactivate.success"),
+        Phase::Observe,,
                 serde_json::json!({
                     "pod_id": id,
                 }),
@@ -215,8 +228,9 @@ async fn deactivate_pod(
             Ok(StatusCode::NO_CONTENT)
         }
         Err(e) => {
-            state.cns_emitter.emit_agent_pod(
-                "api.pod.deactivate.error",
+            state.cns_emitter.emit_with_phase(
+        Span::agent_pod("api.pod.deactivate.error"),
+        Phase::Observe,,
                 serde_json::json!({
                     "reason": e.to_string(),
                 }),
@@ -236,16 +250,18 @@ async fn pod_status(
     use hkask_agents::pod::PodID;
     use uuid::Uuid;
 
-    state.cns_emitter.emit_agent_pod(
-        "api.pod.status.start",
+    state.cns_emitter.emit_with_phase(
+        Span::agent_pod("api.pod.status.start"),
+        Phase::Observe,,
         serde_json::json!({
             "pod_id": id,
         }),
     );
 
     let uuid = Uuid::parse_str(&id).map_err(|_| {
-        state.cns_emitter.emit_agent_pod(
-            "api.pod.status.error",
+        state.cns_emitter.emit_with_phase(
+        Span::agent_pod("api.pod.status.error"),
+        Phase::Observe,,
             serde_json::json!({
                 "reason": "invalid_pod_id",
             }),
@@ -259,8 +275,9 @@ async fn pod_status(
         .get_pod_status(&pod_id)
         .await
         .map_err(|e| {
-            state.cns_emitter.emit_agent_pod(
-                "api.pod.status.error",
+            state.cns_emitter.emit_with_phase(
+        Span::agent_pod("api.pod.status.error"),
+        Phase::Observe,,
                 serde_json::json!({
                     "reason": e.to_string(),
                 }),
@@ -268,8 +285,9 @@ async fn pod_status(
             StatusCode::NOT_FOUND
         })?;
 
-    state.cns_emitter.emit_agent_pod(
-        "api.pod.status.success",
+    state.cns_emitter.emit_with_phase(
+        Span::agent_pod("api.pod.status.success"),
+        Phase::Observe,,
         serde_json::json!({
             "pod_id": id,
             "state": status.state.to_string(),

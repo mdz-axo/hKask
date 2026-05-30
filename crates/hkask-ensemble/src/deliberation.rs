@@ -110,8 +110,9 @@ impl DeliberationSession {
     pub fn new(session_id: String, curator_webid: WebID) -> Self {
         let span_emitter = SpanEmitter::new(curator_webid);
 
-        span_emitter.emit_agent_pod(
-            "deliberation_started",
+        span_emitter.emit_with_phase(
+        Span::agent_pod("deliberation_started"),
+        Phase::Observe,,
             json!({
                 "session_id": session_id,
             }),
@@ -128,8 +129,9 @@ impl DeliberationSession {
 
     /// Add a participant to deliberation
     pub fn add_participant(&mut self, participant: ChatParticipant) {
-        self.span_emitter.emit_agent_pod(
-            "deliberation_participant_added",
+        self.span_emitter.emit_with_phase(
+        Span::agent_pod("deliberation_participant_added"),
+        Phase::Observe,,
             json!({
                 "webid": participant.webid.to_string(),
                 "role": format!("{:?}", participant.role),
@@ -141,8 +143,9 @@ impl DeliberationSession {
 
     /// Record an agent's response
     pub fn record_response(&mut self, response: AgentResponse) {
-        self.span_emitter.emit_tool(
-            "deliberation_response",
+        self.span_emitter.emit_with_phase(
+        Span::tool("deliberation_response"),
+        Phase::Observe,,
             json!({
                 "agent": response.agent_webid.to_string(),
                 "confidence": response.confidence,
@@ -160,8 +163,9 @@ impl DeliberationSession {
 
     /// Synthesize responses (simple concatenation, no consensus)
     pub fn synthesize(&self) -> DeliberationResult {
-        self.span_emitter.emit_tool(
-            "deliberation_synthesize",
+        self.span_emitter.emit_with_phase(
+        Span::tool("deliberation_synthesize"),
+        Phase::Observe,,
             json!({
                 "response_count": self.responses.len(),
             }),
@@ -181,8 +185,9 @@ impl DeliberationSession {
             .collect::<Vec<_>>()
             .join("\n\n");
 
-        self.span_emitter.emit_agent_pod(
-            "deliberation_completed",
+        self.span_emitter.emit_with_phase(
+        Span::agent_pod("deliberation_completed"),
+        Phase::Observe,,
             json!({
                 "session_id": self.session_id,
                 "response_count": individual_responses.len(),
@@ -206,14 +211,18 @@ impl DeliberationSession {
     pub fn start(&mut self) {
         self.status = DeliberationStatus::InProgress;
         self.span_emitter
-            .emit_agent_pod("deliberation_started", json!({}));
+            .emit_with_phase(
+        Span::agent_pod("deliberation_started"),
+        Phase::Observe,, json!({}));
     }
 
     /// Mark deliberation as completed
     pub fn complete(&mut self) {
         self.status = DeliberationStatus::Completed;
         self.span_emitter
-            .emit_agent_pod("deliberation_completed", json!({}));
+            .emit_with_phase(
+        Span::agent_pod("deliberation_completed"),
+        Phase::Observe,, json!({}));
         info!("Deliberation session {} completed", self.session_id);
     }
 
@@ -221,7 +230,9 @@ impl DeliberationSession {
     pub fn cancel(&mut self) {
         self.status = DeliberationStatus::Cancelled;
         self.span_emitter
-            .emit_agent_pod("deliberation_cancelled", json!({}));
+            .emit_with_phase(
+        Span::agent_pod("deliberation_cancelled"),
+        Phase::Observe,, json!({}));
         info!("Deliberation session {} cancelled", self.session_id);
     }
 

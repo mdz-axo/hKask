@@ -9,9 +9,9 @@ use crate::ports::{
 use async_trait::async_trait;
 use thiserror::Error;
 
-/// Error type for Okapi HTTP adapters
+/// Error type for Okapi client operations
 #[derive(Debug, Error)]
-pub enum OkapiAdapterError {
+pub enum OkapiClientError {
     #[error("HTTP request failed: {0}")]
     HttpError(#[from] reqwest::Error),
 
@@ -25,40 +25,59 @@ pub enum OkapiAdapterError {
     InvalidSseEvent(String),
 }
 
-/// Error type for improv-specific Okapi client
-#[derive(Debug, Error)]
-pub enum ImprovClientError {
-    #[error("HTTP error: {0}")]
-    Http(#[from] reqwest::Error),
-    #[error("Parse error: {0}")]
-    Parse(String),
-}
+/// **Deprecated:** Use `OkapiClientError` instead. This alias exists for backward compatibility.
+#[deprecated(
+    since = "0.21.0",
+    note = "Use `OkapiClientError` instead. OkapiAdapterError has been renamed."
+)]
+pub type OkapiAdapterError = OkapiClientError;
 
-/// Okapi inference client for improv sessions
-pub struct OkapiImprovClient {
+/// **Deprecated:** Use `OkapiClientError` instead. This alias exists for backward compatibility.
+#[deprecated(
+    since = "0.21.0",
+    note = "Use `OkapiClientError` instead. ImprovClientError has been merged into OkapiClientError."
+)]
+pub type ImprovClientError = OkapiClientError;
+
+/// Unified Okapi inference client with detailed response parsing
+///
+/// Collapses the former `OkapiHttpClient` and `OkapiImprovClient` into a
+/// single client that carries a reusable `reqwest::Client` and provides
+/// detailed `TokenProbability` response parsing.
+pub struct OkapiClient {
+    client: reqwest::Client,
     base_url: String,
 }
 
-impl OkapiImprovClient {
-    pub fn new() -> Self {
+impl OkapiClient {
+    /// Create a new OkapiClient pointing at the given base URL
+    pub fn new(base_url: &str) -> Self {
+        Self {
+            client: reqwest::Client::new(),
+            base_url: base_url.to_string(),
+        }
+    }
+
+    /// Create an OkapiClient reading the base URL from the `OKAPI_BASE_URL`
+    /// environment variable, defaulting to `http://localhost:8001`.
+    pub fn from_env() -> Self {
         let base_url =
             std::env::var("OKAPI_BASE_URL").unwrap_or_else(|_| "http://localhost:8001".to_string());
-        Self { base_url }
+        Self::new(&base_url)
     }
 }
 
-impl Default for OkapiImprovClient {
+impl Default for OkapiClient {
     fn default() -> Self {
-        Self::new()
+        Self::from_env()
     }
 }
 
 #[async_trait]
-impl InferenceClient for OkapiImprovClient {
-    type Error = ImprovClientError;
+impl InferenceClient for OkapiClient {
+    type Error = OkapiClientError;
 
     async fn generate(&self, request: &GenerateRequest) -> Result<GenerateResponse, Self::Error> {
-        let client = reqwest::Client::new();
         let body = serde_json::json!({
             "model": request.model,
             "prompt": request.prompt,
@@ -70,16 +89,16 @@ impl InferenceClient for OkapiImprovClient {
             })),
         });
 
-        let resp = client
+        let resp = self
+            .client
             .post(format!("{}/api/generate", self.base_url))
             .json(&body)
             .send()
             .await?;
 
-        let json: serde_json::Value = resp
-            .json()
-            .await
-            .map_err(|e| ImprovClientError::Parse(format!("Failed to parse response: {}", e)))?;
+        let json: serde_json::Value = resp.json().await.map_err(|e| {
+            OkapiClientError::ParseError(format!("Failed to parse response: {}", e))
+        })?;
 
         let response_text = json
             .get("response")
@@ -132,24 +151,46 @@ impl InferenceClient for OkapiImprovClient {
         messages: Vec<serde_json::Value>,
         model: String,
     ) -> Result<serde_json::Value, Self::Error> {
-        let client = reqwest::Client::new();
         let body = serde_json::json!({
             "model": model,
             "messages": messages,
             "stream": false,
         });
 
-        let resp = client
+        let resp = self
+            .client
             .post(format!("{}/api/chat", self.base_url))
             .json(&body)
             .send()
             .await?;
 
-        resp.json()
-            .await
-            .map_err(|e| ImprovClientError::Parse(format!("Failed to parse chat response: {}", e)))
+        resp.json().await.map_err(|e| {
+            OkapiClientError::ParseError(format!("Failed to parse chat response: {}", e))
+        })
     }
 }
+
+/// **Deprecated:** Use `OkapiClient` instead.
+///
+/// `OkapiHttpClient` has been collapsed into `OkapiClient`. The new client
+/// retains `client: reqwest::Client` and `base_url: String` and uses the
+/// more detailed response parsing from the former `OkapiImprovClient`.
+#[deprecated(
+    since = "0.21.0",
+    note = "Use `OkapiClient` instead. OkapiHttpClient has been collapsed into OkapiClient."
+)]
+pub type OkapiHttpClient = OkapiClient;
+
+/// **Deprecated:** Use `OkapiClient` instead.
+///
+/// `OkapiImprovClient` has been collapsed into `OkapiClient`. The new client
+/// retains `client: reqwest::Client` and `base_url: String` and uses the
+/// more detailed response parsing that was previously in `OkapiImprovClient`.
+#[deprecated(
+    since = "0.21.0",
+    note = "Use `OkapiClient` instead. OkapiImprovClient has been collapsed into OkapiClient."
+)]
+pub type OkapiImprovClient = OkapiClient;
 
 /// HTTP-based metrics source adapter (SSE stream)
 pub struct OkapiSseAdapter {
@@ -169,7 +210,7 @@ impl OkapiSseAdapter {
 #[async_trait]
 impl MetricsSource for OkapiSseAdapter {
     type Metrics = OkapiMetrics;
-    type Error = OkapiAdapterError;
+    type Error = OkapiClientError;
 
     async fn next_metrics(&self) -> Result<Self::Metrics, Self::Error> {
         let response = self.client.get(&self.sse_url).send().await?;
@@ -178,78 +219,17 @@ impl MetricsSource for OkapiSseAdapter {
         for line in stream.lines() {
             if line.starts_with("data: ") {
                 let data = line.strip_prefix("data: ").ok_or_else(|| {
-                    OkapiAdapterError::InvalidSseEvent("Missing data prefix".into())
+                    OkapiClientError::InvalidSseEvent("Missing data prefix".into())
                 })?;
 
                 let metrics: OkapiMetrics = serde_json::from_str(data)
-                    .map_err(|e| OkapiAdapterError::ParseError(e.to_string()))?;
+                    .map_err(|e| OkapiClientError::ParseError(e.to_string()))?;
 
                 return Ok(metrics);
             }
         }
 
-        Err(OkapiAdapterError::SseStreamEnded)
-    }
-}
-
-/// HTTP-based inference client adapter
-pub struct OkapiHttpClient {
-    client: reqwest::Client,
-    base_url: String,
-}
-
-impl OkapiHttpClient {
-    pub fn new(okapi_base_url: &str) -> Self {
-        Self {
-            client: reqwest::Client::new(),
-            base_url: okapi_base_url.to_string(),
-        }
-    }
-}
-
-#[async_trait]
-impl InferenceClient for OkapiHttpClient {
-    type Error = OkapiAdapterError;
-
-    async fn generate(&self, request: &GenerateRequest) -> Result<GenerateResponse, Self::Error> {
-        let response = self
-            .client
-            .post(format!("{}/api/generate", self.base_url))
-            .json(request)
-            .send()
-            .await?;
-
-        let result: GenerateResponse = response
-            .json()
-            .await
-            .map_err(|e| OkapiAdapterError::ParseError(e.to_string()))?;
-
-        Ok(result)
-    }
-
-    async fn chat(
-        &self,
-        messages: Vec<serde_json::Value>,
-        model: String,
-    ) -> Result<serde_json::Value, Self::Error> {
-        let request = serde_json::json!({
-            "model": model,
-            "messages": messages,
-        });
-
-        let response = self
-            .client
-            .post(format!("{}/api/chat", self.base_url))
-            .json(&request)
-            .send()
-            .await?;
-
-        let result: serde_json::Value = response
-            .json()
-            .await
-            .map_err(|e| OkapiAdapterError::ParseError(e.to_string()))?;
-
-        Ok(result)
+        Err(OkapiClientError::SseStreamEnded)
     }
 }
 
@@ -267,7 +247,7 @@ impl OkapiCapabilityFetcher {
         }
     }
 
-    pub async fn get_capabilities(&self) -> Result<OkapiCapabilities, OkapiAdapterError> {
+    pub async fn get_capabilities(&self) -> Result<OkapiCapabilities, OkapiClientError> {
         let response = self
             .client
             .get(format!("{}/api/engine/status", self.base_url))
@@ -277,7 +257,7 @@ impl OkapiCapabilityFetcher {
         let capabilities: OkapiCapabilities = response
             .json()
             .await
-            .map_err(|e| OkapiAdapterError::ParseError(e.to_string()))?;
+            .map_err(|e| OkapiClientError::ParseError(e.to_string()))?;
 
         Ok(capabilities)
     }
@@ -301,12 +281,12 @@ impl MockMetricsSource {
 #[async_trait]
 impl MetricsSource for MockMetricsSource {
     type Metrics = OkapiMetrics;
-    type Error = OkapiAdapterError;
+    type Error = OkapiClientError;
 
     async fn next_metrics(&self) -> Result<Self::Metrics, Self::Error> {
         let mut index = self.current_index.lock().await;
         if *index >= self.metrics.len() {
-            return Err(OkapiAdapterError::SseStreamEnded);
+            return Err(OkapiClientError::SseStreamEnded);
         }
         let metrics = self.metrics[*index].clone();
         *index += 1;
@@ -316,11 +296,11 @@ impl MetricsSource for MockMetricsSource {
 
 /// Mock inference client for testing
 pub struct MockInferenceClient {
-    responses: tokio::sync::Mutex<Vec<Result<GenerateResponse, OkapiAdapterError>>>,
+    responses: tokio::sync::Mutex<Vec<Result<GenerateResponse, OkapiClientError>>>,
 }
 
 impl MockInferenceClient {
-    pub fn new(responses: Vec<Result<GenerateResponse, OkapiAdapterError>>) -> Self {
+    pub fn new(responses: Vec<Result<GenerateResponse, OkapiClientError>>) -> Self {
         Self {
             responses: tokio::sync::Mutex::new(responses),
         }
@@ -329,11 +309,11 @@ impl MockInferenceClient {
 
 #[async_trait]
 impl InferenceClient for MockInferenceClient {
-    type Error = OkapiAdapterError;
+    type Error = OkapiClientError;
 
     async fn generate(&self, _request: &GenerateRequest) -> Result<GenerateResponse, Self::Error> {
         let mut responses = self.responses.lock().await;
-        responses.pop().ok_or(OkapiAdapterError::SseStreamEnded)?
+        responses.pop().ok_or(OkapiClientError::SseStreamEnded)?
     }
 
     async fn chat(
@@ -341,6 +321,6 @@ impl InferenceClient for MockInferenceClient {
         _messages: Vec<serde_json::Value>,
         _model: String,
     ) -> Result<serde_json::Value, Self::Error> {
-        Err(OkapiAdapterError::SseStreamEnded)
+        Err(OkapiClientError::SseStreamEnded)
     }
 }

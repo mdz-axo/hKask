@@ -109,8 +109,9 @@ impl EnsembleChat {
 
     /// Register a bot participant in the chat
     pub fn register_participant(&mut self, participant: ChatParticipant) {
-        self.span_emitter.emit_agent_pod(
-            "chat_participant_registered",
+        self.span_emitter.emit_with_phase(
+        Span::agent_pod("chat_participant_registered"),
+        Phase::Observe,,
             json!({
                 "webid": participant.webid.to_string(),
                 "role": format!("{:?}", participant.role),
@@ -122,8 +123,9 @@ impl EnsembleChat {
 
     /// Add a message to the chat
     pub fn add_message(&mut self, message: ChatMessage) {
-        self.span_emitter.emit_tool(
-            "chat_message",
+        self.span_emitter.emit_with_phase(
+        Span::tool("chat_message"),
+        Phase::Observe,,
             json!({
                 "from": message.from.to_string(),
                 "content_length": message.content.len(),
@@ -155,8 +157,9 @@ impl EnsembleChat {
             &hkask_types::DataCategory::TemplateInvocations,
             &self.curator_webid,
         ) {
-            self.span_emitter.emit_tool(
-                "chat_dispatch.outcome",
+            self.span_emitter.emit_with_phase(
+        Span::tool("chat_dispatch.outcome"),
+        Phase::Observe,,
                 json!({"outcome": "sovereignty_denied"}),
             );
             return Err(EnsembleError::SovereigntyDenied(
@@ -168,8 +171,9 @@ impl EnsembleChat {
         let participant = match self.participants.get(bot_webid) {
             Some(p) => p,
             None => {
-                self.span_emitter.emit_tool(
-                    "chat_dispatch.outcome",
+                self.span_emitter.emit_with_phase(
+        Span::tool("chat_dispatch.outcome"),
+        Phase::Observe,,
                     json!({"outcome": "participant_not_found"}),
                 );
                 return Err(EnsembleError::ParticipantNotFound(bot_webid.to_string()));
@@ -189,8 +193,9 @@ impl EnsembleChat {
                     .collect();
 
                 if intersection.is_empty() {
-                    self.span_emitter.emit_tool(
-                        "chat_dispatch.outcome",
+                    self.span_emitter.emit_with_phase(
+        Span::tool("chat_dispatch.outcome"),
+        Phase::Observe,,
                         json!({
                             "outcome": "capability_denied",
                             "bot": bot_webid.to_string(),
@@ -207,8 +212,9 @@ impl EnsembleChat {
             }
         }
 
-        self.span_emitter.emit_tool(
-            "chat_dispatch",
+        self.span_emitter.emit_with_phase(
+        Span::tool("chat_dispatch"),
+        Phase::Observe,,
             json!({
                 "bot": bot_webid.to_string(),
                 "template": template_id,
@@ -218,8 +224,9 @@ impl EnsembleChat {
         // Simulate template-mediated dispatch (actual dispatch via hkask_templates)
         let response = format!("Bot {} processed via template {}", bot_webid, template_id);
 
-        self.span_emitter.emit_tool(
-            "chat_dispatch.outcome",
+        self.span_emitter.emit_with_phase(
+        Span::tool("chat_dispatch.outcome"),
+        Phase::Observe,,
             json!({
                 "outcome": "success",
                 "response": response
@@ -231,8 +238,9 @@ impl EnsembleChat {
 
     /// Aggregate responses from multiple bots (no consensus, just collection)
     pub fn aggregate_responses(&self, bot_responses: HashMap<WebID, String>) -> String {
-        self.span_emitter.emit_tool(
-            "chat_aggregate",
+        self.span_emitter.emit_with_phase(
+        Span::tool("chat_aggregate"),
+        Phase::Observe,,
             json!({
                 "response_count": bot_responses.len(),
             }),
@@ -259,7 +267,9 @@ impl EnsembleChat {
     /// Clear chat history
     pub fn clear(&mut self) {
         self.messages.clear();
-        self.span_emitter.emit_agent_pod("chat_cleared", json!({}));
+        self.span_emitter.emit_with_phase(
+        Span::agent_pod("chat_cleared"),
+        Phase::Observe,, json!({}));
         info!("Chat history cleared");
     }
 
@@ -267,7 +277,9 @@ impl EnsembleChat {
     pub fn grant_consent(&mut self) {
         self.sovereignty_checker.grant_consent();
         self.span_emitter
-            .emit_agent_pod("chat_consent_granted", json!({}));
+            .emit_with_phase(
+        Span::agent_pod("chat_consent_granted"),
+        Phase::Observe,, json!({}));
     }
 
     /// Get improv session config
@@ -283,8 +295,9 @@ impl EnsembleChat {
     /// Set participation threshold
     pub fn set_participation_threshold(&mut self, threshold: f64) {
         self.improv_config.set_threshold(threshold);
-        self.span_emitter.emit_tool(
-            "improv_threshold_set",
+        self.span_emitter.emit_with_phase(
+        Span::tool("improv_threshold_set"),
+        Phase::Observe,,
             json!({"threshold": self.improv_config.participation_threshold}),
         );
     }
@@ -294,7 +307,9 @@ impl EnsembleChat {
         let mode_str = mode.as_str().to_string();
         self.improv_config.set_mode(mode);
         self.span_emitter
-            .emit_tool("improv_mode_set", json!({"mode": mode_str}));
+            .emit_with_phase(
+        Span::tool("improv_mode_set"),
+        Phase::Observe,, json!({"mode": mode_str}));
     }
 
     /// Execute an improvisation turn using this session's config and participants

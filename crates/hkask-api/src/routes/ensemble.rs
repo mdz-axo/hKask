@@ -284,8 +284,9 @@ async fn standing_start(
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<StandingStartRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<ErrorResponse>)> {
-    state.cns_emitter.emit_agent_pod(
-        "api.ensemble.standing_start.start",
+    state.cns_emitter.emit_with_phase(
+        Span::agent_pod("api.ensemble.standing_start.start"),
+        Phase::Observe,,
         serde_json::json!({
             "session_id": req.session_id,
             "participants": req.participants.len(),
@@ -332,8 +333,9 @@ async fn standing_start(
         sessions.insert(req.session_id.clone(), Arc::new(RwLock::new(session)));
     }
 
-    state.cns_emitter.emit_agent_pod(
-        "api.ensemble.standing_start.success",
+    state.cns_emitter.emit_with_phase(
+        Span::agent_pod("api.ensemble.standing_start.success"),
+        Phase::Observe,,
         serde_json::json!({
             "session_id": req.session_id,
             "participant_count": participant_count,
@@ -366,8 +368,9 @@ async fn standing_status(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<StandingStatusResponse>, (StatusCode, Json<ErrorResponse>)> {
-    state.cns_emitter.emit_agent_pod(
-        "api.ensemble.standing_status.start",
+    state.cns_emitter.emit_with_phase(
+        Span::agent_pod("api.ensemble.standing_status.start"),
+        Phase::Observe,,
         serde_json::json!({
             "timestamp": chrono::Utc::now().to_rfc3339(),
         }),
@@ -401,8 +404,9 @@ async fn standing_status(
                 participants,
             };
 
-            state.cns_emitter.emit_agent_pod(
-                "api.ensemble.standing_status.success",
+            state.cns_emitter.emit_with_phase(
+        Span::agent_pod("api.ensemble.standing_status.success"),
+        Phase::Observe,,
                 serde_json::json!({
                     "session_id": response.session_id,
                 }),
