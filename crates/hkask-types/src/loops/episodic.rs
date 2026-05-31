@@ -95,7 +95,7 @@ use crate::sovereignty::DataCategory;
 /// - **CANNOT** store triples (use `EpisodicWriteHandle`)
 /// - **CANNOT** access other agents' episodic memories
 /// - **CANNOT** query by similarity (use `SemanticReadHandle`)
-/// - **CANNOT** delete triples (use `GovernanceHandle` with explicit revocation)
+/// - **CANNOT** delete triples (use `CyberneticsHandle` with explicit revocation)
 pub struct EpisodicReadHandle {
     /// Agent whose episodic memory this handle can read
     owner: WebID,
@@ -236,4 +236,3 @@ pub struct EpisodicBudgetExceeded {
     pub requested: u32,
     pub budget: u32,
 }
-

@@ -1,18 +1,16 @@
-//! hKask 8-Loop Architecture — Loop module structure
+//! hKask 6-Loop Architecture — Loop module structure
 //!
-//! hKask has 8 loops: 4 domain loops + 3 master loops, plus an inter-loop bridge.
+//! hKask has 6 loops: 3 domain loops + 3 meta loops, plus an inter-loop bridge.
 //!
 //! **Domain Loops:**
 //! - Loop 1: Inference — prompt → context → model → response → parse → act
 //! - Loop 2a: Episodic Memory — experience → encode → store (private) → recall → temporal attention → context
 //! - Loop 2b: Semantic Memory — knowledge → store (public) → index → recall → dedup → combine → context
-//! - Loop 3: Governance — request → authorize → dispatch → observe → adapt policy
-//! - Loop 4: Observability — emit span → aggregate → detect anomaly → escalate
 //!
-//! **Master Loops:**
-//! - Loop 5: Curation — observe → evaluate → compose → regulate (regulator — reads all, writes policy)
-//! - Loop 6: Communication — send → observe delivery → detect congestion → dampen → confirm (connector)
-//! - Loop 7: Cybernetics — sense (Observability) → compare → decide → act (Governance) → sense again (manages Loops 3+4)
+//! **Meta Loops:**
+//! - Loop 4: Communication — send → observe delivery → detect congestion → dampen → confirm (connector)
+//! - Loop 5: Curation/Metacognition — observe → evaluate → compose → regulate (regulator)
+//! - Loop 6: Cybernetics — sense → regulate → adapt (homeostatic self-regulation)
 //!
 //! **Bridge:**
 //! - 2a→2b: Consolidation — episodic → strip perspective → dedup → store semantic (one-way transformation)
@@ -25,18 +23,15 @@ pub mod curation;
 pub mod cybernetics;
 pub mod dispatch;
 pub mod episodic;
-pub mod governance;
 pub mod inference;
-pub mod observability;
 pub mod semantic;
 
 pub use curation::CuratorHandle;
-pub use cybernetics::CyberneticHandle;
+pub use cybernetics::{CyberneticsHandle, GovernanceDenial};
 pub use dispatch::{LoopMessage, LoopOrigin, LoopPayload, MessagePriority, TraceId};
 pub use episodic::{
     EpisodicBudgetExceeded, EpisodicReadHandle, EpisodicWriteHandle, ExperienceClassification,
 };
-pub use governance::GovernanceHandle;
 pub use inference::{EnergyBudgetHandle, InferenceBudgetExceeded, InferenceHandle};
 pub use semantic::{SemanticReadHandle, SemanticWriteHandle};
 
@@ -83,7 +78,7 @@ impl std::fmt::Display for ControlPrimitive {
     }
 }
 
-/// Loop identifiers for the 8-loop model.
+/// Loop identifiers for the 6-loop model.
 ///
 /// Used in message routing, span tagging, and subloop mapping.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
@@ -95,15 +90,11 @@ pub enum LoopId {
     Episodic,
     /// Loop 2b: Semantic Memory
     Semantic,
-    /// Loop 3: Governance
-    Governance,
-    /// Loop 4: Observability (CNS)
-    Observability,
-    /// Loop 5: Curation (regulator)
-    Curation,
-    /// Loop 6: Communication (connector)
+    /// Loop 4: Communication (meta)
     Communication,
-    /// Loop 7: Cybernetics (manages Observability→Governance feedback cycle)
+    /// Loop 5: Curation/Metacognition (meta)
+    Curation,
+    /// Loop 6: Cybernetics (meta)
     Cybernetics,
 }
 
@@ -113,10 +104,8 @@ impl std::fmt::Display for LoopId {
             LoopId::Inference => write!(f, "inference"),
             LoopId::Episodic => write!(f, "episodic"),
             LoopId::Semantic => write!(f, "semantic"),
-            LoopId::Governance => write!(f, "governance"),
-            LoopId::Observability => write!(f, "observability"),
-            LoopId::Curation => write!(f, "curation"),
             LoopId::Communication => write!(f, "communication"),
+            LoopId::Curation => write!(f, "curation"),
             LoopId::Cybernetics => write!(f, "cybernetics"),
         }
     }

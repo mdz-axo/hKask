@@ -41,7 +41,7 @@ use crate::sovereignty::DataCategory;
 /// - **CAN** query semantic triples by similarity (embedding search)
 /// - **CAN** assemble semantic context (deduplicated, confidence-combined)
 /// - **CANNOT** store triples (use `SemanticWriteHandle`)
-/// - **CANNOT** delete triples (use `GovernanceHandle` with explicit revocation)
+/// - **CANNOT** delete triples (use `CyberneticsHandle` with explicit revocation)
 /// - **CANNOT** access episodic memories (use `EpisodicReadHandle`)
 pub struct SemanticReadHandle {
     /// Agent this handle is scoped to
@@ -161,4 +161,3 @@ impl SemanticWriteHandle {
         matches!(category, DataCategory::SemanticMemory)
     }
 }
-

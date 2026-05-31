@@ -1,4 +1,4 @@
-# Task 9: Loop Structure — Eight Loops, Control Primitives, and Subloop Organization
+# Task 9: Loop Structure — Seven Loops, Control Primitives, and Subloop Organization
 
 **Status:** Canonical reference
 **Derived from:** TASK2 (core loops), TASK3 (composition), TASK5 (simplified core), architectural analysis
@@ -9,7 +9,7 @@
 
 ## 1. Architecture Overview
 
-hKask has **8 loops**: 4 independent domain loops, 1 paired domain loop (Episodic/Semantic Memory with a consolidation bridge), and 3 master loops (Curation, Communication, Cybernetics).
+hKask has **7 loops**: 4 independent domain loops, 1 paired domain loop (Episodic/Semantic Memory with a consolidation bridge), and 2 master loops (Curation, Communication).
 
 ```mermaid
 graph TD
@@ -24,7 +24,6 @@ graph TD
     subgraph Master["Master Loops"]
         C[Curation<br/>regulator — observes all, writes policy]
         CO[Communication<br/>connector — enables all, carries primitives]
-        CY[Cybernetics<br/>manages Observability→Governance cycle]
     end
 
     subgraph Bridge["Inter-Loop Bridge"]
@@ -40,12 +39,12 @@ graph TD
     I -->|emit span| O
     E -->|emit span| O
     G -->|emit span| O
-    O -->|algedonic alert| CY
-    G -->|sovereignty event| CY
-    I -->|energy budget| CY
-    CY -->|calibrate threshold| G
-    CY -->|adjust budget| I
-    CY -->|calibrate variety| O
+    O -->|algedonic alert| C
+    G -->|sovereignty event| C
+    I -->|energy budget| C
+    C -->|calibrate threshold| G
+    C -->|adjust budget| I
+    C -->|calibrate variety| O
     C -->|persist snapshot| S
 
     CO -.->|DISPATCH CORRELATE DAMPEN CIRCUIT ACK| I

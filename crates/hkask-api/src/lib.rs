@@ -174,7 +174,7 @@ impl ApiState {
         system_webid: WebID,
     ) -> Self {
         let git_cas = GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-templates"));
-        let acp_runtime = Arc::new(AcpRuntime::new(acp_secret, None));
+        let acp_runtime = Arc::new(AcpRuntime::new(acp_secret));
         let mcp_runtime_adapter = McpRuntimeAdapter::new();
         let memory_adapter =
             Arc::new(MemoryStorageAdapter::in_memory().expect("in-memory adapter creation"));

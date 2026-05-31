@@ -23,8 +23,7 @@ pub struct ToolInfo {
     pub server_id: String,
     /// Required capability (if any)
     pub required_capability: Option<String>,
-    /// Rate limit hint (tools/min)
-    pub rate_limit_hint: Option<u32>,
+
 }
 
 /// MCP tool definition
@@ -132,7 +131,6 @@ impl McpRuntime {
                 input_schema: t.input_schema.clone(),
                 server_id: server_id.clone(),
                 required_capability: None, // Future: load from config
-                rate_limit_hint: None,     // Future: load from env
             })
     }
 

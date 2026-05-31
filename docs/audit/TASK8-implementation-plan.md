@@ -1,7 +1,7 @@
-# Task 8: Implementation Plan — Revised for 8-Loop Architecture
+# Task 8: Implementation Plan — Revised for 7-Loop Architecture
 
 **Status:** Revised — supersedes previous TASK8
-**Derived from:** TASK5 (simplified core), TASK7 (open questions), TASK9 (8-loop structure)
+**Derived from:** TASK5 (simplified core), TASK7 (open questions), TASK9 (7-loop structure)
 **Key change:** Memory loop split into Episodic (2a) + Semantic (2b) with Consolidation Bridge; Communication elevated to master loop with messenger functions.
 
 **Key principles:**
@@ -34,7 +34,7 @@ Define all handle types as struct definitions in `hkask-types/src/loops/`. Addit
 
 | PR | Title | What | From | Affected Crates |
 |:--:|-------|------|------|-----------------|
-| 1a | **Define loop module structure** | Create `hkask-types/src/loops/mod.rs` re-exporting the 8 loop modules. Create stub files for `inference.rs`, `episodic.rs`, `semantic.rs`, `governance.rs`, `observability.rs`, `curation.rs`, `dispatch.rs`, `cybernetics.rs`. | TASK9 | `hkask-types` |
+| 1a | **Define loop module structure** | Create `hkask-types/src/loops/mod.rs` re-exporting the 7 loop modules. Create stub files for `inference.rs`, `episodic.rs`, `semantic.rs`, `governance.rs`, `observability.rs`, `curation.rs`, `dispatch.rs`. | TASK9 | `hkask-types` |
 | 1b | **Define capability handle types** | Implement all 13 handle structs: `InferenceHandle`, `EnergyBudgetHandle`, `RateLimiterHandle`, `EpisodicReadHandle`, `EpisodicWriteHandle`, `SemanticReadHandle`, `SemanticWriteHandle`, `GovernanceHandle`, `CuratorHandle`, `CnsWriteHandle`, `CnsGovernReadHandle`, `CnsGovernWriteHandle`, `CnsAdminHandle`. Include Hoare triple annotations on all methods. | TASK5, TASK9 | `hkask-types` |
 | 1c | **Define `DataCategory` visibility enum** | Add `DataCategory { Public, Shared, EpisodicMemory, SemanticMemory, Private, PersonalContext, CapabilityTokens, OcpBoundaries, TemplateInvocations, HlexiconTerms, TemplateRegistry }` with HKDF key derivation mapping. | TASK7 Q2, TASK9 | `hkask-types` |
 | 1d | **Define Communication types** | Add `LoopMessage`, `MessagePriority { Critical, Warning, Info }`, `LoopOrigin`, `LoopPayload`, `TraceId` in `hkask-types/src/loops/dispatch.rs`. Stub only — no runtime behavior. | TASK9 | `hkask-types` |
@@ -174,7 +174,7 @@ Final cross-reference between TASK9 specification and implementation.
 
 | PR | Title | What | From | Affected Crates |
 |:--:|-------|------|------|-----------------|
-| 10a | **Update architecture docs** | Cross-reference all 8 loop diagrams (TASK9) against actual `pub` APIs. Update `docs/architecture/hKask-architecture-master.md` with 8-loop structure, episodic/semantic split, communication + cybernetic master loops, and updated handle matrix. | TASK9 | docs |
+| 10a | **Update architecture docs** | Cross-reference all 7 loop diagrams (TASK9) against actual `pub` APIs. Update `docs/architecture/hKask-architecture-master.md` with 7-loop structure, episodic/semantic split, communication messenger functions, and updated handle matrix. | TASK9 | docs |
 | 10b | **CNS span audit** | Verify `cns.review.*` and `cns.energy.*` consumers. Keep if essential sub-loop artifact; remove if dead. Verify all remaining spans map to a core loop. Add `cns.memory.encode`, `cns.memory.decay`, `cns.memory.retract`, `cns.memory.budget` spans for new episodic subloops. | Alternative Task 6, TASK9 | `hkask-cns` |
 | 10c | **BotMetricsCollector investigation** | Verify `BotMetricsCollector` is consumed by Curation loop (via `evaluate_bot`). If no consumer, dead code. If consumed, keep. | Alternative Task 5 | `hkask-cns` |
 
@@ -253,7 +253,7 @@ Net change: approximately +2,000 lines added. The codebase gains episodic subloo
 | Phase 5→6→7 (was Phase 5) | Curation wiring moved to Phase 7; Communication foundation added to Phase 7 |
 | Phase 6 (was open questions) → Phase 8 | Renumbered |
 | Phase 7 (was tests) → Phase 9 | Expanded: added episodic tests, semantic tests, consolidation bridge tests, communication tests |
-| Phase 8 (was docs) → Phase 10 | Updated for 8-loop structure |
+| Phase 8 (was docs) → Phase 10 | Updated for 7-loop structure |
 | Total PRs: 33 → 53 | Reflects episodic loop closure, semantic gap closure, and communication infrastructure |
 | Estimated time: ~3 weeks → ~5–6 weeks | Reflects the scope increase from closing the episodic loop and building communication foundations |
 

@@ -154,7 +154,6 @@ impl McpPort for McpDispatcher {
                 input_schema: t.input_schema,
                 server_id: t.server_id,
                 required_capability: t.required_capability,
-                rate_limit_hint: t.rate_limit_hint,
             })
     }
 }

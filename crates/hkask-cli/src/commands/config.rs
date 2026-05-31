@@ -138,7 +138,7 @@ pub(crate) async fn init_registry() -> Result<
     RegistryError,
 > {
     let secret = resolve_acp_secret()?;
-    let acp = Arc::new(hkask_agents::AcpRuntime::new(secret.as_bytes(), None));
+    let acp = Arc::new(hkask_agents::AcpRuntime::new(secret.as_bytes()));
 
     let db_path = registry_db_path();
     let passphrase = resolve_db_passphrase()?;

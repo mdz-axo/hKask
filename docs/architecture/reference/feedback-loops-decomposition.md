@@ -99,9 +99,7 @@
 
 ### Loop 4: The Observability Loop
 
-**Purpose:** Detect variety deficit and sovereignty violations; escalate via the Cybernetic loop (7) to Governance (3) when the system cannot self-regulate.
-
-Observability is the sensing half of the Cybernetic loop (Loop 7), which manages the Observability→Governance feedback cycle. Observability detects anomalies and generates alerts — it does not decide what to do about them. Governance (Loop 3) acts on them.
+**Purpose:** Detect variety deficit and sovereignty violations; escalate to Curator/human when the system cannot self-regulate.
 
 **Input source:** Any `NuEvent` emission with `Phase::Observe`
 **Output sink:** `RuntimeAlert` (Info/Warning/Critical) → `EscalationAction` (CalibrateThreshold/TriggerKata/EscalateToHuman)

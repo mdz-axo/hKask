@@ -18,7 +18,7 @@
 | **Model Selection** | Switch LLM per-agent via `/model` (CLI) or `model` field (API) |
 | **Essential Tools** | 15 MCP servers + Okapi for inference |
 | **User Sovereignty** | OCAP, SQLCipher encryption, private/public gating |
-| **CNS** | Cybernetic loop (7): manages Observability (4) → Governance (3) feedback cycle via `cns.*` spans, variety counters, algedonic alerts |
+| **CNS** | Observability via `cns.*` spans, variety counters, algedonic alerts |
 | **Composition** | Unified registry with `template_type` discriminator |
 
 ---
@@ -45,9 +45,8 @@
 
 ---
 
-## CNS — Cybernetic Loop (7)
+## CNS — Observability
 
-The Cybernetic loop manages the Observability→Governance feedback cycle.
 When debugging, look for these span namespaces in traces/logs:
 
 | Span | What It Covers |
@@ -57,7 +56,7 @@ When debugging, look for these span namespaces in traces/logs:
 | `cns.agent_pod.*` | Lifecycle, delegation |
 | `cns.connector.*` | External I/O (LLM, embeddings) |
 
-**Algedonic Alert:** Variety deficit >100 → escalation to Curator/human (Observability senses → Governance acts)
+**Algedonic Alert:** Variety deficit >100 → escalation to Curator/human
 
 ---
 

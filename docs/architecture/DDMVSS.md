@@ -698,7 +698,7 @@ variety_counters:
 
 algedonic:
   trigger: "variety_deficit > threshold"
-  escalation: "Observability → Cybernetic loop (7) → Governance (3) → Curator → Human"
+  escalation: "Curator → Human"
   cooldown_seconds: 300
 
 focusing_assumptions:

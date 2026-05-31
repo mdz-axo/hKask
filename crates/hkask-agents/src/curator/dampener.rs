@@ -1,10 +1,9 @@
 //! DAMPEN — Suppress repeated directives within a configurable time window
 //!
-//! Implements the DAMPEN messenger function (6.3: FILTER+RECONCILE) from the
-//! 8-loop architecture. The Cybernetic loop (7) manages the
-//! Observability→Governance feedback cycle, which can produce
-//! repeated identical directives. DAMPEN prevents the same directive from
-//! being issued within a configurable time window.
+//! Implements the DAMPEN messenger function (4.3: FILTER+RECONCILE) from the
+//! 6-loop architecture. The Curation→Cybernetics→Curation
+//! feedback cycle can produce repeated identical directives. DAMPEN prevents
+//! the same directive from being issued within a configurable time window.
 //!
 //! # How it works
 //!
@@ -62,9 +61,8 @@ impl DirectiveFingerprint {
 
 /// DAMPEN — Suppress repeated directives within a configurable time window.
 ///
-/// This implements the DAMPEN messenger function (6.3) that prevents
-/// feedback oscillation in the Cybernetic loop (7): the
-/// Observability→Governance feedback cycle.
+/// This implements the DAMPEN messenger function (4.3) that prevents
+/// feedback oscillation in the Curation→Cybernetics→Curation cycle.
 ///
 /// # OCAP Discipline
 ///
@@ -121,10 +119,10 @@ impl Dampener {
     /// Check if a `LoopMessage` carrying a governance directive should be dampened.
     ///
     /// This is a convenience method that extracts the `CuratorDirective`
-    /// from a `LoopPayload::GovernanceDirective` if present, then checks
-    /// dampening. Non-governance messages are never dampened.
+    /// from a `LoopPayload::CyberneticsDirective` if present, then checks
+    /// dampening. Non-cybernetics messages are never dampened.
     pub async fn should_dampen_message(&self, message: &LoopMessage) -> bool {
-        if let hkask_types::loops::dispatch::LoopPayload::GovernanceDirective {
+        if let hkask_types::loops::dispatch::LoopPayload::CyberneticsDirective {
             directive_type,
             target,
             parameters,
@@ -175,7 +173,7 @@ impl Dampener {
             };
             self.should_dampen(&directive).await
         } else {
-            false // Non-governance messages are never dampened
+            false // Non-cybernetics messages are never dampened
         }
     }
 

@@ -28,7 +28,7 @@ graph TD
         A1[1. Agent Enablement<br/>Bots + Replicants in pods]
         A2[2. Essential Tools<br/>15 MCP servers + Okapi]
         A3[3. User Sovereignty<br/>OCAP, SQLCipher, gating]
-        A4[4. Cybernetic Loop (7)<br/>Observability→Governance cycle]
+        A4[4. CNS<br/>cns.* spans, variety counters]
         A5[5. Composition<br/>Unified registry, hLexicon]
     end
     
@@ -36,7 +36,7 @@ graph TD
         O1[Sovereign agents with WebID, ACP]
         O2[LLM inference, embeddings, web]
         O3[Privacy, encryption, ownership]
-        O4[Cybernetic loop: monitoring, algedonic alerts, governance]
+        O4[Monitoring, algedonic alerts]
         O5[Template-driven wiring]
     end
     
@@ -104,14 +104,14 @@ status: VERIFIED
 
 **Constraint:** No cross-machine sync. Git handles backup. Local-first architecture.
 
-### 1.4 Cybernetic Loop (7)
+### 1.4 Cybernetic Nervous System (CNS)
 
-**Principle:** The Cybernetic loop manages the Observability→Governance feedback cycle. All system telemetry flows through CNS spans with variety counters and algedonic alerts.[^beer-cybernetics]
+**Principle:** All system telemetry flows through CNS spans with variety counters and algedonic alerts.[^beer-cybernetics]
 
 **Implementation:**
 - Namespace: `cns.*` (replaces deprecated `okh.*`)
 - Spans: `cns.tool.*`, `cns.prompt.*`, `cns.agent_pod.*`, `cns.connector.*`
-- Algedonic Alert: Variety deficit >100 → escalate via Cybernetic loop to Governance → Curator/human
+- Algedonic Alert: Variety deficit >100 → escalate to Curator/human
 
 **Constraint:** CNS monitors production system health. Tests verify correctness. Separate concerns.
 
@@ -140,7 +140,7 @@ status: VERIFIED
 - No Grafana, dashboards, or visualization tooling
 - No web frontend or GUI components
 - No Prometheus/Alertmanager infrastructure
-- CNS provides programmatic observability only (spans, variety counters, algedonic alerts) as the sensing half of the Cybernetic loop (7)
+- CNS provides programmatic observability only (spans, variety counters, algedonic alerts)
 
 **Rationale:** Visual interfaces add complexity without enabling core agent platform capabilities. All monitoring, debugging, and operation occurs through:
 1. Structured logs (CNS spans)

@@ -31,7 +31,6 @@ pub use metacognition::{
     MetacognitionPortError, RecommendedAction, StoredHealthSnapshot,
 };
 pub use registry_source::RegistrySourcePort;
-pub use security_port::ValidationError as RateLimitValidationError;
 pub use sovereignty::{SovereigntyCheckResult, SovereigntyOperation};
 pub use standing_session::{
     AcpSessionMessage, BotReport, MessageRecord, SessionMessageType, SessionRecord,

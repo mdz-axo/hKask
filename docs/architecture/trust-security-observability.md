@@ -211,16 +211,11 @@ pub trait SovereigntyPort {
 
 ---
 
-## 4. CNS — Cybernetic Loop (7)
+## 4. CNS Observability
 
 ### 4.1 Cybernetic Nervous System
 
 The CNS (`hkask-cns`, 2,039 LOC) provides runtime observability following Beer's Viable System Model:[^beer-vsm]
-
-The Cybernetic loop (Loop 7) manages the Observability→Governance feedback cycle:
-- **Observability** (Loop 4) is the sensing half — it detects anomalies and generates alerts
-- **Governance** (Loop 3) is the acting half — it enforces policy changes in response
-- The Curation loop (5) provides the decision-making agent (Curator) that reads Observability and writes Governance policy
 
 ```mermaid
 graph TB
@@ -293,17 +288,14 @@ sequenceDiagram
     participant OBS as Observer
     participant RT as CnsRuntime
     participant ALG as AlgedonicManager
-    participant GOV as Governance
     participant CUR as Curator/Human
 
     OBS->>RT: emit NuEvent (variety_count)
     RT->>ALG: check_algedonic(counters)
     alt deficit > threshold
         ALG->>ALG: create RuntimeAlert
-        ALG->>GOV: escalate (severity)
-        GOV->>CUR: notify Curator
-        CUR->>GOV: issue directive (CalibrateThreshold)
-        GOV->>RT: apply threshold change
+        ALG->>CUR: escalate (severity)
+        CUR->>RT: acknowledge / intervene
     else within bounds
         ALG-->>RT: OK
     end
@@ -311,8 +303,8 @@ sequenceDiagram
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-TSO-002
-verified_date: 2026-05-31
-verified_against: crates/hkask-cns/src/algedonic.rs:79; types/cns.rs:62; types/loops/cybernetics.rs
+verified_date: 2026-05-25
+verified_against: crates/hkask-cns/src/algedonic.rs:79; types/cns.rs:62
 status: VERIFIED
 -->
 

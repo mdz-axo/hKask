@@ -169,10 +169,6 @@ pub enum GitArchivalError {
     #[error("Sovereignty denied: {0}")]
     SovereigntyDenied(String),
 
-    /// Rate limit exceeded
-    #[error("Rate limit exceeded. Retry after {retry_after} seconds")]
-    RateLimitExceeded { retry_after: u64 },
-
     /// Invalid archival path
     #[error("Invalid path: {0}")]
     InvalidPath(String),
@@ -185,7 +181,7 @@ pub enum GitArchivalError {
 impl GitArchivalError {
     /// Check if error is recoverable
     pub fn is_recoverable(&self) -> bool {
-        matches!(self, Self::NetworkError(_) | Self::RateLimitExceeded { .. })
+        matches!(self, Self::NetworkError(_))
     }
 
     /// Check if error requires user intervention
@@ -238,12 +234,6 @@ pub enum HkaskError {
     #[error(transparent)]
     Infra(#[from] InfrastructureError),
 
-    #[error("rate limit exceeded")]
-    RateLimitExceeded,
-
-    #[error("rate limit exceeded, retry after {retry_after}s")]
-    RateLimitExceededWithRetry { retry_after: u64 },
-
     #[error("capability denied: {0}")]
     CapabilityDenied(String),
 
@@ -289,10 +279,7 @@ impl HkaskError {
 
     /// Check if error is retryable
     pub fn is_retryable(&self) -> bool {
-        matches!(
-            self,
-            Self::RateLimitExceeded | Self::RateLimitExceededWithRetry { .. } | Self::Network(_)
-        )
+        matches!(self, Self::Network(_))
     }
 
     /// Check if error requires user intervention
@@ -313,9 +300,6 @@ impl HkaskError {
                 InfrastructureError::NotFound(_) => McpErrorKind::NotFound,
                 InfrastructureError::Io(_) => McpErrorKind::Unavailable,
             },
-            Self::RateLimitExceeded | Self::RateLimitExceededWithRetry { .. } => {
-                McpErrorKind::RateLimited
-            }
             Self::CapabilityDenied(_) | Self::PermissionDenied(_) | Self::InvalidToken(_) => {
                 McpErrorKind::PermissionDenied
             }

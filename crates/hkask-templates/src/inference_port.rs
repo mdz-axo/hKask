@@ -210,28 +210,6 @@ impl OkapiInference {
         })
     }
 
-    pub fn with_rate_limiting(
-        model: &str,
-        config: OkapiConfig,
-        retry_config: RetryConfig,
-        bot_id: WebID,
-    ) -> Result<Self, InferenceError> {
-        let client = config
-            .build_client()
-            .map(Arc::new)
-            .map_err(|e| InferenceError::Connection(e.to_string()))?;
-
-        Ok(Self {
-            model: model.to_string(),
-            retry_config,
-            config,
-            client,
-            bot_id: Some(bot_id),
-            circuit_breaker: None,
-            prompt_cache: None,
-        })
-    }
-
     pub fn with_circuit_breaker(
         model: &str,
         config: OkapiConfig,

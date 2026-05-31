@@ -190,7 +190,7 @@ impl BootstrapSequence {
         info!(target: "bootstrap", "Infrastructure phase: VarietyMonitor initialized");
         info!(target: "bootstrap", "Infrastructure phase: UnifiedVarietyTracker initialized");
         info!(target: "bootstrap", "Infrastructure phase: CompositionObserver initialized");
-        info!(target: "bootstrap", "Infrastructure phase: RateLimiter initialized");
+
         info!(target: "bootstrap", "Infrastructure phase: EnergyBudget initialized");
         info!(target: "bootstrap", "Infrastructure phase: ReviewQueue initialized");
 

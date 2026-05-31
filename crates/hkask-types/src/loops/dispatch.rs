@@ -1,13 +1,13 @@
-//! Loop 6: Communication — Messenger types
+//! Loop 4: Communication — Messenger types
 //!
-//! The Communication loop is the second master loop (alongside Curation).
+//! The Communication loop is a meta loop (alongside Curation and Cybernetics).
 //! It enables all inter-loop communication through messenger functions:
 //!
-//! - 6.1 DISPATCH (GUARD+ROUTE) — send with priority queuing
-//! - 6.2 CORRELATE (SENSE) — observe delivery, correlate traces
-//! - 6.3 DAMPEN (FILTER+RECONCILE) — suppress repeated directives within time window
-//! - 6.4 Channel CIRCUIT (CIRCUIT) — circuit-break inter-loop channels
-//! - 6.5 ACKNOWLEDGE (VALIDATE+ROUTE) — confirm delivery, route response
+//! - 4.1 DISPATCH (GUARD+ROUTE) — send with priority queuing
+//! - 4.2 CORRELATE (SENSE) — observe delivery, correlate traces
+//! - 4.3 DAMPEN (FILTER+RECONCILE) — suppress repeated directives within time window
+//! - 4.4 Channel CIRCUIT (CIRCUIT) — circuit-break inter-loop channels
+//! - 4.5 ACKNOWLEDGE (VALIDATE+ROUTE) — confirm delivery, route response
 //!
 //! Communication has no subloops because all subloops ARE communication
 //! pattern instances. It delivers messenger functions on inter-loop edges.
@@ -17,7 +17,7 @@
 //! `LoopMessage` is the unit of inter-loop communication. Every message
 //! carries a `TraceId` for correlation and a `MessagePriority` for
 //! dispatch ordering. The priority system ensures that algedonic alerts
-//! and governance directives are processed before routine observations.
+//! and cybernetics directives are processed before routine observations.
 
 use crate::id::WebID;
 use std::fmt;
@@ -31,7 +31,7 @@ use std::fmt;
 /// Every `LoopMessage` carries a `TraceId` that propagates across all
 /// inter-loop calls. This enables:
 /// - Correlation of cause and effect across loop boundaries
-/// - Debugging of message flow through the 8-loop system
+/// - Debugging of message flow through the 6-loop system
 /// - CNS observability of inter-loop communication patterns
 ///
 /// `TraceId` is a UUID-based identifier that is created at the message
@@ -76,14 +76,14 @@ impl fmt::Display for TraceId {
 ///
 /// Messages are dispatched in priority order. Critical messages
 /// (algedonic alerts, sovereignty violations) are processed first,
-/// followed by warnings (governance directives, threshold breaches),
+/// followed by warnings (cybernetics directives, threshold breaches),
 /// then routine information (observations, metrics).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MessagePriority {
     /// Critical: algedonic alerts, sovereignty violations, circuit-breaker trips
     Critical,
-    /// Warning: governance directives, threshold breaches, escalation routing
+    /// Warning: cybernetics directives, threshold breaches, escalation routing
     Warning,
     /// Info: routine observations, metrics, span emission
     Info,
@@ -117,8 +117,8 @@ impl fmt::Display for MessagePriority {
 /// Identifies which loop a message originates from.
 ///
 /// Every message carries its origin loop for routing and observability.
-/// This enables CORRELATE (messenger function 6.2) to trace message flow
-/// across the 8-loop system.
+/// This enables CORRELATE (messenger function 4.2) to trace message flow
+/// across the 6-loop system.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum LoopOrigin {
@@ -128,15 +128,11 @@ pub enum LoopOrigin {
     Episodic,
     /// Loop 2b: Semantic Memory
     Semantic,
-    /// Loop 3: Governance
-    Governance,
-    /// Loop 4: Observability (CNS)
-    Observability,
-    /// Loop 5: Curation (regulator)
-    Curation,
-    /// Loop 6: Communication (this loop)
+    /// Loop 4: Communication (meta)
     Communication,
-    /// Loop 7: Cybernetics (manages Observability→Governance feedback cycle)
+    /// Loop 5: Curation/Metacognition (meta)
+    Curation,
+    /// Loop 6: Cybernetics (meta)
     Cybernetics,
     /// External source (CLI, API, MCP)
     External,
@@ -148,10 +144,8 @@ impl fmt::Display for LoopOrigin {
             LoopOrigin::Inference => write!(f, "inference"),
             LoopOrigin::Episodic => write!(f, "episodic"),
             LoopOrigin::Semantic => write!(f, "semantic"),
-            LoopOrigin::Governance => write!(f, "governance"),
-            LoopOrigin::Observability => write!(f, "observability"),
-            LoopOrigin::Curation => write!(f, "curation"),
             LoopOrigin::Communication => write!(f, "communication"),
+            LoopOrigin::Curation => write!(f, "curation"),
             LoopOrigin::Cybernetics => write!(f, "cybernetics"),
             LoopOrigin::External => write!(f, "external"),
         }
@@ -175,14 +169,14 @@ pub enum LoopPayload {
         threshold: u64,
         deficit: u64,
     },
-    /// Governance directive: calibrate, update, or adjust
-    GovernanceDirective {
+    /// Cybernetics directive: calibrate, update, or adjust
+    CyberneticsDirective {
         directive_type: String,
         target: WebID,
         parameters: serde_json::Value,
     },
-    /// Observability observation: span emission or variety update
-    Observation {
+    /// Cybernetics observation: span emission or variety update
+    CyberneticsObservation {
         category: String,
         data: serde_json::Value,
     },
@@ -214,7 +208,7 @@ pub enum LoopPayload {
 // LoopMessage — Inter-loop communication unit
 // =============================================================================
 
-/// A message sent between loops via the Communication master loop.
+/// A message sent between loops via the Communication meta loop.
 ///
 /// `LoopMessage` is the unit of inter-loop communication. It carries:
 /// - A `TraceId` for cross-loop correlation

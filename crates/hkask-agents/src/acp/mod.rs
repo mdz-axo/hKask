@@ -237,7 +237,7 @@ impl AcpRuntime {
     /// # Arguments
     ///
     /// * `secret` - HMAC secret key (will be zeroized on drop)
-    pub fn new(secret: &[u8], _rate_limit_config: Option<()>) -> Self {
+    pub fn new(secret: &[u8]) -> Self {
         // Derive root WebID deterministically from a fixed "root" persona
         let root_persona = b"hkask-root-authority";
         let root_webid = WebID::from_persona(root_persona);
@@ -607,7 +607,7 @@ impl Default for AcpRuntime {
             "ACP secret not available. Run `kask chat` to complete onboarding, \
              or set HKASK_MASTER_KEY or HKASK_ACP_SECRET_KEY.",
         );
-        Self::new(&secret, None)
+        Self::new(&secret)
     }
 }
 

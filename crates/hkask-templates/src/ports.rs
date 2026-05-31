@@ -204,8 +204,7 @@ pub struct ToolInfo {
     pub server_id: String,
     /// Required capability (if any)
     pub required_capability: Option<String>,
-    /// Rate limit hint (tools/min)
-    pub rate_limit_hint: Option<u32>,
+
 }
 
 /// MCP port for tool invocation

@@ -474,7 +474,7 @@ impl MetacognitionLoop {
     }
 
     // -----------------------------------------------------------------------
-    // Directive issuance — Cybernetic loop (7): Observability → Governance
+    // Directive issuance — Curation → Governance/Observability
     // -----------------------------------------------------------------------
 
     /// Issue a CuratorDirective through the message dispatch with DAMPEN filtering.

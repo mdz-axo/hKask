@@ -26,8 +26,6 @@ pub struct SecurityPolicy {
     pub denied_tools: HashSet<String>,
     /// Require capability tokens
     pub require_capabilities: bool,
-    /// Enable rate limiting (energy budget enforcement)
-    pub enable_rate_limiting: bool,
 }
 
 impl Default for SecurityPolicy {
@@ -40,7 +38,6 @@ impl Default for SecurityPolicy {
                 .map(|s| s.to_string())
                 .collect(),
             require_capabilities: true,
-            enable_rate_limiting: true,
         }
     }
 }
@@ -72,7 +69,7 @@ pub struct AuditEntry {
 #[derive(Debug, Clone)]
 pub enum AuditAction {
     CapabilityCheck,
-    RateLimitCheck,
+
     InputValidation,
     ToolInvocation,
 }
@@ -215,18 +212,6 @@ impl SecurityGateway {
 
         // All checks passed — return the verified token
         Ok(token.clone())
-    }
-
-    /// Check rate limit (energy budget enforcement)
-    pub fn check_rate_limit(&self, bot_id: &WebID) -> bool {
-        if !self.policy.enable_rate_limiting {
-            return true;
-        }
-        // Energy budget handles rate limiting at the pod level.
-        // This is a policy gate that always allows when rate limiting is disabled.
-        // When enabled, the actual enforcement happens via energy budget depletion.
-        let _ = bot_id;
-        true
     }
 
     /// Record audit entry

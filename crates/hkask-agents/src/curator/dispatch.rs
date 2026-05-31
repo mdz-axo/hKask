@@ -1,6 +1,6 @@
 //! Message Dispatch — Priority-ordered inter-loop message queuing
 //!
-//! Implements DISPATCH (messenger function 6.1: GUARD+ROUTE) from the 8-loop
+//! Implements DISPATCH (messenger function 4.1: GUARD+ROUTE) from the 6-loop
 //! architecture. `MessageDispatch` provides an in-memory priority queue that
 //! orders `LoopMessage` instances for inter-loop communication.
 //!
@@ -19,11 +19,11 @@ use tokio::sync::Mutex;
 ///
 /// `MessageDispatch` implements the DISPATCH messenger function (6.1):
 /// it guards (priority-ordered) and routes (FIFO within priority) messages
-/// between the 8 loops.
+/// between the 6 loops.
 ///
 /// Three internal queues hold messages at Critical, Warning, and Info
 /// priority levels. `receive()` always dequeues from the highest-priority
-/// non-empty queue, ensuring that algedonic alerts and governance directives
+/// non-empty queue, ensuring that algedonic alerts and cybernetics directives
 /// are processed before routine observations.
 ///
 /// This is an in-memory queue — it does NOT persist to SQLite (unlike
@@ -87,8 +87,8 @@ impl MessageDispatch {
 
     /// Convenience method: wrap a `CuratorDirective` as a `LoopMessage` and enqueue it.
     ///
-    /// Creates a `LoopPayload::GovernanceDirective` with `LoopOrigin::Curation`
-    /// and `MessagePriority::Warning` (governance directives are warnings by
+    /// Creates a `LoopPayload::CyberneticsDirective` with `LoopOrigin::Curation`
+    /// and `MessagePriority::Warning` (cybernetics directives are warnings by
     /// default; use `send()` directly for a different priority).
     pub async fn send_curator_directive(
         &self,
@@ -130,7 +130,7 @@ impl MessageDispatch {
 
         let message = LoopMessage::warning(
             LoopOrigin::Curation,
-            LoopPayload::GovernanceDirective {
+            LoopPayload::CyberneticsDirective {
                 directive_type,
                 target,
                 parameters,
@@ -143,10 +143,10 @@ impl MessageDispatch {
 
     /// Convenience method: enqueue an algedonic alert as a Critical-priority message.
     ///
-    /// Creates a message with `MessagePriority::Critical` and `LoopOrigin::Observability`,
+    /// Creates a message with `MessagePriority::Critical` and `LoopOrigin::Cybernetics`,
     /// which is the standard pattern for algedonic alerts (variety deficit escalation).
     pub async fn send_escalation(&self, alert: LoopPayload, sender: WebID) -> TraceId {
-        let message = LoopMessage::critical(LoopOrigin::Observability, alert).with_sender(sender);
+        let message = LoopMessage::critical(LoopOrigin::Cybernetics, alert).with_sender(sender);
         self.send(message).await
     }
 }

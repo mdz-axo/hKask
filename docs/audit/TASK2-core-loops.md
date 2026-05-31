@@ -196,8 +196,6 @@ flowchart TD
 
 *emit span → aggregate → detect anomaly → escalate*
 
-Observability is the sensing half of the Cybernetic loop (Loop 7), which manages the Observability→Governance feedback cycle.
-
 ```mermaid
 flowchart TD
     EMIT[Emit Span] --> PERSIST[Persist ν-event]
@@ -216,7 +214,7 @@ flowchart TD
     SOV -->|acquisition/violation threshold| CUR
 ```
 
-> The Observability loop **detects** anomalies and **generates** alerts. It does not decide what to do about them — that is the Cybernetic loop's role (Loop 7), which manages the Observability→Governance feedback cycle. Governance (Loop 3) acts on the alerts. The previous version of this diagram included a "Calibrate → adjusted threshold → Aggregate" feedback arc, but calibration is a Cybernetic→Governance cross-loop dependency, not an internal Observability subloop.
+> The Observability loop **detects** anomalies and **generates** alerts. It does not decide what to do about them — that is the Curation loop's role (Loop 5). The previous version of this diagram included a "Calibrate → adjusted threshold → Aggregate" feedback arc, but calibration is a Curation→Observability cross-loop dependency, not an internal Observability subloop.
 
 ### Essential Functions
 
@@ -244,7 +242,7 @@ flowchart TD
 - Without alert generation, the Observability loop collects spans but cannot interpret them
 - Variety deficit goes undetected; the system has no "pain signal" to trigger adaptation
 - The loop is broken at "aggregate" — data is collected but never acted upon
-- **Note:** What happens *after* the alert is routed is managed by the Cybernetic loop (Loop 7) via Governance (Loop 3)
+- **Note:** What happens *after* the alert is routed to the Curator is the Curation loop (Loop 5)
 
 **Bot Metrics Collection** — observe bot → collect metrics → detect degradation → alert
 - Without bot metrics, bot degradation goes undetected
@@ -262,7 +260,7 @@ flowchart TD
 
 *observe → evaluate → compose → regulate*
 
-The Curator is the user's agent counterpart — the meta-agent that observes system state, evaluates health and goal progress, composes adaptations, and regulates system behavior by issuing directives. It is the **only** agent that reads from ALL other loops and writes policy back into them. The Curation loop provides the decision-making agent for the Cybernetic loop (7), which manages the Observability→Governance feedback cycle.
+The Curator is the user's agent counterpart — the meta-agent that observes system state, evaluates health and goal progress, composes adaptations, and regulates system behavior by issuing directives. It is the **only** agent that reads from ALL other loops and writes policy back into them. Without the Curation loop, the other four loops can detect anomalies but cannot decide what to do about them.
 
 **Implementation:** `hkask-agents/src/curator/metacognition.rs` — `MetacognitionLoop`
 
@@ -344,12 +342,12 @@ The five loops compose through capability-restricted handles:
 | Inference → Observability | `emit_span()` | Every inference emits a span | `CnsWriteHandle` |
 | Memory → Observability | `emit_span()` | Store/recall operations emit spans | `CnsWriteHandle` |
 | Governance → Observability | `emit_span()` | Denials emit sovereignty spans | `CnsWriteHandle` |
-| Observability → Cybernetic | AlgedonicAlert + variety counters + bot metrics | Alerts and system state | `CnsGovernReadHandle` |
-| Governance → Cybernetic | Sovereignty violations + revocation events | Policy violation data | `GovernanceHandle` (read) |
-| Inference → Cybernetic | Energy budget status + bot health reports | System health data | `EnergyBudgetHandle` (read) |
-| Cybernetic → Governance | `calibrate_threshold()`, `update_capabilities()` | Policy changes | `GovernanceHandle` (write) |
-| Cybernetic → Inference | `adjust_energy_budget()`, `trigger_kata()` | Resource and coaching directives | `EnergyBudgetAdminHandle` |
-| Cybernetic → Observability | Threshold changes affect detection sensitivity | Calibration writes | `CnsGovernWriteHandle` |
+| Observability → Curation | AlgedonicAlert + variety counters + bot metrics | Alerts and system state | `CnsGovernReadHandle` |
+| Governance → Curation | Sovereignty violations + revocation events | Policy violation data | `GovernanceHandle` (read) |
+| Inference → Curation | Energy budget status + bot health reports | System health data | `EnergyBudgetHandle` (read) |
+| Curation → Governance | `calibrate_threshold()`, `update_capabilities()` | Policy changes | `GovernanceHandle` (write) |
+| Curation → Inference | `adjust_energy_budget()`, `trigger_kata()` | Resource and coaching directives | `EnergyBudgetAdminHandle` |
+| Curation → Observability | Threshold changes affect detection sensitivity | Calibration writes | `CnsGovernWriteHandle` |
 | Curation → Memory | Persist snapshots, coaching results | Metacognition data | `MemoryWriteHandle` |
 | Governance → Inference | Energy budget denial | Budget exhaustion rejects inference calls | `EnergyBudgetHandle` |
 | Memory → Inference | `assemble_context()` | Recalled memory informs prompt context | `MemoryReadHandle` |

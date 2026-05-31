@@ -54,9 +54,9 @@ pub use id::*;
 pub use identity::*;
 pub use lexicon::{Domain, HLexicon, LexiconTerm, TemplateType};
 pub use loops::{
-    ControlPrimitive, CuratorHandle, CyberneticHandle, DataVisibilityTier, EnergyBudgetHandle,
+    ControlPrimitive, CuratorHandle, CyberneticsHandle, DataVisibilityTier, EnergyBudgetHandle,
     EpisodicBudgetExceeded, EpisodicReadHandle, EpisodicWriteHandle, ExperienceClassification,
-    GovernanceHandle, InferenceBudgetExceeded, InferenceHandle, LoopId, LoopMessage, LoopOrigin,
+    GovernanceDenial, InferenceBudgetExceeded, InferenceHandle, LoopId, LoopMessage, LoopOrigin,
     LoopPayload, MessagePriority,
 };
 pub use ports::GitCASPort;
