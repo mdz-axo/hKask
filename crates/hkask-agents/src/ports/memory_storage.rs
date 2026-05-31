@@ -1,7 +1,6 @@
 //! Memory Storage Ports — Episodic and Semantic boundaries
 //!
-//! Split from the monolithic `MemoryStoragePort` into episodic (private,
-//! agent-scoped) and semantic (shared, public) access patterns.
+//! Episodic (private, agent-scoped) and semantic (shared, public) access patterns.
 //!
 //! # OCAP Discipline
 //!
@@ -10,7 +9,6 @@
 //! - `SemanticStoragePort` — store/recall semantic triples (shared, public)
 //!   Any agent with a capability token can read semantic triples.
 //!   Only agents with consolidation capability can store semantic triples.
-//! - `MemoryStoragePort` — legacy monolithic port (deprecated, use split ports)
 
 use hkask_types::{CapabilityToken, ExperienceClassification, WebID};
 
@@ -133,31 +131,4 @@ pub trait SemanticStoragePort: Send + Sync {
     /// Returns the number of semantic triples currently stored for the given entity.
     /// Used by Loop 6e (Semantic Storage Budget) to enforce per-entity limits.
     fn semantic_storage_usage(&self, entity: &str) -> Result<usize, crate::error::MemoryError>;
-}
-
-// =============================================================================
-// Legacy monolithic port — DEPRECATED, use split ports above
-// =============================================================================
-
-/// Port trait for memory storage operations (legacy monolithic).
-///
-/// **Deprecated:** Use `EpisodicStoragePort` and `SemanticStoragePort` instead.
-/// These enforce the OCAP boundary between private episodic memory
-/// and shared semantic memory at the type level.
-#[deprecated(note = "Use EpisodicStoragePort and SemanticStoragePort instead for OCAP discipline")]
-pub trait MemoryStoragePort: Send + Sync {
-    fn store_artifact(
-        &self,
-        producer_webid: WebID,
-        artifact_type: &str,
-        content: serde_json::Value,
-        visibility: &str,
-        token: &CapabilityToken,
-    ) -> Result<String, crate::error::MemoryError>;
-
-    fn recall(
-        &self,
-        query: &str,
-        token: &CapabilityToken,
-    ) -> Result<Vec<serde_json::Value>, crate::error::MemoryError>;
 }

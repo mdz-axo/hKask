@@ -31,7 +31,7 @@ use crate::energy::{EnergyBudget, EnergyError};
 use crate::runtime::CnsRuntime;
 use hkask_types::WebID;
 use hkask_types::loops::{
-    ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Regulatable, Signal,
+    ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal,
 };
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -238,41 +238,10 @@ impl HkaskLoop for CyberneticsLoop {
     }
 }
 
-impl Regulatable for CyberneticsLoop {
-    fn regulate(&self, action: &LoopAction) {
-        // The Cybernetics Loop can only be regulated by the Curation Loop.
-        // Curation may calibrate set-points or adjust energy budgets.
-        if action.target != LoopId::Cybernetics {
-            return;
-        }
-        match action.action_type {
-            ActionType::Calibrate => {
-                tracing::info!(
-                    target: "cns.cybernetics",
-                    "Curation Loop calibration received"
-                );
-            }
-            ActionType::Throttle => {
-                tracing::warn!(
-                    target: "cns.cybernetics",
-                    "Cybernetics Loop throttle signal received — reducing sensing frequency"
-                );
-            }
-            _ => {
-                tracing::warn!(
-                    target: "cns.cybernetics",
-                    action_type = ?action.action_type,
-                    "Unsupported regulation action for Cybernetics Loop"
-                );
-            }
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_types::loops::{ActionType, DeviationDirection, HkaskLoop, LoopId, Regulatable};
+    use hkask_types::loops::{ActionType, DeviationDirection, HkaskLoop, LoopId};
 
     #[test]
     fn cybernetics_loop_id_is_cybernetics() {
@@ -343,34 +312,6 @@ mod tests {
         let actions = loop6.compute(&deviations);
         // Above-set-point energy is fine — no action needed
         assert!(actions.is_empty());
-    }
-
-    #[test]
-    fn regulate_accepts_curation_calibration() {
-        let cns = Arc::new(RwLock::new(CnsRuntime::default()));
-        let loop6 = CyberneticsLoop::new(cns);
-
-        let action = LoopAction::new(
-            LoopId::Cybernetics,
-            ActionType::Calibrate,
-            serde_json::json!({"metric": "energy_min_remaining", "value": 0.15}),
-        );
-        // Should not panic
-        loop6.regulate(&action);
-    }
-
-    #[test]
-    fn regulate_ignores_wrong_target() {
-        let cns = Arc::new(RwLock::new(CnsRuntime::default()));
-        let loop6 = CyberneticsLoop::new(cns);
-
-        let action = LoopAction::new(
-            LoopId::Inference, // wrong target
-            ActionType::Throttle,
-            serde_json::json!({}),
-        );
-        // Should silently ignore
-        loop6.regulate(&action);
     }
 
     #[tokio::test]
@@ -469,85 +410,6 @@ mod tests {
         let targets: std::collections::HashSet<LoopId> = actions.iter().map(|a| a.target).collect();
         assert!(targets.contains(&LoopId::Inference)); // energy + error
         assert!(targets.contains(&LoopId::Curation)); // variety
-    }
-
-    /// Test: Capability membrane — Cybernetics cannot regulate Curation
-    #[test]
-    fn cybernetics_cannot_regulate_curation() {
-        let cns = Arc::new(RwLock::new(CnsRuntime::default()));
-        let loop6 = CyberneticsLoop::new(cns);
-
-        // Cybernetics can signal Curation (Escalate) but not regulate it
-        let signal = Signal::new(LoopId::Cybernetics, "variety_deficit", 150.0, 100.0);
-        let deviations = loop6.compare(&[signal]);
-        let actions = loop6.compute(&deviations);
-
-        // The action targets Curation with Escalate, not Throttle/Calibrate
-        assert_eq!(actions[0].action_type, ActionType::Escalate);
-        assert_eq!(actions[0].target, LoopId::Curation);
-
-        // Verify: CyberneticsLoop.regulate() ignores actions targeting other loops
-        let wrong_target = LoopAction::new(
-            LoopId::Curation,
-            ActionType::Throttle,
-            serde_json::json!({}),
-        );
-        // CyberneticsLoop's regulate only accepts actions targeting Cybernetics
-        loop6.regulate(&wrong_target); // silently ignored
-    }
-
-    /// Test: Two-level stability guarantee — algedonic cascade halted by
-    /// Curation's metacognitive override.
-    ///
-    /// Scenario: Cybernetics Loop detects a cascade of alerts.
-    /// Curation Loop detects the cascade and issues a Throttle to Cybernetics,
-    /// halting the escalation chain.
-    #[test]
-    fn algedonic_cascade_halted_by_curation_override() {
-        let cns = Arc::new(RwLock::new(CnsRuntime::default()));
-        let loop6 = CyberneticsLoop::new(cns);
-
-        // Simulate an algedonic cascade: multiple variety deficit signals
-        let cascade_signals: Vec<Signal> = (0..5)
-            .map(|i| {
-                Signal::new(
-                    LoopId::Cybernetics,
-                    "variety_deficit",
-                    100.0 + i as f64 * 50.0, // escalating deficit
-                    100.0,
-                )
-            })
-            .collect();
-
-        // Each signal produces an Escalate action
-        let all_deviations = loop6.compare(&cascade_signals);
-        let all_actions = loop6.compute(&all_deviations);
-
-        // All are escalate actions targeting Curation
-        for action in &all_actions {
-            assert_eq!(action.action_type, ActionType::Escalate);
-            assert_eq!(action.target, LoopId::Curation);
-        }
-
-        // Curation detects the cascade and intervenes
-        // It issues a Throttle to Cybernetics to reduce escalation frequency
-        let curation_override = LoopAction::new(
-            LoopId::Cybernetics,
-            ActionType::Throttle,
-            serde_json::json!({"reason": "algedonic_cascade_detected"}),
-        );
-
-        // Cybernetics accepts the regulation
-        loop6.regulate(&curation_override);
-
-        // After throttling, subsequent ticks produce fewer/no new escalations
-        // (In this implementation, sense() returns empty, so no new signals)
-        let post_override_signals = loop6.sense();
-        assert!(post_override_signals.is_empty());
-
-        // The system has stabilized — no new deviations
-        let post_deviations = loop6.compare(&post_override_signals);
-        assert!(post_deviations.is_empty());
     }
 
     /// Test: Loop reaches equilibrium within bounded iterations

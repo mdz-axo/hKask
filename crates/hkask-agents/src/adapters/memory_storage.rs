@@ -1,12 +1,10 @@
 //! Memory Storage Adapter
 //!
 //! Concrete implementations of memory storage ports using hkask-storage crate.
-//! Implements both the legacy `MemoryStoragePort` (deprecated) and the new
-//! `EpisodicStoragePort` and `SemanticStoragePort` traits.
+//! Implements `EpisodicStoragePort` and `SemanticStoragePort` traits.
 
 use crate::error::MemoryError;
-#[allow(deprecated)]
-use crate::ports::{EpisodicStoragePort, MemoryStoragePort, SemanticStoragePort};
+use crate::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_storage::{Database, Embedding, EmbeddingStore, Triple, TripleStore};
 use hkask_types::{CapabilityToken, ExperienceClassification, TripleID, Visibility, WebID};
 use serde_json::Value;

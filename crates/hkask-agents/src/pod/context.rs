@@ -4,15 +4,11 @@
 //! This is the unit of access that enforces the pod invariant: all interactions
 //! with memory, inference, and tools must go through a pod context.
 //!
-//! # OCAP Discipline (Phase 2)
+//! # OCAP Discipline
 //!
-//! Memory is now split into episodic and semantic ports:
+//! Memory is split into episodic and semantic ports:
 //! - `episodic_storage` — private, agent-scoped memory (EpisodicStoragePort)
 //! - `semantic_storage` — shared, public knowledge (SemanticStoragePort)
-//!
-//! The legacy `memory_storage` field (MemoryStoragePort) is deprecated.
-//! Use `recall_episodic`/`store_episodic` and `recall_semantic`/`store_semantic`
-//! instead of `recall_memory`/`store_memory`.
 
 use hkask_types::{
     CapabilityAction, CapabilityResource, CapabilityToken, ExperienceClassification, WebID,
@@ -22,8 +18,7 @@ use std::sync::Arc;
 use super::AgentPodError;
 use super::manager::PodManager;
 use super::types::PodID;
-#[allow(deprecated)]
-use crate::ports::{EpisodicStoragePort, MCPRuntimePort, MemoryStoragePort, SemanticStoragePort};
+use crate::ports::{EpisodicStoragePort, MCPRuntimePort, SemanticStoragePort};
 
 /// PodContext — Runtime context for an active pod
 ///
@@ -40,9 +35,6 @@ pub struct PodContext {
     /// Semantic memory storage — shared, public knowledge (OCAP: SemanticReadHandle/SemanticWriteHandle)
     semantic_storage: Arc<dyn SemanticStoragePort>,
     mcp_runtime: Arc<dyn MCPRuntimePort>,
-    /// Legacy memory storage (deprecated — use episodic_storage/semantic_storage)
-    #[allow(deprecated)]
-    memory_storage: Arc<dyn MemoryStoragePort>,
 }
 
 impl PodContext {
@@ -66,8 +58,6 @@ impl PodContext {
             episodic_storage: Arc::clone(&manager.episodic_storage),
             semantic_storage: Arc::clone(&manager.semantic_storage),
             mcp_runtime: Arc::clone(&manager.mcp_runtime),
-            #[allow(deprecated)]
-            memory_storage: Arc::clone(&manager.memory_storage),
         })
     }
 
@@ -258,52 +248,6 @@ impl PodContext {
         )?;
         self.semantic_storage
             .semantic_storage_usage(entity)
-            .map_err(|e| AgentPodError::MemoryError(e.to_string()))
-    }
-
-    // ========================================================================
-    // Legacy memory methods (deprecated — use episodic/semantic methods)
-    // ========================================================================
-
-    /// Recall memory (deprecated — use `recall_episodic` or `recall_semantic`)
-    #[deprecated(note = "Use recall_episodic() or recall_semantic() instead")]
-    pub async fn recall_memory(
-        &self,
-        query: &str,
-    ) -> Result<Vec<serde_json::Value>, AgentPodError> {
-        self.require_capability(
-            CapabilityResource::Manifest,
-            "memory",
-            CapabilityAction::Read,
-        )?;
-        #[allow(deprecated)]
-        self.memory_storage
-            .recall(query, &self.capability_token)
-            .map_err(|e| AgentPodError::MemoryError(e.to_string()))
-    }
-
-    /// Store memory (deprecated — use `store_episodic` or `store_semantic`)
-    #[deprecated(note = "Use store_episodic() or store_semantic() instead")]
-    pub async fn store_memory(
-        &self,
-        artifact_type: &str,
-        content: serde_json::Value,
-        visibility: &str,
-    ) -> Result<String, AgentPodError> {
-        self.require_capability(
-            CapabilityResource::Manifest,
-            "memory",
-            CapabilityAction::Write,
-        )?;
-        #[allow(deprecated)]
-        self.memory_storage
-            .store_artifact(
-                self.webid,
-                artifact_type,
-                content,
-                visibility,
-                &self.capability_token,
-            )
             .map_err(|e| AgentPodError::MemoryError(e.to_string()))
     }
 

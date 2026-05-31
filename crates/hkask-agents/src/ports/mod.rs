@@ -22,13 +22,10 @@ pub use acp_transport::{AcpTransport, AcpWireMessage, AcpWireResponse};
 pub use audit_log::{AuditContext, AuditEntry, AuditLogPort, AuditLogPortError, AuditOutcome};
 pub use git_cas::GitCASPort;
 pub use mcp_runtime::MCPRuntimePort;
-#[allow(deprecated)]
-pub use memory_storage::{EpisodicStoragePort, MemoryStoragePort, SemanticStoragePort};
-#[allow(deprecated)]
+pub use memory_storage::{EpisodicStoragePort, SemanticStoragePort};
 pub use metacognition::{
-    BotDirective, BotEvaluationMetrics, BotHealthStatus as MetacognitionBotHealthStatus,
-    CapabilityGap, DirectiveType, EvaluationResult, GapType, KataDirective, KataType,
-    MetacognitionPortError, RecommendedAction, StoredHealthSnapshot,
+    BotEvaluationMetrics, BotHealthStatus as MetacognitionBotHealthStatus, CapabilityGap,
+    EvaluationResult, GapType, KataDirective, KataType, RecommendedAction,
 };
 pub use registry_source::RegistrySourcePort;
 pub use sovereignty::{SovereigntyCheckResult, SovereigntyOperation};

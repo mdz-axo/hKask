@@ -1,31 +1,23 @@
-//! Loop 6: Cybernetics — Homeostatic self-regulation
+//! Loop 6: Cybernetics — homeostatic self-regulation
 //!
-//! The Cybernetics loop is the homeostatic self-regulation loop, combining what
-//! were previously separate Governance and Observability loops. Like the human
-//! autonomic nervous system, it maintains homeostasis through complex dynamic
-//! self-regulation: it senses system state (variety, sovereignty, energy),
-//! regulates (OCAP capability verification, sovereignty enforcement), and
-//! adapts (threshold calibration, energy budget adjustment).
+//! sense → regulate → adapt
+//!
+//! The Cybernetics loop senses system state (variety, sovereignty, energy),
+//! regulates (OCAP verification, sovereignty enforcement, energy throttling,
+//! circuit-breaking, dampening), and adapts (threshold calibration,
+//! energy budget adjustment).
 //!
 //! Essential subloops:
 //! - 6.1 Access Guard (GUARD) — request → check condition → allow or deny
-//!   (merges OCAP Verification + Sovereignty Enforcement — both are "request → check → allow/deny")
 //! - 6.3 Variety Sensing (SENSE) — state → measure → signal
 //! - 6.4 Algedonic Regulation (ADAPT) — deficit → compare to threshold → calibrate or escalate
 //! - 6.6 Revocation (WITHDRAW) — grant → revoke → persist → deny future
 //!
-//! Governance (not subloops — regulation actions via InferenceRegulation etc.):
-//! - Energy homeostasis — expressed as set-points in `SetPoints` + regulation via
-//!   `InferenceRegulation::throttle_energy` and `InferenceRegulation::adjust_energy_cap`.
-//!   Energy budgets are owned by `CyberneticsLoop` but are not a subloop cycle.
-//! - Circuit breaking — expressed via `InferenceRegulation::set_circuit_state`.
-//! - Channel throttling — expressed via `CommunicationRegulation::throttle_connector`.
-//!
-//! # Capability Discipline
-//!
-//! `CyberneticsHandle` is the most powerful meta handle. It can verify/attenuate/revoke
-//! tokens, check visibility, process alerts, and calibrate thresholds. It CANNOT
-//! emit arbitrary spans, store triples, or run inference.
+//! Regulation functions (part of the regulate phase, not separate subloop cycles):
+//! - Energy homeostasis — core Cybernetics regulation (thermodynamic resource allocation)
+//! - Circuit breaking — stopping cascading failure is regulation
+//! - Dampening — preventing oscillation in feedback loops is regulation
+//! - Channel throttling — applied TO Communication channels, not Communication's own intelligence
 
 use crate::capability::CapabilityToken;
 use crate::id::WebID;
@@ -35,31 +27,13 @@ use crate::sovereignty::DataCategory;
 // CyberneticsHandle — Loop 6 capability handle
 // =============================================================================
 
-/// Cybernetics loop capability handle.
-///
-/// Provides authority verification, capability token management,
-/// sovereignty enforcement, and homeostatic self-regulation. The cybernetics
-/// handle sits at the center of the OCAP discipline: every capability request
-/// flows through cybernetics.
-///
-/// # OCAP Boundaries
-///
-/// - **CAN** verify capability tokens
-/// - **CAN** attenuate tokens (reduce authority)
-/// - **CAN** revoke tokens (WITHDRAW subloop)
-/// - **CAN** check data visibility/sovereignty (GUARD subloop)
-/// - **CAN** process algedonic alerts (read-only from CNS)
-/// - **CAN** calibrate thresholds (via `CnsGovernReadHandle`)
-/// - **CANNOT** emit arbitrary spans (use `CnsWriteHandle`)
-/// - **CANNOT** store triples (use `EpisodicWriteHandle` / `SemanticWriteHandle`)
-/// - **CANNOT** run inference (use `InferenceHandle`)
+/// Cybernetics loop capability handle. Verifies tokens, enforces
+/// sovereignty, processes alerts, calibrates thresholds.
 pub struct CyberneticsHandle {
-    /// Agent performing cybernetic regulation (typically a bot or the Curator)
     agent: WebID,
 }
 
 impl CyberneticsHandle {
-    /// Create a test handle with synthetic values.
     #[cfg(test)]
     pub fn new_test() -> Self {
         Self {
@@ -67,29 +41,14 @@ impl CyberneticsHandle {
         }
     }
 
-    /// Create a cybernetics handle for a specific agent.
     pub fn new(agent: WebID) -> Self {
         Self { agent }
     }
 
-    /// The agent performing cybernetic regulation.
     pub fn agent(&self) -> &WebID {
         &self.agent
     }
 
-    /// Verify a capability token for a specific operation.
-    ///
-    /// # Requires
-    /// - Token must not be expired
-    /// - Token must grant the required resource/action
-    /// - Token holder must match the expected holder
-    ///
-    /// # Ensures
-    /// - Returns `Ok(())` if token is valid for the operation
-    /// - Returns `Err` with denial reason if token is invalid
-    ///
-    /// Note: Full cryptographic verification is performed by the ACP runtime.
-    /// This handle provides the type-level enforcement that cybernetics CAN verify.
     pub fn verify_token(
         &self,
         token: &CapabilityToken,
@@ -101,21 +60,11 @@ impl CyberneticsHandle {
         Ok(())
     }
 
-    /// Check data sovereignty for a given category and requester.
-    ///
-    /// # Requires
-    /// - `category` must be a valid DataCategory
-    /// - `requester` must be a valid WebID
-    ///
-    /// # Ensures
-    /// - Returns `Ok(())` if access is allowed
-    /// - Returns `Err` with denial reason if access is denied
     pub fn check_sovereignty(
         &self,
         category: &DataCategory,
         requester: &WebID,
     ) -> Result<(), GovernanceDenial> {
-        // Episodic memory is only accessible by the owner
         if matches!(category, DataCategory::EpisodicMemory) && *requester != self.agent {
             return Err(GovernanceDenial::SovereigntyViolation {
                 category: category.clone(),
@@ -140,16 +89,4 @@ pub enum GovernanceDenial {
     },
     #[error("token has been revoked")]
     TokenRevoked,
-}
-
-/// Regulation interface for the Cybernetics Loop.
-///
-/// Only the Curation Loop holds a `CyberneticsRegulation` reference.
-/// This is the single escalation path for metacognitive override.
-pub trait CyberneticsRegulation: Send + Sync {
-    /// Calibrate a homeostatic set-point.
-    fn calibrate_set_point(&self, metric: &str, new_value: f64);
-
-    /// Override the Cybernetics Loop's current action (cascade halt).
-    fn override_action(&self, action_id: &str, reason: &str);
 }

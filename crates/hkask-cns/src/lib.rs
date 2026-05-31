@@ -18,7 +18,7 @@ pub use algedonic::{
 };
 pub use bot_metrics::{BotEvaluationMetrics, BotHealthStatus, CapabilityGap, GapType};
 pub use cybernetics_loop::{CyberneticsLoop, SetPoints};
-pub use energy::{EnergyAccount, EnergyBudget, EnergyError, OpportunityCost};
+pub use energy::{EnergyBudget, EnergyError};
 pub use observers::sovereignty::{
     SovereigntyEvent, SovereigntyEventType, SovereigntyObserverState,
 };

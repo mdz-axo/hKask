@@ -6,7 +6,7 @@ pub mod git_cas;
 pub mod loopback_http_transport;
 pub mod mcp_runtime;
 pub mod memory_storage;
-pub mod metacognition_store;
+
 pub mod registry_source;
 pub mod russell_acp;
 pub mod standing_session_store;
@@ -18,7 +18,6 @@ pub use git_cas::GitCasAdapter;
 pub use loopback_http_transport::LoopbackHttpTransport;
 pub use mcp_runtime::McpRuntimeAdapter;
 pub use memory_storage::MemoryStorageAdapter;
-pub use metacognition_store::MetacognitionStoreAdapter;
 pub use registry_source::FilesystemRegistrySource;
 pub use russell_acp::RussellAcpAdapter;
 pub use standing_session_store::StandingSessionStoreAdapter;

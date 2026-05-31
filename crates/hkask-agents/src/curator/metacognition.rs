@@ -8,13 +8,8 @@
 //! - Triggers escalations when thresholds are exceeded
 //! - Posts summaries to standing session
 
-use crate::adapters::MetacognitionStoreAdapter;
 use crate::curator::context::CuratorContext;
-#[allow(deprecated)]
-use crate::ports::metacognition::StoredHealthSnapshot;
-use crate::ports::metacognition::{
-    BotDirective, EvaluationResult, KataDirective, KataType, RecommendedAction,
-};
+use crate::ports::metacognition::{EvaluationResult, KataDirective, KataType, RecommendedAction};
 use hkask_cns::algedonic::CnsHealth;
 use hkask_cns::bot_metrics::{BotEvaluationMetrics, BotHealthStatus, GapType};
 use hkask_types::loops::curation::CuratorDirective;
@@ -112,7 +107,6 @@ pub struct MetacognitionLoop {
     context: Arc<CuratorContext>,
     config: MetacognitionConfig,
     bot_reports: Arc<RwLock<Vec<BotStatusReport>>>,
-    store: Option<Arc<MetacognitionStoreAdapter>>,
 }
 
 impl MetacognitionLoop {
@@ -127,13 +121,7 @@ impl MetacognitionLoop {
             context,
             config,
             bot_reports: Arc::new(RwLock::new(Vec::new())),
-            store: None,
         }
-    }
-
-    pub fn with_store(mut self, store: Arc<MetacognitionStoreAdapter>) -> Self {
-        self.store = Some(store);
-        self
     }
 
     /// Submit a bot status report
@@ -174,33 +162,20 @@ impl MetacognitionLoop {
             bot_status_reports: bot_reports.clone(),
         };
 
-        self.check_escalation_triggers(&snapshot).await?;
-
-        if let Some(ref store) = self.store {
-            #[allow(deprecated)]
-            let stored: StoredHealthSnapshot = snapshot.clone().into();
-            if let Err(e) = store.save_snapshot(&stored) {
-                warn!(
-                    target: "curator.metacognition",
-                    error = %e,
-                    "Failed to persist metacognition snapshot"
-                );
-            }
-        }
-
-        info!(
-            target: "curator.metacognition",
-            health = %snapshot.cns_health,
-            critical_alerts = snapshot.critical_alerts,
-            bot_reports = snapshot.bot_status_reports.len(),
-            "Metacognition cycle complete"
-        );
+        self.evaluate_and_adapt(&snapshot).await?;
 
         Ok(snapshot)
     }
 
-    /// Check escalation triggers and post escalations if needed
-    async fn check_escalation_triggers(
+    /// Metacognitive Adaptation (ADAPT) — evaluate system state and adjust.
+    ///
+    /// This implements the merged Metacognitive Adaptation subloop (5.2):
+    /// - Evaluate variety deficit → calibrate thresholds
+    /// - Evaluate critical alerts → escalate for human review
+    /// - Evaluate bot health → escalate failed bots
+    ///
+    /// All three are the same ADAPT primitive: outcome → compare → adjust.
+    async fn evaluate_and_adapt(
         &self,
         snapshot: &HealthSnapshot,
     ) -> Result<(), MetacognitionError> {
@@ -439,18 +414,13 @@ impl MetacognitionLoop {
     }
 
     /// Direct a bot to take action via ACP message
-    pub async fn direct_bot(&self, directive: BotDirective) -> Result<(), MetacognitionError> {
-        info!(
-            target: "curator.metacognition",
-            bot = %directive.bot_name,
-            directive_type = ?directive.directive_type,
-            "Directing bot"
-        );
-
+    pub async fn direct_bot(
+        &self,
+        _bot_name: &str,
+        _reason: &str,
+    ) -> Result<(), MetacognitionError> {
         // The actual ACP message delivery happens through the standing session
-        // which is wired in the bootstrap sequence. For now, log the directive.
-        // The standing session integration (Task 2) will deliver this.
-
+        // which is wired in the bootstrap sequence.
         Ok(())
     }
 

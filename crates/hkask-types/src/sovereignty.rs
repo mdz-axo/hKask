@@ -64,22 +64,6 @@ impl DataCategory {
         )
     }
 
-    /// Check if this category is typically shared
-    pub fn is_typically_shared(&self) -> bool {
-        matches!(
-            self,
-            DataCategory::SemanticMemory | DataCategory::TemplateInvocations
-        )
-    }
-
-    /// Check if this category is typically public
-    pub fn is_typically_public(&self) -> bool {
-        matches!(
-            self,
-            DataCategory::HLexiconTerms | DataCategory::TemplateRegistry
-        )
-    }
-
     /// Get the HKDF-SHA256 derivation context for this data category.
     ///
     /// Each category has a unique, deterministic context string that produces
@@ -422,4 +406,3 @@ pub trait SovereigntyPort: Send + Sync {
     /// Check if data category is accessible by requester
     fn can_access(&self, data_category: &DataCategory, requester: &crate::WebID) -> bool;
 }
-

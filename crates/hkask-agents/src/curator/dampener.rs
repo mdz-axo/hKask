@@ -5,6 +5,17 @@
 //! feedback cycle can produce repeated identical directives. DAMPEN prevents
 //! the same directive from being issued within a configurable time window.
 //!
+//! # Why this lives in the Curator crate
+//!
+//! Dampening is semantically a Cybernetics regulation function — it prevents
+//! oscillation in the Curation↔Cybernetics feedback cycle. It lives in the
+//! Curator crate because it operates on `CuratorDirective` data. This is a
+//! code organization choice, not a semantic classification: moving it to a
+//! hypothetical `hkask-communication` crate would create a dependency on
+//! `CuratorDirective` from `hkask-types`, making the Communication crate
+//! aware of Curation types. Keeping it here preserves the authority graph:
+//! the Curator owns its own directive dampening.
+//!
 //! # How it works
 //!
 //! When a directive is issued, the dampener records a "fingerprint" of the
@@ -60,7 +71,7 @@ impl DirectiveFingerprint {
 
 /// DAMPEN — Suppress repeated directives within a configurable time window.
 ///
-/// This implements the DAMPEN messenger function (4.3) that prevents
+/// This implements the DAMPEN Cybernetics regulation function that prevents
 /// feedback oscillation in the Curation→Cybernetics→Curation cycle.
 ///
 /// # OCAP Discipline
