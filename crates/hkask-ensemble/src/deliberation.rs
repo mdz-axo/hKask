@@ -4,9 +4,9 @@
 //! Each agent provides independent response; Curator synthesizes.
 
 use crate::chat::ChatParticipant;
-use hkask_types::{Phase, Span, WebID};
+use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::Value;
 use std::collections::HashMap;
 use tracing::info;
 
@@ -106,14 +106,6 @@ pub struct DeliberationResult {
 impl DeliberationSession {
     /// Create new deliberation session
     pub fn new(session_id: String, curator_webid: WebID) -> Self {
-
-            Span::agent_pod("deliberation_started"),
-            Phase::Observe,
-            json!({
-                "session_id": session_id,
-            }),
-        );
-
         Self {
             session_id,
             participants: Vec::new(),
@@ -124,28 +116,11 @@ impl DeliberationSession {
 
     /// Add a participant to deliberation
     pub fn add_participant(&mut self, participant: ChatParticipant) {
-            Span::agent_pod("deliberation_participant_added"),
-            Phase::Observe,
-            json!({
-                "webid": participant.webid.to_string(),
-                "role": format!("{:?}", participant.role),
-            }),
-        );
-
         self.participants.push(participant);
     }
 
     /// Record an agent's response
     pub fn record_response(&mut self, response: AgentResponse) {
-            Span::tool("deliberation_response"),
-            Phase::Observe,
-            json!({
-                "agent": response.agent_webid.to_string(),
-                "confidence": response.confidence,
-                "content_length": response.content.len(),
-            }),
-        );
-
         self.responses.insert(response.agent_webid, response);
     }
 
@@ -156,13 +131,6 @@ impl DeliberationSession {
 
     /// Synthesize responses (simple concatenation, no consensus)
     pub fn synthesize(&self) -> DeliberationResult {
-            Span::tool("deliberation_synthesize"),
-            Phase::Observe,
-            json!({
-                "response_count": self.responses.len(),
-            }),
-        );
-
         let mut individual_responses: Vec<AgentResponse> =
             self.responses.values().cloned().collect();
         individual_responses.sort_by(|a, b| {
@@ -176,14 +144,6 @@ impl DeliberationSession {
             .map(|r| format!("[{}]: {}", r.agent_webid, r.content))
             .collect::<Vec<_>>()
             .join("\n\n");
-
-            Span::agent_pod("deliberation_completed"),
-            Phase::Observe,
-            json!({
-                "session_id": self.session_id,
-                "response_count": individual_responses.len(),
-            }),
-        );
 
         DeliberationResult {
             session_id: self.session_id.clone(),
@@ -201,29 +161,17 @@ impl DeliberationSession {
     /// Mark deliberation as in progress
     pub fn start(&mut self) {
         self.status = DeliberationStatus::InProgress;
-            Span::agent_pod("deliberation_started"),
-            Phase::Observe,
-            json!({}),
-        );
     }
 
     /// Mark deliberation as completed
     pub fn complete(&mut self) {
         self.status = DeliberationStatus::Completed;
-            Span::agent_pod("deliberation_completed"),
-            Phase::Observe,
-            json!({}),
-        );
         info!("Deliberation session {} completed", self.session_id);
     }
 
     /// Cancel deliberation
     pub fn cancel(&mut self) {
         self.status = DeliberationStatus::Cancelled;
-            Span::agent_pod("deliberation_cancelled"),
-            Phase::Observe,
-            json!({}),
-        );
         info!("Deliberation session {} cancelled", self.session_id);
     }
 
