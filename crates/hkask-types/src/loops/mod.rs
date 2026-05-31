@@ -34,7 +34,6 @@ pub use episodic::{
     EpisodicBudgetExceeded, EpisodicReadHandle, EpisodicWriteHandle, ExperienceClassification,
 };
 pub use governance::GovernanceHandle;
-pub use inference::{EnergyBudgetHandle, InferenceHandle, RateLimiterHandle};
 pub use observability::{
     CnsAdminHandle, CnsGovernReadHandle, CnsGovernWriteHandle, CnsWriteHandle,
 };

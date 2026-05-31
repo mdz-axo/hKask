@@ -24,7 +24,6 @@
 //! 3. Anonymous — `WebID::new()` (random UUID, for unauthenticated callers)
 //!
 //! The resolved `WebID` is available as `ctx.webid` in the factory closure
-//! and can be used for rate limiting (`ctx.rate_limiter.check(&ctx.webid)`),
 //! OCAP gating, and CNS span attribution.
 //!
 //! ## Usage
@@ -118,8 +117,6 @@ pub struct ServerContext {
     pub credentials: HashMap<String, String>,
 
     /// Rate limiter from `hkask_cns`.
-    /// Use `rate_limiter.check(&ctx.webid)` for per-agent rate limiting.
-    pub rate_limiter: hkask_cns::RateLimiter,
 
     /// Adapter container for shared adapters (GitCAS, etc.).
     pub adapters: crate::AdapterContainer,
@@ -552,7 +549,6 @@ pub fn resolve_credential(env_var: &str) -> Result<String, hkask_keystore::Keyst
 ///
 /// Called by tool methods to record invocation metadata. Uses the `tracing`
 /// crate with `cns.tool` target so that CNS subscribers can capture it.
-/// Also integrates with `hkask_cns::SpanEmitter` when available.
 pub fn emit_tool_span(
     tool_name: &str,
     outcome: &str,
@@ -699,7 +695,6 @@ where
     // 4. Build server context (no ambient authority)
     let ctx = ServerContext {
         credentials: resolved,
-        rate_limiter: hkask_cns::RateLimiter::default(),
         adapters: crate::AdapterContainer::new(),
         webid,
     };

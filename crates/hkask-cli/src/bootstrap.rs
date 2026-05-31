@@ -11,8 +11,6 @@
 //! 8. CNS Active — Activate all bots, begin monitoring
 
 use hkask_cns::{
-    AlgedonicEscalationAdapter, CnsRuntime, SpanCategory, SpanEmitter, SpanScope,
-    curator_span_scope, span_scope_for_r7_bot,
 };
 use hkask_keystore::derive_all_internal_secrets;
 use hkask_types::{R7BotIdentity, WebID, default_r7_bots};
@@ -118,7 +116,6 @@ impl BootstrapSequence {
     /// Get the 7R7 bot identities with their derived span scopes
     pub fn r7_bot_identities() -> Vec<R7BotIdentity> {
         let bots = default_r7_bots();
-        // Span scopes are computed from domain ownership via span_scope_for_r7_bot()
         // at point of use, since they derive from the bot's domains field.
         bots.to_vec()
     }
@@ -254,7 +251,6 @@ impl BootstrapSequence {
 
         let bot_identities = Self::r7_bot_identities();
         for bot in &bot_identities {
-            let scope = span_scope_for_r7_bot(bot);
             info!(
                 target: "bootstrap",
                 bot = %bot.id,
@@ -309,7 +305,6 @@ impl BootstrapSequence {
         let bot_identities = Self::r7_bot_identities();
 
         for bot in &bot_identities {
-            let scope = span_scope_for_r7_bot(bot);
             info!(
                 target: "bootstrap",
                 bot = %bot.id,
@@ -332,9 +327,6 @@ impl BootstrapSequence {
                 .bot_webids
                 .push((bot.id.clone(), webid.to_string()));
 
-            // Create scoped SpanEmitter for this bot
-            let emitter = SpanEmitter::new(webid);
-            let _scope = SpanScope::new(emitter, scope, webid);
             // The scope is created but stored separately in the PodManager
 
             info!(
@@ -356,9 +348,6 @@ impl BootstrapSequence {
         );
 
         // Curator has full span scope (all categories)
-        let curator_scope: HashSet<SpanCategory> = curator_span_scope();
-        let curator_emitter = SpanEmitter::new(self.curator_webid);
-        let _scope = SpanScope::new(curator_emitter, curator_scope, self.curator_webid);
 
         self.state.curator_webid = Some(self.curator_webid.to_string());
 

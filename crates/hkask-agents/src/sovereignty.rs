@@ -3,7 +3,6 @@
 //! Ensures agent operations respect user sovereignty boundaries.
 //! Integrates with CNS for sovereignty event emission.
 
-use hkask_cns::spans::SpanEmitter;
 use hkask_types::event::Span;
 use hkask_types::{
     DataCategory, Phase, SovereigntyCheckResult, SovereigntyOperation, SovereigntyPort,
@@ -14,7 +13,6 @@ use serde_json::Value;
 /// Sovereignty checker for agent pods
 pub struct SovereigntyChecker {
     state: UserSovereigntyState,
-    span_emitter: SpanEmitter,
     owner_webid: WebID,
 }
 
@@ -23,7 +21,6 @@ impl SovereigntyChecker {
     pub fn new(owner_webid: WebID) -> Self {
         Self {
             state: UserSovereigntyState::new(),
-            span_emitter: SpanEmitter::new(owner_webid),
             owner_webid,
         }
     }
@@ -32,7 +29,6 @@ impl SovereigntyChecker {
     pub fn with_state(state: UserSovereigntyState, owner_webid: WebID) -> Self {
         Self {
             state,
-            span_emitter: SpanEmitter::new(owner_webid),
             owner_webid,
         }
     }

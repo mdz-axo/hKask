@@ -27,7 +27,6 @@ use crate::manifest::ModelRequirements;
 use crate::okapi_config::{OkapiConfig, validate_prompt};
 use crate::resilience::CircuitBreaker;
 use async_trait::async_trait;
-use hkask_cns::{RateLimiter, SpanEmitter};
 use hkask_types::cns::RetryConfig;
 use hkask_types::{
     BotID, LLMParameters, Phase, Span, TemplateId, TemplateInvocation, TemplateOutcome, WebID,
@@ -140,11 +139,9 @@ pub struct OkapiInference {
     retry_config: RetryConfig,
     client: Arc<reqwest::Client>,
     /// Rate limiter for inference boundary
-    rate_limiter: Option<Arc<RateLimiter>>,
     /// Bot/WebID for rate limiting
     bot_id: Option<WebID>,
     /// CNS span emitter
-    span_emitter: SpanEmitter,
     /// Circuit breaker for resilience
     circuit_breaker: Option<Arc<CircuitBreaker>>,
     /// Prompt cache for skipping redundant LLM calls
@@ -173,9 +170,7 @@ impl OkapiInference {
             retry_config: RetryConfig::default(),
             config,
             client,
-            rate_limiter: None,
             bot_id: None,
-            span_emitter: SpanEmitter::default(),
             circuit_breaker: None,
             prompt_cache: None,
         })
@@ -192,9 +187,7 @@ impl OkapiInference {
             retry_config: RetryConfig::default(),
             config,
             client,
-            rate_limiter: None,
             bot_id: None,
-            span_emitter: SpanEmitter::default(),
             circuit_breaker: None,
             prompt_cache: None,
         }
@@ -215,9 +208,7 @@ impl OkapiInference {
             retry_config,
             config,
             client,
-            rate_limiter: None,
             bot_id: None,
-            span_emitter: SpanEmitter::default(),
             circuit_breaker: None,
             prompt_cache: None,
         })
@@ -227,7 +218,6 @@ impl OkapiInference {
         model: &str,
         config: OkapiConfig,
         retry_config: RetryConfig,
-        rate_limiter: RateLimiter,
         bot_id: WebID,
     ) -> Result<Self, InferenceError> {
         let client = config
@@ -240,9 +230,7 @@ impl OkapiInference {
             retry_config,
             config,
             client,
-            rate_limiter: Some(Arc::new(rate_limiter)),
             bot_id: Some(bot_id),
-            span_emitter: SpanEmitter::default(),
             circuit_breaker: None,
             prompt_cache: None,
         })
@@ -264,9 +252,7 @@ impl OkapiInference {
             retry_config,
             config,
             client,
-            rate_limiter: None,
             bot_id: None,
-            span_emitter: SpanEmitter::default(),
             circuit_breaker: Some(Arc::new(circuit_breaker)),
             prompt_cache: None,
         })
@@ -298,7 +284,6 @@ impl OkapiInference {
             && !cb.allow_request()
         {
             // Emit CNS span for circuit open
-            self.span_emitter.emit_with_phase(
                 Span::connector("circuit_open"),
                 Phase::Observe,
                 serde_json::json!({
@@ -440,11 +425,8 @@ impl InferencePort for OkapiInference {
         validate_prompt(prompt).map_err(|e| InferenceError::Generation(e.to_string()))?;
 
         // Check rate limit before API call
-        if let (Some(rate_limiter), Some(bot_id)) = (&self.rate_limiter, &self.bot_id)
-            && !rate_limiter.check(bot_id)
         {
             // Emit CNS span for rate limit exceeded
-            self.span_emitter.emit_with_phase(
                 Span::tool("rate_limit_exceeded"),
                 Phase::Observe,
                 serde_json::json!({
@@ -539,11 +521,8 @@ impl InferencePort for OkapiInference {
         validate_prompt(prompt).map_err(|e| InferenceError::Generation(e.to_string()))?;
 
         // Check rate limit before API call
-        if let (Some(rate_limiter), Some(bot_id)) = (&self.rate_limiter, &self.bot_id)
-            && !rate_limiter.check(bot_id)
         {
             // Emit CNS span for rate limit exceeded
-            self.span_emitter.emit_with_phase(
                 Span::tool("rate_limit_exceeded"),
                 Phase::Observe,
                 serde_json::json!({

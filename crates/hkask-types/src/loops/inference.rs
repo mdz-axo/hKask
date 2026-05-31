@@ -19,7 +19,6 @@
 //! `EnergyBudgetHandle` can check remaining budget, request consumption, and get usage ratio.
 //! It CANNOT set the cap, reset the budget, or change the alert threshold.
 //!
-//! `RateLimiterHandle` can check the token bucket and consume an invocation slot.
 //! It CANNOT resize the bucket, change the refill rate, or bypass limiting.
 
 use crate::id::WebID;
@@ -208,7 +207,6 @@ impl EnergyBudgetHandle {
 }
 
 // =============================================================================
-// RateLimiterHandle — Loop 1, Subloop 1.5 (GUARD)
 // =============================================================================
 
 /// Rate limiter capability handle.
@@ -223,14 +221,12 @@ impl EnergyBudgetHandle {
 /// - **CANNOT** resize the bucket (use Governance configuration)
 /// - **CANNOT** change the refill rate (use Governance configuration)
 /// - **CANNOT** bypass limiting (no mechanism exists)
-pub struct RateLimiterHandle {
     /// Agent this handle is scoped to
     agent_webid: WebID,
     /// Current tokens available
     tokens_available: u32,
 }
 
-impl RateLimiterHandle {
     /// Create a test handle with synthetic values.
     #[cfg(test)]
     pub fn new_test() -> Self {

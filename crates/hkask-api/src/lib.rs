@@ -28,7 +28,6 @@
 //! - `POST /api/llm/infer` — SOAP inference endpoint for Russell
 
 use hkask_agents::acp::AcpRuntime;
-use hkask_agents::adapters::cns_emitter::CnsEmitterAdapter;
 use hkask_agents::adapters::git_cas::GitCasAdapter;
 use hkask_agents::adapters::mcp_runtime::McpRuntimeAdapter;
 use hkask_agents::adapters::memory_storage::MemoryStorageAdapter;
@@ -36,8 +35,6 @@ use hkask_agents::consent::ConsentManager;
 use hkask_agents::curator::escalation::EscalationQueue;
 use hkask_agents::pod::PodManager;
 use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
-use hkask_cns::rate_limit::{RateLimitConfig, RateLimiter};
-use hkask_cns::spans::SpanEmitter;
 use hkask_storage::SovereigntyBoundaryStore;
 use hkask_templates::SqliteRegistry;
 use hkask_types::{CapabilityChecker, WebID};
@@ -75,9 +72,7 @@ pub struct ApiState {
     /// System WebID for signing capabilities
     pub system_webid: WebID,
     /// CNS span emitter for audit trail
-    pub cns_emitter: Arc<SpanEmitter>,
     /// Rate limiter for API endpoints
-    pub rate_limiter: Arc<RateLimiter>,
     /// Ensemble inferencer (optional - for Russell SOAP inference)
     pub ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::OkapiClient>>,
     /// Spec store for DDMVSS specifications
@@ -112,7 +107,6 @@ impl ApiState {
         ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::OkapiClient>>,
     ) -> Self {
         let observer_webid = WebID::new();
-        let rate_limiter = RateLimiter::new(RateLimitConfig {
             max_tokens: 100,
             refill_interval: std::time::Duration::from_millis(600),
         });
@@ -156,8 +150,6 @@ impl ApiState {
             pod_manager: Arc::new(pod_manager),
             capability_checker: Arc::new(CapabilityChecker::new(capability_secret)),
             system_webid,
-            cns_emitter: Arc::new(SpanEmitter::new(observer_webid)),
-            rate_limiter: Arc::new(rate_limiter),
             ensemble_inferencer,
             spec_store: None,
             consent_manager,
@@ -188,7 +180,6 @@ impl ApiState {
         let git_cas = GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-templates"));
         let acp_runtime = Arc::new(AcpRuntime::new(acp_secret, None));
         let observer_webid = WebID::new();
-        let cns_emitter_adapter = CnsEmitterAdapter::new(observer_webid);
         let mcp_runtime_adapter = McpRuntimeAdapter::new();
         let memory_adapter =
             Arc::new(MemoryStorageAdapter::in_memory().expect("in-memory adapter creation"));
@@ -197,7 +188,6 @@ impl ApiState {
         let pod_manager = PodManager::new(
             Arc::new(git_cas),
             acp_runtime,
-            Arc::new(cns_emitter_adapter),
             Arc::new(mcp_runtime_adapter),
             episodic_storage,
             semantic_storage,
@@ -503,7 +493,6 @@ impl InferenceSpan {
         }
     }
 
-    pub fn emit(&self, emitter: &crate::SpanEmitter) {
         emitter.emit_with_phase(
             hkask_types::Span::tool(self.span_name()),
             hkask_types::Phase::Observe,

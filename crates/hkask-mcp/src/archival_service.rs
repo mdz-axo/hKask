@@ -4,7 +4,6 @@
 //! Implements hexagonal architecture with adapter container,
 //! sovereignty enforcement, and CNS observability.
 
-use hkask_cns::spans::SpanEmitter;
 use hkask_storage::sanitize_path;
 use hkask_types::{ArchivalResult, DataCategory, GitArchivalError, Phase, Span, SovereigntyPort, WebID};
 use serde_json::json;
@@ -15,7 +14,6 @@ use crate::adapter_container::AdapterContainer;
 pub struct ArchivalService {
     adapter_container: AdapterContainer,
     sovereignty_checker: Box<dyn SovereigntyPort + Send + Sync>,
-    span_emitter: SpanEmitter,
 }
 
 impl ArchivalService {
@@ -23,12 +21,10 @@ impl ArchivalService {
     pub fn new(adapter_container: AdapterContainer, owner_webid: WebID) -> Self {
         // Note: Caller should use `with_sovereignty_checker()` to provide
         // a concrete implementation. This default uses a permissive checker.
-        let span_emitter = SpanEmitter::new(owner_webid);
 
         Self {
             adapter_container,
             sovereignty_checker: Box::new(PermissiveSovereigntyChecker),
-            span_emitter,
         }
     }
 
@@ -38,12 +34,10 @@ impl ArchivalService {
         sovereignty_checker: Box<dyn SovereigntyPort + Send + Sync>,
         owner_webid: WebID,
     ) -> Self {
-        let span_emitter = SpanEmitter::new(owner_webid);
 
         Self {
             adapter_container,
             sovereignty_checker,
-            span_emitter,
         }
     }
 
@@ -52,7 +46,6 @@ impl ArchivalService {
             .sovereignty_checker
             .can_access(&DataCategory::TemplateRegistry, requester)
         {
-            self.span_emitter.emit_with_phase(
                 Span::tool(&format!("{}.outcome", operation)),
                 Phase::Observe,
                 json!({ "outcome": "sovereignty_denied" }),
@@ -68,7 +61,6 @@ impl ArchivalService {
         match self.adapter_container.has_git_cas() {
             Ok(true) => {}
             Ok(false) | Err(_) => {
-                self.span_emitter.emit_with_phase(
                     Span::tool(&format!("{}.outcome", operation)),
                     Phase::Observe,
                     json!({ "outcome": "adapter_not_configured" }),
@@ -91,7 +83,6 @@ impl ArchivalService {
         _content: &str,
         requester: &WebID,
     ) -> ArchivalResult<String> {
-        self.span_emitter.emit_with_phase(
             Span::tool("git_archive"),
             Phase::Observe,
             json!({
@@ -122,7 +113,6 @@ impl ArchivalService {
             .resolve_sha(&format!("{}/{}/{}", owner, repo, sanitized_path.display()))
             .map_err(|e| GitArchivalError::CommitFailed(e.to_string()))?;
 
-        self.span_emitter.emit_with_phase(
             Span::tool("git_archive.outcome"),
             Phase::Observe,
             json!({
@@ -147,7 +137,6 @@ impl ArchivalService {
         target: &str,
         requester: &WebID,
     ) -> ArchivalResult<String> {
-        self.span_emitter.emit_with_phase(
             Span::tool("git_restore"),
             Phase::Observe,
             json!({
@@ -161,7 +150,6 @@ impl ArchivalService {
         self.check_sovereignty(requester, "git_restore")?;
         self.check_git_adapter("git_restore")?;
 
-        self.span_emitter.emit_with_phase(
             Span::tool("git_restore.outcome"),
             Phase::Observe,
             json!({
@@ -184,7 +172,6 @@ impl ArchivalService {
         repo: &str,
         requester: &WebID,
     ) -> ArchivalResult<Vec<String>> {
-        self.span_emitter.emit_with_phase(
             Span::tool("git_list_archives"),
             Phase::Observe,
             json!({
@@ -195,7 +182,6 @@ impl ArchivalService {
 
         self.check_sovereignty(requester, "git_list_archives")?;
 
-        self.span_emitter.emit_with_phase(
             Span::tool("git_list_archives.outcome"),
             Phase::Observe,
             json!({
@@ -215,7 +201,6 @@ impl ArchivalService {
         message: &str,
         requester: &WebID,
     ) -> ArchivalResult<String> {
-        self.span_emitter.emit_with_phase(
             Span::tool("git_snapshot"),
             Phase::Observe,
             json!({
@@ -240,7 +225,6 @@ impl ArchivalService {
             .resolve_sha(&format!("{}/{}", owner, repo))
             .map_err(|e| GitArchivalError::CommitFailed(e.to_string()))?;
 
-        self.span_emitter.emit_with_phase(
             Span::tool("git_snapshot.outcome"),
             Phase::Observe,
             json!({

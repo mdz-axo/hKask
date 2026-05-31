@@ -210,7 +210,7 @@ pub struct AcpRuntime {
     /// Revoked capability token IDs
     revoked_tokens: Arc<RwLock<std::collections::HashSet<String>>>,
     /// CNS emitter for observability (optional)
-    cns_emitter: std::sync::RwLock<Option<Arc<dyn hkask_cns::CnsEmit + Send + Sync>>>,
+    cns_emitter: std::sync::RwLock<Option<Arc<hkask_cns::CnsRuntime + Send + Sync>>>,
 }
 
 impl AcpRuntime {
@@ -287,7 +287,7 @@ impl AcpRuntime {
     /// Set CNS emitter for observability
     pub fn with_cns_emitter(
         self,
-        emitter: Arc<dyn hkask_cns::CnsEmit + Send + Sync>,
+        emitter: Arc<hkask_cns::CnsRuntime + Send + Sync>,
     ) -> Result<Self, AcpError> {
         *self
             .cns_emitter
@@ -755,7 +755,7 @@ impl crate::ports::AcpPort for AcpRuntime {
         AcpRuntime::get_capabilities(self, webid).await
     }
 
-    fn set_cns_emitter(&self, emitter: Arc<dyn hkask_cns::CnsEmit + Send + Sync>) {
+    fn set_cns_emitter(&self, emitter: Arc<hkask_cns::CnsRuntime + Send + Sync>) {
         match self.cns_emitter.write() {
             Ok(mut cns) => *cns = Some(emitter),
             Err(e) => tracing::error!("CNS emitter lock poisoned: {}", e),

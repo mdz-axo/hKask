@@ -17,4 +17,3 @@ tokio.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
-hkask-cybertest = { path = "../hkask-cybertest" }

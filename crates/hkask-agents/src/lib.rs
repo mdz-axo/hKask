@@ -14,7 +14,6 @@
 //! use hkask_agents::pod::PodManager;
 //! use hkask_agents::adapters::git_cas::GitCasAdapter;
 //! use hkask_agents::acp::AcpRuntime;
-//! use hkask_agents::adapters::cns_emitter::CnsEmitterAdapter;
 //! use hkask_agents::adapters::mcp_runtime::McpRuntimeAdapter;
 //! use hkask_agents::adapters::memory_storage::MemoryStorageAdapter;
 //! use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
@@ -24,7 +23,6 @@
 //! // Create adapters
 //! let git_cas = Arc::new(GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-templates")));
 //! let acp_runtime = Arc::new(AcpRuntime::default());
-//! let cns_emitter = Arc::new(CnsEmitterAdapter::new(hkask_types::WebID::new()));
 //! let mcp_runtime = Arc::new(McpRuntimeAdapter::new());
 //! let memory_adapter = Arc::new(MemoryStorageAdapter::in_memory()?);
 //! let episodic_storage: Arc<dyn EpisodicStoragePort> = memory_adapter.clone();
@@ -53,7 +51,6 @@ pub mod security;
 pub mod sovereignty;
 
 pub use acp::{A2AMessage, AcpAgent, AcpError, AcpRuntime, TemplateDispatchHandler};
-pub use adapters::{LoopbackHttpTransport, StdioTransport};
 pub use bot::Bot;
 pub use capabilities::{AgentCapabilities, MemoryAccess};
 pub use consent::{ConsentError, ConsentManager};

@@ -7,7 +7,6 @@
 //! - Variety monitoring
 //! - Algedonic alerts
 
-use hkask_cns::{RuntimeAlert, SpanEmitter, VarietyMonitor};
 use hkask_types::{Phase, Span, WebID};
 use serde_json::json;
 use std::sync::Arc;
@@ -20,7 +19,6 @@ use crate::cns_spans::OkapiCnsSpan;
 ///
 /// Central hub for CNS span emission and algedonic alert handling.
 pub struct CnsIntegration {
-    span_emitter: SpanEmitter,
     variety_monitor: Arc<RwLock<VarietyMonitor>>,
     observer_webid: WebID,
 }
@@ -28,7 +26,6 @@ pub struct CnsIntegration {
 impl CnsIntegration {
     pub fn new(observer_webid: WebID) -> Self {
         Self {
-            span_emitter: SpanEmitter::new(observer_webid),
             variety_monitor: Arc::new(RwLock::new(VarietyMonitor::new())),
             observer_webid,
         }
@@ -36,14 +33,12 @@ impl CnsIntegration {
 
     /// Emit chat coordination span
     pub fn emit_chat_span(&self, action: &str, data: serde_json::Value) {
-        self.span_emitter
             .emit_with_phase(Span::connector(action), Phase::Observe, data);
         info!(target: "hkask.cns.chat", action = %action, "Chat span emitted");
     }
 
     /// Emit deliberation span
     pub fn emit_deliberation_span(&self, session_id: &str, status: &str, data: serde_json::Value) {
-        self.span_emitter.emit_with_phase(
             Span::pipeline(&format!("deliberation.{}", session_id)),
             Phase::Observe,
             json!({
@@ -70,7 +65,6 @@ impl CnsIntegration {
             escalated_model: escalated_model.to_string(),
         };
 
-        self.span_emitter
             .emit_with_phase(Span::prompt("escalation"), Phase::Observe, json!(span));
 
         info!(
@@ -89,7 +83,6 @@ impl CnsIntegration {
             "tool.failed"
         };
 
-        self.span_emitter.emit_with_phase(
             Span::tool(span_name),
             Phase::Observe,
             json!({
@@ -113,7 +106,6 @@ impl CnsIntegration {
             "template.failed"
         };
 
-        self.span_emitter.emit_with_phase(
             Span::prompt(span_name),
             Phase::Observe,
             json!({
@@ -171,7 +163,6 @@ impl CnsIntegration {
         lifecycle_event: &str,
         data: serde_json::Value,
     ) {
-        self.span_emitter.emit_with_phase(
             Span::agent_pod(lifecycle_event),
             Phase::Observe,
             json!({
@@ -184,7 +175,6 @@ impl CnsIntegration {
 
     /// Emit goal span
     pub fn emit_goal_span(&self, goal_id: &str, goal_event: &str, data: serde_json::Value) {
-        self.span_emitter.emit_with_phase(
             Span::goal(goal_event),
             Phase::Observe,
             json!({
@@ -196,7 +186,6 @@ impl CnsIntegration {
 
     /// Emit sovereignty boundary span
     pub fn emit_sovereignty_span(&self, boundary_type: &str, data: serde_json::Value) {
-        self.span_emitter
             .emit_with_phase(Span::sovereignty(boundary_type), Phase::Observe, data);
     }
 
@@ -208,7 +197,6 @@ impl CnsIntegration {
         cost: f64,
         data: serde_json::Value,
     ) {
-        self.span_emitter.emit_with_phase(
             Span::energy(energy_event),
             Phase::Observe,
             json!({

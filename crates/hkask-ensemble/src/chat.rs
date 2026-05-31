@@ -4,7 +4,6 @@
 //! via template-mediated A2A communication. No swarms, no consensus mechanisms.
 
 use hkask_agents::SovereigntyChecker;
-use hkask_cns::spans::SpanEmitter;
 use hkask_types::{Phase, Span, WebID};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -64,7 +63,6 @@ pub struct EnsembleChat {
     curator_webid: WebID,
     participants: HashMap<WebID, ChatParticipant>,
     messages: Vec<ChatMessage>,
-    span_emitter: SpanEmitter,
     sovereignty_checker: SovereigntyChecker,
     template_registry: Option<Arc<dyn hkask_templates::RegistryIndex + Send + Sync>>,
     improv_config: ImprovSessionConfig,
@@ -73,7 +71,6 @@ pub struct EnsembleChat {
 impl EnsembleChat {
     /// Create new ensemble chat with curator as owner
     pub fn new(curator_webid: WebID) -> Self {
-        let span_emitter = SpanEmitter::new(curator_webid);
         let sovereignty_checker = SovereigntyChecker::new(curator_webid);
 
         let mut participants = HashMap::new();
@@ -91,7 +88,6 @@ impl EnsembleChat {
             curator_webid,
             participants,
             messages: Vec::new(),
-            span_emitter,
             sovereignty_checker,
             template_registry: None,
             improv_config: ImprovSessionConfig::default(),
@@ -109,7 +105,6 @@ impl EnsembleChat {
 
     /// Register a bot participant in the chat
     pub fn register_participant(&mut self, participant: ChatParticipant) {
-        self.span_emitter.emit_with_phase(
             Span::agent_pod("chat_participant_registered"),
             Phase::Observe,
             json!({
@@ -123,7 +118,6 @@ impl EnsembleChat {
 
     /// Add a message to the chat
     pub fn add_message(&mut self, message: ChatMessage) {
-        self.span_emitter.emit_with_phase(
             Span::tool("chat_message"),
             Phase::Observe,
             json!({
@@ -157,7 +151,6 @@ impl EnsembleChat {
             &hkask_types::DataCategory::TemplateInvocations,
             &self.curator_webid,
         ) {
-            self.span_emitter.emit_with_phase(
                 Span::tool("chat_dispatch.outcome"),
                 Phase::Observe,
                 json!({"outcome": "sovereignty_denied"}),
@@ -171,7 +164,6 @@ impl EnsembleChat {
         let participant = match self.participants.get(bot_webid) {
             Some(p) => p,
             None => {
-                self.span_emitter.emit_with_phase(
                     Span::tool("chat_dispatch.outcome"),
                     Phase::Observe,
                     json!({"outcome": "participant_not_found"}),
@@ -193,7 +185,6 @@ impl EnsembleChat {
                     .collect();
 
                 if intersection.is_empty() {
-                    self.span_emitter.emit_with_phase(
                         Span::tool("chat_dispatch.outcome"),
                         Phase::Observe,
                         json!({
@@ -212,7 +203,6 @@ impl EnsembleChat {
             }
         }
 
-        self.span_emitter.emit_with_phase(
             Span::tool("chat_dispatch"),
             Phase::Observe,
             json!({
@@ -224,7 +214,6 @@ impl EnsembleChat {
         // Simulate template-mediated dispatch (actual dispatch via hkask_templates)
         let response = format!("Bot {} processed via template {}", bot_webid, template_id);
 
-        self.span_emitter.emit_with_phase(
             Span::tool("chat_dispatch.outcome"),
             Phase::Observe,
             json!({
@@ -238,7 +227,6 @@ impl EnsembleChat {
 
     /// Aggregate responses from multiple bots (no consensus, just collection)
     pub fn aggregate_responses(&self, bot_responses: HashMap<WebID, String>) -> String {
-        self.span_emitter.emit_with_phase(
             Span::tool("chat_aggregate"),
             Phase::Observe,
             json!({
@@ -256,7 +244,6 @@ impl EnsembleChat {
 
     /// Emit CNS span for chat activity
     pub fn emit_chat_span(&self, event_type: &str, data: Value) {
-        self.span_emitter
             .emit_with_phase(Span::agent_pod(event_type), Phase::Observe, data);
     }
 
@@ -268,7 +255,6 @@ impl EnsembleChat {
     /// Clear chat history
     pub fn clear(&mut self) {
         self.messages.clear();
-        self.span_emitter.emit_with_phase(
             Span::agent_pod("chat_cleared"),
             Phase::Observe,
             json!({}),
@@ -279,7 +265,6 @@ impl EnsembleChat {
     /// Grant explicit consent for template invocations
     pub fn grant_consent(&mut self) {
         self.sovereignty_checker.grant_consent();
-        self.span_emitter.emit_with_phase(
             Span::agent_pod("chat_consent_granted"),
             Phase::Observe,
             json!({}),
@@ -299,7 +284,6 @@ impl EnsembleChat {
     /// Set participation threshold
     pub fn set_participation_threshold(&mut self, threshold: f64) {
         self.improv_config.set_threshold(threshold);
-        self.span_emitter.emit_with_phase(
             Span::tool("improv_threshold_set"),
             Phase::Observe,
             json!({"threshold": self.improv_config.participation_threshold}),
@@ -310,7 +294,6 @@ impl EnsembleChat {
     pub fn set_improv_mode(&mut self, mode: ImprovMode) {
         let mode_str = mode.as_str().to_string();
         self.improv_config.set_mode(mode);
-        self.span_emitter.emit_with_phase(
             Span::tool("improv_mode_set"),
             Phase::Observe,
             json!({"mode": mode_str}),

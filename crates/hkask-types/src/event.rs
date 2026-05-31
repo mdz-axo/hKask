@@ -327,7 +327,6 @@ impl Phase {
 /// NuEventSink — Trait for persisting CNS events
 ///
 /// Implemented by storage backends (e.g., NuEventStore in hkask-storage).
-/// SpanEmitter holds an optional `Box<dyn NuEventSink>` to persist events.
 pub trait NuEventSink: Send + Sync {
     fn persist(&self, event: &NuEvent) -> Result<(), NuEventSinkError>;
 }

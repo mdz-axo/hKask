@@ -6,7 +6,6 @@
 //! by bayesian `combine`) and emits `cns.pipeline.relevance` spans, enabling `CuratorPipeline`
 //! and the template engine to factor recall quality into future selections.
 
-use hkask_cns::spans::SpanEmitter;
 use hkask_types::{Phase, Span};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -26,18 +25,14 @@ struct RelevanceStats {
 /// Emits `cns.pipeline.relevance` spans through CNS and tracks a running weighted average
 /// of recall quality per template, which can be queried later to influence template selection.
 pub struct MemoryFeedbackAdapter {
-    span_emitter: SpanEmitter,
     /// Per-template relevance statistics: template_id → running stats.
     relevance: Arc<Mutex<HashMap<String, RelevanceStats>>>,
 }
 
 impl MemoryFeedbackAdapter {
-    /// Create a new adapter from a `SpanEmitter` (CNS observability) and an
     /// `AppMemoryAdapter` reference (the read-side is not stored here — callers
     /// query it themselves and pass results to `record_relevance`).
-    pub fn new(span_emitter: SpanEmitter) -> Self {
         Self {
-            span_emitter,
             relevance: Arc::new(Mutex::new(HashMap::new())),
         }
     }
@@ -60,7 +55,6 @@ impl MemoryFeedbackAdapter {
         template_id: &str,
     ) {
         // Emit CNS span
-        self.span_emitter.emit_with_phase(
             Span::pipeline("relevance"),
             Phase::Observe,
             serde_json::json!({

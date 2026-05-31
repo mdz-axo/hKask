@@ -11,7 +11,7 @@ use tracing::info;
 
 use super::types::{AgentKind, AgentPersona, PodID, PodLifecycleState};
 use super::{AgentPod, AgentPodError, AgentPodResult};
-use crate::adapters::cns_emitter::CnsEmitterAdapter;
+use hkask_cns::CnsRuntime;
 use crate::adapters::git_cas::GitCasAdapter;
 use crate::adapters::mcp_runtime::McpRuntimeAdapter;
 use crate::adapters::memory_storage::MemoryStorageAdapter;
@@ -138,7 +138,7 @@ impl PodManager {
             _keystore: Keychain::default(),
             git_cas: Arc::new(GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-mock"))),
             acp_runtime: Arc::new(crate::acp::AcpRuntime::default()),
-            cns_emitter: Arc::new(CnsEmitterAdapter::new(WebID::new())),
+            cns_emitter: Arc::new(CnsRuntime::new(WebID::new())),
             mcp_runtime: Arc::new(McpRuntimeAdapter::new()),
             episodic_storage,
             semantic_storage,
@@ -286,7 +286,7 @@ impl PodManagerBuilder {
             self.acp_runtime
                 .unwrap_or_else(|| Arc::new(crate::acp::AcpRuntime::default())),
             self.cns_emitter
-                .unwrap_or_else(|| Arc::new(CnsEmitterAdapter::new(WebID::new()))),
+                .unwrap_or_else(|| Arc::new(CnsRuntime::new(WebID::new()))),
             self.mcp_runtime
                 .unwrap_or_else(|| Arc::new(McpRuntimeAdapter::new())),
             episodic_storage,

@@ -40,7 +40,7 @@ pub struct PodContext {
     /// Semantic memory storage — shared, public knowledge (OCAP: SemanticReadHandle/SemanticWriteHandle)
     semantic_storage: Arc<dyn SemanticStoragePort>,
     mcp_runtime: Arc<dyn MCPRuntimePort>,
-    cns_emitter: Arc<dyn hkask_cns::CnsEmit + Send + Sync>,
+    cns_emitter: Arc<hkask_cns::CnsRuntime + Send + Sync>,
     /// Legacy memory storage (deprecated — use episodic_storage/semantic_storage)
     #[allow(deprecated)]
     memory_storage: Arc<dyn MemoryStoragePort>,

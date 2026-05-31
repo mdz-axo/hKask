@@ -1,6 +1,5 @@
 //! SpecStore — SQLite-backed specification storage and curation
 
-use hkask_cns::CnsEmit;
 use hkask_types::spec::{
     Spec, SpecCategory, SpecCurationRecord, SpecError, SpecObserver, SpecStore,
 };
@@ -149,7 +148,6 @@ impl SpecStore for SqliteSpecStore {
 pub struct DefaultSpecCurator {
     coherence_threshold: f64,
     max_iterations: u8,
-    cns_emitter: Option<Arc<dyn CnsEmit + Send + Sync>>,
 }
 
 impl DefaultSpecCurator {
@@ -157,7 +155,6 @@ impl DefaultSpecCurator {
         Self {
             coherence_threshold: coherence_threshold.clamp(0.0, 1.0),
             max_iterations: SYSTEM_MAX_RECURSION,
-            cns_emitter: None,
         }
     }
 
@@ -166,8 +163,6 @@ impl DefaultSpecCurator {
         self
     }
 
-    pub fn with_cns_emitter(mut self, emitter: Arc<dyn CnsEmit + Send + Sync>) -> Self {
-        self.cns_emitter = Some(emitter);
         self
     }
 }
@@ -200,7 +195,6 @@ impl SpecCurator for DefaultSpecCurator {
         let coherence = spec.coherence();
         let ocap_boundary = OCAPBoundary::explicit("spec:curate".to_string());
 
-        if let Some(ref emitter) = self.cns_emitter {
             emitter.emit_event(
                 "cns.spec.evaluate",
                 "observe",
@@ -229,7 +223,6 @@ impl SpecCurator for DefaultSpecCurator {
         if let Ok(ref recs) = records {
             for (spec, record) in specs.iter().zip(recs.iter()) {
                 if record.coherence_score < self.coherence_threshold
-                    && let Some(ref emitter) = self.cns_emitter
                 {
                     let drift_magnitude = 1.0 - record.coherence_score;
                     emitter.emit_event(
@@ -287,7 +280,6 @@ impl SpecCurator for DefaultSpecCurator {
 
         // Coherence still below threshold after all iterations
         let final_coherence = Spec::collection_coherence(specs);
-        if let Some(ref emitter) = self.cns_emitter {
             emitter.emit_event(
                 "cns.spec.drift",
                 "outcome",

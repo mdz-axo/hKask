@@ -4,7 +4,6 @@
 //! Each agent provides independent response; Curator synthesizes.
 
 use crate::chat::ChatParticipant;
-use hkask_cns::spans::SpanEmitter;
 use hkask_types::{Phase, Span, WebID};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -16,7 +15,6 @@ pub struct DeliberationSession {
     session_id: String,
     participants: Vec<ChatParticipant>,
     responses: HashMap<WebID, AgentResponse>,
-    span_emitter: SpanEmitter,
     status: DeliberationStatus,
 }
 
@@ -108,9 +106,7 @@ pub struct DeliberationResult {
 impl DeliberationSession {
     /// Create new deliberation session
     pub fn new(session_id: String, curator_webid: WebID) -> Self {
-        let span_emitter = SpanEmitter::new(curator_webid);
 
-        span_emitter.emit_with_phase(
             Span::agent_pod("deliberation_started"),
             Phase::Observe,
             json!({
@@ -122,14 +118,12 @@ impl DeliberationSession {
             session_id,
             participants: Vec::new(),
             responses: HashMap::new(),
-            span_emitter,
             status: DeliberationStatus::Pending,
         }
     }
 
     /// Add a participant to deliberation
     pub fn add_participant(&mut self, participant: ChatParticipant) {
-        self.span_emitter.emit_with_phase(
             Span::agent_pod("deliberation_participant_added"),
             Phase::Observe,
             json!({
@@ -143,7 +137,6 @@ impl DeliberationSession {
 
     /// Record an agent's response
     pub fn record_response(&mut self, response: AgentResponse) {
-        self.span_emitter.emit_with_phase(
             Span::tool("deliberation_response"),
             Phase::Observe,
             json!({
@@ -163,7 +156,6 @@ impl DeliberationSession {
 
     /// Synthesize responses (simple concatenation, no consensus)
     pub fn synthesize(&self) -> DeliberationResult {
-        self.span_emitter.emit_with_phase(
             Span::tool("deliberation_synthesize"),
             Phase::Observe,
             json!({
@@ -185,7 +177,6 @@ impl DeliberationSession {
             .collect::<Vec<_>>()
             .join("\n\n");
 
-        self.span_emitter.emit_with_phase(
             Span::agent_pod("deliberation_completed"),
             Phase::Observe,
             json!({
@@ -210,7 +201,6 @@ impl DeliberationSession {
     /// Mark deliberation as in progress
     pub fn start(&mut self) {
         self.status = DeliberationStatus::InProgress;
-        self.span_emitter.emit_with_phase(
             Span::agent_pod("deliberation_started"),
             Phase::Observe,
             json!({}),
@@ -220,7 +210,6 @@ impl DeliberationSession {
     /// Mark deliberation as completed
     pub fn complete(&mut self) {
         self.status = DeliberationStatus::Completed;
-        self.span_emitter.emit_with_phase(
             Span::agent_pod("deliberation_completed"),
             Phase::Observe,
             json!({}),
@@ -231,7 +220,6 @@ impl DeliberationSession {
     /// Cancel deliberation
     pub fn cancel(&mut self) {
         self.status = DeliberationStatus::Cancelled;
-        self.span_emitter.emit_with_phase(
             Span::agent_pod("deliberation_cancelled"),
             Phase::Observe,
             json!({}),

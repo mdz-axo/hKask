@@ -6,7 +6,6 @@
 
 use crate::config::load_yaml_config;
 use crate::ports::TemplateError;
-use hkask_cns::spans::SpanEmitter;
 use hkask_types::{Phase, Span, WebID};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -290,7 +289,6 @@ impl CascadeContext {
 /// Cascade engine
 pub struct CascadeEngine {
     config: CascadeConfig,
-    emitter: SpanEmitter,
 }
 
 impl CascadeEngine {
@@ -298,7 +296,6 @@ impl CascadeEngine {
         let observer = WebID::new();
         Self {
             config,
-            emitter: SpanEmitter::new(observer),
         }
     }
 

@@ -1,40 +1,18 @@
-//! CNS Energy Spans
+//! Energy budget enforcement — Loop 1 guard
 //!
-//! Implements energy cost as CNS primitive for pragmatic composition.
-//! Energy tracking enables economic analysis of template/manifest operations.
-//!
-//! **Span Types:**
-//! - `cns.energy.allocate` — Energy budget assignment
-//! - `cns.energy.consume` — Operation cost debit
-//! - `cns.energy.opportunity` — Alternative cost analysis
-//! - `cns.energy.deficit` — Algedonic alert trigger (variety deficit)
-//!
-//! **Integration:**
-//! - Every template render → energy cost
-//! - Every manifest execute → energy cost
-//! - Every registry write → energy cost
-//! - Default cost: 1 energy unit per 4 tokens (configurable)
+//! Every operation costs energy. When the budget is exhausted, the operation
+//! is rejected. This is the enforcement gate that closes Loop 1.
 
-use hkask_types::event::{Phase, Span};
 use serde::{Deserialize, Serialize};
-use serde_json;
 
 /// Energy budget allocation
 #[derive(Serialize, Deserialize)]
 pub struct EnergyBudget {
-    /// Maximum token budget
     pub cap: u64,
-    /// Current remaining budget
     pub remaining: u64,
-    /// Cost per token (default: 0.25 energy units)
     pub cost_per_token: f64,
-    /// Alert threshold (0.0-1.0, default: 0.8)
     pub alert_threshold: f64,
-    /// Hard limit enforcement
     pub hard_limit: bool,
-    /// Optional span emitter for CNS regulation events
-    #[serde(skip)]
-    pub span_emitter: Option<crate::spans::SpanEmitter>,
 }
 
 impl EnergyBudget {
@@ -45,7 +23,6 @@ impl EnergyBudget {
             cost_per_token: 0.25,
             alert_threshold: 0.8,
             hard_limit: true,
-            span_emitter: None,
         }
     }
 
@@ -64,18 +41,10 @@ impl EnergyBudget {
         self
     }
 
-    /// Attach a span emitter for CNS regulation events
-    pub fn with_span_emitter(mut self, emitter: crate::spans::SpanEmitter) -> Self {
-        self.span_emitter = Some(emitter);
-        self
-    }
-
-    /// Calculate energy cost for given token count
     pub fn calculate_cost(&self, tokens: u64) -> u64 {
         ((tokens as f64) * self.cost_per_token) as u64
     }
 
-    /// Calculate token count from energy cost
     pub fn calculate_tokens(&self, energy: u64) -> u64 {
         if self.cost_per_token > 0.0 {
             (energy as f64 / self.cost_per_token) as u64
@@ -84,95 +53,40 @@ impl EnergyBudget {
         }
     }
 
-    /// Allocate energy from budget
     pub fn allocate(&mut self, tokens: u64) -> Result<u64, EnergyError> {
         let cost = self.calculate_cost(tokens);
-
         if cost > self.remaining && self.hard_limit {
             return Err(EnergyError::BudgetExceeded {
                 requested: cost,
                 remaining: self.remaining,
             });
         }
-
         self.remaining = self.remaining.saturating_sub(cost);
         Ok(cost)
     }
 
-    /// Try to consume energy for a named operation.
-    ///
-    /// This is the enforcement gate — callers that wish to be quota-gated
-    /// pass through this method before performing an operation. If the
-    /// budget is exhausted, the operation is rejected with `BudgetExceeded`.
-    ///
-    /// This turns energy *observation* into energy *regulation* — a complete
-    /// cybernetic loop (Observe → Regulate → Outcome).
     pub fn try_consume(
         &mut self,
         operation: &str,
         estimated_tokens: u64,
     ) -> Result<u64, EnergyError> {
         let cost = self.calculate_cost(estimated_tokens);
-        let allowed = !(self.hard_limit && cost > self.remaining);
-
-        if !allowed {
-            // Emit Regulate-phase span recording denied consumption
-            if let Some(emitter) = &self.span_emitter {
-                emitter.emit_with_phase(
-                    Span::energy("regulate.consume"),
-                    Phase::Regulate,
-                    serde_json::json!({
-                        "operation": operation,
-                        "allowed": false,
-                        "reason": "budget_exceeded",
-                        "requested_cost": cost,
-                        "remaining": self.remaining,
-                    }),
-                );
-            }
+        if self.hard_limit && cost > self.remaining {
             return Err(EnergyError::BudgetExceeded {
                 requested: cost,
                 remaining: self.remaining,
             });
         }
-
         self.remaining = self.remaining.saturating_sub(cost);
-
-        // Emit Regulate-phase span recording allowed consumption
-        if let Some(emitter) = &self.span_emitter {
-            emitter.emit_with_phase(
-                Span::energy("regulate.consume"),
-                Phase::Regulate,
-                serde_json::json!({
-                    "operation": operation,
-                    "allowed": true,
-                    "reason": "within_budget",
-                    "cost": cost,
-                    "remaining": self.remaining,
-                }),
-            );
-        }
-
-        tracing::debug!(
-            target: "cns.energy.consume",
-            operation = %operation,
-            tokens = estimated_tokens,
-            cost = cost,
-            remaining = self.remaining,
-            "Energy consumed"
-        );
         Ok(cost)
     }
 
-    /// Check if alert should be triggered
     pub fn should_alert(&self) -> bool {
-        let usage_ratio = 1.0 - (self.remaining as f64 / self.cap as f64);
-        usage_ratio >= self.alert_threshold
+        self.usage_ratio() >= self.alert_threshold
     }
 
-    /// Get usage ratio (0.0-1.0)
     pub fn usage_ratio(&self) -> f64 {
-        1.0 - (self.remaining as f64 / self.cap as f64)
+        1.0 - (self.remaining as f64 / self.cap.max(1) as f64)
     }
 }
 
@@ -181,10 +95,7 @@ impl std::fmt::Debug for EnergyBudget {
         f.debug_struct("EnergyBudget")
             .field("cap", &self.cap)
             .field("remaining", &self.remaining)
-            .field("cost_per_token", &self.cost_per_token)
-            .field("alert_threshold", &self.alert_threshold)
             .field("hard_limit", &self.hard_limit)
-            .field("span_emitter", &self.span_emitter.as_ref().map(|_| ".."))
             .finish()
     }
 }
@@ -197,12 +108,10 @@ impl Clone for EnergyBudget {
             cost_per_token: self.cost_per_token,
             alert_threshold: self.alert_threshold,
             hard_limit: self.hard_limit,
-            span_emitter: None, // SpanEmitter is not Clone; clone without emitter
         }
     }
 }
 
-/// Energy error types
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum EnergyError {
     #[error("Energy budget exceeded: requested {requested}, remaining {remaining}")]
@@ -230,30 +139,25 @@ impl EnergyAccount {
         }
     }
 
-    /// Record energy allocation
     pub fn allocate(&mut self, tokens: u64) -> Result<u64, EnergyError> {
         let cost = self.budget.allocate(tokens)?;
         self.total_allocated = self.total_allocated.saturating_add(cost);
         Ok(cost)
     }
 
-    /// Record energy consumption
     pub fn consume(&mut self, cost: u64) {
         self.total_consumed = self.total_consumed.saturating_add(cost);
     }
 
-    /// Record opportunity cost
     pub fn record_opportunity(&mut self, opportunity: OpportunityCost) {
         self.opportunity_costs.push(opportunity);
     }
 
-    /// Get total opportunity cost
     pub fn total_opportunity_cost(&self) -> u64 {
         self.opportunity_costs.iter().map(|o| o.cost).sum()
     }
 }
 
-/// Opportunity cost record
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OpportunityCost {
     pub operation: String,

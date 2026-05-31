@@ -105,7 +105,7 @@ pub struct RussellAcpAdapter {
     child: Mutex<Option<Child>>,
     russell_binary: String,
     macaroon_token: Option<String>,
-    cns_emitter: Option<Arc<dyn hkask_cns::CnsEmit + Send + Sync>>,
+    cns_emitter: Option<Arc<hkask_cns::CnsRuntime + Send + Sync>>,
     /// WebID → Russell session_id mapping
     sessions: Arc<RwLock<HashMap<WebID, String>>>,
     /// Bridge secret derived from master key via HKDF-SHA256 (ADR-027)
@@ -146,7 +146,7 @@ impl RussellAcpAdapter {
     }
 
     /// Set CNS emitter for observability
-    pub fn with_cns_emitter(mut self, emitter: Arc<dyn hkask_cns::CnsEmit + Send + Sync>) -> Self {
+    pub fn with_cns_emitter(mut self, emitter: Arc<hkask_cns::CnsRuntime + Send + Sync>) -> Self {
         self.cns_emitter = Some(emitter);
         self
     }
@@ -610,7 +610,7 @@ impl AcpPort for RussellAcpAdapter {
         }
     }
 
-    fn set_cns_emitter(&self, _emitter: Arc<dyn hkask_cns::CnsEmit + Send + Sync>) {
+    fn set_cns_emitter(&self, _emitter: Arc<hkask_cns::CnsRuntime + Send + Sync>) {
         tracing::debug!(target: "hkask.russell", "CNS emitter set (Russell adapter uses internal CNS emission)");
     }
 

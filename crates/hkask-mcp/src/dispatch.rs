@@ -3,7 +3,6 @@
 //! Dispatches tool calls through MCP with OCAP capability verification
 //! and rate limiting integration.
 
-use hkask_cns::{CnsEmit, RateLimiter};
 use hkask_templates::{CnsPort, McpPort, Result, TemplateError};
 use hkask_types::{BotCapabilities, CapabilityChecker, CapabilityToken, WebID};
 use serde_json::Value;
@@ -22,11 +21,9 @@ pub struct McpDispatcher {
     /// Capability checker for OCP
     capability_checker: Arc<CapabilityChecker>,
     /// Rate limiter for DoS prevention
-    rate_limiter: RateLimiter,
     /// Bot capabilities registry
     bot_capabilities: Arc<RwLock<std::collections::HashMap<WebID, BotCapabilities>>>,
     /// Optional CNS emitter for structured span emission
-    cns_emitter: Option<Arc<dyn CnsEmit + Send + Sync>>,
     /// Optional security gateway for input validation, tool allow/deny, rate limiting
     security_gateway: Option<SecurityGateway>,
 }
@@ -36,16 +33,12 @@ impl McpDispatcher {
         Self {
             runtime,
             capability_checker: Arc::new(CapabilityChecker::new(secret)),
-            rate_limiter: RateLimiter::default(),
             bot_capabilities: Arc::new(RwLock::new(std::collections::HashMap::new())),
-            cns_emitter: None,
             security_gateway: None,
         }
     }
 
     /// Set the CNS emitter for structured span emission
-    pub fn with_cns_emitter(mut self, emitter: Arc<dyn CnsEmit + Send + Sync>) -> Self {
-        self.cns_emitter = Some(emitter);
         self
     }
 
@@ -86,12 +79,10 @@ impl McpDispatcher {
 
     /// Check rate limit for bot
     pub fn check_rate_limit(&self, bot_id: &WebID) -> bool {
-        self.rate_limiter.check(bot_id)
     }
 
     /// Get remaining rate limit tokens for bot
     pub fn remaining_rate_limit(&self, bot_id: &WebID) -> u32 {
-        self.rate_limiter.remaining(bot_id)
     }
 }
 
@@ -206,7 +197,6 @@ impl McpDispatcher {
     ) -> Result<Value> {
         // Check rate limit first
         if !self.check_rate_limit(bot_id) {
-            if let Some(ref emitter) = self.cns_emitter {
                 emitter.emit_event(
                     "cns.tool.rate_limit_exceeded",
                     "observe",
@@ -229,7 +219,6 @@ impl McpDispatcher {
 
         // Check capability
         if !self.check_capability(bot_id, tool_name).await {
-            if let Some(ref emitter) = self.cns_emitter {
                 emitter.emit_event(
                     &format!("cns.tool.{}.unauthorized", tool_name.replace(':', ".")),
                     "observe",
@@ -252,7 +241,6 @@ impl McpDispatcher {
 
         // Check if tool exists
         if !self.runtime.tool_exists(tool_name).await {
-            if let Some(ref emitter) = self.cns_emitter {
                 emitter.emit_event(
                     &format!("cns.tool.{}.not_found", tool_name.replace(':', ".")),
                     "observe",
@@ -264,7 +252,6 @@ impl McpDispatcher {
         }
 
         // Emit CNS event for tool invocation (Observe phase)
-        if let Some(ref emitter) = self.cns_emitter {
             emitter.emit_event(
                 &format!("cns.tool.{}.invoked", tool_name.replace(':', ".")),
                 "observe",
@@ -297,7 +284,6 @@ impl McpDispatcher {
             .call_tool(&tool_info.server_id, tool_name, input)
             .await
             .map_err(|e| {
-                if let Some(ref emitter) = self.cns_emitter {
                     emitter.emit_event(
                         &format!("cns.tool.{}.failed", tool_name.replace(':', ".")),
                         "outcome",
@@ -309,7 +295,6 @@ impl McpDispatcher {
             })?;
 
         // Emit CNS event for tool completion (Outcome phase)
-        if let Some(ref emitter) = self.cns_emitter {
             emitter.emit_event(
                 &format!("cns.tool.{}.completed", tool_name.replace(':', ".")),
                 "outcome",

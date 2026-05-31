@@ -58,7 +58,6 @@ mod context;
 mod manager;
 mod types;
 
-use hkask_cns::CnsEmit;
 use hkask_types::derivation_contexts;
 use hkask_types::secret::SecretRef;
 use hkask_types::{
@@ -242,7 +241,7 @@ impl AgentPod {
     pub async fn register(
         &mut self,
         acp: &dyn crate::ports::AcpPort,
-        cns: &dyn CnsEmit,
+        cns: &CnsRuntime,
     ) -> AgentPodResult<()> {
         if !self.state.can_transition_to(PodLifecycleState::Registered) {
             return Err(AgentPodError::InvalidStateTransition(
@@ -291,7 +290,7 @@ impl AgentPod {
     pub fn activate(
         &mut self,
         mcp: &dyn crate::ports::MCPRuntimePort,
-        cns: &dyn CnsEmit,
+        cns: &CnsRuntime,
     ) -> AgentPodResult<()> {
         if !self.state.can_transition_to(PodLifecycleState::Activated) {
             return Err(AgentPodError::InvalidStateTransition(
@@ -330,7 +329,7 @@ impl AgentPod {
     ///
     /// # Returns
     /// * `Ok(())` — Deactivation successful
-    pub fn deactivate(&mut self, cns: &dyn CnsEmit) -> AgentPodResult<()> {
+    pub fn deactivate(&mut self, cns: &CnsRuntime) -> AgentPodResult<()> {
         if !self.state.can_transition_to(PodLifecycleState::Deactivated) {
             return Err(AgentPodError::InvalidStateTransition(
                 self.state,

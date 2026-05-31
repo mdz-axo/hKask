@@ -7,10 +7,8 @@
 
 // Re-export unified rate limiter from hkask-cns
 pub use hkask_cns::rate_limit::{
-    RateLimitConfig, RateLimiter, StringRateLimiter, WebIdRateLimiter,
 };
 
-use crate::adapters::rate_limiter::RateLimiterAdapter;
 
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -123,7 +121,6 @@ impl AgentPersonaInput {
     }
 }
 
-// RateLimiter is now re-exported from hkask_cns::rate_limit
 // See hkask-cns/src/rate_limit.rs for the unified implementation
 
 /// OCAP attenuation history tracker
@@ -221,12 +218,10 @@ impl Default for ExpiryEnforcer {
 /// Security context for pod operations
 #[derive(Default)]
 pub struct SecurityContext {
-    pub rate_limiter: RateLimiterAdapter,
     pub expiry_enforcer: ExpiryEnforcer,
 }
 
 impl SecurityContext {
-    pub fn new(rate_limiter: RateLimiterAdapter, expiry_enforcer: ExpiryEnforcer) -> Self {
         Self {
             rate_limiter,
             expiry_enforcer,

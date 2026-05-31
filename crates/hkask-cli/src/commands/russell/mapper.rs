@@ -235,7 +235,6 @@ pub struct MappedTemplate {
 /// Russell mapper — generic YAML processor
 pub struct RussellMapper {
     config: RussellMappingConfig,
-    cns: hkask_cns::SpanEmitter,
 }
 
 impl Default for RussellMapper {
@@ -248,14 +247,12 @@ impl RussellMapper {
     pub fn new() -> Self {
         Self {
             config: RussellMappingConfig::defaults(),
-            cns: hkask_cns::SpanEmitter::default(),
         }
     }
 
     pub fn with_config(config: RussellMappingConfig) -> Self {
         Self {
             config,
-            cns: hkask_cns::SpanEmitter::default(),
         }
     }
 

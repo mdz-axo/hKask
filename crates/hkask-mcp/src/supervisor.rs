@@ -3,7 +3,6 @@
 //! Provides process supervision for MCP servers with automatic restart
 //! and health monitoring capabilities.
 
-use hkask_cns::CnsEmit;
 use serde_json::json;
 use std::collections::HashMap;
 use std::process::Stdio;
@@ -102,7 +101,6 @@ struct ServerState {
 pub struct McpSupervisor {
     servers: Arc<RwLock<HashMap<String, ServerState>>>,
     /// Optional CNS emitter for connector lifecycle events
-    cns_emitter: Option<Arc<dyn CnsEmit + Send + Sync>>,
 }
 
 impl McpSupervisor {
@@ -110,13 +108,10 @@ impl McpSupervisor {
     pub fn new() -> Self {
         Self {
             servers: Arc::new(RwLock::new(HashMap::new())),
-            cns_emitter: None,
         }
     }
 
     /// Set the CNS emitter for connector lifecycle span emission
-    pub fn with_cns_emitter(mut self, emitter: Arc<dyn CnsEmit + Send + Sync>) -> Self {
-        self.cns_emitter = Some(emitter);
         self
     }
 
@@ -159,7 +154,6 @@ impl McpSupervisor {
         state.child = Some(child);
         state.started_at = Some(Instant::now());
 
-        if let Some(ref emitter) = self.cns_emitter {
             emitter.emit_event(
                 &format!("cns.connector.{}.started", name),
                 "observe",
@@ -190,7 +184,6 @@ impl McpSupervisor {
                     source: e,
                 })?;
             state.started_at = None;
-            if let Some(ref emitter) = self.cns_emitter {
                 emitter.emit_event(
                     &format!("cns.connector.{}.stopped", name),
                     "observe",
@@ -219,7 +212,6 @@ impl McpSupervisor {
             state.last_restart = Some(Instant::now());
         }
 
-        if let Some(ref emitter) = self.cns_emitter {
             emitter.emit_event(
                 &format!("cns.connector.{}.restarted", name),
                 "observe",
@@ -297,7 +289,6 @@ impl McpSupervisor {
                 match child.try_wait() {
                     Ok(Some(status)) => {
                         // Process has exited
-                        if let Some(ref emitter) = self.cns_emitter {
                             emitter.emit_event(
                                 &format!("cns.connector.{}.error", name),
                                 "observe",

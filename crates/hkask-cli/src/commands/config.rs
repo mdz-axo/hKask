@@ -139,11 +139,9 @@ pub(crate) async fn init_registry() -> Result<
 > {
     let secret = resolve_acp_secret()?;
     let acp = Arc::new(hkask_agents::AcpRuntime::new(secret.as_bytes(), None));
-    let cns_emitter = Arc::new(hkask_agents::adapters::CnsEmitterAdapter::new(
         hkask_types::WebID::new(),
     ));
     use hkask_agents::ports::AcpPort;
-    acp.set_cns_emitter(cns_emitter);
 
     let db_path = registry_db_path();
     let passphrase = resolve_db_passphrase()?;

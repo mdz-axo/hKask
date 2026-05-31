@@ -7,7 +7,6 @@
 //! - Audit logging
 //! - URL validation (SSRF protection)
 
-use hkask_cns::{CnsEmit, rate_limit::RateLimiter};
 use hkask_templates::TemplateError;
 use hkask_types::WebID;
 use hkask_types::{CapabilityAction, CapabilityChecker, CapabilityResource, CapabilityToken};
@@ -52,7 +51,6 @@ pub struct SecurityGateway {
     /// Capability checker
     capability_checker: Arc<CapabilityChecker>,
     /// Rate limiter
-    rate_limiter: RateLimiter,
     /// Security policy
     policy: SecurityPolicy,
     /// Audit log (persistent via AuditLogStore adapter, in-memory fallback)
@@ -60,7 +58,6 @@ pub struct SecurityGateway {
     /// Optional persistent audit store (wired when database is available)
     audit_store: Option<Arc<dyn hkask_types::AuditLogPort + Send + Sync>>,
     /// Optional CNS emitter for security event span emission
-    cns_emitter: Option<Arc<dyn CnsEmit + Send + Sync>>,
 }
 
 /// Audit log entry
@@ -88,11 +85,9 @@ impl SecurityGateway {
     pub fn new(secret: &[u8], policy: SecurityPolicy) -> Self {
         Self {
             capability_checker: Arc::new(CapabilityChecker::new(secret)),
-            rate_limiter: RateLimiter::default(),
             policy,
             audit_log: Arc::new(RwLock::new(Vec::new())),
             audit_store: None,
-            cns_emitter: None,
         }
     }
 
@@ -102,8 +97,6 @@ impl SecurityGateway {
     }
 
     /// Set the CNS emitter for security event span emission
-    pub fn with_cns_emitter(mut self, emitter: Arc<dyn CnsEmit + Send + Sync>) -> Self {
-        self.cns_emitter = Some(emitter);
         self
     }
 
@@ -169,7 +162,6 @@ impl SecurityGateway {
             hkask_types::CapabilityAction::Execute,
         );
 
-        if !result && let Some(ref emitter) = self.cns_emitter {
             emitter.emit_event(
                 &format!("cns.tool.{}.unauthorized", tool_name.replace(':', ".")),
                 "observe",
@@ -245,8 +237,6 @@ impl SecurityGateway {
         if !self.policy.enable_rate_limiting {
             return true;
         }
-        let result = self.rate_limiter.check(bot_id);
-        if !result && let Some(ref emitter) = self.cns_emitter {
             emitter.emit_event(
                 "cns.tool.rate_limit_exceeded",
                 "observe",
@@ -259,7 +249,6 @@ impl SecurityGateway {
 
     /// Get remaining rate limit tokens
     pub fn remaining_rate_limit(&self, bot_id: &WebID) -> u32 {
-        self.rate_limiter.remaining(bot_id)
     }
 
     /// Record audit entry
