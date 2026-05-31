@@ -7,7 +7,6 @@
 //!
 //! - **No hardcoded secrets**: Secret loaded from environment or keystore
 //! - **Explicit capabilities**: No wildcard tokens; each capability explicitly granted
-//! - **Rate limiting**: Per-agent message quota to prevent DoS
 //! - **Audit logging**: All A2A messages logged for forensic analysis
 //!
 //! # A2A Message Flow
@@ -15,15 +14,11 @@
 //! ```text
 //! Agent Pod A → ACP Message (template:dispatch) → hKask Router → Agent Pod B
 //!                                                              ↓
-//!                                                   Rate Limit Check
-//!                                                              ↓
 //!                                                   Capability Verification
 //!                                                              ↓
 //!                                                   Audit Log Entry
 //!                                                              ↓
 //!                                                   Template Execution
-//!                                                              ↓
-//!                                                   CNS Span Emission
 //!                                                              ↓
 //!                                                   Response to Agent A
 //! ```
@@ -84,9 +79,6 @@ pub enum AcpError {
 
     #[error("Agent {0:?} not found")]
     AgentNotFound(WebID),
-
-    #[error("Rate limit exceeded for agent {0:?}")]
-    RateLimitExceeded(WebID),
 
     #[error("Capability denied: agent {0:?} lacks permission for {1}")]
     CapabilityDenied(WebID, String),
@@ -206,8 +198,6 @@ pub struct AcpRuntime {
     root_authority: Arc<RootAuthority>,
     /// Revoked capability token IDs
     revoked_tokens: Arc<RwLock<std::collections::HashSet<String>>>,
-    /// CNS runtime for observability (optional)
-    cns: std::sync::RwLock<Option<Arc<hkask_cns::CnsRuntime>>>,
 }
 
 impl AcpRuntime {
@@ -217,10 +207,6 @@ impl AcpRuntime {
     ///
     /// Secret is loaded from `HKASK_ACP_SECRET` environment variable.
     /// If not set, returns `AcpError::SecretNotConfigured`.
-    ///
-    /// # Arguments
-    ///
-    /// * `rate_limit_config` - Rate limit configuration (default: 100 msg/min)
     ///
     /// # Returns
     ///
@@ -243,7 +229,6 @@ impl AcpRuntime {
             audit_log,
             root_authority,
             revoked_tokens: Arc::new(RwLock::new(std::collections::HashSet::new())),
-            cns: std::sync::RwLock::new(None),
         })
     }
 
@@ -252,7 +237,6 @@ impl AcpRuntime {
     /// # Arguments
     ///
     /// * `secret` - HMAC secret key (will be zeroized on drop)
-    /// * `rate_limit_config` - Rate limit configuration (default: 100 msg/min)
     pub fn new(secret: &[u8], _rate_limit_config: Option<()>) -> Self {
         // Derive root WebID deterministically from a fixed "root" persona
         let root_persona = b"hkask-root-authority";
@@ -268,27 +252,6 @@ impl AcpRuntime {
             audit_log: Arc::new(AuditLog::new()),
             root_authority,
             revoked_tokens: Arc::new(RwLock::new(std::collections::HashSet::new())),
-            cns: std::sync::RwLock::new(None),
-        }
-    }
-
-    /// Set CNS runtime for observability
-    pub fn with_cns_runtime(self, runtime: Arc<hkask_cns::CnsRuntime>) -> Result<Self, AcpError> {
-        *self
-            .cns
-            .write()
-            .map_err(|_| AcpError::Infra(hkask_types::InfrastructureError::LockPoisoned))? =
-            Some(runtime);
-        Ok(self)
-    }
-
-    /// Emit a CNS event if a runtime is configured
-    fn emit_cns(&self, span: &str, verb: &str, payload: &serde_json::Value, confidence: f64) {
-        if let Ok(guard) = self.cns.read()
-            && let Some(ref cns) = *guard
-        {
-            // CnsRuntime doesn't have emit_event; use tracing instead
-            let _ = (cns, span, verb, payload, confidence);
         }
     }
 
@@ -358,19 +321,6 @@ impl AcpRuntime {
             agent_type = %agent_type,
             capabilities = ?capabilities,
             "Agent registered with ACP runtime"
-        );
-
-        // Emit CNS span for capability minting
-        self.emit_cns(
-            "cns.cap.minted",
-            "minted",
-            &serde_json::json!({
-                "token_id": token.id,
-                "holder": token.delegated_to.to_string(),
-                "resource": token.resource_id,
-                "action": token.action.as_str(),
-            }),
-            1.0,
         );
 
         Ok(token)
@@ -527,24 +477,6 @@ impl AcpRuntime {
             !revoked.contains(&token.id)
         };
 
-        // Emit CNS span for capability verification
-        let span_name = if valid {
-            "cns.cap.verified_ok"
-        } else {
-            "cns.cap.verified_denied"
-        };
-        self.emit_cns(
-            span_name,
-            "verified",
-            &serde_json::json!({
-                "token_id": token.id,
-                "holder": token.delegated_to.to_string(),
-                "resource": token.resource_id,
-                "expired": token.is_expired(current_time),
-            }),
-            1.0,
-        );
-
         valid
     }
 
@@ -552,16 +484,6 @@ impl AcpRuntime {
     pub async fn revoke_capability(&self, token_id: &str) {
         let mut revoked = self.revoked_tokens.write().await;
         revoked.insert(token_id.to_string());
-
-        // Emit CNS span for capability revocation
-        self.emit_cns(
-            "cns.cap.revoked",
-            "revoked",
-            &serde_json::json!({
-                "token_id": token_id,
-            }),
-            1.0,
-        );
     }
 
     /// Check if a capability token has been revoked
@@ -607,19 +529,6 @@ impl AcpRuntime {
             .ok_or_else(|| {
                 AcpError::InvalidAttenuationChain("Attenuation limit exceeded".to_string())
             })?;
-
-        // Emit CNS span for capability attenuation
-        self.emit_cns(
-            "cns.cap.attenuated",
-            "attenuated",
-            &serde_json::json!({
-                "parent_id": parent_token.id,
-                "child_id": child.id,
-                "attenuation_level": child.attenuation_level,
-                "holder": child.delegated_to.to_string(),
-            }),
-            1.0,
-        );
 
         Ok(child)
     }
@@ -740,13 +649,6 @@ impl crate::ports::AcpPort for AcpRuntime {
 
     async fn get_capabilities(&self, webid: &WebID) -> Vec<CapabilityToken> {
         AcpRuntime::get_capabilities(self, webid).await
-    }
-
-    fn set_cns_emitter(&self, emitter: Arc<hkask_cns::CnsRuntime>) {
-        match self.cns.write() {
-            Ok(mut cns) => *cns = Some(emitter),
-            Err(e) => tracing::error!("CNS runtime lock poisoned: {}", e),
-        }
     }
 
     async fn list_agents(&self) -> Vec<AcpAgent> {

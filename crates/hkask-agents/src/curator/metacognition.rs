@@ -10,12 +10,12 @@
 
 use crate::adapters::MetacognitionStoreAdapter;
 use crate::curator::context::CuratorContext;
-use crate::ports::HealthStatus;
 #[allow(deprecated)]
 use crate::ports::metacognition::StoredHealthSnapshot;
 use crate::ports::metacognition::{
     BotDirective, EvaluationResult, KataDirective, KataType, RecommendedAction,
 };
+use hkask_cns::algedonic::CnsHealth;
 use hkask_cns::bot_metrics::{
     BotEvaluationMetrics, BotHealthStatus as CnsBotHealthStatus, GapType,
 };
@@ -495,7 +495,7 @@ impl MetacognitionLoop {
     }
 }
 
-fn format_health_status(h: &HealthStatus) -> String {
+fn format_health_status(h: &CnsHealth) -> String {
     if h.healthy {
         format!(
             "Healthy (deficit={}, warnings={})",

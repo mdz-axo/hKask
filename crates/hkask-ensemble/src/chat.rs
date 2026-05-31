@@ -4,9 +4,9 @@
 //! via template-mediated A2A communication. No swarms, no consensus mechanisms.
 
 use hkask_agents::SovereigntyChecker;
-use hkask_types::{Phase, Span, WebID};
+use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -105,27 +105,11 @@ impl EnsembleChat {
 
     /// Register a bot participant in the chat
     pub fn register_participant(&mut self, participant: ChatParticipant) {
-            Span::agent_pod("chat_participant_registered"),
-            Phase::Observe,
-            json!({
-                "webid": participant.webid.to_string(),
-                "role": format!("{:?}", participant.role),
-            }),
-        );
-
         self.participants.insert(participant.webid, participant);
     }
 
     /// Add a message to the chat
     pub fn add_message(&mut self, message: ChatMessage) {
-            Span::tool("chat_message"),
-            Phase::Observe,
-            json!({
-                "from": message.from.to_string(),
-                "content_length": message.content.len(),
-            }),
-        );
-
         self.messages.push(message);
     }
 
@@ -151,10 +135,6 @@ impl EnsembleChat {
             &hkask_types::DataCategory::TemplateInvocations,
             &self.curator_webid,
         ) {
-                Span::tool("chat_dispatch.outcome"),
-                Phase::Observe,
-                json!({"outcome": "sovereignty_denied"}),
-            );
             return Err(EnsembleError::SovereigntyDenied(
                 "Template dispatch requires consent".to_string(),
             ));
@@ -164,10 +144,6 @@ impl EnsembleChat {
         let participant = match self.participants.get(bot_webid) {
             Some(p) => p,
             None => {
-                    Span::tool("chat_dispatch.outcome"),
-                    Phase::Observe,
-                    json!({"outcome": "participant_not_found"}),
-                );
                 return Err(EnsembleError::ParticipantNotFound(bot_webid.to_string()));
             }
         };
@@ -185,16 +161,6 @@ impl EnsembleChat {
                     .collect();
 
                 if intersection.is_empty() {
-                        Span::tool("chat_dispatch.outcome"),
-                        Phase::Observe,
-                        json!({
-                            "outcome": "capability_denied",
-                            "bot": bot_webid.to_string(),
-                            "template": template_id,
-                            "required": required_caps,
-                            "granted": bot_caps,
-                        }),
-                    );
                     return Err(EnsembleError::CapabilityDenied(format!(
                         "Bot {} lacks required capabilities {:?} for template {}",
                         bot_webid, required_caps, template_id
@@ -203,48 +169,20 @@ impl EnsembleChat {
             }
         }
 
-            Span::tool("chat_dispatch"),
-            Phase::Observe,
-            json!({
-                "bot": bot_webid.to_string(),
-                "template": template_id,
-            }),
-        );
-
         // Simulate template-mediated dispatch (actual dispatch via hkask_templates)
         let response = format!("Bot {} processed via template {}", bot_webid, template_id);
-
-            Span::tool("chat_dispatch.outcome"),
-            Phase::Observe,
-            json!({
-                "outcome": "success",
-                "response": response
-            }),
-        );
 
         Ok(response)
     }
 
     /// Aggregate responses from multiple bots (no consensus, just collection)
     pub fn aggregate_responses(&self, bot_responses: HashMap<WebID, String>) -> String {
-            Span::tool("chat_aggregate"),
-            Phase::Observe,
-            json!({
-                "response_count": bot_responses.len(),
-            }),
-        );
-
         let mut aggregated = String::new();
         for (webid, response) in bot_responses {
             aggregated.push_str(&format!("[{}]: {}\n", webid, response));
         }
 
         aggregated
-    }
-
-    /// Emit CNS span for chat activity
-    pub fn emit_chat_span(&self, event_type: &str, data: Value) {
-            .emit_with_phase(Span::agent_pod(event_type), Phase::Observe, data);
     }
 
     /// Get curator WebID
@@ -255,20 +193,12 @@ impl EnsembleChat {
     /// Clear chat history
     pub fn clear(&mut self) {
         self.messages.clear();
-            Span::agent_pod("chat_cleared"),
-            Phase::Observe,
-            json!({}),
-        );
         info!("Chat history cleared");
     }
 
     /// Grant explicit consent for template invocations
     pub fn grant_consent(&mut self) {
         self.sovereignty_checker.grant_consent();
-            Span::agent_pod("chat_consent_granted"),
-            Phase::Observe,
-            json!({}),
-        );
     }
 
     /// Get improv session config
@@ -284,20 +214,11 @@ impl EnsembleChat {
     /// Set participation threshold
     pub fn set_participation_threshold(&mut self, threshold: f64) {
         self.improv_config.set_threshold(threshold);
-            Span::tool("improv_threshold_set"),
-            Phase::Observe,
-            json!({"threshold": self.improv_config.participation_threshold}),
-        );
     }
 
     /// Set improv mode
     pub fn set_improv_mode(&mut self, mode: ImprovMode) {
-        let mode_str = mode.as_str().to_string();
         self.improv_config.set_mode(mode);
-            Span::tool("improv_mode_set"),
-            Phase::Observe,
-            json!({"mode": mode_str}),
-        );
     }
 
     /// Execute an improvisation turn using this session's config and participants

@@ -105,7 +105,6 @@ pub struct RussellAcpAdapter {
     child: Mutex<Option<Child>>,
     russell_binary: String,
     macaroon_token: Option<String>,
-    cns: Option<Arc<hkask_cns::CnsRuntime>>,
     /// WebID → Russell session_id mapping
     sessions: Arc<RwLock<HashMap<WebID, String>>>,
     /// Bridge secret derived from master key via HKDF-SHA256 (ADR-027)
@@ -133,7 +132,6 @@ impl RussellAcpAdapter {
             child: Mutex::new(None),
             russell_binary,
             macaroon_token: None,
-            cns: None,
             sessions: Arc::new(RwLock::new(HashMap::new())),
             bridge_secret: Arc::new(bridge_secret),
         })
@@ -142,12 +140,6 @@ impl RussellAcpAdapter {
     /// Set macaroon token for authentication
     pub fn with_auth(mut self, token: String) -> Self {
         self.macaroon_token = Some(token);
-        self
-    }
-
-    /// Set CNS runtime for observability
-    pub fn with_cns_runtime(mut self, runtime: Arc<hkask_cns::CnsRuntime>) -> Self {
-        self.cns = Some(runtime);
         self
     }
 
@@ -221,12 +213,6 @@ impl RussellAcpAdapter {
         }
 
         Ok(response)
-    }
-
-    fn emit_cns_span(&self, span_name: &str, data: Value) {
-        if let Some(ref cns) = self.cns_emitter {
-            cns.emit_event(span_name, "federation", &data, 1.0);
-        }
     }
 
     /// Look up the Russell session_id for a given WebID
@@ -344,16 +330,6 @@ impl AcpPort for RussellAcpAdapter {
         self.store_session_id(webid, session_resp.session_id.clone())
             .await;
 
-        self.emit_cns_span(
-            "cns.federation.translated",
-            serde_json::json!({
-                "direction": "hKask→Russell",
-                "method": "acp/session.create",
-                "webid": webid.to_string(),
-                "session_id": session_resp.session_id,
-            }),
-        );
-
         // Mint a bridge capability token signed with the shared secret
         // so it passes AcpRuntime::verify_capability
         let token = CapabilityToken::new(
@@ -464,15 +440,6 @@ impl AcpPort for RussellAcpAdapter {
             )));
         }
 
-        self.emit_cns_span(
-            "cns.federation.translated",
-            serde_json::json!({
-                "direction": "hKask→Russell",
-                "method": "acp/session.message",
-                "session_id": session_id,
-            }),
-        );
-
         // Return the correlation ID from the original message, or generate one
         let correlation_id = match &msg {
             A2AMessage::TemplateDispatch { correlation_id, .. } => correlation_id.clone(),
@@ -534,49 +501,14 @@ impl AcpPort for RussellAcpAdapter {
             })
             .collect();
 
-        // Emit CNS spans for skill discovery
-        for skill in &caps_resp.skills {
-            self.emit_cns_span(
-                "cns.agent.skill_discovered",
-                serde_json::json!({
-                    "skill_id": skill.id,
-                    "version": skill.version,
-                    "description": skill.description,
-                    "symptom_count": skill.symptoms.len(),
-                }),
-            );
-        }
-
         // Add probe capabilities
         for probe in &caps_resp.probes {
             capabilities.push(format!("russell:probe:{}", probe.id));
         }
 
-        // Emit CNS spans for probe discovery
-        for probe in &caps_resp.probes {
-            self.emit_cns_span(
-                "cns.agent.probe_discovered",
-                serde_json::json!({
-                    "probe_id": probe.id,
-                    "description": probe.description,
-                }),
-            );
-        }
-
         // Deduplicate
         capabilities.sort();
         capabilities.dedup();
-
-        self.emit_cns_span(
-            "cns.federation.translated",
-            serde_json::json!({
-                "direction": "Russell→hKask",
-                "method": "acp/capabilities",
-                "skill_count": caps_resp.skills.len(),
-                "probe_count": caps_resp.probes.len(),
-                "capability_count": capabilities.len(),
-            }),
-        );
 
         Ok(capabilities)
     }
@@ -608,10 +540,6 @@ impl AcpPort for RussellAcpAdapter {
         } else {
             vec![]
         }
-    }
-
-    fn set_cns_emitter(&self, _emitter: Arc<hkask_cns::CnsRuntime>) {
-        tracing::debug!(target: "hkask.russell", "CNS runtime set (Russell adapter uses internal CNS emission)");
     }
 
     async fn list_agents(&self) -> Vec<crate::acp::AcpAgent> {
