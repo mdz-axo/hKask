@@ -19,7 +19,7 @@ use tokio::sync::Mutex;
 ///
 /// `MessageDispatch` implements the DISPATCH messenger function (6.1):
 /// it guards (priority-ordered) and routes (FIFO within priority) messages
-/// between the 7 loops.
+/// between the 8 loops.
 ///
 /// Three internal queues hold messages at Critical, Warning, and Info
 /// priority levels. `receive()` always dequeues from the highest-priority

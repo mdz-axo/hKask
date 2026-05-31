@@ -106,10 +106,6 @@ impl ApiState {
         system_webid: WebID,
         ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::OkapiClient>>,
     ) -> Self {
-        let observer_webid = WebID::new();
-            max_tokens: 100,
-            refill_interval: std::time::Duration::from_millis(600),
-        });
         let consent_manager = Arc::new(ConsentManager::new(SovereigntyBoundaryStore::new(
             hkask_storage::Database::in_memory()
                 .expect("in-memory db")
@@ -179,7 +175,6 @@ impl ApiState {
     ) -> Self {
         let git_cas = GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-templates"));
         let acp_runtime = Arc::new(AcpRuntime::new(acp_secret, None));
-        let observer_webid = WebID::new();
         let mcp_runtime_adapter = McpRuntimeAdapter::new();
         let memory_adapter =
             Arc::new(MemoryStorageAdapter::in_memory().expect("in-memory adapter creation"));
@@ -344,9 +339,6 @@ pub enum SoapInferError {
     #[error("Capability verification failed")]
     OcapDenied,
 
-    #[error("Rate limit exceeded")]
-    RateLimitExceeded,
-
     #[error("Inference backend error: {0}")]
     InferenceError(String),
 
@@ -389,116 +381,6 @@ pub struct AcpRegisterResponse {
     pub registered_at: i64,
     /// Agent WebID
     pub webid: String,
-}
-
-/// CNS span types for SOAP inference (type-safe emissions)
-pub enum InferenceSpan {
-    Start {
-        timestamp: String,
-        events_count: usize,
-        severity_total: u64,
-    },
-    ValidationError {
-        error_type: String,
-    },
-    OcapDenied {
-        reason: String,
-    },
-    RateLimitExceeded {
-        endpoint: String,
-    },
-    PersonaError {
-        error: String,
-    },
-    InferenceError {
-        error: String,
-    },
-    Timeout {
-        timeout_secs: u64,
-    },
-    Outcome {
-        latency_ms: u64,
-        actions_count: usize,
-        success: bool,
-    },
-    Execute {
-        model: String,
-        prompt_length: usize,
-        response_length: usize,
-    },
-}
-
-impl InferenceSpan {
-    pub fn span_name(&self) -> &'static str {
-        match self {
-            InferenceSpan::Start { .. } => "cns.tool.inference.start",
-            InferenceSpan::ValidationError { .. } => "cns.tool.inference.validation_error",
-            InferenceSpan::OcapDenied { .. } => "cns.tool.inference.ocap_denied",
-            InferenceSpan::RateLimitExceeded { .. } => "cns.tool.rate_limit.exceeded",
-            InferenceSpan::PersonaError { .. } => "cns.tool.inference.persona_error",
-            InferenceSpan::InferenceError { .. } => "cns.tool.inference.error",
-            InferenceSpan::Timeout { .. } => "cns.tool.inference.timeout",
-            InferenceSpan::Outcome { .. } => "cns.tool.inference.outcome",
-            InferenceSpan::Execute { .. } => "cns.tool.inference.execute",
-        }
-    }
-
-    pub fn observation(&self) -> serde_json::Value {
-        match self {
-            InferenceSpan::Start {
-                timestamp,
-                events_count,
-                severity_total,
-            } => serde_json::json!({
-                "timestamp": timestamp,
-                "events_count": events_count,
-                "severity_total": severity_total,
-            }),
-            InferenceSpan::ValidationError { error_type } => serde_json::json!({
-                "error_type": error_type,
-            }),
-            InferenceSpan::OcapDenied { reason } => serde_json::json!({
-                "reason": reason,
-            }),
-            InferenceSpan::RateLimitExceeded { endpoint } => serde_json::json!({
-                "endpoint": endpoint,
-            }),
-            InferenceSpan::PersonaError { error } => serde_json::json!({
-                "error": error,
-            }),
-            InferenceSpan::InferenceError { error } => serde_json::json!({
-                "error": error,
-            }),
-            InferenceSpan::Timeout { timeout_secs } => serde_json::json!({
-                "timeout_secs": timeout_secs,
-            }),
-            InferenceSpan::Outcome {
-                latency_ms,
-                actions_count,
-                success,
-            } => serde_json::json!({
-                "latency_ms": latency_ms,
-                "actions_count": actions_count,
-                "success": success,
-            }),
-            InferenceSpan::Execute {
-                model,
-                prompt_length,
-                response_length,
-            } => serde_json::json!({
-                "model": model,
-                "prompt_length": prompt_length,
-                "response_length": response_length,
-            }),
-        }
-    }
-
-        emitter.emit_with_phase(
-            hkask_types::Span::tool(self.span_name()),
-            hkask_types::Phase::Observe,
-            self.observation(),
-        );
-    }
 }
 
 /// SOAP inference configuration

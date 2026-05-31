@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::middleware::AuthContext;
-use hkask_types::{Phase, Span};
 use crate::{ApiState, ErrorResponse};
 
 // ── Request / Response types ──────────────────────────────────────────────
@@ -73,17 +72,6 @@ async fn archive(
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<ArchiveRequest>,
 ) -> Result<Json<ArchiveResponse>, (StatusCode, Json<ErrorResponse>)> {
-    state.cns_emitter.emit_with_phase(
-        Span::agent_pod("api.git.archive.start"),
-        Phase::Observe,
-        serde_json::json!({
-            "owner": req.owner,
-            "repo": req.repo,
-            "branch": req.branch,
-            "path": req.path,
-        }),
-    );
-
     // Validate path to prevent directory traversal
     let base = std::path::PathBuf::from("/tmp/hkask-templates");
     sanitize_path(&base, &req.path).map_err(|e| {
@@ -103,13 +91,9 @@ async fn archive(
     let crate_name = format!("{}/{}", req.owner, req.repo);
 
     let git_cas = state.git_cas.clone();
-    let template_crate = git_cas.load_template_crate(&crate_name).map_err(|e| {
-        state.cns_emitter.emit_with_phase(
-        Span::agent_pod("api.git.archive.error"),
-        Phase::Observe,
-            serde_json::json!({ "error": e.to_string() }),
-        );
-        match e {
+    let template_crate = git_cas
+        .load_template_crate(&crate_name)
+        .map_err(|e| match e {
             hkask_agents::GitError::CrateNotFound(_) => (
                 StatusCode::NOT_FOUND,
                 Json(ErrorResponse {
@@ -157,16 +141,6 @@ async fn archive(
         })
         .collect();
 
-    state.cns_emitter.emit_with_phase(
-        Span::agent_pod("api.git.archive.success"),
-        Phase::Observe,
-        serde_json::json!({
-            "crate_name": crate_name,
-            "sha": sha,
-            "template_count": templates.len(),
-        }),
-    );
-
     Ok(Json(ArchiveResponse {
         crate_name: template_crate.name,
         git_sha: sha,
@@ -190,24 +164,11 @@ async fn resolve_sha(
     Extension(_auth): Extension<AuthContext>,
     Path(sha): Path<String>,
 ) -> Result<Json<ResolveShaResponse>, (StatusCode, Json<ErrorResponse>)> {
-    state.cns_emitter.emit_with_phase(
-        Span::agent_pod("api.git.resolve.start"),
-        Phase::Observe,
-        serde_json::json!({
-            "sha": sha,
-        }),
-    );
-
     // The SHA parameter here is used as a crate identifier for the resolve call.
     // GitCasAdapter.resolve_sha runs `git rev-parse HEAD` against the base path,
     // so we pass the crate name to resolve the current HEAD SHA for that crate.
     let git_cas = state.git_cas.clone();
     let resolved = git_cas.resolve_sha(&sha).map_err(|e| {
-        state.cns_emitter.emit_with_phase(
-        Span::agent_pod("api.git.resolve.error"),
-        Phase::Observe,
-            serde_json::json!({ "error": e.to_string() }),
-        );
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse {
@@ -219,14 +180,6 @@ async fn resolve_sha(
             }),
         )
     })?;
-
-    state.cns_emitter.emit_with_phase(
-        Span::agent_pod("api.git.resolve.success"),
-        Phase::Observe,
-        serde_json::json!({
-            "resolved_sha": resolved,
-        }),
-    );
 
     Ok(Json(ResolveShaResponse { sha: resolved }))
 }

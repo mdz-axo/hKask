@@ -67,7 +67,7 @@ impl EnergyBudget {
 
     pub fn try_consume(
         &mut self,
-        operation: &str,
+        _operation: &str,
         estimated_tokens: u64,
     ) -> Result<u64, EnergyError> {
         let cost = self.calculate_cost(estimated_tokens);

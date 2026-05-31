@@ -5,8 +5,6 @@ use axum::{Json, extract::Path, extract::State, http::StatusCode, routing::Route
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use hkask_types::{Phase, Span};
-
 use crate::middleware::AuthContext;
 use crate::{ApiState, ErrorResponse};
 
@@ -126,21 +124,8 @@ async fn list_escalations(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<ListEscalationsResponse>, (StatusCode, Json<ErrorResponse>)> {
-    state.cns_emitter.emit_with_phase(
-        Span::agent_pod("api.curator.escalations.list.start"),
-        Phase::Observe,
-        serde_json::json!({
-            "timestamp": chrono::Utc::now().to_rfc3339(),
-        }),
-    );
-
     let queue = state.escalation_queue.clone();
     let entries = queue.list_pending().map_err(|e| {
-        state.cns_emitter.emit_with_phase(
-            Span::agent_pod("api.curator.escalations.list.error"),
-            Phase::Observe,
-            serde_json::json!({ "error": e.to_string() }),
-        );
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse {
@@ -168,12 +153,6 @@ async fn list_escalations(
         })
         .collect();
 
-    state.cns_emitter.emit_with_phase(
-        Span::agent_pod("api.curator.escalations.list.success"),
-        Phase::Observe,
-        serde_json::json!({ "count": escalations.len() }),
-    );
-
     Ok(Json(ListEscalationsResponse { escalations }))
 }
 
@@ -196,15 +175,6 @@ async fn resolve_escalation(
     Path(id): Path<String>,
     Json(req): Json<ResolveEscalationRequest>,
 ) -> Result<Json<ResolveEscalationResponse>, (StatusCode, Json<ErrorResponse>)> {
-    state.cns_emitter.emit_with_phase(
-        Span::agent_pod("api.curator.escalation.resolve.start"),
-        Phase::Observe,
-        serde_json::json!({
-            "escalation_id": id,
-            "resolved_by": req.resolved_by,
-        }),
-    );
-
     let queue = state.escalation_queue.clone();
 
     // Verify escalation exists
@@ -233,11 +203,6 @@ async fn resolve_escalation(
     }
 
     queue.resolve(&id, &req.resolved_by).map_err(|e| {
-        state.cns_emitter.emit_with_phase(
-            Span::agent_pod("api.curator.escalation.resolve.error"),
-            Phase::Observe,
-            serde_json::json!({ "error": e.to_string() }),
-        );
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse {
@@ -247,12 +212,6 @@ async fn resolve_escalation(
             }),
         )
     })?;
-
-    state.cns_emitter.emit_with_phase(
-        Span::agent_pod("api.curator.escalation.resolve.success"),
-        Phase::Observe,
-        serde_json::json!({ "escalation_id": id }),
-    );
 
     Ok(Json(ResolveEscalationResponse {
         id,
@@ -279,15 +238,6 @@ async fn dismiss_escalation(
     Path(id): Path<String>,
     Json(req): Json<DismissEscalationRequest>,
 ) -> Result<Json<DismissEscalationResponse>, (StatusCode, Json<ErrorResponse>)> {
-    state.cns_emitter.emit_with_phase(
-        Span::agent_pod("api.curator.escalation.dismiss.start"),
-        Phase::Observe,
-        serde_json::json!({
-            "escalation_id": id,
-            "dismissed_by": req.dismissed_by,
-        }),
-    );
-
     let queue = state.escalation_queue.clone();
 
     // Verify escalation exists
@@ -316,11 +266,6 @@ async fn dismiss_escalation(
     }
 
     queue.dismiss(&id, &req.dismissed_by).map_err(|e| {
-        state.cns_emitter.emit_with_phase(
-            Span::agent_pod("api.curator.escalation.dismiss.error"),
-            Phase::Observe,
-            serde_json::json!({ "error": e.to_string() }),
-        );
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse {
@@ -330,12 +275,6 @@ async fn dismiss_escalation(
             }),
         )
     })?;
-
-    state.cns_emitter.emit_with_phase(
-        Span::agent_pod("api.curator.escalation.dismiss.success"),
-        Phase::Observe,
-        serde_json::json!({ "escalation_id": id }),
-    );
 
     Ok(Json(DismissEscalationResponse {
         id,
@@ -358,14 +297,6 @@ async fn metacognition_status(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<MetacognitionStatusResponse>, (StatusCode, Json<ErrorResponse>)> {
-    state.cns_emitter.emit_with_phase(
-        Span::agent_pod("api.curator.metacognition.start"),
-        Phase::Observe,
-        serde_json::json!({
-            "timestamp": chrono::Utc::now().to_rfc3339(),
-        }),
-    );
-
     let queue = state.escalation_queue.clone();
     let stats = queue.stats().map_err(|e| {
         (
@@ -385,15 +316,6 @@ async fn metacognition_status(
         resolved: stats.resolved,
         dismissed: stats.dismissed,
     };
-
-    state.cns_emitter.emit_with_phase(
-        Span::agent_pod("api.curator.metacognition.success"),
-        Phase::Observe,
-        serde_json::json!({
-            "pending_escalations": escalation_stats.pending,
-            "total_escalations": escalation_stats.total,
-        }),
-    );
 
     // Bot reports are not persisted across restarts in the current
     // MetacognitionLoop, so we return an empty list here. The route

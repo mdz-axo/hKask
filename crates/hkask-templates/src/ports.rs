@@ -59,8 +59,6 @@ pub enum TemplateError {
     PathTraversal(String),
     #[error("Sandbox violation: {0}")]
     SandboxViolation(String),
-    #[error("Rate limit exceeded: {0}")]
-    RateLimitExceeded(String),
     #[error("Capability denied: {0}")]
     CapabilityDenied(String),
     #[error("Timeout: {0}")]

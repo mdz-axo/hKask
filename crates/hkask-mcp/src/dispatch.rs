@@ -132,18 +132,6 @@ impl McpPort for McpDispatcher {
             )));
         }
 
-        // Security gateway: rate limiting (energy budget enforcement)
-        if !self
-            .security_gateway
-            .as_ref()
-            .map_or(true, |sg| sg.check_rate_limit(&token.holder()))
-        {
-            return Err(TemplateError::RateLimitExceeded(format!(
-                "Rate limit exceeded for tool: {}",
-                tool_name
-            )));
-        }
-
         let tool_info = self
             .runtime
             .get_tool_info(tool_name)
@@ -181,12 +169,6 @@ impl McpDispatcher {
     ) -> Result<Value> {
         // Check capability
         if !self.check_capability(bot_id, tool_name).await {
-            tracing::debug!(
-                target: "cns.tool.access_denied",
-                bot_id = %bot_id,
-                tool_name,
-                "Capability denied"
-            );
             return Err(TemplateError::CapabilityDenied(format!(
                 "Bot {:?} lacks capability for tool: {}",
                 bot_id, tool_name
@@ -195,20 +177,8 @@ impl McpDispatcher {
 
         // Check if tool exists
         if !self.runtime.tool_exists(tool_name).await {
-            tracing::debug!(
-                target: "cns.tool.not_found",
-                tool_name,
-                "Tool not found"
-            );
             return Err(TemplateError::Mcp(format!("Tool not found: {}", tool_name)));
         }
-
-        tracing::debug!(
-            target: "cns.tool.invoked",
-            bot_id = %bot_id,
-            tool_name,
-            "Dispatching tool call"
-        );
 
         info!(
             target: "hkask.mcp",
@@ -228,12 +198,6 @@ impl McpDispatcher {
             .call_tool(&tool_info.server_id, tool_name, input)
             .await
             .map_err(|e| TemplateError::Mcp(format!("Tool call failed: {}", e)))?;
-
-        tracing::debug!(
-            target: "cns.tool.completed",
-            tool_name,
-            "Tool call completed"
-        );
 
         Ok(result)
     }

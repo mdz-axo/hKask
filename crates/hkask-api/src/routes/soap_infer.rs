@@ -5,8 +5,8 @@ use axum::{Json, extract::State, http::StatusCode, routing::Router};
 use hkask_ensemble::ports::InferenceClient;
 
 use crate::{
-    ApiState, InferenceSpan, SoapInferAuthRequest, SoapInferRequest, SoapInferResponse,
-    SoapInferenceConfig, ValidationErrorType,
+    ApiState, SoapInferAuthRequest, SoapInferRequest, SoapInferResponse, SoapInferenceConfig,
+    ValidationErrorType,
 };
 
 /// Create SOAP inference router
@@ -44,64 +44,27 @@ async fn soap_infer(
 
     // Validate request size (DoS prevention)
     if let Err(err) = validate_soap_request(&req.request, &config) {
-        InferenceSpan::ValidationError {
-            error_type: format!("{:?}", err),
-        }
-        .emit(&state.cns_emitter);
         return Err(StatusCode::BAD_REQUEST);
     }
-
-    // CNS span: inference started
-    InferenceSpan::Start {
-        timestamp: chrono::Utc::now().to_rfc3339(),
-        events_count: req.request.objective.recent_events.len(),
-        severity_total: req.request.objective.severity_counts.crit
-            + req.request.objective.severity_counts.alert
-            + req.request.objective.severity_counts.warn
-            + req.request.objective.severity_counts.info,
-    }
-    .emit(&state.cns_emitter);
 
     // Verify capability token (OCAP security boundary)
     // Parse token to extract holder WebID for proper authority tracking
     let token = match hkask_types::capability::CapabilityToken::from_base64(&req.capability_token) {
         Ok(t) => t,
         Err(_) => {
-            InferenceSpan::OcapDenied {
-                reason: "invalid_token_format".to_string(),
-            }
-            .emit(&state.cns_emitter);
             return Err(StatusCode::FORBIDDEN);
         }
     };
 
     // Verify token signature
     if !token.verify(&config.capability_secret) {
-        InferenceSpan::OcapDenied {
-            reason: "invalid_token_signature".to_string(),
-        }
-        .emit(&state.cns_emitter);
         return Err(StatusCode::FORBIDDEN);
-    }
-
-    // Rate limiting by token holder (Miller authority separation)
-    let holder_webid = token.holder();
-    if !state.rate_limiter.check(&holder_webid) {
-        InferenceSpan::RateLimitExceeded {
-            endpoint: "/api/llm/infer".to_string(),
-        }
-        .emit(&state.cns_emitter);
-        return Err(StatusCode::TOO_MANY_REQUESTS);
     }
 
     // Load Jack persona from file (runtime loading)
     let jack_persona = match config.load_jack_persona() {
         Ok(content) => content,
         Err(e) => {
-            InferenceSpan::PersonaError {
-                error: e.to_string(),
-            }
-            .emit(&state.cns_emitter);
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
     };
@@ -139,17 +102,9 @@ async fn soap_infer(
         {
             Ok(Ok(resp)) => resp.response,
             Ok(Err(e)) => {
-                InferenceSpan::InferenceError {
-                    error: e.to_string(),
-                }
-                .emit(&state.cns_emitter);
                 format!("Inference error: {}", e)
             }
             Err(_) => {
-                InferenceSpan::Timeout {
-                    timeout_secs: config.timeout_secs,
-                }
-                .emit(&state.cns_emitter);
                 return Err(StatusCode::GATEWAY_TIMEOUT);
             }
         }
@@ -166,22 +121,6 @@ async fn soap_infer(
 
     let latency_ms = start.elapsed().as_millis() as u64;
     let actions = extract_actions(&response_text);
-
-    // CNS span: inference outcome
-    InferenceSpan::Outcome {
-        latency_ms,
-        actions_count: actions.len(),
-        success: !response_text.contains("Inference error"),
-    }
-    .emit(&state.cns_emitter);
-
-    // CNS span: variety counter for inference domain
-    InferenceSpan::Execute {
-        model: config.model.clone(),
-        prompt_length: full_prompt.len(),
-        response_length: response_text.len(),
-    }
-    .emit(&state.cns_emitter);
 
     Ok(Json(SoapInferResponse {
         response: response_text,

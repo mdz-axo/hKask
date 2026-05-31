@@ -18,8 +18,6 @@ pub enum ValidationError {
     FieldTooLong { field: String, max: usize },
     #[error("Invalid format: {field}")]
     InvalidFormat { field: String },
-    #[error("Rate limit exceeded")]
-    RateLimitExceeded,
 }
 
 /// Validation result type

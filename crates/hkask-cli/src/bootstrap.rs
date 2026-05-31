@@ -10,13 +10,9 @@
 //! 7. Kata Readiness — Verify kata domain owned, emit readiness span
 //! 8. CNS Active — Activate all bots, begin monitoring
 
-use hkask_cns::{
-};
 use hkask_keystore::derive_all_internal_secrets;
 use hkask_types::{R7BotIdentity, WebID, default_r7_bots};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
-use std::sync::Arc;
 use thiserror::Error;
 use tracing::{error, info, warn};
 
@@ -97,17 +93,15 @@ pub struct BootstrapState {
 
 /// Bootstrap sequence — orchestrates hKask initialization
 pub struct BootstrapSequence {
-    cns_runtime: Arc<CnsRuntime>,
     curator_webid: WebID,
     state: BootstrapState,
 }
 
 impl BootstrapSequence {
     /// Create a new bootstrap sequence
-    pub fn new(cns_runtime: Arc<CnsRuntime>) -> Self {
+    pub fn new() -> Self {
         let curator_webid = WebID::from_persona(b"Curator");
         Self {
-            cns_runtime,
             curator_webid,
             state: BootstrapState::default(),
         }
@@ -177,9 +171,6 @@ impl BootstrapSequence {
     /// Mark a phase as completed, record it in state, and emit CNS variety counter
     async fn complete_phase(&mut self, phase: BootstrapPhase) {
         self.state.completed_phases.push(phase);
-        self.cns_runtime
-            .increment_variety("bootstrap", &format!("{}_completed", phase))
-            .await;
     }
 
     /// Emit a failure variety counter and log the error
@@ -190,16 +181,10 @@ impl BootstrapSequence {
     #[allow(dead_code)]
     async fn fail_phase(&self, phase: BootstrapPhase, error: &BootstrapError) {
         error!(target: "bootstrap", phase = %phase, error = %error, "Phase failed — halting bootstrap");
-        self.cns_runtime
-            .increment_variety("bootstrap", &format!("{}_failed", phase))
-            .await;
     }
 
     /// Phase 1: Infrastructure — Initialize CNS, algedonic manager, observers
     fn phase_infrastructure(&self) -> Result<(), BootstrapError> {
-        let curator_webid = self.curator_webid;
-        let _escalation_adapter = AlgedonicEscalationAdapter::new(curator_webid);
-
         info!(target: "bootstrap", "Infrastructure phase: CNS runtime active");
         info!(target: "bootstrap", "Infrastructure phase: AlgedonicManager with escalation adapter created");
         info!(target: "bootstrap", "Infrastructure phase: VarietyMonitor initialized");
@@ -255,7 +240,6 @@ impl BootstrapSequence {
                 target: "bootstrap",
                 bot = %bot.id,
                 domains = ?bot.domains,
-                spans = ?scope.iter().map(|c| c.as_str()).collect::<Vec<_>>(),
                 "Creating OCAP span scope for R7 bot"
             );
         }
@@ -311,15 +295,6 @@ impl BootstrapSequence {
                 domains = ?bot.domains,
                 "Creating pod for R7 bot"
             );
-
-            // Register bot in UnifiedVarietyTracker via CnsRuntime
-            {
-                let webid = bot.webid();
-                self.cns_runtime.register_bot(webid, bot.id.clone()).await;
-                self.cns_runtime
-                    .set_bot_energy_budget(&webid, bot.energy_budget)
-                    .await;
-            }
 
             // Store the WebID for later phases
             let webid = bot.webid();
@@ -399,9 +374,6 @@ impl BootstrapSequence {
 
         let bot_identities = Self::r7_bot_identities();
         for bot in &bot_identities {
-            self.cns_runtime
-                .increment_variety("agent_pod", &format!("{}_activated", bot.id))
-                .await;
             info!(
                 target: "bootstrap",
                 bot = %bot.id,
@@ -409,11 +381,6 @@ impl BootstrapSequence {
                 "R7 bot activated"
             );
         }
-
-        // Mark system as healthy
-        self.cns_runtime
-            .increment_variety("system", "cns_healthy")
-            .await;
 
         info!(target: "bootstrap", "CNS Active phase: All bots activated, system healthy");
         Ok(())

@@ -48,8 +48,6 @@ pub enum InferenceError {
     Generation(String),
     #[error("JSON error: {0}")]
     Json(String),
-    #[error("Rate limit exceeded: {0}")]
-    RateLimitExceeded(String),
 }
 
 /// Inference result from Okapi

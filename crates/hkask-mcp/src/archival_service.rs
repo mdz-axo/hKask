@@ -39,17 +39,11 @@ impl ArchivalService {
         }
     }
 
-    fn check_sovereignty(&self, requester: &WebID, operation: &str) -> ArchivalResult<()> {
+    fn check_sovereignty(&self, requester: &WebID, _operation: &str) -> ArchivalResult<()> {
         if !self
             .sovereignty_checker
             .can_access(&DataCategory::TemplateRegistry, requester)
         {
-            tracing::debug!(
-                target: "cns.archival",
-                operation,
-                outcome = "sovereignty_denied",
-                "Sovereignty check denied"
-            );
             return Err(GitArchivalError::SovereigntyDenied(
                 "Registry operation requires consent".to_string(),
             ));
@@ -57,16 +51,10 @@ impl ArchivalService {
         Ok(())
     }
 
-    fn check_git_adapter(&self, operation: &str) -> ArchivalResult<()> {
+    fn check_git_adapter(&self, _operation: &str) -> ArchivalResult<()> {
         match self.adapter_container.has_git_cas() {
             Ok(true) => {}
             Ok(false) | Err(_) => {
-                tracing::debug!(
-                    target: "cns.archival",
-                    operation,
-                    outcome = "adapter_not_configured",
-                    "Git adapter not configured"
-                );
                 return Err(GitArchivalError::AdapterNotFound(
                     "Git CAS adapter not configured".to_string(),
                 ));
@@ -85,16 +73,6 @@ impl ArchivalService {
         _content: &str,
         requester: &WebID,
     ) -> ArchivalResult<String> {
-        tracing::debug!(
-            target: "cns.archival",
-            operation = "git_archive",
-            owner,
-            repo,
-            branch,
-            path,
-            "Archiving content"
-        );
-
         // Validate path to prevent traversal attacks
         let base = std::path::Path::new("/");
         let sanitized_path =
@@ -115,14 +93,6 @@ impl ArchivalService {
             .resolve_sha(&format!("{}/{}/{}", owner, repo, sanitized_path.display()))
             .map_err(|e| GitArchivalError::CommitFailed(e.to_string()))?;
 
-        tracing::debug!(
-            target: "cns.archival",
-            operation = "git_archive",
-            outcome = "success",
-            sha,
-            "Archive succeeded"
-        );
-
         Ok(format!(
             "Archived to {}/{}/{} at SHA {}",
             owner, repo, path, sha
@@ -138,25 +108,8 @@ impl ArchivalService {
         target: &str,
         requester: &WebID,
     ) -> ArchivalResult<String> {
-        tracing::debug!(
-            target: "cns.archival",
-            operation = "git_restore",
-            owner,
-            repo,
-            git_ref,
-            target,
-            "Restoring content"
-        );
-
         self.check_sovereignty(requester, "git_restore")?;
         self.check_git_adapter("git_restore")?;
-
-        tracing::debug!(
-            target: "cns.archival",
-            operation = "git_restore",
-            outcome = "success",
-            "Restore succeeded"
-        );
 
         Ok(format!(
             "Restored from {}/{}/{} to {}",
@@ -171,22 +124,7 @@ impl ArchivalService {
         repo: &str,
         requester: &WebID,
     ) -> ArchivalResult<Vec<String>> {
-        tracing::debug!(
-            target: "cns.archival",
-            operation = "git_list_archives",
-            owner,
-            repo,
-            "Listing archives"
-        );
-
         self.check_sovereignty(requester, "git_list_archives")?;
-
-        tracing::debug!(
-            target: "cns.archival",
-            operation = "git_list_archives",
-            outcome = "success",
-            "List archives succeeded"
-        );
 
         Ok(Vec::new())
     }
@@ -199,15 +137,6 @@ impl ArchivalService {
         message: &str,
         requester: &WebID,
     ) -> ArchivalResult<String> {
-        tracing::debug!(
-            target: "cns.archival",
-            operation = "git_snapshot",
-            owner,
-            repo,
-            message,
-            "Creating snapshot"
-        );
-
         self.check_sovereignty(requester, "git_snapshot")?;
         self.check_git_adapter("git_snapshot")?;
 
@@ -222,14 +151,6 @@ impl ArchivalService {
         let sha = git_cas
             .resolve_sha(&format!("{}/{}", owner, repo))
             .map_err(|e| GitArchivalError::CommitFailed(e.to_string()))?;
-
-        tracing::debug!(
-            target: "cns.archival",
-            operation = "git_snapshot",
-            outcome = "success",
-            sha,
-            "Snapshot succeeded"
-        );
 
         Ok(format!(
             "Created snapshot {} with message: {}",

@@ -40,7 +40,6 @@ pub struct PodContext {
     /// Semantic memory storage — shared, public knowledge (OCAP: SemanticReadHandle/SemanticWriteHandle)
     semantic_storage: Arc<dyn SemanticStoragePort>,
     mcp_runtime: Arc<dyn MCPRuntimePort>,
-    cns_runtime: Arc<hkask_cns::CnsRuntime>,
     /// Legacy memory storage (deprecated — use episodic_storage/semantic_storage)
     #[allow(deprecated)]
     memory_storage: Arc<dyn MemoryStoragePort>,
@@ -67,7 +66,6 @@ impl PodContext {
             episodic_storage: Arc::clone(&manager.episodic_storage),
             semantic_storage: Arc::clone(&manager.semantic_storage),
             mcp_runtime: Arc::clone(&manager.mcp_runtime),
-            cns_runtime: Arc::clone(&manager.cns_runtime),
             #[allow(deprecated)]
             memory_storage: Arc::clone(&manager.memory_storage),
         })
@@ -188,18 +186,6 @@ impl PodContext {
         )?;
 
         let confidence = confidence_override.unwrap_or_else(|| classification.default_confidence());
-
-        // Emit cns.memory.encode span (Loop 2a.1 — Experience Encoding)
-        self.emit_span(
-            "cns.memory.encode",
-            "store",
-            serde_json::json!({
-                "classification": classification.to_string(),
-                "confidence": confidence,
-                "entity": entity,
-                "attribute": attribute,
-            }),
-        );
 
         self.episodic_storage
             .store_episodic_classified(
@@ -335,41 +321,8 @@ impl PodContext {
             tool_name,
             CapabilityAction::Execute,
         )?;
-        self.emit_span(
-            &format!("cns.tool.{}", tool_name),
-            "invoked",
-            serde_json::json!({ "input_keys": input.as_object().map(|o| o.keys().collect::<Vec<_>>()) }),
-        );
-        let result = self
-            .mcp_runtime
+        self.mcp_runtime
             .invoke_tool(tool_name, input, &self.capability_token)
-            .map_err(|e| AgentPodError::ToolError(e.to_string()));
-        match &result {
-            Ok(_) => self.emit_span(
-                &format!("cns.tool.{}.completed", tool_name),
-                "completed",
-                serde_json::json!({}),
-            ),
-            Err(_) => self.emit_span(
-                &format!("cns.tool.{}.failed", tool_name),
-                "failed",
-                serde_json::json!({}),
-            ),
-        }
-        result
-    }
-
-    pub fn emit_span(&self, span_type: &str, action: &str, data: serde_json::Value) {
-        tracing::debug!(
-            target: "cns.pod",
-            span = span_type,
-            verb = "action",
-            pod_id = %self.pod_id,
-            webid = %self.webid,
-            action = action,
-            ?data,
-            confidence = 1.0,
-            "CNS event"
-        );
+            .map_err(|e| AgentPodError::ToolError(e.to_string()))
     }
 }

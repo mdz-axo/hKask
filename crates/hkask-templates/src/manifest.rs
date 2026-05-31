@@ -242,13 +242,6 @@ where
             Action::Execute => 500,
         };
         if !energy.debit(step_cost) {
-            tracing::debug!(
-                target: "cns.energy.algedonic",
-                consumed = energy.consumed,
-                budget = energy.budget,
-                step = step.action.as_str(),
-                "Energy exhausted"
-            );
             return Err(TemplateError::Manifest(format!(
                 "Energy exhausted: {}/{}",
                 energy.consumed, energy.budget
@@ -279,13 +272,6 @@ where
                 let template = self.renderer.load(template_path)?;
                 let rendered = self.renderer.render(&template, state.clone())?;
 
-                tracing::debug!(
-                    target: "cns.prompt.populate",
-                    template_id,
-                    rendered_length = rendered.len(),
-                    "Template populated"
-                );
-
                 Value::String(rendered)
             }
             Action::Execute => {
@@ -310,12 +296,6 @@ where
                             .unwrap_or_else(|| template_id.to_string());
 
                         let result = self.mcp.invoke(&target_tool, state.clone(), token).await?;
-                        tracing::debug!(
-                            target: "cns.prompt.execute_contract",
-                            template_id,
-                            target_tool,
-                            "Contract executed"
-                        );
                         result
                     } else {
                         self.mcp.invoke(mcp, state.clone(), token).await?
@@ -327,12 +307,6 @@ where
                 }
             }
         };
-
-        tracing::debug!(
-            target: "cns.prompt",
-            action = step.action.as_str(),
-            "Step completed"
-        );
 
         Ok(result)
     }
@@ -367,13 +341,6 @@ where
                 .await?;
             state = merge_state(state, step_result);
         }
-
-        tracing::debug!(
-            target: "cns.energy.final",
-            consumed = energy.consumed,
-            budget = energy.budget,
-            "Manifest execution complete"
-        );
 
         Ok(state)
     }

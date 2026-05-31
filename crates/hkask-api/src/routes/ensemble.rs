@@ -12,7 +12,6 @@ use tokio::sync::RwLock;
 use utoipa::ToSchema;
 
 use crate::middleware::AuthContext;
-use hkask_types::{Phase, Span};
 use crate::{ApiState, ErrorResponse};
 
 /// Create ensemble router
@@ -285,15 +284,6 @@ async fn standing_start(
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<StandingStartRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<ErrorResponse>)> {
-    state.cns_emitter.emit_with_phase(
-        Span::agent_pod("api.ensemble.standing_start.start"),
-        Phase::Observe,
-        serde_json::json!({
-            "session_id": req.session_id,
-            "participants": req.participants.len(),
-        }),
-    );
-
     // Build a StandingSessionConfig from the request
     let config = StandingSessionConfig {
         session: hkask_ensemble::standing_session::SessionMetadata {
@@ -334,15 +324,6 @@ async fn standing_start(
         sessions.insert(req.session_id.clone(), Arc::new(RwLock::new(session)));
     }
 
-    state.cns_emitter.emit_with_phase(
-        Span::agent_pod("api.ensemble.standing_start.success"),
-        Phase::Observe,
-        serde_json::json!({
-            "session_id": req.session_id,
-            "participant_count": participant_count,
-        }),
-    );
-
     Ok((
         StatusCode::CREATED,
         Json(StandingStartResponse {
@@ -369,14 +350,6 @@ async fn standing_status(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<StandingStatusResponse>, (StatusCode, Json<ErrorResponse>)> {
-    state.cns_emitter.emit_with_phase(
-        Span::agent_pod("api.ensemble.standing_status.start"),
-        Phase::Observe,
-        serde_json::json!({
-            "timestamp": chrono::Utc::now().to_rfc3339(),
-        }),
-    );
-
     // Return the first available standing session, or 404 if none exist
     let sessions = state.standing_sessions.read().await;
     let session_guard = sessions.values().next();
@@ -404,14 +377,6 @@ async fn standing_status(
                 message_count: status.message_count,
                 participants,
             };
-
-            state.cns_emitter.emit_with_phase(
-        Span::agent_pod("api.ensemble.standing_status.success"),
-        Phase::Observe,
-                serde_json::json!({
-                    "session_id": response.session_id,
-                }),
-            );
 
             Ok(Json(response))
         }

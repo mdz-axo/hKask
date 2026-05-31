@@ -120,15 +120,6 @@ visibility:
         Err(e) => return format!("Pod context error: {}", e),
     };
 
-    pod_context.emit_span(
-        "cns.prompt.chat",
-        "chat_interaction",
-        serde_json::json!({
-            "agent": name,
-            "input_length": input.len(),
-        }),
-    );
-
     let full_prompt = format!("{}\n\nUser: {}", system_prompt, input);
 
     let params = LLMParameters {

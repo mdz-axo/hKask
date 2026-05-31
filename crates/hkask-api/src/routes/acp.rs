@@ -5,8 +5,6 @@ use axum::{Json, extract::State, http::StatusCode, routing::Router};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use hkask_types::{Phase, Span};
-
 use crate::middleware::AuthContext;
 use crate::{AcpRegisterRequest, AcpRegisterResponse, ApiState, ErrorResponse};
 
@@ -170,21 +168,8 @@ async fn acp_unregister_agent(
     Extension(_auth): Extension<AuthContext>,
     Path(agent_id): Path<String>,
 ) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
-    state.cns_emitter.emit_with_phase(
-        Span::agent_pod("api.acp.unregister.start"),
-        Phase::Observe,
-        serde_json::json!({
-            "agent_id": agent_id,
-        }),
-    );
-
     let webid = uuid::Uuid::parse_str(&agent_id)
         .map_err(|_| {
-            state.cns_emitter.emit_with_phase(
-                Span::agent_pod("api.acp.unregister.error"),
-                Phase::Observe,
-                serde_json::json!({ "reason": "invalid_webid" }),
-            );
             (
                 StatusCode::BAD_REQUEST,
                 Json(ErrorResponse {
@@ -200,23 +185,16 @@ async fn acp_unregister_agent(
 
     let acp = state.pod_manager.acp_runtime();
     acp.unregister_agent(&webid).await.map_err(|e| match e {
-        hkask_agents::AcpError::AgentNotFound(_) => {
-            state.cns_emitter.emit_with_phase(
-                Span::agent_pod("api.acp.unregister.not_found"),
-                Phase::Observe,
-                serde_json::json!({ "agent_id": agent_id }),
-            );
-            (
-                StatusCode::NOT_FOUND,
-                Json(ErrorResponse {
-                    error: "agent_not_found".to_string(),
-                    code: "ACP_NOT_FOUND".to_string(),
-                    details: Some(serde_json::json!({
-                        "message": format!("Agent '{}' not found", agent_id)
-                    })),
-                }),
-            )
-        }
+        hkask_agents::AcpError::AgentNotFound(_) => (
+            StatusCode::NOT_FOUND,
+            Json(ErrorResponse {
+                error: "agent_not_found".to_string(),
+                code: "ACP_NOT_FOUND".to_string(),
+                details: Some(serde_json::json!({
+                    "message": format!("Agent '{}' not found", agent_id)
+                })),
+            }),
+        ),
         _ => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse {
@@ -228,12 +206,6 @@ async fn acp_unregister_agent(
             }),
         ),
     })?;
-
-    state.cns_emitter.emit_with_phase(
-        Span::agent_pod("api.acp.unregister.success"),
-        Phase::Observe,
-        serde_json::json!({ "agent_id": agent_id }),
-    );
 
     Ok(StatusCode::NO_CONTENT)
 }

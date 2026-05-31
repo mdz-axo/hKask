@@ -1,7 +1,6 @@
 //! PodManager, PodStatus, PodManagerBuilder — Pod lifecycle management
 
 use hkask_keystore::keychain::Keychain;
-use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -20,7 +19,6 @@ use crate::ports::{
 };
 #[allow(deprecated)]
 use crate::security::{AgentPersonaInput, SecurityContext};
-use hkask_cns::CnsRuntime;
 
 /// Pod Manager — Manages collection of agent pods
 ///
@@ -36,7 +34,6 @@ pub struct PodManager {
     _keystore: Keychain,
     git_cas: Arc<dyn GitCASPort>,
     acp_runtime: Arc<dyn crate::ports::AcpPort + Send + Sync>,
-    pub(crate) cns_runtime: Arc<hkask_cns::CnsRuntime>,
     pub(crate) mcp_runtime: Arc<dyn MCPRuntimePort>,
     /// Episodic memory storage — private, agent-scoped (OCAP: EpisodicReadHandle/EpisodicWriteHandle)
     pub(crate) episodic_storage: Arc<dyn EpisodicStoragePort>,
@@ -66,7 +63,6 @@ impl PodManager {
     pub fn new(
         git_cas: Arc<dyn GitCASPort>,
         acp_runtime: Arc<dyn crate::ports::AcpPort + Send + Sync>,
-        cns_runtime: Arc<hkask_cns::CnsRuntime>,
         mcp_runtime: Arc<dyn MCPRuntimePort>,
         episodic_storage: Arc<dyn EpisodicStoragePort>,
         semantic_storage: Arc<dyn SemanticStoragePort>,
@@ -76,7 +72,6 @@ impl PodManager {
             _keystore: Keychain::default(),
             git_cas,
             acp_runtime,
-            cns_runtime,
             mcp_runtime,
             episodic_storage,
             semantic_storage,
@@ -94,7 +89,6 @@ impl PodManager {
     pub fn with_inference(
         git_cas: Arc<dyn GitCASPort>,
         acp_runtime: Arc<dyn crate::ports::AcpPort + Send + Sync>,
-        cns_runtime: Arc<hkask_cns::CnsRuntime>,
         mcp_runtime: Arc<dyn MCPRuntimePort>,
         episodic_storage: Arc<dyn EpisodicStoragePort>,
         semantic_storage: Arc<dyn SemanticStoragePort>,
@@ -105,7 +99,6 @@ impl PodManager {
             _keystore: Keychain::default(),
             git_cas,
             acp_runtime,
-            cns_runtime,
             mcp_runtime,
             episodic_storage,
             semantic_storage,
@@ -138,7 +131,6 @@ impl PodManager {
             _keystore: Keychain::default(),
             git_cas: Arc::new(GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-mock"))),
             acp_runtime: Arc::new(crate::acp::AcpRuntime::default()),
-            cns_runtime: Arc::new(CnsRuntime::default()),
             mcp_runtime: Arc::new(McpRuntimeAdapter::new()),
             episodic_storage,
             semantic_storage,
@@ -171,7 +163,6 @@ impl PodManager {
 pub struct PodManagerBuilder {
     git_cas: Option<Arc<dyn GitCASPort>>,
     acp_runtime: Option<Arc<dyn crate::ports::AcpPort + Send + Sync>>,
-    cns_runtime: Option<Arc<hkask_cns::CnsRuntime>>,
     mcp_runtime: Option<Arc<dyn MCPRuntimePort>>,
     episodic_storage: Option<Arc<dyn EpisodicStoragePort>>,
     semantic_storage: Option<Arc<dyn SemanticStoragePort>>,
@@ -184,7 +175,6 @@ impl PodManagerBuilder {
         Self {
             git_cas: None,
             acp_runtime: None,
-            cns_runtime: None,
             mcp_runtime: None,
             episodic_storage: None,
             semantic_storage: None,
@@ -204,11 +194,6 @@ impl PodManagerBuilder {
 
     pub fn acp_runtime(mut self, adapter: Arc<dyn crate::ports::AcpPort + Send + Sync>) -> Self {
         self.acp_runtime = Some(adapter);
-        self
-    }
-
-    pub fn cns_runtime(mut self, runtime: Arc<hkask_cns::CnsRuntime>) -> Self {
-        self.cns_runtime = Some(runtime);
         self
     }
 
@@ -285,8 +270,6 @@ impl PodManagerBuilder {
             }),
             self.acp_runtime
                 .unwrap_or_else(|| Arc::new(crate::acp::AcpRuntime::default())),
-            self.cns_runtime
-                .unwrap_or_else(|| Arc::new(CnsRuntime::default())),
             self.mcp_runtime
                 .unwrap_or_else(|| Arc::new(McpRuntimeAdapter::new())),
             episodic_storage,

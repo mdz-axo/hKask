@@ -51,15 +51,6 @@ impl MemoryFeedbackAdapter {
         avg_confidence: f64,
         template_id: &str,
     ) {
-        tracing::debug!(
-            target: "cns.pipeline.relevance",
-            entity,
-            recall_count,
-            avg_confidence,
-            template_id,
-            "Memory relevance observation"
-        );
-
         // Update running weighted average: new_quality = Σ(confidence × count) / Σ(count)
         let mut relevance = self.relevance.lock().await;
         let stats = relevance.entry(template_id.to_string()).or_default();

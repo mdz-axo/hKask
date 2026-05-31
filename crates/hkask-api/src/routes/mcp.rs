@@ -98,9 +98,6 @@ async fn mcp_invoke(
             let code = match &e {
                 hkask_templates::TemplateError::Mcp(_) => StatusCode::INTERNAL_SERVER_ERROR,
                 hkask_templates::TemplateError::CapabilityDenied(_) => StatusCode::UNAUTHORIZED,
-                hkask_templates::TemplateError::RateLimitExceeded(_) => {
-                    StatusCode::TOO_MANY_REQUESTS
-                }
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             };
             (

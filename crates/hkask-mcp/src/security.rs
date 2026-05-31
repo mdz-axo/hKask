@@ -155,15 +155,6 @@ impl SecurityGateway {
             hkask_types::CapabilityAction::Execute,
         );
 
-        if !result {
-            tracing::debug!(
-                target: "cns.tool.unauthorized",
-                bot_id = %bot_id,
-                tool_name,
-                "Capability check failed"
-            );
-        }
-
         result
     }
 

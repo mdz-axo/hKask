@@ -31,7 +31,7 @@ use std::fmt;
 /// Every `LoopMessage` carries a `TraceId` that propagates across all
 /// inter-loop calls. This enables:
 /// - Correlation of cause and effect across loop boundaries
-/// - Debugging of message flow through the 7-loop system
+/// - Debugging of message flow through the 8-loop system
 /// - CNS observability of inter-loop communication patterns
 ///
 /// `TraceId` is a UUID-based identifier that is created at the message
@@ -118,7 +118,7 @@ impl fmt::Display for MessagePriority {
 ///
 /// Every message carries its origin loop for routing and observability.
 /// This enables CORRELATE (messenger function 6.2) to trace message flow
-/// across the 7-loop system.
+/// across the 8-loop system.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum LoopOrigin {

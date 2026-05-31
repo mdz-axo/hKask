@@ -5,7 +5,6 @@
 //! ℏKask v0.21.2 — A Minimal Viable Container for Agents
 
 use hkask_types::lexicon::TemplateType;
-use hkask_types::{Phase, Span};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
@@ -251,9 +250,7 @@ impl RussellMapper {
     }
 
     pub fn with_config(config: RussellMappingConfig) -> Self {
-        Self {
-            config,
-        }
+        Self { config }
     }
 
     /// Analyze Russell skill manifest
@@ -272,18 +269,6 @@ impl RussellMapper {
             });
         }
 
-        if self.should_emit_cns() {
-            self.cns.emit_with_phase(
-                Span::pipeline("russell_manifest_analyzed"),
-                Phase::Observe,
-                serde_json::json!({
-                    "manifest_id": manifest.id,
-                    "version": manifest.version,
-                    "source": yaml_path.to_string_lossy(),
-                }),
-            );
-        }
-
         Ok(manifest)
     }
 
@@ -295,21 +280,6 @@ impl RussellMapper {
         let description = russell.symptoms.join("\n");
         let energy_cap = calculate_energy_budget(russell, self.config.energy_budget.as_ref());
 
-        if self.should_emit_cns() {
-            self.cns.emit_with_phase(
-                Span::pipeline("russell_mapping_complete"),
-                Phase::Observe,
-                serde_json::json!({
-                    "source_id": russell.id,
-                    "mapped_id": hkask_id,
-                    "template_type": format!("{:?}", template_type),
-                    "model_tier": model_tier,
-                    "energy_cap": energy_cap,
-                    "phase": "mapped",
-                }),
-            );
-        }
-
         MappedTemplate {
             id: hkask_id,
             template_type,
@@ -317,14 +287,6 @@ impl RussellMapper {
             model_tier,
             energy_cap,
         }
-    }
-
-    fn should_emit_cns(&self) -> bool {
-        self.config
-            .cns_spans
-            .as_ref()
-            .map(|s| s.emit_on_mapping)
-            .unwrap_or(true)
     }
 }
 

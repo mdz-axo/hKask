@@ -148,12 +148,6 @@ impl McpSupervisor {
         state.child = Some(child);
         state.started_at = Some(Instant::now());
 
-        tracing::debug!(
-            target: "cns.connector",
-            server = name,
-            "MCP server started"
-        );
-
         info!(server = %name, "MCP server started");
         Ok(())
     }
@@ -176,11 +170,6 @@ impl McpSupervisor {
                     source: e,
                 })?;
             state.started_at = None;
-            tracing::debug!(
-                target: "cns.connector",
-                server = name,
-                "MCP server stopped"
-            );
             info!(server = %name, "MCP server stopped");
         }
 
@@ -201,12 +190,6 @@ impl McpSupervisor {
             state.restart_count += 1;
             state.last_restart = Some(Instant::now());
         }
-
-        tracing::debug!(
-            target: "cns.connector",
-            server = name,
-            "MCP server restarted"
-        );
 
         info!(server = %name, "MCP server restarted");
         Ok(())
@@ -277,12 +260,6 @@ impl McpSupervisor {
                 match child.try_wait() {
                     Ok(Some(status)) => {
                         // Process has exited
-                        tracing::debug!(
-                            target: "cns.connector",
-                            server = name,
-                            exit_status = %status,
-                            "MCP server exited"
-                        );
                         warn!(
                             server = %name,
                             status = %status,

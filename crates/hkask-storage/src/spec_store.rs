@@ -191,14 +191,6 @@ impl SpecCurator for DefaultSpecCurator {
         let coherence = spec.coherence();
         let ocap_boundary = OCAPBoundary::explicit("spec:curate".to_string());
 
-        tracing::debug!(
-            target: "cns.spec.evaluate",
-            spec_id = %spec.id,
-            decision = %decision,
-            coherence,
-            "spec evaluation"
-        );
-
         Ok(SpecCurationRecord::new(
             spec.id,
             decision,
@@ -212,29 +204,11 @@ impl SpecCurator for DefaultSpecCurator {
         let records: Result<Vec<SpecCurationRecord>, SpecError> =
             specs.iter().map(|s| self.evaluate(s)).collect();
 
-        if let Ok(ref recs) = records {
-            for (spec, record) in specs.iter().zip(recs.iter()) {
-                if record.coherence_score < self.coherence_threshold {
-                    let drift_magnitude = 1.0 - record.coherence_score;
-                    tracing::debug!(
-                        target: "cns.spec.drift",
-                        domain = spec.category.as_str(),
-                        drift_magnitude,
-                        coherence = record.coherence_score,
-                        "Drift detected during reconciliation: coherence {:.3} below threshold {:.3}",
-                        record.coherence_score, self.coherence_threshold
-                    );
-                }
-            }
-        }
-
         records
     }
 
     fn cultivate(&self, specs: &mut Vec<Spec>) -> Result<f64, SpecError> {
-        let mut iterations_attempted: u8 = 0;
         for _ in 0..self.max_iterations {
-            iterations_attempted += 1;
             let coherence = Spec::collection_coherence(specs);
             if coherence >= self.coherence_threshold {
                 return Ok(coherence);
@@ -264,15 +238,6 @@ impl SpecCurator for DefaultSpecCurator {
         }
 
         // Coherence still below threshold after all iterations
-        let final_coherence = Spec::collection_coherence(specs);
-        tracing::debug!(
-            target: "cns.spec.drift",
-            final_coherence,
-            iterations_attempted,
-            "Cultivation failed: coherence {:.3} below threshold {:.3} after {} iterations",
-            final_coherence, self.coherence_threshold, iterations_attempted
-        );
-
         Err(SpecError::CurationDepthExceeded)
     }
 }
