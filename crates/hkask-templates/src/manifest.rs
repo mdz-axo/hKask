@@ -5,8 +5,8 @@
 
 use crate::adapters::AppMemoryAdapter;
 use crate::ports::{
-    Action, CnsPort, DEFAULT_MATROSHKA_LIMIT, InferenceConfig, ManifestStep, McpPort,
-    ProcessManifest, Result, TemplateError,
+    Action, DEFAULT_MATROSHKA_LIMIT, InferenceConfig, ManifestStep, McpPort, ProcessManifest,
+    Result, TemplateError,
 };
 use crate::renderer::TemplateRendererImpl;
 use hkask_cns::EnergyBudget;
@@ -156,10 +156,9 @@ impl NoopCsp {
 /// This is the "loom" that weaves the "thread" (YAML/Jinja2 templates).
 /// It doesn't change when templates are added, edited, or removed.
 /// Only changes if the grammar of steps themselves changes.
-pub struct ManifestExecutorImpl<M, C> {
+pub struct ManifestExecutorImpl<M> {
     renderer: TemplateRendererImpl,
     mcp: M,
-    cns: C,
     memory: Option<AppMemoryAdapter>,
     csp: Option<Box<NoopCsp>>,
     max_depth: u8,
@@ -169,16 +168,14 @@ pub struct ManifestExecutorImpl<M, C> {
     energy_budget: u64,
 }
 
-impl<M, C> ManifestExecutorImpl<M, C>
+impl<M> ManifestExecutorImpl<M>
 where
     M: McpPort,
-    C: CnsPort,
 {
-    pub fn new(renderer: TemplateRendererImpl, mcp: M, cns: C) -> Self {
+    pub fn new(renderer: TemplateRendererImpl, mcp: M) -> Self {
         Self {
             renderer,
             mcp,
-            cns,
             memory: None,
             csp: None,
             max_depth: DEFAULT_MATROSHKA_LIMIT,
@@ -245,15 +242,12 @@ where
             Action::Execute => 500,
         };
         if !energy.debit(step_cost) {
-            self.cns.emit_event(
-                "cns.energy.algedonic",
-                "observe",
-                &serde_json::json!({
-                    "consumed": energy.consumed,
-                    "budget": energy.budget,
-                    "step": step.action.as_str(),
-                }),
-                0.0,
+            tracing::debug!(
+                target: "cns.energy.algedonic",
+                consumed = energy.consumed,
+                budget = energy.budget,
+                step = step.action.as_str(),
+                "Energy exhausted"
             );
             return Err(TemplateError::Manifest(format!(
                 "Energy exhausted: {}/{}",
@@ -285,14 +279,11 @@ where
                 let template = self.renderer.load(template_path)?;
                 let rendered = self.renderer.render(&template, state.clone())?;
 
-                self.cns.emit_event(
-                    "cns.prompt.populate",
-                    "observe",
-                    &serde_json::json!({
-                        "template_id": template_id,
-                        "rendered_length": rendered.len(),
-                    }),
-                    1.0,
+                tracing::debug!(
+                    target: "cns.prompt.populate",
+                    template_id,
+                    rendered_length = rendered.len(),
+                    "Template populated"
                 );
 
                 Value::String(rendered)
@@ -319,14 +310,11 @@ where
                             .unwrap_or_else(|| template_id.to_string());
 
                         let result = self.mcp.invoke(&target_tool, state.clone(), token).await?;
-                        self.cns.emit_event(
-                            "cns.prompt.execute_contract",
-                            "observe",
-                            &serde_json::json!({
-                                "template_id": template_id,
-                                "target_tool": target_tool,
-                            }),
-                            1.0,
+                        tracing::debug!(
+                            target: "cns.prompt.execute_contract",
+                            template_id,
+                            target_tool,
+                            "Contract executed"
                         );
                         result
                     } else {
@@ -340,22 +328,15 @@ where
             }
         };
 
-        self.cns.emit_event(
-            &format!("cns.prompt.{}", step.action.as_str()),
-            "observe",
-            &result,
-            1.0,
+        tracing::debug!(
+            target: "cns.prompt",
+            action = step.action.as_str(),
+            "Step completed"
         );
 
         Ok(result)
     }
-}
 
-impl<M, C> ManifestExecutorImpl<M, C>
-where
-    M: McpPort,
-    C: CnsPort + Send + Sync,
-{
     pub fn load(&self, _path: &std::path::Path) -> Result<ProcessManifest> {
         Err(TemplateError::Manifest(
             "Use RegistryIndex::bootstrap_manifest() instead".to_string(),
@@ -387,17 +368,12 @@ where
             state = merge_state(state, step_result);
         }
 
-        self.cns.emit_event(
-            "cns.energy.final",
-            "observe",
-            &serde_json::json!({
-                "consumed": energy.consumed,
-                "budget": energy.budget,
-            }),
-            1.0,
+        tracing::debug!(
+            target: "cns.energy.final",
+            consumed = energy.consumed,
+            budget = energy.budget,
+            "Manifest execution complete"
         );
-        self.cns
-            .emit_event("cns.prompt.outcome", "observe", &state, 1.0);
 
         Ok(state)
     }

@@ -20,8 +20,3 @@
 //! - The `regenerate_workspace_yaml` test is the **explicit, opt-in** regen step
 //!   (`#[ignore]`d; run manually with `--ignored` only when you intend to update
 //!   the YAML to reflect markdown evolution).
-
-use hkask_types::lexicon::{Domain, HLexicon, LexiconTerm};
-
-/// Canonical markdown catalog, embedded for the consistency check and the
-/// explicit regeneration step. Only needed in test builds.

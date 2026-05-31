@@ -1,9 +1,8 @@
 //! MCP dispatch with capability-based security
 //!
-//! Dispatches tool calls through MCP with OCAP capability verification
-//! and rate limiting integration.
+//! Dispatches tool calls through MCP with OCAP capability verification.
 
-use hkask_templates::{CnsPort, McpPort, Result, TemplateError};
+use hkask_templates::{McpPort, Result, TemplateError};
 use hkask_types::{BotCapabilities, CapabilityChecker, CapabilityToken, WebID};
 use serde_json::Value;
 use std::sync::Arc;
@@ -14,17 +13,15 @@ use crate::security::SecurityGateway;
 
 use crate::runtime::{McpRuntime, McpTool};
 
-/// MCP dispatcher with security and rate limiting
+/// MCP dispatcher with security
 pub struct McpDispatcher {
     /// MCP runtime for tool discovery
     runtime: McpRuntime,
     /// Capability checker for OCP
     capability_checker: Arc<CapabilityChecker>,
-    /// Rate limiter for DoS prevention
     /// Bot capabilities registry
     bot_capabilities: Arc<RwLock<std::collections::HashMap<WebID, BotCapabilities>>>,
-    /// Optional CNS emitter for structured span emission
-    /// Optional security gateway for input validation, tool allow/deny, rate limiting
+    /// Optional security gateway for input validation, tool allow/deny
     security_gateway: Option<SecurityGateway>,
 }
 
@@ -38,11 +35,7 @@ impl McpDispatcher {
         }
     }
 
-    /// Set the CNS emitter for structured span emission
-        self
-    }
-
-    /// Wire in the security gateway for input validation, tool allow/deny, and rate limiting
+    /// Wire in the security gateway for input validation, tool allow/deny
     pub fn with_security_gateway(mut self, sg: SecurityGateway) -> Self {
         self.security_gateway = Some(sg);
         self
@@ -75,14 +68,6 @@ impl McpDispatcher {
             // No capabilities registered = no access
             false
         }
-    }
-
-    /// Check rate limit for bot
-    pub fn check_rate_limit(&self, bot_id: &WebID) -> bool {
-    }
-
-    /// Get remaining rate limit tokens for bot
-    pub fn remaining_rate_limit(&self, bot_id: &WebID) -> u32 {
     }
 }
 
@@ -147,7 +132,7 @@ impl McpPort for McpDispatcher {
             )));
         }
 
-        // Security gateway: rate limiting
+        // Security gateway: rate limiting (energy budget enforcement)
         if !self
             .security_gateway
             .as_ref()
@@ -187,52 +172,21 @@ impl McpPort for McpDispatcher {
 }
 
 impl McpDispatcher {
-    /// Invoke a tool with capability and rate limit checking
+    /// Invoke a tool with capability checking
     pub async fn invoke_async(
         &self,
         bot_id: &WebID,
         tool_name: &str,
         input: Value,
-        cns: &impl CnsPort,
     ) -> Result<Value> {
-        // Check rate limit first
-        if !self.check_rate_limit(bot_id) {
-                emitter.emit_event(
-                    "cns.tool.rate_limit_exceeded",
-                    "observe",
-                    &serde_json::json!({"bot_id": bot_id.to_string(), "tool": tool_name}),
-                    0.0,
-                );
-            }
-            cns.emit_event(
-                "cns.tool.rate_limit_exceeded",
-                "observe",
-                &Value::String(format!("Rate limit exceeded for tool: {}", tool_name)),
-                1.0,
-            );
-
-            return Err(TemplateError::RateLimitExceeded(format!(
-                "Rate limit exceeded for bot: {:?}",
-                bot_id
-            )));
-        }
-
         // Check capability
         if !self.check_capability(bot_id, tool_name).await {
-                emitter.emit_event(
-                    &format!("cns.tool.{}.unauthorized", tool_name.replace(':', ".")),
-                    "observe",
-                    &serde_json::json!({"bot_id": bot_id.to_string(), "tool": tool_name}),
-                    0.0,
-                );
-            }
-            cns.emit_event(
-                "cns.tool.access_denied",
-                "observe",
-                &Value::String(format!("Capability denied for tool: {}", tool_name)),
-                1.0,
+            tracing::debug!(
+                target: "cns.tool.access_denied",
+                bot_id = %bot_id,
+                tool_name,
+                "Capability denied"
             );
-
             return Err(TemplateError::CapabilityDenied(format!(
                 "Bot {:?} lacks capability for tool: {}",
                 bot_id, tool_name
@@ -241,29 +195,19 @@ impl McpDispatcher {
 
         // Check if tool exists
         if !self.runtime.tool_exists(tool_name).await {
-                emitter.emit_event(
-                    &format!("cns.tool.{}.not_found", tool_name.replace(':', ".")),
-                    "observe",
-                    &serde_json::json!({"tool": tool_name}),
-                    0.0,
-                );
-            }
+            tracing::debug!(
+                target: "cns.tool.not_found",
+                tool_name,
+                "Tool not found"
+            );
             return Err(TemplateError::Mcp(format!("Tool not found: {}", tool_name)));
         }
 
-        // Emit CNS event for tool invocation (Observe phase)
-            emitter.emit_event(
-                &format!("cns.tool.{}.invoked", tool_name.replace(':', ".")),
-                "observe",
-                &serde_json::json!({"bot_id": bot_id.to_string(), "tool": tool_name, "input": input}),
-                1.0,
-            );
-        }
-        cns.emit_event(
-            &format!("cns.tool.{}", tool_name.replace(':', ".")),
-            "observe",
-            &input,
-            1.0,
+        tracing::debug!(
+            target: "cns.tool.invoked",
+            bot_id = %bot_id,
+            tool_name,
+            "Dispatching tool call"
         );
 
         info!(
@@ -283,30 +227,12 @@ impl McpDispatcher {
             .runtime
             .call_tool(&tool_info.server_id, tool_name, input)
             .await
-            .map_err(|e| {
-                    emitter.emit_event(
-                        &format!("cns.tool.{}.failed", tool_name.replace(':', ".")),
-                        "outcome",
-                        &serde_json::json!({"tool": tool_name, "error": e.to_string()}),
-                        0.0,
-                    );
-                }
-                TemplateError::Mcp(format!("Tool call failed: {}", e))
-            })?;
+            .map_err(|e| TemplateError::Mcp(format!("Tool call failed: {}", e)))?;
 
-        // Emit CNS event for tool completion (Outcome phase)
-            emitter.emit_event(
-                &format!("cns.tool.{}.completed", tool_name.replace(':', ".")),
-                "outcome",
-                &serde_json::json!({"tool": tool_name}),
-                1.0,
-            );
-        }
-        cns.emit_event(
-            &format!("cns.tool.{}.result", tool_name.replace(':', ".")),
-            "outcome",
-            &result,
-            1.0,
+        tracing::debug!(
+            target: "cns.tool.completed",
+            tool_name,
+            "Tool call completed"
         );
 
         Ok(result)

@@ -38,8 +38,8 @@ pub trait AcpPort: Send + Sync {
     /// Get all capability tokens for a registered agent
     async fn get_capabilities(&self, webid: &WebID) -> Vec<CapabilityToken>;
 
-    /// Wire a CNS emitter for ACP observability spans
-    fn set_cns_emitter(&self, emitter: Arc<hkask_cns::CnsRuntime + Send + Sync>);
+    /// Wire a CNS runtime for ACP observability
+    fn set_cns_emitter(&self, emitter: Arc<hkask_cns::CnsRuntime>);
 
     /// List all registered agents
     async fn list_agents(&self) -> Vec<crate::acp::AcpAgent>;

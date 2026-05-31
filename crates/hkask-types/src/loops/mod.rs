@@ -34,9 +34,7 @@ pub use episodic::{
     EpisodicBudgetExceeded, EpisodicReadHandle, EpisodicWriteHandle, ExperienceClassification,
 };
 pub use governance::GovernanceHandle;
-pub use observability::{
-    CnsAdminHandle, CnsGovernReadHandle, CnsGovernWriteHandle, CnsWriteHandle,
-};
+pub use inference::{EnergyBudgetHandle, InferenceBudgetExceeded, InferenceHandle};
 pub use semantic::{SemanticReadHandle, SemanticWriteHandle};
 
 /// 9 Control Primitives

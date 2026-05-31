@@ -5,7 +5,6 @@ use hkask_types::spec::{
 };
 use hkask_types::{CurationDecision, OCAPBoundary, SYSTEM_MAX_RECURSION, SpecCurator, SpecId};
 use rusqlite::Connection;
-use serde_json::json;
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
@@ -162,9 +161,6 @@ impl DefaultSpecCurator {
         self.max_iterations = max;
         self
     }
-
-        self
-    }
 }
 
 impl Default for DefaultSpecCurator {
@@ -195,17 +191,13 @@ impl SpecCurator for DefaultSpecCurator {
         let coherence = spec.coherence();
         let ocap_boundary = OCAPBoundary::explicit("spec:curate".to_string());
 
-            emitter.emit_event(
-                "cns.spec.evaluate",
-                "observe",
-                &json!({
-                    "spec_id": spec.id.to_string(),
-                    "decision": decision.to_string(),
-                    "coherence": coherence,
-                }),
-                coherence,
-            );
-        }
+        tracing::debug!(
+            target: "cns.spec.evaluate",
+            spec_id = %spec.id,
+            decision = %decision,
+            coherence,
+            "spec evaluation"
+        );
 
         Ok(SpecCurationRecord::new(
             spec.id,
@@ -222,22 +214,15 @@ impl SpecCurator for DefaultSpecCurator {
 
         if let Ok(ref recs) = records {
             for (spec, record) in specs.iter().zip(recs.iter()) {
-                if record.coherence_score < self.coherence_threshold
-                {
+                if record.coherence_score < self.coherence_threshold {
                     let drift_magnitude = 1.0 - record.coherence_score;
-                    emitter.emit_event(
-                        "cns.spec.drift",
-                        "observe",
-                        &json!({
-                            "domain": spec.category.as_str(),
-                            "drift_magnitude": drift_magnitude,
-                            "coherence": record.coherence_score,
-                            "message": format!(
-                                "Drift detected during reconciliation: coherence {:.3} below threshold {:.3}",
-                                record.coherence_score, self.coherence_threshold
-                            ),
-                        }),
-                        record.coherence_score,
+                    tracing::debug!(
+                        target: "cns.spec.drift",
+                        domain = spec.category.as_str(),
+                        drift_magnitude,
+                        coherence = record.coherence_score,
+                        "Drift detected during reconciliation: coherence {:.3} below threshold {:.3}",
+                        record.coherence_score, self.coherence_threshold
                     );
                 }
             }
@@ -280,20 +265,13 @@ impl SpecCurator for DefaultSpecCurator {
 
         // Coherence still below threshold after all iterations
         let final_coherence = Spec::collection_coherence(specs);
-            emitter.emit_event(
-                "cns.spec.drift",
-                "outcome",
-                &json!({
-                    "final_coherence": final_coherence,
-                    "iterations_attempted": iterations_attempted,
-                    "message": format!(
-                        "Cultivation failed: coherence {:.3} below threshold {:.3} after {} iterations",
-                        final_coherence, self.coherence_threshold, iterations_attempted
-                    ),
-                }),
-                final_coherence,
-            );
-        }
+        tracing::debug!(
+            target: "cns.spec.drift",
+            final_coherence,
+            iterations_attempted,
+            "Cultivation failed: coherence {:.3} below threshold {:.3} after {} iterations",
+            final_coherence, self.coherence_threshold, iterations_attempted
+        );
 
         Err(SpecError::CurationDepthExceeded)
     }

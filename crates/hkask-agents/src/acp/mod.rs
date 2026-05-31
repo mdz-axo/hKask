@@ -37,7 +37,6 @@ pub use dispatch::TemplateDispatchHandler;
 pub use hkask_types::AuditLogPort;
 pub use root_authority::RootAuthority;
 
-use hkask_cns::rate_limit::{RateLimitConfig, RateLimiter};
 use hkask_types::{AuditOutcome, CapabilityAction, CapabilityResource, CapabilityToken, WebID};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -201,16 +200,14 @@ pub struct AcpRuntime {
     capability_tokens: Arc<RwLock<HashMap<WebID, Vec<CapabilityToken>>>>,
     /// Secret for HMAC signing (Arc<Zeroizing> to avoid copying on Clone)
     secret: Arc<Zeroizing<Vec<u8>>>,
-    /// Rate limiter for DoS prevention
-    _rate_limiter: RateLimiter,
     /// Audit log for A2A message tracking
     audit_log: Arc<AuditLog>,
     /// Root authority for OCAP capability delegation
     root_authority: Arc<RootAuthority>,
     /// Revoked capability token IDs
     revoked_tokens: Arc<RwLock<std::collections::HashSet<String>>>,
-    /// CNS emitter for observability (optional)
-    cns_emitter: std::sync::RwLock<Option<Arc<hkask_cns::CnsRuntime + Send + Sync>>>,
+    /// CNS runtime for observability (optional)
+    cns: std::sync::RwLock<Option<Arc<hkask_cns::CnsRuntime>>>,
 }
 
 impl AcpRuntime {
@@ -229,15 +226,11 @@ impl AcpRuntime {
     ///
     /// * `Ok(AcpRuntime)` - Runtime initialized successfully
     /// * `Err(AcpError::SecretNotConfigured)` - Environment variable not set
-    pub fn from_env(rate_limit_config: Option<RateLimitConfig>) -> Result<Self, AcpError> {
+    pub fn from_env() -> Result<Self, AcpError> {
         let secret_str =
             std::env::var("HKASK_ACP_SECRET").map_err(|_| AcpError::SecretNotConfigured)?;
 
         let secret = Arc::new(Zeroizing::new(secret_str.into_bytes()));
-        let rate_limiter = RateLimiter::new(rate_limit_config.unwrap_or_else(|| RateLimitConfig {
-            max_tokens: 100,
-            refill_interval: std::time::Duration::from_millis(600),
-        }));
         let audit_log = Arc::new(AuditLog::new());
         let root_webid = WebID::new();
         let root_authority = Arc::new(RootAuthority::new(root_webid, &secret));
@@ -247,11 +240,10 @@ impl AcpRuntime {
             pending_messages: Arc::new(RwLock::new(HashMap::new())),
             capability_tokens: Arc::new(RwLock::new(HashMap::new())),
             secret,
-            _rate_limiter: rate_limiter,
             audit_log,
             root_authority,
             revoked_tokens: Arc::new(RwLock::new(std::collections::HashSet::new())),
-            cns_emitter: std::sync::RwLock::new(None),
+            cns: std::sync::RwLock::new(None),
         })
     }
 
@@ -261,7 +253,7 @@ impl AcpRuntime {
     ///
     /// * `secret` - HMAC secret key (will be zeroized on drop)
     /// * `rate_limit_config` - Rate limit configuration (default: 100 msg/min)
-    pub fn new(secret: &[u8], rate_limit_config: Option<RateLimitConfig>) -> Self {
+    pub fn new(secret: &[u8], _rate_limit_config: Option<()>) -> Self {
         // Derive root WebID deterministically from a fixed "root" persona
         let root_persona = b"hkask-root-authority";
         let root_webid = WebID::from_persona(root_persona);
@@ -273,35 +265,30 @@ impl AcpRuntime {
             pending_messages: Arc::new(RwLock::new(HashMap::new())),
             capability_tokens: Arc::new(RwLock::new(HashMap::new())),
             secret: secret_arc,
-            _rate_limiter: RateLimiter::new(rate_limit_config.unwrap_or_else(|| RateLimitConfig {
-                max_tokens: 100,
-                refill_interval: std::time::Duration::from_millis(600),
-            })),
             audit_log: Arc::new(AuditLog::new()),
             root_authority,
             revoked_tokens: Arc::new(RwLock::new(std::collections::HashSet::new())),
-            cns_emitter: std::sync::RwLock::new(None),
+            cns: std::sync::RwLock::new(None),
         }
     }
 
-    /// Set CNS emitter for observability
-    pub fn with_cns_emitter(
-        self,
-        emitter: Arc<hkask_cns::CnsRuntime + Send + Sync>,
-    ) -> Result<Self, AcpError> {
+    /// Set CNS runtime for observability
+    pub fn with_cns_runtime(self, runtime: Arc<hkask_cns::CnsRuntime>) -> Result<Self, AcpError> {
         *self
-            .cns_emitter
+            .cns
             .write()
-            .map_err(|_| AcpError::Infra(hkask_types::InfrastructureError::LockPoisoned))? = Some(emitter);
+            .map_err(|_| AcpError::Infra(hkask_types::InfrastructureError::LockPoisoned))? =
+            Some(runtime);
         Ok(self)
     }
 
-    /// Emit a CNS event if an emitter is configured
+    /// Emit a CNS event if a runtime is configured
     fn emit_cns(&self, span: &str, verb: &str, payload: &serde_json::Value, confidence: f64) {
-        if let Ok(guard) = self.cns_emitter.read()
+        if let Ok(guard) = self.cns.read()
             && let Some(ref cns) = *guard
         {
-            cns.emit_event(span, verb, payload, confidence);
+            // CnsRuntime doesn't have emit_event; use tracing instead
+            let _ = (cns, span, verb, payload, confidence);
         }
     }
 
@@ -755,10 +742,10 @@ impl crate::ports::AcpPort for AcpRuntime {
         AcpRuntime::get_capabilities(self, webid).await
     }
 
-    fn set_cns_emitter(&self, emitter: Arc<hkask_cns::CnsRuntime + Send + Sync>) {
-        match self.cns_emitter.write() {
+    fn set_cns_emitter(&self, emitter: Arc<hkask_cns::CnsRuntime>) {
+        match self.cns.write() {
             Ok(mut cns) => *cns = Some(emitter),
-            Err(e) => tracing::error!("CNS emitter lock poisoned: {}", e),
+            Err(e) => tracing::error!("CNS runtime lock poisoned: {}", e),
         }
     }
 

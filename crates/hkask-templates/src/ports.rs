@@ -219,8 +219,8 @@ pub trait McpPort: Send + Sync {
     async fn get_tool_info(&self, tool_name: &str) -> Option<ToolInfo>;
 }
 
-/// CNS port for event emission — re-export of CnsEmit from hkask-cns
-pub use hkask_cns::CnsEmit as CnsPort;
+/// CNS port for event emission — use CnsRuntime from hkask-cns directly
+pub use hkask_cns::CnsRuntime as CnsPort;
 
 /// Memory context fragment for deduplication
 #[derive(Debug, Clone)]

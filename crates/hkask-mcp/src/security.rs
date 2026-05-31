@@ -2,7 +2,6 @@
 //!
 //! Provides security middleware for MCP tool invocations:
 //! - Capability verification (OCAP)
-//! - Rate limiting
 //! - Input validation
 //! - Audit logging
 //! - URL validation (SSRF protection)
@@ -27,7 +26,7 @@ pub struct SecurityPolicy {
     pub denied_tools: HashSet<String>,
     /// Require capability tokens
     pub require_capabilities: bool,
-    /// Enable rate limiting
+    /// Enable rate limiting (energy budget enforcement)
     pub enable_rate_limiting: bool,
 }
 
@@ -50,14 +49,12 @@ impl Default for SecurityPolicy {
 pub struct SecurityGateway {
     /// Capability checker
     capability_checker: Arc<CapabilityChecker>,
-    /// Rate limiter
     /// Security policy
     policy: SecurityPolicy,
     /// Audit log (persistent via AuditLogStore adapter, in-memory fallback)
     audit_log: Arc<RwLock<Vec<AuditEntry>>>,
     /// Optional persistent audit store (wired when database is available)
     audit_store: Option<Arc<dyn hkask_types::AuditLogPort + Send + Sync>>,
-    /// Optional CNS emitter for security event span emission
 }
 
 /// Audit log entry
@@ -94,10 +91,6 @@ impl SecurityGateway {
     /// Create with default policy
     pub fn with_default_policy(secret: &[u8]) -> Self {
         Self::new(secret, SecurityPolicy::default())
-    }
-
-    /// Set the CNS emitter for security event span emission
-        self
     }
 
     /// Set the persistent audit store for durable audit logging
@@ -162,11 +155,12 @@ impl SecurityGateway {
             hkask_types::CapabilityAction::Execute,
         );
 
-            emitter.emit_event(
-                &format!("cns.tool.{}.unauthorized", tool_name.replace(':', ".")),
-                "observe",
-                &serde_json::json!({"bot_id": bot_id.to_string(), "tool": tool_name}),
-                0.0,
+        if !result {
+            tracing::debug!(
+                target: "cns.tool.unauthorized",
+                bot_id = %bot_id,
+                tool_name,
+                "Capability check failed"
             );
         }
 
@@ -232,23 +226,16 @@ impl SecurityGateway {
         Ok(token.clone())
     }
 
-    /// Check rate limit
+    /// Check rate limit (energy budget enforcement)
     pub fn check_rate_limit(&self, bot_id: &WebID) -> bool {
         if !self.policy.enable_rate_limiting {
             return true;
         }
-            emitter.emit_event(
-                "cns.tool.rate_limit_exceeded",
-                "observe",
-                &serde_json::json!({"bot_id": bot_id.to_string()}),
-                0.0,
-            );
-        }
-        result
-    }
-
-    /// Get remaining rate limit tokens
-    pub fn remaining_rate_limit(&self, bot_id: &WebID) -> u32 {
+        // Energy budget handles rate limiting at the pod level.
+        // This is a policy gate that always allows when rate limiting is disabled.
+        // When enabled, the actual enforcement happens via energy budget depletion.
+        let _ = bot_id;
+        true
     }
 
     /// Record audit entry

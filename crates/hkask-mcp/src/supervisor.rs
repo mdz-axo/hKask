@@ -3,7 +3,6 @@
 //! Provides process supervision for MCP servers with automatic restart
 //! and health monitoring capabilities.
 
-use serde_json::json;
 use std::collections::HashMap;
 use std::process::Stdio;
 use std::sync::Arc;
@@ -100,7 +99,6 @@ struct ServerState {
 /// restart and health monitoring.
 pub struct McpSupervisor {
     servers: Arc<RwLock<HashMap<String, ServerState>>>,
-    /// Optional CNS emitter for connector lifecycle events
 }
 
 impl McpSupervisor {
@@ -109,10 +107,6 @@ impl McpSupervisor {
         Self {
             servers: Arc::new(RwLock::new(HashMap::new())),
         }
-    }
-
-    /// Set the CNS emitter for connector lifecycle span emission
-        self
     }
 
     /// Register a server configuration
@@ -154,13 +148,11 @@ impl McpSupervisor {
         state.child = Some(child);
         state.started_at = Some(Instant::now());
 
-            emitter.emit_event(
-                &format!("cns.connector.{}.started", name),
-                "observe",
-                &json!({"server": name}),
-                1.0,
-            );
-        }
+        tracing::debug!(
+            target: "cns.connector",
+            server = name,
+            "MCP server started"
+        );
 
         info!(server = %name, "MCP server started");
         Ok(())
@@ -184,13 +176,11 @@ impl McpSupervisor {
                     source: e,
                 })?;
             state.started_at = None;
-                emitter.emit_event(
-                    &format!("cns.connector.{}.stopped", name),
-                    "observe",
-                    &json!({"server": name}),
-                    1.0,
-                );
-            }
+            tracing::debug!(
+                target: "cns.connector",
+                server = name,
+                "MCP server stopped"
+            );
             info!(server = %name, "MCP server stopped");
         }
 
@@ -212,13 +202,11 @@ impl McpSupervisor {
             state.last_restart = Some(Instant::now());
         }
 
-            emitter.emit_event(
-                &format!("cns.connector.{}.restarted", name),
-                "observe",
-                &json!({"server": name}),
-                1.0,
-            );
-        }
+        tracing::debug!(
+            target: "cns.connector",
+            server = name,
+            "MCP server restarted"
+        );
 
         info!(server = %name, "MCP server restarted");
         Ok(())
@@ -289,13 +277,12 @@ impl McpSupervisor {
                 match child.try_wait() {
                     Ok(Some(status)) => {
                         // Process has exited
-                            emitter.emit_event(
-                                &format!("cns.connector.{}.error", name),
-                                "observe",
-                                &json!({"server": name, "exit_status": status.to_string()}),
-                                0.0,
-                            );
-                        }
+                        tracing::debug!(
+                            target: "cns.connector",
+                            server = name,
+                            exit_status = %status,
+                            "MCP server exited"
+                        );
                         warn!(
                             server = %name,
                             status = %status,

@@ -1,14 +1,8 @@
-//! Security Hardening — Input Validation and Rate Limiting
+//! Security Hardening — Input Validation and OCAP Enhancement
 //!
 //! This module provides:
 //! - **Input Validation**: Schema-based validation for pod operations
-//! - **Rate Limiting**: Re-exports unified implementation from hkask-cns
 //! - **OCAP Enhancement**: Attenuation history tracking and expiry enforcement
-
-// Re-export unified rate limiter from hkask-cns
-pub use hkask_cns::rate_limit::{
-};
-
 
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -121,8 +115,6 @@ impl AgentPersonaInput {
     }
 }
 
-// See hkask-cns/src/rate_limit.rs for the unified implementation
-
 /// OCAP attenuation history tracker
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AttenuationHistory {
@@ -222,9 +214,7 @@ pub struct SecurityContext {
 }
 
 impl SecurityContext {
-        Self {
-            rate_limiter,
-            expiry_enforcer,
-        }
+    pub fn new(expiry_enforcer: ExpiryEnforcer) -> Self {
+        Self { expiry_enforcer }
     }
 }

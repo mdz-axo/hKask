@@ -3,10 +3,9 @@
 //!
 //! `MemoryFeedbackAdapter` bridges the gap between `AppMemoryAdapter`'s one-directional
 //! query access and the template engine. It consumes `MemoryFragment.confidence` (computed
-//! by bayesian `combine`) and emits `cns.pipeline.relevance` spans, enabling `CuratorPipeline`
-//! and the template engine to factor recall quality into future selections.
+//! by bayesian `combine`) and tracks a running weighted average of recall quality per
+//! template, which can be queried later to influence template selection.
 
-use hkask_types::{Phase, Span};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -22,16 +21,15 @@ struct RelevanceStats {
 
 /// Adapter that closes the feedback loop from memory recall relevance to template selection.
 ///
-/// Emits `cns.pipeline.relevance` spans through CNS and tracks a running weighted average
-/// of recall quality per template, which can be queried later to influence template selection.
+/// Tracks a running weighted average of recall quality per template, which can be queried
+/// later to influence template selection.
 pub struct MemoryFeedbackAdapter {
     /// Per-template relevance statistics: template_id → running stats.
     relevance: Arc<Mutex<HashMap<String, RelevanceStats>>>,
 }
 
 impl MemoryFeedbackAdapter {
-    /// `AppMemoryAdapter` reference (the read-side is not stored here — callers
-    /// query it themselves and pass results to `record_relevance`).
+    pub fn new() -> Self {
         Self {
             relevance: Arc::new(Mutex::new(HashMap::new())),
         }
@@ -39,8 +37,7 @@ impl MemoryFeedbackAdapter {
 
     /// Record a relevance observation from memory recall.
     ///
-    /// Emits a `cns.pipeline.relevance` span via CNS and updates the running
-    /// weighted average of recall quality for the given template.
+    /// Updates the running weighted average of recall quality for the given template.
     ///
     /// # Arguments
     /// * `entity` — The entity key that was queried in memory.
@@ -54,15 +51,13 @@ impl MemoryFeedbackAdapter {
         avg_confidence: f64,
         template_id: &str,
     ) {
-        // Emit CNS span
-            Span::pipeline("relevance"),
-            Phase::Observe,
-            serde_json::json!({
-                "entity": entity,
-                "recall_count": recall_count,
-                "avg_confidence": avg_confidence,
-                "template_id": template_id,
-            }),
+        tracing::debug!(
+            target: "cns.pipeline.relevance",
+            entity,
+            recall_count,
+            avg_confidence,
+            template_id,
+            "Memory relevance observation"
         );
 
         // Update running weighted average: new_quality = Σ(confidence × count) / Σ(count)
@@ -88,4 +83,3 @@ impl MemoryFeedbackAdapter {
         }
     }
 }
-

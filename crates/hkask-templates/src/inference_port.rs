@@ -28,9 +28,7 @@ use crate::okapi_config::{OkapiConfig, validate_prompt};
 use crate::resilience::CircuitBreaker;
 use async_trait::async_trait;
 use hkask_types::cns::RetryConfig;
-use hkask_types::{
-    BotID, LLMParameters, Phase, Span, TemplateId, TemplateInvocation, TemplateOutcome, WebID,
-};
+use hkask_types::{BotID, LLMParameters, TemplateId, TemplateInvocation, TemplateOutcome, WebID};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
@@ -283,14 +281,10 @@ impl OkapiInference {
         if let Some(ref cb) = self.circuit_breaker
             && !cb.allow_request()
         {
-            // Emit CNS span for circuit open
-                Span::connector("circuit_open"),
-                Phase::Observe,
-                serde_json::json!({
-                    "model": self.model,
-                    "action": "inference.execute_request",
-                    "reason": "circuit_breaker_open"
-                }),
+            tracing::debug!(
+                target: "cns.inference",
+                model = %self.model,
+                "Circuit breaker open, rejecting request"
             );
             return Err(InferenceError::Connection(
                 "Circuit breaker is open".to_string(),
@@ -424,24 +418,6 @@ impl InferencePort for OkapiInference {
         // Validate input
         validate_prompt(prompt).map_err(|e| InferenceError::Generation(e.to_string()))?;
 
-        // Check rate limit before API call
-        {
-            // Emit CNS span for rate limit exceeded
-                Span::tool("rate_limit_exceeded"),
-                Phase::Observe,
-                serde_json::json!({
-                    "bot_id": bot_id.to_string(),
-                    "model": self.model,
-                    "action": "inference.generate",
-                    "reason": "token_bucket_empty"
-                }),
-            );
-            return Err(InferenceError::RateLimitExceeded(format!(
-                "Rate limit exceeded for bot {}",
-                bot_id
-            )));
-        }
-
         // Check prompt cache before API call
         if let Some(ref cache) = self.prompt_cache {
             let cache_key =
@@ -519,24 +495,6 @@ impl InferencePort for OkapiInference {
     ) -> Result<InferenceResult, InferenceError> {
         // Validate input
         validate_prompt(prompt).map_err(|e| InferenceError::Generation(e.to_string()))?;
-
-        // Check rate limit before API call
-        {
-            // Emit CNS span for rate limit exceeded
-                Span::tool("rate_limit_exceeded"),
-                Phase::Observe,
-                serde_json::json!({
-                    "bot_id": bot_id.to_string(),
-                    "model": self.model,
-                    "action": "inference.generate_with_model",
-                    "reason": "token_bucket_empty"
-                }),
-            );
-            return Err(InferenceError::RateLimitExceeded(format!(
-                "Rate limit exceeded for bot {}",
-                bot_id
-            )));
-        }
 
         let model_id = model_requirements
             .map(|r| r.required.clone())
