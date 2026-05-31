@@ -1,6 +1,6 @@
-//! hKask 7-Loop Architecture — Loop module structure
+//! hKask 8-Loop Architecture — Loop module structure
 //!
-//! hKask has 7 loops: 5 domain loops + 2 master loops, plus an inter-loop bridge.
+//! hKask has 8 loops: 4 domain loops + 3 master loops, plus an inter-loop bridge.
 //!
 //! **Domain Loops:**
 //! - Loop 1: Inference — prompt → context → model → response → parse → act
@@ -12,6 +12,7 @@
 //! **Master Loops:**
 //! - Loop 5: Curation — observe → evaluate → compose → regulate (regulator — reads all, writes policy)
 //! - Loop 6: Communication — send → observe delivery → detect congestion → dampen → confirm (connector)
+//! - Loop 7: Cybernetics — sense (Observability) → compare → decide → act (Governance) → sense again (manages Loops 3+4)
 //!
 //! **Bridge:**
 //! - 2a→2b: Consolidation — episodic → strip perspective → dedup → store semantic (one-way transformation)
@@ -21,6 +22,7 @@
 //! the method doesn't exist on that type. This is the strongest possible enforcement.
 
 pub mod curation;
+pub mod cybernetics;
 pub mod dispatch;
 pub mod episodic;
 pub mod governance;
@@ -29,6 +31,7 @@ pub mod observability;
 pub mod semantic;
 
 pub use curation::CuratorHandle;
+pub use cybernetics::CyberneticHandle;
 pub use dispatch::{LoopMessage, LoopOrigin, LoopPayload, MessagePriority, TraceId};
 pub use episodic::{
     EpisodicBudgetExceeded, EpisodicReadHandle, EpisodicWriteHandle, ExperienceClassification,
@@ -80,7 +83,7 @@ impl std::fmt::Display for ControlPrimitive {
     }
 }
 
-/// Loop identifiers for the 7-loop model.
+/// Loop identifiers for the 8-loop model.
 ///
 /// Used in message routing, span tagging, and subloop mapping.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
@@ -100,6 +103,8 @@ pub enum LoopId {
     Curation,
     /// Loop 6: Communication (connector)
     Communication,
+    /// Loop 7: Cybernetics (manages Observability→Governance feedback cycle)
+    Cybernetics,
 }
 
 impl std::fmt::Display for LoopId {
@@ -112,6 +117,7 @@ impl std::fmt::Display for LoopId {
             LoopId::Observability => write!(f, "observability"),
             LoopId::Curation => write!(f, "curation"),
             LoopId::Communication => write!(f, "communication"),
+            LoopId::Cybernetics => write!(f, "cybernetics"),
         }
     }
 }

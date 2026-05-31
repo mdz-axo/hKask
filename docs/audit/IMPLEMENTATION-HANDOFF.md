@@ -32,14 +32,14 @@ All audit documents are in `hKask/docs/audit/`:
 | `TASK5-simplified-core.md` | Rust module design for 5 loops, 11 capability handles (SUPERSEDED — handles expanded to 13 in TASK9) |
 | `TASK6-verify.md` | 22 cybernetic unit tests (EXPAND — now 30+ tests per TASK9) |
 | `TASK7-open-questions.md` | 9 open questions (4 resolved, 1 bug fix, 4 implementation) |
-| **`TASK9-loop-structure.md`** | **AUTHORITATIVE** — 7 loops, 9 control primitives, 30 subloops, 5 messenger functions, primitive×loop completeness matrix, episodic/semantic split, communication master loop |
+| **`TASK9-loop-structure.md`** | **AUTHORITATIVE** — 8 loops, 9 control primitives, 30 subloops, 5 messenger functions, primitive×loop completeness matrix, episodic/semantic split, communication + cybernetic master loops |
 | `TASK8-implementation-plan.md` | Revised implementation plan (10 phases, 53 PRs, ~5–6 weeks) |
 
 ---
 
-## The 7-Loop Model (Authoritative)
+## The 8-Loop Model (Authoritative)
 
-hKask has **7 loops**: 5 domain loops + 2 master loops. Memory is split into Episodic (2a) and Semantic (2b) connected by a Consolidation Bridge.
+hKask has **8 loops**: 4 domain loops + 3 master loops. Memory is split into Episodic (2a) and Semantic (2b) connected by a Consolidation Bridge.
 
 ```
 Domain Loops:
@@ -52,6 +52,7 @@ Domain Loops:
 Master Loops:
   5. Curation          — observe → evaluate → compose → regulate (regulator — reads all, writes policy)
   6. Communication     — send → observe delivery → detect congestion → dampen → confirm (connector — enables all)
+  7. Cybernetics       — sense (Observability) → compare → decide → act (Governance) → sense again (manages Loops 3+4)
 
 Bridge:
   2a→2b. Consolidation — episodic → strip perspective → dedup → store semantic (one-way transformation)
@@ -107,6 +108,7 @@ B.1 Consolidation Priority (DISPATCH) | B.2 Perspective Stripping (FILTER) | B.3
 4. **The episodic loop now closes.** Phases 5–6 wired all subloops: experience encoding, confidence decay, temporal attention, confidence retraction, storage budget, context assembly (episodic); dedup, confidence combination, indexing, storage budget, consolidation with confidence promotion (semantic).
 5. **The Curation loop now closes.** Phase 7 wired the metacognition loop to `CuratorContext`, directive delivery through `MessageDispatch`, threshold calibration through `CnsGovernWriteHandle::calibrate_threshold()`, and DAMPEN on feedback edges.
 6. **The Communication messenger functions are now wired.** DISPATCH (6.1) via `MessageDispatch`, DAMPEN (6.3) via `Dampener`. CORRELATE (6.2), CIRCUIT (6.4), and ACKNOWLEDGE (6.5) are not yet implemented but the types exist in `hkask-types/src/loops/dispatch.rs`.
+7. **The Cybernetic loop (7) formally closes the Observability→Governance feedback cycle.** It does not introduce new runtime components — it names the cycle that already exists. Observability (4) is the sensing half; Governance (3) is the acting half. The Curation loop (5) provides the decision-making agent (Curator) that reads Observability and writes Governance policy.
 
 ---
 
@@ -126,7 +128,7 @@ B.1 Consolidation Priority (DISPATCH) | B.2 Perspective Stripping (FILTER) | B.3
 | `GovernanceHandle` | Governance | Verify/attenuate/revoke tokens, check visibility, process alerts, calibrate thresholds | Emit arbitrary spans, store triples, run inference |
 | `CnsWriteHandle` | Observability | Emit spans, increment variety counters | Reset alerts, subscribe, process sovereignty events |
 | `CnsGovernReadHandle` | Observability | Check variety, process sovereignty events (read-only) | Set expected variety, calibrate thresholds, emit spans |
-| `CnsGovernWriteHandle` | Observability+Curation | Set expected variety, calibrate thresholds (read + write) | Emit spans, reset alerts, subscribe |
+| `CnsGovernWriteHandle` | Cybernetic (7) | Set expected variety, calibrate thresholds (read + write) | Emit spans, reset alerts, subscribe |
 | `CnsAdminHandle` | Observability | Reset alerts, clear old alerts, subscribe listeners | Emit spans, check variety |
 | `CuratorHandle` | Curation | Read all loop state, write governance/observability policy, issue directives | Run inference, emit spans directly, access private episodic triples |
 
@@ -169,7 +171,7 @@ Define all handle types as struct definitions in `hkask-types/src/loops/`. **Add
 
 | PR | Title | What | Affected Crates |
 |---|-------|------|-----------------|
-| 1a | Define loop module structure | Create `hkask-types/src/loops/mod.rs` re-exporting 7 loop modules. Create stub files for `inference.rs`, `episodic.rs`, `semantic.rs`, `governance.rs`, `observability.rs`, `curation.rs`, `dispatch.rs`. | `hkask-types` |
+| 1a | Define loop module structure | Create `hkask-types/src/loops/mod.rs` re-exporting 8 loop modules. Create stub files for `inference.rs`, `episodic.rs`, `semantic.rs`, `governance.rs`, `observability.rs`, `curation.rs`, `dispatch.rs`, `cybernetics.rs`. | `hkask-types` |
 | 1b | Define capability handle types | Implement all 13 handle structs with Hoare-triple-annotated methods. Include `new_test()` stubs. Handles: `InferenceHandle`, `EnergyBudgetHandle`, `RateLimiterHandle`, `EpisodicReadHandle`, `EpisodicWriteHandle`, `SemanticReadHandle`, `SemanticWriteHandle`, `GovernanceHandle`, `CuratorHandle`, `CnsWriteHandle`, `CnsGovernReadHandle`, `CnsGovernWriteHandle`, `CnsAdminHandle`. | `hkask-types` |
 | 1c | Define DataCategory visibility enum | `DataCategory { Public, Shared, EpisodicMemory, SemanticMemory, Private, PersonalContext, CapabilityTokens, OcpBoundaries, TemplateInvocations, HlexiconTerms, TemplateRegistry }` with HKDF key derivation mapping. | `hkask-types` |
 | 1d | Define Communication types | `LoopMessage`, `MessagePriority { Critical, Warning, Info }`, `LoopOrigin`, `LoopPayload`, `TraceId` in `hkask-types/src/loops/dispatch.rs`. Stub only. | `hkask-types` |
@@ -251,7 +253,7 @@ The semantic loop now closes. Semantic recall has confidence combination, semant
 | 7d | Implement LoopMessage dispatch | `MessageDispatch` with priority queuing (Critical/Warning/Info), `send()`, `receive()`, `send_curator_directive()`, `send_escalation()`, `TraceId` propagation. 10 unit tests. | `hkask-agents` | ✓ Done |
 | 7a | Wire MetacognitionLoop to CuratorContext | Replaced `Arc<CnsGovernWriteAdapter>` + `tokio::sync::Mutex<Arc<EscalationQueue>>` with `CuratorContext` (aggregates `CuratorHandle`, `CnsGovernWriteAdapter`, `MessageDispatch`, `EscalationQueue`, `Dampener`). Removed deprecated `from_legacy_adapter()`. | `hkask-agents` | ✓ Done |
 | 7b | Wire Curation → Governance directive delivery | `MetacognitionLoop::issue_directive()` sends `CuratorDirective` through `CuratorContext::issue_directive()` → `MessageDispatch::send_curator_directive()`. `CalibrateThreshold` wired in `check_escalation_triggers()`. `AdjustEnergyBudget` and `UpdateCapabilities` supported via `CuratorDirective` enum. | `hkask-agents`, `hkask-cli` | ✓ Done |
-| 7c | Wire Curation → Observability threshold calibration | `CnsGovernWriteHandle::calibrate_threshold()` + `CnsGovernWriteAdapter::calibrate_threshold()` + `CnsRuntime::calibrate_threshold()`. `MetacognitionLoop` calls `context.cns().calibrate_threshold()` in `check_escalation_triggers()`. 2 unit tests. | `hkask-agents`, `hkask-cns` | ✓ Done |
+| 7c | Wire Cybernetic loop (7): Observability → Governance threshold calibration | `CnsGovernWriteHandle::calibrate_threshold()` + `CnsGovernWriteAdapter::calibrate_threshold()` + `CnsRuntime::calibrate_threshold()`. `MetacognitionLoop` calls `context.cns().calibrate_threshold()` in `check_escalation_triggers()`. 2 unit tests. | `hkask-agents`, `hkask-cns` | ✓ Done |
 | 7e | Implement DAMPEN on feedback edges | `Dampener` struct with fingerprint-based suppression (type + target). Configurable time window (default 60s). Lazy garbage collection. `CuratorContext::issue_directive()` integrates DAMPEN — returns `None` if dampened. 6 unit tests. | `hkask-agents` | ✓ Done |
 
 **Verification:** `cargo check --workspace && cargo test --workspace && cargo clippy --workspace -- -D warnings`
@@ -306,7 +308,7 @@ The semantic loop now closes. Semantic recall has confidence combination, semant
 
 | PR | Title | What | Affected Crates | Status |
 |---|-------|------|-----------------|--------|
-| 10a | Update architecture docs | Cross-reference TASK9 diagrams against `pub` APIs. Update master doc with 7-loop structure, episodic/semantic split, communication messenger functions, handle matrix. Updated for Phase 11 simplifications. | docs | ✓ Done |
+| 10a | Update architecture docs | Cross-reference TASK9 diagrams against `pub` APIs. Update master doc with 8-loop structure, episodic/semantic split, communication + cybernetic master loops, handle matrix. Updated for Phase 11 simplifications. | docs | ✓ Done |
 | 10b | CNS span audit | Add `cns.memory.decay` and `cns.memory.retract` spans for episodic subloops. `cns.memory.encode` and `cns.memory.budget` already existed. Verify existing spans map to core loops. | `hkask-memory` | ✓ Done |
 | 10c | BotMetricsCollector investigation | Deprecated `BotMetricsCollector` with migration note to `UnifiedVarietyTracker`. Kept `BotEvaluationMetrics`, `BotHealthStatus`, `CapabilityGap`, `GapType` as active data contract. Bootstrap still uses deprecated collector; migration path documented. | `hkask-cns`, `hkask-cli` | ✓ Done |
 
@@ -384,6 +386,7 @@ cargo test cyber_ --workspace
 | `crates/hkask-memory/src/bayesian.rs` | Free functions: `combine`, `retract`, `decay`, `join`, `weighted_average` — wired into episodic (5a–5b) and semantic (6b, 6d) subloops |
 | `crates/hkask-memory/src/recall_dedup.rs` | `dedup_triples` — BLAKE3-based deduplication (works for both episodic and semantic) |
 | `crates/hkask-types/src/loops/episodic.rs` | `EpisodicReadHandle`, `EpisodicWriteHandle`, `ExperienceClassification`, `EpisodicBudgetExceeded` |
+| `crates/hkask-types/src/loops/cybernetics.rs` | `CyberneticHandle` — Loop 7 OCAP handle, manages Observability→Governance feedback cycle |
 | `crates/hkask-types/src/loops/inference.rs` | `InferenceHandle`, `EnergyBudgetHandle`, `RateLimiterHandle` — Loop 1 OCAP handles |
 | `crates/hkask-types/src/loops/governance.rs` | `GovernanceHandle`, `GovernanceDenial` — Loop 3 OCAP handles, token verification, sovereignty checks |
 | `crates/hkask-types/src/loops/semantic.rs` | `SemanticReadHandle`, `SemanticWriteHandle` — Loop 2b OCAP handles |
@@ -410,7 +413,7 @@ cargo test cyber_ --workspace
 
 - **Do NOT** collapse Bot and Replicant into `AgentPod + interaction_mode` (Q8 resolved)
 - **Do NOT** simplify away the micro-governance check in `dispatch_action` (Q4 resolved)
-- **Do NOT** treat CNS as merely cross-cutting (resolved: it's Loop 4 with its own closed cycle)
+- **Do NOT** treat CNS as merely cross-cutting (resolved: it's Loop 4, the sensing half of the Cybernetic loop (7))
 - **Do NOT** add Grafana, Prometheus, or any visual monitoring (AGENTS.md constraint)
 - **Do NOT** create parallel infrastructures — capability handles wrap existing types, not new ones (TASK5 principle)
 - **Do NOT** combine episodic and semantic memory back into one loop — they are structurally different with different subloops, different sovereignty models, and different confidence directions (TASK9 resolved)

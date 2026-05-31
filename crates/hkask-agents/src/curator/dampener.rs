@@ -1,9 +1,10 @@
 //! DAMPEN — Suppress repeated directives within a configurable time window
 //!
 //! Implements the DAMPEN messenger function (6.3: FILTER+RECONCILE) from the
-//! 7-loop architecture. The Curation→Governance→Observability→Curation
-//! feedback cycle can produce repeated identical directives. DAMPEN prevents
-//! the same directive from being issued within a configurable time window.
+//! 8-loop architecture. The Cybernetic loop (7) manages the
+//! Observability→Governance feedback cycle, which can produce
+//! repeated identical directives. DAMPEN prevents the same directive from
+//! being issued within a configurable time window.
 //!
 //! # How it works
 //!
@@ -62,7 +63,8 @@ impl DirectiveFingerprint {
 /// DAMPEN — Suppress repeated directives within a configurable time window.
 ///
 /// This implements the DAMPEN messenger function (6.3) that prevents
-/// feedback oscillation in the Curation→Governance→Observability→Curation cycle.
+/// feedback oscillation in the Cybernetic loop (7): the
+/// Observability→Governance feedback cycle.
 ///
 /// # OCAP Discipline
 ///
@@ -198,4 +200,3 @@ impl Default for Dampener {
         Self::new()
     }
 }
-

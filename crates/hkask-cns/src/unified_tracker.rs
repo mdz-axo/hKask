@@ -4,6 +4,9 @@
 //! and goal variety into a single variety accounting structure. All SENSE subloops
 //! feed into this one tracker, ensuring consistent variety accounting per Ashby's Law.
 //!
+//! These subloops are the sensing half of the Cybernetic loop (Loop 7), which
+//! manages the Observability→Governance feedback cycle.
+//!
 //! # Design Rationale
 //!
 //! The previous design used independent variety-tracking structures:
@@ -495,4 +498,3 @@ impl UnifiedVarietyTracker {
         self.bot_expected_variety = expected;
     }
 }
-

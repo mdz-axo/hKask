@@ -140,8 +140,7 @@ async fn archive(
                     })),
                 }),
             ),
-        }
-    })?;
+        })?;
 
     let sha = git_cas
         .resolve_sha(&crate_name)

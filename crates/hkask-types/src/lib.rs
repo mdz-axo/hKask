@@ -54,7 +54,7 @@ pub use id::*;
 pub use identity::*;
 pub use lexicon::{Domain, HLexicon, LexiconTerm, TemplateType};
 pub use loops::{
-    ControlPrimitive, CuratorHandle, DataVisibilityTier, EnergyBudgetHandle,
+    ControlPrimitive, CuratorHandle, CyberneticHandle, DataVisibilityTier, EnergyBudgetHandle,
     EpisodicBudgetExceeded, EpisodicReadHandle, EpisodicWriteHandle, ExperienceClassification,
     GovernanceHandle, InferenceBudgetExceeded, InferenceHandle, LoopId, LoopMessage, LoopOrigin,
     LoopPayload, MessagePriority,

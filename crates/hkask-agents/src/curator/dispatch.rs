@@ -1,6 +1,6 @@
 //! Message Dispatch — Priority-ordered inter-loop message queuing
 //!
-//! Implements DISPATCH (messenger function 6.1: GUARD+ROUTE) from the 7-loop
+//! Implements DISPATCH (messenger function 6.1: GUARD+ROUTE) from the 8-loop
 //! architecture. `MessageDispatch` provides an in-memory priority queue that
 //! orders `LoopMessage` instances for inter-loop communication.
 //!
@@ -171,4 +171,3 @@ impl<T> VecPopFront<T> for Vec<T> {
         }
     }
 }
-

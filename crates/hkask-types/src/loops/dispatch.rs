@@ -136,6 +136,8 @@ pub enum LoopOrigin {
     Curation,
     /// Loop 6: Communication (this loop)
     Communication,
+    /// Loop 7: Cybernetics (manages Observability→Governance feedback cycle)
+    Cybernetics,
     /// External source (CLI, API, MCP)
     External,
 }
@@ -150,6 +152,7 @@ impl fmt::Display for LoopOrigin {
             LoopOrigin::Observability => write!(f, "observability"),
             LoopOrigin::Curation => write!(f, "curation"),
             LoopOrigin::Communication => write!(f, "communication"),
+            LoopOrigin::Cybernetics => write!(f, "cybernetics"),
             LoopOrigin::External => write!(f, "external"),
         }
     }
@@ -301,4 +304,3 @@ impl LoopMessage {
         self.target_loop.is_some()
     }
 }
-

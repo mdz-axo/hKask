@@ -3,6 +3,10 @@
 //! The Governance loop enforces capability discipline:
 //! request → authorize → dispatch → observe → adapt policy
 //!
+//! Governance is the acting half of the Cybernetic loop (Loop 7), which
+//! manages the Observability→Governance feedback cycle. Observability
+//! senses anomalies; Governance acts on them.
+//!
 //! Subloops:
 //! - 3.1 Revocation (WITHDRAW) — grant → revoke → persist → deny future
 //! - 3.2 Sovereignty Checking (GUARD) — request → check condition → allow or deny
@@ -127,4 +131,3 @@ pub enum GovernanceDenial {
     #[error("token has been revoked")]
     TokenRevoked,
 }
-
