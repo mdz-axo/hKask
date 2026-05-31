@@ -1,19 +1,7 @@
 //! hKask CNS — Cybernetic Nervous System
 //!
-//! Implements cybernetic monitoring per Ashby's Law of Requisite Variety.
-//! Emits ν-events (NuEvent) for audit trail and algedonic alerts for escalation.
-//!
-//! **Span Categories:**
-//! - `cns.connector.*` — External I/O (LLM dispatch, OCR, embeddings)
-//! - `cns.pipeline.*` — Multi-stage processing flows
-//! - `cns.tool.*` — Tool governance and invocation
-//! - `cns.prompt.*` — Prompt feedback loop (render, validate, outcome)
-//! - `cns.agent_pod.*` — Agent lifecycle (populate, register, activate, delegate)
-//! - `cns.goal.*` — Goal primitive (create, transition, verify, complete, subgoal)
-//! - `cns.review.*` — Review queue (submitted, reviewed, approved, rejected)
-//! - `cns.spec.*` — Spec primitive (spec validation, compliance, verification)
-//!
-//! **Algedonic Alert:** Variety deficit >100 → escalate to Curator/human
+//! Minimal observability: variety counting, algedonic alerts, energy budgets.
+//! Per Ashby's Law of Requisite Variety.
 
 pub mod acp_alert_sender;
 pub mod algedonic;
@@ -21,9 +9,7 @@ pub mod algedonic_escalation;
 pub mod bot_metrics;
 pub mod energy;
 pub mod observers;
-pub mod rate_limit;
 pub mod runtime;
-pub mod spans;
 pub mod unified_tracker;
 pub mod variety;
 
@@ -38,18 +24,9 @@ pub use algedonic_escalation::{
 };
 pub use bot_metrics::{BotEvaluationMetrics, BotHealthStatus, CapabilityGap, GapType};
 pub use energy::{EnergyAccount, EnergyBudget, EnergyError, OpportunityCost};
-pub use hkask_types::SpanCategory;
 pub use observers::sovereignty::{
     SovereigntyEvent, SovereigntyEventType, SovereigntyObserverState,
 };
-pub use rate_limit::{RateLimitConfig, RateLimiter};
-pub use runtime::{
-    AlertSubscription, CnsAdminHandle, CnsGovernReadHandle, CnsGovernWriteHandle, CnsRuntime,
-    CnsWriteHandle,
-};
-pub use spans::{
-    CnsEmit, SpanEmitter, SpanScope, SpanViolation, curator_span_scope, span_scope_for_domain,
-    span_scope_for_r7_bot,
-};
+pub use runtime::{AlertSubscription, CnsRuntime};
 pub use unified_tracker::UnifiedVarietyTracker;
 pub use variety::{VarietyMonitor, VarietyTracker};
