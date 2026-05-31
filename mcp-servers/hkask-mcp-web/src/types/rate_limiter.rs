@@ -1,7 +1,8 @@
 //! Token-bucket per-tool rate limiting.
 //!
 //! Enforces a configurable number of requests per time window per tool name.
-//! This is the MCP boundary approximation of hKask's energy budget model.
+//! This is an external API boundary rate limiter — it protects the MCP server
+//! from external client DoS, distinct from internal energy budget tracking.
 //! On rate limit, returns McpToolError with RateLimited kind.
 
 use std::collections::HashMap;

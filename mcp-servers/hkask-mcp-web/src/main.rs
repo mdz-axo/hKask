@@ -23,6 +23,8 @@ pub struct WebServer {
     webid: WebID,
     pool: Arc<dyn WebSearchPort>,
     cache: Arc<ResponseCache>,
+    /// Per-tool rate limiter (external API boundary protection against DoS).
+    /// Distinct from internal energy budget tracking.
     rate_limiter: RateLimiter,
 }
 

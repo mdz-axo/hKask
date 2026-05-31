@@ -1,7 +1,7 @@
 //! MCP runtime for hKask
 //!
 //! Manages MCP server connections, tool discovery, and lifecycle.
-//! Integrates with capability security and rate limiting.
+//! Integrates with capability security and energy budget enforcement.
 
 use crate::transport::McpTransport;
 use serde_json::Value;
@@ -23,7 +23,6 @@ pub struct ToolInfo {
     pub server_id: String,
     /// Required capability (if any)
     pub required_capability: Option<String>,
-
 }
 
 /// MCP tool definition

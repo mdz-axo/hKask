@@ -106,7 +106,7 @@ Authorization: Bearer <api_key>
 | `Model` | 400 | Invalid model identifier |
 | `Generation` | N/A | Empty response, prompt validation failure |
 | `Json` | N/A | Response parse error |
-| `RateLimitExceeded` | N/A | Client-side rate limit exceeded (token bucket) |
+| `RateLimitExceeded` | ~~Removed~~ | Consolidated into energy budget enforcement |
 
 ### Retryable Status Codes
 
@@ -227,11 +227,7 @@ Prompts are validated before API calls [^white-prompt]:
 
 ## Rate Limiting
 
-Client-side rate limiting via `RateLimiter` (optional):
-- Token bucket algorithm per `WebID`/`BotID`
-- Checked before API call
-- Emits `cns.tool.rate_limit_exceeded` span on denial
-- Returns `InferenceError::RateLimitExceeded`
+Rate limiting is now handled by energy budget enforcement via `EnergyBudget.try_consume()`. The `RateLimiter` and `InferenceError::RateLimitExceeded` types have been removed from the inference path. `McpErrorKind::RateLimited` remains for external API HTTP 429 responses where downstream services impose rate limits.
 
 ---
 
@@ -242,14 +238,13 @@ Okapi inference emits CNS spans at key boundary points:
 | Span | When |
 |------|------|
 | `cns.connector.circuit_open` | Circuit breaker trips |
-| `cns.tool.rate_limit_exceeded` | Rate limit denied |
 
 ---
 
 ## Architecture Notes
 
 - `InferencePort` is the single async inference trait; the synchronous `SyncInferencePort` was removed in v0.21.0-p4.
-- `OkapiInference` supports four construction modes: `new`, `with_retry_config`, `with_rate_limiting`, `with_circuit_breaker`
+- `OkapiInference` supports three construction modes: `new`, `with_retry_config`, `with_circuit_breaker`
 - Token probabilities (`n_probs`) are enabled by default (5 top tokens) for confidence scoring
 - Anti-normative generation patterns use `generate_n` for multi-output selection
 

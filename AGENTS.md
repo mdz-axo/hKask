@@ -18,7 +18,7 @@
 | **Model Selection** | Switch LLM per-agent via `/model` (CLI) or `model` field (API) |
 | **Essential Tools** | 15 MCP servers + Okapi for inference |
 | **User Sovereignty** | OCAP, SQLCipher encryption, private/public gating |
-| **CNS** | Observability via `cns.*` spans, variety counters, algedonic alerts |
+| **CNS** | Homeostatic self-regulation: variety sensing, algedonic alerts, OCAP governance, energy budgets |
 | **Composition** | Unified registry with `template_type` discriminator |
 
 ---
@@ -30,7 +30,7 @@
 | `hkask-types` | ID types, ν-event, hLexicon |
 | `hkask-storage` | SQLite + SQLCipher + sqlite-vec |
 | `hkask-memory` | Semantic/episodic pipelines |
-| `hkask-cns` | Cybernetic Nervous System (observability) |
+| `hkask-cns` | Cybernetic Nervous System (homeostatic self-regulation) |
 | `hkask-templates` | Registry, hLexicon, cascade |
 | `hkask-agents` | Pods, ACP, bot/replicant |
 | `hkask-ensemble` | Multi-agent chat |
@@ -45,9 +45,9 @@
 
 ---
 
-## CNS — Observability
+## CNS — Cybernetics
 
-When debugging, look for these span namespaces in traces/logs:
+The CNS is the homeostatic self-regulation loop, combining observability + governance into a single cybernetic feedback cycle. When debugging, look for these span namespaces in traces/logs:
 
 | Span | What It Covers |
 |------|---------------|

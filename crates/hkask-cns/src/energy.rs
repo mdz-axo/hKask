@@ -81,6 +81,32 @@ impl EnergyBudget {
         Ok(cost)
     }
 
+    /// Check whether an operation can proceed without consuming energy.
+    ///
+    /// This is the replacement for rate-limit checks: instead of asking
+    /// "am I within my rate window?", ask "do I have enough energy budget?".
+    /// Returns `true` if the estimated cost fits within the remaining budget.
+    pub fn can_proceed(&self, estimated_tokens: u64) -> bool {
+        let cost = self.calculate_cost(estimated_tokens);
+        cost <= self.remaining || !self.hard_limit
+    }
+
+    /// Acquire budget for an operation, consuming energy if available.
+    ///
+    /// Returns `Ok(cost)` if the budget was acquired, `Err` if insufficient.
+    /// This is the atomic check-and-consume: it both checks AND deducts.
+    pub fn acquire_budget(&mut self, estimated_tokens: u64) -> Result<u64, EnergyError> {
+        self.try_consume("acquire_budget", estimated_tokens)
+    }
+
+    /// Replenish energy budget by a given amount.
+    ///
+    /// Energy budgets replenish over time (analogous to rate limit window resets),
+    /// but the replenishment is continuous rather than discretized into windows.
+    pub fn replenish(&mut self, amount: u64) {
+        self.remaining = (self.remaining + amount).min(self.cap);
+    }
+
     pub fn should_alert(&self) -> bool {
         self.usage_ratio() >= self.alert_threshold
     }

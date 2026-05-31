@@ -64,7 +64,7 @@ All 19 traits have at least one real implementation and active `dyn` dispatch ca
 | Trait | Why Removed |
 |---|---|
 | `SovereigntyPort` | Inlined to concrete `SovereigntyChecker` |
-| `RateLimitPort` | Inlined to `RateLimiterAdapter` |
+| `RateLimitPort` | Deleted — rate limiting consolidated into energy budget enforcement (`EnergyBudget.try_consume()`) |
 | `KeystorePort` | Dead — `KeychainAdapter` had no callers |
 | `OCAPPort` | Dead — `OCAPAdapter` had no callers |
 | `ManifestExecutor` | Dead — `ManifestExecutorImpl` is concrete |

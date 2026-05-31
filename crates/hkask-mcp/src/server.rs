@@ -48,7 +48,7 @@
 //! ```
 //!
 //! The factory closure receives a `ServerContext` containing resolved credentials,
-//! a shared rate limiter, an adapter container, and the calling agent's `WebID` —
+//! an adapter container, and the calling agent's `WebID` —
 //! no ambient authority via `std::env::var`. All configuration and identity flows
 //! through the context.
 
@@ -107,7 +107,7 @@ impl CredentialRequirement {
 /// The `webid` field carries the calling agent's identity, derived
 /// from `HKASK_WEBID` (direct UUID) or `HKASK_AGENT_PERSONA` (deterministic
 /// derivation via `WebID::from_persona`). If neither is set, an anonymous
-/// WebID is generated. This enables rate limiting, OCAP gating, and CNS
+/// WebID is generated. This enables energy budget enforcement, OCAP gating, and CNS
 /// attribution without ambient authority.
 pub struct ServerContext {
     /// Resolved credential values, keyed by env var name.
@@ -115,8 +115,6 @@ pub struct ServerContext {
     /// Required credentials are guaranteed to be present; optional ones
     /// may be absent (check with `ctx.credentials.get("KEY")).
     pub credentials: HashMap<String, String>,
-
-    /// Rate limiter from `hkask_cns`.
 
     /// Adapter container for shared adapters (GitCAS, etc.).
     pub adapters: crate::AdapterContainer,
@@ -128,7 +126,7 @@ pub struct ServerContext {
     /// 2. `HKASK_AGENT_PERSONA` — deterministic derivation via `WebID::from_persona`
     /// 3. Anonymous — `WebID::new()` (random UUID)
     ///
-    /// Use this for rate limiting, OCAP gating, and CNS span attribution.
+    /// Use this for energy budget enforcement, OCAP gating, and CNS span attribution.
     pub webid: hkask_types::WebID,
 }
 
@@ -340,6 +338,9 @@ impl McpToolError {
     }
 
     /// Create a rate-limited error.
+    ///
+    /// External API boundary rate limiter — protects MCP servers from external
+    /// client DoS, distinct from internal energy budget tracking.
     pub fn rate_limited(message: impl Into<String>) -> Self {
         Self::new(McpErrorKind::RateLimited, message)
     }

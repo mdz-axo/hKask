@@ -492,8 +492,8 @@ fn run_cns(rt: &tokio::runtime::Runtime, action: CnsAction) {
                 }
             }
             println!();
-            println!("Rate Limiter Status:");
-            println!("  • Default config: 100 requests/min");
+            println!("Energy Budget Status:");
+            println!("  • Model: Energy tracking (subsumes rate limiting)");
             println!("  • Status: OPERATIONAL");
             println!();
             println!("Review Queue Depth:");

@@ -96,6 +96,9 @@ pub enum McpErrorKind {
     /// OCAP capability denied or insufficient permissions.
     PermissionDenied,
     /// Rate limit exceeded (retryable after backoff).
+    ///
+    /// This is an external API boundary rate limiter — it protects MCP servers
+    /// from external client DoS, distinct from internal energy budget tracking.
     RateLimited,
     /// Precondition not met (server not initialized, feature disabled).
     FailedPrecondition,

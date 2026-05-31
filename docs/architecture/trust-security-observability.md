@@ -223,13 +223,11 @@ graph TB
         RT["CnsRuntime<br/>orchestrator"]
         ALG["AlgedonicManager<br/>alert escalation"]
         UVT["UnifiedVarietyTracker<br/>variety + bot metrics + sovereignty + goals"]
-        RL["RateLimiter<br/>token bucket"]
         EN["EnergyBudget<br/>resource tracking"]
     end
 
     RT --> ALG
     RT --> UVT
-    RT --> RL
     RT --> EN
 ```
 
@@ -320,16 +318,14 @@ status: VERIFIED
 - Runtime status (active/degraded/down)
 - Variety counter summary
 - Active algedonic alerts
-- Rate limiter status
+- Energy budget status
 - Review queue depth
 
 **Accessible via:** `kask cns health` (CLI), `GET /api/v1/cns/health` (API), `cns_health()` (MCP)
 
 ### 4.6 Rate Limiting
 
-Token bucket rate limiting prevents resource exhaustion:
-- `CnsTokenBucket` (`rate_limit.rs:32`) — configurable capacity and refill
-- `RateLimiter` (`rate_limit.rs:79`) — per-operation enforcement
+Rate limiting has been consolidated into energy budget enforcement. The `RateLimiter` and `CnsTokenBucket` types have been removed; resource exhaustion is now prevented via `EnergyBudget.try_consume()`, which gates all operations under a unified energy cap. `McpErrorKind::RateLimited` remains for external API HTTP 429 responses where downstream services impose rate limits.
 
 ### 4.7 Energy Budget
 

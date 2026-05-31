@@ -112,3 +112,19 @@ impl EnergyBudgetHandle {
         Ok(())
     }
 }
+
+/// Regulation interface for the Inference Loop.
+///
+/// The Cybernetics Loop uses this to throttle energy allocation
+/// or circuit-break inference when error rates exceed thresholds.
+/// The Curation Loop uses this to adjust energy budgets.
+pub trait InferenceRegulation: Send + Sync {
+    /// Throttle the inference loop's energy allocation.
+    fn throttle_energy(&self, reason: &str, remaining_ratio: f64);
+
+    /// Open or close the inference circuit breaker.
+    fn set_circuit_state(&self, open: bool, reason: &str);
+
+    /// Adjust the energy budget cap.
+    fn adjust_energy_cap(&self, new_cap: u64);
+}

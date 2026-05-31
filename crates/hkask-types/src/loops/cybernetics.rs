@@ -135,3 +135,15 @@ pub enum GovernanceDenial {
     #[error("token has been revoked")]
     TokenRevoked,
 }
+
+/// Regulation interface for the Cybernetics Loop.
+///
+/// Only the Curation Loop holds a `CyberneticsRegulation` reference.
+/// This is the single escalation path for metacognitive override.
+pub trait CyberneticsRegulation: Send + Sync {
+    /// Calibrate a homeostatic set-point.
+    fn calibrate_set_point(&self, metric: &str, new_value: f64);
+
+    /// Override the Cybernetics Loop's current action (cascade halt).
+    fn override_action(&self, action_id: &str, reason: &str);
+}

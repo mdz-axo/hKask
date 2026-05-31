@@ -3,7 +3,7 @@
 //! Provides:
 //! - MCP runtime for server management
 //! - Capability-based dispatch with OCP
-//! - Security gateway with rate limiting
+//! - Security gateway with energy budget enforcement
 //! - Audit logging
 //! - Tool discovery and metadata
 //! - Adapter container for shared adapter lifecycle

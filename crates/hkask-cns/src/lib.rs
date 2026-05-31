@@ -1,10 +1,11 @@
 //! hKask CNS — Cybernetic Nervous System
 //!
-//! Minimal observability: variety counting, algedonic alerts, energy budgets.
-//! Per Ashby's Law of Requisite Variety.
+//! Homeostatic self-regulation: variety sensing, algedonic alerts, energy budgets,
+//! OCAP governance, sovereignty enforcement. Per Ashby's Law of Requisite Variety.
 
 pub mod algedonic;
 pub mod bot_metrics;
+pub mod cybernetics_loop;
 pub mod energy;
 pub mod observers;
 pub mod runtime;
@@ -16,6 +17,7 @@ pub use algedonic::{
     RuntimeAlert,
 };
 pub use bot_metrics::{BotEvaluationMetrics, BotHealthStatus, CapabilityGap, GapType};
+pub use cybernetics_loop::{CyberneticsLoop, SetPoints};
 pub use energy::{EnergyAccount, EnergyBudget, EnergyError, OpportunityCost};
 pub use observers::sovereignty::{
     SovereigntyEvent, SovereigntyEventType, SovereigntyObserverState,

@@ -109,3 +109,29 @@ pub enum CuratorDirective {
     AdjustEnergyBudget { agent: WebID, new_budget: u64 },
 }
 
+/// Regulation interface for the Curation/Metacognition Loop.
+///
+/// The Cybernetics Loop signals algedonic alerts to Curation.
+/// Curation is the ONLY loop that can regulate the Cybernetics Loop
+/// (metacognitive override).
+pub trait CurationRegulation: Send + Sync {
+    /// Receive an algedonic alert escalation from the Cybernetics Loop.
+    fn receive_alert(&self, alert: &CurationAlertSignal);
+
+    /// Metacognitive override — the Curation Loop intervenes when
+    /// the Cybernetics Loop becomes unstable (e.g., alert cascade).
+    fn metacognitive_override(&self, target: crate::loops::LoopId, reason: &str);
+}
+
+/// Signal from Cybernetics to Curation carrying an algedonic alert.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CurationAlertSignal {
+    /// Domain where the deficit was detected
+    pub domain: String,
+    /// Current deficit value
+    pub deficit: u64,
+    /// Threshold that was exceeded
+    pub threshold: u64,
+    /// Recommended action
+    pub recommendation: String,
+}

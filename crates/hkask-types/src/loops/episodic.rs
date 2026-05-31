@@ -236,3 +236,15 @@ pub struct EpisodicBudgetExceeded {
     pub requested: u32,
     pub budget: u32,
 }
+
+/// Regulation interface for the Episodic Memory Loop.
+///
+/// The Cybernetics Loop uses this to throttle episodic storage
+/// when storage budgets are exhausted.
+pub trait EpisodicRegulation: Send + Sync {
+    /// Throttle episodic storage rate.
+    fn throttle_storage(&self, reason: &str);
+
+    /// Adjust the per-agent storage budget.
+    fn adjust_storage_budget(&self, agent: WebID, new_budget: u32);
+}

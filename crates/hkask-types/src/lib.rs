@@ -54,10 +54,13 @@ pub use id::*;
 pub use identity::*;
 pub use lexicon::{Domain, HLexicon, LexiconTerm, TemplateType};
 pub use loops::{
-    ControlPrimitive, CuratorHandle, CyberneticsHandle, DataVisibilityTier, EnergyBudgetHandle,
-    EpisodicBudgetExceeded, EpisodicReadHandle, EpisodicWriteHandle, ExperienceClassification,
-    GovernanceDenial, InferenceBudgetExceeded, InferenceHandle, LoopId, LoopMessage, LoopOrigin,
-    LoopPayload, MessagePriority,
+    ActionType, CommunicationRegulation, ControlPrimitive, CurationAlertSignal, CurationRegulation,
+    CuratorHandle, CyberneticsHandle, CyberneticsRegulation, DataVisibilityTier, Deviation,
+    DeviationDirection, EnergyBudgetHandle, EpisodicBudgetExceeded, EpisodicReadHandle,
+    EpisodicRegulation, EpisodicWriteHandle, ExperienceClassification, GovernanceDenial, HkaskLoop,
+    InferenceBudgetExceeded, InferenceHandle, InferenceRegulation, LoopAction, LoopId, LoopMessage,
+    LoopOrigin, LoopPayload, MessagePriority, Regulatable, SemanticReadHandle, SemanticRegulation,
+    SemanticWriteHandle, Signal,
 };
 pub use ports::GitCASPort;
 pub use r7::{R7BotIdentity, R7BotRegistry, default_r7_bots};

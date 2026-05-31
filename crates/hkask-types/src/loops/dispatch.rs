@@ -298,3 +298,15 @@ impl LoopMessage {
         self.target_loop.is_some()
     }
 }
+
+/// Regulation interface for the Communication Loop.
+///
+/// The Cybernetics Loop uses this to throttle connector I/O
+/// when latency exceeds the envelope.
+pub trait CommunicationRegulation: Send + Sync {
+    /// Throttle a connector's request rate.
+    fn throttle_connector(&self, connector_id: &str, reason: &str);
+
+    /// Adjust retry policy for a connector.
+    fn adjust_retry_policy(&self, connector_id: &str, max_retries: u32);
+}

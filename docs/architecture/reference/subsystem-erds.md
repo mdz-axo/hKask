@@ -481,7 +481,6 @@ erDiagram
 
     McpDispatcher }o--|| McpRuntime : "discovers_via"
     McpDispatcher }o--|| CapabilityChecker : "validates_via"
-    McpDispatcher }o--|| RateLimiter : "throttles_via"
 
     SecurityGateway ||--|| SecurityPolicy : "enforces"
     SecurityGateway ||--o{ AuditEntry : "logs"
@@ -515,7 +514,6 @@ erDiagram
     McpDispatcher {
         McpRuntime runtime
         CapabilityChecker capability_checker
-        RateLimiter rate_limiter
         map bot_capabilities
         McpMcpRetryConfig retry_config
     }
@@ -525,7 +523,6 @@ erDiagram
         set allowed_tools
         set denied_tools
         bool require_capabilities
-        bool enable_rate_limiting
     }
 
     AuditEntry {
@@ -563,8 +560,6 @@ erDiagram
     ApiState }o--|| McpRuntime : "tools"
     ApiState }o--|| PodManager : "pods"
     ApiState }o--|| CapabilityChecker : "capabilities"
-    ApiState }o--|| SpanEmitter : "observability"
-    ApiState }o--|| RateLimiter : "throttling"
     ApiState }o--o| OkapiHttpClient : "inference"
     ApiState }o--o| SpecStore : "specs"
 
@@ -586,7 +581,6 @@ erDiagram
         Arc capability_checker
         WebID system_webid
         Arc cns_emitter
-        Arc rate_limiter
         Arc ensemble_inferencer
         Arc spec_store
     }
@@ -843,7 +837,6 @@ erDiagram
     SovereigntyObserverState ||--o{ SovereigntyEvent : "records"
 
     GoalVarietyMonitor ||--o{ GoalVarietyCounter : "per_webid"
-    RateLimiter ||--o{ CnsTokenBucket : "per_webid"
     ReviewQueue ||--o{ Violation : "queues"
 
     SpanEmitter {
@@ -912,7 +905,7 @@ erDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-SUBSYS-010
 verified_date: 2026-05-24
-verified_against: crates/hkask-cns/src/spans.rs; crates/hkask-cns/src/algedonic.rs; crates/hkask-cns/src/variety.rs; crates/hkask-cns/src/energy.rs; crates/hkask-cns/src/runtime.rs; crates/hkask-cns/src/rate_limit.rs; crates/hkask-cns/src/review_queue.rs; crates/hkask-cns/src/observers/composition.rs; crates/hkask-cns/src/observers/sovereignty.rs; crates/hkask-cns/src/goal_variety.rs
+verified_against: crates/hkask-cns/src/spans.rs; crates/hkask-cns/src/algedonic.rs; crates/hkask-cns/src/variety.rs; crates/hkask-cns/src/energy.rs; crates/hkask-cns/src/runtime.rs; crates/hkask-cns/src/review_queue.rs; crates/hkask-cns/src/observers/composition.rs; crates/hkask-cns/src/observers/sovereignty.rs; crates/hkask-cns/src/goal_variety.rs
 status: VERIFIED
 -->
 
@@ -947,7 +940,6 @@ erDiagram
     CascadeContext ||--|| CascadeLimits : "bounded_by"
 
     OkapiInference ||--o| CircuitBreaker : "protected_by"
-    OkapiInference ||--o| RateLimiter : "throttled_by"
     OkapiInference ||--|| SpanEmitter : "observes_via"
 
     ContractValidator ||--|| OkapiCapabilities : "checks_against"

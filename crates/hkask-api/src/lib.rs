@@ -72,7 +72,6 @@ pub struct ApiState {
     /// System WebID for signing capabilities
     pub system_webid: WebID,
     /// CNS span emitter for audit trail
-    /// Rate limiter for API endpoints
     /// Ensemble inferencer (optional - for Russell SOAP inference)
     pub ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::OkapiClient>>,
     /// Spec store for DDMVSS specifications

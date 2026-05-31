@@ -107,6 +107,8 @@ pub struct InferenceMetrics {
     pub total_tokens_generated: AtomicU64,
     pub total_errors: AtomicU64,
     pub total_failovers: AtomicU64,
+    /// External API boundary rate limit counter (per-caller token bucket).
+    /// Distinct from internal energy budget tracking.
     pub total_rate_limited: AtomicU64,
 }
 
@@ -127,6 +129,8 @@ pub struct InferenceServer {
     webid: WebID,
     metrics: Arc<InferenceMetrics>,
     active_models: Arc<RwLock<Vec<String>>>,
+    /// Per-caller token bucket rate limiter (external API boundary protection).
+    /// Distinct from internal energy budget tracking.
     rate_buckets: Arc<RwLock<HashMap<String, RateBucket>>>,
 }
 

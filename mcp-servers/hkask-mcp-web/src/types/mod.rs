@@ -158,6 +158,8 @@ pub enum WebError {
     ProviderUnavailable(String),
     #[error("Provider error: {0}")]
     ProviderError(String),
+    /// External API boundary rate limit (HTTP 429 from upstream providers).
+    /// Distinct from internal energy budget tracking.
     #[error("Rate limited: {0}")]
     RateLimited(String),
     #[error("No provider available")]

@@ -161,3 +161,15 @@ impl SemanticWriteHandle {
         matches!(category, DataCategory::SemanticMemory)
     }
 }
+
+/// Regulation interface for the Semantic Memory Loop.
+///
+/// The Cybernetics Loop uses this to throttle semantic indexing
+/// when embedding costs exceed energy budgets.
+pub trait SemanticRegulation: Send + Sync {
+    /// Throttle semantic indexing rate.
+    fn throttle_indexing(&self, reason: &str);
+
+    /// Adjust the per-entity storage budget.
+    fn adjust_storage_budget(&self, new_budget: u32);
+}
