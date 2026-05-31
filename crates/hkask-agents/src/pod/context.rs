@@ -40,7 +40,7 @@ pub struct PodContext {
     /// Semantic memory storage — shared, public knowledge (OCAP: SemanticReadHandle/SemanticWriteHandle)
     semantic_storage: Arc<dyn SemanticStoragePort>,
     mcp_runtime: Arc<dyn MCPRuntimePort>,
-    cns_emitter: Arc<hkask_cns::CnsRuntime + Send + Sync>,
+    cns_runtime: Arc<hkask_cns::CnsRuntime>,
     /// Legacy memory storage (deprecated — use episodic_storage/semantic_storage)
     #[allow(deprecated)]
     memory_storage: Arc<dyn MemoryStoragePort>,
@@ -67,7 +67,7 @@ impl PodContext {
             episodic_storage: Arc::clone(&manager.episodic_storage),
             semantic_storage: Arc::clone(&manager.semantic_storage),
             mcp_runtime: Arc::clone(&manager.mcp_runtime),
-            cns_emitter: Arc::clone(&manager.cns_emitter),
+            cns_runtime: Arc::clone(&manager.cns_runtime),
             #[allow(deprecated)]
             memory_storage: Arc::clone(&manager.memory_storage),
         })
@@ -360,16 +360,16 @@ impl PodContext {
     }
 
     pub fn emit_span(&self, span_type: &str, action: &str, data: serde_json::Value) {
-        self.cns_emitter.emit_event(
-            span_type,
-            "action",
-            &serde_json::json!({
-                "pod_id": self.pod_id.to_string(),
-                "webid": self.webid.to_string(),
-                "action": action,
-                "data": data,
-            }),
-            1.0,
+        tracing::debug!(
+            target: "cns.pod",
+            span = span_type,
+            verb = "action",
+            pod_id = %self.pod_id,
+            webid = %self.webid,
+            action = action,
+            ?data,
+            confidence = 1.0,
+            "CNS event"
         );
     }
 }

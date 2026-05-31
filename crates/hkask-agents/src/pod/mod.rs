@@ -28,7 +28,6 @@
 //! use hkask_agents::pod::{AgentPod, AgentPersona, PodLifecycleState};
 //! use hkask_agents::adapters::git_cas::GitCasAdapter;
 //! use hkask_agents::acp::AcpRuntime;
-//! use hkask_agents::adapters::cns_emitter::CnsEmitterAdapter;
 //! use hkask_agents::adapters::mcp_runtime::McpRuntimeAdapter;
 //! use hkask_types::WebID;
 //! use std::sync::Arc;
@@ -36,7 +35,6 @@
 //! // Create adapters
 //! let git_adapter = GitCasAdapter::from_path(std::path::PathBuf::from("/tmp/hkask-templates"));
 //! let acp_runtime = Arc::new(AcpRuntime::default());
-//! let cns_emitter = CnsEmitterAdapter::new(WebID::new());
 //! let mcp_runtime = McpRuntimeAdapter::new();
 //!
 //! // Create a simple persona YAML
@@ -48,8 +46,8 @@
 //!
 //! let persona = AgentPersona::from_yaml(yaml_str)?;
 //! let mut pod = AgentPod::new("test-bot", &persona, &git_adapter)?;
-//! pod.register(acp_runtime.as_ref(), &cns_emitter).await?;
-//! pod.activate(&mcp_runtime, &cns_emitter)?;
+//! pod.register(acp_runtime.as_ref()).await?;
+//! pod.activate(&mcp_runtime)?;
 //! # Ok(())
 //! # }
 //! ```
@@ -233,16 +231,11 @@ impl AgentPod {
     ///
     /// # Arguments
     /// * `acp` — ACP runtime port for agent registration
-    /// * `cns` — CNS span emitter for lifecycle events
     ///
     /// # Returns
     /// * `Ok(())` — Registration successful
     /// * `Err(AgentPodError)` — ACP registration failed
-    pub async fn register(
-        &mut self,
-        acp: &dyn crate::ports::AcpPort,
-        cns: &CnsRuntime,
-    ) -> AgentPodResult<()> {
+    pub async fn register(&mut self, acp: &dyn crate::ports::AcpPort) -> AgentPodResult<()> {
         if !self.state.can_transition_to(PodLifecycleState::Registered) {
             return Err(AgentPodError::InvalidStateTransition(
                 self.state,
@@ -261,15 +254,15 @@ impl AgentPod {
         self.state = PodLifecycleState::Registered;
         self.record_lifecycle_event(PodLifecycleState::Registered);
 
-        cns.emit_event(
-            "cns.agent_pod.registered",
-            "registered",
-            &serde_json::json!({
-                "pod_id": self.id.to_string(),
-                "webid": self.webid.to_string(),
-                "agent_type": self.agent_type.to_string(),
-            }),
-            1.0,
+        tracing::debug!(
+            target: "cns.pod",
+            span = "cns.agent_pod.registered",
+            verb = "registered",
+            pod_id = %self.id,
+            webid = %self.webid,
+            agent_type = %self.agent_type,
+            confidence = 1.0,
+            "CNS event"
         );
 
         info!("Agent pod {} registered with ACP", self.id);
@@ -282,16 +275,11 @@ impl AgentPod {
     ///
     /// # Arguments
     /// * `mcp` — MCP runtime port for tool access grants
-    /// * `cns` — CNS span emitter for lifecycle events
     ///
     /// # Returns
     /// * `Ok(())` — Activation successful
     /// * `Err(AgentPodError)` — MCP access grant failed
-    pub fn activate(
-        &mut self,
-        mcp: &dyn crate::ports::MCPRuntimePort,
-        cns: &CnsRuntime,
-    ) -> AgentPodResult<()> {
+    pub fn activate(&mut self, mcp: &dyn crate::ports::MCPRuntimePort) -> AgentPodResult<()> {
         if !self.state.can_transition_to(PodLifecycleState::Activated) {
             return Err(AgentPodError::InvalidStateTransition(
                 self.state,
@@ -305,15 +293,15 @@ impl AgentPod {
         self.state = PodLifecycleState::Activated;
         self.record_lifecycle_event(PodLifecycleState::Activated);
 
-        cns.emit_event(
-            "cns.agent_pod.activated",
-            "activated",
-            &serde_json::json!({
-                "pod_id": self.id.to_string(),
-                "webid": self.webid.to_string(),
-                "mcp_access": true,
-            }),
-            1.0,
+        tracing::debug!(
+            target: "cns.pod",
+            span = "cns.agent_pod.activated",
+            verb = "activated",
+            pod_id = %self.id,
+            webid = %self.webid,
+            mcp_access = true,
+            confidence = 1.0,
+            "CNS event"
         );
 
         info!("Agent pod {} activated for A2A communication", self.id);
@@ -324,12 +312,9 @@ impl AgentPod {
     ///
     /// Transitions state: `Activated` → `Deactivated`
     ///
-    /// # Arguments
-    /// * `cns` — CNS span emitter for lifecycle events
-    ///
     /// # Returns
     /// * `Ok(())` — Deactivation successful
-    pub fn deactivate(&mut self, cns: &CnsRuntime) -> AgentPodResult<()> {
+    pub fn deactivate(&mut self) -> AgentPodResult<()> {
         if !self.state.can_transition_to(PodLifecycleState::Deactivated) {
             return Err(AgentPodError::InvalidStateTransition(
                 self.state,
@@ -340,15 +325,15 @@ impl AgentPod {
         self.state = PodLifecycleState::Deactivated;
         self.record_lifecycle_event(PodLifecycleState::Deactivated);
 
-        cns.emit_event(
-            "cns.agent_pod.deactivated",
-            "deactivated",
-            &serde_json::json!({
-                "pod_id": self.id.to_string(),
-                "webid": self.webid.to_string(),
-                "capabilities_revoked": true,
-            }),
-            1.0,
+        tracing::debug!(
+            target: "cns.pod",
+            span = "cns.agent_pod.deactivated",
+            verb = "deactivated",
+            pod_id = %self.id,
+            webid = %self.webid,
+            capabilities_revoked = true,
+            confidence = 1.0,
+            "CNS event"
         );
 
         info!("Agent pod {} deactivated", self.id);

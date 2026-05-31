@@ -2245,7 +2245,6 @@ dependencies = [
  "chrono",
  "ed25519-dalek",
  "hex",
- "hkask-cns",
  "hkask-mcp",
  "hkask-types",
  "rand 0.8.6",

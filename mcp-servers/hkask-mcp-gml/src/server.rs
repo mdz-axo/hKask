@@ -1,8 +1,7 @@
 //! GML MCP Server — tool handlers for allosteric thinking operations
 
-use hkask_cns::spans::SpanEmitter;
 use hkask_mcp::server::{McpToolError, McpToolOutput, ToolSpanGuard, validate_identifier};
-use hkask_types::{McpErrorKind, Phase, Span, WebID};
+use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use serde_json::json;
 use std::sync::Arc;
@@ -14,7 +13,6 @@ use crate::types::*;
 
 pub struct GmlServer {
     capability_manager: Arc<RwLock<Option<CapabilityManager>>>,
-    cns_emitter: SpanEmitter,
     webid: WebID,
 }
 
@@ -22,7 +20,6 @@ impl GmlServer {
     pub fn new(webid: WebID) -> anyhow::Result<Self> {
         Ok(Self {
             capability_manager: Arc::new(RwLock::new(None)),
-            cns_emitter: SpanEmitter::new(webid),
             webid,
         })
     }
@@ -50,13 +47,16 @@ impl GmlServer {
     ) -> String {
         let span = ToolSpanGuard::new("gml_compute_equilibrium", &self.webid);
 
-        self.cns_emitter.emit_with_phase(
-            Span::prompt("compute_equilibrium.start"),
-            Phase::Observe,
-            serde_json::json!({
+        tracing::debug!(
+            target: "cns.mcp",
+            span = "cns.prompt.compute_equilibrium.start",
+            verb = "observe",
+            payload = ?serde_json::json!({
                 "concept": concept.name,
                 "effectors_count": effectors.as_ref().map(|e| e.len()).unwrap_or(0)
             }),
+            confidence = 1.0,
+            "CNS event"
         );
 
         if let Some(token) = &capability {
@@ -71,13 +71,16 @@ impl GmlServer {
 
                 match verification {
                     Ok(result) if !result.valid => {
-                        self.cns_emitter.emit_with_phase(
-                            Span::prompt("compute_equilibrium.error"),
-                            Phase::Observe,
-                            serde_json::json!({
+                        tracing::debug!(
+                            target: "cns.mcp",
+                            span = "cns.prompt.compute_equilibrium.error",
+                            verb = "observe",
+                            payload = ?serde_json::json!({
                                 "reason": "capability_denied",
                                 "error": result.error
                             }),
+                            confidence = 1.0,
+                            "CNS event"
                         );
                         return span.error(
                             McpErrorKind::PermissionDenied,
@@ -89,13 +92,16 @@ impl GmlServer {
                         );
                     }
                     Err(e) => {
-                        self.cns_emitter.emit_with_phase(
-                            Span::prompt("compute_equilibrium.error"),
-                            Phase::Observe,
-                            serde_json::json!({
+                        tracing::debug!(
+                            target: "cns.mcp",
+                            span = "cns.prompt.compute_equilibrium.error",
+                            verb = "observe",
+                            payload = ?serde_json::json!({
                                 "reason": "verification_failed",
                                 "error": e.to_string()
                             }),
+                            confidence = 1.0,
+                            "CNS event"
                         );
                         return span.error(
                             McpErrorKind::Internal,
@@ -123,14 +129,17 @@ impl GmlServer {
         match result {
             Ok((r_bar, n_h, alpha)) => {
                 let delta_g = MwcEngine::compute_delta_g(r_bar, 298.0);
-                self.cns_emitter.emit_with_phase(
-                    Span::prompt("compute_equilibrium.success"),
-                    Phase::Observe,
-                    serde_json::json!({
+                tracing::debug!(
+                    target: "cns.mcp",
+                    span = "cns.prompt.compute_equilibrium.success",
+                    verb = "observe",
+                    payload = ?serde_json::json!({
                         "r_bar": r_bar,
                         "n_h": n_h,
                         "delta_g": delta_g
                     }),
+                    confidence = 1.0,
+                    "CNS event"
                 );
                 span.ok(McpToolOutput::new(json!({
                     "success": true,
@@ -142,13 +151,16 @@ impl GmlServer {
                 .to_json_string())
             }
             Err(e) => {
-                self.cns_emitter.emit_with_phase(
-                    Span::prompt("compute_equilibrium.error"),
-                    Phase::Observe,
-                    serde_json::json!({
+                tracing::debug!(
+                    target: "cns.mcp",
+                    span = "cns.prompt.compute_equilibrium.error",
+                    verb = "observe",
+                    payload = ?serde_json::json!({
                         "reason": "computation_failed",
                         "error": e.to_string()
                     }),
+                    confidence = 1.0,
+                    "CNS event"
                 );
                 span.error(
                     McpErrorKind::InvalidArgument,
@@ -170,14 +182,17 @@ impl GmlServer {
     ) -> String {
         let span = ToolSpanGuard::new("gml_bind_effector", &self.webid);
 
-        self.cns_emitter.emit_with_phase(
-            Span::prompt("bind_effector.start"),
-            Phase::Observe,
-            serde_json::json!({
+        tracing::debug!(
+            target: "cns.mcp",
+            span = "cns.prompt.bind_effector.start",
+            verb = "observe",
+            payload = ?serde_json::json!({
                 "concept": concept.name,
                 "effector": effector.name,
                 "port_index": port_index
             }),
+            confidence = 1.0,
+            "CNS event"
         );
 
         self.init_capability_manager().await.unwrap();
@@ -192,13 +207,16 @@ impl GmlServer {
 
                 match verification {
                     Ok(result) if !result.valid => {
-                        self.cns_emitter.emit_with_phase(
-                            Span::prompt("bind_effector.error"),
-                            Phase::Observe,
-                            serde_json::json!({
+                        tracing::debug!(
+                            target: "cns.mcp",
+                            span = "cns.prompt.bind_effector.error",
+                            verb = "observe",
+                            payload = ?serde_json::json!({
                                 "reason": "capability_denied",
                                 "error": result.error
                             }),
+                            confidence = 1.0,
+                            "CNS event"
                         );
                         return span.error(
                             McpErrorKind::PermissionDenied,
@@ -210,13 +228,16 @@ impl GmlServer {
                         );
                     }
                     Err(e) => {
-                        self.cns_emitter.emit_with_phase(
-                            Span::prompt("bind_effector.error"),
-                            Phase::Observe,
-                            serde_json::json!({
+                        tracing::debug!(
+                            target: "cns.mcp",
+                            span = "cns.prompt.bind_effector.error",
+                            verb = "observe",
+                            payload = ?serde_json::json!({
                                 "reason": "verification_failed",
                                 "error": e.to_string()
                             }),
+                            confidence = 1.0,
+                            "CNS event"
                         );
                         return span.error(
                             McpErrorKind::Internal,
@@ -233,14 +254,17 @@ impl GmlServer {
                 match mgr.check_effector_budget(token, effector.concentration) {
                     Ok(true) => {}
                     Ok(false) => {
-                        self.cns_emitter.emit_with_phase(
-                            Span::prompt("bind_effector.error"),
-                            Phase::Observe,
-                            serde_json::json!({
+                        tracing::debug!(
+                            target: "cns.mcp",
+                            span = "cns.prompt.bind_effector.error",
+                            verb = "observe",
+                            payload = ?serde_json::json!({
                                 "reason": "budget_exceeded",
                                 "concentration": effector.concentration,
                                 "budget": token.effector_budget.unwrap()
                             }),
+                            confidence = 1.0,
+                            "CNS event"
                         );
                         return span.error(
                             McpErrorKind::PermissionDenied,
@@ -253,13 +277,16 @@ impl GmlServer {
                         );
                     }
                     Err(e) => {
-                        self.cns_emitter.emit_with_phase(
-                            Span::prompt("bind_effector.error"),
-                            Phase::Observe,
-                            serde_json::json!({
+                        tracing::debug!(
+                            target: "cns.mcp",
+                            span = "cns.prompt.bind_effector.error",
+                            verb = "observe",
+                            payload = ?serde_json::json!({
                                 "reason": "budget_check_failed",
                                 "error": e.to_string()
                             }),
+                            confidence = 1.0,
+                            "CNS event"
                         );
                         return span.error(
                             McpErrorKind::Internal,
@@ -268,12 +295,15 @@ impl GmlServer {
                     }
                 }
             } else {
-                self.cns_emitter.emit_with_phase(
-                    Span::prompt("bind_effector.error"),
-                    Phase::Observe,
-                    serde_json::json!({
+                tracing::debug!(
+                    target: "cns.mcp",
+                    span = "cns.prompt.bind_effector.error",
+                    verb = "observe",
+                    payload = ?serde_json::json!({
                         "reason": "capability_missing"
                     }),
+                    confidence = 1.0,
+                    "CNS event"
                 );
                 return span.error(
                     McpErrorKind::PermissionDenied,
@@ -283,14 +313,17 @@ impl GmlServer {
         }
 
         if port_index >= concept.ports.len() {
-            self.cns_emitter.emit_with_phase(
-                Span::prompt("bind_effector.error"),
-                Phase::Observe,
-                serde_json::json!({
+            tracing::debug!(
+                target: "cns.mcp",
+                span = "cns.prompt.bind_effector.error",
+                verb = "observe",
+                payload = ?serde_json::json!({
                     "reason": "invalid_port_index",
                     "provided": port_index,
                     "max": concept.ports.len() - 1
                 }),
+                confidence = 1.0,
+                "CNS event"
             );
             return span.error(
                 McpErrorKind::InvalidArgument,
@@ -304,14 +337,17 @@ impl GmlServer {
 
         let port = &concept.ports[port_index];
         if port.effector_shape != effector.shape {
-            self.cns_emitter.emit_with_phase(
-                Span::prompt("bind_effector.error"),
-                Phase::Observe,
-                serde_json::json!({
+            tracing::debug!(
+                target: "cns.mcp",
+                span = "cns.prompt.bind_effector.error",
+                verb = "observe",
+                payload = ?serde_json::json!({
                     "reason": "shape_mismatch",
                     "port_shape": port.effector_shape,
                     "effector_shape": effector.shape
                 }),
+                confidence = 1.0,
+                "CNS event"
             );
             return span.error(
                 McpErrorKind::InvalidArgument,
@@ -328,10 +364,11 @@ impl GmlServer {
 
         match result {
             Ok((r_bar, n_h, alpha)) => {
-                self.cns_emitter.emit_with_phase(
-                    Span::prompt("bind_effector.success"),
-                    Phase::Observe,
-                    serde_json::json!({
+                tracing::debug!(
+                    target: "cns.mcp",
+                    span = "cns.prompt.bind_effector.success",
+                    verb = "observe",
+                    payload = ?serde_json::json!({
                         "bound": true,
                         "port": port.name,
                         "effector": effector.name,
@@ -339,6 +376,8 @@ impl GmlServer {
                         "n_h": n_h,
                         "alpha": alpha
                     }),
+                    confidence = 1.0,
+                    "CNS event"
                 );
                 span.ok(McpToolOutput::new(json!({
                     "success": true,
@@ -352,13 +391,16 @@ impl GmlServer {
                 .to_json_string())
             }
             Err(e) => {
-                self.cns_emitter.emit_with_phase(
-                    Span::prompt("bind_effector.error"),
-                    Phase::Observe,
-                    serde_json::json!({
+                tracing::debug!(
+                    target: "cns.mcp",
+                    span = "cns.prompt.bind_effector.error",
+                    verb = "observe",
+                    payload = ?serde_json::json!({
                         "reason": "computation_failed",
                         "error": e.to_string()
                     }),
+                    confidence = 1.0,
+                    "CNS event"
                 );
                 span.error(
                     McpErrorKind::InvalidArgument,
@@ -382,14 +424,17 @@ impl GmlServer {
             return span.error(e.kind, e.to_json_string());
         }
 
-        self.cns_emitter.emit_with_phase(
-            Span::prompt("create_capability.start"),
-            Phase::Observe,
-            serde_json::json!({
+        tracing::debug!(
+            target: "cns.mcp",
+            span = "cns.prompt.create_capability.start",
+            verb = "observe",
+            payload = ?serde_json::json!({
                 "issuer": request.issuer,
                 "subject": request.subject,
                 "operations": request.operations
             }),
+            confidence = 1.0,
+            "CNS event"
         );
 
         self.init_capability_manager().await.unwrap();
@@ -397,13 +442,16 @@ impl GmlServer {
 
         match manager.as_ref().unwrap().create_capability(request) {
             Ok(token) => {
-                self.cns_emitter.emit_with_phase(
-                    Span::prompt("create_capability.success"),
-                    Phase::Observe,
-                    serde_json::json!({
+                tracing::debug!(
+                    target: "cns.mcp",
+                    span = "cns.prompt.create_capability.success",
+                    verb = "observe",
+                    payload = ?serde_json::json!({
                         "token_id": token.id,
                         "expires_at": token.expires_at
                     }),
+                    confidence = 1.0,
+                    "CNS event"
                 );
                 span.ok(McpToolOutput::new(json!({
                     "success": true,
@@ -416,13 +464,16 @@ impl GmlServer {
                 .to_json_string())
             }
             Err(e) => {
-                self.cns_emitter.emit_with_phase(
-                    Span::prompt("create_capability.error"),
-                    Phase::Observe,
-                    serde_json::json!({
+                tracing::debug!(
+                    target: "cns.mcp",
+                    span = "cns.prompt.create_capability.error",
+                    verb = "observe",
+                    payload = ?serde_json::json!({
                         "reason": "creation_failed",
                         "error": e.to_string()
                     }),
+                    confidence = 1.0,
+                    "CNS event"
                 );
                 span.error(
                     McpErrorKind::Internal,
@@ -447,14 +498,17 @@ impl GmlServer {
             return span.error(e.kind, e.to_json_string());
         }
 
-        self.cns_emitter.emit_with_phase(
-            Span::prompt("verify_capability.start"),
-            Phase::Observe,
-            serde_json::json!({
+        tracing::debug!(
+            target: "cns.mcp",
+            span = "cns.prompt.verify_capability.start",
+            verb = "observe",
+            payload = ?serde_json::json!({
                 "token_id": token.id,
                 "operation": operation,
                 "scope": scope
             }),
+            confidence = 1.0,
+            "CNS event"
         );
 
         self.init_capability_manager().await.unwrap();
@@ -469,14 +523,17 @@ impl GmlServer {
                 scope,
             }) {
             Ok(verification) => {
-                self.cns_emitter.emit_with_phase(
-                    Span::prompt("verify_capability.outcome"),
-                    Phase::Observe,
-                    serde_json::json!({
+                tracing::debug!(
+                    target: "cns.mcp",
+                    span = "cns.prompt.verify_capability.outcome",
+                    verb = "observe",
+                    payload = ?serde_json::json!({
                         "valid": verification.valid,
                         "token_id": verification.token_id,
                         "error": verification.error
                     }),
+                    confidence = 1.0,
+                    "CNS event"
                 );
                 span.ok(McpToolOutput::new(json!({
                     "valid": verification.valid,
@@ -488,13 +545,16 @@ impl GmlServer {
                 .to_json_string())
             }
             Err(e) => {
-                self.cns_emitter.emit_with_phase(
-                    Span::prompt("verify_capability.error"),
-                    Phase::Observe,
-                    serde_json::json!({
+                tracing::debug!(
+                    target: "cns.mcp",
+                    span = "cns.prompt.verify_capability.error",
+                    verb = "observe",
+                    payload = ?serde_json::json!({
                         "reason": "verification_failed",
                         "error": e.to_string()
                     }),
+                    confidence = 1.0,
+                    "CNS event"
                 );
                 span.error(
                     McpErrorKind::Internal,

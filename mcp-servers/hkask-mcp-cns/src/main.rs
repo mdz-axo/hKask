@@ -1,23 +1,21 @@
 //! hKask MCP CNS — Cybernetic Nervous System monitoring and alerts
 //!
 //! Starts an MCP server over stdio exposing 6 tools:
-//! - `cns_emit` — Emit a CNS observation event via real SpanEmitter
+//! - `cns_emit` — Emit a CNS observation event
 //! - `cns_variety` — Get variety count for a span pattern
 //! - `cns_alert` — Trigger a real algedonic alert
 //! - `cns_calibrate` — Calibrate a span threshold
 //! - `cns_list_alerts` — List active algedonic alerts
 //! - `cns_health` — Get CNS health status
 
-use hkask_cns::{CnsRuntime, DEFAULT_THRESHOLD, SpanEmitter};
+use hkask_cns::{CnsRuntime, DEFAULT_THRESHOLD};
 use hkask_mcp::server::{McpToolOutput, ToolSpanGuard, validate_identifier};
 use hkask_types::WebID;
-use hkask_types::event::{Phase, Span, SpanCategory};
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use std::sync::Arc;
-use tokio::sync::RwLock;
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct EmitRequest {
@@ -51,7 +49,6 @@ pub struct ListAlertsRequest {
 
 pub struct CnsServer {
     runtime: Arc<CnsRuntime>,
-    emitter: Arc<RwLock<SpanEmitter>>,
     threshold: u64,
     webid: WebID,
 }
@@ -61,49 +58,18 @@ impl CnsServer {
         let threshold = threshold.unwrap_or(DEFAULT_THRESHOLD);
 
         let runtime = CnsRuntime::with_threshold(threshold);
-        let observer_webid = WebID::new();
-        let emitter = SpanEmitter::new(observer_webid);
 
         Self {
             runtime: Arc::new(runtime),
-            emitter: Arc::new(RwLock::new(emitter)),
             threshold,
             webid,
-        }
-    }
-
-    fn parse_span(raw: &str) -> Span {
-        let category = raw
-            .split_once('.')
-            .and_then(|(prefix, _rest)| match prefix {
-                "cns.connector" => Some(SpanCategory::Connector),
-                "cns.pipeline" => Some(SpanCategory::Pipeline),
-                "cns.tool" => Some(SpanCategory::Tool),
-                "cns.prompt" => Some(SpanCategory::Prompt),
-                "cns.agent_pod" => Some(SpanCategory::AgentPod),
-                "cns.energy" => Some(SpanCategory::Energy),
-                "cns.sovereignty" => Some(SpanCategory::Sovereignty),
-                "cns.goal" => Some(SpanCategory::Goal),
-                "cns.review" => Some(SpanCategory::Review),
-                "cns.spec" => Some(SpanCategory::Spec),
-                "cns.curation" => Some(SpanCategory::Curation),
-                "cns.variety" => Some(SpanCategory::Variety),
-                "cns.killzone" => Some(SpanCategory::KillZone),
-                "cns.template" => Some(SpanCategory::Template),
-                _ => None,
-            })
-            .unwrap_or(SpanCategory::Tool);
-
-        Span {
-            category,
-            path: raw.to_string(),
         }
     }
 }
 
 #[tool_router(server_handler)]
 impl CnsServer {
-    #[tool(description = "Emit a CNS observation event via real SpanEmitter")]
+    #[tool(description = "Emit a CNS observation event")]
     async fn cns_emit(
         &self,
         Parameters(EmitRequest {
@@ -123,12 +89,17 @@ impl CnsServer {
             return span_guard.error(e.kind, e.to_json_string());
         }
 
-        let span_enum = Self::parse_span(&span);
         let observation_value = serde_json::from_str(&observation)
             .unwrap_or(serde_json::Value::String(observation.clone()));
 
-        let emitter = self.emitter.read().await;
-        emitter.emit_with_phase(span_enum, Phase::Observe, observation_value);
+        tracing::debug!(
+            target: "cns.mcp",
+            span = %span,
+            verb = "observe",
+            payload = ?observation_value,
+            confidence = 1.0,
+            "CNS event"
+        );
 
         self.runtime.increment_variety(&span, &phase).await;
 

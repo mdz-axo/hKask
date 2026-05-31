@@ -11,7 +11,6 @@ use tracing::info;
 
 use super::types::{AgentKind, AgentPersona, PodID, PodLifecycleState};
 use super::{AgentPod, AgentPodError, AgentPodResult};
-use hkask_cns::CnsRuntime;
 use crate::adapters::git_cas::GitCasAdapter;
 use crate::adapters::mcp_runtime::McpRuntimeAdapter;
 use crate::adapters::memory_storage::MemoryStorageAdapter;
@@ -21,6 +20,7 @@ use crate::ports::{
 };
 #[allow(deprecated)]
 use crate::security::{AgentPersonaInput, SecurityContext};
+use hkask_cns::CnsRuntime;
 
 /// Pod Manager — Manages collection of agent pods
 ///
@@ -36,7 +36,7 @@ pub struct PodManager {
     _keystore: Keychain,
     git_cas: Arc<dyn GitCASPort>,
     acp_runtime: Arc<dyn crate::ports::AcpPort + Send + Sync>,
-    pub(crate) cns_emitter: Arc<dyn hkask_cns::CnsEmit + Send + Sync>,
+    pub(crate) cns_runtime: Arc<hkask_cns::CnsRuntime>,
     pub(crate) mcp_runtime: Arc<dyn MCPRuntimePort>,
     /// Episodic memory storage — private, agent-scoped (OCAP: EpisodicReadHandle/EpisodicWriteHandle)
     pub(crate) episodic_storage: Arc<dyn EpisodicStoragePort>,
@@ -66,7 +66,7 @@ impl PodManager {
     pub fn new(
         git_cas: Arc<dyn GitCASPort>,
         acp_runtime: Arc<dyn crate::ports::AcpPort + Send + Sync>,
-        cns_emitter: Arc<dyn hkask_cns::CnsEmit + Send + Sync>,
+        cns_runtime: Arc<hkask_cns::CnsRuntime>,
         mcp_runtime: Arc<dyn MCPRuntimePort>,
         episodic_storage: Arc<dyn EpisodicStoragePort>,
         semantic_storage: Arc<dyn SemanticStoragePort>,
@@ -76,7 +76,7 @@ impl PodManager {
             _keystore: Keychain::default(),
             git_cas,
             acp_runtime,
-            cns_emitter,
+            cns_runtime,
             mcp_runtime,
             episodic_storage,
             semantic_storage,
@@ -94,7 +94,7 @@ impl PodManager {
     pub fn with_inference(
         git_cas: Arc<dyn GitCASPort>,
         acp_runtime: Arc<dyn crate::ports::AcpPort + Send + Sync>,
-        cns_emitter: Arc<dyn hkask_cns::CnsEmit + Send + Sync>,
+        cns_runtime: Arc<hkask_cns::CnsRuntime>,
         mcp_runtime: Arc<dyn MCPRuntimePort>,
         episodic_storage: Arc<dyn EpisodicStoragePort>,
         semantic_storage: Arc<dyn SemanticStoragePort>,
@@ -105,7 +105,7 @@ impl PodManager {
             _keystore: Keychain::default(),
             git_cas,
             acp_runtime,
-            cns_emitter,
+            cns_runtime,
             mcp_runtime,
             episodic_storage,
             semantic_storage,
@@ -138,7 +138,7 @@ impl PodManager {
             _keystore: Keychain::default(),
             git_cas: Arc::new(GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-mock"))),
             acp_runtime: Arc::new(crate::acp::AcpRuntime::default()),
-            cns_emitter: Arc::new(CnsRuntime::new(WebID::new())),
+            cns_runtime: Arc::new(CnsRuntime::default()),
             mcp_runtime: Arc::new(McpRuntimeAdapter::new()),
             episodic_storage,
             semantic_storage,
@@ -171,7 +171,7 @@ impl PodManager {
 pub struct PodManagerBuilder {
     git_cas: Option<Arc<dyn GitCASPort>>,
     acp_runtime: Option<Arc<dyn crate::ports::AcpPort + Send + Sync>>,
-    cns_emitter: Option<Arc<dyn hkask_cns::CnsEmit + Send + Sync>>,
+    cns_runtime: Option<Arc<hkask_cns::CnsRuntime>>,
     mcp_runtime: Option<Arc<dyn MCPRuntimePort>>,
     episodic_storage: Option<Arc<dyn EpisodicStoragePort>>,
     semantic_storage: Option<Arc<dyn SemanticStoragePort>>,
@@ -184,7 +184,7 @@ impl PodManagerBuilder {
         Self {
             git_cas: None,
             acp_runtime: None,
-            cns_emitter: None,
+            cns_runtime: None,
             mcp_runtime: None,
             episodic_storage: None,
             semantic_storage: None,
@@ -207,8 +207,8 @@ impl PodManagerBuilder {
         self
     }
 
-    pub fn cns_emitter(mut self, adapter: Arc<dyn hkask_cns::CnsEmit + Send + Sync>) -> Self {
-        self.cns_emitter = Some(adapter);
+    pub fn cns_runtime(mut self, runtime: Arc<hkask_cns::CnsRuntime>) -> Self {
+        self.cns_runtime = Some(runtime);
         self
     }
 
@@ -285,8 +285,8 @@ impl PodManagerBuilder {
             }),
             self.acp_runtime
                 .unwrap_or_else(|| Arc::new(crate::acp::AcpRuntime::default())),
-            self.cns_emitter
-                .unwrap_or_else(|| Arc::new(CnsRuntime::new(WebID::new()))),
+            self.cns_runtime
+                .unwrap_or_else(|| Arc::new(CnsRuntime::default())),
             self.mcp_runtime
                 .unwrap_or_else(|| Arc::new(McpRuntimeAdapter::new())),
             episodic_storage,
@@ -323,18 +323,6 @@ impl PodManager {
         persona: &AgentPersona,
         name: Option<String>,
     ) -> AgentPodResult<PodID> {
-        // Rate limit pod creation
-        let rate_key = format!("pod_creation:{}", template_name);
-        self.security_context
-            .rate_limiter
-            .acquire(&rate_key, 1.0)
-            .map_err(|e| match e {
-                crate::security::ValidationError::RateLimitExceeded => {
-                    AgentPodError::ACPRegistrationError("Rate limit exceeded".to_string())
-                }
-                _ => AgentPodError::ACPRegistrationError(e.to_string()),
-            })?;
-
         // Validate persona input
         // TODO: Migrate to AgentPersona::validate_fields() directly
         #[allow(deprecated)]
@@ -416,21 +404,21 @@ impl PodManager {
             pod.capability_token = token;
             pod.state = PodLifecycleState::Registered;
 
-            self.cns_emitter.emit_event(
-                "cns.agent_pod.registered",
-                "registered",
-                &serde_json::json!({
-                    "pod_id": pod.id.to_string(),
-                    "webid": pod.webid.to_string(),
-                    "agent_type": pod.agent_type.to_string(),
-                }),
-                1.0,
+            tracing::debug!(
+                target: "cns.pod",
+                span = "cns.agent_pod.registered",
+                verb = "registered",
+                pod_id = %pod.id,
+                webid = %pod.webid,
+                agent_type = %pod.agent_type,
+                confidence = 1.0,
+                "CNS event"
             );
 
             info!("Agent pod {} registered with ACP", pod.id);
         }
 
-        pod.activate(self.mcp_runtime.as_ref(), self.cns_emitter.as_ref())?;
+        pod.activate(self.mcp_runtime.as_ref())?;
 
         // Persist activation event to memory storage
         let event = serde_json::json!({
@@ -471,7 +459,7 @@ impl PodManager {
         let token_id = pod.capability_token.id.clone();
         let webid = pod.webid;
 
-        pod.deactivate(self.cns_emitter.as_ref())?;
+        pod.deactivate()?;
 
         // W6: Revoke capability token on deactivation
         if let Err(e) = self.acp_runtime.revoke_capability(&token_id, &webid).await {
@@ -482,15 +470,15 @@ impl PodManager {
                 error = %e,
                 "Failed to revoke capability token on deactivation (pod is still deactivated)"
             );
-            self.cns_emitter.emit_event(
-                "cns.agent_pod.revocation_warning",
-                "revocation_warning",
-                &serde_json::json!({
-                    "pod_id": pod_id.to_string(),
-                    "token_id": token_id,
-                    "error": e.to_string(),
-                }),
-                0.8,
+            tracing::debug!(
+                target: "cns.pod",
+                span = "cns.agent_pod.revocation_warning",
+                verb = "revocation_warning",
+                pod_id = %pod_id,
+                token_id = %token_id,
+                error = %e,
+                confidence = 0.8,
+                "CNS event"
             );
         }
 
