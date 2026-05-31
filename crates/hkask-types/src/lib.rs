@@ -54,10 +54,10 @@ pub use id::*;
 pub use identity::*;
 pub use lexicon::{Domain, HLexicon, LexiconTerm, TemplateType};
 pub use loops::{
-    ActionType, CommunicationRegulation, ControlPrimitive, CurationAlertSignal, CurationRegulation,
+    ActionType, CommunicationRegulation, CurationAlertSignal, CurationRegulation, CuratorDirective,
     CuratorHandle, CyberneticsHandle, CyberneticsRegulation, DataVisibilityTier, Deviation,
-    DeviationDirection, EnergyBudgetHandle, EpisodicBudgetExceeded, EpisodicReadHandle,
-    EpisodicRegulation, EpisodicWriteHandle, ExperienceClassification, GovernanceDenial, HkaskLoop,
+    DeviationDirection, EpisodicBudgetExceeded, EpisodicReadHandle, EpisodicRegulation,
+    EpisodicWriteHandle, ExperienceClassification, GovernanceDenial, HkaskLoop,
     InferenceBudgetExceeded, InferenceHandle, InferenceRegulation, LoopAction, LoopId, LoopMessage,
     LoopOrigin, LoopPayload, MessagePriority, Regulatable, SemanticReadHandle, SemanticRegulation,
     SemanticWriteHandle, Signal,

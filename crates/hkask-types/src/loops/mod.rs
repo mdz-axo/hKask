@@ -26,65 +26,19 @@ pub mod episodic;
 pub mod inference;
 pub mod semantic;
 
-pub use curation::CuratorHandle;
-pub use curation::{CurationAlertSignal, CurationRegulation};
-pub use cybernetics::CyberneticsRegulation;
-pub use cybernetics::{CyberneticsHandle, GovernanceDenial};
-pub use dispatch::CommunicationRegulation;
-pub use dispatch::{LoopMessage, LoopOrigin, LoopPayload, MessagePriority, TraceId};
-pub use episodic::EpisodicRegulation;
-pub use episodic::{
-    EpisodicBudgetExceeded, EpisodicReadHandle, EpisodicWriteHandle, ExperienceClassification,
+pub use curation::{CurationAlertSignal, CurationRegulation, CuratorDirective, CuratorHandle};
+pub use cybernetics::{CyberneticsHandle, CyberneticsRegulation, GovernanceDenial};
+pub use dispatch::{
+    CommunicationRegulation, LoopMessage, LoopOrigin, LoopPayload, MessagePriority, TraceId,
 };
-pub use inference::InferenceRegulation;
-pub use inference::{EnergyBudgetHandle, InferenceBudgetExceeded, InferenceHandle};
-pub use semantic::SemanticRegulation;
-pub use semantic::{SemanticReadHandle, SemanticWriteHandle};
+pub use episodic::{
+    EpisodicBudgetExceeded, EpisodicReadHandle, EpisodicRegulation, EpisodicWriteHandle,
+    ExperienceClassification,
+};
+pub use inference::{InferenceBudgetExceeded, InferenceHandle, InferenceRegulation};
+pub use semantic::{SemanticReadHandle, SemanticRegulation, SemanticWriteHandle};
 
 pub use self::Loop as HkaskLoop;
-
-/// 9 Control Primitives
-///
-/// Every subloop is a domain-specific instance of one of these 9 abstract patterns.
-/// The primitive is the pattern; the subloop is the instantiation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ControlPrimitive {
-    /// request → check condition → allow or deny
-    Guard,
-    /// stream → remove undesired → pass through
-    Filter,
-    /// request → hit? → return / miss → compute + store
-    Cache,
-    /// call → fail → count → threshold → open → half-open → probe → close
-    Circuit,
-    /// conflict A, conflict B → combine → resolved
-    Reconcile,
-    /// state → measure → signal
-    Sense,
-    /// signal → classify → deliver to consumer
-    Route,
-    /// grant → revoke → persist → deny future
-    Withdraw,
-    /// outcome → compare to desired → adjust parameter
-    Adapt,
-}
-
-impl std::fmt::Display for ControlPrimitive {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ControlPrimitive::Guard => write!(f, "GUARD"),
-            ControlPrimitive::Filter => write!(f, "FILTER"),
-            ControlPrimitive::Cache => write!(f, "CACHE"),
-            ControlPrimitive::Circuit => write!(f, "CIRCUIT"),
-            ControlPrimitive::Reconcile => write!(f, "RECONCILE"),
-            ControlPrimitive::Sense => write!(f, "SENSE"),
-            ControlPrimitive::Route => write!(f, "ROUTE"),
-            ControlPrimitive::Withdraw => write!(f, "WITHDRAW"),
-            ControlPrimitive::Adapt => write!(f, "ADAPT"),
-        }
-    }
-}
 
 /// Loop identifiers for the 6-loop model.
 ///
@@ -274,7 +228,6 @@ impl LoopAction {
             ActionType::Throttle => MessagePriority::Warning,
             ActionType::Escalate => MessagePriority::Critical,
             ActionType::Calibrate => MessagePriority::Info,
-            ActionType::Rebalance => MessagePriority::Warning,
             ActionType::CircuitBreak => MessagePriority::Critical,
         };
         Self {
@@ -295,8 +248,6 @@ pub enum ActionType {
     Escalate,
     /// Adjust a threshold or set-point
     Calibrate,
-    /// Redistribute resources between targets
-    Rebalance,
     /// Open a circuit breaker on a target
     CircuitBreak,
 }

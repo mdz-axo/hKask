@@ -3,13 +3,18 @@
 //! The Episodic Memory loop governs private, agent-scoped experience:
 //! experience → encode → store (private) → recall → temporal attention → context
 //!
-//! Subloops:
+//! Essential subloops:
 //! - 2a.1 Experience Encoding (FILTER) — filter and classify incoming experience
 //! - 2a.2 Temporal Attention (ADAPT) — weight by recency: weight = e^(-λ × time_since_storage)
 //! - 2a.3 Confidence Decay (RECONCILE) — confidence decreases over time via Bayesian decay
 //! - 2a.4 Confidence Retraction (RECONCILE) — reduce confidence without deleting the triple
-//! - 2a.5 Episodic Storage Budget (GUARD) — per-agent storage limit, mark oldest for consolidation
-//! - 2a.6 Episodic Context Assembly (FILTER+ADAPT) — temporal-ordered, recency-weighted, budget-constrained
+//!
+//! Governance (via EpisodicRegulation from Cybernetics):
+//! - Storage budget adjustment — Cybernetics governs storage limits
+//!
+//! Composed methods (not separate subloops):
+//! - query_for_weighted() — composes Temporal Attention + Dedup + Decay
+//! - check_budget() — budget enforcement (governance via EpisodicRegulation)
 //!
 //! # Capability Discipline
 //

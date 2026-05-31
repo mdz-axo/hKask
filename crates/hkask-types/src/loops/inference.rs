@@ -1,65 +1,67 @@
-//! Loop 1: Inference — Capability handles
+//! Loop 1: Inference — Capability handle
 //!
 //! The Inference loop governs the path from prompt to response:
 //! prompt → context → model → response → parse → act
 //!
-//! Subloops:
-//! - 1.1 Context Assembly (FILTER)
-//! - 1.2 Prompt Cache (CACHE)
-//! - 1.3 Circuit Breaker (CIRCUIT)
-//! - 1.4 Energy Budget (GUARD)
+//! Essential subloop:
+//! - 1.1 Context Assembly (FILTER) — filter and assemble context for inference
+//!
+//! Governance (via InferenceRegulation from Cybernetics):
+//! - Energy throttling — Cybernetics owns the energy budget
+//! - Circuit breaking — Cybernetics governs circuit state
+//! - Energy cap adjustment — Curation can adjust budgets through Cybernetics
 
 use crate::id::WebID;
 
 /// Inference loop capability handle.
+///
+/// Narrow identity handle for the Inference loop. The Inference loop does NOT
+/// carry energy state or circuit state — those are owned by the Cybernetics
+/// loop and accessed via `InferenceRegulation`.
+///
+/// # OCAP Boundaries
+///
+/// - **CAN** identify the agent for inference
+/// - **CAN** request energy from Cybernetics via `InferenceRegulation`
+/// - **CANNOT** carry energy state (owned by Cybernetics)
+/// - **CANNOT** carry circuit state (owned by Cybernetics)
+/// - **CANNOT** store triples (use `EpisodicWriteHandle` / `SemanticWriteHandle`)
 pub struct InferenceHandle {
+    /// Agent performing inference
     agent_webid: WebID,
-    energy_remaining: u64,
-    circuit_open: bool,
 }
 
 impl InferenceHandle {
+    /// Create a test handle with a synthetic WebID.
     #[cfg(test)]
     pub fn new_test() -> Self {
         Self {
             agent_webid: WebID::new(),
-            energy_remaining: u64::MAX,
-            circuit_open: false,
         }
     }
 
-    pub fn new(agent_webid: WebID, energy_remaining: u64, circuit_open: bool) -> Self {
-        Self {
-            agent_webid,
-            energy_remaining,
-            circuit_open,
-        }
+    /// Create an inference handle for a specific agent.
+    ///
+    /// # Requires
+    /// - `agent_webid` must be a valid agent identifier
+    ///
+    /// # Ensures
+    /// - Handle is bound to the given agent
+    pub fn new(agent_webid: WebID) -> Self {
+        Self { agent_webid }
     }
 
+    /// The agent performing inference.
     pub fn agent(&self) -> &WebID {
         &self.agent_webid
     }
-
-    pub fn energy_remaining(&self) -> u64 {
-        self.energy_remaining
-    }
-
-    pub fn is_circuit_open(&self) -> bool {
-        self.circuit_open
-    }
-
-    pub fn consume_energy(&mut self, amount: u64) -> Result<(), InferenceBudgetExceeded> {
-        if amount > self.energy_remaining {
-            return Err(InferenceBudgetExceeded {
-                requested: amount,
-                remaining: self.energy_remaining,
-            });
-        }
-        self.energy_remaining -= amount;
-        Ok(())
-    }
 }
 
+/// Error returned when an energy budget is exceeded.
+///
+/// This error is produced by the Cybernetics loop's energy budget
+/// subsystem when an agent attempts to consume more energy than
+/// its allocated budget allows.
 #[derive(Debug, Clone, thiserror::Error)]
 #[error("energy budget exceeded: requested {requested}, remaining {remaining}")]
 pub struct InferenceBudgetExceeded {
@@ -67,57 +69,17 @@ pub struct InferenceBudgetExceeded {
     pub remaining: u64,
 }
 
-/// Energy budget capability handle.
-pub struct EnergyBudgetHandle {
-    remaining: u64,
-    cap: u64,
-}
-
-impl EnergyBudgetHandle {
-    #[cfg(test)]
-    pub fn new_test() -> Self {
-        Self {
-            remaining: u64::MAX,
-            cap: u64::MAX,
-        }
-    }
-
-    pub fn new(remaining: u64, cap: u64) -> Self {
-        Self { remaining, cap }
-    }
-
-    pub fn remaining(&self) -> u64 {
-        self.remaining
-    }
-
-    pub fn cap(&self) -> u64 {
-        self.cap
-    }
-
-    pub fn usage_ratio(&self) -> f64 {
-        if self.cap == 0 {
-            return 0.0;
-        }
-        self.remaining as f64 / self.cap as f64
-    }
-
-    pub fn consume(&mut self, amount: u64) -> Result<(), InferenceBudgetExceeded> {
-        if amount > self.remaining {
-            return Err(InferenceBudgetExceeded {
-                requested: amount,
-                remaining: self.remaining,
-            });
-        }
-        self.remaining -= amount;
-        Ok(())
-    }
-}
-
 /// Regulation interface for the Inference Loop.
 ///
 /// The Cybernetics Loop uses this to throttle energy allocation
 /// or circuit-break inference when error rates exceed thresholds.
 /// The Curation Loop uses this to adjust energy budgets.
+///
+/// # Authority
+///
+/// Only the Cybernetics Loop holds an `InferenceRegulation` reference.
+/// This ensures energy and circuit state flow downward from Cybernetics
+/// to Inference, never sideways.
 pub trait InferenceRegulation: Send + Sync {
     /// Throttle the inference loop's energy allocation.
     fn throttle_energy(&self, reason: &str, remaining_ratio: f64);

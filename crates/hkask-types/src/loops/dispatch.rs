@@ -4,13 +4,7 @@
 //! It enables all inter-loop communication through messenger functions:
 //!
 //! - 4.1 DISPATCH (GUARD+ROUTE) — send with priority queuing
-//! - 4.2 CORRELATE (SENSE) — observe delivery, correlate traces
 //! - 4.3 DAMPEN (FILTER+RECONCILE) — suppress repeated directives within time window
-//! - 4.4 Channel CIRCUIT (CIRCUIT) — circuit-break inter-loop channels
-//! - 4.5 ACKNOWLEDGE (VALIDATE+ROUTE) — confirm delivery, route response
-//!
-//! Communication has no subloops because all subloops ARE communication
-//! pattern instances. It delivers messenger functions on inter-loop edges.
 //!
 //! # Design
 //!
@@ -117,8 +111,8 @@ impl fmt::Display for MessagePriority {
 /// Identifies which loop a message originates from.
 ///
 /// Every message carries its origin loop for routing and observability.
-/// This enables CORRELATE (messenger function 4.2) to trace message flow
-/// across the 6-loop system.
+/// The `TraceId` propagates across all routing and forwarding, providing
+/// correlation without a separate CORRELATE messenger function.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum LoopOrigin {
@@ -159,7 +153,8 @@ impl fmt::Display for LoopOrigin {
 /// The content of an inter-loop message.
 ///
 /// `LoopPayload` carries the typed data that flows between loops.
-/// Each variant corresponds to a category of inter-loop communication.
+/// Each variant corresponds to a category of inter-loop communication
+/// that is actually exercised in the loop system.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum LoopPayload {
@@ -175,11 +170,6 @@ pub enum LoopPayload {
         target: WebID,
         parameters: serde_json::Value,
     },
-    /// Cybernetics observation: span emission or variety update
-    CyberneticsObservation {
-        category: String,
-        data: serde_json::Value,
-    },
     /// Memory operation: store, recall, or consolidate
     MemoryOperation {
         operation: String,
@@ -191,16 +181,6 @@ pub enum LoopPayload {
         agent: WebID,
         change_type: String,
         details: serde_json::Value,
-    },
-    /// Circuit breaker state change
-    CircuitStateChange {
-        circuit_id: String,
-        new_state: String,
-    },
-    /// Custom payload for extensibility
-    Custom {
-        tag: String,
-        data: serde_json::Value,
     },
 }
 
@@ -219,14 +199,14 @@ pub enum LoopPayload {
 ///
 /// # Messenger Functions
 ///
-/// The Communication loop provides 5 messenger functions that operate
-/// on `LoopMessage` instances:
+/// The Communication loop provides 2 essential messenger functions:
 ///
 /// 1. **DISPATCH** (GUARD+ROUTE): Priority-ordered message queuing
-/// 2. **CORRELATE** (SENSE): Trace propagation and delivery tracking
-/// 3. **DAMPEN** (FILTER+RECONCILE): Suppress repeated directives within time window
-/// 4. **Channel CIRCUIT** (CIRCUIT): Circuit-break inter-loop channels
-/// 5. **ACKNOWLEDGE** (VALIDATE+ROUTE): Confirm delivery, route response
+/// 2. **DAMPEN** (FILTER+RECONCILE): Suppress repeated directives within time window
+///
+/// Correlation is inherent in `TraceId` propagation — no separate CORRELATE
+/// function is needed. Circuit-breaking channels is a Cybernetics regulation
+/// action, not a Communication function.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LoopMessage {
     /// Cross-loop correlation identifier
@@ -267,11 +247,6 @@ impl LoopMessage {
     /// Create a warning-priority message.
     pub fn warning(origin: LoopOrigin, payload: LoopPayload) -> Self {
         Self::new(MessagePriority::Warning, origin, payload)
-    }
-
-    /// Create an info-priority message.
-    pub fn info(origin: LoopOrigin, payload: LoopPayload) -> Self {
-        Self::new(MessagePriority::Info, origin, payload)
     }
 
     /// Set the target loop for directed messaging.

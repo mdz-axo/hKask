@@ -159,13 +159,7 @@ impl Database {
             CREATE INDEX IF NOT EXISTS idx_agent_registry_kind ON agent_registry(agent_kind);
             CREATE TABLE IF NOT EXISTS goals (id TEXT PRIMARY KEY, webid TEXT NOT NULL, text TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending', visibility TEXT NOT NULL DEFAULT 'private', created_at TEXT DEFAULT (datetime('now')), completed_at TEXT, parent_goal_id TEXT, depth INTEGER NOT NULL DEFAULT 0);
             CREATE TABLE IF NOT EXISTS goal_criteria (id TEXT PRIMARY KEY, goal_id TEXT REFERENCES goals(id), type TEXT NOT NULL, description TEXT NOT NULL, satisfied INTEGER NOT NULL DEFAULT 0);
-            CREATE TABLE IF NOT EXISTS goal_artifacts (id TEXT PRIMARY KEY, goal_id TEXT REFERENCES goals(id), artifact_ref TEXT NOT NULL, artifact_type TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));
-            CREATE TABLE IF NOT EXISTS goal_semantic_memory (id TEXT PRIMARY KEY, webid TEXT NOT NULL, goal_id TEXT NOT NULL, memory_json TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));
-            CREATE INDEX IF NOT EXISTS idx_goal_semantic_webid ON goal_semantic_memory(webid);
-            CREATE INDEX IF NOT EXISTS idx_goal_semantic_goal_id ON goal_semantic_memory(goal_id);
-            CREATE TABLE IF NOT EXISTS goal_episodic_memory (id TEXT PRIMARY KEY, webid TEXT NOT NULL, goal_id TEXT NOT NULL, memory_json TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));
-            CREATE INDEX IF NOT EXISTS idx_goal_episodic_webid ON goal_episodic_memory(webid);
-            CREATE INDEX IF NOT EXISTS idx_goal_episodic_goal_id ON goal_episodic_memory(goal_id);")
+            CREATE TABLE IF NOT EXISTS goal_artifacts (id TEXT PRIMARY KEY, goal_id TEXT REFERENCES goals(id), artifact_ref TEXT NOT NULL, artifact_type TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));")
         )?;
         Ok(())
     }

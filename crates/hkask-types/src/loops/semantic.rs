@@ -3,12 +3,18 @@
 //! The Semantic Memory loop governs shared, public knowledge:
 //! knowledge → store (public) → index → recall → dedup → combine → context
 //!
-//! Subloops:
+//! Essential subloops:
 //! - 2b.1 Semantic Deduplication (FILTER) — remove duplicate knowledge entries
 //! - 2b.2 Confidence Combination (RECONCILE) — combine confidence from multiple sources
 //! - 2b.3 Semantic Indexing (CACHE) — embed and index for similarity search
-//! - 2b.4 Semantic Storage Budget (GUARD) — per-entity storage limit
-//! - 2b.5 Semantic Context Assembly (FILTER) — deduplicated, confidence-combined context
+//!
+//! Governance (via SemanticRegulation from Cybernetics):
+//! - Storage budget adjustment — Cybernetics governs storage limits
+//! - Indexing throttle — Cybernetics throttles embedding costs
+//!
+//! Composed methods (not separate subloops):
+//! - recall_combined() — composes Dedup + Confidence Combination
+//! - check_budget() — budget enforcement (governance via SemanticRegulation)
 //!
 //! # Capability Discipline
 //!

@@ -16,9 +16,7 @@ use crate::ports::metacognition::{
     BotDirective, EvaluationResult, KataDirective, KataType, RecommendedAction,
 };
 use hkask_cns::algedonic::CnsHealth;
-use hkask_cns::bot_metrics::{
-    BotEvaluationMetrics, BotHealthStatus as CnsBotHealthStatus, GapType,
-};
+use hkask_cns::bot_metrics::{BotEvaluationMetrics, BotHealthStatus, GapType};
 use hkask_types::loops::curation::CuratorDirective;
 use hkask_types::loops::dispatch::TraceId;
 use hkask_types::{BotID, WebID};
@@ -80,23 +78,6 @@ pub struct BotStatusReport {
     pub status: BotHealthStatus,
     pub last_report: Option<chrono::DateTime<chrono::Utc>>,
     pub issues: Vec<String>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum BotHealthStatus {
-    Healthy,
-    Degraded,
-    Critical,
-}
-
-impl std::fmt::Display for BotHealthStatus {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            BotHealthStatus::Healthy => write!(f, "healthy"),
-            BotHealthStatus::Degraded => write!(f, "degraded"),
-            BotHealthStatus::Critical => write!(f, "critical"),
-        }
-    }
 }
 
 /// Metacognition loop configuration
@@ -437,7 +418,7 @@ impl MetacognitionLoop {
 
         let kata_type = match primary_gap.gap_type {
             GapType::LowSuccessRate => {
-                if evaluation.health == CnsBotHealthStatus::Critical {
+                if evaluation.health == BotHealthStatus::Critical {
                     KataType::Improvement
                 } else {
                     KataType::Starter

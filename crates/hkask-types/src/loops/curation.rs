@@ -4,10 +4,10 @@
 //! and writes governance and observability policy:
 //! observe → evaluate → compose → regulate
 //!
-//! Subloops:
+//! Essential subloops:
 //! - 5.1 Escalation Routing (ROUTE) — signal → classify → deliver to consumer
-//! - 5.2 Bot Evaluation / Kata Coaching (ADAPT) — outcome → compare to desired → adjust parameter
-//! - 5.3 Threshold Calibration (ADAPT) — outcome → compare to desired → adjust parameter
+//! - 5.2 Metacognitive Adaptation (ADAPT) — outcome → compare to desired → adjust parameter
+//!   (merges Bot Evaluation + Threshold Calibration — both are "outcome → compare → adjust")
 //!
 //! # Capability Discipline
 //!
@@ -108,6 +108,10 @@ pub enum CuratorDirective {
     /// Adjust an agent's energy budget
     AdjustEnergyBudget { agent: WebID, new_budget: u64 },
 }
+
+// =============================================================================
+// CurationRegulation — Loop 5 regulation interface
+// =============================================================================
 
 /// Regulation interface for the Curation/Metacognition Loop.
 ///

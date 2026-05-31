@@ -16,7 +16,6 @@
 
 use hkask_types::WebID;
 use hkask_types::loops::curation::CuratorDirective;
-use hkask_types::loops::dispatch::LoopMessage;
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::sync::Mutex;
@@ -114,67 +113,6 @@ impl Dampener {
         // Record this directive as seen
         seen.insert(fingerprint, now);
         false
-    }
-
-    /// Check if a `LoopMessage` carrying a governance directive should be dampened.
-    ///
-    /// This is a convenience method that extracts the `CuratorDirective`
-    /// from a `LoopPayload::CyberneticsDirective` if present, then checks
-    /// dampening. Non-cybernetics messages are never dampened.
-    pub async fn should_dampen_message(&self, message: &LoopMessage) -> bool {
-        if let hkask_types::loops::dispatch::LoopPayload::CyberneticsDirective {
-            directive_type,
-            target,
-            parameters,
-        } = &message.payload
-        {
-            // Reconstruct a CuratorDirective from the LoopMessage payload
-            let directive = match directive_type.as_str() {
-                "calibrate_threshold" => CuratorDirective::CalibrateThreshold {
-                    domain: parameters
-                        .get("domain")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("")
-                        .to_string(),
-                    new_threshold: parameters
-                        .get("new_threshold")
-                        .and_then(|v| v.as_u64())
-                        .unwrap_or(0),
-                },
-                "update_capabilities" => CuratorDirective::UpdateCapabilities {
-                    agent: *target,
-                    additions: parameters
-                        .get("additions")
-                        .and_then(|v| v.as_array())
-                        .map(|arr| {
-                            arr.iter()
-                                .filter_map(|v| v.as_str().map(String::from))
-                                .collect()
-                        })
-                        .unwrap_or_default(),
-                    removals: parameters
-                        .get("removals")
-                        .and_then(|v| v.as_array())
-                        .map(|arr| {
-                            arr.iter()
-                                .filter_map(|v| v.as_str().map(String::from))
-                                .collect()
-                        })
-                        .unwrap_or_default(),
-                },
-                "adjust_energy_budget" => CuratorDirective::AdjustEnergyBudget {
-                    agent: *target,
-                    new_budget: parameters
-                        .get("new_budget")
-                        .and_then(|v| v.as_u64())
-                        .unwrap_or(0),
-                },
-                _ => return false, // Unknown directive type — don't dampen
-            };
-            self.should_dampen(&directive).await
-        } else {
-            false // Non-cybernetics messages are never dampened
-        }
     }
 
     /// Clear all dampening state.

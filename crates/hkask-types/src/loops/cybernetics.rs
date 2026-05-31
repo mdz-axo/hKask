@@ -7,13 +7,19 @@
 //! regulates (OCAP capability verification, sovereignty enforcement), and
 //! adapts (threshold calibration, energy budget adjustment).
 //!
-//! Subloops:
-//! - 6.1 OCAP Verification (GUARD) — request → check condition → allow or deny
-//! - 6.2 Sovereignty Enforcement (GUARD) — request → check boundary → allow or deny
+//! Essential subloops:
+//! - 6.1 Access Guard (GUARD) — request → check condition → allow or deny
+//!   (merges OCAP Verification + Sovereignty Enforcement — both are "request → check → allow/deny")
 //! - 6.3 Variety Sensing (SENSE) — state → measure → signal
 //! - 6.4 Algedonic Regulation (ADAPT) — deficit → compare to threshold → calibrate or escalate
-//! - 6.5 Energy Homeostasis (GUARD+ADAPT) — consume → check budget → allow or deny + alert
 //! - 6.6 Revocation (WITHDRAW) — grant → revoke → persist → deny future
+//!
+//! Governance (not subloops — regulation actions via InferenceRegulation etc.):
+//! - Energy homeostasis — expressed as set-points in `SetPoints` + regulation via
+//!   `InferenceRegulation::throttle_energy` and `InferenceRegulation::adjust_energy_cap`.
+//!   Energy budgets are owned by `CyberneticsLoop` but are not a subloop cycle.
+//! - Circuit breaking — expressed via `InferenceRegulation::set_circuit_state`.
+//! - Channel throttling — expressed via `CommunicationRegulation::throttle_connector`.
 //!
 //! # Capability Discipline
 //!
