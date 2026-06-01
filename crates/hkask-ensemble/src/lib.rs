@@ -5,37 +5,23 @@
 
 pub mod adapters;
 pub mod chat;
-pub mod chat_dedup;
-pub mod cns_spans;
 pub mod confidence_router;
 pub mod deliberation;
 pub mod improv;
-pub mod ocap_enforcement;
-pub mod okapi_capability;
-pub mod okapi_integration;
 pub mod ports;
-pub mod resilience;
 pub mod standing_session;
-pub mod webid_registry;
 
 // Re-export commonly used types
 pub use adapters::{OkapiClient, OkapiClientError};
 pub use chat::{
     ChatMessage, ChatParticipant, EnsembleChat, EnsembleError, ParticipantRole, SessionManager,
 };
-pub use chat_dedup::{DedupStats, SessionDedup, extract_context_window};
-pub use cns_spans::{OkapiCnsSpan, ValidationResult};
 pub use confidence_router::{ConfidenceConfig, ConfidenceRouter, RouterError, compute_confidence};
 pub use deliberation::{
     AgentResponse, DeliberationRequest, DeliberationResult, DeliberationSession, DeliberationStatus,
 };
 pub use improv::{
     ImprovMode, ImprovSessionConfig, ImprovTurn, RelevanceJudgment, SynthesisMode, improv_turn,
-};
-pub use okapi_capability::{
-    OkapiCapabilityError, OkapiOperation, attenuate_for_template, create_okapi_capability,
-    create_okapi_capability_for_template, default_system_capability, granted_operations,
-    has_operation, is_expired, read_only_capability, verify_okapi_capability,
 };
 pub use ports::{GenerateOptions, GenerateRequest};
 pub use standing_session::{

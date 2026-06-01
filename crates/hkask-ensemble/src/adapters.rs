@@ -3,8 +3,7 @@
 //! Concrete implementations of port traits for Okapi HTTP infrastructure.
 
 use crate::ports::{
-    GenerateRequest, GenerateResponse, InferenceClient, MetricsSource, OkapiCapabilities,
-    OkapiMetrics, TokenProb, TokenProbability,
+    GenerateRequest, GenerateResponse, InferenceClient, TokenProb, TokenProbability,
 };
 use async_trait::async_trait;
 use thiserror::Error;
@@ -153,108 +152,6 @@ impl InferenceClient for OkapiClient {
         resp.json().await.map_err(|e| {
             OkapiClientError::ParseError(format!("Failed to parse chat response: {}", e))
         })
-    }
-}
-
-/// HTTP-based metrics source adapter (SSE stream)
-pub struct OkapiSseAdapter {
-    client: reqwest::Client,
-    sse_url: String,
-}
-
-impl OkapiSseAdapter {
-    pub fn new(okapi_base_url: &str) -> Self {
-        Self {
-            client: reqwest::Client::new(),
-            sse_url: format!("{}/api/metrics/stream?interval=5", okapi_base_url),
-        }
-    }
-}
-
-#[async_trait]
-impl MetricsSource for OkapiSseAdapter {
-    type Metrics = OkapiMetrics;
-    type Error = OkapiClientError;
-
-    async fn next_metrics(&self) -> Result<Self::Metrics, Self::Error> {
-        let response = self.client.get(&self.sse_url).send().await?;
-        let stream = response.text().await?;
-
-        for line in stream.lines() {
-            if line.starts_with("data: ") {
-                let data = line.strip_prefix("data: ").ok_or_else(|| {
-                    OkapiClientError::InvalidSseEvent("Missing data prefix".into())
-                })?;
-
-                let metrics: OkapiMetrics = serde_json::from_str(data)
-                    .map_err(|e| OkapiClientError::ParseError(e.to_string()))?;
-
-                return Ok(metrics);
-            }
-        }
-
-        Err(OkapiClientError::SseStreamEnded)
-    }
-}
-
-/// HTTP-based capability provider adapter
-pub struct OkapiCapabilityFetcher {
-    client: reqwest::Client,
-    base_url: String,
-}
-
-impl OkapiCapabilityFetcher {
-    pub fn new(okapi_base_url: &str) -> Self {
-        Self {
-            client: reqwest::Client::new(),
-            base_url: okapi_base_url.to_string(),
-        }
-    }
-
-    pub async fn get_capabilities(&self) -> Result<OkapiCapabilities, OkapiClientError> {
-        let response = self
-            .client
-            .get(format!("{}/api/engine/status", self.base_url))
-            .send()
-            .await?;
-
-        let capabilities: OkapiCapabilities = response
-            .json()
-            .await
-            .map_err(|e| OkapiClientError::ParseError(e.to_string()))?;
-
-        Ok(capabilities)
-    }
-}
-
-/// Mock metrics source for testing
-pub struct MockMetricsSource {
-    metrics: Vec<OkapiMetrics>,
-    current_index: tokio::sync::Mutex<usize>,
-}
-
-impl MockMetricsSource {
-    pub fn new(metrics: Vec<OkapiMetrics>) -> Self {
-        Self {
-            metrics,
-            current_index: tokio::sync::Mutex::new(0),
-        }
-    }
-}
-
-#[async_trait]
-impl MetricsSource for MockMetricsSource {
-    type Metrics = OkapiMetrics;
-    type Error = OkapiClientError;
-
-    async fn next_metrics(&self) -> Result<Self::Metrics, Self::Error> {
-        let mut index = self.current_index.lock().await;
-        if *index >= self.metrics.len() {
-            return Err(OkapiClientError::SseStreamEnded);
-        }
-        let metrics = self.metrics[*index].clone();
-        *index += 1;
-        Ok(metrics)
     }
 }
 
