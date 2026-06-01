@@ -10,9 +10,7 @@
 //! - `run_stdio_server()` — common main() bootstrap (tracing, credential check, WebID, rmcp serve)
 //! - `classify_http_error()` — HTTP status → McpToolError mapping
 //! - `api_get()` / `api_post()` — shared HTTP helpers with automatic error classification
-//! - `build_authenticated_client()` — shared reqwest::Client factory
 //! - `resolve_credential()` — credential resolution via hkask-keystore with env var fallback
-//! - `emit_tool_span()` — CNS tool span emission for observability
 //!
 //! ## WebID Resolution
 //!
@@ -548,17 +546,6 @@ pub fn resolve_credential(env_var: &str) -> Result<String, hkask_keystore::Keyst
 
 /// Emit a CNS tool span for observability.
 ///
-/// Called by tool methods to record invocation metadata. Uses the `tracing`
-/// crate with `cns.tool` target so that CNS subscribers can capture it.
-pub fn emit_tool_span(
-    tool_name: &str,
-    outcome: &str,
-    duration_ms: u64,
-    error_kind: Option<&McpErrorKind>,
-) {
-    emit_tool_span_with_caller(tool_name, outcome, duration_ms, error_kind, None)
-}
-
 /// Emit a CNS tool span with caller identity (WebID) for observability.
 ///
 /// Like `emit_tool_span`, but includes the calling agent's identity in the
@@ -712,73 +699,4 @@ where
     let service = server.serve(rmcp::transport::stdio());
     service.await?;
     Ok(())
-}
-
-// =============================================================================
-// build_authenticated_client — Shared HTTP client factory
-// =============================================================================
-
-/// Authentication configuration for an HTTP client.
-pub enum AuthConfig {
-    /// Bearer token in Authorization header (e.g., GitHub, Telnyx).
-    Bearer { token: String },
-    /// Custom header with key prefix (e.g., Fal: "Key {key}").
-    CustomHeader { header: String, value: String },
-    /// API key as query parameter (e.g., FMP: ?apikey={key}).
-    QueryParam { param: String, value: String },
-    /// No authentication.
-    None,
-}
-
-/// Build a `reqwest::Client` with authentication defaults and sensible timeouts.
-///
-/// All hKask API servers should use this factory instead of constructing
-/// `reqwest::Client::new()` directly. This ensures:
-/// - Consistent User-Agent header
-/// - Consistent timeout configuration (30s default, configurable)
-/// - Proper authentication headers
-pub fn build_authenticated_client(
-    service: &str,
-    auth: AuthConfig,
-    timeout_secs: Option<u64>,
-) -> Result<reqwest::Client, McpToolError> {
-    let timeout = std::time::Duration::from_secs(timeout_secs.unwrap_or(30));
-
-    let mut headers = reqwest::header::HeaderMap::new();
-    headers.insert(
-        reqwest::header::USER_AGENT,
-        reqwest::header::HeaderValue::from_str(&format!("hkask-mcp-{service}/1.0"))
-            .unwrap_or_else(|_| reqwest::header::HeaderValue::from_static("hkask-mcp-unknown/1.0")),
-    );
-
-    match &auth {
-        AuthConfig::Bearer { token } => {
-            headers.insert(
-                reqwest::header::AUTHORIZATION,
-                reqwest::header::HeaderValue::from_str(&format!("Bearer {token}"))
-                    .map_err(|e| McpToolError::internal(format!("Invalid bearer token: {e}")))?,
-            );
-        }
-        AuthConfig::CustomHeader { header, value } => {
-            let header_name: reqwest::header::HeaderName = header.parse().map_err(|e| {
-                McpToolError::internal(format!("Invalid header name '{header}': {e}"))
-            })?;
-            let header_value = reqwest::header::HeaderValue::from_str(value)
-                .map_err(|e| McpToolError::internal(format!("Invalid header value: {e}")))?;
-            headers.insert(header_name, header_value);
-        }
-        AuthConfig::QueryParam { .. } | AuthConfig::None => {
-            // No auth headers needed
-        }
-    }
-
-    let client = reqwest::Client::builder()
-        .default_headers(headers)
-        .timeout(timeout)
-        .build()
-        .map_err(|e| {
-            McpToolError::internal(format!("Failed to build HTTP client for {service}: {e}"))
-        })?;
-
-    Ok(client)
 }

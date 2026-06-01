@@ -29,7 +29,6 @@ pub use mcp::mcp_router;
 pub use models::models_router;
 pub use pods::pods_router;
 pub use soap_infer::soap_infer_router;
-pub use soap_infer::validate_soap_request;
 pub use sovereignty::sovereignty_router;
 pub use spec::spec_router;
 pub use templates::templates_router;

@@ -177,19 +177,6 @@ impl AgentRegistryStore {
         Ok(agents)
     }
 
-    pub fn exists(&self, name: &str) -> Result<bool, AgentRegistryError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
-        let count: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM agent_registry WHERE name = ?1",
-            rusqlite::params![name],
-            |row| row.get(0),
-        )?;
-        Ok(count > 0)
-    }
-
     pub fn remove(&self, name: &str) -> Result<(), AgentRegistryError> {
         let conn = self
             .conn
@@ -203,15 +190,5 @@ impl AgentRegistryStore {
             return Err(AgentRegistryError::NotFound(name.to_string()));
         }
         Ok(())
-    }
-
-    pub fn count(&self) -> Result<usize, AgentRegistryError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
-        let count: i64 =
-            conn.query_row("SELECT COUNT(*) FROM agent_registry", [], |row| row.get(0))?;
-        Ok(count as usize)
     }
 }

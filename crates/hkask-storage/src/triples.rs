@@ -316,20 +316,6 @@ impl TripleStore {
         Ok(())
     }
 
-    /// Delete a triple (soft delete via valid_to)
-    pub fn delete(&self, id: &TripleID) -> Result<(), TripleError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
-        let now = Utc::now().to_rfc3339();
-        conn.execute(
-            "UPDATE triples SET valid_to = ?1 WHERE id = ?2 AND valid_to IS NULL",
-            rusqlite::params![now, id.0.to_string()],
-        )?;
-        Ok(())
-    }
-
     /// Get a single triple by ID (must be current: valid_to IS NULL)
     pub fn get_by_id(&self, id: &TripleID) -> Result<Option<Triple>, TripleError> {
         let conn = self
@@ -373,19 +359,6 @@ impl TripleStore {
             .next();
 
         Ok(result)
-    }
-
-    /// Hard delete a triple
-    pub fn hard_delete(&self, id: &TripleID) -> Result<(), TripleError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
-        conn.execute(
-            "DELETE FROM triples WHERE id = ?1",
-            rusqlite::params![id.0.to_string()],
-        )?;
-        Ok(())
     }
 
     fn row_to_triple(row: TripleRow) -> Result<Triple, TripleError> {

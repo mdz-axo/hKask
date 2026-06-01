@@ -28,30 +28,7 @@ pub struct Embedding {
     pub model: String,
 }
 
-impl Embedding {
-    pub fn new(vector: Vec<f32>, model: &str) -> Self {
-        Self {
-            id: uuid::Uuid::new_v4().to_string(),
-            entity_ref: None,
-            dimensions: vector.len(),
-            vector,
-            model: model.to_string(),
-        }
-    }
-
-    #[must_use]
-    pub fn with_entity_ref(mut self, entity_ref: TripleID) -> Self {
-        self.entity_ref = Some(entity_ref);
-        self
-    }
-}
-
 #[derive(Debug, Clone)]
-pub struct KnnResult {
-    pub id: String,
-    pub distance: f64,
-}
-
 pub struct EmbeddingStore {
     conn: Arc<Mutex<Connection>>,
 }
@@ -87,38 +64,6 @@ impl EmbeddingStore {
         }
 
         Ok(())
-    }
-
-    pub fn knn_search(&self, query: &[f32], k: usize) -> Result<Vec<KnnResult>, EmbeddingError> {
-        let expected_dim = crate::database::embedding_dim();
-        if query.len() != expected_dim {
-            return Err(EmbeddingError::DimensionMismatch {
-                expected: expected_dim,
-                got: query.len(),
-            });
-        }
-
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
-        let query_bytes = Self::vector_to_bytes(query);
-
-        let mut stmt = conn.prepare(
-            "SELECT id, distance FROM vec_embeddings WHERE embedding MATCH ?1 AND k = ?2 ORDER BY distance",
-        )?;
-
-        let results = stmt
-            .query_map(rusqlite::params![query_bytes, k as i64], |row| {
-                Ok(KnnResult {
-                    id: row.get(0)?,
-                    distance: row.get(1)?,
-                })
-            })?
-            .filter_map(|r| r.ok())
-            .collect();
-
-        Ok(results)
     }
 
     pub fn search(
@@ -177,21 +122,5 @@ impl EmbeddingStore {
             .collect();
 
         Ok(results)
-    }
-
-    pub fn delete(&self, id: &str) -> Result<(), EmbeddingError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
-        conn.execute(
-            "DELETE FROM embeddings WHERE id = ?1",
-            rusqlite::params![id],
-        )?;
-        let _ = conn.execute(
-            "DELETE FROM vec_embeddings WHERE id = ?1",
-            rusqlite::params![id],
-        );
-        Ok(())
     }
 }

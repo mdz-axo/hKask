@@ -7,28 +7,17 @@
 //! - Acquisition resistance settings
 //! - Kill-zone detector thresholds
 
-use hkask_types::{
-    AcquisitionResistance, DataCategory, InfrastructureError, KillZoneDetector, SovereigntyId,
-    UserSovereigntyState,
-};
+use hkask_types::InfrastructureError;
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
-use tracing::debug;
 
 /// Sovereignty boundary store errors
 #[derive(Debug, Error)]
 pub enum SovereigntyStoreError {
     #[error(transparent)]
     Infra(#[from] InfrastructureError),
-
-    #[error("Sovereignty boundary not found for WebID: {0}")]
-    NotFound(String),
-
-    #[error("Invalid data category: {0}")]
-    InvalidCategory(String),
 
     #[error("UUID parse error: {0}")]
     UuidParse(String),
@@ -58,104 +47,6 @@ pub struct SovereigntyBoundaryEntry {
     pub kill_zone_threshold: f32,
     pub created_at: i64,
     pub updated_at: i64,
-}
-
-impl SovereigntyBoundaryEntry {
-    /// Create from sovereignty state
-    pub fn from_state(webid: &str, state: &UserSovereigntyState) -> Self {
-        let now = chrono::Utc::now().timestamp();
-
-        Self {
-            id: state.boundary.id.0.to_string(),
-            webid: webid.to_string(),
-            sovereign_categories: state
-                .boundary
-                .sovereign_data
-                .iter()
-                .map(|c| c.as_str().to_string())
-                .collect(),
-            shared_categories: state
-                .boundary
-                .shared_data
-                .iter()
-                .map(|c| c.as_str().to_string())
-                .collect(),
-            public_categories: state
-                .boundary
-                .public_data
-                .iter()
-                .map(|c| c.as_str().to_string())
-                .collect(),
-            resistance: format!("{:?}", state.boundary.resistance),
-            kill_zone_threshold: state.detector.threshold,
-            created_at: now,
-            updated_at: now,
-        }
-    }
-
-    /// Convert to sovereignty state
-    pub fn to_state(&self) -> Result<UserSovereigntyState, SovereigntyStoreError> {
-        let sovereignty_id = SovereigntyId(
-            uuid::Uuid::parse_str(&self.id)
-                .map_err(|e| SovereigntyStoreError::UuidParse(e.to_string()))?,
-        );
-
-        let resistance = match self.resistance.as_str() {
-            "None" => AcquisitionResistance::None,
-            "Low" => AcquisitionResistance::Low,
-            "Medium" => AcquisitionResistance::Medium,
-            "High" => AcquisitionResistance::High,
-            "Maximum" => AcquisitionResistance::Maximum,
-            _ => AcquisitionResistance::Maximum,
-        };
-
-        let parse_categories =
-            |categories: &Vec<String>| -> Result<HashSet<DataCategory>, SovereigntyStoreError> {
-                categories
-                    .iter()
-                    .map(|s| match s.as_str() {
-                        "episodic_memory" => Ok(DataCategory::EpisodicMemory),
-                        "semantic_memory" => Ok(DataCategory::SemanticMemory),
-                        "personal_context" => Ok(DataCategory::PersonalContext),
-                        "capability_tokens" => Ok(DataCategory::CapabilityTokens),
-                        "ocap_boundaries" => Ok(DataCategory::OcapBoundaries),
-                        "template_invocations" => Ok(DataCategory::TemplateInvocations),
-                        "hlexicon_terms" => Ok(DataCategory::HLexiconTerms),
-                        "template_registry" => Ok(DataCategory::TemplateRegistry),
-                        other => Err(SovereigntyStoreError::InvalidCategory(other.to_string())),
-                    })
-                    .collect()
-            };
-
-        let boundary = hkask_types::DataSovereigntyBoundary {
-            id: sovereignty_id,
-            sovereign_data: parse_categories(&self.sovereign_categories)?,
-            shared_data: parse_categories(&self.shared_categories)?,
-            public_data: parse_categories(&self.public_categories)?,
-            resistance,
-        };
-
-        let detector = KillZoneDetector {
-            vc_investment: 0.0,
-            threshold: self.kill_zone_threshold,
-            kill_zone_active: false,
-            acquisition_attempt: false,
-        };
-
-        Ok(UserSovereigntyState {
-            boundary,
-            detector,
-            explicit_consent: false,
-            last_check: chrono::Utc::now(),
-        })
-    }
-}
-
-/// Sovereignty boundary statistics
-#[derive(Debug, Clone)]
-pub struct SovereigntyStoreStats {
-    pub total_boundaries: usize,
-    pub sovereign_boundaries: usize,
 }
 
 /// Sovereignty Boundary Store
@@ -232,7 +123,6 @@ impl SovereigntyBoundaryStore {
             ],
         )?;
 
-        debug!("Stored sovereignty boundary for WebID: {}", entry.webid);
         Ok(())
     }
 
@@ -297,124 +187,6 @@ impl SovereigntyBoundaryStore {
             "DELETE FROM sovereignty_boundaries WHERE webid = ?1",
             params![webid],
         )?;
-        debug!("Deleted sovereignty boundary for WebID: {}", webid);
         Ok(())
-    }
-
-    /// List all sovereignty boundaries
-    pub fn list_all(&self) -> Result<Vec<SovereigntyBoundaryEntry>, SovereigntyStoreError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
-        let mut stmt = conn.prepare(
-            "SELECT id, webid, sovereign_categories, shared_categories, public_categories,
-                    resistance, kill_zone_threshold, created_at, updated_at
-             FROM sovereignty_boundaries ORDER BY created_at DESC",
-        )?;
-
-        let entries = stmt
-            .query_map([], |row| {
-                let id: String = row.get(0)?;
-                let webid: String = row.get(1)?;
-                let sovereign_json: String = row.get(2)?;
-                let shared_json: String = row.get(3)?;
-                let public_json: String = row.get(4)?;
-                let resistance: String = row.get(5)?;
-                let kill_zone_threshold: f32 = row.get(6)?;
-                let created_at: i64 = row.get(7)?;
-                let updated_at: i64 = row.get(8)?;
-
-                let sovereign_categories: Vec<String> = serde_json::from_str(&sovereign_json)
-                    .map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))?;
-                let shared_categories: Vec<String> = serde_json::from_str(&shared_json)
-                    .map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))?;
-                let public_categories: Vec<String> = serde_json::from_str(&public_json)
-                    .map_err(|e| rusqlite::Error::InvalidParameterName(e.to_string()))?;
-
-                Ok(SovereigntyBoundaryEntry {
-                    id,
-                    webid,
-                    sovereign_categories,
-                    shared_categories,
-                    public_categories,
-                    resistance,
-                    kill_zone_threshold,
-                    created_at,
-                    updated_at,
-                })
-            })?
-            .filter_map(|result| result.ok())
-            .collect();
-
-        Ok(entries)
-    }
-
-    /// Update kill-zone threshold for a WebID
-    pub fn update_kill_zone_threshold(
-        &self,
-        webid: &str,
-        threshold: f32,
-    ) -> Result<(), SovereigntyStoreError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
-        let now = chrono::Utc::now().timestamp();
-        conn.execute(
-            "UPDATE sovereignty_boundaries SET kill_zone_threshold = ?1, updated_at = ?2 WHERE webid = ?3",
-            params![threshold, now, webid],
-        )?;
-        debug!(
-            "Updated kill-zone threshold for WebID: {} to {}",
-            webid, threshold
-        );
-        Ok(())
-    }
-
-    /// Update acquisition resistance for a WebID
-    pub fn update_resistance(
-        &self,
-        webid: &str,
-        resistance: AcquisitionResistance,
-    ) -> Result<(), SovereigntyStoreError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
-        let now = chrono::Utc::now().timestamp();
-        let resistance_str = format!("{:?}", resistance);
-        conn.execute(
-            "UPDATE sovereignty_boundaries SET resistance = ?1, updated_at = ?2 WHERE webid = ?3",
-            params![resistance_str, now, webid],
-        )?;
-        debug!(
-            "Updated resistance for WebID: {} to {:?}",
-            webid, resistance
-        );
-        Ok(())
-    }
-
-    /// Get store statistics
-    pub fn stats(&self) -> Result<SovereigntyStoreStats, SovereigntyStoreError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
-        let total: i64 =
-            conn.query_row("SELECT COUNT(*) FROM sovereignty_boundaries", [], |row| {
-                row.get(0)
-            })?;
-
-        let sovereign: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM sovereignty_boundaries WHERE resistance = 'Maximum'",
-            [],
-            |row| row.get(0),
-        )?;
-
-        Ok(SovereigntyStoreStats {
-            total_boundaries: total as usize,
-            sovereign_boundaries: sovereign as usize,
-        })
     }
 }

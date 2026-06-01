@@ -50,16 +50,6 @@ impl AuditEntry {
             ip_address: None,
         }
     }
-
-    pub fn with_details(mut self, details: Value) -> Self {
-        self.details = Some(details);
-        self
-    }
-
-    pub fn with_ip(mut self, ip: &str) -> Self {
-        self.ip_address = Some(ip.to_string());
-        self
-    }
 }
 
 /// Convert canonical AuditEntry to storage AuditEntry
@@ -107,20 +97,11 @@ impl From<AuditEntry> for hkask_types::AuditEntry {
 
 pub struct AuditLogStore {
     conn: Arc<Mutex<Connection>>,
-    max_entries: usize,
 }
 
 impl AuditLogStore {
     pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
-        Self {
-            conn,
-            max_entries: 100_000,
-        }
-    }
-
-    pub fn with_max_entries(mut self, max: usize) -> Self {
-        self.max_entries = max;
-        self
+        Self { conn }
     }
 
     pub fn insert(&self, entry: &AuditEntry) -> Result<(), AuditLogError> {
@@ -212,27 +193,6 @@ impl AuditLogStore {
             .collect();
 
         Ok(entries)
-    }
-
-    pub fn prune_retain_last(&self, keep: usize) -> Result<usize, AuditLogError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
-        let deleted = conn.execute(
-            "DELETE FROM audit_log WHERE id NOT IN (SELECT id FROM audit_log ORDER BY timestamp DESC LIMIT ?1)",
-            rusqlite::params![keep as i64],
-        )?;
-        Ok(deleted)
-    }
-
-    pub fn count(&self) -> Result<usize, AuditLogError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
-        let count: i64 = conn.query_row("SELECT COUNT(*) FROM audit_log", [], |row| row.get(0))?;
-        Ok(count as usize)
     }
 }
 

@@ -3,7 +3,6 @@
 //! Provides SSRF protection for MCP tool invocations:
 //! - URL validation (scheme, credentials, private IP, loopback)
 
-use hkask_types::WebID;
 use std::net::{IpAddr, Ipv6Addr};
 
 /// URL validation error types

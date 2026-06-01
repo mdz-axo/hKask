@@ -8,10 +8,7 @@ description = "Semantic and episodic memory pipelines for hKask"
 [dependencies]
 hkask-types = { path = "../hkask-types" }
 hkask-storage = { path = "../hkask-storage" }
-rusqlite.workspace = true
-serde.workspace = true
 serde_json.workspace = true
-uuid.workspace = true
 chrono.workspace = true
 thiserror.workspace = true
 tracing.workspace = true

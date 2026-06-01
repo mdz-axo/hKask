@@ -2,8 +2,7 @@
 //!
 //! Session lifecycle under master key rotation:
 //! - Each session records the `key_version` under which it was created.
-//! - On master key rotation, old sessions are sealed (read-only) via
-//!   `seal_sessions_before_version()`. New sessions use the new key version.
+//! - On master key rotation, old sessions are sealed (read-only).
 //! - Sealed sessions remain readable but cannot accept new messages —
 //!   they are archival, consistent with the architecture's forward-only
 //!   migration policy (no automatic re-encryption).
@@ -65,34 +64,6 @@ impl StandingSessionStore {
         Self { conn }
     }
 
-    pub fn initialize_schema(&self) -> Result<(), StandingSessionError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
-        conn.execute_batch(
-            "CREATE TABLE IF NOT EXISTS standing_sessions (
-                session_id TEXT PRIMARY KEY,
-                config_yaml TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                last_active TEXT NOT NULL,
-                key_version INTEGER NOT NULL DEFAULT 1,
-                sealed INTEGER NOT NULL DEFAULT 0
-            );
-            CREATE TABLE IF NOT EXISTS session_messages (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                session_id TEXT NOT NULL,
-                from_webid TEXT NOT NULL,
-                content TEXT NOT NULL,
-                timestamp TEXT NOT NULL,
-                template_id TEXT,
-                FOREIGN KEY (session_id) REFERENCES standing_sessions(session_id)
-            );
-            CREATE INDEX IF NOT EXISTS idx_session_messages_session ON session_messages(session_id);",
-        )?;
-        Ok(())
-    }
-
     pub fn save_session(&self, session: &StoredSession) -> Result<(), StandingSessionError> {
         let conn = self
             .conn
@@ -144,41 +115,6 @@ impl StandingSessionStore {
             key_version: session.4,
             sealed: session.5,
         })
-    }
-
-    pub fn list_sessions(&self) -> Result<Vec<StoredSession>, StandingSessionError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
-        let mut stmt = conn.prepare(
-            "SELECT session_id, config_yaml, created_at, last_active, key_version, sealed
-             FROM standing_sessions ORDER BY last_active DESC",
-        )?;
-
-        let sessions = stmt
-            .query_map([], |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, String>(2)?,
-                    row.get::<_, String>(3)?,
-                    row.get::<_, i32>(4)? as u32,
-                    row.get::<_, i32>(5)? != 0,
-                ))
-            })?
-            .filter_map(|r| r.ok())
-            .map(|s| StoredSession {
-                session_id: s.0,
-                config_yaml: s.1,
-                created_at: s.2,
-                last_active: s.3,
-                key_version: s.4,
-                sealed: s.5,
-            })
-            .collect();
-
-        Ok(sessions)
     }
 
     pub fn save_message(&self, message: &StoredMessage) -> Result<i64, StandingSessionError> {
@@ -264,32 +200,6 @@ impl StandingSessionStore {
         Ok(())
     }
 
-    /// Seal all sessions created before the given key version.
-    ///
-    /// Called when the master key is rotated. Sealed sessions remain
-    /// readable but cannot accept new messages — they are archival.
-    /// Returns the number of sessions sealed.
-    pub fn seal_sessions_before_version(
-        &self,
-        version: u32,
-    ) -> Result<usize, StandingSessionError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
-        let count = conn.execute(
-            "UPDATE standing_sessions SET sealed = 1 WHERE key_version < ?1 AND sealed = 0",
-            [version as i32],
-        )?;
-        tracing::info!(
-            target: "cns.session.lifecycle",
-            sealed_count = count,
-            new_key_version = version,
-            "Sealed sessions from previous key version"
-        );
-        Ok(count)
-    }
-
     /// Get the current key version — the highest version across all sessions.
     /// Returns 1 for a fresh database.
     pub fn current_key_version(&self) -> Result<u32, StandingSessionError> {
@@ -305,21 +215,5 @@ impl StandingSessionStore {
             )
             .unwrap_or(1);
         Ok(version as u32)
-    }
-
-    pub fn delete_session(&self, session_id: &str) -> Result<(), StandingSessionError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
-        conn.execute(
-            "DELETE FROM session_messages WHERE session_id = ?1",
-            rusqlite::params![session_id],
-        )?;
-        conn.execute(
-            "DELETE FROM standing_sessions WHERE session_id = ?1",
-            rusqlite::params![session_id],
-        )?;
-        Ok(())
     }
 }

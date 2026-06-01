@@ -92,22 +92,6 @@ pub enum TokenVerification {
     Expired,
 }
 
-/// Axum layer wrapping `AuthService`.
-#[derive(Clone)]
-pub struct AuthLayer {
-    #[allow(dead_code)] // Available for alternative wiring patterns
-    service: Arc<AuthService>,
-}
-
-impl AuthLayer {
-    /// Create a new auth layer from an `AuthService`.
-    pub fn new(service: AuthService) -> Self {
-        Self {
-            service: Arc::new(service),
-        }
-    }
-}
-
 /// Extracted auth context attached to validated requests.
 #[derive(Debug, Clone)]
 pub struct AuthContext {
@@ -183,4 +167,3 @@ pub async fn auth_middleware(
             .unwrap(),
     }
 }
-

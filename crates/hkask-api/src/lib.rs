@@ -49,7 +49,6 @@ use utoipa_axum::router::OpenApiRouter;
 pub mod middleware;
 pub mod openapi;
 pub mod routes;
-pub mod services;
 
 // Re-export route types for OpenAPI schema generation
 pub use routes::{ModelEntry, ModelListResponse, ModelSearchQuery};
@@ -332,32 +331,12 @@ pub struct SoapInferResponse {
     pub actions: Vec<String>,
 }
 
-/// SOAP inference error types
-#[derive(Debug, thiserror::Error)]
-pub enum SoapInferError {
-    #[error("Capability verification failed")]
-    OcapDenied,
-
-    #[error("Inference backend error: {0}")]
-    InferenceError(String),
-
-    #[error("Invalid capability token: {0}")]
-    InvalidToken(String),
-
-    #[error("Validation failed: {0}")]
-    ValidationError(String),
-
-    #[error("Inference timeout")]
-    Timeout,
-}
-
 /// Validation error details
 #[derive(Debug, Serialize, Deserialize)]
 pub enum ValidationErrorType {
     TooManyEvents,
     SubjectiveTooLong,
     MessageTooLong,
-    InvalidCharacters,
 }
 
 /// ACP registration request
@@ -496,15 +475,6 @@ pub struct EventRecord {
     pub severity: String,
     pub message: String,
     pub ts: String,
-}
-
-/// Tool response
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct ToolResponse {
-    pub name: String,
-    pub description: String,
-    pub input_schema: serde_json::Value,
-    pub server_id: String,
 }
 
 /// Error response

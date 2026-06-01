@@ -8,23 +8,17 @@ description = "SQLite + SQLCipher storage for hKask"
 [dependencies]
 hkask-types = { path = "../hkask-types" }
 hkask-keystore = { path = "../hkask-keystore" }
-hkask-cns = { path = "../hkask-cns" }
 rusqlite.workspace = true
 sqlite-vec.workspace = true
-blake3.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 uuid.workspace = true
 chrono.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
-parking_lot.workspace = true
-gix.workspace = true
 hex.workspace = true
 argon2.workspace = true
 zeroize.workspace = true
 rand.workspace = true
 aes-gcm.workspace = true
-sha2.workspace = true
 base64.workspace = true
-subtle.workspace = true

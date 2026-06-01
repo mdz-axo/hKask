@@ -16,7 +16,6 @@
 //!   instead of ~400ms (four Argon2id calls)
 
 use hkask_types::derivation_contexts;
-use hkask_types::secret::SecretRef;
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 use zeroize::Zeroizing;
@@ -110,7 +109,7 @@ pub fn derive_all_internal_secrets(master_passphrase: &str) -> InternalSecrets {
 /// # Returns
 ///
 /// 32-byte derived sub-key, wrapped in `Zeroizing` for secure memory handling.
-pub fn derive_sub_key(master_key: &[u8], context: &str) -> Zeroizing<Vec<u8>> {
+pub(crate) fn derive_sub_key(master_key: &[u8], context: &str) -> Zeroizing<Vec<u8>> {
     // HKDF-Extract: PRK = HMAC-SHA256(salt, IKM)
     let mut extract_mac =
         HmacSha256::new_from_slice(HKDF_SALT).expect("HMAC-SHA256 accepts any key length");
@@ -137,72 +136,3 @@ fn derive_sub_key_hex(master_key: &[u8], context: &str) -> String {
     let sub_key = derive_sub_key(master_key, context);
     hex::encode(&*sub_key)
 }
-
-/// Resolve a `SecretRef::Derived` by looking up the master key and deriving.
-///
-/// Resolution chain for the master key itself:
-/// 1. Environment variable (by `master_key_env` name)
-/// 2. OS keychain (by `master_key_env` name)
-/// 3. Error — no random fallback for derived secrets
-///
-/// Then HKDF-SHA256 derives the sub-key using the given `context`.
-pub fn resolve_derived(secret_ref: &SecretRef) -> Result<Zeroizing<Vec<u8>>, crate::KeystoreError> {
-    match secret_ref {
-        SecretRef::Derived {
-            master_key_env,
-            context,
-        } => {
-            // Resolve master key: env var first, then keychain
-            let master_key_bytes =
-                crate::keychain::resolve(&SecretRef::Env(master_key_env.clone()))
-                    .or_else(|_| {
-                        crate::keychain::resolve(&SecretRef::Keychain(master_key_env.clone()))
-                    })
-                    .map_err(|_| {
-                        crate::KeystoreError::NotFound(format!(
-                            "Master key '{}' not found in environment or keychain; \
-                         set {} or run `kask init` to derive secrets from a master passphrase",
-                            master_key_env, master_key_env
-                        ))
-                    })?;
-
-            let sub_key = derive_sub_key(&master_key_bytes, context);
-            Ok(sub_key)
-        }
-        _ => Err(crate::KeystoreError::NotSupported(
-            "resolve_derived only handles SecretRef::Derived".to_string(),
-        )),
-    }
-}
-
-/// Derive an HKDF-SHA256 sub-key for a specific data category.
-///
-/// This function enforces OCAP visibility boundaries at the storage layer.
-/// Each `DataCategory` has a unique derivation context that produces a
-/// cryptographically independent 256-bit AES-256-GCM key. A key derived
-/// for `EpisodicMemory` cannot decrypt data stored under `SemanticMemory`,
-/// even if the type system is bypassed.
-///
-/// # Security
-///
-/// - Uses HKDF-SHA256 with the same fixed salt as other sub-key derivations
-/// - The context string provides domain separation per `hkask:data-category:*`
-/// - Different categories produce completely independent sub-keys
-/// - Compromising one category's key does not compromise others or the master key
-///
-/// # Arguments
-///
-/// * `master_key` — 32-byte master key (typically from Argon2id passphrase stretching)
-/// * `category` — The data category whose encryption key to derive
-///
-/// # Returns
-///
-/// A `Zeroizing<Vec<u8>>` containing the 32-byte derived key.
-pub fn derive_data_category_key(
-    master_key: &[u8],
-    category: &hkask_types::DataCategory,
-) -> Zeroizing<Vec<u8>> {
-    let context = category.derivation_context();
-    derive_sub_key(master_key, &context)
-}
-

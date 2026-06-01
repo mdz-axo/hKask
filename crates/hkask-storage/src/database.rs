@@ -73,7 +73,6 @@ pub enum DatabaseError {
 /// **Thread Safety:** This type is `Send` and `Sync` for multi-threaded access.
 pub struct Database {
     pub(crate) conn: Arc<Mutex<Connection>>,
-    salt: [u8; SQLCIPHER_SALT_SIZE],
 }
 
 impl Database {
@@ -114,7 +113,6 @@ impl Database {
 
         Ok(Self {
             conn: Arc::new(Mutex::new(conn)),
-            salt,
         })
     }
 
@@ -125,7 +123,6 @@ impl Database {
         Self::initialize_schema(&conn)?;
         Ok(Self {
             conn: Arc::new(Mutex::new(conn)),
-            salt: [0u8; SQLCIPHER_SALT_SIZE],
         })
     }
 
@@ -149,7 +146,6 @@ impl Database {
             CREATE TABLE IF NOT EXISTS embeddings (id TEXT PRIMARY KEY, entity_ref TEXT REFERENCES triples(id), vector BLOB NOT NULL, dimensions INTEGER NOT NULL, model TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));
             CREATE VIRTUAL TABLE IF NOT EXISTS vec_embeddings USING vec0(id TEXT PRIMARY KEY, embedding float[{dim}]);
             CREATE TABLE IF NOT EXISTS nu_events (id TEXT PRIMARY KEY, timestamp TEXT NOT NULL, observer_webid TEXT NOT NULL, span_category TEXT NOT NULL, span_path TEXT NOT NULL, phase TEXT NOT NULL, observation TEXT NOT NULL, regulation TEXT, outcome TEXT, recursion_depth INTEGER NOT NULL, parent_event TEXT, visibility TEXT NOT NULL DEFAULT 'private');
-            CREATE TABLE IF NOT EXISTS blobs (id TEXT PRIMARY KEY, content_type TEXT NOT NULL, size INTEGER NOT NULL, blake3_hash TEXT NOT NULL, data BLOB NOT NULL, created_at TEXT DEFAULT (datetime('now')), visibility TEXT NOT NULL DEFAULT 'private', owner_webid TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS audit_log (id TEXT PRIMARY KEY, timestamp TEXT NOT NULL, actor_webid TEXT NOT NULL, action TEXT NOT NULL, resource TEXT NOT NULL, outcome TEXT NOT NULL, details TEXT, ip_address TEXT, created_at TEXT DEFAULT (datetime('now')));
             CREATE INDEX IF NOT EXISTS idx_audit_log_timestamp ON audit_log(timestamp);
             CREATE INDEX IF NOT EXISTS idx_audit_log_actor ON audit_log(actor_webid);
@@ -167,11 +163,6 @@ impl Database {
     /// Get database connection for shared access
     pub fn conn_arc(&self) -> Arc<Mutex<Connection>> {
         Arc::clone(&self.conn)
-    }
-
-    /// Get the salt used for key derivation
-    pub fn salt(&self) -> &[u8; SQLCIPHER_SALT_SIZE] {
-        &self.salt
     }
 }
 

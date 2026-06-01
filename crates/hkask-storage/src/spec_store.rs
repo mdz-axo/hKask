@@ -1,8 +1,6 @@
 //! SpecStore — SQLite-backed specification storage and curation
 
-use hkask_types::spec::{
-    Spec, SpecCategory, SpecCurationRecord, SpecError, SpecObserver, SpecStore,
-};
+use hkask_types::spec::{Spec, SpecCategory, SpecCurationRecord, SpecError, SpecStore};
 use hkask_types::{CurationDecision, OCAPBoundary, SYSTEM_MAX_RECURSION, SpecCurator, SpecId};
 use rusqlite::Connection;
 use std::collections::HashSet;
@@ -239,19 +237,5 @@ impl SpecCurator for DefaultSpecCurator {
 
         // Coherence still below threshold after all iterations
         Err(SpecError::CurationDepthExceeded)
-    }
-}
-
-pub struct CnsSpecObserver;
-
-impl SpecObserver for CnsSpecObserver {
-    fn emit_span(&self, spec_id: SpecId, operation: &str, outcome: &serde_json::Value) {
-        tracing::info!(
-            target: "cns.spec",
-            spec_id = %spec_id,
-            operation,
-            outcome = %outcome,
-            "spec operation"
-        );
     }
 }
