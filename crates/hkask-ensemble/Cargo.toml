@@ -8,9 +8,7 @@ description = "Multi-agent chat coordination for hKask"
 [dependencies]
 hkask-types = { path = "../hkask-types" }
 hkask-agents = { path = "../hkask-agents" }
-hkask-cns = { path = "../hkask-cns" }
 hkask-templates = { path = "../hkask-templates" }
-hkask-keystore = { path = "../hkask-keystore" }
 serde.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true
@@ -19,10 +17,4 @@ tracing.workspace = true
 tokio.workspace = true
 async-trait.workspace = true
 reqwest.workspace = true
-uuid.workspace = true
 chrono.workspace = true
-hmac.workspace = true
-sha2.workspace = true
-hex.workspace = true
-zeroize.workspace = true
-rand.workspace = true

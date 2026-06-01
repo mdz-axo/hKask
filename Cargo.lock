@@ -2066,24 +2066,16 @@ version = "0.21.1"
 dependencies = [
  "async-trait",
  "chrono",
- "hex",
  "hkask-agents",
- "hkask-cns",
- "hkask-keystore",
  "hkask-templates",
  "hkask-types",
- "hmac",
- "rand 0.9.4",
  "reqwest",
  "serde",
  "serde_json",
  "serde_yaml",
- "sha2",
  "thiserror",
  "tokio",
  "tracing",
- "uuid",
- "zeroize",
 ]
 
 [[package]]

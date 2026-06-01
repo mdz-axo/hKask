@@ -15,15 +15,8 @@
 //! **High-Temperature Templates:**
 //! - Anti-normative generation via temperature-controlled LLM parameters
 //! - Prevents convergence to homogeneous, predictable behavior
-//!
-//! **Curator Pipeline:**
-//! - Evaluates template outputs (Merge, Discard, Revise, Defer)
-//! - OCAP boundary enforcement
-//! - Variety counter tracking with algedonic alerts
 
 pub mod adapters;
-pub mod audit;
-pub mod capability_validator;
 pub mod cascade;
 pub mod config;
 pub mod context_assembly;
@@ -32,8 +25,6 @@ pub mod contracts;
 pub mod curator_pipeline;
 pub mod dependency;
 pub mod engine;
-pub mod error;
-pub mod hlexicon_source;
 pub mod inference_port;
 pub mod manifest;
 pub mod memory_feedback;
@@ -48,12 +39,6 @@ pub mod renderer;
 pub mod resilience;
 pub mod skill_translation;
 
-pub use audit::{AuditStats, AuditTrail, ExecutionAudit};
-
-pub use context_assembly::{
-    AddResult, AssemblyStats, ContextAssembler, ContextFragment, FragmentSource,
-    assemble_episodic_context, assemble_semantic_context,
-};
 pub use contract_validator::{OkapiRequirements, RegistrationFrontmatter};
 pub use contracts::{
     InferenceConfig as InferenceConfigParsed, ParsedContract, ParsedInference, TemplateFrontmatter,
