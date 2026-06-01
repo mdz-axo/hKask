@@ -13,12 +13,7 @@ use super::{AgentPod, AgentPodError, AgentPodResult};
 use crate::adapters::git_cas::GitCasAdapter;
 use crate::adapters::mcp_runtime::McpRuntimeAdapter;
 use crate::adapters::memory_storage::MemoryStorageAdapter;
-#[allow(deprecated)]
-use crate::ports::{
-    EpisodicStoragePort, GitCASPort, MCPRuntimePort, MemoryStoragePort, SemanticStoragePort,
-};
-#[allow(deprecated)]
-use crate::security::{AgentPersonaInput, SecurityContext};
+use crate::ports::{EpisodicStoragePort, GitCASPort, MCPRuntimePort, SemanticStoragePort};
 
 /// Pod Manager — Manages collection of agent pods
 ///
@@ -39,10 +34,7 @@ pub struct PodManager {
     pub(crate) episodic_storage: Arc<dyn EpisodicStoragePort>,
     /// Semantic memory storage — shared, public knowledge (OCAP: SemanticReadHandle/SemanticWriteHandle)
     pub(crate) semantic_storage: Arc<dyn SemanticStoragePort>,
-    /// Legacy memory storage (deprecated — use episodic_storage/semantic_storage)
-    #[allow(deprecated)]
-    pub(crate) memory_storage: Arc<dyn MemoryStoragePort>,
-    pub(crate) security_context: SecurityContext,
+
     pub(crate) inference_port: Option<Arc<dyn hkask_templates::InferencePort>>,
 }
 
@@ -75,12 +67,6 @@ impl PodManager {
             mcp_runtime,
             episodic_storage,
             semantic_storage,
-            #[allow(deprecated)]
-            memory_storage: Arc::new(
-                MemoryStorageAdapter::in_memory()
-                    .expect("In-memory storage initialization should never fail"),
-            ),
-            security_context: SecurityContext::default(),
             inference_port: None,
         }
     }
@@ -102,12 +88,6 @@ impl PodManager {
             mcp_runtime,
             episodic_storage,
             semantic_storage,
-            #[allow(deprecated)]
-            memory_storage: Arc::new(
-                MemoryStorageAdapter::in_memory()
-                    .expect("In-memory storage initialization should never fail"),
-            ),
-            security_context: SecurityContext::default(),
             inference_port: Some(inference_port),
         }
     }
@@ -134,12 +114,6 @@ impl PodManager {
             mcp_runtime: Arc::new(McpRuntimeAdapter::new()),
             episodic_storage,
             semantic_storage,
-            #[allow(deprecated)]
-            memory_storage: Arc::new(
-                MemoryStorageAdapter::in_memory()
-                    .expect("In-memory storage initialization should never fail"),
-            ),
-            security_context: SecurityContext::default(),
             inference_port: None,
         }
     }
@@ -166,7 +140,6 @@ pub struct PodManagerBuilder {
     mcp_runtime: Option<Arc<dyn MCPRuntimePort>>,
     episodic_storage: Option<Arc<dyn EpisodicStoragePort>>,
     semantic_storage: Option<Arc<dyn SemanticStoragePort>>,
-    security_context: Option<SecurityContext>,
     inference_port: Option<Arc<dyn hkask_templates::InferencePort>>,
 }
 
@@ -178,7 +151,6 @@ impl PodManagerBuilder {
             mcp_runtime: None,
             episodic_storage: None,
             semantic_storage: None,
-            security_context: None,
             inference_port: None,
         }
     }
@@ -247,11 +219,6 @@ impl PodManagerBuilder {
         self.episodic_storage(episodic).semantic_storage(semantic)
     }
 
-    pub fn security_context(mut self, context: SecurityContext) -> Self {
-        self.security_context = Some(context);
-        self
-    }
-
     pub fn build(self) -> PodManager {
         let adapter = Arc::new(
             MemoryStorageAdapter::in_memory()
@@ -276,9 +243,6 @@ impl PodManagerBuilder {
             semantic_storage,
         );
         manager.inference_port = self.inference_port;
-        if let Some(ctx) = self.security_context {
-            manager.security_context = ctx;
-        }
         manager
     }
 }
@@ -306,29 +270,17 @@ impl PodManager {
         persona: &AgentPersona,
         name: Option<String>,
     ) -> AgentPodResult<PodID> {
-        // Validate persona input
-        // TODO: Migrate to AgentPersona::validate_fields() directly
-        #[allow(deprecated)]
-        let input = AgentPersonaInput {
-            name: persona.agent.name.clone(),
-            agent_type: persona.agent.agent_type.to_string().to_lowercase(),
-            version: persona.agent.version.clone(),
-            description: persona.charter.description.clone(),
-            editor: persona.charter.editor.clone(),
-            capabilities: persona.capabilities.clone(),
-        };
-
-        #[allow(deprecated)]
-        input
-            .validate(&input)
-            .map_err(|e| AgentPodError::PersonaParseError(e.to_string()))?;
-
-        let pod = AgentPod::new_with_memory(
-            template_name,
-            persona,
-            self.git_cas.as_ref(),
-            Some(Arc::clone(&self.memory_storage)),
+        // Validate persona fields
+        AgentPersona::validate_fields(
+            &persona.agent.name,
+            &persona.agent.agent_type.to_string().to_lowercase(),
+            &persona.agent.version,
+            &persona.charter.description,
+            &persona.charter.editor,
+            &persona.capabilities,
         )?;
+
+        let pod = AgentPod::new(template_name, persona, self.git_cas.as_ref())?;
         let pod_id = pod.id;
 
         let mut pods = self.pods.write().await;
@@ -403,26 +355,6 @@ impl PodManager {
 
         pod.activate(self.mcp_runtime.as_ref())?;
 
-        // Persist activation event to memory storage
-        let event = serde_json::json!({
-            "entity": pod.webid.to_string(),
-            "attribute": "lifecycle_event",
-            "value": {
-                "event": "activated",
-                "pod_id": pod.id.to_string(),
-                "timestamp": chrono::Utc::now().to_rfc3339(),
-            }
-        });
-
-        #[allow(deprecated)]
-        let _ = self.memory_storage.store_artifact(
-            pod.webid,
-            "episodic_triple",
-            event,
-            "private",
-            &pod.capability_token,
-        );
-
         info!(
             target: "hkask.pod",
             pod_id = %pod_id,
@@ -465,26 +397,6 @@ impl PodManager {
             );
         }
 
-        // Persist deactivation event to memory storage
-        let event = serde_json::json!({
-            "entity": pod.webid.to_string(),
-            "attribute": "lifecycle_event",
-            "value": {
-                "event": "deactivated",
-                "pod_id": pod.id.to_string(),
-                "timestamp": chrono::Utc::now().to_rfc3339(),
-            }
-        });
-
-        #[allow(deprecated)]
-        let _ = self.memory_storage.store_artifact(
-            pod.webid,
-            "episodic_triple",
-            event,
-            "private",
-            &pod.capability_token,
-        );
-
         info!(
             target: "hkask.pod",
             pod_id = %pod_id,
@@ -504,13 +416,8 @@ impl PodManager {
             .get(pod_id)
             .ok_or_else(|| AgentPodError::ACPRegistrationError("Pod not found".to_string()))?;
 
-        #[allow(deprecated)]
-        let results = self
-            .memory_storage
-            .recall(&pod.webid.to_string(), &pod.capability_token)
-            .map_err(|e| AgentPodError::StorageError(e.to_string()))?;
-
-        Ok(results)
+        // Lifecycle events are now persisted via episodic_storage through PodContext
+        Ok(vec![])
     }
 
     /// Get pod status

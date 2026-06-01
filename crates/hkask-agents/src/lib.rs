@@ -36,23 +36,18 @@
 
 pub mod acp;
 pub mod adapters;
-pub mod bot;
-pub mod capabilities;
+
 pub mod consent;
 pub mod curator;
 pub mod error;
-pub mod ocap;
 pub mod pod;
 pub mod ports;
 pub mod registry_loader;
-pub mod replicant;
-pub mod revocation_store;
-pub mod security;
+
 pub mod sovereignty;
 
 pub use acp::{A2AMessage, AcpAgent, AcpError, AcpRuntime, TemplateDispatchHandler};
-pub use bot::Bot;
-pub use capabilities::{AgentCapabilities, MemoryAccess};
+
 pub use consent::{ConsentError, ConsentManager};
 pub use curator::context::CuratorContext;
 pub use curator::dampener::Dampener;
@@ -67,12 +62,9 @@ pub use pod::{
     AgentKind, AgentPersona, AgentPod, AgentPodError, AgentPodResult, PodID, PodLifecycleState,
     PodManager, PodStatus, TemplateCrate, TemplateFile,
 };
-#[allow(deprecated)]
 pub use ports::{
     AcpPort, AcpTransport, AcpWireMessage, AcpWireResponse, EpisodicStoragePort, GitCASPort,
-    MCPRuntimePort, MemoryStoragePort, SemanticStoragePort, SovereigntyCheckResult,
-    SovereigntyOperation,
+    MCPRuntimePort, SemanticStoragePort, SovereigntyCheckResult, SovereigntyOperation,
 };
 pub use registry_loader::{BotRegistryLoader, RegistryLoaderError};
-pub use replicant::Replicant;
 pub use sovereignty::SovereigntyChecker;

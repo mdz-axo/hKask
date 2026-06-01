@@ -68,8 +68,7 @@ use tracing::info;
 use zeroize::Zeroizing;
 
 use crate::SovereigntyChecker;
-#[allow(deprecated)]
-use crate::ports::{GitCASPort, MemoryStoragePort};
+use crate::ports::GitCASPort;
 
 pub use context::PodContext;
 pub use manager::{PodManager, PodManagerBuilder, PodStatus};
@@ -102,9 +101,6 @@ pub struct AgentPod {
     pub max_attenuation: u8,
     /// Sovereignty checker for this pod
     pub sovereignty_checker: SovereigntyChecker,
-    /// Optional memory storage for lifecycle event persistence (deprecated)
-    #[allow(deprecated)]
-    memory: Option<Arc<dyn MemoryStoragePort>>,
 }
 
 /// Agent pod error types
@@ -172,17 +168,6 @@ impl AgentPod {
         persona: &AgentPersona,
         git: &dyn GitCASPort,
     ) -> AgentPodResult<Self> {
-        Self::new_with_memory(crate_name, persona, git, None)
-    }
-
-    /// Create a new AgentPod with memory persistence for lifecycle events.
-    #[allow(deprecated)]
-    pub fn new_with_memory(
-        crate_name: &str,
-        persona: &AgentPersona,
-        git: &dyn GitCASPort,
-        memory: Option<Arc<dyn MemoryStoragePort>>,
-    ) -> AgentPodResult<Self> {
         let template_crate = git
             .load_template_crate(crate_name)
             .map_err(|e| AgentPodError::CrateLoadError(e.to_string()))?;
@@ -221,7 +206,6 @@ impl AgentPod {
             created_at: current_timestamp()?,
             max_attenuation: SYSTEM_MAX_ATTENUATION,
             sovereignty_checker,
-            memory,
         })
     }
 
@@ -252,7 +236,6 @@ impl AgentPod {
 
         self.capability_token = token;
         self.state = PodLifecycleState::Registered;
-        self.record_lifecycle_event(PodLifecycleState::Registered);
 
         tracing::debug!(
             target: "cns.pod",
@@ -291,7 +274,6 @@ impl AgentPod {
             .map_err(|e| AgentPodError::MCPAccessError(e.to_string()))?;
 
         self.state = PodLifecycleState::Activated;
-        self.record_lifecycle_event(PodLifecycleState::Activated);
 
         tracing::debug!(
             target: "cns.pod",
@@ -323,7 +305,6 @@ impl AgentPod {
         }
 
         self.state = PodLifecycleState::Deactivated;
-        self.record_lifecycle_event(PodLifecycleState::Deactivated);
 
         tracing::debug!(
             target: "cns.pod",
@@ -375,37 +356,6 @@ impl AgentPod {
     /// Get the current lifecycle state
     pub fn state(&self) -> PodLifecycleState {
         self.state
-    }
-
-    /// Persist a lifecycle event as a bitemporal triple in episodic memory.
-    ///
-    /// Records the state transition with the pod's WebID, current timestamp,
-    /// and the new state value. Uses "episodic_triple" artifact type for
-    /// agent-private, observer-scoped storage.
-    fn record_lifecycle_event(&self, new_state: PodLifecycleState) {
-        if let Some(ref memory) = self.memory {
-            let content = serde_json::json!({
-                "entity": format!("pod:{}", self.id),
-                "attribute": "lifecycle_state",
-                "value": new_state.to_string(),
-            });
-            #[allow(deprecated)]
-            if let Err(e) = memory.store_artifact(
-                self.webid,
-                "episodic_triple",
-                content,
-                "private",
-                &self.capability_token,
-            ) {
-                tracing::warn!(
-                    target: "hkask.pod",
-                    pod_id = %self.id,
-                    state = %new_state,
-                    error = %e,
-                    "Failed to persist lifecycle event"
-                );
-            }
-        }
     }
 
     /// Execute action with sovereignty check

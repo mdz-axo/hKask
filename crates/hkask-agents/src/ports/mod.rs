@@ -7,13 +7,11 @@
 pub mod acp;
 pub mod acp_transport;
 pub mod audit_log;
-pub mod cns_query;
 pub mod git_cas;
 pub mod mcp_runtime;
 pub mod memory_storage;
 pub mod metacognition;
 pub mod registry_source;
-pub mod security_port;
 pub mod sovereignty;
 pub mod standing_session;
 
