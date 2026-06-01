@@ -10,7 +10,7 @@ pub mod episodic;
 pub mod recall_dedup;
 pub mod semantic;
 
-pub use bayesian::{combine, decay, join, retract, weighted_average};
+pub use bayesian::{combine, decay, join, retract};
 pub use episodic::{
     DEFAULT_DECAY_RATE, DEFAULT_EPISODIC_BUDGET, DEFAULT_TEMPORAL_LAMBDA, EpisodicMemory,
     EpisodicMemoryError, RecalledTriple,

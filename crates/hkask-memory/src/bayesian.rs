@@ -52,20 +52,3 @@ pub fn decay(confidence: f64, decay_rate: f64, time_elapsed: f64) -> f64 {
     // Exponential decay: conf * e^(-rate * time)
     confidence * (-decay_rate * time_elapsed).exp()
 }
-
-/// Weighted average of confidences
-pub fn weighted_average(confidences: &[(f64, f64)]) -> f64 {
-    // confidences: Vec<(confidence, weight)>
-    if confidences.is_empty() {
-        return 0.5;
-    }
-
-    let total_weight: f64 = confidences.iter().map(|(_, w)| w).sum();
-    if total_weight == 0.0 {
-        return 0.5;
-    }
-
-    let weighted_sum: f64 = confidences.iter().map(|(c, w)| c * w).sum();
-
-    weighted_sum / total_weight
-}

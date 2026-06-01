@@ -103,26 +103,6 @@ impl Default for Keychain {
     }
 }
 
-/// Key ring for holding cryptographic keys
-#[derive(Debug, Clone, zeroize::Zeroize, zeroize::ZeroizeOnDrop)]
-pub struct KeyRing {
-    key: [u8; 32],
-}
-
-impl KeyRing {
-    pub fn new(key: [u8; 32]) -> Self {
-        Self { key }
-    }
-
-    pub fn rotate(&mut self, new_key: [u8; 32]) {
-        self.key = new_key;
-    }
-
-    pub fn key(&self) -> &[u8; 32] {
-        &self.key
-    }
-}
-
 /// Get or create OCAP secret
 ///
 /// Resolution chain:
