@@ -46,7 +46,7 @@ impl MemoryFeedbackAdapter {
     /// * `template_id` — The template that triggered the memory query.
     pub async fn record_relevance(
         &self,
-        entity: &str,
+        _entity: &str,
         recall_count: usize,
         avg_confidence: f64,
         template_id: &str,

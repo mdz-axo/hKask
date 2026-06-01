@@ -28,7 +28,7 @@ use crate::okapi_config::{OkapiConfig, validate_prompt};
 use crate::resilience::CircuitBreaker;
 use async_trait::async_trait;
 use hkask_types::cns::RetryConfig;
-use hkask_types::{BotID, LLMParameters, TemplateId, TemplateInvocation, TemplateOutcome, WebID};
+use hkask_types::{BotID, LLMParameters, TemplateId, TemplateInvocation, TemplateOutcome};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
@@ -134,9 +134,6 @@ pub struct OkapiInference {
     config: OkapiConfig,
     retry_config: RetryConfig,
     client: Arc<reqwest::Client>,
-    /// Rate limiter for inference boundary
-    /// Bot/WebID for rate limiting
-    bot_id: Option<WebID>,
     /// CNS span emitter
     /// Circuit breaker for resilience
     circuit_breaker: Option<Arc<CircuitBreaker>>,
@@ -166,7 +163,6 @@ impl OkapiInference {
             retry_config: RetryConfig::default(),
             config,
             client,
-            bot_id: None,
             circuit_breaker: None,
             prompt_cache: None,
         })
@@ -183,7 +179,6 @@ impl OkapiInference {
             retry_config: RetryConfig::default(),
             config,
             client,
-            bot_id: None,
             circuit_breaker: None,
             prompt_cache: None,
         }
@@ -204,7 +199,6 @@ impl OkapiInference {
             retry_config,
             config,
             client,
-            bot_id: None,
             circuit_breaker: None,
             prompt_cache: None,
         })
@@ -226,7 +220,6 @@ impl OkapiInference {
             retry_config,
             config,
             client,
-            bot_id: None,
             circuit_breaker: Some(Arc::new(circuit_breaker)),
             prompt_cache: None,
         })

@@ -68,7 +68,7 @@ impl ArchivalService {
         &self,
         owner: &str,
         repo: &str,
-        branch: &str,
+        _branch: &str,
         path: &str,
         _content: &str,
         requester: &WebID,
@@ -120,8 +120,8 @@ impl ArchivalService {
     /// List archived versions
     pub async fn list_archives(
         &self,
-        owner: &str,
-        repo: &str,
+        _owner: &str,
+        _repo: &str,
         requester: &WebID,
     ) -> ArchivalResult<Vec<String>> {
         self.check_sovereignty(requester, "git_list_archives")?;

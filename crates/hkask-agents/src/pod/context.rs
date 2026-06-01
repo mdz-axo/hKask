@@ -175,7 +175,8 @@ impl PodContext {
             CapabilityAction::Write,
         )?;
 
-        let confidence = confidence_override.unwrap_or_else(|| classification.default_confidence());
+        let _confidence =
+            confidence_override.unwrap_or_else(|| classification.default_confidence());
 
         self.episodic_storage
             .store_episodic_classified(

@@ -105,7 +105,7 @@ pub struct DeliberationResult {
 
 impl DeliberationSession {
     /// Create new deliberation session
-    pub fn new(session_id: String, curator_webid: WebID) -> Self {
+    pub fn new(session_id: String, _curator_webid: WebID) -> Self {
         Self {
             session_id,
             participants: Vec::new(),
@@ -183,74 +183,5 @@ impl DeliberationSession {
     /// Get response count
     pub fn response_count(&self) -> usize {
         self.responses.len()
-    }
-}
-
-/// **Deprecated:** Use `SessionManager` instead.
-///
-/// `DeliberationCoordinator` has been collapsed into `SessionManager` which handles
-/// both chat and deliberation sessions.
-#[deprecated(
-    since = "0.21.0",
-    note = "Use `SessionManager` instead. DeliberationCoordinator has been collapsed into SessionManager."
-)]
-pub struct DeliberationCoordinator {
-    sessions: HashMap<String, DeliberationSession>,
-    curator_webid: WebID,
-}
-
-#[allow(deprecated)]
-impl DeliberationCoordinator {
-    /// Create new coordinator
-    pub fn new(curator_webid: WebID) -> Self {
-        Self {
-            sessions: HashMap::new(),
-            curator_webid,
-        }
-    }
-
-    /// Create a new deliberation session
-    pub fn create_session(&mut self, session_id: &str) -> &mut DeliberationSession {
-        use std::collections::hash_map::Entry;
-
-        match self.sessions.entry(session_id.to_string()) {
-            Entry::Vacant(entry) => {
-                let session = DeliberationSession::new(session_id.to_string(), self.curator_webid);
-                entry.insert(session)
-            }
-            Entry::Occupied(entry) => entry.into_mut(),
-        }
-    }
-
-    /// Get a deliberation session
-    pub fn get_session(&self, session_id: &str) -> Option<&DeliberationSession> {
-        self.sessions.get(session_id)
-    }
-
-    /// Get a deliberation session mutably
-    pub fn get_session_mut(&mut self, session_id: &str) -> Option<&mut DeliberationSession> {
-        self.sessions.get_mut(session_id)
-    }
-
-    /// Remove a deliberation session
-    pub fn remove_session(&mut self, session_id: &str) -> Option<DeliberationSession> {
-        self.sessions.remove(session_id)
-    }
-
-    /// List active sessions
-    pub fn list_sessions(&self) -> Vec<&str> {
-        self.sessions.keys().map(|s| s.as_str()).collect()
-    }
-
-    /// Get session count
-    pub fn session_count(&self) -> usize {
-        self.sessions.len()
-    }
-}
-
-#[allow(deprecated)]
-impl Default for DeliberationCoordinator {
-    fn default() -> Self {
-        Self::new(WebID::new())
     }
 }

@@ -49,8 +49,7 @@ pub mod resilience;
 pub mod skill_translation;
 
 pub use audit::{AuditStats, AuditTrail, ExecutionAudit};
-#[allow(deprecated)]
-pub use capability_validator::CapabilityAwareValidator;
+
 pub use context_assembly::{
     AddResult, AssemblyStats, ContextAssembler, ContextFragment, FragmentSource,
     assemble_episodic_context, assemble_semantic_context,

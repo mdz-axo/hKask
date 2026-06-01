@@ -25,7 +25,7 @@ pub fn cns_router() -> Router<ApiState> {
         (status = 500, description = "Internal server error"),
     ),
 )]
-async fn cns_health(State(state): State<ApiState>) -> Json<CnsHealthResponse> {
+async fn cns_health(State(_state): State<ApiState>) -> Json<CnsHealthResponse> {
     let health = CnsHealth::check(&AlgedonicManager::new(100, 10));
 
     Json(CnsHealthResponse {

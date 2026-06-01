@@ -412,7 +412,7 @@ impl PodManager {
         pod_id: &PodID,
     ) -> AgentPodResult<Vec<serde_json::Value>> {
         let pods = self.pods.read().await;
-        let pod = pods
+        let _pod = pods
             .get(pod_id)
             .ok_or_else(|| AgentPodError::ACPRegistrationError("Pod not found".to_string()))?;
 

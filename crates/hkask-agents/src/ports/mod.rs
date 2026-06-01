@@ -17,7 +17,7 @@ pub mod standing_session;
 
 pub use acp::AcpPort;
 pub use acp_transport::{AcpTransport, AcpWireMessage, AcpWireResponse};
-pub use audit_log::{AuditContext, AuditEntry, AuditLogPort, AuditLogPortError, AuditOutcome};
+pub use audit_log::{AuditContext, AuditEntry, AuditLogPort, AuditOutcome};
 pub use git_cas::GitCASPort;
 pub use mcp_runtime::MCPRuntimePort;
 pub use memory_storage::{EpisodicStoragePort, SemanticStoragePort};

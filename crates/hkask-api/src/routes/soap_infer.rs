@@ -43,7 +43,7 @@ async fn soap_infer(
     let start = Instant::now();
 
     // Validate request size (DoS prevention)
-    if let Err(err) = validate_soap_request(&req.request, &config) {
+    if let Err(_err) = validate_soap_request(&req.request, &config) {
         return Err(StatusCode::BAD_REQUEST);
     }
 
@@ -64,7 +64,7 @@ async fn soap_infer(
     // Load Jack persona from file (runtime loading)
     let jack_persona = match config.load_jack_persona() {
         Ok(content) => content,
-        Err(e) => {
+        Err(_e) => {
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
     };

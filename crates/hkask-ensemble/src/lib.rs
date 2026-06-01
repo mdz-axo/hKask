@@ -19,20 +19,13 @@ pub mod standing_session;
 pub mod webid_registry;
 
 // Re-export commonly used types
-#[allow(deprecated)]
-pub use adapters::{ImprovClientError, OkapiImprovClient};
-#[allow(deprecated)]
-pub use adapters::{OkapiClient, OkapiClientError, OkapiHttpClient};
-#[allow(deprecated)]
+pub use adapters::{OkapiClient, OkapiClientError};
 pub use chat::{
-    ChatMessage, ChatParticipant, EnsembleChat, EnsembleChatManager, EnsembleError,
-    ParticipantRole, SessionManager,
+    ChatMessage, ChatParticipant, EnsembleChat, EnsembleError, ParticipantRole, SessionManager,
 };
 pub use chat_dedup::{DedupStats, SessionDedup, extract_context_window};
 pub use cns_spans::{OkapiCnsSpan, ValidationResult};
 pub use confidence_router::{ConfidenceConfig, ConfidenceRouter, RouterError, compute_confidence};
-#[allow(deprecated)]
-pub use deliberation::DeliberationCoordinator;
 pub use deliberation::{
     AgentResponse, DeliberationRequest, DeliberationResult, DeliberationSession, DeliberationStatus,
 };

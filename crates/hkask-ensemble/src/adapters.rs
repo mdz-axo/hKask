@@ -25,20 +25,6 @@ pub enum OkapiClientError {
     InvalidSseEvent(String),
 }
 
-/// **Deprecated:** Use `OkapiClientError` instead. This alias exists for backward compatibility.
-#[deprecated(
-    since = "0.21.0",
-    note = "Use `OkapiClientError` instead. OkapiAdapterError has been renamed."
-)]
-pub type OkapiAdapterError = OkapiClientError;
-
-/// **Deprecated:** Use `OkapiClientError` instead. This alias exists for backward compatibility.
-#[deprecated(
-    since = "0.21.0",
-    note = "Use `OkapiClientError` instead. ImprovClientError has been merged into OkapiClientError."
-)]
-pub type ImprovClientError = OkapiClientError;
-
 /// Unified Okapi inference client with detailed response parsing
 ///
 /// Collapses the former `OkapiHttpClient` and `OkapiImprovClient` into a
@@ -169,28 +155,6 @@ impl InferenceClient for OkapiClient {
         })
     }
 }
-
-/// **Deprecated:** Use `OkapiClient` instead.
-///
-/// `OkapiHttpClient` has been collapsed into `OkapiClient`. The new client
-/// retains `client: reqwest::Client` and `base_url: String` and uses the
-/// more detailed response parsing from the former `OkapiImprovClient`.
-#[deprecated(
-    since = "0.21.0",
-    note = "Use `OkapiClient` instead. OkapiHttpClient has been collapsed into OkapiClient."
-)]
-pub type OkapiHttpClient = OkapiClient;
-
-/// **Deprecated:** Use `OkapiClient` instead.
-///
-/// `OkapiImprovClient` has been collapsed into `OkapiClient`. The new client
-/// retains `client: reqwest::Client` and `base_url: String` and uses the
-/// more detailed response parsing that was previously in `OkapiImprovClient`.
-#[deprecated(
-    since = "0.21.0",
-    note = "Use `OkapiClient` instead. OkapiImprovClient has been collapsed into OkapiClient."
-)]
-pub type OkapiImprovClient = OkapiClient;
 
 /// HTTP-based metrics source adapter (SSE stream)
 pub struct OkapiSseAdapter {

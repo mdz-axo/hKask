@@ -62,7 +62,6 @@ use hkask_types::{
     CapabilityAction, CapabilityResource, CapabilityToken, DataCategory, SYSTEM_MAX_ATTENUATION,
     WebID,
 };
-use std::sync::Arc;
 use thiserror::Error;
 use tracing::info;
 use zeroize::Zeroizing;

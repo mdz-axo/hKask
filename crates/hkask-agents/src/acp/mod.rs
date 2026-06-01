@@ -24,11 +24,11 @@
 //! ```
 
 mod audit;
-mod dispatch;
+
 mod root_authority;
 
 pub use audit::{AuditEntry, AuditLog};
-pub use dispatch::TemplateDispatchHandler;
+
 pub use hkask_types::AuditLogPort;
 pub use root_authority::RootAuthority;
 

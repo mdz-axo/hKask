@@ -46,16 +46,13 @@ pub mod domains {
     pub const SOVEREIGNTY_BV: &str = "sovereignty:bv";
     /// Bot variety tracking: `bot:{webid}:{category}`
     pub const BOT: &str = "bot";
-    /// Goal variety tracking: `goal:{webid}`
-    pub const GOAL: &str = "goal";
 }
 
 /// Acquisition attempt threshold before algedonic alert
 const DEFAULT_ACQUISITION_THRESHOLD: u64 = 5;
 /// Boundary violation threshold before algedonic alert
 const DEFAULT_VIOLATION_THRESHOLD: u64 = 3;
-/// Default expected variety for goal counting
-const DEFAULT_GOAL_THRESHOLD: u64 = 10;
+
 /// Default expected variety for bots
 const DEFAULT_BOT_EXPECTED_VARIETY: u64 = 100;
 
@@ -83,10 +80,6 @@ pub struct UnifiedVarietyTracker {
     bot_success: HashMap<WebID, (u64, u64)>,
     /// Per-bot name mapping
     bot_names: HashMap<WebID, String>,
-    /// Per-WebID goal counts
-    goal_counts: HashMap<WebID, u64>,
-    /// Default goal threshold for algedonic alert
-    goal_threshold: u64,
     /// Acquisition attempt threshold for algedonic alert
     acquisition_threshold: u64,
     /// Boundary violation threshold for algedonic alert
@@ -105,8 +98,6 @@ impl UnifiedVarietyTracker {
             bot_metrics: HashMap::new(),
             bot_success: HashMap::new(),
             bot_names: HashMap::new(),
-            goal_counts: HashMap::new(),
-            goal_threshold: DEFAULT_GOAL_THRESHOLD,
             acquisition_threshold: DEFAULT_ACQUISITION_THRESHOLD,
             violation_threshold: DEFAULT_VIOLATION_THRESHOLD,
             bot_expected_variety: DEFAULT_BOT_EXPECTED_VARIETY,
@@ -437,49 +428,6 @@ impl UnifiedVarietyTracker {
         }
     }
 
-    // =========================================================================
-    // Goal variety (per-WebID goal counting)
-    // =========================================================================
-
-    /// Register a goal tracker for a WebID.
-    pub fn register_goal_tracker(&mut self, webid: WebID) {
-        self.goal_counts.entry(webid).or_insert(0);
-    }
-
-    /// Update goal count for a WebID.
-    pub fn update_goal_count(&mut self, webid: &WebID, count: u64) {
-        self.goal_counts.insert(*webid, count);
-    }
-
-    /// Increment goal count for a WebID.
-    pub fn increment_goal(&mut self, webid: &WebID) {
-        *self.goal_counts.entry(*webid).or_insert(0) += 1;
-    }
-
-    /// Decrement goal count for a WebID.
-    pub fn decrement_goal(&mut self, webid: &WebID) {
-        if let Some(count) = self.goal_counts.get_mut(webid) {
-            *count = count.saturating_sub(1);
-        }
-    }
-
-    /// Check if any WebID exceeds the goal threshold.
-    pub fn exceeds_goal_threshold(&self) -> bool {
-        self.goal_counts
-            .values()
-            .any(|&count| count > self.goal_threshold)
-    }
-
-    /// Set the goal threshold for algedonic alerts.
-    pub fn set_goal_threshold(&mut self, threshold: u64) {
-        self.goal_threshold = threshold;
-    }
-
-    /// Get goal count for a specific WebID.
-    pub fn goal_count(&self, webid: &WebID) -> u64 {
-        self.goal_counts.get(webid).copied().unwrap_or(0)
-    }
-
     /// Set the acquisition threshold.
     pub fn set_acquisition_threshold(&mut self, threshold: u64) {
         self.acquisition_threshold = threshold;
@@ -495,4 +443,3 @@ impl UnifiedVarietyTracker {
         self.bot_expected_variety = expected;
     }
 }
-

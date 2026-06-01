@@ -11,16 +11,6 @@
 use crate::contract_validator::ValidationError;
 use thiserror::Error;
 
-/// **Deprecated:** Use `ContractValidator` instead.
-///
-/// `CapabilityAwareValidator` was near-identical to `ContractValidator` and
-/// has been collapsed into it. This type alias exists for backward compatibility.
-#[deprecated(
-    since = "0.21.0",
-    note = "Use `ContractValidator` instead. CapabilityAwareValidator has been collapsed into ContractValidator."
-)]
-pub type CapabilityAwareValidator = crate::contract_validator::ContractValidator;
-
 /// Validation result with capability information
 #[derive(Debug, Clone)]
 pub struct ValidationWithCapabilities {

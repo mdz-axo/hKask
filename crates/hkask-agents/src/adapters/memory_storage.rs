@@ -5,15 +5,13 @@
 
 use crate::error::MemoryError;
 use crate::ports::{EpisodicStoragePort, SemanticStoragePort};
-use hkask_storage::{Database, Embedding, EmbeddingStore, Triple, TripleStore};
-use hkask_types::{CapabilityToken, ExperienceClassification, TripleID, Visibility, WebID};
+use hkask_storage::{Database, Triple, TripleStore};
+use hkask_types::{CapabilityToken, ExperienceClassification, Visibility, WebID};
 use serde_json::Value;
-use uuid::Uuid;
 
 /// Memory Storage Adapter — Concrete implementation for artifact persistence
 pub struct MemoryStorageAdapter {
     triple_store: TripleStore,
-    embedding_store: EmbeddingStore,
 }
 
 impl MemoryStorageAdapter {
@@ -21,8 +19,7 @@ impl MemoryStorageAdapter {
     pub fn new(db: Database) -> Result<Self, MemoryError> {
         let conn = db.conn_arc();
         Ok(Self {
-            triple_store: TripleStore::new(conn.clone()),
-            embedding_store: EmbeddingStore::new(conn),
+            triple_store: TripleStore::new(conn),
         })
     }
 

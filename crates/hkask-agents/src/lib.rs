@@ -46,7 +46,7 @@ pub mod registry_loader;
 
 pub mod sovereignty;
 
-pub use acp::{A2AMessage, AcpAgent, AcpError, AcpRuntime, TemplateDispatchHandler};
+pub use acp::{A2AMessage, AcpAgent, AcpError, AcpRuntime};
 
 pub use consent::{ConsentError, ConsentManager};
 pub use curator::context::CuratorContext;

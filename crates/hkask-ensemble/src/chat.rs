@@ -274,65 +274,6 @@ pub enum EnsembleError {
     CapabilityDenied(String),
 }
 
-/// **Deprecated:** Use `SessionManager` instead.
-///
-/// `EnsembleChatManager` has been collapsed into `SessionManager` which handles
-/// both chat and deliberation sessions.
-#[deprecated(
-    since = "0.21.0",
-    note = "Use `SessionManager` instead. EnsembleChatManager has been collapsed into SessionManager."
-)]
-pub struct EnsembleChatManager {
-    chats: Arc<RwLock<HashMap<String, Arc<RwLock<EnsembleChat>>>>>,
-    curator_webid: WebID,
-}
-
-#[allow(deprecated)]
-impl EnsembleChatManager {
-    /// Create new chat manager
-    pub fn new(curator_webid: WebID) -> Self {
-        Self {
-            chats: Arc::new(RwLock::new(HashMap::new())),
-            curator_webid,
-        }
-    }
-
-    /// Create a new chat session
-    pub async fn create_chat(&self, session_id: &str) -> Arc<RwLock<EnsembleChat>> {
-        let chat = Arc::new(RwLock::new(EnsembleChat::new(self.curator_webid)));
-
-        let mut chats = self.chats.write().await;
-        chats.insert(session_id.to_string(), chat.clone());
-
-        chat
-    }
-
-    /// Get a chat session
-    pub async fn get_chat(&self, session_id: &str) -> Option<Arc<RwLock<EnsembleChat>>> {
-        let chats = self.chats.read().await;
-        chats.get(session_id).cloned()
-    }
-
-    /// Delete a chat session
-    pub async fn delete_chat(&self, session_id: &str) -> bool {
-        let mut chats = self.chats.write().await;
-        chats.remove(session_id).is_some()
-    }
-
-    /// List active chat sessions
-    pub async fn list_sessions(&self) -> Vec<String> {
-        let chats = self.chats.read().await;
-        chats.keys().cloned().collect()
-    }
-}
-
-#[allow(deprecated)]
-impl Default for EnsembleChatManager {
-    fn default() -> Self {
-        Self::new(WebID::new())
-    }
-}
-
 /// Unified session manager for both chat and deliberation sessions.
 ///
 /// Collapses the former `EnsembleChatManager` and `DeliberationCoordinator` into
