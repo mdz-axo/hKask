@@ -530,7 +530,7 @@ fn run_sovereignty(action: SovereigntyAction) {
                 commands::config::open_sovereignty_store(),
                 "Failed to open sovereignty store",
             );
-            let consent_manager = hkask_agents::ConsentManager::new(store.clone());
+            let consent_manager = hkask_agents::ConsentManager::new();
 
             println!("Sovereignty Status");
             println!("==================");
@@ -593,12 +593,7 @@ fn run_sovereignty(action: SovereigntyAction) {
         SovereigntyAction::Grant { category } => {
             let webid = hkask_types::WebID::new();
             let data_category = cli::parse_data_category(&category);
-            let store = hkask_storage::SovereigntyBoundaryStore::new(
-                hkask_storage::Database::in_memory()
-                    .expect("in-memory db")
-                    .conn_arc(),
-            );
-            let consent_manager = hkask_agents::ConsentManager::new(store);
+            let consent_manager = hkask_agents::ConsentManager::new();
             match consent_manager.grant_consent(&webid.to_string(), &data_category) {
                 Ok(()) => {
                     println!("Consent granted for category: {}", category);
@@ -612,12 +607,7 @@ fn run_sovereignty(action: SovereigntyAction) {
         }
         SovereigntyAction::Revoke { category } => {
             let webid = hkask_types::WebID::new();
-            let store = hkask_storage::SovereigntyBoundaryStore::new(
-                hkask_storage::Database::in_memory()
-                    .expect("in-memory db")
-                    .conn_arc(),
-            );
-            let consent_manager = hkask_agents::ConsentManager::new(store);
+            let consent_manager = hkask_agents::ConsentManager::new();
             let data_category = cli::parse_data_category(&category);
             let _ = consent_manager.grant_consent(&webid.to_string(), &data_category);
             match consent_manager.revoke_consent(&webid.to_string()) {
@@ -688,11 +678,7 @@ fn run_sovereignty(action: SovereigntyAction) {
         }
         SovereigntyAction::Check { category } => {
             let webid = hkask_types::WebID::from_persona(b"cli-user");
-            let store = or_exit(
-                commands::config::open_sovereignty_store(),
-                "Failed to open sovereignty store",
-            );
-            let consent_manager = hkask_agents::ConsentManager::new(store);
+            let consent_manager = hkask_agents::ConsentManager::new();
             let data_category = cli::parse_data_category(&category);
             println!("Data Access Check");
             println!("=================");

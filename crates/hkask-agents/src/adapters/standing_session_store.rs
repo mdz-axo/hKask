@@ -29,21 +29,17 @@ impl StandingSessionPort for StandingSessionStoreAdapter {
             key_version,
             sealed: false,
         };
-        self.store
-            .save_session(&stored)
-            .map_err(|e| StandingSessionPortError::Storage(e.to_string()))
+        self.store.save_session(&stored)?;
+        Ok(())
     }
 
     fn get_session(&self, session_id: &str) -> Result<SessionRecord, StandingSessionPortError> {
-        self.store
-            .get_session(session_id)
-            .map(|s| SessionRecord {
-                session_id: s.session_id,
-                config_yaml: s.config_yaml,
-                created_at: s.created_at,
-                last_active: s.last_active,
-            })
-            .map_err(|e| StandingSessionPortError::Storage(e.to_string()))
+        self.store.get_session(session_id).map(|s| SessionRecord {
+            session_id: s.session_id,
+            config_yaml: s.config_yaml,
+            created_at: s.created_at,
+            last_active: s.last_active,
+        })
     }
 
     fn save_message(&self, message: &MessageRecord) -> Result<i64, StandingSessionPortError> {
@@ -55,36 +51,29 @@ impl StandingSessionPort for StandingSessionStoreAdapter {
             timestamp: message.timestamp.clone(),
             template_id: message.template_id.clone(),
         };
-        self.store
-            .save_message(&stored)
-            .map_err(|e| StandingSessionPortError::Storage(e.to_string()))
+        self.store.save_message(&stored)
     }
 
     fn get_messages(
         &self,
         session_id: &str,
     ) -> Result<Vec<MessageRecord>, StandingSessionPortError> {
-        self.store
-            .get_messages(session_id)
-            .map(|v| {
-                v.into_iter()
-                    .map(|m| MessageRecord {
-                        id: m.id,
-                        session_id: m.session_id,
-                        from_webid: m.from_webid,
-                        content: m.content,
-                        timestamp: m.timestamp,
-                        template_id: m.template_id,
-                    })
-                    .collect()
-            })
-            .map_err(|e| StandingSessionPortError::Storage(e.to_string()))
+        self.store.get_messages(session_id).map(|v| {
+            v.into_iter()
+                .map(|m| MessageRecord {
+                    id: m.id,
+                    session_id: m.session_id,
+                    from_webid: m.from_webid,
+                    content: m.content,
+                    timestamp: m.timestamp,
+                    template_id: m.template_id,
+                })
+                .collect()
+        })
     }
 
     fn update_last_active(&self, session_id: &str) -> Result<(), StandingSessionPortError> {
-        self.store
-            .update_last_active(session_id)
-            .map_err(|e| StandingSessionPortError::Storage(e.to_string()))
+        self.store.update_last_active(session_id)
     }
 
     fn submit_bot_report(&self, report: &BotReport) -> Result<(), StandingSessionPortError> {
@@ -96,10 +85,7 @@ impl StandingSessionPort for StandingSessionStoreAdapter {
             timestamp: report.timestamp.clone(),
             template_id: Some("bot_report".to_string()),
         };
-        self.store
-            .save_message(&stored)
-            .map(|_| ())
-            .map_err(|e| StandingSessionPortError::Storage(e.to_string()))
+        self.store.save_message(&stored).map(|_| ())
     }
 
     fn get_bot_reports(
@@ -107,10 +93,7 @@ impl StandingSessionPort for StandingSessionStoreAdapter {
         session_id: &str,
         bot_name: &str,
     ) -> Result<Vec<BotReport>, StandingSessionPortError> {
-        let messages = self
-            .store
-            .get_messages(session_id)
-            .map_err(|e| StandingSessionPortError::Storage(e.to_string()))?;
+        let messages = self.store.get_messages(session_id)?;
         let mut reports = Vec::new();
         for msg in messages {
             if msg.template_id.as_deref() == Some("bot_report")
@@ -140,9 +123,6 @@ impl StandingSessionPort for StandingSessionStoreAdapter {
             timestamp: message.timestamp.clone(),
             template_id: Some("acp_message".to_string()),
         };
-        self.store
-            .save_message(&stored)
-            .map(|_| ())
-            .map_err(|e| StandingSessionPortError::Storage(e.to_string()))
+        self.store.save_message(&stored).map(|_| ())
     }
 }

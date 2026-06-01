@@ -4,23 +4,6 @@ use crate::id::{EventID, WebID};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use thiserror::Error;
-
-#[derive(Error, Debug, Clone, Serialize, Deserialize)]
-pub enum NuEventSinkError {
-    #[error("Database error: {0}")]
-    Database(String),
-    #[error("Serialization error: {0}")]
-    Serialization(String),
-    #[error("Sink not available: {0}")]
-    Unavailable(String),
-}
-
-impl From<serde_json::Error> for NuEventSinkError {
-    fn from(e: serde_json::Error) -> Self {
-        NuEventSinkError::Serialization(e.to_string())
-    }
-}
 
 /// ν-event — Cybernetic observation event
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -328,5 +311,5 @@ impl Phase {
 ///
 /// Implemented by storage backends (e.g., NuEventStore in hkask-storage).
 pub trait NuEventSink: Send + Sync {
-    fn persist(&self, event: &NuEvent) -> Result<(), NuEventSinkError>;
+    fn persist(&self, event: &NuEvent) -> Result<(), crate::InfrastructureError>;
 }

@@ -24,5 +24,7 @@ pub use nu_event_store::NuEventStore;
 pub use security::sanitize_path;
 pub use sovereignty::{SovereigntyBoundaryEntry, SovereigntyBoundaryStore, SovereigntyStoreError};
 pub use spec_store::{DefaultSpecCurator, SqliteSpecStore};
-pub use standing_session::{StandingSessionStore, StoredMessage, StoredSession};
+pub use standing_session::{
+    StandingSessionError, StandingSessionStore, StoredMessage, StoredSession,
+};
 pub use triples::{Triple, TripleError, TripleStore};

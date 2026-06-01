@@ -35,7 +35,6 @@ use hkask_agents::consent::ConsentManager;
 use hkask_agents::curator::escalation::EscalationQueue;
 use hkask_agents::pod::PodManager;
 use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
-use hkask_storage::SovereigntyBoundaryStore;
 use hkask_templates::SqliteRegistry;
 use hkask_types::{CapabilityChecker, WebID};
 use serde::{Deserialize, Serialize};
@@ -104,11 +103,7 @@ impl ApiState {
         system_webid: WebID,
         ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::OkapiClient>>,
     ) -> Self {
-        let consent_manager = Arc::new(ConsentManager::new(SovereigntyBoundaryStore::new(
-            hkask_storage::Database::in_memory()
-                .expect("in-memory db")
-                .conn_arc(),
-        )));
+        let consent_manager = Arc::new(ConsentManager::new());
         let escalation_queue = Arc::new(
             EscalationQueue::new(
                 hkask_storage::Database::in_memory()

@@ -1,7 +1,7 @@
 //! NuEventStore — Persistent storage for CNS ν-events
 
 use hkask_types::event::{Span, SpanCategory};
-use hkask_types::{InfrastructureError, NuEvent, NuEventSink, NuEventSinkError};
+use hkask_types::{InfrastructureError, NuEvent, NuEventSink};
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
@@ -83,21 +83,9 @@ fn span_to_columns(span: &Span) -> (&'static str, &str) {
 }
 
 impl NuEventSink for NuEventStore {
-    fn persist(&self, event: &NuEvent) -> Result<(), NuEventSinkError> {
+    fn persist(&self, event: &NuEvent) -> Result<(), InfrastructureError> {
         self.insert(event).map_err(|e| match e {
-            NuEventError::Infra(InfrastructureError::Database(msg)) => {
-                NuEventSinkError::Database(msg)
-            }
-            NuEventError::Infra(InfrastructureError::Serialization(msg)) => {
-                NuEventSinkError::Serialization(msg)
-            }
-            NuEventError::Infra(InfrastructureError::LockPoisoned) => {
-                NuEventSinkError::Database("lock poisoned".to_string())
-            }
-            NuEventError::Infra(InfrastructureError::NotFound(msg)) => {
-                NuEventSinkError::Database(msg)
-            }
-            NuEventError::Infra(InfrastructureError::Io(msg)) => NuEventSinkError::Database(msg),
+            NuEventError::Infra(infra) => infra,
         })
     }
 }

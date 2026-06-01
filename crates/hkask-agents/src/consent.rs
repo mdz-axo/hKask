@@ -6,7 +6,6 @@
 //! - Audit consent history
 //! - Check consent status
 
-use hkask_storage::SovereigntyBoundaryStore;
 use hkask_types::DataCategory;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -73,16 +72,13 @@ impl ConsentRecord {
 
 /// Consent manager
 pub struct ConsentManager {
-    #[allow(dead_code)]
-    sovereignty_store: SovereigntyBoundaryStore,
     consent_cache: Arc<RwLock<Vec<ConsentRecord>>>,
 }
 
 impl ConsentManager {
     /// Create new consent manager
-    pub fn new(sovereignty_store: SovereigntyBoundaryStore) -> Self {
+    pub fn new() -> Self {
         Self {
-            sovereignty_store,
             consent_cache: Arc::new(RwLock::new(Vec::new())),
         }
     }

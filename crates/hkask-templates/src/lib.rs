@@ -30,7 +30,7 @@ pub mod renderer;
 pub mod resilience;
 
 pub use contracts::{
-    InferenceConfig as InferenceConfigParsed, ParsedContract, ParsedInference, TemplateFrontmatter,
+    ParsedContract, ParsedInference, TemplateFrontmatter, TemplateInferenceConfig,
     parse_frontmatter, validate_lexicon_terms,
 };
 pub use hkask_types::cns::RetryConfig;

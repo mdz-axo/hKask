@@ -1,14 +1,8 @@
 //! Standing Session Port — Hexagonal boundary for standing session persistence
 
-use thiserror::Error;
-
-#[derive(Debug, Error)]
-pub enum StandingSessionPortError {
-    #[error("Storage error: {0}")]
-    Storage(String),
-    #[error("Session not found: {0}")]
-    NotFound(String),
-}
+// StandingSessionPortError is cut. The port now returns the storage error directly.
+// This eliminates the shallow string-wrapper that duplicated hkask_storage::StandingSessionError.
+pub use hkask_storage::standing_session::StandingSessionError as StandingSessionPortError;
 
 #[derive(Debug, Clone)]
 pub struct SessionRecord {

@@ -46,7 +46,7 @@ pub fn parse_frontmatter(source: &str) -> Result<TemplateFrontmatter, TemplateEr
             input_fields: extract_field_names(&c.input),
             output_fields: extract_field_names(&c.output),
         }),
-        inference: frontmatter.inference.map(|i| InferenceConfig {
+        inference: frontmatter.inference.map(|i| TemplateInferenceConfig {
             template_type: i.template_type.and_then(|t| TemplateType::parse_str(&t)),
             lexicon_terms: i.lexicon.unwrap_or_default(),
             model_tier: i.model_tier,
@@ -85,12 +85,12 @@ pub struct TemplateFrontmatterYaml {
 #[derive(Debug, Clone)]
 pub struct TemplateFrontmatter {
     pub contract: Option<TemplateContract>,
-    pub inference: Option<InferenceConfig>,
+    pub inference: Option<TemplateInferenceConfig>,
 }
 
-/// Inference configuration from frontmatter
+/// Inference configuration from template frontmatter
 #[derive(Debug, Clone)]
-pub struct InferenceConfig {
+pub struct TemplateInferenceConfig {
     pub template_type: Option<TemplateType>,
     pub lexicon_terms: Vec<String>,
     pub model_tier: Option<String>,

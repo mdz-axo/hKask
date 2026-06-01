@@ -4,25 +4,29 @@
 //! report status and the Curator orchestrates metacognition.
 
 use crate::chat::{ChatMessage, ChatParticipant, EnsembleChat, ParticipantRole};
-use hkask_agents::ports::{MessageRecord, SessionRecord, StandingSessionPort};
+use hkask_agents::ports::{
+    MessageRecord, SessionRecord, StandingSessionPort, StandingSessionPortError,
+};
 use hkask_types::{R7BotIdentity, WebID, default_r7_bots};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
-use thiserror::Error;
 use tracing::info;
 
-#[derive(Debug, Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum StandingSessionError {
+    #[error(transparent)]
+    Storage(#[from] StandingSessionPortError),
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
+
     #[error("YAML parse error: {0}")]
     YamlParse(#[from] serde_yaml::Error),
+
     #[error("Bootstrap error: {0}")]
     Bootstrap(String),
-    #[error("Storage error: {0}")]
-    Storage(String),
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -168,9 +172,7 @@ impl StandingSession {
                 created_at: now.clone(),
                 last_active: now,
             };
-            store
-                .save_session(&record)
-                .map_err(|e| StandingSessionError::Storage(e.to_string()))?;
+            store.save_session(&record)?;
         }
         Ok(())
     }
@@ -185,21 +187,15 @@ impl StandingSession {
                 timestamp: message.timestamp.to_rfc3339(),
                 template_id: message.template_id.clone(),
             };
-            store
-                .save_message(&record)
-                .map_err(|e| StandingSessionError::Storage(e.to_string()))?;
-            store
-                .update_last_active(&self.session_id)
-                .map_err(|e| StandingSessionError::Storage(e.to_string()))?;
+            store.save_message(&record)?;
+            store.update_last_active(&self.session_id)?;
         }
         Ok(())
     }
 
     pub fn load_messages_from_storage(&mut self) -> Result<(), StandingSessionError> {
         if let Some(ref store) = self.store {
-            let messages = store
-                .get_messages(&self.session_id)
-                .map_err(|e| StandingSessionError::Storage(e.to_string()))?;
+            let messages = store.get_messages(&self.session_id)?;
 
             for stored in messages {
                 let webid = WebID::from_string(&stored.from_webid);
