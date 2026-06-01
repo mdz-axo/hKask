@@ -1,13 +1,7 @@
 //! MCP Transport Layer
 //!
 //! Defines transport abstractions for MCP server communication.
-//! Supports in-process, stdio, and HTTP transports.
-
-use serde_json::Value;
-use std::collections::HashMap;
-use std::fmt;
-use std::sync::Arc;
-use tokio::sync::RwLock;
+//! Supports stdio and HTTP transports.
 
 /// MCP transport enum for tool invocation
 ///
@@ -15,8 +9,6 @@ use tokio::sync::RwLock;
 /// eliminating dynamic dispatch and simplifying the type system.
 #[derive(Debug, Clone)]
 pub enum McpTransport {
-    /// In-process transport for co-located servers
-    InProcess(InProcessMcpTransport),
     /// Stdio transport for child process servers (not yet implemented)
     Stdio,
     /// HTTP transport for remote servers (not yet implemented)
@@ -27,12 +19,11 @@ impl McpTransport {
     /// Call a tool on the MCP server
     pub async fn call(
         &self,
-        server_id: &str,
+        _server_id: &str,
         tool_name: &str,
-        arguments: Value,
-    ) -> Result<Value, String> {
+        _arguments: serde_json::Value,
+    ) -> Result<serde_json::Value, String> {
         match self {
-            McpTransport::InProcess(inner) => inner.call(server_id, tool_name, arguments).await,
             McpTransport::Stdio => Err(format!(
                 "StdioMcpTransport not yet implemented for tool '{}'",
                 tool_name
@@ -47,88 +38,8 @@ impl McpTransport {
     /// Check if transport is connected
     pub fn is_connected(&self) -> bool {
         match self {
-            McpTransport::InProcess(_) => true,
             McpTransport::Stdio => false,
             McpTransport::Http => false,
         }
-    }
-}
-
-impl From<InProcessMcpTransport> for McpTransport {
-    fn from(inner: InProcessMcpTransport) -> Self {
-        McpTransport::InProcess(inner)
-    }
-}
-
-/// In-process MCP transport for co-located servers
-///
-/// Allows MCP servers to be registered as in-process handlers,
-/// avoiding network overhead for local tools.
-type HandlerFn = Box<dyn Fn(Value) -> Result<Value, String> + Send + Sync>;
-
-pub struct InProcessMcpTransport {
-    handlers: Arc<RwLock<HashMap<String, HandlerFn>>>,
-}
-
-impl fmt::Debug for InProcessMcpTransport {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("InProcessMcpTransport")
-            .field(
-                "handlers_count",
-                &self.handlers.try_read().map(|h| h.len()).unwrap_or(0),
-            )
-            .finish()
-    }
-}
-
-impl Clone for InProcessMcpTransport {
-    fn clone(&self) -> Self {
-        Self {
-            handlers: Arc::clone(&self.handlers),
-        }
-    }
-}
-
-impl InProcessMcpTransport {
-    /// Create new in-process transport
-    pub fn new() -> Self {
-        Self {
-            handlers: Arc::new(RwLock::new(HashMap::new())),
-        }
-    }
-
-    /// Register a tool handler
-    pub async fn register_handler<F>(&self, tool_name: String, handler: F)
-    where
-        F: Fn(Value) -> Result<Value, String> + Send + Sync + 'static,
-    {
-        let mut handlers = self.handlers.write().await;
-        handlers.insert(tool_name, Box::new(handler));
-    }
-
-    /// Unregister a tool handler
-    pub async fn unregister_handler(&self, tool_name: &str) {
-        let mut handlers = self.handlers.write().await;
-        handlers.remove(tool_name);
-    }
-
-    /// Call a tool handler directly
-    async fn call(
-        &self,
-        _server_id: &str,
-        tool_name: &str,
-        arguments: Value,
-    ) -> Result<Value, String> {
-        let handlers = self.handlers.read().await;
-        let handler = handlers
-            .get(tool_name)
-            .ok_or_else(|| format!("No handler registered for tool '{}'", tool_name))?;
-        handler(arguments)
-    }
-}
-
-impl Default for InProcessMcpTransport {
-    fn default() -> Self {
-        Self::new()
     }
 }

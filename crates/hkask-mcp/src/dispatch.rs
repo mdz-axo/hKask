@@ -1,6 +1,6 @@
 //! MCP dispatch with capability-based security
 //!
-//! Dispatches tool calls through MCP with OCAP capability verification.
+//! Dispatches tool calls through MCP with OCP capability verification.
 
 use hkask_templates::{McpPort, Result, TemplateError};
 use hkask_types::{BotCapabilities, CapabilityChecker, CapabilityToken, WebID};
@@ -8,8 +8,6 @@ use serde_json::Value;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::info;
-
-use crate::security::SecurityGateway;
 
 use crate::runtime::{McpRuntime, McpTool};
 
@@ -21,8 +19,6 @@ pub struct McpDispatcher {
     capability_checker: Arc<CapabilityChecker>,
     /// Bot capabilities registry
     bot_capabilities: Arc<RwLock<std::collections::HashMap<WebID, BotCapabilities>>>,
-    /// Optional security gateway for input validation, tool allow/deny
-    security_gateway: Option<SecurityGateway>,
 }
 
 impl McpDispatcher {
@@ -31,14 +27,7 @@ impl McpDispatcher {
             runtime,
             capability_checker: Arc::new(CapabilityChecker::new(secret)),
             bot_capabilities: Arc::new(RwLock::new(std::collections::HashMap::new())),
-            security_gateway: None,
         }
-    }
-
-    /// Wire in the security gateway for input validation, tool allow/deny
-    pub fn with_security_gateway(mut self, sg: SecurityGateway) -> Self {
-        self.security_gateway = Some(sg);
-        self
     }
 
     /// Register bot capabilities
@@ -111,23 +100,6 @@ impl McpPort for McpDispatcher {
         ) {
             return Err(TemplateError::CapabilityDenied(format!(
                 "Capability token does not authorize tool: {}",
-                tool_name
-            )));
-        }
-
-        // Security gateway: input size validation
-        self.security_gateway
-            .as_ref()
-            .map_or(Ok(()), |sg| sg.validate_input_size(&input))?;
-
-        // Security gateway: tool allow/deny check
-        if !self
-            .security_gateway
-            .as_ref()
-            .map_or(true, |sg| sg.is_tool_allowed(tool_name))
-        {
-            return Err(TemplateError::CapabilityDenied(format!(
-                "Tool denied by security policy: {}",
                 tool_name
             )));
         }

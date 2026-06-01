@@ -17,18 +17,9 @@
 //! - Prevents convergence to homogeneous, predictable behavior
 
 pub mod adapters;
-pub mod cascade;
-pub mod config;
-pub mod context_assembly;
-pub mod contract_validator;
 pub mod contracts;
-pub mod curator_pipeline;
-pub mod dependency;
-pub mod engine;
 pub mod inference_port;
 pub mod manifest;
-pub mod memory_feedback;
-pub mod multi_okapi;
 pub mod okapi_config;
 pub mod ports;
 pub mod prompt_cache;
@@ -37,16 +28,11 @@ pub mod registry;
 pub mod registry_sqlite;
 pub mod renderer;
 pub mod resilience;
-pub mod skill_translation;
 
-pub use contract_validator::{OkapiRequirements, RegistrationFrontmatter};
 pub use contracts::{
     InferenceConfig as InferenceConfigParsed, ParsedContract, ParsedInference, TemplateFrontmatter,
     parse_frontmatter, validate_lexicon_terms,
 };
-pub use curator_pipeline::{CuratorPipeline, EvaluationResult, merge_outputs};
-pub use dependency::{DependencyError, DependencyGraph, parse_dependencies};
-pub use engine::{TemplateEngine, TemplateRegistry};
 pub use hkask_types::cns::RetryConfig;
 pub use inference_port::{
     InferenceError, InferencePort, InferenceResult, OkapiInference, Usage, create_shared_client,
@@ -56,7 +42,6 @@ pub use inference_port::{
 pub use manifest::{
     EnergyAccount, ManifestExecutorImpl, ModelRequirements, NoopCsp, SelectorConfig, SimpleExecutor,
 };
-pub use memory_feedback::MemoryFeedbackAdapter;
 pub use okapi_config::OkapiConfig;
 pub use okapi_config::{
     OkapiModelDetails, OkapiModelEntry, OkapiTagsResponse, list_okapi_models, search_okapi_models,
