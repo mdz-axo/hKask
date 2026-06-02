@@ -9,6 +9,7 @@
 use crate::curator::metacognition::MetacognitionLoop;
 use hkask_types::loops::curation::CuratorDirective;
 use hkask_types::loops::{Deviation, HkaskLoop, LoopAction, LoopId, Signal};
+use hkask_types::ports::ConsolidationPort;
 use std::sync::Arc;
 
 /// Curation Loop — metacognitive observer.
@@ -18,12 +19,30 @@ use std::sync::Arc;
 /// capability-disciplined access to CNS, dispatch, and escalation.
 pub struct CurationLoop {
     metacognition: Arc<MetacognitionLoop>,
+    consolidation: Option<Arc<dyn ConsolidationPort>>,
 }
 
 impl CurationLoop {
     /// Create a new Curation Loop wrapping a MetacognitionLoop.
     pub fn new(metacognition: Arc<MetacognitionLoop>) -> Self {
-        Self { metacognition }
+        Self {
+            metacognition,
+            consolidation: None,
+        }
+    }
+
+    /// Create a Curation Loop with a consolidation port.
+    ///
+    /// When episodic budget pressure triggers escalation, the consolidation
+    /// bridge will fire to migrate episodic triples into semantic memory.
+    pub fn with_consolidation(
+        metacognition: Arc<MetacognitionLoop>,
+        consolidation: Arc<dyn ConsolidationPort>,
+    ) -> Self {
+        Self {
+            metacognition,
+            consolidation: Some(consolidation),
+        }
     }
 
     /// Access the underlying MetacognitionLoop for domain operations
@@ -82,6 +101,19 @@ impl HkaskLoop for CurationLoop {
                 failed_bots as f64,
                 self.metacognition.config().thresholds.bot_failures as f64,
             ),
+            {
+                let pending_escalations = context
+                    .escalation_queue()
+                    .list_pending()
+                    .map(|v| v.len())
+                    .unwrap_or(0);
+                Signal::new(
+                    LoopId::Curation,
+                    "pending_escalations",
+                    pending_escalations as f64,
+                    0.0, // set-point: zero pending escalations is healthy
+                )
+            },
         ]
     }
 
@@ -123,6 +155,17 @@ impl HkaskLoop for CurationLoop {
                             "reason": "bot_failures_exceeded",
                             "count": dev.signal.value,
                             "threshold": dev.signal.set_point,
+                        }),
+                    ));
+                }
+                "pending_escalations" if dev.signal.value > 0.0 => {
+                    // Pending escalations require Curator attention
+                    actions.push(LoopAction::new(
+                        LoopId::Curation,
+                        hkask_types::loops::ActionType::Escalate,
+                        serde_json::json!({
+                            "reason": "pending_escalations_exist",
+                            "count": dev.signal.value,
                         }),
                     ));
                 }
@@ -168,8 +211,91 @@ impl HkaskLoop for CurationLoop {
                         new_threshold: deficit.saturating_add(threshold),
                     })
                 }
+                hkask_types::loops::ActionType::Escalate
+                    if action.parameters.get("reason").and_then(|v| v.as_str())
+                        == Some("pending_escalations_exist") =>
+                {
+                    // Process pending escalations from the queue
+                    match self
+                        .metacognition
+                        .context()
+                        .escalation_queue()
+                        .list_pending()
+                    {
+                        Ok(entries) if !entries.is_empty() => {
+                            tracing::warn!(
+                                target: "curation.loop",
+                                count = entries.len(),
+                                "Processing pending escalations"
+                            );
+                            for entry in &entries {
+                                tracing::info!(
+                                    target: "curation.loop",
+                                    escalation_id = %entry.id,
+                                    confidence = entry.confidence,
+                                    "Reviewing escalation entry"
+                                );
+                            }
+                            // Issue directives for high-confidence escalations
+                            // (adjust energy budgets for the associated bot)
+                            for entry in entries.iter().filter(|e| e.confidence > 0.5) {
+                                let directive = CuratorDirective::AdjustEnergyBudget {
+                                    agent: entry.bot_id.into(), // BotID -> WebID
+                                    new_budget: 5000, // Reduced budget for problematic bot
+                                };
+                                if let Some(trace_id) = self
+                                    .metacognition
+                                    .context()
+                                    .issue_directive(directive)
+                                    .await
+                                {
+                                    tracing::info!(
+                                        target: "curation.loop",
+                                        trace_id = %trace_id,
+                                        escalation_id = %entry.id,
+                                        "Issued AdjustEnergyBudget directive for escalated bot"
+                                    );
+                                }
+                            }
+
+                            // Trigger consolidation if a consolidation port is available
+                            // and there are escalations (episodic budget pressure → consolidate)
+                            if let Some(consolidation) = &self.consolidation {
+                                let curator_id = self.metacognition.context().handle().curator_id();
+                                match consolidation.consolidate(curator_id, 100) {
+                                    Ok(outcome) if outcome.consolidated_count > 0 => {
+                                        tracing::info!(
+                                            target: "curation.loop",
+                                            consolidated = outcome.consolidated_count,
+                                            retracted = outcome.retracted_count,
+                                            failed = outcome.failed_count,
+                                            "Consolidation bridge fired for escalated system"
+                                        );
+                                    }
+                                    Ok(_) => {}
+                                    Err(e) => {
+                                        tracing::warn!(
+                                            target: "curation.loop",
+                                            error = %e,
+                                            "Consolidation bridge failed"
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                        Ok(_) => {}
+                        Err(e) => {
+                            tracing::error!(
+                                target: "curation.loop",
+                                error = %e,
+                                "Failed to list pending escalations"
+                            );
+                        }
+                    }
+                    continue;
+                }
                 hkask_types::loops::ActionType::Escalate => {
-                    // Escalations go through the escalation queue
+                    // Other escalations go through the escalation queue
                     // (handled by CuratorContext internally)
                     None
                 }

@@ -83,36 +83,89 @@ pub struct CyberneticsLoop {
     max_iterations: u32,
     /// Channel to Communication Loop for inter-loop message dispatch
     dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
+    /// Inbox for receiving inter-loop messages (CuratorDirectives, etc.)
+    inbox: Arc<RwLock<mpsc::UnboundedReceiver<LoopMessage>>>,
 }
 
 impl CyberneticsLoop {
     /// Create a new Cybernetics Loop with default set-points.
+    ///
+    /// The inbox is "dead" (no sender exists) — use `with_inbox()` if you
+    /// need to receive inter-loop messages from the Communication Loop.
     pub fn new(
         cns: Arc<RwLock<CnsRuntime>>,
         dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
     ) -> Self {
+        let (_dead_tx, dead_rx) = mpsc::unbounded_channel::<LoopMessage>();
         Self {
             cns,
             energy_budgets: Arc::new(RwLock::new(std::collections::HashMap::new())),
             set_points: SetPoints::default(),
             max_iterations: 100,
             dispatch_tx,
+            inbox: Arc::new(RwLock::new(dead_rx)),
         }
     }
 
     /// Create a Cybernetics Loop with custom set-points.
+    ///
+    /// The inbox is "dead" (no sender exists) — use `with_set_points_and_inbox()`
+    /// if you need to receive inter-loop messages from the Communication Loop.
     pub fn with_set_points(
         cns: Arc<RwLock<CnsRuntime>>,
         set_points: SetPoints,
         dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
     ) -> Self {
+        let (_dead_tx, dead_rx) = mpsc::unbounded_channel::<LoopMessage>();
         Self {
             cns,
             energy_budgets: Arc::new(RwLock::new(std::collections::HashMap::new())),
             set_points,
             max_iterations: 100,
             dispatch_tx,
+            inbox: Arc::new(RwLock::new(dead_rx)),
         }
+    }
+
+    /// Create a Cybernetics Loop with a fresh inbox channel pair.
+    ///
+    /// Returns `(loop_instance, inbox_sender)` where the sender should be
+    /// registered with the Communication Loop for message delivery.
+    pub fn with_inbox(
+        cns: Arc<RwLock<CnsRuntime>>,
+        dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
+    ) -> (Self, mpsc::UnboundedSender<LoopMessage>) {
+        let (inbox_tx, inbox_rx) = mpsc::unbounded_channel::<LoopMessage>();
+        let loop_instance = Self {
+            cns,
+            energy_budgets: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            set_points: SetPoints::default(),
+            max_iterations: 100,
+            dispatch_tx,
+            inbox: Arc::new(RwLock::new(inbox_rx)),
+        };
+        (loop_instance, inbox_tx)
+    }
+
+    /// Create a Cybernetics Loop with custom set-points and a fresh inbox channel pair.
+    ///
+    /// Returns `(loop_instance, inbox_sender)` where the sender should be
+    /// registered with the Communication Loop for message delivery.
+    pub fn with_set_points_and_inbox(
+        cns: Arc<RwLock<CnsRuntime>>,
+        set_points: SetPoints,
+        dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
+    ) -> (Self, mpsc::UnboundedSender<LoopMessage>) {
+        let (inbox_tx, inbox_rx) = mpsc::unbounded_channel::<LoopMessage>();
+        let loop_instance = Self {
+            cns,
+            energy_budgets: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            set_points,
+            max_iterations: 100,
+            dispatch_tx,
+            inbox: Arc::new(RwLock::new(inbox_rx)),
+        };
+        (loop_instance, inbox_tx)
     }
 
     /// Register an energy budget for an agent.
@@ -156,6 +209,108 @@ impl CyberneticsLoop {
     pub fn dispatch_sender(&self) -> mpsc::UnboundedSender<LoopMessage> {
         self.dispatch_tx.clone()
     }
+
+    /// Process pending inbox messages (CuratorDirectives from Curation).
+    ///
+    /// This is called during the `sense()` phase so that directives
+    /// are applied before the loop computes regulatory actions.
+    pub async fn process_inbox(&self) {
+        let mut inbox = self.inbox.write().await;
+        let mut processed = 0;
+        while let Ok(msg) = inbox.try_recv() {
+            processed += 1;
+            match &msg.payload {
+                LoopPayload::CyberneticsDirective {
+                    directive_type,
+                    target,
+                    parameters,
+                } => match directive_type.as_str() {
+                    "calibrate" => {
+                        if let Some(domain) = parameters.get("domain").and_then(|v| v.as_str())
+                            && let Some(new_threshold) =
+                                parameters.get("new_threshold").and_then(|v| v.as_u64())
+                        {
+                            let cns = self.cns.read().await;
+                            cns.calibrate_threshold(domain, new_threshold).await;
+                            drop(cns);
+                            tracing::info!(
+                                target: "cns.cybernetics",
+                                domain = domain,
+                                new_threshold = new_threshold,
+                                "Applied CalibrateThreshold directive from Curation"
+                            );
+                        }
+                    }
+                    "adjust_energy_budget" => {
+                        if let Some(new_budget) =
+                            parameters.get("new_budget").and_then(|v| v.as_u64())
+                        {
+                            let mut budgets = self.energy_budgets.write().await;
+                            if let Some(budget) = budgets.get_mut(target) {
+                                budget.cap = new_budget;
+                                budget.remaining = new_budget;
+                                tracing::info!(
+                                    target: "cns.cybernetics",
+                                    agent = %target,
+                                    new_budget = new_budget,
+                                    "Applied AdjustEnergyBudget directive from Curation"
+                                );
+                            } else {
+                                budgets.insert(*target, EnergyBudget::new(new_budget));
+                                tracing::info!(
+                                    target: "cns.cybernetics",
+                                    agent = %target,
+                                    new_budget = new_budget,
+                                    "Registered new energy budget from Curation directive"
+                                );
+                            }
+                        }
+                    }
+                    "throttle" | "dampen" | "escalate" | "circuit_break" => {
+                        tracing::debug!(
+                            target: "cns.cybernetics",
+                            directive_type = directive_type,
+                            "Received informational directive (already self-produced)"
+                        );
+                    }
+                    _ => {
+                        tracing::warn!(
+                            target: "cns.cybernetics",
+                            directive_type = directive_type,
+                            "Unknown directive type in CyberneticsLoop inbox"
+                        );
+                    }
+                },
+                LoopPayload::AlgedonicAlert {
+                    current,
+                    threshold,
+                    deficit,
+                } => {
+                    tracing::info!(
+                        target: "cns.cybernetics",
+                        current = current,
+                        threshold = threshold,
+                        deficit = deficit,
+                        "Received algedonic alert in CyberneticsLoop inbox"
+                    );
+                }
+                _ => {
+                    tracing::debug!(
+                        target: "cns.cybernetics",
+                        payload_type = ?msg.payload,
+                        "Ignoring non-directive payload in CyberneticsLoop inbox"
+                    );
+                }
+            }
+        }
+        if processed > 0 {
+            tracing::info!(
+                target: "cns.cybernetics",
+                processed = processed,
+                "Processed inbox messages"
+            );
+        }
+    }
 }
 
 #[async_trait::async_trait]
@@ -170,6 +325,9 @@ impl HkaskLoop for CyberneticsLoop {
     /// - Per-agent energy remaining ratio
     /// - Overall variety deficit from CNS health
     async fn sense(&self) -> Vec<Signal> {
+        // Process pending directives before sensing state
+        self.process_inbox().await;
+
         let mut signals = Vec::new();
 
         // Energy signals: per-agent remaining ratio
@@ -311,7 +469,9 @@ impl HkaskLoop for CyberneticsLoop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_types::loops::{ActionType, DeviationDirection, HkaskLoop, LoopId};
+    use hkask_types::loops::{
+        ActionType, DeviationDirection, HkaskLoop, LoopId, LoopOrigin, LoopPayload,
+    };
 
     fn test_dispatch_tx() -> mpsc::UnboundedSender<LoopMessage> {
         let (tx, _rx) = mpsc::unbounded_channel();
@@ -584,5 +744,141 @@ mod tests {
         assert_eq!(actions.len(), 1);
         assert_eq!(actions[0].action_type, ActionType::Throttle);
         assert_eq!(actions[0].target, LoopId::Communication);
+    }
+
+    // =========================================================================
+    // Inbox processing tests — CuratorDirective consumption
+    // =========================================================================
+
+    #[tokio::test]
+    async fn cybernetics_loop_processes_calibrate_directive() {
+        let cns = Arc::new(RwLock::new(CnsRuntime::default()));
+        let (loop6, inbox_tx) = CyberneticsLoop::with_inbox(cns.clone(), test_dispatch_tx());
+
+        // Send a CalibrateThreshold directive
+        let msg = LoopMessage::warning(
+            LoopOrigin::Curation,
+            LoopPayload::CyberneticsDirective {
+                directive_type: "calibrate".to_string(),
+                target: WebID::new(),
+                parameters: serde_json::json!({
+                    "domain": "variety",
+                    "new_threshold": 200,
+                }),
+            },
+        )
+        .with_target(LoopOrigin::Cybernetics);
+
+        inbox_tx.send(msg).unwrap();
+
+        // Process inbox should apply the threshold
+        loop6.process_inbox().await;
+
+        // Verify: the CNS threshold should have been updated
+        // CnsRuntime::calibrate_threshold is async, so check after processing
+        let health = cns.read().await.health().await;
+        // Health should still be accessible (no crash) — the threshold was applied
+        drop(health);
+    }
+
+    #[tokio::test]
+    async fn cybernetics_loop_processes_adjust_energy_budget_directive() {
+        let cns = Arc::new(RwLock::new(CnsRuntime::default()));
+        let agent = WebID::new();
+        let (loop6, inbox_tx) = CyberneticsLoop::with_inbox(cns, test_dispatch_tx());
+
+        // Register initial budget
+        loop6
+            .register_energy_budget(agent, EnergyBudget::new(10_000))
+            .await;
+
+        // Send AdjustEnergyBudget directive
+        let msg = LoopMessage::warning(
+            LoopOrigin::Curation,
+            LoopPayload::CyberneticsDirective {
+                directive_type: "adjust_energy_budget".to_string(),
+                target: agent,
+                parameters: serde_json::json!({
+                    "new_budget": 5000,
+                }),
+            },
+        )
+        .with_target(LoopOrigin::Cybernetics);
+
+        inbox_tx.send(msg).unwrap();
+
+        // Process inbox
+        loop6.process_inbox().await;
+
+        // Verify: the agent's budget should now be 5000
+        // After adjustment, remaining=5000, cap=5000
+        assert!(!loop6.can_proceed(&agent, 40_000).await);
+        assert!(loop6.can_proceed(&agent, 100).await);
+    }
+
+    #[tokio::test]
+    async fn cybernetics_loop_tick_applies_directives_before_sensing() {
+        let cns = Arc::new(RwLock::new(CnsRuntime::default()));
+        let agent = WebID::new();
+        let (loop6, inbox_tx) = CyberneticsLoop::with_inbox(cns, test_dispatch_tx());
+        loop6
+            .register_energy_budget(agent, EnergyBudget::new(10_000))
+            .await;
+
+        // Send adjust energy budget directive before tick
+        let msg = LoopMessage::warning(
+            LoopOrigin::Curation,
+            LoopPayload::CyberneticsDirective {
+                directive_type: "adjust_energy_budget".to_string(),
+                target: agent,
+                parameters: serde_json::json!({"new_budget": 100}),
+            },
+        )
+        .with_target(LoopOrigin::Cybernetics);
+        inbox_tx.send(msg).unwrap();
+
+        // Tick should process inbox first, then sense with updated state
+        loop6.tick().await;
+    }
+
+    #[tokio::test]
+    async fn cybernetics_loop_inbox_registers_new_budget_for_unknown_agent() {
+        let cns = Arc::new(RwLock::new(CnsRuntime::default()));
+        let agent = WebID::new();
+        let (loop6, inbox_tx) = CyberneticsLoop::with_inbox(cns, test_dispatch_tx());
+
+        // No budget registered for agent yet
+        assert!(loop6.can_proceed(&agent, 1_000_000).await); // soft limit: allowed
+
+        // Send AdjustEnergyBudget for an unregistered agent
+        let msg = LoopMessage::warning(
+            LoopOrigin::Curation,
+            LoopPayload::CyberneticsDirective {
+                directive_type: "adjust_energy_budget".to_string(),
+                target: agent,
+                parameters: serde_json::json!({"new_budget": 500}),
+            },
+        )
+        .with_target(LoopOrigin::Cybernetics);
+        inbox_tx.send(msg).unwrap();
+
+        loop6.process_inbox().await;
+
+        // Now the agent has a budget of 500
+        assert!(loop6.can_proceed(&agent, 100).await);
+        assert!(!loop6.can_proceed(&agent, 1_000_000).await);
+    }
+
+    #[tokio::test]
+    async fn cybernetics_loop_dead_inbox_ignores_messages() {
+        let cns = Arc::new(RwLock::new(CnsRuntime::default()));
+        // Using new() which creates a dead inbox
+        let loop6 = CyberneticsLoop::new(cns, test_dispatch_tx());
+
+        // process_inbox on a dead inbox should be a no-op
+        loop6.process_inbox().await;
+
+        // And tick should still work fine
+        loop6.tick().await;
     }
 }

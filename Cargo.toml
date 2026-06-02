@@ -22,7 +22,6 @@ members = [
     "mcp-servers/hkask-mcp-cns",
     "mcp-servers/hkask-mcp-git",
     "mcp-servers/hkask-mcp-registry",
-    "mcp-servers/hkask-mcp-gml",
     "mcp-servers/hkask-mcp-spec",
     "mcp-servers/hkask-mcp-github",
     "mcp-servers/hkask-mcp-fmp",

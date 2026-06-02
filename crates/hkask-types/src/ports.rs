@@ -6,6 +6,7 @@
 
 use crate::cns::{CircuitState, CnsHealth};
 use crate::error::GitError;
+use crate::id::WebID;
 use crate::lexicon::TemplateType;
 use crate::template::LLMParameters;
 use crate::template::TemplateCrate;
@@ -293,4 +294,34 @@ pub trait StandingSessionPort: Send + Sync {
     fn get_messages(&self, session_id: &str) -> Result<Vec<MessageRecord>, SessionStoreError>;
 
     fn update_last_active(&self, session_id: &str) -> Result<(), SessionStoreError>;
+}
+
+// =============================================================================
+// Consolidation Port — Episodic → Semantic bridge membrane
+// =============================================================================
+
+/// Result of a consolidation operation (mirrors ConsolidationResult from hkask-memory)
+#[derive(Debug, Clone)]
+pub struct ConsolidationOutcome {
+    pub consolidated_count: usize,
+    pub retracted_count: usize,
+    pub failed_count: usize,
+}
+
+/// Consolidation Port — Hexagonal boundary for Episodic → Semantic consolidation
+///
+/// The ConsolidationBridge is a Curation-directed one-way operation:
+/// episodic triples are stripped of perspective and seeded into semantic
+/// memory. This port allows the Curation Loop to trigger consolidation
+/// without depending on the memory crate.
+///
+/// Implementations:
+/// - `ConsolidationBridge` — Production implementation (in hkask-memory)
+pub trait ConsolidationPort: Send + Sync {
+    /// Consolidate up to `limit` episodic triples for the given perspective.
+    fn consolidate(
+        &self,
+        perspective: &WebID,
+        limit: usize,
+    ) -> Result<ConsolidationOutcome, String>;
 }

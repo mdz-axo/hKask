@@ -60,6 +60,14 @@ impl SemanticMemory {
     // (query_similar removed — zero external consumers)
     // (recall_with_similarity removed — zero external consumers)
 
+    /// Store a semantic triple (public, no perspective).
+    ///
+    /// Used by the ConsolidationBridge to seed consolidated episodic triples.
+    pub(crate) fn store_consolidated(&self, triple: Triple) -> Result<(), SemanticMemoryError> {
+        self.triple_store.insert(&triple)?;
+        Ok(())
+    }
+
     /// Get the current count of semantic triples (perspective IS NULL).
     pub fn triple_count(&self) -> Result<usize, SemanticMemoryError> {
         Ok(self.triple_store.count_semantic()?)

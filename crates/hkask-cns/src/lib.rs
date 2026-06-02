@@ -8,6 +8,7 @@ pub mod circuit_breaker; // Loop 6 — regulation
 pub mod cybernetics_loop; // Loop 6
 pub mod dampener; // Loop 6 — regulation
 pub mod energy; // Loop 6 — thermodynamic resource allocation
+pub mod governed_inference; // Loop 6 → Loop 1 membrane
 pub mod inference_loop; // Loop 1 (lives in CNS for governance)
 pub mod observers; // Loop 6 — sensing
 pub mod runtime; // Loop 6 — runtime
@@ -19,6 +20,7 @@ pub use circuit_breaker::{CircuitBreaker, CircuitBreakerConfig};
 pub use cybernetics_loop::{CyberneticsLoop, SetPoints};
 pub use dampener::Dampener;
 pub use energy::{EnergyBudget, EnergyError};
+pub use governed_inference::GovernedInference;
 pub use inference_loop::InferenceLoop;
 
 pub use runtime::CnsRuntime;

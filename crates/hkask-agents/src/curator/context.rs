@@ -35,6 +35,11 @@ impl CuratorContext {
         }
     }
 
+    /// Access the CuratorHandle (capability handle).
+    pub fn handle(&self) -> &CuratorHandle {
+        &self.handle
+    }
+
     /// Access the CNS runtime for health checks and variety queries.
     pub(crate) fn cns(&self) -> &Arc<CnsRuntime> {
         &self.cns

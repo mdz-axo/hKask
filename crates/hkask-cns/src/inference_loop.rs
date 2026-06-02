@@ -5,11 +5,16 @@
 //! is a Cybernetics concern — domain crates provide port implementations,
 //! the CNS provides loop governance.
 
+use hkask_types::WebID;
 use hkask_types::loops::{
     ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal,
 };
 use hkask_types::ports::{CircuitBreakerPort, InferencePort};
 use std::sync::Arc;
+use tokio::sync::RwLock;
+
+use crate::cybernetics_loop::CyberneticsLoop;
+use crate::governed_inference::GovernedInference;
 
 /// Inference Loop — monitors circuit breaker and inference availability.
 ///
@@ -37,6 +42,37 @@ impl InferenceLoop {
     ) -> Self {
         Self {
             inference,
+            circuit_breaker: Some(circuit_breaker),
+        }
+    }
+
+    /// Create an Inference Loop governed by Cybernetics.
+    ///
+    /// This wraps the inference port with energy budget enforcement
+    /// before creating the loop. The returned loop uses the governed
+    /// port, so every `generate()` call passes through budget checks.
+    pub fn governed(
+        inference: Arc<dyn InferencePort>,
+        cybernetics: Arc<RwLock<CyberneticsLoop>>,
+        agent: WebID,
+    ) -> Self {
+        let governed = Arc::new(GovernedInference::new(inference, cybernetics, agent));
+        Self {
+            inference: governed,
+            circuit_breaker: None,
+        }
+    }
+
+    /// Create a governed Inference Loop with a circuit breaker.
+    pub fn governed_with_circuit_breaker(
+        inference: Arc<dyn InferencePort>,
+        cybernetics: Arc<RwLock<CyberneticsLoop>>,
+        agent: WebID,
+        circuit_breaker: Arc<dyn CircuitBreakerPort>,
+    ) -> Self {
+        let governed = Arc::new(GovernedInference::new(inference, cybernetics, agent));
+        Self {
+            inference: governed,
             circuit_breaker: Some(circuit_breaker),
         }
     }
