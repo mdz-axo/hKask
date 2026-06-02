@@ -40,7 +40,9 @@ pub use semantic::{SemanticReadHandle, SemanticWriteHandle};
 pub use self::Loop as HkaskLoop;
 
 /// Loop identifiers for the 6-loop model.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum LoopId {
     Inference,

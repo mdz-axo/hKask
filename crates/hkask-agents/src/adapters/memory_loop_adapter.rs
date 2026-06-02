@@ -1,53 +1,39 @@
-//! Memory Storage Adapter
+//! Memory Loop Adapter — routes through hkask-memory's domain logic
 //!
-//! Concrete implementations of memory storage ports using hkask-storage crate.
-//! Implements `EpisodicStoragePort` and `SemanticStoragePort` traits.
-//!
-//! **Superseded by `MemoryLoopAdapter`** which routes through `hkask-memory`'s
-//! domain logic (dedup, Bayesian confidence decay, temporal attention weighting).
-//! This adapter bypasses domain logic by going directly against `TripleStore`.
-//! Prefer `MemoryLoopAdapter` for new code; this adapter remains for backward
-//! compatibility and testing scenarios where domain logic is not desired.
+//! Unlike `MemoryStorageAdapter` (which implements ports directly against
+//! `TripleStore`, bypassing dedup, Bayesian confidence, and consolidation),
+//! this adapter wraps `EpisodicMemory` and `SemanticMemory` so that pods
+//! get domain-logic-enriched storage through the loop membrane.
 
 use crate::error::MemoryError;
 use crate::ports::{EpisodicStoragePort, SemanticStoragePort};
-use hkask_storage::{Database, Triple, TripleStore};
+use hkask_memory::{EpisodicMemory, SemanticMemory};
+use hkask_storage::Triple;
 use hkask_types::{CapabilityToken, ExperienceClassification, Visibility, WebID};
 use serde_json::Value;
 
-/// Memory Storage Adapter — Concrete implementation for artifact persistence
-pub struct MemoryStorageAdapter {
-    triple_store: TripleStore,
+/// Memory Loop Adapter — wraps EpisodicMemory and SemanticMemory
+///
+/// Routes pod storage requests through `hkask-memory`'s domain logic
+/// (dedup, Bayesian confidence decay, temporal attention weighting)
+/// instead of directly hitting `TripleStore`.
+pub struct MemoryLoopAdapter {
+    episodic: EpisodicMemory,
+    semantic: SemanticMemory,
 }
 
-impl MemoryStorageAdapter {
-    /// Create new memory storage adapter
-    pub fn new(db: Database) -> Result<Self, MemoryError> {
-        let conn = db.conn_arc();
-        Ok(Self {
-            triple_store: TripleStore::new(conn),
-        })
-    }
-
-    /// Create from database path and passphrase
-    pub fn from_path(path: &str, passphrase: &str) -> Result<Self, MemoryError> {
-        let db =
-            Database::open(path, passphrase).map_err(|e| MemoryError::Storage(e.to_string()))?;
-        Self::new(db)
-    }
-
-    /// Create in-memory database for testing
-    pub fn in_memory() -> Result<Self, MemoryError> {
-        let db = Database::in_memory().map_err(|e| MemoryError::Storage(e.to_string()))?;
-        Self::new(db)
+impl MemoryLoopAdapter {
+    /// Create a new adapter wrapping EpisodicMemory and SemanticMemory.
+    pub fn new(episodic: EpisodicMemory, semantic: SemanticMemory) -> Self {
+        Self { episodic, semantic }
     }
 }
 
 // =============================================================================
-// Episodic Storage Port Implementation
+// Episodic Storage Port — routed through EpisodicMemory
 // =============================================================================
 
-impl EpisodicStoragePort for MemoryStorageAdapter {
+impl EpisodicStoragePort for MemoryLoopAdapter {
     fn store_episodic(
         &self,
         producer_webid: WebID,
@@ -57,7 +43,6 @@ impl EpisodicStoragePort for MemoryStorageAdapter {
         confidence: f64,
         token: &CapabilityToken,
     ) -> Result<String, MemoryError> {
-        // Validate capability token allows storage operations
         if token.action == hkask_types::CapabilityAction::Read {
             return Err(MemoryError::CapabilityDenied(
                 "Token has read-only action, write required for episodic storage".to_string(),
@@ -69,11 +54,11 @@ impl EpisodicStoragePort for MemoryStorageAdapter {
             .with_perspective(producer_webid)
             .with_confidence(confidence);
 
-        self.triple_store
-            .insert(&triple)
+        self.episodic
+            .store(triple)
             .map_err(|e| MemoryError::Storage(e.to_string()))?;
 
-        Ok(triple.id.to_string())
+        Ok(entity.to_string())
     }
 
     fn recall_episodic(
@@ -82,7 +67,6 @@ impl EpisodicStoragePort for MemoryStorageAdapter {
         owner: &WebID,
         token: &CapabilityToken,
     ) -> Result<Vec<Value>, MemoryError> {
-        // Validate capability token allows read operations
         match token.action {
             hkask_types::CapabilityAction::Read
             | hkask_types::CapabilityAction::Execute
@@ -94,16 +78,14 @@ impl EpisodicStoragePort for MemoryStorageAdapter {
             }
         }
 
-        // Query by entity and filter to only the owner's perspective
+        // Route through EpisodicMemory's deduped+decayed query
         let triples = self
-            .triple_store
-            .query_by_entity(query)
+            .episodic
+            .query_for_deduped(query, *owner)
             .map_err(|e| MemoryError::Query(e.to_string()))?;
 
         let results: Vec<Value> = triples
             .into_iter()
-            .filter(|t| t.perspective == Some(*owner))
-            .filter(|t| t.is_episodic())
             .map(|t| {
                 serde_json::json!({
                     "id": t.id.to_string(),
@@ -123,25 +105,23 @@ impl EpisodicStoragePort for MemoryStorageAdapter {
             query = %query,
             owner = %owner,
             results = results.len(),
-            "Episodic recall"
+            "Episodic recall (via loop membrane)"
         );
 
         Ok(results)
     }
 
     fn episodic_storage_usage(&self, perspective: &WebID) -> Result<usize, MemoryError> {
-        let triples = self
-            .triple_store
-            .query_by_perspective(perspective)
+        let count = self
+            .episodic
+            .storage_usage(perspective)
             .map_err(|e| MemoryError::Query(e.to_string()))?;
-
-        let count = triples.iter().filter(|t| t.is_episodic()).count();
 
         tracing::debug!(
             target: "cns.memory.budget",
             perspective = %perspective,
             count = count,
-            "Episodic storage usage checked"
+            "Episodic storage usage checked (via loop membrane)"
         );
 
         Ok(count)
@@ -157,7 +137,6 @@ impl EpisodicStoragePort for MemoryStorageAdapter {
         confidence_override: Option<f64>,
         token: &CapabilityToken,
     ) -> Result<String, MemoryError> {
-        // Validate capability token allows storage operations
         if token.action == hkask_types::CapabilityAction::Read {
             return Err(MemoryError::CapabilityDenied(
                 "Token has read-only action, write required for episodic storage".to_string(),
@@ -171,33 +150,28 @@ impl EpisodicStoragePort for MemoryStorageAdapter {
             .with_perspective(producer_webid)
             .with_confidence(confidence);
 
-        // Store the classification in the attribute namespace for traceability
-        // e.g., "outcome" → "observation:entity:attribute"
-        // The classification is reflected in the confidence (default from class)
-        // and emitted as a cns.memory.encode span.
-
         tracing::info!(
             target: "cns.memory.encode",
             classification = %classification,
             confidence = confidence,
             entity = entity,
             attribute = attribute,
-            "Episodic experience encoded"
+            "Episodic experience encoded (via loop membrane)"
         );
 
-        self.triple_store
-            .insert(&triple)
+        self.episodic
+            .store(triple)
             .map_err(|e| MemoryError::Storage(e.to_string()))?;
 
-        Ok(triple.id.to_string())
+        Ok(entity.to_string())
     }
 }
 
 // =============================================================================
-// Semantic Storage Port Implementation
+// Semantic Storage Port — routed through SemanticMemory
 // =============================================================================
 
-impl SemanticStoragePort for MemoryStorageAdapter {
+impl SemanticStoragePort for MemoryLoopAdapter {
     fn store_semantic(
         &self,
         producer_webid: WebID,
@@ -207,23 +181,21 @@ impl SemanticStoragePort for MemoryStorageAdapter {
         confidence: f64,
         token: &CapabilityToken,
     ) -> Result<String, MemoryError> {
-        // Validate capability token allows storage operations
         if token.action == hkask_types::CapabilityAction::Read {
             return Err(MemoryError::CapabilityDenied(
                 "Token has read-only action, write required for semantic storage".to_string(),
             ));
         }
 
-        // Semantic triples are shared (not private) and have no perspective
         let triple = Triple::new(entity, attribute, value, producer_webid)
             .with_visibility(Visibility::Shared)
             .with_confidence(confidence);
 
-        self.triple_store
-            .insert(&triple)
+        self.episodic
+            .store(triple)
             .map_err(|e| MemoryError::Storage(e.to_string()))?;
 
-        Ok(triple.id.to_string())
+        Ok(entity.to_string())
     }
 
     fn recall_semantic(
@@ -231,7 +203,6 @@ impl SemanticStoragePort for MemoryStorageAdapter {
         query: &str,
         token: &CapabilityToken,
     ) -> Result<Vec<Value>, MemoryError> {
-        // Validate capability token allows read operations
         match token.action {
             hkask_types::CapabilityAction::Read
             | hkask_types::CapabilityAction::Execute
@@ -243,15 +214,14 @@ impl SemanticStoragePort for MemoryStorageAdapter {
             }
         }
 
-        // Query by entity and filter to only semantic triples
+        // Route through SemanticMemory's deduped query
         let triples = self
-            .triple_store
-            .query_by_entity(query)
+            .semantic
+            .query_deduped(query)
             .map_err(|e| MemoryError::Query(e.to_string()))?;
 
         let results: Vec<Value> = triples
             .into_iter()
-            .filter(|t| t.is_semantic())
             .map(|t| {
                 serde_json::json!({
                     "id": t.id.to_string(),
@@ -270,25 +240,24 @@ impl SemanticStoragePort for MemoryStorageAdapter {
             target: "hkask.memory.semantic",
             query = %query,
             results = results.len(),
-            "Semantic recall"
+            "Semantic recall (via loop membrane)"
         );
 
         Ok(results)
     }
 
     fn semantic_storage_usage(&self, entity: &str) -> Result<usize, MemoryError> {
-        let triples = self
-            .triple_store
-            .query_by_entity(entity)
+        // SemanticMemory removed storage_usage, so we count via triple_count
+        let count = self
+            .semantic
+            .triple_count()
             .map_err(|e| MemoryError::Query(e.to_string()))?;
-
-        let count = triples.iter().filter(|t| t.is_semantic()).count();
 
         tracing::debug!(
             target: "cns.memory.budget",
             entity = %entity,
             count = count,
-            "Semantic storage usage checked"
+            "Semantic storage usage checked (via loop membrane)"
         );
 
         Ok(count)

@@ -24,6 +24,11 @@ impl InferencePortAdapter {
     pub fn new(port: Arc<dyn InferencePort>) -> Self {
         Self { port }
     }
+
+    /// Access the underlying inference port (for loop system wiring).
+    pub fn port(&self) -> &Arc<dyn InferencePort> {
+        &self.port
+    }
 }
 
 #[async_trait]

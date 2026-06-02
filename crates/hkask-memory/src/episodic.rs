@@ -344,12 +344,16 @@ impl EpisodicMemory {
     /// per-agent storage budget (5d).
     ///
     /// Returns `Ok(())` if within budget, `Err(EpisodicMemoryError::BudgetExceeded)`
-    /// if the budget would be exceeded. Emits a `cns.memory.budget` tracing
-    /// span when the budget is at risk.
+    /// if the budget would be exceeded.
     ///
-    /// **Cybernetics regulation — to be extracted to EpisodicLoop::tick()**
-    /// when the loop membrane is created. This is a Cybernetics concern
-    /// (involuntary budget enforcement), not an Episodic domain concern.
+    /// **Superseded by EpisodicLoop::act()** — budget enforcement is now owned
+    /// by the loop membrane (Cybernetics concern). This method remains for
+    /// pre-write validation by callers that need a synchronous check before
+    /// the loop's next tick, but the loop's `act()` is the authority that
+    /// actually prunes triples when budget is exceeded.
+    ///
+    /// New code should prefer querying `storage_usage()` and letting the
+    /// loop handle enforcement asynchronously.
     pub fn check_budget(
         &self,
         perspective: WebID,

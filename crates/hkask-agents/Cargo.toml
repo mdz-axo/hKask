@@ -10,6 +10,7 @@ hkask-types = { path = "../hkask-types" }
 hkask-cns = { path = "../hkask-cns" }
 hkask-keystore = { path = "../hkask-keystore" }
 hkask-storage = { path = "../hkask-storage" }
+hkask-memory = { path = "../hkask-memory" }
 async-trait.workspace = true
 chrono.workspace = true
 serde.workspace = true

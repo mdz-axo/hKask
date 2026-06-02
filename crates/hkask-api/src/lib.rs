@@ -30,12 +30,21 @@
 use hkask_agents::acp::AcpRuntime;
 use hkask_agents::adapters::git_cas::GitCasAdapter;
 use hkask_agents::adapters::mcp_runtime::McpRuntimeAdapter;
-use hkask_agents::adapters::memory_storage::MemoryStorageAdapter;
+use hkask_agents::adapters::memory_loop_adapter::MemoryLoopAdapter;
+use hkask_agents::communication::dispatch::MessageDispatch;
 use hkask_agents::communication::escalation::EscalationQueue;
 use hkask_agents::consent::ConsentManager;
+use hkask_agents::curator::context::CuratorContext;
+use hkask_agents::curator::curation_loop::CurationLoop;
+use hkask_agents::curator::metacognition::MetacognitionLoop;
+use hkask_agents::loop_system::LoopSystem;
 use hkask_agents::pod::PodManager;
 use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
+use hkask_cns::{CnsRuntime, CyberneticsLoop};
+use hkask_memory::{EpisodicLoop, EpisodicMemory, SemanticLoop, SemanticMemory};
+use hkask_storage::{Database, EmbeddingStore, TripleStore};
 use hkask_templates::SqliteRegistry;
+use hkask_types::loops::curation::CuratorHandle;
 use hkask_types::{CapabilityChecker, WebID};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -98,6 +107,80 @@ pub struct ApiState {
     /// Capability secret used to mint goal capability tokens (same secret used
     /// by the OCAP system).
     pub goal_capability_secret: Arc<Vec<u8>>,
+    /// Loop system for 6-loop regulation (Cybernetics, Episodic, Semantic, Curation)
+    pub loop_system: Arc<LoopSystem>,
+}
+
+/// Build the LoopSystem with all 6 loops.
+///
+/// Creates CnsRuntime, MessageDispatch, LoopSystem, and registers:
+/// Cybernetics, Episodic, Semantic, and Curation loops.
+/// Communication Loop is managed internally by LoopSystem.
+/// Inference Loop is registered only if an inference port is provided.
+fn build_loop_system(
+    escalation_queue: Arc<EscalationQueue>,
+    dispatch: Arc<MessageDispatch>,
+    inference_port: Option<Arc<dyn hkask_types::ports::InferencePort>>,
+    system_webid: WebID,
+) -> Arc<LoopSystem> {
+    let loop_system = LoopSystem::new(Arc::clone(&dispatch));
+
+    // Cybernetics Loop
+    let cns_rwlock: Arc<tokio::sync::RwLock<CnsRuntime>> = Arc::new(tokio::sync::RwLock::new(
+        CnsRuntime::with_threshold(hkask_cns::DEFAULT_THRESHOLD),
+    ));
+    let cybernetics_dispatch_tx = loop_system.dispatch_sender();
+    let cybernetics_loop = CyberneticsLoop::new(Arc::clone(&cns_rwlock), cybernetics_dispatch_tx);
+    // Register loops (register_loop is async, use a small runtime for sync callers)
+    let rt = tokio::runtime::Runtime::new().expect("loop system runtime");
+    rt.block_on(async {
+        loop_system.register_loop(Arc::new(cybernetics_loop)).await;
+    });
+
+    // Inference Loop (optional)
+    if let Some(port) = inference_port {
+        let inference_loop = hkask_templates::InferenceLoop::new(port);
+        rt.block_on(async {
+            loop_system.register_loop(Arc::new(inference_loop)).await;
+        });
+    }
+
+    // Episodic Loop
+    let db = Database::in_memory().expect("in-memory db");
+    let conn = db.conn_arc();
+    let triple_store = TripleStore::new(Arc::clone(&conn));
+    let episodic_memory = EpisodicMemory::new(triple_store);
+    let storage_budget = episodic_memory.storage_budget();
+    let episodic_loop = EpisodicLoop::new(episodic_memory, system_webid, storage_budget);
+    rt.block_on(async {
+        loop_system.register_loop(Arc::new(episodic_loop)).await;
+    });
+
+    // Semantic Loop
+    let triple_store2 = TripleStore::new(Arc::clone(&conn));
+    let embedding_store = EmbeddingStore::new(conn);
+    let semantic_memory = SemanticMemory::new(triple_store2, embedding_store);
+    let semantic_loop = SemanticLoop::new(semantic_memory);
+    rt.block_on(async {
+        loop_system.register_loop(Arc::new(semantic_loop)).await;
+    });
+
+    // Curation Loop
+    let curator_handle = CuratorHandle::new(system_webid);
+    let curator_context = Arc::new(CuratorContext::new(
+        curator_handle,
+        Arc::new(CnsRuntime::with_threshold(hkask_cns::DEFAULT_THRESHOLD)),
+        dispatch,
+        escalation_queue,
+    ));
+    let metacognition = Arc::new(MetacognitionLoop::new(curator_context, Default::default()));
+    let curation_loop = CurationLoop::new(metacognition);
+    rt.block_on(async {
+        loop_system.register_loop(Arc::new(curation_loop)).await;
+    });
+
+    drop(rt);
+    Arc::new(loop_system)
 }
 
 impl ApiState {
@@ -157,6 +240,18 @@ impl ApiState {
             hkask_storage::SqliteGoalRepository::new(goal_conn, capability_secret.to_vec())
                 .with_telemetry(goal_sink),
         );
+
+        // Build the LoopSystem with shared dispatch and escalation queue
+        let dispatch = Arc::new(MessageDispatch::new());
+        let inference_port: Option<Arc<dyn hkask_types::ports::InferencePort>> =
+            ensemble_inferencer.as_ref().map(|ei| Arc::clone(ei.port()));
+        let loop_system = build_loop_system(
+            Arc::clone(&escalation_queue),
+            dispatch,
+            inference_port,
+            system_webid,
+        );
+
         Self {
             registry: Arc::new(tokio::sync::Mutex::new(registry)),
             mcp_runtime: Arc::new(mcp_runtime),
@@ -172,6 +267,7 @@ impl ApiState {
             standing_sessions: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
             goal_repo,
             goal_capability_secret: Arc::new(capability_secret.to_vec()),
+            loop_system,
         }
     }
 
@@ -195,8 +291,17 @@ impl ApiState {
         let git_cas = GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-templates"));
         let acp_runtime = Arc::new(AcpRuntime::new(acp_secret));
         let mcp_runtime_adapter = McpRuntimeAdapter::new();
-        let memory_adapter =
-            Arc::new(MemoryStorageAdapter::in_memory().expect("in-memory adapter creation"));
+
+        // Use MemoryLoopAdapter (routes through hkask-memory domain logic)
+        // instead of MemoryStorageAdapter (raw TripleStore bypass)
+        let db = Database::in_memory().expect("in-memory db");
+        let conn = db.conn_arc();
+        let triple_store = TripleStore::new(Arc::clone(&conn));
+        let episodic_memory = EpisodicMemory::new(triple_store);
+        let triple_store2 = TripleStore::new(Arc::clone(&conn));
+        let embedding_store = EmbeddingStore::new(conn);
+        let semantic_memory = SemanticMemory::new(triple_store2, embedding_store);
+        let memory_adapter = Arc::new(MemoryLoopAdapter::new(episodic_memory, semantic_memory));
         let episodic_storage: Arc<dyn EpisodicStoragePort> = memory_adapter.clone();
         let semantic_storage: Arc<dyn SemanticStoragePort> = memory_adapter.clone();
         let pod_manager = PodManager::new(
@@ -259,6 +364,28 @@ impl ApiState {
     pub fn with_spec_store(mut self, store: Arc<dyn hkask_types::SpecStore + Send + Sync>) -> Self {
         self.spec_store = Some(store);
         self
+    }
+
+    /// Start the loop system (all registered loops begin their tick cycles).
+    ///
+    /// Call this after the API server starts listening. The loops run in
+    /// background tokio tasks until `shutdown_loops()` is called.
+    pub async fn start_loops(&self) {
+        tracing::info!(
+            target: "hkask.api",
+            loops = ?self.loop_system.registered_loop_ids().await,
+            "Starting loop system"
+        );
+        self.loop_system.start().await;
+    }
+
+    /// Signal the loop system to shut down.
+    ///
+    /// Call this during graceful server shutdown. All loop tick tasks
+    /// will stop after their current cycle completes.
+    pub fn shutdown_loops(&self) {
+        tracing::info!(target: "hkask.api", "Shutting down loop system");
+        self.loop_system.shutdown();
     }
 }
 

@@ -2,6 +2,7 @@
 
 pub mod git_cas;
 pub mod mcp_runtime;
+pub mod memory_loop_adapter;
 pub mod memory_storage;
 
 pub mod registry_source;
@@ -10,6 +11,7 @@ pub mod standing_session_store;
 
 pub use git_cas::GitCasAdapter;
 pub use mcp_runtime::McpRuntimeAdapter;
+pub use memory_loop_adapter::MemoryLoopAdapter;
 pub use memory_storage::MemoryStorageAdapter;
 pub use registry_source::FilesystemRegistrySource;
 pub use russell_acp::RussellAcpAdapter;

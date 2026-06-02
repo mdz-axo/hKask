@@ -278,7 +278,7 @@ impl LoopSystem {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_types::loops::{ActionType, Deviation, LoopAction, Signal};
+    use hkask_types::loops::{Deviation, LoopAction, Signal};
 
     /// A minimal loop for testing registration and tick.
     struct TestLoop {
@@ -335,7 +335,7 @@ mod tests {
         assert_eq!(system.registered_count().await, 2);
         let mut ids = system.registered_loop_ids().await;
         ids.sort();
-        assert_eq!(ids, vec![LoopId::Cybernetics, LoopId::Inference]);
+        assert_eq!(ids, vec![LoopId::Inference, LoopId::Cybernetics]);
     }
 
     #[tokio::test]

@@ -134,6 +134,8 @@ fn main() {
 
         Commands::Models => run_models(&rt),
 
+        Commands::Loops { interval } => run_loops(&rt, interval),
+
         Commands::WebSearch { query, max_results } => run_web_search(&rt, query, max_results),
     }
 }
@@ -521,6 +523,93 @@ fn run_cns(rt: &tokio::runtime::Runtime, action: CnsAction) {
             println!("  (no variety data)");
         }
     }
+}
+
+fn run_loops(rt: &tokio::runtime::Runtime, interval: u64) {
+    use hkask_agents::{
+        CurationLoop, CuratorContext, EscalationQueue, LoopSystem, MessageDispatch,
+    };
+    use hkask_cns::{CnsRuntime, CyberneticsLoop};
+    use hkask_memory::{EpisodicLoop, EpisodicMemory, SemanticLoop, SemanticMemory};
+    use hkask_storage::{Database, EmbeddingStore, TripleStore};
+    use hkask_types::WebID;
+    use hkask_types::loops::curation::CuratorHandle;
+    use std::sync::Arc;
+    use std::time::Duration;
+
+    // 1. Create shared infrastructure
+    let dispatch = Arc::new(MessageDispatch::new());
+
+    // 2. Create the LoopSystem
+    let tick_interval = Duration::from_secs(interval);
+    let loop_system = LoopSystem::with_tick_interval(Arc::clone(&dispatch), tick_interval);
+
+    // 3. Register Cybernetics Loop
+    let cns_rwlock: Arc<tokio::sync::RwLock<CnsRuntime>> = Arc::new(tokio::sync::RwLock::new(
+        CnsRuntime::with_threshold(hkask_cns::DEFAULT_THRESHOLD),
+    ));
+    let cybernetics_dispatch_tx = loop_system.dispatch_sender();
+    let cybernetics_loop = CyberneticsLoop::new(Arc::clone(&cns_rwlock), cybernetics_dispatch_tx);
+    rt.block_on(loop_system.register_loop(Arc::new(cybernetics_loop)));
+
+    // 4. Inference Loop skipped — requires Okapi connection (not available at CLI bootstrap)
+
+    // 5. Register Episodic Loop
+    let db = Database::in_memory().expect("in-memory db");
+    let conn = db.conn_arc();
+    let triple_store = TripleStore::new(Arc::clone(&conn));
+    let episodic_memory = EpisodicMemory::new(triple_store);
+    let system_webid = WebID::new();
+    let storage_budget = episodic_memory.storage_budget();
+    let episodic_loop = EpisodicLoop::new(episodic_memory, system_webid, storage_budget);
+    rt.block_on(loop_system.register_loop(Arc::new(episodic_loop)));
+
+    // 6. Register Semantic Loop
+    let triple_store2 = TripleStore::new(Arc::clone(&conn));
+    let embedding_store = EmbeddingStore::new(conn);
+    let semantic_memory = SemanticMemory::new(triple_store2, embedding_store);
+    let semantic_loop = SemanticLoop::new(semantic_memory);
+    rt.block_on(loop_system.register_loop(Arc::new(semantic_loop)));
+
+    // 7. Register Curation Loop
+    let curator_handle = CuratorHandle::new(WebID::new());
+    let escalation_queue = Arc::new(EscalationQueue::new(db.conn_arc()).expect("escalation queue"));
+    let curator_context = Arc::new(CuratorContext::new(
+        curator_handle,
+        Arc::new(CnsRuntime::with_threshold(hkask_cns::DEFAULT_THRESHOLD)),
+        Arc::clone(&dispatch),
+        escalation_queue,
+    ));
+    let metacognition = Arc::new(
+        hkask_agents::curator::metacognition::MetacognitionLoop::new(
+            curator_context,
+            Default::default(),
+        ),
+    );
+    let curation_loop = CurationLoop::new(metacognition);
+    rt.block_on(loop_system.register_loop(Arc::new(curation_loop)));
+
+    // 8. Start the loop system
+    println!("Starting Loop System (tick interval: {}s)", interval);
+    println!("Registered loops:");
+    let ids = rt.block_on(loop_system.registered_loop_ids());
+    for id in &ids {
+        println!("  • {:?}", id);
+    }
+    println!();
+    println!("Note: Inference Loop not registered (requires Okapi connection)");
+    println!();
+
+    rt.block_on(loop_system.start());
+
+    // 9. Run until Ctrl+C
+    println!("Loop system running. Press Ctrl+C to shutdown.");
+    rt.block_on(async {
+        tokio::signal::ctrl_c().await.ok();
+    });
+
+    loop_system.shutdown();
+    println!("Loop system shut down.");
 }
 
 fn run_goal(action: GoalAction) {
