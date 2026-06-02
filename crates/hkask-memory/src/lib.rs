@@ -7,8 +7,12 @@
 
 pub mod bayesian;
 pub mod episodic;
+pub mod episodic_loop;
 pub mod recall_dedup;
 pub mod semantic;
+pub mod semantic_loop;
 
 pub use episodic::{EpisodicMemory, RecalledTriple};
+pub use episodic_loop::EpisodicLoop;
 pub use semantic::SemanticMemory;
+pub use semantic_loop::SemanticLoop;

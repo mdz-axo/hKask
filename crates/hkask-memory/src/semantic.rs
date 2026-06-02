@@ -75,4 +75,9 @@ impl SemanticMemory {
     // (recall_combined_with_stats removed — zero external consumers)
     // (query_similar removed — zero external consumers)
     // (recall_with_similarity removed — zero external consumers)
+
+    /// Get the current count of semantic triples (perspective IS NULL).
+    pub fn triple_count(&self) -> Result<usize, SemanticMemoryError> {
+        Ok(self.triple_store.count_semantic()?)
+    }
 }

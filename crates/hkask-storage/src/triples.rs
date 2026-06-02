@@ -361,6 +361,20 @@ impl TripleStore {
         Ok(result)
     }
 
+    /// Count semantic triples (perspective IS NULL, valid_to IS NULL).
+    pub fn count_semantic(&self) -> Result<usize, TripleError> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM triples WHERE perspective IS NULL AND valid_to IS NULL",
+            [],
+            |row| row.get(0),
+        )?;
+        Ok(count as usize)
+    }
+
     fn row_to_triple(row: TripleRow) -> Result<Triple, TripleError> {
         let id = TripleID(uuid::Uuid::parse_str(&row.id).unwrap_or_else(|_| uuid::Uuid::new_v4()));
         let value: Value = serde_json::from_str(&row.value)?;
