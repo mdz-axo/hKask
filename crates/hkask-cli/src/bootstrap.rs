@@ -97,6 +97,12 @@ pub struct BootstrapSequence {
     state: BootstrapState,
 }
 
+impl Default for BootstrapSequence {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BootstrapSequence {
     /// Create a new bootstrap sequence
     pub fn new() -> Self {

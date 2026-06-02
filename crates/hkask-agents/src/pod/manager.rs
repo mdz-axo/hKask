@@ -250,6 +250,13 @@ impl PodManagerBuilder {
     }
 
     pub fn build(self) -> PodManager {
+        if self.episodic_storage.is_none() || self.semantic_storage.is_none() {
+            tracing::warn!(
+                target: "hkask.agents.pod",
+                "No persistent storage configured — episodic and semantic memory are in-memory and will be lost on restart. \
+                 Use .with_encrypted_storage(path, passphrase) for sovereign persistence."
+            );
+        }
         let adapter = Arc::new(
             MemoryStorageAdapter::in_memory()
                 .expect("In-memory storage initialization should never fail"),

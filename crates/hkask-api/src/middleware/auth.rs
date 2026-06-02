@@ -16,7 +16,8 @@ use axum::{
     response::Response,
 };
 use hkask_types::{CapabilityToken, SYSTEM_MAX_ATTENUATION, SecretRef, WebID, derivation_contexts};
-use std::sync::Arc;
+use std::collections::HashSet;
+use std::sync::{Arc, RwLock};
 
 /// Routes that bypass authentication (health checks, model listing).
 const PUBLIC_PATHS: &[&str] = &["/api/cns/health", "/api/models", "/api/models/search"];
@@ -27,6 +28,8 @@ const PUBLIC_PATHS: &[&str] = &["/api/cns/health", "/api/models", "/api/models/s
 pub struct AuthService {
     /// Resolved HMAC key derived from the master key via HKDF-SHA256.
     secret: Arc<Vec<u8>>,
+    /// Revoked capability token IDs (sync RwLock for use in sync verify_token)
+    revoked_tokens: Arc<RwLock<HashSet<String>>>,
 }
 
 impl AuthService {
@@ -45,6 +48,7 @@ impl AuthService {
 
         Ok(Self {
             secret: Arc::new((*secret).clone()),
+            revoked_tokens: Arc::new(RwLock::new(HashSet::new())),
         })
     }
 
@@ -52,7 +56,23 @@ impl AuthService {
     pub fn from_secret(secret: Vec<u8>) -> Self {
         Self {
             secret: Arc::new(secret),
+            revoked_tokens: Arc::new(RwLock::new(HashSet::new())),
         }
+    }
+
+    /// Revoke a capability token by its ID.
+    pub fn revoke_token(&self, token_id: String) {
+        if let Ok(mut revoked) = self.revoked_tokens.write() {
+            revoked.insert(token_id);
+        }
+    }
+
+    /// Check whether a capability token has been revoked.
+    pub fn is_token_revoked(&self, token_id: &str) -> bool {
+        self.revoked_tokens
+            .read()
+            .map(|set| set.contains(token_id))
+            .unwrap_or(false)
     }
 
     /// Verify a capability token cryptographically and check expiry.
@@ -77,6 +97,11 @@ impl AuthService {
             return TokenVerification::Invalid;
         }
 
+        // 4. Check revocation
+        if self.is_token_revoked(&token.id) {
+            return TokenVerification::Revoked;
+        }
+
         TokenVerification::Valid
     }
 }
@@ -90,6 +115,8 @@ pub enum TokenVerification {
     Invalid,
     /// Signature is valid but token has expired.
     Expired,
+    /// Token has been revoked.
+    Revoked,
 }
 
 /// Extracted auth context attached to validated requests.
@@ -149,6 +176,14 @@ pub async fn auth_middleware(
     // Verify the token
     match service.verify_token(&token) {
         TokenVerification::Valid => {
+            // Double-check revocation via async-safe method
+            if service.is_token_revoked(&token.id) {
+                return Response::builder()
+                    .status(StatusCode::UNAUTHORIZED)
+                    .body(Body::from("Token has been revoked"))
+                    .unwrap();
+            }
+
             let webid = token.holder();
 
             // Attach auth context to request extensions
@@ -164,6 +199,10 @@ pub async fn auth_middleware(
         TokenVerification::Invalid => Response::builder()
             .status(StatusCode::UNAUTHORIZED)
             .body(Body::from("Invalid capability token"))
+            .unwrap(),
+        TokenVerification::Revoked => Response::builder()
+            .status(StatusCode::UNAUTHORIZED)
+            .body(Body::from("Token has been revoked"))
             .unwrap(),
     }
 }

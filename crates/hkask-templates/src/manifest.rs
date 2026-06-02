@@ -294,8 +294,7 @@ where
                             .cloned()
                             .unwrap_or_else(|| template_id.to_string());
 
-                        let result = self.mcp.invoke(&target_tool, state.clone(), token).await?;
-                        result
+                        self.mcp.invoke(&target_tool, state.clone(), token).await?
                     } else {
                         self.mcp.invoke(mcp, state.clone(), token).await?
                     }

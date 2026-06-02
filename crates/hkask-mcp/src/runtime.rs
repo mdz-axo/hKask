@@ -4,6 +4,7 @@
 //! Integrates with capability security and energy budget enforcement.
 
 use crate::transport::McpTransport;
+use hkask_types::CapabilityToken;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -179,12 +180,22 @@ impl McpRuntime {
     /// Call a tool by name with arguments
     ///
     /// Dispatches the tool call to the appropriate MCP server transport.
+    /// The optional `token` travels with the call for audit logging;
+    /// verification is the responsibility of the dispatch layer (`McpDispatcher`).
     pub async fn call_tool(
         &self,
         server_id: &str,
         tool_name: &str,
         arguments: serde_json::Value,
+        token: Option<&CapabilityToken>,
     ) -> Result<serde_json::Value, String> {
+        info!(
+            target: "hkask.mcp",
+            tool = tool_name,
+            token_id = token.map(|t| t.id.as_str()).unwrap_or("none"),
+            "Tool call dispatched"
+        );
+
         // Check if tool exists
         if !self.tool_exists(tool_name).await {
             return Err(format!("Tool '{}' not found", tool_name));

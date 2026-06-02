@@ -109,7 +109,7 @@ pub fn derive_all_internal_secrets(master_passphrase: &str) -> InternalSecrets {
 /// # Returns
 ///
 /// 32-byte derived sub-key, wrapped in `Zeroizing` for secure memory handling.
-pub(crate) fn derive_sub_key(master_key: &[u8], context: &str) -> Zeroizing<Vec<u8>> {
+pub fn derive_sub_key(master_key: &[u8], context: &str) -> Zeroizing<Vec<u8>> {
     // HKDF-Extract: PRK = HMAC-SHA256(salt, IKM)
     let mut extract_mac =
         HmacSha256::new_from_slice(HKDF_SALT).expect("HMAC-SHA256 accepts any key length");

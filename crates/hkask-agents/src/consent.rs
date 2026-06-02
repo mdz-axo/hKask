@@ -75,6 +75,12 @@ pub struct ConsentManager {
     consent_cache: Arc<RwLock<Vec<ConsentRecord>>>,
 }
 
+impl Default for ConsentManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ConsentManager {
     /// Create new consent manager
     pub fn new() -> Self {

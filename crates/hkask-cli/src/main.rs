@@ -41,9 +41,21 @@ fn write_or_print(content: &str, output: Option<&Path>, label: &str) {
 
 fn open_user_store() -> std::sync::Arc<std::sync::Mutex<hkask_storage::user_store::UserStore>> {
     let db_path = std::env::var("HKASK_DB_PATH").unwrap_or_else(|_| "hkask.db".to_string());
-    let conn = rusqlite::Connection::open(&db_path).unwrap_or_else(|_| {
-        rusqlite::Connection::open_in_memory().expect("in-memory connection always succeeds")
-    });
+    let conn = match rusqlite::Connection::open(&db_path) {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::error!(
+                target: "hkask.cli",
+                "Failed to open database at '{}': {} — falling back to in-memory (data will NOT persist)",
+                db_path, e
+            );
+            tracing::warn!(
+                target: "hkask.cli",
+                "Using in-memory database — user data will be lost on restart. Set HKASK_DB_PATH to a writable file path."
+            );
+            rusqlite::Connection::open_in_memory().expect("in-memory connection always succeeds")
+        }
+    };
     let store =
         hkask_storage::user_store::UserStore::new(std::sync::Arc::new(std::sync::Mutex::new(conn)));
     let store = std::sync::Arc::new(std::sync::Mutex::new(store));
@@ -848,6 +860,19 @@ fn run_registry(
 fn run_git(rt: &tokio::runtime::Runtime, action: GitAction) {
     let runtime = hkask_mcp::runtime::McpRuntime::new();
 
+    // Resolve ACP secret and create CapabilityChecker for token minting (G9)
+    let checker = hkask_types::CapabilityChecker::new(&or_exit(
+        hkask_keystore::resolve(&hkask_types::SecretRef::derived(
+            hkask_types::derivation_contexts::MASTER_KEY_ENV,
+            hkask_types::derivation_contexts::ACP_SECRET,
+        ))
+        .or_else(|_| hkask_keystore::resolve(&hkask_types::SecretRef::env("HKASK_ACP_SECRET_KEY")))
+        .or_else(|_| {
+            hkask_keystore::resolve(&hkask_types::SecretRef::Keychain("acp-secret".to_string()))
+        }),
+        "Failed to resolve ACP secret for capability tokens",
+    ));
+
     match action {
         GitAction::Archive {
             owner,
@@ -870,6 +895,7 @@ fn run_git(rt: &tokio::runtime::Runtime, action: GitAction) {
                 or_exit(
                     rt.block_on(commands::archive_registry_to_git(
                         &runtime,
+                        &checker,
                         &owner,
                         &repo,
                         &branch,
@@ -890,7 +916,7 @@ fn run_git(rt: &tokio::runtime::Runtime, action: GitAction) {
                 "{}",
                 or_exit(
                     rt.block_on(commands::restore_registry_from_git(
-                        &runtime, &owner, &repo, &r#ref, &target,
+                        &runtime, &checker, &owner, &repo, &r#ref, &target,
                     )),
                     "Restore failed",
                 )
@@ -898,7 +924,9 @@ fn run_git(rt: &tokio::runtime::Runtime, action: GitAction) {
         }
         GitAction::List { owner, repo } => {
             let commits = or_exit(
-                rt.block_on(commands::list_registry_archives(&runtime, &owner, &repo)),
+                rt.block_on(commands::list_registry_archives(
+                    &runtime, &checker, &owner, &repo,
+                )),
                 "List failed",
             );
             println!("Archived versions for {}/{}:", owner, repo);
@@ -915,7 +943,7 @@ fn run_git(rt: &tokio::runtime::Runtime, action: GitAction) {
                 "{}",
                 or_exit(
                     rt.block_on(commands::create_registry_snapshot(
-                        &runtime, &owner, &repo, &message,
+                        &runtime, &checker, &owner, &repo, &message,
                     )),
                     "Snapshot failed",
                 )

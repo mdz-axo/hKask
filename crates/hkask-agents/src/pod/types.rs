@@ -197,9 +197,9 @@ impl AgentPersona {
             ));
         }
         if name.len() > 64 {
-            return Err(super::AgentPodError::PersonaParseError(format!(
-                "name too long (max 64 chars)"
-            )));
+            return Err(super::AgentPodError::PersonaParseError(
+                "name too long (max 64 chars)".to_string(),
+            ));
         }
         if !name
             .chars()

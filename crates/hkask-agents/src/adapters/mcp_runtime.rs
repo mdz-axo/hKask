@@ -41,12 +41,12 @@ impl MCPRuntimePort for McpRuntimeAdapter {
             return Err(McpError::InvalidToken("Token ID is empty".to_string()));
         }
 
-        if let Some(checker) = &self.capability_checker {
-            if !checker.verify(&token) {
-                return Err(McpError::InvalidToken(
-                    "Token signature verification failed".to_string(),
-                ));
-            }
+        if let Some(checker) = &self.capability_checker
+            && !checker.verify(&token)
+        {
+            return Err(McpError::InvalidToken(
+                "Token signature verification failed".to_string(),
+            ));
         }
 
         Ok(())

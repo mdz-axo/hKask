@@ -24,9 +24,16 @@ impl SqliteRegistry {
         let conn = match path {
             Some(p) => Connection::open(p)
                 .map_err(|e| TemplateError::Manifest(format!("Failed to open SQLite: {}", e)))?,
-            None => Connection::open_in_memory().map_err(|e| {
-                TemplateError::Manifest(format!("Failed to create in-memory SQLite: {}", e))
-            })?,
+            None => {
+                tracing::warn!(
+                    target: "hkask.templates",
+                    "No database path provided — template registry is in-memory and will be lost on restart. \
+                     Pass a file path for sovereign persistence."
+                );
+                Connection::open_in_memory().map_err(|e| {
+                    TemplateError::Manifest(format!("Failed to create in-memory SQLite: {}", e))
+                })?
+            }
         };
 
         let mut registry = Self {

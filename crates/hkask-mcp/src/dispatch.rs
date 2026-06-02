@@ -3,11 +3,14 @@
 //! Dispatches tool calls through MCP with OCP capability verification.
 
 use hkask_templates::{McpPort, Result, TemplateError};
-use hkask_types::{BotCapabilities, CapabilityChecker, CapabilityToken, WebID};
+use hkask_types::{
+    BotCapabilities, CapabilityAction, CapabilityChecker, CapabilityResource, CapabilityToken,
+    WebID,
+};
 use serde_json::Value;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::runtime::{McpRuntime, McpTool};
 
@@ -134,7 +137,7 @@ impl McpPort for McpDispatcher {
             .ok_or_else(|| TemplateError::Mcp(format!("Tool not found: {}", tool_name)))?;
 
         self.runtime
-            .call_tool(&tool_info.server_id, tool_name, input)
+            .call_tool(&tool_info.server_id, tool_name, input, Some(token))
             .await
             .map_err(|e| TemplateError::Mcp(format!("Tool call failed: {}", e)))
     }
@@ -155,18 +158,70 @@ impl McpPort for McpDispatcher {
 
 impl McpDispatcher {
     /// Invoke a tool with capability checking
+    ///
+    /// When a `CapabilityToken` is provided, it is verified cryptographically
+    /// (signature, expiry, tool/action match, revocation). When `None`, falls
+    /// back to the bot-capabilities string match (backward compatible) and logs
+    /// a warning at `hkask.ocap`.
     pub async fn invoke_async(
         &self,
         bot_id: &WebID,
         tool_name: &str,
         input: Value,
+        token: Option<&CapabilityToken>,
     ) -> Result<Value> {
-        // Check capability
-        if !self.check_capability(bot_id, tool_name).await {
-            return Err(TemplateError::CapabilityDenied(format!(
-                "Bot {:?} lacks capability for tool: {}",
-                bot_id, tool_name
-            )));
+        if let Some(token) = token {
+            // Cryptographic token verification path
+            if !self.capability_checker.verify(token) {
+                return Err(TemplateError::CapabilityDenied(format!(
+                    "Invalid capability token signature for tool: {}",
+                    tool_name
+                )));
+            }
+
+            let current_time = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs() as i64;
+            if token.is_expired(current_time) {
+                return Err(TemplateError::CapabilityDenied(format!(
+                    "Expired capability token for tool: {}",
+                    tool_name
+                )));
+            }
+
+            if !token.is_valid_for(
+                CapabilityResource::Tool,
+                tool_name,
+                CapabilityAction::Execute,
+            ) {
+                return Err(TemplateError::CapabilityDenied(format!(
+                    "Capability token does not authorize tool: {}",
+                    tool_name
+                )));
+            }
+
+            if self.is_token_revoked(&token.id).await {
+                return Err(TemplateError::CapabilityDenied(format!(
+                    "Revoked capability token for tool: {}",
+                    tool_name
+                )));
+            }
+        } else {
+            // Legacy bot-capabilities string match (backward compatible)
+            warn!(
+                target: "hkask.ocap",
+                bot_id = ?bot_id,
+                tool_name = %tool_name,
+                "No capability token provided; falling back to bot-capabilities check"
+            );
+
+            if !self.check_capability(bot_id, tool_name).await {
+                return Err(TemplateError::CapabilityDenied(format!(
+                    "Bot {:?} lacks capability for tool: {}",
+                    bot_id, tool_name
+                )));
+            }
         }
 
         // Check if tool exists
@@ -178,6 +233,7 @@ impl McpDispatcher {
             target: "hkask.mcp",
             bot_id = ?bot_id,
             tool_name = %tool_name,
+            token_id = token.map(|t| t.id.as_str()).unwrap_or("none"),
             "Dispatching tool call"
         );
 
@@ -189,7 +245,7 @@ impl McpDispatcher {
 
         let result = self
             .runtime
-            .call_tool(&tool_info.server_id, tool_name, input)
+            .call_tool(&tool_info.server_id, tool_name, input, token)
             .await
             .map_err(|e| TemplateError::Mcp(format!("Tool call failed: {}", e)))?;
 

@@ -102,16 +102,28 @@ impl ApiState {
         capability_secret: &[u8],
         system_webid: WebID,
         ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::OkapiClient>>,
+        db_path: Option<&str>,
+        db_passphrase: Option<&str>,
     ) -> Self {
         let consent_manager = Arc::new(ConsentManager::new());
-        let escalation_queue = Arc::new(
-            EscalationQueue::new(
+
+        let escalation_conn = match (db_path, db_passphrase) {
+            (Some(path), Some(passphrase)) => hkask_storage::Database::open(path, passphrase)
+                .expect("Failed to open escalation database")
+                .conn_arc(),
+            _ => {
+                tracing::warn!(
+                    target: "hkask.api",
+                    "No persistent database configured — escalation queue is in-memory and will be lost on restart. \
+                     Set HKASK_API_DB and HKASK_DB_PASSPHRASE for sovereign persistence."
+                );
                 hkask_storage::Database::in_memory()
                     .expect("in-memory db")
-                    .conn_arc(),
-            )
-            .expect("escalation queue init"),
-        );
+                    .conn_arc()
+            }
+        };
+        let escalation_queue =
+            Arc::new(EscalationQueue::new(escalation_conn).expect("escalation queue init"));
         let git_cas: Arc<dyn hkask_agents::ports::GitCASPort> = Arc::new(GitCasAdapter::from_path(
             PathBuf::from("/tmp/hkask-templates"),
         ));
@@ -123,9 +135,14 @@ impl ApiState {
         // Goal repository wired with a CNS denial sink over a shared connection,
         // mirroring the CLI integration (ADR-029). Capability denials persist
         // as `cns.tool.goal.capability.denied` ν-events.
-        let goal_conn = hkask_storage::Database::in_memory()
-            .expect("in-memory db")
-            .conn_arc();
+        let goal_conn = match (db_path, db_passphrase) {
+            (Some(path), Some(passphrase)) => hkask_storage::Database::open(path, passphrase)
+                .expect("Failed to open goal database")
+                .conn_arc(),
+            _ => hkask_storage::Database::in_memory()
+                .expect("in-memory db")
+                .conn_arc(),
+        };
         let goal_sink: Arc<dyn hkask_types::event::NuEventSink> =
             Arc::new(hkask_storage::NuEventStore::new(Arc::clone(&goal_conn)));
         let goal_repo = Arc::new(
@@ -165,6 +182,8 @@ impl ApiState {
         capability_secret: &[u8],
         acp_secret: &[u8],
         system_webid: WebID,
+        db_path: Option<&str>,
+        db_passphrase: Option<&str>,
     ) -> Self {
         let git_cas = GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-templates"));
         let acp_runtime = Arc::new(AcpRuntime::new(acp_secret));
@@ -188,6 +207,8 @@ impl ApiState {
             capability_secret,
             system_webid,
             None,
+            db_path,
+            db_passphrase,
         )
     }
 
@@ -205,6 +226,8 @@ impl ApiState {
         capability_secret: &[u8],
         system_webid: WebID,
         okapi_base_url: &str,
+        db_path: Option<&str>,
+        db_passphrase: Option<&str>,
     ) -> Self {
         let inferencer = Arc::new(hkask_ensemble::adapters::OkapiClient::new(okapi_base_url));
         Self::new(
@@ -214,6 +237,8 @@ impl ApiState {
             capability_secret,
             system_webid,
             Some(inferencer),
+            db_path,
+            db_passphrase,
         )
     }
 

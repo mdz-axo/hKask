@@ -811,8 +811,25 @@ async fn main() -> anyhow::Result<()> {
         "hkask-mcp-spec",
         env!("CARGO_PKG_VERSION"),
         |ctx: ServerContext| {
-            let conn = rusqlite::Connection::open_in_memory()?;
-            let conn = std::sync::Arc::new(std::sync::Mutex::new(conn));
+            let conn = match ctx.credentials.get("HKASK_SPEC_DB_PATH") {
+                Some(path) => {
+                    let passphrase = ctx.credentials.get("HKASK_DB_PASSPHRASE").ok_or_else(|| {
+                        anyhow::anyhow!("HKASK_SPEC_DB_PATH set but HKASK_DB_PASSPHRASE missing")
+                    })?;
+                    let db = hkask_storage::Database::open(path, passphrase)
+                        .map_err(|e| anyhow::anyhow!("Failed to open spec database: {e}"))?;
+                    db.conn_arc()
+                }
+                None => {
+                    tracing::warn!(
+                        target: "hkask.mcp.spec",
+                        "No persistent database configured — spec store is in-memory and will be lost on restart. \
+                         Set HKASK_SPEC_DB_PATH and HKASK_DB_PASSPHRASE for sovereign persistence."
+                    );
+                    let conn = rusqlite::Connection::open_in_memory()?;
+                    std::sync::Arc::new(std::sync::Mutex::new(conn))
+                }
+            };
             let store = std::sync::Arc::new(hkask_storage::SqliteSpecStore::new(conn));
             store.init_schema().map_err(|e| anyhow::anyhow!("{}", e))?;
 
@@ -825,10 +842,20 @@ async fn main() -> anyhow::Result<()> {
 
             Ok(SpecServer::new(store, ctx.webid, checker))
         },
-        vec![hkask_mcp::CredentialRequirement::required(
-            "HKASK_OCAP_SECRET",
-            "Hex-encoded OCAP secret for minting/verifying spec capability tokens",
-        )],
+        vec![
+            hkask_mcp::CredentialRequirement::required(
+                "HKASK_OCAP_SECRET",
+                "Hex-encoded OCAP secret for minting/verifying spec capability tokens",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_SPEC_DB_PATH",
+                "Path to the spec SQLite database (in-memory if absent)",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_DB_PASSPHRASE",
+                "Passphrase for the spec database (required if HKASK_SPEC_DB_PATH is set)",
+            ),
+        ],
     )
     .await
 }

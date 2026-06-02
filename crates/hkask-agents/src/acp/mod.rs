@@ -41,6 +41,9 @@ use tokio::sync::RwLock;
 use tracing::info;
 use zeroize::Zeroizing;
 
+/// Per-agent derived signing key
+type AgentSecret = Arc<Zeroizing<Vec<u8>>>;
+
 /// Parse a capability string into resource and action
 ///
 /// Examples:
@@ -181,8 +184,10 @@ pub struct AcpRuntime {
     pending_messages: Arc<RwLock<HashMap<String, A2AMessage>>>,
     /// Capability tokens indexed by holder WebID
     capability_tokens: Arc<RwLock<HashMap<WebID, Vec<CapabilityToken>>>>,
-    /// Secret for HMAC signing (Arc<Zeroizing> to avoid copying on Clone)
+    /// Master secret for HMAC signing (Arc<Zeroizing> to avoid copying on Clone)
     secret: Arc<Zeroizing<Vec<u8>>>,
+    /// Per-agent derived signing keys (HKDF-SHA256 from master key, lazily populated)
+    agent_secrets: Arc<RwLock<HashMap<WebID, AgentSecret>>>,
     /// Audit log for A2A message tracking
     audit_log: Arc<AuditLog>,
     /// Root authority for OCAP capability delegation
@@ -209,9 +214,56 @@ impl AcpRuntime {
             pending_messages: Arc::new(RwLock::new(HashMap::new())),
             capability_tokens: Arc::new(RwLock::new(HashMap::new())),
             secret: secret_arc,
+            agent_secrets: Arc::new(RwLock::new(HashMap::new())),
             audit_log: Arc::new(AuditLog::new()),
             root_authority,
             revoked_tokens: Arc::new(RwLock::new(std::collections::HashSet::new())),
+        }
+    }
+
+    /// Derive a per-agent signing key from the master secret using HKDF-SHA256.
+    ///
+    /// Each agent gets a unique key derived with `info = "hkask:acp-agent:{webid}"`.
+    /// This limits blast radius: compromising one agent's key doesn't compromise
+    /// others, because keys are cryptographically independent.
+    ///
+    /// Derived keys are cached for reuse. The master key can still derive any
+    /// agent's key (root authority).
+    async fn derive_agent_secret(&self, agent_webid: &WebID) -> AgentSecret {
+        // Check cache first
+        {
+            let cache = self.agent_secrets.read().await;
+            if let Some(key) = cache.get(agent_webid) {
+                return Arc::clone(key);
+            }
+        }
+
+        // Derive using HKDF-SHA256 with agent WebID as domain separator
+        let context = format!("hkask:acp-agent:{}", agent_webid);
+        let derived = hkask_keystore::derive_sub_key(self.secret.as_ref(), &context);
+        let arc_key = Arc::new(derived);
+
+        // Cache the derived key
+        {
+            let mut cache = self.agent_secrets.write().await;
+            cache.insert(*agent_webid, Arc::clone(&arc_key));
+        }
+
+        arc_key
+    }
+
+    /// Resolve the signing key for a token based on its `delegated_from` field.
+    ///
+    /// - Root tokens (delegated_from == root authority) → master key
+    /// - Delegated tokens (delegated_from == agent) → that agent's derived key
+    async fn resolve_signing_key(&self, delegated_from: &WebID) -> AgentSecret {
+        let root_webid = self.root_authority.root_webid();
+        if *delegated_from == *root_webid {
+            // Root authority tokens are signed with the master key
+            Arc::clone(&self.secret)
+        } else {
+            // Agent-delegated tokens are signed with the agent's derived key
+            self.derive_agent_secret(delegated_from).await
         }
     }
 
@@ -252,28 +304,36 @@ impl AcpRuntime {
             active: true,
         };
 
-        // Create primary capability token via root authority
-        let primary_capability = capabilities
-            .first()
-            .cloned()
-            .unwrap_or_else(|| "tool:execute".to_string());
+        // Create capability tokens for ALL capabilities via root authority
+        let mut tokens_vec: Vec<CapabilityToken> = Vec::with_capacity(capabilities.len());
+        for cap in &capabilities {
+            let (resource, action) = parse_capability(cap)?;
+            let token = self
+                .root_authority
+                .create_root_token(resource, cap.clone(), action, webid)
+                .await?;
+            tokens_vec.push(token);
+        }
 
-        let (resource, action) = parse_capability(&primary_capability)?;
-
-        let token = self
-            .root_authority
-            .create_root_token(resource, primary_capability.clone(), action, webid)
-            .await?;
+        // If no capabilities were provided, mint a default token
+        let primary_token = if let Some(first) = tokens_vec.first() {
+            first.clone()
+        } else {
+            let (resource, action) = parse_capability("tool:execute")?;
+            let token = self
+                .root_authority
+                .create_root_token(resource, "tool:execute".to_string(), action, webid)
+                .await?;
+            tokens_vec.push(token.clone());
+            token
+        };
 
         // Store agent and capabilities
         agents.insert(webid, agent);
 
-        // Store capability token
+        // Store ALL capability tokens
         let mut tokens = self.capability_tokens.write().await;
-        tokens
-            .entry(webid)
-            .or_insert_with(Vec::new)
-            .push(token.clone());
+        tokens.insert(webid, tokens_vec);
 
         info!(
             target: "hkask.acp",
@@ -283,7 +343,7 @@ impl AcpRuntime {
             "Agent registered with ACP runtime"
         );
 
-        Ok(token)
+        Ok(primary_token)
     }
 
     /// Unregister an agent
@@ -297,6 +357,10 @@ impl AcpRuntime {
         // Remove capability tokens
         let mut tokens = self.capability_tokens.write().await;
         tokens.remove(webid);
+
+        // Remove per-agent derived key from cache
+        let mut agent_secrets = self.agent_secrets.write().await;
+        agent_secrets.remove(webid);
 
         info!(
             target: "hkask.acp",
@@ -430,14 +494,17 @@ impl AcpRuntime {
     }
 
     /// Verify capability token (HMAC signature + revocation check + expiry check)
+    ///
+    /// Uses per-agent signing keys: the key is resolved from `token.delegated_from`.
+    /// Root tokens use the master key; delegated tokens use the delegating agent's
+    /// derived key.
     pub async fn verify_capability(&self, token: &CapabilityToken) -> bool {
+        let signing_key = self.resolve_signing_key(&token.delegated_from).await;
         let current_time = chrono::Utc::now().timestamp();
-        let valid = token.verify(self.secret.as_ref()) && !token.is_expired(current_time) && {
+        token.verify(signing_key.as_ref()) && !token.is_expired(current_time) && {
             let revoked = self.revoked_tokens.read().await;
             !revoked.contains(&token.id)
-        };
-
-        valid
+        }
     }
 
     /// Revoke a capability token by ID
@@ -456,6 +523,11 @@ impl AcpRuntime {
     ///
     /// Creates an attenuated child token from the parent token.
     /// The child token has reduced authority (attenuation_level + 1).
+    ///
+    /// The child token is signed with the delegating agent's derived key
+    /// (the current holder of the parent token), not the master key.
+    /// This limits blast radius: compromising the master key is not sufficient
+    /// to forge delegated tokens.
     ///
     /// # Arguments
     /// * `parent_token` — Parent capability token
@@ -483,9 +555,12 @@ impl AcpRuntime {
         self.root_authority
             .verify_attenuation_chain(parent_token, self.root_authority.root_webid())?;
 
-        // Create attenuated token
+        // Resolve the signing key for the delegating agent (parent token holder)
+        let signing_key = self.resolve_signing_key(&parent_token.delegated_to).await;
+
+        // Create attenuated token signed with the delegating agent's key
         let child = parent_token
-            .attenuate(new_holder, self.secret.as_ref(), current_time)
+            .attenuate(new_holder, signing_key.as_ref(), current_time)
             .ok_or_else(|| {
                 AcpError::InvalidAttenuationChain("Attenuation limit exceeded".to_string())
             })?;
