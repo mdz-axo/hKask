@@ -33,7 +33,7 @@ impl NuEventStore {
         Self { conn }
     }
 
-    pub fn insert(&self, event: &NuEvent) -> Result<(), NuEventError> {
+    pub(crate) fn insert(&self, event: &NuEvent) -> Result<(), NuEventError> {
         let conn = self
             .conn
             .lock()

@@ -37,7 +37,7 @@ impl From<serde_json::Error> for SovereigntyStoreError {
 
 /// Stored sovereignty boundary entry
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct SovereigntyBoundaryEntry {
+pub struct SovereigntyBoundaryEntry {
     pub id: String,
     pub webid: String,
     pub sovereign_categories: Vec<String>,

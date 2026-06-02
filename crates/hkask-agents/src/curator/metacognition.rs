@@ -8,13 +8,12 @@
 //! - Triggers escalations when thresholds are exceeded
 //! - Posts summaries to standing session
 
-use crate::curator::bot_metrics::{BotEvaluationMetrics, BotHealthStatus, GapType};
+use crate::curator::bot_metrics::BotHealthStatus;
 use crate::curator::context::CuratorContext;
-use crate::ports::metacognition::{EvaluationResult, KataDirective, KataType, RecommendedAction};
+use hkask_types::BotID;
 use hkask_types::cns::CnsHealth;
 use hkask_types::loops::curation::CuratorDirective;
 use hkask_types::loops::dispatch::TraceId;
-use hkask_types::{BotID, WebID};
 use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
@@ -22,7 +21,7 @@ use tokio::sync::RwLock;
 use tracing::{info, warn};
 
 #[derive(Debug, Error)]
-pub(crate) enum MetacognitionError {
+pub enum MetacognitionError {
     #[error("Escalation error: {0}")]
     Escalation(String),
 }
@@ -55,13 +54,13 @@ impl Default for EscalationThresholds {
 /// of this type; use `From<HealthSnapshot> for StoredHealthSnapshot` for
 /// storage-layer conversion.
 #[derive(Debug, Clone)]
-pub(crate) struct HealthSnapshot {
+pub struct HealthSnapshot {
     pub timestamp: chrono::DateTime<chrono::Utc>,
     pub cns_health: String,
     pub variety_counters: Vec<(String, u64)>,
     pub critical_alerts: usize,
     pub total_alerts: usize,
-    pub bot_status_reports: Vec<BotStatusReport>,
+    pub(crate) bot_status_reports: Vec<BotStatusReport>,
 }
 
 /// Bot status report from standing session
@@ -79,7 +78,7 @@ pub struct MetacognitionConfig {
     /// Interval between metacognition cycles (default: 1 hour)
     pub interval: Duration,
     /// Escalation thresholds
-    pub thresholds: EscalationThresholds,
+    pub(crate) thresholds: EscalationThresholds,
     /// Expected variety per domain (for deficit calculation)
     pub expected_variety_per_domain: u64,
 }
@@ -132,19 +131,8 @@ impl MetacognitionLoop {
         &self.config
     }
 
-    /// Submit a bot status report
-    pub async fn submit_bot_report(&self, report: BotStatusReport) {
-        let mut reports = self.bot_reports.write().await;
-        // Replace existing report for this bot
-        if let Some(existing) = reports.iter_mut().find(|r| r.bot_name == report.bot_name) {
-            *existing = report;
-        } else {
-            reports.push(report);
-        }
-    }
-
     /// Get current bot status reports
-    pub async fn get_bot_reports(&self) -> Vec<BotStatusReport> {
+    pub(crate) async fn get_bot_reports(&self) -> Vec<BotStatusReport> {
         self.bot_reports.read().await.clone()
     }
 
@@ -360,66 +348,6 @@ impl MetacognitionLoop {
     // -----------------------------------------------------------------------
     // Curator metacognition: evaluate, coach, direct
     // -----------------------------------------------------------------------
-
-    /// Evaluate a single bot's performance using its metrics
-    pub fn evaluate_bot(&self, bot_id: &WebID, metrics: &BotEvaluationMetrics) -> EvaluationResult {
-        let health = metrics.health_status();
-        let gaps = metrics.capability_gaps(0.8, 100);
-
-        let recommended_action = if gaps.is_empty() {
-            RecommendedAction::None
-        } else if gaps
-            .iter()
-            .any(|g| g.gap_type == GapType::SovereigntyViolations)
-        {
-            RecommendedAction::Escalate
-        } else if gaps.iter().any(|g| g.gap_type == GapType::VarietyDeficit) {
-            if metrics.success_rate < 0.5 {
-                RecommendedAction::Coach(KataType::Improvement)
-            } else {
-                RecommendedAction::Coach(KataType::Coaching)
-            }
-        } else if gaps.iter().any(|g| g.gap_type == GapType::LowSuccessRate) {
-            RecommendedAction::Coach(KataType::Starter)
-        } else {
-            RecommendedAction::Monitor
-        };
-
-        EvaluationResult {
-            bot_id: *bot_id,
-            bot_name: metrics.bot_name.clone(),
-            health,
-            gaps,
-            recommended_action,
-            timestamp: chrono::Utc::now().to_rfc3339(),
-        }
-    }
-
-    /// Identify a capability gap and create a Kata directive
-    pub fn identify_capability_gap(&self, evaluation: &EvaluationResult) -> Option<KataDirective> {
-        let primary_gap = evaluation.gaps.first()?;
-
-        let kata_type = match primary_gap.gap_type {
-            GapType::LowSuccessRate => {
-                if evaluation.health == BotHealthStatus::Critical {
-                    KataType::Improvement
-                } else {
-                    KataType::Starter
-                }
-            }
-            GapType::VarietyDeficit => KataType::Coaching,
-            GapType::SovereigntyViolations => KataType::Coaching,
-            GapType::EnergyBudgetCritical => KataType::Starter,
-        };
-
-        Some(KataDirective {
-            bot_id: evaluation.bot_id,
-            bot_name: evaluation.bot_name.clone(),
-            kata_type,
-            gap_description: primary_gap.description.clone(),
-            gap: primary_gap.clone(),
-        })
-    }
 
     /// Direct a bot to take action via ACP message
     pub async fn direct_bot(

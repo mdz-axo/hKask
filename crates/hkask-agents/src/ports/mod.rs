@@ -9,7 +9,6 @@ pub mod audit_log;
 pub mod git_cas;
 pub mod mcp_runtime;
 pub mod memory_storage;
-pub mod metacognition;
 pub mod registry_source;
 pub mod sovereignty;
 pub mod standing_session;
@@ -19,10 +18,7 @@ pub use audit_log::{AuditContext, AuditEntry, AuditLogPort, AuditOutcome};
 pub use git_cas::GitCASPort;
 pub use mcp_runtime::MCPRuntimePort;
 pub use memory_storage::{EpisodicStoragePort, SemanticStoragePort};
-pub use metacognition::{
-    BotEvaluationMetrics, BotHealthStatus as MetacognitionBotHealthStatus, CapabilityGap,
-    EvaluationResult, GapType, KataDirective, KataType, RecommendedAction,
-};
+
 pub use registry_source::RegistrySourcePort;
 pub use sovereignty::{SovereigntyCheckResult, SovereigntyOperation};
 pub use standing_session::{

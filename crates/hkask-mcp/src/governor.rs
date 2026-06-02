@@ -37,21 +37,9 @@ impl McpGovernor {
         }
     }
 
-    /// Register bot capabilities
-    pub async fn register_bot_capabilities(&self, caps: BotCapabilities) {
-        let mut capabilities = self.bot_capabilities.write().await;
-        capabilities.insert(caps.bot_id, caps);
-    }
-
     /// Issue capability token to a bot
     pub fn issue_capability(&self, tool_name: String, from: WebID, to: WebID) -> CapabilityToken {
         self.capability_checker.grant_tool(tool_name, from, to)
-    }
-
-    /// Revoke a capability token by ID
-    pub async fn revoke_token(&self, token_id: String) {
-        let mut revoked = self.revoked_tokens.write().await;
-        revoked.insert(token_id);
     }
 
     /// Check if a token has been revoked
@@ -134,10 +122,5 @@ impl McpGovernor {
                 bot_id, tool_name
             ))
         }
-    }
-
-    /// Get the capability checker (for token minting from CLI)
-    pub fn capability_checker(&self) -> &Arc<CapabilityChecker> {
-        &self.capability_checker
     }
 }

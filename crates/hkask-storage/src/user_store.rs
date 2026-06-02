@@ -18,7 +18,7 @@ use thiserror::Error;
 use zeroize::Zeroizing;
 
 #[derive(Error, Debug)]
-pub(crate) enum UserStoreError {
+pub enum UserStoreError {
     #[error(transparent)]
     Infra(#[from] InfrastructureError),
 

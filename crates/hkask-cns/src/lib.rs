@@ -14,7 +14,7 @@ pub mod runtime;
 pub mod unified_tracker;
 pub mod variety;
 
-pub use algedonic::{AlgedonicManager, DEFAULT_THRESHOLD, cns_health_check};
+pub use algedonic::{AlgedonicManager, DEFAULT_THRESHOLD, RuntimeAlert, cns_health_check};
 pub use circuit_breaker::{CircuitBreaker, CircuitBreakerConfig};
 pub use cybernetics_loop::{CyberneticsLoop, SetPoints};
 pub use dampener::Dampener;

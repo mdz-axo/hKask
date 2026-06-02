@@ -16,7 +16,7 @@ use hkask_types::WebID;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub(crate) enum EpisodicMemoryError {
+pub enum EpisodicMemoryError {
     #[error("Triple error: {0}")]
     Triple(#[from] TripleError),
     #[error("Triple not found for retraction: {entity}/{attribute}")]

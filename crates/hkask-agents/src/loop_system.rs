@@ -135,11 +135,6 @@ impl LoopSystem {
         self.dispatch_tx.clone()
     }
 
-    /// Get a reference to the CommunicationLoop.
-    pub fn communication_loop(&self) -> &Arc<CommunicationLoop> {
-        &self.communication_loop
-    }
-
     /// Get a reference to the MessageDispatch.
     pub fn dispatch(&self) -> &Arc<MessageDispatch> {
         &self.dispatch

@@ -71,10 +71,8 @@ use crate::ports::GitCASPort;
 
 pub use context::PodContext;
 pub use manager::{PodManager, PodManagerBuilder, PodStatus};
-pub use types::{
-    AccessRight, AgentCharter, AgentIdentity, AgentKind, AgentPersona, PodID, PodLifecycleState,
-    TemplateCrate, TemplateFile, VisibilitySettings,
-};
+
+pub use types::{AgentKind, AgentPersona, PodID, PodLifecycleState, TemplateCrate, TemplateFile};
 
 // ── AgentPod ──────────────────────────────────────────────────────────────
 
@@ -99,12 +97,12 @@ pub struct AgentPod {
     /// Maximum attenuation level for delegation
     pub max_attenuation: u8,
     /// Sovereignty checker for this pod
-    pub sovereignty_checker: SovereigntyChecker,
+    pub(crate) sovereignty_checker: SovereigntyChecker,
 }
 
 /// Agent pod error types
 #[derive(Debug, Error)]
-pub(crate) enum AgentPodError {
+pub enum AgentPodError {
     #[error("Failed to parse agent persona: {0}")]
     PersonaParseError(String),
 
@@ -158,7 +156,7 @@ pub(crate) enum AgentPodError {
 }
 
 /// Result type for agent pod operations
-pub(crate) type AgentPodResult<T> = Result<T, AgentPodError>;
+pub type AgentPodResult<T> = Result<T, AgentPodError>;
 
 impl AgentPod {
     /// Create a new AgentPod.
@@ -390,16 +388,6 @@ impl AgentPod {
         }
 
         Ok(true)
-    }
-
-    /// Get sovereignty checker reference
-    pub fn sovereignty_checker(&self) -> &SovereigntyChecker {
-        &self.sovereignty_checker
-    }
-
-    /// Get mutable sovereignty checker reference
-    pub fn sovereignty_checker_mut(&mut self) -> &mut SovereigntyChecker {
-        &mut self.sovereignty_checker
     }
 }
 

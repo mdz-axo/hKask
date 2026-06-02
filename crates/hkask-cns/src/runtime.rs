@@ -28,7 +28,7 @@ impl CnsState {
             threshold,
             DEFAULT_EXPECTED_VARIETY,
         )));
-        let tracker = UnifiedVarietyTracker::new(algedonic.clone());
+        let tracker = UnifiedVarietyTracker::new();
         Self { algedonic, tracker }
     }
 }

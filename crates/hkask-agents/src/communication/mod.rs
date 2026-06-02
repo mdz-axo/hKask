@@ -7,5 +7,5 @@
 pub mod communication_loop;
 pub mod dispatch;
 
-pub use communication_loop::CommunicationLoop;
+pub(crate) use communication_loop::CommunicationLoop;
 pub use dispatch::MessageDispatch;

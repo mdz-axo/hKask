@@ -6,34 +6,8 @@
 //! `RegistryEntry`, `RegistryIndex`, and `RegistryError` are canonical in
 //! `hkask_types::ports` and re-exported here for backward compatibility.
 
-use hkask_types::{CapabilityToken, TemplateType};
-use serde::{Deserialize, Serialize};
+use hkask_types::CapabilityToken;
 use serde_json::Value;
-use std::time::Duration;
-
-/// Configuration for inference calls with timeout and retry
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct InferenceConfig {
-    pub timeout: Duration,
-    pub max_retries: u32,
-    pub backoff_base: Duration,
-}
-
-impl Default for InferenceConfig {
-    fn default() -> Self {
-        Self {
-            timeout: Duration::from_secs(30),
-            max_retries: 3,
-            backoff_base: Duration::from_secs(1),
-        }
-    }
-}
-
-impl InferenceConfig {
-    pub fn backoff_delay(&self, attempt: u32) -> Duration {
-        self.backoff_base * 2u32.pow(attempt)
-    }
-}
 
 /// Error type for template operations
 #[derive(Debug, Clone, thiserror::Error)]
@@ -70,100 +44,6 @@ pub enum TemplateError {
 
 pub type Result<T> = std::result::Result<T, TemplateError>;
 
-/// Manifest step action types
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub(crate) enum Action {
-    Select,
-    Populate,
-    Execute,
-}
-
-impl std::str::FromStr for Action {
-    type Err = TemplateError;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        match s {
-            "select" => Ok(Action::Select),
-            "populate" => Ok(Action::Populate),
-            "execute" => Ok(Action::Execute),
-            other => Err(TemplateError::Validation(format!(
-                "Unknown action: {}",
-                other
-            ))),
-        }
-    }
-}
-
-impl Action {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Action::Select => "select",
-            Action::Populate => "populate",
-            Action::Execute => "execute",
-        }
-    }
-}
-
-/// Manifest step definition
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct ManifestStep {
-    pub ordinal: u32,
-    pub action: Action,
-    #[serde(default)]
-    pub description: String,
-    pub template_ref: String,
-    pub model_tier: Option<String>,
-    pub mcp: Option<String>,
-    pub renderer: Option<String>,
-}
-
-/// Process manifest (YAML-based workflow definition)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct ProcessManifest {
-    pub id: String,
-    pub name: String,
-    #[serde(default)]
-    pub description: String,
-    pub steps: Vec<ManifestStep>,
-}
-
-/// YAML wrapper for deserializing manifest files that nest under a `manifest:` key
-#[derive(Debug, Clone, Deserialize)]
-pub(crate) struct YamlManifestFile {
-    pub manifest: ProcessManifest,
-}
-
-impl ProcessManifest {
-    /// Load a process manifest from a YAML file path
-    pub fn load_from_yaml(path: &std::path::Path) -> std::result::Result<Self, TemplateError> {
-        let content = std::fs::read_to_string(path).map_err(|e| {
-            TemplateError::Manifest(format!("Failed to read {}: {}", path.display(), e))
-        })?;
-        let file: YamlManifestFile = serde_yaml::from_str(&content).map_err(|e| {
-            TemplateError::Manifest(format!("Failed to parse {}: {}", path.display(), e))
-        })?;
-        Ok(file.manifest)
-    }
-}
-
-/// Template composition definition
-#[derive(Debug, Clone)]
-pub(crate) struct CompositionTemplate {
-    pub id: String,
-    pub template_type: TemplateType,
-    pub lexicon_terms: Vec<String>,
-    pub source: String,
-    pub contract: TemplateContract,
-}
-
-/// Template input/output contract
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct TemplateContract {
-    pub input_fields: Vec<String>,
-    pub output_fields: Vec<String>,
-}
-
 /// Registry entry for template discovery
 ///
 /// Canonical definition lives in `hkask_types::ports::RegistryEntry`.
@@ -179,6 +59,7 @@ pub use hkask_types::ports::RegistryIndex;
 /// Registry error type
 ///
 /// Canonical definition lives in `hkask_types::ports::RegistryError`.
+/// Re-exported here for backward compatibility.
 pub use hkask_types::ports::RegistryError;
 
 /// Tool information metadata
@@ -204,16 +85,3 @@ pub trait McpPort: Send + Sync {
     -> Result<Value>;
     async fn get_tool_info(&self, tool_name: &str) -> Option<ToolInfo>;
 }
-
-/// Memory context fragment for deduplication
-#[derive(Debug, Clone)]
-pub(crate) struct MemoryFragment {
-    pub content: String,
-    pub source: String,
-    pub confidence: f64,
-}
-
-/// Maximum Matroshka nesting depth (configurable per template).
-/// Defaults to [`hkask_types::capability::SYSTEM_MAX_RECURSION`] — the
-/// system-wide recursion bound shared by attenuation, cascade, and subgoals.
-pub(crate) const DEFAULT_MATROSHKA_LIMIT: u8 = hkask_types::capability::SYSTEM_MAX_RECURSION;

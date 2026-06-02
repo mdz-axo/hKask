@@ -18,7 +18,8 @@ pub mod transport;
 pub use adapter_container::AdapterContainer;
 pub use dispatch::McpDispatcher;
 pub use runtime::{McpRuntime, McpServer, McpTool};
-pub use security::validate_url;
+pub(crate) use security::UrlValidationConfig;
+pub(crate) use security::validate_url;
 pub use server::{
     CredentialRequirement, McpToolError, McpToolOutput, ServerContext, ToolSpanGuard, api_get,
     api_post, classify_http_error, emit_tool_span_with_caller, resolve_credential,

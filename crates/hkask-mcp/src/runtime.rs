@@ -110,7 +110,7 @@ impl McpRuntime {
     }
 
     /// Get tool information with metadata
-    pub async fn get_tool_info(&self, tool_name: &str) -> Option<ToolInfo> {
+    pub(crate) async fn get_tool_info(&self, tool_name: &str) -> Option<ToolInfo> {
         let tool_registry = self.tool_registry.read().await;
         let server_id = tool_registry.get(tool_name)?;
 

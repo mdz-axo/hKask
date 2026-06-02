@@ -7,7 +7,7 @@ use thiserror::Error;
 
 /// MCP runtime errors
 #[derive(Debug, Error)]
-pub(crate) enum McpError {
+pub enum McpError {
     #[error("Invalid capability token: {0}")]
     InvalidToken(String),
 
@@ -23,7 +23,7 @@ pub use hkask_types::GitError;
 
 /// Memory storage errors
 #[derive(Debug, Error)]
-pub(crate) enum MemoryError {
+pub enum MemoryError {
     #[error("Storage error: {0}")]
     Storage(String),
 

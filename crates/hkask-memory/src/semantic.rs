@@ -5,7 +5,7 @@ use hkask_storage::{EmbeddingStore, Triple, TripleError, TripleStore};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub(crate) enum SemanticMemoryError {
+pub enum SemanticMemoryError {
     #[error("Triple error: {0}")]
     Triple(#[from] TripleError),
 }

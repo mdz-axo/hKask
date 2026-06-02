@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 /// Provenance record for a template
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct TemplateProvenance {
+pub struct TemplateProvenance {
     /// Template ID
     pub template_id: String,
     /// Git SHA of last modification
@@ -64,26 +64,11 @@ impl ProvenanceManager {
             .push(provenance);
     }
 
-    /// Get all provenance records for a template
-    pub fn get_history(&self, template_id: &str) -> Option<&Vec<TemplateProvenance>> {
-        self.records.get(template_id)
-    }
-
     /// Get latest provenance for a template
     pub fn get_latest(&self, template_id: &str) -> Option<&TemplateProvenance> {
         self.records
             .get(template_id)
             .and_then(|history| history.last())
-    }
-
-    /// Get all template IDs with provenance records
-    pub fn get_all_template_ids(&self) -> Vec<&String> {
-        self.records.keys().collect()
-    }
-
-    /// Clear provenance records (for cache invalidation)
-    pub fn clear(&mut self) {
-        self.records.clear();
     }
 }
 

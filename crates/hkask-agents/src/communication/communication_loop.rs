@@ -41,15 +41,6 @@ impl CommunicationLoop {
         }
     }
 
-    /// Create a Communication Loop with custom delivery limit.
-    pub fn with_max_deliveries(dispatch: Arc<MessageDispatch>, max: usize) -> Self {
-        Self {
-            dispatch,
-            loop_senders: Arc::new(RwLock::new(std::collections::HashMap::new())),
-            max_deliveries_per_tick: max,
-        }
-    }
-
     /// Register a target loop's inbox channel for message delivery.
     ///
     /// When a `LoopMessage` targets `loop_id`, it will be sent through
@@ -62,11 +53,6 @@ impl CommunicationLoop {
     ) {
         let mut senders = self.loop_senders.write().await;
         senders.insert(loop_id, sender);
-    }
-
-    /// Get the number of pending messages across all priority queues.
-    pub async fn pending_count(&self) -> usize {
-        self.dispatch.len().await
     }
 }
 

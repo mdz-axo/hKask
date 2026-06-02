@@ -5,7 +5,6 @@
 //! - hkask-agents/src/acp/audit.rs (AuditLogEntry)
 //! - hkask-agents/src/ports/audit_log.rs (AuditEntry)
 //! - hkask-agents/src/ports/audit_log_storage.rs (AuditStorageEntry)
-//! - hkask-storage/src/audit_log.rs (AuditEntry)
 //! - hkask-mcp/src/security.rs (AuditEntry)
 
 use crate::WebID;

@@ -67,7 +67,7 @@ impl OkapiConfig {
         }
     }
 
-    pub fn build_client(&self) -> Result<reqwest::Client, OkapiConfigError> {
+    pub(crate) fn build_client(&self) -> Result<reqwest::Client, OkapiConfigError> {
         reqwest::Client::builder()
             .build()
             .map_err(|e| OkapiConfigError::Config(e.to_string()))
@@ -95,7 +95,7 @@ pub fn validate_prompt(prompt: &str) -> Result<(), String> {
 
 /// A model entry from Okapi's `/api/tags` endpoint.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct OkapiModelEntry {
+pub struct OkapiModelEntry {
     pub name: String,
     pub model: String,
     #[serde(default)]
@@ -108,7 +108,7 @@ pub(crate) struct OkapiModelEntry {
 
 /// Model details from Okapi.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct OkapiModelDetails {
+pub struct OkapiModelDetails {
     #[serde(default)]
     pub parent_model: Option<String>,
     #[serde(default)]

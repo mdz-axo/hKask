@@ -32,13 +32,16 @@ pub use communication::MessageDispatch;
 pub use consent::{ConsentError, ConsentManager};
 pub use curator::context::CuratorContext;
 pub use curator::curation_loop::CurationLoop;
-pub use curator::deliberation::AgentResponse;
-pub use error::GitError;
-pub use error::RegistryError;
-pub use escalation::EscalationEntry;
-pub use escalation::EscalationQueue;
+
+pub use error::{GitError, McpError, MemoryError, RegistryError};
+pub use escalation::{
+    EscalationEntry, EscalationError, EscalationQueue, EscalationStats, EscalationStatus,
+};
 pub use loop_system::LoopSystem;
-pub use pod::{AgentKind, AgentPersona, AgentPod, PodID, PodLifecycleState, PodManager, PodStatus};
-pub use ports::{AcpPort, EpisodicStoragePort, GitCASPort, SemanticStoragePort};
-pub use registry_loader::BotRegistryLoader;
-pub use sovereignty::SovereigntyChecker;
+pub use pod::{
+    AgentKind, AgentPersona, AgentPod, AgentPodError, AgentPodResult, PodID, PodLifecycleState,
+    PodManager, PodStatus,
+};
+pub use ports::{AcpPort, EpisodicStoragePort, GitCASPort, MCPRuntimePort, SemanticStoragePort};
+pub use registry_loader::{BotRegistryLoader, RegistryLoaderError};
+pub(crate) use sovereignty::SovereigntyChecker;

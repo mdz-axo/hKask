@@ -35,11 +35,6 @@ impl McpDispatcher {
         }
     }
 
-    /// Access the governor for governance operations.
-    pub fn governor(&self) -> &Arc<McpGovernor> {
-        &self.governor
-    }
-
     /// Issue capability token to a bot (delegates to governor).
     pub fn issue_capability(&self, tool_name: String, from: WebID, to: WebID) -> CapabilityToken {
         self.governor.issue_capability(tool_name, from, to)

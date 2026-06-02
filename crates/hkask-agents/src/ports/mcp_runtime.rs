@@ -7,7 +7,7 @@ use hkask_types::CapabilityToken;
 /// Implementations:
 /// - `McpRuntimeAdapter` — Production adapter via rmcp
 /// - Mock implementations for testing
-pub(crate) trait MCPRuntimePort: Send + Sync {
+pub trait MCPRuntimePort: Send + Sync {
     fn grant_tool_access(&self, token: CapabilityToken) -> Result<(), crate::error::McpError>;
 
     fn invoke_tool(

@@ -110,12 +110,6 @@ impl OkapiInference {
         Self::local("fast-local-model")
     }
 
-    /// Attach a prompt cache to skip redundant LLM calls
-    pub fn with_cache(mut self, cache: crate::prompt_cache::PromptCache) -> Self {
-        self.prompt_cache = Some(Arc::new(cache));
-        self
-    }
-
     /// Execute HTTP request to Okapi API
     async fn execute_request(
         &self,

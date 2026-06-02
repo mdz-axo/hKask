@@ -68,32 +68,3 @@ pub fn dedup_triples(triples: Vec<Triple>) -> Vec<Triple> {
 
     result
 }
-
-/// Filter duplicates and return statistics alongside the deduplicated set.
-pub fn dedup_triples_with_stats(triples: Vec<Triple>) -> DedupResult {
-    let original_count = triples.len();
-    let mut seen = HashSet::new();
-    let mut result = Vec::with_capacity(original_count);
-
-    for triple in triples {
-        let hash = eav_hash(&triple);
-        if seen.insert(hash) {
-            result.push(triple);
-        }
-    }
-
-    let deduped_count = result.len();
-    DedupResult {
-        triples: result,
-        original_count,
-        duplicates_removed: original_count - deduped_count,
-    }
-}
-
-/// Result of a deduplication operation with statistics.
-#[derive(Debug)]
-pub(crate) struct DedupResult {
-    pub triples: Vec<Triple>,
-    pub original_count: usize,
-    pub duplicates_removed: usize,
-}

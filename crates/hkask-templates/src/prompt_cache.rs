@@ -78,51 +78,6 @@ impl From<serde_json::Error> for CacheError {
 }
 
 impl PromptCache {
-    pub fn new(
-        conn: Arc<Mutex<Connection>>,
-        config: PromptCacheConfig,
-    ) -> Result<Self, CacheError> {
-        let cache = Self {
-            conn,
-            config,
-            current_size: Arc::new(std::sync::atomic::AtomicI64::new(0)),
-        };
-        cache.init()?;
-        Ok(cache)
-    }
-
-    fn init(&self) -> Result<(), CacheError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| CacheError::Infra(hkask_types::InfrastructureError::LockPoisoned))?;
-        conn.execute_batch(
-            "CREATE TABLE IF NOT EXISTS prompt_cache (
-                key TEXT PRIMARY KEY,
-                prompt TEXT NOT NULL,
-                model TEXT NOT NULL,
-                result TEXT NOT NULL,
-                created_at INTEGER NOT NULL,
-                expires_at INTEGER NOT NULL,
-                size_bytes INTEGER NOT NULL,
-                access_count INTEGER NOT NULL DEFAULT 0,
-                last_accessed INTEGER NOT NULL
-            );
-            CREATE INDEX IF NOT EXISTS idx_expires ON prompt_cache(expires_at);
-        ",
-        )?;
-
-        let size: i64 = conn.query_row(
-            "SELECT COALESCE(SUM(size_bytes), 0) FROM prompt_cache",
-            [],
-            |row| row.get(0),
-        )?;
-        self.current_size
-            .store(size, std::sync::atomic::Ordering::Relaxed);
-
-        Ok(())
-    }
-
     pub fn generate_key(prompt: &str, model: &str, params: &LLMParameters) -> String {
         let mut hasher = Sha256::new();
         hasher.update(prompt.as_bytes());
@@ -253,57 +208,6 @@ impl PromptCache {
         }
 
         Ok(())
-    }
-
-    pub fn clear_expired(&self) -> Result<i64, CacheError> {
-        let now = Instant::now().elapsed().as_secs() as i64;
-
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| CacheError::Infra(hkask_types::InfrastructureError::LockPoisoned))?;
-        let mut stmt =
-            conn.prepare("SELECT size_bytes FROM prompt_cache WHERE expires_at <= ?1")?;
-
-        let mut freed = 0i64;
-        let rows = stmt.query_map([now], |row| row.get::<_, i64>(0))?;
-
-        for size in rows.flatten() {
-            freed += size;
-        }
-
-        let deleted =
-            conn.execute("DELETE FROM prompt_cache WHERE expires_at <= ?1", [now])? as i64;
-
-        self.current_size
-            .fetch_sub(freed, std::sync::atomic::Ordering::Relaxed);
-        info!(target: "hkask.cache", deleted = %deleted, "Expired entries cleared");
-
-        Ok(deleted)
-    }
-
-    pub fn stats(&self) -> Result<CacheStats, CacheError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| CacheError::Infra(hkask_types::InfrastructureError::LockPoisoned))?;
-        let row = conn.query_row(
-            "SELECT
-                COUNT(*) as count,
-                COALESCE(SUM(size_bytes), 0) as total_size,
-                COALESCE(SUM(access_count), 0) as total_accesses
-             FROM prompt_cache",
-            [],
-            |row| {
-                Ok(CacheStats {
-                    entry_count: row.get(0)?,
-                    total_size_bytes: row.get(1)?,
-                    total_accesses: row.get(2)?,
-                })
-            },
-        )?;
-
-        Ok(row)
     }
 }
 

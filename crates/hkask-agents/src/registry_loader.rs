@@ -12,7 +12,7 @@ use thiserror::Error;
 use tracing::{info, warn};
 
 #[derive(Error, Debug)]
-pub(crate) enum RegistryLoaderError {
+pub enum RegistryLoaderError {
     #[error("IO error: {0}")]
     Io(String),
     #[error("YAML parse error in {path}: {source}")]

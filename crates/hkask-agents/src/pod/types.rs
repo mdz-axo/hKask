@@ -62,17 +62,17 @@ define_id_type!(PodID);
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentPersona {
     /// Agent identity
-    pub agent: AgentIdentity,
+    pub(crate) agent: AgentIdentity,
     /// Agent charter (purpose and scope)
-    pub charter: AgentCharter,
+    pub(crate) charter: AgentCharter,
     /// Capabilities this agent requires
     pub capabilities: Vec<String>,
     /// Rights (access permissions)
-    pub rights: Vec<AccessRight>,
+    pub(crate) rights: Vec<AccessRight>,
     /// Responsibilities (obligations)
     pub responsibilities: Vec<String>,
     /// Default visibility for artifacts
-    pub visibility: VisibilitySettings,
+    pub(crate) visibility: VisibilitySettings,
     /// Cached WebID (derived deterministically from persona)
     #[serde(skip)]
     cached_webid: Option<WebID>,
@@ -120,30 +120,6 @@ fn default_private_visibility() -> hkask_types::Visibility {
 }
 
 impl AgentPersona {
-    /// Create a new AgentPersona with deterministic WebID
-    pub fn new(
-        agent: AgentIdentity,
-        charter: AgentCharter,
-        capabilities: Vec<String>,
-        rights: Vec<AccessRight>,
-        responsibilities: Vec<String>,
-        visibility: VisibilitySettings,
-    ) -> Self {
-        let mut persona = Self {
-            agent,
-            charter,
-            capabilities,
-            rights,
-            responsibilities,
-            visibility,
-            cached_webid: None,
-        };
-        // Compute and cache WebID
-        let canonical = serde_json::to_string(&persona.agent).unwrap_or_default();
-        persona.cached_webid = Some(WebID::from_persona(canonical.as_bytes()));
-        persona
-    }
-
     /// Parse agent persona from YAML string
     pub fn from_yaml(yaml: &str) -> Result<Self, AgentPodError> {
         let mut persona: Self = serde_yaml::from_str(yaml)

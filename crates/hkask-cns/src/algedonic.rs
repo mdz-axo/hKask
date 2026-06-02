@@ -26,7 +26,7 @@ pub(crate) const DEFAULT_EXPECTED_VARIETY: u64 = 10;
 
 /// Alert severity levels
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) enum AlertSeverity {
+pub enum AlertSeverity {
     /// Informational - deficit detected but below threshold
     Info,
     /// Warning - deficit approaching threshold
@@ -37,7 +37,7 @@ pub(crate) enum AlertSeverity {
 
 /// Algedonic alert
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct RuntimeAlert {
+pub struct RuntimeAlert {
     pub domain: String,
     pub deficit: u64,
     pub threshold: u64,

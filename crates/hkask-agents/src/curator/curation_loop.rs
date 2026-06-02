@@ -27,7 +27,7 @@ impl CurationLoop {
     }
 
     /// Access the underlying MetacognitionLoop for domain operations
-    /// (evaluate_bot, generate_summary, etc.).
+    /// (generate_summary, etc.).
     pub fn metacognition(&self) -> &Arc<MetacognitionLoop> {
         &self.metacognition
     }

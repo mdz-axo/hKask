@@ -27,10 +27,11 @@ mod audit;
 
 mod root_authority;
 
-pub use audit::{AuditEntry, AuditLog};
+pub use audit::AuditEntry;
+pub(crate) use audit::AuditLog;
 
 pub use hkask_types::AuditLogPort;
-pub use root_authority::RootAuthority;
+pub(crate) use root_authority::RootAuthority;
 
 use hkask_types::{AuditOutcome, CapabilityAction, CapabilityResource, CapabilityToken, WebID};
 use serde::{Deserialize, Serialize};
