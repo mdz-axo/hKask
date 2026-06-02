@@ -41,12 +41,9 @@ pub use agent_def::{
 };
 pub use audit::{AuditContext, AuditEntry, AuditLogPort, AuditOutcome};
 pub use capability::*;
-pub use cns::*;
-pub use curation::*;
-pub use error::{
-    ArchivalResult, AuthorizationError, GitArchivalError, GitError, HkaskError,
-    InfrastructureError, McpErrorKind,
-};
+pub use cns::RetryConfig;
+pub use curation::{CurationDecision, CurationRecord, OCAPBoundary};
+pub use error::{GitError, HkaskError, InfrastructureError, McpErrorKind};
 pub use event::{NuEvent, NuEventSink, Phase, Span, SpanCategory};
 pub use goal::*;
 pub use goal_capability::*;
@@ -55,25 +52,23 @@ pub use identity::*;
 pub use lexicon::{Domain, HLexicon, LexiconTerm, TemplateType};
 pub use loops::{
     ActionType, CuratorDirective, CuratorHandle, CyberneticsHandle, Deviation, DeviationDirection,
-    EpisodicBudgetExceeded, EpisodicReadHandle, EpisodicWriteHandle, ExperienceClassification,
-    GovernanceDenial, HkaskLoop, InferenceHandle, LoopAction, LoopId, LoopMessage, LoopOrigin,
-    LoopPayload, MessagePriority, SemanticReadHandle, SemanticWriteHandle, Signal,
+    EpisodicReadHandle, EpisodicWriteHandle, ExperienceClassification, HkaskLoop, InferenceHandle,
+    LoopAction, LoopId, LoopMessage, LoopOrigin, LoopPayload, MessagePriority, SemanticReadHandle,
+    SemanticWriteHandle, Signal,
 };
 pub use ports::GitCASPort;
-pub use r7::{R7BotIdentity, R7BotRegistry, default_r7_bots};
+pub use r7::{R7BotIdentity, default_r7_bots};
 pub use secret::{SecretRef, derivation_contexts};
 pub use sovereignty::{
-    AcquisitionResistance, DataCategory, DataSovereigntyBoundary, KillZoneDetector,
-    SovereigntyCheckResult, SovereigntyId, SovereigntyOperation, SovereigntyPort,
+    DataCategory, SovereigntyCheckResult, SovereigntyId, SovereigntyOperation, SovereigntyPort,
     UserSovereigntyState,
 };
 pub use spec::{
     Criterion, DomainAnchor, GoalSpec, Spec, SpecCategory, SpecCurationRecord, SpecCurator,
-    SpecError, SpecId, SpecObserver, SpecStore,
+    SpecError, SpecId, SpecStore,
 };
 pub use template::{
-    HighTempTemplateType, LLMParameters, TemperatureRange, TemplateCrate, TemplateFile, TemplateId,
-    TemplateInvocation, TemplateOutcome,
+    LLMParameters, TemplateCrate, TemplateFile, TemplateId, TemplateInvocation, TemplateOutcome,
 };
-pub use text::{blake3_hash, estimate_tokens};
+pub use text::blake3_hash;
 pub use visibility::*;

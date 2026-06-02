@@ -12,8 +12,8 @@ ddmvss_categories: [capability, observability]
 
 **Date:** 2026-05-29
 **Version:** hKask v0.21.0
-**Total servers:** 15
-**Total tools:** 105
+**Total servers:** 16
+**Total tools:** 108+
 
 ---
 
@@ -25,6 +25,7 @@ ddmvss_categories: [capability, observability]
 | `hkask-mcp-rss-reader` | 1,443 | 12 | **Full** | Complete RSS feed management with SQLite persistence |
 | `hkask-mcp-gml` | 987 | 6 | **Full** | GML allosteric engine with capability gating |
 | `hkask-mcp-spec` | 853 | 8 | **Full** | 8 DDMVSS spec tools (capture, decompose, curate, validate) |
+| `hkask-mcp-goal` | ~235 | 3 | **Full** | Goal coordination substrate (OCAP-gated, CNS-observed); CLI/API/MCP parity |
 | `hkask-mcp-condenser` | 761 | 5 | **Full** | Context reranking and condensation algorithms |
 | `hkask-mcp-web` | 3,389 | 5 | **Full** | Search, scrape, extract with SSRF protection |
 | `hkask-mcp-keystore` | 529 | 6 | **Full** | OS keychain with AES-256-GCM vault persistence |
@@ -43,7 +44,7 @@ ddmvss_categories: [capability, observability]
 
 | Status | Count | Servers |
 |--------|-------|---------|
-| **Full** | 15 | All servers |
+| **Full** | 16 | All servers |
 | **Partial** | 0 | — |
 | **Shell** | 0 | — |
 
@@ -70,6 +71,11 @@ ddmvss_categories: [capability, observability]
 - **Status:** Full
 - **Tools:** spec/goal/capture, spec/goal/decompose, spec/require/bind, spec/curate/evaluate, spec/curate/reconcile, spec/curate/cultivate, spec/graph/query, spec/graph/validate
 - **Notes:** DDMVSS specification tools. 2 goal operations + 1 require-bind + 3 curation operations + 2 graph operations.
+
+### `hkask-mcp-goal` (~235 LOC, 3 tools)
+- **Status:** Full
+- **Tools:** goal_create, goal_list, goal_set_state
+- **Notes:** Goal coordination substrate. OCAP-gated with CNS-observed NuEvent emissions. Mirrors the CLI (`kask goal`) and HTTP API (`/api/goals`) surfaces, satisfying MCP ≡ CLI ≡ API (REQ-IFC-001).
 
 ### `hkask-mcp-condenser` (761 LOC, 5 tools)
 - **Status:** Full

@@ -87,7 +87,6 @@ impl Default for SelectorConfig {
 /// Energy budget tracker for manifest execution
 ///
 /// Mirrors `hkask_cns::EnergyBudget` for local step-based accounting.
-/// Integrates token-based cost estimation via `hkask_types::estimate_tokens()`.
 #[derive(Debug, Clone)]
 pub struct EnergyAccount {
     pub budget: u64,

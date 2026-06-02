@@ -56,6 +56,7 @@ Detailed lookup tables and diagrams in `reference/`:
 | [`reference/template-header-standard.md`](reference/template-header-standard.md) | Template metadata format |
 | [`reference/hKask-Curator-persona.md`](reference/hKask-Curator-persona.md) | Curator persona specification |
 | [`reference/okapi-integration.md`](reference/okapi-integration.md) | Okapi LLM API contract |
+| [`reference/loop-architecture.md`](reference/loop-architecture.md) | 6-loop architecture decomposition, crate mappings, capability membranes |
 
 ---
 
@@ -122,10 +123,11 @@ docs/architecture/
     ├── utoipa-implementation.md           # API guide
     ├── template-header-standard.md        # Format reference
     ├── hKask-Curator-persona.md           # Persona spec
-    └── okapi-integration.md               # Okapi API contract
+    ├── okapi-integration.md               # Okapi API contract
+    └── loop-architecture.md              # 6-loop decomposition, crate↔loop map
 ```
 
-**Total:** 23 active architecture documents (4 specs + 3 framework + 1 index + 7 ADRs + 8 reference artifacts).
+**Total:** 24 active architecture documents (4 specs + 3 framework + 1 index + 7 ADRs + 9 reference artifacts).
 
 ---
 

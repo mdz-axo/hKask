@@ -1,8 +1,8 @@
 ---
 title: "hKask Documentation Portal"
 audience: [project maintainers, contributors, architects, agents]
-last_updated: 2026-05-29
-version: "1.0.0"
+last_updated: 2026-06-01
+version: "1.1.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -60,6 +60,7 @@ for its category cluster.
 | [ADR-026](architecture/ADR-026-bitemporal-triple-schema.md) | persistence | Bitemporal triple schema |
 | [ADR-027](architecture/ADR-027-argon2-hkdf-master-key.md) | trust | Argon2id + HKDF-SHA256 master key derivation |
 | [ADR-028](architecture/ADR-028-acp-protocol-design.md) | interface, composition | ACP protocol design (JSON-RPC 2.0 over stdio) |
+| [ADR-029](architecture/ADR-029-goal-capability-primitive.md) | capability, trust | Goal capability primitive — distinct typed token (not collapsed into generic capability) |
 
 ### Reference Artifacts (`architecture/reference/`)
 

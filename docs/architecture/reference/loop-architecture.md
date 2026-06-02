@@ -12,7 +12,7 @@ ddmvss_categories: [domain, capability, observability, curation]
 
 **Purpose:** Establish that rate limiting is a redundant projection of energy tracking, decompose hKask into six semantic loops (three domain, three meta), map crates to loops, define capability membranes, and document open questions.
 
-**Related:** [`PRINCIPLES.md`](PRINCIPLES.md), [`trust-security-observability.md`](trust-security-observability.md), [`domain-and-capability.md`](domain-and-capability.md)
+**Related:** [`PRINCIPLES.md`](../PRINCIPLES.md), [`trust-security-observability.md`](../trust-security-observability.md), [`domain-and-capability.md`](../domain-and-capability.md)
 
 ---
 
@@ -77,7 +77,7 @@ status: VERIFIED
 
 ### 1.5 Consequence
 
-The `RateLimiter` and `CnsTokenBucket` types have been removed (per §4.6 of [`trust-security-observability.md`](trust-security-observability.md)). `McpErrorKind::RateLimited` remains **only** for external HTTP 429 responses where downstream services impose rate limits — it is not an internal concept. All internal resource gating flows through `EnergyBudget.try_consume()`.
+The `RateLimiter` and `CnsTokenBucket` types have been removed (per §4.6 of [`trust-security-observability.md`](../trust-security-observability.md)). `McpErrorKind::RateLimited` remains **only** for external HTTP 429 responses where downstream services impose rate limits — it is not an internal concept. All internal resource gating flows through `EnergyBudget.try_consume()`.
 
 ---
 

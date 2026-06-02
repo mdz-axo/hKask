@@ -77,47 +77,7 @@ impl R7BotIdentity {
     }
 }
 
-/// Container for the r7-bots.yaml file
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct R7BotRegistry {
-    pub bots: Vec<R7BotIdentity>,
-}
-
-impl R7BotRegistry {
-    /// Resolve WebIDs for all bots after deserialization
-    pub fn resolve_webids(&mut self) {
-        for bot in &mut self.bots {
-            bot.resolve_webid();
-        }
-    }
-
-    /// Get a bot by its id
-    pub fn get(&self, id: &str) -> Option<&R7BotIdentity> {
-        self.bots.iter().find(|b| b.id == id)
-    }
-
-    /// Get the domains owned by a specific bot
-    pub fn domains_for(&self, id: &str) -> Vec<String> {
-        self.get(id).map(|b| b.domains.clone()).unwrap_or_default()
-    }
-
-    /// Get the union of all domains across all bots
-    pub fn all_domains(&self) -> Vec<String> {
-        let mut domains: Vec<String> = self.bots.iter().flat_map(|b| b.domains.clone()).collect();
-        domains.sort();
-        domains.dedup();
-        domains
-    }
-
-    /// Find which bot owns a given domain
-    pub fn owner_of(&self, domain: &str) -> Option<&R7BotIdentity> {
-        self.bots
-            .iter()
-            .find(|b| b.domains.contains(&domain.to_string()))
-    }
-}
-
-/// Cached default 7R7 bot definitions — allocated once, shared everywhere.
+/// Cached default R7 bot definitions — allocated once, shared everywhere.
 static DEFAULT_R7_BOTS: OnceLock<Vec<R7BotIdentity>> = OnceLock::new();
 
 /// Default 7R7 bot definitions, embedded at compile time.

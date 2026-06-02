@@ -4,7 +4,7 @@
 //! - `Spec`, `GoalSpec`, `Criterion` — recursive goal decomposition
 //! - `SpecCategory` — 9 DDMVSS categories
 //! - `SpecCurationRecord` — curation integration with existing `CurationDecision`
-//! - Port traits: `SpecStore`, `SpecObserver`, `SpecCurator`
+//! - Port traits: `SpecStore`, `SpecCurator`
 
 use crate::curation::{CurationDecision, OCAPBoundary};
 use crate::id::{GoalID, WebID};
@@ -300,10 +300,6 @@ pub trait SpecStore {
     fn delete(&self, id: SpecId) -> Result<(), SpecError>;
     fn list_all(&self) -> Result<Vec<Spec>, SpecError>;
     fn list_by_category(&self, cat: SpecCategory) -> Result<Vec<Spec>, SpecError>;
-}
-
-pub trait SpecObserver {
-    fn emit_span(&self, spec_id: SpecId, operation: &str, outcome: &serde_json::Value);
 }
 
 pub trait SpecCurator {

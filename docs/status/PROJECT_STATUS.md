@@ -1,8 +1,8 @@
 ---
 title: "hKask Project Status"
 audience: [project maintainers, contributors, stakeholders]
-last_updated: 2026-05-29
-version: "0.21.4"
+last_updated: 2026-06-01
+version: "0.21.5"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -90,7 +90,7 @@ hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent
 | `hkask-cli` | 3,741 | CLI commands (14 subcommand groups) | ✅ Complete |
 | `hkask-api` | 2,449 | HTTP API (11 route groups), utoipa | ✅ Complete |
 
-### 3.3 MCP Servers (15)
+### 3.3 MCP Servers (16)
 
 | Server | LOC | Status | Purpose |
 |--------|-----|--------|---------|
@@ -117,7 +117,7 @@ hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent
 
 ## 4. Documentation Status
 
-## 4.1 Active Documents (Post Bloat Removal)
+### 4.1 Active Documents (Post Bloat Removal)
 
 | Category | Count | Location |
 |----------|-------|----------|
@@ -125,7 +125,7 @@ hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent
 | **Architecture Framework** | 3 | `docs/architecture/` (DDMVSS, PRINCIPLES, magna-carta) |
 | **Architecture Index** | 1 | `docs/architecture/hKask-architecture-master.md` |
 | **Architecture ADR** | 8 | `docs/architecture/` (ADR-022 through ADR-029; ADR-029 = goal capability primitive) |
-| **Reference Artifacts** | 8 | `docs/architecture/reference/` |
+| **Reference Artifacts** | 9 | `docs/architecture/reference/` |
 | **Specifications** | 9 | `docs/specifications/` |
 | **Plans** | 6 | `docs/plans/` (TODO + 5 persona/template drafts) |
 | **User Guides** | 2 | `docs/user-guides/` |
@@ -135,7 +135,7 @@ hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent
 | **Portal** | 1 | `docs/README.md` |
 | **Generated** | 2 | `docs/generated/` (cli-reference, openapi.json) |
 | **CI Scripts** | 2 | `docs/ci/` (check-links.sh, check-metadata.sh) |
-| **Total** | 49 (.md, excl. archive) + 2 CI scripts | — |
+| **Total** | 50 (.md, excl. archive) + 2 CI scripts | — |
 
 ### 4.2 Archived Documents
 
@@ -146,7 +146,8 @@ hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent
 | `2026-05-25-ddmvss-reset` | 3 | Pre-DDDMVSS docs absorbed into 4 specs |
 | `2026-05-25-bloat-removal` | 6 | Content absorbed into DDMVSS specs or stale |
 | `2026-05-28-documentation-refresh` | 10 (+ 4 deleted) | Stale/historical docs archived; MODEL_CATALOG, 2 plan files, and 1 other deleted |
-| **Total** | 104 | — |
+| `2026-06-01-documentation-refresh` | 11 | Audit artifacts + speculative 10-loop feedback-loops-decomposition archived |
+| **Total** | 115 | — |
 
 ### 4.3 DDMVSS Completeness
 
