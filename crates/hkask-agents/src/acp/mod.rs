@@ -101,15 +101,6 @@ pub enum AcpError {
     #[error("Transport error: {0}")]
     TransportError(String),
 
-    #[error("Non-loopback address refused: {0}")]
-    NonLoopbackRefused(std::net::IpAddr),
-
-    #[error("Connection refused: {0}")]
-    ConnectionRefused(String),
-
-    #[error("Transport disconnected")]
-    Disconnected,
-
     #[error("Clock error: {0}")]
     ClockError(String),
 

@@ -5,7 +5,6 @@
 //! these abstractions, never on concrete adapters.
 
 pub mod acp;
-pub mod acp_transport;
 pub mod audit_log;
 pub mod git_cas;
 pub mod mcp_runtime;
@@ -16,7 +15,6 @@ pub mod sovereignty;
 pub mod standing_session;
 
 pub use acp::AcpPort;
-pub use acp_transport::{AcpTransport, AcpWireMessage, AcpWireResponse};
 pub use audit_log::{AuditContext, AuditEntry, AuditLogPort, AuditOutcome};
 pub use git_cas::GitCASPort;
 pub use mcp_runtime::MCPRuntimePort;
@@ -28,6 +26,5 @@ pub use metacognition::{
 pub use registry_source::RegistrySourcePort;
 pub use sovereignty::{SovereigntyCheckResult, SovereigntyOperation};
 pub use standing_session::{
-    AcpSessionMessage, BotReport, MessageRecord, SessionMessageType, SessionRecord,
-    StandingSessionPort, StandingSessionPortError,
+    MessageRecord, SessionRecord, StandingSessionPort, StandingSessionPortError,
 };

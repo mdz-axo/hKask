@@ -1,9 +1,6 @@
 //! Standing Session Store Adapter — Bridges hkask_storage::StandingSessionStore to StandingSessionPort
 
-use crate::ports::{
-    AcpSessionMessage, BotReport, MessageRecord, SessionRecord, StandingSessionPort,
-    StandingSessionPortError,
-};
+use crate::ports::{MessageRecord, SessionRecord, StandingSessionPort, StandingSessionPortError};
 use hkask_storage::StandingSessionStore;
 use std::sync::Arc;
 
@@ -74,55 +71,5 @@ impl StandingSessionPort for StandingSessionStoreAdapter {
 
     fn update_last_active(&self, session_id: &str) -> Result<(), StandingSessionPortError> {
         self.store.update_last_active(session_id)
-    }
-
-    fn submit_bot_report(&self, report: &BotReport) -> Result<(), StandingSessionPortError> {
-        let stored = hkask_storage::StoredMessage {
-            id: 0,
-            session_id: format!("bot-report-{}", report.bot_name),
-            from_webid: report.bot_id.clone(),
-            content: serde_json::to_string(report).unwrap_or_else(|_| report.bot_name.clone()),
-            timestamp: report.timestamp.clone(),
-            template_id: Some("bot_report".to_string()),
-        };
-        self.store.save_message(&stored).map(|_| ())
-    }
-
-    fn get_bot_reports(
-        &self,
-        session_id: &str,
-        bot_name: &str,
-    ) -> Result<Vec<BotReport>, StandingSessionPortError> {
-        let messages = self.store.get_messages(session_id)?;
-        let mut reports = Vec::new();
-        for msg in messages {
-            if msg.template_id.as_deref() == Some("bot_report")
-                && let Ok(report) = serde_json::from_str::<BotReport>(&msg.content)
-                && report.bot_name == bot_name
-            {
-                reports.push(report);
-            }
-        }
-        Ok(reports)
-    }
-
-    fn route_acp_message(
-        &self,
-        message: &AcpSessionMessage,
-    ) -> Result<(), StandingSessionPortError> {
-        let stored = hkask_storage::StoredMessage {
-            id: 0,
-            session_id: "system-coordination-standing-session".to_string(),
-            from_webid: message.from_webid.clone(),
-            content: serde_json::json!({
-                "type": message.message_type,
-                "target": message.target,
-                "content": message.content,
-            })
-            .to_string(),
-            timestamp: message.timestamp.clone(),
-            template_id: Some("acp_message".to_string()),
-        };
-        self.store.save_message(&stored).map(|_| ())
     }
 }

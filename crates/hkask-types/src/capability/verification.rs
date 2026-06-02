@@ -196,39 +196,4 @@ impl CapabilityChecker {
     ) -> Option<CapabilityToken> {
         token.attenuate(new_to, &self.secret, current_time)
     }
-
-    /// Verify a capability token for tool access (OCAP-idiomatic)
-    ///
-    /// The holder presents the token; the checker verifies it.
-    /// Checks: signature, expiry, holder match, resource/action match.
-    pub fn verify_tool_capability(
-        &self,
-        token: &CapabilityToken,
-        expected_holder: &WebID,
-        resource: CapabilityResource,
-        resource_id: &str,
-        action: CapabilityAction,
-    ) -> bool {
-        let current_time = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs() as i64;
-
-        // 1. Verify signature and expiry
-        if !self.verify_with_time(token, current_time) {
-            return false;
-        }
-
-        // 2. Verify holder matches
-        if token.delegated_to != *expected_holder {
-            return false;
-        }
-
-        // 3. Verify resource/action match
-        if !token.is_valid_for(resource, resource_id, action) {
-            return false;
-        }
-
-        true
-    }
 }

@@ -30,7 +30,8 @@ pub use template::{
 };
 
 // Re-exports from pod
-pub use pod::{PodStatus, activate_pod, create_pod, deactivate_pod, get_pod_status, list_pods};
+pub use hkask_agents::pod::PodStatus;
+pub use pod::{activate_pod, create_pod, deactivate_pod, get_pod_status, list_pods};
 
 // Re-exports from russell
 pub use russell::{import_russell, import_russell_with_mapper};

@@ -57,9 +57,6 @@ pub use pod::{
     AgentKind, AgentPersona, AgentPod, AgentPodError, AgentPodResult, PodID, PodLifecycleState,
     PodManager, PodStatus,
 };
-pub use ports::{
-    AcpPort, AcpTransport, AcpWireMessage, AcpWireResponse, EpisodicStoragePort, GitCASPort,
-    MCPRuntimePort, SemanticStoragePort,
-};
+pub use ports::{AcpPort, EpisodicStoragePort, GitCASPort, MCPRuntimePort, SemanticStoragePort};
 pub use registry_loader::{BotRegistryLoader, RegistryLoaderError};
 pub use sovereignty::SovereigntyChecker;
