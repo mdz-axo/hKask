@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
 /// Default embedding dimension (configurable via HKASK_EMBEDDING_DIM)
-pub const DEFAULT_EMBEDDING_DIM: usize = 384;
+pub(crate) const DEFAULT_EMBEDDING_DIM: usize = 384;
 
 /// Get embedding dimension from environment or default
 pub fn embedding_dim() -> usize {
@@ -49,10 +49,7 @@ fn load_sqlite_vec() -> Result<(), DatabaseError> {
 }
 
 /// Salt size for SQLCipher key derivation
-pub const SQLCIPHER_SALT_SIZE: usize = 16;
-
-/// SQLCipher key size (256 bits for AES-256)
-pub const SQLCIPHER_KEY_SIZE: usize = 32;
+pub(crate) const SQLCIPHER_SALT_SIZE: usize = 16;
 
 #[derive(Error, Debug)]
 pub enum DatabaseError {

@@ -1,24 +1,20 @@
 //! Semantic memory pipeline
 
 use crate::recall_dedup;
-use hkask_storage::{EmbeddingError, EmbeddingStore, Triple, TripleError, TripleStore};
+use hkask_storage::{EmbeddingStore, Triple, TripleError, TripleStore};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum SemanticMemoryError {
+pub(crate) enum SemanticMemoryError {
     #[error("Triple error: {0}")]
     Triple(#[from] TripleError),
-    #[error("Embedding error: {0}")]
-    Embedding(#[from] EmbeddingError),
-    #[error("Budget exceeded: stored {stored}, budget {budget}")]
-    BudgetExceeded { stored: usize, budget: usize },
 }
 
 /// Semantic memory — shared knowledge graph
 ///
 /// Provides the following subloops:
-/// - **Confidence promotion** (6d): Bayesian seeding when consolidating from episodic,
-///   using `bayesian::combine(episodic_conf, 0.5)` to promote confidence.
+/// - **Confidence promotion** (6d): Bayesian seeding when consolidating from episodic
+///   (confidence seeding at 0.5 baseline) to promote confidence.
 /// - **Storage budget** (6e): Per-entity storage limit with retraction candidate
 ///   identification for lowest-confidence triples.
 pub struct SemanticMemory {

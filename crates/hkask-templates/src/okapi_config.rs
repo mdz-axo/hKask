@@ -30,7 +30,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum OkapiConfigError {
+pub(crate) enum OkapiConfigError {
     #[error("Config error: {0}")]
     Config(String),
 }
@@ -95,7 +95,7 @@ pub fn validate_prompt(prompt: &str) -> Result<(), String> {
 
 /// A model entry from Okapi's `/api/tags` endpoint.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct OkapiModelEntry {
+pub(crate) struct OkapiModelEntry {
     pub name: String,
     pub model: String,
     #[serde(default)]
@@ -108,7 +108,7 @@ pub struct OkapiModelEntry {
 
 /// Model details from Okapi.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct OkapiModelDetails {
+pub(crate) struct OkapiModelDetails {
     #[serde(default)]
     pub parent_model: Option<String>,
     #[serde(default)]
@@ -125,7 +125,7 @@ pub struct OkapiModelDetails {
 
 /// Response from Okapi's `/api/tags` endpoint.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct OkapiTagsResponse {
+pub(crate) struct OkapiTagsResponse {
     pub models: Vec<OkapiModelEntry>,
 }
 

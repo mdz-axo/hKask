@@ -19,7 +19,7 @@ use tracing::warn;
 ///
 /// Owns the capability checker, bot capabilities registry, and revoked
 /// token set. All governance decisions flow through this struct.
-pub struct McpGovernor {
+pub(crate) struct McpGovernor {
     /// Capability checker for OCP
     capability_checker: Arc<CapabilityChecker>,
     /// Bot capabilities registry

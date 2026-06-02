@@ -33,7 +33,7 @@ use tokio::sync::Mutex;
 ///
 /// Within this window, the same directive (same type + target) will be
 /// suppressed to prevent feedback oscillation.
-pub const DEFAULT_DAMPEN_WINDOW: Duration = Duration::from_secs(60);
+pub(crate) const DEFAULT_DAMPEN_WINDOW: Duration = Duration::from_secs(60);
 
 /// A fingerprint that identifies a directive for dampening.
 ///

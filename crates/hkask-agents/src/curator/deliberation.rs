@@ -12,13 +12,13 @@ use tracing::info;
 /// Decoupled from `ChatParticipant` (which lives in hkask-ensemble) to avoid
 /// circular dependencies.
 #[derive(Debug, Clone)]
-pub struct DeliberationParticipant {
+pub(crate) struct DeliberationParticipant {
     pub webid: WebID,
     pub name: String,
 }
 
 /// Deliberation session for coordinating multi-agent responses
-pub struct DeliberationSession {
+pub(crate) struct DeliberationSession {
     session_id: String,
     participants: Vec<DeliberationParticipant>,
     responses: HashMap<WebID, AgentResponse>,
@@ -27,7 +27,7 @@ pub struct DeliberationSession {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum DeliberationStatus {
+pub(crate) enum DeliberationStatus {
     Pending,
     InProgress,
     Completed,
@@ -70,7 +70,7 @@ impl AgentResponse {
 
 /// Synthesized result from deliberation
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DeliberationResult {
+pub(crate) struct DeliberationResult {
     pub session_id: String,
     pub synthesized_response: String,
     pub individual_responses: Vec<AgentResponse>,

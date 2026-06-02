@@ -25,7 +25,7 @@ pub use improv::{
     ImprovError, ImprovMode, ImprovSessionConfig, ImprovTurn, RelevanceJudgment, SynthesisMode,
     improv_turn,
 };
-pub use ports::{GenerateOptions, GenerateRequest, SovereigntyPort};
+pub use ports::{GenerateOptions, GenerateRequest};
 pub use standing_session::{
     StandingSession, StandingSessionConfig, StandingSessionError, StandingSessionStatus,
     bootstrap_standing_session, load_standing_session_config,

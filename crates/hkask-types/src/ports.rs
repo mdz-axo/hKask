@@ -106,6 +106,29 @@ pub struct TokenProb {
     pub prob: f64,
 }
 
+/// Compute confidence score from token probabilities.
+///
+/// Formula: avg(prob) × (1 - sqrt(variance))
+///
+/// Higher average probability with lower variance yields higher confidence.
+/// Lives in hkask-types alongside `TokenProbability` so all crates can use
+/// it without creating sideways dependencies in the Authority DAG.
+pub fn compute_confidence(probs: &[TokenProbability]) -> f64 {
+    if probs.is_empty() {
+        return 0.0;
+    }
+
+    let avg_prob: f64 = probs.iter().map(|p| p.prob).sum::<f64>() / probs.len() as f64;
+
+    let variance: f64 = probs
+        .iter()
+        .map(|p| (p.prob - avg_prob).powi(2))
+        .sum::<f64>()
+        / probs.len() as f64;
+
+    avg_prob * (1.0 - variance.sqrt())
+}
+
 /// Inference result from LLM backend
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InferenceResult {

@@ -10,7 +10,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 /// Audit log for A2A message tracking
-pub struct AuditLog {
+pub(crate) struct AuditLog {
     entries: Arc<RwLock<Vec<AuditEntry>>>,
     max_entries: usize,
     store: Option<Arc<dyn AuditLogPort>>,

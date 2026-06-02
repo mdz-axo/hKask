@@ -4,7 +4,7 @@ use hkask_storage::StandingSessionStore;
 use hkask_types::ports::{MessageRecord, SessionRecord, SessionStoreError, StandingSessionPort};
 use std::sync::Arc;
 
-pub struct StandingSessionStoreAdapter {
+pub(crate) struct StandingSessionStoreAdapter {
     store: Arc<StandingSessionStore>,
 }
 

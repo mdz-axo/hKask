@@ -36,11 +36,11 @@ use tracing::{error, warn};
 /// between different observation domains while sharing a single tracker.
 pub mod domains {
     /// Sovereignty acquisition attempts: `sovereignty:acq:{webid}`
-    pub const SOVEREIGNTY_ACQ: &str = "sovereignty:acq";
+    pub(crate) const SOVEREIGNTY_ACQ: &str = "sovereignty:acq";
     /// Sovereignty kill zone alerts: `sovereignty:kz:{webid}`
-    pub const SOVEREIGNTY_KZ: &str = "sovereignty:kz";
+    pub(crate) const SOVEREIGNTY_KZ: &str = "sovereignty:kz";
     /// Sovereignty boundary violations: `sovereignty:bv:{webid}`
-    pub const SOVEREIGNTY_BV: &str = "sovereignty:bv";
+    pub(crate) const SOVEREIGNTY_BV: &str = "sovereignty:bv";
     /// Bot variety tracking: `bot:{webid}:{category}`
     pub const BOT: &str = "bot";
 }

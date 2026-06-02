@@ -77,12 +77,12 @@ impl McpDispatcher {
             self.governor
                 .authorize(token, tool_name)
                 .await
-                .map_err(|reason| TemplateError::CapabilityDenied(reason))?;
+                .map_err(TemplateError::CapabilityDenied)?;
         } else {
             self.governor
                 .authorize_legacy(bot_id, tool_name)
                 .await
-                .map_err(|reason| TemplateError::CapabilityDenied(reason))?;
+                .map_err(TemplateError::CapabilityDenied)?;
         }
 
         // Check if tool exists
@@ -130,7 +130,7 @@ impl McpPort for McpDispatcher {
         self.governor
             .authorize(token, tool_name)
             .await
-            .map_err(|reason| TemplateError::CapabilityDenied(reason))?;
+            .map_err(TemplateError::CapabilityDenied)?;
 
         let tool_info = self
             .runtime

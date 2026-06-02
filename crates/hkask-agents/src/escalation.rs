@@ -30,7 +30,7 @@ pub struct EscalationEntry {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum EscalationStatus {
+pub(crate) enum EscalationStatus {
     Pending,
     InReview,
     Resolved,
@@ -42,7 +42,7 @@ pub struct EscalationQueue {
 }
 
 #[derive(Error, Debug)]
-pub enum EscalationError {
+pub(crate) enum EscalationError {
     #[error(transparent)]
     Infra(#[from] InfrastructureError),
 
@@ -260,7 +260,7 @@ impl EscalationQueue {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EscalationStats {
+pub(crate) struct EscalationStats {
     pub total: i64,
     pub pending: i64,
     pub in_review: i64,

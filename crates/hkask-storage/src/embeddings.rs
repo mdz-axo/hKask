@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum EmbeddingError {
+pub(crate) enum EmbeddingError {
     #[error(transparent)]
     Infra(#[from] InfrastructureError),
     #[error("Dimension mismatch: expected {expected}, got {got}")]

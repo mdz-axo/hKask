@@ -10,25 +10,25 @@ use thiserror::Error;
 use zeroize::Zeroizing;
 
 /// Salt size for Argon2 (16 bytes = 128 bits)
-pub const SALT_SIZE: usize = 16;
+pub(crate) const SALT_SIZE: usize = 16;
 
 /// Nonce size for AES-GCM (12 bytes = 96 bits)
-pub const NONCE_SIZE: usize = 12;
+pub(crate) const NONCE_SIZE: usize = 12;
 
 /// Argon2id memory cost: 64 MiB (OWASP recommendation for high-security)
 /// This is the amount of memory used in KiB.
-pub const ARGON2_MEMORY_COST: u32 = 65536;
+pub(crate) const ARGON2_MEMORY_COST: u32 = 65536;
 
 /// Argon2id iteration count: 3 (balanced for interactive use)
 /// Higher values increase security but also latency.
-pub const ARGON2_TIME_COST: u32 = 3;
+pub(crate) const ARGON2_TIME_COST: u32 = 3;
 
 /// Argon2id parallelism: 4 lanes
 /// Should match the number of CPU cores available.
-pub const ARGON2_PARALLELISM: u32 = 4;
+pub(crate) const ARGON2_PARALLELISM: u32 = 4;
 
 #[derive(Error, Debug)]
-pub enum EncryptionError {
+pub(crate) enum EncryptionError {
     #[error("Key derivation failed: {0}")]
     KeyDerivation(String),
     #[error("Encryption failed: {0}")]

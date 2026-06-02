@@ -152,16 +152,6 @@ impl CyberneticsLoop {
         &self.set_points
     }
 
-    /// Update a set-point. Returns the old value.
-    ///
-    /// Set-point calibration is a Curation directive, but the Cybernetics
-    /// Loop can self-calibrate within bounded ranges.
-    /// This is intentionally minimal — full calibration goes through Curation.
-    pub async fn calibrate_set_point(&self, metric: &str, new_value: f64) -> Option<f64> {
-        let _ = (metric, new_value);
-        None
-    }
-
     /// Get a sender clone for the dispatch channel.
     pub fn dispatch_sender(&self) -> mpsc::UnboundedSender<LoopMessage> {
         self.dispatch_tx.clone()

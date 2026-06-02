@@ -3,10 +3,8 @@
 //! Calculates confidence from token probabilities and escalates to larger models
 //! when confidence is below threshold.
 //!
-//! Types live here in `hkask-ensemble` (not re-exported from `hkask-agents`)
-//! so that ensemble depends only on `hkask-types`, respecting the Authority DAG.
-
-use hkask_types::ports::TokenProbability;
+//! `compute_confidence` is canonical in `hkask_types::ports`; this module
+//! provides `ConfidenceConfig` for ensemble-specific escalation thresholds.
 
 /// Confidence configuration (from template frontmatter or default)
 #[derive(Debug, Clone)]
@@ -26,20 +24,5 @@ impl Default for ConfidenceConfig {
     }
 }
 
-/// Compute confidence score from token probabilities
-/// Formula: avg(prob) × (1 - sqrt(variance))
-pub fn compute_confidence(probs: &[TokenProbability]) -> f64 {
-    if probs.is_empty() {
-        return 0.0;
-    }
-
-    let avg_prob: f64 = probs.iter().map(|p| p.prob).sum::<f64>() / probs.len() as f64;
-
-    let variance: f64 = probs
-        .iter()
-        .map(|p| (p.prob - avg_prob).powi(2))
-        .sum::<f64>()
-        / probs.len() as f64;
-
-    avg_prob * (1.0 - variance.sqrt())
-}
+/// Re-export canonical `compute_confidence` from hkask-types.
+pub use hkask_types::ports::compute_confidence;

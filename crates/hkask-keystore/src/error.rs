@@ -13,12 +13,6 @@ pub enum KeystoreError {
 
     #[error("Key derivation failed: {0}")]
     KeyDerivation(String),
-
-    #[error("Operation not supported: {0}")]
-    NotSupported(String),
-
-    #[error("IO error: {0}")]
-    Io(String),
 }
 
 impl From<crate::keychain::KeychainError> for KeystoreError {
@@ -42,11 +36,5 @@ impl From<crate::encryption::EncryptionError> for KeystoreError {
                 KeystoreError::Encryption("Invalid passphrase".to_string())
             }
         }
-    }
-}
-
-impl From<std::io::Error> for KeystoreError {
-    fn from(err: std::io::Error) -> Self {
-        KeystoreError::Io(err.to_string())
     }
 }

@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 /// Provenance record for a template
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TemplateProvenance {
+pub(crate) struct TemplateProvenance {
     /// Template ID
     pub template_id: String,
     /// Git SHA of last modification
@@ -45,7 +45,7 @@ impl TemplateProvenance {
 }
 
 /// Provenance manager for template audit trail
-pub struct ProvenanceManager {
+pub(crate) struct ProvenanceManager {
     records: std::collections::HashMap<String, Vec<TemplateProvenance>>,
 }
 

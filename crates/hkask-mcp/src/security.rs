@@ -7,7 +7,7 @@ use std::net::{IpAddr, Ipv6Addr};
 
 /// URL validation error types
 #[derive(Debug, thiserror::Error)]
-pub enum SecurityError {
+pub(crate) enum SecurityError {
     #[error("Non-HTTP(S) scheme not allowed: {0}")]
     DisallowedScheme(String),
 
@@ -26,7 +26,7 @@ pub enum SecurityError {
 
 /// URL validation configuration
 #[derive(Debug, Clone, Default)]
-pub struct UrlValidationConfig {
+pub(crate) struct UrlValidationConfig {
     /// Allow private IP addresses (10.x, 172.16-31.x, 192.168.x)
     pub allow_private_ips: bool,
     /// Allow loopback addresses (127.x.x.x, ::1)

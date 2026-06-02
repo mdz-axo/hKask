@@ -13,7 +13,7 @@ use tokio::sync::RwLock;
 use tracing::info;
 
 use crate::improv::{ImprovError, ImprovMode, ImprovSessionConfig, ImprovTurn, improv_turn};
-use crate::ports::{InferenceClient, SovereigntyPort};
+use crate::ports::InferenceClient;
 
 /// Chat message in multi-agent conversation
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,17 +63,13 @@ pub struct EnsembleChat {
     curator_webid: WebID,
     participants: HashMap<WebID, ChatParticipant>,
     messages: Vec<ChatMessage>,
-    sovereignty: Arc<std::sync::Mutex<dyn SovereigntyPort>>,
     template_registry: Option<Arc<dyn RegistryIndex + Send + Sync>>,
     improv_config: ImprovSessionConfig,
 }
 
 impl EnsembleChat {
     /// Create new ensemble chat with curator as owner
-    pub fn new(
-        curator_webid: WebID,
-        sovereignty: Arc<std::sync::Mutex<dyn SovereigntyPort>>,
-    ) -> Self {
+    pub fn new(curator_webid: WebID) -> Self {
         let mut participants = HashMap::new();
         participants.insert(
             curator_webid,
@@ -89,7 +85,6 @@ impl EnsembleChat {
             curator_webid,
             participants,
             messages: Vec::new(),
-            sovereignty,
             template_registry: None,
             improv_config: ImprovSessionConfig::default(),
         }
@@ -131,20 +126,6 @@ impl EnsembleChat {
         template_id: &str,
         _input: Value,
     ) -> Result<String, EnsembleError> {
-        // Check sovereignty
-        let can_access = {
-            let checker = self.sovereignty.lock().unwrap();
-            checker.can_access(
-                &hkask_types::DataCategory::TemplateInvocations,
-                &self.curator_webid,
-            )
-        };
-        if !can_access {
-            return Err(EnsembleError::SovereigntyDenied(
-                "Template dispatch requires consent".to_string(),
-            ));
-        }
-
         // Check participant exists
         let participant = match self.participants.get(bot_webid) {
             Some(p) => p,
@@ -199,12 +180,6 @@ impl EnsembleChat {
     pub fn clear(&mut self) {
         self.messages.clear();
         info!("Chat history cleared");
-    }
-
-    /// Grant explicit consent for template invocations
-    pub fn grant_consent(&mut self) {
-        let checker = self.sovereignty.lock().unwrap();
-        checker.grant_consent();
     }
 
     /// Get improv session config
@@ -264,9 +239,6 @@ impl EnsembleChat {
 /// Ensemble chat error types
 #[derive(Debug, thiserror::Error)]
 pub enum EnsembleError {
-    #[error("Sovereignty denied: {0}")]
-    SovereigntyDenied(String),
-
     #[error("Participant not found: {0}")]
     ParticipantNotFound(String),
 
@@ -289,29 +261,21 @@ pub struct SessionManager {
     deliberations:
         Arc<RwLock<HashMap<String, Arc<RwLock<crate::deliberation::DeliberationSession>>>>>,
     curator_webid: WebID,
-    sovereignty: Arc<std::sync::Mutex<dyn SovereigntyPort>>,
 }
 
 impl SessionManager {
     /// Create a new session manager
-    pub fn new(
-        curator_webid: WebID,
-        sovereignty: Arc<std::sync::Mutex<dyn SovereigntyPort>>,
-    ) -> Self {
+    pub fn new(curator_webid: WebID) -> Self {
         Self {
             chats: Arc::new(RwLock::new(HashMap::new())),
             deliberations: Arc::new(RwLock::new(HashMap::new())),
             curator_webid,
-            sovereignty,
         }
     }
 
     /// Create a new chat session
     pub async fn create_chat(&self, session_id: &str) -> Arc<RwLock<EnsembleChat>> {
-        let chat = Arc::new(RwLock::new(EnsembleChat::new(
-            self.curator_webid,
-            self.sovereignty.clone(),
-        )));
+        let chat = Arc::new(RwLock::new(EnsembleChat::new(self.curator_webid)));
 
         let mut chats = self.chats.write().await;
         chats.insert(session_id.to_string(), chat.clone());

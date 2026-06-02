@@ -14,7 +14,7 @@
 pub use hkask_types::ports::{TokenProb, TokenProbability};
 
 use async_trait::async_trait;
-use hkask_types::{DataCategory, WebID};
+
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
@@ -53,26 +53,4 @@ pub trait InferenceClient: Send + Sync {
         messages: Vec<serde_json::Value>,
         model: String,
     ) -> Result<serde_json::Value, Self::Error>;
-}
-
-// =============================================================================
-// Sovereignty Port — User sovereignty membrane
-// =============================================================================
-
-/// Sovereignty port for ensemble — abstraction over sovereignty checking
-///
-/// Enables `EnsembleChat` to check data access and grant consent without
-/// depending on `hkask-agents`. Implementations are wired at the composition root.
-///
-/// Implementations:
-/// - `SovereigntyChecker` — Production implementation (in hkask-agents)
-pub trait SovereigntyPort: Send + Sync {
-    /// Check if data category is accessible by requester
-    fn can_access(&self, data_category: &DataCategory, requester: &WebID) -> bool;
-
-    /// Grant explicit consent for data sharing
-    ///
-    /// Implementations should use interior mutability (e.g. `Mutex` guard)
-    /// since this is called through `Arc<Mutex<dyn SovereigntyPort>>`.
-    fn grant_consent(&self);
 }

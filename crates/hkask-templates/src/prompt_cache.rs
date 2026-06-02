@@ -14,21 +14,8 @@ use std::time::{Duration, Instant};
 use thiserror::Error;
 use tracing::{debug, info};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CacheEntry {
-    pub key: String,
-    pub prompt: String,
-    pub model: String,
-    pub result: InferenceResult,
-    pub created_at: i64,
-    pub expires_at: i64,
-    pub size_bytes: i64,
-    pub access_count: i64,
-    pub last_accessed: i64,
-}
-
 #[derive(Debug, Clone)]
-pub struct CacheTtlConfig {
+pub(crate) struct CacheTtlConfig {
     pub instruct: Duration,
     pub thinking: Duration,
     pub categorization: Duration,
@@ -49,7 +36,7 @@ impl Default for CacheTtlConfig {
 }
 
 #[derive(Debug, Clone)]
-pub struct PromptCacheConfig {
+pub(crate) struct PromptCacheConfig {
     pub max_size_mb: i64,
     pub ttl_config: CacheTtlConfig,
 }
@@ -63,14 +50,14 @@ impl Default for PromptCacheConfig {
     }
 }
 
-pub struct PromptCache {
+pub(crate) struct PromptCache {
     conn: Arc<Mutex<Connection>>,
     config: PromptCacheConfig,
     current_size: Arc<std::sync::atomic::AtomicI64>,
 }
 
 #[derive(Error, Debug)]
-pub enum CacheError {
+pub(crate) enum CacheError {
     #[error(transparent)]
     Infra(#[from] hkask_types::InfrastructureError),
 

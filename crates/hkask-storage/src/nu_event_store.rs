@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum NuEventError {
+pub(crate) enum NuEventError {
     #[error(transparent)]
     Infra(#[from] InfrastructureError),
 }

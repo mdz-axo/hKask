@@ -14,15 +14,15 @@ pub mod triples;
 pub mod user_store;
 
 pub use agent_registry::{AgentRegistryError, AgentRegistryStore};
-pub use audit_log::{AuditEntry, AuditLogStore};
+pub use audit_log::AuditEntry;
 pub use database::Database;
-pub use embeddings::{Embedding, EmbeddingError, EmbeddingStore};
+pub use embeddings::{Embedding, EmbeddingStore};
 pub use goals::{GoalRepositoryError, SqliteGoalRepository};
 pub use hkask_types::TripleID;
 
 pub use nu_event_store::NuEventStore;
 pub use security::sanitize_path;
-pub use sovereignty::{SovereigntyBoundaryEntry, SovereigntyBoundaryStore, SovereigntyStoreError};
+pub use sovereignty::{SovereigntyBoundaryStore, SovereigntyStoreError};
 pub use spec_store::{DefaultSpecCurator, SqliteSpecStore};
 pub use standing_session::{
     StandingSessionError, StandingSessionStore, StoredMessage, StoredSession,

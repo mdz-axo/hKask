@@ -6,10 +6,6 @@
 
 pub mod communication_loop;
 pub mod dispatch;
-pub mod escalation;
 
 pub use communication_loop::CommunicationLoop;
 pub use dispatch::MessageDispatch;
-pub use escalation::{
-    EscalationEntry, EscalationError, EscalationQueue, EscalationStats, EscalationStatus,
-};

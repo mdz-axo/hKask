@@ -92,7 +92,7 @@ pub fn dedup_triples_with_stats(triples: Vec<Triple>) -> DedupResult {
 
 /// Result of a deduplication operation with statistics.
 #[derive(Debug)]
-pub struct DedupResult {
+pub(crate) struct DedupResult {
     pub triples: Vec<Triple>,
     pub original_count: usize,
     pub duplicates_removed: usize,

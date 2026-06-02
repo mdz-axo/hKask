@@ -3,7 +3,6 @@
 //! Manages MCP server connections, tool discovery, and lifecycle.
 //! Integrates with capability security and energy budget enforcement.
 
-use crate::transport::McpTransport;
 use hkask_types::CapabilityToken;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -13,7 +12,7 @@ use tracing::info;
 
 /// Tool information metadata
 #[derive(Debug, Clone)]
-pub struct ToolInfo {
+pub(crate) struct ToolInfo {
     /// Tool name
     pub name: String,
     /// Tool description
@@ -50,8 +49,6 @@ pub struct McpServer {
     pub tools: Vec<McpTool>,
     /// Connection status
     pub connected: bool,
-    /// Transport for tool invocation
-    pub transport: Option<Arc<McpTransport>>,
 }
 
 /// MCP runtime manager
@@ -71,8 +68,8 @@ impl McpRuntime {
         }
     }
 
-    /// Register an MCP server with a transport
-    pub async fn register_server(&self, mut server: McpServer, transport: Arc<McpTransport>) {
+    /// Register an MCP server
+    pub async fn register_server(&self, mut server: McpServer) {
         let mut servers = self.servers.write().await;
         let mut tool_registry = self.tool_registry.write().await;
 
@@ -89,8 +86,7 @@ impl McpRuntime {
             tool_registry.insert(tool.name.clone(), server.id.clone());
         }
 
-        // Set transport
-        server.transport = Some(transport);
+        // Mark as connected
         server.connected = true;
 
         servers.insert(server.id.clone(), server);
@@ -186,7 +182,7 @@ impl McpRuntime {
         &self,
         server_id: &str,
         tool_name: &str,
-        arguments: serde_json::Value,
+        _arguments: serde_json::Value,
         token: Option<&CapabilityToken>,
     ) -> Result<serde_json::Value, String> {
         info!(
@@ -203,24 +199,15 @@ impl McpRuntime {
 
         // Get server and transport
         let servers = self.servers.read().await;
-        let server = servers
+        let _server = servers
             .get(server_id)
             .ok_or_else(|| format!("Server '{}' not found", server_id))?;
 
-        let transport = server
-            .transport
-            .as_ref()
-            .ok_or_else(|| format!("No transport registered for server '{}'", server_id))?;
-
-        if !transport.is_connected() {
-            return Err(format!(
-                "Transport for server '{}' is not connected",
-                server_id
-            ));
-        }
-
-        // Dispatch to transport
-        transport.call(server_id, tool_name, arguments).await
+        // No transport available — tool dispatch is deferred
+        Err(format!(
+            "No transport available for server '{}'; tool dispatch not yet implemented",
+            server_id
+        ))
     }
 }
 

@@ -6,7 +6,7 @@
 
 use hkask_ensemble::{
     AgentResponse, ChatMessage, ChatParticipant, ImprovMode, ImprovSessionConfig,
-    InferencePortAdapter, ParticipantRole, SessionManager, SovereigntyPort,
+    InferencePortAdapter, ParticipantRole, SessionManager,
 };
 use hkask_templates::OkapiConfig;
 use hkask_templates::OkapiInference;
@@ -15,39 +15,15 @@ use hkask_types::ports::InferencePort;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-/// Adapter wrapping `SovereigntyChecker` to implement ensemble's `SovereigntyPort`.
-struct SovereigntyAdapter {
-    inner: std::sync::Mutex<hkask_agents::SovereigntyChecker>,
-}
-
-impl SovereigntyPort for SovereigntyAdapter {
-    fn can_access(&self, data_category: &hkask_types::DataCategory, requester: &WebID) -> bool {
-        let checker = self.inner.lock().unwrap();
-        checker.can_access(data_category, requester)
-    }
-
-    fn grant_consent(&self) {
-        let mut checker = self.inner.lock().unwrap();
-        checker.grant_consent();
-    }
-}
-
 static SESSION_MANAGER: std::sync::OnceLock<Arc<RwLock<SessionManager>>> =
     std::sync::OnceLock::new();
 static IMPROV_CLIENT: std::sync::OnceLock<Arc<InferencePortAdapter>> = std::sync::OnceLock::new();
-
-fn default_sovereignty(webid: WebID) -> Arc<std::sync::Mutex<dyn SovereigntyPort>> {
-    Arc::new(std::sync::Mutex::new(SovereigntyAdapter {
-        inner: std::sync::Mutex::new(hkask_agents::SovereigntyChecker::new(webid)),
-    }))
-}
 
 fn get_session_manager() -> Arc<RwLock<SessionManager>> {
     SESSION_MANAGER
         .get_or_init(|| {
             let webid = WebID::new();
-            let sovereignty = default_sovereignty(webid);
-            Arc::new(RwLock::new(SessionManager::new(webid, sovereignty)))
+            Arc::new(RwLock::new(SessionManager::new(webid)))
         })
         .clone()
 }

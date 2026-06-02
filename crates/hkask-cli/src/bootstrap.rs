@@ -180,15 +180,6 @@ impl BootstrapSequence {
     }
 
     /// Emit a failure variety counter and log the error
-    ///
-    /// Used when a bootstrap phase fails — emits a CNS variety counter
-    /// and logs the error at CRITICAL level. Intended for use in error
-    /// recovery paths that halt the bootstrap sequence.
-    #[allow(dead_code)]
-    async fn fail_phase(&self, phase: BootstrapPhase, error: &BootstrapError) {
-        error!(target: "bootstrap", phase = %phase, error = %error, "Phase failed — halting bootstrap");
-    }
-
     /// Phase 1: Infrastructure — Initialize CNS, algedonic manager, observers
     fn phase_infrastructure(&self) -> Result<(), BootstrapError> {
         info!(target: "bootstrap", "Infrastructure phase: CNS runtime active");

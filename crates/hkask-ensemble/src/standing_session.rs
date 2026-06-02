@@ -4,7 +4,6 @@
 //! report status and the Curator orchestrates metacognition.
 
 use crate::chat::{ChatMessage, ChatParticipant, EnsembleChat, ParticipantRole};
-use crate::ports::SovereigntyPort;
 use hkask_types::ports::{MessageRecord, SessionRecord, StandingSessionPort};
 use hkask_types::{R7BotIdentity, WebID, default_r7_bots};
 use serde::Deserialize;
@@ -87,11 +86,7 @@ pub struct StandingSession {
 impl StandingSession {
     pub fn from_config(config: StandingSessionConfig) -> Self {
         let curator_webid = WebID::from_persona(b"Curator");
-        let sovereignty: Arc<std::sync::Mutex<dyn SovereigntyPort>> =
-            Arc::new(std::sync::Mutex::new(TrivialSovereignty {
-                consent: std::sync::Mutex::new(false),
-            }));
-        let mut chat = EnsembleChat::new(curator_webid, sovereignty);
+        let mut chat = EnsembleChat::new(curator_webid);
         let mut participant_names = HashMap::new();
 
         participant_names.insert(curator_webid, "Curator".to_string());
@@ -287,33 +282,6 @@ impl StandingSession {
             message_count: self.chat.get_history().len(),
             participants,
         }
-    }
-}
-
-/// Trivial sovereignty implementation for standing sessions created without
-/// an explicit sovereignty port. Grants consent on demand; allows all access
-/// to public/shared categories, denies sovereign data without consent.
-struct TrivialSovereignty {
-    consent: std::sync::Mutex<bool>,
-}
-
-impl SovereigntyPort for TrivialSovereignty {
-    fn can_access(&self, data_category: &hkask_types::DataCategory, _requester: &WebID) -> bool {
-        use hkask_types::DataCategory;
-        let consent = *self.consent.lock().unwrap();
-        match data_category {
-            DataCategory::EpisodicMemory
-            | DataCategory::PersonalContext
-            | DataCategory::CapabilityTokens
-            | DataCategory::OcapBoundaries => consent,
-            DataCategory::SemanticMemory | DataCategory::TemplateInvocations => consent,
-            DataCategory::HLexiconTerms | DataCategory::TemplateRegistry => true,
-            DataCategory::Custom(_) => false,
-        }
-    }
-
-    fn grant_consent(&self) {
-        *self.consent.lock().unwrap() = true;
     }
 }
 

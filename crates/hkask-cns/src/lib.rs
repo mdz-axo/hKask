@@ -14,13 +14,13 @@ pub mod runtime;
 pub mod unified_tracker;
 pub mod variety;
 
-pub use algedonic::{AlgedonicManager, DEFAULT_THRESHOLD, RuntimeAlert, cns_health_check};
+pub use algedonic::{AlgedonicManager, DEFAULT_THRESHOLD, cns_health_check};
 pub use circuit_breaker::{CircuitBreaker, CircuitBreakerConfig};
 pub use cybernetics_loop::{CyberneticsLoop, SetPoints};
-pub use dampener::{DEFAULT_DAMPEN_WINDOW, Dampener};
+pub use dampener::Dampener;
 pub use energy::{EnergyBudget, EnergyError};
 pub use inference_loop::InferenceLoop;
-pub use observers::sovereignty::SovereigntyObserverState;
+
 pub use runtime::CnsRuntime;
 
 // Re-export types moved to hkask-types for backward compatibility

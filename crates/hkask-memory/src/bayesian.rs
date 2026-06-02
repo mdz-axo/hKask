@@ -12,19 +12,6 @@
 //! The loop membrane is the authority; domain code calls these functions only
 //! for recall-time presentation (decay) and loop-directed retraction.
 
-/// Combine two confidence values using Bayesian rule
-/// P(A,B) = P(A) * P(B) / (P(A) * P(B) + (1-P(A)) * (1-P(B)))
-pub fn combine(conf1: f64, conf2: f64) -> f64 {
-    let numerator = conf1 * conf2;
-    let denominator = conf1 * conf2 + (1.0 - conf1) * (1.0 - conf2);
-
-    if denominator == 0.0 {
-        0.5
-    } else {
-        numerator / denominator
-    }
-}
-
 /// Subtract confidence (retraction)
 ///
 /// Reduces `conf1` proportionally by `conf2`.
@@ -33,19 +20,6 @@ pub fn combine(conf1: f64, conf2: f64) -> f64 {
 pub fn retract(conf1: f64, conf2: f64) -> f64 {
     // Simplified retraction: reduce confidence proportionally
     (conf1 * (1.0 - conf2)).clamp(0.0, 1.0)
-}
-
-/// Join multiple confidence values
-pub fn join(confidences: &[f64]) -> f64 {
-    if confidences.is_empty() {
-        return 0.5;
-    }
-
-    let mut result = confidences[0];
-    for &conf in &confidences[1..] {
-        result = combine(result, conf);
-    }
-    result
 }
 
 /// Decay confidence over time

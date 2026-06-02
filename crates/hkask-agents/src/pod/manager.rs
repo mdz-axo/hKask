@@ -13,7 +13,7 @@ use super::types::{AgentKind, AgentPersona, PodID, PodLifecycleState};
 use super::{AgentPod, AgentPodError, AgentPodResult};
 use crate::adapters::git_cas::GitCasAdapter;
 use crate::adapters::mcp_runtime::McpRuntimeAdapter;
-use crate::adapters::memory_storage::MemoryStorageAdapter;
+use crate::adapters::memory_loop_adapter::MemoryLoopAdapter;
 use crate::ports::{EpisodicStoragePort, GitCASPort, MCPRuntimePort, SemanticStoragePort};
 
 /// Pod Manager — Manages collection of agent pods
@@ -113,7 +113,7 @@ impl PodManager {
     /// Create a new pod manager with mock adapters for testing
     pub fn new_mock() -> Self {
         let adapter = Arc::new(
-            MemoryStorageAdapter::in_memory()
+            MemoryLoopAdapter::in_memory()
                 .expect("In-memory storage initialization should never fail"),
         );
         let episodic_storage: Arc<dyn EpisodicStoragePort> = adapter.clone();
@@ -222,7 +222,7 @@ impl PodManagerBuilder {
     /// Configure with in-memory storage (episodic and semantic)
     pub fn with_in_memory_storage(self) -> Self {
         let adapter = Arc::new(
-            MemoryStorageAdapter::in_memory()
+            MemoryLoopAdapter::in_memory()
                 .expect("In-memory storage initialization should never fail"),
         );
         let episodic: Arc<dyn EpisodicStoragePort> = adapter.clone();
@@ -241,7 +241,7 @@ impl PodManagerBuilder {
             .to_str()
             .expect("Storage path must be valid UTF-8");
         let adapter = Arc::new(
-            MemoryStorageAdapter::from_path(path_str, passphrase)
+            MemoryLoopAdapter::from_path(path_str, passphrase)
                 .expect("Encrypted storage initialization should succeed"),
         );
         let episodic: Arc<dyn EpisodicStoragePort> = adapter.clone();
@@ -258,7 +258,7 @@ impl PodManagerBuilder {
             );
         }
         let adapter = Arc::new(
-            MemoryStorageAdapter::in_memory()
+            MemoryLoopAdapter::in_memory()
                 .expect("In-memory storage initialization should never fail"),
         );
         let default_episodic: Arc<dyn EpisodicStoragePort> = adapter.clone();

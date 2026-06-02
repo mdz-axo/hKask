@@ -16,11 +16,9 @@ use hkask_types::WebID;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum EpisodicMemoryError {
+pub(crate) enum EpisodicMemoryError {
     #[error("Triple error: {0}")]
     Triple(#[from] TripleError),
-    #[error("Budget exceeded: stored {stored}, budget {budget}")]
-    BudgetExceeded { stored: usize, budget: usize },
     #[error("Triple not found for retraction: {entity}/{attribute}")]
     TripleNotFound { entity: String, attribute: String },
 }
@@ -30,10 +28,10 @@ pub enum EpisodicMemoryError {
 /// A rate of 0.001 means confidence halves approximately every 693 time units
 /// (half-life = ln(2)/rate ≈ 693 for rate 0.001).
 /// Time units are seconds (matching `valid_from` timestamps).
-pub const DEFAULT_DECAY_RATE: f64 = 0.001;
+pub(crate) const DEFAULT_DECAY_RATE: f64 = 0.001;
 
 /// Default per-agent storage budget (max triples).
-pub const DEFAULT_EPISODIC_BUDGET: usize = 10_000;
+pub(crate) const DEFAULT_EPISODIC_BUDGET: usize = 10_000;
 
 // =============================================================================
 // EpisodicMemory — first-person experience with subloops

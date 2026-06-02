@@ -9,14 +9,14 @@ use serde_yaml::Value as YamlValue;
 
 /// Parsed contract section from template frontmatter
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ParsedContract {
+pub(crate) struct ParsedContract {
     pub input: Option<YamlValue>,
     pub output: Option<YamlValue>,
 }
 
 /// Parsed inference section from template frontmatter
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ParsedInference {
+pub(crate) struct ParsedInference {
     pub template_type: Option<String>,
     pub lexicon: Option<Vec<String>>,
     pub model_tier: Option<String>,
@@ -24,7 +24,7 @@ pub struct ParsedInference {
 }
 
 /// Parse template frontmatter (sections before ---)
-pub fn parse_frontmatter(source: &str) -> Result<TemplateFrontmatter, TemplateError> {
+pub(crate) fn parse_frontmatter(source: &str) -> Result<TemplateFrontmatter, TemplateError> {
     // Split source at --- delimiter
     let parts: Vec<&str> = source.splitn(2, "\n---").collect();
 
@@ -76,21 +76,21 @@ fn extract_field_names(value: &Option<YamlValue>) -> Vec<String> {
 
 /// Template frontmatter structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TemplateFrontmatterYaml {
+pub(crate) struct TemplateFrontmatterYaml {
     pub contract: Option<ParsedContract>,
     pub inference: Option<ParsedInference>,
 }
 
 /// Strongly-typed template frontmatter
 #[derive(Debug, Clone)]
-pub struct TemplateFrontmatter {
+pub(crate) struct TemplateFrontmatter {
     pub contract: Option<TemplateContract>,
     pub inference: Option<TemplateInferenceConfig>,
 }
 
 /// Inference configuration from template frontmatter
 #[derive(Debug, Clone)]
-pub struct TemplateInferenceConfig {
+pub(crate) struct TemplateInferenceConfig {
     pub template_type: Option<TemplateType>,
     pub lexicon_terms: Vec<String>,
     pub model_tier: Option<String>,
@@ -98,7 +98,10 @@ pub struct TemplateInferenceConfig {
 }
 
 /// Validate template against hLexicon terms
-pub fn validate_lexicon_terms(terms: &[String], valid_terms: &[&str]) -> Result<(), TemplateError> {
+pub(crate) fn validate_lexicon_terms(
+    terms: &[String],
+    valid_terms: &[&str],
+) -> Result<(), TemplateError> {
     for term in terms {
         if !valid_terms.iter().any(|&t| t == term) {
             return Err(TemplateError::Validation(format!(

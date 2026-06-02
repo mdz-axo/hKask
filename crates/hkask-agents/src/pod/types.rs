@@ -79,7 +79,7 @@ pub struct AgentPersona {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AgentIdentity {
+pub(crate) struct AgentIdentity {
     pub name: String,
     #[serde(rename = "type")]
     pub agent_type: AgentKind,
@@ -92,19 +92,19 @@ fn default_version() -> String {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AgentCharter {
+pub(crate) struct AgentCharter {
     pub description: String,
     pub editor: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AccessRight {
+pub(crate) struct AccessRight {
     pub read: Option<String>,
     pub write: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct VisibilitySettings {
+pub(crate) struct VisibilitySettings {
     #[serde(default = "default_public_visibility")]
     pub default: hkask_types::Visibility,
     #[serde(default = "default_private_visibility")]

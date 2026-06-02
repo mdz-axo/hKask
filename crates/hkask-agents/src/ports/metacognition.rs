@@ -9,7 +9,7 @@ pub use crate::curator::bot_metrics::{
 
 /// Kata type for coaching protocol
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum KataType {
+pub(crate) enum KataType {
     /// Systematic capability development (4-step cycle)
     Improvement,
     /// Teaching scientific thinking patterns (5-question dialogue)
@@ -20,7 +20,7 @@ pub enum KataType {
 
 /// A directive to execute a Kata coaching cycle
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct KataDirective {
+pub(crate) struct KataDirective {
     /// Bot to coach
     pub bot_id: WebID,
     /// Bot name
@@ -35,7 +35,7 @@ pub struct KataDirective {
 
 /// Result of evaluating a bot's performance
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct EvaluationResult {
+pub(crate) struct EvaluationResult {
     /// Bot being evaluated
     pub bot_id: WebID,
     /// Bot name
@@ -52,7 +52,7 @@ pub struct EvaluationResult {
 
 /// Recommended action from evaluation
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub enum RecommendedAction {
+pub(crate) enum RecommendedAction {
     /// No action needed
     None,
     /// Monitor more closely

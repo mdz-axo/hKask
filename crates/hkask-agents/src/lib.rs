@@ -16,37 +16,29 @@
 pub mod acp;
 pub mod adapters;
 pub mod communication;
-
 pub mod consent;
 pub mod curator;
 pub mod error;
+pub mod escalation;
 pub mod loop_system;
 pub mod pod;
 pub mod ports;
 pub mod registry_loader;
-
 pub mod sovereignty;
 
 pub use acp::{A2AMessage, AcpAgent, AcpError, AcpRuntime};
 
-pub use communication::{
-    CommunicationLoop, EscalationEntry, EscalationError, EscalationQueue, EscalationStats,
-    EscalationStatus, MessageDispatch,
-};
+pub use communication::MessageDispatch;
 pub use consent::{ConsentError, ConsentManager};
-pub use curator::confidence::{ConfidenceConfig, compute_confidence};
 pub use curator::context::CuratorContext;
 pub use curator::curation_loop::CurationLoop;
-pub use curator::deliberation::{
-    AgentResponse, DeliberationParticipant, DeliberationResult, DeliberationSession,
-    DeliberationStatus,
-};
-pub use error::{GitError, McpError, MemoryError, RegistryError};
+pub use curator::deliberation::AgentResponse;
+pub use error::GitError;
+pub use error::RegistryError;
+pub use escalation::EscalationEntry;
+pub use escalation::EscalationQueue;
 pub use loop_system::LoopSystem;
-pub use pod::{
-    AgentKind, AgentPersona, AgentPod, AgentPodError, AgentPodResult, PodID, PodLifecycleState,
-    PodManager, PodStatus,
-};
-pub use ports::{AcpPort, EpisodicStoragePort, GitCASPort, MCPRuntimePort, SemanticStoragePort};
-pub use registry_loader::{BotRegistryLoader, RegistryLoaderError};
+pub use pod::{AgentKind, AgentPersona, AgentPod, PodID, PodLifecycleState, PodManager, PodStatus};
+pub use ports::{AcpPort, EpisodicStoragePort, GitCASPort, SemanticStoragePort};
+pub use registry_loader::BotRegistryLoader;
 pub use sovereignty::SovereigntyChecker;

@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 /// Model requirements for template execution
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ModelRequirements {
+pub(crate) struct ModelRequirements {
     /// Required model ID (e.g., "ollama/llama-3.1-8b-instruct")
     pub required: String,
     /// Minimum context length required

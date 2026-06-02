@@ -26,17 +26,20 @@
 //! - `GET /api/sovereignty/killzone` — Kill zone status
 //! - `GET /api/sovereignty/access/check` — Check data access status
 //! - `POST /api/llm/infer` — SOAP inference endpoint for Russell
+//! - `POST /api/episodic/store` — Store episodic triple
+//! - `GET /api/episodic/query` — Query episodic memories
+//! - `GET /api/episodic/usage` — Episodic storage usage
 
 use hkask_agents::acp::AcpRuntime;
 use hkask_agents::adapters::git_cas::GitCasAdapter;
 use hkask_agents::adapters::mcp_runtime::McpRuntimeAdapter;
 use hkask_agents::adapters::memory_loop_adapter::MemoryLoopAdapter;
 use hkask_agents::communication::dispatch::MessageDispatch;
-use hkask_agents::communication::escalation::EscalationQueue;
 use hkask_agents::consent::ConsentManager;
 use hkask_agents::curator::context::CuratorContext;
 use hkask_agents::curator::curation_loop::CurationLoop;
 use hkask_agents::curator::metacognition::MetacognitionLoop;
+use hkask_agents::escalation::EscalationQueue;
 use hkask_agents::loop_system::LoopSystem;
 use hkask_agents::pod::PodManager;
 use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
@@ -109,6 +112,8 @@ pub struct ApiState {
     pub goal_capability_secret: Arc<Vec<u8>>,
     /// Loop system for 6-loop regulation (Cybernetics, Episodic, Semantic, Curation)
     pub loop_system: Arc<LoopSystem>,
+    /// Episodic memory for first-person experience storage and recall
+    pub episodic_memory: Arc<EpisodicMemory>,
 }
 
 /// Build the LoopSystem with all 6 loops.
@@ -122,7 +127,7 @@ fn build_loop_system(
     dispatch: Arc<MessageDispatch>,
     inference_port: Option<Arc<dyn hkask_types::ports::InferencePort>>,
     system_webid: WebID,
-) -> Arc<LoopSystem> {
+) -> (Arc<LoopSystem>, Arc<EpisodicMemory>) {
     let loop_system = LoopSystem::new(Arc::clone(&dispatch));
 
     // Cybernetics Loop
@@ -152,13 +157,17 @@ fn build_loop_system(
     let episodic_memory = EpisodicMemory::new(triple_store);
     let storage_budget = episodic_memory.storage_budget();
     let episodic_loop = EpisodicLoop::new(episodic_memory, system_webid, storage_budget);
+    // API-facing episodic memory backed by the same connection
+    let episodic_memory_api = Arc::new(EpisodicMemory::new(TripleStore::new(conn)));
     rt.block_on(async {
         loop_system.register_loop(Arc::new(episodic_loop)).await;
     });
 
     // Semantic Loop
-    let triple_store2 = TripleStore::new(Arc::clone(&conn));
-    let embedding_store = EmbeddingStore::new(conn);
+    let db2 = Database::in_memory().expect("in-memory db");
+    let conn2 = db2.conn_arc();
+    let triple_store2 = TripleStore::new(Arc::clone(&conn2));
+    let embedding_store = EmbeddingStore::new(conn2);
     let semantic_memory = SemanticMemory::new(triple_store2, embedding_store);
     let semantic_loop = SemanticLoop::new(semantic_memory);
     rt.block_on(async {
@@ -180,7 +189,7 @@ fn build_loop_system(
     });
 
     drop(rt);
-    Arc::new(loop_system)
+    (Arc::new(loop_system), episodic_memory_api)
 }
 
 impl ApiState {
@@ -245,7 +254,7 @@ impl ApiState {
         let dispatch = Arc::new(MessageDispatch::new());
         let inference_port: Option<Arc<dyn hkask_types::ports::InferencePort>> =
             ensemble_inferencer.as_ref().map(|ei| Arc::clone(ei.port()));
-        let loop_system = build_loop_system(
+        let (loop_system, episodic_memory) = build_loop_system(
             Arc::clone(&escalation_queue),
             dispatch,
             inference_port,
@@ -268,6 +277,7 @@ impl ApiState {
             goal_repo,
             goal_capability_secret: Arc::new(capability_secret.to_vec()),
             loop_system,
+            episodic_memory,
         }
     }
 
@@ -293,15 +303,17 @@ impl ApiState {
         let mcp_runtime_adapter = McpRuntimeAdapter::new();
 
         // Use MemoryLoopAdapter (routes through hkask-memory domain logic)
-        // instead of MemoryStorageAdapter (raw TripleStore bypass)
         let db = Database::in_memory().expect("in-memory db");
         let conn = db.conn_arc();
         let triple_store = TripleStore::new(Arc::clone(&conn));
-        let episodic_memory = EpisodicMemory::new(triple_store);
+        let episodic_memory_for_adapter = EpisodicMemory::new(triple_store);
         let triple_store2 = TripleStore::new(Arc::clone(&conn));
         let embedding_store = EmbeddingStore::new(conn);
         let semantic_memory = SemanticMemory::new(triple_store2, embedding_store);
-        let memory_adapter = Arc::new(MemoryLoopAdapter::new(episodic_memory, semantic_memory));
+        let memory_adapter = Arc::new(MemoryLoopAdapter::new(
+            episodic_memory_for_adapter,
+            semantic_memory,
+        ));
         let episodic_storage: Arc<dyn EpisodicStoragePort> = memory_adapter.clone();
         let semantic_storage: Arc<dyn SemanticStoragePort> = memory_adapter.clone();
         let pod_manager = PodManager::new(
@@ -533,7 +545,11 @@ pub struct SoapInferenceConfig {
     pub max_subjective_len: usize,
     /// Maximum event message length
     pub max_message_len: usize,
-    /// Inference timeout in seconds
+    /// Inference timeout in seconds.
+    ///
+    /// Simple config value for `tokio::time::timeout` — not Cybernetics logic.
+    /// A true CNS energy budget would track cumulative spend and adapt; this is
+    /// just a per-request wall-clock limit, which is standard HTTP resilience.
     pub timeout_secs: u64,
     /// Model to use for inference
     pub model: String,
@@ -751,6 +767,7 @@ pub fn create_router(state: ApiState) -> Result<OpenApiRouter, String> {
         .merge(routes::acp_router().into())
         .merge(routes::spec_router().into())
         .merge(routes::curator_router().into())
+        .merge(routes::episodic_router().into())
         .merge(routes::git_router().into())
         .merge(routes::goal_router().into())
         .layer(axum::middleware::from_fn_with_state(

@@ -22,16 +22,14 @@ use tokio::sync::RwLock;
 use tracing::{info, warn};
 
 #[derive(Debug, Error)]
-pub enum MetacognitionError {
+pub(crate) enum MetacognitionError {
     #[error("Escalation error: {0}")]
     Escalation(String),
-    #[error("CNS query error: {0}")]
-    CnsQuery(String),
 }
 
 /// Escalation trigger thresholds
 #[derive(Debug, Clone)]
-pub struct EscalationThresholds {
+pub(crate) struct EscalationThresholds {
     /// Variety deficit threshold (default: 100)
     pub variety_deficit: u64,
     /// Critical alert count threshold (default: 3)
@@ -57,7 +55,7 @@ impl Default for EscalationThresholds {
 /// of this type; use `From<HealthSnapshot> for StoredHealthSnapshot` for
 /// storage-layer conversion.
 #[derive(Debug, Clone)]
-pub struct HealthSnapshot {
+pub(crate) struct HealthSnapshot {
     pub timestamp: chrono::DateTime<chrono::Utc>,
     pub cns_health: String,
     pub variety_counters: Vec<(String, u64)>,
@@ -68,7 +66,7 @@ pub struct HealthSnapshot {
 
 /// Bot status report from standing session
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct BotStatusReport {
+pub(crate) struct BotStatusReport {
     pub bot_name: String,
     pub status: BotHealthStatus,
     pub last_report: Option<chrono::DateTime<chrono::Utc>>,

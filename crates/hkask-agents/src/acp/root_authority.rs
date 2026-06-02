@@ -27,7 +27,7 @@ use super::AcpError;
 ///
 /// - No ambient authority: capabilities must be explicitly granted
 /// - Attenuation chain: each delegation reduces authority
-pub struct RootAuthority {
+pub(crate) struct RootAuthority {
     /// Root authority WebID (system identity)
     root_webid: WebID,
     /// Root secret for HMAC signing (Arc to avoid copying on Clone)

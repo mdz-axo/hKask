@@ -20,7 +20,7 @@ use tokio::sync::RwLock;
 /// Wraps `MessageDispatch` (the priority queue) and receives
 /// `LoopMessage`s from the dispatch channel. The loop's `tick()`
 /// dequeues messages and delivers them to target loop inboxes.
-pub struct CommunicationLoop {
+pub(crate) struct CommunicationLoop {
     /// Priority-ordered message queue
     dispatch: Arc<MessageDispatch>,
     /// Per-loop inbox senders for message delivery

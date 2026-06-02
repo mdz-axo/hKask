@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 
 /// Variety counter for tracking state diversity in a domain
 #[derive(Debug, Clone)]
-pub struct VarietyTracker {
+pub(crate) struct VarietyTracker {
     counts: HashMap<String, u64>,
     window_start: Instant,
     window_duration: Duration,

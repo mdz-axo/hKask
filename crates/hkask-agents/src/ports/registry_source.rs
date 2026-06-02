@@ -6,7 +6,7 @@
 use crate::error::RegistryError;
 
 /// Port for loading registry content from a source.
-pub trait RegistrySourcePort: Send + Sync {
+pub(crate) trait RegistrySourcePort: Send + Sync {
     /// Load the content of a YAML file at the given path
     fn load_yaml(&self, path: &str) -> Result<String, RegistryError>;
 

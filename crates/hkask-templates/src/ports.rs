@@ -13,7 +13,7 @@ use std::time::Duration;
 
 /// Configuration for inference calls with timeout and retry
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct InferenceConfig {
+pub(crate) struct InferenceConfig {
     pub timeout: Duration,
     pub max_retries: u32,
     pub backoff_base: Duration,
@@ -73,7 +73,7 @@ pub type Result<T> = std::result::Result<T, TemplateError>;
 /// Manifest step action types
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum Action {
+pub(crate) enum Action {
     Select,
     Populate,
     Execute,
@@ -107,7 +107,7 @@ impl Action {
 
 /// Manifest step definition
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ManifestStep {
+pub(crate) struct ManifestStep {
     pub ordinal: u32,
     pub action: Action,
     #[serde(default)]
@@ -120,7 +120,7 @@ pub struct ManifestStep {
 
 /// Process manifest (YAML-based workflow definition)
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ProcessManifest {
+pub(crate) struct ProcessManifest {
     pub id: String,
     pub name: String,
     #[serde(default)]
@@ -130,7 +130,7 @@ pub struct ProcessManifest {
 
 /// YAML wrapper for deserializing manifest files that nest under a `manifest:` key
 #[derive(Debug, Clone, Deserialize)]
-pub struct YamlManifestFile {
+pub(crate) struct YamlManifestFile {
     pub manifest: ProcessManifest,
 }
 
@@ -149,7 +149,7 @@ impl ProcessManifest {
 
 /// Template composition definition
 #[derive(Debug, Clone)]
-pub struct CompositionTemplate {
+pub(crate) struct CompositionTemplate {
     pub id: String,
     pub template_type: TemplateType,
     pub lexicon_terms: Vec<String>,
@@ -159,7 +159,7 @@ pub struct CompositionTemplate {
 
 /// Template input/output contract
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TemplateContract {
+pub(crate) struct TemplateContract {
     pub input_fields: Vec<String>,
     pub output_fields: Vec<String>,
 }
@@ -207,7 +207,7 @@ pub trait McpPort: Send + Sync {
 
 /// Memory context fragment for deduplication
 #[derive(Debug, Clone)]
-pub struct MemoryFragment {
+pub(crate) struct MemoryFragment {
     pub content: String,
     pub source: String,
     pub confidence: f64,
@@ -216,4 +216,4 @@ pub struct MemoryFragment {
 /// Maximum Matroshka nesting depth (configurable per template).
 /// Defaults to [`hkask_types::capability::SYSTEM_MAX_RECURSION`] — the
 /// system-wide recursion bound shared by attenuation, cascade, and subgoals.
-pub const DEFAULT_MATROSHKA_LIMIT: u8 = hkask_types::capability::SYSTEM_MAX_RECURSION;
+pub(crate) const DEFAULT_MATROSHKA_LIMIT: u8 = hkask_types::capability::SYSTEM_MAX_RECURSION;

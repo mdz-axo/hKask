@@ -18,7 +18,7 @@ use thiserror::Error;
 use zeroize::Zeroizing;
 
 #[derive(Error, Debug)]
-pub enum UserStoreError {
+pub(crate) enum UserStoreError {
     #[error(transparent)]
     Infra(#[from] InfrastructureError),
 
@@ -458,35 +458,5 @@ impl UserStore {
         let mut result = nonce_bytes.to_vec();
         result.extend_from_slice(&ciphertext);
         Ok(result)
-    }
-
-    pub(crate) fn decrypt_pii(ciphertext: &[u8], key: &Zeroizing<[u8; 32]>) -> Result<Vec<u8>> {
-        use aes_gcm::{Aes256Gcm, KeyInit, Nonce, aead::Aead};
-
-        if ciphertext.len() < 12 {
-            return Err(UserStoreError::Decryption("Ciphertext too short".into()));
-        }
-
-        let cipher = Aes256Gcm::new_from_slice(&**key)
-            .map_err(|e| UserStoreError::Decryption(e.to_string()))?;
-
-        let nonce = Nonce::from_slice(&ciphertext[..12]);
-        let data = &ciphertext[12..];
-
-        cipher
-            .decrypt(nonce, data)
-            .map_err(|e| UserStoreError::Decryption(e.to_string()))
-    }
-
-    /// Decrypt a PII field from a database row
-    #[allow(dead_code)]
-    fn read_encrypted_field(
-        row: &rusqlite::Row,
-        column: &str,
-        key: &Zeroizing<[u8; 32]>,
-    ) -> Result<String> {
-        let ciphertext: Vec<u8> = row.get::<_, Vec<u8>>(column)?;
-        let plaintext = Self::decrypt_pii(&ciphertext, key)?;
-        String::from_utf8(plaintext).map_err(|e| UserStoreError::Decryption(e.to_string()))
     }
 }

@@ -8,7 +8,7 @@ use hkask_types::{
 };
 
 /// Sovereignty checker for agent pods
-pub struct SovereigntyChecker {
+pub(crate) struct SovereigntyChecker {
     state: UserSovereigntyState,
     owner_webid: WebID,
 }

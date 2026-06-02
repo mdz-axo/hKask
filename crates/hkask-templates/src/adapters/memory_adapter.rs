@@ -9,7 +9,7 @@ use crate::ports::{MemoryFragment, Result};
 use hkask_storage::TripleStore;
 use hkask_types::WebID;
 
-pub struct StubMemoryPort;
+pub(crate) struct StubMemoryPort;
 
 impl StubMemoryPort {
     pub fn query_semantic(&self, _entity: &str) -> Result<Vec<MemoryFragment>> {
@@ -29,7 +29,7 @@ impl StubMemoryPort {
     }
 }
 
-pub struct MemoryAdapter<S, E> {
+pub(crate) struct MemoryAdapter<S, E> {
     _semantic: S,
     _episodic: E,
 }
@@ -49,7 +49,7 @@ impl<S, E> MemoryAdapter<S, E> {
 /// Note: This bypasses hkask-memory domain logic (dedup, Bayesian
 /// confidence decay, consolidation bridge). For domain-correct
 /// behavior, wire through EpisodicLoop/SemanticLoop when created.
-pub struct AppMemoryAdapter {
+pub(crate) struct AppMemoryAdapter {
     store: TripleStore,
 }
 

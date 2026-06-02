@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 /// Per-bot evaluation metrics for Curator metacognition
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BotEvaluationMetrics {
+pub(crate) struct BotEvaluationMetrics {
     /// The bot's WebID
     pub bot_id: WebID,
     /// Human-readable bot name (e.g., "R7.3")
@@ -94,7 +94,7 @@ impl BotEvaluationMetrics {
 
 /// Bot health status derived from evaluation metrics
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum BotHealthStatus {
+pub(crate) enum BotHealthStatus {
     Healthy,
     Degraded,
     Critical,
@@ -112,7 +112,7 @@ impl std::fmt::Display for BotHealthStatus {
 
 /// Capability gap identified by Curator metacognition
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CapabilityGap {
+pub(crate) struct CapabilityGap {
     pub bot_id: WebID,
     pub gap_type: GapType,
     pub description: String,
@@ -120,7 +120,7 @@ pub struct CapabilityGap {
 
 /// Types of capability gaps
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum GapType {
+pub(crate) enum GapType {
     LowSuccessRate,
     VarietyDeficit,
     SovereigntyViolations,

@@ -1,16 +1,16 @@
 //! Memory Loop Adapter — routes through hkask-memory's domain logic
 //!
-//! Unlike `MemoryStorageAdapter` (which implements ports directly against
-//! `TripleStore`, bypassing dedup, Bayesian confidence, and consolidation),
-//! this adapter wraps `EpisodicMemory` and `SemanticMemory` so that pods
-//! get domain-logic-enriched storage through the loop membrane.
+//! Wraps `EpisodicMemory` and `SemanticMemory` so that pods get
+//! domain-logic-enriched storage (dedup, Bayesian confidence decay,
+//! temporal attention weighting) through the loop membrane.
 
 use crate::error::MemoryError;
 use crate::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_memory::{EpisodicMemory, SemanticMemory};
-use hkask_storage::Triple;
+use hkask_storage::{Database, EmbeddingStore, Triple, TripleStore};
 use hkask_types::{CapabilityToken, ExperienceClassification, Visibility, WebID};
 use serde_json::Value;
+use std::sync::Arc;
 
 /// Memory Loop Adapter — wraps EpisodicMemory and SemanticMemory
 ///
@@ -26,6 +26,29 @@ impl MemoryLoopAdapter {
     /// Create a new adapter wrapping EpisodicMemory and SemanticMemory.
     pub fn new(episodic: EpisodicMemory, semantic: SemanticMemory) -> Self {
         Self { episodic, semantic }
+    }
+
+    /// Create with in-memory storage for testing.
+    pub fn in_memory() -> Result<Self, MemoryError> {
+        let db = Database::in_memory().map_err(|e| MemoryError::Storage(e.to_string()))?;
+        Self::from_database(db)
+    }
+
+    /// Create from database path and passphrase (encrypted).
+    pub fn from_path(path: &str, passphrase: &str) -> Result<Self, MemoryError> {
+        let db =
+            Database::open(path, passphrase).map_err(|e| MemoryError::Storage(e.to_string()))?;
+        Self::from_database(db)
+    }
+
+    fn from_database(db: Database) -> Result<Self, MemoryError> {
+        let conn = db.conn_arc();
+        let triple_store = TripleStore::new(Arc::clone(&conn));
+        let episodic = EpisodicMemory::new(triple_store);
+        let triple_store2 = TripleStore::new(Arc::clone(&conn));
+        let embedding_store = EmbeddingStore::new(conn);
+        let semantic = SemanticMemory::new(triple_store2, embedding_store);
+        Ok(Self::new(episodic, semantic))
     }
 }
 

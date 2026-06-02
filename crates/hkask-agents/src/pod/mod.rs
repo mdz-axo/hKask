@@ -104,7 +104,7 @@ pub struct AgentPod {
 
 /// Agent pod error types
 #[derive(Debug, Error)]
-pub enum AgentPodError {
+pub(crate) enum AgentPodError {
     #[error("Failed to parse agent persona: {0}")]
     PersonaParseError(String),
 
@@ -158,7 +158,7 @@ pub enum AgentPodError {
 }
 
 /// Result type for agent pod operations
-pub type AgentPodResult<T> = Result<T, AgentPodError>;
+pub(crate) type AgentPodResult<T> = Result<T, AgentPodError>;
 
 impl AgentPod {
     /// Create a new AgentPod.

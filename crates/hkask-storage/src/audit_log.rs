@@ -13,7 +13,7 @@ use thiserror::Error;
 use uuid::Uuid;
 
 #[derive(Error, Debug)]
-pub enum AuditLogError {
+pub(crate) enum AuditLogError {
     #[error(transparent)]
     Infra(#[from] InfrastructureError),
 }
@@ -95,7 +95,7 @@ impl From<AuditEntry> for hkask_types::AuditEntry {
     }
 }
 
-pub struct AuditLogStore {
+pub(crate) struct AuditLogStore {
     conn: Arc<Mutex<Connection>>,
 }
 

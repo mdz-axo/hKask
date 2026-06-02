@@ -83,19 +83,19 @@ struct CapabilitiesResponse {
 
 /// Russell skill info (public metadata)
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 struct SkillInfo {
     id: String,
     version: String,
+    #[allow(dead_code)]
     description: String,
     symptoms: Vec<String>,
 }
 
 /// Russell probe info
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 struct ProbeInfo {
     id: String,
+    #[allow(dead_code)]
     description: String,
 }
 

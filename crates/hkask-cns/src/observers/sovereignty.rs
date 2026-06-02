@@ -9,7 +9,7 @@ use std::collections::HashMap;
 
 /// Sovereignty event types monitored by CNS
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum SovereigntyEventType {
+pub(crate) enum SovereigntyEventType {
     /// Acquisition attempt detected
     AcquisitionAttempt,
     /// Kill zone alert triggered
@@ -24,7 +24,7 @@ pub enum SovereigntyEventType {
 
 /// Sovereignty event record
 #[derive(Debug, Clone)]
-pub struct SovereigntyEvent {
+pub(crate) struct SovereigntyEvent {
     pub event_type: SovereigntyEventType,
     pub timestamp: std::time::Instant,
     pub webid: WebID,
@@ -32,7 +32,7 @@ pub struct SovereigntyEvent {
 
 /// Sovereignty observer state
 #[derive(Debug, Default, Clone)]
-pub struct SovereigntyObserverState {
+pub(crate) struct SovereigntyObserverState {
     /// Count of acquisition attempts per WebID
     pub acquisition_attempts: HashMap<WebID, u64>,
     /// Count of kill zone alerts per WebID

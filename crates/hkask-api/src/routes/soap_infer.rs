@@ -47,8 +47,12 @@ async fn soap_infer(
         return Err(StatusCode::BAD_REQUEST);
     }
 
-    // Verify capability token (OCAP security boundary)
-    // Parse token to extract holder WebID for proper authority tracking
+    // Verify capability token (OCAP security boundary — hexagonal membrane)
+    // Parse token to extract holder WebID for proper authority tracking.
+    // This is boundary authentication (parse + signature check), not a
+    // Cybernetics-level decision. CNS governs capability *enforcement* at the
+    // loop level (throttling, energy budgets); the API membrane just verifies
+    // that a valid token was presented before letting the request through.
     let token = match hkask_types::capability::CapabilityToken::from_base64(&req.capability_token) {
         Ok(t) => t,
         Err(_) => {
@@ -56,7 +60,6 @@ async fn soap_infer(
         }
     };
 
-    // Verify token signature
     if !token.verify(&config.capability_secret) {
         return Err(StatusCode::FORBIDDEN);
     }

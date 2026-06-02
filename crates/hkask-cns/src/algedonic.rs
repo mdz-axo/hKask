@@ -22,11 +22,11 @@ fn default_datetime() -> DateTime<Utc> {
 pub const DEFAULT_THRESHOLD: u64 = 100;
 
 /// Default expected variety per domain
-pub const DEFAULT_EXPECTED_VARIETY: u64 = 10;
+pub(crate) const DEFAULT_EXPECTED_VARIETY: u64 = 10;
 
 /// Alert severity levels
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum AlertSeverity {
+pub(crate) enum AlertSeverity {
     /// Informational - deficit detected but below threshold
     Info,
     /// Warning - deficit approaching threshold
@@ -37,7 +37,7 @@ pub enum AlertSeverity {
 
 /// Algedonic alert
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RuntimeAlert {
+pub(crate) struct RuntimeAlert {
     pub domain: String,
     pub deficit: u64,
     pub threshold: u64,
