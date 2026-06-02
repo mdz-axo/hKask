@@ -192,20 +192,18 @@ The Magna Carta principle enforces user sovereignty:[^westin-data]
 | **Acquisition resistance** | Default `Maximum` resistance level |
 | **Kill-zone detection** | VC investment < 0.5 after acquisition attempt → CNS alert |
 
-**SovereigntyPort** (`crates/hkask-agents/src/ports/sovereignty.rs`):
+**SovereigntyChecker** (`crates/hkask-agents/src/sovereignty.rs`):
 
-```rust
-pub trait SovereigntyPort {
-    fn check(&self, data_category: DataCategory, operation: SovereigntyOperation, requester: &WebID) -> SovereigntyCheckResult;
-    fn can_access(&self, data_category: DataCategory, requester: &WebID) -> bool;
-    fn mark_acquisition_attempt(&mut self, details: &Value);
-    fn update_vc_investment(&mut self, vc_investment: f32);
-    fn is_compromised(&self) -> bool;
-    fn grant_consent(&mut self);
-    fn revoke_consent(&mut self);
-    fn owner_webid(&self) -> WebID;
-}
-```
+A concrete struct (not a trait) enforcing user data boundaries. Each `AgentPod` holds a `SovereigntyChecker` initialized with the pod owner's `WebID`.
+
+**Key operations:**
+- `new(webid)` — create checker for a specific WebID owner
+- `check(category, operation, requester)` — verify access authorization
+- `can_access(category, requester)` — boolean access check
+- `mark_acquisition_attempt()` — record kill-zone trigger
+- `update_vc_investment(f32)` — update VC investment ratio
+- `is_compromised()` — check acquisition state
+- `grant_consent()` / `revoke_consent()` — consent management
 
 [^westin-data]: Westin, A. F. (1967). *Privacy and Freedom*. Atheneum. Informational self-determination.
 
@@ -330,8 +328,9 @@ Rate limiting has been consolidated into energy budget enforcement. The `RateLim
 ### 4.7 Energy Budget
 
 Energy tracking for resource-conscious execution:
-- `EnergyBudget` (`energy.rs:55`) — allocation and consumption
-- `EnergySpanType` (`energy.rs:25`) — operation categorization
+- `EnergyBudget` (`crates/hkask-cns/src/energy.rs:10`) — allocation, consumption, and replenishment
+- `try_consume(operation, estimated_tokens)` — gates all operations under a unified energy cap
+- `can_proceed(estimated_tokens)` — replaces rate-limit checks: "do I have enough budget?"
 
 ---
 
@@ -346,18 +345,14 @@ All CNS events persisted in `NuEventStore` (`hkask-storage/src/nu_event_store.rs
 
 ### 5.2 Git CAS Backup
 
-Content-addressed storage via git (`hkask-storage/src/git_cas.rs:15`):
+Content-addressed storage via git (`hkask-agents/src/adapters/git_cas.rs`):
 - BLAKE3 hashing for content addressing
 - Git objects for immutable storage
 - Provenance tracking via git history
 
 ### 5.3 Template Execution Audit
 
-`AuditTrail` (`hkask-templates/src/audit.rs:87`) records:
-- Template ID, version, rendering context
-- Execution timing and outcome
-- Capability tokens used
-- Inference calls and model tier
+Template execution is audited through CNS `cns.template.*` spans emitted during the rendering pipeline. Each rendering records the template ID, execution timing, and capability tokens used. The `NuEvent` store persists these as append-only audit trail entries.
 
 ---
 

@@ -25,7 +25,7 @@ ddmvss_categories: [interface, composition]
 ```mermaid
 graph LR
     subgraph Surfaces["Interface Surfaces"]
-        MCP_S["MCP Server<br/>15 servers, rmcp"]
+        MCP_S["MCP Server<br/>16 servers, rmcp"]
         CLI_S["CLI Binary<br/>kask, clap v4"]
         API_S["HTTP API<br/>axum, utoipa"]
     end
@@ -74,7 +74,7 @@ status: VERIFIED
 
 **Binary:** `kask` (built from `hkask-cli`, 3,741 LOC)
 
-**16 subcommand groups** (`crates/hkask-cli/src/cli/mod.rs:33`):
+**20 subcommand groups** (`crates/hkask-cli/src/cli/mod.rs:33`):
 
 | Subcommand | Purpose |
 |-----------|---------|
@@ -85,6 +85,7 @@ status: VERIFIED
 | `kask mcp` | MCP server/tool management |
 | `kask cns` | CNS monitoring (health, variety, alerts) |
 | `kask sovereignty` | User sovereignty (Magna Carta enforcement) |
+| `kask goal` | Goal coordination (OCAP-gated, CNS-observed) |
 | `kask registry` | Registry management |
 | `kask git` | Git archival |
 | `kask ensemble` | Multi-agent ensemble |
@@ -94,12 +95,15 @@ status: VERIFIED
 | `kask curator` | Curator governance and metacognition |
 | `kask replicant` | Replicant identity management |
 | `kask keystore` | OS keychain secret management |
+| `kask admin` | Admin passphrase management |
+| `kask models` | List available LLM models |
+| `kask web-search` | Search the web |
 
 ### 1.3 HTTP API Surface
 
 **Framework:** axum v0.8 with utoipa v5.5 OpenAPI documentation
 
-**12 route groups** (`crates/hkask-api/src/lib.rs:636-642`):
+**15 route groups** (`crates/hkask-api/src/routes/`):
 
 | Route Group | Purpose |
 |------------|----------|
@@ -115,6 +119,9 @@ status: VERIFIED
 | `soap_infer_router` | SOAP inference (Okapi bridge) |
 | `acp_router` | ACP agent registration |
 | `spec_router` | DDMVSS specification operations |
+| `curator_router` | Curator governance and metacognition |
+| `git_router` | Git archival operations |
+| `goal_router` | Goal coordination (OCAP-gated) |
 
 **OpenAPI:** Generated at `docs/generated/openapi.json`. Implementation details in [`reference/utoipa-implementation.md`](reference/utoipa-implementation.md).
 

@@ -30,7 +30,7 @@ hKask is a **minimal agent-native container platform** — the unit of compositi
 
 **Delegated (out of scope):**
 - LLM inference → Okapi (external service)
-- External service integration → 15 MCP servers (tool surface)
+- External service integration → 16 MCP servers (tool surface)
 - Storage encryption → SQLCipher (library dependency)
 - Key management → OS keychain (platform service)
 
@@ -45,7 +45,7 @@ graph TD
 
     subgraph Delegated["Delegated"]
         OKAPI["Okapi<br/>LLM inference"]
-        MCP_EXT["15 MCP Servers<br/>tool surface"]
+        MCP_EXT["16 MCP Servers<br/>tool surface"]
         SQLITE["SQLite + SQLCipher<br/>encrypted storage"]
         KEYCHAIN["OS Keychain<br/>key management"]
     end
@@ -77,7 +77,7 @@ hKask is built on five non-negotiable anchor capabilities:[^wiener-cybernetics]
 | # | Anchor | Implementation | DDMVSS Category |
 |---|--------|---------------|-----------------|
 | 1 | **Agent Enablement** | Bots + Replicants in pods with WebID, ACP | Domain |
-| 2 | **Essential Tools** | 15 MCP servers + Okapi | Capability |
+| 2 | **Essential Tools** | 16 MCP servers + Okapi | Capability |
 | 3 | **User Sovereignty** | OCAP, SQLCipher, private/public gating | Trust |
 | 4 | **CNS** | `cns.*` spans, variety counters, algedonic alerts | Observability |
 | 5 | **Composition** | Unified registry with `template_type` discriminator | Composition |
@@ -92,14 +92,14 @@ hKask is built on five non-negotiable anchor capabilities:[^wiener-cybernetics]
 
 | Entity | Crate | Location | Description |
 |--------|-------|----------|-------------|
-| **AgentPod** | `hkask-agents` | `pod/mod.rs:83` | Agent lifecycle container |
-| **WebID** | `hkask-types` | `id.rs:75` | Deterministic identity (UUID v5) |
-| **CapabilityToken** | `hkask-types` | `capability/mod.rs:223` | OCAP token with caveats, HMAC-SHA256 signing |
-| **NuEvent** | `hkask-types` | `event.rs:27` | Cybernetic event primitive (observer → span → phase) |
-| **Goal** | `hkask-types` | `goal.rs:112` | DDMVSS goal specification |
+| **AgentPod** | `hkask-agents` | `pod/mod.rs:82` | Agent lifecycle container |
+| **WebID** | `hkask-types` | `id.rs:77` | Deterministic identity (UUID v5) |
+| **CapabilityToken** | `hkask-types` | `capability/mod.rs:237` | OCAP token with caveats, HMAC-SHA256 signing |
+| **NuEvent** | `hkask-types` | `event.rs:10` | Cybernetic event primitive (observer → span → phase) |
+| **Goal** | `hkask-types` | `goal.rs:137` | DDMVSS goal specification |
 | **Spec** | `hkask-types` | `spec.rs:209` | Minimum viable specification |
 | **AgentDefinition** | `hkask-types` | `agent_def.rs:175` | Declarative agent configuration |
-| **TemplateInvocation** | `hkask-types` | `template.rs:222` | Template rendering record |
+| **TemplateInvocation** | `hkask-types` | `template.rs:143` | Template rendering record |
 
 ### 3.2 Agent Taxonomy
 
@@ -145,13 +145,14 @@ The `NuEvent` struct is the fundamental observability primitive:
 | `id` | `EventID` | Unique event identifier |
 | `timestamp` | `DateTime<Utc>` | Timestamp of event |
 | `observer_webid` | `WebID` | Emitting agent identity |
-| `span` | `Span` enum | Typed namespace (13 variants) |
+| `span` | `SpanCategory` enum | Typed namespace (14 variants) |
 | `phase` | `Phase` enum | Observe / Regulate / Outcome |
 | `observation` | `Value` | Observed state |
 | `regulation` | `Option<Value>` | Regulatory action taken |
 | `outcome` | `Option<Value>` | Outcome of regulation |
 | `recursion_depth` | `u8` | Recursion depth counter |
 | `parent_event` | `Option<EventID>` | Parent event for chaining |
+| `visibility` | `String` | Data visibility classification ("private" by default) |
 
 **Span namespaces** (`crates/hkask-types/src/event.rs:92-106`):
 
@@ -178,47 +179,49 @@ The `NuEvent` struct is the fundamental observability primitive:
 
 ### 4.1 State Machine
 
+The pod lifecycle is a linear progression (`crates/hkask-agents/src/pod/types.rs:15`):
+
 ```mermaid
 stateDiagram-v2
-    [*] --> Created: PodManager::create_pod()
-    Created --> Active: activate()
-    Active --> Suspended: capability revocation / error
-    Active --> Terminated: deactivate()
-    Suspended --> Active: capability re-grant
-    Suspended --> Terminated: timeout / manual
-    Terminated --> [*]
+    [*] --> Populated: AgentPod::new()
+    Populated --> Registered: register()
+    Registered --> Activated: activate()
+    Activated --> Deactivated: deactivate()
+    Deactivated --> [*]
 ```
+
+**Terminal state:** `Deactivated` admits no further transitions.
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-DC-002
-verified_date: 2026-05-29
-verified_against: crates/hkask-agents/src/pod/mod.rs (PodLifecycleState enum)
+verified_date: 2026-06-01
+verified_against: crates/hkask-agents/src/pod/types.rs (PodLifecycleState enum)
 status: VERIFIED
 -->
 
 ### 4.2 Pod Composition
 
-An `AgentPod` composes:
+`AgentPod` (`crates/hkask-agents/src/pod/mod.rs:82`):
 
 | Component | Type | Purpose |
 |-----------|------|---------|
-| Identity | `AgentIdentity` | WebID + persona + charter |
-| Capabilities | `BotCapabilities` | Granted OCAP tokens |
+| Identity | `AgentPersona` | WebID + agent type + charter |
+| Capability | `CapabilityToken` | Primary OCAP token |
 | Templates | `TemplateCrate` | Bundled templates |
-| State | `PodLifecycleState` | Created → Active → Suspended → Terminated |
-| Consent | `ConsentManager` | User authorization tracking |
+| State | `PodLifecycleState` | Populated → Registered → Activated → Deactivated |
+| Sovereignty | `SovereigntyChecker` | User data boundary enforcement |
 
-**Implementation:** `crates/hkask-agents/src/pod/mod.rs:83` (`AgentPod`), `pod/mod.rs:732` (`PodManager`), `pod/mod.rs:856` (`PodManagerBuilder`)
+**Implementation:** `crates/hkask-agents/src/pod/mod.rs:82` (`AgentPod`), `pod/manager.rs` (`PodManager`), `pod/types.rs:15` (`PodLifecycleState`)
 
 ### 4.3 Lifecycle Methods
 
-| Method | Purpose | CNS Span |
-|--------|---------|----------|
-| `PodManager::create_pod()` | Instantiate from persona YAML | `cns.agent_pod.created` |
-| `AgentPod::register()` | Register with ACP runtime | `cns.agent_pod.registered` |
-| `AgentPod::activate()` | Enable MCP tools and A2A | `cns.agent_pod.activated` |
-| `AgentPod::deactivate()` | Revoke capabilities | `cns.agent_pod.deactivated` |
-| `AgentPod::delegate()` | Attenuate capability | `cns.cap.attenuated` |
+| Method | Transition | CNS Span |
+|--------|-----------|----------|
+| `AgentPod::new()` | Instantiate from persona | — |
+| `AgentPod::register()` | Populated → Registered | `cns.agent_pod.registered` |
+| `AgentPod::activate()` | Registered → Activated | `cns.agent_pod.activated` |
+| `AgentPod::deactivate()` | Activated → Deactivated | `cns.agent_pod.deactivated` |
+| `PodManager::create_pod()` | Create pod from persona YAML | `cns.agent_pod.created` |
 
 ---
 
@@ -313,7 +316,7 @@ status: VERIFIED
 
 ### 6.1 Server Inventory
 
-15 MCP servers provide the tool surface, each gated through `SecurityGateway` (`crates/hkask-mcp/src/security.rs:51`):
+16 MCP servers provide the tool surface, each gated through `SecurityGateway` (`crates/hkask-mcp/src/security.rs`):
 
 | MCP Server | Crate | LOC | Status | Domain |
 |-----------|-------|-----|--------|--------|
@@ -327,13 +330,14 @@ status: VERIFIED
 | registry | `hkask-mcp-registry` | 310 | ✅ Complete | Template registry |
 | gml | `hkask-mcp-gml` | 987 | ✅ Complete | Allosteric thinking engine |
 | spec | `hkask-mcp-spec` | 853 | ✅ Complete | DDMVSS spec tools (8 tools) |
+| goal | `hkask-mcp-goal` | ~235 | ✅ Complete | Goal coordination (OCAP-gated, CNS-observed) |
 | github | `hkask-mcp-github` | 459 | ✅ Complete | GitHub API integration |
 | fmp | `hkask-mcp-fmp` | 369 | ✅ Complete | Financial data (FMP) |
 | telnyx | `hkask-mcp-telnyx` | 244 | ✅ Complete | SMS/voice communications |
 | fal | `hkask-mcp-fal` | 434 | ✅ Complete | Media generation (FAL) |
 | rss-reader | `hkask-mcp-rss-reader` | 1,443 | ✅ Complete | RSS feed management |
 
-**Total:** 15 servers, 105 tools, 0 stubs (P6 compliance).
+**Total:** 16 servers, 108+ tools, 0 stubs (P6 compliance).
 
 **Audit:** [`docs/status/mcp-server-audit.md`](../status/mcp-server-audit.md)
 
@@ -390,8 +394,8 @@ The hLexicon grounds all domain vocabulary across three domains:[^austin-speech]
 | `hkask-ensemble` | 4,698 | Multi-agent chat | Ensemble coordination |
 | `hkask-keystore` | 384 | OS keychain, AES-256-GCM | Key derivation, secret storage |
 | `hkask-mcp` | 1,911 | MCP runtime, dispatch | `McpRuntime`, `McpServer`, `SecurityGateway` |
-| `hkask-cli` | 3,741 | CLI commands (`kask` binary) | 16 subcommand groups (template, bot, agent, pod, mcp, cns, sovereignty, docs, registry, git, ensemble, curator, replicant, keystore, spec, chat) |
-| `hkask-api` | 2,449 | HTTP API (utoipa) | 12 route groups (templates, bots, pods, mcp, cns, sovereignty, chat, models, ensemble, soap_infer, acp, spec) |
+| `hkask-cli` | 3,741 | CLI commands (`kask` binary) | 20 subcommand groups (chat, template, bot, pod, mcp, cns, sovereignty, goal, registry, git, ensemble, spec, docs, agent, curator, replicant, keystore, admin, models, web-search) |
+| `hkask-api` | 2,449 | HTTP API (utoipa) | 15 route groups (templates, bots, pods, mcp, cns, sovereignty, chat, models, ensemble, soap_infer, acp, spec, curator, git, goal) |
 
 ### 8.2 Dependency Graph
 

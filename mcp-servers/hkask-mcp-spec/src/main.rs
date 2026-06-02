@@ -17,7 +17,7 @@ use hkask_mcp::server::{
 use hkask_types::{
     CapabilityAction, CapabilityChecker, CapabilityResource, CapabilityToken, CurationDecision,
     DomainAnchor, GoalSpec, McpErrorKind, OCAPBoundary, Spec, SpecCategory, SpecError, SpecId,
-    SpecObserver, SpecStore, WebID,
+    SpecStore, WebID,
 };
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
@@ -176,7 +176,6 @@ pub struct GraphValidateRequest {
 pub struct SpecServer {
     store: Arc<dyn SpecStore + Send + Sync>,
     capability_checker: Option<Arc<CapabilityChecker>>,
-    observer: Option<Arc<dyn SpecObserver + Send + Sync>>,
     webid: WebID,
 }
 
@@ -185,7 +184,6 @@ impl std::fmt::Debug for SpecServer {
         f.debug_struct("SpecServer")
             .field("store", &"<dyn SpecStore>")
             .field("capability_checker", &self.capability_checker.is_some())
-            .field("observer", &self.observer.is_some())
             .field("webid", &self.webid)
             .finish()
     }
@@ -196,7 +194,6 @@ impl SpecServer {
         Self {
             store,
             capability_checker: None,
-            observer: None,
             webid,
         }
     }
@@ -206,25 +203,8 @@ impl SpecServer {
         self
     }
 
-    pub fn with_observer(mut self, observer: Arc<dyn SpecObserver + Send + Sync>) -> Self {
-        self.observer = Some(observer);
-        self
-    }
-
-    fn save_and_observe(&self, spec: &Spec, operation: &str) -> Result<(), SpecError> {
-        match self.store.save(spec) {
-            Ok(()) => Ok(()),
-            Err(e) => {
-                if let Some(obs) = &self.observer {
-                    obs.emit_span(
-                        spec.id,
-                        &format!("{}.error", operation),
-                        &serde_json::json!({"error": e.to_string()}),
-                    );
-                }
-                Err(e)
-            }
-        }
+    fn save_spec(&self, spec: &Spec) -> Result<(), SpecError> {
+        self.store.save(spec)
     }
 
     fn verify_capability(
@@ -310,7 +290,7 @@ impl SpecServer {
         let spec = Spec::new(&description, cat, anchor).with_goal(goal);
         let id = spec.id;
 
-        if let Err(e) = self.save_and_observe(&spec, "spec.capture") {
+        if let Err(e) = self.save_spec(&spec) {
             return span.error(
                 McpErrorKind::Internal,
                 McpToolError::internal(format!("Failed to persist spec: {}", e)).to_json_string(),
@@ -388,7 +368,7 @@ impl SpecServer {
             goal.sub_goals.push(child);
         }
 
-        if let Err(e) = self.save_and_observe(&spec, "spec.decompose") {
+        if let Err(e) = self.save_spec(&spec) {
             return span.error(
                 McpErrorKind::Internal,
                 McpToolError::internal(format!("Failed to persist spec: {}", e)).to_json_string(),
@@ -457,7 +437,7 @@ impl SpecServer {
 
         spec.goals[goal_index].constraints.push(boundary);
 
-        if let Err(e) = self.save_and_observe(&spec, "spec.bind") {
+        if let Err(e) = self.save_spec(&spec) {
             return span.error(
                 McpErrorKind::Internal,
                 McpToolError::internal(format!("Failed to persist spec: {}", e)).to_json_string(),

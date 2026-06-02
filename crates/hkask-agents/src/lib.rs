@@ -51,7 +51,7 @@ pub use acp::{A2AMessage, AcpAgent, AcpError, AcpRuntime};
 pub use consent::{ConsentError, ConsentManager};
 pub use curator::context::CuratorContext;
 pub use curator::dispatch::MessageDispatch;
-pub use curator::escalation::EscalationQueue;
+pub use curator::escalation::{EscalationEntry, EscalationQueue};
 pub use error::{GitError, McpError, MemoryError, RegistryError};
 pub use pod::{
     AgentKind, AgentPersona, AgentPod, AgentPodError, AgentPodResult, PodID, PodLifecycleState,

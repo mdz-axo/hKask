@@ -27,7 +27,7 @@ ddmvss_categories: [persistence, lifecycle]
 | **Database** | SQLite | 3.x | Embedded relational store |
 | **Encryption** | SQLCipher | vendored | AES-256-CBC at-rest |
 | **Vector search** | sqlite-vec | 0.1.x | Embedding similarity |
-| **Content store** | Git CAS | gix 0.81 | Content-addressed blobs |
+| **Content store** | Git CAS | gix 0.81 | Content-addressed blobs (`hkask-agents/src/adapters/git_cas.rs`) |
 | **Key derivation** | Argon2id | 0.5.x | Passphrase → key |
 
 **Single storage crate:** `hkask-storage` (4,010 LOC) consolidates all persistence.
@@ -171,7 +171,7 @@ pub fn knn_search(&self, query: &[f32], k: usize) -> Result<Vec<KnnResult>, Embe
 
 ### 4.1 Git CAS
 
-`GitCas` (`git_cas.rs:15`) provides content-addressed blob storage:
+`GitCas` adapter (`hkask-agents/src/adapters/git_cas.rs`) provides content-addressed blob storage:
 - **BLAKE3 hashing** for content addressing
 - **Git objects** for immutable storage
 - **Provenance tracking** via git history
@@ -179,9 +179,7 @@ pub fn knn_search(&self, query: &[f32], k: usize) -> Result<Vec<KnnResult>, Embe
 
 **Use cases:** Template source archival, triple snapshots, spec manifests, audit log immutability.
 
-### 4.2 Blob Store
-
-`BlobStore` (`blobs.rs:44`) handles binary content with optional Git CAS backup.
+**Port:** `GitCASPort` trait (`hkask-agents/src/ports/git_cas.rs`)
 
 ---
 
@@ -199,10 +197,9 @@ pub fn knn_search(&self, query: &[f32], k: usize) -> Result<Vec<KnnResult>, Embe
 
 | Component | Location | Purpose |
 |-----------|----------|---------|
-| `StandingSessionStore` | `standing_session.rs:37` | Chat session persistence |
-| `MetacognitionStore` | `metacognition.rs:30` | Curator self-reflection snapshots |
-| `GoalJudgeAdapter` | `goal_judge.rs:30` | Goal verification |
-| `GoalVerifier` | `goal_judge.rs:135` | Completion criteria evaluation |
+| `StandingSessionStore` | `crates/hkask-storage/src/standing_session.rs` | Chat session persistence |
+| `MetacognitionStoreAdapter` | `crates/hkask-agents` | Curator health snapshot persistence |
+| `GoalStore` | `crates/hkask-storage/src/goals.rs` | Goal persistence and verification |
 
 ---
 
