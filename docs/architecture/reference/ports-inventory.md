@@ -10,16 +10,16 @@ ddmvss_categories: [interface]
 
 # Hexagonal Port Inventory — hKask v0.21.0
 
-## Remaining Traits (19 total)
+## Remaining Traits (17 total)
 
-All 19 traits have at least one real implementation and active `dyn` dispatch callers.
+All 17 traits have at least one real implementation and active `dyn` dispatch callers.
 
 ### hkask-agents (7)
 
 | Port | Trait | File | Impls |
 |---|---|---|---|
 | ACP | `AcpPort` | `ports/acp.rs` | `AcpRuntime`, `RussellAcpAdapter` |
-| ACP Transport | `AcpTransport` | `ports/acp_transport.rs` | `LoopbackHttpTransport`, `StdioTransport` |
+| ACP Transport | `AcpTransport` ⚠️ REMOVED | `ports/acp_transport.rs` | ~~`LoopbackHttpTransport`, `StdioTransport`~~ ⚠️ REMOVED |
 | Git CAS | `GitCASPort` | `ports/git_cas.rs` | `GitCasAdapter`, `MockGitCas` |
 | MCP Runtime | `MCPRuntimePort` | `ports/mcp_runtime.rs` | `McpRuntimeAdapter` |
 | Memory Storage | `MemoryStoragePort` | `ports/memory_storage.rs` | `MemoryStorageAdapter` |
@@ -56,7 +56,7 @@ All 19 traits have at least one real implementation and active `dyn` dispatch ca
 | Audit Log | `AuditLogPort` | `audit.rs` | `AuditLogStoreAdapter` |
 | Nu Event Sink | `NuEventSink` | `event.rs` | `NuEventStore` |
 | Spec Store | `SpecStore` | `spec.rs` | `SqliteSpecStore` |
-| Spec Observer | `SpecObserver` | `spec.rs` | `CnsSpecObserver` |
+| Spec Observer | `SpecObserver` ⚠️ REMOVED | `spec.rs` | ~~`CnsSpecObserver`~~ ⚠️ REMOVED |
 | Spec Curator | `SpecCurator` | `spec.rs` | `DefaultSpecCurator` |
 
 ### Removed Ports (from prior v0.21.0 inventory)
@@ -84,6 +84,12 @@ All 19 traits have at least one real implementation and active `dyn` dispatch ca
 | `AuditLogStoragePort` | Dead — only an orphan error enum |
 | `McpTransport` | Already an enum, never was a trait |
 | `CnsQueryPort` | Dead — only domain types remain in `cns_query.rs` |
+| `AcpTransport` | Removed — transport layer deferred (wire protocol abstraction not needed in v0.21.x); `AcpPort` remains |
+| `AcpWireMessage` | Removed — transport message types deleted with `AcpTransport` |
+| `AcpWireResponse` | Removed — transport message types deleted with `AcpTransport` |
+| `LoopbackHttpTransport` | Removed — `AcpTransport` impl deleted |
+| `StdioTransport` | Removed — `AcpTransport` impl deleted |
+| `SpecObserver` | Removed — trait deleted from `spec.rs`; CNS spec spans not yet needed |
 
 ## Dependency Flow
 

@@ -155,7 +155,7 @@ hKask uses hexagonal architecture with explicit port traits defining integration
 | MCP Runtime | `McpTransport` | `hkask-mcp` | MCP server communication |
 | CLI | (clap derive) | `hkask-cli` | Command-line parsing |
 | HTTP API | (axum routes) | `hkask-api` | HTTP request handling |
-| ACP Transport | `AcpTransport` | `hkask-agents` | Agent Communication Protocol |
+| ACP Transport | `AcpTransport` ⚠️ REMOVED | `hkask-agents` | Agent Communication Protocol — *transport layer deferred in v0.21.x* |
 
 ### 2.2 Driven Ports (Output)
 
@@ -170,13 +170,13 @@ hKask uses hexagonal architecture with explicit port traits defining integration
 | Sovereignty | `SovereigntyChecker` (concrete) | `hkask-agents` | User sovereignty enforcement |
 | Inference | `InferencePort` (`inference_port.rs`) | `hkask-templates` | LLM inference (Okapi) |
 | Spec Store | `SpecStore` (`spec.rs`) | `hkask-types` | Specification persistence |
-| Spec Observer | `SpecObserver` (`spec.rs`) | `hkask-types` | Spec CNS spans |
+| Spec Observer | `SpecObserver` ⚠️ REMOVED (`spec.rs`) | `hkask-types` | Spec CNS spans — *removed in v0.21.x* |
 | Spec Curator | `SpecCurator` (`spec.rs`) | `hkask-types` | Curation evaluation |
 | Audit | `AuditLogPort` (`audit.rs`) | `hkask-types` | Audit trail persistence |
 | MCP Dispatch | `McpPort` (`ports.rs`) | `hkask-templates` | MCP tool invocation |
 | Metacognition | `MetacognitionStoreAdapter` (concrete) | `hkask-agents` | Health snapshot persistence |
 | Standing Session | `StandingSessionPort` (`ports/standing_session.rs`) | `hkask-agents` | Session state persistence |
-| ACP Transport | `AcpTransport` (`ports/acp_transport.rs`) | `hkask-agents` | Wire-level transport |
+| ACP Transport | `AcpTransport` ⚠️ REMOVED (`ports/acp_transport.rs`) | `hkask-agents` | Wire-level transport — *removed in v0.21.x* |
 | Ensemble Inference | `InferenceClient` (`ports.rs`) | `hkask-ensemble` | Inference with retry/circuit breaker |
 | Ensemble Metrics | `MetricsSource` (`ports.rs`) | `hkask-ensemble` | SSE metrics streaming |
 | Capability Query | `CapabilityQueryPort` (`ocap_enforcement.rs`) | `hkask-ensemble` | OCAP capability lookups |
@@ -336,8 +336,8 @@ See [`domain-and-capability.md`](domain-and-capability.md) §4 for pod lifecycle
 
 Bidirectional federation via JSON-RPC 2.0 over stdio:
 - `AcpPort` trait (`ports/acp.rs`) — bridge interface
-- `AcpTransport` trait (`ports/acp_transport.rs`) — wire protocol
-- `AcpWireMessage` / `AcpWireResponse` — message format
+- ~~`AcpTransport` trait (`ports/acp_transport.rs`) — wire protocol~~ ⚠️ REMOVED in v0.21.x
+- ~~`AcpWireMessage` / `AcpWireResponse` — message format~~ ⚠️ REMOVED in v0.21.x
 
 ---
 

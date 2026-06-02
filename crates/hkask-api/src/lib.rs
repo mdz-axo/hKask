@@ -54,6 +54,12 @@ pub use routes::{ModelEntry, ModelListResponse, ModelSearchQuery};
 
 use openapi::ApiDoc;
 
+/// Database configuration for persistent storage
+pub struct DbConfig {
+    pub path: Option<String>,
+    pub passphrase: Option<String>,
+}
+
 /// API state
 #[derive(Clone)]
 pub struct ApiState {
@@ -102,13 +108,14 @@ impl ApiState {
         capability_secret: &[u8],
         system_webid: WebID,
         ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::OkapiClient>>,
-        db_path: Option<&str>,
-        db_passphrase: Option<&str>,
+        db_config: Option<&DbConfig>,
     ) -> Self {
         let consent_manager = Arc::new(ConsentManager::new());
 
-        let escalation_conn = match (db_path, db_passphrase) {
-            (Some(path), Some(passphrase)) => hkask_storage::Database::open(path, passphrase)
+        let escalation_conn = match db_config
+            .and_then(|c| c.path.as_deref().zip(c.passphrase.as_deref()))
+        {
+            Some((path, passphrase)) => hkask_storage::Database::open(path, passphrase)
                 .expect("Failed to open escalation database")
                 .conn_arc(),
             _ => {
@@ -135,8 +142,9 @@ impl ApiState {
         // Goal repository wired with a CNS denial sink over a shared connection,
         // mirroring the CLI integration (ADR-029). Capability denials persist
         // as `cns.tool.goal.capability.denied` ν-events.
-        let goal_conn = match (db_path, db_passphrase) {
-            (Some(path), Some(passphrase)) => hkask_storage::Database::open(path, passphrase)
+        let goal_conn = match db_config.and_then(|c| c.path.as_deref().zip(c.passphrase.as_deref()))
+        {
+            Some((path, passphrase)) => hkask_storage::Database::open(path, passphrase)
                 .expect("Failed to open goal database")
                 .conn_arc(),
             _ => hkask_storage::Database::in_memory()
@@ -182,8 +190,7 @@ impl ApiState {
         capability_secret: &[u8],
         acp_secret: &[u8],
         system_webid: WebID,
-        db_path: Option<&str>,
-        db_passphrase: Option<&str>,
+        db_config: Option<&DbConfig>,
     ) -> Self {
         let git_cas = GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-templates"));
         let acp_runtime = Arc::new(AcpRuntime::new(acp_secret));
@@ -207,8 +214,7 @@ impl ApiState {
             capability_secret,
             system_webid,
             None,
-            db_path,
-            db_passphrase,
+            db_config,
         )
     }
 
@@ -226,8 +232,7 @@ impl ApiState {
         capability_secret: &[u8],
         system_webid: WebID,
         okapi_base_url: &str,
-        db_path: Option<&str>,
-        db_passphrase: Option<&str>,
+        db_config: Option<&DbConfig>,
     ) -> Self {
         let inferencer = Arc::new(hkask_ensemble::adapters::OkapiClient::new(okapi_base_url));
         Self::new(
@@ -237,8 +242,7 @@ impl ApiState {
             capability_secret,
             system_webid,
             Some(inferencer),
-            db_path,
-            db_passphrase,
+            db_config,
         )
     }
 
