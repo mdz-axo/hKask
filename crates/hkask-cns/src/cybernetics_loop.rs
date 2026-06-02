@@ -168,6 +168,7 @@ impl CyberneticsLoop {
     }
 }
 
+#[async_trait::async_trait]
 impl HkaskLoop for CyberneticsLoop {
     fn id(&self) -> LoopId {
         LoopId::Cybernetics

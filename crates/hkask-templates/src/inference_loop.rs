@@ -45,6 +45,7 @@ impl InferenceLoop {
     }
 }
 
+#[async_trait::async_trait]
 impl HkaskLoop for InferenceLoop {
     fn id(&self) -> LoopId {
         LoopId::Inference

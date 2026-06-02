@@ -26,6 +26,7 @@ impl SemanticLoop {
     }
 }
 
+#[async_trait::async_trait]
 impl HkaskLoop for SemanticLoop {
     fn id(&self) -> LoopId {
         LoopId::Semantic

@@ -20,6 +20,7 @@ pub mod communication;
 pub mod consent;
 pub mod curator;
 pub mod error;
+pub mod loop_system;
 pub mod pod;
 pub mod ports;
 pub mod registry_loader;
@@ -41,6 +42,7 @@ pub use curator::deliberation::{
     DeliberationStatus,
 };
 pub use error::{GitError, McpError, MemoryError, RegistryError};
+pub use loop_system::LoopSystem;
 pub use pod::{
     AgentKind, AgentPersona, AgentPod, AgentPodError, AgentPodResult, PodID, PodLifecycleState,
     PodManager, PodStatus,

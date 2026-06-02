@@ -901,6 +901,7 @@ dependencies = [
  "serde_yaml",
  "thiserror",
  "tokio",
+ "tokio-util",
  "tracing",
  "uuid",
  "zeroize",
@@ -967,6 +968,7 @@ dependencies = [
 name = "hkask-cns"
 version = "0.21.1"
 dependencies = [
+ "async-trait",
  "chrono",
  "hkask-types",
  "serde",
@@ -1306,6 +1308,7 @@ dependencies = [
 name = "hkask-memory"
 version = "0.21.1"
 dependencies = [
+ "async-trait",
  "chrono",
  "hkask-storage",
  "hkask-types",
@@ -2885,6 +2888,7 @@ dependencies = [
  "bytes",
  "futures-core",
  "futures-sink",
+ "futures-util",
  "pin-project-lite",
  "tokio",
 ]

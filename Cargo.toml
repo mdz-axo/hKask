@@ -41,6 +41,7 @@ repository = "https://github.com/mdz-axo/hKask"
 [workspace.dependencies]
 # Async runtime
 tokio = { version = "1.51", features = ["full"] }
+tokio-util = { version = "0.7", features = ["rt"] }
 
 # HTTP / API
 axum = "0.8"

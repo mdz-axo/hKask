@@ -22,3 +22,4 @@ hex.workspace = true
 uuid.workspace = true
 zeroize.workspace = true
 rusqlite.workspace = true
+tokio-util.workspace = true

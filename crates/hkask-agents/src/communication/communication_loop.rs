@@ -70,6 +70,7 @@ impl CommunicationLoop {
     }
 }
 
+#[async_trait::async_trait]
 impl HkaskLoop for CommunicationLoop {
     fn id(&self) -> LoopId {
         LoopId::Communication

@@ -173,7 +173,7 @@ pub enum ActionType {
 ///
 /// All async methods return `Send` futures so loops can run in
 /// async tasks without `static bounds issues.
-#[allow(async_fn_in_trait)]
+#[async_trait::async_trait]
 pub trait Loop: Send + Sync {
     fn id(&self) -> LoopId;
 

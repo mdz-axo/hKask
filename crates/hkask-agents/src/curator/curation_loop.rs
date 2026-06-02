@@ -33,6 +33,7 @@ impl CurationLoop {
     }
 }
 
+#[async_trait::async_trait]
 impl HkaskLoop for CurationLoop {
     fn id(&self) -> LoopId {
         LoopId::Curation
