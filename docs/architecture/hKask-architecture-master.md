@@ -125,7 +125,7 @@ docs/architecture/
     └── okapi-integration.md               # Okapi API contract
 ```
 
-**Total:** 24 active architecture documents (4 specs + 3 framework + 1 index + 7 ADRs + 9 reference artifacts).
+**Total:** 23 active architecture documents (4 specs + 3 framework + 1 index + 7 ADRs + 8 reference artifacts).
 
 ---
 

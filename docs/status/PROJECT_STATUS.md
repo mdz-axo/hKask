@@ -117,7 +117,7 @@ hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent
 
 ## 4. Documentation Status
 
-### 4.1 Active Documents (Post Bloat Removal)
+## 4.1 Active Documents (Post Bloat Removal)
 
 | Category | Count | Location |
 |----------|-------|----------|
@@ -125,16 +125,15 @@ hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent
 | **Architecture Framework** | 3 | `docs/architecture/` (DDMVSS, PRINCIPLES, magna-carta) |
 | **Architecture Index** | 1 | `docs/architecture/hKask-architecture-master.md` |
 | **Architecture ADR** | 8 | `docs/architecture/` (ADR-022 through ADR-029; ADR-029 = goal capability primitive) |
-| **Reference Artifacts** | 9 | `docs/architecture/reference/` (incl. okapi-integration) |
-| **Specifications** | 9 | `docs/specifications/` (REQUIREMENTS, TRACEABILITY, DDMVSS_SCAFFOLD, DOCUMENTATION_STANDARDS, WRITING_EXCELLENCE, DEPENDENCY_POLICY, ADR_TEMPLATE, CI-CD-GUIDE, DEPLOYMENT) |
-| **Plans** | 6 | `docs/plans/` (TODO + 5 persona/template drafts: curator, curator-persona, backstory-r7, personas-r7, high-temp-templates) |
-| **User Guides** | 2 | `docs/user-guides/` (AGENT-POD-CREATION-GUIDE, COMMON-AGENT-PATTERNS) |
+| **Reference Artifacts** | 8 | `docs/architecture/reference/` |
+| **Specifications** | 9 | `docs/specifications/` |
+| **Plans** | 6 | `docs/plans/` (TODO + 5 persona/template drafts) |
+| **User Guides** | 2 | `docs/user-guides/` |
 | **GML** | 1 | `docs/gml/` |
 | **Status** | 2 | `docs/status/` (PROJECT_STATUS, mcp-server-audit) |
 | **Cross-cutting** | 2 | `docs/` root (DIAGRAMS_INDEX, OPEN_QUESTIONS) |
-| **Portal** | 1 | `docs/README.md` (documentation portal, indexes all active docs by DDMVSS category) |
-| **Artifacts** | 1 | `docs/artifacts/` (README) |
-| **Generated** | 1 | `docs/generated/` (cli-reference) |
+| **Portal** | 1 | `docs/README.md` |
+| **Generated** | 2 | `docs/generated/` (cli-reference, openapi.json) |
 | **CI Scripts** | 2 | `docs/ci/` (check-links.sh, check-metadata.sh) |
 | **Total** | 49 (.md, excl. archive) + 2 CI scripts | — |
 

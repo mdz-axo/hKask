@@ -133,7 +133,6 @@ Open work and design drafts. Drafts (`Status: Draft`) are exploratory and not au
 | [`DIAGRAMS_INDEX.md`](DIAGRAMS_INDEX.md) | all | Mermaid diagram verification registry |
 | [`OPEN_QUESTIONS.md`](OPEN_QUESTIONS.md) | interface, composition, capability, observability, curation, lifecycle | Underspecified aspects awaiting decisions |
 | [`gml/README.md`](gml/README.md) | domain | GML (Allosteric Thinking) documentation |
-| [`artifacts/README.md`](artifacts/README.md) | composition | Prototype and demonstration artifacts |
 | [`generated/cli-reference.md`](generated/cli-reference.md) | interface | Auto-generated CLI reference |
 
 ---

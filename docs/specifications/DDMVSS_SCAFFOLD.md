@@ -76,10 +76,10 @@ docs/
 │   ├── personas-r7.md                     # Persona draft
 │   └── high-temp-templates.md             # Template design draft
 ├── status/
-│   └── PROJECT_STATUS.md                  # Single source of truth
+│   ├── PROJECT_STATUS.md                  # Single source of truth
+│   └── mcp-server-audit.md                # MCP server completeness audit
 ├── user-guides/                           # User-facing guides
 ├── gml/                                   # GML (Allosteric Thinking)
-├── artifacts/                              # Jinja2/YAML prompt artifacts
 ├── archive/                                # Archived documents (gitignored)
 ├── ci/                                     # CI verification scripts
 │   ├── check-links.sh                     # Link integrity checker
@@ -87,6 +87,7 @@ docs/
 ├── DIAGRAMS_INDEX.md                       # Diagram index
 ├── OPEN_QUESTIONS.md                        # Unresolved aspects
 └── generated/                             # Auto-generated artifacts
+    ├── cli-reference.md                    # Auto-generated CLI reference
     └── openapi.json                        # OpenAPI specification
 ```
 
