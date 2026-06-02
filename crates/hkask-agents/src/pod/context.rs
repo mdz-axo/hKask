@@ -11,7 +11,8 @@
 //! - `semantic_storage` — shared, public knowledge (SemanticStoragePort)
 
 use hkask_types::{
-    CapabilityAction, CapabilityResource, CapabilityToken, ExperienceClassification, WebID,
+    CapabilityAction, CapabilityChecker, CapabilityResource, CapabilityToken,
+    ExperienceClassification, WebID,
 };
 use std::sync::Arc;
 
@@ -35,6 +36,10 @@ pub struct PodContext {
     /// Semantic memory storage — shared, public knowledge (OCAP: SemanticReadHandle/SemanticWriteHandle)
     semantic_storage: Arc<dyn SemanticStoragePort>,
     mcp_runtime: Arc<dyn MCPRuntimePort>,
+    /// Cryptographic capability checker for OCAP verification.
+    /// When set, `require_capability()` verifies HMAC signatures.
+    /// When absent, falls back to structural `is_valid_for()` check (insecure).
+    capability_checker: Option<Arc<CapabilityChecker>>,
 }
 
 impl PodContext {
@@ -58,6 +63,7 @@ impl PodContext {
             episodic_storage: Arc::clone(&manager.episodic_storage),
             semantic_storage: Arc::clone(&manager.semantic_storage),
             mcp_runtime: Arc::clone(&manager.mcp_runtime),
+            capability_checker: manager.capability_checker.clone(),
         })
     }
 
@@ -67,11 +73,31 @@ impl PodContext {
         resource_id: &str,
         action: CapabilityAction,
     ) -> Result<(), AgentPodError> {
-        if !self
-            .capability_token
-            .is_valid_for(resource, resource_id, action)
-        {
-            return Err(AgentPodError::CapabilityDenied { resource, action });
+        if let Some(ref checker) = self.capability_checker {
+            // Full cryptographic verification: HMAC signature + expiry + holder + resource/action
+            if !checker.check(
+                &self.capability_token,
+                &self.webid,
+                resource,
+                resource_id,
+                action,
+            ) {
+                return Err(AgentPodError::CapabilityDenied { resource, action });
+            }
+        } else {
+            // Fallback: structural check only (INSECURE — log warning)
+            tracing::warn!(
+                target: "hkask.ocap",
+                webid = ?self.webid,
+                resource = ?resource,
+                "No capability checker configured — falling back to structural check"
+            );
+            if !self
+                .capability_token
+                .is_valid_for(resource, resource_id, action)
+            {
+                return Err(AgentPodError::CapabilityDenied { resource, action });
+            }
         }
         Ok(())
     }

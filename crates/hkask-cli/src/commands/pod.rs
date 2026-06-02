@@ -1,6 +1,7 @@
 //! Pod management command handlers
 
 use hkask_agents::pod::{AgentPersona, PodID, PodManager, PodManagerBuilder, PodStatus};
+use hkask_types::CapabilityChecker;
 use std::path::PathBuf;
 use uuid::Uuid;
 
@@ -25,8 +26,12 @@ pub async fn list_pods() -> Result<Vec<PodStatus>, String> {
             )
         })?;
 
+    let acp_secret = crate::commands::config::resolve_acp_secret()
+        .map_err(|e| format!("ACP secret resolution error: {}", e))?;
+
     let manager = PodManagerBuilder::new()
         .acp_runtime(acp)
+        .capability_checker(CapabilityChecker::new(acp_secret.as_bytes()))
         .with_in_memory_storage()
         .build();
 

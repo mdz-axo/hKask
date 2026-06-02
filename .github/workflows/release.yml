@@ -113,10 +113,13 @@ jobs:
             musl-tools \
             musl-dev \
             pkg-config \
+            libssl-dev \
+            libsqlite3-dev \
             libclang-dev \
             llvm-dev \
             cmake \
             protobuf-compiler \
+            libprotobuf-dev \
             libzstd-dev
 
       - name: Configure musl static build
@@ -132,10 +135,13 @@ jobs:
           sudo apt-get install -y \
             gcc-aarch64-linux-gnu \
             pkg-config \
+            libssl-dev \
+            libsqlite3-dev \
             libclang-dev \
             llvm-dev \
             cmake \
             protobuf-compiler \
+            libprotobuf-dev \
             libzstd-dev
 
       - name: Configure AArch64 cross-compilation

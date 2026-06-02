@@ -395,7 +395,7 @@ Options:
     --help              Show this help message
 
 Environment Variables:
-    HKASK_VERSION       Version to install (default: 0.21.0)
+    HKASK_VERSION       Version to install (default: 0.21.1)
     HKASK_BUILD_TYPE    Build type: release or debug (default: release)
     INSTALL_DIR         Installation directory (default: \$HOME/.local)
     CARGO_HOME          Cargo installation directory (default: \$HOME/.cargo)

@@ -19,6 +19,8 @@ pub struct McpDispatcher {
     capability_checker: Arc<CapabilityChecker>,
     /// Bot capabilities registry
     bot_capabilities: Arc<RwLock<std::collections::HashMap<WebID, BotCapabilities>>>,
+    /// Revoked token IDs
+    revoked_tokens: Arc<RwLock<std::collections::HashSet<String>>>,
 }
 
 impl McpDispatcher {
@@ -27,6 +29,7 @@ impl McpDispatcher {
             runtime,
             capability_checker: Arc::new(CapabilityChecker::new(secret)),
             bot_capabilities: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            revoked_tokens: Arc::new(RwLock::new(std::collections::HashSet::new())),
         }
     }
 
@@ -45,6 +48,18 @@ impl McpDispatcher {
     /// Issue capability token to a bot
     pub fn issue_capability(&self, tool_name: String, from: WebID, to: WebID) -> CapabilityToken {
         self.capability_checker.grant_tool(tool_name, from, to)
+    }
+
+    /// Revoke a capability token by ID
+    pub async fn revoke_token(&self, token_id: String) {
+        let mut revoked = self.revoked_tokens.write().await;
+        revoked.insert(token_id);
+    }
+
+    /// Check if a token has been revoked
+    async fn is_token_revoked(&self, token_id: &str) -> bool {
+        let revoked = self.revoked_tokens.read().await;
+        revoked.contains(token_id)
     }
 
     /// Check if bot has capability for tool
@@ -100,6 +115,14 @@ impl McpPort for McpDispatcher {
         ) {
             return Err(TemplateError::CapabilityDenied(format!(
                 "Capability token does not authorize tool: {}",
+                tool_name
+            )));
+        }
+
+        // Check if token has been revoked
+        if self.is_token_revoked(&token.id).await {
+            return Err(TemplateError::CapabilityDenied(format!(
+                "Revoked capability token for tool: {}",
                 tool_name
             )));
         }

@@ -2,10 +2,11 @@
 
 use hkask_agents::pod::{AgentPersona, PodContext, PodManagerBuilder};
 use hkask_templates::{InferencePort, OkapiConfig, OkapiInference};
+use hkask_types::CapabilityChecker;
 use hkask_types::LLMParameters;
 use std::sync::Arc;
 
-use crate::commands::config::{init_registry, registry_yaml_path};
+use crate::commands::config::{init_registry, registry_yaml_path, resolve_acp_secret};
 
 /// Send a chat message to an agent and return the response.
 ///
@@ -66,8 +67,16 @@ pub async fn chat_with_agent(
         Err(e) => return format!("Okapi init error: {}", e),
     };
 
+    // Resolve the same ACP secret used to create the ACP runtime so the
+    // capability checker can cryptographically verify capability tokens.
+    let acp_secret = match resolve_acp_secret() {
+        Ok(s) => s,
+        Err(e) => return format!("ACP secret resolution error: {}", e),
+    };
+
     let pod_manager = PodManagerBuilder::new()
         .acp_runtime(acp)
+        .capability_checker(CapabilityChecker::new(acp_secret.as_bytes()))
         .inference_port(inference.clone())
         .with_in_memory_storage()
         .build();

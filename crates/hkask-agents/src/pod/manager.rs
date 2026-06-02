@@ -1,6 +1,7 @@
 //! PodManager, PodStatus, PodManagerBuilder — Pod lifecycle management
 
 use hkask_keystore::keychain::Keychain;
+use hkask_types::CapabilityChecker;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -36,6 +37,10 @@ pub struct PodManager {
     pub(crate) semantic_storage: Arc<dyn SemanticStoragePort>,
 
     pub(crate) inference_port: Option<Arc<dyn hkask_templates::InferencePort>>,
+    /// Cryptographic capability checker for OCAP verification.
+    /// When set, `PodContext::require_capability()` verifies HMAC signatures.
+    /// When absent, falls back to structural `is_valid_for()` check (insecure).
+    pub(crate) capability_checker: Option<Arc<CapabilityChecker>>,
 }
 
 /// Pod status information
@@ -68,7 +73,14 @@ impl PodManager {
             episodic_storage,
             semantic_storage,
             inference_port: None,
+            capability_checker: None,
         }
+    }
+
+    /// Set the capability checker for cryptographic OCAP verification
+    pub fn with_capability_checker(mut self, checker: CapabilityChecker) -> Self {
+        self.capability_checker = Some(Arc::new(checker));
+        self
     }
 
     /// Create a new pod manager with inference port
@@ -89,6 +101,7 @@ impl PodManager {
             episodic_storage,
             semantic_storage,
             inference_port: Some(inference_port),
+            capability_checker: None,
         }
     }
 
@@ -106,6 +119,10 @@ impl PodManager {
         let episodic_storage: Arc<dyn EpisodicStoragePort> = adapter.clone();
         let semantic_storage: Arc<dyn SemanticStoragePort> = adapter.clone();
 
+        // Resolve ACP secret using the same chain as AcpRuntime::default()
+        // so the CapabilityChecker can verify tokens signed by the ACP runtime.
+        let capability_checker = resolve_acp_secret_for_checker().map(Arc::new);
+
         Self {
             pods: Arc::new(RwLock::new(HashMap::new())),
             _keystore: Keychain::default(),
@@ -115,6 +132,7 @@ impl PodManager {
             episodic_storage,
             semantic_storage,
             inference_port: None,
+            capability_checker,
         }
     }
 }
@@ -141,6 +159,7 @@ pub struct PodManagerBuilder {
     episodic_storage: Option<Arc<dyn EpisodicStoragePort>>,
     semantic_storage: Option<Arc<dyn SemanticStoragePort>>,
     inference_port: Option<Arc<dyn hkask_templates::InferencePort>>,
+    capability_checker: Option<Arc<CapabilityChecker>>,
 }
 
 impl PodManagerBuilder {
@@ -152,6 +171,7 @@ impl PodManagerBuilder {
             episodic_storage: None,
             semantic_storage: None,
             inference_port: None,
+            capability_checker: None,
         }
     }
 
@@ -186,6 +206,16 @@ impl PodManagerBuilder {
 
     pub fn inference_port(mut self, adapter: Arc<dyn hkask_templates::InferencePort>) -> Self {
         self.inference_port = Some(adapter);
+        self
+    }
+
+    /// Set the capability checker for cryptographic OCAP verification.
+    ///
+    /// The checker must use the same HMAC secret as the ACP runtime that signs
+    /// capability tokens. If not set, `build()` attempts to resolve the default
+    /// ACP secret automatically.
+    pub fn capability_checker(mut self, checker: CapabilityChecker) -> Self {
+        self.capability_checker = Some(Arc::new(checker));
         self
     }
 
@@ -243,6 +273,15 @@ impl PodManagerBuilder {
             semantic_storage,
         );
         manager.inference_port = self.inference_port;
+        manager.capability_checker = self
+            .capability_checker
+            .or_else(|| resolve_acp_secret_for_checker().map(Arc::new));
+        if manager.capability_checker.is_none() {
+            tracing::warn!(
+                target: "hkask.ocap",
+                "No capability checker configured — PodContext::require_capability() will fall back to structural check only"
+            );
+        }
         manager
     }
 }
@@ -466,4 +505,22 @@ impl Default for PodManager {
     fn default() -> Self {
         Self::new_mock()
     }
+}
+
+/// Resolve the ACP secret using the same resolution chain as `AcpRuntime::default()`.
+/// Returns `None` if the secret cannot be resolved.
+///
+/// This allows `PodManager` to construct a `CapabilityChecker` that can verify
+/// tokens signed by the default `AcpRuntime`.
+fn resolve_acp_secret_for_checker() -> Option<CapabilityChecker> {
+    hkask_keystore::resolve(&hkask_types::SecretRef::derived(
+        hkask_types::derivation_contexts::MASTER_KEY_ENV,
+        hkask_types::derivation_contexts::ACP_SECRET,
+    ))
+    .or_else(|_| hkask_keystore::resolve(&hkask_types::SecretRef::env("HKASK_ACP_SECRET_KEY")))
+    .or_else(|_| {
+        hkask_keystore::resolve(&hkask_types::SecretRef::Keychain("acp-secret".to_string()))
+    })
+    .ok()
+    .map(|secret| CapabilityChecker::new(&secret))
 }

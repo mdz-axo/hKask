@@ -179,7 +179,8 @@ impl ApiState {
             Arc::new(mcp_runtime_adapter),
             episodic_storage,
             semantic_storage,
-        );
+        )
+        .with_capability_checker(CapabilityChecker::new(acp_secret));
         Self::new(
             registry,
             mcp_runtime,

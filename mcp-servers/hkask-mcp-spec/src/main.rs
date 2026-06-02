@@ -175,7 +175,7 @@ pub struct GraphValidateRequest {
 
 pub struct SpecServer {
     store: Arc<dyn SpecStore + Send + Sync>,
-    capability_checker: Option<Arc<CapabilityChecker>>,
+    capability_checker: Arc<CapabilityChecker>,
     webid: WebID,
 }
 
@@ -183,24 +183,23 @@ impl std::fmt::Debug for SpecServer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SpecServer")
             .field("store", &"<dyn SpecStore>")
-            .field("capability_checker", &self.capability_checker.is_some())
+            .field("capability_checker", &"<CapabilityChecker>")
             .field("webid", &self.webid)
             .finish()
     }
 }
 
 impl SpecServer {
-    pub fn new(store: Arc<dyn SpecStore + Send + Sync>, webid: WebID) -> Self {
+    pub fn new(
+        store: Arc<dyn SpecStore + Send + Sync>,
+        webid: WebID,
+        capability_checker: CapabilityChecker,
+    ) -> Self {
         Self {
             store,
-            capability_checker: None,
+            capability_checker: Arc::new(capability_checker),
             webid,
         }
-    }
-
-    pub fn with_capability_checker(mut self, checker: CapabilityChecker) -> Self {
-        self.capability_checker = Some(Arc::new(checker));
-        self
     }
 
     fn save_spec(&self, spec: &Spec) -> Result<(), SpecError> {
@@ -213,44 +212,35 @@ impl SpecServer {
         resource_id: &str,
         action: CapabilityAction,
     ) -> Result<(), McpToolError> {
-        match (&self.capability_checker, token_b64) {
-            (None, None) => {
-                tracing::warn!(
-                    resource_id,
-                    action = action.as_str(),
-                    "OCAP open mode: no capability checker configured"
-                );
-                Ok(())
-            }
-            (Some(_checker), None) => Err(McpToolError::permission_denied(format!(
+        let b64 = token_b64.ok_or_else(|| {
+            McpToolError::permission_denied(format!(
                 "No capability token provided for spec:{}:{}",
                 resource_id,
                 action.as_str()
-            ))),
-            (_, Some(b64)) => {
-                let checker = self.capability_checker.as_ref().unwrap();
-                let token = CapabilityToken::from_base64(b64).map_err(|e| {
-                    McpToolError::permission_denied(format!("Invalid token encoding: {}", e))
-                })?;
-                if !checker.verify(&token) {
-                    return Err(McpToolError::permission_denied(
-                        "Token signature verification failed".to_string(),
-                    ));
-                }
-                let now = chrono::Utc::now().timestamp();
-                if token.is_expired(now) {
-                    return Err(McpToolError::permission_denied("Token expired".to_string()));
-                }
-                if !token.is_valid_for(CapabilityResource::Spec, resource_id, action) {
-                    return Err(McpToolError::permission_denied(format!(
-                        "Token does not grant spec:{}:{}",
-                        resource_id,
-                        action.as_str()
-                    )));
-                }
-                Ok(())
-            }
+            ))
+        })?;
+
+        let token = CapabilityToken::from_base64(b64).map_err(|e| {
+            McpToolError::permission_denied(format!("Invalid token encoding: {}", e))
+        })?;
+
+        if !self.capability_checker.verify(&token) {
+            return Err(McpToolError::permission_denied(
+                "Token signature verification failed".to_string(),
+            ));
         }
+        let now = chrono::Utc::now().timestamp();
+        if token.is_expired(now) {
+            return Err(McpToolError::permission_denied("Token expired".to_string()));
+        }
+        if !token.is_valid_for(CapabilityResource::Spec, resource_id, action) {
+            return Err(McpToolError::permission_denied(format!(
+                "Token does not grant spec:{}:{}",
+                resource_id,
+                action.as_str()
+            )));
+        }
+        Ok(())
     }
 }
 
@@ -825,9 +815,20 @@ async fn main() -> anyhow::Result<()> {
             let conn = std::sync::Arc::new(std::sync::Mutex::new(conn));
             let store = std::sync::Arc::new(hkask_storage::SqliteSpecStore::new(conn));
             store.init_schema().map_err(|e| anyhow::anyhow!("{}", e))?;
-            Ok(SpecServer::new(store, ctx.webid))
+
+            let secret_hex = ctx.credentials.get("HKASK_OCAP_SECRET").ok_or_else(|| {
+                anyhow::anyhow!("HKASK_OCAP_SECRET is required for spec capability verification")
+            })?;
+            let secret = hex::decode(secret_hex)
+                .map_err(|e| anyhow::anyhow!("HKASK_OCAP_SECRET must be hex-encoded: {e}"))?;
+            let checker = CapabilityChecker::new(&secret);
+
+            Ok(SpecServer::new(store, ctx.webid, checker))
         },
-        vec![],
+        vec![hkask_mcp::CredentialRequirement::required(
+            "HKASK_OCAP_SECRET",
+            "Hex-encoded OCAP secret for minting/verifying spec capability tokens",
+        )],
     )
     .await
 }
