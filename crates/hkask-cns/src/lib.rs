@@ -8,6 +8,7 @@ pub mod circuit_breaker;
 pub mod cybernetics_loop;
 pub mod dampener;
 pub mod energy;
+pub mod inference_loop;
 pub mod observers;
 pub mod runtime;
 pub mod unified_tracker;
@@ -18,6 +19,7 @@ pub use circuit_breaker::{CircuitBreaker, CircuitBreakerConfig};
 pub use cybernetics_loop::{CyberneticsLoop, SetPoints};
 pub use dampener::{DEFAULT_DAMPEN_WINDOW, Dampener};
 pub use energy::{EnergyBudget, EnergyError};
+pub use inference_loop::InferenceLoop;
 pub use observers::sovereignty::SovereigntyObserverState;
 pub use runtime::CnsRuntime;
 

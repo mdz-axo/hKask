@@ -99,26 +99,14 @@ impl HkaskLoop for CommunicationLoop {
         ]
     }
 
-    /// Compare: detect queue overflow or delivery failures.
-    /// Uses the default implementation from the trait.
-    /// Compute: decide what to do with detected deviations.
-    async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
-        let mut actions = Vec::new();
-        for dev in deviations {
-            if dev.signal.metric == "queue_depth" && dev.signal.value > dev.signal.set_point {
-                // Queue overloaded — escalate to Cybernetics for throttling
-                actions.push(hkask_types::loops::LoopAction::new(
-                    LoopId::Cybernetics,
-                    hkask_types::loops::ActionType::Throttle,
-                    serde_json::json!({
-                        "reason": "communication_queue_overloaded",
-                        "queue_depth": dev.signal.value,
-                        "set_point": dev.signal.set_point,
-                    }),
-                ));
-            }
-        }
-        actions
+    /// Compute: Communication is a dumb transport pipe — it does NOT
+    /// dampen, throttle, or circuit-break. It produces no regulatory
+    /// actions. Queue-depth signals are emitted in `sense()` for
+    /// Cybernetics to consume through its own sense cycle.
+    async fn compute(&self, _deviations: &[Deviation]) -> Vec<LoopAction> {
+        // Communication does not govern. Signals flow upward;
+        // Cybernetics decides whether to throttle.
+        Vec::new()
     }
 
     /// Act: dequeue messages from dispatch and deliver to target loop inboxes.

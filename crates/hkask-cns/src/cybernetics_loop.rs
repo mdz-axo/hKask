@@ -292,6 +292,7 @@ impl HkaskLoop for CyberneticsLoop {
             let target_origin: LoopOrigin = action.target.into();
             let directive_type = match action.action_type {
                 ActionType::Throttle => "throttle",
+                ActionType::Dampen => "dampen",
                 ActionType::Escalate => "escalate",
                 ActionType::Calibrate => "calibrate",
                 ActionType::CircuitBreak => "circuit_break",

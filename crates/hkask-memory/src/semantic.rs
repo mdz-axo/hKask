@@ -4,9 +4,6 @@ use crate::recall_dedup;
 use hkask_storage::{EmbeddingError, EmbeddingStore, Triple, TripleError, TripleStore};
 use thiserror::Error;
 
-/// Default per-entity storage budget for semantic memory (max triples per entity).
-pub const DEFAULT_SEMANTIC_BUDGET: usize = 100_000;
-
 #[derive(Error, Debug)]
 pub enum SemanticMemoryError {
     #[error("Triple error: {0}")]
@@ -26,25 +23,16 @@ pub enum SemanticMemoryError {
 ///   identification for lowest-confidence triples.
 pub struct SemanticMemory {
     triple_store: TripleStore,
-    #[allow(dead_code)] // Will be used by SemanticLoop::tick() after loop migration
-    embedding_store: EmbeddingStore,
-    /// Per-entity storage budget (max triples per entity). Default: 100,000
-    storage_budget: usize,
+    // Embedding store reserved for future SemanticLoop::tick() integration
+    _embedding_store: EmbeddingStore,
 }
 
 impl SemanticMemory {
     pub fn new(triple_store: TripleStore, embedding_store: EmbeddingStore) -> Self {
         Self {
             triple_store,
-            embedding_store,
-            storage_budget: DEFAULT_SEMANTIC_BUDGET,
+            _embedding_store: embedding_store,
         }
-    }
-
-    /// Set the per-entity storage budget (max triples per entity).
-    pub fn with_storage_budget(mut self, budget: usize) -> Self {
-        self.storage_budget = budget;
-        self
     }
 
     // (store removed — zero external consumers)

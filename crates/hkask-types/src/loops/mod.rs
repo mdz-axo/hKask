@@ -138,6 +138,7 @@ impl LoopAction {
     pub fn new(target: LoopId, action_type: ActionType, parameters: serde_json::Value) -> Self {
         let priority = match &action_type {
             ActionType::Throttle => MessagePriority::Warning,
+            ActionType::Dampen => MessagePriority::Info,
             ActionType::Escalate => MessagePriority::Critical,
             ActionType::Calibrate => MessagePriority::Info,
             ActionType::CircuitBreak => MessagePriority::Critical,
@@ -156,6 +157,8 @@ impl LoopAction {
 pub enum ActionType {
     /// Reduce resource allocation to a target loop
     Throttle,
+    /// Dampen repeated actions (rate-limit, suppress oscillation)
+    Dampen,
     /// Escalate an alert to the Curation loop
     Escalate,
     /// Adjust a threshold or set-point

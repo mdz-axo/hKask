@@ -9,6 +9,7 @@
 
 pub mod adapter_container;
 pub mod dispatch;
+pub mod governor;
 pub mod runtime;
 pub mod security;
 pub mod server;
@@ -16,6 +17,7 @@ pub mod transport;
 
 pub use adapter_container::AdapterContainer;
 pub use dispatch::McpDispatcher;
+pub use governor::McpGovernor;
 pub use runtime::ToolInfo;
 pub use runtime::{McpRuntime, McpServer, McpTool};
 pub use security::{UrlValidationConfig, validate_url};

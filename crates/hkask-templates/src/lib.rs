@@ -18,7 +18,6 @@
 
 pub mod adapters;
 pub mod contracts;
-pub mod inference_loop;
 pub mod inference_port;
 pub mod manifest;
 pub mod okapi_config;
@@ -34,7 +33,6 @@ pub use contracts::{
     parse_frontmatter, validate_lexicon_terms,
 };
 pub use hkask_types::ports::{InferenceError, InferencePort, InferenceResult, InferenceUsage};
-pub use inference_loop::InferenceLoop;
 pub use inference_port::OkapiInference;
 pub use manifest::ModelRequirements;
 pub use okapi_config::OkapiConfig;

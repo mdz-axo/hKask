@@ -1,168 +1,70 @@
-//! MCP dispatch with capability-based security
+//! MCP dispatch — Communication loop concerns
 //!
-//! Dispatches tool calls through MCP with OCP capability verification.
+//! Routes tool calls through MCP runtime. Governance (capability
+//! verification, token lifecycle) is delegated to `McpGovernor`.
+//!
+//! This split enforces the authority DAG: Cybernetics governs
+//! Communication. The dispatcher is the dumb transport pipe; the
+//! governor is the gatekeeper.
 
+use crate::governor::McpGovernor;
+use crate::runtime::{McpRuntime, McpTool};
 use hkask_templates::{McpPort, Result, TemplateError};
-use hkask_types::{
-    BotCapabilities, CapabilityAction, CapabilityChecker, CapabilityResource, CapabilityToken,
-    WebID,
-};
+use hkask_types::{CapabilityToken, WebID};
 use serde_json::Value;
 use std::sync::Arc;
-use tokio::sync::RwLock;
-use tracing::{info, warn};
+use tracing::info;
 
-use crate::runtime::{McpRuntime, McpTool};
-
-/// MCP dispatcher with security
+/// MCP dispatcher — Communication-layer tool routing.
+///
+/// Wraps `McpRuntime` for tool discovery and invocation.
+/// All governance checks are delegated to `McpGovernor`.
 pub struct McpDispatcher {
-    /// MCP runtime for tool discovery
+    /// MCP runtime for tool discovery and invocation
     runtime: McpRuntime,
-    /// Capability checker for OCP
-    capability_checker: Arc<CapabilityChecker>,
-    /// Bot capabilities registry
-    bot_capabilities: Arc<RwLock<std::collections::HashMap<WebID, BotCapabilities>>>,
-    /// Revoked token IDs
-    revoked_tokens: Arc<RwLock<std::collections::HashSet<String>>>,
+    /// Cybernetics governor for capability governance
+    governor: Arc<McpGovernor>,
 }
 
 impl McpDispatcher {
+    /// Create a dispatcher with a runtime and a secret for the capability checker.
     pub fn new(runtime: McpRuntime, secret: &[u8]) -> Self {
         Self {
             runtime,
-            capability_checker: Arc::new(CapabilityChecker::new(secret)),
-            bot_capabilities: Arc::new(RwLock::new(std::collections::HashMap::new())),
-            revoked_tokens: Arc::new(RwLock::new(std::collections::HashSet::new())),
+            governor: Arc::new(McpGovernor::new(secret)),
         }
     }
 
-    /// Register bot capabilities
-    pub async fn register_bot_capabilities(&self, caps: BotCapabilities) {
-        let mut capabilities = self.bot_capabilities.write().await;
-        capabilities.insert(caps.bot_id, caps);
+    /// Access the governor for governance operations.
+    pub fn governor(&self) -> &Arc<McpGovernor> {
+        &self.governor
     }
 
-    /// Get bot capabilities
-    pub async fn get_bot_capabilities(&self, bot_id: &WebID) -> Option<BotCapabilities> {
-        let capabilities = self.bot_capabilities.read().await;
-        capabilities.get(bot_id).cloned()
-    }
-
-    /// Issue capability token to a bot
+    /// Issue capability token to a bot (delegates to governor).
     pub fn issue_capability(&self, tool_name: String, from: WebID, to: WebID) -> CapabilityToken {
-        self.capability_checker.grant_tool(tool_name, from, to)
+        self.governor.issue_capability(tool_name, from, to)
     }
 
-    /// Revoke a capability token by ID
-    pub async fn revoke_token(&self, token_id: String) {
-        let mut revoked = self.revoked_tokens.write().await;
-        revoked.insert(token_id);
+    /// Get tool definition
+    pub async fn get_tool(&self, tool_name: &str) -> Option<McpTool> {
+        self.runtime.get_tool(tool_name).await
     }
 
-    /// Check if a token has been revoked
-    async fn is_token_revoked(&self, token_id: &str) -> bool {
-        let revoked = self.revoked_tokens.read().await;
-        revoked.contains(token_id)
-    }
-
-    /// Check if bot has capability for tool
-    pub async fn check_capability(&self, bot_id: &WebID, tool_name: &str) -> bool {
-        let capabilities = self.bot_capabilities.read().await;
-
-        if let Some(caps) = capabilities.get(bot_id) {
-            caps.has_capability(tool_name)
-        } else {
-            // No capabilities registered = no access
-            false
-        }
-    }
-}
-
-#[async_trait::async_trait]
-impl McpPort for McpDispatcher {
-    async fn discover_tools(&self) -> Vec<String> {
+    /// List all available tools
+    pub async fn list_tools(&self) -> Vec<String> {
         self.runtime.discover_tools().await
     }
 
-    async fn invoke(
-        &self,
-        tool_name: &str,
-        input: Value,
-        token: &CapabilityToken,
-    ) -> Result<Value> {
-        // Validate the capability token before dispatching
-        if !self.capability_checker.verify(token) {
-            return Err(TemplateError::CapabilityDenied(format!(
-                "Invalid capability token for tool: {}",
-                tool_name
-            )));
-        }
-
-        // Check token expiry
-        let current_time = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs() as i64;
-        if token.is_expired(current_time) {
-            return Err(TemplateError::CapabilityDenied(format!(
-                "Expired capability token for tool: {}",
-                tool_name
-            )));
-        }
-
-        // Verify the token authorizes this tool execution
-        if !token.is_valid_for(
-            hkask_types::CapabilityResource::Tool,
-            tool_name,
-            hkask_types::CapabilityAction::Execute,
-        ) {
-            return Err(TemplateError::CapabilityDenied(format!(
-                "Capability token does not authorize tool: {}",
-                tool_name
-            )));
-        }
-
-        // Check if token has been revoked
-        if self.is_token_revoked(&token.id).await {
-            return Err(TemplateError::CapabilityDenied(format!(
-                "Revoked capability token for tool: {}",
-                tool_name
-            )));
-        }
-
-        let tool_info = self
-            .runtime
-            .get_tool_info(tool_name)
-            .await
-            .ok_or_else(|| TemplateError::Mcp(format!("Tool not found: {}", tool_name)))?;
-
-        self.runtime
-            .call_tool(&tool_info.server_id, tool_name, input, Some(token))
-            .await
-            .map_err(|e| TemplateError::Mcp(format!("Tool call failed: {}", e)))
+    /// Get MCP runtime
+    pub fn runtime(&self) -> &McpRuntime {
+        &self.runtime
     }
 
-    async fn get_tool_info(&self, tool_name: &str) -> Option<hkask_templates::ports::ToolInfo> {
-        self.runtime
-            .get_tool_info(tool_name)
-            .await
-            .map(|t| hkask_templates::ports::ToolInfo {
-                name: t.name,
-                description: t.description,
-                input_schema: t.input_schema,
-                server_id: t.server_id,
-                required_capability: t.required_capability,
-            })
-    }
-}
-
-impl McpDispatcher {
     /// Invoke a tool with capability checking
     ///
-    /// When a `CapabilityToken` is provided, it is verified cryptographically
-    /// (signature, expiry, tool/action match, revocation). When `None`, falls
-    /// back to the bot-capabilities string match (backward compatible) and logs
-    /// a warning at `hkask.ocap`.
+    /// When a `CapabilityToken` is provided, governance is delegated
+    /// to the `McpGovernor`. When `None`, falls back to legacy
+    /// bot-capabilities string match.
     pub async fn invoke_async(
         &self,
         bot_id: &WebID,
@@ -170,58 +72,17 @@ impl McpDispatcher {
         input: Value,
         token: Option<&CapabilityToken>,
     ) -> Result<Value> {
+        // Delegate governance to the governor
         if let Some(token) = token {
-            // Cryptographic token verification path
-            if !self.capability_checker.verify(token) {
-                return Err(TemplateError::CapabilityDenied(format!(
-                    "Invalid capability token signature for tool: {}",
-                    tool_name
-                )));
-            }
-
-            let current_time = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs() as i64;
-            if token.is_expired(current_time) {
-                return Err(TemplateError::CapabilityDenied(format!(
-                    "Expired capability token for tool: {}",
-                    tool_name
-                )));
-            }
-
-            if !token.is_valid_for(
-                CapabilityResource::Tool,
-                tool_name,
-                CapabilityAction::Execute,
-            ) {
-                return Err(TemplateError::CapabilityDenied(format!(
-                    "Capability token does not authorize tool: {}",
-                    tool_name
-                )));
-            }
-
-            if self.is_token_revoked(&token.id).await {
-                return Err(TemplateError::CapabilityDenied(format!(
-                    "Revoked capability token for tool: {}",
-                    tool_name
-                )));
-            }
+            self.governor
+                .authorize(token, tool_name)
+                .await
+                .map_err(|reason| TemplateError::CapabilityDenied(reason))?;
         } else {
-            // Legacy bot-capabilities string match (backward compatible)
-            warn!(
-                target: "hkask.ocap",
-                bot_id = ?bot_id,
-                tool_name = %tool_name,
-                "No capability token provided; falling back to bot-capabilities check"
-            );
-
-            if !self.check_capability(bot_id, tool_name).await {
-                return Err(TemplateError::CapabilityDenied(format!(
-                    "Bot {:?} lacks capability for tool: {}",
-                    bot_id, tool_name
-                )));
-            }
+            self.governor
+                .authorize_legacy(bot_id, tool_name)
+                .await
+                .map_err(|reason| TemplateError::CapabilityDenied(reason))?;
         }
 
         // Check if tool exists
@@ -251,19 +112,48 @@ impl McpDispatcher {
 
         Ok(result)
     }
+}
 
-    /// Get tool definition
-    pub async fn get_tool(&self, tool_name: &str) -> Option<McpTool> {
-        self.runtime.get_tool(tool_name).await
-    }
-
-    /// List all available tools
-    pub async fn list_tools(&self) -> Vec<String> {
+#[async_trait::async_trait]
+impl McpPort for McpDispatcher {
+    async fn discover_tools(&self) -> Vec<String> {
         self.runtime.discover_tools().await
     }
 
-    /// Get MCP runtime
-    pub fn runtime(&self) -> &McpRuntime {
-        &self.runtime
+    async fn invoke(
+        &self,
+        tool_name: &str,
+        input: Value,
+        token: &CapabilityToken,
+    ) -> Result<Value> {
+        // Delegate governance to the governor
+        self.governor
+            .authorize(token, tool_name)
+            .await
+            .map_err(|reason| TemplateError::CapabilityDenied(reason))?;
+
+        let tool_info = self
+            .runtime
+            .get_tool_info(tool_name)
+            .await
+            .ok_or_else(|| TemplateError::Mcp(format!("Tool not found: {}", tool_name)))?;
+
+        self.runtime
+            .call_tool(&tool_info.server_id, tool_name, input, Some(token))
+            .await
+            .map_err(|e| TemplateError::Mcp(format!("Tool call failed: {}", e)))
+    }
+
+    async fn get_tool_info(&self, tool_name: &str) -> Option<hkask_templates::ports::ToolInfo> {
+        self.runtime
+            .get_tool_info(tool_name)
+            .await
+            .map(|t| hkask_templates::ports::ToolInfo {
+                name: t.name,
+                description: t.description,
+                input_schema: t.input_schema,
+                server_id: t.server_id,
+                required_capability: t.required_capability,
+            })
     }
 }

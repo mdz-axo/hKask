@@ -1,7 +1,9 @@
 //! Inference Loop — prompt → context → model → response → parse → act (Loop 1)
 //!
-//! Wraps `OkapiInference` and provides loop-level observability for the
-//! circuit breaker state and inference availability.
+//! Monitors circuit breaker state and inference availability.
+//! Lives in the CNS crate because loop orchestration (sense → compare → compute → act)
+//! is a Cybernetics concern — domain crates provide port implementations,
+//! the CNS provides loop governance.
 
 use hkask_types::loops::{
     ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal,
@@ -113,8 +115,6 @@ impl HkaskLoop for InferenceLoop {
     }
 
     /// Act: log regulatory actions.
-    ///
-    /// No actual throttle mechanism yet — the loop emits signals through tracing.
     async fn act(&self, actions: &[LoopAction]) {
         for action in actions {
             tracing::info!(

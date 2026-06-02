@@ -3,9 +3,6 @@
 //! Free functions for the episodic and semantic memory subloops:
 //! - `decay` — Loop 2a.3: Confidence decay (RECONCILE)
 //! - `retract` — Loop 2a.4: Confidence retraction (RECONCILE)
-//! - `combine` — Bayesian combination (used in semantic recall)
-//! - `join` — Multi-source Bayesian combination
-//! - `weighted_average` — Weighted average of confidences
 //!
 //! **Cybernetics regulation note:** `decay` and `retract` are involuntary dampening
 //! functions owned by the Cybernetics loop. They are invoked from
