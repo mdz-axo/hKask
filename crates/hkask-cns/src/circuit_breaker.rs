@@ -1,22 +1,16 @@
 //! Circuit Breaker — Cybernetics Regulation Function
-//!
+//
 //! Circuit breaking is a CNS regulation mechanism: it enforces homeostatic
 //! control over external service calls (e.g. Okapi inference) by preventing
 //! cascading failures when downstream systems degrade. This is a Cybernetics
 //! concern, not a templates concern — the CNS governs when the system must
 //! shed load to preserve stability (Ashby's Law of Requisite Variety).
 
+use hkask_types::cns::CircuitState;
+use hkask_types::ports::CircuitBreakerPort;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 use tracing::{error, info};
-
-/// Circuit breaker states
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CircuitState {
-    Closed,
-    Open,
-    HalfOpen,
-}
 
 /// Circuit breaker configuration
 #[derive(Debug, Clone)]
@@ -147,5 +141,23 @@ impl CircuitBreaker {
 
     fn set_state(&self, state: CircuitState) {
         self.state.store(state as u32, Ordering::Relaxed);
+    }
+}
+
+impl CircuitBreakerPort for CircuitBreaker {
+    fn allow_request(&self) -> bool {
+        CircuitBreaker::allow_request(self)
+    }
+
+    fn record_success(&self) {
+        CircuitBreaker::record_success(self)
+    }
+
+    fn record_failure(&self) {
+        CircuitBreaker::record_failure(self)
+    }
+
+    fn state(&self) -> CircuitState {
+        CircuitBreaker::state(self)
     }
 }

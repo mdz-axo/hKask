@@ -32,16 +32,17 @@ pub use contracts::{
     ParsedContract, ParsedInference, TemplateFrontmatter, TemplateInferenceConfig,
     parse_frontmatter, validate_lexicon_terms,
 };
-pub use inference_port::{InferenceError, InferencePort, InferenceResult, OkapiInference, Usage};
+pub use hkask_types::ports::{InferenceError, InferencePort, InferenceResult, InferenceUsage};
+pub use inference_port::OkapiInference;
 pub use manifest::ModelRequirements;
 pub use okapi_config::OkapiConfig;
 pub use okapi_config::{
     OkapiModelDetails, OkapiModelEntry, OkapiTagsResponse, list_okapi_models, search_okapi_models,
 };
 pub use ports::{
-    Action, CnsPort, CompositionTemplate, DEFAULT_MATROSHKA_LIMIT, InferenceConfig, ManifestStep,
-    McpPort, MemoryFragment, ProcessManifest, RegistryEntry, RegistryIndex, Result,
-    TemplateContract, TemplateError, YamlManifestFile,
+    Action, CompositionTemplate, DEFAULT_MATROSHKA_LIMIT, InferenceConfig, ManifestStep, McpPort,
+    MemoryFragment, ProcessManifest, RegistryEntry, RegistryIndex, Result, TemplateContract,
+    TemplateError, YamlManifestFile,
 };
 pub use provenance::{ProvenanceManager, TemplateProvenance};
 pub use registry::{Registry, TemplateEntry};

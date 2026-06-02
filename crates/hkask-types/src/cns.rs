@@ -5,6 +5,37 @@
 
 use serde::{Deserialize, Serialize};
 
+// =============================================================================
+// Circuit Breaker — States
+// =============================================================================
+
+/// Circuit breaker states
+///
+/// Defined here (not in hkask-cns) so the `CircuitBreakerPort` trait can
+/// reference it without creating an upward dependency.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CircuitState {
+    Closed,
+    Open,
+    HalfOpen,
+}
+
+// =============================================================================
+// CNS Health — Observability data struct
+// =============================================================================
+
+/// CNS health status
+///
+/// Pure data struct — construction logic (`cns_health_check`) lives in
+/// hkask-cns where it has access to `AlgedonicManager`.
+#[derive(Debug, Clone)]
+pub struct CnsHealth {
+    pub overall_deficit: u64,
+    pub critical_count: usize,
+    pub warning_count: usize,
+    pub healthy: bool,
+}
+
 // CnsSpan has been collapsed into SpanCategory (in event.rs).
 // Use `SpanCategory` for category-only contexts and `Span` for
 // category + path contexts. The 14 variants are identical.

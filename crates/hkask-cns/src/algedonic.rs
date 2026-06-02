@@ -1,12 +1,13 @@
 //! Algedonic alerts — Variety deficit escalation
-//!
+//
 //! Implements algedonic (pain/pleasure) feedback for cybernetic control.
 //! When variety deficit exceeds threshold, alerts are escalated to the Curator/human.
-//!
+//
 //! Per architecture v0.21.0: Variety deficit >100 → escalate to Curator/human
 
 use crate::variety::VarietyTracker;
 use chrono::{DateTime, Utc};
+use hkask_types::cns::CnsHealth;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
@@ -166,26 +167,15 @@ impl AlgedonicManager {
     }
 }
 
-/// CNS health status
-#[derive(Debug, Clone)]
-pub struct CnsHealth {
-    pub overall_deficit: u64,
-    pub critical_count: usize,
-    pub warning_count: usize,
-    pub healthy: bool,
-}
-
-impl CnsHealth {
-    pub fn check(manager: &AlgedonicManager) -> Self {
-        let critical_count = manager.critical_alerts().len();
-        let warning_count = manager.alerts().iter().filter(|a| a.is_warning()).count();
-        let overall_deficit = manager.total_deficit();
-
-        Self {
-            overall_deficit,
-            critical_count,
-            warning_count,
-            healthy: critical_count == 0,
-        }
+/// Construct CnsHealth from the algedonic manager's current state.
+///
+/// This replaces the former `CnsHealth::check()` inherent method,
+/// which couldn't stay in hkask-types (it depends on AlgedonicManager).
+pub fn cns_health_check(manager: &AlgedonicManager) -> CnsHealth {
+    CnsHealth {
+        overall_deficit: manager.total_deficit(),
+        critical_count: manager.critical_alerts().len(),
+        warning_count: manager.alerts().iter().filter(|a| a.is_warning()).count(),
+        healthy: manager.critical_alerts().is_empty(),
     }
 }

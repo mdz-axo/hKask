@@ -1,7 +1,8 @@
 //! CNS observability routes
 
 use axum::{Json, extract::State, routing::Router};
-use hkask_cns::algedonic::{AlgedonicManager, CnsHealth};
+use hkask_cns::algedonic::AlgedonicManager;
+use hkask_cns::cns_health_check;
 use hkask_cns::variety::VarietyMonitor;
 use std::collections::HashMap;
 
@@ -26,7 +27,7 @@ pub fn cns_router() -> Router<ApiState> {
     ),
 )]
 async fn cns_health(State(_state): State<ApiState>) -> Json<CnsHealthResponse> {
-    let health = CnsHealth::check(&AlgedonicManager::new(100, 10));
+    let health = cns_health_check(&AlgedonicManager::new(100, 10));
 
     Json(CnsHealthResponse {
         overall_deficit: health.overall_deficit,

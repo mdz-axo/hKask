@@ -161,7 +161,7 @@ impl InferenceServer {
         model: &str,
         prompt: &str,
         params: &LLMParameters,
-    ) -> Result<hkask_templates::InferenceResult, hkask_templates::InferenceError> {
+    ) -> Result<hkask_types::ports::InferenceResult, hkask_types::ports::InferenceError> {
         let config = OkapiConfig::default();
         let inference = OkapiInference::new(model, config)?;
         inference.generate(prompt, params).await

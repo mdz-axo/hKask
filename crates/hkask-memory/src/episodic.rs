@@ -346,6 +346,10 @@ impl EpisodicMemory {
     /// Returns `Ok(())` if within budget, `Err(EpisodicMemoryError::BudgetExceeded)`
     /// if the budget would be exceeded. Emits a `cns.memory.budget` tracing
     /// span when the budget is at risk.
+    ///
+    /// **Cybernetics regulation — to be extracted to EpisodicLoop::tick()**
+    /// when the loop membrane is created. This is a Cybernetics concern
+    /// (involuntary budget enforcement), not an Episodic domain concern.
     pub fn check_budget(
         &self,
         perspective: WebID,

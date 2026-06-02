@@ -12,7 +12,7 @@
 
 use hkask_types::{
     CapabilityAction, CapabilityChecker, CapabilityResource, CapabilityToken,
-    ExperienceClassification, WebID,
+    ExperienceClassification, InferencePort, WebID,
 };
 use std::sync::Arc;
 
@@ -30,7 +30,7 @@ pub struct PodContext {
     pub pod_id: PodID,
     pub webid: WebID,
     pub capability_token: CapabilityToken,
-    inference_port: Option<Arc<dyn hkask_templates::InferencePort>>,
+    inference_port: Option<Arc<dyn InferencePort>>,
     /// Episodic memory storage — private, agent-scoped (OCAP: EpisodicReadHandle/EpisodicWriteHandle)
     episodic_storage: Arc<dyn EpisodicStoragePort>,
     /// Semantic memory storage — shared, public knowledge (OCAP: SemanticReadHandle/SemanticWriteHandle)
@@ -102,7 +102,7 @@ impl PodContext {
         Ok(())
     }
 
-    pub fn inference_port(&self) -> Result<Arc<dyn hkask_templates::InferencePort>, AgentPodError> {
+    pub fn inference_port(&self) -> Result<Arc<dyn InferencePort>, AgentPodError> {
         self.require_capability(
             CapabilityResource::Template,
             "inference",

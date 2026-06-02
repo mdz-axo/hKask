@@ -41,7 +41,7 @@ pub use agent_def::{
 };
 pub use audit::{AuditContext, AuditEntry, AuditLogPort, AuditOutcome};
 pub use capability::*;
-pub use cns::RetryConfig;
+pub use cns::{CircuitState, CnsHealth, RetryConfig};
 pub use curation::{CurationDecision, CurationRecord, OCAPBoundary};
 pub use error::{GitError, HkaskError, InfrastructureError, McpErrorKind};
 pub use event::{NuEvent, NuEventSink, Phase, Span, SpanCategory};
@@ -56,7 +56,10 @@ pub use loops::{
     LoopAction, LoopId, LoopMessage, LoopOrigin, LoopPayload, MessagePriority, SemanticReadHandle,
     SemanticWriteHandle, Signal,
 };
-pub use ports::GitCASPort;
+pub use ports::{
+    CircuitBreakerPort, CnsPort, GitCASPort, InferenceError, InferencePort, InferenceResult,
+    InferenceUsage, TokenProb, TokenProbability,
+};
 pub use r7::{R7BotIdentity, default_r7_bots};
 pub use secret::{SecretRef, derivation_contexts};
 pub use sovereignty::{

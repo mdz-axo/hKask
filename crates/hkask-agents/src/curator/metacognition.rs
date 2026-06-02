@@ -11,7 +11,7 @@
 use crate::curator::bot_metrics::{BotEvaluationMetrics, BotHealthStatus, GapType};
 use crate::curator::context::CuratorContext;
 use crate::ports::metacognition::{EvaluationResult, KataDirective, KataType, RecommendedAction};
-use hkask_cns::algedonic::CnsHealth;
+use hkask_types::cns::CnsHealth;
 use hkask_types::loops::curation::CuratorDirective;
 use hkask_types::loops::dispatch::TraceId;
 use hkask_types::{BotID, WebID};

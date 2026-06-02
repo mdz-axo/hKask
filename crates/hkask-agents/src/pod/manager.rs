@@ -1,7 +1,7 @@
 //! PodManager, PodStatus, PodManagerBuilder — Pod lifecycle management
 
 use hkask_keystore::keychain::Keychain;
-use hkask_types::CapabilityChecker;
+use hkask_types::{CapabilityChecker, InferencePort};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -36,7 +36,7 @@ pub struct PodManager {
     /// Semantic memory storage — shared, public knowledge (OCAP: SemanticReadHandle/SemanticWriteHandle)
     pub(crate) semantic_storage: Arc<dyn SemanticStoragePort>,
 
-    pub(crate) inference_port: Option<Arc<dyn hkask_templates::InferencePort>>,
+    pub(crate) inference_port: Option<Arc<dyn InferencePort>>,
     /// Cryptographic capability checker for OCAP verification.
     /// When set, `PodContext::require_capability()` verifies HMAC signatures.
     /// When absent, falls back to structural `is_valid_for()` check (insecure).
@@ -90,7 +90,7 @@ impl PodManager {
         mcp_runtime: Arc<dyn MCPRuntimePort>,
         episodic_storage: Arc<dyn EpisodicStoragePort>,
         semantic_storage: Arc<dyn SemanticStoragePort>,
-        inference_port: Arc<dyn hkask_templates::InferencePort>,
+        inference_port: Arc<dyn InferencePort>,
     ) -> Self {
         Self {
             pods: Arc::new(RwLock::new(HashMap::new())),
@@ -106,7 +106,7 @@ impl PodManager {
     }
 
     /// Get the inference port if available
-    pub fn inference_port(&self) -> Option<Arc<dyn hkask_templates::InferencePort>> {
+    pub fn inference_port(&self) -> Option<Arc<dyn InferencePort>> {
         self.inference_port.clone()
     }
 
@@ -158,7 +158,7 @@ pub struct PodManagerBuilder {
     mcp_runtime: Option<Arc<dyn MCPRuntimePort>>,
     episodic_storage: Option<Arc<dyn EpisodicStoragePort>>,
     semantic_storage: Option<Arc<dyn SemanticStoragePort>>,
-    inference_port: Option<Arc<dyn hkask_templates::InferencePort>>,
+    inference_port: Option<Arc<dyn InferencePort>>,
     capability_checker: Option<Arc<CapabilityChecker>>,
 }
 
@@ -204,7 +204,7 @@ impl PodManagerBuilder {
         self
     }
 
-    pub fn inference_port(mut self, adapter: Arc<dyn hkask_templates::InferencePort>) -> Self {
+    pub fn inference_port(mut self, adapter: Arc<dyn InferencePort>) -> Self {
         self.inference_port = Some(adapter);
         self
     }

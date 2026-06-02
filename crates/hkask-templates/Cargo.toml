@@ -8,8 +8,6 @@ description = "Registry, hLexicon, and template execution for hKask"
 [dependencies]
 hkask-types = { path = "../hkask-types" }
 hkask-storage = { path = "../hkask-storage" }
-hkask-cns = { path = "../hkask-cns" }
-hkask-memory = { path = "../hkask-memory" }
 minijinja.workspace = true
 serde.workspace = true
 serde_json.workspace = true

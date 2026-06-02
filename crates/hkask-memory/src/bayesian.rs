@@ -1,11 +1,16 @@
 //! Bayesian confidence operations
-//!
+//
 //! Free functions for the episodic and semantic memory subloops:
 //! - `decay` — Loop 2a.3: Confidence decay (RECONCILE)
 //! - `retract` — Loop 2a.4: Confidence retraction (RECONCILE)
 //! - `combine` — Bayesian combination (used in semantic recall)
 //! - `join` — Multi-source Bayesian combination
 //! - `weighted_average` — Weighted average of confidences
+//
+//! **Note:** `decay` and `retract` are Cybernetics-owned involuntary dampening
+//! functions. They remain in hkask-memory for now because domain code calls them
+//! directly. When EpisodicLoop and SemanticLoop are created, these should be
+//! invoked from the loop's `tick()` rather than ad-hoc from domain methods.
 
 /// Combine two confidence values using Bayesian rule
 /// P(A,B) = P(A) * P(B) / (P(A) * P(B) + (1-P(A)) * (1-P(B)))

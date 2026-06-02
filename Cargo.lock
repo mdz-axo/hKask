@@ -894,7 +894,6 @@ dependencies = [
  "hkask-cns",
  "hkask-keystore",
  "hkask-storage",
- "hkask-templates",
  "hkask-types",
  "rusqlite",
  "serde",
@@ -1348,8 +1347,6 @@ dependencies = [
  "chrono",
  "futures-util",
  "hex",
- "hkask-cns",
- "hkask-memory",
  "hkask-storage",
  "hkask-types",
  "minijinja",
@@ -1369,9 +1366,11 @@ dependencies = [
 name = "hkask-types"
 version = "0.21.1"
 dependencies = [
+ "async-trait",
  "base64 0.21.7",
  "blake3",
  "chrono",
+ "futures-util",
  "hex",
  "hmac",
  "serde",

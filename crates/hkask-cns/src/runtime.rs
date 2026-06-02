@@ -5,11 +5,12 @@
 //! - Algedonic alerts (deficit > threshold → escalate)
 
 use crate::algedonic::{
-    AlgedonicManager, CnsHealth, DEFAULT_EXPECTED_VARIETY, DEFAULT_THRESHOLD, RuntimeAlert,
+    AlgedonicManager, DEFAULT_EXPECTED_VARIETY, DEFAULT_THRESHOLD, RuntimeAlert, cns_health_check,
 };
 use crate::unified_tracker::UnifiedVarietyTracker;
 use crate::variety::VarietyTracker;
 use hkask_types::InfrastructureError;
+use hkask_types::cns::CnsHealth;
 use std::sync::Arc;
 use std::sync::RwLock as StdRwLock;
 use tokio::sync::RwLock;
@@ -65,7 +66,7 @@ impl CnsRuntime {
     pub async fn health(&self) -> CnsHealth {
         let state = self.state.read().await;
         match Self::read_algedonic(&state.algedonic) {
-            Ok(mgr) => CnsHealth::check(&mgr),
+            Ok(mgr) => cns_health_check(&mgr),
             Err(_) => CnsHealth {
                 overall_deficit: 0,
                 critical_count: 1,
@@ -160,5 +161,19 @@ impl CnsRuntime {
 impl Default for CnsRuntime {
     fn default() -> Self {
         Self::with_threshold(DEFAULT_THRESHOLD)
+    }
+}
+
+impl hkask_types::ports::CnsPort for CnsRuntime {
+    async fn health(&self) -> CnsHealth {
+        CnsRuntime::health(self).await
+    }
+
+    async fn variety(&self) -> Vec<(String, u64)> {
+        CnsRuntime::variety(self).await
+    }
+
+    async fn increment_variety(&self, domain: &str, state_name: &str) {
+        CnsRuntime::increment_variety(self, domain, state_name).await
     }
 }

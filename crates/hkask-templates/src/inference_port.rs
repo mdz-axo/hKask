@@ -1,131 +1,18 @@
 //! Okapi LLM inference port for high-temperature templates
-//!
-//! This module provides the InferencePort trait for LLM invocations
-//! with temperature-controlled parameters for anti-normative generation.
-//!
-//! # Example
-//!
-//! ```rust,no_run
-//! use hkask_templates::{OkapiInference, OkapiConfig, InferencePort};
-//! use hkask_types::LLMParameters;
-//!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! // Create Okapi inference client
-//! let config = OkapiConfig::local_dev();
-//! let inference = OkapiInference::new("ollama/llama-3.1-8b-instruct", config)?;
-//!
-//! // Generate text
-//! let params = LLMParameters::default();
-//! let result = inference.generate("What is the meaning of life?", &params).await?;
-//!
-//! println!("Response: {}", result.text);
-//! # Ok(())
-//! # }
-//! ```
+//
+//! `InferencePort` trait lives in hkask-types (port membrane).
+//! This module provides `OkapiInference` — the concrete implementation.
 
-use crate::manifest::ModelRequirements;
 use crate::okapi_config::{OkapiConfig, validate_prompt};
-use async_trait::async_trait;
-use hkask_cns::CircuitBreaker;
 use hkask_types::LLMParameters;
 use hkask_types::cns::RetryConfig;
+use hkask_types::ports::{
+    CircuitBreakerPort, InferenceError, InferencePort, InferenceResult, InferenceUsage, TokenProb,
+    TokenProbability,
+};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use thiserror::Error;
 use tracing::{info, warn};
-
-/// Inference error types
-///
-/// Errors returned by Okapi inference operations.
-#[derive(Error, Debug)]
-pub enum InferenceError {
-    #[error("Okapi connection error: {0}")]
-    Connection(String),
-    #[error("Model error: {0}")]
-    Model(String),
-    #[error("Generation error: {0}")]
-    Generation(String),
-    #[error("JSON error: {0}")]
-    Json(String),
-}
-
-/// Inference result from Okapi
-///
-/// Contains the generated text, model used, token usage, and optional token probabilities.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct InferenceResult {
-    pub text: String,
-    pub model: String,
-    pub usage: Usage,
-    pub finish_reason: String,
-    /// Token-level probabilities for confidence scoring
-    pub token_probabilities: Option<Vec<TokenProbability>>,
-}
-
-/// Token probability from Okapi response
-/// Contains the token and its probability, plus top-k alternatives.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TokenProbability {
-    pub token: String,
-    pub prob: f64,
-    pub top_k: Vec<TokenProb>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TokenProb {
-    pub token: String,
-    pub prob: f64,
-}
-
-/// Token usage statistics
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Usage {
-    pub prompt_tokens: u32,
-    pub completion_tokens: u32,
-    pub total_tokens: u32,
-}
-
-/// Okapi inference port
-/// Trait for LLM backends. Okapi is the default implementation.
-#[async_trait]
-pub trait InferencePort: Send + Sync {
-    /// Generate text with parameters
-    async fn generate(
-        &self,
-        prompt: &str,
-        parameters: &LLMParameters,
-    ) -> Result<InferenceResult, InferenceError>;
-
-    /// Generate text with model requirements
-    async fn generate_with_model(
-        &self,
-        prompt: &str,
-        parameters: &LLMParameters,
-        _model_requirements: Option<&ModelRequirements>,
-    ) -> Result<InferenceResult, InferenceError> {
-        // Default implementation ignores model_requirements
-        self.generate(prompt, parameters).await
-    }
-
-    /// Generate multiple outputs for template selection
-    async fn generate_n(
-        &self,
-        prompt: &str,
-        parameters: &LLMParameters,
-        n: usize,
-    ) -> Result<Vec<InferenceResult>, InferenceError> {
-        use futures_util::future::join_all;
-
-        // Create n concurrent generate futures
-        let futures: Vec<_> = (0..n).map(|_| self.generate(prompt, parameters)).collect();
-
-        // Execute all futures concurrently
-        let results = join_all(futures).await;
-
-        // Collect results, returning first error if any
-        results.into_iter().collect()
-    }
-}
 
 /// Okapi-backed inference implementation
 pub struct OkapiInference {
@@ -133,9 +20,8 @@ pub struct OkapiInference {
     config: OkapiConfig,
     retry_config: RetryConfig,
     client: Arc<reqwest::Client>,
-    /// CNS span emitter
     /// Circuit breaker for resilience
-    circuit_breaker: Option<Arc<CircuitBreaker>>,
+    circuit_breaker: Option<Arc<dyn CircuitBreakerPort>>,
     /// Prompt cache for skipping redundant LLM calls
     prompt_cache: Option<Arc<crate::prompt_cache::PromptCache>>,
 }
@@ -197,7 +83,7 @@ impl OkapiInference {
         model: &str,
         config: OkapiConfig,
         retry_config: RetryConfig,
-        circuit_breaker: CircuitBreaker,
+        circuit_breaker: Arc<dyn CircuitBreakerPort>,
     ) -> Result<Self, InferenceError> {
         let client = config
             .build_client()
@@ -209,7 +95,7 @@ impl OkapiInference {
             retry_config,
             config,
             client,
-            circuit_breaker: Some(Arc::new(circuit_breaker)),
+            circuit_breaker: Some(circuit_breaker),
             prompt_cache: None,
         })
     }
@@ -324,7 +210,7 @@ impl OkapiInference {
         Ok(InferenceResult {
             text: choice.message.content.clone(),
             model: okapi_response.model.clone(),
-            usage: Usage {
+            usage: InferenceUsage {
                 prompt_tokens: okapi_response.usage.prompt_tokens,
                 completion_tokens: okapi_response.usage.completion_tokens,
                 total_tokens: okapi_response.usage.total_tokens,
@@ -366,7 +252,7 @@ impl OkapiInference {
     }
 }
 
-#[async_trait]
+#[async_trait::async_trait]
 impl InferencePort for OkapiInference {
     async fn generate(
         &self,
@@ -449,13 +335,13 @@ impl InferencePort for OkapiInference {
         &self,
         prompt: &str,
         parameters: &LLMParameters,
-        model_requirements: Option<&ModelRequirements>,
+        model_override: Option<&str>,
     ) -> Result<InferenceResult, InferenceError> {
         // Validate input
         validate_prompt(prompt).map_err(|e| InferenceError::Generation(e.to_string()))?;
 
-        let model_id = model_requirements
-            .map(|r| r.required.clone())
+        let model_id = model_override
+            .map(|s| s.to_string())
             .unwrap_or_else(|| self.model.clone());
 
         let request = OkapiRequest {
@@ -488,6 +374,10 @@ impl InferencePort for OkapiInference {
     }
 }
 
+// =============================================================================
+// Okapi wire-format types (private)
+// =============================================================================
+
 /// Okapi API request structure
 #[derive(Debug, Clone, Serialize)]
 struct OkapiRequest {
@@ -509,7 +399,7 @@ struct OkapiRequest {
 struct OkapiResponse {
     model: String,
     choices: Vec<Choice>,
-    usage: Usage,
+    usage: OkapiUsage,
 }
 
 /// Okapi API choice structure
@@ -520,6 +410,14 @@ struct Choice {
     /// Token probabilities if requested
     #[serde(default, rename = "token_probs")]
     token_probs: Option<Vec<RawTokenProb>>,
+}
+
+/// Wire-format token usage from Okapi API
+#[derive(Debug, Deserialize)]
+struct OkapiUsage {
+    prompt_tokens: u32,
+    completion_tokens: u32,
+    total_tokens: u32,
 }
 
 /// Raw token probability from Okapi API

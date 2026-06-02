@@ -4,8 +4,8 @@
 //! TTL by category: instruct=24h, thinking=1h, embedding=30d
 //! LRU eviction when cache >100MB
 
-use crate::inference_port::InferenceResult;
 use hkask_types::LLMParameters;
+use hkask_types::ports::InferenceResult;
 use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};

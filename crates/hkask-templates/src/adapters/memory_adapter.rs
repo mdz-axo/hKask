@@ -1,12 +1,12 @@
-//! Memory port adapters for connecting hkask-memory to hkask-templates
+//! Memory port adapters for template context
 //!
 //! Provides:
 //! - `StubMemoryPort`: Returns empty results (for testing)
 //! - `MemoryAdapter`: Generic wrapper (for custom types)
-//! - `AppMemoryAdapter`: Concrete adapter for SemanticMemory + EpisodicMemory
+//! - `AppMemoryAdapter`: Concrete adapter backed by TripleStore
 
 use crate::ports::{MemoryFragment, Result};
-use hkask_memory::{EpisodicMemory, SemanticMemory};
+use hkask_storage::TripleStore;
 use hkask_types::WebID;
 
 pub struct StubMemoryPort;
@@ -43,24 +43,30 @@ impl<S, E> MemoryAdapter<S, E> {
     }
 }
 
+/// Concrete memory adapter backed by TripleStore.
+///
+/// Queries semantic and episodic triples directly from storage.
+/// Note: This bypasses hkask-memory domain logic (dedup, Bayesian
+/// confidence decay, consolidation bridge). For domain-correct
+/// behavior, wire through EpisodicLoop/SemanticLoop when created.
 pub struct AppMemoryAdapter {
-    semantic: SemanticMemory,
-    episodic: EpisodicMemory,
+    store: TripleStore,
 }
 
 impl AppMemoryAdapter {
-    pub fn new(semantic: SemanticMemory, episodic: EpisodicMemory) -> Self {
-        Self { semantic, episodic }
+    pub fn new(store: TripleStore) -> Self {
+        Self { store }
     }
-}
 
-impl AppMemoryAdapter {
     pub fn query_semantic(&self, entity: &str) -> Result<Vec<MemoryFragment>> {
-        Ok(self
-            .semantic
-            .query_deduped(entity)
-            .unwrap_or_default()
+        let triples = self
+            .store
+            .query_by_entity(entity)
+            .map_err(|e| crate::ports::TemplateError::Database(e.to_string()))?;
+
+        Ok(triples
             .into_iter()
+            .filter(|t| t.is_semantic())
             .map(|triple| MemoryFragment {
                 content: format!("{}: {} = {}", triple.entity, triple.attribute, triple.value),
                 source: "semantic".to_string(),
@@ -71,11 +77,14 @@ impl AppMemoryAdapter {
 
     pub fn query_episodic(&self, entity: &str, perspective: &str) -> Result<Vec<MemoryFragment>> {
         let webid = WebID::from_string(perspective);
-        Ok(self
-            .episodic
-            .query_for_deduped(entity, webid)
-            .unwrap_or_default()
+        let triples = self
+            .store
+            .query_by_entity(entity)
+            .map_err(|e| crate::ports::TemplateError::Database(e.to_string()))?;
+
+        Ok(triples
             .into_iter()
+            .filter(|t| t.perspective == Some(webid) && t.is_episodic())
             .map(|triple| MemoryFragment {
                 content: format!("{}: {} = {}", triple.entity, triple.attribute, triple.value),
                 source: "episodic".to_string(),
