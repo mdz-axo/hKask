@@ -77,7 +77,7 @@ pub struct ApiState {
     pub system_webid: WebID,
     /// CNS span emitter for audit trail
     /// Ensemble inferencer (optional - for Russell SOAP inference)
-    pub ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::OkapiClient>>,
+    pub ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::InferencePortAdapter>>,
     /// Spec store for DDMVSS specifications
     pub spec_store: Option<Arc<dyn hkask_types::SpecStore + Send + Sync>>,
     /// Consent manager for user sovereignty
@@ -107,7 +107,7 @@ impl ApiState {
         pod_manager: PodManager,
         capability_secret: &[u8],
         system_webid: WebID,
-        ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::OkapiClient>>,
+        ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::InferencePortAdapter>>,
         db_config: Option<&DbConfig>,
     ) -> Self {
         let consent_manager = Arc::new(ConsentManager::new());
@@ -231,10 +231,19 @@ impl ApiState {
         pod_manager: PodManager,
         capability_secret: &[u8],
         system_webid: WebID,
-        okapi_base_url: &str,
+        model: &str,
         db_config: Option<&DbConfig>,
     ) -> Self {
-        let inferencer = Arc::new(hkask_ensemble::adapters::OkapiClient::new(okapi_base_url));
+        let base_url = std::env::var("OKAPI_BASE_URL")
+            .unwrap_or_else(|_| "http://127.0.0.1:11435".to_string());
+        let config = hkask_templates::OkapiConfig {
+            base_url,
+            ..hkask_templates::OkapiConfig::default()
+        };
+        let inference = hkask_templates::OkapiInference::new(model, config)
+            .expect("Failed to create Okapi inference");
+        let port: Arc<dyn hkask_types::ports::InferencePort> = Arc::new(inference);
+        let inferencer = Arc::new(hkask_ensemble::adapters::InferencePortAdapter::new(port));
         Self::new(
             registry,
             mcp_runtime,

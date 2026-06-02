@@ -33,8 +33,13 @@ pub use communication::{
     EscalationStatus, MessageDispatch,
 };
 pub use consent::{ConsentError, ConsentManager};
+pub use curator::confidence::{ConfidenceConfig, compute_confidence};
 pub use curator::context::CuratorContext;
 pub use curator::curation_loop::CurationLoop;
+pub use curator::deliberation::{
+    AgentResponse, DeliberationParticipant, DeliberationResult, DeliberationSession,
+    DeliberationStatus,
+};
 pub use error::{GitError, McpError, MemoryError, RegistryError};
 pub use pod::{
     AgentKind, AgentPersona, AgentPod, AgentPodError, AgentPodResult, PodID, PodLifecycleState,

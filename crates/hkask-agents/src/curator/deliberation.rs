@@ -2,9 +2,6 @@
 //!
 //! Coordinates deliberation between multiple agents without consensus mechanisms.
 //! Each agent provides independent response; Curator synthesizes.
-//!
-//! Types live here in `hkask-ensemble` (not re-exported from `hkask-agents`)
-//! so that ensemble depends only on `hkask-types`, respecting the Authority DAG.
 
 use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
@@ -12,7 +9,7 @@ use std::collections::HashMap;
 use tracing::info;
 
 /// Minimal participant descriptor for deliberation sessions.
-/// Decoupled from `ChatParticipant` (which lives in hkask-ensemble chat) to avoid
+/// Decoupled from `ChatParticipant` (which lives in hkask-ensemble) to avoid
 /// circular dependencies.
 #[derive(Debug, Clone)]
 pub struct DeliberationParticipant {
@@ -68,6 +65,8 @@ impl AgentResponse {
         self
     }
 }
+
+// (DeliberationRequest removed — zero external consumers)
 
 /// Synthesized result from deliberation
 #[derive(Debug, Clone, Serialize, Deserialize)]

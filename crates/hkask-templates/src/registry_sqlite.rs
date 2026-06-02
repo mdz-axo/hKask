@@ -3,9 +3,7 @@
 //! Persistent template registry backed by SQLite.
 //! Supports fast lookups, full-text search, and audit trail.
 
-use crate::ports::{
-    Action, ManifestStep, ProcessManifest, RegistryEntry, RegistryIndex, Result, TemplateError,
-};
+use crate::ports::{RegistryEntry, RegistryIndex, Result, TemplateError};
 use crate::provenance::{ProvenanceManager, TemplateProvenance};
 use hkask_types::TemplateType;
 use rusqlite::{Connection, params};
@@ -272,46 +270,15 @@ impl RegistryIndex for SqliteRegistry {
         }
     }
 
-    fn get(&self, id: &str) -> Result<RegistryEntry> {
+    fn get(
+        &self,
+        id: &str,
+    ) -> std::result::Result<RegistryEntry, hkask_types::ports::RegistryError> {
         self.templates.get(id).cloned().ok_or_else(|| {
-            TemplateError::NotFound(format!("Template '{}' not found in SQLite registry", id))
-        })
-    }
-
-    fn bootstrap_manifest(&self) -> Option<ProcessManifest> {
-        Some(ProcessManifest {
-            id: "registry/dispatch".to_string(),
-            name: "Registry Dispatch".to_string(),
-            description: "Bootstrap process for all registry resolution".to_string(),
-            steps: vec![
-                ManifestStep {
-                    ordinal: 1,
-                    action: Action::Select,
-                    description: "Select best-fit template".to_string(),
-                    template_ref: "prompt/selector".to_string(),
-                    model_tier: Some("fast_local".to_string()),
-                    mcp: Some("hkask-mcp-inference".to_string()),
-                    renderer: Some("minijinja".to_string()),
-                },
-                ManifestStep {
-                    ordinal: 2,
-                    action: Action::Populate,
-                    description: "Bind input to selected template".to_string(),
-                    template_ref: "{{selected_template_id}}".to_string(),
-                    model_tier: None,
-                    mcp: None,
-                    renderer: Some("minijinja".to_string()),
-                },
-                ManifestStep {
-                    ordinal: 3,
-                    action: Action::Execute,
-                    description: "Execute template via model/tool".to_string(),
-                    template_ref: "".to_string(),
-                    model_tier: None,
-                    mcp: Some("from_template_contract".to_string()),
-                    renderer: None,
-                },
-            ],
+            hkask_types::ports::RegistryError::NotFound(format!(
+                "Template '{}' not found in SQLite registry",
+                id
+            ))
         })
     }
 }

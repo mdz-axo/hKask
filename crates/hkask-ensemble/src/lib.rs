@@ -12,19 +12,20 @@ pub mod ports;
 pub mod standing_session;
 
 // Re-export commonly used types
-pub use adapters::{OkapiClient, OkapiClientError};
+pub use adapters::InferencePortAdapter;
 pub use chat::{
     ChatMessage, ChatParticipant, EnsembleChat, EnsembleError, ParticipantRole, SessionManager,
 };
 pub use confidence_router::{ConfidenceConfig, compute_confidence};
 pub use deliberation::{
-    AgentResponse, DeliberationResult, DeliberationSession, DeliberationStatus,
+    AgentResponse, DeliberationParticipant, DeliberationResult, DeliberationSession,
+    DeliberationStatus,
 };
 pub use improv::{
     ImprovError, ImprovMode, ImprovSessionConfig, ImprovTurn, RelevanceJudgment, SynthesisMode,
     improv_turn,
 };
-pub use ports::{GenerateOptions, GenerateRequest};
+pub use ports::{GenerateOptions, GenerateRequest, SovereigntyPort};
 pub use standing_session::{
     StandingSession, StandingSessionConfig, StandingSessionError, StandingSessionStatus,
     bootstrap_standing_session, load_standing_session_config,

@@ -6,6 +6,7 @@
 
 use crate::cns::{CircuitState, CnsHealth};
 use crate::error::GitError;
+use crate::lexicon::TemplateType;
 use crate::template::LLMParameters;
 use crate::template::TemplateCrate;
 use serde::{Deserialize, Serialize};
@@ -157,4 +158,116 @@ pub trait InferencePort: Send + Sync {
         let results = join_all(futures).await;
         results.into_iter().collect()
     }
+}
+
+// =============================================================================
+// Registry Index Port — Template registry membrane
+// =============================================================================
+
+/// Registry entry for template discovery
+///
+/// Moved from `hkask-templates` to `hkask-types` so that downstream crates
+/// (e.g. `hkask-ensemble`) can perform R4 capability intersection checks
+/// without depending on the curation layer.
+#[derive(Debug, Clone)]
+pub struct RegistryEntry {
+    pub id: String,
+    pub template_type: TemplateType,
+    pub lexicon_terms: Vec<String>,
+    pub description: String,
+    pub source_path: String,
+    /// Required capabilities for this template (R4: Capability Intersection)
+    pub required_capabilities: Vec<String>,
+}
+
+/// Error type for registry index operations
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum RegistryError {
+    #[error("Entry not found: {0}")]
+    NotFound(String),
+    #[error("Registry error: {0}")]
+    Other(String),
+}
+
+/// Registry index port — template registry lookups
+///
+/// Moved from `hkask-templates` to `hkask-types` so that downstream crates
+/// can depend on the abstraction without depending on `hkask-templates`.
+///
+/// Implementations:
+/// - `Registry` — In-memory filesystem-based registry (in hkask-templates)
+/// - `SqliteRegistry` — SQLite-backed registry (in hkask-templates)
+pub trait RegistryIndex {
+    fn list(&self, domain_hint: Option<TemplateType>) -> Vec<RegistryEntry>;
+
+    fn list_with_capabilities(&self, capabilities: &[String]) -> Vec<RegistryEntry> {
+        self.list(None)
+            .into_iter()
+            .filter(|e| {
+                e.required_capabilities.is_empty()
+                    || e.required_capabilities
+                        .iter()
+                        .all(|c| capabilities.contains(c))
+            })
+            .collect()
+    }
+
+    fn get(&self, id: &str) -> Result<RegistryEntry, RegistryError>;
+}
+
+// =============================================================================
+// Session Store Port — Standing session persistence membrane
+// =============================================================================
+
+/// Error type for session store operations
+///
+/// Self-contained error type that does not depend on `hkask-storage`,
+/// allowing the port to live in `hkask-types` without pulling in storage deps.
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum SessionStoreError {
+    #[error("Session not found: {0}")]
+    NotFound(String),
+    #[error("Session is sealed: {0}")]
+    Sealed(String),
+    #[error("Storage error: {0}")]
+    Storage(String),
+}
+
+/// Persistent record for a standing session
+#[derive(Debug, Clone)]
+pub struct SessionRecord {
+    pub session_id: String,
+    pub config_yaml: String,
+    pub created_at: String,
+    pub last_active: String,
+}
+
+/// Persistent record for a session message
+#[derive(Debug, Clone)]
+pub struct MessageRecord {
+    pub id: i64,
+    pub session_id: String,
+    pub from_webid: String,
+    pub content: String,
+    pub timestamp: String,
+    pub template_id: Option<String>,
+}
+
+/// Session store port — hexagonal boundary for standing session persistence
+///
+/// Moved from `hkask-agents` to `hkask-types` so that `hkask-ensemble`
+/// can depend on the abstraction without violating the Authority DAG.
+///
+/// Implementations:
+/// - `StandingSessionStoreAdapter` — Production adapter via SQLite (in hkask-agents)
+pub trait StandingSessionPort: Send + Sync {
+    fn save_session(&self, session: &SessionRecord) -> Result<(), SessionStoreError>;
+
+    fn get_session(&self, session_id: &str) -> Result<SessionRecord, SessionStoreError>;
+
+    fn save_message(&self, message: &MessageRecord) -> Result<i64, SessionStoreError>;
+
+    fn get_messages(&self, session_id: &str) -> Result<Vec<MessageRecord>, SessionStoreError>;
+
+    fn update_last_active(&self, session_id: &str) -> Result<(), SessionStoreError>;
 }

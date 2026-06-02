@@ -3,8 +3,8 @@
 //! Orchestrates conversation between Curator (replicant) and R7 bots
 //! via template-mediated A2A communication. No swarms, no consensus mechanisms.
 
-use hkask_agents::SovereigntyChecker;
 use hkask_types::WebID;
+use hkask_types::ports::RegistryIndex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -13,7 +13,7 @@ use tokio::sync::RwLock;
 use tracing::info;
 
 use crate::improv::{ImprovError, ImprovMode, ImprovSessionConfig, ImprovTurn, improv_turn};
-use crate::ports::InferenceClient;
+use crate::ports::{InferenceClient, SovereigntyPort};
 
 /// Chat message in multi-agent conversation
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,16 +63,17 @@ pub struct EnsembleChat {
     curator_webid: WebID,
     participants: HashMap<WebID, ChatParticipant>,
     messages: Vec<ChatMessage>,
-    sovereignty_checker: SovereigntyChecker,
-    template_registry: Option<Arc<dyn hkask_templates::RegistryIndex + Send + Sync>>,
+    sovereignty: Arc<std::sync::Mutex<dyn SovereigntyPort>>,
+    template_registry: Option<Arc<dyn RegistryIndex + Send + Sync>>,
     improv_config: ImprovSessionConfig,
 }
 
 impl EnsembleChat {
     /// Create new ensemble chat with curator as owner
-    pub fn new(curator_webid: WebID) -> Self {
-        let sovereignty_checker = SovereigntyChecker::new(curator_webid);
-
+    pub fn new(
+        curator_webid: WebID,
+        sovereignty: Arc<std::sync::Mutex<dyn SovereigntyPort>>,
+    ) -> Self {
         let mut participants = HashMap::new();
         participants.insert(
             curator_webid,
@@ -88,7 +89,7 @@ impl EnsembleChat {
             curator_webid,
             participants,
             messages: Vec::new(),
-            sovereignty_checker,
+            sovereignty,
             template_registry: None,
             improv_config: ImprovSessionConfig::default(),
         }
@@ -97,7 +98,7 @@ impl EnsembleChat {
     /// Set template registry for capability intersection checks (R4)
     pub fn with_template_registry(
         mut self,
-        registry: Arc<dyn hkask_templates::RegistryIndex + Send + Sync>,
+        registry: Arc<dyn RegistryIndex + Send + Sync>,
     ) -> Self {
         self.template_registry = Some(registry);
         self
@@ -131,10 +132,14 @@ impl EnsembleChat {
         _input: Value,
     ) -> Result<String, EnsembleError> {
         // Check sovereignty
-        if !self.sovereignty_checker.can_access(
-            &hkask_types::DataCategory::TemplateInvocations,
-            &self.curator_webid,
-        ) {
+        let can_access = {
+            let checker = self.sovereignty.lock().unwrap();
+            checker.can_access(
+                &hkask_types::DataCategory::TemplateInvocations,
+                &self.curator_webid,
+            )
+        };
+        if !can_access {
             return Err(EnsembleError::SovereigntyDenied(
                 "Template dispatch requires consent".to_string(),
             ));
@@ -198,7 +203,8 @@ impl EnsembleChat {
 
     /// Grant explicit consent for template invocations
     pub fn grant_consent(&mut self) {
-        self.sovereignty_checker.grant_consent();
+        let checker = self.sovereignty.lock().unwrap();
+        checker.grant_consent();
     }
 
     /// Get improv session config
@@ -283,21 +289,29 @@ pub struct SessionManager {
     deliberations:
         Arc<RwLock<HashMap<String, Arc<RwLock<crate::deliberation::DeliberationSession>>>>>,
     curator_webid: WebID,
+    sovereignty: Arc<std::sync::Mutex<dyn SovereigntyPort>>,
 }
 
 impl SessionManager {
     /// Create a new session manager
-    pub fn new(curator_webid: WebID) -> Self {
+    pub fn new(
+        curator_webid: WebID,
+        sovereignty: Arc<std::sync::Mutex<dyn SovereigntyPort>>,
+    ) -> Self {
         Self {
             chats: Arc::new(RwLock::new(HashMap::new())),
             deliberations: Arc::new(RwLock::new(HashMap::new())),
             curator_webid,
+            sovereignty,
         }
     }
 
     /// Create a new chat session
     pub async fn create_chat(&self, session_id: &str) -> Arc<RwLock<EnsembleChat>> {
-        let chat = Arc::new(RwLock::new(EnsembleChat::new(self.curator_webid)));
+        let chat = Arc::new(RwLock::new(EnsembleChat::new(
+            self.curator_webid,
+            self.sovereignty.clone(),
+        )));
 
         let mut chats = self.chats.write().await;
         chats.insert(session_id.to_string(), chat.clone());
@@ -373,11 +387,5 @@ impl SessionManager {
     /// Get curator WebID
     pub fn curator_webid(&self) -> WebID {
         self.curator_webid
-    }
-}
-
-impl Default for SessionManager {
-    fn default() -> Self {
-        Self::new(WebID::new())
     }
 }

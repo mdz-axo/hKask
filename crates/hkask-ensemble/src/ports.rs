@@ -1,25 +1,22 @@
 //! Okapi Port Definitions
-//!
+//
 //! Abstract interfaces for Okapi integration, following hexagonal architecture.
 //! These traits define the boundaries between application logic and infrastructure.
+//
+//! Token probability types are re-exported from hkask-types (canonical definitions).
+//! The `InferenceClient` trait is specific to ensemble — it differs from
+//! `hkask_types::ports::InferencePort` by accepting ensemble-specific request/response types.
+//
+//! Sovereignty and registry port traits are re-exported from hkask-types so that
+//! ensemble depends only on the types crate, not on hkask-agents or hkask-templates.
+
+// Re-export canonical token probability types from hkask-types
+pub use hkask_types::ports::{TokenProb, TokenProbability};
 
 use async_trait::async_trait;
+use hkask_types::{DataCategory, WebID};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
-
-/// Token probability from Okapi response
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TokenProbability {
-    pub token: String,
-    pub prob: f64,
-    pub top_k: Vec<TokenProb>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TokenProb {
-    pub token: String,
-    pub prob: f64,
-}
 
 /// Generate request for Okapi
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -56,4 +53,26 @@ pub trait InferenceClient: Send + Sync {
         messages: Vec<serde_json::Value>,
         model: String,
     ) -> Result<serde_json::Value, Self::Error>;
+}
+
+// =============================================================================
+// Sovereignty Port — User sovereignty membrane
+// =============================================================================
+
+/// Sovereignty port for ensemble — abstraction over sovereignty checking
+///
+/// Enables `EnsembleChat` to check data access and grant consent without
+/// depending on `hkask-agents`. Implementations are wired at the composition root.
+///
+/// Implementations:
+/// - `SovereigntyChecker` — Production implementation (in hkask-agents)
+pub trait SovereigntyPort: Send + Sync {
+    /// Check if data category is accessible by requester
+    fn can_access(&self, data_category: &DataCategory, requester: &WebID) -> bool;
+
+    /// Grant explicit consent for data sharing
+    ///
+    /// Implementations should use interior mutability (e.g. `Mutex` guard)
+    /// since this is called through `Arc<Mutex<dyn SovereigntyPort>>`.
+    fn grant_consent(&self);
 }

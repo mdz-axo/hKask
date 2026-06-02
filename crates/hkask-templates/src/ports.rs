@@ -1,7 +1,10 @@
 //! Port traits for registry and template execution
-//!
+//
 //! Defines the hexagonal architecture ports for template dispatch system.
 //! Per architecture v0.21.0: Rust is the loom, YAML/Jinja2 is the thread.
+//
+//! `RegistryEntry`, `RegistryIndex`, and `RegistryError` are canonical in
+//! `hkask_types::ports` and re-exported here for backward compatibility.
 
 use hkask_types::{CapabilityToken, TemplateType};
 use serde::{Deserialize, Serialize};
@@ -162,34 +165,21 @@ pub struct TemplateContract {
 }
 
 /// Registry entry for template discovery
-#[derive(Debug, Clone)]
-pub struct RegistryEntry {
-    pub id: String,
-    pub template_type: TemplateType,
-    pub lexicon_terms: Vec<String>,
-    pub description: String,
-    pub source_path: String,
-    /// Required capabilities for this template (R4: Capability Intersection)
-    pub required_capabilities: Vec<String>,
-}
+///
+/// Canonical definition lives in `hkask_types::ports::RegistryEntry`.
+/// Re-exported here for backward compatibility.
+pub use hkask_types::ports::RegistryEntry;
 
 /// Registry index port
-pub trait RegistryIndex {
-    fn list(&self, domain_hint: Option<TemplateType>) -> Vec<RegistryEntry>;
-    fn list_with_capabilities(&self, capabilities: &[String]) -> Vec<RegistryEntry> {
-        self.list(None)
-            .into_iter()
-            .filter(|e| {
-                e.required_capabilities.is_empty()
-                    || e.required_capabilities
-                        .iter()
-                        .all(|c| capabilities.contains(c))
-            })
-            .collect()
-    }
-    fn get(&self, id: &str) -> Result<RegistryEntry>;
-    fn bootstrap_manifest(&self) -> Option<ProcessManifest>;
-}
+///
+/// Canonical definition lives in `hkask_types::ports::RegistryIndex`.
+/// Re-exported here for backward compatibility.
+pub use hkask_types::ports::RegistryIndex;
+
+/// Registry error type
+///
+/// Canonical definition lives in `hkask_types::ports::RegistryError`.
+pub use hkask_types::ports::RegistryError;
 
 /// Tool information metadata
 #[derive(Debug, Clone)]

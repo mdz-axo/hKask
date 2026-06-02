@@ -48,7 +48,7 @@ pub fn register_template(
 pub fn get_template(
     registry: &dyn RegistryIndex,
     id: &str,
-) -> Result<RegistryEntry, TemplateError> {
+) -> Result<RegistryEntry, hkask_types::ports::RegistryError> {
     registry.get(id)
 }
 

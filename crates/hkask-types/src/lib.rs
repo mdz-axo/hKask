@@ -58,7 +58,8 @@ pub use loops::{
 };
 pub use ports::{
     CircuitBreakerPort, CnsPort, GitCASPort, InferenceError, InferencePort, InferenceResult,
-    InferenceUsage, TokenProb, TokenProbability,
+    InferenceUsage, MessageRecord, RegistryEntry, RegistryError, RegistryIndex, SessionRecord,
+    SessionStoreError, StandingSessionPort, TokenProb, TokenProbability,
 };
 pub use r7::{R7BotIdentity, default_r7_bots};
 pub use secret::{SecretRef, derivation_contexts};

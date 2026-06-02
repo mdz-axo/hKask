@@ -3,9 +3,7 @@
 //! Unified registry with template_type discriminator per architecture v0.21.0.
 //! Supports Prompt (WordAct), Process (FlowDef), and Cognition (KnowAct) templates.
 
-use crate::ports::{Action, ManifestStep};
-use crate::ports::{ProcessManifest, RegistryEntry, RegistryIndex};
-use crate::ports::{Result, TemplateError};
+use crate::ports::{RegistryEntry, RegistryIndex, Result, TemplateError};
 use hkask_types::TemplateType;
 use std::collections::HashMap;
 use std::env;
@@ -465,51 +463,21 @@ impl RegistryIndex for Registry {
         }
     }
 
-    fn get(&self, id: &str) -> Result<RegistryEntry> {
+    fn get(
+        &self,
+        id: &str,
+    ) -> std::result::Result<RegistryEntry, hkask_types::ports::RegistryError> {
         // Validate path first (security)
-        Self::validate_template_path(id)?;
+        if let Err(e) = Self::validate_template_path(id) {
+            return Err(hkask_types::ports::RegistryError::Other(e.to_string()));
+        }
 
         // Then check if template exists
         self.templates
             .get(id)
             .map(|e| e.as_registry_entry())
-            .ok_or_else(|| TemplateError::NotFound(format!("Template '{}' not found", id)))
-    }
-
-    fn bootstrap_manifest(&self) -> Option<ProcessManifest> {
-        Some(ProcessManifest {
-            id: "registry/dispatch".to_string(),
-            name: "Registry Dispatch".to_string(),
-            description: "Bootstrap process for all registry resolution".to_string(),
-            steps: vec![
-                ManifestStep {
-                    ordinal: 1,
-                    action: Action::Select,
-                    description: "Select best-fit template".to_string(),
-                    template_ref: "prompt/selector".to_string(),
-                    model_tier: Some("fast_local".to_string()),
-                    mcp: Some("hkask-mcp-inference".to_string()),
-                    renderer: Some("minijinja".to_string()),
-                },
-                ManifestStep {
-                    ordinal: 2,
-                    action: Action::Populate,
-                    description: "Bind input to selected template".to_string(),
-                    template_ref: "{{selected_template_id}}".to_string(),
-                    model_tier: None,
-                    mcp: None,
-                    renderer: Some("minijinja".to_string()),
-                },
-                ManifestStep {
-                    ordinal: 3,
-                    action: Action::Execute,
-                    description: "Execute template via model/tool".to_string(),
-                    template_ref: "".to_string(),
-                    model_tier: None,
-                    mcp: Some("from_template_contract".to_string()),
-                    renderer: None,
-                },
-            ],
-        })
+            .ok_or_else(|| {
+                hkask_types::ports::RegistryError::NotFound(format!("Template '{}' not found", id))
+            })
     }
 }

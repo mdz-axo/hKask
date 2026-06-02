@@ -982,10 +982,7 @@ version = "0.21.1"
 dependencies = [
  "async-trait",
  "chrono",
- "hkask-agents",
- "hkask-templates",
  "hkask-types",
- "reqwest",
  "serde",
  "serde_json",
  "serde_yaml",

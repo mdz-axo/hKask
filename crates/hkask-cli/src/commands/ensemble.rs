@@ -5,26 +5,67 @@
 //! hkask-ensemble registry manifests.
 
 use hkask_ensemble::{
-    AgentResponse, ChatMessage, ChatParticipant, ImprovMode, ImprovSessionConfig, OkapiClient,
-    ParticipantRole, SessionManager,
+    AgentResponse, ChatMessage, ChatParticipant, ImprovMode, ImprovSessionConfig,
+    InferencePortAdapter, ParticipantRole, SessionManager, SovereigntyPort,
 };
+use hkask_templates::OkapiConfig;
+use hkask_templates::OkapiInference;
 use hkask_types::WebID;
+use hkask_types::ports::InferencePort;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+/// Adapter wrapping `SovereigntyChecker` to implement ensemble's `SovereigntyPort`.
+struct SovereigntyAdapter {
+    inner: std::sync::Mutex<hkask_agents::SovereigntyChecker>,
+}
+
+impl SovereigntyPort for SovereigntyAdapter {
+    fn can_access(&self, data_category: &hkask_types::DataCategory, requester: &WebID) -> bool {
+        let checker = self.inner.lock().unwrap();
+        checker.can_access(data_category, requester)
+    }
+
+    fn grant_consent(&self) {
+        let mut checker = self.inner.lock().unwrap();
+        checker.grant_consent();
+    }
+}
+
 static SESSION_MANAGER: std::sync::OnceLock<Arc<RwLock<SessionManager>>> =
     std::sync::OnceLock::new();
-static IMPROV_CLIENT: std::sync::OnceLock<Arc<OkapiClient>> = std::sync::OnceLock::new();
+static IMPROV_CLIENT: std::sync::OnceLock<Arc<InferencePortAdapter>> = std::sync::OnceLock::new();
+
+fn default_sovereignty(webid: WebID) -> Arc<std::sync::Mutex<dyn SovereigntyPort>> {
+    Arc::new(std::sync::Mutex::new(SovereigntyAdapter {
+        inner: std::sync::Mutex::new(hkask_agents::SovereigntyChecker::new(webid)),
+    }))
+}
 
 fn get_session_manager() -> Arc<RwLock<SessionManager>> {
     SESSION_MANAGER
-        .get_or_init(|| Arc::new(RwLock::new(SessionManager::new(WebID::new()))))
+        .get_or_init(|| {
+            let webid = WebID::new();
+            let sovereignty = default_sovereignty(webid);
+            Arc::new(RwLock::new(SessionManager::new(webid, sovereignty)))
+        })
         .clone()
 }
 
-fn get_improv_client() -> Arc<OkapiClient> {
+fn get_improv_client() -> Arc<InferencePortAdapter> {
     IMPROV_CLIENT
-        .get_or_init(|| Arc::new(OkapiClient::from_env()))
+        .get_or_init(|| {
+            let base_url = std::env::var("OKAPI_BASE_URL")
+                .unwrap_or_else(|_| "http://127.0.0.1:11435".to_string());
+            let config = OkapiConfig {
+                base_url,
+                ..OkapiConfig::default()
+            };
+            let inference =
+                OkapiInference::new("qwen3:8b", config).expect("Failed to create Okapi inference");
+            let port: Arc<dyn InferencePort> = Arc::new(inference);
+            Arc::new(InferencePortAdapter::new(port))
+        })
         .clone()
 }
 

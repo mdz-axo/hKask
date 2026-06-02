@@ -1,10 +1,7 @@
 //! Confidence-Based Router for Okapi inference
-//!
-//! Calculates confidence from token probabilities and escalates to larger models
-//! when confidence is below threshold.
-//!
-//! Types live here in `hkask-ensemble` (not re-exported from `hkask-agents`)
-//! so that ensemble depends only on `hkask-types`, respecting the Authority DAG.
+//
+//! Calculates confidence from token probabilities and escalates to larger models when confidence is below threshold.
+//! Uses hexagonal architecture: depends on InferenceClient port, not concrete HTTP client.
 
 use hkask_types::ports::TokenProbability;
 
