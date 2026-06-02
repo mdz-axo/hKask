@@ -97,7 +97,7 @@ pub struct OCAPBoundary {
 }
 
 impl OCAPBoundary {
-    pub fn new(capability: String, authority: AuthorityLevel) -> Self {
+    pub(crate) fn new(capability: String, authority: AuthorityLevel) -> Self {
         Self {
             capability,
             authority,
@@ -111,10 +111,6 @@ impl OCAPBoundary {
 
     pub fn denied(capability: String) -> Self {
         Self::new(capability, AuthorityLevel::Denied)
-    }
-
-    pub fn is_accessible(&self) -> bool {
-        matches!(self.authority, AuthorityLevel::Explicit) && self.enforced
     }
 }
 
@@ -146,10 +142,5 @@ impl CurationRecord {
             invocation,
             timestamp: chrono::Utc::now(),
         }
-    }
-
-    pub fn with_boundaries(mut self, boundaries: Vec<OCAPBoundary>) -> Self {
-        self.ocap_boundaries = boundaries;
-        self
     }
 }

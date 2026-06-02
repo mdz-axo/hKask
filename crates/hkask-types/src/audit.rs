@@ -114,37 +114,10 @@ impl AuditEntry {
         self
     }
 
-    /// Add IP address
-    pub fn with_ip_address(mut self, ip: impl Into<String>) -> Self {
-        self.context.ip_address = Some(ip.into());
-        self
-    }
-
-    /// Add error message
-    pub fn with_error(mut self, error: impl Into<String>) -> Self {
-        self.context.error_message = Some(error.into());
-        self
-    }
-
     /// Add metadata
     pub fn with_metadata(mut self, metadata: serde_json::Value) -> Self {
         self.context.metadata = metadata;
         self
-    }
-
-    /// Check if entry represents a success
-    pub fn is_success(&self) -> bool {
-        matches!(self.outcome, AuditOutcome::Success)
-    }
-
-    /// Check if entry represents a failure
-    pub fn is_failure(&self) -> bool {
-        matches!(self.outcome, AuditOutcome::Failure | AuditOutcome::Error)
-    }
-
-    /// Check if entry represents a denial
-    pub fn is_denied(&self) -> bool {
-        matches!(self.outcome, AuditOutcome::Denied)
     }
 }
 

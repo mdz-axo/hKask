@@ -31,12 +31,12 @@ pub enum ConsentError {
 
 /// Consent record
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ConsentRecord {
-    pub webid: String,
-    pub granted_categories: HashSet<String>,
-    pub granted_at: i64,
-    pub revoked_at: Option<i64>,
-    pub active: bool,
+pub(crate) struct ConsentRecord {
+    pub(crate) webid: String,
+    pub(crate) granted_categories: HashSet<String>,
+    pub(crate) granted_at: i64,
+    pub(crate) revoked_at: Option<i64>,
+    pub(crate) active: bool,
 }
 
 impl ConsentRecord {

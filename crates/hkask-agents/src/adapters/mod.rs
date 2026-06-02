@@ -1,7 +1,5 @@
 //! Adapter implementations for hexagonal ports
 
-pub mod agent_registry;
-pub mod audit_log_store;
 pub mod git_cas;
 pub mod loopback_http_transport;
 pub mod mcp_runtime;
@@ -12,10 +10,7 @@ pub mod russell_acp;
 pub mod standing_session_store;
 pub mod stdio_transport;
 
-pub use agent_registry::AgentRegistryAdapter;
-pub use audit_log_store::AuditLogStoreAdapter;
 pub use git_cas::GitCasAdapter;
-pub use hkask_storage::AgentRegistryError;
 pub use loopback_http_transport::LoopbackHttpTransport;
 pub use mcp_runtime::McpRuntimeAdapter;
 pub use memory_storage::MemoryStorageAdapter;

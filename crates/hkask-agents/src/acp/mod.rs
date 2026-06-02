@@ -201,37 +201,6 @@ pub struct AcpRuntime {
 }
 
 impl AcpRuntime {
-    /// Create new ACP runtime with secret from environment
-    ///
-    /// # Security
-    ///
-    /// Secret is loaded from `HKASK_ACP_SECRET` environment variable.
-    /// If not set, returns `AcpError::SecretNotConfigured`.
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(AcpRuntime)` - Runtime initialized successfully
-    /// * `Err(AcpError::SecretNotConfigured)` - Environment variable not set
-    pub fn from_env() -> Result<Self, AcpError> {
-        let secret_str =
-            std::env::var("HKASK_ACP_SECRET").map_err(|_| AcpError::SecretNotConfigured)?;
-
-        let secret = Arc::new(Zeroizing::new(secret_str.into_bytes()));
-        let audit_log = Arc::new(AuditLog::new());
-        let root_webid = WebID::new();
-        let root_authority = Arc::new(RootAuthority::new(root_webid, &secret));
-
-        Ok(Self {
-            agents: Arc::new(RwLock::new(HashMap::new())),
-            pending_messages: Arc::new(RwLock::new(HashMap::new())),
-            capability_tokens: Arc::new(RwLock::new(HashMap::new())),
-            secret,
-            audit_log,
-            root_authority,
-            revoked_tokens: Arc::new(RwLock::new(std::collections::HashSet::new())),
-        })
-    }
-
     /// Create new ACP runtime with explicit secret
     ///
     /// # Arguments

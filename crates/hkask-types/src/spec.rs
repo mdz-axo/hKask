@@ -170,16 +170,6 @@ impl GoalSpec {
         self
     }
 
-    pub fn with_sub_goal(mut self, sub: GoalSpec) -> Result<Self, SpecError> {
-        if self.depth >= 7 {
-            return Err(SpecError::DepthExceeded);
-        }
-        let mut child = sub;
-        child.depth = self.depth + 1;
-        self.sub_goals.push(child);
-        Ok(self)
-    }
-
     pub fn can_have_subgoals(&self) -> bool {
         self.depth < 7
     }
@@ -258,10 +248,6 @@ impl Spec {
         let coverage = categories_coveraged as f64 / SpecCategory::all().len() as f64;
         let completeness = complete_count as f64 / specs.len() as f64;
         ((coverage + completeness) / 2.0).clamp(0.0, 1.0)
-    }
-
-    pub fn is_collection_complete(specs: &[Spec]) -> bool {
-        !specs.is_empty() && specs.iter().all(|s| s.is_complete())
     }
 }
 

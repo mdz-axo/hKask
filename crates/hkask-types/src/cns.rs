@@ -29,34 +29,9 @@ fn default_multiplier() -> f64 {
 }
 
 impl RetryConfig {
-    pub fn new(max_retries: u32, initial_delay_ms: u64, max_delay_ms: u64) -> Self {
-        Self {
-            max_retries,
-            initial_delay_ms,
-            max_delay_ms,
-            multiplier: 2.0,
-            retryable_status: Vec::new(),
-        }
-    }
-
-    pub fn with_multiplier(mut self, multiplier: f64) -> Self {
-        self.multiplier = multiplier;
-        self
-    }
-
-    pub fn with_retryable_status(mut self, status: Vec<u16>) -> Self {
-        self.retryable_status = status;
-        self
-    }
-
     pub fn delay_for_attempt(&self, attempt: u32) -> u64 {
         let delay = self.initial_delay_ms * (self.multiplier as u64).pow(attempt);
         delay.min(self.max_delay_ms)
-    }
-
-    /// Check if retry should continue (attempt < max_retries)
-    pub fn should_retry(&self, attempt: u32) -> bool {
-        attempt < self.max_retries
     }
 
     /// Check if a status code is retryable

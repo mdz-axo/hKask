@@ -63,41 +63,6 @@ impl DataCategory {
                 | DataCategory::OcapBoundaries
         )
     }
-
-    /// Get the HKDF-SHA256 derivation context for this data category.
-    ///
-    /// Each category has a unique, deterministic context string that produces
-    /// a cryptographically independent 256-bit sub-key from the master key.
-    /// This enables storage-layer enforcement of OCAP visibility boundaries:
-    /// a key derived for `EpisodicMemory` cannot decrypt `SemanticMemory` data,
-    /// even if a handle bypasses the type system.
-    ///
-    /// # Security
-    ///
-    /// The context strings are prefixed with `hkask:data-category:` to ensure
-    /// domain separation from other HKDF derivation contexts (ACP secrets,
-    /// OCAP tokens, etc.).
-    pub fn derivation_context(&self) -> String {
-        match self {
-            DataCategory::EpisodicMemory => crate::derivation_contexts::EPISODIC_MEMORY.to_string(),
-            DataCategory::SemanticMemory => crate::derivation_contexts::SEMANTIC_MEMORY.to_string(),
-            DataCategory::PersonalContext => {
-                crate::derivation_contexts::PERSONAL_CONTEXT.to_string()
-            }
-            DataCategory::CapabilityTokens => {
-                crate::derivation_contexts::CAPABILITY_TOKENS.to_string()
-            }
-            DataCategory::OcapBoundaries => crate::derivation_contexts::OCAP_BOUNDARIES.to_string(),
-            DataCategory::TemplateInvocations => {
-                crate::derivation_contexts::TEMPLATE_INVOCATIONS.to_string()
-            }
-            DataCategory::HLexiconTerms => crate::derivation_contexts::HLEXICON_TERMS.to_string(),
-            DataCategory::TemplateRegistry => {
-                crate::derivation_contexts::TEMPLATE_REGISTRY.to_string()
-            }
-            DataCategory::Custom(s) => format!("hkask:data-category:custom:{}", s),
-        }
-    }
 }
 
 impl std::fmt::Display for DataCategory {
@@ -164,7 +129,7 @@ pub struct DataSovereigntyBoundary {
 }
 
 impl DataSovereigntyBoundary {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             id: SovereigntyId::default(),
             sovereign_data: HashSet::new(),
@@ -175,7 +140,7 @@ impl DataSovereigntyBoundary {
     }
 
     /// Create boundary with typical hKask defaults
-    pub fn hkask_default() -> Self {
+    pub(crate) fn hkask_default() -> Self {
         let mut sovereign_data = HashSet::new();
         sovereign_data.insert(DataCategory::EpisodicMemory);
         sovereign_data.insert(DataCategory::PersonalContext);
@@ -197,11 +162,6 @@ impl DataSovereigntyBoundary {
             public_data,
             resistance: AcquisitionResistance::default_for_pods(),
         }
-    }
-
-    /// Add sovereign data category
-    pub fn add_sovereign(&mut self, category: DataCategory) {
-        self.sovereign_data.insert(category);
     }
 
     /// Check if data category is under user sovereignty
@@ -243,7 +203,7 @@ pub struct KillZoneDetector {
 }
 
 impl KillZoneDetector {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             vc_investment: 1.0,
             threshold: 0.5,
@@ -253,32 +213,25 @@ impl KillZoneDetector {
     }
 
     /// Update VC investment level and check for kill zone
-    pub fn update(&mut self, vc_investment: f32) {
+    pub(crate) fn update(&mut self, vc_investment: f32) {
         self.vc_investment = vc_investment.clamp(0.0, 1.0);
         self.check_kill_zone();
     }
 
     /// Check if kill zone is active
-    pub fn check_kill_zone(&mut self) {
+    pub(crate) fn check_kill_zone(&mut self) {
         self.kill_zone_active = self.acquisition_attempt && self.vc_investment < self.threshold;
     }
 
     /// Mark acquisition attempt detected
-    pub fn mark_acquisition_attempt(&mut self) {
+    pub(crate) fn mark_acquisition_attempt(&mut self) {
         self.acquisition_attempt = true;
         self.check_kill_zone();
     }
 
     /// Check if kill zone alert should be triggered
-    pub fn needs_alert(&self) -> bool {
+    pub(crate) fn needs_alert(&self) -> bool {
         self.kill_zone_active
-    }
-
-    /// Reset detector state
-    pub fn reset(&mut self) {
-        self.vc_investment = 1.0;
-        self.kill_zone_active = false;
-        self.acquisition_attempt = false;
     }
 }
 

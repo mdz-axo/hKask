@@ -40,7 +40,7 @@ pub struct R7BotIdentity {
 
 impl R7BotIdentity {
     /// Derive the deterministic WebID for a bot id
-    pub fn derive_webid(id: &str) -> WebID {
+    pub(crate) fn derive_webid(id: &str) -> WebID {
         WebID::from_persona(id.as_bytes())
     }
 
@@ -50,7 +50,7 @@ impl R7BotIdentity {
     }
 
     /// Construct a new R7BotIdentity. Sets webid deterministically.
-    pub fn new(
+    pub(crate) fn new(
         id: String,
         primary_crate: String,
         description: String,
@@ -68,12 +68,6 @@ impl R7BotIdentity {
             memory_visibility: Visibility::Shared,
             domains,
         }
-    }
-
-    /// Post-deserialization: resolve the webid from the id field.
-    /// Must be called after deserializing from YAML.
-    pub fn resolve_webid(&mut self) {
-        self.webid = Self::derive_webid(&self.id);
     }
 }
 
