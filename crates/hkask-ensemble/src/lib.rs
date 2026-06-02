@@ -16,12 +16,13 @@ pub use adapters::{OkapiClient, OkapiClientError};
 pub use chat::{
     ChatMessage, ChatParticipant, EnsembleChat, EnsembleError, ParticipantRole, SessionManager,
 };
-pub use confidence_router::{ConfidenceConfig, ConfidenceRouter, RouterError, compute_confidence};
+pub use confidence_router::{ConfidenceConfig, compute_confidence};
 pub use deliberation::{
-    AgentResponse, DeliberationRequest, DeliberationResult, DeliberationSession, DeliberationStatus,
+    AgentResponse, DeliberationResult, DeliberationSession, DeliberationStatus,
 };
 pub use improv::{
-    ImprovMode, ImprovSessionConfig, ImprovTurn, RelevanceJudgment, SynthesisMode, improv_turn,
+    ImprovError, ImprovMode, ImprovSessionConfig, ImprovTurn, RelevanceJudgment, SynthesisMode,
+    improv_turn,
 };
 pub use ports::{GenerateOptions, GenerateRequest};
 pub use standing_session::{

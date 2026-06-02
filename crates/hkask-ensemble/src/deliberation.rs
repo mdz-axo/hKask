@@ -6,7 +6,6 @@
 use crate::chat::ChatParticipant;
 use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::collections::HashMap;
 use tracing::info;
 
@@ -59,40 +58,7 @@ impl AgentResponse {
     }
 }
 
-/// Deliberation request to send to agents
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DeliberationRequest {
-    pub query: String,
-    pub context: Option<Value>,
-    pub template_id: Option<String>,
-    pub timeout_ms: u64,
-}
-
-impl DeliberationRequest {
-    pub fn new(query: String) -> Self {
-        Self {
-            query,
-            context: None,
-            template_id: None,
-            timeout_ms: 30000,
-        }
-    }
-
-    pub fn with_context(mut self, context: Value) -> Self {
-        self.context = Some(context);
-        self
-    }
-
-    pub fn with_template(mut self, template_id: String) -> Self {
-        self.template_id = Some(template_id);
-        self
-    }
-
-    pub fn with_timeout(mut self, timeout_ms: u64) -> Self {
-        self.timeout_ms = timeout_ms;
-        self
-    }
-}
+// (DeliberationRequest removed — zero external consumers)
 
 /// Synthesized result from deliberation
 #[derive(Debug, Clone, Serialize, Deserialize)]

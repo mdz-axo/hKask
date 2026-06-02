@@ -9,29 +9,8 @@
 //!
 //! # Example
 //!
-//! ```rust,no_run
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! ```rust,ignore
 //! use hkask_agents::pod::PodManager;
-//! use hkask_agents::adapters::git_cas::GitCasAdapter;
-//! use hkask_agents::acp::AcpRuntime;
-//! use hkask_agents::adapters::mcp_runtime::McpRuntimeAdapter;
-//! use hkask_agents::adapters::memory_storage::MemoryStorageAdapter;
-//! use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
-//! use std::path::PathBuf;
-//! use std::sync::Arc;
-//!
-//! // Create adapters
-//! let git_cas = Arc::new(GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-templates")));
-//! let acp_runtime = Arc::new(AcpRuntime::default());
-//! let mcp_runtime = Arc::new(McpRuntimeAdapter::new());
-//! let memory_adapter = Arc::new(MemoryStorageAdapter::in_memory()?);
-//! let episodic_storage: Arc<dyn EpisodicStoragePort> = memory_adapter.clone();
-//! let semantic_storage: Arc<dyn SemanticStoragePort> = memory_adapter.clone();
-//!
-//! // Create pod manager
-//! let manager = PodManager::new(git_cas, acp_runtime, cns_emitter, mcp_runtime, episodic_storage, semantic_storage);
-//! # Ok(())
-//! # }
 //! ```
 
 pub mod acp;

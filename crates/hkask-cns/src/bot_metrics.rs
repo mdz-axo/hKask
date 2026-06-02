@@ -5,11 +5,8 @@
 //! All bot metric collection is handled by `UnifiedVarietyTracker`
 //! (in the `unified_tracker` module).
 
-use chrono::{DateTime, Utc};
 use hkask_types::WebID;
-use hkask_types::event::SpanCategory;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// Per-bot evaluation metrics for Curator metacognition
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -18,22 +15,12 @@ pub struct BotEvaluationMetrics {
     pub bot_id: WebID,
     /// Human-readable bot name (e.g., "R7.3")
     pub bot_name: String,
-    /// Span counts per category
-    pub span_counts: HashMap<SpanCategory, u64>,
     /// Success rate (0.0 to 1.0) — ratio of Outcome phases to total events
     pub success_rate: f64,
-    /// Total energy consumed
-    pub energy_consumed: u64,
-    /// Energy budget allocated
-    pub energy_budget: u64,
     /// Variety deficit (expected variety minus actual variety)
     pub variety_deficit: u64,
-    /// Number of algedonic alerts received by this bot
-    pub algedonic_alerts: u32,
     /// Number of sovereignty violations by this bot
     pub sovereignty_violations: u32,
-    /// Last report timestamp
-    pub last_report: DateTime<Utc>,
 }
 
 impl BotEvaluationMetrics {
@@ -42,14 +29,9 @@ impl BotEvaluationMetrics {
         Self {
             bot_id,
             bot_name,
-            span_counts: HashMap::new(),
             success_rate: 0.0,
-            energy_consumed: 0,
-            energy_budget: 10_000, // default from manifests
             variety_deficit: 0,
-            algedonic_alerts: 0,
             sovereignty_violations: 0,
-            last_report: Utc::now(),
         }
     }
 
@@ -57,22 +39,10 @@ impl BotEvaluationMetrics {
     pub fn health_status(&self) -> BotHealthStatus {
         if self.sovereignty_violations >= 3 || self.variety_deficit > 500 {
             BotHealthStatus::Critical
-        } else if self.success_rate < 0.8
-            || self.variety_deficit > 100
-            || self.algedonic_alerts >= 2
-        {
+        } else if self.success_rate < 0.8 || self.variety_deficit > 100 {
             BotHealthStatus::Degraded
         } else {
             BotHealthStatus::Healthy
-        }
-    }
-
-    /// Calculate energy utilization ratio (0.0 to 1.0)
-    pub fn energy_utilization(&self) -> f64 {
-        if self.energy_budget == 0 {
-            0.0
-        } else {
-            self.energy_consumed as f64 / self.energy_budget as f64
         }
     }
 
@@ -88,8 +58,6 @@ impl BotEvaluationMetrics {
             gaps.push(CapabilityGap {
                 bot_id: self.bot_id,
                 gap_type: GapType::LowSuccessRate,
-                current_value: self.success_rate,
-                threshold: success_threshold,
                 description: format!(
                     "Success rate {:.1}% below threshold {:.1}%",
                     self.success_rate * 100.0,
@@ -102,8 +70,6 @@ impl BotEvaluationMetrics {
             gaps.push(CapabilityGap {
                 bot_id: self.bot_id,
                 gap_type: GapType::VarietyDeficit,
-                current_value: self.variety_deficit as f64,
-                threshold: deficit_threshold as f64,
                 description: format!(
                     "Variety deficit {} exceeds threshold {}",
                     self.variety_deficit, deficit_threshold
@@ -115,24 +81,9 @@ impl BotEvaluationMetrics {
             gaps.push(CapabilityGap {
                 bot_id: self.bot_id,
                 gap_type: GapType::SovereigntyViolations,
-                current_value: self.sovereignty_violations as f64,
-                threshold: 3.0,
                 description: format!(
                     "Sovereignty violations ({}) at or above escalation threshold (3)",
                     self.sovereignty_violations
-                ),
-            });
-        }
-
-        if self.energy_utilization() > 0.9 {
-            gaps.push(CapabilityGap {
-                bot_id: self.bot_id,
-                gap_type: GapType::EnergyBudgetCritical,
-                current_value: self.energy_utilization(),
-                threshold: 0.9,
-                description: format!(
-                    "Energy utilization {:.1}% exceeds 90% threshold",
-                    self.energy_utilization() * 100.0
                 ),
             });
         }
@@ -164,8 +115,6 @@ impl std::fmt::Display for BotHealthStatus {
 pub struct CapabilityGap {
     pub bot_id: WebID,
     pub gap_type: GapType,
-    pub current_value: f64,
-    pub threshold: f64,
     pub description: String,
 }
 

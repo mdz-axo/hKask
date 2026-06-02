@@ -12,16 +12,9 @@ pub mod runtime;
 pub mod unified_tracker;
 pub mod variety;
 
-pub use algedonic::{
-    AlertSeverity, AlgedonicManager, CnsHealth, DEFAULT_EXPECTED_VARIETY, DEFAULT_THRESHOLD,
-    RuntimeAlert,
-};
+pub use algedonic::{AlgedonicManager, CnsHealth, DEFAULT_THRESHOLD, RuntimeAlert};
 pub use bot_metrics::{BotEvaluationMetrics, BotHealthStatus, CapabilityGap, GapType};
 pub use cybernetics_loop::{CyberneticsLoop, SetPoints};
 pub use energy::{EnergyBudget, EnergyError};
-pub use observers::sovereignty::{
-    SovereigntyEvent, SovereigntyEventType, SovereigntyObserverState,
-};
-pub use runtime::{AlertSubscription, CnsRuntime};
-pub use unified_tracker::UnifiedVarietyTracker;
-pub use variety::{VarietyMonitor, VarietyTracker};
+pub use observers::sovereignty::SovereigntyObserverState;
+pub use runtime::CnsRuntime;

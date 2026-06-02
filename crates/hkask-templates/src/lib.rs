@@ -33,26 +33,18 @@ pub use contracts::{
     ParsedContract, ParsedInference, TemplateFrontmatter, TemplateInferenceConfig,
     parse_frontmatter, validate_lexicon_terms,
 };
-pub use hkask_types::cns::RetryConfig;
-pub use inference_port::{
-    InferenceError, InferencePort, InferenceResult, OkapiInference, Usage, create_shared_client,
-    invoke_template_with_okapi_generic as invoke_template_with_okapi,
-    invoke_template_with_selection_generic as invoke_template_with_selection,
-};
-pub use manifest::{
-    EnergyAccount, ManifestExecutorImpl, ModelRequirements, NoopCsp, SelectorConfig, SimpleExecutor,
-};
+pub use inference_port::{InferenceError, InferencePort, InferenceResult, OkapiInference, Usage};
+pub use manifest::ModelRequirements;
 pub use okapi_config::OkapiConfig;
 pub use okapi_config::{
     OkapiModelDetails, OkapiModelEntry, OkapiTagsResponse, list_okapi_models, search_okapi_models,
 };
 pub use ports::{
-    Action, CnsPort, CompositionTemplate, DEFAULT_MATROSHKA_LIMIT, FAST_LOCAL_MODEL,
-    InferenceConfig, ManifestStep, McpPort, MemoryFragment, ProcessManifest, RegistryEntry,
-    RegistryIndex, Result, TemplateContract, TemplateError, YamlManifestFile,
+    Action, CnsPort, CompositionTemplate, DEFAULT_MATROSHKA_LIMIT, InferenceConfig, ManifestStep,
+    McpPort, MemoryFragment, ProcessManifest, RegistryEntry, RegistryIndex, Result,
+    TemplateContract, TemplateError, YamlManifestFile,
 };
 pub use provenance::{ProvenanceManager, TemplateProvenance};
 pub use registry::{Registry, TemplateEntry};
 pub use registry_sqlite::SqliteRegistry;
-pub use renderer::TemplateRendererImpl;
 pub use resilience::{CircuitBreaker, CircuitBreakerConfig, CircuitState};

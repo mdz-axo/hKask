@@ -45,8 +45,8 @@ impl From<rusqlite::Error> for GoalRepositoryError {
 pub type Result<T> = std::result::Result<T, GoalRepositoryError>;
 
 pub struct SqliteGoalRepository {
-    pub conn: Arc<Mutex<Connection>>,
-    pub capability_secret: Vec<u8>,
+    pub(crate) conn: Arc<Mutex<Connection>>,
+    pub(crate) capability_secret: Vec<u8>,
     /// Optional CNS telemetry sink. When present, capability and visibility
     /// denials emit a `cns.tool.goal.capability.denied` outcome event so the
     /// Cybernetic Nervous System can observe authority failures. Injected as a
@@ -592,4 +592,3 @@ impl SqliteGoalRepository {
         Ok(())
     }
 }
-

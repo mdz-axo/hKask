@@ -237,19 +237,6 @@ impl UserStore {
         Ok(sessions)
     }
 
-    pub fn cleanup_expired_sessions(&self) -> Result<usize> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
-        let now = chrono::Utc::now().timestamp();
-        let deleted = conn.execute(
-            "DELETE FROM user_sessions WHERE expires_at < ?1",
-            params![now],
-        )?;
-        Ok(deleted)
-    }
-
     pub fn get_replicant(&self, replicant_name: &str) -> Result<Option<ReplicantIdentity>> {
         let conn = self
             .conn
@@ -502,87 +489,4 @@ impl UserStore {
         let plaintext = Self::decrypt_pii(&ciphertext, key)?;
         String::from_utf8(plaintext).map_err(|e| UserStoreError::Decryption(e.to_string()))
     }
-
-    /// Decrypt all PII fields for a human user
-    ///
-    /// Returns a `DecryptedUser` with email and phone as plaintext strings.
-    /// Requires the user's passphrase to derive the PII decryption key.
-    pub fn decrypt_user_pii(&self, user: &HumanUser, passphrase: &str) -> Result<DecryptedUser> {
-        let key = Self::derive_pii_key(passphrase, &user.master_salt)?;
-        let email = String::from_utf8(Self::decrypt_pii(&user.email_enc, &key)?)
-            .map_err(|e| UserStoreError::Decryption(e.to_string()))?;
-        let phone = user
-            .phone_enc
-            .as_ref()
-            .map(|p| {
-                String::from_utf8(Self::decrypt_pii(p, &key)?)
-                    .map_err(|e| UserStoreError::Decryption(e.to_string()))
-            })
-            .transpose()?;
-
-        Ok(DecryptedUser {
-            user_id: user.user_id,
-            email,
-            phone,
-            passphrase_hash: user.passphrase_hash.clone(),
-            salt: user.salt.clone(),
-            master_salt: user.master_salt.clone(),
-            created_at: user.created_at,
-            last_active: user.last_active,
-        })
-    }
-
-    /// Decrypt first/last names for a replicant identity
-    ///
-    /// Requires the user's passphrase (to look up the master_salt) and the
-    /// replicant identity to decrypt.
-    pub fn decrypt_replicant_names(
-        &self,
-        identity: &ReplicantIdentity,
-        passphrase: &str,
-    ) -> Result<DecryptedReplicant> {
-        let user = self.get_user(&identity.user_id)?;
-        let key = Self::derive_pii_key(passphrase, &user.master_salt)?;
-        let first_name = String::from_utf8(Self::decrypt_pii(&identity.first_name_enc, &key)?)
-            .map_err(|e| UserStoreError::Decryption(e.to_string()))?;
-        let last_name = String::from_utf8(Self::decrypt_pii(&identity.last_name_enc, &key)?)
-            .map_err(|e| UserStoreError::Decryption(e.to_string()))?;
-
-        Ok(DecryptedReplicant {
-            replicant_name: identity.replicant_name.clone(),
-            user_id: identity.user_id,
-            replicant_webid: identity.replicant_webid,
-            first_name,
-            last_name,
-            is_primary: identity.is_primary,
-            created_at: identity.created_at,
-            last_login: identity.last_login,
-        })
-    }
-}
-
-/// Decrypted user PII — email and phone as plaintext
-#[derive(Debug)]
-pub struct DecryptedUser {
-    pub user_id: UserID,
-    pub email: String,
-    pub phone: Option<String>,
-    pub passphrase_hash: String,
-    pub salt: String,
-    pub master_salt: String,
-    pub created_at: i64,
-    pub last_active: Option<i64>,
-}
-
-/// Decrypted replicant identity — first/last names as plaintext
-#[derive(Debug)]
-pub struct DecryptedReplicant {
-    pub replicant_name: String,
-    pub user_id: UserID,
-    pub replicant_webid: hkask_types::WebID,
-    pub first_name: String,
-    pub last_name: String,
-    pub is_primary: bool,
-    pub created_at: i64,
-    pub last_login: Option<i64>,
 }

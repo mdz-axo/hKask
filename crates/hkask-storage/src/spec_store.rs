@@ -154,11 +154,6 @@ impl DefaultSpecCurator {
             max_iterations: SYSTEM_MAX_RECURSION,
         }
     }
-
-    pub fn with_max_iterations(mut self, max: u8) -> Self {
-        self.max_iterations = max;
-        self
-    }
 }
 
 impl Default for DefaultSpecCurator {

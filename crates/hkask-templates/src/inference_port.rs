@@ -27,10 +27,9 @@ use crate::manifest::ModelRequirements;
 use crate::okapi_config::{OkapiConfig, validate_prompt};
 use crate::resilience::CircuitBreaker;
 use async_trait::async_trait;
+use hkask_types::LLMParameters;
 use hkask_types::cns::RetryConfig;
-use hkask_types::{BotID, LLMParameters, TemplateId, TemplateInvocation, TemplateOutcome};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::sync::Arc;
 use thiserror::Error;
 use tracing::{info, warn};
@@ -139,16 +138,6 @@ pub struct OkapiInference {
     circuit_breaker: Option<Arc<CircuitBreaker>>,
     /// Prompt cache for skipping redundant LLM calls
     prompt_cache: Option<Arc<crate::prompt_cache::PromptCache>>,
-}
-
-/// Create a shared HTTP client for Okapi inference
-/// This client can be shared across multiple OkapiInference instances
-/// to reuse connection pools and reduce overhead.
-pub fn create_shared_client(config: &OkapiConfig) -> Result<Arc<reqwest::Client>, InferenceError> {
-    config
-        .build_client()
-        .map(Arc::new)
-        .map_err(|e| InferenceError::Connection(e.to_string()))
 }
 
 impl OkapiInference {
@@ -553,60 +542,4 @@ struct RawTokenProbTopK {
 struct Message {
     role: String,
     content: String,
-}
-
-/// Invoke template with generic inference port (no boxing)
-/// Uses generics instead of `Box<dyn InferencePort>` for better performance.
-/// ```rust,no_run
-/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// # Ok(())
-/// # }
-/// ```
-pub async fn invoke_template_with_okapi_generic<I>(
-    inference: &I,
-    template_id: TemplateId,
-    bot_id: BotID,
-    parameters: LLMParameters,
-    rendered_prompt: &str,
-    input: Value,
-) -> Result<TemplateInvocation, InferenceError>
-where
-    I: InferencePort + Send + Sync,
-{
-    let result = inference.generate(rendered_prompt, &parameters).await?;
-
-    let mut invocation = TemplateInvocation::new(template_id, bot_id, parameters, input);
-    invocation.outputs.push(Value::String(result.text));
-    invocation.outcome = TemplateOutcome::Success;
-
-    Ok(invocation)
-}
-
-/// Invoke template with N outputs using generic inference port
-pub async fn invoke_template_with_selection_generic<I>(
-    inference: &I,
-    template_id: TemplateId,
-    bot_id: BotID,
-    parameters: LLMParameters,
-    rendered_prompt: &str,
-    input: Value,
-    n: usize,
-) -> Result<TemplateInvocation, InferenceError>
-where
-    I: InferencePort + Send + Sync,
-{
-    let results = inference
-        .generate_n(rendered_prompt, &parameters, n)
-        .await?;
-
-    let mut invocation = TemplateInvocation::new(template_id, bot_id, parameters.clone(), input);
-
-    for result in results {
-        invocation.outputs.push(Value::String(result.text));
-    }
-
-    invocation.selected_index = Some(0);
-    invocation.outcome = TemplateOutcome::Merged;
-
-    Ok(invocation)
 }

@@ -4,7 +4,6 @@
 
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
-use thiserror::Error;
 use tracing::{error, info};
 
 /// Circuit breaker states
@@ -145,33 +144,4 @@ impl CircuitBreaker {
     fn set_state(&self, state: CircuitState) {
         self.state.store(state as u32, Ordering::Relaxed);
     }
-
-    pub fn stats(&self) -> CircuitBreakerStats {
-        CircuitBreakerStats {
-            state: self.state(),
-            failure_count: self.failure_count.load(Ordering::Relaxed),
-            success_count: self.success_count.load(Ordering::Relaxed),
-        }
-    }
-}
-
-/// Circuit breaker statistics
-#[derive(Debug, Clone)]
-pub struct CircuitBreakerStats {
-    pub state: CircuitState,
-    pub failure_count: u32,
-    pub success_count: u32,
-}
-
-/// Retry error
-#[derive(Debug, Error)]
-pub enum RetryError {
-    #[error("Operation failed: {0}")]
-    OperationFailed(String),
-
-    #[error("Circuit breaker open")]
-    CircuitOpen,
-
-    #[error("Timeout: {0}")]
-    Timeout(String),
 }

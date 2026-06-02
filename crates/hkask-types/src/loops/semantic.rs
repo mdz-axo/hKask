@@ -35,7 +35,10 @@ impl SemanticReadHandle {
     }
 
     pub fn new(reader: WebID, query_budget: u32) -> Self {
-        Self { reader, query_budget }
+        Self {
+            reader,
+            query_budget,
+        }
     }
 
     pub fn reader(&self) -> &WebID {

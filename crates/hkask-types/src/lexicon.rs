@@ -248,4 +248,3 @@ impl HLexicon {
         lexicon
     }
 }
-

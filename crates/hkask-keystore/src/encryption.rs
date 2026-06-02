@@ -127,25 +127,3 @@ pub fn derive_key(passphrase: &str, salt: &[u8]) -> Result<Zeroizing<[u8; 32]>, 
         .map_err(|e| EncryptionError::KeyDerivation(e.to_string()))?;
     Ok(key)
 }
-
-/// Prompt user for encryption passphrase interactively
-pub fn prompt_passphrase(prompt: &str) -> Result<String, std::io::Error> {
-    use std::io::{self, Write};
-
-    print!("{}", prompt);
-    io::stdout().flush()?;
-
-    let mut passphrase = String::new();
-    io::stdin().read_line(&mut passphrase)?;
-
-    Ok(passphrase.trim().to_string())
-}
-
-/// Read passphrase from environment or prompt
-pub fn get_passphrase(env_var: &str, prompt: &str) -> Result<Zeroizing<String>, std::io::Error> {
-    if let Ok(passphrase) = std::env::var(env_var) {
-        Ok(Zeroizing::new(passphrase))
-    } else {
-        prompt_passphrase(prompt).map(Zeroizing::new)
-    }
-}

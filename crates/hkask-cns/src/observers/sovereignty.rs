@@ -4,8 +4,7 @@
 //! The standalone `SovereigntyObserver` struct has been removed — all sovereignty
 //! monitoring is now handled by `UnifiedVarietyTracker`.
 
-use hkask_types::{DataCategory, SovereigntyId, WebID};
-use serde_json::Value;
+use hkask_types::WebID;
 use std::collections::HashMap;
 
 /// Sovereignty event types monitored by CNS
@@ -29,9 +28,6 @@ pub struct SovereigntyEvent {
     pub event_type: SovereigntyEventType,
     pub timestamp: std::time::Instant,
     pub webid: WebID,
-    pub sovereignty_id: SovereigntyId,
-    pub data_category: Option<DataCategory>,
-    pub details: Value,
 }
 
 /// Sovereignty observer state

@@ -24,24 +24,10 @@ impl VarietyTracker {
         }
     }
 
-    /// Create a new variety counter with custom window
-    pub fn with_window(duration: Duration) -> Self {
-        Self {
-            counts: HashMap::new(),
-            window_start: Instant::now(),
-            window_duration: duration,
-        }
-    }
-
     /// Increment count for a key
     pub fn increment(&mut self, key: &str) {
         self.check_window();
         *self.counts.entry(key.to_string()).or_insert(0) += 1;
-    }
-
-    /// Get count for a key
-    pub fn get(&self, key: &str) -> u64 {
-        *self.counts.get(key).unwrap_or(&0)
     }
 
     /// Get total variety (number of distinct states observed)
@@ -59,35 +45,6 @@ impl VarietyTracker {
         expected_variety.saturating_sub(self.variety())
     }
 
-    /// Calculate count deficit against expected count
-    pub fn count_deficit(&self, expected_count: u64) -> u64 {
-        expected_count.saturating_sub(self.total())
-    }
-
-    /// Check if window has expired and reset if needed
-    fn check_window(&mut self) {
-        if self.window_start.elapsed() > self.window_duration {
-            self.reset();
-        }
-    }
-
-    /// Reset the counter and window
-    pub fn reset(&mut self) {
-        self.counts.clear();
-        self.window_start = Instant::now();
-    }
-
-    /// Get the most frequently observed states (top N)
-    pub fn top(&self, n: usize) -> Vec<(String, u64)> {
-        let mut items: Vec<_> = self.counts.iter().collect();
-        items.sort_by(|a, b| b.1.cmp(a.1));
-        items
-            .into_iter()
-            .take(n)
-            .map(|(k, v)| (k.clone(), *v))
-            .collect()
-    }
-
     /// Get entropy of the distribution (measure of variety quality)
     pub fn entropy(&self) -> f64 {
         let total = self.total() as f64;
@@ -103,6 +60,19 @@ impl VarietyTracker {
             }
         }
         entropy
+    }
+
+    /// Check if window has expired and reset if needed
+    fn check_window(&mut self) {
+        if self.window_start.elapsed() > self.window_duration {
+            self.reset();
+        }
+    }
+
+    /// Reset the counter and window
+    pub fn reset(&mut self) {
+        self.counts.clear();
+        self.window_start = Instant::now();
     }
 }
 
@@ -151,14 +121,6 @@ impl VarietyMonitor {
             .values()
             .map(|c| c.deficit(expected_per_domain))
             .sum()
-    }
-
-    /// Check if any domain exceeds the deficit threshold
-    /// Uses `expected_variety` as the baseline for deficit calculation
-    pub fn exceeds_threshold(&self, threshold: u64, expected_variety: u64) -> bool {
-        self.counters
-            .values()
-            .any(|c| c.deficit(expected_variety) > threshold)
     }
 }
 

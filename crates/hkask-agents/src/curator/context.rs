@@ -4,9 +4,9 @@ use crate::curator::dampener::Dampener;
 use crate::curator::dispatch::MessageDispatch;
 use crate::curator::escalation::EscalationQueue;
 use hkask_cns::CnsRuntime;
+use hkask_types::CuratorHandle;
 use hkask_types::loops::curation::CuratorDirective;
 use hkask_types::loops::dispatch::TraceId;
-use hkask_types::{CuratorHandle, WebID};
 use std::sync::Arc;
 use tracing::info;
 
@@ -35,44 +35,14 @@ impl CuratorContext {
         }
     }
 
-    pub fn with_dampener_window(
-        handle: CuratorHandle,
-        cns: Arc<CnsRuntime>,
-        dispatch: Arc<MessageDispatch>,
-        escalation_queue: Arc<EscalationQueue>,
-        window: std::time::Duration,
-    ) -> Self {
-        Self {
-            handle,
-            cns,
-            dispatch,
-            escalation_queue,
-            dampener: Arc::new(Dampener::with_window(window)),
-        }
-    }
-
-    pub fn handle(&self) -> &CuratorHandle {
-        &self.handle
-    }
-
-    pub fn cns(&self) -> &CnsRuntime {
+    /// Access the CNS runtime for health checks and variety queries.
+    pub(crate) fn cns(&self) -> &Arc<CnsRuntime> {
         &self.cns
     }
 
-    pub fn dispatch(&self) -> &MessageDispatch {
-        &self.dispatch
-    }
-
-    pub fn escalation_queue(&self) -> &EscalationQueue {
+    /// Access the escalation queue for posting human review items.
+    pub(crate) fn escalation_queue(&self) -> &Arc<EscalationQueue> {
         &self.escalation_queue
-    }
-
-    pub fn dampener(&self) -> &Dampener {
-        &self.dampener
-    }
-
-    pub fn curator_id(&self) -> &WebID {
-        self.handle.curator_id()
     }
 
     /// Issue a CuratorDirective with DAMPEN filtering.
@@ -88,7 +58,7 @@ impl CuratorContext {
 
         let trace_id = self
             .dispatch
-            .send_curator_directive(directive, *self.curator_id())
+            .send_curator_directive(directive, *self.handle.curator_id())
             .await;
         Some(trace_id)
     }

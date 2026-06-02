@@ -22,14 +22,11 @@
 //! methods each subloop needs.
 
 use crate::algedonic::AlgedonicManager;
-use crate::bot_metrics::{BotEvaluationMetrics, BotHealthStatus, CapabilityGap};
 use crate::observers::sovereignty::{
     SovereigntyEvent, SovereigntyEventType, SovereigntyObserverState,
 };
 use crate::variety::VarietyMonitor;
 use hkask_types::WebID;
-use hkask_types::event::SpanCategory;
-use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use tracing::{error, warn};
 
@@ -53,9 +50,6 @@ const DEFAULT_ACQUISITION_THRESHOLD: u64 = 5;
 /// Boundary violation threshold before algedonic alert
 const DEFAULT_VIOLATION_THRESHOLD: u64 = 3;
 
-/// Default expected variety for bots
-const DEFAULT_BOT_EXPECTED_VARIETY: u64 = 100;
-
 /// Unified variety tracker for all CNS observation domains.
 ///
 /// A single structure that tracks variety across all SENSE subloops:
@@ -74,18 +68,10 @@ pub struct UnifiedVarietyTracker {
     algedonic: Arc<RwLock<AlgedonicManager>>,
     /// Sovereignty event state (per-WebID counters)
     sovereignty_state: SovereigntyObserverState,
-    /// Per-bot metrics (evaluation data)
-    bot_metrics: HashMap<WebID, BotEvaluationMetrics>,
-    /// Per-bot success tracking (observe_count, outcome_count)
-    bot_success: HashMap<WebID, (u64, u64)>,
-    /// Per-bot name mapping
-    bot_names: HashMap<WebID, String>,
     /// Acquisition attempt threshold for algedonic alert
     acquisition_threshold: u64,
     /// Boundary violation threshold for algedonic alert
     violation_threshold: u64,
-    /// Default expected variety for bot evaluation
-    bot_expected_variety: u64,
 }
 
 impl UnifiedVarietyTracker {
@@ -95,12 +81,8 @@ impl UnifiedVarietyTracker {
             variety: VarietyMonitor::new(),
             algedonic,
             sovereignty_state: SovereigntyObserverState::default(),
-            bot_metrics: HashMap::new(),
-            bot_success: HashMap::new(),
-            bot_names: HashMap::new(),
             acquisition_threshold: DEFAULT_ACQUISITION_THRESHOLD,
             violation_threshold: DEFAULT_VIOLATION_THRESHOLD,
-            bot_expected_variety: DEFAULT_BOT_EXPECTED_VARIETY,
         }
     }
 
@@ -123,11 +105,6 @@ impl UnifiedVarietyTracker {
         self.variety.domains()
     }
 
-    /// Check if any domain exceeds the deficit threshold.
-    pub fn exceeds_variety_threshold(&self, threshold: u64, expected_variety: u64) -> bool {
-        self.variety.exceeds_threshold(threshold, expected_variety)
-    }
-
     /// Get total variety deficit across all domains.
     pub fn total_variety_deficit(&self, expected_per_domain: u64) -> u64 {
         self.variety.total_deficit(expected_per_domain)
@@ -136,11 +113,6 @@ impl UnifiedVarietyTracker {
     /// Get a reference to the underlying variety monitor.
     pub fn variety_monitor(&self) -> &VarietyMonitor {
         &self.variety
-    }
-
-    /// Get a mutable reference to the underlying variety monitor.
-    pub fn variety_monitor_mut(&mut self) -> &mut VarietyMonitor {
-        &mut self.variety
     }
 
     // =========================================================================
@@ -246,29 +218,6 @@ impl UnifiedVarietyTracker {
         &self.sovereignty_state
     }
 
-    /// Get acquisition attempt count for a WebID.
-    pub fn acquisition_count(&self, webid: &WebID) -> u64 {
-        self.sovereignty_state
-            .acquisition_attempts
-            .get(webid)
-            .copied()
-            .unwrap_or(0)
-    }
-
-    /// Get boundary violation count for a WebID.
-    pub fn violation_count(&self, webid: &WebID) -> u64 {
-        self.sovereignty_state
-            .boundary_violations
-            .get(webid)
-            .copied()
-            .unwrap_or(0)
-    }
-
-    /// Reset sovereignty state.
-    pub fn reset_sovereignty(&mut self) {
-        self.sovereignty_state = SovereigntyObserverState::default();
-    }
-
     /// Trigger an algedonic alert through the shared algedonic manager.
     fn trigger_algedonic_alert(&self, webid: &WebID, domain: &str, deficit: u64, message: &str) {
         let mut manager = match self.algedonic.write() {
@@ -304,142 +253,5 @@ impl UnifiedVarietyTracker {
                 "Escalating sovereignty violation to Curator/human"
             );
         }
-    }
-
-    // =========================================================================
-    // Loop 4.3 — Bot metrics (per-WebID evaluation)
-    // =========================================================================
-
-    /// Register a bot in the tracker.
-    pub fn register_bot(&mut self, bot_id: WebID, bot_name: String) {
-        self.bot_names.insert(bot_id, bot_name.clone());
-        self.bot_metrics
-            .entry(bot_id)
-            .or_insert_with(|| BotEvaluationMetrics::new(bot_id, bot_name));
-        self.bot_success.entry(bot_id).or_insert((0, 0));
-    }
-
-    /// Record a span observation for a bot.
-    pub fn record_bot_span(&mut self, bot_id: &WebID, category: SpanCategory) {
-        if let Some(metrics) = self.bot_metrics.get_mut(bot_id) {
-            *metrics.span_counts.entry(category).or_insert(0) += 1;
-            metrics.last_report = chrono::Utc::now();
-        }
-        self.variety
-            .counter(&format!("{}:{}", domains::BOT, bot_id))
-            .increment(category.as_str());
-    }
-
-    /// Record a success (Outcome phase) for a bot.
-    pub fn record_bot_success(&mut self, bot_id: &WebID) {
-        if let Some((_, outcome)) = self.bot_success.get_mut(bot_id) {
-            *outcome += 1;
-        }
-        self.update_bot_success_rate(bot_id);
-    }
-
-    /// Record an observation (Observe phase) for a bot.
-    pub fn record_bot_observation(&mut self, bot_id: &WebID) {
-        if let Some((observe, _)) = self.bot_success.get_mut(bot_id) {
-            *observe += 1;
-        }
-        self.update_bot_success_rate(bot_id);
-    }
-
-    /// Record energy consumption for a bot.
-    pub fn record_bot_energy(&mut self, bot_id: &WebID, amount: u64) {
-        if let Some(metrics) = self.bot_metrics.get_mut(bot_id) {
-            metrics.energy_consumed += amount;
-            metrics.last_report = chrono::Utc::now();
-        }
-    }
-
-    /// Set energy budget for a bot.
-    pub fn set_bot_energy_budget(&mut self, bot_id: &WebID, budget: u64) {
-        if let Some(metrics) = self.bot_metrics.get_mut(bot_id) {
-            metrics.energy_budget = budget;
-        }
-    }
-
-    /// Record an algedonic alert for a bot.
-    pub fn record_bot_alert(&mut self, bot_id: &WebID) {
-        if let Some(metrics) = self.bot_metrics.get_mut(bot_id) {
-            metrics.algedonic_alerts += 1;
-            metrics.last_report = chrono::Utc::now();
-        }
-    }
-
-    /// Record a sovereignty violation for a bot.
-    pub fn record_bot_sovereignty_violation(&mut self, bot_id: &WebID) {
-        if let Some(metrics) = self.bot_metrics.get_mut(bot_id) {
-            metrics.sovereignty_violations += 1;
-            metrics.last_report = chrono::Utc::now();
-        }
-    }
-
-    /// Get evaluation metrics for a specific bot.
-    pub fn evaluate_bot(&self, bot_id: &WebID) -> Option<BotEvaluationMetrics> {
-        self.bot_metrics.get(bot_id).cloned()
-    }
-
-    /// Get evaluation metrics for all bots.
-    pub fn evaluate_all_bots(&self) -> Vec<BotEvaluationMetrics> {
-        self.bot_metrics.values().cloned().collect()
-    }
-
-    /// Get health status for a specific bot.
-    pub fn bot_health_status(&self, bot_id: &WebID) -> Option<BotHealthStatus> {
-        self.bot_metrics.get(bot_id).map(|m| m.health_status())
-    }
-
-    /// Identify capability gaps for a specific bot.
-    pub fn identify_bot_gaps(
-        &self,
-        bot_id: &WebID,
-        success_threshold: f64,
-        deficit_threshold: u64,
-    ) -> Vec<CapabilityGap> {
-        if let Some(metrics) = self.bot_metrics.get(bot_id) {
-            metrics.capability_gaps(success_threshold, deficit_threshold)
-        } else {
-            Vec::new()
-        }
-    }
-
-    /// Identify capability gaps across all bots.
-    pub fn identify_all_bot_gaps(
-        &self,
-        success_threshold: f64,
-        deficit_threshold: u64,
-    ) -> Vec<CapabilityGap> {
-        self.bot_metrics
-            .values()
-            .flat_map(|m| m.capability_gaps(success_threshold, deficit_threshold))
-            .collect()
-    }
-
-    /// Update success rate for a bot from tracking data.
-    fn update_bot_success_rate(&mut self, bot_id: &WebID) {
-        if let Some((observe, outcome)) = self.bot_success.get(bot_id)
-            && let Some(metrics) = self.bot_metrics.get_mut(bot_id)
-            && *observe > 0
-        {
-            metrics.success_rate = *outcome as f64 / *observe as f64;
-        }
-    }
-
-    /// Set the acquisition threshold.
-    pub fn set_acquisition_threshold(&mut self, threshold: u64) {
-        self.acquisition_threshold = threshold;
-    }
-
-    /// Set the violation threshold.
-    pub fn set_violation_threshold(&mut self, threshold: u64) {
-        self.violation_threshold = threshold;
-    }
-
-    /// Set the bot expected variety.
-    pub fn set_bot_expected_variety(&mut self, expected: u64) {
-        self.bot_expected_variety = expected;
     }
 }

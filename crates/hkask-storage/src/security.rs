@@ -32,4 +32,3 @@ pub fn sanitize_path(base: &Path, input: &str) -> Result<PathBuf, HkaskError> {
     }
     Ok(joined)
 }
-

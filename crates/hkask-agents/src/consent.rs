@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::sync::{Arc, RwLock};
 use thiserror::Error;
-use tracing::{debug, info};
+use tracing::debug;
 
 /// Consent manager errors
 #[derive(Debug, Error)]
@@ -144,7 +144,7 @@ impl ConsentManager {
     }
 
     /// Get all granted categories for a WebID
-    pub fn get_granted_categories(&self, webid: &str) -> Result<HashSet<String>, ConsentError> {
+    pub fn get_granted_categories(&self, webid: &str) -> Result<Vec<String>, ConsentError> {
         let cache = self
             .consent_cache
             .read()
@@ -152,8 +152,8 @@ impl ConsentManager {
 
         Ok(cache
             .iter()
-            .find(|r| r.webid == webid)
-            .map(|r| r.granted_categories.clone())
+            .find(|r| r.webid == webid && r.is_active())
+            .map(|r| r.granted_categories.iter().cloned().collect())
             .unwrap_or_default())
     }
 
@@ -169,16 +169,5 @@ impl ConsentManager {
             .find(|r| r.webid == webid)
             .map(|r| r.is_active())
             .unwrap_or(false))
-    }
-
-    /// Clear all consent records
-    pub fn clear(&self) -> Result<(), ConsentError> {
-        let mut cache = self
-            .consent_cache
-            .write()
-            .map_err(|_| ConsentError::Infra(hkask_types::InfrastructureError::LockPoisoned))?;
-        cache.clear();
-        info!("Cleared all consent records");
-        Ok(())
     }
 }

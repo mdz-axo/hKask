@@ -5,7 +5,7 @@
 //!
 //! Per architecture v0.21.0: Variety deficit >100 → escalate to Curator/human
 
-use crate::variety::{VarietyMonitor, VarietyTracker};
+use crate::variety::VarietyTracker;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -16,9 +16,6 @@ use tracing::{error, warn};
 fn default_datetime() -> DateTime<Utc> {
     Utc::now()
 }
-
-/// Callback type for escalation notifications
-pub type EscalationCallback = dyn Fn(&RuntimeAlert) + Send + Sync;
 
 /// Default algedonic alert threshold (variety deficit)
 pub const DEFAULT_THRESHOLD: u64 = 100;
@@ -93,7 +90,6 @@ pub struct AlgedonicManager {
     default_expected_variety: u64,
     expected_variety: HashMap<String, u64>,
     alerts: Vec<RuntimeAlert>,
-    escalation_callback: Option<Box<EscalationCallback>>,
 }
 
 impl AlgedonicManager {
@@ -103,21 +99,12 @@ impl AlgedonicManager {
             default_expected_variety,
             expected_variety: HashMap::new(),
             alerts: Vec::new(),
-            escalation_callback: None,
         }
     }
 
     /// Set expected variety for a specific domain
     pub fn set_expected_variety(&mut self, domain: &str, expected: u64) {
         self.expected_variety.insert(domain.to_string(), expected);
-    }
-
-    pub fn with_escalation_callback<F>(mut self, callback: F) -> Self
-    where
-        F: Fn(&RuntimeAlert) + Send + Sync + 'static,
-    {
-        self.escalation_callback = Some(Box::new(callback));
-        self
     }
 
     /// Check variety counter and generate alert if needed
@@ -138,9 +125,6 @@ impl AlgedonicManager {
                 threshold = alert.threshold,
                 "ALGEDONIC ALERT - Escalation required"
             );
-            if let Some(callback) = &self.escalation_callback {
-                callback(&alert);
-            }
         } else if alert.is_warning() {
             warn!(
                 target: "cns.algedonic",
@@ -152,21 +136,6 @@ impl AlgedonicManager {
 
         self.alerts.push(alert);
         self.alerts.last()
-    }
-
-    /// Check variety monitor across all domains
-    /// Returns count of alerts generated
-    pub fn check_all(&mut self, monitor: &mut VarietyMonitor) -> usize {
-        let domains: Vec<String> = monitor.domains().iter().map(|s| s.to_string()).collect();
-        let mut count = 0;
-
-        for domain in domains {
-            if self.check(monitor.counter(&domain), &domain).is_some() {
-                count += 1;
-            }
-        }
-
-        count
     }
 
     /// Get all alerts

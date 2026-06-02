@@ -806,4 +806,3 @@ impl BotCapabilities {
 }
 
 // ── Tests: Capability token security invariants ────────────────────────
-

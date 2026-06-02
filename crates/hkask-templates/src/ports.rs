@@ -204,7 +204,6 @@ pub struct ToolInfo {
     pub server_id: String,
     /// Required capability (if any)
     pub required_capability: Option<String>,
-
 }
 
 /// MCP port for tool invocation
@@ -231,6 +230,3 @@ pub struct MemoryFragment {
 /// Defaults to [`hkask_types::capability::SYSTEM_MAX_RECURSION`] — the
 /// system-wide recursion bound shared by attenuation, cascade, and subgoals.
 pub const DEFAULT_MATROSHKA_LIMIT: u8 = hkask_types::capability::SYSTEM_MAX_RECURSION;
-
-/// Default model tier for fast local inference
-pub const FAST_LOCAL_MODEL: &str = "fast_local";

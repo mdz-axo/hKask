@@ -1,5 +1,5 @@
 //! Okapi Infrastructure Adapters
-//!
+//
 //! Concrete implementations of port traits for Okapi HTTP infrastructure.
 
 use crate::ports::{
@@ -152,36 +152,5 @@ impl InferenceClient for OkapiClient {
         resp.json().await.map_err(|e| {
             OkapiClientError::ParseError(format!("Failed to parse chat response: {}", e))
         })
-    }
-}
-
-/// Mock inference client for testing
-pub struct MockInferenceClient {
-    responses: tokio::sync::Mutex<Vec<Result<GenerateResponse, OkapiClientError>>>,
-}
-
-impl MockInferenceClient {
-    pub fn new(responses: Vec<Result<GenerateResponse, OkapiClientError>>) -> Self {
-        Self {
-            responses: tokio::sync::Mutex::new(responses),
-        }
-    }
-}
-
-#[async_trait]
-impl InferenceClient for MockInferenceClient {
-    type Error = OkapiClientError;
-
-    async fn generate(&self, _request: &GenerateRequest) -> Result<GenerateResponse, Self::Error> {
-        let mut responses = self.responses.lock().await;
-        responses.pop().ok_or(OkapiClientError::SseStreamEnded)?
-    }
-
-    async fn chat(
-        &self,
-        _messages: Vec<serde_json::Value>,
-        _model: String,
-    ) -> Result<serde_json::Value, Self::Error> {
-        Err(OkapiClientError::SseStreamEnded)
     }
 }

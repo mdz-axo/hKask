@@ -228,4 +228,3 @@ impl GoalAccess {
         matches!(self, GoalAccess::Owner)
     }
 }
-

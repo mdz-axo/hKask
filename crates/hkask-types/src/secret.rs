@@ -98,35 +98,4 @@ pub mod derivation_contexts {
 
     /// Russell ACP bridge HMAC signing secret.
     pub const RUSSELL_BRIDGE_SECRET: &str = "hkask:russell-bridge-secret";
-
-    // Data category derivation contexts
-    // Each category produces a cryptographically independent 256-bit sub-key
-    // from the same master key, ensuring storage-level enforcement of OCAP
-    // visibility boundaries. Even if a handle bypasses the type system, the
-    // HKDF-derived encryption key for each category is different, so a key
-    // derived for EpisodicMemory cannot decrypt SemanticMemory data.
-
-    /// Episodic memory — private, agent-scoped experience.
-    pub const EPISODIC_MEMORY: &str = "hkask:data-category:episodic-memory";
-
-    /// Semantic memory — shared, public knowledge.
-    pub const SEMANTIC_MEMORY: &str = "hkask:data-category:semantic-memory";
-
-    /// Personal context — user-specific settings and preferences.
-    pub const PERSONAL_CONTEXT: &str = "hkask:data-category:personal-context";
-
-    /// Capability tokens — OCAP credentials.
-    pub const CAPABILITY_TOKENS: &str = "hkask:data-category:capability-tokens";
-
-    /// OCAP boundaries — access control rules.
-    pub const OCAP_BOUNDARIES: &str = "hkask:data-category:ocap-boundaries";
-
-    /// Template invocations — prompt/render history.
-    pub const TEMPLATE_INVOCATIONS: &str = "hkask:data-category:template-invocations";
-
-    /// hLexicon terms — canonical vocabulary.
-    pub const HLEXICON_TERMS: &str = "hkask:data-category:hlexicon-terms";
-
-    /// Template registry — public template metadata.
-    pub const TEMPLATE_REGISTRY: &str = "hkask:data-category:template-registry";
 }

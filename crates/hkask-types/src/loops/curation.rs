@@ -64,11 +64,17 @@ impl CuratorHandle {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CuratorDirective {
-    CalibrateThreshold { domain: String, new_threshold: u64 },
+    CalibrateThreshold {
+        domain: String,
+        new_threshold: u64,
+    },
     UpdateCapabilities {
         agent: WebID,
         additions: Vec<String>,
         removals: Vec<String>,
     },
-    AdjustEnergyBudget { agent: WebID, new_budget: u64 },
+    AdjustEnergyBudget {
+        agent: WebID,
+        new_budget: u64,
+    },
 }
