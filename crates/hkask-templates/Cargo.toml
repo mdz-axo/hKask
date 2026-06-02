@@ -9,7 +9,6 @@ description = "Registry, hLexicon, and template execution for hKask"
 hkask-types = { path = "../hkask-types" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-cns = { path = "../hkask-cns" }
-hkask-keystore = { path = "../hkask-keystore" }
 hkask-memory = { path = "../hkask-memory" }
 minijinja.workspace = true
 serde.workspace = true
@@ -22,11 +21,7 @@ uuid.workspace = true
 sha2.workspace = true
 hex.workspace = true
 rusqlite.workspace = true
-tempfile.workspace = true
 tokio.workspace = true
-regex.workspace = true
 reqwest.workspace = true
 async-trait.workspace = true
 futures-util.workspace = true
-rand.workspace = true
-secrecy.workspace = true
