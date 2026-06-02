@@ -25,8 +25,8 @@
 
 use crate::manifest::ModelRequirements;
 use crate::okapi_config::{OkapiConfig, validate_prompt};
-use crate::resilience::CircuitBreaker;
 use async_trait::async_trait;
+use hkask_cns::CircuitBreaker;
 use hkask_types::LLMParameters;
 use hkask_types::cns::RetryConfig;
 use serde::{Deserialize, Serialize};

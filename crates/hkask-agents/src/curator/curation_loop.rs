@@ -59,7 +59,7 @@ impl HkaskLoop for CurationLoop {
 
         let failed_bots = bot_reports
             .iter()
-            .filter(|r| r.status == hkask_cns::BotHealthStatus::Critical)
+            .filter(|r| r.status == crate::curator::bot_metrics::BotHealthStatus::Critical)
             .count();
 
         vec![

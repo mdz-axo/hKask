@@ -27,7 +27,6 @@ pub mod provenance;
 pub mod registry;
 pub mod registry_sqlite;
 pub mod renderer;
-pub mod resilience;
 
 pub use contracts::{
     ParsedContract, ParsedInference, TemplateFrontmatter, TemplateInferenceConfig,
@@ -47,4 +46,3 @@ pub use ports::{
 pub use provenance::{ProvenanceManager, TemplateProvenance};
 pub use registry::{Registry, TemplateEntry};
 pub use registry_sqlite::SqliteRegistry;
-pub use resilience::{CircuitBreaker, CircuitBreakerConfig, CircuitState};

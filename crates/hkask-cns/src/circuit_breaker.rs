@@ -1,6 +1,10 @@
-//! Resilience Patterns for Okapi Integration
+//! Circuit Breaker — Cybernetics Regulation Function
 //!
-//! Provides circuit breaker and retry logic for resilient inference.
+//! Circuit breaking is a CNS regulation mechanism: it enforces homeostatic
+//! control over external service calls (e.g. Okapi inference) by preventing
+//! cascading failures when downstream systems degrade. This is a Cybernetics
+//! concern, not a templates concern — the CNS governs when the system must
+//! shed load to preserve stability (Ashby's Law of Requisite Variety).
 
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::time::{Duration, Instant};

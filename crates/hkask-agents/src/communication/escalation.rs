@@ -1,6 +1,9 @@
-//! Escalation Queue for Curator
+//! Escalation Queue — Persistent queue for escalated alerts requiring human review
 //!
-//! Persistent queue for escalated outputs that require human review.
+//! Escalation is a Cybernetics regulation concern: algedonic alerts that exceed
+//! thresholds are persisted here for human review. The queue lives in the
+//! Communication module (not Curation) because escalation is not a Curation
+//! function — Curation reads from this queue but does not own it.
 
 use chrono::{DateTime, Utc};
 use hkask_types::{BotID, InfrastructureError, TemplateID};

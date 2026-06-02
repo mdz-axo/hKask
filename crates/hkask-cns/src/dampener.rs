@@ -5,16 +5,14 @@
 //! feedback cycle can produce repeated identical directives. DAMPEN prevents
 //! the same directive from being issued within a configurable time window.
 //!
-//! # Why this lives in the Curator crate
+//! # Why this lives in the CNS crate
 //!
-//! Dampening is semantically a Cybernetics regulation function — it prevents
-//! oscillation in the Curation↔Cybernetics feedback cycle. It lives in the
-//! Curator crate because it operates on `CuratorDirective` data. This is a
-//! code organization choice, not a semantic classification: moving it to a
-//! hypothetical `hkask-communication` crate would create a dependency on
-//! `CuratorDirective` from `hkask-types`, making the Communication crate
-//! aware of Curation types. Keeping it here preserves the authority graph:
-//! the Curator owns its own directive dampening.
+//! Dampening is a Cybernetics regulation function — it prevents oscillation
+//! in the Curation↔Cybernetics feedback cycle. As such, it is owned by the
+//! Cybernetics loop and lives in `hkask-cns`, the crate responsible for
+//! homeostatic self-regulation. The dampener operates on `CuratorDirective`
+//! data, but its purpose is regulatory, not curatorial: it is a FILTER
+//! function that enforces the cybernetic stability of the system.
 //!
 //! # How it works
 //!

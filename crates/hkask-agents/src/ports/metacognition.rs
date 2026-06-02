@@ -2,8 +2,10 @@
 
 use hkask_types::WebID;
 
-// Re-export CNS types used in our public interface
-pub use hkask_cns::bot_metrics::{BotEvaluationMetrics, BotHealthStatus, CapabilityGap, GapType};
+// Re-export bot metrics types used in our public interface
+pub use crate::curator::bot_metrics::{
+    BotEvaluationMetrics, BotHealthStatus, CapabilityGap, GapType,
+};
 
 /// Kata type for coaching protocol
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
