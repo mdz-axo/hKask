@@ -41,9 +41,8 @@ pub async fn curator_dismiss(id: &str) -> Result<(), CuratorError> {
 
 /// Run a metacognition cycle and return a summary string
 pub async fn curator_metacognition() -> Result<String, CuratorError> {
-    use hkask_agents::curator::{
-        CuratorContext, MessageDispatch, MetacognitionConfig, MetacognitionLoop,
-    };
+    use hkask_agents::MessageDispatch;
+    use hkask_agents::curator::{CuratorContext, MetacognitionConfig, MetacognitionLoop};
     use hkask_cns::CnsRuntime;
     use hkask_types::WebID;
     use hkask_types::loops::curation::CuratorHandle;

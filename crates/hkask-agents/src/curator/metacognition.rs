@@ -124,6 +124,16 @@ impl MetacognitionLoop {
         }
     }
 
+    /// Access the CuratorContext (capability-disciplined runtime references).
+    pub(crate) fn context(&self) -> &Arc<CuratorContext> {
+        &self.context
+    }
+
+    /// Access the metacognition config (thresholds, intervals).
+    pub(crate) fn config(&self) -> &MetacognitionConfig {
+        &self.config
+    }
+
     /// Submit a bot status report
     pub async fn submit_bot_report(&self, report: BotStatusReport) {
         let mut reports = self.bot_reports.write().await;

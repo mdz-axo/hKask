@@ -15,6 +15,7 @@
 
 pub mod acp;
 pub mod adapters;
+pub mod communication;
 
 pub mod consent;
 pub mod curator;
@@ -27,9 +28,10 @@ pub mod sovereignty;
 
 pub use acp::{A2AMessage, AcpAgent, AcpError, AcpRuntime};
 
+pub use communication::{CommunicationLoop, MessageDispatch};
 pub use consent::{ConsentError, ConsentManager};
 pub use curator::context::CuratorContext;
-pub use curator::dispatch::MessageDispatch;
+pub use curator::curation_loop::CurationLoop;
 pub use curator::escalation::{EscalationEntry, EscalationQueue};
 pub use error::{GitError, McpError, MemoryError, RegistryError};
 pub use pod::{

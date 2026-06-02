@@ -1,7 +1,7 @@
 //! CuratorContext — Runtime composition of Curator capability handles
 
+use crate::communication::dispatch::MessageDispatch;
 use crate::curator::dampener::Dampener;
-use crate::curator::dispatch::MessageDispatch;
 use crate::curator::escalation::EscalationQueue;
 use hkask_cns::CnsRuntime;
 use hkask_types::CuratorHandle;

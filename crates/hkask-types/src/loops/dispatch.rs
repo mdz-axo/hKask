@@ -10,6 +10,7 @@
 //! - 4.1 DISPATCH (GUARD+ROUTE) — priority-ordered message queuing
 
 use crate::id::WebID;
+use crate::loops::LoopId;
 use std::fmt;
 
 // =============================================================================
@@ -91,6 +92,19 @@ pub enum LoopOrigin {
     Curation,
     Cybernetics,
     External,
+}
+
+impl From<LoopId> for LoopOrigin {
+    fn from(id: LoopId) -> Self {
+        match id {
+            LoopId::Inference => LoopOrigin::Inference,
+            LoopId::Episodic => LoopOrigin::Episodic,
+            LoopId::Semantic => LoopOrigin::Semantic,
+            LoopId::Communication => LoopOrigin::Communication,
+            LoopId::Curation => LoopOrigin::Curation,
+            LoopId::Cybernetics => LoopOrigin::Cybernetics,
+        }
+    }
 }
 
 impl fmt::Display for LoopOrigin {

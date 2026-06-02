@@ -166,17 +166,36 @@ pub enum ActionType {
 ///
 /// Every loop implements this cycle. Authority flows downward
 /// through the DAG: Curation → Cybernetics → domain loops.
+///
+/// Native async (Rust 2024 edition). Implementations that need
+/// async I/O (e.g., reading from `CnsRuntime`) can do so directly
+/// without `async_trait` boxing.
+///
+/// All async methods return `Send` futures so loops can run in
+/// async tasks without `static bounds issues.
+#[allow(async_fn_in_trait)]
 pub trait Loop: Send + Sync {
     fn id(&self) -> LoopId;
-    fn sense(&self) -> Vec<Signal>;
-    fn compare(&self, signals: &[Signal]) -> Vec<Deviation>;
-    fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction>;
-    fn act(&self, actions: &[LoopAction]);
 
-    fn tick(&self) {
-        let signals = self.sense();
-        let deviations = self.compare(&signals);
-        let actions = self.compute(&deviations);
-        self.act(&actions);
+    /// Sense: observe current state and produce afferent signals.
+    async fn sense(&self) -> Vec<Signal>;
+
+    /// Compare: detect deviations from set-points.
+    async fn compare(&self, signals: &[Signal]) -> Vec<Deviation> {
+        signals.iter().filter_map(Deviation::from_signal).collect()
+    }
+
+    /// Compute: produce regulatory actions for detected deviations.
+    async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction>;
+
+    /// Act: execute regulatory actions (route through Communication Loop).
+    async fn act(&self, actions: &[LoopAction]);
+
+    /// Full regulation cycle: sense → compare → compute → act.
+    async fn tick(&self) {
+        let signals = self.sense().await;
+        let deviations = self.compare(&signals).await;
+        let actions = self.compute(&deviations).await;
+        self.act(&actions).await;
     }
 }

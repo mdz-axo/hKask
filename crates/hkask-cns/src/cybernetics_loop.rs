@@ -31,10 +31,11 @@ use crate::energy::{EnergyBudget, EnergyError};
 use crate::runtime::CnsRuntime;
 use hkask_types::WebID;
 use hkask_types::loops::{
-    ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal,
+    ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, LoopMessage,
+    LoopOrigin, LoopPayload, Signal,
 };
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, mpsc};
 
 /// Homeostatic set-points for the Cybernetics Loop.
 ///
@@ -72,35 +73,45 @@ impl Default for SetPoints {
 /// alerts. It may NOT regulate the Curation Loop.
 pub struct CyberneticsLoop {
     /// CNS runtime for variety and alert access
-    #[allow(dead_code)] // Wired to async sense() in future PR
     cns: Arc<RwLock<CnsRuntime>>,
     /// Energy budgets keyed by agent WebID
     energy_budgets: Arc<RwLock<std::collections::HashMap<WebID, EnergyBudget>>>,
     /// Homeostatic set-points
     set_points: SetPoints,
     /// Maximum number of loop iterations before forced stabilization
-    #[allow(dead_code)] // Reserved for cascade detection in future PR
+    /// (cascade detection — prevents unbounded sense→act cycles)
     max_iterations: u32,
+    /// Channel to Communication Loop for inter-loop message dispatch
+    dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
 }
 
 impl CyberneticsLoop {
     /// Create a new Cybernetics Loop with default set-points.
-    pub fn new(cns: Arc<RwLock<CnsRuntime>>) -> Self {
+    pub fn new(
+        cns: Arc<RwLock<CnsRuntime>>,
+        dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
+    ) -> Self {
         Self {
             cns,
             energy_budgets: Arc::new(RwLock::new(std::collections::HashMap::new())),
             set_points: SetPoints::default(),
             max_iterations: 100,
+            dispatch_tx,
         }
     }
 
     /// Create a Cybernetics Loop with custom set-points.
-    pub fn with_set_points(cns: Arc<RwLock<CnsRuntime>>, set_points: SetPoints) -> Self {
+    pub fn with_set_points(
+        cns: Arc<RwLock<CnsRuntime>>,
+        set_points: SetPoints,
+        dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
+    ) -> Self {
         Self {
             cns,
             energy_budgets: Arc::new(RwLock::new(std::collections::HashMap::new())),
             set_points,
             max_iterations: 100,
+            dispatch_tx,
         }
     }
 
@@ -142,12 +153,18 @@ impl CyberneticsLoop {
     }
 
     /// Update a set-point. Returns the old value.
+    ///
+    /// Set-point calibration is a Curation directive, but the Cybernetics
+    /// Loop can self-calibrate within bounded ranges.
+    /// This is intentionally minimal — full calibration goes through Curation.
     pub async fn calibrate_set_point(&self, metric: &str, new_value: f64) -> Option<f64> {
-        // Set-point calibration is a Curation directive, but the Cybernetics
-        // Loop can self-calibrate within bounded ranges.
-        // This is intentionally minimal — full calibration goes through Curation.
         let _ = (metric, new_value);
         None
+    }
+
+    /// Get a sender clone for the dispatch channel.
+    pub fn dispatch_sender(&self) -> mpsc::UnboundedSender<LoopMessage> {
+        self.dispatch_tx.clone()
     }
 }
 
@@ -156,17 +173,43 @@ impl HkaskLoop for CyberneticsLoop {
         LoopId::Cybernetics
     }
 
-    fn sense(&self) -> Vec<Signal> {
-        // Synchronous sense — collect available signals without awaiting.
-        // For full async sensing, use `sense_async`.
-        Vec::new()
+    /// Sense: read variety counters, energy budgets, and CNS health.
+    ///
+    /// Produces `Signal`s for each metric that the loop monitors:
+    /// - Per-agent energy remaining ratio
+    /// - Overall variety deficit from CNS health
+    async fn sense(&self) -> Vec<Signal> {
+        let mut signals = Vec::new();
+
+        // Energy signals: per-agent remaining ratio
+        let budgets = self.energy_budgets.read().await;
+        for (_agent, budget) in budgets.iter() {
+            let ratio = budget.remaining as f64 / budget.cap.max(1) as f64;
+            signals.push(Signal::new(
+                LoopId::Cybernetics,
+                "energy_remaining",
+                ratio,
+                self.set_points.energy_min_remaining,
+            ));
+        }
+        drop(budgets);
+
+        // Variety deficit signal from CNS
+        let cns = self.cns.read().await;
+        let health = cns.health().await;
+        signals.push(Signal::new(
+            LoopId::Cybernetics,
+            "variety_deficit",
+            health.overall_deficit as f64,
+            self.set_points.variety_max_deficit,
+        ));
+        drop(cns);
+
+        signals
     }
 
-    fn compare(&self, signals: &[Signal]) -> Vec<Deviation> {
-        signals.iter().filter_map(Deviation::from_signal).collect()
-    }
-
-    fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
+    /// Compute: produce regulatory actions for detected deviations.
+    async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
         let mut actions = Vec::new();
         for dev in deviations {
             let action = match dev.signal.metric.as_str() {
@@ -223,10 +266,20 @@ impl HkaskLoop for CyberneticsLoop {
         actions
     }
 
-    fn act(&self, actions: &[LoopAction]) {
-        // Dispatch efferent signals to target loops.
-        // In production, this routes through the Communication Loop's DISPATCH.
-        // For now, we log the actions for observability.
+    /// Act: route LoopActions through the Communication Loop via dispatch channel.
+    ///
+    /// Each `LoopAction` is converted to a `LoopMessage` and sent through the
+    /// `dispatch_tx` channel. The Communication Loop receives and delivers them.
+    async fn act(&self, actions: &[LoopAction]) {
+        if actions.len() > self.max_iterations as usize {
+            tracing::warn!(
+                target: "cns.cybernetics",
+                action_count = actions.len(),
+                max_iterations = self.max_iterations,
+                "Cascade detected: action count exceeds max_iterations"
+            );
+        }
+
         for action in actions {
             tracing::info!(
                 target: "cns.cybernetics",
@@ -234,6 +287,31 @@ impl HkaskLoop for CyberneticsLoop {
                 target_loop = %action.target,
                 "Cybernetics Loop efferent signal"
             );
+
+            let target_origin: LoopOrigin = action.target.into();
+            let directive_type = match action.action_type {
+                ActionType::Throttle => "throttle",
+                ActionType::Escalate => "escalate",
+                ActionType::Calibrate => "calibrate",
+                ActionType::CircuitBreak => "circuit_break",
+            };
+
+            let payload = LoopPayload::CyberneticsDirective {
+                directive_type: directive_type.to_string(),
+                target: WebID::new(),
+                parameters: action.parameters.clone(),
+            };
+
+            let msg = LoopMessage::new(action.priority, LoopOrigin::Cybernetics, payload)
+                .with_target(target_origin);
+
+            if let Err(e) = self.dispatch_tx.send(msg) {
+                tracing::warn!(
+                    target: "cns.cybernetics",
+                    error = %e,
+                    "Failed to dispatch LoopAction — Communication Loop may be closed"
+                );
+            }
         }
     }
 }
@@ -243,73 +321,78 @@ mod tests {
     use super::*;
     use hkask_types::loops::{ActionType, DeviationDirection, HkaskLoop, LoopId};
 
-    #[test]
-    fn cybernetics_loop_id_is_cybernetics() {
-        let cns = Arc::new(RwLock::new(CnsRuntime::default()));
-        let loop6 = CyberneticsLoop::new(cns);
-        assert_eq!(loop6.id(), LoopId::Cybernetics);
+    fn test_dispatch_tx() -> mpsc::UnboundedSender<LoopMessage> {
+        let (tx, _rx) = mpsc::unbounded_channel();
+        tx
     }
 
     #[test]
-    fn energy_deviation_produces_throttle_action() {
+    fn cybernetics_loop_id_is_cybernetics() {
         let cns = Arc::new(RwLock::new(CnsRuntime::default()));
-        let loop6 = CyberneticsLoop::new(cns);
+        let loop6 = CyberneticsLoop::new(cns, test_dispatch_tx());
+        assert_eq!(loop6.id(), LoopId::Cybernetics);
+    }
+
+    #[tokio::test]
+    async fn energy_deviation_produces_throttle_action() {
+        let cns = Arc::new(RwLock::new(CnsRuntime::default()));
+        let loop6 = CyberneticsLoop::new(cns, test_dispatch_tx());
 
         // Signal: energy remaining at 5% (below 20% set-point)
         let signal = Signal::new(LoopId::Cybernetics, "energy_remaining", 0.05, 0.2);
-        let deviations = loop6.compare(&[signal]);
+        let deviations = loop6.compare(&[signal]).await;
         assert_eq!(deviations.len(), 1);
         assert_eq!(deviations[0].direction, DeviationDirection::BelowSetPoint);
 
-        let actions = loop6.compute(&deviations);
+        let actions = loop6.compute(&deviations).await;
         assert_eq!(actions.len(), 1);
         assert_eq!(actions[0].action_type, ActionType::Throttle);
         assert_eq!(actions[0].target, LoopId::Inference);
     }
 
-    #[test]
-    fn variety_deficit_produces_escalate_action() {
+    #[tokio::test]
+    async fn variety_deficit_produces_escalate_action() {
         let cns = Arc::new(RwLock::new(CnsRuntime::default()));
-        let loop6 = CyberneticsLoop::new(cns);
+        let loop6 = CyberneticsLoop::new(cns, test_dispatch_tx());
 
         // Signal: variety deficit at 150 (above 100 threshold)
         let signal = Signal::new(LoopId::Cybernetics, "variety_deficit", 150.0, 100.0);
-        let deviations = loop6.compare(&[signal]);
+        let deviations = loop6.compare(&[signal]).await;
         assert_eq!(deviations.len(), 1);
         assert_eq!(deviations[0].direction, DeviationDirection::AboveSetPoint);
 
-        let actions = loop6.compute(&deviations);
+        let actions = loop6.compute(&deviations).await;
         assert_eq!(actions.len(), 1);
         assert_eq!(actions[0].action_type, ActionType::Escalate);
         assert_eq!(actions[0].target, LoopId::Curation);
     }
 
-    #[test]
-    fn error_rate_produces_circuit_break_action() {
+    #[tokio::test]
+    async fn error_rate_produces_circuit_break_action() {
         let cns = Arc::new(RwLock::new(CnsRuntime::default()));
-        let loop6 = CyberneticsLoop::new(cns);
+        let loop6 = CyberneticsLoop::new(cns, test_dispatch_tx());
 
         // Signal: error rate at 50% (above 30% threshold)
         let signal = Signal::new(LoopId::Cybernetics, "error_rate", 0.5, 0.3);
-        let deviations = loop6.compare(&[signal]);
+        let deviations = loop6.compare(&[signal]).await;
         assert_eq!(deviations.len(), 1);
 
-        let actions = loop6.compute(&deviations);
+        let actions = loop6.compute(&deviations).await;
         assert_eq!(actions.len(), 1);
         assert_eq!(actions[0].action_type, ActionType::CircuitBreak);
         assert_eq!(actions[0].target, LoopId::Inference);
     }
 
-    #[test]
-    fn no_deviation_produces_no_action() {
+    #[tokio::test]
+    async fn no_deviation_produces_no_action() {
         let cns = Arc::new(RwLock::new(CnsRuntime::default()));
-        let loop6 = CyberneticsLoop::new(cns);
+        let loop6 = CyberneticsLoop::new(cns, test_dispatch_tx());
 
         // Signal: energy at 50% (above 20% set-point — no deviation)
         let signal = Signal::new(LoopId::Cybernetics, "energy_remaining", 0.5, 0.2);
-        let deviations = loop6.compare(&[signal]);
+        let deviations = loop6.compare(&[signal]).await;
         // Deviation exists (above set-point) but no action for above-set-point energy
-        let actions = loop6.compute(&deviations);
+        let actions = loop6.compute(&deviations).await;
         // Above-set-point energy is fine — no action needed
         assert!(actions.is_empty());
     }
@@ -317,7 +400,7 @@ mod tests {
     #[tokio::test]
     async fn can_proceed_with_sufficient_budget() {
         let cns = Arc::new(RwLock::new(CnsRuntime::default()));
-        let loop6 = CyberneticsLoop::new(cns);
+        let loop6 = CyberneticsLoop::new(cns, test_dispatch_tx());
         let agent = WebID::new();
 
         let budget = EnergyBudget::new(10_000);
@@ -329,7 +412,7 @@ mod tests {
     #[tokio::test]
     async fn acquire_budget_deducts_energy() {
         let cns = Arc::new(RwLock::new(CnsRuntime::default()));
-        let loop6 = CyberneticsLoop::new(cns);
+        let loop6 = CyberneticsLoop::new(cns, test_dispatch_tx());
         let agent = WebID::new();
 
         let budget = EnergyBudget::new(10_000);
@@ -342,10 +425,10 @@ mod tests {
     #[tokio::test]
     async fn full_tick_cycle_completes() {
         let cns = Arc::new(RwLock::new(CnsRuntime::default()));
-        let loop6 = CyberneticsLoop::new(cns);
+        let loop6 = CyberneticsLoop::new(cns, test_dispatch_tx());
 
-        // A tick with no sensed signals should complete without panic
-        loop6.tick();
+        // A tick with default state should complete without panic
+        loop6.tick().await;
     }
 
     // =========================================================================
@@ -356,22 +439,22 @@ mod tests {
     /// Assert: The loop produces a Throttle action targeting Inference
     /// Assert: The action propagates through the capability membrane
     /// Assert: The system reaches a new stable equilibrium within bounded iterations
-    #[test]
-    fn energy_deviation_propagates_and_stabilizes() {
+    #[tokio::test]
+    async fn energy_deviation_propagates_and_stabilizes() {
         let cns = Arc::new(RwLock::new(CnsRuntime::default()));
-        let loop6 = CyberneticsLoop::new(cns);
+        let loop6 = CyberneticsLoop::new(cns, test_dispatch_tx());
 
         // Step 1: Inject known deviation — energy at 5% (set-point: 20%)
         let signal = Signal::new(LoopId::Cybernetics, "energy_remaining", 0.05, 0.2);
 
         // Step 2: Compare — detect deviation
-        let deviations = loop6.compare(&[signal]);
+        let deviations = loop6.compare(&[signal]).await;
         assert_eq!(deviations.len(), 1);
         assert_eq!(deviations[0].direction, DeviationDirection::BelowSetPoint);
         assert!((deviations[0].magnitude - 0.15).abs() < f64::EPSILON);
 
         // Step 3: Compute — produce efferent action
-        let actions = loop6.compute(&deviations);
+        let actions = loop6.compute(&deviations).await;
         assert_eq!(actions.len(), 1);
         assert_eq!(actions[0].action_type, ActionType::Throttle);
         assert_eq!(actions[0].target, LoopId::Inference);
@@ -382,17 +465,17 @@ mod tests {
 
         // Step 5: Simulate stabilization — after throttling, energy recovers
         let recovered_signal = Signal::new(LoopId::Cybernetics, "energy_remaining", 0.25, 0.2);
-        let new_deviations = loop6.compare(&[recovered_signal]);
-        let new_actions = loop6.compute(&new_deviations);
+        let new_deviations = loop6.compare(&[recovered_signal]).await;
+        let new_actions = loop6.compute(&new_deviations).await;
         // Above-set-point energy is fine — no throttle action
         assert!(new_actions.is_empty());
     }
 
     /// Test: Multiple simultaneous deviations produce multiple actions
-    #[test]
-    fn multiple_deviations_produce_multiple_actions() {
+    #[tokio::test]
+    async fn multiple_deviations_produce_multiple_actions() {
         let cns = Arc::new(RwLock::new(CnsRuntime::default()));
-        let loop6 = CyberneticsLoop::new(cns);
+        let loop6 = CyberneticsLoop::new(cns, test_dispatch_tx());
 
         let signals = vec![
             Signal::new(LoopId::Cybernetics, "energy_remaining", 0.05, 0.2),
@@ -400,10 +483,10 @@ mod tests {
             Signal::new(LoopId::Cybernetics, "error_rate", 0.5, 0.3),
         ];
 
-        let deviations = loop6.compare(&signals);
+        let deviations = loop6.compare(&signals).await;
         assert_eq!(deviations.len(), 3);
 
-        let actions = loop6.compute(&deviations);
+        let actions = loop6.compute(&deviations).await;
         assert_eq!(actions.len(), 3);
 
         // Verify each action targets the correct loop
@@ -413,10 +496,10 @@ mod tests {
     }
 
     /// Test: Loop reaches equilibrium within bounded iterations
-    #[test]
-    fn loop_reaches_equilibrium_within_bounded_iterations() {
+    #[tokio::test]
+    async fn loop_reaches_equilibrium_within_bounded_iterations() {
         let cns = Arc::new(RwLock::new(CnsRuntime::default()));
-        let loop6 = CyberneticsLoop::new(cns);
+        let loop6 = CyberneticsLoop::new(cns, test_dispatch_tx());
 
         // Simulate a sequence of improving signals
         let max_iterations = 10;
@@ -424,8 +507,8 @@ mod tests {
             // Energy recovers from 5% to 25% over iterations
             let energy = 0.05 + (i as f64 * 0.02);
             let signal = Signal::new(LoopId::Cybernetics, "energy_remaining", energy, 0.2);
-            let deviations = loop6.compare(&[signal]);
-            let actions = loop6.compute(&deviations);
+            let deviations = loop6.compare(&[signal]).await;
+            let actions = loop6.compute(&deviations).await;
 
             if energy >= 0.2 {
                 // Once energy reaches set-point, no throttle action
@@ -451,7 +534,7 @@ mod tests {
     #[tokio::test]
     async fn energy_exhaustion_blocks_operations() {
         let cns = Arc::new(RwLock::new(CnsRuntime::default()));
-        let loop6 = CyberneticsLoop::new(cns);
+        let loop6 = CyberneticsLoop::new(cns, test_dispatch_tx());
         let agent = WebID::new();
 
         // Register a very small budget
@@ -474,7 +557,7 @@ mod tests {
     #[tokio::test]
     async fn energy_replenishment_restores_capacity() {
         let cns = Arc::new(RwLock::new(CnsRuntime::default()));
-        let loop6 = CyberneticsLoop::new(cns);
+        let loop6 = CyberneticsLoop::new(cns, test_dispatch_tx());
         let agent = WebID::new();
 
         let budget = EnergyBudget::new(100);
@@ -497,14 +580,14 @@ mod tests {
     }
 
     /// Test: Connector latency deviation produces throttle on Communication
-    #[test]
-    fn connector_latency_produces_throttle_on_communication() {
+    #[tokio::test]
+    async fn connector_latency_produces_throttle_on_communication() {
         let cns = Arc::new(RwLock::new(CnsRuntime::default()));
-        let loop6 = CyberneticsLoop::new(cns);
+        let loop6 = CyberneticsLoop::new(cns, test_dispatch_tx());
 
         let signal = Signal::new(LoopId::Cybernetics, "connector_latency", 60.0, 30.0);
-        let deviations = loop6.compare(&[signal]);
-        let actions = loop6.compute(&deviations);
+        let deviations = loop6.compare(&[signal]).await;
+        let actions = loop6.compute(&deviations).await;
 
         assert_eq!(actions.len(), 1);
         assert_eq!(actions[0].action_type, ActionType::Throttle);
