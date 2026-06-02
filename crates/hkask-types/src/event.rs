@@ -1,4 +1,9 @@
-//! ν-event (NuEvent) — Cybernetic audit trail events
+//! ν-event types — Cross-cutting infrastructure
+//!
+//! ν-events are the cybernetic audit trail emitted by all loops.
+//! They are not owned by any single loop — they are the shared
+//! observability substrate that the CNS (Loop 6) senses and the
+//! Curator (Loop 5) audits.
 
 use crate::id::{EventID, WebID};
 use chrono::{DateTime, Utc};

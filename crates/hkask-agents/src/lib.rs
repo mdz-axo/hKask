@@ -13,18 +13,18 @@
 //! use hkask_agents::pod::PodManager;
 //! ```
 
-pub mod acp;
+pub mod acp; // Loop 6 (Cybernetics: ACP is access control)
 pub mod adapters;
-pub mod communication;
-pub mod consent;
-pub mod curator;
+pub mod communication; // Loop 4
+pub mod consent; // Loop 6 (Cybernetics: consent is sovereignty/access guard)
+pub mod curator; // Loop 5
 pub mod error;
-pub mod escalation;
+pub mod escalation; // Loop 6 (escalation queue is algedonic regulation)
 pub mod loop_system;
-pub mod pod;
+pub mod pod; // Loop 5 (agent pod lifecycle is Curation)
 pub mod ports;
 pub mod registry_loader;
-pub mod sovereignty;
+pub mod sovereignty; // Loop 6 (sovereignty enforcement)
 
 pub use acp::{A2AMessage, AcpAgent, AcpError, AcpRuntime};
 

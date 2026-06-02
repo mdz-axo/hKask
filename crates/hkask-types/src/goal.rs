@@ -1,16 +1,8 @@
-//! Goal primitive — minimal coordination substrate for multi-agent collaboration
+//! Goal types — Cross-cutting infrastructure
 //!
-//! Goals enable shared intention tracking across human, replicant, and bot agents.
-//! Per Scott Page's "The Difference": high-performance groups require:
-//! 1. Shared language (hLexicon provides this)
-//! 2. Shared goals (this module provides this)
-//!
-//! Design principles:
-//! - Minimal: text + criteria + state, nothing more
-//! - Transient: goals aren't retained long-term; agent memory holds the experience
-//! - LLM-judged: verification uses LLM to avoid Goodhart's law
-//! - Cross-agent: works equally for human, replicant, bot
-//! - Hierarchical: sub-goals decompose large goals (max depth = SYSTEM_MAX_RECURSION)
+//! Goals are a minimal coordination substrate for multi-agent collaboration.
+//! Multiple loops interact with goals: Curation evaluates them, Cybernetics
+//! allocates energy, Communication coordinates agents around them.
 
 use crate::capability::SYSTEM_MAX_RECURSION;
 pub use crate::id::GoalID;

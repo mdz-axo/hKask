@@ -1,4 +1,6 @@
-//! Text utilities for content hashing
+//! Text utilities — Cross-cutting infrastructure
+//
+//! Cryptographic hashing used across loops for content-addressing.
 //
 //! Shared primitive used across the three-layer DRY system:
 //! - Layer 1: Memory recall dedup (hkask-memory)

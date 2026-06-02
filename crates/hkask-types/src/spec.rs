@@ -1,10 +1,8 @@
-//! Specification domain types — DDMVSS (Domain-Driven Minimum Viable Specification Set)
+//! DDMVSS specification types — Cross-cutting infrastructure
 //!
-//! Load-bearing types for the specification toolset:
-//! - `Spec`, `GoalSpec`, `Criterion` — recursive goal decomposition
-//! - `SpecCategory` — 9 DDMVSS categories
-//! - `SpecCurationRecord` — curation integration with existing `CurationDecision`
-//! - Port traits: `SpecStore`, `SpecCurator`
+//! Domain specifications define completeness predicates and validation criteria.
+//! Curation (Loop 5) cultivates specs; Cybernetics (Loop 6) tracks coverage;
+//! Inference (Loop 1) uses them for guided generation.
 
 use crate::curation::{CurationDecision, OCAPBoundary};
 use crate::id::{GoalID, WebID};

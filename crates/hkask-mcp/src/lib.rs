@@ -8,8 +8,8 @@
 //! - Server scaffolding (McpToolError, McpToolOutput, CredentialRequirement, ServerContext, run_stdio_server)
 
 pub mod adapter_container;
-pub mod dispatch;
-pub mod governor;
+pub mod dispatch; // Loop 1 (inference tool dispatch)
+pub mod governor; // Loop 6 (capability governance)
 pub mod runtime;
 pub mod security;
 pub mod server;

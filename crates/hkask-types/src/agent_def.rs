@@ -1,12 +1,12 @@
-//! Agent Definition types — domain model for registry YAML
+//! Agent Definition types — Loop 5 (Curation): agent lifecycle and governance
 //!
-//! These types represent the full identity of an agent as defined in
-//! `registry/bots/*.yaml`. They capture charter, capabilities, rights,
-//! responsibilities, persona constraints, and readiness probes.
+//! The Curator manages agent registration, evaluation, rights, and responsibilities.
+//! These types define the full identity of an agent as specified in registry YAML.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+/// Loop: Curation
 /// Access right granted to an agent (R9: Structured Data Modeling)
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -30,6 +30,7 @@ impl Right {
     }
 }
 
+/// Loop: Curation
 /// Responsibility assigned to an agent (R9: Structured Data Modeling)
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -68,6 +69,7 @@ impl Responsibility {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// Loop: Curation
 pub enum AgentKind {
     Bot,
     Replicant,
@@ -97,6 +99,7 @@ impl std::fmt::Display for AgentKind {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+/// Loop: Curation
 pub struct Charter {
     pub description: String,
     #[serde(default)]
@@ -106,6 +109,7 @@ pub struct Charter {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+/// Loop: Curation
 pub struct PersonaConstraints {
     #[serde(default)]
     pub tone: String,
@@ -120,6 +124,7 @@ pub struct PersonaConstraints {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+/// Loop: Curation
 pub struct ReadinessProbe {
     #[serde(rename = "type")]
     pub probe_type: String,
@@ -141,6 +146,7 @@ fn default_retry() -> u32 {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+/// Loop: Curation
 /// Per-agent standing session configuration (part of agent definition)
 pub struct AgentStandingSessionConfig {
     pub session_id: String,
@@ -152,6 +158,7 @@ pub struct AgentStandingSessionConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+/// Loop: Curation
 pub struct ReportingConfig {
     #[serde(default)]
     pub escalate_to: Option<String>,
@@ -172,6 +179,7 @@ pub struct ReportingConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// Loop: Curation
 pub struct AgentDefinition {
     pub name: String,
     pub agent_kind: AgentKind,
@@ -265,6 +273,7 @@ impl AgentDefinition {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// Loop: Curation
 pub struct RegisteredAgent {
     pub definition: AgentDefinition,
     pub token_hash: String,

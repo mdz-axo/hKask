@@ -1,5 +1,6 @@
-//! Error types for hKask operations
-//!
+//! Error types — Cross-cutting infrastructure
+//
+//! Infrastructure errors used across all loops. Not loop-specific.!
 //! Layered error architecture (Miller separation):
 //! 1. `InfrastructureError` — cross-cutting transport errors (Database, Serialization,
 //!    LockPoisoned, Io). No domain semantics. Passes through crate boundaries.

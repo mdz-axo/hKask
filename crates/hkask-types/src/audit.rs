@@ -1,16 +1,13 @@
-//! Canonical audit entry types for hKask
+//! Audit trail types — Loop 5 (Curation): audit logging
 //!
-//! This module provides unified audit logging types used across all crates,
-//! eliminating duplication in:
-//! - hkask-agents/src/acp/audit.rs (AuditLogEntry)
-//! - hkask-agents/src/ports/audit_log.rs (AuditEntry)
-//! - hkask-agents/src/ports/audit_log_storage.rs (AuditStorageEntry)
-//! - hkask-mcp/src/security.rs (AuditEntry)
+//! The Curator maintains the audit trail of all system decisions.
+//! Audit entries record who did what, when, and with what outcome.
 
 use crate::WebID;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+/// Loop: Curation
 /// Unified audit entry for all hKask operations
 ///
 /// This consolidates 5 duplicate audit entry types into a single canonical structure.
@@ -32,6 +29,7 @@ pub struct AuditEntry {
     pub context: AuditContext,
 }
 
+/// Loop: Curation
 /// Audit outcome classification
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -67,6 +65,7 @@ impl std::str::FromStr for AuditOutcome {
     }
 }
 
+/// Loop: Curation
 /// Additional context for audit entries
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct AuditContext {

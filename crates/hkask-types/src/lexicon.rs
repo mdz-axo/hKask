@@ -1,5 +1,8 @@
-//! hLexicon — vocabulary types for hKask
-//!
+//! hLexicon — Loop 2b (Semantic Memory): canonical vocabulary
+//
+//! The hLexicon is the shared public vocabulary stored in semantic memory.
+//! Curation (Loop 5) curates terms; Inference (Loop 1) uses them for prompting.
+//
 //! The canonical vocabulary is authored in
 //! `docs/architecture/reference/hKask-hLexicon.md` (the single source of truth)
 //! and derived into the workspace lexicon registry

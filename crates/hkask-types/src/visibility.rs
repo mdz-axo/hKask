@@ -1,11 +1,15 @@
-//! Visibility types — access classification
-//!
+//! Visibility types — Loop 6 (Cybernetics): access classification
+//
+//! Visibility is a Cybernetics concern — the Access Guard (6.1) enforces
+//! visibility boundaries. Public/Shared/Sovereign data categories determine
+//! what each loop can read or write.
+//
 //! Defines the three-tier visibility model for artifacts within hKask.
 //! Access control enforcement is delegated to the `CapabilityToken` primitive
 //! in the `capability` module (ADR-022-T08: single capability primitive).
-//!
+//
 //! # Visibility Model
-//!
+//
 //! | Level | Meaning | Enforcement |
 //! |-------|---------|-------------|
 //! | Private | Owner-only access | `SovereigntyChecker` + `CapabilityToken` |
@@ -15,6 +19,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Visibility level for artifacts
+/// Loop: Cybernetics
 ///
 /// Classification enum used by `SovereigntyChecker`, `Goal`, and
 /// `Triple` to categorize data accessibility. The actual enforcement

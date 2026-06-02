@@ -1,18 +1,14 @@
-//! R7 Bot Identity — The seven bots that build and curate hKask
+//! R7 Bot Identity — Loop 4 (Communication): standing session coordination
 //!
-//! Per personas-r7.md:
-//!   "At launch, the only difference between them is which part of the
-//!    hKask code each is responsible for. No personality differences.
-//!    No capability differences. No memory differences. They share all
-//!    registries. They can swap. They do swap."
-//!
-//! Memory visibility starts at Shared — the legion shares everything.
-//! Divergence emerges through episodic memory, not design.
+//! The R7 bots participate in standing ensemble sessions coordinated by
+//! the Communication loop. Energy budgets are governed by Cybernetics;
+//! the roster itself is Communication infrastructure.
 
 use crate::{Visibility, WebID};
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 
+/// Loop: Communication
 /// An R7 bot identity — one of the seven "c" curators
 ///
 /// Invariant: `webid` is always `WebID::from_persona(id.as_bytes())`.

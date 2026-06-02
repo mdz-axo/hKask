@@ -1,4 +1,7 @@
-//! Template types for hKask high-temperature templates
+//! Template types — Loop 1 (Inference): template rendering and invocation
+//
+//! Templates are the primary interface for the Inference loop. The registry
+//! stores them; Inference renders them; Curation evaluates their output.
 
 use serde::{Deserialize, Serialize};
 
@@ -8,6 +11,7 @@ use crate::id::BotID;
 pub type TemplateId = crate::id::TemplateID;
 
 /// LLMParameters — Full parameter set for LLM invocation
+/// Loop: Inference
 ///
 /// Temperature is primary. Other parameters support.
 /// Temperature breaks the pattern. Other parameters vary the break.
@@ -66,6 +70,7 @@ impl Default for LLMParameters {
 }
 
 /// TemplateOutcome — Result of template invocation
+/// Loop: Inference
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TemplateOutcome {
@@ -91,6 +96,7 @@ impl std::fmt::Display for TemplateOutcome {
 }
 
 /// TemplateInvocation — Record of a single template execution
+/// Loop: Inference
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TemplateInvocation {
     pub id: TemplateId,
@@ -109,6 +115,7 @@ pub struct TemplateInvocation {
 }
 
 /// Template file within a crate
+/// Loop: Inference
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TemplateFile {
     pub path: String,
@@ -117,6 +124,7 @@ pub struct TemplateFile {
 }
 
 /// Template crate structure (loaded from Git CAS)
+/// Loop: Inference
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct TemplateCrate {
     /// Crate name

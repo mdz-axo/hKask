@@ -5,11 +5,11 @@
 //! - Layer 2: Session message dedup (`hkask-ensemble/src/chat_dedup.rs`)
 //! - Layer 3: Prompt assembly dedup (`hkask-templates/src/context_assembly.rs`)
 
-pub mod bayesian;
-pub mod episodic;
+pub mod bayesian; // Loop 2b (semantic confidence combination)
+pub mod episodic; // Loop 2a
 pub mod episodic_loop;
 pub mod recall_dedup;
-pub mod semantic;
+pub mod semantic; // Loop 2b
 pub mod semantic_loop;
 
 pub use episodic::EpisodicMemory;

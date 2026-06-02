@@ -1,4 +1,8 @@
-//! Capability-based access control for MCP tool invocation and composition operations
+//! Capability tokens (OCAP) — Loop 6 (Cybernetics): Access Guard
+//!
+//! OCAP capability tokens are verified by the Cybernetics Access Guard (6.1).
+//! The CyberneticsHandle verifies, issues, and revokes tokens.
+//! Curation (Loop 5) can direct Cybernetics to adjust capabilities.
 //!
 //! Implements OCAP (Object-Capability) security model for tool access and template/manifest operations.
 //! Each bot must hold a capability token to invoke tools or perform composition operations.
@@ -62,6 +66,7 @@ fn base64_decode(s: &str) -> Result<Vec<u8>, String> {
 }
 
 /// Capability resource types
+/// Loop: Cybernetics
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CapabilityResource {
     Tool,
@@ -98,6 +103,7 @@ impl CapabilityResource {
 }
 
 /// Capability action types
+/// Loop: Cybernetics
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CapabilityAction {
     Read,
@@ -137,6 +143,7 @@ impl CapabilityAction {
 }
 
 /// Caveat — A restriction on a capability token
+/// Loop: Cybernetics
 ///
 /// Caveats are additive restrictions that limit the scope of a capability.
 /// Each caveat has a type identifier and associated data.
@@ -233,6 +240,7 @@ impl Default for CaveatContext {
 }
 
 /// Capability token for tool access and composition operations
+/// Loop: Cybernetics
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CapabilityToken {
     /// Unique token identifier
@@ -779,6 +787,7 @@ impl CapabilityToken {
 }
 
 /// Bot capability manifest
+/// Loop: Cybernetics
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BotCapabilities {
     /// Bot's WebID

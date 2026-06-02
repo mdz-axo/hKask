@@ -1,7 +1,7 @@
-//! Goal capability tokens — OCAP attenuation for goal operations
+//! Goal capability types — Cross-cutting infrastructure
 //!
-//! Capabilities gate all goal operations per OCAP principles.
-//! Attenuation reduces permissions on delegation (max 7 levels).
+//! Capability tokens for goal operations. Governed by Cybernetics (6.1 Access Guard)
+//! but the goal domain itself spans multiple loops.
 
 use crate::capability::SYSTEM_MAX_ATTENUATION;
 use crate::goal::Goal;

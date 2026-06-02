@@ -3,16 +3,16 @@
 //! Homeostatic self-regulation: variety sensing, algedonic alerts, energy budgets,
 //! OCAP governance, sovereignty enforcement. Per Ashby's Law of Requisite Variety.
 
-pub mod algedonic;
-pub mod circuit_breaker;
-pub mod cybernetics_loop;
-pub mod dampener;
-pub mod energy;
-pub mod inference_loop;
-pub mod observers;
-pub mod runtime;
-pub mod unified_tracker;
-pub mod variety;
+pub mod algedonic; // Loop 6 subloop 6.4 — algedonic signal channel
+pub mod circuit_breaker; // Loop 6 — regulation
+pub mod cybernetics_loop; // Loop 6
+pub mod dampener; // Loop 6 — regulation
+pub mod energy; // Loop 6 — thermodynamic resource allocation
+pub mod inference_loop; // Loop 1 (lives in CNS for governance)
+pub mod observers; // Loop 6 — sensing
+pub mod runtime; // Loop 6 — runtime
+pub mod unified_tracker; // Loop 6 — variety tracking
+pub mod variety; // Loop 6 subloop 6.3
 
 pub use algedonic::{AlgedonicManager, DEFAULT_THRESHOLD, RuntimeAlert, cns_health_check};
 pub use circuit_breaker::{CircuitBreaker, CircuitBreakerConfig};

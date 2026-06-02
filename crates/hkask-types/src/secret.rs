@@ -1,5 +1,11 @@
+//! Secret derivation — Loop 6 (Cybernetics): key management
+//!
+//! Secret derivation contexts are used by the Cybernetics Access Guard (6.1)
+//! and the keystore for capability token signing and verification.
+
 use serde::{Deserialize, Serialize};
 
+/// Loop: Cybernetics
 /// Declarative reference to a secret's source.
 ///
 /// Each variant specifies how to resolve a secret value at runtime.

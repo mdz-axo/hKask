@@ -1,15 +1,14 @@
-//! Human user identity and authentication types
+//! Human identity and authentication types — Loop 6 (Cybernetics): Access Guard
 //!
-//! This module provides:
-//! - **HumanUser**: The human behind the system (contact info for recovery)
-//! - **ReplicantIdentity**: In-system persona that users log in AS
-//! - **UserSession**: Active authenticated sessions
+//! Cybernetics subloop 6.1 (Access Guard) governs who can access what.
+//! Human users, replicant identities, and sessions are verified at this boundary.
 
 use crate::WebID;
 use serde::{Deserialize, Serialize};
 
 crate::id::define_id_type!(UserID, from_string);
 
+/// Loop: Cybernetics
 /// Human user — owns contact info (email, phone for recovery only)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HumanUser {
@@ -44,6 +43,7 @@ impl HumanUser {
     }
 }
 
+/// Loop: Cybernetics
 /// Replicant identity — the in-system persona users log in AS
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReplicantIdentity {
@@ -84,6 +84,7 @@ impl ReplicantIdentity {
     }
 }
 
+/// Loop: Cybernetics
 /// Active user session
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserSession {
@@ -102,6 +103,7 @@ impl UserSession {
     }
 }
 
+/// Loop: Cybernetics
 /// Registration request for new replicant identity
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RegistrationRequest {
@@ -164,6 +166,7 @@ impl RegistrationRequest {
 }
 
 #[derive(Debug, Clone, thiserror::Error)]
+/// Loop: Cybernetics
 pub enum RegistrationError {
     #[error("Replicant name cannot be empty")]
     EmptyReplicantName,
