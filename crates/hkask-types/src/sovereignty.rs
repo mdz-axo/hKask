@@ -94,7 +94,7 @@ impl DataCategory {
     }
 }
 
-crate::id::define_id_type!(SovereigntyId);
+crate::id::define_id_type!(pub(crate) SovereigntyId);
 
 /// Acquisition resistance — binary: resistant or not.
 ///
@@ -102,7 +102,7 @@ crate::id::define_id_type!(SovereigntyId);
 /// The system only ever checks `prevents_passive_acquisition()`, which
 /// collapses to a binary outcome. Five levels were decoration, not function.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
-pub struct AcquisitionResistance(pub bool);
+pub(crate) struct AcquisitionResistance(pub bool);
 
 impl AcquisitionResistance {
     /// Default resistance level for hKask pods — resistant.
@@ -130,7 +130,7 @@ impl std::fmt::Display for AcquisitionResistance {
 /// Data sovereignty boundary — defines what data the user controls
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DataSovereigntyBoundary {
-    pub id: SovereigntyId,
+    pub(crate) id: SovereigntyId,
     /// What data is under user sovereignty
     pub sovereign_data: HashSet<DataCategory>,
     /// What data may be shared (with explicit consent)
@@ -138,7 +138,7 @@ pub struct DataSovereigntyBoundary {
     /// What data is public (no sovereignty claim)
     pub public_data: HashSet<DataCategory>,
     /// Resistance level for this boundary
-    pub resistance: AcquisitionResistance,
+    pub(crate) resistance: AcquisitionResistance,
 }
 
 impl DataSovereigntyBoundary {
@@ -190,6 +190,11 @@ impl DataSovereigntyBoundary {
     /// Check if data category is public
     pub fn is_public(&self, category: &DataCategory) -> bool {
         self.public_data.contains(category)
+    }
+
+    /// Whether this boundary resists passive acquisition
+    pub fn prevents_passive_acquisition(&self) -> bool {
+        self.resistance.prevents_passive_acquisition()
     }
 }
 

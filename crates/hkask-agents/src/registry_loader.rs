@@ -1,4 +1,4 @@
-//! BotRegistryLoader — Load agent YAML definitions, register with ACP, persist to storage
+//! AgentRegistryLoader — Load agent YAML definitions, register with ACP, persist to storage
 
 use crate::acp::{AcpError, AcpRuntime};
 use crate::ports::RegistrySourcePort;
@@ -210,14 +210,14 @@ impl RawYamlAgent {
     }
 }
 
-pub struct BotRegistryLoader {
+pub struct AgentRegistryLoader {
     registry_path: PathBuf,
     acp_runtime: Arc<AcpRuntime>,
     store: AgentRegistryStore,
     source: Arc<dyn RegistrySourcePort>,
 }
 
-impl BotRegistryLoader {
+impl AgentRegistryLoader {
     pub fn new(
         registry_path: PathBuf,
         acp_runtime: Arc<AcpRuntime>,
@@ -304,7 +304,7 @@ impl BotRegistryLoader {
             .acp_runtime
             .register_agent(
                 webid,
-                definition.agent_kind.as_str().to_string(),
+                definition.agent_kind,
                 definition.capabilities.clone(),
             )
             .await

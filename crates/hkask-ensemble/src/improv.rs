@@ -123,7 +123,7 @@ pub enum ImprovError<E: std::error::Error + Send + Sync> {
     Ensemble(#[from] EnsembleError),
 }
 
-pub async fn improv_turn<C: InferenceClient>(
+pub(crate) async fn improv_turn<C: InferenceClient>(
     config: &ImprovSessionConfig,
     inference_client: &Arc<C>,
     user_message: &str,

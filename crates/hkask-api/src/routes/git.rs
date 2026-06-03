@@ -104,7 +104,7 @@ async fn archive(
                     })),
                 }),
             ),
-            hkask_agents::GitError::InvalidPath(_) => (
+            hkask_agents::GitError::Io(_) => (
                 StatusCode::BAD_REQUEST,
                 Json(ErrorResponse {
                     error: "invalid_path".to_string(),

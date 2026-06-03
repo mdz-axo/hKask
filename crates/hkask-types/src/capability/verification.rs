@@ -92,7 +92,7 @@ impl CapabilityChecker {
         to: WebID,
     ) -> DelegationToken {
         DelegationToken::new(
-            DelegationResource::Manifest,
+            DelegationResource::Registry,
             manifest_id,
             action,
             from,
@@ -127,7 +127,7 @@ impl CapabilityChecker {
         to: WebID,
     ) -> DelegationToken {
         DelegationToken::new(
-            DelegationResource::Cascade,
+            DelegationResource::Registry,
             cascade_id,
             action,
             from,
@@ -145,7 +145,7 @@ impl CapabilityChecker {
         to: WebID,
     ) -> DelegationToken {
         DelegationToken::new(
-            DelegationResource::Spec,
+            DelegationResource::Registry,
             spec_id,
             action,
             from,

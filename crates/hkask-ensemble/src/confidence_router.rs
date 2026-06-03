@@ -8,7 +8,7 @@
 
 /// Confidence configuration (from template frontmatter or default)
 #[derive(Debug, Clone)]
-pub struct ConfidenceConfig {
+pub(crate) struct ConfidenceConfig {
     pub threshold: f64,
     pub escalate_to_model: String,
     pub n_probs: i32,
@@ -25,4 +25,4 @@ impl Default for ConfidenceConfig {
 }
 
 /// Re-export canonical `compute_confidence` from hkask-types.
-pub use hkask_types::ports::compute_confidence;
+pub(crate) use hkask_types::ports::compute_confidence;

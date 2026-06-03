@@ -29,7 +29,7 @@ pub struct ConsolidationBridge {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum ConsolidationError {
+pub(crate) enum ConsolidationError {
     #[error("Episodic memory error: {0}")]
     Episodic(String),
     #[error("Semantic memory error: {0}")]
@@ -37,7 +37,7 @@ pub enum ConsolidationError {
 }
 
 #[derive(Debug, Clone)]
-pub struct ConsolidationResult {
+pub(crate) struct ConsolidationResult {
     pub consolidated_count: usize,
     pub retracted_count: usize,
     pub failed_count: usize,
@@ -55,7 +55,7 @@ impl ConsolidationBridge {
     /// 2. Set confidence to 0.5 (Bayesian seeding baseline)
     /// 3. Store in semantic memory
     /// 4. Retract from episodic memory (confidence halved, not deleted)
-    pub fn consolidate(
+    pub(crate) fn consolidate(
         &self,
         perspective: WebID,
         limit: usize,
@@ -169,7 +169,10 @@ impl ConsolidationBridge {
     ///
     /// Returns the number of episodic triples with confidence below the
     /// consolidation threshold (0.5) for the specified perspective.
-    pub fn consolidation_count(&self, perspective: WebID) -> Result<usize, ConsolidationError> {
+    pub(crate) fn consolidation_count(
+        &self,
+        perspective: WebID,
+    ) -> Result<usize, ConsolidationError> {
         let candidates = self
             .episodic
             .consolidation_candidates(perspective, usize::MAX)

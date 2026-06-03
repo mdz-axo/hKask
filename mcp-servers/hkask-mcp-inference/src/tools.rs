@@ -1,9 +1,16 @@
 //! MCP tools for Okapi-backed LLM inference
 //!
 //! Three tools exposed via MCP protocol:
-//! - `inference:generate` — Generate text via Okapi LLM (with failover + rate limiting)
+//! - `inference:generate` — Generate text via Okapi LLM (with failover)
 //! - `inference:metrics` — Get current inference metrics
 //! - `inference:models` — List available model tiers
+//!
+//! **Throttling is not handled here.** Per-agent rate limiting is a CNS concern
+//! (Loop 6 regulation) owned by `hkask_cns::ThrottleBucket`. The `McpDispatcher`
+//! calls `CnsRuntime::check_throttle()` before dispatching any tool invocation.
+//! This server runs as a separate process and does not have access to `CnsRuntime`;
+//! placing throttling here would duplicate the canonical implementation and
+//! violate the authority DAG (Cybernetics governs Communication).
 
 use hkask_mcp::server::{McpToolError, McpToolOutput, ToolSpanGuard, validate_identifier};
 use hkask_templates::{InferencePort, OkapiConfig, OkapiInference};
@@ -12,16 +19,12 @@ use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::Instant;
 use tokio::sync::RwLock;
 use tracing::{info, warn};
 
 const FALLBACK_MODEL: &str = "ollama/llama-3.1-8b-instruct";
-const RATE_LIMIT_MAX_TOKENS: f64 = 10.0;
-const RATE_LIMIT_REFILL_RATE: f64 = 1.0;
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct GenerateRequest {
@@ -66,61 +69,12 @@ pub struct ModelsRequest {
     pub filter: String,
 }
 
-/// Per-caller rate-limit bucket (token-bucket algorithm).
-///
-// TODO: This is a LOCAL PROXY for CNS throttling. The canonical throttle
-//       lives in `hkask_cns::ThrottleBucket` (keyed by `WebID`) and is wired
-//       into `CnsRuntime::check_throttle()`, which is called by `McpDispatcher`
-//       in the main process before dispatching tool calls.
-//
-//       This local `RateBucket` is retained because the inference MCP server
-//       runs as a separate process and cannot call `CnsRuntime` directly.
-//       It provides process-isolated fallback rate limiting for the external
-//       API boundary. When MCP transport (T16) enables cross-process throttle
-//       delegation, this should be replaced by a call to CNS via the MCP protocol.
-//
-//       Key differences from the CNS `ThrottleBucket`:
-//       - Uses `String` keys (caller IDs from MCP requests) vs `WebID`
-//       - Uses `RwLock<HashMap>` vs `tokio::sync::Mutex<HashMap>`
-//       - Local to this process; not shared with other MCP servers
-#[derive(Debug)]
-struct RateBucket {
-    tokens: f64,
-    last_refill: Instant,
-}
-
-impl RateBucket {
-    fn new() -> Self {
-        Self {
-            tokens: RATE_LIMIT_MAX_TOKENS,
-            last_refill: Instant::now(),
-        }
-    }
-
-    fn consume(&mut self, amount: f64) -> bool {
-        let now = Instant::now();
-        let elapsed = now.duration_since(self.last_refill).as_secs_f64();
-        self.tokens = (self.tokens + elapsed * RATE_LIMIT_REFILL_RATE).min(RATE_LIMIT_MAX_TOKENS);
-        self.last_refill = now;
-
-        if self.tokens >= amount {
-            self.tokens -= amount;
-            true
-        } else {
-            false
-        }
-    }
-}
-
 #[derive(Debug)]
 pub struct InferenceMetrics {
     pub total_requests: AtomicU64,
     pub total_tokens_generated: AtomicU64,
     pub total_errors: AtomicU64,
     pub total_failovers: AtomicU64,
-    /// External API boundary rate limit counter (per-caller token bucket).
-    /// Distinct from internal energy budget tracking.
-    pub total_rate_limited: AtomicU64,
 }
 
 impl Default for InferenceMetrics {
@@ -130,7 +84,6 @@ impl Default for InferenceMetrics {
             total_tokens_generated: AtomicU64::new(0),
             total_errors: AtomicU64::new(0),
             total_failovers: AtomicU64::new(0),
-            total_rate_limited: AtomicU64::new(0),
         }
     }
 }
@@ -140,9 +93,6 @@ pub struct InferenceServer {
     webid: WebID,
     metrics: Arc<InferenceMetrics>,
     active_models: Arc<RwLock<Vec<String>>>,
-    /// Per-caller token bucket rate limiter (external API boundary protection).
-    /// Distinct from internal energy budget tracking.
-    rate_buckets: Arc<RwLock<HashMap<String, RateBucket>>>,
 }
 
 impl InferenceServer {
@@ -155,16 +105,7 @@ impl InferenceServer {
                 "ollama/llama-3.1-70b-instruct".to_string(),
                 "ollama/codellama-34b".to_string(),
             ])),
-            rate_buckets: Arc::new(RwLock::new(HashMap::new())),
         })
-    }
-
-    async fn check_rate_limit(&self, caller_id: &str) -> bool {
-        let mut buckets = self.rate_buckets.write().await;
-        let bucket = buckets
-            .entry(caller_id.to_string())
-            .or_insert_with(RateBucket::new);
-        bucket.consume(1.0)
     }
 
     async fn try_generate(
@@ -182,7 +123,7 @@ impl InferenceServer {
 #[tool_router(server_handler)]
 impl InferenceServer {
     #[tool(
-        description = "Generate text using Okapi-backed LLM inference. Supports model selection with automatic failover, temperature control, token limits, and per-caller rate limiting."
+        description = "Generate text using Okapi-backed LLM inference. Supports model selection with automatic failover, temperature control, and token limits. Per-agent rate limiting is handled by the CNS throttle at the MCP dispatch layer."
     )]
     async fn inference_generate(
         &self,
@@ -206,25 +147,6 @@ impl InferenceServer {
         }
 
         self.metrics.total_requests.fetch_add(1, Ordering::Relaxed);
-
-        if !self.check_rate_limit(&caller_id).await {
-            self.metrics
-                .total_rate_limited
-                .fetch_add(1, Ordering::Relaxed);
-            warn!(
-                target: "hkask.mcp.inference",
-                caller_id = %caller_id,
-                "Rate limit exceeded"
-            );
-            return span.error(
-                McpErrorKind::RateLimited,
-                McpToolError::rate_limited(format!(
-                    "Rate limit exceeded for caller: {}",
-                    caller_id
-                ))
-                .to_json_string(),
-            );
-        }
 
         info!(
             target: "hkask.mcp.inference",
@@ -310,7 +232,7 @@ impl InferenceServer {
     }
 
     #[tool(
-        description = "Get current inference metrics including total requests, tokens generated, error counts, failover count, and rate-limited requests."
+        description = "Get current inference metrics including total requests, tokens generated, error counts, and failover count."
     )]
     async fn inference_metrics(
         &self,
@@ -330,14 +252,11 @@ impl InferenceServer {
         let total_tokens = load_or_swap(&self.metrics.total_tokens_generated);
         let total_errors = load_or_swap(&self.metrics.total_errors);
         let total_failovers = load_or_swap(&self.metrics.total_failovers);
-        let total_rate_limited = load_or_swap(&self.metrics.total_rate_limited);
-
         span.ok(McpToolOutput::new(serde_json::json!({
             "total_requests": total_requests,
             "total_tokens_generated": total_tokens,
             "total_errors": total_errors,
             "total_failovers": total_failovers,
-            "total_rate_limited": total_rate_limited,
             "reset": reset,
         }))
         .to_json_string())

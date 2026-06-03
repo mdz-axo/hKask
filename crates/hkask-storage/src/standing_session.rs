@@ -14,7 +14,7 @@ use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum StandingSessionError {
+pub(crate) enum StandingSessionError {
     #[error(transparent)]
     Infra(#[from] InfrastructureError),
 
@@ -31,7 +31,7 @@ impl From<rusqlite::Error> for StandingSessionError {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StoredSession {
+pub(crate) struct StoredSession {
     pub session_id: String,
     pub config_yaml: String,
     pub created_at: String,
@@ -45,7 +45,7 @@ pub struct StoredSession {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StoredMessage {
+pub(crate) struct StoredMessage {
     pub id: i64,
     pub session_id: String,
     pub from_webid: String,
@@ -55,7 +55,7 @@ pub struct StoredMessage {
 }
 
 #[derive(Clone)]
-pub struct StandingSessionStore {
+pub(crate) struct StandingSessionStore {
     conn: Arc<Mutex<Connection>>,
 }
 

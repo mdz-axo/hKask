@@ -14,7 +14,7 @@ pub mod sovereignty;
 pub mod standing_session;
 
 pub use acp::AcpPort;
-pub use audit_log::{AuditContext, AuditEntry, AuditLogPort, AuditOutcome};
+pub use audit_log::{AuditEntry, AuditLogPort, AuditOutcome};
 pub use git_cas::GitCASPort;
 pub use mcp_runtime::MCPRuntimePort;
 pub use memory_storage::{EpisodicStoragePort, SemanticStoragePort};

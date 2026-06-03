@@ -63,7 +63,6 @@ pub struct DismissEscalationResponse {
 pub struct EscalationStatsResponse {
     pub total: i64,
     pub pending: i64,
-    pub in_review: i64,
     pub resolved: i64,
     pub dismissed: i64,
 }
@@ -312,7 +311,6 @@ async fn metacognition_status(
     let escalation_stats = EscalationStatsResponse {
         total: stats.total,
         pending: stats.pending,
-        in_review: stats.in_review,
         resolved: stats.resolved,
         dismissed: stats.dismissed,
     };

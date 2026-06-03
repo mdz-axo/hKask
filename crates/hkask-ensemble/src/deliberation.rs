@@ -15,7 +15,7 @@ use tracing::info;
 /// Decoupled from `ChatParticipant` (which lives in hkask-ensemble chat) to avoid
 /// circular dependencies.
 #[derive(Debug, Clone)]
-pub struct DeliberationParticipant {
+pub(crate) struct DeliberationParticipant {
     pub webid: WebID,
     pub name: String,
 }
@@ -30,7 +30,7 @@ pub struct DeliberationSession {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum DeliberationStatus {
+pub(crate) enum DeliberationStatus {
     Pending,
     InProgress,
     Completed,
@@ -90,7 +90,7 @@ impl DeliberationSession {
     }
 
     /// Add a participant to deliberation
-    pub fn add_participant(&mut self, participant: DeliberationParticipant) {
+    pub(crate) fn add_participant(&mut self, participant: DeliberationParticipant) {
         self.participants.push(participant);
     }
 
@@ -129,7 +129,7 @@ impl DeliberationSession {
     }
 
     /// Get session status
-    pub fn status(&self) -> &DeliberationStatus {
+    pub(crate) fn status(&self) -> &DeliberationStatus {
         &self.status
     }
 
@@ -139,13 +139,13 @@ impl DeliberationSession {
     }
 
     /// Mark deliberation as completed
-    pub fn complete(&mut self) {
+    pub(crate) fn complete(&mut self) {
         self.status = DeliberationStatus::Completed;
         info!("Deliberation session {} completed", self.session_id);
     }
 
     /// Cancel deliberation
-    pub fn cancel(&mut self) {
+    pub(crate) fn cancel(&mut self) {
         self.status = DeliberationStatus::Cancelled;
         info!("Deliberation session {} cancelled", self.session_id);
     }

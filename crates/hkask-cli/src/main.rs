@@ -567,7 +567,7 @@ fn run_loops(rt: &tokio::runtime::Runtime, interval: u64) {
     let curator_handle = CuratorHandle::system();
     let escalation_queue = Arc::new(EscalationQueue::new(db.conn_arc()).expect("escalation queue"));
     let curator_context = Arc::new(CuratorContext::new(
-        curator_handle,
+        curator_handle.clone(),
         Arc::new(CnsRuntime::with_threshold(hkask_cns::DEFAULT_THRESHOLD)),
         Arc::clone(&dispatch),
         escalation_queue,
@@ -582,7 +582,11 @@ fn run_loops(rt: &tokio::runtime::Runtime, interval: u64) {
         Arc::clone(&episodic_memory),
         Arc::clone(&semantic_memory),
     ));
-    let curation_loop = CurationLoop::with_consolidation(metacognition, consolidation_bridge);
+    let curation_loop = CurationLoop::with_consolidation(
+        curator_handle.clone(),
+        metacognition,
+        consolidation_bridge,
+    );
     rt.block_on(loop_system.register_loop(Arc::new(curation_loop)));
 
     // 8. Start the loop system

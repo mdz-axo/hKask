@@ -4,7 +4,7 @@
 //! and capability management.
 
 use async_trait::async_trait;
-use hkask_types::{DelegationToken, WebID};
+use hkask_types::{AgentKind, DelegationToken, WebID};
 
 use crate::acp::{A2AMessage, AcpError};
 
@@ -19,7 +19,7 @@ pub trait AcpPort: Send + Sync {
     async fn register_agent(
         &self,
         webid: WebID,
-        agent_type: &str,
+        agent_type: AgentKind,
         capabilities: Vec<String>,
     ) -> Result<DelegationToken, AcpError>;
 

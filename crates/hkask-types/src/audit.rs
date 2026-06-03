@@ -68,7 +68,7 @@ impl std::str::FromStr for AuditOutcome {
 /// Loop: Curation
 /// Additional context for audit entries
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct AuditContext {
+pub(crate) struct AuditContext {
     /// Correlation ID for distributed tracing
     pub correlation_id: Option<String>,
     /// Recipient WebID (for message passing)

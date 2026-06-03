@@ -56,8 +56,8 @@ async fn acp_register(
         })
         .map(hkask_types::WebID)?;
 
-    if !["Bot", "Replicant"].contains(&req.agent_type.as_str()) {
-        return Err((
+    let agent_kind = hkask_types::AgentKind::parse(&req.agent_type).ok_or_else(|| {
+        (
             StatusCode::BAD_REQUEST,
             Json(ErrorResponse {
                 error: "invalid_agent_type".to_string(),
@@ -66,8 +66,8 @@ async fn acp_register(
                     "message": format!("Agent type must be 'Bot' or 'Replicant', got: {}", req.agent_type)
                 })),
             }),
-        ));
-    }
+        )
+    })?;
 
     if req.capabilities.is_empty() {
         return Err((
@@ -84,7 +84,7 @@ async fn acp_register(
 
     let acp = state.pod_manager.acp_runtime();
     let token = acp
-        .register_agent(webid, &req.agent_type, req.capabilities)
+        .register_agent(webid, agent_kind, req.capabilities)
         .await
         .map_err(|e| match e {
             hkask_agents::AcpError::AgentAlreadyRegistered(_) => (
@@ -138,7 +138,7 @@ async fn acp_list_agents(
         .into_iter()
         .map(|a| AcpAgentResponse {
             webid: a.webid.to_string(),
-            agent_type: a.agent_type,
+            agent_type: a.agent_type.to_string(),
             capabilities: a.capabilities,
             registered_at: a.registered_at,
             active: a.active,

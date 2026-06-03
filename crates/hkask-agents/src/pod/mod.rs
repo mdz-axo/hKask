@@ -59,7 +59,7 @@ mod types;
 use hkask_types::derivation_contexts;
 use hkask_types::secret::SecretRef;
 use hkask_types::{
-    DelegationAction, DelegationResource, DelegationToken, DataCategory, SYSTEM_MAX_ATTENUATION,
+    DataCategory, DelegationAction, DelegationResource, DelegationToken, SYSTEM_MAX_ATTENUATION,
     WebID,
 };
 use thiserror::Error;
@@ -120,18 +120,6 @@ pub enum AgentPodError {
 
     #[error("Invalid lifecycle transition: {0} -> {1}")]
     InvalidStateTransition(PodLifecycleState, PodLifecycleState),
-
-    #[error("Pod is not in required state: expected {expected}, actual {actual}")]
-    StateMismatch {
-        expected: PodLifecycleState,
-        actual: PodLifecycleState,
-    },
-
-    #[error("CNS event emission failed: {0}")]
-    CNSEmissionError(String),
-
-    #[error("Storage error: {0}")]
-    StorageError(String),
 
     #[error("Clock error: {0}")]
     ClockError(String),
@@ -225,9 +213,8 @@ impl AgentPod {
         }
 
         let capabilities: Vec<String> = self.persona.capabilities.clone();
-        let agent_type = self.agent_type.to_string();
         let token = acp
-            .register_agent(self.webid, &agent_type, capabilities)
+            .register_agent(self.webid, self.agent_type, capabilities)
             .await
             .map_err(|e| AgentPodError::ACPRegistrationError(e.to_string()))?;
 

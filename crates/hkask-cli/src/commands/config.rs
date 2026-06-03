@@ -210,7 +210,7 @@ pub(crate) async fn init_registry_with_secrets(
             .iter()
             .map(|ra| hkask_agents::acp::AcpAgent {
                 webid: hkask_types::WebID::from_string(&ra.definition.name),
-                agent_type: ra.definition.agent_kind.as_str().to_string(),
+                agent_type: ra.definition.agent_kind,
                 capabilities: ra.definition.capabilities.clone(),
                 registered_at: chrono::DateTime::parse_from_rfc3339(&ra.registered_at)
                     .map(|dt| dt.timestamp())

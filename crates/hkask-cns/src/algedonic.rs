@@ -214,7 +214,11 @@ impl AlgedonicManager {
     /// When an allosteric gate is configured, severity is determined by
     /// the MWC sigmoid (α = deficit / threshold). When no gate is
     /// configured, falls back to binary thresholds.
-    pub fn check(&mut self, counter: &VarietyTracker, domain: &str) -> Option<&RuntimeAlert> {
+    pub(crate) fn check(
+        &mut self,
+        counter: &VarietyTracker,
+        domain: &str,
+    ) -> Option<&RuntimeAlert> {
         let expected = self
             .expected_variety
             .get(domain)

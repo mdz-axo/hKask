@@ -26,9 +26,6 @@ pub enum ConsentError {
     #[error("Consent not found for WebID: {0}")]
     ConsentNotFound(String),
 
-    #[error("Invalid data category: {0}")]
-    InvalidCategory(String),
-
     #[error(transparent)]
     Infra(#[from] hkask_types::InfrastructureError),
 }

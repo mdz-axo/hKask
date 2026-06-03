@@ -53,7 +53,7 @@ impl EnergyBudget {
         }
     }
 
-    pub fn allocate(&mut self, tokens: u64) -> Result<u64, EnergyError> {
+    pub(crate) fn allocate(&mut self, tokens: u64) -> Result<u64, EnergyError> {
         let cost = self.calculate_cost(tokens);
         if cost > self.remaining && self.hard_limit {
             return Err(EnergyError::BudgetExceeded {
@@ -65,7 +65,7 @@ impl EnergyBudget {
         Ok(cost)
     }
 
-    pub fn try_consume(&mut self, estimated_tokens: u64) -> Result<u64, EnergyError> {
+    pub(crate) fn try_consume(&mut self, estimated_tokens: u64) -> Result<u64, EnergyError> {
         let cost = self.calculate_cost(estimated_tokens);
         if self.hard_limit && cost > self.remaining {
             return Err(EnergyError::BudgetExceeded {
@@ -91,7 +91,7 @@ impl EnergyBudget {
     ///
     /// Returns `Ok(cost)` if the budget was acquired, `Err` if insufficient.
     /// This is the atomic check-and-consume: it both checks AND deducts.
-    pub fn acquire_budget(&mut self, estimated_tokens: u64) -> Result<u64, EnergyError> {
+    pub(crate) fn acquire_budget(&mut self, estimated_tokens: u64) -> Result<u64, EnergyError> {
         self.try_consume(estimated_tokens)
     }
 
@@ -135,7 +135,7 @@ impl Clone for EnergyBudget {
 }
 
 #[derive(Debug, Clone, thiserror::Error)]
-pub enum EnergyError {
+pub(crate) enum EnergyError {
     #[error("Energy budget exceeded: requested {requested}, remaining {remaining}")]
     BudgetExceeded { requested: u64, remaining: u64 },
 }

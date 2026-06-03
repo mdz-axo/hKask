@@ -30,11 +30,7 @@ impl SovereigntyChecker {
 
     pub fn check_operation(&self, operation: &str, data_category: &DataCategory) -> bool {
         if operation == "acquisition" {
-            return !self
-                .state
-                .boundary
-                .resistance
-                .prevents_passive_acquisition();
+            return !self.state.boundary.prevents_passive_acquisition();
         }
         self.can_access(data_category, &self.owner_webid)
     }

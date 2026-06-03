@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 
 /// Variety counter for tracking state diversity in a domain
 #[derive(Debug, Clone)]
-pub struct VarietyTracker {
+pub(crate) struct VarietyTracker {
     counts: HashMap<String, u64>,
     window_start: Instant,
     window_duration: Duration,
@@ -16,7 +16,7 @@ pub struct VarietyTracker {
 
 impl VarietyTracker {
     /// Create a new variety counter with default 1-minute window
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             counts: HashMap::new(),
             window_start: Instant::now(),
@@ -25,28 +25,28 @@ impl VarietyTracker {
     }
 
     /// Increment count for a key
-    pub fn increment(&mut self, key: &str) {
+    pub(crate) fn increment(&mut self, key: &str) {
         self.check_window();
         *self.counts.entry(key.to_string()).or_insert(0) += 1;
     }
 
     /// Get total variety (number of distinct states observed)
-    pub fn variety(&self) -> u64 {
+    pub(crate) fn variety(&self) -> u64 {
         self.counts.len() as u64
     }
 
     /// Get total count across all states
-    pub fn total(&self) -> u64 {
+    pub(crate) fn total(&self) -> u64 {
         self.counts.values().sum()
     }
 
     /// Calculate variety deficit against expected variety
-    pub fn deficit(&self, expected_variety: u64) -> u64 {
+    pub(crate) fn deficit(&self, expected_variety: u64) -> u64 {
         expected_variety.saturating_sub(self.variety())
     }
 
     /// Get entropy of the distribution (measure of variety quality)
-    pub fn entropy(&self) -> f64 {
+    pub(crate) fn entropy(&self) -> f64 {
         let total = self.total() as f64;
         if total == 0.0 {
             return 0.0;
@@ -70,7 +70,7 @@ impl VarietyTracker {
     }
 
     /// Reset the counter and window
-    pub fn reset(&mut self) {
+    pub(crate) fn reset(&mut self) {
         self.counts.clear();
         self.window_start = Instant::now();
     }
@@ -96,7 +96,7 @@ impl VarietyMonitor {
     }
 
     /// Get or create a counter for a domain
-    pub fn counter(&mut self, domain: &str) -> &mut VarietyTracker {
+    pub(crate) fn counter(&mut self, domain: &str) -> &mut VarietyTracker {
         self.counters.entry(domain.to_string()).or_default()
     }
 
@@ -111,7 +111,7 @@ impl VarietyMonitor {
     }
 
     /// Get all counters (public accessor)
-    pub fn counters(&self) -> &HashMap<String, VarietyTracker> {
+    pub(crate) fn counters(&self) -> &HashMap<String, VarietyTracker> {
         &self.counters
     }
 

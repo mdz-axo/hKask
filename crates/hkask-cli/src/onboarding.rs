@@ -251,7 +251,7 @@ async fn register_replicant(
     let token = acp
         .register_agent(
             webid,
-            "Replicant".to_string(),
+            AgentKind::Replicant,
             vec![
                 "tool:inference:call".to_string(),
                 "tool:mcp:invoke".to_string(),

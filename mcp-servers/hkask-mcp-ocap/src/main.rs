@@ -9,7 +9,7 @@
 
 use hkask_mcp::server::{McpToolError, McpToolOutput, ToolSpanGuard, validate_identifier};
 use hkask_types::{
-    DelegationAction, CapabilityChecker, DelegationResource, DelegationToken, McpErrorKind, WebID,
+    CapabilityChecker, DelegationAction, DelegationResource, DelegationToken, McpErrorKind, WebID,
 };
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -68,10 +68,7 @@ impl OcapServer {
         match cap.split(':').next() {
             Some("tool") => DelegationResource::Tool,
             Some("template") => DelegationResource::Template,
-            Some("manifest") => DelegationResource::Manifest,
             Some("registry") => DelegationResource::Registry,
-            Some("cascade") => DelegationResource::Cascade,
-            Some("spec") => DelegationResource::Spec,
             _ => DelegationResource::Tool,
         }
     }
@@ -82,10 +79,6 @@ impl OcapServer {
             Some("read") => DelegationAction::Read,
             Some("write") => DelegationAction::Write,
             Some("execute") => DelegationAction::Execute,
-            Some("render") => DelegationAction::Render,
-            Some("compose") => DelegationAction::Compose,
-            Some("attenuate") => DelegationAction::Attenuate,
-            Some("validate") => DelegationAction::Validate,
             _ => DelegationAction::Execute,
         }
     }

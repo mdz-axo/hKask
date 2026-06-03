@@ -18,7 +18,7 @@ pub async fn bot_list(
         .await
         .map_err(|e| AgentError::CapabilityError(e.to_string()))?;
 
-    let loader = hkask_agents::BotRegistryLoader::new(
+    let loader = hkask_agents::AgentRegistryLoader::new(
         registry_yaml_path(),
         _acp,
         store,
@@ -50,7 +50,7 @@ pub async fn bot_status(name: &str) -> Result<hkask_types::RegisteredAgent, Agen
         .await
         .map_err(|e| AgentError::CapabilityError(e.to_string()))?;
 
-    let loader = hkask_agents::BotRegistryLoader::new(
+    let loader = hkask_agents::AgentRegistryLoader::new(
         registry_yaml_path(),
         _acp,
         store,
@@ -80,17 +80,17 @@ pub async fn agent_register(
 
     let webid = hkask_types::WebID::from_string(webid_str);
 
-    let token = acp
-        .register_agent(webid, agent_type.to_string(), capabilities)
-        .await
-        .map_err(|e| AgentError::RegistrationFailed(e.to_string()))?;
-
     let agent_kind = hkask_types::AgentKind::parse(agent_type).ok_or_else(|| {
         AgentError::RegistrationFailed(format!(
             "Unknown agent type '{}'. Must be 'Bot' or 'Replicant'.",
             agent_type
         ))
     })?;
+
+    let token = acp
+        .register_agent(webid, agent_kind, capabilities)
+        .await
+        .map_err(|e| AgentError::RegistrationFailed(e.to_string()))?;
 
     let definition = hkask_types::AgentDefinition {
         name: webid_str.to_string(),

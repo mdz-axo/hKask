@@ -26,9 +26,6 @@ use crate::sovereignty::DataCategory;
 pub enum ExperienceClassification {
     Success,
     Failure,
-    Observation,
-    Inference,
-    Instruction,
 }
 
 impl ExperienceClassification {
@@ -36,9 +33,6 @@ impl ExperienceClassification {
         match self {
             ExperienceClassification::Success => 0.9,
             ExperienceClassification::Failure => 0.3,
-            ExperienceClassification::Observation => 0.7,
-            ExperienceClassification::Inference => 0.5,
-            ExperienceClassification::Instruction => 0.8,
         }
     }
 }
@@ -48,9 +42,6 @@ impl std::fmt::Display for ExperienceClassification {
         match self {
             ExperienceClassification::Success => write!(f, "success"),
             ExperienceClassification::Failure => write!(f, "failure"),
-            ExperienceClassification::Observation => write!(f, "observation"),
-            ExperienceClassification::Inference => write!(f, "inference"),
-            ExperienceClassification::Instruction => write!(f, "instruction"),
         }
     }
 }

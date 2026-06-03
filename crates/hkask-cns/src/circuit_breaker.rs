@@ -14,7 +14,7 @@ use tracing::{error, info};
 
 /// Circuit breaker configuration
 #[derive(Debug, Clone)]
-pub struct CircuitBreakerConfig {
+pub(crate) struct CircuitBreakerConfig {
     pub failure_threshold: u32,
     pub open_timeout: Duration,
     pub success_threshold: u32,
@@ -41,7 +41,7 @@ pub struct CircuitBreaker {
 }
 
 impl CircuitBreaker {
-    pub fn new(name: String, config: CircuitBreakerConfig) -> Self {
+    pub(crate) fn new(name: String, config: CircuitBreakerConfig) -> Self {
         Self {
             state: AtomicU32::new(CircuitState::Closed as u32),
             failure_count: AtomicU32::new(0),

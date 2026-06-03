@@ -37,12 +37,12 @@ pub mod visibility;
 pub use agent_def::{
     AgentDefinition, AgentKind, Charter, PersonaConstraints, RegisteredAgent, Responsibility, Right,
 };
-pub use audit::{AuditContext, AuditEntry, AuditLogPort, AuditOutcome};
+pub use audit::{AuditEntry, AuditLogPort, AuditOutcome};
 pub use capability::tokens::{ConsolidationToken, CurationToken, CyberneticsToken};
 pub use capability::{
     AgentDelegation, BotCapabilities, CapabilityAction, CapabilityChecker, CapabilityResource,
-    CapabilityToken, CapabilityTokenBuilder, Caveat, DelegationAction, DelegationResource,
-    DelegationToken, DelegationTokenBuilder, SYSTEM_MAX_ATTENUATION, SYSTEM_MAX_RECURSION,
+    CapabilityToken, DelegationAction, DelegationResource, DelegationToken, DelegationTokenBuilder,
+    SYSTEM_MAX_ATTENUATION, SYSTEM_MAX_RECURSION,
 };
 pub use cns::{CircuitState, CnsHealth, RetryConfig};
 pub use curation::{CurationDecision, OCAPBoundary};
@@ -52,7 +52,7 @@ pub use goal::*;
 pub use goal_capability::*;
 pub use id::*;
 pub use identity::*;
-pub use lexicon::{Domain, HLexicon, LexiconTerm, TemplateType};
+pub use lexicon::TemplateType;
 pub use loops::{
     AUTHORITY_EDGES, ActionType, CuratorDirective, CuratorHandle, Deviation, DeviationDirection,
     EpisodicReadHandle, EpisodicWriteHandle, ExperienceClassification, HkaskLoop, LoopAction,
@@ -69,7 +69,7 @@ pub use secret::{SecretRef, derivation_contexts};
 pub use soap_config::InferenceConfig;
 pub use sovereignty::{
     DataCategory, KillZoneConfig, KillZoneState, KillZoneThresholds, SovereigntyCheckResult,
-    SovereigntyId, SovereigntyOperation, SovereigntyPort, UserSovereigntyState,
+    SovereigntyOperation, SovereigntyPort, UserSovereigntyState,
 };
 pub use template::{
     LLMParameters, TemplateCrate, TemplateFile, TemplateId, TemplateInvocation, TemplateOutcome,

@@ -3,4 +3,4 @@
 //! This module re-exports the canonical `AuditEntry` and `AuditLogPort` from
 //! `hkask-types::audit` to eliminate duplication across the codebase.
 
-pub use hkask_types::audit::{AuditContext, AuditEntry, AuditLogPort, AuditOutcome};
+pub use hkask_types::audit::{AuditEntry, AuditLogPort, AuditOutcome};

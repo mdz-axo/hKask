@@ -56,7 +56,7 @@ impl std::fmt::Display for PodLifecycleState {
     }
 }
 
-define_id_type!(PodID);
+define_id_type!(pub PodID);
 
 /// Agent persona definition (from YAML)
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -150,7 +150,7 @@ impl AgentPersona {
                 } else if cap.starts_with("template:") {
                     Some(DelegationResource::Template)
                 } else if cap.starts_with("memory:") {
-                    Some(DelegationResource::Cascade)
+                    Some(DelegationResource::Registry)
                 } else {
                     None
                 }

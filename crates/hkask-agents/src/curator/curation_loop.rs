@@ -8,7 +8,7 @@
 
 use crate::curator::curation_gate::{CurationConfidenceGate, CurationDecision};
 use crate::curator::metacognition::MetacognitionLoop;
-use hkask_types::loops::curation::CuratorDirective;
+use hkask_types::loops::curation::{CuratorDirective, CuratorHandle};
 use hkask_types::loops::{Deviation, HkaskLoop, LoopAction, LoopId, Signal};
 use hkask_types::ports::ConsolidationPort;
 use std::sync::Arc;
@@ -18,15 +18,27 @@ use std::sync::Arc;
 /// Wraps `MetacognitionLoop` and expresses its regulation cycle
 /// through the `Loop` trait. The `CuratorContext` provides
 /// capability-disciplined access to CNS, dispatch, and escalation.
+///
+/// **Singleton invariant:** There is exactly one `CurationLoop` per hKask
+/// system. It owns the single `CuratorHandle`; all Curator capability access
+/// flows through this instance via `CuratorContext::handle()`. The
+/// `curator_handle` field makes the singleton relationship explicit at the
+/// type level — it is not a runtime enforcement, but a structural guarantee
+/// that the loop and its handle are co-located.
 pub struct CurationLoop {
+    curator_handle: CuratorHandle,
     metacognition: Arc<MetacognitionLoop>,
     consolidation: Option<Arc<dyn ConsolidationPort>>,
 }
 
 impl CurationLoop {
     /// Create a new Curation Loop wrapping a MetacognitionLoop.
-    pub fn new(metacognition: Arc<MetacognitionLoop>) -> Self {
+    ///
+    /// The `curator_handle` is the single Curator capability handle for
+    /// the system. Use `CuratorHandle::system()` to construct it.
+    pub fn new(curator_handle: CuratorHandle, metacognition: Arc<MetacognitionLoop>) -> Self {
         Self {
+            curator_handle,
             metacognition,
             consolidation: None,
         }
@@ -36,11 +48,16 @@ impl CurationLoop {
     ///
     /// When episodic budget pressure triggers escalation, the consolidation
     /// bridge will fire to migrate episodic triples into semantic memory.
+    ///
+    /// The `curator_handle` is the single Curator capability handle for
+    /// the system. Use `CuratorHandle::system()` to construct it.
     pub fn with_consolidation(
+        curator_handle: CuratorHandle,
         metacognition: Arc<MetacognitionLoop>,
         consolidation: Arc<dyn ConsolidationPort>,
     ) -> Self {
         Self {
+            curator_handle,
             metacognition,
             consolidation: Some(consolidation),
         }
@@ -50,6 +67,14 @@ impl CurationLoop {
     /// (generate_summary, etc.).
     pub fn metacognition(&self) -> &Arc<MetacognitionLoop> {
         &self.metacognition
+    }
+
+    /// Access the CuratorHandle owned by this loop.
+    ///
+    /// Per the singleton invariant, this is the single CuratorHandle
+    /// for the entire system.
+    pub fn curator_handle(&self) -> &CuratorHandle {
+        &self.curator_handle
     }
 
     /// Evaluate curation confidence using the ARL confidence gate.

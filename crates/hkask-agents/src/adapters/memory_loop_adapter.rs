@@ -91,9 +91,7 @@ impl EpisodicStoragePort for MemoryLoopAdapter {
         token: &DelegationToken,
     ) -> Result<Vec<Value>, MemoryError> {
         match token.action {
-            hkask_types::DelegationAction::Read
-            | hkask_types::DelegationAction::Execute
-            | hkask_types::DelegationAction::Validate => {}
+            hkask_types::DelegationAction::Read | hkask_types::DelegationAction::Execute => {}
             _ => {
                 return Err(MemoryError::CapabilityDenied(
                     "Token does not grant read access for episodic recall".to_string(),
@@ -227,9 +225,7 @@ impl SemanticStoragePort for MemoryLoopAdapter {
         token: &DelegationToken,
     ) -> Result<Vec<Value>, MemoryError> {
         match token.action {
-            hkask_types::DelegationAction::Read
-            | hkask_types::DelegationAction::Execute
-            | hkask_types::DelegationAction::Validate => {}
+            hkask_types::DelegationAction::Read | hkask_types::DelegationAction::Execute => {}
             _ => {
                 return Err(MemoryError::CapabilityDenied(
                     "Token does not grant read access for semantic recall".to_string(),

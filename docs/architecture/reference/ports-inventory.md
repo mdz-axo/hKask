@@ -57,7 +57,7 @@ All 17 traits have at least one real implementation and active `dyn` dispatch ca
 | Nu Event Sink | `NuEventSink` | `event.rs` | `NuEventStore` |
 | Spec Store | `SpecStore` | `spec.rs` | `SqliteSpecStore` |
 | Spec Observer | `SpecObserver` ⚠️ REMOVED | `spec.rs` | ~~`CnsSpecObserver`~~ ⚠️ REMOVED |
-| Spec Curator | `SpecCurator` | `spec.rs` | `DefaultSpecCurator` |
+| Spec Curator | `SpecCurator` | `spec.rs` (trait) | `DefaultSpecCurator` (`hkask-agents`) |
 
 ### Removed Ports (from prior v0.21.0 inventory)
 

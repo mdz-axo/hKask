@@ -178,7 +178,6 @@ impl Span {
 #[serde(rename_all = "lowercase")]
 pub enum Phase {
     Sense,
-    Compare,
     Compute,
     Act,
 }
@@ -187,7 +186,6 @@ impl Phase {
     pub fn as_str(&self) -> &'static str {
         match self {
             Phase::Sense => "sense",
-            Phase::Compare => "compare",
             Phase::Compute => "compute",
             Phase::Act => "act",
         }
@@ -198,7 +196,7 @@ impl Phase {
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s {
-            "compare" | "Compare" => Phase::Compare,
+            "compare" | "Compare" => Phase::Act,
             "compute" | "Compute" | "regulate" | "Regulate" => Phase::Compute,
             "act" | "Act" | "outcome" | "Outcome" => Phase::Act,
             _ => Phase::Sense,

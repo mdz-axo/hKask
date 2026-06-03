@@ -78,10 +78,6 @@ pub enum TemplateOutcome {
     Success,
     /// Template produced broken/invalid output
     Failure,
-    /// Template output was merged with other outputs
-    Merged,
-    /// Template output was discarded by Curator
-    Discarded,
 }
 
 impl std::fmt::Display for TemplateOutcome {
@@ -89,8 +85,6 @@ impl std::fmt::Display for TemplateOutcome {
         match self {
             TemplateOutcome::Success => write!(f, "success"),
             TemplateOutcome::Failure => write!(f, "failure"),
-            TemplateOutcome::Merged => write!(f, "merged"),
-            TemplateOutcome::Discarded => write!(f, "discarded"),
         }
     }
 }

@@ -14,7 +14,7 @@ use thiserror::Error;
 pub(crate) const DEFAULT_EMBEDDING_DIM: usize = 384;
 
 /// Get embedding dimension from environment or default
-pub fn embedding_dim() -> usize {
+pub(crate) fn embedding_dim() -> usize {
     std::env::var("HKASK_EMBEDDING_DIM")
         .ok()
         .and_then(|s| s.parse().ok())

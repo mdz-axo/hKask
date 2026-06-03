@@ -183,7 +183,7 @@ fn build_loop_system(
     // Curation Loop
     let curator_handle = CuratorHandle::system();
     let curator_context = Arc::new(CuratorContext::new(
-        curator_handle,
+        curator_handle.clone(),
         Arc::new(CnsRuntime::with_threshold(hkask_cns::DEFAULT_THRESHOLD)),
         dispatch,
         escalation_queue,
@@ -193,7 +193,11 @@ fn build_loop_system(
         Arc::clone(&episodic_memory),
         Arc::clone(&semantic_memory),
     ));
-    let curation_loop = CurationLoop::with_consolidation(metacognition, consolidation_bridge);
+    let curation_loop = CurationLoop::with_consolidation(
+        curator_handle.clone(),
+        metacognition,
+        consolidation_bridge,
+    );
     rt.block_on(async {
         loop_system.register_loop(Arc::new(curation_loop)).await;
     });

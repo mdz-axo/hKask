@@ -283,11 +283,11 @@ impl AcpPort for RussellAcpAdapter {
     async fn register_agent(
         &self,
         webid: WebID,
-        agent_type: &str,
+        agent_type: hkask_types::AgentKind,
         capabilities: Vec<String>,
     ) -> Result<DelegationToken, AcpError> {
         let persona = match agent_type {
-            "Replicant" | "replicant" => "replicant",
+            hkask_types::AgentKind::Replicant => "replicant",
             _ => "bot",
         };
         let request = JsonRpcRequest {
@@ -550,7 +550,7 @@ impl AcpPort for RussellAcpAdapter {
             .keys()
             .map(|webid| crate::acp::AcpAgent {
                 webid: *webid,
-                agent_type: "unknown".to_string(),
+                agent_type: hkask_types::AgentKind::Bot,
                 capabilities: vec![],
                 registered_at: 0,
                 active: true,

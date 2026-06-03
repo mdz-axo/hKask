@@ -33,7 +33,9 @@ pub(crate) use audit::AuditLog;
 pub use hkask_types::AuditLogPort;
 pub(crate) use root_authority::RootAuthority;
 
-use hkask_types::{AuditOutcome, DelegationAction, DelegationResource, DelegationToken, WebID};
+use hkask_types::{
+    AgentKind, AuditOutcome, DelegationAction, DelegationResource, DelegationToken, WebID,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -49,7 +51,7 @@ type AgentSecret = Arc<Zeroizing<Vec<u8>>>;
 ///
 /// Examples:
 /// - "tool:execute" -> (DelegationResource::Tool, DelegationAction::Execute)
-/// - "template:render" -> (DelegationResource::Template, DelegationAction::Render)
+/// - "template:execute" -> (DelegationResource::Template, DelegationAction::Execute)
 ///
 /// # Errors
 /// Returns `AcpError::MalformedCapability` if the capability string is invalid
@@ -112,7 +114,7 @@ pub struct AcpAgent {
     /// Agent WebID
     pub webid: WebID,
     /// Agent type (Bot or Replicant)
-    pub agent_type: String,
+    pub agent_type: AgentKind,
     /// Registered capabilities (explicit, no wildcards)
     pub capabilities: Vec<String>,
     /// Registration timestamp (Unix epoch)
@@ -254,7 +256,7 @@ impl AcpRuntime {
     ///
     /// # Arguments
     /// * `webid` — Agent's WebID
-    /// * `agent_type` — "Bot" or "Replicant"
+    /// * `agent_type` — Agent kind (Bot or Replicant)
     /// * `capabilities` — List of capability strings
     ///
     /// # Returns
@@ -263,7 +265,7 @@ impl AcpRuntime {
     pub async fn register_agent(
         &self,
         webid: WebID,
-        agent_type: String,
+        agent_type: AgentKind,
         capabilities: Vec<String>,
     ) -> Result<DelegationToken, AcpError> {
         let mut agents = self.agents.write().await;
@@ -281,7 +283,7 @@ impl AcpRuntime {
 
         let agent = AcpAgent {
             webid,
-            agent_type: agent_type.clone(),
+            agent_type,
             capabilities: capabilities.clone(),
             registered_at: current_timestamp()?,
             active: true,
@@ -321,7 +323,7 @@ impl AcpRuntime {
         info!(
             target: "hkask.acp",
             webid = %webid,
-            agent_type = %agent_type,
+            agent_type = %agent_type.as_str(),
             capabilities = ?capabilities,
             "Agent registered with ACP runtime"
         );
@@ -637,10 +639,10 @@ impl crate::ports::AcpPort for AcpRuntime {
     async fn register_agent(
         &self,
         webid: WebID,
-        agent_type: &str,
+        agent_type: AgentKind,
         capabilities: Vec<String>,
     ) -> Result<DelegationToken, AcpError> {
-        AcpRuntime::register_agent(self, webid, agent_type.to_string(), capabilities).await
+        AcpRuntime::register_agent(self, webid, agent_type, capabilities).await
     }
 
     async fn unregister_agent(&self, webid: &WebID) -> Result<(), AcpError> {

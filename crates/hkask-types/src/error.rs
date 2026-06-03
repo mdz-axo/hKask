@@ -103,21 +103,12 @@ pub enum McpErrorKind {
     RateLimited,
     /// Precondition not met (server not initialized, feature disabled).
     FailedPrecondition,
-    /// Resource already exists (idempotent rejection).
-    AlreadyExists,
-    /// Data corruption or loss (deserialization failure).
-    DataLoss,
-    /// Operation cancelled by caller or supervisor.
-    Cancelled,
 }
 
 impl McpErrorKind {
     /// Whether errors of this kind are retryable with backoff.
     pub fn is_retryable(self) -> bool {
-        matches!(
-            self,
-            Self::Unavailable | Self::Timeout | Self::RateLimited | Self::Cancelled
-        )
+        matches!(self, Self::Unavailable | Self::Timeout | Self::RateLimited)
     }
 
     /// Whether this error requires user/admin intervention.
@@ -137,9 +128,6 @@ impl std::fmt::Display for McpErrorKind {
             Self::PermissionDenied => write!(f, "permission_denied"),
             Self::RateLimited => write!(f, "rate_limited"),
             Self::FailedPrecondition => write!(f, "failed_precondition"),
-            Self::AlreadyExists => write!(f, "already_exists"),
-            Self::DataLoss => write!(f, "data_loss"),
-            Self::Cancelled => write!(f, "cancelled"),
         }
     }
 }
@@ -168,18 +156,6 @@ pub enum HkaskError {
 
     #[error("permission denied: {0}")]
     PermissionDenied(String),
-
-    #[error("network: {0}")]
-    Network(String),
-
-    #[error("configuration: {0}")]
-    Config(String),
-
-    #[error("validation: {0}")]
-    Validation(String),
-
-    #[error("invalid input: {0}")]
-    InvalidInput(String),
 }
 
 impl HkaskError {
@@ -205,15 +181,12 @@ impl HkaskError {
 
     /// Check if error is retryable
     pub fn is_retryable(&self) -> bool {
-        matches!(self, Self::Network(_))
+        false
     }
 
     /// Check if error requires user intervention
     pub fn requires_intervention(&self) -> bool {
-        matches!(
-            self,
-            Self::CapabilityDenied(_) | Self::PermissionDenied(_) | Self::Config(_)
-        )
+        matches!(self, Self::CapabilityDenied(_) | Self::PermissionDenied(_))
     }
 
     /// Convert to McpErrorKind for MCP dispatch
@@ -221,17 +194,13 @@ impl HkaskError {
         match self {
             Self::Infra(e) => match e {
                 InfrastructureError::Database(_) => McpErrorKind::Internal,
-                InfrastructureError::Serialization(_) => McpErrorKind::DataLoss,
+                InfrastructureError::Serialization(_) => McpErrorKind::Internal,
                 InfrastructureError::LockPoisoned => McpErrorKind::Internal,
                 InfrastructureError::NotFound(_) => McpErrorKind::NotFound,
                 InfrastructureError::Io(_) => McpErrorKind::Unavailable,
             },
             Self::CapabilityDenied(_) | Self::PermissionDenied(_) | Self::InvalidToken(_) => {
                 McpErrorKind::PermissionDenied
-            }
-            Self::Network(_) => McpErrorKind::Unavailable,
-            Self::Config(_) | Self::Validation(_) | Self::InvalidInput(_) => {
-                McpErrorKind::InvalidArgument
             }
         }
     }
@@ -247,17 +216,11 @@ pub enum GitError {
     #[error("Crate not found: {0}")]
     CrateNotFound(String),
 
-    #[error("Invalid path: {0}")]
-    InvalidPath(String),
-
     #[error("IO error: {0}")]
     Io(String),
 
     #[error("Git error: {0}")]
     Git(String),
-
-    #[error("Parse error: {0}")]
-    Parse(String),
 }
 
 // Conversions from common error types

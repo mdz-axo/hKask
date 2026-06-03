@@ -18,7 +18,7 @@ use hkask_storage::spec_types::{
     DomainAnchor, GoalSpec, Spec, SpecCategory, SpecError, SpecId, SpecStore,
 };
 use hkask_types::{
-    DelegationAction, CapabilityChecker, DelegationResource, DelegationToken, CurationDecision,
+    CapabilityChecker, CurationDecision, DelegationAction, DelegationResource, DelegationToken,
     McpErrorKind, OCAPBoundary, WebID,
 };
 use rmcp::handler::server::wrapper::Parameters;
@@ -235,7 +235,7 @@ impl SpecServer {
         if token.is_expired(now) {
             return Err(McpToolError::permission_denied("Token expired".to_string()));
         }
-        if !token.is_valid_for(DelegationResource::Spec, resource_id, action) {
+        if !token.is_valid_for(DelegationResource::Registry, resource_id, action) {
             return Err(McpToolError::permission_denied(format!(
                 "Token does not grant spec:{}:{}",
                 resource_id,
@@ -529,7 +529,7 @@ impl SpecServer {
         if let Err(e) = self.verify_capability(
             capability_token.as_deref(),
             "reconcile",
-            DelegationAction::Compose,
+            DelegationAction::Write,
         ) {
             return span.error(e.kind, e.to_json_string());
         }
@@ -630,7 +630,7 @@ impl SpecServer {
         if let Err(e) = self.verify_capability(
             capability_token.as_deref(),
             "cultivate",
-            DelegationAction::Compose,
+            DelegationAction::Write,
         ) {
             return span.error(e.kind, e.to_json_string());
         }
@@ -750,7 +750,7 @@ impl SpecServer {
         if let Err(e) = self.verify_capability(
             capability_token.as_deref(),
             "validate",
-            DelegationAction::Validate,
+            DelegationAction::Read,
         ) {
             return span.error(e.kind, e.to_json_string());
         }

@@ -45,7 +45,7 @@ impl TemplateType {
 /// Domain for hLexicon terms
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
-pub enum Domain {
+pub(crate) enum Domain {
     WordAct,
     FlowDef,
     KnowAct,
@@ -72,7 +72,7 @@ impl Domain {
 
 /// hLexicon term — canonical vocabulary entry
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LexiconTerm {
+pub(crate) struct LexiconTerm {
     pub term: String,
     pub domain: Domain,
     pub definition: String,
@@ -97,7 +97,7 @@ impl LexiconTerm {
 
 /// hLexicon — Collection of canonical terms
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct HLexicon {
+pub(crate) struct HLexicon {
     terms: HashMap<String, LexiconTerm>,
 }
 

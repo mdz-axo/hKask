@@ -15,11 +15,11 @@ use uuid::Uuid;
 /// to the generated struct when using the `$(#[$meta:meta])*` capture.
 #[macro_export]
 macro_rules! define_id_type {
-    // Basic ID type with just new() + optional attributes
-    ($(#[$meta:meta])* $name:ident) => {
+    // Basic ID type with visibility + optional attributes
+    ($(#[$meta:meta])* $vis:vis $name:ident) => {
         $(#[$meta])*
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-        pub struct $name(pub ::uuid::Uuid);
+        $vis struct $name(pub ::uuid::Uuid);
 
         impl $name {
             pub fn new() -> Self {
@@ -40,11 +40,11 @@ macro_rules! define_id_type {
         }
     };
 
-    // ID type with from_string() method + optional attributes
-    ($(#[$meta:meta])* $name:ident, from_string) => {
+    // ID type with visibility, from_string() method + optional attributes
+    ($(#[$meta:meta])* $vis:vis $name:ident, from_string) => {
         $(#[$meta])*
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-        pub struct $name(pub ::uuid::Uuid);
+        $vis struct $name(pub ::uuid::Uuid);
 
         impl $name {
             pub fn new() -> Self {
@@ -144,9 +144,9 @@ impl std::fmt::Display for WebID {
     }
 }
 
-define_id_type!(TemplateID, from_string);
+define_id_type!(pub TemplateID, from_string);
 
-define_id_type!(BotID);
+define_id_type!(pub BotID);
 
 impl From<BotID> for WebID {
     fn from(bot_id: BotID) -> Self {
@@ -154,12 +154,12 @@ impl From<BotID> for WebID {
     }
 }
 
-define_id_type!(ManifestID);
+define_id_type!(pub(crate) ManifestID);
 
-define_id_type!(TripleID);
+define_id_type!(pub TripleID);
 
-define_id_type!(EventID);
+define_id_type!(pub EventID);
 
-define_id_type!(SessionID);
+define_id_type!(pub(crate) SessionID);
 
-define_id_type!(GoalID, from_string);
+define_id_type!(pub GoalID, from_string);

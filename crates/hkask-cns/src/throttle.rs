@@ -75,8 +75,10 @@ impl Default for ThrottleConfig {
 /// # Cybernetic placement
 ///
 /// Throttling is a Loop 6 (regulation) concern. The CNS owns the canonical
-/// throttle primitive; MCP servers running in separate processes maintain
-/// local `RateBucket` proxies as fallback for process-isolated throttling.
+/// throttle primitive. The `McpDispatcher` calls `CnsRuntime::check_throttle()`
+/// before dispatching any tool invocation, so all MCP servers (including
+/// those running as separate processes) are covered without needing
+/// local rate-limit proxies.
 #[derive(Debug, Clone)]
 pub struct ThrottleBucket {
     inner: Arc<Mutex<HashMap<WebID, TokenBucketState>>>,

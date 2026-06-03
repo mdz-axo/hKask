@@ -47,5 +47,5 @@ pub use pod::{
     PodManager, PodStatus,
 };
 pub use ports::{AcpPort, EpisodicStoragePort, GitCASPort, MCPRuntimePort, SemanticStoragePort};
-pub use registry_loader::{BotRegistryLoader, RegistryLoaderError};
+pub use registry_loader::{AgentRegistryLoader, RegistryLoaderError};
 pub(crate) use sovereignty::SovereigntyChecker;

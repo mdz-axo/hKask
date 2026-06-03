@@ -64,7 +64,7 @@ pub use verification::CapabilityChecker;
 pub type CapabilityResource = DelegationResource;
 pub type CapabilityAction = DelegationAction;
 pub type CapabilityToken = DelegationToken;
-pub type CapabilityTokenBuilder = DelegationTokenBuilder;
+pub(crate) type CapabilityTokenBuilder = DelegationTokenBuilder;
 pub type BotCapabilities = AgentDelegation;
 
 use crate::WebID;
@@ -97,10 +97,7 @@ fn base64_decode(s: &str) -> Result<Vec<u8>, String> {
 pub enum DelegationResource {
     Tool,
     Template,
-    Manifest,
     Registry,
-    Cascade,
-    Spec,
 }
 
 impl DelegationResource {
@@ -108,10 +105,7 @@ impl DelegationResource {
         match self {
             DelegationResource::Tool => "tool",
             DelegationResource::Template => "template",
-            DelegationResource::Manifest => "manifest",
             DelegationResource::Registry => "registry",
-            DelegationResource::Cascade => "cascade",
-            DelegationResource::Spec => "spec",
         }
     }
 
@@ -119,10 +113,7 @@ impl DelegationResource {
         match s.split(':').next() {
             Some("tool") => Some(DelegationResource::Tool),
             Some("template") => Some(DelegationResource::Template),
-            Some("manifest") => Some(DelegationResource::Manifest),
             Some("registry") => Some(DelegationResource::Registry),
-            Some("cascade") => Some(DelegationResource::Cascade),
-            Some("spec") => Some(DelegationResource::Spec),
             _ => None,
         }
     }
@@ -135,10 +126,6 @@ pub enum DelegationAction {
     Read,
     Write,
     Execute,
-    Render,
-    Compose,
-    Attenuate,
-    Validate,
 }
 
 impl DelegationAction {
@@ -147,10 +134,6 @@ impl DelegationAction {
             DelegationAction::Read => "read",
             DelegationAction::Write => "write",
             DelegationAction::Execute => "execute",
-            DelegationAction::Render => "render",
-            DelegationAction::Compose => "compose",
-            DelegationAction::Attenuate => "attenuate",
-            DelegationAction::Validate => "validate",
         }
     }
 
@@ -159,10 +142,6 @@ impl DelegationAction {
             "read" => Some(DelegationAction::Read),
             "write" => Some(DelegationAction::Write),
             "execute" => Some(DelegationAction::Execute),
-            "render" => Some(DelegationAction::Render),
-            "compose" => Some(DelegationAction::Compose),
-            "attenuate" => Some(DelegationAction::Attenuate),
-            "validate" => Some(DelegationAction::Validate),
             _ => None,
         }
     }
@@ -180,7 +159,7 @@ impl DelegationAction {
 /// - `template`: Template ID scope restriction
 /// - `visibility`: Visibility level requirement (e.g., "private", "shared")
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct Caveat {
+pub(crate) struct Caveat {
     /// Caveat type identifier (e.g., "expiration", "operation", "template")
     pub caveat_id: String,
     /// Caveat data (e.g., timestamp, operation name, template ID)

@@ -28,8 +28,6 @@ pub use spec_types::{
     Criterion, DomainAnchor, GoalSpec, Spec, SpecCategory, SpecCurationRecord, SpecCurator,
     SpecError, SpecId, SpecStore,
 };
-pub use standing_session::{
-    StandingSessionError, StandingSessionStore, StoredMessage, StoredSession,
-};
+
 pub use triples::{Triple, TripleError, TripleStore};
 pub use user_store::UserStoreError;

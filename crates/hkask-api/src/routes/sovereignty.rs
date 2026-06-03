@@ -115,7 +115,10 @@ async fn sovereignty_status(
         kill_zone_active: sovereignty_state.kill_zone_state.kill_zone_active,
         vc_investment: sovereignty_state.kill_zone_state.vc_investment,
         threshold: sovereignty_state.kill_zone_threshold,
-        acquisition_resistance: sovereignty_state.boundary.resistance.to_string(),
+        acquisition_resistance: sovereignty_state
+            .boundary
+            .prevents_passive_acquisition()
+            .to_string(),
         sovereign_data: sovereignty_state
             .boundary
             .sovereign_data

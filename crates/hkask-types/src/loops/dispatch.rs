@@ -109,16 +109,6 @@ pub enum LoopPayload {
         target: WebID,
         parameters: serde_json::Value,
     },
-    MemoryOperation {
-        operation: String,
-        data_category: String,
-        data: serde_json::Value,
-    },
-    CapabilityChange {
-        agent: WebID,
-        change_type: String,
-        details: serde_json::Value,
-    },
 }
 
 // =============================================================================

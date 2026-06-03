@@ -31,7 +31,6 @@ pub struct EscalationEntry {
 #[serde(rename_all = "snake_case")]
 pub enum EscalationStatus {
     Pending,
-    InReview,
     Resolved,
     Dismissed,
 }
@@ -172,7 +171,6 @@ impl EscalationQueue {
             let status_str: String = row.get(8)?;
             let status = match status_str.as_str() {
                 "pending" => EscalationStatus::Pending,
-                "in_review" => EscalationStatus::InReview,
                 "resolved" => EscalationStatus::Resolved,
                 "dismissed" => EscalationStatus::Dismissed,
                 _ => EscalationStatus::Pending,
@@ -238,7 +236,6 @@ impl EscalationQueue {
             r#"SELECT
                 COUNT(*) as total,
                 SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
-                SUM(CASE WHEN status = 'in_review' THEN 1 ELSE 0 END) as in_review,
                 SUM(CASE WHEN status = 'resolved' THEN 1 ELSE 0 END) as resolved,
                 SUM(CASE WHEN status = 'dismissed' THEN 1 ELSE 0 END) as dismissed
              FROM escalations"#,
@@ -248,9 +245,8 @@ impl EscalationQueue {
             Ok(EscalationStats {
                 total: row.get(0)?,
                 pending: row.get(1)?,
-                in_review: row.get(2)?,
-                resolved: row.get(3)?,
-                dismissed: row.get(4)?,
+                resolved: row.get(2)?,
+                dismissed: row.get(3)?,
             })
         })?;
 
@@ -262,7 +258,6 @@ impl EscalationQueue {
 pub struct EscalationStats {
     pub total: i64,
     pub pending: i64,
-    pub in_review: i64,
     pub resolved: i64,
     pub dismissed: i64,
 }

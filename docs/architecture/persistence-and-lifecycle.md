@@ -188,7 +188,7 @@ pub fn knn_search(&self, query: &[f32], k: usize) -> Result<Vec<KnnResult>, Embe
 `SqliteSpecStore` (`spec_store.rs:12`) persists DDMVSS specifications:
 - Implements `SpecStore` trait (`hkask-types/src/spec.rs:314`)
 - CRUD operations for `Spec` entities
-- `DefaultSpecCurator` (`spec_store.rs:130`) — evaluate, reconcile, cultivate
+- `DefaultSpecCurator` (`hkask-agents/src/curator/spec_curator.rs`) — evaluate, reconcile, cultivate
 - `CnsSpecObserver` (`spec_store.rs:192`) — emits `cns.spec.*` spans
 
 ---

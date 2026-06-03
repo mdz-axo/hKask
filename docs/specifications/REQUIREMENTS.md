@@ -353,7 +353,7 @@ Curation: Merge | Revise | Defer | Discard
   - [x] `SpecStore`, `SpecCurator`, `SpecObserver` traits
   - [x] `SqliteSpecStore` implementation
   - [x] `DefaultSpecCurator` implementation
-- **Implementation:** `hkask-mcp-spec` (819 LOC), `hkask-types::spec`, `hkask-storage::spec_store`
+- **Implementation:** `hkask-mcp-spec` (819 LOC), `hkask-storage::spec_types` (trait), `hkask-agents::curator::spec_curator` (impl)
 - **Status:** Implemented
 - **Curation:** Merge
 

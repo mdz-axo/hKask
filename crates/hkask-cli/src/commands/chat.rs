@@ -25,7 +25,7 @@ pub async fn chat_with_agent(
         Err(e) => return format!("Registry init error: {}", e),
     };
 
-    let loader = hkask_agents::BotRegistryLoader::new(
+    let loader = hkask_agents::AgentRegistryLoader::new(
         registry_yaml_path(),
         acp.clone(),
         store,
@@ -175,7 +175,7 @@ async fn chat_via_russell(input: &str, agent: Option<&hkask_types::RegisteredAge
     let webid = WebID::from_persona_with_namespace(b"russell-chat-session", "russell");
 
     if let Err(e) = russell_adapter
-        .register_agent(webid, "Replicant", vec![])
+        .register_agent(webid, hkask_types::AgentKind::Replicant, vec![])
         .await
     {
         return format!("Failed to create Russell session: {}", e);

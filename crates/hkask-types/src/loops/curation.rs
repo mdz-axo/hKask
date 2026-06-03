@@ -22,6 +22,13 @@ use crate::visibility::Visibility;
 /// The Curator's capability handle. Single replicant — the user's
 /// counterpart in `kask chat`. Can read all loop state and write
 /// governance/observability policy.
+///
+/// **Singleton invariant:** There is exactly one Curator per hKask system.
+/// `CurationLoop` owns the single `CuratorHandle` instance; all other code
+/// accesses it through `CuratorContext::handle()`. Construct via
+/// `CuratorHandle::system()` — the `new(WebID)` constructor is `pub(crate)`
+/// to prevent external callers from creating additional handles.
+#[derive(Clone)]
 pub struct CuratorHandle {
     curator_id: WebID,
 }

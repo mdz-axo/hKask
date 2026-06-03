@@ -353,11 +353,7 @@ impl PodManager {
                 .ok_or_else(|| AgentPodError::ACPRegistrationError("Pod not found".to_string()))?;
 
             if pod.state() == PodLifecycleState::Populated {
-                Some((
-                    pod.webid,
-                    pod.agent_type.to_string(),
-                    pod.persona.capabilities.clone(),
-                ))
+                Some((pod.webid, pod.agent_type, pod.persona.capabilities.clone()))
             } else {
                 None
             }
@@ -367,7 +363,7 @@ impl PodManager {
         let token = if let Some((webid, agent_type, capabilities)) = registration_data {
             Some(
                 self.acp_runtime
-                    .register_agent(webid, &agent_type, capabilities)
+                    .register_agent(webid, agent_type, capabilities)
                     .await
                     .map_err(|e| AgentPodError::ACPRegistrationError(e.to_string()))?,
             )

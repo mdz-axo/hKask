@@ -13,7 +13,6 @@ pub mod governor; // Loop 6 (capability governance)
 pub mod runtime;
 pub mod security;
 pub mod server;
-pub mod transport;
 
 pub use adapter_container::AdapterContainer;
 pub use dispatch::McpDispatcher;
