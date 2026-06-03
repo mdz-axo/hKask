@@ -105,6 +105,18 @@ pub fn open_sovereignty_store()
     ))
 }
 
+/// Open a ConsentStore (used by `kask sovereignty` subcommands).
+/// Opens the shared database and initializes the consent schema.
+pub fn open_consent_store() -> Result<hkask_storage::ConsentStore, crate::errors::RegistryError> {
+    let db = open_registry_db()
+        .map_err(|e| crate::errors::RegistryError::DatabaseError(e.to_string()))?;
+    let store = hkask_storage::ConsentStore::new(db);
+    store
+        .initialize_schema()
+        .map_err(|e| crate::errors::RegistryError::SchemaError(e.to_string()))?;
+    Ok(store)
+}
+
 /// Open a SqliteSpecStore (used by `kask spec` subcommands).
 /// Opens the shared database and initializes the spec schema.
 pub fn open_spec_store() -> Result<hkask_storage::SqliteSpecStore, crate::errors::RegistryError> {

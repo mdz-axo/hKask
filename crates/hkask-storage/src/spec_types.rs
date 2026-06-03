@@ -1,12 +1,15 @@
-//! DDMVSS specification types — Cross-cutting infrastructure
+//! DDMVSS specification types — domain specifications, completeness predicates, and curation
 //!
 //! Domain specifications define completeness predicates and validation criteria.
 //! Curation (Loop 5) cultivates specs; Cybernetics (Loop 6) tracks coverage;
 //! Inference (Loop 1) uses them for guided generation.
+//!
+//! Relocated from `hkask-types` per P1: these types are consumed primarily by
+//! `hkask-storage` (implementation) and `hkask-mcp-spec` (MCP surface).
 
-use crate::curation::{CurationDecision, OCAPBoundary};
-use crate::id::{GoalID, WebID};
 use chrono::{DateTime, Utc};
+use hkask_types::curation::{CurationDecision, OCAPBoundary};
+use hkask_types::id::{GoalID, WebID};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use uuid::Uuid;

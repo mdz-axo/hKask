@@ -93,7 +93,7 @@ impl RuntimeAlert {
     ///
     /// This replaces the binary threshold with a smooth sigmoid that
     /// is backward-compatible (existing behavior = L→∞ limit case).
-    pub fn new_allosteric(
+    pub(crate) fn new_allosteric(
         domain: &str,
         deficit: u64,
         threshold: u64,
@@ -192,7 +192,7 @@ impl AlgedonicManager {
     /// When enabled, the algedonic manager uses an AllostericGate to
     /// compute severity via the MWC sigmoid instead of binary thresholds.
     /// The gate's α is set from the normalized deficit (deficit / threshold).
-    pub fn with_allosteric_gate(mut self, gate: AllostericGate) -> Self {
+    pub(crate) fn with_allosteric_gate(mut self, gate: AllostericGate) -> Self {
         self.allosteric_gate = Some(gate);
         self
     }

@@ -631,7 +631,11 @@ fn run_sovereignty(action: SovereigntyAction) {
                 commands::config::open_sovereignty_store(),
                 "Failed to open sovereignty store",
             );
-            let consent_manager = hkask_agents::ConsentManager::new();
+            let consent_store = or_exit(
+                commands::config::open_consent_store(),
+                "Failed to open consent store",
+            );
+            let consent_manager = hkask_agents::ConsentManager::new(consent_store);
 
             println!("Sovereignty Status");
             println!("==================");
@@ -694,7 +698,11 @@ fn run_sovereignty(action: SovereigntyAction) {
         SovereigntyAction::Grant { category } => {
             let webid = hkask_types::WebID::new();
             let data_category = cli::parse_data_category(&category);
-            let consent_manager = hkask_agents::ConsentManager::new();
+            let consent_store = or_exit(
+                commands::config::open_consent_store(),
+                "Failed to open consent store",
+            );
+            let consent_manager = hkask_agents::ConsentManager::new(consent_store);
             match consent_manager.grant_consent(&webid.to_string(), &data_category) {
                 Ok(()) => {
                     println!("Consent granted for category: {}", category);
@@ -708,7 +716,11 @@ fn run_sovereignty(action: SovereigntyAction) {
         }
         SovereigntyAction::Revoke { category } => {
             let webid = hkask_types::WebID::new();
-            let consent_manager = hkask_agents::ConsentManager::new();
+            let consent_store = or_exit(
+                commands::config::open_consent_store(),
+                "Failed to open consent store",
+            );
+            let consent_manager = hkask_agents::ConsentManager::new(consent_store);
             let data_category = cli::parse_data_category(&category);
             let _ = consent_manager.grant_consent(&webid.to_string(), &data_category);
             match consent_manager.revoke_consent(&webid.to_string()) {
@@ -779,7 +791,11 @@ fn run_sovereignty(action: SovereigntyAction) {
         }
         SovereigntyAction::Check { category } => {
             let webid = hkask_types::WebID::from_persona(b"cli-user");
-            let consent_manager = hkask_agents::ConsentManager::new();
+            let consent_store = or_exit(
+                commands::config::open_consent_store(),
+                "Failed to open consent store",
+            );
+            let consent_manager = hkask_agents::ConsentManager::new(consent_store);
             let data_category = cli::parse_data_category(&category);
             println!("Data Access Check");
             println!("=================");
@@ -1042,7 +1058,7 @@ fn run_git(rt: &tokio::runtime::Runtime, action: GitAction) {
 }
 
 fn run_spec(action: SpecAction) {
-    use hkask_types::{SpecId, SpecStore};
+    use hkask_storage::spec_types::{SpecId, SpecStore};
 
     match action {
         SpecAction::Capture {
@@ -1051,7 +1067,7 @@ fn run_spec(action: SpecAction) {
             domain,
             criteria,
         } => {
-            use hkask_types::{DomainAnchor, GoalSpec, Spec, SpecCategory};
+            use hkask_storage::spec_types::{DomainAnchor, GoalSpec, Spec, SpecCategory};
 
             let cat = SpecCategory::parse_str(&category).unwrap_or(SpecCategory::Domain);
             let anchor = DomainAnchor::parse_str(&domain).unwrap_or(DomainAnchor::Hkask);
@@ -1090,7 +1106,7 @@ fn run_spec(action: SpecAction) {
         }
         SpecAction::Validate { id } => {
             use hkask_storage::DefaultSpecCurator;
-            use hkask_types::SpecCurator;
+            use hkask_storage::spec_types::SpecCurator;
 
             let spec_id = or_exit(SpecId::from_string(&id), "Invalid spec ID");
             let store = or_exit(
@@ -1110,7 +1126,7 @@ fn run_spec(action: SpecAction) {
         }
         SpecAction::Cultivate { id } => {
             use hkask_storage::DefaultSpecCurator;
-            use hkask_types::{SpecCategory, SpecCurator};
+            use hkask_storage::spec_types::{SpecCategory, SpecCurator};
 
             let spec_id = or_exit(SpecId::from_string(&id), "Invalid spec ID");
             let store = or_exit(

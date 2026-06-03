@@ -14,7 +14,7 @@ use tracing::{error, info};
 
 /// Circuit breaker configuration
 #[derive(Debug, Clone)]
-pub(crate) struct CircuitBreakerConfig {
+pub struct CircuitBreakerConfig {
     pub failure_threshold: u32,
     pub open_timeout: Duration,
     pub success_threshold: u32,
@@ -31,7 +31,7 @@ impl Default for CircuitBreakerConfig {
 }
 
 /// Circuit breaker for Okapi calls
-pub(crate) struct CircuitBreaker {
+pub struct CircuitBreaker {
     state: AtomicU32,
     failure_count: AtomicU32,
     success_count: AtomicU32,

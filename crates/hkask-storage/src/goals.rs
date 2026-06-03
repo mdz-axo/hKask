@@ -2,12 +2,18 @@
 //!
 //! Goals are transient coordination substrates.
 //! Long-term retention lives in agent memory (episodic/semantic).
+//!
+//! **OCAP Verification Policy:** Capability token verification (HMAC signature
+//! and operation authorization) is the responsibility of the Cybernetics
+//! membrane (ACP layer), NOT the persistence layer. Callers must pre-verify
+//! tokens before passing them to repository methods. Storage enforces only
+//! data-level access controls (visibility, ownership, write/admin authority).
 
 use chrono::Utc;
 use hkask_types::InfrastructureError;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span};
 use hkask_types::goal::{Goal, GoalArtifact, GoalCriterion, GoalID, GoalState};
-use hkask_types::goal_capability::{GoalCapabilityToken, GoalOp};
+use hkask_types::goal_capability::GoalCapabilityToken;
 use hkask_types::id::WebID;
 use hkask_types::visibility::Visibility;
 use rusqlite::Connection;
@@ -20,6 +26,9 @@ pub enum GoalRepositoryError {
     #[error(transparent)]
     Infra(#[from] InfrastructureError),
 
+    /// Capability denied by the OCAP membrane. No longer produced by storage
+    /// methods (verification moved to the Cybernetics layer), but retained for
+    /// callers that perform their own capability checks.
     #[error("Capability denied: {0}")]
     CapabilityDenied(String),
 
@@ -46,8 +55,7 @@ pub type Result<T> = std::result::Result<T, GoalRepositoryError>;
 
 pub struct SqliteGoalRepository {
     pub(crate) conn: Arc<Mutex<Connection>>,
-    pub(crate) capability_secret: Vec<u8>,
-    /// Optional CNS telemetry sink. When present, capability and visibility
+    /// Optional CNS telemetry sink. When present, visibility and authority
     /// denials emit a `cns.tool.goal.capability.denied` outcome event so the
     /// Cybernetic Nervous System can observe authority failures. Injected as a
     /// port (hexagonal seam) so storage stays decoupled from `hkask-cns`.
@@ -55,10 +63,14 @@ pub struct SqliteGoalRepository {
 }
 
 impl SqliteGoalRepository {
-    pub fn new(conn: Arc<Mutex<Connection>>, capability_secret: Vec<u8>) -> Self {
+    /// Create a new goal repository over the given SQLite connection.
+    ///
+    /// Callers must verify capability tokens at the Cybernetics membrane
+    /// (ACP layer) before passing them to repository methods. Storage is a
+    /// dumb persistence layer and does not verify OCAP tokens.
+    pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
         Self {
             conn,
-            capability_secret,
             telemetry: None,
         }
     }
@@ -96,31 +108,6 @@ impl SqliteGoalRepository {
                 );
             }
         }
-    }
-
-    pub fn verify_capability(
-        &self,
-        token: &GoalCapabilityToken,
-        required_op: GoalOp,
-    ) -> Result<()> {
-        if !token.is_valid(&self.capability_secret) {
-            self.emit_denial(&token.holder_webid, required_op.as_str(), "token_invalid");
-            return Err(GoalRepositoryError::CapabilityDenied(
-                "Token invalid or expired".to_string(),
-            ));
-        }
-        if !token.can_perform(required_op, &self.capability_secret) {
-            self.emit_denial(
-                &token.holder_webid,
-                required_op.as_str(),
-                "operation_not_authorized",
-            );
-            return Err(GoalRepositoryError::CapabilityDenied(format!(
-                "Missing capability for operation: {:?}",
-                required_op
-            )));
-        }
-        Ok(())
     }
 
     pub fn check_visibility_access(&self, goal: &Goal, requester_webid: &WebID) -> Result<()> {
@@ -245,6 +232,11 @@ fn corrupt_column(index: usize, value: &str) -> rusqlite::Error {
 }
 
 impl SqliteGoalRepository {
+    /// Create a new goal.
+    ///
+    /// The caller must have already verified the capability token authorizes
+    /// `GoalOp::Create` at the Cybernetics membrane (ACP layer). Storage does
+    /// not verify OCAP tokens.
     pub fn create_goal(
         &self,
         token: &GoalCapabilityToken,
@@ -252,8 +244,6 @@ impl SqliteGoalRepository {
         text: &str,
         visibility: Visibility,
     ) -> Result<Goal> {
-        self.verify_capability(token, GoalOp::Create)?;
-
         // A holder may only create goals it will own. Creating a goal owned by
         // another WebID would manufacture authority out of thin air.
         if token.holder_webid != *webid {
@@ -277,9 +267,11 @@ impl SqliteGoalRepository {
         Ok(goal)
     }
 
+    /// Get a goal by ID.
+    ///
+    /// The caller must have already verified the capability token authorizes
+    /// `GoalOp::Read` at the Cybernetics membrane (ACP layer).
     pub fn get_goal(&self, token: &GoalCapabilityToken, goal_id: GoalID) -> Result<Option<Goal>> {
-        self.verify_capability(token, GoalOp::Read)?;
-
         let goal = {
             let conn = self
                 .conn
@@ -302,14 +294,16 @@ impl SqliteGoalRepository {
         Ok(goal)
     }
 
+    /// Transition a goal to a new state.
+    ///
+    /// The caller must have already verified the capability token authorizes
+    /// `GoalOp::Update` at the Cybernetics membrane (ACP layer).
     pub fn update_goal_state(
         &self,
         token: &GoalCapabilityToken,
         goal_id: GoalID,
         state: GoalState,
     ) -> Result<()> {
-        self.verify_capability(token, GoalOp::Update)?;
-
         let goal = self.load_goal(goal_id)?;
         self.check_write_access(&goal, &token.holder_webid)?;
 
@@ -348,14 +342,16 @@ impl SqliteGoalRepository {
         Ok(())
     }
 
+    /// List goals for a WebID, optionally filtered by state.
+    ///
+    /// The caller must have already verified the capability token authorizes
+    /// `GoalOp::Read` at the Cybernetics membrane (ACP layer).
     pub fn list_goals(
         &self,
         token: &GoalCapabilityToken,
         webid: &WebID,
         state_filter: Option<GoalState>,
     ) -> Result<Vec<Goal>> {
-        self.verify_capability(token, GoalOp::Read)?;
-
         let mut goals = Vec::new();
 
         let conn = self
@@ -394,14 +390,16 @@ impl SqliteGoalRepository {
         Ok(goals)
     }
 
+    /// Add a criterion to a goal.
+    ///
+    /// The caller must have already verified the capability token authorizes
+    /// `GoalOp::Update` at the Cybernetics membrane (ACP layer).
     pub fn add_criterion(
         &self,
         token: &GoalCapabilityToken,
         goal_id: GoalID,
         criterion: GoalCriterion,
     ) -> Result<()> {
-        self.verify_capability(token, GoalOp::Update)?;
-
         // The criterion must target the goal named by the caller, and the
         // holder must have write access to that goal.
         if criterion.goal_id != goal_id {
@@ -420,14 +418,16 @@ impl SqliteGoalRepository {
         Ok(())
     }
 
+    /// Add an artifact to a goal.
+    ///
+    /// The caller must have already verified the capability token authorizes
+    /// `GoalOp::AddArtifact` at the Cybernetics membrane (ACP layer).
     pub fn add_artifact(
         &self,
         token: &GoalCapabilityToken,
         goal_id: GoalID,
         artifact: GoalArtifact,
     ) -> Result<()> {
-        self.verify_capability(token, GoalOp::AddArtifact)?;
-
         if artifact.goal_id != goal_id {
             return Err(GoalRepositoryError::InvalidTransition(format!(
                 "Artifact targets goal {} but operation named goal {}",
@@ -444,13 +444,15 @@ impl SqliteGoalRepository {
         Ok(())
     }
 
+    /// Get criteria for a goal.
+    ///
+    /// The caller must have already verified the capability token authorizes
+    /// `GoalOp::Read` at the Cybernetics membrane (ACP layer).
     pub fn get_criteria(
         &self,
-        token: &GoalCapabilityToken,
+        _token: &GoalCapabilityToken,
         goal_id: GoalID,
     ) -> Result<Vec<GoalCriterion>> {
-        self.verify_capability(token, GoalOp::Read)?;
-
         let conn = self
             .conn
             .lock()
@@ -474,13 +476,15 @@ impl SqliteGoalRepository {
         Ok(criteria)
     }
 
+    /// Get artifacts for a goal.
+    ///
+    /// The caller must have already verified the capability token authorizes
+    /// `GoalOp::Read` at the Cybernetics membrane (ACP layer).
     pub fn get_artifacts(
         &self,
-        token: &GoalCapabilityToken,
+        _token: &GoalCapabilityToken,
         goal_id: GoalID,
     ) -> Result<Vec<GoalArtifact>> {
-        self.verify_capability(token, GoalOp::Read)?;
-
         let conn = self
             .conn
             .lock()
@@ -509,6 +513,10 @@ impl SqliteGoalRepository {
         Ok(artifacts)
     }
 
+    /// Create a subgoal under a parent goal.
+    ///
+    /// The caller must have already verified the capability token authorizes
+    /// `GoalOp::CreateSubgoal` at the Cybernetics membrane (ACP layer).
     pub fn create_subgoal(
         &self,
         token: &GoalCapabilityToken,
@@ -517,8 +525,6 @@ impl SqliteGoalRepository {
         text: &str,
         visibility: Visibility,
     ) -> Result<Goal> {
-        self.verify_capability(token, GoalOp::CreateSubgoal)?;
-
         // A holder may only create subgoals it will own.
         if token.holder_webid != *webid {
             self.emit_denial(&token.holder_webid, "CREATE_SUBGOAL", "owner_mismatch");
@@ -552,13 +558,15 @@ impl SqliteGoalRepository {
         Ok(subgoal)
     }
 
+    /// Get subgoals of a parent goal.
+    ///
+    /// The caller must have already verified the capability token authorizes
+    /// `GoalOp::Read` at the Cybernetics membrane (ACP layer).
     pub fn get_subgoals(
         &self,
         token: &GoalCapabilityToken,
         parent_id: GoalID,
     ) -> Result<Vec<Goal>> {
-        self.verify_capability(token, GoalOp::Read)?;
-
         let conn = self
             .conn
             .lock()
@@ -579,9 +587,11 @@ impl SqliteGoalRepository {
         Ok(subgoals)
     }
 
+    /// Delete a goal.
+    ///
+    /// The caller must have already verified the capability token authorizes
+    /// `GoalOp::Complete` at the Cybernetics membrane (ACP layer).
     pub fn delete_goal(&self, token: &GoalCapabilityToken, goal_id: GoalID) -> Result<()> {
-        self.verify_capability(token, GoalOp::Complete)?;
-
         // Deletion is an administrative act reserved to the goal owner.
         let goal = self.load_goal(goal_id)?;
         self.check_admin_access(&goal, &token.holder_webid)?;

@@ -50,7 +50,7 @@ fn open_repository() -> Result<(SqliteGoalRepository, WebID, Vec<u8>), RegistryE
     let sink: Arc<dyn NuEventSink> = Arc::new(NuEventStore::new(Arc::clone(&conn)));
 
     let secret = resolve_ocap_secret()?;
-    let repo = SqliteGoalRepository::new(conn, secret.clone()).with_telemetry(sink);
+    let repo = SqliteGoalRepository::new(conn).with_telemetry(sink);
 
     // The CLI user's identity. Derived deterministically so a given install has
     // a stable owner WebID for its goals.

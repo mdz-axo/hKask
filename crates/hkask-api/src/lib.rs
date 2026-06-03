@@ -91,7 +91,7 @@ pub struct ApiState {
     /// Ensemble inferencer (optional - for Russell SOAP inference)
     pub ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::InferencePortAdapter>>,
     /// Spec store for DDMVSS specifications
-    pub spec_store: Option<Arc<dyn hkask_types::SpecStore + Send + Sync>>,
+    pub spec_store: Option<Arc<dyn hkask_storage::SpecStore + Send + Sync>>,
     /// Consent manager for user sovereignty
     pub consent_manager: Arc<ConsentManager>,
     /// Escalation queue for Curator escalations
@@ -202,7 +202,28 @@ impl ApiState {
         ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::InferencePortAdapter>>,
         db_config: Option<&DbConfig>,
     ) -> Self {
-        let consent_manager = Arc::new(ConsentManager::new());
+        let consent_conn = match db_config
+            .and_then(|c| c.path.as_deref().zip(c.passphrase.as_deref()))
+        {
+            Some((path, passphrase)) => hkask_storage::Database::open(path, passphrase)
+                .expect("Failed to open consent database")
+                .conn_arc(),
+            _ => {
+                tracing::warn!(
+                    target: "hkask.api",
+                    "No persistent database configured — consent records are in-memory and will be lost on restart. \
+                     Set HKASK_API_DB and HKASK_DB_PASSPHRASE for sovereign persistence."
+                );
+                hkask_storage::Database::in_memory()
+                    .expect("in-memory db")
+                    .conn_arc()
+            }
+        };
+        let consent_store = hkask_storage::ConsentStore::new(consent_conn);
+        consent_store
+            .initialize_schema()
+            .expect("consent store schema init");
+        let consent_manager = Arc::new(ConsentManager::new(consent_store));
 
         let escalation_conn = match db_config
             .and_then(|c| c.path.as_deref().zip(c.passphrase.as_deref()))
@@ -245,10 +266,8 @@ impl ApiState {
         };
         let goal_sink: Arc<dyn hkask_types::event::NuEventSink> =
             Arc::new(hkask_storage::NuEventStore::new(Arc::clone(&goal_conn)));
-        let goal_repo = Arc::new(
-            hkask_storage::SqliteGoalRepository::new(goal_conn, capability_secret.to_vec())
-                .with_telemetry(goal_sink),
-        );
+        let goal_repo =
+            Arc::new(hkask_storage::SqliteGoalRepository::new(goal_conn).with_telemetry(goal_sink));
 
         // Build the LoopSystem with shared dispatch and escalation queue
         let dispatch = Arc::new(MessageDispatch::new());
@@ -373,7 +392,10 @@ impl ApiState {
     }
 
     /// Set the spec store for DDMVSS specifications
-    pub fn with_spec_store(mut self, store: Arc<dyn hkask_types::SpecStore + Send + Sync>) -> Self {
+    pub fn with_spec_store(
+        mut self,
+        store: Arc<dyn hkask_storage::SpecStore + Send + Sync>,
+    ) -> Self {
         self.spec_store = Some(store);
         self
     }
@@ -534,99 +556,34 @@ pub struct AcpRegisterResponse {
     pub webid: String,
 }
 
-/// SOAP inference configuration
-#[derive(Clone, Debug)]
-pub struct SoapInferenceConfig {
-    /// Capability secret for token verification (loaded from keystore)
-    pub capability_secret: [u8; 32],
-    /// Maximum number of events per request
-    pub max_events: usize,
-    /// Maximum subjective text length
-    pub max_subjective_len: usize,
-    /// Maximum event message length
-    pub max_message_len: usize,
-    /// Inference timeout in seconds.
-    ///
-    /// Simple config value for `tokio::time::timeout` — not Cybernetics logic.
-    /// A true CNS energy budget would track cumulative spend and adapt; this is
-    /// just a per-request wall-clock limit, which is standard HTTP resilience.
-    pub timeout_secs: u64,
-    /// Model to use for inference
-    pub model: String,
-    /// Inference temperature (0.0-1.0)
-    pub temperature: f64,
-    /// Maximum tokens to generate
-    pub max_tokens: u32,
-    /// Path to Jack persona file (loaded at runtime)
-    pub jack_persona_path: String,
-}
-
-impl SoapInferenceConfig {
-    /// Load configuration from environment variables.
-    ///
-    /// Returns an error if the capability key cannot be resolved from
-    /// HKASK_MASTER_KEY, HKASK_CAPABILITY_KEY, or the OS keychain.
-    pub fn from_env() -> Result<Self, String> {
-        let capability_secret = hkask_keystore::resolve(&hkask_types::SecretRef::derived(
-            hkask_types::derivation_contexts::MASTER_KEY_ENV,
-            hkask_types::derivation_contexts::CAPABILITY_KEY,
+/// Resolve the SOAP capability secret through the keystore chain.
+///
+/// Resolution order: master-key derivation → env var → OS keychain.
+pub fn resolve_soap_capability_secret() -> Result<[u8; 32], String> {
+    hkask_keystore::resolve(&hkask_types::SecretRef::derived(
+        hkask_types::derivation_contexts::MASTER_KEY_ENV,
+        hkask_types::derivation_contexts::CAPABILITY_KEY,
+    ))
+    .or_else(|_| hkask_keystore::resolve(&hkask_types::SecretRef::env("HKASK_CAPABILITY_KEY")))
+    .or_else(|_| {
+        hkask_keystore::resolve(&hkask_types::SecretRef::Keychain(
+            "capability-key".to_string(),
         ))
-        .or_else(|_| hkask_keystore::resolve(&hkask_types::SecretRef::env("HKASK_CAPABILITY_KEY")))
-        .or_else(|_| {
-            hkask_keystore::resolve(&hkask_types::SecretRef::Keychain(
-                "capability-key".to_string(),
-            ))
-        })
-        .map(|s| {
-            let mut arr = [0u8; 32];
-            let bytes: &[u8] = &s;
-            let len = bytes.len().min(32);
-            arr[..len].copy_from_slice(&bytes[..len]);
-            arr
-        })
-        .map_err(|e| {
-            format!(
-                "Capability key not available: {}. Run `kask chat` to complete onboarding, \
-                 or set HKASK_MASTER_KEY or HKASK_CAPABILITY_KEY.",
-                e
-            )
-        })?;
-
-        let mut config = Self {
-            capability_secret,
-            max_events: 100,
-            max_subjective_len: 4096,
-            max_message_len: 1024,
-            timeout_secs: 30,
-            model: "qwen3:8b".to_string(),
-            temperature: 0.2,
-            max_tokens: 2048,
-            jack_persona_path: "hkask-templates/personas/jack-nurse.md".to_string(),
-        };
-
-        if let Ok(val) = std::env::var("HKASK_SOAP_MODEL") {
-            config.model = val;
-        }
-        if let Ok(val) = std::env::var("HKASK_SOAP_TEMPERATURE") {
-            config.temperature = val.parse().unwrap_or(config.temperature);
-        }
-        if let Ok(val) = std::env::var("HKASK_SOAP_MAX_TOKENS") {
-            config.max_tokens = val.parse().unwrap_or(config.max_tokens);
-        }
-        if let Ok(val) = std::env::var("HKASK_SOAP_TIMEOUT_SECS") {
-            config.timeout_secs = val.parse().unwrap_or(config.timeout_secs);
-        }
-        if let Ok(val) = std::env::var("HKASK_SOAP_PERSONA_PATH") {
-            config.jack_persona_path = val;
-        }
-
-        Ok(config)
-    }
-
-    /// Load Jack persona from file at runtime
-    pub fn load_jack_persona(&self) -> Result<String, std::io::Error> {
-        std::fs::read_to_string(&self.jack_persona_path)
-    }
+    })
+    .map(|s| {
+        let mut arr = [0u8; 32];
+        let bytes: &[u8] = &s;
+        let len = bytes.len().min(32);
+        arr[..len].copy_from_slice(&bytes[..len]);
+        arr
+    })
+    .map_err(|e| {
+        format!(
+            "Capability key not available: {}. Run `kask chat` to complete onboarding, \
+             or set HKASK_MASTER_KEY or HKASK_CAPABILITY_KEY.",
+            e
+        )
+    })
 }
 
 /// Telemetry data from Russell

@@ -6,8 +6,8 @@
 //! It observes system state and intervenes when Cybernetics
 //! can't self-stabilize (e.g., alert cascade).
 
+use crate::curator::curation_gate::{CurationConfidenceGate, CurationDecision};
 use crate::curator::metacognition::MetacognitionLoop;
-use hkask_cns::allosteric::curation::{CurationConfidenceGate, CurationDecision};
 use hkask_types::loops::curation::CuratorDirective;
 use hkask_types::loops::{Deviation, HkaskLoop, LoopAction, LoopId, Signal};
 use hkask_types::ports::ConsolidationPort;

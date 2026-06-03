@@ -43,7 +43,7 @@ use tokio::sync::{RwLock, mpsc};
 /// are compared. When a signal deviates beyond its set-point,
 /// the loop produces an efferent action.
 #[derive(Debug, Clone)]
-pub(crate) struct SetPoints {
+pub struct SetPoints {
     /// Minimum energy budget remaining ratio (0.0-1.0). Default: 0.2 (20% remaining)
     pub energy_min_remaining: f64,
     /// Maximum variety deficit before escalation. Default: 100
@@ -111,7 +111,7 @@ impl CyberneticsLoop {
     ///
     /// The inbox is "dead" (no sender exists) — use `with_set_points_and_inbox()`
     /// if you need to receive inter-loop messages from the Communication Loop.
-    pub fn with_set_points(
+    pub(crate) fn with_set_points(
         cns: Arc<RwLock<CnsRuntime>>,
         set_points: SetPoints,
         dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
@@ -151,7 +151,7 @@ impl CyberneticsLoop {
     ///
     /// Returns `(loop_instance, inbox_sender)` where the sender should be
     /// registered with the Communication Loop for message delivery.
-    pub fn with_set_points_and_inbox(
+    pub(crate) fn with_set_points_and_inbox(
         cns: Arc<RwLock<CnsRuntime>>,
         set_points: SetPoints,
         dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
@@ -169,7 +169,7 @@ impl CyberneticsLoop {
     }
 
     /// Register an energy budget for an agent.
-    pub async fn register_energy_budget(&self, agent: WebID, budget: EnergyBudget) {
+    pub(crate) async fn register_energy_budget(&self, agent: WebID, budget: EnergyBudget) {
         let mut budgets = self.energy_budgets.write().await;
         budgets.insert(agent, budget);
     }
@@ -186,7 +186,7 @@ impl CyberneticsLoop {
     }
 
     /// Acquire energy budget for an agent's operation.
-    pub async fn acquire_budget(
+    pub(crate) async fn acquire_budget(
         &self,
         agent: &WebID,
         estimated_tokens: u64,
@@ -201,7 +201,7 @@ impl CyberneticsLoop {
     }
 
     /// Get the current set-points.
-    pub fn set_points(&self) -> &SetPoints {
+    pub(crate) fn set_points(&self) -> &SetPoints {
         &self.set_points
     }
 

@@ -78,7 +78,7 @@ impl GoalServer {
 
         // Wire CNS denial telemetry over the same connection (ADR-029).
         let sink: Arc<dyn NuEventSink> = Arc::new(NuEventStore::new(Arc::clone(&conn)));
-        let repo = SqliteGoalRepository::new(conn, secret.clone()).with_telemetry(sink);
+        let repo = SqliteGoalRepository::new(conn).with_telemetry(sink);
 
         Ok(Self {
             repo,
@@ -231,7 +231,7 @@ mod tests {
         let secret = hex::decode(SECRET_HEX).expect("hex secret");
         let sink: Arc<dyn NuEventSink> = Arc::new(NuEventStore::new(Arc::clone(&conn)));
         GoalServer {
-            repo: SqliteGoalRepository::new(conn, secret.clone()).with_telemetry(sink),
+            repo: SqliteGoalRepository::new(conn).with_telemetry(sink),
             webid: WebID::from_persona(b"mcp-goal-test"),
             secret,
         }

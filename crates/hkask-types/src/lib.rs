@@ -1,7 +1,7 @@
 //! hKask Types — Foundation types for the hKask agent platform
 //!
 //! This crate provides:
-//! - ID types (WebID, TemplateID, BotID, GoalID, SpecId, etc.)
+//! - ID types (WebID, TemplateID, BotID, GoalID, etc.)
 //! - ν-event (cybernetic audit trail)
 //! - hLexicon (canonical vocabulary)
 //! - Visibility types (OCAP-enforced)
@@ -11,7 +11,6 @@
 //! - CNS types (variety counters, algedonic alerts, kill zone detection)
 //! - Sovereignty types (user sovereignty, acquisition resistance, kill-zone detection)
 //! - Goal types (minimal coordination substrate for multi-agent collaboration)
-//! - Spec types (DDMVSS domain types, completeness predicates, curation integration)
 
 pub mod agent_def;
 pub mod audit;
@@ -29,8 +28,8 @@ pub mod loops;
 pub mod ports;
 pub mod r7;
 pub mod secret;
+pub mod soap_config;
 pub mod sovereignty;
-pub mod spec;
 pub mod template;
 pub mod text;
 pub mod visibility;
@@ -63,13 +62,10 @@ pub use ports::{
 };
 pub use r7::{R7BotIdentity, default_r7_bots};
 pub use secret::{SecretRef, derivation_contexts};
+pub use soap_config::SoapInferenceConfig;
 pub use sovereignty::{
     DataCategory, SovereigntyCheckResult, SovereigntyId, SovereigntyOperation, SovereigntyPort,
     UserSovereigntyState,
-};
-pub use spec::{
-    Criterion, DomainAnchor, GoalSpec, Spec, SpecCategory, SpecCurationRecord, SpecCurator,
-    SpecError, SpecId, SpecStore,
 };
 pub use template::{
     LLMParameters, TemplateCrate, TemplateFile, TemplateId, TemplateInvocation, TemplateOutcome,

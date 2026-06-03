@@ -21,7 +21,7 @@ use crate::governed_inference::GovernedInference;
 /// Wraps an `InferencePort` and optional `CircuitBreakerPort` to provide
 /// loop-level observability. When the circuit breaker is open, the loop
 /// produces `Throttle` actions targeting itself (self-throttle).
-pub(crate) struct InferenceLoop {
+pub struct InferenceLoop {
     inference: Arc<dyn InferencePort>,
     circuit_breaker: Option<Arc<dyn CircuitBreakerPort>>,
 }

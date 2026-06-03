@@ -53,7 +53,7 @@ fn estimate_tokens(prompt: &str, parameters: &LLMParameters) -> u64 {
 /// // Pass governed port to InferenceLoop — it's just an InferencePort
 /// let inference_loop = InferenceLoop::new(governed);
 /// ```
-pub(crate) struct GovernedInference {
+pub struct GovernedInference {
     inference: Arc<dyn InferencePort>,
     cybernetics: Arc<RwLock<CyberneticsLoop>>,
     agent: WebID,

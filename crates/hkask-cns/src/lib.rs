@@ -17,8 +17,8 @@ pub mod variety; // Loop 6 subloop 6.3
 
 pub use algedonic::{AlgedonicManager, DEFAULT_THRESHOLD, RuntimeAlert, cns_health_check};
 pub use allosteric::{
-    AllostericError, AllostericGate, AllostericGateConfig, BernoulliDistribution,
-    CurationConfidenceGate, CurationDecision, CurationPort, mwc_sensitivity, mwc_state_function,
+    AllostericError, AllostericGate, AllostericGateConfig, BernoulliDistribution, mwc_sensitivity,
+    mwc_state_function,
 };
 pub use circuit_breaker::{CircuitBreaker, CircuitBreakerConfig};
 pub use cybernetics_loop::{CyberneticsLoop, SetPoints};

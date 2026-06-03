@@ -1,7 +1,10 @@
 //! SpecStore — SQLite-backed specification storage and curation
 
-use hkask_types::spec::{Spec, SpecCategory, SpecCurationRecord, SpecError, SpecStore};
-use hkask_types::{CurationDecision, OCAPBoundary, SYSTEM_MAX_RECURSION, SpecCurator, SpecId};
+use crate::spec_types::{
+    Spec, SpecCategory, SpecCurationRecord, SpecCurator, SpecError, SpecId, SpecStore,
+};
+use hkask_types::capability::SYSTEM_MAX_RECURSION;
+use hkask_types::curation::{CurationDecision, OCAPBoundary};
 use rusqlite::Connection;
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
@@ -142,6 +145,14 @@ impl SpecStore for SqliteSpecStore {
     }
 }
 
+/// Curation logic (Loop 5) temporarily co-located with persistence.
+///
+/// `DefaultSpecCurator` implements the `SpecCurator` trait, which evaluates
+/// specification coherence and makes curation decisions (Merge, Revise,
+/// Discard). Curation is a Cybernetics concern (Loop 5) that should live in
+/// `hkask-agents` or `hkask-cns`, not in the storage crate.
+///
+/// TODO: Move to hkask-agents or hkask-cns.
 pub struct DefaultSpecCurator {
     coherence_threshold: f64,
     max_iterations: u8,

@@ -9,7 +9,7 @@
 /// representing the equilibrium fraction of gates in the R (proceed) state.
 /// The `act` phase compares R̄ against a threshold to produce a concrete `Decision`.
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct BernoulliDistribution {
+pub struct BernoulliDistribution {
     /// Probability of the R-state (proceed) outcome, clamped to [0, 1].
     r_bar: f64,
 }

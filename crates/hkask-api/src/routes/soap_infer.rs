@@ -5,9 +5,10 @@ use axum::{Json, extract::State, http::StatusCode, routing::Router};
 use hkask_ensemble::ports::InferenceClient;
 
 use crate::{
-    ApiState, SoapInferAuthRequest, SoapInferRequest, SoapInferResponse, SoapInferenceConfig,
-    ValidationErrorType,
+    ApiState, SoapInferAuthRequest, SoapInferRequest, SoapInferResponse, ValidationErrorType,
+    resolve_soap_capability_secret,
 };
+use hkask_types::SoapInferenceConfig;
 
 /// Create SOAP inference router
 pub fn soap_infer_router() -> Router<ApiState> {
@@ -36,7 +37,11 @@ async fn soap_infer(
     use std::time::Instant;
     use tokio::time::{Duration, timeout};
 
-    let config = SoapInferenceConfig::from_env().map_err(|e| {
+    let capability_secret = resolve_soap_capability_secret().map_err(|e| {
+        tracing::error!("SOAP inference config error: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    let config = SoapInferenceConfig::from_env(capability_secret).map_err(|e| {
         tracing::error!("SOAP inference config error: {}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;

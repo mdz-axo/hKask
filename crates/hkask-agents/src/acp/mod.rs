@@ -93,12 +93,6 @@ pub enum AcpError {
     #[error("Malformed capability: {0}")]
     MalformedCapability(String),
 
-    #[error("Secret not configured: set HKASK_ACP_SECRET environment variable")]
-    SecretNotConfigured,
-
-    #[error("Invalid attenuation chain: {0}")]
-    InvalidAttenuationChain(String),
-
     #[error("Transport error: {0}")]
     TransportError(String),
 
@@ -551,7 +545,10 @@ impl AcpRuntime {
         let child = parent_token
             .attenuate(new_holder, signing_key.as_ref(), current_time)
             .ok_or_else(|| {
-                AcpError::InvalidAttenuationChain("Attenuation limit exceeded".to_string())
+                AcpError::CapabilityDenied(
+                    parent_token.delegated_to,
+                    "Attenuation limit exceeded".to_string(),
+                )
             })?;
 
         Ok(child)

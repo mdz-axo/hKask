@@ -9,8 +9,14 @@
 //! - LlmConfidence { c: f64 } — LLM's self-assessed confidence
 //! - TemplateMatch { c: f64 } — Template relevance score
 //! - ValidationResult { c: f64 } — Schema/validation pass result
+//!
+//! Originally in `hkask_cns::allosteric` — relocated to `hkask_agents::curator`
+//! because these are Curation (Loop 5) types. The dependency on Cybernetics
+//! (Loop 6) primitives (`AllostericGate`, `BernoulliDistribution`) is correct
+//! and preserved via `hkask_cns` imports.
 
-use crate::allosteric::gate::{AllostericGate, AllostericGateConfig};
+use hkask_cns::allosteric::gate::{AllostericGate, AllostericGateConfig};
+use hkask_cns::allosteric::mwc::mwc_state_function;
 use std::time::Duration;
 
 /// Evidence port for the curation confidence gate.
@@ -20,7 +26,7 @@ use std::time::Duration;
 /// of the same variant exist (e.g., two `LlmConfidence` ports
 /// from different models).
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub(crate) enum CurationPort {
+pub enum CurationPort {
     /// LLM's self-assessed confidence (from Okapi inference results).
     LlmConfidence {
         /// Disambiguation label (e.g., model name or task ID).
@@ -286,7 +292,7 @@ impl CurationConfidenceGate {
                 let alpha_zero: f64 = ports_zero.iter().map(|p| p.confidence()).sum::<f64>()
                     / ports_zero.len().max(1) as f64;
 
-                let r_bar_full = crate::allosteric::mwc::mwc_state_function(
+                let r_bar_full = mwc_state_function(
                     self.gate.effective_l(),
                     self.gate.c,
                     self.gate.n as u32,
@@ -294,7 +300,7 @@ impl CurationConfidenceGate {
                 )
                 .unwrap_or(0.0);
 
-                let r_bar_zero = crate::allosteric::mwc::mwc_state_function(
+                let r_bar_zero = mwc_state_function(
                     self.gate.effective_l(),
                     self.gate.c,
                     self.gate.n as u32,

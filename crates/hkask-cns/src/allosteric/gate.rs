@@ -12,7 +12,7 @@ use std::time::Duration;
 ///
 /// All parameters are MEASURABLE OPERATIONAL QUANTITIES (not analyst encodings).
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub(crate) struct AllostericGateConfig {
+pub struct AllostericGateConfig {
     /// Gate name (for identification and coupling references).
     pub name: String,
     /// L: ratio of T/R decisions in neutral conditions (countable from logs).
@@ -56,7 +56,7 @@ impl Default for AllostericGateConfig {
 /// - α: normalized deficit/deviation (read from Signal values)
 /// - τ: relaxation time (how fast the gate settles)
 /// - hysteresis: L adjustment from previous R̄
-pub(crate) struct AllostericGate {
+pub struct AllostericGate {
     /// Gate name (for identification and coupling references).
     pub name: String,
     /// Base allosteric constant L (before hysteresis adjustment).

@@ -14,10 +14,12 @@ use hkask_mcp::server::{
     McpToolError, McpToolOutput, ServerContext, ToolSpanGuard, run_stdio_server,
     validate_identifier,
 };
+use hkask_storage::spec_types::{
+    DomainAnchor, GoalSpec, Spec, SpecCategory, SpecError, SpecId, SpecStore,
+};
 use hkask_types::{
     CapabilityAction, CapabilityChecker, CapabilityResource, CapabilityToken, CurationDecision,
-    DomainAnchor, GoalSpec, McpErrorKind, OCAPBoundary, Spec, SpecCategory, SpecError, SpecId,
-    SpecStore, WebID,
+    McpErrorKind, OCAPBoundary, WebID,
 };
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};

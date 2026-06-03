@@ -94,13 +94,15 @@ impl RootAuthority {
         let expected_prefix = format!("root-{}", expected_root);
 
         if !root_nonce.starts_with(&expected_prefix) {
-            return Err(AcpError::InvalidAttenuationChain(
+            return Err(AcpError::CapabilityDenied(
+                token.delegated_to,
                 "Root nonce mismatch".to_string(),
             ));
         }
 
         if token.attenuation_level > token.max_attenuation {
-            return Err(AcpError::InvalidAttenuationChain(
+            return Err(AcpError::CapabilityDenied(
+                token.delegated_to,
                 "Attenuation level exceeds maximum".to_string(),
             ));
         }
