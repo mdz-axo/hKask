@@ -8,7 +8,6 @@ pub mod metacognition;
 pub use context::CuratorContext;
 pub use curation_loop::CurationLoop;
 
-pub use hkask_cns::Dampener;
 pub use metacognition::HealthSnapshot;
 pub use metacognition::MetacognitionError;
 

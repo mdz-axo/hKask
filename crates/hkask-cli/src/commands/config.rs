@@ -1,6 +1,7 @@
 //! Registry config and database helper functions
 
 use crate::errors::{CuratorError, RegistryError};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -23,7 +24,8 @@ pub(crate) fn resolve_acp_secret() -> Result<String, RegistryError> {
     .or_else(|_| std::env::var("HKASK_ACP_SECRET"))
     .or_else(|_| {
         hkask_keystore::Keychain::default()
-            .retrieve(&hkask_types::WebID::from_persona(b"hkask-acp-secret"))
+            .retrieve_by_key("acp-secret")
+            .map_err(|e| RegistryError::InitFailed(e.to_string()))
     })
     .or_else(|_| {
         if std::env::var("HKASK_INSECURE_DEV").as_deref() == Ok("1")
@@ -48,8 +50,9 @@ pub(crate) fn resolve_acp_secret() -> Result<String, RegistryError> {
 
 pub(crate) fn resolve_db_passphrase() -> Result<String, RegistryError> {
     std::env::var("HKASK_DB_PASSPHRASE").or_else(|_| {
-        hkask_keystore::keychain::Keychain::default()
-            .retrieve(&hkask_types::WebID::from_persona(b"hkask-db-passphrase"))
+        hkask_keystore::Keychain::default()
+            .retrieve_by_key("hkask-db-passphrase")
+            .map_err(|e| RegistryError::InitFailed(e.to_string()))
             .or_else(|_| {
                 if std::env::var("HKASK_INSECURE_DEV").as_deref() == Ok("1")
                     && crate::commands::admin::verify_admin_for_dev_mode()
@@ -128,8 +131,18 @@ pub fn create_mcp_dispatcher() -> (hkask_mcp::McpDispatcher, hkask_types::Capabi
     (dispatcher, token)
 }
 
+// ── Pre-resolved Secrets ────────────────────────────────────────────────────
+
+/// Pre-resolved secrets for onboarding, passed explicitly instead of
+/// mutating environment variables.
+pub(crate) struct ResolvedSecrets {
+    pub acp_secret: String,
+    pub db_passphrase: String,
+}
+
 // ── Registry Initialization ─────────────────────────────────────────────────
 
+/// Initialize the registry by resolving secrets from env/keychain/derivation.
 pub(crate) async fn init_registry() -> Result<
     (
         Arc<hkask_agents::AcpRuntime>,
@@ -137,17 +150,35 @@ pub(crate) async fn init_registry() -> Result<
     ),
     RegistryError,
 > {
-    let secret = resolve_acp_secret()?;
-    let acp = Arc::new(hkask_agents::AcpRuntime::new(secret.as_bytes()));
+    let secrets = ResolvedSecrets {
+        acp_secret: resolve_acp_secret()?,
+        db_passphrase: resolve_db_passphrase()?,
+    };
+    init_registry_with_secrets(&secrets).await
+}
+
+/// Initialize the registry with pre-resolved secrets (from onboarding).
+///
+/// Uses the provided secrets directly instead of resolving from
+/// environment variables or keychain, avoiding runtime env mutation.
+pub(crate) async fn init_registry_with_secrets(
+    secrets: &ResolvedSecrets,
+) -> Result<
+    (
+        Arc<hkask_agents::AcpRuntime>,
+        hkask_storage::AgentRegistryStore,
+    ),
+    RegistryError,
+> {
+    let acp = Arc::new(hkask_agents::AcpRuntime::new(secrets.acp_secret.as_bytes()));
 
     let db_path = registry_db_path();
-    let passphrase = resolve_db_passphrase()?;
 
     let db = if db_path == ":memory:" {
         hkask_storage::Database::in_memory()
             .map_err(|e| RegistryError::DatabaseError(e.to_string()))?
     } else {
-        hkask_storage::Database::open(&db_path, &passphrase)
+        hkask_storage::Database::open(&db_path, &secrets.db_passphrase)
             .map_err(|e| RegistryError::DatabaseError(e.to_string()))?
     };
 
@@ -177,7 +208,7 @@ pub(crate) async fn init_registry() -> Result<
             .collect();
 
         // Restore capability tokens (empty for now - R8 will add token persistence)
-        let tokens = std::collections::HashMap::new();
+        let tokens = HashMap::new();
 
         acp.restore_from_storage(agents, tokens)
             .await

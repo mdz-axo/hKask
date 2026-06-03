@@ -454,7 +454,7 @@ mod tests {
         let sender = system.dispatch_sender();
         // Verify we can send a message without error
         let msg = LoopMessage::critical(
-            hkask_types::loops::dispatch::LoopOrigin::External,
+            hkask_types::loops::LoopId::External,
             hkask_types::loops::dispatch::LoopPayload::AlgedonicAlert {
                 current: 50,
                 threshold: 100,
@@ -515,14 +515,14 @@ mod tests {
 
         // Send a message targeting the Cybernetics loop
         let msg = LoopMessage::warning(
-            hkask_types::loops::dispatch::LoopOrigin::Curation,
+            hkask_types::loops::LoopId::Curation,
             hkask_types::loops::dispatch::LoopPayload::CyberneticsDirective {
                 directive_type: "calibrate".to_string(),
                 target: hkask_types::WebID::new(),
                 parameters: serde_json::json!({"reason": "test"}),
             },
         )
-        .with_target(hkask_types::loops::dispatch::LoopOrigin::Cybernetics);
+        .with_target(hkask_types::loops::LoopId::Cybernetics);
 
         // Put message into dispatch
         dispatch.send(msg).await;

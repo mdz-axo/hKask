@@ -7,7 +7,7 @@ use chrono::Utc;
 use hkask_types::InfrastructureError;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span};
 use hkask_types::goal::{Goal, GoalArtifact, GoalCriterion, GoalID, GoalState};
-use hkask_types::goal_capability::{GoalAccess, GoalCapabilityToken, GoalOp};
+use hkask_types::goal_capability::{GoalCapabilityToken, GoalOp};
 use hkask_types::id::WebID;
 use hkask_types::visibility::Visibility;
 use rusqlite::Connection;
@@ -124,8 +124,8 @@ impl SqliteGoalRepository {
     }
 
     pub fn check_visibility_access(&self, goal: &Goal, requester_webid: &WebID) -> Result<()> {
-        let access = GoalAccess::check(goal, requester_webid);
-        if !access.can_read() {
+        let can_read = goal.webid == *requester_webid || !goal.visibility.is_private();
+        if !can_read {
             self.emit_denial(requester_webid, "READ", "not_visible");
             return Err(GoalRepositoryError::VisibilityDenied(format!(
                 "WebID {} cannot access goal with visibility {:?}",
@@ -141,7 +141,8 @@ impl SqliteGoalRepository {
     /// confused-deputy gap where any valid Update/Complete token could mutate
     /// *any* goal regardless of ownership.
     fn check_write_access(&self, goal: &Goal, requester_webid: &WebID) -> Result<()> {
-        if !GoalAccess::check(goal, requester_webid).can_write() {
+        let can_write = goal.webid == *requester_webid || goal.visibility.is_shared();
+        if !can_write {
             self.emit_denial(requester_webid, "WRITE", "not_owner_or_granted");
             return Err(GoalRepositoryError::VisibilityDenied(format!(
                 "WebID {} cannot modify goal {} (visibility {:?})",
@@ -153,7 +154,7 @@ impl SqliteGoalRepository {
 
     /// Admin authority (delete) is restricted to the goal owner.
     fn check_admin_access(&self, goal: &Goal, requester_webid: &WebID) -> Result<()> {
-        if !GoalAccess::check(goal, requester_webid).can_admin() {
+        if goal.webid != *requester_webid {
             self.emit_denial(requester_webid, "ADMIN", "not_owner");
             return Err(GoalRepositoryError::VisibilityDenied(format!(
                 "WebID {} is not the owner of goal {} and cannot administer it",

@@ -8,10 +8,9 @@
 //! Within the same priority, messages are dequeued in FIFO order.
 
 use hkask_types::WebID;
+use hkask_types::loops::LoopId;
 use hkask_types::loops::curation::CuratorDirective;
-use hkask_types::loops::dispatch::{
-    LoopMessage, LoopOrigin, LoopPayload, MessagePriority, TraceId,
-};
+use hkask_types::loops::dispatch::{LoopMessage, LoopPayload, MessagePriority, TraceId};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -87,7 +86,7 @@ impl MessageDispatch {
 
     /// Convenience method: wrap a `CuratorDirective` as a `LoopMessage` and enqueue it.
     ///
-    /// Creates a `LoopPayload::CyberneticsDirective` with `LoopOrigin::Curation`
+    /// Creates a `LoopPayload::CyberneticsDirective` with `LoopId::Curation`
     /// and `MessagePriority::Warning` (cybernetics directives are warnings by
     /// default; use `send()` directly for a different priority).
     pub async fn send_curator_directive(
@@ -142,7 +141,7 @@ impl MessageDispatch {
         };
 
         let message = LoopMessage::warning(
-            LoopOrigin::Curation,
+            LoopId::Curation,
             LoopPayload::CyberneticsDirective {
                 directive_type,
                 target,
@@ -156,10 +155,10 @@ impl MessageDispatch {
 
     /// Convenience method: enqueue an algedonic alert as a Critical-priority message.
     ///
-    /// Creates a message with `MessagePriority::Critical` and `LoopOrigin::Cybernetics`,
+    /// Creates a message with `MessagePriority::Critical` and `LoopId::Cybernetics`,
     /// which is the standard pattern for algedonic alerts (variety deficit escalation).
     pub async fn send_escalation(&self, alert: LoopPayload, sender: WebID) -> TraceId {
-        let message = LoopMessage::critical(LoopOrigin::Cybernetics, alert).with_sender(sender);
+        let message = LoopMessage::critical(LoopId::Cybernetics, alert).with_sender(sender);
         self.send(message).await
     }
 }

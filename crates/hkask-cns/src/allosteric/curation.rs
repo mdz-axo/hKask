@@ -10,7 +10,6 @@
 //! - TemplateMatch { c: f64 } — Template relevance score
 //! - ValidationResult { c: f64 } — Schema/validation pass result
 
-use crate::allosteric::distribution::Distribution;
 use crate::allosteric::gate::{AllostericGate, AllostericGateConfig};
 use std::time::Duration;
 
@@ -21,7 +20,7 @@ use std::time::Duration;
 /// of the same variant exist (e.g., two `LlmConfidence` ports
 /// from different models).
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub enum CurationPort {
+pub(crate) enum CurationPort {
     /// LLM's self-assessed confidence (from Okapi inference results).
     LlmConfidence {
         /// Disambiguation label (e.g., model name or task ID).
@@ -83,12 +82,6 @@ pub enum CurationDecision {
     SeekMoreEvidence,
     /// R̄ ≤ lower threshold: suppress / do not proceed.
     Suppress,
-}
-
-impl crate::allosteric::distribution::DecisionLike for CurationDecision {
-    fn is_r_state(&self) -> bool {
-        matches!(self, CurationDecision::Proceed)
-    }
 }
 
 /// Default upper threshold for the transition zone.
@@ -197,31 +190,31 @@ impl CurationConfidenceGate {
 
     /// Decide based on current evidence.
     ///
-    /// Returns a `Distribution<CurationDecision>` that preserves
-    /// the three-zone structure.
-    pub fn decide(&mut self) -> Distribution<CurationDecision> {
+    /// Returns a `CurationDecision` based on the three-zone structure:
+    /// - R̄ ≥ upper threshold → Proceed
+    /// - R̄ ≤ lower threshold → Suppress
+    /// - Between → SeekMoreEvidence
+    pub fn decide(&mut self) -> CurationDecision {
         let r_bar = self.confidence();
-        let decision = if r_bar >= self.upper_threshold {
+        if r_bar >= self.upper_threshold {
             CurationDecision::Proceed
         } else if r_bar <= self.lower_threshold {
             CurationDecision::Suppress
         } else {
             CurationDecision::SeekMoreEvidence
-        };
-        Distribution::return_(decision)
+        }
     }
 
     /// Decide with temporal relaxation.
-    pub fn decide_at(&mut self, dt: Duration) -> Distribution<CurationDecision> {
+    pub fn decide_at(&mut self, dt: Duration) -> CurationDecision {
         let r_bar = self.confidence_at(dt);
-        let decision = if r_bar >= self.upper_threshold {
+        if r_bar >= self.upper_threshold {
             CurationDecision::Proceed
         } else if r_bar <= self.lower_threshold {
             CurationDecision::Suppress
         } else {
             CurationDecision::SeekMoreEvidence
-        };
-        Distribution::return_(decision)
+        }
     }
 
     /// Sensitivity analysis: which evidence channel contributes most
@@ -400,11 +393,8 @@ mod tests {
         let r_bar = gate.confidence();
         // The decision depends on actual R̄ value
         if r_bar > 0.3 && r_bar < 0.8 {
-            // Would be SeekMoreEvidence — test the mapping
-            let collapsed = decision.expected_r_bar();
-            // SeekMoreEvidence is the R-state, but we're in a transition zone
-            // so R̄ should be between thresholds
-            assert!((0.0..=1.0).contains(&collapsed));
+            // Should be SeekMoreEvidence
+            assert_eq!(decision, CurationDecision::SeekMoreEvidence);
         }
     }
 

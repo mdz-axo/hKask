@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 /// Energy budget allocation
 #[derive(Serialize, Deserialize)]
-pub struct EnergyBudget {
+pub(crate) struct EnergyBudget {
     pub cap: u64,
     pub remaining: u64,
     pub cost_per_token: f64,
@@ -139,7 +139,7 @@ impl Clone for EnergyBudget {
 }
 
 #[derive(Debug, Clone, thiserror::Error)]
-pub enum EnergyError {
+pub(crate) enum EnergyError {
     #[error("Energy budget exceeded: requested {requested}, remaining {remaining}")]
     BudgetExceeded { requested: u64, remaining: u64 },
 }

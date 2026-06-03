@@ -53,7 +53,7 @@ pub use lexicon::{Domain, HLexicon, LexiconTerm, TemplateType};
 pub use loops::{
     ActionType, CuratorDirective, CuratorHandle, Deviation, DeviationDirection, EpisodicReadHandle,
     EpisodicWriteHandle, ExperienceClassification, HkaskLoop, LoopAction, LoopId, LoopMessage,
-    LoopOrigin, LoopPayload, MessagePriority, Signal,
+    LoopPayload, MessagePriority, Signal,
 };
 pub use ports::{
     CircuitBreakerPort, CnsPort, ConsolidationOutcome, ConsolidationPort, GitCASPort,

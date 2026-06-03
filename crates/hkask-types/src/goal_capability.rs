@@ -4,7 +4,6 @@
 //! but the goal domain itself spans multiple loops.
 
 use crate::capability::SYSTEM_MAX_ATTENUATION;
-use crate::goal::Goal;
 use crate::id::{GoalID, WebID};
 use chrono::{DateTime, Utc};
 use hmac::{Hmac, Mac};
@@ -172,59 +171,5 @@ impl GoalCapabilityToken {
         attenuated.expires = Utc::now() + (self.expires - Utc::now()) / 2;
         attenuated.hmac_signature = attenuated.compute_hmac(secret);
         Some(attenuated)
-    }
-}
-
-/// Goal access control — visibility-based authorization
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum GoalAccess {
-    Owner,
-    Granted,
-    Public,
-    Denied,
-}
-
-impl GoalAccess {
-    pub fn check(goal: &Goal, requester_webid: &WebID) -> Self {
-        use crate::visibility::Visibility;
-
-        match goal.visibility {
-            Visibility::Private => {
-                if goal.webid == *requester_webid {
-                    GoalAccess::Owner
-                } else {
-                    GoalAccess::Denied
-                }
-            }
-            Visibility::Shared => {
-                if goal.webid == *requester_webid {
-                    GoalAccess::Owner
-                } else {
-                    GoalAccess::Granted
-                }
-            }
-            Visibility::Public => {
-                if goal.webid == *requester_webid {
-                    GoalAccess::Owner
-                } else {
-                    GoalAccess::Public
-                }
-            }
-        }
-    }
-
-    pub fn can_read(&self) -> bool {
-        matches!(
-            self,
-            GoalAccess::Owner | GoalAccess::Granted | GoalAccess::Public
-        )
-    }
-
-    pub fn can_write(&self) -> bool {
-        matches!(self, GoalAccess::Owner | GoalAccess::Granted)
-    }
-
-    pub fn can_admin(&self) -> bool {
-        matches!(self, GoalAccess::Owner)
     }
 }

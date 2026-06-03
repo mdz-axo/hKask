@@ -32,7 +32,7 @@ use crate::runtime::CnsRuntime;
 use hkask_types::WebID;
 use hkask_types::loops::{
     ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, LoopMessage,
-    LoopOrigin, LoopPayload, Signal,
+    LoopPayload, Signal,
 };
 use std::sync::Arc;
 use tokio::sync::{RwLock, mpsc};
@@ -43,7 +43,7 @@ use tokio::sync::{RwLock, mpsc};
 /// are compared. When a signal deviates beyond its set-point,
 /// the loop produces an efferent action.
 #[derive(Debug, Clone)]
-pub struct SetPoints {
+pub(crate) struct SetPoints {
     /// Minimum energy budget remaining ratio (0.0-1.0). Default: 0.2 (20% remaining)
     pub energy_min_remaining: f64,
     /// Maximum variety deficit before escalation. Default: 100
@@ -437,7 +437,7 @@ impl HkaskLoop for CyberneticsLoop {
                 "Cybernetics Loop efferent signal"
             );
 
-            let target_origin: LoopOrigin = action.target.into();
+            let target_id: LoopId = action.target;
             let directive_type = match action.action_type {
                 ActionType::Throttle => "throttle",
                 ActionType::Dampen => "dampen",
@@ -452,8 +452,8 @@ impl HkaskLoop for CyberneticsLoop {
                 parameters: action.parameters.clone(),
             };
 
-            let msg = LoopMessage::new(action.priority, LoopOrigin::Cybernetics, payload)
-                .with_target(target_origin);
+            let msg = LoopMessage::new(action.priority, LoopId::Cybernetics, payload)
+                .with_target(target_id);
 
             if let Err(e) = self.dispatch_tx.send(msg) {
                 tracing::warn!(
@@ -469,9 +469,7 @@ impl HkaskLoop for CyberneticsLoop {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_types::loops::{
-        ActionType, DeviationDirection, HkaskLoop, LoopId, LoopOrigin, LoopPayload,
-    };
+    use hkask_types::loops::{ActionType, DeviationDirection, HkaskLoop, LoopId, LoopPayload};
 
     fn test_dispatch_tx() -> mpsc::UnboundedSender<LoopMessage> {
         let (tx, _rx) = mpsc::unbounded_channel();
@@ -757,7 +755,7 @@ mod tests {
 
         // Send a CalibrateThreshold directive
         let msg = LoopMessage::warning(
-            LoopOrigin::Curation,
+            LoopId::Curation,
             LoopPayload::CyberneticsDirective {
                 directive_type: "calibrate".to_string(),
                 target: WebID::new(),
@@ -767,7 +765,7 @@ mod tests {
                 }),
             },
         )
-        .with_target(LoopOrigin::Cybernetics);
+        .with_target(LoopId::Cybernetics);
 
         inbox_tx.send(msg).unwrap();
 
@@ -793,7 +791,7 @@ mod tests {
 
         // Send AdjustEnergyBudget directive
         let msg = LoopMessage::warning(
-            LoopOrigin::Curation,
+            LoopId::Curation,
             LoopPayload::CyberneticsDirective {
                 directive_type: "adjust_energy_budget".to_string(),
                 target: agent,
@@ -802,7 +800,7 @@ mod tests {
                 }),
             },
         )
-        .with_target(LoopOrigin::Cybernetics);
+        .with_target(LoopId::Cybernetics);
 
         inbox_tx.send(msg).unwrap();
 
@@ -826,14 +824,14 @@ mod tests {
 
         // Send adjust energy budget directive before tick
         let msg = LoopMessage::warning(
-            LoopOrigin::Curation,
+            LoopId::Curation,
             LoopPayload::CyberneticsDirective {
                 directive_type: "adjust_energy_budget".to_string(),
                 target: agent,
                 parameters: serde_json::json!({"new_budget": 100}),
             },
         )
-        .with_target(LoopOrigin::Cybernetics);
+        .with_target(LoopId::Cybernetics);
         inbox_tx.send(msg).unwrap();
 
         // Tick should process inbox first, then sense with updated state
@@ -851,14 +849,14 @@ mod tests {
 
         // Send AdjustEnergyBudget for an unregistered agent
         let msg = LoopMessage::warning(
-            LoopOrigin::Curation,
+            LoopId::Curation,
             LoopPayload::CyberneticsDirective {
                 directive_type: "adjust_energy_budget".to_string(),
                 target: agent,
                 parameters: serde_json::json!({"new_budget": 500}),
             },
         )
-        .with_target(LoopOrigin::Cybernetics);
+        .with_target(LoopId::Cybernetics);
         inbox_tx.send(msg).unwrap();
 
         loop6.process_inbox().await;

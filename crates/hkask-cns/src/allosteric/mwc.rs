@@ -15,7 +15,7 @@
 
 /// Errors from MWC computation.
 #[derive(Debug, Clone, thiserror::Error)]
-pub enum AllostericError {
+pub(crate) enum AllostericError {
     #[error("Invalid parameter: {0}")]
     InvalidParameter(String),
     #[error("Numerical overflow in MWC computation: {0}")]
@@ -40,7 +40,12 @@ pub enum AllostericError {
 ///
 /// Returns `AllostericError::InvalidParameter` if L ≤ 0 or c ≤ 0.
 /// Returns `AllostericError::Overflow` if the computation overflows f64.
-pub fn mwc_state_function(l: f64, c: f64, n: u32, alpha: f64) -> Result<f64, AllostericError> {
+pub(crate) fn mwc_state_function(
+    l: f64,
+    c: f64,
+    n: u32,
+    alpha: f64,
+) -> Result<f64, AllostericError> {
     if l <= 0.0 {
         return Err(AllostericError::InvalidParameter(format!(
             "L must be positive, got {l}"
@@ -88,7 +93,7 @@ pub fn mwc_state_function(l: f64, c: f64, n: u32, alpha: f64) -> Result<f64, All
 ///
 /// Computed analytically from the MWC equation:
 /// ∂R̄/∂α = R̄ · (1-R̄) · n · (1/(1+α) - c/(1+cα))
-pub fn mwc_sensitivity(l: f64, c: f64, n: u32, alpha: f64) -> f64 {
+pub(crate) fn mwc_sensitivity(l: f64, c: f64, n: u32, alpha: f64) -> f64 {
     let r_bar = match mwc_state_function(l, c, n, alpha) {
         Ok(r) if r > 0.0 && r < 1.0 => r,
         _ => return 0.0, // Edge cases: sensitivity is zero at boundaries

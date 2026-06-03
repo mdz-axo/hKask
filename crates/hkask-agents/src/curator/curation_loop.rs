@@ -66,15 +66,11 @@ impl CurationLoop {
         gate: &mut CurationConfidenceGate,
         context: &str,
     ) -> Option<CuratorDirective> {
-        let dist = gate.decide();
+        let decision = gate.decide();
         let r_bar = gate.confidence();
 
-        // Collapse the distribution to get the concrete decision
-        // The gate returns Deterministic(CurationDecision) from decide()
-        match dist {
-            hkask_cns::allosteric::distribution::Distribution::Deterministic(
-                CurationDecision::SeekMoreEvidence,
-            ) => {
+        match decision {
+            CurationDecision::SeekMoreEvidence => {
                 // Sensitivity analysis: which channel to verify?
                 let sensitivities = gate.sensitivity_analysis();
                 let top_channel = sensitivities

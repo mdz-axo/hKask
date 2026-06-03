@@ -79,49 +79,6 @@ impl fmt::Display for MessagePriority {
 }
 
 // =============================================================================
-// LoopOrigin — Source loop identification
-// =============================================================================
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum LoopOrigin {
-    Inference,
-    Episodic,
-    Semantic,
-    Communication,
-    Curation,
-    Cybernetics,
-    External,
-}
-
-impl From<LoopId> for LoopOrigin {
-    fn from(id: LoopId) -> Self {
-        match id {
-            LoopId::Inference => LoopOrigin::Inference,
-            LoopId::Episodic => LoopOrigin::Episodic,
-            LoopId::Semantic => LoopOrigin::Semantic,
-            LoopId::Communication => LoopOrigin::Communication,
-            LoopId::Curation => LoopOrigin::Curation,
-            LoopId::Cybernetics => LoopOrigin::Cybernetics,
-        }
-    }
-}
-
-impl fmt::Display for LoopOrigin {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            LoopOrigin::Inference => write!(f, "inference"),
-            LoopOrigin::Episodic => write!(f, "episodic"),
-            LoopOrigin::Semantic => write!(f, "semantic"),
-            LoopOrigin::Communication => write!(f, "communication"),
-            LoopOrigin::Curation => write!(f, "curation"),
-            LoopOrigin::Cybernetics => write!(f, "cybernetics"),
-            LoopOrigin::External => write!(f, "external"),
-        }
-    }
-}
-
-// =============================================================================
 // LoopPayload — Message content
 // =============================================================================
 
@@ -158,15 +115,15 @@ pub enum LoopPayload {
 pub struct LoopMessage {
     pub trace_id: TraceId,
     pub priority: MessagePriority,
-    pub origin: LoopOrigin,
+    pub origin: LoopId,
     pub payload: LoopPayload,
-    pub target_loop: Option<LoopOrigin>,
+    pub target_loop: Option<LoopId>,
     pub timestamp: chrono::DateTime<chrono::Utc>,
     pub sender: Option<WebID>,
 }
 
 impl LoopMessage {
-    pub fn new(priority: MessagePriority, origin: LoopOrigin, payload: LoopPayload) -> Self {
+    pub fn new(priority: MessagePriority, origin: LoopId, payload: LoopPayload) -> Self {
         Self {
             trace_id: TraceId::new(),
             priority,
@@ -178,16 +135,16 @@ impl LoopMessage {
         }
     }
 
-    pub fn critical(origin: LoopOrigin, payload: LoopPayload) -> Self {
+    pub fn critical(origin: LoopId, payload: LoopPayload) -> Self {
         Self::new(MessagePriority::Critical, origin, payload)
     }
 
-    pub fn warning(origin: LoopOrigin, payload: LoopPayload) -> Self {
+    pub fn warning(origin: LoopId, payload: LoopPayload) -> Self {
         Self::new(MessagePriority::Warning, origin, payload)
     }
 
     #[must_use]
-    pub fn with_target(mut self, target: LoopOrigin) -> Self {
+    pub fn with_target(mut self, target: LoopId) -> Self {
         self.target_loop = Some(target);
         self
     }

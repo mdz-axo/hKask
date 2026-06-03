@@ -1,11 +1,10 @@
 //! `AllostericGate` — MWC-regulated decision point with temporal dynamics
 //!
 //! An allosteric gate is an MWC-regulated decision point in the 6-loop system.
-//! It produces a `Distribution<Decision>` instead of a scalar threshold check,
-//! preserving uncertainty through the regulation pipeline.
+//! It produces a `BernoulliDistribution` parameterized by R̄, preserving
+//! uncertainty through the regulation pipeline.
 
-use crate::allosteric::Decision;
-use crate::allosteric::distribution::Distribution;
+use crate::allosteric::distribution::BernoulliDistribution;
 use crate::allosteric::mwc::{mwc_sensitivity, mwc_state_function};
 use std::time::Duration;
 
@@ -13,7 +12,7 @@ use std::time::Duration;
 ///
 /// All parameters are MEASURABLE OPERATIONAL QUANTITIES (not analyst encodings).
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct AllostericGateConfig {
+pub(crate) struct AllostericGateConfig {
     /// Gate name (for identification and coupling references).
     pub name: String,
     /// L: ratio of T/R decisions in neutral conditions (countable from logs).
@@ -57,7 +56,7 @@ impl Default for AllostericGateConfig {
 /// - α: normalized deficit/deviation (read from Signal values)
 /// - τ: relaxation time (how fast the gate settles)
 /// - hysteresis: L adjustment from previous R̄
-pub struct AllostericGate {
+pub(crate) struct AllostericGate {
     /// Gate name (for identification and coupling references).
     pub name: String,
     /// Base allosteric constant L (before hysteresis adjustment).
@@ -154,23 +153,23 @@ impl AllostericGate {
         r_bar_new
     }
 
-    /// Produce a `Distribution<Decision>` from the current gate state.
+    /// Produce a `BernoulliDistribution` from the current gate state.
     ///
     /// The gate outputs a Bernoulli distribution parameterized by the
     /// equilibrium R̄. The `act` phase collapses this to a concrete decision
     /// by comparing R̄ against the threshold.
-    pub fn decide(&self) -> Distribution<Decision> {
+    pub fn decide(&self) -> BernoulliDistribution {
         let r_bar = self.r_bar_eq();
-        Distribution::from_r_bar(Decision::Proceed, Decision::Suppress, r_bar)
+        BernoulliDistribution::from_r_bar(r_bar)
     }
 
-    /// Produce a `Distribution<Decision>` with temporal relaxation over dt.
+    /// Produce a `BernoulliDistribution` with temporal relaxation over dt.
     ///
     /// Combines `r_bar_at(dt)` with distribution construction. Updates the
     /// gate's hysteresis state as a side effect.
-    pub fn decide_at(&mut self, dt: Duration) -> Distribution<Decision> {
+    pub fn decide_at(&mut self, dt: Duration) -> BernoulliDistribution {
         let r_bar = self.r_bar_at(dt);
-        Distribution::from_r_bar(Decision::Proceed, Decision::Suppress, r_bar)
+        BernoulliDistribution::from_r_bar(r_bar)
     }
 
     /// Compute the sensitivity of this gate to its input α.

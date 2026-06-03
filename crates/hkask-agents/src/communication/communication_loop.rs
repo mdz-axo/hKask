@@ -10,7 +10,7 @@
 //! - 4.1 DISPATCH (GUARD+ROUTE) — priority-ordered message queuing
 
 use crate::communication::dispatch::MessageDispatch;
-use hkask_types::loops::dispatch::{LoopMessage, LoopOrigin};
+use hkask_types::loops::dispatch::LoopMessage;
 use hkask_types::loops::{Deviation, HkaskLoop, LoopAction, LoopId, Signal};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -120,23 +120,16 @@ impl HkaskLoop for CommunicationLoop {
             };
 
             let target_id = match msg.target_loop {
-                Some(origin) => match origin {
-                    LoopOrigin::Inference => LoopId::Inference,
-                    LoopOrigin::Episodic => LoopId::Episodic,
-                    LoopOrigin::Semantic => LoopId::Semantic,
-                    LoopOrigin::Communication => LoopId::Communication,
-                    LoopOrigin::Curation => LoopId::Curation,
-                    LoopOrigin::Cybernetics => LoopId::Cybernetics,
-                    LoopOrigin::External => {
-                        tracing::debug!(
-                            target: "communication.loop",
-                            trace_id = %msg.trace_id,
-                            "Dropping message to External origin (no inbox)"
-                        );
-                        delivered += 1;
-                        continue;
-                    }
-                },
+                Some(LoopId::External) => {
+                    tracing::debug!(
+                        target: "communication.loop",
+                        trace_id = %msg.trace_id,
+                        "Dropping message to External origin (no inbox)"
+                    );
+                    delivered += 1;
+                    continue;
+                }
+                Some(id) => id,
                 None => {
                     // Broadcast — no specific target; log and skip
                     tracing::debug!(

@@ -6,8 +6,8 @@
 //! 3. Multiple replicants — ask which one to sign into, then passphrase
 //!
 //! After successful sign-in, the derived ACP secret and DB passphrase are
-//! stored in the OS keychain and set as environment variables for the session,
-//! so subsequent `init_registry()` calls work transparently.
+//! stored in the OS keychain for future sessions, and passed directly to
+//! `init_registry_with_secrets()` so no runtime env mutation is needed.
 
 use hkask_agents::AcpRuntime;
 use hkask_keystore::Keychain;
@@ -17,7 +17,9 @@ use hkask_types::{AgentDefinition, AgentKind, RegisteredAgent, WebID};
 use std::sync::Arc;
 use thiserror::Error;
 
-use crate::commands::config::{self, init_registry, registry_db_path};
+use crate::commands::config::{
+    self, ResolvedSecrets, init_registry, init_registry_with_secrets, registry_db_path,
+};
 use crate::repl::display;
 
 #[derive(Error, Debug)]
@@ -45,7 +47,7 @@ pub struct OnboardingOutcome {
 /// Run the onboarding/sign-in flow.
 ///
 /// Returns the replicant name the user signed in as. If the user already has
-/// keys configured (HKASK_MASTER_KEY, HKASK_ACP_SECRET, or keychain entry),
+/// keys configured (HKASK_MASTER_KEY, keychain entry, or HKASK_ACP_SECRET),
 /// this transparently initializes and returns without prompting.
 pub async fn run_onboarding() -> Result<OnboardingOutcome, OnboardingError> {
     // First, try the fast path: if keys are already configured, just init
@@ -148,11 +150,17 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
     // Derive secrets from passphrase
     let secrets = derive_all_internal_secrets(&passphrase);
 
-    // Store secrets in keychain and set env vars
-    store_secrets(&secrets)?;
+    // Store secrets in keychain for future sessions
+    store_secrets_in_keychain(&secrets)?;
 
-    // Now initialize the registry with the new secrets
-    let (acp, store) = init_registry().await.map_err(OnboardingError::Registry)?;
+    // Initialize registry with the derived secrets directly
+    let resolved = ResolvedSecrets {
+        acp_secret: secrets.acp_secret.clone(),
+        db_passphrase: secrets.capability_key.clone(),
+    };
+    let (acp, store) = init_registry_with_secrets(&resolved)
+        .await
+        .map_err(OnboardingError::Registry)?;
 
     // Register the new replicant
     register_replicant(&acp, &store, &name, &description).await?;
@@ -183,19 +191,19 @@ async fn sign_in_flow(replicant_name: &str) -> Result<OnboardingOutcome, Onboard
 
         let secrets = derive_all_internal_secrets(&passphrase);
 
-        // Set env vars for this attempt
-        unsafe {
-            std::env::set_var("HKASK_ACP_SECRET", &secrets.acp_secret);
-            std::env::set_var("HKASK_DB_PASSPHRASE", &secrets.capability_key);
-        }
+        // Pass secrets directly — no env var mutation needed
+        let resolved = ResolvedSecrets {
+            acp_secret: secrets.acp_secret.clone(),
+            db_passphrase: secrets.capability_key.clone(),
+        };
 
-        match init_registry().await {
+        match init_registry_with_secrets(&resolved).await {
             Ok((_acp, store)) => {
                 // Verify the replicant exists
                 match store.get(replicant_name) {
                     Ok(_) => {
                         // Success! Store in keychain for future sessions
-                        store_secrets(&secrets)?;
+                        store_secrets_in_keychain(&secrets)?;
                         println!(
                             "\n  \x1b[32m✓\x1b[0m Signed in as \x1b[1;36m{}\x1b[0m",
                             replicant_name
@@ -206,10 +214,6 @@ async fn sign_in_flow(replicant_name: &str) -> Result<OnboardingOutcome, Onboard
                         });
                     }
                     Err(_) => {
-                        unsafe {
-                            std::env::remove_var("HKASK_ACP_SECRET");
-                            std::env::remove_var("HKASK_DB_PASSPHRASE");
-                        }
                         println!(
                             "  \x1b[31m✗\x1b[0m Replicant '{}' not found with this passphrase.",
                             replicant_name
@@ -223,10 +227,6 @@ async fn sign_in_flow(replicant_name: &str) -> Result<OnboardingOutcome, Onboard
                 }
             }
             Err(e) => {
-                unsafe {
-                    std::env::remove_var("HKASK_ACP_SECRET");
-                    std::env::remove_var("HKASK_DB_PASSPHRASE");
-                }
                 println!("  \x1b[31m✗\x1b[0m Invalid passphrase: {}", e);
                 if attempt < 3 {
                     println!();
@@ -302,8 +302,12 @@ async fn register_replicant(
     Ok(())
 }
 
-/// Store derived secrets in the OS keychain and set env vars
-fn store_secrets(
+/// Store derived secrets in the OS keychain for future sessions.
+///
+/// Secrets are stored with keys that match the resolution chain in
+/// `resolve_acp_secret()` and `resolve_db_passphrase()`, so subsequent
+/// `init_registry()` calls can find them without env var mutation.
+fn store_secrets_in_keychain(
     secrets: &hkask_keystore::master_key::InternalSecrets,
 ) -> Result<(), OnboardingError> {
     let keychain = Keychain::default();
@@ -313,16 +317,10 @@ fn store_secrets(
         .store_by_key("acp-secret", &secrets.acp_secret)
         .map_err(OnboardingError::Keychain)?;
 
-    // Store DB passphrase in keychain
+    // Store DB passphrase in keychain (used by resolve_db_passphrase)
     keychain
         .store_by_key("hkask-db-passphrase", &secrets.capability_key)
         .map_err(OnboardingError::Keychain)?;
-
-    // Also set env vars for the current session
-    unsafe {
-        std::env::set_var("HKASK_ACP_SECRET", &secrets.acp_secret);
-        std::env::set_var("HKASK_DB_PASSPHRASE", &secrets.capability_key);
-    }
 
     Ok(())
 }
