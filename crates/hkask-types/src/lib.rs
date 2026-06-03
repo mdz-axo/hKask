@@ -38,7 +38,12 @@ pub use agent_def::{
     AgentDefinition, AgentKind, Charter, PersonaConstraints, RegisteredAgent, Responsibility, Right,
 };
 pub use audit::{AuditContext, AuditEntry, AuditLogPort, AuditOutcome};
-pub use capability::*;
+pub use capability::tokens::{ConsolidationToken, CurationToken, CyberneticsToken};
+pub use capability::{
+    AgentDelegation, BotCapabilities, CapabilityAction, CapabilityChecker, CapabilityResource,
+    CapabilityToken, CapabilityTokenBuilder, Caveat, DelegationAction, DelegationResource,
+    DelegationToken, DelegationTokenBuilder, SYSTEM_MAX_ATTENUATION, SYSTEM_MAX_RECURSION,
+};
 pub use cns::{CircuitState, CnsHealth, RetryConfig};
 pub use curation::{CurationDecision, OCAPBoundary};
 pub use error::{GitError, HkaskError, InfrastructureError, McpErrorKind};

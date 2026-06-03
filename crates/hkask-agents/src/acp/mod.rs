@@ -481,7 +481,7 @@ impl AcpRuntime {
     /// Uses per-agent signing keys: the key is resolved from `token.delegated_from`.
     /// Root tokens use the master key; delegated tokens use the delegating agent's
     /// derived key.
-    pub async fn verify_capability(&self, token: &CapabilityToken) -> bool {
+    pub async fn verify_capability(&self, token: &DelegationToken) -> bool {
         let signing_key = self.resolve_signing_key(&token.delegated_from).await;
         let current_time = chrono::Utc::now().timestamp();
         token.verify(signing_key.as_ref()) && !token.is_expired(current_time) && {

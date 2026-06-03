@@ -10,7 +10,7 @@
 //!   Any agent with a capability token can read semantic triples.
 //!   Only agents with consolidation capability can store semantic triples.
 
-use hkask_types::{CapabilityToken, ExperienceClassification, WebID};
+use hkask_types::{DelegationToken, ExperienceClassification, WebID};
 
 // =============================================================================
 // Episodic Storage Port — Private, agent-scoped memory
@@ -37,7 +37,7 @@ pub trait EpisodicStoragePort: Send + Sync {
         attribute: &str,
         value: serde_json::Value,
         confidence: f64,
-        token: &CapabilityToken,
+        token: &DelegationToken,
     ) -> Result<String, crate::error::MemoryError>;
 
     /// Recall episodic triples for the agent's own perspective.
@@ -49,7 +49,7 @@ pub trait EpisodicStoragePort: Send + Sync {
         &self,
         query: &str,
         owner: &WebID,
-        token: &CapabilityToken,
+        token: &DelegationToken,
     ) -> Result<Vec<serde_json::Value>, crate::error::MemoryError>;
 
     /// Check episodic storage budget for an agent.
@@ -85,7 +85,7 @@ pub trait EpisodicStoragePort: Send + Sync {
         value: serde_json::Value,
         classification: ExperienceClassification,
         confidence_override: Option<f64>,
-        token: &CapabilityToken,
+        token: &DelegationToken,
     ) -> Result<String, crate::error::MemoryError>;
 }
 
@@ -112,7 +112,7 @@ pub trait SemanticStoragePort: Send + Sync {
         attribute: &str,
         value: serde_json::Value,
         confidence: f64,
-        token: &CapabilityToken,
+        token: &DelegationToken,
     ) -> Result<String, crate::error::MemoryError>;
 
     /// Recall semantic triples (shared, deduplicated knowledge).
@@ -123,7 +123,7 @@ pub trait SemanticStoragePort: Send + Sync {
     fn recall_semantic(
         &self,
         query: &str,
-        token: &CapabilityToken,
+        token: &DelegationToken,
     ) -> Result<Vec<serde_json::Value>, crate::error::MemoryError>;
 
     /// Check semantic storage usage for an entity.

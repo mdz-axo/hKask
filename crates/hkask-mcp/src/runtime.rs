@@ -3,7 +3,7 @@
 //! Manages MCP server connections, tool discovery, and lifecycle.
 //! Integrates with capability security and energy budget enforcement.
 
-use hkask_types::CapabilityToken;
+use hkask_types::DelegationToken;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -183,7 +183,7 @@ impl McpRuntime {
         server_id: &str,
         tool_name: &str,
         _arguments: serde_json::Value,
-        token: Option<&CapabilityToken>,
+        token: Option<&DelegationToken>,
     ) -> Result<serde_json::Value, String> {
         info!(
             target: "hkask.mcp",

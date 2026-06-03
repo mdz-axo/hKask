@@ -4,7 +4,7 @@
 //! and capability management.
 
 use async_trait::async_trait;
-use hkask_types::{CapabilityToken, WebID};
+use hkask_types::{DelegationToken, WebID};
 
 use crate::acp::{A2AMessage, AcpError};
 
@@ -21,7 +21,7 @@ pub trait AcpPort: Send + Sync {
         webid: WebID,
         agent_type: &str,
         capabilities: Vec<String>,
-    ) -> Result<CapabilityToken, AcpError>;
+    ) -> Result<DelegationToken, AcpError>;
 
     async fn unregister_agent(&self, webid: &WebID) -> Result<(), AcpError>;
 
@@ -35,7 +35,7 @@ pub trait AcpPort: Send + Sync {
     async fn revoke_capability(&self, token_id: &str, holder: &WebID) -> Result<(), AcpError>;
 
     /// Get all capability tokens for a registered agent
-    async fn get_capabilities(&self, webid: &WebID) -> Vec<CapabilityToken>;
+    async fn get_capabilities(&self, webid: &WebID) -> Vec<DelegationToken>;
 
     /// List all registered agents
     async fn list_agents(&self) -> Vec<crate::acp::AcpAgent>;

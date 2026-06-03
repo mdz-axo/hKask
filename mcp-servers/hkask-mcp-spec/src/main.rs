@@ -18,7 +18,7 @@ use hkask_storage::spec_types::{
     DomainAnchor, GoalSpec, Spec, SpecCategory, SpecError, SpecId, SpecStore,
 };
 use hkask_types::{
-    CapabilityAction, CapabilityChecker, CapabilityResource, CapabilityToken, CurationDecision,
+    DelegationAction, CapabilityChecker, DelegationResource, DelegationToken, CurationDecision,
     McpErrorKind, OCAPBoundary, WebID,
 };
 use rmcp::handler::server::wrapper::Parameters;
@@ -212,7 +212,7 @@ impl SpecServer {
         &self,
         token_b64: Option<&str>,
         resource_id: &str,
-        action: CapabilityAction,
+        action: DelegationAction,
     ) -> Result<(), McpToolError> {
         let b64 = token_b64.ok_or_else(|| {
             McpToolError::permission_denied(format!(
@@ -222,7 +222,7 @@ impl SpecServer {
             ))
         })?;
 
-        let token = CapabilityToken::from_base64(b64).map_err(|e| {
+        let token = DelegationToken::from_base64(b64).map_err(|e| {
             McpToolError::permission_denied(format!("Invalid token encoding: {}", e))
         })?;
 
@@ -235,7 +235,7 @@ impl SpecServer {
         if token.is_expired(now) {
             return Err(McpToolError::permission_denied("Token expired".to_string()));
         }
-        if !token.is_valid_for(CapabilityResource::Spec, resource_id, action) {
+        if !token.is_valid_for(DelegationResource::Spec, resource_id, action) {
             return Err(McpToolError::permission_denied(format!(
                 "Token does not grant spec:{}:{}",
                 resource_id,
@@ -264,7 +264,7 @@ impl SpecServer {
         if let Err(e) = self.verify_capability(
             capability_token.as_deref(),
             "capture",
-            CapabilityAction::Write,
+            DelegationAction::Write,
         ) {
             return span.error(e.kind, e.to_json_string());
         }
@@ -320,7 +320,7 @@ impl SpecServer {
         if let Err(e) = self.verify_capability(
             capability_token.as_deref(),
             &spec_id,
-            CapabilityAction::Write,
+            DelegationAction::Write,
         ) {
             return span.error(e.kind, e.to_json_string());
         }
@@ -398,7 +398,7 @@ impl SpecServer {
         if let Err(e) = self.verify_capability(
             capability_token.as_deref(),
             &spec_id,
-            CapabilityAction::Write,
+            DelegationAction::Write,
         ) {
             return span.error(e.kind, e.to_json_string());
         }
@@ -467,7 +467,7 @@ impl SpecServer {
         if let Err(e) = self.verify_capability(
             capability_token.as_deref(),
             &spec_id,
-            CapabilityAction::Read,
+            DelegationAction::Read,
         ) {
             return span.error(e.kind, e.to_json_string());
         }
@@ -529,7 +529,7 @@ impl SpecServer {
         if let Err(e) = self.verify_capability(
             capability_token.as_deref(),
             "reconcile",
-            CapabilityAction::Compose,
+            DelegationAction::Compose,
         ) {
             return span.error(e.kind, e.to_json_string());
         }
@@ -630,7 +630,7 @@ impl SpecServer {
         if let Err(e) = self.verify_capability(
             capability_token.as_deref(),
             "cultivate",
-            CapabilityAction::Compose,
+            DelegationAction::Compose,
         ) {
             return span.error(e.kind, e.to_json_string());
         }
@@ -686,7 +686,7 @@ impl SpecServer {
         let span = ToolSpanGuard::new("spec:graph_query", &self.webid);
 
         if let Err(e) =
-            self.verify_capability(capability_token.as_deref(), "query", CapabilityAction::Read)
+            self.verify_capability(capability_token.as_deref(), "query", DelegationAction::Read)
         {
             return span.error(e.kind, e.to_json_string());
         }
@@ -750,7 +750,7 @@ impl SpecServer {
         if let Err(e) = self.verify_capability(
             capability_token.as_deref(),
             "validate",
-            CapabilityAction::Validate,
+            DelegationAction::Validate,
         ) {
             return span.error(e.kind, e.to_json_string());
         }

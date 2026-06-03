@@ -3,7 +3,7 @@
 //! Extracts `Authorization: Bearer <token>` from incoming requests,
 //! verifies the HMAC-SHA256 signature using the MCP security key derived
 //! from the master key via HKDF-SHA256, checks expiry, and attaches
-//! the validated `CapabilityToken` and `WebID` to request extensions.
+//! the validated `DelegationToken` and `WebID` to request extensions.
 //!
 //! Routes that don't require auth (health checks, model listing) are
 //! excluded from authentication.
@@ -15,7 +15,7 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use hkask_types::{CapabilityToken, SYSTEM_MAX_ATTENUATION, SecretRef, WebID, derivation_contexts};
+use hkask_types::{DelegationToken, SYSTEM_MAX_ATTENUATION, SecretRef, WebID, derivation_contexts};
 use std::collections::HashSet;
 use std::sync::{Arc, RwLock};
 
@@ -76,7 +76,7 @@ impl AuthService {
     }
 
     /// Verify a capability token cryptographically and check expiry.
-    pub fn verify_token(&self, token: &CapabilityToken) -> TokenVerification {
+    pub fn verify_token(&self, token: &DelegationToken) -> TokenVerification {
         // 1. Verify HMAC-SHA256 signature
         if !token.verify_cryptographic(&self.secret) {
             return TokenVerification::Invalid;
@@ -123,7 +123,7 @@ pub enum TokenVerification {
 #[derive(Debug, Clone)]
 pub struct AuthContext {
     /// The verified capability token.
-    pub token: CapabilityToken,
+    pub token: DelegationToken,
     /// The WebID of the token holder.
     pub webid: WebID,
 }
@@ -163,7 +163,7 @@ pub async fn auth_middleware(
     };
 
     // Base64-decode the token
-    let token = match CapabilityToken::from_base64(token_str) {
+    let token = match DelegationToken::from_base64(token_str) {
         Ok(t) => t,
         Err(_) => {
             return Response::builder()

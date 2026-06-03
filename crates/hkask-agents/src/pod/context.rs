@@ -129,9 +129,9 @@ impl PodContext {
         confidence: f64,
     ) -> Result<String, AgentPodError> {
         self.require_capability(
-            CapabilityResource::Manifest,
+            DelegationResource::Manifest,
             "episodic_memory",
-            CapabilityAction::Write,
+            DelegationAction::Write,
         )?;
         self.episodic_storage
             .store_episodic(
@@ -151,9 +151,9 @@ impl PodContext {
     /// Returns only triples matching the agent's perspective.
     pub fn recall_episodic(&self, query: &str) -> Result<Vec<serde_json::Value>, AgentPodError> {
         self.require_capability(
-            CapabilityResource::Manifest,
+            DelegationResource::Manifest,
             "episodic_memory",
-            CapabilityAction::Read,
+            DelegationAction::Read,
         )?;
         self.episodic_storage
             .recall_episodic(query, &self.webid, &self.capability_token)
@@ -166,9 +166,9 @@ impl PodContext {
     /// Used by Loop 2a.5 (Storage Budget) to enforce per-agent limits.
     pub fn episodic_storage_usage(&self) -> Result<usize, AgentPodError> {
         self.require_capability(
-            CapabilityResource::Manifest,
+            DelegationResource::Manifest,
             "episodic_memory",
-            CapabilityAction::Read,
+            DelegationAction::Read,
         )?;
         self.episodic_storage
             .episodic_storage_usage(&self.webid)
@@ -196,9 +196,9 @@ impl PodContext {
         confidence_override: Option<f64>,
     ) -> Result<String, AgentPodError> {
         self.require_capability(
-            CapabilityResource::Manifest,
+            DelegationResource::Manifest,
             "episodic_memory",
-            CapabilityAction::Write,
+            DelegationAction::Write,
         )?;
 
         let _confidence =
@@ -233,9 +233,9 @@ impl PodContext {
         confidence: f64,
     ) -> Result<String, AgentPodError> {
         self.require_capability(
-            CapabilityResource::Manifest,
+            DelegationResource::Manifest,
             "semantic_memory",
-            CapabilityAction::Write,
+            DelegationAction::Write,
         )?;
         self.semantic_storage
             .store_semantic(
@@ -254,9 +254,9 @@ impl PodContext {
     /// OCAP: Any agent with a valid capability token can read semantic triples.
     pub fn recall_semantic(&self, query: &str) -> Result<Vec<serde_json::Value>, AgentPodError> {
         self.require_capability(
-            CapabilityResource::Manifest,
+            DelegationResource::Manifest,
             "semantic_memory",
-            CapabilityAction::Read,
+            DelegationAction::Read,
         )?;
         self.semantic_storage
             .recall_semantic(query, &self.capability_token)
@@ -269,9 +269,9 @@ impl PodContext {
     /// Used by Loop 6e (Semantic Storage Budget) to enforce per-entity limits.
     pub fn semantic_storage_usage(&self, entity: &str) -> Result<usize, AgentPodError> {
         self.require_capability(
-            CapabilityResource::Manifest,
+            DelegationResource::Manifest,
             "semantic_memory",
-            CapabilityAction::Read,
+            DelegationAction::Read,
         )?;
         self.semantic_storage
             .semantic_storage_usage(entity)
@@ -288,9 +288,9 @@ impl PodContext {
         input: serde_json::Value,
     ) -> Result<serde_json::Value, AgentPodError> {
         self.require_capability(
-            CapabilityResource::Tool,
+            DelegationResource::Tool,
             tool_name,
-            CapabilityAction::Execute,
+            DelegationAction::Execute,
         )?;
         self.mcp_runtime
             .invoke_tool(tool_name, input, &self.capability_token)

@@ -9,7 +9,7 @@
 
 use hkask_mcp::server::{McpToolError, McpToolOutput, ToolSpanGuard, validate_identifier};
 use hkask_types::{
-    CapabilityAction, CapabilityChecker, CapabilityResource, CapabilityToken, McpErrorKind, WebID,
+    DelegationAction, CapabilityChecker, DelegationResource, DelegationToken, McpErrorKind, WebID,
 };
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -45,7 +45,7 @@ pub struct EnumerateRequest {
 
 pub struct OcapServer {
     checker: CapabilityChecker,
-    tokens: Arc<RwLock<HashMap<String, CapabilityToken>>>,
+    tokens: Arc<RwLock<HashMap<String, DelegationToken>>>,
     revoked: Arc<RwLock<HashSet<String>>>,
     secret: Zeroizing<Vec<u8>>,
     webid: WebID,
@@ -64,29 +64,29 @@ impl OcapServer {
         }
     }
 
-    fn parse_resource(cap: &str) -> CapabilityResource {
+    fn parse_resource(cap: &str) -> DelegationResource {
         match cap.split(':').next() {
-            Some("tool") => CapabilityResource::Tool,
-            Some("template") => CapabilityResource::Template,
-            Some("manifest") => CapabilityResource::Manifest,
-            Some("registry") => CapabilityResource::Registry,
-            Some("cascade") => CapabilityResource::Cascade,
-            Some("spec") => CapabilityResource::Spec,
-            _ => CapabilityResource::Tool,
+            Some("tool") => DelegationResource::Tool,
+            Some("template") => DelegationResource::Template,
+            Some("manifest") => DelegationResource::Manifest,
+            Some("registry") => DelegationResource::Registry,
+            Some("cascade") => DelegationResource::Cascade,
+            Some("spec") => DelegationResource::Spec,
+            _ => DelegationResource::Tool,
         }
     }
 
-    fn parse_action(cap: &str) -> CapabilityAction {
+    fn parse_action(cap: &str) -> DelegationAction {
         let parts: Vec<&str> = cap.split(':').collect();
         match parts.get(1).copied() {
-            Some("read") => CapabilityAction::Read,
-            Some("write") => CapabilityAction::Write,
-            Some("execute") => CapabilityAction::Execute,
-            Some("render") => CapabilityAction::Render,
-            Some("compose") => CapabilityAction::Compose,
-            Some("attenuate") => CapabilityAction::Attenuate,
-            Some("validate") => CapabilityAction::Validate,
-            _ => CapabilityAction::Execute,
+            Some("read") => DelegationAction::Read,
+            Some("write") => DelegationAction::Write,
+            Some("execute") => DelegationAction::Execute,
+            Some("render") => DelegationAction::Render,
+            Some("compose") => DelegationAction::Compose,
+            Some("attenuate") => DelegationAction::Attenuate,
+            Some("validate") => DelegationAction::Validate,
+            _ => DelegationAction::Execute,
         }
     }
 }
@@ -118,7 +118,7 @@ impl OcapServer {
         let action = Self::parse_action(&capabilities);
         let resource_id = capabilities.clone();
 
-        let token = CapabilityToken::new(
+        let token = DelegationToken::new(
             resource,
             resource_id,
             action,

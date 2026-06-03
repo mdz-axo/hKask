@@ -1,6 +1,6 @@
 //! Pod value types — PodLifecycleState, PodID, persona types, template types
 
-use hkask_types::{CapabilityResource, WebID};
+use hkask_types::{DelegationResource, WebID};
 use serde::{Deserialize, Serialize};
 
 // Import macro for PodID generation
@@ -140,17 +140,17 @@ impl AgentPersona {
         })
     }
 
-    /// Get capabilities as CapabilityResource enums
-    pub fn capability_resources(&self) -> Vec<CapabilityResource> {
+    /// Get capabilities as DelegationResource enums
+    pub fn capability_resources(&self) -> Vec<DelegationResource> {
         self.capabilities
             .iter()
             .filter_map(|cap| {
                 if cap.starts_with("tool:") {
-                    Some(CapabilityResource::Tool)
+                    Some(DelegationResource::Tool)
                 } else if cap.starts_with("template:") {
-                    Some(CapabilityResource::Template)
+                    Some(DelegationResource::Template)
                 } else if cap.starts_with("memory:") {
-                    Some(CapabilityResource::Cascade)
+                    Some(DelegationResource::Cascade)
                 } else {
                     None
                 }

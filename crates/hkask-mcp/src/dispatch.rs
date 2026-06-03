@@ -10,7 +10,7 @@
 use crate::governor::McpGovernor;
 use crate::runtime::{McpRuntime, McpTool};
 use hkask_templates::{McpPort, Result, TemplateError};
-use hkask_types::{CapabilityToken, WebID};
+use hkask_types::{DelegationToken, WebID};
 use serde_json::Value;
 use std::sync::Arc;
 use tracing::info;
@@ -36,7 +36,7 @@ impl McpDispatcher {
     }
 
     /// Issue capability token to a bot (delegates to governor).
-    pub fn issue_capability(&self, tool_name: String, from: WebID, to: WebID) -> CapabilityToken {
+    pub fn issue_capability(&self, tool_name: String, from: WebID, to: WebID) -> DelegationToken {
         self.governor.issue_capability(tool_name, from, to)
     }
 
@@ -57,7 +57,7 @@ impl McpDispatcher {
 
     /// Invoke a tool with capability checking
     ///
-    /// When a `CapabilityToken` is provided, governance is delegated
+    /// When a `DelegationToken` is provided, governance is delegated
     /// to the `McpGovernor`. When `None`, falls back to legacy
     /// bot-capabilities string match.
     pub async fn invoke_async(
@@ -65,7 +65,7 @@ impl McpDispatcher {
         bot_id: &WebID,
         tool_name: &str,
         input: Value,
-        token: Option<&CapabilityToken>,
+        token: Option<&DelegationToken>,
     ) -> Result<Value> {
         // Delegate governance to the governor
         if let Some(token) = token {
@@ -119,7 +119,7 @@ impl McpPort for McpDispatcher {
         &self,
         tool_name: &str,
         input: Value,
-        token: &CapabilityToken,
+        token: &DelegationToken,
     ) -> Result<Value> {
         // Delegate governance to the governor
         self.governor

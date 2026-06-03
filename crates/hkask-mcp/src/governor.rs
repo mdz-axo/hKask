@@ -8,7 +8,7 @@
 //! registry; the dispatcher holds the transport runtime.
 
 use hkask_types::{
-    BotCapabilities, CapabilityAction, CapabilityChecker, CapabilityResource, CapabilityToken,
+    AgentDelegation, DelegationAction, CapabilityChecker, DelegationResource, DelegationToken,
     WebID,
 };
 use std::sync::Arc;
@@ -23,7 +23,7 @@ pub(crate) struct McpGovernor {
     /// Capability checker for OCP
     capability_checker: Arc<CapabilityChecker>,
     /// Bot capabilities registry
-    bot_capabilities: Arc<RwLock<std::collections::HashMap<WebID, BotCapabilities>>>,
+    bot_capabilities: Arc<RwLock<std::collections::HashMap<WebID, AgentDelegation>>>,
     /// Revoked token IDs
     revoked_tokens: Arc<RwLock<std::collections::HashSet<String>>>,
 }
@@ -38,7 +38,7 @@ impl McpGovernor {
     }
 
     /// Issue capability token to a bot
-    pub fn issue_capability(&self, tool_name: String, from: WebID, to: WebID) -> CapabilityToken {
+    pub fn issue_capability(&self, tool_name: String, from: WebID, to: WebID) -> DelegationToken {
         self.capability_checker.grant_tool(tool_name, from, to)
     }
 
@@ -49,16 +49,16 @@ impl McpGovernor {
     }
 
     /// Cryptographically verify a capability token
-    pub fn verify_token(&self, token: &CapabilityToken) -> bool {
+    pub fn verify_token(&self, token: &DelegationToken) -> bool {
         self.capability_checker.verify(token)
     }
 
     /// Check if a token authorizes a specific tool/action
-    pub fn token_is_valid_for(&self, token: &CapabilityToken, tool_name: &str) -> bool {
+    pub fn token_is_valid_for(&self, token: &DelegationToken, tool_name: &str) -> bool {
         token.is_valid_for(
-            CapabilityResource::Tool,
+            DelegationResource::Tool,
             tool_name,
-            CapabilityAction::Execute,
+            DelegationAction::Execute,
         )
     }
 
@@ -75,7 +75,7 @@ impl McpGovernor {
     /// Full governance check for a tool invocation with a capability token.
     ///
     /// Returns `Ok(())` if the invocation is authorized, `Err(reason)` otherwise.
-    pub async fn authorize(&self, token: &CapabilityToken, tool_name: &str) -> Result<(), String> {
+    pub async fn authorize(&self, token: &DelegationToken, tool_name: &str) -> Result<(), String> {
         if !self.verify_token(token) {
             return Err(format!(
                 "Invalid capability token signature for tool: {}",

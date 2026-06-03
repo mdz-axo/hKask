@@ -58,7 +58,7 @@ async fn soap_infer(
     // Cybernetics-level decision. CNS governs capability *enforcement* at the
     // loop level (throttling, energy budgets); the API membrane just verifies
     // that a valid token was presented before letting the request through.
-    let token = match hkask_types::capability::CapabilityToken::from_base64(&req.capability_token) {
+    let token = match hkask_types::capability::DelegationToken::from_base64(&req.capability_token) {
         Ok(t) => t,
         Err(_) => {
             return Err(StatusCode::FORBIDDEN);

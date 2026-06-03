@@ -59,7 +59,7 @@ mod types;
 use hkask_types::derivation_contexts;
 use hkask_types::secret::SecretRef;
 use hkask_types::{
-    CapabilityAction, CapabilityResource, CapabilityToken, DataCategory, SYSTEM_MAX_ATTENUATION,
+    DelegationAction, DelegationResource, DelegationToken, DataCategory, SYSTEM_MAX_ATTENUATION,
     WebID,
 };
 use thiserror::Error;
@@ -89,7 +89,7 @@ pub struct AgentPod {
     /// Template crate reference
     pub template_crate: TemplateCrate,
     /// Primary capability token
-    pub capability_token: CapabilityToken,
+    pub capability_token: DelegationToken,
     /// Current lifecycle state
     pub state: PodLifecycleState,
     /// Pod creation timestamp (Unix epoch)
@@ -138,8 +138,8 @@ pub enum AgentPodError {
 
     #[error("Capability denied: token does not grant {resource:?} {action:?}")]
     CapabilityDenied {
-        resource: CapabilityResource,
-        action: CapabilityAction,
+        resource: DelegationResource,
+        action: DelegationAction,
     },
 
     #[error("Inference port unavailable: {0}")]
@@ -180,10 +180,10 @@ impl AgentPod {
             .cloned()
             .unwrap_or_else(|| "tool:execute".to_string());
 
-        let capability_token = CapabilityToken::new(
-            CapabilityResource::Tool,
+        let capability_token = DelegationToken::new(
+            DelegationResource::Tool,
             first_capability,
-            CapabilityAction::Execute,
+            DelegationAction::Execute,
             WebID::new(),
             persona.webid(),
             ocap_secret.as_bytes(),
@@ -325,13 +325,13 @@ impl AgentPod {
     /// * `current_time` — Current Unix timestamp
     ///
     /// # Returns
-    /// * `Ok(CapabilityToken)` — Attenuated child token
+    /// * `Ok(DelegationToken)` — Attenuated child token
     /// * `Err(AgentPodError)` — Attenuation limit exceeded or keystore error
     pub fn delegate(
         &self,
         new_holder: WebID,
         current_time: i64,
-    ) -> AgentPodResult<CapabilityToken> {
+    ) -> AgentPodResult<DelegationToken> {
         // Check attenuation limit
         if self.capability_token.attenuation_level >= self.max_attenuation {
             return Err(AgentPodError::AttenuationLimitExceeded);

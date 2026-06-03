@@ -1,23 +1,36 @@
-//! Capability tokens (OCAP) — Loop 6 (Cybernetics): Access Guard
+//! Delegation tokens (OCAP) — Inter-agent capability delegation
 //!
-//! OCAP capability tokens are verified by the Cybernetics Access Guard (6.1).
-//! The CyberneticsHandle verifies, issues, and revokes tokens.
-//! Curation (Loop 5) can direct Cybernetics to adjust capabilities.
+//! Two kinds of authority tokens exist in hKask:
 //!
-//! Implements OCAP (Object-Capability) security model for tool access and template/manifest operations.
-//! Each bot must hold a capability token to invoke tools or perform composition operations.
+//! 1. **Loop authority tokens** (ZST tokens in `tokens.rs`):
+//!    `CyberneticsToken`, `CurationToken`, `ConsolidationToken` —
+//!    prove that a loop operation was authorized by the governing loop.
+//!    These encode the 6-loop authority DAG and are unforgeable outside
+//!    their issuing loop.
 //!
-//! **Capability Resources:**
+//! 2. **Delegation tokens** (this module):
+//!    `DelegationToken` — HMAC-signed capability tokens for inter-agent
+//!    delegation. Agents use these to prove they hold authority for specific
+//!    resources and actions. Attenuation is cryptographic (each delegation
+//!    narrows the scope).
+//!
+//! The naming distinction is intentional: "Capability" refers to loop
+//! authority (ZST tokens); "Delegation" refers to inter-agent authority
+//! (HMAC tokens). Backward-compatible aliases (`CapabilityToken`, etc.)
+//! are provided for migration.
+//!
+//! **Delegation Resources:**
 //! - `tool:*` — Tool invocation (inference, storage, memory, etc.)
 //! - `template:*` — Template operations (read, write, render, compose)
 //! - `manifest:*` — Manifest operations (read, write, execute)
 //! - `registry:*` — Registry operations (read, write, search)
 //! - `cascade:*` — Cascade operations (execute, compose, attenuate)
+//! - `spec:*` — Spec operations (read, write, validate)
 //!
 //! **Cryptographic Verification:**
-//! - Capabilities are self-verifying via HMAC-SHA256 signatures
-//! - Distributed verification via Paxos/CRDT lazy consistency
-//! - No central authority required — capabilities verified cryptographically
+//! - Delegation tokens are self-verifying via HMAC-SHA256 signatures
+//! - Attenuation is cryptographic: each delegation narrows scope
+//! - No central authority required — tokens verified cryptographically
 
 /// System-wide maximum recursion depth.
 ///
@@ -78,8 +91,8 @@ fn base64_decode(s: &str) -> Result<Vec<u8>, String> {
         .map_err(|e| e.to_string())
 }
 
-/// Capability resource types
-/// Loop: Cybernetics
+/// Delegation resource types — what an agent can act on
+/// Loop: Cybernetics (Access Guard subloop 6.1)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DelegationResource {
     Tool,
@@ -115,8 +128,8 @@ impl DelegationResource {
     }
 }
 
-/// Capability action types
-/// Loop: Cybernetics
+/// Delegation action types — what an agent can do to a resource
+/// Loop: Cybernetics (Access Guard subloop 6.1)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DelegationAction {
     Read,

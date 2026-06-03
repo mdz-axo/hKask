@@ -50,12 +50,12 @@ async fn create_pod(
     Json(req): Json<CreatePodRequest>,
 ) -> Result<Json<CreatePodResponse>, StatusCode> {
     use hkask_agents::pod::AgentPersona;
-    use hkask_types::CapabilityResource;
+    use hkask_types::DelegationResource;
 
     let has_capability =
         state
             .capability_checker
-            .check_resource(&auth.token, &auth.webid, CapabilityResource::Tool);
+            .check_resource(&auth.token, &auth.webid, DelegationResource::Tool);
 
     if !has_capability {
         return Err(StatusCode::FORBIDDEN);
