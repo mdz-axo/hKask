@@ -12,6 +12,7 @@ pub mod energy; // Loop 6 — thermodynamic resource allocation
 pub mod governed_inference; // Loop 6 → Loop 1 membrane
 pub mod kill_zone; // Loop 6 subloop 6.5 — kill-zone detection
 pub mod runtime; // Loop 6 — runtime
+pub mod throttle; // Loop 6 — per-agent rate limiting
 pub mod unified_tracker; // Loop 6 — variety tracking
 pub mod variety; // Loop 6 subloop 6.3
 
@@ -24,6 +25,7 @@ pub use energy::EnergyBudget;
 pub use governed_inference::GovernedInference;
 
 pub use runtime::CnsRuntime;
+pub use throttle::ThrottleBucket;
 
 // Re-export types moved to hkask-types for backward compatibility
 pub use hkask_types::cns::{CircuitState, CnsHealth};

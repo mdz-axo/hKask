@@ -1,0 +1,232 @@
+# Decision Journal Process Manifest
+# ℏKask v0.21.0 — Recording and revisiting decisions with calibration
+# Template type: Process (FlowDef) — multi-step decision documentation pipeline
+
+manifest:
+  id: decision-journal
+  name: Decision Journal
+  description: >
+    Process manifest for recording and revisiting decisions with calibration.
+    Records the decision and its context, defines expected outcomes and
+    time horizons, schedules a revisit date, and emits CNS feedback for
+    tracking decision quality over time. Implements the decision journal
+    practice from Kahneman's noise reduction methodology.
+  functional_role: knowact
+  version: 0.21.0
+  editor: curator-or-human-admin
+  visibility: Shared
+
+# Energy Budget Configuration
+energy:
+  cap: 10000
+  cost_per_token: 0.25
+  alert_threshold: 0.8
+  hard_limit: true
+
+inputs:
+  - name: decision
+    type: string
+    description: "The decision that was made"
+    required: true
+  - name: context
+    type: string
+    description: "The context and reasoning behind the decision"
+    required: true
+  - name: alternatives_considered
+    type: array
+    description: "Alternatives that were considered but not chosen"
+    required: false
+  - name: revisit_horizon
+    type: string
+    description: "When to revisit this decision (e.g. '30d', '90d', '1y')"
+    required: false
+
+# Process Steps
+steps:
+  - ordinal: 1
+    action: populate
+    description: >
+      Record the decision with full context. Document the decision itself,
+      the reasoning process, emotional state, key assumptions, and
+      alternatives considered. Structure the decision for future review.
+    renderer: minijinja
+    template_ref: decision-journal/record-decision
+    model_tier: balanced
+    mcp: hkask-mcp-inference
+    energy_cap: 3000
+    timeout_seconds: 45
+    input_mapping:
+      decision: "{{ decision }}"
+      context: "{{ context }}"
+      alternatives_considered: "{{ alternatives_considered | default([]) }}"
+    output_schema:
+      type: object
+      properties:
+        decision_record:
+          type: object
+          properties:
+            decision_statement: { type: string }
+            reasoning: { type: string }
+            assumptions: { type: array }
+              items: { type: string }
+            alternatives: { type: array }
+              items: { type: object }
+                properties:
+                  alternative: { type: string }
+                  reason_rejected: { type: string }
+            emotional_state: { type: string }
+            confidence_level: { type: string }
+            decision_type: { type: string }
+        recorded_at:
+          type: string
+
+  - ordinal: 2
+    action: populate
+    description: >
+      Define expected outcomes for the decision. Specify measurable
+      predictions about what will happen as a result of this decision,
+      with confidence levels and time horizons. These predictions become
+      the calibration targets for future revisit.
+    renderer: minijinja
+    template_ref: decision-journal/define-expected-outcomes
+    model_tier: reasoning_local
+    mcp: hkask-mcp-inference
+    energy_cap: 4000
+    timeout_seconds: 60
+    input_mapping:
+      decision: "{{ decision }}"
+      context: "{{ context }}"
+      decision_record: "{{ ordinal_1.decision_record }}"
+    output_schema:
+      type: object
+      properties:
+        expected_outcomes:
+          type: array
+          items:
+            type: object
+            properties:
+              outcome: { type: string }
+              probability: { type: number }
+              confidence: { type: string }
+              time_horizon: { type: string }
+              measurable_indicator: { type: string }
+        best_case:
+          type: string
+        worst_case:
+          type: string
+        most_likely:
+          type: string
+        confidence_distribution:
+          type: object
+
+  - ordinal: 3
+    action: execute
+    description: >
+      Schedule revisit date and store the decision record for future
+      calibration. Create a revisit reminder tied to the expected outcomes
+      and their time horizons. Register the decision in memory for
+      future lookup.
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: hkask-mcp-memory
+    energy_cap: 1000
+    timeout_seconds: 10
+    cns_spans:
+      - cns.prompt.select
+      - cns.prompt.render
+      - cns.prompt.outcome
+    output_schema:
+      type: object
+      properties:
+        revisit_scheduled:
+          type: boolean
+        revisit_date:
+          type: string
+        decision_id:
+          type: string
+        memory_stored:
+          type: boolean
+
+  - ordinal: 4
+    action: feedback
+    description: >
+      Emit CNS feedback for variety monitoring and decision quality tracking.
+      Report decision type, confidence distribution, and outcome count for
+      CNS algedonic monitoring.
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: hkask-mcp-cns
+    energy_cap: 500
+    timeout_seconds: 5
+    feedback:
+      variety_delta: integer
+      decision_type: string
+      expected_outcome_count: integer
+      confidence_level: string
+    output_schema:
+      type: object
+      properties:
+        variety_counter:
+          type: integer
+        cns_event_id:
+          type: string
+
+# Error Handling
+error_handling:
+  on_energy_exceeded: abort
+  on_timeout: retry
+  max_retries: 2
+  retry_backoff_seconds: 1
+  on_validation_failure: abort
+  on_capability_denied: escalate
+
+# OCAP Configuration
+ocap:
+  required_capabilities:
+    - resource: template
+      action: render
+      template_id: decision-journal/record-decision
+      energy_budget: 3000
+    - resource: template
+      action: render
+      template_id: decision-journal/define-expected-outcomes
+      energy_budget: 4000
+    - resource: manifest
+      action: execute
+      template_id: decision-journal
+      energy_budget: 500
+    - resource: memory
+      action: store
+      template_id: decision-journal
+      energy_budget: 1000
+    - resource: cns
+      action: emit
+      template_id: decision-journal
+      energy_budget: 500
+  delegation_chain_required: true
+  signature_algorithm: ed25519
+  capability_expiry_seconds: 3600
+  template_scoped: true
+
+# CNS Monitoring
+cns:
+  emit_spans: true
+  span_namespace: cns.prompt.decision-journal
+  variety_monitoring: true
+  algedonic_threshold: 100
+  escalation_target: Curator
+  variety_counters:
+    - decision_types_recorded
+    - expected_outcomes_per_decision
+    - confidence_distribution
+
+# Audit Trail
+audit:
+  enabled: true
+  log_level: info
+  include_input: true
+  include_output: true
+  include_energy_cost: true
+  include_cns_events: true

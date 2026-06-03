@@ -8,9 +8,11 @@ use crate::algedonic::{
     AlgedonicManager, DEFAULT_EXPECTED_VARIETY, DEFAULT_THRESHOLD, RuntimeAlert, cns_health_check,
 };
 use crate::kill_zone::KillZoneDetector;
+use crate::throttle::ThrottleBucket;
 use crate::unified_tracker::UnifiedVarietyTracker;
 use crate::variety::VarietyTracker;
 use hkask_types::InfrastructureError;
+use hkask_types::WebID;
 use hkask_types::cns::CnsHealth;
 use hkask_types::sovereignty::KillZoneConfig;
 use std::sync::Arc;
@@ -42,16 +44,29 @@ impl CnsState {
     }
 }
 
-/// CNS runtime — single entry point for observability
+/// CNS runtime — single entry point for observability and regulation
 pub struct CnsRuntime {
     state: Arc<RwLock<CnsState>>,
+    throttle: Arc<ThrottleBucket>,
 }
 
 impl CnsRuntime {
     pub fn with_threshold(threshold: u64) -> Self {
+        let throttle = Arc::new(ThrottleBucket::default());
         Self {
             state: Arc::new(RwLock::new(CnsState::new(threshold))),
+            throttle,
         }
+    }
+
+    // ── Throttling ──
+
+    /// Check rate limit for an agent and consume a token if allowed.
+    ///
+    /// Returns `true` if the request proceeds, `false` if rate-limited.
+    /// Delegates to `ThrottleBucket::check_and_consume`.
+    pub async fn check_throttle(&self, agent: &WebID) -> bool {
+        self.throttle.check_and_consume(*agent).await
     }
 
     fn read_algedonic(

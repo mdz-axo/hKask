@@ -5,6 +5,7 @@ pub mod context;
 pub mod curation_gate;
 pub mod curation_loop;
 pub mod metacognition;
+pub mod spec_curator;
 
 pub use context::CuratorContext;
 pub use curation_gate::{CurationConfidenceGate, CurationDecision, CurationPort};

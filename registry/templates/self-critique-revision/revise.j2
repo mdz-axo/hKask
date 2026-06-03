@@ -1,0 +1,110 @@
+[inference]
+template_type: Process
+lexicon_terms: [revise, improve, address, incorporate, refine, converge]
+contract:
+  input:
+    task_prompt: string
+    current_output: string
+    critique: array
+    quality_criteria: array
+    previous_quality_score: number
+    draft_number: integer
+  output:
+    revised_output: string
+    critique_addressed: array
+    revised_quality_score: number
+    quality_improvement: number
+    draft_number: integer
+  energy_cap: 8192
+  visibility: Shared
+
+---
+{# Template: self-critique-revision/revise.j2 #}
+{# Process — Revision based on critique #}
+{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+
+[inference]
+temperature = 0.3
+reasoning_effort = "high"
+verbosity = "standard"
+max_tokens = 8192
+thinking_budget = "full"
+
+You are revising a draft based on specific critique points. Your goal is to address every identified weakness while preserving the strengths.
+
+## Original Task Prompt
+
+{{ task_prompt }}
+
+## Current Draft
+
+{{ current_output }}
+
+## Critique Points
+
+{% for item in critique %}
+### {{ item.criterion }} ({{ item.severity }})
+- **Issue:** {{ item.issue }}
+- **Suggestion:** {{ item.suggestion }}
+{% endfor %}
+
+## Previous Quality Score: {{ previous_quality_score }}
+
+## Quality Criteria
+
+{% for criterion in quality_criteria %}
+- {{ criterion }}
+{% endfor %}
+
+## Revision Instructions
+
+Produce a revised draft that:
+
+1. **Addresses each critique point directly.** For every identified issue, make a specific change that fixes it.
+2. **Preserves what works.** Don't throw away good content — only change what the critique identifies.
+3. **Improves overall quality.** The revised draft should score higher on the quality criteria.
+
+For each critique point, briefly note how you addressed it.
+
+## Output Requirements
+
+Respond with a JSON object:
+
+```json
+{
+  "revised_output": "The fully revised output text",
+  "critique_addressed": [
+    {
+      "critique_point": "accuracy: specific factual claim was wrong",
+      "how_addressed": "Corrected the claim to [specific correction]"
+    }
+  ],
+  "revised_quality_score": 0.85,
+  "quality_improvement": 0.15,
+  "draft_number": {{ draft_number }}
+}
+```
+
+Where:
+- `revised_quality_score` is the self-assessed quality on a 0.0-1.0 scale
+- `quality_improvement` = revised_quality_score - {{ previous_quality_score }}
+
+## Constraints
+
+- Every critique point must be explicitly addressed — do not ignore any.
+- The revised output should be a complete, standalone response (not a diff).
+- Quality improvement should be honest — don't inflate scores.
+- If a critique point cannot be addressed, explain why in `how_addressed`.
+- Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
+- Preserve the original prompt structure and formatting.
+- Handle missing variables gracefully (leave as-is or use default if specified).
+
+{% if context.safety_mode %}
+## Safety Mode
+
+Safety mode is enabled. Additional restrictions:
+- No file system access
+- No network calls
+- No environment variable access
+- Strict Jinja2 sandbox enforcement
+{% endif %}

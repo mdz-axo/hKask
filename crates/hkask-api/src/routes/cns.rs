@@ -1,9 +1,6 @@
 //! CNS observability routes
 
 use axum::{Json, extract::State, routing::Router};
-use hkask_cns::algedonic::AlgedonicManager;
-use hkask_cns::cns_health_check;
-use hkask_cns::variety::VarietyMonitor;
 use std::collections::HashMap;
 
 use crate::{ApiState, CnsHealthResponse, CnsVarietyResponse, VarietyCounterResponse};
@@ -26,8 +23,8 @@ pub fn cns_router() -> Router<ApiState> {
         (status = 500, description = "Internal server error"),
     ),
 )]
-async fn cns_health(State(_state): State<ApiState>) -> Json<CnsHealthResponse> {
-    let health = cns_health_check(&AlgedonicManager::new(100, 10));
+async fn cns_health(State(state): State<ApiState>) -> Json<CnsHealthResponse> {
+    let health = state.cns_runtime.health().await;
 
     Json(CnsHealthResponse {
         overall_deficit: health.overall_deficit,
@@ -52,29 +49,20 @@ async fn cns_alerts(State(_state): State<ApiState>) -> Json<Vec<String>> {
         (status = 500, description = "Internal server error"),
     ),
 )]
-async fn cns_variety(State(_state): State<ApiState>) -> Json<CnsVarietyResponse> {
-    let mut monitor = VarietyMonitor::new();
+async fn cns_variety(State(state): State<ApiState>) -> Json<CnsVarietyResponse> {
+    let variety_data = state.cns_runtime.variety().await;
 
-    let domains: Vec<String> = vec![
-        "tool.invocation".to_string(),
-        "template.render".to_string(),
-        "agent.pod".to_string(),
-    ];
+    let domains: Vec<String> = variety_data.iter().map(|(d, _)| d.clone()).collect();
 
-    for domain in &domains {
-        monitor.counter(domain).increment("state_active");
-    }
-
-    let counters: HashMap<String, VarietyCounterResponse> = domains
+    let counters: HashMap<String, VarietyCounterResponse> = variety_data
         .iter()
-        .map(|d| {
-            let counter = monitor.counter(d);
+        .map(|(domain, variety)| {
             (
-                d.clone(),
+                domain.clone(),
                 VarietyCounterResponse {
-                    variety: counter.variety(),
-                    total: counter.total(),
-                    entropy: counter.entropy(),
+                    variety: *variety,
+                    total: *variety,
+                    entropy: 0.0, // Real entropy requires per-domain tracker access
                 },
             )
         })

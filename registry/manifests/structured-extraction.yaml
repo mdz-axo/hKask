@@ -1,0 +1,234 @@
+# Structured Extraction Pipeline Process Manifest
+# ℏKask v0.21.0 — Typed data extraction from unstructured text
+# Template type: Process (FlowDef) — multi-step extraction and validation pipeline
+
+manifest:
+  id: structured-extraction
+  name: Structured Extraction Pipeline
+  description: >
+    Process manifest for extracting typed, structured data from unstructured
+    text. Identifies entities in raw text, maps them to a target schema,
+    validates conformance to the schema, and emits CNS feedback for variety
+    tracking. Produces clean, validated JSON output conforming to the
+    specified schema.
+  functional_role: flowdef
+  version: 0.21.0
+  editor: curator-or-human-admin
+  visibility: Shared
+
+# Energy Budget Configuration
+energy:
+  cap: 12000
+  cost_per_token: 0.25
+  alert_threshold: 0.8
+  hard_limit: true
+
+inputs:
+  - name: source_text
+    type: string
+    description: "The unstructured text to extract data from"
+    required: true
+  - name: target_schema
+    type: object
+    description: "JSON Schema defining the expected output structure"
+    required: true
+  - name: extraction_hints
+    type: array
+    description: "Optional hints guiding entity identification (e.g. field names, types)"
+    required: false
+
+# Process Steps
+steps:
+  - ordinal: 1
+    action: populate
+    description: >
+      Identify entities in the source text. Scan for named entities, quantities,
+      dates, relationships, and any structured information that maps to the
+      target schema. Produce a raw entity inventory with type annotations.
+    renderer: minijinja
+    template_ref: structured-extraction/identify-entities
+    model_tier: reasoning_local
+    mcp: hkask-mcp-inference
+    energy_cap: 4000
+    timeout_seconds: 60
+    input_mapping:
+      source_text: "{{ source_text }}"
+      target_schema: "{{ target_schema }}"
+      extraction_hints: "{{ extraction_hints | default([]) }}"
+    output_schema:
+      type: object
+      properties:
+        entities:
+          type: array
+          items:
+            type: object
+            properties:
+              entity_text: { type: string }
+              entity_type: { type: string }
+              schema_field: { type: string }
+              confidence: { type: number }
+              location: { type: object }
+                properties:
+                  start: { type: integer }
+                  end: { type: integer }
+        unmapped_text:
+          type: array
+          items:
+            type: string
+        entity_count:
+          type: integer
+
+  - ordinal: 2
+    action: populate
+    description: >
+      Map identified entities to the target schema. Transform raw entity
+      inventory into structured JSON conforming to the schema. Resolve
+      conflicts, normalize values, and infer missing fields from context
+      where possible.
+    renderer: minijinja
+    template_ref: structured-extraction/map-to-schema
+    model_tier: reasoning_local
+    mcp: hkask-mcp-inference
+    energy_cap: 4000
+    timeout_seconds: 60
+    input_mapping:
+      source_text: "{{ source_text }}"
+      target_schema: "{{ target_schema }}"
+      entities: "{{ ordinal_1.entities }}"
+      unmapped_text: "{{ ordinal_1.unmapped_text }}"
+    output_schema:
+      type: object
+      properties:
+        extracted_data:
+          type: object
+        field_coverage:
+          type: object
+          properties:
+            total_fields: { type: integer }
+            populated_fields: { type: integer }
+            coverage_ratio: { type: number }
+        inferred_fields:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              value: { type: string }
+              confidence: { type: number }
+              inference_reason: { type: string }
+        unresolved_fields:
+          type: array
+          items:
+            type: string
+
+  - ordinal: 3
+    action: validate
+    description: >
+      Validate that the extracted data conforms to the target schema. Check
+      type conformance, required field presence, value constraints, and
+      format compliance. Flag any violations and produce a validation report.
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: hkask-mcp-storage
+    energy_cap: 1000
+    timeout_seconds: 10
+    validation_rules:
+      - schema_type_conformance
+      - required_fields_present
+      - value_constraints_satisfied
+      - no_hallucinated_values
+    output_schema:
+      type: object
+      properties:
+        validated:
+          type: boolean
+        conformance_score:
+          type: number
+        violations:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              violation_type: { type: string }
+              description: { type: string }
+        error_reason:
+          type: string
+
+  - ordinal: 4
+    action: feedback
+    description: >
+      Emit CNS feedback for variety monitoring and extraction quality tracking.
+      Report entity count, field coverage, and conformance scores.
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: hkask-mcp-cns
+    energy_cap: 500
+    timeout_seconds: 5
+    feedback:
+      variety_delta: integer
+      entity_count: integer
+      field_coverage_ratio: number
+      conformance_score: number
+    output_schema:
+      type: object
+      properties:
+        variety_counter:
+          type: integer
+        cns_event_id:
+          type: string
+
+# Error Handling
+error_handling:
+  on_energy_exceeded: abort
+  on_timeout: retry
+  max_retries: 2
+  retry_backoff_seconds: 1
+  on_validation_failure: abort
+
+# OCAP Configuration
+ocap:
+  required_capabilities:
+    - resource: template
+      action: render
+      template_id: structured-extraction/identify-entities
+      energy_budget: 4000
+    - resource: template
+      action: render
+      template_id: structured-extraction/map-to-schema
+      energy_budget: 4000
+    - resource: manifest
+      action: execute
+      template_id: structured-extraction
+      energy_budget: 500
+    - resource: cns
+      action: emit
+      template_id: structured-extraction
+      energy_budget: 500
+  delegation_chain_required: true
+  signature_algorithm: ed25519
+  capability_expiry_seconds: 3600
+  template_scoped: true
+
+# CNS Monitoring
+cns:
+  emit_spans: true
+  span_namespace: cns.prompt.structured-extraction
+  variety_monitoring: true
+  algedonic_threshold: 100
+  escalation_target: Curator
+  variety_counters:
+    - entity_count
+    - field_coverage_ratio
+    - conformance_score
+
+# Audit Trail
+audit:
+  enabled: true
+  log_level: info
+  include_input: true
+  include_output: true
+  include_energy_cost: true
+  include_cns_events: true

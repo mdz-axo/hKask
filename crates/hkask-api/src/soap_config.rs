@@ -14,7 +14,7 @@ pub struct SoapInferenceConfig {
     /// Pure inference parameters (serializable)
     pub inference: InferenceConfig,
     /// Capability secret for token verification (resolved via keystore)
-    pub capability_secret: [u8; 32],
+    pub(crate) capability_secret: [u8; 32],
     /// Path to Jack persona file (loaded at runtime)
     pub jack_persona_path: String,
 }

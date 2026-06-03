@@ -1,0 +1,274 @@
+# Adversarial Red-Team Process Manifest
+# ℏKask v0.21.0 — Adversarial testing of agent outputs
+# Template type: Process (FlowDef) — multi-step red-team pipeline
+
+manifest:
+  id: adversarial-red-team
+  name: Adversarial Red-Team
+  description: >
+    Process manifest for testing agent outputs against adversarial inputs.
+    Selects a target output, generates adversarial perturbations, tests
+    against the target, evaluates robustness of responses, and emits CNS
+    feedback for variety tracking. Implements systematic red-teaming with
+    adversarial taxonomy classification.
+  functional_role: knowact
+  version: 0.21.0
+  editor: curator-or-human-admin
+  visibility: Shared
+
+# Energy Budget Configuration
+energy:
+  cap: 18000
+  cost_per_token: 0.25
+  alert_threshold: 0.8
+  hard_limit: true
+
+inputs:
+  - name: target_output
+    type: string
+    description: "The agent output to test adversarially"
+    required: true
+  - name: target_domain
+    type: string
+    description: "Domain of the target output (e.g. code, reasoning, instruction)"
+    required: false
+  - name: adversarial_categories
+    type: array
+    description: "Adversarial categories to test (default: all)"
+    required: false
+  - name: intensity
+    type: string
+    description: "Red-team intensity: light, moderate, severe (default: moderate)"
+    required: false
+
+# Process Steps
+steps:
+  - ordinal: 1
+    action: select
+    description: >
+      Select target output and calibrate adversarial testing parameters.
+      Determine target domain, adversarial categories to apply, and testing
+      intensity. Map the target to its vulnerability surface.
+    renderer: minijinja
+    template_ref: adversarial-red-team/select-target
+    model_tier: fast_local
+    mcp: hkask-mcp-inference
+    energy_cap: 2000
+    timeout_seconds: 15
+    input_mapping:
+      target_output: "{{ target_output }}"
+      target_domain: "{{ target_domain | default('general') }}"
+      adversarial_categories: "{{ adversarial_categories | default(['prompt_injection', 'goal_hijacking', 'context_manipulation', 'authority_override', 'information_extraction']) }}"
+      intensity: "{{ intensity | default('moderate') }}"
+    output_schema:
+      type: object
+      properties:
+        selected_target:
+          type: string
+        domain:
+          type: string
+        vulnerability_surface:
+          type: array
+          items:
+            type: object
+            properties:
+              category: { type: string }
+              risk_level: { type: string }
+              description: { type: string }
+        categories_to_test:
+          type: array
+          items:
+            type: string
+        intensity_level:
+          type: string
+
+  - ordinal: 2
+    action: populate
+    description: >
+      Generate adversarial inputs targeting the selected vulnerability surface.
+      For each identified vulnerability category, produce specific adversarial
+      perturbations designed to probe weaknesses in the target output.
+    renderer: minijinja
+    template_ref: adversarial-red-team/generate-adversarial
+    model_tier: reasoning_local
+    mcp: hkask-mcp-inference
+    energy_cap: 5000
+    timeout_seconds: 60
+    input_mapping:
+      target_output: "{{ ordinal_1.selected_target }}"
+      domain: "{{ ordinal_1.domain }}"
+      vulnerability_surface: "{{ ordinal_1.vulnerability_surface }}"
+      categories_to_test: "{{ ordinal_1.categories_to_test }}"
+      intensity_level: "{{ ordinal_1.intensity_level }}"
+    output_schema:
+      type: object
+      properties:
+        adversarial_inputs:
+          type: array
+          items:
+            type: object
+            properties:
+              category: { type: string }
+              input: { type: string }
+              expected_weakness: { type: string }
+              severity: { type: string }
+        attack_count:
+          type: integer
+
+  - ordinal: 3
+    action: populate
+    description: >
+      Test adversarial inputs against the target output. For each adversarial
+      input, simulate the target's response and assess whether it resists or
+      succumbs to the attack. Record failure modes and successful defenses.
+    renderer: minijinja
+    template_ref: adversarial-red-team/test-against-target
+    model_tier: reasoning_local
+    mcp: hkask-mcp-inference
+    energy_cap: 6000
+    timeout_seconds: 90
+    input_mapping:
+      target_output: "{{ ordinal_1.selected_target }}"
+      domain: "{{ ordinal_1.domain }}"
+      adversarial_inputs: "{{ ordinal_2.adversarial_inputs }}"
+      intensity_level: "{{ ordinal_1.intensity_level }}"
+    output_schema:
+      type: object
+      properties:
+        test_results:
+          type: array
+          items:
+            type: object
+            properties:
+              adversarial_input: { type: string }
+              category: { type: string }
+              response: { type: string }
+              resisted: { type: boolean }
+              failure_mode: { type: string }
+              severity: { type: string }
+        resistance_rate:
+          type: number
+        critical_failures:
+          type: array
+          items:
+            type: object
+
+  - ordinal: 4
+    action: validate
+    description: >
+      Evaluate the overall robustness of the target against adversarial inputs.
+      Validate that all adversarial categories were tested, compute aggregate
+      resistance scores, and identify the most critical vulnerabilities.
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: hkask-mcp-storage
+    energy_cap: 1000
+    timeout_seconds: 15
+    validation_rules:
+      - all_categories_tested
+      - resistance_rate_computed
+      - critical_failures_identified
+      - no_duplicate_attacks
+    output_schema:
+      type: object
+      properties:
+        validated:
+          type: boolean
+        overall_resistance_score:
+          type: number
+        category_scores:
+          type: object
+        critical_vulnerabilities:
+          type: array
+          items:
+            type: object
+            properties:
+              category: { type: string }
+              description: { type: string }
+              recommendation: { type: string }
+        error_reason:
+          type: string
+
+  - ordinal: 5
+    action: feedback
+    description: >
+      Emit CNS feedback for variety monitoring and adversarial resilience tracking.
+      Report category coverage, resistance scores, and critical failure counts
+      for CNS algedonic monitoring.
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: hkask-mcp-cns
+    energy_cap: 500
+    timeout_seconds: 5
+    feedback:
+      variety_delta: integer
+      categories_tested: array
+      resistance_score: number
+      critical_failure_count: integer
+    output_schema:
+      type: object
+      properties:
+        variety_counter:
+          type: integer
+        cns_event_id:
+          type: string
+
+# Error Handling
+error_handling:
+  on_energy_exceeded: abort
+  on_timeout: retry
+  max_retries: 2
+  retry_backoff_seconds: 2
+  on_validation_failure: abort
+  on_capability_denied: escalate
+
+# OCAP Configuration
+ocap:
+  required_capabilities:
+    - resource: template
+      action: render
+      template_id: adversarial-red-team/select-target
+      energy_budget: 2000
+    - resource: template
+      action: render
+      template_id: adversarial-red-team/generate-adversarial
+      energy_budget: 5000
+    - resource: template
+      action: render
+      template_id: adversarial-red-team/test-against-target
+      energy_budget: 6000
+    - resource: manifest
+      action: execute
+      template_id: adversarial-red-team
+      energy_budget: 500
+    - resource: cns
+      action: emit
+      template_id: adversarial-red-team
+      energy_budget: 500
+  delegation_chain_required: true
+  signature_algorithm: ed25519
+  capability_expiry_seconds: 3600
+  template_scoped: true
+
+# CNS Monitoring
+cns:
+  emit_spans: true
+  span_namespace: cns.prompt.adversarial-red-team
+  variety_monitoring: true
+  algedonic_threshold: 100
+  escalation_target: Curator
+  variety_counters:
+    - adversarial_categories_tested
+    - resistance_score
+    - critical_failures
+
+# Audit Trail
+audit:
+  enabled: true
+  log_level: info
+  include_input: true
+  include_output: true
+  include_energy_cost: true
+  include_cns_events: true

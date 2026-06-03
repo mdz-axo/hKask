@@ -34,6 +34,7 @@ pub use consent::{ConsentError, ConsentManager};
 pub use curator::context::CuratorContext;
 pub use curator::curation_gate::{CurationConfidenceGate, CurationDecision, CurationPort};
 pub use curator::curation_loop::CurationLoop;
+pub use curator::spec_curator::DefaultSpecCurator;
 
 pub use error::{GitError, McpError, MemoryError, RegistryError};
 pub use escalation::{

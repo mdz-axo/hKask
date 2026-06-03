@@ -9,11 +9,15 @@
 
 use crate::id::WebID;
 
-/// Token proving Cybernetics authority. Only CyberneticsLoop can issue this.
+/// Token proving Cybernetics authority.
+///
+/// Only the Cybernetics Loop (`hkask_cns::CyberneticsLoop`) can mint this token.
+/// Other loops must request it via the authority hierarchy.
 ///
 /// Required for: energy budget operations, circuit breaking, dampening,
 /// throttling, algedonic alert escalation, consolidation bridge triggering.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct CyberneticsToken {
     /// The agent whose authority this token represents
     issuer: WebID,
@@ -54,11 +58,15 @@ impl CurationToken {
 }
 
 /// Token proving that a consolidation (Episodic → Semantic) operation
-/// was authorized by Cybernetics. This is the one-way bridge token.
+/// was authorized.
+///
+/// Only the Curation Loop (`hkask_agents::CurationLoop`) can mint this token.
+/// It authorizes consolidation from Episodic to Semantic memory.
 ///
 /// Required by: ConsolidationPort::consolidate()
 /// Issued by: CyberneticsLoop (or Curator as Cybernetics' governor)
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct ConsolidationToken {
     /// The agent whose consolidation this authorizes
     issuer: WebID,

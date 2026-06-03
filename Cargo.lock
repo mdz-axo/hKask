@@ -946,6 +946,7 @@ version = "0.21.1"
 dependencies = [
  "anyhow",
  "async-trait",
+ "hkask-cns",
  "hkask-keystore",
  "hkask-templates",
  "hkask-types",

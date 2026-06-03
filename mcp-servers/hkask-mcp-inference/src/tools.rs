@@ -68,10 +68,21 @@ pub struct ModelsRequest {
 
 /// Per-caller rate-limit bucket (token-bucket algorithm).
 ///
-// TODO: Migrate to `hkask_cns::RateLimiter` (which uses `WebID` keys)
-//       via `SecurityGateway` in a future PR. The local `RateBucket` is
-//       retained for now because the shared rate limiter operates on
-//       `WebID` rather than `String` keys.
+// TODO: This is a LOCAL PROXY for CNS throttling. The canonical throttle
+//       lives in `hkask_cns::ThrottleBucket` (keyed by `WebID`) and is wired
+//       into `CnsRuntime::check_throttle()`, which is called by `McpDispatcher`
+//       in the main process before dispatching tool calls.
+//
+//       This local `RateBucket` is retained because the inference MCP server
+//       runs as a separate process and cannot call `CnsRuntime` directly.
+//       It provides process-isolated fallback rate limiting for the external
+//       API boundary. When MCP transport (T16) enables cross-process throttle
+//       delegation, this should be replaced by a call to CNS via the MCP protocol.
+//
+//       Key differences from the CNS `ThrottleBucket`:
+//       - Uses `String` keys (caller IDs from MCP requests) vs `WebID`
+//       - Uses `RwLock<HashMap>` vs `tokio::sync::Mutex<HashMap>`
+//       - Local to this process; not shared with other MCP servers
 #[derive(Debug)]
 struct RateBucket {
     tokens: f64,

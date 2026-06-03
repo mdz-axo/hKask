@@ -9,30 +9,41 @@
 
 use crate::governor::McpGovernor;
 use crate::runtime::{McpRuntime, McpTool};
+use hkask_cns::CnsRuntime;
 use hkask_templates::{McpPort, Result, TemplateError};
 use hkask_types::{DelegationToken, WebID};
 use serde_json::Value;
 use std::sync::Arc;
-use tracing::info;
+use tracing::{info, warn};
 
 /// MCP dispatcher — Communication-layer tool routing.
 ///
 /// Wraps `McpRuntime` for tool discovery and invocation.
 /// All governance checks are delegated to `McpGovernor`.
+/// Throttling is delegated to `CnsRuntime` (Loop 6 regulation).
 pub struct McpDispatcher {
     /// MCP runtime for tool discovery and invocation
     runtime: McpRuntime,
     /// Cybernetics governor for capability governance
     governor: Arc<McpGovernor>,
+    /// CNS runtime for per-agent throttling (Loop 6)
+    cns: Arc<CnsRuntime>,
 }
 
 impl McpDispatcher {
-    /// Create a dispatcher with a runtime and a secret for the capability checker.
-    pub fn new(runtime: McpRuntime, secret: &[u8]) -> Self {
+    /// Create a dispatcher with a runtime, a secret for the capability checker,
+    /// and a CNS runtime for throttling.
+    pub fn new(runtime: McpRuntime, secret: &[u8], cns: Arc<CnsRuntime>) -> Self {
         Self {
             runtime,
             governor: Arc::new(McpGovernor::new(secret)),
+            cns,
         }
+    }
+
+    /// Create a dispatcher with a default CNS runtime (convenience).
+    pub fn with_default_cns(runtime: McpRuntime, secret: &[u8]) -> Self {
+        Self::new(runtime, secret, Arc::new(CnsRuntime::default()))
     }
 
     /// Issue capability token to a bot (delegates to governor).
@@ -79,6 +90,20 @@ impl McpDispatcher {
             ));
         }
 
+        // CNS throttle check (Loop 6 — per-agent rate limiting)
+        if !self.cns.check_throttle(bot_id).await {
+            warn!(
+                target: "hkask.mcp.dispatch",
+                bot_id = ?bot_id,
+                tool_name = %tool_name,
+                "CNS throttle: rate-limited"
+            );
+            return Err(TemplateError::Mcp(format!(
+                "Rate limit exceeded for agent: {}",
+                bot_id
+            )));
+        }
+
         // Check if tool exists
         if !self.runtime.tool_exists(tool_name).await {
             return Err(TemplateError::Mcp(format!("Tool not found: {}", tool_name)));
@@ -123,6 +148,21 @@ impl McpPort for McpDispatcher {
             .authorize(token, tool_name)
             .await
             .map_err(TemplateError::CapabilityDenied)?;
+
+        // Extract the holder WebID from the token for throttle check
+        let holder_id = token.holder();
+        if !self.cns.check_throttle(&holder_id).await {
+            warn!(
+                target: "hkask.mcp.dispatch",
+                holder_id = ?holder_id,
+                tool_name = %tool_name,
+                "CNS throttle: rate-limited"
+            );
+            return Err(TemplateError::Mcp(format!(
+                "Rate limit exceeded for agent: {}",
+                holder_id
+            )));
+        }
 
         let tool_info = self
             .runtime

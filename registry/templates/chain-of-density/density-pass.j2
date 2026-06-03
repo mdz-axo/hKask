@@ -1,0 +1,116 @@
+[inference]
+template_type: Process
+lexicon_terms: [condense, merge, density, entity, optimize, converge]
+contract:
+  input:
+    source_text: string
+    prior_summary: string
+    missing_entities: array
+    target_length: integer
+    pass_number: integer
+  output:
+    summary: string
+    entities: array
+    word_count: integer
+    entity_density: number
+    missing_entities: array
+    density_improvement: number
+  energy_cap: 8192
+  visibility: Shared
+
+---
+{# Template: chain-of-density/density-pass.j2 #}
+{# Process — Density-increase pass (Gao et al. 2024) #}
+{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+
+[inference]
+temperature = 0.3
+reasoning_effort = "high"
+verbosity = "standard"
+max_tokens = 4096
+thinking_budget = "full"
+
+You are performing density pass {{ pass_number }} of the Chain-of-Density summarization method (Gao et al. 2024).
+
+## Source Text
+
+{{ source_text }}
+
+## Prior Summary (Pass {{ pass_number - 1 }})
+
+{{ prior_summary }}
+
+## Missing Entities from Prior Summary
+
+{% for entity in missing_entities %}
+- {{ entity }}
+{% endfor %}
+
+## Target Length
+
+Approximately {{ target_length }} words. **Do not exceed this length.**
+
+## Density Increase Instructions
+
+The Chain-of-Density method produces increasingly dense summaries by:
+
+1. **Merging missing entities** into the summary naturally.
+   - Weave each missing entity into existing sentences where possible.
+   - Do not simply append — integrate.
+
+2. **Removing redundant language.**
+   - Eliminate filler words, hedging, and unnecessary qualifiers.
+   - Every word must earn its place.
+
+3. **Maintaining the target length constraint.**
+   - The summary must stay at approximately {{ target_length }} words.
+   - Adding entities requires removing redundancy to compensate.
+
+## Density Pass {{ pass_number }}
+
+Rewrite the prior summary to:
+- Include all missing entities listed above
+- Remove redundant language to make room
+- Stay within the {{ target_length }}-word target
+- Maintain factual accuracy with the source text
+
+## Output Requirements
+
+Respond with a JSON object:
+
+```json
+{
+  "summary": "The revised, more dense summary text",
+  "entities": [
+    {"entity": "Entity Name", "included": true},
+    {"entity": "Entity Name", "included": false}
+  ],
+  "word_count": 80,
+  "entity_density": 0.35,
+  "missing_entities": ["Any entities still not included"],
+  "density_improvement": 0.10
+}
+```
+
+Where `density_improvement` = current entity density - prior entity density.
+
+## Constraints
+
+- Entity density = (number of entities in summary) / (word count)
+- The revised summary must be at least as dense as the prior summary.
+- Missing entities should decrease with each pass.
+- If no entities can be added without exceeding length, report empty missing_entities.
+- Do not hallucinate entities or facts not present in the source text.
+- Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
+- Preserve the original prompt structure and formatting.
+- Handle missing variables gracefully (leave as-is or use default if specified).
+
+{% if context.safety_mode %}
+## Safety Mode
+
+Safety mode is enabled. Additional restrictions:
+- No file system access
+- No network calls
+- No environment variable access
+- Strict Jinja2 sandbox enforcement
+{% endif %}

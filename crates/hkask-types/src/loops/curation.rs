@@ -34,8 +34,19 @@ impl CuratorHandle {
         }
     }
 
-    pub fn new(curator_id: WebID) -> Self {
+    pub(crate) fn new(curator_id: WebID) -> Self {
         Self { curator_id }
+    }
+
+    /// Create the system CuratorHandle using the system WebID.
+    ///
+    /// The Curator is a singleton — the user's counterpart in `kask chat`.
+    /// This constructor enforces that convention by deriving the ID from
+    /// the "curator" persona.
+    pub fn system() -> Self {
+        Self {
+            curator_id: WebID::from_persona(b"curator"),
+        }
     }
 
     pub fn curator_id(&self) -> &WebID {

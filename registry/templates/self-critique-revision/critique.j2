@@ -1,0 +1,103 @@
+[inference]
+template_type: Process
+lexicon_terms: [critique, evaluate, identify, weakness, gap, improvement]
+contract:
+  input:
+    task_prompt: string
+    current_output: string
+    quality_criteria: array
+    draft_number: integer
+  output:
+    critique: array
+    overall_quality_score: number
+    critical_issues: integer
+    improvement_areas: array
+  energy_cap: 4096
+  visibility: Shared
+
+---
+{# Template: self-critique-revision/critique.j2 #}
+{# Process — Self-critique of generated output #}
+{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+
+[inference]
+temperature = 0.2
+reasoning_effort = "high"
+verbosity = "standard"
+max_tokens = 4096
+thinking_budget = "full"
+
+You are critically evaluating a draft output against specific quality criteria.
+
+## Original Task Prompt
+
+{{ task_prompt }}
+
+## Current Draft (Draft {{ draft_number }})
+
+{{ current_output }}
+
+## Quality Criteria
+
+{% for criterion in quality_criteria %}
+- {{ criterion }}
+{% endfor %}
+
+## Critique Instructions
+
+Systematically evaluate the draft against each quality criterion. For each criterion:
+
+1. **Identify specific issues** — Quote the exact text that has a problem
+2. **Classify severity** — critical (fundamental flaw), major (significant weakness), minor (cosmetic improvement)
+3. **Suggest a specific fix** — Provide an actionable improvement suggestion
+
+Be thorough and honest. The goal is to identify every weakness that can be improved, not to praise what works.
+
+## Severity Classification
+
+| Severity | Definition |
+|----------|------------|
+| critical | Fundamental flaw that undermines the entire output |
+| major | Significant weakness that substantially reduces quality |
+| minor | Small improvement that would polish the output |
+
+## Output Requirements
+
+Respond with a JSON object:
+
+```json
+{
+  "critique": [
+    {
+      "criterion": "accuracy",
+      "issue": "Specific description of the problem",
+      "severity": "critical|major|minor",
+      "suggestion": "Specific, actionable fix"
+    }
+  ],
+  "overall_quality_score": 0.6,
+  "critical_issues": 1,
+  "improvement_areas": ["area1", "area2"]
+}
+```
+
+Where `overall_quality_score` is the aggregate quality assessment on a 0.0-1.0 scale.
+
+## Constraints
+
+- Be specific — cite exact text, don't just say "could be better."
+- Be constructive — every critique must include an actionable suggestion.
+- Be honest — don't inflate quality scores or minimize real issues.
+- Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
+- Preserve the original prompt structure and formatting.
+- Handle missing variables gracefully (leave as-is or use default if specified).
+
+{% if context.safety_mode %}
+## Safety Mode
+
+Safety mode is enabled. Additional restrictions:
+- No file system access
+- No network calls
+- No environment variable access
+- Strict Jinja2 sandbox enforcement
+{% endif %}

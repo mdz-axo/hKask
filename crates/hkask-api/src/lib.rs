@@ -112,11 +112,13 @@ pub struct ApiState {
     pub goal_repo: Arc<hkask_storage::SqliteGoalRepository>,
     /// Capability secret used to mint goal capability tokens (same secret used
     /// by the OCAP system).
-    pub goal_capability_secret: Arc<Vec<u8>>,
+    pub(crate) goal_capability_secret: Arc<Vec<u8>>,
     /// Loop system for 6-loop regulation (Cybernetics, Episodic, Semantic, Curation)
     pub loop_system: Arc<LoopSystem>,
     /// Episodic memory for first-person experience storage and recall
     pub episodic_memory: Arc<EpisodicMemory>,
+    /// CNS runtime for real-time variety and health data
+    pub cns_runtime: Arc<CnsRuntime>,
 }
 
 /// Build the LoopSystem with all 6 loops.
@@ -179,7 +181,7 @@ fn build_loop_system(
     });
 
     // Curation Loop
-    let curator_handle = CuratorHandle::new(system_webid);
+    let curator_handle = CuratorHandle::system();
     let curator_context = Arc::new(CuratorContext::new(
         curator_handle,
         Arc::new(CnsRuntime::with_threshold(hkask_cns::DEFAULT_THRESHOLD)),
@@ -256,7 +258,7 @@ impl ApiState {
             PathBuf::from("/tmp/hkask-templates"),
         ));
         let dispatcher_runtime = hkask_mcp::runtime::McpRuntime::new();
-        let mcp_dispatcher = Arc::new(hkask_mcp::dispatch::McpDispatcher::new(
+        let mcp_dispatcher = Arc::new(hkask_mcp::dispatch::McpDispatcher::with_default_cns(
             dispatcher_runtime,
             capability_secret,
         ));
@@ -305,6 +307,7 @@ impl ApiState {
             goal_capability_secret: Arc::new(capability_secret.to_vec()),
             loop_system,
             episodic_memory,
+            cns_runtime: Arc::new(CnsRuntime::with_threshold(hkask_cns::DEFAULT_THRESHOLD)),
         }
     }
 

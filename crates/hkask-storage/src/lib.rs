@@ -23,7 +23,7 @@ pub use hkask_types::TripleID;
 pub use nu_event_store::NuEventStore;
 pub use security::sanitize_path;
 pub use sovereignty::{SovereigntyBoundaryEntry, SovereigntyBoundaryStore, SovereigntyStoreError};
-pub use spec_store::{DefaultSpecCurator, SqliteSpecStore};
+pub use spec_store::SqliteSpecStore;
 pub use spec_types::{
     Criterion, DomainAnchor, GoalSpec, Spec, SpecCategory, SpecCurationRecord, SpecCurator,
     SpecError, SpecId, SpecStore,

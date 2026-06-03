@@ -1,0 +1,89 @@
+[inference]
+template_type: Process
+lexicon_terms: [summarize, identify, entity, density, extract, condense]
+contract:
+  input:
+    source_text: string
+    target_length: integer
+  output:
+    summary: string
+    entities: array
+    word_count: integer
+    entity_density: number
+    missing_entities: array
+  energy_cap: 4096
+  visibility: Shared
+
+---
+{# Template: chain-of-density/initial-summary.j2 #}
+{# Process — Initial summary generation with entity identification #}
+{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+
+[inference]
+temperature = 0.3
+reasoning_effort = "high"
+verbosity = "standard"
+max_tokens = 4096
+thinking_budget = "full"
+
+You are generating an initial summary using the Chain-of-Density method (Gao et al. 2024).
+
+## Source Text
+
+{{ source_text }}
+
+## Target Length
+
+Approximately {{ target_length }} words.
+
+## Instructions
+
+Step 1: **Identify all important entities** in the source text.
+- Extract named entities (people, organizations, places, events)
+- Extract key concepts, quantities, dates, and relationships
+- Mark each entity as included or missing from a typical summary
+
+Step 2: **Generate an initial summary** that captures the main points.
+- Aim for {{ target_length }} words (±10%)
+- Include the most important entities naturally
+- Maintain factual accuracy — do not add information not in the source
+
+Step 3: **Assess entity density** of the initial summary.
+- Calculate entity density = (entities included in summary) / (total words in summary)
+- Identify which important entities are still missing
+
+## Output Requirements
+
+Respond with a JSON object:
+
+```json
+{
+  "summary": "The initial summary text of approximately {{ target_length }} words",
+  "entities": [
+    {"entity": "Entity Name", "included": true},
+    {"entity": "Entity Name", "included": false}
+  ],
+  "word_count": 80,
+  "entity_density": 0.25,
+  "missing_entities": ["Entity not yet included in summary"]
+}
+```
+
+## Constraints
+
+- Entity density = (number of entities in summary) / (word count)
+- Do not hallucinate entities not present in the source text.
+- Missing entities should be important entities not yet included, not trivial ones.
+- Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
+- Preserve the original prompt structure and formatting.
+- Handle missing variables gracefully (leave as-is or use default if specified).
+
+{% if context.safety_mode %}
+## Safety Mode
+
+Safety mode is enabled. Additional restrictions:
+- No file system access
+- No network calls
+- No environment variable access
+- Strict Jinja2 sandbox enforcement
+{% endif %}

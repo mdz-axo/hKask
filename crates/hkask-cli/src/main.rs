@@ -428,7 +428,7 @@ fn run_mcp(rt: &tokio::runtime::Runtime, action: McpAction) {
 
             let runtime = McpRuntime::new();
             let secret = b"hkask-devel-mcp-secret-key-32byte!";
-            let dispatcher = McpDispatcher::new(runtime, secret);
+            let dispatcher = McpDispatcher::with_default_cns(runtime, secret);
 
             let tools = rt.block_on(dispatcher.list_tools());
             if tools.is_empty() {
@@ -564,7 +564,7 @@ fn run_loops(rt: &tokio::runtime::Runtime, interval: u64) {
     rt.block_on(loop_system.register_loop(Arc::new(semantic_loop)));
 
     // 7. Register Curation Loop
-    let curator_handle = CuratorHandle::new(WebID::new());
+    let curator_handle = CuratorHandle::system();
     let escalation_queue = Arc::new(EscalationQueue::new(db.conn_arc()).expect("escalation queue"));
     let curator_context = Arc::new(CuratorContext::new(
         curator_handle,
@@ -1101,7 +1101,7 @@ fn run_spec(action: SpecAction) {
             println!("  Note: Evaluation requires hkask-mcp-spec server.");
         }
         SpecAction::Validate { id } => {
-            use hkask_storage::DefaultSpecCurator;
+            use hkask_agents::DefaultSpecCurator;
             use hkask_storage::spec_types::SpecCurator;
 
             let spec_id = or_exit(SpecId::from_string(&id), "Invalid spec ID");
@@ -1121,7 +1121,7 @@ fn run_spec(action: SpecAction) {
             println!("  Curated at: {}", record.curated_at);
         }
         SpecAction::Cultivate { id } => {
-            use hkask_storage::DefaultSpecCurator;
+            use hkask_agents::DefaultSpecCurator;
             use hkask_storage::spec_types::{SpecCategory, SpecCurator};
 
             let spec_id = or_exit(SpecId::from_string(&id), "Invalid spec ID");
@@ -1600,7 +1600,7 @@ fn run_models(rt: &tokio::runtime::Runtime) {
 
     let runtime = McpRuntime::new();
     let secret = b"hkask-devel-mcp-secret-key-32byte!";
-    let dispatcher = McpDispatcher::new(runtime, secret);
+    let dispatcher = McpDispatcher::with_default_cns(runtime, secret);
     let from = WebID::new();
     let to = WebID::new();
     let token = dispatcher.issue_capability("models".to_string(), from, to);
@@ -1645,7 +1645,7 @@ fn run_web_search(rt: &tokio::runtime::Runtime, query: String, max_results: usiz
 
     let runtime = McpRuntime::new();
     let secret = b"hkask-devel-mcp-secret-key-32byte!";
-    let dispatcher = McpDispatcher::new(runtime, secret);
+    let dispatcher = McpDispatcher::with_default_cns(runtime, secret);
     let from = WebID::new();
     let to = WebID::new();
     let token = dispatcher.issue_capability("web".to_string(), from, to);
