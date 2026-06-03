@@ -8,9 +8,7 @@
 
 use argon2::{PasswordHasher, PasswordVerifier, password_hash::PasswordHash};
 use base64::Engine;
-use hkask_types::{
-    HumanUser, InfrastructureError, RegistrationRequest, ReplicantIdentity, UserID, UserSession,
-};
+use hkask_types::{HumanUser, InfrastructureError, ReplicantIdentity, UserID, UserSession};
 use rand::RngCore;
 use rusqlite::{Connection, params};
 use std::sync::{Arc, Mutex};
@@ -32,8 +30,6 @@ pub enum UserStoreError {
     Encryption(String),
     #[error("Decryption error: {0}")]
     Decryption(String),
-    #[error("Registration error: {0}")]
-    Registration(#[from] hkask_types::RegistrationError),
     #[error("Key derivation error: {0}")]
     KeyDerivation(String),
     #[error("Password hash error: {0}")]
@@ -67,27 +63,32 @@ impl UserStore {
         Ok(())
     }
 
-    pub fn register_replicant(&self, request: RegistrationRequest) -> Result<ReplicantIdentity> {
-        request.validate()?;
-
-        if self.get_replicant(&request.replicant_name)?.is_some() {
-            return Err(UserStoreError::ReplicantNameTaken(request.replicant_name));
+    pub fn register_replicant(
+        &self,
+        replicant_name: String,
+        email: String,
+        phone: Option<String>,
+        first_name: String,
+        last_name: String,
+        passphrase: String,
+    ) -> Result<ReplicantIdentity> {
+        if self.get_replicant(&replicant_name)?.is_some() {
+            return Err(UserStoreError::ReplicantNameTaken(replicant_name));
         }
 
         let user_id = UserID::new();
         let salt = Self::generate_salt();
         let master_salt = Self::generate_salt();
-        let passphrase_hash = Self::hash_passphrase(&request.passphrase, &salt)?;
-        let pii_key = Self::derive_pii_key(&request.passphrase, &master_salt)?;
+        let passphrase_hash = Self::hash_passphrase(&passphrase, &salt)?;
+        let pii_key = Self::derive_pii_key(&passphrase, &master_salt)?;
 
-        let email_enc = Self::encrypt_pii(request.email.as_bytes(), &pii_key)?;
-        let phone_enc = request
-            .phone
+        let email_enc = Self::encrypt_pii(email.as_bytes(), &pii_key)?;
+        let phone_enc = phone
             .as_ref()
             .map(|p| Self::encrypt_pii(p.as_bytes(), &pii_key))
             .transpose()?;
-        let first_name_enc = Self::encrypt_pii(request.first_name.as_bytes(), &pii_key)?;
-        let last_name_enc = Self::encrypt_pii(request.last_name.as_bytes(), &pii_key)?;
+        let first_name_enc = Self::encrypt_pii(first_name.as_bytes(), &pii_key)?;
+        let last_name_enc = Self::encrypt_pii(last_name.as_bytes(), &pii_key)?;
 
         let mut conn = self
             .conn
@@ -109,13 +110,8 @@ impl UserStore {
             ],
         )?;
 
-        let identity = ReplicantIdentity::new(
-            request.replicant_name.clone(),
-            user_id,
-            first_name_enc,
-            last_name_enc,
-            true,
-        );
+        let identity =
+            ReplicantIdentity::new(replicant_name, user_id, first_name_enc, last_name_enc, true);
 
         tx.execute(
             "INSERT INTO replicant_identities

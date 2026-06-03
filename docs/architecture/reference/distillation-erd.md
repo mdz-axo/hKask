@@ -106,4 +106,6 @@ graph LR
 | 15 | Remove speculative `AgentDefinition` fields | P6: delete stubs, don't publish | Curation |
 | 16 | Move `KillZoneDetector` logic to CNS, keep `KillZoneConfig` in types | Regulation logic in type crate | Cybernetics |
 | 17 | Add `DataCategory::default_visibility()` | Scattered visibility mapping | Cybernetics |
-| 18 | Wire `ConsolidationToken` into `ConsolidationPort` | One-way bridge had no capability gate | Cybernetics |
+| **18** | Wire `ConsolidationToken` into `ConsolidationPort` | One-way bridge had no capability gate | Cybernetics |
+| **10** | Move `InferenceLoop` from `hkask-cns` to `hkask-agents` | Domain loop in CNS crate violates authority DAG | Inference |
+| **13** | Move `RegistrationRequest` validation to `hkask-cli` | Validation logic (behavior) in types crate; struct (data) stays | Cybernetics |

@@ -25,7 +25,7 @@ use zeroize::Zeroizing;
 
 /// Register a new replicant identity (non-interactive)
 ///
-/// Validates the passphrase, constructs a registration request, and persists
+/// Validates registration fields, then persists
 /// the new human user + replicant identity via the store.
 pub fn register_replicant_with_passphrase(
     store: &Arc<Mutex<UserStore>>,
@@ -47,11 +47,20 @@ pub fn register_replicant_with_passphrase(
         passphrase: (*passphrase).clone(),
     };
 
+    validate_registration(&request).map_err(|e| UserError::ValidationError(e.to_string()))?;
+
     let store = store
         .lock()
         .map_err(|e| UserError::DatabaseError(format!("Lock poisoned: {}", e)))?;
     store
-        .register_replicant(request)
+        .register_replicant(
+            request.replicant_name,
+            request.email,
+            request.phone,
+            request.first_name,
+            request.last_name,
+            request.passphrase,
+        )
         .map_err(|e| UserError::RegistrationFailed(e.to_string()))
 }
 
@@ -161,7 +170,7 @@ pub fn register_replicant(
             .expect("stdin read failed");
         let passphrase = passphrase.trim().to_string();
 
-        if let Err(e) = RegistrationRequest::validate_passphrase(&passphrase) {
+        if let Err(e) = validate_passphrase(&passphrase) {
             eprintln!("  ✗ {}", e);
             continue;
         }
