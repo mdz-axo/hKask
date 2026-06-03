@@ -11,8 +11,6 @@ use tracing::warn;
 /// MCP Runtime Adapter — Concrete implementation for tool access
 #[derive(Default, Clone)]
 pub struct McpRuntimeAdapter {
-    /// Granted tokens (reserved for future use)
-    _granted_tokens: std::collections::HashSet<String>,
     /// Optional capability checker for HMAC verification
     capability_checker: Option<Arc<CapabilityChecker>>,
 }
@@ -21,7 +19,6 @@ impl McpRuntimeAdapter {
     /// Create new MCP runtime adapter
     pub fn new() -> Self {
         Self {
-            _granted_tokens: std::collections::HashSet::new(),
             capability_checker: None,
         }
     }

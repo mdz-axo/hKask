@@ -89,4 +89,4 @@ Key design elements:
 
 ---
 
-*ℏKask — A Minimal Viable Container for Agents — ADR-028 — v0.21.0*
+*ℏKask - A Minimal Viable Container for Agents — ADR-028 — v0.21.0*

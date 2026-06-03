@@ -1,5 +1,5 @@
 # Russell → hKask Mapping Configuration
-# ℏKask v0.21.2 — A Minimal Viable Container for Agents
+# ℏKask v0.21.2 - A Minimal Viable Container for Agents
 # 
 # This manifest defines the mapping rules for transforming Russell skill manifests
 # into hKask registry entries. The Rust code is now just a generic YAML processor

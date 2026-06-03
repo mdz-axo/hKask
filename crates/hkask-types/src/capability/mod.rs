@@ -39,7 +39,7 @@ pub const SYSTEM_MAX_ATTENUATION: u8 = SYSTEM_MAX_RECURSION;
 
 mod verification;
 
-pub use verification::{CapabilityChecker, VerificationResult};
+pub use verification::CapabilityChecker;
 
 use crate::WebID;
 use hex;
@@ -188,54 +188,6 @@ impl Caveat {
     /// Create a visibility caveat
     pub fn visibility(visibility: impl Into<String>) -> Self {
         Self::new("visibility", visibility)
-    }
-}
-
-/// Context for caveat verification
-pub struct CaveatContext {
-    /// Operations allowed in this context
-    pub allowed_operations: Vec<String>,
-    /// Template ID if template-scoped
-    pub template_id: Option<String>,
-    /// Visibility level required
-    pub visibility: String,
-    /// Current timestamp for expiration checks
-    pub current_time: i64,
-}
-
-impl CaveatContext {
-    /// Create new context with current time
-    pub fn new() -> Self {
-        Self {
-            allowed_operations: Vec::new(),
-            template_id: None,
-            visibility: String::new(),
-            current_time: chrono::Utc::now().timestamp(),
-        }
-    }
-
-    /// Set allowed operations
-    pub fn with_operations(mut self, ops: Vec<String>) -> Self {
-        self.allowed_operations = ops;
-        self
-    }
-
-    /// Set template ID
-    pub fn with_template(mut self, template_id: String) -> Self {
-        self.template_id = Some(template_id);
-        self
-    }
-
-    /// Set visibility
-    pub fn with_visibility(mut self, visibility: String) -> Self {
-        self.visibility = visibility;
-        self
-    }
-}
-
-impl Default for CaveatContext {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -639,71 +591,6 @@ impl CapabilityToken {
         new_token
     }
 
-    /// Verify all caveats are satisfied in the given context
-    ///
-    /// Checks each caveat against the provided context:
-    /// - expiration: current time must be before expiry
-    /// - operation: at least one requested operation must match a granted operation caveat
-    /// - template: context template must match caveat template
-    /// - visibility: context visibility must match caveat visibility
-    ///
-    /// # Arguments
-    /// * `ctx` — The context in which to verify caveats
-    ///
-    /// # Returns
-    /// * `Ok(())` — All caveats satisfied
-    /// * `Err(String)` — Description of which caveat failed
-    pub fn verify_caveats(&self, ctx: &CaveatContext) -> Result<(), String> {
-        let mut has_matching_operation = ctx.allowed_operations.is_empty();
-
-        for caveat in &self.caveats {
-            match caveat.caveat_id.as_str() {
-                "expiration" => {
-                    let expiry = caveat
-                        .data
-                        .parse::<i64>()
-                        .map_err(|_| "Invalid expiration caveat data".to_string())?;
-                    if ctx.current_time > expiry {
-                        return Err("Capability expired".to_string());
-                    }
-                }
-                "operation" => {
-                    // Check if this operation caveat matches any requested operation
-                    if !has_matching_operation && ctx.allowed_operations.contains(&caveat.data) {
-                        has_matching_operation = true;
-                    }
-                }
-                "template" => {
-                    if ctx.template_id.as_ref() != Some(&caveat.data) {
-                        return Err(format!(
-                            "Template mismatch: expected {}, got {:?}",
-                            caveat.data, ctx.template_id
-                        ));
-                    }
-                }
-                "visibility" => {
-                    if ctx.visibility != caveat.data {
-                        return Err(format!(
-                            "Visibility mismatch: expected {}, got {}",
-                            caveat.data, ctx.visibility
-                        ));
-                    }
-                }
-                _ => {
-                    return Err(format!("Unknown caveat type: {}", caveat.caveat_id));
-                }
-            }
-        }
-
-        // If operations were requested, at least one must match
-        if !ctx.allowed_operations.is_empty() && !has_matching_operation {
-            return Err("No matching operation caveat found".to_string());
-        }
-
-        Ok(())
-    }
-
-    /// Get all caveat IDs
     pub fn caveat_ids(&self) -> Vec<&str> {
         self.caveats.iter().map(|c| c.caveat_id.as_str()).collect()
     }
@@ -719,33 +606,6 @@ impl CapabilityToken {
             .iter()
             .find(|c| c.caveat_id == caveat_type)
             .map(|c| c.data.as_str())
-    }
-
-    /// Verify capability with lazy timestamp check (CRDT-style eventual consistency)
-    ///
-    /// In distributed systems, clock skew may cause different machines to disagree on
-    /// whether a capability is expired. This method uses "lazy" expiry:
-    /// - Check signature first (always consistent)
-    /// - Check expiry with local clock (may differ across machines)
-    /// - If signature valid but expired, capability enters "zombie" state (valid but unusable)
-    ///
-    /// # Arguments
-    /// * `secret` — Shared HMAC secret
-    /// * `local_time` — Local machine's current timestamp
-    ///
-    /// # Returns
-    /// * `VerificationResult` — Detailed verification status
-    pub fn verify_lazy(&self, secret: &[u8], local_time: i64) -> VerificationResult {
-        let signature_valid = self.verify(secret);
-        let expired = self.is_expired(local_time);
-
-        if !signature_valid {
-            VerificationResult::Invalid
-        } else if expired {
-            VerificationResult::Zombie // Valid signature, but expired
-        } else {
-            VerificationResult::Valid
-        }
     }
 
     /// Get capability fingerprint for CRDT merge operations

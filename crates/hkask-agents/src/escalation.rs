@@ -1,9 +1,8 @@
 //! Escalation Queue — Persistent queue for escalated alerts requiring human review
-//!
-//! Escalation is a Cybernetics regulation concern: algedonic alerts that exceed
-//! thresholds are persisted here for human review. The queue lives in the
-//! Communication module (not Curation) because escalation is not a Curation
-//! function — Curation reads from this queue but does not own it.
+//
+//! The escalation queue is a Cybernetics (Loop 6) algedonic regulation mechanism.
+//! It is governed by the Cybernetics loop, which receives CuratorDirectives
+//! from Curation and escalation signals from algedonic variety deficit detection.
 
 use chrono::{DateTime, Utc};
 use hkask_types::{BotID, InfrastructureError, TemplateID};

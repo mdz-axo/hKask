@@ -11,7 +11,6 @@ pub mod dampener; // Loop 6 — regulation
 pub mod energy; // Loop 6 — thermodynamic resource allocation
 pub mod governed_inference; // Loop 6 → Loop 1 membrane
 pub mod inference_loop; // Loop 1 (lives in CNS for governance)
-pub mod observers; // Loop 6 — sensing
 pub mod runtime; // Loop 6 — runtime
 pub mod unified_tracker; // Loop 6 — variety tracking
 pub mod variety; // Loop 6 subloop 6.3

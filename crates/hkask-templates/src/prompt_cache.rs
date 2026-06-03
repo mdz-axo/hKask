@@ -7,7 +7,6 @@
 use hkask_types::LLMParameters;
 use hkask_types::ports::InferenceResult;
 use rusqlite::{Connection, params};
-use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -209,11 +208,4 @@ impl PromptCache {
 
         Ok(())
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CacheStats {
-    pub entry_count: i64,
-    pub total_size_bytes: i64,
-    pub total_accesses: i64,
 }

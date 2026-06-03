@@ -237,4 +237,4 @@ Total: ~350 lines
 
 ---
 
-*ℏKask — A Minimal Viable Container for Agents — v0.21.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.21.0*

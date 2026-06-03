@@ -379,4 +379,4 @@ MWC constraint: hidden_count = 2, transitions are concerted
 
 ---
 
-*ℏKask — Planck's Constant of Agent Systems — ARL v0.1.0*
+*ℏKask - A Minimal Viable Container for Agents — ARL v0.1.0*

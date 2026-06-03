@@ -3,8 +3,6 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::template::{TemplateId, TemplateInvocation};
-
 /// CuratorId — Unique identifier for The Curator (single instance)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct CuratorId(pub Uuid);
@@ -111,36 +109,5 @@ impl OCAPBoundary {
 
     pub fn denied(capability: String) -> Self {
         Self::new(capability, AuthorityLevel::Denied)
-    }
-}
-
-/// CurationRecord — Audit trail of Curator decisions
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CurationRecord {
-    pub id: TemplateId,
-    pub curator_id: CuratorId,
-    pub invocation: TemplateInvocation,
-    pub decision: CurationDecision,
-    pub rationale: Option<String>,
-    pub ocap_boundaries: Vec<OCAPBoundary>,
-    pub timestamp: chrono::DateTime<chrono::Utc>,
-}
-
-impl CurationRecord {
-    pub fn new(
-        curator_id: CuratorId,
-        invocation: TemplateInvocation,
-        decision: CurationDecision,
-        rationale: Option<String>,
-    ) -> Self {
-        Self {
-            id: TemplateId::new(),
-            curator_id,
-            ocap_boundaries: Vec::new(),
-            decision,
-            rationale,
-            invocation,
-            timestamp: chrono::Utc::now(),
-        }
     }
 }

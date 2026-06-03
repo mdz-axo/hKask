@@ -29,13 +29,10 @@ pub mod inference;
 pub mod semantic;
 
 pub use curation::{CuratorDirective, CuratorHandle};
-pub use cybernetics::{CyberneticsHandle, GovernanceDenial};
 pub use dispatch::{LoopMessage, LoopOrigin, LoopPayload, MessagePriority, TraceId};
 pub use episodic::{
     EpisodicBudgetExceeded, EpisodicReadHandle, EpisodicWriteHandle, ExperienceClassification,
 };
-pub use inference::InferenceHandle;
-pub use semantic::{SemanticReadHandle, SemanticWriteHandle};
 
 pub use self::Loop as HkaskLoop;
 

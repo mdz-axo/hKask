@@ -128,4 +128,4 @@ attenuation/cascade/subgoal depth.
 
 ---
 
-*ℏKask — A Minimal Viable Container for Agents — ADR-029 — v0.21.0*
+*ℏKask - A Minimal Viable Container for Agents — ADR-029 — v0.21.0*

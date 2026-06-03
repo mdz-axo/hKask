@@ -335,5 +335,5 @@ echo "analyze freedom" | kask chat -f -  # Non-interactive
 
 ---
 
-*ℏKask — A Minimal Viable Container for Agents — GML v0.2.0*
+*ℏKask - A Minimal Viable Container for Agents — GML v0.2.0*
 *The second secret of life, generalized.*

@@ -684,5 +684,5 @@ pub struct GmlAuditLog {
 
 *Begin with Task 0. Proceed sequentially. Each task's deliverable becomes input for subsequent tasks. After Task 9, iterate based on empirical usage.*
 
-*ℏKask — A Minimal Viable Container for Agents — GML v0.2.0*
+*ℏKask - A Minimal Viable Container for Agents — GML v0.2.0*
 *The second secret of life, generalized.*

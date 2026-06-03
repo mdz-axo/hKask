@@ -14,7 +14,7 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 by [DDMVSS](architecture/DDMVSS.md) category. This portal is the navigation
 surface; canonical content lives in the linked documents, never duplicated here.
 
-ℏKask (*h-bar-kask*) — "A Minimal Viable Container for Agents" — binary `kask`,
+ℏKask - "A Minimal Viable Container for Agents" - binary `kask`,
 crate prefix `hkask-`, workspace v0.21.0.
 
 > **Lifecycle note.** Retired documents are removed from the active tree via
@@ -147,4 +147,4 @@ bash docs/ci/check-links.sh      # link integrity — zero broken links
 bash docs/ci/check-metadata.sh   # mandatory metadata headers on every active doc
 ```
 
-*ℏKask — A Minimal Viable Container for Agents — v0.21.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.21.0*

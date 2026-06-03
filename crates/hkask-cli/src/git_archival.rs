@@ -2,7 +2,7 @@
 //!
 //! Phase 9: Git archival via GitHub MCP tool calls.
 //! G9: Each call mints a CapabilityToken via the ACP secret for OCAP accountability.
-//! ℏKask v0.21.2
+//! ℏKask - A Minimal Viable Container for Agents
 
 use hkask_mcp::runtime::McpRuntime;
 use hkask_types::{CapabilityChecker, WebID};

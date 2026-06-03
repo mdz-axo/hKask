@@ -161,16 +161,6 @@ impl EnsembleChat {
         Ok(response)
     }
 
-    /// Aggregate responses from multiple bots (no consensus, just collection)
-    pub fn aggregate_responses(&self, bot_responses: HashMap<WebID, String>) -> String {
-        let mut aggregated = String::new();
-        for (webid, response) in bot_responses {
-            aggregated.push_str(&format!("[{}]: {}\n", webid, response));
-        }
-
-        aggregated
-    }
-
     /// Get curator WebID
     pub fn curator(&self) -> &WebID {
         &self.curator_webid

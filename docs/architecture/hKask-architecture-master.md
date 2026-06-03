@@ -12,7 +12,7 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 
 **Purpose:** Index to the four authoritative DDMVSS specification documents and supporting reference artifacts.
 
-**Project:** hKask (ℏKask — "A Minimal Viable Container for Agents") v0.21.0  
+**Project:** hKask (ℏKask - "A Minimal Viable Container for Agents") v0.21.0
 **Binary:** `kask`  
 **Crate prefix:** `hkask-`
 
@@ -131,4 +131,4 @@ docs/architecture/
 
 ---
 
-*ℏKask — A Minimal Viable Container for Agents — v0.21.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.21.0*

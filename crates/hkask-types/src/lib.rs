@@ -42,7 +42,7 @@ pub use agent_def::{
 pub use audit::{AuditContext, AuditEntry, AuditLogPort, AuditOutcome};
 pub use capability::*;
 pub use cns::{CircuitState, CnsHealth, RetryConfig};
-pub use curation::{CurationDecision, CurationRecord, OCAPBoundary};
+pub use curation::{CurationDecision, OCAPBoundary};
 pub use error::{GitError, HkaskError, InfrastructureError, McpErrorKind};
 pub use event::{NuEvent, NuEventSink, Phase, Span, SpanCategory};
 pub use goal::*;
@@ -51,10 +51,9 @@ pub use id::*;
 pub use identity::*;
 pub use lexicon::{Domain, HLexicon, LexiconTerm, TemplateType};
 pub use loops::{
-    ActionType, CuratorDirective, CuratorHandle, CyberneticsHandle, Deviation, DeviationDirection,
-    EpisodicReadHandle, EpisodicWriteHandle, ExperienceClassification, HkaskLoop, InferenceHandle,
-    LoopAction, LoopId, LoopMessage, LoopOrigin, LoopPayload, MessagePriority, SemanticReadHandle,
-    SemanticWriteHandle, Signal,
+    ActionType, CuratorDirective, CuratorHandle, Deviation, DeviationDirection, EpisodicReadHandle,
+    EpisodicWriteHandle, ExperienceClassification, HkaskLoop, LoopAction, LoopId, LoopMessage,
+    LoopOrigin, LoopPayload, MessagePriority, Signal,
 };
 pub use ports::{
     CircuitBreakerPort, CnsPort, ConsolidationOutcome, ConsolidationPort, GitCASPort,

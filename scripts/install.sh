@@ -478,7 +478,7 @@ main() {
     echo ""
     echo "╔══════════════════════════════════════════════════════════╗"
     echo "║                    hKask Installer                      ║"
-    echo "║          ℏKask — Planck's Constant of Agents           ║"
+    echo "║        ℏKask - A Minimal Viable Container for Agents    ║"
     echo "╚══════════════════════════════════════════════════════════╝"
     echo ""
 

@@ -12,7 +12,7 @@ ddmvss_categories: [interface]
 
 # hKask CLI Documentation
 
-**hKask** (ℏKask — "A Minimal Viable Container for Agents") - Command-line interface
+**hKask** (ℏKask - "A Minimal Viable Container for Agents") - Command-line interface
 
 ## Usage
 
@@ -204,4 +204,4 @@ kask docs all -o docs/
 
 ---
 
-*ℏKask v0.21.0 — A Minimal Viable Container for Agents*
+*ℏKask v0.21.0 - A Minimal Viable Container for Agents*

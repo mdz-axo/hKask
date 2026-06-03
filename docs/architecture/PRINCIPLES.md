@@ -329,7 +329,7 @@ done
 | OCT-H currency | ❌ Excluded | Not implemented |
 | Fine-tuning (axolotl) | ❌ Excluded | Out of scope |
 | OpenCode/OpenHands condenser | ❌ Excluded | Out of scope |
-| UCAN for h-bar | ❌ Excluded | OCAP-only for v0.21.0 |
+| UCAN for hKask | ❌ Excluded | OCAP-only for v0.21.0 |
 | Three separate registries | ❌ Excluded | Unified registry |
 | Rust-based template selection | ❌ Excluded | Jinja2/LLM selection |
 | **Visual UI / dashboards** | ❌ Excluded | Headless system — CLI/MCP/API only |

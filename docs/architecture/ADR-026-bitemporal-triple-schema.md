@@ -82,4 +82,4 @@ CREATE TABLE triples (
 
 ---
 
-*ℏKask — A Minimal Viable Container for Agents — ADR-026 — v0.21.0*
+*ℏKask - A Minimal Viable Container for Agents — ADR-026 — v0.21.0*

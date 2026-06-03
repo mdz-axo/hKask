@@ -269,4 +269,4 @@ p_active([L₁],...,[L_N]) = ∏ᵢ(1+[Lᵢ]/K_{A,i})^{n_i} /
 
 ---
 
-*ℏKask — Planck's Constant of Agent Systems — GML v0.1.0*
+*ℏKask - A Minimal Viable Container for Agents — GML v0.1.0*

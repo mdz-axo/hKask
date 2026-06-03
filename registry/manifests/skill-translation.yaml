@@ -1,5 +1,5 @@
 # Skill Translation Pipeline Configuration
-# ℏKask v0.21.2 — A Minimal Viable Container for Agents
+# ℏKask v0.21.2 - A Minimal Viable Container for Agents
 #
 # This manifest defines the pipeline for importing external skill definitions
 # (Claude Skills, Zapier Actions, LangChain Tools, etc.) into hKask registry.

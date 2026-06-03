@@ -261,4 +261,4 @@ Okapi inference emits CNS spans at key boundary points:
 
 ---
 
-*ℏKask — A Minimal Viable Container for Agents — v0.21.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.21.0*

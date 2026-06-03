@@ -194,31 +194,3 @@ impl Goal {
         !self.is_terminal() && self.depth < SYSTEM_MAX_RECURSION
     }
 }
-
-/// Goal verification result — from LLM judge
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GoalVerification {
-    pub goal_id: GoalID,
-    pub verdict: GoalVerdict,
-    pub reason: String,
-    pub confidence: f32,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum GoalVerdict {
-    Done,
-    Continue,
-    Blocked,
-}
-
-impl GoalVerification {
-    pub fn new(goal_id: GoalID, verdict: GoalVerdict, reason: &str, confidence: f32) -> Self {
-        Self {
-            goal_id,
-            verdict,
-            reason: reason.to_string(),
-            confidence: confidence.clamp(0.0, 1.0),
-        }
-    }
-}

@@ -81,4 +81,4 @@ The registry stores all four types in a single SQLite table with `template_type`
 
 ---
 
-*ℏKask — A Minimal Viable Container for Agents — ADR-024 — v0.21.0*
+*ℏKask - A Minimal Viable Container for Agents — ADR-024 — v0.21.0*

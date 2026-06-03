@@ -93,9 +93,6 @@ pub enum AcpError {
     #[error("Malformed capability: {0}")]
     MalformedCapability(String),
 
-    #[error("Message correlation ID not found: {0}")]
-    CorrelationIdNotFound(String),
-
     #[error("Secret not configured: set HKASK_ACP_SECRET environment variable")]
     SecretNotConfigured,
 
@@ -111,17 +108,8 @@ pub enum AcpError {
     #[error("Key derivation failed: {0}")]
     KeyDerivation(String),
 
-    #[error("{0}")]
-    LegacyError(String),
-
     #[error(transparent)]
     Infra(#[from] hkask_types::InfrastructureError),
-}
-
-impl From<String> for AcpError {
-    fn from(s: String) -> Self {
-        AcpError::LegacyError(s)
-    }
 }
 
 /// ACP agent registration

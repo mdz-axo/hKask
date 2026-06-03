@@ -455,6 +455,6 @@ status: VERIFIED
 
 ---
 
-*ℏKask — A Minimal Viable Container for Agents — v0.21.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.21.0*
 *The Rust is the loom. The YAML/Jinja2 is the thread.*
 *MVP in progress.*

@@ -463,4 +463,4 @@ The probability monad is not replacing MWC. It is the **composition framework** 
 
 ---
 
-*ℏKask — Planck's Constant of Agent Systems — ARL v0.1.0*
+*ℏKask - A Minimal Viable Container for Agents — ARL v0.1.0*

@@ -74,4 +74,4 @@ The 8th attenuation attempt returns `None`. Chain verification is bounded to O(7
 
 ---
 
-*ℏKask — A Minimal Viable Container for Agents — ADR-025 — v0.21.0*
+*ℏKask - A Minimal Viable Container for Agents — ADR-025 — v0.21.0*

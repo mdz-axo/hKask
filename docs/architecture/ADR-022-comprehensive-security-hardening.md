@@ -259,5 +259,5 @@ grep -r "block_in_place\|block_on" crates/hkask-agents/src/ crates/hkask-templat
 
 ---
 
-*ℏKask — A Minimal Viable Container for Agents — v0.21.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.21.0*
 *Security is not a feature. It is the foundation.*

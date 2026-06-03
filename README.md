@@ -1,7 +1,7 @@
 <p align="center">
   <img src="assets/kask-logo.svg" alt="Kask Logo" width="120"/>
 </p>
-# *ℏKask - A Minimal Viable Container for Agents*
+# ℏKask - A Minimal Viable Container for Agents
 
 **Version:** v0.21.1 | **Status:** Phase 8 complete — Core implementation done, MCP stubs in progress
 
@@ -28,7 +28,7 @@ Full design principles → [`assets/LOGO-DESIGN-PRINCIPLES.md`](assets/LOGO-DESI
 
 ## Vision
 
-hKask is the minimal viable unit of an agent platform from which a full agent ecosystem can be reconstructed. Named after Planck's constant (ℏ) — the smallest possible unit of action.
+hKask is the minimal viable unit of an agent platform from which a full agent ecosystem can be reconstructed.
 
 **Design Philosophy:** Austere and efficient recombinatorial system. Rust is the loom (fixed logic). YAML/Jinja2 is the thread (mutable content).
 
@@ -242,7 +242,7 @@ cargo test -p hkask-mcp cyber_
 - Fine-tuning (axolotl)
 - OpenCode-style condenser
 - OpenHands-style condenser
-- UCAN for h-bar (OCAP-only)
+- UCAN for hKask (OCAP-only)
 - Three separate registries (unified with `template_type` discriminator)
 - Rust-based template selection (selection intelligence in Jinja2/LLM)
 
@@ -266,6 +266,6 @@ cargo test -p hkask-mcp cyber_
 
 ---
 
-*ℏKask — A Minimal Viable Container for Agents — v0.21.1*  
+*ℏKask - A Minimal Viable Container for Agents — v0.21.1*  
 *Rust is the loom. YAML/Jinja2 is the thread.*  
 *Phase 8 complete. Operational hardening in progress.*

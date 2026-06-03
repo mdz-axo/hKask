@@ -196,4 +196,4 @@ The original `homeostasis(network) → mean(1 - |R̄_i - target|)` is monitoring
 
 ---
 
-*ℏKask — Planck's Constant of Agent Systems — ARL v0.1.0*
+*ℏKask - A Minimal Viable Container for Agents — ARL v0.1.0*

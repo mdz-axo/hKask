@@ -14,7 +14,7 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 
 ## 1. Executive Summary
 
-hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent-native container platform** enabling sovereign agents (bots and replicants) to communicate, compose capabilities, and learn through unified template-driven architecture.
+hKask (ℏKask - "A Minimal Viable Container for Agents") is a **minimal agent-native container platform** enabling sovereign agents (bots and replicants) to communicate, compose capabilities, and learn through unified template-driven architecture.
 
 **Current Phase:** Phase 8 complete — Documentation refresh (DDMVSS-aligned); documentation portal added and metadata gate fully green 2026-05-29  
 **Next Phase:** Operational hardening and stub MCP server completion

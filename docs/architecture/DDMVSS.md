@@ -1403,7 +1403,7 @@ impl SpecStore for SqliteSpecStore {
 
 7. **Goal ≡ Requirement naming:** Does the bidirectional equivalence survive contact with stakeholders who use "goal" and "requirement" differently? In DDMVSS, `Goal` is the internal type name; `Requirement` is the external-facing alias in templates. This is a *naming as cybernetic act* — the vocabulary shapes the thinking. If stakeholders resist, the framework should support configurable aliases without changing the type system.
 
-8. **Planck-scale spec:** Is there a smallest non-trivial `Specification` that is still a `Specification`? Candidate: `Spec { goals: [GoalSpec { text: "System CAN <verb> on <resource>", criteria: [Criterion { satisfied: true }], sub_goals: [] }] }` — one goal, one criterion, zero sub-goals. This is the atomic unit. Anything smaller (zero goals) is not a specification; anything with sub-goals decomposes into atoms.
+8. **Atomic spec:** Is there a smallest non-trivial `Specification` that is still a `Specification`? Candidate: `Spec { goals: [GoalSpec { text: "System CAN <verb> on <resource>", criteria: [Criterion { satisfied: true }], sub_goals: [] }] }` — one goal, one criterion, zero sub-goals. This is the atomic unit. Anything smaller (zero goals) is not a specification; anything with sub-goals decomposes into atoms.
 
 9. **Bootstrap loading order:** Are specification manifests and selector templates loaded by convention from fixed paths, or is there a Rust bootstrap sequence? Current assumption: filesystem convention (`registry/templates/spec/`, `registry/manifests/`). If dynamic loading is needed, the `SpecStore::load` port must accept a path parameter.
 
@@ -1492,4 +1492,4 @@ impl SpecStore for SqliteSpecStore {
 ---
 
 *DDMVSS v0.2.0 — Domain-Driven Minimum Viable Specification Set for hKask*
-*Self-applying, recursively sound, curated not governed, Planck-scale minimal.*
+*Self-applying, recursively sound, curated not governed.*

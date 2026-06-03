@@ -1,43 +1,10 @@
 //! Verification logic for capability tokens
 //!
-//! Contains `VerificationResult` for distributed verification outcomes
-//! and `CapabilityChecker` for composition-oriented capability management.
+//! Contains `CapabilityChecker` for composition-oriented capability management.
 
 use super::{CapabilityAction, CapabilityResource, CapabilityToken};
 use crate::WebID;
 use zeroize::Zeroizing;
-
-/// Cryptographic verification result for distributed verification
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum VerificationResult {
-    /// Signature valid, not expired — capability can be used
-    Valid,
-    /// Signature valid, but expired — capability is "zombie" (valid but unusable)
-    Zombie,
-    /// Signature invalid — capability is tampered or forged
-    Invalid,
-}
-
-impl VerificationResult {
-    /// Check if verification succeeded (valid or zombie)
-    pub fn is_valid(&self) -> bool {
-        matches!(self, VerificationResult::Valid | VerificationResult::Zombie)
-    }
-
-    /// Check if capability can be used (valid only, not zombie)
-    pub fn is_usable(&self) -> bool {
-        matches!(self, VerificationResult::Valid)
-    }
-
-    /// Get human-readable description
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            VerificationResult::Valid => "valid",
-            VerificationResult::Zombie => "zombie (expired but valid signature)",
-            VerificationResult::Invalid => "invalid (signature verification failed)",
-        }
-    }
-}
 
 /// Capability checker for composition operations
 pub struct CapabilityChecker {

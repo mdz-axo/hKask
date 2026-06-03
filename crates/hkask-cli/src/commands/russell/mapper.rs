@@ -2,7 +2,7 @@
 //!
 //! Generic YAML mapper that applies russell-mapping.yaml configuration.
 //! Rust is the loom. YAML is the thread. Russell is the legacy library.
-//! ℏKask v0.21.2 — A Minimal Viable Container for Agents
+//! ℏKask - A Minimal Viable Container for Agents
 
 use hkask_types::lexicon::TemplateType;
 use serde::{Deserialize, Serialize};

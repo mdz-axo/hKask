@@ -409,4 +409,4 @@ The review, properly addressed, **strengthens** the case for MWC as a regulation
 
 ---
 
-*ℏKask — Planck's Constant of Agent Systems — ARL v0.1.0*
+*ℏKask - A Minimal Viable Container for Agents — ARL v0.1.0*

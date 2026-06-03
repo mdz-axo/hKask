@@ -450,4 +450,4 @@ Formally: the regulation graph is a DAG with Curation as the unique maximal elem
 
 ---
 
-*ℏKask — A Minimal Viable Container for Agents — v0.21.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.21.0*

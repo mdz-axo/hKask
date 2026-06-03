@@ -501,4 +501,4 @@ This table shows how R̄ responds to varying α (contextual pressure) across dif
 
 *Preprint. Under review. Comments welcome.*
 
-*ℏKask — A Minimal Viable Container for Agents — GML v0.2.0*
+*ℏKask - A Minimal Viable Container for Agents — GML v0.2.0*
