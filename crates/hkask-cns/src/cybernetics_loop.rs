@@ -220,7 +220,7 @@ impl CyberneticsLoop {
         while let Ok(msg) = inbox.try_recv() {
             processed += 1;
             match &msg.payload {
-                LoopPayload::CyberneticsDirective {
+                LoopPayload::CurationDirective {
                     directive_type,
                     target,
                     parameters,
@@ -446,8 +446,8 @@ impl HkaskLoop for CyberneticsLoop {
                 ActionType::CircuitBreak => "circuit_break",
             };
 
-            let payload = LoopPayload::CyberneticsDirective {
-                directive_type: directive_type.to_string(),
+            let payload = LoopPayload::CyberneticsRegulation {
+                regulation_type: directive_type.to_string(),
                 target: WebID::new(),
                 parameters: action.parameters.clone(),
             };
@@ -756,7 +756,7 @@ mod tests {
         // Send a CalibrateThreshold directive
         let msg = LoopMessage::warning(
             LoopId::Curation,
-            LoopPayload::CyberneticsDirective {
+            LoopPayload::CurationDirective {
                 directive_type: "calibrate".to_string(),
                 target: WebID::new(),
                 parameters: serde_json::json!({
@@ -792,7 +792,7 @@ mod tests {
         // Send AdjustEnergyBudget directive
         let msg = LoopMessage::warning(
             LoopId::Curation,
-            LoopPayload::CyberneticsDirective {
+            LoopPayload::CurationDirective {
                 directive_type: "adjust_energy_budget".to_string(),
                 target: agent,
                 parameters: serde_json::json!({
@@ -825,7 +825,7 @@ mod tests {
         // Send adjust energy budget directive before tick
         let msg = LoopMessage::warning(
             LoopId::Curation,
-            LoopPayload::CyberneticsDirective {
+            LoopPayload::CurationDirective {
                 directive_type: "adjust_energy_budget".to_string(),
                 target: agent,
                 parameters: serde_json::json!({"new_budget": 100}),
@@ -850,7 +850,7 @@ mod tests {
         // Send AdjustEnergyBudget for an unregistered agent
         let msg = LoopMessage::warning(
             LoopId::Curation,
-            LoopPayload::CyberneticsDirective {
+            LoopPayload::CurationDirective {
                 directive_type: "adjust_energy_budget".to_string(),
                 target: agent,
                 parameters: serde_json::json!({"new_budget": 500}),

@@ -45,6 +45,15 @@ pub use tokens::{ConsolidationToken, CurationToken, CyberneticsToken};
 
 pub use verification::CapabilityChecker;
 
+/// Backward-compatible type aliases for the renamed delegation types.
+/// New code should use `DelegationResource`, `DelegationAction`, `DelegationToken`,
+/// `DelegationTokenBuilder`, and `AgentDelegation` directly.
+pub type CapabilityResource = DelegationResource;
+pub type CapabilityAction = DelegationAction;
+pub type CapabilityToken = DelegationToken;
+pub type CapabilityTokenBuilder = DelegationTokenBuilder;
+pub type BotCapabilities = AgentDelegation;
+
 use crate::WebID;
 use hex;
 use serde::{Deserialize, Serialize};
@@ -72,7 +81,7 @@ fn base64_decode(s: &str) -> Result<Vec<u8>, String> {
 /// Capability resource types
 /// Loop: Cybernetics
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum CapabilityResource {
+pub enum DelegationResource {
     Tool,
     Template,
     Manifest,
@@ -81,26 +90,26 @@ pub enum CapabilityResource {
     Spec,
 }
 
-impl CapabilityResource {
+impl DelegationResource {
     pub fn as_str(&self) -> &'static str {
         match self {
-            CapabilityResource::Tool => "tool",
-            CapabilityResource::Template => "template",
-            CapabilityResource::Manifest => "manifest",
-            CapabilityResource::Registry => "registry",
-            CapabilityResource::Cascade => "cascade",
-            CapabilityResource::Spec => "spec",
+            DelegationResource::Tool => "tool",
+            DelegationResource::Template => "template",
+            DelegationResource::Manifest => "manifest",
+            DelegationResource::Registry => "registry",
+            DelegationResource::Cascade => "cascade",
+            DelegationResource::Spec => "spec",
         }
     }
 
     pub fn parse_str(s: &str) -> Option<Self> {
         match s.split(':').next() {
-            Some("tool") => Some(CapabilityResource::Tool),
-            Some("template") => Some(CapabilityResource::Template),
-            Some("manifest") => Some(CapabilityResource::Manifest),
-            Some("registry") => Some(CapabilityResource::Registry),
-            Some("cascade") => Some(CapabilityResource::Cascade),
-            Some("spec") => Some(CapabilityResource::Spec),
+            Some("tool") => Some(DelegationResource::Tool),
+            Some("template") => Some(DelegationResource::Template),
+            Some("manifest") => Some(DelegationResource::Manifest),
+            Some("registry") => Some(DelegationResource::Registry),
+            Some("cascade") => Some(DelegationResource::Cascade),
+            Some("spec") => Some(DelegationResource::Spec),
             _ => None,
         }
     }
@@ -109,7 +118,7 @@ impl CapabilityResource {
 /// Capability action types
 /// Loop: Cybernetics
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum CapabilityAction {
+pub enum DelegationAction {
     Read,
     Write,
     Execute,
@@ -119,28 +128,28 @@ pub enum CapabilityAction {
     Validate,
 }
 
-impl CapabilityAction {
+impl DelegationAction {
     pub fn as_str(&self) -> &'static str {
         match self {
-            CapabilityAction::Read => "read",
-            CapabilityAction::Write => "write",
-            CapabilityAction::Execute => "execute",
-            CapabilityAction::Render => "render",
-            CapabilityAction::Compose => "compose",
-            CapabilityAction::Attenuate => "attenuate",
-            CapabilityAction::Validate => "validate",
+            DelegationAction::Read => "read",
+            DelegationAction::Write => "write",
+            DelegationAction::Execute => "execute",
+            DelegationAction::Render => "render",
+            DelegationAction::Compose => "compose",
+            DelegationAction::Attenuate => "attenuate",
+            DelegationAction::Validate => "validate",
         }
     }
 
     pub fn parse_str(s: &str) -> Option<Self> {
         match s {
-            "read" => Some(CapabilityAction::Read),
-            "write" => Some(CapabilityAction::Write),
-            "execute" => Some(CapabilityAction::Execute),
-            "render" => Some(CapabilityAction::Render),
-            "compose" => Some(CapabilityAction::Compose),
-            "attenuate" => Some(CapabilityAction::Attenuate),
-            "validate" => Some(CapabilityAction::Validate),
+            "read" => Some(DelegationAction::Read),
+            "write" => Some(DelegationAction::Write),
+            "execute" => Some(DelegationAction::Execute),
+            "render" => Some(DelegationAction::Render),
+            "compose" => Some(DelegationAction::Compose),
+            "attenuate" => Some(DelegationAction::Attenuate),
+            "validate" => Some(DelegationAction::Validate),
             _ => None,
         }
     }
@@ -198,15 +207,15 @@ impl Caveat {
 /// Capability token for tool access and composition operations
 /// Loop: Cybernetics
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CapabilityToken {
+pub struct DelegationToken {
     /// Unique token identifier
     pub id: String,
     /// Resource type (tool, template, manifest, registry, cascade)
-    pub resource: CapabilityResource,
+    pub resource: DelegationResource,
     /// Resource identifier (e.g., tool name, template ID)
     pub resource_id: String,
     /// Action granted (read, write, execute, render, compose, attenuate)
-    pub action: CapabilityAction,
+    pub action: DelegationAction,
     /// WebID that delegated this capability
     pub delegated_from: WebID,
     /// WebID that received this capability
@@ -228,23 +237,23 @@ pub struct CapabilityToken {
 /// Internal signing payload extracted from builder state.
 struct SigningPayload {
     id: String,
-    resource: CapabilityResource,
+    resource: DelegationResource,
     resource_id: String,
-    action: CapabilityAction,
+    action: DelegationAction,
     from: WebID,
     to: WebID,
     caveats: Vec<Caveat>,
 }
 
-/// Builder for constructing capability tokens with the OCAP pattern.
+/// Builder for constructing delegation tokens with the OCAP pattern.
 ///
 /// Each method returns `Self`, so the builder itself is an unforgeable authority
 /// that can only be exercised by its holder. No ambient authority is leaked
 /// through parameter ordering.
-pub struct CapabilityTokenBuilder {
-    resource: CapabilityResource,
+pub struct DelegationTokenBuilder {
+    resource: DelegationResource,
     resource_id: String,
-    action: CapabilityAction,
+    action: DelegationAction,
     delegated_from: WebID,
     delegated_to: WebID,
     expires_at: Option<i64>,
@@ -254,12 +263,12 @@ pub struct CapabilityTokenBuilder {
     caveats: Vec<Caveat>,
 }
 
-impl CapabilityTokenBuilder {
+impl DelegationTokenBuilder {
     /// Create a new builder with the required fields.
     pub fn new(
-        resource: CapabilityResource,
+        resource: DelegationResource,
         resource_id: String,
-        action: CapabilityAction,
+        action: DelegationAction,
         delegated_from: WebID,
         delegated_to: WebID,
     ) -> Self {
@@ -302,9 +311,9 @@ impl CapabilityTokenBuilder {
         self
     }
 
-    /// Build and sign the capability token.
-    pub fn sign(self, secret: &[u8]) -> CapabilityToken {
-        let id = CapabilityToken::generate_id(
+    /// Build and sign the delegation token.
+    pub fn sign(self, secret: &[u8]) -> DelegationToken {
+        let id = DelegationToken::generate_id(
             &self.resource,
             &self.resource_id,
             &self.action,
@@ -320,12 +329,12 @@ impl CapabilityTokenBuilder {
             to: self.delegated_to,
             caveats: self.caveats,
         };
-        let signature = CapabilityToken::sign_payload(&payload, secret);
+        let signature = DelegationToken::sign_payload(&payload, secret);
         let context_nonce = self
             .context_nonce
             .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
-        CapabilityToken {
+        DelegationToken {
             id: payload.id,
             resource: payload.resource,
             resource_id: payload.resource_id,
@@ -342,25 +351,25 @@ impl CapabilityTokenBuilder {
     }
 }
 
-impl CapabilityToken {
-    /// Create a new capability token with default settings.
+impl DelegationToken {
+    /// Create a new delegation token with default settings.
     pub fn new(
-        resource: CapabilityResource,
+        resource: DelegationResource,
         resource_id: String,
-        action: CapabilityAction,
+        action: DelegationAction,
         delegated_from: WebID,
         delegated_to: WebID,
         secret: &[u8],
     ) -> Self {
-        CapabilityTokenBuilder::new(resource, resource_id, action, delegated_from, delegated_to)
+        DelegationTokenBuilder::new(resource, resource_id, action, delegated_from, delegated_to)
             .sign(secret)
     }
 
     /// Generate unique token ID
     fn generate_id(
-        resource: &CapabilityResource,
+        resource: &DelegationResource,
         resource_id: &str,
-        action: &CapabilityAction,
+        action: &DelegationAction,
         from: &WebID,
         to: &WebID,
     ) -> String {
@@ -448,7 +457,7 @@ impl CapabilityToken {
         new_to: WebID,
         secret: &[u8],
         current_time: i64,
-    ) -> Option<CapabilityToken> {
+    ) -> Option<DelegationToken> {
         self.attenuate_with_expiry(new_to, secret, Some(current_time + 3600))
     }
 
@@ -458,12 +467,12 @@ impl CapabilityToken {
         new_to: WebID,
         secret: &[u8],
         expires_at: Option<i64>,
-    ) -> Option<CapabilityToken> {
+    ) -> Option<DelegationToken> {
         if !self.can_attenuate() {
             return None;
         }
 
-        let mut builder = CapabilityTokenBuilder::new(
+        let mut builder = DelegationTokenBuilder::new(
             self.resource,
             self.resource_id.clone(),
             self.action,
@@ -492,15 +501,15 @@ impl CapabilityToken {
     /// Check if this token is valid for a given resource and action
     pub fn is_valid_for(
         &self,
-        resource: CapabilityResource,
+        resource: DelegationResource,
         resource_id: &str,
-        action: CapabilityAction,
+        action: DelegationAction,
     ) -> bool {
         self.resource == resource && self.resource_id == resource_id && self.action == action
     }
 
     /// Check if this token grants access to a resource type (regardless of specific ID)
-    pub fn grants_resource(&self, resource: CapabilityResource) -> bool {
+    pub fn grants_resource(&self, resource: DelegationResource) -> bool {
         self.resource == resource
     }
 
@@ -571,7 +580,7 @@ impl CapabilityToken {
     /// * `secret` — Secret key for re-signing the token
     ///
     /// # Returns
-    /// A new `CapabilityToken` with the caveat added and re-signed
+    /// A new `DelegationToken` with the caveat added and re-signed
     pub fn add_caveat(&self, caveat: Caveat, secret: &[u8]) -> Self {
         let mut new_token = self.clone();
         new_token.caveats.push(caveat);
@@ -638,7 +647,7 @@ impl CapabilityToken {
     /// # Returns
     /// * `true` — Capabilities are compatible (can be merged in CRDT)
     /// * `false` — Capabilities are incompatible
-    pub fn is_compatible_with(&self, other: &CapabilityToken) -> bool {
+    pub fn is_compatible_with(&self, other: &DelegationToken) -> bool {
         self.resource == other.resource
             && self.resource_id == other.resource_id
             && self.action == other.action
@@ -646,17 +655,17 @@ impl CapabilityToken {
     }
 }
 
-/// Bot capability manifest
+/// Agent delegation manifest
 /// Loop: Cybernetics
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BotCapabilities {
-    /// Bot's WebID
+pub struct AgentDelegation {
+    /// Agent's WebID
     pub bot_id: WebID,
-    /// List of tool capabilities this bot holds
+    /// List of tool capabilities this agent holds
     pub capabilities: Vec<String>,
 }
 
-impl BotCapabilities {
+impl AgentDelegation {
     pub fn new(bot_id: WebID) -> Self {
         Self {
             bot_id,

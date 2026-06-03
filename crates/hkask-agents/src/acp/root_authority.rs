@@ -9,7 +9,7 @@
 //! - Attenuation chain: each delegation reduces authority
 
 use hkask_types::{
-    CapabilityAction, CapabilityResource, CapabilityToken, CapabilityTokenBuilder,
+    DelegationAction, DelegationResource, DelegationToken, DelegationTokenBuilder,
     SYSTEM_MAX_ATTENUATION, WebID,
 };
 use std::sync::Arc;
@@ -52,11 +52,11 @@ impl RootAuthority {
     /// Root tokens have attenuation_level=0 and max_attenuation=7.
     pub async fn create_root_token(
         &self,
-        resource: CapabilityResource,
+        resource: DelegationResource,
         resource_id: String,
-        action: CapabilityAction,
+        action: DelegationAction,
         delegated_to: WebID,
-    ) -> Result<CapabilityToken, AcpError> {
+    ) -> Result<DelegationToken, AcpError> {
         let token_id = {
             let mut counter = self.token_counter.write().await;
             *counter += 1;
@@ -65,7 +65,7 @@ impl RootAuthority {
 
         let context_nonce = format!("root-{}-{}", self.root_webid, token_id);
 
-        let token = CapabilityTokenBuilder::new(
+        let token = DelegationTokenBuilder::new(
             resource,
             resource_id,
             action,
@@ -87,7 +87,7 @@ impl RootAuthority {
     /// - Chain is unbroken (each level increments by 1)
     pub fn verify_attenuation_chain(
         &self,
-        token: &CapabilityToken,
+        token: &DelegationToken,
         expected_root: &WebID,
     ) -> Result<(), AcpError> {
         let root_nonce = token.root_context_nonce();

@@ -11,7 +11,7 @@
 //! - `semantic_storage` — shared, public knowledge (SemanticStoragePort)
 
 use hkask_types::{
-    CapabilityAction, CapabilityChecker, CapabilityResource, CapabilityToken,
+    CapabilityChecker, DelegationAction, DelegationResource, DelegationToken,
     ExperienceClassification, InferencePort, WebID,
 };
 use std::sync::Arc;
@@ -29,7 +29,7 @@ use crate::ports::{EpisodicStoragePort, MCPRuntimePort, SemanticStoragePort};
 pub struct PodContext {
     pub pod_id: PodID,
     pub webid: WebID,
-    pub capability_token: CapabilityToken,
+    pub capability_token: DelegationToken,
     inference_port: Option<Arc<dyn InferencePort>>,
     /// Episodic memory storage — private, agent-scoped (OCAP: EpisodicReadHandle/EpisodicWriteHandle)
     episodic_storage: Arc<dyn EpisodicStoragePort>,
@@ -69,9 +69,9 @@ impl PodContext {
 
     fn require_capability(
         &self,
-        resource: CapabilityResource,
+        resource: DelegationResource,
         resource_id: &str,
-        action: CapabilityAction,
+        action: DelegationAction,
     ) -> Result<(), AgentPodError> {
         if let Some(ref checker) = self.capability_checker {
             // Full cryptographic verification: HMAC signature + expiry + holder + resource/action
@@ -104,9 +104,9 @@ impl PodContext {
 
     pub fn inference_port(&self) -> Result<Arc<dyn InferencePort>, AgentPodError> {
         self.require_capability(
-            CapabilityResource::Template,
+            DelegationResource::Template,
             "inference",
-            CapabilityAction::Render,
+            DelegationAction::Render,
         )?;
         self.inference_port.clone().ok_or_else(|| {
             AgentPodError::InferenceUnavailable("No inference port configured".to_string())

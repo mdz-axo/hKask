@@ -43,8 +43,6 @@ pub enum CurationDecision {
     Discard,
     /// Request revision from bot
     Revise,
-    /// Defer decision (needs more information)
-    Defer,
 }
 
 impl std::fmt::Display for CurationDecision {
@@ -53,7 +51,6 @@ impl std::fmt::Display for CurationDecision {
             CurationDecision::Merge => write!(f, "merge"),
             CurationDecision::Discard => write!(f, "discard"),
             CurationDecision::Revise => write!(f, "revise"),
-            CurationDecision::Defer => write!(f, "defer"),
         }
     }
 }

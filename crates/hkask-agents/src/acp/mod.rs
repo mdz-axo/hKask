@@ -33,7 +33,7 @@ pub(crate) use audit::AuditLog;
 pub use hkask_types::AuditLogPort;
 pub(crate) use root_authority::RootAuthority;
 
-use hkask_types::{AuditOutcome, CapabilityAction, CapabilityResource, CapabilityToken, WebID};
+use hkask_types::{AuditOutcome, DelegationAction, DelegationResource, DelegationToken, WebID};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -48,12 +48,12 @@ type AgentSecret = Arc<Zeroizing<Vec<u8>>>;
 /// Parse a capability string into resource and action
 ///
 /// Examples:
-/// - "tool:execute" -> (CapabilityResource::Tool, CapabilityAction::Execute)
-/// - "template:render" -> (CapabilityResource::Template, CapabilityAction::Render)
+/// - "tool:execute" -> (DelegationResource::Tool, DelegationAction::Execute)
+/// - "template:render" -> (DelegationResource::Template, DelegationAction::Render)
 ///
 /// # Errors
 /// Returns `AcpError::MalformedCapability` if the capability string is invalid
-fn parse_capability(capability: &str) -> Result<(CapabilityResource, CapabilityAction), AcpError> {
+fn parse_capability(capability: &str) -> Result<(DelegationResource, DelegationAction), AcpError> {
     let parts: Vec<&str> = capability.split(':').collect();
 
     if parts.len() < 2 || parts.len() > 3 {
@@ -63,14 +63,14 @@ fn parse_capability(capability: &str) -> Result<(CapabilityResource, CapabilityA
         )));
     }
 
-    let resource = CapabilityResource::parse_str(parts[0]).ok_or_else(|| {
+    let resource = DelegationResource::parse_str(parts[0]).ok_or_else(|| {
         AcpError::MalformedCapability(format!("Unknown resource type: {}", parts[0]))
     })?;
 
     let action_str = parts
         .last()
         .expect("splitn always produces at least one element");
-    let action = CapabilityAction::parse_str(action_str).unwrap_or(CapabilityAction::Execute);
+    let action = DelegationAction::parse_str(action_str).unwrap_or(DelegationAction::Execute);
 
     Ok((resource, action))
 }
@@ -165,8 +165,8 @@ pub struct AcpRuntime {
     agents: Arc<RwLock<HashMap<WebID, AcpAgent>>>,
     /// Pending messages (correlation_id -> message)
     pending_messages: Arc<RwLock<HashMap<String, A2AMessage>>>,
-    /// Capability tokens indexed by holder WebID
-    capability_tokens: Arc<RwLock<HashMap<WebID, Vec<CapabilityToken>>>>,
+    /// Delegation tokens indexed by holder WebID
+    capability_tokens: Arc<RwLock<HashMap<WebID, Vec<DelegationToken>>>>,
     /// Master secret for HMAC signing (Arc<Zeroizing> to avoid copying on Clone)
     secret: Arc<Zeroizing<Vec<u8>>>,
     /// Per-agent derived signing keys (HKDF-SHA256 from master key, lazily populated)
@@ -258,14 +258,14 @@ impl AcpRuntime {
     /// * `capabilities` — List of capability strings
     ///
     /// # Returns
-    /// * `Ok(CapabilityToken)` — Primary capability token for the agent
+    /// * `Ok(DelegationToken)` — Primary delegation token for the agent
     /// * `Err(AcpError)` — Registration error
     pub async fn register_agent(
         &self,
         webid: WebID,
         agent_type: String,
         capabilities: Vec<String>,
-    ) -> Result<CapabilityToken, AcpError> {
+    ) -> Result<DelegationToken, AcpError> {
         let mut agents = self.agents.write().await;
 
         if agents.contains_key(&webid) {
@@ -287,8 +287,8 @@ impl AcpRuntime {
             active: true,
         };
 
-        // Create capability tokens for ALL capabilities via root authority
-        let mut tokens_vec: Vec<CapabilityToken> = Vec::with_capacity(capabilities.len());
+        // Create delegation tokens for ALL capabilities via root authority
+        let mut tokens_vec: Vec<DelegationToken> = Vec::with_capacity(capabilities.len());
         for cap in &capabilities {
             let (resource, action) = parse_capability(cap)?;
             let token = self
@@ -366,7 +366,7 @@ impl AcpRuntime {
     pub async fn restore_from_storage(
         &self,
         agents: Vec<AcpAgent>,
-        tokens: std::collections::HashMap<WebID, Vec<CapabilityToken>>,
+        tokens: std::collections::HashMap<WebID, Vec<DelegationToken>>,
     ) -> Result<usize, AcpError> {
         let mut agents_lock = self.agents.write().await;
         let mut tokens_lock = self.capability_tokens.write().await;
@@ -518,14 +518,14 @@ impl AcpRuntime {
     /// * `current_time` — Current Unix timestamp for expiry
     ///
     /// # Returns
-    /// * `Ok(CapabilityToken)` — Attenuated child token
+    /// * `Ok(DelegationToken)` — Attenuated child token
     /// * `Err(AcpError)` — Delegation failed (attenuation limit, etc.)
     pub async fn delegate_capability(
         &self,
-        parent_token: &CapabilityToken,
+        parent_token: &DelegationToken,
         new_holder: WebID,
         current_time: i64,
-    ) -> Result<CapabilityToken, AcpError> {
+    ) -> Result<DelegationToken, AcpError> {
         // Verify parent token is valid
         if !self.verify_capability(parent_token).await {
             return Err(AcpError::CapabilityDenied(
@@ -558,7 +558,7 @@ impl AcpRuntime {
     ///
     /// Ensures the token traces back to the root authority
     /// and the attenuation chain is unbroken.
-    pub async fn verify_capability_chain(&self, token: &CapabilityToken) -> Result<(), AcpError> {
+    pub async fn verify_capability_chain(&self, token: &DelegationToken) -> Result<(), AcpError> {
         if !self.verify_capability(token).await {
             return Err(AcpError::CapabilityDenied(
                 token.delegated_to,
@@ -570,14 +570,14 @@ impl AcpRuntime {
             .verify_attenuation_chain(token, self.root_authority.root_webid())
     }
 
-    /// Store capability token for agent
-    pub async fn store_capability(&self, webid: WebID, token: CapabilityToken) {
+    /// Store delegation token for agent
+    pub async fn store_capability(&self, webid: WebID, token: DelegationToken) {
         let mut tokens = self.capability_tokens.write().await;
         tokens.entry(webid).or_insert_with(Vec::new).push(token);
     }
 
-    /// Get all capability tokens for agent
-    pub async fn get_capabilities(&self, webid: &WebID) -> Vec<CapabilityToken> {
+    /// Get all delegation tokens for agent
+    pub async fn get_capabilities(&self, webid: &WebID) -> Vec<DelegationToken> {
         let tokens = self.capability_tokens.read().await;
         tokens.get(webid).cloned().unwrap_or_default()
     }
@@ -639,7 +639,7 @@ impl crate::ports::AcpPort for AcpRuntime {
         webid: WebID,
         agent_type: &str,
         capabilities: Vec<String>,
-    ) -> Result<CapabilityToken, AcpError> {
+    ) -> Result<DelegationToken, AcpError> {
         AcpRuntime::register_agent(self, webid, agent_type.to_string(), capabilities).await
     }
 
@@ -668,7 +668,7 @@ impl crate::ports::AcpPort for AcpRuntime {
         Ok(())
     }
 
-    async fn get_capabilities(&self, webid: &WebID) -> Vec<CapabilityToken> {
+    async fn get_capabilities(&self, webid: &WebID) -> Vec<DelegationToken> {
         AcpRuntime::get_capabilities(self, webid).await
     }
 

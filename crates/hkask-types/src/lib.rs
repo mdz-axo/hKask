@@ -49,9 +49,9 @@ pub use id::*;
 pub use identity::*;
 pub use lexicon::{Domain, HLexicon, LexiconTerm, TemplateType};
 pub use loops::{
-    ActionType, CuratorDirective, CuratorHandle, Deviation, DeviationDirection, EpisodicReadHandle,
-    EpisodicWriteHandle, ExperienceClassification, HkaskLoop, LoopAction, LoopId, LoopMessage,
-    LoopPayload, MessagePriority, Signal,
+    AUTHORITY_EDGES, ActionType, CuratorDirective, CuratorHandle, Deviation, DeviationDirection,
+    EpisodicReadHandle, EpisodicWriteHandle, ExperienceClassification, HkaskLoop, LoopAction,
+    LoopId, LoopMessage, LoopPayload, MessagePriority, Signal,
 };
 pub use ports::{
     CircuitBreakerPort, CnsPort, ConsolidationOutcome, ConsolidationPort, GitCASPort,
@@ -63,8 +63,8 @@ pub use r7::{R7BotIdentity, default_r7_bots};
 pub use secret::{SecretRef, derivation_contexts};
 pub use soap_config::InferenceConfig;
 pub use sovereignty::{
-    DataCategory, KillZoneConfig, SovereigntyCheckResult, SovereigntyId, SovereigntyOperation,
-    SovereigntyPort, UserSovereigntyState,
+    DataCategory, KillZoneConfig, KillZoneState, KillZoneThresholds, SovereigntyCheckResult,
+    SovereigntyId, SovereigntyOperation, SovereigntyPort, UserSovereigntyState,
 };
 pub use template::{
     LLMParameters, TemplateCrate, TemplateFile, TemplateId, TemplateInvocation, TemplateOutcome,

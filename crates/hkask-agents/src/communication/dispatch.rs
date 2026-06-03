@@ -86,9 +86,12 @@ impl MessageDispatch {
 
     /// Convenience method: wrap a `CuratorDirective` as a `LoopMessage` and enqueue it.
     ///
-    /// Creates a `LoopPayload::CyberneticsDirective` with `LoopId::Curation`
-    /// and `MessagePriority::Warning` (cybernetics directives are warnings by
+    /// Creates a `LoopPayload::CurationDirective` with `LoopId::Curation`
+    /// and `MessagePriority::Warning` (curation directives are warnings by
     /// default; use `send()` directly for a different priority).
+    ///
+    /// Per the authority DAG: Curation → Cybernetics. The origin is Curation
+    /// and the payload carries a Curation-originated directive.
     pub async fn send_curator_directive(
         &self,
         directive: CuratorDirective,
@@ -142,7 +145,7 @@ impl MessageDispatch {
 
         let message = LoopMessage::warning(
             LoopId::Curation,
-            LoopPayload::CyberneticsDirective {
+            LoopPayload::CurationDirective {
                 directive_type,
                 target,
                 parameters,

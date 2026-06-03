@@ -17,7 +17,7 @@
 use async_trait::async_trait;
 use hkask_types::derivation_contexts;
 use hkask_types::secret::SecretRef;
-use hkask_types::{CapabilityAction, CapabilityResource, CapabilityToken, WebID};
+use hkask_types::{DelegationAction, DelegationResource, DelegationToken, WebID};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -285,7 +285,7 @@ impl AcpPort for RussellAcpAdapter {
         webid: WebID,
         agent_type: &str,
         capabilities: Vec<String>,
-    ) -> Result<CapabilityToken, AcpError> {
+    ) -> Result<DelegationToken, AcpError> {
         let persona = match agent_type {
             "Replicant" | "replicant" => "replicant",
             _ => "bot",
@@ -332,12 +332,12 @@ impl AcpPort for RussellAcpAdapter {
         self.store_session_id(webid, session_resp.session_id.clone())
             .await;
 
-        // Mint a bridge capability token signed with the shared secret
+        // Mint a bridge delegation token signed with the shared secret
         // so it passes AcpRuntime::verify_capability
-        let token = CapabilityToken::new(
-            CapabilityResource::Tool,
+        let token = DelegationToken::new(
+            DelegationResource::Tool,
             "russell:session".to_string(),
-            CapabilityAction::Execute,
+            DelegationAction::Execute,
             WebID::from_persona_with_namespace(b"russell-bridge", "russell"),
             webid,
             self.bridge_secret.as_ref(),
@@ -529,12 +529,12 @@ impl AcpPort for RussellAcpAdapter {
         Ok(())
     }
 
-    async fn get_capabilities(&self, webid: &WebID) -> Vec<CapabilityToken> {
+    async fn get_capabilities(&self, webid: &WebID) -> Vec<DelegationToken> {
         if self.is_registered(webid).await {
-            vec![CapabilityToken::new(
-                CapabilityResource::Tool,
+            vec![DelegationToken::new(
+                DelegationResource::Tool,
                 "russell:session".to_string(),
-                CapabilityAction::Execute,
+                DelegationAction::Execute,
                 WebID::from_persona_with_namespace(b"russell-bridge", "russell"),
                 *webid,
                 self.bridge_secret.as_ref(),

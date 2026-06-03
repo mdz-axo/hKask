@@ -3,23 +3,41 @@
 //! Six cybernetic feedback loops following Beer's Viable System Model.
 //! Each loop implements sense → compare → compute → act.
 //!
-//! **Domain Loops:**
-//! - Loop 1: Inference — prompt → context → model → response → parse → act
-//! - Loop 2a: Episodic Memory — experience → encode → store (private) → recall → temporal weight → context
-//! - Loop 2b: Semantic Memory — knowledge → store (public) → index → recall → dedup → combine → context
+//! **Loop Numbering (VSM correspondence):**
 //!
-//! **Meta Loops:**
-//! - Loop 4: Communication — send → observe delivery → confirm (dumb transport pipe)
-//! - Loop 5: Curation — observe → evaluate → compose → regulate (metacognitive observer)
-//! - Loop 6: Cybernetics — sense → regulate → adapt (homeostatic self-regulation)
+//! The numbering follows Stafford Beer's VSM. Loop 3 (Control) is absorbed
+//! into Loop 6 (Cybernetics) — the homeostatic regulator IS the controller.
+//! There is no Loop 3; this is intentional, not a gap.
+//!
+//! | Loop | Name | VSM Role | Category |
+//! |------|------|----------|----------|
+//! | 1 | Inference | Implementation | Domain |
+//! | 2a | Episodic Memory | Coordination (private) | Domain |
+//! | 2b | Semantic Memory | Coordination (shared) | Domain |
+//! | 4 | Communication | Channel (dumb pipe) | Meta |
+//! | 5 | Curation | Metasystem (observer) | Meta |
+//! | 6 | Cybernetics | Homeostatic regulation | Meta |
 //!
 //! **Bridge:**
-//! - 2a→2b: Consolidation — episodic → strip perspective → dedup → store semantic (one-way)
+//! - 2a→2b: Consolidation — episodic → strip perspective → store semantic (one-way)
 //!
-//! **Authority DAG:**
-//! - Curation → Cybernetics → {Inference, Episodic, Semantic, Communication}
-//! - Episodic → Semantic (consolidation bridge, one-way)
-//! - No sideways edges. Authority flows downward.
+//! **Authority DAG:** Curation → Cybernetics → {Inference, Episodic, Semantic, Communication}
+//! No sideways edges. Authority flows downward.
+
+/// Authority DAG edges: (origin, target) pairs.
+///
+/// This is the directed acyclic graph that governs loop authority.
+/// No message may traverse an edge not in this list.
+/// The sole cross-domain edge is the consolidation bridge (Episodic → Semantic),
+/// which is one-way and Curation-directed.
+pub const AUTHORITY_EDGES: [(LoopId, LoopId); 6] = [
+    (LoopId::Curation, LoopId::Cybernetics),
+    (LoopId::Cybernetics, LoopId::Inference),
+    (LoopId::Cybernetics, LoopId::Episodic),
+    (LoopId::Cybernetics, LoopId::Semantic),
+    (LoopId::Cybernetics, LoopId::Communication),
+    (LoopId::Episodic, LoopId::Semantic), // consolidation bridge (one-way)
+];
 
 pub mod curation;
 pub mod cybernetics;

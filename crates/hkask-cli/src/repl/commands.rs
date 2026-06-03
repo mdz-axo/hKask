@@ -345,10 +345,7 @@ pub(super) fn handle_slash_command(
             println!("  Sovereignty Status:");
             println!("    Consent:    {}", state.explicit_consent);
             println!("    Compromised: {}", state.is_compromised());
-            println!(
-                "    Kill zone:  {}",
-                state.kill_zone_config.kill_zone_active
-            );
+            println!("    Kill zone:  {}", state.kill_zone_state.kill_zone_active);
             println!();
         }
         "pods" => {

@@ -4,7 +4,7 @@
 
 use crate::error::McpError;
 use crate::ports::MCPRuntimePort;
-use hkask_types::{CapabilityAction, CapabilityChecker, CapabilityResource, CapabilityToken};
+use hkask_types::{CapabilityChecker, DelegationAction, DelegationResource, DelegationToken};
 use std::sync::Arc;
 use tracing::warn;
 
@@ -31,7 +31,7 @@ impl McpRuntimeAdapter {
 }
 
 impl MCPRuntimePort for McpRuntimeAdapter {
-    fn grant_tool_access(&self, token: CapabilityToken) -> Result<(), McpError> {
+    fn grant_tool_access(&self, token: DelegationToken) -> Result<(), McpError> {
         let token_id = token.id.clone();
 
         if token_id.is_empty() {
@@ -53,7 +53,7 @@ impl MCPRuntimePort for McpRuntimeAdapter {
         &self,
         tool_name: &str,
         input: serde_json::Value,
-        token: &CapabilityToken,
+        token: &DelegationToken,
     ) -> Result<serde_json::Value, McpError> {
         if let Some(checker) = &self.capability_checker {
             if !checker.verify(token) {
@@ -71,9 +71,9 @@ impl MCPRuntimePort for McpRuntimeAdapter {
             }
 
             if !token.is_valid_for(
-                CapabilityResource::Tool,
+                DelegationResource::Tool,
                 tool_name,
-                CapabilityAction::Execute,
+                DelegationAction::Execute,
             ) {
                 return Err(McpError::CapabilityDenied(format!(
                     "Token does not authorize tool: {}",

@@ -65,11 +65,7 @@ impl EnergyBudget {
         Ok(cost)
     }
 
-    pub fn try_consume(
-        &mut self,
-        _operation: &str,
-        estimated_tokens: u64,
-    ) -> Result<u64, EnergyError> {
+    pub fn try_consume(&mut self, estimated_tokens: u64) -> Result<u64, EnergyError> {
         let cost = self.calculate_cost(estimated_tokens);
         if self.hard_limit && cost > self.remaining {
             return Err(EnergyError::BudgetExceeded {
@@ -96,7 +92,7 @@ impl EnergyBudget {
     /// Returns `Ok(cost)` if the budget was acquired, `Err` if insufficient.
     /// This is the atomic check-and-consume: it both checks AND deducts.
     pub fn acquire_budget(&mut self, estimated_tokens: u64) -> Result<u64, EnergyError> {
-        self.try_consume("acquire_budget", estimated_tokens)
+        self.try_consume(estimated_tokens)
     }
 
     /// Replenish energy budget by a given amount.

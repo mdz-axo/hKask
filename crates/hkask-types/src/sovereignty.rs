@@ -96,43 +96,33 @@ impl DataCategory {
 
 crate::id::define_id_type!(SovereigntyId);
 
-/// Acquisition resistance level
+/// Acquisition resistance — binary: resistant or not.
+///
+/// Per Planck's constant: the minimal unit that does real work.
+/// The system only ever checks `prevents_passive_acquisition()`, which
+/// collapses to a binary outcome. Five levels were decoration, not function.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum AcquisitionResistance {
-    /// No resistance — open to acquisition
-    None,
-    /// Low resistance — some user controls
-    Low,
-    /// Medium resistance — significant user sovereignty
-    Medium,
-    /// High resistance — strong anti-acquisition measures
-    High,
-    /// Maximum resistance — acquisition impossible without user consent
-    #[default]
-    Maximum,
-}
+pub struct AcquisitionResistance(pub bool);
 
 impl AcquisitionResistance {
-    /// Default resistance level for hKask pods
+    /// Default resistance level for hKask pods — resistant.
     pub fn default_for_pods() -> Self {
-        Self::High
+        Self(true)
     }
 
-    /// Check if resistance is sufficient to prevent passive acquisition
-    pub fn prevents_passive_acquisition(&self) -> bool {
-        matches!(self, Self::Medium | Self::High | Self::Maximum)
+    /// Whether resistance prevents passive acquisition.
+    /// True means the pod resists passive data collection.
+    pub fn prevents_passive_acquisition(self) -> bool {
+        self.0
     }
 }
 
 impl std::fmt::Display for AcquisitionResistance {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            AcquisitionResistance::None => write!(f, "none (open to acquisition)"),
-            AcquisitionResistance::Low => write!(f, "low (some user controls)"),
-            AcquisitionResistance::Medium => write!(f, "medium (significant sovereignty)"),
-            AcquisitionResistance::High => write!(f, "high (strong anti-acquisition)"),
-            AcquisitionResistance::Maximum => write!(f, "maximum (requires user consent)"),
+        if self.0 {
+            write!(f, "resistant")
+        } else {
+            write!(f, "open")
         }
     }
 }
@@ -209,38 +199,60 @@ impl Default for DataSovereigntyBoundary {
     }
 }
 
-/// Kill zone configuration — serializable data for kill-zone detection.
+/// Kill zone thresholds — immutable configuration for kill-zone detection.
 ///
-/// The detection logic lives in hkask-cns (Cybernetics subloop 6.5).
-/// This struct holds the configuration and state that CNS reads/writes.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct KillZoneConfig {
-    /// Current VC investment level (0.0 to 1.0)
-    pub vc_investment: f32,
+/// Configuration is authority-governed (set by Curation). State lives in
+/// `KillZoneDetector` (hkask-cns) which is Cybernetics-regulated.
+pub struct KillZoneThresholds {
     /// Threshold for kill zone alert
     pub threshold: f32,
+}
+
+impl Default for KillZoneThresholds {
+    fn default() -> Self {
+        Self { threshold: 0.5 }
+    }
+}
+
+/// Kill zone state — mutable operational state for kill-zone detection.
+///
+/// The detection logic lives in hkask-cns (Cybernetics subloop 6.5).
+/// This struct holds the operational state that CNS senses and compares.
+/// Configuration thresholds live in `KillZoneThresholds`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KillZoneState {
+    /// Current VC investment level (0.0 to 1.0)
+    pub vc_investment: f32,
     /// Whether kill zone is currently detected
     pub kill_zone_active: bool,
     /// Whether an acquisition attempt has been detected
     pub acquisition_attempt: bool,
 }
 
-impl Default for KillZoneConfig {
+impl Default for KillZoneState {
     fn default() -> Self {
         Self {
             vc_investment: 1.0,
-            threshold: 0.5,
             kill_zone_active: false,
             acquisition_attempt: false,
         }
     }
 }
 
+/// Backward-compatible type alias: KillZoneConfig = KillZoneState.
+///
+/// Kill zone thresholds are now separate (`KillZoneThresholds`).
+/// This alias preserves serialization compatibility.
+pub type KillZoneConfig = KillZoneState;
+
 /// User sovereignty state — aggregate view of user's sovereignty
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserSovereigntyState {
     pub boundary: DataSovereigntyBoundary,
-    pub kill_zone_config: KillZoneConfig,
+    pub kill_zone_state: KillZoneConfig,
+    /// Kill zone thresholds (set by Curation, immutable at runtime)
+    #[serde(skip)]
+    pub kill_zone_threshold: f32,
     /// Whether user has explicitly consented to data sharing
     pub explicit_consent: bool,
     /// Timestamp of last sovereignty check
@@ -251,7 +263,8 @@ impl UserSovereigntyState {
     pub fn new() -> Self {
         Self {
             boundary: DataSovereigntyBoundary::hkask_default(),
-            kill_zone_config: KillZoneConfig::default(),
+            kill_zone_state: KillZoneConfig::default(),
+            kill_zone_threshold: KillZoneThresholds::default().threshold,
             explicit_consent: false,
             last_check: chrono::Utc::now(),
         }
@@ -259,23 +272,23 @@ impl UserSovereigntyState {
 
     /// Update sovereignty state with current VC investment
     pub fn update_vc_investment(&mut self, vc_investment: f32) {
-        self.kill_zone_config.vc_investment = vc_investment.clamp(0.0, 1.0);
-        self.kill_zone_config.kill_zone_active = self.kill_zone_config.acquisition_attempt
-            && self.kill_zone_config.vc_investment < self.kill_zone_config.threshold;
+        self.kill_zone_state.vc_investment = vc_investment.clamp(0.0, 1.0);
+        self.kill_zone_state.kill_zone_active = self.kill_zone_state.acquisition_attempt
+            && self.kill_zone_state.vc_investment < self.kill_zone_threshold;
         self.last_check = chrono::Utc::now();
     }
 
     /// Mark acquisition attempt
     pub fn mark_acquisition_attempt(&mut self) {
-        self.kill_zone_config.acquisition_attempt = true;
-        self.kill_zone_config.kill_zone_active = self.kill_zone_config.acquisition_attempt
-            && self.kill_zone_config.vc_investment < self.kill_zone_config.threshold;
+        self.kill_zone_state.acquisition_attempt = true;
+        self.kill_zone_state.kill_zone_active = self.kill_zone_state.acquisition_attempt
+            && self.kill_zone_state.vc_investment < self.kill_zone_threshold;
         self.last_check = chrono::Utc::now();
     }
 
     /// Check if sovereignty is compromised
     pub fn is_compromised(&self) -> bool {
-        self.kill_zone_config.kill_zone_active
+        self.kill_zone_state.kill_zone_active
     }
 
     /// Grant explicit consent for data sharing

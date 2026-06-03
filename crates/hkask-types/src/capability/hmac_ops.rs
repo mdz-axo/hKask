@@ -1,7 +1,7 @@
 //! Shared HMAC operations for capability tokens.
 //!
 //! Provides HMAC-SHA256 signing, constant-time verification, and signature
-//! encoding/decoding used by both `CapabilityToken` and `GoalCapabilityToken`.
+//! encoding/decoding used by both `DelegationToken` and `GoalCapabilityToken`.
 //! This module is the single source of truth for OCAP cryptographic primitives
 //! per ADR-029.
 
@@ -16,7 +16,7 @@ type HmacSha256 = Hmac<Sha256>;
 /// Each token type feeds its authority-bearing fields into the builder
 /// via [`update`](Self::update), then finalizes to obtain the signature.
 /// This avoids duplicating HMAC construction and finalization logic across
-/// `CapabilityToken` and `GoalCapabilityToken`.
+/// `DelegationToken` and `GoalCapabilityToken`.
 pub struct HmacBuilder {
     mac: HmacSha256,
 }
@@ -61,7 +61,7 @@ pub fn compute_hmac(secret: &[u8], fields: &[&[u8]]) -> [u8; 32] {
 
 /// Encode raw HMAC bytes as a hex string for storage/transmission.
 ///
-/// Both `CapabilityToken` and `GoalCapabilityToken` use hex encoding for
+/// Both `DelegationToken` and `GoalCapabilityToken` use hex encoding for
 /// their HMAC signatures. This function is the canonical encoding path.
 pub fn encode_signature(hmac_bytes: &[u8]) -> String {
     hex::encode(hmac_bytes)
@@ -78,7 +78,7 @@ pub fn decode_signature(encoded: &str) -> Result<Vec<u8>, String> {
 /// Constant-time comparison of two byte slices.
 ///
 /// Prevents timing attacks when verifying HMAC signatures. Both
-/// `CapabilityToken::verify` and `GoalCapabilityToken::verify_signature`
+/// `DelegationToken::verify` and `GoalCapabilityToken::verify_signature`
 /// delegate to this function.
 pub fn verify_hmac_constant_time(expected: &[u8], actual: &[u8]) -> bool {
     expected.ct_eq(actual).into()

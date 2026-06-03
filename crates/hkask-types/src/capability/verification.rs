@@ -2,7 +2,7 @@
 //!
 //! Contains `CapabilityChecker` for composition-oriented capability management.
 
-use super::{CapabilityAction, CapabilityResource, CapabilityToken};
+use super::{DelegationAction, DelegationResource, DelegationToken};
 use crate::WebID;
 use zeroize::Zeroizing;
 
@@ -20,23 +20,23 @@ impl CapabilityChecker {
     }
 
     /// Verify a capability token
-    pub fn verify(&self, token: &CapabilityToken) -> bool {
+    pub fn verify(&self, token: &DelegationToken) -> bool {
         token.verify(&self.secret)
     }
 
     /// Check if token is valid and not expired
-    pub fn verify_with_time(&self, token: &CapabilityToken, current_time: i64) -> bool {
+    pub fn verify_with_time(&self, token: &DelegationToken, current_time: i64) -> bool {
         self.verify(token) && !token.is_expired(current_time)
     }
 
     /// Check if a holder has capability for a resource/action
     pub fn check(
         &self,
-        token: &CapabilityToken,
+        token: &DelegationToken,
         holder: &WebID,
-        resource: CapabilityResource,
+        resource: DelegationResource,
         resource_id: &str,
-        action: CapabilityAction,
+        action: DelegationAction,
     ) -> bool {
         self.verify(token)
             && token.delegated_to == *holder
@@ -46,19 +46,19 @@ impl CapabilityChecker {
     /// Check if holder has any capability for a resource type
     pub fn check_resource(
         &self,
-        token: &CapabilityToken,
+        token: &DelegationToken,
         holder: &WebID,
-        resource: CapabilityResource,
+        resource: DelegationResource,
     ) -> bool {
         self.verify(token) && token.delegated_to == *holder && token.grants_resource(resource)
     }
 
     /// Create a capability token for a tool
-    pub fn grant_tool(&self, tool_name: String, from: WebID, to: WebID) -> CapabilityToken {
-        CapabilityToken::new(
-            CapabilityResource::Tool,
+    pub fn grant_tool(&self, tool_name: String, from: WebID, to: WebID) -> DelegationToken {
+        DelegationToken::new(
+            DelegationResource::Tool,
             tool_name,
-            CapabilityAction::Execute,
+            DelegationAction::Execute,
             from,
             to,
             &self.secret,
@@ -69,12 +69,12 @@ impl CapabilityChecker {
     pub fn grant_template(
         &self,
         template_id: String,
-        action: CapabilityAction,
+        action: DelegationAction,
         from: WebID,
         to: WebID,
-    ) -> CapabilityToken {
-        CapabilityToken::new(
-            CapabilityResource::Template,
+    ) -> DelegationToken {
+        DelegationToken::new(
+            DelegationResource::Template,
             template_id,
             action,
             from,
@@ -87,12 +87,12 @@ impl CapabilityChecker {
     pub fn grant_manifest(
         &self,
         manifest_id: String,
-        action: CapabilityAction,
+        action: DelegationAction,
         from: WebID,
         to: WebID,
-    ) -> CapabilityToken {
-        CapabilityToken::new(
-            CapabilityResource::Manifest,
+    ) -> DelegationToken {
+        DelegationToken::new(
+            DelegationResource::Manifest,
             manifest_id,
             action,
             from,
@@ -104,12 +104,12 @@ impl CapabilityChecker {
     /// Create a capability token for registry operations
     pub fn grant_registry(
         &self,
-        action: CapabilityAction,
+        action: DelegationAction,
         from: WebID,
         to: WebID,
-    ) -> CapabilityToken {
-        CapabilityToken::new(
-            CapabilityResource::Registry,
+    ) -> DelegationToken {
+        DelegationToken::new(
+            DelegationResource::Registry,
             "*".to_string(),
             action,
             from,
@@ -122,12 +122,12 @@ impl CapabilityChecker {
     pub fn grant_cascade(
         &self,
         cascade_id: String,
-        action: CapabilityAction,
+        action: DelegationAction,
         from: WebID,
         to: WebID,
-    ) -> CapabilityToken {
-        CapabilityToken::new(
-            CapabilityResource::Cascade,
+    ) -> DelegationToken {
+        DelegationToken::new(
+            DelegationResource::Cascade,
             cascade_id,
             action,
             from,
@@ -140,12 +140,12 @@ impl CapabilityChecker {
     pub fn grant_spec(
         &self,
         spec_id: String,
-        action: CapabilityAction,
+        action: DelegationAction,
         from: WebID,
         to: WebID,
-    ) -> CapabilityToken {
-        CapabilityToken::new(
-            CapabilityResource::Spec,
+    ) -> DelegationToken {
+        DelegationToken::new(
+            DelegationResource::Spec,
             spec_id,
             action,
             from,
@@ -157,10 +157,10 @@ impl CapabilityChecker {
     /// Create an attenuated token for delegation
     pub fn attenuate(
         &self,
-        token: &CapabilityToken,
+        token: &DelegationToken,
         new_to: WebID,
         current_time: i64,
-    ) -> Option<CapabilityToken> {
+    ) -> Option<DelegationToken> {
         token.attenuate(new_to, &self.secret, current_time)
     }
 }

@@ -8,7 +8,7 @@ use crate::error::MemoryError;
 use crate::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_memory::{EpisodicMemory, SemanticMemory};
 use hkask_storage::{Database, EmbeddingStore, Triple, TripleStore};
-use hkask_types::{CapabilityToken, ExperienceClassification, Visibility, WebID};
+use hkask_types::{DelegationToken, ExperienceClassification, Visibility, WebID};
 use serde_json::Value;
 use std::sync::Arc;
 
@@ -64,9 +64,9 @@ impl EpisodicStoragePort for MemoryLoopAdapter {
         attribute: &str,
         value: Value,
         confidence: f64,
-        token: &CapabilityToken,
+        token: &DelegationToken,
     ) -> Result<String, MemoryError> {
-        if token.action == hkask_types::CapabilityAction::Read {
+        if token.action == hkask_types::DelegationAction::Read {
             return Err(MemoryError::CapabilityDenied(
                 "Token has read-only action, write required for episodic storage".to_string(),
             ));
@@ -88,12 +88,12 @@ impl EpisodicStoragePort for MemoryLoopAdapter {
         &self,
         query: &str,
         owner: &WebID,
-        token: &CapabilityToken,
+        token: &DelegationToken,
     ) -> Result<Vec<Value>, MemoryError> {
         match token.action {
-            hkask_types::CapabilityAction::Read
-            | hkask_types::CapabilityAction::Execute
-            | hkask_types::CapabilityAction::Validate => {}
+            hkask_types::DelegationAction::Read
+            | hkask_types::DelegationAction::Execute
+            | hkask_types::DelegationAction::Validate => {}
             _ => {
                 return Err(MemoryError::CapabilityDenied(
                     "Token does not grant read access for episodic recall".to_string(),
@@ -158,9 +158,9 @@ impl EpisodicStoragePort for MemoryLoopAdapter {
         value: Value,
         classification: ExperienceClassification,
         confidence_override: Option<f64>,
-        token: &CapabilityToken,
+        token: &DelegationToken,
     ) -> Result<String, MemoryError> {
-        if token.action == hkask_types::CapabilityAction::Read {
+        if token.action == hkask_types::DelegationAction::Read {
             return Err(MemoryError::CapabilityDenied(
                 "Token has read-only action, write required for episodic storage".to_string(),
             ));
@@ -202,9 +202,9 @@ impl SemanticStoragePort for MemoryLoopAdapter {
         attribute: &str,
         value: Value,
         confidence: f64,
-        token: &CapabilityToken,
+        token: &DelegationToken,
     ) -> Result<String, MemoryError> {
-        if token.action == hkask_types::CapabilityAction::Read {
+        if token.action == hkask_types::DelegationAction::Read {
             return Err(MemoryError::CapabilityDenied(
                 "Token has read-only action, write required for semantic storage".to_string(),
             ));
@@ -224,12 +224,12 @@ impl SemanticStoragePort for MemoryLoopAdapter {
     fn recall_semantic(
         &self,
         query: &str,
-        token: &CapabilityToken,
+        token: &DelegationToken,
     ) -> Result<Vec<Value>, MemoryError> {
         match token.action {
-            hkask_types::CapabilityAction::Read
-            | hkask_types::CapabilityAction::Execute
-            | hkask_types::CapabilityAction::Validate => {}
+            hkask_types::DelegationAction::Read
+            | hkask_types::DelegationAction::Execute
+            | hkask_types::DelegationAction::Validate => {}
             _ => {
                 return Err(MemoryError::CapabilityDenied(
                     "Token does not grant read access for semantic recall".to_string(),

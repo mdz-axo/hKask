@@ -85,13 +85,27 @@ impl fmt::Display for MessagePriority {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum LoopPayload {
+    /// Algedonic alert from Cybernetics (variety deficit escalation).
     AlgedonicAlert {
         current: u64,
         threshold: u64,
         deficit: u64,
     },
-    CyberneticsDirective {
+    /// Directive from Curation to Cybernetics.
+    ///
+    /// Origin: Curation (Loop 5). Consumed by: Cybernetics (Loop 6).
+    /// Per the authority DAG: Curation → Cybernetics.
+    CurationDirective {
         directive_type: String,
+        target: WebID,
+        parameters: serde_json::Value,
+    },
+    /// Regulation action from Cybernetics to a domain loop.
+    ///
+    /// Origin: Cybernetics (Loop 6). Consumed by: domain loops (1, 2a, 2b, 4).
+    /// Per the authority DAG: Cybernetics → {Inference, Episodic, Semantic, Communication}.
+    CyberneticsRegulation {
+        regulation_type: String,
         target: WebID,
         parameters: serde_json::Value,
     },
