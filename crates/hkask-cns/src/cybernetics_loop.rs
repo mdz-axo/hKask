@@ -776,9 +776,8 @@ mod tests {
 
         // Verify: the CNS threshold should have been updated
         // CnsRuntime::calibrate_threshold is async, so check after processing
-        let health = cns.read().await.health().await;
+        let _health = cns.read().await.health().await;
         // Health should still be accessible (no crash) — the threshold was applied
-        drop(health);
     }
 
     #[tokio::test]

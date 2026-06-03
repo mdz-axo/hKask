@@ -404,7 +404,7 @@ mod tests {
             let collapsed = decision.expected_r_bar();
             // SeekMoreEvidence is the R-state, but we're in a transition zone
             // so R̄ should be between thresholds
-            assert!(collapsed >= 0.0 && collapsed <= 1.0);
+            assert!((0.0..=1.0).contains(&collapsed));
         }
     }
 
