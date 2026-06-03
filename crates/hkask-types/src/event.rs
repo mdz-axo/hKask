@@ -86,6 +86,7 @@ pub struct SpanNamespace(String);
 const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.tool",
     "cns.prompt",
+    "cns.inference",
     "cns.agent_pod",
     "cns.connector",
     "cns.pipeline",

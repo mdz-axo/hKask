@@ -20,7 +20,7 @@ pub use database::Database;
 pub use embeddings::EmbeddingStore;
 pub use goals::{GoalRepositoryError, SqliteGoalRepository};
 pub use hkask_types::TripleID;
-pub use nu_event_store::NuEventStore;
+pub use nu_event_store::{NuEventError, NuEventStore};
 pub use security::sanitize_path;
 pub use sovereignty::{SovereigntyBoundaryEntry, SovereigntyBoundaryStore, SovereigntyStoreError};
 pub use spec_store::SqliteSpecStore;

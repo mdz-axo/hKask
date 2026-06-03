@@ -171,6 +171,7 @@ The existing `cns.*` span namespaces are not removed — they are **absorbed** i
 |---------------|----------------------|
 | `cns.tool.*` | Tool invocation governance — energy cost of tool calls |
 | `cns.prompt.*` | Prompt render/validation — energy cost of inference preparation |
+| `cns.inference.*` | LLM call budgets, token flows, model selection — Inference Loop concerns |
 | `cns.agent_pod.*` | Pod lifecycle — energy cost of agent activation |
 | `cns.connector.*` | External I/O — energy cost of connector operations |
 | `cns.energy.*` | Direct energy budget tracking — the loop's core metric |

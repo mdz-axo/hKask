@@ -10,6 +10,7 @@ pub mod cybernetics_loop; // Loop 6
 pub mod dampener; // Loop 6 — regulation
 pub mod energy; // Loop 6 — thermodynamic resource allocation
 pub mod governed_inference; // Loop 6 → Loop 1 membrane
+pub mod governed_tool; // Loop 6 → all tool invocation membranes (supersedes GovernedInference)
 pub mod kill_zone; // Loop 6 subloop 6.5 — kill-zone detection
 pub mod runtime; // Loop 6 — runtime
 pub mod throttle; // Loop 6 — per-agent rate limiting
@@ -23,6 +24,7 @@ pub use cybernetics_loop::CyberneticsLoop;
 pub use dampener::Dampener;
 pub use energy::EnergyBudget;
 pub use governed_inference::GovernedInference;
+pub use governed_tool::{EnergyEstimator, FlatEnergyEstimator, GovernedTool};
 
 pub use runtime::CnsRuntime;
 pub use throttle::ThrottleBucket;

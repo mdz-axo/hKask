@@ -59,8 +59,8 @@ impl DirectiveFingerprint {
                 directive_type: "update_capabilities".to_string(),
                 target: Some(*agent),
             },
-            CuratorDirective::AdjustEnergyBudget { agent, .. } => Self {
-                directive_type: "adjust_energy_budget".to_string(),
+            CuratorDirective::OverrideEnergyBudget { agent, .. } => Self {
+                directive_type: "override_energy_budget".to_string(),
                 target: Some(*agent),
             },
             CuratorDirective::SeekMoreEvidence {

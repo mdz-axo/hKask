@@ -331,3 +331,70 @@ pub trait ConsolidationPort: Send + Sync {
         limit: usize,
     ) -> Result<ConsolidationOutcome, String>;
 }
+
+// =============================================================================
+// Tool Port — Governance membrane for MCP tool invocation
+// =============================================================================
+
+use crate::capability::{DelegationAction, DelegationResource, DelegationToken};
+
+/// Error type for governed tool invocation
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum ToolPortError {
+    #[error("Capability denied: {0}")]
+    CapabilityDenied(String),
+    #[error("Energy budget exceeded: {0}")]
+    EnergyBudgetExceeded(String),
+    #[error("Tool not found: {0}")]
+    NotFound(String),
+    #[error("Tool invocation failed: {0}")]
+    InvocationFailed(String),
+}
+
+/// Tool Port — Hexagonal boundary for tool invocation.
+///
+/// This is the singular membrane through which all MCP tool invocations pass.
+/// The `GovernedTool` in `hkask-cns` wraps a `dyn ToolPort` and implements
+/// `ToolPort` itself — the membrane IS a ToolPort. Before delegating, it checks:
+/// 1. Authority (OCAP) — CapabilityChecker::verify
+/// 2. Budget (Cybernetics) — CyberneticsLoop::can_proceed / acquire_budget
+/// 3. Emits span (CNS) — NuEventSink::emit
+/// 4. Delegates to inner tool
+/// 5. Accounts energy cost (Cybernetics)
+/// 6. Emits outcome span (CNS)
+///
+/// Implementations:
+/// - `McpDispatcher` — Production tool invocation (in hkask-mcp)
+#[async_trait::async_trait]
+pub trait ToolPort: Send + Sync {
+    /// Invoke a tool by name with the given input and capability token.
+    ///
+    /// The token proves the agent is authorized for this tool invocation.
+    /// Returns the tool's response or an error.
+    async fn invoke(
+        &self,
+        server: &str,
+        tool: &str,
+        args: serde_json::Value,
+        token: &DelegationToken,
+    ) -> Result<serde_json::Value, ToolPortError>;
+
+    /// Discover available tools.
+    async fn discover_tools(&self) -> Vec<String>;
+
+    /// Get metadata for a specific tool.
+    async fn get_tool_info(&self, tool_name: &str) -> Option<ToolInfo>;
+}
+
+/// Tool information metadata
+///
+/// Canonical definition lives in `hkask_types::ports::ToolInfo`.
+/// Re-exported from `hkask-templates` for backward compatibility.
+#[derive(Debug, Clone)]
+pub struct ToolInfo {
+    pub name: String,
+    pub description: String,
+    pub input_schema: serde_json::Value,
+    pub server_id: String,
+    pub required_capability: Option<String>,
+}

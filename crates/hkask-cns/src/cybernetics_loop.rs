@@ -278,7 +278,7 @@ impl CyberneticsLoop {
                                             target: "cns.cybernetics",
                                             agent = %target,
                                             new_budget = new_budget,
-                                            "Applied AdjustEnergyBudget directive from Curation"
+                                            "Applied AdjustEnergyBudget directive (within set-points)"
                                         );
                                     } else {
                                         budgets.insert(*target, EnergyBudget::new(new_budget));
@@ -286,7 +286,35 @@ impl CyberneticsLoop {
                                             target: "cns.cybernetics",
                                             agent = %target,
                                             new_budget = new_budget,
-                                            "Registered new energy budget from Curation directive"
+                                            "Registered new energy budget from AdjustEnergyBudget directive"
+                                        );
+                                    }
+                                }
+                            }
+                            "override_energy_budget" => {
+                                // OverrideEnergyBudget: Curation can exceed set-point bounds.
+                                // This is the metacognitive override — stronger than AdjustEnergyBudget.
+                                if let Some(new_budget) =
+                                    parameters.get("new_budget").and_then(|v| v.as_u64())
+                                {
+                                    let mut budgets = self.energy_budgets.write().await;
+                                    if let Some(budget) = budgets.get_mut(target) {
+                                        // Override can set budget above or below set-points
+                                        budget.cap = new_budget;
+                                        budget.remaining = new_budget;
+                                        tracing::warn!(
+                                            target: "cns.cybernetics",
+                                            agent = %target,
+                                            new_budget = new_budget,
+                                            "Applied OverrideEnergyBudget directive from Curation (set-point override)"
+                                        );
+                                    } else {
+                                        budgets.insert(*target, EnergyBudget::new(new_budget));
+                                        tracing::warn!(
+                                            target: "cns.cybernetics",
+                                            agent = %target,
+                                            new_budget = new_budget,
+                                            "Registered new energy budget from OverrideEnergyBudget directive"
                                         );
                                     }
                                 }
@@ -390,7 +418,11 @@ impl HkaskLoop for CyberneticsLoop {
         for dev in deviations {
             let action = match dev.signal.metric.as_str() {
                 "energy_remaining" if dev.direction == DeviationDirection::BelowSetPoint => {
-                    Some(LoopAction::new(
+                    // Produce both Throttle (for immediate protection) and
+                    // AdjustEnergyBudget (for automatic budget reallocation)
+                    // Throttle signals downstream loops to reduce consumption
+                    // AdjustEnergyBudget is Cybernetics' automatic homeostatic response
+                    actions.push(LoopAction::new(
                         LoopId::Inference,
                         ActionType::Throttle,
                         serde_json::json!({
@@ -398,7 +430,17 @@ impl HkaskLoop for CyberneticsLoop {
                             "remaining_ratio": dev.signal.value,
                             "set_point": dev.signal.set_point,
                         }),
-                    ))
+                    ));
+                    actions.push(LoopAction::new(
+                        LoopId::Cybernetics,
+                        ActionType::AdjustEnergyBudget,
+                        serde_json::json!({
+                            "reason": "energy_depletion_auto_adjust",
+                            "remaining_ratio": dev.signal.value,
+                            "set_point": dev.signal.set_point,
+                        }),
+                    ));
+                    None // Already added actions above
                 }
                 "variety_deficit" if dev.direction == DeviationDirection::AboveSetPoint => {
                     Some(LoopAction::new(
@@ -471,6 +513,8 @@ impl HkaskLoop for CyberneticsLoop {
                 ActionType::Escalate => "escalate",
                 ActionType::Calibrate => "calibrate",
                 ActionType::CircuitBreak => "circuit_break",
+                ActionType::AdjustEnergyBudget => "adjust_energy_budget",
+                ActionType::OverrideEnergyBudget => "override_energy_budget",
             };
 
             let payload = LoopPayload::CyberneticsRegulation {
@@ -522,9 +566,11 @@ mod tests {
         assert_eq!(deviations[0].direction, DeviationDirection::BelowSetPoint);
 
         let actions = loop6.compute(&deviations).await;
-        assert_eq!(actions.len(), 1);
+        assert_eq!(actions.len(), 2); // Throttle + AdjustEnergyBudget
         assert_eq!(actions[0].action_type, ActionType::Throttle);
         assert_eq!(actions[0].target, LoopId::Inference);
+        assert_eq!(actions[1].action_type, ActionType::AdjustEnergyBudget);
+        assert_eq!(actions[1].target, LoopId::Cybernetics);
     }
 
     #[tokio::test]
@@ -632,9 +678,11 @@ mod tests {
 
         // Step 3: Compute — produce efferent action
         let actions = loop6.compute(&deviations).await;
-        assert_eq!(actions.len(), 1);
+        assert_eq!(actions.len(), 2); // Throttle + AdjustEnergyBudget
         assert_eq!(actions[0].action_type, ActionType::Throttle);
         assert_eq!(actions[0].target, LoopId::Inference);
+        assert_eq!(actions[1].action_type, ActionType::AdjustEnergyBudget);
+        assert_eq!(actions[1].target, LoopId::Cybernetics);
 
         // Step 4: Verify capability membrane — Cybernetics can regulate Inference
         // (domain loop), but NOT Curation (peer meta loop)
@@ -664,12 +712,13 @@ mod tests {
         assert_eq!(deviations.len(), 3);
 
         let actions = loop6.compute(&deviations).await;
-        assert_eq!(actions.len(), 3);
+        assert_eq!(actions.len(), 4); // energy:Throttle + energy:AdjustEnergyBudget + variety:Escalate + error:CircuitBreak
 
         // Verify each action targets the correct loop
         let targets: std::collections::HashSet<LoopId> = actions.iter().map(|a| a.target).collect();
-        assert!(targets.contains(&LoopId::Inference)); // energy + error
-        assert!(targets.contains(&LoopId::Curation)); // variety
+        assert!(targets.contains(&LoopId::Inference)); // energy:Throttle + error:CircuitBreak
+        assert!(targets.contains(&LoopId::Curation)); // variety:Escalate
+        assert!(targets.contains(&LoopId::Cybernetics)); // energy:AdjustEnergyBudget
     }
 
     /// Test: Loop reaches equilibrium within bounded iterations

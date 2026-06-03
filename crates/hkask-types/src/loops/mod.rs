@@ -157,6 +157,8 @@ impl LoopAction {
             ActionType::Escalate => MessagePriority::Critical,
             ActionType::Calibrate => MessagePriority::Info,
             ActionType::CircuitBreak => MessagePriority::Critical,
+            ActionType::AdjustEnergyBudget => MessagePriority::Warning,
+            ActionType::OverrideEnergyBudget => MessagePriority::Critical,
         };
         Self {
             target,
@@ -180,6 +182,17 @@ pub enum ActionType {
     Calibrate,
     /// Open a circuit breaker on a target
     CircuitBreak,
+    /// Adjust energy budget within set-point bounds (Cybernetics automatic regulation)
+    ///
+    /// This is a *weaker* capability than `OverrideEnergyBudget`.
+    /// Cybernetics can adjust within its set-point range.
+    /// Only Curation can override set-points themselves.
+    AdjustEnergyBudget,
+    /// Override energy budget beyond set-point bounds (Curation metacognitive override)
+    ///
+    /// This is a *stronger* capability than `AdjustEnergyBudget`.
+    /// Only Curation can issue this — it can exceed Cybernetics' set-point range.
+    OverrideEnergyBudget,
 }
 
 /// The Loop trait — sense → compare → compute → act.

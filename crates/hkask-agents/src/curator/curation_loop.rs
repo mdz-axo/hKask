@@ -301,7 +301,7 @@ impl HkaskLoop for CurationLoop {
                             // Issue directives for high-confidence escalations
                             // (adjust energy budgets for the associated bot)
                             for entry in entries.iter().filter(|e| e.confidence > 0.5) {
-                                let directive = CuratorDirective::AdjustEnergyBudget {
+                                let directive = CuratorDirective::OverrideEnergyBudget {
                                     agent: entry.bot_id.into(), // BotID -> WebID
                                     new_budget: 5000, // Reduced budget for problematic bot
                                 };
@@ -315,7 +315,7 @@ impl HkaskLoop for CurationLoop {
                                         target: "curation.loop",
                                         trace_id = %trace_id,
                                         escalation_id = %entry.id,
-                                        "Issued AdjustEnergyBudget directive for escalated bot"
+                                        "Issued OverrideEnergyBudget directive for escalated bot"
                                     );
                                 }
                             }
