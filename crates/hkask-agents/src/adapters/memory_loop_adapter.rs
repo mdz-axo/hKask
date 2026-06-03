@@ -214,7 +214,7 @@ impl SemanticStoragePort for MemoryLoopAdapter {
             .with_visibility(Visibility::Shared)
             .with_confidence(confidence);
 
-        self.episodic
+        self.semantic
             .store(triple)
             .map_err(|e| MemoryError::Storage(e.to_string()))?;
 
@@ -270,10 +270,9 @@ impl SemanticStoragePort for MemoryLoopAdapter {
     }
 
     fn semantic_storage_usage(&self, entity: &str) -> Result<usize, MemoryError> {
-        // SemanticMemory removed storage_usage, so we count via triple_count
         let count = self
             .semantic
-            .triple_count()
+            .triple_count_for_entity(entity)
             .map_err(|e| MemoryError::Query(e.to_string()))?;
 
         tracing::debug!(

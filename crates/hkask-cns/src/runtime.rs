@@ -7,10 +7,12 @@
 use crate::algedonic::{
     AlgedonicManager, DEFAULT_EXPECTED_VARIETY, DEFAULT_THRESHOLD, RuntimeAlert, cns_health_check,
 };
+use crate::kill_zone::KillZoneDetector;
 use crate::unified_tracker::UnifiedVarietyTracker;
 use crate::variety::VarietyTracker;
 use hkask_types::InfrastructureError;
 use hkask_types::cns::CnsHealth;
+use hkask_types::sovereignty::KillZoneConfig;
 use std::sync::Arc;
 use std::sync::RwLock as StdRwLock;
 use tokio::sync::RwLock;
@@ -20,6 +22,7 @@ use tracing::warn;
 struct CnsState {
     algedonic: Arc<StdRwLock<AlgedonicManager>>,
     tracker: UnifiedVarietyTracker,
+    kill_zone: Arc<tokio::sync::Mutex<KillZoneDetector>>,
 }
 
 impl CnsState {
@@ -28,7 +31,14 @@ impl CnsState {
             AlgedonicManager::new(threshold, DEFAULT_EXPECTED_VARIETY).with_default_allosteric(),
         ));
         let tracker = UnifiedVarietyTracker::new();
-        Self { algedonic, tracker }
+        let kill_zone = Arc::new(tokio::sync::Mutex::new(KillZoneDetector::new(
+            hkask_types::sovereignty::KillZoneThresholds::default(),
+        )));
+        Self {
+            algedonic,
+            tracker,
+            kill_zone,
+        }
     }
 }
 
@@ -154,6 +164,27 @@ impl CnsRuntime {
         if let Ok(mut algedonic) = Self::write_algedonic(&state.algedonic) {
             algedonic.set_expected_variety(domain, new_threshold);
         }
+    }
+
+    // ── Kill Zone ──
+
+    /// Get the current kill zone configuration/state.
+    pub async fn kill_zone_state(&self) -> KillZoneConfig {
+        let state = self.state.read().await;
+        state.kill_zone.lock().await.state().clone()
+    }
+
+    /// Update VC investment and check if kill zone is triggered.
+    ///
+    /// Returns `true` if the kill zone alert should be fired.
+    pub async fn check_kill_zone(&self, vc_investment: f32, acquisition_attempt: bool) -> bool {
+        let state = self.state.read().await;
+        let mut detector = state.kill_zone.lock().await;
+        detector.update_vc_investment(vc_investment);
+        if acquisition_attempt {
+            detector.mark_acquisition_attempt();
+        }
+        detector.needs_alert()
     }
 }
 

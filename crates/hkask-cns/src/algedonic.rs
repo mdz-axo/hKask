@@ -192,6 +192,7 @@ impl AlgedonicManager {
     /// When enabled, the algedonic manager uses an AllostericGate to
     /// compute severity via the MWC sigmoid instead of binary thresholds.
     /// The gate's α is set from the normalized deficit (deficit / threshold).
+    #[allow(dead_code)]
     pub(crate) fn with_allosteric_gate(mut self, gate: AllostericGate) -> Self {
         self.allosteric_gate = Some(gate);
         self

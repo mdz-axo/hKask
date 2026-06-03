@@ -27,6 +27,7 @@
 //! Energy homeostasis is NOT a subloop — it is expressed as set-points
 //! in `SetPoints` + regulation actions via `InferenceRegulation`.
 
+use crate::dampener::Dampener;
 use crate::energy::{EnergyBudget, EnergyError};
 use crate::runtime::CnsRuntime;
 use hkask_types::WebID;
@@ -85,6 +86,8 @@ pub struct CyberneticsLoop {
     dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
     /// Inbox for receiving inter-loop messages (CuratorDirectives, etc.)
     inbox: Arc<RwLock<mpsc::UnboundedReceiver<LoopMessage>>>,
+    /// Dampener to suppress repeated CuratorDirectives within a time window
+    dampener: Arc<Dampener>,
 }
 
 impl CyberneticsLoop {
@@ -104,6 +107,7 @@ impl CyberneticsLoop {
             max_iterations: 100,
             dispatch_tx,
             inbox: Arc::new(RwLock::new(dead_rx)),
+            dampener: Arc::new(Dampener::new()),
         }
     }
 
@@ -111,6 +115,7 @@ impl CyberneticsLoop {
     ///
     /// The inbox is "dead" (no sender exists) — use `with_set_points_and_inbox()`
     /// if you need to receive inter-loop messages from the Communication Loop.
+    #[allow(dead_code)]
     pub(crate) fn with_set_points(
         cns: Arc<RwLock<CnsRuntime>>,
         set_points: SetPoints,
@@ -124,6 +129,7 @@ impl CyberneticsLoop {
             max_iterations: 100,
             dispatch_tx,
             inbox: Arc::new(RwLock::new(dead_rx)),
+            dampener: Arc::new(Dampener::new()),
         }
     }
 
@@ -143,6 +149,7 @@ impl CyberneticsLoop {
             max_iterations: 100,
             dispatch_tx,
             inbox: Arc::new(RwLock::new(inbox_rx)),
+            dampener: Arc::new(Dampener::new()),
         };
         (loop_instance, inbox_tx)
     }
@@ -151,6 +158,7 @@ impl CyberneticsLoop {
     ///
     /// Returns `(loop_instance, inbox_sender)` where the sender should be
     /// registered with the Communication Loop for message delivery.
+    #[allow(dead_code)]
     pub(crate) fn with_set_points_and_inbox(
         cns: Arc<RwLock<CnsRuntime>>,
         set_points: SetPoints,
@@ -164,11 +172,13 @@ impl CyberneticsLoop {
             max_iterations: 100,
             dispatch_tx,
             inbox: Arc::new(RwLock::new(inbox_rx)),
+            dampener: Arc::new(Dampener::new()),
         };
         (loop_instance, inbox_tx)
     }
 
     /// Register an energy budget for an agent.
+    #[allow(dead_code)]
     pub(crate) async fn register_energy_budget(&self, agent: WebID, budget: EnergyBudget) {
         let mut budgets = self.energy_budgets.write().await;
         budgets.insert(agent, budget);
@@ -201,6 +211,7 @@ impl CyberneticsLoop {
     }
 
     /// Get the current set-points.
+    #[allow(dead_code)]
     pub(crate) fn set_points(&self) -> &SetPoints {
         &self.set_points
     }
@@ -224,63 +235,79 @@ impl CyberneticsLoop {
                     directive_type,
                     target,
                     parameters,
-                } => match directive_type.as_str() {
-                    "calibrate" => {
-                        if let Some(domain) = parameters.get("domain").and_then(|v| v.as_str())
-                            && let Some(new_threshold) =
-                                parameters.get("new_threshold").and_then(|v| v.as_u64())
-                        {
-                            let cns = self.cns.read().await;
-                            cns.calibrate_threshold(domain, new_threshold).await;
-                            drop(cns);
-                            tracing::info!(
-                                target: "cns.cybernetics",
-                                domain = domain,
-                                new_threshold = new_threshold,
-                                "Applied CalibrateThreshold directive from Curation"
-                            );
-                        }
-                    }
-                    "adjust_energy_budget" => {
-                        if let Some(new_budget) =
-                            parameters.get("new_budget").and_then(|v| v.as_u64())
-                        {
-                            let mut budgets = self.energy_budgets.write().await;
-                            if let Some(budget) = budgets.get_mut(target) {
-                                budget.cap = new_budget;
-                                budget.remaining = new_budget;
-                                tracing::info!(
+                } => {
+                    // Dampen repeated directives to prevent feedback oscillation
+                    if self
+                        .dampener
+                        .should_dampen_directive(directive_type, *target)
+                        .await
+                    {
+                        tracing::debug!(
+                            target: "cns.cybernetics",
+                            directive_type = directive_type,
+                            "Directive dampened (repeated within window)"
+                        );
+                    } else {
+                        match directive_type.as_str() {
+                            "calibrate" => {
+                                if let Some(domain) =
+                                    parameters.get("domain").and_then(|v| v.as_str())
+                                    && let Some(new_threshold) =
+                                        parameters.get("new_threshold").and_then(|v| v.as_u64())
+                                {
+                                    let cns = self.cns.read().await;
+                                    cns.calibrate_threshold(domain, new_threshold).await;
+                                    drop(cns);
+                                    tracing::info!(
+                                        target: "cns.cybernetics",
+                                        domain = domain,
+                                        new_threshold = new_threshold,
+                                        "Applied CalibrateThreshold directive from Curation"
+                                    );
+                                }
+                            }
+                            "adjust_energy_budget" => {
+                                if let Some(new_budget) =
+                                    parameters.get("new_budget").and_then(|v| v.as_u64())
+                                {
+                                    let mut budgets = self.energy_budgets.write().await;
+                                    if let Some(budget) = budgets.get_mut(target) {
+                                        budget.cap = new_budget;
+                                        budget.remaining = new_budget;
+                                        tracing::info!(
+                                            target: "cns.cybernetics",
+                                            agent = %target,
+                                            new_budget = new_budget,
+                                            "Applied AdjustEnergyBudget directive from Curation"
+                                        );
+                                    } else {
+                                        budgets.insert(*target, EnergyBudget::new(new_budget));
+                                        tracing::info!(
+                                            target: "cns.cybernetics",
+                                            agent = %target,
+                                            new_budget = new_budget,
+                                            "Registered new energy budget from Curation directive"
+                                        );
+                                    }
+                                }
+                            }
+                            "throttle" | "dampen" | "escalate" | "circuit_break" => {
+                                tracing::debug!(
                                     target: "cns.cybernetics",
-                                    agent = %target,
-                                    new_budget = new_budget,
-                                    "Applied AdjustEnergyBudget directive from Curation"
+                                    directive_type = directive_type,
+                                    "Received informational directive (already self-produced)"
                                 );
-                            } else {
-                                budgets.insert(*target, EnergyBudget::new(new_budget));
-                                tracing::info!(
+                            }
+                            _ => {
+                                tracing::warn!(
                                     target: "cns.cybernetics",
-                                    agent = %target,
-                                    new_budget = new_budget,
-                                    "Registered new energy budget from Curation directive"
+                                    directive_type = directive_type,
+                                    "Unknown directive type in CyberneticsLoop inbox"
                                 );
                             }
                         }
                     }
-                    "throttle" | "dampen" | "escalate" | "circuit_break" => {
-                        tracing::debug!(
-                            target: "cns.cybernetics",
-                            directive_type = directive_type,
-                            "Received informational directive (already self-produced)"
-                        );
-                    }
-                    _ => {
-                        tracing::warn!(
-                            target: "cns.cybernetics",
-                            directive_type = directive_type,
-                            "Unknown directive type in CyberneticsLoop inbox"
-                        );
-                    }
-                },
+                }
                 LoopPayload::AlgedonicAlert {
                     current,
                     threshold,

@@ -1,0 +1,270 @@
+# Grill-Me Process Manifest
+# ℏKask v0.21.0 — Socratic interrogation skill for knowledge stress-testing
+# Template type: Process (FlowDef) — multi-round oral examination
+
+manifest:
+  id: grill-me
+  name: Grill-Me
+  description: >
+    Intensely interrogate the user about a topic using Socratic questioning.
+    Tests deep understanding through escalating difficulty (5 levels:
+    Recall → Mechanism → Rationale → Edge Cases → Synthesis).
+    Probes gaps, challenges assumptions, and produces a gap analysis.
+  functional_role: knowact
+  version: 0.21.0
+  editor: curator-or-human-admin
+  visibility: Shared
+
+energy:
+  cap: 20000
+  cost_per_token: 0.25
+  alert_threshold: 0.8
+  hard_limit: true
+
+inputs:
+  - name: topic
+    type: string
+    description: "The topic domain to interrogate"
+    required: true
+  - name: start_level
+    type: integer
+    description: "Starting difficulty level (1-5, default 1)"
+    required: false
+  - name: questions_per_round
+    type: integer
+    description: "Number of questions per round (default 3)"
+    required: false
+
+# Question taxonomy mapped to difficulty levels
+levels:
+  - number: 1
+    name: "Recall & Definition"
+    description: "What is X? Define Y. What does acronym Z stand for?"
+    cns_span: "cns.prompt.grill-me.recall"
+  - number: 2
+    name: "Mechanism & Causation"
+    description: "How does X actually work internally? Walk me through the flow."
+    cns_span: "cns.prompt.grill-me.mechanism"
+  - number: 3
+    name: "Rationale & Tradeoffs"
+    description: "Why was it designed this way? What are the tradeoffs?"
+    cns_span: "cns.prompt.grill-me.rationale"
+  - number: 4
+    name: "Edge Cases & Failure Modes"
+    description: "What happens when X fails? Where are the boundaries?"
+    cns_span: "cns.prompt.grill-me.edge-cases"
+  - number: 5
+    name: "Synthesis & Novel Scenarios"
+    description: "How would you extend this? Redesign from scratch?"
+    cns_span: "cns.prompt.grill-me.synthesis"
+
+# Process Steps
+steps:
+  - ordinal: 1
+    action: select
+    description: >
+      Select starting difficulty level and topic focus.
+      Determine the user's claimed expertise to calibrate initial level.
+    renderer: minijinja
+    template_ref: grill-me/grill-me-escalate
+    model_tier: fast_local
+    mcp: hkask-mcp-inference
+    energy_cap: 2000
+    timeout_seconds: 15
+    input_mapping:
+      topic: "{{ topic }}"
+      current_level: "{{ start_level | default(1) }}"
+      solid_ratio: 1.0
+      total_questions: 0
+    output_schema:
+      type: object
+      properties:
+        new_level:
+          type: integer
+        action:
+          type: string
+        reason:
+          type: string
+
+  - ordinal: 2
+    action: populate
+    description: >
+      Generate first round of interrogation questions at the calibrated level.
+      Produce 2-3 questions targeting the topic at the current difficulty.
+    renderer: minijinja
+    template_ref: grill-me/grill-me-round
+    model_tier: reasoning_local
+    mcp: hkask-mcp-inference
+    energy_cap: 5000
+    timeout_seconds: 60
+    input_mapping:
+      topic: "{{ topic }}"
+      current_level: "{{ ordinal_1.new_level }}"
+      round_number: 1
+      mode: "calibrate"
+      previous_answers: []
+      assessment_so_far: {}
+    output_schema:
+      type: object
+      properties:
+        questions:
+          type: array
+          items:
+            type: object
+            properties:
+              question: { type: string }
+              level: { type: integer }
+              area: { type: string }
+        calibration_note:
+          type: string
+
+  - ordinal: 3
+    action: populate
+    description: >
+      Evaluate user answers and generate subsequent interrogation rounds.
+      Assess each answer as Solid / Partial / Gap. Escalate difficulty if
+      consistently solid; re-probe if struggling. After 3 failed attempts
+      on a question, briefly explain the correct answer and move on.
+    renderer: minijinja
+    template_ref: grill-me/grill-me-round
+    model_tier: reasoning_local
+    mcp: hkask-mcp-inference
+    energy_cap: 10000
+    timeout_seconds: 90
+    input_mapping:
+      topic: "{{ topic }}"
+      current_level: "{{ ordinal_2.current_level | default(1) }}"
+      round_number: "{{ ordinal_2.round_number | default(2) }}"
+      mode: "interrogate"
+      previous_answers: "{{ ordinal_2.all_answers | default([]) }}"
+      assessment_so_far: "{{ ordinal_2.assessment | default({}) }}"
+    output_schema:
+      type: object
+      properties:
+        questions:
+          type: array
+          items:
+            type: object
+            properties:
+              question: { type: string }
+              level: { type: integer }
+              area: { type: string }
+        evaluations:
+          type: array
+          items:
+            type: object
+            properties:
+              answer: { type: string }
+              rating: { type: string }
+              note: { type: string }
+        current_level:
+          type: integer
+        round_verdict:
+          type: string
+        all_answers:
+          type: array
+        assessment:
+          type: object
+
+  - ordinal: 4
+    action: populate
+    description: >
+      Synthesize final assessment. Produce a summary table rating each
+      knowledge area as Solid / Partial / Gap with specific study recommendations.
+    renderer: minijinja
+    template_ref: grill-me/grill-me-assess
+    model_tier: balanced
+    mcp: hkask-mcp-inference
+    energy_cap: 3000
+    timeout_seconds: 45
+    input_mapping:
+      topic: "{{ topic }}"
+      all_answers: "{{ ordinal_3.all_answers }}"
+      assessment: "{{ ordinal_3.assessment }}"
+    output_schema:
+      type: object
+      properties:
+        summary:
+          type: array
+          items:
+            type: object
+            properties:
+              area: { type: string }
+              rating: { type: string }
+              notes: { type: string }
+        recommendations:
+          type: array
+          items: { type: string }
+        overall_assessment:
+          type: string
+
+  - ordinal: 5
+    action: feedback
+    description: >
+      Emit CNS feedback for variety monitoring and learning analytics.
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: hkask-mcp-cns
+    energy_cap: 500
+    timeout_seconds: 5
+    feedback:
+      variety_delta: integer
+      levels_reached: array
+      gaps_identified: integer
+    output_schema:
+      type: object
+      properties:
+        variety_counter: { type: integer }
+        cns_event_id: { type: string }
+
+# Difficulty escalation rules
+escalation:
+  solid_threshold: 0.8
+  reprobe_threshold: 0.4
+  max_failed_attempts: 3
+
+# Error Handling
+error_handling:
+  on_energy_exceeded: abort
+  on_timeout: retry
+  max_retries: 2
+  retry_backoff_seconds: 1
+  on_validation_failure: abort
+
+# OCAP Configuration
+ocap:
+  required_capabilities:
+    - resource: template
+      action: render
+      template_id: grill-me/grill-me-round
+      energy_budget: 5000
+    - resource: manifest
+      action: execute
+      template_id: grill-me
+      energy_budget: 500
+    - resource: cns
+      action: emit
+      template_id: grill-me
+      energy_budget: 500
+  delegation_chain_required: true
+  signature_algorithm: ed25519
+  capability_expiry_seconds: 3600
+  template_scoped: true
+
+# CNS Monitoring
+cns:
+  emit_spans: true
+  span_namespace: cns.prompt.grill-me
+  variety_monitoring: true
+  algedonic_threshold: 100
+  escalation_target: Curator
+
+# Audit Trail
+audit:
+  enabled: true
+  log_level: info
+  include_input: true
+  include_output: true
+  include_energy_cost: true
+  include_cns_events: true

@@ -175,7 +175,8 @@ impl ToolSpanGuard {
     /// Mark the tool invocation as successful and return the output string.
     ///
     /// Emits a CNS span with outcome `"ok"` and no error kind.
-    pub fn ok(self, output: String) -> String {
+    pub fn ok(mut self, output: String) -> String {
+        self.emitted = true;
         let duration_ms = self.start.elapsed().as_millis() as u64;
         emit_tool_span_with_caller(&self.tool_name, "ok", duration_ms, None, Some(&self.caller));
         output
@@ -184,7 +185,8 @@ impl ToolSpanGuard {
     /// Mark the tool invocation as an error and return the output string.
     ///
     /// Emits a CNS span with outcome `"error"` and the given error kind.
-    pub fn error(self, kind: McpErrorKind, output: String) -> String {
+    pub fn error(mut self, kind: McpErrorKind, output: String) -> String {
+        self.emitted = true;
         let duration_ms = self.start.elapsed().as_millis() as u64;
         emit_tool_span_with_caller(
             &self.tool_name,

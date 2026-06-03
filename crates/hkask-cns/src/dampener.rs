@@ -132,6 +132,34 @@ impl Dampener {
         false
     }
 
+    /// Check if a raw directive (by type and target) should be dampened.
+    ///
+    /// This is the same as `should_dampen` but accepts the directive type
+    /// and target directly, for use when the full `CuratorDirective` is
+    /// not available (e.g., from `LoopPayload::CurationDirective`).
+    pub async fn should_dampen_directive(&self, directive_type: &str, target: WebID) -> bool {
+        let fingerprint = DirectiveFingerprint {
+            directive_type: directive_type.to_string(),
+            target: Some(target),
+        };
+        let now = std::time::Instant::now();
+        let mut seen = self.seen.lock().await;
+
+        // Evict expired entries first (lazy garbage collection)
+        seen.retain(|_, last_seen| now.duration_since(*last_seen) < self.window);
+
+        // Check if this fingerprint was seen recently
+        if let Some(last_seen) = seen.get(&fingerprint)
+            && now.duration_since(*last_seen) < self.window
+        {
+            return true; // Dampen: same directive within window
+        }
+
+        // Record this directive as seen
+        seen.insert(fingerprint, now);
+        false
+    }
+
     /// Clear all dampening state.
     ///
     /// Useful for testing or when a major state change invalidates

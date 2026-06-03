@@ -2,6 +2,7 @@
 
 use crate::recall_dedup;
 use hkask_storage::{EmbeddingStore, Triple, TripleError, TripleStore};
+use hkask_types::Visibility;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -60,16 +61,37 @@ impl SemanticMemory {
     // (query_similar removed — zero external consumers)
     // (recall_with_similarity removed — zero external consumers)
 
-    /// Store a semantic triple (public, no perspective).
-    ///
-    /// Used by the ConsolidationBridge to seed consolidated episodic triples.
+    pub fn store(&self, mut triple: Triple) -> Result<(), SemanticMemoryError> {
+        if triple.visibility != Visibility::Shared {
+            tracing::warn!(
+                target: "hkask.memory.semantic",
+                visibility = ?triple.visibility,
+                "Semantic store requires Shared visibility; overriding"
+            );
+            triple.visibility = Visibility::Shared;
+        }
+        if triple.perspective.is_some() {
+            tracing::warn!(
+                target: "hkask.memory.semantic",
+                "Semantic store requires no perspective; clearing"
+            );
+            triple.perspective = None;
+        }
+        self.triple_store.insert(&triple)?;
+        Ok(())
+    }
+
     pub(crate) fn store_consolidated(&self, triple: Triple) -> Result<(), SemanticMemoryError> {
         self.triple_store.insert(&triple)?;
         Ok(())
     }
 
-    /// Get the current count of semantic triples (perspective IS NULL).
     pub fn triple_count(&self) -> Result<usize, SemanticMemoryError> {
         Ok(self.triple_store.count_semantic()?)
+    }
+
+    pub fn triple_count_for_entity(&self, entity: &str) -> Result<usize, SemanticMemoryError> {
+        let triples = self.triple_store.query_by_entity(entity)?;
+        Ok(triples.len())
     }
 }
