@@ -1,7 +1,11 @@
 //! Bot Health Status — Per-bot health classification
 //!
-//! BotHealthStatus is used by the Curation Loop to filter critical bots
+//! BotHealthStatus is used by the Curator Agent to filter critical bots
 //! and by BotStatusReport for per-bot status tracking.
+//!
+//! Moved from `curator::bot_metrics` as part of the Curation/Agent separation:
+//! bot health status is a persona concern (Curator reads bot status for
+//! escalation), not a regulatory concern.
 
 use serde::{Deserialize, Serialize};
 

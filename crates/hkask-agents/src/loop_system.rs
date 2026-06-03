@@ -22,15 +22,15 @@ use tracing::info;
 const DEFAULT_TICK_INTERVAL: Duration = Duration::from_secs(1);
 
 /// Authority DAG tick order: meta-loops first, then domain loops.
-/// Curation (5) → Cybernetics (6) → Inference (1) → Episodic (2a) → Semantic (2b) → Communication (4)
+/// Communication ticks independently as shared infrastructure.
+/// Curation (5) → Cybernetics (6) → Inference (1) → Episodic (2a) → Semantic (2b)
 /// No sideways edges. Authority flows downward.
-const AUTHORITY_ORDER: [LoopId; 6] = [
+pub const AUTHORITY_ORDER: [LoopId; 5] = [
     LoopId::Curation,
     LoopId::Cybernetics,
     LoopId::Inference,
     LoopId::Episodic,
     LoopId::Semantic,
-    LoopId::Communication,
 ];
 
 /// Loop System — manages the lifecycle and wiring of all 6 loops.

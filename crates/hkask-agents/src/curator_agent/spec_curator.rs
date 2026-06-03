@@ -4,6 +4,10 @@
 //! specification coherence and makes curation decisions (Merge, Revise,
 //! Discard). Curation is a Cybernetics concern (Loop 5) that belongs in
 //! `hkask-agents`, not in the storage crate.
+//!
+//! Moved from `curator::spec_curator` as part of the Curation/Agent separation:
+//! spec curation is a persona concern (the Curator Agent curates specs),
+//! not a regulatory concern (the Curation Loop regulates).
 
 use hkask_storage::spec_types::{Spec, SpecCurationRecord, SpecCurator, SpecError};
 use hkask_types::capability::SYSTEM_MAX_RECURSION;

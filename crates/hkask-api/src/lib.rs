@@ -37,8 +37,7 @@ use hkask_agents::adapters::memory_loop_adapter::MemoryLoopAdapter;
 use hkask_agents::communication::dispatch::MessageDispatch;
 use hkask_agents::consent::ConsentManager;
 use hkask_agents::curator::context::CuratorContext;
-use hkask_agents::curator::curation_loop::CurationLoop;
-use hkask_agents::curator::metacognition::MetacognitionLoop;
+use hkask_agents::curator_agent::CuratorAgent;
 use hkask_agents::escalation::EscalationQueue;
 use hkask_agents::loop_system::LoopSystem;
 use hkask_agents::pod::PodManager;
@@ -49,6 +48,7 @@ use hkask_memory::{
 };
 use hkask_storage::{Database, EmbeddingStore, TripleStore};
 use hkask_templates::SqliteRegistry;
+use hkask_types::loops::HkaskLoop;
 use hkask_types::loops::curation::CuratorHandle;
 use hkask_types::{CapabilityChecker, WebID};
 use serde::{Deserialize, Serialize};
@@ -180,7 +180,7 @@ fn build_loop_system(
         loop_system.register_loop(Arc::new(semantic_loop)).await;
     });
 
-    // Curation Loop
+    // Curation Loop (via CuratorAgent)
     let curator_handle = CuratorHandle::system();
     let curator_context = Arc::new(CuratorContext::new(
         curator_handle.clone(),
@@ -188,18 +188,15 @@ fn build_loop_system(
         dispatch,
         escalation_queue,
     ));
-    let metacognition = Arc::new(MetacognitionLoop::new(curator_context, Default::default()));
     let consolidation_bridge = Arc::new(ConsolidationBridge::new(
         Arc::clone(&episodic_memory),
         Arc::clone(&semantic_memory),
     ));
-    let curation_loop = CurationLoop::with_consolidation(
-        curator_handle.clone(),
-        metacognition,
-        consolidation_bridge,
-    );
+    let curator_agent =
+        CuratorAgent::with_consolidation(curator_context, Default::default(), consolidation_bridge);
+    let curation_loop: Arc<dyn HkaskLoop> = curator_agent.curation_loop().clone();
     rt.block_on(async {
-        loop_system.register_loop(Arc::new(curation_loop)).await;
+        loop_system.register_loop(curation_loop).await;
     });
 
     drop(rt);

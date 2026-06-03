@@ -6,6 +6,19 @@
 //!
 //! This is the membrane where Loop 6 (Cybernetics) governs Loop 1 (Inference).
 //! Authority flows downward: Cybernetics → Inference.
+//!
+//! # Deprecation Notice
+//!
+//! **Deprecated since v0.22.0.** Use `GovernedTool` with an `InferencePort`-specific
+//! `EnergyEstimator` instead. The `GovernedTool` membrane subsumes all functionality
+//! of `GovernedInference` (OCAP authority, energy budget, NuEvent observability)
+//! while being generic over any `ToolPort`, not just `InferencePort`.
+//!
+//! Migration path: Create an `InferenceEnergyEstimator` implementing `EnergyEstimator`
+//! using the token estimation logic from this file, then wire `InferenceLoop` to
+//! use `GovernedTool` with that estimator.
+
+#![deprecated(since = "0.22.0", note = "Use GovernedTool with InferencePort instead")]
 
 use crate::cybernetics_loop::CyberneticsLoop;
 use hkask_types::WebID;

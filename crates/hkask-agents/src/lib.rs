@@ -17,7 +17,8 @@ pub mod acp; // Loop 6 (Cybernetics: ACP is access control)
 pub mod adapters;
 pub mod communication; // Loop 4
 pub mod consent; // Loop 6 (Cybernetics: consent is sovereignty/access guard)
-pub mod curator; // Loop 5
+pub mod curator; // Loop 5 (pure regulatory: CurationLoop, CuratorContext, CurationGate)
+pub mod curator_agent; // Loop 5 (persona: MetacognitionLoop, bot metrics, spec curation)
 pub mod error;
 pub mod escalation; // Loop 6 (escalation queue is algedonic regulation)
 pub mod inference_loop; // Loop 1 (domain logic; GovernedInference membrane stays in hkask-cns)
@@ -34,7 +35,10 @@ pub use consent::{ConsentError, ConsentManager};
 pub use curator::context::CuratorContext;
 pub use curator::curation_gate::{CurationConfidenceGate, CurationDecision, CurationPort};
 pub use curator::curation_loop::CurationLoop;
-pub use curator::spec_curator::DefaultSpecCurator;
+pub use curator_agent::{
+    CuratorAgent, DefaultSpecCurator, HealthSnapshot, MetacognitionConfig, MetacognitionError,
+    MetacognitionLoop,
+};
 
 pub use error::{GitError, McpError, MemoryError, RegistryError};
 pub use escalation::{

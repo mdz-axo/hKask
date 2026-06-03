@@ -516,7 +516,7 @@ fn run_cns(rt: &tokio::runtime::Runtime, action: CnsAction) {
 
 fn run_loops(rt: &tokio::runtime::Runtime, interval: u64) {
     use hkask_agents::{
-        CurationLoop, CuratorContext, EscalationQueue, LoopSystem, MessageDispatch,
+        CuratorAgent, CuratorContext, EscalationQueue, LoopSystem, MessageDispatch,
     };
     use hkask_cns::{CnsRuntime, CyberneticsLoop};
     use hkask_memory::{
@@ -524,6 +524,7 @@ fn run_loops(rt: &tokio::runtime::Runtime, interval: u64) {
     };
     use hkask_storage::{Database, EmbeddingStore, TripleStore};
     use hkask_types::WebID;
+    use hkask_types::loops::HkaskLoop;
     use hkask_types::loops::curation::CuratorHandle;
     use std::sync::Arc;
     use std::time::Duration;
@@ -563,7 +564,7 @@ fn run_loops(rt: &tokio::runtime::Runtime, interval: u64) {
     let semantic_loop = SemanticLoop::new(Arc::clone(&semantic_memory));
     rt.block_on(loop_system.register_loop(Arc::new(semantic_loop)));
 
-    // 7. Register Curation Loop
+    // 7. Register Curation Loop (via CuratorAgent)
     let curator_handle = CuratorHandle::system();
     let escalation_queue = Arc::new(EscalationQueue::new(db.conn_arc()).expect("escalation queue"));
     let curator_context = Arc::new(CuratorContext::new(
@@ -572,22 +573,14 @@ fn run_loops(rt: &tokio::runtime::Runtime, interval: u64) {
         Arc::clone(&dispatch),
         escalation_queue,
     ));
-    let metacognition = Arc::new(
-        hkask_agents::curator::metacognition::MetacognitionLoop::new(
-            curator_context,
-            Default::default(),
-        ),
-    );
     let consolidation_bridge = Arc::new(ConsolidationBridge::new(
         Arc::clone(&episodic_memory),
         Arc::clone(&semantic_memory),
     ));
-    let curation_loop = CurationLoop::with_consolidation(
-        curator_handle.clone(),
-        metacognition,
-        consolidation_bridge,
-    );
-    rt.block_on(loop_system.register_loop(Arc::new(curation_loop)));
+    let curator_agent =
+        CuratorAgent::with_consolidation(curator_context, Default::default(), consolidation_bridge);
+    let curation_loop: Arc<dyn HkaskLoop> = curator_agent.curation_loop().clone();
+    rt.block_on(loop_system.register_loop(curation_loop));
 
     // 8. Start the loop system
     println!("Starting Loop System (tick interval: {}s)", interval);

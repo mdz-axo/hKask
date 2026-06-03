@@ -85,12 +85,12 @@ The `RateLimiter` and `CnsTokenBucket` types have been removed (per §4.6 of [`t
 
 ### 2.1 Two-Layer Model
 
-hKask decomposes into six loops organized in two layers:
+hKask decomposes into six loops organized in two layers plus shared infrastructure:
 
 **Domain Loops** — value-producing, each owns a bounded resource and a transformation:
 
 | Loop | Owns | Transforms |
-|------|------|-----------|
+|------|------|------------|
 | **Inference Loop** | LLM call budget, token flow | Prompts → Completions |
 | **Semantic/Fact Memory Loop** | Knowledge graph, embedding indices | Queries → Retrieved facts |
 | **Episodic Memory Loop** | Conversation/event stream, SQLCipher storage | Experiences → Episodic records |
@@ -98,10 +98,15 @@ hKask decomposes into six loops organized in two layers:
 **Meta Loops** — governing, each regulates one or more domain loops:
 
 | Loop | Owns | Regulates |
-|------|------|-----------|
-| **Communication Loop** | Message routing, MCP dispatch, A2A/H2A protocol boundaries | When and how agents exchange signals |
+|------|------|------------|
 | **Curation/Metacognition Loop** | Curator persona, prompt validation, reflective self-assessment | Which goals are pursued, whether behavior is coherent |
 | **Cybernetics Loop** | Observability, governance, energy accounting, homeostatic regulation | Health, stability, resource equilibrium of the entire system |
+
+**Shared Infrastructure** — dumb pipes, not regulators:
+
+| Component | Owns | Provides |
+|-----------|------|----------|
+| **Communication Loop** | Message routing, MCP dispatch, A2A/H2A protocol boundaries | Message delivery (not regulation) |
 
 ### 2.2 Loop ERD
 
@@ -276,14 +281,14 @@ The capability membrane for each loop defines four boundaries:
 | **Can signal** | Depletion signal to Cybernetics Loop (energy), record signal to Communication Loop |
 | **Never reaches** | Knowledge graph, LLM call budget, capability tokens of other loops |
 
-#### Communication Loop
+#### Communication Loop (Shared Infrastructure)
 
 | Boundary | Scope |
 |----------|-------|
-| **Can read** | Message queues, MCP dispatch state, A2A/H2A protocol state, agent pod registry |
-| **Can write** | Message routing tables, dispatch outcomes, protocol handshakes |
-| **Can signal** | Dispatch signal to domain loops (incoming messages), regulation signal from Curation Loop |
-| **Never reaches** | Energy accounts, variety counters, prompt validation logic, knowledge graph internals |
+| **Can read** | Message queue state only |
+| **Can write** | Message routing only |
+| **Can signal** | Delivery confirmation to sender loop |
+| **Never reaches** | Energy accounts, variety counters, prompt validation, knowledge graph internals, capability tokens |
 
 #### Curation/Metacognition Loop
 
@@ -306,9 +311,9 @@ The capability membrane for each loop defines four boundaries:
 ### 4.3 Cross-Loop Authority Rules
 
 1. **Domain loops may signal their governing meta loop but never each other directly.** The Inference Loop does not call the Semantic Memory Loop — it signals the Communication Loop, which routes the request.
-2. **Meta loops may regulate the loops they govern but never bypass another meta loop's governance.** The Communication Loop regulates domain loop message flow but cannot override energy budgets — that is the Cybernetics Loop's authority.
+2. **Communication is shared infrastructure, not a regulator.** It routes messages between loops but has no authority over any loop's behavior. It cannot override energy budgets, throttle agents, or issue directives.
 3. **The Cybernetics Loop regulates all three domain loops and may signal the Curation Loop. It may not regulate the Curation Loop.** Cybernetics can throttle inference energy but cannot override a Curator decision.
-4. **The Curation Loop regulates all three meta loops (including Cybernetics) via metacognitive override.** This is the single escalation path. If the Cybernetics Loop's homeostatic regulation conflicts with a Curator-assessed goal, the Curator wins.
+4. **The Curation Loop regulates Cybernetics via metacognitive override.** This is the single escalation path. If the Cybernetics Loop's homeostatic regulation conflicts with a Curator-assessed goal, the Curator wins. Curation does not regulate Communication — it can signal through it, but Communication is a pipe, not a governor.
 
 ### 4.4 Capability Membrane Graph
 
@@ -320,11 +325,9 @@ graph TD
         EML[Episodic Memory Loop]
     end
 
-    subgraph Meta["Meta Loops"]
-        CL[Communication Loop]
-        CUL[Curation/Metacognition Loop]
-        CYL[Cybernetics Loop]
-    end
+    CUL[Curation/Metacognition Loop]
+    CYL[Cybernetics Loop]
+    CL[Communication Loop - Shared Infrastructure]
 
     IL -->|"signal: depletion"| CYL
     IL -->|"signal: completion"| CL
@@ -333,24 +336,23 @@ graph TD
     EML -->|"signal: depletion"| CYL
     EML -->|"signal: record"| CL
 
-    CL -->|"regulate: routing"| IL
-    CL -->|"regulate: routing"| SML
-    CL -->|"regulate: routing"| EML
+    CL -->|"deliver: routing"| IL
+    CL -->|"deliver: routing"| SML
+    CL -->|"deliver: routing"| EML
 
     CYL -->|"regulate: energy"| IL
     CYL -->|"regulate: energy"| SML
     CYL -->|"regulate: energy"| EML
     CYL -->|"signal: algedonic"| CUL
 
-    CUL -->|"regulate: metacognitive override"| CL
     CUL -->|"regulate: metacognitive override"| CYL
 ```
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-LOOP-003
-verified_date: 2026-05-31
-verified_against: PRINCIPLES.md §1.4; trust-security-observability.md §4.4; domain-and-capability.md §5
-status: VERIFIED
+verified_date: 2026-06-03
+verified_against: PRINCIPLES.md §1.4; trust-security-observability.md §4.4; domain-and-capability.md §5; loop-architecture.md §4.4
+status: REMEDIATED
 -->
 
 ### 4.5 Cycle-Freedom Verification

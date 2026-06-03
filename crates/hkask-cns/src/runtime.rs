@@ -65,6 +65,17 @@ impl CnsRuntime {
     ///
     /// Returns `true` if the request proceeds, `false` if rate-limited.
     /// Delegates to `ThrottleBucket::check_and_consume`.
+    ///
+    /// # Deprecation Notice
+    ///
+    /// **Deprecated since v0.22.0.** Absorbed into `GovernedTool` energy budget
+    /// accounting. Per-agent rate limiting is now handled by the `GovernedTool`
+    /// membrane which subsumes throttle checks as part of the OCAP + budget +
+    /// observability boundary.
+    #[deprecated(
+        since = "0.22.0",
+        note = "Absorbed into GovernedTool energy budget accounting"
+    )]
     pub async fn check_throttle(&self, agent: &WebID) -> bool {
         self.throttle.check_and_consume(*agent).await
     }

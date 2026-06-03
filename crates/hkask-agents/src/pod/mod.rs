@@ -54,6 +54,7 @@
 
 mod context;
 mod manager;
+mod nu_event;
 mod types;
 
 use hkask_types::derivation_contexts;

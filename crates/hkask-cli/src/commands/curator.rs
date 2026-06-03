@@ -42,7 +42,8 @@ pub async fn curator_dismiss(id: &str) -> Result<(), CuratorError> {
 /// Run a metacognition cycle and return a summary string
 pub async fn curator_metacognition() -> Result<String, CuratorError> {
     use hkask_agents::MessageDispatch;
-    use hkask_agents::curator::{CuratorContext, MetacognitionConfig, MetacognitionLoop};
+    use hkask_agents::curator::CuratorContext;
+    use hkask_agents::curator_agent::CuratorAgent;
     use hkask_cns::CnsRuntime;
     use hkask_types::loops::curation::CuratorHandle;
 
@@ -56,13 +57,13 @@ pub async fn curator_metacognition() -> Result<String, CuratorError> {
     let dispatch = Arc::new(MessageDispatch::new());
     let curator_handle = CuratorHandle::system();
     let context = Arc::new(CuratorContext::new(curator_handle, cns, dispatch, queue));
-    let config = MetacognitionConfig::default();
-    let loop_instance = MetacognitionLoop::new(context, config);
+    let agent = CuratorAgent::new(context);
+    let metacognition = agent.metacognition();
 
-    let snapshot = loop_instance
+    let snapshot = metacognition
         .run_cycle()
         .await
         .map_err(|e| CuratorError::MetacognitionFailed(e.to_string()))?;
 
-    Ok(loop_instance.generate_summary(&snapshot))
+    Ok(metacognition.generate_summary(&snapshot))
 }

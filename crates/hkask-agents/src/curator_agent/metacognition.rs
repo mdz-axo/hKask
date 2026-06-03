@@ -1,15 +1,19 @@
-//! Metacognition Loop — Curator's periodic system governance
+//! Metacognition Loop — Curator Agent's periodic system governance
 //!
-//! The Curator performs metacognition on system performance:
+//! The Curator Agent performs metacognition on system performance:
 //! - Queries CNS spans for health metrics
 //! - Checks variety counters (algedonic alerts if deficit > 100)
 //! - Collects bot status reports from standing session
 //! - Synthesizes system state updates
 //! - Triggers escalations when thresholds are exceeded
 //! - Posts summaries to standing session
+//!
+//! Moved from `curator::metacognition` as part of the Curation/Agent separation:
+//! metacognition is a persona concern (the Curator Agent observes and adapts),
+//! not a regulatory concern (the Curation Loop regulates).
 
-use crate::curator::bot_metrics::BotHealthStatus;
 use crate::curator::context::CuratorContext;
+use crate::curator_agent::bot_metrics::BotHealthStatus;
 use hkask_types::BotID;
 use hkask_types::cns::CnsHealth;
 use hkask_types::loops::curation::CuratorDirective;
@@ -93,7 +97,7 @@ impl Default for MetacognitionConfig {
     }
 }
 
-/// Metacognition loop — Curator's system governance mechanism
+/// Metacognition loop — Curator Agent's system governance mechanism
 ///
 /// Uses `CuratorContext` for capability-disciplined access to all
 /// Curation subloops. The context provides:
