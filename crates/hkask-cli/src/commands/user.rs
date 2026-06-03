@@ -13,6 +13,7 @@
 //!   `show_replicant`, `list_replicants`, `list_sessions`, `logout`
 
 use crate::errors::UserError;
+use crate::registration::{validate_passphrase, validate_registration};
 use hkask_storage::user_store::UserStore;
 use hkask_types::RegistrationRequest;
 use std::sync::{Arc, Mutex};
@@ -35,8 +36,7 @@ pub fn register_replicant_with_passphrase(
     phone: Option<&str>,
     passphrase: Zeroizing<String>,
 ) -> Result<hkask_types::ReplicantIdentity, UserError> {
-    RegistrationRequest::validate_passphrase(&passphrase)
-        .map_err(|e| UserError::InvalidPassphrase(e.to_string()))?;
+    validate_passphrase(&passphrase).map_err(|e| UserError::InvalidPassphrase(e.to_string()))?;
 
     let request = RegistrationRequest {
         replicant_name: replicant_name.to_string(),

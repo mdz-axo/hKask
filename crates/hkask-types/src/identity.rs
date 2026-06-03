@@ -115,49 +115,6 @@ pub struct RegistrationRequest {
     pub passphrase: String,
 }
 
-impl RegistrationRequest {
-    pub fn validate(&self) -> Result<(), RegistrationError> {
-        if self.replicant_name.is_empty()
-            || self.replicant_name.len() > 64
-            || !self
-                .replicant_name
-                .chars()
-                .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
-        {
-            return Err(RegistrationError::InvalidReplicantName);
-        }
-        if self.first_name.is_empty() || self.last_name.is_empty() {
-            return Err(RegistrationError::EmptyName);
-        }
-        if self.email.is_empty() || !self.email.contains('@') {
-            return Err(RegistrationError::InvalidContact);
-        }
-        if let Some(phone) = &self.phone
-            && !phone.starts_with('+')
-        {
-            return Err(RegistrationError::InvalidContact);
-        }
-        Self::validate_passphrase(&self.passphrase)?;
-        Ok(())
-    }
-
-    /// Validate passphrase: alphanumeric only (upper + lowercase), min 8 chars
-    pub fn validate_passphrase(passphrase: &str) -> Result<(), RegistrationError> {
-        if passphrase.len() < 8 {
-            return Err(RegistrationError::InvalidPassphrase);
-        }
-        if !passphrase.chars().all(|c| c.is_alphanumeric()) {
-            return Err(RegistrationError::InvalidPassphrase);
-        }
-        let has_upper = passphrase.chars().any(|c| c.is_ascii_uppercase());
-        let has_lower = passphrase.chars().any(|c| c.is_ascii_lowercase());
-        if !has_upper || !has_lower {
-            return Err(RegistrationError::InvalidPassphrase);
-        }
-        Ok(())
-    }
-}
-
 #[derive(Debug, Clone, thiserror::Error)]
 /// Loop: Cybernetics
 ///

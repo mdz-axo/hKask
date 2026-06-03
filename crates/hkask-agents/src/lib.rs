@@ -20,6 +20,7 @@ pub mod consent; // Loop 6 (Cybernetics: consent is sovereignty/access guard)
 pub mod curator; // Loop 5
 pub mod error;
 pub mod escalation; // Loop 6 (escalation queue is algedonic regulation)
+pub mod inference_loop; // Loop 1 (domain logic; GovernedInference membrane stays in hkask-cns)
 pub mod loop_system;
 pub mod pod; // Loop 5 (agent pod lifecycle is Curation)
 pub mod ports;
@@ -38,6 +39,7 @@ pub use error::{GitError, McpError, MemoryError, RegistryError};
 pub use escalation::{
     EscalationEntry, EscalationError, EscalationQueue, EscalationStats, EscalationStatus,
 };
+pub use inference_loop::InferenceLoop;
 pub use loop_system::LoopSystem;
 pub use pod::{
     AgentKind, AgentPersona, AgentPod, AgentPodError, AgentPodResult, PodID, PodLifecycleState,

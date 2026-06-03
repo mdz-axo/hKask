@@ -1,9 +1,10 @@
 //! Inference Loop — prompt → context → model → response → parse → act (Loop 1)
 //!
 //! Monitors circuit breaker state and inference availability.
-//! Lives in the CNS crate because loop orchestration (sense → compare → compute → act)
-//! is a Cybernetics concern — domain crates provide port implementations,
-//! the CNS provides loop governance.
+//! Lives in `hkask-agents` because domain loops (Inference, Episodic, Semantic,
+//! Communication, Curation) are domain logic — they belong with the agents crate.
+//! The membrane where Cybernetics governs Inference (`GovernedInference`) remains
+//! in `hkask-cns`.
 
 use hkask_types::WebID;
 use hkask_types::loops::{
@@ -13,8 +14,8 @@ use hkask_types::ports::{CircuitBreakerPort, InferencePort};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::cybernetics_loop::CyberneticsLoop;
-use crate::governed_inference::GovernedInference;
+use hkask_cns::CyberneticsLoop;
+use hkask_cns::GovernedInference;
 
 /// Inference Loop — monitors circuit breaker and inference availability.
 ///

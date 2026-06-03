@@ -145,7 +145,7 @@ fn build_loop_system(
 
     // Inference Loop (optional)
     if let Some(port) = inference_port {
-        let inference_loop = hkask_cns::InferenceLoop::new(port);
+        let inference_loop = hkask_agents::InferenceLoop::new(port);
         rt.block_on(async {
             loop_system.register_loop(Arc::new(inference_loop)).await;
         });

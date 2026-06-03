@@ -40,7 +40,8 @@ fn estimate_tokens(prompt: &str, parameters: &LLMParameters) -> u64 {
 /// # Composition
 ///
 /// ```ignore
-/// use hkask_cns::{CyberneticsLoop, GovernedInference, InferenceLoop};
+/// use hkask_cns::{CyberneticsLoop, GovernedInference};
+/// use hkask_agents::InferenceLoop;
 ///
 /// let inference_port: Arc<dyn InferencePort> = Arc::new(OkapiInference::new(...));
 /// let cybernetics_loop = Arc::new(RwLock::new(CyberneticsLoop::new(cns, dispatch_tx)));
