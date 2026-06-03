@@ -4,14 +4,10 @@
 //! but the goal domain itself spans multiple loops.
 
 use crate::capability::SYSTEM_MAX_ATTENUATION;
+use crate::capability::hmac_ops;
 use crate::id::{GoalID, WebID};
 use chrono::{DateTime, Utc};
-use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
-use sha2::Sha256;
-use subtle::ConstantTimeEq;
-
-type HmacSha256 = Hmac<Sha256>;
 
 /// Goal operations — what capabilities can authorize
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -113,30 +109,27 @@ impl GoalCapabilityToken {
     }
 
     fn compute_hmac(&self, secret: &[u8]) -> String {
-        let mut mac = HmacSha256::new_from_slice(secret).expect("HMAC can take key of any size");
-        mac.update(self.id.as_bytes());
-        mac.update(self.goal_id.to_string().as_bytes());
-        mac.update(self.holder_webid.to_string().as_bytes());
-        mac.update(self.attenuation_level.to_string().as_bytes());
-        mac.update(self.max_attenuation.to_string().as_bytes());
-        mac.update(self.expires.to_rfc3339().as_bytes());
+        let mut builder = hmac_ops::HmacBuilder::new(secret);
+        builder.update(self.id.as_bytes());
+        builder.update(self.goal_id.to_string().as_bytes());
+        builder.update(self.holder_webid.to_string().as_bytes());
+        builder.update(self.attenuation_level.to_string().as_bytes());
+        builder.update(self.max_attenuation.to_string().as_bytes());
+        builder.update(self.expires.to_rfc3339().as_bytes());
         // Bind the operation set. A length-delimited encoding prevents
         // adjacent operations from being merged or split ambiguously.
         for op in self.canonical_operations() {
-            mac.update((op.len() as u32).to_be_bytes().as_slice());
-            mac.update(op.as_bytes());
+            builder.update((op.len() as u32).to_be_bytes().as_slice());
+            builder.update(op.as_bytes());
         }
-        hex::encode(mac.finalize().into_bytes())
+        builder.finalize_hex()
     }
 
     /// Verify the signature using constant-time comparison to avoid leaking
     /// the expected HMAC byte-by-byte through timing.
     pub fn verify_signature(&self, secret: &[u8]) -> bool {
         let expected = self.compute_hmac(secret);
-        expected
-            .as_bytes()
-            .ct_eq(self.hmac_signature.as_bytes())
-            .into()
+        hmac_ops::verify_hmac_constant_time(expected.as_bytes(), self.hmac_signature.as_bytes())
     }
 
     pub fn is_expired(&self) -> bool {

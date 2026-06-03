@@ -117,32 +117,25 @@ pub struct RegistrationRequest {
 
 impl RegistrationRequest {
     pub fn validate(&self) -> Result<(), RegistrationError> {
-        if self.replicant_name.is_empty() {
-            return Err(RegistrationError::EmptyReplicantName);
-        }
-        if self.replicant_name.len() > 64 {
-            return Err(RegistrationError::ReplicantNameTooLong);
-        }
-        if !self
-            .replicant_name
-            .chars()
-            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+        if self.replicant_name.is_empty()
+            || self.replicant_name.len() > 64
+            || !self
+                .replicant_name
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
         {
             return Err(RegistrationError::InvalidReplicantName);
         }
-        if self.first_name.is_empty() {
-            return Err(RegistrationError::EmptyFirstName);
-        }
-        if self.last_name.is_empty() {
-            return Err(RegistrationError::EmptyLastName);
+        if self.first_name.is_empty() || self.last_name.is_empty() {
+            return Err(RegistrationError::EmptyName);
         }
         if self.email.is_empty() || !self.email.contains('@') {
-            return Err(RegistrationError::InvalidEmail);
+            return Err(RegistrationError::InvalidContact);
         }
         if let Some(phone) = &self.phone
             && !phone.starts_with('+')
         {
-            return Err(RegistrationError::InvalidPhone);
+            return Err(RegistrationError::InvalidContact);
         }
         Self::validate_passphrase(&self.passphrase)?;
         Ok(())
@@ -151,15 +144,15 @@ impl RegistrationRequest {
     /// Validate passphrase: alphanumeric only (upper + lowercase), min 8 chars
     pub fn validate_passphrase(passphrase: &str) -> Result<(), RegistrationError> {
         if passphrase.len() < 8 {
-            return Err(RegistrationError::PassphraseTooShort);
+            return Err(RegistrationError::InvalidPassphrase);
         }
         if !passphrase.chars().all(|c| c.is_alphanumeric()) {
-            return Err(RegistrationError::PassphraseInvalidChars);
+            return Err(RegistrationError::InvalidPassphrase);
         }
         let has_upper = passphrase.chars().any(|c| c.is_ascii_uppercase());
         let has_lower = passphrase.chars().any(|c| c.is_ascii_lowercase());
         if !has_upper || !has_lower {
-            return Err(RegistrationError::PassphraseCaseRequired);
+            return Err(RegistrationError::InvalidPassphrase);
         }
         Ok(())
     }
@@ -167,25 +160,19 @@ impl RegistrationRequest {
 
 #[derive(Debug, Clone, thiserror::Error)]
 /// Loop: Cybernetics
+///
+/// Variants are grouped by shared recovery path:
+/// - `InvalidReplicantName` — name must be 1–64 alphanumeric/hyphen/underscore chars
+/// - `EmptyName` — required name field is missing
+/// - `InvalidContact` — email or phone format is wrong
+/// - `InvalidPassphrase` — passphrase doesn't meet requirements
 pub enum RegistrationError {
-    #[error("Replicant name cannot be empty")]
-    EmptyReplicantName,
-    #[error("Replicant name too long (max 64 chars)")]
-    ReplicantNameTooLong,
-    #[error("Replicant name must be alphanumeric (a-z, 0-9, -, _)")]
+    #[error("Invalid replicant name: must be 1-64 chars, alphanumeric with hyphens/underscores")]
     InvalidReplicantName,
-    #[error("First name cannot be empty")]
-    EmptyFirstName,
-    #[error("Last name cannot be empty")]
-    EmptyLastName,
-    #[error("Invalid email address")]
-    InvalidEmail,
-    #[error("Phone number must be in E.164 format (e.g., +15551234567)")]
-    InvalidPhone,
-    #[error("Passphrase must be at least 8 characters")]
-    PassphraseTooShort,
-    #[error("Passphrase must contain only alphanumeric characters (a-z, A-Z, 0-9)")]
-    PassphraseInvalidChars,
-    #[error("Passphrase must contain both uppercase and lowercase letters")]
-    PassphraseCaseRequired,
+    #[error("Required name field is empty")]
+    EmptyName,
+    #[error("Invalid contact information format")]
+    InvalidContact,
+    #[error("Passphrase does not meet requirements: 8+ alphanumeric chars, mixed case")]
+    InvalidPassphrase,
 }

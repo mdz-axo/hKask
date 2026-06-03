@@ -37,6 +37,7 @@ pub const SYSTEM_MAX_RECURSION: u8 = 7;
 /// literal prevents accidental drift between attenuation, cascade, and subgoal bounds.
 pub const SYSTEM_MAX_ATTENUATION: u8 = SYSTEM_MAX_RECURSION;
 
+pub(crate) mod hmac_ops;
 mod verification;
 
 pub use verification::CapabilityChecker;
@@ -371,22 +372,19 @@ impl CapabilityToken {
 
     /// Sign the token payload using HMAC-SHA256.
     fn sign_payload(payload: &SigningPayload, secret: &[u8]) -> String {
-        use hmac::{Hmac, Mac};
-        type HmacSha256 = Hmac<Sha256>;
-
-        let mut mac = HmacSha256::new_from_slice(secret).expect("HMAC can take key of any size");
-        mac.update(payload.id.as_bytes());
-        mac.update(payload.resource.as_str().as_bytes());
-        mac.update(payload.resource_id.as_bytes());
-        mac.update(payload.action.as_str().as_bytes());
-        mac.update(to_string(&payload.from).as_bytes());
-        mac.update(to_string(&payload.to).as_bytes());
+        let mut builder = hmac_ops::HmacBuilder::new(secret);
+        builder.update(payload.id.as_bytes());
+        builder.update(payload.resource.as_str().as_bytes());
+        builder.update(payload.resource_id.as_bytes());
+        builder.update(payload.action.as_str().as_bytes());
+        builder.update(to_string(&payload.from).as_bytes());
+        builder.update(to_string(&payload.to).as_bytes());
         // Include caveats in signature for tamper-evidence
         for caveat in &payload.caveats {
-            mac.update(caveat.caveat_id.as_bytes());
-            mac.update(caveat.data.as_bytes());
+            builder.update(caveat.caveat_id.as_bytes());
+            builder.update(caveat.data.as_bytes());
         }
-        hex::encode(mac.finalize().into_bytes())
+        builder.finalize_hex()
     }
 
     /// Verify the token signature using constant-time comparison.
@@ -403,8 +401,7 @@ impl CapabilityToken {
         let expected = Self::sign_payload(&payload, secret);
 
         // Constant-time comparison to prevent timing attacks
-        use subtle::ConstantTimeEq;
-        expected.as_bytes().ct_eq(self.signature.as_bytes()).into()
+        hmac_ops::verify_hmac_constant_time(expected.as_bytes(), self.signature.as_bytes())
     }
 
     /// Check if token is expired
