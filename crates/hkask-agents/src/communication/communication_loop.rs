@@ -120,15 +120,6 @@ impl HkaskLoop for CommunicationLoop {
             };
 
             let target_id = match msg.target_loop {
-                Some(LoopId::External) => {
-                    tracing::debug!(
-                        target: "communication.loop",
-                        trace_id = %msg.trace_id,
-                        "Dropping message to External origin (no inbox)"
-                    );
-                    delivered += 1;
-                    continue;
-                }
                 Some(id) => id,
                 None => {
                     // Broadcast — no specific target; log and skip

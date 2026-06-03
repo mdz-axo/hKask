@@ -58,56 +58,31 @@ impl std::fmt::Display for CurationDecision {
     }
 }
 
-/// AuthorityLevel — OCAP authority classification
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum AuthorityLevel {
-    /// Explicit authority (OCAP-enforced)
-    Explicit,
-    /// Implicit authority (assumed, not verified)
-    Implicit,
-    /// Denied authority (explicitly revoked)
-    Denied,
-}
-
-impl std::fmt::Display for AuthorityLevel {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            AuthorityLevel::Explicit => write!(f, "explicit"),
-            AuthorityLevel::Implicit => write!(f, "implicit"),
-            AuthorityLevel::Denied => write!(f, "denied"),
-        }
-    }
-}
-
 /// OCAPBoundary — Capability boundary for curation decisions
 ///
 /// The Curator must master normative behavior to maintain the OCAP boundary.
 /// Within the OCAP boundary, The Curator creates non-normative potential.
+/// Authority is expressed via CapabilityToken — no token, no authority.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OCAPBoundary {
     /// The capability being bounded
     pub capability: String,
-    /// Authority level for this capability
-    pub authority: AuthorityLevel,
     /// Whether this boundary is enforced
     pub enforced: bool,
 }
 
 impl OCAPBoundary {
-    pub(crate) fn new(capability: String, authority: AuthorityLevel) -> Self {
+    pub fn explicit(capability: String) -> Self {
         Self {
             capability,
-            authority,
             enforced: true,
         }
     }
 
-    pub fn explicit(capability: String) -> Self {
-        Self::new(capability, AuthorityLevel::Explicit)
-    }
-
     pub fn denied(capability: String) -> Self {
-        Self::new(capability, AuthorityLevel::Denied)
+        Self {
+            capability,
+            enforced: false,
+        }
     }
 }

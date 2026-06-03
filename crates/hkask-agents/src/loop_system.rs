@@ -21,6 +21,18 @@ use tracing::info;
 /// Default tick interval for loop regulation cycles (1 second).
 const DEFAULT_TICK_INTERVAL: Duration = Duration::from_secs(1);
 
+/// Authority DAG tick order: meta-loops first, then domain loops.
+/// Curation (5) → Cybernetics (6) → Inference (1) → Episodic (2a) → Semantic (2b) → Communication (4)
+/// No sideways edges. Authority flows downward.
+const AUTHORITY_ORDER: [LoopId; 6] = [
+    LoopId::Curation,
+    LoopId::Cybernetics,
+    LoopId::Inference,
+    LoopId::Episodic,
+    LoopId::Semantic,
+    LoopId::Communication,
+];
+
 /// Loop System — manages the lifecycle and wiring of all 6 loops.
 ///
 /// Provides:
@@ -260,80 +272,15 @@ impl LoopSystem {
     /// This runs all loops synchronously in a single call, which is useful for:
     /// - Testing (deterministic order)
     /// - Single-threaded operation
-    /// - Debugging (sequential inspection)
+    /// Full regulation cycle: tick all registered loops in authority order.
     ///
-    /// Returns the total number of actions produced across all loops.
-    pub async fn tick(&self) -> usize {
-        // Authority order: Curation (5) → Cybernetics (6) → domain loops
-        let authority_order = [
-            LoopId::Curation,
-            LoopId::Cybernetics,
-            LoopId::Inference,
-            LoopId::Episodic,
-            LoopId::Semantic,
-            LoopId::Communication,
-        ];
-
-        // Forward any pending dispatch_rx messages into MessageDispatch
-        let pending: Vec<LoopMessage> = {
-            let mut rx_guard = self.dispatch_rx.lock().unwrap();
-            let mut msgs = Vec::new();
-            while let Ok(msg) = rx_guard.try_recv() {
-                msgs.push(msg);
-            }
-            msgs
-        };
-        for msg in pending {
-            self.dispatch.send(msg).await;
-        }
-
-        // Let the Communication Loop deliver any pending messages first
-        self.communication_loop.tick().await;
-
-        // Process inbox messages for each loop, then tick
-        let total_actions = 0;
-        for loop_id in &authority_order {
-            // Drain inbox messages for this loop
-            self.drain_inbox(*loop_id).await;
-
-            // Run the loop's regulation cycle
+    /// Authority DAG: Curation → Cybernetics → {Inference, Episodic, Semantic, Communication}
+    /// Meta-loops tick first so their regulatory actions take effect before domain loops sense.
+    pub async fn tick(&self) {
+        for loop_id in AUTHORITY_ORDER {
             let loops = self.loops.read().await;
-            if let Some(loop_instance) = loops.get(loop_id) {
+            if let Some(loop_instance) = loops.get(&loop_id) {
                 loop_instance.tick().await;
-                // Note: we can't easily count actions from tick() since it
-                // doesn't return a count. We rely on the tracing spans instead.
-            }
-        }
-
-        total_actions
-    }
-
-    /// Drain inbox messages for a specific loop and log them.
-    async fn drain_inbox(&self, loop_id: LoopId) {
-        let mut receivers = self.inbox_receivers.write().await;
-        if let Some(rx) = receivers.get_mut(&loop_id) {
-            let mut message_count = 0;
-            while let Ok(msg) = rx.try_recv() {
-                message_count += 1;
-                tracing::debug!(
-                    target: "loop_system",
-                    loop_id = %loop_id,
-                    trace_id = %msg.trace_id,
-                    origin = ?msg.origin,
-                    "Processing inbox message"
-                );
-                // The message has been delivered; the loop's sense() will
-                // pick up any state changes caused by the message payload.
-                // For now, log the delivery. Future work: make loops
-                // consume specific payload types in their sense() phase.
-            }
-            if message_count > 0 {
-                tracing::info!(
-                    target: "loop_system",
-                    loop_id = %loop_id,
-                    message_count = message_count,
-                    "Processed inbox messages"
-                );
             }
         }
     }
@@ -454,7 +401,7 @@ mod tests {
         let sender = system.dispatch_sender();
         // Verify we can send a message without error
         let msg = LoopMessage::critical(
-            hkask_types::loops::LoopId::External,
+            hkask_types::loops::LoopId::Cybernetics,
             hkask_types::loops::dispatch::LoopPayload::AlgedonicAlert {
                 current: 50,
                 threshold: 100,

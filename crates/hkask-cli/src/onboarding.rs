@@ -267,8 +267,6 @@ async fn register_replicant(
     let definition = AgentDefinition {
         name: name.to_string(),
         agent_kind: AgentKind::Replicant,
-        binding_contract: false,
-        editor: "onboarding".to_string(),
         charter: Some(hkask_types::Charter {
             description: description.to_string(),
             archetype: String::new(),
@@ -280,11 +278,8 @@ async fn register_replicant(
         ],
         rights: vec![],
         responsibilities: vec![],
-        reporting: None,
-        standing_session: None,
         persona: None,
         depends_on: vec![],
-        readiness_probe: None,
         process_manifest: None,
     };
 

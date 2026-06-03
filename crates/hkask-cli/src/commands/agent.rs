@@ -95,17 +95,12 @@ pub async fn agent_register(
     let definition = hkask_types::AgentDefinition {
         name: webid_str.to_string(),
         agent_kind,
-        binding_contract: false,
-        editor: "cli".to_string(),
         charter: None,
         capabilities: vec![],
         rights: vec![],
         responsibilities: vec![],
-        reporting: None,
-        standing_session: None,
         persona: None,
         depends_on: vec![],
-        readiness_probe: None,
         process_manifest: None,
     };
 

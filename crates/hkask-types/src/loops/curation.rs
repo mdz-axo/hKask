@@ -10,8 +10,10 @@
 //! - 5.1 Escalation Routing (ROUTE) — signal → classify → deliver to consumer
 //! - 5.2 Metacognitive Adaptation (ADAPT) — outcome → compare to desired → adjust parameter
 
+use crate::capability::tokens::ConsolidationToken;
 use crate::id::WebID;
 use crate::sovereignty::DataCategory;
+use crate::visibility::Visibility;
 
 // =============================================================================
 // CuratorHandle — Loop 5 capability handle
@@ -40,19 +42,25 @@ impl CuratorHandle {
         &self.curator_id
     }
 
-    /// The Curator can read everything EXCEPT private episodic memory.
+    /// Curator can read everything EXCEPT private episodic memory
     pub fn can_read(&self, category: &DataCategory) -> bool {
         !matches!(category, DataCategory::EpisodicMemory)
     }
 
-    /// The Curator can write to semantic memory, governance, and observability policy.
+    /// Curator can write to shared and public categories that it governs
     pub fn can_write(&self, category: &DataCategory) -> bool {
         matches!(
-            category,
-            DataCategory::SemanticMemory
-                | DataCategory::OcapBoundaries
-                | DataCategory::TemplateInvocations
-        )
+            category.default_visibility(),
+            Visibility::Shared | Visibility::Public
+        ) && !matches!(category, DataCategory::HLexiconTerms)
+    }
+
+    /// Issue a ConsolidationToken authorizing an Episodic → Semantic bridge traversal.
+    ///
+    /// The Curator is Cybernetics' governor, so it can delegate consolidation
+    /// authority. This token is required by `ConsolidationPort::consolidate()`.
+    pub fn issue_consolidation_token(&self) -> ConsolidationToken {
+        ConsolidationToken::new(self.curator_id)
     }
 }
 

@@ -11,6 +11,7 @@ pub mod dampener; // Loop 6 — regulation
 pub mod energy; // Loop 6 — thermodynamic resource allocation
 pub mod governed_inference; // Loop 6 → Loop 1 membrane
 pub mod inference_loop; // Loop 1 (lives in CNS for governance)
+pub mod kill_zone; // Loop 6 subloop 6.5 — kill-zone detection
 pub mod runtime; // Loop 6 — runtime
 pub mod unified_tracker; // Loop 6 — variety tracking
 pub mod variety; // Loop 6 subloop 6.3
@@ -32,3 +33,4 @@ pub use runtime::CnsRuntime;
 // Re-export types moved to hkask-types for backward compatibility
 pub use hkask_types::cns::{CircuitState, CnsHealth};
 pub use hkask_types::ports::{CircuitBreakerPort, CnsPort};
+pub use kill_zone::KillZoneDetector;

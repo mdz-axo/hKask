@@ -298,8 +298,10 @@ impl HkaskLoop for CurationLoop {
                             // Trigger consolidation if a consolidation port is available
                             // and there are escalations (episodic budget pressure → consolidate)
                             if let Some(consolidation) = &self.consolidation {
-                                let curator_id = self.metacognition.context().handle().curator_id();
-                                match consolidation.consolidate(curator_id, 100) {
+                                let handle = self.metacognition.context().handle();
+                                let token = handle.issue_consolidation_token();
+                                let curator_id = handle.curator_id();
+                                match consolidation.consolidate(&token, curator_id, 100) {
                                     Ok(outcome) if outcome.consolidated_count > 0 => {
                                         tracing::info!(
                                             target: "curation.loop",

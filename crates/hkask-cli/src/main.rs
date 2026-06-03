@@ -297,8 +297,6 @@ fn run_bot(rt: &tokio::runtime::Runtime, action: BotAction) {
             let def = &agent.definition;
             println!("Agent: {}", def.name);
             println!("  Kind: {}", def.agent_kind);
-            println!("  Editor: {}", def.editor);
-            println!("  Binding contract: {}", def.binding_contract);
             if let Some(charter) = &def.charter {
                 println!("  Charter: {}", charter.description);
                 println!("  Archetype: {}", charter.archetype);
@@ -326,12 +324,6 @@ fn run_bot(rt: &tokio::runtime::Runtime, action: BotAction) {
                 if !persona.forbidden.is_empty() {
                     println!("    Forbidden: {}", persona.forbidden.join(", "));
                 }
-            }
-            if let Some(probe) = &def.readiness_probe {
-                println!(
-                    "  Readiness probe: {} ({})",
-                    probe.endpoint, probe.probe_type
-                );
             }
             println!("  Registered: {}", agent.registered_at);
             println!("  Source: {}", agent.source_yaml);

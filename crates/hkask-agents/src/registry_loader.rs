@@ -5,7 +5,6 @@ use crate::ports::RegistrySourcePort;
 use hkask_storage::{AgentRegistryError, AgentRegistryStore};
 use hkask_types::{AgentDefinition, AgentKind, RegisteredAgent, WebID};
 use serde::Deserialize;
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use thiserror::Error;
@@ -33,10 +32,6 @@ struct YamlAgentHeader {
     name: String,
     #[serde(rename = "type")]
     agent_type: String,
-    #[serde(default)]
-    binding_contract: bool,
-    #[serde(default)]
-    editor: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -63,56 +58,6 @@ struct YamlPersona {
 }
 
 #[derive(Debug, Deserialize)]
-struct YamlReadinessProbe {
-    #[serde(rename = "type")]
-    probe_type: String,
-    endpoint: String,
-    #[serde(default)]
-    expected: HashMap<String, serde_json::Value>,
-    #[serde(default = "default_timeout")]
-    timeout_seconds: u64,
-    #[serde(default = "default_retry")]
-    retry_count: u32,
-}
-
-fn default_timeout() -> u64 {
-    15
-}
-fn default_retry() -> u32 {
-    3
-}
-
-#[derive(Debug, Deserialize)]
-struct YamlStandingSession {
-    session_id: String,
-    role: String,
-    #[serde(default)]
-    report_interval: String,
-    #[serde(default)]
-    administrator_visible: bool,
-}
-
-#[derive(Debug, Deserialize)]
-struct YamlReporting {
-    #[serde(default)]
-    escalate_to: Option<String>,
-    #[serde(default)]
-    report_to: Option<String>,
-    #[serde(default)]
-    report_format: Option<String>,
-    #[serde(default)]
-    alert_threshold: Option<String>,
-    #[serde(default)]
-    report_interval: Option<String>,
-    #[serde(default)]
-    report_on: Vec<String>,
-    #[serde(default)]
-    receives_from: Vec<String>,
-    #[serde(default)]
-    escalation_triggers: Vec<String>,
-}
-
-#[derive(Debug, Deserialize)]
 struct RawYamlAgent {
     #[serde(default)]
     agent: Option<YamlAgentHeader>,
@@ -127,15 +72,9 @@ struct RawYamlAgent {
     #[serde(default)]
     responsibilities: Vec<std::collections::HashMap<String, String>>,
     #[serde(default)]
-    reporting: Option<YamlReporting>,
-    #[serde(default)]
-    standing_session: Option<YamlStandingSession>,
-    #[serde(default)]
     persona: Option<YamlPersona>,
     #[serde(default)]
     depends_on: Vec<String>,
-    #[serde(default)]
-    readiness_probe: Option<YamlReadinessProbe>,
     #[serde(default)]
     process_manifest: Option<String>,
 }
@@ -250,8 +189,6 @@ impl RawYamlAgent {
         Ok(AgentDefinition {
             name: header.name.clone(),
             agent_kind,
-            binding_contract: header.binding_contract,
-            editor: header.editor.clone(),
             charter: self.charter.map(|c| hkask_types::Charter {
                 description: c.description,
                 archetype: c.archetype,
@@ -260,24 +197,6 @@ impl RawYamlAgent {
             capabilities: self.capabilities,
             rights: Self::convert_rights(self.rights),
             responsibilities: Self::convert_responsibilities(self.responsibilities),
-            reporting: self.reporting.map(|r| hkask_types::ReportingConfig {
-                escalate_to: r.escalate_to,
-                report_to: r.report_to,
-                report_format: r.report_format,
-                alert_threshold: r.alert_threshold,
-                report_interval: r.report_interval,
-                report_on: r.report_on,
-                receives_from: r.receives_from,
-                escalation_triggers: r.escalation_triggers,
-            }),
-            standing_session: self.standing_session.map(|s| {
-                hkask_types::AgentStandingSessionConfig {
-                    session_id: s.session_id,
-                    role: s.role,
-                    report_interval: s.report_interval,
-                    administrator_visible: s.administrator_visible,
-                }
-            }),
             persona: self.persona.map(|p| hkask_types::PersonaConstraints {
                 tone: p.tone,
                 verbosity: p.verbosity,
@@ -286,13 +205,6 @@ impl RawYamlAgent {
                 required: p.required,
             }),
             depends_on: self.depends_on,
-            readiness_probe: self.readiness_probe.map(|rp| hkask_types::ReadinessProbe {
-                probe_type: rp.probe_type,
-                endpoint: rp.endpoint,
-                expected: rp.expected,
-                timeout_seconds: rp.timeout_seconds,
-                retry_count: rp.retry_count,
-            }),
             process_manifest: self.process_manifest,
         })
     }

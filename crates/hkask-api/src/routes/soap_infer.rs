@@ -4,11 +4,11 @@ use axum::{Json, extract::State, http::StatusCode, routing::Router};
 
 use hkask_ensemble::ports::InferenceClient;
 
+use crate::soap_config::SoapInferenceConfig;
 use crate::{
     ApiState, SoapInferAuthRequest, SoapInferRequest, SoapInferResponse, ValidationErrorType,
     resolve_soap_capability_secret,
 };
-use hkask_types::SoapInferenceConfig;
 
 /// Create SOAP inference router
 pub fn soap_infer_router() -> Router<ApiState> {
@@ -48,7 +48,7 @@ async fn soap_infer(
     let start = Instant::now();
 
     // Validate request size (DoS prevention)
-    if let Err(_err) = validate_soap_request(&req.request, &config) {
+    if let Err(_err) = validate_soap_request(&req.request, &config.inference) {
         return Err(StatusCode::BAD_REQUEST);
     }
 
@@ -91,19 +91,19 @@ async fn soap_infer(
     let full_prompt = format!("{}\n\n{}", system_prompt, user_prompt);
 
     let infer_request = hkask_ensemble::ports::GenerateRequest {
-        model: config.model.clone(),
+        model: config.inference.model.clone(),
         prompt: full_prompt.clone(),
         options: Some(hkask_ensemble::ports::GenerateOptions {
             n_probs: None,
-            temperature: Some(config.temperature),
-            max_tokens: Some(config.max_tokens as i32),
+            temperature: Some(config.inference.temperature),
+            max_tokens: Some(config.inference.max_tokens as i32),
         }),
     };
 
     // Inference with timeout (resilience pattern)
     let response_text = if let Some(ref inferencer) = state.ensemble_inferencer {
         match timeout(
-            Duration::from_secs(config.timeout_secs),
+            Duration::from_secs(config.inference.timeout_secs),
             inferencer.generate(&infer_request),
         )
         .await
@@ -132,7 +132,7 @@ async fn soap_infer(
 
     Ok(Json(SoapInferResponse {
         response: response_text,
-        model: config.model,
+        model: config.inference.model,
         latency_ms,
         actions,
     }))
@@ -186,7 +186,7 @@ fn extract_actions(response: &str) -> Vec<String> {
 /// Validate SOAP request size and content (DoS prevention)
 pub fn validate_soap_request(
     req: &SoapInferRequest,
-    config: &SoapInferenceConfig,
+    config: &hkask_types::InferenceConfig,
 ) -> Result<(), ValidationErrorType> {
     // Check event count
     if req.objective.recent_events.len() > config.max_events {

@@ -35,15 +35,14 @@ pub mod text;
 pub mod visibility;
 
 pub use agent_def::{
-    AgentDefinition, AgentKind, AgentStandingSessionConfig, Charter, PersonaConstraints,
-    ReadinessProbe, RegisteredAgent, ReportingConfig, Responsibility, Right,
+    AgentDefinition, AgentKind, Charter, PersonaConstraints, RegisteredAgent, Responsibility, Right,
 };
 pub use audit::{AuditContext, AuditEntry, AuditLogPort, AuditOutcome};
 pub use capability::*;
 pub use cns::{CircuitState, CnsHealth, RetryConfig};
 pub use curation::{CurationDecision, OCAPBoundary};
 pub use error::{GitError, HkaskError, InfrastructureError, McpErrorKind};
-pub use event::{NuEvent, NuEventSink, Phase, Span, SpanCategory};
+pub use event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 pub use goal::*;
 pub use goal_capability::*;
 pub use id::*;
@@ -62,10 +61,10 @@ pub use ports::{
 };
 pub use r7::{R7BotIdentity, default_r7_bots};
 pub use secret::{SecretRef, derivation_contexts};
-pub use soap_config::SoapInferenceConfig;
+pub use soap_config::InferenceConfig;
 pub use sovereignty::{
-    DataCategory, SovereigntyCheckResult, SovereigntyId, SovereigntyOperation, SovereigntyPort,
-    UserSovereigntyState,
+    DataCategory, KillZoneConfig, SovereigntyCheckResult, SovereigntyId, SovereigntyOperation,
+    SovereigntyPort, UserSovereigntyState,
 };
 pub use template::{
     LLMParameters, TemplateCrate, TemplateFile, TemplateId, TemplateInvocation, TemplateOutcome,

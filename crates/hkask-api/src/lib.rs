@@ -60,6 +60,7 @@ use utoipa_axum::router::OpenApiRouter;
 pub mod middleware;
 pub mod openapi;
 pub mod routes;
+pub mod soap_config;
 
 // Re-export route types for OpenAPI schema generation
 pub use routes::{ModelEntry, ModelListResponse, ModelSearchQuery};

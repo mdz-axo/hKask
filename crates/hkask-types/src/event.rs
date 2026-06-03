@@ -74,206 +74,96 @@ impl NuEvent {
     }
 }
 
-/// CNS span category — unified from CnsSpan + SpanCategory
+/// Validated CNS span namespace.
 ///
-/// Each variant maps to a `cns.*.` namespace prefix used for observability.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum SpanCategory {
-    /// Tool governance, invocation (cns.tool.*)
-    Tool,
-    /// Prompt render, validate, outcome (cns.prompt.*)
-    Prompt,
-    /// Agent pod lifecycle, delegation (cns.agent_pod.*)
-    AgentPod,
-    /// External I/O: LLM, embeddings (cns.connector.*)
-    Connector,
-    /// Multi-stage processing flows (cns.pipeline.*)
-    Pipeline,
-    /// Energy cost tracking (cns.energy.*)
-    Energy,
-    /// Review queue events (cns.review.*)
-    Review,
-    /// Template invocation, registry (cns.template.*)
-    Template,
-    /// Curation decisions, OCAP boundaries (cns.curation.*)
-    Curation,
-    /// Variety monitoring, algedonic alerts (cns.variety.*)
-    Variety,
-    /// Kill zone detection (cns.killzone.*)
-    KillZone,
-    /// User sovereignty, acquisition resistance (cns.sovereignty.*)
-    Sovereignty,
-    /// Goal primitive (cns.goal.*)
-    Goal,
-    /// Specification operations (cns.spec.*)
-    Spec,
-}
+/// Constructed via `SpanNamespace::new()` which validates against
+/// the canonical set. The module path IS the loop assignment.
+/// Cannot be forged — construction requires a valid namespace string.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct SpanNamespace(String);
 
-impl SpanCategory {
-    /// Full namespace prefix for this category (e.g., "cns.tool")
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            SpanCategory::Tool => "cns.tool",
-            SpanCategory::Prompt => "cns.prompt",
-            SpanCategory::AgentPod => "cns.agent_pod",
-            SpanCategory::Connector => "cns.connector",
-            SpanCategory::Pipeline => "cns.pipeline",
-            SpanCategory::Energy => "cns.energy",
-            SpanCategory::Review => "cns.review",
-            SpanCategory::Template => "cns.template",
-            SpanCategory::Curation => "cns.curation",
-            SpanCategory::Variety => "cns.variety",
-            SpanCategory::KillZone => "cns.killzone",
-            SpanCategory::Sovereignty => "cns.sovereignty",
-            SpanCategory::Goal => "cns.goal",
-            SpanCategory::Spec => "cns.spec",
+/// Canonical CNS span namespaces — the only valid values.
+const CANONICAL_NAMESPACES: &[&str] = &[
+    "cns.tool",
+    "cns.prompt",
+    "cns.agent_pod",
+    "cns.connector",
+    "cns.pipeline",
+    "cns.energy",
+    "cns.review",
+    "cns.template",
+    "cns.curation",
+    "cns.variety",
+    "cns.killzone",
+    "cns.sovereignty",
+    "cns.goal",
+    "cns.spec",
+];
+
+impl SpanNamespace {
+    /// Create a validated span namespace. Panics if the namespace is not canonical.
+    /// Use `from_str` for fallible construction.
+    pub fn new(namespace: &str) -> Self {
+        assert!(
+            CANONICAL_NAMESPACES.contains(&namespace),
+            "Invalid CNS namespace: {namespace}"
+        );
+        Self(namespace.to_string())
+    }
+
+    /// Fallible construction — returns None for invalid namespaces.
+    /// Accepts both short ("tool") and full ("cns.tool") forms.
+    pub fn from_str(s: &str) -> Option<Self> {
+        let full = if s.starts_with("cns.") {
+            s.to_string()
+        } else {
+            format!("cns.{s}")
+        };
+        if CANONICAL_NAMESPACES.contains(&full.as_str()) {
+            Some(Self(full))
+        } else {
+            None
         }
     }
 
-    /// Parse a category from a namespace string (e.g., "cns.tool" or "tool")
-    pub fn parse_str(s: &str) -> Option<Self> {
-        match s {
-            "tool" | "cns.tool" => Some(SpanCategory::Tool),
-            "prompt" | "cns.prompt" => Some(SpanCategory::Prompt),
-            "agent_pod" | "cns.agent_pod" => Some(SpanCategory::AgentPod),
-            "connector" | "cns.connector" => Some(SpanCategory::Connector),
-            "pipeline" | "cns.pipeline" => Some(SpanCategory::Pipeline),
-            "energy" | "cns.energy" => Some(SpanCategory::Energy),
-            "review" | "cns.review" => Some(SpanCategory::Review),
-            "template" | "cns.template" => Some(SpanCategory::Template),
-            "curation" | "cns.curation" => Some(SpanCategory::Curation),
-            "variety" | "cns.variety" => Some(SpanCategory::Variety),
-            "killzone" | "cns.killzone" => Some(SpanCategory::KillZone),
-            "sovereignty" | "cns.sovereignty" => Some(SpanCategory::Sovereignty),
-            "goal" | "cns.goal" => Some(SpanCategory::Goal),
-            "spec" | "cns.spec" => Some(SpanCategory::Spec),
-            _ => None,
-        }
+    /// The namespace prefix (e.g., "cns.tool")
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// The short name after "cns." (e.g., "tool")
+    pub fn short_name(&self) -> &str {
+        &self.0[4..] // Skip "cns."
     }
 }
 
-impl std::fmt::Display for SpanCategory {
+impl std::fmt::Display for SpanNamespace {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_str())
+        write!(f, "{}", self.0)
     }
 }
 
-/// Unified CNS span — category + fully-qualified path
+/// Unified CNS span — namespace + fully-qualified path
 ///
-/// Collapsed from the former `CnsSpan` enum (category-only) and `Span` tagged
-/// enum (variant + path). The struct form is more explicit and avoids the
-/// redundant variant/tag duplication.
-///
-/// The `path` field stores the fully-qualified span path (e.g.,
-/// "cns.tool.invoked"). Convenience constructors add the `cns.*.` prefix
-/// automatically.
+/// Constructed via `Span::new()` with a validated namespace.
+/// The namespace is validated at construction time by `SpanNamespace`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Span {
-    /// Span category (maps to cns.* namespace)
-    pub category: SpanCategory,
+    /// The validated namespace (e.g., SpanNamespace::new("cns.tool"))
+    pub namespace: SpanNamespace,
     /// Fully-qualified span path (e.g., "cns.tool.invoked")
     pub path: String,
 }
 
 impl Span {
-    // -- Convenience constructors (add cns.* prefix automatically) --
-
-    pub fn prompt(path: &str) -> Self {
-        Span {
-            category: SpanCategory::Prompt,
-            path: format!("cns.prompt.{}", path),
-        }
-    }
-
-    pub fn tool(path: &str) -> Self {
-        Span {
-            category: SpanCategory::Tool,
-            path: format!("cns.tool.{}", path),
-        }
-    }
-
-    pub fn agent_pod(path: &str) -> Self {
-        Span {
-            category: SpanCategory::AgentPod,
-            path: format!("cns.agent_pod.{}", path),
-        }
-    }
-
-    pub fn connector(path: &str) -> Self {
-        Span {
-            category: SpanCategory::Connector,
-            path: format!("cns.connector.{}", path),
-        }
-    }
-
-    pub fn pipeline(path: &str) -> Self {
-        Span {
-            category: SpanCategory::Pipeline,
-            path: format!("cns.pipeline.{}", path),
-        }
-    }
-
-    pub fn energy(path: &str) -> Self {
-        Span {
-            category: SpanCategory::Energy,
-            path: format!("cns.energy.{}", path),
-        }
-    }
-
-    pub fn review(path: &str) -> Self {
-        Span {
-            category: SpanCategory::Review,
-            path: format!("cns.review.{}", path),
-        }
-    }
-
-    pub fn template(path: &str) -> Self {
-        Span {
-            category: SpanCategory::Template,
-            path: format!("cns.template.{}", path),
-        }
-    }
-
-    pub fn curation(path: &str) -> Self {
-        Span {
-            category: SpanCategory::Curation,
-            path: format!("cns.curation.{}", path),
-        }
-    }
-
-    pub fn variety(path: &str) -> Self {
-        Span {
-            category: SpanCategory::Variety,
-            path: format!("cns.variety.{}", path),
-        }
-    }
-
-    pub fn kill_zone(path: &str) -> Self {
-        Span {
-            category: SpanCategory::KillZone,
-            path: format!("cns.killzone.{}", path),
-        }
-    }
-
-    pub fn sovereignty(path: &str) -> Self {
-        Span {
-            category: SpanCategory::Sovereignty,
-            path: format!("cns.sovereignty.{}", path),
-        }
-    }
-
-    pub fn goal(path: &str) -> Self {
-        Span {
-            category: SpanCategory::Goal,
-            path: format!("cns.goal.{}", path),
-        }
-    }
-
-    pub fn spec(path: &str) -> Self {
-        Span {
-            category: SpanCategory::Spec,
-            path: format!("cns.spec.{}", path),
+    /// Create a new span with validated namespace.
+    ///
+    /// Example: `Span::new(SpanNamespace::new("cns.tool"), "invoked")`
+    pub fn new(namespace: SpanNamespace, path: &str) -> Self {
+        let full_path = format!("{}.{}", namespace.as_str(), path);
+        Self {
+            namespace,
+            path: full_path,
         }
     }
 
@@ -287,27 +177,31 @@ impl Span {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Phase {
-    Observe,
-    Regulate,
-    Outcome,
+    Sense,
+    Compare,
+    Compute,
+    Act,
 }
 
 impl Phase {
     pub fn as_str(&self) -> &'static str {
         match self {
-            Phase::Observe => "observe",
-            Phase::Regulate => "regulate",
-            Phase::Outcome => "outcome",
+            Phase::Sense => "sense",
+            Phase::Compare => "compare",
+            Phase::Compute => "compute",
+            Phase::Act => "act",
         }
     }
 
-    /// Parse a phase string into a Phase variant, defaulting to Observe
+    /// Parse a phase string into a Phase variant, with backward-compatible
+    /// mappings from the old names (observe→Sense, regulate→Compute, outcome→Act).
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s {
-            "regulate" => Phase::Regulate,
-            "outcome" => Phase::Outcome,
-            _ => Phase::Observe,
+            "compare" | "Compare" => Phase::Compare,
+            "compute" | "Compute" | "regulate" | "Regulate" => Phase::Compute,
+            "act" | "Act" | "outcome" | "Outcome" => Phase::Act,
+            _ => Phase::Sense,
         }
     }
 }

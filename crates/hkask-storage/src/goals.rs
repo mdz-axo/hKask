@@ -11,7 +11,7 @@
 
 use chrono::Utc;
 use hkask_types::InfrastructureError;
-use hkask_types::event::{NuEvent, NuEventSink, Phase, Span};
+use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 use hkask_types::goal::{Goal, GoalArtifact, GoalCriterion, GoalID, GoalState};
 use hkask_types::goal_capability::GoalCapabilityToken;
 use hkask_types::id::WebID;
@@ -89,8 +89,8 @@ impl SqliteGoalRepository {
         if let Some(sink) = &self.telemetry {
             let event = NuEvent::new(
                 *holder,
-                Span::tool("goal.capability.denied"),
-                Phase::Outcome,
+                Span::new(SpanNamespace::new("cns.tool"), "goal.capability.denied"),
+                Phase::Act,
                 json!({
                     "holder": holder.to_string(),
                     "attempted_op": op,

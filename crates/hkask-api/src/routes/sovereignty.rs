@@ -112,9 +112,9 @@ async fn sovereignty_status(
     Ok(Json(SovereigntyStatusResponse {
         explicit_consent: sovereignty_state.explicit_consent,
         sovereignty_compromised: sovereignty_state.is_compromised(),
-        kill_zone_active: sovereignty_state.detector.kill_zone_active,
-        vc_investment: sovereignty_state.detector.vc_investment,
-        threshold: sovereignty_state.detector.threshold,
+        kill_zone_active: sovereignty_state.kill_zone_config.kill_zone_active,
+        vc_investment: sovereignty_state.kill_zone_config.vc_investment,
+        threshold: sovereignty_state.kill_zone_config.threshold,
         acquisition_resistance: format!("{:?}", sovereignty_state.boundary.resistance),
         sovereign_data: sovereignty_state
             .boundary
@@ -258,10 +258,10 @@ async fn sovereignty_killzone(
     let state = UserSovereigntyState::new();
 
     Json(KillZoneResponse {
-        active: state.detector.kill_zone_active,
-        acquisition_attempt: state.detector.acquisition_attempt,
-        vc_investment: state.detector.vc_investment,
-        threshold: state.detector.threshold,
+        active: state.kill_zone_config.kill_zone_active,
+        acquisition_attempt: state.kill_zone_config.acquisition_attempt,
+        vc_investment: state.kill_zone_config.vc_investment,
+        threshold: state.kill_zone_config.threshold,
     })
 }
 

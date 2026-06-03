@@ -4,7 +4,6 @@
 //! These types define the full identity of an agent as specified in registry YAML.
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// Loop: Curation
 /// Access right granted to an agent (R9: Structured Data Modeling)
@@ -123,70 +122,11 @@ pub struct PersonaConstraints {
     pub required: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-/// Loop: Curation
-pub struct ReadinessProbe {
-    #[serde(rename = "type")]
-    pub probe_type: String,
-    pub endpoint: String,
-    #[serde(default)]
-    pub expected: HashMap<String, serde_json::Value>,
-    #[serde(default = "default_timeout")]
-    pub timeout_seconds: u64,
-    #[serde(default = "default_retry")]
-    pub retry_count: u32,
-}
-
-fn default_timeout() -> u64 {
-    15
-}
-
-fn default_retry() -> u32 {
-    3
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-/// Loop: Curation
-/// Per-agent standing session configuration (part of agent definition)
-pub struct AgentStandingSessionConfig {
-    pub session_id: String,
-    pub role: String,
-    #[serde(default)]
-    pub report_interval: String,
-    #[serde(default)]
-    pub administrator_visible: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-/// Loop: Curation
-pub struct ReportingConfig {
-    #[serde(default)]
-    pub escalate_to: Option<String>,
-    #[serde(default)]
-    pub report_to: Option<String>,
-    #[serde(default)]
-    pub report_format: Option<String>,
-    #[serde(default)]
-    pub alert_threshold: Option<String>,
-    #[serde(default)]
-    pub report_interval: Option<String>,
-    #[serde(default)]
-    pub report_on: Vec<String>,
-    #[serde(default)]
-    pub receives_from: Vec<String>,
-    #[serde(default)]
-    pub escalation_triggers: Vec<String>,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 /// Loop: Curation
 pub struct AgentDefinition {
     pub name: String,
     pub agent_kind: AgentKind,
-    #[serde(default)]
-    pub binding_contract: bool,
-    #[serde(default)]
-    pub editor: String,
     #[serde(default)]
     pub charter: Option<Charter>,
     pub capabilities: Vec<String>,
@@ -195,15 +135,9 @@ pub struct AgentDefinition {
     #[serde(default)]
     pub responsibilities: Vec<Responsibility>,
     #[serde(default)]
-    pub reporting: Option<ReportingConfig>,
-    #[serde(default)]
-    pub standing_session: Option<AgentStandingSessionConfig>,
-    #[serde(default)]
     pub persona: Option<PersonaConstraints>,
     #[serde(default)]
     pub depends_on: Vec<String>,
-    #[serde(default)]
-    pub readiness_probe: Option<ReadinessProbe>,
     #[serde(default)]
     pub process_manifest: Option<String>,
 }

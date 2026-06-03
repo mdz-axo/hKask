@@ -40,6 +40,9 @@ pub const SYSTEM_MAX_ATTENUATION: u8 = SYSTEM_MAX_RECURSION;
 pub(crate) mod hmac_ops;
 mod verification;
 
+pub mod tokens;
+pub use tokens::{ConsolidationToken, CurationToken, CyberneticsToken};
+
 pub use verification::CapabilityChecker;
 
 use crate::WebID;

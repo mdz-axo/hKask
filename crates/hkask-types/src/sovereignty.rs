@@ -5,6 +5,7 @@
 //! - Acquisition resistance mechanisms
 //! - Kill-zone detection for VC investment patterns
 
+use crate::visibility::Visibility;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
@@ -68,6 +69,28 @@ impl DataCategory {
 impl std::fmt::Display for DataCategory {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.as_str())
+    }
+}
+
+impl DataCategory {
+    /// Canonical visibility for this data category.
+    ///
+    /// This mapping is the single source of truth for which visibility
+    /// level applies to each data category. It encodes the 6-loop model's
+    /// public/private/shared distinction:
+    /// - Private: episodic memory, personal context, capability tokens, OCAP boundaries
+    /// - Shared: semantic memory, template invocations
+    /// - Public: hLexicon terms, template registry
+    pub fn default_visibility(&self) -> Visibility {
+        match self {
+            Self::EpisodicMemory
+            | Self::PersonalContext
+            | Self::CapabilityTokens
+            | Self::OcapBoundaries => Visibility::Private,
+            Self::SemanticMemory | Self::TemplateInvocations => Visibility::Shared,
+            Self::HLexiconTerms | Self::TemplateRegistry => Visibility::Public,
+            Self::Custom(_) => Visibility::Private, // conservative default
+        }
     }
 }
 
@@ -186,24 +209,24 @@ impl Default for DataSovereigntyBoundary {
     }
 }
 
-/// Kill zone detection — monitors for acquisition patterns
+/// Kill zone configuration — serializable data for kill-zone detection.
 ///
-/// Kill zone: VC investment < 0.5 after acquisition attempt
-/// This triggers CNS algedonic alert
+/// The detection logic lives in hkask-cns (Cybernetics subloop 6.5).
+/// This struct holds the configuration and state that CNS reads/writes.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct KillZoneDetector {
+pub struct KillZoneConfig {
     /// Current VC investment level (0.0 to 1.0)
     pub vc_investment: f32,
     /// Threshold for kill zone alert
     pub threshold: f32,
-    /// Whether kill zone is detected
+    /// Whether kill zone is currently detected
     pub kill_zone_active: bool,
-    /// Acquisition attempt detected
+    /// Whether an acquisition attempt has been detected
     pub acquisition_attempt: bool,
 }
 
-impl KillZoneDetector {
-    pub(crate) fn new() -> Self {
+impl Default for KillZoneConfig {
+    fn default() -> Self {
         Self {
             vc_investment: 1.0,
             threshold: 0.5,
@@ -211,41 +234,13 @@ impl KillZoneDetector {
             acquisition_attempt: false,
         }
     }
-
-    /// Update VC investment level and check for kill zone
-    pub(crate) fn update(&mut self, vc_investment: f32) {
-        self.vc_investment = vc_investment.clamp(0.0, 1.0);
-        self.check_kill_zone();
-    }
-
-    /// Check if kill zone is active
-    pub(crate) fn check_kill_zone(&mut self) {
-        self.kill_zone_active = self.acquisition_attempt && self.vc_investment < self.threshold;
-    }
-
-    /// Mark acquisition attempt detected
-    pub(crate) fn mark_acquisition_attempt(&mut self) {
-        self.acquisition_attempt = true;
-        self.check_kill_zone();
-    }
-
-    /// Check if kill zone alert should be triggered
-    pub(crate) fn needs_alert(&self) -> bool {
-        self.kill_zone_active
-    }
-}
-
-impl Default for KillZoneDetector {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 /// User sovereignty state — aggregate view of user's sovereignty
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserSovereigntyState {
     pub boundary: DataSovereigntyBoundary,
-    pub detector: KillZoneDetector,
+    pub kill_zone_config: KillZoneConfig,
     /// Whether user has explicitly consented to data sharing
     pub explicit_consent: bool,
     /// Timestamp of last sovereignty check
@@ -256,7 +251,7 @@ impl UserSovereigntyState {
     pub fn new() -> Self {
         Self {
             boundary: DataSovereigntyBoundary::hkask_default(),
-            detector: KillZoneDetector::new(),
+            kill_zone_config: KillZoneConfig::default(),
             explicit_consent: false,
             last_check: chrono::Utc::now(),
         }
@@ -264,19 +259,23 @@ impl UserSovereigntyState {
 
     /// Update sovereignty state with current VC investment
     pub fn update_vc_investment(&mut self, vc_investment: f32) {
-        self.detector.update(vc_investment);
+        self.kill_zone_config.vc_investment = vc_investment.clamp(0.0, 1.0);
+        self.kill_zone_config.kill_zone_active = self.kill_zone_config.acquisition_attempt
+            && self.kill_zone_config.vc_investment < self.kill_zone_config.threshold;
         self.last_check = chrono::Utc::now();
     }
 
     /// Mark acquisition attempt
     pub fn mark_acquisition_attempt(&mut self) {
-        self.detector.mark_acquisition_attempt();
+        self.kill_zone_config.acquisition_attempt = true;
+        self.kill_zone_config.kill_zone_active = self.kill_zone_config.acquisition_attempt
+            && self.kill_zone_config.vc_investment < self.kill_zone_config.threshold;
         self.last_check = chrono::Utc::now();
     }
 
     /// Check if sovereignty is compromised
     pub fn is_compromised(&self) -> bool {
-        self.detector.needs_alert()
+        self.kill_zone_config.kill_zone_active
     }
 
     /// Grant explicit consent for data sharing

@@ -36,9 +36,10 @@ pub struct CnsHealth {
     pub healthy: bool,
 }
 
-// CnsSpan has been collapsed into SpanCategory (in event.rs).
-// Use `SpanCategory` for category-only contexts and `Span` for
-// category + path contexts. The 14 variants are identical.
+// CnsSpan has been collapsed into SpanNamespace (in event.rs).
+// Use `SpanNamespace` for namespace validation and `Span` for
+// namespace + path contexts. The 14 canonical namespaces are in
+// CANONICAL_NAMESPACES.
 
 /// RetryConfig — Canonical retry configuration for all hKask subsystems
 ///

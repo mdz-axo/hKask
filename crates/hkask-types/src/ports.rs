@@ -300,6 +300,8 @@ pub trait StandingSessionPort: Send + Sync {
 // Consolidation Port — Episodic → Semantic bridge membrane
 // =============================================================================
 
+use crate::capability::tokens::ConsolidationToken;
+
 /// Result of a consolidation operation (mirrors ConsolidationResult from hkask-memory)
 #[derive(Debug, Clone)]
 pub struct ConsolidationOutcome {
@@ -312,15 +314,19 @@ pub struct ConsolidationOutcome {
 ///
 /// The ConsolidationBridge is a Curation-directed one-way operation:
 /// episodic triples are stripped of perspective and seeded into semantic
-/// memory. This port allows the Curation Loop to trigger consolidation
-/// without depending on the memory crate.
+/// memory. This port requires a ConsolidationToken proving that Cybernetics
+/// (or Curator as Cybernetics' governor) authorized the operation.
 ///
 /// Implementations:
 /// - `ConsolidationBridge` — Production implementation (in hkask-memory)
 pub trait ConsolidationPort: Send + Sync {
     /// Consolidate up to `limit` episodic triples for the given perspective.
+    ///
+    /// Requires a `ConsolidationToken` proving Cybernetics authority.
+    /// The one-way bridge cannot be traversed without this token.
     fn consolidate(
         &self,
+        token: &ConsolidationToken,
         perspective: &WebID,
         limit: usize,
     ) -> Result<ConsolidationOutcome, String>;

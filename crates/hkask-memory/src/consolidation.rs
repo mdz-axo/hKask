@@ -13,6 +13,7 @@ use crate::episodic::EpisodicMemory;
 use crate::semantic::SemanticMemory;
 use hkask_storage::Triple;
 use hkask_types::WebID;
+use hkask_types::capability::tokens::ConsolidationToken;
 use hkask_types::ports::{ConsolidationOutcome, ConsolidationPort};
 
 /// Consolidation Bridge — Episodic → Semantic
@@ -178,9 +179,11 @@ impl ConsolidationBridge {
 impl ConsolidationPort for ConsolidationBridge {
     fn consolidate(
         &self,
+        token: &ConsolidationToken,
         perspective: &WebID,
         limit: usize,
     ) -> Result<ConsolidationOutcome, String> {
+        let _token = token; // Capability gate: token proves Cybernetics authority
         let result = ConsolidationBridge::consolidate(self, *perspective, limit)
             .map_err(|e| e.to_string())?;
         Ok(ConsolidationOutcome {

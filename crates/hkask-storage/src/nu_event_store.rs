@@ -1,6 +1,6 @@
 //! NuEventStore — Persistent storage for CNS ν-events
 
-use hkask_types::event::{Span, SpanCategory};
+use hkask_types::event::Span;
 use hkask_types::{InfrastructureError, NuEvent, NuEventSink};
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
@@ -62,24 +62,8 @@ impl NuEventStore {
     }
 }
 
-fn span_to_columns(span: &Span) -> (&'static str, &str) {
-    let category_str = match span.category {
-        SpanCategory::Prompt => "prompt",
-        SpanCategory::Tool => "tool",
-        SpanCategory::AgentPod => "agent_pod",
-        SpanCategory::Connector => "connector",
-        SpanCategory::Pipeline => "pipeline",
-        SpanCategory::Energy => "energy",
-        SpanCategory::Review => "review",
-        SpanCategory::Template => "template",
-        SpanCategory::Curation => "curation",
-        SpanCategory::Variety => "variety",
-        SpanCategory::KillZone => "killzone",
-        SpanCategory::Sovereignty => "sovereignty",
-        SpanCategory::Goal => "goal",
-        SpanCategory::Spec => "spec",
-    };
-    (category_str, span.path.as_str())
+fn span_to_columns(span: &Span) -> (&str, &str) {
+    (span.namespace.short_name(), span.path.as_str())
 }
 
 impl NuEventSink for NuEventStore {
