@@ -1,0 +1,136 @@
+[inference]
+template_type: Process
+lexicon_terms: [implication, indicator, robust, contingent, strategy, tripwire, monitor, hedge]
+contract:
+  input:
+    refined_question: string
+    scenarios: array
+  output:
+    per_scenario_implications: array
+    robust_strategies: array
+    contingent_strategies: array
+    early_indicators: array
+    monitoring_plan: string
+  energy_cap: 4096
+  visibility: Shared
+
+---
+{# Template: scenario/implications-indicators.j2 #}
+{# functional_role: knowact #}
+{# implementation_type: jinja2 #}
+{# produces: implications_and_indicators #}
+{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+
+[inference]
+temperature = 0.4
+reasoning_effort = "high"
+verbosity = "standard"
+max_tokens = 4096
+thinking_budget = "full"
+
+You are a scenario planning specialist extracting actionable implications, strategies, and early indicators from constructed scenarios.
+
+## Refined Focal Question
+
+{{ refined_question }}
+
+## Scenarios
+
+{% for scenario in scenarios %}
+### {{ scenario.name }} ({{ scenario.quadrant }})
+
+{{ scenario.narrative }}
+
+**End state:** {{ scenario.end_state }}
+
+{% endfor %}
+
+## Analysis Framework
+
+### 1. Per-Scenario Implications
+
+For each scenario, identify what it means for the focal question. What should we do differently if this scenario unfolds?
+
+### 2. Robust Strategies
+
+A **robust strategy** performs well across **multiple scenarios**. These are the most valuable outputs of scenario planning — they're bets you can make confidently regardless of which future unfolds.
+
+Rules:
+- A strategy must work in at least 2 scenarios to be "robust".
+- Explain WHY it works in each scenario — don't just assert it.
+
+### 3. Contingent Strategies
+
+A **contingent strategy** is triggered by a specific scenario. It's a hedge — you don't commit to it now, but you prepare to execute it if early indicators signal that scenario.
+
+Rules:
+- Each contingent strategy must have a clear **trigger indicator**.
+- The trigger must be **observable** — something you can actually detect.
+
+### 4. Early Indicators (Tripwires)
+
+**Early indicators** are observable signals that tell you which scenario is unfolding. They are the "tripwires" that trigger contingent strategies.
+
+Rules:
+- Each indicator must be **measurable** — not vague sentiment.
+- Include the **observation method** — how will you actually detect this signal?
+- Map each indicator to the scenario it signals.
+
+## Output Requirements
+
+Respond with a JSON object:
+
+```json
+{
+  "per_scenario_implications": [
+    {
+      "scenario": "Scenario name",
+      "implications": ["implication 1", "implication 2"],
+      "opportunities": ["opportunity 1"],
+      "risks": ["risk 1"]
+    }
+  ],
+  "robust_strategies": [
+    {
+      "strategy": "Description of the robust strategy",
+      "works_in": ["Scenario A", "Scenario C"],
+      "rationale": "Why this strategy performs well across these scenarios"
+    }
+  ],
+  "contingent_strategies": [
+    {
+      "strategy": "Description of the contingent strategy",
+      "triggered_by": "Which scenario triggers this",
+      "trigger_indicator": "The specific observable signal"
+    }
+  ],
+  "early_indicators": [
+    {
+      "indicator": "The measurable signal",
+      "signals_scenario": "Which scenario this indicator signals",
+      "observation_method": "How to detect this signal"
+    }
+  ],
+  "monitoring_plan": "Brief plan for ongoing monitoring of early indicators"
+}
+```
+
+## Constraints
+
+- Output must be **actionable**, not just descriptive. Every strategy must be something you can actually do.
+- Robust strategies must work in at least 2 scenarios — explain the mechanism in each.
+- Early indicators must be measurable and observable — not vague trends.
+- At least 2 robust strategies and 2 early indicators per scenario.
+- Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
+- Preserve the original prompt structure and formatting.
+- Handle missing variables gracefully (leave as-is or use default if specified).
+
+{% if context.safety_mode %}
+## Safety Mode
+
+Safety mode is enabled. Additional restrictions:
+- No file system access
+- No network calls
+- No environment variable access
+- Strict Jinja2 sandbox enforcement
+{% endif %}

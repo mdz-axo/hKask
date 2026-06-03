@@ -156,6 +156,54 @@ steps:
             type: string }
         density_improvement:
           type: number
+        converged:
+          type: boolean
+
+  - ordinal: 3b
+    action: populate
+    description: >
+      Third density pass (conditional). Only runs if pass 2 has not
+      converged (density_improvement still above threshold). Takes the
+      pass-2 summary, identifies any remaining missing entities, and
+      performs final density optimization. Gao et al. (2024) typically
+      converges in 3-5 passes.
+    renderer: minijinja
+    template_ref: chain-of-density/density-pass
+    model_tier: reasoning_local
+    mcp: hkask-mcp-inference
+    energy_cap: 4000
+    timeout_seconds: 60
+    condition: "{{ ordinal_3.converged == false }}"
+    input_mapping:
+      source_text: "{{ source_text }}"
+      prior_summary: "{{ ordinal_3.summary }}"
+      missing_entities: "{{ ordinal_3.missing_entities }}"
+      target_length: "{{ target_length | default(80) }}"
+      pass_number: 3
+    output_schema:
+      type: object
+      properties:
+        summary:
+          type: string
+        entities:
+          type: array
+          items:
+            type: object
+            properties:
+              entity: { type: string }
+              included: { type: boolean }
+        word_count:
+          type: integer
+        entity_density:
+          type: number
+        missing_entities:
+          type: array
+          items:
+            type: string }
+        density_improvement:
+          type: number
+        converged:
+          type: boolean
 
   - ordinal: 4
     action: validate
@@ -163,6 +211,7 @@ steps:
       Check convergence: validate that density improvement has plateaued
       (improvement below threshold) and that the final summary meets quality
       criteria (entity coverage, length constraint, no hallucination).
+      Uses the best available summary (ordinal 3b if executed, otherwise ordinal 3).
     renderer: null
     template_ref: null
     model_tier: null
@@ -187,6 +236,14 @@ steps:
           type: number
         quality_score:
           type: number
+        convergence_curve:
+          type: array
+          items:
+            type: object
+            properties:
+              pass: { type: integer }
+              entity_density: { type: number }
+              density_improvement: { type: number }
         error_reason:
           type: string
 

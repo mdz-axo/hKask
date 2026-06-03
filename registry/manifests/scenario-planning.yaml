@@ -1,0 +1,313 @@
+# Scenario Planning Process Manifest
+# ℏKask v0.21.0 — Schwartz Method scenario planning
+# Template type: Process (FlowDef) — multi-step scenario construction pipeline
+
+manifest:
+  id: scenario-planning
+  name: Scenario Planning
+  description: >
+    Multi-stage scenario planning using the Schwartz Method. Refines a focal
+    question, enumerates key forces and macro driving forces, identifies
+    critical uncertainties, constructs a 2x2 scenario matrix with narratives,
+    and extracts robust strategies, contingent strategies, and early
+    indicators (tripwires) for each scenario.
+  functional_role: knowact
+  version: 0.21.0
+  editor: curator-or-human-admin
+  visibility: Shared
+
+# Energy Budget Configuration
+energy:
+  cap: 30000
+  cost_per_token: 0.25
+  alert_threshold: 0.8
+  hard_limit: true
+
+inputs:
+  - name: focal_question
+    type: string
+    description: "The strategic question to explore through scenarios"
+    required: true
+  - name: planning_horizon
+    type: string
+    description: "Planning horizon (e.g. '5 years', '10 years')"
+    required: false
+  - name: domain
+    type: string
+    description: "Domain context (e.g. energy, healthcare, technology, defense)"
+    required: false
+
+# Process Steps
+steps:
+  - ordinal: 1
+    action: populate
+    description: >
+      Refine the focal question. Ensure it is decision-relevant (tied to a
+      real choice), time-bounded, and scope-bounded. Bad: "Will X happen?"
+      Good: "What should we do about X given we don't know what will happen?"
+    renderer: minijinja
+    template_ref: scenario/focal-question
+    model_tier: fast_local
+    mcp: hkask-mcp-inference
+    energy_cap: 2000
+    timeout_seconds: 30
+    input_mapping:
+      focal_question: "{{ focal_question }}"
+      planning_horizon: "{{ planning_horizon | default('5 years') }}"
+      domain: "{{ domain | default('general') }}"
+    output_schema:
+      type: object
+      properties:
+        refined_question:
+          type: string
+        decision_relevance:
+          type: string
+        time_bound:
+          type: string
+        scope_boundaries:
+          type: object
+          properties:
+            in_scope: { type: array }
+            out_of_scope: { type: array }
+        current_state_summary:
+          type: string
+
+  - ordinal: 2
+    action: populate
+    description: >
+      Enumerate key forces in the microenvironment that directly affect the
+      focal question. Market demand, regulatory regime, technology maturity,
+      competitor behavior, resource availability. Cluster into themes and
+      assess each for impact and predictability.
+    renderer: minijinja
+    template_ref: scenario/key-forces
+    model_tier: reasoning_local
+    mcp: hkask-mcp-inference
+    energy_cap: 4000
+    timeout_seconds: 60
+    input_mapping:
+      refined_question: "{{ ordinal_1.refined_question }}"
+      planning_horizon: "{{ planning_horizon | default('5 years') }}"
+      domain: "{{ domain | default('general') }}"
+    output_schema:
+      type: object
+      properties:
+        key_forces:
+          type: array
+          items:
+            type: object
+            properties:
+              force: { type: string }
+              description: { type: string }
+              impact: { type: string }
+              predictability: { type: string }
+        clustered_themes:
+          type: array
+
+  - ordinal: 3
+    action: populate
+    description: >
+      Map macro driving forces across 5 STEEP domains (Society, Technology,
+      Economy, Environment, Politics). Plot on importance × uncertainty matrix.
+      Identify the two most critical uncertainties as scenario axes.
+    renderer: minijinja
+    template_ref: scenario/driving-forces
+    model_tier: reasoning_local
+    mcp: hkask-mcp-inference
+    energy_cap: 5000
+    timeout_seconds: 60
+    input_mapping:
+      refined_question: "{{ ordinal_1.refined_question }}"
+      key_forces: "{{ ordinal_2.key_forces }}"
+    output_schema:
+      type: object
+      properties:
+        driving_forces:
+          type: array
+          items:
+            type: object
+            properties:
+              force: { type: string }
+              domain: { type: string }
+              importance: { type: integer }
+              uncertainty: { type: integer }
+        importance_uncertainty_matrix:
+          type: object
+        critical_uncertainties:
+          type: array
+          items:
+            type: object
+            properties:
+              force: { type: string }
+              importance: { type: integer }
+              uncertainty: { type: integer }
+
+  - ordinal: 4
+    action: populate
+    description: >
+      Define the 2x2 scenario matrix from the two critical uncertainty axes.
+      Write detailed narratives (300+ words) for each of 4 quadrants. Each
+      scenario must be plausible, divergent, internally consistent, and at
+      least one must challenge current assumptions.
+    renderer: minijinja
+    template_ref: scenario/axes-and-narratives
+    model_tier: reasoning_local
+    mcp: hkask-mcp-inference
+    energy_cap: 8000
+    timeout_seconds: 120
+    input_mapping:
+      refined_question: "{{ ordinal_1.refined_question }}"
+      critical_uncertainties: "{{ ordinal_3.critical_uncertainties }}"
+      planning_horizon: "{{ planning_horizon | default('5 years') }}"
+    output_schema:
+      type: object
+      properties:
+        axis_1:
+          type: object
+          properties:
+            name: { type: string }
+            low_end: { type: string }
+            high_end: { type: string }
+        axis_2:
+          type: object
+          properties:
+            name: { type: string }
+            low_end: { type: string }
+            high_end: { type: string }
+        scenarios:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              quadrant: { type: string }
+              narrative: { type: string }
+              key_events: { type: array }
+              end_state: { type: string }
+        divergence_check:
+          type: object
+        challenges_current_assumptions:
+          type: boolean
+
+  - ordinal: 5
+    action: populate
+    description: >
+      Extract implications per scenario. Identify robust strategies (perform
+      across multiple scenarios), contingent strategies (triggered by
+      specific early indicators), and early indicators (tripwires) for each
+      scenario. Output must be actionable, not just descriptive.
+    renderer: minijinja
+    template_ref: scenario/implications-indicators
+    model_tier: reasoning_local
+    mcp: hkask-mcp-inference
+    energy_cap: 4000
+    timeout_seconds: 60
+    input_mapping:
+      refined_question: "{{ ordinal_1.refined_question }}"
+      scenarios: "{{ ordinal_4.scenarios }}"
+    output_schema:
+      type: object
+      properties:
+        per_scenario_implications:
+          type: array
+        robust_strategies:
+          type: array
+        contingent_strategies:
+          type: array
+        early_indicators:
+          type: array
+        monitoring_plan:
+          type: string
+
+  - ordinal: 6
+    action: feedback
+    description: >
+      Emit CNS feedback for variety monitoring and scenario planning
+      process tracking. Report scenarios generated, axes identified,
+      robust strategies found, and early indicators count.
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: hkask-mcp-cns
+    energy_cap: 500
+    timeout_seconds: 5
+    feedback:
+      variety_delta: integer
+      scenarios_generated: integer
+      axes_identified: integer
+      robust_strategies_found: integer
+      early_indicators_count: integer
+    output_schema:
+      type: object
+      properties:
+        variety_counter:
+          type: integer
+        cns_event_id:
+          type: string
+
+# Error Handling
+error_handling:
+  on_energy_exceeded: abort
+  on_timeout: retry
+  max_retries: 2
+  retry_backoff_seconds: 2
+  on_validation_failure: abort
+  on_capability_denied: escalate
+
+# OCAP Configuration
+ocap:
+  required_capabilities:
+    - resource: template
+      action: render
+      template_id: scenario/focal-question
+      energy_budget: 2000
+    - resource: template
+      action: render
+      template_id: scenario/key-forces
+      energy_budget: 4000
+    - resource: template
+      action: render
+      template_id: scenario/driving-forces
+      energy_budget: 5000
+    - resource: template
+      action: render
+      template_id: scenario/axes-and-narratives
+      energy_budget: 8000
+    - resource: template
+      action: render
+      template_id: scenario/implications-indicators
+      energy_budget: 4000
+    - resource: manifest
+      action: execute
+      template_id: scenario-planning
+      energy_budget: 500
+    - resource: cns
+      action: emit
+      template_id: scenario-planning
+      energy_budget: 500
+  delegation_chain_required: true
+  signature_algorithm: ed25519
+  capability_expiry_seconds: 3600
+  template_scoped: true
+
+# CNS Monitoring
+cns:
+  emit_spans: true
+  span_namespace: cns.prompt.scenario-planning
+  variety_monitoring: true
+  algedonic_threshold: 100
+  escalation_target: Curator
+  variety_counters:
+    - scenarios_generated
+    - axes_identified
+    - robust_strategies_found
+    - early_indicators_count
+
+# Audit Trail
+audit:
+  enabled: true
+  log_level: info
+  include_input: true
+  include_output: true
+  include_energy_cost: true
+  include_cns_events: true

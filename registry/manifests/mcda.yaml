@@ -1,0 +1,269 @@
+# MCDA Process Manifest
+# ℏKask v0.21.0 — A Minimal Viable Container for Agents
+# Multi-Criteria Decision Analysis — structured decision support pipeline
+
+manifest:
+  id: mcda
+  name: MCDA
+  description: >
+    Multi-Criteria Decision Analysis pipeline. Identifies decision criteria,
+    weights and scores alternatives, ranks choices with compensation masking
+    detection, and performs sensitivity analysis for robustness assessment.
+  functional_role: knowact
+  version: 0.21.0
+  editor: curator-or-human-admin
+  visibility: Shared
+
+energy:
+  cap: 20000
+  cost_per_token: 0.25
+  alert_threshold: 0.8
+  hard_limit: true
+
+inputs:
+  - name: decision_question
+    type: string
+    description: "The decision question to analyze"
+    required: true
+  - name: alternatives
+    type: array
+    description: "List of alternative choices to evaluate"
+    required: true
+  - name: criteria_hints
+    type: array
+    description: "Optional hints for criteria identification"
+    required: false
+  - name: weighting_method
+    type: string
+    description: "Weighting method to use (default: direct)"
+    required: false
+    default: "direct"
+
+steps:
+  - ordinal: 1
+    action: populate
+    description: >
+      Identify and classify decision criteria. Enumerate benefit and cost
+      criteria, check independence, and produce structured criteria list.
+    renderer: minijinja
+    template_ref: mcda/identify-criteria
+    model_tier: reasoning_local
+    mcp: hkask-mcp-inference
+    energy_cap: 4000
+    timeout_seconds: 45
+    input_mapping:
+      decision_question: "{{ decision_question }}"
+      alternatives: "{{ alternatives }}"
+      criteria_hints: "{{ criteria_hints | default([]) }}"
+    output_schema:
+      type: object
+      properties:
+        criteria:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              type: { type: string }
+              description: { type: string }
+              measurement_type: { type: string }
+        criteria_independence_check:
+          type: object
+        criteria_count:
+          type: integer
+
+  - ordinal: 2
+    action: populate
+    description: >
+      Assign weights to criteria and score each alternative on each criterion.
+      Normalize scores and compute composite scores using weighted sum model.
+    renderer: minijinja
+    template_ref: mcda/weight-and-score
+    model_tier: reasoning_local
+    mcp: hkask-mcp-inference
+    energy_cap: 5000
+    timeout_seconds: 60
+    input_mapping:
+      decision_question: "{{ decision_question }}"
+      alternatives: "{{ alternatives }}"
+      criteria: "{{ ordinal_1.criteria }}"
+      weighting_method: "{{ weighting_method | default('direct') }}"
+    output_schema:
+      type: object
+      properties:
+        weights:
+          type: array
+          items:
+            type: object
+            properties:
+              criterion: { type: string }
+              weight: { type: number }
+              rank: { type: integer }
+        normalized_scores:
+          type: array
+          items:
+            type: object
+            properties:
+              alternative: { type: string }
+              criterion: { type: string }
+              raw_score: { type: number }
+              normalized_score: { type: number }
+        composite_scores:
+          type: array
+          items:
+            type: object
+            properties:
+              alternative: { type: string }
+              composite_score: { type: number }
+              rank: { type: integer }
+
+  - ordinal: 3
+    action: populate
+    description: >
+      Rank alternatives by composite score. Identify top choice and check
+      for compensation masking where poor criterion performance is hidden
+      by good scores on other criteria.
+    renderer: minijinja
+    template_ref: mcda/rank-alternatives
+    model_tier: reasoning_local
+    mcp: hkask-mcp-inference
+    energy_cap: 3000
+    timeout_seconds: 45
+    input_mapping:
+      decision_question: "{{ decision_question }}"
+      composite_scores: "{{ ordinal_2.composite_scores }}"
+      normalized_scores: "{{ ordinal_2.normalized_scores }}"
+      criteria: "{{ ordinal_1.criteria }}"
+    output_schema:
+      type: object
+      properties:
+        ranking:
+          type: array
+          items:
+            type: object
+            properties:
+              rank: { type: integer }
+              alternative: { type: string }
+              composite_score: { type: number }
+              strength: { type: string }
+              weakness: { type: string }
+        top_choice:
+          type: object
+        compensation_warning:
+          type: object
+        recommendation:
+          type: string
+
+  - ordinal: 4
+    action: populate
+    description: >
+      Perform sensitivity analysis. Perturb each weight by ±10% and check
+      for rank reversals. Classify decision robustness.
+    renderer: minijinja
+    template_ref: mcda/sensitivity-analysis
+    model_tier: reasoning_local
+    mcp: hkask-mcp-inference
+    energy_cap: 4000
+    timeout_seconds: 60
+    input_mapping:
+      decision_question: "{{ decision_question }}"
+      ranking: "{{ ordinal_3.ranking }}"
+      weights: "{{ ordinal_2.weights }}"
+      normalized_scores: "{{ ordinal_2.normalized_scores }}"
+    output_schema:
+      type: object
+      properties:
+        perturbation_results:
+          type: array
+        rank_reversals:
+          type: array
+        decision_robustness:
+          type: string
+        critical_weights:
+          type: array
+        recommendation:
+          type: string
+
+  - ordinal: 5
+    action: feedback
+    description: >
+      Emit CNS feedback for variety monitoring and decision audit trail.
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: hkask-mcp-cns
+    energy_cap: 500
+    timeout_seconds: 5
+    feedback:
+      criteria_count: integer
+      alternatives_count: integer
+      rank_reversals_detected: integer
+      decision_robustness: string
+    output_schema:
+      type: object
+      properties:
+        variety_counter: { type: integer }
+        cns_event_id: { type: string }
+
+# Error Handling
+error_handling:
+  on_energy_exceeded: abort
+  on_timeout: retry
+  max_retries: 2
+  retry_backoff_seconds: 2
+  on_validation_failure: abort
+  on_capability_denied: escalate
+
+# OCAP Configuration
+ocap:
+  required_capabilities:
+    - resource: template
+      action: render
+      template_id: mcda/identify-criteria
+      energy_budget: 4000
+    - resource: template
+      action: render
+      template_id: mcda/weight-and-score
+      energy_budget: 5000
+    - resource: template
+      action: render
+      template_id: mcda/rank-alternatives
+      energy_budget: 3000
+    - resource: template
+      action: render
+      template_id: mcda/sensitivity-analysis
+      energy_budget: 4000
+    - resource: manifest
+      action: execute
+      template_id: mcda
+      energy_budget: 500
+    - resource: cns
+      action: emit
+      template_id: mcda
+      energy_budget: 500
+  delegation_chain_required: true
+  signature_algorithm: ed25519
+  capability_expiry_seconds: 3600
+  template_scoped: true
+
+# CNS Monitoring
+cns:
+  emit_spans: true
+  span_namespace: cns.prompt.mcda
+  variety_monitoring: true
+  algedonic_threshold: 100
+  escalation_target: Curator
+  variety_counters:
+    - criteria_count
+    - alternatives_count
+    - rank_reversals_detected
+    - decision_robustness
+
+# Audit Trail
+audit:
+  enabled: true
+  log_level: info
+  include_input: true
+  include_output: true
+  include_energy_cost: true
+  include_cns_events: true

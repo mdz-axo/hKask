@@ -1,0 +1,129 @@
+[inference]
+template_type: Process
+lexicon_terms: [evaluate, compare, predict, actual, outcome, bias, hindsight, calibrate]
+contract:
+  input:
+    decision_record: object
+    expected_outcomes: array
+    actual_outcomes: array
+  output:
+    outcome_comparisons: array
+    hindsight_bias_check: object
+    process_quality: object
+    overall_narrative: string
+  energy_cap: 4096
+  visibility: Shared
+
+---
+{# Template: decision-journal/revisit-evaluate.j2 #}
+{# Functional Role: KnowAct (knowledge-action — decision evaluation) #}
+{# Implementation: Jinja2 prompt #}
+{# Produces: outcome_comparisons, bias_check, process_evaluation #}
+{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+
+[inference]
+temperature = 0.2
+reasoning_effort = "high"
+verbosity = "standard"
+max_tokens = 4096
+thinking_budget = "full"
+
+You are evaluating a previously recorded decision by comparing predicted outcomes with actual results, following Kahneman's decision journal methodology.
+
+## Original Decision Record
+
+```json
+{{ decision_record | tojson }}
+```
+
+## Predicted Outcomes (from original journal entry)
+
+```json
+{{ expected_outcomes | tojson }}
+```
+
+{% if actual_outcomes %}
+## Actual Outcomes (provided)
+
+```json
+{{ actual_outcomes | tojson }}
+```
+{% else %}
+## Actual Outcomes
+
+No explicit actual outcomes were provided. Based on the decision record, time horizons, and your knowledge, assess what actually happened for each predicted outcome. If you cannot determine the actual outcome for a prediction, mark it as `indeterminable` and explain why.
+{% endif %}
+
+## Evaluation Protocol
+
+### Step 1: Hindsight Bias Check
+
+Before reviewing your original predictions, ask yourself: "What would I NOW predict that I predicted?" Write down your current recollection of each prediction. Then compare with the actual recorded predictions. The gap between what you think you predicted and what you actually predicted is the **hindsight bias magnitude**.
+
+### Step 2: Outcome Comparison
+
+For each predicted outcome, assess:
+- **Occurred (boolean):** Did this outcome actually happen?
+- **Actual result:** What was the actual outcome, specifically?
+- **Accuracy assessment:** How close was the prediction to reality?
+
+### Step 3: Process Quality Evaluation (separate from outcome quality)
+
+Evaluate the decision *process*, not just the outcome:
+- Was the reasoning sound given what was known **at the time**?
+- Were the right alternatives considered?
+- Were information gaps identified correctly?
+- Was the confidence level appropriate?
+
+**Critical distinction:** A good decision can have a bad outcome (luck), and a bad decision can have a good outcome (also luck). You must evaluate these independently.
+
+## Output Requirements
+
+Respond with a JSON object:
+
+```json
+{
+  "outcome_comparisons": [
+    {
+      "predicted_outcome": "The original prediction text",
+      "predicted_probability": 0.7,
+      "actual_result": "What actually happened",
+      "occurred": true,
+      "accuracy_assessment": "well_calibrated|overconfident|underconfident|indeterminable"
+    }
+  ],
+  "hindsight_bias_check": {
+    "pre_recall_predictions": [
+      "What you think now that you predicted for outcome 1",
+      "What you think now that you predicted for outcome 2"
+    ],
+    "recall_predictions_gap": 0.15
+  },
+  "process_quality": {
+    "reasoning_sound": true,
+    "alternatives_adequate": true,
+    "information_gaps_identified": true
+  },
+  "overall_narrative": "Brief narrative summary: what was decided, what happened, what was learned"
+}
+```
+
+## Constraints
+
+- Evaluate process quality independently from outcome quality — do not let a good outcome make you rate the reasoning higher.
+- If you cannot determine the actual outcome, mark it as `indeterminable` rather than guessing.
+- The hindsight bias check is critical — do not skip it. The gap between recall and record is the key diagnostic.
+- Be honest about overconfidence or underconfidence — calibration requires accurate self-assessment.
+- Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
+- Preserve the original prompt structure and formatting.
+- Handle missing variables gracefully (leave as-is or use default if specified).
+
+{% if context.safety_mode %}
+## Safety Mode
+
+Safety mode is enabled. Additional restrictions:
+- No file system access
+- No network calls
+- No environment variable access
+- Strict Jinja2 sandbox enforcement
+{% endif %}

@@ -7,10 +7,11 @@ manifest:
   name: Adversarial Red-Team
   description: >
     Process manifest for testing agent outputs against adversarial inputs.
-    Selects a target output, generates adversarial perturbations, tests
-    against the target, evaluates robustness of responses, and emits CNS
-    feedback for variety tracking. Implements systematic red-teaming with
-    adversarial taxonomy classification.
+    Selects a target output, generates adversarial perturbations (including
+    indirect injection and multi-turn attacks), tests against the target,
+    evaluates robustness of responses with behavioral classification, and
+    emits CNS feedback for variety tracking. Implements systematic
+    red-teaming with ATLAS/GARAK-aligned adversarial taxonomy.
   functional_role: knowact
   version: 0.21.0
   editor: curator-or-human-admin
@@ -18,7 +19,7 @@ manifest:
 
 # Energy Budget Configuration
 energy:
-  cap: 18000
+  cap: 22000
   cost_per_token: 0.25
   alert_threshold: 0.8
   hard_limit: true
@@ -58,7 +59,7 @@ steps:
     input_mapping:
       target_output: "{{ target_output }}"
       target_domain: "{{ target_domain | default('general') }}"
-      adversarial_categories: "{{ adversarial_categories | default(['prompt_injection', 'goal_hijacking', 'context_manipulation', 'authority_override', 'information_extraction']) }}"
+      adversarial_categories: "{{ adversarial_categories | default(['prompt_injection', 'goal_hijacking', 'context_manipulation', 'authority_override', 'information_extraction', 'tool_misuse', 'data_exfiltration']) }}"
       intensity: "{{ intensity | default('moderate') }}"
     output_schema:
       type: object
@@ -191,6 +192,40 @@ steps:
           type: string
 
   - ordinal: 5
+    action: populate
+    description: >
+      Generate multi-turn adversarial attack scripts. These test whether the
+      agent can be progressively compromised through sustained interaction
+      (context drainage, goal gradualism, authority escalation, tool chaining).
+    renderer: minijinja
+    template_ref: adversarial-red-team/multi-turn-attack
+    model_tier: reasoning_local
+    mcp: hkask-mcp-inference
+    energy_cap: 4000
+    timeout_seconds: 60
+    input_mapping:
+      target_output: "{{ ordinal_1.selected_target }}"
+      domain: "{{ ordinal_1.domain }}"
+      vulnerability_surface: "{{ ordinal_1.vulnerability_surface }}"
+      intensity_level: "{{ ordinal_1.intensity_level }}"
+      attack_categories: "{{ ordinal_1.categories_to_test }}"
+    output_schema:
+      type: object
+      properties:
+        multi_turn_scripts:
+          type: array
+          items:
+            type: object
+            properties:
+              category: { type: string }
+              strategy: { type: string }
+              turns: { type: array }
+              objective: { type: string }
+              severity: { type: string }
+        total_turns:
+          type: integer
+
+  - ordinal: 6
     action: feedback
     description: >
       Emit CNS feedback for variety monitoring and adversarial resilience tracking.
@@ -243,6 +278,10 @@ ocap:
       action: execute
       template_id: adversarial-red-team
       energy_budget: 500
+    - resource: template
+      action: render
+      template_id: adversarial-red-team/multi-turn-attack
+      energy_budget: 4000
     - resource: cns
       action: emit
       template_id: adversarial-red-team
@@ -263,6 +302,9 @@ cns:
     - adversarial_categories_tested
     - resistance_score
     - critical_failures
+    - tool_misuse_probes
+    - indirect_injection_probes
+    - multi_turn_scripts_generated
 
 # Audit Trail
 audit:

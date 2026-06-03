@@ -81,10 +81,46 @@ steps:
   - ordinal: 2
     action: populate
     description: >
-      Map identified entities to the target schema. Transform raw entity
-      inventory into structured JSON conforming to the schema. Resolve
-      conflicts, normalize values, and infer missing fields from context
-      where possible.
+      Identify relations between extracted entities. For each pair of entities
+      that have a meaningful relationship in the source text, extract a
+      relation triple (subject-predicate-object). Produces structured triples
+      compatible with hkask-memory semantic storage format.
+    renderer: minijinja
+    template_ref: structured-extraction/extract-relations
+    model_tier: reasoning_local
+    mcp: hkask-mcp-inference
+    energy_cap: 4000
+    timeout_seconds: 60
+    input_mapping:
+      source_text: "{{ source_text }}"
+      entities: "{{ ordinal_1.entities }}"
+    output_schema:
+      type: object
+      properties:
+        relations:
+          type: array
+          items:
+            type: object
+            properties:
+              subject: { type: string }
+              predicate: { type: string }
+              object: { type: string }
+              confidence: { type: number }
+              source_evidence: { type: string }
+        relation_count:
+          type: integer
+        orphan_entities:
+          type: array
+          items:
+            type: string
+
+  - ordinal: 3
+    action: populate
+    description: >
+      Map identified entities and relations to the target schema. Transform raw
+      entity inventory and relation triples into structured JSON conforming to
+      the schema. Resolve conflicts, normalize values, and infer missing fields
+      from context and relations where possible.
     renderer: minijinja
     template_ref: structured-extraction/map-to-schema
     model_tier: reasoning_local
@@ -95,6 +131,7 @@ steps:
       source_text: "{{ source_text }}"
       target_schema: "{{ target_schema }}"
       entities: "{{ ordinal_1.entities }}"
+      relations: "{{ ordinal_2.relations }}"
       unmapped_text: "{{ ordinal_1.unmapped_text }}"
     output_schema:
       type: object
@@ -121,7 +158,7 @@ steps:
           items:
             type: string
 
-  - ordinal: 3
+  - ordinal: 4
     action: validate
     description: >
       Validate that the extracted data conforms to the target schema. Check
@@ -156,7 +193,7 @@ steps:
         error_reason:
           type: string
 
-  - ordinal: 4
+  - ordinal: 5
     action: feedback
     description: >
       Emit CNS feedback for variety monitoring and extraction quality tracking.
@@ -194,6 +231,10 @@ ocap:
     - resource: template
       action: render
       template_id: structured-extraction/identify-entities
+      energy_budget: 4000
+    - resource: template
+      action: render
+      template_id: structured-extraction/extract-relations
       energy_budget: 4000
     - resource: template
       action: render

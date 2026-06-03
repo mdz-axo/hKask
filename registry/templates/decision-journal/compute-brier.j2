@@ -1,0 +1,110 @@
+[inference]
+template_type: Process
+lexicon_terms: [score, brier, calibrate, probability, outcome, accuracy, aggregate]
+contract:
+  input:
+    outcome_comparisons: array
+  output:
+    brier_scores: array
+    mean_brier_score: number
+    calibration_data: array
+    overconfidence_detected: boolean
+    underconfidence_detected: boolean
+  energy_cap: 2048
+  visibility: Shared
+
+---
+{# Template: decision-journal/compute-brier.j2 #}
+{# Functional Role: KnowAct (knowledge-action — Brier score computation) #}
+{# Implementation: Jinja2 prompt #}
+{# Produces: brier_scores, calibration_data #}
+{# ℏKask v0.21.0 — A Minimal Viable Container for Agents #}
+
+[inference]
+temperature = 0.1
+reasoning_effort = "high"
+verbosity = "terse"
+max_tokens = 2048
+thinking_budget = "minimal"
+
+You are computing Brier scores for decision journal calibration, following the Good Judgment Project methodology (Tetlock, 2015).
+
+## Outcome Comparisons
+
+```json
+{{ outcome_comparisons | tojson }}
+```
+
+## Brier Score Formula
+
+For each predicted outcome:
+- **Brier = (predicted_probability - outcome_binary)²**
+- Where outcome_binary = 1 if the outcome occurred, 0 if it did not
+- Lower Brier = better prediction accuracy
+- Brier = 0 means perfect prediction
+- Brier = 0.25 means random coin flip (no predictive skill)
+
+## Interpretation Benchmarks
+
+| Mean Brier | Interpretation |
+|------------|---------------|
+| 0.00–0.10 | Excellent — near-perfect calibration |
+| 0.10–0.15 | Good — superforecaster range |
+| 0.15–0.20 | Fair — better than uninformed |
+| 0.20–0.25 | Poor — barely better than random |
+| > 0.25     | Worse than random — systematically miscalibrated |
+
+## Bias Detection
+
+- **Overconfidence:** Predicted probabilities are too extreme (too far from 0.5). Predictions at 90% are correct less than 90% of the time.
+- **Underconfidence:** Predicted probabilities are too moderate (too close to 0.5). Predictions at 60% are correct more than 60% of the time.
+
+## Output Requirements
+
+Respond with a JSON object:
+
+```json
+{
+  "brier_scores": [
+    {
+      "outcome": "The predicted outcome text",
+      "predicted_probability": 0.7,
+      "occurred": true,
+      "brier_score": 0.09
+    }
+  ],
+  "mean_brier_score": 0.12,
+  "calibration_data": [
+    {
+      "predicted_probability": 0.7,
+      "observed_frequency": 0.65
+    }
+  ],
+  "overconfidence_detected": false,
+  "underconfidence_detected": false
+}
+```
+
+Where:
+- `calibration_data` maps each distinct predicted probability to the fraction of times outcomes at that probability level actually occurred.
+- `overconfidence_detected` is true if mean predicted probability for outcomes that occurred is significantly different from the observed rate.
+- `underconfidence_detected` is true if predicted probabilities cluster too close to 0.5.
+
+## Constraints
+
+- Compute Brier scores exactly using the formula — do not approximate.
+- Skip any outcomes marked as `indeterminable`.
+- If fewer than 3 outcomes are available, report mean_brier_score but note it is not statistically significant.
+- Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
+- Preserve the original prompt structure and formatting.
+- Handle missing variables gracefully (leave as-is or use default if specified).
+
+{% if context.safety_mode %}
+## Safety Mode
+
+Safety mode is enabled. Additional restrictions:
+- No file system access
+- No network calls
+- No environment variable access
+- Strict Jinja2 sandbox enforcement
+{% endif %}

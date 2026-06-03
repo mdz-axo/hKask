@@ -1,0 +1,240 @@
+# Decision Journal Revisit Process Manifest
+# ℏKask v0.21.0 — Revisit and calibrate a previously recorded decision
+# Template type: Process (KnowAct) — deferred evaluation with Brier scoring
+# Invoked when a revisit date has passed (by Curator or manual trigger)
+
+manifest:
+  id: decision-journal-revisit
+  name: Decision Journal Revisit
+  description: >
+    Process manifest for revisiting a previously recorded decision. Recalls
+    the original decision record and expected outcomes from episodic memory,
+    compares predicted vs. actual outcomes, computes Brier scores for
+    calibration, and emits CNS feedback with calibration data. Implements
+    the decision journal revisit practice from Kahneman/Tetlock calibration
+    methodology. Should be invoked by the Curator when revisit dates pass.
+  functional_role: knowact
+  version: 0.21.0
+  editor: curator-or-human-admin
+  visibility: Shared
+
+# Energy Budget Configuration
+energy:
+  cap: 10000
+  cost_per_token: 0.25
+  alert_threshold: 0.8
+  hard_limit: true
+
+inputs:
+  - name: decision_id
+    type: string
+    description: "ID of the previously recorded decision to revisit"
+    required: true
+  - name: actual_outcomes
+    type: array
+    description: "Observed outcomes to compare against predictions"
+    required: false
+
+# Process Steps
+steps:
+  - ordinal: 1
+    action: execute
+    description: >
+      Recall the original decision record and expected outcomes from
+      episodic memory. Retrieve the decision statement, reasoning,
+      predicted probabilities, and time horizons.
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: hkask-mcp-memory
+    energy_cap: 1000
+    timeout_seconds: 10
+    output_schema:
+      type: object
+      properties:
+        decision_record:
+          type: object
+        expected_outcomes:
+          type: array
+          items:
+            type: object
+            properties:
+              outcome: { type: string }
+              probability: { type: number }
+              confidence: { type: string }
+              time_horizon: { type: string }
+              measurable_indicator: { type: string }
+        revisit_date:
+          type: string
+        decision_id:
+          type: string
+        recall_succeeded:
+          type: boolean
+
+  - ordinal: 2
+    action: populate
+    description: >
+      Evaluate the decision by comparing predicted outcomes with actual
+      outcomes. For each predicted outcome, determine whether it occurred
+      and how the actual result compares to the prediction. Perform a
+      hindsight bias check before reviewing original predictions.
+    renderer: minijinja
+    template_ref: decision-journal/revisit-evaluate
+    model_tier: reasoning_local
+    mcp: hkask-mcp-inference
+    energy_cap: 4000
+    timeout_seconds: 60
+    input_mapping:
+      decision_record: "{{ ordinal_1.decision_record }}"
+      expected_outcomes: "{{ ordinal_1.expected_outcomes }}"
+      actual_outcomes: "{{ actual_outcomes | default([]) }}"
+    output_schema:
+      type: object
+      properties:
+        outcome_comparisons:
+          type: array
+          items:
+            type: object
+            properties:
+              predicted_outcome: { type: string }
+              predicted_probability: { type: number }
+              actual_result: { type: string }
+              occurred: { type: boolean }
+              accuracy_assessment: { type: string }
+        hindsight_bias_check:
+          type: object
+          properties:
+            pre_recall_predictions: { type: array }
+            recall_predictions_gap: { type: number }
+        process_quality:
+          type: object
+          properties:
+            reasoning_sound: { type: boolean }
+            alternatives_adequate: { type: boolean }
+            information_gaps_identified: { type: boolean }
+        overall_narrative:
+          type: string
+
+  - ordinal: 3
+    action: populate
+    description: >
+      Compute Brier scores for each predicted outcome and produce
+      calibration data for CNS aggregation. The Brier score measures
+      prediction accuracy: Brier = (predicted_prob - outcome_binary)^2.
+      Lower is better; 0 = perfect; 0.25 = random coin flip.
+    renderer: minijinja
+    template_ref: decision-journal/compute-brier
+    model_tier: fast_local
+    mcp: hkask-mcp-inference
+    energy_cap: 2000
+    timeout_seconds: 30
+    input_mapping:
+      outcome_comparisons: "{{ ordinal_2.outcome_comparisons }}"
+    output_schema:
+      type: object
+      properties:
+        brier_scores:
+          type: array
+          items:
+            type: object
+            properties:
+              outcome: { type: string }
+              predicted_probability: { type: number }
+              occurred: { type: boolean }
+              brier_score: { type: number }
+        mean_brier_score:
+          type: number
+        calibration_data:
+          type: array
+          items:
+            type: object
+            properties:
+              predicted_probability: { type: number }
+              observed_frequency: { type: number }
+        overconfidence_detected:
+          type: boolean
+        underconfidence_detected:
+          type: boolean
+
+  - ordinal: 4
+    action: feedback
+    description: >
+      Emit CNS feedback with calibration data for aggregate tracking.
+      Report Brier scores, calibration points, and bias patterns.
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: hkask-mcp-cns
+    energy_cap: 500
+    timeout_seconds: 5
+    feedback:
+      variety_delta: integer
+      mean_brier_score: number
+      calibration_data: array
+      bias_patterns: array
+    output_schema:
+      type: object
+      properties:
+        variety_counter:
+          type: integer
+        cns_event_id:
+          type: string
+
+# Error Handling
+error_handling:
+  on_energy_exceeded: abort
+  on_timeout: retry
+  max_retries: 2
+  retry_backoff_seconds: 1
+  on_validation_failure: abort
+  on_recall_failure: abort
+
+# OCAP Configuration
+ocap:
+  required_capabilities:
+    - resource: template
+      action: render
+      template_id: decision-journal/revisit-evaluate
+      energy_budget: 4000
+    - resource: template
+      action: render
+      template_id: decision-journal/compute-brier
+      energy_budget: 2000
+    - resource: memory
+      action: recall
+      template_id: decision-journal-revisit
+      energy_budget: 1000
+    - resource: manifest
+      action: execute
+      template_id: decision-journal-revisit
+      energy_budget: 500
+    - resource: cns
+      action: emit
+      template_id: decision-journal-revisit
+      energy_budget: 500
+  delegation_chain_required: true
+  signature_algorithm: ed25519
+  capability_expiry_seconds: 3600
+  template_scoped: true
+
+# CNS Monitoring
+cns:
+  emit_spans: true
+  span_namespace: cns.prompt.decision-journal.revisit
+  variety_monitoring: true
+  algedonic_threshold: 100
+  escalation_target: Curator
+  variety_counters:
+    - mean_brier_score
+    - overconfidence_rate
+    - underconfidence_rate
+    - decisions_revisited
+
+# Audit Trail
+audit:
+  enabled: true
+  log_level: info
+  include_input: true
+  include_output: true
+  include_energy_cost: true
+  include_cns_events: true

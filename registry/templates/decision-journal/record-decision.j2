@@ -1,11 +1,12 @@
 [inference]
 template_type: Process
-lexicon_terms: [record, document, decision, context, reasoning, assumption, alternative]
+lexicon_terms: [record, document, decision, context, reasoning, assumption, alternative, disconfirm, premortem, bias]
 contract:
   input:
     decision: string
     context: string
     alternatives_considered: array
+    disconfirming_evidence: array
   output:
     decision_record: object
     recorded_at: string
@@ -70,16 +71,22 @@ For each alternative considered but not chosen:
 Identify at least 2-3 alternatives that could have been chosen and why they were not.
 {% endif %}
 
-### 5. Emotional State
+### 5. Disconfirming Evidence (Pre-mortem)
+What would make this decision wrong? Explicitly consider:
+- What evidence would change your probability assignment?
+- What assumptions, if false, would undermine the decision?
+- What is the most likely way this decision fails?
+
+### 6. Emotional State
 Describe the emotional state surrounding this decision:
 - What emotions are present (confidence, anxiety, excitement, doubt)?
 - What biases might be operating (anchoring, confirmation, sunk cost)?
 - How might these be affecting the decision quality?
 
-### 6. Confidence Level
+### 7. Confidence Level
 Rate confidence: low / medium / high
 
-### 7. Decision Type
+### 8. Decision Type
 Classify: reversible / irreversible, low-stakes / high-stakes, routine / novel
 
 ## Output Requirements
@@ -92,6 +99,10 @@ Respond with a JSON object:
     "decision_statement": "Clear statement of the decision",
     "reasoning": "Detailed reasoning process",
     "assumptions": ["assumption 1", "assumption 2"],
+    "disconfirming_evidence": [
+      "What would make this decision wrong",
+      "What evidence would change the probability assignment"
+    ],
     "alternatives": [
       {
         "alternative": "description of alternative",

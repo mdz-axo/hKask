@@ -1,11 +1,12 @@
 [inference]
 template_type: Process
-lexicon_terms: [map, transform, schema, conform, resolve, normalize, infer]
+lexicon_terms: [map, transform, schema, conform, resolve, normalize, infer, relate, triple]
 contract:
   input:
     source_text: string
     target_schema: object
     entities: array
+    relations: array
     unmapped_text: array
   output:
     extracted_data: object
@@ -51,6 +52,18 @@ You are mapping identified entities to a target JSON Schema to produce structure
 {% for segment in unmapped_text %}
 - {{ segment }}
 {% endfor %}
+{% endif %}
+
+{% if relations %}
+## Identified Relations
+
+```json
+{{ relations | tojson }}
+```
+
+Use relations to help resolve ambiguous entity mappings. If two entities
+are related (e.g., "John" manages "Engineering"), the relation can clarify
+which schema field each entity populates.
 {% endif %}
 
 ## Schema Mapping Task

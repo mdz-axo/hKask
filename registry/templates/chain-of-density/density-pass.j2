@@ -15,6 +15,8 @@ contract:
     entity_density: number
     missing_entities: array
     density_improvement: number
+    entities_added_this_pass: array
+    converged: boolean
   energy_cap: 8192
   visibility: Shared
 
@@ -88,11 +90,16 @@ Respond with a JSON object:
   "word_count": 80,
   "entity_density": 0.35,
   "missing_entities": ["Any entities still not included"],
-  "density_improvement": 0.10
+  "entities_added_this_pass": ["Entity A", "Entity B"],
+  "density_improvement": 0.10,
+  "converged": false
 }
 ```
 
-Where `density_improvement` = current entity density - prior entity density.
+Where:
+- `density_improvement` = current entity density - prior entity density
+- `entities_added_this_pass` = list of entities that were added in this pass (from missing_entities)
+- `converged` = true if density_improvement < convergence_threshold (default 0.05) OR no missing entities remain
 
 ## Constraints
 
