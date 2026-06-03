@@ -4,6 +4,8 @@
 //! enforcement. Budget regulation is now owned by this loop (Cybernetics
 //! concern), not by domain code in `EpisodicMemory`.
 
+use std::sync::Arc;
+
 use crate::episodic::EpisodicMemory;
 use hkask_types::WebID;
 use hkask_types::loops::{
@@ -21,7 +23,7 @@ use hkask_types::loops::{
 /// within budget. This replaces `EpisodicMemory::check_budget()` as the
 /// authority for budget enforcement.
 pub struct EpisodicLoop {
-    memory: EpisodicMemory,
+    memory: Arc<EpisodicMemory>,
     perspective: WebID,
     storage_budget: usize,
 }
@@ -31,7 +33,7 @@ impl EpisodicLoop {
     ///
     /// The `perspective` identifies which agent's episodic storage to monitor.
     /// The `storage_budget` is the set-point for the regulation signal.
-    pub fn new(memory: EpisodicMemory, perspective: WebID, storage_budget: usize) -> Self {
+    pub fn new(memory: Arc<EpisodicMemory>, perspective: WebID, storage_budget: usize) -> Self {
         Self {
             memory,
             perspective,

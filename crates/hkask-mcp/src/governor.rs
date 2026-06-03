@@ -1,39 +1,35 @@
 //! MCP governance — Cybernetics loop concerns
 //!
-//! OCP capability verification, token lifecycle, and bot capability registry.
+//! OCP capability verification, token lifecycle, and revocation.
 //! These are Cybernetics (meta) concerns: governing who can invoke what.
 //!
 //! Split from `McpDispatcher` to enforce the authority DAG:
 //! Cybernetics governs Communication. The governor holds the capability
-//! registry; the dispatcher holds the transport runtime.
+//! checker and revoked token set; the dispatcher holds the transport runtime.
 
 use hkask_types::{
-    AgentDelegation, DelegationAction, CapabilityChecker, DelegationResource, DelegationToken,
-    WebID,
+    CapabilityChecker, DelegationAction, DelegationResource, DelegationToken, WebID,
 };
+use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::warn;
 
 /// Cybernetics governor for MCP capability governance.
 ///
-/// Owns the capability checker, bot capabilities registry, and revoked
-/// token set. All governance decisions flow through this struct.
+/// Owns the capability checker and revoked token set.
+/// All governance decisions flow through this struct.
 pub(crate) struct McpGovernor {
     /// Capability checker for OCP
     capability_checker: Arc<CapabilityChecker>,
-    /// Bot capabilities registry
-    bot_capabilities: Arc<RwLock<std::collections::HashMap<WebID, AgentDelegation>>>,
     /// Revoked token IDs
-    revoked_tokens: Arc<RwLock<std::collections::HashSet<String>>>,
+    revoked_tokens: Arc<RwLock<HashSet<String>>>,
 }
 
 impl McpGovernor {
     pub fn new(secret: &[u8]) -> Self {
         Self {
             capability_checker: Arc::new(CapabilityChecker::new(secret)),
-            bot_capabilities: Arc::new(RwLock::new(std::collections::HashMap::new())),
-            revoked_tokens: Arc::new(RwLock::new(std::collections::HashSet::new())),
+            revoked_tokens: Arc::new(RwLock::new(HashSet::new())),
         }
     }
 
@@ -60,16 +56,6 @@ impl McpGovernor {
             tool_name,
             DelegationAction::Execute,
         )
-    }
-
-    /// Check if a bot has a string-based capability (legacy fallback)
-    pub async fn check_bot_capability(&self, bot_id: &WebID, tool_name: &str) -> bool {
-        let capabilities = self.bot_capabilities.read().await;
-        if let Some(caps) = capabilities.get(bot_id) {
-            caps.has_capability(tool_name)
-        } else {
-            false
-        }
     }
 
     /// Full governance check for a tool invocation with a capability token.
@@ -103,24 +89,5 @@ impl McpGovernor {
         }
 
         Ok(())
-    }
-
-    /// Legacy authorization check (no token, bot-capabilities string match).
-    pub async fn authorize_legacy(&self, bot_id: &WebID, tool_name: &str) -> Result<(), String> {
-        warn!(
-            target: "hkask.ocap",
-            bot_id = ?bot_id,
-            tool_name = %tool_name,
-            "No capability token provided; falling back to bot-capabilities check"
-        );
-
-        if self.check_bot_capability(bot_id, tool_name).await {
-            Ok(())
-        } else {
-            Err(format!(
-                "Bot {:?} lacks capability for tool: {}",
-                bot_id, tool_name
-            ))
-        }
     }
 }

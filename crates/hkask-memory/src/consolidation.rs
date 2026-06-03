@@ -9,6 +9,8 @@
 //! This is a ONE-WAY operation: Episodic → Semantic. No reverse flow.
 //! Authority: Curation directs, Cybernetics regulates (budget enforcement).
 
+use std::sync::Arc;
+
 use crate::episodic::EpisodicMemory;
 use crate::semantic::SemanticMemory;
 use hkask_storage::Triple;
@@ -22,8 +24,8 @@ use hkask_types::ports::{ConsolidationOutcome, ConsolidationPort};
 /// when a `CuratorDirective::AdjustEnergyBudget` or equivalent consolidation
 /// trigger fires.
 pub struct ConsolidationBridge {
-    episodic: EpisodicMemory,
-    semantic: SemanticMemory,
+    episodic: Arc<EpisodicMemory>,
+    semantic: Arc<SemanticMemory>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -42,7 +44,7 @@ pub struct ConsolidationResult {
 }
 
 impl ConsolidationBridge {
-    pub fn new(episodic: EpisodicMemory, semantic: SemanticMemory) -> Self {
+    pub fn new(episodic: Arc<EpisodicMemory>, semantic: Arc<SemanticMemory>) -> Self {
         Self { episodic, semantic }
     }
 

@@ -87,12 +87,7 @@ pub async fn register_mcp_server(
     name: String,
     tools: Vec<McpTool>,
 ) {
-    let server = McpServer {
-        id,
-        name,
-        tools,
-        connected: true,
-    };
+    let server = McpServer { id, name, tools };
 
     runtime.register_server(server).await;
 }

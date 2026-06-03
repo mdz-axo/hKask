@@ -119,9 +119,6 @@ pub enum ImprovError<E: std::error::Error + Send + Sync> {
     #[error("Inference error: {0}")]
     Inference(E),
 
-    #[error("Relevance parse error: {0}")]
-    RelevanceParse(String),
-
     #[error("Ensemble error: {0}")]
     Ensemble(#[from] EnsembleError),
 }

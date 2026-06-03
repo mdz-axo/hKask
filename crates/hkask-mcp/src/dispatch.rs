@@ -57,9 +57,9 @@ impl McpDispatcher {
 
     /// Invoke a tool with capability checking
     ///
-    /// When a `DelegationToken` is provided, governance is delegated
-    /// to the `McpGovernor`. When `None`, falls back to legacy
-    /// bot-capabilities string match.
+    /// Requires a `DelegationToken` for authorization. Returns an error
+    /// if no token is provided (legacy authorization removed in T16).
+    #[allow(unused_variables)]
     pub async fn invoke_async(
         &self,
         bot_id: &WebID,
@@ -74,10 +74,9 @@ impl McpDispatcher {
                 .await
                 .map_err(TemplateError::CapabilityDenied)?;
         } else {
-            self.governor
-                .authorize_legacy(bot_id, tool_name)
-                .await
-                .map_err(TemplateError::CapabilityDenied)?;
+            return Err(TemplateError::CapabilityDenied(
+                "No capability token provided; legacy authorization removed".to_string(),
+            ));
         }
 
         // Check if tool exists
@@ -99,13 +98,11 @@ impl McpDispatcher {
             .await
             .ok_or_else(|| TemplateError::Mcp(format!("Tool info not found: {}", tool_name)))?;
 
-        let result = self
-            .runtime
-            .call_tool(&tool_info.server_id, tool_name, input, token)
-            .await
-            .map_err(|e| TemplateError::Mcp(format!("Tool call failed: {}", e)))?;
-
-        Ok(result)
+        // Transport not yet implemented — see T16
+        Err(TemplateError::Mcp(format!(
+            "MCP transport not yet implemented for server '{}'",
+            tool_info.server_id
+        )))
     }
 }
 
@@ -118,7 +115,7 @@ impl McpPort for McpDispatcher {
     async fn invoke(
         &self,
         tool_name: &str,
-        input: Value,
+        _input: Value,
         token: &DelegationToken,
     ) -> Result<Value> {
         // Delegate governance to the governor
@@ -133,10 +130,11 @@ impl McpPort for McpDispatcher {
             .await
             .ok_or_else(|| TemplateError::Mcp(format!("Tool not found: {}", tool_name)))?;
 
-        self.runtime
-            .call_tool(&tool_info.server_id, tool_name, input, Some(token))
-            .await
-            .map_err(|e| TemplateError::Mcp(format!("Tool call failed: {}", e)))
+        // Transport not yet implemented — see T16
+        Err(TemplateError::Mcp(format!(
+            "MCP transport not yet implemented for server '{}'",
+            tool_info.server_id
+        )))
     }
 
     async fn get_tool_info(&self, tool_name: &str) -> Option<hkask_templates::ports::ToolInfo> {

@@ -40,30 +40,27 @@ fn write_or_print(content: &str, output: Option<&Path>, label: &str) {
 }
 
 fn open_user_store() -> std::sync::Arc<std::sync::Mutex<hkask_storage::user_store::UserStore>> {
-    let db_path = std::env::var("HKASK_DB_PATH").unwrap_or_else(|_| "hkask.db".to_string());
-    let conn = match rusqlite::Connection::open(&db_path) {
-        Ok(c) => c,
-        Err(e) => {
-            tracing::error!(
-                target: "hkask.cli",
-                "Failed to open database at '{}': {} — falling back to in-memory (data will NOT persist)",
-                db_path, e
-            );
-            tracing::warn!(
-                target: "hkask.cli",
-                "Using in-memory database — user data will be lost on restart. Set HKASK_DB_PATH to a writable file path."
-            );
-            rusqlite::Connection::open_in_memory().expect("in-memory connection always succeeds")
-        }
-    };
-    let store =
-        hkask_storage::user_store::UserStore::new(std::sync::Arc::new(std::sync::Mutex::new(conn)));
+    use hkask_cli::commands::config::{registry_db_path, resolve_db_passphrase};
+    use hkask_storage::Database;
+
+    let db_path = registry_db_path();
+    let passphrase = or_exit(resolve_db_passphrase(), "Failed to resolve DB passphrase");
+
+    let db = or_exit(
+        if db_path == ":memory:" {
+            Database::in_memory()
+        } else {
+            Database::open(&db_path, &passphrase)
+        },
+        "Failed to open user database",
+    );
+
+    let store = hkask_storage::user_store::UserStore::new(db.conn_arc());
     let store = std::sync::Arc::new(std::sync::Mutex::new(store));
-    store
-        .lock()
-        .expect("mutex lock")
-        .initialize_schema()
-        .expect("Failed to initialize user store schema");
+    or_exit(
+        store.lock().expect("mutex lock").initialize_schema(),
+        "Failed to initialize user store schema",
+    );
     store
 }
 
@@ -522,7 +519,9 @@ fn run_loops(rt: &tokio::runtime::Runtime, interval: u64) {
         CurationLoop, CuratorContext, EscalationQueue, LoopSystem, MessageDispatch,
     };
     use hkask_cns::{CnsRuntime, CyberneticsLoop};
-    use hkask_memory::{EpisodicLoop, EpisodicMemory, SemanticLoop, SemanticMemory};
+    use hkask_memory::{
+        ConsolidationBridge, EpisodicLoop, EpisodicMemory, SemanticLoop, SemanticMemory,
+    };
     use hkask_storage::{Database, EmbeddingStore, TripleStore};
     use hkask_types::WebID;
     use hkask_types::loops::curation::CuratorHandle;
@@ -550,17 +549,18 @@ fn run_loops(rt: &tokio::runtime::Runtime, interval: u64) {
     let db = Database::in_memory().expect("in-memory db");
     let conn = db.conn_arc();
     let triple_store = TripleStore::new(Arc::clone(&conn));
-    let episodic_memory = EpisodicMemory::new(triple_store);
+    let episodic_memory = Arc::new(EpisodicMemory::new(triple_store));
     let system_webid = WebID::new();
     let storage_budget = episodic_memory.storage_budget();
-    let episodic_loop = EpisodicLoop::new(episodic_memory, system_webid, storage_budget);
+    let episodic_loop =
+        EpisodicLoop::new(Arc::clone(&episodic_memory), system_webid, storage_budget);
     rt.block_on(loop_system.register_loop(Arc::new(episodic_loop)));
 
     // 6. Register Semantic Loop
     let triple_store2 = TripleStore::new(Arc::clone(&conn));
     let embedding_store = EmbeddingStore::new(conn);
-    let semantic_memory = SemanticMemory::new(triple_store2, embedding_store);
-    let semantic_loop = SemanticLoop::new(semantic_memory);
+    let semantic_memory = Arc::new(SemanticMemory::new(triple_store2, embedding_store));
+    let semantic_loop = SemanticLoop::new(Arc::clone(&semantic_memory));
     rt.block_on(loop_system.register_loop(Arc::new(semantic_loop)));
 
     // 7. Register Curation Loop
@@ -578,7 +578,11 @@ fn run_loops(rt: &tokio::runtime::Runtime, interval: u64) {
             Default::default(),
         ),
     );
-    let curation_loop = CurationLoop::new(metacognition);
+    let consolidation_bridge = Arc::new(ConsolidationBridge::new(
+        Arc::clone(&episodic_memory),
+        Arc::clone(&semantic_memory),
+    ));
+    let curation_loop = CurationLoop::with_consolidation(metacognition, consolidation_bridge);
     rt.block_on(loop_system.register_loop(Arc::new(curation_loop)));
 
     // 8. Start the loop system

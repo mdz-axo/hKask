@@ -1,9 +1,7 @@
 //! MCP runtime for hKask
 //!
 //! Manages MCP server connections, tool discovery, and lifecycle.
-//! Integrates with capability security and energy budget enforcement.
 
-use hkask_types::DelegationToken;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -47,8 +45,6 @@ pub struct McpServer {
     pub name: String,
     /// Tools provided by this server
     pub tools: Vec<McpTool>,
-    /// Connection status
-    pub connected: bool,
 }
 
 /// MCP runtime manager
@@ -69,7 +65,7 @@ impl McpRuntime {
     }
 
     /// Register an MCP server
-    pub async fn register_server(&self, mut server: McpServer) {
+    pub async fn register_server(&self, server: McpServer) {
         let mut servers = self.servers.write().await;
         let mut tool_registry = self.tool_registry.write().await;
 
@@ -85,9 +81,6 @@ impl McpRuntime {
         for tool in &server.tools {
             tool_registry.insert(tool.name.clone(), server.id.clone());
         }
-
-        // Mark as connected
-        server.connected = true;
 
         servers.insert(server.id.clone(), server);
     }
@@ -136,78 +129,10 @@ impl McpRuntime {
         tool_registry.contains_key(tool_name)
     }
 
-    /// Get server by ID
-    pub async fn get_server(&self, server_id: &str) -> Option<McpServer> {
-        let servers = self.servers.read().await;
-        servers.get(server_id).cloned()
-    }
-
     /// List all registered servers
     pub async fn list_servers(&self) -> Vec<McpServer> {
         let servers = self.servers.read().await;
         servers.values().cloned().collect()
-    }
-
-    /// Get tool count
-    pub async fn tool_count(&self) -> usize {
-        let tool_registry = self.tool_registry.read().await;
-        tool_registry.len()
-    }
-
-    /// Unregister a server
-    pub async fn unregister_server(&self, server_id: &str) {
-        let mut servers = self.servers.write().await;
-        let mut tool_registry = self.tool_registry.write().await;
-
-        if let Some(server) = servers.remove(server_id) {
-            // Remove tools from registry
-            for tool in &server.tools {
-                tool_registry.remove(&tool.name);
-            }
-
-            info!(
-                target: "hkask.mcp",
-                server_id = %server_id,
-                "Unregistered MCP server"
-            );
-        }
-    }
-
-    /// Call a tool by name with arguments
-    ///
-    /// Dispatches the tool call to the appropriate MCP server transport.
-    /// The optional `token` travels with the call for audit logging;
-    /// verification is the responsibility of the dispatch layer (`McpDispatcher`).
-    pub async fn call_tool(
-        &self,
-        server_id: &str,
-        tool_name: &str,
-        _arguments: serde_json::Value,
-        token: Option<&DelegationToken>,
-    ) -> Result<serde_json::Value, String> {
-        info!(
-            target: "hkask.mcp",
-            tool = tool_name,
-            token_id = token.map(|t| t.id.as_str()).unwrap_or("none"),
-            "Tool call dispatched"
-        );
-
-        // Check if tool exists
-        if !self.tool_exists(tool_name).await {
-            return Err(format!("Tool '{}' not found", tool_name));
-        }
-
-        // Get server and transport
-        let servers = self.servers.read().await;
-        let _server = servers
-            .get(server_id)
-            .ok_or_else(|| format!("Server '{}' not found", server_id))?;
-
-        // No transport available — tool dispatch is deferred
-        Err(format!(
-            "No transport available for server '{}'; tool dispatch not yet implemented",
-            server_id
-        ))
     }
 }
 

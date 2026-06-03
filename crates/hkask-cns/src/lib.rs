@@ -16,14 +16,11 @@ pub mod unified_tracker; // Loop 6 — variety tracking
 pub mod variety; // Loop 6 subloop 6.3
 
 pub use algedonic::{AlgedonicManager, DEFAULT_THRESHOLD, RuntimeAlert, cns_health_check};
-pub use allosteric::{
-    AllostericError, AllostericGate, AllostericGateConfig, BernoulliDistribution, mwc_sensitivity,
-    mwc_state_function,
-};
-pub use circuit_breaker::{CircuitBreaker, CircuitBreakerConfig};
-pub use cybernetics_loop::{CyberneticsLoop, SetPoints};
+pub use allosteric::{AllostericGate, AllostericGateConfig, mwc_sensitivity, mwc_state_function};
+pub use circuit_breaker::CircuitBreaker;
+pub use cybernetics_loop::CyberneticsLoop;
 pub use dampener::Dampener;
-pub use energy::{EnergyBudget, EnergyError};
+pub use energy::EnergyBudget;
 pub use governed_inference::GovernedInference;
 
 pub use runtime::CnsRuntime;

@@ -44,7 +44,9 @@ use hkask_agents::loop_system::LoopSystem;
 use hkask_agents::pod::PodManager;
 use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_cns::{CnsRuntime, CyberneticsLoop};
-use hkask_memory::{EpisodicLoop, EpisodicMemory, SemanticLoop, SemanticMemory};
+use hkask_memory::{
+    ConsolidationBridge, EpisodicLoop, EpisodicMemory, SemanticLoop, SemanticMemory,
+};
 use hkask_storage::{Database, EmbeddingStore, TripleStore};
 use hkask_templates::SqliteRegistry;
 use hkask_types::loops::curation::CuratorHandle;
@@ -155,9 +157,10 @@ fn build_loop_system(
     let db = Database::in_memory().expect("in-memory db");
     let conn = db.conn_arc();
     let triple_store = TripleStore::new(Arc::clone(&conn));
-    let episodic_memory = EpisodicMemory::new(triple_store);
+    let episodic_memory = Arc::new(EpisodicMemory::new(triple_store));
     let storage_budget = episodic_memory.storage_budget();
-    let episodic_loop = EpisodicLoop::new(episodic_memory, system_webid, storage_budget);
+    let episodic_loop =
+        EpisodicLoop::new(Arc::clone(&episodic_memory), system_webid, storage_budget);
     // API-facing episodic memory backed by the same connection
     let episodic_memory_api = Arc::new(EpisodicMemory::new(TripleStore::new(conn)));
     rt.block_on(async {
@@ -169,8 +172,8 @@ fn build_loop_system(
     let conn2 = db2.conn_arc();
     let triple_store2 = TripleStore::new(Arc::clone(&conn2));
     let embedding_store = EmbeddingStore::new(conn2);
-    let semantic_memory = SemanticMemory::new(triple_store2, embedding_store);
-    let semantic_loop = SemanticLoop::new(semantic_memory);
+    let semantic_memory = Arc::new(SemanticMemory::new(triple_store2, embedding_store));
+    let semantic_loop = SemanticLoop::new(Arc::clone(&semantic_memory));
     rt.block_on(async {
         loop_system.register_loop(Arc::new(semantic_loop)).await;
     });
@@ -184,7 +187,11 @@ fn build_loop_system(
         escalation_queue,
     ));
     let metacognition = Arc::new(MetacognitionLoop::new(curator_context, Default::default()));
-    let curation_loop = CurationLoop::new(metacognition);
+    let consolidation_bridge = Arc::new(ConsolidationBridge::new(
+        Arc::clone(&episodic_memory),
+        Arc::clone(&semantic_memory),
+    ));
+    let curation_loop = CurationLoop::with_consolidation(metacognition, consolidation_bridge);
     rt.block_on(async {
         loop_system.register_loop(Arc::new(curation_loop)).await;
     });

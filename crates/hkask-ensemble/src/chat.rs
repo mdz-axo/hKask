@@ -232,12 +232,6 @@ pub enum EnsembleError {
     #[error("Participant not found: {0}")]
     ParticipantNotFound(String),
 
-    #[error("Template dispatch failed: {0}")]
-    TemplateDispatchFailed(String),
-
-    #[error("Chat session error: {0}")]
-    ChatError(String),
-
     #[error("Capability denied: {0}")]
     CapabilityDenied(String),
 }

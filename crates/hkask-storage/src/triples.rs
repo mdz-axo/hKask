@@ -14,6 +14,8 @@ use thiserror::Error;
 pub enum TripleError {
     #[error(transparent)]
     Infra(#[from] InfrastructureError),
+    #[error("Triple not found")]
+    NotFound,
 }
 
 impl From<rusqlite::Error> for TripleError {
@@ -359,6 +361,59 @@ impl TripleStore {
             .next();
 
         Ok(result)
+    }
+
+    /// Query semantic triples (perspective IS NULL) with lowest confidence,
+    /// ordered by confidence ascending then valid_from ascending, limited to `limit`.
+    ///
+    /// Used by `SemanticMemory::lowest_confidence_triples()` for budget enforcement.
+    pub fn query_semantic_lowest_confidence(
+        &self,
+        limit: usize,
+    ) -> Result<Vec<Triple>, TripleError> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let mut stmt = conn.prepare(
+            "SELECT id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid
+             FROM triples
+             WHERE perspective IS NULL AND valid_to IS NULL
+             ORDER BY confidence ASC, valid_from ASC
+             LIMIT ?1",
+        )?;
+
+        let triples = stmt
+            .query_map(rusqlite::params![limit as i64], |row| {
+                let id_str: String = row.get(0)?;
+                let entity: String = row.get(1)?;
+                let attribute: String = row.get(2)?;
+                let value_str: String = row.get(3)?;
+                let valid_from_str: String = row.get(4)?;
+                let valid_to_str: Option<String> = row.get(5)?;
+                let confidence: f64 = row.get(6)?;
+                let perspective_str: Option<String> = row.get(7)?;
+                let visibility_str: String = row.get(8)?;
+                let owner_webid_str: String = row.get(9)?;
+
+                Ok(TripleRow {
+                    id: id_str,
+                    entity,
+                    attribute,
+                    value: value_str,
+                    valid_from: valid_from_str,
+                    valid_to: valid_to_str,
+                    confidence,
+                    perspective: perspective_str,
+                    visibility: visibility_str,
+                    owner_webid: owner_webid_str,
+                })
+            })?
+            .filter_map(|r| r.ok())
+            .filter_map(|row| Self::row_to_triple(row).ok())
+            .collect();
+
+        Ok(triples)
     }
 
     /// Count semantic triples (perspective IS NULL, valid_to IS NULL).

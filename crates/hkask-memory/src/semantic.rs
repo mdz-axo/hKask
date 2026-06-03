@@ -1,5 +1,6 @@
 //! Semantic memory pipeline
 
+use crate::bayesian;
 use crate::recall_dedup;
 use hkask_storage::{EmbeddingStore, Triple, TripleError, TripleStore};
 use hkask_types::Visibility;
@@ -9,6 +10,8 @@ use thiserror::Error;
 pub enum SemanticMemoryError {
     #[error("Triple error: {0}")]
     Triple(#[from] TripleError),
+    #[error("Triple not found for retraction: {entity}/{attribute}")]
+    TripleNotFound { entity: String, attribute: String },
 }
 
 /// Semantic memory — shared knowledge graph
@@ -93,5 +96,66 @@ impl SemanticMemory {
     pub fn triple_count_for_entity(&self, entity: &str) -> Result<usize, SemanticMemoryError> {
         let triples = self.triple_store.query_by_entity(entity)?;
         Ok(triples.len())
+    }
+
+    // ========================================================================
+    // Retraction (Loop 2b) — Cybernetics membrane operation
+    // ========================================================================
+
+    /// Retract a semantic triple by reducing its confidence (not deleting).
+    ///
+    /// Semantic triples are shared knowledge, so retraction reduces confidence
+    /// rather than removing entirely. Uses `bayesian::retract()` for the
+    /// confidence reduction.
+    ///
+    /// **Membrane-sealed:** Only callable from within this crate.
+    pub(crate) fn retract_triple(
+        &self,
+        entity: &str,
+        attribute: &str,
+        retraction_confidence: f64,
+    ) -> Result<f64, SemanticMemoryError> {
+        let triples = self
+            .triple_store
+            .query_by_entity_attribute(entity, attribute)?;
+        // Semantic triples have perspective = None
+        let triple = triples
+            .into_iter()
+            .find(|t| t.perspective.is_none())
+            .ok_or_else(|| SemanticMemoryError::TripleNotFound {
+                entity: entity.to_string(),
+                attribute: attribute.to_string(),
+            })?;
+
+        let retracted = bayesian::retract(triple.confidence, retraction_confidence);
+        tracing::info!(
+            target: "cns.semantic",
+            entity = %entity,
+            attribute = %attribute,
+            original_confidence = triple.confidence,
+            retracted_confidence = retracted,
+            "Semantic confidence retracted"
+        );
+        self.triple_store
+            .update(&triple.id, triple.value.clone(), retracted)?;
+
+        Ok(retracted)
+    }
+
+    // ========================================================================
+    // Budget enforcement (Loop 2b) — Cybernetics membrane operation
+    // ========================================================================
+
+    /// Identify the lowest-confidence semantic triples for budget enforcement.
+    ///
+    /// Returns up to `limit` triples with `perspective IS NULL`, ordered by
+    /// confidence ascending then `valid_from` ascending (oldest first).
+    ///
+    /// **Membrane-sealed:** Only callable from within this crate.
+    pub(crate) fn lowest_confidence_triples(
+        &self,
+        limit: usize,
+    ) -> Result<Vec<Triple>, SemanticMemoryError> {
+        Ok(self.triple_store.query_semantic_lowest_confidence(limit)?)
     }
 }
