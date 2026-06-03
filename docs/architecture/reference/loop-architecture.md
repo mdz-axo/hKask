@@ -1,8 +1,8 @@
 ---
 title: "Loop Architecture — Semantic Root-Cause Analysis & Six-Loop Decomposition"
 audience: [architects, developers, agents]
-last_updated: 2026-05-31
-version: "1.0.0"
+last_updated: 2026-06-03
+version: "2.3.0"
 status: "Active"
 domain: "Architecture"
 ddmvss_categories: [domain, capability, observability, curation]
@@ -176,7 +176,7 @@ The existing `cns.*` span namespaces are not removed — they are **absorbed** i
 |---------------|----------------------|
 | `cns.tool.*` | Tool invocation governance — energy cost of tool calls |
 | `cns.prompt.*` | Prompt render/validation — energy cost of inference preparation |
-| `cns.inference.*` | LLM call budgets, token flows, model selection — Inference Loop concerns |
+| `cns.inference.*` | Inference governance — GovernedTool membrane, token budgets, model selection (deprecated: `GovernedInference`) |
 | `cns.agent_pod.*` | Pod lifecycle — energy cost of agent activation |
 | `cns.connector.*` | External I/O — energy cost of connector operations |
 | `cns.energy.*` | Direct energy budget tracking — the loop's core metric |
@@ -192,12 +192,14 @@ The Cybernetics Loop **owns** all `cns.*` spans. Other loops emit `NuEvent`s int
 
 ### 2.4 Algedonic Alert Pathway
 
-The algedonic alert is the **single escalation pathway** from the Cybernetics Loop to the Curation/Metacognition Loop:
+The algedonic alert is the **single escalation pathway** from the Cybernetics Loop to the Curation Loop:
 
 ```
 Cybernetics Loop (variety deficit > threshold)
   → AlgedonicManager creates RuntimeAlert
-  → signals Curation/Metacognition Loop
+  → NuEventStore persists algedonic event (phase=Act)
+  → Curation Loop reads algedonic events via cursor
+  → Curator Agent reviews via metacognition cycle
   → Curator assesses and intervenes (or escalates to human)
 ```
 
@@ -212,7 +214,9 @@ This pathway is **unidirectional**: Cybernetics signals Curation, but Curation d
 | Existing Component | Owning Loop | Minimal Interface Exposed |
 |--------------------|-------------|--------------------------|
 | `hkask-mcp` (dispatch) | Communication | `dispatch(tool, args) → Result<Output>` |
-| `hkask-agents` (pods, ACP) | Communication + Curation | `activate(pod_id)`, `delegate(cap, caveat)`, `register(agent_def)` |
+| `hkask-agents` (curator) | Curation (regulatory) | `CurationLoop`, `CurationConfidenceGate`, `CuratorContext` |
+| `hkask-agents` (curator_agent) | Curation (persona) | `CuratorAgent`, `MetacognitionLoop`, `HealthSnapshot`, `DefaultSpecCurator` |
+| `hkask-cns` (governed_tool) | Cybernetics → all tools | `GovernedTool`, `EnergyEstimator`, `InferenceEnergyEstimator` |
 | `hkask-memory` (semantic) | Semantic/Fact Memory | `query(embedding, k) → Vec<Fact>`, `store(fact) → FactID` |
 | `hkask-memory` (episodic) | Episodic Memory | `record(experience) → RecordID`, `retrieve(query, window) → Vec<Record>` |
 | `hkask-keystore` | Cybernetics (energy for cryptographic operations) | `derive_key(purpose) → KeyRef`, `sign(data) → Signature` |
@@ -290,13 +294,13 @@ The capability membrane for each loop defines four boundaries:
 | **Can signal** | Delivery confirmation to sender loop |
 | **Never reaches** | Energy accounts, variety counters, prompt validation, knowledge graph internals, capability tokens |
 
-#### Curation/Metacognition Loop
+#### Curation Loop (regulatory) + Curator Agent (persona)
 
 | Boundary | Scope |
 |----------|-------|
-| **Can read** | Curator persona state, prompt validation rules, reflective assessment state, goal registry |
-| **Can write** | Goal priority, prompt validation outcomes, metacognitive override decisions |
-| **Can signal** | Metacognitive override to any meta loop (including Cybernetics), goal revision to Communication Loop |
+| **Can read** | Curator persona state, NuEvent store (algedonic review), escalation queue |
+| **Can write** | Goal priority, metacognitive override decisions (`CuratorDirective`), energy budget overrides |
+| **Can signal** | Metacognitive override to Cybernetics Loop, goal revision to Communication Loop |
 | **Never reaches** | Token flow, embedding indices, SQLCipher encryption keys, energy account internals |
 
 #### Cybernetics Loop
@@ -325,7 +329,7 @@ graph TD
         EML[Episodic Memory Loop]
     end
 
-    CUL[Curation/Metacognition Loop]
+    CUL[Curation Loop]
     CYL[Cybernetics Loop]
     CL[Communication Loop - Shared Infrastructure]
 

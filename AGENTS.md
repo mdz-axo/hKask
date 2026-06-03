@@ -32,7 +32,7 @@
 | `hkask-memory` | Semantic/episodic pipelines |
 | `hkask-cns` | Cybernetic Nervous System (homeostatic self-regulation) |
 | `hkask-templates` | Registry, hLexicon, cascade |
-| `hkask-agents` | Pods, ACP, bot/replicant |
+| `hkask-agents` | Pods, ACP, bot/replicant, Curation Loop, Curator Agent |
 | `hkask-ensemble` | Multi-agent chat |
 | `hkask-keystore` | OS keychain, AES-256-GCM, master key derivation (HKDF-SHA256) |
 | `hkask-mcp` | MCP runtime, dispatch |
@@ -54,7 +54,7 @@ The CNS is the homeostatic self-regulation loop, combining observability + gover
 | `cns.tool.*` | Tool governance, invocation |
 | `cns.prompt.*` | Render, validate, outcome |
 | `cns.agent_pod.*` | Lifecycle, delegation |
-| `cns.connector.*` | External I/O (LLM, embeddings) |
+| `cns.inference` | Inference governance (GovernedTool, energy budget) |
 
 **Algedonic Alert:** Variety deficit >100 → escalation to Curator/human
 
@@ -112,7 +112,7 @@ echo "hello" | kask chat -f - -m qwen3:8b  # Non-interactive with model
 
 For deeper understanding of system behavior:
 
-1. `docs/architecture/hKask-architecture-master.md` — authoritative index (v0.21.0)
+1. `docs/architecture/hKask-architecture-master.md` — authoritative index (v0.22.0)
 2. `docs/architecture/reference/hKask-erd.md` — entity relationship diagrams
 3. `docs/architecture/reference/subsystem-erds.md` — per-crate ERDs grounded in Rust source
 4. `docs/architecture/interface-and-composition.md` — registry & templating design (§2-§6)
@@ -176,4 +176,4 @@ fi
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.21.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.22.0*
