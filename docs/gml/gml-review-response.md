@@ -174,7 +174,6 @@ hKask's existing capability infrastructure:
 - `hkask-types/src/capability/` — `CapabilityToken`, `CapabilityScope`, attenuation depth limit (7 levels per ADR-025)
 - `hkask-keystore/` — OS keychain, AES-256-GCM, HKDF-SHA256 master key derivation
 - `hkask-mcp-ocap/` — OCAP MCP server with create/verify/attenuate operations
-- `hkask-mcp-gml/src/capability.rs` — Ed25519-signed capability tokens with operation and scope restrictions
 
 **What's missing from the GML paper:**
 1. The capability lattice for GML operations (ReadOnly < Recognize < Bind < Inhibit < Activate < Homeostasis)
@@ -388,7 +387,7 @@ Rationale:
 - "Generalized" is dropped — the generalization is from proteins to systems, not from monads to concepts
 - "Monad" is dropped — the monad claim is unverified and the type signature is wrong
 
-The MCP server retains the name `hkask-mcp-gml` for backward compatibility. The internal crate/module naming will be updated in v0.2.0.
+The MCP server `hkask-mcp-gml` has been removed. ARL now lives in `hkask-cns` as the allosteric regulation kernel. Internal crate/module naming reflects this change.
 
 ---
 

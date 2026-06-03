@@ -7,6 +7,7 @@
 //! can't self-stabilize (e.g., alert cascade).
 
 use crate::curator::metacognition::MetacognitionLoop;
+use hkask_cns::allosteric::curation::{CurationConfidenceGate, CurationDecision};
 use hkask_types::loops::curation::CuratorDirective;
 use hkask_types::loops::{Deviation, HkaskLoop, LoopAction, LoopId, Signal};
 use hkask_types::ports::ConsolidationPort;
@@ -49,6 +50,46 @@ impl CurationLoop {
     /// (generate_summary, etc.).
     pub fn metacognition(&self) -> &Arc<MetacognitionLoop> {
         &self.metacognition
+    }
+
+    /// Evaluate curation confidence using the ARL confidence gate.
+    ///
+    /// If the gate is in the transition zone (0.3 < R̄ < 0.8), returns a
+    /// `CuratorDirective::SeekMoreEvidence` with the channel identified by
+    /// sensitivity analysis as the most impactful to verify.
+    ///
+    /// This is the IP-3 metacognitive bridge: CurationConfidenceGate produces
+    /// a `CurationDecision::SeekMoreEvidence`, which is translated into a
+    /// `CuratorDirective` and routed through Cybernetics to Inference.
+    pub fn evaluate_confidence(
+        &self,
+        gate: &mut CurationConfidenceGate,
+        context: &str,
+    ) -> Option<CuratorDirective> {
+        let dist = gate.decide();
+        let r_bar = gate.confidence();
+
+        // Collapse the distribution to get the concrete decision
+        // The gate returns Deterministic(CurationDecision) from decide()
+        match dist {
+            hkask_cns::allosteric::distribution::Distribution::Deterministic(
+                CurationDecision::SeekMoreEvidence,
+            ) => {
+                // Sensitivity analysis: which channel to verify?
+                let sensitivities = gate.sensitivity_analysis();
+                let top_channel = sensitivities
+                    .first()
+                    .map(|(name, _)| name.as_str())
+                    .unwrap_or("unknown");
+
+                Some(CuratorDirective::SeekMoreEvidence {
+                    context: context.to_string(),
+                    channel: top_channel.to_string(),
+                    confidence: format!("{r_bar:.3}"),
+                })
+            }
+            _ => None, // Proceed or Suppress — no directive needed
+        }
     }
 }
 

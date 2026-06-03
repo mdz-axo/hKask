@@ -26,7 +26,7 @@ hKask is built on five non-negotiable anchor capabilities that define the system
 graph TD
     subgraph Anchors[Five Anchor Capabilities]
         A1[1. Agent Enablement<br/>Bots + Replicants in pods]
-        A2[2. Essential Tools<br/>15 MCP servers + Okapi]
+        A2[2. Essential Tools<br/>14 MCP servers + Okapi]
         A3[3. User Sovereignty<br/>OCAP, SQLCipher, gating]
         A4[4. CNS<br/>cns.* spans, variety counters]
         A5[5. Composition<br/>Unified registry, hLexicon]
@@ -66,11 +66,11 @@ status: VERIFIED
 
 ### 1.2 Essential Tools
 
-**Principle:** Fifteen MCP servers provide all external tooling — no direct HTTP calls from agents.[^mcp]
+**Principle:** Fourteen MCP servers provide all external tooling — no direct HTTP calls from agents.[^mcp]
 
-**Implementation (15 Total):**
+**Implementation (14 Total):**
 
-**Enabled (15):**
+**Enabled (14):**
 - `hkask-mcp-inference` — Okapi LLM inference
 - `hkask-mcp-condenser` — General-purpose context reranking and condensation
 - `hkask-mcp-web` — Search, scrape, extract
@@ -79,7 +79,6 @@ status: VERIFIED
 - `hkask-mcp-cns` — CNS operations
 - `hkask-mcp-git` — Git CAS
 - `hkask-mcp-registry` — Registry operations
-- `hkask-mcp-gml` — GML allosteric engine
 - `hkask-mcp-spec` — DDMVSS spec capture
 - `hkask-mcp-github` — GitHub integration
 - `hkask-mcp-fmp` — FMP integration
@@ -133,7 +132,7 @@ status: VERIFIED
 
 **Implementation:**
 - `hkask-cli` — Terminal-based REPL and subcommands
-- `hkask-mcp-*` — Machine-to-machine tool calls (15 servers)
+- `hkask-mcp-*` — Machine-to-machine tool calls (14 servers)
 - `hkask-api` — HTTP API with auto-generated OpenAPI docs
 
 **Constraints:**

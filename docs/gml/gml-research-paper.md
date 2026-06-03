@@ -8,9 +8,9 @@
 
 ## Abstract
 
-We present Generalized Monad Logic (GML), a formal framework for analyzing conceptual dynamics inspired by the Monod-Wyman-Changeux (MWC) allosteric model from biochemistry. GML treats concepts as existing in probability distributions over interpretive states, with contextual factors acting as allosteric effectors that shift interpretive equilibrium without instructing new meanings. We formalize a six-operation algebra (`bind`, `equilibrium`, `cooperate`, `inhibit`, `activate`, `homeostasis`), implement it as a KnowAct cascade in the hKask agent system, and demonstrate its application to contested concepts including freedom, privacy, and intelligence. GML provides a mathematically grounded language for understanding conceptual flexibility, cooperativity between ideas, and network-level coherence. We discuss open questions including monad law verification, empirical parameter estimation, and connections to Boltzmann machines.
+We present Generalized Monad Logic (GML), a formal framework for analyzing conceptual dynamics inspired by the Monod-Wyman-Changeux (MWC) allosteric model from biochemistry. GML treats concepts as existing in probability distributions over interpretive states, with contextual factors acting as allosteric effectors that shift interpretive equilibrium without instructing new meanings. We formalize a six-operation algebra (`bind`, `equilibrium`, `cooperate`, `inhibit`, `activate`, `homeostasis`), implement it as Allosteric Regulation Logic (ARL) natively within the hKask Cybernetic Nervous System (CNS), and demonstrate its application to contested concepts including freedom, privacy, and intelligence. The regulation kernel — the MWC state function — operates as a CNS-native primitive rather than an external MCP tool, enabling direct integration with algedonic alerts and variety sensing. GML provides a mathematically grounded language for understanding conceptual flexibility, cooperativity between ideas, and network-level coherence. We discuss open questions including distribution composition verification, empirical parameter estimation, and connections to Boltzmann machines.
 
-**Keywords:** allosteric thinking, conceptual analysis, MWC model, generalized monad logic, hKask, KnowAct
+**Keywords:** allosteric thinking, conceptual analysis, MWC model, allosteric regulation logic, ARL, hKask, CNS
 
 ---
 
@@ -190,9 +190,35 @@ GML operations are capability-gated:
 
 ## 4. Implementation
 
-### 4.1 hKask Integration
+### 4.1 ARL in CNS
 
-GML is implemented as a **KnowAct** in hKask, composed via cascade:
+The regulation kernel — the MWC state function — is implemented as **Allosteric Regulation Logic (ARL)** natively within `hkask-cns`. ARL is not an external MCP server; it is a CNS-native regulation primitive that operates at the same level as variety sensing and algedonic alerts. This architecture ensures that equilibrium shifts are computed within the homeostatic feedback loop rather than through inter-process tool calls.
+
+The ARL module in `hkask-cns` is accessed via `crate::allosteric`:
+
+```rust
+use hkask_cns::allosteric::{ArlKernel, MwcParameters, ConceptualSystem, Effector};
+
+// Compute equilibrium shift — native regulation, not MCP tool call
+let kernel = ArlKernel::new(MwcParameters { l: 100.0, c: 0.05, n: 3 });
+let r_bar = kernel.state_fraction(alpha);  // R̄ from MWC equation
+let n_h = kernel.hill_coefficient(alpha);   // cooperativity measure
+
+// Gate: escalate when R̄ crosses threshold
+if r_bar > escalation_threshold {
+    kernel.emit_algedonic(AlgedonicLevel::Warning);
+}
+```
+
+ARL gates map directly to CNS escalation behavior:
+- **R̄ < 0.1:** T-state dominant — no action (default bias holds)
+- **0.1 ≤ R̄ < 0.5:** Transition zone — CNS increases monitoring frequency
+- **0.5 ≤ R̄ < 0.8:** R-state emerging — algedonic alert at CNS level
+- **R̄ ≥ 0.8:** Saturation — variety deficit check; if deficit > 100, escalate to Curator
+
+### 4.2 KnowAct Cascade
+
+The GML *thinking pattern* (Allosteric Thinking) remains a KnowAct cascade composed via templates, but it now delegates regulation computation to the CNS-native ARL kernel rather than invoking MCP tool calls:
 
 ```yaml
 cascade:
@@ -202,32 +228,32 @@ cascade:
   core:
     - template: gml/bind-effector.j2
       knowact: [analogy, infer, abduct]
+      # Delegates to crate::allosteric for MWC computation
     - template: gml/compute-equilibrium.j2
       knowact: [calculate, compare]
+      # Reads R̄ from CNS ARL kernel, not MCP tool result
   post:
     - template: gml/assess-coherence.j2
       knowact: [evaluate, reflect, calibrate]
 ```
 
-### 4.2 Templates
-
 Five Jinja2 templates implement the cascade:
 - `recognize-ensemble.j2` — Parse concept into T/R states and ports
-- `bind-effector.j2` — Apply effector, compute equilibrium shift
-- `compute-equilibrium.j2` — Calculate R̄, n_H, partition function
-- `assess-coherence.j2` — Evaluate network homeostasis
+- `bind-effector.j2` — Apply effector, delegate equilibrium shift to ARL kernel
+- `compute-equilibrium.j2` — Read R̄, n_H from CNS, compare before/after
+- `assess-coherence.j2` — Evaluate network homeostasis via CNS variety counters
 - `reframe-concept.j2` — Generate alternative interpretation frames
 
 ### 4.3 CNS Monitoring
 
-GML operations are instrumented with CNS spans:
-- `cns.gml.recognize`
-- `cns.gml.bind`
-- `cns.gml.equilibrate`
-- `cns.gml.assess`
-- `cns.gml.reframe`
+ARL operations are instrumented with CNS spans under the `cns.arl.*` namespace:
+- `cns.arl.bind` — Effector binding and equilibrium shift computation
+- `cns.arl.equilibrate` — R̄ and n_H calculation
+- `cns.arl.assess` — Network coherence evaluation
+- `cns.arl.gate` — Escalation gate threshold check
+- `cns.arl.escalate` — Algedonic alert emission
 
-Algedonic alerts trigger on variety deficit > 100.
+Algedonic alerts trigger on variety deficit > 100, integrated with ARL gate thresholds.
 
 ---
 
@@ -299,15 +325,16 @@ This method provides structured guidance for applying GML to new concepts.
 
 ## 7. Open Questions
 
-### 7.1 Monad Law Verification
+### 7.1 Distribution Composition Verification
 
-GML is named a "Generalized Monad Logic" but monad structure is unverified:
+GML's `bind` operation composes probability distributions over interpretive states. The composition structure is unverified:
 
 ```
-Left identity:  bind(return(x), f) = f(x)
-Right identity: bind(m, return) = m
-Associativity:  bind(bind(m, f), g) = bind(m, λx. bind(f(x), g))
+Identity:     bind(unit_concept(x), f) = f(x)
+Composition:   bind(bind(m, f), g) = bind(m, λx. bind(f(x), g))
 ```
+
+Where `unit_concept` produces a concept with zero contextual pressure (α = 0, R̄ = 1/(1+L)). These are distribution composition laws, not monadic structure claims. Verification requires formalization of the probability algebra in a proof assistant.
 
 **Status:** Open. Requires formalization in proof assistant (Lean, Coq).
 
@@ -382,8 +409,9 @@ GML provides a mathematically grounded framework for analyzing conceptual dynami
 - Structured method for identifying contextual levers
 - Network-level coherence assessment
 - Capability-gated operations for security
+- CNS-native ARL regulation with direct algedonic integration
 
-Future work includes empirical validation, monad law verification, and temporal dynamics modeling.
+Future work includes empirical validation, distribution composition verification, and temporal dynamics modeling.
 
 ---
 
@@ -434,6 +462,43 @@ The hKask project benefits from the open-source ACP, MCP, and Okapi communities.
 
 ---
 
+## Appendix B: ARL Sensitivity Table — MWC Parameters and Escalation Behavior
+
+This table shows how R̄ responds to varying α (contextual pressure) across different MWC parameter regimes. Values are computed from R̄ = (1+α)ⁿ / ((1+α)ⁿ + L·(1+cα)ⁿ). The escalation column indicates which ARL gate would fire at each R̄ value.
+
+| L | c | n | α=0.5 | α=1.0 | α=2.0 | α=5.0 | α=10.0 |
+|---|---|---|-------|-------|-------|-------|--------|
+| 100 | 0.05 | 3 | 0.0304 | 0.0647 | 0.1686 | 0.5252 | 0.7978 |
+| 1000 | 0.01 | 3 | 0.0033 | 0.0077 | 0.0248 | 0.1573 | 0.5000 |
+| 1000 | 0.1 | 6 | 0.0084 | 0.0349 | 0.1963 | 0.8038 | 0.9652 |
+
+**Escalation key (ARL gate thresholds in CNS):**
+
+| R̄ Range | ARL Gate | CNS Behavior |
+|---------|----------|-------------|
+| R̄ < 0.1 | No action | Default bias holds; T-state dominant |
+| 0.1 ≤ R̄ < 0.5 | Monitor | CNS increases observation frequency |
+| 0.5 ≤ R̄ < 0.8 | Alert | Algedonic alert emitted at CNS level |
+| R̄ ≥ 0.8 | Escalate | Variety deficit check; if deficit > 100, escalate to Curator |
+
+**Reading the table:**
+
+- **Row 1 (L=100, c=0.05, n=3):** Moderate bias with strong activator. Escalation occurs between α=2 and α=5 (transition zone to alert). At α=10, approaching saturation.
+- **Row 2 (L=1000, c=0.01, n=3):** Very strong bias with extreme activator. Requires high α to overcome default. Crossing 0.5 (alert threshold) near α=10 — the system is highly resistant to contextual pressure.
+- **Row 3 (L=1000, c=0.1, n=6):** Strong bias but higher cooperativity. The steep sigmoid (n=6) means once α exceeds ~2, R̄ rises sharply through all four gates in quick succession. This is the switch-like regime — small changes in contextual pressure produce large equilibrium shifts.
+
+**Operational parameter mapping:**
+
+| MWC Parameter | Operational Quantity | Measurement |
+|---------------|---------------------|-------------|
+| L | Default interpretive bias | T-state selection frequency without context |
+| c | Selectivity of contextual effector | R̄ shift per unit α at low concentration |
+| n | Cooperativity dimensionality | Hill coefficient n_H at half-saturation |
+| α | Normalized contextual pressure | Effector concentration / R-state affinity constant |
+| R̄ | Active-state probability | Fraction of interpretations in R-state over observation window |
+
+---
+
 *Preprint. Under review. Comments welcome.*
 
-*ℏKask — Planck's Constant of Agent Systems — GML v0.1.0*
+*ℏKask — A Minimal Viable Container for Agents — GML v0.2.0*

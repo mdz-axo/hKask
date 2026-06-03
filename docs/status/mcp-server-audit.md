@@ -12,8 +12,8 @@ ddmvss_categories: [capability, observability]
 
 **Date:** 2026-05-29
 **Version:** hKask v0.21.0
-**Total servers:** 16
-**Total tools:** 108+
+**Total servers:** 15
+**Total tools:** 102+
 
 ---
 
@@ -23,7 +23,6 @@ ddmvss_categories: [capability, observability]
 |--------|-----|-------|--------|-------|
 | `hkask-mcp-inference` | 391 | 3 | **Full** | generate, metrics, models — real Okapi calls, failover, rate limiting |
 | `hkask-mcp-rss-reader` | 1,443 | 12 | **Full** | Complete RSS feed management with SQLite persistence |
-| `hkask-mcp-gml` | 987 | 6 | **Full** | GML allosteric engine with capability gating |
 | `hkask-mcp-spec` | 853 | 8 | **Full** | 8 DDMVSS spec tools (capture, decompose, curate, validate) |
 | `hkask-mcp-goal` | ~235 | 3 | **Full** | Goal coordination substrate (OCAP-gated, CNS-observed); CLI/API/MCP parity |
 | `hkask-mcp-condenser` | 761 | 5 | **Full** | Context reranking and condensation algorithms |
@@ -44,7 +43,7 @@ ddmvss_categories: [capability, observability]
 
 | Status | Count | Servers |
 |--------|-------|---------|
-| **Full** | 16 | All servers |
+| **Full** | 15 | All servers |
 | **Partial** | 0 | — |
 | **Shell** | 0 | — |
 
@@ -61,11 +60,6 @@ ddmvss_categories: [capability, observability]
 - **Status:** Full
 - **Tools:** 12 feed management tools with SQLite-backed persistence
 - **Notes:** Most feature-rich server. Includes feed subscription management, article retrieval, import/export, database-backed state.
-
-### `hkask-mcp-gml` (987 LOC, 6 tools)
-- **Status:** Full
-- **Tools:** Allosteric thinking engine with capability-gated operations
-- **Notes:** Capability enforcement per tool via `capability.rs`. Type-safe engine operations.
 
 ### `hkask-mcp-spec` (853 LOC, 8 tools)
 - **Status:** Full
@@ -136,7 +130,7 @@ ddmvss_categories: [capability, observability]
 
 ## Recommendations
 
-1. **No shell servers.** All 15 MCP servers register real tools with implementations. Zero stubs remain (P6 compliance).
+1. **No shell servers.** All 14 MCP servers register real tools with implementations. Zero stubs remain (P6 compliance).
 
 2. **Per-crate README:** Create individual `README.md` files in each `mcp-servers/hkask-mcp-*/README.md` documenting the tool surface, configuration, and any external service dependencies.
 
@@ -148,4 +142,4 @@ ddmvss_categories: [capability, observability]
 
 ---
 
-*ℏKask MCP Arsenal — 15 servers, 105 tools, 0 stubs — v0.21.0*
+*ℏKask MCP Arsenal — 14 servers, 99 tools, 0 stubs — v0.21.0*

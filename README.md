@@ -39,7 +39,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 | # | Anchor | Implementation |
 |---|--------|----------------|
 | 1 | **Agent Enablement** | Bots + Replicants in pods with WebID, ACP |
-| 2 | **Essential Tools** | 15 MCP servers + Okapi |
+| 2 | **Essential Tools** | 14 MCP servers + Okapi |
 | 3 | **User Sovereignty** | OCAP, SQLCipher, private/public gating |
 | 4 | **CNS** | `cns.*` spans, variety counters, algedonic alerts |
 | 5 | **Composition** | Unified registry with template_type discriminator |
@@ -61,7 +61,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 - `hkask-cli` — CLI commands
 - `hkask-api` — HTTP API, utoipa OpenAPI
 
-### MCP Servers (16 crates)
+### MCP Servers (15 crates)
 - `hkask-mcp-inference` — Okapi-backed LLM inference
 - `hkask-mcp-condenser` — General-purpose context reranking and condensation
 - `hkask-mcp-web` — Web search, scrape
@@ -70,7 +70,6 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 - `hkask-mcp-cns` — CNS operations
 - `hkask-mcp-git` — Git CAS
 - `hkask-mcp-registry` — Registry operations
-- `hkask-mcp-gml` — GML allosteric engine
 - `hkask-mcp-spec` — DDMVSS spec capture
 - `hkask-mcp-github` — GitHub integration
 - `hkask-mcp-fmp` — Financial data (FMP)
@@ -93,7 +92,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 | **MCP Server LOC (Rust)** | ~4,890 |
 | **Test Files** | 36 |
 | **Core Crates** | 11 (all complete) |
-| **MCP Servers** | 15 (12 complete, 2 stubs) |
+| **MCP Servers** | 14 (12 complete, 2 stubs) |
 | **Build/Clippy/Fmt** | All passing |
 
 ---
@@ -162,7 +161,7 @@ hKask is "done" when a single user can:
 4. Observe ≥3 subsystem-curator bots spawn at startup
 5. Trigger ensemble session with ≥2 subsystem-curators deliberating
 6. Invoke any operation through CLI or HTTP API with identical behavior
-7. Invoke any tool from 15 MCP set; observe routing
+Invoke any tool from 14 MCP set; observe routing
 8. Compose two tools via process template
 9. Record episodic memory with confidence
 10. Retrieve memory; observe `as-of` query returns historical state

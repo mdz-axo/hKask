@@ -54,7 +54,7 @@ hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent
 | Component | Count | Description |
 |-----------|-------|-------------|
 | **Core Crates** | 11 | `hkask-*` in `crates/` |
-| **MCP Servers** | 16 | `hkask-mcp-*` in `mcp-servers/` (incl. `hkask-mcp-goal`) |
+| **MCP Servers** | 15 | `hkask-mcp-*` in `mcp-servers/` (incl. `hkask-mcp-goal`) |
 | **Total** | 27 | All in workspace |
 
 ---
@@ -90,7 +90,7 @@ hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent
 | `hkask-cli` | 3,741 | CLI commands (14 subcommand groups) | ✅ Complete |
 | `hkask-api` | 2,449 | HTTP API (11 route groups), utoipa | ✅ Complete |
 
-### 3.3 MCP Servers (16)
+### 3.3 MCP Servers (15)
 
 | Server | LOC | Status | Purpose |
 |--------|-----|--------|---------|
@@ -102,7 +102,6 @@ hKask (ℏKask — "A Minimal Viable Container for Agents") is a **minimal agent
 | `hkask-mcp-cns` | 280 | ✅ Complete | CNS operations |
 | `hkask-mcp-git` | 412 | ✅ Complete | Git CAS |
 | `hkask-mcp-registry` | 310 | ✅ Complete | Registry operations |
-| `hkask-mcp-gml` | 987 | ✅ Complete | GML allosteric engine |
 | `hkask-mcp-spec` | 853 | ✅ Complete | DDMVSS spec tools (8 tools) |
 | `hkask-mcp-github` | 459 | ✅ Complete | GitHub integration |
 | `hkask-mcp-fmp` | 369 | ✅ Complete | Financial data (FMP) |

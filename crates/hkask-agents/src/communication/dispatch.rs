@@ -126,6 +126,19 @@ impl MessageDispatch {
                     "new_budget": new_budget,
                 }),
             ),
+            CuratorDirective::SeekMoreEvidence {
+                context,
+                channel,
+                confidence,
+            } => (
+                "seek_more_evidence".to_string(),
+                WebID::new(),
+                serde_json::json!({
+                    "context": context,
+                    "channel": channel,
+                    "confidence": confidence,
+                }),
+            ),
         };
 
         let message = LoopMessage::warning(

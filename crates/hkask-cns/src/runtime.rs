@@ -24,10 +24,9 @@ struct CnsState {
 
 impl CnsState {
     fn new(threshold: u64) -> Self {
-        let algedonic = Arc::new(StdRwLock::new(AlgedonicManager::new(
-            threshold,
-            DEFAULT_EXPECTED_VARIETY,
-        )));
+        let algedonic = Arc::new(StdRwLock::new(
+            AlgedonicManager::new(threshold, DEFAULT_EXPECTED_VARIETY).with_default_allosteric(),
+        ));
         let tracker = UnifiedVarietyTracker::new();
         Self { algedonic, tracker }
     }

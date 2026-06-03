@@ -1,7 +1,7 @@
 # Allosteric Thinking — User Guide
 
-**Version:** 0.1.0  
-**Type:** KnowAct (Generalized Monad Logic)  
+**Version:** 0.2.0  
+**Type:** KnowAct (Allosteric Regulation Logic in CNS)  
 **Status:** MVP
 
 ---
@@ -10,10 +10,14 @@
 
 Allosteric Thinking applies the Monod-Wyman-Changeux (MWC) allosteric protein model to abstract concept recombination and regulation.
 
+The regulation kernel — the MWC state function — runs natively as **Allosteric Regulation Logic (ARL)** within the hKask CNS (`hkask-cns`). ARL is not an external MCP server; it is a CNS-native regulation primitive accessed through ARL gates in the homeostatic feedback loop. The GML thinking pattern (Allosteric Thinking) delegates computation to ARL rather than invoking MCP tool calls.
+
 **Core hypothesis:** Ideas, like allosteric proteins:
 1. Have no single fixed shape but exist as probability distributions over conceptual conformations
 2. Possess allosteric ports where other ideas bind to shift conceptual equilibrium
 3. Recombine through structured interaction patterns
+
+**Regulation:** ARL gates in `hkask-cns` monitor R̄ values and escalate through the CNS algedonic pathway when interpretive equilibrium shifts beyond configured thresholds.
 
 **Mathematical kernel:**
 ```
@@ -93,7 +97,7 @@ At α = 0 (no context): R̄ = 1 / (1 + L) = 1/101 ≈ 0.01
 
 **Interpretation:** A security crisis binds strongly to the threat response port, shifting freedom toward the "freedom to" (protective action) interpretation.
 
-**Capability constraint:** Effectors bind only to ports they are shaped for. You cannot apply economic pressure to a threat port.
+**Capability constraint:** Effectors bind only to ports they are shaped for. You cannot apply economic pressure to a threat port. ARL gates in CNS enforce capability-gated access — operations require explicit capability tokens, and escalation is bounded by the OCAP budget.
 
 **When to use:** When you want to understand what contextual changes would shift how a concept is interpreted.
 
@@ -265,9 +269,22 @@ If score < 0.5: Unstable (decaying)
 2. **Run `recognize`** to identify T/R states and default bias
 3. **Identify ports** — what contextual factors could bind?
 4. **Apply effectors** — simulate contextual shifts
-5. **Compute equilibrium** — how much did R̄ shift?
-6. **Assess coherence** — is the network stable after the shift?
+5. **Compute equilibrium** — ARL kernel in CNS computes R̄ shift; read result from `cns.arl.equilibrate` span
+6. **Assess coherence** — CNS variety counters report network stability after the shift
 7. **Reframe** — generate alternative interpretations based on analysis
+
+**ARL gate feedback:** At each step, CNS checks R̄ against escalation thresholds:
+- R̄ < 0.1 → no action
+- 0.1 ≤ R̄ < 0.5 → increased monitoring
+- 0.5 ≤ R̄ < 0.8 → algedonic alert
+- R̄ ≥ 0.8 → variety deficit check; potential Curator escalation
+
+**CLI access:** ARL operations are available through `kask chat` and the HTTP API, not through MCP tool calls:
+```bash
+kask chat                           # Interactive — ARL gates fire automatically
+kask chat -m qwen3:8b              # With specific model
+echo "analyze freedom" | kask chat -f -  # Non-interactive
+```
 
 ---
 
@@ -312,11 +329,11 @@ If score < 0.5: Unstable (decaying)
 
 ## See Also
 
-- [GML Architecture](./gml-architecture.md)
-- [GML API Reference](./gml-api.md)
-- [Research Agenda](./gml-research-agenda.md)
+- [GML Research Paper](./gml-research-paper.md) — formal framework and ARL architecture
+- [Allosteric Thinking V2](./gml-allosteric-thinking-v2.md) — implementation prompt and domain types
+- `hkask-cns` crate — ARL kernel source (`crate::allosteric`)
 
 ---
 
-*ℏKask — Planck's Constant of Agent Systems — GML v0.1.0*
+*ℏKask — A Minimal Viable Container for Agents — GML v0.2.0*
 *The second secret of life, generalized.*

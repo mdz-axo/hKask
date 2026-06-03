@@ -402,7 +402,7 @@ if r_bar > DAMPEN_THRESHOLD {
 
 ### IP-10: GML Self-Regulation (Recursive Application)
 
-**Current code:** `mcp-servers/hkask-mcp-gml/`
+**Current code:** `crates/hkask-cns/src/allosteric/`
 **Current behavior:** GML operates on external concepts; no self-analysis
 **6-Loop:** Curation (metacognition) → Cybernetics (self-regulation)
 

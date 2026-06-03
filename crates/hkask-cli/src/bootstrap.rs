@@ -257,7 +257,6 @@ impl BootstrapSequence {
             "hkask-mcp-keystore",
             "hkask-mcp-git",
             "hkask-mcp-registry",
-            "hkask-mcp-gml",
             "hkask-mcp-spec",
             "hkask-mcp-web",
             "hkask-mcp-condenser",

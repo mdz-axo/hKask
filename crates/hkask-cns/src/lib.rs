@@ -4,6 +4,7 @@
 //! OCAP governance, sovereignty enforcement. Per Ashby's Law of Requisite Variety.
 
 pub mod algedonic; // Loop 6 subloop 6.4 — algedonic signal channel
+pub mod allosteric; // ARL — Allosteric Regulation Logic (MWC gates)
 pub mod circuit_breaker; // Loop 6 — regulation
 pub mod cybernetics_loop; // Loop 6
 pub mod dampener; // Loop 6 — regulation
@@ -16,6 +17,10 @@ pub mod unified_tracker; // Loop 6 — variety tracking
 pub mod variety; // Loop 6 subloop 6.3
 
 pub use algedonic::{AlgedonicManager, DEFAULT_THRESHOLD, RuntimeAlert, cns_health_check};
+pub use allosteric::{
+    AllostericError, AllostericGate, AllostericGateConfig, CurationConfidenceGate,
+    CurationDecision, CurationPort, Decision, Distribution, mwc_sensitivity, mwc_state_function,
+};
 pub use circuit_breaker::{CircuitBreaker, CircuitBreakerConfig};
 pub use cybernetics_loop::{CyberneticsLoop, SetPoints};
 pub use dampener::Dampener;

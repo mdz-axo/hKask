@@ -2,7 +2,7 @@
 
 ## Context
 
-Build "Allosteric Thinking" — a **Generalized Monad Logic (GML)** KnowAct that applies the Monod-Wyman-Changeux (MWC) allosteric protein model to abstract concept recombination and regulation.
+Build "Allosteric Thinking" — a **Generalized Monad Logic (GML)** KnowAct that applies the Monod-Wyman-Changeux (MWC) allosteric protein model to abstract concept recombination and regulation. Note: GML uses distribution composition over concept-states, not monadic structure. The regulation kernel (MWC state function) runs as Allosteric Regulation Logic (ARL) natively in `hkask-cns`.
 
 **Functional Category:** GML is a **KnowAct** (way of thinking), not a skill or prompt. It decomposes via cascade:
 - **KnowAct (primary):** Allosteric reasoning pattern — recognize states, infer shifts, analogize across domains
@@ -360,7 +360,9 @@ mwc:HillCoefficient a gml:Measure ;
 
 ### Task 5: hKask Architecture Integration — Hexagonal Design
 
-**Domain types (`hkask-gml-types` crate):**
+**ARL domain types in `hkask-cns` (`crate::allosteric`):**
+
+The regulation kernel lives in the CNS, not as a separate crate or MCP server. ARL types are defined directly in `hkask-cns::allosteric`.
 
 ```rust
 /// Core MWC parameters
@@ -473,9 +475,9 @@ pub trait ConceptEmbedding {
 - **Storage adapter:** SQLite tables: `concepts`, `interpretations`, `ports`, `effectors`, `networks`, `network_edges`
 - **Template adapter:** Jinja2 via `hkask-templates` with `gml/` namespace
 - **Embedding adapter:** Okapi-backed via `hkask-mcp-embedding`
-- **MCP server:** `hkask-mcp-gml` exposing GML operations
+- **ARL regulation kernel:** CNS-native in `hkask-cns::allosteric` — not an MCP server; the former `hkask-mcp-gml` server has been replaced by direct ARL integration within the CNS homeostatic loop
 
-**Deliverable:** Crate structure; adapter implementations; MCP tool definitions.
+**Deliverable:** Crate structure; adapter implementations; ARL gate definitions for CNS escalation thresholds.
 
 ---
 
@@ -622,7 +624,7 @@ pub struct GmlAuditLog {
 |---|----------|-------------------|
 | **9.1** | **What is the mathematical form of Z for idea-spaces?** Is `E = -∑wᵢⱼsᵢsⱼ` (Boltzmann machine) the right substrate with MWC logic governing topology? | Derive partition function for conceptual state spaces; test against empirical concept-shift data |
 | **9.2** | **How do we measure cooperativity (Hill coefficient) for ideas empirically?** What observable corresponds to n_H? | Design experiments: present concepts with varying contextual pressures, measure interpretation shifts, fit MWC curve |
-| **9.3** | **Does `bind` satisfy monad laws (associativity, identity) over concept-states?** Is GML categorically a monad? | Formal verification: prove bind(f, bind(g, x)) = bind(compose(f,g), x) and bind(identity, x) = x |
+| **9.3** | **Does `bind` satisfy distribution composition laws (identity, composition) over concept-states?** | Formal verification: prove bind(unit_concept(x), f) = f(x) and bind(bind(m, f), g) = bind(m, λx. bind(f(x), g)) where unit_concept has α=0 |
 | **9.4** | **How do we estimate L, c, n parameters for abstract concepts?** | Approaches: user elicitation, behavioral inference, LLM-assisted estimation, Bayesian updating |
 | **9.5** | **Multi-ligand dynamics:** Conceptual "ligands" may interact non-independently (synergy, antagonism) | Extended MWC with interaction terms: c_ij for effector i × effector j |
 | **9.6** | **Temporal dynamics:** Current model is equilibrium; concepts evolve over time | Dynamical extension: dR̄/dt = f(R̄, α(t), L(t)) with time-dependent parameters |
@@ -642,7 +644,8 @@ pub struct GmlAuditLog {
 - Use `hkask-storage` for persistence (SQLite + SQLCipher)
 - Use `hkask-mcp-embedding` for vector operations
 - Use `hkask-templates` for Jinja2 rendering
-- Use `hkask-cns` for monitoring (cns.gml.* spans)
+- Use `hkask-cns::allosteric` for ARL regulation kernel (CNS-native, not MCP)
+- Use `hkask-cns` for monitoring (`cns.arl.*` spans)
 - Follow P1-P7 design principles (no unused traits, no stubs, delete over deprecate)
 - Respect C1-C7 constraints (types worn before tailored)
 
@@ -659,7 +662,7 @@ pub struct GmlAuditLog {
 - Recursive application (GML can analyze itself)
 
 **Line Budget:**
-- Target: ≤2,000 lines Rust for `hkask-gml-types` + `hkask-gml-core`
+- Target: ≤2,000 lines Rust for `hkask-cns::allosteric` (ARL kernel)
 - Templates excluded from budget (soft layer)
 - Tests in `hkask-testing` (excluded)
 
@@ -671,7 +674,7 @@ pub struct GmlAuditLog {
 |-----------|--------------|
 | **Mathematical correctness** | MWC equations verified against reference (Wikipedia, Changeux papers) |
 | **Conceptual fidelity** | GML produces interpretable results for 5+ test concepts |
-| **Architectural fit** | GML integrates cleanly with hKask MCP server pattern |
+| **Architectural fit** | ARL integrates natively with CNS homeostatic loop; no external MCP server dependency |
 | **Cascade composition** | KnowAct/FlowDef/WordAct cleanly separated |
 | **User utility** | Five questions method produces novel insights in 3+ documented use cases |
 | **Security compliance** | All operations capability-gated; audit trail functional |
@@ -681,5 +684,5 @@ pub struct GmlAuditLog {
 
 *Begin with Task 0. Proceed sequentially. Each task's deliverable becomes input for subsequent tasks. After Task 9, iterate based on empirical usage.*
 
-*ℏKask — Planck's Constant of Agent Systems — GML v0.1.0*
+*ℏKask — A Minimal Viable Container for Agents — GML v0.2.0*
 *The second secret of life, generalized.*

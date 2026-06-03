@@ -16,7 +16,7 @@
 |--------|-------------|
 | **Agent Enablement** | Bots + Replicants run in pods with WebID, ACP |
 | **Model Selection** | Switch LLM per-agent via `/model` (CLI) or `model` field (API) |
-| **Essential Tools** | 15 MCP servers + Okapi for inference |
+| **Essential Tools** | 14 MCP servers + Okapi for inference |
 | **User Sovereignty** | OCAP, SQLCipher encryption, private/public gating |
 | **CNS** | Homeostatic self-regulation: variety sensing, algedonic alerts, OCAP governance, energy budgets |
 | **Composition** | Unified registry with `template_type` discriminator |
@@ -39,7 +39,7 @@
 | `hkask-cli` | CLI commands |
 | `hkask-api` | HTTP API (utoipa) |
 
-**MCP Servers:** `inference` (Okapi LLM), `condenser`, `web`, `ocap`, `keystore`, `cns`, `git`, `registry`, `gml`, `spec`, `github`, `fmp`, `telnyx`, `fal`, `rss-reader`
+**MCP Servers:** `inference` (Okapi LLM), `condenser`, `web`, `ocap`, `keystore`, `cns`, `git`, `registry`, `spec`, `github`, `fmp`, `telnyx`, `fal`, `rss-reader`
 
 **External deps:** Okapi (mdz-axo/Okapi), ACP (acp-runtime), MCP (rmcp)
 
@@ -135,7 +135,7 @@ For deeper understanding of system behavior:
 
 All interaction occurs through:
 1. **CLI** — `kask <subcommand>` (terminal-based)
-2. **MCP** — Machine-to-machine tool calls (15 servers)
+2. **MCP** — Machine-to-machine tool calls (14 servers)
 3. **API** — HTTP API with OpenAPI docs (programmatic)
 
 All monitoring occurs through:

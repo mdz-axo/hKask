@@ -34,7 +34,7 @@ pub use server::{
 ///
 /// Simple server with no credentials:
 /// ```ignore
-/// mcp_server_main!("hkask-mcp-gml", GmlServer);
+/// mcp_server_main!("hkask-mcp-spec", SpecServer);
 /// ```
 ///
 /// Server with required credentials:

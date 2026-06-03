@@ -62,7 +62,7 @@ ddmvss_categories: [interface, composition, capability, observability, curation,
 
 **Decision:** Maintain manual Mermaid dependency diagrams in architecture docs as the primary visualization. CI automation (cargo-depgraph) is a v1.1+ enhancement if dependency complexity warrants it.
 
-**Rationale:** The workspace crate map is stable (11 core + 15 MCP servers). Manual Mermaid in `subsystem-erds.md` §12 and `ports-inventory.md` provides adequate visualization. The DIAGRAM_ALIGNMENT mechanism (PS-09) already catches drift.
+**Rationale:** The workspace crate map is stable (11 core + 14 MCP servers). Manual Mermaid in `subsystem-erds.md` §12 and `ports-inventory.md` provides adequate visualization. The DIAGRAM_ALIGNMENT mechanism (PS-09) already catches drift.
 
 ---
 

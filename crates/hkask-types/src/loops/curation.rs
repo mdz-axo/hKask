@@ -61,6 +61,10 @@ impl CuratorHandle {
 // =============================================================================
 
 /// Directives the Curator issues to Cybernetics.
+///
+/// Per ARL IP-3: when the Curation Confidence Gate is in the transition zone
+/// (0.3 < R̄ < 0.8), the regulated response is `SeekMoreEvidence`, which
+/// is routed through Cybernetics to the Inference Loop.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CuratorDirective {
@@ -76,5 +80,17 @@ pub enum CuratorDirective {
     AdjustEnergyBudget {
         agent: WebID,
         new_budget: u64,
+    },
+    /// IP-3: Confidence-gated metacognitive directive.
+    /// The Curator requests additional evidence to increase confidence
+    /// in a pending decision. Routed through Cybernetics to Inference.
+    SeekMoreEvidence {
+        /// The decision context requiring more evidence.
+        context: String,
+        /// Which evidence channel to verify (from sensitivity analysis).
+        /// E.g., "llm_confidence", "template_match", "validation_result".
+        channel: String,
+        /// Current R̄ from the Curation Confidence Gate.
+        confidence: String,
     },
 }

@@ -30,7 +30,7 @@ hKask is a **minimal agent-native container platform** — the unit of compositi
 
 **Delegated (out of scope):**
 - LLM inference → Okapi (external service)
-- External service integration → 16 MCP servers (tool surface)
+External service integration → 14 MCP servers (tool surface) + ARL in CNS
 - Storage encryption → SQLCipher (library dependency)
 - Key management → OS keychain (platform service)
 
@@ -45,7 +45,7 @@ graph TD
 
     subgraph Delegated["Delegated"]
         OKAPI["Okapi<br/>LLM inference"]
-        MCP_EXT["16 MCP Servers<br/>tool surface"]
+        MCP_EXT["14 MCP Servers<br/>tool surface"]
         SQLITE["SQLite + SQLCipher<br/>encrypted storage"]
         KEYCHAIN["OS Keychain<br/>key management"]
     end
@@ -77,7 +77,7 @@ hKask is built on five non-negotiable anchor capabilities:[^wiener-cybernetics]
 | # | Anchor | Implementation | DDMVSS Category |
 |---|--------|---------------|-----------------|
 | 1 | **Agent Enablement** | Bots + Replicants in pods with WebID, ACP | Domain |
-| 2 | **Essential Tools** | 16 MCP servers + Okapi | Capability |
+| 2 | **Essential Tools** | 14 MCP servers + Okapi + ARL in CNS | Capability |
 | 3 | **User Sovereignty** | OCAP, SQLCipher, private/public gating | Trust |
 | 4 | **CNS** | `cns.*` spans, variety counters, algedonic alerts | Observability |
 | 5 | **Composition** | Unified registry with `template_type` discriminator | Composition |
@@ -316,7 +316,7 @@ status: VERIFIED
 
 ### 6.1 Server Inventory
 
-16 MCP servers provide the tool surface, each gated through `SecurityGateway` (`crates/hkask-mcp/src/security.rs`):
+14 MCP servers provide the tool surface (ARL regulation kernel lives in `hkask-cns`), each gated through `SecurityGateway` (`crates/hkask-mcp/src/security.rs`):
 
 | MCP Server | Crate | LOC | Status | Domain |
 |-----------|-------|-----|--------|--------|
@@ -328,7 +328,6 @@ status: VERIFIED
 | cns | `hkask-mcp-cns` | 280 | ✅ Complete | Observability |
 | git | `hkask-mcp-git` | 412 | ✅ Complete | Git CAS operations |
 | registry | `hkask-mcp-registry` | 310 | ✅ Complete | Template registry |
-| gml | `hkask-mcp-gml` | 987 | ✅ Complete | Allosteric thinking engine |
 | spec | `hkask-mcp-spec` | 853 | ✅ Complete | DDMVSS spec tools (8 tools) |
 | goal | `hkask-mcp-goal` | ~235 | ✅ Complete | Goal coordination (OCAP-gated, CNS-observed) |
 | github | `hkask-mcp-github` | 459 | ✅ Complete | GitHub API integration |
@@ -337,7 +336,7 @@ status: VERIFIED
 | fal | `hkask-mcp-fal` | 434 | ✅ Complete | Media generation (FAL) |
 | rss-reader | `hkask-mcp-rss-reader` | 1,443 | ✅ Complete | RSS feed management |
 
-**Total:** 16 servers, 108+ tools, 0 stubs (P6 compliance).
+**Total:** 14 servers, 102+ tools, 0 stubs (P6 compliance). ARL lives in `hkask-cns` as the allosteric regulation kernel.
 
 **Audit:** [`docs/status/mcp-server-audit.md`](../status/mcp-server-audit.md)
 

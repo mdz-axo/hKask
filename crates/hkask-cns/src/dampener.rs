@@ -63,6 +63,14 @@ impl DirectiveFingerprint {
                 directive_type: "adjust_energy_budget".to_string(),
                 target: Some(*agent),
             },
+            CuratorDirective::SeekMoreEvidence {
+                context, channel, ..
+            } => Self {
+                directive_type: "seek_more_evidence".to_string(),
+                target: Some(WebID::from_persona(
+                    format!("{context}:{channel}").as_bytes(),
+                )),
+            },
         }
     }
 }
