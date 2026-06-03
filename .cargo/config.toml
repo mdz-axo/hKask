@@ -18,19 +18,9 @@ linker = "aarch64-linux-gnu-gcc"
 # Set environment variables for builds
 # RUST_LOG = "debug"
 
-# Registry configuration
-[registry]
-default-registry = "crates-io"
-
-# Git configuration
-[git]
-# Use HTTPS for git operations
-# https://github.com/ instead of git://
-
 # Net configuration
 [net]
 git-fetch-with-cli = true
-# retry = 3
 
 # Profile: Release (optimized for production)
 [profile.release]

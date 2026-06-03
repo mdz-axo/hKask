@@ -135,21 +135,29 @@ jobs:
           sudo apt-get install -y \
             gcc-aarch64-linux-gnu \
             pkg-config \
-            libssl-dev \
-            libsqlite3-dev \
             libclang-dev \
             llvm-dev \
             cmake \
             protobuf-compiler \
-            libprotobuf-dev \
-            libzstd-dev
+            libprotobuf-dev
+
+          # Add ARM64 architecture for cross-compiled system libraries
+          sudo dpkg --add-architecture arm64
+          sudo apt-get update
+          sudo apt-get install -y \
+            libssl-dev:arm64 \
+            libsqlite3-dev:arm64 \
+            libzstd-dev:arm64
 
       - name: Configure AArch64 cross-compilation
         if: matrix.target == 'aarch64-unknown-linux-gnu'
         run: |
           echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
           echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
-          echo "OPENSSL_STATIC=1" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig" >> $GITHUB_ENV
+          echo "OPENSSL_DIR=/usr" >> $GITHUB_ENV
+          echo "OPENSSL_LIB_DIR=/usr/lib/aarch64-linux-gnu" >> $GITHUB_ENV
+          echo "OPENSSL_INCLUDE_DIR=/usr/include" >> $GITHUB_ENV
 
       - name: Cache cargo registry
         uses: Swatinem/rust-cache@v2

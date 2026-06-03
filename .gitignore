@@ -5,7 +5,7 @@
 *.rs.bk
 
 # Rust
-Cargo.lock
+# Cargo.lock is tracked for reproducible binary builds
 
 # IDE
 .idea/
