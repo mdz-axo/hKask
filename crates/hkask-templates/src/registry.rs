@@ -617,20 +617,13 @@ impl Registry {
     }
 
     /// One-time migration helper: infer nested path from flat-file convention.
-    /// `registry/templates/cognition_calibrate.j2` -> `registry/templates/knowact/calibrate.j2`
+    /// `registry/templates/knowact_calibrate.j2` -> `registry/templates/knowact/calibrate.j2`
     pub fn migrate_flat_to_nested(flat_path: &str) -> Option<String> {
         let stripped = flat_path
             .strip_prefix("registry/templates/")?
             .strip_suffix(".j2")?;
         let (domain, name) = stripped.split_once('_')?;
-        // Map legacy domain names to current
-        let new_domain = match domain {
-            "prompt" => "wordact",
-            "cognition" => "knowact",
-            "process" => "flowdef",
-            other => other,
-        };
-        Some(format!("registry/templates/{}/{}.j2", new_domain, name))
+        Some(format!("registry/templates/{}/{}.j2", domain, name))
     }
 }
 
@@ -801,25 +794,7 @@ mod tests {
     }
 
     #[test]
-    fn template_type_parse_legacy_names() {
-        // Legacy names map to domain-aligned variants
-        assert_eq!(
-            TemplateType::parse_str("Prompt"),
-            Some(TemplateType::WordAct)
-        );
-        assert_eq!(
-            TemplateType::parse_str("Cognition"),
-            Some(TemplateType::KnowAct)
-        );
-        assert_eq!(
-            TemplateType::parse_str("Process"),
-            Some(TemplateType::FlowDef)
-        );
-        assert_eq!(
-            TemplateType::parse_str("Specification"),
-            Some(TemplateType::FlowDef)
-        );
-        // Current names
+    fn template_type_parse_str() {
         assert_eq!(
             TemplateType::parse_str("WordAct"),
             Some(TemplateType::WordAct)
@@ -832,21 +807,36 @@ mod tests {
             TemplateType::parse_str("FlowDef"),
             Some(TemplateType::FlowDef)
         );
+        assert_eq!(
+            TemplateType::parse_str("wordact"),
+            Some(TemplateType::WordAct)
+        );
+        assert_eq!(
+            TemplateType::parse_str("knowact"),
+            Some(TemplateType::KnowAct)
+        );
+        assert_eq!(
+            TemplateType::parse_str("flowdef"),
+            Some(TemplateType::FlowDef)
+        );
+        assert_eq!(TemplateType::parse_str("unknown"), None);
     }
 
     #[test]
-    fn migrate_flat_to_nested_handles_legacy_names() {
+    fn migrate_flat_to_nested() {
         assert_eq!(
-            Registry::migrate_flat_to_nested("registry/templates/cognition_calibrate.j2"),
+            Registry::migrate_flat_to_nested("registry/templates/knowact_calibrate.j2"),
             Some("registry/templates/knowact/calibrate.j2".to_string())
         );
         assert_eq!(
-            Registry::migrate_flat_to_nested("registry/templates/prompt_selector.j2"),
+            Registry::migrate_flat_to_nested("registry/templates/wordact_selector.j2"),
             Some("registry/templates/wordact/selector.j2".to_string())
         );
         assert_eq!(
-            Registry::migrate_flat_to_nested("registry/templates/process_dispatch.j2"),
+            Registry::migrate_flat_to_nested("registry/templates/flowdef_dispatch.j2"),
             Some("registry/templates/flowdef/dispatch.j2".to_string())
         );
+        // Non-matching paths return None
+        assert_eq!(Registry::migrate_flat_to_nested("no_prefix.j2"), None);
     }
 }
