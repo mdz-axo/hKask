@@ -1,0 +1,19 @@
+[package]
+name = "hkask-mcp-semantic"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Semantic memory store, recall, and similarity search MCP server"
+
+[dependencies]
+hkask-mcp = { path = "../../crates/hkask-mcp" }
+hkask-types = { path = "../../crates/hkask-types" }
+hkask-storage = { path = "../../crates/hkask-storage" }
+hkask-memory = { path = "../../crates/hkask-memory" }
+rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+schemars.workspace = true
+tracing.workspace = true
+anyhow.workspace = true

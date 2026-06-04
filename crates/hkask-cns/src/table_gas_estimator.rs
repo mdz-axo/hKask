@@ -62,6 +62,10 @@ pub(crate) fn default_gas_table() -> HashMap<&'static str, u64> {
     table.insert("hkask-mcp-fal", 100);
     table.insert("hkask-mcp-rss-reader", 20);
 
+    // Memory servers — internal storage read
+    table.insert("hkask-mcp-episodic", 5);
+    table.insert("hkask-mcp-semantic", 5);
+
     // Inference is handled separately by InferenceGasEstimator
     table.insert("hkask-mcp-inference", 0); // Overridden by InferenceGasEstimator
 
@@ -187,6 +191,9 @@ mod tests {
         // Internal tools are cheap
         assert_eq!(table.get("hkask-mcp-ocap"), Some(&1));
         assert_eq!(table.get("hkask-mcp-cns"), Some(&1));
+        // Memory servers — internal storage read
+        assert_eq!(table.get("hkask-mcp-episodic"), Some(&5));
+        assert_eq!(table.get("hkask-mcp-semantic"), Some(&5));
         // External tools are expensive
         assert_eq!(table.get("hkask-mcp-web"), Some(&50));
         assert_eq!(table.get("hkask-mcp-fal"), Some(&100));
