@@ -517,24 +517,13 @@ impl Registry {
         });
 
         // DDMVSS Specification templates (FlowDef — specification manifests)
-        registry.register(RegistryEntry {
-            id: "spec/goal/capture".into(),
-            template_type: TemplateType::FlowDef,
-            name: "Goal Capture".into(),
-            lexicon_terms: vec!["specify".into(), "require".into(), "elicit".into()],
-            description: "Capture a goal as a binding requirement".into(),
-            source_path: "registry/templates/spec/goal-capture.j2".into(),
-            required_capabilities: vec![],
-            cascade_level: 0,
-            matroshka_limit: max_recursion,
-        });
 
         registry.register(RegistryEntry {
             id: "spec/goal-capture".into(),
             template_type: TemplateType::FlowDef,
             name: "Goal Capture".into(),
             lexicon_terms: vec!["specify".into(), "require".into(), "elicit".into()],
-            description: "Capture a goal as a binding requirement".into(),
+            description: "Elicit user intent as binding requirement".into(),
             source_path: "registry/templates/spec/goal-capture.j2".into(),
             required_capabilities: vec![],
             cascade_level: 0,
@@ -546,7 +535,7 @@ impl Registry {
             template_type: TemplateType::FlowDef,
             name: "Constraint Bind".into(),
             lexicon_terms: vec!["constrain".into(), "require".into()],
-            description: "Bind OCAP boundaries to a goal".into(),
+            description: "Attach OCAP boundaries to goals".into(),
             source_path: "registry/templates/spec/constraint-bind.j2".into(),
             required_capabilities: vec![],
             cascade_level: 0,
@@ -556,9 +545,9 @@ impl Registry {
         registry.register(RegistryEntry {
             id: "spec/curate-collection".into(),
             template_type: TemplateType::FlowDef,
-            name: "Spec Curate Collection".into(),
-            lexicon_terms: vec!["curate".into(), "evaluate".into()],
-            description: "Evaluate spec for collection coherence".into(),
+            name: "Curate Collection".into(),
+            lexicon_terms: vec!["curate".into(), "cultivate".into()],
+            description: "Evaluate collection coherence and completeness".into(),
             source_path: "registry/templates/spec/curate-collection.j2".into(),
             required_capabilities: vec![],
             cascade_level: 0,
@@ -568,9 +557,9 @@ impl Registry {
         registry.register(RegistryEntry {
             id: "spec/reconcile-conflicts".into(),
             template_type: TemplateType::FlowDef,
-            name: "Spec Reconcile Conflicts".into(),
-            lexicon_terms: vec!["reconcile".into(), "compose".into()],
-            description: "Reconcile tensions between specs".into(),
+            name: "Reconcile Conflicts".into(),
+            lexicon_terms: vec!["reconcile".into()],
+            description: "Resolve goal tensions without collapsing them".into(),
             source_path: "registry/templates/spec/reconcile-conflicts.j2".into(),
             required_capabilities: vec![],
             cascade_level: 0,
@@ -580,9 +569,9 @@ impl Registry {
         registry.register(RegistryEntry {
             id: "spec/contextualise".into(),
             template_type: TemplateType::FlowDef,
-            name: "Spec Contextualise".into(),
-            lexicon_terms: vec!["cultivate".into()],
-            description: "Cultivate collection toward coherence".into(),
+            name: "Contextualise".into(),
+            lexicon_terms: vec!["contextualise".into()],
+            description: "Situate artifact within meaningful environment".into(),
             source_path: "registry/templates/spec/contextualise.j2".into(),
             required_capabilities: vec![],
             cascade_level: 0,
@@ -594,20 +583,8 @@ impl Registry {
             template_type: TemplateType::FlowDef,
             name: "Spec Selector".into(),
             lexicon_terms: vec!["recognize".into(), "match".into()],
-            description: "Query spec graph by category".into(),
+            description: "Route input to best-fit specification template".into(),
             source_path: "registry/templates/spec/selector.j2".into(),
-            required_capabilities: vec![],
-            cascade_level: 0,
-            matroshka_limit: max_recursion,
-        });
-
-        registry.register(RegistryEntry {
-            id: "spec/goal-capture".into(),
-            template_type: TemplateType::FlowDef,
-            name: "Spec Goal Capture".into(),
-            lexicon_terms: vec!["evaluate".into(), "ground".into()],
-            description: "Validate spec graph completeness".into(),
-            source_path: "registry/templates/spec/goal-capture.j2".into(),
             required_capabilities: vec![],
             cascade_level: 0,
             matroshka_limit: max_recursion,

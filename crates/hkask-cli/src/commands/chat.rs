@@ -12,7 +12,7 @@
 use hkask_agents::adapters::MemoryLoopAdapter;
 use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_templates::{OkapiConfig, OkapiInference};
-use hkask_types::ports::InferencePort;
+use hkask_types::ports::{InferencePort, InferenceResult};
 use hkask_types::{DelegationAction, DelegationResource, DelegationToken, LLMParameters, WebID};
 use std::sync::Arc;
 
@@ -20,6 +20,32 @@ use crate::commands::config::{
     ResolvedSecrets, init_registry, init_registry_with_secrets, registry_yaml_path,
     resolve_acp_secret,
 };
+
+/// Result of a chat inference call.
+///
+/// Carries the response text alongside token usage metadata
+/// so callers can account for actual inference cost.
+pub struct ChatResponse {
+    /// The agent's response text
+    pub text: String,
+    /// Token usage from the inference call (prompt + completion tokens)
+    pub usage: Option<TokenUsage>,
+}
+
+/// Token usage breakdown for gas accounting.
+pub struct TokenUsage {
+    pub prompt_tokens: u32,
+    pub completion_tokens: u32,
+    pub total_tokens: u32,
+}
+
+impl TokenUsage {
+    /// Total tokens as gas cost. Uses a 1:1 mapping — one gas unit per token.
+    /// This replaces the flat 500-unit heuristic with actual token counting.
+    pub fn gas_cost(&self) -> u64 {
+        self.total_tokens as u64
+    }
+}
 
 /// Send a chat message to an agent and return the response.
 ///
@@ -57,7 +83,7 @@ pub async fn chat_with_agent(
     episodic_storage: Option<Arc<dyn EpisodicStoragePort>>,
     semantic_storage: Option<Arc<dyn SemanticStoragePort>>,
     agent_webid: Option<WebID>,
-) -> String {
+) -> ChatResponse {
     let name = agent_name.unwrap_or("Curator");
 
     // Load agent registry — prefer pre-resolved secrets from onboarding
@@ -248,16 +274,32 @@ pub async fn chat_with_agent(
     };
 
     // Direct inference — no pod creation needed for standard chat.
-    let response = match inference
+    let (response_text, usage) = match inference
         .generate_with_model(&full_prompt, &params, Some(model))
         .await
     {
-        Ok(result) => result.text,
-        Err(e) => return format!("Inference error: {}", e),
+        Ok(result) => {
+            let text = result.text;
+            let u = result.usage;
+            (
+                text,
+                Some(TokenUsage {
+                    prompt_tokens: u.prompt_tokens,
+                    completion_tokens: u.completion_tokens,
+                    total_tokens: u.total_tokens,
+                }),
+            )
+        }
+        Err(e) => {
+            return ChatResponse {
+                text: format!("Inference error: {}", e),
+                usage: None,
+            };
+        }
     };
 
     // ── Episodic storage (after inference) ──────────────────────────────
-    // Store the exchange as an episodic triple: (agent, "chatted", response)
+    // Store the exchange as an episodic triple: (agent, "chatted", response_text)
     // This is private, agent-scoped memory — episodic_override: private.
     let store_result = match (&episodic_storage, &memory_adapter) {
         (Some(epi_port), _) => epi_port.store_episodic(
@@ -266,7 +308,7 @@ pub async fn chat_with_agent(
             "chat_turn",
             serde_json::json!({
                 "user_input": input,
-                "agent_response": response,
+                "agent_response": response_text,
             }),
             0.7,
             &capability_token,
@@ -277,7 +319,7 @@ pub async fn chat_with_agent(
             "chat_turn",
             serde_json::json!({
                 "user_input": input,
-                "agent_response": response,
+                "agent_response": response_text,
             }),
             0.7,
             &capability_token,
@@ -305,7 +347,10 @@ pub async fn chat_with_agent(
         }
     }
 
-    response
+    ChatResponse {
+        text: response_text,
+        usage,
+    }
 }
 
 /// Chat via Russell ACP bridge (R11: Russell Direct Chat)
