@@ -1,6 +1,5 @@
 //! PodManager, PodStatus, PodManagerBuilder — Pod lifecycle management
 
-use hkask_keystore::keychain::Keychain;
 use hkask_types::{CapabilityChecker, InferencePort, NuEventSink};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -27,7 +26,6 @@ use crate::ports::{EpisodicStoragePort, GitCASPort, MCPRuntimePort, SemanticStor
 /// - Inference access via InferencePort
 pub struct PodManager {
     pub(crate) pods: Arc<RwLock<HashMap<PodID, AgentPod>>>,
-    _keystore: Keychain,
     git_cas: Arc<dyn GitCASPort>,
     acp_runtime: Arc<dyn crate::ports::AcpPort + Send + Sync>,
     pub(crate) mcp_runtime: Arc<dyn MCPRuntimePort>,
@@ -69,7 +67,6 @@ impl PodManager {
     ) -> Self {
         Self {
             pods: Arc::new(RwLock::new(HashMap::new())),
-            _keystore: Keychain::default(),
             git_cas,
             acp_runtime,
             mcp_runtime,
@@ -104,7 +101,6 @@ impl PodManager {
     ) -> Self {
         Self {
             pods: Arc::new(RwLock::new(HashMap::new())),
-            _keystore: Keychain::default(),
             git_cas,
             acp_runtime,
             mcp_runtime,
@@ -136,7 +132,6 @@ impl PodManager {
 
         Self {
             pods: Arc::new(RwLock::new(HashMap::new())),
-            _keystore: Keychain::default(),
             git_cas: Arc::new(GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-mock"))),
             acp_runtime: Arc::new(crate::acp::AcpRuntime::default()),
             mcp_runtime: Arc::new(McpRuntimeAdapter::new()),

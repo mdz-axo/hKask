@@ -42,6 +42,13 @@ pub enum OnboardingError {
 pub struct OnboardingOutcome {
     /// The replicant name the user signed in as
     pub signed_in_agent: String,
+    /// Resolved secrets from onboarding, when available.
+    ///
+    /// Present when onboarding derived secrets from a passphrase (first-run
+    /// or sign-in). Carries the secrets forward so the REPL can use them
+    /// directly instead of re-resolving from the OS keychain (which may not
+    /// persist across Entry instances with the mock backend).
+    pub resolved_secrets: Option<crate::commands::config::ResolvedSecrets>,
 }
 
 /// Run the onboarding/sign-in flow.
@@ -58,6 +65,7 @@ pub async fn run_onboarding() -> Result<OnboardingOutcome, OnboardingError> {
             let agent_name = pick_or_default_replicant(&replicants)?;
             return Ok(OnboardingOutcome {
                 signed_in_agent: agent_name,
+                resolved_secrets: None,
             });
         }
         Err(_) => {
@@ -192,6 +200,7 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
 
     Ok(OnboardingOutcome {
         signed_in_agent: name,
+        resolved_secrets: Some(resolved),
     })
 }
 
@@ -228,6 +237,7 @@ async fn sign_in_flow(replicant_name: &str) -> Result<OnboardingOutcome, Onboard
                         println!();
                         return Ok(OnboardingOutcome {
                             signed_in_agent: replicant_name.to_string(),
+                            resolved_secrets: Some(resolved),
                         });
                     }
                     Err(_) => {

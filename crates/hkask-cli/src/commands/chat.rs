@@ -7,7 +7,10 @@ use hkask_types::LLMParameters;
 use hkask_types::ports::InferencePort;
 use std::sync::Arc;
 
-use crate::commands::config::{init_registry, registry_yaml_path, resolve_acp_secret};
+use crate::commands::config::{
+    ResolvedSecrets, init_registry, init_registry_with_secrets, registry_yaml_path,
+    resolve_acp_secret,
+};
 
 /// Send a chat message to an agent and return the response.
 ///
@@ -17,18 +20,29 @@ use crate::commands::config::{init_registry, registry_yaml_path, resolve_acp_sec
 /// When `inference_port` is provided, the shared port is reused across calls
 /// and `generate_with_model()` is used for per-request model override.
 /// When `None`, a new `OkapiInference` is created per call (backward compat).
+///
+/// When `secrets` is provided (from onboarding), uses them directly instead
+/// of re-resolving from environment/keychain — avoids the mock keyring
+/// backend's EntryOnly persistence on Linux.
 pub async fn chat_with_agent(
     input: &str,
     agent_name: Option<&str>,
     model_override: Option<&str>,
     inference_port: Option<Arc<dyn InferencePort>>,
+    secrets: Option<&ResolvedSecrets>,
 ) -> String {
     let name = agent_name.unwrap_or("Curator");
 
-    // Load agent registry
-    let (acp, store) = match init_registry().await {
-        Ok(r) => r,
-        Err(e) => return format!("Registry init error: {}", e),
+    // Load agent registry — prefer pre-resolved secrets from onboarding
+    let (acp, store) = match secrets {
+        Some(s) => match init_registry_with_secrets(s).await {
+            Ok(r) => r,
+            Err(e) => return format!("Registry init error: {}", e),
+        },
+        None => match init_registry().await {
+            Ok(r) => r,
+            Err(e) => return format!("Registry init error: {}", e),
+        },
     };
 
     let loader = hkask_agents::AgentRegistryLoader::new(

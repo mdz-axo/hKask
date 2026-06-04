@@ -562,6 +562,7 @@ pub(super) fn handle_ask(
                 Some(arg1),
                 None,
                 Some(state.inference_port.clone()),
+                state.resolved_secrets.as_ref(),
             ));
             println!("\x1b[1m{}\x1b[0m: {}\n", arg1, response);
 
@@ -580,6 +581,7 @@ pub(super) fn handle_ask(
                 Some(arg1),
                 None,
                 Some(state.inference_port.clone()),
+                state.resolved_secrets.as_ref(),
             ));
             println!("\x1b[1m{}\x1b[0m: {}\n", arg1, response);
         }

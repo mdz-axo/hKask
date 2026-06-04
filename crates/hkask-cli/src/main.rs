@@ -206,11 +206,14 @@ fn run_chat(
         // Otherwise, walks through interactive onboarding (creates replicant or signs in).
         // Falls back to the old error if stdin is piped (rpassword reads /dev/tty, but
         // prompt_line uses stdin which may be the pipe).
-        if let Err(e) = rt.block_on(hkask_cli::onboarding::run_onboarding()) {
-            eprintln!("Cannot chat: {}", e);
-            eprintln!("Run `kask chat` first to complete onboarding interactively.");
-            std::process::exit(1);
-        }
+        let onboarding_outcome = match rt.block_on(hkask_cli::onboarding::run_onboarding()) {
+            Ok(outcome) => outcome,
+            Err(e) => {
+                eprintln!("Cannot chat: {}", e);
+                eprintln!("Run `kask chat` first to complete onboarding interactively.");
+                std::process::exit(1);
+            }
+        };
         let content = or_exit(
             std::fs::read_to_string(&input_path),
             "Failed to read input file",
@@ -220,6 +223,7 @@ fn run_chat(
             Some(&agent),
             model.as_deref(),
             None,
+            onboarding_outcome.resolved_secrets.as_ref(),
         ));
         println!("{}: {}", agent, response);
     } else {

@@ -34,6 +34,10 @@ pub(crate) struct ReplState {
     pub(crate) current_agent: String,
     pub(crate) session_history: SessionHistory,
     pub(crate) active_session: Option<String>,
+    /// Pre-resolved secrets from onboarding, carried forward to avoid
+    /// re-resolving from the OS keychain (which may use a mock backend
+    /// with EntryOnly persistence on Linux).
+    pub(crate) resolved_secrets: Option<crate::commands::config::ResolvedSecrets>,
 }
 
 pub fn run(
@@ -61,8 +65,8 @@ pub fn run(
     // Runs before the interactive loop. If keys are already configured,
     // this is transparent. Otherwise, walks the user through creating or
     // signing into a replicant.
-    let current_agent = match rt_handle.block_on(crate::onboarding::run_onboarding()) {
-        Ok(outcome) => outcome.signed_in_agent,
+    let onboarding_outcome = match rt_handle.block_on(crate::onboarding::run_onboarding()) {
+        Ok(outcome) => outcome,
         Err(e) => {
             eprintln!("Onboarding failed: {}", e);
             eprintln!("Run `kask chat` to set up your replicant identity.");
@@ -74,9 +78,10 @@ pub fn run(
         inference_port,
         okapi_config,
         current_model: initial_model_str.to_string(),
-        current_agent,
+        current_agent: onboarding_outcome.signed_in_agent,
         session_history: SessionHistory::new(),
         active_session: None,
+        resolved_secrets: onboarding_outcome.resolved_secrets,
     };
 
     let helper = KaskHelper::new();
@@ -178,6 +183,7 @@ pub fn run(
                         Some(&state.current_agent),
                         Some(&state.current_model),
                         Some(state.inference_port.clone()),
+                        state.resolved_secrets.as_ref(),
                     ));
                     println!("{}: {}\n", state.current_agent, response);
                     state

@@ -182,7 +182,7 @@ pub fn create_mcp_dispatcher() -> (hkask_mcp::McpDispatcher, hkask_types::Capabi
 
 /// Pre-resolved secrets for onboarding, passed explicitly instead of
 /// mutating environment variables.
-pub(crate) struct ResolvedSecrets {
+pub struct ResolvedSecrets {
     pub acp_secret: String,
     pub db_passphrase: String,
 }
@@ -208,7 +208,7 @@ pub(crate) async fn init_registry() -> Result<
 ///
 /// Uses the provided secrets directly instead of resolving from
 /// environment variables or keychain, avoiding runtime env mutation.
-pub(crate) async fn init_registry_with_secrets(
+pub async fn init_registry_with_secrets(
     secrets: &ResolvedSecrets,
 ) -> Result<
     (

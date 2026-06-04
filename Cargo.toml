@@ -32,6 +32,7 @@ members = [
     "mcp-servers/hkask-mcp-ensemble",
     "mcp-servers/hkask-mcp-episodic",
     "mcp-servers/hkask-mcp-semantic",
+    "mcp-servers/hkask-mcp-replicant",
 ]
 
 [workspace.package]
@@ -103,7 +104,7 @@ rand = "0.9"
 base64 = "0.22"
 
 # Keychain / Secrets
-keyring = "3"
+keyring = { version = "3", features = ["linux-native-sync-persistent", "crypto-rust"] }
 
 # HTTP client (for MCP servers)
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }

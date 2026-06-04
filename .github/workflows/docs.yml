@@ -61,7 +61,7 @@ jobs:
 
       - name: Add redirect to docs index
         run: |
-          echo '<meta http-equiv="refresh" content="0; url=hkask_cli/index.html">' > target/doc/index.html
+          echo '<meta http-equiv="refresh" content="0; url=hkask_types/index.html">' > target/doc/index.html
 
       - name: Upload documentation artifact
         uses: actions/upload-artifact@v4
