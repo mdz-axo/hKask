@@ -52,7 +52,7 @@ pub use goal::*;
 pub use goal_capability::*;
 pub use id::*;
 pub use identity::*;
-pub use lexicon::TemplateType;
+pub use lexicon::{HLexicon, LexiconTerm, TemplateType};
 pub use loops::{
     ActionType, CuratorDirective, CuratorHandle, CyberneticsHandle, Deviation, DeviationDirection,
     EpisodicReadHandle, EpisodicWriteHandle, ExperienceClassification, HkaskLoop, LoopAction,

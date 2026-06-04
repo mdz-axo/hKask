@@ -224,6 +224,9 @@ fn run_chat(
             model.as_deref(),
             None,
             onboarding_outcome.resolved_secrets.as_ref(),
+            None, // No persistent storage in non-interactive mode
+            None, // No persistent storage in non-interactive mode
+            None, // WebID derived from agent name
         ));
         println!("{}: {}", agent, response);
     } else {
@@ -248,7 +251,12 @@ fn run_template(registry: &mut SqliteRegistry, action: TemplateAction) {
             } else {
                 println!("Registered templates ({}):\n", entries.len());
                 for entry in entries {
-                    println!("  {} ({})", entry.id, entry.template_type.as_str());
+                    println!(
+                        "  {} ({}) — {}",
+                        entry.id,
+                        entry.template_type.as_str(),
+                        entry.name
+                    );
                     println!("    Description: {}", entry.description);
                     println!("    Path: {}", entry.source_path);
                     if !entry.lexicon_terms.is_empty() {
@@ -269,7 +277,7 @@ fn run_template(registry: &mut SqliteRegistry, action: TemplateAction) {
                 Some(t) => t,
                 None => {
                     eprintln!(
-                        "Invalid template type: {}. Valid types: prompt, cognition, process",
+                        "Invalid template type: {}. Valid types: wordact, knowact, flowdef",
                         r#type
                     );
                     std::process::exit(1);
@@ -295,6 +303,7 @@ fn run_template(registry: &mut SqliteRegistry, action: TemplateAction) {
         TemplateAction::Get { id } => {
             let entry = or_exit(commands::get_template(registry, &id), "Template not found");
             println!("Template: {}", entry.id);
+            println!("  Name: {}", entry.name);
             println!("  Type: {}", entry.template_type.as_str());
             println!("  Description: {}", entry.description);
             println!("  Path: {}", entry.source_path);
@@ -307,7 +316,12 @@ fn run_template(registry: &mut SqliteRegistry, action: TemplateAction) {
             } else {
                 println!("Templates matching '{}':\n", term);
                 for entry in results {
-                    println!("  {} ({})", entry.id, entry.template_type.as_str());
+                    println!(
+                        "  {} ({}) — {}",
+                        entry.id,
+                        entry.template_type.as_str(),
+                        entry.name
+                    );
                 }
             }
         }
@@ -1076,10 +1090,13 @@ fn run_registry(
                         let entry = hkask_templates::RegistryEntry {
                             id: asset.id.clone(),
                             template_type: asset.template_type,
+                            name: asset.id.clone(),
                             lexicon_terms: vec!["russell-migrated".to_string()],
                             description: asset.description.clone(),
                             source_path: format!("russell-migrated:{}", asset.id),
                             required_capabilities: vec![],
+                            cascade_level: 0,
+                            matroshka_limit: hkask_types::SYSTEM_MAX_RECURSION as u32,
                         };
                         if let Err(e) = registry.register(entry, None) {
                             eprintln!("Failed to register template {}: {}", asset.id, e);

@@ -36,6 +36,6 @@ pub use okapi_config::{list_okapi_models, search_okapi_models};
 pub use ports::{McpPort, RegistryEntry, RegistryError, RegistryIndex, Result, TemplateError};
 pub use prompt_strategy::PromptStrategy;
 pub use provenance::TemplateProvenance;
-pub use registry::{Registry, Skill, TemplateEntry};
+pub use registry::{Registry, Skill};
 pub use registry_sqlite::SqliteRegistry;
 pub use response_contract::{ResponseContract, ResponseDrift};

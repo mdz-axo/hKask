@@ -602,6 +602,7 @@ impl ApiState {
 pub struct TemplateResponse {
     pub id: String,
     pub template_type: String,
+    pub name: String,
     pub description: String,
     pub source_path: String,
     pub lexicon_terms: Vec<String>,

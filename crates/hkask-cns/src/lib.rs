@@ -13,6 +13,7 @@ pub mod energy; // Loop 6 — gas budget (replaces energy budget)
 pub mod governed_tool; // Loop 6 → all tool invocation membranes
 pub mod inference_estimator; // Loop 6 → Inference gas estimation
 pub mod kill_zone; // Loop 6 subloop 6.5 — kill-zone detection
+pub mod prompt_decomposition; // CNS variety sensing — prompt analysis for REPL
 pub mod runtime; // Loop 6 — runtime
 pub mod table_gas_estimator; // Per-server gas cost table
 
@@ -34,6 +35,7 @@ pub use governed_tool::{GasEstimator, GovernedTool};
 pub use inference_estimator::InferenceGasEstimator;
 pub use table_gas_estimator::TableGasEstimator;
 
+pub use prompt_decomposition::{PromptAnalysis, SentenceDecomposition, decompose_prompt};
 pub use runtime::CnsRuntime;
 
 // Re-export types moved to hkask-types for backward compatibility

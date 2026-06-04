@@ -136,9 +136,9 @@ impl GitCasAdapter {
                     && let Ok(content) = std::fs::read_to_string(&path)
                 {
                     let template_type = match ext.to_str() {
-                        Some("j2") => "Prompt",
-                        Some("yaml") => "Process",
-                        _ => "Cognition",
+                        Some("j2") => "KnowAct",
+                        Some("yaml") => "FlowDef",
+                        _ => "KnowAct",
                     };
                     templates.push(TemplateFile {
                         path: path.to_string_lossy().to_string(),
@@ -199,9 +199,9 @@ impl GitCASPort for GitCasAdapter {
                     .map_err(|e| GitError::Io(format!("Failed to read template: {}", e)))?;
 
                 let template_type = match path.extension().and_then(|s| s.to_str()) {
-                    Some("j2") => "Prompt",
-                    Some("yaml") => "Process",
-                    _ => "Cognition",
+                    Some("j2") => "KnowAct",
+                    Some("yaml") => "FlowDef",
+                    _ => "KnowAct",
                 };
 
                 templates.push(TemplateFile {

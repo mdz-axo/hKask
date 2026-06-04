@@ -1,12 +1,24 @@
-//! Chat command handlers — inference and Russell bridge
+//! Chat command handlers — inference, memory, and Russell bridge
+//!
+//! The chat path uses direct inference via the shared `InferencePort`.
+//! Pod creation is not needed for standard chat — pods are reserved for
+//! multi-agent sessions (ensemble, A2A) where the pod lifecycle adds value.
+//!
+//! Memory integration (Task 5):
+//! - Before inference: recall semantic triples relevant to the user's input
+//! - After inference: store an episodic triple recording the exchange
+//! - Both operations use the memory loop adapter with OCAP discipline
 
+use hkask_agents::adapters::MemoryLoopAdapter;
+use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_templates::{OkapiConfig, OkapiInference};
-use hkask_types::LLMParameters;
 use hkask_types::ports::InferencePort;
+use hkask_types::{DelegationAction, DelegationResource, DelegationToken, LLMParameters, WebID};
 use std::sync::Arc;
 
 use crate::commands::config::{
     ResolvedSecrets, init_registry, init_registry_with_secrets, registry_yaml_path,
+    resolve_acp_secret,
 };
 
 /// Send a chat message to an agent and return the response.
@@ -26,17 +38,30 @@ use crate::commands::config::{
 /// When `secrets` is provided (from onboarding), uses them directly instead
 /// of re-resolving from environment/keychain — avoids the mock keyring
 /// backend's EntryOnly persistence on Linux.
+///
+/// Memory integration:
+/// - Before inference, recall semantic triples relevant to the user's input
+/// - After inference, store an episodic triple recording the exchange
+/// - Episodic memory is private (agent-scoped), semantic memory is public
+///
+/// When `episodic_storage` and `semantic_storage` are provided, they are used
+/// for memory operations (enabling persistence across REPL sessions).
+/// When `None`, a fresh in-memory adapter is created per call (ephemeral).
+#[allow(clippy::too_many_arguments)]
 pub async fn chat_with_agent(
     input: &str,
     agent_name: Option<&str>,
     model_override: Option<&str>,
     inference_port: Option<Arc<dyn InferencePort>>,
     secrets: Option<&ResolvedSecrets>,
+    episodic_storage: Option<Arc<dyn EpisodicStoragePort>>,
+    semantic_storage: Option<Arc<dyn SemanticStoragePort>>,
+    agent_webid: Option<WebID>,
 ) -> String {
     let name = agent_name.unwrap_or("Curator");
 
     // Load agent registry — prefer pre-resolved secrets from onboarding
-    let (_acp, store) = match secrets {
+    let (acp, store) = match secrets {
         Some(s) => match init_registry_with_secrets(s).await {
             Ok(r) => r,
             Err(e) => return format!("Registry init error: {}", e),
@@ -49,7 +74,7 @@ pub async fn chat_with_agent(
 
     let loader = hkask_agents::AgentRegistryLoader::new(
         registry_yaml_path(),
-        _acp.clone(),
+        acp.clone(),
         store,
         Arc::new(hkask_agents::adapters::FilesystemRegistrySource::new()),
     );
@@ -96,7 +121,121 @@ pub async fn chat_with_agent(
         }
     };
 
-    let full_prompt = format!("{}\n\nUser: {}", system_prompt, input);
+    // Derive WebID for the agent (deterministic — same name → same WebID)
+    let agent_webid = agent_webid
+        .unwrap_or_else(|| WebID::from_persona_with_namespace(name.as_bytes(), "replicant"));
+
+    // Set up memory adapters for episodic storage and semantic recall.
+    // Prefer persistent storage from the REPL (session-bound) when available.
+    // Fall back to in-memory storage otherwise.
+    let memory_adapter = match (&episodic_storage, &semantic_storage) {
+        (Some(epi), Some(sem)) => {
+            // Persistent storage from REPL session — use directly
+            let _ = (epi, sem); // Used via the trait methods below
+            None // Already have separate ports, no need for adapter
+        }
+        _ => {
+            // No persistent storage — create ephemeral in-memory adapter
+            match MemoryLoopAdapter::in_memory() {
+                Ok(adapter) => Some(Arc::new(adapter)),
+                Err(e) => {
+                    tracing::warn!(
+                        target: "hkask.chat",
+                        error = %e,
+                        "Memory adapter init failed — chat will proceed without memory"
+                    );
+                    None
+                }
+            }
+        }
+    };
+
+    // Create a capability token for memory operations.
+    // The token uses the ACP secret for HMAC signing, ensuring that
+    // memory operations are authorized through the same OCAP discipline
+    // as pod-mediated access.
+    let acp_secret = resolve_acp_secret().unwrap_or_else(|_| {
+        tracing::warn!(target: "hkask.chat", "Using derived ACP secret for memory token");
+        "hkask-insecure-dev-fallback".to_string()
+    });
+
+    let capability_token = DelegationToken::new(
+        DelegationResource::Registry,
+        "memory".to_string(),
+        DelegationAction::Execute,
+        WebID::new(), // system
+        agent_webid,
+        acp_secret.as_bytes(),
+    );
+
+    // ── Semantic recall (before inference) ──────────────────────────────
+    // Recall relevant knowledge from semantic memory to enrich the prompt.
+    let semantic_context = match (&semantic_storage, &memory_adapter) {
+        (Some(sem_port), _) => match sem_port.recall_semantic(input, &capability_token) {
+            Ok(triples) if !triples.is_empty() => {
+                let context: Vec<String> = triples
+                    .iter()
+                    .filter_map(|t| {
+                        t.get("value")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string())
+                    })
+                    .collect();
+                if context.is_empty() {
+                    None
+                } else {
+                    Some(context.join("\n"))
+                }
+            }
+            Ok(_) => None,
+            Err(e) => {
+                tracing::debug!(
+                    target: "hkask.chat.memory",
+                    error = %e,
+                    "Semantic recall failed — proceeding without context"
+                );
+                None
+            }
+        },
+        (None, Some(adapter)) => match adapter.recall_semantic(input, &capability_token) {
+            Ok(triples) if !triples.is_empty() => {
+                let context: Vec<String> = triples
+                    .iter()
+                    .filter_map(|t| {
+                        t.get("value")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string())
+                    })
+                    .collect();
+                if context.is_empty() {
+                    None
+                } else {
+                    Some(context.join("\n"))
+                }
+            }
+            Ok(_) => None,
+            Err(e) => {
+                tracing::debug!(
+                    target: "hkask.chat.memory",
+                    error = %e,
+                    "Semantic recall failed — proceeding without context"
+                );
+                None
+            }
+        },
+        (None, None) => None,
+    };
+
+    // Compose the full prompt, incorporating any semantic context
+    let full_prompt = match semantic_context {
+        Some(ref ctx) => {
+            format!(
+                "{}\n\n## Relevant Knowledge\n{}\n\nUser: {}",
+                system_prompt, ctx, input
+            )
+        }
+        None => format!("{}\n\nUser: {}", system_prompt, input),
+    };
 
     let params = LLMParameters {
         temperature: 0.7,
@@ -109,16 +248,64 @@ pub async fn chat_with_agent(
     };
 
     // Direct inference — no pod creation needed for standard chat.
-    // The shared InferencePort already supports per-request model override
-    // via generate_with_model(). Pod-mediated inference is reserved for
-    // ensemble/A2A sessions where lifecycle management adds value.
-    match inference
+    let response = match inference
         .generate_with_model(&full_prompt, &params, Some(model))
         .await
     {
         Ok(result) => result.text,
-        Err(e) => format!("Inference error: {}", e),
+        Err(e) => return format!("Inference error: {}", e),
+    };
+
+    // ── Episodic storage (after inference) ──────────────────────────────
+    // Store the exchange as an episodic triple: (agent, "chatted", response)
+    // This is private, agent-scoped memory — episodic_override: private.
+    let store_result = match (&episodic_storage, &memory_adapter) {
+        (Some(epi_port), _) => epi_port.store_episodic(
+            agent_webid,
+            "chatted",
+            "chat_turn",
+            serde_json::json!({
+                "user_input": input,
+                "agent_response": response,
+            }),
+            0.7,
+            &capability_token,
+        ),
+        (None, Some(adapter)) => adapter.store_episodic(
+            agent_webid,
+            "chatted",
+            "chat_turn",
+            serde_json::json!({
+                "user_input": input,
+                "agent_response": response,
+            }),
+            0.7,
+            &capability_token,
+        ),
+        (None, None) => Err(hkask_agents::error::MemoryError::Storage(
+            "No memory adapter available".to_string(),
+        )),
+    };
+
+    match store_result {
+        Ok(_) => {
+            tracing::debug!(
+                target: "hkask.chat.memory",
+                agent = %name,
+                "Episodic trace stored"
+            );
+        }
+        Err(e) => {
+            tracing::debug!(
+                target: "hkask.chat.memory",
+                agent = %name,
+                error = %e,
+                "Episodic storage failed — response still returned"
+            );
+        }
     }
+
+    response
 }
 
 /// Chat via Russell ACP bridge (R11: Russell Direct Chat)
@@ -126,7 +313,6 @@ async fn chat_via_russell(input: &str, agent: Option<&hkask_types::RegisteredAge
     use hkask_agents::acp::A2AMessage;
     use hkask_agents::adapters::RussellAcpAdapter;
     use hkask_agents::ports::AcpPort;
-    use hkask_types::WebID;
 
     if agent.is_none() {
         return "Russell is not registered. Use `kask agent register` to register Russell first."

@@ -46,9 +46,22 @@ impl CnsState {
 }
 
 /// CNS runtime — single entry point for observability and regulation
+///
+/// Cheaply clonable: both fields are `Arc`-wrapped, so cloning only bumps
+/// reference counts. All clones share the same inner state (variety tracker,
+/// algedonic manager, subscribers).
 pub struct CnsRuntime {
     state: Arc<RwLock<CnsState>>,
     subscribers: Arc<RwLock<Vec<Arc<dyn CnsObserver>>>>,
+}
+
+impl Clone for CnsRuntime {
+    fn clone(&self) -> Self {
+        Self {
+            state: Arc::clone(&self.state),
+            subscribers: Arc::clone(&self.subscribers),
+        }
+    }
 }
 
 impl CnsRuntime {

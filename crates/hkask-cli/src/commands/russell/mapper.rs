@@ -103,7 +103,7 @@ impl RussellMappingConfig {
             },
             template_type_inference: TemplateTypeInference {
                 rules: vec![],
-                default: "Process".to_string(),
+                default: "FlowDef".to_string(),
             },
             model_tier_selection: ModelTierSelection {
                 rules: vec![],
@@ -307,11 +307,11 @@ fn infer_template_type(
     let intervention_count = russell.interventions.len();
 
     if probe_count > 0 && intervention_count > 0 {
-        TemplateType::Process
+        TemplateType::FlowDef
     } else if probe_count > 0 {
-        TemplateType::Prompt
+        TemplateType::WordAct
     } else {
-        TemplateType::Cognition
+        TemplateType::KnowAct
     }
 }
 

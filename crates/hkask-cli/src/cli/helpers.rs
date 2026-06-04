@@ -19,12 +19,7 @@ pub fn parse_data_category(s: &str) -> hkask_types::DataCategory {
 
 /// Parse a template type string into a TemplateType enum
 pub fn parse_template_type(type_str: &str) -> Option<Type> {
-    match type_str.to_lowercase().as_str() {
-        "prompt" => Some(Type::Prompt),
-        "cognition" => Some(Type::Cognition),
-        "process" => Some(Type::Process),
-        _ => None,
-    }
+    Type::parse_str(type_str)
 }
 
 /// Initialize tracing subscriber with optional verbose logging

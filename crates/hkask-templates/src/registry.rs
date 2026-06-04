@@ -1,7 +1,12 @@
 //! Template registry index
 //!
-//! Unified registry with template_type discriminator per architecture v0.21.0.
-//! Supports Prompt (WordAct), Process (FlowDef), and Cognition (KnowAct) templates.
+//! Unified registry with template_type discriminator per architecture v0.22.0.
+//! Template types align with hKask domains:
+//! - **WordAct** — Jinja2 prompt templates ("what to say")
+//! - **KnowAct** — Jinja2 cognition templates ("how to think")
+//! - **FlowDef** — YAML process manifests ("what to do", including specifications)
+//!
+//! Rust is the loom. YAML/Jinja2 is the thread.
 
 use crate::ports::{RegistryEntry, RegistryIndex, Result, TemplateError};
 use hkask_types::{SYSTEM_MAX_RECURSION, TemplateType};
@@ -9,99 +14,33 @@ use std::collections::HashMap;
 use std::env;
 use std::path::PathBuf;
 
-/// Template registry entry
-#[derive(Debug, Clone)]
-pub struct TemplateEntry {
-    pub id: String,
-    pub template_type: TemplateType,
-    pub name: String,
-    pub description: String,
-    pub lexicon_terms: Vec<String>,
-    pub source_path: String,
-    pub cascade_level: u32,
-    pub matroshka_limit: u32,
-    /// Required capabilities for this template (R4: Capability Intersection)
-    pub required_capabilities: Vec<String>,
-}
-
-impl TemplateEntry {
-    pub fn new(id: &str, template_type: TemplateType, name: &str, description: &str) -> Self {
-        Self {
-            id: id.to_string(),
-            template_type,
-            name: name.to_string(),
-            description: description.to_string(),
-            lexicon_terms: vec![],
-            source_path: format!("registry/templates/{}.j2", id),
-            cascade_level: 0,
-            matroshka_limit: SYSTEM_MAX_RECURSION as u32,
-            required_capabilities: vec![],
-        }
-    }
-
-    pub fn with_lexicon(mut self, terms: Vec<&str>) -> Self {
-        self.lexicon_terms = terms.into_iter().map(String::from).collect();
-        self
-    }
-
-    pub fn with_source(mut self, path: &str) -> Self {
-        self.source_path = path.to_string();
-        self
-    }
-
-    pub fn with_cascade(mut self, level: u32) -> Self {
-        self.cascade_level = level;
-        self
-    }
-
-    pub fn with_matroshka_limit(mut self, limit: u32) -> Self {
-        self.matroshka_limit = limit;
-        self
-    }
-
-    /// Set required capabilities for this template (R4: Capability Intersection)
-    pub fn with_required_capabilities(mut self, capabilities: Vec<&str>) -> Self {
-        self.required_capabilities = capabilities.into_iter().map(String::from).collect();
-        self
-    }
-
-    pub fn as_registry_entry(&self) -> RegistryEntry {
-        RegistryEntry {
-            id: self.id.clone(),
-            template_type: self.template_type,
-            lexicon_terms: self.lexicon_terms.clone(),
-            description: self.description.clone(),
-            source_path: self.source_path.clone(),
-            required_capabilities: self.required_capabilities.clone(),
-        }
-    }
-}
-
-/// A Skill is a composition bundle that groups templates by domain.
+/// Skill — a named composition of templates
 ///
-/// Skills reference existing templates by ID, not by content.
-/// They are NOT a new `template_type` — they compose existing Prompt,
-/// Process, Cognition, and Specification templates into domain-scoped bundles.
+/// A Skill binds WordAct, KnowAct, and FlowDef templates together
+/// into a coherent agent capability. The `cascade_order` defines
+/// the execution sequence when the skill is invoked.
+///
+/// Specification templates are FlowDef manifests that define constraints;
+/// they are referenced via `flow_def` rather than a separate field.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Skill {
     pub id: String,
-    pub domain: String,
+    pub domain: TemplateType,
     pub word_act: Option<String>,
     pub flow_def: Option<String>,
     pub know_act: Option<String>,
-    pub specification: Option<String>,
+    /// Cascade order: template IDs executed in sequence
     pub cascade_order: Vec<String>,
 }
 
 impl Skill {
-    pub fn new(id: &str, domain: &str) -> Self {
+    pub fn new(id: &str, domain: TemplateType) -> Self {
         Self {
             id: id.to_string(),
-            domain: domain.to_string(),
+            domain,
             word_act: None,
             flow_def: None,
             know_act: None,
-            specification: None,
             cascade_order: vec![],
         }
     }
@@ -121,21 +60,18 @@ impl Skill {
         self
     }
 
-    pub fn with_specification(mut self, template_id: &str) -> Self {
-        self.specification = Some(template_id.to_string());
-        self
-    }
-
     pub fn with_cascade_order(mut self, order: Vec<String>) -> Self {
         self.cascade_order = order;
         self
     }
 }
 
-/// Unified template registry
-#[derive(Debug)]
+/// Unified template + skill registry
+///
+/// Templates are stored as `RegistryEntry` (the canonical type from `hkask_types::ports`).
+/// Skills compose templates into coherent agent capabilities.
 pub struct Registry {
-    templates: HashMap<String, TemplateEntry>,
+    templates: HashMap<String, RegistryEntry>,
     skills: HashMap<String, Skill>,
     cache_valid: bool,
 }
@@ -189,11 +125,12 @@ impl Registry {
 
     /// Get full path to a template file
     ///
-    /// Maps `domain/name` to `registry/templates/<domain>/<name>.j2` (nested, no flatten).
-    pub fn get_template_path(template_id: &str) -> PathBuf {
+    /// Maps `domain/name` to `registry/templates/<domain>/<name>.<ext>`
+    /// where `<ext>` is determined by the template type.
+    pub fn get_template_path(template_id: &str, template_type: TemplateType) -> PathBuf {
         let base_path = Self::get_templates_path();
-        // Direct path: cognition/calibrate -> registry/templates/cognition/calibrate.j2
-        base_path.join(format!("{}.j2", template_id))
+        let ext = template_type.file_extension();
+        base_path.join(format!("{}.{}", template_id, ext))
     }
 
     /// Validate that a template path is safe (no path traversal)
@@ -268,7 +205,7 @@ impl Registry {
                         .iter()
                         .all(|c| capabilities.contains(c))
             })
-            .map(|e| e.as_registry_entry())
+            .cloned()
             .collect();
 
         // Emit CNS span for algedonic monitoring
@@ -288,23 +225,23 @@ impl Registry {
         Self::validate_template_path(id)?;
         self.templates
             .get(id)
-            .map(|e| e.as_registry_entry())
+            .cloned()
             .ok_or_else(|| TemplateError::NotFound(format!("Template '{}' not found", id)))
     }
 
-    pub fn register(&mut self, entry: TemplateEntry) {
+    pub fn register(&mut self, entry: RegistryEntry) {
         self.templates.insert(entry.id.clone(), entry);
     }
 
-    pub fn get(&self, id: &str) -> Option<&TemplateEntry> {
+    pub fn get(&self, id: &str) -> Option<&RegistryEntry> {
         self.templates.get(id)
     }
 
-    pub fn get_mut(&mut self, id: &str) -> Option<&mut TemplateEntry> {
+    pub fn get_mut(&mut self, id: &str) -> Option<&mut RegistryEntry> {
         self.templates.get_mut(id)
     }
 
-    pub fn by_type(&self, template_type: TemplateType) -> Vec<&TemplateEntry> {
+    pub fn by_type(&self, template_type: TemplateType) -> Vec<&RegistryEntry> {
         self.templates
             .values()
             .filter(|t| t.template_type == template_type)
@@ -333,7 +270,7 @@ impl Registry {
         self.skills.get(id)
     }
 
-    pub fn skills_by_domain(&self, domain: &str) -> Vec<&Skill> {
+    pub fn skills_by_domain(&self, domain: TemplateType) -> Vec<&Skill> {
         self.skills
             .values()
             .filter(|s| s.domain == domain)
@@ -348,275 +285,352 @@ impl Registry {
                 s.word_act.as_deref() == Some(template_id)
                     || s.flow_def.as_deref() == Some(template_id)
                     || s.know_act.as_deref() == Some(template_id)
-                    || s.specification.as_deref() == Some(template_id)
             })
             .collect()
     }
 
-    /// Bootstrap registry with hLexicon core templates
+    /// Bootstrap registry with core templates aligned to hKask domains.
+    ///
+    /// Template types use domain-aligned names:
+    /// - WordAct (Jinja2 prompts) — "what to say"
+    /// - KnowAct (Jinja2 cognition) — "how to think"
+    /// - FlowDef (YAML manifests) — "what to do"
     pub fn bootstrap() -> Self {
         let mut registry = Self::new();
+        let max_recursion = SYSTEM_MAX_RECURSION as u32;
 
-        // Core prompt templates (WordAct - what to say)
-        registry.register(
-            TemplateEntry::new(
-                "prompt/selector",
-                TemplateType::Prompt,
-                "Template Selector",
-                "Selects best-fit template for input context",
-            )
-            .with_lexicon(vec!["recognize", "classify", "match", "discriminate"]),
-        );
+        // ── WordAct templates (Jinja2 prompts — "what to say") ──────
 
-        registry.register(
-            TemplateEntry::new(
-                "prompt/render",
-                TemplateType::Prompt,
-                "Prompt Render",
-                "Renders prompt with context binding",
-            )
-            .with_lexicon(vec!["render", "compose", "format"]),
-        );
+        registry.register(RegistryEntry {
+            id: "wordact/selector".into(),
+            template_type: TemplateType::WordAct,
+            name: "Template Selector".into(),
+            lexicon_terms: vec![
+                "recognize".into(),
+                "classify".into(),
+                "match".into(),
+                "discriminate".into(),
+            ],
+            description: "Selects best-fit template for input context".into(),
+            source_path: "registry/templates/wordact/selector.j2".into(),
+            required_capabilities: vec![],
+            cascade_level: 0,
+            matroshka_limit: max_recursion,
+        });
 
-        registry.register(
-            TemplateEntry::new(
-                "prompt/execute",
-                TemplateType::Prompt,
-                "Prompt Execute",
-                "Executes rendered prompt via inference",
-            )
-            .with_lexicon(vec!["execute", "respond", "complete"]),
-        );
+        registry.register(RegistryEntry {
+            id: "wordact/render".into(),
+            template_type: TemplateType::WordAct,
+            name: "Prompt Render".into(),
+            lexicon_terms: vec!["render".into(), "compose".into(), "format".into()],
+            description: "Renders prompt with context binding".into(),
+            source_path: "registry/templates/wordact/render.j2".into(),
+            required_capabilities: vec![],
+            cascade_level: 0,
+            matroshka_limit: max_recursion,
+        });
 
-        // Core cognition templates (KnowAct - how to think)
-        registry.register(
-            TemplateEntry::new(
-                "cognition/detect",
-                TemplateType::Cognition,
-                "Drift Detection",
-                "Detects cognitive drift in agent behavior",
-            )
-            .with_lexicon(vec!["detect", "drift", "calibrate"]),
-        );
+        registry.register(RegistryEntry {
+            id: "wordact/execute".into(),
+            template_type: TemplateType::WordAct,
+            name: "Prompt Execute".into(),
+            lexicon_terms: vec!["execute".into(), "respond".into(), "complete".into()],
+            description: "Executes rendered prompt via inference".into(),
+            source_path: "registry/templates/wordact/execute.j2".into(),
+            required_capabilities: vec![],
+            cascade_level: 0,
+            matroshka_limit: max_recursion,
+        });
 
-        registry.register(
-            TemplateEntry::new(
-                "cognition/calibrate",
-                TemplateType::Cognition,
-                "Calibration",
-                "Calibrates agent responses to baseline",
-            )
-            .with_lexicon(vec!["calibrate", "baseline", "adjust"]),
-        );
+        registry.register(RegistryEntry {
+            id: "composition/hemingway-style-synthesizer".into(),
+            template_type: TemplateType::WordAct,
+            name: "Hemingway Style Synthesizer".into(),
+            lexicon_terms: vec!["compose".into(), "synthesize".into(), "write".into(), "edit".into(), "refine".into(), "render".into()],
+            description: "Generate prose using Kansas City Star rules, Iceberg Theory, and Fish generative forms".into(),
+            source_path: "registry/templates/composition/hemingway-style-synthesizer.j2".into(),
+            required_capabilities: vec![],
+            cascade_level: 0,
+            matroshka_limit: max_recursion,
+        });
 
-        // Core process templates (FlowDef - what to do)
-        registry.register(
-            TemplateEntry::new(
-                "process/dispatch",
-                TemplateType::Process,
-                "Dispatch",
-                "Dispatches tool calls via ACP/MCP",
-            )
-            .with_lexicon(vec!["dispatch", "route", "invoke"]),
-        );
+        // ── KnowAct templates (Jinja2 cognition — "how to think") ───
 
-        registry.register(
-            TemplateEntry::new(
-                "process/memory/recall",
-                TemplateType::Process,
-                "Memory Recall",
-                "Recalls semantic/episodic memory triples",
-            )
-            .with_lexicon(vec!["recall", "retrieve", "remember"]),
-        );
+        registry.register(RegistryEntry {
+            id: "knowact/detect".into(),
+            template_type: TemplateType::KnowAct,
+            name: "Drift Detection".into(),
+            lexicon_terms: vec!["detect".into(), "drift".into(), "calibrate".into()],
+            description: "Detects cognitive drift in agent behavior".into(),
+            source_path: "registry/templates/knowact/detect.j2".into(),
+            required_capabilities: vec![],
+            cascade_level: 0,
+            matroshka_limit: max_recursion,
+        });
 
-        // GML templates (KnowAct - allosteric reasoning)
-        registry.register(
-            TemplateEntry::new(
-                "gml/recognize-ensemble",
-                TemplateType::Cognition,
-                "GML Recognize Ensemble",
-                "Parse concept into states and ports",
-            )
-            .with_lexicon(vec!["recognize", "discriminate", "parse"]),
-        );
+        registry.register(RegistryEntry {
+            id: "knowact/calibrate".into(),
+            template_type: TemplateType::KnowAct,
+            name: "Calibration".into(),
+            lexicon_terms: vec!["calibrate".into(), "baseline".into(), "adjust".into()],
+            description: "Calibrates agent responses to baseline".into(),
+            source_path: "registry/templates/knowact/calibrate.j2".into(),
+            required_capabilities: vec![],
+            cascade_level: 0,
+            matroshka_limit: max_recursion,
+        });
 
-        registry.register(
-            TemplateEntry::new(
-                "gml/bind-effector",
-                TemplateType::Cognition,
-                "GML Bind Effector",
-                "Apply effector, infer state-shift",
-            )
-            .with_lexicon(vec!["analogy", "infer", "bind"]),
-        );
+        registry.register(RegistryEntry {
+            id: "knowact/prompt-strategy".into(),
+            template_type: TemplateType::KnowAct,
+            name: "Prompt Strategy Selection".into(),
+            lexicon_terms: vec!["classify".into(), "select".into(), "frame".into()],
+            description: "Keyword-based heuristic for prompt framing".into(),
+            source_path: "registry/templates/knowact/prompt-strategy.j2".into(),
+            required_capabilities: vec![],
+            cascade_level: 0,
+            matroshka_limit: max_recursion,
+        });
 
-        registry.register(
-            TemplateEntry::new(
-                "gml/compute-equilibrium",
-                TemplateType::Cognition,
-                "GML Compute Equilibrium",
-                "Calculate R̄, n_H, distribution",
-            )
-            .with_lexicon(vec!["calculate", "compare"]),
-        );
+        registry.register(RegistryEntry {
+            id: "knowact/ellipsis-analysis".into(),
+            template_type: TemplateType::KnowAct,
+            name: "Ellipsis Analysis".into(),
+            lexicon_terms: vec![
+                "read".into(),
+                "detect".into(),
+                "classify".into(),
+                "calibrate".into(),
+                "analyze".into(),
+            ],
+            description: "Bloom Method: detect meaning in gaps and omissions".into(),
+            source_path: "registry/templates/knowact/ellipsis-analysis.j2".into(),
+            required_capabilities: vec![],
+            cascade_level: 0,
+            matroshka_limit: max_recursion,
+        });
 
-        registry.register(
-            TemplateEntry::new(
-                "gml/assess-coherence",
-                TemplateType::Cognition,
-                "GML Assess Coherence",
-                "Evaluate network homeostasis",
-            )
-            .with_lexicon(vec!["evaluate", "reflect", "calibrate"]),
-        );
+        registry.register(RegistryEntry {
+            id: "knowact/falstaffian-perspective".into(),
+            template_type: TemplateType::KnowAct,
+            name: "Falstaffian Perspective".into(),
+            lexicon_terms: vec![
+                "calibrate".into(),
+                "affirm".into(),
+                "select".into(),
+                "execute".into(),
+                "verify".into(),
+            ],
+            description: "Multi-iteration perspective generation through semantic shape transforms"
+                .into(),
+            source_path: "registry/templates/knowact/falstaffian-perspective.j2".into(),
+            required_capabilities: vec![],
+            cascade_level: 0,
+            matroshka_limit: max_recursion,
+        });
 
-        registry.register(
-            TemplateEntry::new(
-                "gml/reframe-concept",
-                TemplateType::Cognition,
-                "GML Reframe Concept",
-                "Generate alternative frames",
-            )
-            .with_lexicon(vec!["abduct", "generate", "synthesize"]),
-        );
+        // GML templates (KnowAct — allosteric reasoning)
+        registry.register(RegistryEntry {
+            id: "gml/recognize-ensemble".into(),
+            template_type: TemplateType::KnowAct,
+            name: "GML Recognize Ensemble".into(),
+            lexicon_terms: vec!["recognize".into(), "discriminate".into(), "parse".into()],
+            description: "Parse concept into states and ports".into(),
+            source_path: "registry/templates/gml/recognize-ensemble.j2".into(),
+            required_capabilities: vec![],
+            cascade_level: 0,
+            matroshka_limit: max_recursion,
+        });
 
-        // Cognition — Ellipsis Analysis (Bloom Method)
-        registry.register(
-            TemplateEntry::new(
-                "cognition/ellipsis-analysis",
-                TemplateType::Cognition,
-                "Ellipsis Analysis",
-                "Bloom Method: detect meaning in gaps and omissions",
-            )
-            .with_lexicon(vec!["read", "detect", "classify", "calibrate", "analyze"]),
-        );
+        registry.register(RegistryEntry {
+            id: "gml/bind-effector".into(),
+            template_type: TemplateType::KnowAct,
+            name: "GML Bind Effector".into(),
+            lexicon_terms: vec!["analogy".into(), "infer".into(), "bind".into()],
+            description: "Apply effector, infer state-shift".into(),
+            source_path: "registry/templates/gml/bind-effector.j2".into(),
+            required_capabilities: vec![],
+            cascade_level: 0,
+            matroshka_limit: max_recursion,
+        });
 
-        // Cognition — Falstaffian Perspective Engine
-        registry.register(
-            TemplateEntry::new(
-                "cognition/falstaffian-perspective",
-                TemplateType::Cognition,
-                "Falstaffian Perspective",
-                "Multi-iteration perspective generation through semantic shape transforms",
-            )
-            .with_lexicon(vec!["calibrate", "affirm", "select", "execute", "verify"]),
-        );
+        registry.register(RegistryEntry {
+            id: "gml/compute-equilibrium".into(),
+            template_type: TemplateType::KnowAct,
+            name: "GML Compute Equilibrium".into(),
+            lexicon_terms: vec!["calculate".into(), "compare".into()],
+            description: "Calculate R̄, n_H, distribution".into(),
+            source_path: "registry/templates/gml/compute-equilibrium.j2".into(),
+            required_capabilities: vec![],
+            cascade_level: 0,
+            matroshka_limit: max_recursion,
+        });
 
-        // Composition — Hemingway Style Synthesizer
-        registry.register(
-            TemplateEntry::new(
-                "composition/hemingway-style-synthesizer",
-                TemplateType::Prompt,
-                "Hemingway Style Synthesizer",
-                "Generate prose using Kansas City Star rules, Iceberg Theory, and Fish generative forms",
-            )
-            .with_lexicon(vec!["compose", "synthesize", "write", "edit", "refine", "render"]),
-        );
+        registry.register(RegistryEntry {
+            id: "gml/assess-coherence".into(),
+            template_type: TemplateType::KnowAct,
+            name: "GML Assess Coherence".into(),
+            lexicon_terms: vec!["evaluate".into(), "reflect".into(), "calibrate".into()],
+            description: "Evaluate network homeostasis".into(),
+            source_path: "registry/templates/gml/assess-coherence.j2".into(),
+            required_capabilities: vec![],
+            cascade_level: 0,
+            matroshka_limit: max_recursion,
+        });
 
-        // Cognition — Prompt Strategy Selection
-        registry.register(
-            TemplateEntry::new(
-                "cognition/prompt-strategy",
-                TemplateType::Cognition,
-                "Prompt Strategy Selection",
-                "Keyword-based heuristic for prompt framing",
-            )
-            .with_lexicon(vec!["classify", "select", "frame"]),
-        );
+        registry.register(RegistryEntry {
+            id: "gml/reframe-concept".into(),
+            template_type: TemplateType::KnowAct,
+            name: "GML Reframe Concept".into(),
+            lexicon_terms: vec!["abduct".into(), "generate".into(), "synthesize".into()],
+            description: "Generate alternative frames".into(),
+            source_path: "registry/templates/gml/reframe-concept.j2".into(),
+            required_capabilities: vec![],
+            cascade_level: 0,
+            matroshka_limit: max_recursion,
+        });
 
-        // DDMVSS Specification templates (FlowDef — define)
-        registry.register(
-            TemplateEntry::new(
-                "spec/goal/capture",
-                TemplateType::Specification,
-                "Goal Capture",
-                "Capture a goal as a binding requirement",
-            )
-            .with_lexicon(vec!["specify", "require", "elicit"]),
-        );
+        // ── FlowDef templates (YAML manifests — "what to do") ──────
 
-        registry.register(
-            TemplateEntry::new(
-                "spec/goal/decompose",
-                TemplateType::Specification,
-                "Goal Decompose",
-                "Decompose into sub-goals (max depth 7)",
-            )
-            .with_lexicon(vec!["decompose", "sequence"]),
-        );
+        registry.register(RegistryEntry {
+            id: "flowdef/dispatch".into(),
+            template_type: TemplateType::FlowDef,
+            name: "Dispatch".into(),
+            lexicon_terms: vec!["dispatch".into(), "route".into(), "invoke".into()],
+            description: "Dispatches tool calls via ACP/MCP".into(),
+            source_path: "registry/templates/flowdef/dispatch.yaml".into(),
+            required_capabilities: vec![],
+            cascade_level: 0,
+            matroshka_limit: max_recursion,
+        });
 
-        registry.register(
-            TemplateEntry::new(
-                "spec/require/bind",
-                TemplateType::Specification,
-                "Requirement Bind",
-                "Bind OCAP boundaries to a goal",
-            )
-            .with_lexicon(vec!["constrain", "require"]),
-        );
+        registry.register(RegistryEntry {
+            id: "flowdef/memory/recall".into(),
+            template_type: TemplateType::FlowDef,
+            name: "Memory Recall".into(),
+            lexicon_terms: vec!["recall".into(), "retrieve".into(), "remember".into()],
+            description: "Recalls semantic/episodic memory triples".into(),
+            source_path: "registry/templates/flowdef/memory/recall.yaml".into(),
+            required_capabilities: vec![],
+            cascade_level: 0,
+            matroshka_limit: max_recursion,
+        });
 
-        registry.register(
-            TemplateEntry::new(
-                "spec/curate/evaluate",
-                TemplateType::Specification,
-                "Spec Evaluate",
-                "Evaluate spec for collection coherence",
-            )
-            .with_lexicon(vec!["curate", "evaluate"]),
-        );
+        // DDMVSS Specification templates (FlowDef — specification manifests)
+        registry.register(RegistryEntry {
+            id: "spec/goal/capture".into(),
+            template_type: TemplateType::FlowDef,
+            name: "Goal Capture".into(),
+            lexicon_terms: vec!["specify".into(), "require".into(), "elicit".into()],
+            description: "Capture a goal as a binding requirement".into(),
+            source_path: "registry/templates/spec/goal/capture.yaml".into(),
+            required_capabilities: vec![],
+            cascade_level: 0,
+            matroshka_limit: max_recursion,
+        });
 
-        registry.register(
-            TemplateEntry::new(
-                "spec/curate/reconcile",
-                TemplateType::Specification,
-                "Spec Reconcile",
-                "Reconcile tensions between specs",
-            )
-            .with_lexicon(vec!["reconcile", "compose"]),
-        );
+        registry.register(RegistryEntry {
+            id: "spec/goal/decompose".into(),
+            template_type: TemplateType::FlowDef,
+            name: "Goal Decompose".into(),
+            lexicon_terms: vec!["decompose".into(), "sequence".into()],
+            description: "Decompose into sub-goals (max depth 7)".into(),
+            source_path: "registry/templates/spec/goal/decompose.yaml".into(),
+            required_capabilities: vec![],
+            cascade_level: 0,
+            matroshka_limit: max_recursion,
+        });
 
-        registry.register(
-            TemplateEntry::new(
-                "spec/curate/cultivate",
-                TemplateType::Specification,
-                "Spec Cultivate",
-                "Cultivate collection toward coherence",
-            )
-            .with_lexicon(vec!["cultivate"]),
-        );
+        registry.register(RegistryEntry {
+            id: "spec/require/bind".into(),
+            template_type: TemplateType::FlowDef,
+            name: "Requirement Bind".into(),
+            lexicon_terms: vec!["constrain".into(), "require".into()],
+            description: "Bind OCAP boundaries to a goal".into(),
+            source_path: "registry/templates/spec/require/bind.yaml".into(),
+            required_capabilities: vec![],
+            cascade_level: 0,
+            matroshka_limit: max_recursion,
+        });
 
-        registry.register(
-            TemplateEntry::new(
-                "spec/graph/query",
-                TemplateType::Specification,
-                "Spec Graph Query",
-                "Query spec graph by category",
-            )
-            .with_lexicon(vec!["recognize", "match"]),
-        );
+        registry.register(RegistryEntry {
+            id: "spec/curate/evaluate".into(),
+            template_type: TemplateType::FlowDef,
+            name: "Spec Evaluate".into(),
+            lexicon_terms: vec!["curate".into(), "evaluate".into()],
+            description: "Evaluate spec for collection coherence".into(),
+            source_path: "registry/templates/spec/curate/evaluate.yaml".into(),
+            required_capabilities: vec![],
+            cascade_level: 0,
+            matroshka_limit: max_recursion,
+        });
 
-        registry.register(
-            TemplateEntry::new(
-                "spec/graph/validate",
-                TemplateType::Specification,
-                "Spec Graph Validate",
-                "Validate spec graph completeness",
-            )
-            .with_lexicon(vec!["evaluate", "ground"]),
-        );
+        registry.register(RegistryEntry {
+            id: "spec/curate/reconcile".into(),
+            template_type: TemplateType::FlowDef,
+            name: "Spec Reconcile".into(),
+            lexicon_terms: vec!["reconcile".into(), "compose".into()],
+            description: "Reconcile tensions between specs".into(),
+            source_path: "registry/templates/spec/curate/reconcile.yaml".into(),
+            required_capabilities: vec![],
+            cascade_level: 0,
+            matroshka_limit: max_recursion,
+        });
+
+        registry.register(RegistryEntry {
+            id: "spec/curate/cultivate".into(),
+            template_type: TemplateType::FlowDef,
+            name: "Spec Cultivate".into(),
+            lexicon_terms: vec!["cultivate".into()],
+            description: "Cultivate collection toward coherence".into(),
+            source_path: "registry/templates/spec/curate/cultivate.yaml".into(),
+            required_capabilities: vec![],
+            cascade_level: 0,
+            matroshka_limit: max_recursion,
+        });
+
+        registry.register(RegistryEntry {
+            id: "spec/graph/query".into(),
+            template_type: TemplateType::FlowDef,
+            name: "Spec Graph Query".into(),
+            lexicon_terms: vec!["recognize".into(), "match".into()],
+            description: "Query spec graph by category".into(),
+            source_path: "registry/templates/spec/graph/query.yaml".into(),
+            required_capabilities: vec![],
+            cascade_level: 0,
+            matroshka_limit: max_recursion,
+        });
+
+        registry.register(RegistryEntry {
+            id: "spec/graph/validate".into(),
+            template_type: TemplateType::FlowDef,
+            name: "Spec Graph Validate".into(),
+            lexicon_terms: vec!["evaluate".into(), "ground".into()],
+            description: "Validate spec graph completeness".into(),
+            source_path: "registry/templates/spec/graph/validate.yaml".into(),
+            required_capabilities: vec![],
+            cascade_level: 0,
+            matroshka_limit: max_recursion,
+        });
 
         registry
     }
 
     /// One-time migration helper: infer nested path from flat-file convention.
-    /// `registry/templates/cognition_calibrate.j2` -> `registry/templates/cognition/calibrate.j2`
+    /// `registry/templates/cognition_calibrate.j2` -> `registry/templates/knowact/calibrate.j2`
     pub fn migrate_flat_to_nested(flat_path: &str) -> Option<String> {
         let stripped = flat_path
             .strip_prefix("registry/templates/")?
             .strip_suffix(".j2")?;
         let (domain, name) = stripped.split_once('_')?;
-        Some(format!("registry/templates/{}/{}.j2", domain, name))
+        // Map legacy domain names to current
+        let new_domain = match domain {
+            "prompt" => "wordact",
+            "cognition" => "knowact",
+            "process" => "flowdef",
+            other => other,
+        };
+        Some(format!("registry/templates/{}/{}.j2", new_domain, name))
     }
 }
 
@@ -629,16 +643,8 @@ impl Default for Registry {
 impl RegistryIndex for Registry {
     fn list(&self, domain_hint: Option<TemplateType>) -> Vec<RegistryEntry> {
         match domain_hint {
-            Some(t) => self
-                .by_type(t)
-                .into_iter()
-                .map(|e| e.as_registry_entry())
-                .collect(),
-            None => self
-                .templates
-                .values()
-                .map(|e| e.as_registry_entry())
-                .collect(),
+            Some(t) => self.by_type(t).into_iter().cloned().collect(),
+            None => self.templates.values().cloned().collect(),
         }
     }
 
@@ -652,12 +658,9 @@ impl RegistryIndex for Registry {
         }
 
         // Then check if template exists
-        self.templates
-            .get(id)
-            .map(|e| e.as_registry_entry())
-            .ok_or_else(|| {
-                hkask_types::ports::RegistryError::NotFound(format!("Template '{}' not found", id))
-            })
+        self.templates.get(id).cloned().ok_or_else(|| {
+            hkask_types::ports::RegistryError::NotFound(format!("Template '{}' not found", id))
+        })
     }
 }
 
@@ -667,51 +670,46 @@ mod tests {
 
     #[test]
     fn skill_builder_pattern() {
-        let skill = Skill::new("research", "knowledge")
-            .with_word_act("prompt/research/query")
-            .with_flow_def("process/research/pipeline")
-            .with_know_act("cognition/research/calibrate")
-            .with_specification("spec/research/validate")
+        let skill = Skill::new("research", TemplateType::KnowAct)
+            .with_word_act("wordact/research/query")
+            .with_flow_def("flowdef/research/pipeline")
+            .with_know_act("knowact/research/calibrate")
             .with_cascade_order(vec![
-                "prompt/research/query".into(),
-                "cognition/research/calibrate".into(),
+                "wordact/research/query".into(),
+                "knowact/research/calibrate".into(),
             ]);
 
         assert_eq!(skill.id, "research");
-        assert_eq!(skill.domain, "knowledge");
-        assert_eq!(skill.word_act.as_deref(), Some("prompt/research/query"));
-        assert_eq!(skill.flow_def.as_deref(), Some("process/research/pipeline"));
+        assert_eq!(skill.domain, TemplateType::KnowAct);
+        assert_eq!(skill.word_act.as_deref(), Some("wordact/research/query"));
+        assert_eq!(skill.flow_def.as_deref(), Some("flowdef/research/pipeline"));
         assert_eq!(
             skill.know_act.as_deref(),
-            Some("cognition/research/calibrate")
-        );
-        assert_eq!(
-            skill.specification.as_deref(),
-            Some("spec/research/validate")
+            Some("knowact/research/calibrate")
         );
         assert_eq!(skill.cascade_order.len(), 2);
     }
 
     #[test]
     fn skill_minimal_fields() {
-        let skill = Skill::new("minimal", "test");
+        let skill = Skill::new("minimal", TemplateType::FlowDef);
         assert!(skill.word_act.is_none());
         assert!(skill.flow_def.is_none());
         assert!(skill.know_act.is_none());
-        assert!(skill.specification.is_none());
         assert!(skill.cascade_order.is_empty());
     }
 
     #[test]
     fn register_and_retrieve_skill() {
         let mut registry = Registry::new();
-        let skill = Skill::new("coding", "engineering").with_word_act("prompt/code/generate");
+        let skill =
+            Skill::new("coding", TemplateType::WordAct).with_word_act("wordact/code/generate");
         registry.register_skill(skill);
 
         let retrieved = registry.get_skill("coding").unwrap();
         assert_eq!(retrieved.id, "coding");
-        assert_eq!(retrieved.domain, "engineering");
-        assert_eq!(retrieved.word_act.as_deref(), Some("prompt/code/generate"));
+        assert_eq!(retrieved.domain, TemplateType::WordAct);
+        assert_eq!(retrieved.word_act.as_deref(), Some("wordact/code/generate"));
 
         assert!(registry.get_skill("nonexistent").is_none());
     }
@@ -719,19 +717,19 @@ mod tests {
     #[test]
     fn skills_by_domain() {
         let mut registry = Registry::new();
-        registry.register_skill(Skill::new("research", "knowledge"));
-        registry.register_skill(Skill::new("summarize", "knowledge"));
-        registry.register_skill(Skill::new("deploy", "engineering"));
+        registry.register_skill(Skill::new("research", TemplateType::KnowAct));
+        registry.register_skill(Skill::new("summarize", TemplateType::KnowAct));
+        registry.register_skill(Skill::new("deploy", TemplateType::FlowDef));
 
-        let knowledge = registry.skills_by_domain("knowledge");
+        let knowledge = registry.skills_by_domain(TemplateType::KnowAct);
         assert_eq!(knowledge.len(), 2);
-        assert!(knowledge.iter().all(|s| s.domain == "knowledge"));
+        assert!(knowledge.iter().all(|s| s.domain == TemplateType::KnowAct));
 
-        let engineering = registry.skills_by_domain("engineering");
+        let engineering = registry.skills_by_domain(TemplateType::FlowDef);
         assert_eq!(engineering.len(), 1);
         assert_eq!(engineering[0].id, "deploy");
 
-        let empty = registry.skills_by_domain("nonexistent");
+        let empty = registry.skills_by_domain(TemplateType::WordAct);
         assert!(empty.is_empty());
     }
 
@@ -739,23 +737,23 @@ mod tests {
     fn skills_referencing_template() {
         let mut registry = Registry::new();
         registry.register_skill(
-            Skill::new("research", "knowledge")
-                .with_word_act("prompt/research/query")
-                .with_flow_def("process/research/pipeline"),
+            Skill::new("research", TemplateType::KnowAct)
+                .with_word_act("wordact/research/query")
+                .with_flow_def("flowdef/research/pipeline"),
         );
         registry.register_skill(
-            Skill::new("audit", "governance").with_word_act("prompt/research/query"), // same template
+            Skill::new("audit", TemplateType::WordAct).with_word_act("wordact/research/query"), // same template
         );
         registry.register_skill(
-            Skill::new("deploy", "engineering").with_know_act("cognition/deploy/verify"),
+            Skill::new("deploy", TemplateType::FlowDef).with_know_act("knowact/deploy/verify"),
         );
 
-        let refs = registry.skills_referencing_template("prompt/research/query");
+        let refs = registry.skills_referencing_template("wordact/research/query");
         assert_eq!(refs.len(), 2);
         assert!(refs.iter().any(|s| s.id == "research"));
         assert!(refs.iter().any(|s| s.id == "audit"));
 
-        let process_refs = registry.skills_referencing_template("process/research/pipeline");
+        let process_refs = registry.skills_referencing_template("flowdef/research/pipeline");
         assert_eq!(process_refs.len(), 1);
         assert_eq!(process_refs[0].id, "research");
 
@@ -765,9 +763,9 @@ mod tests {
 
     #[test]
     fn skill_serialization_roundtrip() {
-        let skill = Skill::new("research", "knowledge")
-            .with_word_act("prompt/research/query")
-            .with_cascade_order(vec!["prompt/research/query".into()]);
+        let skill = Skill::new("research", TemplateType::KnowAct)
+            .with_word_act("wordact/research/query")
+            .with_cascade_order(vec!["wordact/research/query".into()]);
 
         let json = serde_json::to_string(&skill).unwrap();
         let deserialized: Skill = serde_json::from_str(&json).unwrap();
@@ -776,5 +774,79 @@ mod tests {
         assert_eq!(deserialized.domain, skill.domain);
         assert_eq!(deserialized.word_act, skill.word_act);
         assert_eq!(deserialized.cascade_order, skill.cascade_order);
+    }
+
+    #[test]
+    fn template_type_file_extensions() {
+        assert_eq!(TemplateType::WordAct.file_extension(), "j2");
+        assert_eq!(TemplateType::KnowAct.file_extension(), "j2");
+        assert_eq!(TemplateType::FlowDef.file_extension(), "yaml");
+    }
+
+    #[test]
+    fn template_type_infer_from_extension() {
+        assert_eq!(
+            TemplateType::infer_from_extension("j2"),
+            Some(TemplateType::KnowAct)
+        );
+        assert_eq!(
+            TemplateType::infer_from_extension("yaml"),
+            Some(TemplateType::FlowDef)
+        );
+        assert_eq!(
+            TemplateType::infer_from_extension("yml"),
+            Some(TemplateType::FlowDef)
+        );
+        assert_eq!(TemplateType::infer_from_extension("txt"), None);
+    }
+
+    #[test]
+    fn template_type_parse_legacy_names() {
+        // Legacy names map to domain-aligned variants
+        assert_eq!(
+            TemplateType::parse_str("Prompt"),
+            Some(TemplateType::WordAct)
+        );
+        assert_eq!(
+            TemplateType::parse_str("Cognition"),
+            Some(TemplateType::KnowAct)
+        );
+        assert_eq!(
+            TemplateType::parse_str("Process"),
+            Some(TemplateType::FlowDef)
+        );
+        assert_eq!(
+            TemplateType::parse_str("Specification"),
+            Some(TemplateType::FlowDef)
+        );
+        // Current names
+        assert_eq!(
+            TemplateType::parse_str("WordAct"),
+            Some(TemplateType::WordAct)
+        );
+        assert_eq!(
+            TemplateType::parse_str("KnowAct"),
+            Some(TemplateType::KnowAct)
+        );
+        assert_eq!(
+            TemplateType::parse_str("FlowDef"),
+            Some(TemplateType::FlowDef)
+        );
+    }
+
+    #[test]
+    fn migrate_flat_to_nested_handles_legacy_names() {
+        assert_eq!(
+            Registry::migrate_flat_to_nested("registry/templates/cognition_calibrate.j2"),
+            Some("registry/templates/knowact/calibrate.j2".to_string())
+        );
+        assert_eq!(
+            Registry::migrate_flat_to_nested("registry/templates/prompt_selector.j2"),
+            Some("registry/templates/wordact/selector.j2".to_string())
+        );
+        assert_eq!(
+            Registry::migrate_flat_to_nested("registry/templates/process_dispatch.j2"),
+            Some("registry/templates/flowdef/dispatch.j2".to_string())
+        );
     }
 }

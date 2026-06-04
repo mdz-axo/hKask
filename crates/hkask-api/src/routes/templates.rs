@@ -38,6 +38,7 @@ async fn list_templates(State(state): State<ApiState>) -> Json<Vec<TemplateRespo
         .map(|e| TemplateResponse {
             id: e.id.clone(),
             template_type: e.template_type.as_str().to_string(),
+            name: e.name.clone(),
             description: e.description.clone(),
             source_path: e.source_path.clone(),
             lexicon_terms: e.lexicon_terms.clone(),
@@ -69,6 +70,7 @@ async fn get_template(State(state): State<ApiState>, Path(id): Path<String>) -> 
             let response = TemplateResponse {
                 id: entry.id.clone(),
                 template_type: entry.template_type.as_str().to_string(),
+                name: entry.name.clone(),
                 description: entry.description.clone(),
                 source_path: entry.source_path.clone(),
                 lexicon_terms: entry.lexicon_terms.clone(),
@@ -101,6 +103,7 @@ async fn search_templates(
         .map(|e| TemplateResponse {
             id: e.id.clone(),
             template_type: e.template_type.as_str().to_string(),
+            name: e.name.clone(),
             description: e.description.clone(),
             source_path: e.source_path.clone(),
             lexicon_terms: e.lexicon_terms.clone(),

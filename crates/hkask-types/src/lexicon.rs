@@ -18,76 +18,99 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Template type discriminator
+/// Template type discriminator — aligned with hKask domains.
+///
+/// Each variant corresponds to a domain in the architecture and a file format:
+/// - **WordAct**: Jinja2 prompt templates — "what to say" — `.j2`
+/// - **KnowAct**: Jinja2 cognition templates — "how to think" — `.j2`
+/// - **FlowDef**: YAML process manifests — "what to do" — `.yaml`
+///
+/// Specifications are FlowDef manifests that define constraints; they are not
+/// a separate type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum TemplateType {
-    Prompt,
-    Process,
-    Cognition,
-    Specification,
+    /// Jinja2 prompt templates — "what to say"
+    WordAct,
+    /// Jinja2 cognition templates — "how to think"
+    KnowAct,
+    /// YAML process manifests — "what to do"
+    FlowDef,
 }
 
 impl TemplateType {
+    /// Return the canonical domain-aligned string representation.
     pub fn as_str(&self) -> &'static str {
         match self {
-            TemplateType::Prompt => "Prompt",
-            TemplateType::Process => "Process",
-            TemplateType::Cognition => "Cognition",
-            TemplateType::Specification => "Specification",
+            TemplateType::WordAct => "WordAct",
+            TemplateType::KnowAct => "KnowAct",
+            TemplateType::FlowDef => "FlowDef",
         }
     }
 
+    /// Parse a domain-aligned template type string.
+    /// Accepts PascalCase and lowercase forms of WordAct, KnowAct, FlowDef.
     pub fn parse_str(s: &str) -> Option<Self> {
         match s {
-            "Prompt" | "prompt" => Some(TemplateType::Prompt),
-            "Process" | "process" => Some(TemplateType::Process),
-            "Cognition" | "cognition" => Some(TemplateType::Cognition),
-            "Specification" | "specification" => Some(TemplateType::Specification),
+            "WordAct" | "wordact" => Some(TemplateType::WordAct),
+            "KnowAct" | "knowact" => Some(TemplateType::KnowAct),
+            "FlowDef" | "flowdef" => Some(TemplateType::FlowDef),
             _ => None,
         }
     }
-}
 
-/// Domain for hLexicon terms
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-pub(crate) enum Domain {
-    WordAct,
-    FlowDef,
-    KnowAct,
-}
-
-impl Domain {
-    pub fn as_str(&self) -> &'static str {
+    /// Return the file extension for templates of this type.
+    ///
+    /// - WordAct → `.j2` (Jinja2 prompt)
+    /// - KnowAct → `.j2` (Jinja2 cognition)
+    /// - FlowDef → `.yaml` (YAML manifest)
+    pub fn file_extension(&self) -> &'static str {
         match self {
-            Domain::WordAct => "WordAct",
-            Domain::FlowDef => "FlowDef",
-            Domain::KnowAct => "KnowAct",
+            TemplateType::WordAct => "j2",
+            TemplateType::KnowAct => "j2",
+            TemplateType::FlowDef => "yaml",
         }
     }
 
-    pub fn parse_str(s: &str) -> Option<Self> {
-        match s {
-            "WordAct" | "wordact" => Some(Domain::WordAct),
-            "FlowDef" | "flowdef" => Some(Domain::FlowDef),
-            "KnowAct" | "knowact" => Some(Domain::KnowAct),
+    /// Infer template type from a file extension.
+    ///
+    /// - `.j2` → KnowAct (Jinja2 cognition is the more general Jinja2 type;
+    ///   WordAct is disambiguated by path convention or manifest metadata)
+    /// - `.yaml` / `.yml` → FlowDef
+    pub fn infer_from_extension(ext: &str) -> Option<Self> {
+        match ext {
+            "j2" => Some(TemplateType::KnowAct),
+            "yaml" | "yml" => Some(TemplateType::FlowDef),
             _ => None,
         }
+    }
+
+    /// Infer template type from a file path by examining its extension.
+    pub fn infer_from_path(path: &str) -> Option<Self> {
+        std::path::Path::new(path)
+            .extension()
+            .and_then(|e| e.to_str())
+            .and_then(Self::infer_from_extension)
+    }
+}
+
+impl std::fmt::Display for TemplateType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
 /// hLexicon term — canonical vocabulary entry
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct LexiconTerm {
+pub struct LexiconTerm {
     pub term: String,
-    pub domain: Domain,
+    pub domain: TemplateType,
     pub definition: String,
     pub academic_citation: Option<String>,
 }
 
 impl LexiconTerm {
-    pub fn new(term: &str, domain: Domain, definition: &str) -> Self {
+    pub fn new(term: &str, domain: TemplateType, definition: &str) -> Self {
         Self {
             term: term.to_string(),
             domain,
@@ -104,7 +127,7 @@ impl LexiconTerm {
 
 /// hLexicon — Collection of canonical terms
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub(crate) struct HLexicon {
+pub struct HLexicon {
     terms: HashMap<String, LexiconTerm>,
 }
 
@@ -161,97 +184,97 @@ impl HLexicon {
         // KnowAct terms — pattern recognition (catalog §3.1 Recognition)
         lexicon.add(LexiconTerm::new(
             "recognize",
-            Domain::KnowAct,
+            TemplateType::KnowAct,
             "Identify and classify input patterns",
         ));
         lexicon.add(LexiconTerm::new(
             "classify",
-            Domain::KnowAct,
+            TemplateType::KnowAct,
             "Assign category or type to input",
         ));
         lexicon.add(LexiconTerm::new(
             "discriminate",
-            Domain::KnowAct,
+            TemplateType::KnowAct,
             "Distinguish between similar patterns",
         ));
 
         // FlowDef terms — MVSDD pipeline steps (select → populate → execute)
         lexicon.add(LexiconTerm::new(
             "select",
-            Domain::FlowDef,
+            TemplateType::FlowDef,
             "Choose best-fit template from registry",
         ));
         lexicon.add(LexiconTerm::new(
             "populate",
-            Domain::FlowDef,
+            TemplateType::FlowDef,
             "Bind input data to template fields",
         ));
         lexicon.add(LexiconTerm::new(
             "execute",
-            Domain::FlowDef,
+            TemplateType::FlowDef,
             "Invoke target model or tool",
         ));
 
         // KnowAct terms — reflective cognition (catalog §3.4 Metacognition)
         lexicon.add(LexiconTerm::new(
             "reflect",
-            Domain::KnowAct,
+            TemplateType::KnowAct,
             "Analyze outcomes for patterns",
         ));
         lexicon.add(LexiconTerm::new(
             "calibrate",
-            Domain::KnowAct,
+            TemplateType::KnowAct,
             "Adjust confidence based on outcomes",
         ));
         lexicon.add(LexiconTerm::new(
             "improve",
-            Domain::KnowAct,
+            TemplateType::KnowAct,
             "Propose template revisions",
         ));
 
-        // SpecCure — WordAct (Speech Acts of Specification)
+        // WordAct terms — speech acts of specification
         lexicon.add(LexiconTerm::new(
             "specify",
-            Domain::WordAct,
+            TemplateType::WordAct,
             "Define a binding constraint or intent",
         ));
         lexicon.add(LexiconTerm::new(
             "require",
-            Domain::WordAct,
+            TemplateType::WordAct,
             "State a non-negotiable condition",
         ));
         lexicon.add(LexiconTerm::new(
             "constrain",
-            Domain::WordAct,
+            TemplateType::WordAct,
             "Limit the solution space",
         ));
 
-        // SpecCure — FlowDef (Process of Composition)
+        // FlowDef terms — process of composition
         lexicon.add(LexiconTerm::new(
             "curate",
-            Domain::FlowDef,
+            TemplateType::FlowDef,
             "Select, contextualise, and integrate artifacts",
         ));
         lexicon.add(LexiconTerm::new(
             "elicit",
-            Domain::FlowDef,
+            TemplateType::FlowDef,
             "Draw out latent goals or requirements",
         ));
         lexicon.add(LexiconTerm::new(
             "reconcile",
-            Domain::FlowDef,
+            TemplateType::FlowDef,
             "Resolve conflicts between goals or requirements",
         ));
 
-        // SpecCure — KnowAct (Cognitive Acts of Curation)
+        // KnowAct terms — cognitive acts of curation
         lexicon.add(LexiconTerm::new(
             "contextualise",
-            Domain::KnowAct,
+            TemplateType::KnowAct,
             "Situate an artifact within its meaningful environment",
         ));
         lexicon.add(LexiconTerm::new(
             "cultivate",
-            Domain::KnowAct,
+            TemplateType::KnowAct,
             "Nurture growth and coherence over time",
         ));
 

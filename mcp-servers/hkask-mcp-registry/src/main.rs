@@ -58,15 +58,7 @@ impl RegistryServer {
             let entries = sqlite.list(None);
             for entry in entries {
                 if registry.get(&entry.id).is_none() {
-                    let te = hkask_templates::TemplateEntry::new(
-                        &entry.id,
-                        entry.template_type,
-                        &entry.id,
-                        &entry.description,
-                    )
-                    .with_lexicon(entry.lexicon_terms.iter().map(|s| s.as_str()).collect())
-                    .with_source(&entry.source_path);
-                    registry.register(te);
+                    registry.register(entry.clone());
                 }
             }
             tracing::info!("Loaded supplementary templates from SQLite registry");
@@ -79,11 +71,7 @@ impl RegistryServer {
     }
 
     fn try_sqlite_load(db_path: Option<&str>) -> Result<SqliteRegistry, String> {
-        let mut reg = SqliteRegistry::new(db_path)
-            .map_err(|e| format!("Failed to create SQLite registry: {}", e))?;
-        reg.load_all()
-            .map_err(|e| format!("Failed to load from SQLite: {}", e))?;
-        Ok(reg)
+        SqliteRegistry::new(db_path).map_err(|e| format!("Failed to create SQLite registry: {}", e))
     }
 
     fn parse_template_type(tt: &Option<String>) -> Option<TemplateType> {
@@ -154,6 +142,7 @@ impl RegistryServer {
                 serde_json::json!({
                     "id": e.id,
                     "template_type": e.template_type.as_str(),
+                    "name": e.name,
                     "description": e.description,
                     "lexicon_terms": e.lexicon_terms,
                 })
@@ -276,10 +265,11 @@ impl RegistryServer {
 
         match registry.get(&template_id) {
             Some(entry) => {
-                let re = entry.as_registry_entry();
+                let re = entry;
                 span.ok(McpToolOutput::new(json!({
                     "template_id": re.id,
                     "template_type": re.template_type.as_str(),
+                    "name": re.name,
                     "description": re.description,
                     "source_path": re.source_path,
                     "lexicon_terms": re.lexicon_terms,

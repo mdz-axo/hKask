@@ -31,12 +31,15 @@ pub fn register_template(
     description: String,
 ) -> Result<(), TemplateError> {
     let entry = RegistryEntry {
-        id,
+        id: id.clone(),
         template_type,
+        name: id,
         lexicon_terms,
         description,
         source_path,
         required_capabilities: vec![],
+        cascade_level: 0,
+        matroshka_limit: hkask_types::SYSTEM_MAX_RECURSION as u32,
     };
 
     registry.register(entry, None)

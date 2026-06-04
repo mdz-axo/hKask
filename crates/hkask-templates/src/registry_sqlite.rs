@@ -7,12 +7,10 @@ use crate::ports::{RegistryEntry, RegistryIndex, Result, TemplateError};
 use crate::provenance::{ProvenanceManager, TemplateProvenance};
 use hkask_types::TemplateType;
 use rusqlite::{Connection, params};
-use std::collections::HashMap;
 
 /// SQLite-based registry index
 pub struct SqliteRegistry {
     conn: Connection,
-    templates: HashMap<String, RegistryEntry>,
     provenance: ProvenanceManager,
 }
 
@@ -36,7 +34,6 @@ impl SqliteRegistry {
 
         let mut registry = Self {
             conn,
-            templates: HashMap::new(),
             provenance: ProvenanceManager::new(),
         };
 
@@ -54,8 +51,11 @@ impl SqliteRegistry {
             CREATE TABLE IF NOT EXISTS templates (
                 id TEXT PRIMARY KEY,
                 template_type TEXT NOT NULL,
+                name TEXT NOT NULL DEFAULT '',
                 description TEXT,
                 source_path TEXT NOT NULL,
+                cascade_level INTEGER NOT NULL DEFAULT 0,
+                matroshka_limit INTEGER NOT NULL DEFAULT 7,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
@@ -64,6 +64,13 @@ impl SqliteRegistry {
                 template_id TEXT NOT NULL,
                 term TEXT NOT NULL,
                 PRIMARY KEY (template_id, term),
+                FOREIGN KEY (template_id) REFERENCES templates(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS template_capabilities (
+                template_id TEXT NOT NULL,
+                capability TEXT NOT NULL,
+                PRIMARY KEY (template_id, capability),
                 FOREIGN KEY (template_id) REFERENCES templates(id)
             );
 
@@ -81,6 +88,7 @@ impl SqliteRegistry {
             CREATE INDEX IF NOT EXISTS idx_templates_type ON templates(template_type);
             CREATE INDEX IF NOT EXISTS idx_lexicon_terms ON lexicon_terms(term);
             CREATE INDEX IF NOT EXISTS idx_provenance_template ON provenance(template_id);
+            CREATE INDEX IF NOT EXISTS idx_template_capabilities ON template_capabilities(capability);
             ",
             )
             .map_err(|e| TemplateError::Manifest(format!("Failed to init schema: {}", e)))?;
@@ -101,9 +109,17 @@ impl SqliteRegistry {
 
         // Insert template
         tx.execute(
-            "INSERT OR REPLACE INTO templates (id, template_type, description, source_path, updated_at)
-             VALUES (?1, ?2, ?3, ?4, CURRENT_TIMESTAMP)",
-            params![entry.id, entry.template_type.as_str(), entry.description, entry.source_path],
+            "INSERT OR REPLACE INTO templates (id, template_type, name, description, source_path, cascade_level, matroshka_limit, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, CURRENT_TIMESTAMP)",
+            params![
+                entry.id,
+                entry.template_type.as_str(),
+                entry.name,
+                entry.description,
+                entry.source_path,
+                entry.cascade_level,
+                entry.matroshka_limit,
+            ],
         ).map_err(|e| TemplateError::Manifest(format!("Failed to insert template: {}", e)))?;
 
         // Delete existing lexicon terms
@@ -122,6 +138,22 @@ impl SqliteRegistry {
             .map_err(|e| TemplateError::Manifest(format!("Failed to insert lexicon: {}", e)))?;
         }
 
+        // Delete existing capabilities
+        tx.execute(
+            "DELETE FROM template_capabilities WHERE template_id = ?1",
+            params![entry.id],
+        )
+        .map_err(|e| TemplateError::Manifest(format!("Failed to delete capabilities: {}", e)))?;
+
+        // Insert capabilities
+        for cap in &entry.required_capabilities {
+            tx.execute(
+                "INSERT INTO template_capabilities (template_id, capability) VALUES (?1, ?2)",
+                params![entry.id, cap],
+            )
+            .map_err(|e| TemplateError::Manifest(format!("Failed to insert capability: {}", e)))?;
+        }
+
         tx.commit()
             .map_err(|e| TemplateError::Manifest(format!("Failed to commit: {}", e)))?;
 
@@ -130,63 +162,78 @@ impl SqliteRegistry {
             self.provenance.record(p);
         }
 
-        self.templates.insert(entry.id.clone(), entry);
-
         Ok(())
     }
 
-    /// Load all templates from database into memory
-    pub fn load_all(&mut self) -> Result<()> {
-        let mut stmt = self
+    /// Read a single template row into a RegistryEntry
+    fn row_to_entry(
+        &self,
+        id: &str,
+        template_type: TemplateType,
+        name: String,
+        description: String,
+        source_path: String,
+        cascade_level: u32,
+        matroshka_limit: u32,
+    ) -> Result<RegistryEntry> {
+        let lexicon_terms: Vec<String> = self
             .conn
-            .prepare("SELECT id, template_type, description, source_path FROM templates")
-            .map_err(|e| TemplateError::Manifest(format!("Failed to prepare query: {}", e)))?;
+            .prepare("SELECT term FROM lexicon_terms WHERE template_id = ?1")
+            .map_err(|e| {
+                TemplateError::Database(format!("Failed to prepare lexicon query: {}", e))
+            })?
+            .query_map(params![id], |row| row.get(0))
+            .map_err(|e| TemplateError::Database(format!("Failed to query lexicon: {}", e)))?
+            .filter_map(|r| r.ok())
+            .collect();
 
-        let rows = stmt
-            .query_map([], |row| {
+        let required_capabilities: Vec<String> = self
+            .conn
+            .prepare("SELECT capability FROM template_capabilities WHERE template_id = ?1")
+            .map_err(|e| {
+                TemplateError::Database(format!("Failed to prepare capabilities query: {}", e))
+            })?
+            .query_map(params![id], |row| row.get(0))
+            .map_err(|e| TemplateError::Database(format!("Failed to query capabilities: {}", e)))?
+            .filter_map(|r| r.ok())
+            .collect();
+
+        Ok(RegistryEntry {
+            id: id.to_string(),
+            template_type,
+            name,
+            lexicon_terms,
+            description,
+            source_path,
+            required_capabilities,
+            cascade_level,
+            matroshka_limit,
+        })
+    }
+
+    /// Get a single template by ID directly from the database
+    pub fn get_entry(&self, id: &str) -> Result<RegistryEntry> {
+        let row = self
+            .conn
+            .prepare("SELECT id, template_type, name, description, source_path, cascade_level, matroshka_limit FROM templates WHERE id = ?1")
+            .map_err(|e| TemplateError::Database(format!("Failed to prepare query: {}", e)))?
+            .query_row(params![id], |row| {
                 let id: String = row.get(0)?;
                 let template_type_str: String = row.get(1)?;
-                let description: String = row.get(2)?;
-                let source_path: String = row.get(3)?;
-
-                let template_type =
-                    TemplateType::parse_str(&template_type_str).unwrap_or(TemplateType::Prompt);
-
-                Ok((id, template_type, description, source_path))
+                let name: String = row.get(2)?;
+                let description: String = row.get(3)?;
+                let source_path: String = row.get(4)?;
+                let cascade_level: u32 = row.get(5)?;
+                let matroshka_limit: u32 = row.get(6)?;
+                let template_type = TemplateType::parse_str(&template_type_str)
+                    .ok_or_else(|| rusqlite::Error::ToSqlConversionFailure(
+                        format!("Unknown template type: {}", template_type_str).into()
+                    ))?;
+                Ok((id, template_type, name, description, source_path, cascade_level, matroshka_limit))
             })
-            .map_err(|e| TemplateError::Manifest(format!("Failed to query: {}", e)))?;
+            .map_err(|e| TemplateError::NotFound(format!("Template '{}' not found: {}", id, e)))?;
 
-        for row_result in rows {
-            let (id, template_type, description, source_path) = row_result
-                .map_err(|e| TemplateError::Manifest(format!("Failed to read row: {}", e)))?;
-
-            // Load lexicon terms for this template
-            let mut lexicon_stmt = self
-                .conn
-                .prepare("SELECT term FROM lexicon_terms WHERE template_id = ?1")
-                .map_err(|e| {
-                    TemplateError::Manifest(format!("Failed to prepare lexicon query: {}", e))
-                })?;
-
-            let lexicon_terms: Vec<String> = lexicon_stmt
-                .query_map(params![id], |row| row.get(0))
-                .map_err(|e| TemplateError::Manifest(format!("Failed to query lexicon: {}", e)))?
-                .filter_map(|r| r.ok())
-                .collect();
-
-            let entry = RegistryEntry {
-                id: id.clone(),
-                template_type,
-                lexicon_terms,
-                description,
-                source_path,
-                required_capabilities: vec![],
-            };
-
-            self.templates.insert(id, entry);
-        }
-
-        Ok(())
+        self.row_to_entry(&row.0, row.1, row.2, row.3, row.4, row.5, row.6)
     }
 
     /// Search templates by lexicon term
@@ -194,53 +241,54 @@ impl SqliteRegistry {
         let mut stmt = self
             .conn
             .prepare(
-                "SELECT t.id, t.template_type, t.description, t.source_path
+                "SELECT t.id, t.template_type, t.name, t.description, t.source_path, t.cascade_level, t.matroshka_limit
              FROM templates t
              JOIN lexicon_terms l ON t.id = l.template_id
              WHERE l.term = ?1",
             )
             .map_err(|e| TemplateError::Database(format!("Failed to prepare statement: {}", e)))?;
 
-        let rows = stmt
+        let rows: Vec<(String, TemplateType, String, String, String, u32, u32)> = stmt
             .query_map(params![term], |row| {
                 let id: String = row.get(0)?;
                 let template_type_str: String = row.get(1)?;
-                let description: String = row.get(2)?;
-                let source_path: String = row.get(3)?;
+                let name: String = row.get(2)?;
+                let description: String = row.get(3)?;
+                let source_path: String = row.get(4)?;
+                let cascade_level: u32 = row.get(5)?;
+                let matroshka_limit: u32 = row.get(6)?;
 
                 let template_type =
-                    TemplateType::parse_str(&template_type_str).unwrap_or(TemplateType::Prompt);
+                    TemplateType::parse_str(&template_type_str).unwrap_or(TemplateType::KnowAct);
 
-                Ok((id, template_type, description, source_path))
+                Ok((
+                    id,
+                    template_type,
+                    name,
+                    description,
+                    source_path,
+                    cascade_level,
+                    matroshka_limit,
+                ))
             })
-            .map_err(|e| TemplateError::Database(format!("Failed to query templates: {}", e)))?;
+            .map_err(|e| TemplateError::Database(format!("Failed to query templates: {}", e)))?
+            .filter_map(|r| r.ok())
+            .collect();
 
         let mut results = Vec::new();
-        for (id, template_type, description, source_path) in rows.flatten() {
-            // Get lexicon terms for this template
-            let mut lexicon_stmt = self
-                .conn
-                .prepare("SELECT term FROM lexicon_terms WHERE template_id = ?1")
-                .map_err(|e| {
-                    TemplateError::Database(format!("Failed to prepare lexicon statement: {}", e))
-                })?;
-
-            let lexicon_terms: Vec<String> = lexicon_stmt
-                .query_map(params![id], |row| row.get(0))
-                .map_err(|e| {
-                    TemplateError::Database(format!("Failed to query lexicon terms: {}", e))
-                })?
-                .filter_map(|r| r.ok())
-                .collect();
-
-            results.push(RegistryEntry {
-                id,
+        for (id, template_type, name, description, source_path, cascade_level, matroshka_limit) in
+            rows
+        {
+            let entry = self.row_to_entry(
+                &id,
                 template_type,
-                lexicon_terms,
+                name,
                 description,
                 source_path,
-                required_capabilities: vec![],
-            });
+                cascade_level,
+                matroshka_limit,
+            )?;
+            results.push(entry);
         }
 
         Ok(results)
@@ -253,31 +301,105 @@ impl SqliteRegistry {
 
     /// Get template count
     pub fn count(&self) -> usize {
-        self.templates.len()
+        self.conn
+            .query_row("SELECT COUNT(*) FROM templates", [], |row| {
+                row.get::<_, i64>(0)
+            })
+            .unwrap_or(0) as usize
     }
 }
 
 impl RegistryIndex for SqliteRegistry {
     fn list(&self, domain_hint: Option<TemplateType>) -> Vec<RegistryEntry> {
-        match domain_hint {
-            Some(t) => self
-                .templates
-                .values()
-                .filter(|e| e.template_type == t)
-                .cloned()
-                .collect(),
-            None => self.templates.values().cloned().collect(),
-        }
+        let sql = match domain_hint {
+            Some(_) => {
+                "SELECT id, template_type, name, description, source_path, cascade_level, matroshka_limit FROM templates WHERE template_type = ?1"
+            }
+            None => {
+                "SELECT id, template_type, name, description, source_path, cascade_level, matroshka_limit FROM templates"
+            }
+        };
+
+        let mut stmt = match self.conn.prepare(sql) {
+            Ok(s) => s,
+            Err(_) => return Vec::new(),
+        };
+
+        let parse_row = |row: &rusqlite::Row<'_>| -> rusqlite::Result<(
+            String,
+            TemplateType,
+            String,
+            String,
+            String,
+            u32,
+            u32,
+        )> {
+            let id: String = row.get(0)?;
+            let template_type_str: String = row.get(1)?;
+            let name: String = row.get(2)?;
+            let description: String = row.get(3)?;
+            let source_path: String = row.get(4)?;
+            let cascade_level: u32 = row.get(5)?;
+            let matroshka_limit: u32 = row.get(6)?;
+            let template_type =
+                TemplateType::parse_str(&template_type_str).unwrap_or(TemplateType::KnowAct);
+            Ok((
+                id,
+                template_type,
+                name,
+                description,
+                source_path,
+                cascade_level,
+                matroshka_limit,
+            ))
+        };
+
+        let rows: Vec<(String, TemplateType, String, String, String, u32, u32)> = match domain_hint
+        {
+            Some(tt) => stmt
+                .query_map(params![tt.as_str()], parse_row)
+                .map(|rows| rows.filter_map(|r| r.ok()).collect())
+                .unwrap_or_default(),
+            None => stmt
+                .query_map([], parse_row)
+                .map(|rows| rows.filter_map(|r| r.ok()).collect())
+                .unwrap_or_default(),
+        };
+
+        rows.into_iter()
+            .filter_map(
+                |(
+                    id,
+                    template_type,
+                    name,
+                    description,
+                    source_path,
+                    cascade_level,
+                    matroshka_limit,
+                )| {
+                    self.row_to_entry(
+                        &id,
+                        template_type,
+                        name,
+                        description,
+                        source_path,
+                        cascade_level,
+                        matroshka_limit,
+                    )
+                    .ok()
+                },
+            )
+            .collect()
     }
 
     fn get(
         &self,
         id: &str,
     ) -> std::result::Result<RegistryEntry, hkask_types::ports::RegistryError> {
-        self.templates.get(id).cloned().ok_or_else(|| {
+        self.get_entry(id).map_err(|e| {
             hkask_types::ports::RegistryError::NotFound(format!(
-                "Template '{}' not found in SQLite registry",
-                id
+                "Template '{}' not found: {}",
+                id, e
             ))
         })
     }

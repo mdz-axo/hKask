@@ -196,6 +196,10 @@ pub trait InferencePort: Send + Sync {
 
 /// Registry entry for template discovery
 ///
+/// The unified entry type for the registry. Covers all template types
+/// (WordAct, KnowAct, FlowDef) and carries cascade metadata so that
+/// the port trait doesn't lose information on conversion.
+///
 /// Moved from `hkask-templates` to `hkask-types` so that downstream crates
 /// (e.g. `hkask-ensemble`) can perform R4 capability intersection checks
 /// without depending on the curation layer.
@@ -203,11 +207,17 @@ pub trait InferencePort: Send + Sync {
 pub struct RegistryEntry {
     pub id: String,
     pub template_type: TemplateType,
+    /// Human-readable name for display
+    pub name: String,
     pub lexicon_terms: Vec<String>,
     pub description: String,
     pub source_path: String,
     /// Required capabilities for this template (R4: Capability Intersection)
     pub required_capabilities: Vec<String>,
+    /// Cascade depth for matroshka (nested template) recursion
+    pub cascade_level: u32,
+    /// Maximum nesting depth (matroshka limit)
+    pub matroshka_limit: u32,
 }
 
 /// Error type for registry index operations
