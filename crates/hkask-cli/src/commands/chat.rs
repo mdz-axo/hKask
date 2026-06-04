@@ -1,21 +1,23 @@
-//! Chat command handlers — inference, pod-mediated chat, and Russell bridge
+//! Chat command handlers — inference and Russell bridge
 
-use hkask_agents::pod::{AgentPersona, PodContext, PodManagerBuilder};
 use hkask_templates::{OkapiConfig, OkapiInference};
-use hkask_types::CapabilityChecker;
 use hkask_types::LLMParameters;
 use hkask_types::ports::InferencePort;
 use std::sync::Arc;
 
 use crate::commands::config::{
     ResolvedSecrets, init_registry, init_registry_with_secrets, registry_yaml_path,
-    resolve_acp_secret,
 };
 
 /// Send a chat message to an agent and return the response.
 ///
 /// Routes through Russell adapter for Russell requests, otherwise uses
-/// standard pod-mediated inference with Okapi.
+/// direct inference via the shared `InferencePort`.
+///
+/// The chat path uses the `InferencePort` directly — pod creation is not
+/// needed for standard chat. Pods are reserved for multi-agent sessions
+/// (ensemble, A2A) where the pod lifecycle (registration, activation,
+/// memory, capability tokens) adds value.
 ///
 /// When `inference_port` is provided, the shared port is reused across calls
 /// and `generate_with_model()` is used for per-request model override.
@@ -34,7 +36,7 @@ pub async fn chat_with_agent(
     let name = agent_name.unwrap_or("Curator");
 
     // Load agent registry — prefer pre-resolved secrets from onboarding
-    let (acp, store) = match secrets {
+    let (_acp, store) = match secrets {
         Some(s) => match init_registry_with_secrets(s).await {
             Ok(r) => r,
             Err(e) => return format!("Registry init error: {}", e),
@@ -47,7 +49,7 @@ pub async fn chat_with_agent(
 
     let loader = hkask_agents::AgentRegistryLoader::new(
         registry_yaml_path(),
-        acp.clone(),
+        _acp.clone(),
         store,
         Arc::new(hkask_agents::adapters::FilesystemRegistrySource::new()),
     );
@@ -94,68 +96,6 @@ pub async fn chat_with_agent(
         }
     };
 
-    // Resolve the same ACP secret used to create the ACP runtime so the
-    // capability checker can cryptographically verify capability tokens.
-    let acp_secret = match resolve_acp_secret() {
-        Ok(s) => s,
-        Err(e) => return format!("ACP secret resolution error: {}", e),
-    };
-
-    let pod_manager = PodManagerBuilder::new()
-        .acp_runtime(acp)
-        .capability_checker(CapabilityChecker::new(acp_secret.as_bytes()))
-        .inference_port(inference.clone())
-        .with_in_memory_storage()
-        .build();
-
-    let persona_yaml = format!(
-        r#"
-agent:
-  name: {}
-  type: {}
-  version: "0.1.0"
-charter:
-  description: "Chat session with {}"
-  editor: cli
-capabilities:
-  - "tool:inference:call"
-rights: []
-responsibilities: []
-visibility:
-  default: public
-  episodic_override: private
-"#,
-        name,
-        if name == "Curator" {
-            "Replicant"
-        } else {
-            "Bot"
-        },
-        name
-    );
-
-    let persona = match AgentPersona::from_yaml(&persona_yaml) {
-        Ok(p) => p,
-        Err(e) => return format!("Persona parse error: {}", e),
-    };
-
-    let pod_id = match pod_manager
-        .create_pod("chat-template", &persona, Some(name.to_string()))
-        .await
-    {
-        Ok(id) => id,
-        Err(e) => return format!("Pod creation error: {}", e),
-    };
-
-    if let Err(e) = pod_manager.activate_pod(&pod_id).await {
-        return format!("Pod activation error: {}", e);
-    }
-
-    let pod_context = match PodContext::from_manager(&pod_manager, &pod_id).await {
-        Ok(ctx) => ctx,
-        Err(e) => return format!("Pod context error: {}", e),
-    };
-
     let full_prompt = format!("{}\n\nUser: {}", system_prompt, input);
 
     let params = LLMParameters {
@@ -168,13 +108,11 @@ visibility:
         seed: None,
     };
 
-    let pod_inference_port = match pod_context.inference_port() {
-        Ok(port) => port,
-        Err(e) => return format!("Inference port unavailable: {}", e),
-    };
-
-    // Use generate_with_model() so the shared port respects per-request model
-    match pod_inference_port
+    // Direct inference — no pod creation needed for standard chat.
+    // The shared InferencePort already supports per-request model override
+    // via generate_with_model(). Pod-mediated inference is reserved for
+    // ensemble/A2A sessions where lifecycle management adds value.
+    match inference
         .generate_with_model(&full_prompt, &params, Some(model))
         .await
     {

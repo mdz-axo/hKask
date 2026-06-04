@@ -1,6 +1,14 @@
 //! Git CAS Adapter
 //!
 //! Concrete implementation of GitCASPort using gix crate.
+//!
+//! Also provides `load_template_crate_or_synthesize` which bridges the
+//! filesystem crate system and the hkask-templates::Registry. When a
+//! crate directory exists on disk, it's loaded normally. When absent,
+//! a minimal TemplateCrate is synthesized from the registry's template
+//! files and agent persona data — eliminating "crate not found" errors
+//! for templates registered in the registry but lacking a dedicated
+//! crate directory.
 
 use hkask_types::{GitCASPort, GitError, TemplateCrate, TemplateFile};
 use std::path::{Component, Path};
@@ -51,6 +59,106 @@ impl GitCasAdapter {
         }
 
         Ok(())
+    }
+
+    /// Load a template crate, or synthesize one from minimal defaults.
+    ///
+    /// First checks for a proper crate directory (containing
+    /// `agent_persona.yaml` and `dispatch_manifest.yaml`). If found,
+    /// loads it normally via `load_template_crate`.
+    ///
+    /// If the directory doesn't exist or lacks required files,
+    /// synthesizes a minimal `TemplateCrate` so that pod creation
+    /// can proceed without a pre-built crate on disk. This bridges
+    /// the gap between the hkask-templates::Registry (which stores
+    /// `.j2` template files by domain) and the GitCasAdapter (which
+    /// expects filesystem crate directories).
+    pub fn load_template_crate_or_synthesize(
+        &self,
+        crate_name: &str,
+    ) -> Result<TemplateCrate, GitError> {
+        // Try loading a proper crate directory first
+        let crate_path = self.base_path.join(crate_name);
+        if crate_path.exists()
+            && crate_path.join("agent_persona.yaml").exists()
+            && crate_path.join("dispatch_manifest.yaml").exists()
+        {
+            return self.load_template_crate(crate_name);
+        }
+
+        // Synthesize a minimal template crate for pod creation
+        tracing::debug!(
+            target: "hkask.templates",
+            crate_name = %crate_name,
+            "No template crate directory found — synthesizing minimal crate"
+        );
+
+        let persona_yaml = format!(
+            "agent:\n\
+             name: \"{name}\"\n\
+             type: Replicant\n\
+             version: \"0.1.0\"\n\
+             \n\
+             charter:\n\
+             description: \"Synthesized {name} session\"\n\
+             editor: cli\n\
+             \n\
+             capabilities:\n\
+             - \"tool:inference:call\"\n\
+             \n\
+             rights: []\n\
+             responsibilities: []\n\
+             \n\
+             visibility:\n\
+             default: public\n\
+             episodic_override: private",
+            name = crate_name
+        );
+
+        let dispatch_manifest_yaml = "\
+             dispatch:\n\
+             - id: inference\n\
+             type: inference\n\
+             route: okapi\n\
+             description: \"Primary LLM inference\""
+            .to_string();
+
+        // Scan for any .j2 template files in a domain-matching directory
+        let mut templates = Vec::new();
+        let template_dir = self.base_path.join(crate_name);
+        if template_dir.exists()
+            && let Ok(entries) = std::fs::read_dir(&template_dir)
+        {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if let Some(ext) = path.extension()
+                    && (ext == "j2" || ext == "yaml")
+                    && let Ok(content) = std::fs::read_to_string(&path)
+                {
+                    let template_type = match ext.to_str() {
+                        Some("j2") => "Prompt",
+                        Some("yaml") => "Process",
+                        _ => "Cognition",
+                    };
+                    templates.push(TemplateFile {
+                        path: path.to_string_lossy().to_string(),
+                        content,
+                        template_type: template_type.to_string(),
+                    });
+                }
+            }
+        }
+
+        let git_sha = self.resolve_sha(crate_name)?;
+
+        Ok(TemplateCrate {
+            name: crate_name.to_string(),
+            git_sha,
+            persona_yaml,
+            dispatch_manifest_yaml,
+            templates,
+            hlexicon_terms: Vec::new(),
+        })
     }
 }
 
