@@ -17,6 +17,7 @@ HKASK_VERSION="${HKASK_VERSION:-0.22.0}"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local}"
 BIN_DIR="${INSTALL_DIR}/bin"
 CARGO_BIN="${CARGO_HOME:-$HOME/.cargo}/bin"
+SYSTEM_BIN="/usr/local/bin"
 
 # Colors for output
 RED='\033[0;31m'
@@ -292,33 +293,83 @@ install_binary() {
     log_success "Binary installed to $BIN_DIR/kask"
 }
 
+# Add kask to PATH. Tries symlink to /usr/local/bin first (system-wide),
+# falls back to shell config PATH manipulation (user-local).
+add_to_path() {
+    # Strategy 1: symlink into /usr/local/bin (already in PATH on all Linux)
+    if [ -w "$SYSTEM_BIN" ] || [ "${HKASK_SYSTEM_INSTALL:-false}" = "true" ]; then
+        log "Creating symlink at $SYSTEM_BIN/kask → $BIN_DIR/kask"
+        ln -sf "$BIN_DIR/kask" "$SYSTEM_BIN/kask" 2>/dev/null
+        if [ $? -eq 0 ]; then
+            log_success "kask linked into $SYSTEM_BIN (system PATH)"
+            return 0
+        fi
+        # Symlink failed even with --system — fall through to shell config
+        log_warning "Cannot write to $SYSTEM_BIN, falling back to shell config"
+    elif command -v sudo &> /dev/null; then
+        log "Creating system symlink (requires sudo)..."
+        if sudo ln -sf "$BIN_DIR/kask" "$SYSTEM_BIN/kask" 2>/dev/null; then
+            log_success "kask linked into $SYSTEM_BIN (system PATH)"
+            return 0
+        fi
+        log_warning "Cannot write to $SYSTEM_BIN, falling back to shell config"
+    else
+        log "No sudo access — configuring PATH in shell config"
+    fi
+
+    # Strategy 2: add BIN_DIR to PATH via shell config files
+    local added=false
+    local configs=()
+
+    # Detect all applicable shell configs
+    if [ -n "${ZSH_VERSION:-}" ]; then
+        configs=("$HOME/.zshrc")
+    elif [ -n "${BASH_VERSION:-}" ]; then
+        configs=("$HOME/.bashrc")
+    fi
+
+    # Also add to .profile for login shells (covers ssh, systemd, etc.)
+    configs+=("$HOME/.profile")
+
+    # Check if ~/.local/bin needs PATH on this system
+    # (systemd 0.25+ ships ~/.local/bin in PATH by default)
+    local needs_local_path=false
+    if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
+        needs_local_path=true
+    fi
+
+    if [ "$needs_local_path" = true ]; then
+        for cfg in "${configs[@]}"; do
+            if [ -f "$cfg" ] || [ "$(basename "$cfg")" = ".profile" ]; then
+                if ! grep -q "$BIN_DIR" "$cfg" 2>/dev/null; then
+                    echo "" >> "$cfg"
+                    echo "# hKask" >> "$cfg"
+                    echo "export PATH=\"$BIN_DIR:\$PATH\"" >> "$cfg"
+                    log "Added PATH entry to $cfg"
+                    added=true
+                fi
+            fi
+        done
+    fi
+
+    if [ "$added" = true ]; then
+        log_success "PATH configured in shell profile(s)"
+        log "Restart your shell or run: source ~/.profile"
+    else
+        log_warning "Could not add $BIN_DIR to PATH automatically"
+        log "Please add this line to your shell config:"
+        log "  export PATH=\"$BIN_DIR:\$PATH\""
+    fi
+}
+
 setup_environment() {
     log "Setting up environment..."
 
-    # Add to PATH if not already present
-    if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
-        log "Adding $BIN_DIR to PATH..."
+    # Add kask to PATH
+    add_to_path
 
-        export PATH="$BIN_DIR:$PATH"
-
-        local shell_config=""
-        if [ -n "${ZSH_VERSION:-}" ]; then
-            shell_config="$HOME/.zshrc"
-        elif [ -n "${BASH_VERSION:-}" ]; then
-            shell_config="$HOME/.bashrc"
-        fi
-
-        if [ -n "$shell_config" ]; then
-            if ! grep -q "$BIN_DIR" "$shell_config" 2>/dev/null; then
-                echo "" >> "$shell_config"
-                echo "# hKask" >> "$shell_config"
-                echo "export PATH=\"$BIN_DIR:\$PATH\"" >> "$shell_config"
-                log "Added PATH to $shell_config. Please restart your shell or run: source $shell_config"
-            fi
-        else
-            log_warning "Could not detect shell config. Please add $BIN_DIR to your PATH manually."
-        fi
-    fi
+    # Also export for this script's process
+    export PATH="$BIN_DIR:$PATH"
 
     # Create config directory
     local config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/hkask"
@@ -344,12 +395,28 @@ setup_environment() {
 verify_installation() {
     log "Verifying installation..."
 
+    # Check the binary file exists
+    if [ ! -f "$BIN_DIR/kask" ]; then
+        log_error "Binary not found at $BIN_DIR/kask"
+        return 1
+    fi
+
+    local version=$("$BIN_DIR/kask" --version 2>&1 || echo "unknown")
+    log "Binary: $BIN_DIR/kask ($version)"
+
+    # Check symlink in /usr/local/bin
+    if [ -L "$SYSTEM_BIN/kask" ]; then
+        log "Symlink: $SYSTEM_BIN/kask → $(readlink "$SYSTEM_BIN/kask")"
+    fi
+
+    # Check if kask is reachable via PATH
     if command -v kask &> /dev/null; then
-        local version=$(kask --version 2>&1 || echo "unknown")
-        log_success "hKask installed successfully: $version"
+        local resolved=$(command -v kask)
+        log_success "kask is in PATH: $resolved ($version)"
     else
-        log_warning "kask command not found in PATH"
-        log "Try: export PATH=\"$BIN_DIR:\$PATH\""
+        log_warning "kask command not yet in PATH for this shell session"
+        log "The PATH will take effect in new shell sessions. For now:"
+        log "  export PATH=\"$BIN_DIR:\$PATH\""
     fi
 }
 
@@ -360,11 +427,26 @@ verify_installation() {
 uninstall_hkask() {
     log "Uninstalling hKask..."
 
-    # Remove binary
+    # Remove system symlink
+    if [ -L "$SYSTEM_BIN/kask" ]; then
+        sudo rm -f "$SYSTEM_BIN/kask" 2>/dev/null || rm -f "$SYSTEM_BIN/kask" 2>/dev/null || true
+        log "Removed symlink: $SYSTEM_BIN/kask"
+    fi
+
+    # Remove user binary
     if [ -f "$BIN_DIR/kask" ]; then
         rm -f "$BIN_DIR/kask"
         log "Removed $BIN_DIR/kask"
     fi
+
+    # Remove PATH entries from shell configs
+    for cfg in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.profile"; do
+        if [ -f "$cfg" ] && grep -q '# hKask' "$cfg" 2>/dev/null; then
+            sed -i '/# hKask/d' "$cfg"
+            sed -i "/export PATH.*$BIN_DIR/d" "$cfg"
+            log "Cleaned PATH entry from $cfg"
+        fi
+    done
 
     # Remove config (optional)
     if [ "${HKASK_REMOVE_CONFIG:-false}" = "true" ]; then
@@ -395,6 +477,7 @@ Options:
     --uninstall         Remove hKask
     --build-only        Build without installing
     --debug             Build in debug mode
+    --system            Install system-wide to /usr/local/bin (requires sudo)
     --skip-deps         Skip system dependency installation
     --skip-rust         Skip Rust installation
     --install-dir DIR   Install to custom directory (default: \$HOME/.local)
@@ -405,6 +488,7 @@ Environment Variables:
     HKASK_BUILD_TYPE    Build type: release or debug (default: release)
     INSTALL_DIR         Installation directory (default: \$HOME/.local)
     CARGO_HOME          Cargo installation directory (default: \$HOME/.cargo)
+    HKASK_SYSTEM_INSTALL Force system-wide install to /usr/local/bin (default: false)
     HKASK_REMOVE_CONFIG Remove config and data on uninstall (default: false)
     HKASK_SOURCE_DIR    Use existing source directory instead of cloning
     HKASK_REPO_URL      Git repository URL (default: https://github.com/mdz-axo/hKask.git)
@@ -454,6 +538,12 @@ main() {
                 ;;
             --debug)
                 HKASK_BUILD_TYPE="debug"
+                shift
+                ;;
+            --system)
+                HKASK_SYSTEM_INSTALL="true"
+                INSTALL_DIR="/usr/local"
+                BIN_DIR="/usr/local/bin"
                 shift
                 ;;
             --skip-deps)
@@ -513,15 +603,16 @@ main() {
             log_success "Installation complete!"
             echo ""
             echo "To get started:"
-            echo "  1. Add hKask to your PATH (if not already done):"
-            echo "     export PATH=\"$BIN_DIR:\$PATH\""
-            echo ""
-            echo "  2. Run hKask:"
+            echo "  1. Run hKask:"
             echo "     kask --help"
             echo ""
-            echo "  3. Start interactive chat:"
+            echo "  2. Start interactive chat:"
             echo "     kask chat"
             echo ""
+            if ! command -v kask &> /dev/null; then
+                echo "  Note: Start a new shell session for PATH changes to take effect."
+                echo ""
+            fi
             ;;
         uninstall)
             uninstall_hkask
