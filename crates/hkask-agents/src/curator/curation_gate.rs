@@ -15,6 +15,12 @@
 //! (Loop 6) primitives (`AllostericGate`, `BernoulliDistribution`) is correct
 //! and preserved via `hkask_cns` imports.
 
+// ARCHITECTURE: Curation → Cybernetics direct import is permissible per authority DAG.
+// Curation (Loop 5) governs Cybernetics (Loop 6), so importing Cybernetics primitives
+// is a downward dependency — the governor using the governed's math. The coupling is
+// deep (sensitivity analysis reads gate.c, gate.n directly), so a port trait would
+// just rename the struct without meaningful decoupling. Revisit when a second
+// implementation of allosteric gating exists.
 use hkask_cns::allosteric::gate::{AllostericGate, AllostericGateConfig};
 use hkask_cns::allosteric::mwc::mwc_state_function;
 use std::time::Duration;

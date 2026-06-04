@@ -219,3 +219,83 @@ impl StandingSessionStore {
         Ok(version as u32)
     }
 }
+
+// ============================================================================
+// StandingSessionPort adapter — hexagonal boundary implementation
+// ============================================================================
+
+impl StandingSessionPort for StandingSessionStore {
+    fn save_session(&self, session: &SessionRecord) -> Result<(), SessionStoreError> {
+        let stored = StoredSession {
+            session_id: session.session_id.clone(),
+            config_yaml: session.config_yaml.clone(),
+            created_at: session.created_at.clone(),
+            last_active: session.last_active.clone(),
+            key_version: 1, // default for port-level saves
+            sealed: false,
+        };
+        StandingSessionStore::save_session(&self, &stored).map_err(|e| match e {
+            StandingSessionError::NotFound(s) => SessionStoreError::NotFound(s),
+            StandingSessionError::Sealed(s) => SessionStoreError::Sealed(s),
+            StandingSessionError::Infra(ie) => SessionStoreError::Storage(ie.to_string()),
+        })
+    }
+
+    fn get_session(&self, session_id: &str) -> Result<SessionRecord, SessionStoreError> {
+        let stored = StandingSessionStore::get_session(&self, session_id).map_err(|e| match e {
+            StandingSessionError::NotFound(s) => SessionStoreError::NotFound(s),
+            StandingSessionError::Sealed(s) => SessionStoreError::Sealed(s),
+            StandingSessionError::Infra(ie) => SessionStoreError::Storage(ie.to_string()),
+        })?;
+        Ok(SessionRecord {
+            session_id: stored.session_id,
+            config_yaml: stored.config_yaml,
+            created_at: stored.created_at,
+            last_active: stored.last_active,
+        })
+    }
+
+    fn save_message(&self, message: &MessageRecord) -> Result<i64, SessionStoreError> {
+        let stored = StoredMessage {
+            id: message.id,
+            session_id: message.session_id.clone(),
+            from_webid: message.from_webid.clone(),
+            content: message.content.clone(),
+            timestamp: message.timestamp.clone(),
+            template_id: message.template_id.clone(),
+        };
+        StandingSessionStore::save_message(&self, &stored).map_err(|e| match e {
+            StandingSessionError::NotFound(s) => SessionStoreError::NotFound(s),
+            StandingSessionError::Sealed(s) => SessionStoreError::Sealed(s),
+            StandingSessionError::Infra(ie) => SessionStoreError::Storage(ie.to_string()),
+        })
+    }
+
+    fn get_messages(&self, session_id: &str) -> Result<Vec<MessageRecord>, SessionStoreError> {
+        let stored =
+            StandingSessionStore::get_messages(&self, session_id).map_err(|e| match e {
+                StandingSessionError::NotFound(s) => SessionStoreError::NotFound(s),
+                StandingSessionError::Sealed(s) => SessionStoreError::Sealed(s),
+                StandingSessionError::Infra(ie) => SessionStoreError::Storage(ie.to_string()),
+            })?;
+        Ok(stored
+            .into_iter()
+            .map(|s| MessageRecord {
+                id: s.id,
+                session_id: s.session_id,
+                from_webid: s.from_webid,
+                content: s.content,
+                timestamp: s.timestamp,
+                template_id: s.template_id,
+            })
+            .collect())
+    }
+
+    fn update_last_active(&self, session_id: &str) -> Result<(), SessionStoreError> {
+        StandingSessionStore::update_last_active(&self, session_id).map_err(|e| match e {
+            StandingSessionError::NotFound(s) => SessionStoreError::NotFound(s),
+            StandingSessionError::Sealed(s) => SessionStoreError::Sealed(s),
+            StandingSessionError::Infra(ie) => SessionStoreError::Storage(ie.to_string()),
+        })
+    }
+}

@@ -283,7 +283,7 @@ pub struct MessageRecord {
 /// can depend on the abstraction without violating the Authority DAG.
 ///
 /// Implementations:
-/// - `StandingSessionStoreAdapter` — Production adapter via SQLite (in hkask-agents)
+/// - `StandingSessionStore` — Production implementation via SQLite (in hkask-storage)
 pub trait StandingSessionPort: Send + Sync {
     fn save_session(&self, session: &SessionRecord) -> Result<(), SessionStoreError>;
 

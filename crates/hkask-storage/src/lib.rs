@@ -10,7 +10,8 @@ pub mod security;
 pub mod sovereignty;
 pub mod spec_store;
 pub mod spec_types;
-pub mod standing_session;
+pub(crate) mod standing_session;
+pub use standing_session::StandingSessionStore;
 pub mod triples;
 pub mod user_store;
 
