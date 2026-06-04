@@ -39,9 +39,9 @@ pub struct SendWhatsAppRequest {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
-pub struct TtsRequest {
-    pub text: String,
-    pub voice: Option<String>,
+pub struct ListVoicesRequest {
+    /// Filter voices by language prefix (e.g., "en", "fr", "de")
+    pub language: Option<String>,
 }
 
 pub struct TelnyxServer {
@@ -184,53 +184,45 @@ impl TelnyxServer {
         }
     }
 
-    #[tool(description = "Generate text-to-speech audio")]
-    async fn telnyx_tts(
+    #[tool(description = "List available TTS voices (static catalog from Telnyx docs)")]
+    async fn telnyx_list_voices(
         &self,
-        Parameters(TtsRequest { text, voice }): Parameters<TtsRequest>,
+        Parameters(ListVoicesRequest { language }): Parameters<ListVoicesRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("telnyx_tts", &self.webid);
-        let voice_name = voice.unwrap_or_else(|| "female".to_string());
-        let url = format!("{BASE_URL}/calls");
-        let payload = serde_json::json!({
-            "from": "+18001234567",
-            "to": "+18007654321",
-            "webhook_url": "https://example.com/tts-webhook",
-            "tts": {
-                "text": text,
-                "voice": voice_name,
-            },
-        });
-        match api_post(&self.client, "Telnyx", &url, &payload).await {
-            Ok(resp_body) => span.ok(
-                McpToolOutput::new(serde_json::json!({
-                    "data": resp_body,
-                    "note": "TTS requires an active call via Call Control API. Use telnyx_make_call first, then use the call_control_id with the Call Control speak command.",
-                }))
-                .to_json_string(),
-            ),
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
-    }
-
-    #[tool(description = "List available voices")]
-    async fn telnyx_list_voices(&self) -> String {
         let span = ToolSpanGuard::new("telnyx_list_voices", &self.webid);
-        let result = serde_json::json!({
-            "voices": [
-                {"id": "female", "name": "Female", "language": "en-US", "gender": "female"},
-                {"id": "male", "name": "Male", "language": "en-US", "gender": "male"},
-                {"id": "Alice", "name": "Alice", "language": "en-US", "gender": "female"},
-                {"id": "Bob", "name": "Bob", "language": "en-US", "gender": "male"},
-                {"id": "Eva", "name": "Eva", "language": "en-US", "gender": "female"},
-                {"id": "Adam", "name": "Adam", "language": "en-GB", "gender": "male"},
-                {"id": "Bridget", "name": "Bridget", "language": "en-GB", "gender": "female"},
-                {"id": "Chloe", "name": "Chloe", "language": "fr-FR", "gender": "female"},
-                {"id": "Denise", "name": "Denise", "language": "de-DE", "gender": "female"},
-                {"id": "Ellen", "name": "Ellen", "language": "es-ES", "gender": "female"},
-            ]
-        });
-        span.ok(McpToolOutput::new(result).to_json_string())
+        let all_voices = serde_json::json!([
+            {"id": "female", "name": "Female", "language": "en-US", "gender": "female"},
+            {"id": "male", "name": "Male", "language": "en-US", "gender": "male"},
+            {"id": "Alice", "name": "Alice", "language": "en-US", "gender": "female"},
+            {"id": "Bob", "name": "Bob", "language": "en-US", "gender": "male"},
+            {"id": "Eva", "name": "Eva", "language": "en-US", "gender": "female"},
+            {"id": "Adam", "name": "Adam", "language": "en-GB", "gender": "male"},
+            {"id": "Bridget", "name": "Bridget", "language": "en-GB", "gender": "female"},
+            {"id": "Chloe", "name": "Chloe", "language": "fr-FR", "gender": "female"},
+            {"id": "Denise", "name": "Denise", "language": "de-DE", "gender": "female"},
+            {"id": "Ellen", "name": "Ellen", "language": "es-ES", "gender": "female"},
+        ]);
+        let voices: Vec<&serde_json::Value> = if let Some(ref lang) = language {
+            all_voices
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|v| {
+                    v["language"]
+                        .as_str()
+                        .unwrap_or("")
+                        .starts_with(lang.as_str())
+                })
+                .collect()
+        } else {
+            all_voices.as_array().unwrap().iter().collect()
+        };
+        span.ok(McpToolOutput::new(serde_json::json!({
+            "voices": voices,
+            "total": voices.len(),
+            "source": "static catalog (Telnyx Call Control API docs)",
+        }))
+        .to_json_string())
     }
 }
 

@@ -17,6 +17,7 @@
 
 use crate::curator::curation_gate::{CurationConfidenceGate, CurationDecision};
 use chrono::Utc;
+use hkask_types::CurationToken;
 use hkask_types::loops::curation::{CuratorDirective, CuratorHandle};
 use hkask_types::loops::{Deviation, HkaskLoop, LoopAction, LoopId, Signal};
 use hkask_types::ports::ConsolidationPort;
@@ -45,6 +46,8 @@ pub struct CurationLoop {
     /// Stores the Unix timestamp (milliseconds) of the last reviewed event.
     /// Curation reads from the persistent NuEvent log, not live CNS state.
     last_review_ms: AtomicU64,
+    /// Authority token proving this loop is the Curation Loop
+    token: CurationToken,
 }
 
 impl CurationLoop {
@@ -55,11 +58,13 @@ impl CurationLoop {
     /// The `context` provides capability-disciplined access to CNS, dispatch,
     /// and escalation — the Curation Loop's only runtime dependencies.
     pub fn new(curator_handle: CuratorHandle, context: Arc<CuratorContext>) -> Self {
+        let token = curator_handle.issue_curation_token();
         Self {
             curator_handle,
             context,
             consolidation: None,
             last_review_ms: AtomicU64::new(0),
+            token,
         }
     }
 
@@ -72,11 +77,13 @@ impl CurationLoop {
         context: Arc<CuratorContext>,
         consolidation: Arc<dyn ConsolidationPort>,
     ) -> Self {
+        let token = curator_handle.issue_curation_token();
         Self {
             curator_handle,
             context,
             consolidation: Some(consolidation),
             last_review_ms: AtomicU64::new(0),
+            token,
         }
     }
 
@@ -91,6 +98,11 @@ impl CurationLoop {
     /// for the entire system.
     pub fn curator_handle(&self) -> &CuratorHandle {
         &self.curator_handle
+    }
+
+    /// Access the CurationToken proving this loop's authority.
+    pub fn token(&self) -> &CurationToken {
+        &self.token
     }
 
     /// Evaluate curation confidence using the ARL confidence gate.
@@ -195,6 +207,12 @@ impl HkaskLoop for CurationLoop {
             .map(|v| v.len())
             .unwrap_or(0);
 
+        let consolidation_candidates = self
+            .consolidation
+            .as_ref()
+            .map(|port| port.consolidation_candidate_count(self.context.handle().curator_id()))
+            .unwrap_or(0);
+
         vec![
             Signal::new(
                 LoopId::Curation,
@@ -207,6 +225,12 @@ impl HkaskLoop for CurationLoop {
                 "pending_escalations",
                 pending_escalations as f64,
                 0.0, // set-point: zero pending escalations is healthy
+            ),
+            Signal::new(
+                LoopId::Curation,
+                "consolidation_candidates",
+                consolidation_candidates as f64,
+                0.0, // set-point: zero pending consolidation candidates is healthy
             ),
         ]
     }

@@ -995,6 +995,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "hkask-mcp-ensemble"
+version = "0.21.1"
+dependencies = [
+ "anyhow",
+ "hkask-ensemble",
+ "hkask-mcp",
+ "hkask-types",
+ "rmcp",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "hkask-mcp-fal"
 version = "0.21.1"
 dependencies = [

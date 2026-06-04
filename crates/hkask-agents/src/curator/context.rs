@@ -2,6 +2,7 @@
 
 use crate::communication::dispatch::MessageDispatch;
 use crate::escalation::EscalationQueue;
+use crate::ports::AcpPort;
 use hkask_cns::CnsRuntime;
 use hkask_storage::NuEventStore;
 use hkask_types::CuratorHandle;
@@ -18,6 +19,9 @@ pub struct CuratorContext {
     /// NuEvent store for algedonic review queries.
     /// Curation reads from the persistent log, not live CNS state.
     nu_event_store: Option<Arc<NuEventStore>>,
+    /// ACP port for A2A messaging (e.g. directing bots).
+    /// Optional so existing construction sites don't break.
+    acp: Option<Arc<dyn AcpPort>>,
 }
 
 impl CuratorContext {
@@ -33,6 +37,7 @@ impl CuratorContext {
             dispatch,
             escalation_queue,
             nu_event_store: None,
+            acp: None,
         }
     }
 
@@ -50,7 +55,14 @@ impl CuratorContext {
             dispatch,
             escalation_queue,
             nu_event_store: Some(nu_event_store),
+            acp: None,
         }
+    }
+
+    /// Builder: attach an ACP port for A2A bot-directed messaging.
+    pub fn with_acp(mut self, acp: Arc<dyn AcpPort>) -> Self {
+        self.acp = Some(acp);
+        self
     }
 
     /// Access the CuratorHandle (capability handle).
@@ -74,6 +86,13 @@ impl CuratorContext {
     /// Access the escalation queue for posting human review items.
     pub(crate) fn escalation_queue(&self) -> &Arc<EscalationQueue> {
         &self.escalation_queue
+    }
+
+    /// Access the ACP port for A2A messaging.
+    ///
+    /// Returns None if no ACP port is configured (graceful degradation).
+    pub(crate) fn acp(&self) -> Option<&Arc<dyn AcpPort>> {
+        self.acp.as_ref()
     }
 
     /// Issue a CuratorDirective unconditionally.

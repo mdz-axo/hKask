@@ -58,11 +58,6 @@ pub struct DeleteRequest {
     pub caller_webid: Option<String>,
 }
 
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct PromptRequest {
-    pub prompt_text: String,
-}
-
 /// Persistent encrypted entry stored in the vault file.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct EncryptedEntry {
@@ -491,21 +486,6 @@ impl KeystoreServer {
         span.ok(McpToolOutput::new(json!({
             "key_count": keys.len(),
             "keys": keys,
-        }))
-        .to_json_string())
-    }
-
-    #[tool(description = "Prompt for a secret value")]
-    async fn keystore_prompt(
-        &self,
-        Parameters(PromptRequest { prompt_text }): Parameters<PromptRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("keystore:prompt", &self.webid);
-
-        span.ok(McpToolOutput::new(json!({
-            "prompt": prompt_text,
-            "status": "prompted",
-            "note": "Interactive prompt requires client support",
         }))
         .to_json_string())
     }

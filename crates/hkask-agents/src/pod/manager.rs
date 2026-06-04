@@ -496,12 +496,13 @@ impl PodManager {
         pod_id: &PodID,
     ) -> AgentPodResult<Vec<serde_json::Value>> {
         let pods = self.pods.read().await;
-        let _pod = pods
+        let pod = pods
             .get(pod_id)
             .ok_or_else(|| AgentPodError::ACPRegistrationError("Pod not found".to_string()))?;
 
-        // Lifecycle events are now persisted via episodic_storage through PodContext
-        Ok(vec![])
+        self.episodic_storage
+            .recall_episodic("lifecycle", &pod.webid, &pod.capability_token)
+            .map_err(|e| AgentPodError::MemoryError(e.to_string()))
     }
 
     /// Get pod status

@@ -65,12 +65,6 @@ pub struct GenerateImageRequest {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
-pub struct GenerateImageFastRequest {
-    pub prompt: String,
-    pub image_size: Option<String>,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
 pub struct ImageToImageRequest {
     pub prompt: String,
     pub image_url: String,
@@ -252,24 +246,6 @@ impl FalServer {
             "prompt": prompt,
             "image_size": image_size.unwrap_or_else(|| "1024x1024".to_string()),
             "num_images": num_images.unwrap_or(1),
-        });
-        match fal_post(&self.client, "fal-ai/flux/schnell", body).await {
-            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
-            Err(e) => span.error(e.kind, e.to_json_string()),
-        }
-    }
-
-    #[tool(description = "Generate an image quickly")]
-    async fn fal_generate_image_fast(
-        &self,
-        Parameters(GenerateImageFastRequest { prompt, image_size }): Parameters<
-            GenerateImageFastRequest,
-        >,
-    ) -> String {
-        let span = ToolSpanGuard::new("fal:generate_image_fast", &self.webid);
-        let body = serde_json::json!({
-            "prompt": prompt,
-            "image_size": image_size.unwrap_or_else(|| "1024x1024".to_string()),
         });
         match fal_post(&self.client, "fal-ai/flux/schnell", body).await {
             Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),

@@ -182,4 +182,11 @@ impl ConsolidationPort for ConsolidationBridge {
             failed_count: result.failed_count,
         })
     }
+
+    fn consolidation_candidate_count(&self, perspective: &WebID) -> usize {
+        self.episodic
+            .consolidation_candidates(*perspective, usize::MAX)
+            .map(|v| v.len())
+            .unwrap_or(0)
+    }
 }

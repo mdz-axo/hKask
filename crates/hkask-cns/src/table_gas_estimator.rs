@@ -46,6 +46,7 @@ pub(crate) fn default_gas_table() -> HashMap<&'static str, u64> {
     table.insert("hkask-mcp-keystore", 2);
     table.insert("hkask-mcp-cns", 1);
     table.insert("hkask-mcp-registry", 2);
+    table.insert("hkask-mcp-ensemble", 2);
     table.insert("hkask-mcp-spec", 5);
     table.insert("hkask-mcp-git", 5);
 

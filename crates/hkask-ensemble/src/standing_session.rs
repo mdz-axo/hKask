@@ -109,7 +109,7 @@ pub struct StandingSession {
     pub description: String,
     pub chat: EnsembleChat,
     pub participant_names: HashMap<WebID, String>,
-    participant_descriptions: HashMap<WebID, String>,
+    pub participant_descriptions: HashMap<WebID, String>,
     store: Option<Arc<dyn StandingSessionPort>>,
     event_sink: Option<Arc<dyn NuEventSink>>,
 }

@@ -49,13 +49,6 @@ pub struct CloneRequest {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
-pub struct ForkRequest {
-    pub source_url: String,
-    pub target_name: String,
-    pub organization: Option<String>,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
 pub struct DiffRequest {
     pub sha1: String,
     pub sha2: String,
@@ -254,41 +247,6 @@ impl GitServer {
                     McpToolError::unavailable(e.to_string()).to_json_string(),
                 ),
             }
-        } else {
-            span.error(
-                McpErrorKind::FailedPrecondition,
-                McpToolError::failed_precondition("No adapter configured").to_json_string(),
-            )
-        }
-    }
-
-    #[tool(description = "Fork a git repository")]
-    async fn git_fork(
-        &self,
-        Parameters(ForkRequest {
-            source_url,
-            target_name,
-            organization,
-        }): Parameters<ForkRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("git:fork", &self.webid);
-        let org = organization.unwrap_or_else(|| "forked".to_string());
-
-        if let Err(e) = validate_tool_url(&source_url) {
-            return span.error(e.kind, e.to_json_string());
-        }
-
-        if let Err(e) = validate_path(&target_name) {
-            return span.error(e.kind, e.to_json_string());
-        }
-
-        if self.adapter_container.has_git_cas().unwrap_or(false) {
-            span.ok(McpToolOutput::new(json!({
-                "source": source_url,
-                "target": format!("{}/{}", org, target_name),
-                "forked": true,
-            }))
-            .to_json_string())
         } else {
             span.error(
                 McpErrorKind::FailedPrecondition,

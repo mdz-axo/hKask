@@ -12,9 +12,11 @@
 //! metacognition is a persona concern (the Curator Agent observes and adapts),
 //! not a regulatory concern (the Curation Loop regulates).
 
+use crate::acp::A2AMessage;
 use crate::curator::context::CuratorContext;
 use crate::curator_agent::bot_metrics::BotHealthStatus;
 use hkask_types::BotID;
+use hkask_types::WebID;
 use hkask_types::cns::CnsHealth;
 use hkask_types::loops::curation::CuratorDirective;
 use hkask_types::loops::dispatch::TraceId;
@@ -28,6 +30,8 @@ use tracing::{info, warn};
 pub enum MetacognitionError {
     #[error("Escalation error: {0}")]
     Escalation(String),
+    #[error("ACP error: {0}")]
+    Acp(String),
 }
 
 /// Escalation trigger thresholds
@@ -354,13 +358,42 @@ impl MetacognitionLoop {
     // -----------------------------------------------------------------------
 
     /// Direct a bot to take action via ACP message
-    pub async fn direct_bot(
-        &self,
-        _bot_name: &str,
-        _reason: &str,
-    ) -> Result<(), MetacognitionError> {
-        // The actual ACP message delivery happens through the standing session
-        // which is wired in the bootstrap sequence.
+    pub async fn direct_bot(&self, bot_name: &str, reason: &str) -> Result<(), MetacognitionError> {
+        let acp = match self.context.acp() {
+            Some(acp) => acp,
+            None => {
+                warn!(
+                    target: "curator.metacognition",
+                    bot = %bot_name,
+                    "ACP port not configured — cannot direct bot"
+                );
+                return Ok(());
+            }
+        };
+
+        let from = *self.context.handle().curator_id();
+        let to = WebID::from_persona(bot_name.as_bytes());
+        let correlation_id = format!("directive-{}-{}", bot_name, chrono::Utc::now().timestamp());
+
+        let msg = A2AMessage::TemplateDispatch {
+            from,
+            to: Some(to),
+            template_id: "directive".to_string(),
+            input: serde_json::json!({ "reason": reason }),
+            correlation_id,
+        };
+
+        acp.send_message(msg)
+            .await
+            .map_err(|e| MetacognitionError::Acp(e.to_string()))?;
+
+        info!(
+            target: "curator.metacognition",
+            bot = %bot_name,
+            reason = %reason,
+            "Directive sent to bot via ACP"
+        );
+
         Ok(())
     }
 

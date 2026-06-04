@@ -82,6 +82,8 @@ pub enum InferenceError {
     Generation(String),
     #[error("JSON error: {0}")]
     Json(String),
+    #[error("Circuit open: {0}")]
+    CircuitOpen(String),
 }
 
 /// Token usage statistics
@@ -330,6 +332,9 @@ pub trait ConsolidationPort: Send + Sync {
         perspective: &WebID,
         limit: usize,
     ) -> Result<ConsolidationOutcome, String>;
+
+    /// Count episodic triples eligible for consolidation for the given perspective.
+    fn consolidation_candidate_count(&self, perspective: &WebID) -> usize;
 }
 
 // =============================================================================

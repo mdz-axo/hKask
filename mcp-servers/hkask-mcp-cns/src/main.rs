@@ -16,6 +16,7 @@ use rmcp::{tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct EmitRequest {
@@ -49,7 +50,7 @@ pub struct ListAlertsRequest {
 
 pub struct CnsServer {
     runtime: Arc<CnsRuntime>,
-    threshold: u64,
+    threshold: AtomicU64,
     webid: WebID,
 }
 
@@ -61,7 +62,7 @@ impl CnsServer {
 
         Self {
             runtime: Arc::new(runtime),
-            threshold,
+            threshold: AtomicU64::new(threshold),
             webid,
         }
     }
@@ -125,7 +126,7 @@ impl CnsServer {
         }
 
         let variety_count = self.runtime.variety_for_domain(&span_pattern).await;
-        let deficit = variety_count > self.threshold;
+        let deficit = variety_count > self.threshold.load(Ordering::Relaxed);
 
         span.ok(McpToolOutput::new(serde_json::json!({
             "span_pattern": span_pattern,
@@ -189,7 +190,11 @@ impl CnsServer {
             return span.error(e.kind, e.to_json_string());
         }
 
-        let old_threshold = self.threshold;
+        let old_threshold = self.threshold.load(Ordering::Relaxed);
+        self.runtime
+            .calibrate_threshold(&span_pattern, new_threshold)
+            .await;
+        self.threshold.store(new_threshold, Ordering::Relaxed);
 
         span.ok(McpToolOutput::new(serde_json::json!({
             "span": span_pattern,

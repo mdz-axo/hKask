@@ -54,9 +54,9 @@ pub use id::*;
 pub use identity::*;
 pub use lexicon::TemplateType;
 pub use loops::{
-    ActionType, CuratorDirective, CuratorHandle, Deviation, DeviationDirection, EpisodicReadHandle,
-    EpisodicWriteHandle, ExperienceClassification, HkaskLoop, LoopAction, LoopId, LoopMessage,
-    LoopPayload, MessagePriority, Signal,
+    ActionType, CuratorDirective, CuratorHandle, CyberneticsHandle, Deviation, DeviationDirection,
+    EpisodicReadHandle, EpisodicWriteHandle, ExperienceClassification, HkaskLoop, LoopAction,
+    LoopId, LoopMessage, LoopPayload, MessagePriority, Signal,
 };
 pub use ports::{
     BackpressureSignal, CircuitBreakerPort, CnsObserver, CnsPort, ConsolidationOutcome,

@@ -29,6 +29,7 @@ members = [
     "mcp-servers/hkask-mcp-fal",
     "mcp-servers/hkask-mcp-rss-reader",
     "mcp-servers/hkask-mcp-goal",
+    "mcp-servers/hkask-mcp-ensemble",
 ]
 
 [workspace.package]

@@ -10,7 +10,7 @@
 //! - 5.1 Escalation Routing (ROUTE) — signal → classify → deliver to consumer
 //! - 5.2 Metacognitive Adaptation (ADAPT) — outcome → compare to desired → adjust parameter
 
-use crate::capability::tokens::ConsolidationToken;
+use crate::capability::tokens::{ConsolidationToken, CurationToken};
 use crate::id::WebID;
 use crate::sovereignty::DataCategory;
 use crate::visibility::Visibility;
@@ -79,6 +79,15 @@ impl CuratorHandle {
     /// authority. This token is required by `ConsolidationPort::consolidate()`.
     pub fn issue_consolidation_token(&self) -> ConsolidationToken {
         ConsolidationToken::new(self.curator_id)
+    }
+
+    /// Issue a CurationToken proving Curation authority.
+    ///
+    /// The Curation Loop uses this to prove its authority when performing
+    /// metacognitive operations: overriding Cybernetics decisions, triggering
+    /// consolidation, evaluating template outputs.
+    pub fn issue_curation_token(&self) -> CurationToken {
+        CurationToken::new(self.curator_id)
     }
 }
 

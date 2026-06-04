@@ -251,6 +251,7 @@ impl BootstrapSequence {
 
         let mcp_servers = vec![
             "hkask-mcp-cns",
+            "hkask-mcp-ensemble",
             "hkask-mcp-inference",
             "hkask-mcp-memory",
             "hkask-mcp-ocap",

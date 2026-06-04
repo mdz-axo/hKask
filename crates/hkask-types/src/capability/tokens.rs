@@ -26,7 +26,6 @@ pub struct CyberneticsToken {
 impl CyberneticsToken {
     /// Only hkask-cns::CyberneticsLoop can construct this.
     /// This is pub(crate) so external crates cannot forge tokens.
-    #[allow(dead_code)]
     pub(crate) fn new(issuer: WebID) -> Self {
         Self { issuer }
     }
@@ -47,7 +46,6 @@ pub struct CurationToken {
 }
 
 impl CurationToken {
-    #[allow(dead_code)]
     pub(crate) fn new(issuer: WebID) -> Self {
         Self { issuer }
     }
