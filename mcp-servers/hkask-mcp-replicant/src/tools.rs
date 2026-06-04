@@ -282,10 +282,10 @@ visibility:
     ) -> String {
         let span = ToolSpanGuard::new("replicant:status", &self.webid);
 
-        if !persona.is_empty() {
-            if let Err(e) = validate_identifier("persona", &persona, 128) {
-                return span.error(e.kind, e.to_json_string());
-            }
+        if !persona.is_empty()
+            && let Err(e) = validate_identifier("persona", &persona, 128)
+        {
+            return span.error(e.kind, e.to_json_string());
         }
 
         let resolved_persona = if persona.is_empty() {
