@@ -20,40 +20,99 @@ hot_dirs=(
 has_violation=false
 violations=""
 
+# For each .rs file, find the line ranges of #[cfg(test)] mod blocks,
+# then check .unwrap() calls that fall outside those ranges.
 for dir in "${hot_dirs[@]}"; do
     if [ ! -d "$dir" ]; then
         echo "WARNING: Hot-path directory not found: $dir"
         continue
     fi
 
-    # Find all .rs files, grep for .unwrap(), skip lines that are comments
-    while IFS= read -r match; do
-        [ -z "$match" ] && continue
+    for file in "$(find "$dir" -name '*.rs')"; do
+        [ -f "$file" ] || continue
 
-        file="$(echo "$match" | cut -d: -f1)"
-        linenum="$(echo "$match" | cut -d: -f2)"
+        # Extract #[cfg(test)] module line ranges: start_line end_line
+        # A #[cfg(test)] block looks like:
+        #   #[cfg(test)]
+        #   mod tests { ... }
+        # We need to find the matching closing brace.
+        test_ranges=()
 
-        # Skip if inside a #[cfg(test)] module.
-        # Scan backwards from the matched line to the beginning of the file.
-        # If we encounter #[cfg(test)] before any non-test top-level mod,
-        # the line is inside a test module.
-        in_test=false
-        for ((i = linenum - 1; i >= 1; i--)); do
-            prev_line="$(sed -n "${i}p" "$file")"
+        # Find all lines with #[cfg(test)]
+        cfg_test_lines=()
+        while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            cfg_test_lines+=("$line")
+        done < <(grep -n '#\[cfg(test)\]' "$file" 2>/dev/null || true)
 
-            if [[ "$prev_line" == *"#[cfg(test)]"* ]]; then
-                in_test=true
-                break
+        for cfg_line in "${cfg_test_lines[@]:-}"; do
+            start_line="$(echo "$cfg_line" | cut -d: -f1)"
+
+            # Find the opening brace of the mod block (could be same line or next line)
+            mod_start="$start_line"
+            found_brace=false
+            for ((i = mod_start; i <= mod_start + 5; i++)); do
+                line_content="$(sed -n "${i}p" "$file")"
+                if echo "$line_content" | grep -q '{'; then
+                    mod_start="$i"
+                    found_brace=true
+                    break
+                fi
+            done
+
+            if [ "$found_brace" = false ]; then
+                continue
             fi
+
+            # Find matching closing brace
+            depth=0
+            end_line="$mod_start"
+            total_lines="$(wc -l < "$file")"
+            for ((i = mod_start; i <= total_lines; i++)); do
+                line_content="$(sed -n "${i}p" "$file")"
+                # Count braces (ignore braces inside strings/comments approximately)
+                opens="$(echo "$line_content" | tr -cd '{' | wc -c)"
+                closes="$(echo "$line_content" | tr -cd '}' | wc -c)"
+                depth=$((depth + opens - closes))
+                if [ $depth -le 0 ]; then
+                    end_line="$i"
+                    break
+                fi
+            done
+
+            test_ranges+=("$start_line $end_line")
         done
 
-        if [ "$in_test" = true ]; then
-            continue
-        fi
+        # Now find all .unwrap() calls and check if they're outside test ranges
+        while IFS= read -r match; do
+            [ -z "$match" ] && continue
+            linenum="$(echo "$match" | cut -d: -f2)"
 
-        violations="${violations}${match}"$'\n'
-        has_violation=true
-    done < <(grep -rn '\.unwrap()' "$dir" --include='*.rs' | grep -v '^\s*//')
+            # Skip comment lines
+            content="$(echo "$match" | cut -d: -f3-)"
+            if echo "$content" | grep -qE '^\s*//'; then
+                continue
+            fi
+
+            # Check if this line is inside any cfg(test) range
+            in_test=false
+            for range in "${test_ranges[@]:-}"; do
+                range_start="$(echo "$range" | cut -d' ' -f1)"
+                range_end="$(echo "$range" | cut -d' ' -f2)"
+                if [ "$linenum" -ge "$range_start" ] && [ "$linenum" -le "$range_end" ]; then
+                    in_test=true
+                    break
+                fi
+            done
+
+            if [ "$in_test" = true ]; then
+                continue
+            fi
+
+            violations="${violations}${match}"$'\n'
+            has_violation=true
+        done < <(grep -rn '\.unwrap()' "$file" | grep -v '^\s*//')
+    done
 done
 
 if $has_violation; then

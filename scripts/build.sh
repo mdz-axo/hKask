@@ -103,54 +103,79 @@ CARGO_ARGS+=("--workspace")
 # Check for required system dependencies
 check_dependencies() {
     log "Checking system dependencies..."
-    
+
     local missing=()
-    
+
     # Check for build essentials
     if ! command -v gcc &> /dev/null; then
         missing+=("gcc")
     fi
-    
+
     if ! command -v pkg-config &> /dev/null; then
         missing+=("pkg-config")
     fi
-    
+
+    if ! command -v cmake &> /dev/null; then
+        missing+=("cmake")
+    fi
+
+    if ! command -v protoc &> /dev/null; then
+        missing+=("protobuf-compiler")
+    fi
+
+    # Check for required development libraries
+    if ! pkg-config --exists openssl 2>/dev/null; then
+        missing+=("libssl-dev")
+    fi
+
+    if ! pkg-config --exists sqlite3 2>/dev/null; then
+        missing+=("libsqlite3-dev")
+    fi
+
+    if ! pkg-config --exists libzstd 2>/dev/null; then
+        missing+=("libzstd-dev")
+    fi
+
+    if ! command -v llvm-config &> /dev/null && ! pkg-config --exists libclang 2>/dev/null; then
+        missing+=("libclang-dev/llvm-dev")
+    fi
+
     if [ ${#missing[@]} -ne 0 ]; then
         log_error "Missing dependencies: ${missing[*]}"
         log "Please install using your package manager:"
-        log "  Debian/Ubuntu: sudo apt-get install build-essential pkg-config"
-        log "  Fedora/RHEL: sudo dnf install gcc pkg-config"
-        log "  Arch: sudo pacman -S base-devel pkg-config"
+        log "  Debian/Ubuntu: sudo apt-get install build-essential pkg-config libssl-dev libsqlite3-dev libclang-dev llvm-dev cmake protobuf-compiler libprotobuf-dev libzstd-dev"
+        log "  Fedora/RHEL: sudo dnf install gcc pkg-config openssl-devel sqlite-devel clang-devel llvm-devel cmake protobuf-compiler protobuf-devel libzstd-devel"
+        log "  Arch: sudo pacman -S base-devel pkg-config openssl sqlite clang llvm cmake protobuf protobuf-c zstd"
         exit 1
     fi
-    
+
     log_success "System dependencies OK"
 }
 
 # Check Rust toolchain
 check_rust() {
     log "Checking Rust toolchain..."
-    
+
     if ! command -v rustc &> /dev/null; then
         log_error "Rust not found. Install with:"
         log "  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
         exit 1
     fi
-    
+
     local rust_version=$(rustc --version)
     log "Rust version: $rust_version"
-    
+
     # Check for required components
     if ! rustup component list --installed | grep -q rustfmt; then
         log "Installing rustfmt..."
         rustup component add rustfmt
     fi
-    
+
     if ! rustup component list --installed | grep -q clippy; then
         log "Installing clippy..."
         rustup component add clippy
     fi
-    
+
     log_success "Rust toolchain OK"
 }
 
@@ -158,31 +183,31 @@ check_rust() {
 main() {
     check_dependencies
     check_rust
-    
+
     log "Starting build (type: $BUILD_TYPE)..."
-    
+
     # Run cargo check first for faster feedback
     log "Running cargo check..."
     cargo check "${CARGO_ARGS[@]}"
-    
+
     # Full build
     log "Building workspace..."
     $CARGO_CMD build "${CARGO_ARGS[@]}"
-    
+
     # Build documentation if requested
     if [ "$BUILD_DOC" = true ]; then
         log "Building documentation..."
         cargo doc --workspace --no-deps
     fi
-    
+
     # Run tests if --all was specified
     if [ "$BUILD_ALL" = true ]; then
         log "Running tests..."
         cargo test --workspace --lib
     fi
-    
+
     log_success "Build complete!"
-    
+
     # Show binary location
     if [ "$BUILD_TYPE" = "release" ]; then
         echo ""

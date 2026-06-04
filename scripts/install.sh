@@ -101,7 +101,6 @@ install_system_dependencies() {
                 libsqlite3-dev \
                 libclang-dev \
                 llvm-dev \
-                liblldb-dev \
                 libzstd-dev \
                 cmake \
                 git \
@@ -192,8 +191,9 @@ install_rust() {
         local rust_version=$(rustc --version)
         log "Rust already installed: $rust_version"
 
-        if ! rustc --version | grep -qE 'rustc [0-9]+\.(8[5-9]|[9][0-9]|[1-9][0-9]{2,})\.'; then
-            log_warning "Rust version too old for edition 2024 (requires 1.85+). Update with 'rustup update' or install from https://rustup.rs"
+        local rust_minor=$(rustc --version | grep -oP '\d+\.\K\d+' | head -1)
+        if [ -n "$rust_minor" ] && [ "$rust_minor" -lt 91 ]; then
+            log_warning "Rust version too old (project requires 1.91+). Update with 'rustup update' or install from https://rustup.rs"
         fi
     else
         log "Installing Rust toolchain..."
@@ -477,7 +477,7 @@ Options:
     --uninstall         Remove hKask
     --build-only        Build without installing
     --debug             Build in debug mode
-    --system            Install system-wide to /usr/local/bin (requires sudo)
+    --system            Install system-wide (binary in /usr/local/libexec/hkask, symlink in /usr/local/bin)
     --skip-deps         Skip system dependency installation
     --skip-rust         Skip Rust installation
     --install-dir DIR   Install to custom directory (default: \$HOME/.local)
@@ -488,7 +488,7 @@ Environment Variables:
     HKASK_BUILD_TYPE    Build type: release or debug (default: release)
     INSTALL_DIR         Installation directory (default: \$HOME/.local)
     CARGO_HOME          Cargo installation directory (default: \$HOME/.cargo)
-    HKASK_SYSTEM_INSTALL Force system-wide install to /usr/local/bin (default: false)
+    HKASK_SYSTEM_INSTALL Force system-wide install (default: false)
     HKASK_REMOVE_CONFIG Remove config and data on uninstall (default: false)
     HKASK_SOURCE_DIR    Use existing source directory instead of cloning
     HKASK_REPO_URL      Git repository URL (default: https://github.com/mdz-axo/hKask.git)
@@ -542,8 +542,8 @@ main() {
                 ;;
             --system)
                 HKASK_SYSTEM_INSTALL="true"
-                INSTALL_DIR="/usr/local"
-                BIN_DIR="/usr/local/bin"
+                INSTALL_DIR="/usr/local/libexec/hkask"
+                BIN_DIR="/usr/local/libexec/hkask/bin"
                 shift
                 ;;
             --skip-deps)
