@@ -154,7 +154,7 @@ pub struct EnsembleChat {
     messages: Vec<ChatMessage>,
     template_registry: Option<Arc<dyn RegistryIndex + Send + Sync>>,
     improv_config: ImprovSessionConfig,
-    event_sink: Option<Arc<dyn NuEventSink>>,
+    event_sink: Option<Arc<dyn NuEventSink + Send + Sync>>,
     gas_budget: Option<GasBudgetConfig>,
     gas_used: u64,
 }
@@ -340,6 +340,14 @@ impl EnsembleChat {
         self.messages.push(message);
     }
 
+    /// Add a restored message (from persistence) without gas accounting.
+    ///
+    /// Used when loading messages from storage to avoid re-charging gas
+    /// and to pre-register in dedup tracking.
+    pub fn add_restored_message(&mut self, message: ChatMessage) {
+        self.messages.push(message);
+    }
+
     /// Get chat history
     pub fn get_history(&self) -> &[ChatMessage] {
         &self.messages
@@ -502,6 +510,10 @@ pub enum EnsembleError {
 ///
 /// Collapses the former `EnsembleChatManager` and `DeliberationCoordinator` into
 /// a single manager that handles both session types.
+///
+/// Since internal maps are `Arc<RwLock<...>>`, cloning shares the same data.
+/// Use `clone_shared()` to get a handle that shares session state with the original.
+#[derive(Clone)]
 pub struct SessionManager {
     chats: Arc<RwLock<HashMap<String, Arc<RwLock<EnsembleChat>>>>>,
     deliberations:
@@ -517,6 +529,16 @@ impl SessionManager {
             deliberations: Arc::new(RwLock::new(HashMap::new())),
             curator_webid,
         }
+    }
+
+    /// Get a shared handle to this session manager.
+    ///
+    /// Equivalent to `.clone()` — since internal maps are `Arc<RwLock<...>>`,
+    /// the returned handle shares all session state with the original.
+    /// Use this when passing the session manager to the API server so that
+    /// CLI and API share the same sessions.
+    pub fn clone_shared(&self) -> Self {
+        self.clone()
     }
 
     /// Create a new chat session

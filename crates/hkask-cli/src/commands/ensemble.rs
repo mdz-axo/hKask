@@ -4,20 +4,74 @@
 //! manager and improv client. Also handles standing session bootstrap via
 //! hkask-ensemble registry manifests.
 
+use hkask_cns::{CircuitBreaker, CyberneticsLoop};
 use hkask_ensemble::{
-    AgentResponse, ChatMessage, ChatParticipant, ImprovMode, ImprovSessionConfig,
-    InferencePortAdapter, ParticipantRole, SessionManager, bootstrap_standing_session_with_store,
+    AgentResponse, ChatMessage, ChatParticipant, CircuitBreakerInferenceAdapter, GasGovernancePort,
+    ImprovMode, ImprovSessionConfig, InferencePortAdapter, ParticipantRole, SessionManager,
+    bootstrap_standing_session_with_store,
 };
 use hkask_templates::OkapiConfig;
 use hkask_templates::OkapiInference;
 use hkask_types::WebID;
-use hkask_types::ports::{InferencePort, StandingSessionPort};
-use std::sync::Arc;
+use hkask_types::ports::{CircuitBreakerPort, InferencePort, StandingSessionPort};
+use std::sync::{
+    Arc,
+    atomic::{AtomicU64, Ordering},
+};
 use tokio::sync::RwLock;
 
 static SESSION_MANAGER: std::sync::OnceLock<Arc<RwLock<SessionManager>>> =
     std::sync::OnceLock::new();
-static IMPROV_CLIENT: std::sync::OnceLock<Arc<InferencePortAdapter>> = std::sync::OnceLock::new();
+static IMPROV_CLIENT: std::sync::OnceLock<Arc<CircuitBreakerInferenceAdapter>> =
+    std::sync::OnceLock::new();
+
+/// Adapter bridging `CyberneticsLoop` to the ensemble's `GasGovernancePort`.
+///
+/// Provides synchronous access to the CyberneticsLoop's gas governance by
+/// using an atomic counter for `can_proceed` (approximate) and a fire-and-forget
+/// task spawn for `acquire` (actual budget consumption via async call).
+pub struct CyberneticsLoopGasAdapter {
+    loop_ref: Arc<RwLock<CyberneticsLoop>>,
+    agent: WebID,
+    gas_used: AtomicU64,
+    gas_cap: AtomicU64,
+}
+
+impl CyberneticsLoopGasAdapter {
+    /// Create a new gas adapter wrapping a CyberneticsLoop for a specific agent.
+    ///
+    /// The `gas_cap` is initialized from the CyberneticsLoop's registered budget
+    /// for the agent. If no budget is registered, defaults to u64::MAX (no limit).
+    pub fn new(loop_ref: Arc<RwLock<CyberneticsLoop>>, agent: WebID, cap: u64) -> Self {
+        Self {
+            loop_ref,
+            agent,
+            gas_used: AtomicU64::new(0),
+            gas_cap: AtomicU64::new(cap),
+        }
+    }
+}
+
+impl GasGovernancePort for CyberneticsLoopGasAdapter {
+    fn can_proceed(&self, gas: u64) -> bool {
+        let used = self.gas_used.load(Ordering::Relaxed);
+        let cap = self.gas_cap.load(Ordering::Relaxed);
+        used.saturating_add(gas) <= cap
+    }
+
+    fn acquire(&self, gas: u64) {
+        self.gas_used.fetch_add(gas, Ordering::Relaxed);
+        // Fire-and-forget: report to CyberneticsLoop asynchronously
+        let loop_ref = self.loop_ref.clone();
+        let agent = self.agent;
+        if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            handle.spawn(async move {
+                let loop_read = loop_ref.read().await;
+                let _ = loop_read.acquire_budget(&agent, gas).await;
+            });
+        }
+    }
+}
 
 fn get_session_manager() -> Arc<RwLock<SessionManager>> {
     SESSION_MANAGER
@@ -28,7 +82,7 @@ fn get_session_manager() -> Arc<RwLock<SessionManager>> {
         .clone()
 }
 
-fn get_improv_client() -> Arc<InferencePortAdapter> {
+fn get_improv_client() -> Arc<CircuitBreakerInferenceAdapter> {
     IMPROV_CLIENT
         .get_or_init(|| {
             let base_url = std::env::var("OKAPI_BASE_URL")
@@ -40,7 +94,10 @@ fn get_improv_client() -> Arc<InferencePortAdapter> {
             let inference =
                 OkapiInference::new("qwen3:8b", config).expect("Failed to create Okapi inference");
             let port: Arc<dyn InferencePort> = Arc::new(inference);
-            Arc::new(InferencePortAdapter::new(port))
+            let adapter = InferencePortAdapter::new(port);
+            let breaker: Arc<dyn CircuitBreakerPort> =
+                Arc::new(CircuitBreaker::default_for_inference("ensemble-inference"));
+            Arc::new(CircuitBreakerInferenceAdapter::new(adapter, breaker))
         })
         .clone()
 }

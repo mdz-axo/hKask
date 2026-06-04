@@ -13,9 +13,8 @@ use std::time::{Duration, Instant};
 use tracing::{error, info};
 
 /// Circuit breaker configuration
-#[allow(dead_code)] // CNS resilience infrastructure — awaiting runtime wiring
 #[derive(Debug, Clone)]
-pub(crate) struct CircuitBreakerConfig {
+pub struct CircuitBreakerConfig {
     pub failure_threshold: u32,
     pub open_timeout: Duration,
     pub success_threshold: u32,
@@ -32,8 +31,7 @@ impl Default for CircuitBreakerConfig {
 }
 
 /// Circuit breaker for Okapi calls
-#[allow(dead_code)] // CNS resilience infrastructure — awaiting runtime wiring
-pub(crate) struct CircuitBreaker {
+pub struct CircuitBreaker {
     state: AtomicU32,
     failure_count: AtomicU32,
     success_count: AtomicU32,
@@ -42,9 +40,9 @@ pub(crate) struct CircuitBreaker {
     name: String,
 }
 
-#[allow(dead_code)] // CNS resilience infrastructure — awaiting runtime wiring
 impl CircuitBreaker {
-    pub(crate) fn new(name: String, config: CircuitBreakerConfig) -> Self {
+    /// Create a new circuit breaker with the given name and configuration.
+    pub fn new(name: String, config: CircuitBreakerConfig) -> Self {
         Self {
             state: AtomicU32::new(CircuitState::Closed as u32),
             failure_count: AtomicU32::new(0),
@@ -53,6 +51,14 @@ impl CircuitBreaker {
             config,
             name,
         }
+    }
+
+    /// Create a circuit breaker with inference-appropriate defaults.
+    ///
+    /// Suitable for wrapping Okapi inference calls: 5 failures to open,
+    /// 60s open timeout, 2 successes to close from half-open.
+    pub fn default_for_inference(name: &str) -> Self {
+        Self::new(name.to_string(), CircuitBreakerConfig::default())
     }
 
     pub fn allow_request(&self) -> bool {
@@ -147,7 +153,6 @@ impl CircuitBreaker {
     }
 }
 
-#[allow(dead_code)] // CNS resilience infrastructure — awaiting runtime wiring
 impl CircuitBreakerPort for CircuitBreaker {
     fn allow_request(&self) -> bool {
         CircuitBreaker::allow_request(self)

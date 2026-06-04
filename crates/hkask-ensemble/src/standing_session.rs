@@ -268,7 +268,8 @@ impl StandingSession {
                     .map(|dt| dt.with_timezone(&chrono::Utc))
                     .unwrap_or_else(|_| chrono::Utc::now());
                 msg.template_id = stored.template_id;
-                self.chat.add_message(msg);
+                // Use add_restored_message to pre-register in dedup and skip gas
+                self.chat.add_restored_message(msg);
             }
 
             info!(

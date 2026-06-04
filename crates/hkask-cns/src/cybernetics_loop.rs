@@ -227,8 +227,7 @@ impl CyberneticsLoop {
     }
 
     /// Register a gas budget for an agent.
-    #[allow(dead_code)]
-    pub(crate) async fn register_gas_budget(&self, agent: WebID, budget: GasBudget) {
+    pub async fn register_gas_budget(&self, agent: WebID, budget: GasBudget) {
         let mut budgets = self.gas_budgets.write().await;
         budgets.insert(agent, budget);
     }
@@ -281,8 +280,7 @@ impl CyberneticsLoop {
     ///
     /// Use this for operations where the exact cost is known upfront.
     /// For operations with estimated cost, prefer `reserve_gas` + `settle_gas`.
-    #[allow(dead_code)] // CNS resilience infrastructure — awaiting runtime wiring
-    pub(crate) async fn acquire_budget(&self, agent: &WebID, gas: u64) -> Result<u64, GasError> {
+    pub async fn acquire_budget(&self, agent: &WebID, gas: u64) -> Result<u64, GasError> {
         let mut budgets = self.gas_budgets.write().await;
         if let Some(budget) = budgets.get_mut(agent) {
             budget.consume(gas)

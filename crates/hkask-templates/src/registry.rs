@@ -427,6 +427,87 @@ impl Registry {
             .with_lexicon(vec!["compose", "synthesize", "write", "edit", "refine", "render"]),
         );
 
+        // DDMVSS Specification templates (FlowDef — define)
+        registry.register(
+            TemplateEntry::new(
+                "spec/goal/capture",
+                TemplateType::Specification,
+                "Goal Capture",
+                "Capture a goal as a binding requirement",
+            )
+            .with_lexicon(vec!["specify", "require", "elicit"]),
+        );
+
+        registry.register(
+            TemplateEntry::new(
+                "spec/goal/decompose",
+                TemplateType::Specification,
+                "Goal Decompose",
+                "Decompose into sub-goals (max depth 7)",
+            )
+            .with_lexicon(vec!["decompose", "sequence"]),
+        );
+
+        registry.register(
+            TemplateEntry::new(
+                "spec/require/bind",
+                TemplateType::Specification,
+                "Requirement Bind",
+                "Bind OCAP boundaries to a goal",
+            )
+            .with_lexicon(vec!["constrain", "require"]),
+        );
+
+        registry.register(
+            TemplateEntry::new(
+                "spec/curate/evaluate",
+                TemplateType::Specification,
+                "Spec Evaluate",
+                "Evaluate spec for collection coherence",
+            )
+            .with_lexicon(vec!["curate", "evaluate"]),
+        );
+
+        registry.register(
+            TemplateEntry::new(
+                "spec/curate/reconcile",
+                TemplateType::Specification,
+                "Spec Reconcile",
+                "Reconcile tensions between specs",
+            )
+            .with_lexicon(vec!["reconcile", "compose"]),
+        );
+
+        registry.register(
+            TemplateEntry::new(
+                "spec/curate/cultivate",
+                TemplateType::Specification,
+                "Spec Cultivate",
+                "Cultivate collection toward coherence",
+            )
+            .with_lexicon(vec!["cultivate"]),
+        );
+
+        registry.register(
+            TemplateEntry::new(
+                "spec/graph/query",
+                TemplateType::Specification,
+                "Spec Graph Query",
+                "Query spec graph by category",
+            )
+            .with_lexicon(vec!["recognize", "match"]),
+        );
+
+        registry.register(
+            TemplateEntry::new(
+                "spec/graph/validate",
+                TemplateType::Specification,
+                "Spec Graph Validate",
+                "Validate spec graph completeness",
+            )
+            .with_lexicon(vec!["evaluate", "ground"]),
+        );
+
         registry
     }
 

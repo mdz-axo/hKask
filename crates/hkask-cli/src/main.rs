@@ -619,7 +619,8 @@ fn run_cns(rt: &tokio::runtime::Runtime, action: CnsAction) {
 
 fn run_loops(rt: &tokio::runtime::Runtime) {
     use hkask_agents::{
-        CuratorAgent, CuratorContext, EscalationQueue, LoopSystem, MessageDispatch,
+        AcpPort, AcpRuntime, CuratorAgent, CuratorContext, EscalationQueue, LoopSystem,
+        MessageDispatch,
     };
     use hkask_cns::{CnsRuntime, CyberneticsLoop};
     use hkask_memory::{
@@ -668,12 +669,26 @@ fn run_loops(rt: &tokio::runtime::Runtime) {
     // 7. Register Curation Loop (via CuratorAgent)
     let curator_handle = CuratorHandle::system();
     let escalation_queue = Arc::new(EscalationQueue::new(db.conn_arc()).expect("escalation queue"));
-    let curator_context = Arc::new(CuratorContext::new(
-        curator_handle.clone(),
-        Arc::new(CnsRuntime::with_threshold(hkask_cns::DEFAULT_THRESHOLD)),
-        Arc::clone(&dispatch),
-        escalation_queue,
-    ));
+    let acp_runtime: Arc<AcpRuntime> = Arc::new(AcpRuntime::new(&or_exit(
+        hkask_keystore::resolve(&hkask_types::SecretRef::derived(
+            hkask_types::derivation_contexts::MASTER_KEY_ENV,
+            hkask_types::derivation_contexts::ACP_SECRET,
+        ))
+        .or_else(|_| hkask_keystore::resolve(&hkask_types::SecretRef::env("HKASK_ACP_SECRET_KEY")))
+        .or_else(|_| {
+            hkask_keystore::resolve(&hkask_types::SecretRef::Keychain("acp-secret".to_string()))
+        }),
+        "Failed to resolve ACP secret for loop system",
+    )));
+    let curator_context = Arc::new(
+        CuratorContext::new(
+            curator_handle.clone(),
+            Arc::new(CnsRuntime::with_threshold(hkask_cns::DEFAULT_THRESHOLD)),
+            Arc::clone(&dispatch),
+            escalation_queue,
+        )
+        .with_acp(Arc::clone(&acp_runtime) as Arc<dyn AcpPort>),
+    );
     let consolidation_bridge = Arc::new(ConsolidationBridge::new(
         Arc::clone(&episodic_memory),
         Arc::clone(&semantic_memory),

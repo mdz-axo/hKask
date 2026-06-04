@@ -21,7 +21,8 @@ pub mod variety; // Loop 6 subloop 6.3
 
 pub use algedonic::{AlgedonicManager, DEFAULT_THRESHOLD, RuntimeAlert, cns_health_check};
 pub use allosteric::{AllostericGate, AllostericGateConfig, mwc_sensitivity, mwc_state_function};
-// CircuitBreaker: pub(crate) — only consumed via CircuitBreakerPort trait
+// CircuitBreaker: re-exported for runtime wiring
+pub use circuit_breaker::{CircuitBreaker, CircuitBreakerConfig};
 pub use composite_gas_estimator::CompositeGasEstimator;
 pub use cybernetics_loop::{CyberneticsLoop, SetPoints, SetPointsConfig};
 pub use dampener::Dampener;

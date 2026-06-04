@@ -54,3 +54,27 @@ pub trait InferenceClient: Send + Sync {
         model: String,
     ) -> Result<serde_json::Value, Self::Error>;
 }
+
+// =============================================================================
+// Gas Governance Port — CNS observability bridge
+// =============================================================================
+
+/// Port for CNS gas governance observability.
+///
+/// Allows the ensemble to report gas usage to the CNS CyberneticsLoop
+/// so the CNS can sense ensemble gas consumption. The ensemble's internal
+/// gas counter drives degradation levels; this port provides CNS visibility.
+///
+/// Implementations must be safe to call from synchronous contexts.
+///
+/// Implementations:
+/// - `CyberneticsLoopGasAdapter` — Production adapter (in CLI/API wiring layer)
+pub trait GasGovernancePort: Send + Sync {
+    /// Check if a gas-consuming operation may proceed according to CNS governance.
+    /// Returns `true` if the CNS allows the operation.
+    fn can_proceed(&self, gas: u64) -> bool;
+
+    /// Report gas consumption to the CNS governance layer.
+    /// This is best-effort — fire-and-forget semantics.
+    fn acquire(&self, gas: u64);
+}

@@ -167,6 +167,7 @@ fn build_loop_system(
     dispatch: Arc<MessageDispatch>,
     inference_port: Option<Arc<dyn hkask_types::ports::InferencePort>>,
     system_webid: WebID,
+    acp: Option<Arc<dyn hkask_agents::ports::AcpPort>>,
 ) -> (
     Arc<LoopSystem>,
     Arc<EpisodicMemory>,
@@ -226,12 +227,16 @@ fn build_loop_system(
 
     // Curation Loop (via CuratorAgent)
     let curator_handle = CuratorHandle::system();
-    let curator_context = Arc::new(CuratorContext::new(
+    let mut curator_context = CuratorContext::new(
         curator_handle.clone(),
         Arc::new(CnsRuntime::with_threshold(hkask_cns::DEFAULT_THRESHOLD)),
         dispatch,
         escalation_queue,
-    ));
+    );
+    if let Some(acp_port) = acp {
+        curator_context = curator_context.with_acp(acp_port);
+    }
+    let curator_context = Arc::new(curator_context);
     let consolidation_bridge = Arc::new(ConsolidationBridge::new(
         Arc::clone(&episodic_memory),
         Arc::clone(&semantic_memory),
@@ -260,6 +265,7 @@ impl ApiState {
         system_webid: WebID,
         ensemble_inferencer: Option<Arc<hkask_ensemble::adapters::InferencePortAdapter>>,
         db_config: Option<&DbConfig>,
+        acp: Option<Arc<dyn hkask_agents::ports::AcpPort>>,
     ) -> Self {
         let consent_conn = match db_config
             .and_then(|c| c.path.as_deref().zip(c.passphrase.as_deref()))
@@ -317,6 +323,7 @@ impl ApiState {
             dispatch,
             inference_port,
             system_webid,
+            acp,
         );
 
         // Create raw tool port (ungoverned executor)
@@ -433,6 +440,8 @@ impl ApiState {
     ) -> Self {
         let git_cas = GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-templates"));
         let acp_runtime = Arc::new(AcpRuntime::new(acp_secret));
+        let acp_port: Arc<dyn hkask_agents::ports::AcpPort> =
+            Arc::clone(&acp_runtime) as Arc<dyn hkask_agents::ports::AcpPort>;
         let mcp_runtime_adapter = McpRuntimeAdapter::new();
 
         // Use MemoryLoopAdapter (routes through hkask-memory domain logic)
@@ -465,6 +474,7 @@ impl ApiState {
             system_webid,
             None,
             db_config,
+            Some(acp_port),
         )
     }
 
@@ -474,7 +484,7 @@ impl ApiState {
         self
     }
 
-    /// Create ApiState with ensemble inferencer
+    /// Create ApiState with ensemble inferencer wrapped in a circuit breaker
     pub fn with_ensemble_inferencer(
         registry: SqliteRegistry,
         mcp_runtime: hkask_mcp::runtime::McpRuntime,
@@ -493,16 +503,52 @@ impl ApiState {
         let inference = hkask_templates::OkapiInference::new(model, config)
             .expect("Failed to create Okapi inference");
         let port: Arc<dyn hkask_types::ports::InferencePort> = Arc::new(inference);
-        let inferencer = Arc::new(hkask_ensemble::adapters::InferencePortAdapter::new(port));
+        let adapter = Arc::new(hkask_ensemble::adapters::InferencePortAdapter::new(port));
         Self::new(
             registry,
             mcp_runtime,
             pod_manager,
             capability_secret,
             system_webid,
-            Some(inferencer),
+            Some(adapter),
             db_config,
+            None,
         )
+    }
+
+    /// Create a circuit-breaker-wrapped ensemble inferencer.
+    ///
+    /// Returns `None` if no ensemble inferencer is configured.
+    /// When available, wraps the base `InferencePortAdapter` with a
+    /// `CircuitBreakerInferenceAdapter` using inference-appropriate defaults.
+    pub fn ensemble_inferencer_with_breaker(
+        &self,
+    ) -> Option<Arc<hkask_ensemble::adapters::CircuitBreakerInferenceAdapter>> {
+        self.ensemble_inferencer.as_ref().map(|adapter| {
+            let breaker: Arc<dyn hkask_types::ports::CircuitBreakerPort> = Arc::new(
+                hkask_cns::CircuitBreaker::default_for_inference("ensemble-inference"),
+            );
+            Arc::new(
+                hkask_ensemble::adapters::CircuitBreakerInferenceAdapter::new(
+                    (**adapter).clone(),
+                    breaker,
+                ),
+            )
+        })
+    }
+
+    /// Set the ensemble session manager to share state with the CLI.
+    ///
+    /// By default, `ApiState::new()` creates its own `SessionManager`.
+    /// Call this to replace it with the CLI's instance so both CLI and
+    /// API routes operate on the same sessions. Use `SessionManager::clone_shared()`
+    /// to obtain a handle from the CLI's singleton.
+    pub fn with_session_manager(
+        mut self,
+        session_manager: Arc<tokio::sync::RwLock<hkask_ensemble::SessionManager>>,
+    ) -> Self {
+        self.session_manager = session_manager;
+        self
     }
 
     /// Set the spec store for DDMVSS specifications

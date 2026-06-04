@@ -18,6 +18,7 @@ use std::sync::Arc;
 /// This is the recommended way to obtain an `InferenceClient` for ensemble
 /// improv sessions. Use `InferencePortAdapter::new(port)` with any
 /// `InferencePort` implementation (e.g. `OkapiInference` from hkask-templates).
+#[derive(Clone)]
 pub struct InferencePortAdapter {
     port: Arc<dyn InferencePort>,
 }
