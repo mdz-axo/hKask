@@ -1,6 +1,6 @@
 #!/bin/bash
 # hLexicon Alignment Validation Script
-# ℏKask v0.21.4 — Validate functional/implementation alignment
+# ℏKask v0.22.0 — Validate functional/implementation alignment
 
 set -e
 
@@ -23,7 +23,7 @@ TOTAL_TEMPLATES=0
 echo "📄 Checking Jinja2 templates..."
 for template in $(find "$REGISTRY_DIR/templates" -name "*.j2" 2>/dev/null); do
     TOTAL_TEMPLATES=$((TOTAL_TEMPLATES + 1))
-    
+
     # Check for functional_role in header comment (format: {# functional_role: xxx #})
     if grep -q "{# functional_role:" "$template" 2>/dev/null; then
         ROLE=$(grep "{# functional_role:" "$template" | head -1 | sed 's/.*functional_role: *\([a-z]*\).*/\1/')
@@ -43,7 +43,7 @@ done
 echo "📋 Checking YAML manifests..."
 for manifest in $(find "$REGISTRY_DIR/manifests" -name "*.yaml" 2>/dev/null); do
     TOTAL_TEMPLATES=$((TOTAL_TEMPLATES + 1))
-    
+
     # Check for functional_role in manifest metadata
     if grep -q "functional_role:" "$manifest" 2>/dev/null; then
         ROLE=$(grep "functional_role:" "$manifest" | head -1 | awk '{print $2}')
@@ -100,7 +100,7 @@ cat > "$REPORT_FILE" << EOF
 # hLexicon Alignment Validation Report
 
 **Date:** $(date +%Y-%m-%d)
-**Version:** v0.21.4
+**Version:** v0.22.0
 
 ## Summary
 

@@ -53,6 +53,10 @@ pub enum LoopId {
     Curation,
     Cybernetics,
     Metacognition,
+    /// Tool dispatch worker — receives ToolInvocation messages from
+    /// the Communication Loop and executes them against the ToolPort.
+    /// Not a governing loop; operates as a specialized message handler.
+    ToolDispatch,
 }
 
 impl std::fmt::Display for LoopId {
@@ -65,6 +69,7 @@ impl std::fmt::Display for LoopId {
             LoopId::Curation => write!(f, "curation"),
             LoopId::Cybernetics => write!(f, "cybernetics"),
             LoopId::Metacognition => write!(f, "metacognition"),
+            LoopId::ToolDispatch => write!(f, "tool_dispatch"),
         }
     }
 }

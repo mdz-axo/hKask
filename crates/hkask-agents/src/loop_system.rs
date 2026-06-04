@@ -35,6 +35,8 @@ pub fn default_tick_interval(loop_id: LoopId) -> Duration {
         LoopId::Cybernetics => Duration::from_secs(2),
         LoopId::Curation => Duration::from_secs(10),
         LoopId::Metacognition => Duration::from_secs(15),
+        // Tool dispatch: fast (200ms) — tool invocations should be responsive
+        LoopId::ToolDispatch => Duration::from_millis(200),
     }
 }
 
@@ -110,6 +112,7 @@ impl LoopSystem {
                 LoopId::Cybernetics,
                 LoopId::Curation,
                 LoopId::Metacognition,
+                LoopId::ToolDispatch,
             ]
             .into_iter()
             .map(|id| (id, default_tick_interval(id)))

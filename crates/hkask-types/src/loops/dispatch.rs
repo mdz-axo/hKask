@@ -129,6 +129,33 @@ pub enum LoopPayload {
         to_state: String,
         agent: WebID,
     },
+    /// Tool invocation request routed through the Communication Loop.
+    ///
+    /// Origin: GovernedTool (within Cybernetics membrane). Consumed by: tool worker.
+    /// When loop-routed tool dispatch is enabled, GovernedTool sends the invocation
+    /// as a LoopMessage through the Communication Loop rather than calling
+    /// ToolPort::invoke() directly. This provides cross-loop traceability (TraceId),
+    /// priority-aware ordering, and delivery confirmation.
+    ToolInvocation {
+        trace_id: TraceId,
+        server: String,
+        tool: String,
+        args: serde_json::Value,
+        agent: WebID,
+    },
+    /// Tool invocation result returned through the Communication Loop.
+    ///
+    /// Origin: tool worker. Consumed by: the loop that issued the ToolInvocation.
+    /// Carries the result (or error) of a loop-routed tool invocation back to the caller.
+    ToolResult {
+        trace_id: TraceId,
+        server: String,
+        tool: String,
+        result: serde_json::Value,
+        success: bool,
+        gas_cost: u64,
+        agent: WebID,
+    },
 }
 
 // =============================================================================

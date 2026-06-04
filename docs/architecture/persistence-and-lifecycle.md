@@ -254,7 +254,7 @@ status: VERIFIED
 ### 8.1 Versioning
 
 - **Git-only versioning** — SHA-based, no SemVer in code
-- **Workspace version** — `0.21.0` in `Cargo.toml` for metadata only
+- **Workspace version** — `0.22.0` in `Cargo.toml` for metadata only
 - **Documentation versioning** — Semantic versioning in metadata headers
 
 ### 8.2 Migration Policy

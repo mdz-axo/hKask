@@ -13,7 +13,7 @@ set -euo pipefail
 # Configuration
 # ============================================================================
 
-HKASK_VERSION="${HKASK_VERSION:-0.21.1}"
+HKASK_VERSION="${HKASK_VERSION:-0.22.0}"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local}"
 BIN_DIR="${INSTALL_DIR}/bin"
 CARGO_BIN="${CARGO_HOME:-$HOME/.cargo}/bin"
@@ -401,7 +401,7 @@ Options:
     --help              Show this help message
 
 Environment Variables:
-    HKASK_VERSION       Version to install (default: 0.21.1)
+    HKASK_VERSION       Version to install (default: 0.22.0)
     HKASK_BUILD_TYPE    Build type: release or debug (default: release)
     INSTALL_DIR         Installation directory (default: \$HOME/.local)
     CARGO_HOME          Cargo installation directory (default: \$HOME/.cargo)

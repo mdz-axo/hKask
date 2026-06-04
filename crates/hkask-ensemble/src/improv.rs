@@ -598,8 +598,10 @@ mod tests {
 
     #[test]
     fn format_context_truncates_window() {
-        let mut config = ImprovSessionConfig::default();
-        config.context_window = 3;
+        let config = ImprovSessionConfig {
+            context_window: 3,
+            ..Default::default()
+        };
         let turns: Vec<(WebID, String)> = (0..10)
             .map(|i| (WebID::new(), format!("msg{}", i)))
             .collect();

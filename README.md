@@ -3,7 +3,7 @@
 </p>
 # ℏKask - A Minimal Viable Container for Agents
 
-**Version:** v0.21.1 | **Status:** Phase 8 complete — Core implementation done, MCP stubs in progress
+**Version:** v0.22.0 | **Status:** Phase 8 complete — Distillation done, operational hardening in progress
 
 ---
 
@@ -216,7 +216,7 @@ cargo test -p hkask-mcp cyber_
 
 ## Documentation
 
-- `docs/architecture/hKask-architecture-master.md` — Architecture index (v0.21.0)
+- `docs/architecture/hKask-architecture-master.md` — Architecture index (v0.22.0)
 - `docs/architecture/reference/hKask-erd.md` — Entity relationship diagrams
 - `docs/architecture/interface-and-composition.md` — Registry & templating design
 - `docs/status/PROJECT_STATUS.md` — Project status (single source of truth)
@@ -266,6 +266,6 @@ cargo test -p hkask-mcp cyber_
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.21.1*  
-*Rust is the loom. YAML/Jinja2 is the thread.*  
-*Phase 8 complete. Operational hardening in progress.*
+*ℏKask - A Minimal Viable Container for Agents — v0.22.0*
+*Rust is the loom. YAML/Jinja2 is the thread.*
+*Distillation complete. Operational hardening in progress.*

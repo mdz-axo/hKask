@@ -1,6 +1,6 @@
 #!/bin/bash
 # Agent Pod Crate Generator for hKask
-# 
+#
 # This script generates a complete agent pod crate structure
 # based on user responses to interactive prompts.
 #
