@@ -386,35 +386,29 @@ pub fn run(
                         Err(e) => println!("  \x1b[31mEnsemble error:\x1b[0m {}", e),
                     }
                 } else {
-                    // ── Gas consumption ────────────────────────────────────────────
+                    // ── Gas consumption (7g: token-based) ─────────────────────────────
                     // Two-track gas accounting:
                     //
                     // 1. InferenceLoop (fast path): AtomicU64 counter, used for
-                    //    the loop's own sense() signal and REPL display. This is
-                    //    the operational tracker that the REPL reads directly.
+                    //    the loop's own sense() signal and REPL display.
                     //
                     // 2. CyberneticsLoop (regulatory path): GasBudget with
                     //    replenishment, alerts, and hard limits. This is the
                     //    canonical budget that the homeostatic regulator uses
                     //    to produce Throttle/AdjustGasBudget/Escalate actions.
                     //
-                    // Both are consumed per turn. The InferenceLoop's atomic
-                    // counter is the one displayed to the user. The
-                    // CyberneticsLoop's GasBudget is what triggers regulatory
-                    // actions via the sense→compute→act cycle.
-                    //
-                    // If the CyberneticsLoop budget is exhausted and hard_limit
-                    // is set, can_proceed() returns false — the regulator is
-                    // telling us to stop.
-                    let turn_cost: u64 = 500;
+                    // Hold-settle pattern: we reserve a heuristic estimate before
+                    // inference, then settle with the actual token cost after.
+                    // If the model doesn't report token usage, we fall back to
+                    // the heuristic.
+                    let heuristic_cost: u64 = 500; // pre-inference estimate
                     let can_proceed = rt.block_on(
                         state
                             .cybernetics_loop
-                            .can_proceed(&state.agent_webid, turn_cost),
+                            .can_proceed(&state.agent_webid, heuristic_cost),
                     );
                     if !can_proceed {
                         // Hard limit reached — regulator says stop.
-                        // Still show the budget status but don't run inference.
                         println!(
                             "  \x1b[31m\u{2717} Gas budget exhausted (hard limit) \u{2014} turn blocked by cybernetic regulator\x1b[0m"
                         );
@@ -424,15 +418,16 @@ pub fn run(
                         continue;
                     }
 
-                    // Consume from both trackers
-                    state.inference_loop.consume_gas(turn_cost);
-                    let _remaining = rt.block_on(
+                    // Reserve heuristic amount (hold-settle pattern)
+                    let _reserved = rt.block_on(
                         state
                             .cybernetics_loop
-                            .acquire_budget(&state.agent_webid, turn_cost),
+                            .reserve_gas(&state.agent_webid, heuristic_cost),
                     );
+                    // Also consume from InferenceLoop's atomic counter (pre-inference estimate)
+                    state.inference_loop.consume_gas(heuristic_cost);
 
-                    let response = rt.block_on(crate::commands::chat_with_agent(
+                    let chat_response = rt.block_on(crate::commands::chat_with_agent(
                         input,
                         Some(&state.current_agent),
                         Some(&state.current_model),
@@ -442,6 +437,42 @@ pub fn run(
                         Some(state.semantic_storage.clone()),
                         Some(state.agent_webid),
                     ));
+
+                    // Settle gas with actual token cost (7g)
+                    let actual_cost = chat_response
+                        .usage
+                        .as_ref()
+                        .map(|u| u.gas_cost())
+                        .unwrap_or(heuristic_cost);
+
+                    // Settle in CyberneticsLoop: refund difference if actual < reserved
+                    let _settled = rt.block_on(state.cybernetics_loop.settle_gas(
+                        &state.agent_webid,
+                        heuristic_cost,
+                        actual_cost,
+                    ));
+
+                    // Adjust InferenceLoop's atomic counter for the difference
+                    // If actual > heuristic, consume more; if actual < heuristic, refund
+                    if actual_cost > heuristic_cost {
+                        state
+                            .inference_loop
+                            .consume_gas(actual_cost - heuristic_cost);
+                    } else if actual_cost < heuristic_cost {
+                        state
+                            .inference_loop
+                            .replenish_gas(heuristic_cost - actual_cost);
+                    }
+
+                    let response = chat_response.text;
+
+                    // Show token usage (7g)
+                    if let Some(ref usage) = chat_response.usage {
+                        println!(
+                            "  \x1b[2m{} tokens ({} prompt + {} completion)\x1b[0m",
+                            usage.total_tokens, usage.prompt_tokens, usage.completion_tokens
+                        );
+                    }
 
                     // Check gas budget and warn if low
                     let gas_remaining = state.inference_loop.gas_remaining();

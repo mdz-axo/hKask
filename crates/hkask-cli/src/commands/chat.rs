@@ -12,7 +12,7 @@
 use hkask_agents::adapters::MemoryLoopAdapter;
 use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_templates::{OkapiConfig, OkapiInference};
-use hkask_types::ports::{InferencePort, InferenceResult};
+use hkask_types::ports::InferencePort;
 use hkask_types::{DelegationAction, DelegationResource, DelegationToken, LLMParameters, WebID};
 use std::sync::Arc;
 
@@ -90,11 +90,21 @@ pub async fn chat_with_agent(
     let (acp, store) = match secrets {
         Some(s) => match init_registry_with_secrets(s).await {
             Ok(r) => r,
-            Err(e) => return format!("Registry init error: {}", e),
+            Err(e) => {
+                return ChatResponse {
+                    text: format!("Registry init error: {}", e),
+                    usage: None,
+                };
+            }
         },
         None => match init_registry().await {
             Ok(r) => r,
-            Err(e) => return format!("Registry init error: {}", e),
+            Err(e) => {
+                return ChatResponse {
+                    text: format!("Registry init error: {}", e),
+                    usage: None,
+                };
+            }
         },
     };
 
@@ -107,14 +117,22 @@ pub async fn chat_with_agent(
 
     let agents = match loader.boot().await {
         Ok(a) => a,
-        Err(e) => return format!("Registry load error: {}", e),
+        Err(e) => {
+            return ChatResponse {
+                text: format!("Registry load error: {}", e),
+                usage: None,
+            };
+        }
     };
 
     let agent = agents.iter().find(|a| a.definition.name == name);
 
     // R11: Wire Russell Direct Chat
     if name == "russell" || name == "Russell" {
-        return chat_via_russell(input, agent).await;
+        return ChatResponse {
+            text: chat_via_russell(input, agent).await,
+            usage: None,
+        };
     }
 
     // Standard chat flow for non-Russell agents
@@ -126,7 +144,10 @@ pub async fn chat_with_agent(
     let agent_kind = match agent {
         Some(registered) => &registered.definition.agent_kind,
         None => {
-            return "Agent not registered — run `kask agent register` first.".to_string();
+            return ChatResponse {
+                text: "Agent not registered \u{2014} run `kask agent register` first.".to_string(),
+                usage: None,
+            };
         }
     };
     let default_model = match agent_kind {
@@ -142,7 +163,12 @@ pub async fn chat_with_agent(
             let config = OkapiConfig::local_dev();
             match OkapiInference::new(model, config) {
                 Ok(i) => Arc::new(i) as Arc<dyn InferencePort>,
-                Err(e) => return format!("Okapi init error: {}", e),
+                Err(e) => {
+                    return ChatResponse {
+                        text: format!("Okapi init error: {}", e),
+                        usage: None,
+                    };
+                }
             }
         }
     };

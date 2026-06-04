@@ -218,7 +218,7 @@ fn run_chat(
             std::fs::read_to_string(&input_path),
             "Failed to read input file",
         );
-        let response = rt.block_on(commands::chat_with_agent(
+        let chat_response = rt.block_on(commands::chat_with_agent(
             content.trim(),
             Some(&agent),
             model.as_deref(),
@@ -228,7 +228,13 @@ fn run_chat(
             None, // No persistent storage in non-interactive mode
             None, // WebID derived from agent name
         ));
-        println!("{}: {}", agent, response);
+        println!("{}: {}", agent, chat_response.text);
+        if let Some(ref usage) = chat_response.usage {
+            eprintln!(
+                "  {} tokens ({} prompt + {} completion)",
+                usage.total_tokens, usage.prompt_tokens, usage.completion_tokens
+            );
+        }
     } else {
         hkask_cli::repl::run(
             registry,

@@ -220,6 +220,97 @@ pub struct RegistryEntry {
     pub matroshka_limit: u32,
 }
 
+impl RegistryEntry {
+    /// Validate the entry's internal consistency.
+    ///
+    /// Returns a list of validation warnings. An empty vec means the entry is valid.
+    /// This does **not** reject the entry — it logs advisory warnings.
+    pub fn validate(&self) -> Vec<String> {
+        let mut warnings = Vec::new();
+
+        if self.id.is_empty() {
+            warnings.push("entry id is empty".into());
+        }
+        if self.source_path.is_empty() {
+            warnings.push(format!("entry '{}' has empty source_path", self.id));
+        }
+        if self.name.is_empty() {
+            warnings.push(format!("entry '{}' has empty name", self.id));
+        }
+
+        // Matroshka enforcement: cascade_level must be < matroshka_limit
+        // for the template to be invocable. If equal, nesting is exhausted.
+        if self.cascade_level >= self.matroshka_limit {
+            warnings.push(format!(
+                "entry '{}' cascade_level ({}) >= matroshka_limit ({}) — nesting exhausted",
+                self.id, self.cascade_level, self.matroshka_limit
+            ));
+        }
+
+        warnings
+    }
+
+    /// Check whether this entry can still nest (matroshka recursion).
+    ///
+    /// Returns `true` when `cascade_level < matroshka_limit`, meaning the
+    /// template may invoke another template.
+    pub fn can_nest(&self) -> bool {
+        self.cascade_level < self.matroshka_limit
+    }
+}
+
+/// Skill — a named composition of templates
+///
+/// A Skill binds WordAct, KnowAct, and FlowDef templates together
+/// into a coherent agent capability. The `cascade_order` defines
+/// the execution sequence when the skill is invoked.
+///
+/// Specification templates are FlowDef manifests that define constraints;
+/// they are referenced via `flow_def` rather than a separate field.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct Skill {
+    pub id: String,
+    pub domain: TemplateType,
+    pub word_act: Option<String>,
+    pub flow_def: Option<String>,
+    pub know_act: Option<String>,
+    /// Cascade order: template IDs executed in sequence
+    pub cascade_order: Vec<String>,
+}
+
+impl Skill {
+    pub fn new(id: &str, domain: TemplateType) -> Self {
+        Self {
+            id: id.to_string(),
+            domain,
+            word_act: None,
+            flow_def: None,
+            know_act: None,
+            cascade_order: vec![],
+        }
+    }
+
+    pub fn with_word_act(mut self, template_id: &str) -> Self {
+        self.word_act = Some(template_id.to_string());
+        self
+    }
+
+    pub fn with_flow_def(mut self, template_id: &str) -> Self {
+        self.flow_def = Some(template_id.to_string());
+        self
+    }
+
+    pub fn with_know_act(mut self, template_id: &str) -> Self {
+        self.know_act = Some(template_id.to_string());
+        self
+    }
+
+    pub fn with_cascade_order(mut self, order: Vec<String>) -> Self {
+        self.cascade_order = order;
+        self
+    }
+}
+
 /// Error type for registry index operations
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum RegistryError {
@@ -227,6 +318,25 @@ pub enum RegistryError {
     NotFound(String),
     #[error("Registry error: {0}")]
     Other(String),
+}
+
+/// Skill registry index — skill composition lookups
+///
+/// Implementations provide CRUD for skills, which compose templates
+/// into coherent agent capabilities.
+pub trait SkillRegistryIndex {
+    /// Register a new skill
+    fn register_skill(&mut self, skill: Skill);
+    /// Retrieve a skill by ID
+    fn get_skill(&self, id: &str) -> Option<&Skill>;
+    /// List all skills
+    fn list_skills(&self) -> Vec<&Skill>;
+    /// List skills by domain
+    fn skills_by_domain(&self, domain: TemplateType) -> Vec<&Skill>;
+    /// Find skills that reference a given template ID
+    fn skills_referencing_template(&self, template_id: &str) -> Vec<&Skill>;
+    /// Remove a skill by ID
+    fn remove_skill(&mut self, id: &str) -> Option<Skill>;
 }
 
 /// Registry index port — template registry lookups

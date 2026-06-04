@@ -9,62 +9,10 @@
 //! Rust is the loom. YAML/Jinja2 is the thread.
 
 use crate::ports::{RegistryEntry, RegistryIndex, Result, TemplateError};
-use hkask_types::{SYSTEM_MAX_RECURSION, TemplateType};
+use hkask_types::{HLexicon, SYSTEM_MAX_RECURSION, Skill, TemplateType};
 use std::collections::HashMap;
 use std::env;
 use std::path::PathBuf;
-
-/// Skill — a named composition of templates
-///
-/// A Skill binds WordAct, KnowAct, and FlowDef templates together
-/// into a coherent agent capability. The `cascade_order` defines
-/// the execution sequence when the skill is invoked.
-///
-/// Specification templates are FlowDef manifests that define constraints;
-/// they are referenced via `flow_def` rather than a separate field.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Skill {
-    pub id: String,
-    pub domain: TemplateType,
-    pub word_act: Option<String>,
-    pub flow_def: Option<String>,
-    pub know_act: Option<String>,
-    /// Cascade order: template IDs executed in sequence
-    pub cascade_order: Vec<String>,
-}
-
-impl Skill {
-    pub fn new(id: &str, domain: TemplateType) -> Self {
-        Self {
-            id: id.to_string(),
-            domain,
-            word_act: None,
-            flow_def: None,
-            know_act: None,
-            cascade_order: vec![],
-        }
-    }
-
-    pub fn with_word_act(mut self, template_id: &str) -> Self {
-        self.word_act = Some(template_id.to_string());
-        self
-    }
-
-    pub fn with_flow_def(mut self, template_id: &str) -> Self {
-        self.flow_def = Some(template_id.to_string());
-        self
-    }
-
-    pub fn with_know_act(mut self, template_id: &str) -> Self {
-        self.know_act = Some(template_id.to_string());
-        self
-    }
-
-    pub fn with_cascade_order(mut self, order: Vec<String>) -> Self {
-        self.cascade_order = order;
-        self
-    }
-}
 
 /// Unified template + skill registry
 ///
@@ -73,6 +21,9 @@ impl Skill {
 pub struct Registry {
     templates: HashMap<String, RegistryEntry>,
     skills: HashMap<String, Skill>,
+    /// Optional hLexicon for validating lexicon_terms during registration.
+    /// When set, `register()` logs warnings for terms not in the canonical vocabulary.
+    hlexicon: Option<HLexicon>,
     cache_valid: bool,
 }
 
@@ -81,8 +32,20 @@ impl Registry {
         Self {
             templates: HashMap::new(),
             skills: HashMap::new(),
+            hlexicon: None,
             cache_valid: true,
         }
+    }
+
+    /// Set the hLexicon for validating terms during registration.
+    pub fn set_lexicon(&mut self, lexicon: HLexicon) {
+        self.hlexicon = Some(lexicon);
+    }
+
+    /// Builder-style method to set the hLexicon.
+    pub fn with_lexicon(mut self, lexicon: HLexicon) -> Self {
+        self.hlexicon = Some(lexicon);
+        self
     }
 
     /// Invalidate the registry cache (for hot-reload)
@@ -229,7 +192,30 @@ impl Registry {
             .ok_or_else(|| TemplateError::NotFound(format!("Template '{}' not found", id)))
     }
 
+    /// Register a template entry, validating against the hLexicon if set.
+    ///
+    /// Logs warnings for lexicon terms not in the canonical vocabulary
+    /// and for entries where `cascade_level >= matroshka_limit`.
     pub fn register(&mut self, entry: RegistryEntry) {
+        // Validate entry consistency
+        let warnings = entry.validate();
+        for warning in &warnings {
+            tracing::warn!(target: "hkask.templates", "Registration warning: {}", warning);
+        }
+
+        // Validate lexicon terms against the hLexicon
+        if let Some(ref lexicon) = self.hlexicon {
+            let unknown = lexicon.validate(&entry.lexicon_terms);
+            if !unknown.is_empty() {
+                tracing::warn!(
+                    target: "hkask.templates",
+                    entry_id = %entry.id,
+                    unknown_terms = ?unknown,
+                    "Lexicon terms not in canonical vocabulary"
+                );
+            }
+        }
+
         self.templates.insert(entry.id.clone(), entry);
     }
 
@@ -261,6 +247,14 @@ impl Registry {
     }
 
     // ── Skill composition methods ──────────────────────────────────
+
+    pub fn list_skills(&self) -> Vec<&Skill> {
+        self.skills.values().collect()
+    }
+
+    pub fn remove_skill(&mut self, id: &str) -> Option<Skill> {
+        self.skills.remove(id)
+    }
 
     pub fn register_skill(&mut self, skill: Skill) {
         self.skills.insert(skill.id.clone(), skill);

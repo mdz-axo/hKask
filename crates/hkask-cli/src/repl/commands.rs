@@ -601,7 +601,7 @@ pub(super) fn handle_ask(
 
     match &state.active_session {
         Some(session) => {
-            let response = rt.block_on(crate::commands::chat_with_agent(
+            let chat_response = rt.block_on(crate::commands::chat_with_agent(
                 arg2,
                 Some(arg1),
                 None,
@@ -611,7 +611,13 @@ pub(super) fn handle_ask(
                 Some(state.semantic_storage.clone()),
                 Some(state.agent_webid),
             ));
-            println!("\x1b[1m{}\x1b[0m: {}\n", arg1, response);
+            println!("\x1b[1m{}\x1b[0m: {}\n", arg1, chat_response.text);
+            if let Some(ref usage) = chat_response.usage {
+                println!(
+                    "  \x1b[2m{} tokens ({} prompt + {} completion)\x1b[0m",
+                    usage.total_tokens, usage.prompt_tokens, usage.completion_tokens
+                );
+            }
 
             let manager_session = session.clone();
             rt.block_on(async {
@@ -623,7 +629,7 @@ pub(super) fn handle_ask(
             });
         }
         None => {
-            let response = rt.block_on(crate::commands::chat_with_agent(
+            let chat_response = rt.block_on(crate::commands::chat_with_agent(
                 arg2,
                 Some(arg1),
                 None,
@@ -633,7 +639,13 @@ pub(super) fn handle_ask(
                 Some(state.semantic_storage.clone()),
                 Some(state.agent_webid),
             ));
-            println!("\x1b[1m{}\x1b[0m: {}\n", arg1, response);
+            println!("\x1b[1m{}\x1b[0m: {}\n", arg1, chat_response.text);
+            if let Some(ref usage) = chat_response.usage {
+                println!(
+                    "  \x1b[2m{} tokens ({} prompt + {} completion)\x1b[0m",
+                    usage.total_tokens, usage.prompt_tokens, usage.completion_tokens
+                );
+            }
         }
     }
 }
