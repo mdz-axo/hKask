@@ -1,7 +1,9 @@
 //! CNS observability routes
 
 use axum::{Json, extract::State, routing::Router};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use utoipa::ToSchema;
 
 use crate::{ApiState, CnsHealthResponse, CnsVarietyResponse, VarietyCounterResponse};
 
@@ -11,6 +13,7 @@ pub fn cns_router() -> Router<ApiState> {
         .route("/api/cns/health", axum::routing::get(cns_health))
         .route("/api/cns/alerts", axum::routing::get(cns_alerts))
         .route("/api/cns/variety", axum::routing::get(cns_variety))
+        .route("/api/cns/subscribe", axum::routing::post(cns_subscribe))
 }
 
 /// CNS health endpoint
@@ -74,5 +77,70 @@ async fn cns_variety(State(state): State<ApiState>) -> Json<CnsVarietyResponse> 
         domains,
         total_deficit,
         counters,
+    })
+}
+
+// ── CNS Subscribe ──
+
+/// Request body for CNS subscription
+#[derive(Debug, Deserialize, ToSchema)]
+struct SubscribeRequest {
+    /// Agent WebID to observe events for
+    agent: String,
+    /// Span namespaces to subscribe to (e.g., ["cns.tool", "cns.inference"])
+    spans: Vec<String>,
+}
+
+/// Response body for CNS subscription
+#[derive(Debug, Serialize, ToSchema)]
+struct SubscribeResponse {
+    status: String,
+    agent: String,
+    spans: Vec<String>,
+    message: String,
+}
+
+/// Subscribe to CNS events for an agent
+///
+/// Stub endpoint that validates the request and returns confirmation.
+/// The actual subscription wiring will be connected when the runtime
+/// integration is complete.
+#[utoipa::path(
+    post,
+    path = "/api/cns/subscribe",
+    tag = "cns",
+    request_body = SubscribeRequest,
+    responses(
+        (status = 200, description = "Subscription confirmed", body = SubscribeResponse),
+        (status = 400, description = "Invalid request"),
+    ),
+)]
+async fn cns_subscribe(
+    State(_state): State<ApiState>,
+    Json(req): Json<SubscribeRequest>,
+) -> Json<SubscribeResponse> {
+    // Validate spans are valid CNS namespaces
+    let valid_spans: Vec<String> = req
+        .spans
+        .iter()
+        .filter(|s| hkask_types::event::SpanNamespace::from_str(s).is_some())
+        .cloned()
+        .collect();
+
+    let rejected_count = req.spans.len() - valid_spans.len();
+
+    Json(SubscribeResponse {
+        status: "confirmed".to_string(),
+        agent: req.agent,
+        spans: valid_spans,
+        message: if rejected_count > 0 {
+            format!(
+                "Subscription confirmed. {} span namespace(s) were invalid and ignored.",
+                rejected_count
+            )
+        } else {
+            "Subscription confirmed. Events matching the specified namespaces will be delivered."
+                .to_string()
+        },
     })
 }

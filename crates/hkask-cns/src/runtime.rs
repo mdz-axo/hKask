@@ -14,6 +14,8 @@ use crate::variety::VarietyTracker;
 use hkask_types::InfrastructureError;
 use hkask_types::WebID;
 use hkask_types::cns::CnsHealth;
+use hkask_types::event::SpanNamespace;
+use hkask_types::ports::{BackpressureSignal, CnsObserver, DepletionSignal};
 use hkask_types::sovereignty::KillZoneConfig;
 use std::sync::Arc;
 use std::sync::RwLock as StdRwLock;
@@ -48,6 +50,7 @@ impl CnsState {
 pub struct CnsRuntime {
     state: Arc<RwLock<CnsState>>,
     throttle: Arc<ThrottleBucket>,
+    subscribers: Arc<RwLock<Vec<Arc<dyn CnsObserver>>>>,
 }
 
 impl CnsRuntime {
@@ -56,6 +59,7 @@ impl CnsRuntime {
         Self {
             state: Arc::new(RwLock::new(CnsState::new(threshold))),
             throttle,
+            subscribers: Arc::new(RwLock::new(Vec::new())),
         }
     }
 
@@ -155,12 +159,34 @@ impl CnsRuntime {
     }
 
     /// Increment variety and check thresholds — the loop closes here.
+    /// After persisting variety, notifies subscribers whose interest mask
+    /// includes the relevant span namespace.
     pub async fn increment_variety(&self, domain: &str, state_name: &str) {
         {
             let mut state = self.state.write().await;
             state.tracker.increment_variety(domain, state_name);
         }
         self.check_variety(domain).await;
+
+        // Notify subscribers interested in this domain's span namespace
+        if let Some(span_ns) = SpanNamespace::from_str(domain) {
+            let subscribers = self.subscribers.read().await;
+            for observer in subscribers.iter() {
+                if observer.interest_mask().iter().any(|ns| ns == &span_ns) {
+                    // on_event requires a NuEvent; we create a minimal one
+                    // from the domain/state change. The observer decides what
+                    // to do with it.
+                    let event = hkask_types::event::NuEvent::new(
+                        WebID::default(),
+                        hkask_types::event::Span::new(span_ns.clone(), "variety_incremented"),
+                        hkask_types::event::Phase::Act,
+                        serde_json::json!({"domain": domain, "state": state_name}),
+                        0,
+                    );
+                    observer.on_event(&event).await;
+                }
+            }
+        }
     }
 
     pub async fn check_variety(&self, domain: &str) -> Option<RuntimeAlert> {
@@ -176,19 +202,74 @@ impl CnsRuntime {
         };
 
         let state = self.state.write().await;
-        match Self::write_algedonic(&state.algedonic) {
+        let alert = match Self::write_algedonic(&state.algedonic) {
             Ok(mut mgr) => mgr.check(&counter, domain).cloned(),
             Err(e) => {
                 warn!("CNS lock poisoned during variety check: {}", e);
                 None
             }
+        };
+        drop(state);
+
+        // If alert is critical, emit depletion signals to subscribers
+        if let Some(ref alert) = alert {
+            if alert.severity == crate::algedonic::AlertSeverity::Critical {
+                let subscribers = self.subscribers.read().await;
+                let signal = DepletionSignal {
+                    agent: WebID::default(),
+                    remaining: alert.threshold.saturating_sub(alert.deficit),
+                    cap: alert.threshold,
+                    usage_ratio: if alert.threshold > 0 {
+                        alert.deficit as f64 / alert.threshold as f64
+                    } else {
+                        1.0
+                    },
+                };
+                for observer in subscribers.iter() {
+                    observer.on_depletion(&signal).await;
+                }
+            }
         }
+
+        alert
     }
 
     pub async fn calibrate_threshold(&self, domain: &str, new_threshold: u64) {
         let state = self.state.write().await;
         if let Ok(mut algedonic) = Self::write_algedonic(&state.algedonic) {
             algedonic.set_expected_variety(domain, new_threshold);
+        }
+    }
+
+    // ── Bot Observation (CNS Observer) ──
+
+    /// Register a CnsObserver to receive events matching its interest mask.
+    ///
+    /// Observers are notified asynchronously when:
+    /// - A variety increment matches their interest mask (on_event)
+    /// - A depletion signal fires for their agent (on_depletion)
+    /// - A backpressure signal fires (on_backpressure)
+    ///
+    /// Use `subscribe_async` when calling from an async context.
+    pub fn subscribe(&self, observer: Arc<dyn CnsObserver>) {
+        let mut subscribers = self.subscribers.blocking_write();
+        subscribers.push(observer);
+    }
+
+    /// Register a CnsObserver to receive events matching its interest mask.
+    ///
+    /// This is the async version of subscribe, preferred when called from
+    /// an async context (e.g., during bootstrap or from the API).
+    pub async fn subscribe_async(&self, observer: Arc<dyn CnsObserver>) {
+        let mut subscribers = self.subscribers.write().await;
+        subscribers.push(observer);
+    }
+
+    /// Emit a backpressure signal to all subscribers.
+    pub async fn emit_backpressure(&self, signal: BackpressureSignal) {
+        let subscribers = self.subscribers.read().await;
+        for observer in subscribers.iter() {
+            observer.on_backpressure(&signal).await;
         }
     }
 

@@ -141,6 +141,13 @@ impl MessageDispatch {
                     "confidence": confidence,
                 }),
             ),
+            CuratorDirective::ReplenishBudget { agent, amount } => (
+                "replenish_budget".to_string(),
+                *agent,
+                serde_json::json!({
+                    "amount": amount,
+                }),
+            ),
         };
 
         let message = LoopMessage::warning(

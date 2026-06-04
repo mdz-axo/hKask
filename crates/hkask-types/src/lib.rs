@@ -59,10 +59,11 @@ pub use loops::{
     LoopId, LoopMessage, LoopPayload, MessagePriority, Signal,
 };
 pub use ports::{
-    CircuitBreakerPort, CnsPort, ConsolidationOutcome, ConsolidationPort, GitCASPort,
-    InferenceError, InferencePort, InferenceResult, InferenceUsage, MessageRecord, RegistryEntry,
-    RegistryError, RegistryIndex, SessionRecord, SessionStoreError, StandingSessionPort, TokenProb,
-    TokenProbability, ToolInfo, ToolPort, ToolPortError,
+    BackpressureSignal, CircuitBreakerPort, CnsObserver, CnsPort, ConsolidationOutcome,
+    ConsolidationPort, DepletionSignal, GitCASPort, InferenceError, InferencePort, InferenceResult,
+    InferenceUsage, MessageRecord, RegistryEntry, RegistryError, RegistryIndex, SessionRecord,
+    SessionStoreError, StandingSessionPort, TokenProb, TokenProbability, ToolInfo, ToolPort,
+    ToolPortError,
 };
 pub use r7::{R7BotIdentity, default_r7_bots};
 pub use secret::{SecretRef, derivation_contexts};

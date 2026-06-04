@@ -71,6 +71,10 @@ impl DirectiveFingerprint {
                     format!("{context}:{channel}").as_bytes(),
                 )),
             },
+            CuratorDirective::ReplenishBudget { agent, .. } => Self {
+                directive_type: "replenish_budget".to_string(),
+                target: Some(*agent),
+            },
         }
     }
 }

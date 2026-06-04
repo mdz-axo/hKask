@@ -241,7 +241,7 @@ impl InferencePort for GovernedInference {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::energy::EnergyBudget;
+    use crate::energy::GasBudget;
     use crate::runtime::CnsRuntime;
     use hkask_types::loops::LoopMessage;
     use hkask_types::ports::{InferenceUsage, TokenProb, TokenProbability};
@@ -342,12 +342,8 @@ mod tests {
         let agent = WebID::new();
 
         // Register a tiny budget: cap=10, cost_per_token=0.25 → 40 tokens max
-        let budget = EnergyBudget::new(10);
-        loop6
-            .read()
-            .await
-            .register_energy_budget(agent, budget)
-            .await;
+        let budget = GasBudget::new(10);
+        loop6.read().await.register_gas_budget(agent, budget).await;
 
         let inference = Arc::new(MockInferencePort::new());
         let governed = GovernedInference::new(inference, loop6, agent);
@@ -376,12 +372,8 @@ mod tests {
         let agent = WebID::new();
 
         // Register a large budget: cap=100_000
-        let budget = EnergyBudget::new(100_000);
-        loop6
-            .read()
-            .await
-            .register_energy_budget(agent, budget)
-            .await;
+        let budget = GasBudget::new(100_000);
+        loop6.read().await.register_gas_budget(agent, budget).await;
 
         let inference = Arc::new(MockInferencePort::new());
         let governed = GovernedInference::new(inference, loop6, agent);
@@ -403,12 +395,8 @@ mod tests {
         let agent = WebID::new();
 
         // Register budget with known cap
-        let budget = EnergyBudget::new(10_000);
-        loop6
-            .read()
-            .await
-            .register_energy_budget(agent, budget)
-            .await;
+        let budget = GasBudget::new(10_000);
+        loop6.read().await.register_gas_budget(agent, budget).await;
 
         let inference = Arc::new(MockInferencePort::new());
         let governed = GovernedInference::new(inference, loop6.clone(), agent);
@@ -437,12 +425,8 @@ mod tests {
         let agent = WebID::new();
 
         // Register a large budget so budget checks pass
-        let budget = EnergyBudget::new(100_000);
-        loop6
-            .read()
-            .await
-            .register_energy_budget(agent, budget)
-            .await;
+        let budget = GasBudget::new(100_000);
+        loop6.read().await.register_gas_budget(agent, budget).await;
 
         let inference = Arc::new(MockInferencePort::failing());
         let governed = GovernedInference::new(inference, loop6, agent);

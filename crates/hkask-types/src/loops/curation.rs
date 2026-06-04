@@ -124,4 +124,14 @@ pub enum CuratorDirective {
         /// Current R̄ from the Curation Confidence Gate.
         confidence: String,
     },
+    /// Replenish an agent's gas budget by a specific amount.
+    ///
+    /// Used when an agent has exhausted its budget but Curation
+    /// determines it should continue operating. This is the Curator's
+    /// ability to inject gas into the system, analogous to Ethereum's
+    /// gas refund mechanism but governed by human/curator authority.
+    ReplenishBudget {
+        agent: WebID,
+        amount: u64,
+    },
 }

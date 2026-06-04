@@ -333,6 +333,53 @@ pub trait ConsolidationPort: Send + Sync {
 }
 
 // =============================================================================
+// CNS Observer Port — Bot observation membrane
+// =============================================================================
+
+use crate::event::SpanNamespace;
+use crate::loops::LoopId;
+
+/// Emitted when an agent's gas budget is approaching exhaustion.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DepletionSignal {
+    pub agent: WebID,
+    pub remaining: u64,
+    pub cap: u64,
+    pub usage_ratio: f64,
+}
+
+/// Emitted when the system is applying backpressure.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct BackpressureSignal {
+    pub source: LoopId,
+    pub reason: String,
+    pub severity: f64,
+}
+
+/// A subscriber that receives CNS events matching its interest mask.
+///
+/// Bots subscribe to span namespaces, not individual events. A Bot
+/// interested in tool invocations subscribes to `SpanNamespace::new("cns.tool")`.
+/// The CNS delivers matching events asynchronously.
+///
+/// This keeps the observation path separate from the regulation path.
+#[async_trait::async_trait]
+pub trait CnsObserver: Send + Sync {
+    /// Which span namespaces this observer is interested in.
+    /// Only events matching these namespaces will be delivered.
+    fn interest_mask(&self) -> Vec<SpanNamespace>;
+
+    /// Called when a NuEvent matching the interest mask is emitted.
+    async fn on_event(&self, event: &crate::event::NuEvent);
+
+    /// Called when a depletion signal fires for this observer's agent.
+    async fn on_depletion(&self, signal: &DepletionSignal);
+
+    /// Called when a backpressure signal fires.
+    async fn on_backpressure(&self, signal: &BackpressureSignal);
+}
+
+// =============================================================================
 // Tool Port — Governance membrane for MCP tool invocation
 // =============================================================================
 

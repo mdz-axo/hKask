@@ -156,11 +156,7 @@ pub enum Commands {
     Models,
 
     /// Run the 6-loop regulation system
-    Loops {
-        /// Loop tick interval in seconds (default: 1)
-        #[arg(short, long, default_value = "1")]
-        interval: u64,
-    },
+    Loops,
 
     /// Search the web
     WebSearch {

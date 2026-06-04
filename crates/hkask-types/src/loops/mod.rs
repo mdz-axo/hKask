@@ -159,6 +159,7 @@ impl LoopAction {
             ActionType::CircuitBreak => MessagePriority::Critical,
             ActionType::AdjustEnergyBudget => MessagePriority::Warning,
             ActionType::OverrideEnergyBudget => MessagePriority::Critical,
+            ActionType::ReplenishBudget => MessagePriority::Info,
         };
         Self {
             target,
@@ -193,6 +194,11 @@ pub enum ActionType {
     /// This is a *stronger* capability than `AdjustEnergyBudget`.
     /// Only Curation can issue this — it can exceed Cybernetics' set-point range.
     OverrideEnergyBudget,
+    /// Replenish an agent's gas budget (Curation directive)
+    ///
+    /// Used when an agent has exhausted its budget but should continue.
+    /// This is the Curator's ability to inject gas into the system.
+    ReplenishBudget,
 }
 
 /// The Loop trait — sense → compare → compute → act.

@@ -64,7 +64,6 @@ pub use verification::CapabilityChecker;
 pub type CapabilityResource = DelegationResource;
 pub type CapabilityAction = DelegationAction;
 pub type CapabilityToken = DelegationToken;
-pub(crate) type CapabilityTokenBuilder = DelegationTokenBuilder;
 pub type BotCapabilities = AgentDelegation;
 
 use crate::WebID;
@@ -223,7 +222,7 @@ pub struct DelegationToken {
     /// Context nonce for binding token to specific execution context
     pub context_nonce: String,
     /// Caveats (restrictions on this capability)
-    pub caveats: Vec<Caveat>,
+    pub(crate) caveats: Vec<Caveat>,
 }
 
 /// Internal signing payload extracted from builder state.
@@ -607,6 +606,11 @@ impl DelegationToken {
             .iter()
             .find(|c| c.caveat_id == caveat_type)
             .map(|c| c.data.as_str())
+    }
+
+    /// Access all caveats on this token
+    pub fn caveats(&self) -> &[Caveat] {
+        &self.caveats
     }
 
     /// Get capability fingerprint for CRDT merge operations

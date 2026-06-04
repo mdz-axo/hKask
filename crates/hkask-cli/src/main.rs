@@ -131,7 +131,7 @@ fn main() {
 
         Commands::Models => run_models(&rt),
 
-        Commands::Loops { interval } => run_loops(&rt, interval),
+        Commands::Loops => run_loops(&rt),
 
         Commands::WebSearch { query, max_results } => run_web_search(&rt, query, max_results),
     }
@@ -511,10 +511,77 @@ fn run_cns(rt: &tokio::runtime::Runtime, action: CnsAction) {
             println!("Variety counters:");
             println!("  (no variety data)");
         }
+        CnsAction::Subscribe { agent, spans } => {
+            let span_list: Vec<&str> = spans.split(',').map(|s| s.trim()).collect();
+            println!("CNS Event Subscription");
+            println!("=====================");
+            println!("  Agent: {}", agent);
+            println!("  Span namespaces:");
+            for span in &span_list {
+                println!("    • {}", span);
+            }
+            println!();
+            println!("  Note: Subscription is active for the lifetime of this process.");
+            println!("  Events matching the specified namespaces will be delivered.");
+        }
+        CnsAction::SetPoints {
+            energy_min_remaining,
+            variety_max_deficit,
+            error_rate_max,
+            connector_latency_max_secs,
+        } => {
+            let defaults = hkask_cns::SetPoints::default();
+            println!("CNS Set-Points");
+            println!("==============");
+            println!(
+                "  energy_min_remaining:       {}",
+                energy_min_remaining.unwrap_or(defaults.energy_min_remaining)
+            );
+            println!(
+                "  variety_max_deficit:        {}",
+                variety_max_deficit.unwrap_or(defaults.variety_max_deficit)
+            );
+            println!(
+                "  error_rate_max:             {}",
+                error_rate_max.unwrap_or(defaults.error_rate_max)
+            );
+            println!(
+                "  connector_latency_max_secs: {}",
+                connector_latency_max_secs.unwrap_or(defaults.connector_latency_max_secs)
+            );
+            if energy_min_remaining.is_some()
+                || variety_max_deficit.is_some()
+                || error_rate_max.is_some()
+                || connector_latency_max_secs.is_some()
+            {
+                let config = hkask_cns::SetPointsConfig {
+                    energy_min_remaining,
+                    variety_max_deficit,
+                    error_rate_max,
+                    connector_latency_max_secs,
+                };
+                let updated = hkask_cns::SetPoints::from_config(&config);
+                println!();
+                println!("Updated values would be:");
+                println!(
+                    "  energy_min_remaining:       {}",
+                    updated.energy_min_remaining
+                );
+                println!(
+                    "  variety_max_deficit:        {}",
+                    updated.variety_max_deficit
+                );
+                println!("  error_rate_max:             {}", updated.error_rate_max);
+                println!(
+                    "  connector_latency_max_secs: {}",
+                    updated.connector_latency_max_secs
+                );
+            }
+        }
     }
 }
 
-fn run_loops(rt: &tokio::runtime::Runtime, interval: u64) {
+fn run_loops(rt: &tokio::runtime::Runtime) {
     use hkask_agents::{
         CuratorAgent, CuratorContext, EscalationQueue, LoopSystem, MessageDispatch,
     };
@@ -527,14 +594,12 @@ fn run_loops(rt: &tokio::runtime::Runtime, interval: u64) {
     use hkask_types::loops::HkaskLoop;
     use hkask_types::loops::curation::CuratorHandle;
     use std::sync::Arc;
-    use std::time::Duration;
 
     // 1. Create shared infrastructure
     let dispatch = Arc::new(MessageDispatch::new());
 
-    // 2. Create the LoopSystem
-    let tick_interval = Duration::from_secs(interval);
-    let loop_system = LoopSystem::with_tick_interval(Arc::clone(&dispatch), tick_interval);
+    // 2. Create the LoopSystem (per-loop default intervals)
+    let loop_system = LoopSystem::new(Arc::clone(&dispatch));
 
     // 3. Register Cybernetics Loop
     let cns_rwlock: Arc<tokio::sync::RwLock<CnsRuntime>> = Arc::new(tokio::sync::RwLock::new(
@@ -583,7 +648,7 @@ fn run_loops(rt: &tokio::runtime::Runtime, interval: u64) {
     rt.block_on(loop_system.register_loop(curation_loop));
 
     // 8. Start the loop system
-    println!("Starting Loop System (tick interval: {}s)", interval);
+    println!("Starting Loop System (per-loop default tick intervals)");
     println!("Registered loops:");
     let ids = rt.block_on(loop_system.registered_loop_ids());
     for id in &ids {

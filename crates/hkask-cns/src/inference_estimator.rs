@@ -1,17 +1,17 @@
-//! InferenceEnergyEstimator — Token-based energy cost estimation for inference
+//! InferenceGasEstimator — Token-based gas cost estimation for inference
 //!
-//! Implements `EnergyEstimator` using the same token estimation heuristic as
-//! `GovernedInference`: prompt characters / 4 + max_tokens. This estimator
-//! can be used with `GovernedTool` to govern inference through the unified
-//! tool membrane instead of the deprecated `GovernedInference`.
+//! Implements `GasEstimator` using the same token estimation heuristic as
+//! the deprecated `GovernedInference`: prompt characters / 4 + max_tokens.
+//! This estimator can be used with `GovernedTool` to govern inference
+//! through the unified tool membrane.
 
-use crate::EnergyEstimator;
+use crate::governed_tool::GasEstimator;
 use serde_json::Value;
 
 /// Characters per token heuristic (English text ≈ 4 chars/token).
 const CHARS_PER_TOKEN: usize = 4;
 
-/// Inference-specific energy estimator.
+/// Inference-specific gas estimator.
 ///
 /// Estimates cost based on:
 /// - `prompt_tokens` ≈ `prompt.len() / CHARS_PER_TOKEN` (from JSON args)
@@ -23,9 +23,9 @@ const CHARS_PER_TOKEN: usize = 4;
 /// ```
 ///
 /// If args don't contain the expected fields, falls back to a flat cost of 1.
-pub struct InferenceEnergyEstimator;
+pub struct InferenceGasEstimator;
 
-impl EnergyEstimator for InferenceEnergyEstimator {
+impl GasEstimator for InferenceGasEstimator {
     fn estimate_cost(&self, _server: &str, _tool: &str, args: &Value) -> u64 {
         // Try to extract prompt and max_tokens from args
         let prompt_chars = args
@@ -46,6 +46,10 @@ impl EnergyEstimator for InferenceEnergyEstimator {
     }
 }
 
+/// Backward-compatible alias.
+#[deprecated(since = "0.23.0", note = "Use InferenceGasEstimator instead")]
+pub type InferenceEnergyEstimator = InferenceGasEstimator;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -53,7 +57,7 @@ mod tests {
 
     #[test]
     fn estimate_cost_with_prompt_and_max_tokens() {
-        let estimator = InferenceEnergyEstimator;
+        let estimator = InferenceGasEstimator;
         let args = json!({
             "prompt": "Hello, this is a test prompt.",
             "max_tokens": 200
@@ -66,7 +70,7 @@ mod tests {
 
     #[test]
     fn estimate_cost_with_missing_fields_falls_back_to_default() {
-        let estimator = InferenceEnergyEstimator;
+        let estimator = InferenceGasEstimator;
         // No prompt, no max_tokens → 0 prompt tokens + 100 default = 100
         let args = json!({});
         let cost = estimator.estimate_cost("inference", "generate", &args);
@@ -75,7 +79,7 @@ mod tests {
 
     #[test]
     fn estimate_cost_with_empty_prompt() {
-        let estimator = InferenceEnergyEstimator;
+        let estimator = InferenceGasEstimator;
         let args = json!({
             "prompt": "",
             "max_tokens": 50
@@ -88,7 +92,7 @@ mod tests {
 
     #[test]
     fn estimate_cost_with_empty_prompt_and_no_max_tokens_returns_one() {
-        let estimator = InferenceEnergyEstimator;
+        let estimator = InferenceGasEstimator;
         // Empty prompt (0 chars → 0 tokens) + no max_tokens (defaults to 100) = 100
         // This tests the non-zero total path
         let args = json!({
@@ -101,7 +105,7 @@ mod tests {
 
     #[test]
     fn estimate_cost_zero_max_tokens_and_zero_prompt_returns_one() {
-        let estimator = InferenceEnergyEstimator;
+        let estimator = InferenceGasEstimator;
         // Both zero → total = 0, fallback to 1
         let args = json!({
             "prompt": "",
@@ -113,7 +117,7 @@ mod tests {
 
     #[test]
     fn chars_per_token_heuristic_produces_reasonable_estimates() {
-        let estimator = InferenceEnergyEstimator;
+        let estimator = InferenceGasEstimator;
 
         // A typical prompt of ~500 chars should estimate ~125 prompt tokens
         let prompt = "a".repeat(500);

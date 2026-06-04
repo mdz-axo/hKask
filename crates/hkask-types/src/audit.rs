@@ -26,7 +26,7 @@ pub struct AuditEntry {
     /// Outcome (success, failure, denied)
     pub outcome: AuditOutcome,
     /// Additional context/metadata
-    pub context: AuditContext,
+    pub(crate) context: AuditContext,
 }
 
 /// Loop: Curation

@@ -298,10 +298,10 @@ The capability membrane for each loop defines four boundaries:
 
 | Boundary | Scope |
 |----------|-------|
-| **Can read** | Curator persona state, NuEvent store (algedonic review), escalation queue |
-| **Can write** | Goal priority, metacognitive override decisions (`CuratorDirective`), energy budget overrides |
+| **Can read** | Curator persona state, NuEvent store (algedonic review), escalation queue, Cybernetics set-points, variety counters, energy budget status |
+| **Can write** | CuratorDirective (CalibrateThreshold, OverrideEnergyBudget, UpdateCapabilities, SeekMoreEvidence, ReplenishBudget), goal priority, metacognitive override decisions |
 | **Can signal** | Metacognitive override to Cybernetics Loop, goal revision to Communication Loop |
-| **Never reaches** | Token flow, embedding indices, SQLCipher encryption keys, energy account internals |
+| **Never reaches** | Token flow, embedding indices, SQLCipher encryption keys, message routing internals |
 
 #### Cybernetics Loop
 
@@ -316,7 +316,7 @@ The capability membrane for each loop defines four boundaries:
 
 1. **Domain loops may signal their governing meta loop but never each other directly.** The Inference Loop does not call the Semantic Memory Loop — it signals the Communication Loop, which routes the request.
 2. **Communication is shared infrastructure, not a regulator.** It routes messages between loops but has no authority over any loop's behavior. It cannot override energy budgets, throttle agents, or issue directives.
-3. **The Cybernetics Loop regulates all three domain loops and may signal the Curation Loop. It may not regulate the Curation Loop.** Cybernetics can throttle inference energy but cannot override a Curator decision.
+3. **The Cybernetics Loop regulates all three domain loops and may signal the Curation Loop. It may not regulate the Curation Loop.** Cybernetics can throttle inference energy but cannot override a Curator decision. Curation regulates Cybernetics through `CuratorDirective` messages (CalibrateThreshold, OverrideEnergyBudget, ReplenishBudget, SeekMoreEvidence) — this is the explicit governance path, not a bypass.
 4. **The Curation Loop regulates Cybernetics via metacognitive override.** This is the single escalation path. If the Cybernetics Loop's homeostatic regulation conflicts with a Curator-assessed goal, the Curator wins. Curation does not regulate Communication — it can signal through it, but Communication is a pipe, not a governor.
 
 ### 4.4 Capability Membrane Graph
@@ -350,6 +350,7 @@ graph TD
     CYL -->|"signal: algedonic"| CUL
 
     CUL -->|"regulate: metacognitive override"| CYL
+    CUL -->|"read: set-points, variety"| CYL
 ```
 
 <!-- DIAGRAM_ALIGNMENT
@@ -389,7 +390,7 @@ Formally: the regulation graph is a DAG with Curation as the unique maximal elem
 - **B. Adaptive derivation:** Set-points derived from rolling statistics of actual system behavior (e.g., 95th percentile energy consumption over last N cycles). Flexible but introduces a secondary feedback loop.
 - **C. Curator-specified:** The Curation Loop sets targets based on goal priority. Aligns with metacognitive override but couples set-points to goal state.
 
-**Status:** Open. Option A is the current implementation. Option B is the cybernetically principled choice but requires careful stability analysis.
+**Status:** Resolved. Option A — YAML-configurable set-points loaded at bootstrap, aligned with the "hKask is the loom, YAML is the thread" principle. Option B (adaptive derivation) may be explored in a future version if static set-points prove insufficient.
 
 ### 5.2 Loop Tick Cadence
 
@@ -400,7 +401,7 @@ Formally: the regulation graph is a DAG with Curation as the unique maximal elem
 - **B. Fixed cadence per loop:** Each loop has its own tick interval. Predictable but may waste cycles during idle periods.
 - **C. Hybrid:** Event-driven with a liveness heartbeat. Loops tick on demand but also tick at a minimum cadence to detect staleness.
 
-**Status:** Open. Option C is the likely choice — event-driven for efficiency, heartbeat for liveness.
+**Status:** Resolved. Option C — event-driven with per-loop liveness heartbeat. Each loop ticks on demand when its input queue is non-empty, with a minimum liveness heartbeat whose interval varies by loop type. Inference: per-call. Communication: per-message. Cybernetics: 30s heartbeat. Curation: per-algedonic-alert. Domain memory: per-query.
 
 ### 5.3 Energy Unit Semantics
 
@@ -411,7 +412,7 @@ Formally: the regulation graph is a DAG with Curation as the unique maximal elem
 - **B. Compute-seconds:** 1 energy unit = 1 second of compute. Uniform across operations but requires profiling to calibrate.
 - **C. Dimensionless cost scalar:** Each `EnergySpanType` defines its own cost function. Most flexible but requires per-operation calibration and makes cross-loop comparison harder.
 
-**Status:** Open. Option C is the current implementation (via `EnergySpanType`). The question is whether to standardize on a common denominator for cross-loop budget allocation.
+**Status:** Resolved. The unit is **gas** — a dimensionless cost unit serving the same function as Ethereum gas: preventing infinite loops by making resource exhaustion explicit. Each MCP server/tool has a configured gas cost in a `GasEstimator` table. Inference tools use token-based estimation; other tools use flat costs from the table. Energy budgets replenish periodically (analogous to gas refunds). The thermodynamic anchoring vision is deferred to a future version; the MVP uses a practical gas table that maps each operation to a cost.
 
 ### 5.4 Persistence of Loop State
 
@@ -446,6 +447,36 @@ Formally: the regulation graph is a DAG with Curation as the unique maximal elem
 
 **Status:** Open. Option A is the current implementation (the `recursion_depth` field on `NuEvent` caps at 7 per ADR-025). Option C is the most pragmatic — it prevents oscillation without introducing recursion depth as a new governance concept.
 
+### 5.7 Energy Budget Replenishment
+
+Resolved: Energy budgets replenish on a configurable cadence managed by the Cybernetics Loop. Each `EnergyBudget` has a `replenish_rate` (gas units per interval) and a `replenish_interval`. The Cybernetics Loop calls `replenish()` during its regulation cycle. When Curation needs to expedite replenishment, it issues a `ReplenishBudget` directive. This replaces the one-shot budget model with a renewable gas model.
+
+### 5.8 Gas Cost Semantics
+
+Gas units are dimensionless — they represent computational cost on a shared
+scale, analogous to Ethereum gas. Every MCP tool invocation costs gas, and
+when an agent's budget is exhausted, the operation is rejected by Cybernetics.
+
+**Cost tiers:**
+
+| Tier | Servers | Cost | Rationale |
+|------|---------|------|----------|
+| Internal | ocap, keystore, cns, registry | 1-5 | In-process, negligible compute |
+| Local I/O | spec, git, goal | 5 | Local filesystem I/O |
+| Moderate | condenser | 10 | Some computation + local I/O |
+| External API | web, github, fmp, telnyx, rss-reader | 20-50 | Network I/O, rate-limited |
+| Heavy external | fal | 100 | GPU compute, expensive |
+| Inference | hkask-mcp-inference | token-based | LLM compute, scales with tokens |
+
+Inference uses a separate cost model: `prompt_chars / 4 + max_tokens`. This
+reflects that LLM compute scales with token count. The `CompositeGasEstimator`
+routes inference calls to `InferenceGasEstimator` and all other calls to
+`TableGasEstimator`.
+
+**Default budget:** 10,000 gas per agent per replenishment cycle.
+**Replenishment rate:** cap / 10 per cycle (1,000 gas for default cap).
+**Alert threshold:** 80% usage (2,000 gas remaining for default cap).
+
 ---
 
 ## References
@@ -457,4 +488,4 @@ Formally: the regulation graph is a DAG with Curation as the unique maximal elem
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.21.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.22.0*

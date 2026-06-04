@@ -155,6 +155,33 @@ pub enum CnsAction {
 
     /// Get variety counters
     Variety,
+
+    /// Subscribe to CNS events for an agent
+    Subscribe {
+        /// Agent WebID to observe events for
+        #[arg(long)]
+        agent: String,
+
+        /// Span namespaces to subscribe to (comma-separated, e.g., "cns.tool,cns.inference")
+        #[arg(long)]
+        spans: String,
+    },
+
+    /// Display or update CNS set-points
+    SetPoints {
+        /// Set energy_min_remaining (0.0-1.0)
+        #[arg(long)]
+        energy_min_remaining: Option<f64>,
+        /// Set variety_max_deficit
+        #[arg(long)]
+        variety_max_deficit: Option<f64>,
+        /// Set error_rate_max (0.0-1.0)
+        #[arg(long)]
+        error_rate_max: Option<f64>,
+        /// Set connector_latency_max_secs
+        #[arg(long)]
+        connector_latency_max_secs: Option<f64>,
+    },
 }
 
 #[derive(Subcommand)]

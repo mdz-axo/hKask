@@ -18,8 +18,24 @@ use std::time::Duration;
 use tokio::sync::RwLock;
 use tracing::info;
 
-/// Default tick interval for loop regulation cycles (1 second).
-const DEFAULT_TICK_INTERVAL: Duration = Duration::from_secs(1);
+/// Per-loop default tick intervals.
+///
+/// Each loop has a natural cadence based on its regulatory role:
+/// - Inference: fast (500ms) — must respond quickly to circuit breaker changes
+/// - Episodic/Semantic: moderate (5s) — storage changes are infrequent
+/// - Communication: fast (100ms) — message routing should be responsive
+/// - Cybernetics: moderate (2s) — variety counters update at moderate pace
+/// - Curation: slow (10s) — reviews algedonic events, not real-time
+pub fn default_tick_interval(loop_id: LoopId) -> Duration {
+    match loop_id {
+        LoopId::Inference => Duration::from_millis(500),
+        LoopId::Episodic => Duration::from_secs(5),
+        LoopId::Semantic => Duration::from_secs(5),
+        LoopId::Communication => Duration::from_millis(100),
+        LoopId::Cybernetics => Duration::from_secs(2),
+        LoopId::Curation => Duration::from_secs(10),
+    }
+}
 
 /// Authority DAG tick order: meta-loops first, then domain loops.
 /// Communication ticks independently as shared infrastructure.
@@ -58,8 +74,8 @@ pub struct LoopSystem {
     dispatch_rx: Mutex<tokio::sync::mpsc::UnboundedReceiver<LoopMessage>>,
     /// Cancellation token for graceful shutdown
     cancel: tokio_util::sync::CancellationToken,
-    /// Tick interval for loop regulation cycles
-    tick_interval: Duration,
+    /// Per-loop tick intervals (keyed by LoopId)
+    tick_intervals: HashMap<LoopId, Duration>,
 }
 
 use std::sync::Mutex;
@@ -85,15 +101,28 @@ impl LoopSystem {
             dispatch_tx,
             dispatch_rx: Mutex::new(dispatch_rx),
             cancel: CancellationToken::new(),
-            tick_interval: DEFAULT_TICK_INTERVAL,
+            tick_intervals: [
+                LoopId::Inference,
+                LoopId::Episodic,
+                LoopId::Semantic,
+                LoopId::Communication,
+                LoopId::Cybernetics,
+                LoopId::Curation,
+            ]
+            .into_iter()
+            .map(|id| (id, default_tick_interval(id)))
+            .collect(),
         }
     }
 
-    /// Create a LoopSystem with a custom tick interval.
-    pub fn with_tick_interval(dispatch: Arc<MessageDispatch>, tick_interval: Duration) -> Self {
-        let mut system = Self::new(dispatch);
-        system.tick_interval = tick_interval;
-        system
+    /// Customize the tick interval for a specific loop.
+    ///
+    /// Returns `Self` for chaining. If the loop ID doesn't yet have an
+    /// entry (e.g. called before `register_loop`), the interval is stored
+    /// and will be used when that loop's tick task starts.
+    pub fn with_tick_interval(mut self, loop_id: LoopId, interval: Duration) -> Self {
+        self.tick_intervals.insert(loop_id, interval);
+        self
     }
 
     /// Register a loop with the system.
@@ -206,7 +235,11 @@ impl LoopSystem {
         // 2. Communication Loop tick
         {
             let comm = Arc::clone(&self.communication_loop);
-            let tick_interval = self.tick_interval;
+            let tick_interval = self
+                .tick_intervals
+                .get(&LoopId::Communication)
+                .copied()
+                .unwrap_or(Duration::from_millis(100));
             let cancel = self.cancel.clone();
 
             tokio::spawn(async move {
@@ -230,7 +263,11 @@ impl LoopSystem {
         let loops_map = self.loops.read().await.clone();
         for (id, loop_instance) in loops_map {
             let cancel = self.cancel.clone();
-            let tick_interval = self.tick_interval;
+            let tick_interval = self
+                .tick_intervals
+                .get(&id)
+                .copied()
+                .unwrap_or(Duration::from_secs(1));
 
             tokio::spawn(async move {
                 info!(
@@ -260,8 +297,7 @@ impl LoopSystem {
 
         info!(
             target: "loop_system",
-            tick_interval_ms = self.tick_interval.as_millis() as u64,
-            "LoopSystem started"
+            "LoopSystem started with per-loop tick intervals"
         );
     }
 

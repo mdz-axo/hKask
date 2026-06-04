@@ -6,14 +6,16 @@
 pub mod algedonic; // Loop 6 subloop 6.4 — algedonic signal channel
 pub mod allosteric; // ARL — Allosteric Regulation Logic (MWC gates)
 pub mod circuit_breaker; // Loop 6 — regulation
+pub mod composite_gas_estimator; // Composite routing: inference → token-based, others → table
 pub mod cybernetics_loop; // Loop 6
 pub mod dampener; // Loop 6 — regulation
-pub mod energy; // Loop 6 — thermodynamic resource allocation
+pub mod energy; // Loop 6 — gas budget (replaces energy budget)
 pub mod governed_inference; // Loop 6 → Loop 1 membrane
 pub mod governed_tool; // Loop 6 → all tool invocation membranes (supersedes GovernedInference)
-pub mod inference_estimator; // Loop 6 → Inference energy estimation
+pub mod inference_estimator; // Loop 6 → Inference gas estimation
 pub mod kill_zone; // Loop 6 subloop 6.5 — kill-zone detection
 pub mod runtime; // Loop 6 — runtime
+pub mod table_gas_estimator; // Per-server gas cost table
 pub mod throttle; // Loop 6 — per-agent rate limiting
 pub mod unified_tracker; // Loop 6 — variety tracking
 pub mod variety; // Loop 6 subloop 6.3
@@ -21,12 +23,14 @@ pub mod variety; // Loop 6 subloop 6.3
 pub use algedonic::{AlgedonicManager, DEFAULT_THRESHOLD, RuntimeAlert, cns_health_check};
 pub use allosteric::{AllostericGate, AllostericGateConfig, mwc_sensitivity, mwc_state_function};
 pub use circuit_breaker::CircuitBreaker;
-pub use cybernetics_loop::CyberneticsLoop;
+pub use composite_gas_estimator::CompositeGasEstimator;
+pub use cybernetics_loop::{CyberneticsLoop, SetPoints, SetPointsConfig};
 pub use dampener::Dampener;
-pub use energy::EnergyBudget;
+pub use energy::{GasBudget, GasError};
 pub use governed_inference::GovernedInference;
-pub use governed_tool::{EnergyEstimator, FlatEnergyEstimator, GovernedTool};
-pub use inference_estimator::InferenceEnergyEstimator;
+pub use governed_tool::{GasEstimator, GovernedTool};
+pub use inference_estimator::InferenceGasEstimator;
+pub use table_gas_estimator::TableGasEstimator;
 
 pub use runtime::CnsRuntime;
 pub use throttle::ThrottleBucket;
@@ -35,3 +39,9 @@ pub use throttle::ThrottleBucket;
 pub use hkask_types::cns::{CircuitState, CnsHealth};
 pub use hkask_types::ports::{CircuitBreakerPort, CnsPort};
 pub use kill_zone::KillZoneDetector;
+
+// Backward-compatible aliases
+#[allow(deprecated)]
+pub use energy::{EnergyBudget, EnergyError};
+#[allow(deprecated)]
+pub use governed_tool::{EnergyEstimator, FlatEnergyEstimator};
