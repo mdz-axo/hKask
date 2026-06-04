@@ -4,14 +4,21 @@
 //! tool output size while preserving essential information. Phase 1 implements local
 //! CPU-only algorithms with no LLM dependency. Phase 2 (deferred) adds LLM-assisted
 //! algorithms via hkask-templates.
+//!
+//! When `HKASK_DB_PATH` + `HKASK_DB_PASSPHRASE` are provided, the condenser can
+//! persist compressed outputs to episodic memory via the `condenser:persist` tool.
+//! Without those credentials, the server operates in memory-only mode (graceful
+//! degradation).
 
 mod algorithms;
 mod types;
 
 use hkask_mcp::server::{McpToolError, McpToolOutput, ToolSpanGuard};
-use hkask_types::{McpErrorKind, WebID};
+use hkask_memory::EpisodicMemory;
+use hkask_storage::{Database, Triple};
+use hkask_types::{McpErrorKind, Visibility, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use algorithms::AlgorithmRegistry;
 use types::*;
@@ -93,14 +100,20 @@ impl CondenserEngine {
 pub struct CondenserServer {
     webid: WebID,
     engine: Mutex<CondenserEngine>,
+    episodic: Option<Arc<EpisodicMemory>>,
 }
 
 impl CondenserServer {
-    fn new(webid: WebID) -> Result<Self, anyhow::Error> {
+    fn new(webid: WebID, episodic: Option<EpisodicMemory>) -> Result<Self, anyhow::Error> {
         Ok(Self {
             webid,
             engine: Mutex::new(CondenserEngine::new()),
+            episodic: episodic.map(Arc::new),
         })
+    }
+
+    fn has_persistence(&self) -> bool {
+        self.episodic.is_some()
     }
 }
 
@@ -115,6 +128,7 @@ impl CondenserServer {
             "version": SERVER_VERSION,
             "profile": engine.stats.current_profile,
             "algorithms": engine.registry.list_algorithms(),
+            "persistence": self.has_persistence(),
         }))
         .to_json_string())
     }
@@ -191,6 +205,89 @@ impl CondenserServer {
         }))
         .to_json_string())
     }
+
+    #[tool(description = "Persist a compressed output to episodic memory")]
+    async fn condenser_persist(
+        &self,
+        Parameters(PersistRequest {
+            tool_name,
+            compressed_output,
+            confidence,
+        }): Parameters<PersistRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("condenser:persist", &self.webid);
+
+        let Some(episodic) = &self.episodic else {
+            return span.error(
+                McpErrorKind::PermissionDenied,
+                McpToolError::permission_denied(
+                    "Persistence not available — set HKASK_DB_PATH and HKASK_DB_PASSPHRASE",
+                )
+                .to_json_string(),
+            );
+        };
+
+        if compressed_output.is_empty() {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument("compressed_output must not be empty")
+                    .to_json_string(),
+            );
+        }
+
+        let entity = format!("condenser:{tool_name}");
+        let triple = Triple::new(
+            &entity,
+            "compressed_output",
+            serde_json::Value::String(compressed_output),
+            self.webid,
+        )
+        .with_perspective(self.webid)
+        .with_visibility(Visibility::Private)
+        .with_confidence(confidence.unwrap_or(1.0));
+
+        match episodic.store(triple) {
+            Ok(()) => span.ok(McpToolOutput::new(serde_json::json!({
+                "persisted": true,
+                "entity": entity,
+                "attribute": "compressed_output",
+                "perspective": self.webid.to_string(),
+            }))
+            .to_json_string()),
+            Err(e) => span.error(
+                McpErrorKind::Internal,
+                McpToolError::internal(format!("Failed to persist to episodic memory: {}", e))
+                    .to_json_string(),
+            ),
+        }
+    }
 }
 
-hkask_mcp::mcp_server_main!("hkask-mcp-condenser", CondenserServer);
+hkask_mcp::mcp_server_main!(
+    "hkask-mcp-condenser",
+    factory: |ctx: hkask_mcp::ServerContext| {
+        let episodic = match ctx.credentials.get("HKASK_DB_PATH") {
+            Some(path) => {
+                let passphrase = ctx.credentials.get("HKASK_DB_PASSPHRASE").ok_or_else(|| {
+                    anyhow::anyhow!("HKASK_DB_PATH set but HKASK_DB_PASSPHRASE missing")
+                })?;
+                let db = Database::open(path, passphrase)
+                    .map_err(|e| anyhow::anyhow!("Failed to open condenser database: {}", e))?;
+                let triple_store = hkask_storage::TripleStore::new(db.conn_arc());
+                Some(hkask_memory::EpisodicMemory::new(triple_store))
+            }
+            None => None,
+        };
+        CondenserServer::new(ctx.webid, episodic)
+    },
+    credentials: vec![
+        hkask_mcp::CredentialRequirement::optional(
+            "HKASK_DB_PATH",
+            "Path to the SQLite database for episodic persistence (in-memory if absent)",
+        ),
+        hkask_mcp::CredentialRequirement::optional(
+            "HKASK_DB_PASSPHRASE",
+            "Passphrase for the database (required if HKASK_DB_PATH is set)",
+        ),
+    ]
+);

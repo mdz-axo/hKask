@@ -113,11 +113,85 @@ impl Database {
         })
     }
 
+    /// Open database with passphrase and custom schema extensions
+    ///
+    /// After initializing the core schema, executes the provided DDL string.
+    /// This allows MCP servers and other consumers to add custom tables
+    /// (e.g., FTS5 virtual tables, domain-specific indexes) while
+    /// inheriting the core encrypted storage infrastructure.
+    ///
+    /// # Arguments
+    /// * `path` — Path to the SQLite database file
+    /// * `passphrase` — Passphrase for SQLCipher encryption
+    /// * `extensions` — Additional DDL to execute after core schema init
+    pub fn open_with_extensions(
+        path: &str,
+        passphrase: &str,
+        extensions: &str,
+    ) -> Result<Self, DatabaseError> {
+        load_sqlite_vec()?;
+        if passphrase.is_empty() {
+            return Err(DatabaseError::KeyDerivation(
+                "Passphrase cannot be empty".to_string(),
+            ));
+        }
+        if passphrase.len() < 8 {
+            return Err(DatabaseError::KeyDerivation(
+                "Passphrase must be at least 8 characters".to_string(),
+            ));
+        }
+
+        let salt_path = format!("{}.salt", path);
+        let salt = if let Ok(salt_bytes) = std::fs::read(&salt_path) {
+            if salt_bytes.len() != SQLCIPHER_SALT_SIZE {
+                return Err(DatabaseError::SqlCipher(
+                    "Invalid salt file size".to_string(),
+                ));
+            }
+            let mut salt = [0u8; SQLCIPHER_SALT_SIZE];
+            salt.copy_from_slice(&salt_bytes);
+            salt
+        } else {
+            let salt = generate_salt();
+            std::fs::write(&salt_path, salt)
+                .map_err(|e| DatabaseError::SqlCipher(format!("Failed to write salt: {}", e)))?;
+            salt
+        };
+
+        let conn = Connection::open(path)?;
+        Self::configure_encryption(&conn, passphrase, &salt)?;
+        Self::initialize_schema(&conn)?;
+        conn.execute_batch(extensions)?;
+
+        Ok(Self {
+            conn: Arc::new(Mutex::new(conn)),
+        })
+    }
+
     /// Open in-memory database (unencrypted, for testing)
     pub fn in_memory() -> Result<Self, DatabaseError> {
         load_sqlite_vec()?;
         let conn = Connection::open_in_memory()?;
         Self::initialize_schema(&conn)?;
+        Ok(Self {
+            conn: Arc::new(Mutex::new(conn)),
+        })
+    }
+
+    /// Open in-memory database with custom schema extensions (unencrypted, for testing)
+    ///
+    /// After initializing the core schema, executes the provided DDL string.
+    /// This allows MCP servers and other consumers to add custom tables
+    /// (e.g., FTS5 virtual tables, domain-specific indexes) while
+    /// inheriting the core storage infrastructure.
+    ///
+    /// # Arguments
+    /// * `extensions` — Additional DDL to execute after core schema init
+    pub fn in_memory_with_extensions(extensions: &str) -> Result<Self, DatabaseError> {
+        load_sqlite_vec()?;
+        let conn = Connection::open_in_memory()?;
+        Self::initialize_schema(&conn)?;
+        conn.execute_batch(extensions)?;
         Ok(Self {
             conn: Arc::new(Mutex::new(conn)),
         })

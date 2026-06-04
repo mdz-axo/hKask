@@ -684,11 +684,33 @@ impl HkaskLoop for CyberneticsLoop {
                 ActionType::ReplenishBudget => "replenish_budget",
             };
 
-            let payload = LoopPayload::CyberneticsRegulation {
-                regulation_type: directive_type.to_string(),
-                target: WebID::new(),
-                parameters: action.parameters.clone(),
-            };
+            let payload =
+                if action.action_type == ActionType::Escalate && target_id == LoopId::Curation {
+                    // Algedonic alert — Cybernetics → Curation via Communication Loop.
+                    // The AlgedonicAlert payload carries the deficit that triggered escalation,
+                    // enabling Curation's sense() to read real-time alerts from its inbox.
+                    let deficit = action
+                        .parameters
+                        .get("deficit")
+                        .and_then(|v| v.as_f64())
+                        .unwrap_or(0.0) as u64;
+                    let threshold = action
+                        .parameters
+                        .get("threshold")
+                        .and_then(|v| v.as_f64())
+                        .unwrap_or(0.0) as u64;
+                    LoopPayload::AlgedonicAlert {
+                        current: deficit,
+                        threshold,
+                        deficit,
+                    }
+                } else {
+                    LoopPayload::CyberneticsRegulation {
+                        regulation_type: directive_type.to_string(),
+                        target: WebID::new(),
+                        parameters: action.parameters.clone(),
+                    }
+                };
 
             let msg = LoopMessage::new(action.priority, LoopId::Cybernetics, payload)
                 .with_target(target_id);

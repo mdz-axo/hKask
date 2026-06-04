@@ -52,6 +52,7 @@ pub enum LoopId {
     Communication,
     Curation,
     Cybernetics,
+    Metacognition,
 }
 
 impl std::fmt::Display for LoopId {
@@ -63,6 +64,7 @@ impl std::fmt::Display for LoopId {
             LoopId::Communication => write!(f, "communication"),
             LoopId::Curation => write!(f, "curation"),
             LoopId::Cybernetics => write!(f, "cybernetics"),
+            LoopId::Metacognition => write!(f, "metacognition"),
         }
     }
 }

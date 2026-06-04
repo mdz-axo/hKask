@@ -4,80 +4,82 @@ use rusqlite::Connection;
 use crate::types::EditTagRequest;
 
 // ---------------------------------------------------------------------------
-// Database schema creation
+// RSS schema DDL — executed as extensions via Database::open_with_extensions()
 // ---------------------------------------------------------------------------
 
-pub fn init_db(path: &str) -> Result<Connection, anyhow::Error> {
-    let conn = Connection::open(path)?;
-    conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")?;
-    conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS feeds (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            url         TEXT NOT NULL UNIQUE,
-            title       TEXT,
-            description TEXT,
-            site_url    TEXT,
-            etag        TEXT,
-            last_modified TEXT,
-            last_fetched_at TEXT,
-            created_at  TEXT DEFAULT (datetime('now'))
-        );
+/// RSS-specific schema DDL for use with `Database::open_with_extensions()`.
+///
+/// Creates 4 domain tables (feeds, subscriptions, entries, entry_states),
+/// 1 FTS5 virtual table (entries_fts), 4 indexes, and 2 triggers
+/// for FTS synchronization.
+pub const RSS_SCHEMA_DDL: &str = "
+    PRAGMA journal_mode=WAL;
+    PRAGMA foreign_keys=ON;
 
-        CREATE TABLE IF NOT EXISTS subscriptions (
-            id        INTEGER PRIMARY KEY AUTOINCREMENT,
-            feed_id   INTEGER NOT NULL REFERENCES feeds(id) ON DELETE CASCADE,
-            stream_id TEXT NOT NULL UNIQUE,
-            title     TEXT,
-            label     TEXT,
-            folder    TEXT,
-            added_at  TEXT DEFAULT (datetime('now'))
-        );
+    CREATE TABLE IF NOT EXISTS feeds (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        url         TEXT NOT NULL UNIQUE,
+        title       TEXT,
+        description TEXT,
+        site_url    TEXT,
+        etag        TEXT,
+        last_modified TEXT,
+        last_fetched_at TEXT,
+        created_at  TEXT DEFAULT (datetime('now'))
+    );
 
-        CREATE TABLE IF NOT EXISTS entries (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            feed_id      INTEGER NOT NULL REFERENCES feeds(id) ON DELETE CASCADE,
-            entry_id     TEXT NOT NULL,
-            title        TEXT,
-            url          TEXT,
-            author       TEXT,
-            content      TEXT,
-            summary      TEXT,
-            published_at TEXT,
-            updated_at   TEXT,
-            fetched_at   TEXT DEFAULT (datetime('now')),
-            UNIQUE(feed_id, entry_id)
-        );
+    CREATE TABLE IF NOT EXISTS subscriptions (
+        id        INTEGER PRIMARY KEY AUTOINCREMENT,
+        feed_id   INTEGER NOT NULL REFERENCES feeds(id) ON DELETE CASCADE,
+        stream_id TEXT NOT NULL UNIQUE,
+        title     TEXT,
+        label     TEXT,
+        folder    TEXT,
+        added_at  TEXT DEFAULT (datetime('now'))
+    );
 
-        CREATE TABLE IF NOT EXISTS entry_states (
-            entry_id   INTEGER PRIMARY KEY REFERENCES entries(id) ON DELETE CASCADE,
-            is_read    INTEGER NOT NULL DEFAULT 0,
-            is_starred INTEGER NOT NULL DEFAULT 0,
-            read_at    TEXT,
-            starred_at TEXT
-        );
+    CREATE TABLE IF NOT EXISTS entries (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        feed_id      INTEGER NOT NULL REFERENCES feeds(id) ON DELETE CASCADE,
+        entry_id     TEXT NOT NULL,
+        title        TEXT,
+        url          TEXT,
+        author       TEXT,
+        content      TEXT,
+        summary      TEXT,
+        published_at TEXT,
+        updated_at   TEXT,
+        fetched_at   TEXT DEFAULT (datetime('now')),
+        UNIQUE(feed_id, entry_id)
+    );
 
-        CREATE VIRTUAL TABLE IF NOT EXISTS entries_fts USING fts5(
-            title, content, summary, content=''
-        );
+    CREATE TABLE IF NOT EXISTS entry_states (
+        entry_id   INTEGER PRIMARY KEY REFERENCES entries(id) ON DELETE CASCADE,
+        is_read    INTEGER NOT NULL DEFAULT 0,
+        is_starred INTEGER NOT NULL DEFAULT 0,
+        read_at    TEXT,
+        starred_at TEXT
+    );
 
-        CREATE INDEX IF NOT EXISTS idx_entries_feed_id ON entries(feed_id);
-        CREATE INDEX IF NOT EXISTS idx_entries_published ON entries(published_at);
-        CREATE INDEX IF NOT EXISTS idx_subscriptions_label ON subscriptions(label);
-        CREATE INDEX IF NOT EXISTS idx_subscriptions_folder ON subscriptions(folder);
+    CREATE VIRTUAL TABLE IF NOT EXISTS entries_fts USING fts5(
+        title, content, summary, content=''
+    );
 
-        CREATE TRIGGER IF NOT EXISTS entries_ai AFTER INSERT ON entries BEGIN
-            INSERT INTO entries_fts(rowid, title, content, summary)
-                VALUES (new.id, new.title, new.content, new.summary);
-        END;
+    CREATE INDEX IF NOT EXISTS idx_entries_feed_id ON entries(feed_id);
+    CREATE INDEX IF NOT EXISTS idx_entries_published ON entries(published_at);
+    CREATE INDEX IF NOT EXISTS idx_subscriptions_label ON subscriptions(label);
+    CREATE INDEX IF NOT EXISTS idx_subscriptions_folder ON subscriptions(folder);
 
-        CREATE TRIGGER IF NOT EXISTS entries_ad AFTER DELETE ON entries BEGIN
-            INSERT INTO entries_fts(entries_fts, rowid, title, content, summary)
-                VALUES ('delete', old.id, old.title, old.content, old.summary);
-        END;
-        ",
-    )?;
-    Ok(conn)
-}
+    CREATE TRIGGER IF NOT EXISTS entries_ai AFTER INSERT ON entries BEGIN
+        INSERT INTO entries_fts(rowid, title, content, summary)
+            VALUES (new.id, new.title, new.content, new.summary);
+    END;
+
+    CREATE TRIGGER IF NOT EXISTS entries_ad AFTER DELETE ON entries BEGIN
+        INSERT INTO entries_fts(entries_fts, rowid, title, content, summary)
+            VALUES ('delete', old.id, old.title, old.content, old.summary);
+    END;
+";
 
 // ---------------------------------------------------------------------------
 // DB write functions

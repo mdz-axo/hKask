@@ -8,6 +8,8 @@ description = "Context condensation MCP server — compress tool outputs, manage
 [dependencies]
 hkask-mcp = { path = "../../crates/hkask-mcp" }
 hkask-types = { path = "../../crates/hkask-types" }
+hkask-memory = { path = "../../crates/hkask-memory" }
+hkask-storage = { path = "../../crates/hkask-storage" }
 rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
 tokio.workspace = true
 serde.workspace = true

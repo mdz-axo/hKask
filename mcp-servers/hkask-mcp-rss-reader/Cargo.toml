@@ -8,6 +8,7 @@ description = "RSS/Atom feed reader MCP server with Google Reader API compatibil
 [dependencies]
 hkask-mcp = { path = "../../crates/hkask-mcp" }
 hkask-types = { path = "../../crates/hkask-types" }
+hkask-storage = { path = "../../crates/hkask-storage" }
 rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
 reqwest.workspace = true
 tokio.workspace = true

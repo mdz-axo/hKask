@@ -34,6 +34,7 @@ pub fn default_tick_interval(loop_id: LoopId) -> Duration {
         LoopId::Communication => Duration::from_millis(100),
         LoopId::Cybernetics => Duration::from_secs(2),
         LoopId::Curation => Duration::from_secs(10),
+        LoopId::Metacognition => Duration::from_secs(15),
     }
 }
 

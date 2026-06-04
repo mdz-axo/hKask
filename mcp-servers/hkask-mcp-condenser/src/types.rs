@@ -23,6 +23,16 @@ pub struct ClassifyRequest {
     pub tool_name: String,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct PersistRequest {
+    /// Tool name that produced the compressed output.
+    pub tool_name: String,
+    /// Compressed content to persist.
+    pub compressed_output: String,
+    /// Optional confidence for the stored triple (0.0–1.0, default 1.0).
+    pub confidence: Option<f64>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Profile {

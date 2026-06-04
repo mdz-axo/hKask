@@ -109,6 +109,26 @@ pub enum LoopPayload {
         target: WebID,
         parameters: serde_json::Value,
     },
+    /// Tool gas consumption report from GovernedTool to Cybernetics.
+    ///
+    /// Origin: GovernedTool (within Cybernetics membrane). Consumed by: Cybernetics (Loop 6).
+    /// Enables per-tool and per-agent energy consumption tracking in the sense phase.
+    ToolConsumption {
+        tool_name: String,
+        agent: WebID,
+        gas_cost: u64,
+        success: bool,
+    },
+    /// Goal state transition notification for Curation Loop.
+    ///
+    /// Origin: GoalStore (domain). Consumed by: Curation (Loop 5).
+    /// Enables Curation to detect goal stalemate, priority inversion, capability expiry.
+    GoalTransition {
+        goal_id: String,
+        from_state: String,
+        to_state: String,
+        agent: WebID,
+    },
 }
 
 // =============================================================================

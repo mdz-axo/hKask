@@ -52,9 +52,10 @@ impl GoalOp {
 /// Goal capability token — OCAP authorization.
 ///
 /// The HMAC signature binds **every authority-bearing field**: id, goal_id,
-/// holder, the (canonicalized) operation set, expiry, and both attenuation
-/// fields. A holder therefore cannot append operations, extend expiry, or
-/// raise the attenuation ceiling without invalidating the signature.
+/// holder, the (canonicalized) operation set, expiry, both attenuation
+/// fields, and the epoch counter. A holder therefore cannot append operations,
+/// extend expiry, raise the attenuation ceiling, or reuse a token after
+/// epoch-based revocation without invalidating the signature.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GoalCapabilityToken {
     pub id: String,
@@ -68,6 +69,9 @@ pub struct GoalCapabilityToken {
     /// canonical `CapabilityToken`.
     pub max_attenuation: u8,
     pub hmac_signature: String,
+    /// Epoch counter for revocation. When the stored epoch advances (e.g. on
+    /// revocation), all tokens carrying the old epoch become invalid.
+    pub epoch: u64,
 }
 
 impl GoalCapabilityToken {
@@ -89,6 +93,7 @@ impl GoalCapabilityToken {
             attenuation_level: 0,
             max_attenuation: SYSTEM_MAX_ATTENUATION,
             hmac_signature: String::new(),
+            epoch: 0,
         };
 
         token.hmac_signature = token.compute_hmac(secret);
@@ -115,6 +120,7 @@ impl GoalCapabilityToken {
         builder.update(self.holder_webid.to_string().as_bytes());
         builder.update(self.attenuation_level.to_string().as_bytes());
         builder.update(self.max_attenuation.to_string().as_bytes());
+        builder.update(self.epoch.to_be_bytes().as_slice());
         builder.update(self.expires.to_rfc3339().as_bytes());
         // Bind the operation set. A length-delimited encoding prevents
         // adjacent operations from being merged or split ambiguously.
@@ -136,12 +142,12 @@ impl GoalCapabilityToken {
         Utc::now() > self.expires
     }
 
-    pub fn is_valid(&self, secret: &[u8]) -> bool {
-        !self.is_expired() && self.verify_signature(secret)
+    pub fn is_valid(&self, secret: &[u8], current_epoch: u64) -> bool {
+        !self.is_expired() && self.epoch == current_epoch && self.verify_signature(secret)
     }
 
-    pub fn can_perform(&self, operation: GoalOp, secret: &[u8]) -> bool {
-        self.is_valid(secret) && self.operations.contains(&operation)
+    pub fn can_perform(&self, operation: GoalOp, secret: &[u8], current_epoch: u64) -> bool {
+        self.is_valid(secret, current_epoch) && self.operations.contains(&operation)
     }
 
     /// Whether this token may be further attenuated.
@@ -161,6 +167,7 @@ impl GoalCapabilityToken {
             GoalCapabilityToken::new(self.goal_id, self.holder_webid, new_operations, secret);
         attenuated.attenuation_level = self.attenuation_level + 1;
         attenuated.max_attenuation = self.max_attenuation;
+        attenuated.epoch = self.epoch;
         attenuated.expires = Utc::now() + (self.expires - Utc::now()) / 2;
         attenuated.hmac_signature = attenuated.compute_hmac(secret);
         Some(attenuated)

@@ -986,6 +986,8 @@ version = "0.21.1"
 dependencies = [
  "anyhow",
  "hkask-mcp",
+ "hkask-memory",
+ "hkask-storage",
  "hkask-types",
  "rmcp",
  "schemars",
@@ -1179,6 +1181,7 @@ dependencies = [
  "chrono",
  "feed-rs",
  "hkask-mcp",
+ "hkask-storage",
  "hkask-types",
  "regex",
  "reqwest",

@@ -4,7 +4,7 @@
 //! Supports Prompt (WordAct), Process (FlowDef), and Cognition (KnowAct) templates.
 
 use crate::ports::{RegistryEntry, RegistryIndex, Result, TemplateError};
-use hkask_types::TemplateType;
+use hkask_types::{SYSTEM_MAX_RECURSION, TemplateType};
 use std::collections::HashMap;
 use std::env;
 use std::path::PathBuf;
@@ -34,7 +34,7 @@ impl TemplateEntry {
             lexicon_terms: vec![],
             source_path: format!("registry/templates/{}.j2", id),
             cascade_level: 0,
-            matroshka_limit: 7,
+            matroshka_limit: SYSTEM_MAX_RECURSION as u32,
             required_capabilities: vec![],
         }
     }
