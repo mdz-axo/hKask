@@ -530,84 +530,84 @@ impl Registry {
         });
 
         registry.register(RegistryEntry {
-            id: "spec/goal/decompose".into(),
+            id: "spec/goal-capture".into(),
             template_type: TemplateType::FlowDef,
-            name: "Goal Decompose".into(),
-            lexicon_terms: vec!["decompose".into(), "sequence".into()],
-            description: "Decompose into sub-goals (max depth 7)".into(),
-            source_path: "registry/templates/spec/goal/decompose.yaml".into(),
+            name: "Goal Capture".into(),
+            lexicon_terms: vec!["specify".into(), "require".into(), "elicit".into()],
+            description: "Capture a goal as a binding requirement".into(),
+            source_path: "registry/templates/spec/goal-capture.j2".into(),
             required_capabilities: vec![],
             cascade_level: 0,
             matroshka_limit: max_recursion,
         });
 
         registry.register(RegistryEntry {
-            id: "spec/require/bind".into(),
+            id: "spec/constraint-bind".into(),
             template_type: TemplateType::FlowDef,
-            name: "Requirement Bind".into(),
+            name: "Constraint Bind".into(),
             lexicon_terms: vec!["constrain".into(), "require".into()],
             description: "Bind OCAP boundaries to a goal".into(),
-            source_path: "registry/templates/spec/require/bind.yaml".into(),
+            source_path: "registry/templates/spec/constraint-bind.j2".into(),
             required_capabilities: vec![],
             cascade_level: 0,
             matroshka_limit: max_recursion,
         });
 
         registry.register(RegistryEntry {
-            id: "spec/curate/evaluate".into(),
+            id: "spec/curate-collection".into(),
             template_type: TemplateType::FlowDef,
-            name: "Spec Evaluate".into(),
+            name: "Spec Curate Collection".into(),
             lexicon_terms: vec!["curate".into(), "evaluate".into()],
             description: "Evaluate spec for collection coherence".into(),
-            source_path: "registry/templates/spec/curate/evaluate.yaml".into(),
+            source_path: "registry/templates/spec/curate-collection.j2".into(),
             required_capabilities: vec![],
             cascade_level: 0,
             matroshka_limit: max_recursion,
         });
 
         registry.register(RegistryEntry {
-            id: "spec/curate/reconcile".into(),
+            id: "spec/reconcile-conflicts".into(),
             template_type: TemplateType::FlowDef,
-            name: "Spec Reconcile".into(),
+            name: "Spec Reconcile Conflicts".into(),
             lexicon_terms: vec!["reconcile".into(), "compose".into()],
             description: "Reconcile tensions between specs".into(),
-            source_path: "registry/templates/spec/curate/reconcile.yaml".into(),
+            source_path: "registry/templates/spec/reconcile-conflicts.j2".into(),
             required_capabilities: vec![],
             cascade_level: 0,
             matroshka_limit: max_recursion,
         });
 
         registry.register(RegistryEntry {
-            id: "spec/curate/cultivate".into(),
+            id: "spec/contextualise".into(),
             template_type: TemplateType::FlowDef,
-            name: "Spec Cultivate".into(),
+            name: "Spec Contextualise".into(),
             lexicon_terms: vec!["cultivate".into()],
             description: "Cultivate collection toward coherence".into(),
-            source_path: "registry/templates/spec/curate/cultivate.yaml".into(),
+            source_path: "registry/templates/spec/contextualise.j2".into(),
             required_capabilities: vec![],
             cascade_level: 0,
             matroshka_limit: max_recursion,
         });
 
         registry.register(RegistryEntry {
-            id: "spec/graph/query".into(),
+            id: "spec/selector".into(),
             template_type: TemplateType::FlowDef,
-            name: "Spec Graph Query".into(),
+            name: "Spec Selector".into(),
             lexicon_terms: vec!["recognize".into(), "match".into()],
             description: "Query spec graph by category".into(),
-            source_path: "registry/templates/spec/graph/query.yaml".into(),
+            source_path: "registry/templates/spec/selector.j2".into(),
             required_capabilities: vec![],
             cascade_level: 0,
             matroshka_limit: max_recursion,
         });
 
         registry.register(RegistryEntry {
-            id: "spec/graph/validate".into(),
+            id: "spec/goal-capture".into(),
             template_type: TemplateType::FlowDef,
-            name: "Spec Graph Validate".into(),
+            name: "Spec Goal Capture".into(),
             lexicon_terms: vec!["evaluate".into(), "ground".into()],
             description: "Validate spec graph completeness".into(),
-            source_path: "registry/templates/spec/graph/validate.yaml".into(),
+            source_path: "registry/templates/spec/goal-capture.j2".into(),
             required_capabilities: vec![],
             cascade_level: 0,
             matroshka_limit: max_recursion,
