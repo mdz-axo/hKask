@@ -65,6 +65,10 @@ pub trait GitCASPort: Send + Sync {
 
     /// Resolve the current SHA for a crate
     fn resolve_sha(&self, crate_name: &str) -> Result<String, GitError>;
+
+    /// Create a snapshot (commit) of all staged changes in the repository.
+    /// Returns the SHA of the new commit, or the current HEAD SHA if nothing to commit.
+    fn commit(&self, message: &str) -> Result<String, GitError>;
 }
 
 // =============================================================================

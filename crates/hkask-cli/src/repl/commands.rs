@@ -168,6 +168,7 @@ pub(super) fn handle_slash_command(
     template_id: Option<&str>,
     active_session: &mut Option<String>,
     rt: &tokio::runtime::Handle,
+    ctx: &super::ReplContext,
 ) -> bool {
     let without_slash = &input[1..];
     let parts: Vec<&str> = without_slash.splitn(3, ' ').collect();
@@ -401,10 +402,10 @@ pub(super) fn handle_slash_command(
             handle_mode(arg1, active_session, rt);
         }
         "ask" => {
-            handle_ask(arg1, arg2, active_session, rt);
+            handle_ask(arg1, arg2, active_session, rt, ctx);
         }
         "model" | "m" => {
-            handle_model(arg1, current_model, rt);
+            handle_model(arg1, current_model, rt, ctx);
         }
         _ => {
             let fuzzy = fuzzy_match_command(&cmd);
@@ -546,6 +547,7 @@ pub(super) fn handle_ask(
     arg2: &str,
     active_session: &Option<String>,
     rt: &tokio::runtime::Handle,
+    ctx: &super::ReplContext,
 ) {
     if arg1.is_empty() || arg2.is_empty() {
         println!("  Usage: \x1b[36m/ask <agent> <message>\x1b[0m");
@@ -554,7 +556,12 @@ pub(super) fn handle_ask(
 
     match active_session {
         Some(session) => {
-            let response = rt.block_on(crate::commands::chat_with_agent(arg2, Some(arg1), None));
+            let response = rt.block_on(crate::commands::chat_with_agent(
+                arg2,
+                Some(arg1),
+                None,
+                Some(ctx.inference_port.clone()),
+            ));
             println!("\x1b[1m{}\x1b[0m: {}\n", arg1, response);
 
             let manager_session = session.clone();
@@ -567,7 +574,12 @@ pub(super) fn handle_ask(
             });
         }
         None => {
-            let response = rt.block_on(crate::commands::chat_with_agent(arg2, Some(arg1), None));
+            let response = rt.block_on(crate::commands::chat_with_agent(
+                arg2,
+                Some(arg1),
+                None,
+                Some(ctx.inference_port.clone()),
+            ));
             println!("\x1b[1m{}\x1b[0m: {}\n", arg1, response);
         }
     }

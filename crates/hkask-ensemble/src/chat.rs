@@ -727,3 +727,340 @@ impl SessionManager {
         self.curator_webid
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_types::WebID;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+
+    // ── Mock GasGovernancePort ──────────────────────────────────────
+
+    struct MockGasGovernance {
+        can_proceed_result: AtomicBool,
+        acquire_calls: AtomicU64,
+    }
+
+    impl MockGasGovernance {
+        fn new(allows: bool) -> Self {
+            Self {
+                can_proceed_result: AtomicBool::new(allows),
+                acquire_calls: AtomicU64::new(0),
+            }
+        }
+    }
+
+    impl crate::ports::GasGovernancePort for MockGasGovernance {
+        fn can_proceed(&self, _gas: u64) -> bool {
+            self.can_proceed_result.load(Ordering::Relaxed)
+        }
+        fn acquire(&self, gas: u64) {
+            self.acquire_calls.fetch_add(gas, Ordering::Relaxed);
+        }
+    }
+
+    // ── GasBudgetConfig tests ──────────────────────────────────────
+
+    #[test]
+    fn gas_budget_config_default() {
+        let cfg = GasBudgetConfig::default();
+        assert_eq!(cfg.session_cap, 150000);
+        assert_eq!(cfg.per_message_cost, 100);
+        assert!((cfg.alert_threshold - 0.7).abs() < f64::EPSILON);
+        assert!(cfg.hard_limit);
+        assert_eq!(cfg.per_bot_allocation, 15000);
+        assert_eq!(cfg.curator_allocation, 25000);
+    }
+
+    #[test]
+    fn gas_budget_config_degradation_normal() {
+        let cfg = GasBudgetConfig::default();
+        assert_eq!(cfg.degradation_level(0), DegradationLevel::Normal);
+    }
+
+    #[test]
+    fn gas_budget_config_degradation_batch_only() {
+        let cfg = GasBudgetConfig::default();
+        // 80% of 150000 = 120000
+        assert_eq!(
+            cfg.degradation_level(120000),
+            DegradationLevel::BatchOnlyMemory
+        );
+    }
+
+    #[test]
+    fn gas_budget_config_degradation_suspend_reports() {
+        let cfg = GasBudgetConfig::default();
+        // 90% of 150000 = 135000
+        assert_eq!(
+            cfg.degradation_level(135000),
+            DegradationLevel::SuspendReports
+        );
+    }
+
+    #[test]
+    fn gas_budget_config_degradation_escalate() {
+        let cfg = GasBudgetConfig::default();
+        // 95% of 150000 = 142500
+        assert_eq!(cfg.degradation_level(142500), DegradationLevel::Escalate);
+    }
+
+    #[test]
+    fn gas_budget_config_from_yaml_gas_partial() {
+        let yaml = serde_json::json!({ "session_cap": 50000 });
+        let cfg = GasBudgetConfig::from_yaml_gas(&yaml);
+        assert_eq!(cfg.session_cap, 50000);
+        // Rest should be defaults
+        assert_eq!(cfg.per_message_cost, 100);
+        assert!((cfg.alert_threshold - 0.7).abs() < f64::EPSILON);
+        assert!(cfg.hard_limit);
+        assert_eq!(cfg.per_bot_allocation, 15000);
+        assert_eq!(cfg.curator_allocation, 25000);
+    }
+
+    // ── EnsembleChat dedup tests ────────────────────────────────────
+
+    fn curator_id() -> WebID {
+        WebID::from_persona(b"curator")
+    }
+
+    fn bot_id(name: &[u8]) -> WebID {
+        WebID::from_persona(name)
+    }
+
+    #[test]
+    fn ensemble_chat_add_message_dedup_rejects_duplicate() {
+        let mut chat = EnsembleChat::new(curator_id());
+        let msg = ChatMessage::new(curator_id(), "hello".into());
+        chat.add_message(msg.clone());
+        chat.add_message(msg.clone());
+        assert_eq!(chat.get_history().len(), 1);
+    }
+
+    #[test]
+    fn ensemble_chat_add_message_different_from_same_content() {
+        let mut chat = EnsembleChat::new(curator_id());
+        let msg_a = ChatMessage::new(curator_id(), "hello".into());
+        let msg_b = ChatMessage::new(bot_id(b"bot1"), "hello".into());
+        chat.add_message(msg_a);
+        chat.add_message(msg_b);
+        assert_eq!(chat.get_history().len(), 2);
+    }
+
+    #[test]
+    fn ensemble_chat_add_restored_message_skips_gas() {
+        let budget = GasBudgetConfig::default();
+        let mut chat = EnsembleChat::new(curator_id()).with_gas_budget(budget);
+        let msg = ChatMessage::new(curator_id(), "restored".into());
+        chat.add_restored_message(msg);
+        assert_eq!(chat.gas_used(), 0);
+    }
+
+    #[test]
+    fn ensemble_chat_add_restored_message_registers_dedup() {
+        let mut chat = EnsembleChat::new(curator_id());
+        let msg = ChatMessage::new(curator_id(), "restored".into());
+        chat.add_restored_message(msg.clone());
+        // Same content via add_message should be rejected as duplicate
+        chat.add_message(msg.clone());
+        assert_eq!(chat.get_history().len(), 1);
+    }
+
+    #[test]
+    fn ensemble_chat_clear_clears_dedup() {
+        let mut chat = EnsembleChat::new(curator_id());
+        let msg = ChatMessage::new(curator_id(), "hello".into());
+        chat.add_message(msg.clone());
+        assert_eq!(chat.get_history().len(), 1);
+        chat.clear();
+        assert_eq!(chat.get_history().len(), 0);
+        // Re-adding same message should be accepted after clear
+        chat.add_message(msg.clone());
+        assert_eq!(chat.get_history().len(), 1);
+    }
+
+    #[test]
+    fn ensemble_chat_register_dedup_prevents_later_add() {
+        let mut chat = EnsembleChat::new(curator_id());
+        let msg = ChatMessage::new(curator_id(), "preregistered".into());
+        chat.register_dedup(&msg);
+        // Attempting to add the same message should be rejected
+        chat.add_message(msg);
+        assert_eq!(chat.get_history().len(), 0);
+    }
+
+    // ── EnsembleChat gas budget tests ──────────────────────────────
+
+    #[test]
+    fn ensemble_chat_gas_budget_hard_limit_rejects() {
+        let budget = GasBudgetConfig {
+            session_cap: 200,
+            per_message_cost: 100,
+            alert_threshold: 0.7,
+            hard_limit: true,
+            per_bot_allocation: 50,
+            curator_allocation: 50,
+        };
+        let mut chat = EnsembleChat::new(curator_id()).with_gas_budget(budget);
+        // First two messages: 2 × 100 = 200 (at cap)
+        chat.add_message(ChatMessage::new(curator_id(), "msg1".into()));
+        chat.add_message(ChatMessage::new(bot_id(b"bot1"), "msg2".into()));
+        assert_eq!(chat.get_history().len(), 2);
+        assert_eq!(chat.gas_used(), 200);
+        // Third message would exceed cap → rejected
+        chat.add_message(ChatMessage::new(bot_id(b"bot2"), "msg3".into()));
+        assert_eq!(chat.get_history().len(), 2);
+    }
+
+    #[test]
+    fn ensemble_chat_gas_budget_no_hard_limit_allows() {
+        let budget = GasBudgetConfig {
+            session_cap: 200,
+            per_message_cost: 100,
+            alert_threshold: 0.7,
+            hard_limit: false,
+            per_bot_allocation: 50,
+            curator_allocation: 50,
+        };
+        let mut chat = EnsembleChat::new(curator_id()).with_gas_budget(budget);
+        chat.add_message(ChatMessage::new(curator_id(), "msg1".into()));
+        chat.add_message(ChatMessage::new(bot_id(b"bot1"), "msg2".into()));
+        // Third message: over cap but hard_limit=false → still accepted
+        chat.add_message(ChatMessage::new(bot_id(b"bot2"), "msg3".into()));
+        assert_eq!(chat.get_history().len(), 3);
+    }
+
+    #[test]
+    fn ensemble_chat_can_proceed_with_gas() {
+        let budget = GasBudgetConfig {
+            session_cap: 1000,
+            per_message_cost: 100,
+            alert_threshold: 0.7,
+            hard_limit: true,
+            per_bot_allocation: 100,
+            curator_allocation: 200,
+        };
+        let mut chat = EnsembleChat::new(curator_id()).with_gas_budget(budget);
+
+        // No gas used yet, additional 100 → total 100 → Normal
+        let (ok, level) = chat.can_proceed_with_gas(100);
+        assert!(ok);
+        assert_eq!(level, DegradationLevel::Normal);
+
+        // Consume gas up to 700. Next 100 → total 800 (80%) → BatchOnlyMemory
+        for _ in 0..7 {
+            chat.consume_gas(100);
+        }
+        let (ok, level) = chat.can_proceed_with_gas(100);
+        assert!(ok);
+        assert_eq!(level, DegradationLevel::BatchOnlyMemory);
+
+        // Consume up to 800. Next 100 → total 900 (90%) → SuspendReports
+        chat.consume_gas(100);
+        let (ok, level) = chat.can_proceed_with_gas(100);
+        assert!(ok);
+        assert_eq!(level, DegradationLevel::SuspendReports);
+
+        // Consume up to 850. Next 100 → total 950 (95%) → Escalate
+        chat.consume_gas(50);
+        let (ok, level) = chat.can_proceed_with_gas(100);
+        assert!(ok);
+        assert_eq!(level, DegradationLevel::Escalate);
+
+        // Consume up to 1000 (100%). Next 100 → total 1100 → would exceed cap
+        chat.consume_gas(150);
+        let (ok, _) = chat.can_proceed_with_gas(100);
+        assert!(!ok);
+    }
+
+    #[test]
+    fn ensemble_chat_consume_gas_emits_degradation() {
+        let budget = GasBudgetConfig::default();
+        let mut chat = EnsembleChat::new(curator_id()).with_gas_budget(budget);
+        // Consume gas and verify gas_used increments
+        assert_eq!(chat.gas_used(), 0);
+        chat.consume_gas(500);
+        assert_eq!(chat.gas_used(), 500);
+        chat.consume_gas(300);
+        assert_eq!(chat.gas_used(), 800);
+    }
+
+    // ── EnsembleChat gas governance tests ──────────────────────────
+
+    #[test]
+    fn ensemble_chat_gas_governance_can_proceed_blocks() {
+        let mock = Arc::new(MockGasGovernance::new(false));
+        let mut chat = EnsembleChat::new(curator_id()).with_gas_governance(mock);
+        chat.add_message(ChatMessage::new(curator_id(), "blocked".into()));
+        assert_eq!(chat.get_history().len(), 0);
+    }
+
+    #[test]
+    fn ensemble_chat_gas_governance_acquire_called() {
+        let mock = Arc::new(MockGasGovernance::new(true));
+        let mut chat = EnsembleChat::new(curator_id()).with_gas_governance(mock.clone());
+        chat.add_message(ChatMessage::new(curator_id(), "allowed".into()));
+        assert_eq!(chat.get_history().len(), 1);
+        // acquire should have been called with 0 (no gas budget → per_message_cost defaults to 0)
+        assert_eq!(mock.acquire_calls.load(Ordering::Relaxed), 0);
+    }
+
+    #[test]
+    fn ensemble_chat_gas_governance_acquire_called_with_budget() {
+        let mock = Arc::new(MockGasGovernance::new(true));
+        let budget = GasBudgetConfig {
+            session_cap: 10000,
+            per_message_cost: 100,
+            alert_threshold: 0.7,
+            hard_limit: true,
+            per_bot_allocation: 1000,
+            curator_allocation: 2000,
+        };
+        let mut chat = EnsembleChat::new(curator_id())
+            .with_gas_budget(budget)
+            .with_gas_governance(mock.clone());
+        chat.add_message(ChatMessage::new(curator_id(), "allowed".into()));
+        assert_eq!(chat.get_history().len(), 1);
+        assert_eq!(mock.acquire_calls.load(Ordering::Relaxed), 100);
+    }
+
+    // ── SessionManager tests ───────────────────────────────────────
+
+    #[tokio::test]
+    async fn session_manager_create_and_get_chat() {
+        let mgr = SessionManager::new(curator_id());
+        let chat = mgr.create_chat("s1").await;
+        let retrieved = mgr.get_chat("s1").await;
+        assert!(retrieved.is_some());
+        assert!(Arc::ptr_eq(&chat, &retrieved.unwrap()));
+    }
+
+    #[tokio::test]
+    async fn session_manager_delete_chat() {
+        let mgr = SessionManager::new(curator_id());
+        mgr.create_chat("s1").await;
+        assert!(mgr.delete_chat("s1").await);
+        assert!(mgr.get_chat("s1").await.is_none());
+    }
+
+    #[tokio::test]
+    async fn session_manager_clone_shared_shares_state() {
+        let mgr = SessionManager::new(curator_id());
+        let mgr2 = mgr.clone_shared();
+        mgr.create_chat("shared").await;
+        assert!(mgr2.get_chat("shared").await.is_some());
+    }
+
+    #[tokio::test]
+    async fn session_manager_gas_governance_wired_into_chat() {
+        let mock = Arc::new(MockGasGovernance::new(false));
+        let mgr = SessionManager::new(curator_id()).with_gas_governance(mock);
+        let chat = mgr.create_chat("gov").await;
+        // Governance blocks → message rejected
+        chat.write()
+            .await
+            .add_message(ChatMessage::new(curator_id(), "blocked".into()));
+        assert_eq!(chat.read().await.get_history().len(), 0);
+    }
+}

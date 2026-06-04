@@ -421,3 +421,96 @@ pub fn bootstrap_standing_session_with_store(
 
     Ok(session)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn gas_section_to_config_defaults() {
+        let gas = GasSection {
+            session_cap: None,
+            per_message_cost: None,
+            alert_threshold: None,
+            hard_limit: None,
+            per_bot_allocation: None,
+            curator_allocation: None,
+        };
+        let config = gas.to_config();
+        let default = GasBudgetConfig::default();
+        assert_eq!(config.session_cap, default.session_cap);
+        assert_eq!(config.per_message_cost, default.per_message_cost);
+        assert!((config.alert_threshold - default.alert_threshold).abs() < f64::EPSILON);
+        assert_eq!(config.hard_limit, default.hard_limit);
+        assert_eq!(config.per_bot_allocation, default.per_bot_allocation);
+        assert_eq!(config.curator_allocation, default.curator_allocation);
+    }
+
+    #[test]
+    fn gas_section_to_config_custom() {
+        let gas = GasSection {
+            session_cap: Some(500000),
+            per_message_cost: Some(200),
+            alert_threshold: Some(0.9),
+            hard_limit: Some(false),
+            per_bot_allocation: Some(30000),
+            curator_allocation: Some(50000),
+        };
+        let config = gas.to_config();
+        assert_eq!(config.session_cap, 500000);
+        assert_eq!(config.per_message_cost, 200);
+        assert!((config.alert_threshold - 0.9).abs() < f64::EPSILON);
+        assert!(!config.hard_limit);
+        assert_eq!(config.per_bot_allocation, 30000);
+        assert_eq!(config.curator_allocation, 50000);
+    }
+
+    #[test]
+    fn gas_section_to_config_partial() {
+        let gas = GasSection {
+            session_cap: Some(999999),
+            per_message_cost: None,
+            alert_threshold: None,
+            hard_limit: None,
+            per_bot_allocation: None,
+            curator_allocation: None,
+        };
+        let config = gas.to_config();
+        let default = GasBudgetConfig::default();
+        assert_eq!(config.session_cap, 999999);
+        assert_eq!(config.per_message_cost, default.per_message_cost);
+        assert!((config.alert_threshold - default.alert_threshold).abs() < f64::EPSILON);
+        assert_eq!(config.hard_limit, default.hard_limit);
+        assert_eq!(config.per_bot_allocation, default.per_bot_allocation);
+        assert_eq!(config.curator_allocation, default.curator_allocation);
+    }
+
+    #[test]
+    fn standing_session_config_parse_minimal_yaml() {
+        let yaml = r#"
+session:
+  id: test-session
+  name: Test
+  description: A test session
+participants:
+  - agent: Curator
+    type: replicant
+    role: orchestrator
+    description: The curator
+bootstrap:
+  initial_message:
+    from: Curator
+    type: greeting
+    content: Hello
+  initial_reports: []
+"#;
+        let config: StandingSessionConfig =
+            serde_yaml::from_str(yaml).expect("failed to parse YAML");
+        assert_eq!(config.session.id, "test-session");
+        assert_eq!(config.session.name, "Test");
+        assert_eq!(config.participants.len(), 1);
+        assert_eq!(config.participants[0].agent, "Curator");
+        assert_eq!(config.bootstrap.initial_message.from, "Curator");
+        assert_eq!(config.bootstrap.initial_message.content, "Hello");
+    }
+}

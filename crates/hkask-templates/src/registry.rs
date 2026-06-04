@@ -427,6 +427,17 @@ impl Registry {
             .with_lexicon(vec!["compose", "synthesize", "write", "edit", "refine", "render"]),
         );
 
+        // Cognition — Prompt Strategy Selection
+        registry.register(
+            TemplateEntry::new(
+                "cognition/prompt-strategy",
+                TemplateType::Cognition,
+                "Prompt Strategy Selection",
+                "Keyword-based heuristic for prompt framing",
+            )
+            .with_lexicon(vec!["classify", "select", "frame"]),
+        );
+
         // DDMVSS Specification templates (FlowDef — define)
         registry.register(
             TemplateEntry::new(

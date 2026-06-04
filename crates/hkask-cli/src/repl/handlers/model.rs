@@ -1,12 +1,16 @@
 //! REPL /model handler — model listing, switching, and fuzzy search
 
-pub(crate) fn handle_model(arg1: &str, current_model: &mut String, rt: &tokio::runtime::Handle) {
-    use hkask_templates::{OkapiConfig, search_okapi_models};
+pub(crate) fn handle_model(
+    arg1: &str,
+    current_model: &mut String,
+    rt: &tokio::runtime::Handle,
+    ctx: &super::super::ReplContext,
+) {
+    use hkask_templates::search_okapi_models;
 
     if arg1.is_empty() || arg1.eq_ignore_ascii_case("list") {
         if arg1.eq_ignore_ascii_case("list") {
-            let config = OkapiConfig::local_dev();
-            let matches = rt.block_on(search_okapi_models(&config, ""));
+            let matches = rt.block_on(search_okapi_models(&ctx.okapi_config, ""));
             if matches.is_empty() {
                 println!("  No models found — Okapi may be unreachable.");
             } else {
@@ -43,8 +47,7 @@ pub(crate) fn handle_model(arg1: &str, current_model: &mut String, rt: &tokio::r
             );
         }
     } else {
-        let config = OkapiConfig::local_dev();
-        let matches = rt.block_on(search_okapi_models(&config, arg1));
+        let matches = rt.block_on(search_okapi_models(&ctx.okapi_config, arg1));
 
         if matches.is_empty() {
             *current_model = arg1.to_string();

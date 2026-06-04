@@ -173,3 +173,190 @@ impl InferenceClient for CircuitBreakerInferenceAdapter {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use async_trait::async_trait;
+    use hkask_types::cns::CircuitState;
+    use hkask_types::ports::InferenceUsage;
+    use hkask_types::ports::{CircuitBreakerPort, InferenceError, InferencePort, InferenceResult};
+    use hkask_types::template::LLMParameters;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
+
+    struct MockInferencePort {
+        should_fail: AtomicBool,
+        call_count: AtomicU64,
+    }
+
+    impl MockInferencePort {
+        fn new() -> Self {
+            Self {
+                should_fail: AtomicBool::new(false),
+                call_count: AtomicU64::new(0),
+            }
+        }
+        fn succeeding() -> Self {
+            Self::new()
+        }
+    }
+
+    #[async_trait]
+    impl InferencePort for MockInferencePort {
+        async fn generate(
+            &self,
+            _prompt: &str,
+            _params: &LLMParameters,
+        ) -> Result<InferenceResult, InferenceError> {
+            self.call_count.fetch_add(1, Ordering::Relaxed);
+            if self.should_fail.load(Ordering::Relaxed) {
+                Err(InferenceError::Connection("mock failure".to_string()))
+            } else {
+                Ok(InferenceResult {
+                    text: "mock response".to_string(),
+                    model: "mock-model".to_string(),
+                    usage: InferenceUsage {
+                        prompt_tokens: 0,
+                        completion_tokens: 0,
+                        total_tokens: 0,
+                    },
+                    finish_reason: "stop".to_string(),
+                    token_probabilities: None,
+                })
+            }
+        }
+
+        async fn generate_with_model(
+            &self,
+            prompt: &str,
+            params: &LLMParameters,
+            _model: Option<&str>,
+        ) -> Result<InferenceResult, InferenceError> {
+            self.generate(prompt, params).await
+        }
+    }
+
+    struct MockCircuitBreaker {
+        allow: AtomicBool,
+        success_count: AtomicU64,
+        failure_count: AtomicU64,
+        state_val: AtomicU32, // 0=Closed, 1=Open, 2=HalfOpen
+    }
+
+    impl MockCircuitBreaker {
+        fn closed() -> Self {
+            Self {
+                allow: AtomicBool::new(true),
+                success_count: AtomicU64::new(0),
+                failure_count: AtomicU64::new(0),
+                state_val: AtomicU32::new(0),
+            }
+        }
+        fn open() -> Self {
+            Self {
+                allow: AtomicBool::new(false),
+                success_count: AtomicU64::new(0),
+                failure_count: AtomicU64::new(0),
+                state_val: AtomicU32::new(1),
+            }
+        }
+    }
+
+    impl CircuitBreakerPort for MockCircuitBreaker {
+        fn allow_request(&self) -> bool {
+            self.allow.load(Ordering::Relaxed)
+        }
+        fn record_success(&self) {
+            self.success_count.fetch_add(1, Ordering::Relaxed);
+        }
+        fn record_failure(&self) {
+            self.failure_count.fetch_add(1, Ordering::Relaxed);
+        }
+        fn state(&self) -> CircuitState {
+            match self.state_val.load(Ordering::Relaxed) {
+                1 => CircuitState::Open,
+                2 => CircuitState::HalfOpen,
+                _ => CircuitState::Closed,
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn circuit_breaker_adapter_allows_when_closed() {
+        let mock_inference = Arc::new(MockInferencePort::succeeding());
+        let mock_breaker = Arc::new(MockCircuitBreaker::closed());
+        let adapter = InferencePortAdapter::new(mock_inference.clone());
+        let cb_adapter = CircuitBreakerInferenceAdapter::new(adapter, mock_breaker.clone());
+
+        let request = GenerateRequest {
+            model: "mock-model".to_string(),
+            prompt: "hello".to_string(),
+            options: None,
+        };
+        let result = cb_adapter.generate(&request).await;
+        assert!(result.is_ok());
+        assert_eq!(mock_breaker.success_count.load(Ordering::Relaxed), 1);
+        assert_eq!(mock_breaker.failure_count.load(Ordering::Relaxed), 0);
+    }
+
+    #[tokio::test]
+    async fn circuit_breaker_adapter_rejects_when_open() {
+        let mock_inference = Arc::new(MockInferencePort::succeeding());
+        let mock_breaker = Arc::new(MockCircuitBreaker::open());
+        let adapter = InferencePortAdapter::new(mock_inference.clone());
+        let cb_adapter = CircuitBreakerInferenceAdapter::new(adapter, mock_breaker.clone());
+
+        let request = GenerateRequest {
+            model: "mock-model".to_string(),
+            prompt: "hello".to_string(),
+            options: None,
+        };
+        let result = cb_adapter.generate(&request).await;
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            InferenceError::CircuitOpen(_) => {}
+            other => panic!("expected CircuitOpen, got {:?}", other),
+        }
+        // Inference should not have been called
+        assert_eq!(mock_inference.call_count.load(Ordering::Relaxed), 0);
+    }
+
+    #[tokio::test]
+    async fn circuit_breaker_adapter_records_failure_on_error() {
+        let mock_inference = Arc::new(MockInferencePort::succeeding());
+        mock_inference.should_fail.store(true, Ordering::Relaxed);
+        let mock_breaker = Arc::new(MockCircuitBreaker::closed());
+        let adapter = InferencePortAdapter::new(mock_inference.clone());
+        let cb_adapter = CircuitBreakerInferenceAdapter::new(adapter, mock_breaker.clone());
+
+        let request = GenerateRequest {
+            model: "mock-model".to_string(),
+            prompt: "hello".to_string(),
+            options: None,
+        };
+        let result = cb_adapter.generate(&request).await;
+        assert!(result.is_err());
+        assert_eq!(mock_breaker.failure_count.load(Ordering::Relaxed), 1);
+        assert_eq!(mock_breaker.success_count.load(Ordering::Relaxed), 0);
+    }
+
+    #[tokio::test]
+    async fn inference_port_adapter_clone() {
+        let mock_inference = Arc::new(MockInferencePort::succeeding());
+        let adapter = InferencePortAdapter::new(mock_inference.clone());
+        let cloned = adapter.clone();
+
+        let request = GenerateRequest {
+            model: "mock-model".to_string(),
+            prompt: "hello".to_string(),
+            options: None,
+        };
+
+        let _ = adapter.generate(&request).await;
+        let _ = cloned.generate(&request).await;
+
+        // Both adapters share the same underlying port via Arc
+        assert_eq!(mock_inference.call_count.load(Ordering::Relaxed), 2);
+    }
+}

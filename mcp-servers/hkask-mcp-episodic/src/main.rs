@@ -55,14 +55,12 @@ impl EpisodicServer {
     #[tool(description = "Liveness and storage info for episodic memory")]
     async fn episodic_ping(&self) -> String {
         let span = ToolSpanGuard::new("episodic_ping", &self.webid);
-        span.ok(
-            McpToolOutput::new(json!({
-                "status": "ok",
-                "server": "hkask-mcp-episodic",
-                "perspective": self.webid.to_string(),
-            }))
-            .to_json_string(),
-        )
+        span.ok(McpToolOutput::new(json!({
+            "status": "ok",
+            "server": "hkask-mcp-episodic",
+            "perspective": self.webid.to_string(),
+        }))
+        .to_json_string())
     }
 
     #[tool(description = "Store an episodic triple (private, perspective-bound)")]
@@ -78,10 +76,10 @@ impl EpisodicServer {
         let span = ToolSpanGuard::new("episodic_store", &self.webid);
 
         if let Err(e) = validate_identifier("entity", &entity, 256) {
-            return span.error(McpErrorKind::InvalidArgument, e.to_json_string());
+            return span.error(e.kind, e.to_json_string());
         }
         if let Err(e) = validate_identifier("attribute", &attribute, 256) {
-            return span.error(McpErrorKind::InvalidArgument, e.to_json_string());
+            return span.error(e.kind, e.to_json_string());
         }
 
         let triple = Triple::new(&entity, &attribute, value, self.webid)
@@ -90,14 +88,12 @@ impl EpisodicServer {
             .with_visibility(Visibility::Private);
 
         match self.memory.store(triple) {
-            Ok(()) => span.ok(
-                McpToolOutput::new(json!({
-                    "stored": true,
-                    "entity": entity,
-                    "attribute": attribute,
-                }))
-                .to_json_string(),
-            ),
+            Ok(()) => span.ok(McpToolOutput::new(json!({
+                "stored": true,
+                "entity": entity,
+                "attribute": attribute,
+            }))
+            .to_json_string()),
             Err(e) => span.error(
                 McpErrorKind::Internal,
                 McpToolError::internal(format!("Failed to store episodic triple: {}", e))
@@ -114,7 +110,7 @@ impl EpisodicServer {
         let span = ToolSpanGuard::new("episodic_recall", &self.webid);
 
         if let Err(e) = validate_identifier("entity", &entity, 256) {
-            return span.error(McpErrorKind::InvalidArgument, e.to_json_string());
+            return span.error(e.kind, e.to_json_string());
         }
 
         match self.memory.query_for_deduped(&entity, self.webid) {
@@ -131,13 +127,11 @@ impl EpisodicServer {
                         })
                     })
                     .collect();
-                span.ok(
-                    McpToolOutput::new(json!({
-                        "count": serialized.len(),
-                        "triples": serialized,
-                    }))
-                    .to_json_string(),
-                )
+                span.ok(McpToolOutput::new(json!({
+                    "count": serialized.len(),
+                    "triples": serialized,
+                }))
+                .to_json_string())
             }
             Err(e) => span.error(
                 McpErrorKind::Internal,
@@ -164,14 +158,12 @@ impl EpisodicServer {
         let budget = self.memory.storage_budget();
         let remaining = budget.saturating_sub(usage);
 
-        span.ok(
-            McpToolOutput::new(json!({
-                "used": usage,
-                "budget": budget,
-                "remaining": remaining,
-            }))
-            .to_json_string(),
-        )
+        span.ok(McpToolOutput::new(json!({
+            "used": usage,
+            "budget": budget,
+            "remaining": remaining,
+        }))
+        .to_json_string())
     }
 }
 

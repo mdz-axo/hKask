@@ -486,3 +486,124 @@ fn format_context_with_earlier(
     }
     parts.join("\n")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_types::WebID;
+
+    #[test]
+    fn improv_mode_default_is_freeform() {
+        assert_eq!(ImprovMode::default(), ImprovMode::Freeform);
+    }
+
+    #[test]
+    fn improv_mode_as_str() {
+        assert_eq!(ImprovMode::Freeform.as_str(), "freeform");
+        assert_eq!(ImprovMode::CuratorLed.as_str(), "curator_led");
+        assert_eq!(ImprovMode::RoundRobin.as_str(), "round_robin");
+    }
+
+    #[test]
+    fn improv_mode_parse_mode_valid() {
+        assert_eq!(
+            ImprovMode::parse_mode("freeform"),
+            Some(ImprovMode::Freeform)
+        );
+        assert_eq!(
+            ImprovMode::parse_mode("curator_led"),
+            Some(ImprovMode::CuratorLed)
+        );
+        assert_eq!(
+            ImprovMode::parse_mode("curator-led"),
+            Some(ImprovMode::CuratorLed)
+        );
+        assert_eq!(
+            ImprovMode::parse_mode("round_robin"),
+            Some(ImprovMode::RoundRobin)
+        );
+        assert_eq!(
+            ImprovMode::parse_mode("round-robin"),
+            Some(ImprovMode::RoundRobin)
+        );
+    }
+
+    #[test]
+    fn improv_mode_parse_mode_invalid() {
+        assert_eq!(ImprovMode::parse_mode("unknown"), None);
+        assert_eq!(ImprovMode::parse_mode(""), None);
+    }
+
+    #[test]
+    fn improv_session_config_default() {
+        let config = ImprovSessionConfig::default();
+        assert_eq!(config.mode, ImprovMode::Freeform);
+        assert!((config.participation_threshold - 0.75).abs() < f64::EPSILON);
+        assert_eq!(config.max_speakers_per_turn, 3);
+        assert_eq!(config.context_window, 5);
+        assert_eq!(config.relevance_model, "qwen3:8b");
+        assert_eq!(config.relevance_max_tokens, 100);
+        assert!(config.confidence_config.is_none());
+    }
+
+    #[test]
+    fn improv_session_config_set_threshold_clamps() {
+        let mut config = ImprovSessionConfig::default();
+        config.set_threshold(1.5);
+        assert!((config.participation_threshold - 1.0).abs() < f64::EPSILON);
+        config.set_threshold(-0.5);
+        assert!((config.participation_threshold - 0.0).abs() < f64::EPSILON);
+        config.set_threshold(0.5);
+        assert!((config.participation_threshold - 0.5).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn improv_session_config_set_mode() {
+        let mut config = ImprovSessionConfig::default();
+        config.set_mode(ImprovMode::CuratorLed);
+        assert_eq!(config.mode, ImprovMode::CuratorLed);
+    }
+
+    #[test]
+    fn extract_first_float_finds_valid() {
+        assert_eq!(extract_first_float("0.85 confidence"), Some(0.85));
+    }
+
+    #[test]
+    fn extract_first_float_no_valid() {
+        assert_eq!(extract_first_float("no number here"), None);
+    }
+
+    #[test]
+    fn extract_first_float_out_of_range() {
+        assert_eq!(extract_first_float("42.0 is too big"), None);
+    }
+
+    #[test]
+    fn format_context_empty() {
+        let config = ImprovSessionConfig::default();
+        let turns: &[(WebID, String)] = &[];
+        assert_eq!(format_context(&config, turns), "");
+    }
+
+    #[test]
+    fn format_context_within_window() {
+        let config = ImprovSessionConfig::default(); // context_window = 5
+        let turns: Vec<(WebID, String)> = (0..3)
+            .map(|i| (WebID::new(), format!("msg{}", i)))
+            .collect();
+        let result = format_context(&config, &turns);
+        assert_eq!(result, "msg0\nmsg1\nmsg2");
+    }
+
+    #[test]
+    fn format_context_truncates_window() {
+        let mut config = ImprovSessionConfig::default();
+        config.context_window = 3;
+        let turns: Vec<(WebID, String)> = (0..10)
+            .map(|i| (WebID::new(), format!("msg{}", i)))
+            .collect();
+        let result = format_context(&config, &turns);
+        assert_eq!(result, "msg7\nmsg8\nmsg9");
+    }
+}

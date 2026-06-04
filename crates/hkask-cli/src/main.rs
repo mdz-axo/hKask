@@ -216,6 +216,7 @@ fn run_chat(
             content.trim(),
             Some(&agent),
             model.as_deref(),
+            None,
         ));
         println!("{}: {}", agent, response);
     } else {

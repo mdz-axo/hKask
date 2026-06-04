@@ -13,12 +13,23 @@ mod handlers;
 mod helper;
 
 use hkask_mcp::runtime::McpRuntime;
-use hkask_templates::SqliteRegistry;
+use hkask_templates::{OkapiConfig, OkapiInference, SqliteRegistry};
+use hkask_types::ports::InferencePort;
 use rustyline::error::ReadlineError;
 use rustyline::{CompletionType, Config as ReadlineConfig, Editor};
+use std::sync::Arc;
 
 use commands::handle_slash_command;
 use helper::{KaskHelper, SessionHistory};
+
+/// Shared REPL context — initialized once, reused across all turns.
+///
+/// Holds the inference port and Okapi config so they aren't reconstructed
+/// per chat turn or model listing.
+pub(crate) struct ReplContext {
+    pub(crate) inference_port: Arc<dyn InferencePort>,
+    pub(crate) okapi_config: OkapiConfig,
+}
 
 pub fn run(
     _registry: &SqliteRegistry,
@@ -28,7 +39,24 @@ pub fn run(
     initial_model: Option<&str>,
     rt_handle: tokio::runtime::Handle,
 ) {
-    let mut current_model = initial_model.unwrap_or("deepseek-v4-pro").to_string();
+    let initial_model_str = initial_model.unwrap_or("deepseek-v4-pro");
+    let mut current_model = initial_model_str.to_string();
+
+    // Initialize inference port once — reused across all chat turns
+    let okapi_config = OkapiConfig::local_dev();
+    let inference_port: Arc<dyn InferencePort> =
+        match OkapiInference::new(initial_model_str, &okapi_config) {
+            Ok(i) => Arc::new(i),
+            Err(e) => {
+                eprintln!("Failed to initialize inference port: {}", e);
+                return;
+            }
+        };
+    let ctx = ReplContext {
+        inference_port,
+        okapi_config,
+    };
+
     let mut session_history = SessionHistory::new();
     let mut active_session: Option<String> = None;
 
@@ -92,6 +120,7 @@ pub fn run(
                         template_id,
                         &mut active_session,
                         &rt_handle,
+                        &ctx,
                     ) {
                         let _ = rl.save_history(&history_path());
                         break;
@@ -108,7 +137,11 @@ pub fn run(
                 let rt = rt_handle.clone();
 
                 if let Some(ref session) = active_session {
-                    match rt.block_on(crate::commands::ensemble_improv_turn(session, input)) {
+                    match rt.block_on(crate::commands::ensemble_improv_turn(
+                        session,
+                        input,
+                        Some(ctx.inference_port.clone()),
+                    )) {
                         Ok(turn) => {
                             if turn.responses.is_empty() {
                                 println!("  \x1b[2m(no agents chose to speak)\x1b[0m");
@@ -144,6 +177,7 @@ pub fn run(
                         input,
                         Some(&current_agent),
                         Some(&current_model),
+                        Some(ctx.inference_port.clone()),
                     ));
                     println!("{}: {}\n", current_agent, response);
                     session_history.record(&current_agent, &response);

@@ -87,10 +87,10 @@ impl SemanticServer {
         let span = ToolSpanGuard::new("semantic_store", &self.webid);
 
         if let Err(e) = validate_identifier("entity", &entity, 256) {
-            return span.error(McpErrorKind::InvalidArgument, e.to_json_string());
+            return span.error(e.kind, e.to_json_string());
         }
         if let Err(e) = validate_identifier("attribute", &attribute, 256) {
-            return span.error(McpErrorKind::InvalidArgument, e.to_json_string());
+            return span.error(e.kind, e.to_json_string());
         }
 
         let triple = Triple::new(&entity, &attribute, value, self.webid)
@@ -120,7 +120,7 @@ impl SemanticServer {
         let span = ToolSpanGuard::new("semantic_recall", &self.webid);
 
         if let Err(e) = validate_identifier("entity", &entity, 256) {
-            return span.error(McpErrorKind::InvalidArgument, e.to_json_string());
+            return span.error(e.kind, e.to_json_string());
         }
 
         match self.memory.query_deduped(&entity) {
@@ -163,7 +163,7 @@ impl SemanticServer {
         let span = ToolSpanGuard::new("semantic_embed", &self.webid);
 
         if let Err(e) = validate_identifier("entity_ref", &entity_ref, 256) {
-            return span.error(McpErrorKind::InvalidArgument, e.to_json_string());
+            return span.error(e.kind, e.to_json_string());
         }
         if vector.is_empty() {
             return span.error(

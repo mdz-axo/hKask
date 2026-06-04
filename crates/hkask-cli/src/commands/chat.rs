@@ -1,9 +1,10 @@
 //! Chat command handlers — inference, pod-mediated chat, and Russell bridge
 
 use hkask_agents::pod::{AgentPersona, PodContext, PodManagerBuilder};
-use hkask_templates::{InferencePort, OkapiConfig, OkapiInference};
+use hkask_templates::{OkapiConfig, OkapiInference};
 use hkask_types::CapabilityChecker;
 use hkask_types::LLMParameters;
+use hkask_types::ports::InferencePort;
 use std::sync::Arc;
 
 use crate::commands::config::{init_registry, registry_yaml_path, resolve_acp_secret};
@@ -12,10 +13,15 @@ use crate::commands::config::{init_registry, registry_yaml_path, resolve_acp_sec
 ///
 /// Routes through Russell adapter for Russell requests, otherwise uses
 /// standard pod-mediated inference with Okapi.
+///
+/// When `inference_port` is provided, the shared port is reused across calls
+/// and `generate_with_model()` is used for per-request model override.
+/// When `None`, a new `OkapiInference` is created per call (backward compat).
 pub async fn chat_with_agent(
     input: &str,
     agent_name: Option<&str>,
     model_override: Option<&str>,
+    inference_port: Option<Arc<dyn InferencePort>>,
 ) -> String {
     let name = agent_name.unwrap_or("Curator");
 
@@ -50,7 +56,6 @@ pub async fn chat_with_agent(
         None => format!("You are {}, an assistant in the hKask system.\n\n", name),
     };
 
-    let config = OkapiConfig::local_dev();
     let agent_kind = match agent {
         Some(registered) => &registered.definition.agent_kind,
         None => {
@@ -62,9 +67,17 @@ pub async fn chat_with_agent(
         hkask_types::AgentKind::Replicant => "deepseek-v4-pro",
     };
     let model = model_override.unwrap_or(default_model);
-    let inference = match OkapiInference::new(model, config) {
-        Ok(i) => Arc::new(i) as Arc<dyn InferencePort>,
-        Err(e) => return format!("Okapi init error: {}", e),
+
+    // Use the shared inference port when available, otherwise create one
+    let inference: Arc<dyn InferencePort> = match inference_port {
+        Some(port) => port,
+        None => {
+            let config = OkapiConfig::local_dev();
+            match OkapiInference::new(model, config) {
+                Ok(i) => Arc::new(i) as Arc<dyn InferencePort>,
+                Err(e) => return format!("Okapi init error: {}", e),
+            }
+        }
     };
 
     // Resolve the same ACP secret used to create the ACP runtime so the
@@ -141,12 +154,16 @@ visibility:
         seed: None,
     };
 
-    let inference_port = match pod_context.inference_port() {
+    let pod_inference_port = match pod_context.inference_port() {
         Ok(port) => port,
         Err(e) => return format!("Inference port unavailable: {}", e),
     };
 
-    match inference_port.generate(&full_prompt, &params).await {
+    // Use generate_with_model() so the shared port respects per-request model
+    match pod_inference_port
+        .generate_with_model(&full_prompt, &params, Some(model))
+        .await
+    {
         Ok(result) => result.text,
         Err(e) => format!("Inference error: {}", e),
     }

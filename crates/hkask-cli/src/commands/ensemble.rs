@@ -104,22 +104,33 @@ pub fn get_session_manager() -> Arc<RwLock<SessionManager>> {
         .clone()
 }
 
-pub fn get_improv_client() -> Arc<CircuitBreakerInferenceAdapter> {
+pub fn get_improv_client(
+    inference_port: Option<Arc<dyn InferencePort>>,
+) -> Arc<CircuitBreakerInferenceAdapter> {
     IMPROV_CLIENT
         .get_or_init(|| {
-            let base_url = std::env::var("OKAPI_BASE_URL")
-                .unwrap_or_else(|_| "http://127.0.0.1:11435".to_string());
-            let config = OkapiConfig {
-                base_url,
-                ..OkapiConfig::default()
-            };
-            let inference =
-                OkapiInference::new("qwen3:8b", config).expect("Failed to create Okapi inference");
-            let port: Arc<dyn InferencePort> = Arc::new(inference);
-            let adapter = InferencePortAdapter::new(port);
             let breaker: Arc<dyn CircuitBreakerPort> =
                 Arc::new(CircuitBreaker::default_for_inference("ensemble-inference"));
-            Arc::new(CircuitBreakerInferenceAdapter::new(adapter, breaker))
+
+            match inference_port {
+                Some(port) => {
+                    let adapter = InferencePortAdapter::new(port);
+                    Arc::new(CircuitBreakerInferenceAdapter::new(adapter, breaker))
+                }
+                None => {
+                    let base_url = std::env::var("OKAPI_BASE_URL")
+                        .unwrap_or_else(|_| "http://127.0.0.1:11435".to_string());
+                    let config = OkapiConfig {
+                        base_url,
+                        ..OkapiConfig::default()
+                    };
+                    let inference = OkapiInference::new("qwen3:8b", config)
+                        .expect("Failed to create Okapi inference");
+                    let port: Arc<dyn InferencePort> = Arc::new(inference);
+                    let adapter = InferencePortAdapter::new(port);
+                    Arc::new(CircuitBreakerInferenceAdapter::new(adapter, breaker))
+                }
+            }
         })
         .clone()
 }
@@ -216,6 +227,7 @@ pub async fn ensemble_chat_list() -> Result<Vec<String>, String> {
 pub async fn ensemble_improv_turn(
     session_id: &str,
     user_message: &str,
+    inference_port: Option<Arc<dyn InferencePort>>,
 ) -> Result<hkask_ensemble::ImprovTurn, String> {
     let manager = get_session_manager();
     let chat = {
@@ -224,7 +236,7 @@ pub async fn ensemble_improv_turn(
     }
     .ok_or_else(|| format!("Chat session '{}' not found", session_id))?;
 
-    let client = get_improv_client();
+    let client = get_improv_client(inference_port);
     let turn = {
         let chat_read = chat.read().await;
         chat_read

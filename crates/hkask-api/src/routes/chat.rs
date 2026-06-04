@@ -39,6 +39,7 @@ async fn chat(State(state): State<ApiState>, Json(req): Json<ChatRequest>) -> Js
     use hkask_types::LLMParameters;
 
     let model = req.model.as_deref().unwrap_or("qwen3:8b");
+    let strategy = hkask_templates::PromptStrategy::from_input(&req.input);
 
     // Use the shared inference port when available (avoids per-request OkapiInference construction)
     let inference: Arc<dyn InferencePort> = match state.inference_port {
@@ -50,7 +51,9 @@ async fn chat(State(state): State<ApiState>, Json(req): Json<ChatRequest>) -> Js
                 Err(e) => {
                     return Json(ChatResponse {
                         output: format!("Failed to initialize Okapi: {}", e),
-                        template_id: req.template_id.unwrap_or("error".to_string()),
+                        template_id: req
+                            .template_id
+                            .unwrap_or_else(|| strategy.name().to_string()),
                         model: model.to_string(),
                     });
                 }
@@ -60,18 +63,7 @@ async fn chat(State(state): State<ApiState>, Json(req): Json<ChatRequest>) -> Js
 
     let prompt = match &req.template_id {
         Some(id) => format!("[template: {}] {}", id, req.input),
-        None => {
-            if req.input.contains('?') || req.input.contains("what") || req.input.contains("how") {
-                format!("Answer concisely: {}", req.input)
-            } else if req.input.contains("create")
-                || req.input.contains("make")
-                || req.input.contains("build")
-            {
-                format!("Provide step-by-step instructions: {}", req.input)
-            } else {
-                format!("Respond helpfully: {}", req.input)
-            }
-        }
+        None => strategy.frame(&req.input),
     };
 
     let params = LLMParameters {
@@ -94,7 +86,9 @@ async fn chat(State(state): State<ApiState>, Json(req): Json<ChatRequest>) -> Js
 
     Json(ChatResponse {
         output,
-        template_id: req.template_id.unwrap_or("auto-select".to_string()),
+        template_id: req
+            .template_id
+            .unwrap_or_else(|| strategy.name().to_string()),
         model: model.to_string(),
     })
 }

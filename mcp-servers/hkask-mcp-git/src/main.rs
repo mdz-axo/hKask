@@ -89,53 +89,6 @@ impl GitServer {
     }
 }
 
-fn git_commit(base_path: &Path, message: &str, _branch: &str) -> Result<String, String> {
-    let add_output = std::process::Command::new("git")
-        .args(["add", "-A"])
-        .current_dir(base_path)
-        .output()
-        .map_err(|e| format!("git add failed: {}", e))?;
-
-    if !add_output.status.success() {
-        let stderr = String::from_utf8_lossy(&add_output.stderr);
-        return Err(format!("git add failed: {}", stderr.trim()));
-    }
-
-    let commit_output = std::process::Command::new("git")
-        .args(["commit", "-m", message])
-        .current_dir(base_path)
-        .output()
-        .map_err(|e| format!("git commit failed: {}", e))?;
-
-    if !commit_output.status.success() {
-        let stderr = String::from_utf8_lossy(&commit_output.stderr);
-        if stderr.contains("nothing to commit") {
-            let sha_output = std::process::Command::new("git")
-                .args(["rev-parse", "HEAD"])
-                .current_dir(base_path)
-                .output()
-                .map_err(|e| format!("git rev-parse failed: {}", e))?;
-            let sha = String::from_utf8_lossy(&sha_output.stdout)
-                .trim()
-                .to_string();
-            return Ok(sha);
-        }
-        return Err(format!("git commit failed: {}", stderr.trim()));
-    }
-
-    let sha_output = std::process::Command::new("git")
-        .args(["rev-parse", "HEAD"])
-        .current_dir(base_path)
-        .output()
-        .map_err(|e| format!("git rev-parse failed: {}", e))?;
-
-    let sha = String::from_utf8_lossy(&sha_output.stdout)
-        .trim()
-        .to_string();
-
-    Ok(sha)
-}
-
 #[tool_router(server_handler)]
 impl GitServer {
     #[tool(description = "Resolve a git reference to a SHA")]
@@ -178,8 +131,8 @@ impl GitServer {
         let span = ToolSpanGuard::new("git:snapshot", &self.webid);
         let branch_name = branch.unwrap_or_else(|| "main".to_string());
 
-        if let Ok(Some(base_path)) = self.adapter_container.get_base_path() {
-            match git_commit(&base_path, &message, &branch_name) {
+        if let Ok(Some(adapter)) = self.adapter_container.get_git_cas() {
+            match adapter.commit(&message) {
                 Ok(sha) => span.ok(McpToolOutput::new(json!({
                     "sha": sha,
                     "message": message,
@@ -189,7 +142,7 @@ impl GitServer {
                 .to_json_string()),
                 Err(e) => span.error(
                     McpErrorKind::Internal,
-                    McpToolError::internal(e).to_json_string(),
+                    McpToolError::internal(e.to_string()).to_json_string(),
                 ),
             }
         } else {

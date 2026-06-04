@@ -145,6 +145,40 @@ impl GitCASPort for GitCasAdapter {
             Err(_) => Ok("0000000000000000000000000000000000000000".to_string()),
         }
     }
+
+    fn commit(&self, message: &str) -> Result<String, GitError> {
+        use std::process::Command;
+
+        let add_output = Command::new("git")
+            .args(["add", "-A"])
+            .current_dir(&self.base_path)
+            .output()
+            .map_err(|e| GitError::Io(format!("git add failed: {}", e)))?;
+
+        if !add_output.status.success() {
+            let stderr = String::from_utf8_lossy(&add_output.stderr);
+            return Err(GitError::Git(format!("git add failed: {}", stderr.trim())));
+        }
+
+        let commit_output = Command::new("git")
+            .args(["commit", "-m", message])
+            .current_dir(&self.base_path)
+            .output()
+            .map_err(|e| GitError::Io(format!("git commit failed: {}", e)))?;
+
+        if !commit_output.status.success() {
+            let stderr = String::from_utf8_lossy(&commit_output.stderr);
+            if stderr.contains("nothing to commit") {
+                return self.resolve_sha("");
+            }
+            return Err(GitError::Git(format!(
+                "git commit failed: {}",
+                stderr.trim()
+            )));
+        }
+
+        self.resolve_sha("")
+    }
 }
 
 fn parse_hlexicon_terms(content: &str) -> Vec<String> {
