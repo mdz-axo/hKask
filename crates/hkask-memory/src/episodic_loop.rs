@@ -8,9 +8,11 @@ use std::sync::Arc;
 
 use crate::episodic::EpisodicMemory;
 use hkask_types::WebID;
+use hkask_types::capability::tokens::ConsolidationToken;
 use hkask_types::loops::{
     ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal,
 };
+use hkask_types::ports::ConsolidationPort;
 
 /// Episodic Loop — monitors episodic storage usage against budget and enforces limits.
 ///
@@ -26,6 +28,11 @@ pub struct EpisodicLoop {
     memory: Arc<EpisodicMemory>,
     perspective: WebID,
     storage_budget: usize,
+    /// Consolidation bridge for promoting episodic triples to semantic memory
+    /// when budget pressure triggers pruning.
+    consolidation: Option<Arc<dyn ConsolidationPort>>,
+    /// OCAP token proving consolidation authority (issued by Curator/Cybernetics).
+    consolidation_token: Option<ConsolidationToken>,
 }
 
 impl EpisodicLoop {
@@ -38,6 +45,29 @@ impl EpisodicLoop {
             memory,
             perspective,
             storage_budget,
+            consolidation: None,
+            consolidation_token: None,
+        }
+    }
+
+    /// Create an Episodic Loop with a consolidation bridge.
+    ///
+    /// When budget pressure triggers pruning, the consolidation bridge fires
+    /// to promote episodic triples into semantic memory. The token proves
+    /// Curator/Cybernetics authority for the one-way bridge.
+    pub fn with_consolidation(
+        memory: Arc<EpisodicMemory>,
+        perspective: WebID,
+        storage_budget: usize,
+        consolidation: Arc<dyn ConsolidationPort>,
+        consolidation_token: ConsolidationToken,
+    ) -> Self {
+        Self {
+            memory,
+            perspective,
+            storage_budget,
+            consolidation: Some(consolidation),
+            consolidation_token: Some(consolidation_token),
         }
     }
 
@@ -187,6 +217,40 @@ impl HkaskLoop for EpisodicLoop {
                                             error = %e,
                                             "Failed to retract consolidation candidate"
                                         );
+                                    }
+                                }
+
+                                // Fire consolidation bridge: promote remaining
+                                // high-confidence episodic triples to semantic
+                                // memory now that budget pressure has forced
+                                // pruning.
+                                if let (Some(consolidation), Some(token)) =
+                                    (&self.consolidation, &self.consolidation_token)
+                                {
+                                    match consolidation.consolidate(
+                                        token,
+                                        &self.perspective,
+                                        overage,
+                                    ) {
+                                        Ok(outcome) if outcome.consolidated_count > 0 => {
+                                            tracing::info!(
+                                                target: "cns.episodic",
+                                                perspective = %self.perspective,
+                                                consolidated = outcome.consolidated_count,
+                                                retracted = outcome.retracted_count,
+                                                failed = outcome.failed_count,
+                                                "Consolidation bridge fired after episodic budget pruning"
+                                            );
+                                        }
+                                        Ok(_) => {}
+                                        Err(e) => {
+                                            tracing::warn!(
+                                                target: "cns.episodic",
+                                                perspective = %self.perspective,
+                                                error = %e,
+                                                "Consolidation bridge failed after pruning"
+                                            );
+                                        }
                                     }
                                 }
                             }

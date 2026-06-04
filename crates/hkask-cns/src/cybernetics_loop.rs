@@ -211,6 +211,17 @@ impl CyberneticsLoop {
         }
     }
 
+    /// Set the persistent event sink for algedonic alert durability.
+    ///
+    /// When present, algedonic alerts (Escalate → Curation) are persisted
+    /// to the NuEventStore so they survive restarts. Directive acknowledgments
+    /// are also persisted for auditability.
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
+        self.event_sink = Some(sink);
+        self
+    }
+
     /// Create a Cybernetics Loop with a fresh inbox channel pair.
     ///
     /// Returns `(loop_instance, inbox_sender)` where the sender should be
@@ -490,12 +501,29 @@ impl CyberneticsLoop {
                                 );
                             }
                         }
-                        // TODO: Replace with NuEvent emission once CyberneticsLoop has an
-                        // event_sink field. The ack should use:
-                        //   Span::new(SpanNamespace::new("cns.curation"), "directive_acknowledged")
-                        //   Phase::Act
-                        //   observation: {"directive_type", "outcome": "applied"}
-                        //   event_sink.persist(&ack)
+                        // Persist directive acknowledgment to NuEventStore for auditability.
+                        if let Some(ref sink) = self.event_sink {
+                            let ack = NuEvent::new(
+                                WebID::new(),
+                                Span::new(
+                                    SpanNamespace::new("cns.curation"),
+                                    "directive_acknowledged",
+                                ),
+                                Phase::Act,
+                                serde_json::json!({
+                                    "directive_type": directive_type,
+                                    "outcome": "applied",
+                                }),
+                                0,
+                            );
+                            if let Err(e) = sink.persist(&ack) {
+                                tracing::warn!(
+                                    target: "cns.cybernetics",
+                                    error = %e,
+                                    "Failed to persist directive acknowledgment"
+                                );
+                            }
+                        }
                         tracing::info!(
                             target: "cns.cybernetics",
                             directive_type = directive_type,

@@ -168,6 +168,7 @@ fn build_loop_system(
     inference_port: Option<Arc<dyn hkask_types::ports::InferencePort>>,
     system_webid: WebID,
     acp: Option<Arc<dyn hkask_agents::ports::AcpPort>>,
+    event_sink: Option<Arc<dyn NuEventSink>>,
 ) -> (
     Arc<LoopSystem>,
     Arc<EpisodicMemory>,
@@ -186,6 +187,10 @@ fn build_loop_system(
         set_points,
         cybernetics_dispatch_tx,
     );
+    let cybernetics_loop = match event_sink {
+        Some(sink) => cybernetics_loop.with_event_sink(sink),
+        None => cybernetics_loop,
+    };
     let cybernetics_loop_rwlock = Arc::new(tokio::sync::RwLock::new(cybernetics_loop));
     // Register loops (register_loop is async, use a small runtime for sync callers)
     let rt = tokio::runtime::Runtime::new().expect("loop system runtime");
@@ -324,25 +329,28 @@ impl ApiState {
         let dispatch = Arc::new(MessageDispatch::new());
         let inference_port: Option<Arc<dyn hkask_types::ports::InferencePort>> =
             ensemble_inferencer.as_ref().map(|ei| Arc::clone(ei.port()));
+
+        // Create CNS event sink for governance observability (shared by
+        // CyberneticsLoop and GovernedTool)
+        let cns_event_conn = hkask_storage::Database::in_memory()
+            .expect("cns event db")
+            .conn_arc();
+        let cns_event_sink: Arc<dyn NuEventSink> =
+            Arc::new(hkask_storage::NuEventStore::new(cns_event_conn));
+
         let (loop_system, episodic_memory, cybernetics_loop_rwlock) = build_loop_system(
             Arc::clone(&escalation_queue),
             dispatch,
             inference_port,
             system_webid,
             acp,
+            Some(Arc::clone(&cns_event_sink)),
         );
 
         // Create raw tool port (ungoverned executor)
         let raw_tool_port: Arc<dyn ToolPort> = Arc::new(
             hkask_mcp::raw_tool_port::RawMcpToolPort::new(dispatcher_runtime.clone()),
         );
-
-        // Create CNS event sink for governance observability
-        let cns_event_conn = hkask_storage::Database::in_memory()
-            .expect("cns event db")
-            .conn_arc();
-        let cns_event_sink: Arc<dyn NuEventSink> =
-            Arc::new(hkask_storage::NuEventStore::new(cns_event_conn));
 
         // Create GovernedTool membrane with CompositeGasEstimator
         let estimator: Arc<dyn hkask_cns::GasEstimator> = Arc::new(CompositeGasEstimator::new());

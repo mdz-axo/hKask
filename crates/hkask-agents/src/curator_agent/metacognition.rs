@@ -489,34 +489,32 @@ impl HkaskLoop for MetacognitionLoop {
         }
 
         // Produce afferent signals
-        let mut signals = Vec::new();
-
-        // Variety deficit: act when total_deficit > threshold (strict >)
-        signals.push(Signal::new(
-            LoopId::Metacognition,
-            "variety_deficit",
-            total_variety_deficit as f64,
-            self.config.thresholds.variety_deficit as f64,
-        ));
-
-        // Critical alerts: act when count >= threshold.
-        // Use threshold - 0.5 as set-point so that count == threshold
-        // produces an AboveSetPoint deviation.
-        signals.push(Signal::new(
-            LoopId::Metacognition,
-            "critical_alerts",
-            critical_alerts.len() as f64,
-            self.config.thresholds.critical_alerts as f64 - 0.5,
-        ));
-
-        // Bot failures: act when count >= threshold.
-        // Same threshold - 0.5 technique as critical_alerts.
-        signals.push(Signal::new(
-            LoopId::Metacognition,
-            "bot_failures",
-            failed_bot_count as f64,
-            self.config.thresholds.bot_failures as f64 - 0.5,
-        ));
+        let signals = vec![
+            // Variety deficit: act when total_deficit > threshold (strict >)
+            Signal::new(
+                LoopId::Metacognition,
+                "variety_deficit",
+                total_variety_deficit as f64,
+                self.config.thresholds.variety_deficit as f64,
+            ),
+            // Critical alerts: act when count >= threshold.
+            // Use threshold - 0.5 as set-point so that count == threshold
+            // produces an AboveSetPoint deviation.
+            Signal::new(
+                LoopId::Metacognition,
+                "critical_alerts",
+                critical_alerts.len() as f64,
+                self.config.thresholds.critical_alerts as f64 - 0.5,
+            ),
+            // Bot failures: act when count >= threshold.
+            // Same threshold - 0.5 technique as critical_alerts.
+            Signal::new(
+                LoopId::Metacognition,
+                "bot_failures",
+                failed_bot_count as f64,
+                self.config.thresholds.bot_failures as f64 - 0.5,
+            ),
+        ];
 
         signals
     }

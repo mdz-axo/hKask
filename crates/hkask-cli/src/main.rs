@@ -33,10 +33,12 @@ fn create_governed_mcp_dispatcher(
         Arc::new(tokio::sync::RwLock::new(CnsRuntime::default()));
     let (dispatch_tx, _) =
         tokio::sync::mpsc::unbounded_channel::<hkask_types::loops::LoopMessage>();
-    let cybernetics = Arc::new(tokio::sync::RwLock::new(CyberneticsLoop::new(
-        cns_rwlock,
-        dispatch_tx.clone(),
-    )));
+    let cybernetics = Arc::new(tokio::sync::RwLock::new({
+        let event_sink_for_loop: Arc<dyn NuEventSink> = Arc::new(hkask_storage::NuEventStore::new(
+            Database::in_memory().expect("event db").conn_arc(),
+        ));
+        CyberneticsLoop::new(cns_rwlock, dispatch_tx.clone()).with_event_sink(event_sink_for_loop)
+    }));
 
     let raw_port: Arc<dyn ToolPort> = Arc::new(RawMcpToolPort::new(runtime.clone()));
     let event_sink: Arc<dyn NuEventSink> = Arc::new(hkask_storage::NuEventStore::new(
@@ -638,6 +640,7 @@ fn run_loops(rt: &tokio::runtime::Runtime) {
     };
     use hkask_storage::{Database, EmbeddingStore, TripleStore};
     use hkask_types::WebID;
+    use hkask_types::event::NuEventSink;
     use hkask_types::loops::HkaskLoop;
     use hkask_types::loops::curation::CuratorHandle;
     use std::sync::Arc;
@@ -654,11 +657,15 @@ fn run_loops(rt: &tokio::runtime::Runtime) {
     ));
     let cybernetics_dispatch_tx = loop_system.dispatch_sender();
     let set_points = load_set_points();
+    let cns_event_sink: Arc<dyn NuEventSink> = Arc::new(hkask_storage::NuEventStore::new(
+        Database::in_memory().expect("cns event db").conn_arc(),
+    ));
     let cybernetics_loop = CyberneticsLoop::with_set_points(
         Arc::clone(&cns_rwlock),
         set_points,
         cybernetics_dispatch_tx,
-    );
+    )
+    .with_event_sink(cns_event_sink);
     rt.block_on(loop_system.register_loop(Arc::new(cybernetics_loop)));
 
     // 4. Inference Loop skipped — requires Okapi connection (not available at CLI bootstrap)

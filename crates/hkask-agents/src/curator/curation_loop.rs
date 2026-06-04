@@ -18,10 +18,12 @@
 use crate::curator::curation_gate::{CurationConfidenceGate, CurationDecision};
 use chrono::Utc;
 use hkask_types::loops::curation::{CuratorDirective, CuratorHandle};
+use hkask_types::loops::dispatch::{LoopMessage, LoopPayload};
 use hkask_types::loops::{Deviation, HkaskLoop, LoopAction, LoopId, Signal};
 use hkask_types::ports::ConsolidationPort;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use tokio::sync::{RwLock, mpsc};
 
 use crate::curator::context::CuratorContext;
 
@@ -45,6 +47,9 @@ pub struct CurationLoop {
     /// Stores the Unix timestamp (milliseconds) of the last reviewed event.
     /// Curation reads from the persistent NuEvent log, not live CNS state.
     last_review_ms: AtomicU64,
+    /// Inbox for receiving inter-loop messages (GoalTransition, etc.).
+    /// Messages are drained during the sense phase.
+    inbox: Option<Arc<RwLock<mpsc::UnboundedReceiver<LoopMessage>>>>,
 }
 
 impl CurationLoop {
@@ -60,7 +65,27 @@ impl CurationLoop {
             context,
             consolidation: None,
             last_review_ms: AtomicU64::new(0),
+            inbox: None,
         }
+    }
+
+    /// Create a Curation Loop with an inbox for inter-loop messages.
+    ///
+    /// Returns `(loop_instance, inbox_sender)` where the sender should be
+    /// registered with the Communication Loop for message delivery.
+    pub fn with_inbox(
+        curator_handle: CuratorHandle,
+        context: Arc<CuratorContext>,
+    ) -> (Self, mpsc::UnboundedSender<LoopMessage>) {
+        let (inbox_tx, inbox_rx) = mpsc::unbounded_channel::<LoopMessage>();
+        let loop_instance = Self {
+            curator_handle,
+            context,
+            consolidation: None,
+            last_review_ms: AtomicU64::new(0),
+            inbox: Some(Arc::new(RwLock::new(inbox_rx))),
+        };
+        (loop_instance, inbox_tx)
     }
 
     /// Create a Curation Loop with a consolidation port.
@@ -77,6 +102,7 @@ impl CurationLoop {
             context,
             consolidation: Some(consolidation),
             last_review_ms: AtomicU64::new(0),
+            inbox: None,
         }
     }
 
@@ -147,6 +173,7 @@ impl HkaskLoop for CurationLoop {
     /// Produces signals for:
     /// - Algedonic event count (from NuEvent store)
     /// - Escalation queue size
+    /// - Goal stale/expired count (from inter-loop GoalTransition messages)
     async fn sense(&self) -> Vec<Signal> {
         // Primary: Read from NuEvent store using cursor-based algedonic review
         let since_ms = self.last_review_ms.load(Ordering::Relaxed);
@@ -201,6 +228,53 @@ impl HkaskLoop for CurationLoop {
             .map(|port| port.consolidation_candidate_count(self.context.handle().curator_id()))
             .unwrap_or(0);
 
+        // Drain inbox for GoalTransition messages.
+        // GoalStore emits GoalTransition NuEvents → Communication Loop delivers
+        // them to Curation's inbox. Count stale/expired transitions for sensing.
+        let mut goal_stale_count: u64 = 0;
+        let mut goal_expired_count: u64 = 0;
+        if let Some(inbox) = &self.inbox {
+            let mut rx = inbox.write().await;
+            while let Ok(msg) = rx.try_recv() {
+                if let LoopPayload::GoalTransition {
+                    goal_id,
+                    from_state: _,
+                    to_state,
+                    agent: _,
+                } = &msg.payload
+                {
+                    match to_state.as_str() {
+                        "stale" => {
+                            goal_stale_count += 1;
+                            tracing::debug!(
+                                target: "curation.loop",
+                                goal_id = %goal_id,
+                                to_state = %to_state,
+                                "Goal stale transition received"
+                            );
+                        }
+                        "expired" => {
+                            goal_expired_count += 1;
+                            tracing::debug!(
+                                target: "curation.loop",
+                                goal_id = %goal_id,
+                                to_state = %to_state,
+                                "Goal expired transition received"
+                            );
+                        }
+                        _ => {
+                            tracing::trace!(
+                                target: "curation.loop",
+                                goal_id = %goal_id,
+                                to_state = %to_state,
+                                "Goal transition received (non-stale)"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
         vec![
             Signal::new(
                 LoopId::Curation,
@@ -219,6 +293,18 @@ impl HkaskLoop for CurationLoop {
                 "consolidation_candidates",
                 consolidation_candidates as f64,
                 0.0, // set-point: zero pending consolidation candidates is healthy
+            ),
+            Signal::new(
+                LoopId::Curation,
+                "goal_stale_count",
+                goal_stale_count as f64,
+                0.0, // set-point: zero stale goals is healthy
+            ),
+            Signal::new(
+                LoopId::Curation,
+                "goal_expired_count",
+                goal_expired_count as f64,
+                0.0, // set-point: zero expired goals is healthy
             ),
         ]
     }

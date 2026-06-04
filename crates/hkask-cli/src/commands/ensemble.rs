@@ -13,6 +13,7 @@ use hkask_ensemble::{
 use hkask_templates::OkapiConfig;
 use hkask_templates::OkapiInference;
 use hkask_types::WebID;
+use hkask_types::event::NuEventSink;
 use hkask_types::ports::{CircuitBreakerPort, InferencePort, StandingSessionPort};
 use std::sync::{
     Arc,
@@ -81,7 +82,14 @@ fn get_cybernetics_loop() -> Arc<RwLock<CyberneticsLoop>> {
         .get_or_init(|| {
             let cns = Arc::new(RwLock::new(hkask_cns::CnsRuntime::default()));
             let (dispatch_tx, _) = tokio::sync::mpsc::unbounded_channel();
-            Arc::new(RwLock::new(CyberneticsLoop::new(cns, dispatch_tx)))
+            let event_sink: Arc<dyn NuEventSink> = Arc::new(hkask_storage::NuEventStore::new(
+                hkask_storage::Database::in_memory()
+                    .expect("ensemble event db")
+                    .conn_arc(),
+            ));
+            Arc::new(RwLock::new(
+                CyberneticsLoop::new(cns, dispatch_tx).with_event_sink(event_sink),
+            ))
         })
         .clone()
 }

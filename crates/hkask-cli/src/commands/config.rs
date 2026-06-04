@@ -148,10 +148,12 @@ pub fn create_mcp_dispatcher() -> (hkask_mcp::McpDispatcher, hkask_types::Capabi
         Arc::new(tokio::sync::RwLock::new(CnsRuntime::default()));
     let (dispatch_tx, _) =
         tokio::sync::mpsc::unbounded_channel::<hkask_types::loops::LoopMessage>();
-    let cybernetics = Arc::new(tokio::sync::RwLock::new(CyberneticsLoop::new(
-        cns_rwlock,
-        dispatch_tx.clone(),
-    )));
+    let cybernetics = Arc::new(tokio::sync::RwLock::new({
+        let event_sink_for_loop: Arc<dyn NuEventSink> = Arc::new(hkask_storage::NuEventStore::new(
+            Database::in_memory().expect("event db").conn_arc(),
+        ));
+        CyberneticsLoop::new(cns_rwlock, dispatch_tx.clone()).with_event_sink(event_sink_for_loop)
+    }));
 
     let raw_port: Arc<dyn ToolPort> = Arc::new(RawMcpToolPort::new(runtime.clone()));
     let event_sink: Arc<dyn NuEventSink> = Arc::new(hkask_storage::NuEventStore::new(
