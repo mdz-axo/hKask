@@ -1246,7 +1246,10 @@ fn run_spec(action: SpecAction) {
             );
             let spec = or_exit(store.load(spec_id), "Failed to load specification");
             let curator = DefaultSpecCurator::default();
-            let record = or_exit(curator.evaluate(&spec), "Failed to evaluate specification");
+            let record = or_exit(
+                curator.evaluate(&spec, &[]),
+                "Failed to evaluate specification",
+            );
 
             println!("Specification validation:");
             println!("  ID: {}", record.spec_id);
@@ -1266,7 +1269,10 @@ fn run_spec(action: SpecAction) {
             );
             let spec = or_exit(store.load(spec_id), "Failed to load specification");
             let curator = DefaultSpecCurator::default();
-            let record = or_exit(curator.evaluate(&spec), "Failed to cultivate specification");
+            let record = or_exit(
+                curator.evaluate(&spec, &[]),
+                "Failed to cultivate specification",
+            );
 
             println!("Specification cultivation:");
             println!("  ID: {}", record.spec_id);

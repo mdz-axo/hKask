@@ -1274,4 +1274,72 @@ mod tests {
         assert_eq!(sp.error_rate_max, 0.4);
         assert_eq!(sp.connector_latency_max_secs, 60.0);
     }
+
+    // =========================================================================
+    // T12: Curation-Directed Gas Replenishment — full path integration test
+    // =========================================================================
+
+    /// Integration test: CurationLoop issues `CuratorDirective::ReplenishBudget`
+    /// → CommunicationLoop dispatches → CyberneticsLoop inbox → `process_inbox()`
+    /// → `replenish_agent_budget()` → agent budget updated.
+    ///
+    /// This verifies the entire message path from Curation through Communication
+    /// dispatch to Cybernetics inbox processing results in a gas budget increase.
+    #[tokio::test]
+    async fn curation_directed_gas_replenishment_full_path() {
+        let cns = Arc::new(RwLock::new(CnsRuntime::default()));
+        let agent = WebID::new();
+        let (loop6, inbox_tx) = CyberneticsLoop::with_inbox(cns, test_dispatch_tx());
+
+        // Step 1: Register a gas budget for the agent
+        let initial_cap = 100u64;
+        loop6
+            .register_gas_budget(agent, GasBudget::new(initial_cap))
+            .await;
+
+        // Step 2: Exhaust the budget so remaining == 0
+        while loop6.acquire_budget(&agent, 10).await.is_ok() {}
+        assert!(
+            !loop6.can_proceed(&agent, 1).await,
+            "Budget should be exhausted before replenishment"
+        );
+
+        // Step 3: Simulate CurationLoop issuing CuratorDirective::ReplenishBudget
+        // This mirrors what MessageDispatch::send_curator_directive does when
+        // CuratorDirective::ReplenishBudget { agent, amount } is dispatched.
+        let replenish_amount = 50u64;
+        let msg = LoopMessage::warning(
+            LoopId::Curation,
+            LoopPayload::CurationDirective {
+                directive_type: "replenish_budget".to_string(),
+                target: agent,
+                parameters: serde_json::json!({
+                    "amount": replenish_amount,
+                }),
+            },
+        )
+        .with_target(LoopId::Cybernetics);
+
+        // Step 4: Send through the inbox (CommunicationLoop would deliver here)
+        inbox_tx.send(msg).unwrap();
+
+        // Step 5: process_inbox() consumes the message and calls replenish_agent_budget()
+        loop6.process_inbox().await;
+
+        // Step 6: Verify the gas budget was increased
+        assert!(
+            loop6.can_proceed(&agent, 1).await,
+            "Agent should be able to proceed after replenishment"
+        );
+        // Verify exact replenishment amount (replenish_by caps at cap)
+        // With cap=100 and replenish_by(50), remaining should be min(0+50, 100) = 50
+        assert!(
+            loop6.can_proceed(&agent, 50).await,
+            "Agent should have 50 units available after replenishment"
+        );
+        assert!(
+            !loop6.can_proceed(&agent, 51).await,
+            "Agent should NOT have more than 50 units available after replenishment from zero"
+        );
+    }
 }

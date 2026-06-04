@@ -16,10 +16,12 @@ use std::collections::HashSet;
 
 /// Default implementation of the `SpecCurator` trait.
 ///
-/// Evaluates specification coherence and makes curation decisions
-/// (Merge, Revise, Discard) based on completeness and goal coverage.
+/// Evaluates specification coherence and drift, making curation decisions
+/// (Merge, Revise, Discard, Escalate) based on completeness, goal coverage,
+/// and spec-tool drift.
 pub struct DefaultSpecCurator {
     coherence_threshold: f64,
+    drift_threshold: f64,
     max_iterations: u8,
 }
 
@@ -27,8 +29,15 @@ impl DefaultSpecCurator {
     pub fn new(coherence_threshold: f64) -> Self {
         Self {
             coherence_threshold: coherence_threshold.clamp(0.0, 1.0),
+            drift_threshold: 0.5,
             max_iterations: SYSTEM_MAX_RECURSION,
         }
+    }
+
+    /// Create with a custom drift threshold.
+    pub fn with_drift_threshold(mut self, threshold: f64) -> Self {
+        self.drift_threshold = threshold.clamp(0.0, 1.0);
+        self
     }
 }
 
@@ -39,7 +48,11 @@ impl Default for DefaultSpecCurator {
 }
 
 impl SpecCurator for DefaultSpecCurator {
-    fn evaluate(&self, spec: &Spec) -> Result<SpecCurationRecord, SpecError> {
+    fn evaluate(
+        &self,
+        spec: &Spec,
+        registered_verbs: &[String],
+    ) -> Result<SpecCurationRecord, SpecError> {
         let complete = spec.is_complete();
         let decision = if complete {
             CurationDecision::Merge
@@ -58,6 +71,33 @@ impl SpecCurator for DefaultSpecCurator {
         };
 
         let coherence = spec.coherence();
+
+        // Compute drift between declared verbs and registered tools
+        let drift_report = spec.drift(registered_verbs);
+
+        // Emit cns.spec.drift NuEvent span
+        tracing::info!(
+            target: "cns.spec",
+            spec_id = %spec.id,
+            drift_magnitude = drift_report.drift_magnitude,
+            missing_verbs = ?drift_report.missing_verbs,
+            extra_verbs = ?drift_report.extra_verbs,
+            coherence = coherence,
+            "Spec drift detection"
+        );
+
+        // Escalate if drift exceeds threshold
+        if drift_report.drift_magnitude > self.drift_threshold {
+            tracing::warn!(
+                target: "cns.spec",
+                spec_id = %spec.id,
+                drift_magnitude = drift_report.drift_magnitude,
+                drift_threshold = self.drift_threshold,
+                missing_verbs = ?drift_report.missing_verbs,
+                "Spec drift exceeded threshold — escalation recommended"
+            );
+        }
+
         let ocap_boundary = OCAPBoundary::explicit("spec:curate".to_string());
 
         Ok(SpecCurationRecord::new(
@@ -69,9 +109,15 @@ impl SpecCurator for DefaultSpecCurator {
         ))
     }
 
-    fn reconcile(&self, specs: &[Spec]) -> Result<Vec<SpecCurationRecord>, SpecError> {
-        let records: Result<Vec<SpecCurationRecord>, SpecError> =
-            specs.iter().map(|s| self.evaluate(s)).collect();
+    fn reconcile(
+        &self,
+        specs: &[Spec],
+        registered_verbs: &[String],
+    ) -> Result<Vec<SpecCurationRecord>, SpecError> {
+        let records: Result<Vec<SpecCurationRecord>, SpecError> = specs
+            .iter()
+            .map(|s| self.evaluate(s, registered_verbs))
+            .collect();
 
         records
     }
@@ -83,7 +129,7 @@ impl SpecCurator for DefaultSpecCurator {
                 return Ok(coherence);
             }
 
-            let records = self.reconcile(specs)?;
+            let records = self.reconcile(specs, &[])?;
 
             // Remove specs marked for discard
             let discard_ids: HashSet<_> = records

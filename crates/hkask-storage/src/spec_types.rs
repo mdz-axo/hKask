@@ -173,12 +173,30 @@ impl GoalSpec {
     }
 }
 
+/// Drift report comparing a spec's declared verbs against actual registered tools.
+///
+/// Produced by `Spec::drift()`. High drift indicates the spec is out of sync
+/// with the runtime tool inventory — either declaring verbs that no tool
+/// implements, or missing verbs that tools provide.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DriftReport {
+    /// Jaccard distance between declared and registered verbs (0.0 = no drift, 1.0 = full drift).
+    pub drift_magnitude: f64,
+    /// Verbs the spec declares but no registered tool provides.
+    pub missing_verbs: Vec<String>,
+    /// Verbs that registered tools provide but the spec doesn't declare.
+    pub extra_verbs: Vec<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Spec {
     pub id: SpecId,
     pub name: String,
     pub category: SpecCategory,
     pub domain_anchor: DomainAnchor,
+    /// Verbs this spec declares as required capabilities.
+    /// Compared against registered tool verbs by `drift()` to detect spec drift.
+    pub declared_verbs: Vec<String>,
     pub goals: Vec<GoalSpec>,
     pub signed_by: Option<WebID>,
     pub created_at: DateTime<Utc>,
@@ -191,9 +209,43 @@ impl Spec {
             name: name.to_string(),
             category,
             domain_anchor,
+            declared_verbs: Vec::new(),
             goals: Vec::new(),
             signed_by: None,
             created_at: Utc::now(),
+        }
+    }
+
+    /// Add a declared verb to this spec.
+    pub fn with_declared_verb(mut self, verb: &str) -> Self {
+        self.declared_verbs.push(verb.to_string());
+        self
+    }
+
+    /// Compute drift between this spec's declared verbs and the actual registered tools.
+    ///
+    /// Returns a `DriftReport` with the Jaccard distance and the mismatched verbs.
+    /// `registered_verbs` is provided by the caller (typically from MCP runtime)
+    /// to avoid coupling `Spec` to the MCP runtime.
+    pub fn drift(&self, registered_verbs: &[String]) -> DriftReport {
+        let declared: HashSet<String> = self.declared_verbs.iter().cloned().collect();
+        let registered: HashSet<String> = registered_verbs.iter().cloned().collect();
+
+        let missing: Vec<String> = declared.difference(&registered).cloned().collect();
+        let extra: Vec<String> = registered.difference(&declared).cloned().collect();
+
+        let union_size = declared.union(&registered).count();
+        let drift_magnitude = if union_size == 0 {
+            0.0
+        } else {
+            let intersection_size = declared.intersection(&registered).count();
+            1.0 - (intersection_size as f64 / union_size as f64)
+        };
+
+        DriftReport {
+            drift_magnitude: drift_magnitude.clamp(0.0, 1.0),
+            missing_verbs: missing,
+            extra_verbs: extra,
         }
     }
 
@@ -267,8 +319,16 @@ pub trait SpecStore {
 }
 
 pub trait SpecCurator {
-    fn evaluate(&self, spec: &Spec) -> Result<SpecCurationRecord, SpecError>;
-    fn reconcile(&self, specs: &[Spec]) -> Result<Vec<SpecCurationRecord>, SpecError>;
+    fn evaluate(
+        &self,
+        spec: &Spec,
+        registered_verbs: &[String],
+    ) -> Result<SpecCurationRecord, SpecError>;
+    fn reconcile(
+        &self,
+        specs: &[Spec],
+        registered_verbs: &[String],
+    ) -> Result<Vec<SpecCurationRecord>, SpecError>;
     fn cultivate(&self, specs: &mut Vec<Spec>) -> Result<f64, SpecError>;
 }
 
@@ -292,4 +352,6 @@ pub enum SpecError {
     CoherenceInsufficient(f64),
     #[error("Curation depth exceeded: max iterations reached")]
     CurationDepthExceeded,
+    #[error("Spec drift exceeded threshold: {0}")]
+    DriftExceeded(f64),
 }

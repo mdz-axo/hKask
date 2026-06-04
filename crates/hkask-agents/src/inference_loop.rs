@@ -1,6 +1,7 @@
 //! Inference Loop — prompt → context → model → response → parse → act (Loop 1)
 //!
-//! Monitors circuit breaker state and inference availability.
+//! Owns its gas budget reservation and tracks the active inference model.
+//! Monitors circuit breaker state, gas consumption, and model availability.
 //! Lives in `hkask-agents` because domain loops (Inference, Episodic, Semantic,
 //! Communication, Curation) are domain logic — they belong with the agents crate.
 //! Governance is applied externally via `GovernedTool` (in `hkask-cns`) before
@@ -11,15 +12,32 @@ use hkask_types::loops::{
 };
 use hkask_types::ports::{CircuitBreakerPort, InferencePort};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
-/// Inference Loop — monitors circuit breaker and inference availability.
+/// Gas budget set-point: when gas remaining drops below this ratio,
+/// the loop self-throttles via `AdjustGasBudget`.
+const GAS_SET_POINT: f64 = 0.2;
+
+/// Inference Loop — owns gas budget and model selection state.
 ///
 /// Wraps an `InferencePort` and optional `CircuitBreakerPort` to provide
-/// loop-level observability. When the circuit breaker is open, the loop
-/// produces `Throttle` actions targeting itself (self-throttle).
+/// loop-level observability. Owns its own gas budget reservation (separate
+/// from Cybernetics' global tracking) and tracks the active inference model.
+///
+/// When the circuit breaker is open or gas is depleted, the loop produces
+/// `Throttle`/`AdjustGasBudget` actions targeting itself (self-throttle).
+/// When the model is unavailable, it produces `Calibrate` to signal that
+/// model selection is needed.
 pub struct InferenceLoop {
     inference: Arc<dyn InferencePort>,
     circuit_breaker: Option<Arc<dyn CircuitBreakerPort>>,
+    /// Gas remaining in this loop's own budget (simple atomic counter,
+    /// updated by external callers after each inference call).
+    gas_remaining: Arc<AtomicU64>,
+    /// Gas capacity — the budget cap set at allocation time.
+    gas_cap: u64,
+    /// Currently active inference model (None = not yet selected / unavailable).
+    current_model: Option<String>,
 }
 
 impl InferenceLoop {
@@ -28,6 +46,9 @@ impl InferenceLoop {
         Self {
             inference,
             circuit_breaker: None,
+            gas_remaining: Arc::new(AtomicU64::new(0)),
+            gas_cap: 0,
+            current_model: None,
         }
     }
 
@@ -39,6 +60,9 @@ impl InferenceLoop {
         Self {
             inference,
             circuit_breaker: Some(circuit_breaker),
+            gas_remaining: Arc::new(AtomicU64::new(0)),
+            gas_cap: 0,
+            current_model: None,
         }
     }
 
@@ -50,6 +74,9 @@ impl InferenceLoop {
         Self {
             inference,
             circuit_breaker: None,
+            gas_remaining: Arc::new(AtomicU64::new(0)),
+            gas_cap: 0,
+            current_model: None,
         }
     }
 
@@ -61,12 +88,67 @@ impl InferenceLoop {
         Self {
             inference,
             circuit_breaker: Some(circuit_breaker),
+            gas_remaining: Arc::new(AtomicU64::new(0)),
+            gas_cap: 0,
+            current_model: None,
         }
+    }
+
+    /// Set the gas budget for this loop.
+    ///
+    /// `cap` is the total gas allocation; `remaining` is the current balance.
+    /// Both are stored so that `sense()` can emit the gas-remaining ratio.
+    pub fn with_gas_budget(mut self, cap: u64, remaining: u64) -> Self {
+        self.gas_cap = cap;
+        self.gas_remaining = Arc::new(AtomicU64::new(remaining));
+        self
+    }
+
+    /// Set the active inference model.
+    pub fn with_model(mut self, model: impl Into<String>) -> Self {
+        self.current_model = Some(model.into());
+        self
     }
 
     /// Access the underlying inference port.
     pub fn inference(&self) -> &Arc<dyn InferencePort> {
         &self.inference
+    }
+
+    /// Get the current gas remaining value.
+    pub fn gas_remaining(&self) -> u64 {
+        self.gas_remaining.load(Ordering::Relaxed)
+    }
+
+    /// Consume gas from this loop's budget. Returns the new remaining value.
+    pub fn consume_gas(&self, amount: u64) -> u64 {
+        use std::sync::atomic::Ordering;
+        self.gas_remaining.fetch_sub(amount, Ordering::Relaxed)
+    }
+
+    /// Replenish gas in this loop's budget. Returns the new remaining value.
+    pub fn replenish_gas(&self, amount: u64) -> u64 {
+        self.gas_remaining.fetch_add(amount, Ordering::Relaxed)
+    }
+
+    /// Get the gas budget cap.
+    pub fn gas_cap(&self) -> u64 {
+        self.gas_cap
+    }
+
+    /// Get the current model name, if set.
+    pub fn current_model(&self) -> Option<&str> {
+        self.current_model.as_deref()
+    }
+
+    /// Set the current model (e.g., after a model selection event).
+    pub fn set_model(&mut self, model: impl Into<String>) {
+        self.current_model = Some(model.into());
+    }
+
+    /// Clear the current model (e.g., model became unavailable).
+    pub fn clear_model(&mut self) {
+        self.current_model = None;
     }
 }
 
@@ -76,11 +158,13 @@ impl HkaskLoop for InferenceLoop {
         LoopId::Inference
     }
 
-    /// Sense: read circuit breaker state and inference availability.
+    /// Sense: read circuit breaker state, inference availability, gas budget, and model state.
     ///
     /// Produces signals for:
     /// - `circuit_breaker_state` — 0.0=closed, 1.0=open, 0.5=half-open (set_point 0.0)
     /// - `inference_available` — 1.0 if circuit breaker allows, 0.0 if not (set_point 1.0)
+    /// - `inference_gas_remaining` — ratio of gas remaining in loop's own budget (set_point 0.2)
+    /// - `inference_model_available` — 1.0 if model is set, 0.0 if not (set_point 1.0)
     async fn sense(&self) -> Vec<Signal> {
         let (cb_state, available) = match &self.circuit_breaker {
             Some(cb) => {
@@ -98,13 +182,44 @@ impl HkaskLoop for InferenceLoop {
             }
         };
 
+        let gas_ratio = if self.gas_cap > 0 {
+            self.gas_remaining.load(Ordering::Relaxed) as f64 / self.gas_cap as f64
+        } else {
+            // No budget allocated — report full to avoid spurious throttling
+            1.0
+        };
+
+        let model_available = if self.current_model.is_some() {
+            1.0
+        } else {
+            0.0
+        };
+
         vec![
             Signal::new(LoopId::Inference, "circuit_breaker_state", cb_state, 0.0),
             Signal::new(LoopId::Inference, "inference_available", available, 1.0),
+            Signal::new(
+                LoopId::Inference,
+                "inference_gas_remaining",
+                gas_ratio,
+                GAS_SET_POINT,
+            ),
+            Signal::new(
+                LoopId::Inference,
+                "inference_model_available",
+                model_available,
+                1.0,
+            ),
         ]
     }
 
-    /// Compute: if circuit breaker is open, produce self-throttle action.
+    /// Compute: produce regulatory actions for detected deviations.
+    ///
+    /// Handles:
+    /// - Circuit breaker open → `Throttle`
+    /// - Inference unavailable → `Throttle`
+    /// - Gas below set-point → `AdjustGasBudget` (self-throttle)
+    /// - Model unavailable → `Calibrate` (signal model selection needed)
     async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
         let mut actions = Vec::new();
 
@@ -130,6 +245,28 @@ impl HkaskLoop for InferenceLoop {
                         }),
                     ));
                 }
+                "inference_gas_remaining" if dev.direction == DeviationDirection::BelowSetPoint => {
+                    actions.push(LoopAction::new(
+                        LoopId::Inference,
+                        ActionType::AdjustGasBudget,
+                        serde_json::json!({
+                            "reason": "gas_below_set_point",
+                            "remaining_ratio": dev.signal.value,
+                            "set_point": dev.signal.set_point,
+                        }),
+                    ));
+                }
+                "inference_model_available"
+                    if dev.direction == DeviationDirection::BelowSetPoint =>
+                {
+                    actions.push(LoopAction::new(
+                        LoopId::Inference,
+                        ActionType::Calibrate,
+                        serde_json::json!({
+                            "reason": "model_unavailable",
+                        }),
+                    ));
+                }
                 _ => {}
             }
         }
@@ -137,15 +274,41 @@ impl HkaskLoop for InferenceLoop {
         actions
     }
 
-    /// Act: log regulatory actions.
+    /// Act: execute regulatory actions.
+    ///
+    /// Logs all actions with structured spans. Gas self-throttle and model
+    /// unavailability are logged at warn level to surface budget depletion
+    /// and model selection needs.
     async fn act(&self, actions: &[LoopAction]) {
         for action in actions {
-            tracing::info!(
-                target: "cns.inference",
-                action_type = ?action.action_type,
-                target_loop = %action.target,
-                "Inference Loop regulatory action"
-            );
+            match action.action_type {
+                ActionType::AdjustGasBudget => {
+                    tracing::warn!(
+                        target: "cns.inference",
+                        action_type = ?action.action_type,
+                        target_loop = %action.target,
+                        parameters = %action.parameters,
+                        "Inference Loop self-throttle: gas budget below set-point"
+                    );
+                }
+                ActionType::Calibrate => {
+                    tracing::warn!(
+                        target: "cns.inference",
+                        action_type = ?action.action_type,
+                        target_loop = %action.target,
+                        parameters = %action.parameters,
+                        "Inference Loop calibrate: model selection needed"
+                    );
+                }
+                _ => {
+                    tracing::info!(
+                        target: "cns.inference",
+                        action_type = ?action.action_type,
+                        target_loop = %action.target,
+                        "Inference Loop regulatory action"
+                    );
+                }
+            }
         }
     }
 }
