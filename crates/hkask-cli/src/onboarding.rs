@@ -150,6 +150,12 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
     // Derive secrets from passphrase
     let secrets = derive_all_internal_secrets(&passphrase);
 
+    // If we're creating a first replicant and an orphaned DB exists from a
+    // previous failed onboarding attempt, remove it before starting fresh.
+    // This handles the case where a prior run created the DB and keychain
+    // entries but failed before completing registration.
+    remove_orphaned_db();
+
     // Store secrets in keychain for future sessions
     store_secrets_in_keychain(&secrets)?;
 
@@ -161,8 +167,9 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
     let (acp, store) = init_registry_with_secrets(&resolved)
         .await
         .inspect_err(|_| {
-            // Clean up keychain entries if registry init fails
+            // Clean up keychain entries and DB if registry init fails
             let _ = cleanup_keychain();
+            let _ = cleanup_db();
         })
         .map_err(OnboardingError::Registry)?;
 
@@ -483,4 +490,63 @@ fn cleanup_db() -> Result<(), OnboardingError> {
         }
     }
     Ok(())
+}
+
+/// Remove an orphaned DB and stale keychain entries left from a previous
+/// failed onboarding attempt.
+///
+/// This is called before creating a first replicant so that a fresh DB
+/// can be initialized. It handles the case where a prior `kask chat` run
+/// created the DB and stored keychain entries but failed before completing
+/// registration. Without this cleanup, the orphaned encrypted DB would
+/// cause SQLCipher hmac failures on subsequent attempts.
+fn remove_orphaned_db() {
+    let db_path = registry_db_path();
+    if db_path == ":memory:" {
+        return;
+    }
+
+    // If no DB file exists, nothing to clean up.
+    if !std::path::Path::new(&db_path).exists() {
+        return;
+    }
+
+    // Try to open the DB with the keychain passphrase.
+    // If it opens and has replicants, the user has data — don't remove it.
+    // If it fails to open (wrong key, corrupted), it's orphaned — remove it.
+    match config::resolve_db_passphrase() {
+        Ok(passphrase) if !passphrase.is_empty() => {
+            // We have a passphrase — try to open the DB.
+            match hkask_storage::Database::open(&db_path, &passphrase) {
+                Ok(db) => {
+                    // DB opened — check if it has any replicants.
+                    let store = hkask_storage::AgentRegistryStore::new(db.conn_arc());
+                    if store.initialize_schema().is_ok() {
+                        match store.list_by_kind(hkask_types::AgentKind::Replicant) {
+                            Ok(replicants) if !replicants.is_empty() => {
+                                // DB has replicants — leave it alone.
+                                return;
+                            }
+                            _ => {
+                                // DB has no replicants — orphaned. Remove it.
+                            }
+                        }
+                    }
+                    // DB opened but schema failed or no replicants — orphaned.
+                }
+                Err(_) => {
+                    // DB can't be opened with the keychain key — orphaned or
+                    // passphrase mismatch from a prior failed attempt. Remove it.
+                }
+            }
+        }
+        _ => {
+            // No passphrase in keychain — the DB can't be opened. It's orphaned.
+        }
+    }
+
+    // Remove the orphaned DB, salt file, and stale keychain entries.
+    eprintln!("  Removing orphaned database from previous failed setup...");
+    let _ = cleanup_db();
+    let _ = cleanup_keychain();
 }
