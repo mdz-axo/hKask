@@ -44,16 +44,17 @@ pub async fn run_server(port: u16, host: &str) -> Result<(), Box<dyn std::error:
     )
     .with_session_manager(session_manager);
 
-    // Build router
-    let app = hkask_api::create_router(state);
+    // Build router (OpenApiRouter -> axum::Router via From impl)
+    let app: axum::Router = hkask_api::create_router(state)
+        .map_err(|e| Box::new(std::io::Error::other(e)) as Box<dyn std::error::Error>)?
+        .into();
 
     let addr = format!("{}:{}", host, port);
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     tracing::info!(target: "hkask.serve", addr = %addr, "Starting hKask API server");
     println!("hKask API server listening on {}", addr);
 
-    // axum::serve is re-exported through hkask-api's dependency
-    hkask_api::ApiState::serve(listener, app).await?;
+    axum::serve(listener, app.into_make_service()).await?;
 
     Ok(())
 }

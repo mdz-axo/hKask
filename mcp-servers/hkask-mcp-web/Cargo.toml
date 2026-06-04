@@ -6,6 +6,7 @@ license.workspace = true
 description = "Web search and scrape MCP server"
 
 [dependencies]
+hkask-memory = { path = "../../crates/hkask-memory" }
 hkask-mcp = { path = "../../crates/hkask-mcp" }
 hkask-types = { path = "../../crates/hkask-types" }
 rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }

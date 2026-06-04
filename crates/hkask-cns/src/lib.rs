@@ -24,7 +24,7 @@ pub use allosteric::{AllostericGate, AllostericGateConfig, mwc_sensitivity, mwc_
 // CircuitBreaker: re-exported for runtime wiring
 pub use circuit_breaker::{CircuitBreaker, CircuitBreakerConfig};
 pub use composite_gas_estimator::CompositeGasEstimator;
-pub use cybernetics_loop::{CyberneticsLoop, SetPoints, SetPointsConfig};
+pub use cybernetics_loop::{CyberneticsLoop, SetPoints, SetPointsConfig, load_set_points};
 pub use dampener::Dampener;
 pub use energy::{GasBudget, GasError};
 pub use governed_tool::{GasEstimator, GovernedTool};

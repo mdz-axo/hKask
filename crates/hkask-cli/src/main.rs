@@ -629,6 +629,7 @@ fn run_loops(rt: &tokio::runtime::Runtime) {
         AcpPort, AcpRuntime, CuratorAgent, CuratorContext, EscalationQueue, LoopSystem,
         MessageDispatch,
     };
+    use hkask_cns::load_set_points;
     use hkask_cns::{CnsRuntime, CyberneticsLoop};
     use hkask_memory::{
         ConsolidationBridge, EpisodicLoop, EpisodicMemory, SemanticLoop, SemanticMemory,
@@ -650,7 +651,12 @@ fn run_loops(rt: &tokio::runtime::Runtime) {
         CnsRuntime::with_threshold(hkask_cns::DEFAULT_THRESHOLD),
     ));
     let cybernetics_dispatch_tx = loop_system.dispatch_sender();
-    let cybernetics_loop = CyberneticsLoop::new(Arc::clone(&cns_rwlock), cybernetics_dispatch_tx);
+    let set_points = load_set_points();
+    let cybernetics_loop = CyberneticsLoop::with_set_points(
+        Arc::clone(&cns_rwlock),
+        set_points,
+        cybernetics_dispatch_tx,
+    );
     rt.block_on(loop_system.register_loop(Arc::new(cybernetics_loop)));
 
     // 4. Inference Loop skipped — requires Okapi connection (not available at CLI bootstrap)

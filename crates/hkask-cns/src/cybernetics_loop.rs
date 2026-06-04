@@ -70,6 +70,13 @@ impl SetPointsConfig {
     pub fn from_yaml(yaml: &str) -> Result<Self, serde_yaml::Error> {
         serde_yaml::from_str(yaml)
     }
+
+    /// Load set-points from a YAML file.
+    pub fn load_from_file(path: &str) -> Result<Self, std::io::Error> {
+        let contents = std::fs::read_to_string(path)?;
+        Self::from_yaml(&contents)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+    }
 }
 
 impl Default for SetPoints {
@@ -80,6 +87,35 @@ impl Default for SetPoints {
             error_rate_max: 0.3,
             connector_latency_max_secs: 30.0,
         }
+    }
+}
+
+/// Load set-points from `HKASK_CNS_CONFIG` env var, falling back to defaults.
+///
+/// If `HKASK_CNS_CONFIG` is set, reads the YAML file at that path.
+/// If unset or the file doesn't exist, returns default set-points.
+pub fn load_set_points() -> SetPoints {
+    match std::env::var("HKASK_CNS_CONFIG") {
+        Ok(path) => match SetPointsConfig::load_from_file(&path) {
+            Ok(config) => {
+                tracing::info!(
+                    target: "cns.config",
+                    path = %path,
+                    "Loaded CNS set-points from config file"
+                );
+                SetPoints::from_config(&config)
+            }
+            Err(e) => {
+                tracing::warn!(
+                    target: "cns.config",
+                    path = %path,
+                    error = %e,
+                    "Failed to load CNS config file, using defaults"
+                );
+                SetPoints::default()
+            }
+        },
+        Err(_) => SetPoints::default(),
     }
 }
 
@@ -152,7 +188,7 @@ impl CyberneticsLoop {
     /// The inbox is "dead" (no sender exists) — use `with_set_points_and_inbox()`
     /// if you need to receive inter-loop messages from the Communication Loop.
     #[allow(dead_code)]
-    pub(crate) fn with_set_points(
+    pub fn with_set_points(
         cns: Arc<RwLock<CnsRuntime>>,
         set_points: SetPoints,
         dispatch_tx: mpsc::UnboundedSender<LoopMessage>,

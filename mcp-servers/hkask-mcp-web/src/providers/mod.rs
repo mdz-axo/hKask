@@ -319,7 +319,7 @@ impl ProviderPool {
                 let best_rank = *entry.ranks.iter().min().unwrap_or(&0);
                 let content_preview = merged_content_previews.get(&key).cloned();
                 let semantic_score = merged_semantic_scores.get(&key).copied();
-                let rrf_score = rrf_score(&entry.ranks);
+                let rrf_score = rrf_score(RRF_K, &entry.ranks);
 
                 RankedResult {
                     title: entry.title,
@@ -544,7 +544,7 @@ impl WebSearchPort for ProviderPool {
                         description: r.description,
                         source: r.source,
                         published: r.published,
-                        rrf_score: rrf_score(&[i]),
+                        rrf_score: rrf_score(RRF_K, &[i]),
                         provider_count: 1,
                         providers: vec![provider_name.to_string()],
                         best_rank: Some(i),

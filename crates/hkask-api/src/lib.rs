@@ -180,7 +180,12 @@ fn build_loop_system(
         CnsRuntime::with_threshold(hkask_cns::DEFAULT_THRESHOLD),
     ));
     let cybernetics_dispatch_tx = loop_system.dispatch_sender();
-    let cybernetics_loop = CyberneticsLoop::new(Arc::clone(&cns_rwlock), cybernetics_dispatch_tx);
+    let set_points = hkask_cns::load_set_points();
+    let cybernetics_loop = CyberneticsLoop::with_set_points(
+        Arc::clone(&cns_rwlock),
+        set_points,
+        cybernetics_dispatch_tx,
+    );
     let cybernetics_loop_rwlock = Arc::new(tokio::sync::RwLock::new(cybernetics_loop));
     // Register loops (register_loop is async, use a small runtime for sync callers)
     let rt = tokio::runtime::Runtime::new().expect("loop system runtime");

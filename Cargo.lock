@@ -1220,6 +1220,7 @@ dependencies = [
  "chrono",
  "futures-util",
  "hkask-mcp",
+ "hkask-memory",
  "hkask-types",
  "regex",
  "reqwest",
