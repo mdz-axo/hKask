@@ -1,6 +1,6 @@
+use super::ReplState;
 use super::display::{print_command_help, print_help};
 use super::handlers::{handle_ensemble, handle_into, handle_model};
-use super::helper::SessionHistory;
 
 pub(super) struct SlashCommand {
     pub primary: &'static str,
@@ -162,13 +162,9 @@ pub(super) fn fuzzy_match_command(input: &str) -> Vec<&'static SlashCommand> {
 
 pub(super) fn handle_slash_command(
     input: &str,
-    current_agent: &mut String,
-    current_model: &mut String,
-    session_history: &mut SessionHistory,
     template_id: Option<&str>,
-    active_session: &mut Option<String>,
     rt: &tokio::runtime::Handle,
-    ctx: &super::ReplContext,
+    state: &mut ReplState,
 ) -> bool {
     let without_slash = &input[1..];
     let parts: Vec<&str> = without_slash.splitn(3, ' ').collect();
@@ -192,11 +188,14 @@ pub(super) fn handle_slash_command(
             print!("\x1b[2J\x1b[H");
         }
         "history" | "hist" => {
-            if session_history.turns.is_empty() {
+            if state.session_history.turns.is_empty() {
                 println!("  No turns in this session yet.");
             } else {
-                println!("  Session history ({} turns):", session_history.turns.len());
-                for (i, (agent, response)) in session_history.turns.iter().enumerate() {
+                println!(
+                    "  Session history ({} turns):",
+                    state.session_history.turns.len()
+                );
+                for (i, (agent, response)) in state.session_history.turns.iter().enumerate() {
                     let preview = if response.len() > 80 {
                         format!("{}…", &response[..80])
                     } else {
@@ -208,14 +207,14 @@ pub(super) fn handle_slash_command(
             println!();
         }
         "status" | "st" => {
-            let agent_display = current_agent.clone();
+            let agent_display = state.current_agent.clone();
             let tpl = template_id.unwrap_or("auto-select");
             println!("  Agent:      \x1b[1m{}\x1b[0m", agent_display);
-            println!("  Model:      \x1b[1m{}\x1b[0m", current_model);
+            println!("  Model:      \x1b[1m{}\x1b[0m", state.current_model);
             println!("  Template:   {}", tpl);
             println!("  CNS:        \x1b[32mHEALTHY\x1b[0m (no alerts)");
-            println!("  Turns:      {}", session_history.turns.len());
-            match &active_session {
+            println!("  Turns:      {}", state.session_history.turns.len());
+            match &state.active_session {
                 Some(session) => {
                     let config = rt
                         .block_on(async { crate::commands::ensemble_improv_config(session).await });
@@ -244,13 +243,13 @@ pub(super) fn handle_slash_command(
         }
         "agent" | "a" => {
             if arg1.is_empty() {
-                println!("  Current agent: \x1b[1m{}\x1b[0m", current_agent);
+                println!("  Current agent: \x1b[1m{}\x1b[0m", state.current_agent);
                 println!(
                     "  Use \x1b[36m/agent <NAME>\x1b[0m to switch, \x1b[36m/agents\x1b[0m to list"
                 );
             } else {
-                *current_agent = arg1.to_string();
-                println!("  Switched to agent: \x1b[1m{}\x1b[0m", current_agent);
+                state.current_agent = arg1.to_string();
+                println!("  Switched to agent: \x1b[1m{}\x1b[0m", state.current_agent);
             }
             println!();
         }
@@ -342,11 +341,14 @@ pub(super) fn handle_slash_command(
             println!();
         }
         "sovereignty" | "sov" => {
-            let state = hkask_types::UserSovereigntyState::new();
+            let sov_state = hkask_types::UserSovereigntyState::new();
             println!("  Sovereignty Status:");
-            println!("    Consent:    {}", state.explicit_consent);
-            println!("    Compromised: {}", state.is_compromised());
-            println!("    Kill zone:  {}", state.kill_zone_state.kill_zone_active);
+            println!("    Consent:    {}", sov_state.explicit_consent);
+            println!("    Compromised: {}", sov_state.is_compromised());
+            println!(
+                "    Kill zone:  {}",
+                sov_state.kill_zone_state.kill_zone_active
+            );
             println!();
         }
         "pods" => {
@@ -390,22 +392,22 @@ pub(super) fn handle_slash_command(
             println!();
         }
         "ensemble" | "ens" => {
-            handle_ensemble(arg1, arg2, active_session, rt);
+            handle_ensemble(arg1, arg2, &mut state.active_session, rt);
         }
         "into" | "i" => {
-            handle_into(arg1, active_session, rt);
+            handle_into(arg1, &mut state.active_session, rt);
         }
         "filter" | "thresh" => {
-            handle_filter(arg1, active_session, rt);
+            handle_filter(arg1, &state.active_session, rt);
         }
         "mode" => {
-            handle_mode(arg1, active_session, rt);
+            handle_mode(arg1, &state.active_session, rt);
         }
         "ask" => {
-            handle_ask(arg1, arg2, active_session, rt, ctx);
+            handle_ask(arg1, arg2, rt, state);
         }
         "model" | "m" => {
-            handle_model(arg1, current_model, rt, ctx);
+            handle_model(arg1, rt, state);
         }
         _ => {
             let fuzzy = fuzzy_match_command(&cmd);
@@ -545,22 +547,21 @@ pub(super) fn handle_mode(arg: &str, active_session: &Option<String>, rt: &tokio
 pub(super) fn handle_ask(
     arg1: &str,
     arg2: &str,
-    active_session: &Option<String>,
     rt: &tokio::runtime::Handle,
-    ctx: &super::ReplContext,
+    state: &mut super::ReplState,
 ) {
     if arg1.is_empty() || arg2.is_empty() {
         println!("  Usage: \x1b[36m/ask <agent> <message>\x1b[0m");
         return;
     }
 
-    match active_session {
+    match &state.active_session {
         Some(session) => {
             let response = rt.block_on(crate::commands::chat_with_agent(
                 arg2,
                 Some(arg1),
                 None,
-                Some(ctx.inference_port.clone()),
+                Some(state.inference_port.clone()),
             ));
             println!("\x1b[1m{}\x1b[0m: {}\n", arg1, response);
 
@@ -578,7 +579,7 @@ pub(super) fn handle_ask(
                 arg2,
                 Some(arg1),
                 None,
-                Some(ctx.inference_port.clone()),
+                Some(state.inference_port.clone()),
             ));
             println!("\x1b[1m{}\x1b[0m: {}\n", arg1, response);
         }

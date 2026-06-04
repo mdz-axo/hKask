@@ -2,15 +2,14 @@
 
 pub(crate) fn handle_model(
     arg1: &str,
-    current_model: &mut String,
     rt: &tokio::runtime::Handle,
-    ctx: &super::super::ReplContext,
+    state: &mut super::super::ReplState,
 ) {
     use hkask_templates::search_okapi_models;
 
     if arg1.is_empty() || arg1.eq_ignore_ascii_case("list") {
         if arg1.eq_ignore_ascii_case("list") {
-            let matches = rt.block_on(search_okapi_models(&ctx.okapi_config, ""));
+            let matches = rt.block_on(search_okapi_models(&state.okapi_config, ""));
             if matches.is_empty() {
                 println!("  No models found — Okapi may be unreachable.");
             } else {
@@ -41,21 +40,21 @@ pub(crate) fn handle_model(
                 println!("  Use \x1b[36m/model <name>\x1b[0m to switch to a specific model");
             }
         } else {
-            println!("  Current model: \x1b[1m{}\x1b[0m", current_model);
+            println!("  Current model: \x1b[1m{}\x1b[0m", state.current_model);
             println!(
                 "  Use \x1b[36m/model <name>\x1b[0m to switch, \x1b[36m/model <query>\x1b[0m to search"
             );
         }
     } else {
-        let matches = rt.block_on(search_okapi_models(&ctx.okapi_config, arg1));
+        let matches = rt.block_on(search_okapi_models(&state.okapi_config, arg1));
 
         if matches.is_empty() {
-            *current_model = arg1.to_string();
-            println!("  Model set to: \x1b[1m{}\x1b[0m", current_model);
+            state.current_model = arg1.to_string();
+            println!("  Model set to: \x1b[1m{}\x1b[0m", state.current_model);
             println!("  \x1b[2m(Okapi unreachable — model name stored for next inference)\x1b[0m");
         } else if matches.len() == 1 {
-            *current_model = matches[0].name.clone();
-            println!("  Model set to: \x1b[1m{}\x1b[0m", current_model);
+            state.current_model = matches[0].name.clone();
+            println!("  Model set to: \x1b[1m{}\x1b[0m", state.current_model);
             if let Some(ref details) = matches[0].details {
                 if let Some(ref fam) = details.family {
                     println!("  Family: {}", fam);

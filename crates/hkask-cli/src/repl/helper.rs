@@ -9,7 +9,7 @@ use std::borrow::Cow;
 use super::commands::SLASH_COMMANDS;
 
 #[derive(Debug, Clone)]
-pub(super) struct SessionHistory {
+pub(crate) struct SessionHistory {
     pub(super) turns: Vec<(String, String)>,
 }
 
