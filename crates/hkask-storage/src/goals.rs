@@ -26,12 +26,6 @@ pub enum GoalRepositoryError {
     #[error(transparent)]
     Infra(#[from] InfrastructureError),
 
-    /// Capability denied by the OCAP membrane. No longer produced by storage
-    /// methods (verification moved to the Cybernetics layer), but retained for
-    /// callers that perform their own capability checks.
-    #[error("Capability denied: {0}")]
-    CapabilityDenied(String),
-
     #[error("Visibility denied: {0}")]
     VisibilityDenied(String),
 

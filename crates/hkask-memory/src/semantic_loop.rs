@@ -34,14 +34,6 @@ impl SemanticLoop {
         }
     }
 
-    /// Create a new Semantic Loop with a custom storage budget.
-    pub fn with_budget(memory: Arc<SemanticMemory>, storage_budget: usize) -> Self {
-        Self {
-            memory,
-            storage_budget,
-        }
-    }
-
     /// Get the configured storage budget (set-point).
     pub fn storage_budget(&self) -> usize {
         self.storage_budget

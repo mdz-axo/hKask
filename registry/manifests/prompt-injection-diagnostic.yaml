@@ -19,7 +19,7 @@ manifest:
   visibility: Shared
 
 # Energy Budget Configuration
-energy:
+gas:
   cap: 18000
   cost_per_token: 0.25
   alert_threshold: 0.8
@@ -52,7 +52,7 @@ steps:
     template_ref: prompt-defense/classify-threat
     model_tier: reasoning_local
     mcp: hkask-mcp-inference
-    energy_cap: 4000
+    gas_cap: 4000
     timeout_seconds: 60
     input_mapping:
       input_text: "{{ input_text }}"
@@ -87,7 +87,7 @@ steps:
     template_ref: prompt-defense/analyze-attack-surface
     model_tier: reasoning_local
     mcp: hkask-mcp-inference
-    energy_cap: 4000
+    gas_cap: 4000
     timeout_seconds: 60
     input_mapping:
       input_text: "{{ input_text }}"
@@ -131,7 +131,7 @@ steps:
     template_ref: prompt-defense/recommend-defenses
     model_tier: reasoning_local
     mcp: hkask-mcp-inference
-    energy_cap: 4000
+    gas_cap: 4000
     timeout_seconds: 60
     input_mapping:
       input_text: "{{ input_text }}"
@@ -174,7 +174,7 @@ steps:
     template_ref: null
     model_tier: null
     mcp: hkask-mcp-storage
-    energy_cap: 1000
+    gas_cap: 1000
     timeout_seconds: 15
     validation_rules:
       - all_categories_assessed
@@ -203,7 +203,7 @@ steps:
     template_ref: null
     model_tier: null
     mcp: hkask-mcp-cns
-    energy_cap: 500
+    gas_cap: 500
     timeout_seconds: 5
     feedback:
       variety_delta: integer
@@ -220,7 +220,7 @@ steps:
 
 # Error Handling
 error_handling:
-  on_energy_exceeded: abort
+  on_gas_exceeded: abort
   on_timeout: retry
   max_retries: 2
   retry_backoff_seconds: 2
@@ -233,23 +233,23 @@ ocap:
     - resource: template
       action: render
       template_id: prompt-defense/classify-threat
-      energy_budget: 4000
+      gas_budget: 4000
     - resource: template
       action: render
       template_id: prompt-defense/analyze-attack-surface
-      energy_budget: 4000
+      gas_budget: 4000
     - resource: template
       action: render
       template_id: prompt-defense/recommend-defenses
-      energy_budget: 4000
+      gas_budget: 4000
     - resource: manifest
       action: execute
       template_id: prompt-injection-diagnostic
-      energy_budget: 500
+      gas_budget: 500
     - resource: cns
       action: emit
       template_id: prompt-injection-diagnostic
-      energy_budget: 500
+      gas_budget: 500
   delegation_chain_required: true
   signature_algorithm: ed25519
   capability_expiry_seconds: 3600
@@ -273,5 +273,5 @@ audit:
   log_level: info
   include_input: true
   include_output: true
-  include_energy_cost: true
+  include_gas_cost: true
   include_cns_events: true

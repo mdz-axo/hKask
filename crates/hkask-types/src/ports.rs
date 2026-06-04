@@ -390,8 +390,8 @@ use crate::capability::{DelegationAction, DelegationResource, DelegationToken};
 pub enum ToolPortError {
     #[error("Capability denied: {0}")]
     CapabilityDenied(String),
-    #[error("Energy budget exceeded: {0}")]
-    EnergyBudgetExceeded(String),
+    #[error("Gas budget exceeded: {0}")]
+    GasBudgetExceeded(String),
     #[error("Tool not found: {0}")]
     NotFound(String),
     #[error("Tool invocation failed: {0}")]

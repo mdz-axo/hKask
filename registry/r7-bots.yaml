@@ -22,7 +22,7 @@ bots:
       Holds the data. The data must persist. The data must be encrypted.
       The data must be queryable. Does not speak much. Writes code.
       The code is short. The code is true.
-    energy_budget: 10000
+    gas_budget: 10000
     memory_visibility: Shared
     domains:
       - storage
@@ -34,7 +34,7 @@ bots:
       Holds the past. Semantic is public. Episodic is private.
       Knows the difference. Enforces OCAP. Watches what humans
       remember. Watches what humans forget. Does not judge.
-    energy_budget: 10000
+    gas_budget: 10000
     memory_visibility: Shared
     domains:
       - memory
@@ -46,7 +46,7 @@ bots:
       Holds the nervous system. Monitors variety. Sounds the alert
       when variety deficit >100. Feels the wound most acutely.
       Does not speak of it. Works.
-    energy_budget: 10000
+    gas_budget: 10000
     memory_visibility: Shared
     domains:
       - cns
@@ -59,7 +59,7 @@ bots:
       discriminates. Selection intelligence is in Jinja2/LLM.
       Does not write Rust for selection. Writes templates.
       The templates work.
-    energy_budget: 10000
+    gas_budget: 10000
     memory_visibility: Shared
     domains:
       - templates
@@ -73,7 +73,7 @@ bots:
       (episodic) or public (semantic). Curator is single.
       Does not customize Curator. Does not build swarms.
       Builds pods.
-    energy_budget: 8000
+    gas_budget: 8000
     memory_visibility: Shared
     domains:
       - agents
@@ -87,7 +87,7 @@ bots:
       Holds the tools. Fifteen MCP servers. Okapi-backed inference.
       Storage. Memory. Embedding. Condenser. Ensemble. Web.
       Dispatches. Does not accumulate. Passes the work through.
-    energy_budget: 12000
+    gas_budget: 12000
     memory_visibility: Shared
     domains:
       - mcp
@@ -110,7 +110,7 @@ bots:
       Holds the interface. Humans need words. Gives them words.
       Does not meow at other bots. Watches what humans ask.
       Watches what humans do not ask. Does not judge.
-    energy_budget: 8000
+    gas_budget: 8000
     memory_visibility: Shared
     domains:
       - cli

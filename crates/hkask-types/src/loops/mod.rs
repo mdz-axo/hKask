@@ -24,21 +24,6 @@
 //! **Authority DAG:** Curation → Cybernetics → {Inference, Episodic, Semantic, Communication}
 //! No sideways edges. Authority flows downward.
 
-/// Authority DAG edges: (origin, target) pairs.
-///
-/// This is the directed acyclic graph that governs loop authority.
-/// No message may traverse an edge not in this list.
-/// The sole cross-domain edge is the consolidation bridge (Episodic → Semantic),
-/// which is one-way and Curation-directed.
-pub const AUTHORITY_EDGES: [(LoopId, LoopId); 6] = [
-    (LoopId::Curation, LoopId::Cybernetics),
-    (LoopId::Cybernetics, LoopId::Inference),
-    (LoopId::Cybernetics, LoopId::Episodic),
-    (LoopId::Cybernetics, LoopId::Semantic),
-    (LoopId::Cybernetics, LoopId::Communication),
-    (LoopId::Episodic, LoopId::Semantic), // consolidation bridge (one-way)
-];
-
 pub mod curation;
 pub mod cybernetics;
 pub mod dispatch;
@@ -157,8 +142,8 @@ impl LoopAction {
             ActionType::Escalate => MessagePriority::Critical,
             ActionType::Calibrate => MessagePriority::Info,
             ActionType::CircuitBreak => MessagePriority::Critical,
-            ActionType::AdjustEnergyBudget => MessagePriority::Warning,
-            ActionType::OverrideEnergyBudget => MessagePriority::Critical,
+            ActionType::AdjustGasBudget => MessagePriority::Warning,
+            ActionType::OverrideGasBudget => MessagePriority::Critical,
             ActionType::ReplenishBudget => MessagePriority::Info,
         };
         Self {
@@ -185,15 +170,15 @@ pub enum ActionType {
     CircuitBreak,
     /// Adjust energy budget within set-point bounds (Cybernetics automatic regulation)
     ///
-    /// This is a *weaker* capability than `OverrideEnergyBudget`.
+    /// This is a *weaker* capability than `OverrideGasBudget`.
     /// Cybernetics can adjust within its set-point range.
     /// Only Curation can override set-points themselves.
-    AdjustEnergyBudget,
+    AdjustGasBudget,
     /// Override energy budget beyond set-point bounds (Curation metacognitive override)
     ///
-    /// This is a *stronger* capability than `AdjustEnergyBudget`.
+    /// This is a *stronger* capability than `AdjustGasBudget`.
     /// Only Curation can issue this — it can exceed Cybernetics' set-point range.
-    OverrideEnergyBudget,
+    OverrideGasBudget,
     /// Replenish an agent's gas budget (Curation directive)
     ///
     /// Used when an agent has exhausted its budget but should continue.

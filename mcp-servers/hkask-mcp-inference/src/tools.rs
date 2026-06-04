@@ -6,11 +6,11 @@
 //! - `inference:models` — List available model tiers
 //!
 //! **Throttling is not handled here.** Per-agent rate limiting is a CNS concern
-//! (Loop 6 regulation) owned by `hkask_cns::ThrottleBucket`. The `McpDispatcher`
-//! calls `CnsRuntime::check_throttle()` before dispatching any tool invocation.
-//! This server runs as a separate process and does not have access to `CnsRuntime`;
-//! placing throttling here would duplicate the canonical implementation and
-//! violate the authority DAG (Cybernetics governs Communication).
+//! (Loop 6 regulation) owned by `GovernedTool` energy budget accounting. The
+//! `McpDispatcher` routes all invocations through the `GovernedTool` membrane
+//! which handles OCAP, gas budget, and CNS observability. This server runs as
+//! a separate process; placing throttling here would duplicate the canonical
+//! implementation and violate the authority DAG (Cybernetics governs Communication).
 
 use hkask_mcp::server::{McpToolError, McpToolOutput, ToolSpanGuard, validate_identifier};
 use hkask_templates::{InferencePort, OkapiConfig, OkapiInference};

@@ -379,7 +379,7 @@ impl MetacognitionLoop {
     ///
     /// - 5.2 Bot Evaluation / Kata Coaching (ADAPT) — UpdateCapabilities
     /// - 5.3 Threshold Calibration (ADAPT) — CalibrateThreshold
-    /// - Energy budget adjustment — AdjustEnergyBudget
+    /// - Energy budget adjustment — AdjustGasBudget
     /// - 6.3 DAMPEN — Suppresses repeated directives within time window
     pub async fn issue_directive(&self, directive: CuratorDirective) -> Option<TraceId> {
         self.context.issue_directive(directive).await

@@ -13,7 +13,7 @@ manifest:
   editor: curator-or-human-admin
   visibility: Shared
 
-energy:
+gas:
   cap: 8192
   cost_per_token: 0.25
   alert_threshold: 0.8
@@ -33,7 +33,7 @@ steps:
       query: "${input.query}"
       strategy: "web"
       num_results: "${input.num_results | default(8)}"
-    energy_cap: 4096
+    gas_cap: 4096
     timeout_seconds: 30
     output_schema:
       results: array
@@ -53,7 +53,7 @@ steps:
       format: "markdown"
       main_content_only: true
     loop_over: "${step1.results[:5]}"
-    energy_cap: 4096
+    gas_cap: 4096
     timeout_seconds: 60
     output_schema:
       extracted_pages: array
@@ -65,7 +65,7 @@ steps:
     renderer: minijinja
     template_ref: web/extract-synthesize
     model_tier: null
-    energy_cap: 1000
+    gas_cap: 1000
     timeout_seconds: 10
     output_schema:
       synthesis: string
@@ -79,7 +79,7 @@ steps:
     template_ref: null
     model_tier: null
     mcp: hkask-cns
-    energy_cap: 500
+    gas_cap: 500
     timeout_seconds: 5
     feedback:
       result_count: integer
@@ -88,7 +88,7 @@ steps:
       cns_event_id: string
 
 error_handling:
-  on_energy_exceeded: abort
+  on_gas_exceeded: abort
   on_timeout: retry
   max_retries: 2
   retry_backoff_seconds: 2
@@ -105,4 +105,4 @@ audit:
   log_level: info
   include_input: true
   include_output: true
-  include_energy_cost: true
+  include_gas_cost: true

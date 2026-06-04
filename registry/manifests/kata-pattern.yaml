@@ -15,7 +15,7 @@ manifest:
   editor: Curator
   visibility: public
 
-energy:
+gas:
   accounting:
     framework: GHG-Protocol-Scope-2
     version: 2024-edition

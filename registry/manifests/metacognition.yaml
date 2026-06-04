@@ -15,7 +15,7 @@ manifest:
   visibility: Shared
 
 # Energy Budget Configuration
-energy:
+gas:
   cap: 12000
   cost_per_token: 0.25
   alert_threshold: 0.8
@@ -32,7 +32,7 @@ steps:
     template_ref: metacognition/meta_decompose
     model_tier: reasoning_local
     mcp: hkask-mcp-inference
-    energy_cap: 6000
+    gas_cap: 6000
     timeout_seconds: 60
     output_schema:
       root: object
@@ -48,7 +48,7 @@ steps:
     template_ref: null
     model_tier: null
     mcp: hkask-mcp-storage
-    energy_cap: 500
+    gas_cap: 500
     timeout_seconds: 10
     validation_rules:
       - acyclic_dependency_graph
@@ -67,7 +67,7 @@ steps:
     template_ref: null
     model_tier: null
     mcp: hkask-cns
-    energy_cap: 500
+    gas_cap: 500
     timeout_seconds: 5
     feedback:
       variety_delta: integer
@@ -78,7 +78,7 @@ steps:
 
 # Error Handling
 error_handling:
-  on_energy_exceeded: abort
+  on_gas_exceeded: abort
   on_timeout: retry
   max_retries: 2
   retry_backoff_seconds: 1
@@ -90,15 +90,15 @@ ocap:
     - resource: template
       action: render
       template_id: metacognition/self_check
-      energy_budget: 2000
+      gas_budget: 2000
     - resource: manifest
       action: execute
       template_id: metacognition
-      energy_budget: 500
+      gas_budget: 500
     - resource: cns
       action: emit
       template_id: metacognition
-      energy_budget: 500
+      gas_budget: 500
   delegation_chain_required: true
   signature_algorithm: ed25519
   capability_expiry_seconds: 3600
@@ -118,5 +118,5 @@ audit:
   log_level: info
   include_input: true
   include_output: true
-  include_energy_cost: true
+  include_gas_cost: true
   include_cns_events: true

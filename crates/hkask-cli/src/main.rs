@@ -564,7 +564,7 @@ fn run_cns(rt: &tokio::runtime::Runtime, action: CnsAction) {
             println!("  Events matching the specified namespaces will be delivered.");
         }
         CnsAction::SetPoints {
-            energy_min_remaining,
+            gas_min_remaining,
             variety_max_deficit,
             error_rate_max,
             connector_latency_max_secs,
@@ -573,8 +573,8 @@ fn run_cns(rt: &tokio::runtime::Runtime, action: CnsAction) {
             println!("CNS Set-Points");
             println!("==============");
             println!(
-                "  energy_min_remaining:       {}",
-                energy_min_remaining.unwrap_or(defaults.energy_min_remaining)
+                "  gas_min_remaining:       {}",
+                gas_min_remaining.unwrap_or(defaults.gas_min_remaining)
             );
             println!(
                 "  variety_max_deficit:        {}",
@@ -588,13 +588,13 @@ fn run_cns(rt: &tokio::runtime::Runtime, action: CnsAction) {
                 "  connector_latency_max_secs: {}",
                 connector_latency_max_secs.unwrap_or(defaults.connector_latency_max_secs)
             );
-            if energy_min_remaining.is_some()
+            if gas_min_remaining.is_some()
                 || variety_max_deficit.is_some()
                 || error_rate_max.is_some()
                 || connector_latency_max_secs.is_some()
             {
                 let config = hkask_cns::SetPointsConfig {
-                    energy_min_remaining,
+                    gas_min_remaining,
                     variety_max_deficit,
                     error_rate_max,
                     connector_latency_max_secs,
@@ -602,10 +602,7 @@ fn run_cns(rt: &tokio::runtime::Runtime, action: CnsAction) {
                 let updated = hkask_cns::SetPoints::from_config(&config);
                 println!();
                 println!("Updated values would be:");
-                println!(
-                    "  energy_min_remaining:       {}",
-                    updated.energy_min_remaining
-                );
+                println!("  gas_min_remaining:       {}", updated.gas_min_remaining);
                 println!(
                     "  variety_max_deficit:        {}",
                     updated.variety_max_deficit
@@ -1029,7 +1026,7 @@ fn run_registry(
                             println!("  Type: {:?}", asset.template_type);
                             println!("  Description: {}", asset.description);
                             println!("  Model Tier: {}", asset.model_tier);
-                            println!("  Energy Cap: {}", asset.energy_cap);
+                            println!("  Gas Cap: {}", asset.gas_cap);
                         }
                     }
                 }

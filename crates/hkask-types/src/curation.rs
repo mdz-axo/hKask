@@ -1,37 +1,6 @@
 //! Curation types for hKask — The Curator and OCAP boundaries
 
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-
-/// CuratorId — Unique identifier for The Curator (single instance)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct CuratorId(pub Uuid);
-
-impl CuratorId {
-    pub fn new() -> Self {
-        Self(Uuid::new_v4())
-    }
-
-    /// The one true Curator — system-wide singleton
-    pub fn system() -> Self {
-        // Deterministic UUID for the single Curator instance
-        // Using a valid UUID v4 hex string
-        Self(Uuid::parse_str("c000ca00-0000-4000-8000-000000000001").expect("valid curator UUID"))
-    }
-}
-
-impl Default for CuratorId {
-    fn default() -> Self {
-        Self::system()
-    }
-}
-
-impl std::fmt::Display for CuratorId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-// Note: CuratorId kept manual due to special system() method
 
 /// CurationDecision — The Curator's evaluation of template outputs
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

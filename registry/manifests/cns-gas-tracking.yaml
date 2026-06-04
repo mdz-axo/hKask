@@ -1,7 +1,7 @@
 # CNS Energy Tracking Configuration
 # ℏKask v0.21.2
 
-energy_budget:
+gas_budget:
   caps:
     template_render: 1000
     manifest_execute: 5000
@@ -16,7 +16,7 @@ energy_budget:
 
 span_emission:
   emit_on_consume: true
-  namespace: cns.energy
+  namespace: cns.gas
 
 degradation:
   stages:

@@ -24,7 +24,7 @@ pub struct R7BotIdentity {
     /// Bot description / persona fragment
     pub description: String,
     /// Energy budget for CNS tracking
-    pub energy_budget: u64,
+    pub gas_budget: u64,
     /// Default memory visibility (starts as Shared for legion)
     pub memory_visibility: Visibility,
     /// Template domains this bot owns
@@ -50,7 +50,7 @@ impl R7BotIdentity {
         id: String,
         primary_crate: String,
         description: String,
-        energy_budget: u64,
+        gas_budget: u64,
         domains: Vec<String>,
     ) -> Self {
         let webid = Self::derive_webid(&id);
@@ -60,7 +60,7 @@ impl R7BotIdentity {
             name: id,
             primary_crate,
             description,
-            energy_budget,
+            gas_budget,
             memory_visibility: Visibility::Shared,
             domains,
         }

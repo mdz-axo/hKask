@@ -121,8 +121,8 @@ impl MessageDispatch {
                     "removals": removals,
                 }),
             ),
-            CuratorDirective::OverrideEnergyBudget { agent, new_budget } => (
-                "override_energy_budget".to_string(),
+            CuratorDirective::OverrideGasBudget { agent, new_budget } => (
+                "override_gas_budget".to_string(),
                 *agent,
                 serde_json::json!({
                     "new_budget": new_budget,

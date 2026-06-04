@@ -12,7 +12,7 @@ manifest:
   editor: curator-or-human-admin
   visibility: Shared
 
-energy:
+gas:
   cap: 2048
   cost_per_token: 0.25
   alert_threshold: 0.8
@@ -32,7 +32,7 @@ steps:
       query: "${input.query}"
       strategy: "quick"
       num_results: "${input.num_results | default(5)}"
-    energy_cap: 2048
+    gas_cap: 2048
     timeout_seconds: 15
     output_schema:
       results: array
@@ -46,7 +46,7 @@ steps:
     template_ref: null
     model_tier: null
     mcp: hkask-cns
-    energy_cap: 500
+    gas_cap: 500
     timeout_seconds: 5
     feedback:
       result_count: integer
@@ -54,7 +54,7 @@ steps:
       cns_event_id: string
 
 error_handling:
-  on_energy_exceeded: abort
+  on_gas_exceeded: abort
   on_timeout: retry
   max_retries: 1
   retry_backoff_seconds: 1

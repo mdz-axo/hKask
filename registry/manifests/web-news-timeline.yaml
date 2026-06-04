@@ -12,7 +12,7 @@ manifest:
   editor: curator-or-human-admin
   visibility: Shared
 
-energy:
+gas:
   cap: 4096
   cost_per_token: 0.25
   alert_threshold: 0.8
@@ -33,7 +33,7 @@ steps:
       strategy: "news"
       num_results: "${input.num_results | default(10)}"
       freshness: "${input.freshness | default('week')}"
-    energy_cap: 2048
+    gas_cap: 2048
     timeout_seconds: 20
     output_schema:
       results: array
@@ -46,7 +46,7 @@ steps:
     renderer: minijinja
     template_ref: web/search-news
     model_tier: null
-    energy_cap: 500
+    gas_cap: 500
     timeout_seconds: 10
     output_schema:
       timeline: object
@@ -59,7 +59,7 @@ steps:
     template_ref: null
     model_tier: null
     mcp: hkask-cns
-    energy_cap: 500
+    gas_cap: 500
     timeout_seconds: 5
     feedback:
       result_count: integer
@@ -68,7 +68,7 @@ steps:
       cns_event_id: string
 
 error_handling:
-  on_energy_exceeded: abort
+  on_gas_exceeded: abort
   on_timeout: retry
   max_retries: 2
   retry_backoff_seconds: 1

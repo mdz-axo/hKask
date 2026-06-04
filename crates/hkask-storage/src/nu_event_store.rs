@@ -160,9 +160,9 @@ fn row_to_nu_event(row: &rusqlite::Row<'_>) -> Result<NuEvent, rusqlite::Error> 
     let namespace = SpanNamespace::from_str(&namespace_str).unwrap_or_else(|| {
         // Fallback: use the stored category directly as a non-canonical namespace.
         // This shouldn't happen for canonical events, but provides graceful degradation.
-        SpanNamespace::new("cns.energy") // safe default
+        SpanNamespace::new("cns.gas") // safe default
     });
-    // span_path is fully-qualified (e.g., "cns.energy.depleted"), so extract
+    // span_path is fully-qualified (e.g., "cns.gas.depleted"), so extract
     // the local part after the namespace prefix + dot.
     let local_path = &span_path[namespace.as_str().len() + 1..];
     let span = Span::new(namespace, local_path);

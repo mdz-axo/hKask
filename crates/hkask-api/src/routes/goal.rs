@@ -77,7 +77,7 @@ fn bad_request(message: &str) -> (StatusCode, Json<ErrorResponse>) {
 fn repo_error(e: hkask_storage::GoalRepositoryError) -> (StatusCode, Json<ErrorResponse>) {
     use hkask_storage::GoalRepositoryError as E;
     let (status, code) = match &e {
-        E::CapabilityDenied(_) | E::VisibilityDenied(_) => (StatusCode::FORBIDDEN, "GOAL_DENIED"),
+        E::VisibilityDenied(_) => (StatusCode::FORBIDDEN, "GOAL_DENIED"),
         E::NotFound(_) => (StatusCode::NOT_FOUND, "GOAL_NOT_FOUND"),
         E::InvalidTransition(_) | E::MaxDepthExceeded(_) => {
             (StatusCode::BAD_REQUEST, "GOAL_BAD_REQUEST")

@@ -95,7 +95,7 @@ impl GoalServer {
     fn repo_error(e: hkask_storage::GoalRepositoryError) -> McpToolError {
         use hkask_storage::GoalRepositoryError as E;
         match e {
-            E::CapabilityDenied(m) | E::VisibilityDenied(m) => McpToolError::permission_denied(m),
+            E::VisibilityDenied(m) => McpToolError::permission_denied(m),
             E::NotFound(m) => McpToolError::not_found(m),
             E::InvalidTransition(m) | E::MaxDepthExceeded(m) => McpToolError::invalid_argument(m),
             other => McpToolError::internal(other.to_string()),

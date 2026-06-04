@@ -10,8 +10,8 @@
 //! governed tool membrane is the security property.
 //!
 //! All invocations require a GovernedTool membrane. The legacy inline
-//! path (McpGovernor.authorize + CnsRuntime.check_throttle) has been
-//! removed — call sites must wire through GovernedTool.
+//! path (McpGovernor.authorize) has been removed — call sites must wire
+//! through GovernedTool.
 
 use crate::governor::McpGovernor;
 use crate::runtime::McpRuntime;
@@ -52,15 +52,6 @@ impl McpDispatcher {
         }
     }
 
-    /// Create a dispatcher without a GovernedTool membrane (convenience).
-    ///
-    /// Invocation attempts will fail — use `with_governed_tool()` for
-    /// a working dispatcher.
-    #[deprecated = "Use McpDispatcher::with_governed_tool() instead — all invocations require governance"]
-    pub fn with_default_cns(runtime: McpRuntime, secret: &[u8]) -> Self {
-        Self::new(runtime, secret)
-    }
-
     /// Create a dispatcher with a GovernedTool membrane.
     ///
     /// All tool invocations route through the membrane, which handles
@@ -83,68 +74,9 @@ impl McpDispatcher {
         self.governor.issue_capability(tool_name, from, to)
     }
 
-    /// Get tool definition
-    pub async fn get_tool(&self, tool_name: &str) -> Option<crate::runtime::McpTool> {
-        self.runtime.get_tool(tool_name).await
-    }
-
     /// List all available tools
     pub async fn list_tools(&self) -> Vec<String> {
         self.runtime.discover_tools().await
-    }
-
-    /// Get MCP runtime
-    pub fn runtime(&self) -> &McpRuntime {
-        &self.runtime
-    }
-
-    /// Invoke a tool, routing through the GovernedTool membrane.
-    ///
-    /// When GovernedTool is present: OCAP verification, energy budgets,
-    /// and CNS observability are handled by the membrane.
-    /// When absent: returns an error — all invocations require governance.
-    #[allow(unused_variables)]
-    pub async fn invoke_async(
-        &self,
-        bot_id: &WebID,
-        tool_name: &str,
-        input: Value,
-        token: Option<&DelegationToken>,
-    ) -> Result<Value> {
-        let token = token.ok_or_else(|| {
-            TemplateError::CapabilityDenied(
-                "No capability token provided; legacy authorization removed".to_string(),
-            )
-        })?;
-
-        if let Some(governed) = &self.governed_tool {
-            // Route through GovernedTool membrane — the membrane IS the security property
-            let server_id = self
-                .runtime
-                .get_tool_info(tool_name)
-                .await
-                .map(|t| t.server_id)
-                .unwrap_or_else(|| "unknown".to_string());
-
-            governed
-                .invoke(&server_id, tool_name, input, token)
-                .await
-                .map_err(|e| match e {
-                    ToolPortError::CapabilityDenied(msg) => TemplateError::CapabilityDenied(msg),
-                    ToolPortError::EnergyBudgetExceeded(msg) => {
-                        TemplateError::Mcp(format!("Energy budget exceeded: {}", msg))
-                    }
-                    ToolPortError::NotFound(msg) => {
-                        TemplateError::Mcp(format!("Tool not found: {}", msg))
-                    }
-                    ToolPortError::InvocationFailed(msg) => TemplateError::Mcp(msg),
-                })
-        } else {
-            Err(TemplateError::Mcp(
-                "GovernedTool membrane not configured — all tool invocations require governance"
-                    .to_string(),
-            ))
-        }
     }
 }
 
@@ -174,7 +106,7 @@ impl McpPort for McpDispatcher {
                 .await
                 .map_err(|e| match e {
                     ToolPortError::CapabilityDenied(msg) => TemplateError::CapabilityDenied(msg),
-                    ToolPortError::EnergyBudgetExceeded(msg) => {
+                    ToolPortError::GasBudgetExceeded(msg) => {
                         TemplateError::Mcp(format!("Energy budget exceeded: {}", msg))
                     }
                     ToolPortError::NotFound(msg) => {

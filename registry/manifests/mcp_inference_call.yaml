@@ -13,7 +13,7 @@ manifest:
   visibility: Shared
 
 # Energy Budget Configuration
-energy:
+gas:
   cap: 8192
   cost_per_token: 0.25
   alert_threshold: 0.8
@@ -30,7 +30,7 @@ steps:
     template_ref: mcp/inference_call
     model_tier: null
     mcp: null
-    energy_cap: 1000
+    gas_cap: 1000
     timeout_seconds: 10
     output_schema:
       rendered_prompt: string
@@ -44,7 +44,7 @@ steps:
     template_ref: null
     model_tier: from_input
     mcp: hkask-mcp-inference
-    energy_cap: 8192
+    gas_cap: 8192
     timeout_seconds: 60
     output_schema:
       completion: string
@@ -61,7 +61,7 @@ steps:
     template_ref: null
     model_tier: null
     mcp: hkask-cns
-    energy_cap: 500
+    gas_cap: 500
     timeout_seconds: 5
     feedback:
       variety_delta: integer
@@ -72,7 +72,7 @@ steps:
 
 # Error Handling
 error_handling:
-  on_energy_exceeded: abort
+  on_gas_exceeded: abort
   on_timeout: retry
   max_retries: 2
   retry_backoff_seconds: 1
@@ -85,15 +85,15 @@ ocap:
     - resource: template
       action: render
       template_id: mcp/inference_call
-      energy_budget: 1000
+      gas_budget: 1000
     - resource: inference
       action: call
       template_id: mcp/inference_call
-      energy_budget: 8192
+      gas_budget: 8192
     - resource: cns
       action: emit
       template_id: mcp/inference_call
-      energy_budget: 500
+      gas_budget: 500
   delegation_chain_required: true
   signature_algorithm: ed25519
   capability_expiry_seconds: 3600
@@ -113,6 +113,6 @@ audit:
   log_level: info
   include_input: true
   include_output: true
-  include_energy_cost: true
+  include_gas_cost: true
   include_cns_events: true
   include_model_metrics: true

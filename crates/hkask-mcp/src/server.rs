@@ -250,16 +250,6 @@ impl McpToolOutput {
         }
     }
 
-    /// Create output with timing metadata (duration in milliseconds).
-    pub fn with_timing(content: Value, start: Instant) -> Self {
-        Self::with_metadata(
-            content,
-            serde_json::json!({
-                "duration_ms": start.elapsed().as_millis() as u64,
-            }),
-        )
-    }
-
     /// Serialize to JSON string for rmcp tool return value.
     pub fn to_json_string(&self) -> String {
         serde_json::to_string(self).unwrap_or_else(|e| {
@@ -348,17 +338,6 @@ impl McpToolError {
     /// Create a failed-precondition error (server not initialized, feature disabled).
     pub fn failed_precondition(message: impl Into<String>) -> Self {
         Self::new(McpErrorKind::FailedPrecondition, message)
-    }
-
-    /// Create an error with structured details.
-    pub fn with_details(mut self, details: Value) -> Self {
-        self.details = Some(details);
-        self
-    }
-
-    /// Whether this error is retryable.
-    pub fn is_retryable(&self) -> bool {
-        self.kind.is_retryable()
     }
 
     /// Serialize to JSON string for rmcp tool return value.

@@ -14,7 +14,7 @@ manifest:
   visibility: public
 
 # Iteration Budget (separate from primary)
-energy:
+gas:
   accounting:
     framework: GHG-Protocol-Scope-2
     version: 2024-edition

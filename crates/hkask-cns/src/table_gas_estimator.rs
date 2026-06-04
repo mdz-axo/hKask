@@ -39,7 +39,7 @@ use std::collections::HashMap;
 ///
 /// These are intentionally conservative — they prevent infinite loops
 /// while being simple to understand and calibrate.
-pub fn default_gas_table() -> HashMap<&'static str, u64> {
+pub(crate) fn default_gas_table() -> HashMap<&'static str, u64> {
     let mut table = HashMap::new();
     // Internal tools — cheap
     table.insert("hkask-mcp-ocap", 1);

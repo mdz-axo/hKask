@@ -103,12 +103,12 @@ pub enum CuratorDirective {
         additions: Vec<String>,
         removals: Vec<String>,
     },
-    /// Override energy budget beyond Cybernetics set-points.
+    /// Override gas budget beyond Cybernetics set-points.
     ///
     /// This is the Curation-level metacognitive override. Cybernetics
-    /// uses `ActionType::AdjustEnergyBudget` for automatic within-bounds
-    /// regulation. Curation uses `OverrideEnergyBudget` to exceed bounds.
-    OverrideEnergyBudget {
+    /// uses `ActionType::AdjustGasBudget` for automatic within-bounds
+    /// regulation. Curation uses `OverrideGasBudget` to exceed bounds.
+    OverrideGasBudget {
         agent: WebID,
         new_budget: u64,
     },

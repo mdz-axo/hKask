@@ -21,7 +21,7 @@ use hkask_types::ports::{ConsolidationOutcome, ConsolidationPort};
 /// Consolidation Bridge — Episodic → Semantic
 ///
 /// Curation-directed one-way operation. Called from `CurationLoop::act()`
-/// when a `CuratorDirective::OverrideEnergyBudget` or equivalent consolidation
+/// when a `CuratorDirective::OverrideGasBudget` or equivalent consolidation
 /// trigger fires.
 pub struct ConsolidationBridge {
     episodic: Arc<EpisodicMemory>,
@@ -163,21 +163,6 @@ impl ConsolidationBridge {
             retracted_count,
             failed_count,
         })
-    }
-
-    /// Count triples eligible for consolidation for a given perspective.
-    ///
-    /// Returns the number of episodic triples with confidence below the
-    /// consolidation threshold (0.5) for the specified perspective.
-    pub(crate) fn consolidation_count(
-        &self,
-        perspective: WebID,
-    ) -> Result<usize, ConsolidationError> {
-        let candidates = self
-            .episodic
-            .consolidation_candidates(perspective, usize::MAX)
-            .map_err(|e| ConsolidationError::Episodic(e.to_string()))?;
-        Ok(candidates.len())
     }
 }
 

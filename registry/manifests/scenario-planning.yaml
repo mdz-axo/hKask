@@ -17,7 +17,7 @@ manifest:
   visibility: Shared
 
 # Energy Budget Configuration
-energy:
+gas:
   cap: 30000
   cost_per_token: 0.25
   alert_threshold: 0.8
@@ -49,7 +49,7 @@ steps:
     template_ref: scenario/focal-question
     model_tier: fast_local
     mcp: hkask-mcp-inference
-    energy_cap: 2000
+    gas_cap: 2000
     timeout_seconds: 30
     input_mapping:
       focal_question: "{{ focal_question }}"
@@ -83,7 +83,7 @@ steps:
     template_ref: scenario/key-forces
     model_tier: reasoning_local
     mcp: hkask-mcp-inference
-    energy_cap: 4000
+    gas_cap: 4000
     timeout_seconds: 60
     input_mapping:
       refined_question: "{{ ordinal_1.refined_question }}"
@@ -114,7 +114,7 @@ steps:
     template_ref: scenario/driving-forces
     model_tier: reasoning_local
     mcp: hkask-mcp-inference
-    energy_cap: 5000
+    gas_cap: 5000
     timeout_seconds: 60
     input_mapping:
       refined_question: "{{ ordinal_1.refined_question }}"
@@ -153,7 +153,7 @@ steps:
     template_ref: scenario/axes-and-narratives
     model_tier: reasoning_local
     mcp: hkask-mcp-inference
-    energy_cap: 8000
+    gas_cap: 8000
     timeout_seconds: 120
     input_mapping:
       refined_question: "{{ ordinal_1.refined_question }}"
@@ -200,7 +200,7 @@ steps:
     template_ref: scenario/implications-indicators
     model_tier: reasoning_local
     mcp: hkask-mcp-inference
-    energy_cap: 4000
+    gas_cap: 4000
     timeout_seconds: 60
     input_mapping:
       refined_question: "{{ ordinal_1.refined_question }}"
@@ -229,7 +229,7 @@ steps:
     template_ref: null
     model_tier: null
     mcp: hkask-mcp-cns
-    energy_cap: 500
+    gas_cap: 500
     timeout_seconds: 5
     feedback:
       variety_delta: integer
@@ -247,7 +247,7 @@ steps:
 
 # Error Handling
 error_handling:
-  on_energy_exceeded: abort
+  on_gas_exceeded: abort
   on_timeout: retry
   max_retries: 2
   retry_backoff_seconds: 2
@@ -260,31 +260,31 @@ ocap:
     - resource: template
       action: render
       template_id: scenario/focal-question
-      energy_budget: 2000
+      gas_budget: 2000
     - resource: template
       action: render
       template_id: scenario/key-forces
-      energy_budget: 4000
+      gas_budget: 4000
     - resource: template
       action: render
       template_id: scenario/driving-forces
-      energy_budget: 5000
+      gas_budget: 5000
     - resource: template
       action: render
       template_id: scenario/axes-and-narratives
-      energy_budget: 8000
+      gas_budget: 8000
     - resource: template
       action: render
       template_id: scenario/implications-indicators
-      energy_budget: 4000
+      gas_budget: 4000
     - resource: manifest
       action: execute
       template_id: scenario-planning
-      energy_budget: 500
+      gas_budget: 500
     - resource: cns
       action: emit
       template_id: scenario-planning
-      energy_budget: 500
+      gas_budget: 500
   delegation_chain_required: true
   signature_algorithm: ed25519
   capability_expiry_seconds: 3600
@@ -309,5 +309,5 @@ audit:
   log_level: info
   include_input: true
   include_output: true
-  include_energy_cost: true
+  include_gas_cost: true
   include_cns_events: true

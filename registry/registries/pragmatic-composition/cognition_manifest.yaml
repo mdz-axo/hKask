@@ -29,7 +29,7 @@ react_loop:
     - energy_exhausted
 
 # Energy Budget
-energy:
+gas:
   cap: 8000
   cost_per_iteration: 500
   opportunity_cost_tracking: true
@@ -174,10 +174,10 @@ cns:
     - cns.prompt.select
     - cns.prompt.render
     - cns.prompt.outcome
-    - cns.energy.allocate
-    - cns.energy.consume
-    - cns.energy.opportunity
-    - cns.energy.deficit
+    - cns.gas.allocate
+    - cns.gas.consume
+    - cns.gas.opportunity
+    - cns.gas.deficit
   variety_monitoring: true
   algedonic_threshold: 100
 

@@ -77,7 +77,7 @@ model_tier_selection:
   default: "balanced"
 
 # Energy Budget Calculation
-energy_budget:
+gas_budget:
   base_cost: 1000
   per_probe_cost: 200
   per_intervention_cost: 500

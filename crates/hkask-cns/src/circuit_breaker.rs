@@ -31,7 +31,7 @@ impl Default for CircuitBreakerConfig {
 }
 
 /// Circuit breaker for Okapi calls
-pub struct CircuitBreaker {
+pub(crate) struct CircuitBreaker {
     state: AtomicU32,
     failure_count: AtomicU32,
     success_count: AtomicU32,

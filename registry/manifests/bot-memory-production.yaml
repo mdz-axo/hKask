@@ -61,14 +61,14 @@ steps:
     template_ref: memory/templates/agent_operation_memory.j2
     model_tier: fast_local
     mcp: hkask-mcp-memory
-    energy_cap: 2000
+    gas_cap: 2000
     timeout_seconds: 10
     bindings:
       agent_name: "${bot_name}"
       operation_type: "${operation_type}"
       input: "${operation_input}"
       output: "${operation_output}"
-      energy_used: "${energy_used}"
+      gas_used: "${gas_used}"
       latency_ms: "${latency_ms}"
       cns_spans: "${cns_spans}"
       confidence: "${operation_confidence}"
@@ -94,7 +94,7 @@ steps:
     target: store_episodic_memory
     mcp: hkask-mcp-memory
     tool: memory_remember
-    energy_cap: 3000
+    gas_cap: 3000
     timeout_seconds: 15
     output_schema:
       type: object
@@ -113,7 +113,7 @@ steps:
     target: extract_semantic_triples
     mcp: hkask-mcp-memory
     tool: memory_remember
-    energy_cap: 3000
+    gas_cap: 3000
     timeout_seconds: 15
     output_schema:
       type: object
@@ -126,7 +126,7 @@ steps:
 # Error Handling
 error_handling:
   on_memory_full: degrade_gracefully
-  on_energy_exceeded: skip_semantic_keep_episodic
+  on_gas_exceeded: skip_semantic_keep_episodic
   on_timeout: retry
   max_retries: 2
   retry_backoff_seconds: 1
@@ -145,11 +145,11 @@ ocap:
     - resource: memory
       action: write
       scope: own_episodic
-      energy_budget: 3000
+      gas_budget: 3000
     - resource: memory
       action: write
       scope: public_semantic
-      energy_budget: 3000
+      gas_budget: 3000
   delegation_chain_required: false
   signature_algorithm: HMAC-SHA256
   capability_expiry_seconds: 3600
@@ -196,7 +196,7 @@ standing_session:
     - episodic_records_count
     - semantic_triples_count
     - storage_success_rate
-    - energy_used_for_memory
+    - gas_used_for_memory
 
 # Audit Trail
 audit:
@@ -204,7 +204,7 @@ audit:
   log_level: info
   include_input: true
   include_output: true
-  include_energy_cost: true
+  include_gas_cost: true
   include_cns_events: true
   include_memory_refs: true
 

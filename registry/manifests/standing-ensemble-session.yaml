@@ -252,7 +252,7 @@ integration:
     on_unavailable: skip_with_cns_alert
 
 # Energy Budget
-energy:
+gas:
   session_cap: 150000
   per_message_cost: 100
   alert_threshold: 0.7

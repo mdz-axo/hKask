@@ -8,7 +8,6 @@ use crate::algedonic::{
     AlgedonicManager, DEFAULT_EXPECTED_VARIETY, DEFAULT_THRESHOLD, RuntimeAlert, cns_health_check,
 };
 use crate::kill_zone::KillZoneDetector;
-use crate::throttle::ThrottleBucket;
 use crate::unified_tracker::UnifiedVarietyTracker;
 use crate::variety::VarietyTracker;
 use hkask_types::InfrastructureError;
@@ -49,39 +48,15 @@ impl CnsState {
 /// CNS runtime — single entry point for observability and regulation
 pub struct CnsRuntime {
     state: Arc<RwLock<CnsState>>,
-    throttle: Arc<ThrottleBucket>,
     subscribers: Arc<RwLock<Vec<Arc<dyn CnsObserver>>>>,
 }
 
 impl CnsRuntime {
     pub fn with_threshold(threshold: u64) -> Self {
-        let throttle = Arc::new(ThrottleBucket::default());
         Self {
             state: Arc::new(RwLock::new(CnsState::new(threshold))),
-            throttle,
             subscribers: Arc::new(RwLock::new(Vec::new())),
         }
-    }
-
-    // ── Throttling ──
-
-    /// Check rate limit for an agent and consume a token if allowed.
-    ///
-    /// Returns `true` if the request proceeds, `false` if rate-limited.
-    /// Delegates to `ThrottleBucket::check_and_consume`.
-    ///
-    /// # Deprecation Notice
-    ///
-    /// **Deprecated since v0.22.0.** Absorbed into `GovernedTool` energy budget
-    /// accounting. Per-agent rate limiting is now handled by the `GovernedTool`
-    /// membrane which subsumes throttle checks as part of the OCAP + budget +
-    /// observability boundary.
-    #[deprecated(
-        since = "0.22.0",
-        note = "Absorbed into GovernedTool energy budget accounting"
-    )]
-    pub async fn check_throttle(&self, agent: &WebID) -> bool {
-        self.throttle.check_and_consume(*agent).await
     }
 
     fn read_algedonic(

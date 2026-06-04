@@ -64,7 +64,6 @@ pub use verification::CapabilityChecker;
 pub type CapabilityResource = DelegationResource;
 pub type CapabilityAction = DelegationAction;
 pub type CapabilityToken = DelegationToken;
-pub type BotCapabilities = AgentDelegation;
 
 use crate::WebID;
 use hex;

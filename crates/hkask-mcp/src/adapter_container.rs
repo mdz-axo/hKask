@@ -62,17 +62,6 @@ impl AdapterContainer {
         let path_lock = self.base_path.read().map_err(|e| e.to_string())?;
         Ok(path_lock.clone())
     }
-
-    /// Clear adapter configuration
-    pub fn clear(&self) -> Result<(), String> {
-        {
-            let mut cas_lock = self.git_cas.write().map_err(|e| e.to_string())?;
-            *cas_lock = None;
-        }
-        let mut path_lock = self.base_path.write().map_err(|e| e.to_string())?;
-        *path_lock = None;
-        Ok(())
-    }
 }
 
 impl Default for AdapterContainer {

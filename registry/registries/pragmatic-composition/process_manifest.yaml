@@ -13,7 +13,7 @@ manifest:
   visibility: Shared
 
 # Energy Budget Configuration
-energy:
+gas:
   cap: 10000  # Maximum token budget (4 tokens = 1 energy unit)
   cost_per_token: 0.25  # Energy cost per token
   alert_threshold: 0.8  # Alert at 80% budget usage
@@ -30,7 +30,7 @@ steps:
     template_ref: prompt/selector
     model_tier: fast_local
     mcp: hkask-mcp-inference
-    energy_cap: 500
+    gas_cap: 500
     timeout_seconds: 30
     output_schema:
       selected_template_id: string
@@ -47,7 +47,7 @@ steps:
     template_ref: null
     model_tier: null
     mcp: hkask-mcp-storage
-    energy_cap: 100
+    gas_cap: 100
     timeout_seconds: 5
     validation_rules:
       - template_exists
@@ -67,7 +67,7 @@ steps:
     template_ref: "{{ selected_template_id }}"
     model_tier: null
     mcp: null
-    energy_cap: 1000
+    gas_cap: 1000
     timeout_seconds: 10
     sandbox:
       allow_filesystem: false
@@ -89,13 +89,13 @@ steps:
     template_ref: null
     model_tier: from_template_contract
     mcp: from_template_contract
-    energy_cap: 5000
+    gas_cap: 5000
     timeout_seconds: 60
     cns_spans:
       - cns.prompt.select
       - cns.prompt.render
       - cns.prompt.outcome
-      - cns.energy.consume
+      - cns.gas.consume
     output_schema:
       result: any
       energy_cost: integer
@@ -110,7 +110,7 @@ steps:
     template_ref: null
     model_tier: null
     mcp: hkask-cns
-    energy_cap: 200
+    gas_cap: 200
     timeout_seconds: 5
     feedback:
       variety_delta: integer
@@ -123,7 +123,7 @@ steps:
 
 # Error Handling
 error_handling:
-  on_energy_exceeded: abort
+  on_gas_exceeded: abort
   on_timeout: retry
   max_retries: 2
   retry_backoff_seconds: 1
@@ -157,5 +157,5 @@ audit:
   log_level: info
   include_input: true
   include_output: true
-  include_energy_cost: true
+  include_gas_cost: true
   include_cns_events: true

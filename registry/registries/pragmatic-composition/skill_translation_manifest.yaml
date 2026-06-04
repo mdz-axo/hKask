@@ -34,7 +34,7 @@ pipeline_stages:
     description: Extract skill metadata, prompts, and process logic
     input: raw_skill_definition
     output: parsed_skill_ast
-    energy_cap: 500
+    gas_cap: 500
     cns_span: cns.tool.parse
     patterns:
       - Gordon_Hoare_CSP: channels for stage communication
@@ -44,7 +44,7 @@ pipeline_stages:
     description: Translate to hKask semantic primitives (RDF triples)
     input: parsed_skill_ast
     output: rdf_triples
-    energy_cap: 1000
+    gas_cap: 1000
     cns_span: cns.tool.map
     patterns:
       - RDF_mapping: skill → template/manifest/cognition
@@ -57,7 +57,7 @@ pipeline_stages:
     output:
       - jinja2_templates
       - yaml_manifests
-    energy_cap: 2000
+    gas_cap: 2000
     cns_span: cns.tool.generate
     patterns:
       - Martin_Fowler_repository: registry access pattern
@@ -70,7 +70,7 @@ pipeline_stages:
       - jinja2_templates
       - yaml_manifests
     output: validated_artifacts
-    energy_cap: 500
+    gas_cap: 500
     cns_span: cns.tool.validate
     validation_rules:
       - schema_validation: jinja2_syntax, yaml_schema
@@ -86,7 +86,7 @@ pipeline_stages:
     output:
       - registry_entry_ids
       - cns_event_ids
-    energy_cap: 500
+    gas_cap: 500
     cns_span: cns.tool.register
     persistence:
       - registry_write: templates/, manifests/
@@ -129,7 +129,7 @@ translation_rules:
     step_template: template_ref
     step_model: model_tier
     step_mcp: mcp
-    energy_cap: manifest.energy.cap
+    gas_cap: manifest.energy.cap
     visibility: manifest.visibility
 
   # Skill Cognition → Cognition Manifest
@@ -154,7 +154,7 @@ semantic_mapping:
     - rdf_type: :Manifest
     - rdfs_label: manifest.name
     - step_sequence: manifest.steps
-    - energy_cap: manifest.energy.cap
+    - gas_cap: manifest.energy.cap
   cognition_entity:
     - rdf_type: :Cognition
     - rdfs_label: reasoning_pattern.name
@@ -215,8 +215,8 @@ cns:
     - cns.tool.generate
     - cns.tool.validate
     - cns.tool.register
-    - cns.energy.allocate
-    - cns.energy.consume
+    - cns.gas.allocate
+    - cns.gas.consume
   variety_monitoring: true
   translation_metrics:
     - success_rate: float

@@ -40,8 +40,8 @@ pub use agent_def::{
 pub use audit::{AuditEntry, AuditLogPort, AuditOutcome};
 pub use capability::tokens::{ConsolidationToken, CurationToken, CyberneticsToken};
 pub use capability::{
-    AgentDelegation, BotCapabilities, CapabilityAction, CapabilityChecker, CapabilityResource,
-    CapabilityToken, DelegationAction, DelegationResource, DelegationToken, DelegationTokenBuilder,
+    AgentDelegation, CapabilityAction, CapabilityChecker, CapabilityResource, CapabilityToken,
+    DelegationAction, DelegationResource, DelegationToken, DelegationTokenBuilder,
     SYSTEM_MAX_ATTENUATION, SYSTEM_MAX_RECURSION,
 };
 pub use cns::{CircuitState, CnsHealth, RetryConfig};
@@ -54,9 +54,9 @@ pub use id::*;
 pub use identity::*;
 pub use lexicon::TemplateType;
 pub use loops::{
-    AUTHORITY_EDGES, ActionType, CuratorDirective, CuratorHandle, Deviation, DeviationDirection,
-    EpisodicReadHandle, EpisodicWriteHandle, ExperienceClassification, HkaskLoop, LoopAction,
-    LoopId, LoopMessage, LoopPayload, MessagePriority, Signal,
+    ActionType, CuratorDirective, CuratorHandle, Deviation, DeviationDirection, EpisodicReadHandle,
+    EpisodicWriteHandle, ExperienceClassification, HkaskLoop, LoopAction, LoopId, LoopMessage,
+    LoopPayload, MessagePriority, Signal,
 };
 pub use ports::{
     BackpressureSignal, CircuitBreakerPort, CnsObserver, CnsPort, ConsolidationOutcome,

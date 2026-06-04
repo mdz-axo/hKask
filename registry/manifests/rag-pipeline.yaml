@@ -14,7 +14,7 @@ manifest:
   editor: curator-or-human-admin
   visibility: Shared
 
-energy:
+gas:
   cap: 25000
   cost_per_token: 0.25
   alert_threshold: 0.8
@@ -46,7 +46,7 @@ steps:
     template_ref: rag/reformulate-query
     model_tier: fast_local
     mcp: hkask-mcp-inference
-    energy_cap: 2000
+    gas_cap: 2000
     timeout_seconds: 15
     input_mapping:
       query: "{{ query }}"
@@ -75,7 +75,7 @@ steps:
       sub_queries: "${step1.sub_queries}"
       strategy: "${input.retrieval_strategy | default('hybrid')}"
       max_results: "${input.max_sources | default(10)}"
-    energy_cap: 3000
+    gas_cap: 3000
     timeout_seconds: 30
     output_schema:
       type: object
@@ -104,7 +104,7 @@ steps:
       query: "${step1.reformulated_queries[0]}"
       strategy: "quick"
       num_results: "${input.max_sources | default(10)}"
-    energy_cap: 4000
+    gas_cap: 4000
     timeout_seconds: 30
     output_schema:
       type: object
@@ -129,7 +129,7 @@ steps:
     template_ref: rag/synthesize-grounded
     model_tier: reasoning_local
     mcp: hkask-mcp-inference
-    energy_cap: 6000
+    gas_cap: 6000
     timeout_seconds: 90
     input_mapping:
       query: "{{ query }}"
@@ -166,7 +166,7 @@ steps:
     template_ref: rag/verify-citations
     model_tier: fast_local
     mcp: hkask-mcp-inference
-    energy_cap: 2000
+    gas_cap: 2000
     timeout_seconds: 30
     input_mapping:
       answer: "{{ ordinal_4.answer }}"
@@ -200,7 +200,7 @@ steps:
     template_ref: null
     model_tier: null
     mcp: hkask-mcp-cns
-    energy_cap: 500
+    gas_cap: 500
     timeout_seconds: 5
     feedback:
       sources_retrieved: integer
@@ -214,7 +214,7 @@ steps:
 
 # Error Handling
 error_handling:
-  on_energy_exceeded: abort
+  on_gas_exceeded: abort
   on_timeout: retry
   max_retries: 2
   retry_backoff_seconds: 2
@@ -228,29 +228,29 @@ ocap:
     - resource: template
       action: render
       template_id: rag/reformulate-query
-      energy_budget: 2000
+      gas_budget: 2000
     - resource: template
       action: render
       template_id: rag/synthesize-grounded
-      energy_budget: 6000
+      gas_budget: 6000
     - resource: template
       action: render
       template_id: rag/verify-citations
-      energy_budget: 2000
+      gas_budget: 2000
     - resource: manifest
       action: execute
       template_id: rag-pipeline
-      energy_budget: 500
+      gas_budget: 500
     - resource: cns
       action: emit
       template_id: rag-pipeline
-      energy_budget: 500
+      gas_budget: 500
     - resource: memory
       action: recall
-      energy_budget: 3000
+      gas_budget: 3000
     - resource: web
       action: search
-      energy_budget: 4000
+      gas_budget: 4000
   delegation_chain_required: true
   signature_algorithm: ed25519
   capability_expiry_seconds: 3600
@@ -274,5 +274,5 @@ audit:
   log_level: info
   include_input: true
   include_output: true
-  include_energy_cost: true
+  include_gas_cost: true
   include_cns_events: true

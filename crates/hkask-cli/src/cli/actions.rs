@@ -169,9 +169,9 @@ pub enum CnsAction {
 
     /// Display or update CNS set-points
     SetPoints {
-        /// Set energy_min_remaining (0.0-1.0)
+        /// Set gas_min_remaining (0.0-1.0)
         #[arg(long)]
-        energy_min_remaining: Option<f64>,
+        gas_min_remaining: Option<f64>,
         /// Set variety_max_deficit
         #[arg(long)]
         variety_max_deficit: Option<f64>,

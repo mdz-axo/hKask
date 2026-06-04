@@ -13,7 +13,7 @@ manifest:
   editor: curator-or-human-admin
   visibility: Shared
 
-energy:
+gas:
   cap: 8192
   cost_per_token: 0.25
   alert_threshold: 0.8
@@ -36,7 +36,7 @@ steps:
       num_results: "${input.num_results | default(10)}"
       include_domains: "${input.include_domains | default(null)}"
       exclude_domains: "${input.exclude_domains | default(null)}"
-    energy_cap: 4096
+    gas_cap: 4096
     timeout_seconds: 30
     output_schema:
       results: array
@@ -56,7 +56,7 @@ steps:
     arguments:
       url: "${step1.results[0].url}"
       num_results: "${input.breadth | default(5)}"
-    energy_cap: 2048
+    gas_cap: 2048
     timeout_seconds: 20
     condition: "${input.expand_similar | default(true)}"
     output_schema:
@@ -77,7 +77,7 @@ steps:
       format: "markdown"
       main_content_only: true
     loop_over: "${step1.results[:5]}"
-    energy_cap: 4096
+    gas_cap: 4096
     timeout_seconds: 60
     output_schema:
       extracted_pages: array
@@ -98,7 +98,7 @@ steps:
       num_results: 3
     loop_over: "${step1.related_questions[:3]}"
     condition: "${input.iterate | default(true)}"
-    energy_cap: 2048
+    gas_cap: 2048
     timeout_seconds: 30
     output_schema:
       expanded_results: array
@@ -111,7 +111,7 @@ steps:
     renderer: minijinja
     template_ref: web/research-cascade
     model_tier: null
-    energy_cap: 1000
+    gas_cap: 1000
     timeout_seconds: 10
     output_schema:
       synthesis: string
@@ -125,7 +125,7 @@ steps:
     template_ref: null
     model_tier: null
     mcp: hkask-cns
-    energy_cap: 500
+    gas_cap: 500
     timeout_seconds: 5
     feedback:
       variety_delta: integer
@@ -135,7 +135,7 @@ steps:
       cns_event_id: string
 
 error_handling:
-  on_energy_exceeded: abort
+  on_gas_exceeded: abort
   on_timeout: retry
   max_retries: 2
   retry_backoff_seconds: 2
@@ -146,13 +146,13 @@ ocap:
   required_capabilities:
     - resource: web
       action: search
-      energy_budget: 8192
+      gas_budget: 8192
     - resource: web
       action: extract
-      energy_budget: 4096
+      gas_budget: 4096
     - resource: cns
       action: emit
-      energy_budget: 500
+      gas_budget: 500
   delegation_chain_required: true
   signature_algorithm: ed25519
   capability_expiry_seconds: 3600
@@ -170,5 +170,5 @@ audit:
   log_level: info
   include_input: true
   include_output: true
-  include_energy_cost: true
+  include_gas_cost: true
   include_cns_events: true

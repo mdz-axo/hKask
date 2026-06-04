@@ -48,7 +48,7 @@ impl ImprovMode {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[serde(rename_all = "snake_case")]
-pub enum SynthesisMode {
+pub(crate) enum SynthesisMode {
     Always,
     #[default]
     Optional,
@@ -63,7 +63,7 @@ pub struct ImprovSessionConfig {
     pub context_window: usize,
     pub relevance_model: String,
     pub relevance_max_tokens: i32,
-    pub synthesis: SynthesisMode,
+    pub(crate) synthesis: SynthesisMode,
 }
 
 impl Default for ImprovSessionConfig {

@@ -90,7 +90,7 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.agent_pod",
     "cns.connector",
     "cns.pipeline",
-    "cns.energy",
+    "cns.gas",
     "cns.review",
     "cns.template",
     "cns.curation",

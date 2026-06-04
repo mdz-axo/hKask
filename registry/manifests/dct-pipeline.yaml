@@ -14,7 +14,7 @@ manifest:
   visibility: Shared
 
 # Energy Budget Configuration
-energy:
+gas:
   cap: 10000
   cost_per_token: 0.25
   alert_threshold: 0.8
@@ -31,7 +31,7 @@ steps:
     template_ref: dct-pipeline/decimation
     model_tier: fast_local
     mcp: null
-    energy_cap: 2000
+    gas_cap: 2000
     timeout_seconds: 30
     output_schema:
       sentences: array
@@ -46,7 +46,7 @@ steps:
     template_ref: dct-pipeline/classification
     model_tier: fast_local
     mcp: null
-    energy_cap: 2000
+    gas_cap: 2000
     timeout_seconds: 30
     output_schema:
       classifications: array
@@ -60,7 +60,7 @@ steps:
     template_ref: null
     model_tier: null
     mcp: hkask-mcp-storage
-    energy_cap: 500
+    gas_cap: 500
     timeout_seconds: 10
     cns_spans:
       - cns.prompt.select
@@ -72,7 +72,7 @@ steps:
 
 # Error Handling
 error_handling:
-  on_energy_exceeded: abort
+  on_gas_exceeded: abort
   on_timeout: retry
   max_retries: 2
   retry_backoff_seconds: 1
@@ -84,19 +84,19 @@ ocap:
     - resource: template
       action: render
       template_id: dct-pipeline/decimation
-      energy_budget: 2000
+      gas_budget: 2000
     - resource: template
       action: render
       template_id: dct-pipeline/classification
-      energy_budget: 2000
+      gas_budget: 2000
     - resource: manifest
       action: execute
       template_id: dct-pipeline
-      energy_budget: 500
+      gas_budget: 500
     - resource: cns
       action: emit
       template_id: dct-pipeline
-      energy_budget: 100
+      gas_budget: 100
   delegation_chain_required: true
   signature_algorithm: ed25519
   capability_expiry_seconds: 3600
@@ -116,5 +116,5 @@ audit:
   log_level: info
   include_input: true
   include_output: true
-  include_energy_cost: true
+  include_gas_cost: true
   include_cns_events: true

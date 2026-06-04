@@ -41,7 +41,7 @@ pub(crate) const DEFAULT_DAMPEN_WINDOW: Duration = Duration::from_secs(60);
 /// second arrives within the dampening window.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct DirectiveFingerprint {
-    /// The directive type: "calibrate_threshold", "update_capabilities", "adjust_energy_budget"
+    /// The directive type: "calibrate_threshold", "update_capabilities", "adjust_gas_budget"
     directive_type: String,
     /// The target agent (if applicable)
     target: Option<WebID>,
@@ -59,8 +59,8 @@ impl DirectiveFingerprint {
                 directive_type: "update_capabilities".to_string(),
                 target: Some(*agent),
             },
-            CuratorDirective::OverrideEnergyBudget { agent, .. } => Self {
-                directive_type: "override_energy_budget".to_string(),
+            CuratorDirective::OverrideGasBudget { agent, .. } => Self {
+                directive_type: "override_gas_budget".to_string(),
                 target: Some(*agent),
             },
             CuratorDirective::SeekMoreEvidence {

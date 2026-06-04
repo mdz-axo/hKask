@@ -87,7 +87,7 @@ manifest_cascade:
       timeout_ms: 30000
 
 # Energy management
-energy:
+gas:
   # Budget allocation
   budget:
     total_per_cascade: 50000

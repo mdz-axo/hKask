@@ -3,10 +3,9 @@ title: "Loop Architecture — Semantic Root-Cause Analysis & Six-Loop Decomposit
 audience: [architects, developers, agents]
 last_updated: 2026-06-03
 version: "2.3.0"
-status: "Superseded"
+status: "Active"
 domain: "Architecture"
 ddmvss_categories: [domain, capability, observability, curation]
-superseded_by: "../loop-architecture.md"
 ---
 
 # Loop Architecture — Semantic Root-Cause Analysis & Six-Loop Decomposition
@@ -132,15 +131,12 @@ erDiagram
     CommunicationLoop ||--o{ MCPDispatch : "owns"
     CommunicationLoop ||--o{ A2AProtocol : "owns"
     CommunicationLoop ||--o{ H2AProtocol : "owns"
-    CommunicationLoop ||--o{ InferenceLoop : "regulates"
-    CommunicationLoop ||--o{ SemanticMemoryLoop : "regulates"
-    CommunicationLoop ||--o{ EpisodicMemoryLoop : "regulates"
 
     CurationLoop ||--o{ CuratorPersona : "owns"
     CurationLoop ||--o{ PromptValidation : "owns"
     CurationLoop ||--o{ ReflectiveAssessment : "owns"
-    CurationLoop ||--o{ CommunicationLoop : "regulates"
     CurationLoop ||--o{ CyberneticsLoop : "regulates"
+    CurationLoop ||--o{ CommunicationLoop : "signals"
 
     CyberneticsLoop ||--o{ EnergyAccount : "owns"
     CyberneticsLoop ||--o{ VarietyCounter : "owns"
@@ -149,6 +145,7 @@ erDiagram
     CyberneticsLoop ||--o{ InferenceLoop : "regulates"
     CyberneticsLoop ||--o{ SemanticMemoryLoop : "regulates"
     CyberneticsLoop ||--o{ EpisodicMemoryLoop : "regulates"
+    CyberneticsLoop ||--o{ CommunicationLoop : "regulates"
     CyberneticsLoop ||--o{ CurationLoop : "signals"
 
     CnsSpan ||--o{ CnsTool : "includes"
@@ -166,7 +163,7 @@ erDiagram
 id: DIAG-LOOP-002
 verified_date: 2026-06-03
 verified_against: crates/hkask-cns/src/runtime.rs; crates/hkask-agents/src/pod/mod.rs; crates/hkask-mcp/src/runtime.rs; crates/hkask-memory/src; crates/hkask-templates/src
-status: CORRECTED (see authoritative ../loop-architecture.md)
+status: CORRECTED
 -->
 
 ### 2.3 CNS Span Subsumption into Cybernetics Loop

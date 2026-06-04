@@ -53,7 +53,7 @@ pub struct RussellMappingConfig {
     pub template_type_inference: TemplateTypeInference,
     pub model_tier_selection: ModelTierSelection,
     #[serde(default)]
-    pub energy_budget: Option<EnergyBudget>,
+    pub gas_budget: Option<GasBudgetConfig>,
     #[serde(default)]
     pub cns_spans: Option<CnsSpans>,
     #[serde(default)]
@@ -109,7 +109,7 @@ impl RussellMappingConfig {
                 rules: vec![],
                 default: "balanced".to_string(),
             },
-            energy_budget: None,
+            gas_budget: None,
             cns_spans: None,
             output: None,
             dry_run: false,
@@ -181,7 +181,7 @@ pub struct TierRule {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EnergyBudget {
+pub struct GasBudgetConfig {
     pub base_cost: u64,
     pub per_probe_cost: u64,
     pub per_intervention_cost: u64,
@@ -228,7 +228,7 @@ pub struct MappedTemplate {
     pub template_type: TemplateType,
     pub description: String,
     pub model_tier: String,
-    pub energy_cap: u64,
+    pub gas_cap: u64,
 }
 
 /// Russell mapper — generic YAML processor
@@ -278,14 +278,14 @@ impl RussellMapper {
         let template_type = infer_template_type(russell, &self.config.template_type_inference);
         let model_tier = select_model_tier(russell, &self.config.model_tier_selection);
         let description = russell.symptoms.join("\n");
-        let energy_cap = calculate_energy_budget(russell, self.config.energy_budget.as_ref());
+        let gas_cap = calculate_gas_budget(russell, self.config.gas_budget.as_ref());
 
         MappedTemplate {
             id: hkask_id,
             template_type,
             description,
             model_tier,
-            energy_cap,
+            gas_cap,
         }
     }
 }
@@ -325,9 +325,9 @@ fn select_model_tier(russell: &RussellSkillManifest, config: &ModelTierSelection
 }
 
 /// Calculate energy budget for mapped template
-fn calculate_energy_budget(
+fn calculate_gas_budget(
     russell: &RussellSkillManifest,
-    budget_cfg: Option<&EnergyBudget>,
+    budget_cfg: Option<&GasBudgetConfig>,
 ) -> u64 {
     let base_cost: u64 = budget_cfg.map(|b| b.base_cost).unwrap_or(1000);
     let per_probe_cost: u64 = budget_cfg.map(|b| b.per_probe_cost).unwrap_or(200);

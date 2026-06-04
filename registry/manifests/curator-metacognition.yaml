@@ -17,7 +17,7 @@ manifest:
 metacognition_template: registry/templates/curator-metacognition.yaml
 
 # Energy Budget Configuration
-energy:
+gas:
   cap: 25000
   cost_per_token: 0.25
   alert_threshold: 0.7
@@ -38,7 +38,7 @@ steps:
     template_ref: curator/system_state_gather.j2
     model_tier: fast_local
     mcp: hkask-mcp-storage
-    energy_cap: 3000
+    gas_cap: 3000
     timeout_seconds: 30
     output_schema:
       type: object
@@ -61,7 +61,7 @@ steps:
     template_ref: curator/metacognition-selector.j2
     model_tier: reasoning_local
     mcp: hkask-mcp-inference
-    energy_cap: 4000
+    gas_cap: 4000
     timeout_seconds: 30
     output_schema:
       type: object
@@ -83,7 +83,7 @@ steps:
     template_ref: curator/metacognition-${operation}.j2
     model_tier: balanced
     mcp: hkask-mcp-cns
-    energy_cap: 6000
+    gas_cap: 6000
     timeout_seconds: 60
     output_schema:
       type: object
@@ -104,7 +104,7 @@ steps:
     target: emit_metacognition_outcome
     mcp: hkask-mcp-cns
     tool: cns_emit
-    energy_cap: 2000
+    gas_cap: 2000
     timeout_seconds: 10
     output_schema:
       type: object
@@ -123,7 +123,7 @@ steps:
     template_ref: curator/curator-metacognition.yaml#kata_directives
     model_tier: balanced
     mcp: hkask-mcp-inference
-    energy_cap: 3000
+    gas_cap: 3000
     timeout_seconds: 30
     output_schema:
       type: object
@@ -139,7 +139,7 @@ steps:
 
 # Error Handling
 error_handling:
-  on_energy_exceeded: abort_and_escalate
+  on_gas_exceeded: abort_and_escalate
   on_timeout: retry
   max_retries: 2
   retry_backoff_seconds: 1
@@ -164,16 +164,16 @@ ocap:
   required_capabilities:
     - resource: cns
       action: emit
-      energy_budget: 2000
+      gas_budget: 2000
     - resource: memory
       action: recall
-      energy_budget: 3000
+      gas_budget: 3000
     - resource: inference
       action: call
-      energy_budget: 6000
+      gas_budget: 6000
     - resource: ensemble
       action: coordinate
-      energy_budget: 4000
+      gas_budget: 4000
   delegation_chain_required: true
   max_delegation_depth: 7
   signature_algorithm: HMAC-SHA256
@@ -215,7 +215,7 @@ bot_reporting:
     - variety_deficit_gt_100
     - bot_coordination_failure
     - system_degradation_detected
-    - energy_budget_critical
+    - gas_budget_critical
 
 # Administrator Coordination
 administrator:
@@ -236,6 +236,6 @@ audit:
   log_level: info
   include_input: true
   include_output: true
-  include_energy_cost: true
+  include_gas_cost: true
   include_cns_events: true
   include_bot_reports: true

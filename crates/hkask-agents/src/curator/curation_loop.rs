@@ -282,7 +282,7 @@ impl HkaskLoop for CurationLoop {
                         count = count,
                         "Algedonic events exceeded threshold — Curation reviewing"
                     );
-                    // Curation may issue OverrideEnergyBudget or CalibrateThreshold directives
+                    // Curation may issue OverrideGasBudget or CalibrateThreshold directives
                     // based on review. For now, log and escalate.
                     None
                 }
@@ -307,9 +307,9 @@ impl HkaskLoop for CurationLoop {
                                 );
                             }
                             // Issue directives for high-confidence escalations
-                            // (adjust energy budgets for the associated bot)
+                            // (adjust gas budgets for the associated bot)
                             for entry in entries.iter().filter(|e| e.confidence > 0.5) {
-                                let directive = CuratorDirective::OverrideEnergyBudget {
+                                let directive = CuratorDirective::OverrideGasBudget {
                                     agent: entry.bot_id.into(), // BotID -> WebID
                                     new_budget: 5000, // Reduced budget for problematic bot
                                 };
@@ -320,7 +320,7 @@ impl HkaskLoop for CurationLoop {
                                         target: "curation.loop",
                                         trace_id = %trace_id,
                                         escalation_id = %entry.id,
-                                        "Issued OverrideEnergyBudget directive for escalated bot"
+                                        "Issued OverrideGasBudget directive for escalated bot"
                                     );
                                 }
                             }

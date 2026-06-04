@@ -14,7 +14,7 @@ manifest:
   visibility: Shared
 
 # Energy Budget Configuration
-energy:
+gas:
   cap: 8000
   cost_per_token: 0.25
   alert_threshold: 0.8
@@ -31,7 +31,7 @@ steps:
     template_ref: composition/answer_composition
     model_tier: balanced
     mcp: hkask-mcp-inference
-    energy_cap: 4096
+    gas_cap: 4096
     timeout_seconds: 30
     output_schema:
       answer: string
@@ -45,7 +45,7 @@ steps:
     template_ref: null
     model_tier: null
     mcp: hkask-mcp-storage
-    energy_cap: 500
+    gas_cap: 500
     timeout_seconds: 5
     validation_rules:
       - answer_non_empty
@@ -64,7 +64,7 @@ steps:
     template_ref: null
     model_tier: null
     mcp: hkask-cns
-    energy_cap: 500
+    gas_cap: 500
     timeout_seconds: 5
     feedback:
       variety_delta: integer
@@ -75,7 +75,7 @@ steps:
 
 # Error Handling
 error_handling:
-  on_energy_exceeded: abort
+  on_gas_exceeded: abort
   on_timeout: retry
   max_retries: 2
   retry_backoff_seconds: 1
@@ -87,15 +87,15 @@ ocap:
     - resource: template
       action: render
       template_id: composition/answer_composition
-      energy_budget: 4096
+      gas_budget: 4096
     - resource: manifest
       action: execute
       template_id: composition
-      energy_budget: 500
+      gas_budget: 500
     - resource: cns
       action: emit
       template_id: composition
-      energy_budget: 500
+      gas_budget: 500
   delegation_chain_required: true
   signature_algorithm: ed25519
   capability_expiry_seconds: 3600
@@ -115,5 +115,5 @@ audit:
   log_level: info
   include_input: true
   include_output: true
-  include_energy_cost: true
+  include_gas_cost: true
   include_cns_events: true

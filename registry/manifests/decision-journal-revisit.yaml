@@ -19,7 +19,7 @@ manifest:
   visibility: Shared
 
 # Energy Budget Configuration
-energy:
+gas:
   cap: 10000
   cost_per_token: 0.25
   alert_threshold: 0.8
@@ -47,7 +47,7 @@ steps:
     template_ref: null
     model_tier: null
     mcp: hkask-mcp-memory
-    energy_cap: 1000
+    gas_cap: 1000
     timeout_seconds: 10
     output_schema:
       type: object
@@ -82,7 +82,7 @@ steps:
     template_ref: decision-journal/revisit-evaluate
     model_tier: reasoning_local
     mcp: hkask-mcp-inference
-    energy_cap: 4000
+    gas_cap: 4000
     timeout_seconds: 60
     input_mapping:
       decision_record: "{{ ordinal_1.decision_record }}"
@@ -126,7 +126,7 @@ steps:
     template_ref: decision-journal/compute-brier
     model_tier: fast_local
     mcp: hkask-mcp-inference
-    energy_cap: 2000
+    gas_cap: 2000
     timeout_seconds: 30
     input_mapping:
       outcome_comparisons: "{{ ordinal_2.outcome_comparisons }}"
@@ -165,7 +165,7 @@ steps:
     template_ref: null
     model_tier: null
     mcp: hkask-mcp-cns
-    energy_cap: 500
+    gas_cap: 500
     timeout_seconds: 5
     feedback:
       variety_delta: integer
@@ -182,7 +182,7 @@ steps:
 
 # Error Handling
 error_handling:
-  on_energy_exceeded: abort
+  on_gas_exceeded: abort
   on_timeout: retry
   max_retries: 2
   retry_backoff_seconds: 1
@@ -195,23 +195,23 @@ ocap:
     - resource: template
       action: render
       template_id: decision-journal/revisit-evaluate
-      energy_budget: 4000
+      gas_budget: 4000
     - resource: template
       action: render
       template_id: decision-journal/compute-brier
-      energy_budget: 2000
+      gas_budget: 2000
     - resource: memory
       action: recall
       template_id: decision-journal-revisit
-      energy_budget: 1000
+      gas_budget: 1000
     - resource: manifest
       action: execute
       template_id: decision-journal-revisit
-      energy_budget: 500
+      gas_budget: 500
     - resource: cns
       action: emit
       template_id: decision-journal-revisit
-      energy_budget: 500
+      gas_budget: 500
   delegation_chain_required: true
   signature_algorithm: ed25519
   capability_expiry_seconds: 3600
@@ -236,5 +236,5 @@ audit:
   log_level: info
   include_input: true
   include_output: true
-  include_energy_cost: true
+  include_gas_cost: true
   include_cns_events: true

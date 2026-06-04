@@ -46,7 +46,7 @@ use tokio::sync::{RwLock, mpsc};
 #[derive(Debug, Clone)]
 pub struct SetPoints {
     /// Minimum energy budget remaining ratio (0.0-1.0). Default: 0.2 (20% remaining)
-    pub energy_min_remaining: f64,
+    pub gas_min_remaining: f64,
     /// Maximum variety deficit before escalation. Default: 100
     pub variety_max_deficit: f64,
     /// Maximum error rate (0.0-1.0). Default: 0.3 (30% errors)
@@ -59,7 +59,7 @@ pub struct SetPoints {
 /// Missing fields fall back to the `SetPoints::default()` values.
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct SetPointsConfig {
-    pub energy_min_remaining: Option<f64>,
+    pub gas_min_remaining: Option<f64>,
     pub variety_max_deficit: Option<f64>,
     pub error_rate_max: Option<f64>,
     pub connector_latency_max_secs: Option<f64>,
@@ -75,7 +75,7 @@ impl SetPointsConfig {
 impl Default for SetPoints {
     fn default() -> Self {
         Self {
-            energy_min_remaining: 0.2,
+            gas_min_remaining: 0.2,
             variety_max_deficit: 100.0,
             error_rate_max: 0.3,
             connector_latency_max_secs: 30.0,
@@ -88,9 +88,9 @@ impl SetPoints {
     pub fn from_config(config: &SetPointsConfig) -> Self {
         let defaults = SetPoints::default();
         Self {
-            energy_min_remaining: config
-                .energy_min_remaining
-                .unwrap_or(defaults.energy_min_remaining),
+            gas_min_remaining: config
+                .gas_min_remaining
+                .unwrap_or(defaults.gas_min_remaining),
             variety_max_deficit: config
                 .variety_max_deficit
                 .unwrap_or(defaults.variety_max_deficit),
@@ -112,7 +112,7 @@ pub struct CyberneticsLoop {
     /// CNS runtime for variety and alert access
     cns: Arc<RwLock<CnsRuntime>>,
     /// Gas budgets keyed by agent WebID
-    energy_budgets: Arc<RwLock<std::collections::HashMap<WebID, GasBudget>>>,
+    gas_budgets: Arc<RwLock<std::collections::HashMap<WebID, GasBudget>>>,
     /// Homeostatic set-points
     set_points: SetPoints,
     /// Maximum number of loop iterations before forced stabilization
@@ -138,7 +138,7 @@ impl CyberneticsLoop {
         let (_dead_tx, dead_rx) = mpsc::unbounded_channel::<LoopMessage>();
         Self {
             cns,
-            energy_budgets: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            gas_budgets: Arc::new(RwLock::new(std::collections::HashMap::new())),
             set_points: SetPoints::default(),
             max_iterations: 100,
             dispatch_tx,
@@ -160,7 +160,7 @@ impl CyberneticsLoop {
         let (_dead_tx, dead_rx) = mpsc::unbounded_channel::<LoopMessage>();
         Self {
             cns,
-            energy_budgets: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            gas_budgets: Arc::new(RwLock::new(std::collections::HashMap::new())),
             set_points,
             max_iterations: 100,
             dispatch_tx,
@@ -180,7 +180,7 @@ impl CyberneticsLoop {
         let (inbox_tx, inbox_rx) = mpsc::unbounded_channel::<LoopMessage>();
         let loop_instance = Self {
             cns,
-            energy_budgets: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            gas_budgets: Arc::new(RwLock::new(std::collections::HashMap::new())),
             set_points: SetPoints::default(),
             max_iterations: 100,
             dispatch_tx,
@@ -203,7 +203,7 @@ impl CyberneticsLoop {
         let (inbox_tx, inbox_rx) = mpsc::unbounded_channel::<LoopMessage>();
         let loop_instance = Self {
             cns,
-            energy_budgets: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            gas_budgets: Arc::new(RwLock::new(std::collections::HashMap::new())),
             set_points,
             max_iterations: 100,
             dispatch_tx,
@@ -216,13 +216,13 @@ impl CyberneticsLoop {
     /// Register a gas budget for an agent.
     #[allow(dead_code)]
     pub(crate) async fn register_gas_budget(&self, agent: WebID, budget: GasBudget) {
-        let mut budgets = self.energy_budgets.write().await;
+        let mut budgets = self.gas_budgets.write().await;
         budgets.insert(agent, budget);
     }
 
     /// Check if an agent can proceed with an operation costing `gas`.
     pub async fn can_proceed(&self, agent: &WebID, gas: u64) -> bool {
-        let budgets = self.energy_budgets.read().await;
+        let budgets = self.gas_budgets.read().await;
         if let Some(budget) = budgets.get(agent) {
             budget.can_proceed(gas)
         } else {
@@ -236,7 +236,7 @@ impl CyberneticsLoop {
     /// Gas is reserved but not consumed. Call `settle_gas()` after the
     /// operation completes to consume or refund the actual cost.
     pub async fn reserve_gas(&self, agent: &WebID, gas: u64) -> Result<u64, GasError> {
-        let mut budgets = self.energy_budgets.write().await;
+        let mut budgets = self.gas_budgets.write().await;
         if let Some(budget) = budgets.get_mut(agent) {
             budget.reserve(gas)
         } else {
@@ -255,7 +255,7 @@ impl CyberneticsLoop {
         reserved_gas: u64,
         actual_gas: u64,
     ) -> Result<u64, GasError> {
-        let mut budgets = self.energy_budgets.write().await;
+        let mut budgets = self.gas_budgets.write().await;
         if let Some(budget) = budgets.get_mut(agent) {
             budget.settle(reserved_gas, actual_gas)
         } else {
@@ -269,7 +269,7 @@ impl CyberneticsLoop {
     /// Use this for operations where the exact cost is known upfront.
     /// For operations with estimated cost, prefer `reserve_gas` + `settle_gas`.
     pub(crate) async fn acquire_budget(&self, agent: &WebID, gas: u64) -> Result<u64, GasError> {
-        let mut budgets = self.energy_budgets.write().await;
+        let mut budgets = self.gas_budgets.write().await;
         if let Some(budget) = budgets.get_mut(agent) {
             budget.consume(gas)
         } else {
@@ -283,12 +283,12 @@ impl CyberneticsLoop {
     /// Called by the Cybernetics Loop on its regulation cycle.
     pub async fn replenish_all_budgets(&self) {
         let budget_ids: Vec<WebID> = {
-            let budgets = self.energy_budgets.read().await;
+            let budgets = self.gas_budgets.read().await;
             budgets.keys().cloned().collect()
         };
         for agent in budget_ids {
             let replenished = {
-                let mut budgets = self.energy_budgets.write().await;
+                let mut budgets = self.gas_budgets.write().await;
                 if let Some(budget) = budgets.get_mut(&agent) {
                     let rate = budget.replenish_rate;
                     budget.replenish();
@@ -311,7 +311,7 @@ impl CyberneticsLoop {
     /// Replenish a specific agent's gas budget by a specific amount.
     /// Used by CuratorDirective::ReplenishBudget.
     pub async fn replenish_agent_budget(&self, agent: &WebID, amount: u64) {
-        let mut budgets = self.energy_budgets.write().await;
+        let mut budgets = self.gas_budgets.write().await;
         if let Some(budget) = budgets.get_mut(agent) {
             budget.replenish_by(amount);
             tracing::info!(
@@ -380,11 +380,11 @@ impl CyberneticsLoop {
                                     );
                                 }
                             }
-                            "adjust_energy_budget" => {
+                            "adjust_gas_budget" => {
                                 if let Some(new_budget) =
                                     parameters.get("new_budget").and_then(|v| v.as_u64())
                                 {
-                                    let mut budgets = self.energy_budgets.write().await;
+                                    let mut budgets = self.gas_budgets.write().await;
                                     if let Some(budget) = budgets.get_mut(target) {
                                         budget.cap = new_budget;
                                         budget.remaining = new_budget;
@@ -392,7 +392,7 @@ impl CyberneticsLoop {
                                             target: "cns.cybernetics",
                                             agent = %target,
                                             new_budget = new_budget,
-                                            "Applied AdjustEnergyBudget directive (within set-points)"
+                                            "Applied AdjustGasBudget directive (within set-points)"
                                         );
                                     } else {
                                         budgets.insert(*target, GasBudget::new(new_budget));
@@ -400,18 +400,18 @@ impl CyberneticsLoop {
                                             target: "cns.cybernetics",
                                             agent = %target,
                                             new_budget = new_budget,
-                                            "Registered new gas budget from AdjustEnergyBudget directive"
+                                            "Registered new gas budget from AdjustGasBudget directive"
                                         );
                                     }
                                 }
                             }
-                            "override_energy_budget" => {
-                                // OverrideEnergyBudget: Curation can exceed set-point bounds.
-                                // This is the metacognitive override — stronger than AdjustEnergyBudget.
+                            "override_gas_budget" => {
+                                // OverrideGasBudget: Curation can exceed set-point bounds.
+                                // This is the metacognitive override — stronger than AdjustGasBudget.
                                 if let Some(new_budget) =
                                     parameters.get("new_budget").and_then(|v| v.as_u64())
                                 {
-                                    let mut budgets = self.energy_budgets.write().await;
+                                    let mut budgets = self.gas_budgets.write().await;
                                     if let Some(budget) = budgets.get_mut(target) {
                                         // Override can set budget above or below set-points
                                         budget.cap = new_budget;
@@ -420,7 +420,7 @@ impl CyberneticsLoop {
                                             target: "cns.cybernetics",
                                             agent = %target,
                                             new_budget = new_budget,
-                                            "Applied OverrideEnergyBudget directive from Curation (set-point override)"
+                                            "Applied OverrideGasBudget directive from Curation (set-point override)"
                                         );
                                     } else {
                                         budgets.insert(*target, GasBudget::new(new_budget));
@@ -428,7 +428,7 @@ impl CyberneticsLoop {
                                             target: "cns.cybernetics",
                                             agent = %target,
                                             new_budget = new_budget,
-                                            "Registered new gas budget from OverrideEnergyBudget directive"
+                                            "Registered new gas budget from OverrideGasBudget directive"
                                         );
                                     }
                                 }
@@ -509,14 +509,14 @@ impl HkaskLoop for CyberneticsLoop {
         let mut signals = Vec::new();
 
         // Energy signals: per-agent remaining ratio
-        let budgets = self.energy_budgets.read().await;
+        let budgets = self.gas_budgets.read().await;
         for (_agent, budget) in budgets.iter() {
             let ratio = budget.remaining as f64 / budget.cap.max(1) as f64;
             signals.push(Signal::new(
                 LoopId::Cybernetics,
                 "energy_remaining",
                 ratio,
-                self.set_points.energy_min_remaining,
+                self.set_points.gas_min_remaining,
             ));
         }
         drop(budgets);
@@ -542,21 +542,21 @@ impl HkaskLoop for CyberneticsLoop {
             let action = match dev.signal.metric.as_str() {
                 "energy_remaining" if dev.direction == DeviationDirection::BelowSetPoint => {
                     // Produce both Throttle (for immediate protection) and
-                    // AdjustEnergyBudget (for automatic budget reallocation)
+                    // AdjustGasBudget (for automatic budget reallocation)
                     // Throttle signals downstream loops to reduce consumption
-                    // AdjustEnergyBudget is Cybernetics' automatic homeostatic response
+                    // AdjustGasBudget is Cybernetics' automatic homeostatic response
                     actions.push(LoopAction::new(
                         LoopId::Inference,
                         ActionType::Throttle,
                         serde_json::json!({
-                            "reason": "energy_budget_low",
+                            "reason": "gas_budget_low",
                             "remaining_ratio": dev.signal.value,
                             "set_point": dev.signal.set_point,
                         }),
                     ));
                     actions.push(LoopAction::new(
                         LoopId::Cybernetics,
-                        ActionType::AdjustEnergyBudget,
+                        ActionType::AdjustGasBudget,
                         serde_json::json!({
                             "reason": "energy_depletion_auto_adjust",
                             "remaining_ratio": dev.signal.value,
@@ -642,8 +642,8 @@ impl HkaskLoop for CyberneticsLoop {
                 ActionType::Escalate => "escalate",
                 ActionType::Calibrate => "calibrate",
                 ActionType::CircuitBreak => "circuit_break",
-                ActionType::AdjustEnergyBudget => "adjust_energy_budget",
-                ActionType::OverrideEnergyBudget => "override_energy_budget",
+                ActionType::AdjustGasBudget => "adjust_gas_budget",
+                ActionType::OverrideGasBudget => "override_gas_budget",
                 ActionType::ReplenishBudget => "replenish_budget",
             };
 
@@ -696,10 +696,10 @@ mod tests {
         assert_eq!(deviations[0].direction, DeviationDirection::BelowSetPoint);
 
         let actions = loop6.compute(&deviations).await;
-        assert_eq!(actions.len(), 2); // Throttle + AdjustEnergyBudget
+        assert_eq!(actions.len(), 2); // Throttle + AdjustGasBudget
         assert_eq!(actions[0].action_type, ActionType::Throttle);
         assert_eq!(actions[0].target, LoopId::Inference);
-        assert_eq!(actions[1].action_type, ActionType::AdjustEnergyBudget);
+        assert_eq!(actions[1].action_type, ActionType::AdjustGasBudget);
         assert_eq!(actions[1].target, LoopId::Cybernetics);
     }
 
@@ -808,10 +808,10 @@ mod tests {
 
         // Step 3: Compute — produce efferent action
         let actions = loop6.compute(&deviations).await;
-        assert_eq!(actions.len(), 2); // Throttle + AdjustEnergyBudget
+        assert_eq!(actions.len(), 2); // Throttle + AdjustGasBudget
         assert_eq!(actions[0].action_type, ActionType::Throttle);
         assert_eq!(actions[0].target, LoopId::Inference);
-        assert_eq!(actions[1].action_type, ActionType::AdjustEnergyBudget);
+        assert_eq!(actions[1].action_type, ActionType::AdjustGasBudget);
         assert_eq!(actions[1].target, LoopId::Cybernetics);
 
         // Step 4: Verify capability membrane — Cybernetics can regulate Inference
@@ -842,13 +842,13 @@ mod tests {
         assert_eq!(deviations.len(), 3);
 
         let actions = loop6.compute(&deviations).await;
-        assert_eq!(actions.len(), 4); // energy:Throttle + energy:AdjustEnergyBudget + variety:Escalate + error:CircuitBreak
+        assert_eq!(actions.len(), 4); // gas:Throttle + gas:AdjustGasBudget + variety:Escalate + error:CircuitBreak
 
         // Verify each action targets the correct loop
         let targets: std::collections::HashSet<LoopId> = actions.iter().map(|a| a.target).collect();
-        assert!(targets.contains(&LoopId::Inference)); // energy:Throttle + error:CircuitBreak
+        assert!(targets.contains(&LoopId::Inference)); // gas:Throttle + error:CircuitBreak
         assert!(targets.contains(&LoopId::Curation)); // variety:Escalate
-        assert!(targets.contains(&LoopId::Cybernetics)); // energy:AdjustEnergyBudget
+        assert!(targets.contains(&LoopId::Cybernetics)); // gas:AdjustGasBudget
     }
 
     /// Test: Loop reaches equilibrium within bounded iterations
@@ -1011,11 +1011,11 @@ mod tests {
             .register_gas_budget(agent, GasBudget::new(10_000))
             .await;
 
-        // Send AdjustEnergyBudget directive
+        // Send AdjustGasBudget directive
         let msg = LoopMessage::warning(
             LoopId::Curation,
             LoopPayload::CurationDirective {
-                directive_type: "adjust_energy_budget".to_string(),
+                directive_type: "adjust_gas_budget".to_string(),
                 target: agent,
                 parameters: serde_json::json!({
                     "new_budget": 5000,
@@ -1048,7 +1048,7 @@ mod tests {
         let msg = LoopMessage::warning(
             LoopId::Curation,
             LoopPayload::CurationDirective {
-                directive_type: "adjust_energy_budget".to_string(),
+                directive_type: "adjust_gas_budget".to_string(),
                 target: agent,
                 parameters: serde_json::json!({"new_budget": 100}),
             },
@@ -1069,11 +1069,11 @@ mod tests {
         // No budget registered for agent yet
         assert!(loop6.can_proceed(&agent, 1_000_000).await); // soft limit: allowed
 
-        // Send AdjustEnergyBudget for an unregistered agent
+        // Send AdjustGasBudget for an unregistered agent
         let msg = LoopMessage::warning(
             LoopId::Curation,
             LoopPayload::CurationDirective {
-                directive_type: "adjust_energy_budget".to_string(),
+                directive_type: "adjust_gas_budget".to_string(),
                 target: agent,
                 parameters: serde_json::json!({"new_budget": 500}),
             },
@@ -1103,9 +1103,9 @@ mod tests {
 
     #[test]
     fn set_points_config_from_yaml() {
-        let yaml = "energy_min_remaining: 0.3\nvariety_max_deficit: 200.0\n";
+        let yaml = "gas_min_remaining: 0.3\nvariety_max_deficit: 200.0\n";
         let config = SetPointsConfig::from_yaml(yaml).unwrap();
-        assert_eq!(config.energy_min_remaining, Some(0.3));
+        assert_eq!(config.gas_min_remaining, Some(0.3));
         assert_eq!(config.variety_max_deficit, Some(200.0));
         assert_eq!(config.error_rate_max, None); // Not specified
     }
@@ -1113,13 +1113,13 @@ mod tests {
     #[test]
     fn set_points_from_config_uses_defaults_for_missing() {
         let config = SetPointsConfig {
-            energy_min_remaining: Some(0.5),
+            gas_min_remaining: Some(0.5),
             variety_max_deficit: None,
             error_rate_max: None,
             connector_latency_max_secs: None,
         };
         let sp = SetPoints::from_config(&config);
-        assert_eq!(sp.energy_min_remaining, 0.5);
+        assert_eq!(sp.gas_min_remaining, 0.5);
         assert_eq!(sp.variety_max_deficit, 100.0); // default
         assert_eq!(sp.error_rate_max, 0.3); // default
         assert_eq!(sp.connector_latency_max_secs, 30.0); // default
@@ -1131,16 +1131,16 @@ mod tests {
         let config = SetPointsConfig::from_yaml(yaml).unwrap();
         let sp = SetPoints::from_config(&config);
         let defaults = SetPoints::default();
-        assert_eq!(sp.energy_min_remaining, defaults.energy_min_remaining);
+        assert_eq!(sp.gas_min_remaining, defaults.gas_min_remaining);
         assert_eq!(sp.variety_max_deficit, defaults.variety_max_deficit);
     }
 
     #[test]
     fn set_points_yaml_full_config() {
-        let yaml = "energy_min_remaining: 0.3\nvariety_max_deficit: 200.0\nerror_rate_max: 0.4\nconnector_latency_max_secs: 60.0\n";
+        let yaml = "gas_min_remaining: 0.3\nvariety_max_deficit: 200.0\nerror_rate_max: 0.4\nconnector_latency_max_secs: 60.0\n";
         let config = SetPointsConfig::from_yaml(yaml).unwrap();
         let sp = SetPoints::from_config(&config);
-        assert_eq!(sp.energy_min_remaining, 0.3);
+        assert_eq!(sp.gas_min_remaining, 0.3);
         assert_eq!(sp.variety_max_deficit, 200.0);
         assert_eq!(sp.error_rate_max, 0.4);
         assert_eq!(sp.connector_latency_max_secs, 60.0);

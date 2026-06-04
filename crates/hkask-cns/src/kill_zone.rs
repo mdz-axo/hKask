@@ -14,7 +14,7 @@ use hkask_types::sovereignty::{KillZoneConfig, KillZoneThresholds};
 /// Configuration (`KillZoneThresholds`) is set by Curation and is immutable.
 /// State (`KillZoneConfig`) is the mutable operational state that Cybernetics
 /// senses and compares.
-pub struct KillZoneDetector {
+pub(crate) struct KillZoneDetector {
     thresholds: KillZoneThresholds,
     state: KillZoneConfig,
 }

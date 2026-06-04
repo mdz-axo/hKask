@@ -15,7 +15,7 @@ manifest:
   editor: Curator
   visibility: public
 
-energy:
+gas:
   cap: 15000
   cost_per_token: 0.25
   alert_threshold: 0.7
@@ -31,7 +31,7 @@ steps:
     template_ref: kata/improvement-step1-direction.j2
     model_tier: fast_local
     mcp: hkask-mcp-inference
-    energy_cap: 2000
+    gas_cap: 2000
     timeout_seconds: 20
     output_schema:
       type: object
@@ -52,7 +52,7 @@ steps:
     template_ref: kata/improvement-step2-current.j2
     model_tier: fast_local
     mcp: hkask-mcp-inference
-    energy_cap: 3000
+    gas_cap: 3000
     timeout_seconds: 30
     output_schema:
       type: object
@@ -73,7 +73,7 @@ steps:
     template_ref: kata/improvement-step3-target.j2
     model_tier: reasoning_local
     mcp: hkask-mcp-inference
-    energy_cap: 4000
+    gas_cap: 4000
     timeout_seconds: 30
     output_schema:
       type: object
@@ -94,7 +94,7 @@ steps:
     template_ref: kata/improvement-step4-experiment.j2
     model_tier: balanced
     mcp: hkask-mcp-inference
-    energy_cap: 5000
+    gas_cap: 5000
     timeout_seconds: 45
     output_schema:
       type: object
@@ -109,7 +109,7 @@ steps:
           type: object
 
 error_handling:
-  on_energy_exceeded: abort_and_escalate
+  on_gas_exceeded: abort_and_escalate
   on_timeout: retry
   max_retries: 2
   retry_backoff_seconds: 1
@@ -148,5 +148,5 @@ audit:
   log_level: info
   include_input: true
   include_output: true
-  include_energy_cost: true
+  include_gas_cost: true
   include_cns_events: true

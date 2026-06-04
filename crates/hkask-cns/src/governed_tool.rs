@@ -12,7 +12,7 @@
 //! This is the membrane where Cybernetics governs all tool invocations.
 //! The membrane IS the security property (Miller). GovernedTool subsumes:
 //! - SecurityGateway dispatch-time OCAP checks
-//! - check_throttle (gas accounting replaces rate limiting)
+//! - Gas accounting (replaces the former ThrottleBucket rate limiting)
 //! - ToolSpanGuard (span emission is now built-in)
 //!
 //! Hold-settle pattern: gas is reserved before invocation, then settled after.
@@ -151,7 +151,7 @@ impl ToolPort for GovernedTool {
                 estimated_cost = estimated_cost,
                 "Tool invocation rejected — gas budget exceeded"
             );
-            return Err(ToolPortError::EnergyBudgetExceeded(format!(
+            return Err(ToolPortError::GasBudgetExceeded(format!(
                 "Gas budget exceeded for agent {:?}, tool {}, estimated cost {}",
                 self.agent, tool, estimated_cost
             )));
@@ -166,7 +166,7 @@ impl ToolPort for GovernedTool {
                 estimated_cost = estimated_cost,
                 "Failed to reserve gas for tool invocation"
             );
-            return Err(ToolPortError::EnergyBudgetExceeded(format!(
+            return Err(ToolPortError::GasBudgetExceeded(format!(
                 "Gas reservation failed for agent {:?}, tool {}, estimated cost {}",
                 self.agent, tool, estimated_cost
             )));
@@ -471,13 +471,13 @@ mod tests {
 
         assert!(result.is_err());
         match result.unwrap_err() {
-            ToolPortError::EnergyBudgetExceeded(msg) => {
+            ToolPortError::GasBudgetExceeded(msg) => {
                 assert!(
                     msg.contains("budget exceeded") || msg.contains("Gas budget"),
                     "Expected budget error, got: {msg}"
                 );
             }
-            other => panic!("Expected EnergyBudgetExceeded, got: {other:?}"),
+            other => panic!("Expected GasBudgetExceeded, got: {other:?}"),
         }
     }
 
@@ -646,14 +646,14 @@ mod tests {
             .await;
         assert!(result.is_err(), "Should reject when budget exhausted");
         match result.unwrap_err() {
-            ToolPortError::EnergyBudgetExceeded(msg) => {
+            ToolPortError::GasBudgetExceeded(msg) => {
                 assert!(
                     msg.contains("gas") || msg.contains("budget"),
                     "Expected gas/budget in error message, got: {}",
                     msg
                 );
             }
-            other => panic!("Expected EnergyBudgetExceeded, got: {:?}", other),
+            other => panic!("Expected GasBudgetExceeded, got: {:?}", other),
         }
     }
 

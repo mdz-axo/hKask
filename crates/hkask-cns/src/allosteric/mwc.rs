@@ -40,12 +40,7 @@ pub enum AllostericError {
 ///
 /// Returns `AllostericError::InvalidParameter` if L ≤ 0 or c ≤ 0.
 /// Returns `AllostericError::Overflow` if the computation overflows f64.
-pub fn mwc_state_function(
-    l: f64,
-    c: f64,
-    n: u32,
-    alpha: f64,
-) -> Result<f64, AllostericError> {
+pub fn mwc_state_function(l: f64, c: f64, n: u32, alpha: f64) -> Result<f64, AllostericError> {
     if l <= 0.0 {
         return Err(AllostericError::InvalidParameter(format!(
             "L must be positive, got {l}"
