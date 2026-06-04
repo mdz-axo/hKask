@@ -16,7 +16,7 @@ ddmvss_categories: [composition]
 
 ## Context
 
-The hKask template system needs to register, discover, and dispatch templates. Three domain contexts — WordAct (Prompt), FlowDef (Process), KnowAct (Cognition) — each produce templates. The architecture faced a choice between three separate registries (one per domain) or a single unified registry with a type discriminator.
+The hKask template system needs to register, discover, and dispatch templates. Three domain contexts — WordAct, FlowDef, KnowAct — each produce templates. The architecture faced a choice between three separate registries (one per domain) or a single unified registry with a type discriminator.
 
 ## Decision
 
@@ -24,14 +24,13 @@ The hKask template system needs to register, discover, and dispatch templates. T
 
 ```rust
 pub enum TemplateType {
-    Prompt,       // WordAct — "Say"
-    Process,      // FlowDef — "Do"
-    Cognition,    // KnowAct — "Think"
-    Specification, // FlowDef — "Define"
+    WordAct,  // "Say" — prompt templates
+    KnowAct,  // "Think" — reasoning templates
+    FlowDef,  // "Do / Define" — workflow & specification templates
 }
 ```
 
-The registry stores all four types in a single SQLite table with `template_type` as a column. Discovery, search, and cascade all operate on the unified index. The type discriminator provides domain-specific filtering without requiring separate indices.
+The registry stores all three types in a single SQLite table with `template_type` as a column. Discovery, search, and cascade all operate on the unified index. The type discriminator provides domain-specific filtering without requiring separate indices.
 
 ## Rationale
 
@@ -39,7 +38,7 @@ The registry stores all four types in a single SQLite table with `template_type`
 
 2. **Fowler registry pattern.** [^fowler-poeaa] A single registry with a type discriminator is simpler than three separate registries with cross-references. The `RegistryIndex` trait exposes `list(domain_hint: Option<TemplateType>)` — one method serves all domains.
 
-3. **Cascade requires unified view.** Template cascade (matroshka nesting) crosses domains: a Process template may invoke a Prompt template, which may reference a Cognition template. A unified registry makes cross-domain resolution a single lookup.
+3. **Cascade requires unified view.** Template cascade (matroshka nesting) crosses domains: a FlowDef template may invoke a WordAct template, which may reference a KnowAct template. A unified registry makes cross-domain resolution a single lookup.
 
 4. **Constraint compliance.** Three separate registries would create three traits with one consumer each — violating P1 (no trait without two consumers). The unified `RegistryIndex` trait has two consumers (`Registry` and `SqliteRegistry`).
 
@@ -57,7 +56,6 @@ The registry stores all four types in a single SQLite table with `template_type`
 ### Negative
 
 - `template_type` discriminator adds a filter parameter to list methods
-- Specification type (added in v0.21.0) sits in FlowDef domain but has distinct semantics
 
 ### Alternative Rejected
 

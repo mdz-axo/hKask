@@ -61,7 +61,7 @@ pipeline_stages:
     cns_span: cns.tool.generate
     patterns:
       - Martin_Fowler_repository: registry access pattern
-      - template_type_discriminator: Prompt|Process|Cognition
+      - template_type_discriminator: WordAct|KnowAct|FlowDef
 
   - stage: 4
     name: validate
@@ -117,9 +117,9 @@ translation_rules:
     prompt_conditionals: "{% if condition %}...{% endif %}"
     prompt_loops: "{% for item in collection %}...{% endfor %}"
     frontmatter:
-      - template_type: Prompt|Process|Cognition
+      - template_type: WordAct|KnowAct|FlowDef
       - lexicon_terms: [term1, term2, ...]
-      - contract: {input: {...}, output: {...}}
+      - contract: { input: { ... }, output: { ... } }
 
   # Skill Process → YAML Manifest
   skill_process_to_manifest:

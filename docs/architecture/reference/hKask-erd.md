@@ -75,7 +75,7 @@ erDiagram
     
     TEMPLATE {
         string id
-        string template_type "Prompt|Process|Cognition|Specification"
+        string template_type "WordAct|KnowAct|FlowDef"
         array lexicon_terms
         object contract
         string source_path

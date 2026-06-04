@@ -45,7 +45,7 @@ ddmvss_categories: [domain]
 
 ```jinja2
 [inference]
-template_type: Prompt
+template_type: WordAct
 lexicon_terms: [query, assert, contextualize, critique]
 contract:
   input: {question: string, context: array}
@@ -379,7 +379,7 @@ cascade:
 
 ```yaml
 [inference]
-template_type: Prompt | Process | Cognition
+template_type: WordAct | KnowAct | FlowDef
 lexicon_terms: [term1, term2, ...]  # Must be from hLexicon
 contract:
   input: {field: type, ...}
@@ -464,7 +464,7 @@ The hLexicon has 3 reserved slots for future domain extension. These are **not p
 
 ```jinja2
 [inference]
-template_type: Prompt
+template_type: WordAct
 lexicon_terms: [query, assert]
 contract:
   input: {question: string}
@@ -501,7 +501,7 @@ cascade:
 
 ```jinja2
 [inference]
-template_type: Cognition
+template_type: KnowAct
 lexicon_terms: [reflect, evaluate, regulate]
 contract:
   input: {template_name: string, outcomes: array}

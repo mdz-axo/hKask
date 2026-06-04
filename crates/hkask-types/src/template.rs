@@ -114,7 +114,7 @@ pub struct TemplateInvocation {
 pub struct TemplateFile {
     pub path: String,
     pub content: String,
-    pub template_type: String, // Prompt, Process, Cognition
+    pub template_type: String, // WordAct, KnowAct, FlowDef
 }
 
 /// Template crate structure (loaded from Git CAS)

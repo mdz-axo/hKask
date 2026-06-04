@@ -9,7 +9,7 @@ manifest:
   id: skill/pragmatic-semantics
   name: pragmatic-semantics-knowledge
   description: "Pragmatic semantic lens for reasoning about provenance, confidence, classification, and discourse"
-  template_type: Process
+  template_type: FlowDef
   lexicon_terms: [observe, assess, classify, discriminate, validate]
 
 steps:

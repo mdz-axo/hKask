@@ -9,7 +9,7 @@ manifest:
   id: skill/pragmatic-cybernetics
   name: pragmatic-cybernetics-knowledge
   description: "Cybernetic lens for analyzing feedback loops, variety, homeostasis, and coordination"
-  template_type: Process
+  template_type: FlowDef
   lexicon_terms: [monitor, observe, assess, discriminate, validate]
 
 steps:

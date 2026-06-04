@@ -9,7 +9,7 @@ manifest:
   id: skill/web-search
   name: web-search-knowledge
   description: "Web search, fetch, and browse capabilities for knowledge retrieval"
-  template_type: Process
+  template_type: FlowDef
   lexicon_terms: [search, fetch, browse, discover]
 
 steps:

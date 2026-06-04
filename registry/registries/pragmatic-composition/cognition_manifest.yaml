@@ -11,12 +11,12 @@ manifest:
   version: 0.21.0
   editor: curator-or-human-admin
   visibility: Shared
-  template_type: Cognition
+  template_type: KnowAct
 
 # ReAct Loop Configuration
 react_loop:
   enabled: true
-  max_iterations: 7  # Miller's law + energy budget
+  max_iterations: 7 # Miller's law + energy budget
   phases:
     - reason
     - act

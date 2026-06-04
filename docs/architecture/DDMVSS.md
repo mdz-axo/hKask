@@ -569,7 +569,7 @@ domain_anchor: hkask
 
 registry:
   type: unified  # Not three separate registries
-  discriminator: template_type  # Prompt | Process | Cognition | Specification
+  discriminator: template_type  # WordAct | KnowAct | FlowDef
   index_method: filesystem + sqlite
 
 cascade_rules:
@@ -980,7 +980,7 @@ The templates above are instantiated for hKask (domain anchor: `hkask`, bounded 
 - **Domain spec:** hKask's hLexicon allocates 75 terms across WordAct/FlowDef/KnowAct + 9 spec-curation terms — matches FA-D1.
 - **Capability spec:** 19 MCP servers × 6 actions + `hkask-mcp-spec` (8 tools) + `hkask-mcp-replicant` (3 tools) = 117 capability grant slots; current implementation covers ~60%.
 - **Interface spec:** `kask` binary (CLI), `hkask-mcp` (MCP), `hkask-api` (HTTP) — all route through `hkask-agents` core. `kask spec` subcommands added.
-- **Composition spec:** Unified registry with `template_type` discriminator (now including `Specification` type) — matches FA-Co1.
+- **Composition spec:** Unified registry with `template_type` discriminator (WordAct, KnowAct, FlowDef) — matches FA-Co1.
 - **Trust spec:** `CapabilityToken` in `hkask-types` implements HMAC-SHA256 + attenuation — matches FA-T1. Curation authority bounded via `OCAPBoundary`.
 - **Observability spec:** `NuEvent` in `hkask-types` with `Span` enum covers all `cns.*` namespaces. `cns.spec.curate` added.
 - **Persistence spec:** Bitemporal triples in `hkask-storage` with SQLCipher — matches FA-P1.
@@ -1057,7 +1057,7 @@ status: VERIFIED
 | HTTP API | Driving | `hkask-api` | No | Axum route addition |
 | Storage | Driven | `hkask-storage` | No | Bitemporal triples store spec manifests |
 | Memory | Driven | `hkask-memory` | No | Semantic recall of prior specs via embeddings |
-| Templates registry | Driven | `hkask-templates` | No | Spec templates registered with `template_type: Specification` |
+| Templates registry | Driven | `hkask-templates` | No | Spec templates registered with `template_type: FlowDef` |
 | CNS spans | Driven | `hkask-cns` | No | Add `cns.spec.*` span variant to existing `Span` enum |
 | Keystore | Driven | `hkask-keystore` | No | Sign manifests with existing Ed25519 + AES-256-GCM |
 | Curation engine | Domain | `hkask-types` (curation.rs) | No | `CurationDecision`, `OCAPBoundary`, `CurationRecord` already exist; add `CurationPort` trait |
@@ -1170,7 +1170,7 @@ The security hardening completed in ADV-REVIEW-F2 (T01-T22, 2026-05-24) implemen
 1. ~~**No `cns.spec.*` span namespace**~~ → **Resolved:** `Span::Spec` variant present
 2. ~~**No `Spec` resource** in `CapabilityResource` enum~~ → Partially resolved via `Capability` type
 3. ~~**No `Validate` action** in `CapabilityAction` enum~~ → Partially resolved via `AccessEvaluator`
-4. **Spec templates not yet registered** in unified registry (`template_type: Specification`) → Deferred (OQ-7)
+4. **Spec templates not yet registered** in unified registry (`template_type: FlowDef`) → Deferred (OQ-7)
 5. ~~**`hkask-mcp-spec` MCP server does not yet exist**~~ → **Resolved:** 819 LOC, 8 tools implemented
 6. **Curation decisions not gradient-evaluated** — `DefaultSpecCurator` implements `SpecCurator` trait but gradient evaluation needs integration testing
 
@@ -1365,7 +1365,7 @@ impl SpecStore for SqliteSpecStore {
 | Domain | Bounded context: "Specification authoring & validation". ν-events: `cns.spec.*` (capture, compose, validate, sign, curate). Entities: `Spec`, `GoalSpec`, `Criterion`, `SpecCurationRecord`. | **Pass** — all entities defined in §8 |
 | Capability | Verbs: `read_spec`, `amend_spec`, `compose_specs`, `sign_manifest`, `validate_completeness`, `delegate_access`, `curate_artifact`. All attenuatable except sign/publish/cultivate. | **Pass** — grant table in §7.2 |
 | Interface | MCP: `hkask-mcp-spec` (8 tools). CLI: `kask spec <subcommand>`. API: `POST /api/v1/specs/*`. All equivalent via `SpecStore` port. | **Pass** — three surfaces, one core |
-| Composition | Specs compose via `Spec.goals` aggregation. Registry stores spec templates with `template_type: Specification`. | **Pass** — unified registry |
+| Composition | Specs compose via `Spec.goals` aggregation. Registry stores spec templates with `template_type: FlowDef`. | **Pass** — unified registry |
 | Trust | OCAP tokens govern all spec ops. Manifests signed via `hkask-keystore`. Curation authority bounded via `OCAPBoundary`. Threat model in §7.1. | **Pass** |
 | Observability | `cns.spec.*` spans for all operations including curation. Variety counter on spec diversity. | **Gap** — `Span::Spec` not in existing enum |
 | Persistence | Specs stored as bitemporal triples in `hkask-storage`. Embeddings for semantic recall of prior specs. | **Pass** |
@@ -1379,7 +1379,7 @@ impl SpecStore for SqliteSpecStore {
 | 1 | `Span::Spec(String)` variant missing | Observability | Add to `hkask-types/src/event.rs` `Span` enum |
 | 2 | No `Spec` resource in `CapabilityResource` | Capability | Add `Spec` variant to `CapabilityResource` enum |
 | 3 | No `Validate` action in `CapabilityAction` | Capability | Add `Validate` variant to `CapabilityAction` enum |
-| 4 | Spec templates not registered | Composition | Register `.j2` templates as `template_type: Specification` in unified registry |
+4 | Spec templates not registered | Composition | Register `.yaml` templates as `template_type: FlowDef` in unified registry |
 | 5 | `hkask-mcp-spec` does not exist | Interface | Create 3-file MCP server (~500 LOC) per §6.3 |
 | 6 | 9 hLexicon spec-curation terms not bootstrapped | Domain | Add to `lexicon.rs::bootstrap()` per §3.3 |
 

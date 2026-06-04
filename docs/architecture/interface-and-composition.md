@@ -223,7 +223,10 @@ All ports use `#[async_trait]`. No `block_in_place` or `block_on` in library cod
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | `String` | Unique template identifier |
-| `template_type` | `TemplateType` | Prompt, Process, Cognition, Specification |
+| `template_type` | `TemplateType` | WordAct, KnowAct, FlowDef |
+| `name` | `String` | Human-readable template name |
+| `cascade_level` | `u8` | Nesting depth in matroshka chain (0 = leaf) |
+| `matroshka_limit` | `u8` | Maximum cascade depth for this entry |
 | `lexicon_terms` | `Vec<String>` | hLexicon terms used |
 | `description` | `String` | Human-readable description |
 | `source_path` | `String` | Filesystem path to source |
@@ -235,10 +238,9 @@ All ports use `#[async_trait]`. No `block_in_place` or `block_on` in library cod
 
 | Type | Domain | Description | hLexicon Grounding |
 |------|--------|-------------|-------------------|
-| **Prompt** | WordAct | LLM prompt templates — "Say" | Rendering, expression terms |
-| **Process** | FlowDef | Workflow templates — "Do" | Sequence, composition terms |
-| **Cognition** | KnowAct | Reasoning templates — "Think" | Analysis, evaluation terms |
-| **Specification** | FlowDef | DDMVSS spec templates — "Define" | Spec-curation terms (9) |
+| **WordAct** | WordAct | LLM prompt templates — "Say" | Rendering, expression terms |
+| **FlowDef** | FlowDef | Workflow & specification templates — "Do / Define" | Sequence, composition, spec-curation terms |
+| **KnowAct** | KnowAct | Reasoning templates — "Think" | Analysis, evaluation terms |
 
 ### 3.4 Cascade Rules
 
