@@ -1,8 +1,10 @@
 //! Curator chat routes
-//!
+//
 //! The `POST /api/chat` endpoint accepts an optional `model` field that
 //! switches the LLM used for inference. Use `GET /api/models` to discover
 //! valid model identifiers.
+
+use std::sync::Arc;
 
 use axum::{Json, extract::State, routing::Router};
 
@@ -32,21 +34,27 @@ pub fn chat_router() -> Router<ApiState> {
         (status = 500, description = "Internal server error"),
     ),
 )]
-async fn chat(State(_state): State<ApiState>, Json(req): Json<ChatRequest>) -> Json<ChatResponse> {
+async fn chat(State(state): State<ApiState>, Json(req): Json<ChatRequest>) -> Json<ChatResponse> {
     use hkask_templates::{InferencePort, OkapiConfig, OkapiInference};
     use hkask_types::LLMParameters;
 
-    let config = OkapiConfig::local_dev();
     let model = req.model.as_deref().unwrap_or("qwen3:8b");
 
-    let inference = match OkapiInference::new(model, config) {
-        Ok(i) => i,
-        Err(e) => {
-            return Json(ChatResponse {
-                output: format!("Failed to initialize Okapi: {}", e),
-                template_id: req.template_id.unwrap_or("error".to_string()),
-                model: model.to_string(),
-            });
+    // Use the shared inference port when available (avoids per-request OkapiInference construction)
+    let inference: Arc<dyn InferencePort> = match state.inference_port {
+        Some(ref port) => Arc::clone(port),
+        None => {
+            let config = OkapiConfig::local_dev();
+            match OkapiInference::new(model, config) {
+                Ok(i) => Arc::new(i) as Arc<dyn InferencePort>,
+                Err(e) => {
+                    return Json(ChatResponse {
+                        output: format!("Failed to initialize Okapi: {}", e),
+                        template_id: req.template_id.unwrap_or("error".to_string()),
+                        model: model.to_string(),
+                    });
+                }
+            }
         }
     };
 
@@ -76,7 +84,10 @@ async fn chat(State(_state): State<ApiState>, Json(req): Json<ChatRequest>) -> J
         seed: None,
     };
 
-    let output = match inference.generate(&prompt, &params).await {
+    let output = match inference
+        .generate_with_model(&prompt, &params, Some(model))
+        .await
+    {
         Ok(result) => result.text,
         Err(e) => format!("Inference error: {}", e),
     };

@@ -125,6 +125,8 @@ pub struct ApiState {
     pub episodic_memory: Arc<EpisodicMemory>,
     /// CNS runtime for real-time variety and health data
     pub cns_runtime: Arc<CnsRuntime>,
+    /// General-purpose inference port (shared across requests)
+    pub inference_port: Option<Arc<dyn hkask_types::ports::InferencePort>>,
 }
 
 /// Adapter to share a CyberneticsLoop between the loop system and GovernedTool.
@@ -384,6 +386,10 @@ impl ApiState {
             hkask_ensemble::SessionManager::new(system_webid),
         ));
 
+        // Extract inference port before moving ensemble_inferencer into struct
+        let inference_port: Option<Arc<dyn hkask_types::ports::InferencePort>> =
+            ensemble_inferencer.as_ref().map(|ei| Arc::clone(ei.port()));
+
         Self {
             registry: Arc::new(tokio::sync::Mutex::new(registry)),
             mcp_runtime: Arc::new(mcp_runtime),
@@ -404,6 +410,7 @@ impl ApiState {
             loop_system,
             episodic_memory,
             cns_runtime: Arc::new(CnsRuntime::with_threshold(hkask_cns::DEFAULT_THRESHOLD)),
+            inference_port,
         }
     }
 
