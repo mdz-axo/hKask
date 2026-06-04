@@ -14,6 +14,7 @@ use tracing::info;
 /// Minimal participant descriptor for deliberation sessions.
 /// Decoupled from `ChatParticipant` (which lives in hkask-ensemble chat) to avoid
 /// circular dependencies.
+#[allow(dead_code)] // Infrastructure awaiting consumers; fields read via derived Debug/Clone
 #[derive(Debug, Clone)]
 pub(crate) struct DeliberationParticipant {
     pub webid: WebID,
@@ -90,6 +91,7 @@ impl DeliberationSession {
     }
 
     /// Add a participant to deliberation
+    #[allow(dead_code)] // Infrastructure awaiting wiring
     pub(crate) fn add_participant(&mut self, participant: DeliberationParticipant) {
         self.participants.push(participant);
     }
@@ -129,6 +131,7 @@ impl DeliberationSession {
     }
 
     /// Get session status
+    #[allow(dead_code)] // Infrastructure awaiting wiring
     pub(crate) fn status(&self) -> &DeliberationStatus {
         &self.status
     }
@@ -139,12 +142,14 @@ impl DeliberationSession {
     }
 
     /// Mark deliberation as completed
+    #[allow(dead_code)] // Infrastructure awaiting wiring
     pub(crate) fn complete(&mut self) {
         self.status = DeliberationStatus::Completed;
         info!("Deliberation session {} completed", self.session_id);
     }
 
     /// Cancel deliberation
+    #[allow(dead_code)] // Infrastructure awaiting wiring
     pub(crate) fn cancel(&mut self) {
         self.status = DeliberationStatus::Cancelled;
         info!("Deliberation session {} cancelled", self.session_id);

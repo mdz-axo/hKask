@@ -32,7 +32,7 @@ impl From<rusqlite::Error> for StandingSessionError {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct StoredSession {
+pub struct StoredSession {
     pub session_id: String,
     pub config_yaml: String,
     pub created_at: String,
@@ -46,7 +46,7 @@ pub(crate) struct StoredSession {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct StoredMessage {
+pub struct StoredMessage {
     pub id: i64,
     pub session_id: String,
     pub from_webid: String,

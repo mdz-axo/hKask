@@ -52,6 +52,7 @@ impl KillZoneDetector {
     }
 
     /// Get a reference to the thresholds.
+    #[allow(dead_code)] // CNS resilience infrastructure — awaiting runtime wiring
     pub fn thresholds(&self) -> &KillZoneThresholds {
         &self.thresholds
     }

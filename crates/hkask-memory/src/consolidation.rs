@@ -32,6 +32,7 @@ pub struct ConsolidationBridge {
 pub(crate) enum ConsolidationError {
     #[error("Episodic memory error: {0}")]
     Episodic(String),
+    #[allow(dead_code)] // Symmetric counterpart to Episodic; needed for semantic consolidation failure path
     #[error("Semantic memory error: {0}")]
     Semantic(String),
 }

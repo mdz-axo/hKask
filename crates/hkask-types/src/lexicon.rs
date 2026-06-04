@@ -11,6 +11,10 @@
 //! already depends on a YAML parser); this crate provides the plain types and a
 //! minimal [`HLexicon::bootstrap`] fixture.
 
+// hLexicon spec infrastructure: types and methods are part of the canonical vocabulary
+// specification but not yet consumed by the runtime. Retain for hLexicon completeness.
+#![allow(dead_code)]
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

@@ -36,6 +36,7 @@ impl VarietyTracker {
     }
 
     /// Get total count across all states
+    #[allow(dead_code)]
     pub(crate) fn total(&self) -> u64 {
         self.counts.values().sum()
     }
@@ -46,6 +47,7 @@ impl VarietyTracker {
     }
 
     /// Get entropy of the distribution (measure of variety quality)
+    #[allow(dead_code)]
     pub(crate) fn entropy(&self) -> f64 {
         let total = self.total() as f64;
         if total == 0.0 {

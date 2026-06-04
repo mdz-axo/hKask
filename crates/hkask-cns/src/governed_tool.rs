@@ -24,7 +24,6 @@ use hkask_types::NuEventSink;
 use hkask_types::WebID;
 use hkask_types::capability::{DelegationAction, DelegationResource, DelegationToken};
 use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
-use hkask_types::id::EventID;
 use hkask_types::ports::{ToolInfo, ToolPort, ToolPortError};
 use serde_json::Value;
 use std::sync::Arc;
@@ -239,7 +238,7 @@ impl ToolPort for GovernedTool {
 
         // Step 6: Emit outcome span
         let (outcome_phase, outcome_obs) = match &result {
-            Ok(value) => (
+            Ok(_value) => (
                 Phase::Act,
                 serde_json::json!({
                     "server": server,

@@ -29,6 +29,7 @@ use crate::variety::VarietyMonitor;
 /// between different observation domains while sharing a single tracker.
 pub mod domains {
     /// Bot variety tracking: `bot:{webid}:{category}`
+    #[allow(dead_code)] // CNS resilience infrastructure — awaiting runtime wiring
     pub(crate) const BOT: &str = "bot";
 }
 

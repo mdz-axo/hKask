@@ -154,13 +154,9 @@ impl From<BotID> for WebID {
     }
 }
 
-define_id_type!(pub(crate) ManifestID);
-
 define_id_type!(pub TripleID);
 
 define_id_type!(pub EventID);
-
-define_id_type!(pub(crate) SessionID);
 
 define_id_type!(pub GoalID, from_string);
 

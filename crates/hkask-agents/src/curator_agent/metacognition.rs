@@ -130,11 +130,13 @@ impl MetacognitionLoop {
     }
 
     /// Access the CuratorContext (capability-disciplined runtime references).
+    #[allow(dead_code)] // Metacognition infrastructure
     pub(crate) fn context(&self) -> &Arc<CuratorContext> {
         &self.context
     }
 
     /// Access the metacognition config (thresholds, intervals).
+    #[allow(dead_code)] // Metacognition infrastructure
     pub(crate) fn config(&self) -> &MetacognitionConfig {
         &self.config
     }

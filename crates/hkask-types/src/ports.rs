@@ -388,7 +388,7 @@ pub trait CnsObserver: Send + Sync {
 // Tool Port — Governance membrane for MCP tool invocation
 // =============================================================================
 
-use crate::capability::{DelegationAction, DelegationResource, DelegationToken};
+use crate::capability::DelegationToken;
 
 /// Error type for governed tool invocation
 #[derive(Debug, Clone, thiserror::Error)]

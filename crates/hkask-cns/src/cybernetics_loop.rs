@@ -281,6 +281,7 @@ impl CyberneticsLoop {
     ///
     /// Use this for operations where the exact cost is known upfront.
     /// For operations with estimated cost, prefer `reserve_gas` + `settle_gas`.
+    #[allow(dead_code)] // CNS resilience infrastructure — awaiting runtime wiring
     pub(crate) async fn acquire_budget(&self, agent: &WebID, gas: u64) -> Result<u64, GasError> {
         let mut budgets = self.gas_budgets.write().await;
         if let Some(budget) = budgets.get_mut(agent) {
