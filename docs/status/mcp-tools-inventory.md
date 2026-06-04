@@ -14,7 +14,7 @@ ddmvss_categories: [capability, interface]
 
 **Version:** hKask v0.22.0
 **Total servers:** 19
-**Total tools:** 116
+**Total tools:** 117
 
 ---
 
@@ -32,7 +32,7 @@ ddmvss_categories: [capability, interface]
 | 8 | `hkask-mcp-goal` | 3 | 5 | Goal coordination |
 | 9 | `hkask-mcp-spec` | 8 | 5 | DDMVSS specification |
 | 10 | `hkask-mcp-git` | 5 | 5 | Git CAS operations |
-| 11 | `hkask-mcp-replicant` | 2 | 5 | Replicant chat bridge |
+| 11 | `hkask-mcp-replicant` | 3 | 5 | Replicant chat bridge |
 | 12 | `hkask-mcp-condenser` | 6 | 10 | Context reranking |
 | 13 | `hkask-mcp-rss-reader` | 12 | 20 | RSS feed management |
 | 14 | `hkask-mcp-github` | 8 | 30 | GitHub API |
@@ -161,6 +161,7 @@ These tools operate on hKask internal state — no external API calls, no rate l
 |------|-------------|
 | `replicant_chat` | Send a message to a hKask replicant and receive a response. Persona configured via `HKASK_AGENT_PERSONA` (default: Curator). Optional model override per request. |
 | `replicant_status` | Check registration status and identity of the configured replicant |
+| `replicant_history` | List recent conversation turns in the current session (session persistence across calls) |
 
 **Architecture:** Bridges external MCP clients (Zed, VS Code) with hKask's pod-mediated inference. Resolves persona → WebID, creates pod via `PodManagerBuilder`, routes through `InferencePort`. See `docs/status/mcp-server-audit.md` §Architecture Spotlight for full diagram.
 
@@ -330,4 +331,4 @@ Servers without credential requirements: `ocap`, `cns`, `keystore`, `registry`, 
 
 ---
 
-*ℏKask MCP Tools Inventory — 19 servers, 116 tools — v0.22.0*
+*ℏKask MCP Tools Inventory — 19 servers, 117 tools — v0.22.0*

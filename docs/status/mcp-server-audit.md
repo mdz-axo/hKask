@@ -39,7 +39,7 @@ ddmvss_categories: [capability, observability]
 | `hkask-mcp-ensemble` | 295 | 5 | **Full** | Multi-agent chat coordination |
 | `hkask-mcp-episodic` | 190 | 4 | **Full** | Episodic memory (private, perspective-bound) |
 | `hkask-mcp-semantic` | 290 | 6 | **Full** | Semantic memory (public, shared) |
-| `hkask-mcp-replicant` | ~310 | 2 | **Full** | Replicant chat — MCP bridge for external integrations (Zed, etc.) |
+| `hkask-mcp-replicant` | ~310 | 3 | **Full** | Replicant chat — MCP bridge for external integrations (Zed, etc.) |
 
 ---
 
@@ -145,10 +145,10 @@ ddmvss_categories: [capability, observability]
 - **Tools:** `semantic_ping`, `semantic_store`, `semantic_recall`, `semantic_embed`, `semantic_search`, `semantic_count`
 - **Notes:** Semantic memory MCP server. Public/shared visibility boundary. Embedding storage and KNN similarity search.
 
-### `hkask-mcp-replicant` (~310 LOC, 2 tools)
+### `hkask-mcp-replicant` (~310 LOC, 3 tools)
 - **Status:** Full
-- **Tools:** `replicant_chat`, `replicant_status`
-- **Notes:** Replicant chat MCP server — bridges external MCP clients (e.g., Zed Agent Panel) with hKask's pod-mediated inference flow. Resolves a replicant persona name → WebID, creates a pod via `PodManagerBuilder` (same flow as `kask chat`), and sends messages through pod-mediated inference via `InferencePort`. See §6.3 below for architecture details.
+- **Tools:** `replicant_chat`, `replicant_status`, `replicant_history`
+- **Notes:** Replicant chat MCP server — bridges external MCP clients (e.g., Zed Agent Panel) with hKask's pod-mediated inference flow. Resolves a replicant persona name → WebID, creates a pod via `PodManagerBuilder` (same flow as `kask chat`), and sends messages through pod-mediated inference via `InferencePort`. Follow-up features implemented: (1) ACP runtime initialized with the same secret derivation chain as the CLI (master key → env → keychain → insecure dev), ensuring compatible capability tokens across all surfaces; (2) Full agent definition loading from the YAML registry for rich system prompts (charter, responsibilities, rights, voice/tone); (3) In-memory session persistence for conversation continuity across MCP tool invocations (bounded to 20 turns). See §6.3 below for architecture details.
 
 ---
 
@@ -192,13 +192,17 @@ sequenceDiagram
     Server-->>Client: {text, model, usage, persona}
 ```
 
-The server follows the same pod-mediated inference flow as `kask chat` (`crates/hkask-cli/src/commands/chat.rs`):
+The server follows the same pod-mediated inference flow as `kask chat` (`crates/hkask-cli/src/commands/chat.rs`), with three follow-up enhancements over the initial implementation:
 
 1. **Resolve persona** — `HKASK_AGENT_PERSONA` env var → `WebID::from_persona()`
-2. **Build pod** — `PodManagerBuilder` with auto-resolved ACP runtime and capability checker
-3. **Create + activate pod** — Persona YAML with `tool:inference:call` capability
-4. **Inference** — `PodContext::inference_port()` → `generate_with_model()` with model override
-5. **Return response** — JSON with `text`, `model`, `usage`, `persona`, `finish_reason`
+2. **Load agent definition** — Try registry database → YAML files → minimal fallback (Follow-up #2: system prompt richness)
+3. **Build pod** — `PodManagerBuilder` with ACP runtime and capability checker resolved from the same secret derivation chain as the CLI (Follow-up #1: ACP integration)
+4. **Create + activate pod** — Persona YAML with `tool:inference:call` capability
+5. **Compose system prompt** — Full agent definition (charter, responsibilities, rights, voice/tone) when available, minimal fallback otherwise (Follow-up #2)
+6. **Append conversation history** — Recent turns from in-memory session state for context continuity (Follow-up #3: session persistence)
+7. **Inference** — `PodContext::inference_port()` → `generate_with_model()` with model override
+8. **Record turn** — Append user message and response to session history, bounded to 20 turns
+9. **Return response** — JSON with `text`, `model`, `usage`, `persona`, `finish_reason`
 
 ### Configuration
 
@@ -207,6 +211,11 @@ The server follows the same pod-mediated inference flow as `kask chat` (`crates/
 | `HKASK_AGENT_PERSONA` | `Curator` | Replicant persona name (resolves to deterministic WebID) |
 | `HKASK_DEFAULT_MODEL` | `deepseek-v4-pro` | Default LLM model for inference |
 | `OKAPI_BASE_URL` | `http://127.0.0.1:11435` | Okapi API endpoint |
+| `HKASK_ACP_SECRET` | *(derived)* | ACP secret (or `HKASK_MASTER_KEY` for derivation) |
+| `HKASK_REGISTRY_PATH` | `registry/bots` | Path to agent YAML registry |
+| `HKASK_DB_PATH` | `hkask.db` | Agent registry database path |
+| `HKASK_DB_PASSPHRASE` | *(keychain)* | Database passphrase |
+| `HKASK_INSECURE_DEV` | *(unset)* | Set to `1` for insecure dev mode (random secrets) |
 
 ### Zed Integration
 
@@ -248,4 +257,4 @@ Registered in `table_gas_estimator.rs` with gas cost **5** (internal LLM-mediate
 
 ---
 
-*ℏKask MCP Arsenal — 19 servers, ~115 tools, 0 stubs — v0.22.0*
+*ℏKask MCP Arsenal — 19 servers, ~117 tools, 0 stubs — v0.22.0*

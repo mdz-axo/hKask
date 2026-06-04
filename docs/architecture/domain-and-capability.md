@@ -340,7 +340,7 @@ status: VERIFIED
 | semantic | `hkask-mcp-semantic` | 290 | ✅ Complete | Semantic memory (public, shared) |
 | replicant | `hkask-mcp-replicant` | ~310 | ✅ Complete | Replicant chat (MCP bridge for external integrations) |
 
-**Total:** 19 servers, 115+ tools, 0 stubs (P6 compliance). Allosteric regulation lives in `hkask-cns::allosteric` (`AllostericGate`, `AllostericGateConfig`, MWC state function).
+**Total:** 19 servers, 117+ tools, 0 stubs (P6 compliance). Allosteric regulation lives in `hkask-cns::allosteric` (`AllostericGate`, `AllostericGateConfig`, MWC state function).
 
 **Audit:** [`docs/status/mcp-server-audit.md`](../status/mcp-server-audit.md)
 
@@ -369,14 +369,19 @@ status: VERIFIED
 |------|-------------|----------------|
 | `replicant_chat` | Send a message to a replicant and receive an inference response | elicit, respond |
 | `replicant_status` | Check replicant registration and identity | recognize, query |
+| `replicant_history` | List recent conversation turns in the current session | recognize, recall |
 
-**Architecture:** The server follows the same pod-mediated inference flow as `kask chat` (`crates/hkask-cli/src/commands/chat.rs`):
+**Architecture:** The server follows the same pod-mediated inference flow as `kask chat` (`crates/hkask-cli/src/commands/chat.rs`), with three follow-up enhancements:
 
 1. Resolve persona name → `WebID` (via `HKASK_AGENT_PERSONA`)
-2. Build pod via `PodManagerBuilder` (auto-resolves ACP runtime and capability checker)
-3. Create + activate pod with `tool:inference:call` capability
-4. Route message through `PodContext::inference_port()` → `generate_with_model()`
-5. Return LLM response as structured JSON
+2. Load the full agent definition from registry database or YAML (system prompt richness)
+3. Build pod via `PodManagerBuilder` with ACP runtime and capability checker using the same secret derivation chain as the CLI (ACP integration)
+4. Create + activate pod with `tool:inference:call` capability
+5. Compose rich system prompt from agent definition's charter, responsibilities, rights, and voice/tone
+6. Append conversation history from in-memory session state for context continuity
+7. Route message through `PodContext::inference_port()` → `generate_with_model()`
+8. Record the turn in session history (bounded to 20 turns)
+9. Return LLM response as structured JSON
 
 This bridges the gap between Zed's MCP context server model and hKask's ACP/pod-mediated architecture. While other MCP servers expose *infrastructure capabilities* (search, storage, inference), `hkask-mcp-replicant` exposes an *agent persona* for conversation — a fundamentally different interaction pattern.
 

@@ -1432,13 +1432,17 @@ version = "0.22.0"
 dependencies = [
  "anyhow",
  "hkask-agents",
+ "hkask-keystore",
  "hkask-mcp",
+ "hkask-storage",
  "hkask-templates",
  "hkask-types",
+ "rand 0.9.4",
  "rmcp",
  "schemars",
  "serde",
  "serde_json",
+ "serde_yaml",
  "tokio",
  "tracing",
 ]
