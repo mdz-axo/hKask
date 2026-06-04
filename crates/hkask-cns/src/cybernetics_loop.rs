@@ -31,6 +31,7 @@ use crate::dampener::Dampener;
 use crate::energy::{GasBudget, GasError};
 use crate::runtime::CnsRuntime;
 use hkask_types::WebID;
+use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 use hkask_types::loops::{
     ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, LoopMessage,
     LoopPayload, Signal,
@@ -160,6 +161,9 @@ pub struct CyberneticsLoop {
     inbox: Arc<RwLock<mpsc::UnboundedReceiver<LoopMessage>>>,
     /// Dampener to suppress repeated CuratorDirectives within a time window
     dampener: Arc<Dampener>,
+    /// Persistent event sink (NuEventStore) for algedonic alert durability.
+    /// When present, algedonic alerts are persisted to survive restarts.
+    event_sink: Option<Arc<dyn NuEventSink>>,
 }
 
 impl CyberneticsLoop {
@@ -180,6 +184,7 @@ impl CyberneticsLoop {
             dispatch_tx,
             inbox: Arc::new(RwLock::new(dead_rx)),
             dampener: Arc::new(Dampener::new()),
+            event_sink: None,
         }
     }
 
@@ -202,6 +207,7 @@ impl CyberneticsLoop {
             dispatch_tx,
             inbox: Arc::new(RwLock::new(dead_rx)),
             dampener: Arc::new(Dampener::new()),
+            event_sink: None,
         }
     }
 
@@ -222,6 +228,7 @@ impl CyberneticsLoop {
             dispatch_tx,
             inbox: Arc::new(RwLock::new(inbox_rx)),
             dampener: Arc::new(Dampener::new()),
+            event_sink: None,
         };
         (loop_instance, inbox_tx)
     }
@@ -245,6 +252,7 @@ impl CyberneticsLoop {
             dispatch_tx,
             inbox: Arc::new(RwLock::new(inbox_rx)),
             dampener: Arc::new(Dampener::new()),
+            event_sink: None,
         };
         (loop_instance, inbox_tx)
     }
@@ -721,6 +729,39 @@ impl HkaskLoop for CyberneticsLoop {
                     error = %e,
                     "Failed to dispatch LoopAction — Communication Loop may be closed"
                 );
+            }
+
+            // Persist algedonic alerts to NuEventStore for durability across restarts.
+            if action.action_type == ActionType::Escalate && target_id == LoopId::Curation {
+                if let Some(ref sink) = self.event_sink {
+                    let deficit = action
+                        .parameters
+                        .get("deficit")
+                        .and_then(|v| v.as_f64())
+                        .unwrap_or(0.0) as u64;
+                    let threshold = action
+                        .parameters
+                        .get("threshold")
+                        .and_then(|v| v.as_f64())
+                        .unwrap_or(0.0) as u64;
+                    let event = NuEvent::new(
+                        WebID::new(),
+                        Span::new(SpanNamespace::new("cns.variety"), "algedonic_alert"),
+                        Phase::Act,
+                        serde_json::json!({
+                            "deficit": deficit,
+                            "threshold": threshold,
+                        }),
+                        0,
+                    );
+                    if let Err(e) = sink.persist(&event) {
+                        tracing::warn!(
+                            target: "cns.algedonic",
+                            error = %e,
+                            "Failed to persist algedonic alert to NuEventStore"
+                        );
+                    }
+                }
             }
         }
     }
