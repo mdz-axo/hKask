@@ -1,8 +1,8 @@
 ---
 title: "DDMVSS Documentation Scaffold"
 audience: [architects, documentation maintainers, agents]
-last_updated: 2026-05-29
-version: "2.2.0"
+last_updated: 2026-06-03
+version: "2.2.1"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -48,16 +48,19 @@ docs/
 │   ├── persistence-and-lifecycle.md       # SPEC (Persistence + Lifecycle)
 │   ├── ADR-022-*.md                       # DECISION RECORD
 │   ├── ADR-023-*.md                       # DECISION RECORD
+│   ├── loop-architecture.md              # FRAMEWORK (6-loop authority model)
+│   ├── magna-carta.md                     # FRAMEWORK (user sovereignty)
 │   └── reference/
 │       ├── hKask-erd.md                   # Diagram artifact
 │       ├── registry-erd.md                # Diagram artifact
 │       ├── subsystem-erds.md              # Diagram artifact
+│       ├── distillation-erd.md            # Post-distillation ERD
 │       ├── hKask-hLexicon.md              # Vocabulary catalog
 │       ├── ports-inventory.md             # Port reference
 │       ├── utoipa-implementation.md       # API guide
 │       ├── template-header-standard.md    # Format reference
 │       ├── hKask-Curator-persona.md       # Persona spec
-       ├── okapi-integration.md           # Okapi API contract
+│       └── okapi-integration.md           # Okapi API contract
 ├── specifications/
 │   ├── DDMVSS_SCAFFOLD.md                 # THIS FILE
 │   ├── REQUIREMENTS.md                    # Goal specs
@@ -70,10 +73,6 @@ docs/
 │   └── DEPLOYMENT.md                      # Deployment guide
 ├── plans/
 │   ├── TODO.md                            # Open work
-│   ├── curator.md                         # Persona draft
-│   ├── curator-persona.md                 # Persona draft
-│   ├── backstory-r7.md                    # Persona draft
-│   ├── personas-r7.md                     # Persona draft
 │   └── high-temp-templates.md             # Template design draft
 ├── status/
 │   ├── PROJECT_STATUS.md                  # Single source of truth

@@ -1,8 +1,8 @@
 ---
 title: "MCP Server Completeness Audit"
 audience: [architects, developers, agents]
-last_updated: 2026-05-29
-version: "1.1.0"
+last_updated: 2026-06-03
+version: "1.2.0"
 status: "Active"
 domain: "Capability"
 ddmvss_categories: [capability, observability]
@@ -126,11 +126,25 @@ ddmvss_categories: [capability, observability]
 - **Tools:** SMS send, voice call, message status, number lookup operations
 - **Notes:** Telnyx API integration for SMS and voice capabilities. Compact but feature-complete.
 
+### `hkask-mcp-ensemble` (295 LOC, ~6 tools)
+- **Status:** Full
+- **Tools:** Multi-agent chat coordination, deliberation dispatch
+- **Notes:** MCP surface for `hkask-ensemble` crate. Manages standing sessions and confidence routing.
+
+### `hkask-mcp-episodic` (190 LOC, ~5 tools)
+- **Status:** Full
+- **Tools:** Store, recall, query episodic memories (private, perspective-bound)
+- **Notes:** Episodic memory MCP server. Sovereignty boundary: episodic memories are private by design.
+
+### `hkask-mcp-semantic` (290 LOC, ~5 tools)
+- **Tools:** Store, recall, query, consolidate semantic memories (public, shared)
+- **Notes:** Semantic memory MCP server. Public/shared visibility boundary. Consolidation bridge to episodic.
+
 ---
 
 ## Recommendations
 
-1. **No shell servers.** All 15 MCP servers register real tools with implementations. Zero stubs remain (P6 compliance).
+1. **No shell servers.** All 18 MCP servers register real tools with implementations. Zero stubs remain (P6 compliance).
 
 2. **Per-crate README:** Create individual `README.md` files in each `mcp-servers/hkask-mcp-*/README.md` documenting the tool surface, configuration, and any external service dependencies.
 
@@ -142,4 +156,4 @@ ddmvss_categories: [capability, observability]
 
 ---
 
-*ℏKask MCP Arsenal — 15 servers, 99 tools, 0 stubs — v0.21.0*
+*ℏKask MCP Arsenal — 18 servers, ~110 tools, 0 stubs — v0.22.0*

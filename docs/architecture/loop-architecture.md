@@ -12,7 +12,7 @@ ddmvss_categories: [domain, capability, observability, curation]
 
 **Purpose:** Establish that rate limiting is a redundant projection of energy tracking, decompose hKask into six semantic loops (three domain, three meta), map crates to loops, define capability membranes, and document open questions.
 
-**Related:** [`PRINCIPLES.md`](../PRINCIPLES.md), [`trust-security-observability.md`](../trust-security-observability.md), [`domain-and-capability.md`](../domain-and-capability.md)
+**Related:** [`PRINCIPLES.md`](PRINCIPLES.md), [`trust-security-observability.md`](trust-security-observability.md), [`domain-and-capability.md`](domain-and-capability.md)
 
 ---
 

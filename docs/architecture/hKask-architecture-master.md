@@ -1,8 +1,8 @@
 ---
 title: "hKask Architecture Master"
 audience: [architects, developers, agents]
-last_updated: 2026-05-29
-version: "2.2.1"
+last_updated: 2026-06-03
+version: "2.2.2"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -56,6 +56,7 @@ Detailed lookup tables and diagrams in `reference/`:
 | [`reference/utoipa-implementation.md`](reference/utoipa-implementation.md) | OpenAPI generation guide |
 | [`reference/template-header-standard.md`](reference/template-header-standard.md) | Template metadata format |
 | [`reference/hKask-Curator-persona.md`](reference/hKask-Curator-persona.md) | Curator persona specification |
+| [`reference/distillation-erd.md`](reference/distillation-erd.md) | Post-distillation authority DAG and ERD |
 | [`reference/okapi-integration.md`](reference/okapi-integration.md) | Okapi LLM API contract |
 
 

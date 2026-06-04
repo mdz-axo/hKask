@@ -1,8 +1,8 @@
 ---
 title: "hKask Domain & Capability Specification"
 audience: [architects, developers, agents]
-last_updated: 2026-05-29
-version: "2.2.1"
+last_updated: 2026-06-03
+version: "2.2.2"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability]
@@ -335,8 +335,11 @@ status: VERIFIED
 | telnyx | `hkask-mcp-telnyx` | 244 | ✅ Complete | SMS/voice communications |
 | fal | `hkask-mcp-fal` | 434 | ✅ Complete | Media generation (FAL) |
 | rss-reader | `hkask-mcp-rss-reader` | 1,443 | ✅ Complete | RSS feed management |
+| ensemble | `hkask-mcp-ensemble` | 295 | ✅ Complete | Multi-agent chat coordination |
+| episodic | `hkask-mcp-episodic` | 190 | ✅ Complete | Episodic memory (private, perspective-bound) |
+| semantic | `hkask-mcp-semantic` | 290 | ✅ Complete | Semantic memory (public, shared) |
 
-**Total:** 15 servers, 102+ tools, 0 stubs (P6 compliance). Allosteric regulation lives in `hkask-cns::allosteric` (`AllostericGate`, `AllostericGateConfig`, MWC state function).
+**Total:** 18 servers, 110+ tools, 0 stubs (P6 compliance). Allosteric regulation lives in `hkask-cns::allosteric` (`AllostericGate`, `AllostericGateConfig`, MWC state function).
 
 **Audit:** [`docs/status/mcp-server-audit.md`](../status/mcp-server-audit.md)
 

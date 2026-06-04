@@ -1,8 +1,8 @@
 ---
 title: "hKask Documentation Portal"
 audience: [project maintainers, contributors, architects, agents]
-last_updated: 2026-06-01
-version: "1.1.0"
+last_updated: 2026-06-03
+version: "1.2.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -129,7 +129,8 @@ Open work and design drafts. Drafts (`Status: Draft`) are exploratory and not au
 |----------|--------|-------------|
 | [`DIAGRAMS_INDEX.md`](DIAGRAMS_INDEX.md) | all | Mermaid diagram verification registry |
 | [`OPEN_QUESTIONS.md`](OPEN_QUESTIONS.md) | interface, composition, capability, observability, curation, lifecycle | Underspecified aspects awaiting decisions |
-| [`gml/README.md`](gml/README.md) | domain | GML (Allosteric Thinking) documentation |
+| [`gml/gml-allosteric-thinking-v2.md`](gml/gml-allosteric-thinking-v2.md) | domain | GML Allosteric Thinking tool |
+| [`gml/gml-user-guide.md`](gml/gml-user-guide.md) | domain | GML user guide |
 | [`generated/cli-reference.md`](generated/cli-reference.md) | interface | Auto-generated CLI reference |
 
 ---

@@ -1,8 +1,8 @@
 ---
 title: "hKask TODO — Open Work"
 audience: [project maintainers, contributors]
-last_updated: 2026-05-28
-version: "1.3.0"
+last_updated: 2026-06-03
+version: "1.4.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [domain, capability, interface, composition, trust, observability, persistence, lifecycle, curation]
@@ -106,6 +106,19 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 
 ---
 
+## Completed (2026-06-03 Documentation Refresh)
+
+| ID | Task | Date | Evidence |
+|----|------|------|----------|
+| **R-31** | Archive 8 stale documents (Task 2) | 2026-06-03 | `docs/archive/2026-06-03-documentation-refresh/` |
+| **R-32** | Delete 3 superseded/implementation reference docs | 2026-06-03 | reference/loop-architecture.md (superseded), mcp-memory-split-plan.md, mcp-memory-continuation-prompt.md |
+| **R-33** | Update MCP server count 15→18 across all docs | 2026-06-03 | PRINCIPLES, domain-and-capability, persistence-and-lifecycle, subsystem-erds, REQUIREMENTS, OPEN_QUESTIONS, mcp-server-audit |
+| **R-34** | Update DDMVSS_SCAFFOLD directory tree | 2026-06-03 | Removed archived plans, added loop-architecture.md, distillation-erd.md |
+| **R-35** | Fix docs/README.md portal (remove dead links) | 2026-06-03 | Removed archived plan links, fixed GML reference |
+| **R-36** | Fix hKask-architecture-master.md references | 2026-06-03 | Removed superseded reference/loop-architecture.md, added distillation-erd.md |
+
+---
+
 ## Completed (Prior Sessions)
 
 | ID | Task | Date | Evidence |
@@ -140,4 +153,4 @@ cargo fmt --check
 
 ---
 
-*This TODO is the single source of truth for open work. Last updated after 2026-05-29 documentation refresh.*
+*This TODO is the single source of truth for open work. Last updated after 2026-06-03 documentation refresh.*
