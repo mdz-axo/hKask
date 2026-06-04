@@ -110,10 +110,6 @@ Open work and design drafts. Drafts (`Status: Draft`) are exploratory and not au
 | Document | DDMVSS | Description |
 |----------|--------|-------------|
 | [`TODO.md`](plans/TODO.md) | all | Open work items only |
-| [`curator.md`](plans/curator.md) | curation, capability | Curator role (draft) |
-| [`curator-persona.md`](plans/curator-persona.md) | curation, capability | Curator persona specification (draft) |
-| [`backstory-r7.md`](plans/backstory-r7.md) | curation, capability | 7R7 legion backstory (draft) |
-| [`personas-r7.md`](plans/personas-r7.md) | curation, capability | R7 individual persona threads (draft) |
 | [`high-temp-templates.md`](plans/high-temp-templates.md) | composition, curation | High-temperature template design (draft) |
 
 ---

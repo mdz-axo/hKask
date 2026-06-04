@@ -57,8 +57,7 @@ docs/
 │       ├── utoipa-implementation.md       # API guide
 │       ├── template-header-standard.md    # Format reference
 │       ├── hKask-Curator-persona.md       # Persona spec
-│       ├── okapi-integration.md           # Okapi API contract
-│       └── loop-architecture.md           # 6-loop decomposition, crate↔loop map
+       ├── okapi-integration.md           # Okapi API contract
 ├── specifications/
 │   ├── DDMVSS_SCAFFOLD.md                 # THIS FILE
 │   ├── REQUIREMENTS.md                    # Goal specs

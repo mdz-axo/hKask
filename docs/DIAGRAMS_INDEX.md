@@ -1,7 +1,7 @@
 ---
 title: "hKask Diagram Index — Mermaid Verification Registry"
 audience: [architects, developers, agents]
-last_updated: 2026-05-29
+last_updated: 2026-06-03
 version: "1.0.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -12,7 +12,7 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 
 **Purpose:** Verifiable registry of all Mermaid diagrams in the hKask documentation corpus. Per the Mermaid-First Mandate from `DOCUMENTATION_STANDARDS.md` §4: every interaction pattern, data flow, and object model is diagrammed. Every diagram carries `DIAGRAM_ALIGNMENT` metadata.
 
-**Verification status:** All diagram `verified-against` paths checked against current workspace at 2026-05-29.
+**Verification status:** All diagram `verified-against` paths checked against current workspace at 2026-06-03.
 
 ---
 
@@ -85,9 +85,10 @@ These interaction patterns exist in the codebase but lack dedicated diagram cove
 | Standing Session Chat Lifecycle | Domain | `hkask-ensemble`, `hkask-agents` | P1 |
 | Competition Socket Protocol (ACP) | Interface | `hkask-agents` (ACP) | P2 |
 | Git CAS Content-Addressed Blob Flow | Persistence | `hkask-storage (git_cas)`, `gix 0.81` | P2 |
-| MCP Server Lifecycle (start → register → tools → shutdown) | Capability | `hkask-mcp` (supervisor, runtime) | P2 |
 | ConsentManager Authorization Flow | Trust | `hkask-agents (consent)` | P1 |
 | Template Manifest Validation Flow (ContractValidator) | Composition | `hkask-templates` | P2 |
+
+> **Note (2026-06-03):** `hkask-mcp-episodic` and `hkask-mcp-semantic` are newly added MCP servers (split from the monolithic `hkask-mcp` runtime). Their interaction patterns with the memory subsystem are not yet diagrammed and should be considered candidates for v1.1+ coverage.
 
 ---
 
@@ -101,9 +102,9 @@ These interaction patterns exist in the codebase but lack dedicated diagram cove
 | Persistence & Lifecycle | 5 | 5 | 0 |
 | Framework | 4 | 4 | 0 |
 | Reference | 3 | 3 | 0 |
-| **Total** | **28** | **28** | **8** |
+| **Total** | **28** | **28** | **7** |
 
-**DDMVSS completeness:** All 9 DDMVSS categories have diagram coverage. 28 diagrams verified against current code (2026-05-29). 8 undocumented patterns identified for v1.1+.
+**DDMVSS completeness:** All 9 DDMVSS categories have diagram coverage. 28 diagrams verified against current code (2026-06-03). 7 undocumented patterns identified for v1.1+.
 
 ---
 

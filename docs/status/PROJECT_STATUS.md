@@ -1,7 +1,7 @@
 ---
 title: "hKask Project Status"
 audience: [project maintainers, contributors, stakeholders]
-last_updated: 2026-06-01
+last_updated: 2026-06-03
 version: "0.21.5"
 status: "Active"
 domain: "Cross-cutting"
@@ -54,8 +54,8 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a **minimal agent-n
 | Component | Count | Description |
 |-----------|-------|-------------|
 | **Core Crates** | 11 | `hkask-*` in `crates/` |
-| **MCP Servers** | 15 | `hkask-mcp-*` in `mcp-servers/` (incl. `hkask-mcp-goal`) |
-| **Total** | 27 | All in workspace |
+| **MCP Servers** | 18 | `hkask-mcp-*` in `mcp-servers/` (incl. `hkask-mcp-goal`, `hkask-mcp-ensemble`, `hkask-mcp-episodic`, `hkask-mcp-semantic`) |
+| **Total** | 30 | All in workspace |
 
 ---
 
@@ -90,7 +90,7 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a **minimal agent-n
 | `hkask-cli` | 3,741 | CLI commands (14 subcommand groups) | ✅ Complete |
 | `hkask-api` | 2,449 | HTTP API (11 route groups), utoipa | ✅ Complete |
 
-### 3.3 MCP Servers (15)
+### 3.3 MCP Servers (18)
 
 | Server | LOC | Status | Purpose |
 |--------|-----|--------|---------|
@@ -109,6 +109,9 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a **minimal agent-n
 | `hkask-mcp-fal` | 434 | ✅ Complete | Media generation (FAL) |
 | `hkask-mcp-rss-reader` | 1,443 | ✅ Complete | RSS feed reader |
 | `hkask-mcp-goal` | ~235 | ✅ Complete | Goal coordination substrate (OCAP-gated, CNS-observed); mirrors CLI/API |
+| `hkask-mcp-ensemble` | ~LOC | ✅ Complete | Multi-agent chat MCP server |
+| `hkask-mcp-episodic` | ~LOC | ✅ Complete | Episodic memory MCP server |
+| `hkask-mcp-semantic` | ~LOC | ✅ Complete | Semantic memory MCP server |
 
 **Note:** MCP servers are excluded from count per [`AGENTS.md`](../../AGENTS.md).
 
@@ -124,9 +127,9 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a **minimal agent-n
 | **Architecture Framework** | 3 | `docs/architecture/` (DDMVSS, PRINCIPLES, magna-carta) |
 | **Architecture Index** | 1 | `docs/architecture/hKask-architecture-master.md` |
 | **Architecture ADR** | 8 | `docs/architecture/` (ADR-022 through ADR-029; ADR-029 = goal capability primitive) |
-| **Reference Artifacts** | 9 | `docs/architecture/reference/` |
+| **Reference Artifacts** | 6 | `docs/architecture/reference/` |
 | **Specifications** | 9 | `docs/specifications/` |
-| **Plans** | 6 | `docs/plans/` (TODO + 5 persona/template drafts) |
+| **Plans** | 1 | `docs/plans/` (TODO only) |
 | **User Guides** | 2 | `docs/user-guides/` |
 | **GML** | 1 | `docs/gml/` |
 | **Status** | 2 | `docs/status/` (PROJECT_STATUS, mcp-server-audit) |
@@ -134,7 +137,7 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a **minimal agent-n
 | **Portal** | 1 | `docs/README.md` |
 | **Generated** | 2 | `docs/generated/` (cli-reference, openapi.json) |
 | **CI Scripts** | 2 | `docs/ci/` (check-links.sh, check-metadata.sh) |
-| **Total** | 50 (.md, excl. archive) + 2 CI scripts | — |
+| **Total** | 42 (.md, excl. archive) + 2 CI scripts | — |
 
 ### 4.2 Archived Documents
 
@@ -146,7 +149,8 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a **minimal agent-n
 | `2026-05-25-bloat-removal` | 6 | Content absorbed into DDMVSS specs or stale |
 | `2026-05-28-documentation-refresh` | 10 (+ 4 deleted) | Stale/historical docs archived; MODEL_CATALOG, 2 plan files, and 1 other deleted |
 | `2026-06-01-documentation-refresh` | 11 | Audit artifacts + speculative 10-loop feedback-loops-decomposition archived |
-| **Total** | 115 | — |
+| `2026-06-03-documentation-refresh` | 8 | 3 reference docs + 5 plan docs archived |
+| **Total** | 123 | — |
 
 ### 4.3 DDMVSS Completeness
 

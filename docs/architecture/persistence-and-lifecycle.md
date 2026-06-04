@@ -224,7 +224,7 @@ sequenceDiagram
     CLI->>CAP: Mint root capability token
     CLI->>CUR: Initialize Curator singleton
     CLI->>CNS: Start CNS runtime
-    CLI->>MCP: Connect 15 MCP servers
+    CLI->>MCP: Connect 18 MCP servers
     CLI-->>CLI: System ready
 ```
 
@@ -245,7 +245,7 @@ status: VERIFIED
 | 4 | Mint root capability token | `CapabilityToken` with `hkask-root-authority` WebID |
 | 5 | Initialize Curator singleton | `AgentPod` or `Replicant` + system persona |
 | 6 | Start CNS runtime | `CnsRuntime` with `UnifiedVarietyTracker` |
-| 7 | Connect MCP servers | `McpRuntime` discovers 15 servers |
+| 7 | Connect MCP servers | `McpRuntime` discovers 18 servers |
 
 ---
 

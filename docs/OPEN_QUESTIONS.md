@@ -50,7 +50,7 @@ ddmvss_categories: [interface, composition, capability, observability, curation,
 
 **Decision:** Document MCP servers as a catalog with common pattern description and per-crate README for implemented servers. A unified catalog exists at `docs/status/mcp-server-audit.md`. Individual README files live in each `mcp-servers/hkask-mcp-*/README.md`.
 
-**Rationale:** Each MCP server having its own specification entry in REQUIREMENTS.md (Option 1) creates 15 × ~2KB = ~30KB of spec overhead — disproportionate. Option 2 keeps the catalog as a single source of truth with per-crate detail for the specific tool surface.
+**Rationale:** Each MCP server having its own specification entry in REQUIREMENTS.md (Option 1) creates 18 × ~2KB = ~36KB of spec overhead — disproportionate. Option 2 keeps the catalog as a single source of truth with per-crate detail for the specific tool surface.
 
 ---
 
@@ -62,7 +62,7 @@ ddmvss_categories: [interface, composition, capability, observability, curation,
 
 **Decision:** Maintain manual Mermaid dependency diagrams in architecture docs as the primary visualization. CI automation (cargo-depgraph) is a v1.1+ enhancement if dependency complexity warrants it.
 
-**Rationale:** The workspace crate map is stable (11 core + 15 MCP servers). Manual Mermaid in `subsystem-erds.md` §12 and `ports-inventory.md` provides adequate visualization. The DIAGRAM_ALIGNMENT mechanism (PS-09) already catches drift.
+**Rationale:** The workspace crate map is stable (11 core + 18 MCP servers). Manual Mermaid in `subsystem-erds.md` §12 and `ports-inventory.md` provides adequate visualization. The DIAGRAM_ALIGNMENT mechanism (PS-09) already catches drift.
 
 ---
 
