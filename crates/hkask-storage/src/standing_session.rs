@@ -262,7 +262,7 @@ impl StandingSessionPort for StandingSessionStore {
             key_version: 1, // default for port-level saves
             sealed: false,
         };
-        StandingSessionStore::save_session(&self, &stored).map_err(|e| match e {
+        StandingSessionStore::save_session(self, &stored).map_err(|e| match e {
             StandingSessionError::NotFound(s) => SessionStoreError::NotFound(s),
             StandingSessionError::Sealed(s) => SessionStoreError::Sealed(s),
             StandingSessionError::Infra(ie) => SessionStoreError::Storage(ie.to_string()),
@@ -270,7 +270,7 @@ impl StandingSessionPort for StandingSessionStore {
     }
 
     fn get_session(&self, session_id: &str) -> Result<SessionRecord, SessionStoreError> {
-        let stored = StandingSessionStore::get_session(&self, session_id).map_err(|e| match e {
+        let stored = StandingSessionStore::get_session(self, session_id).map_err(|e| match e {
             StandingSessionError::NotFound(s) => SessionStoreError::NotFound(s),
             StandingSessionError::Sealed(s) => SessionStoreError::Sealed(s),
             StandingSessionError::Infra(ie) => SessionStoreError::Storage(ie.to_string()),
@@ -292,7 +292,7 @@ impl StandingSessionPort for StandingSessionStore {
             timestamp: message.timestamp.clone(),
             template_id: message.template_id.clone(),
         };
-        StandingSessionStore::save_message(&self, &stored).map_err(|e| match e {
+        StandingSessionStore::save_message(self, &stored).map_err(|e| match e {
             StandingSessionError::NotFound(s) => SessionStoreError::NotFound(s),
             StandingSessionError::Sealed(s) => SessionStoreError::Sealed(s),
             StandingSessionError::Infra(ie) => SessionStoreError::Storage(ie.to_string()),
@@ -300,12 +300,11 @@ impl StandingSessionPort for StandingSessionStore {
     }
 
     fn get_messages(&self, session_id: &str) -> Result<Vec<MessageRecord>, SessionStoreError> {
-        let stored =
-            StandingSessionStore::get_messages(&self, session_id).map_err(|e| match e {
-                StandingSessionError::NotFound(s) => SessionStoreError::NotFound(s),
-                StandingSessionError::Sealed(s) => SessionStoreError::Sealed(s),
-                StandingSessionError::Infra(ie) => SessionStoreError::Storage(ie.to_string()),
-            })?;
+        let stored = StandingSessionStore::get_messages(self, session_id).map_err(|e| match e {
+            StandingSessionError::NotFound(s) => SessionStoreError::NotFound(s),
+            StandingSessionError::Sealed(s) => SessionStoreError::Sealed(s),
+            StandingSessionError::Infra(ie) => SessionStoreError::Storage(ie.to_string()),
+        })?;
         Ok(stored
             .into_iter()
             .map(|s| MessageRecord {
@@ -320,7 +319,7 @@ impl StandingSessionPort for StandingSessionStore {
     }
 
     fn update_last_active(&self, session_id: &str) -> Result<(), SessionStoreError> {
-        StandingSessionStore::update_last_active(&self, session_id).map_err(|e| match e {
+        StandingSessionStore::update_last_active(self, session_id).map_err(|e| match e {
             StandingSessionError::NotFound(s) => SessionStoreError::NotFound(s),
             StandingSessionError::Sealed(s) => SessionStoreError::Sealed(s),
             StandingSessionError::Infra(ie) => SessionStoreError::Storage(ie.to_string()),

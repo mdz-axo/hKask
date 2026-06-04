@@ -144,7 +144,7 @@ impl CnsRuntime {
         self.check_variety(domain).await;
 
         // Notify subscribers interested in this domain's span namespace
-        if let Some(span_ns) = SpanNamespace::from_str(domain) {
+        if let Some(span_ns) = SpanNamespace::parse(domain) {
             let subscribers = self.subscribers.read().await;
             for observer in subscribers.iter() {
                 if observer.interest_mask().iter().any(|ns| ns == &span_ns) {
@@ -187,22 +187,22 @@ impl CnsRuntime {
         drop(state);
 
         // If alert is critical, emit depletion signals to subscribers
-        if let Some(ref alert) = alert {
-            if alert.severity == crate::algedonic::AlertSeverity::Critical {
-                let subscribers = self.subscribers.read().await;
-                let signal = DepletionSignal {
-                    agent: WebID::default(),
-                    remaining: alert.threshold.saturating_sub(alert.deficit),
-                    cap: alert.threshold,
-                    usage_ratio: if alert.threshold > 0 {
-                        alert.deficit as f64 / alert.threshold as f64
-                    } else {
-                        1.0
-                    },
-                };
-                for observer in subscribers.iter() {
-                    observer.on_depletion(&signal).await;
-                }
+        if let Some(ref alert) = alert
+            && alert.severity == crate::algedonic::AlertSeverity::Critical
+        {
+            let subscribers = self.subscribers.read().await;
+            let signal = DepletionSignal {
+                agent: WebID::default(),
+                remaining: alert.threshold.saturating_sub(alert.deficit),
+                cap: alert.threshold,
+                usage_ratio: if alert.threshold > 0 {
+                    alert.deficit as f64 / alert.threshold as f64
+                } else {
+                    1.0
+                },
+            };
+            for observer in subscribers.iter() {
+                observer.on_depletion(&signal).await;
             }
         }
 

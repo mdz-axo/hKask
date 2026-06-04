@@ -157,6 +157,8 @@ pub struct EnsembleChat {
     event_sink: Option<Arc<dyn NuEventSink + Send + Sync>>,
     gas_budget: Option<GasBudgetConfig>,
     gas_used: u64,
+    dedup: crate::chat_dedup::ChatDedup,
+    gas_governance: Option<Arc<dyn crate::ports::GasGovernancePort>>,
 }
 
 impl EnsembleChat {
@@ -182,6 +184,8 @@ impl EnsembleChat {
             event_sink: None,
             gas_budget: None,
             gas_used: 0,
+            dedup: crate::chat_dedup::ChatDedup::new(),
+            gas_governance: None,
         }
     }
 
@@ -203,6 +207,17 @@ impl EnsembleChat {
     /// Set gas budget configuration
     pub fn with_gas_budget(mut self, config: GasBudgetConfig) -> Self {
         self.gas_budget = Some(config);
+        self
+    }
+
+    /// Set CNS gas governance port for CyberneticsLoop observability.
+    ///
+    /// After `add_message()` consumes gas internally, the governance port
+    /// is also notified so the CNS can sense ensemble gas usage. Ensemble
+    /// gas is dual-tracked: internal counter for degradation levels,
+    /// CyberneticsLoop for CNS observability.
+    pub fn with_gas_governance(mut self, port: Arc<dyn crate::ports::GasGovernancePort>) -> Self {
+        self.gas_governance = Some(port);
         self
     }
 
@@ -284,6 +299,34 @@ impl EnsembleChat {
     /// exceed the session cap are silently rejected and a CNS span is emitted.
     /// When no gas budget is set, all messages are accepted (backward compatible).
     pub fn add_message(&mut self, message: ChatMessage) {
+        // Layer 2 DRY: dedup check — skip duplicates
+        if !self.dedup.check_and_register(&message) {
+            tracing::debug!(
+                target: "cns.ensemble.chat",
+                from = %message.from,
+                content_len = message.content.len(),
+                "Message rejected as duplicate (dedup)"
+            );
+            if let Some(ref sink) = self.event_sink {
+                let span = Span::new(SpanNamespace::new("cns.ensemble.chat"), "dedup_rejected");
+                let event = NuEvent::new(
+                    message.from,
+                    span,
+                    Phase::Compute,
+                    serde_json::json!({
+                        "from": message.from.to_string(),
+                        "content_len": message.content.len(),
+                        "dedup_rejected": true,
+                    }),
+                    0,
+                );
+                if let Err(e) = sink.persist(&event) {
+                    tracing::warn!(target: "cns.ensemble.chat", error = %e, "Failed to persist dedup_rejected NuEvent");
+                }
+            }
+            return;
+        }
+
         if let Some(ref budget) = self.gas_budget {
             let cost = budget.per_message_cost;
             let (can_proceed, level) = self.can_proceed_with_gas(cost);
@@ -337,7 +380,33 @@ impl EnsembleChat {
             }
         }
 
+        // CNS gas governance: report usage to CyberneticsLoop (dual-track)
+        if let Some(ref governance) = self.gas_governance {
+            let cost = self
+                .gas_budget
+                .as_ref()
+                .map(|b| b.per_message_cost)
+                .unwrap_or(0);
+            if !governance.can_proceed(cost) {
+                tracing::warn!(
+                    target: "cns.gas",
+                    gas = cost,
+                    "Message rejected — CNS governance blocked operation"
+                );
+                return;
+            }
+            governance.acquire(cost);
+        }
+
         self.messages.push(message);
+    }
+
+    /// Pre-register a message in the dedup filter without adding it to history.
+    ///
+    /// Use this when restoring messages from storage so that reloaded messages
+    /// are not falsely flagged as duplicates.
+    pub fn register_dedup(&mut self, message: &ChatMessage) {
+        self.dedup.register(message);
     }
 
     /// Add a restored message (from persistence) without gas accounting.
@@ -345,6 +414,7 @@ impl EnsembleChat {
     /// Used when loading messages from storage to avoid re-charging gas
     /// and to pre-register in dedup tracking.
     pub fn add_restored_message(&mut self, message: ChatMessage) {
+        self.dedup.register(&message);
         self.messages.push(message);
     }
 
@@ -408,7 +478,8 @@ impl EnsembleChat {
     /// Clear chat history
     pub fn clear(&mut self) {
         self.messages.clear();
-        info!("Chat history cleared");
+        self.dedup.clear();
+        info!("Chat history and dedup filter cleared");
     }
 
     /// Get improv session config
@@ -465,6 +536,25 @@ impl EnsembleChat {
                     level = ?level,
                     "Gas budget degradation — improv turn proceeding with warning"
                 );
+            }
+        }
+
+        // CNS gas governance: check can_proceed before inference
+        if let Some(ref governance) = self.gas_governance {
+            let cost = self
+                .gas_budget
+                .as_ref()
+                .map(|b| b.per_message_cost)
+                .unwrap_or(0);
+            if !governance.can_proceed(cost) {
+                tracing::warn!(
+                    target: "cns.gas",
+                    gas = cost,
+                    "Improv turn rejected — CNS governance blocked operation"
+                );
+                return Err(ImprovError::Ensemble(EnsembleError::CapabilityDenied(
+                    "CNS governance blocked operation".to_string(),
+                )));
             }
         }
 

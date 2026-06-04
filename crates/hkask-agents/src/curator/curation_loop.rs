@@ -163,7 +163,7 @@ impl HkaskLoop for CurationLoop {
         // Primary: Read from NuEvent store using cursor-based algedonic review
         let since_ms = self.last_review_ms.load(Ordering::Relaxed);
         let since = chrono::DateTime::<Utc>::from_timestamp_millis(since_ms as i64)
-            .unwrap_or_else(|| chrono::DateTime::<Utc>::UNIX_EPOCH);
+            .unwrap_or(chrono::DateTime::<Utc>::UNIX_EPOCH);
 
         let algedonic_count = if let Some(store) = self.context.nu_event_store() {
             // Read algedonic-significant events since last review cursor

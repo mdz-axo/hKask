@@ -308,7 +308,7 @@ impl LoopSystem {
     /// This runs all loops synchronously in a single call, which is useful for:
     /// - Testing (deterministic order)
     /// - Single-threaded operation
-    /// Full regulation cycle: tick all registered loops in authority order.
+    ///   Full regulation cycle: tick all registered loops in authority order.
     ///
     /// Authority DAG: Curation → Cybernetics → {Inference, Episodic, Semantic, Communication}
     /// Meta-loops tick first so their regulatory actions take effect before domain loops sense.

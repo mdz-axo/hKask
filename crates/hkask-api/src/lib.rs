@@ -257,6 +257,7 @@ fn build_loop_system(
 }
 
 impl ApiState {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         registry: SqliteRegistry,
         mcp_runtime: hkask_mcp::runtime::McpRuntime,

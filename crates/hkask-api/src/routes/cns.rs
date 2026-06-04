@@ -123,7 +123,7 @@ async fn cns_subscribe(
     let valid_spans: Vec<String> = req
         .spans
         .iter()
-        .filter(|s| hkask_types::event::SpanNamespace::from_str(s).is_some())
+        .filter(|s| hkask_types::event::SpanNamespace::parse(s).is_some())
         .cloned()
         .collect();
 

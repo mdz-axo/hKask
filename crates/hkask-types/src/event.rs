@@ -9,6 +9,7 @@ use crate::id::{EventID, WebID};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::str::FromStr;
 
 /// ν-event — Cybernetic observation event
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -112,9 +113,11 @@ impl SpanNamespace {
         Self(namespace.to_string())
     }
 
-    /// Fallible construction — returns None for invalid namespaces.
+    /// Fallible construction — returns Err for invalid namespaces.
     /// Accepts both short ("tool") and full ("cns.tool") forms.
-    pub fn from_str(s: &str) -> Option<Self> {
+    ///
+    /// Implements `FromStr` so that `"variety".parse::<SpanNamespace>()` works.
+    pub fn parse(s: &str) -> Option<Self> {
         let full = if s.starts_with("cns.") {
             s.to_string()
         } else {
@@ -135,6 +138,14 @@ impl SpanNamespace {
     /// The short name after "cns." (e.g., "tool")
     pub fn short_name(&self) -> &str {
         &self.0[4..] // Skip "cns."
+    }
+}
+
+impl FromStr for SpanNamespace {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::parse(s).ok_or(())
     }
 }
 

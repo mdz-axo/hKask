@@ -10,8 +10,8 @@
 //! - `mwc` — MWC computation engine (state function, sensitivity)
 //! - `gate` — `AllostericGate` with temporal dynamics
 //
-//! NOTE: `curation` module relocated to `hkask_agents::curator::curation_gate`
-//! (Loop 5 types live in the Curation crate, not Cybernetics).
+//!   NOTE: `curation` module relocated to `hkask_agents::curator::curation_gate`
+//!   (Loop 5 types live in the Curation crate, not Cybernetics).
 
 pub mod distribution;
 pub mod gate;

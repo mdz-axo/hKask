@@ -117,7 +117,7 @@ impl NuEventStore {
             param_values.iter().map(|p| p.as_ref()).collect();
 
         let events = stmt
-            .query_map(param_refs.as_slice(), |row| row_to_nu_event(row))
+            .query_map(param_refs.as_slice(), row_to_nu_event)
             .map_err(NuEventError::from)?
             .filter_map(|r| r.ok())
             .collect();
@@ -157,7 +157,7 @@ fn row_to_nu_event(row: &rusqlite::Row<'_>) -> Result<NuEvent, rusqlite::Error> 
 
     // Reconstruct Span from stored category + path
     let namespace_str = format!("cns.{}", span_category);
-    let namespace = SpanNamespace::from_str(&namespace_str).unwrap_or_else(|| {
+    let namespace = SpanNamespace::parse(&namespace_str).unwrap_or_else(|| {
         // Fallback: use the stored category directly as a non-canonical namespace.
         // This shouldn't happen for canonical events, but provides graceful degradation.
         SpanNamespace::new("cns.gas") // safe default

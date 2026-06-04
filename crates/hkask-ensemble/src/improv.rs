@@ -64,6 +64,11 @@ pub struct ImprovSessionConfig {
     pub relevance_model: String,
     pub relevance_max_tokens: i32,
     pub(crate) synthesis: SynthesisMode,
+    /// Confidence configuration for automatic model escalation.
+    /// When set, responses below the confidence threshold are re-generated
+    /// using a larger model via `check_and_escalate`.
+    #[serde(default)]
+    pub confidence_config: Option<crate::confidence_router::ConfidenceConfig>,
 }
 
 impl Default for ImprovSessionConfig {
@@ -76,6 +81,7 @@ impl Default for ImprovSessionConfig {
             relevance_model: "qwen3:8b".to_string(),
             relevance_max_tokens: 100,
             synthesis: SynthesisMode::Optional,
+            confidence_config: None,
         }
     }
 }
@@ -359,7 +365,7 @@ async fn sequential_speak<C: InferenceClient>(
 
         let request = GenerateRequest {
             model: config.relevance_model.clone(),
-            prompt,
+            prompt: prompt.clone(),
             options: Some(GenerateOptions {
                 n_probs: Some(5),
                 temperature: Some(0.7),
@@ -378,11 +384,33 @@ async fn sequential_speak<C: InferenceClient>(
             .map(|probs| crate::confidence_router::compute_confidence(probs))
             .unwrap_or(speaker.confidence);
 
-        let agent_response = AgentResponse::new(
+        let mut agent_response = AgentResponse::new(
             speaker.webid,
             response.response.trim().to_string(),
             confidence,
         );
+
+        // Confidence-based escalation: if confidence is below threshold,
+        // re-generate the response using a larger model
+        if let Some(ref conf_config) = config.confidence_config
+            && confidence < conf_config.threshold
+            && let Some(escalated) = crate::confidence_router::check_and_escalate(
+                conf_config,
+                &agent_response,
+                inference_client,
+                &prompt,
+            )
+            .await
+        {
+            tracing::info!(
+                target: "cns.ensemble.improv",
+                agent = %speaker.webid,
+                original_confidence = confidence,
+                escalated_confidence = escalated.confidence,
+                "Confidence escalated response"
+            );
+            agent_response = escalated;
+        }
 
         turn_context.push((speaker.webid, agent_response.content.clone()));
         responses.push(agent_response);

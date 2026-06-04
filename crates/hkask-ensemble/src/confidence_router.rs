@@ -9,10 +9,11 @@
 
 use crate::deliberation::AgentResponse;
 use crate::ports::{GenerateOptions, GenerateRequest, InferenceClient};
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 /// Confidence configuration (from template frontmatter or default)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfidenceConfig {
     pub threshold: f64,
     pub escalate_to_model: String,

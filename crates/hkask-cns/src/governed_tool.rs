@@ -230,7 +230,7 @@ impl ToolPort for GovernedTool {
                 tool = %tool,
                 reserved = estimated_cost,
                 actual = actual_cost,
-                refunded = if actual_cost < estimated_cost { estimated_cost - actual_cost } else { 0 },
+                refunded = estimated_cost.saturating_sub(actual_cost),
                 "Gas settled after tool invocation"
             );
         }
