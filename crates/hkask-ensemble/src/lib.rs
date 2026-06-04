@@ -14,12 +14,14 @@ pub mod standing_session;
 // Re-export commonly used types
 pub use adapters::InferencePortAdapter;
 pub use chat::{
-    ChatMessage, ChatParticipant, EnsembleChat, EnsembleError, ParticipantRole, SessionManager,
+    ChatMessage, ChatParticipant, DegradationLevel, EnsembleChat, EnsembleError, GasBudgetConfig,
+    ParticipantRole, SessionManager,
 };
 pub use deliberation::{AgentResponse, DeliberationSession};
 pub use improv::{ImprovError, ImprovMode, ImprovSessionConfig, ImprovTurn};
 pub use ports::{GenerateOptions, GenerateRequest};
 pub use standing_session::{
-    StandingSession, StandingSessionConfig, StandingSessionError, StandingSessionStatus,
-    bootstrap_standing_session, load_standing_session_config,
+    GasSection, StandingSession, StandingSessionConfig, StandingSessionError,
+    StandingSessionStatus, bootstrap_standing_session, bootstrap_standing_session_with_store,
+    load_standing_session_config,
 };

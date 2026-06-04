@@ -224,7 +224,7 @@ sequenceDiagram
     CLI->>CAP: Mint root capability token
     CLI->>CUR: Initialize Curator singleton
     CLI->>CNS: Start CNS runtime
-    CLI->>MCP: Connect 14 MCP servers
+    CLI->>MCP: Connect 15 MCP servers
     CLI-->>CLI: System ready
 ```
 
@@ -330,6 +330,20 @@ cargo clippy --workspace -- -D warnings  # Lint
 cargo fmt --check              # Format
 cargo run --bin kask -- <subcommand>     # Run
 ```
+
+---
+
+## Loop Assignment
+
+This spec's content maps to the [6-loop authority model](loop-architecture.md) as follows:
+
+| Spec Domain | Loop | Rationale |
+|------------|------|-----------|
+| SQLite + SQLCipher | Episodic (Loop 2a) + Semantic (Loop 2b) | Storage is split by visibility: private → Episodic, shared → Semantic |
+| Bitemporal triples | Episodic (Loop 2a) + Semantic (Loop 2b) | Temporal validity spans both memory systems |
+| Embeddings | Semantic Memory (Loop 2b) | Vector similarity is shared knowledge retrieval |
+| Bootstrap sequence | All loops | System startup initializes all loops in dependency order |
+| Evolution rules | Curation (Loop 5) | Schema evolution is a Curation concern — the Curator directs system change |
 
 ---
 

@@ -79,6 +79,21 @@ status: VERIFIED
 
 The `RateLimiter` and `CnsTokenBucket` types have been removed (per §4.6 of [`trust-security-observability.md`](../trust-security-observability.md)). `McpErrorKind::RateLimited` remains **only** for external HTTP 429 responses where downstream services impose rate limits — it is not an internal concept. All internal resource gating flows through `EnergyBudget.try_consume()`.
 
+### 1.6 External-Boundary Rate Limiting — Security Exception
+
+`hkask-mcp-web` implements a per-tool fixed-window `RateLimiter` (30 requests/60s) that is **not** a Cybernetics regulation concern. It is a **security membrane** owned by the Communication Loop (Loop 4) as defense-in-depth against external DoS.
+
+**Authority classification:**
+
+| Concern | Loop | Rationale |
+|---------|------|-----------|
+| Internal energy budgets | Cybernetics (Loop 6) | Regulation of agent resource consumption via `GovernedTool` gas accounting |
+| External-boundary rate limiting | Communication (Loop 4) | Security membrane protecting MCP servers from external client DoS |
+
+**CNS override authority:** Cybernetics retains override authority over Communication. If `CnsRuntime` emits a `BackpressureSignal` or depletion alert for the web domain, the `RateLimiter` must defer — internal regulation always supersedes external defense. The current implementation observes this indirectly: rate-limit events emit `tracing::warn!(target: "cns.web", ...)`, making them visible to CNS without requiring a code dependency on `hkask-cns`.
+
+**Boundary rule:** External-boundary rate limiting at the HTTP transport layer (Loop 4) is a security concern. Internal energy budgets at the governance membrane (Loop 6) are a regulation concern. These are distinct authorities that cooperate, not compete. CNS retains the final word.
+
 ---
 
 ## 2. Six-Loop Architecture — Semantic Decomposition

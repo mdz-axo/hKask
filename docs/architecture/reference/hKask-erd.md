@@ -2,7 +2,7 @@
 title: "hKask Entity Relationship Diagram"
 audience: [data architects, database developers, agents]
 last_updated: 2026-05-24
-version: "0.21.0"
+version: "0.22.0"
 status: "Active"
 domain: "Data"
 ddmvss_categories: [persistence]
@@ -11,7 +11,7 @@ ddmvss_categories: [persistence]
 
 # hKask Entity Relationship Diagram
 
-**Version:** v0.21.0  
+**Version:** v0.22.0
 **Status:** Pre-alpha — MVP in progress
 
 ---
@@ -75,7 +75,7 @@ erDiagram
     
     TEMPLATE {
         string id
-        string template_type "Prompt|Process|Cognition"
+        string template_type "Prompt|Process|Cognition|Specification"
         array lexicon_terms
         object contract
         string source_path
@@ -103,7 +103,7 @@ erDiagram
     }
     
     CNS {
-        string span "cns.prompt.*|cns.tool.*|cns.agent_pod.*"
+        string span "cns.* (15 canonical namespaces)"
         object outcome
         float confidence
         timestamp emitted_at
@@ -279,71 +279,89 @@ status: VERIFIED
 CNS spans form a hierarchical observability structure grounded in cybernetic regulation theory:[^ashby-law]
 
 ```mermaid
-graph LR
-    subgraph "cns.prompt.*"
-        CPS[cns.prompt.select]
-        CPR[cns.prompt.render]
-        CPO[cns.prompt.outcome]
-    end
-    
-    subgraph "cns.tool.*"
-        CTI[cns.tool.invocation]
-        CTR[cns.tool.result]
-    end
-    
-    subgraph "cns.agent_pod.*"
-        CAP[cns.agent_pod.populated]
-        CAR[cns.agent_pod.registered]
-        CAA[cns.agent_pod.activated]
-    end
-    
-    subgraph "cns.connector.*"
-        CCI[cns.connector.llm]
-        CCE[cns.connector.embedding]
-    end
-    
-    subgraph "cns.template.*"
-        CTPL[cns.template.invoke]
-        CTCS[cns.template.cascade]
-    end
-    
-    subgraph "cns.curation.*"
-        CCUR[cns.curation.decide]
-    end
-    
-    subgraph "cns.variety.*"
-        CVAR[cns.variety.counter]
-        CALG[cns.variety.algedonic]
-    end
-    
-    subgraph "cns.sovereignty.*"
-        CSOV[cns.sovereignty.check]
-    end
-    
-    subgraph "cns.goal.*"
-        CGOAL[cns.goal.spec]
-    end
-    
-    subgraph "cns.spec.*"
-        CSPEC[cns.spec.capture]
-        CSPECV[cns.spec.validate]
-    end
-    
-    subgraph "cns.killzone.*"
-        CKZ[cns.killzone.detect]
-    end
-    
-    CPS --> CPR
-    CPR --> CPO
-    CPO --> CTI
-    CTI --> CTR
-    
-    CAP --> CAR
-    CAR --> CAA
-    
-    style CPS fill:#f9f,stroke:#333
-    style CPR fill:#f9f,stroke:#333
-    style CPO fill:#f9f,stroke:#333
+    graph LR
+        subgraph "cns.prompt.*"
+            CPS[cns.prompt.select]
+            CPR[cns.prompt.render]
+            CPO[cns.prompt.outcome]
+        end
+        
+        subgraph "cns.tool.*"
+            CTI[cns.tool.invoked]
+            CTR[cns.tool.completed]
+        end
+        
+        subgraph "cns.inference.*"
+            CINF[cns.inference.regulate]
+        end
+        
+        subgraph "cns.agent_pod.*"
+            CAP[cns.agent_pod.populated]
+            CAR[cns.agent_pod.registered]
+            CAA[cns.agent_pod.activated]
+        end
+        
+        subgraph "cns.connector.*"
+            CCI[cns.connector.llm]
+            CCE[cns.connector.embedding]
+        end
+        
+        subgraph "cns.pipeline.*"
+            CPL[cns.pipeline.execute]
+        end
+        
+        subgraph "cns.gas.*"
+            CGAS[cns.gas.degradation]
+            CGASR[cns.gas.message_rejected]
+        end
+        
+        subgraph "cns.review.*"
+            CREV[cns.review.evaluate]
+        end
+        
+        subgraph "cns.template.*"
+            CTPL[cns.template.invoke]
+            CTCS[cns.template.cascade]
+        end
+        
+        subgraph "cns.curation.*"
+            CCUR[cns.curation.decide]
+        end
+        
+        subgraph "cns.variety.*"
+            CVAR[cns.variety.counter]
+            CALG[cns.variety.algedonic]
+        end
+        
+        subgraph "cns.killzone.*"
+            CKZ[cns.killzone.detect]
+        end
+        
+        subgraph "cns.sovereignty.*"
+            CSOV[cns.sovereignty.check]
+        end
+        
+        subgraph "cns.goal.*"
+            CGOAL[cns.goal.spec]
+            CGOALD[cns.goal.capability.denied]
+        end
+        
+        subgraph "cns.spec.*"
+            CSPEC[cns.spec.capture]
+            CSPECV[cns.spec.validate]
+        end
+        
+        CPS --> CPR
+        CPR --> CPO
+        CPO --> CTI
+        CTI --> CTR
+        
+        CAP --> CAR
+        CAR --> CAA
+        
+        style CPS fill:#f9f,stroke:#333
+        style CPR fill:#f9f,stroke:#333
+        style CPO fill:#f9f,stroke:#333
 ```
 
 <!-- DIAGRAM_ALIGNMENT
@@ -455,6 +473,6 @@ status: VERIFIED
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — v0.21.0*
+*ℏKask - A Minimal Viable Container for Agents — v0.22.0*
 *The Rust is the loom. The YAML/Jinja2 is the thread.*
 *MVP in progress.*

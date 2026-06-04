@@ -25,6 +25,8 @@ pub enum SemanticMemoryError {
     TripleNotFound { entity: String, attribute: String },
     #[error("Embedding error: {0}")]
     Embedding(#[from] EmbeddingError),
+    #[error("Invalid visibility for semantic store: {0}")]
+    InvalidVisibility(String),
 }
 
 /// Semantic memory — shared knowledge graph
@@ -68,24 +70,24 @@ impl SemanticMemory {
     /// regardless of timestamps, confidence, or perspective metadata.
     pub fn query_deduped(&self, entity: &str) -> Result<Vec<Triple>, SemanticMemoryError> {
         let triples = self.triple_store.query_by_entity(entity)?;
-        Ok(recall_dedup::dedup_triples(triples))
+        let filtered: Vec<Triple> = triples
+            .into_iter()
+            .filter(|t| t.visibility == Visibility::Shared)
+            .collect();
+        Ok(recall_dedup::dedup_triples(filtered))
     }
 
-    pub fn store(&self, mut triple: Triple) -> Result<(), SemanticMemoryError> {
+    pub fn store(&self, triple: Triple) -> Result<(), SemanticMemoryError> {
         if triple.visibility != Visibility::Shared {
-            tracing::warn!(
-                target: "hkask.memory.semantic",
-                visibility = ?triple.visibility,
-                "Semantic store requires Shared visibility; overriding"
-            );
-            triple.visibility = Visibility::Shared;
+            return Err(SemanticMemoryError::InvalidVisibility(format!(
+                "Semantic memory requires Shared visibility, got {:?}",
+                triple.visibility
+            )));
         }
         if triple.perspective.is_some() {
-            tracing::warn!(
-                target: "hkask.memory.semantic",
-                "Semantic store requires no perspective; clearing"
-            );
-            triple.perspective = None;
+            return Err(SemanticMemoryError::InvalidVisibility(
+                "Semantic memory requires no perspective (use consolidation bridge for episodic→semantic promotion)".to_string()
+            ));
         }
         self.triple_store.insert(&triple)?;
         Ok(())

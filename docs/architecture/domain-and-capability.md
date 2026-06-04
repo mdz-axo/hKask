@@ -30,7 +30,7 @@ hKask is a **minimal agent-native container platform** — the unit of compositi
 
 **Delegated (out of scope):**
 - LLM inference → Okapi (external service)
-External service integration → 14 MCP servers (tool surface) + ARL in CNS
+External service integration → 15 MCP servers (tool surface) + AllostericGate in `hkask-cns::allosteric`
 - Storage encryption → SQLCipher (library dependency)
 - Key management → OS keychain (platform service)
 
@@ -45,7 +45,7 @@ graph TD
 
     subgraph Delegated["Delegated"]
         OKAPI["Okapi<br/>LLM inference"]
-        MCP_EXT["14 MCP Servers<br/>tool surface"]
+        MCP_EXT["15 MCP Servers<br/>tool surface"]
         SQLITE["SQLite + SQLCipher<br/>encrypted storage"]
         KEYCHAIN["OS Keychain<br/>key management"]
     end
@@ -77,7 +77,7 @@ hKask is built on five non-negotiable anchor capabilities:[^wiener-cybernetics]
 | # | Anchor | Implementation | DDMVSS Category |
 |---|--------|---------------|-----------------|
 | 1 | **Agent Enablement** | Bots + Replicants in pods with WebID, ACP | Domain |
-| 2 | **Essential Tools** | 14 MCP servers + Okapi + ARL in CNS | Capability |
+| 2 | **Essential Tools** | 15 MCP servers + Okapi + AllostericGate in CNS | Capability |
 | 3 | **User Sovereignty** | OCAP, SQLCipher, private/public gating | Trust |
 | 4 | **CNS** | `cns.*` spans, variety counters, algedonic alerts | Observability |
 | 5 | **Composition** | Unified registry with `template_type` discriminator | Composition |
@@ -316,7 +316,7 @@ status: VERIFIED
 
 ### 6.1 Server Inventory
 
-14 MCP servers provide the tool surface (ARL regulation kernel lives in `hkask-cns`), each gated through `SecurityGateway` (`crates/hkask-mcp/src/security.rs`):
+15 MCP servers provide the tool surface (allosteric regulation via `AllostericGate` in `hkask-cns::allosteric`), each gated through `SecurityGateway` (`crates/hkask-mcp/src/security.rs`):
 
 | MCP Server | Crate | LOC | Status | Domain |
 |-----------|-------|-----|--------|--------|
@@ -336,7 +336,7 @@ status: VERIFIED
 | fal | `hkask-mcp-fal` | 434 | ✅ Complete | Media generation (FAL) |
 | rss-reader | `hkask-mcp-rss-reader` | 1,443 | ✅ Complete | RSS feed management |
 
-**Total:** 14 servers, 102+ tools, 0 stubs (P6 compliance). ARL lives in `hkask-cns` as the allosteric regulation kernel.
+**Total:** 15 servers, 102+ tools, 0 stubs (P6 compliance). Allosteric regulation lives in `hkask-cns::allosteric` (`AllostericGate`, `AllostericGateConfig`, MWC state function).
 
 **Audit:** [`docs/status/mcp-server-audit.md`](../status/mcp-server-audit.md)
 
@@ -438,6 +438,104 @@ Explicitly excluded patterns that violate hKask minimal design:[^raymond-unix]
 | Rust-based template selection | Jinja2/LLM selection |
 
 [^raymond-unix]: Raymond, E. S. (2001). *The Art of Unix Programming*. Addison-Wesley. "When in doubt, cut."
+
+---
+
+## 10. Consolidation Protocol
+
+The Episodic→Semantic consolidation bridge is the **one-way gate** from private experience to shared knowledge. This section specifies the protocol as the authoritative source.
+
+### 10.1 One-Way Invariant
+
+Consolidation is strictly one-directional: Episodic (Loop 2a) → Semantic (Loop 2b). No reverse flow exists or may be implemented. Once a triple enters semantic memory, it can only be retracted (confidence reduced), never moved back to episodic.
+
+### 10.2 Trigger
+
+CurationLoop fires consolidation when `pending_escalations > 0` — i.e., when algedonic alerts from Cybernetics indicate episodic budget pressure. The trigger chain:
+
+```
+Algedonic alert → pending escalation → CurationLoop::act() → consolidation.consolidate(token, curator_id, 100)
+```
+
+The batch limit is 100 triples per consolidation cycle.
+
+### 10.3 Consent
+
+Consent is **implicit**: by creating a Replicant (the human's agent), the user opts in to consolidation of their episodic triples into shared semantic knowledge. The Curator acts as the user's proxy — it is the human's counterpart in `kask chat`.
+
+For explicit consent (each consolidation requires user approval), the architecture supports a future `SeekMoreEvidence` directive that pauses consolidation until the human confirms. This is not currently implemented; implicit consent is the default.
+
+### 10.4 Authority Chain
+
+```
+CuratorHandle → ConsolidationToken → ConsolidationBridge
+```
+
+1. `CuratorHandle.issue_consolidation_token()` mints a `ConsolidationToken` — the OCAP proof that the Curator authorized this consolidation
+2. `ConsolidationToken` is `pub(crate)` constructible — only `hkask-types` can mint it
+3. `ConsolidationPort::consolidate()` requires a `ConsolidationToken` — the bridge will not operate without it
+4. The token's issuer is the Curator's WebID — establishing audit provenance
+
+### 10.5 Four-Step Algorithm
+
+For each candidate triple:
+
+| Step | Operation | Effect |
+|------|-----------|--------|
+| 1 | **Select** | `consolidation_candidates(perspective, limit)` — lowest confidence first, then oldest by `valid_from` |
+| 2 | **Strip & seed** | `perspective: None`, `confidence: 0.5` (Bayesian seeding), new `TripleID`, `visibility: Shared` |
+| 3 | **Store semantic** | `SemanticMemory::store_consolidated()` — bypasses visibility/perspective guards (the bridge handles these upstream) |
+| 4 | **Retract episodic** | `EpisodicMemory::retract_triple(confidence=0.5)` — confidence halved, triple persists (not deleted) |
+
+### 10.6 Privacy Boundary Crossing
+
+The `perspective` field is the privacy boundary:
+
+| Phase | `perspective` | Meaning |
+|-------|-------------|---------|
+| Episodic (source) | `Some(WebID)` | First-person private experience |
+| Semantic (consolidated) | `None` | Shared knowledge with no personal identity |
+
+Setting `perspective: None` removes the WebID association. This is the **minimum** privacy transformation. For GDPR-style "right to be forgotten" compliance, the architecture supports:
+
+- `SemanticMemory::retract_triple()` — reduces confidence of a semantic triple (already `pub(crate)`)
+- Retraction is not deletion — the triple persists with reduced confidence
+- Full deletion requires a separate data lifecycle policy (not yet implemented)
+
+### 10.7 Retraction Policy
+
+- **Episodic retraction**: Confidence halved via `bayesian::retract(original, 0.5)`. Triple persists with reduced confidence.
+- **Semantic retraction**: Same Bayesian formula. Used for budget enforcement (pruning lowest-confidence triples when storage limits exceeded).
+- **Neither retraction deletes the triple.** This is intentional — Bayesian confidence decay preserves audit trails while reducing influence on retrieval.
+
+### 10.8 Failure Semantics
+
+| Failure | Effect |
+|---------|--------|
+| Semantic store fails | Triple stays in episodic (no harm). `failed_count` incremented. |
+| Episodic retraction fails | Semantic triple is already stored (no rollback). `failed_count` incremented. |
+
+Consolidation is **not transactional** — partial consolidation is acceptable because the one-way invariant is preserved either way.
+
+### 10.9 CNS Observability
+
+All consolidation events emit spans to `cns.consolidation`:
+- `tracing::info!(target: "cns.consolidation", ...)` for start, completion, and per-triple operations
+- `tracing::warn!(target: "cns.consolidation", ...)` for failures
+
+---
+
+## Loop Assignment
+
+This spec's content maps to the [6-loop authority model](loop-architecture.md) as follows:
+
+| Spec Domain | Loop | Rationale |
+|------------|------|-----------|
+| Agent taxonomy (Bot, Replicant) | Curation (Loop 5) | Agent enablement is a Curation concern — the Curator creates and manages pods |
+| Capability model (OCAP, DelegationToken) | Cybernetics (Loop 6) | Capability enforcement is regulatory — Cybernetics governs all capability gates |
+| MCP tool surface | Communication (Loop 4) + Inference (Loop 1) | Tool dispatch is Communication; LLM invocation is Inference |
+| hLexicon | Semantic Memory (Loop 2b) | Shared vocabulary is shared knowledge |
+| Bounded context | All loops | System boundaries contain all loops as cybernetic containers |
 
 ---
 

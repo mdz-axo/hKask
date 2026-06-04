@@ -91,7 +91,7 @@ impl ConsolidationBridge {
                 valid_to: triple.valid_to,
                 confidence: 0.5,
                 perspective: None,
-                visibility: triple.visibility,
+                visibility: hkask_types::Visibility::Shared,
                 owner_webid: triple.owner_webid,
             };
 

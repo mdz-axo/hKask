@@ -26,7 +26,7 @@ hKask is built on five non-negotiable anchor capabilities that define the system
 graph TD
     subgraph Anchors[Five Anchor Capabilities]
         A1[1. Agent Enablement<br/>Bots + Replicants in pods]
-        A2[2. Essential Tools<br/>14 MCP servers + Okapi]
+        A2[2. Essential Tools<br/>15 MCP servers + Okapi]
         A3[3. User Sovereignty<br/>OCAP, SQLCipher, gating]
         A4[4. CNS<br/>cns.* spans, variety counters]
         A5[5. Composition<br/>Unified registry, hLexicon]
@@ -66,11 +66,11 @@ status: VERIFIED
 
 ### 1.2 Essential Tools
 
-**Principle:** Fourteen MCP servers provide all external tooling — no direct HTTP calls from agents.[^mcp]
+**Principle:** Fifteen MCP servers provide all external tooling — no direct HTTP calls from agents.[^mcp]
 
-**Implementation (14 Total):**
+**Implementation (15 Total):**
 
-**Enabled (14):**
+**Enabled (15):**
 - `hkask-mcp-inference` — Okapi LLM inference
 - `hkask-mcp-condenser` — General-purpose context reranking and condensation
 - `hkask-mcp-web` — Search, scrape, extract
@@ -80,6 +80,7 @@ status: VERIFIED
 - `hkask-mcp-git` — Git CAS
 - `hkask-mcp-registry` — Registry operations
 - `hkask-mcp-spec` — DDMVSS spec capture
+- `hkask-mcp-goal` — Goal coordination
 - `hkask-mcp-github` — GitHub integration
 - `hkask-mcp-fmp` — FMP integration
 - `hkask-mcp-telnyx` — Telnyx integration
@@ -109,7 +110,7 @@ status: VERIFIED
 
 **Implementation:**
 - Namespace: `cns.*` (replaces deprecated `okh.*`)
-- Spans: `cns.tool.*`, `cns.prompt.*`, `cns.agent_pod.*`, `cns.connector.*`
+- Spans: `cns.tool.*`, `cns.prompt.*`, `cns.inference.*`, `cns.agent_pod.*`, `cns.connector.*`, `cns.pipeline.*`, `cns.gas.*`, `cns.review.*`, `cns.template.*`, `cns.curation.*`, `cns.variety.*`, `cns.killzone.*`, `cns.sovereignty.*`, `cns.goal.*`, `cns.spec.*`
 - Algedonic Alert: Variety deficit >100 → escalate to Curator/human
 
 **Constraint:** CNS monitors production system health. Tests verify correctness. Separate concerns.
@@ -120,7 +121,7 @@ status: VERIFIED
 
 **Implementation:**
 - Single registry (not three separate)
-- Template types: `Prompt`, `Process`, `Cognition`
+- Template types: `Prompt`, `Process`, `Cognition`, `Specification`
 - hLexicon grounding (75 terms allocated across 3 domains)
 - Jinja2 rendering with LLM-based selection
 
@@ -132,7 +133,7 @@ status: VERIFIED
 
 **Implementation:**
 - `hkask-cli` — Terminal-based REPL and subcommands
-- `hkask-mcp-*` — Machine-to-machine tool calls (14 servers)
+- `hkask-mcp-*` — Machine-to-machine tool calls (15 servers)
 - `hkask-api` — HTTP API with auto-generated OpenAPI docs
 
 **Constraints:**
@@ -155,6 +156,18 @@ if grep -r "grafana\|prometheus\|dashboard\|visual.*ui\|web.*frontend" crates/ -
   exit 1
 fi
 ```
+
+### §1.7 Loop Mapping
+
+The five anchors ground in the [six-loop authority model](loop-architecture.md):
+
+| Anchor | Loop(s) | Rationale |
+|--------|---------|-----------|
+| 1. Agent Enablement | Curation (Loop 5) | Bot/Replicant pods, ACP, persona — the Curator enables agents |
+| 2. Essential Tools | Inference (Loop 1) + Communication (Loop 4) | 15 MCP servers provide inference and dispatch; the tool surface spans both loops |
+| 3. User Sovereignty | Cybernetics (Loop 6) | OCAP, SQLCipher, gating, kill-zone — all regulation is Cybernetics |
+| 4. CNS | Cybernetics (Loop 6) | Homeostatic self-regulation IS the Cybernetics loop |
+| 5. Composition | Semantic (Loop 2b) | Unified registry, hLexicon, cascade — shared knowledge composition |
 
 ---
 

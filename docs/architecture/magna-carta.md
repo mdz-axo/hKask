@@ -2,7 +2,7 @@
 title: "The Magna Carta of hKask"
 audience: [architects, users, agents]
 last_updated: 2026-05-24
-version: "0.21.0"
+version: "0.22.0"
 status: "Active"
 domain: "Cross-cutting"
 ddmvss_categories: [trust]
@@ -10,7 +10,7 @@ ddmvss_categories: [trust]
 
 # The Magna Carta of hKask
 
-## ℏKask v0.21.2 - A Minimal Viable Container for Agents
+## ℏKask v0.22.0 - A Minimal Viable Container for Agents
 
 **User Sovereignty is Non-Negotiable.**
 
@@ -233,7 +233,7 @@ The Magna Carta is not aspirational. It is enforced:
 
 ## Version
 
-ℏKask v0.21.2 - A Minimal Viable Container for Agents
+ℏKask v0.22.0 - A Minimal Viable Container for Agents
 
 *As simple as possible, but no simpler.*
 

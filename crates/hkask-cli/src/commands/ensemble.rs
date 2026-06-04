@@ -6,12 +6,12 @@
 
 use hkask_ensemble::{
     AgentResponse, ChatMessage, ChatParticipant, ImprovMode, ImprovSessionConfig,
-    InferencePortAdapter, ParticipantRole, SessionManager,
+    InferencePortAdapter, ParticipantRole, SessionManager, bootstrap_standing_session_with_store,
 };
 use hkask_templates::OkapiConfig;
 use hkask_templates::OkapiInference;
 use hkask_types::WebID;
-use hkask_types::ports::InferencePort;
+use hkask_types::ports::{InferencePort, StandingSessionPort};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -43,6 +43,26 @@ fn get_improv_client() -> Arc<InferencePortAdapter> {
             Arc::new(InferencePortAdapter::new(port))
         })
         .clone()
+}
+
+/// Open a StandingSessionStore from environment config, or in-memory as fallback.
+fn open_standing_session_store() -> Arc<dyn StandingSessionPort> {
+    let conn = match std::env::var("HKASK_API_DB")
+        .ok()
+        .zip(std::env::var("HKASK_DB_PASSPHRASE").ok())
+    {
+        Some((path, passphrase)) => hkask_storage::Database::open(&path, &passphrase)
+            .expect("Failed to open standing session database")
+            .conn_arc(),
+        None => hkask_storage::Database::in_memory()
+            .expect("in-memory standing session db")
+            .conn_arc(),
+    };
+    let store = hkask_storage::StandingSessionStore::new(conn);
+    store
+        .initialize_schema()
+        .expect("standing session schema init");
+    Arc::new(store)
 }
 
 // ── Chat Sessions ──────────────────────────────────────────────────────────
@@ -284,7 +304,8 @@ pub async fn ensemble_deliberation_list() -> Result<Vec<String>, String> {
 pub fn ensemble_standing_start(
     config_path: &std::path::Path,
 ) -> Result<hkask_ensemble::StandingSessionStatus, crate::errors::EnsembleError> {
-    let session = hkask_ensemble::bootstrap_standing_session(config_path)
+    let store = open_standing_session_store();
+    let session = bootstrap_standing_session_with_store(config_path, store)
         .map_err(|e| crate::errors::EnsembleError::SessionCreationFailed(e.to_string()))?;
     Ok(session.get_status())
 }
@@ -300,7 +321,8 @@ pub fn ensemble_standing_status()
         ));
     }
 
-    let session = hkask_ensemble::bootstrap_standing_session(config_path)
+    let store = open_standing_session_store();
+    let session = bootstrap_standing_session_with_store(config_path, store)
         .map_err(|e| crate::errors::EnsembleError::SessionCreationFailed(e.to_string()))?;
     Ok(session.get_status())
 }

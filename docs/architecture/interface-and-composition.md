@@ -177,7 +177,7 @@ hKask uses hexagonal architecture with explicit port traits defining integration
 | Metacognition | `MetacognitionStoreAdapter` (concrete) | `hkask-agents` | Health snapshot persistence |
 | Standing Session | `StandingSessionPort` (`ports/standing_session.rs`) | `hkask-agents` | Session state persistence |
 | ACP Transport | `AcpTransport` ⚠️ REMOVED (`ports/acp_transport.rs`) | `hkask-agents` | Wire-level transport — *removed in v0.21.x* |
-| Ensemble Inference | `InferenceClient` (`ports.rs`) | `hkask-ensemble` | Inference with retry/circuit breaker |
+| Ensemble Inference | `InferenceClient` (`ports.rs`) | `hkask-ensemble` | Inference with retry |
 | Ensemble Metrics | `MetricsSource` (`ports.rs`) | `hkask-ensemble` | SSE metrics streaming |
 | Capability Query | `CapabilityQueryPort` (`ocap_enforcement.rs`) | `hkask-ensemble` | OCAP capability lookups |
 | Registry | `RegistryIndex` (`ports.rs`) | `hkask-templates` | Template discovery |
@@ -338,6 +338,20 @@ Bidirectional federation via JSON-RPC 2.0 over stdio:
 - `AcpPort` trait (`ports/acp.rs`) — bridge interface
 - ~~`AcpTransport` trait (`ports/acp_transport.rs`) — wire protocol~~ ⚠️ REMOVED in v0.21.x
 - ~~`AcpWireMessage` / `AcpWireResponse` — message format~~ ⚠️ REMOVED in v0.21.x
+
+---
+
+## Loop Assignment
+
+This spec's content maps to the [6-loop authority model](loop-architecture.md) as follows:
+
+| Spec Domain | Loop | Rationale |
+|------------|------|-----------|
+| MCP/CLI/API equivalence | Communication (Loop 4) | All interface surfaces are Communication-layer dispatch |
+| Hexagonal ports | Cybernetics (Loop 6) | Ports are regulation membranes — Cybernetics defines ingress/egress boundaries |
+| Unified registry | Semantic Memory (Loop 2b) | Shared template/lexicon registry is shared knowledge |
+| Template cascade | Inference (Loop 1) | Prompt rendering is an Inference concern |
+| Rendering pipeline | Inference (Loop 1) | LLM invocation is the Inference loop's core transform |
 
 ---
 

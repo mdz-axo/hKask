@@ -30,7 +30,7 @@ ddmvss_categories: [persistence]
 | [§8 hkask-storage — SQLite & SQLCipher](#8-hkask-storage--sqlite-persistence--sqlcipher) | Bitemporal triples, sqlite-vec, encryption |
 | [§9 hkask-cns — Cybernetic Nervous System](#9-hkask-cns--cybernetic-nervous-system) | Spans, variety counters, algedonic alerts |
 | [§10 hkask-templates — Registry & Cascade](#10-hkask-templates--registry-cascade--manifest-execution) | Template registry, cascade, and manifest execution |
-| [§11 MCP Server Composite ERD](#11-mcp-server-composite-erd) | All 14 MCP servers in composite view |
+| [§11 MCP Server Composite ERD](#11-mcp-server-composite-erd) | All 15 MCP servers in composite view |
 | [§12 Cross-Crate Dependency Graph](#12-cross-crate-dependency-graph) | Workspace-wide crate dependency relationships |
 | [References](#references) | Citations and references |
 
@@ -79,13 +79,18 @@ erDiagram
     }
 
     Span {
-        string Prompt
         string Tool
+        string Prompt
+        string Inference
         string AgentPod
         string Connector
         string Pipeline
-        string Energy
+        string Gas
         string Review
+        string Template
+        string Curation
+        string Variety
+        string KillZone
         string Sovereignty
         string Goal
         string Spec
@@ -325,7 +330,7 @@ erDiagram
     OcapEnforcer }o--|| WebIDCapabilityRegistry : "queries"
 
     ConfidenceRouter }o--|| InferenceClient : "routes_via"
-    ResilientOkapiClient }o--|| CircuitBreaker : "protected_by"
+
     CnsIntegration ||--|| SpanEmitter : "emits_via"
 
     ChatMessage {
@@ -381,21 +386,14 @@ erDiagram
         bool active
     }
 
-    CircuitBreaker {
-        CircuitState state
-        u32 failure_count
-        u32 success_count
-        Instant last_failure_time
-        CircuitBreakerConfig config
-        string name
-    }
+
 ```
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-SUBSYS-003
 verified_date: 2026-05-24
-verified_against: crates/hkask-ensemble/src/chat.rs; crates/hkask-ensemble/src/deliberation.rs; crates/hkask-ensemble/src/macaroon.rs; crates/hkask-ensemble/src/capability.rs; crates/hkask-ensemble/src/webid_registry.rs; crates/hkask-ensemble/src/resilience.rs
-status: VERIFIED
+verified_against: crates/hkask-ensemble/src/chat.rs; crates/hkask-ensemble/src/deliberation.rs; crates/hkask-ensemble/src/macaroon.rs; crates/hkask-ensemble/src/capability.rs; crates/hkask-ensemble/src/webid_registry.rs; crates/hkask-ensemble/src/adapters.rs; crates/hkask-ensemble/src/ports.rs
+status: NEEDS_REVERIFY
 -->
 
 ---
@@ -1046,7 +1044,7 @@ status: VERIFIED
 
 ## 11. MCP Server Composite ERD
 
-All 14 MCP servers share a thin-adapter pattern: each implements one or more port traits from `hkask-mcp` and delegates to an external service or internal crate. This composite ERD shows the shared structure and per-server specializations.[^mcp-spec]
+All 15 MCP servers share a thin-adapter pattern: each implements one or more port traits from `hkask-mcp` and delegates to an external service or internal crate. This composite ERD shows the shared structure and per-server specializations.[^mcp-spec]
 
 ```mermaid
 erDiagram

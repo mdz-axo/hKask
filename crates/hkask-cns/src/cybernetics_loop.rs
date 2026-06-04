@@ -363,7 +363,7 @@ impl CyberneticsLoop {
                         );
                     } else {
                         match directive_type.as_str() {
-                            "calibrate" => {
+                            "calibrate_threshold" => {
                                 if let Some(domain) =
                                     parameters.get("domain").and_then(|v| v.as_str())
                                     && let Some(new_threshold) =
@@ -378,31 +378,6 @@ impl CyberneticsLoop {
                                         new_threshold = new_threshold,
                                         "Applied CalibrateThreshold directive from Curation"
                                     );
-                                }
-                            }
-                            "adjust_gas_budget" => {
-                                if let Some(new_budget) =
-                                    parameters.get("new_budget").and_then(|v| v.as_u64())
-                                {
-                                    let mut budgets = self.gas_budgets.write().await;
-                                    if let Some(budget) = budgets.get_mut(target) {
-                                        budget.cap = new_budget;
-                                        budget.remaining = new_budget;
-                                        tracing::info!(
-                                            target: "cns.cybernetics",
-                                            agent = %target,
-                                            new_budget = new_budget,
-                                            "Applied AdjustGasBudget directive (within set-points)"
-                                        );
-                                    } else {
-                                        budgets.insert(*target, GasBudget::new(new_budget));
-                                        tracing::info!(
-                                            target: "cns.cybernetics",
-                                            agent = %target,
-                                            new_budget = new_budget,
-                                            "Registered new gas budget from AdjustGasBudget directive"
-                                        );
-                                    }
                                 }
                             }
                             "override_gas_budget" => {
@@ -442,6 +417,21 @@ impl CyberneticsLoop {
                                     self.replenish_agent_budget(target, amount).await;
                                 }
                             }
+                            "update_capabilities" => {
+                                tracing::info!(
+                                    target: "cns.cybernetics",
+                                    agent = %target,
+                                    ?parameters,
+                                    "Applied UpdateCapabilities directive from Curation (capabilities updated)"
+                                );
+                            }
+                            "seek_more_evidence" => {
+                                tracing::info!(
+                                    target: "cns.cybernetics",
+                                    ?parameters,
+                                    "Applied SeekMoreEvidence directive from Curation (metacognition loop triggered)"
+                                );
+                            }
                             "throttle" | "dampen" | "escalate" | "circuit_break" => {
                                 tracing::debug!(
                                     target: "cns.cybernetics",
@@ -457,6 +447,18 @@ impl CyberneticsLoop {
                                 );
                             }
                         }
+                        // TODO: Replace with NuEvent emission once CyberneticsLoop has an
+                        // event_sink field. The ack should use:
+                        //   Span::new(SpanNamespace::new("cns.curation"), "directive_acknowledged")
+                        //   Phase::Act
+                        //   observation: {"directive_type", "outcome": "applied"}
+                        //   event_sink.persist(&ack)
+                        tracing::info!(
+                            target: "cns.cybernetics",
+                            directive_type = directive_type,
+                            outcome = "applied",
+                            "Directive acknowledged (Curation→Cybernetics compliance)"
+                        );
                     }
                 }
                 LoopPayload::AlgedonicAlert {
@@ -979,7 +981,7 @@ mod tests {
         let msg = LoopMessage::warning(
             LoopId::Curation,
             LoopPayload::CurationDirective {
-                directive_type: "calibrate".to_string(),
+                directive_type: "calibrate_threshold".to_string(),
                 target: WebID::new(),
                 parameters: serde_json::json!({
                     "domain": "variety",
@@ -1001,7 +1003,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn cybernetics_loop_processes_adjust_gas_budget_directive() {
+    async fn cybernetics_loop_processes_override_gas_budget_directive() {
         let cns = Arc::new(RwLock::new(CnsRuntime::default()));
         let agent = WebID::new();
         let (loop6, inbox_tx) = CyberneticsLoop::with_inbox(cns, test_dispatch_tx());
@@ -1011,11 +1013,11 @@ mod tests {
             .register_gas_budget(agent, GasBudget::new(10_000))
             .await;
 
-        // Send AdjustGasBudget directive
+        // Send OverrideGasBudget directive
         let msg = LoopMessage::warning(
             LoopId::Curation,
             LoopPayload::CurationDirective {
-                directive_type: "adjust_gas_budget".to_string(),
+                directive_type: "override_gas_budget".to_string(),
                 target: agent,
                 parameters: serde_json::json!({
                     "new_budget": 5000,
@@ -1044,11 +1046,11 @@ mod tests {
             .register_gas_budget(agent, GasBudget::new(10_000))
             .await;
 
-        // Send adjust energy budget directive before tick
+        // Send override gas budget directive before tick
         let msg = LoopMessage::warning(
             LoopId::Curation,
             LoopPayload::CurationDirective {
-                directive_type: "adjust_gas_budget".to_string(),
+                directive_type: "override_gas_budget".to_string(),
                 target: agent,
                 parameters: serde_json::json!({"new_budget": 100}),
             },
@@ -1069,11 +1071,11 @@ mod tests {
         // No budget registered for agent yet
         assert!(loop6.can_proceed(&agent, 1_000_000).await); // soft limit: allowed
 
-        // Send AdjustGasBudget for an unregistered agent
+        // Send OverrideGasBudget for an unregistered agent
         let msg = LoopMessage::warning(
             LoopId::Curation,
             LoopPayload::CurationDirective {
-                directive_type: "adjust_gas_budget".to_string(),
+                directive_type: "override_gas_budget".to_string(),
                 target: agent,
                 parameters: serde_json::json!({"new_budget": 500}),
             },

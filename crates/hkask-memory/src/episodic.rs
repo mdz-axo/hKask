@@ -12,6 +12,7 @@ use crate::bayesian;
 use crate::recall_dedup;
 use chrono::Utc;
 use hkask_storage::{Triple, TripleError, TripleStore};
+use hkask_types::Visibility;
 use hkask_types::WebID;
 use thiserror::Error;
 
@@ -21,6 +22,8 @@ pub enum EpisodicMemoryError {
     Triple(#[from] TripleError),
     #[error("Triple not found for retraction: {entity}/{attribute}")]
     TripleNotFound { entity: String, attribute: String },
+    #[error("Invalid visibility for episodic store: {0}")]
+    InvalidVisibility(String),
 }
 
 /// Default decay rate for episodic memory confidence.
@@ -70,6 +73,17 @@ impl EpisodicMemory {
 
     /// Store an episodic triple (private by default, with perspective).
     pub fn store(&self, triple: Triple) -> Result<(), EpisodicMemoryError> {
+        if triple.visibility == Visibility::Shared {
+            return Err(EpisodicMemoryError::InvalidVisibility(
+                "Episodic memory is sovereign — Shared triples belong in semantic memory"
+                    .to_string(),
+            ));
+        }
+        if triple.perspective.is_none() {
+            return Err(EpisodicMemoryError::InvalidVisibility(
+                "Episodic memory requires a perspective (agent WebID)".to_string(),
+            ));
+        }
         self.triple_store.insert(&triple)?;
         Ok(())
     }

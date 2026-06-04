@@ -39,7 +39,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 | # | Anchor | Implementation |
 |---|--------|----------------|
 | 1 | **Agent Enablement** | Bots + Replicants in pods with WebID, ACP |
-| 2 | **Essential Tools** | 14 MCP servers + Okapi |
+| 2 | **Essential Tools** | 15 MCP servers + Okapi |
 | 3 | **User Sovereignty** | OCAP, SQLCipher, private/public gating |
 | 4 | **CNS** | `cns.*` spans, variety counters, algedonic alerts |
 | 5 | **Composition** | Unified registry with template_type discriminator |
@@ -161,7 +161,7 @@ hKask is "done" when a single user can:
 4. Observe ≥3 subsystem-curator bots spawn at startup
 5. Trigger ensemble session with ≥2 subsystem-curators deliberating
 6. Invoke any operation through CLI or HTTP API with identical behavior
-Invoke any tool from 14 MCP set; observe routing
+Invoke any tool from 15 MCP set; observe routing
 8. Compose two tools via process template
 9. Record episodic memory with confidence
 10. Retrieve memory; observe `as-of` query returns historical state

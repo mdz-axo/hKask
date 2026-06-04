@@ -130,7 +130,7 @@ ddmvss_categories: [capability, observability]
 
 ## Recommendations
 
-1. **No shell servers.** All 14 MCP servers register real tools with implementations. Zero stubs remain (P6 compliance).
+1. **No shell servers.** All 15 MCP servers register real tools with implementations. Zero stubs remain (P6 compliance).
 
 2. **Per-crate README:** Create individual `README.md` files in each `mcp-servers/hkask-mcp-*/README.md` documenting the tool surface, configuration, and any external service dependencies.
 
@@ -142,4 +142,4 @@ ddmvss_categories: [capability, observability]
 
 ---
 
-*ℏKask MCP Arsenal — 14 servers, 99 tools, 0 stubs — v0.21.0*
+*ℏKask MCP Arsenal — 15 servers, 99 tools, 0 stubs — v0.21.0*

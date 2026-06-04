@@ -3,10 +3,13 @@
 //! The standing session is the persistent coordination channel where the R7 bots
 //! report status and the Curator orchestrates metacognition.
 
-use crate::chat::{ChatMessage, ChatParticipant, EnsembleChat, ParticipantRole};
+use crate::chat::{ChatMessage, ChatParticipant, EnsembleChat, GasBudgetConfig, ParticipantRole};
+use hkask_types::NuEventSink;
+use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
 use hkask_types::ports::{MessageRecord, SessionRecord, StandingSessionPort};
 use hkask_types::{R7BotIdentity, WebID, default_r7_bots};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use serde_json;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
@@ -27,21 +30,48 @@ pub enum StandingSessionError {
     Bootstrap(String),
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct StandingSessionConfig {
     pub session: SessionMetadata,
     pub participants: Vec<ParticipantEntry>,
     pub bootstrap: BootstrapConfig,
+    #[serde(default)]
+    pub gas: Option<GasSection>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+/// Gas budget section from standing-ensemble-session.yaml
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct GasSection {
+    pub session_cap: Option<u64>,
+    pub per_message_cost: Option<u64>,
+    pub alert_threshold: Option<f64>,
+    pub hard_limit: Option<bool>,
+    pub per_bot_allocation: Option<u64>,
+    pub curator_allocation: Option<u64>,
+}
+
+impl GasSection {
+    /// Convert YAML gas section to GasBudgetConfig, applying defaults for missing fields
+    pub fn to_config(&self) -> GasBudgetConfig {
+        GasBudgetConfig {
+            session_cap: self.session_cap.unwrap_or(150000),
+            per_message_cost: self.per_message_cost.unwrap_or(100),
+            alert_threshold: self.alert_threshold.unwrap_or(0.7),
+            hard_limit: self.hard_limit.unwrap_or(true),
+            per_bot_allocation: self.per_bot_allocation.unwrap_or(15000),
+            curator_allocation: self.curator_allocation.unwrap_or(25000),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SessionMetadata {
     pub id: String,
     pub name: String,
     pub description: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ParticipantEntry {
     pub agent: String,
     #[serde(rename = "type")]
@@ -54,13 +84,13 @@ pub struct ParticipantEntry {
     pub domains: Vec<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct BootstrapConfig {
     pub initial_message: InitialMessage,
     pub initial_reports: Vec<InitialReport>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct InitialMessage {
     pub from: String,
     #[serde(rename = "type")]
@@ -68,7 +98,7 @@ pub struct InitialMessage {
     pub content: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct InitialReport {
     pub from: String,
     pub content: String,
@@ -81,6 +111,7 @@ pub struct StandingSession {
     pub participant_names: HashMap<WebID, String>,
     participant_descriptions: HashMap<WebID, String>,
     store: Option<Arc<dyn StandingSessionPort>>,
+    event_sink: Option<Arc<dyn NuEventSink>>,
 }
 
 impl StandingSession {
@@ -153,11 +184,25 @@ impl StandingSession {
             participant_names,
             participant_descriptions,
             store: None,
+            event_sink: None,
         }
     }
 
     pub fn with_store(mut self, store: Arc<dyn StandingSessionPort>) -> Self {
         self.store = Some(store);
+        self
+    }
+
+    /// Set gas budget configuration, forwarding it to the inner EnsembleChat
+    pub fn with_gas_budget(mut self, config: GasBudgetConfig) -> Self {
+        self.chat = self.chat.with_gas_budget(config);
+        self
+    }
+
+    /// Set CNS event sink for span emission
+    pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
+        self.event_sink = Some(sink.clone());
+        self.chat = self.chat.with_event_sink(sink);
         self
     }
 
@@ -187,6 +232,27 @@ impl StandingSession {
             };
             store.save_message(&record)?;
             store.update_last_active(&self.session_id)?;
+        }
+        if let Some(ref sink) = self.event_sink {
+            let span = Span::new(
+                SpanNamespace::new("cns.gas"),
+                "standing_session.message_persisted",
+            );
+            let event = NuEvent::new(
+                message.from,
+                span,
+                Phase::Act,
+                serde_json::json!({
+                    "from": message.from.to_string(),
+                    "content_len": message.content.len(),
+                    "template_id": message.template_id,
+                    "session_id": self.session_id,
+                }),
+                0,
+            );
+            if let Err(e) = sink.persist(&event) {
+                tracing::warn!(target: "cns.gas", error = %e, "Failed to persist message_persisted NuEvent");
+            }
         }
         Ok(())
     }
@@ -313,6 +379,9 @@ pub fn load_standing_session_config(
 pub fn bootstrap_standing_session(path: &Path) -> Result<StandingSession, StandingSessionError> {
     let config = load_standing_session_config(path)?;
     let mut session = StandingSession::from_config(config.clone());
+    if let Some(ref gas) = config.gas {
+        session = session.with_gas_budget(gas.to_config());
+    }
     session.post_initial_messages(&config);
     Ok(session)
 }
@@ -328,6 +397,11 @@ pub fn bootstrap_standing_session_with_store(
     let session_exists = store.get_session(&config.session.id).is_ok();
 
     let mut session = StandingSession::from_config(config.clone()).with_store(store.clone());
+
+    // Wire gas budget from YAML if present
+    if let Some(ref gas) = config.gas {
+        session = session.with_gas_budget(gas.to_config());
+    }
 
     if session_exists {
         session.load_messages_from_storage()?;

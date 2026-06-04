@@ -15,7 +15,7 @@ use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub(crate) enum StandingSessionError {
+pub enum StandingSessionError {
     #[error(transparent)]
     Infra(#[from] InfrastructureError),
 
@@ -64,6 +64,34 @@ impl StandingSessionStore {
     /// Create a new StandingSessionStore sharing an existing database connection.
     pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
         Self { conn }
+    }
+
+    /// Initialize the standing session tables.
+    pub fn initialize_schema(&self) -> Result<(), StandingSessionError> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS standing_sessions (
+                session_id TEXT PRIMARY KEY,
+                config_yaml TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                last_active TEXT NOT NULL,
+                key_version INTEGER NOT NULL DEFAULT 1,
+                sealed INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE TABLE IF NOT EXISTS session_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT NOT NULL,
+                from_webid TEXT NOT NULL,
+                content TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                template_id TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_session_messages_session ON session_messages(session_id);",
+        )?;
+        Ok(())
     }
 
     pub fn save_session(&self, session: &StoredSession) -> Result<(), StandingSessionError> {

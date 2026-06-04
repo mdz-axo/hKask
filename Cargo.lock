@@ -852,6 +852,7 @@ dependencies = [
  "hkask-types",
  "serde",
  "serde_json",
+ "serde_yaml",
  "thiserror",
  "tokio",
  "tracing",

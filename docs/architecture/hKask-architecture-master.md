@@ -37,6 +37,7 @@ The architecture is specified in four DDMVSS-aligned documents, each authoritati
 |----------|---------|
 | [`DDMVSS.md`](DDMVSS.md) | Domain-Driven Minimum Viable Specification Set — 9-category taxonomy and MVSDD methodology |
 | [`PRINCIPLES.md`](PRINCIPLES.md) | Architecture principles (P1-P7, C1-C7), five anchors, anti-patterns |
+| [`loop-architecture.md`](loop-architecture.md) | 6-loop architecture — authority DAG, crate↔loop mapping, capability membranes |
 | [`magna-carta.md`](magna-carta.md) | User sovereignty charter — catch-and-release, kill-zone detection |
 
 ---
@@ -56,7 +57,7 @@ Detailed lookup tables and diagrams in `reference/`:
 | [`reference/template-header-standard.md`](reference/template-header-standard.md) | Template metadata format |
 | [`reference/hKask-Curator-persona.md`](reference/hKask-Curator-persona.md) | Curator persona specification |
 | [`reference/okapi-integration.md`](reference/okapi-integration.md) | Okapi LLM API contract |
-| [`reference/loop-architecture.md`](reference/loop-architecture.md) | 6-loop architecture decomposition, crate mappings, capability membranes |
+| [`reference/loop-architecture.md`](reference/loop-architecture.md) | 6-loop architecture decomposition (superseded by authoritative [`loop-architecture.md`](loop-architecture.md)) |
 
 ---
 
@@ -102,6 +103,7 @@ docs/architecture/
 ├── hKask-architecture-master.md           # THIS FILE (index)
 ├── DDMVSS.md                              # Framework
 ├── PRINCIPLES.md                          # Framework
+├── loop-architecture.md                   # Framework (6-loop authority model)
 ├── magna-carta.md                         # Framework
 ├── domain-and-capability.md               # SPEC (Domain + Capability)
 ├── interface-and-composition.md           # SPEC (Interface + Composition)
@@ -124,10 +126,10 @@ docs/architecture/
     ├── template-header-standard.md        # Format reference
     ├── hKask-Curator-persona.md           # Persona spec
     ├── okapi-integration.md               # Okapi API contract
-    └── loop-architecture.md              # 6-loop decomposition, crate↔loop map
+    └── loop-architecture.md              # (superseded by authoritative loop-architecture.md)
 ```
 
-**Total:** 24 active architecture documents (4 specs + 3 framework + 1 index + 7 ADRs + 9 reference artifacts).
+**Total:** 25 active architecture documents (4 specs + 4 framework + 1 index + 7 ADRs + 9 reference artifacts).
 
 ---
 

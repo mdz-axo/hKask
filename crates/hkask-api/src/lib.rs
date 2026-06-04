@@ -109,6 +109,10 @@ pub struct ApiState {
             HashMap<String, Arc<tokio::sync::RwLock<hkask_ensemble::StandingSession>>>,
         >,
     >,
+    /// Standing session storage port (persistent or in-memory)
+    pub standing_session_store: Option<Arc<dyn hkask_types::ports::StandingSessionPort>>,
+    /// Ensemble session manager for chat/deliberation
+    pub session_manager: Arc<tokio::sync::RwLock<hkask_ensemble::SessionManager>>,
     /// Goal repository (OCAP-gated, telemetry-wired) for the goal coordination
     /// substrate. Mirrors the CLI `kask goal` surface for MCP ≡ CLI ≡ API parity.
     pub goal_repo: Arc<hkask_storage::SqliteGoalRepository>,
@@ -358,6 +362,28 @@ impl ApiState {
         let goal_repo =
             Arc::new(hkask_storage::SqliteGoalRepository::new(goal_conn).with_telemetry(goal_sink));
 
+        // Standing session store (persistent or in-memory)
+        let standing_conn =
+            match db_config.and_then(|c| c.path.as_deref().zip(c.passphrase.as_deref())) {
+                Some((path, passphrase)) => hkask_storage::Database::open(path, passphrase)
+                    .expect("Failed to open standing session database")
+                    .conn_arc(),
+                None => hkask_storage::Database::in_memory()
+                    .expect("in-memory standing session db")
+                    .conn_arc(),
+            };
+        let standing_session_store = hkask_storage::StandingSessionStore::new(standing_conn);
+        standing_session_store
+            .initialize_schema()
+            .expect("standing session schema init");
+        let standing_session_store: Option<Arc<dyn hkask_types::ports::StandingSessionPort>> =
+            Some(Arc::new(standing_session_store));
+
+        // Ensemble session manager
+        let session_manager = Arc::new(tokio::sync::RwLock::new(
+            hkask_ensemble::SessionManager::new(system_webid),
+        ));
+
         Self {
             registry: Arc::new(tokio::sync::Mutex::new(registry)),
             mcp_runtime: Arc::new(mcp_runtime),
@@ -371,6 +397,8 @@ impl ApiState {
             escalation_queue,
             git_cas,
             standing_sessions: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
+            standing_session_store,
+            session_manager,
             goal_repo,
             goal_capability_secret: Arc::new(capability_secret.to_vec()),
             loop_system,

@@ -356,6 +356,22 @@ Template execution is audited through CNS `cns.template.*` spans emitted during 
 
 ---
 
+## Loop Assignment
+
+This spec's content maps to the [6-loop authority model](loop-architecture.md) as follows:
+
+| Spec Domain | Loop | Rationale |
+|------------|------|-----------|
+| Zero-trust model | Cybernetics (Loop 6) | Trust verification is regulatory — Cybernetics enforces the zero-trust membrane |
+| OCAP enforcement | Cybernetics (Loop 6) | Capability verification is the Cybernetics regulation function |
+| Master key derivation | Cybernetics (Loop 6) | Key management is a sovereignty/regulation concern |
+| Encryption stack | Cybernetics (Loop 6) | Encryption boundaries are regulatory membranes |
+| CNS spans | Cybernetics (Loop 6) | Observability is the Cybernetics sense function |
+| Algedonic alerts | Cybernetics (Loop 6) + Curation (Loop 5) | Cybernetics detects; Curation receives escalation |
+| Threat model | Cybernetics (Loop 6) | Threat response is regulatory |
+
+---
+
 ## References
 
 [^miller-robust]: Miller, M. S. (2006). *Robust Composition*. Johns Hopkins University.

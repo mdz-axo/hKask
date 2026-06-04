@@ -158,7 +158,8 @@ impl MessageDispatch {
                 parameters,
             },
         )
-        .with_sender(sender);
+        .with_sender(sender)
+        .with_target(LoopId::Cybernetics);
 
         self.send(message).await
     }
