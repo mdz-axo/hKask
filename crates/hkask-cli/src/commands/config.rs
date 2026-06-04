@@ -150,7 +150,7 @@ pub fn create_mcp_dispatcher() -> (hkask_mcp::McpDispatcher, hkask_types::Capabi
         tokio::sync::mpsc::unbounded_channel::<hkask_types::loops::LoopMessage>();
     let cybernetics = Arc::new(tokio::sync::RwLock::new(CyberneticsLoop::new(
         cns_rwlock,
-        dispatch_tx,
+        dispatch_tx.clone(),
     )));
 
     let raw_port: Arc<dyn ToolPort> = Arc::new(RawMcpToolPort::new(runtime.clone()));
@@ -166,6 +166,7 @@ pub fn create_mcp_dispatcher() -> (hkask_mcp::McpDispatcher, hkask_types::Capabi
         event_sink,
         estimator,
         agent,
+        dispatch_tx,
     ));
 
     let dispatcher = hkask_mcp::McpDispatcher::with_governed_tool(runtime, secret, governed);

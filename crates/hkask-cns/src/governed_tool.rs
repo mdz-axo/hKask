@@ -24,10 +24,11 @@ use hkask_types::NuEventSink;
 use hkask_types::WebID;
 use hkask_types::capability::{DelegationAction, DelegationResource, DelegationToken};
 use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
+use hkask_types::loops::{LoopId, LoopMessage, LoopPayload, MessagePriority};
 use hkask_types::ports::{ToolInfo, ToolPort, ToolPortError};
 use serde_json::Value;
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, mpsc};
 use tracing::{debug, info, warn};
 
 /// Gas estimator trait for GovernedTool.
@@ -65,6 +66,7 @@ pub trait GasEstimator: Send + Sync {
 ///     event_sink,
 ///     Arc::new(TableGasEstimator::new()),
 ///     agent_webid,
+///     dispatch_tx,
 /// );
 /// // governed implements ToolPort — use it anywhere ToolPort is expected
 /// ```
@@ -74,6 +76,7 @@ pub struct GovernedTool {
     event_sink: Arc<dyn NuEventSink>,
     estimator: Arc<dyn GasEstimator>,
     agent: WebID,
+    dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
 }
 
 impl GovernedTool {
@@ -84,6 +87,7 @@ impl GovernedTool {
         event_sink: Arc<dyn NuEventSink>,
         estimator: Arc<dyn GasEstimator>,
         agent: WebID,
+        dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
     ) -> Self {
         Self {
             inner,
@@ -91,6 +95,7 @@ impl GovernedTool {
             event_sink,
             estimator,
             agent,
+            dispatch_tx,
         }
     }
 
@@ -235,6 +240,29 @@ impl ToolPort for GovernedTool {
             );
         }
         drop(loop6);
+
+        // Step 5b: Emit gas-consumed signal to Cybernetics Loop
+        let success = result.is_ok();
+        let consumption_msg = LoopMessage::new(
+            MessagePriority::Info,
+            LoopId::Cybernetics,
+            LoopPayload::ToolConsumption {
+                tool_name: tool.to_string(),
+                agent: self.agent,
+                gas_cost: actual_cost,
+                success,
+            },
+        )
+        .with_target(LoopId::Cybernetics);
+        if let Err(e) = self.dispatch_tx.send(consumption_msg) {
+            warn!(
+                target: "cns.tool",
+                agent = ?self.agent,
+                tool = %tool,
+                error = %e,
+                "Failed to send ToolConsumption signal to Cybernetics Loop"
+            );
+        }
 
         // Step 6: Emit outcome span
         let (outcome_phase, outcome_obs) = match &result {
@@ -395,16 +423,22 @@ mod tests {
         checker.grant_tool("other_tool".to_string(), from, to)
     }
 
-    /// Helper: create a CyberneticsLoop wired for tests.
-    fn test_cybernetics_loop() -> Arc<RwLock<CyberneticsLoop>> {
+    /// Helper: create a CyberneticsLoop wired for tests, returning (loop, dispatch_tx).
+    fn test_cybernetics_loop() -> (
+        Arc<RwLock<CyberneticsLoop>>,
+        tokio::sync::mpsc::UnboundedSender<LoopMessage>,
+    ) {
         let cns = Arc::new(RwLock::new(CnsRuntime::default()));
         let (tx, _rx) = tokio::sync::mpsc::unbounded_channel::<LoopMessage>();
-        Arc::new(RwLock::new(CyberneticsLoop::new(cns, tx)))
+        (
+            Arc::new(RwLock::new(CyberneticsLoop::new(cns, tx.clone()))),
+            tx,
+        )
     }
 
     #[tokio::test]
     async fn governed_tool_rejects_when_capability_denied() {
-        let loop6 = test_cybernetics_loop();
+        let (loop6, dispatch_tx) = test_cybernetics_loop();
         let agent = WebID::new();
 
         // Register a large budget so budget checks pass
@@ -419,6 +453,7 @@ mod tests {
             event_sink,
             Arc::new(TableGasEstimator::new()),
             agent,
+            dispatch_tx,
         );
 
         // Token that authorizes "other_tool", not "test_tool"
@@ -446,7 +481,7 @@ mod tests {
 
     #[tokio::test]
     async fn governed_tool_rejects_when_gas_budget_exhausted() {
-        let loop6 = test_cybernetics_loop();
+        let (loop6, dispatch_tx) = test_cybernetics_loop();
         let agent = WebID::new();
 
         // GasBudget with cap=0 means remaining=0, so can_proceed(1) → gas=1 > 0 → false.
@@ -461,6 +496,7 @@ mod tests {
             event_sink,
             Arc::new(TableGasEstimator::new()),
             agent,
+            dispatch_tx,
         );
 
         let token = test_tool_token();
@@ -482,7 +518,7 @@ mod tests {
 
     #[tokio::test]
     async fn governed_tool_allows_when_authorized_and_budget_sufficient() {
-        let loop6 = test_cybernetics_loop();
+        let (loop6, dispatch_tx) = test_cybernetics_loop();
         let agent = WebID::new();
 
         let budget = GasBudget::new(100_000);
@@ -496,6 +532,7 @@ mod tests {
             event_sink.clone(),
             Arc::new(TableGasEstimator::new()),
             agent,
+            dispatch_tx,
         );
 
         let token = test_tool_token();
@@ -510,7 +547,7 @@ mod tests {
 
     #[tokio::test]
     async fn governed_tool_emits_spans_on_success() {
-        let loop6 = test_cybernetics_loop();
+        let (loop6, dispatch_tx) = test_cybernetics_loop();
         let agent = WebID::new();
 
         let budget = GasBudget::new(100_000);
@@ -524,6 +561,7 @@ mod tests {
             event_sink.clone(),
             Arc::new(TableGasEstimator::new()),
             agent,
+            dispatch_tx,
         );
 
         let token = test_tool_token();
@@ -545,7 +583,7 @@ mod tests {
 
     #[tokio::test]
     async fn governed_tool_emits_spans_on_failure() {
-        let loop6 = test_cybernetics_loop();
+        let (loop6, dispatch_tx) = test_cybernetics_loop();
         let agent = WebID::new();
 
         let budget = GasBudget::new(100_000);
@@ -559,6 +597,7 @@ mod tests {
             event_sink.clone(),
             Arc::new(TableGasEstimator::new()),
             agent,
+            dispatch_tx,
         );
 
         let token = test_tool_token();
@@ -589,7 +628,7 @@ mod tests {
 
     #[tokio::test]
     async fn governed_tool_with_composite_estimates_inference_gas() {
-        let loop6 = test_cybernetics_loop();
+        let (loop6, dispatch_tx) = test_cybernetics_loop();
         let agent = WebID::new();
 
         // Register a gas budget large enough for both calls
@@ -603,7 +642,7 @@ mod tests {
         let inner: Arc<dyn ToolPort> = Arc::new(MockToolPort::new());
         let event_sink = Arc::new(MockNuEventSink::new());
         let estimator = Arc::new(crate::composite_gas_estimator::CompositeGasEstimator::new());
-        let governed = GovernedTool::new(inner, loop6, event_sink, estimator, agent);
+        let governed = GovernedTool::new(inner, loop6, event_sink, estimator, agent, dispatch_tx);
 
         // Invoke inference tool -- should use token-based estimation
         let token = token_for_tool("generate");
@@ -623,7 +662,7 @@ mod tests {
 
     #[tokio::test]
     async fn governed_tool_composite_rejects_when_budget_exhausted() {
-        let loop6 = test_cybernetics_loop();
+        let (loop6, dispatch_tx) = test_cybernetics_loop();
         let agent = WebID::new();
 
         // Tiny budget: 10 gas -- web tool costs 50 gas via table estimator
@@ -636,7 +675,7 @@ mod tests {
         let inner: Arc<dyn ToolPort> = Arc::new(MockToolPort::new());
         let event_sink = Arc::new(MockNuEventSink::new());
         let estimator = Arc::new(crate::composite_gas_estimator::CompositeGasEstimator::new());
-        let governed = GovernedTool::new(inner, loop6, event_sink, estimator, agent);
+        let governed = GovernedTool::new(inner, loop6, event_sink, estimator, agent, dispatch_tx);
 
         let token = token_for_tool("search");
         // Web tool costs 50 gas -- exceeds budget of 10
@@ -658,13 +697,13 @@ mod tests {
 
     #[tokio::test]
     async fn governed_tool_settles_gas_on_success() {
-        let loop6 = test_cybernetics_loop();
+        let (loop6, dispatch_tx) = test_cybernetics_loop();
         let agent = WebID::new();
 
         // GasBudget: cap=100, remaining=100, replenish_rate=10
         // After one call with TableGasEstimator (cost=10 for unknown server):
-        // Reserve 10, then settle with actual 10 → remaining=90
-        // can_proceed(100) → gas=100 > 90 → should fail.
+        // Reserve 10, then settle with actual 10 \u2192 remaining=90
+        // can_proceed(100) \u2192 gas=100 > 90 \u2192 should fail.
         let budget = GasBudget::new(100);
         loop6.read().await.register_gas_budget(agent, budget).await;
 
@@ -676,6 +715,7 @@ mod tests {
             event_sink,
             Arc::new(TableGasEstimator::new()),
             agent,
+            dispatch_tx,
         );
 
         let token = test_tool_token();

@@ -732,35 +732,36 @@ impl HkaskLoop for CyberneticsLoop {
             }
 
             // Persist algedonic alerts to NuEventStore for durability across restarts.
-            if action.action_type == ActionType::Escalate && target_id == LoopId::Curation {
-                if let Some(ref sink) = self.event_sink {
-                    let deficit = action
-                        .parameters
-                        .get("deficit")
-                        .and_then(|v| v.as_f64())
-                        .unwrap_or(0.0) as u64;
-                    let threshold = action
-                        .parameters
-                        .get("threshold")
-                        .and_then(|v| v.as_f64())
-                        .unwrap_or(0.0) as u64;
-                    let event = NuEvent::new(
-                        WebID::new(),
-                        Span::new(SpanNamespace::new("cns.variety"), "algedonic_alert"),
-                        Phase::Act,
-                        serde_json::json!({
-                            "deficit": deficit,
-                            "threshold": threshold,
-                        }),
-                        0,
+            if action.action_type == ActionType::Escalate
+                && target_id == LoopId::Curation
+                && let Some(ref sink) = self.event_sink
+            {
+                let deficit = action
+                    .parameters
+                    .get("deficit")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0) as u64;
+                let threshold = action
+                    .parameters
+                    .get("threshold")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0) as u64;
+                let event = NuEvent::new(
+                    WebID::new(),
+                    Span::new(SpanNamespace::new("cns.variety"), "algedonic_alert"),
+                    Phase::Act,
+                    serde_json::json!({
+                        "deficit": deficit,
+                        "threshold": threshold,
+                    }),
+                    0,
+                );
+                if let Err(e) = sink.persist(&event) {
+                    tracing::warn!(
+                        target: "cns.algedonic",
+                        error = %e,
+                        "Failed to persist algedonic alert to NuEventStore"
                     );
-                    if let Err(e) = sink.persist(&event) {
-                        tracing::warn!(
-                            target: "cns.algedonic",
-                            error = %e,
-                            "Failed to persist algedonic alert to NuEventStore"
-                        );
-                    }
                 }
             }
         }

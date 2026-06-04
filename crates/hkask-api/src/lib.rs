@@ -352,6 +352,7 @@ impl ApiState {
             cns_event_sink,
             estimator,
             system_webid,
+            loop_system.dispatch_sender(),
         ));
 
         // Wire GovernedTool into McpDispatcher
