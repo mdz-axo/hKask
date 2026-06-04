@@ -20,6 +20,9 @@ use hkask_types::WebID;
 use hkask_types::cns::CnsHealth;
 use hkask_types::loops::curation::CuratorDirective;
 use hkask_types::loops::dispatch::TraceId;
+use hkask_types::loops::{
+    ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal,
+};
 use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
@@ -112,6 +115,8 @@ pub struct MetacognitionLoop {
     context: Arc<CuratorContext>,
     config: MetacognitionConfig,
     bot_reports: Arc<RwLock<Vec<BotStatusReport>>>,
+    /// Snapshot from the most recent sense() phase, used by compute()/act().
+    last_snapshot: Arc<RwLock<Option<HealthSnapshot>>>,
 }
 
 impl MetacognitionLoop {
@@ -126,6 +131,7 @@ impl MetacognitionLoop {
             context,
             config,
             bot_reports: Arc::new(RwLock::new(Vec::new())),
+            last_snapshot: Arc::new(RwLock::new(None)),
         }
     }
 
@@ -146,31 +152,18 @@ impl MetacognitionLoop {
         self.bot_reports.read().await.clone()
     }
 
+    /// Run a full metacognition cycle and return the health snapshot.
+    ///
+    /// Convenience wrapper around `tick()` that also returns the
+    /// `HealthSnapshot` produced during the sense phase.
     pub async fn run_cycle(&self) -> Result<HealthSnapshot, MetacognitionError> {
         info!(target: "curator.metacognition", "Starting metacognition cycle");
-
-        let cns_health = self.context.cns().health().await;
-        let cns_health_str = format_health_status(&cns_health);
-
-        let variety_counters = self.context.cns().variety().await;
-
-        let all_alerts = self.context.cns().alerts().await;
-        let critical_alerts = self.context.cns().critical_alerts().await;
-
-        let bot_reports = self.get_bot_reports().await;
-
-        let snapshot = HealthSnapshot {
-            timestamp: chrono::Utc::now(),
-            cns_health: cns_health_str,
-            variety_counters: variety_counters.clone(),
-            critical_alerts: critical_alerts.len(),
-            total_alerts: all_alerts.len(),
-            bot_status_reports: bot_reports.clone(),
-        };
-
-        self.evaluate_and_adapt(&snapshot).await?;
-
-        Ok(snapshot)
+        self.tick().await;
+        self.last_snapshot
+            .read()
+            .await
+            .clone()
+            .ok_or_else(|| MetacognitionError::Escalation("No snapshot available".to_string()))
     }
 
     /// Metacognitive Adaptation (ADAPT) — evaluate system state and adjust.
@@ -181,6 +174,10 @@ impl MetacognitionLoop {
     /// - Evaluate bot health → escalate failed bots
     ///
     /// All three are the same ADAPT primitive: outcome → compare → adjust.
+    ///
+    /// Note: logic extracted into `sense()/compute()/act()` via `HkaskLoop`.
+    /// Retained as reference documentation of the ADAPT subloop pattern.
+    #[allow(dead_code)]
     async fn evaluate_and_adapt(
         &self,
         snapshot: &HealthSnapshot,
@@ -418,6 +415,357 @@ impl MetacognitionLoop {
     /// - 6.3 DAMPEN — Suppresses repeated directives within time window
     pub async fn issue_directive(&self, directive: CuratorDirective) -> Option<TraceId> {
         self.context.issue_directive(directive).await
+    }
+}
+
+// ---------------------------------------------------------------------------
+// HkaskLoop — sense → compare → compute → act
+// ---------------------------------------------------------------------------
+
+#[async_trait::async_trait]
+impl HkaskLoop for MetacognitionLoop {
+    fn id(&self) -> LoopId {
+        LoopId::Metacognition
+    }
+
+    /// Sense: read CNS health, variety counters, critical alerts, and bot status.
+    ///
+    /// Produces `Signal`s for metrics that the metacognition loop monitors:
+    /// - `variety_deficit` — total deficit across all domains vs threshold
+    /// - `critical_alerts` — count of critical CNS alerts vs threshold
+    /// - `bot_failures` — count of bots in Critical health vs threshold
+    ///
+    /// Also builds and stores a `HealthSnapshot` for use by compute/act phases.
+    async fn sense(&self) -> Vec<Signal> {
+        info!(target: "curator.metacognition", "Starting metacognition sense phase");
+
+        let cns_health = self.context.cns().health().await;
+        let cns_health_str = format_health_status(&cns_health);
+
+        let variety_counters = self.context.cns().variety().await;
+        let all_alerts = self.context.cns().alerts().await;
+        let critical_alerts = self.context.cns().critical_alerts().await;
+        let bot_reports = self.get_bot_reports().await;
+
+        // Compute total variety deficit (same logic as evaluate_and_adapt)
+        let mut total_variety_deficit = 0u64;
+        for (domain, variety) in &variety_counters {
+            let deficit = self
+                .config
+                .expected_variety_per_domain
+                .saturating_sub(*variety);
+            if deficit > 0 {
+                total_variety_deficit += deficit;
+                if deficit > self.config.thresholds.variety_deficit {
+                    warn!(
+                        target: "curator.metacognition",
+                        domain = %domain,
+                        variety = variety,
+                        deficit = deficit,
+                        "Variety deficit exceeds threshold"
+                    );
+                }
+            }
+        }
+
+        // Compute bot failure count
+        let failed_bot_count = bot_reports
+            .iter()
+            .filter(|r| r.status == BotHealthStatus::Critical)
+            .count();
+
+        // Build and store snapshot for compute/act phases
+        let snapshot = HealthSnapshot {
+            timestamp: chrono::Utc::now(),
+            cns_health: cns_health_str,
+            variety_counters: variety_counters.clone(),
+            critical_alerts: critical_alerts.len(),
+            total_alerts: all_alerts.len(),
+            bot_status_reports: bot_reports.clone(),
+        };
+        {
+            let mut last = self.last_snapshot.write().await;
+            *last = Some(snapshot);
+        }
+
+        // Produce afferent signals
+        let mut signals = Vec::new();
+
+        // Variety deficit: act when total_deficit > threshold (strict >)
+        signals.push(Signal::new(
+            LoopId::Metacognition,
+            "variety_deficit",
+            total_variety_deficit as f64,
+            self.config.thresholds.variety_deficit as f64,
+        ));
+
+        // Critical alerts: act when count >= threshold.
+        // Use threshold - 0.5 as set-point so that count == threshold
+        // produces an AboveSetPoint deviation.
+        signals.push(Signal::new(
+            LoopId::Metacognition,
+            "critical_alerts",
+            critical_alerts.len() as f64,
+            self.config.thresholds.critical_alerts as f64 - 0.5,
+        ));
+
+        // Bot failures: act when count >= threshold.
+        // Same threshold - 0.5 technique as critical_alerts.
+        signals.push(Signal::new(
+            LoopId::Metacognition,
+            "bot_failures",
+            failed_bot_count as f64,
+            self.config.thresholds.bot_failures as f64 - 0.5,
+        ));
+
+        signals
+    }
+
+    /// Compute: produce `LoopAction`s for detected deviations.
+    ///
+    /// Maps deviations to regulatory actions:
+    /// - `variety_deficit` AboveSetPoint → Calibrate action (threshold adjustment)
+    /// - `critical_alerts` AboveSetPoint → Escalate action (human review)
+    /// - `bot_failures` AboveSetPoint → Escalate action (bot attention)
+    async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
+        let mut actions = Vec::new();
+
+        for dev in deviations {
+            match dev.signal.metric.as_str() {
+                "variety_deficit" if dev.direction == DeviationDirection::AboveSetPoint => {
+                    let deficit = dev.signal.value as u64;
+                    let new_threshold =
+                        deficit.saturating_add(self.config.thresholds.variety_deficit);
+                    actions.push(LoopAction::new(
+                        LoopId::Curation,
+                        ActionType::Calibrate,
+                        serde_json::json!({
+                            "domain": "variety",
+                            "deficit": deficit,
+                            "threshold": dev.signal.set_point as u64,
+                            "new_threshold": new_threshold,
+                        }),
+                    ));
+                }
+                "critical_alerts" if dev.direction == DeviationDirection::AboveSetPoint => {
+                    let count = dev.signal.value as u64;
+                    actions.push(LoopAction::new(
+                        LoopId::Curation,
+                        ActionType::Escalate,
+                        serde_json::json!({
+                            "metric": "critical_alerts",
+                            "count": count,
+                            "threshold": self.config.thresholds.critical_alerts,
+                        }),
+                    ));
+                }
+                "bot_failures" if dev.direction == DeviationDirection::AboveSetPoint => {
+                    let count = dev.signal.value as u64;
+                    // Retrieve bot names from the stored snapshot
+                    let bot_names: Vec<String> = self
+                        .last_snapshot
+                        .read()
+                        .await
+                        .as_ref()
+                        .map(|s| {
+                            s.bot_status_reports
+                                .iter()
+                                .filter(|r| r.status == BotHealthStatus::Critical)
+                                .map(|r| r.bot_name.clone())
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    actions.push(LoopAction::new(
+                        LoopId::Curation,
+                        ActionType::Escalate,
+                        serde_json::json!({
+                            "metric": "bot_failures",
+                            "failed_count": count,
+                            "threshold": self.config.thresholds.bot_failures,
+                            "bot_names": bot_names,
+                        }),
+                    ));
+                }
+                _ => {} // BelowSetPoint deviations are in the desired direction
+            }
+        }
+
+        actions
+    }
+
+    /// Act: execute regulatory actions by issuing CuratorDirectives and
+    /// posting escalations.
+    ///
+    /// For each `LoopAction`:
+    /// - `Calibrate` → issue `CuratorDirective::CalibrateThreshold`,
+    ///   add escalation, calibrate CNS threshold directly
+    /// - `Escalate` → add to the escalation queue for human review
+    async fn act(&self, actions: &[LoopAction]) {
+        for action in actions {
+            match action.action_type {
+                ActionType::Calibrate => {
+                    let domain = action
+                        .parameters
+                        .get("domain")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+                    let new_threshold = action
+                        .parameters
+                        .get("new_threshold")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(self.config.thresholds.variety_deficit);
+                    let deficit = action
+                        .parameters
+                        .get("deficit")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(0);
+
+                    if domain == "variety" {
+                        // Issue CalibrateThreshold directive through dispatch (5.3)
+                        let directive = CuratorDirective::CalibrateThreshold {
+                            domain: "variety".to_string(),
+                            new_threshold,
+                        };
+                        self.issue_directive(directive).await;
+
+                        // Post escalation for variety deficit
+                        let template_id = hkask_types::TemplateID::new();
+                        let bot_id = BotID::new();
+                        let error_context = format!(
+                            "Total variety deficit ({}) exceeds threshold ({})",
+                            deficit, self.config.thresholds.variety_deficit
+                        );
+                        if let Err(e) = self.context.escalation_queue().add(
+                            template_id,
+                            bot_id,
+                            format!("Variety deficit: {}", deficit),
+                            0.6,
+                            0,
+                            error_context,
+                        ) {
+                            warn!(
+                                target: "curator.metacognition",
+                                error = %e,
+                                "Failed to add variety deficit escalation"
+                            );
+                        }
+
+                        // Calibrate CNS threshold directly (5.3 ADAPT subloop)
+                        self.context
+                            .cns()
+                            .calibrate_threshold("variety", new_threshold)
+                            .await;
+                    }
+                }
+                ActionType::Escalate => {
+                    let metric = action
+                        .parameters
+                        .get("metric")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+
+                    match metric {
+                        "critical_alerts" => {
+                            let count = action
+                                .parameters
+                                .get("count")
+                                .and_then(|v| v.as_u64())
+                                .unwrap_or(0) as usize;
+
+                            warn!(
+                                target: "curator.metacognition",
+                                critical_alerts = count,
+                                threshold = self.config.thresholds.critical_alerts,
+                                "Critical alert count exceeds threshold"
+                            );
+
+                            let template_id = hkask_types::TemplateID::new();
+                            let bot_id = BotID::new();
+                            let error_context = format!(
+                                "Critical alert count ({}) exceeds threshold ({})",
+                                count, self.config.thresholds.critical_alerts
+                            );
+
+                            if let Err(e) = self.context.escalation_queue().add(
+                                template_id,
+                                bot_id,
+                                format!("System has {} critical alerts", count),
+                                0.3,
+                                0,
+                                error_context,
+                            ) {
+                                warn!(
+                                    target: "curator.metacognition",
+                                    error = %e,
+                                    "Failed to add critical alert escalation"
+                                );
+                            }
+                        }
+                        "bot_failures" => {
+                            let count = action
+                                .parameters
+                                .get("failed_count")
+                                .and_then(|v| v.as_u64())
+                                .unwrap_or(0) as usize;
+                            let bot_names: Vec<String> = action
+                                .parameters
+                                .get("bot_names")
+                                .and_then(|v| v.as_array())
+                                .map(|arr| {
+                                    arr.iter()
+                                        .filter_map(|v| v.as_str().map(String::from))
+                                        .collect()
+                                })
+                                .unwrap_or_default();
+
+                            warn!(
+                                target: "curator.metacognition",
+                                failed_bots = count,
+                                threshold = self.config.thresholds.bot_failures,
+                                "Bot failure count exceeds threshold"
+                            );
+
+                            let template_id = hkask_types::TemplateID::new();
+                            let bot_id = BotID::new();
+                            let error_context = format!(
+                                "{} bots in critical state: {}",
+                                count,
+                                bot_names.join(", ")
+                            );
+
+                            if let Err(e) = self.context.escalation_queue().add(
+                                template_id,
+                                bot_id,
+                                format!("{} bots require attention", count),
+                                0.4,
+                                0,
+                                error_context,
+                            ) {
+                                warn!(
+                                    target: "curator.metacognition",
+                                    error = %e,
+                                    "Failed to add bot failure escalation"
+                                );
+                            }
+                        }
+                        _ => {
+                            warn!(
+                                target: "curator.metacognition",
+                                metric = %metric,
+                                "Unknown escalation metric in MetacognitionLoop act()"
+                            );
+                        }
+                    }
+                }
+                _ => {
+                    info!(
+                        target: "curator.metacognition",
+                        action_type = ?action.action_type,
+                        "Unhandled action type in MetacognitionLoop act()"
+                    );
+                }
+            }
+        }
     }
 }
 

@@ -109,6 +109,7 @@ impl LoopSystem {
                 LoopId::Communication,
                 LoopId::Cybernetics,
                 LoopId::Curation,
+                LoopId::Metacognition,
             ]
             .into_iter()
             .map(|id| (id, default_tick_interval(id)))
