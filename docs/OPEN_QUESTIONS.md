@@ -241,6 +241,72 @@ pre-built (P5 — code not needed today is debt):
 
 ---
 
+### P3-a: ACP Transport Abstraction ⚠️ DEFERRED
+
+**DDMVSS Category:** Interface  
+**Status:** Deferred (no current need)  
+**Raised:** 2026-05-29 (Loop Distillation)
+
+Current ACP is JSON-RPC 2.0 over stdio (child process). For networked agents or in-process, a transport abstraction would be needed. However, no current consumer requires this — `AcpRuntime` works in-process, `RussellAcpAdapter` works over stdio. When networked ACP becomes necessary, define a transport trait in `hkask-types` and implement for stdio, HTTP, and in-process.
+
+### P3-b: CyberneticsToken/CurationToken Runtime Enforcement ⚠️ DEFERRED
+
+**DDMVSS Category:** Trust  
+**Status:** Deferred (structural foundation in place)  
+**Raised:** 2026-05-29 (Loop Distillation)
+
+Tokens are now minted at loop construction (9b/9c) but not yet presented to capability gates. The OCAP authority chain exists structurally but is not enforced at runtime. This is by design — the token minting establishes the structural pattern. Runtime enforcement should be added when capability gates are introduced at the point of use (e.g., `ConsolidationBridge` checks for `ConsolidationToken`, `CyberneticsLoop` checks for `CyberneticsToken`).
+
+### P3-d: Episodic vs Semantic Encryption Keys ⚠️ DEFERRED
+
+**DDMVSS Category:** Trust  
+**Status:** Deferred (same master key, different visibility enforcement)  
+**Raised:** 2026-05-29 (Loop Distillation)
+
+Currently same master key for both. Episodic (private) and semantic (shared) have different threat models. Separate keys would add defense-in-depth but also key management complexity. The current visibility enforcement (`SemanticMemory::store()` rejects non-Shared, `EpisodicMemory::store()` rejects Shared) provides logical separation. Physical separation (separate encryption keys) should be revisited if cross-visibility attacks become a concern.
+
+### P3-e: Loop Membrane Persistence ⚠️ DEFERRED
+
+**DDMVSS Category:** Persistence  
+**Status:** Deferred (acceptable data loss for v0.22)  
+**Raised:** 2026-05-29 (Loop Distillation)
+
+Loop inboxes and variety counters are in-memory. On crash, all pending directives are lost. For v0.22, this is acceptable — directives are advisory (Curation suggests, doesn't command). If crash resilience becomes critical, add a WAL or periodic checkpoint mechanism to `MessageDispatch` and `VarietyTracker`. Priority: low.
+
+### P3-f: Semantic Loop MCP Server ⚠️ RESOLVED
+
+**DDMVSS Category:** Interface  
+**Status:** Resolved — intentional gap  
+**Resolution Date:** 2026-06-03
+
+Semantic Memory (Loop 2b) has no direct MCP server. Queries go through `hkask-mcp-cns` or `hkask-mcp-registry`. This is intentional — semantic queries are lower-level than what MCP tools expose. The CNS and Registry servers provide higher-level access patterns that compose semantic memory with other subsystems. Adding a dedicated semantic MCP server would be premature.
+
+### P3-h: CNS Set-point Configuration ⚠️ DEFERRED
+
+**DDMVSS Category:** Interface  
+**Status:** Deferred (hardcoded defaults sufficient for v0.22)  
+**Raised:** 2026-05-29 (Loop Distillation)
+
+CNS thresholds, gas budgets, variety set-points are currently hardcoded. Need YAML/env configuration for deploy-time tuning. Low priority for v0.22 — defaults work for development. Add `SetPointsConfig` YAML parsing when deployment scenarios require tuning.
+
+### 8g: WebSearchPort Extraction ⚠️ DEFERRED
+
+**DDMVSS Category:** Composition  
+**Status:** Deferred (no current consumer outside `hkask-mcp-web`)  
+**Resolution Date:** 2026-06-03
+
+`WebSearchPort` trait and `ProviderPool` are only consumed within `mcp-servers/hkask-mcp-web`. No other crate references them. Extracting the trait to `hkask-types` and the pool to a new `hkask-web` crate would be premature — it moves code without enabling new capabilities. If a consumer outside the MCP server needs web search (e.g., a new crate that orchestrates search + memory), extract then. The MCP server becoming a thin shim is the right long-term goal, but not today.
+
+### 9d: AgentKind Behavioral Dispatch ⚠️ RESOLVED — Keep Cosmetic
+
+**DDMVSS Category:** Domain  
+**Status:** Resolved — `AgentKind` remains a cosmetic enum  
+**Resolution Date:** 2026-06-03
+
+**Decision:** `AgentKind` (Bot/Replicant) remains a simple enum with no behavioral dispatch. Behavioral differences between Bot and Replicant are handled at the call site level (e.g., `chat_with_agent()` selects model based on `AgentKind`, privacy enforcement in `SemanticMemory`/`EpisodicMemory` uses `Visibility`). Converting `AgentKind` to a trait with associated types would change it from a 2-variant enum to a type-level dispatch mechanism, affecting every pod, agent registration, and template selection. The current design correctly separates identity (AgentKind) from behavior (site-level decisions). This is the right granularity for v0.22.
+
+---
+
 ## Resolution Summary
 
 | OQ | Status | Decision | Date |
