@@ -21,7 +21,7 @@ pub mod curator; // Loop 5 (pure regulatory: CurationLoop, CuratorContext, Curat
 pub mod curator_agent; // Loop 5 (persona: MetacognitionLoop, bot metrics, spec curation)
 pub mod error;
 pub mod escalation; // Loop 6 (escalation queue is algedonic regulation)
-pub mod inference_loop; // Loop 1 (domain logic; GovernedTool membrane lives in hkask-cns, deprecated GovernedInference remains for compat)
+pub mod inference_loop; // Loop 1 (domain logic; governance applied externally via GovernedTool in hkask-cns)
 pub mod loop_system;
 pub mod pod; // Loop 5 (agent pod lifecycle is Curation)
 pub mod ports;

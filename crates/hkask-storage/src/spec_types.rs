@@ -47,11 +47,6 @@ pub enum SpecCategory {
     Capability,
     Interface,
     Composition,
-    Trust,
-    Observability,
-    Persistence,
-    Lifecycle,
-    Curation,
 }
 
 impl SpecCategory {
@@ -61,11 +56,6 @@ impl SpecCategory {
             SpecCategory::Capability => "capability",
             SpecCategory::Interface => "interface",
             SpecCategory::Composition => "composition",
-            SpecCategory::Trust => "trust",
-            SpecCategory::Observability => "observability",
-            SpecCategory::Persistence => "persistence",
-            SpecCategory::Lifecycle => "lifecycle",
-            SpecCategory::Curation => "curation",
         }
     }
 
@@ -75,11 +65,6 @@ impl SpecCategory {
             "capability" => Some(SpecCategory::Capability),
             "interface" => Some(SpecCategory::Interface),
             "composition" => Some(SpecCategory::Composition),
-            "trust" => Some(SpecCategory::Trust),
-            "observability" => Some(SpecCategory::Observability),
-            "persistence" => Some(SpecCategory::Persistence),
-            "lifecycle" => Some(SpecCategory::Lifecycle),
-            "curation" => Some(SpecCategory::Curation),
             _ => None,
         }
     }
@@ -90,11 +75,6 @@ impl SpecCategory {
             SpecCategory::Capability,
             SpecCategory::Interface,
             SpecCategory::Composition,
-            SpecCategory::Trust,
-            SpecCategory::Observability,
-            SpecCategory::Persistence,
-            SpecCategory::Lifecycle,
-            SpecCategory::Curation,
         ]
     }
 }
@@ -102,7 +82,6 @@ impl SpecCategory {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DomainAnchor {
     Okapi,
-    Russell,
     Hkask,
 }
 
@@ -110,7 +89,6 @@ impl DomainAnchor {
     pub fn as_str(&self) -> &'static str {
         match self {
             DomainAnchor::Okapi => "okapi",
-            DomainAnchor::Russell => "russell",
             DomainAnchor::Hkask => "hkask",
         }
     }
@@ -118,7 +96,6 @@ impl DomainAnchor {
     pub fn parse_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "okapi" => Some(DomainAnchor::Okapi),
-            "russell" => Some(DomainAnchor::Russell),
             "hkask" => Some(DomainAnchor::Hkask),
             _ => None,
         }

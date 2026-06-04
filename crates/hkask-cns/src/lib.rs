@@ -10,8 +10,7 @@ pub mod composite_gas_estimator; // Composite routing: inference → token-based
 pub mod cybernetics_loop; // Loop 6
 pub mod dampener; // Loop 6 — regulation
 pub mod energy; // Loop 6 — gas budget (replaces energy budget)
-pub mod governed_inference; // Loop 6 → Loop 1 membrane
-pub mod governed_tool; // Loop 6 → all tool invocation membranes (supersedes GovernedInference)
+pub mod governed_tool; // Loop 6 → all tool invocation membranes
 pub mod inference_estimator; // Loop 6 → Inference gas estimation
 pub mod kill_zone; // Loop 6 subloop 6.5 — kill-zone detection
 pub mod runtime; // Loop 6 — runtime
@@ -27,7 +26,6 @@ pub use composite_gas_estimator::CompositeGasEstimator;
 pub use cybernetics_loop::{CyberneticsLoop, SetPoints, SetPointsConfig};
 pub use dampener::Dampener;
 pub use energy::{GasBudget, GasError};
-pub use governed_inference::GovernedInference;
 pub use governed_tool::{GasEstimator, GovernedTool};
 pub use inference_estimator::InferenceGasEstimator;
 pub use table_gas_estimator::TableGasEstimator;
@@ -39,9 +37,3 @@ pub use throttle::ThrottleBucket;
 pub use hkask_types::cns::{CircuitState, CnsHealth};
 pub use hkask_types::ports::{CircuitBreakerPort, CnsPort};
 pub use kill_zone::KillZoneDetector;
-
-// Backward-compatible aliases
-#[allow(deprecated)]
-pub use energy::{EnergyBudget, EnergyError};
-#[allow(deprecated)]
-pub use governed_tool::{EnergyEstimator, FlatEnergyEstimator};

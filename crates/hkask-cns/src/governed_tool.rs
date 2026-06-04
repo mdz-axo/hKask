@@ -11,7 +11,6 @@
 //!
 //! This is the membrane where Cybernetics governs all tool invocations.
 //! The membrane IS the security property (Miller). GovernedTool subsumes:
-//! - GovernedInference (for tool-style inference calls)
 //! - SecurityGateway dispatch-time OCAP checks
 //! - check_throttle (gas accounting replaces rate limiting)
 //! - ToolSpanGuard (span emission is now built-in)
@@ -47,33 +46,6 @@ pub trait GasEstimator: Send + Sync {
     fn estimate_cost(&self, server: &str, tool: &str, args: &Value) -> u64;
 }
 
-/// Backward-compatible alias.
-#[deprecated(since = "0.23.0", note = "Use GasEstimator instead")]
-pub trait EnergyEstimator: Send + Sync {
-    /// Estimate the gas cost of a tool invocation before it happens.
-    fn estimate_cost(&self, server: &str, tool: &str, args: &Value) -> u64;
-}
-
-/// Flat gas estimator — 1 unit per invocation.
-/// DEPRECATED: Use `TableGasEstimator` or `CompositeGasEstimator` for production gas costs.
-#[deprecated(since = "0.23.0", note = "Use TableGasEstimator instead")]
-#[allow(dead_code)]
-pub struct FlatEnergyEstimator;
-
-#[allow(deprecated)]
-impl EnergyEstimator for FlatEnergyEstimator {
-    fn estimate_cost(&self, _server: &str, _tool: &str, _args: &Value) -> u64 {
-        1
-    }
-}
-
-#[allow(deprecated)]
-impl GasEstimator for FlatEnergyEstimator {
-    fn estimate_cost(&self, _server: &str, _tool: &str, _args: &Value) -> u64 {
-        1
-    }
-}
-
 /// GovernedTool — the singular membrane through which all tool invocations pass.
 ///
 /// This struct wraps a `dyn ToolPort` and enforces OCAP authority, gas
@@ -87,7 +59,7 @@ impl GasEstimator for FlatEnergyEstimator {
 /// # Composition
 ///
 /// ```ignore
-/// let inner: Arc<dyn ToolPort> = Arc::new(McpDispatcher::new(...));
+/// let inner: Arc<dyn ToolPort> = Arc::new(McpDispatcher::new(runtime, secret));
 /// let governed = GovernedTool::new(
 ///     inner,
 ///     cybernetics_loop,
@@ -601,6 +573,88 @@ mod tests {
         // Outcome should record failure
         let completed_obs = &events[1].observation;
         assert_eq!(completed_obs["status"], "failure");
+    }
+
+    /// Helper: create a DelegationToken that authorizes a specific tool name.
+    fn token_for_tool(tool_name: &str) -> DelegationToken {
+        let secret = b"test-secret-key-for-governed-tool-tests";
+        let checker = hkask_types::CapabilityChecker::new(secret);
+        let from = WebID::new();
+        let to = WebID::new();
+        checker.grant_tool(tool_name.to_string(), from, to)
+    }
+
+    // =========================================================================
+    // Integration: CompositeGasEstimator -> GovernedTool -> budget enforcement
+    // =========================================================================
+
+    #[tokio::test]
+    async fn governed_tool_with_composite_estimates_inference_gas() {
+        let loop6 = test_cybernetics_loop();
+        let agent = WebID::new();
+
+        // Register a gas budget large enough for both calls
+        loop6
+            .read()
+            .await
+            .register_gas_budget(agent, GasBudget::new(10_000))
+            .await;
+
+        // Create GovernedTool with CompositeGasEstimator
+        let inner: Arc<dyn ToolPort> = Arc::new(MockToolPort::new());
+        let event_sink = Arc::new(MockNuEventSink::new());
+        let estimator = Arc::new(crate::composite_gas_estimator::CompositeGasEstimator::new());
+        let governed = GovernedTool::new(inner, loop6, event_sink, estimator, agent);
+
+        // Invoke inference tool -- should use token-based estimation
+        let token = token_for_tool("generate");
+        let args = serde_json::json!({"prompt": "Hello, world!", "max_tokens": 100});
+        let result = governed
+            .invoke("hkask-mcp-inference", "generate", args, &token)
+            .await;
+        assert!(result.is_ok(), "Inference invocation should succeed");
+
+        // Invoke web tool -- should use table estimation (50 gas)
+        let token = token_for_tool("search");
+        let result = governed
+            .invoke("hkask-mcp-web", "search", serde_json::json!({}), &token)
+            .await;
+        assert!(result.is_ok(), "Web invocation should succeed");
+    }
+
+    #[tokio::test]
+    async fn governed_tool_composite_rejects_when_budget_exhausted() {
+        let loop6 = test_cybernetics_loop();
+        let agent = WebID::new();
+
+        // Tiny budget: 10 gas -- web tool costs 50 gas via table estimator
+        loop6
+            .read()
+            .await
+            .register_gas_budget(agent, GasBudget::new(10))
+            .await;
+
+        let inner: Arc<dyn ToolPort> = Arc::new(MockToolPort::new());
+        let event_sink = Arc::new(MockNuEventSink::new());
+        let estimator = Arc::new(crate::composite_gas_estimator::CompositeGasEstimator::new());
+        let governed = GovernedTool::new(inner, loop6, event_sink, estimator, agent);
+
+        let token = token_for_tool("search");
+        // Web tool costs 50 gas -- exceeds budget of 10
+        let result = governed
+            .invoke("hkask-mcp-web", "search", serde_json::json!({}), &token)
+            .await;
+        assert!(result.is_err(), "Should reject when budget exhausted");
+        match result.unwrap_err() {
+            ToolPortError::EnergyBudgetExceeded(msg) => {
+                assert!(
+                    msg.contains("gas") || msg.contains("budget"),
+                    "Expected gas/budget in error message, got: {}",
+                    msg
+                );
+            }
+            other => panic!("Expected EnergyBudgetExceeded, got: {:?}", other),
+        }
     }
 
     #[tokio::test]

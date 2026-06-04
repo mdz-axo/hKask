@@ -163,3 +163,5 @@ define_id_type!(pub EventID);
 define_id_type!(pub(crate) SessionID);
 
 define_id_type!(pub GoalID, from_string);
+
+define_id_type!(pub EmbeddingID);

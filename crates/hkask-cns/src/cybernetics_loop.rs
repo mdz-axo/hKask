@@ -220,13 +220,6 @@ impl CyberneticsLoop {
         budgets.insert(agent, budget);
     }
 
-    /// Backward-compatible alias.
-    #[allow(dead_code)]
-    #[deprecated(since = "0.23.0", note = "Use register_gas_budget instead")]
-    pub(crate) async fn register_energy_budget(&self, agent: WebID, budget: GasBudget) {
-        self.register_gas_budget(agent, budget).await
-    }
-
     /// Check if an agent can proceed with an operation costing `gas`.
     pub async fn can_proceed(&self, agent: &WebID, gas: u64) -> bool {
         let budgets = self.energy_budgets.read().await;
@@ -1140,5 +1133,16 @@ mod tests {
         let defaults = SetPoints::default();
         assert_eq!(sp.energy_min_remaining, defaults.energy_min_remaining);
         assert_eq!(sp.variety_max_deficit, defaults.variety_max_deficit);
+    }
+
+    #[test]
+    fn set_points_yaml_full_config() {
+        let yaml = "energy_min_remaining: 0.3\nvariety_max_deficit: 200.0\nerror_rate_max: 0.4\nconnector_latency_max_secs: 60.0\n";
+        let config = SetPointsConfig::from_yaml(yaml).unwrap();
+        let sp = SetPoints::from_config(&config);
+        assert_eq!(sp.energy_min_remaining, 0.3);
+        assert_eq!(sp.variety_max_deficit, 200.0);
+        assert_eq!(sp.error_rate_max, 0.4);
+        assert_eq!(sp.connector_latency_max_secs, 60.0);
     }
 }

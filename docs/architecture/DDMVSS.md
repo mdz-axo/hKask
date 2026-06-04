@@ -1349,7 +1349,7 @@ impl SpecStore for SqliteSpecStore {
 - Newtypes `SpecId`, `CapabilityId` follow existing `hkask-types/src/id.rs` conventions.
 - `SpecCurationRecord` integrates with existing `CurationDecision` and `OCAPBoundary` from `curation.rs`.
 - `SpecCurator` trait has ≥2 potential consumers (spec-curator bot, human-via-CLI) — P1 compliant.
-- `SpecCategory::Curation` added as 9th category.
+- `SpecCategory` reduced to 4 live variants (Domain, Capability, Interface, Composition).
 - `SpecError::CurationDenied` and `SpecError::CoherenceInsufficient` — distinct recovery paths per C5.
 
 ---

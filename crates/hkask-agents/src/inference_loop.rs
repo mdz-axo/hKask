@@ -3,21 +3,14 @@
 //! Monitors circuit breaker state and inference availability.
 //! Lives in `hkask-agents` because domain loops (Inference, Episodic, Semantic,
 //! Communication, Curation) are domain logic — they belong with the agents crate.
-//! The membrane where Cybernetics governs Inference (`GovernedTool` via
-//! `InferenceGasEstimator`) lives in `hkask-cns`; the deprecated `GovernedInference`
-//! membrane also remains there for backward compatibility.
+//! Governance is applied externally via `GovernedTool` (in `hkask-cns`) before
+//! the port is passed to this loop.
 
-use hkask_types::WebID;
 use hkask_types::loops::{
     ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal,
 };
 use hkask_types::ports::{CircuitBreakerPort, InferencePort};
 use std::sync::Arc;
-use tokio::sync::RwLock;
-
-use hkask_cns::CyberneticsLoop;
-#[allow(deprecated)]
-use hkask_cns::GovernedInference;
 
 /// Inference Loop — monitors circuit breaker and inference availability.
 ///
@@ -52,8 +45,7 @@ impl InferenceLoop {
     /// Create an Inference Loop with a pre-governed inference port.
     ///
     /// Use this when the caller has already applied governance (e.g., via
-    /// `GovernedTool` with `InferenceGasEstimator`, or the deprecated
-    /// `GovernedInference`) to the inference port.
+    /// `GovernedTool` with `InferenceGasEstimator`) to the inference port.
     pub fn with_governed_port(inference: Arc<dyn InferencePort>) -> Self {
         Self {
             inference,
@@ -68,47 +60,6 @@ impl InferenceLoop {
     ) -> Self {
         Self {
             inference,
-            circuit_breaker: Some(circuit_breaker),
-        }
-    }
-
-    /// Create an Inference Loop governed by Cybernetics.
-    ///
-    /// This wraps the inference port with energy budget enforcement
-    /// before creating the loop. The returned loop uses the governed
-    /// port, so every `generate()` call passes through budget checks.
-    #[deprecated(
-        since = "0.23.0",
-        note = "Use `with_governed_port()` with a `GovernedTool`-wrapped inference port instead"
-    )]
-    #[allow(deprecated)] // GovernedInference is deprecated; kept for backward compatibility
-    pub fn governed(
-        inference: Arc<dyn InferencePort>,
-        cybernetics: Arc<RwLock<CyberneticsLoop>>,
-        agent: WebID,
-    ) -> Self {
-        let governed = Arc::new(GovernedInference::new(inference, cybernetics, agent));
-        Self {
-            inference: governed,
-            circuit_breaker: None,
-        }
-    }
-
-    /// Create a governed Inference Loop with a circuit breaker.
-    #[deprecated(
-        since = "0.23.0",
-        note = "Use `with_governed_port_and_circuit_breaker()` with a `GovernedTool`-wrapped inference port instead"
-    )]
-    #[allow(deprecated)] // GovernedInference is deprecated; kept for backward compatibility
-    pub fn governed_with_circuit_breaker(
-        inference: Arc<dyn InferencePort>,
-        cybernetics: Arc<RwLock<CyberneticsLoop>>,
-        agent: WebID,
-        circuit_breaker: Arc<dyn CircuitBreakerPort>,
-    ) -> Self {
-        let governed = Arc::new(GovernedInference::new(inference, cybernetics, agent));
-        Self {
-            inference: governed,
             circuit_breaker: Some(circuit_breaker),
         }
     }

@@ -165,19 +165,11 @@ impl GasBudget {
     }
 }
 
-/// Backward-compatible alias.
-#[deprecated(since = "0.23.0", note = "Use GasBudget instead")]
-pub type EnergyBudget = GasBudget;
-
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum GasError {
     #[error("Gas budget exceeded: requested {requested}, remaining {remaining}")]
     BudgetExceeded { requested: u64, remaining: u64 },
 }
-
-/// Backward-compatible alias.
-#[deprecated(since = "0.23.0", note = "Use GasError instead")]
-pub type EnergyError = GasError;
 
 #[cfg(test)]
 mod tests {

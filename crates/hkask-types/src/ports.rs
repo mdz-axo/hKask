@@ -445,3 +445,79 @@ pub struct ToolInfo {
     pub server_id: String,
     pub required_capability: Option<String>,
 }
+
+// =============================================================================
+// Embedding Port — Vector storage and similarity search membrane
+// =============================================================================
+
+/// Stored embedding record with metadata
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct StoredEmbedding {
+    /// Unique identifier for this embedding
+    pub id: String,
+    /// Reference to the entity (triple ID or arbitrary key)
+    pub entity_ref: String,
+    /// Raw embedding vector (f32)
+    pub vector: Vec<f32>,
+    /// Name of the model that produced this embedding
+    pub model: String,
+}
+
+/// Result of a similarity search query
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SimilarityResult {
+    /// The matching embedding record
+    pub embedding: StoredEmbedding,
+    /// Distance metric (lower = more similar for L2/cosine)
+    pub distance: f64,
+}
+
+/// Error type for embedding operations
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum EmbeddingError {
+    #[error("Embedding not found: {0}")]
+    NotFound(String),
+    #[error("Dimension mismatch: expected {expected}, got {actual}")]
+    DimensionMismatch { expected: usize, actual: usize },
+    #[error("Storage error: {0}")]
+    Storage(String),
+}
+
+/// Embedding Port — Hexagonal boundary for vector storage and similarity search
+///
+/// Provides storage and KNN similarity search over embedding vectors.
+/// The sqlite-vec virtual table provides the KNN index; the `embeddings`
+/// table stores metadata. This port abstracts over both.
+///
+/// Implementations:
+/// - `EmbeddingStore` — Production implementation via sqlite-vec (in hkask-storage)
+pub trait EmbeddingPort: Send + Sync {
+    /// Store an embedding vector, indexed by entity reference.
+    ///
+    /// The vector is stored in both the `embeddings` metadata table and the
+    /// `vec_embeddings` virtual table for KNN search.
+    fn store(
+        &self,
+        entity_ref: &str,
+        vector: &[f32],
+        model: &str,
+    ) -> Result<String, EmbeddingError>;
+
+    /// Retrieve an embedding by its entity reference.
+    fn get(&self, entity_ref: &str) -> Result<StoredEmbedding, EmbeddingError>;
+
+    /// Search for the K nearest neighbors of a query vector.
+    ///
+    /// Returns results ordered by ascending distance (most similar first).
+    fn search(
+        &self,
+        query_vector: &[f32],
+        limit: usize,
+    ) -> Result<Vec<SimilarityResult>, EmbeddingError>;
+
+    /// Delete an embedding by entity reference.
+    fn delete(&self, entity_ref: &str) -> Result<(), EmbeddingError>;
+
+    /// Count total embeddings stored.
+    fn count(&self) -> Result<usize, EmbeddingError>;
+}

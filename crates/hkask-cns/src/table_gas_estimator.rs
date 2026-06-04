@@ -1,6 +1,6 @@
 //! TableGasEstimator — Per-server gas cost table
 //!
-//! Replaces `FlatEnergyEstimator` with a configurable gas cost table.
+//! Per-server configurable gas cost table.
 //! Each (server, tool) pair maps to a gas cost. Inference tools use
 //! token-based estimation via `InferenceGasEstimator`; all other
 //! tools use the flat costs from this table.

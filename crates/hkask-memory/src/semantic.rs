@@ -1,9 +1,20 @@
 //! Semantic memory pipeline
+//!
+//! Provides the following subloops:
+//! - **Confidence promotion** (6d): Bayesian seeding when consolidating from episodic
+//!   (confidence seeding at 0.5 baseline) to promote confidence.
+//! - **Storage budget** (6e): Per-entity storage limit with retraction candidate
+//!   identification for lowest-confidence triples.
+//! - **Similarity-augmented recall**: KNN search over embeddings to find
+//!   semantically related triples, enabling context assembly that goes
+//!   beyond exact entity matches.
 
 use crate::bayesian;
 use crate::recall_dedup;
 use hkask_storage::{EmbeddingStore, Triple, TripleError, TripleStore};
 use hkask_types::Visibility;
+use hkask_types::ports::{EmbeddingError, EmbeddingPort, SimilarityResult};
+use std::sync::Arc;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -12,6 +23,8 @@ pub enum SemanticMemoryError {
     Triple(#[from] TripleError),
     #[error("Triple not found for retraction: {entity}/{attribute}")]
     TripleNotFound { entity: String, attribute: String },
+    #[error("Embedding error: {0}")]
+    Embedding(#[from] EmbeddingError),
 }
 
 /// Semantic memory — shared knowledge graph
@@ -21,22 +34,32 @@ pub enum SemanticMemoryError {
 ///   (confidence seeding at 0.5 baseline) to promote confidence.
 /// - **Storage budget** (6e): Per-entity storage limit with retraction candidate
 ///   identification for lowest-confidence triples.
+/// - **Similarity-augmented recall**: KNN search over embeddings to find
+///   semantically related triples, enabling context assembly that goes
+///   beyond exact entity matches.
 pub struct SemanticMemory {
     triple_store: TripleStore,
-    // Embedding store reserved for future SemanticLoop::tick() integration
-    _embedding_store: EmbeddingStore,
+    embedding: Arc<dyn EmbeddingPort>,
 }
 
 impl SemanticMemory {
     pub fn new(triple_store: TripleStore, embedding_store: EmbeddingStore) -> Self {
         Self {
             triple_store,
-            _embedding_store: embedding_store,
+            embedding: Arc::new(embedding_store),
         }
     }
 
-    // (store removed — zero external consumers)
-    // (query removed — zero external consumers)
+    /// Create with a pre-wired embedding port (for testing or custom backends).
+    pub fn with_embedding_port(
+        triple_store: TripleStore,
+        embedding: Arc<dyn EmbeddingPort>,
+    ) -> Self {
+        Self {
+            triple_store,
+            embedding,
+        }
+    }
 
     /// Query by entity with deduplication (entity_attribute_value_hash strategy).
     ///
@@ -47,22 +70,6 @@ impl SemanticMemory {
         let triples = self.triple_store.query_by_entity(entity)?;
         Ok(recall_dedup::dedup_triples(triples))
     }
-
-    // (query_deduped_with_stats removed — zero external consumers)
-    // (store_embedding removed — zero external consumers)
-
-    // (consolidate removed — zero external consumers)
-    // (check_budget removed — zero external consumers)
-    // (storage_usage removed — zero external consumers)
-    // (retraction_candidates removed — zero external consumers)
-    // (semantic_budget getter removed — zero external consumers)
-
-    // (recall removed — zero external consumers)
-
-    // (recall_combined removed — zero external consumers)
-    // (recall_combined_with_stats removed — zero external consumers)
-    // (query_similar removed — zero external consumers)
-    // (recall_with_similarity removed — zero external consumers)
 
     pub fn store(&self, mut triple: Triple) -> Result<(), SemanticMemoryError> {
         if triple.visibility != Visibility::Shared {
@@ -96,6 +103,42 @@ impl SemanticMemory {
     pub fn triple_count_for_entity(&self, entity: &str) -> Result<usize, SemanticMemoryError> {
         let triples = self.triple_store.query_by_entity(entity)?;
         Ok(triples.len())
+    }
+
+    // ========================================================================
+    // Embedding operations (Loop 2b) — similarity-augmented recall
+    // ========================================================================
+
+    /// Store an embedding vector for a semantic triple.
+    ///
+    /// The embedding is indexed by the triple's ID (`entity_ref`), enabling
+    /// similarity search to find semantically related triples.
+    pub fn store_embedding(
+        &self,
+        entity_ref: &str,
+        vector: &[f32],
+        model: &str,
+    ) -> Result<String, SemanticMemoryError> {
+        Ok(self.embedding.store(entity_ref, vector, model)?)
+    }
+
+    /// Search for semantically similar embeddings.
+    ///
+    /// Returns KNN results ordered by ascending distance (most similar first).
+    /// Use this for context assembly that goes beyond exact entity matches —
+    /// given a query embedding, find triples that are semantically close even
+    /// if their entity keys differ.
+    pub fn search_similar(
+        &self,
+        query_vector: &[f32],
+        limit: usize,
+    ) -> Result<Vec<SimilarityResult>, SemanticMemoryError> {
+        Ok(self.embedding.search(query_vector, limit)?)
+    }
+
+    /// Count stored embeddings.
+    pub fn embedding_count(&self) -> Result<usize, SemanticMemoryError> {
+        Ok(self.embedding.count()?)
     }
 
     // ========================================================================

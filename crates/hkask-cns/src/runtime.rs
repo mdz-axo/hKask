@@ -314,3 +314,88 @@ impl hkask_types::ports::CnsPort for CnsRuntime {
         CnsRuntime::increment_variety(self, domain, state_name).await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_types::event::SpanNamespace;
+    use hkask_types::loops::LoopId;
+    use hkask_types::ports::{BackpressureSignal, CnsObserver, DepletionSignal};
+    use std::sync::{Arc, Mutex};
+
+    /// Test observer that records events, depletion, and backpressure signals.
+    struct TestObserver {
+        events: Mutex<Vec<String>>,
+        depletions: Mutex<Vec<DepletionSignal>>,
+        backpressures: Mutex<Vec<BackpressureSignal>>,
+        mask: Vec<SpanNamespace>,
+    }
+
+    impl TestObserver {
+        fn new(mask: Vec<SpanNamespace>) -> Self {
+            Self {
+                events: Mutex::new(Vec::new()),
+                depletions: Mutex::new(Vec::new()),
+                backpressures: Mutex::new(Vec::new()),
+                mask,
+            }
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl CnsObserver for TestObserver {
+        fn interest_mask(&self) -> Vec<SpanNamespace> {
+            self.mask.clone()
+        }
+
+        async fn on_event(&self, event: &hkask_types::event::NuEvent) {
+            self.events.lock().unwrap().push(event.span.path.clone());
+        }
+
+        async fn on_depletion(&self, signal: &DepletionSignal) {
+            self.depletions.lock().unwrap().push(signal.clone());
+        }
+
+        async fn on_backpressure(&self, signal: &BackpressureSignal) {
+            self.backpressures.lock().unwrap().push(signal.clone());
+        }
+    }
+
+    #[tokio::test]
+    async fn cns_runtime_delivers_events_to_observer() {
+        let runtime = CnsRuntime::default();
+        let observer = Arc::new(TestObserver::new(vec![SpanNamespace::new("cns.variety")]));
+        runtime
+            .subscribe_async(observer.clone() as Arc<dyn CnsObserver>)
+            .await;
+
+        // "variety" maps to "cns.variety" via SpanNamespace::from_str — observer should be notified
+        runtime.increment_variety("variety", "test_state").await;
+
+        let events = observer.events.lock().unwrap();
+        assert!(
+            !events.is_empty(),
+            "Observer should have received at least one event"
+        );
+    }
+
+    #[tokio::test]
+    async fn cns_runtime_delivers_backpressure_to_observer() {
+        let runtime = CnsRuntime::default();
+        let observer = Arc::new(TestObserver::new(vec![SpanNamespace::new("cns.variety")]));
+        runtime
+            .subscribe_async(observer.clone() as Arc<dyn CnsObserver>)
+            .await;
+
+        let signal = BackpressureSignal {
+            source: LoopId::Cybernetics,
+            reason: "test backpressure".to_string(),
+            severity: 0.8,
+        };
+        runtime.emit_backpressure(signal).await;
+
+        let backpressures = observer.backpressures.lock().unwrap();
+        assert_eq!(backpressures.len(), 1);
+        assert_eq!(backpressures[0].reason, "test backpressure");
+    }
+}

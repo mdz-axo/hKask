@@ -1,7 +1,7 @@
 //! InferenceGasEstimator — Token-based gas cost estimation for inference
 //!
-//! Implements `GasEstimator` using the same token estimation heuristic as
-//! the deprecated `GovernedInference`: prompt characters / 4 + max_tokens.
+//! Implements `GasEstimator` using the token estimation heuristic:
+//! prompt characters / 4 + max_tokens.
 //! This estimator can be used with `GovernedTool` to govern inference
 //! through the unified tool membrane.
 
@@ -45,10 +45,6 @@ impl GasEstimator for InferenceGasEstimator {
         if total == 0 { 1 } else { total }
     }
 }
-
-/// Backward-compatible alias.
-#[deprecated(since = "0.23.0", note = "Use InferenceGasEstimator instead")]
-pub type InferenceEnergyEstimator = InferenceGasEstimator;
 
 #[cfg(test)]
 mod tests {

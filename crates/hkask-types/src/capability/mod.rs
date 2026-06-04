@@ -297,7 +297,7 @@ impl DelegationTokenBuilder {
     }
 
     /// Add a caveat.
-    pub fn caveat(mut self, caveat: Caveat) -> Self {
+    pub(crate) fn caveat(mut self, caveat: Caveat) -> Self {
         self.caveats.push(caveat);
         self
     }
@@ -572,7 +572,7 @@ impl DelegationToken {
     ///
     /// # Returns
     /// A new `DelegationToken` with the caveat added and re-signed
-    pub fn add_caveat(&self, caveat: Caveat, secret: &[u8]) -> Self {
+    pub(crate) fn add_caveat(&self, caveat: Caveat, secret: &[u8]) -> Self {
         let mut new_token = self.clone();
         new_token.caveats.push(caveat);
 
@@ -609,7 +609,7 @@ impl DelegationToken {
     }
 
     /// Access all caveats on this token
-    pub fn caveats(&self) -> &[Caveat] {
+    pub(crate) fn caveats(&self) -> &[Caveat] {
         &self.caveats
     }
 
