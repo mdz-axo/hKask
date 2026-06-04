@@ -66,6 +66,9 @@ pub(crate) fn default_gas_table() -> HashMap<&'static str, u64> {
     table.insert("hkask-mcp-episodic", 5);
     table.insert("hkask-mcp-semantic", 5);
 
+    // Replicant chat — internal LLM-mediated tool (same tier as memory servers)
+    table.insert("hkask-mcp-replicant", 5);
+
     // Inference is handled separately by InferenceGasEstimator
     table.insert("hkask-mcp-inference", 0); // Overridden by InferenceGasEstimator
 

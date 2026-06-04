@@ -978,7 +978,7 @@ process_manifest: spec/manifests/mvss-compose.yaml
 The templates above are instantiated for hKask (domain anchor: `hkask`, bounded context: "Agentic AI tooling"). Key self-application observations:
 
 - **Domain spec:** hKask's hLexicon allocates 75 terms across WordAct/FlowDef/KnowAct + 9 spec-curation terms — matches FA-D1.
-- **Capability spec:** 15 MCP servers × 6 actions + `hkask-mcp-spec` (8 tools) = 92 capability grant slots; current implementation covers ~60%.
+- **Capability spec:** 19 MCP servers × 6 actions + `hkask-mcp-spec` (8 tools) = 116 capability grant slots; current implementation covers ~60%.
 - **Interface spec:** `kask` binary (CLI), `hkask-mcp` (MCP), `hkask-api` (HTTP) — all route through `hkask-agents` core. `kask spec` subcommands added.
 - **Composition spec:** Unified registry with `template_type` discriminator (now including `Specification` type) — matches FA-Co1.
 - **Trust spec:** `CapabilityToken` in `hkask-types` implements HMAC-SHA256 + attenuation — matches FA-T1. Curation authority bounded via `OCAPBoundary`.

@@ -9,11 +9,14 @@ description = "Replicant chat MCP server — exposes a hKask replicant as an MCP
 hkask-types = { path = "../../crates/hkask-types" }
 hkask-agents = { path = "../../crates/hkask-agents" }
 hkask-templates = { path = "../../crates/hkask-templates" }
+hkask-storage = { path = "../../crates/hkask-storage" }
+hkask-keystore = { path = "../../crates/hkask-keystore" }
 hkask-mcp = { path = "../../crates/hkask-mcp" }
-rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
+rmcp = { workspace = true, features = ["server", "macros", "transport-io"] ]
 schemars.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
 tokio.workspace = true
 anyhow = "1"
+chrono.workspace = true

@@ -39,7 +39,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 | # | Anchor | Implementation |
 |---|--------|----------------|
 | 1 | **Agent Enablement** | Bots + Replicants in pods with WebID, ACP |
-| 2 | **Essential Tools** | 15 MCP servers + Okapi |
+| 2 | **Essential Tools** | 19 MCP servers + Okapi |
 | 3 | **User Sovereignty** | OCAP, SQLCipher, private/public gating |
 | 4 | **CNS** | `cns.*` spans, variety counters, algedonic alerts |
 | 5 | **Composition** | Unified registry with template_type discriminator |
@@ -61,7 +61,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 - `hkask-cli` — CLI commands
 - `hkask-api` — HTTP API, utoipa OpenAPI
 
-### MCP Servers (15 crates)
+### MCP Servers (19 crates)
 - `hkask-mcp-inference` — Okapi-backed LLM inference
 - `hkask-mcp-condenser` — General-purpose context reranking and condensation
 - `hkask-mcp-web` — Web search, scrape
@@ -77,6 +77,10 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 - `hkask-mcp-fal` — Media generation (FAL)
 - `hkask-mcp-rss-reader` — RSS feed reader
 - `hkask-mcp-goal` — Goal coordination substrate (OCAP-gated, CNS-observed); mirrors CLI/API
+- `hkask-mcp-ensemble` — Multi-agent chat coordination
+- `hkask-mcp-episodic` — Episodic memory (private, perspective-bound)
+- `hkask-mcp-semantic` — Semantic memory (public, shared)
+- `hkask-mcp-replicant` — Replicant chat (MCP bridge for external integrations)
 
 **Converted to templates** (not MCP servers):
 - `spandrel` → `templates/spandrel/` (graph analysis)
@@ -92,7 +96,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 | **MCP Server LOC (Rust)** | ~4,890 |
 | **Test Files** | 36 |
 | **Core Crates** | 11 (all complete) |
-| **MCP Servers** | 14 (12 complete, 2 stubs) |
+| **MCP Servers** | 19 (all complete) |
 | **Build/Clippy/Fmt** | All passing |
 
 ---
@@ -161,7 +165,7 @@ hKask is "done" when a single user can:
 4. Observe ≥3 subsystem-curator bots spawn at startup
 5. Trigger ensemble session with ≥2 subsystem-curators deliberating
 6. Invoke any operation through CLI or HTTP API with identical behavior
-Invoke any tool from 15 MCP set; observe routing
+Invoke any tool from 19 MCP set; observe routing
 8. Compose two tools via process template
 9. Record episodic memory with confidence
 10. Retrieve memory; observe `as-of` query returns historical state

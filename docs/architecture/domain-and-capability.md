@@ -30,7 +30,7 @@ hKask is a **minimal agent-native container platform** — the unit of compositi
 
 **Delegated (out of scope):**
 - LLM inference → Okapi (external service)
-External service integration → 18 MCP servers (tool surface) + AllostericGate in `hkask-cns::allosteric`
+External service integration → 19 MCP servers (tool surface) + AllostericGate in `hkask-cns::allosteric`
 - Storage encryption → SQLCipher (library dependency)
 - Key management → OS keychain (platform service)
 
@@ -45,7 +45,7 @@ graph TD
 
     subgraph Delegated["Delegated"]
         OKAPI["Okapi<br/>LLM inference"]
-        MCP_EXT["18 MCP Servers<br/>tool surface"]
+        MCP_EXT["19 MCP Servers<br/>tool surface"]
         SQLITE["SQLite + SQLCipher<br/>encrypted storage"]
         KEYCHAIN["OS Keychain<br/>key management"]
     end
@@ -77,7 +77,7 @@ hKask is built on five non-negotiable anchor capabilities:[^wiener-cybernetics]
 | # | Anchor | Implementation | DDMVSS Category |
 |---|--------|---------------|-----------------|
 | 1 | **Agent Enablement** | Bots + Replicants in pods with WebID, ACP | Domain |
-| 2 | **Essential Tools** | 18 MCP servers + Okapi + AllostericGate in CNS | Capability |
+| 2 | **Essential Tools** | 19 MCP servers + Okapi + AllostericGate in CNS | Capability |
 | 3 | **User Sovereignty** | OCAP, SQLCipher, private/public gating | Trust |
 | 4 | **CNS** | `cns.*` spans, variety counters, algedonic alerts | Observability |
 | 5 | **Composition** | Unified registry with `template_type` discriminator | Composition |
@@ -316,7 +316,7 @@ status: VERIFIED
 
 ### 6.1 Server Inventory
 
-18 MCP servers provide the tool surface (allosteric regulation via `AllostericGate` in `hkask-cns::allosteric`), each gated through `SecurityGateway` (`crates/hkask-mcp/src/security.rs`):
+19 MCP servers provide the tool surface (allosteric regulation via `AllostericGate` in `hkask-cns::allosteric`), each gated through `SecurityGateway` (`crates/hkask-mcp/src/security.rs`):
 
 | MCP Server | Crate | LOC | Status | Domain |
 |-----------|-------|-----|--------|--------|
@@ -338,8 +338,9 @@ status: VERIFIED
 | ensemble | `hkask-mcp-ensemble` | 295 | ✅ Complete | Multi-agent chat coordination |
 | episodic | `hkask-mcp-episodic` | 190 | ✅ Complete | Episodic memory (private, perspective-bound) |
 | semantic | `hkask-mcp-semantic` | 290 | ✅ Complete | Semantic memory (public, shared) |
+| replicant | `hkask-mcp-replicant` | ~310 | ✅ Complete | Replicant chat (MCP bridge for external integrations) |
 
-**Total:** 18 servers, 110+ tools, 0 stubs (P6 compliance). Allosteric regulation lives in `hkask-cns::allosteric` (`AllostericGate`, `AllostericGateConfig`, MWC state function).
+**Total:** 19 servers, 115+ tools, 0 stubs (P6 compliance). Allosteric regulation lives in `hkask-cns::allosteric` (`AllostericGate`, `AllostericGateConfig`, MWC state function).
 
 **Audit:** [`docs/status/mcp-server-audit.md`](../status/mcp-server-audit.md)
 
@@ -359,6 +360,27 @@ status: VERIFIED
 | `spec/graph/validate` | Validate spec graph completeness | evaluate, ground |
 
 **verified-against:** `mcp-servers/hkask-mcp-spec/src/lib.rs` (tool_router at lines 278, 329, 397, 460, 519, 619, 674, 733)
+
+### 6.3 `hkask-mcp-replicant` — External Integration Bridge
+
+`hkask-mcp-replicant` is the **external integration bridge** — the only MCP server designed for consumption by external MCP clients (Zed, VS Code, custom toolchains) rather than internal hKask agents. It exposes a replicant persona as an MCP tool, enabling "chat with Jacques" from Zed's Agent Panel.
+
+| Tool | Description | hLexicon Terms |
+|------|-------------|----------------|
+| `replicant_chat` | Send a message to a replicant and receive an inference response | elicit, respond |
+| `replicant_status` | Check replicant registration and identity | recognize, query |
+
+**Architecture:** The server follows the same pod-mediated inference flow as `kask chat` (`crates/hkask-cli/src/commands/chat.rs`):
+
+1. Resolve persona name → `WebID` (via `HKASK_AGENT_PERSONA`)
+2. Build pod via `PodManagerBuilder` (auto-resolves ACP runtime and capability checker)
+3. Create + activate pod with `tool:inference:call` capability
+4. Route message through `PodContext::inference_port()` → `generate_with_model()`
+5. Return LLM response as structured JSON
+
+This bridges the gap between Zed's MCP context server model and hKask's ACP/pod-mediated architecture. While other MCP servers expose *infrastructure capabilities* (search, storage, inference), `hkask-mcp-replicant` exposes an *agent persona* for conversation — a fundamentally different interaction pattern.
+
+**verified-against:** `mcp-servers/hkask-mcp-replicant/src/tools.rs` (tool_router)
 
 ---
 

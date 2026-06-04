@@ -16,7 +16,7 @@
 |--------|-------------|
 | **Agent Enablement** | Bots + Replicants run in pods with WebID, ACP |
 | **Model Selection** | Switch LLM per-agent via `/model` (CLI) or `model` field (API) |
-| **Essential Tools** | 15 MCP servers + Okapi for inference |
+| **Essential Tools** | 19 MCP servers + Okapi for inference |
 | **User Sovereignty** | OCAP, SQLCipher encryption, private/public gating |
 | **CNS** | Homeostatic self-regulation: variety sensing, algedonic alerts, OCAP governance, energy budgets |
 | **Composition** | Unified registry with `template_type` discriminator |
@@ -39,7 +39,7 @@
 | `hkask-cli` | CLI commands |
 | `hkask-api` | HTTP API (utoipa) |
 
-**MCP Servers:** `inference` (Okapi LLM), `condenser`, `web`, `ocap`, `keystore`, `cns`, `git`, `registry`, `spec`, `goal`, `github`, `fmp`, `telnyx`, `fal`, `rss-reader`
+**MCP Servers:** `inference` (Okapi LLM), `condenser`, `web`, `ocap`, `keystore`, `cns`, `git`, `registry`, `spec`, `goal`, `github`, `fmp`, `telnyx`, `fal`, `rss-reader`, `ensemble`, `episodic`, `semantic`, `replicant`
 
 **External deps:** Okapi (mdz-axo/Okapi), ACP (acp-runtime), MCP (rmcp)
 

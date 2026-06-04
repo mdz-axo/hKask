@@ -100,6 +100,7 @@ for its category cluster.
 |----------|--------|-------------|
 | [`PROJECT_STATUS.md`](status/PROJECT_STATUS.md) | all | **Single source of truth** for metrics, build, test, DDMVSS completeness |
 | [`mcp-server-audit.md`](status/mcp-server-audit.md) | capability, observability | MCP server completeness audit |
+| [`mcp-tools-inventory.md`](status/mcp-tools-inventory.md) | capability, interface | Complete catalog of all MCP tools by server with gas costs and credentials |
 
 ---
 

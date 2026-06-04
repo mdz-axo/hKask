@@ -11,9 +11,9 @@ ddmvss_categories: [capability, observability]
 # MCP Server Completeness Audit
 
 **Date:** 2026-05-29
-**Version:** hKask v0.21.0
-**Total servers:** 15
-**Total tools:** 102+
+**Version:** hKask v0.22.0
+**Total servers:** 19
+**Total tools:** 115+
 
 ---
 
@@ -36,6 +36,10 @@ ddmvss_categories: [capability, observability]
 | `hkask-mcp-registry` | 310 | 6 | **Full** | Template registry CRUD and search operations |
 | `hkask-mcp-cns` | 280 | 6 | **Full** | CNS health, variety, alerts, metrics operations |
 | `hkask-mcp-telnyx` | 244 | 8 | **Full** | Telnyx SMS/voice API integration |
+| `hkask-mcp-ensemble` | 295 | 5 | **Full** | Multi-agent chat coordination |
+| `hkask-mcp-episodic` | 190 | 4 | **Full** | Episodic memory (private, perspective-bound) |
+| `hkask-mcp-semantic` | 290 | 6 | **Full** | Semantic memory (public, shared) |
+| `hkask-mcp-replicant` | ~310 | 2 | **Full** | Replicant chat — MCP bridge for external integrations (Zed, etc.) |
 
 ---
 
@@ -43,7 +47,7 @@ ddmvss_categories: [capability, observability]
 
 | Status | Count | Servers |
 |--------|-------|---------|
-| **Full** | 15 | All servers |
+| **Full** | 19 | All servers |
 | **Partial** | 0 | — |
 | **Shell** | 0 | — |
 
@@ -126,25 +130,113 @@ ddmvss_categories: [capability, observability]
 - **Tools:** SMS send, voice call, message status, number lookup operations
 - **Notes:** Telnyx API integration for SMS and voice capabilities. Compact but feature-complete.
 
-### `hkask-mcp-ensemble` (295 LOC, ~6 tools)
+### `hkask-mcp-ensemble` (295 LOC, 5 tools)
 - **Status:** Full
-- **Tools:** Multi-agent chat coordination, deliberation dispatch
-- **Notes:** MCP surface for `hkask-ensemble` crate. Manages standing sessions and confidence routing.
+- **Tools:** `coordinate_session`, `register_participant`, `send_message`, `get_status`, `improv_turn`
+- **Notes:** MCP surface for `hkask-ensemble` crate. Manages standing sessions, participant registration, message passing, and improvisation turns with confidence routing.
 
-### `hkask-mcp-episodic` (190 LOC, ~5 tools)
+### `hkask-mcp-episodic` (190 LOC, 4 tools)
 - **Status:** Full
-- **Tools:** Store, recall, query episodic memories (private, perspective-bound)
-- **Notes:** Episodic memory MCP server. Sovereignty boundary: episodic memories are private by design.
+- **Tools:** `episodic_ping`, `episodic_store`, `episodic_recall`, `episodic_budget`
+- **Notes:** Episodic memory MCP server. Sovereignty boundary: episodic memories are private by design, scoped to caller's WebID.
 
-### `hkask-mcp-semantic` (290 LOC, ~5 tools)
-- **Tools:** Store, recall, query, consolidate semantic memories (public, shared)
-- **Notes:** Semantic memory MCP server. Public/shared visibility boundary. Consolidation bridge to episodic.
+### `hkask-mcp-semantic` (290 LOC, 6 tools)
+- **Status:** Full
+- **Tools:** `semantic_ping`, `semantic_store`, `semantic_recall`, `semantic_embed`, `semantic_search`, `semantic_count`
+- **Notes:** Semantic memory MCP server. Public/shared visibility boundary. Embedding storage and KNN similarity search.
+
+### `hkask-mcp-replicant` (~310 LOC, 2 tools)
+- **Status:** Full
+- **Tools:** `replicant_chat`, `replicant_status`
+- **Notes:** Replicant chat MCP server — bridges external MCP clients (e.g., Zed Agent Panel) with hKask's pod-mediated inference flow. Resolves a replicant persona name → WebID, creates a pod via `PodManagerBuilder` (same flow as `kask chat`), and sends messages through pod-mediated inference via `InferencePort`. See §6.3 below for architecture details.
+
+---
+
+## Architecture Spotlight: `hkask-mcp-replicant`
+
+### Purpose
+
+`hkask-mcp-replicant` is the **external integration bridge** for hKask. It enables external MCP clients (Zed, VS Code, custom toolchains) to chat with a hKask replicant without running `kask chat` directly. This server is the mechanism by which a replicant like "Jacques" becomes accessible from Zed's Agent Panel.
+
+### How It Differs from Other MCP Servers
+
+| Dimension | Standard MCP Servers | `hkask-mcp-replicant` |
+|-----------|----------------------|----------------------|
+| **Purpose** | Expose infrastructure capabilities (search, storage, inference) | Expose a replicant persona for conversation |
+| **Input** | Structured tool parameters | Natural language message |
+| **Output** | Structured JSON result | LLM-generated response text |
+| **State** | Stateless (per-call) | Pod-mediated (creates + activates pod per chat) |
+| **Inference** | Not involved | Core function — routes through `InferencePort` |
+| **Client** | Internal agents (via `McpRuntime` dispatch) | External MCP clients (Zed, VS Code, etc.) |
+
+### Architecture
+
+```mermaid
+sequenceDiagram
+    participant Client as External MCP Client
+    participant Server as hkask-mcp-replicant
+    participant Builder as PodManagerBuilder
+    participant Pod as AgentPod
+    participant Okapi as Okapi LLM
+
+    Client->>Server: replicant_chat {message, model?}
+    Server->>Server: Resolve persona → WebID
+    Server->>Builder: PodManagerBuilder::new()
+    Builder->>Builder: Auto-resolve AcpRuntime + CapabilityChecker
+    Builder-->>Server: PodManager
+    Server->>Pod: create_pod(persona, capabilities)
+    Server->>Pod: activate_pod(pod_id)
+    Pod-->>Server: PodContext (inference_port)
+    Server->>Okapi: generate_with_model(prompt, params, model)
+    Okapi-->>Server: InferenceResult
+    Server-->>Client: {text, model, usage, persona}
+```
+
+The server follows the same pod-mediated inference flow as `kask chat` (`crates/hkask-cli/src/commands/chat.rs`):
+
+1. **Resolve persona** — `HKASK_AGENT_PERSONA` env var → `WebID::from_persona()`
+2. **Build pod** — `PodManagerBuilder` with auto-resolved ACP runtime and capability checker
+3. **Create + activate pod** — Persona YAML with `tool:inference:call` capability
+4. **Inference** — `PodContext::inference_port()` → `generate_with_model()` with model override
+5. **Return response** — JSON with `text`, `model`, `usage`, `persona`, `finish_reason`
+
+### Configuration
+
+| Environment Variable | Default | Purpose |
+|---------------------|---------|---------|
+| `HKASK_AGENT_PERSONA` | `Curator` | Replicant persona name (resolves to deterministic WebID) |
+| `HKASK_DEFAULT_MODEL` | `deepseek-v4-pro` | Default LLM model for inference |
+| `OKAPI_BASE_URL` | `http://127.0.0.1:11435` | Okapi API endpoint |
+
+### Zed Integration
+
+To register a replicant (e.g., "Jacques") in Zed's `settings.json`:
+
+```json
+{
+  "context_servers": {
+    "hkask-jacques": {
+      "command": "/path/to/hkask-mcp-replicant",
+      "args": [],
+      "env": {
+        "HKASK_AGENT_PERSONA": "Jacques",
+        "HKASK_DEFAULT_MODEL": "deepseek-v4-pro",
+        "OKAPI_BASE_URL": "http://127.0.0.1:11435"
+      }
+    }
+  }
+}
+```
+
+### CNS Gas Budget
+
+Registered in `table_gas_estimator.rs` with gas cost **5** (internal LLM-mediated tool, same tier as episodic/semantic memory servers). Inference gas is further governed by the `InferenceGasEstimator` via the `GovernedTool` membrane.
 
 ---
 
 ## Recommendations
 
-1. **No shell servers.** All 18 MCP servers register real tools with implementations. Zero stubs remain (P6 compliance).
+1. **No shell servers.** All 19 MCP servers register real tools with implementations. Zero stubs remain (P6 compliance).
 
 2. **Per-crate README:** Create individual `README.md` files in each `mcp-servers/hkask-mcp-*/README.md` documenting the tool surface, configuration, and any external service dependencies.
 
@@ -156,4 +248,4 @@ ddmvss_categories: [capability, observability]
 
 ---
 
-*ℏKask MCP Arsenal — 18 servers, ~110 tools, 0 stubs — v0.22.0*
+*ℏKask MCP Arsenal — 19 servers, ~115 tools, 0 stubs — v0.22.0*
