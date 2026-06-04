@@ -160,10 +160,22 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
     };
     let (acp, store) = init_registry_with_secrets(&resolved)
         .await
+        .map_err(|e| {
+            // Clean up keychain entries if registry init fails
+            let _ = cleanup_keychain();
+            e
+        })
         .map_err(OnboardingError::Registry)?;
 
     // Register the new replicant
-    register_replicant(&acp, &store, &name, &description).await?;
+    register_replicant(&acp, &store, &name, &description)
+        .await
+        .map_err(|e| {
+            // Clean up keychain and DB if registration fails
+            let _ = cleanup_keychain();
+            let _ = cleanup_db();
+            e
+        })?;
 
     println!();
     println!(
@@ -255,8 +267,8 @@ async fn register_replicant(
             vec![
                 "tool:inference:call".to_string(),
                 "tool:mcp:invoke".to_string(),
-                "memory:episodic:read".to_string(),
-                "memory:episodic:write".to_string(),
+                "registry:episodic_memory:read".to_string(),
+                "registry:episodic_memory:write".to_string(),
             ],
         )
         .await
@@ -275,6 +287,8 @@ async fn register_replicant(
         capabilities: vec![
             "tool:inference:call".to_string(),
             "tool:mcp:invoke".to_string(),
+            "registry:episodic_memory:read".to_string(),
+            "registry:episodic_memory:write".to_string(),
         ],
         rights: vec![],
         responsibilities: vec![],
@@ -416,7 +430,9 @@ fn prompt_passphrase_with_confirm() -> Result<String, std::io::Error> {
     }
 }
 
-/// Prompt for a numeric choice within a range
+/**
+ * Prompt for a numeric choice within a range
+ */
 fn prompt_choice(
     prompt: &str,
     range: std::ops::RangeInclusive<usize>,
@@ -434,4 +450,39 @@ fn prompt_choice(
             }
         }
     }
+}
+
+/// Remove keychain entries created during onboarding.
+///
+/// Used for cleanup when onboarding fails after keychain storage
+/// but before successful completion.
+fn cleanup_keychain() -> Result<(), OnboardingError> {
+    let keychain = Keychain::default();
+    keychain
+        .delete_by_key("acp-secret")
+        .map_err(OnboardingError::Keychain)?;
+    keychain
+        .delete_by_key("hkask-db-passphrase")
+        .map_err(OnboardingError::Keychain)?;
+    Ok(())
+}
+
+/// Remove the database and salt files created during onboarding.
+///
+/// Used for cleanup when onboarding fails after DB initialization
+/// but before successful completion. This prevents orphaned encrypted
+/// DB files from poisoning subsequent onboarding attempts.
+fn cleanup_db() -> Result<(), OnboardingError> {
+    let db_path = registry_db_path();
+    if db_path != ":memory:" {
+        let db_file = std::path::Path::new(&db_path);
+        if db_file.exists() {
+            std::fs::remove_file(db_file).map_err(OnboardingError::Io)?;
+        }
+        let salt_file = std::path::PathBuf::from(format!("{}.salt", db_path));
+        if salt_file.exists() {
+            std::fs::remove_file(salt_file).map_err(OnboardingError::Io)?;
+        }
+    }
+    Ok(())
 }

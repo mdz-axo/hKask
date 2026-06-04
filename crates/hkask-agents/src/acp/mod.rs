@@ -55,7 +55,9 @@ type AgentSecret = Arc<Zeroizing<Vec<u8>>>;
 ///
 /// # Errors
 /// Returns `AcpError::MalformedCapability` if the capability string is invalid
-fn parse_capability(capability: &str) -> Result<(DelegationResource, DelegationAction), AcpError> {
+fn parse_capability(
+    capability: &str,
+) -> Result<(DelegationResource, String, DelegationAction), AcpError> {
     let parts: Vec<&str> = capability.split(':').collect();
 
     if parts.len() < 2 || parts.len() > 3 {
@@ -69,12 +71,20 @@ fn parse_capability(capability: &str) -> Result<(DelegationResource, DelegationA
         AcpError::MalformedCapability(format!("Unknown resource type: {}", parts[0]))
     })?;
 
+    // For 3-part capabilities (resource:domain:action), the resource_id is the domain.
+    // For 2-part capabilities (resource:action), the resource_id is the full string.
+    let resource_id = if parts.len() == 3 {
+        parts[1].to_string()
+    } else {
+        capability.to_string()
+    };
+
     let action_str = parts
         .last()
-        .expect("splitn always produces at least one element");
+        .expect("split always produces at least one element");
     let action = DelegationAction::parse_str(action_str).unwrap_or(DelegationAction::Execute);
 
-    Ok((resource, action))
+    Ok((resource, resource_id, action))
 }
 
 /// ACP error types for security and validation
@@ -292,10 +302,10 @@ impl AcpRuntime {
         // Create delegation tokens for ALL capabilities via root authority
         let mut tokens_vec: Vec<DelegationToken> = Vec::with_capacity(capabilities.len());
         for cap in &capabilities {
-            let (resource, action) = parse_capability(cap)?;
+            let (resource, resource_id, action) = parse_capability(cap)?;
             let token = self
                 .root_authority
-                .create_root_token(resource, cap.clone(), action, webid)
+                .create_root_token(resource, resource_id, action, webid)
                 .await?;
             tokens_vec.push(token);
         }
@@ -304,10 +314,10 @@ impl AcpRuntime {
         let primary_token = if let Some(first) = tokens_vec.first() {
             first.clone()
         } else {
-            let (resource, action) = parse_capability("tool:execute")?;
+            let (resource, resource_id, action) = parse_capability("tool:execute")?;
             let token = self
                 .root_authority
-                .create_root_token(resource, "tool:execute".to_string(), action, webid)
+                .create_root_token(resource, resource_id, action, webid)
                 .await?;
             tokens_vec.push(token.clone());
             token

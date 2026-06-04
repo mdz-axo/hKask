@@ -149,7 +149,7 @@ impl AgentPersona {
                     Some(DelegationResource::Tool)
                 } else if cap.starts_with("template:") {
                     Some(DelegationResource::Template)
-                } else if cap.starts_with("memory:") {
+                } else if cap.starts_with("registry:") || cap.starts_with("memory:") {
                     Some(DelegationResource::Registry)
                 } else {
                     None

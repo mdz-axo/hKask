@@ -111,7 +111,7 @@ impl DelegationResource {
         match s.split(':').next() {
             Some("tool") => Some(DelegationResource::Tool),
             Some("template") => Some(DelegationResource::Template),
-            Some("registry") => Some(DelegationResource::Registry),
+            Some("registry") | Some("memory") => Some(DelegationResource::Registry),
             _ => None,
         }
     }
