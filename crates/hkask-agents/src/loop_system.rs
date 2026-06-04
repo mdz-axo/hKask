@@ -206,7 +206,12 @@ impl LoopSystem {
         // 1. Dispatch forwarder: dispatch_rx → MessageDispatch
         {
             let dispatch = Arc::clone(&self.dispatch);
-            let mut rx_guard = self.dispatch_rx.lock().unwrap();
+            // SAFETY: lock is held briefly during startup; poison indicates a panic
+            // in code that already broke, so unwrapping is consistent with abort semantics.
+            let mut rx_guard = self
+                .dispatch_rx
+                .lock()
+                .expect("dispatch_rx lock poisoned during LoopSystem::start");
             let mut rx = std::mem::replace(&mut *rx_guard, {
                 // Replace with a closed channel so nobody can use it
                 let (_, dead_rx) = tokio::sync::mpsc::unbounded_channel();
