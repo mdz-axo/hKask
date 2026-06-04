@@ -810,4 +810,120 @@ mod tests {
         // Non-matching paths return None
         assert_eq!(Registry::migrate_flat_to_nested("no_prefix.j2"), None);
     }
+
+    #[test]
+    fn registry_entry_validate_clean() {
+        use hkask_types::ports::RegistryEntry;
+
+        let entry = RegistryEntry {
+            id: "wordact/render".into(),
+            template_type: TemplateType::WordAct,
+            name: "Prompt Render".into(),
+            lexicon_terms: vec!["render".into()],
+            description: "Renders prompt".into(),
+            source_path: "registry/templates/wordact/render.j2".into(),
+            required_capabilities: vec![],
+            cascade_level: 0,
+            matroshka_limit: 7,
+        };
+        let warnings = entry.validate();
+        assert!(
+            warnings.is_empty(),
+            "Expected no warnings, got: {:?}",
+            warnings
+        );
+    }
+
+    #[test]
+    fn registry_entry_validate_exhausted_nesting() {
+        use hkask_types::ports::RegistryEntry;
+
+        let entry = RegistryEntry {
+            id: "wordact/deep".into(),
+            template_type: TemplateType::WordAct,
+            name: "Deep Nesting".into(),
+            lexicon_terms: vec![],
+            description: "".into(),
+            source_path: "registry/templates/wordact/deep.j2".into(),
+            required_capabilities: vec![],
+            cascade_level: 7,
+            matroshka_limit: 7,
+        };
+        let warnings = entry.validate();
+        assert!(
+            warnings.iter().any(|w| w.contains("nesting exhausted")),
+            "Expected nesting exhausted warning, got: {:?}",
+            warnings
+        );
+    }
+
+    #[test]
+    fn registry_entry_can_nest() {
+        use hkask_types::ports::RegistryEntry;
+
+        let entry = RegistryEntry {
+            id: "test".into(),
+            template_type: TemplateType::WordAct,
+            name: "Test".into(),
+            lexicon_terms: vec![],
+            description: "".into(),
+            source_path: "test.j2".into(),
+            required_capabilities: vec![],
+            cascade_level: 3,
+            matroshka_limit: 7,
+        };
+        assert!(entry.can_nest());
+
+        let exhausted = RegistryEntry {
+            id: "test".into(),
+            template_type: TemplateType::WordAct,
+            name: "Test".into(),
+            lexicon_terms: vec![],
+            description: "".into(),
+            source_path: "test.j2".into(),
+            required_capabilities: vec![],
+            cascade_level: 7,
+            matroshka_limit: 7,
+        };
+        assert!(!exhausted.can_nest());
+    }
+
+    #[test]
+    fn register_with_lexicon_validation() {
+        use hkask_types::HLexicon;
+
+        let mut registry = Registry::new();
+        let lexicon = HLexicon::bootstrap();
+        registry.set_lexicon(lexicon);
+
+        // Register entry with all-known terms — should succeed
+        let entry = RegistryEntry {
+            id: "knowact/calibrate".into(),
+            template_type: TemplateType::KnowAct,
+            name: "Calibration".into(),
+            lexicon_terms: vec!["calibrate".into(), "reflect".into()],
+            description: "Calibrates agent".into(),
+            source_path: "registry/templates/knowact/calibrate.j2".into(),
+            required_capabilities: vec![],
+            cascade_level: 0,
+            matroshka_limit: 7,
+        };
+        registry.register(entry);
+        assert!(registry.get("knowact/calibrate").is_some());
+    }
+
+    #[test]
+    fn skill_list_and_remove() {
+        let mut registry = Registry::new();
+        registry.register_skill(Skill::new("research", TemplateType::KnowAct));
+        registry.register_skill(Skill::new("deploy", TemplateType::FlowDef));
+
+        assert_eq!(registry.list_skills().len(), 2);
+
+        let removed = registry.remove_skill("research");
+        assert!(removed.is_some());
+        assert_eq!(removed.unwrap().id, "research");
+        assert!(registry.get_skill("research").is_none());
+        assert_eq!(registry.list_skills().len(), 1);
+    }
 }
