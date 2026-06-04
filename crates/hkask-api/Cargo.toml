@@ -15,6 +15,7 @@ hkask-ensemble = { path = "../hkask-ensemble" }
 hkask-keystore = { path = "../hkask-keystore" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-memory = { path = "../hkask-memory" }
+async-trait.workspace = true
 axum.workspace = true
 utoipa.workspace = true
 utoipa-axum.workspace = true

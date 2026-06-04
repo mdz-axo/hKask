@@ -838,6 +838,7 @@ dependencies = [
 name = "hkask-api"
 version = "0.21.1"
 dependencies = [
+ "async-trait",
  "axum",
  "chrono",
  "hkask-agents",

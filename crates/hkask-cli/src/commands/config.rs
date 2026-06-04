@@ -131,12 +131,44 @@ pub fn open_spec_store() -> Result<hkask_storage::SqliteSpecStore, crate::errors
     Ok(store)
 }
 
-/// Create an MCP dispatcher wired to a fresh runtime with a capability token.
+/// Create an MCP dispatcher wired with GovernedTool and a capability token.
 /// Returns (McpDispatcher, token) for invoking tools.
 pub fn create_mcp_dispatcher() -> (hkask_mcp::McpDispatcher, hkask_types::CapabilityToken) {
+    use hkask_cns::{CnsRuntime, CompositeGasEstimator, CyberneticsLoop, GovernedTool};
+    use hkask_mcp::raw_tool_port::RawMcpToolPort;
+    use hkask_storage::Database;
+    use hkask_types::event::NuEventSink;
+    use hkask_types::ports::ToolPort;
+    use std::sync::Arc;
+
     let runtime = hkask_mcp::runtime::McpRuntime::new();
     let secret = b"hkask-devel-mcp-secret-key-32byte!";
-    let dispatcher = hkask_mcp::McpDispatcher::with_default_cns(runtime, secret);
+
+    let cns_rwlock: Arc<tokio::sync::RwLock<CnsRuntime>> =
+        Arc::new(tokio::sync::RwLock::new(CnsRuntime::default()));
+    let (dispatch_tx, _) =
+        tokio::sync::mpsc::unbounded_channel::<hkask_types::loops::LoopMessage>();
+    let cybernetics = Arc::new(tokio::sync::RwLock::new(CyberneticsLoop::new(
+        cns_rwlock,
+        dispatch_tx,
+    )));
+
+    let raw_port: Arc<dyn ToolPort> = Arc::new(RawMcpToolPort::new(runtime.clone()));
+    let event_sink: Arc<dyn NuEventSink> = Arc::new(hkask_storage::NuEventStore::new(
+        Database::in_memory().expect("event db").conn_arc(),
+    ));
+    let estimator = Arc::new(CompositeGasEstimator::new());
+    let agent = hkask_types::WebID::from_persona(b"curator");
+
+    let governed: Arc<dyn ToolPort> = Arc::new(GovernedTool::new(
+        raw_port,
+        cybernetics,
+        event_sink,
+        estimator,
+        agent,
+    ));
+
+    let dispatcher = hkask_mcp::McpDispatcher::with_governed_tool(runtime, secret, governed);
     let from = hkask_types::WebID::new();
     let to = hkask_types::WebID::new();
     let token = dispatcher.issue_capability("tools".to_string(), from, to);

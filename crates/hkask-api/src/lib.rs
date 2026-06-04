@@ -42,14 +42,16 @@ use hkask_agents::escalation::EscalationQueue;
 use hkask_agents::loop_system::LoopSystem;
 use hkask_agents::pod::PodManager;
 use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
-use hkask_cns::{CnsRuntime, CyberneticsLoop};
+use hkask_cns::{CnsRuntime, CompositeGasEstimator, CyberneticsLoop, GovernedTool};
 use hkask_memory::{
     ConsolidationBridge, EpisodicLoop, EpisodicMemory, SemanticLoop, SemanticMemory,
 };
 use hkask_storage::{Database, EmbeddingStore, TripleStore};
 use hkask_templates::SqliteRegistry;
+use hkask_types::event::NuEventSink;
 use hkask_types::loops::HkaskLoop;
 use hkask_types::loops::curation::CuratorHandle;
+use hkask_types::ports::ToolPort;
 use hkask_types::{CapabilityChecker, WebID};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -121,6 +123,33 @@ pub struct ApiState {
     pub cns_runtime: Arc<CnsRuntime>,
 }
 
+/// Adapter to share a CyberneticsLoop between the loop system and GovernedTool.
+/// GovernedTool needs `Arc<RwLock<CyberneticsLoop>>`, but `register_loop` needs `Arc<dyn HkaskLoop>`.
+/// This adapter bridges the gap.
+struct CyberneticsLoopHandle(Arc<tokio::sync::RwLock<CyberneticsLoop>>);
+
+#[async_trait::async_trait]
+impl HkaskLoop for CyberneticsLoopHandle {
+    fn id(&self) -> hkask_types::loops::LoopId {
+        hkask_types::loops::LoopId::Cybernetics
+    }
+
+    async fn sense(&self) -> Vec<hkask_types::loops::Signal> {
+        self.0.read().await.sense().await
+    }
+
+    async fn compute(
+        &self,
+        deviations: &[hkask_types::loops::Deviation],
+    ) -> Vec<hkask_types::loops::LoopAction> {
+        self.0.read().await.compute(deviations).await
+    }
+
+    async fn act(&self, actions: &[hkask_types::loops::LoopAction]) {
+        self.0.read().await.act(actions).await
+    }
+}
+
 /// Build the LoopSystem with all 6 loops.
 ///
 /// Creates CnsRuntime, MessageDispatch, LoopSystem, and registers:
@@ -132,7 +161,11 @@ fn build_loop_system(
     dispatch: Arc<MessageDispatch>,
     inference_port: Option<Arc<dyn hkask_types::ports::InferencePort>>,
     system_webid: WebID,
-) -> (Arc<LoopSystem>, Arc<EpisodicMemory>) {
+) -> (
+    Arc<LoopSystem>,
+    Arc<EpisodicMemory>,
+    Arc<tokio::sync::RwLock<CyberneticsLoop>>,
+) {
     let loop_system = LoopSystem::new(Arc::clone(&dispatch));
 
     // Cybernetics Loop
@@ -141,10 +174,15 @@ fn build_loop_system(
     ));
     let cybernetics_dispatch_tx = loop_system.dispatch_sender();
     let cybernetics_loop = CyberneticsLoop::new(Arc::clone(&cns_rwlock), cybernetics_dispatch_tx);
+    let cybernetics_loop_rwlock = Arc::new(tokio::sync::RwLock::new(cybernetics_loop));
     // Register loops (register_loop is async, use a small runtime for sync callers)
     let rt = tokio::runtime::Runtime::new().expect("loop system runtime");
     rt.block_on(async {
-        loop_system.register_loop(Arc::new(cybernetics_loop)).await;
+        loop_system
+            .register_loop(Arc::new(CyberneticsLoopHandle(Arc::clone(
+                &cybernetics_loop_rwlock,
+            ))))
+            .await;
     });
 
     // Inference Loop (optional)
@@ -200,7 +238,11 @@ fn build_loop_system(
     });
 
     drop(rt);
-    (Arc::new(loop_system), episodic_memory_api)
+    (
+        Arc::new(loop_system),
+        episodic_memory_api,
+        cybernetics_loop_rwlock,
+    )
 }
 
 impl ApiState {
@@ -259,9 +301,45 @@ impl ApiState {
             PathBuf::from("/tmp/hkask-templates"),
         ));
         let dispatcher_runtime = hkask_mcp::runtime::McpRuntime::new();
-        let mcp_dispatcher = Arc::new(hkask_mcp::dispatch::McpDispatcher::with_default_cns(
+
+        // Build the LoopSystem with shared dispatch and escalation queue
+        let dispatch = Arc::new(MessageDispatch::new());
+        let inference_port: Option<Arc<dyn hkask_types::ports::InferencePort>> =
+            ensemble_inferencer.as_ref().map(|ei| Arc::clone(ei.port()));
+        let (loop_system, episodic_memory, cybernetics_loop_rwlock) = build_loop_system(
+            Arc::clone(&escalation_queue),
+            dispatch,
+            inference_port,
+            system_webid,
+        );
+
+        // Create raw tool port (ungoverned executor)
+        let raw_tool_port: Arc<dyn ToolPort> = Arc::new(
+            hkask_mcp::raw_tool_port::RawMcpToolPort::new(dispatcher_runtime.clone()),
+        );
+
+        // Create CNS event sink for governance observability
+        let cns_event_conn = hkask_storage::Database::in_memory()
+            .expect("cns event db")
+            .conn_arc();
+        let cns_event_sink: Arc<dyn NuEventSink> =
+            Arc::new(hkask_storage::NuEventStore::new(cns_event_conn));
+
+        // Create GovernedTool membrane with CompositeGasEstimator
+        let estimator: Arc<dyn hkask_cns::GasEstimator> = Arc::new(CompositeGasEstimator::new());
+        let governed_tool: Arc<dyn ToolPort> = Arc::new(GovernedTool::new(
+            raw_tool_port,
+            cybernetics_loop_rwlock,
+            cns_event_sink,
+            estimator,
+            system_webid,
+        ));
+
+        // Wire GovernedTool into McpDispatcher
+        let mcp_dispatcher = Arc::new(hkask_mcp::dispatch::McpDispatcher::with_governed_tool(
             dispatcher_runtime,
             capability_secret,
+            governed_tool,
         ));
         // Goal repository wired with a CNS denial sink over a shared connection,
         // mirroring the CLI integration (ADR-029). Capability denials persist
@@ -275,21 +353,10 @@ impl ApiState {
                 .expect("in-memory db")
                 .conn_arc(),
         };
-        let goal_sink: Arc<dyn hkask_types::event::NuEventSink> =
+        let goal_sink: Arc<dyn NuEventSink> =
             Arc::new(hkask_storage::NuEventStore::new(Arc::clone(&goal_conn)));
         let goal_repo =
             Arc::new(hkask_storage::SqliteGoalRepository::new(goal_conn).with_telemetry(goal_sink));
-
-        // Build the LoopSystem with shared dispatch and escalation queue
-        let dispatch = Arc::new(MessageDispatch::new());
-        let inference_port: Option<Arc<dyn hkask_types::ports::InferencePort>> =
-            ensemble_inferencer.as_ref().map(|ei| Arc::clone(ei.port()));
-        let (loop_system, episodic_memory) = build_loop_system(
-            Arc::clone(&escalation_queue),
-            dispatch,
-            inference_port,
-            system_webid,
-        );
 
         Self {
             registry: Arc::new(tokio::sync::Mutex::new(registry)),

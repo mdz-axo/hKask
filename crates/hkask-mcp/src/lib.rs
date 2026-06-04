@@ -10,12 +10,14 @@
 pub mod adapter_container;
 pub mod dispatch; // Loop 1 (inference tool dispatch)
 pub mod governor; // Loop 6 (capability governance)
+pub mod raw_tool_port; // Ungoverned tool executor (inner port for GovernedTool)
 pub mod runtime;
 pub mod security;
 pub mod server;
 
 pub use adapter_container::AdapterContainer;
 pub use dispatch::McpDispatcher;
+pub use raw_tool_port::RawMcpToolPort;
 pub use runtime::{McpRuntime, McpServer, McpTool};
 pub(crate) use security::UrlValidationConfig;
 pub(crate) use security::validate_url;

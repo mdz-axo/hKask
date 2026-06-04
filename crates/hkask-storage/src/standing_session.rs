@@ -8,6 +8,7 @@
 //!   migration policy (no automatic re-encryption).
 
 use hkask_types::InfrastructureError;
+use hkask_types::ports::{MessageRecord, SessionRecord, SessionStoreError, StandingSessionPort};
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
@@ -55,11 +56,12 @@ pub(crate) struct StoredMessage {
 }
 
 #[derive(Clone)]
-pub(crate) struct StandingSessionStore {
+pub struct StandingSessionStore {
     conn: Arc<Mutex<Connection>>,
 }
 
 impl StandingSessionStore {
+    /// Create a new StandingSessionStore sharing an existing database connection.
     pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
         Self { conn }
     }

@@ -213,14 +213,13 @@ impl EmbeddingPort for EmbeddingStore {
                 "SELECT v.id, v.distance, e.entity_ref, e.vector, e.model
                  FROM vec_embeddings v
                  JOIN embeddings e ON v.id = e.id
-                 WHERE v.embedding MATCH ?1
-                 ORDER BY v.distance
-                 LIMIT ?2",
+                 WHERE v.embedding MATCH ?1 AND v.k = ?2
+                 ORDER BY v.distance",
             )
             .map_err(|e| EmbeddingError::Storage(e.to_string()))?;
 
         let rows = stmt
-            .query_map(rusqlite::params![&query_blob, limit], |row| {
+            .query_map(rusqlite::params![&query_blob, limit as i64], |row| {
                 let id: String = row.get(0)?;
                 let distance: f64 = row.get(1)?;
                 let entity_ref: String = row.get(2)?;
@@ -313,18 +312,18 @@ impl EmbeddingPort for EmbeddingStore {
             .lock()
             .map_err(|e| EmbeddingError::Storage(format!("connection lock poisoned: {e}")))?;
 
-        let count: usize = conn
+        let count: i64 = conn
             .query_row("SELECT COUNT(*) FROM embeddings", [], |row| row.get(0))
             .map_err(|e| EmbeddingError::Storage(e.to_string()))?;
 
-        Ok(count)
+        Ok(count as usize)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_storage::Database;
+    use crate::database::Database;
 
     fn test_store() -> EmbeddingStore {
         let db = Database::in_memory().expect("in-memory db");

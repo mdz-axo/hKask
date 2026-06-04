@@ -48,6 +48,7 @@ pub struct McpServer {
 }
 
 /// MCP runtime manager
+#[derive(Clone)]
 pub struct McpRuntime {
     /// Registered MCP servers
     servers: Arc<RwLock<HashMap<String, McpServer>>>,
