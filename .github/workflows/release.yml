@@ -155,10 +155,9 @@ jobs:
           echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
           echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
           echo "PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig" >> $GITHUB_ENV
-          # NOTE: OPENSSL_DIR/LIB_DIR/INCLUDE_DIR intentionally omitted.
-          # rusqlite uses bundled-sqlcipher-vendored-openssl which compiles
-          # OpenSSL from source; setting host paths would override vendored
-          # builds and cause silent x86_64 link-time arch mismatches.
+          echo "OPENSSL_DIR=/usr" >> $GITHUB_ENV
+          echo "OPENSSL_LIB_DIR=/usr/lib/aarch64-linux-gnu" >> $GITHUB_ENV
+          echo "OPENSSL_INCLUDE_DIR=/usr/include" >> $GITHUB_ENV
 
       - name: Cache cargo registry
         uses: Swatinem/rust-cache@v2
