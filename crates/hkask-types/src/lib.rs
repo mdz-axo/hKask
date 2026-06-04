@@ -40,9 +40,9 @@ pub use agent_def::{
 pub use audit::{AuditEntry, AuditLogPort, AuditOutcome};
 pub use capability::tokens::ConsolidationToken;
 pub use capability::{
-    AgentDelegation, CapabilityAction, CapabilityChecker, CapabilityResource, CapabilityToken,
-    DelegationAction, DelegationResource, DelegationToken, DelegationTokenBuilder,
-    SYSTEM_MAX_ATTENUATION, SYSTEM_MAX_RECURSION,
+    AgentDelegation, CapabilityAction, CapabilityChecker, CapabilityParseError, CapabilityResource,
+    CapabilitySpec, CapabilityToken, DelegationAction, DelegationResource, DelegationToken,
+    DelegationTokenBuilder, SYSTEM_MAX_ATTENUATION, SYSTEM_MAX_RECURSION,
 };
 pub use cns::{CircuitState, CnsHealth, RetryConfig};
 pub use curation::{CurationDecision, OCAPBoundary};

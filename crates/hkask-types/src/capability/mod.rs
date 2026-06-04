@@ -89,6 +89,86 @@ fn base64_decode(s: &str) -> Result<Vec<u8>, String> {
         .map_err(|e| e.to_string())
 }
 
+/// Parsed capability specification — the canonical result of parsing a
+/// colon-separated capability string like `"tool:inference:call"` or
+/// `"registry:episodic_memory:read"`.
+///
+/// This is the **single source of truth** for how capability strings map to
+/// typed OCAP fields. All code that parses capability strings must use
+/// [`CapabilitySpec::parse`] instead of rolling its own parser.
+///
+/// # Format
+///
+/// - 2-part: `"resource:action"` → `resource_id = full string`
+/// - 3-part: `"resource:domain:action"` → `resource_id = domain part`
+///
+/// # Example
+///
+/// ```
+/// use hkask_types::CapabilitySpec;
+/// let spec = CapabilitySpec::parse("registry:episodic_memory:read").unwrap();
+/// assert_eq!(spec.resource, hkask_types::DelegationResource::Registry);
+/// assert_eq!(spec.resource_id, "episodic_memory");
+/// assert_eq!(spec.action, hkask_types::DelegationAction::Read);
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CapabilitySpec {
+    pub resource: DelegationResource,
+    pub resource_id: String,
+    pub action: DelegationAction,
+}
+
+impl CapabilitySpec {
+    /// Parse a colon-separated capability string into its typed components.
+    ///
+    /// Accepted formats:
+    /// - `"resource:action"` (2 parts) — `resource_id` is the full string
+    /// - `"resource:domain:action"` (3 parts) — `resource_id` is the domain
+    ///
+    /// Unknown action names fall back to `DelegationAction::Execute`.
+    /// The `"memory"` prefix is accepted as an alias for `DelegationResource::Registry`.
+    pub fn parse(capability: &str) -> Result<Self, CapabilityParseError> {
+        let parts: Vec<&str> = capability.split(':').collect();
+
+        if parts.len() < 2 || parts.len() > 3 {
+            return Err(CapabilityParseError::InvalidFormat(capability.to_string()));
+        }
+
+        let resource = DelegationResource::parse_str(parts[0])
+            .ok_or_else(|| CapabilityParseError::UnknownResource(parts[0].to_string()))?;
+
+        // For 3-part capabilities (resource:domain:action), the resource_id is the domain.
+        // For 2-part capabilities (resource:action), the resource_id is the full string.
+        let resource_id = if parts.len() == 3 {
+            parts[1].to_string()
+        } else {
+            capability.to_string()
+        };
+
+        let action_str = parts
+            .last()
+            .expect("split always produces at least one element");
+        let action = DelegationAction::parse_str(action_str).unwrap_or(DelegationAction::Execute);
+
+        Ok(Self {
+            resource,
+            resource_id,
+            action,
+        })
+    }
+}
+
+/// Error type for capability string parsing.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum CapabilityParseError {
+    #[error(
+        "Invalid capability format: expected 'resource:action' or 'resource:domain:action', got '{0}'"
+    )]
+    InvalidFormat(String),
+    #[error("Unknown resource type: '{0}'. Valid types: tool, template, registry, memory")]
+    UnknownResource(String),
+}
+
 /// Delegation resource types — what an agent can act on
 /// Loop: Cybernetics (Access Guard subloop 6.1)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -686,3 +766,53 @@ impl AgentDelegation {
 }
 
 // ── Tests: Capability token security invariants ────────────────────────
+
+#[cfg(test)]
+mod capability_spec_tests {
+    use super::{CapabilityParseError, CapabilitySpec, DelegationAction, DelegationResource};
+
+    #[test]
+    fn parse_3_part_registry() {
+        let spec = CapabilitySpec::parse("registry:episodic_memory:read").unwrap();
+        assert_eq!(spec.resource, DelegationResource::Registry);
+        assert_eq!(spec.resource_id, "episodic_memory");
+        assert_eq!(spec.action, DelegationAction::Read);
+    }
+
+    #[test]
+    fn parse_3_part_tool() {
+        let spec = CapabilitySpec::parse("tool:inference:call").unwrap();
+        assert_eq!(spec.resource, DelegationResource::Tool);
+        assert_eq!(spec.resource_id, "inference");
+        assert_eq!(spec.action, DelegationAction::Execute); // "call" defaults to Execute
+    }
+
+    #[test]
+    fn parse_2_part_tool() {
+        let spec = CapabilitySpec::parse("tool:execute").unwrap();
+        assert_eq!(spec.resource, DelegationResource::Tool);
+        assert_eq!(spec.resource_id, "tool:execute"); // 2-part: full string as resource_id
+        assert_eq!(spec.action, DelegationAction::Execute);
+    }
+
+    #[test]
+    fn parse_memory_alias() {
+        let spec = CapabilitySpec::parse("memory:episodic:read").unwrap();
+        assert_eq!(spec.resource, DelegationResource::Registry);
+        assert_eq!(spec.resource_id, "episodic");
+        assert_eq!(spec.action, DelegationAction::Read);
+    }
+
+    #[test]
+    fn parse_invalid_format() {
+        assert!(CapabilitySpec::parse("justonepart").is_err());
+        assert!(CapabilitySpec::parse("a:b:c:d").is_err());
+        assert!(CapabilitySpec::parse("").is_err());
+    }
+
+    #[test]
+    fn parse_unknown_resource() {
+        let err = CapabilitySpec::parse("unknown:foo:read").unwrap_err();
+        assert!(matches!(err, CapabilityParseError::UnknownResource(_)));
+    }
+}

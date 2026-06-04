@@ -9,7 +9,8 @@
 
 use hkask_mcp::server::{McpToolError, McpToolOutput, ToolSpanGuard, validate_identifier};
 use hkask_types::{
-    CapabilityChecker, DelegationAction, DelegationResource, DelegationToken, McpErrorKind, WebID,
+    CapabilityChecker, CapabilitySpec, DelegationAction, DelegationResource, DelegationToken,
+    McpErrorKind, WebID,
 };
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -64,23 +65,18 @@ impl OcapServer {
         }
     }
 
-    fn parse_resource(cap: &str) -> DelegationResource {
-        match cap.split(':').next() {
-            Some("tool") => DelegationResource::Tool,
-            Some("template") => DelegationResource::Template,
-            Some("registry") => DelegationResource::Registry,
-            _ => DelegationResource::Tool,
-        }
-    }
-
-    fn parse_action(cap: &str) -> DelegationAction {
-        let parts: Vec<&str> = cap.split(':').collect();
-        match parts.get(1).copied() {
-            Some("read") => DelegationAction::Read,
-            Some("write") => DelegationAction::Write,
-            Some("execute") => DelegationAction::Execute,
-            _ => DelegationAction::Execute,
-        }
+    /// Parse a capability string using the canonical [`CapabilitySpec`] parser.
+    ///
+    /// Returns a tuple of (resource, resource_id, action) suitable for
+    /// constructing or verifying `DelegationToken`s.
+    ///
+    /// This replaces the previous ad-hoc `parse_resource`/`parse_action` pair
+    /// with a single canonical parser shared across the entire codebase.
+    fn parse_capability(
+        cap: &str,
+    ) -> Result<(DelegationResource, String, DelegationAction), String> {
+        let spec = CapabilitySpec::parse(cap).map_err(|e| e.to_string())?;
+        Ok((spec.resource, spec.resource_id, spec.action))
     }
 }
 
@@ -107,9 +103,15 @@ impl OcapServer {
         let issuer_webid = WebID::from_string(&issuer);
         let subject_webid = WebID::from_string(&subject);
 
-        let resource = Self::parse_resource(&capabilities);
-        let action = Self::parse_action(&capabilities);
-        let resource_id = capabilities.clone();
+        let (resource, resource_id, action) = match Self::parse_capability(&capabilities) {
+            Ok(spec) => spec,
+            Err(e) => {
+                return span.error(
+                    McpErrorKind::InvalidArgument,
+                    McpToolError::invalid_argument(e).to_json_string(),
+                );
+            }
+        };
 
         let token = DelegationToken::new(
             resource,
@@ -175,9 +177,16 @@ impl OcapServer {
                     .as_secs() as i64;
                 let not_expired = !token.is_expired(current_time);
 
-                let resource = Self::parse_resource(&capability);
-                let action = Self::parse_action(&capability);
-                let matches_cap = token.is_valid_for(resource, &capability, action);
+                let (resource, resource_id, action) = match Self::parse_capability(&capability) {
+                    Ok(spec) => spec,
+                    Err(e) => {
+                        return span.error(
+                            McpErrorKind::InvalidArgument,
+                            McpToolError::invalid_argument(e).to_json_string(),
+                        );
+                    }
+                };
+                let matches_cap = token.is_valid_for(resource, &resource_id, action);
 
                 let valid = sig_valid && not_expired && matches_cap;
                 span.ok(McpToolOutput::new(json!({

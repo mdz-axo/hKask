@@ -60,8 +60,8 @@ mod types;
 use hkask_types::derivation_contexts;
 use hkask_types::secret::SecretRef;
 use hkask_types::{
-    DataCategory, DelegationAction, DelegationResource, DelegationToken, SYSTEM_MAX_ATTENUATION,
-    WebID,
+    CapabilitySpec, DataCategory, DelegationAction, DelegationResource, DelegationToken,
+    SYSTEM_MAX_ATTENUATION, WebID,
 };
 use thiserror::Error;
 use tracing::info;
@@ -163,16 +163,15 @@ impl AgentPod {
         let ocap_secret = derive_ocap_secret(&persona.webid())?;
 
         // Use first capability from persona, or default to "tool:execute"
-        let first_capability = persona
-            .capabilities
-            .first()
-            .cloned()
-            .unwrap_or_else(|| "tool:execute".to_string());
+        let default_capability = "tool:execute".to_string();
+        let capability_str = persona.capabilities.first().unwrap_or(&default_capability);
+        let spec = CapabilitySpec::parse(capability_str)
+            .expect("Default capability 'tool:execute' must always parse");
 
         let capability_token = DelegationToken::new(
-            DelegationResource::Tool,
-            first_capability,
-            DelegationAction::Execute,
+            spec.resource,
+            spec.resource_id,
+            spec.action,
             WebID::new(),
             persona.webid(),
             ocap_secret.as_bytes(),

@@ -160,21 +160,19 @@ async fn create_first_replicant_flow() -> Result<OnboardingOutcome, OnboardingEr
     };
     let (acp, store) = init_registry_with_secrets(&resolved)
         .await
-        .map_err(|e| {
+        .inspect_err(|_| {
             // Clean up keychain entries if registry init fails
             let _ = cleanup_keychain();
-            e
         })
         .map_err(OnboardingError::Registry)?;
 
     // Register the new replicant
     register_replicant(&acp, &store, &name, &description)
         .await
-        .map_err(|e| {
+        .inspect_err(|_| {
             // Clean up keychain and DB if registration fails
             let _ = cleanup_keychain();
             let _ = cleanup_db();
-            e
         })?;
 
     println!();

@@ -34,7 +34,8 @@ pub use hkask_types::AuditLogPort;
 pub(crate) use root_authority::RootAuthority;
 
 use hkask_types::{
-    AgentKind, AuditOutcome, DelegationAction, DelegationResource, DelegationToken, WebID,
+    AgentKind, AuditOutcome, CapabilitySpec, DelegationAction, DelegationResource, DelegationToken,
+    WebID,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -47,44 +48,15 @@ use zeroize::Zeroizing;
 /// Per-agent derived signing key
 type AgentSecret = Arc<Zeroizing<Vec<u8>>>;
 
-/// Parse a capability string into resource and action
+/// Parse a capability string using the canonical [`CapabilitySpec`] parser.
 ///
-/// Examples:
-/// - "tool:execute" -> (DelegationResource::Tool, DelegationAction::Execute)
-/// - "template:execute" -> (DelegationResource::Template, DelegationAction::Execute)
-///
-/// # Errors
-/// Returns `AcpError::MalformedCapability` if the capability string is invalid
+/// Converts `CapabilityParseError` into `AcpError::MalformedCapability`.
 fn parse_capability(
     capability: &str,
 ) -> Result<(DelegationResource, String, DelegationAction), AcpError> {
-    let parts: Vec<&str> = capability.split(':').collect();
-
-    if parts.len() < 2 || parts.len() > 3 {
-        return Err(AcpError::MalformedCapability(format!(
-            "Expected format 'resource:action' or 'resource:domain:action', got '{}'",
-            capability
-        )));
-    }
-
-    let resource = DelegationResource::parse_str(parts[0]).ok_or_else(|| {
-        AcpError::MalformedCapability(format!("Unknown resource type: {}", parts[0]))
-    })?;
-
-    // For 3-part capabilities (resource:domain:action), the resource_id is the domain.
-    // For 2-part capabilities (resource:action), the resource_id is the full string.
-    let resource_id = if parts.len() == 3 {
-        parts[1].to_string()
-    } else {
-        capability.to_string()
-    };
-
-    let action_str = parts
-        .last()
-        .expect("split always produces at least one element");
-    let action = DelegationAction::parse_str(action_str).unwrap_or(DelegationAction::Execute);
-
-    Ok((resource, resource_id, action))
+    let spec = CapabilitySpec::parse(capability)
+        .map_err(|e| AcpError::MalformedCapability(e.to_string()))?;
+    Ok((spec.resource, spec.resource_id, spec.action))
 }
 
 /// ACP error types for security and validation
