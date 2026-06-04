@@ -33,6 +33,10 @@ pub fn ensemble_router() -> Router<ApiState> {
             axum::routing::post(send_message),
         )
         .route(
+            "/api/ensemble/chat/:session/improv",
+            axum::routing::post(improv_turn),
+        )
+        .route(
             "/api/ensemble/deliberation",
             axum::routing::post(create_deliberation),
         )
@@ -95,6 +99,21 @@ pub struct RecordResponseRequest {
 pub struct EnsembleResponse {
     pub success: bool,
     pub message: String,
+}
+
+/// Improv turn request
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct ImprovTurnRequest {
+    pub user_message: String,
+}
+
+/// Improv turn response
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ImprovTurnResponse {
+    pub user_message: String,
+    pub judgment_count: usize,
+    pub response_count: usize,
+    pub curator_synthesis: Option<String>,
 }
 
 /// Create chat session
@@ -205,6 +224,65 @@ async fn send_message(
                 message: format!("Message sent to session '{}'", session),
             };
             Json(response).into_response()
+        }
+        None => {
+            let response = EnsembleResponse {
+                success: false,
+                message: format!("Chat session '{}' not found", session),
+            };
+            (StatusCode::NOT_FOUND, Json(response)).into_response()
+        }
+    }
+}
+
+/// Execute an improvisation turn in a chat session
+#[utoipa::path(
+    post,
+    path = "/api/ensemble/chat/:session/improv",
+    tag = "ensemble",
+    request_body = ImprovTurnRequest,
+    responses(
+        (status = 200, description = "Improv turn completed", body = ImprovTurnResponse),
+        (status = 404, description = "Chat session not found"),
+        (status = 500, description = "Internal server error"),
+    ),
+)]
+async fn improv_turn(
+    State(state): State<ApiState>,
+    Path(session): Path<String>,
+    Json(req): Json<ImprovTurnRequest>,
+) -> impl IntoResponse {
+    let manager = &state.session_manager;
+    let chat = manager.read().await.get_chat(&session).await;
+    match chat {
+        Some(chat) => {
+            if let Some(inferencer) = state.ensemble_inferencer_with_breaker() {
+                let chat_read = chat.read().await;
+                match chat_read.improv_turn(&inferencer, &req.user_message).await {
+                    Ok(turn) => {
+                        let response = ImprovTurnResponse {
+                            user_message: turn.user_message,
+                            judgment_count: turn.judgments.len(),
+                            response_count: turn.responses.len(),
+                            curator_synthesis: turn.curator_synthesis,
+                        };
+                        Json(response).into_response()
+                    }
+                    Err(e) => {
+                        let response = EnsembleResponse {
+                            success: false,
+                            message: format!("Improv error: {}", e),
+                        };
+                        (StatusCode::INTERNAL_SERVER_ERROR, Json(response)).into_response()
+                    }
+                }
+            } else {
+                let response = EnsembleResponse {
+                    success: false,
+                    message: "No inference client configured".to_string(),
+                };
+                (StatusCode::SERVICE_UNAVAILABLE, Json(response)).into_response()
+            }
         }
         None => {
             let response = EnsembleResponse {

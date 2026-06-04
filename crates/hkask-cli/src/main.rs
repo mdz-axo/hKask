@@ -174,6 +174,13 @@ fn main() {
         Commands::Loops => run_loops(&rt),
 
         Commands::WebSearch { query, max_results } => run_web_search(&rt, query, max_results),
+
+        Commands::Serve { port, host } => {
+            if let Err(e) = rt.block_on(commands::serve::run_server(port, &host)) {
+                eprintln!("Server error: {}", e);
+                std::process::exit(1);
+            }
+        }
     }
 }
 

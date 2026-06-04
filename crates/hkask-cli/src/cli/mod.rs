@@ -166,4 +166,15 @@ pub enum Commands {
         #[arg(long, default_value = "5")]
         max_results: usize,
     },
+
+    /// Start the HTTP API server (shares state with CLI)
+    Serve {
+        /// Port to listen on
+        #[arg(short, long, default_value = "3000")]
+        port: u16,
+
+        /// Bind address
+        #[arg(long, default_value = "127.0.0.1")]
+        host: String,
+    },
 }

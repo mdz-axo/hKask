@@ -73,16 +73,38 @@ impl GasGovernancePort for CyberneticsLoopGasAdapter {
     }
 }
 
-fn get_session_manager() -> Arc<RwLock<SessionManager>> {
-    SESSION_MANAGER
+static CYBERNETICS_LOOP: std::sync::OnceLock<Arc<RwLock<CyberneticsLoop>>> =
+    std::sync::OnceLock::new();
+
+fn get_cybernetics_loop() -> Arc<RwLock<CyberneticsLoop>> {
+    CYBERNETICS_LOOP
         .get_or_init(|| {
-            let webid = WebID::new();
-            Arc::new(RwLock::new(SessionManager::new(webid)))
+            let cns = Arc::new(RwLock::new(hkask_cns::CnsRuntime::default()));
+            let (dispatch_tx, _) = tokio::sync::mpsc::unbounded_channel();
+            Arc::new(RwLock::new(CyberneticsLoop::new(cns, dispatch_tx)))
         })
         .clone()
 }
 
-fn get_improv_client() -> Arc<CircuitBreakerInferenceAdapter> {
+/// Default gas cap for ensemble sessions (150k = same as GasBudgetConfig default)
+const ENSEMBLE_GAS_CAP: u64 = 150_000;
+
+pub fn get_session_manager() -> Arc<RwLock<SessionManager>> {
+    SESSION_MANAGER
+        .get_or_init(|| {
+            let webid = WebID::new();
+            let governance: Arc<dyn GasGovernancePort> = Arc::new(CyberneticsLoopGasAdapter::new(
+                get_cybernetics_loop(),
+                webid,
+                ENSEMBLE_GAS_CAP,
+            ));
+            let manager = SessionManager::new(webid).with_gas_governance(governance);
+            Arc::new(RwLock::new(manager))
+        })
+        .clone()
+}
+
+pub fn get_improv_client() -> Arc<CircuitBreakerInferenceAdapter> {
     IMPROV_CLIENT
         .get_or_init(|| {
             let base_url = std::env::var("OKAPI_BASE_URL")

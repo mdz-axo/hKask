@@ -11,6 +11,7 @@ pub mod curator;
 pub mod ensemble;
 pub mod goal;
 pub mod pod;
+pub mod serve;
 pub mod template;
 pub mod user;
 

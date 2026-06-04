@@ -38,7 +38,7 @@ pub use agent_def::{
     AgentDefinition, AgentKind, Charter, PersonaConstraints, RegisteredAgent, Responsibility, Right,
 };
 pub use audit::{AuditEntry, AuditLogPort, AuditOutcome};
-pub use capability::tokens::{ConsolidationToken, CurationToken, CyberneticsToken};
+pub use capability::tokens::ConsolidationToken;
 pub use capability::{
     AgentDelegation, CapabilityAction, CapabilityChecker, CapabilityResource, CapabilityToken,
     DelegationAction, DelegationResource, DelegationToken, DelegationTokenBuilder,

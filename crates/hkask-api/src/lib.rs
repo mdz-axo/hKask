@@ -441,8 +441,7 @@ impl ApiState {
     ) -> Self {
         let git_cas = GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-templates"));
         let acp_runtime = Arc::new(AcpRuntime::new(acp_secret));
-        let acp_port: Arc<dyn hkask_agents::ports::AcpPort> =
-            Arc::clone(&acp_runtime) as Arc<dyn hkask_agents::ports::AcpPort>;
+        let acp_port: Arc<dyn hkask_agents::ports::AcpPort> = acp_runtime.clone();
         let mcp_runtime_adapter = McpRuntimeAdapter::new();
 
         // Use MemoryLoopAdapter (routes through hkask-memory domain logic)

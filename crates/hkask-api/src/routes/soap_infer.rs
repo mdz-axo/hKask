@@ -100,8 +100,8 @@ async fn soap_infer(
         }),
     };
 
-    // Inference with timeout (resilience pattern)
-    let response_text = if let Some(ref inferencer) = state.ensemble_inferencer {
+    // Inference with circuit breaker and timeout (resilience pattern)
+    let response_text = if let Some(inferencer) = state.ensemble_inferencer_with_breaker() {
         match timeout(
             Duration::from_secs(config.inference.timeout_secs),
             inferencer.generate(&infer_request),

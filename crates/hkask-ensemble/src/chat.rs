@@ -609,6 +609,7 @@ pub struct SessionManager {
     deliberations:
         Arc<RwLock<HashMap<String, Arc<RwLock<crate::deliberation::DeliberationSession>>>>>,
     curator_webid: WebID,
+    gas_governance: Option<Arc<dyn crate::ports::GasGovernancePort>>,
 }
 
 impl SessionManager {
@@ -618,7 +619,18 @@ impl SessionManager {
             chats: Arc::new(RwLock::new(HashMap::new())),
             deliberations: Arc::new(RwLock::new(HashMap::new())),
             curator_webid,
+            gas_governance: None,
         }
+    }
+
+    /// Set the CNS gas governance port for all future chat sessions.
+    ///
+    /// When set, every `EnsembleChat` created by this manager will be
+    /// wired with the governance port so the CNS can observe ensemble
+    /// gas usage via the CyberneticsLoop.
+    pub fn with_gas_governance(mut self, port: Arc<dyn crate::ports::GasGovernancePort>) -> Self {
+        self.gas_governance = Some(port);
+        self
     }
 
     /// Get a shared handle to this session manager.
@@ -633,7 +645,11 @@ impl SessionManager {
 
     /// Create a new chat session
     pub async fn create_chat(&self, session_id: &str) -> Arc<RwLock<EnsembleChat>> {
-        let chat = Arc::new(RwLock::new(EnsembleChat::new(self.curator_webid)));
+        let mut chat = EnsembleChat::new(self.curator_webid);
+        if let Some(ref governance) = self.gas_governance {
+            chat = chat.with_gas_governance(Arc::clone(governance));
+        }
+        let chat = Arc::new(RwLock::new(chat));
 
         let mut chats = self.chats.write().await;
         chats.insert(session_id.to_string(), chat.clone());

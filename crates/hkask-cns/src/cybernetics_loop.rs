@@ -124,8 +124,6 @@ pub struct CyberneticsLoop {
     inbox: Arc<RwLock<mpsc::UnboundedReceiver<LoopMessage>>>,
     /// Dampener to suppress repeated CuratorDirectives within a time window
     dampener: Arc<Dampener>,
-    /// Authority token proving this loop is the Cybernetics Loop
-    token: hkask_types::CyberneticsToken,
 }
 
 impl CyberneticsLoop {
@@ -138,7 +136,6 @@ impl CyberneticsLoop {
         dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
     ) -> Self {
         let (_dead_tx, dead_rx) = mpsc::unbounded_channel::<LoopMessage>();
-        let token = hkask_types::CyberneticsHandle::system().issue_cybernetics_token();
         Self {
             cns,
             gas_budgets: Arc::new(RwLock::new(std::collections::HashMap::new())),
@@ -147,7 +144,6 @@ impl CyberneticsLoop {
             dispatch_tx,
             inbox: Arc::new(RwLock::new(dead_rx)),
             dampener: Arc::new(Dampener::new()),
-            token,
         }
     }
 
@@ -162,7 +158,6 @@ impl CyberneticsLoop {
         dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
     ) -> Self {
         let (_dead_tx, dead_rx) = mpsc::unbounded_channel::<LoopMessage>();
-        let token = hkask_types::CyberneticsHandle::system().issue_cybernetics_token();
         Self {
             cns,
             gas_budgets: Arc::new(RwLock::new(std::collections::HashMap::new())),
@@ -171,7 +166,6 @@ impl CyberneticsLoop {
             dispatch_tx,
             inbox: Arc::new(RwLock::new(dead_rx)),
             dampener: Arc::new(Dampener::new()),
-            token,
         }
     }
 
@@ -192,7 +186,6 @@ impl CyberneticsLoop {
             dispatch_tx,
             inbox: Arc::new(RwLock::new(inbox_rx)),
             dampener: Arc::new(Dampener::new()),
-            token: hkask_types::CyberneticsHandle::system().issue_cybernetics_token(),
         };
         (loop_instance, inbox_tx)
     }
@@ -216,14 +209,8 @@ impl CyberneticsLoop {
             dispatch_tx,
             inbox: Arc::new(RwLock::new(inbox_rx)),
             dampener: Arc::new(Dampener::new()),
-            token: hkask_types::CyberneticsHandle::system().issue_cybernetics_token(),
         };
         (loop_instance, inbox_tx)
-    }
-
-    /// Access the CyberneticsToken proving this loop's authority.
-    pub fn token(&self) -> &hkask_types::CyberneticsToken {
-        &self.token
     }
 
     /// Register a gas budget for an agent.

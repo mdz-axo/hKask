@@ -19,7 +19,6 @@
 //! - Dampening — preventing oscillation in feedback loops is regulation
 //! - Channel throttling — applied TO Communication channels, not Communication's own intelligence
 
-use crate::capability::tokens::CyberneticsToken;
 use crate::id::WebID;
 
 // =============================================================================
@@ -54,15 +53,5 @@ impl CyberneticsHandle {
     /// The WebID of the Cybernetics Loop.
     pub fn cybernetics_id(&self) -> &WebID {
         &self.cybernetics_id
-    }
-
-    /// Issue a CyberneticsToken authorizing operations governed by
-    /// the Cybernetics Loop.
-    ///
-    /// Only the Cybernetics Loop (or its governor, the Curator) should
-    /// call this. The token proves that an operation was authorized by
-    /// the homeostatic regulator.
-    pub fn issue_cybernetics_token(&self) -> CyberneticsToken {
-        CyberneticsToken::new(self.cybernetics_id)
     }
 }

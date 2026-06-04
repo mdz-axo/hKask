@@ -865,6 +865,7 @@ dependencies = [
 name = "hkask-cli"
 version = "0.21.1"
 dependencies = [
+ "axum",
  "chrono",
  "clap",
  "dirs",

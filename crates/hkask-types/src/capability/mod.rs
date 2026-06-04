@@ -3,7 +3,7 @@
 //! Two kinds of authority tokens exist in hKask:
 //!
 //! 1. **Loop authority tokens** (ZST tokens in `tokens.rs`):
-//!    `CyberneticsToken`, `CurationToken`, `ConsolidationToken` —
+//!    `ConsolidationToken` —
 //!    prove that a loop operation was authorized by the governing loop.
 //!    These encode the 6-loop authority DAG and are unforgeable outside
 //!    their issuing loop.
@@ -54,7 +54,7 @@ pub(crate) mod hmac_ops;
 mod verification;
 
 pub mod tokens;
-pub use tokens::{ConsolidationToken, CurationToken, CyberneticsToken};
+pub use tokens::ConsolidationToken;
 
 pub use verification::CapabilityChecker;
 
