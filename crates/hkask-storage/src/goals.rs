@@ -933,7 +933,7 @@ mod tests {
         let mut rows = stmt.query([goal_id.to_string()]).expect("query");
         let row = rows.next().expect("row").expect("some row");
 
-        let result = SqliteGoalRepository::try_goal_from_row(&row);
+        let result = SqliteGoalRepository::try_goal_from_row(row);
         match result {
             Err(GoalRepositoryError::Corrupt(msg)) => {
                 assert!(
