@@ -136,6 +136,7 @@ pub struct Goal {
     pub completed_at: Option<DateTime<Utc>>,
     pub parent_goal_id: Option<GoalID>,
     pub depth: u8,
+    pub display_name: Option<String>,
 }
 
 impl Goal {
@@ -150,7 +151,13 @@ impl Goal {
             completed_at: None,
             parent_goal_id: None,
             depth: 0,
+            display_name: None,
         }
+    }
+
+    pub fn with_display_name(mut self, name: impl Into<String>) -> Self {
+        self.display_name = Some(name.into());
+        self
     }
 
     pub fn with_parent(mut self, parent_id: GoalID, parent_depth: u8) -> Self {

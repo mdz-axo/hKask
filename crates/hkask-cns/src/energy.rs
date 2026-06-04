@@ -9,6 +9,11 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Default priority for serde default.
+const fn default_priority() -> f64 {
+    1.0
+}
+
 /// Gas budget allocation.
 ///
 /// Gas units are dimensionless — they represent computational cost on a
@@ -35,6 +40,11 @@ pub struct GasBudget {
     /// Gas that has been reserved but not yet settled.
     #[serde(default)]
     pub reserved: u64,
+    /// Priority weight for replenishment scaling (0.0–1.0).
+    /// Higher priority agents receive a larger share of replenishment.
+    /// Defaults to 1.0 (full replenishment).
+    #[serde(default = "default_priority")]
+    pub priority: f64,
 }
 
 impl GasBudget {
@@ -48,6 +58,7 @@ impl GasBudget {
             alert_threshold: 0.8,
             hard_limit: true,
             reserved: 0,
+            priority: 1.0,
             cap,
         }
     }
@@ -67,6 +78,14 @@ impl GasBudget {
     /// Set whether to hard-reject on exhaustion.
     pub fn with_hard_limit(mut self, hard: bool) -> Self {
         self.hard_limit = hard;
+        self
+    }
+
+    /// Set the priority weight for replenishment scaling (0.0–1.0).
+    ///
+    /// Values outside [0.0, 1.0] are clamped.
+    pub fn with_priority(mut self, priority: f64) -> Self {
+        self.priority = priority.clamp(0.0, 1.0);
         self
     }
 
@@ -152,6 +171,19 @@ impl GasBudget {
     /// Replenish gas budget by a specific amount (used by CuratorDirective::ReplenishBudget).
     pub fn replenish_by(&mut self, amount: u64) {
         self.remaining = (self.remaining + amount).min(self.cap);
+    }
+
+    /// Replenish gas budget by `amount * priority`, weighted by the given priority.
+    ///
+    /// The effective replenishment is `(amount * priority).round()`, never exceeding cap.
+    /// If `amount * priority` rounds to 0, at least 1 unit is replenished (so
+    /// low-priority directives still have effect).
+    pub fn replenish_by_weighted(&mut self, amount: u64, priority: f64) -> u64 {
+        let scaled = (amount as f64 * priority.clamp(0.0, 1.0)).round() as u64;
+        let effective = scaled.max(1);
+        let before = self.remaining;
+        self.remaining = (self.remaining + effective).min(self.cap);
+        self.remaining - before
     }
 
     /// Whether the usage ratio has crossed the alert threshold.
@@ -279,5 +311,95 @@ mod tests {
     fn gas_budget_usage_ratio() {
         let budget = GasBudget::new(1000);
         assert!((budget.usage_ratio() - 0.0).abs() < f64::EPSILON);
+    }
+
+    // =========================================================================
+    // Priority and weighted replenishment tests
+    // =========================================================================
+
+    #[test]
+    fn gas_budget_new_has_default_priority() {
+        let budget = GasBudget::new(1000);
+        assert!((budget.priority - 1.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn with_priority_clamps_high() {
+        let budget = GasBudget::new(1000).with_priority(5.0);
+        assert!((budget.priority - 1.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn with_priority_clamps_negative() {
+        let budget = GasBudget::new(1000).with_priority(-0.5);
+        assert!((budget.priority - 0.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn with_priority_accepts_valid() {
+        let budget = GasBudget::new(1000).with_priority(0.7);
+        assert!((budget.priority - 0.7).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn replenish_by_weighted_full_priority() {
+        let mut budget = GasBudget::new(1000);
+        budget.consume(800).unwrap();
+        assert_eq!(budget.remaining, 200);
+        let replenished = budget.replenish_by_weighted(500, 1.0);
+        assert_eq!(replenished, 500);
+        assert_eq!(budget.remaining, 700); // min(200 + 500, 1000)
+    }
+
+    #[test]
+    fn replenish_by_weighted_half_priority() {
+        let mut budget = GasBudget::new(1000);
+        budget.consume(800).unwrap();
+        assert_eq!(budget.remaining, 200);
+        let replenished = budget.replenish_by_weighted(500, 0.5);
+        assert_eq!(replenished, 250); // 500 * 0.5 = 250
+        assert_eq!(budget.remaining, 450); // 200 + 250
+    }
+
+    #[test]
+    fn replenish_by_weighted_minimum_one_unit() {
+        let mut budget = GasBudget::new(1000);
+        budget.consume(800).unwrap();
+        assert_eq!(budget.remaining, 200);
+        // 5 * 0.1 = 0.5, rounds to 0, but minimum is 1
+        let replenished = budget.replenish_by_weighted(5, 0.1);
+        assert_eq!(replenished, 1);
+        assert_eq!(budget.remaining, 201);
+    }
+
+    #[test]
+    fn replenish_by_weighted_capped_at_cap() {
+        let mut budget = GasBudget::new(1000);
+        budget.consume(100).unwrap();
+        assert_eq!(budget.remaining, 900);
+        // Request replenish of 500 at full priority, but only 100 fits
+        let replenished = budget.replenish_by_weighted(500, 1.0);
+        assert_eq!(replenished, 100); // capped at cap
+        assert_eq!(budget.remaining, 1000);
+    }
+
+    #[test]
+    fn replenish_by_weighted_clamps_priority() {
+        let mut budget = GasBudget::new(1000);
+        budget.consume(800).unwrap();
+        // priority > 1.0 is clamped to 1.0
+        let replenished = budget.replenish_by_weighted(500, 2.0);
+        assert_eq!(replenished, 500);
+        assert_eq!(budget.remaining, 700);
+    }
+
+    #[test]
+    fn replenish_by_weighted_zero_priority_gives_minimum() {
+        let mut budget = GasBudget::new(1000);
+        budget.consume(800).unwrap();
+        // Even with priority 0.0, minimum 1 unit is replenished
+        let replenished = budget.replenish_by_weighted(500, 0.0);
+        assert_eq!(replenished, 1);
+        assert_eq!(budget.remaining, 201);
     }
 }

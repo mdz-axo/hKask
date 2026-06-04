@@ -56,6 +56,46 @@ pub struct SetPoints {
     pub connector_latency_max_secs: f64,
 }
 
+/// Configurable thresholds for Curation decisions (spec coherence, drift).
+/// Loaded from YAML via `HKASK_CNS_CONFIG` (same pattern as `SetPointsConfig`).
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct CurationThresholdConfig {
+    #[serde(default = "default_coherence_threshold")]
+    pub coherence_threshold: f64,
+    #[serde(default = "default_drift_threshold")]
+    pub drift_threshold: f64,
+}
+
+fn default_coherence_threshold() -> f64 {
+    0.7
+}
+fn default_drift_threshold() -> f64 {
+    0.5
+}
+
+impl Default for CurationThresholdConfig {
+    fn default() -> Self {
+        Self {
+            coherence_threshold: default_coherence_threshold(),
+            drift_threshold: default_drift_threshold(),
+        }
+    }
+}
+
+impl CurationThresholdConfig {
+    /// Load curation thresholds from a YAML string.
+    pub fn from_yaml(yaml: &str) -> Result<Self, serde_yaml::Error> {
+        serde_yaml::from_str(yaml)
+    }
+
+    /// Load curation thresholds from a YAML file.
+    pub fn load_from_file(path: &str) -> Result<Self, std::io::Error> {
+        let contents = std::fs::read_to_string(path)?;
+        Self::from_yaml(&contents)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+    }
+}
+
 /// YAML-configurable set-points. Fields are Optional so partial configs work.
 /// Missing fields fall back to the `SetPoints::default()` values.
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -117,6 +157,45 @@ pub fn load_set_points() -> SetPoints {
             }
         },
         Err(_) => SetPoints::default(),
+    }
+}
+
+/// Load curation thresholds from `HKASK_CNS_CONFIG` env var, falling back to defaults.
+///
+/// If `HKASK_CNS_CONFIG` is set, reads the YAML file at that path.
+/// If unset or the file doesn't exist, returns default thresholds.
+pub fn load_curation_thresholds() -> CurationThresholdConfig {
+    match std::env::var("HKASK_CNS_CONFIG") {
+        Ok(path) => match CurationThresholdConfig::load_from_file(&path) {
+            Ok(config) => {
+                tracing::info!(
+                    target: "cns.config",
+                    path = %path,
+                    coherence_threshold = config.coherence_threshold,
+                    drift_threshold = config.drift_threshold,
+                    "Loaded CNS curation thresholds from config file"
+                );
+                config
+            }
+            Err(e) => {
+                tracing::warn!(
+                    target: "cns.config",
+                    path = %path,
+                    error = %e,
+                    "Failed to load CNS config file for curation thresholds, using defaults"
+                );
+                CurationThresholdConfig::default()
+            }
+        },
+        Err(_) => {
+            tracing::info!(
+                target: "cns.config",
+                coherence_threshold = default_coherence_threshold(),
+                drift_threshold = default_drift_threshold(),
+                "HKASK_CNS_CONFIG not set, using default curation thresholds"
+            );
+            CurationThresholdConfig::default()
+        }
     }
 }
 
@@ -465,10 +544,30 @@ impl CyberneticsLoop {
                             "replenish_budget" => {
                                 // ReplenishBudget: Curation can inject gas into an agent's budget.
                                 // This is the gas refund mechanism governed by Curator authority.
+                                // When priority is provided, replenishment is scaled by that weight.
                                 if let Some(amount) =
                                     parameters.get("amount").and_then(|v| v.as_u64())
                                 {
-                                    self.replenish_agent_budget(target, amount).await;
+                                    let priority =
+                                        parameters.get("priority").and_then(|v| v.as_f64());
+                                    let mut budgets = self.gas_budgets.write().await;
+                                    if let Some(budget) = budgets.get_mut(target) {
+                                        let replenished = if let Some(p) = priority {
+                                            budget.replenish_by_weighted(amount, p)
+                                        } else {
+                                            budget.replenish_by(amount);
+                                            amount.min(budget.cap - budget.remaining)
+                                        };
+                                        drop(budgets);
+                                        tracing::info!(
+                                            target: "cns.cybernetics",
+                                            agent = %target,
+                                            amount = amount,
+                                            priority = priority,
+                                            replenished = replenished,
+                                            "Replenished agent gas budget by directive"
+                                        );
+                                    }
                                 }
                             }
                             "update_capabilities" => {
@@ -1273,6 +1372,41 @@ mod tests {
         assert_eq!(sp.variety_max_deficit, 200.0);
         assert_eq!(sp.error_rate_max, 0.4);
         assert_eq!(sp.connector_latency_max_secs, 60.0);
+    }
+
+    // =========================================================================
+    // CurationThresholdConfig tests
+    // =========================================================================
+
+    #[test]
+    fn curation_threshold_config_from_yaml() {
+        let yaml = "coherence_threshold: 0.85\ndrift_threshold: 0.3\n";
+        let config = CurationThresholdConfig::from_yaml(yaml).unwrap();
+        assert_eq!(config.coherence_threshold, 0.85);
+        assert_eq!(config.drift_threshold, 0.3);
+    }
+
+    #[test]
+    fn curation_threshold_config_partial_yaml_uses_defaults() {
+        let yaml = "coherence_threshold: 0.9\n";
+        let config = CurationThresholdConfig::from_yaml(yaml).unwrap();
+        assert_eq!(config.coherence_threshold, 0.9);
+        assert_eq!(config.drift_threshold, 0.5); // default
+    }
+
+    #[test]
+    fn curation_threshold_config_empty_yaml_uses_defaults() {
+        let yaml = "{}\n";
+        let config = CurationThresholdConfig::from_yaml(yaml).unwrap();
+        assert_eq!(config.coherence_threshold, 0.7); // default
+        assert_eq!(config.drift_threshold, 0.5); // default
+    }
+
+    #[test]
+    fn curation_threshold_config_default_values() {
+        let config = CurationThresholdConfig::default();
+        assert_eq!(config.coherence_threshold, 0.7);
+        assert_eq!(config.drift_threshold, 0.5);
     }
 
     // =========================================================================

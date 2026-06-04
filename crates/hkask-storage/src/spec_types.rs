@@ -129,6 +129,7 @@ pub struct GoalSpec {
     pub constraints: Vec<OCAPBoundary>,
     pub sub_goals: Vec<GoalSpec>,
     pub depth: u8,
+    pub display_name: Option<String>,
 }
 
 impl GoalSpec {
@@ -140,7 +141,13 @@ impl GoalSpec {
             constraints: Vec::new(),
             sub_goals: Vec::new(),
             depth: 0,
+            display_name: None,
         }
+    }
+
+    pub fn with_display_name(mut self, name: impl Into<String>) -> Self {
+        self.display_name = Some(name.into());
+        self
     }
 
     pub fn with_criterion(mut self, description: &str) -> Self {

@@ -77,10 +77,66 @@ impl TemplateEntry {
     }
 }
 
+/// A Skill is a composition bundle that groups templates by domain.
+///
+/// Skills reference existing templates by ID, not by content.
+/// They are NOT a new `template_type` — they compose existing Prompt,
+/// Process, Cognition, and Specification templates into domain-scoped bundles.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct Skill {
+    pub id: String,
+    pub domain: String,
+    pub word_act: Option<String>,
+    pub flow_def: Option<String>,
+    pub know_act: Option<String>,
+    pub specification: Option<String>,
+    pub cascade_order: Vec<String>,
+}
+
+impl Skill {
+    pub fn new(id: &str, domain: &str) -> Self {
+        Self {
+            id: id.to_string(),
+            domain: domain.to_string(),
+            word_act: None,
+            flow_def: None,
+            know_act: None,
+            specification: None,
+            cascade_order: vec![],
+        }
+    }
+
+    pub fn with_word_act(mut self, template_id: &str) -> Self {
+        self.word_act = Some(template_id.to_string());
+        self
+    }
+
+    pub fn with_flow_def(mut self, template_id: &str) -> Self {
+        self.flow_def = Some(template_id.to_string());
+        self
+    }
+
+    pub fn with_know_act(mut self, template_id: &str) -> Self {
+        self.know_act = Some(template_id.to_string());
+        self
+    }
+
+    pub fn with_specification(mut self, template_id: &str) -> Self {
+        self.specification = Some(template_id.to_string());
+        self
+    }
+
+    pub fn with_cascade_order(mut self, order: Vec<String>) -> Self {
+        self.cascade_order = order;
+        self
+    }
+}
+
 /// Unified template registry
 #[derive(Debug)]
 pub struct Registry {
     templates: HashMap<String, TemplateEntry>,
+    skills: HashMap<String, Skill>,
     cache_valid: bool,
 }
 
@@ -88,6 +144,7 @@ impl Registry {
     pub fn new() -> Self {
         Self {
             templates: HashMap::new(),
+            skills: HashMap::new(),
             cache_valid: true,
         }
     }
@@ -264,6 +321,36 @@ impl Registry {
 
     pub fn count(&self) -> usize {
         self.templates.len()
+    }
+
+    // ── Skill composition methods ──────────────────────────────────
+
+    pub fn register_skill(&mut self, skill: Skill) {
+        self.skills.insert(skill.id.clone(), skill);
+    }
+
+    pub fn get_skill(&self, id: &str) -> Option<&Skill> {
+        self.skills.get(id)
+    }
+
+    pub fn skills_by_domain(&self, domain: &str) -> Vec<&Skill> {
+        self.skills
+            .values()
+            .filter(|s| s.domain == domain)
+            .collect()
+    }
+
+    /// Find skills that reference a given template ID.
+    pub fn skills_referencing_template(&self, template_id: &str) -> Vec<&Skill> {
+        self.skills
+            .values()
+            .filter(|s| {
+                s.word_act.as_deref() == Some(template_id)
+                    || s.flow_def.as_deref() == Some(template_id)
+                    || s.know_act.as_deref() == Some(template_id)
+                    || s.specification.as_deref() == Some(template_id)
+            })
+            .collect()
     }
 
     /// Bootstrap registry with hLexicon core templates
@@ -571,5 +658,123 @@ impl RegistryIndex for Registry {
             .ok_or_else(|| {
                 hkask_types::ports::RegistryError::NotFound(format!("Template '{}' not found", id))
             })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn skill_builder_pattern() {
+        let skill = Skill::new("research", "knowledge")
+            .with_word_act("prompt/research/query")
+            .with_flow_def("process/research/pipeline")
+            .with_know_act("cognition/research/calibrate")
+            .with_specification("spec/research/validate")
+            .with_cascade_order(vec![
+                "prompt/research/query".into(),
+                "cognition/research/calibrate".into(),
+            ]);
+
+        assert_eq!(skill.id, "research");
+        assert_eq!(skill.domain, "knowledge");
+        assert_eq!(skill.word_act.as_deref(), Some("prompt/research/query"));
+        assert_eq!(skill.flow_def.as_deref(), Some("process/research/pipeline"));
+        assert_eq!(
+            skill.know_act.as_deref(),
+            Some("cognition/research/calibrate")
+        );
+        assert_eq!(
+            skill.specification.as_deref(),
+            Some("spec/research/validate")
+        );
+        assert_eq!(skill.cascade_order.len(), 2);
+    }
+
+    #[test]
+    fn skill_minimal_fields() {
+        let skill = Skill::new("minimal", "test");
+        assert!(skill.word_act.is_none());
+        assert!(skill.flow_def.is_none());
+        assert!(skill.know_act.is_none());
+        assert!(skill.specification.is_none());
+        assert!(skill.cascade_order.is_empty());
+    }
+
+    #[test]
+    fn register_and_retrieve_skill() {
+        let mut registry = Registry::new();
+        let skill = Skill::new("coding", "engineering").with_word_act("prompt/code/generate");
+        registry.register_skill(skill);
+
+        let retrieved = registry.get_skill("coding").unwrap();
+        assert_eq!(retrieved.id, "coding");
+        assert_eq!(retrieved.domain, "engineering");
+        assert_eq!(retrieved.word_act.as_deref(), Some("prompt/code/generate"));
+
+        assert!(registry.get_skill("nonexistent").is_none());
+    }
+
+    #[test]
+    fn skills_by_domain() {
+        let mut registry = Registry::new();
+        registry.register_skill(Skill::new("research", "knowledge"));
+        registry.register_skill(Skill::new("summarize", "knowledge"));
+        registry.register_skill(Skill::new("deploy", "engineering"));
+
+        let knowledge = registry.skills_by_domain("knowledge");
+        assert_eq!(knowledge.len(), 2);
+        assert!(knowledge.iter().all(|s| s.domain == "knowledge"));
+
+        let engineering = registry.skills_by_domain("engineering");
+        assert_eq!(engineering.len(), 1);
+        assert_eq!(engineering[0].id, "deploy");
+
+        let empty = registry.skills_by_domain("nonexistent");
+        assert!(empty.is_empty());
+    }
+
+    #[test]
+    fn skills_referencing_template() {
+        let mut registry = Registry::new();
+        registry.register_skill(
+            Skill::new("research", "knowledge")
+                .with_word_act("prompt/research/query")
+                .with_flow_def("process/research/pipeline"),
+        );
+        registry.register_skill(
+            Skill::new("audit", "governance").with_word_act("prompt/research/query"), // same template
+        );
+        registry.register_skill(
+            Skill::new("deploy", "engineering").with_know_act("cognition/deploy/verify"),
+        );
+
+        let refs = registry.skills_referencing_template("prompt/research/query");
+        assert_eq!(refs.len(), 2);
+        assert!(refs.iter().any(|s| s.id == "research"));
+        assert!(refs.iter().any(|s| s.id == "audit"));
+
+        let process_refs = registry.skills_referencing_template("process/research/pipeline");
+        assert_eq!(process_refs.len(), 1);
+        assert_eq!(process_refs[0].id, "research");
+
+        let no_refs = registry.skills_referencing_template("nonexistent/template");
+        assert!(no_refs.is_empty());
+    }
+
+    #[test]
+    fn skill_serialization_roundtrip() {
+        let skill = Skill::new("research", "knowledge")
+            .with_word_act("prompt/research/query")
+            .with_cascade_order(vec!["prompt/research/query".into()]);
+
+        let json = serde_json::to_string(&skill).unwrap();
+        let deserialized: Skill = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.id, skill.id);
+        assert_eq!(deserialized.domain, skill.domain);
+        assert_eq!(deserialized.word_act, skill.word_act);
+        assert_eq!(deserialized.cascade_order, skill.cascade_order);
     }
 }

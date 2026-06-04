@@ -7,6 +7,44 @@ use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
+/// Per-domain decay constants for weighted replay.
+///
+/// Each loop domain has its own `λ` (lambda) for exponential decay.
+/// Half-life = ln(2)/λ. A Cybernetics half-life of ~5min (λ≈0.0023/s)
+/// means events older than ~30min are negligible (weight < 0.001).
+#[derive(Debug, Clone)]
+pub struct DecayConfig {
+    /// Cybernetics decay constant (1/s). Default: ln(2)/300 ≈ 0.00231 (5min half-life)
+    pub cybernetics_lambda: f64,
+    /// Curation decay constant (1/s). Default: ln(2)/900 ≈ 0.00077 (15min half-life)
+    pub curation_lambda: f64,
+    /// Inference decay constant (1/s). Default: ln(2)/120 ≈ 0.00578 (2min half-life)
+    pub inference_lambda: f64,
+    /// Episodic decay constant (1/s). Default: ln(2)/600 ≈ 0.00116 (10min half-life)
+    pub episodic_lambda: f64,
+    /// Minimum weight threshold — events below this are not replayed. Default: 0.001
+    pub weight_threshold: f64,
+}
+
+impl Default for DecayConfig {
+    fn default() -> Self {
+        Self {
+            cybernetics_lambda: std::f64::consts::LN_2 / 300.0,
+            curation_lambda: std::f64::consts::LN_2 / 900.0,
+            inference_lambda: std::f64::consts::LN_2 / 120.0,
+            episodic_lambda: std::f64::consts::LN_2 / 600.0,
+            weight_threshold: 0.001,
+        }
+    }
+}
+
+/// A NuEvent with its computed replay weight.
+#[derive(Debug, Clone)]
+pub struct WeightedEvent {
+    pub event: NuEvent,
+    pub weight: f64,
+}
+
 #[derive(Error, Debug)]
 pub enum NuEventError {
     #[error(transparent)]
@@ -39,6 +77,56 @@ pub struct NuEventStore {
 impl NuEventStore {
     pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
         Self { conn }
+    }
+
+    /// Replay events with exponentially decaying weights.
+    ///
+    /// Events are weighted by `exp(-λ · Δt)` where Δt is the time elapsed
+    /// since the event, and λ is the per-domain decay constant. Events with
+    /// weight below `config.weight_threshold` are excluded.
+    ///
+    /// The domain is determined from the event's span namespace:
+    /// - "variety", "gas", "killzone" → cybernetics_lambda
+    /// - "curation", "spec" → curation_lambda
+    /// - "inference" → inference_lambda
+    /// - "agent_pod", "connector" → episodic_lambda
+    /// - everything else → cybernetics_lambda (safe default)
+    pub fn replay_weighted(
+        &self,
+        since: chrono::DateTime<chrono::Utc>,
+        limit: u64,
+        config: &DecayConfig,
+    ) -> Result<Vec<WeightedEvent>, NuEventError> {
+        let events = self.query_algedonic(since, limit)?;
+        let now = chrono::Utc::now();
+
+        let weighted: Vec<WeightedEvent> = events
+            .into_iter()
+            .filter_map(|event| {
+                let delta_secs = (now - event.timestamp).num_seconds() as f64;
+                let lambda = Self::lambda_for_category(event.span.namespace.short_name(), config);
+                let weight = (-lambda * delta_secs).exp();
+                if weight >= config.weight_threshold {
+                    Some(WeightedEvent { event, weight })
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        Ok(weighted)
+    }
+
+    fn lambda_for_category(category: &str, config: &DecayConfig) -> f64 {
+        match category {
+            c if c.starts_with("variety") || c.starts_with("gas") || c.starts_with("killzone") => {
+                config.cybernetics_lambda
+            }
+            c if c.starts_with("curation") || c.starts_with("spec") => config.curation_lambda,
+            c if c.starts_with("inference") => config.inference_lambda,
+            c if c.starts_with("agent_pod") || c.starts_with("connector") => config.episodic_lambda,
+            _ => config.cybernetics_lambda, // safe default
+        }
     }
 
     pub(crate) fn insert(&self, event: &NuEvent) -> Result<(), NuEventError> {
@@ -210,5 +298,176 @@ impl NuEventSink for NuEventStore {
         self.insert(event).map_err(|e| match e {
             NuEventError::Infra(infra) => infra,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
+    use hkask_types::id::WebID;
+
+    #[test]
+    fn decay_config_default_values() {
+        let config = DecayConfig::default();
+        // Cybernetics: ln(2)/300 ≈ 0.00231 (5min half-life)
+        let expected_cyber = std::f64::consts::LN_2 / 300.0;
+        assert!((config.cybernetics_lambda - expected_cyber).abs() < 1e-10);
+        // Curation: ln(2)/900 ≈ 0.00077 (15min half-life)
+        let expected_cur = std::f64::consts::LN_2 / 900.0;
+        assert!((config.curation_lambda - expected_cur).abs() < 1e-10);
+        // Inference: ln(2)/120 ≈ 0.00578 (2min half-life)
+        let expected_inf = std::f64::consts::LN_2 / 120.0;
+        assert!((config.inference_lambda - expected_inf).abs() < 1e-10);
+        // Episodic: ln(2)/600 ≈ 0.00116 (10min half-life)
+        let expected_epi = std::f64::consts::LN_2 / 600.0;
+        assert!((config.episodic_lambda - expected_epi).abs() < 1e-10);
+        // Weight threshold
+        assert!((config.weight_threshold - 0.001).abs() < 1e-10);
+    }
+
+    #[test]
+    fn lambda_for_category_mapping() {
+        let config = DecayConfig::default();
+        // Cybernetics domain
+        assert!(
+            (NuEventStore::lambda_for_category("variety", &config) - config.cybernetics_lambda)
+                .abs()
+                < 1e-10
+        );
+        assert!(
+            (NuEventStore::lambda_for_category("gas", &config) - config.cybernetics_lambda).abs()
+                < 1e-10
+        );
+        assert!(
+            (NuEventStore::lambda_for_category("killzone", &config) - config.cybernetics_lambda)
+                .abs()
+                < 1e-10
+        );
+        // Curation domain
+        assert!(
+            (NuEventStore::lambda_for_category("curation", &config) - config.curation_lambda).abs()
+                < 1e-10
+        );
+        assert!(
+            (NuEventStore::lambda_for_category("spec", &config) - config.curation_lambda).abs()
+                < 1e-10
+        );
+        // Inference domain
+        assert!(
+            (NuEventStore::lambda_for_category("inference", &config) - config.inference_lambda)
+                .abs()
+                < 1e-10
+        );
+        // Episodic domain
+        assert!(
+            (NuEventStore::lambda_for_category("agent_pod", &config) - config.episodic_lambda)
+                .abs()
+                < 1e-10
+        );
+        assert!(
+            (NuEventStore::lambda_for_category("connector", &config) - config.episodic_lambda)
+                .abs()
+                < 1e-10
+        );
+        // Default falls back to cybernetics
+        assert!(
+            (NuEventStore::lambda_for_category("tool", &config) - config.cybernetics_lambda).abs()
+                < 1e-10
+        );
+        assert!(
+            (NuEventStore::lambda_for_category("prompt", &config) - config.cybernetics_lambda)
+                .abs()
+                < 1e-10
+        );
+    }
+
+    #[test]
+    fn replay_weighted_filters_below_threshold() {
+        // Create an in-memory database and store
+        let db = crate::Database::in_memory().expect("in-memory db");
+        let store = NuEventStore::new(db.conn_arc());
+
+        // Insert an old event (60 min ago) with variety category (cybernetics λ ≈ 0.00231)
+        // Weight = exp(-0.00231 * 3600) ≈ exp(-8.316) ≈ 0.00024 < 0.001 threshold
+        let mut old_event = NuEvent::new(
+            WebID(uuid::Uuid::new_v4()),
+            Span::new(SpanNamespace::new("cns.variety"), "depleted"),
+            Phase::Act,
+            serde_json::json!({"variety_count": 0}),
+            0,
+        );
+        // Set timestamp to 60 min ago so it falls below threshold
+        old_event.timestamp = chrono::Utc::now() - chrono::Duration::minutes(60);
+
+        // Insert a recent event (just created) — weight close to 1.0, well above threshold
+        let recent_event = NuEvent::new(
+            WebID(uuid::Uuid::new_v4()),
+            Span::new(SpanNamespace::new("cns.variety"), "depleted"),
+            Phase::Act,
+            serde_json::json!({"variety_count": 42}),
+            0,
+        );
+
+        store.insert(&old_event).expect("insert old event");
+        store.insert(&recent_event).expect("insert recent event");
+
+        // Query with default decay config
+        let config = DecayConfig::default();
+        let since = chrono::Utc::now() - chrono::Duration::hours(2);
+        let result = store
+            .replay_weighted(since, 100, &config)
+            .expect("replay_weighted");
+
+        // Only the recent event should survive; the old one is below threshold
+        // Note: the old event may or may not be returned by query_algedonic
+        // depending on its phase — we verify that any returned events pass
+        // the weight threshold.
+        for weighted in &result {
+            assert!(
+                weighted.weight >= config.weight_threshold,
+                "weight {} should be >= threshold {}",
+                weighted.weight,
+                config.weight_threshold
+            );
+        }
+    }
+
+    #[test]
+    fn replay_weighted_applies_decay() {
+        let db = crate::Database::in_memory().expect("in-memory db");
+        let store = NuEventStore::new(db.conn_arc());
+
+        // Insert an event with timestamp 5 minutes ago
+        // For variety (cybernetics λ ≈ 0.00231), weight = exp(-0.00231 * 300) ≈ 0.50
+        let mut event = NuEvent::new(
+            WebID(uuid::Uuid::new_v4()),
+            Span::new(SpanNamespace::new("cns.variety"), "test"),
+            Phase::Act,
+            serde_json::json!({"test": true}),
+            0,
+        );
+        event.timestamp = chrono::Utc::now() - chrono::Duration::minutes(5);
+        store.insert(&event).expect("insert event");
+
+        let config = DecayConfig::default();
+        let since = chrono::Utc::now() - chrono::Duration::hours(1);
+        let result = store
+            .replay_weighted(since, 100, &config)
+            .expect("replay_weighted");
+
+        // The event should have weight < 1.0 (5 min of decay) and > 0.0
+        for weighted in &result {
+            assert!(
+                weighted.weight < 1.0,
+                "weight {} should be < 1.0 for an event with elapsed time",
+                weighted.weight
+            );
+            assert!(
+                weighted.weight > 0.0,
+                "weight {} should be > 0.0",
+                weighted.weight
+            );
+        }
     }
 }

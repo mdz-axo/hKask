@@ -226,12 +226,13 @@ impl Database {
             CREATE TABLE IF NOT EXISTS cns_alerts (id TEXT PRIMARY KEY, timestamp TEXT NOT NULL, alert_type TEXT NOT NULL, severity TEXT NOT NULL, domain TEXT, message TEXT NOT NULL, resolved INTEGER NOT NULL DEFAULT 0, resolved_at TEXT);
             CREATE TABLE IF NOT EXISTS agent_registry (name TEXT PRIMARY KEY, agent_kind TEXT NOT NULL, definition_json TEXT NOT NULL, token_hash TEXT NOT NULL, registered_at TEXT NOT NULL, source_yaml TEXT NOT NULL);
             CREATE INDEX IF NOT EXISTS idx_agent_registry_kind ON agent_registry(agent_kind);
-            CREATE TABLE IF NOT EXISTS goals (id TEXT PRIMARY KEY, webid TEXT NOT NULL, text TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending', visibility TEXT NOT NULL DEFAULT 'private', created_at TEXT DEFAULT (datetime('now')), completed_at TEXT, parent_goal_id TEXT, depth INTEGER NOT NULL DEFAULT 0);
+            CREATE TABLE IF NOT EXISTS goals (id TEXT PRIMARY KEY, webid TEXT NOT NULL, text TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending', visibility TEXT NOT NULL DEFAULT 'private', created_at TEXT DEFAULT (datetime('now')), completed_at TEXT, parent_goal_id TEXT, depth INTEGER NOT NULL DEFAULT 0, display_name TEXT);
             CREATE TABLE IF NOT EXISTS goal_criteria (id TEXT PRIMARY KEY, goal_id TEXT REFERENCES goals(id), type TEXT NOT NULL, description TEXT NOT NULL, satisfied INTEGER NOT NULL DEFAULT 0);
             CREATE TABLE IF NOT EXISTS goal_artifacts (id TEXT PRIMARY KEY, goal_id TEXT REFERENCES goals(id), artifact_ref TEXT NOT NULL, artifact_type TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));
             CREATE TABLE IF NOT EXISTS consent_records (id TEXT PRIMARY KEY, webid TEXT NOT NULL, granted_categories TEXT NOT NULL, granted_at INTEGER NOT NULL, revoked_at INTEGER, active INTEGER NOT NULL DEFAULT 1);
             CREATE INDEX IF NOT EXISTS idx_consent_webid ON consent_records(webid);
-            CREATE INDEX IF NOT EXISTS idx_consent_active ON consent_records(active);")
+            CREATE INDEX IF NOT EXISTS idx_consent_active ON consent_records(active);
+            CREATE TABLE IF NOT EXISTS quarantined_goals (id TEXT PRIMARY KEY, original_data TEXT NOT NULL DEFAULT '', quarantine_reason TEXT NOT NULL, quarantined_at TEXT NOT NULL, repair_attempts INTEGER NOT NULL DEFAULT 0, repaired INTEGER NOT NULL DEFAULT 0);")
         )?;
         Ok(())
     }

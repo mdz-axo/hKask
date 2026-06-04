@@ -9,6 +9,7 @@
 //! spec curation is a persona concern (the Curator Agent curates specs),
 //! not a regulatory concern (the Curation Loop regulates).
 
+use hkask_cns::CurationThresholdConfig;
 use hkask_storage::spec_types::{Spec, SpecCurationRecord, SpecCurator, SpecError};
 use hkask_types::capability::SYSTEM_MAX_RECURSION;
 use hkask_types::curation::{CurationDecision, OCAPBoundary};
@@ -30,6 +31,23 @@ impl DefaultSpecCurator {
         Self {
             coherence_threshold: coherence_threshold.clamp(0.0, 1.0),
             drift_threshold: 0.5,
+            max_iterations: SYSTEM_MAX_RECURSION,
+        }
+    }
+
+    /// Create from a `CurationThresholdConfig` loaded from YAML.
+    ///
+    /// Logs the actual threshold values at construction time for post-hoc analysis.
+    pub fn from_config(config: &CurationThresholdConfig) -> Self {
+        tracing::info!(
+            target: "cns.spec",
+            coherence_threshold = config.coherence_threshold,
+            drift_threshold = config.drift_threshold,
+            "DefaultSpecCurator initialized with YAML-configured thresholds"
+        );
+        Self {
+            coherence_threshold: config.coherence_threshold.clamp(0.0, 1.0),
+            drift_threshold: config.drift_threshold.clamp(0.0, 1.0),
             max_iterations: SYSTEM_MAX_RECURSION,
         }
     }
@@ -75,15 +93,17 @@ impl SpecCurator for DefaultSpecCurator {
         // Compute drift between declared verbs and registered tools
         let drift_report = spec.drift(registered_verbs);
 
-        // Emit cns.spec.drift NuEvent span
+        // Emit cns.spec.drift NuEvent span with configured thresholds
         tracing::info!(
             target: "cns.spec",
             spec_id = %spec.id,
             drift_magnitude = drift_report.drift_magnitude,
+            drift_threshold = self.drift_threshold,
             missing_verbs = ?drift_report.missing_verbs,
             extra_verbs = ?drift_report.extra_verbs,
             coherence = coherence,
-            "Spec drift detection"
+            coherence_threshold = self.coherence_threshold,
+            "Spec drift detection with configured thresholds"
         );
 
         // Escalate if drift exceeds threshold

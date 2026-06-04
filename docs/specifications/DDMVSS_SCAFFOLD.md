@@ -78,7 +78,6 @@ docs/
 │   ├── PROJECT_STATUS.md                  # Single source of truth
 │   └── mcp-server-audit.md                # MCP server completeness audit
 ├── user-guides/                           # User-facing guides
-├── gml/                                   # GML (Allosteric Thinking)
 ├── archive/                                # Archived documents (gitignored)
 ├── ci/                                     # CI verification scripts
 │   ├── check-links.sh                     # Link integrity checker

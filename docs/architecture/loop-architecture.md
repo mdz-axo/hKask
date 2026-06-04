@@ -77,7 +77,7 @@ status: VERIFIED
 
 ### 1.5 Consequence
 
-The `RateLimiter` and `CnsTokenBucket` types have been removed (per §4.6 of [`trust-security-observability.md`](../trust-security-observability.md)). `McpErrorKind::RateLimited` remains **only** for external HTTP 429 responses where downstream services impose rate limits — it is not an internal concept. All internal resource gating flows through `EnergyBudget.try_consume()`.
+The `RateLimiter` and `CnsTokenBucket` types have been removed (per §4.6 of [`trust-security-observability.md`](trust-security-observability.md)). `McpErrorKind::RateLimited` remains **only** for external HTTP 429 responses where downstream services impose rate limits — it is not an internal concept. All internal resource gating flows through `EnergyBudget.try_consume()`.
 
 ### 1.6 External-Boundary Rate Limiting — Security Exception
 

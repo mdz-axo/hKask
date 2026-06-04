@@ -124,20 +124,19 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a **minimal agent-n
 | Category | Count | Location |
 |----------|-------|----------|
 | **Architecture Specs** | 4 | `docs/architecture/` (domain-and-capability, interface-and-composition, trust-security-observability, persistence-and-lifecycle) |
-| **Architecture Framework** | 3 | `docs/architecture/` (DDMVSS, PRINCIPLES, magna-carta) |
+| **Architecture Framework** | 4 | `docs/architecture/` (DDMVSS, PRINCIPLES, loop-architecture, magna-carta) |
 | **Architecture Index** | 1 | `docs/architecture/hKask-architecture-master.md` |
 | **Architecture ADR** | 8 | `docs/architecture/` (ADR-022 through ADR-029; ADR-029 = goal capability primitive) |
-| **Reference Artifacts** | 6 | `docs/architecture/reference/` |
+| **Reference Artifacts** | 7 | `docs/architecture/reference/` (incl. distillation-erd) |
 | **Specifications** | 9 | `docs/specifications/` |
-| **Plans** | 1 | `docs/plans/` (TODO only) |
+| **Plans** | 2 | `docs/plans/` (TODO, high-temp-templates) |
 | **User Guides** | 2 | `docs/user-guides/` |
-| **GML** | 1 | `docs/gml/` |
 | **Status** | 2 | `docs/status/` (PROJECT_STATUS, mcp-server-audit) |
 | **Cross-cutting** | 2 | `docs/` root (DIAGRAMS_INDEX, OPEN_QUESTIONS) |
 | **Portal** | 1 | `docs/README.md` |
 | **Generated** | 2 | `docs/generated/` (cli-reference, openapi.json) |
 | **CI Scripts** | 2 | `docs/ci/` (check-links.sh, check-metadata.sh) |
-| **Total** | 42 (.md, excl. archive) + 2 CI scripts | — |
+| **Total** | 46 (.md, excl. archive) + 2 CI scripts | — |
 
 ### 4.2 Archived Documents
 
@@ -149,8 +148,8 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a **minimal agent-n
 | `2026-05-25-bloat-removal` | 6 | Content absorbed into DDMVSS specs or stale |
 | `2026-05-28-documentation-refresh` | 10 (+ 4 deleted) | Stale/historical docs archived; MODEL_CATALOG, 2 plan files, and 1 other deleted |
 | `2026-06-01-documentation-refresh` | 11 | Audit artifacts + speculative 10-loop feedback-loops-decomposition archived |
-| `2026-06-03-documentation-refresh` | 8 | 3 reference docs + 5 plan docs archived |
-| **Total** | 123 | — |
+| `2026-06-03-documentation-refresh` | 17 | 3 reference docs, 5 plan docs, 9 GML docs archived |
+| **Total** | 132 | — |
 
 ### 4.3 DDMVSS Completeness
 

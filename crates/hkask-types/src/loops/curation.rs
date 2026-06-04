@@ -93,7 +93,7 @@ impl CuratorHandle {
 /// Per ARL IP-3: when the Curation Confidence Gate is in the transition zone
 /// (0.3 < R̄ < 0.8), the regulated response is `SeekMoreEvidence`, which
 /// is routed through Cybernetics to the Inference Loop.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CuratorDirective {
     CalibrateThreshold {
@@ -135,5 +135,9 @@ pub enum CuratorDirective {
     ReplenishBudget {
         agent: WebID,
         amount: u64,
+        /// Priority weight for replenishment scaling (0.0–1.0).
+        /// When present, Cybernetics scales the replenishment amount by this priority.
+        /// Defaults to 1.0 (full replenishment).
+        priority: Option<f64>,
     },
 }
