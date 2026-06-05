@@ -407,7 +407,12 @@ pub fn run(
                 // Derived from onboarding — same secret that governs OCAP authority.
                 let acp_secret: &[u8] = match &state.resolved_secrets {
                     Some(secrets) => secrets.acp_secret.as_bytes(),
-                    None => b"hkask-insecure-dev-fallback",
+                    None => {
+                        eprintln!(
+                            "Error: No ACP secret resolved. Run `kask chat` to complete onboarding or set HKASK_MASTER_KEY."
+                        );
+                        continue;
+                    }
                 };
 
                 if let Some(ref session) = state.active_session {

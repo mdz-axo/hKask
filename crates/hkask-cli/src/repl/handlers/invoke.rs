@@ -65,9 +65,10 @@ pub(crate) fn handle_invoke(
     let acp_secret = match state.resolved_secrets {
         Some(ref secrets) => secrets.acp_secret.as_bytes(),
         None => {
-            // Development fallback — in production, onboarding always resolves secrets
-            tracing::warn!(target: "hkask.repl.invoke", "No ACP secret — using dev fallback for capability token");
-            b"hkask-insecure-dev-fallback"
+            eprintln!(
+                "Error: No ACP secret resolved. Run `kask chat` to complete onboarding or set HKASK_MASTER_KEY."
+            );
+            return;
         }
     };
 

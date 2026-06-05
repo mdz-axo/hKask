@@ -23,7 +23,7 @@ pub(crate) use security::UrlValidationConfig;
 pub(crate) use security::validate_url;
 pub use server::{
     CredentialRequirement, McpToolError, McpToolOutput, ServerContext, ToolSpanGuard, api_get,
-    api_post, classify_http_error, emit_tool_span_with_caller, resolve_credential,
+    api_post, api_put, classify_http_error, emit_tool_span_with_caller, resolve_credential,
     run_stdio_server, validate_identifier, validate_tool_url,
 };
 

@@ -14,7 +14,7 @@
 //! # ACP Integration
 //!
 //! The server resolves ACP secrets through the full derivation chain (master key →
-//! env → keychain → insecure dev), ensuring capability tokens are compatible with
+//! env → keychain → deterministic default), ensuring capability tokens are compatible with
 //! the CLI and other MCP servers.
 //!
 //! # System Prompt Richness

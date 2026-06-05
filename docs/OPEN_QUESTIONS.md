@@ -183,51 +183,34 @@ ddmvss_categories: [interface, composition, capability, observability, curation,
 
 **Result:** 139 → 0 `unwrap()` calls in production code across all 11 core crates. All 139 converted to `expect("reason")` with explicit invariant documentation. CI `security-invariants` job enforces this permanently.
 
-### F6: Goal Capability — Revocation and Lineage Unification ⚠️ OPEN
+### F6: Goal Capability — Revocation and Lineage Unification ✅ RESOLVED
 
 **DDMVSS Category:** Trust  
-**Status:** **Open** (surfaced by the 2026-05-29 goal-capability hardening, P0-03)  
-**Raised:** 2026-05-29
+**Status:** **Resolved** — `GoalCapabilityToken` entirely removed in v0.22.0  
+**Raised:** 2026-05-29 · **Resolved:** 2026-06-04
 
-The goal-capability subsystem was hardened (authority bound into the HMAC,
-constant-time verify, owner/visibility checks on writes, legal-transition
-enforcement, fail-loud read-back) and is now exposed on all three surfaces —
-CLI (`kask goal create|list|set-state`), HTTP API (`/api/goals`,
-`/api/goals/{id}/state`), and MCP (`hkask-mcp-goal`: `goal_create`,
-`goal_list`, `goal_set_state`) — each wired to the `NuEventStore` CNS denial
-sink. Several aspects remain underspecified and are deliberately **not**
-pre-built (P5 — code not needed today is debt):
+**Resolution:** In v0.22.0, `GoalCapabilityToken` was **entirely removed** — the
+type, its HMAC signing, epoch-based revocation, and attenuation were all
+deleted. Goal operations now use `&WebID` for owner scoping instead of token
+verification. The entire token infrastructure (HMAC, revocation, attenuation,
+ADR-029) was removed as over-engineered ceremony with no functional payoff.
 
-1. **Revocation.** `GoalCapabilityToken` carries only `expires`; there is no way
-   to revoke a leaked token before expiry. Options: short-TTL-only (current),
-   an epoch counter folded into the HMAC, or Miller-style revocable forwarders
-   (membranes). Decision needed before goal tokens cross trust boundaries. Now
-   that a CLI surface exists, this is the highest-priority open item.
-2. **API/MCP parity.** ✅ **Resolved** — HTTP API routes (`hkask-api`
-   `routes/goal.rs`) and an MCP tool surface (`mcp-servers/hkask-mcp-goal`)
-   now mirror the CLI, satisfying MCP ≡ CLI ≡ API (REQ-IFC-001). A remaining
-   nuance: the API/MCP surfaces use per-process repository connections; a
-   shared-store wiring across surfaces is a deployment concern, not a
-   correctness one.
-3. **Operation-set canonicalization encoding.** The signature now binds a
-   sorted, deduplicated, length-delimited operation list. Whether to switch to
-   a stable bitset (smaller, ordering-free by construction) should be recorded
-   in an ADR if the `GoalOp` set grows.
-4. **Single vs. dual capability primitive.** **Decided in ADR-029** —
-   `GoalCapabilityToken` is kept as a distinct type aligned with the canonical
-   `CapabilityToken`'s invariants (shared `SYSTEM_MAX_ATTENUATION`,
-   `can_attenuate()`, all-fields HMAC, constant-time verify), *not* collapsed
-   into it. Full lineage unification (typed projection with root-nonce chain
-   verification) remains open and revisitable if goal tokens cross trust
-   boundaries. See `docs/architecture/ADR-029-goal-capability-primitive.md`.
-5. **Persistence corruption response.** Corruption now surfaces as
-   `GoalRepositoryError::Corrupt`; the system-level policy (quarantine, CNS
-   algedonic alert, repair) is unspecified.
-6. **Recursion-bound coherence.** Attenuation depth, template cascade depth, and
-   subgoal depth all use "7". Confirm whether these should reference one shared
-   constant (`SYSTEM_MAX_ATTENUATION`) rather than three coincidental literals.
+All sub-questions are **moot**:
 
-**See:** `crates/hkask-types/src/goal_capability.rs`, `crates/hkask-storage/src/goals.rs`, `crates/hkask-cli/src/commands/goal.rs`, `crates/hkask-api/src/routes/goal.rs`, `mcp-servers/hkask-mcp-goal/src/main.rs`, `crates/hkask-cns/tests/goal_capability_cybertests.rs`, `docs/architecture/reference/subsystem-erds.md` §13, ADR-025, ADR-029.
+1. **Revocation** — No longer applicable; no token to revoke. Owner scoping
+   via `WebID` is the authority mechanism.
+2. **API/MCP parity** — ✅ Previously resolved; parity still holds with `WebID`.
+3. **Operation-set canonicalization encoding** — No longer applicable; no
+   token signature to bind an operation set.
+4. **Single vs. dual capability primitive** — No longer applicable;
+   `GoalCapabilityToken` no longer exists. ADR-029 is superseded.
+5. **Persistence corruption response** — Remains relevant for
+   `GoalRepositoryError::Corrupt` but is decoupled from token concerns.
+6. **Recursion-bound coherence** — `SYSTEM_MAX_ATTENUATION` still applies to
+   `CapabilityToken` attenuation, but the goal-specific recursion question is
+   moot.
+
+**See:** `crates/hkask-storage/src/goals.rs`, `crates/hkask-cli/src/commands/goal.rs`, `crates/hkask-api/src/routes/goal.rs`, `mcp-servers/hkask-mcp-goal/src/main.rs`, `docs/architecture/reference/subsystem-erds.md` §13, ADR-025. ~~ADR-029 is superseded (the `GoalCapabilityToken` type no longer exists).~~
 
 ### F5: 41,339 LOC vs. 35K Budget ✅ DEPRECATED
 
@@ -320,8 +303,9 @@ CNS thresholds, gas budgets, variety set-points are currently hardcoded. Need YA
 | OQ-7 | Deferred | Next doc refresh cycle | 2026-05-29 |
 | OQ-8 | Resolved | Document concept, defer execution | 2026-05-29 |
 | OQ-9 | Resolved | Confirmed fully implemented | 2026-05-28 |
+| F6 | Resolved | GoalCapabilityToken removed; WebID-based owner scoping replaces token infrastructure | 2026-06-04 |
 
-**DDMVSS completeness:** 8/8 open questions resolved, 1 deferred with documented rationale.
+**DDMVSS completeness:** 8/8 open questions resolved, 1 deferred with documented rationale. F6 resolved post-sprint.
 
 ---
 

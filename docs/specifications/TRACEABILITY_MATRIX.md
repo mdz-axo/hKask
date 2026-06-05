@@ -34,7 +34,7 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 | REQ-CAP-001 | OCAP access control | `hkask-types` | `visibility` | `Capability`, `AccessEvaluator` | — | ✅ Implemented |
 | REQ-CAP-002 | Capability attenuation | `hkask-types` | `visibility` | `Delegation`, `DelegationStore`, `RevocationList` | — | ✅ Implemented |
 | REQ-CAP-003 | MCP tool surface | `hkask-mcp` | `runtime`, `security`, `transport` | `McpRuntime`, `SecurityGateway`, `McpTransport` | — | ✅ Implemented |
-| REQ-CAP-004 (ADR-029, P0-03) | Goal capability — unforgeable authority bound into HMAC; owner/visibility checks co-located with every write; legal-transition enforcement | `hkask-types`, `hkask-storage` | `goal_capability`, `goal`, `goals` | `GoalCapabilityToken`, `GoalState::can_transition_to`, `SqliteGoalRepository` | `goal_capability::tests` (forgery, expiry, attenuation, order-invariance), `goal::tests` (transitions), `goals::tests` (confused-deputy, transition, owner-only delete) | ✅ Implemented |
+| REQ-CAP-004 (ADR-029, P0-03) | Goal capability — owner-scoped authority via `&WebID`; owner/visibility checks co-located with every write; legal-transition enforcement | `hkask-types`, `hkask-storage` | `goal`, `goals` | `WebID`, `GoalState::can_transition_to`, `SqliteGoalRepository` | `goal::tests` (transitions), `goals::tests` (transition, owner-only delete) | ✅ Implemented |
 
 ## Interface
 
@@ -66,7 +66,7 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 |---------|------------|-------|--------|---------------|-------|--------|
 | REQ-OBS-001 | CNS span emission | `hkask-types`, `hkask-cns` | `event`, `runtime` | `Span`, `CnsRuntime` | — | ✅ Implemented |
 | REQ-OBS-002 | Algedonic alerting | `hkask-cns`, `hkask-types` | `algedonic`, `cns` | `AlgedonicManager`, `AlgedonicAlert` | — | ✅ Implemented |
-| REQ-OBS-003 (ADR-029, P0-03) | Goal capability denials are observable — emit `cns.tool.goal.capability.denied` ν-events via injected `NuEventSink` port (non-fatal) | `hkask-storage`, `hkask-types`, `hkask-api`, `hkask-mcp-goal` | `goals`, `event`, `routes/goal`, `main` | `SqliteGoalRepository::{with_telemetry, emit_denial}`, `NuEventSink`, `ApiState.goal_repo`, `GoalServer` | `goals::tests` (denial telemetry, non-fatal sink), `hkask-cns` `goal_capability_cybertests` (cyber_), `hkask-mcp-goal` tests | ✅ Implemented |
+| REQ-OBS-003 (ADR-029, P0-03) | Goal operations use WebID-based owner scoping — access is determined by `&WebID` identity rather than capability tokens; no capability denials to observe | `hkask-types`, `hkask-storage`, `hkask-api`, `hkask-mcp-goal` | `goal`, `goals`, `routes/goal`, `main` | `WebID`, `SqliteGoalRepository`, `ApiState.goal_repo`, `GoalServer` | `goals::tests` (owner-scoped access), `hkask-mcp-goal` tests | ✅ Implemented |
 
 ## Persistence
 
@@ -108,4 +108,4 @@ ddmvss_categories: [domain, capability, interface, composition, trust, observabi
 
 **DDMVSS completeness:** 25/25 implemented requirements satisfied. 5 deferred with documented rationale (see [`REQUIREMENTS.md`](REQUIREMENTS.md) §11). `curated?` holds — every requirement has a curation decision.
 
-**Test coverage note (updated 2026-05-29):** The goal-capability hardening (ADR-029, P0-03) added dedicated `#[test]` coverage: forgery/expiry/attenuation and transition tests in `hkask-types` (`goal_capability`, `goal`), confused-deputy/transition/owner-only-delete and denial-telemetry tests in `hkask-storage` (`goals`), and two `cyber_`-prefixed cybernetic tests in `hkask-cns` (`goal_capability_cybertests`). `cargo test --workspace` is green. Other DDMVSS requirements remain primarily doctest- or inspection-verified pending broader test expansion (P0-02).
+**Test coverage note (updated 2026-06-04):** The goal-capability hardening (ADR-029, P0-03) now uses WebID-based owner scoping. `GoalCapabilityToken` and associated forgery/expiry/attenuation tests were removed in v0.22.0. Remaining dedicated `#[test]` coverage: transition tests in `hkask-types` (`goal`), owner-only-delete tests in `hkask-storage` (`goals`). `cargo test --workspace` is green. Other DDMVSS requirements remain primarily doctest- or inspection-verified pending broader test expansion (P0-02).

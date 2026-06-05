@@ -3,7 +3,7 @@ title: "ADR-029: Goal Capability Primitive — Aligned, Not Unified"
 audience: [architects, security engineers]
 last_updated: 2026-05-29
 version: "1.0.0"
-status: "Active"
+status: "Superseded"
 domain: "Technology"
 ddmvss_categories: [trust, capability]
 ---
@@ -11,9 +11,14 @@ ddmvss_categories: [trust, capability]
 # ADR-029: Goal Capability Primitive — Aligned, Not Unified
 
 **Date:** 2026-05-29
-**Status:** Implemented
+**Status:** Superseded
 **Supersedes:** N/A
+**Superseded-By:** Goal operations use `&WebID` owner scoping (v0.22.0)
 **Related:** ADR-025 (Attenuation Depth Limit), ADR-027 (Master Key Derivation)
+
+## Resolution
+
+In v0.22.0, `GoalCapabilityToken` was **entirely removed**. The type, its HMAC signing, epoch-based revocation, and attenuation were deleted from `crates/hkask-types/src/goal_capability.rs` (file deleted). Goal operations now use `&WebID` for owner scoping, not token verification. The entire token infrastructure (HMAC, revocation, attenuation, constant-time verification) was removed as over-engineered ceremony with no functional payoff — goal operations should work for anyone with database access, scoped by WebID ownership.
 
 ## Context
 
@@ -128,4 +133,4 @@ attenuation/cascade/subgoal depth.
 
 ---
 
-*ℏKask - A Minimal Viable Container for Agents — ADR-029 — v0.21.0*
+*ℏKask - A Minimal Viable Container for Agents — ADR-029 — v0.22.0*

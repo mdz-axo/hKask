@@ -489,15 +489,21 @@ impl SqliteGoalRepository {
     ///
     /// This removes the goal from the main `goals` table and inserts a forensic
     /// record into `quarantined_goals` for later repair or human review.
+    /// The goal's current state is serialized into `original_data` so it can be
+    /// restored during repair.
     pub fn quarantine_goal(&self, goal_id: GoalID, reason: &str) -> Result<()> {
+        // Load the goal before removing it so we can snapshot its state.
+        let goal = self.load_goal(goal_id)?;
+        let original_data = serde_json::to_string(&goal).unwrap_or_default();
+
         let conn = self
             .conn
             .lock()
             .map_err(|_| InfrastructureError::LockPoisoned)?;
         conn.execute(
             "INSERT INTO quarantined_goals (id, original_data, quarantine_reason, quarantined_at, repair_attempts, repaired)
-             VALUES (?1, '', ?2, ?3, 0, 0)",
-            rusqlite::params![goal_id.to_string(), reason, chrono::Utc::now().to_rfc3339()],
+             VALUES (?1, ?2, ?3, ?4, 0, 0)",
+            rusqlite::params![goal_id.to_string(), original_data, reason, chrono::Utc::now().to_rfc3339()],
         )
         .map_err(|e| GoalRepositoryError::QuarantineFailed(e.to_string()))?;
 
@@ -508,35 +514,109 @@ impl SqliteGoalRepository {
         Ok(())
     }
 
-    /// Attempt to repair a quarantined goal using NuEvent replay.
+    /// Attempt to repair a quarantined goal.
     ///
-    /// Returns `Ok(true)` if repair succeeded, `Ok(false)` if repair failed
-    /// (the goal stays quarantined for Curation/human review).
+    /// If `original_data` is present and parseable, re-inserts the goal into
+    /// the `goals` table and marks the quarantine record as repaired.
+    /// If `original_data` is empty or corrupt (legacy data), increments
+    /// `repair_attempts` and returns `false` for Curation/human review.
     ///
-    /// TODO: Implement weighted event replay (F.1). The current implementation
-    /// increments `repair_attempts` and returns false so Curation handles it.
-    /// Scope: replay NuEvents against the goal's original state to reconstruct
-    /// a clean version, using per-domain decay weights for recency bias.
+    /// TODO: Implement weighted event replay (F.1) to replay NuEvents
+    /// since `quarantined_at` against the goal's original state for full
+    /// reconstruction, using per-domain decay weights for recency bias.
     pub fn repair_quarantined_goal(
         &self,
         goal_id: GoalID,
         _event_sink: &dyn NuEventSink,
     ) -> Result<bool> {
+        // Read the quarantined record to inspect original_data.
+        let quarantined = {
+            let conn = self
+                .conn
+                .lock()
+                .map_err(|_| InfrastructureError::LockPoisoned)?;
+            let mut stmt = conn.prepare(
+                "SELECT id, original_data, quarantine_reason, quarantined_at, repair_attempts, repaired FROM quarantined_goals WHERE id = ?1",
+            )?;
+            let mut rows = stmt.query([goal_id.to_string()])?;
+            match rows.next()? {
+                Some(row) => QuarantinedGoal {
+                    id: GoalID::from_string(&row.get::<_, String>(0)?),
+                    original_data: row.get::<_, String>(1)?,
+                    quarantine_reason: row.get::<_, String>(2)?,
+                    quarantined_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(3)?)
+                        .map(|dt| dt.with_timezone(&chrono::Utc))
+                        .unwrap_or_default(),
+                    repair_attempts: row.get::<_, u32>(4)?,
+                    repaired: row.get::<_, i32>(5)? != 0,
+                },
+                None => return Err(GoalRepositoryError::NotFound(goal_id.to_string())),
+            }
+        };
+
+        // Try to deserialize original_data back into a Goal.
+        if quarantined.original_data.is_empty() {
+            // Legacy data — no baseline to reconstruct from.
+            let conn = self
+                .conn
+                .lock()
+                .map_err(|_| InfrastructureError::LockPoisoned)?;
+            conn.execute(
+                "UPDATE quarantined_goals SET repair_attempts = repair_attempts + 1 WHERE id = ?1",
+                [goal_id.to_string()],
+            )
+            .map_err(|e| GoalRepositoryError::QuarantineFailed(e.to_string()))?;
+            return Ok(false);
+        }
+
+        let goal: Goal = match serde_json::from_str(&quarantined.original_data) {
+            Ok(g) => g,
+            Err(_) => {
+                // Corrupt serialized data — cannot reconstruct.
+                let conn = self
+                    .conn
+                    .lock()
+                    .map_err(|_| InfrastructureError::LockPoisoned)?;
+                conn.execute(
+                    "UPDATE quarantined_goals SET repair_attempts = repair_attempts + 1 WHERE id = ?1",
+                    [goal_id.to_string()],
+                )
+                .map_err(|e| GoalRepositoryError::QuarantineFailed(e.to_string()))?;
+                return Ok(false);
+            }
+        };
+
+        // Re-insert the restored goal into the main goals table.
         let conn = self
             .conn
             .lock()
             .map_err(|_| InfrastructureError::LockPoisoned)?;
         conn.execute(
-            "UPDATE quarantined_goals SET repair_attempts = repair_attempts + 1 WHERE id = ?1",
+            "INSERT INTO goals (id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth, display_name)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            rusqlite::params![
+                goal.id.to_string(),
+                goal.webid.to_string(),
+                goal.text,
+                goal.state.as_str(),
+                goal.visibility.as_str(),
+                goal.created_at.to_rfc3339(),
+                goal.completed_at.map(|dt| dt.to_rfc3339()),
+                goal.parent_goal_id.map(|id| id.to_string()),
+                goal.depth as i32,
+                goal.display_name,
+            ],
+        )
+        .map_err(|e| GoalRepositoryError::QuarantineFailed(e.to_string()))?;
+
+        // Mark the quarantine record as repaired.
+        conn.execute(
+            "UPDATE quarantined_goals SET repaired = 1, repair_attempts = repair_attempts + 1 WHERE id = ?1",
             [goal_id.to_string()],
         )
         .map_err(|e| GoalRepositoryError::QuarantineFailed(e.to_string()))?;
-        drop(conn);
 
-        // Auto-repair from events is a placeholder — the F.1 weighted replay
-        // infrastructure will enable full reconstruction. Mark as failed
-        // repair attempt and let Curation handle it.
-        Ok(false)
+        Ok(true)
     }
 
     /// List all quarantined goals, most recent first.
@@ -632,7 +712,7 @@ mod tests {
     }
 
     #[test]
-    fn repair_quarantined_goal_increments_attempts_and_returns_false() {
+    fn repair_quarantined_goal_restores_from_original_data() {
         let repo = test_repo();
         let webid = WebID::new();
         let goal = repo
@@ -657,12 +737,66 @@ mod tests {
         let repaired = repo
             .repair_quarantined_goal(goal.id, &sink)
             .expect("repair attempt");
-        assert!(!repaired, "placeholder repair should return false");
+        assert!(repaired, "repair with original_data should return true");
+
+        // Verify goal is back in the main goals table
+        let restored = repo
+            .get_goal(goal.id)
+            .expect("get goal")
+            .expect("goal should exist");
+        assert_eq!(restored.text, "Goal to repair");
+
+        // Verify the quarantine record is marked as repaired
+        let quarantined = repo.list_quarantined_goals().expect("list quarantined");
+        let q = quarantined.into_iter().find(|q| q.id == goal.id).unwrap();
+        assert!(q.repaired);
+    }
+
+    #[test]
+    fn repair_quarantined_goal_returns_false_for_empty_original_data() {
+        let repo = test_repo();
+        let webid = WebID::new();
+        let goal = repo
+            .create_goal(&webid, "Legacy goal", Visibility::Private)
+            .expect("create goal");
+        let goal_id = goal.id;
+
+        // Manually insert a quarantined record with empty original_data (legacy)
+        let conn = repo.conn.lock().expect("lock");
+        conn.execute(
+            "INSERT INTO quarantined_goals (id, original_data, quarantine_reason, quarantined_at, repair_attempts, repaired)
+             VALUES (?1, '', ?2, ?3, 0, 0)",
+            rusqlite::params![goal_id.to_string(), "legacy corruption", chrono::Utc::now().to_rfc3339()],
+        ).expect("insert legacy quarantine");
+        // Remove from main table to simulate quarantine
+        conn.execute("DELETE FROM goals WHERE id = ?1", [goal_id.to_string()])
+            .expect("delete goal");
+        drop(conn);
+
+        struct NoopSink;
+        impl NuEventSink for NoopSink {
+            fn persist(
+                &self,
+                _event: &NuEvent,
+            ) -> std::result::Result<(), hkask_types::InfrastructureError> {
+                Ok(())
+            }
+        }
+        let sink = NoopSink;
+
+        let repaired = repo
+            .repair_quarantined_goal(goal_id, &sink)
+            .expect("repair attempt");
+        assert!(
+            !repaired,
+            "repair with empty original_data should return false"
+        );
 
         // Verify repair_attempts was incremented
         let quarantined = repo.list_quarantined_goals().expect("list quarantined");
-        let q = quarantined.into_iter().find(|q| q.id == goal.id).unwrap();
+        let q = quarantined.into_iter().find(|q| q.id == goal_id).unwrap();
         assert_eq!(q.repair_attempts, 1);
+        assert!(!q.repaired);
     }
 
     #[test]

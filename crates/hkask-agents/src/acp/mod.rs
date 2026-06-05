@@ -46,7 +46,7 @@ use tracing::info;
 use zeroize::Zeroizing;
 
 /// Per-agent derived signing key
-type AgentSecret = Arc<Zeroizing<Vec<u8>>>;
+pub type AgentSecret = Arc<Zeroizing<Vec<u8>>>;
 
 /// Parse a capability string using the canonical [`CapabilitySpec`] parser.
 ///
@@ -196,7 +196,7 @@ impl AcpRuntime {
     ///
     /// Derived keys are cached for reuse. The master key can still derive any
     /// agent's key (root authority).
-    async fn derive_agent_secret(&self, agent_webid: &WebID) -> AgentSecret {
+    pub async fn derive_agent_secret(&self, agent_webid: &WebID) -> AgentSecret {
         // Check cache first
         {
             let cache = self.agent_secrets.read().await;

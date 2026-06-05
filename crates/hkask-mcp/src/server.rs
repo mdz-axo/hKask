@@ -499,6 +499,31 @@ pub async fn api_post(
         .map_err(|e| McpToolError::internal(format!("Failed to parse {service} response: {e}")))
 }
 
+/// Perform an authenticated PUT request with automatic error classification.
+///
+/// On success, parses the response body as JSON. On failure, classifies
+/// the HTTP status using `classify_http_error()`.
+pub async fn api_put(
+    client: &reqwest::Client,
+    service: &str,
+    url: &str,
+    payload: &Value,
+) -> Result<Value, McpToolError> {
+    let resp = client
+        .put(url)
+        .json(payload)
+        .send()
+        .await
+        .map_err(|e| McpToolError::unavailable(format!("{service} request failed: {e}")))?;
+    let status = resp.status();
+    let body = resp.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(classify_http_error(service, status, &body));
+    }
+    serde_json::from_str(&body)
+        .map_err(|e| McpToolError::internal(format!("Failed to parse {service} response: {e}")))
+}
+
 // =============================================================================
 // resolve_credential — Keystore-first credential resolution
 // =============================================================================

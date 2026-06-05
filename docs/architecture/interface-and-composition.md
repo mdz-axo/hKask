@@ -95,7 +95,7 @@ status: VERIFIED
 | `kask curator` | Curator governance and metacognition |
 | `kask replicant` | Replicant identity management |
 | `kask keystore` | OS keychain secret management |
-| `kask admin` | Admin passphrase management |
+
 | `kask models` | List available LLM models |
 | `kask web-search` | Search the web |
 

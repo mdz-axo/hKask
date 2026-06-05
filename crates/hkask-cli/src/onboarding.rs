@@ -351,7 +351,8 @@ fn store_secrets_in_keychain(
 
 /// Try to list replicants from the existing DB (without ACP secret)
 fn try_list_existing_replicants() -> Result<Vec<RegisteredAgent>, OnboardingError> {
-    // Try with insecure dev fallback for the DB passphrase
+    // Try resolving the DB passphrase through the normal chain.
+    // If no passphrase is set, try opening without encryption (plain SQLite).
     let db_path = registry_db_path();
     let passphrase = config::resolve_db_passphrase().or_else(|_| {
         // If no passphrase set, try without encryption (plain SQLite)

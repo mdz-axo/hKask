@@ -69,7 +69,6 @@ struct ConversationTurn {
 struct SessionState {
     turns: VecDeque<ConversationTurn>,
     acp_runtime: Arc<AcpRuntime>,
-    acp_secret: String,
     agent_definition: Option<hkask_types::AgentDefinition>,
 }
 
@@ -88,9 +87,11 @@ pub struct ReplicantServer {
 
 impl ReplicantServer {
     pub fn new(webid: WebID, persona: &str, default_model: &str) -> anyhow::Result<Self> {
-        // Follow-up #1: Resolve ACP secret through the full derivation chain
-        // (master key → env → keychain → insecure dev) so that the ACP runtime
+        // Resolve ACP secret through the full derivation chain
+        // (master key → env → keychain → deterministic default) so that the ACP runtime
         // is initialized with the same secret as the CLI and other MCP servers.
+        // Per-replicant capability tokens are derived from the master secret via
+        // AcpRuntime::derive_agent_secret(), so each replicant has its own signing context.
         let acp_secret = resolve_acp_secret();
         let acp_runtime = Arc::new(AcpRuntime::new(acp_secret.as_bytes()));
 
@@ -107,7 +108,6 @@ impl ReplicantServer {
             session: Arc::new(RwLock::new(SessionState {
                 turns: VecDeque::new(),
                 acp_runtime,
-                acp_secret,
                 agent_definition,
             })),
         })
@@ -247,14 +247,17 @@ impl ReplicantServer {
             Err(e) => return self.internal_error(span, e),
         };
 
-        // Follow-up #1: Build pod manager with a properly-initialized ACP runtime
-        // and capability checker using the same secret derivation chain as the CLI.
+        // Build pod manager with ACP runtime and per-replicant capability checker.
+        // The capability checker uses a key derived from the master secret specifically
+        // for this replicant's WebID, so each replicant has its own signing context.
         let session = self.session.read().await;
         let acp_port: Arc<dyn AcpPort + Send + Sync> = session.acp_runtime.clone();
+        let agent_secret = session.acp_runtime.derive_agent_secret(&self.webid).await;
+        let capability_checker = CapabilityChecker::new(&agent_secret);
 
         let pod_manager = PodManagerBuilder::new()
             .acp_runtime(acp_port)
-            .capability_checker(CapabilityChecker::new(session.acp_secret.as_bytes()))
+            .capability_checker(capability_checker)
             .inference_port(inference_port)
             .with_in_memory_storage()
             .build();

@@ -118,6 +118,7 @@ regex-lite = "0.1"
 
 # Futures utilities
 futures-util = "0.3"
+async-stream = "0.3"
 
 # URL parsing
 url = "2"

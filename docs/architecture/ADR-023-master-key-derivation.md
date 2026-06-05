@@ -64,7 +64,7 @@ Replace the in-memory `HashMap` in `KeystoreServer` with a file-backed vault at 
 
 ### Negative
 
-- **`HKASK_MASTER_KEY` must be set** — Systems that previously ran with random secrets now require explicit configuration. The `HKASK_INSECURE_DEV` escape hatch in `resolve_acp_secret()` preserves local development ergonomics.
+- **`HKASK_MASTER_KEY` must be set** — Systems that previously ran with random secrets now require explicit configuration. Secrets fail closed: missing keys produce clear error messages rather than falling back to insecure defaults.
 - **Vault file permissions** — The vault.json file contains encrypted entries but the OS keychain is still recommended for sensitive external API keys.
 - **Fixed salts** — The Argon2id salt for master key derivation is fixed (`hkask-master-2026`), which is acceptable because the passphrase provides the entropy. This is standard practice for deterministic key derivation.
 
