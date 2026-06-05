@@ -215,7 +215,7 @@ The server follows the same pod-mediated inference flow as `kask chat` (`crates/
 | `HKASK_REGISTRY_PATH` | `registry/bots` | Path to agent YAML registry |
 | `HKASK_DB_PATH` | `hkask.db` | Agent registry database path |
 | `HKASK_DB_PASSPHRASE` | *(keychain)* | Database passphrase |
-| `HKASK_INSECURE_DEV` | *(unset)* | Set to `1` for insecure dev mode (random secrets) |
+| `HKASK_MASTER_KEY` | *(required)* | Master key for HKDF derivation (secrets fail closed without it) |
 
 ### Zed Integration
 

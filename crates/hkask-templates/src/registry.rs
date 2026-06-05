@@ -323,7 +323,7 @@ impl Registry {
             TemplateType::WordAct,
             "Hemingway Style Synthesizer",
             &["compose", "synthesize", "write", "edit", "refine", "render"],
-            "Generate prose using Kansas City Star rules, Iceberg Theory, and Fish generative forms",
+            "Generate prose using Kansas City Star rules, Iceberg Theory, Fish generative forms, and embedding-based exemplar retrieval",
             "registry/templates/composition/hemingway-style-synthesizer.j2",
         ),
         // ── KnowAct templates (Jinja2 cognition — "how to think") ───

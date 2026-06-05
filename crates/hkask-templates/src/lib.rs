@@ -17,6 +17,7 @@
 //! - Prevents convergence to homogeneous, predictable behavior
 
 pub mod adapters;
+pub mod embedding_port;
 pub mod inference_port;
 pub mod lexicon;
 pub mod okapi_config;
@@ -28,6 +29,8 @@ pub mod registry;
 pub mod registry_sqlite;
 pub mod response_contract;
 
+pub use embedding_port::OkapiEmbedding;
+pub use hkask_types::ports::EmbeddingGenerationPort;
 pub use hkask_types::ports::InferencePort;
 pub use hkask_types::ports::Skill;
 pub use inference_port::OkapiInference;

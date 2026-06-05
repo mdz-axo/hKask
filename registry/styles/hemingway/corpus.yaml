@@ -1,0 +1,101 @@
+# Hemingway Style Corpus Configuration
+# Owner: The Curator (hKask)
+# License: CC-BY-4.0
+# Version: 1.0
+# Created: 2026-06-04
+#
+# Declarative specification for constructing the Hemingway style embedding corpus.
+# Processed by: kask embed-corpus (subcommand of hkask-cli)
+# Storage: hKask sqlite-vec via EmbeddingStore
+#
+# All works are public domain (pre-1929) or CC-licensed.
+
+author: hemingway
+author_full: "Ernest Hemingway"
+style_synthesizer: composition/hemingway-style-synthesizer
+
+# ── Embedding Model Configuration ──────────────────────────────────────────────
+embedding:
+  model: "qwen3-embedding:0.6b"
+  dim: 384
+  okapi_endpoint: "/api/embed/sentences"
+  batch_size: 64
+
+# ── Corpus Sources ─────────────────────────────────────────────────────────────
+# Project Gutenberg texts. URL points to the plain text UTF-8 edition.
+# Chunking strips Gutenberg headers/footers and splits on paragraph boundaries.
+
+works:
+  - title: "The Sun Also Rises"
+    slug: sun-also-rises
+    url: "https://www.gutenberg.org/cache/epub/67138/pg67138.txt"
+    year: 1926
+    type: novel
+    public_domain: true
+
+  - title: "A Farewell to Arms"
+    slug: farewell-to-arms
+    url: "https://www.gutenberg.org/cache/epub/24258/pg24258.txt"
+    year: 1929
+    type: novel
+    public_domain: true
+
+  - title: "In Our Time"
+    slug: in-our-time
+    url: "https://www.gutenberg.org/cache/epub/57023/pg57023.txt"
+    year: 1925
+    type: short_story_collection
+    public_domain: true
+
+  - title: "The Torrents of Spring"
+    slug: torrents-of-spring
+    url: "https://www.gutenberg.org/cache/epub/56208/pg56208.txt"
+    year: 1926
+    type: novella
+    public_domain: true
+
+# ── Kansas City Star Style Guide (canonical source) ────────────────────────────
+# Not a work per se, but the foundational rules that shape Hemingway's prose.
+# Stored as a single special passage for embedding retrieval.
+
+foundational_rules:
+  - title: "Kansas City Star Style Guide (1915)"
+    slug: kansas-city-star-rules
+    text: |
+      Use short sentences. Use short first paragraphs.
+      Use vigorous English, not forgetful, but positive.
+      Eliminate every superfluous word.
+    type: style_guide
+
+# ── Chunking Configuration ─────────────────────────────────────────────────────
+# Passages are the unit of embedding and retrieval.
+# Short paragraphs are concatenated until min_words is reached.
+# Long paragraphs are split at sentence boundaries to stay under max_words.
+
+chunking:
+  min_words: 50
+  max_words: 200
+  split_on: paragraph
+  sentence_boundary: ".!? "
+  overlap_words: 0 # no overlap between chunks
+
+# ── Entity Reference Format ────────────────────────────────────────────────────
+# How passages are indexed in sqlite-vec for KNN retrieval.
+# Format: style:{author}:{work_slug}:{chunk_index}
+
+entity_ref_pattern: "style:{author}:{slug}:{index}"
+centroid_entity_ref: "style:hemingway:centroid"
+
+# ── Quality Thresholds ─────────────────────────────────────────────────────────
+# For style validation after generation.
+
+validation:
+  # Maximum cosine distance from the style centroid for generated prose.
+  # Lower = stricter adherence. 0.15 is a reasonable starting threshold.
+  centroid_distance_max: 0.15
+
+  # Minimum number of exemplar passages to retrieve for few-shot context.
+  exemplar_count_min: 3
+
+  # Maximum number of exemplar passages (prevents context overflow).
+  exemplar_count_max: 7

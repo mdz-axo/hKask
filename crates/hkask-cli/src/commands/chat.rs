@@ -92,6 +92,7 @@ pub async fn chat_with_agent(
     episodic_storage: Option<Arc<dyn EpisodicStoragePort>>,
     semantic_storage: Option<Arc<dyn SemanticStoragePort>>,
     agent_webid: Option<WebID>,
+    system_prompt_suffix: Option<&str>,
 ) -> ChatResponse {
     let name = agent_name.unwrap_or("Curator");
 
@@ -181,6 +182,12 @@ pub async fn chat_with_agent(
      Use tools when they would provide better or more current information than your training data.\
      ",
     );
+
+    // Append HHH alignment suffix when active (Helpful, Harmless, Honest).
+    // The suffix is passed from the REPL turn loop when HHH mode is active.
+    if let Some(suffix) = system_prompt_suffix {
+        system_prompt.push_str(suffix);
+    }
 
     let agent_kind = match agent {
         Some(registered) => &registered.definition.agent_kind,
@@ -520,6 +527,7 @@ pub fn run_chat(
             None, // No persistent storage in non-interactive mode
             None, // No persistent storage in non-interactive mode
             None, // WebID derived from agent name
+            None, // No HHH suffix in non-interactive mode
         ));
         println!("{}: {}", agent, chat_response.text);
         if let Some(ref usage) = chat_response.usage {

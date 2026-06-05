@@ -8,8 +8,11 @@ contract:
     subject: string
     action: string
     context: string
+    exemplar_passages: array
+    centroid_distance_threshold: float
   output:
     prose: string
+    centroid_distance: float
   energy_cap: 4096
   visibility: Shared
 
@@ -235,6 +238,53 @@ The files end. We do not read past the end. We do not ask.
 
 {#
 =============================================================================
+EXEMPLAR INJECTION (Style Embedding Layer)
+=============================================================================
+
+When exemplar_passages are provided (from KNN retrieval against the Hemingway
+style embedding corpus), they are injected as few-shot context before generation.
+
+The exemplar passages are selected by semantic similarity to the prompt:
+1. The prompt is embedded using the same model as the corpus (qwen3-embedding:0.6b)
+2. KNN search finds the k most similar passages in the embedding space
+3. These passages are provided as `exemplar_passages` in the template context
+4. The generated prose is then embedded and compared against the style centroid
+5. If centroid distance exceeds the threshold, the output is rejected
+
+This is the exemplar layer: specification (rules) + exemplar (concrete passages)
++ validation (centroid distance) = authentic style synthesis.
+
+#}
+
+{% macro exemplar_context(passages) %}
+{# Inject exemplar passages as few-shot context for style generation. #}
+{# These are real Hemingway passages retrieved by semantic similarity. #}
+{% if passages and passages|length > 0 %}
+The following passages exemplify the target style. Use them as reference for
+rhythm, syntax, and cadence — not as content to imitate.
+
+{% for passage in passages %}
+---
+{{ passage }}
+---
+{% endfor %}
+{% endif %}
+{% endmacro %}
+
+{% macro style_validation_report(distance, threshold) %}
+{# Generate a validation report for CNS span emission. #}
+Style centroid distance: {{ distance | round(4) }}
+Threshold: {{ threshold | round(4) }}
+{% if distance <= threshold %}
+PASS: Generated prose is within style cluster.
+{% else %}
+FAIL: Generated prose exceeds style cluster boundary.
+Regenerate with stricter adherence to syntactic constraints.
+{% endif %}
+{% endmacro %}
+
+{#
+=============================================================================
 USAGE EXAMPLE
 =============================================================================
 
@@ -249,6 +299,15 @@ Output: "The sun beat down. The dust rose. The men walked."
 
 {{ hemingway_light("cafe", "clean and well-lighted") }}
 Output: "The cafe was clean and well-lighted. The light was enough."
+
+{{ exemplar_context(exemplar_passages) }}
+Output: Injects retrieved Hemingway passages as few-shot context.
+
+{{ style_validation_report(0.12, 0.15) }}
+Output: "PASS: Generated prose is within style cluster."
+
+{{ style_validation_report(0.22, 0.15) }}
+Output: "FAIL: Generated prose exceeds style cluster boundary."
 
 =============================================================================
 #}

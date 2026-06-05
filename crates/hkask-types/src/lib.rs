@@ -58,9 +58,10 @@ pub use loops::{
 };
 pub use ports::{
     BackpressureSignal, CircuitBreakerPort, CnsObserver, CnsPort, ConsolidationOutcome,
-    ConsolidationPort, DepletionSignal, EmbeddingError, EmbeddingPort, GitCASPort, InferenceError,
-    InferencePort, InferenceResult, InferenceUsage, MessageRecord, RegistryEntry, RegistryError,
-    RegistryIndex, SessionRecord, SessionStoreError, SimilarityResult, Skill, SkillRegistryIndex,
+    ConsolidationPort, DepletionSignal, EmbeddingError, EmbeddingGenerationError,
+    EmbeddingGenerationPort, EmbeddingPort, GitCASPort, InferenceError, InferencePort,
+    InferenceResult, InferenceUsage, MessageRecord, RegistryEntry, RegistryError, RegistryIndex,
+    SessionRecord, SessionStoreError, SimilarityResult, Skill, SkillRegistryIndex,
     StandingSessionPort, StoredEmbedding, StructuredToolCall, TokenProb, TokenProbability,
     ToolInfo, ToolPort, ToolPortError,
 };

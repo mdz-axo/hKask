@@ -74,7 +74,11 @@ impl CnsObserver for SseObserver {
     }
 
     async fn on_event(&self, event: &NuEvent) {
-        let _ = self.sender.send(CnsSseEvent::NuEvent(event.clone()));
+        let interested =
+            self.interest_mask.is_empty() || self.interest_mask.contains(&event.span.namespace);
+        if interested {
+            let _ = self.sender.send(CnsSseEvent::NuEvent(event.clone()));
+        }
     }
 
     async fn on_depletion(&self, signal: &DepletionSignal) {
@@ -246,4 +250,154 @@ pub struct CnsVarietyResponse {
     pub domains: Vec<String>,
     pub total_deficit: u64,
     pub counters: std::collections::HashMap<String, VarietyCounterResponse>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
+    use hkask_types::id::WebID;
+    use hkask_types::loops::LoopId;
+    use hkask_types::ports::{BackpressureSignal, CnsObserver, DepletionSignal};
+    use serde_json;
+
+    /// Helper to create a minimal NuEvent with the given span.
+    fn make_event(span: Span) -> NuEvent {
+        NuEvent::new(
+            WebID::new(),
+            span,
+            Phase::Sense,
+            serde_json::json!({"test": true}),
+            0,
+        )
+    }
+
+    #[tokio::test]
+    async fn sse_observer_forwards_nu_events() {
+        let mask = vec![SpanNamespace::new("cns.tool")];
+        let (observer, mut receiver) = SseObserver::new(mask);
+        let span = Span::new(SpanNamespace::new("cns.tool"), "invoked");
+        let event = make_event(span);
+        observer.on_event(&event).await;
+        let received = receiver.try_recv().expect("should receive NuEvent");
+        assert!(matches!(received, CnsSseEvent::NuEvent(_)));
+    }
+
+    #[tokio::test]
+    async fn sse_observer_ignores_uninterested_events() {
+        let mask = vec![SpanNamespace::new("cns.variety")];
+        let (observer, mut receiver) = SseObserver::new(mask);
+        let span = Span::new(SpanNamespace::new("cns.inference"), "invoked");
+        let event = make_event(span);
+        observer.on_event(&event).await;
+        let result = receiver.try_recv();
+        assert!(
+            result.is_err(),
+            "should not receive event for uninterested span namespace"
+        );
+    }
+
+    #[tokio::test]
+    async fn sse_observer_forwards_depletion_signals() {
+        let (observer, mut receiver) = SseObserver::new(vec![]);
+        let signal = DepletionSignal {
+            agent: WebID::new(),
+            remaining: 100,
+            cap: 1000,
+            usage_ratio: 0.9,
+        };
+        observer.on_depletion(&signal).await;
+        let received = receiver
+            .try_recv()
+            .expect("should receive Depletion signal");
+        assert!(matches!(received, CnsSseEvent::Depletion(_)));
+    }
+
+    #[tokio::test]
+    async fn sse_observer_forwards_backpressure_signals() {
+        let (observer, mut receiver) = SseObserver::new(vec![]);
+        let signal = BackpressureSignal {
+            source: LoopId::Cybernetics,
+            reason: "overload".to_string(),
+            severity: 0.8,
+        };
+        observer.on_backpressure(&signal).await;
+        let received = receiver
+            .try_recv()
+            .expect("should receive Backpressure signal");
+        assert!(matches!(received, CnsSseEvent::Backpressure(_)));
+    }
+
+    #[tokio::test]
+    async fn sse_observer_lag_produces_warning() {
+        // Construct an SseObserver with a tiny broadcast channel to force lag
+        let (sender, mut receiver) = broadcast::channel::<CnsSseEvent>(2);
+        let observer = SseObserver {
+            sender,
+            interest_mask: vec![],
+        };
+
+        // Send more events than the channel capacity without draining
+        for _ in 0..5 {
+            let span = Span::new(SpanNamespace::new("cns.tool"), "invoked");
+            let event = make_event(span);
+            observer.on_event(&event).await;
+        }
+
+        // The sender must not block — broadcast::send() always succeeds even when
+        // the receiver falls behind.
+        //
+        // The receiver should encounter a Lagged error due to overflow.
+        let mut saw_lagged = false;
+        loop {
+            match receiver.try_recv() {
+                Ok(_) => continue,
+                Err(broadcast::error::TryRecvError::Lagged(_)) => {
+                    saw_lagged = true;
+                    break;
+                }
+                Err(broadcast::error::TryRecvError::Empty)
+                | Err(broadcast::error::TryRecvError::Closed) => break,
+            }
+        }
+        assert!(
+            saw_lagged,
+            "receiver should encounter a Lagged error due to channel overflow"
+        );
+    }
+
+    #[test]
+    fn cns_subscribe_validates_spans() {
+        // Valid full-form spans
+        assert!(SpanNamespace::parse("cns.tool").is_some());
+        assert!(SpanNamespace::parse("cns.inference").is_some());
+        assert!(SpanNamespace::parse("cns.variety").is_some());
+
+        // Valid short-form spans (auto-prefixed with "cns.")
+        assert!(SpanNamespace::parse("tool").is_some());
+        assert!(SpanNamespace::parse("inference").is_some());
+
+        // Invalid spans
+        assert!(SpanNamespace::parse("cns.nonexistent").is_none());
+        assert!(SpanNamespace::parse("invalid").is_none());
+        assert!(SpanNamespace::parse("").is_none());
+
+        // Simulate the filtering logic from cns_subscribe handler
+        let spans = vec![
+            "cns.tool".to_string(),
+            "cns.inference".to_string(),
+            "cns.nonexistent".to_string(),
+            "invalid".to_string(),
+            "variety".to_string(),
+        ];
+        let valid: Vec<SpanNamespace> = spans
+            .iter()
+            .filter_map(|s| SpanNamespace::parse(s))
+            .collect();
+
+        assert_eq!(valid.len(), 3);
+        assert_eq!(valid[0].as_str(), "cns.tool");
+        assert_eq!(valid[1].as_str(), "cns.inference");
+        assert_eq!(valid[2].as_str(), "cns.variety");
+    }
 }

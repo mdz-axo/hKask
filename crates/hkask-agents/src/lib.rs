@@ -21,6 +21,7 @@ pub mod curator; // Loop 5 (pure regulatory: CurationLoop, CuratorContext, Curat
 pub mod curator_agent; // Loop 5 (persona: MetacognitionLoop, bot metrics, spec curation)
 pub mod error;
 pub mod escalation; // Loop 6 (escalation queue is algedonic regulation)
+pub mod hhh_gate; // HHH alignment gate (Helpful, Harmless, Honest)
 pub mod inference_loop; // Loop 1 (domain logic; governance applied externally via GovernedTool in hkask-cns)
 pub mod loop_system;
 pub mod pod; // Loop 5 (agent pod lifecycle is Curation)
@@ -44,6 +45,7 @@ pub use error::{GitError, McpError, MemoryError, RegistryError};
 pub use escalation::{
     EscalationEntry, EscalationError, EscalationQueue, EscalationStats, EscalationStatus,
 };
+pub use hhh_gate::{HhhConfig, HhhMode};
 pub use inference_loop::InferenceLoop;
 pub use loop_system::{CyberneticsLoopHandle, LoopSystem, default_tick_interval};
 pub use pod::{

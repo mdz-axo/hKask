@@ -253,3 +253,102 @@ fn read_local_registry() -> Result<String, String> {
 
     serde_json::to_string_pretty(&agents).map_err(|e| format!("Failed to serialize registry: {e}"))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Temporarily remove `HKASK_GITHUB_TOKEN` from the environment, run `f`,
+    /// then restore the previous value (if any).
+    ///
+    /// Note: This only controls the env-var path of `resolve_credential`.
+    /// If the OS keychain happens to have an entry for `HKASK_GITHUB_TOKEN`,
+    /// the function will still succeed. The tests that use this helper are
+    /// therefore specifically verifying the env-var failure path.
+    fn without_github_token<T>(f: impl FnOnce() -> T) -> T {
+        let saved = std::env::var("HKASK_GITHUB_TOKEN").ok();
+        // SAFETY: Test-only helper that temporarily removes an env var and
+        // restores it. Safe because: (1) no other thread reads this var at
+        // test time, (2) we always restore the original value.
+        unsafe { std::env::remove_var("HKASK_GITHUB_TOKEN") };
+        let result = f();
+        if let Some(val) = saved {
+            // SAFETY: Same rationale — restoring the original value.
+            unsafe { std::env::set_var("HKASK_GITHUB_TOKEN", val) };
+        }
+        result
+    }
+
+    /// Verify that `build_github_client()` returns a clear error when
+    /// `HKASK_GITHUB_TOKEN` is not available via environment variable.
+    ///
+    /// This tests the env-var path only. If the OS keychain has a stored
+    /// token for `HKASK_GITHUB_TOKEN`, the function may succeed despite the
+    /// env var being absent — in that case the test will fail, indicating
+    /// that a keychain entry is present.
+    #[test]
+    fn build_github_client_returns_error_without_token() {
+        let result = without_github_token(|| build_github_client());
+
+        match result {
+            Err(msg) => {
+                assert!(
+                    msg.contains("GitHub token not available") || msg.contains("token"),
+                    "Expected error about missing token, got: {msg}"
+                );
+            }
+            Ok(_) => {
+                // If this fires, the OS keychain has an entry for HKASK_GITHUB_TOKEN.
+                // The env-var failure path is still correct — the keychain simply
+                // provided a fallback. This is acceptable but worth noting.
+                panic!(
+                    "build_github_client() succeeded without HKASK_GITHUB_TOKEN env var. \
+                     This likely means the OS keychain has a stored token. \
+                     Remove the keychain entry or adjust this test."
+                );
+            }
+        }
+    }
+
+    /// Verify that `archive_registry_to_git` returns an appropriate error
+    /// when called without a valid GitHub client (no token available).
+    ///
+    /// Since `archive_registry_to_git` calls `build_github_client()` internally,
+    /// it should fail fast with a clear error about the missing token.
+    #[tokio::test]
+    async fn archive_registry_to_git_requires_valid_client() {
+        let saved = std::env::var("HKASK_GITHUB_TOKEN").ok();
+        // SAFETY: Test-only — temporarily removes env var; restored below.
+        unsafe { std::env::remove_var("HKASK_GITHUB_TOKEN") };
+
+        let runtime = McpRuntime::new();
+        let checker = CapabilityChecker::new(b"test");
+
+        let result = archive_registry_to_git(
+            &runtime, &checker, "owner", "repo", "main", "registry", "content",
+        )
+        .await;
+
+        // Restore env var regardless of test outcome
+        if let Some(val) = saved {
+            // SAFETY: Restoring the original value after test completion.
+            unsafe { std::env::set_var("HKASK_GITHUB_TOKEN", val) };
+        }
+
+        match result {
+            Err(msg) => {
+                assert!(
+                    msg.contains("GitHub token not available") || msg.contains("token"),
+                    "Expected error about missing token, got: {msg}"
+                );
+            }
+            Ok(_) => {
+                panic!(
+                    "archive_registry_to_git() succeeded without HKASK_GITHUB_TOKEN env var. \
+                     This likely means the OS keychain has a stored token. \
+                     Remove the keychain entry or adjust this test."
+                );
+            }
+        }
+    }
+}

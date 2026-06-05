@@ -652,3 +652,50 @@ impl crate::ports::AcpPort for AcpRuntime {
         AcpRuntime::list_agents(self).await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_types::id::WebID;
+    use std::sync::Arc;
+
+    #[tokio::test]
+    async fn derive_agent_secret_deterministic() {
+        let rt = AcpRuntime::new(b"test-master-secret");
+        let webid = WebID::from_persona(b"agent-1");
+        let key1 = rt.derive_agent_secret(&webid).await;
+        let key2 = rt.derive_agent_secret(&webid).await;
+        assert_eq!(key1.as_ref().as_slice(), key2.as_ref().as_slice());
+    }
+
+    #[tokio::test]
+    async fn derive_agent_secret_different_agents_different_keys() {
+        let rt = AcpRuntime::new(b"test-master-secret");
+        let key1 = rt
+            .derive_agent_secret(&WebID::from_persona(b"agent-1"))
+            .await;
+        let key2 = rt
+            .derive_agent_secret(&WebID::from_persona(b"agent-2"))
+            .await;
+        assert!(key1.as_ref().as_slice() != key2.as_ref().as_slice());
+    }
+
+    #[tokio::test]
+    async fn derive_agent_secret_different_masters_different_keys() {
+        let rt1 = AcpRuntime::new(b"master-secret-a");
+        let rt2 = AcpRuntime::new(b"master-secret-b");
+        let webid = WebID::from_persona(b"agent-1");
+        let key1 = rt1.derive_agent_secret(&webid).await;
+        let key2 = rt2.derive_agent_secret(&webid).await;
+        assert!(key1.as_ref().as_slice() != key2.as_ref().as_slice());
+    }
+
+    #[tokio::test]
+    async fn derive_agent_secret_caches_keys() {
+        let rt = AcpRuntime::new(b"test-master-secret");
+        let webid = WebID::from_persona(b"agent-1");
+        let key1 = rt.derive_agent_secret(&webid).await;
+        let key2 = rt.derive_agent_secret(&webid).await;
+        assert!(Arc::ptr_eq(&key1, &key2));
+    }
+}

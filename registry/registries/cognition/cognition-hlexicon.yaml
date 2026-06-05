@@ -7,7 +7,7 @@ hlexicon:
   wordact_templates:
     - id: hemingway-style-synthesizer
       path: registry/templates/composition/hemingway-style-synthesizer.j2
-      description: Generate stylistic text synthesis in Hemingway style
+      description: Generate stylistic text synthesis in Hemingway style with embedding-based exemplar retrieval and centroid validation
       functional_role: action-word
       produces: synthesized_output
       cross_domain: composition

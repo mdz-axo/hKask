@@ -684,3 +684,56 @@ pub trait EmbeddingPort: Send + Sync {
     /// Count total embeddings stored.
     fn count(&self) -> Result<usize, EmbeddingError>;
 }
+
+// =============================================================================
+// Embedding Generation Port — Okapi embedding API membrane
+// =============================================================================
+
+/// Error type for embedding generation via Okapi.
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum EmbeddingGenerationError {
+    #[error("Connection error: {0}")]
+    Connection(String),
+    #[error("API error: status {0}: {1}")]
+    Api(u16, String),
+    #[error("JSON parse error: {0}")]
+    Json(String),
+    #[error("Empty response from embedding model")]
+    EmptyResponse,
+    #[error("Dimension mismatch: expected {expected}, got {actual}")]
+    DimensionMismatch { expected: usize, actual: usize },
+}
+
+/// Embedding Generation Port — Hexagonal boundary for embedding vector generation
+///
+/// Generates embedding vectors from text sentences via an external API
+/// (Okapi's `/api/embed/sentences` endpoint). This port is distinct from
+/// `EmbeddingPort` which handles storage and KNN search.
+///
+/// Implementations:
+/// - `OkapiEmbedding` — Production implementation via Okapi HTTP API (in hkask-templates)
+#[async_trait::async_trait]
+pub trait EmbeddingGenerationPort: Send + Sync {
+    /// Generate embedding vectors for a batch of sentences.
+    ///
+    /// Returns one vector per input sentence, in the same order.
+    /// Vector dimension is determined by the model (e.g., 384 for qwen3-embedding:0.6b).
+    async fn embed_sentences(
+        &self,
+        sentences: &[&str],
+    ) -> Result<Vec<Vec<f32>>, EmbeddingGenerationError>;
+
+    /// Generate an embedding vector for a single sentence.
+    ///
+    /// Convenience wrapper around `embed_sentences` for single-input cases.
+    async fn embed_sentence(&self, sentence: &str) -> Result<Vec<f32>, EmbeddingGenerationError> {
+        let results = self.embed_sentences(&[sentence]).await?;
+        results
+            .into_iter()
+            .next()
+            .ok_or(EmbeddingGenerationError::EmptyResponse)
+    }
+
+    /// Get the embedding dimension for the current model.
+    fn embedding_dim(&self) -> usize;
+}
