@@ -330,7 +330,7 @@ impl FmpServer {
         )
         .await
         {
-            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Ok(v) => span.ok_json(v),
             Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }

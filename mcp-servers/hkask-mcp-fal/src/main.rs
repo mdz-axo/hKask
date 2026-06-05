@@ -1,8 +1,7 @@
 //! hKask MCP Fal — Fal.ai API integration (image, video, audio generation)
 
 use hkask_mcp::server::{
-    McpToolError, McpToolOutput, ToolSpanGuard, classify_http_error, resolve_credential,
-    validate_tool_url,
+    McpToolError, ToolSpanGuard, classify_http_error, resolve_credential, validate_tool_url,
 };
 use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
@@ -217,12 +216,11 @@ impl FalServer {
                     );
                     span.error(err.kind, err.to_json_string())
                 } else {
-                    span.ok(McpToolOutput::new(serde_json::json!({
+                    span.ok_json(serde_json::json!({
                         "status": "ok",
                         "message": "Fal.ai API is reachable and authenticated",
                         "http_status": status.as_u16(),
                     }))
-                    .to_json_string())
                 }
             }
             Err(e) => span.error(
@@ -248,7 +246,7 @@ impl FalServer {
             "num_images": num_images.unwrap_or(1),
         });
         match fal_post(&self.client, "fal-ai/flux/schnell", body).await {
-            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Ok(v) => span.ok_json(v),
             Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
@@ -274,7 +272,7 @@ impl FalServer {
             body["strength"] = serde_json::json!(s);
         }
         match fal_post(&self.client, "fal-ai/flux/dev/image-to-image", body).await {
-            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Ok(v) => span.ok_json(v),
             Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
@@ -293,7 +291,7 @@ impl FalServer {
             "scale": scale.unwrap_or(4),
         });
         match fal_post(&self.client, "fal-ai/imageutils/u2net", body).await {
-            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Ok(v) => span.ok_json(v),
             Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
@@ -311,7 +309,7 @@ impl FalServer {
             body["duration"] = serde_json::json!(d);
         }
         match self.queue_post("fal-ai/minimax/video-01-live", body).await {
-            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Ok(v) => span.ok_json(v),
             Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
@@ -332,7 +330,7 @@ impl FalServer {
             body["duration"] = serde_json::json!(d);
         }
         match self.queue_post("fal-ai/stable-audio", body).await {
-            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Ok(v) => span.ok_json(v),
             Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
@@ -350,7 +348,7 @@ impl FalServer {
             "audio_url": audio_url,
         });
         match fal_post(&self.client, "fal-ai/whisper", body).await {
-            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Ok(v) => span.ok_json(v),
             Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
@@ -376,7 +374,7 @@ impl FalServer {
             ]
         });
         match fal_post(&self.client, "fal-ai/any-llm", body).await {
-            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Ok(v) => span.ok_json(v),
             Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
@@ -394,7 +392,7 @@ impl FalServer {
             "image_url": image_url,
         });
         match self.queue_post("fal-ai/hunyuan3d", body).await {
-            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Ok(v) => span.ok_json(v),
             Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }

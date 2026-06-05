@@ -283,13 +283,12 @@ impl SpecServer {
         let id = spec.id;
 
         if let Err(e) = self.save_spec(&spec) {
-            return span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(format!("Failed to persist spec: {}", e)).to_json_string(),
+            return span.internal_error(
+                serde_json::json!({"error": format!("Failed to persist spec: {}", e)}),
             );
         }
 
-        span.ok(McpToolOutput::new(
+        span.ok_json(
             serde_json::to_value(GoalCaptureResponse {
                 spec_id: id.to_string(),
                 category: cat.as_str().to_string(),
@@ -298,7 +297,6 @@ impl SpecServer {
             })
             .unwrap_or_default(),
         )
-        .to_json_string())
     }
 
     #[tool(description = "Decompose a goal into ordered sub-goals (max depth 7)")]
@@ -361,13 +359,12 @@ impl SpecServer {
         }
 
         if let Err(e) = self.save_spec(&spec) {
-            return span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(format!("Failed to persist spec: {}", e)).to_json_string(),
+            return span.internal_error(
+                serde_json::json!({"error": format!("Failed to persist spec: {}", e)}),
             );
         }
 
-        span.ok(McpToolOutput::new(
+        span.ok_json(
             serde_json::to_value(GoalDecomposeResponse {
                 spec_id,
                 goal_index,
@@ -375,7 +372,6 @@ impl SpecServer {
             })
             .unwrap_or_default(),
         )
-        .to_json_string())
     }
 
     #[tool(description = "Bind OCAP boundaries to a goal as a constraint")]
@@ -430,13 +426,12 @@ impl SpecServer {
         spec.goals[goal_index].constraints.push(boundary);
 
         if let Err(e) = self.save_spec(&spec) {
-            return span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(format!("Failed to persist spec: {}", e)).to_json_string(),
+            return span.internal_error(
+                serde_json::json!({"error": format!("Failed to persist spec: {}", e)}),
             );
         }
 
-        span.ok(McpToolOutput::new(
+        span.ok_json(
             serde_json::to_value(RequireBindResponse {
                 spec_id,
                 goal_index,
@@ -446,7 +441,6 @@ impl SpecServer {
             })
             .unwrap_or_default(),
         )
-        .to_json_string())
     }
 
     #[tool(description = "Evaluate a specification for collection coherence (curation)")]
@@ -503,7 +497,7 @@ impl SpecServer {
 
         let coherence = spec.coherence();
 
-        span.ok(McpToolOutput::new(
+        span.ok_json(
             serde_json::to_value(CurateEvaluateResponse {
                 spec_id,
                 decision: decision.to_string(),
@@ -512,7 +506,6 @@ impl SpecServer {
             })
             .unwrap_or_default(),
         )
-        .to_json_string())
     }
 
     #[tool(description = "Reconcile tensions between specifications without collapsing them")]
@@ -604,7 +597,7 @@ impl SpecServer {
             "tensions_identified"
         };
 
-        span.ok(McpToolOutput::new(
+        span.ok_json(
             serde_json::to_value(CurateReconcileResponse {
                 resolution: resolution.to_string(),
                 spec_ids: found,
@@ -614,7 +607,6 @@ impl SpecServer {
             })
             .unwrap_or_default(),
         )
-        .to_json_string())
     }
 
     #[tool(description = "Cultivate the specification collection toward coherence")]
@@ -660,7 +652,7 @@ impl SpecServer {
 
         let above_threshold = coherence >= threshold;
 
-        span.ok(McpToolOutput::new(
+        span.ok_json(
             serde_json::to_value(CurateCultivateResponse {
                 coherence_score: coherence,
                 threshold,
@@ -671,7 +663,6 @@ impl SpecServer {
             })
             .unwrap_or_default(),
         )
-        .to_json_string())
     }
 
     #[tool(description = "Query the specification graph by category or domain anchor")]

@@ -13,7 +13,7 @@
 mod algorithms;
 mod types;
 
-use hkask_mcp::server::{McpToolError, McpToolOutput, ToolSpanGuard};
+use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_memory::EpisodicMemory;
 use hkask_storage::{Database, Triple};
 use hkask_types::{McpErrorKind, Visibility, WebID};
@@ -123,14 +123,13 @@ impl CondenserServer {
     async fn condenser_ping(&self) -> String {
         let span = ToolSpanGuard::new("condenser:ping", &self.webid);
         let engine = self.engine.lock().unwrap();
-        span.ok(McpToolOutput::new(serde_json::json!({
+        span.ok_json(serde_json::json!({
             "status": "ok",
             "version": SERVER_VERSION,
             "profile": engine.stats.current_profile,
             "algorithms": engine.registry.list_algorithms(),
             "persistence": self.has_persistence(),
         }))
-        .to_json_string())
     }
 
     #[tool(description = "Compress tool output using context-aware algorithms")]
@@ -154,9 +153,7 @@ impl CondenserServer {
             .and_then(|c| c.parse::<ContextCategory>().ok());
         let mut engine = self.engine.lock().unwrap();
         let result = engine.compress(&tool_name, &output, cat);
-        span.ok(
-            McpToolOutput::new(serde_json::to_value(&result).unwrap_or_default()).to_json_string(),
-        )
+        span.ok_json(serde_json::to_value(&result).unwrap_or_default())
     }
 
     #[tool(description = "Set compression profile (heavy/normal/soft/light)")]
@@ -171,22 +168,18 @@ impl CondenserServer {
         };
         let mut engine = self.engine.lock().unwrap();
         engine.set_profile(p);
-        span.ok(McpToolOutput::new(serde_json::json!({
+        span.ok_json(serde_json::json!({
             "profile": p.to_string(),
             "retention_pct": p.retention_pct(),
             "max_lines": p.max_lines(),
         }))
-        .to_json_string())
     }
 
     #[tool(description = "Cumulative compression statistics")]
     async fn condenser_stats(&self) -> String {
         let span = ToolSpanGuard::new("condenser:stats", &self.webid);
         let engine = self.engine.lock().unwrap();
-        span.ok(
-            McpToolOutput::new(serde_json::to_value(engine.get_stats()).unwrap_or_default())
-                .to_json_string(),
-        )
+        span.ok_json(serde_json::to_value(engine.get_stats()).unwrap_or_default())
     }
 
     #[tool(description = "Classify tool name to context category")]
@@ -198,12 +191,11 @@ impl CondenserServer {
         let category = classify_tool(&tool_name);
         let engine = self.engine.lock().unwrap();
         let algo = engine.registry.select(category);
-        span.ok(McpToolOutput::new(serde_json::json!({
+        span.ok_json(serde_json::json!({
             "tool_name": tool_name,
             "category": category.label(),
             "algorithm": algo.name(),
         }))
-        .to_json_string())
     }
 
     #[tool(description = "Persist a compressed output to episodic memory")]
@@ -247,18 +239,14 @@ impl CondenserServer {
         .with_confidence(confidence.unwrap_or(1.0));
 
         match episodic.store(triple) {
-            Ok(()) => span.ok(McpToolOutput::new(serde_json::json!({
+            Ok(()) => span.ok_json(serde_json::json!({
                 "persisted": true,
                 "entity": entity,
                 "attribute": "compressed_output",
                 "perspective": self.webid.to_string(),
-            }))
-            .to_json_string()),
-            Err(e) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(format!("Failed to persist to episodic memory: {}", e))
-                    .to_json_string(),
-            ),
+            })),
+            Err(e) =>
+                span.internal_error(serde_json::json!({"error": format!("Failed to persist to episodic memory: {}", e)})),
         }
     }
 }

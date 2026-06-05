@@ -137,9 +137,7 @@ impl WebServer {
             version: SERVER_VERSION.to_string(),
             providers,
         };
-        span.ok(
-            McpToolOutput::new(serde_json::to_value(&output).unwrap_or_default()).to_json_string(),
-        )
+        span.ok_json(serde_json::to_value(&output).unwrap_or_default())
     }
 
     #[tool(
@@ -193,7 +191,7 @@ impl WebServer {
         );
 
         if let Some(cached) = self.cache.get(&ckey).await {
-            return span.ok(McpToolOutput::new(cached).to_json_string());
+            return span.ok_json(cached);
         }
 
         let search_query = SearchQuery {
@@ -254,7 +252,7 @@ impl WebServer {
             .unwrap_or_else(|_| serde_json::json!({ "error": "serialization failed" }));
 
         self.cache.insert(ckey, output.clone()).await;
-        span.ok(McpToolOutput::new(output).to_json_string())
+        span.ok_json(output)
     }
 
     #[tool(description = "Find pages similar to a given URL using Exa findSimilar")]
@@ -301,11 +299,10 @@ impl WebServer {
                     results,
                 };
 
-                span.ok(McpToolOutput::new(
+                span.ok_json(
                     serde_json::to_value(&fs_output)
                         .unwrap_or_else(|_| serde_json::json!({ "error": "serialization failed" })),
                 )
-                .to_json_string())
             }
             Err(e) => span.error(e.kind(), McpToolError::from(e).to_json_string()),
         }
@@ -385,7 +382,7 @@ impl WebServer {
         let ckey = cache_key("extract", &url, &cache_params, &fingerprint);
 
         if let Some(cached) = self.cache.get(&ckey).await {
-            return span.ok(McpToolOutput::new(cached).to_json_string());
+            return span.ok_json(cached);
         }
 
         match self.pool.extract(&url, &opts, None).await {
@@ -399,7 +396,7 @@ impl WebServer {
                 let json = serde_json::to_value(&output)
                     .unwrap_or_else(|_| serde_json::json!({ "error": "serialization failed" }));
                 self.cache.insert(ckey, json.clone()).await;
-                span.ok(McpToolOutput::new(json).to_json_string())
+                span.ok_json(json)
             }
             Err(e) => span.error(e.kind(), McpToolError::from(e).to_json_string()),
         }
@@ -460,11 +457,10 @@ impl WebServer {
                     instruction: result.instruction,
                     actions_taken: result.actions_taken,
                 };
-                span.ok(McpToolOutput::new(
+                span.ok_json(
                     serde_json::to_value(&output)
                         .unwrap_or_else(|_| serde_json::json!({ "error": "serialization failed" })),
                 )
-                .to_json_string())
             }
             Err(e) => span.error(e.kind(), McpToolError::from(e).to_json_string()),
         }

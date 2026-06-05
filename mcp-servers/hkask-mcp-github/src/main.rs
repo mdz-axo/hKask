@@ -4,8 +4,8 @@
 //! Phase 9: Git archival via GitHub MCP tool calls.
 
 use hkask_mcp::server::{
-    CredentialRequirement, McpToolError, ServerContext, ToolSpanGuard, api_get,
-    api_post, classify_http_error, resolve_credential, run_stdio_server, validate_identifier,
+    CredentialRequirement, McpToolError, ServerContext, ToolSpanGuard, api_get, api_post,
+    classify_http_error, resolve_credential, run_stdio_server, validate_identifier,
 };
 use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
@@ -420,7 +420,9 @@ impl GithubServer {
                             "total_count": v["total_count"], "results": results,
                         }))
                     }
-                    Err(e) => span.internal_error(serde_json::json!({"error": format!("Failed to parse response: {e}")})),,
+                    Err(e) => span.internal_error(
+                        serde_json::json!({"error": format!("Failed to parse response: {e}")}),
+                    ),
                 }
             }
             Err(e) => span.error(

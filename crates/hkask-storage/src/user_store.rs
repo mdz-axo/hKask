@@ -37,12 +37,12 @@ pub enum UserStoreError {
 
 impl_from_rusqlite!(UserStoreError, Infra);
 
-pub type Result<T> = std::result::Result<T, UserStoreError>;
+pub type UserResult<T> = std::result::Result<T, UserStoreError>;
 
 define_store!(UserStore);
 
 impl UserStore {
-    pub fn initialize_schema(&self) -> Result<()> {
+    pub fn initialize_schema(&self) -> UserResult<()> {
         let conn = self.lock_conn()?;
         conn.execute_batch(include_str!("sql/users.sql"))?;
         Ok(())
@@ -56,7 +56,7 @@ impl UserStore {
         first_name: String,
         last_name: String,
         passphrase: String,
-    ) -> Result<ReplicantIdentity> {
+    ) -> UserResult<ReplicantIdentity> {
         if self.get_replicant(&replicant_name)?.is_some() {
             return Err(UserStoreError::ReplicantNameTaken(replicant_name));
         }
@@ -114,7 +114,7 @@ impl UserStore {
         Ok(identity)
     }
 
-    pub fn login(&self, replicant_name: &str, passphrase: &str) -> Result<UserSession> {
+    pub fn login(&self, replicant_name: &str, passphrase: &str) -> UserResult<UserSession> {
         let identity = self
             .get_replicant(replicant_name)?
             .ok_or(UserStoreError::NotFound(replicant_name.into()))?;
@@ -130,7 +130,7 @@ impl UserStore {
         Ok(session)
     }
 
-    pub fn logout(&self, session_id: &str) -> Result<()> {
+    pub fn logout(&self, session_id: &str) -> UserResult<()> {
         let conn = self.lock_conn()?;
         conn.execute(
             "DELETE FROM user_sessions WHERE session_id = ?1",
@@ -139,7 +139,7 @@ impl UserStore {
         Ok(())
     }
 
-    pub fn get_session(&self, session_id: &str) -> Result<Option<UserSession>> {
+    pub fn get_session(&self, session_id: &str) -> UserResult<Option<UserSession>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
             "SELECT session_id, replicant_name, replicant_webid, user_id, session_key_salt, expires_at, last_active
@@ -172,7 +172,7 @@ impl UserStore {
         }
     }
 
-    pub fn list_sessions(&self, replicant_name: &str) -> Result<Vec<UserSession>> {
+    pub fn list_sessions(&self, replicant_name: &str) -> UserResult<Vec<UserSession>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
             "SELECT session_id, replicant_name, replicant_webid, user_id, session_key_salt, expires_at, last_active
@@ -206,7 +206,7 @@ impl UserStore {
         Ok(sessions)
     }
 
-    pub fn get_replicant(&self, replicant_name: &str) -> Result<Option<ReplicantIdentity>> {
+    pub fn get_replicant(&self, replicant_name: &str) -> UserResult<Option<ReplicantIdentity>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
             "SELECT replicant_name, user_id, replicant_webid, first_name_enc, last_name_enc,
@@ -242,7 +242,7 @@ impl UserStore {
         }
     }
 
-    pub fn get_user(&self, user_id: &UserID) -> Result<HumanUser> {
+    pub fn get_user(&self, user_id: &UserID) -> UserResult<HumanUser> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
             "SELECT user_id, email_enc, phone_enc, passphrase_hash, salt, master_salt, created_at, last_active
@@ -264,7 +264,7 @@ impl UserStore {
         .map_err(|_| UserStoreError::NotFound(user_id.0.to_string()))
     }
 
-    pub fn list_replicants(&self, user_id: &UserID) -> Result<Vec<ReplicantIdentity>> {
+    pub fn list_replicants(&self, user_id: &UserID) -> UserResult<Vec<ReplicantIdentity>> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
             "SELECT replicant_name, user_id, replicant_webid, first_name_enc, last_name_enc,
@@ -301,7 +301,7 @@ impl UserStore {
         Ok(replicants)
     }
 
-    fn create_session(&self, identity: &ReplicantIdentity) -> Result<UserSession> {
+    fn create_session(&self, identity: &ReplicantIdentity) -> UserResult<UserSession> {
         let session_id = uuid::Uuid::new_v4().to_string();
         let session_key_salt = Self::generate_salt();
         let now = chrono::Utc::now().timestamp();
@@ -334,7 +334,7 @@ impl UserStore {
         })
     }
 
-    fn update_last_login(&self, replicant_name: &str) -> Result<()> {
+    fn update_last_login(&self, replicant_name: &str) -> UserResult<()> {
         let conn = self.lock_conn()?;
         conn.execute(
             "UPDATE replicant_identities SET last_login = ?1 WHERE replicant_name = ?2",
@@ -349,7 +349,7 @@ impl UserStore {
         hex::encode(salt)
     }
 
-    fn hash_passphrase(passphrase: &str, salt: &str) -> Result<String> {
+    fn hash_passphrase(passphrase: &str, salt: &str) -> UserResult<String> {
         use argon2::password_hash::SaltString;
         use argon2::{Algorithm, Argon2, Params, Version};
 
@@ -373,7 +373,7 @@ impl UserStore {
         Ok(password_hash.to_string())
     }
 
-    fn verify_passphrase(passphrase: &str, hash: &str) -> Result<bool> {
+    fn verify_passphrase(passphrase: &str, hash: &str) -> UserResult<bool> {
         let parsed_hash =
             PasswordHash::new(hash).map_err(|e| UserStoreError::PasswordHash(e.to_string()))?;
 
@@ -386,7 +386,7 @@ impl UserStore {
     pub(crate) fn derive_pii_key(
         passphrase: &str,
         master_salt: &str,
-    ) -> Result<Zeroizing<[u8; 32]>> {
+    ) -> UserResult<Zeroizing<[u8; 32]>> {
         use hkask_keystore::encryption::derive_key;
         derive_key(
             passphrase,
@@ -395,7 +395,7 @@ impl UserStore {
         .map_err(|e| UserStoreError::KeyDerivation(e.to_string()))
     }
 
-    pub(crate) fn encrypt_pii(plaintext: &[u8], key: &Zeroizing<[u8; 32]>) -> Result<Vec<u8>> {
+    pub(crate) fn encrypt_pii(plaintext: &[u8], key: &Zeroizing<[u8; 32]>) -> UserResult<Vec<u8>> {
         use aes_gcm::{Aes256Gcm, KeyInit, Nonce, aead::Aead};
 
         let cipher = Aes256Gcm::new_from_slice(&**key)
