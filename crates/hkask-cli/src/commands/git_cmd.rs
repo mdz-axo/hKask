@@ -9,17 +9,11 @@ pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
     let runtime = hkask_mcp::runtime::McpRuntime::new();
 
     // Resolve ACP secret and create CapabilityChecker for token minting (G9)
-    let checker = hkask_types::CapabilityChecker::new(&super::helpers::or_exit(
-        hkask_keystore::resolve(&hkask_types::SecretRef::derived(
-            hkask_types::derivation_contexts::MASTER_KEY_ENV,
-            hkask_types::derivation_contexts::ACP_SECRET,
-        ))
-        .or_else(|_| hkask_keystore::resolve(&hkask_types::SecretRef::env("HKASK_ACP_SECRET_KEY")))
-        .or_else(|_| {
-            hkask_keystore::resolve(&hkask_types::SecretRef::Keychain("acp-secret".to_string()))
-        }),
+    let acp_secret = super::helpers::or_exit(
+        super::config::resolve_acp_secret(),
         "Failed to resolve ACP secret for capability tokens",
-    ));
+    );
+    let checker = hkask_types::CapabilityChecker::new(acp_secret.as_bytes());
 
     match action {
         GitAction::Archive {

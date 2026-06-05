@@ -192,10 +192,6 @@ pub fn run_bot(rt: &tokio::runtime::Runtime, action: BotAction) {
             println!("  Registered: {}", agent.registered_at);
             println!("  Source: {}", agent.source_yaml);
         }
-        BotAction::Grant { bot_id, capability } => {
-            println!("Grant capability: {} to bot: {}", capability, bot_id);
-            println!("Note: Capability granting via ACP attenuation not yet wired.");
-        }
     }
 }
 

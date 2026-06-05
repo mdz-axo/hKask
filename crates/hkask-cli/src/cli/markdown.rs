@@ -88,12 +88,7 @@ pub fn generate_cli_markdown() -> String {
     md.push_str("```\n\n");
     md.push_str("Subcommands:\n");
     md.push_str("- `list` — List bot capabilities\n");
-    md.push_str("  - `-b`, `--bot-id <BOT_ID>` — Bot WebID\n");
-    md.push_str("- `grant` — Grant capability to bot\n");
-    md.push_str("  - `-b`, `--bot-id <BOT_ID>` — Bot WebID\n");
-    md.push_str(
-        "  - `-c`, `--capability <CAPABILITY>` — Capability name (e.g., \"inference:call\")\n\n",
-    );
+    md.push_str("  - `-b`, `--bot-id <BOT_ID>` — Bot WebID\n\n");
     md.push_str("### `kask pod` — Agent pod management\n\n");
     md.push_str("```bash\n");
     md.push_str("kask pod <SUBCOMMAND>\n");

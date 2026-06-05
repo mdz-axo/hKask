@@ -554,14 +554,7 @@ impl Default for PodManager {
 /// This allows `PodManager` to construct a `CapabilityChecker` that can verify
 /// tokens signed by the default `AcpRuntime`.
 fn resolve_acp_secret_for_checker() -> Option<CapabilityChecker> {
-    hkask_keystore::resolve(&hkask_types::SecretRef::derived(
-        hkask_types::derivation_contexts::MASTER_KEY_ENV,
-        hkask_types::derivation_contexts::ACP_SECRET,
-    ))
-    .or_else(|_| hkask_keystore::resolve(&hkask_types::SecretRef::env("HKASK_ACP_SECRET_KEY")))
-    .or_else(|_| {
-        hkask_keystore::resolve(&hkask_types::SecretRef::Keychain("acp-secret".to_string()))
-    })
-    .ok()
-    .map(|secret| CapabilityChecker::new(&secret))
+    hkask_keystore::resolve_acp_secret()
+        .ok()
+        .map(|secret| CapabilityChecker::new(&secret))
 }

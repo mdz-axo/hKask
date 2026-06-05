@@ -1,7 +1,7 @@
 //! Agent definition loading — ACP secret resolution and YAML/database registry discovery
 //!
 //! This module contains functions for:
-//! - Resolving the ACP secret through the full derivation chain (master key → env → keychain → deterministic default)
+//! - Resolving the ACP secret through the keystore's domain-specific resolution chain
 //! - Loading agent definitions from the SQLite registry database
 //! - Falling back to YAML file discovery when the database entry is not found
 //!
@@ -11,42 +11,25 @@
 use hkask_agents::adapters::FilesystemRegistrySource;
 use hkask_agents::ports::RegistrySourcePort;
 use hkask_storage::Database;
-use hkask_types::{AgentDefinition, AgentKind, Charter, PersonaConstraints, SecretRef};
+use hkask_types::{AgentDefinition, AgentKind, Charter, PersonaConstraints};
 
 // ── ACP Secret Resolution ────────────────────────────────────────────────────
-// Follow-up #1: Full ACP secret resolution chain matching the CLI's
-// `resolve_acp_secret()`. This ensures the MCP server's ACP runtime uses
-// the same secret as `kask chat`, so capability tokens are compatible.
+// Delegates to hkask_keystore::resolve_acp_secret() for the full resolution
+// chain (master key derivation → env var → keychain → deterministic default).
 
-/// Resolve the ACP secret through the full derivation chain:
-/// 1. Master key derivation (HKDF-SHA256)
-/// 2. Direct environment variable (`HKASK_ACP_SECRET`)
-/// 3. OS keychain
-/// 4. Deterministic default (for standalone MCP server startup)
+/// Resolve the ACP secret through the keystore's domain-specific resolution chain.
+/// Falls back to a deterministic default for standalone MCP server startup.
 pub fn resolve_acp_secret() -> String {
-    // Resolution chain: master key derivation → env var → keychain → deterministic default
-    // MCP servers are public infrastructure. The secret gates the replicant, not the server.
-    // A deterministic default allows standalone startup; proper secrets are used when
-    // the server is accessed through `kask chat` or with env vars set.
-    hkask_keystore::resolve(&SecretRef::derived(
-        hkask_types::derivation_contexts::MASTER_KEY_ENV,
-        hkask_types::derivation_contexts::ACP_SECRET,
-    ))
-    .map(|s| String::from_utf8_lossy(&s).to_string())
-    .or_else(|_| std::env::var("HKASK_ACP_SECRET"))
-    .or_else(|_| {
-        hkask_keystore::Keychain::default()
-            .retrieve_by_key("acp-secret")
-            .map_err(|e| e.to_string())
-    })
-    .unwrap_or_else(|_| {
-        tracing::warn!(
-            target: "hkask.mcp.replicant",
-            "No ACP secret resolved — using deterministic default. \
-             Set HKASK_ACP_SECRET or HKASK_MASTER_KEY for proper token verification."
-        );
-        "hkask-default-acp-secret-for-mcp-server".to_string()
-    })
+    hkask_keystore::resolve_acp_secret()
+        .map(|s| String::from_utf8_lossy(&s).to_string())
+        .unwrap_or_else(|_| {
+            tracing::warn!(
+                target: "hkask.mcp.replicant",
+                "No ACP secret resolved — using deterministic default. \
+                 Set HKASK_ACP_SECRET or HKASK_MASTER_KEY for proper token verification."
+            );
+            "hkask-default-acp-secret-for-mcp-server".to_string()
+        })
 }
 
 // ── Agent Definition Loading ─────────────────────────────────────────────────

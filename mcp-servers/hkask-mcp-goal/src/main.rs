@@ -1,16 +1,15 @@
 //! hKask MCP Goal — Goal coordination substrate tools.
 //!
 //! Mirrors the CLI `kask goal` surface and the HTTP `/api/goals` routes for
-//! MCP ≡ CLI ≡ API equivalence (REQ-IFC-001). All operations are OCAP-gated via
-//! `GoalCapabilityToken`, authority is co-located with effect (owner/visibility
-//! checks on every write), and denials are observed through the goal
-//! repository's CNS telemetry sink (`cns.tool.goal.capability.denied`, ADR-029).
+//! MCP ≡ CLI ≡ API equivalence (REQ-IFC-001). Authority is co-located with
+//! effect: the caller's WebID is passed directly to the goal repository, and
+//! denials are observed through the goal repository's CNS telemetry sink
+//! (ADR-029).
 
 use hkask_mcp::server::{McpToolError, McpToolOutput, ToolSpanGuard, validate_identifier};
 use hkask_storage::{Database, NuEventStore, SqliteGoalRepository};
 use hkask_types::event::NuEventSink;
 use hkask_types::goal::GoalState;
-use hkask_types::goal_capability::{GoalCapabilityToken, GoalOp};
 use hkask_types::id::{GoalID, WebID};
 use hkask_types::visibility::Visibility;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
@@ -44,7 +43,6 @@ pub struct SetGoalStateRequest {
 pub struct GoalServer {
     repo: SqliteGoalRepository,
     webid: WebID,
-    secret: Vec<u8>,
 }
 
 impl GoalServer {
@@ -52,8 +50,6 @@ impl GoalServer {
     ///
     /// - `HKASK_GOAL_DB` (optional): path to the SQLite database, plus
     ///   `HKASK_DB_PASSPHRASE` for encryption. Absent → in-memory (ephemeral).
-    /// - `HKASK_OCAP_SECRET` (required): hex-encoded secret used to mint and
-    ///   verify goal capability tokens.
     pub fn new(ctx: hkask_mcp::ServerContext) -> anyhow::Result<Self> {
         let conn = match ctx.credentials.get("HKASK_GOAL_DB") {
             Some(path) => {
@@ -69,13 +65,6 @@ impl GoalServer {
                 .conn_arc(),
         };
 
-        let secret_hex = ctx
-            .credentials
-            .get("HKASK_OCAP_SECRET")
-            .ok_or_else(|| anyhow::anyhow!("HKASK_OCAP_SECRET is required for goal capability"))?;
-        let secret = hex::decode(secret_hex)
-            .map_err(|e| anyhow::anyhow!("HKASK_OCAP_SECRET must be hex-encoded: {e}"))?;
-
         // Wire CNS denial telemetry over the same connection (ADR-029).
         let sink: Arc<dyn NuEventSink> = Arc::new(NuEventStore::new(Arc::clone(&conn)));
         let repo = SqliteGoalRepository::new(conn).with_telemetry(sink);
@@ -83,12 +72,7 @@ impl GoalServer {
         Ok(Self {
             repo,
             webid: ctx.webid,
-            secret,
         })
-    }
-
-    fn mint(&self, goal_id: GoalID, ops: Vec<GoalOp>) -> GoalCapabilityToken {
-        GoalCapabilityToken::new(goal_id, self.webid, ops, &self.secret)
     }
 
     /// Map a repository error to an MCP tool error of the correct kind.
@@ -105,7 +89,7 @@ impl GoalServer {
 
 #[tool_router(server_handler)]
 impl GoalServer {
-    #[tool(description = "Create a goal owned by the calling agent (OCAP-gated)")]
+    #[tool(description = "Create a goal owned by the calling agent")]
     async fn goal_create(
         &self,
         Parameters(CreateGoalRequest { text, visibility }): Parameters<CreateGoalRequest>,
@@ -129,8 +113,7 @@ impl GoalServer {
             return span.error(err.kind, err.to_json_string());
         };
 
-        let token = self.mint(GoalID::new(), vec![GoalOp::Create]);
-        match self.repo.create_goal(&token, &self.webid, &text, vis) {
+        match self.repo.create_goal(&self.webid, &text, vis) {
             Ok(goal) => span.ok(McpToolOutput::new(json!({
                 "id": goal.id.to_string(),
                 "text": goal.text,
@@ -163,8 +146,7 @@ impl GoalServer {
             None => None,
         };
 
-        let token = self.mint(GoalID::new(), vec![GoalOp::Read]);
-        match self.repo.list_goals(&token, &self.webid, state_filter) {
+        match self.repo.list_goals(&self.webid, state_filter) {
             Ok(goals) => {
                 let items: Vec<serde_json::Value> = goals
                     .into_iter()
@@ -204,8 +186,7 @@ impl GoalServer {
         };
 
         let gid = GoalID::from_string(&goal_id);
-        let token = self.mint(gid, vec![GoalOp::Update]);
-        match self.repo.update_goal_state(&token, gid, new_state) {
+        match self.repo.update_goal_state(gid, new_state) {
             Ok(()) => span.ok(McpToolOutput::new(json!({
                 "id": gid.to_string(),
                 "state": new_state.as_str(),
@@ -224,16 +205,12 @@ mod tests {
     use super::*;
     use rmcp::handler::server::wrapper::Parameters;
 
-    const SECRET_HEX: &str = "6b61736b2d676f616c2d746573742d7365637265742d33322d627974657321";
-
     fn server() -> GoalServer {
         let conn = Database::in_memory().expect("in-memory db").conn_arc();
-        let secret = hex::decode(SECRET_HEX).expect("hex secret");
         let sink: Arc<dyn NuEventSink> = Arc::new(NuEventStore::new(Arc::clone(&conn)));
         GoalServer {
             repo: SqliteGoalRepository::new(conn).with_telemetry(sink),
             webid: WebID::from_persona(b"mcp-goal-test"),
-            secret,
         }
     }
 
@@ -305,10 +282,6 @@ hkask_mcp::mcp_server_main!(
     "hkask-mcp-goal",
     factory: |ctx: hkask_mcp::ServerContext| { GoalServer::new(ctx) },
     credentials: vec![
-        hkask_mcp::CredentialRequirement::required(
-            "HKASK_OCAP_SECRET",
-            "Hex-encoded OCAP secret for minting/verifying goal capability tokens",
-        ),
         hkask_mcp::CredentialRequirement::optional(
             "HKASK_GOAL_DB",
             "Path to the goal SQLite database (in-memory if absent)",

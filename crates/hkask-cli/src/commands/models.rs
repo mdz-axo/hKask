@@ -2,24 +2,14 @@
 //!
 //! Implements the CLI display logic for listing available model tiers.
 
-use hkask_mcp::runtime::McpRuntime;
-
 pub fn run(rt: &tokio::runtime::Runtime) {
     use hkask_templates::McpPort;
-    use hkask_types::WebID;
 
-    let runtime = McpRuntime::new();
-    let mcp_secret = crate::commands::config::resolve_mcp_secret().unwrap_or_else(|_| {
-        tracing::warn!("Using dev fallback for MCP secret");
-        "hkask-insecure-dev-fallback".to_string()
-    });
-    let (dispatcher, _) = crate::commands::config::create_disconnected_governed_dispatcher(
-        runtime,
-        mcp_secret.as_bytes(),
-    );
-    let from = WebID::new();
-    let to = WebID::new();
-    let token = dispatcher.issue_capability("models".to_string(), from, to);
+    let (dispatcher, token) =
+        crate::commands::config::create_mcp_dispatcher().unwrap_or_else(|e| {
+            eprintln!("Failed to create MCP dispatcher: {}", e);
+            std::process::exit(1);
+        });
 
     match rt.block_on(dispatcher.invoke("inference:models", serde_json::json!({}), &token)) {
         Ok(result) => {

@@ -286,6 +286,254 @@ impl Registry {
             .collect()
     }
 
+    /// Data-driven template definitions for [`bootstrap()`].
+    ///
+    /// Each tuple is: `(id, template_type, name, lexicon_terms, description, source_path)`.
+    /// `required_capabilities` is always `[]`, `cascade_level` is always `0`,
+    /// and `matroshka_limit` is set to `SYSTEM_MAX_RECURSION` at runtime.
+    #[allow(clippy::type_complexity)]
+    const BOOTSTRAP_TEMPLATES: &[(&str, TemplateType, &str, &[&str], &str, &str)] = &[
+        // ── WordAct templates (Jinja2 prompts — "what to say") ──────
+        (
+            "wordact/selector",
+            TemplateType::WordAct,
+            "Template Selector",
+            &["recognize", "classify", "match", "discriminate"],
+            "Selects best-fit template for input context",
+            "registry/templates/wordact/selector.j2",
+        ),
+        (
+            "wordact/render",
+            TemplateType::WordAct,
+            "Prompt Render",
+            &["render", "compose", "format"],
+            "Renders prompt with context binding",
+            "registry/templates/wordact/render.j2",
+        ),
+        (
+            "wordact/execute",
+            TemplateType::WordAct,
+            "Prompt Execute",
+            &["execute", "respond", "complete"],
+            "Executes rendered prompt via inference",
+            "registry/templates/wordact/execute.j2",
+        ),
+        (
+            "composition/hemingway-style-synthesizer",
+            TemplateType::WordAct,
+            "Hemingway Style Synthesizer",
+            &["compose", "synthesize", "write", "edit", "refine", "render"],
+            "Generate prose using Kansas City Star rules, Iceberg Theory, and Fish generative forms",
+            "registry/templates/composition/hemingway-style-synthesizer.j2",
+        ),
+        // ── KnowAct templates (Jinja2 cognition — "how to think") ───
+        (
+            "knowact/detect",
+            TemplateType::KnowAct,
+            "Drift Detection",
+            &["detect", "drift", "calibrate"],
+            "Detects cognitive drift in agent behavior",
+            "registry/templates/knowact/detect.j2",
+        ),
+        (
+            "knowact/calibrate",
+            TemplateType::KnowAct,
+            "Calibration",
+            &["calibrate", "baseline", "adjust"],
+            "Calibrates agent responses to baseline",
+            "registry/templates/knowact/calibrate.j2",
+        ),
+        (
+            "knowact/prompt-strategy",
+            TemplateType::KnowAct,
+            "Prompt Strategy Selection",
+            &["classify", "select", "frame"],
+            "Keyword-based heuristic for prompt framing",
+            "registry/templates/knowact/prompt-strategy.j2",
+        ),
+        (
+            "knowact/ellipsis-analysis",
+            TemplateType::KnowAct,
+            "Ellipsis Analysis",
+            &["read", "detect", "classify", "calibrate", "analyze"],
+            "Bloom Method: detect meaning in gaps and omissions",
+            "registry/templates/knowact/ellipsis-analysis.j2",
+        ),
+        (
+            "knowact/falstaffian-perspective",
+            TemplateType::KnowAct,
+            "Falstaffian Perspective",
+            &["calibrate", "affirm", "select", "execute", "verify"],
+            "Multi-iteration perspective generation through semantic shape transforms",
+            "registry/templates/knowact/falstaffian-perspective.j2",
+        ),
+        // GML templates (KnowAct — allosteric reasoning)
+        (
+            "gml/recognize-ensemble",
+            TemplateType::KnowAct,
+            "GML Recognize Ensemble",
+            &["recognize", "discriminate", "parse"],
+            "Parse concept into states and ports",
+            "registry/templates/gml/recognize-ensemble.j2",
+        ),
+        (
+            "gml/bind-effector",
+            TemplateType::KnowAct,
+            "GML Bind Effector",
+            &["analogy", "infer", "bind"],
+            "Apply effector, infer state-shift",
+            "registry/templates/gml/bind-effector.j2",
+        ),
+        (
+            "gml/compute-equilibrium",
+            TemplateType::KnowAct,
+            "GML Compute Equilibrium",
+            &["calculate", "compare"],
+            "Calculate R\u{0304}, n_H, distribution",
+            "registry/templates/gml/compute-equilibrium.j2",
+        ),
+        (
+            "gml/assess-coherence",
+            TemplateType::KnowAct,
+            "GML Assess Coherence",
+            &["evaluate", "reflect", "calibrate"],
+            "Evaluate network homeostasis",
+            "registry/templates/gml/assess-coherence.j2",
+        ),
+        (
+            "gml/reframe-concept",
+            TemplateType::KnowAct,
+            "GML Reframe Concept",
+            &["abduct", "generate", "synthesize"],
+            "Generate alternative frames",
+            "registry/templates/gml/reframe-concept.j2",
+        ),
+        // ── Coding Guidelines templates (KnowAct — Karpathy behavioral guardrails) ──
+        (
+            "coding-guidelines/guidelines-assess",
+            TemplateType::KnowAct,
+            "Coding Guidelines Assess",
+            &["assess", "orient", "detect", "classify", "discriminate"],
+            "Assess a coding task against four behavioral principles before implementation",
+            "registry/templates/coding-guidelines/guidelines-assess.j2",
+        ),
+        (
+            "coding-guidelines/guidelines-apply",
+            TemplateType::KnowAct,
+            "Coding Guidelines Apply",
+            &["constrain", "apply", "regulate", "simplify", "specify"],
+            "Generate constrained implementation directives with guardrails against over-engineering",
+            "registry/templates/coding-guidelines/guidelines-apply.j2",
+        ),
+        (
+            "coding-guidelines/guidelines-verify",
+            TemplateType::KnowAct,
+            "Coding Guidelines Verify",
+            &["verify", "evaluate", "discriminate", "calibrate", "audit"],
+            "Verify implementation against four principles with compliance scoring",
+            "registry/templates/coding-guidelines/guidelines-verify.j2",
+        ),
+        // ── Handoff templates (KnowAct/WordAct — session context transfer) ──
+        (
+            "handoff/handoff-compact",
+            TemplateType::KnowAct,
+            "Handoff Compact",
+            &["compact", "distill", "extract", "summarize", "crystallize"],
+            "Compress session context into structured summary for handoff",
+            "registry/templates/handoff/handoff-compact.j2",
+        ),
+        (
+            "handoff/handoff-artifacts",
+            TemplateType::KnowAct,
+            "Handoff Artifacts",
+            &["catalog", "reference", "classify", "detect", "redact"],
+            "Catalog artifacts by reference and detect sensitive data for redaction",
+            "registry/templates/handoff/handoff-artifacts.j2",
+        ),
+        (
+            "handoff/handoff-skills-suggest",
+            TemplateType::KnowAct,
+            "Handoff Skills Suggest",
+            &["suggest", "match", "prioritize", "analyze", "recommend"],
+            "Suggest relevant skills and extract open questions for next session",
+            "registry/templates/handoff/handoff-skills-suggest.j2",
+        ),
+        (
+            "handoff/handoff-compose",
+            TemplateType::WordAct,
+            "Handoff Compose",
+            &["compose", "synthesize", "structure", "redact", "document"],
+            "Assemble final handoff document with redaction and skill suggestions",
+            "registry/templates/handoff/handoff-compose.j2",
+        ),
+        // ── FlowDef templates (YAML manifests — "what to do") ──────
+        (
+            "flowdef/dispatch",
+            TemplateType::FlowDef,
+            "Dispatch",
+            &["dispatch", "route", "invoke"],
+            "Dispatches tool calls via ACP/MCP",
+            "registry/templates/flowdef/dispatch.j2",
+        ),
+        (
+            "flowdef/memory/recall",
+            TemplateType::FlowDef,
+            "Memory Recall",
+            &["recall", "retrieve", "remember"],
+            "Recalls semantic/episodic memory triples",
+            "registry/templates/flowdef/memory_recall.j2",
+        ),
+        // DDMVSS Specification templates (FlowDef — specification manifests)
+        (
+            "spec/goal-capture",
+            TemplateType::FlowDef,
+            "Goal Capture",
+            &["specify", "require", "elicit"],
+            "Elicit user intent as binding requirement",
+            "registry/templates/spec/goal-capture.j2",
+        ),
+        (
+            "spec/constraint-bind",
+            TemplateType::FlowDef,
+            "Constraint Bind",
+            &["constrain", "require"],
+            "Attach OCAP boundaries to goals",
+            "registry/templates/spec/constraint-bind.j2",
+        ),
+        (
+            "spec/curate-collection",
+            TemplateType::FlowDef,
+            "Curate Collection",
+            &["curate", "cultivate"],
+            "Evaluate collection coherence and completeness",
+            "registry/templates/spec/curate-collection.j2",
+        ),
+        (
+            "spec/reconcile-conflicts",
+            TemplateType::FlowDef,
+            "Reconcile Conflicts",
+            &["reconcile"],
+            "Resolve goal tensions without collapsing them",
+            "registry/templates/spec/reconcile-conflicts.j2",
+        ),
+        (
+            "spec/contextualise",
+            TemplateType::FlowDef,
+            "Contextualise",
+            &["contextualise"],
+            "Situate artifact within meaningful environment",
+            "registry/templates/spec/contextualise.j2",
+        ),
+        (
+            "spec/selector",
+            TemplateType::FlowDef,
+            "Spec Selector",
+            &["recognize", "match"],
+            "Route input to best-fit specification template",
+            "registry/templates/spec/selector.j2",
+        ),
+    ];
+
     /// Bootstrap registry with core templates aligned to hKask domains.
     ///
     /// Template types use domain-aligned names:
@@ -296,373 +544,19 @@ impl Registry {
         let mut registry = Self::new();
         let max_recursion = SYSTEM_MAX_RECURSION as u32;
 
-        // ── WordAct templates (Jinja2 prompts — "what to say") ──────
-
-        registry.register(RegistryEntry {
-            id: "wordact/selector".into(),
-            template_type: TemplateType::WordAct,
-            name: "Template Selector".into(),
-            lexicon_terms: vec![
-                "recognize".into(),
-                "classify".into(),
-                "match".into(),
-                "discriminate".into(),
-            ],
-            description: "Selects best-fit template for input context".into(),
-            source_path: "registry/templates/wordact/selector.j2".into(),
-            required_capabilities: vec![],
-            cascade_level: 0,
-            matroshka_limit: max_recursion,
-        });
-
-        registry.register(RegistryEntry {
-            id: "wordact/render".into(),
-            template_type: TemplateType::WordAct,
-            name: "Prompt Render".into(),
-            lexicon_terms: vec!["render".into(), "compose".into(), "format".into()],
-            description: "Renders prompt with context binding".into(),
-            source_path: "registry/templates/wordact/render.j2".into(),
-            required_capabilities: vec![],
-            cascade_level: 0,
-            matroshka_limit: max_recursion,
-        });
-
-        registry.register(RegistryEntry {
-            id: "wordact/execute".into(),
-            template_type: TemplateType::WordAct,
-            name: "Prompt Execute".into(),
-            lexicon_terms: vec!["execute".into(), "respond".into(), "complete".into()],
-            description: "Executes rendered prompt via inference".into(),
-            source_path: "registry/templates/wordact/execute.j2".into(),
-            required_capabilities: vec![],
-            cascade_level: 0,
-            matroshka_limit: max_recursion,
-        });
-
-        registry.register(RegistryEntry {
-            id: "composition/hemingway-style-synthesizer".into(),
-            template_type: TemplateType::WordAct,
-            name: "Hemingway Style Synthesizer".into(),
-            lexicon_terms: vec!["compose".into(), "synthesize".into(), "write".into(), "edit".into(), "refine".into(), "render".into()],
-            description: "Generate prose using Kansas City Star rules, Iceberg Theory, and Fish generative forms".into(),
-            source_path: "registry/templates/composition/hemingway-style-synthesizer.j2".into(),
-            required_capabilities: vec![],
-            cascade_level: 0,
-            matroshka_limit: max_recursion,
-        });
-
-        // ── KnowAct templates (Jinja2 cognition — "how to think") ───
-
-        registry.register(RegistryEntry {
-            id: "knowact/detect".into(),
-            template_type: TemplateType::KnowAct,
-            name: "Drift Detection".into(),
-            lexicon_terms: vec!["detect".into(), "drift".into(), "calibrate".into()],
-            description: "Detects cognitive drift in agent behavior".into(),
-            source_path: "registry/templates/knowact/detect.j2".into(),
-            required_capabilities: vec![],
-            cascade_level: 0,
-            matroshka_limit: max_recursion,
-        });
-
-        registry.register(RegistryEntry {
-            id: "knowact/calibrate".into(),
-            template_type: TemplateType::KnowAct,
-            name: "Calibration".into(),
-            lexicon_terms: vec!["calibrate".into(), "baseline".into(), "adjust".into()],
-            description: "Calibrates agent responses to baseline".into(),
-            source_path: "registry/templates/knowact/calibrate.j2".into(),
-            required_capabilities: vec![],
-            cascade_level: 0,
-            matroshka_limit: max_recursion,
-        });
-
-        registry.register(RegistryEntry {
-            id: "knowact/prompt-strategy".into(),
-            template_type: TemplateType::KnowAct,
-            name: "Prompt Strategy Selection".into(),
-            lexicon_terms: vec!["classify".into(), "select".into(), "frame".into()],
-            description: "Keyword-based heuristic for prompt framing".into(),
-            source_path: "registry/templates/knowact/prompt-strategy.j2".into(),
-            required_capabilities: vec![],
-            cascade_level: 0,
-            matroshka_limit: max_recursion,
-        });
-
-        registry.register(RegistryEntry {
-            id: "knowact/ellipsis-analysis".into(),
-            template_type: TemplateType::KnowAct,
-            name: "Ellipsis Analysis".into(),
-            lexicon_terms: vec![
-                "read".into(),
-                "detect".into(),
-                "classify".into(),
-                "calibrate".into(),
-                "analyze".into(),
-            ],
-            description: "Bloom Method: detect meaning in gaps and omissions".into(),
-            source_path: "registry/templates/knowact/ellipsis-analysis.j2".into(),
-            required_capabilities: vec![],
-            cascade_level: 0,
-            matroshka_limit: max_recursion,
-        });
-
-        registry.register(RegistryEntry {
-            id: "knowact/falstaffian-perspective".into(),
-            template_type: TemplateType::KnowAct,
-            name: "Falstaffian Perspective".into(),
-            lexicon_terms: vec![
-                "calibrate".into(),
-                "affirm".into(),
-                "select".into(),
-                "execute".into(),
-                "verify".into(),
-            ],
-            description: "Multi-iteration perspective generation through semantic shape transforms"
-                .into(),
-            source_path: "registry/templates/knowact/falstaffian-perspective.j2".into(),
-            required_capabilities: vec![],
-            cascade_level: 0,
-            matroshka_limit: max_recursion,
-        });
-
-        // GML templates (KnowAct — allosteric reasoning)
-        registry.register(RegistryEntry {
-            id: "gml/recognize-ensemble".into(),
-            template_type: TemplateType::KnowAct,
-            name: "GML Recognize Ensemble".into(),
-            lexicon_terms: vec!["recognize".into(), "discriminate".into(), "parse".into()],
-            description: "Parse concept into states and ports".into(),
-            source_path: "registry/templates/gml/recognize-ensemble.j2".into(),
-            required_capabilities: vec![],
-            cascade_level: 0,
-            matroshka_limit: max_recursion,
-        });
-
-        registry.register(RegistryEntry {
-            id: "gml/bind-effector".into(),
-            template_type: TemplateType::KnowAct,
-            name: "GML Bind Effector".into(),
-            lexicon_terms: vec!["analogy".into(), "infer".into(), "bind".into()],
-            description: "Apply effector, infer state-shift".into(),
-            source_path: "registry/templates/gml/bind-effector.j2".into(),
-            required_capabilities: vec![],
-            cascade_level: 0,
-            matroshka_limit: max_recursion,
-        });
-
-        registry.register(RegistryEntry {
-            id: "gml/compute-equilibrium".into(),
-            template_type: TemplateType::KnowAct,
-            name: "GML Compute Equilibrium".into(),
-            lexicon_terms: vec!["calculate".into(), "compare".into()],
-            description: "Calculate R̄, n_H, distribution".into(),
-            source_path: "registry/templates/gml/compute-equilibrium.j2".into(),
-            required_capabilities: vec![],
-            cascade_level: 0,
-            matroshka_limit: max_recursion,
-        });
-
-        registry.register(RegistryEntry {
-            id: "gml/assess-coherence".into(),
-            template_type: TemplateType::KnowAct,
-            name: "GML Assess Coherence".into(),
-            lexicon_terms: vec!["evaluate".into(), "reflect".into(), "calibrate".into()],
-            description: "Evaluate network homeostasis".into(),
-            source_path: "registry/templates/gml/assess-coherence.j2".into(),
-            required_capabilities: vec![],
-            cascade_level: 0,
-            matroshka_limit: max_recursion,
-        });
-
-        registry.register(RegistryEntry {
-            id: "gml/reframe-concept".into(),
-            template_type: TemplateType::KnowAct,
-            name: "GML Reframe Concept".into(),
-            lexicon_terms: vec!["abduct".into(), "generate".into(), "synthesize".into()],
-            description: "Generate alternative frames".into(),
-            source_path: "registry/templates/gml/reframe-concept.j2".into(),
-            required_capabilities: vec![],
-            cascade_level: 0,
-            matroshka_limit: max_recursion,
-        });
-
-        // ── Handoff templates (KnowAct/WordAct — session context transfer) ──
-
-        registry.register(RegistryEntry {
-            id: "handoff/handoff-compact".into(),
-            template_type: TemplateType::KnowAct,
-            name: "Handoff Compact".into(),
-            lexicon_terms: vec![
-                "compact".into(),
-                "distill".into(),
-                "extract".into(),
-                "summarize".into(),
-                "crystallize".into(),
-            ],
-            description: "Compress session context into structured summary for handoff".into(),
-            source_path: "registry/templates/handoff/handoff-compact.j2".into(),
-            required_capabilities: vec![],
-            cascade_level: 0,
-            matroshka_limit: max_recursion,
-        });
-
-        registry.register(RegistryEntry {
-            id: "handoff/handoff-artifacts".into(),
-            template_type: TemplateType::KnowAct,
-            name: "Handoff Artifacts".into(),
-            lexicon_terms: vec![
-                "catalog".into(),
-                "reference".into(),
-                "classify".into(),
-                "detect".into(),
-                "redact".into(),
-            ],
-            description: "Catalog artifacts by reference and detect sensitive data for redaction"
-                .into(),
-            source_path: "registry/templates/handoff/handoff-artifacts.j2".into(),
-            required_capabilities: vec![],
-            cascade_level: 0,
-            matroshka_limit: max_recursion,
-        });
-
-        registry.register(RegistryEntry {
-            id: "handoff/handoff-skills-suggest".into(),
-            template_type: TemplateType::KnowAct,
-            name: "Handoff Skills Suggest".into(),
-            lexicon_terms: vec![
-                "suggest".into(),
-                "match".into(),
-                "prioritize".into(),
-                "analyze".into(),
-                "recommend".into(),
-            ],
-            description: "Suggest relevant skills and extract open questions for next session"
-                .into(),
-            source_path: "registry/templates/handoff/handoff-skills-suggest.j2".into(),
-            required_capabilities: vec![],
-            cascade_level: 0,
-            matroshka_limit: max_recursion,
-        });
-
-        registry.register(RegistryEntry {
-            id: "handoff/handoff-compose".into(),
-            template_type: TemplateType::WordAct,
-            name: "Handoff Compose".into(),
-            lexicon_terms: vec![
-                "compose".into(),
-                "synthesize".into(),
-                "structure".into(),
-                "redact".into(),
-                "document".into(),
-            ],
-            description: "Assemble final handoff document with redaction and skill suggestions"
-                .into(),
-            source_path: "registry/templates/handoff/handoff-compose.j2".into(),
-            required_capabilities: vec![],
-            cascade_level: 0,
-            matroshka_limit: max_recursion,
-        });
-
-        // ── FlowDef templates (YAML manifests — "what to do") ──────
-
-        registry.register(RegistryEntry {
-            id: "flowdef/dispatch".into(),
-            template_type: TemplateType::FlowDef,
-            name: "Dispatch".into(),
-            lexicon_terms: vec!["dispatch".into(), "route".into(), "invoke".into()],
-            description: "Dispatches tool calls via ACP/MCP".into(),
-            source_path: "registry/templates/flowdef/dispatch.j2".into(),
-            required_capabilities: vec![],
-            cascade_level: 0,
-            matroshka_limit: max_recursion,
-        });
-
-        registry.register(RegistryEntry {
-            id: "flowdef/memory/recall".into(),
-            template_type: TemplateType::FlowDef,
-            name: "Memory Recall".into(),
-            lexicon_terms: vec!["recall".into(), "retrieve".into(), "remember".into()],
-            description: "Recalls semantic/episodic memory triples".into(),
-            source_path: "registry/templates/flowdef/memory_recall.j2".into(),
-            required_capabilities: vec![],
-            cascade_level: 0,
-            matroshka_limit: max_recursion,
-        });
-
-        // DDMVSS Specification templates (FlowDef — specification manifests)
-
-        registry.register(RegistryEntry {
-            id: "spec/goal-capture".into(),
-            template_type: TemplateType::FlowDef,
-            name: "Goal Capture".into(),
-            lexicon_terms: vec!["specify".into(), "require".into(), "elicit".into()],
-            description: "Elicit user intent as binding requirement".into(),
-            source_path: "registry/templates/spec/goal-capture.j2".into(),
-            required_capabilities: vec![],
-            cascade_level: 0,
-            matroshka_limit: max_recursion,
-        });
-
-        registry.register(RegistryEntry {
-            id: "spec/constraint-bind".into(),
-            template_type: TemplateType::FlowDef,
-            name: "Constraint Bind".into(),
-            lexicon_terms: vec!["constrain".into(), "require".into()],
-            description: "Attach OCAP boundaries to goals".into(),
-            source_path: "registry/templates/spec/constraint-bind.j2".into(),
-            required_capabilities: vec![],
-            cascade_level: 0,
-            matroshka_limit: max_recursion,
-        });
-
-        registry.register(RegistryEntry {
-            id: "spec/curate-collection".into(),
-            template_type: TemplateType::FlowDef,
-            name: "Curate Collection".into(),
-            lexicon_terms: vec!["curate".into(), "cultivate".into()],
-            description: "Evaluate collection coherence and completeness".into(),
-            source_path: "registry/templates/spec/curate-collection.j2".into(),
-            required_capabilities: vec![],
-            cascade_level: 0,
-            matroshka_limit: max_recursion,
-        });
-
-        registry.register(RegistryEntry {
-            id: "spec/reconcile-conflicts".into(),
-            template_type: TemplateType::FlowDef,
-            name: "Reconcile Conflicts".into(),
-            lexicon_terms: vec!["reconcile".into()],
-            description: "Resolve goal tensions without collapsing them".into(),
-            source_path: "registry/templates/spec/reconcile-conflicts.j2".into(),
-            required_capabilities: vec![],
-            cascade_level: 0,
-            matroshka_limit: max_recursion,
-        });
-
-        registry.register(RegistryEntry {
-            id: "spec/contextualise".into(),
-            template_type: TemplateType::FlowDef,
-            name: "Contextualise".into(),
-            lexicon_terms: vec!["contextualise".into()],
-            description: "Situate artifact within meaningful environment".into(),
-            source_path: "registry/templates/spec/contextualise.j2".into(),
-            required_capabilities: vec![],
-            cascade_level: 0,
-            matroshka_limit: max_recursion,
-        });
-
-        registry.register(RegistryEntry {
-            id: "spec/selector".into(),
-            template_type: TemplateType::FlowDef,
-            name: "Spec Selector".into(),
-            lexicon_terms: vec!["recognize".into(), "match".into()],
-            description: "Route input to best-fit specification template".into(),
-            source_path: "registry/templates/spec/selector.j2".into(),
-            required_capabilities: vec![],
-            cascade_level: 0,
-            matroshka_limit: max_recursion,
-        });
+        for &(id, ttype, name, terms, desc, path) in Self::BOOTSTRAP_TEMPLATES {
+            registry.register(RegistryEntry {
+                id: id.into(),
+                template_type: ttype,
+                name: name.into(),
+                lexicon_terms: terms.iter().map(|s| s.to_string()).collect(),
+                description: desc.into(),
+                source_path: path.into(),
+                required_capabilities: vec![],
+                cascade_level: 0,
+                matroshka_limit: max_recursion,
+            });
+        }
 
         registry
     }

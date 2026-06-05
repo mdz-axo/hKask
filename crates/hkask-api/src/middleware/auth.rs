@@ -15,7 +15,7 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use hkask_types::{DelegationToken, SYSTEM_MAX_ATTENUATION, SecretRef, WebID, derivation_contexts};
+use hkask_types::{DelegationToken, SYSTEM_MAX_ATTENUATION, WebID};
 use std::collections::HashSet;
 use std::sync::{Arc, RwLock};
 
@@ -36,15 +36,10 @@ impl AuthService {
     /// Create a new `AuthService` by deriving the MCP security key from
     /// the master key environment variable.
     ///
-    /// Resolution chain: `SecretRef::Derived` → env var → keychain.
+    /// Delegates to the keystore's domain-specific resolution chain.
     pub fn new() -> Result<Self, String> {
-        let secret = hkask_keystore::resolve(&SecretRef::derived(
-            derivation_contexts::MASTER_KEY_ENV,
-            derivation_contexts::MCP_SECURITY_KEY,
-        ))
-        .or_else(|_| hkask_keystore::resolve(&SecretRef::env("HKASK_MCP_SECURITY_KEY")))
-        .or_else(|_| hkask_keystore::resolve(&SecretRef::Keychain("mcp-security-key".to_string())))
-        .map_err(|e| format!("MCP security key not available: {}", e))?;
+        let secret = hkask_keystore::resolve_mcp_security_key()
+            .map_err(|e| format!("MCP security key not available: {}", e))?;
 
         Ok(Self {
             secret: Arc::new((*secret).clone()),

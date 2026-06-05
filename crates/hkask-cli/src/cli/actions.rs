@@ -41,12 +41,6 @@ pub enum BotAction {
         #[arg()]
         name: String,
     },
-    Grant {
-        #[arg(short, long)]
-        bot_id: String,
-        #[arg(short, long)]
-        capability: String,
-    },
 }
 
 #[derive(Subcommand)]
@@ -654,9 +648,7 @@ pub enum SpecAction {
 
 /// Goal actions — minimal multi-agent coordination substrate.
 ///
-/// All operations are OCAP-gated: a `GoalCapabilityToken` is minted from the
-/// resolved OCAP secret, and authority denials are recorded as
-/// `cns.tool.goal.capability.denied` CNS events.
+/// Goal operations are available to anyone with DB access — no token ceremony.
 #[derive(Subcommand)]
 pub enum GoalAction {
     /// Create a new goal owned by the current user.

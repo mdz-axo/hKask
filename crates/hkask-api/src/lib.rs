@@ -122,12 +122,9 @@ pub struct ApiState {
     pub standing_session_store: Option<Arc<dyn hkask_types::ports::StandingSessionPort>>,
     /// Ensemble session manager for chat/deliberation
     pub session_manager: Arc<tokio::sync::RwLock<hkask_ensemble::SessionManager>>,
-    /// Goal repository (OCAP-gated, telemetry-wired) for the goal coordination
-    /// substrate. Mirrors the CLI `kask goal` surface for MCP ≡ CLI ≡ API parity.
+    /// Goal repository for the goal coordination substrate. Mirrors the CLI
+    /// `kask goal` surface for MCP ≡ CLI ≡ API parity.
     pub goal_repo: Arc<hkask_storage::SqliteGoalRepository>,
-    /// Capability secret used to mint goal capability tokens (same secret used
-    /// by the OCAP system).
-    pub(crate) goal_capability_secret: Arc<Vec<u8>>,
     /// Loop system for 6-loop regulation (Cybernetics, Episodic, Semantic, Curation)
     pub loop_system: Arc<LoopSystem>,
     /// Episodic memory for first-person experience storage and recall
@@ -410,7 +407,6 @@ impl ApiState {
             standing_session_store,
             session_manager,
             goal_repo,
-            goal_capability_secret: Arc::new(capability_secret.to_vec()),
             loop_system,
             episodic_memory,
             cns_runtime: Arc::new(CnsRuntime::with_threshold(hkask_cns::DEFAULT_THRESHOLD)),
@@ -579,34 +575,24 @@ impl ApiState {
     }
 }
 
-/// Resolve the SOAP capability secret through the keystore chain.
-///
-/// Resolution order: master-key derivation → env var → OS keychain.
+/// Resolve the SOAP capability secret through the keystore's domain-specific
+/// resolution chain.
 pub fn resolve_soap_capability_secret() -> Result<[u8; 32], String> {
-    hkask_keystore::resolve(&hkask_types::SecretRef::derived(
-        hkask_types::derivation_contexts::MASTER_KEY_ENV,
-        hkask_types::derivation_contexts::CAPABILITY_KEY,
-    ))
-    .or_else(|_| hkask_keystore::resolve(&hkask_types::SecretRef::env("HKASK_CAPABILITY_KEY")))
-    .or_else(|_| {
-        hkask_keystore::resolve(&hkask_types::SecretRef::Keychain(
-            "capability-key".to_string(),
-        ))
-    })
-    .map(|s| {
-        let mut arr = [0u8; 32];
-        let bytes: &[u8] = &s;
-        let len = bytes.len().min(32);
-        arr[..len].copy_from_slice(&bytes[..len]);
-        arr
-    })
-    .map_err(|e| {
-        format!(
-            "Capability key not available: {}. Run `kask chat` to complete onboarding, \
-             or set HKASK_MASTER_KEY or HKASK_CAPABILITY_KEY.",
-            e
-        )
-    })
+    hkask_keystore::resolve_capability_key()
+        .map(|s| {
+            let mut arr = [0u8; 32];
+            let bytes: &[u8] = &s;
+            let len = bytes.len().min(32);
+            arr[..len].copy_from_slice(&bytes[..len]);
+            arr
+        })
+        .map_err(|e| {
+            format!(
+                "Capability key not available: {}. Run `kask chat` to complete onboarding, \
+                 or set HKASK_MASTER_KEY or HKASK_CAPABILITY_KEY.",
+                e
+            )
+        })
 }
 
 /// Error response

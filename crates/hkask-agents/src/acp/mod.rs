@@ -600,17 +600,9 @@ fn current_timestamp() -> Result<i64, AcpError> {
 
 impl Default for AcpRuntime {
     fn default() -> Self {
-        let secret = hkask_keystore::resolve(&hkask_types::SecretRef::derived(
-            hkask_types::derivation_contexts::MASTER_KEY_ENV,
-            hkask_types::derivation_contexts::ACP_SECRET,
-        ))
-        .or_else(|_| hkask_keystore::resolve(&hkask_types::SecretRef::env("HKASK_ACP_SECRET_KEY")))
-        .or_else(|_| {
-            hkask_keystore::resolve(&hkask_types::SecretRef::Keychain("acp-secret".to_string()))
-        })
-        .expect(
+        let secret = hkask_keystore::resolve_acp_secret().expect(
             "ACP secret not available. Run `kask chat` to complete onboarding, \
-             or set HKASK_MASTER_KEY or HKASK_ACP_SECRET_KEY.",
+                 or set HKASK_MASTER_KEY or HKASK_ACP_SECRET.",
         );
         Self::new(&secret)
     }

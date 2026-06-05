@@ -1,17 +1,16 @@
 //! Goal coordination routes.
 //!
 //! HTTP surface for the goal substrate, mirroring `kask goal` (CLI) and the
-//! `goal` MCP tools for MCP ≡ CLI ≡ API equivalence (REQ-IFC-001). All
-//! operations are OCAP-gated: tokens are minted from the API capability secret
-//! bound to the authenticated caller, and denials are observed via the goal
-//! repository's CNS telemetry sink (ADR-029).
+//! `goal` MCP tools for MCP ≡ CLI ≡ API equivalence (REQ-IFC-001).
+//! Authority is co-located with effect: the caller's WebID is passed directly
+//! to the goal repository, and denials are observed via the repository's CNS
+//! telemetry sink.
 
 use axum::extract::Extension;
 use axum::{
     Json, extract::Path, extract::Query, extract::State, http::StatusCode, routing::Router,
 };
 use hkask_types::goal::GoalState;
-use hkask_types::goal_capability::{GoalCapabilityToken, GoalOp};
 use hkask_types::id::GoalID;
 use hkask_types::visibility::Visibility;
 use serde::{Deserialize, Serialize};
@@ -94,15 +93,6 @@ fn repo_error(e: hkask_storage::GoalRepositoryError) -> (StatusCode, Json<ErrorR
     )
 }
 
-fn mint(
-    goal_id: GoalID,
-    auth: &AuthContext,
-    ops: Vec<GoalOp>,
-    secret: &[u8],
-) -> GoalCapabilityToken {
-    GoalCapabilityToken::new(goal_id, auth.webid, ops, secret)
-}
-
 /// Create a goal owned by the authenticated caller.
 #[utoipa::path(
     post,
@@ -125,15 +115,9 @@ async fn create_goal(
     let visibility = Visibility::parse_str(visibility_str)
         .ok_or_else(|| bad_request("visibility must be private | shared | public"))?;
 
-    let token = mint(
-        GoalID::new(),
-        &auth,
-        vec![GoalOp::Create],
-        &state.goal_capability_secret,
-    );
     let goal = state
         .goal_repo
-        .create_goal(&token, &auth.webid, &req.text, visibility)
+        .create_goal(&auth.webid, &req.text, visibility)
         .map_err(repo_error)?;
 
     Ok(Json(GoalResponse {
@@ -171,15 +155,9 @@ async fn list_goals(
         None => None,
     };
 
-    let token = mint(
-        GoalID::new(),
-        &auth,
-        vec![GoalOp::Read],
-        &state.goal_capability_secret,
-    );
     let goals = state
         .goal_repo
-        .list_goals(&token, &auth.webid, state_filter)
+        .list_goals(&auth.webid, state_filter)
         .map_err(repo_error)?;
 
     Ok(Json(GoalListResponse {
@@ -214,7 +192,7 @@ async fn list_goals(
 )]
 async fn set_goal_state(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Json(req): Json<SetGoalStateRequest>,
 ) -> Result<Json<GoalResponse>, (StatusCode, Json<ErrorResponse>)> {
@@ -223,15 +201,9 @@ async fn set_goal_state(
         bad_request("state must be pending | active | completed | blocked | abandoned")
     })?;
 
-    let token = mint(
-        goal_id,
-        &auth,
-        vec![GoalOp::Update],
-        &state.goal_capability_secret,
-    );
     state
         .goal_repo
-        .update_goal_state(&token, goal_id, new_state)
+        .update_goal_state(goal_id, new_state)
         .map_err(repo_error)?;
 
     Ok(Json(GoalResponse {

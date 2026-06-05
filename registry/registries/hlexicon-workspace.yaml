@@ -207,3 +207,13 @@ hlexicon:
       definition: "Create a persistent, transferable record"
     - term: handoff
       definition: "Transfer session context to a fresh agent"
+    - term: assess
+      definition: "Evaluate a task against principles before action"
+    - term: simplify
+      definition: "Reduce to the minimum code that solves the problem"
+    - term: verify
+      definition: "Confirm compliance with defined criteria"
+    - term: audit
+      definition: "Systematic examination for violations and compliance"
+    - term: apply
+      definition: "Enforce constraints and guardrails on implementation"

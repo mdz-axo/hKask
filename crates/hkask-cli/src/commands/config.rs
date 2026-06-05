@@ -15,58 +15,25 @@ pub(crate) fn registry_yaml_path() -> PathBuf {
 }
 
 pub(crate) fn resolve_acp_secret() -> Result<String, RegistryError> {
-    // Resolution chain: master key derivation → env var → keychain
-    hkask_keystore::resolve(&hkask_types::SecretRef::derived(
-        hkask_types::derivation_contexts::MASTER_KEY_ENV,
-        hkask_types::derivation_contexts::ACP_SECRET,
-    ))
-    .map(|s| String::from_utf8_lossy(&s).to_string())
-    .or_else(|_| std::env::var("HKASK_ACP_SECRET"))
-    .or_else(|_| {
-        hkask_keystore::Keychain::default()
-            .retrieve_by_key("acp-secret")
-            .map_err(|e| RegistryError::InitFailed(e.to_string()))
-    })
-    .or_else(|_| Err(RegistryError::InitFailed(
-        "HKASK_ACP_SECRET not set. Run `kask chat` to complete onboarding, or set HKASK_MASTER_KEY for deterministic secret derivation.".to_string(),
-    )))
+    hkask_keystore::resolve_acp_secret()
+        .map(|s| String::from_utf8_lossy(&s).to_string())
+        .map_err(|e| RegistryError::InitFailed(e.to_string()))
 }
 
 /// Resolve the MCP secret for tool dispatch signing.
 ///
-/// Uses the same HKDF derivation chain as resolve_acp_secret(), but with the
-/// MCP_SECRET context. This replaces the hardcoded `b"hkask-devel-mcp-secret-key-32byte!"`
-/// that was used for DelegationToken minting in /invoke and tool-augmented chat.
-///
-/// Resolution chain: master key derivation → env var → keychain → ACP secret fallback
+/// Delegates to the keystore's domain-specific resolution chain
+/// (master key derivation → env var → keychain → ACP secret fallback).
 pub fn resolve_mcp_secret() -> Result<String, RegistryError> {
-    // 1. Master key derivation (HKDF-SHA256)
-    hkask_keystore::resolve(&hkask_types::SecretRef::derived(
-        hkask_types::derivation_contexts::MASTER_KEY_ENV,
-        hkask_types::derivation_contexts::MCP_SECRET,
-    ))
-    .map(|s| String::from_utf8_lossy(&s).to_string())
-    // 2. Direct environment variable
-    .or_else(|_| std::env::var("HKASK_MCP_SECRET"))
-    // 3. OS keychain
-    .or_else(|_| {
-        hkask_keystore::Keychain::default()
-            .retrieve_by_key("mcp-secret")
-            .map_err(|e| RegistryError::InitFailed(e.to_string()))
-    })
-    // 4. Fallback to ACP secret (same authority chain, different context)
-    .or_else(|_| resolve_acp_secret())
+    hkask_keystore::resolve_mcp_secret()
+        .map(|s| String::from_utf8_lossy(&s).to_string())
+        .map_err(|e| RegistryError::InitFailed(e.to_string()))
 }
 
 pub fn resolve_db_passphrase() -> Result<String, RegistryError> {
-    std::env::var("HKASK_DB_PASSPHRASE").or_else(|_| {
-        hkask_keystore::Keychain::default()
-            .retrieve_by_key("hkask-db-passphrase")
-            .map_err(|e| RegistryError::InitFailed(e.to_string()))
-            .or_else(|_| Err(RegistryError::InitFailed(
-                "HKASK_DB_PASSPHRASE not set. Run `kask chat` to complete onboarding, or set HKASK_MASTER_KEY for deterministic secret derivation.".to_string(),
-            )))
-    })
+    hkask_keystore::resolve_db_passphrase()
+        .map(|s| String::from_utf8_lossy(&s).to_string())
+        .map_err(|e| RegistryError::InitFailed(e.to_string()))
 }
 
 pub(crate) fn open_registry_db() -> Result<Arc<std::sync::Mutex<rusqlite::Connection>>, CuratorError>
@@ -94,11 +61,14 @@ pub(crate) fn open_registry_db() -> Result<Arc<std::sync::Mutex<rusqlite::Connec
 pub fn open_sovereignty_store()
 -> Result<hkask_storage::SovereigntyBoundaryStore, crate::errors::RegistryError> {
     let db_path = registry_db_path();
-    let conn = rusqlite::Connection::open(&db_path)
-        .map_err(|e| crate::errors::RegistryError::DatabaseError(e.to_string()))?;
-    Ok(hkask_storage::SovereigntyBoundaryStore::new(
-        std::sync::Arc::new(std::sync::Mutex::new(conn)),
-    ))
+    let passphrase = resolve_db_passphrase()?;
+    let db = if db_path == ":memory:" {
+        hkask_storage::Database::in_memory()
+    } else {
+        hkask_storage::Database::open(&db_path, &passphrase)
+    }
+    .map_err(|e| crate::errors::RegistryError::DatabaseError(e.to_string()))?;
+    Ok(hkask_storage::SovereigntyBoundaryStore::new(db.conn_arc()))
 }
 
 /// Open a ConsentStore (used by `kask sovereignty` subcommands).
@@ -117,10 +87,14 @@ pub fn open_consent_store() -> Result<hkask_storage::ConsentStore, crate::errors
 /// Opens the shared database and initializes the spec schema.
 pub fn open_spec_store() -> Result<hkask_storage::SqliteSpecStore, crate::errors::RegistryError> {
     let db_path = registry_db_path();
-    let conn = rusqlite::Connection::open(&db_path)
-        .map_err(|e| crate::errors::RegistryError::DatabaseError(e.to_string()))?;
-    let store =
-        hkask_storage::SqliteSpecStore::new(std::sync::Arc::new(std::sync::Mutex::new(conn)));
+    let passphrase = resolve_db_passphrase()?;
+    let db = if db_path == ":memory:" {
+        hkask_storage::Database::in_memory()
+    } else {
+        hkask_storage::Database::open(&db_path, &passphrase)
+    }
+    .map_err(|e| crate::errors::RegistryError::DatabaseError(e.to_string()))?;
+    let store = hkask_storage::SqliteSpecStore::new(db.conn_arc());
     store
         .init_schema()
         .map_err(|e| crate::errors::RegistryError::SchemaError(e.to_string()))?;

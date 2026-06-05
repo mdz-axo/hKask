@@ -55,3 +55,15 @@ pub fn open_user_store() -> std::sync::Arc<std::sync::Mutex<hkask_storage::user_
     );
     store
 }
+
+/// Run an async future on the tokio runtime and exit on error.
+///
+/// Shorthand for `or_exit(rt.block_on($fut), $label)`.
+/// Eliminates the repeated `or_exit(rt.block_on(...), "...")` boilerplate
+/// across command handlers.
+#[macro_export]
+macro_rules! block_on {
+    ($rt:expr, $fut:expr, $label:literal) => {
+        $crate::commands::helpers::or_exit($rt.block_on($fut), $label)
+    };
+}

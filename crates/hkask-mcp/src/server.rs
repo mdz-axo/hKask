@@ -197,6 +197,23 @@ impl ToolSpanGuard {
         );
         output
     }
+
+    /// Return a success response with a JSON value.
+    ///
+    /// Equivalent to `self.ok(McpToolOutput::new(value).to_json_string())`.
+    pub fn ok_json(self, value: Value) -> String {
+        self.ok(McpToolOutput::new(value).to_json_string())
+    }
+
+    /// Return an internal error response with a JSON value.
+    ///
+    /// Equivalent to `self.error(McpErrorKind::Internal, McpToolOutput::new(value).to_json_string())`.
+    pub fn internal_error(self, value: Value) -> String {
+        self.error(
+            McpErrorKind::Internal,
+            McpToolOutput::new(value).to_json_string(),
+        )
+    }
 }
 
 impl Drop for ToolSpanGuard {

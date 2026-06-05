@@ -103,6 +103,111 @@ impl Default for Keychain {
     }
 }
 
+// ── Domain-Specific Secret Resolution ──────────────────────────────────────
+//
+// These functions encapsulate the standard 3-tier resolution chain
+// (derived → env → keychain) for each well-known secret. Every call site
+// that previously hand-rolled its own chain should use these instead.
+//
+// Benefits:
+//   - Eliminates copy-paste drift (10+ independent copies collapsed to 1 implementation)
+//   - Fixes the ACP env var inconsistency (HKASK_ACP_SECRET vs HKASK_ACP_SECRET_KEY)
+//   - Single place to audit secret resolution behavior
+
+/// Resolve a secret through the standard 3-tier chain:
+/// 1. Master key derivation (HKDF-SHA256)
+/// 2. Direct environment variable
+/// 3. OS keychain lookup
+///
+/// This is the canonical resolution pattern for all hKask secrets.
+/// Domain-specific functions (`resolve_acp_secret`, etc.) call this with
+/// the appropriate parameters.
+pub fn resolve_secret_chain(
+    derivation_context: (&str, &str),
+    env_var: &str,
+    keychain_key: &str,
+) -> Result<Zeroizing<Vec<u8>>, KeychainError> {
+    resolve(&SecretRef::derived(
+        derivation_context.0,
+        derivation_context.1,
+    ))
+    .or_else(|_| resolve(&SecretRef::env(env_var)))
+    .or_else(|_| resolve(&SecretRef::keychain(keychain_key)))
+}
+
+/// Resolve the ACP (Agent Capability Protocol) HMAC signing secret.
+///
+/// Chain: master key derivation → env var → OS keychain.
+/// Tries both `HKASK_ACP_SECRET` (canonical) and `HKASK_ACP_SECRET_KEY` (legacy)
+/// environment variables for backward compatibility.
+pub fn resolve_acp_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
+    resolve_secret_chain(
+        (
+            derivation_contexts::MASTER_KEY_ENV,
+            derivation_contexts::ACP_SECRET,
+        ),
+        "HKASK_ACP_SECRET",
+        "acp-secret",
+    )
+    .or_else(|_| resolve(&SecretRef::env("HKASK_ACP_SECRET_KEY")))
+}
+
+/// Resolve the MCP dispatch and tool invocation signing key.
+///
+/// Chain: master key derivation → env var → OS keychain → ACP fallback.
+/// Falls back to the ACP secret if MCP-specific key is unavailable,
+/// since they share the same authority chain.
+pub fn resolve_mcp_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
+    resolve_secret_chain(
+        (
+            derivation_contexts::MASTER_KEY_ENV,
+            derivation_contexts::MCP_SECRET,
+        ),
+        "HKASK_MCP_SECRET",
+        "mcp-secret",
+    )
+    .or_else(|_| resolve_acp_secret())
+}
+
+/// Resolve the MCP security gateway HMAC key (used for API auth).
+///
+/// Chain: master key derivation → env var → OS keychain.
+pub fn resolve_mcp_security_key() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
+    resolve_secret_chain(
+        (
+            derivation_contexts::MASTER_KEY_ENV,
+            derivation_contexts::MCP_SECURITY_KEY,
+        ),
+        "HKASK_MCP_SECURITY_KEY",
+        "mcp-security-key",
+    )
+}
+
+/// Resolve the capability token signing key (used for SOAP/capability tokens).
+///
+/// Chain: master key derivation → env var → OS keychain.
+pub fn resolve_capability_key() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
+    resolve_secret_chain(
+        (
+            derivation_contexts::MASTER_KEY_ENV,
+            derivation_contexts::CAPABILITY_KEY,
+        ),
+        "HKASK_CAPABILITY_KEY",
+        "capability-key",
+    )
+}
+
+/// Resolve the database encryption passphrase.
+///
+/// Chain: env var → OS keychain.
+/// Note: no master-key derivation for the DB passphrase — it must be
+/// explicitly set via env var or keychain to avoid accidentally encrypting
+/// the database with a derived key that the user didn't consent to.
+pub fn resolve_db_passphrase() -> Result<Zeroizing<Vec<u8>>, KeychainError> {
+    resolve(&SecretRef::env("HKASK_DB_PASSPHRASE"))
+        .or_else(|_| resolve(&SecretRef::keychain("hkask-db-passphrase")))
+}
+
 /// Get or create OCAP secret
 ///
 /// Resolution chain:

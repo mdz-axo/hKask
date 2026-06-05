@@ -127,9 +127,10 @@ struct SubscribeResponse {
 
 /// Subscribe to CNS events for an agent
 ///
-/// Stub endpoint that validates the request and returns confirmation.
-/// The actual subscription wiring will be connected when the runtime
-/// integration is complete.
+/// TODO: Wire to the CNS event stream. Currently validates the request and
+/// returns confirmation, but no events are delivered. Scope: connect to
+/// CnsRuntime event broadcast, filter by agent WebID and span namespaces,
+/// deliver via SSE or WebSocket.
 #[utoipa::path(
     post,
     path = "/api/cns/subscribe",
