@@ -77,8 +77,9 @@ pub fn emit_pod_deactivated(sink: &dyn NuEventSink, agent: WebID, pod_id: &str) 
 /// This is the critical algedonic event for Curation review.
 /// It goes into the `cns.agent_pod.failed` span with `Phase::Act`,
 /// making it visible through `NuEventStore::query_algedonic()`.
-#[allow(dead_code)] // Symmetric counterpart to emit_pod_started/completed; needed for full lifecycle
-pub fn emit_pod_failed(sink: &dyn NuEventSink, agent: WebID, pod_id: &str, error: &str) {
+/// Symmetric counterpart to emit_pod_started/completed; needed for full lifecycle
+#[allow(dead_code)]
+pub(crate) fn emit_pod_failed(sink: &dyn NuEventSink, agent: WebID, pod_id: &str, error: &str) {
     emit_pod_event(
         sink,
         agent,

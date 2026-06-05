@@ -85,9 +85,9 @@ impl CurationPort {
     }
 }
 
-/// Curation decision outcome.
+/// Confidence gate decision outcome.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum CurationDecision {
+pub enum ConfidenceDecision {
     /// R̄ ≥ upper threshold: proceed with confidence.
     Proceed,
     /// R̄ in transition zone: ask what would increase confidence.
@@ -202,30 +202,30 @@ impl CurationConfidenceGate {
 
     /// Decide based on current evidence.
     ///
-    /// Returns a `CurationDecision` based on the three-zone structure:
+    /// Returns a `ConfidenceDecision` based on the three-zone structure:
     /// - R̄ ≥ upper threshold → Proceed
     /// - R̄ ≤ lower threshold → Suppress
     /// - Between → SeekMoreEvidence
-    pub fn decide(&mut self) -> CurationDecision {
+    pub fn decide(&mut self) -> ConfidenceDecision {
         let r_bar = self.confidence();
         if r_bar >= self.upper_threshold {
-            CurationDecision::Proceed
+            ConfidenceDecision::Proceed
         } else if r_bar <= self.lower_threshold {
-            CurationDecision::Suppress
+            ConfidenceDecision::Suppress
         } else {
-            CurationDecision::SeekMoreEvidence
+            ConfidenceDecision::SeekMoreEvidence
         }
     }
 
     /// Decide with temporal relaxation.
-    pub fn decide_at(&mut self, dt: Duration) -> CurationDecision {
+    pub fn decide_at(&mut self, dt: Duration) -> ConfidenceDecision {
         let r_bar = self.confidence_at(dt);
         if r_bar >= self.upper_threshold {
-            CurationDecision::Proceed
+            ConfidenceDecision::Proceed
         } else if r_bar <= self.lower_threshold {
-            CurationDecision::Suppress
+            ConfidenceDecision::Suppress
         } else {
-            CurationDecision::SeekMoreEvidence
+            ConfidenceDecision::SeekMoreEvidence
         }
     }
 
@@ -406,7 +406,7 @@ mod tests {
         // The decision depends on actual R̄ value
         if r_bar > 0.3 && r_bar < 0.8 {
             // Should be SeekMoreEvidence
-            assert_eq!(decision, CurationDecision::SeekMoreEvidence);
+            assert_eq!(decision, ConfidenceDecision::SeekMoreEvidence);
         }
     }
 

@@ -20,7 +20,7 @@ pub(crate) struct KillZoneDetector {
 }
 
 impl KillZoneDetector {
-    pub fn new(thresholds: KillZoneThresholds) -> Self {
+    pub(crate) fn new(thresholds: KillZoneThresholds) -> Self {
         Self {
             thresholds,
             state: KillZoneConfig::default(),
@@ -28,32 +28,32 @@ impl KillZoneDetector {
     }
 
     /// Update VC investment level and check for kill zone.
-    pub fn update_vc_investment(&mut self, vc_investment: f32) {
+    pub(crate) fn update_vc_investment(&mut self, vc_investment: f32) {
         self.state.vc_investment = vc_investment.clamp(0.0, 1.0);
         self.state.kill_zone_active =
             self.state.acquisition_attempt && self.state.vc_investment < self.thresholds.threshold;
     }
 
     /// Mark that an acquisition attempt has been detected.
-    pub fn mark_acquisition_attempt(&mut self) {
+    pub(crate) fn mark_acquisition_attempt(&mut self) {
         self.state.acquisition_attempt = true;
         self.state.kill_zone_active =
             self.state.acquisition_attempt && self.state.vc_investment < self.thresholds.threshold;
     }
 
     /// Whether a kill zone alert should be triggered.
-    pub fn needs_alert(&self) -> bool {
+    pub(crate) fn needs_alert(&self) -> bool {
         self.state.kill_zone_active
     }
 
     /// Get a reference to the current state.
-    pub fn state(&self) -> &KillZoneConfig {
+    pub(crate) fn state(&self) -> &KillZoneConfig {
         &self.state
     }
 
     /// Get a reference to the thresholds.
-    #[allow(dead_code)] // CNS resilience infrastructure — awaiting runtime wiring
-    pub fn thresholds(&self) -> &KillZoneThresholds {
+    /// CNS resilience infrastructure — awaiting runtime wiring
+    pub(crate) fn thresholds(&self) -> &KillZoneThresholds {
         &self.thresholds
     }
 }

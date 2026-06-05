@@ -196,7 +196,7 @@ impl AcpRuntime {
     ///
     /// Derived keys are cached for reuse. The master key can still derive any
     /// agent's key (root authority).
-    pub async fn derive_agent_secret(&self, agent_webid: &WebID) -> AgentSecret {
+    pub(crate) async fn derive_agent_secret(&self, agent_webid: &WebID) -> AgentSecret {
         // Check cache first
         {
             let cache = self.agent_secrets.read().await;
@@ -375,19 +375,19 @@ impl AcpRuntime {
     }
 
     /// Get agent by WebID
-    pub async fn get_agent(&self, webid: &WebID) -> Option<AcpAgent> {
+    pub(crate) async fn get_agent(&self, webid: &WebID) -> Option<AcpAgent> {
         let agents = self.agents.read().await;
         agents.get(webid).cloned()
     }
 
     /// Check if agent is registered
-    pub async fn is_registered(&self, webid: &WebID) -> bool {
+    pub(crate) async fn is_registered(&self, webid: &WebID) -> bool {
         let agents = self.agents.read().await;
         agents.contains_key(webid)
     }
 
     /// Send A2A message
-    pub async fn send_message(&self, message: A2AMessage) -> Result<String, AcpError> {
+    pub(crate) async fn send_message(&self, message: A2AMessage) -> Result<String, AcpError> {
         let (correlation_id, from, to, message_type) = match &message {
             A2AMessage::TemplateDispatch {
                 correlation_id,
@@ -449,13 +449,13 @@ impl AcpRuntime {
     }
 
     /// Get pending message by correlation ID
-    pub async fn get_message(&self, correlation_id: &str) -> Option<A2AMessage> {
+    pub(crate) async fn get_message(&self, correlation_id: &str) -> Option<A2AMessage> {
         let pending = self.pending_messages.read().await;
         pending.get(correlation_id).cloned()
     }
 
     /// Remove pending message
-    pub async fn remove_message(&self, correlation_id: &str) -> Option<A2AMessage> {
+    pub(crate) async fn remove_message(&self, correlation_id: &str) -> Option<A2AMessage> {
         let mut pending = self.pending_messages.write().await;
         pending.remove(correlation_id)
     }
@@ -465,7 +465,7 @@ impl AcpRuntime {
     /// Uses per-agent signing keys: the key is resolved from `token.delegated_from`.
     /// Root tokens use the master key; delegated tokens use the delegating agent's
     /// derived key.
-    pub async fn verify_capability(&self, token: &DelegationToken) -> bool {
+    pub(crate) async fn verify_capability(&self, token: &DelegationToken) -> bool {
         let signing_key = self.resolve_signing_key(&token.delegated_from).await;
         let current_time = chrono::Utc::now().timestamp();
         token.verify(signing_key.as_ref()) && !token.is_expired(current_time) && {
@@ -475,13 +475,13 @@ impl AcpRuntime {
     }
 
     /// Revoke a capability token by ID
-    pub async fn revoke_capability(&self, token_id: &str) {
+    pub(crate) async fn revoke_capability(&self, token_id: &str) {
         let mut revoked = self.revoked_tokens.write().await;
         revoked.insert(token_id.to_string());
     }
 
     /// Check if a capability token has been revoked
-    pub async fn is_revoked(&self, token_id: &str) -> bool {
+    pub(crate) async fn is_revoked(&self, token_id: &str) -> bool {
         let revoked = self.revoked_tokens.read().await;
         revoked.contains(token_id)
     }
@@ -504,7 +504,7 @@ impl AcpRuntime {
     /// # Returns
     /// * `Ok(DelegationToken)` — Attenuated child token
     /// * `Err(AcpError)` — Delegation failed (attenuation limit, etc.)
-    pub async fn delegate_capability(
+    pub(crate) async fn delegate_capability(
         &self,
         parent_token: &DelegationToken,
         new_holder: WebID,
@@ -542,7 +542,10 @@ impl AcpRuntime {
     ///
     /// Ensures the token traces back to the root authority
     /// and the attenuation chain is unbroken.
-    pub async fn verify_capability_chain(&self, token: &DelegationToken) -> Result<(), AcpError> {
+    pub(crate) async fn verify_capability_chain(
+        &self,
+        token: &DelegationToken,
+    ) -> Result<(), AcpError> {
         if !self.verify_capability(token).await {
             return Err(AcpError::CapabilityDenied(
                 token.delegated_to,
@@ -555,19 +558,19 @@ impl AcpRuntime {
     }
 
     /// Store delegation token for agent
-    pub async fn store_capability(&self, webid: WebID, token: DelegationToken) {
+    pub(crate) async fn store_capability(&self, webid: WebID, token: DelegationToken) {
         let mut tokens = self.capability_tokens.write().await;
         tokens.entry(webid).or_insert_with(Vec::new).push(token);
     }
 
     /// Get all delegation tokens for agent
-    pub async fn get_capabilities(&self, webid: &WebID) -> Vec<DelegationToken> {
+    pub(crate) async fn get_capabilities(&self, webid: &WebID) -> Vec<DelegationToken> {
         let tokens = self.capability_tokens.read().await;
         tokens.get(webid).cloned().unwrap_or_default()
     }
 
     /// Check if agent has capability for tool
-    pub async fn has_capability(&self, webid: &WebID, capability: &str) -> bool {
+    pub(crate) async fn has_capability(&self, webid: &WebID, capability: &str) -> bool {
         let agents = self.agents.read().await;
         if let Some(agent) = agents.get(webid) {
             // Check if agent has the exact capability registered (no wildcards)
@@ -584,7 +587,7 @@ impl AcpRuntime {
     }
 
     /// Get agent count
-    pub async fn agent_count(&self) -> usize {
+    pub(crate) async fn agent_count(&self) -> usize {
         let agents = self.agents.read().await;
         agents.len()
     }

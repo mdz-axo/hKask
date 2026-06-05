@@ -37,8 +37,10 @@ zeroize.workspace = true
 rand.workspace = true
 hex.workspace = true
 async-trait.workspace = true
+anyhow.workspace = true
   rustyline = "18.0.0"
 dirs = "6"
 rpassword = "7"
 reqwest = { workspace = true }
+rmcp = { workspace = true, features = ["client", "transport-child-process"] }
 base64 = { workspace = true }

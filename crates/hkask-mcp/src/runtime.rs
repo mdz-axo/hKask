@@ -1,11 +1,19 @@
 //! MCP runtime for hKask
 //!
 //! Manages MCP server connections, tool discovery, and lifecycle.
+//! Supports both static metadata registration and dynamic server
+//! startup with live rmcp client transport.
 
+use rmcp::model::CallToolRequestParams;
+use rmcp::service::{Peer, RoleClient, ServiceExt};
+use rmcp::transport::TokioChildProcess;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
+use thiserror::Error;
+use tokio::process::Command;
 use tokio::sync::RwLock;
+use tokio_util::sync::CancellationToken;
 use tracing::info;
 
 /// Tool information metadata
@@ -47,13 +55,28 @@ pub struct McpServer {
     pub tools: Vec<McpTool>,
 }
 
+/// Error type for MCP server startup.
+#[derive(Debug, Error)]
+pub enum ServerStartError {
+    #[error("Failed to spawn MCP server process: {0}")]
+    SpawnFailed(String),
+    #[error("Failed to connect to MCP server (handshake): {0}")]
+    ConnectFailed(String),
+    #[error("Failed to discover tools from server: {0}")]
+    DiscoveryFailed(String),
+}
+
 /// MCP runtime manager
 #[derive(Clone)]
 pub struct McpRuntime {
-    /// Registered MCP servers
+    /// Registered MCP servers (metadata)
     servers: Arc<RwLock<HashMap<String, McpServer>>>,
     /// Tool registry (tool_name -> server_id)
     tool_registry: Arc<RwLock<HashMap<String, String>>>,
+    /// Live connections to MCP server processes, keyed by server ID
+    connections: Arc<RwLock<HashMap<String, Peer<RoleClient>>>>,
+    /// Cancellation tokens for managed server processes
+    cancellation_tokens: Arc<RwLock<HashMap<String, CancellationToken>>>,
 }
 
 impl McpRuntime {
@@ -62,10 +85,12 @@ impl McpRuntime {
         Self {
             servers: Arc::new(RwLock::new(HashMap::new())),
             tool_registry: Arc::new(RwLock::new(HashMap::new())),
+            connections: Arc::new(RwLock::new(HashMap::new())),
+            cancellation_tokens: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
-    /// Register an MCP server
+    /// Register an MCP server (metadata only, no live connection).
     pub async fn register_server(&self, server: McpServer) {
         let mut servers = self.servers.write().await;
         let mut tool_registry = self.tool_registry.write().await;
@@ -84,6 +109,136 @@ impl McpRuntime {
         }
 
         servers.insert(server.id.clone(), server);
+    }
+
+    /// Start an MCP server process and connect via rmcp stdio transport.
+    ///
+    /// Spawns the server as a child process, performs the MCP handshake,
+    /// discovers tools via `list_all_tools()`, stores the live connection,
+    /// and registers the discovered tools in the runtime.
+    ///
+    /// If a server with the same ID is already connected, returns `Ok(())`.
+    pub async fn start_server(
+        &self,
+        server_id: &str,
+        command: &str,
+    ) -> Result<(), ServerStartError> {
+        // Already connected — idempotent
+        if self.connections.read().await.contains_key(server_id) {
+            info!(
+                target: "hkask.mcp",
+                server_id = %server_id,
+                "Server already connected"
+            );
+            return Ok(());
+        }
+
+        let transport = TokioChildProcess::new(Command::new(command))
+            .map_err(|e| ServerStartError::SpawnFailed(e.to_string()))?;
+
+        let running = ().into_dyn().serve(transport).await.map_err(|e| {
+            ServerStartError::ConnectFailed(format!("Handshake with '{}' failed: {}", server_id, e))
+        })?;
+
+        let peer = running.peer().clone();
+        let cancel = CancellationToken::new();
+
+        // Keep the RunningService alive in a background task.
+        // When `cancel` fires, the service loop exits and the child
+        // process is cleaned up by rmcp's DropGuard.
+        let bg_cancel = cancel.clone();
+        tokio::spawn(async move {
+            tokio::select! {
+                _ = running.waiting() => {}
+                _ = bg_cancel.cancelled() => {}
+            }
+        });
+
+        // Discover tools from the live server
+        let tools = peer.list_all_tools().await.map_err(|e| {
+            ServerStartError::DiscoveryFailed(format!(
+                "list_all_tools from '{}' failed: {}",
+                server_id, e
+            ))
+        })?;
+
+        // Store the connection and cancellation token
+        self.connections
+            .write()
+            .await
+            .insert(server_id.to_string(), peer);
+        self.cancellation_tokens
+            .write()
+            .await
+            .insert(server_id.to_string(), cancel);
+
+        // Register the server and its discovered tools
+        let server = McpServer {
+            id: server_id.to_string(),
+            name: server_id.to_string(),
+            tools: tools
+                .into_iter()
+                .map(|t| McpTool {
+                    name: t.name.to_string(),
+                    description: t.description.map(|d| d.to_string()).unwrap_or_default(),
+                    input_schema: Value::Object((*t.input_schema).clone()),
+                    server_id: server_id.to_string(),
+                })
+                .collect(),
+        };
+
+        info!(
+            target: "hkask.mcp",
+            server_id = %server_id,
+            tools = server.tools.len(),
+            "MCP server started and tools discovered"
+        );
+
+        self.register_server(server).await;
+
+        Ok(())
+    }
+
+    /// Get a live Peer connection for a server (if connected).
+    pub async fn get_peer(&self, server_id: &str) -> Option<Peer<RoleClient>> {
+        self.connections.read().await.get(server_id).cloned()
+    }
+
+    /// Call a tool on a connected server directly via the Peer.
+    ///
+    /// Lower-level than `RawMcpToolPort::invoke` — no governance membrane.
+    /// Used internally by `RawMcpToolPort`.
+    pub async fn call_tool(
+        &self,
+        server_id: &str,
+        tool: &str,
+        arguments: serde_json::Map<String, Value>,
+    ) -> Result<rmcp::model::CallToolResult, rmcp::service::ServiceError> {
+        let peer = self
+            .get_peer(server_id)
+            .await
+            .ok_or_else(|| rmcp::service::ServiceError::TransportClosed)?;
+
+        let params = CallToolRequestParams::new(tool).with_arguments(arguments);
+        peer.call_tool(params).await
+    }
+
+    /// Shut down a specific managed server process.
+    pub async fn shutdown_server(&self, server_id: &str) {
+        if let Some(cancel) = self.cancellation_tokens.write().await.remove(server_id) {
+            cancel.cancel();
+        }
+        self.connections.write().await.remove(server_id);
+    }
+
+    /// Shut down all managed server processes.
+    pub async fn shutdown_all(&self) {
+        let mut tokens = self.cancellation_tokens.write().await;
+        for (_, cancel) in tokens.drain() {
+            cancel.cancel();
+        }
+        drop(tokens);
+        self.connections.write().await.clear();
     }
 
     /// Discover tools from all registered servers

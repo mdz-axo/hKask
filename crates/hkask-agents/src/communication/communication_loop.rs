@@ -10,7 +10,7 @@
 //! - 4.1 DISPATCH (GUARD+ROUTE) — priority-ordered message queuing
 
 use crate::communication::dispatch::MessageDispatch;
-use hkask_types::loops::dispatch::LoopMessage;
+use hkask_types::loops::dispatch::{DispatchTarget, LoopMessage, WorkerKind};
 use hkask_types::loops::{Deviation, HkaskLoop, LoopAction, LoopId, Signal};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -20,12 +20,23 @@ use tokio::sync::RwLock;
 /// Wraps `MessageDispatch` (the priority queue) and receives
 /// `LoopMessage`s from the dispatch channel. The loop's `tick()`
 /// dequeues messages and delivers them to target loop inboxes.
+///
+/// Note: `max_deliveries_per_tick` is NOT a rate limiter — it's a delivery
+/// batch limit that prevents unbounded event loop blocking. Actual throttling
+/// and circuit-breaking are Cybernetics (L6) concerns applied TO the
+/// Communication dispatch boundary, not within Communication itself.
 pub(crate) struct CommunicationLoop {
     /// Priority-ordered message queue
     dispatch: Arc<MessageDispatch>,
     /// Per-loop inbox senders for message delivery
     loop_senders: Arc<
         RwLock<std::collections::HashMap<LoopId, tokio::sync::mpsc::UnboundedSender<LoopMessage>>>,
+    >,
+    /// Per-worker inbox senders for worker message delivery
+    worker_senders: Arc<
+        RwLock<
+            std::collections::HashMap<WorkerKind, tokio::sync::mpsc::UnboundedSender<LoopMessage>>,
+        >,
     >,
     /// Maximum messages to deliver per tick (prevents unbounded delivery)
     max_deliveries_per_tick: usize,
@@ -37,6 +48,7 @@ impl CommunicationLoop {
         Self {
             dispatch,
             loop_senders: Arc::new(RwLock::new(std::collections::HashMap::new())),
+            worker_senders: Arc::new(RwLock::new(std::collections::HashMap::new())),
             max_deliveries_per_tick: 64,
         }
     }
@@ -53,6 +65,19 @@ impl CommunicationLoop {
     ) {
         let mut senders = self.loop_senders.write().await;
         senders.insert(loop_id, sender);
+    }
+
+    /// Register a worker's inbox channel for message delivery.
+    ///
+    /// When a `LoopMessage` targets a `DispatchTarget::Worker(kind)`,
+    /// it will be sent through the provided sender.
+    pub async fn register_worker_inbox(
+        &self,
+        worker_kind: WorkerKind,
+        sender: tokio::sync::mpsc::UnboundedSender<LoopMessage>,
+    ) {
+        let mut senders = self.worker_senders.write().await;
+        senders.insert(worker_kind, sender);
     }
 }
 
@@ -120,7 +145,29 @@ impl HkaskLoop for CommunicationLoop {
             };
 
             let target_id = match msg.target_loop {
-                Some(id) => id,
+                Some(DispatchTarget::Loop(id)) => id,
+                Some(DispatchTarget::Worker(kind)) => {
+                    // Route to worker inbox
+                    let worker_senders = self.worker_senders.read().await;
+                    if let Some(sender) = worker_senders.get(&kind) {
+                        if let Err(e) = sender.send(msg) {
+                            tracing::warn!(
+                                target: "communication.loop",
+                                worker_kind = %kind,
+                                error = %e,
+                                "Failed to deliver message to worker inbox"
+                            );
+                        }
+                    } else {
+                        tracing::warn!(
+                            target: "communication.loop",
+                            worker_kind = %kind,
+                            "No inbox registered for worker — message dropped"
+                        );
+                    }
+                    delivered += 1;
+                    continue;
+                }
                 None => {
                     // Broadcast — no specific target; log and skip
                     tracing::debug!(

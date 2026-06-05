@@ -44,14 +44,14 @@ pub use bundle::{
     CompositionError, ConflictResolution, ConflictType, GasConfig, SkillPolarity, ValidationResult,
     VersionBump,
 };
-pub use capability::tokens::ConsolidationToken;
+pub use capability::tokens::{ConsolidationToken, IssuerVerification};
 pub use capability::{
     AgentDelegation, CapabilityAction, CapabilityChecker, CapabilityParseError, CapabilityResource,
     CapabilitySpec, CapabilityToken, DelegationAction, DelegationResource, DelegationToken,
     DelegationTokenBuilder, SYSTEM_MAX_ATTENUATION, SYSTEM_MAX_RECURSION,
 };
 pub use cns::{CircuitState, CnsHealth, RetryConfig};
-pub use curation::{CurationDecision, OCAPBoundary};
+pub use curation::{CurationDecision, CurationThresholdConfig, OCAPBoundary};
 pub use error::{GitError, HkaskError, InfrastructureError, McpErrorKind};
 pub use event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 pub use goal::*;
@@ -60,8 +60,8 @@ pub use identity::*;
 pub use lexicon::{HLexicon, LexiconTerm, TemplateType};
 pub use loops::{
     ActionType, CuratorDirective, CuratorHandle, CyberneticsHandle, Deviation, DeviationDirection,
-    EpisodicReadHandle, EpisodicWriteHandle, ExperienceClassification, HkaskLoop, LoopAction,
-    LoopId, LoopMessage, LoopPayload, MessagePriority, Signal,
+    DispatchTarget, EpisodicReadHandle, EpisodicWriteHandle, ExperienceClassification, HkaskLoop,
+    LoopAction, LoopId, LoopMessage, LoopPayload, MessagePriority, Signal, WorkerKind,
 };
 pub use ports::{
     BackpressureSignal, BundleRegistryIndex, CircuitBreakerPort, CnsObserver, CnsPort,

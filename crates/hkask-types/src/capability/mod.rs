@@ -54,7 +54,7 @@ pub(crate) mod hmac_ops;
 mod verification;
 
 pub mod tokens;
-pub use tokens::ConsolidationToken;
+pub use tokens::{ConsolidationToken, IssuerVerification};
 
 pub use verification::CapabilityChecker;
 

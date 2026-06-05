@@ -112,7 +112,7 @@ pub(crate) fn default_gas_table() -> HashMap<&'static str, u64> {
 /// For tools within a server, you can optionally provide per-tool costs
 /// via `with_tool_cost()`. If no per-tool cost is found, the server cost
 /// is used.
-pub struct TableGasEstimator {
+pub(crate) struct TableGasEstimator {
     /// Per-server gas costs.
     server_costs: HashMap<String, u64>,
     /// Per-(server, tool) gas costs (overrides server cost).
@@ -123,7 +123,7 @@ pub struct TableGasEstimator {
 
 impl TableGasEstimator {
     /// Create a TableGasEstimator with the default gas table.
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         let server_costs: HashMap<String, u64> = default_gas_table()
             .into_iter()
             .map(|(k, v)| (k.to_string(), v))
@@ -136,7 +136,7 @@ impl TableGasEstimator {
     }
 
     /// Create a TableGasEstimator with custom server costs.
-    pub fn with_server_costs(server_costs: HashMap<String, u64>) -> Self {
+    pub(crate) fn with_server_costs(server_costs: HashMap<String, u64>) -> Self {
         Self {
             server_costs,
             tool_costs: HashMap::new(),
@@ -145,20 +145,20 @@ impl TableGasEstimator {
     }
 
     /// Set a per-tool gas cost (overrides server cost for specific tools).
-    pub fn with_tool_cost(mut self, server: &str, tool: &str, cost: u64) -> Self {
+    pub(crate) fn with_tool_cost(mut self, server: &str, tool: &str, cost: u64) -> Self {
         self.tool_costs
             .insert((server.to_string(), tool.to_string()), cost);
         self
     }
 
     /// Set the default cost for unknown servers.
-    pub fn with_default_cost(mut self, cost: u64) -> Self {
+    pub(crate) fn with_default_cost(mut self, cost: u64) -> Self {
         self.default_cost = cost;
         self
     }
 
     /// Look up the gas cost for a (server, tool) pair.
-    pub fn lookup(&self, server: &str, tool: &str) -> u64 {
+    pub(crate) fn lookup(&self, server: &str, tool: &str) -> u64 {
         // Per-tool cost takes priority
         if let Some(cost) = self.tool_costs.get(&(server.to_string(), tool.to_string())) {
             return *cost;

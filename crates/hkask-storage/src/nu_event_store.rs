@@ -151,6 +151,34 @@ impl NuEventStore {
     ///
     /// Per Fowler's Gateway pattern: the NuEvent store is the gateway;
     /// Curation queries it with a cursor, not live CNS state.
+    /// Persist a loop cursor value for crash recovery.
+    ///
+    /// Loop cursors (e.g., `curation_last_review_ms`) track the last-processed
+    /// event timestamp. Persisting them ensures the system doesn't re-process
+    /// all historical events after a restart.
+    pub fn persist_cursor(&self, key: &str, value: i64) -> Result<(), NuEventError> {
+        let conn = self.lock_conn()?;
+        conn.execute(
+            "INSERT OR REPLACE INTO loop_cursors (key, value, updated_at) VALUES (?1, ?2, ?3)",
+            rusqlite::params![key, value, chrono::Utc::now().to_rfc3339()],
+        )?;
+        Ok(())
+    }
+
+    /// Load a persisted loop cursor value.
+    ///
+    /// Returns `Ok(None)` if no cursor has been persisted for the given key
+    /// (e.g., first run after schema creation).
+    pub fn load_cursor(&self, key: &str) -> Result<Option<i64>, NuEventError> {
+        let conn = self.lock_conn()?;
+        let mut stmt = conn.prepare("SELECT value FROM loop_cursors WHERE key = ?1")?;
+        let mut rows = stmt.query(rusqlite::params![key])?;
+        match rows.next()? {
+            Some(row) => Ok(Some(row.get(0)?)),
+            None => Ok(None),
+        }
+    }
+
     pub fn query_algedonic(
         &self,
         since: chrono::DateTime<chrono::Utc>,

@@ -88,7 +88,7 @@ pub fn mwc_state_function(l: f64, c: f64, n: u32, alpha: f64) -> Result<f64, All
 ///
 /// Computed analytically from the MWC equation:
 /// ∂R̄/∂α = R̄ · (1-R̄) · n · (1/(1+α) - c/(1+cα))
-pub fn mwc_sensitivity(l: f64, c: f64, n: u32, alpha: f64) -> f64 {
+pub(crate) fn mwc_sensitivity(l: f64, c: f64, n: u32, alpha: f64) -> f64 {
     let r_bar = match mwc_state_function(l, c, n, alpha) {
         Ok(r) if r > 0.0 && r < 1.0 => r,
         _ => return 0.0, // Edge cases: sensitivity is zero at boundaries

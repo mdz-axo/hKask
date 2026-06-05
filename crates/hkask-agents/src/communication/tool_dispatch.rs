@@ -22,7 +22,7 @@
 //! inner `ToolPort`, and sends `ToolResult` messages back through the dispatch.
 
 use hkask_types::capability::DelegationToken;
-use hkask_types::loops::dispatch::{LoopMessage, LoopPayload, MessagePriority};
+use hkask_types::loops::dispatch::{LoopMessage, LoopPayload, MessagePriority, WorkerKind};
 use hkask_types::loops::{Deviation, HkaskLoop, LoopAction, LoopId, Signal};
 use hkask_types::ports::ToolPort;
 use std::sync::Arc;
@@ -37,7 +37,7 @@ use tokio::sync::RwLock;
 /// reports dispatch queue depth, `act()` processes pending invocations.
 ///
 /// To use loop-routed dispatch, register this with the `LoopSystem` and
-/// route `ToolInvocation` messages to `LoopId::ToolDispatch`.
+/// route `ToolInvocation` messages to `WorkerKind::ToolDispatch`.
 pub struct LoopRoutedToolDispatch {
     /// Inner tool port (typically `GovernedTool` wrapping `RawMcpToolPort`)
     inner: Arc<dyn ToolPort>,
@@ -59,7 +59,7 @@ impl LoopRoutedToolDispatch {
     ///
     /// Returns `(dispatch_instance, inbox_sender)`. Register the sender with
     /// the Communication Loop so `ToolInvocation` messages targeted at
-    /// `LoopId::ToolDispatch` are delivered here.
+    /// `WorkerKind::ToolDispatch` are delivered here.
     ///
     /// The `system_token` is used for inner `ToolPort::invoke()` calls. OCAP
     /// verification was already performed by GovernedTool before the invocation
@@ -131,7 +131,7 @@ impl LoopRoutedToolDispatch {
                         } else {
                             MessagePriority::Warning
                         },
-                        LoopId::ToolDispatch,
+                        LoopId::Communication,
                         LoopPayload::ToolResult {
                             trace_id,
                             server,
@@ -182,7 +182,13 @@ impl LoopRoutedToolDispatch {
 #[async_trait::async_trait]
 impl HkaskLoop for LoopRoutedToolDispatch {
     fn id(&self) -> LoopId {
-        LoopId::ToolDispatch
+        // Tool dispatch is a worker within Communication (Loop 4), not a governing loop.
+        LoopId::Communication
+    }
+
+    /// Tool dispatch is a worker within the Communication loop.
+    fn worker_kind(&self) -> Option<WorkerKind> {
+        Some(WorkerKind::ToolDispatch)
     }
 
     /// Sense: report dispatch queue depth.
@@ -194,7 +200,7 @@ impl HkaskLoop for LoopRoutedToolDispatch {
         };
 
         vec![Signal::new(
-            LoopId::ToolDispatch,
+            LoopId::Communication,
             "tool_dispatch_queue_depth",
             _queue_depth as f64,
             10.0, // Set-point: 10 pending invocations before considered overloaded
@@ -286,11 +292,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn tool_dispatch_loop_id_is_tool_dispatch() {
+    async fn tool_dispatch_id_is_communication_worker_kind_is_tool_dispatch() {
         let mock_port = Arc::new(MockToolPort::new(serde_json::json!({"ok": true})));
         let (dispatch, _inbox_tx) =
             LoopRoutedToolDispatch::new(mock_port, test_system_token(), test_dispatch_tx());
-        assert_eq!(dispatch.id(), LoopId::ToolDispatch);
+        assert_eq!(dispatch.id(), LoopId::Communication);
+        assert_eq!(dispatch.worker_kind(), Some(WorkerKind::ToolDispatch));
     }
 
     #[tokio::test]
@@ -312,7 +319,7 @@ mod tests {
                 agent: WebID::new(),
             },
         )
-        .with_target(LoopId::ToolDispatch);
+        .with_target(WorkerKind::ToolDispatch);
 
         inbox_tx.send(invocation).expect("send should succeed");
 
@@ -349,7 +356,7 @@ mod tests {
                 agent: WebID::new(),
             },
         )
-        .with_target(LoopId::ToolDispatch);
+        .with_target(WorkerKind::ToolDispatch);
 
         inbox_tx.send(invocation).expect("send should succeed");
 

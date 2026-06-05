@@ -62,9 +62,6 @@ pub fn default_tick_interval(loop_id: LoopId) -> Duration {
         LoopId::Communication => Duration::from_millis(100),
         LoopId::Cybernetics => Duration::from_secs(2),
         LoopId::Curation => Duration::from_secs(10),
-        LoopId::Metacognition => Duration::from_secs(15),
-        // Tool dispatch: fast (200ms) — tool invocations should be responsive
-        LoopId::ToolDispatch => Duration::from_millis(200),
     }
 }
 
@@ -139,8 +136,6 @@ impl LoopSystem {
                 LoopId::Communication,
                 LoopId::Cybernetics,
                 LoopId::Curation,
-                LoopId::Metacognition,
-                LoopId::ToolDispatch,
             ]
             .into_iter()
             .map(|id| (id, default_tick_interval(id)))
@@ -171,12 +166,20 @@ impl LoopSystem {
         loop_instance: Arc<dyn HkaskLoop>,
     ) -> tokio::sync::mpsc::UnboundedSender<LoopMessage> {
         let id = loop_instance.id();
+        let worker_kind = loop_instance.worker_kind();
         let (inbox_tx, inbox_rx) = tokio::sync::mpsc::unbounded_channel::<LoopMessage>();
 
         // Register inbox sender with CommunicationLoop
         self.communication_loop
             .register_loop_inbox(id, inbox_tx.clone())
             .await;
+
+        // If this loop is a worker, also register with worker routing
+        if let Some(kind) = worker_kind {
+            self.communication_loop
+                .register_worker_inbox(kind, inbox_tx.clone())
+                .await;
+        }
 
         // Store loop and inbox
         {
@@ -195,6 +198,7 @@ impl LoopSystem {
         info!(
             target: "loop_system",
             loop_id = %id,
+            worker = worker_kind.is_some(),
             "Registered loop"
         );
 

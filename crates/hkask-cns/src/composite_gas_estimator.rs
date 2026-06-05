@@ -27,7 +27,7 @@ impl CompositeGasEstimator {
     }
 
     /// Create a CompositeGasEstimator with custom table costs.
-    pub fn with_table(table: TableGasEstimator) -> Self {
+    pub(crate) fn with_table(table: TableGasEstimator) -> Self {
         Self {
             inference: InferenceGasEstimator,
             table,

@@ -9,11 +9,13 @@
 //! spec curation is a persona concern (the Curator Agent curates specs),
 //! not a regulatory concern (the Curation Loop regulates).
 
-use hkask_cns::CurationThresholdConfig;
 use hkask_storage::spec_types::{Spec, SpecCurationRecord, SpecCurator, SpecError};
 use hkask_types::capability::SYSTEM_MAX_RECURSION;
-use hkask_types::curation::{CurationDecision, OCAPBoundary};
+use hkask_types::curation::{CurationDecision, CurationThresholdConfig, OCAPBoundary};
+use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
+use hkask_types::id::WebID;
 use std::collections::HashSet;
+use std::sync::Arc;
 
 /// Default implementation of the `SpecCurator` trait.
 ///
@@ -24,6 +26,7 @@ pub struct DefaultSpecCurator {
     coherence_threshold: f64,
     drift_threshold: f64,
     max_iterations: u8,
+    event_sink: Option<Arc<dyn NuEventSink>>,
 }
 
 impl DefaultSpecCurator {
@@ -32,6 +35,7 @@ impl DefaultSpecCurator {
             coherence_threshold: coherence_threshold.clamp(0.0, 1.0),
             drift_threshold: 0.5,
             max_iterations: SYSTEM_MAX_RECURSION,
+            event_sink: None,
         }
     }
 
@@ -49,12 +53,19 @@ impl DefaultSpecCurator {
             coherence_threshold: config.coherence_threshold.clamp(0.0, 1.0),
             drift_threshold: config.drift_threshold.clamp(0.0, 1.0),
             max_iterations: SYSTEM_MAX_RECURSION,
+            event_sink: None,
         }
     }
 
     /// Create with a custom drift threshold.
     pub fn with_drift_threshold(mut self, threshold: f64) -> Self {
         self.drift_threshold = threshold.clamp(0.0, 1.0);
+        self
+    }
+
+    /// Provide a `NuEventSink` for emitting algedonic events on drift escalation.
+    pub fn with_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
+        self.event_sink = Some(sink);
         self
     }
 }
@@ -116,6 +127,29 @@ impl SpecCurator for DefaultSpecCurator {
                 missing_verbs = ?drift_report.missing_verbs,
                 "Spec drift exceeded threshold — escalation recommended"
             );
+
+            // Emit algedonic NuEvent so Curation Loop can sense it
+            if let Some(ref sink) = self.event_sink {
+                let event = NuEvent::new(
+                    WebID::new(),
+                    Span::new(SpanNamespace::new("cns.spec"), "drift_exceeded"),
+                    Phase::Compare,
+                    serde_json::json!({
+                        "spec_id": spec.id.to_string(),
+                        "drift_magnitude": drift_report.drift_magnitude,
+                        "drift_threshold": self.drift_threshold,
+                        "missing_verbs": drift_report.missing_verbs,
+                    }),
+                    0,
+                );
+                if let Err(e) = sink.persist(&event) {
+                    tracing::warn!(
+                        target: "cns.spec",
+                        error = %e,
+                        "Failed to persist spec drift algedonic event"
+                    );
+                }
+            }
         }
 
         let ocap_boundary = OCAPBoundary::explicit("spec:curate".to_string());

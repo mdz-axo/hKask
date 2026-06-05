@@ -79,20 +79,23 @@ status: VERIFIED
 
 The `RateLimiter` and `CnsTokenBucket` types have been removed (per §4.6 of [`trust-security-observability.md`](trust-security-observability.md)). `McpErrorKind::RateLimited` remains **only** for external HTTP 429 responses where downstream services impose rate limits — it is not an internal concept. All internal resource gating flows through `EnergyBudget.try_consume()`.
 
-### 1.6 External-Boundary Rate Limiting — Security Exception
+### 1.6 External-Boundary Rate Limiting — Cybernetics Membrane at the Communication Boundary
 
-`hkask-mcp-web` implements a per-tool fixed-window `RateLimiter` (30 requests/60s) that is **not** a Cybernetics regulation concern. It is a **security membrane** owned by the Communication Loop (Loop 4) as defense-in-depth against external DoS.
+`hkask-mcp-web` implements a per-tool fixed-window `RateLimiter` (30 requests/60s) that sits at the HTTP transport boundary. Per the 6-loop model, Communication (Loop 4) is dumb transport with no throttling authority. The `RateLimiter` is therefore **a Cybernetics membrane concern applied TO the Communication boundary**, not a Communication-internal concern.
+
+**Important distinction:** The `RateLimiter` lives in `hkask-mcp-web` (an MCP server), not in `CommunicationLoop` itself. The `CommunicationLoop` struct only has `max_deliveries_per_tick` — a delivery batch limit that prevents unbounded event loop blocking. This is analogous to a queue prefetch size, not a throttling decision. Batch limits are transport mechanics; throttling decisions are regulatory.
 
 **Authority classification:**
 
 | Concern | Loop | Rationale |
-|---------|------|-----------|
+|---------|------|------------|
 | Internal energy budgets | Cybernetics (Loop 6) | Regulation of agent resource consumption via `GovernedTool` gas accounting |
-| External-boundary rate limiting | Communication (Loop 4) | Security membrane protecting MCP servers from external client DoS |
+| External-boundary rate limiting | Cybernetics membrane applied TO Communication boundary (Loop 4) | Security membrane protecting MCP servers from external client DoS — authority is L6, deployment point is L4 |
+| Delivery batch limits (`max_deliveries_per_tick`) | Communication (Loop 4) | Transport mechanics (queue prefetch), not regulatory decisions |
 
 **CNS override authority:** Cybernetics retains override authority over Communication. If `CnsRuntime` emits a `BackpressureSignal` or depletion alert for the web domain, the `RateLimiter` must defer — internal regulation always supersedes external defense. The current implementation observes this indirectly: rate-limit events emit `tracing::warn!(target: "cns.web", ...)`, making them visible to CNS without requiring a code dependency on `hkask-cns`.
 
-**Boundary rule:** External-boundary rate limiting at the HTTP transport layer (Loop 4) is a security concern. Internal energy budgets at the governance membrane (Loop 6) are a regulation concern. These are distinct authorities that cooperate, not compete. CNS retains the final word.
+**Boundary rule:** External-boundary rate limiting is a Cybernetics (L6) concern deployed at the Communication (L4) boundary. The `RateLimiter`'s deployment point is L4 (HTTP transport), but its authority and semantics are L6 (throttling, circuit-breaking, dampening). Communication itself does not own throttling — it exposes the boundary where Cybernetics membranes are applied. CNS retains the final word.
 
 ---
 
@@ -151,7 +154,7 @@ erDiagram
     CurationLoop ||--o{ PromptValidation : "owns"
     CurationLoop ||--o{ ReflectiveAssessment : "owns"
     CurationLoop ||--o{ CyberneticsLoop : "regulates"
-    CurationLoop ||--o{ CommunicationLoop : "signals"
+    CurationLoop ||--o{ CommunicationLoop : "routes through (not authority)"
 
     CyberneticsLoop ||--o{ EnergyAccount : "owns"
     CyberneticsLoop ||--o{ VarietyCounter : "owns"
@@ -364,6 +367,7 @@ graph TD
 
     CUL -->|"regulate: metacognitive override"| CYL
     CUL -->|"read: set-points, variety"| CYL
+    EML -->|"consolidation bridge (one-way, ConsolidationToken)"| SML
 ```
 
 <!-- DIAGRAM_ALIGNMENT
@@ -389,6 +393,8 @@ This is **not a cycle** — it is a directed escalation chain:
 No loop can indirectly regulate itself without passing through the Curation Loop's metacognitive checkpoint. The Curation Loop is the **single authority** that can override any meta loop's decision, and it cannot be overridden by any other loop — it is the terminus of the escalation chain.
 
 Formally: the regulation graph is a DAG with Curation as the unique maximal element. The signal graph is a subgraph of the regulation graph (signals are informational subsets of regulation authority). Therefore no regulation cycle exists.
+
+**Data flow edges** (e.g., consolidation bridge: Episodic → Semantic) are not regulation edges. The consolidation bridge is one-way, gated by `ConsolidationToken`, and carries no authority — it moves private triples into shared knowledge under Curator authorization. It does not create cycles in the regulation or signal graphs.
 
 ---
 

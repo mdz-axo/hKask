@@ -24,12 +24,36 @@ pub struct ConsolidationToken {
     issuer: WebID,
 }
 
+/// Verification protocol for OCAP tokens.
+///
+/// Per Mark Miller's OCAP discipline: authority must flow through
+/// designated channels. Tokens prove authority; verifiers confirm
+/// the issuer is the expected principal.
+pub trait IssuerVerification {
+    /// The expected issuer for this token type.
+    fn expected_issuer() -> WebID;
+
+    /// Verify that this token was issued by the expected principal.
+    fn verify_issuer(&self) -> bool {
+        self.issuer() == &Self::expected_issuer()
+    }
+
+    /// The issuer of this token.
+    fn issuer(&self) -> &WebID;
+}
+
 impl ConsolidationToken {
     pub(crate) fn new(issuer: WebID) -> Self {
         Self { issuer }
     }
+}
 
-    pub fn issuer(&self) -> &WebID {
+impl IssuerVerification for ConsolidationToken {
+    fn expected_issuer() -> WebID {
+        WebID::from_persona(b"curator")
+    }
+
+    fn issuer(&self) -> &WebID {
         &self.issuer
     }
 }
@@ -46,7 +70,7 @@ mod tests {
     fn consolidation_token_round_trip() {
         let issuer = test_webid();
         let token = ConsolidationToken::new(issuer);
-        assert_eq!(*token.issuer(), issuer);
+        assert_eq!(*IssuerVerification::issuer(&token), issuer);
     }
 
     #[test]

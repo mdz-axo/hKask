@@ -191,6 +191,7 @@ impl Span {
 pub enum Phase {
     Sense,
     Compute,
+    Compare,
     Act,
 }
 
@@ -199,6 +200,7 @@ impl Phase {
         match self {
             Phase::Sense => "sense",
             Phase::Compute => "compute",
+            Phase::Compare => "compare",
             Phase::Act => "act",
         }
     }
@@ -208,8 +210,9 @@ impl Phase {
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s {
-            "compare" | "Compare" => Phase::Act,
+            "sense" | "Sense" | "observe" | "Observe" => Phase::Sense,
             "compute" | "Compute" | "regulate" | "Regulate" => Phase::Compute,
+            "compare" | "Compare" => Phase::Compare,
             "act" | "Act" | "outcome" | "Outcome" => Phase::Act,
             _ => Phase::Sense,
         }

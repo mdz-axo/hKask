@@ -53,7 +53,7 @@ impl InferenceLoop {
     }
 
     /// Create an Inference Loop with a circuit breaker.
-    pub fn with_circuit_breaker(
+    pub(crate) fn with_circuit_breaker(
         inference: Arc<dyn InferencePort>,
         circuit_breaker: Arc<dyn CircuitBreakerPort>,
     ) -> Self {
@@ -70,7 +70,7 @@ impl InferenceLoop {
     ///
     /// Use this when the caller has already applied governance (e.g., via
     /// `GovernedTool` with `InferenceGasEstimator`) to the inference port.
-    pub fn with_governed_port(inference: Arc<dyn InferencePort>) -> Self {
+    pub(crate) fn with_governed_port(inference: Arc<dyn InferencePort>) -> Self {
         Self {
             inference,
             circuit_breaker: None,
@@ -81,7 +81,7 @@ impl InferenceLoop {
     }
 
     /// Create an Inference Loop with a pre-governed port and circuit breaker.
-    pub fn with_governed_port_and_circuit_breaker(
+    pub(crate) fn with_governed_port_and_circuit_breaker(
         inference: Arc<dyn InferencePort>,
         circuit_breaker: Arc<dyn CircuitBreakerPort>,
     ) -> Self {
@@ -111,7 +111,7 @@ impl InferenceLoop {
     }
 
     /// Access the underlying inference port.
-    pub fn inference(&self) -> &Arc<dyn InferencePort> {
+    pub(crate) fn inference(&self) -> &Arc<dyn InferencePort> {
         &self.inference
     }
 
@@ -137,17 +137,17 @@ impl InferenceLoop {
     }
 
     /// Get the current model name, if set.
-    pub fn current_model(&self) -> Option<&str> {
+    pub(crate) fn current_model(&self) -> Option<&str> {
         self.current_model.as_deref()
     }
 
     /// Set the current model (e.g., after a model selection event).
-    pub fn set_model(&mut self, model: impl Into<String>) {
+    pub(crate) fn set_model(&mut self, model: impl Into<String>) {
         self.current_model = Some(model.into());
     }
 
     /// Clear the current model (e.g., model became unavailable).
-    pub fn clear_model(&mut self) {
+    pub(crate) fn clear_model(&mut self) {
         self.current_model = None;
     }
 }

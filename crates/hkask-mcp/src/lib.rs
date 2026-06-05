@@ -9,22 +9,19 @@
 
 pub mod adapter_container;
 pub mod dispatch; // Loop 1 (inference tool dispatch)
-pub mod governor; // Loop 6 (capability governance)
+pub(crate) mod governor; // Loop 6 (capability governance)
 pub mod raw_tool_port; // Ungoverned tool executor (inner port for GovernedTool)
 pub mod runtime;
-pub mod security;
+pub(crate) mod security;
 pub mod server;
 
-pub use adapter_container::AdapterContainer;
+pub(crate) use adapter_container::AdapterContainer;
 pub use dispatch::McpDispatcher;
 pub use raw_tool_port::RawMcpToolPort;
 pub use runtime::{McpRuntime, McpServer, McpTool};
-pub(crate) use security::UrlValidationConfig;
-pub(crate) use security::validate_url;
 pub use server::{
-    CredentialRequirement, McpToolError, McpToolOutput, ServerContext, ToolSpanGuard, api_get,
-    api_post, api_put, classify_http_error, emit_tool_span_with_caller, resolve_credential,
-    run_stdio_server, validate_identifier, validate_tool_url,
+    CredentialRequirement, ServerContext, api_get, api_put, resolve_credential, run_stdio_server,
+    validate_identifier,
 };
 
 /// Macro to eliminate MCP server boilerplate

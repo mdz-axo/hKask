@@ -52,3 +52,31 @@ impl OCAPBoundary {
         }
     }
 }
+
+fn default_coherence_threshold() -> f64 {
+    0.7
+}
+fn default_drift_threshold() -> f64 {
+    0.5
+}
+
+/// Configurable thresholds for Curation decisions (spec coherence, drift).
+///
+/// Moved from `hkask-cns` — curation regulates cybernetics, not the other way around.
+/// YAML loading remains in `hkask-cns` (requires `serde_yaml`).
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct CurationThresholdConfig {
+    #[serde(default = "default_coherence_threshold")]
+    pub coherence_threshold: f64,
+    #[serde(default = "default_drift_threshold")]
+    pub drift_threshold: f64,
+}
+
+impl Default for CurationThresholdConfig {
+    fn default() -> Self {
+        Self {
+            coherence_threshold: default_coherence_threshold(),
+            drift_threshold: default_drift_threshold(),
+        }
+    }
+}

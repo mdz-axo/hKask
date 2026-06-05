@@ -439,7 +439,7 @@ pub fn validate_identifier(name: &str, value: &str, max_len: usize) -> Result<()
 /// Delegates to `hkask_mcp::validate_url()` with the default (strict) config.
 /// Use this for any tool that accepts a user-provided URL.
 pub fn validate_tool_url(url: &str) -> Result<(), McpToolError> {
-    crate::validate_url(url, &crate::UrlValidationConfig::default())
+    crate::security::validate_url(url, &crate::security::UrlValidationConfig::default())
         .map_err(|e| McpToolError::invalid_argument(format!("URL validation failed: {e}")))
 }
 

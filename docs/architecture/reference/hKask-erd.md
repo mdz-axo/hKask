@@ -402,9 +402,10 @@ erDiagram
     CYBERNETIC_EVENT ||--o{ OUTCOME : "yields"
     CYBERNETIC_EVENT ||--o{ CYBERNETIC_EVENT : "parent_event"
     
-    CYBERNETIC_PHASE: "Observe"
-    CYBERNETIC_PHASE: "Regulate"
-    CYBERNETIC_PHASE: "Outcome"
+    CYBERNETIC_PHASE: "Sense"
+    CYBERNETIC_PHASE: "Compute"
+    CYBERNETIC_PHASE: "Compare"
+    CYBERNETIC_PHASE: "Act"
     
     OBSERVER_REF {
         string webid "Observer identity"
@@ -453,9 +454,10 @@ status: VERIFIED
 -->
 
 **Cybernetic Flow:**
-1. **Observe** — Telemetry capture, pattern recognition, state estimation
-2. **Regulate** — Contract validation, error signal computation, corrective action
-3. **Outcome** — Tool invocation result, confidence scoring, memory write
+1. **Sense** — Telemetry capture, pattern recognition, state estimation
+2. **Compute** — Contract validation, error signal computation, corrective action
+3. **Compare** — Deviation assessment against set-points, variety measurement
+4. **Act** — Tool invocation result, confidence scoring, memory write
 
 **Algedonic Alert:** Triggers when variety deficit >100, escalates to Curator/human.
 

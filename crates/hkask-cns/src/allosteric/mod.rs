@@ -19,4 +19,4 @@ pub mod mwc;
 
 pub use distribution::BernoulliDistribution;
 pub use gate::{AllostericGate, AllostericGateConfig};
-pub use mwc::{AllostericError, mwc_sensitivity, mwc_state_function};
+pub use mwc::{AllostericError, mwc_state_function};

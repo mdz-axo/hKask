@@ -97,7 +97,7 @@ impl DirectiveFingerprint {
 ///
 /// The dampener does not change directives — it only decides whether to
 /// pass them through or suppress them. It is a pure FILTER function.
-pub struct Dampener {
+pub(crate) struct Dampener {
     /// Recent directive fingerprints with their last-seen timestamps
     seen: Mutex<HashMap<DirectiveFingerprint, std::time::Instant>>,
     /// Standard dampening window for routine directives
@@ -108,14 +108,14 @@ pub struct Dampener {
 
 impl Dampener {
     /// Create a new dampener with the default 60-second window.
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self::with_window(DEFAULT_DAMPEN_WINDOW)
     }
 
     /// Create a new dampener with a custom standard dampening window.
     ///
     /// The metacognitive window defaults to 300 seconds.
-    pub fn with_window(window: Duration) -> Self {
+    pub(crate) fn with_window(window: Duration) -> Self {
         Self {
             seen: Mutex::new(HashMap::new()),
             window,
@@ -126,7 +126,7 @@ impl Dampener {
     /// Set a custom metacognitive override dampening window.
     ///
     /// Builder-style method: `Dampener::new().with_metacognitive_window(dur)`.
-    pub fn with_metacognitive_window(mut self, window: Duration) -> Self {
+    pub(crate) fn with_metacognitive_window(mut self, window: Duration) -> Self {
         self.metacognitive_window = window;
         self
     }
@@ -151,7 +151,7 @@ impl Dampener {
     ///
     /// Returns `false` if the directive is new or the previous instance
     /// has expired from the window, meaning it should be delivered.
-    pub async fn should_dampen(&self, directive: &CuratorDirective) -> bool {
+    pub(crate) async fn should_dampen(&self, directive: &CuratorDirective) -> bool {
         let fingerprint = DirectiveFingerprint::from_directive(directive);
         let window = if Self::is_metacognitive(directive) {
             self.metacognitive_window
@@ -187,7 +187,11 @@ impl Dampener {
     /// This accepts the directive type and target directly, for use when the
     /// full `CuratorDirective` is not available (e.g., from
     /// `LoopPayload::CurationDirective`).
-    pub async fn should_dampen_directive(&self, directive_type: &str, target: WebID) -> bool {
+    pub(crate) async fn should_dampen_directive(
+        &self,
+        directive_type: &str,
+        target: WebID,
+    ) -> bool {
         let fingerprint = DirectiveFingerprint {
             directive_type: directive_type.to_string(),
             target: Some(target),
@@ -216,7 +220,11 @@ impl Dampener {
     ///
     /// Uses the extended metacognitive dampening window (default 300s).
     /// For routine directives, use `should_dampen_directive` instead.
-    pub async fn should_dampen_metacognitive(&self, directive_type: &str, target: WebID) -> bool {
+    pub(crate) async fn should_dampen_metacognitive(
+        &self,
+        directive_type: &str,
+        target: WebID,
+    ) -> bool {
         let fingerprint = DirectiveFingerprint {
             directive_type: directive_type.to_string(),
             target: Some(target),
@@ -245,14 +253,14 @@ impl Dampener {
     ///
     /// Useful for testing or when a major state change invalidates
     /// previous dampening decisions.
-    pub async fn clear(&self) {
+    pub(crate) async fn clear(&self) {
         self.seen.lock().await.clear();
     }
 
     /// Get the number of currently tracked fingerprints.
     ///
     /// Primarily useful for testing and observability.
-    pub async fn tracked_count(&self) -> usize {
+    pub(crate) async fn tracked_count(&self) -> usize {
         self.seen.lock().await.len()
     }
 }

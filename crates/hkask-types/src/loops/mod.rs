@@ -33,7 +33,9 @@ pub mod semantic;
 
 pub use curation::{CuratorDirective, CuratorHandle};
 pub use cybernetics::CyberneticsHandle;
-pub use dispatch::{LoopMessage, LoopPayload, MessagePriority, TraceId};
+pub use dispatch::{
+    DispatchTarget, LoopMessage, LoopPayload, MessagePriority, TraceId, WorkerKind,
+};
 pub use episodic::{
     EpisodicBudgetExceeded, EpisodicReadHandle, EpisodicWriteHandle, ExperienceClassification,
 };
@@ -52,11 +54,6 @@ pub enum LoopId {
     Communication,
     Curation,
     Cybernetics,
-    Metacognition,
-    /// Tool dispatch worker — receives ToolInvocation messages from
-    /// the Communication Loop and executes them against the ToolPort.
-    /// Not a governing loop; operates as a specialized message handler.
-    ToolDispatch,
 }
 
 impl std::fmt::Display for LoopId {
@@ -68,8 +65,6 @@ impl std::fmt::Display for LoopId {
             LoopId::Communication => write!(f, "communication"),
             LoopId::Curation => write!(f, "curation"),
             LoopId::Cybernetics => write!(f, "cybernetics"),
-            LoopId::Metacognition => write!(f, "metacognition"),
-            LoopId::ToolDispatch => write!(f, "tool_dispatch"),
         }
     }
 }
@@ -136,17 +131,20 @@ pub enum DeviationDirection {
 /// Efferent action produced by a loop's compute phase.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LoopAction {
-    pub target: LoopId,
+    pub target: crate::loops::dispatch::DispatchTarget,
     pub action_type: ActionType,
     pub parameters: serde_json::Value,
     pub priority: MessagePriority,
 }
 
 impl LoopAction {
-    pub fn new(target: LoopId, action_type: ActionType, parameters: serde_json::Value) -> Self {
+    pub fn new(
+        target: impl Into<crate::loops::dispatch::DispatchTarget>,
+        action_type: ActionType,
+        parameters: serde_json::Value,
+    ) -> Self {
         let priority = match &action_type {
             ActionType::Throttle => MessagePriority::Warning,
-            ActionType::Dampen => MessagePriority::Info,
             ActionType::Escalate => MessagePriority::Critical,
             ActionType::Calibrate => MessagePriority::Info,
             ActionType::CircuitBreak => MessagePriority::Critical,
@@ -155,7 +153,7 @@ impl LoopAction {
             ActionType::ReplenishBudget => MessagePriority::Info,
         };
         Self {
-            target,
+            target: target.into(),
             action_type,
             parameters,
             priority,
@@ -168,8 +166,6 @@ impl LoopAction {
 pub enum ActionType {
     /// Reduce resource allocation to a target loop
     Throttle,
-    /// Dampen repeated actions (rate-limit, suppress oscillation)
-    Dampen,
     /// Escalate an alert to the Curation loop
     Escalate,
     /// Adjust a threshold or set-point
@@ -208,6 +204,14 @@ pub enum ActionType {
 #[async_trait::async_trait]
 pub trait Loop: Send + Sync {
     fn id(&self) -> LoopId;
+
+    /// Worker kind — `Some` for non-governing workers, `None` for governing loops.
+    ///
+    /// Workers (Metacognition, ToolDispatch) operate within a parent loop
+    /// and have no authority rank. Governing loops return `None`.
+    fn worker_kind(&self) -> Option<crate::loops::dispatch::WorkerKind> {
+        None
+    }
 
     /// Sense: observe current state and produce afferent signals.
     async fn sense(&self) -> Vec<Signal>;

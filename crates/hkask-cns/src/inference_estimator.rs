@@ -23,7 +23,7 @@ const CHARS_PER_TOKEN: usize = 4;
 /// ```
 ///
 /// If args don't contain the expected fields, falls back to a flat cost of 1.
-pub struct InferenceGasEstimator;
+pub(crate) struct InferenceGasEstimator;
 
 impl GasEstimator for InferenceGasEstimator {
     fn estimate_cost(&self, _server: &str, _tool: &str, args: &Value) -> u64 {

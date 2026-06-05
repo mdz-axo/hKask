@@ -254,6 +254,59 @@ impl EscalationQueue {
     }
 }
 
+/// A batch of related escalations grouped by time window and domain.
+///
+/// The algedonic channel's value is inversely proportional to its traffic
+/// (VSM algedonic paradox). Batching reduces noise while preserving
+/// signal fidelity.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EscalationBatch {
+    /// Unique batch identifier
+    pub id: String,
+    /// All escalations in this batch
+    pub entries: Vec<EscalationEntry>,
+    /// Domain categorization (e.g., "variety", "bot_health", "critical_alerts")
+    pub domain: String,
+    /// When this batch was created
+    pub created_at: DateTime<Utc>,
+    /// Maximum number of concurrent escalations before batching is required
+    pub threshold: usize,
+}
+
+impl EscalationBatch {
+    /// Create a new escalation batch from a list of entries.
+    pub fn new(entries: Vec<EscalationEntry>, domain: &str, threshold: usize) -> Self {
+        Self {
+            id: format!("batch_{}", uuid::Uuid::new_v4().simple()),
+            entries,
+            domain: domain.to_string(),
+            created_at: Utc::now(),
+            threshold,
+        }
+    }
+
+    /// A consolidated summary of the batch for human presentation.
+    pub fn summary(&self) -> String {
+        let count = self.entries.len();
+        let domains: std::collections::HashSet<&str> = self
+            .entries
+            .iter()
+            .map(|e| e.output.split(':').next().unwrap_or("unknown"))
+            .collect();
+        format!(
+            "System attention required: {} escalation(s) across {} domain(s) [{}]",
+            count,
+            domains.len(),
+            self.domain
+        )
+    }
+
+    /// Whether this batch exceeds the concurrent escalation threshold.
+    pub fn exceeds_threshold(&self) -> bool {
+        self.entries.len() > self.threshold
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EscalationStats {
     pub total: i64,

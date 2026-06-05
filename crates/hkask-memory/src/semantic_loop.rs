@@ -46,10 +46,16 @@ impl HkaskLoop for SemanticLoop {
         LoopId::Semantic
     }
 
-    /// Sense: read semantic triple count.
+    /// Sense: read semantic triple count (and, in future, embedding count).
     ///
     /// Produces signals for:
     /// - `triple_count` — current count vs storage budget
+    ///
+    /// **Extensible:** `SemanticMemory::embedding_count()` is available but not
+    /// yet sensed. Adding an `embedding_count` signal would enable regulation
+    /// of embedding index growth (e.g., throttling embedding storage when
+    /// index size exceeds a set-point), similar to how `EpisodicLoop` senses
+    /// both `storage_usage` and `decay_rate`.
     async fn sense(&self) -> Vec<Signal> {
         let count = self.memory.triple_count().unwrap_or(0);
 

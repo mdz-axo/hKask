@@ -27,3 +27,7 @@ Thumbs.db
 # Retired documents recoverable via: git log --diff-filter=D -- <path>
 # See DOCUMENTATION_STANDARDS.md §3 for lifecycle policy
 docs/archive/
+
+# Style corpus download cache — populated by `kask embed-corpus run`
+# Raw Project Gutenberg texts cached to avoid re-downloading
+registry/styles/**/.cache/*.txt

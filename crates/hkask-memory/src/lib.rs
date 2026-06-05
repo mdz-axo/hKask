@@ -13,7 +13,7 @@ pub(crate) mod recall_dedup;
 pub mod semantic; // Loop 2b
 pub mod semantic_loop;
 
-pub mod ranking;
+pub(crate) mod ranking;
 
 pub use consolidation::ConsolidationBridge;
 pub use episodic::EpisodicMemory;

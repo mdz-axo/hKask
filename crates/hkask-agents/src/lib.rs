@@ -34,24 +34,15 @@ pub use acp::{A2AMessage, AcpAgent, AcpError, AcpRuntime};
 pub use communication::MessageDispatch;
 pub use consent::{ConsentError, ConsentManager};
 pub use curator::context::CuratorContext;
-pub use curator::curation_gate::{CurationConfidenceGate, CurationDecision, CurationPort};
 pub use curator::curation_loop::CurationLoop;
-pub use curator_agent::{
-    CuratorAgent, DefaultSpecCurator, HealthSnapshot, MetacognitionConfig, MetacognitionError,
-    MetacognitionLoop,
-};
+pub use curator_agent::{CuratorAgent, DefaultSpecCurator};
 
-pub use error::{GitError, McpError, MemoryError, RegistryError};
-pub use escalation::{
-    EscalationEntry, EscalationError, EscalationQueue, EscalationStats, EscalationStatus,
-};
+pub use error::{GitError, MemoryError};
+pub use escalation::{EscalationEntry, EscalationQueue};
 pub use hhh_gate::{HhhConfig, HhhMode};
 pub use inference_loop::InferenceLoop;
-pub use loop_system::{CyberneticsLoopHandle, LoopSystem, default_tick_interval};
-pub use pod::{
-    AgentKind, AgentPersona, AgentPod, AgentPodError, AgentPodResult, PodID, PodLifecycleState,
-    PodManager, PodStatus,
-};
-pub use ports::{AcpPort, EpisodicStoragePort, GitCASPort, MCPRuntimePort, SemanticStoragePort};
-pub use registry_loader::{AgentRegistryLoader, RegistryLoaderError};
+pub use loop_system::{CyberneticsLoopHandle, LoopSystem};
+pub use pod::{AgentPersona, PodID, PodManager, PodStatus};
+pub use ports::{AcpPort, EpisodicStoragePort, GitCASPort, SemanticStoragePort};
+pub use registry_loader::AgentRegistryLoader;
 pub(crate) use sovereignty::SovereigntyChecker;

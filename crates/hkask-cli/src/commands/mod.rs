@@ -18,6 +18,7 @@ pub mod helpers;
 pub mod keystore;
 pub mod loops;
 pub mod mcp;
+pub mod mcp_web_client;
 pub mod models;
 pub mod pod;
 pub mod registry;

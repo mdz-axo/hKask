@@ -15,7 +15,7 @@
 //! `CuratorDirective`s; the Curator Agent *consumes* those directives and
 //! formats them for human operators.
 
-use crate::curator::curation_gate::{CurationConfidenceGate, CurationDecision};
+use crate::curator::curation_gate::{ConfidenceDecision, CurationConfidenceGate};
 use chrono::Utc;
 use hkask_types::loops::curation::{CuratorDirective, CuratorHandle};
 use hkask_types::loops::dispatch::{LoopMessage, LoopPayload};
@@ -119,6 +119,39 @@ impl CurationLoop {
         &self.curator_handle
     }
 
+    /// Restore the last_review_ms cursor from persistent storage.
+    ///
+    /// Call this after construction and before the first tick to avoid
+    /// re-processing all historical algedonic events on restart.
+    pub fn restore_cursor(&self) {
+        if let Some(store) = self.context.nu_event_store() {
+            match store.load_cursor("curation_last_review_ms") {
+                Ok(Some(cursor_ms)) => {
+                    self.last_review_ms
+                        .store(cursor_ms as u64, Ordering::Relaxed);
+                    tracing::info!(
+                        target: "curation.loop",
+                        cursor_ms = cursor_ms,
+                        "Restored curation review cursor from persistence"
+                    );
+                }
+                Ok(None) => {
+                    tracing::info!(
+                        target: "curation.loop",
+                        "No persisted cursor found — starting from epoch"
+                    );
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        target: "curation.loop",
+                        error = %e,
+                        "Failed to load persisted curation cursor — starting from epoch"
+                    );
+                }
+            }
+        }
+    }
+
     /// Evaluate curation confidence using the ARL confidence gate.
     ///
     /// If the gate is in the transition zone (0.3 < R̄ < 0.8), returns a
@@ -126,7 +159,7 @@ impl CurationLoop {
     /// sensitivity analysis as the most impactful to verify.
     ///
     /// This is the IP-3 metacognitive bridge: CurationConfidenceGate produces
-    /// a `CurationDecision::SeekMoreEvidence`, which is translated into a
+    /// a `ConfidenceDecision::SeekMoreEvidence`, which is translated into a
     /// `CuratorDirective` and routed through Cybernetics to Inference.
     pub fn evaluate_confidence(
         &self,
@@ -137,7 +170,7 @@ impl CurationLoop {
         let r_bar = gate.confidence();
 
         match decision {
-            CurationDecision::SeekMoreEvidence => {
+            ConfidenceDecision::SeekMoreEvidence => {
                 // Sensitivity analysis: which channel to verify?
                 let sensitivities = gate.sensitivity_analysis();
                 let top_channel = sensitivities
@@ -187,10 +220,19 @@ impl HkaskLoop for CurationLoop {
                     let count = events.len() as u64;
                     // Advance cursor to latest event timestamp
                     if let Some(latest) = events.last() {
-                        self.last_review_ms.store(
-                            latest.timestamp.timestamp_millis() as u64,
-                            Ordering::Relaxed,
-                        );
+                        let new_cursor = latest.timestamp.timestamp_millis() as u64;
+                        self.last_review_ms.store(new_cursor, Ordering::Relaxed);
+
+                        // Persist cursor for crash recovery
+                        if let Err(e) =
+                            store.persist_cursor("curation_last_review_ms", new_cursor as i64)
+                        {
+                            tracing::warn!(
+                                target: "curation.loop",
+                                error = %e,
+                                "Failed to persist curation review cursor"
+                            );
+                        }
                     }
                     tracing::info!(
                         target: "curation.loop",

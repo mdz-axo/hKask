@@ -35,33 +35,9 @@ impl VarietyTracker {
         self.counts.len() as u64
     }
 
-    /// Get total count across all states
-    #[allow(dead_code)]
-    pub(crate) fn total(&self) -> u64 {
-        self.counts.values().sum()
-    }
-
     /// Calculate variety deficit against expected variety
     pub(crate) fn deficit(&self, expected_variety: u64) -> u64 {
         expected_variety.saturating_sub(self.variety())
-    }
-
-    /// Get entropy of the distribution (measure of variety quality)
-    #[allow(dead_code)]
-    pub(crate) fn entropy(&self) -> f64 {
-        let total = self.total() as f64;
-        if total == 0.0 {
-            return 0.0;
-        }
-
-        let mut entropy = 0.0;
-        for &count in self.counts.values() {
-            let p = count as f64 / total;
-            if p > 0.0 {
-                entropy -= p * p.log2();
-            }
-        }
-        entropy
     }
 
     /// Check if window has expired and reset if needed

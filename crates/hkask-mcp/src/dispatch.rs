@@ -89,7 +89,7 @@ impl McpPort for McpDispatcher {
     async fn invoke(
         &self,
         tool_name: &str,
-        _input: Value,
+        input: Value,
         token: &DelegationToken,
     ) -> Result<Value> {
         if let Some(governed) = &self.governed_tool {
@@ -102,7 +102,7 @@ impl McpPort for McpDispatcher {
                 .unwrap_or_else(|| "unknown".to_string());
 
             governed
-                .invoke(&server_id, tool_name, serde_json::json!({}), token)
+                .invoke(&server_id, tool_name, input, token)
                 .await
                 .map_err(|e| match e {
                     ToolPortError::CapabilityDenied(msg) => TemplateError::CapabilityDenied(msg),

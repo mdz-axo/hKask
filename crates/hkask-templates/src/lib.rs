@@ -3,6 +3,20 @@
 //! Unified registry with template_type discriminator per architecture v0.21.0.
 //! Rust is the loom. YAML/Jinja2 is the thread.
 //!
+//! **Intended Architecture (deferred until second consumer):**
+//!
+//! This crate straddles two loops:
+//! - Inference (L1): rendering, registry for discovery, prompt assembly, OkapiInference
+//! - Curation (L5): lexicon validation, BundleEvolver, ResponseContract, provenance
+//!
+//! When a second consumer requires it, split into:
+//! - `hkask-templates-inference` (depends on `hkask-cns` for GovernedTool)
+//! - `hkask-templates-curation` (depends on `hkask-agents` for CurationLoop)
+//!
+//! Until then, this crate serves both concerns. `hkask-ensemble` intentionally
+//! avoids depending on `hkask-templates` to prevent pulling in both inference
+//! and curation dependencies transitively.
+//!
 //! **Template Types:**
 //! - Prompt (WordAct) — What to say
 //! - Process (FlowDef) — What to do

@@ -166,7 +166,7 @@ fn default_algedonic_gate() -> AllostericGate {
 }
 
 /// Algedonic alert manager
-pub struct AlgedonicManager {
+pub(crate) struct AlgedonicManager {
     threshold: u64,
     default_expected_variety: u64,
     expected_variety: HashMap<String, u64>,
@@ -177,7 +177,7 @@ pub struct AlgedonicManager {
 }
 
 impl AlgedonicManager {
-    pub fn new(threshold: u64, default_expected_variety: u64) -> Self {
+    pub(crate) fn new(threshold: u64, default_expected_variety: u64) -> Self {
         Self {
             threshold,
             default_expected_variety,
@@ -192,20 +192,19 @@ impl AlgedonicManager {
     /// When enabled, the algedonic manager uses an AllostericGate to
     /// compute severity via the MWC sigmoid instead of binary thresholds.
     /// The gate's α is set from the normalized deficit (deficit / threshold).
-    #[allow(dead_code)]
     pub(crate) fn with_allosteric_gate(mut self, gate: AllostericGate) -> Self {
         self.allosteric_gate = Some(gate);
         self
     }
 
     /// Enable allosteric regulation with default algedonic gate config.
-    pub fn with_default_allosteric(mut self) -> Self {
+    pub(crate) fn with_default_allosteric(mut self) -> Self {
         self.allosteric_gate = Some(default_algedonic_gate());
         self
     }
 
     /// Set expected variety for a specific domain
-    pub fn set_expected_variety(&mut self, domain: &str, expected: u64) {
+    pub(crate) fn set_expected_variety(&mut self, domain: &str, expected: u64) {
         self.expected_variety.insert(domain.to_string(), expected);
     }
 
@@ -263,29 +262,29 @@ impl AlgedonicManager {
     }
 
     /// Get all alerts
-    pub fn alerts(&self) -> &[RuntimeAlert] {
+    pub(crate) fn alerts(&self) -> &[RuntimeAlert] {
         &self.alerts
     }
 
     /// Get critical alerts only
-    pub fn critical_alerts(&self) -> Vec<&RuntimeAlert> {
+    pub(crate) fn critical_alerts(&self) -> Vec<&RuntimeAlert> {
         self.alerts.iter().filter(|a| a.is_critical()).collect()
     }
 
     /// Get total deficit across all alerts
-    pub fn total_deficit(&self) -> u64 {
+    pub(crate) fn total_deficit(&self) -> u64 {
         self.alerts.iter().map(|a| a.deficit).sum()
     }
 
     /// Clear old alerts (older than duration)
-    pub fn clear_old(&mut self, max_age: Duration) {
+    pub(crate) fn clear_old(&mut self, max_age: Duration) {
         let chrono_dur = chrono::Duration::from_std(max_age).unwrap_or(chrono::Duration::zero());
         let cutoff = Utc::now() - chrono_dur;
         self.alerts.retain(|a| a.timestamp > cutoff);
     }
 
     /// Reset all alerts
-    pub fn reset(&mut self) {
+    pub(crate) fn reset(&mut self) {
         self.alerts.clear();
     }
 }
@@ -294,7 +293,7 @@ impl AlgedonicManager {
 ///
 /// This replaces the former `CnsHealth::check()` inherent method,
 /// which couldn't stay in hkask-types (it depends on AlgedonicManager).
-pub fn cns_health_check(manager: &AlgedonicManager) -> CnsHealth {
+pub(crate) fn cns_health_check(manager: &AlgedonicManager) -> CnsHealth {
     CnsHealth {
         overall_deficit: manager.total_deficit(),
         critical_count: manager.critical_alerts().len(),

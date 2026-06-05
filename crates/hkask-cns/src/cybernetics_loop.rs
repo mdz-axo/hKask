@@ -33,11 +33,28 @@ use crate::runtime::CnsRuntime;
 use hkask_types::WebID;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
 use hkask_types::loops::{
-    ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, LoopMessage,
-    LoopPayload, Signal,
+    ActionType, Deviation, DeviationDirection, DispatchTarget, HkaskLoop, LoopAction, LoopId,
+    LoopMessage, LoopPayload, Signal,
 };
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{RwLock, mpsc};
+
+/// Record of an active Curation override on an agent's gas budget.
+///
+/// When Curation issues an `OverrideGasBudget` directive, the override is
+/// recorded here so that `replenish_all_budgets()` does not overwrite it
+/// on the next regulation cycle. This preserves the metacognitive override
+/// mechanism — the core safety feature that lets Curation exceed
+/// Cybernetics' set-point range.
+struct OverrideRecord {
+    /// The overridden budget cap set by Curation
+    cap: u64,
+    /// When this override was issued (for TTL expiry)
+    issued_at: chrono::DateTime<chrono::Utc>,
+    /// TTL in seconds (0 = no expiry, must be explicitly cleared)
+    ttl_secs: u64,
+}
 
 /// Homeostatic set-points for the Cybernetics Loop.
 ///
@@ -58,42 +75,23 @@ pub struct SetPoints {
 
 /// Configurable thresholds for Curation decisions (spec coherence, drift).
 /// Loaded from YAML via `HKASK_CNS_CONFIG` (same pattern as `SetPointsConfig`).
-#[derive(Debug, Clone, serde::Deserialize)]
-pub struct CurationThresholdConfig {
-    #[serde(default = "default_coherence_threshold")]
-    pub coherence_threshold: f64,
-    #[serde(default = "default_drift_threshold")]
-    pub drift_threshold: f64,
+///
+/// Type definition lives in `hkask_types::curation`; YAML loading methods
+/// remain here because `hkask-types` does not depend on `serde_yaml`.
+pub use hkask_types::curation::CurationThresholdConfig;
+
+/// Load curation thresholds from a YAML string.
+pub fn curation_threshold_from_yaml(
+    yaml: &str,
+) -> Result<CurationThresholdConfig, serde_yaml::Error> {
+    serde_yaml::from_str(yaml)
 }
 
-fn default_coherence_threshold() -> f64 {
-    0.7
-}
-fn default_drift_threshold() -> f64 {
-    0.5
-}
-
-impl Default for CurationThresholdConfig {
-    fn default() -> Self {
-        Self {
-            coherence_threshold: default_coherence_threshold(),
-            drift_threshold: default_drift_threshold(),
-        }
-    }
-}
-
-impl CurationThresholdConfig {
-    /// Load curation thresholds from a YAML string.
-    pub fn from_yaml(yaml: &str) -> Result<Self, serde_yaml::Error> {
-        serde_yaml::from_str(yaml)
-    }
-
-    /// Load curation thresholds from a YAML file.
-    pub fn load_from_file(path: &str) -> Result<Self, std::io::Error> {
-        let contents = std::fs::read_to_string(path)?;
-        Self::from_yaml(&contents)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
-    }
+/// Load curation thresholds from a YAML file.
+pub fn curation_threshold_from_file(path: &str) -> Result<CurationThresholdConfig, std::io::Error> {
+    let contents = std::fs::read_to_string(path)?;
+    curation_threshold_from_yaml(&contents)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
 }
 
 /// YAML-configurable set-points. Fields are Optional so partial configs work.
@@ -166,7 +164,7 @@ pub fn load_set_points() -> SetPoints {
 /// If unset or the file doesn't exist, returns default thresholds.
 pub fn load_curation_thresholds() -> CurationThresholdConfig {
     match std::env::var("HKASK_CNS_CONFIG") {
-        Ok(path) => match CurationThresholdConfig::load_from_file(&path) {
+        Ok(path) => match curation_threshold_from_file(&path) {
             Ok(config) => {
                 tracing::info!(
                     target: "cns.config",
@@ -188,13 +186,14 @@ pub fn load_curation_thresholds() -> CurationThresholdConfig {
             }
         },
         Err(_) => {
+            let defaults = CurationThresholdConfig::default();
             tracing::info!(
                 target: "cns.config",
-                coherence_threshold = default_coherence_threshold(),
-                drift_threshold = default_drift_threshold(),
+                coherence_threshold = defaults.coherence_threshold,
+                drift_threshold = defaults.drift_threshold,
                 "HKASK_CNS_CONFIG not set, using default curation thresholds"
             );
-            CurationThresholdConfig::default()
+            defaults
         }
     }
 }
@@ -243,6 +242,11 @@ pub struct CyberneticsLoop {
     /// Persistent event sink (NuEventStore) for algedonic alert durability.
     /// When present, algedonic alerts are persisted to survive restarts.
     event_sink: Option<Arc<dyn NuEventSink>>,
+    /// Active Curation overrides on agent gas budgets.
+    /// Keyed by agent WebID — agents with active overrides are skipped
+    /// during `replenish_all_budgets()` so that Curation's override is not
+    /// overwritten by the normal replenishment cycle.
+    active_overrides: Arc<RwLock<HashMap<WebID, OverrideRecord>>>,
 }
 
 impl CyberneticsLoop {
@@ -264,14 +268,14 @@ impl CyberneticsLoop {
             inbox: Arc::new(RwLock::new(dead_rx)),
             dampener: Arc::new(Dampener::new()),
             event_sink: None,
+            active_overrides: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
     /// Create a Cybernetics Loop with custom set-points.
     ///
-    /// The inbox is "dead" (no sender exists) — use `with_set_points_and_inbox()`
+    /// The inbox is "dead" (no sender exists) — use `with_inbox()`
     /// if you need to receive inter-loop messages from the Communication Loop.
-    #[allow(dead_code)]
     pub fn with_set_points(
         cns: Arc<RwLock<CnsRuntime>>,
         set_points: SetPoints,
@@ -287,6 +291,7 @@ impl CyberneticsLoop {
             inbox: Arc::new(RwLock::new(dead_rx)),
             dampener: Arc::new(Dampener::new()),
             event_sink: None,
+            active_overrides: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -319,30 +324,7 @@ impl CyberneticsLoop {
             inbox: Arc::new(RwLock::new(inbox_rx)),
             dampener: Arc::new(Dampener::new()),
             event_sink: None,
-        };
-        (loop_instance, inbox_tx)
-    }
-
-    /// Create a Cybernetics Loop with custom set-points and a fresh inbox channel pair.
-    ///
-    /// Returns `(loop_instance, inbox_sender)` where the sender should be
-    /// registered with the Communication Loop for message delivery.
-    #[allow(dead_code)]
-    pub(crate) fn with_set_points_and_inbox(
-        cns: Arc<RwLock<CnsRuntime>>,
-        set_points: SetPoints,
-        dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
-    ) -> (Self, mpsc::UnboundedSender<LoopMessage>) {
-        let (inbox_tx, inbox_rx) = mpsc::unbounded_channel::<LoopMessage>();
-        let loop_instance = Self {
-            cns,
-            gas_budgets: Arc::new(RwLock::new(std::collections::HashMap::new())),
-            set_points,
-            max_iterations: 100,
-            dispatch_tx,
-            inbox: Arc::new(RwLock::new(inbox_rx)),
-            dampener: Arc::new(Dampener::new()),
-            event_sink: None,
+            active_overrides: Arc::new(RwLock::new(HashMap::new())),
         };
         (loop_instance, inbox_tx)
     }
@@ -419,7 +401,12 @@ impl CyberneticsLoop {
             let budgets = self.gas_budgets.read().await;
             budgets.keys().cloned().collect()
         };
+        let overrides = self.active_overrides.read().await;
         for agent in budget_ids {
+            if overrides.contains_key(&agent) {
+                // Skip replenishment for agents with active Curation overrides
+                continue;
+            }
             let replenished = {
                 let mut budgets = self.gas_budgets.write().await;
                 if let Some(budget) = budgets.get_mut(&agent) {
@@ -455,12 +442,6 @@ impl CyberneticsLoop {
                 "Replenished agent gas budget by directive"
             );
         }
-    }
-
-    /// Get the current set-points.
-    #[allow(dead_code)]
-    pub(crate) fn set_points(&self) -> &SetPoints {
-        &self.set_points
     }
 
     /// Get a sender clone for the dispatch channel.
@@ -509,6 +490,29 @@ impl CyberneticsLoop {
                 "Processed inbox messages"
             );
         }
+
+        // Expire overrides with non-zero TTL
+        {
+            let mut overrides = self.active_overrides.write().await;
+            let now = chrono::Utc::now();
+            overrides.retain(|agent, record| {
+                if record.ttl_secs == 0 {
+                    return true; // No TTL — persists until explicitly cleared
+                }
+                let expires_at =
+                    record.issued_at + chrono::Duration::seconds(record.ttl_secs as i64);
+                if now > expires_at {
+                    tracing::info!(
+                        target: "cns.cybernetics",
+                        agent = %agent,
+                        "Curation override expired — resuming normal replenishment"
+                    );
+                    false
+                } else {
+                    true
+                }
+            });
+        }
     }
 
     // ── Inbox message handlers ──────────────────────────────────────────
@@ -535,7 +539,8 @@ impl CyberneticsLoop {
                 "Directive dampened (repeated within window)"
             );
         } else {
-            self.apply_directive(directive_type, target, parameters).await;
+            self.apply_directive(directive_type, target, parameters)
+                .await;
             self.persist_directive_acknowledgment(directive_type);
             tracing::info!(
                 target: "cns.cybernetics",
@@ -563,6 +568,9 @@ impl CyberneticsLoop {
             }
             "override_gas_budget" => {
                 self.apply_override_gas_budget(target, parameters).await;
+            }
+            "clear_override" => {
+                self.apply_clear_override(target).await;
             }
             "replenish_budget" => {
                 self.apply_replenish_budget(target, parameters).await;
@@ -601,10 +609,8 @@ impl CyberneticsLoop {
 
     /// Apply a CalibrateThreshold directive from Curation.
     async fn apply_calibrate_threshold(&self, parameters: &serde_json::Value) {
-        if let Some(domain) =
-            parameters.get("domain").and_then(|v| v.as_str())
-            && let Some(new_threshold) =
-                parameters.get("new_threshold").and_then(|v| v.as_u64())
+        if let Some(domain) = parameters.get("domain").and_then(|v| v.as_str())
+            && let Some(new_threshold) = parameters.get("new_threshold").and_then(|v| v.as_u64())
         {
             let cns = self.cns.read().await;
             cns.calibrate_threshold(domain, new_threshold).await;
@@ -622,10 +628,15 @@ impl CyberneticsLoop {
     ///
     /// OverrideGasBudget: Curation can exceed set-point bounds.
     /// This is the metacognitive override — stronger than AdjustGasBudget.
+    /// The override is recorded in `active_overrides` so that
+    /// `replenish_all_budgets()` does not overwrite it on the next cycle.
     async fn apply_override_gas_budget(&self, target: WebID, parameters: &serde_json::Value) {
-        if let Some(new_budget) =
-            parameters.get("new_budget").and_then(|v| v.as_u64())
-        {
+        if let Some(new_budget) = parameters.get("new_budget").and_then(|v| v.as_u64()) {
+            // Extract optional TTL (default: 0 = no expiry)
+            let ttl_secs = parameters
+                .get("ttl_secs")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0);
             let mut budgets = self.gas_budgets.write().await;
             if let Some(budget) = budgets.get_mut(&target) {
                 // Override can set budget above or below set-points
@@ -646,6 +657,38 @@ impl CyberneticsLoop {
                     "Registered new gas budget from OverrideGasBudget directive"
                 );
             }
+            drop(budgets);
+            // Record the override so replenish_all_budgets() skips this agent
+            let mut overrides = self.active_overrides.write().await;
+            overrides.insert(
+                target,
+                OverrideRecord {
+                    cap: new_budget,
+                    issued_at: chrono::Utc::now(),
+                    ttl_secs,
+                },
+            );
+        }
+    }
+
+    /// Apply a ClearOverride directive from Curation.
+    ///
+    /// Removes the agent from `active_overrides`, allowing normal
+    /// replenishment to resume on the next regulation cycle.
+    async fn apply_clear_override(&self, target: WebID) {
+        let mut overrides = self.active_overrides.write().await;
+        if overrides.remove(&target).is_some() {
+            tracing::info!(
+                target: "cns.cybernetics",
+                agent = %target,
+                "Cleared Curation override — normal replenishment resumes"
+            );
+        } else {
+            tracing::debug!(
+                target: "cns.cybernetics",
+                agent = %target,
+                "ClearOverride directive received but no active override found"
+            );
         }
     }
 
@@ -655,11 +698,8 @@ impl CyberneticsLoop {
     /// This is the gas refund mechanism governed by Curator authority.
     /// When priority is provided, replenishment is scaled by that weight.
     async fn apply_replenish_budget(&self, target: WebID, parameters: &serde_json::Value) {
-        if let Some(amount) =
-            parameters.get("amount").and_then(|v| v.as_u64())
-        {
-            let priority =
-                parameters.get("priority").and_then(|v| v.as_f64());
+        if let Some(amount) = parameters.get("amount").and_then(|v| v.as_u64()) {
+            let priority = parameters.get("priority").and_then(|v| v.as_f64());
             let mut budgets = self.gas_budgets.write().await;
             if let Some(budget) = budgets.get_mut(&target) {
                 let replenished = if let Some(p) = priority {
@@ -686,10 +726,7 @@ impl CyberneticsLoop {
         if let Some(ref sink) = self.event_sink {
             let ack = NuEvent::new(
                 WebID::new(),
-                Span::new(
-                    SpanNamespace::new("cns.curation"),
-                    "directive_acknowledged",
-                ),
+                Span::new(SpanNamespace::new("cns.curation"), "directive_acknowledged"),
                 Phase::Act,
                 serde_json::json!({
                     "directive_type": directive_type,
@@ -863,10 +900,9 @@ impl HkaskLoop for CyberneticsLoop {
                 "Cybernetics Loop efferent signal"
             );
 
-            let target_id: LoopId = action.target;
+            let target_id = action.target;
             let directive_type = match action.action_type {
                 ActionType::Throttle => "throttle",
-                ActionType::Dampen => "dampen",
                 ActionType::Escalate => "escalate",
                 ActionType::Calibrate => "calibrate",
                 ActionType::CircuitBreak => "circuit_break",
@@ -875,33 +911,34 @@ impl HkaskLoop for CyberneticsLoop {
                 ActionType::ReplenishBudget => "replenish_budget",
             };
 
-            let payload =
-                if action.action_type == ActionType::Escalate && target_id == LoopId::Curation {
-                    // Algedonic alert — Cybernetics → Curation via Communication Loop.
-                    // The AlgedonicAlert payload carries the deficit that triggered escalation,
-                    // enabling Curation's sense() to read real-time alerts from its inbox.
-                    let deficit = action
-                        .parameters
-                        .get("deficit")
-                        .and_then(|v| v.as_f64())
-                        .unwrap_or(0.0) as u64;
-                    let threshold = action
-                        .parameters
-                        .get("threshold")
-                        .and_then(|v| v.as_f64())
-                        .unwrap_or(0.0) as u64;
-                    LoopPayload::AlgedonicAlert {
-                        current: deficit,
-                        threshold,
-                        deficit,
-                    }
-                } else {
-                    LoopPayload::CyberneticsRegulation {
-                        regulation_type: directive_type.to_string(),
-                        target: WebID::new(),
-                        parameters: action.parameters.clone(),
-                    }
-                };
+            let payload = if action.action_type == ActionType::Escalate
+                && target_id == DispatchTarget::Loop(LoopId::Curation)
+            {
+                // Algedonic alert — Cybernetics → Curation via Communication Loop.
+                // The AlgedonicAlert payload carries the deficit that triggered escalation,
+                // enabling Curation's sense() to read real-time alerts from its inbox.
+                let deficit = action
+                    .parameters
+                    .get("deficit")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0) as u64;
+                let threshold = action
+                    .parameters
+                    .get("threshold")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0) as u64;
+                LoopPayload::AlgedonicAlert {
+                    current: deficit,
+                    threshold,
+                    deficit,
+                }
+            } else {
+                LoopPayload::CyberneticsRegulation {
+                    regulation_type: directive_type.to_string(),
+                    target: WebID::new(),
+                    parameters: action.parameters.clone(),
+                }
+            };
 
             let msg = LoopMessage::new(action.priority, LoopId::Cybernetics, payload)
                 .with_target(target_id);
@@ -916,7 +953,7 @@ impl HkaskLoop for CyberneticsLoop {
 
             // Persist algedonic alerts to NuEventStore for durability across restarts.
             if action.action_type == ActionType::Escalate
-                && target_id == LoopId::Curation
+                && target_id == DispatchTarget::Loop(LoopId::Curation)
                 && let Some(ref sink) = self.event_sink
             {
                 let deficit = action
@@ -982,9 +1019,9 @@ mod tests {
         let actions = loop6.compute(&deviations).await;
         assert_eq!(actions.len(), 2); // Throttle + AdjustGasBudget
         assert_eq!(actions[0].action_type, ActionType::Throttle);
-        assert_eq!(actions[0].target, LoopId::Inference);
+        assert_eq!(actions[0].target, DispatchTarget::Loop(LoopId::Inference));
         assert_eq!(actions[1].action_type, ActionType::AdjustGasBudget);
-        assert_eq!(actions[1].target, LoopId::Cybernetics);
+        assert_eq!(actions[1].target, DispatchTarget::Loop(LoopId::Cybernetics));
     }
 
     #[tokio::test]
@@ -1001,7 +1038,7 @@ mod tests {
         let actions = loop6.compute(&deviations).await;
         assert_eq!(actions.len(), 1);
         assert_eq!(actions[0].action_type, ActionType::Escalate);
-        assert_eq!(actions[0].target, LoopId::Curation);
+        assert_eq!(actions[0].target, DispatchTarget::Loop(LoopId::Curation));
     }
 
     #[tokio::test]
@@ -1017,7 +1054,7 @@ mod tests {
         let actions = loop6.compute(&deviations).await;
         assert_eq!(actions.len(), 1);
         assert_eq!(actions[0].action_type, ActionType::CircuitBreak);
-        assert_eq!(actions[0].target, LoopId::Inference);
+        assert_eq!(actions[0].target, DispatchTarget::Loop(LoopId::Inference));
     }
 
     #[tokio::test]
@@ -1094,13 +1131,13 @@ mod tests {
         let actions = loop6.compute(&deviations).await;
         assert_eq!(actions.len(), 2); // Throttle + AdjustGasBudget
         assert_eq!(actions[0].action_type, ActionType::Throttle);
-        assert_eq!(actions[0].target, LoopId::Inference);
+        assert_eq!(actions[0].target, DispatchTarget::Loop(LoopId::Inference));
         assert_eq!(actions[1].action_type, ActionType::AdjustGasBudget);
-        assert_eq!(actions[1].target, LoopId::Cybernetics);
+        assert_eq!(actions[1].target, DispatchTarget::Loop(LoopId::Cybernetics));
 
         // Step 4: Verify capability membrane — Cybernetics can regulate Inference
         // (domain loop), but NOT Curation (peer meta loop)
-        assert_ne!(actions[0].target, LoopId::Curation);
+        assert_ne!(actions[0].target, DispatchTarget::Loop(LoopId::Curation));
 
         // Step 5: Simulate stabilization — after throttling, energy recovers
         let recovered_signal = Signal::new(LoopId::Cybernetics, "energy_remaining", 0.25, 0.2);
@@ -1129,10 +1166,11 @@ mod tests {
         assert_eq!(actions.len(), 4); // gas:Throttle + gas:AdjustGasBudget + variety:Escalate + error:CircuitBreak
 
         // Verify each action targets the correct loop
-        let targets: std::collections::HashSet<LoopId> = actions.iter().map(|a| a.target).collect();
-        assert!(targets.contains(&LoopId::Inference)); // gas:Throttle + error:CircuitBreak
-        assert!(targets.contains(&LoopId::Curation)); // variety:Escalate
-        assert!(targets.contains(&LoopId::Cybernetics)); // gas:AdjustGasBudget
+        let targets: std::collections::HashSet<DispatchTarget> =
+            actions.iter().map(|a| a.target).collect();
+        assert!(targets.contains(&DispatchTarget::Loop(LoopId::Inference))); // gas:Throttle + error:CircuitBreak
+        assert!(targets.contains(&DispatchTarget::Loop(LoopId::Curation))); // variety:Escalate
+        assert!(targets.contains(&DispatchTarget::Loop(LoopId::Cybernetics))); // gas:AdjustGasBudget
     }
 
     /// Test: Loop reaches equilibrium within bounded iterations
@@ -1247,7 +1285,10 @@ mod tests {
 
         assert_eq!(actions.len(), 1);
         assert_eq!(actions[0].action_type, ActionType::Throttle);
-        assert_eq!(actions[0].target, LoopId::Communication);
+        assert_eq!(
+            actions[0].target,
+            DispatchTarget::Loop(LoopId::Communication)
+        );
     }
 
     // =========================================================================
@@ -1437,7 +1478,7 @@ mod tests {
     #[test]
     fn curation_threshold_config_from_yaml() {
         let yaml = "coherence_threshold: 0.85\ndrift_threshold: 0.3\n";
-        let config = CurationThresholdConfig::from_yaml(yaml).unwrap();
+        let config = curation_threshold_from_yaml(yaml).unwrap();
         assert_eq!(config.coherence_threshold, 0.85);
         assert_eq!(config.drift_threshold, 0.3);
     }
@@ -1445,7 +1486,7 @@ mod tests {
     #[test]
     fn curation_threshold_config_partial_yaml_uses_defaults() {
         let yaml = "coherence_threshold: 0.9\n";
-        let config = CurationThresholdConfig::from_yaml(yaml).unwrap();
+        let config = curation_threshold_from_yaml(yaml).unwrap();
         assert_eq!(config.coherence_threshold, 0.9);
         assert_eq!(config.drift_threshold, 0.5); // default
     }
@@ -1453,7 +1494,7 @@ mod tests {
     #[test]
     fn curation_threshold_config_empty_yaml_uses_defaults() {
         let yaml = "{}\n";
-        let config = CurationThresholdConfig::from_yaml(yaml).unwrap();
+        let config = curation_threshold_from_yaml(yaml).unwrap();
         assert_eq!(config.coherence_threshold, 0.7); // default
         assert_eq!(config.drift_threshold, 0.5); // default
     }
@@ -1530,6 +1571,120 @@ mod tests {
         assert!(
             !loop6.can_proceed(&agent, 51).await,
             "Agent should NOT have more than 50 units available after replenishment from zero"
+        );
+    }
+
+    // =========================================================================
+    // T13: Curation Override Persistence — override survives replenishment
+    // =========================================================================
+
+    /// Regression test: OverrideGasBudget directive must survive
+    /// `replenish_all_budgets()` calls. Before the fix, `act()` called
+    /// `replenish_all_budgets()` which overwrote Curation's override within
+    /// one regulation cycle, defeating the metacognitive override mechanism.
+    #[tokio::test]
+    async fn curation_override_survives_replenishment() {
+        let cns = Arc::new(RwLock::new(CnsRuntime::default()));
+        let agent = WebID::new();
+        let (loop6, inbox_tx) = CyberneticsLoop::with_inbox(cns, test_dispatch_tx());
+
+        // Register a budget with cap=1000
+        loop6.register_gas_budget(agent, GasBudget::new(1000)).await;
+
+        // Override to a much lower budget (500) via Curation directive
+        let msg = LoopMessage::warning(
+            LoopId::Curation,
+            LoopPayload::CurationDirective {
+                directive_type: "override_gas_budget".to_string(),
+                target: agent,
+                parameters: serde_json::json!({"new_budget": 500}),
+            },
+        )
+        .with_target(LoopId::Cybernetics);
+        inbox_tx.send(msg).unwrap();
+        loop6.process_inbox().await;
+
+        // Verify: budget is now 500 (cap and remaining)
+        assert!(
+            loop6.can_proceed(&agent, 500).await,
+            "Agent should have 500 units after override"
+        );
+        assert!(
+            !loop6.can_proceed(&agent, 501).await,
+            "Agent should NOT exceed overridden budget of 500"
+        );
+
+        // Now call replenish_all_budgets() — this used to overwrite the override
+        loop6.replenish_all_budgets().await;
+
+        // The override must survive: budget should still be capped at 500
+        assert!(
+            loop6.can_proceed(&agent, 500).await,
+            "Overridden budget must survive replenishment"
+        );
+        assert!(
+            !loop6.can_proceed(&agent, 501).await,
+            "Replenishment must not restore budget beyond Curation override"
+        );
+    }
+
+    /// Verify that ClearOverride directive removes the override and allows
+    /// normal replenishment to resume.
+    #[tokio::test]
+    async fn clear_override_resumes_normal_replenishment() {
+        let cns = Arc::new(RwLock::new(CnsRuntime::default()));
+        let agent = WebID::new();
+        let (loop6, inbox_tx) = CyberneticsLoop::with_inbox(cns, test_dispatch_tx());
+
+        // Register a budget with cap=1000
+        loop6.register_gas_budget(agent, GasBudget::new(1000)).await;
+
+        // Override to 200 via Curation
+        let override_msg = LoopMessage::warning(
+            LoopId::Curation,
+            LoopPayload::CurationDirective {
+                directive_type: "override_gas_budget".to_string(),
+                target: agent,
+                parameters: serde_json::json!({"new_budget": 200}),
+            },
+        )
+        .with_target(LoopId::Cybernetics);
+        inbox_tx.send(override_msg).unwrap();
+        loop6.process_inbox().await;
+
+        // Confirm override is active
+        assert!(!loop6.can_proceed(&agent, 201).await);
+
+        // Send ClearOverride directive
+        let clear_msg = LoopMessage::warning(
+            LoopId::Curation,
+            LoopPayload::CurationDirective {
+                directive_type: "clear_override".to_string(),
+                target: agent,
+                parameters: serde_json::json!({}),
+            },
+        )
+        .with_target(LoopId::Cybernetics);
+        inbox_tx.send(clear_msg).unwrap();
+        loop6.process_inbox().await;
+
+        // After clearing, replenish should work normally and can fill up to cap
+        // The cap was set to 200 by the override, but replenish uses cap
+        // Since override is cleared, replenishment will restore up to the
+        // current cap (200). We need to verify that replenishment is no
+        // longer blocked.
+        //
+        // Exhaust budget first to see replenishment effect
+        while loop6.acquire_budget(&agent, 10).await.is_ok() {}
+        assert!(!loop6.can_proceed(&agent, 1).await);
+
+        // Replenish should now work (no override blocking it)
+        loop6.replenish_all_budgets().await;
+
+        // After replenishment, agent should have gas again
+        assert!(
+            loop6.can_proceed(&agent, 1).await,
+            "After clearing override, normal replenishment should resume"
         );
     }
 }

@@ -21,5 +21,5 @@ pub mod curation_gate;
 pub mod curation_loop;
 
 pub use context::CuratorContext;
-pub use curation_gate::{CurationConfidenceGate, CurationDecision, CurationPort};
+pub use curation_gate::{ConfidenceDecision, CurationConfidenceGate, CurationPort};
 pub use curation_loop::CurationLoop;

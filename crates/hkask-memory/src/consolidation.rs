@@ -15,7 +15,7 @@ use crate::episodic::EpisodicMemory;
 use crate::semantic::SemanticMemory;
 use hkask_storage::Triple;
 use hkask_types::WebID;
-use hkask_types::capability::tokens::ConsolidationToken;
+use hkask_types::capability::tokens::{ConsolidationToken, IssuerVerification};
 use hkask_types::ports::{ConsolidationOutcome, ConsolidationPort};
 
 /// Consolidation Bridge — Episodic → Semantic
@@ -35,6 +35,8 @@ pub(crate) enum ConsolidationError {
     #[allow(dead_code)] // Symmetric counterpart to Episodic; needed for semantic consolidation failure path
     #[error("Semantic memory error: {0}")]
     Semantic(String),
+    #[error("Unauthorized consolidation token: issuer {0} is not the expected curator")]
+    UnauthorizedToken(String),
 }
 
 #[derive(Debug, Clone)]
@@ -174,7 +176,13 @@ impl ConsolidationPort for ConsolidationBridge {
         perspective: &WebID,
         limit: usize,
     ) -> Result<ConsolidationOutcome, String> {
-        let _token = token; // Capability gate: token proves Cybernetics authority
+        // Verify the token issuer matches the expected curator
+        let expected_curator = hkask_types::id::WebID::from_persona(b"curator");
+        if token.issuer() != &expected_curator {
+            return Err(
+                ConsolidationError::UnauthorizedToken(token.issuer().to_string()).to_string(),
+            );
+        }
         let result = ConsolidationBridge::consolidate(self, *perspective, limit)
             .map_err(|e| e.to_string())?;
         Ok(ConsolidationOutcome {

@@ -29,7 +29,7 @@ use crate::variety::VarietyMonitor;
 /// between different observation domains while sharing a single tracker.
 pub mod domains {
     /// Bot variety tracking: `bot:{webid}:{category}`
-    #[allow(dead_code)] // CNS resilience infrastructure — awaiting runtime wiring
+    /// CNS resilience infrastructure — awaiting runtime wiring
     pub(crate) const BOT: &str = "bot";
 }
 
@@ -42,14 +42,14 @@ pub mod domains {
 ///
 /// All variety counting goes through a single `VarietyMonitor`, ensuring
 /// consistent windowing and reset behavior.
-pub struct UnifiedVarietyTracker {
+pub(crate) struct UnifiedVarietyTracker {
     /// Single variety monitor for all domains
     variety: VarietyMonitor,
 }
 
 impl UnifiedVarietyTracker {
     /// Create a new unified tracker.
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             variety: VarietyMonitor::new(),
         }
@@ -60,27 +60,27 @@ impl UnifiedVarietyTracker {
     // =========================================================================
 
     /// Increment variety counter for a domain.
-    pub fn increment_variety(&mut self, domain: &str, state_name: &str) {
+    pub(crate) fn increment_variety(&mut self, domain: &str, state_name: &str) {
         self.variety.counter(domain).increment(state_name);
     }
 
     /// Get variety count for a specific domain.
-    pub fn variety_for_domain(&self, domain: &str) -> u64 {
+    pub(crate) fn variety_for_domain(&self, domain: &str) -> u64 {
         self.variety.variety_for_domain(domain)
     }
 
     /// Get all domain names with variety counters.
-    pub fn variety_domains(&self) -> Vec<&str> {
+    pub(crate) fn variety_domains(&self) -> Vec<&str> {
         self.variety.domains()
     }
 
     /// Get total variety deficit across all domains.
-    pub fn total_variety_deficit(&self, expected_per_domain: u64) -> u64 {
+    pub(crate) fn total_variety_deficit(&self, expected_per_domain: u64) -> u64 {
         self.variety.total_deficit(expected_per_domain)
     }
 
     /// Get a reference to the underlying variety monitor.
-    pub fn variety_monitor(&self) -> &VarietyMonitor {
+    pub(crate) fn variety_monitor(&self) -> &VarietyMonitor {
         &self.variety
     }
 }
