@@ -12,7 +12,7 @@ use hkask_types::capability::tokens::ConsolidationToken;
 use hkask_types::loops::{
     ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal,
 };
-use hkask_types::ports::ConsolidationPort;
+use hkask_types::ports::{ConsolidationPort, ConsolidationRequest};
 
 /// Episodic Loop — monitors episodic storage usage against budget and enforces limits.
 ///
@@ -187,7 +187,14 @@ impl HkaskLoop for EpisodicLoop {
                         if let (Some(consolidation), Some(token)) =
                             (&self.consolidation, &self.consolidation_token)
                         {
-                            match consolidation.consolidate(token, &self.perspective, overage) {
+                            match consolidation.consolidate(
+                                token,
+                                &self.perspective,
+                                ConsolidationRequest {
+                                    limit: overage,
+                                    ..Default::default()
+                                },
+                            ) {
                                 Ok(outcome) if outcome.consolidated_count > 0 => {
                                     tracing::info!(
                                         target: "cns.episodic",

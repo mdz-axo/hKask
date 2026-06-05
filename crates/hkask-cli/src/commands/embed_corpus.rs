@@ -8,8 +8,8 @@
 //!   - SemanticMemory::store_embedding    — store vectors (→ semantic_embed)
 //!   - SemanticMemory::compute_centroid    — style centroid (→ semantic_centroid)
 //
-//! Manifest: registry/manifests/style-corpus-embed.yaml
-//! Skill:    registry/registries/skills/style-corpus-embed.yaml
+//!     Manifest: registry/manifests/style-corpus-embed.yaml
+//!     Skill:    registry/registries/skills/style-corpus-embed.yaml
 
 use crate::cli::EmbedCorpusAction;
 use hkask_memory::SemanticMemory;

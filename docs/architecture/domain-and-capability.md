@@ -321,7 +321,7 @@ status: VERIFIED
 | MCP Server | Crate | LOC | Status | Domain |
 |-----------|-------|-----|--------|--------|
 | inference | `hkask-mcp-inference` | 391 | ✅ Complete | Okapi LLM |
-| condenser | `hkask-mcp-condenser` | 761 | ✅ Complete | Context reranking and condensation |
+| condenser | `hkask-mcp-condenser` | 761 | ✅ Complete | Context condensation (reranking and compression of the active conversation window) |
 | web | `hkask-mcp-web` | 3,389 | ✅ Complete | Web search with SSRF protection |
 | ocap | `hkask-mcp-ocap` | 319 | ✅ Complete | Capability management |
 | keystore | `hkask-mcp-keystore` | 529 | ✅ Complete | OS keychain secret management |
@@ -416,7 +416,7 @@ The hLexicon grounds all domain vocabulary across three domains:[^austin-speech]
 |-------|-----|---------|-----------|
 | `hkask-types` | 5,154 | ID types, ν-event, hLexicon, specs | `WebID`, `NuEvent`, `Span`, `CapabilityToken`, `Goal`, `Spec` |
 | `hkask-storage` | 4,010 | SQLite + SQLCipher + sqlite-vec | `Database`, `TripleStore`, `EmbeddingStore`, `GitCas` |
-| `hkask-memory` | 695 | Semantic/episodic pipelines | Memory consolidation |
+| `hkask-memory` | 695 | Semantic/episodic pipelines | Memory consolidation (episodic → semantic) |
 | `hkask-cns` | 2,039 | Cybernetic Nervous System | `CnsRuntime`, `AlgedonicManager`, `VarietyCounter` |
 | `hkask-templates` | 8,259 | Registry, rendering, cascade | `SqliteRegistry`, `TemplateRendererImpl`, `ContextAssembler` |
 | `hkask-agents` | 7,474 | Pods, ACP, bot/replicant | `AgentPod`, `PodManager`, `Bot`, `ConsentManager` |
@@ -474,6 +474,10 @@ Explicitly excluded patterns that violate hKask minimal design:[^raymond-unix]
 ## 10. Consolidation Protocol
 
 The Episodic→Semantic consolidation bridge is the **one-way gate** from private experience to shared knowledge. This section specifies the protocol as the authoritative source.
+
+> **Terminology:** In hKask, *context* is **condensed** and *memory* is **consolidated**. These are distinct operations on distinct substrates:
+> - **Context condensation** — the condenser server reranks and compresses the active conversation/tool-output window to fit within token budgets. Context is ephemeral and scoped to the current inference cycle.
+> - **Memory consolidation** — the consolidation bridge migrates episodic triples (private, agent-scoped) into semantic memory (shared, de-identified). Memory is persistent and spans sessions.
 
 ### 10.1 One-Way Invariant
 
@@ -537,7 +541,28 @@ Setting `perspective: None` removes the WebID association. This is the **minimum
 - **Consolidation trigger**: When semantic triples have confidence at or below the low-confidence threshold (default 0.33 / 33%), the `SemanticLoop` fires a review and deletes them. These triples carry insufficient signal to justify their storage cost. The threshold is configurable per-loop instance, enabling per-user and per-agent customization.
 - **Episodic budget**: When episodic storage exceeds budget, the `EpisodicLoop` fires the consolidation bridge to promote lowest-confidence triples to semantic memory, freeing storage.
 
-### 10.8 Failure Semantics
+### 10.8 User-Triggered Consolidation
+
+Users can trigger consolidation manually via CLI, chat, API, or MCP. The operation is a three-phase `ConsolidationService` that combines episodic→semantic promotion with semantic cleanup:
+
+| Phase | Operation | Parameter |
+|-------|-----------|----------|
+| 1 | **Consolidate** | `limit` — max episodic triples to promote (default: 100) |
+| 2 | **Confidence floor** | `confidence_floor` — delete semantic triples at or below this confidence (optional, overrides default 0.33) |
+| 3 | **Max triples** | `max_semantic_triples` — enforce a hard cap on semantic triple count (optional) |
+
+**Authorization**: When consolidating a specific agent's memory, the caller must provide the agent's database passphrase for verification. This prevents unauthorized consolidation of another agent's data.
+
+**Surfaces**:
+
+| Surface | Command | Full consolidation | Semantic cleanup only |
+|--------|---------|--------------------|-----------------------|
+| CLI | `kask consolidate --agent X --passphrase P --limit N --floor F --max M` | ✓ | ✓ |
+| Chat | `/consolidate [LIMIT] [--floor F] [--max M]` | Delegates to CLI | ✓ |
+| API | `POST /api/consolidate` | ✓ | ✓ |
+| MCP | `semantic_consolidate` | ✗ (no episodic access) | ✓ |
+
+### 10.9 Failure Semantics
 
 | Failure | Effect |
 |---------|--------|

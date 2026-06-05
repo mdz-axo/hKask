@@ -51,7 +51,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 ### Core (11 crates)
 - `hkask-types` — ID types, ν-event, hLexicon, visibility
 - `hkask-storage` — SQLite + SQLCipher, triples, embeddings, blobs, Git CAS
-- `hkask-memory` — Semantic/episodic pipelines
+- `hkask-memory` — Semantic/episodic pipelines (memory consolidation: episodic → semantic)
 - `hkask-cns` — Cybernetic Nervous System
 - `hkask-templates` — Registry, hLexicon, cascade, resolver
 - `hkask-agents` — Pods, ACP, bot/replicant, Curator
@@ -63,7 +63,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 
 ### MCP Servers (19 crates)
 - `hkask-mcp-inference` — Okapi-backed LLM inference
-- `hkask-mcp-condenser` — General-purpose context reranking and condensation
+- `hkask-mcp-condenser` — Context condensation (reranking and compression of the active conversation window)
 - `hkask-mcp-web` — Web search, scrape
 - `hkask-mcp-ocap` — Capability management
 - `hkask-mcp-keystore` — Keystore operations
@@ -143,7 +143,8 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 - [x] 94 documents archived, 36 active documents curated
 
 ### In Progress
-- [ ] MCP server stubs: `condenser`, `web`
+- [ ] Context condensation in condenser MCP server
+- [ ] Memory consolidation bridge (episodic → semantic)
 - [ ] Integration tests for inference pipeline
 - [ ] `hkask-storage` trait mismatches (goals.rs)
 

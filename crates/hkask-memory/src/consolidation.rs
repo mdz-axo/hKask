@@ -15,7 +15,7 @@ use crate::semantic::SemanticMemory;
 use hkask_storage::Triple;
 use hkask_types::WebID;
 use hkask_types::capability::tokens::{ConsolidationToken, IssuerVerification};
-use hkask_types::ports::{ConsolidationOutcome, ConsolidationPort};
+use hkask_types::ports::{ConsolidationOutcome, ConsolidationPort, ConsolidationRequest};
 
 /// Consolidation Bridge — Episodic → Semantic
 ///
@@ -41,6 +41,7 @@ pub(crate) enum ConsolidationError {
 #[derive(Debug, Clone)]
 pub(crate) struct ConsolidationResult {
     pub consolidated_count: usize,
+    pub deleted_count: usize,
     pub failed_count: usize,
 }
 
@@ -59,21 +60,21 @@ impl ConsolidationBridge {
     pub(crate) fn consolidate(
         &self,
         perspective: WebID,
-        limit: usize,
+        request: ConsolidationRequest,
     ) -> Result<ConsolidationResult, ConsolidationError> {
         let span = tracing::span!(target: "cns.consolidation", tracing::Level::INFO, "consolidate");
         let _enter = span.enter();
 
         let candidates = self
             .episodic
-            .consolidation_candidates(perspective, limit)
+            .consolidation_candidates(perspective, request.limit)
             .map_err(|e| ConsolidationError::Episodic(e.to_string()))?;
 
         tracing::info!(
             target: "cns.consolidation",
             perspective = %perspective,
             candidate_count = candidates.len(),
-            limit,
+            limit = request.limit,
             "Starting consolidation"
         );
 
@@ -131,6 +132,7 @@ impl ConsolidationBridge {
 
         Ok(ConsolidationResult {
             consolidated_count,
+            deleted_count: 0, // bridge doesn't handle semantic cleanup
             failed_count,
         })
     }
@@ -141,7 +143,7 @@ impl ConsolidationPort for ConsolidationBridge {
         &self,
         token: &ConsolidationToken,
         perspective: &WebID,
-        limit: usize,
+        request: ConsolidationRequest,
     ) -> Result<ConsolidationOutcome, String> {
         // Verify the token issuer matches the expected curator
         let expected_curator = hkask_types::id::WebID::from_persona(b"curator");
@@ -150,10 +152,19 @@ impl ConsolidationPort for ConsolidationBridge {
                 ConsolidationError::UnauthorizedToken(token.issuer().to_string()).to_string(),
             );
         }
-        let result = ConsolidationBridge::consolidate(self, *perspective, limit)
-            .map_err(|e| e.to_string())?;
+        let result = ConsolidationBridge::consolidate(
+            self,
+            *perspective,
+            ConsolidationRequest {
+                limit: request.limit,
+                confidence_floor: None, // bridge doesn't handle cleanup
+                max_semantic_triples: None,
+            },
+        )
+        .map_err(|e| e.to_string())?;
         Ok(ConsolidationOutcome {
             consolidated_count: result.consolidated_count,
+            deleted_count: 0, // bridge doesn't handle semantic cleanup
             failed_count: result.failed_count,
         })
     }

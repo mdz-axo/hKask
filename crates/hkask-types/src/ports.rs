@@ -523,10 +523,40 @@ pub trait StandingSessionPort: Send + Sync {
 
 use crate::capability::tokens::ConsolidationToken;
 
+/// Parameters for a user-triggered consolidation operation.
+///
+/// Controls both the episodic→semantic promotion and the semantic cleanup
+/// that follows. All parameters except `limit` are optional — defaults
+/// match the `SemanticLoop` constants.
+#[derive(Debug, Clone)]
+pub struct ConsolidationRequest {
+    /// Maximum episodic triples to consolidate (default: 100).
+    pub limit: usize,
+    /// Confidence floor for semantic cleanup — semantic triples at or below
+    /// this confidence are deleted after consolidation. Overrides the
+    /// `SemanticLoop`'s default threshold (0.33).
+    pub confidence_floor: Option<f64>,
+    /// Maximum semantic triples to retain after consolidation. If
+    /// semantic memory exceeds this count, lowest-confidence triples
+    /// are deleted to bring it within budget.
+    pub max_semantic_triples: Option<usize>,
+}
+
+impl Default for ConsolidationRequest {
+    fn default() -> Self {
+        Self {
+            limit: 100,
+            confidence_floor: None,
+            max_semantic_triples: None,
+        }
+    }
+}
+
 /// Result of a consolidation operation (mirrors ConsolidationResult from hkask-memory)
 #[derive(Debug, Clone)]
 pub struct ConsolidationOutcome {
     pub consolidated_count: usize,
+    pub deleted_count: usize,
     pub failed_count: usize,
 }
 
@@ -540,7 +570,7 @@ pub struct ConsolidationOutcome {
 /// Implementations:
 /// - `ConsolidationBridge` — Production implementation (in hkask-memory)
 pub trait ConsolidationPort: Send + Sync {
-    /// Consolidate up to `limit` episodic triples for the given perspective.
+    /// Consolidate episodic triples for the given perspective.
     ///
     /// Requires a `ConsolidationToken` proving Cybernetics authority.
     /// The one-way bridge cannot be traversed without this token.
@@ -548,7 +578,7 @@ pub trait ConsolidationPort: Send + Sync {
         &self,
         token: &ConsolidationToken,
         perspective: &WebID,
-        limit: usize,
+        request: ConsolidationRequest,
     ) -> Result<ConsolidationOutcome, String>;
 
     /// Count episodic triples eligible for consolidation for the given perspective.

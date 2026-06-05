@@ -131,7 +131,7 @@ CREATE INDEX idx_triples_tx ON triples(tx_from, tx_to);
 | **Episodic** | `agent_id` | Private | Triples with agent-scoped valid time |
 | **Semantic** | null (global) | Public | Triples without agent scoping |
 
-**Implementation:** `hkask-memory` (695 LOC) — semantic/episodic pipeline
+**Implementation:** `hkask-memory` (695 LOC) — semantic/episodic pipeline (memory consolidation: episodic → semantic)
 
 ---
 
@@ -339,7 +339,7 @@ This spec's content maps to the [6-loop authority model](loop-architecture.md) a
 
 | Spec Domain | Loop | Rationale |
 |------------|------|-----------|
-| SQLite + SQLCipher | Episodic (Loop 2a) + Semantic (Loop 2b) | Storage is split by visibility: private → Episodic, shared → Semantic |
+| SQLite + SQLCipher | Episodic (Loop 2a) + Semantic (Loop 2b) | Storage is split by visibility: private → Episodic, shared → Semantic. Consolidation bridges episodic → semantic. |
 | Bitemporal triples | Episodic (Loop 2a) + Semantic (Loop 2b) | Temporal validity spans both memory systems |
 | Embeddings | Semantic Memory (Loop 2b) | Vector similarity is shared knowledge retrieval |
 | Bootstrap sequence | All loops | System startup initializes all loops in dependency order |

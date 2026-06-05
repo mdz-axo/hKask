@@ -29,7 +29,7 @@
 |-------|---------|
 | `hkask-types` | ID types, ν-event, hLexicon |
 | `hkask-storage` | SQLite + SQLCipher + sqlite-vec |
-| `hkask-memory` | Semantic/episodic pipelines |
+| `hkask-memory` | Semantic/episodic pipelines (memory consolidation: episodic → semantic) |
 | `hkask-cns` | Cybernetic Nervous System (homeostatic self-regulation) |
 | `hkask-templates` | Registry, hLexicon, cascade |
 | `hkask-agents` | Pods, ACP, bot/replicant, Curation Loop, Curator Agent |

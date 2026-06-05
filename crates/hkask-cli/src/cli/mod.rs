@@ -161,6 +161,31 @@ pub enum Commands {
     /// List available LLM models
     Models,
 
+    /// Trigger episodic→semantic consolidation with optional semantic cleanup
+    Consolidate {
+        /// Agent name or WebID whose episodic memory to consolidate
+        #[arg(short, long)]
+        agent: Option<String>,
+
+        /// Maximum episodic triples to consolidate (default: 100)
+        #[arg(short, long, default_value = "100")]
+        limit: usize,
+
+        /// Confidence floor — semantic triples at or below this confidence
+        /// are deleted after consolidation (default: SemanticLoop threshold, 0.33)
+        #[arg(long)]
+        confidence_floor: Option<f64>,
+
+        /// Maximum semantic triples to retain after consolidation.
+        /// If exceeded, lowest-confidence triples are deleted.
+        #[arg(long)]
+        max_semantic_triples: Option<usize>,
+
+        /// Database passphrase for authorization (required for agent-scoped consolidation)
+        #[arg(long)]
+        passphrase: Option<String>,
+    },
+
     /// Run the 6-loop regulation system
     Loops,
 

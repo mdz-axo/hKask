@@ -161,6 +161,12 @@ pub(super) const SLASH_COMMANDS: &[SlashCommand] = &[
         args: "[SKILL1 SKILL2 ...] | list | off | skills",
         about: "Compose, apply, or manage skill bundles",
     },
+    SlashCommand {
+        primary: "consolidate",
+        aliases: &["cons"],
+        args: "[LIMIT] [--floor CONFIDENCE] [--max MAX_TRIPLES]",
+        about: "Trigger episodic→semantic consolidation with optional semantic cleanup",
+    },
 ];
 
 pub(super) fn find_command(input: &str) -> Option<&'static SlashCommand> {
@@ -491,6 +497,14 @@ pub(super) fn handle_slash_command(
         "hhh" | "alignment" | "align" => {
             handle_hhh(arg1, state);
         }
+        "consolidate" | "cons" => {
+            let cons_arg = if arg2.is_empty() {
+                arg1.to_string()
+            } else {
+                format!("{} {}", arg1, arg2)
+            };
+            super::handlers::handle_consolidate(&cons_arg, state, rt);
+        }
         "bundle" | "b" => {
             // /bundle [SKILL1 SKILL2 ...] | list | off | skills
             match arg1 {
@@ -623,6 +637,9 @@ fn handle_hhh(arg: &str, state: &mut super::ReplState) {
     }
     println!();
 }
+
+// ── Consolidation handler (delegated to handlers::consolidation) ──────────────
+// handle_consolidate is provided by super::handlers::handle_consolidate
 
 // ── Inline sub-handlers (small enough to stay here) ────────────────────────
 

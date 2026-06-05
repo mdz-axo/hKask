@@ -5,6 +5,7 @@ mod bots;
 mod bundles;
 mod chat;
 mod cns;
+mod consolidation;
 mod curator;
 mod ensemble;
 mod episodic;
@@ -24,6 +25,7 @@ pub use bots::bots_router;
 pub use bundles::bundles_router;
 pub use chat::chat_router;
 pub use cns::cns_router;
+pub use consolidation::consolidation_router;
 pub use curator::curator_router;
 pub use ensemble::ensemble_router;
 pub use episodic::episodic_router;
@@ -70,3 +72,14 @@ pub use spec::{
     SpecValidateRequest, SpecValidateResponse,
 };
 pub use templates::{GrantCapabilityRequest, TemplateResponse};
+
+// Shared helpers
+
+/// Build a JSON error response value with `status`, `code`, and `message` fields.
+pub fn error_response(code: u16, message: &str) -> serde_json::Value {
+    serde_json::json!({
+        "status": "error",
+        "code": code,
+        "message": message,
+    })
+}

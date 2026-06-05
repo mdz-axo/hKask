@@ -20,7 +20,7 @@ use chrono::Utc;
 use hkask_types::loops::curation::{CuratorDirective, CuratorHandle};
 use hkask_types::loops::dispatch::{LoopMessage, LoopPayload};
 use hkask_types::loops::{Deviation, HkaskLoop, LoopAction, LoopId, Signal};
-use hkask_types::ports::ConsolidationPort;
+use hkask_types::ports::{ConsolidationPort, ConsolidationRequest};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::{RwLock, mpsc};
@@ -471,7 +471,14 @@ impl HkaskLoop for CurationLoop {
                                 let handle = self.context.handle();
                                 let token = handle.issue_consolidation_token();
                                 let curator_id = handle.curator_id();
-                                match consolidation.consolidate(&token, curator_id, 100) {
+                                match consolidation.consolidate(
+                                    &token,
+                                    curator_id,
+                                    ConsolidationRequest {
+                                        limit: 100,
+                                        ..Default::default()
+                                    },
+                                ) {
                                     Ok(outcome) if outcome.consolidated_count > 0 => {
                                         tracing::info!(
                                             target: "curation.loop",

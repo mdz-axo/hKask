@@ -25,7 +25,7 @@ ddmvss_categories: [capability, observability]
 | `hkask-mcp-rss-reader` | 1,443 | 12 | **Full** | Complete RSS feed management with SQLite persistence |
 | `hkask-mcp-spec` | 853 | 8 | **Full** | 8 DDMVSS spec tools (capture, decompose, curate, validate) |
 | `hkask-mcp-goal` | ~235 | 3 | **Full** | Goal coordination substrate (OCAP-gated, CNS-observed); CLI/API/MCP parity |
-| `hkask-mcp-condenser` | 761 | 5 | **Full** | Context reranking and condensation algorithms |
+| `hkask-mcp-condenser` | 761 | 5 | **Full** | Context condensation (reranking and compression of the active conversation window) |
 | `hkask-mcp-web` | 3,389 | 5 | **Full** | Search, scrape, extract with SSRF protection |
 | `hkask-mcp-keystore` | 529 | 6 | **Full** | OS keychain with AES-256-GCM vault persistence |
 | `hkask-mcp-github` | 459 | 8 | **Full** | GitHub API integration |
@@ -77,8 +77,8 @@ ddmvss_categories: [capability, observability]
 
 ### `hkask-mcp-condenser` (761 LOC, 5 tools)
 - **Status:** Full
-- **Tools:** Context reranking, condensation, deduplication algorithms
-- **Notes:** Multiple condensation strategies (rank, compress, deduplicate). Configurable via parameters.
+- **Tools:** Context condensation (reranking, compression, deduplication of the active conversation window)
+- **Notes:** Multiple condensation strategies (rank, compress, deduplicate). Configurable via parameters. Context is ephemeral; memory is consolidated separately via the consolidation bridge.
 
 ### `hkask-mcp-web` (3,389 LOC, 5 tools)
 - **Status:** Full

@@ -1,0 +1,91 @@
+//! Consolidation command — user-triggered episodic→semantic consolidation + semantic cleanup
+
+use std::sync::Arc;
+
+use hkask_memory::{ConsolidationBridge, ConsolidationService, EpisodicMemory, SemanticMemory};
+use hkask_storage::{EmbeddingStore, TripleStore};
+use hkask_types::WebID;
+use hkask_types::loops::CuratorHandle;
+use hkask_types::ports::{ConsolidationPort, ConsolidationRequest};
+
+pub fn run(
+    db: &hkask_storage::Database,
+    agent: Option<&str>,
+    limit: usize,
+    confidence_floor: Option<f64>,
+    max_semantic_triples: Option<usize>,
+    passphrase: Option<&str>,
+) {
+    let conn = db.conn_arc();
+
+    // Build memory infrastructure
+    let triple_store = TripleStore::new(Arc::clone(&conn));
+    let episodic_memory = Arc::new(EpisodicMemory::new(triple_store));
+    let triple_store2 = TripleStore::new(Arc::clone(&conn));
+    let embedding_store = EmbeddingStore::new(conn);
+    let semantic_memory = Arc::new(SemanticMemory::new(triple_store2, embedding_store));
+
+    // Build consolidation bridge + service
+    let bridge = Arc::new(ConsolidationBridge::new(
+        Arc::clone(&episodic_memory),
+        Arc::clone(&semantic_memory),
+    ));
+    let handle = CuratorHandle::system();
+    let token = handle.issue_consolidation_token();
+    let service =
+        ConsolidationService::new(bridge as Arc<dyn ConsolidationPort>, semantic_memory, token);
+
+    // Resolve perspective WebID
+    let perspective = match agent {
+        Some(name) => WebID::from_persona(name.as_bytes()),
+        None => handle.curator_id().clone(),
+    };
+
+    // Passphrase verification (if agent is specified)
+    if agent.is_some() {
+        if let Some(provided) = passphrase {
+            let db_passphrase =
+                std::env::var("HKASK_DB_PASSPHRASE").expect("HKASK_DB_PASSPHRASE not set");
+            if provided != db_passphrase {
+                eprintln!("Error: Passphrase verification failed");
+                std::process::exit(1);
+            }
+        } else {
+            eprintln!("Error: --passphrase is required when specifying an agent");
+            std::process::exit(1);
+        }
+    }
+
+    // Report pre-consolidation state
+    let candidates = service.consolidation_candidate_count(&perspective);
+    let semantic_count = service.semantic_triple_count();
+    println!("Pre-consolidation state:");
+    println!("  Consolidation candidates: {}", candidates);
+    println!("  Semantic triple count: {}", semantic_count);
+
+    // Execute consolidation
+    let request = ConsolidationRequest {
+        limit,
+        confidence_floor,
+        max_semantic_triples,
+    };
+
+    match service.consolidate(&perspective, request) {
+        Ok(outcome) => {
+            println!("\nConsolidation complete:");
+            println!("  Consolidated: {}", outcome.consolidated_count);
+            println!("  Deleted: {}", outcome.deleted_count);
+            if outcome.failed_count > 0 {
+                println!("  Failed: {}", outcome.failed_count);
+            }
+            println!(
+                "  Post-consolidation semantic count: {}",
+                service.semantic_triple_count()
+            );
+        }
+        Err(e) => {
+            eprintln!("Consolidation failed: {}", e);
+            std::process::exit(1);
+        }
+    }
+}

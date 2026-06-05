@@ -33,7 +33,7 @@ ddmvss_categories: [capability, interface]
 | 9 | `hkask-mcp-spec` | 8 | 5 | DDMVSS specification |
 | 10 | `hkask-mcp-git` | 5 | 5 | Git CAS operations |
 | 11 | `hkask-mcp-replicant` | 3 | 5 | Replicant chat bridge |
-| 12 | `hkask-mcp-condenser` | 6 | 10 | Context reranking |
+| 12 | `hkask-mcp-condenser` | 6 | 10 | Context condensation |
 | 13 | `hkask-mcp-rss-reader` | 12 | 20 | RSS feed management |
 | 14 | `hkask-mcp-github` | 8 | 30 | GitHub API |
 | 15 | `hkask-mcp-fmp` | 11 | 40 | Financial data (FMP) |
@@ -169,7 +169,9 @@ These tools operate on hKask internal state — no external API calls, no rate l
 
 ## Moderate-Cost Tools (Gas 10)
 
-### `hkask-mcp-condenser` — Context Reranking (6 tools)
+### `hkask-mcp-condenser` — Context Condensation (6 tools)
+
+> **Context** is **condensed**; **memory** is **consolidated**. The condenser operates on the ephemeral conversation/tool-output window, not on persistent episodic/semantic triples.
 
 | Tool | Description |
 |------|-------------|

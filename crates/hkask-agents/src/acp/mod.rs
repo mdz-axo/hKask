@@ -196,7 +196,7 @@ impl AcpRuntime {
     ///
     /// Derived keys are cached for reuse. The master key can still derive any
     /// agent's key (root authority).
-    pub(crate) async fn derive_agent_secret(&self, agent_webid: &WebID) -> AgentSecret {
+    pub async fn derive_agent_secret(&self, agent_webid: &WebID) -> AgentSecret {
         // Check cache first
         {
             let cache = self.agent_secrets.read().await;

@@ -133,9 +133,13 @@ pub struct ApiState {
     pub cns_runtime: Arc<CnsRuntime>,
     /// General-purpose inference port (shared across requests)
     pub inference_port: Option<Arc<dyn hkask_types::ports::InferencePort>>,
+    /// Consolidation bridge for episodic→semantic promotion
+    pub consolidation_bridge: Arc<ConsolidationBridge>,
+    /// Semantic memory for consolidation cleanup operations
+    pub semantic_memory_for_consolidation: Arc<SemanticMemory>,
 }
 
-/// Build the LoopSystem with all 6 loops.
+/// Build the LoopSystem with all 6 loop.
 ///
 /// Creates CnsRuntime, MessageDispatch, LoopSystem, and registers:
 /// Cybernetics, Episodic, Semantic, and Curation loops.
@@ -152,6 +156,8 @@ fn build_loop_system(
     Arc<LoopSystem>,
     Arc<EpisodicMemory>,
     Arc<tokio::sync::RwLock<CyberneticsLoop>>,
+    Arc<ConsolidationBridge>,
+    Arc<SemanticMemory>,
 ) {
     let loop_system = LoopSystem::new(Arc::clone(&dispatch));
 
@@ -230,8 +236,11 @@ fn build_loop_system(
         Arc::clone(&episodic_memory),
         Arc::clone(&semantic_memory),
     ));
-    let curator_agent =
-        CuratorAgent::with_consolidation(curator_context, Default::default(), consolidation_bridge);
+    let curator_agent = CuratorAgent::with_consolidation(
+        curator_context,
+        Default::default(),
+        Arc::clone(&consolidation_bridge) as Arc<dyn hkask_types::ports::ConsolidationPort>,
+    );
     let curation_loop: Arc<dyn HkaskLoop> = curator_agent.curation_loop().clone();
     rt.block_on(async {
         loop_system.register_loop(curation_loop).await;
@@ -242,6 +251,8 @@ fn build_loop_system(
         Arc::new(loop_system),
         episodic_memory_api,
         cybernetics_loop_rwlock,
+        consolidation_bridge,
+        semantic_memory,
     )
 }
 
@@ -317,7 +328,13 @@ impl ApiState {
         let cns_event_sink: Arc<dyn NuEventSink> =
             Arc::new(hkask_storage::NuEventStore::new(cns_event_conn));
 
-        let (loop_system, episodic_memory, cybernetics_loop_rwlock) = build_loop_system(
+        let (
+            loop_system,
+            episodic_memory,
+            cybernetics_loop_rwlock,
+            consolidation_bridge,
+            semantic_memory_for_consolidation,
+        ) = build_loop_system(
             Arc::clone(&escalation_queue),
             dispatch,
             inference_port,
@@ -411,6 +428,8 @@ impl ApiState {
             episodic_memory,
             cns_runtime: Arc::new(CnsRuntime::with_threshold(hkask_cns::DEFAULT_THRESHOLD)),
             inference_port,
+            consolidation_bridge,
+            semantic_memory_for_consolidation,
         }
     }
 
@@ -576,6 +595,20 @@ impl ApiState {
         tracing::info!(target: "hkask.api", "Shutting down loop system");
         self.loop_system.shutdown();
     }
+
+    /// Create a ConsolidationService for user-triggered consolidation.
+    ///
+    /// Uses the system CuratorHandle to mint the required token.
+    pub fn consolidation_service(&self) -> hkask_memory::ConsolidationService {
+        let handle = hkask_types::loops::CuratorHandle::system();
+        let token = handle.issue_consolidation_token();
+        hkask_memory::ConsolidationService::new(
+            Arc::clone(&self.consolidation_bridge)
+                as Arc<dyn hkask_types::ports::ConsolidationPort>,
+            Arc::clone(&self.semantic_memory_for_consolidation),
+            token,
+        )
+    }
 }
 
 /// Resolve the SOAP capability secret through the keystore's domain-specific
@@ -629,6 +662,7 @@ pub fn create_router(state: ApiState) -> Result<OpenApiRouter, String> {
         .merge(routes::spec_router().into())
         .merge(routes::curator_router().into())
         .merge(routes::episodic_router().into())
+        .merge(routes::consolidation_router().into())
         .merge(routes::git_router().into())
         .merge(routes::goal_router().into())
         .layer(axum::middleware::from_fn_with_state(

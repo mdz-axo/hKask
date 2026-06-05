@@ -413,18 +413,11 @@ impl SemanticMemory {
     // Deletion (Loop 2b) — Cybernetics membrane operation
     // ========================================================================
 
-    /// Delete a semantic triple by ID (budget enforcement).
+    /// Delete a semantic triple by ID (budget enforcement / consolidation cleanup).
     ///
-    /// When the semantic storage budget is exceeded, lowest-confidence triples
-    /// are deleted outright. Unlike the removed retraction approach (which
-    /// halved confidence and left zombie triples), deletion is honest and
-    /// keeps the store clean.
-    ///
-    /// **Membrane-sealed:** Only callable from within this crate.
-    pub(crate) fn delete_triple(
-        &self,
-        id: &hkask_storage::TripleID,
-    ) -> Result<(), SemanticMemoryError> {
+    /// When the semantic storage budget is exceeded or consolidation cleanup
+    /// targets low-confidence triples, they are deleted outright.
+    pub fn delete_triple(&self, id: &hkask_storage::TripleID) -> Result<(), SemanticMemoryError> {
         tracing::info!(
             target: "cns.semantic",
             triple_id = %id,
@@ -442,9 +435,7 @@ impl SemanticMemory {
     ///
     /// Returns up to `limit` triples with `perspective IS NULL`, ordered by
     /// confidence ascending then `valid_from` ascending (oldest first).
-    ///
-    /// **Membrane-sealed:** Only callable from within this crate.
-    pub(crate) fn lowest_confidence_triples(
+    pub fn lowest_confidence_triples(
         &self,
         limit: usize,
     ) -> Result<Vec<Triple>, SemanticMemoryError> {
@@ -453,13 +444,9 @@ impl SemanticMemory {
 
     /// Count semantic triples at or below a confidence threshold.
     ///
-    /// Used by `SemanticLoop::sense()` for the consolidation trigger signal.
-    ///
-    /// **Membrane-sealed:** Only callable from within this crate.
-    pub(crate) fn low_confidence_count(
-        &self,
-        threshold: f64,
-    ) -> Result<usize, SemanticMemoryError> {
+    /// Used by `SemanticLoop::sense()` and `ConsolidationService`
+    /// for the consolidation trigger signal.
+    pub fn low_confidence_count(&self, threshold: f64) -> Result<usize, SemanticMemoryError> {
         Ok(self
             .triple_store
             .count_semantic_below_confidence(threshold)?)
@@ -470,10 +457,9 @@ impl SemanticMemory {
     /// Returns up to `limit` triples with `confidence <= threshold`,
     /// ordered by confidence ascending then `valid_from` ascending.
     ///
-    /// Used by `SemanticLoop::act()` for the consolidation trigger.
-    ///
-    /// **Membrane-sealed:** Only callable from within this crate.
-    pub(crate) fn low_confidence_triples(
+    /// Used by `SemanticLoop::act()` and `ConsolidationService`
+    /// for the consolidation trigger.
+    pub fn low_confidence_triples(
         &self,
         threshold: f64,
         limit: usize,

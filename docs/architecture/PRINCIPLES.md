@@ -72,7 +72,7 @@ status: VERIFIED
 
 **Enabled (15):**
 - `hkask-mcp-inference` — Okapi LLM inference
-- `hkask-mcp-condenser` — General-purpose context reranking and condensation
+- `hkask-mcp-condenser` — Context condensation (reranking and compression of the active conversation window)
 - `hkask-mcp-web` — Search, scrape, extract
 - `hkask-mcp-ocap` — Capability management
 - `hkask-mcp-keystore` — OS keychain

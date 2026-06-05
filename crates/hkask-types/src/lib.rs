@@ -40,8 +40,9 @@ pub use agent_def::{
 pub use audit::{AuditEntry, AuditLogPort, AuditOutcome};
 pub use bundle::{
     BundleComplementarity, BundleConflict, BundleDependencyIndex, BundleManifest,
-    BundleManifestStep, BundleSkillChange, CascadePhase, ComplementarityType, CompositionError,
-    ConflictResolution, ConflictType, GasConfig, SkillPolarity, ValidationResult, VersionBump,
+    BundleManifestStep, BundleSkill, BundleSkillChange, CascadePhase, ComplementarityType,
+    CompositionError, ConflictResolution, ConflictType, GasConfig, SkillPolarity, ValidationResult,
+    VersionBump,
 };
 pub use capability::tokens::ConsolidationToken;
 pub use capability::{
@@ -50,6 +51,7 @@ pub use capability::{
     SYSTEM_MAX_ATTENUATION, SYSTEM_MAX_RECURSION,
 };
 pub use cns::{CircuitState, CnsHealth};
+pub use curation::{CurationDecision, OCAPBoundary};
 pub use error::{GitError, HkaskError, InfrastructureError, McpErrorKind};
 pub use event::{NuEvent, NuEventSink};
 pub use goal::*;
@@ -63,7 +65,7 @@ pub use loops::{
 };
 pub use ports::{
     BackpressureSignal, BundleRegistryIndex, CircuitBreakerPort, CnsObserver, CnsPort,
-    ConsolidationOutcome, ConsolidationPort, DepletionSignal, EmbeddingError,
+    ConsolidationOutcome, ConsolidationPort, ConsolidationRequest, DepletionSignal, EmbeddingError,
     EmbeddingGenerationError, EmbeddingGenerationPort, EmbeddingPort, GitCASPort, InferenceError,
     InferencePort, InferenceResult, InferenceUsage, MessageRecord, RegistryEntry, RegistryError,
     RegistryIndex, SessionRecord, SessionStoreError, SimilarityResult, Skill, SkillRegistryIndex,

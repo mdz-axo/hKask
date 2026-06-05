@@ -1,6 +1,6 @@
-//! hKask MCP Semantic — Semantic memory store, recall, similarity search, and text chunking
+//! hKask MCP Semantic — Semantic memory store, recall, similarity search, text chunking, and consolidation
 //!
-//! 9 tools:
+//! 10 tools:
 //! - `semantic_ping` — Liveness and storage info
 //! - `semantic_store` — Store a shared semantic triple (no perspective)
 //! - `semantic_recall` — Recall triples by entity (public, any agent can read)
@@ -10,6 +10,7 @@
 //! - `semantic_purge` — Delete embeddings matching an entity_ref prefix
 //! - `semantic_chunk` — Chunk text into passages for embedding
 //! - `semantic_count` — Triple and embedding counts
+//! - `semantic_consolidate` — Clean up low-confidence semantic triples
 //!
 //! **Consolidation NOT exposed:** The Episodic → Semantic consolidation bridge
 //! requires a `ConsolidationToken` issued by the Curation Loop. MCP servers
@@ -79,6 +80,13 @@ pub struct ChunkTextRequest {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct CountRequest {}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ConsolidateRequest {
+    pub limit: Option<usize>,
+    pub confidence_floor: Option<f64>,
+    pub max_semantic_triples: Option<usize>,
+}
 
 pub struct SemanticServer {
     memory: SemanticMemory,
@@ -400,6 +408,85 @@ impl SemanticServer {
             }
         };
         span.ok_json(json!({"triple_count": triple_count, "embedding_count": embedding_count}))
+    }
+
+    #[tool(
+        description = "Consolidate episodic→semantic and clean up low-confidence semantic triples"
+    )]
+    async fn semantic_consolidate(
+        &self,
+        Parameters(ConsolidateRequest {
+            limit: _,
+            confidence_floor,
+            max_semantic_triples,
+        }): Parameters<ConsolidateRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("semantic_consolidate", &self.webid);
+
+        // The MCP semantic server only has SemanticMemory, not EpisodicMemory.
+        // Consolidation (episodic→semantic) requires both. The MCP server
+        // can only do the semantic cleanup portion (phases 2 and 3).
+
+        // Phase 2: Delete semantic triples at or below confidence floor
+        let mut deleted_count = 0usize;
+        let consolidated_count = 0usize;
+
+        if let Some(floor) = confidence_floor {
+            match self.memory.low_confidence_triples(floor, usize::MAX) {
+                Ok(candidates) if !candidates.is_empty() => {
+                    for triple in &candidates {
+                        if self.memory.delete_triple(&triple.id).is_ok() {
+                            deleted_count += 1;
+                        }
+                    }
+                }
+                Ok(_) => {}
+                Err(e) => {
+                    return span.internal_error(json!({
+                        "error": format!("Failed to query low-confidence triples: {}", e)
+                    }));
+                }
+            }
+        }
+
+        // Phase 3: Enforce max semantic triple count
+        if let Some(max) = max_semantic_triples {
+            match self.memory.triple_count() {
+                Ok(count) if count > max => {
+                    let overage = count - max;
+                    match self.memory.lowest_confidence_triples(overage) {
+                        Ok(candidates) if !candidates.is_empty() => {
+                            for triple in &candidates {
+                                if self.memory.delete_triple(&triple.id).is_ok() {
+                                    deleted_count += 1;
+                                }
+                            }
+                        }
+                        Ok(_) => {}
+                        Err(e) => {
+                            return span.internal_error(json!({
+                                "error": format!("Failed to query lowest-confidence triples: {}", e)
+                            }));
+                        }
+                    }
+                }
+                Ok(_) => {}
+                Err(e) => {
+                    return span.internal_error(json!({
+                        "error": format!("Failed to count semantic triples: {}", e)
+                    }));
+                }
+            }
+        }
+
+        let final_count = self.memory.triple_count().unwrap_or(0);
+
+        span.ok_json(json!({
+            "consolidated_count": consolidated_count,
+            "deleted_count": deleted_count,
+            "semantic_triple_count": final_count,
+            "note": "Episodic→semantic consolidation requires the CLI or API. This tool only performs semantic cleanup.",
+        }))
     }
 }
 

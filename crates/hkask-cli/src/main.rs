@@ -81,6 +81,37 @@ fn main() {
 
         Commands::Models => commands::models::run(&rt),
 
+        Commands::Consolidate {
+            agent,
+            limit,
+            confidence_floor,
+            max_semantic_triples,
+            passphrase,
+        } => {
+            use hkask_cli::commands::config::{registry_db_path, resolve_db_passphrase};
+            let db_path = registry_db_path();
+            let db_passphrase = commands::helpers::or_exit(
+                resolve_db_passphrase(),
+                "Failed to resolve DB passphrase",
+            );
+            let db = commands::helpers::or_exit(
+                if db_path == ":memory:" {
+                    hkask_storage::Database::in_memory()
+                } else {
+                    hkask_storage::Database::open(&db_path, &db_passphrase)
+                },
+                "Failed to open database",
+            );
+            commands::consolidation::run(
+                &db,
+                agent.as_deref(),
+                limit,
+                confidence_floor,
+                max_semantic_triples,
+                passphrase.as_deref(),
+            )
+        }
+
         Commands::Loops => commands::loops::run(&rt),
 
         Commands::WebSearch { query, max_results } => {

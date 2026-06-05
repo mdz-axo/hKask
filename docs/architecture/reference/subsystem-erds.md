@@ -1089,7 +1089,7 @@ erDiagram
 
     CONDENSER_SERVER {
         string id "hkask-mcp-condenser"
-        string purpose "General-purpose context reranking and condensation"
+        string purpose "Context condensation (reranking and compression of the active conversation window)"
     }
 
     WEB_SERVER {

@@ -107,6 +107,8 @@ hKask decomposes into six loops organized in two layers plus shared infrastructu
 
 **Domain Loops** — value-producing, each owns a bounded resource and a transformation:
 
+> **Terminology:** *Context* is **condensed** (ephemeral conversation window, handled by the condenser server). *Memory* is **consolidated** (persistent episodic → semantic triples, handled by the consolidation bridge). These are distinct operations on distinct substrates.
+
 | Loop | Owns | Transforms |
 |------|------|------------|
 | **Inference Loop** | LLM call budget, token flow | Prompts → Completions |

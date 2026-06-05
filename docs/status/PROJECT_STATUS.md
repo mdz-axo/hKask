@@ -95,7 +95,7 @@ hKask (ℏKask - "A Minimal Viable Container for Agents") is a **minimal agent-n
 | Server | LOC | Status | Purpose |
 |--------|-----|--------|---------|
 | `hkask-mcp-inference` | 391 | ✅ Complete | Okapi LLM inference |
-| `hkask-mcp-condenser` | 761 | ⚠️ Stub | General-purpose context reranking and condensation |
+| `hkask-mcp-condenser` | 761 | ⚠️ Stub | Context condensation (reranking and compression of the active conversation window) |
 | `hkask-mcp-web` | 3,389 | ⚠️ Stub | Web search, scrape |
 | `hkask-mcp-ocap` | 319 | ✅ Complete | Capability management |
 | `hkask-mcp-keystore` | 529 | ✅ Complete | Keystore operations |
