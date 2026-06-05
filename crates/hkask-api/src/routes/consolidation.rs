@@ -2,7 +2,7 @@
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use axum::{Extension, Json, extract::State};
+use axum::{Extension, Json, extract::State, http::StatusCode, response::IntoResponse};
 use hkask_types::WebID;
 use hkask_types::ports::ConsolidationRequest;
 use serde::{Deserialize, Serialize};
@@ -27,7 +27,7 @@ const CONSOLIDATION_MIN_INTERVAL_SECS: u64 = 30;
 /// headless system, this is sufficient.
 static LAST_CONSOLIDATION_EPOCH_SECS: AtomicU64 = AtomicU64::new(0);
 
-fn check_rate_limit() -> Result<(), axum::Json<serde_json::Value>> {
+fn check_rate_limit() -> Result<(), (StatusCode, Json<serde_json::Value>)> {
     let now_secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -35,10 +35,13 @@ fn check_rate_limit() -> Result<(), axum::Json<serde_json::Value>> {
     let prev = LAST_CONSOLIDATION_EPOCH_SECS.load(Ordering::Relaxed);
     if prev != 0 && now_secs.saturating_sub(prev) < CONSOLIDATION_MIN_INTERVAL_SECS {
         let remaining = CONSOLIDATION_MIN_INTERVAL_SECS - now_secs.saturating_sub(prev);
-        Err(axum::Json(error_response(
-            429,
-            &format!("Rate limited: try again in {}s", remaining),
-        )))
+        Err((
+            StatusCode::TOO_MANY_REQUESTS,
+            Json(error_response(
+                429,
+                &format!("Rate limited: try again in {}s", remaining),
+            )),
+        ))
     } else {
         LAST_CONSOLIDATION_EPOCH_SECS.store(now_secs, Ordering::Relaxed);
         Ok(())
@@ -101,21 +104,25 @@ async fn consolidate(
     State(state): State<ApiState>,
     Extension(_auth): Extension<crate::middleware::auth::AuthContext>,
     Json(req): Json<ConsolidateRequest>,
-) -> axum::Json<serde_json::Value> {
+) -> impl axum::response::IntoResponse {
     // Rate-limit: Argon2id derivation is ~100ms CPU per request.
     // Prevent CPU DoS by enforcing a minimum interval between calls.
     if let Err(rate_limit_response) = check_rate_limit() {
-        return rate_limit_response;
+        return rate_limit_response.into_response();
     }
 
     // Parse agent WebID
     let webid = match uuid::Uuid::parse_str(&req.agent_webid) {
         Ok(id) => WebID(id),
         Err(_) => {
-            return axum::Json(error_response(
-                400,
-                "Invalid agent_webid: must be a valid UUID",
-            ));
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(error_response(
+                    400,
+                    "Invalid agent_webid: must be a valid UUID",
+                )),
+            )
+                .into_response();
         }
     };
 
@@ -127,7 +134,11 @@ async fn consolidate(
     let expected = match hkask_keystore::resolve_db_passphrase() {
         Ok(db_pass) => String::from_utf8_lossy(&db_pass).to_string(),
         Err(_) => {
-            return axum::Json(error_response(500, "Server passphrase not configured"));
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(error_response(500, "Server passphrase not configured")),
+            )
+                .into_response();
         }
     };
     let secrets = hkask_keystore::master_key::derive_all_internal_secrets(&req.passphrase);
@@ -137,7 +148,11 @@ async fn consolidate(
             agent_webid = %req.agent_webid,
             "Consolidation rejected: passphrase mismatch"
         );
-        return axum::Json(error_response(401, "Invalid passphrase"));
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(error_response(401, "Invalid passphrase")),
+        )
+            .into_response();
     }
 
     // Build consolidation request
@@ -150,14 +165,19 @@ async fn consolidate(
     // Execute via ConsolidationService
     let service = state.consolidation_service();
     match service.consolidate(&webid, consolidation_request) {
-        Ok(outcome) => axum::Json(
-            serde_json::to_value(ConsolidateResponse {
+        Ok(outcome) => (
+            StatusCode::OK,
+            Json(ConsolidateResponse {
                 consolidated_count: outcome.consolidated_count,
                 deleted_count: outcome.deleted_count,
                 failed_count: outcome.failed_count,
-            })
-            .expect("ConsolidateResponse serialization cannot fail: all fields are usize"),
-        ),
-        Err(e) => axum::Json(error_response(500, &e)),
+            }),
+        )
+            .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(error_response(500, &e)),
+        )
+            .into_response(),
     }
 }

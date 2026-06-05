@@ -52,6 +52,7 @@ pub(crate) fn handle_consolidate(
     };
 
     // Parse optional sub-arguments from "run [--floor F] [--max M] [--limit L]"
+    // Supports both space-delimited (--floor 0.33) and equals-delimited (--floor=0.33)
     let mut confidence_floor: Option<f64> = None;
     let mut max_semantic_triples: Option<usize> = None;
     let mut limit: usize = 100;
@@ -60,56 +61,86 @@ pub(crate) fn handle_consolidate(
     let parts: Vec<&str> = trimmed.split_whitespace().collect();
     let mut i = 0;
     while i < parts.len() {
-        match parts[i] {
+        // Handle --flag=value syntax by splitting on '='
+        let (flag, inline_value) = if parts[i].starts_with('-') && parts[i].contains('=') {
+            let (f, v) = parts[i].split_once('=').unwrap();
+            (f, Some(v.to_string()))
+        } else {
+            (parts[i], None)
+        };
+
+        match flag {
             "run" => { /* skip keyword */ }
             "--floor" | "-f" => {
-                if let Some(v) = parts.get(i + 1) {
-                    match v.parse::<f64>() {
+                let raw_value = inline_value
+                    .as_deref()
+                    .or_else(|| parts.get(i + 1).map(|s| *s));
+                match raw_value {
+                    Some(v) => match v.parse::<f64>() {
                         Ok(val) => confidence_floor = Some(val),
                         Err(_) => {
                             println!("  \x1b[31mError:\x1b[0m Invalid --floor value: '{}'", v);
                             println!("  Expected a number between 0.0 and 1.0");
                             return;
                         }
+                    },
+                    None => {
+                        println!(
+                            "  \x1b[31mError:\x1b[0m --floor requires a value (e.g., --floor 0.33 or --floor=0.33)"
+                        );
+                        return;
                     }
+                }
+                if inline_value.is_none() {
                     i += 1;
-                } else {
-                    println!(
-                        "  \x1b[31mError:\x1b[0m --floor requires a value (e.g., --floor 0.33)"
-                    );
-                    return;
                 }
             }
             "--max" | "-m" => {
-                if let Some(v) = parts.get(i + 1) {
-                    match v.parse::<usize>() {
+                let raw_value = inline_value
+                    .as_deref()
+                    .or_else(|| parts.get(i + 1).map(|s| *s));
+                match raw_value {
+                    Some(v) => match v.parse::<usize>() {
                         Ok(val) => max_semantic_triples = Some(val),
                         Err(_) => {
                             println!("  \x1b[31mError:\x1b[0m Invalid --max value: '{}'", v);
                             println!("  Expected a positive integer");
                             return;
                         }
+                    },
+                    None => {
+                        println!(
+                            "  \x1b[31mError:\x1b[0m --max requires a value (e.g., --max 500 or --max=500)"
+                        );
+                        return;
                     }
+                }
+                if inline_value.is_none() {
                     i += 1;
-                } else {
-                    println!("  \x1b[31mError:\x1b[0m --max requires a value (e.g., --max 500)");
-                    return;
                 }
             }
             "--limit" | "-l" => {
-                if let Some(v) = parts.get(i + 1) {
-                    match v.parse::<usize>() {
+                let raw_value = inline_value
+                    .as_deref()
+                    .or_else(|| parts.get(i + 1).map(|s| *s));
+                match raw_value {
+                    Some(v) => match v.parse::<usize>() {
                         Ok(val) => limit = val,
                         Err(_) => {
                             println!("  \x1b[31mError:\x1b[0m Invalid --limit value: '{}'", v);
                             println!("  Expected a positive integer");
                             return;
                         }
+                    },
+                    None => {
+                        println!(
+                            "  \x1b[31mError:\x1b[0m --limit requires a value (e.g., --limit 50 or --limit=50)"
+                        );
+                        return;
                     }
+                }
+                if inline_value.is_none() {
                     i += 1;
-                } else {
-                    println!("  \x1b[31mError:\x1b[0m --limit requires a value (e.g., --limit 50)");
-                    return;
                 }
             }
             other if other.starts_with("--") || other.starts_with("-") => {
