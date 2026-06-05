@@ -5,7 +5,7 @@
 
 use crate::ports::{RegistryEntry, RegistryIndex, Result, TemplateError};
 use crate::provenance::{ProvenanceManager, TemplateProvenance};
-use hkask_types::ports::SkillRegistryIndex;
+use hkask_types::ports::{BundleRegistryIndex, SkillRegistryIndex};
 use hkask_types::{Skill, TemplateType};
 use rusqlite::{Connection, params};
 
@@ -13,6 +13,8 @@ use rusqlite::{Connection, params};
 type SkillRow = (
     String,
     String,
+    Option<String>,
+    Option<String>,
     Option<String>,
     Option<String>,
     Option<String>,
@@ -134,6 +136,8 @@ impl SqliteRegistry {
                 word_act TEXT,
                 flow_def TEXT,
                 know_act TEXT,
+                polarity TEXT,
+                content_hash TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
 
@@ -147,6 +151,33 @@ impl SqliteRegistry {
 
             CREATE INDEX IF NOT EXISTS idx_skills_domain ON skills(domain);
             CREATE INDEX IF NOT EXISTS idx_skill_cascade ON skill_cascade_order(skill_id);
+
+            CREATE TABLE IF NOT EXISTS bundles (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL,
+                version TEXT NOT NULL,
+                editor TEXT NOT NULL DEFAULT 'curator-or-human-admin',
+                visibility TEXT NOT NULL DEFAULT 'Private',
+                manifest_json TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS bundle_skills (
+                bundle_id TEXT NOT NULL,
+                skill_id TEXT NOT NULL,
+                polarity TEXT,
+                manifest_ref TEXT,
+                content_hash TEXT,
+                position INTEGER NOT NULL,
+                PRIMARY KEY (bundle_id, skill_id),
+                FOREIGN KEY (bundle_id) REFERENCES bundles(id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_bundles_visibility ON bundles(visibility);
+            CREATE INDEX IF NOT EXISTS idx_bundle_skills_bundle ON bundle_skills(bundle_id);
+            CREATE INDEX IF NOT EXISTS idx_bundle_skills_skill ON bundle_skills(skill_id);
             ",
             )
             .map_err(|e| TemplateError::Manifest(format!("Failed to init schema: {}", e)))?;
@@ -413,14 +444,16 @@ impl SkillRegistryIndex for SqliteRegistry {
     fn register_skill(&mut self, skill: Skill) {
         self.conn
             .execute(
-                "INSERT OR REPLACE INTO skills (id, domain, word_act, flow_def, know_act)
-                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                "INSERT OR REPLACE INTO skills (id, domain, word_act, flow_def, know_act, polarity, content_hash)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
                 params![
                     skill.id,
                     skill.domain.as_str(),
                     skill.word_act,
                     skill.flow_def,
                     skill.know_act,
+                    skill.polarity.map(|p| p.as_str()),
+                    skill.content_hash,
                 ],
             )
             .map_err(|e| TemplateError::Manifest(format!("Failed to insert skill: {}", e)))
@@ -477,6 +510,110 @@ impl SkillRegistryIndex for SqliteRegistry {
     }
 }
 
+impl BundleRegistryIndex for SqliteRegistry {
+    fn register_bundle(&mut self, bundle: hkask_types::BundleManifest) {
+        let manifest_json = serde_json::to_string(&bundle).unwrap_or_else(|_| "{}".to_string());
+
+        self.conn
+            .execute(
+                "INSERT OR REPLACE INTO bundles (id, name, description, version, editor, visibility, manifest_json, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, CURRENT_TIMESTAMP)",
+                params![
+                    bundle.id,
+                    bundle.name,
+                    bundle.description,
+                    bundle.version,
+                    bundle.editor,
+                    bundle.visibility.as_str(),
+                    manifest_json,
+                ],
+            )
+            .map_err(|e| {
+                TemplateError::Manifest(format!("Failed to insert bundle: {}", e))
+            })
+            .ok();
+
+        // Delete existing skill references
+        self.conn
+            .execute(
+                "DELETE FROM bundle_skills WHERE bundle_id = ?1",
+                params![bundle.id],
+            )
+            .ok();
+
+        // Insert skill references
+        for (position, skill) in bundle.skills.iter().enumerate() {
+            self.conn
+                .execute(
+                    "INSERT INTO bundle_skills (bundle_id, skill_id, polarity, manifest_ref, content_hash, position)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                    params![
+                        bundle.id,
+                        skill.id,
+                        skill.polarity.map(|p| p.as_str()),
+                        skill.manifest_ref,
+                        skill.content_hash,
+                        position as i64,
+                    ],
+                )
+                .ok();
+        }
+    }
+
+    fn get_bundle(&self, id: &str) -> Option<hkask_types::BundleManifest> {
+        self.conn
+            .query_row(
+                "SELECT manifest_json FROM bundles WHERE id = ?1",
+                params![id],
+                |row| row.get::<_, String>(0),
+            )
+            .ok()
+            .and_then(|json| serde_json::from_str(&json).ok())
+    }
+
+    fn list_bundles(&self) -> Vec<hkask_types::BundleManifest> {
+        let mut stmt = match self.conn.prepare("SELECT manifest_json FROM bundles") {
+            Ok(s) => s,
+            Err(_) => return Vec::new(),
+        };
+
+        stmt.query_map([], |row| row.get::<_, String>(0))
+            .ok()
+            .map(|rows| {
+                rows.filter_map(|r| r.ok())
+                    .filter_map(|json| serde_json::from_str(&json).ok())
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    fn remove_bundle(&mut self, id: &str) -> Option<hkask_types::BundleManifest> {
+        let bundle = self.get_bundle(id);
+        self.conn
+            .execute(
+                "DELETE FROM bundle_skills WHERE bundle_id = ?1",
+                params![id],
+            )
+            .ok();
+        self.conn
+            .execute("DELETE FROM bundles WHERE id = ?1", params![id])
+            .ok();
+        bundle
+    }
+
+    fn find_bundle_by_skills(&self, skill_ids: &[String]) -> Option<hkask_types::BundleManifest> {
+        // Load all bundles and check for exact skill set match in-memory
+        let bundles = self.list_bundles();
+        let target: std::collections::HashSet<&str> =
+            skill_ids.iter().map(|s| s.as_str()).collect();
+        bundles.into_iter().find(|b| {
+            let bundle_skills: std::collections::HashSet<&str> =
+                b.skills.iter().map(|s| s.id.as_str()).collect();
+            bundle_skills == target
+        })
+    }
+}
+
 /// Owned-skill retrieval methods specific to SQLite (no lifetime borrowing)
 impl SqliteRegistry {
     fn row_to_skill(
@@ -486,9 +623,12 @@ impl SqliteRegistry {
         word_act: Option<String>,
         flow_def: Option<String>,
         know_act: Option<String>,
+        polarity_str: Option<String>,
+        content_hash: Option<String>,
     ) -> Option<Skill> {
         let domain = TemplateType::parse_str(&domain_str).unwrap_or(TemplateType::FlowDef);
         let cascade_order = self.cascade_order_for_skill(&id).ok()?;
+        let polarity = polarity_str.and_then(|s| hkask_types::SkillPolarity::parse_str(&s));
         Some(Skill {
             id,
             domain,
@@ -496,6 +636,8 @@ impl SqliteRegistry {
             flow_def,
             know_act,
             cascade_order,
+            polarity,
+            content_hash,
         })
     }
 
@@ -503,7 +645,7 @@ impl SqliteRegistry {
     pub fn get_skill_owned(&self, id: &str) -> Option<Skill> {
         self.conn
             .query_row(
-                "SELECT id, domain, word_act, flow_def, know_act FROM skills WHERE id = ?1",
+                "SELECT id, domain, word_act, flow_def, know_act, polarity, content_hash FROM skills WHERE id = ?1",
                 params![id],
                 |row| {
                     Ok((
@@ -512,21 +654,22 @@ impl SqliteRegistry {
                         row.get::<_, Option<String>>(2)?,
                         row.get::<_, Option<String>>(3)?,
                         row.get::<_, Option<String>>(4)?,
+                        row.get::<_, Option<String>>(5)?,
+                        row.get::<_, Option<String>>(6)?,
                     ))
                 },
             )
             .ok()
-            .and_then(|(id, domain_str, word_act, flow_def, know_act)| {
-                self.row_to_skill(id, domain_str, word_act, flow_def, know_act)
+            .and_then(|(id, domain_str, word_act, flow_def, know_act, polarity_str, content_hash)| {
+                self.row_to_skill(id, domain_str, word_act, flow_def, know_act, polarity_str, content_hash)
             })
     }
 
     /// List all skills (owned)
     pub fn list_skills_owned(&self) -> Vec<Skill> {
-        let mut stmt = match self
-            .conn
-            .prepare("SELECT id, domain, word_act, flow_def, know_act FROM skills")
-        {
+        let mut stmt = match self.conn.prepare(
+            "SELECT id, domain, word_act, flow_def, know_act, polarity, content_hash FROM skills",
+        ) {
             Ok(s) => s,
             Err(_) => return Vec::new(),
         };
@@ -538,6 +681,8 @@ impl SqliteRegistry {
                 row.get(2)?,
                 row.get(3)?,
                 row.get(4)?,
+                row.get(5)?,
+                row.get(6)?,
             ))
         }) {
             Ok(mapped) => mapped.filter_map(|r| r.ok()).collect(),
@@ -545,8 +690,16 @@ impl SqliteRegistry {
         };
 
         let mut skills = Vec::new();
-        for (id, domain_str, word_act, flow_def, know_act) in rows {
-            if let Some(skill) = self.row_to_skill(id, domain_str, word_act, flow_def, know_act) {
+        for (id, domain_str, word_act, flow_def, know_act, polarity_str, content_hash) in rows {
+            if let Some(skill) = self.row_to_skill(
+                id,
+                domain_str,
+                word_act,
+                flow_def,
+                know_act,
+                polarity_str,
+                content_hash,
+            ) {
                 skills.push(skill);
             }
         }
@@ -556,7 +709,7 @@ impl SqliteRegistry {
     /// List skills by domain (owned)
     pub fn skills_by_domain_owned(&self, domain: TemplateType) -> Vec<Skill> {
         let mut stmt = match self.conn.prepare(
-            "SELECT id, domain, word_act, flow_def, know_act FROM skills WHERE domain = ?1",
+            "SELECT id, domain, word_act, flow_def, know_act, polarity, content_hash FROM skills WHERE domain = ?1",
         ) {
             Ok(s) => s,
             Err(_) => return Vec::new(),
@@ -569,6 +722,8 @@ impl SqliteRegistry {
                 row.get(2)?,
                 row.get(3)?,
                 row.get(4)?,
+                row.get(5)?,
+                row.get(6)?,
             ))
         }) {
             Ok(mapped) => mapped.filter_map(|r| r.ok()).collect(),
@@ -576,8 +731,16 @@ impl SqliteRegistry {
         };
 
         let mut skills = Vec::new();
-        for (id, domain_str, word_act, flow_def, know_act) in rows {
-            if let Some(skill) = self.row_to_skill(id, domain_str, word_act, flow_def, know_act) {
+        for (id, domain_str, word_act, flow_def, know_act, polarity_str, content_hash) in rows {
+            if let Some(skill) = self.row_to_skill(
+                id,
+                domain_str,
+                word_act,
+                flow_def,
+                know_act,
+                polarity_str,
+                content_hash,
+            ) {
                 skills.push(skill);
             }
         }
@@ -587,7 +750,7 @@ impl SqliteRegistry {
     /// Find skills referencing a template (owned)
     pub fn skills_referencing_template_owned(&self, template_id: &str) -> Vec<Skill> {
         let mut stmt = match self.conn.prepare(
-            "SELECT id, domain, word_act, flow_def, know_act FROM skills WHERE word_act = ?1 OR flow_def = ?1 OR know_act = ?1"
+            "SELECT id, domain, word_act, flow_def, know_act, polarity, content_hash FROM skills WHERE word_act = ?1 OR flow_def = ?1 OR know_act = ?1"
         ) {
             Ok(s) => s,
             Err(_) => return Vec::new(),
@@ -600,6 +763,8 @@ impl SqliteRegistry {
                 row.get(2)?,
                 row.get(3)?,
                 row.get(4)?,
+                row.get(5)?,
+                row.get(6)?,
             ))
         }) {
             Ok(mapped) => mapped.filter_map(|r| r.ok()).collect(),
@@ -607,8 +772,16 @@ impl SqliteRegistry {
         };
 
         let mut skills = Vec::new();
-        for (id, domain_str, word_act, flow_def, know_act) in rows {
-            if let Some(skill) = self.row_to_skill(id, domain_str, word_act, flow_def, know_act) {
+        for (id, domain_str, word_act, flow_def, know_act, polarity_str, content_hash) in rows {
+            if let Some(skill) = self.row_to_skill(
+                id,
+                domain_str,
+                word_act,
+                flow_def,
+                know_act,
+                polarity_str,
+                content_hash,
+            ) {
                 skills.push(skill);
             }
         }

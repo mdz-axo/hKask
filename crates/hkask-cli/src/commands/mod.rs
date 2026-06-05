@@ -9,6 +9,7 @@ pub mod cns;
 pub mod config;
 pub mod curator;
 pub mod docs;
+pub mod embed_corpus;
 pub mod ensemble;
 pub mod git_cmd;
 pub mod goal;

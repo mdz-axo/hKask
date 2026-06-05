@@ -646,6 +646,29 @@ pub enum SpecAction {
     },
 }
 
+/// Style corpus embedding — download, chunk, embed, store
+#[derive(Subcommand)]
+pub enum EmbedCorpusAction {
+    /// Download corpus texts, chunk, embed via Okapi, and store in sqlite-vec
+    Run {
+        /// Path to corpus config YAML (e.g., registry/styles/hemingway/corpus.yaml)
+        #[arg(short, long)]
+        config: PathBuf,
+
+        /// Path to hKask semantic database
+        #[arg(short, long)]
+        db: PathBuf,
+
+        /// Database passphrase
+        #[arg(long, env = "HKASK_DB_PASSPHRASE")]
+        passphrase: String,
+
+        /// Okapi base URL (default: http://127.0.0.1:11435)
+        #[arg(long)]
+        okapi_url: Option<String>,
+    },
+}
+
 /// Goal actions — minimal multi-agent coordination substrate.
 ///
 /// Goal operations are available to anyone with DB access — no token ceremony.

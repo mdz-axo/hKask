@@ -30,9 +30,15 @@ pub mod registry_sqlite;
 pub mod response_contract;
 
 pub use embedding_port::OkapiEmbedding;
+pub use hkask_types::ports::BundleRegistryIndex;
 pub use hkask_types::ports::EmbeddingGenerationPort;
 pub use hkask_types::ports::InferencePort;
 pub use hkask_types::ports::Skill;
+pub use hkask_types::{
+    BundleComplementarity, BundleConflict, BundleManifest, BundleManifestStep, CascadePhase,
+    ComplementarityType, ConflictResolution, ConflictType, GasConfig, SkillPolarity,
+    ValidationResult,
+};
 pub use inference_port::OkapiInference;
 pub use lexicon::{load_hlexicon_default, load_hlexicon_from_file, load_hlexicon_from_yaml};
 pub use okapi_config::OkapiConfig;

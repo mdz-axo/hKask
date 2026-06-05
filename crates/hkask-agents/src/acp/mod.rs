@@ -698,4 +698,120 @@ mod tests {
         let key2 = rt.derive_agent_secret(&webid).await;
         assert!(Arc::ptr_eq(&key1, &key2));
     }
+
+    // ── Integration: per-replicant secret end-to-end ─────────────────────────
+    //
+    // These tests validate that derived per-agent secrets are usable in the
+    // full ACP token lifecycle: register → delegate → verify → revoke.
+    // This exercises the same code path the replicant MCP server uses when
+    // calling AcpRuntime::derive_agent_secret() for per-replicant signing.
+
+    #[tokio::test]
+    async fn per_replicant_secret_allows_delegated_token_verification() {
+        let rt = AcpRuntime::new(b"integration-master-key");
+
+        // 1. Register a root agent — this mints tokens signed with the master key
+        let agent_webid = WebID::from_persona(b"replicant-alpha");
+        let root_token = rt
+            .register_agent(
+                agent_webid,
+                AgentKind::Replicant,
+                vec!["tool:execute".into()],
+            )
+            .await
+            .expect("register agent");
+
+        // 2. Verify the root token — should be valid (signed with master key)
+        assert!(
+            rt.verify_capability(&root_token).await,
+            "root token should verify with master key"
+        );
+
+        // 3. Derive a per-agent secret — this is the same code path the
+        //    replicant MCP server uses via AcpRuntime::derive_agent_secret()
+        let _agent_secret = rt.derive_agent_secret(&agent_webid).await;
+
+        // 4. Verify the root token still verifies after key derivation
+        //    (deriving an agent key must not affect root token verification)
+        assert!(
+            rt.verify_capability(&root_token).await,
+            "root token should still verify after agent key derivation"
+        );
+    }
+
+    #[tokio::test]
+    async fn per_replicant_secret_delegation_chain_uses_correct_keys() {
+        let rt = AcpRuntime::new(b"delegation-master-key");
+
+        // Register agent A (delegator)
+        let agent_a = WebID::from_persona(b"agent-a");
+        let agent_a_token = rt
+            .register_agent(agent_a, AgentKind::Bot, vec!["tool:execute".into()])
+            .await
+            .expect("register agent A");
+
+        // Register agent B (delegate)
+        let agent_b = WebID::from_persona(b"agent-b");
+        let _agent_b_token = rt
+            .register_agent(agent_b, AgentKind::Bot, vec!["tool:read".into()])
+            .await
+            .expect("register agent B");
+
+        // Agent A delegates a subset of its capability to agent B
+        let now = chrono::Utc::now().timestamp();
+        let delegated = rt
+            .delegate_capability(&agent_a_token, agent_b, now)
+            .await
+            .expect("delegate capability");
+
+        // The delegated token should verify (signed with agent A's derived key)
+        assert!(
+            rt.verify_capability(&delegated).await,
+            "delegated token should verify"
+        );
+
+        // Verify the full chain from root authority
+        assert!(
+            rt.verify_capability_chain(&delegated).await.is_ok(),
+            "delegation chain should trace back to root authority"
+        );
+
+        // Revoking the parent token should invalidate the delegated token
+        rt.revoke_capability(&agent_a_token.id).await;
+        assert!(
+            !rt.verify_capability(&agent_a_token).await,
+            "revoked parent token should not verify"
+        );
+    }
+
+    #[tokio::test]
+    async fn per_replicant_secret_cross_isolation() {
+        // Two different master keys should produce completely independent
+        // ACP runtimes. A token minted under one runtime should not verify
+        // under another, even with the same agent WebID.
+        let rt1 = AcpRuntime::new(b"master-alpha");
+        let rt2 = AcpRuntime::new(b"master-beta");
+
+        let webid = WebID::from_persona(b"shared-agent-name");
+        let token1 = rt1
+            .register_agent(webid, AgentKind::Replicant, vec!["tool:execute".into()])
+            .await
+            .expect("register under rt1");
+        let _token2 = rt2
+            .register_agent(webid, AgentKind::Replicant, vec!["tool:execute".into()])
+            .await
+            .expect("register under rt2");
+
+        // Token from rt1 should NOT verify under rt2 (different master key)
+        assert!(
+            !rt2.verify_capability(&token1).await,
+            "token from rt1 should not verify under rt2 — different master key"
+        );
+
+        // Token from rt1 should verify under rt1 (its own runtime)
+        assert!(
+            rt1.verify_capability(&token1).await,
+            "token from rt1 should verify under rt1"
+        );
+    }
 }

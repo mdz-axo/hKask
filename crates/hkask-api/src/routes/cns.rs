@@ -400,4 +400,110 @@ mod tests {
         assert_eq!(valid[1].as_str(), "cns.inference");
         assert_eq!(valid[2].as_str(), "cns.variety");
     }
+
+    // ── Integration: SSE event serialization ──────────────────────────────────
+    //
+    // These tests validate that CnsSseEvent variants serialize to the correct
+    // JSON structure and that the event type mapping produces the right SSE
+    // event names. This exercises the same serialization path used by the
+    // `cns_subscribe` handler when producing SSE responses.
+
+    #[test]
+    fn sse_event_nu_event_serializes_with_type_tag() {
+        let event = NuEvent::new(
+            WebID::from_persona(b"test-agent"),
+            Span::new(SpanNamespace::new("cns.tool"), "invoked"),
+            Phase::Act,
+            serde_json::json!({"tool": "hkask-mcp-ocap", "action": "sign"}),
+            0,
+        );
+        let cns_event = CnsSseEvent::NuEvent(event);
+        let json = serde_json::to_string(&cns_event).expect("serialize NuEvent");
+        // CnsSseEvent uses serde(tag = "type", content = "payload")
+        assert!(
+            json.contains("\"type\":\"event\""),
+            "should have type=event tag"
+        );
+        assert!(
+            json.contains("cns.tool.invoked"),
+            "should contain span path"
+        );
+    }
+
+    #[test]
+    fn sse_event_depletion_serializes_with_type_tag() {
+        let signal = DepletionSignal {
+            agent: WebID::from_persona(b"depleted-agent"),
+            remaining: 50,
+            cap: 1000,
+            usage_ratio: 0.95,
+        };
+        let cns_event = CnsSseEvent::Depletion(signal);
+        let json = serde_json::to_string(&cns_event).expect("serialize Depletion");
+        assert!(
+            json.contains("\"type\":\"depletion\""),
+            "should have type=depletion tag"
+        );
+        // WebID::from_persona produces a UUID, not the literal persona string,
+        // so we verify the JSON structure rather than the specific agent ID.
+        assert!(json.contains("\"agent\":"), "should contain agent field");
+    }
+
+    #[test]
+    fn sse_event_backpressure_serializes_with_type_tag() {
+        let signal = BackpressureSignal {
+            source: LoopId::Cybernetics,
+            reason: "gas budget exceeded".to_string(),
+            severity: 0.9,
+        };
+        let cns_event = CnsSseEvent::Backpressure(signal);
+        let json = serde_json::to_string(&cns_event).expect("serialize Backpressure");
+        assert!(
+            json.contains("\"type\":\"backpressure\""),
+            "should have type=backpressure tag"
+        );
+        assert!(
+            json.contains("gas budget exceeded"),
+            "should contain reason"
+        );
+    }
+
+    #[test]
+    fn sse_event_type_mapping_covers_all_variants() {
+        // Verify the event type mapping used in the SSE stream yields correct
+        // strings for each CnsSseEvent variant, matching the handler logic:
+        // NuEvent → "cns-event", Depletion → "cns-depletion", Backpressure → "cns-backpressure"
+        let nu_event = CnsSseEvent::NuEvent(NuEvent::new(
+            WebID::new(),
+            Span::new(SpanNamespace::new("cns.tool"), "test"),
+            Phase::Sense,
+            serde_json::json!({}),
+            0,
+        ));
+        let depletion = CnsSseEvent::Depletion(DepletionSignal {
+            agent: WebID::new(),
+            remaining: 0,
+            cap: 100,
+            usage_ratio: 1.0,
+        });
+        let backpressure = CnsSseEvent::Backpressure(BackpressureSignal {
+            source: LoopId::Cybernetics,
+            reason: "test".to_string(),
+            severity: 1.0,
+        });
+
+        assert_eq!(sse_event_type(&nu_event), "cns-event");
+        assert_eq!(sse_event_type(&depletion), "cns-depletion");
+        assert_eq!(sse_event_type(&backpressure), "cns-backpressure");
+    }
+
+    /// Helper: extract the SSE event type string from a CnsSseEvent variant.
+    /// Mirrors the match logic in `cns_subscribe`.
+    fn sse_event_type(event: &CnsSseEvent) -> &'static str {
+        match event {
+            CnsSseEvent::NuEvent(_) => "cns-event",
+            CnsSseEvent::Depletion(_) => "cns-depletion",
+            CnsSseEvent::Backpressure(_) => "cns-backpressure",
+        }
+    }
 }

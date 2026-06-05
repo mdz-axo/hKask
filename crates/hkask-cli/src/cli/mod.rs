@@ -146,6 +146,12 @@ pub enum Commands {
         action: KeystoreAction,
     },
 
+    /// Style corpus embedding (download, chunk, embed, store)
+    EmbedCorpus {
+        #[command(subcommand)]
+        action: EmbedCorpusAction,
+    },
+
     /// List available LLM models
     Models,
 

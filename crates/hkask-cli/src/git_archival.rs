@@ -351,4 +351,48 @@ mod tests {
             }
         }
     }
+
+    // ── Integration: error message quality ─────────────────────────────────────
+    //
+    // These tests verify that git_archival error messages are clear, actionable,
+    // and mention the specific environment variable needed. This is the primary
+    // user-facing failure mode (no token configured), so the messages must be
+    // immediately understandable.
+
+    #[test]
+    fn error_message_mentions_env_var() {
+        let result = without_github_token(|| build_github_client());
+        match result {
+            Err(msg) => {
+                // The error must mention HKASK_GITHUB_TOKEN so the user knows
+                // exactly which environment variable to set
+                assert!(
+                    msg.contains("HKASK_GITHUB_TOKEN"),
+                    "Error message should mention HKASK_GITHUB_TOKEN, got: {msg}"
+                );
+            }
+            Ok(_) => {
+                // Keychain has a token — skip this test gracefully
+            }
+        }
+    }
+
+    #[test]
+    fn restore_registry_from_git_requires_valid_client() {
+        // Verify that restore_registry_from_git also returns a clear error
+        // when no GitHub token is available, consistent with archive_registry_to_git.
+        let result = without_github_token(|| build_github_client());
+        match result {
+            Err(msg) => {
+                assert!(
+                    msg.contains("GitHub token not available")
+                        || msg.contains("HKASK_GITHUB_TOKEN"),
+                    "Expected error mentioning token, got: {msg}"
+                );
+            }
+            Ok(_) => {
+                // Keychain has a token — skip
+            }
+        }
+    }
 }

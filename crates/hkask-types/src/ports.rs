@@ -305,6 +305,10 @@ pub struct Skill {
     pub know_act: Option<String>,
     /// Cascade order: template IDs executed in sequence
     pub cascade_order: Vec<String>,
+    /// Skill polarity — cognitive role in a bundle composition
+    pub polarity: Option<crate::bundle::SkillPolarity>,
+    /// SHA-256 content hash of the skill manifest (for evolution tracking)
+    pub content_hash: Option<String>,
 }
 
 impl Skill {
@@ -316,6 +320,8 @@ impl Skill {
             flow_def: None,
             know_act: None,
             cascade_order: vec![],
+            polarity: None,
+            content_hash: None,
         }
     }
 
@@ -336,6 +342,18 @@ impl Skill {
 
     pub fn with_cascade_order(mut self, order: Vec<String>) -> Self {
         self.cascade_order = order;
+        self
+    }
+
+    /// Set the skill polarity (generative, evaluative, regulative, procedural)
+    pub fn with_polarity(mut self, polarity: crate::bundle::SkillPolarity) -> Self {
+        self.polarity = Some(polarity);
+        self
+    }
+
+    /// Set the content hash (SHA-256 of the skill manifest)
+    pub fn with_content_hash(mut self, hash: String) -> Self {
+        self.content_hash = Some(hash);
         self
     }
 }
@@ -371,6 +389,26 @@ pub trait SkillRegistryIndex {
     fn skills_referencing_template(&self, template_id: &str) -> Vec<Skill>;
     /// Remove a skill by ID
     fn remove_skill(&mut self, id: &str) -> Option<Skill>;
+}
+
+/// Bundle registry index — bundle manifest lookups
+///
+/// Implementations provide CRUD for bundle manifests, which compose
+/// multiple skills into orchestrated process flows.
+///
+/// All read methods return owned `BundleManifest` values for compatibility
+/// with both in-memory and SQLite-backed registries.
+pub trait BundleRegistryIndex {
+    /// Register a new bundle manifest
+    fn register_bundle(&mut self, bundle: crate::BundleManifest);
+    /// Retrieve a bundle manifest by ID
+    fn get_bundle(&self, id: &str) -> Option<crate::BundleManifest>;
+    /// List all bundle manifests
+    fn list_bundles(&self) -> Vec<crate::BundleManifest>;
+    /// Remove a bundle manifest by ID
+    fn remove_bundle(&mut self, id: &str) -> Option<crate::BundleManifest>;
+    /// Find a bundle that contains exactly the given set of skills
+    fn find_bundle_by_skills(&self, skill_ids: &[String]) -> Option<crate::BundleManifest>;
 }
 
 /// Registry index port — template registry lookups

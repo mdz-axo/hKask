@@ -14,6 +14,7 @@
 
 pub mod agent_def;
 pub mod audit;
+pub mod bundle;
 pub mod capability;
 pub mod cns;
 pub mod curation;
@@ -37,6 +38,11 @@ pub use agent_def::{
     AgentDefinition, AgentKind, Charter, PersonaConstraints, RegisteredAgent, Responsibility, Right,
 };
 pub use audit::{AuditEntry, AuditLogPort, AuditOutcome};
+pub use bundle::{
+    BundleComplementarity, BundleConflict, BundleManifest, BundleManifestStep, CascadePhase,
+    ComplementarityType, ConflictResolution, ConflictType, GasConfig, SkillPolarity,
+    ValidationResult,
+};
 pub use capability::tokens::ConsolidationToken;
 pub use capability::{
     AgentDelegation, CapabilityAction, CapabilityChecker, CapabilityParseError, CapabilityResource,
@@ -57,11 +63,11 @@ pub use loops::{
     LoopId, LoopMessage, LoopPayload, MessagePriority, Signal,
 };
 pub use ports::{
-    BackpressureSignal, CircuitBreakerPort, CnsObserver, CnsPort, ConsolidationOutcome,
-    ConsolidationPort, DepletionSignal, EmbeddingError, EmbeddingGenerationError,
-    EmbeddingGenerationPort, EmbeddingPort, GitCASPort, InferenceError, InferencePort,
-    InferenceResult, InferenceUsage, MessageRecord, RegistryEntry, RegistryError, RegistryIndex,
-    SessionRecord, SessionStoreError, SimilarityResult, Skill, SkillRegistryIndex,
+    BackpressureSignal, BundleRegistryIndex, CircuitBreakerPort, CnsObserver, CnsPort,
+    ConsolidationOutcome, ConsolidationPort, DepletionSignal, EmbeddingError,
+    EmbeddingGenerationError, EmbeddingGenerationPort, EmbeddingPort, GitCASPort, InferenceError,
+    InferencePort, InferenceResult, InferenceUsage, MessageRecord, RegistryEntry, RegistryError,
+    RegistryIndex, SessionRecord, SessionStoreError, SimilarityResult, Skill, SkillRegistryIndex,
     StandingSessionPort, StoredEmbedding, StructuredToolCall, TokenProb, TokenProbability,
     ToolInfo, ToolPort, ToolPortError,
 };

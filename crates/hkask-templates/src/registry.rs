@@ -9,7 +9,7 @@
 //! Rust is the loom. YAML/Jinja2 is the thread.
 
 use crate::ports::{RegistryEntry, RegistryIndex, Result, TemplateError};
-use hkask_types::ports::SkillRegistryIndex;
+use hkask_types::ports::{BundleRegistryIndex, SkillRegistryIndex};
 use hkask_types::{HLexicon, SYSTEM_MAX_RECURSION, Skill, TemplateType};
 use std::collections::HashMap;
 use std::env;
@@ -19,9 +19,12 @@ use std::path::PathBuf;
 ///
 /// Templates are stored as `RegistryEntry` (the canonical type from `hkask_types::ports`).
 /// Skills compose templates into coherent agent capabilities.
+/// Bundles compose multiple skills into orchestrated process flows.
 pub struct Registry {
     templates: HashMap<String, RegistryEntry>,
     skills: HashMap<String, Skill>,
+    /// Bundle manifests — composed skill bundles
+    bundles: HashMap<String, hkask_types::BundleManifest>,
     /// Optional hLexicon for validating lexicon_terms during registration.
     /// When set, `register()` logs warnings for terms not in the canonical vocabulary.
     hlexicon: Option<HLexicon>,
@@ -33,6 +36,7 @@ impl Registry {
         Self {
             templates: HashMap::new(),
             skills: HashMap::new(),
+            bundles: HashMap::new(),
             hlexicon: None,
             cache_valid: true,
         }
@@ -283,6 +287,56 @@ impl Registry {
                     || s.know_act.as_deref() == Some(template_id)
             })
             .cloned()
+            .collect()
+    }
+
+    // ── Bundle manifest methods ──────────────────────────────────
+
+    /// Register a bundle manifest.
+    pub fn register_bundle(&mut self, bundle: hkask_types::BundleManifest) {
+        self.bundles.insert(bundle.id.clone(), bundle);
+    }
+
+    /// Retrieve a bundle manifest by ID.
+    pub fn get_bundle(&self, id: &str) -> Option<&hkask_types::BundleManifest> {
+        self.bundles.get(id)
+    }
+
+    /// List all bundle manifests.
+    pub fn list_bundles(&self) -> Vec<&hkask_types::BundleManifest> {
+        self.bundles.values().collect()
+    }
+
+    /// Remove a bundle manifest by ID.
+    pub fn remove_bundle(&mut self, id: &str) -> Option<hkask_types::BundleManifest> {
+        self.bundles.remove(id)
+    }
+
+    /// Find an existing bundle that contains exactly the given set of skills.
+    /// Returns the first exact match, if any.
+    pub fn find_bundle_by_skills(
+        &self,
+        skill_ids: &[String],
+    ) -> Option<&hkask_types::BundleManifest> {
+        let target: std::collections::HashSet<&str> =
+            skill_ids.iter().map(|s| s.as_str()).collect();
+        self.bundles.values().find(|b| {
+            let bundle_skills: std::collections::HashSet<&str> =
+                b.skills.iter().map(|s| s.id.as_str()).collect();
+            bundle_skills == target
+        })
+    }
+
+    /// Find bundles that contain any of the given skills (partial/similar match).
+    pub fn find_bundles_containing_skills(
+        &self,
+        skill_ids: &[String],
+    ) -> Vec<&hkask_types::BundleManifest> {
+        let target: std::collections::HashSet<&str> =
+            skill_ids.iter().map(|s| s.as_str()).collect();
+        self.bundles
+            .values()
+            .filter(|b| b.skills.iter().any(|s| target.contains(s.id.as_str())))
             .collect()
     }
 
@@ -637,6 +691,37 @@ impl SkillRegistryIndex for Registry {
 
     fn remove_skill(&mut self, id: &str) -> Option<Skill> {
         self.skills.remove(id)
+    }
+}
+
+impl BundleRegistryIndex for Registry {
+    fn register_bundle(&mut self, bundle: hkask_types::BundleManifest) {
+        self.bundles.insert(bundle.id.clone(), bundle);
+    }
+
+    fn get_bundle(&self, id: &str) -> Option<hkask_types::BundleManifest> {
+        self.bundles.get(id).cloned()
+    }
+
+    fn list_bundles(&self) -> Vec<hkask_types::BundleManifest> {
+        self.bundles.values().cloned().collect()
+    }
+
+    fn remove_bundle(&mut self, id: &str) -> Option<hkask_types::BundleManifest> {
+        self.bundles.remove(id)
+    }
+
+    fn find_bundle_by_skills(&self, skill_ids: &[String]) -> Option<hkask_types::BundleManifest> {
+        let target: std::collections::HashSet<&str> =
+            skill_ids.iter().map(|s| s.as_str()).collect();
+        self.bundles
+            .values()
+            .find(|b| {
+                let bundle_skills: std::collections::HashSet<&str> =
+                    b.skills.iter().map(|s| s.id.as_str()).collect();
+                bundle_skills == target
+            })
+            .cloned()
     }
 }
 
