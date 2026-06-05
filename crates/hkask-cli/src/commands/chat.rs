@@ -21,15 +21,24 @@ use crate::commands::config::{
     resolve_acp_secret,
 };
 
-/// Result of a chat inference call.
+use hkask_types::ports::StructuredToolCall;
+
+/// Response from a chat inference call.
 ///
-/// Carries the response text alongside token usage metadata
-/// so callers can account for actual inference cost.
+/// Carries the response text, token usage, and structured tool calls
+/// (from native function calling) alongside the finish reason so the
+/// REPL can detect tool-call completions and route them appropriately.
 pub struct ChatResponse {
     /// The agent's response text
     pub text: String,
     /// Token usage from the inference call (prompt + completion tokens)
     pub usage: Option<TokenUsage>,
+    /// Why the model stopped generating ("stop", "tool_calls", etc.)
+    pub finish_reason: String,
+    /// Structured tool calls when the model supports native function calling.
+    /// Empty when `finish_reason != "tool_calls"` — the REPL falls back to
+    /// parsing `<<tool:...>>` text directives.
+    pub tool_calls: Vec<StructuredToolCall>,
 }
 
 /// Token usage breakdown for gas accounting.
@@ -94,15 +103,18 @@ pub async fn chat_with_agent(
                 return ChatResponse {
                     text: format!("Registry init error: {}", e),
                     usage: None,
+                    finish_reason: "error".to_string(),
+                    tool_calls: vec![],
                 };
             }
         },
         None => match init_registry().await {
-            Ok(r) => r,
             Err(e) => {
                 return ChatResponse {
                     text: format!("Registry init error: {}", e),
                     usage: None,
+                    finish_reason: "error".to_string(),
+                    tool_calls: vec![],
                 };
             }
         },
@@ -121,6 +133,8 @@ pub async fn chat_with_agent(
             return ChatResponse {
                 text: format!("Registry load error: {}", e),
                 usage: None,
+                finish_reason: "error".to_string(),
+                tool_calls: vec![],
             };
         }
     };
@@ -132,14 +146,40 @@ pub async fn chat_with_agent(
         return ChatResponse {
             text: chat_via_russell(input, agent).await,
             usage: None,
+            finish_reason: "stop".to_string(),
+            tool_calls: vec![],
         };
     }
 
     // Standard chat flow for non-Russell agents
-    let system_prompt = match agent {
+    let mut system_prompt = match agent {
         Some(registered) => registered.definition.compose_system_prompt(),
         None => format!("You are {}, an assistant in the hKask system.\n\n", name),
     };
+
+    // Append tool call format instructions so the model can invoke MCP tools.
+    // This enables tool-augmented chat: the model emits <<tool:server/tool\n{args}\n>>
+    // directives in its response, which the REPL parses and invokes through
+    // GovernedTool (OCAP + gas budget + CNS observability).
+    system_prompt.push_str(
+        "\n## Tool Calls\n\
+     You have access to MCP tools. When you need to invoke a tool, include a \
+     tool call directive in your response using this format:\n\
+     \n\
+     <<tool:server/tool_name\n\
+     {\"key\": \"value\"}\n\
+     >>\n\
+     \n\
+     For example, to recall semantic memory:\n\
+     <<tool:hkask-mcp-semantic/semantic_recall\n\
+     {\"entity\": \"rust\"}\n\
+     >>\n\
+     \n\
+     You may include multiple tool calls in a single response. After the tool \
+     executes, the system will feed the results back to you for a follow-up response.\n\
+     Use tools when they would provide better or more current information than your training data.\
+     ",
+    );
 
     let agent_kind = match agent {
         Some(registered) => &registered.definition.agent_kind,
@@ -147,6 +187,8 @@ pub async fn chat_with_agent(
             return ChatResponse {
                 text: "Agent not registered \u{2014} run `kask agent register` first.".to_string(),
                 usage: None,
+                finish_reason: "error".to_string(),
+                tool_calls: vec![],
             };
         }
     };
@@ -167,6 +209,8 @@ pub async fn chat_with_agent(
                     return ChatResponse {
                         text: format!("Okapi init error: {}", e),
                         usage: None,
+                        finish_reason: "error".to_string(),
+                        tool_calls: vec![],
                     };
                 }
             }
@@ -300,13 +344,17 @@ pub async fn chat_with_agent(
     };
 
     // Direct inference — no pod creation needed for standard chat.
-    let (response_text, usage) = match inference
+    // The InferenceResult carries structured tool_calls from native function
+    // calling when the model returns finish_reason == "tool_calls".
+    let (response_text, usage, finish_reason, tool_calls) = match inference
         .generate_with_model(&full_prompt, &params, Some(model))
         .await
     {
         Ok(result) => {
             let text = result.text;
             let u = result.usage;
+            let fr = result.finish_reason;
+            let tc = result.tool_calls;
             (
                 text,
                 Some(TokenUsage {
@@ -314,12 +362,16 @@ pub async fn chat_with_agent(
                     completion_tokens: u.completion_tokens,
                     total_tokens: u.total_tokens,
                 }),
+                fr,
+                tc,
             )
         }
         Err(e) => {
             return ChatResponse {
                 text: format!("Inference error: {}", e),
                 usage: None,
+                finish_reason: "error".to_string(),
+                tool_calls: vec![],
             };
         }
     };
@@ -376,6 +428,8 @@ pub async fn chat_with_agent(
     ChatResponse {
         text: response_text,
         usage,
+        finish_reason,
+        tool_calls,
     }
 }
 

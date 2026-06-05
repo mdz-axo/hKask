@@ -9,6 +9,7 @@
 
 use crate::communication::CommunicationLoop;
 use crate::communication::dispatch::MessageDispatch;
+use hkask_cns::CyberneticsLoop;
 use hkask_types::loops::HkaskLoop;
 use hkask_types::loops::LoopId;
 use hkask_types::loops::dispatch::LoopMessage;
@@ -17,6 +18,33 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tracing::info;
+
+/// Adapter to share a CyberneticsLoop between the loop system and GovernedTool.
+/// GovernedTool needs `Arc<RwLock<CyberneticsLoop>>`, but `register_loop` needs `Arc<dyn HkaskLoop>`.
+/// This adapter bridges the gap.
+pub struct CyberneticsLoopHandle(pub Arc<tokio::sync::RwLock<CyberneticsLoop>>);
+
+#[async_trait::async_trait]
+impl HkaskLoop for CyberneticsLoopHandle {
+    fn id(&self) -> hkask_types::loops::LoopId {
+        hkask_types::loops::LoopId::Cybernetics
+    }
+
+    async fn sense(&self) -> Vec<hkask_types::loops::Signal> {
+        self.0.read().await.sense().await
+    }
+
+    async fn compute(
+        &self,
+        deviations: &[hkask_types::loops::Deviation],
+    ) -> Vec<hkask_types::loops::LoopAction> {
+        self.0.read().await.compute(deviations).await
+    }
+
+    async fn act(&self, actions: &[hkask_types::loops::LoopAction]) {
+        self.0.read().await.act(actions).await
+    }
+}
 
 /// Per-loop default tick intervals.
 ///

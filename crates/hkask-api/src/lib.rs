@@ -30,6 +30,7 @@
 //! - `GET /api/episodic/query` — Query episodic memories
 //! - `GET /api/episodic/usage` — Episodic storage usage
 
+use hkask_agents::CyberneticsLoopHandle;
 use hkask_agents::acp::AcpRuntime;
 use hkask_agents::adapters::git_cas::GitCasAdapter;
 use hkask_agents::adapters::mcp_runtime::McpRuntimeAdapter;
@@ -127,33 +128,6 @@ pub struct ApiState {
     pub cns_runtime: Arc<CnsRuntime>,
     /// General-purpose inference port (shared across requests)
     pub inference_port: Option<Arc<dyn hkask_types::ports::InferencePort>>,
-}
-
-/// Adapter to share a CyberneticsLoop between the loop system and GovernedTool.
-/// GovernedTool needs `Arc<RwLock<CyberneticsLoop>>`, but `register_loop` needs `Arc<dyn HkaskLoop>`.
-/// This adapter bridges the gap.
-struct CyberneticsLoopHandle(Arc<tokio::sync::RwLock<CyberneticsLoop>>);
-
-#[async_trait::async_trait]
-impl HkaskLoop for CyberneticsLoopHandle {
-    fn id(&self) -> hkask_types::loops::LoopId {
-        hkask_types::loops::LoopId::Cybernetics
-    }
-
-    async fn sense(&self) -> Vec<hkask_types::loops::Signal> {
-        self.0.read().await.sense().await
-    }
-
-    async fn compute(
-        &self,
-        deviations: &[hkask_types::loops::Deviation],
-    ) -> Vec<hkask_types::loops::LoopAction> {
-        self.0.read().await.compute(deviations).await
-    }
-
-    async fn act(&self, actions: &[hkask_types::loops::LoopAction]) {
-        self.0.read().await.act(actions).await
-    }
 }
 
 /// Build the LoopSystem with all 6 loops.

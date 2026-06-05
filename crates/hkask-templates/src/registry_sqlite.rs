@@ -9,6 +9,43 @@ use hkask_types::ports::SkillRegistryIndex;
 use hkask_types::{Skill, TemplateType};
 use rusqlite::{Connection, params};
 
+/// Raw skill row tuple: (id, domain, word_act, flow_def, know_act)
+type SkillRow = (
+    String,
+    String,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+);
+
+/// Parsed row tuple from the templates table:
+/// (id, template_type, name, description, source_path, cascade_level, matroshka_limit)
+type TemplateRow = (String, TemplateType, String, String, String, u32, u32);
+
+fn parse_template_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TemplateRow> {
+    let id: String = row.get(0)?;
+    let template_type_str: String = row.get(1)?;
+    let name: String = row.get(2)?;
+    let description: String = row.get(3)?;
+    let source_path: String = row.get(4)?;
+    let cascade_level: u32 = row.get(5)?;
+    let matroshka_limit: u32 = row.get(6)?;
+    let template_type = TemplateType::parse_str(&template_type_str).ok_or_else(|| {
+        rusqlite::Error::ToSqlConversionFailure(
+            format!("Unknown template type: {}", template_type_str).into(),
+        )
+    })?;
+    Ok((
+        id,
+        template_type,
+        name,
+        description,
+        source_path,
+        cascade_level,
+        matroshka_limit,
+    ))
+}
+
 /// SQLite-based registry index
 pub struct SqliteRegistry {
     conn: Connection,
@@ -196,6 +233,7 @@ impl SqliteRegistry {
     }
 
     /// Read a single template row into a RegistryEntry
+    #[allow(clippy::too_many_arguments)]
     fn row_to_entry(
         &self,
         id: &str,
@@ -247,20 +285,7 @@ impl SqliteRegistry {
             .conn
             .prepare("SELECT id, template_type, name, description, source_path, cascade_level, matroshka_limit FROM templates WHERE id = ?1")
             .map_err(|e| TemplateError::Database(format!("Failed to prepare query: {}", e)))?
-            .query_row(params![id], |row| {
-                let id: String = row.get(0)?;
-                let template_type_str: String = row.get(1)?;
-                let name: String = row.get(2)?;
-                let description: String = row.get(3)?;
-                let source_path: String = row.get(4)?;
-                let cascade_level: u32 = row.get(5)?;
-                let matroshka_limit: u32 = row.get(6)?;
-                let template_type = TemplateType::parse_str(&template_type_str)
-                    .ok_or_else(|| rusqlite::Error::ToSqlConversionFailure(
-                        format!("Unknown template type: {}", template_type_str).into()
-                    ))?;
-                Ok((id, template_type, name, description, source_path, cascade_level, matroshka_limit))
-            })
+            .query_row(params![id], parse_template_row)
             .map_err(|e| TemplateError::NotFound(format!("Template '{}' not found: {}", id, e)))?;
 
         self.row_to_entry(&row.0, row.1, row.2, row.3, row.4, row.5, row.6)
@@ -278,29 +303,8 @@ impl SqliteRegistry {
             )
             .map_err(|e| TemplateError::Database(format!("Failed to prepare statement: {}", e)))?;
 
-        let rows: Vec<(String, TemplateType, String, String, String, u32, u32)> = stmt
-            .query_map(params![term], |row| {
-                let id: String = row.get(0)?;
-                let template_type_str: String = row.get(1)?;
-                let name: String = row.get(2)?;
-                let description: String = row.get(3)?;
-                let source_path: String = row.get(4)?;
-                let cascade_level: u32 = row.get(5)?;
-                let matroshka_limit: u32 = row.get(6)?;
-
-                let template_type =
-                    TemplateType::parse_str(&template_type_str).unwrap_or(TemplateType::KnowAct);
-
-                Ok((
-                    id,
-                    template_type,
-                    name,
-                    description,
-                    source_path,
-                    cascade_level,
-                    matroshka_limit,
-                ))
-            })
+        let rows: Vec<TemplateRow> = stmt
+            .query_map(params![term], parse_template_row)
             .map_err(|e| TemplateError::Database(format!("Failed to query templates: {}", e)))?
             .filter_map(|r| r.ok())
             .collect();
@@ -355,43 +359,13 @@ impl RegistryIndex for SqliteRegistry {
             Err(_) => return Vec::new(),
         };
 
-        let parse_row = |row: &rusqlite::Row<'_>| -> rusqlite::Result<(
-            String,
-            TemplateType,
-            String,
-            String,
-            String,
-            u32,
-            u32,
-        )> {
-            let id: String = row.get(0)?;
-            let template_type_str: String = row.get(1)?;
-            let name: String = row.get(2)?;
-            let description: String = row.get(3)?;
-            let source_path: String = row.get(4)?;
-            let cascade_level: u32 = row.get(5)?;
-            let matroshka_limit: u32 = row.get(6)?;
-            let template_type =
-                TemplateType::parse_str(&template_type_str).unwrap_or(TemplateType::KnowAct);
-            Ok((
-                id,
-                template_type,
-                name,
-                description,
-                source_path,
-                cascade_level,
-                matroshka_limit,
-            ))
-        };
-
-        let rows: Vec<(String, TemplateType, String, String, String, u32, u32)> = match domain_hint
-        {
+        let rows: Vec<TemplateRow> = match domain_hint {
             Some(tt) => stmt
-                .query_map(params![tt.as_str()], parse_row)
+                .query_map(params![tt.as_str()], parse_template_row)
                 .map(|rows| rows.filter_map(|r| r.ok()).collect())
                 .unwrap_or_default(),
             None => stmt
-                .query_map([], parse_row)
+                .query_map([], parse_template_row)
                 .map(|rows| rows.filter_map(|r| r.ok()).collect())
                 .unwrap_or_default(),
         };
@@ -471,29 +445,20 @@ impl SkillRegistryIndex for SqliteRegistry {
         }
     }
 
-    fn get_skill(&self, _id: &str) -> Option<&Skill> {
-        // SQLite registry returns owned values, not references.
-        // This method cannot be implemented for SQLite without an in-memory cache.
-        // Use `get_skill_owned` for SQLite-based skill retrieval.
-        None
+    fn get_skill(&self, id: &str) -> Option<Skill> {
+        self.get_skill_owned(id)
     }
 
-    fn list_skills(&self) -> Vec<&Skill> {
-        // SQLite registry returns owned values, not references.
-        // Use `list_skills_owned` for SQLite-based skill retrieval.
-        Vec::new()
+    fn list_skills(&self) -> Vec<Skill> {
+        self.list_skills_owned()
     }
 
-    fn skills_by_domain(&self, _domain: TemplateType) -> Vec<&Skill> {
-        // SQLite registry returns owned values, not references.
-        // Use `skills_by_domain_owned` for SQLite-based skill retrieval.
-        Vec::new()
+    fn skills_by_domain(&self, domain: TemplateType) -> Vec<Skill> {
+        self.skills_by_domain_owned(domain)
     }
 
-    fn skills_referencing_template(&self, _template_id: &str) -> Vec<&Skill> {
-        // SQLite registry returns owned values, not references.
-        // Use `skills_referencing_template_owned` for SQLite-based skill retrieval.
-        Vec::new()
+    fn skills_referencing_template(&self, template_id: &str) -> Vec<Skill> {
+        self.skills_referencing_template_owned(template_id)
     }
 
     fn remove_skill(&mut self, id: &str) -> Option<Skill> {
@@ -514,33 +479,46 @@ impl SkillRegistryIndex for SqliteRegistry {
 
 /// Owned-skill retrieval methods specific to SQLite (no lifetime borrowing)
 impl SqliteRegistry {
+    fn row_to_skill(
+        &self,
+        id: String,
+        domain_str: String,
+        word_act: Option<String>,
+        flow_def: Option<String>,
+        know_act: Option<String>,
+    ) -> Option<Skill> {
+        let domain = TemplateType::parse_str(&domain_str).unwrap_or(TemplateType::FlowDef);
+        let cascade_order = self.cascade_order_for_skill(&id).ok()?;
+        Some(Skill {
+            id,
+            domain,
+            word_act,
+            flow_def,
+            know_act,
+            cascade_order,
+        })
+    }
+
     /// Retrieve a skill by ID (owned)
     pub fn get_skill_owned(&self, id: &str) -> Option<Skill> {
-        let cascade_order = self.cascade_order_for_skill(id).ok()?;
-
         self.conn
             .query_row(
                 "SELECT id, domain, word_act, flow_def, know_act FROM skills WHERE id = ?1",
                 params![id],
                 |row| {
-                    let id: String = row.get(0)?;
-                    let domain_str: String = row.get(1)?;
-                    let domain =
-                        TemplateType::parse_str(&domain_str).unwrap_or(TemplateType::FlowDef);
-                    let word_act: Option<String> = row.get(2)?;
-                    let flow_def: Option<String> = row.get(3)?;
-                    let know_act: Option<String> = row.get(4)?;
-                    Ok(Skill {
-                        id,
-                        domain,
-                        word_act,
-                        flow_def,
-                        know_act,
-                        cascade_order,
-                    })
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, Option<String>>(2)?,
+                        row.get::<_, Option<String>>(3)?,
+                        row.get::<_, Option<String>>(4)?,
+                    ))
                 },
             )
             .ok()
+            .and_then(|(id, domain_str, word_act, flow_def, know_act)| {
+                self.row_to_skill(id, domain_str, word_act, flow_def, know_act)
+            })
     }
 
     /// List all skills (owned)
@@ -553,13 +531,7 @@ impl SqliteRegistry {
             Err(_) => return Vec::new(),
         };
 
-        let rows: Vec<(
-            String,
-            String,
-            Option<String>,
-            Option<String>,
-            Option<String>,
-        )> = match stmt.query_map([], |row| {
+        let rows: Vec<SkillRow> = match stmt.query_map([], |row| {
             Ok((
                 row.get(0)?,
                 row.get(1)?,
@@ -574,16 +546,8 @@ impl SqliteRegistry {
 
         let mut skills = Vec::new();
         for (id, domain_str, word_act, flow_def, know_act) in rows {
-            let domain = TemplateType::parse_str(&domain_str).unwrap_or(TemplateType::FlowDef);
-            if let Ok(cascade_order) = self.cascade_order_for_skill(&id) {
-                skills.push(Skill {
-                    id,
-                    domain,
-                    word_act,
-                    flow_def,
-                    know_act,
-                    cascade_order,
-                });
+            if let Some(skill) = self.row_to_skill(id, domain_str, word_act, flow_def, know_act) {
+                skills.push(skill);
             }
         }
         skills
@@ -591,22 +555,64 @@ impl SqliteRegistry {
 
     /// List skills by domain (owned)
     pub fn skills_by_domain_owned(&self, domain: TemplateType) -> Vec<Skill> {
-        self.list_skills_owned()
-            .into_iter()
-            .filter(|s| s.domain == domain)
-            .collect()
+        let mut stmt = match self.conn.prepare(
+            "SELECT id, domain, word_act, flow_def, know_act FROM skills WHERE domain = ?1",
+        ) {
+            Ok(s) => s,
+            Err(_) => return Vec::new(),
+        };
+
+        let rows: Vec<SkillRow> = match stmt.query_map(params![domain.as_str()], |row| {
+            Ok((
+                row.get(0)?,
+                row.get(1)?,
+                row.get(2)?,
+                row.get(3)?,
+                row.get(4)?,
+            ))
+        }) {
+            Ok(mapped) => mapped.filter_map(|r| r.ok()).collect(),
+            Err(_) => return Vec::new(),
+        };
+
+        let mut skills = Vec::new();
+        for (id, domain_str, word_act, flow_def, know_act) in rows {
+            if let Some(skill) = self.row_to_skill(id, domain_str, word_act, flow_def, know_act) {
+                skills.push(skill);
+            }
+        }
+        skills
     }
 
     /// Find skills referencing a template (owned)
     pub fn skills_referencing_template_owned(&self, template_id: &str) -> Vec<Skill> {
-        self.list_skills_owned()
-            .into_iter()
-            .filter(|s| {
-                s.word_act.as_deref() == Some(template_id)
-                    || s.flow_def.as_deref() == Some(template_id)
-                    || s.know_act.as_deref() == Some(template_id)
-            })
-            .collect()
+        let mut stmt = match self.conn.prepare(
+            "SELECT id, domain, word_act, flow_def, know_act FROM skills WHERE word_act = ?1 OR flow_def = ?1 OR know_act = ?1"
+        ) {
+            Ok(s) => s,
+            Err(_) => return Vec::new(),
+        };
+
+        let rows: Vec<SkillRow> = match stmt.query_map(params![template_id], |row| {
+            Ok((
+                row.get(0)?,
+                row.get(1)?,
+                row.get(2)?,
+                row.get(3)?,
+                row.get(4)?,
+            ))
+        }) {
+            Ok(mapped) => mapped.filter_map(|r| r.ok()).collect(),
+            Err(_) => return Vec::new(),
+        };
+
+        let mut skills = Vec::new();
+        for (id, domain_str, word_act, flow_def, know_act) in rows {
+            if let Some(skill) = self.row_to_skill(id, domain_str, word_act, flow_def, know_act) {
+                skills.push(skill);
+            }
+        }
+        skills
     }
 
     fn cascade_order_for_skill(&self, skill_id: &str) -> Result<Vec<String>> {

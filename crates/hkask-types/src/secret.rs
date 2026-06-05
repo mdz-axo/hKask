@@ -96,6 +96,12 @@ pub mod derivation_contexts {
     /// MCP security gateway HMAC key.
     pub const MCP_SECURITY_KEY: &str = "hkask:mcp-security-key";
 
+    /// MCP dispatch and tool invocation signing key.
+    /// Used for DelegationToken minting in tool dispatch paths
+    /// (/invoke, tool-augmented chat). Derived from the ACP master key
+    /// via HKDF-SHA256, same chain as resolve_acp_secret().
+    pub const MCP_SECRET: &str = "hkask:mcp-secret";
+
     /// OCAP capability token signing secret.
     pub const OCAP_SECRET: &str = "hkask:ocap-secret";
 

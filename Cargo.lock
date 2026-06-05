@@ -1119,6 +1119,7 @@ dependencies = [
 name = "hkask-cli"
 version = "0.22.0"
 dependencies = [
+ "async-trait",
  "axum",
  "chrono",
  "clap",

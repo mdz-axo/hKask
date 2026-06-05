@@ -48,6 +48,32 @@ pub(crate) fn resolve_acp_secret() -> Result<String, RegistryError> {
     })
 }
 
+/// Resolve the MCP secret for tool dispatch signing.
+///
+/// Uses the same HKDF derivation chain as resolve_acp_secret(), but with the
+/// MCP_SECRET context. This replaces the hardcoded `b"hkask-devel-mcp-secret-key-32byte!"`
+/// that was used for DelegationToken minting in /invoke and tool-augmented chat.
+///
+/// Resolution chain: master key derivation → env var → keychain → ACP secret fallback
+pub(crate) fn resolve_mcp_secret() -> Result<String, RegistryError> {
+    // 1. Master key derivation (HKDF-SHA256)
+    hkask_keystore::resolve(&hkask_types::SecretRef::derived(
+        hkask_types::derivation_contexts::MASTER_KEY_ENV,
+        hkask_types::derivation_contexts::MCP_SECRET,
+    ))
+    .map(|s| String::from_utf8_lossy(&s).to_string())
+    // 2. Direct environment variable
+    .or_else(|_| std::env::var("HKASK_MCP_SECRET"))
+    // 3. OS keychain
+    .or_else(|_| {
+        hkask_keystore::Keychain::default()
+            .retrieve_by_key("mcp-secret")
+            .map_err(|e| RegistryError::InitFailed(e.to_string()))
+    })
+    // 4. Fallback to ACP secret (same authority chain, different context)
+    .or_else(|_| resolve_acp_secret())
+}
+
 pub fn resolve_db_passphrase() -> Result<String, RegistryError> {
     std::env::var("HKASK_DB_PASSPHRASE").or_else(|_| {
         hkask_keystore::Keychain::default()
@@ -131,18 +157,28 @@ pub fn open_spec_store() -> Result<hkask_storage::SqliteSpecStore, crate::errors
     Ok(store)
 }
 
-/// Create an MCP dispatcher wired with GovernedTool and a capability token.
-/// Returns (McpDispatcher, token) for invoking tools.
-pub fn create_mcp_dispatcher() -> (hkask_mcp::McpDispatcher, hkask_types::CapabilityToken) {
+/// Create a governed MCP dispatcher with a *disconnected* CyberneticsLoop.
+///
+/// This creates a standalone CyberneticsLoop that is not wired into any LoopSystem
+/// or REPL session. For REPL-connected tool dispatch, the GovernedTool is created
+/// in `repl::run()` using the session's shared CyberneticsLoop.
+///
+/// Returns `(McpDispatcher, Arc<dyn ToolPort>)` — the dispatcher and the governed
+/// tool membrane. The membrane is returned so callers can issue capability tokens
+/// if needed.
+pub fn create_disconnected_governed_dispatcher(
+    runtime: hkask_mcp::runtime::McpRuntime,
+    secret: &[u8],
+) -> (
+    hkask_mcp::McpDispatcher,
+    std::sync::Arc<dyn hkask_types::ports::ToolPort>,
+) {
     use hkask_cns::{CnsRuntime, CompositeGasEstimator, CyberneticsLoop, GovernedTool};
     use hkask_mcp::raw_tool_port::RawMcpToolPort;
     use hkask_storage::Database;
     use hkask_types::event::NuEventSink;
     use hkask_types::ports::ToolPort;
     use std::sync::Arc;
-
-    let runtime = hkask_mcp::runtime::McpRuntime::new();
-    let secret = b"hkask-devel-mcp-secret-key-32byte!";
 
     let cns_rwlock: Arc<tokio::sync::RwLock<CnsRuntime>> =
         Arc::new(tokio::sync::RwLock::new(CnsRuntime::default()));
@@ -171,7 +207,29 @@ pub fn create_mcp_dispatcher() -> (hkask_mcp::McpDispatcher, hkask_types::Capabi
         dispatch_tx,
     ));
 
-    let dispatcher = hkask_mcp::McpDispatcher::with_governed_tool(runtime, secret, governed);
+    let dispatcher =
+        hkask_mcp::McpDispatcher::with_governed_tool(runtime, secret, governed.clone());
+    (dispatcher, governed)
+}
+
+/// Create an MCP dispatcher wired with GovernedTool and a capability token.
+/// Returns (McpDispatcher, token) for invoking tools.
+///
+/// **Note:** This creates a *disconnected* CyberneticsLoop — it is not wired
+/// into any LoopSystem or REPL session. For REPL-connected tool dispatch,
+/// the GovernedTool is created in `repl::run()` using the session's shared
+/// CyberneticsLoop and dispatch channel. This function is suitable for
+/// standalone CLI subcommands (mcp, models, web-search) that need tool
+/// dispatch without a REPL session.
+pub fn create_mcp_dispatcher() -> (hkask_mcp::McpDispatcher, hkask_types::CapabilityToken) {
+    let runtime = hkask_mcp::runtime::McpRuntime::new();
+    // Derive the MCP secret from the ACP master key via HKDF, falling back
+    // to env/keychain/ACP-secret. This replaces the hardcoded dev secret.
+    let mcp_secret = resolve_mcp_secret().unwrap_or_else(|_| {
+        tracing::warn!("Using derived ACP secret as MCP secret fallback");
+        "hkask-insecure-dev-fallback".to_string()
+    });
+    let (dispatcher, _) = create_disconnected_governed_dispatcher(runtime, mcp_secret.as_bytes());
     let from = hkask_types::WebID::new();
     let to = hkask_types::WebID::new();
     let token = dispatcher.issue_capability("tools".to_string(), from, to);

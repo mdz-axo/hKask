@@ -63,8 +63,8 @@ pub use ports::{
     ConsolidationPort, DepletionSignal, EmbeddingError, EmbeddingPort, GitCASPort, InferenceError,
     InferencePort, InferenceResult, InferenceUsage, MessageRecord, RegistryEntry, RegistryError,
     RegistryIndex, SessionRecord, SessionStoreError, SimilarityResult, Skill, SkillRegistryIndex,
-    StandingSessionPort, StoredEmbedding, TokenProb, TokenProbability, ToolInfo, ToolPort,
-    ToolPortError,
+    StandingSessionPort, StoredEmbedding, StructuredToolCall, TokenProb, TokenProbability,
+    ToolInfo, ToolPort, ToolPortError,
 };
 pub use r7::{R7BotIdentity, default_r7_bots};
 pub use secret::{SecretRef, derivation_contexts};

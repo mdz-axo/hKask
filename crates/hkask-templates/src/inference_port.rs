@@ -201,6 +201,29 @@ impl OkapiInference {
             cb.record_success();
         }
 
+        // Extract structured tool calls if present (native function calling)
+        let tool_calls = choice
+            .tool_calls
+            .as_ref()
+            .map(|calls| {
+                calls
+                    .iter()
+                    .map(|tc| hkask_types::ports::StructuredToolCall {
+                        server: tc.function.name.split('/').next().unwrap_or("").to_string(),
+                        tool: tc
+                            .function
+                            .name
+                            .split('/')
+                            .nth(1)
+                            .unwrap_or(&tc.function.name)
+                            .to_string(),
+                        args: tc.function.arguments.clone(),
+                        call_id: tc.id.clone(),
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
         Ok(InferenceResult {
             text: choice.message.content.clone(),
             model: okapi_response.model.clone(),
@@ -211,6 +234,7 @@ impl OkapiInference {
             },
             finish_reason: choice.finish_reason.clone(),
             token_probabilities,
+            tool_calls,
         })
     }
 
@@ -404,6 +428,9 @@ struct Choice {
     /// Token probabilities if requested
     #[serde(default, rename = "token_probs")]
     token_probs: Option<Vec<RawTokenProb>>,
+    /// Structured tool calls from native function calling
+    #[serde(default)]
+    tool_calls: Option<Vec<RawToolCall>>,
 }
 
 /// Wire-format token usage from Okapi API
@@ -427,6 +454,26 @@ struct RawTokenProb {
 struct RawTokenProbTopK {
     token: String,
     prob: f64,
+}
+
+/// Wire-format tool call from Okapi API (OpenAI-compatible function calling)
+#[derive(Debug, Deserialize)]
+struct RawToolCall {
+    /// Unique identifier for the tool call (e.g., "call_abc123")
+    id: Option<String>,
+    /// The function call details
+    #[serde(rename = "function")]
+    function: RawFunctionCall,
+}
+
+/// Wire-format function call within a tool call
+#[derive(Debug, Deserialize)]
+struct RawFunctionCall {
+    /// The function name, which may be "server/tool" or just "tool"
+    name: String,
+    /// The JSON arguments for the function call
+    #[serde(default)]
+    arguments: serde_json::Value,
 }
 
 /// Okapi API message structure

@@ -131,6 +131,12 @@ pub(super) const SLASH_COMMANDS: &[SlashCommand] = &[
         about: "Run a metacognition cycle",
     },
     SlashCommand {
+        primary: "invoke",
+        aliases: &["inv"],
+        args: "<server>/<tool> [args]",
+        about: "Invoke an MCP tool through GovernedTool",
+    },
+    SlashCommand {
         primary: "sovereignty",
         aliases: &["sov"],
         args: "",
@@ -432,7 +438,20 @@ pub(super) fn handle_slash_command(
             println!();
         }
         "tools" => {
-            println!("  MCP tools: (use \x1b[36mkask mcp list-tools\x1b[0m for details)");
+            let tools = rt.block_on(state.governed_tool.discover_tools());
+            if tools.is_empty() {
+                println!("  No MCP tools available. Start MCP servers to register tools.");
+            } else {
+                println!("  \x1b[1mMCP Tools ({}):\x1b[0m", tools.len());
+                for tool_name in &tools {
+                    if let Some(info) = rt.block_on(state.governed_tool.get_tool_info(tool_name)) {
+                        println!("  \x1b[36m{}\x1b[0m — {}", info.name, info.description);
+                    } else {
+                        println!("  \x1b[36m{}\x1b[0m", tool_name);
+                    }
+                }
+                println!("  \x1b[2mAll tool calls route through GovernedTool (OCAP + gas)\x1b[0m");
+            }
             println!();
         }
         "ensemble" | "ens" => {
@@ -449,6 +468,9 @@ pub(super) fn handle_slash_command(
         }
         "ask" => {
             handle_ask(arg1, arg2, rt, state);
+        }
+        "invoke" | "inv" => {
+            super::handlers::handle_invoke(arg1, arg2, state, rt);
         }
         "model" | "m" => {
             handle_model(arg1, rt, state);

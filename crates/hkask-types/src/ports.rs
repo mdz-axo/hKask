@@ -136,6 +136,24 @@ pub fn compute_confidence(probs: &[TokenProbability]) -> f64 {
     avg_prob * (1.0 - variance.sqrt())
 }
 
+/// Structured tool call from a model response.
+///
+/// When a model supports native function calling (OpenAI, Anthropic, Gemini),
+/// it returns structured tool call data rather than embedded text directives.
+/// This type captures that structured data so the system can route it
+/// through the Communication Loop without fragile text parsing.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StructuredToolCall {
+    /// The MCP server ID (e.g., "hkask-mcp-inference")
+    pub server: String,
+    /// The tool name (e.g., "inference_generate")
+    pub tool: String,
+    /// The JSON arguments for the tool call
+    pub args: serde_json::Value,
+    /// Optional call ID from the model (for multi-turn tool use)
+    pub call_id: Option<String>,
+}
+
 /// Inference result from LLM backend
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InferenceResult {
@@ -144,6 +162,17 @@ pub struct InferenceResult {
     pub usage: InferenceUsage,
     pub finish_reason: String,
     pub token_probabilities: Option<Vec<TokenProbability>>,
+    /// Structured tool calls from models that support native function calling.
+    ///
+    /// When `finish_reason == "tool_calls"`, this vector contains the parsed
+    /// tool call data. When `finish_reason == "stop"`, this is empty and
+    /// the `text` field contains the response.
+    ///
+    /// For models that don't support native function calling, this is always
+    /// empty — the fallback `parse_tool_calls()` function in `tool_augmented`
+    /// handles `<<tool:...>>` text directives instead.
+    #[serde(default)]
+    pub tool_calls: Vec<StructuredToolCall>,
 }
 
 /// Inference Port — Hexagonal boundary for LLM backends
@@ -324,17 +353,22 @@ pub enum RegistryError {
 ///
 /// Implementations provide CRUD for skills, which compose templates
 /// into coherent agent capabilities.
+///
+/// All read methods return owned `Skill` values. This makes the trait
+/// compatible with both in-memory (HashMap-backed) and SQLite implementations:
+/// the in-memory Registry clones from its HashMap, while SqliteRegistry
+/// constructs owned values from database rows.
 pub trait SkillRegistryIndex {
     /// Register a new skill
     fn register_skill(&mut self, skill: Skill);
     /// Retrieve a skill by ID
-    fn get_skill(&self, id: &str) -> Option<&Skill>;
+    fn get_skill(&self, id: &str) -> Option<Skill>;
     /// List all skills
-    fn list_skills(&self) -> Vec<&Skill>;
+    fn list_skills(&self) -> Vec<Skill>;
     /// List skills by domain
-    fn skills_by_domain(&self, domain: TemplateType) -> Vec<&Skill>;
+    fn skills_by_domain(&self, domain: TemplateType) -> Vec<Skill>;
     /// Find skills that reference a given template ID
-    fn skills_referencing_template(&self, template_id: &str) -> Vec<&Skill>;
+    fn skills_referencing_template(&self, template_id: &str) -> Vec<Skill>;
     /// Remove a skill by ID
     fn remove_skill(&mut self, id: &str) -> Option<Skill>;
 }

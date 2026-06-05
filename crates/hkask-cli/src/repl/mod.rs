@@ -7,28 +7,32 @@
 //! - Welcome banner with the Kask amphora logo
 //! - Categorized help so the menu is scannable
 
+mod builtin_servers;
 mod commands;
 pub(crate) mod display;
 mod handlers;
 mod helper;
+mod tool_augmented;
 
 use hkask_agents::CurationLoop;
 use hkask_agents::CuratorContext;
+use hkask_agents::CyberneticsLoopHandle;
 use hkask_agents::EscalationQueue;
 use hkask_agents::InferenceLoop;
 use hkask_agents::LoopSystem;
 use hkask_agents::adapters::MemoryLoopAdapter;
 use hkask_agents::communication::MessageDispatch;
 use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
-use hkask_cns::CnsRuntime;
-use hkask_cns::CyberneticsLoop;
-use hkask_cns::GasBudget;
+use hkask_cns::{CnsRuntime, CompositeGasEstimator, CyberneticsLoop, GasBudget, GovernedTool};
+use hkask_mcp::raw_tool_port::RawMcpToolPort;
 use hkask_mcp::runtime::McpRuntime;
+use hkask_storage::Database;
 use hkask_templates::{OkapiConfig, OkapiInference, SqliteRegistry};
 use hkask_types::CuratorHandle;
 use hkask_types::WebID;
+use hkask_types::event::NuEventSink;
 use hkask_types::loops::LoopPayload;
-use hkask_types::ports::InferencePort;
+use hkask_types::ports::{InferencePort, ToolPort};
 use rustyline::error::ReadlineError;
 use rustyline::{CompletionType, Config as ReadlineConfig, Editor};
 use std::sync::Arc;
@@ -61,7 +65,8 @@ pub(crate) struct ReplState {
     /// CyberneticsLoop — direct reference for gas budget operations
     /// (register_gas_budget, acquire_budget, can_proceed).
     /// Also registered with LoopSystem for the sense→compare→compute→act cycle.
-    pub(crate) cybernetics_loop: Arc<CyberneticsLoop>,
+    /// Wrapped in RwLock so GovernedTool can share the same instance.
+    pub(crate) cybernetics_loop: Arc<RwLock<CyberneticsLoop>>,
     /// LoopSystem — runs the sense→compare→compute→act regulation cycle
     /// for Curation, Cybernetics, and Inference loops after each chat turn.
     /// Ticking is synchronous (after each user turn), not on a clock.
@@ -79,6 +84,10 @@ pub(crate) struct ReplState {
     /// re-resolving from the OS keychain (which may use a mock backend
     /// with EntryOnly persistence on Linux).
     pub(crate) resolved_secrets: Option<crate::commands::config::ResolvedSecrets>,
+    /// GovernedTool membrane — the singular governance boundary for MCP tool
+    /// invocations. All tool calls route through this membrane, which enforces
+    /// OCAP authority, gas budgets, and CNS observability.
+    pub(crate) governed_tool: Arc<dyn ToolPort>,
 }
 
 pub fn run(
@@ -239,10 +248,18 @@ pub fn run(
     // gas budgets, produces regulatory actions (Throttle, AdjustGasBudget,
     // Escalate) via sense→compute→compute→act.
     //
-    // Arc-wrapped so we can keep a direct reference for gas budget operations
-    // (register_gas_budget, acquire_budget, can_proceed) while also
-    // registering a clone with the LoopSystem for the regulation cycle.
-    let cybernetics_loop = Arc::new(CyberneticsLoop::new(cns.clone(), dispatch_sender));
+    // Wrapped in RwLock so GovernedTool can share the same instance for
+    // gas budget checks during tool invocations. Direct method access
+    // (register_gas_budget, can_proceed, reserve_gas, settle_gas) goes
+    // through .read() on the RwLock — all CyberneticsLoop methods use
+    // interior mutability via Arc<RwLock<HashMap>> for their data.
+    let cybernetics_loop = Arc::new(RwLock::new(
+        CyberneticsLoop::new(cns.clone(), dispatch_sender.clone()).with_event_sink(Arc::new(
+            hkask_storage::NuEventStore::new(
+                Database::in_memory().expect("cns event db").conn_arc(),
+            ),
+        )),
+    ));
 
     // Register the agent's gas budget with the CyberneticsLoop.
     // This is the canonical budget that the homeostatic regulator tracks.
@@ -254,16 +271,22 @@ pub fn run(
     // consumed in the REPL turn cycle — InferenceLoop's counter is the
     // operational fast-path, CyberneticsLoop's GasBudget is the regulatory
     // tracker with replenishment and homeostatic response.
-    rt_handle.block_on(
-        cybernetics_loop.register_gas_budget(
-            agent_webid,
-            GasBudget::new(10_000)
-                .with_replenish_rate(1_000)
-                .with_alert_threshold(0.8)
-                .with_hard_limit(true),
-        ),
-    );
-    let cybernetics_loop_arc: Arc<dyn hkask_types::loops::HkaskLoop> = cybernetics_loop.clone();
+    rt_handle.block_on(async {
+        cybernetics_loop
+            .read()
+            .await
+            .register_gas_budget(
+                agent_webid,
+                GasBudget::new(10_000)
+                    .with_replenish_rate(1_000)
+                    .with_alert_threshold(0.8)
+                    .with_hard_limit(true),
+            )
+            .await
+    });
+
+    let cybernetics_loop_arc: Arc<dyn hkask_types::loops::HkaskLoop> =
+        Arc::new(CyberneticsLoopHandle(cybernetics_loop.clone()));
 
     // ── InferenceLoop (Loop 1) ────────────────────────────────────────
     // Already constructed above, wrapped in Arc for sharing with LoopSystem.
@@ -273,6 +296,36 @@ pub fn run(
     rt_handle.block_on(loop_system.register_loop(curation_loop_arc));
     rt_handle.block_on(loop_system.register_loop(cybernetics_loop_arc));
     rt_handle.block_on(loop_system.register_loop(inference_loop_arc));
+
+    // ── GovernedTool (7f: MCP tool dispatch through governance membrane) ─────
+    // The GovernedTool membrane enforces OCAP authority, gas budgets, and
+    // CNS observability for all MCP tool invocations. It shares the same
+    // CyberneticsLoop as the REPL's loop system — tool invocations contribute
+    // to the same gas budget and variety tracking as inference.
+    let mcp_runtime = McpRuntime::new();
+
+    // Register built-in MCP servers so /tools and /invoke work at startup.
+    // These are metadata registrations — actual MCP server processes connect
+    // via transport when invoked.
+    let tool_count = rt_handle.block_on(builtin_servers::register_builtin_servers(&mcp_runtime));
+    if tool_count > 0 {
+        tracing::info!(target: "hkask.repl", tools = tool_count, "Built-in MCP servers registered");
+    }
+
+    let raw_tool_port: Arc<dyn ToolPort> = Arc::new(RawMcpToolPort::new(mcp_runtime.clone()));
+    let cns_event_sink: Arc<dyn NuEventSink> = Arc::new(hkask_storage::NuEventStore::new(
+        Database::in_memory().expect("cns event db").conn_arc(),
+    ));
+    let gas_estimator: Arc<dyn hkask_cns::GasEstimator> = Arc::new(CompositeGasEstimator::new());
+
+    let governed_tool: Arc<dyn ToolPort> = Arc::new(GovernedTool::new(
+        raw_tool_port,
+        cybernetics_loop.clone(), // Arc<RwLock<CyberneticsLoop>> — shared with LoopSystem
+        cns_event_sink,
+        gas_estimator,
+        agent_webid,
+        dispatch_sender, // LoopSystem's dispatch channel
+    ));
 
     let mut state = ReplState {
         inference_port,
@@ -290,6 +343,7 @@ pub fn run(
         session_history: SessionHistory::new(),
         active_session: None,
         resolved_secrets: onboarding_outcome.resolved_secrets,
+        governed_tool,
     };
 
     let helper = KaskHelper::new();
@@ -349,6 +403,13 @@ pub fn run(
 
                 let rt = rt_handle.clone();
 
+                // ACP secret for signing capability tokens in tool invocations.
+                // Derived from onboarding — same secret that governs OCAP authority.
+                let acp_secret: &[u8] = match &state.resolved_secrets {
+                    Some(secrets) => secrets.acp_secret.as_bytes(),
+                    None => b"hkask-insecure-dev-fallback",
+                };
+
                 if let Some(ref session) = state.active_session {
                     match rt.block_on(crate::commands::ensemble_improv_turn(
                         session,
@@ -360,18 +421,45 @@ pub fn run(
                                 println!("  \x1b[2m(no agents chose to speak)\x1b[0m");
                             } else {
                                 for response in &turn.responses {
-                                    println!(
-                                        "\x1b[1m{}\x1b[0m (conf. {:.2}): {}\n",
-                                        response.agent_webid, response.confidence, response.content
-                                    );
-                                    state.session_history.record(
-                                        &response.agent_webid.to_string(),
+                                    // Tool-augmented processing: same function
+                                    // as single-agent REPL.
+                                    let agent_name = response.agent_webid.to_string();
+                                    let processed = rt.block_on(tool_augmented::process_response(
                                         &response.content,
-                                    );
+                                        &agent_name,
+                                        &state.governed_tool,
+                                        &state.agent_webid,
+                                        acp_secret,
+                                        None, // ensemble responses don't carry structured tool calls yet
+                                    ));
+                                    // If no tool calls, process_response returns the
+                                    // original text and we print it ourselves.
+                                    // If tool calls were present, process_response
+                                    // already printed everything.
+                                    if !processed.had_tool_calls {
+                                        println!(
+                                            "\x1b[1m{}\x1b[0m (conf. {:.2}): {}\n",
+                                            response.agent_webid,
+                                            response.confidence,
+                                            response.content
+                                        );
+                                    }
+                                    state.session_history.record(&agent_name, &processed.text);
                                 }
                                 if let Some(ref synthesis) = turn.curator_synthesis {
-                                    println!("\x1b[1;33mCurator:\x1b[0m {}\n", synthesis);
-                                    state.session_history.record("Curator", synthesis);
+                                    // Tool-augmented processing for curator synthesis
+                                    let processed = rt.block_on(tool_augmented::process_response(
+                                        synthesis,
+                                        "Curator",
+                                        &state.governed_tool,
+                                        &state.agent_webid,
+                                        acp_secret,
+                                        None,
+                                    ));
+                                    if !processed.had_tool_calls {
+                                        println!("\x1b[1;33mCurator:\x1b[0m {}\n", synthesis);
+                                    }
+                                    state.session_history.record("Curator", &processed.text);
                                 }
                             }
                             for j in &turn.judgments {
@@ -402,11 +490,14 @@ pub fn run(
                     // If the model doesn't report token usage, we fall back to
                     // the heuristic.
                     let heuristic_cost: u64 = 500; // pre-inference estimate
-                    let can_proceed = rt.block_on(
+                    let can_proceed = rt.block_on(async {
                         state
                             .cybernetics_loop
-                            .can_proceed(&state.agent_webid, heuristic_cost),
-                    );
+                            .read()
+                            .await
+                            .can_proceed(&state.agent_webid, heuristic_cost)
+                            .await
+                    });
                     if !can_proceed {
                         // Hard limit reached — regulator says stop.
                         println!(
@@ -419,11 +510,14 @@ pub fn run(
                     }
 
                     // Reserve heuristic amount (hold-settle pattern)
-                    let _reserved = rt.block_on(
+                    let _reserved = rt.block_on(async {
                         state
                             .cybernetics_loop
-                            .reserve_gas(&state.agent_webid, heuristic_cost),
-                    );
+                            .read()
+                            .await
+                            .reserve_gas(&state.agent_webid, heuristic_cost)
+                            .await
+                    });
                     // Also consume from InferenceLoop's atomic counter (pre-inference estimate)
                     state.inference_loop.consume_gas(heuristic_cost);
 
@@ -446,11 +540,14 @@ pub fn run(
                         .unwrap_or(heuristic_cost);
 
                     // Settle in CyberneticsLoop: refund difference if actual < reserved
-                    let _settled = rt.block_on(state.cybernetics_loop.settle_gas(
-                        &state.agent_webid,
-                        heuristic_cost,
-                        actual_cost,
-                    ));
+                    let _settled = rt.block_on(async {
+                        state
+                            .cybernetics_loop
+                            .read()
+                            .await
+                            .settle_gas(&state.agent_webid, heuristic_cost, actual_cost)
+                            .await
+                    });
 
                     // Adjust InferenceLoop's atomic counter for the difference
                     // If actual > heuristic, consume more; if actual < heuristic, refund
@@ -465,6 +562,131 @@ pub fn run(
                     }
 
                     let response = chat_response.text;
+
+                    // ── Tool-augmented chat ─────────────────────────────────────
+                    // Both single-agent REPL and ensemble turns call the same
+                    // `process_response` function. It checks for structured
+                    // tool_calls first (native function calling), then falls back
+                    // to parsing <<tool:...>> text directives.
+                    //
+                    // For single-agent, we also support a followup inference
+                    // loop: if tool calls were found, we feed the results back
+                    // to the model for another turn.
+                    let structured_calls: Vec<hkask_types::ports::StructuredToolCall> =
+                        if chat_response.finish_reason == "tool_calls" {
+                            chat_response.tool_calls
+                        } else {
+                            vec![]
+                        };
+                    let processed = rt.block_on(tool_augmented::process_response(
+                        &response,
+                        &state.current_agent,
+                        &state.governed_tool,
+                        &state.agent_webid,
+                        acp_secret,
+                        Some(&structured_calls),
+                    ));
+                    let mut final_response = processed.text;
+
+                    // ── Followup inference loop (single-agent only) ────────────
+                    // If tool calls were found, feed the results back to the model
+                    // for another inference turn. This gives the model a chance to
+                    // synthesize the tool results into a final answer.
+                    if processed.had_tool_calls && !processed.tool_results_formatted.is_empty() {
+                        let followup_prompt = format!(
+                            "{}\n\nThe following tool calls were executed:\n\n{}\n\nBased on these results, provide your response.",
+                            final_response.trim(),
+                            processed.tool_results_formatted
+                        );
+
+                        // Check gas budget before followup
+                        let can_continue = rt.block_on(async {
+                            state
+                                .cybernetics_loop
+                                .read()
+                                .await
+                                .can_proceed(&state.agent_webid, heuristic_cost)
+                                .await
+                        });
+                        if can_continue {
+                            // Reserve gas for followup
+                            let _reserved = rt.block_on(async {
+                                state
+                                    .cybernetics_loop
+                                    .read()
+                                    .await
+                                    .reserve_gas(&state.agent_webid, heuristic_cost)
+                                    .await
+                            });
+                            state.inference_loop.consume_gas(heuristic_cost);
+
+                            let followup = rt.block_on(crate::commands::chat_with_agent(
+                                &followup_prompt,
+                                Some(&state.current_agent),
+                                Some(&state.current_model),
+                                Some(state.inference_port.clone()),
+                                state.resolved_secrets.as_ref(),
+                                Some(state.episodic_storage.clone()),
+                                Some(state.semantic_storage.clone()),
+                                Some(state.agent_webid),
+                            ));
+
+                            // Settle followup gas
+                            let followup_cost = followup
+                                .usage
+                                .as_ref()
+                                .map(|u| u.gas_cost())
+                                .unwrap_or(heuristic_cost);
+                            let _settled = rt.block_on(async {
+                                state
+                                    .cybernetics_loop
+                                    .read()
+                                    .await
+                                    .settle_gas(&state.agent_webid, heuristic_cost, followup_cost)
+                                    .await
+                            });
+                            if followup_cost > heuristic_cost {
+                                state
+                                    .inference_loop
+                                    .consume_gas(followup_cost - heuristic_cost);
+                            } else if followup_cost < heuristic_cost {
+                                state
+                                    .inference_loop
+                                    .replenish_gas(heuristic_cost - followup_cost);
+                            }
+
+                            if let Some(ref usage) = followup.usage {
+                                println!(
+                                    "  \x1b[2mFollowup: {} tokens ({} prompt + {} completion)\x1b[0m",
+                                    usage.total_tokens,
+                                    usage.prompt_tokens,
+                                    usage.completion_tokens
+                                );
+                            }
+
+                            // Process the followup for tool calls too
+                            // Followup may also have structured tool calls from native function calling
+                            let followup_structured: Vec<hkask_types::ports::StructuredToolCall> =
+                                if followup.finish_reason == "tool_calls" {
+                                    followup.tool_calls
+                                } else {
+                                    vec![]
+                                };
+                            let followup_processed = rt.block_on(tool_augmented::process_response(
+                                &followup.text,
+                                &state.current_agent,
+                                &state.governed_tool,
+                                &state.agent_webid,
+                                acp_secret,
+                                Some(&followup_structured),
+                            ));
+                            final_response = followup_processed.text;
+                        } else {
+                            println!(
+                                "  \x1b[33m\u{26a0} Gas budget insufficient for followup inference\x1b[0m"
+                            );
+                        }
+                    }
 
                     // Show token usage (7g)
                     if let Some(ref usage) = chat_response.usage {
@@ -627,10 +849,10 @@ pub fn run(
                         }
                     }
 
-                    println!("{}: {}\n", state.current_agent, response);
+                    println!("{}: {}\n", state.current_agent, final_response);
                     state
                         .session_history
-                        .record(&state.current_agent, &response);
+                        .record(&state.current_agent, &final_response);
                 }
             }
             Err(ReadlineError::Interrupted) => {

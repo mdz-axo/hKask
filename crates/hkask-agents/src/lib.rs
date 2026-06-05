@@ -45,7 +45,7 @@ pub use escalation::{
     EscalationEntry, EscalationError, EscalationQueue, EscalationStats, EscalationStatus,
 };
 pub use inference_loop::InferenceLoop;
-pub use loop_system::{LoopSystem, default_tick_interval};
+pub use loop_system::{CyberneticsLoopHandle, LoopSystem, default_tick_interval};
 pub use pod::{
     AgentKind, AgentPersona, AgentPod, AgentPodError, AgentPodResult, PodID, PodLifecycleState,
     PodManager, PodStatus,

@@ -16,49 +16,6 @@ use std::path::Path;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-/// Create a governed McpDispatcher wired with GovernedTool and CompositeGasEstimator.
-/// This is the production path — all tool invocations route through the governance membrane.
-fn create_governed_mcp_dispatcher(
-    runtime: hkask_mcp::runtime::McpRuntime,
-    secret: &[u8],
-) -> hkask_mcp::McpDispatcher {
-    use hkask_cns::{CnsRuntime, CompositeGasEstimator, CyberneticsLoop, GovernedTool};
-    use hkask_mcp::raw_tool_port::RawMcpToolPort;
-    use hkask_storage::Database;
-    use hkask_types::event::NuEventSink;
-    use hkask_types::ports::ToolPort;
-    use std::sync::Arc;
-
-    let cns_rwlock: Arc<tokio::sync::RwLock<CnsRuntime>> =
-        Arc::new(tokio::sync::RwLock::new(CnsRuntime::default()));
-    let (dispatch_tx, _) =
-        tokio::sync::mpsc::unbounded_channel::<hkask_types::loops::LoopMessage>();
-    let cybernetics = Arc::new(tokio::sync::RwLock::new({
-        let event_sink_for_loop: Arc<dyn NuEventSink> = Arc::new(hkask_storage::NuEventStore::new(
-            Database::in_memory().expect("event db").conn_arc(),
-        ));
-        CyberneticsLoop::new(cns_rwlock, dispatch_tx.clone()).with_event_sink(event_sink_for_loop)
-    }));
-
-    let raw_port: Arc<dyn ToolPort> = Arc::new(RawMcpToolPort::new(runtime.clone()));
-    let event_sink: Arc<dyn NuEventSink> = Arc::new(hkask_storage::NuEventStore::new(
-        Database::in_memory().expect("event db").conn_arc(),
-    ));
-    let estimator = Arc::new(CompositeGasEstimator::new());
-    let agent = hkask_types::WebID::from_persona(b"curator");
-
-    let governed: Arc<dyn ToolPort> = Arc::new(GovernedTool::new(
-        raw_port,
-        cybernetics,
-        event_sink,
-        estimator,
-        agent,
-        dispatch_tx,
-    ));
-
-    hkask_mcp::McpDispatcher::with_governed_tool(runtime, secret, governed)
-}
-
 fn or_exit<T, E: std::fmt::Display>(result: Result<T, E>, label: &str) -> T {
     match result {
         Ok(v) => v,
@@ -501,8 +458,14 @@ fn run_mcp(rt: &tokio::runtime::Runtime, action: McpAction) {
                 or_exit(serde_json::from_str(&input), "parse JSON input");
 
             let runtime = McpRuntime::new();
-            let secret = b"hkask-devel-mcp-secret-key-32byte!";
-            let dispatcher = create_governed_mcp_dispatcher(runtime, secret);
+            let mcp_secret = crate::commands::config::resolve_mcp_secret().unwrap_or_else(|_| {
+                tracing::warn!("Using dev fallback for MCP secret");
+                "hkask-insecure-dev-fallback".to_string()
+            });
+            let (dispatcher, _) = crate::commands::config::create_disconnected_governed_dispatcher(
+                runtime,
+                mcp_secret.as_bytes(),
+            );
 
             let tools = rt.block_on(dispatcher.list_tools());
             if tools.is_empty() {
@@ -1766,8 +1729,14 @@ fn run_models(rt: &tokio::runtime::Runtime) {
     use hkask_types::WebID;
 
     let runtime = McpRuntime::new();
-    let secret = b"hkask-devel-mcp-secret-key-32byte!";
-    let dispatcher = create_governed_mcp_dispatcher(runtime, secret);
+    let mcp_secret = crate::commands::config::resolve_mcp_secret().unwrap_or_else(|_| {
+        tracing::warn!("Using dev fallback for MCP secret");
+        "hkask-insecure-dev-fallback".to_string()
+    });
+    let (dispatcher, _) = crate::commands::config::create_disconnected_governed_dispatcher(
+        runtime,
+        mcp_secret.as_bytes(),
+    );
     let from = WebID::new();
     let to = WebID::new();
     let token = dispatcher.issue_capability("models".to_string(), from, to);
@@ -1810,8 +1779,14 @@ fn run_web_search(rt: &tokio::runtime::Runtime, query: String, max_results: usiz
     use hkask_types::WebID;
 
     let runtime = McpRuntime::new();
-    let secret = b"hkask-devel-mcp-secret-key-32byte!";
-    let dispatcher = create_governed_mcp_dispatcher(runtime, secret);
+    let mcp_secret = crate::commands::config::resolve_mcp_secret().unwrap_or_else(|_| {
+        tracing::warn!("Using dev fallback for MCP secret");
+        "hkask-insecure-dev-fallback".to_string()
+    });
+    let (dispatcher, _) = crate::commands::config::create_disconnected_governed_dispatcher(
+        runtime,
+        mcp_secret.as_bytes(),
+    );
     let from = WebID::new();
     let to = WebID::new();
     let token = dispatcher.issue_capability("web".to_string(), from, to);

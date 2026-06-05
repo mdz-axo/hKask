@@ -9,6 +9,7 @@
 //! Rust is the loom. YAML/Jinja2 is the thread.
 
 use crate::ports::{RegistryEntry, RegistryIndex, Result, TemplateError};
+use hkask_types::ports::SkillRegistryIndex;
 use hkask_types::{HLexicon, SYSTEM_MAX_RECURSION, Skill, TemplateType};
 use std::collections::HashMap;
 use std::env;
@@ -248,8 +249,8 @@ impl Registry {
 
     // ── Skill composition methods ──────────────────────────────────
 
-    pub fn list_skills(&self) -> Vec<&Skill> {
-        self.skills.values().collect()
+    pub fn list_skills(&self) -> Vec<Skill> {
+        self.skills.values().cloned().collect()
     }
 
     pub fn remove_skill(&mut self, id: &str) -> Option<Skill> {
@@ -260,19 +261,20 @@ impl Registry {
         self.skills.insert(skill.id.clone(), skill);
     }
 
-    pub fn get_skill(&self, id: &str) -> Option<&Skill> {
-        self.skills.get(id)
+    pub fn get_skill(&self, id: &str) -> Option<Skill> {
+        self.skills.get(id).cloned()
     }
 
-    pub fn skills_by_domain(&self, domain: TemplateType) -> Vec<&Skill> {
+    pub fn skills_by_domain(&self, domain: TemplateType) -> Vec<Skill> {
         self.skills
             .values()
             .filter(|s| s.domain == domain)
+            .cloned()
             .collect()
     }
 
     /// Find skills that reference a given template ID.
-    pub fn skills_referencing_template(&self, template_id: &str) -> Vec<&Skill> {
+    pub fn skills_referencing_template(&self, template_id: &str) -> Vec<Skill> {
         self.skills
             .values()
             .filter(|s| {
@@ -280,6 +282,7 @@ impl Registry {
                     || s.flow_def.as_deref() == Some(template_id)
                     || s.know_act.as_deref() == Some(template_id)
             })
+            .cloned()
             .collect()
     }
 
@@ -625,6 +628,44 @@ impl RegistryIndex for Registry {
         self.templates.get(id).cloned().ok_or_else(|| {
             hkask_types::ports::RegistryError::NotFound(format!("Template '{}' not found", id))
         })
+    }
+}
+
+impl SkillRegistryIndex for Registry {
+    fn register_skill(&mut self, skill: Skill) {
+        self.skills.insert(skill.id.clone(), skill);
+    }
+
+    fn get_skill(&self, id: &str) -> Option<Skill> {
+        self.skills.get(id).cloned()
+    }
+
+    fn list_skills(&self) -> Vec<Skill> {
+        self.skills.values().cloned().collect()
+    }
+
+    fn skills_by_domain(&self, domain: TemplateType) -> Vec<Skill> {
+        self.skills
+            .values()
+            .filter(|s| s.domain == domain)
+            .cloned()
+            .collect()
+    }
+
+    fn skills_referencing_template(&self, template_id: &str) -> Vec<Skill> {
+        self.skills
+            .values()
+            .filter(|s| {
+                s.word_act.as_deref() == Some(template_id)
+                    || s.flow_def.as_deref() == Some(template_id)
+                    || s.know_act.as_deref() == Some(template_id)
+            })
+            .cloned()
+            .collect()
+    }
+
+    fn remove_skill(&mut self, id: &str) -> Option<Skill> {
+        self.skills.remove(id)
     }
 }
 

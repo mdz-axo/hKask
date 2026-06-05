@@ -2,8 +2,10 @@
 
 pub(crate) mod ensemble;
 pub(crate) mod into;
+pub(crate) mod invoke;
 pub(crate) mod model;
 
 pub(crate) use ensemble::handle_ensemble;
 pub(crate) use into::handle_into;
+pub(crate) use invoke::handle_invoke;
 pub(crate) use model::handle_model;
