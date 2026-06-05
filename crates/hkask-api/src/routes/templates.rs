@@ -5,7 +5,26 @@ use axum::{
 };
 use hkask_templates::RegistryIndex;
 
-use crate::{ApiState, TemplateResponse};
+use crate::ApiState;
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
+
+/// Template response
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct TemplateResponse {
+    pub id: String,
+    pub template_type: String,
+    pub name: String,
+    pub description: String,
+    pub source_path: String,
+    pub lexicon_terms: Vec<String>,
+}
+
+/// Capability request
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct GrantCapabilityRequest {
+    pub capability: String,
+}
 
 /// Create templates router
 pub fn templates_router() -> Router<ApiState> {

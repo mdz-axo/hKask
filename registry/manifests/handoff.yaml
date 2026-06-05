@@ -1,0 +1,313 @@
+# Handoff Process Manifest
+# ℏKask v0.22.0 — Session context transfer for agent continuity
+# Template type: Process (FlowDef) — multi-step context compaction and handoff
+
+manifest:
+  id: handoff
+  name: Handoff
+  description: >
+    Compact the current conversation into a structured handoff document so
+    a fresh agent can continue the work. Generates a purpose-built context
+    transfer document with the exact fields a receiving session needs to
+    pick up cleanly: session purpose, progress summary, key decisions,
+    artifact references, suggested skills, and redacted sensitive data.
+  functional_role: knowact
+  version: 0.22.0
+  editor: curator-or-human-admin
+  visibility: Shared
+
+gas:
+  cap: 25000
+  cost_per_token: 0.25
+  alert_threshold: 0.8
+  hard_limit: true
+
+inputs:
+  - name: next_session_focus
+    type: string
+    description: "What the next session should focus on (user-provided intent)"
+    required: false
+  - name: session_context
+    type: object
+    description: "Current session context: messages, decisions, artifacts"
+    required: true
+  - name: project_root
+    type: string
+    description: "Root directory of the project for artifact path resolution"
+    required: true
+
+# Handoff document sections
+sections:
+  - id: purpose
+    name: "Next Session Purpose"
+    description: "What the receiving agent needs to accomplish"
+    cns_span: "cns.prompt.handoff.purpose"
+  - id: progress
+    name: "Progress Summary"
+    description: "What was accomplished in the current session"
+    cns_span: "cns.prompt.handoff.progress"
+  - id: decisions
+    name: "Key Decisions & Rationale"
+    description: "Important decisions made and why"
+    cns_span: "cns.prompt.handoff.decisions"
+  - id: artifacts
+    name: "Artifact References"
+    description: "Pointers to existing files, PRDs, plans, ADRs, issues, commits, diffs"
+    cns_span: "cns.prompt.handoff.artifacts"
+  - id: skills
+    name: "Suggested Skills"
+    description: "Skills the next agent should invoke based on session content"
+    cns_span: "cns.prompt.handoff.skills"
+  - id: open_questions
+    name: "Open Questions & Risks"
+    description: "Unresolved issues, blockers, and risks for the next session"
+    cns_span: "cns.prompt.handoff.open-questions"
+
+# Process Steps
+steps:
+  - ordinal: 1
+    action: populate
+    description: >
+      Compact the session context into a structured summary. Extract the
+      session's purpose, key accomplishments, decisions made, and current
+      state. Reduce verbose conversation history to essential facts.
+    renderer: minijinja
+    template_ref: handoff/handoff-compact
+    model_tier: balanced
+    mcp: hkask-mcp-inference
+    gas_cap: 6000
+    timeout_seconds: 45
+    input_mapping:
+      next_session_focus: "{{ next_session_focus | default('') }}"
+      session_context: "{{ session_context }}"
+    output_schema:
+      type: object
+      properties:
+        session_purpose:
+          type: string
+        progress_summary:
+          type: array
+          items:
+            type: object
+            properties:
+              accomplishment: { type: string }
+              status: { type: string }
+        key_decisions:
+          type: array
+          items:
+            type: object
+            properties:
+              decision: { type: string }
+              rationale: { type: string }
+              alternative_options: { type: array }
+        current_state:
+          type: string
+
+  - ordinal: 2
+    action: populate
+    description: >
+      Identify and catalog existing artifacts from the session. Reference
+      files, PRDs, plans, ADRs, issues, commits, and diffs by path or URL
+      rather than duplicating their content. Detect artifact type automatically.
+    renderer: minijinja
+    template_ref: handoff/handoff-artifacts
+    model_tier: fast_local
+    mcp: hkask-mcp-inference
+    gas_cap: 3000
+    timeout_seconds: 30
+    input_mapping:
+      session_context: "{{ session_context }}"
+      project_root: "{{ project_root }}"
+      key_decisions: "{{ ordinal_1.key_decisions }}"
+    output_schema:
+      type: object
+      properties:
+        artifacts:
+          type: array
+          items:
+            type: object
+            properties:
+              type: { type: string }
+              path_or_url: { type: string }
+              description: { type: string }
+              relevance: { type: string }
+        redacted_fields:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              reason: { type: string }
+
+  - ordinal: 3
+    action: populate
+    description: >
+      Analyze session content and suggest relevant skills the next agent
+      should invoke. Map the session's domain, task type, and remaining
+      work to known skill capabilities.
+    renderer: minijinja
+    template_ref: handoff/handoff-skills-suggest
+    model_tier: fast_local
+    mcp: hkask-mcp-inference
+    gas_cap: 2000
+    timeout_seconds: 20
+    input_mapping:
+      next_session_focus: "{{ next_session_focus | default('') }}"
+      current_state: "{{ ordinal_1.current_state }}"
+      artifacts: "{{ ordinal_2.artifacts }}"
+      key_decisions: "{{ ordinal_1.key_decisions }}"
+    output_schema:
+      type: object
+      properties:
+        suggested_skills:
+          type: array
+          items:
+            type: object
+            properties:
+              skill_id: { type: string }
+              reason: { type: string }
+              priority: { type: string }
+        open_questions:
+          type: array
+          items:
+            type: object
+            properties:
+              question: { type: string }
+              risk_level: { type: string }
+              context: { type: string }
+
+  - ordinal: 4
+    action: populate
+    description: >
+      Compose the final handoff document from all gathered sections.
+      Apply sensitive data redaction, format as structured markdown
+      suitable for a fresh agent session. Write to OS temp directory.
+    renderer: minijinja
+    template_ref: handoff/handoff-compose
+    model_tier: balanced
+    mcp: hkask-mcp-inference
+    gas_cap: 5000
+    timeout_seconds: 45
+    input_mapping:
+      session_purpose: "{{ ordinal_1.session_purpose }}"
+      progress_summary: "{{ ordinal_1.progress_summary }}"
+      key_decisions: "{{ ordinal_1.key_decisions }}"
+      current_state: "{{ ordinal_1.current_state }}"
+      artifacts: "{{ ordinal_2.artifacts }}"
+      redacted_fields: "{{ ordinal_2.redacted_fields }}"
+      suggested_skills: "{{ ordinal_3.suggested_skills }}"
+      open_questions: "{{ ordinal_3.open_questions }}"
+      next_session_focus: "{{ next_session_focus | default('') }}"
+    output_schema:
+      type: object
+      properties:
+        handoff_document:
+          type: string
+        output_path:
+          type: string
+        sections_count:
+          type: integer
+        redaction_count:
+          type: integer
+
+  - ordinal: 5
+    action: feedback
+    description: >
+      Emit CNS feedback for variety monitoring and handoff analytics.
+      Track handoff frequency, document size, and skill suggestion patterns.
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: hkask-mcp-cns
+    gas_cap: 500
+    timeout_seconds: 5
+    feedback:
+      variety_delta: integer
+      document_size_tokens: integer
+      skills_suggested: integer
+      artifacts_referenced: integer
+    output_schema:
+      type: object
+      properties:
+        variety_counter: { type: integer }
+        cns_event_id: { type: string }
+
+# Redaction configuration
+redaction:
+  enabled: true
+  patterns:
+    - name: api_key
+      regex: '(?i)(api[_-]?key|token|secret|password)\s*[:=]\s*["\']?\S+'
+      replacement: "[REDACTED]"
+    - name: private_key
+      regex: '-----BEGIN (?:RSA |EC |DSA )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC |DSA )?PRIVATE KEY-----'
+      replacement: "[REDACTED PRIVATE KEY]"
+    - name: connection_string
+      regex: '(?:postgres|mysql|mongodb|redis)://\S+:\S+@\S+'
+      replacement: "[REDACTED CONNECTION STRING]"
+    - name: pii_email
+      regex: '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+      replacement: "[REDACTED EMAIL]"
+    - name: pii_phone
+      regex: '(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}'
+      replacement: "[REDACTED PHONE]"
+  on_detection: redact_and_log
+  audit_redactions: true
+
+# Output configuration
+output:
+  format: markdown
+  destination: temp_directory
+  filename_template: "handoff-{{ timestamp }}.md"
+  include_toc: true
+  max_document_tokens: 8000
+
+# Error Handling
+error_handling:
+  on_gas_exceeded: abort
+  on_timeout: retry
+  max_retries: 2
+  retry_backoff_seconds: 1
+  on_validation_failure: abort
+
+# OCAP Configuration
+ocap:
+  required_capabilities:
+    - resource: template
+      action: render
+      template_id: handoff/handoff-compose
+      gas_budget: 5000
+    - resource: manifest
+      action: execute
+      template_id: handoff
+      gas_budget: 500
+    - resource: cns
+      action: emit
+      template_id: handoff
+      gas_budget: 500
+    - resource: storage
+      action: write
+      template_id: handoff
+      gas_budget: 500
+  delegation_chain_required: true
+  signature_algorithm: ed25519
+  capability_expiry_seconds: 3600
+  template_scoped: true
+
+# CNS Monitoring
+cns:
+  emit_spans: true
+  span_namespace: cns.prompt.handoff
+  variety_monitoring: true
+  algedonic_threshold: 100
+  escalation_target: Curator
+
+# Audit Trail
+audit:
+  enabled: true
+  log_level: info
+  include_input: true
+  include_output: false
+  include_gas_cost: true
+  include_cns_events: true
+  redact_sensitive: true

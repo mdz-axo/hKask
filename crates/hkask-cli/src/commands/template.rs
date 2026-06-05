@@ -1,5 +1,6 @@
 //! Template and MCP command handlers
 
+use crate::cli::TemplateAction;
 use hkask_mcp::runtime::{McpRuntime, McpServer, McpTool};
 use hkask_templates::{RegistryEntry, RegistryIndex, SqliteRegistry, TemplateError};
 use hkask_types::TemplateType;
@@ -93,4 +94,95 @@ pub async fn register_mcp_server(
     let server = McpServer { id, name, tools };
 
     runtime.register_server(server).await;
+}
+
+/// CLI handler for `kask template` subcommand
+pub fn run_template(registry: &mut SqliteRegistry, action: crate::cli::TemplateAction) {
+    use crate::cli;
+
+    match action {
+        TemplateAction::List { r#type } => {
+            let template_type = r#type.as_deref().and_then(cli::parse_template_type);
+            let entries = list_templates(registry, template_type);
+            if entries.is_empty() {
+                println!("No templates registered.");
+            } else {
+                println!("Registered templates ({}):\n", entries.len());
+                for entry in entries {
+                    println!(
+                        "  {} ({}) — {}",
+                        entry.id,
+                        entry.template_type.as_str(),
+                        entry.name
+                    );
+                    println!("    Description: {}", entry.description);
+                    println!("    Path: {}", entry.source_path);
+                    if !entry.lexicon_terms.is_empty() {
+                        println!("    Lexicon: {}", entry.lexicon_terms.join(", "));
+                    }
+                    println!();
+                }
+            }
+        }
+        TemplateAction::Register {
+            id,
+            path,
+            r#type,
+            lexicon,
+            description,
+        } => {
+            let template_type = match cli::parse_template_type(&r#type) {
+                Some(t) => t,
+                None => {
+                    eprintln!(
+                        "Invalid template type: {}. Valid types: wordact, knowact, flowdef",
+                        r#type
+                    );
+                    std::process::exit(1);
+                }
+            };
+            let lexicon_terms: Vec<String> = lexicon
+                .map(|l| l.split(',').map(|s| s.trim().to_string()).collect())
+                .unwrap_or_default();
+            let desc = description.unwrap_or_else(|| format!("Template {}", id));
+            super::helpers::or_exit(
+                register_template(
+                    registry,
+                    id.clone(),
+                    template_type,
+                    path.to_string_lossy().to_string(),
+                    lexicon_terms,
+                    desc,
+                ),
+                "Failed to register template",
+            );
+            println!("Registered template: {}", id);
+        }
+        TemplateAction::Get { id } => {
+            let entry = super::helpers::or_exit(get_template(registry, &id), "Template not found");
+            println!("Template: {}", entry.id);
+            println!("  Name: {}", entry.name);
+            println!("  Type: {}", entry.template_type.as_str());
+            println!("  Description: {}", entry.description);
+            println!("  Path: {}", entry.source_path);
+            println!("  Lexicon: {}", entry.lexicon_terms.join(", "));
+        }
+        TemplateAction::Search { term } => {
+            let results =
+                super::helpers::or_exit(search_templates(registry, &term), "Search failed");
+            if results.is_empty() {
+                println!("No templates found with lexicon term: {}", term);
+            } else {
+                println!("Templates matching '{}':\n", term);
+                for entry in results {
+                    println!(
+                        "  {} ({}) — {}",
+                        entry.id,
+                        entry.template_type.as_str(),
+                        entry.name
+                    );
+                }
+            }
+        }
+    }
 }

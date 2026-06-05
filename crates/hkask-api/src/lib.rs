@@ -68,7 +68,15 @@ pub mod routes;
 pub mod soap_config;
 
 // Re-export route types for OpenAPI schema generation
-pub use routes::{ModelEntry, ModelListResponse, ModelSearchQuery};
+pub use routes::{AcpRegisterRequest, AcpRegisterResponse};
+pub use routes::{
+    ChatRequest, ChatResponse, CnsHealthResponse, CnsVarietyResponse, CreatePodRequest,
+    CreatePodResponse, EventRecord, GrantCapabilityRequest, ListPodsResponse, ModelEntry,
+    ModelListResponse, ModelSearchQuery, ObjectiveData, PodStatusResponse, SeverityCounts,
+    SoapInferAuthRequest, SoapInferRequest, SoapInferResponse, SpecCaptureRequest,
+    SpecCaptureResponse, SpecCultivateResponse, SpecListResponse, SpecValidateRequest,
+    SpecValidateResponse, TemplateResponse, ValidationErrorType, VarietyCounterResponse,
+};
 
 use openapi::ApiDoc;
 
@@ -571,140 +579,6 @@ impl ApiState {
     }
 }
 
-/// Template response
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct TemplateResponse {
-    pub id: String,
-    pub template_type: String,
-    pub name: String,
-    pub description: String,
-    pub source_path: String,
-    pub lexicon_terms: Vec<String>,
-}
-
-/// Capability request
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct GrantCapabilityRequest {
-    pub capability: String,
-}
-
-/// CNS health response
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct CnsHealthResponse {
-    pub overall_deficit: u64,
-    pub critical_count: usize,
-    pub warning_count: usize,
-    pub healthy: bool,
-}
-
-/// Chat request sent to the Curator or a specified agent.
-///
-/// The `model` field allows switching the LLM at request time. When omitted,
-/// the server default (qwen3:8b) is used. Use `GET /api/models` to discover
-/// available models, and `GET /api/models/search?q=...` for fuzzy matching.
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct ChatRequest {
-    /// User input message
-    pub input: String,
-    /// Optional template ID to contextualize the prompt
-    pub template_id: Option<String>,
-    /// Model override for inference (e.g., "qwen3:8b"). If unset, uses the server default.
-    #[serde(default)]
-    pub model: Option<String>,
-}
-
-/// Chat response from the Curator or agent.
-///
-/// The `model` field echoes which LLM was used, confirming model switching.
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct ChatResponse {
-    /// Generated response text
-    pub output: String,
-    /// Template ID that was applied (or "auto-select")
-    pub template_id: String,
-    /// Model identifier used for inference
-    pub model: String,
-}
-
-/// CNS variety counter response
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct VarietyCounterResponse {
-    pub variety: u64,
-    pub total: u64,
-    pub entropy: f64,
-}
-
-/// CNS variety response
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct CnsVarietyResponse {
-    pub domains: Vec<String>,
-    pub total_deficit: u64,
-    pub counters: HashMap<String, VarietyCounterResponse>,
-}
-
-/// SOAP inference request from Russell
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct SoapInferRequest {
-    /// Subjective: operator note or context
-    pub subjective: Option<String>,
-    /// Objective: telemetry data
-    pub objective: ObjectiveData,
-    /// Assessment: left empty for LLM to fill
-    pub assessment: String,
-    /// Plan: left empty for LLM to fill
-    pub plan: String,
-}
-
-/// Authenticated SOAP inference request
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct SoapInferAuthRequest {
-    pub request: SoapInferRequest,
-    pub capability_token: String,
-}
-
-/// SOAP inference response
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct SoapInferResponse {
-    /// LLM response text
-    pub response: String,
-    /// Model used
-    pub model: String,
-    /// Latency in milliseconds
-    pub latency_ms: u64,
-    /// ACTION: proposals (if any)
-    pub actions: Vec<String>,
-}
-
-/// Validation error details
-#[derive(Debug, Serialize, Deserialize)]
-pub enum ValidationErrorType {
-    TooManyEvents,
-    SubjectiveTooLong,
-    MessageTooLong,
-}
-
-/// ACP registration request
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct AcpRegisterRequest {
-    /// Agent WebID (UUID string)
-    pub webid: String,
-    /// Agent type: "Bot" or "Replicant"
-    pub agent_type: String,
-    /// Capabilities to grant (e.g., ["tool:execute", "template:render"])
-    pub capabilities: Vec<String>,
-}
-
-/// ACP registration response
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct AcpRegisterResponse {
-    /// Granted capability token (HMAC-signed)
-    pub token: String,
-    /// Registration timestamp (Unix epoch seconds)
-    pub registered_at: i64,
-    /// Agent WebID
-    pub webid: String,
-}
-
 /// Resolve the SOAP capability secret through the keystore chain.
 ///
 /// Resolution order: master-key derivation → env var → OS keychain.
@@ -735,121 +609,12 @@ pub fn resolve_soap_capability_secret() -> Result<[u8; 32], String> {
     })
 }
 
-/// Telemetry data from Russell
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct ObjectiveData {
-    /// Severity counts from recent events
-    pub severity_counts: SeverityCounts,
-    /// Recent journal events
-    pub recent_events: Vec<EventRecord>,
-}
-
-#[derive(Debug, Serialize, Deserialize, ToSchema, Default)]
-pub struct SeverityCounts {
-    pub crit: u64,
-    pub alert: u64,
-    pub warn: u64,
-    pub info: u64,
-}
-
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct EventRecord {
-    pub probe: String,
-    pub severity: String,
-    pub message: String,
-    pub ts: String,
-}
-
 /// Error response
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ErrorResponse {
     pub error: String,
     pub code: String,
     pub details: Option<serde_json::Value>,
-}
-
-/// Create pod request
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct CreatePodRequest {
-    pub template: String,
-    pub persona_yaml: String,
-    pub name: Option<String>,
-}
-
-/// Create pod response
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct CreatePodResponse {
-    pub pod_id: String,
-}
-
-/// Pod status response
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct PodStatusResponse {
-    pub pod_id: String,
-    pub name: Option<String>,
-    pub state: String,
-    pub webid: String,
-    pub agent_type: String,
-    pub template: String,
-    pub created_at: i64,
-}
-
-/// List pods response
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct ListPodsResponse {
-    pub pods: Vec<PodStatusResponse>,
-}
-
-/// Spec capture request
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct SpecCaptureRequest {
-    pub description: String,
-    pub category: String,
-    pub domain_anchor: String,
-    pub criteria: Vec<String>,
-}
-
-/// Spec capture response
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct SpecCaptureResponse {
-    pub spec_id: String,
-    pub name: String,
-    pub category: String,
-    pub domain_anchor: String,
-}
-
-/// Spec list response
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct SpecListResponse {
-    pub spec_id: String,
-    pub name: String,
-    pub category: String,
-    pub complete: bool,
-}
-
-/// Spec validate request
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct SpecValidateRequest {
-    pub threshold: f64,
-}
-
-/// Spec validate response
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct SpecValidateResponse {
-    pub valid: bool,
-    pub coherence_score: f64,
-    pub threshold: f64,
-    pub violations: Vec<String>,
-    pub suggestions: Vec<String>,
-}
-
-/// Spec cultivate response
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct SpecCultivateResponse {
-    pub coherence_score: f64,
-    pub spec_count: usize,
-    pub categories_covered: Vec<String>,
-    pub categories_missing: Vec<String>,
 }
 
 /// Create API router with OpenAPI documentation and authentication

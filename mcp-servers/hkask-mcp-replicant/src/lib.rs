@@ -5,6 +5,8 @@
 //! - `replicant:status` — Check replicant registration and identity
 //! - `replicant:history` — List recent conversation turns in the current session
 
+pub mod agent_loader;
 pub mod tools;
+pub mod types;
 
 pub const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");

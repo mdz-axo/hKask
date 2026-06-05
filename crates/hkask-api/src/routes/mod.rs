@@ -36,7 +36,9 @@ pub use spec::spec_router;
 pub use templates::templates_router;
 
 // Re-export domain-local types that may be used externally
-pub use acp::{AcpAgentResponse, AgentListResponse};
+pub use acp::{AcpAgentResponse, AcpRegisterRequest, AcpRegisterResponse, AgentListResponse};
+pub use chat::{ChatRequest, ChatResponse};
+pub use cns::{CnsHealthResponse, CnsVarietyResponse, VarietyCounterResponse};
 pub use curator::{
     DismissEscalationRequest, DismissEscalationResponse, EscalationEntryResponse,
     EscalationStatsResponse, ListEscalationsResponse, MetacognitionStatusResponse,
@@ -49,6 +51,16 @@ pub use ensemble::{
 pub use git::{ArchiveRequest, ArchiveResponse, ResolveShaResponse};
 pub use goal::{CreateGoalRequest, GoalListResponse, GoalResponse, SetGoalStateRequest};
 pub use models::{ModelEntry, ModelListResponse, ModelSearchQuery};
+pub use pods::{CreatePodRequest, CreatePodResponse, ListPodsResponse, PodStatusResponse};
+pub use soap_infer::{
+    EventRecord, ObjectiveData, SeverityCounts, SoapInferAuthRequest, SoapInferRequest,
+    SoapInferResponse, ValidationErrorType,
+};
 pub use sovereignty::{
     AccessCheckResponse, KillZoneResponse, SovereigntyConsentResponse, SovereigntyStatusResponse,
 };
+pub use spec::{
+    SpecCaptureRequest, SpecCaptureResponse, SpecCultivateResponse, SpecListResponse,
+    SpecValidateRequest, SpecValidateResponse,
+};
+pub use templates::{GrantCapabilityRequest, TemplateResponse};

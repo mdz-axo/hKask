@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use utoipa::ToSchema;
 
-use crate::{ApiState, CnsHealthResponse, CnsVarietyResponse, VarietyCounterResponse};
+use crate::ApiState;
 
 /// Create CNS router
 pub fn cns_router() -> Router<ApiState> {
@@ -81,6 +81,31 @@ async fn cns_variety(State(state): State<ApiState>) -> Json<CnsVarietyResponse> 
 }
 
 // ── CNS Subscribe ──
+
+/// CNS health response
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct CnsHealthResponse {
+    pub overall_deficit: u64,
+    pub critical_count: usize,
+    pub warning_count: usize,
+    pub healthy: bool,
+}
+
+/// CNS variety counter response
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct VarietyCounterResponse {
+    pub variety: u64,
+    pub total: u64,
+    pub entropy: f64,
+}
+
+/// CNS variety response
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct CnsVarietyResponse {
+    pub domains: Vec<String>,
+    pub total_deficit: u64,
+    pub counters: HashMap<String, VarietyCounterResponse>,
+}
 
 /// Request body for CNS subscription
 #[derive(Debug, Deserialize, ToSchema)]

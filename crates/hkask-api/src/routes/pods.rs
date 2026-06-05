@@ -7,8 +7,42 @@ use axum::{
     routing::Router,
 };
 
+use crate::ApiState;
 use crate::middleware::auth::AuthContext;
-use crate::{ApiState, CreatePodRequest, CreatePodResponse, ListPodsResponse, PodStatusResponse};
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
+
+/// Create pod request
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct CreatePodRequest {
+    pub template: String,
+    pub persona_yaml: String,
+    pub name: Option<String>,
+}
+
+/// Create pod response
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct CreatePodResponse {
+    pub pod_id: String,
+}
+
+/// Pod status response
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct PodStatusResponse {
+    pub pod_id: String,
+    pub name: Option<String>,
+    pub state: String,
+    pub webid: String,
+    pub agent_type: String,
+    pub template: String,
+    pub created_at: i64,
+}
+
+/// List pods response
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct ListPodsResponse {
+    pub pods: Vec<PodStatusResponse>,
+}
 
 /// Create pods router
 pub fn pods_router() -> Router<ApiState> {

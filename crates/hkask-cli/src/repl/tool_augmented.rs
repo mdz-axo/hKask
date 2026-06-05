@@ -208,7 +208,7 @@ pub async fn process_response(
     };
 
     // Determine the text content (strip text directives if we parsed any)
-    let text_content = if structured_tool_calls.map_or(false, |c| !c.is_empty()) {
+    let text_content = if structured_tool_calls.is_some_and(|c| !c.is_empty()) {
         // When we have structured calls, use the full response text (no directives to strip)
         response_text.to_string()
     } else {

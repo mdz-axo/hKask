@@ -6,7 +6,29 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 use crate::middleware::AuthContext;
-use crate::{AcpRegisterRequest, AcpRegisterResponse, ApiState, ErrorResponse};
+use crate::{ApiState, ErrorResponse};
+
+/// ACP registration request
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct AcpRegisterRequest {
+    /// Agent WebID (UUID string)
+    pub webid: String,
+    /// Agent type: "Bot" or "Replicant"
+    pub agent_type: String,
+    /// Capabilities to grant (e.g., ["tool:execute", "template:render"])
+    pub capabilities: Vec<String>,
+}
+
+/// ACP registration response
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct AcpRegisterResponse {
+    /// Granted capability token (HMAC-signed)
+    pub token: String,
+    /// Registration timestamp (Unix epoch seconds)
+    pub registered_at: i64,
+    /// Agent WebID
+    pub webid: String,
+}
 
 /// ACP agent response
 #[derive(Serialize, Deserialize, ToSchema)]

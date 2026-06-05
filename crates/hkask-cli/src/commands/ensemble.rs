@@ -4,6 +4,7 @@
 //! manager and improv client. Also handles standing session bootstrap via
 //! hkask-ensemble registry manifests.
 
+use crate::cli::EnsembleAction;
 use hkask_cns::{CircuitBreaker, CyberneticsLoop};
 use hkask_ensemble::{
     AgentResponse, ChatMessage, ChatParticipant, CircuitBreakerInferenceAdapter, GasGovernancePort,
@@ -424,4 +425,136 @@ pub fn ensemble_standing_status()
     let session = bootstrap_standing_session_with_store(config_path, store)
         .map_err(|e| crate::errors::EnsembleError::SessionCreationFailed(e.to_string()))?;
     Ok(session.get_status())
+}
+
+/// CLI handler for `kask ensemble` subcommand
+pub fn run_ensemble(rt: &tokio::runtime::Runtime, action: crate::cli::EnsembleAction) {
+    use crate::commands;
+
+    match action {
+        EnsembleAction::ChatCreate { session } => {
+            println!(
+                "{}",
+                super::helpers::or_exit(
+                    rt.block_on(commands::ensemble_chat_create(session.clone())),
+                    "Chat create failed",
+                )
+            );
+        }
+        EnsembleAction::ChatRegister { session, bot, role } => {
+            println!(
+                "{}",
+                super::helpers::or_exit(
+                    rt.block_on(commands::ensemble_chat_register(
+                        session.clone(),
+                        bot.clone(),
+                        role.clone(),
+                    )),
+                    "Chat register failed",
+                )
+            );
+        }
+        EnsembleAction::ChatSend { session, message } => {
+            println!(
+                "{}",
+                super::helpers::or_exit(
+                    rt.block_on(commands::ensemble_chat_send(
+                        session.clone(),
+                        message.clone(),
+                    )),
+                    "Chat send failed",
+                )
+            );
+        }
+        EnsembleAction::ChatList => {
+            let sessions = super::helpers::or_exit(
+                rt.block_on(commands::ensemble_chat_list()),
+                "Chat list failed",
+            );
+            println!("Active chat sessions:");
+            for s in sessions {
+                println!("  - {}", s);
+            }
+        }
+        EnsembleAction::DeliberationCreate { session } => {
+            println!(
+                "{}",
+                super::helpers::or_exit(
+                    rt.block_on(commands::ensemble_deliberation_create(session.clone())),
+                    "Deliberation create failed",
+                )
+            );
+        }
+        EnsembleAction::DeliberationStart { session } => {
+            println!(
+                "{}",
+                super::helpers::or_exit(
+                    rt.block_on(commands::ensemble_deliberation_start(session.clone())),
+                    "Deliberation start failed",
+                )
+            );
+        }
+        EnsembleAction::DeliberationRecord {
+            session,
+            agent,
+            content,
+            confidence,
+        } => {
+            println!(
+                "{}",
+                super::helpers::or_exit(
+                    rt.block_on(commands::ensemble_deliberation_record(
+                        session.clone(),
+                        agent.clone(),
+                        content.clone(),
+                        confidence,
+                    )),
+                    "Deliberation record failed",
+                )
+            );
+        }
+        EnsembleAction::DeliberationSynthesize { session } => {
+            println!(
+                "Synthesized response:\n{}",
+                super::helpers::or_exit(
+                    rt.block_on(commands::ensemble_deliberation_synthesize(session.clone())),
+                    "Deliberation synthesize failed",
+                )
+            );
+        }
+        EnsembleAction::DeliberationList => {
+            let sessions = super::helpers::or_exit(
+                rt.block_on(commands::ensemble_deliberation_list()),
+                "Deliberation list failed",
+            );
+            println!("Active deliberation sessions:");
+            for s in sessions {
+                println!("  - {}", s);
+            }
+        }
+        EnsembleAction::StandingStart { config } => {
+            let status = super::helpers::or_exit(
+                commands::ensemble_standing_start(&config),
+                "Standing session bootstrap failed",
+            );
+            println!("Standing session bootstrapped:");
+            println!("  Session ID: {}", status.session_id);
+            println!("  Participants: {}", status.participant_count);
+            println!("  Initial messages: {}", status.message_count);
+        }
+        EnsembleAction::StandingStatus => {
+            let status = super::helpers::or_exit(
+                commands::ensemble_standing_status(),
+                "Standing status failed",
+            );
+            println!("Standing session status:");
+            println!("  Session ID: {}", status.session_id);
+            println!("  Participants: {}", status.participant_count);
+            println!("  Messages: {}", status.message_count);
+            println!("\nParticipants:");
+            for p in &status.participants {
+                println!("  - {} ({})", p.name, p.role);
+            }
+        }
+    }
 }

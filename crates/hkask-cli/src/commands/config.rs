@@ -55,7 +55,7 @@ pub(crate) fn resolve_acp_secret() -> Result<String, RegistryError> {
 /// that was used for DelegationToken minting in /invoke and tool-augmented chat.
 ///
 /// Resolution chain: master key derivation → env var → keychain → ACP secret fallback
-pub(crate) fn resolve_mcp_secret() -> Result<String, RegistryError> {
+pub fn resolve_mcp_secret() -> Result<String, RegistryError> {
     // 1. Master key derivation (HKDF-SHA256)
     hkask_keystore::resolve(&hkask_types::SecretRef::derived(
         hkask_types::derivation_contexts::MASTER_KEY_ENV,

@@ -10,6 +10,8 @@
 
 use hkask_keystore;
 
+use crate::cli::AdminAction;
+
 /// Verify that insecure dev mode is authorized via admin passphrase.
 ///
 /// Called by insecure-dev gating code in `config.rs` and `bootstrap.rs`.
@@ -83,6 +85,18 @@ pub fn admin_reset() {
         Err(e) => {
             eprintln!("Failed to remove admin passphrase: {}", e);
             std::process::exit(1);
+        }
+    }
+}
+
+/// CLI handler for `kask admin` subcommand
+pub fn run_admin(action: crate::cli::AdminAction) {
+    match action {
+        AdminAction::Init => {
+            admin_init();
+        }
+        AdminAction::Reset => {
+            admin_reset();
         }
     }
 }

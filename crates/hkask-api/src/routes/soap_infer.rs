@@ -5,10 +5,75 @@ use axum::{Json, extract::State, http::StatusCode, routing::Router};
 use hkask_ensemble::ports::InferenceClient;
 
 use crate::soap_config::SoapInferenceConfig;
-use crate::{
-    ApiState, SoapInferAuthRequest, SoapInferRequest, SoapInferResponse, ValidationErrorType,
-    resolve_soap_capability_secret,
-};
+use crate::{ApiState, resolve_soap_capability_secret};
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
+
+/// SOAP inference request from Russell
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct SoapInferRequest {
+    /// Subjective: operator note or context
+    pub subjective: Option<String>,
+    /// Objective: telemetry data
+    pub objective: ObjectiveData,
+    /// Assessment: left empty for LLM to fill
+    pub assessment: String,
+    /// Plan: left empty for LLM to fill
+    pub plan: String,
+}
+
+/// Authenticated SOAP inference request
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct SoapInferAuthRequest {
+    pub request: SoapInferRequest,
+    pub capability_token: String,
+}
+
+/// SOAP inference response
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct SoapInferResponse {
+    /// LLM response text
+    pub response: String,
+    /// Model used
+    pub model: String,
+    /// Latency in milliseconds
+    pub latency_ms: u64,
+    /// ACTION: proposals (if any)
+    pub actions: Vec<String>,
+}
+
+/// Validation error details
+#[derive(Debug, Serialize, Deserialize)]
+pub enum ValidationErrorType {
+    TooManyEvents,
+    SubjectiveTooLong,
+    MessageTooLong,
+}
+
+/// Telemetry data from Russell
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct ObjectiveData {
+    /// Severity counts from recent events
+    pub severity_counts: SeverityCounts,
+    /// Recent journal events
+    pub recent_events: Vec<EventRecord>,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, Default)]
+pub struct SeverityCounts {
+    pub crit: u64,
+    pub alert: u64,
+    pub warn: u64,
+    pub info: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct EventRecord {
+    pub probe: String,
+    pub severity: String,
+    pub message: String,
+    pub ts: String,
+}
 
 /// Create SOAP inference router
 pub fn soap_infer_router() -> Router<ApiState> {

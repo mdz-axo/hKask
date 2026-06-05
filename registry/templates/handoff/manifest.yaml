@@ -1,0 +1,67 @@
+# Template crate manifest for handoff skill
+# ℏKask v0.22.0
+
+crate:
+  name: handoff
+  version: "0.22.0"
+  description: >
+    Session context transfer skill. Compacts the current conversation into a
+    structured handoff document that a fresh agent can use to pick up work
+    cleanly — without duplicating file content. Includes artifact referencing,
+    sensitive data redaction, and skill suggestion for the receiving agent.
+
+templates:
+  - id: handoff/handoff-compact
+    path: handoff-compact.j2
+    type: KnowAct
+    lexicon_terms: [compact, distill, extract, summarize, crystallize]
+    description: >
+      Compress session context into a structured summary with purpose,
+      progress, decisions, and current state. Reduces verbose conversation
+      history to essential facts.
+
+  - id: handoff/handoff-artifacts
+    path: handoff-artifacts.j2
+    type: KnowAct
+    lexicon_terms: [catalog, reference, classify, detect, redact]
+    description: >
+      Identify and catalog artifacts by path or URL reference. Detect and
+      flag sensitive data (API keys, tokens, PII) for redaction.
+
+  - id: handoff/handoff-skills-suggest
+    path: handoff-skills-suggest.j2
+    type: KnowAct
+    lexicon_terms: [suggest, match, prioritize, analyze, recommend]
+    description: >
+      Analyze session content and suggest relevant skills the next agent
+      should invoke. Extract open questions and risks for the next session.
+
+  - id: handoff/handoff-compose
+    path: handoff-compose.j2
+    type: WordAct
+    lexicon_terms: [compose, synthesize, structure, redact, document]
+    description: >
+      Assemble the final handoff document from all gathered sections.
+      Apply redaction, format as structured markdown, and write to the
+      OS temp directory.
+
+hlexicon_terms:
+  - compact
+  - distill
+  - extract
+  - summarize
+  - crystallize
+  - catalog
+  - reference
+  - classify
+  - detect
+  - redact
+  - suggest
+  - match
+  - prioritize
+  - analyze
+  - recommend
+  - compose
+  - synthesize
+  - structure
+  - document

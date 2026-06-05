@@ -12,6 +12,7 @@
 //! - **CLI adapters** (interactive I/O): `register_replicant`, `login_replicant`,
 //!   `show_replicant`, `list_replicants`, `list_sessions`, `logout`
 
+use crate::cli::ReplicantAction;
 use crate::errors::UserError;
 use crate::registration::{validate_passphrase, validate_registration};
 use hkask_storage::user_store::UserStore;
@@ -341,3 +342,68 @@ pub fn list_sessions(
 // =============================================================================
 // Tests removed — see git history for test code
 // =============================================================================
+
+/// CLI handler for `kask replicant` subcommand
+pub fn run_replicant(action: crate::cli::ReplicantAction) {
+    use hkask_types::UserID;
+
+    let store = super::helpers::open_user_store();
+
+    match action {
+        ReplicantAction::Register {
+            replicant_name,
+            first_name,
+            last_name,
+            email,
+            phone,
+        } => {
+            super::helpers::or_exit(
+                register_replicant(
+                    &store,
+                    &replicant_name,
+                    &first_name,
+                    &last_name,
+                    &email,
+                    phone.as_deref(),
+                ),
+                "Registration failed",
+            );
+        }
+        ReplicantAction::Login { replicant_name } => {
+            let session =
+                super::helpers::or_exit(login_replicant(&store, &replicant_name), "Login failed");
+            println!("Session ID: {}", session.session_id);
+            println!(
+                "\nTo logout: kask replicant logout {}",
+                &session.session_id[..8]
+            );
+        }
+        ReplicantAction::Logout { session_id } => {
+            super::helpers::or_exit(logout(&store, &session_id), "Logout failed");
+        }
+        ReplicantAction::Sessions { replicant_name } => {
+            super::helpers::or_exit(
+                list_sessions(&store, &replicant_name),
+                "Failed to list sessions",
+            );
+        }
+        ReplicantAction::List { user_id } => {
+            if let Some(uid) = user_id {
+                let user_id = UserID::from_string(&uid);
+                super::helpers::or_exit(
+                    list_replicants(&store, &user_id),
+                    "Failed to list identities",
+                );
+            } else {
+                eprintln!("--user-id is required");
+                std::process::exit(1);
+            }
+        }
+        ReplicantAction::Show { replicant_name } => {
+            super::helpers::or_exit(
+                show_replicant(&store, &replicant_name),
+                "Failed to show replicant",
+            );
+        }
+    }
+}

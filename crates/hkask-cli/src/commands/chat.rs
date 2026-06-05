@@ -109,6 +109,7 @@ pub async fn chat_with_agent(
             }
         },
         None => match init_registry().await {
+            Ok(r) => r,
             Err(e) => {
                 return ChatResponse {
                     text: format!("Registry init error: {}", e),
@@ -474,5 +475,60 @@ async fn chat_via_russell(input: &str, agent: Option<&hkask_types::RegisteredAge
     match russell_adapter.send_message(message).await {
         Ok(response) => response,
         Err(e) => format!("Russell error: {}", e),
+    }
+}
+
+/// CLI handler for `kask chat` subcommand
+#[allow(clippy::too_many_arguments)]
+pub fn run_chat(
+    rt: &tokio::runtime::Runtime,
+    registry: &hkask_templates::SqliteRegistry,
+    runtime: &hkask_mcp::runtime::McpRuntime,
+    handle: &tokio::runtime::Handle,
+    template: Option<String>,
+    input: Option<std::path::PathBuf>,
+    agent: String,
+    model: Option<String>,
+) {
+    if let Some(input_path) = input {
+        // Non-interactive mode: run onboarding to ensure keys are configured.
+        let onboarding_outcome = match rt.block_on(crate::onboarding::run_onboarding()) {
+            Ok(outcome) => outcome,
+            Err(e) => {
+                eprintln!("Cannot chat: {}", e);
+                eprintln!("Run `kask chat` first to complete onboarding interactively.");
+                std::process::exit(1);
+            }
+        };
+        let content = super::helpers::or_exit(
+            std::fs::read_to_string(&input_path),
+            "Failed to read input file",
+        );
+        let chat_response = rt.block_on(chat_with_agent(
+            content.trim(),
+            Some(&agent),
+            model.as_deref(),
+            None,
+            onboarding_outcome.resolved_secrets.as_ref(),
+            None, // No persistent storage in non-interactive mode
+            None, // No persistent storage in non-interactive mode
+            None, // WebID derived from agent name
+        ));
+        println!("{}: {}", agent, chat_response.text);
+        if let Some(ref usage) = chat_response.usage {
+            eprintln!(
+                "  {} tokens ({} prompt + {} completion)",
+                usage.total_tokens, usage.prompt_tokens, usage.completion_tokens
+            );
+        }
+    } else {
+        crate::repl::run(
+            registry,
+            runtime,
+            template.as_deref(),
+            &agent,
+            model.as_deref(),
+            handle.clone(),
+        );
     }
 }

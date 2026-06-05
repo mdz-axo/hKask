@@ -6,14 +6,26 @@
 pub mod admin;
 pub mod agent;
 pub mod chat;
+pub mod cns;
 pub mod config;
 pub mod curator;
+pub mod docs;
 pub mod ensemble;
+pub mod git_cmd;
 pub mod goal;
+pub mod helpers;
+pub mod keystore;
+pub mod loops;
+pub mod mcp;
+pub mod models;
 pub mod pod;
+pub mod registry;
 pub mod serve;
+pub mod sovereignty;
+pub mod spec;
 pub mod template;
 pub mod user;
+pub mod web_search;
 
 // Russell module (directory module with mapper)
 pub mod russell;

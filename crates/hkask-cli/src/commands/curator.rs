@@ -1,5 +1,6 @@
 //! Curator governance command handlers — escalations, metacognition
 
+use crate::cli::CuratorAction;
 use hkask_agents::EscalationEntry;
 use std::sync::Arc;
 
@@ -66,4 +67,71 @@ pub async fn curator_metacognition() -> Result<String, CuratorError> {
         .map_err(|e| CuratorError::MetacognitionFailed(e.to_string()))?;
 
     Ok(metacognition.generate_summary(&snapshot))
+}
+
+/// CLI handler for `kask curator` subcommand
+pub fn run_curator(
+    rt: &tokio::runtime::Runtime,
+    registry: &hkask_templates::SqliteRegistry,
+    runtime: &hkask_mcp::runtime::McpRuntime,
+    handle: &tokio::runtime::Handle,
+    action: crate::cli::CuratorAction,
+) {
+    use crate::commands;
+
+    match action {
+        CuratorAction::Chat => {
+            crate::repl::run(registry, runtime, None, "Curator", None, handle.clone());
+        }
+        CuratorAction::Escalations => {
+            let escalations = super::helpers::or_exit(
+                rt.block_on(commands::curator_escalations()),
+                "Failed to list escalations",
+            );
+            if escalations.is_empty() {
+                println!("No pending escalations.");
+            } else {
+                println!("{:<20} {:<15} {:<10} CONTEXT", "ID", "BOT", "CONFIDENCE");
+                println!("{}", "-".repeat(80));
+                for esc in &escalations {
+                    println!(
+                        "{:<20} {:<15} {:<10.2} {}",
+                        &esc.id[..std::cmp::min(20, esc.id.len())],
+                        esc.bot_id
+                            .0
+                            .to_string()
+                            .split('-')
+                            .next()
+                            .unwrap_or("unknown"),
+                        esc.confidence,
+                        &esc.error_context[..std::cmp::min(40, esc.error_context.len())],
+                    );
+                }
+                println!("\nTotal: {} pending escalations", escalations.len());
+            }
+        }
+        CuratorAction::Resolve { id } => {
+            super::helpers::or_exit(
+                rt.block_on(commands::curator_resolve(&id)),
+                "Failed to resolve escalation",
+            );
+            println!("Escalation {} resolved.", id);
+        }
+        CuratorAction::Dismiss { id } => {
+            super::helpers::or_exit(
+                rt.block_on(commands::curator_dismiss(&id)),
+                "Failed to dismiss escalation",
+            );
+            println!("Escalation {} dismissed.", id);
+        }
+        CuratorAction::Metacognition => {
+            println!(
+                "{}",
+                super::helpers::or_exit(
+                    rt.block_on(commands::curator_metacognition()),
+                    "Metacognition cycle failed",
+                )
+            );
+        }
+    }
 }

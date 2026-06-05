@@ -39,22 +39,19 @@
 //! session state.
 
 use hkask_agents::acp::AcpRuntime;
-use hkask_agents::adapters::FilesystemRegistrySource;
-use hkask_agents::pod::{AgentPersona, PodContext, PodManagerBuilder};
-use hkask_agents::ports::{AcpPort, RegistrySourcePort};
-use hkask_keystore;
+use hkask_agents::pod::{AgentPersona, PodContext, PodManager, PodManagerBuilder};
+use hkask_agents::ports::AcpPort;
 use hkask_mcp::server::{McpToolOutput, ToolSpanGuard, validate_identifier};
-use hkask_storage::Database;
-use hkask_templates::{OkapiConfig, OkapiInference};
 use hkask_types::ports::InferencePort;
-use hkask_types::{CapabilityChecker, LLMParameters, McpErrorKind, SecretRef, WebID};
+use hkask_types::{CapabilityChecker, LLMParameters, McpErrorKind, WebID};
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
-use schemars::JsonSchema;
-use serde::Deserialize;
 use std::collections::VecDeque;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+
+use crate::agent_loader::{load_agent_definition, resolve_acp_secret};
+use crate::types::{ChatRequest, HistoryRequest, StatusRequest};
 
 /// Maximum number of conversation turns to retain and include in context.
 const MAX_HISTORY_TURNS: usize = 20;
@@ -64,31 +61,6 @@ const MAX_HISTORY_TURNS: usize = 20;
 struct ConversationTurn {
     role: String,
     content: String,
-}
-
-// ── Request Types ────────────────────────────────────────────────────────────
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct ChatRequest {
-    /// The message to send to the replicant
-    pub message: String,
-    /// Model override (optional — uses the server default if empty)
-    #[serde(default)]
-    pub model: String,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct StatusRequest {
-    /// Replicant persona name (optional — uses the server default if empty)
-    #[serde(default)]
-    pub persona: String,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct HistoryRequest {
-    /// Maximum number of turns to return (default: all)
-    #[serde(default)]
-    pub limit: Option<usize>,
 }
 
 // ── Session State ────────────────────────────────────────────────────────────
@@ -145,11 +117,11 @@ impl ReplicantServer {
     fn build_inference_port(&self, model: &str) -> Result<Arc<dyn InferencePort>, String> {
         let base_url = std::env::var("OKAPI_BASE_URL")
             .unwrap_or_else(|_| "http://127.0.0.1:11435".to_string());
-        let config = OkapiConfig {
+        let config = hkask_templates::OkapiConfig {
             base_url,
-            ..OkapiConfig::default()
+            ..hkask_templates::OkapiConfig::default()
         };
-        OkapiInference::new(model, config)
+        hkask_templates::OkapiInference::new(model, config)
             .map(|i| Arc::new(i) as Arc<dyn InferencePort>)
             .map_err(|e| format!("Okapi init error: {}", e))
     }
@@ -181,251 +153,58 @@ impl ReplicantServer {
         ctx.push('\n');
         ctx
     }
-}
 
-// ── ACP Secret Resolution ────────────────────────────────────────────────────
-// Follow-up #1: Full ACP secret resolution chain matching the CLI's
-// `resolve_acp_secret()`. This ensures the MCP server's ACP runtime uses
-// the same secret as `kask chat`, so capability tokens are compatible.
+    /// Create a pod, activate it, and return the pod ID and context.
+    async fn create_and_activate_pod(
+        &self,
+        pod_manager: &PodManager,
+        persona: &AgentPersona,
+    ) -> Result<(hkask_agents::pod::PodID, PodContext), String> {
+        let pod_id = pod_manager
+            .create_pod(
+                "replicant-chat-template",
+                persona,
+                Some(self.persona.clone()),
+            )
+            .await
+            .map_err(|e| format!("Pod creation error: {}", e))?;
 
-fn resolve_acp_secret() -> String {
-    // 1. Master key derivation (HKDF-SHA256)
-    hkask_keystore::resolve(&SecretRef::derived(
-        hkask_types::derivation_contexts::MASTER_KEY_ENV,
-        hkask_types::derivation_contexts::ACP_SECRET,
-    ))
-    .map(|s| String::from_utf8_lossy(&s).to_string())
-    // 2. Direct environment variable
-    .or_else(|_| std::env::var("HKASK_ACP_SECRET"))
-    // 3. OS keychain
-    .or_else(|_| {
-        hkask_keystore::Keychain::default()
-            .retrieve_by_key("acp-secret")
-            .map_err(|e| e.to_string())
-    })
-    // 4. Insecure dev mode (random secret, tokens won't survive restarts)
-    .or_else(|_| {
-        if std::env::var("HKASK_INSECURE_DEV").as_deref() == Ok("1") {
-            tracing::warn!(
-                target: "hkask.mcp.replicant",
-                "⚠ INSECURE DEV MODE: Using random ACP secret. Tokens will not survive restarts."
-            );
-            use std::fmt::Write;
-            let mut bytes = [0u8; 32];
-            rand::RngCore::fill_bytes(&mut rand::rng(), &mut bytes);
-            let mut s = String::with_capacity(64);
-            for b in &bytes {
-                write!(s, "{b:02x}").unwrap();
-            }
-            Ok(s)
-        } else {
-            // Fall back to a deterministic default so the server can still start.
-            // The CLI resolves this through onboarding; MCP servers may be started
-            // independently and need a working default.
-            tracing::warn!(
-                target: "hkask.mcp.replicant",
-                "No ACP secret resolved — using deterministic default. \
-                 Set HKASK_ACP_SECRET, HKASK_MASTER_KEY, or HKASK_INSECURE_DEV=1 for proper token verification."
-            );
-            Ok("hkask-default-acp-secret-for-mcp-server".to_string())
-        }
-    })
-    .unwrap_or_else(|_: String| "hkask-default-acp-secret-for-mcp-server".to_string())
-}
+        pod_manager
+            .activate_pod(&pod_id)
+            .await
+            .map_err(|e| format!("Pod activation error: {}", e))?;
 
-// ── Agent Definition Loading ─────────────────────────────────────────────────
-// Follow-up #2: Load the full agent definition from the YAML registry.
-// This provides charter, responsibilities, rights, and voice/tone for
-// rich system prompts. Falls back to None if the registry is unavailable.
+        let pod_context = PodContext::from_manager(pod_manager, &pod_id)
+            .await
+            .map_err(|e| format!("Pod context error: {}", e))?;
 
-fn load_agent_definition(persona: &str) -> Option<hkask_types::AgentDefinition> {
-    let registry_path =
-        std::env::var("HKASK_REGISTRY_PATH").unwrap_or_else(|_| "registry/bots".to_string());
-
-    let db_path = std::env::var("HKASK_DB_PATH").unwrap_or_else(|_| "hkask.db".to_string());
-
-    // Try to open the registry database. If it doesn't exist or we can't
-    // read it, we fall back to the minimal persona definition.
-    let passphrase = std::env::var("HKASK_DB_PASSPHRASE")
-        .or_else(|_| {
-            hkask_keystore::Keychain::default()
-                .retrieve_by_key("hkask-db-passphrase")
-                .map_err(|e| e.to_string())
-        })
-        .or_else(|_: String| {
-            // In insecure dev mode, use a placeholder passphrase
-            if std::env::var("HKASK_INSECURE_DEV").as_deref() == Ok("1") {
-                Ok::<String, String>("insecure-dev-passphrase".to_string())
-            } else {
-                // Try empty passphrase for unencrypted databases
-                Ok::<String, String>(String::new())
-            }
-        })
-        .unwrap_or_default();
-
-    let db = match Database::open(&db_path, &passphrase) {
-        Ok(db) => db,
-        Err(e) => {
-            tracing::debug!(
-                target: "hkask.mcp.replicant",
-                error = %e,
-                "Registry database not available, using minimal persona for '{}'",
-                persona
-            );
-            return None;
-        }
-    };
-
-    let store = hkask_storage::AgentRegistryStore::new(db.conn_arc());
-    if let Err(e) = store.initialize_schema() {
-        tracing::debug!(
-            target: "hkask.mcp.replicant",
-            error = %e,
-            "Schema init failed, using minimal persona for '{}'",
-            persona
-        );
-        return None;
+        Ok((pod_id, pod_context))
     }
 
-    match store.get(persona) {
-        Ok(agent) => {
-            tracing::info!(
-                target: "hkask.mcp.replicant",
-                persona = %persona,
-                "Loaded full agent definition from registry"
-            );
-            Some(agent.definition)
-        }
-        Err(_) => {
-            // Not found in the database — try loading from YAML files
-            // via the registry loader as a secondary path.
-            tracing::debug!(
-                target: "hkask.mcp.replicant",
-                persona = %persona,
-                "Agent '{}' not found in database, attempting YAML discovery",
-                persona
-            );
-            load_definition_from_yaml(persona, &registry_path)
-        }
-    }
-}
-
-fn load_definition_from_yaml(
-    persona: &str,
-    registry_path: &str,
-) -> Option<hkask_types::AgentDefinition> {
-    // The agent name is used as filename: registry/bots/{name}.yaml
-    let yaml_path = format!("{}/{}.yaml", registry_path, persona.to_lowercase());
-    let yaml_path_alt = format!("{}/{}.yml", registry_path, persona.to_lowercase());
-
-    let source = FilesystemRegistrySource::new();
-    let content = source
-        .load_yaml(&yaml_path)
-        .or_else(|_| source.load_yaml(&yaml_path_alt))
-        .ok()?;
-
-    // Parse the raw YAML to extract the agent definition
-    let raw: serde_yaml::Value = serde_yaml::from_str(&content).ok()?;
-    let agent_section = raw.get("agent")?;
-
-    let name = agent_section.get("name")?.as_str()?.to_string();
-    let agent_type = agent_section
-        .get("type")
-        .and_then(|v| v.as_str())
-        .unwrap_or("Replicant");
-    let agent_kind = match agent_type {
-        "Replicant" | "replicant" => hkask_types::AgentKind::Replicant,
-        _ => hkask_types::AgentKind::Bot,
-    };
-
-    let mut def = hkask_types::AgentDefinition {
-        name,
-        agent_kind,
-        charter: None,
-        capabilities: vec![],
-        rights: vec![],
-        responsibilities: vec![],
-        persona: None,
-        depends_on: vec![],
-        process_manifest: None,
-    };
-
-    // Charter
-    if let Some(charter) = raw
-        .get("charter")
-        .and_then(|c| c.get("description"))
-        .and_then(|d| d.as_str())
-    {
-        def.charter = Some(hkask_types::Charter {
-            description: charter.to_string(),
-            archetype: raw
-                .get("charter")
-                .and_then(|c| c.get("archetype"))
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string(),
-            visibility: raw
-                .get("charter")
-                .and_then(|c| c.get("visibility"))
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string(),
+    /// Record a single conversation turn and trim history to the maximum length.
+    async fn record_turn(&self, role: &str, content: String) {
+        let mut session = self.session.write().await;
+        session.turns.push_back(ConversationTurn {
+            role: role.to_string(),
+            content,
         });
+        while session.turns.len() > MAX_HISTORY_TURNS * 2 {
+            session.turns.pop_front();
+        }
     }
 
-    // Capabilities
-    if let Some(caps) = raw.get("capabilities").and_then(|c| c.as_sequence()) {
-        def.capabilities = caps
-            .iter()
-            .filter_map(|v| v.as_str().map(|s| s.to_string()))
-            .collect();
+    /// Format an internal error response with the persona name.
+    /// Consumes the span guard (every call site immediately returns this value).
+    fn internal_error(&self, span: ToolSpanGuard, message: String) -> String {
+        span.error(
+            McpErrorKind::Internal,
+            McpToolOutput::new(serde_json::json!({
+                "error": message,
+                "persona": self.persona,
+            }))
+            .to_json_string(),
+        )
     }
-
-    // Persona (tone, verbosity, forbidden, required)
-    if let Some(persona_section) = raw.get("persona") {
-        def.persona = Some(hkask_types::PersonaConstraints {
-            tone: persona_section
-                .get("tone")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string(),
-            verbosity: persona_section
-                .get("verbosity")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string(),
-            formatting: persona_section
-                .get("formatting")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string(),
-            forbidden: persona_section
-                .get("forbidden")
-                .and_then(|v| v.as_sequence())
-                .map(|seq| {
-                    seq.iter()
-                        .filter_map(|v| v.as_str().map(String::from))
-                        .collect()
-                })
-                .unwrap_or_default(),
-            required: persona_section
-                .get("required")
-                .and_then(|v| v.as_sequence())
-                .map(|seq| {
-                    seq.iter()
-                        .filter_map(|v| v.as_str().map(String::from))
-                        .collect()
-                })
-                .unwrap_or_default(),
-        });
-    }
-
-    tracing::info!(
-        target: "hkask.mcp.replicant",
-        persona = %persona,
-        "Loaded agent definition from YAML file"
-    );
-    Some(def)
 }
 
 // ── MCP Tool Handlers ─────────────────────────────────────────────────────────
@@ -465,22 +244,11 @@ impl ReplicantServer {
         // Build inference port
         let inference_port = match self.build_inference_port(&model) {
             Ok(port) => port,
-            Err(e) => {
-                return span.error(
-                    McpErrorKind::Internal,
-                    McpToolOutput::new(serde_json::json!({
-                        "error": e,
-                        "persona": self.persona,
-                    }))
-                    .to_json_string(),
-                );
-            }
+            Err(e) => return self.internal_error(span, e),
         };
 
         // Follow-up #1: Build pod manager with a properly-initialized ACP runtime
         // and capability checker using the same secret derivation chain as the CLI.
-        // This ensures capability tokens are compatible across all hKask surfaces
-        // (CLI, API, MCP).
         let session = self.session.read().await;
         let acp_port: Arc<dyn AcpPort + Send + Sync> = session.acp_runtime.clone();
 
@@ -493,9 +261,6 @@ impl ReplicantServer {
         drop(session); // Release read lock before write lock below
 
         // Follow-up #2: Use rich system prompt from agent definition when available.
-        // The persona YAML still defines the pod's structural identity (name, type,
-        // capabilities), while the system prompt carries charter, voice, rights,
-        // and responsibilities from the full agent definition.
         let persona_yaml = format!(
             r#"
 agent:
@@ -519,70 +284,21 @@ visibility:
         let persona = match AgentPersona::from_yaml(&persona_yaml) {
             Ok(p) => p,
             Err(e) => {
-                return span.error(
-                    McpErrorKind::Internal,
-                    McpToolOutput::new(serde_json::json!({
-                        "error": format!("Persona parse error: {}", e),
-                        "persona": self.persona,
-                    }))
-                    .to_json_string(),
-                );
+                return self.internal_error(span, format!("Persona parse error: {}", e));
             }
         };
 
         // Create and activate the pod
-        let pod_id = match pod_manager
-            .create_pod(
-                "replicant-chat-template",
-                &persona,
-                Some(self.persona.clone()),
-            )
-            .await
-        {
-            Ok(id) => id,
-            Err(e) => {
-                return span.error(
-                    McpErrorKind::Internal,
-                    McpToolOutput::new(serde_json::json!({
-                        "error": format!("Pod creation error: {}", e),
-                        "persona": self.persona,
-                    }))
-                    .to_json_string(),
-                );
-            }
-        };
-
-        if let Err(e) = pod_manager.activate_pod(&pod_id).await {
-            return span.error(
-                McpErrorKind::Internal,
-                McpToolOutput::new(serde_json::json!({
-                    "error": format!("Pod activation error: {}", e),
-                    "persona": self.persona,
-                }))
-                .to_json_string(),
-            );
-        }
-
-        let pod_context = match PodContext::from_manager(&pod_manager, &pod_id).await {
-            Ok(ctx) => ctx,
-            Err(e) => {
-                return span.error(
-                    McpErrorKind::Internal,
-                    McpToolOutput::new(serde_json::json!({
-                        "error": format!("Pod context error: {}", e),
-                        "persona": self.persona,
-                    }))
-                    .to_json_string(),
-                );
-            }
-        };
+        let (_pod_id, pod_context) =
+            match self.create_and_activate_pod(&pod_manager, &persona).await {
+                Ok(result) => result,
+                Err(e) => return self.internal_error(span, e),
+            };
 
         // Follow-up #2: Compose the system prompt from the full agent definition
-        // (charter, responsibilities, rights, voice/tone) or fall back to minimal.
         let system_prompt = self.compose_system_prompt();
 
-        // Follow-up #3: Include conversation history in the prompt for context
-        // continuity across MCP tool invocations.
+        // Follow-up #3: Include conversation history in the prompt for context continuity
         let history_prompt = self.format_history_prompt();
 
         let full_prompt = format!("{}{}User: {}", system_prompt, history_prompt, message);
@@ -600,14 +316,7 @@ visibility:
         let pod_inference_port = match pod_context.inference_port() {
             Ok(port) => port,
             Err(e) => {
-                return span.error(
-                    McpErrorKind::Internal,
-                    McpToolOutput::new(serde_json::json!({
-                        "error": format!("Inference port unavailable: {}", e),
-                        "persona": self.persona,
-                    }))
-                    .to_json_string(),
-                );
+                return self.internal_error(span, format!("Inference port unavailable: {}", e));
             }
         };
 
@@ -617,23 +326,9 @@ visibility:
             .await
         {
             Ok(result) => {
-                // Follow-up #3: Record the turn in session history for context
-                // continuity across subsequent calls.
-                {
-                    let mut session = self.session.write().await;
-                    session.turns.push_back(ConversationTurn {
-                        role: "User".to_string(),
-                        content: message.clone(),
-                    });
-                    session.turns.push_back(ConversationTurn {
-                        role: "Assistant".to_string(),
-                        content: result.text.clone(),
-                    });
-                    // Trim to MAX_HISTORY_TURNS, keeping the most recent
-                    while session.turns.len() > MAX_HISTORY_TURNS * 2 {
-                        session.turns.pop_front();
-                    }
-                }
+                // Follow-up #3: Record the turn in session history for context continuity
+                self.record_turn("User", message).await;
+                self.record_turn("Assistant", result.text.clone()).await;
 
                 span.ok(McpToolOutput::new(serde_json::json!({
                     "text": result.text,

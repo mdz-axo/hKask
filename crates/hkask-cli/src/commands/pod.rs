@@ -1,5 +1,6 @@
 //! Pod management command handlers
 
+use crate::cli::PodAction;
 use hkask_agents::pod::{AgentPersona, PodID, PodManager, PodManagerBuilder, PodStatus};
 use hkask_types::CapabilityChecker;
 use std::path::PathBuf;
@@ -75,10 +76,81 @@ pub async fn activate_pod(pod_id: &str) -> Result<(), String> {
 pub async fn deactivate_pod(pod_id: &str) -> Result<(), String> {
     let uuid = Uuid::parse_str(pod_id).map_err(|e| format!("Invalid pod ID: {}", e))?;
     let manager = PodManager::new_mock();
-    manager
+    let _ = manager
         .deactivate_pod(&PodID(uuid))
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| e.to_string());
 
     Ok(())
+}
+
+/// CLI handler for `kask pod` subcommand
+pub fn run_pod(rt: &tokio::runtime::Runtime, action: crate::cli::PodAction) {
+    use crate::commands;
+
+    match action {
+        PodAction::Create {
+            template,
+            persona,
+            name,
+        } => {
+            let pod_id = super::helpers::or_exit(
+                rt.block_on(commands::create_pod(&template, &persona, name.as_deref())),
+                "Failed to create pod",
+            );
+            println!("Created agent pod: {}", pod_id);
+            println!("Template: {}", template);
+            println!("Persona file: {}", persona.display());
+            if let Some(n) = &name {
+                println!("Pod name: {}", n);
+            }
+        }
+        PodAction::Activate { pod_id } => {
+            super::helpers::or_exit(
+                rt.block_on(commands::activate_pod(&pod_id)),
+                "Failed to activate pod",
+            );
+            println!("Activated agent pod: {}", pod_id);
+        }
+        PodAction::Deactivate { pod_id } => {
+            super::helpers::or_exit(
+                rt.block_on(commands::deactivate_pod(&pod_id)),
+                "Failed to deactivate pod",
+            );
+            println!("Deactivated agent pod: {}", pod_id);
+        }
+        PodAction::Status { pod_id, verbose } => {
+            let status = super::helpers::or_exit(
+                rt.block_on(commands::get_pod_status(&pod_id)),
+                "Failed to get pod status",
+            );
+            println!("Agent pod status: {}", pod_id);
+            println!("  State: {}", status.state);
+            println!("  WebID: {}", status.webid);
+            if let Some(name) = &status.name {
+                println!("  Name: {}", name);
+            }
+            if verbose {
+                println!("  Created at: {}", status.created_at);
+            }
+        }
+        PodAction::List => match rt.block_on(commands::list_pods()) {
+            Ok(pods) => {
+                if pods.is_empty() {
+                    println!("No pods registered.");
+                } else {
+                    println!("Agent pods ({}):\n", pods.len());
+                    for pod in pods {
+                        println!("  {} ({})", pod.pod_id, pod.state);
+                        println!("    WebID: {}", pod.webid);
+                        if let Some(name) = &pod.name {
+                            println!("    Name: {}", name);
+                        }
+                        println!();
+                    }
+                }
+            }
+            Err(e) => eprintln!("Pod listing unavailable: {}", e),
+        },
+    }
 }

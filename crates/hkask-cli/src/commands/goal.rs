@@ -12,6 +12,7 @@
 //! Authority is co-located with effect: every write checks the holder's
 //! ownership in addition to the capability (see `hkask-storage::goals`).
 
+use crate::cli::GoalAction;
 use crate::errors::RegistryError;
 use hkask_storage::{NuEventStore, SqliteGoalRepository};
 use hkask_types::event::NuEventSink;
@@ -135,6 +136,16 @@ pub fn set_state(id: &str, state: &str) -> Result<(), RegistryError> {
     repo.update_goal_state(&token, goal_id, new_state)
         .map_err(|e| RegistryError::InitFailed(format!("Goal state change denied: {e}")))?;
 
-    println!("Goal {} → {}", goal_id, new_state.as_str());
+    println!("Goal {} -> {}", goal_id, new_state.as_str());
     Ok(())
+}
+
+/// CLI handler for `kask goal` subcommand
+pub fn run_goal(action: crate::cli::GoalAction) {
+    let result = match action {
+        GoalAction::Create { text, visibility } => create(&text, &visibility),
+        GoalAction::List { state } => list(state.as_deref()),
+        GoalAction::SetState { id, state } => set_state(&id, &state),
+    };
+    super::helpers::or_exit(result, "Goal command failed");
 }
