@@ -181,3 +181,29 @@ hlexicon:
       definition: "Situate an artifact within its meaningful environment"
     - term: cultivate
       definition: "Nurture growth and coherence over time"
+    - term: compact
+      definition: "Distill and compress context into essential facts"
+    - term: distill
+      definition: "Extract the essential from the voluminous"
+    - term: summarize
+      definition: "Produce a concise representation of content"
+    - term: catalog
+      definition: "Enumerate and classify artifacts by reference"
+    - term: reference
+      definition: "Point to an artifact by path or URL without duplication"
+    - term: redact
+      definition: "Remove or mask sensitive data before transfer"
+    - term: suggest
+      definition: "Recommend a skill or action based on context"
+    - term: prioritize
+      definition: "Rank by importance or urgency"
+    - term: recommend
+      definition: "Advise a specific course of action"
+    - term: compose
+      definition: "Assemble parts into a structured whole"
+    - term: structure
+      definition: "Organize into a defined arrangement"
+    - term: document
+      definition: "Create a persistent, transferable record"
+    - term: handoff
+      definition: "Transfer session context to a fresh agent"

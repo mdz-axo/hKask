@@ -14,7 +14,7 @@ use hkask_keystore::derive_all_internal_secrets;
 use hkask_types::{R7BotIdentity, WebID, default_r7_bots};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use tracing::{error, info, warn};
+use tracing::{error, info};
 
 /// Bootstrap phase identifiers
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -209,25 +209,11 @@ impl BootstrapSequence {
                 let _ = secrets; // Secrets will be used by ACP, MCP, API, OCAP subsystems
             }
             Err(_) => {
-                // Check if running in insecure dev mode with admin authorization
-                if std::env::var("HKASK_INSECURE_DEV").is_ok()
-                    && crate::commands::admin::verify_admin_for_dev_mode()
-                {
-                    warn!(
-                        target: "bootstrap",
-                        "HKASK_MASTER_KEY not set and HKASK_INSECURE_DEV is active (admin verified). \
-                         Secrets will be derived from per-subsystem env vars or OS keychain. \
-                         THIS MODE IS INSECURE — do not use in production."
-                    );
-                } else {
-                    error!(
-                        target: "bootstrap",
-                        "HKASK_MASTER_KEY not set. \
-                         Run `kask chat` to complete onboarding, \
-                         set HKASK_MASTER_KEY=<passphrase> for deterministic secret derivation, \
-                         or use HKASK_INSECURE_DEV=1 with `kask admin unlock` for development."
-                    );
-                }
+                error!(
+                    target: "bootstrap",
+                    "HKASK_MASTER_KEY not set. Run `kask chat` to complete onboarding, \
+                     or set HKASK_MASTER_KEY=<passphrase> for deterministic secret derivation."
+                );
             }
         }
 

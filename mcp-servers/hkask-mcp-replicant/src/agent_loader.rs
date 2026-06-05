@@ -1,7 +1,7 @@
 //! Agent definition loading — ACP secret resolution and YAML/database registry discovery
 //!
 //! This module contains functions for:
-//! - Resolving the ACP secret through the full derivation chain (master key → env → keychain → dev)
+//! - Resolving the ACP secret through the full derivation chain (master key → env → keychain → deterministic default)
 //! - Loading agent definitions from the SQLite registry database
 //! - Falling back to YAML file discovery when the database entry is not found
 //!
@@ -22,50 +22,31 @@ use hkask_types::{AgentDefinition, AgentKind, Charter, PersonaConstraints, Secre
 /// 1. Master key derivation (HKDF-SHA256)
 /// 2. Direct environment variable (`HKASK_ACP_SECRET`)
 /// 3. OS keychain
-/// 4. Insecure dev mode (random secret) or deterministic default
+/// 4. Deterministic default (for standalone MCP server startup)
 pub fn resolve_acp_secret() -> String {
-    // 1. Master key derivation (HKDF-SHA256)
+    // Resolution chain: master key derivation → env var → keychain → deterministic default
+    // MCP servers are public infrastructure. The secret gates the replicant, not the server.
+    // A deterministic default allows standalone startup; proper secrets are used when
+    // the server is accessed through `kask chat` or with env vars set.
     hkask_keystore::resolve(&SecretRef::derived(
         hkask_types::derivation_contexts::MASTER_KEY_ENV,
         hkask_types::derivation_contexts::ACP_SECRET,
     ))
     .map(|s| String::from_utf8_lossy(&s).to_string())
-    // 2. Direct environment variable
     .or_else(|_| std::env::var("HKASK_ACP_SECRET"))
-    // 3. OS keychain
     .or_else(|_| {
         hkask_keystore::Keychain::default()
             .retrieve_by_key("acp-secret")
             .map_err(|e| e.to_string())
     })
-    // 4. Insecure dev mode (random secret, tokens won't survive restarts)
-    .or_else(|_| {
-        if std::env::var("HKASK_INSECURE_DEV").as_deref() == Ok("1") {
-            tracing::warn!(
-                target: "hkask.mcp.replicant",
-                "⚠ INSECURE DEV MODE: Using random ACP secret. Tokens will not survive restarts."
-            );
-            use std::fmt::Write;
-            let mut bytes = [0u8; 32];
-            rand::RngCore::fill_bytes(&mut rand::rng(), &mut bytes);
-            let mut s = String::with_capacity(64);
-            for b in &bytes {
-                write!(s, "{b:02x}").unwrap();
-            }
-            Ok(s)
-        } else {
-            // Fall back to a deterministic default so the server can still start.
-            // The CLI resolves this through onboarding; MCP servers may be started
-            // independently and need a working default.
-            tracing::warn!(
-                target: "hkask.mcp.replicant",
-                "No ACP secret resolved — using deterministic default. \
-                 Set HKASK_ACP_SECRET, HKASK_MASTER_KEY, or HKASK_INSECURE_DEV=1 for proper token verification."
-            );
-            Ok("hkask-default-acp-secret-for-mcp-server".to_string())
-        }
+    .unwrap_or_else(|_| {
+        tracing::warn!(
+            target: "hkask.mcp.replicant",
+            "No ACP secret resolved — using deterministic default. \
+             Set HKASK_ACP_SECRET or HKASK_MASTER_KEY for proper token verification."
+        );
+        "hkask-default-acp-secret-for-mcp-server".to_string()
     })
-    .unwrap_or_else(|_: String| "hkask-default-acp-secret-for-mcp-server".to_string())
 }
 
 // ── Agent Definition Loading ─────────────────────────────────────────────────
@@ -92,13 +73,8 @@ pub fn load_agent_definition(persona: &str) -> Option<AgentDefinition> {
                 .map_err(|e| e.to_string())
         })
         .or_else(|_: String| {
-            // In insecure dev mode, use a placeholder passphrase
-            if std::env::var("HKASK_INSECURE_DEV").as_deref() == Ok("1") {
-                Ok::<String, String>("insecure-dev-passphrase".to_string())
-            } else {
-                // Try empty passphrase for unencrypted databases
-                Ok::<String, String>(String::new())
-            }
+            // Empty passphrase for unencrypted databases
+            Ok::<String, String>(String::new())
         })
         .unwrap_or_default();
 

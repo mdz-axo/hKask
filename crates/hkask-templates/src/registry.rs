@@ -487,6 +487,83 @@ impl Registry {
             matroshka_limit: max_recursion,
         });
 
+        // ── Handoff templates (KnowAct/WordAct — session context transfer) ──
+
+        registry.register(RegistryEntry {
+            id: "handoff/handoff-compact".into(),
+            template_type: TemplateType::KnowAct,
+            name: "Handoff Compact".into(),
+            lexicon_terms: vec![
+                "compact".into(),
+                "distill".into(),
+                "extract".into(),
+                "summarize".into(),
+                "crystallize".into(),
+            ],
+            description: "Compress session context into structured summary for handoff".into(),
+            source_path: "registry/templates/handoff/handoff-compact.j2".into(),
+            required_capabilities: vec![],
+            cascade_level: 0,
+            matroshka_limit: max_recursion,
+        });
+
+        registry.register(RegistryEntry {
+            id: "handoff/handoff-artifacts".into(),
+            template_type: TemplateType::KnowAct,
+            name: "Handoff Artifacts".into(),
+            lexicon_terms: vec![
+                "catalog".into(),
+                "reference".into(),
+                "classify".into(),
+                "detect".into(),
+                "redact".into(),
+            ],
+            description: "Catalog artifacts by reference and detect sensitive data for redaction"
+                .into(),
+            source_path: "registry/templates/handoff/handoff-artifacts.j2".into(),
+            required_capabilities: vec![],
+            cascade_level: 0,
+            matroshka_limit: max_recursion,
+        });
+
+        registry.register(RegistryEntry {
+            id: "handoff/handoff-skills-suggest".into(),
+            template_type: TemplateType::KnowAct,
+            name: "Handoff Skills Suggest".into(),
+            lexicon_terms: vec![
+                "suggest".into(),
+                "match".into(),
+                "prioritize".into(),
+                "analyze".into(),
+                "recommend".into(),
+            ],
+            description: "Suggest relevant skills and extract open questions for next session"
+                .into(),
+            source_path: "registry/templates/handoff/handoff-skills-suggest.j2".into(),
+            required_capabilities: vec![],
+            cascade_level: 0,
+            matroshka_limit: max_recursion,
+        });
+
+        registry.register(RegistryEntry {
+            id: "handoff/handoff-compose".into(),
+            template_type: TemplateType::WordAct,
+            name: "Handoff Compose".into(),
+            lexicon_terms: vec![
+                "compose".into(),
+                "synthesize".into(),
+                "structure".into(),
+                "redact".into(),
+                "document".into(),
+            ],
+            description: "Assemble final handoff document with redaction and skill suggestions"
+                .into(),
+            source_path: "registry/templates/handoff/handoff-compose.j2".into(),
+            required_capabilities: vec![],
+            cascade_level: 0,
+            matroshka_limit: max_recursion,
+        });
+
         // ── FlowDef templates (YAML manifests — "what to do") ──────
 
         registry.register(RegistryEntry {

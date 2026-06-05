@@ -85,19 +85,13 @@ impl PodContext {
                 return Err(AgentPodError::CapabilityDenied { resource, action });
             }
         } else {
-            // Fallback: structural check only (INSECURE — log warning)
-            tracing::warn!(
+            tracing::error!(
                 target: "hkask.ocap",
                 webid = ?self.webid,
                 resource = ?resource,
-                "No capability checker configured — falling back to structural check"
+                "No capability checker configured — capability check denied"
             );
-            if !self
-                .capability_token
-                .is_valid_for(resource, resource_id, action)
-            {
-                return Err(AgentPodError::CapabilityDenied { resource, action });
-            }
+            return Err(AgentPodError::CapabilityDenied { resource, action });
         }
         Ok(())
     }

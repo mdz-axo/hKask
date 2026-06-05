@@ -251,10 +251,17 @@ pub async fn chat_with_agent(
     // The token uses the ACP secret for HMAC signing, ensuring that
     // memory operations are authorized through the same OCAP discipline
     // as pod-mediated access.
-    let acp_secret = resolve_acp_secret().unwrap_or_else(|_| {
-        tracing::warn!(target: "hkask.chat", "Using derived ACP secret for memory token");
-        "hkask-insecure-dev-fallback".to_string()
-    });
+    let acp_secret = match resolve_acp_secret() {
+        Ok(s) => s,
+        Err(e) => {
+            return ChatResponse {
+                text: format!("ACP secret resolution failed: {}", e),
+                usage: None,
+                finish_reason: "error".to_string(),
+                tool_calls: vec![],
+            };
+        }
+    };
 
     let capability_token = DelegationToken::new(
         DelegationResource::Registry,

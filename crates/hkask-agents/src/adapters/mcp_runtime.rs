@@ -6,7 +6,6 @@ use crate::error::McpError;
 use crate::ports::MCPRuntimePort;
 use hkask_types::{CapabilityChecker, DelegationAction, DelegationResource, DelegationToken};
 use std::sync::Arc;
-use tracing::warn;
 
 /// MCP Runtime Adapter — Concrete implementation for tool access
 #[derive(Default, Clone)]
@@ -81,15 +80,9 @@ impl MCPRuntimePort for McpRuntimeAdapter {
                 )));
             }
         } else {
-            warn!(
-                target: "hkask.agents.mcp_runtime",
-                "No capability checker configured; falling back to stub verification"
-            );
-            if token.id.is_empty() {
-                return Err(McpError::CapabilityDenied(
-                    "Invalid capability token".to_string(),
-                ));
-            }
+            return Err(McpError::CapabilityDenied(
+                "No capability checker configured — tool invocation denied".to_string(),
+            ));
         }
 
         Ok(serde_json::json!({

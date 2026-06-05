@@ -652,16 +652,6 @@ pub enum SpecAction {
     },
 }
 
-/// Admin actions (admin passphrase management)
-#[derive(Subcommand)]
-pub enum AdminAction {
-    /// Set the admin passphrase for gating HKASK_INSECURE_DEV mode
-    Init,
-
-    /// Remove the admin passphrase (disables insecure dev mode entirely)
-    Reset,
-}
-
 /// Goal actions — minimal multi-agent coordination substrate.
 ///
 /// All operations are OCAP-gated: a `GoalCapabilityToken` is minted from the

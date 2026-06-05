@@ -15,7 +15,7 @@ pub(crate) fn registry_yaml_path() -> PathBuf {
 }
 
 pub(crate) fn resolve_acp_secret() -> Result<String, RegistryError> {
-    // Resolution chain: master key derivation → env var → keychain → insecure dev
+    // Resolution chain: master key derivation → env var → keychain
     hkask_keystore::resolve(&hkask_types::SecretRef::derived(
         hkask_types::derivation_contexts::MASTER_KEY_ENV,
         hkask_types::derivation_contexts::ACP_SECRET,
@@ -27,25 +27,9 @@ pub(crate) fn resolve_acp_secret() -> Result<String, RegistryError> {
             .retrieve_by_key("acp-secret")
             .map_err(|e| RegistryError::InitFailed(e.to_string()))
     })
-    .or_else(|_| {
-        if std::env::var("HKASK_INSECURE_DEV").as_deref() == Ok("1")
-            && crate::commands::admin::verify_admin_for_dev_mode()
-        {
-            tracing::warn!(
-                "⚠ INSECURE DEV MODE: Using random ACP secret. Tokens will not survive restarts."
-            );
-            use rand::RngCore;
-            let mut bytes = [0u8; 32];
-            rand::rng().fill_bytes(&mut bytes);
-            Ok(hex::encode(bytes))
-        } else {
-            Err(RegistryError::InitFailed(
-                "HKASK_ACP_SECRET not set. Run `kask chat` to complete onboarding, \
-                 set HKASK_MASTER_KEY, or use HKASK_INSECURE_DEV=1 with `kask admin unlock`."
-                    .to_string(),
-            ))
-        }
-    })
+    .or_else(|_| Err(RegistryError::InitFailed(
+        "HKASK_ACP_SECRET not set. Run `kask chat` to complete onboarding, or set HKASK_MASTER_KEY for deterministic secret derivation.".to_string(),
+    )))
 }
 
 /// Resolve the MCP secret for tool dispatch signing.
@@ -79,23 +63,9 @@ pub fn resolve_db_passphrase() -> Result<String, RegistryError> {
         hkask_keystore::Keychain::default()
             .retrieve_by_key("hkask-db-passphrase")
             .map_err(|e| RegistryError::InitFailed(e.to_string()))
-            .or_else(|_| {
-                if std::env::var("HKASK_INSECURE_DEV").as_deref() == Ok("1")
-                    && crate::commands::admin::verify_admin_for_dev_mode()
-                {
-                    tracing::warn!("⚠ INSECURE DEV MODE: Using random DB passphrase.");
-                    use rand::RngCore;
-                    let mut bytes = [0u8; 32];
-                    rand::rng().fill_bytes(&mut bytes);
-                    Ok(hex::encode(bytes))
-                } else {
-                    Err(RegistryError::InitFailed(
-                        "HKASK_DB_PASSPHRASE not set. Run `kask chat` to complete onboarding, \
-                         or use HKASK_INSECURE_DEV=1 with `kask admin unlock`."
-                            .to_string(),
-                    ))
-                }
-            })
+            .or_else(|_| Err(RegistryError::InitFailed(
+                "HKASK_DB_PASSPHRASE not set. Run `kask chat` to complete onboarding, or set HKASK_MASTER_KEY for deterministic secret derivation.".to_string(),
+            )))
     })
 }
 
@@ -221,19 +191,15 @@ pub fn create_disconnected_governed_dispatcher(
 /// CyberneticsLoop and dispatch channel. This function is suitable for
 /// standalone CLI subcommands (mcp, models, web-search) that need tool
 /// dispatch without a REPL session.
-pub fn create_mcp_dispatcher() -> (hkask_mcp::McpDispatcher, hkask_types::CapabilityToken) {
+pub fn create_mcp_dispatcher()
+-> Result<(hkask_mcp::McpDispatcher, hkask_types::CapabilityToken), RegistryError> {
     let runtime = hkask_mcp::runtime::McpRuntime::new();
-    // Derive the MCP secret from the ACP master key via HKDF, falling back
-    // to env/keychain/ACP-secret. This replaces the hardcoded dev secret.
-    let mcp_secret = resolve_mcp_secret().unwrap_or_else(|_| {
-        tracing::warn!("Using derived ACP secret as MCP secret fallback");
-        "hkask-insecure-dev-fallback".to_string()
-    });
+    let mcp_secret = resolve_mcp_secret()?;
     let (dispatcher, _) = create_disconnected_governed_dispatcher(runtime, mcp_secret.as_bytes());
     let from = hkask_types::WebID::new();
     let to = hkask_types::WebID::new();
     let token = dispatcher.issue_capability("tools".to_string(), from, to);
-    (dispatcher, token)
+    Ok((dispatcher, token))
 }
 
 // ── Pre-resolved Secrets ────────────────────────────────────────────────────

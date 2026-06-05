@@ -300,9 +300,9 @@ impl PodManagerBuilder {
             .capability_checker
             .or_else(|| resolve_acp_secret_for_checker().map(Arc::new));
         if manager.capability_checker.is_none() {
-            tracing::warn!(
+            tracing::info!(
                 target: "hkask.ocap",
-                "No capability checker configured — PodContext::require_capability() will fall back to structural check only"
+                "No capability checker configured — PodContext::require_capability() will deny capabilities"
             );
         }
         manager

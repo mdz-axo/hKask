@@ -1,6 +1,5 @@
 //! hKask Keystore — OS keychain, encryption, and master key derivation
 
-pub mod admin;
 pub mod encryption;
 pub mod error;
 pub mod keychain;

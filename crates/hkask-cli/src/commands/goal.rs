@@ -32,8 +32,7 @@ fn resolve_ocap_secret() -> Result<Vec<u8>, RegistryError> {
         .map_err(|e| {
             RegistryError::InitFailed(format!(
                 "Could not resolve OCAP secret for goal capability ({e}). \
-                 Run `kask chat` to onboard, set HKASK_MASTER_KEY, or use \
-                 HKASK_INSECURE_DEV=1 with `kask admin unlock`."
+                 Run `kask chat` to onboard or set HKASK_MASTER_KEY."
             ))
         })
 }

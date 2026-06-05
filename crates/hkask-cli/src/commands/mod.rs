@@ -3,7 +3,6 @@
 //! This module contains the actual command handlers, organized into focused submodules.
 //! Each subcommand domain has its own module: agents, chat, curator, ensemble, etc.
 
-pub mod admin;
 pub mod agent;
 pub mod chat;
 pub mod cns;
