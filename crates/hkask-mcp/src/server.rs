@@ -232,11 +232,16 @@ impl ToolSpanGuard {
 
     /// Return an internal error response with a JSON value.
     ///
-    /// Equivalent to `self.error(McpErrorKind::Internal, McpToolOutput::new(value).to_json_string())`.
+    /// Produces `McpToolError` wire format (`{"error":"...","kind":"Internal"}`)
+    /// instead of `McpToolOutput` format, so clients can distinguish errors from successes.
     pub fn internal_error(self, value: Value) -> String {
+        let message = match value {
+            Value::String(s) => s,
+            other => other.to_string(),
+        };
         self.error(
             McpErrorKind::Internal,
-            McpToolOutput::new(value).to_json_string(),
+            McpToolError::internal(message).to_json_string(),
         )
     }
 }

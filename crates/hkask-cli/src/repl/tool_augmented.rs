@@ -11,6 +11,8 @@
 //! 1. **Structured**: `InferenceResult.tool_calls` when `finish_reason == "tool_calls"`
 //! 2. **Text fallback**: `<<tool:server/tool_name\n{args}\n>>` directives in text
 
+use hkask_cns::GovernedTool;
+use hkask_mcp::raw_tool_port::RawMcpToolPort;
 use hkask_types::ports::{StructuredToolCall, ToolPort};
 use hkask_types::{DelegationAction, DelegationResource, DelegationToken, WebID};
 use std::sync::Arc;
@@ -124,7 +126,7 @@ pub fn parse_tool_calls(response: &str) -> ParsedResponse {
 /// authorization, then routes through GovernedTool (gas budgets, CNS).
 pub async fn invoke_tool_call(
     call: &ToolCall,
-    governed_tool: &Arc<dyn ToolPort>,
+    governed_tool: &Arc<GovernedTool<RawMcpToolPort>>,
     agent_webid: &WebID,
     acp_secret: &[u8],
 ) -> Result<serde_json::Value, String> {
@@ -186,7 +188,7 @@ pub fn format_tool_results(calls: &[(ToolCall, Result<serde_json::Value, String>
 pub async fn process_response(
     response_text: &str,
     agent_name: &str,
-    governed_tool: &Arc<dyn ToolPort>,
+    governed_tool: &Arc<GovernedTool<RawMcpToolPort>>,
     agent_webid: &WebID,
     acp_secret: &[u8],
     structured_tool_calls: Option<&[StructuredToolCall]>,

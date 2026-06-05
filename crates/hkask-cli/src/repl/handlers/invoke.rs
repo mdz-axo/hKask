@@ -3,6 +3,7 @@
 //! Mints a capability token from the session's ACP secret, then routes
 //! the invocation through GovernedTool (OCAP + gas budget + CNS observability).
 
+use hkask_types::ports::ToolPort;
 use hkask_types::{DelegationAction, DelegationResource, DelegationToken, WebID};
 
 /// Handle `/invoke <tool> [args]` or `/invoke <server>/<tool> [args]`.

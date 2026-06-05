@@ -38,9 +38,9 @@ use tokio::sync::RwLock;
 ///
 /// To use loop-routed dispatch, register this with the `LoopSystem` and
 /// route `ToolInvocation` messages to `WorkerKind::ToolDispatch`.
-pub struct LoopRoutedToolDispatch {
+pub struct LoopRoutedToolDispatch<P: ToolPort> {
     /// Inner tool port (typically `GovernedTool` wrapping `RawMcpToolPort`)
-    inner: Arc<dyn ToolPort>,
+    inner: Arc<P>,
     /// System-level delegation token for inner invoke calls.
     /// OCAP verification was already performed by GovernedTool before the
     /// invocation entered the Communication Loop. This token authorizes
@@ -54,7 +54,7 @@ pub struct LoopRoutedToolDispatch {
     max_invocations_per_tick: usize,
 }
 
-impl LoopRoutedToolDispatch {
+impl<P: ToolPort> LoopRoutedToolDispatch<P> {
     /// Create a new loop-routed tool dispatch worker.
     ///
     /// Returns `(dispatch_instance, inbox_sender)`. Register the sender with
@@ -66,7 +66,7 @@ impl LoopRoutedToolDispatch {
     /// entered the Communication Loop, so this token serves as a pass-through
     /// authorization.
     pub fn new(
-        inner: Arc<dyn ToolPort>,
+        inner: Arc<P>,
         system_token: DelegationToken,
         dispatch_tx: tokio::sync::mpsc::UnboundedSender<LoopMessage>,
     ) -> (Self, tokio::sync::mpsc::UnboundedSender<LoopMessage>) {
@@ -180,7 +180,7 @@ impl LoopRoutedToolDispatch {
 }
 
 #[async_trait::async_trait]
-impl HkaskLoop for LoopRoutedToolDispatch {
+impl<P: ToolPort + 'static> HkaskLoop for LoopRoutedToolDispatch<P> {
     fn id(&self) -> LoopId {
         // Tool dispatch is a worker within Communication (Loop 4), not a governing loop.
         LoopId::Communication
@@ -244,7 +244,6 @@ mod tests {
         }
     }
 
-    #[async_trait::async_trait]
     impl ToolPort for MockToolPort {
         async fn invoke(
             &self,

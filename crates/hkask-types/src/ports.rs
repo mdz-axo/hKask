@@ -693,7 +693,7 @@ pub enum ToolPortError {
 /// Tool Port — Hexagonal boundary for tool invocation.
 ///
 /// This is the singular membrane through which all MCP tool invocations pass.
-/// The `GovernedTool` in `hkask-cns` wraps a `dyn ToolPort` and implements
+/// The `GovernedTool` in `hkask-cns` wraps a `ToolPort` and implements
 /// `ToolPort` itself — the membrane IS a ToolPort. Before delegating, it checks:
 /// 1. Authority (OCAP) — CapabilityChecker::verify
 /// 2. Budget (Cybernetics) — CyberneticsLoop::can_proceed / acquire_budget
@@ -704,25 +704,27 @@ pub enum ToolPortError {
 ///
 /// Implementations:
 /// - `McpDispatcher` — Production tool invocation (in hkask-mcp)
-#[async_trait::async_trait]
 pub trait ToolPort: Send + Sync {
     /// Invoke a tool by name with the given input and capability token.
     ///
     /// The token proves the agent is authorized for this tool invocation.
     /// Returns the tool's response or an error.
-    async fn invoke(
+    fn invoke(
         &self,
         server: &str,
         tool: &str,
         args: serde_json::Value,
         token: &DelegationToken,
-    ) -> Result<serde_json::Value, ToolPortError>;
+    ) -> impl std::future::Future<Output = Result<serde_json::Value, ToolPortError>> + Send;
 
     /// Discover available tools.
-    async fn discover_tools(&self) -> Vec<String>;
+    fn discover_tools(&self) -> impl std::future::Future<Output = Vec<String>> + Send;
 
     /// Get metadata for a specific tool.
-    async fn get_tool_info(&self, tool_name: &str) -> Option<ToolInfo>;
+    fn get_tool_info(
+        &self,
+        tool_name: &str,
+    ) -> impl std::future::Future<Output = Option<ToolInfo>> + Send;
 }
 
 /// Tool information metadata
@@ -848,7 +850,6 @@ pub enum EmbeddingGenerationError {
 ///
 /// Implementations:
 /// - `OkapiEmbedding` — Production implementation via Okapi HTTP API (in hkask-templates)
-#[async_trait::async_trait]
 pub trait EmbeddingGenerationPort: Send + Sync {
     /// Generate embedding vectors for a batch of sentences.
     ///

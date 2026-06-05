@@ -6,6 +6,7 @@
 //! live `Peer<RoleClient>` connections. `shutdown_all()` terminates
 //! all managed processes.
 
+use hkask_types::ports::ToolInfo;
 use rmcp::model::CallToolRequestParams;
 use rmcp::service::{Peer, RoleClient, ServiceExt};
 use rmcp::transport::TokioChildProcess;
@@ -17,21 +18,6 @@ use tokio::process::Command;
 use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 use tracing::info;
-
-/// Tool information metadata
-#[derive(Debug, Clone)]
-pub struct ToolInfo {
-    /// Tool name
-    pub name: String,
-    /// Tool description
-    pub description: String,
-    /// Input schema (JSON Schema)
-    pub input_schema: Value,
-    /// Server that provides this tool
-    pub server_id: String,
-    /// Required capability (if any)
-    pub required_capability: Option<String>,
-}
 
 /// MCP tool definition
 #[derive(Debug, Clone)]
@@ -223,40 +209,6 @@ impl McpRuntime {
 
         let params = CallToolRequestParams::new(tool.to_string()).with_arguments(arguments);
         peer.call_tool(params).await
-    }
-
-    /// Invoke a tool by name, looking up the server automatically.
-    ///
-    /// This is the highest-level convenience method: finds the server that
-    /// owns the tool, calls it through the live connection, and parses
-    /// the result into a `Value`. Returns `None` if the tool is not found
-    /// or the server is not connected.
-    pub async fn invoke_tool(
-        &self,
-        tool_name: &str,
-        arguments: serde_json::Map<String, Value>,
-    ) -> Option<Result<Value, String>> {
-        let server_id = self.get_tool_info(tool_name).await?.server_id;
-
-        let result = match self.call_tool(&server_id, tool_name, arguments).await {
-            Ok(r) => r,
-            Err(e) => return Some(Err(e.to_string())),
-        };
-
-        if result.is_error.unwrap_or(false) {
-            let msg = result
-                .content
-                .iter()
-                .filter_map(|c| match &**c {
-                    rmcp::model::RawContent::Text(t) => Some(t.text.as_str()),
-                    _ => None,
-                })
-                .collect::<Vec<_>>()
-                .join("\n");
-            return Some(Err(msg));
-        }
-
-        Some(Ok(crate::raw_tool_port::parse_call_result(&result)))
     }
 
     /// Shut down a specific managed server process.

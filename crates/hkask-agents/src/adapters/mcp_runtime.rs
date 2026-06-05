@@ -130,14 +130,29 @@ impl MCPRuntimePort for McpRuntimeAdapter {
             }
         };
 
-        let arguments = input.as_object().cloned().unwrap_or_default();
-        match handle.block_on(runtime.invoke_tool(tool_name, arguments)) {
-            Some(Ok(value)) => Ok(value),
-            Some(Err(msg)) => Err(McpError::InvocationFailed(msg)),
-            None => Err(McpError::ToolNotFound(format!(
-                "Tool '{}' not found or server not connected",
-                tool_name
-            ))),
+        // Resolve server_id for the tool, then invoke through RawMcpToolPort
+        let server_id = handle
+            .block_on(runtime.get_tool_info(tool_name))
+            .map(|info| info.server_id)
+            .unwrap_or_else(|| "unknown".to_string());
+
+        let raw_port = hkask_mcp::RawMcpToolPort::new(runtime.as_ref().clone());
+        match handle.block_on(hkask_types::ports::ToolPort::invoke(
+            &raw_port, &server_id, tool_name, input, token,
+        )) {
+            Ok(value) => Ok(value),
+            Err(hkask_types::ports::ToolPortError::NotFound(msg)) => {
+                Err(McpError::ToolNotFound(msg))
+            }
+            Err(hkask_types::ports::ToolPortError::InvocationFailed(msg)) => {
+                Err(McpError::InvocationFailed(msg))
+            }
+            Err(hkask_types::ports::ToolPortError::CapabilityDenied(msg)) => {
+                Err(McpError::CapabilityDenied(msg))
+            }
+            Err(hkask_types::ports::ToolPortError::GasBudgetExceeded(msg)) => Err(
+                McpError::InvocationFailed(format!("Energy budget exceeded: {}", msg)),
+            ),
         }
     }
 

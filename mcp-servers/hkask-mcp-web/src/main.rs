@@ -4,8 +4,8 @@ pub mod strip_html;
 pub mod types;
 
 use hkask_mcp::server::{
-    CredentialRequirement, McpToolError, McpToolOutput, ServerContext, ToolSpanGuard,
-    resolve_credential, validate_tool_url,
+    CredentialRequirement, McpToolError, ServerContext, ToolSpanGuard, resolve_credential,
+    validate_tool_url,
 };
 use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
@@ -126,8 +126,7 @@ impl WebServer {
             );
             return span.error(
                 McpErrorKind::RateLimited,
-                McpToolOutput::new(serde_json::to_value(&output).unwrap_or_default())
-                    .to_json_string(),
+                McpToolError::rate_limited("web_ping rate limited").to_json_string(),
             );
         }
 
@@ -207,14 +206,7 @@ impl WebServer {
         let mut compound = match self.pool.search(&search_query, strat, None).await {
             Ok(c) => c,
             Err(e) => {
-                return span.error(
-                    e.kind(),
-                    McpToolOutput::new(serde_json::json!({
-                        "error": e.to_string(),
-                        "strategy": strat.to_string(),
-                    }))
-                    .to_json_string(),
-                );
+                return span.error(e.kind(), McpToolError::from(e).to_json_string());
             }
         };
 

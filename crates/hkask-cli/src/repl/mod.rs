@@ -36,7 +36,7 @@ use hkask_types::CuratorHandle;
 use hkask_types::WebID;
 use hkask_types::event::NuEventSink;
 use hkask_types::loops::LoopPayload;
-use hkask_types::ports::{ConsolidationPort, InferencePort, ToolPort};
+use hkask_types::ports::{ConsolidationPort, InferencePort};
 use rustyline::error::ReadlineError;
 use rustyline::{CompletionType, Config as ReadlineConfig, Editor};
 use std::sync::Arc;
@@ -91,7 +91,7 @@ pub(crate) struct ReplState {
     /// GovernedTool membrane — the singular governance boundary for MCP tool
     /// invocations. All tool calls route through this membrane, which enforces
     /// OCAP authority, gas budgets, and CNS observability.
-    pub(crate) governed_tool: Arc<dyn ToolPort>,
+    pub(crate) governed_tool: Arc<GovernedTool<RawMcpToolPort>>,
     /// HHH alignment mode — whether the Helpful/Harmless/Honest gate is active.
     pub(crate) hhh_mode: HhhMode,
     /// HHH configuration — gate model, max iterations, pass threshold.
@@ -387,13 +387,13 @@ pub fn run(
         tracing::info!(target: "hkask.repl", servers = server_count, "MCP servers started");
     }
 
-    let raw_tool_port: Arc<dyn ToolPort> = Arc::new(RawMcpToolPort::new(mcp_runtime.clone()));
+    let raw_tool_port = Arc::new(RawMcpToolPort::new(mcp_runtime.clone()));
     let cns_event_sink: Arc<dyn NuEventSink> = Arc::new(hkask_storage::NuEventStore::new(
         Database::in_memory().expect("cns event db").conn_arc(),
     ));
     let gas_estimator: Arc<dyn hkask_cns::GasEstimator> = Arc::new(CompositeGasEstimator::new());
 
-    let governed_tool: Arc<dyn ToolPort> = Arc::new(GovernedTool::new(
+    let governed_tool = Arc::new(GovernedTool::new(
         raw_tool_port,
         cybernetics_loop.clone(), // Arc<RwLock<CyberneticsLoop>> — shared with LoopSystem
         cns_event_sink,

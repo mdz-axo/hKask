@@ -63,22 +63,12 @@ pub use hkask_types::ports::RegistryIndex;
 pub use hkask_types::ports::RegistryError;
 
 /// Tool information metadata
-#[derive(Debug, Clone)]
-pub struct ToolInfo {
-    /// Tool name
-    pub name: String,
-    /// Tool description
-    pub description: String,
-    /// Input schema (JSON Schema)
-    pub input_schema: Value,
-    /// Server that provides this tool
-    pub server_id: String,
-    /// Required capability (if any)
-    pub required_capability: Option<String>,
-}
+///
+/// Canonical definition lives in `hkask_types::ports::ToolInfo`.
+/// Re-exported here for backward compatibility.
+pub use hkask_types::ports::ToolInfo;
 
 /// MCP port for tool invocation
-#[async_trait::async_trait]
 pub trait McpPort: Send + Sync {
     async fn discover_tools(&self) -> Vec<String>;
     async fn invoke(&self, tool_name: &str, input: Value, token: &CapabilityToken)

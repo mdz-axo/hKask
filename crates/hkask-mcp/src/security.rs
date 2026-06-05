@@ -3,7 +3,7 @@
 //! Provides SSRF protection for MCP tool invocations:
 //! - URL validation (scheme, credentials, private IP, loopback)
 
-use std::net::{IpAddr, Ipv6Addr};
+use std::net::IpAddr;
 
 /// URL validation error types
 #[derive(Debug, thiserror::Error)]
@@ -91,15 +91,10 @@ fn is_private_ip(ip: &IpAddr) -> bool {
                 || (octets[0] == 172 && octets[1] >= 16 && octets[1] <= 31)
                 || (octets[0] == 192 && octets[1] == 168)
                 || (octets[0] == 169 && octets[1] == 254)
-                || octets[0] == 127
         }
         IpAddr::V6(v6) => {
             let segments = v6.segments();
-            segments[0] == 0xfc00 || segments[0] == 0xfd00 || is_ipv6_loopback(v6)
+            segments[0] == 0xfc00 || segments[0] == 0xfd00
         }
     }
-}
-
-fn is_ipv6_loopback(v6: &Ipv6Addr) -> bool {
-    v6.segments() == [0, 0, 0, 0, 0, 0, 0, 1]
 }

@@ -52,7 +52,6 @@ use hkask_templates::SqliteRegistry;
 use hkask_types::event::NuEventSink;
 use hkask_types::loops::HkaskLoop;
 use hkask_types::loops::curation::CuratorHandle;
-use hkask_types::ports::ToolPort;
 use hkask_types::{CapabilityChecker, WebID};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -339,13 +338,13 @@ impl ApiState {
         );
 
         // Create raw tool port (ungoverned executor)
-        let raw_tool_port: Arc<dyn ToolPort> = Arc::new(
-            hkask_mcp::raw_tool_port::RawMcpToolPort::new(dispatcher_runtime.clone()),
-        );
+        let raw_tool_port = Arc::new(hkask_mcp::raw_tool_port::RawMcpToolPort::new(
+            dispatcher_runtime.clone(),
+        ));
 
         // Create GovernedTool membrane with CompositeGasEstimator
         let estimator: Arc<dyn hkask_cns::GasEstimator> = Arc::new(CompositeGasEstimator::new());
-        let governed_tool: Arc<dyn ToolPort> = Arc::new(GovernedTool::new(
+        let governed_tool = Arc::new(GovernedTool::new(
             raw_tool_port,
             cybernetics_loop_rwlock,
             cns_event_sink,

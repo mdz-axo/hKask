@@ -1,6 +1,7 @@
 use super::ReplState;
 use super::display::{print_command_help, print_help};
 use super::handlers::{handle_ensemble, handle_into, handle_model};
+use hkask_types::ports::ToolPort;
 use std::sync::Arc;
 
 pub(super) struct SlashCommand {

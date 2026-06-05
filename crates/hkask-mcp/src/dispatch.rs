@@ -14,12 +14,17 @@
 //! through GovernedTool.
 
 use crate::governor::McpGovernor;
+use crate::raw_tool_port::RawMcpToolPort;
 use crate::runtime::McpRuntime;
+use hkask_cns::GovernedTool;
 use hkask_templates::{McpPort, Result, TemplateError};
-use hkask_types::ports::{ToolPort, ToolPortError};
+use hkask_types::ports::{ToolInfo, ToolPort, ToolPortError};
 use hkask_types::{DelegationToken, WebID};
 use serde_json::Value;
 use std::sync::Arc;
+
+/// Concrete governed tool type used by the MCP dispatcher.
+pub type DispatchGovernedTool = GovernedTool<RawMcpToolPort>;
 
 /// MCP dispatcher — Communication-layer tool routing.
 ///
@@ -35,7 +40,7 @@ pub struct McpDispatcher {
     /// Governed tool membrane — the singular governance boundary.
     /// When present, all tool invocations route through this membrane
     /// which handles OCAP verification, energy budgets, and CNS observability.
-    governed_tool: Option<Arc<dyn ToolPort>>,
+    governed_tool: Option<Arc<DispatchGovernedTool>>,
 }
 
 impl McpDispatcher {
@@ -65,7 +70,7 @@ impl McpDispatcher {
     pub fn with_governed_tool(
         runtime: McpRuntime,
         secret: &[u8],
-        governed_tool: Arc<dyn ToolPort>,
+        governed_tool: Arc<DispatchGovernedTool>,
     ) -> Self {
         Self {
             runtime,
@@ -93,7 +98,6 @@ impl McpDispatcher {
     }
 }
 
-#[async_trait::async_trait]
 impl McpPort for McpDispatcher {
     async fn discover_tools(&self) -> Vec<String> {
         self.runtime.discover_tools().await
@@ -135,16 +139,7 @@ impl McpPort for McpDispatcher {
         }
     }
 
-    async fn get_tool_info(&self, tool_name: &str) -> Option<hkask_templates::ports::ToolInfo> {
-        self.runtime
-            .get_tool_info(tool_name)
-            .await
-            .map(|t| hkask_templates::ports::ToolInfo {
-                name: t.name,
-                description: t.description,
-                input_schema: t.input_schema,
-                server_id: t.server_id,
-                required_capability: t.required_capability,
-            })
+    async fn get_tool_info(&self, tool_name: &str) -> Option<ToolInfo> {
+        self.runtime.get_tool_info(tool_name).await
     }
 }

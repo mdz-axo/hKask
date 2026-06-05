@@ -1,6 +1,8 @@
 //! PodManager, PodStatus, PodManagerBuilder — Pod lifecycle management
 
-use hkask_types::{CapabilityChecker, InferencePort, NuEventSink, ToolPort};
+use hkask_cns::GovernedTool;
+use hkask_mcp::raw_tool_port::RawMcpToolPort;
+use hkask_types::{CapabilityChecker, InferencePort, NuEventSink};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -42,7 +44,7 @@ pub struct PodManager {
     /// GovernedTool membrane for pod tool invocations.
     /// When set, PodContext routes tool calls through CNS governance
     /// (gas budget, variety tracking, event spans).
-    pub(crate) governed_tool: Option<Arc<dyn ToolPort>>,
+    pub(crate) governed_tool: Option<Arc<GovernedTool<RawMcpToolPort>>>,
     /// NuEvent sink for pod lifecycle observability.
     /// When set, pod lifecycle transitions emit NuEvents through CNS.
     nu_event_sink: Option<Arc<dyn NuEventSink>>,
@@ -100,7 +102,7 @@ impl PodManager {
     /// When set, `PodContext::invoke_tool` routes through the membrane,
     /// gaining CNS governance: gas budget enforcement, variety tracking,
     /// and algedonic event spans.
-    pub fn with_governed_tool(mut self, tool: Arc<dyn ToolPort>) -> Self {
+    pub fn with_governed_tool(mut self, tool: Arc<GovernedTool<RawMcpToolPort>>) -> Self {
         self.governed_tool = Some(tool);
         self
     }
@@ -184,7 +186,7 @@ pub struct PodManagerBuilder {
     semantic_storage: Option<Arc<dyn SemanticStoragePort>>,
     inference_port: Option<Arc<dyn InferencePort>>,
     capability_checker: Option<Arc<CapabilityChecker>>,
-    governed_tool: Option<Arc<dyn ToolPort>>,
+    governed_tool: Option<Arc<GovernedTool<RawMcpToolPort>>>,
     nu_event_sink: Option<Arc<dyn NuEventSink>>,
 }
 
@@ -252,7 +254,7 @@ impl PodManagerBuilder {
     /// When set, `PodContext::invoke_tool` routes through the membrane,
     /// gaining CNS governance: gas budget enforcement, variety tracking,
     /// and algedonic event spans. Without it, pods bypass CNS observability.
-    pub fn governed_tool(mut self, tool: Arc<dyn ToolPort>) -> Self {
+    pub fn governed_tool(mut self, tool: Arc<GovernedTool<RawMcpToolPort>>) -> Self {
         self.governed_tool = Some(tool);
         self
     }

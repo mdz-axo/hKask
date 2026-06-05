@@ -1,17 +1,17 @@
 //! hKask MCP Ensemble — Multi-agent coordination MCP server
 //!
 //! Starts an MCP server over stdio exposing 6 tools:
-//! - `coordinate_session` — Create a standing session from a YAML config path
-//! - `register_participant` — Register a bot participant in a session
-//! - `send_message` — Send a message to a standing session
-//! - `get_status` — Get standing session status
-//! - `improv_turn` — Prepare an improvisation turn prompt for external inference
-//! - `agent_send_message` — Structure an A2A message for dispatch
+//! - `ensemble_coordinate` — Create a standing session from a YAML config path
+//! - `ensemble_register` — Register a bot participant in a session
+//! - `ensemble_send` — Send a message to a standing session
+//! - `ensemble_status` — Get standing session status
+//! - `ensemble_improv` — Prepare an improvisation turn prompt for external inference
+//! - `ensemble_a2a` — Structure an A2A message for dispatch
 
 use hkask_ensemble::{
     ChatMessage, ChatParticipant, ParticipantRole, StandingSession, bootstrap_standing_session,
 };
-use hkask_mcp::server::{McpToolOutput, ToolSpanGuard};
+use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_mcp::validate_field;
 use hkask_types::McpErrorKind;
 use hkask_types::WebID;
@@ -84,11 +84,11 @@ impl EnsembleServer {
 #[tool_router(server_handler)]
 impl EnsembleServer {
     #[tool(description = "Create a standing session from a YAML config path")]
-    async fn coordinate_session(
+    async fn ensemble_coordinate(
         &self,
         Parameters(CoordinateSessionRequest { config_path }): Parameters<CoordinateSessionRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("coordinate_session", &self.webid);
+        let span = ToolSpanGuard::new("ensemble_coordinate", &self.webid);
 
         validate_field!(span, "config_path", &config_path, 512);
 
@@ -116,7 +116,7 @@ impl EnsembleServer {
     }
 
     #[tool(description = "Register a bot participant in a session")]
-    async fn register_participant(
+    async fn ensemble_register(
         &self,
         Parameters(RegisterParticipantRequest {
             session_id,
@@ -125,7 +125,7 @@ impl EnsembleServer {
             description,
         }): Parameters<RegisterParticipantRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("register_participant", &self.webid);
+        let span = ToolSpanGuard::new("ensemble_register", &self.webid);
 
         validate_field!(span, "session_id", &session_id, 256);
         validate_field!(span, "agent", &agent, 128);
@@ -161,17 +161,14 @@ impl EnsembleServer {
             }
             None => span.error(
                 McpErrorKind::NotFound,
-                McpToolOutput::new(serde_json::json!({
-                    "session_id": session_id,
-                    "error": "session not found",
-                }))
-                .to_json_string(),
+                McpToolError::not_found(format!("session not found: {}", session_id))
+                    .to_json_string(),
             ),
         }
     }
 
     #[tool(description = "Send a message to a standing session")]
-    async fn send_message(
+    async fn ensemble_send(
         &self,
         Parameters(SendMessageRequest {
             session_id,
@@ -179,7 +176,7 @@ impl EnsembleServer {
             content,
         }): Parameters<SendMessageRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("send_message", &self.webid);
+        let span = ToolSpanGuard::new("ensemble_send", &self.webid);
 
         validate_field!(span, "session_id", &session_id, 256);
         validate_field!(span, "from_agent", &from_agent, 128);
@@ -200,21 +197,18 @@ impl EnsembleServer {
             }
             None => span.error(
                 McpErrorKind::NotFound,
-                McpToolOutput::new(serde_json::json!({
-                    "session_id": session_id,
-                    "error": "session not found",
-                }))
-                .to_json_string(),
+                McpToolError::not_found(format!("session not found: {}", session_id))
+                    .to_json_string(),
             ),
         }
     }
 
     #[tool(description = "Get standing session status")]
-    async fn get_status(
+    async fn ensemble_status(
         &self,
         Parameters(GetStatusRequest { session_id }): Parameters<GetStatusRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("get_status", &self.webid);
+        let span = ToolSpanGuard::new("ensemble_status", &self.webid);
 
         validate_field!(span, "session_id", &session_id, 256);
 
@@ -239,24 +233,21 @@ impl EnsembleServer {
             }
             None => span.error(
                 McpErrorKind::NotFound,
-                McpToolOutput::new(serde_json::json!({
-                    "session_id": session_id,
-                    "error": "session not found",
-                }))
-                .to_json_string(),
+                McpToolError::not_found(format!("session not found: {}", session_id))
+                    .to_json_string(),
             ),
         }
     }
 
     #[tool(description = "Prepare an improvisation turn prompt for external inference")]
-    async fn improv_turn(
+    async fn ensemble_improv(
         &self,
         Parameters(ImprovTurnRequest {
             session_id,
             user_message,
         }): Parameters<ImprovTurnRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("improv_turn", &self.webid);
+        let span = ToolSpanGuard::new("ensemble_improv", &self.webid);
 
         validate_field!(span, "session_id", &session_id, 256);
 
@@ -302,17 +293,14 @@ impl EnsembleServer {
             }
             None => span.error(
                 McpErrorKind::NotFound,
-                McpToolOutput::new(serde_json::json!({
-                    "session_id": session_id,
-                    "error": "session not found",
-                }))
-                .to_json_string(),
+                McpToolError::not_found(format!("session not found: {}", session_id))
+                    .to_json_string(),
             ),
         }
     }
 
     #[tool(description = "Structure an A2A message for dispatch between agents")]
-    async fn agent_send_message(
+    async fn ensemble_a2a(
         &self,
         Parameters(AgentSendMessageRequest {
             from_agent,
@@ -321,7 +309,7 @@ impl EnsembleServer {
             content,
         }): Parameters<AgentSendMessageRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("agent_send_message", &self.webid);
+        let span = ToolSpanGuard::new("ensemble_a2a", &self.webid);
 
         validate_field!(span, "from_agent", &from_agent, 128);
 

@@ -36,7 +36,6 @@ rusqlite.workspace = true
 zeroize.workspace = true
 rand.workspace = true
 hex.workspace = true
-async-trait.workspace = true
 anyhow.workspace = true
   rustyline = "18.0.0"
 dirs = "6"

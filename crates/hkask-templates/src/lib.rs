@@ -57,7 +57,9 @@ pub use okapi_config::OkapiConfig;
 pub use okapi_config::OkapiModelDetails;
 pub use okapi_config::OkapiModelEntry;
 pub use okapi_config::{list_okapi_models, search_okapi_models};
-pub use ports::{McpPort, RegistryEntry, RegistryError, RegistryIndex, Result, TemplateError};
+pub use ports::{
+    McpPort, RegistryEntry, RegistryError, RegistryIndex, Result, TemplateError, ToolInfo,
+};
 pub use prompt_strategy::PromptStrategy;
 pub use provenance::TemplateProvenance;
 pub use registry::Registry;

@@ -17,9 +17,7 @@
 
 use hkask_keystore::Keychain;
 use hkask_keystore::encryption::EncryptionService;
-use hkask_mcp::server::{
-    CredentialRequirement, McpToolError, McpToolOutput, ServerContext, ToolSpanGuard,
-};
+use hkask_mcp::server::{CredentialRequirement, McpToolError, ServerContext, ToolSpanGuard};
 use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -328,11 +326,7 @@ impl KeystoreServer {
             }
             None => span.error(
                 McpErrorKind::NotFound,
-                McpToolOutput::new(json!({
-                    "key": key,
-                    "found": false,
-                }))
-                .to_json_string(),
+                McpToolError::not_found(format!("key not found: {}", key)).to_json_string(),
             ),
         }
     }

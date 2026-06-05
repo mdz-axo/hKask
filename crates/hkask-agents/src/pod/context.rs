@@ -10,9 +10,12 @@
 //! - `episodic_storage` — private, agent-scoped memory (EpisodicStoragePort)
 //! - `semantic_storage` — shared, public knowledge (SemanticStoragePort)
 
+use hkask_cns::GovernedTool;
+use hkask_mcp::raw_tool_port::RawMcpToolPort;
+use hkask_types::ports::ToolPort;
 use hkask_types::{
     CapabilityChecker, DelegationAction, DelegationResource, DelegationToken,
-    ExperienceClassification, InferencePort, ToolPort, WebID,
+    ExperienceClassification, InferencePort, WebID,
 };
 use std::sync::Arc;
 
@@ -40,7 +43,7 @@ pub struct PodContext {
     /// (gas budget, variety tracking, event spans). When present, `invoke_tool`
     /// routes through this membrane instead of the raw `mcp_runtime`, ensuring
     /// pod-initiated calls are subject to Cybernetics governance.
-    governed_tool: Option<Arc<dyn ToolPort>>,
+    governed_tool: Option<Arc<GovernedTool<RawMcpToolPort>>>,
     /// Cryptographic capability checker for OCAP verification.
     /// When set, `require_capability()` verifies HMAC signatures.
     /// When absent, falls back to structural `is_valid_for()` check (insecure).

@@ -94,21 +94,20 @@ pub fn open_spec_store() -> Result<hkask_storage::SqliteSpecStore, crate::errors
 /// or REPL session. For REPL-connected tool dispatch, the GovernedTool is created
 /// in `repl::run()` using the session's shared CyberneticsLoop.
 ///
-/// Returns `(McpDispatcher, Arc<dyn ToolPort>)` — the dispatcher and the governed
-/// tool membrane. The membrane is returned so callers can issue capability tokens
-/// if needed.
+/// Returns `(McpDispatcher, Arc<GovernedTool<RawMcpToolPort>>)` — the dispatcher and
+/// the governed tool membrane. The membrane is returned so callers can issue
+/// capability tokens if needed.
 pub fn create_disconnected_governed_dispatcher(
     runtime: hkask_mcp::runtime::McpRuntime,
     secret: &[u8],
 ) -> (
     hkask_mcp::McpDispatcher,
-    std::sync::Arc<dyn hkask_types::ports::ToolPort>,
+    std::sync::Arc<hkask_cns::GovernedTool<hkask_mcp::raw_tool_port::RawMcpToolPort>>,
 ) {
     use hkask_cns::{CnsRuntime, CompositeGasEstimator, CyberneticsLoop, GovernedTool};
     use hkask_mcp::raw_tool_port::RawMcpToolPort;
     use hkask_storage::Database;
     use hkask_types::event::NuEventSink;
-    use hkask_types::ports::ToolPort;
     use std::sync::Arc;
 
     let cns_rwlock: Arc<tokio::sync::RwLock<CnsRuntime>> =
@@ -122,14 +121,14 @@ pub fn create_disconnected_governed_dispatcher(
         CyberneticsLoop::new(cns_rwlock, dispatch_tx.clone()).with_event_sink(event_sink_for_loop)
     }));
 
-    let raw_port: Arc<dyn ToolPort> = Arc::new(RawMcpToolPort::new(runtime.clone()));
+    let raw_port = Arc::new(RawMcpToolPort::new(runtime.clone()));
     let event_sink: Arc<dyn NuEventSink> = Arc::new(hkask_storage::NuEventStore::new(
         Database::in_memory().expect("event db").conn_arc(),
     ));
     let estimator = Arc::new(CompositeGasEstimator::new());
     let agent = hkask_types::WebID::from_persona(b"curator");
 
-    let governed: Arc<dyn ToolPort> = Arc::new(GovernedTool::new(
+    let governed = Arc::new(GovernedTool::new(
         raw_port,
         cybernetics,
         event_sink,

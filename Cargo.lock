@@ -1145,7 +1145,6 @@ name = "hkask-cli"
 version = "0.22.0"
 dependencies = [
  "anyhow",
- "async-trait",
  "axum",
  "base64 0.22.1",
  "chrono",
@@ -1233,7 +1232,7 @@ name = "hkask-mcp"
 version = "0.22.0"
 dependencies = [
  "anyhow",
- "async-trait",
+ "hkask-cns",
  "hkask-keystore",
  "hkask-storage",
  "hkask-templates",

@@ -60,7 +60,7 @@ impl TelnyxServer {
         let client = reqwest::Client::builder()
             .default_headers(headers)
             .build()
-            .unwrap_or_else(|_| reqwest::Client::new());
+            .map_err(|e| anyhow::anyhow!("Failed to build HTTP client: {}", e))?;
         Ok(Self { webid, client })
     }
 }

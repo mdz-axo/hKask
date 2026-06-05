@@ -1,6 +1,6 @@
 //! GovernedTool — Capability-gated, gas-accounted, observability-emitting membrane
 //!
-//! Wraps a `dyn ToolPort` and implements `ToolPort` itself. Before delegating
+//! Wraps a `ToolPort` and implements `ToolPort` itself. Before delegating
 //! to the inner tool, it checks:
 //! 1. Authority (OCAP) — DelegationToken verification
 //! 2. Budget (Cybernetics) — reserve gas
@@ -48,7 +48,7 @@ pub trait GasEstimator: Send + Sync {
 
 /// GovernedTool — the singular membrane through which all tool invocations pass.
 ///
-/// This struct wraps a `dyn ToolPort` and enforces OCAP authority, gas
+/// This struct wraps a `ToolPort` and enforces OCAP authority, gas
 /// budgets, and CNS observability. It implements `ToolPort` itself — the
 /// membrane IS a ToolPort (Miller's membrane object pattern).
 ///
@@ -59,7 +59,7 @@ pub trait GasEstimator: Send + Sync {
 /// # Composition
 ///
 /// ```ignore
-/// let inner: Arc<dyn ToolPort> = Arc::new(McpDispatcher::new(runtime, secret));
+/// let inner: Arc<RawMcpToolPort> = Arc::new(RawMcpToolPort::new(runtime));
 /// let governed = GovernedTool::new(
 ///     inner,
 ///     cybernetics_loop,
@@ -70,8 +70,8 @@ pub trait GasEstimator: Send + Sync {
 /// );
 /// // governed implements ToolPort — use it anywhere ToolPort is expected
 /// ```
-pub struct GovernedTool {
-    inner: Arc<dyn ToolPort>,
+pub struct GovernedTool<P: ToolPort> {
+    inner: Arc<P>,
     cybernetics: Arc<RwLock<CyberneticsLoop>>,
     event_sink: Arc<dyn NuEventSink>,
     estimator: Arc<dyn GasEstimator>,
@@ -79,10 +79,10 @@ pub struct GovernedTool {
     dispatch_tx: mpsc::UnboundedSender<LoopMessage>,
 }
 
-impl GovernedTool {
+impl<P: ToolPort> GovernedTool<P> {
     /// Create a new GovernedTool membrane wrapping an inner ToolPort.
     pub fn new(
-        inner: Arc<dyn ToolPort>,
+        inner: Arc<P>,
         cybernetics: Arc<RwLock<CyberneticsLoop>>,
         event_sink: Arc<dyn NuEventSink>,
         estimator: Arc<dyn GasEstimator>,
@@ -122,8 +122,7 @@ impl GovernedTool {
     }
 }
 
-#[async_trait::async_trait]
-impl ToolPort for GovernedTool {
+impl<P: ToolPort + 'static> ToolPort for GovernedTool<P> {
     async fn invoke(
         &self,
         server: &str,
@@ -346,7 +345,6 @@ mod tests {
         }
     }
 
-    #[async_trait::async_trait]
     impl ToolPort for MockToolPort {
         async fn invoke(
             &self,
@@ -639,7 +637,7 @@ mod tests {
             .await;
 
         // Create GovernedTool with CompositeGasEstimator
-        let inner: Arc<dyn ToolPort> = Arc::new(MockToolPort::new());
+        let inner = Arc::new(MockToolPort::new());
         let event_sink = Arc::new(MockNuEventSink::new());
         let estimator = Arc::new(crate::composite_gas_estimator::CompositeGasEstimator::new());
         let governed = GovernedTool::new(inner, loop6, event_sink, estimator, agent, dispatch_tx);
@@ -672,7 +670,7 @@ mod tests {
             .register_gas_budget(agent, GasBudget::new(10))
             .await;
 
-        let inner: Arc<dyn ToolPort> = Arc::new(MockToolPort::new());
+        let inner = Arc::new(MockToolPort::new());
         let event_sink = Arc::new(MockNuEventSink::new());
         let estimator = Arc::new(crate::composite_gas_estimator::CompositeGasEstimator::new());
         let governed = GovernedTool::new(inner, loop6, event_sink, estimator, agent, dispatch_tx);

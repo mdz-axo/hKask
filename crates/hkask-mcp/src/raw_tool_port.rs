@@ -32,7 +32,6 @@ impl RawMcpToolPort {
     }
 }
 
-#[async_trait::async_trait]
 impl ToolPort for RawMcpToolPort {
     #[instrument(skip(self, args, token), fields(tool = %tool, server = %server))]
     async fn invoke(
@@ -95,16 +94,7 @@ impl ToolPort for RawMcpToolPort {
     }
 
     async fn get_tool_info(&self, tool_name: &str) -> Option<ToolInfo> {
-        self.runtime
-            .get_tool_info(tool_name)
-            .await
-            .map(|t| ToolInfo {
-                name: t.name,
-                description: t.description,
-                input_schema: t.input_schema,
-                server_id: t.server_id,
-                required_capability: t.required_capability,
-            })
+        self.runtime.get_tool_info(tool_name).await
     }
 }
 

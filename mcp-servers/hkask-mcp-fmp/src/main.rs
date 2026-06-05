@@ -15,8 +15,7 @@
 //! - `fmp_dcf` — Discounted cash flow analysis
 
 use hkask_mcp::server::{
-    McpToolError, McpToolOutput, ToolSpanGuard, classify_http_error, resolve_credential,
-    validate_identifier,
+    McpToolError, ToolSpanGuard, classify_http_error, resolve_credential, validate_identifier,
 };
 use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
@@ -118,14 +117,7 @@ impl FmpServer {
                 "status": "ok",
                 "message": "FMP API is reachable"
             })),
-            Err(e) => span.error(
-                e.kind,
-                McpToolOutput::new(serde_json::json!({
-                    "status": "not_ok",
-                    "error": e.message,
-                }))
-                .to_json_string(),
-            ),
+            Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
 

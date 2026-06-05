@@ -167,7 +167,6 @@ impl OkapiEmbedding {
     }
 }
 
-#[async_trait::async_trait]
 impl EmbeddingGenerationPort for OkapiEmbedding {
     async fn embed_sentences(
         &self,
