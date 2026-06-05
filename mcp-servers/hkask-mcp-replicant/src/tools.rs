@@ -41,9 +41,9 @@
 use hkask_agents::acp::AcpRuntime;
 use hkask_agents::pod::{AgentPersona, PodContext, PodManager, PodManagerBuilder};
 use hkask_agents::ports::AcpPort;
-use hkask_mcp::server::{McpToolOutput, ToolSpanGuard, validate_identifier};
+use hkask_mcp::server::{ToolSpanGuard, validate_identifier};
 use hkask_types::ports::InferencePort;
-use hkask_types::{CapabilityChecker, LLMParameters, McpErrorKind, WebID};
+use hkask_types::{CapabilityChecker, LLMParameters, WebID};
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
 use std::collections::VecDeque;
@@ -196,14 +196,10 @@ impl ReplicantServer {
     /// Format an internal error response with the persona name.
     /// Consumes the span guard (every call site immediately returns this value).
     fn internal_error(&self, span: ToolSpanGuard, message: String) -> String {
-        span.error(
-            McpErrorKind::Internal,
-            McpToolOutput::new(serde_json::json!({
-                "error": message,
-                "persona": self.persona,
-            }))
-            .to_json_string(),
-        )
+        span.internal_error(serde_json::json!({
+            "error": message,
+            "persona": self.persona,
+        }))
     }
 }
 
@@ -333,7 +329,7 @@ visibility:
                 self.record_turn("User", message).await;
                 self.record_turn("Assistant", result.text.clone()).await;
 
-                span.ok(McpToolOutput::new(serde_json::json!({
+                span.ok_json(serde_json::json!({
                     "text": result.text,
                     "model": result.model,
                     "persona": self.persona,
@@ -344,17 +340,12 @@ visibility:
                     },
                     "finish_reason": result.finish_reason,
                 }))
-                .to_json_string())
             }
-            Err(e) => span.error(
-                McpErrorKind::Internal,
-                McpToolOutput::new(serde_json::json!({
-                    "error": format!("Inference error: {}", e),
-                    "persona": self.persona,
-                    "model": model,
-                }))
-                .to_json_string(),
-            ),
+            Err(e) => span.internal_error(serde_json::json!({
+                "error": format!("Inference error: {}", e),
+                "persona": self.persona,
+                "model": model,
+            })),
         }
     }
 
@@ -386,7 +377,7 @@ visibility:
         let history_turns = session.turns.len() / 2; // Each turn = user + assistant
         drop(session);
 
-        span.ok(McpToolOutput::new(serde_json::json!({
+        span.ok_json(serde_json::json!({
             "persona": resolved_persona,
             "webid": resolved_webid.redacted_display().to_string(),
             "agent_type": "Replicant",
@@ -397,7 +388,6 @@ visibility:
             "okapi_base_url": std::env::var("OKAPI_BASE_URL")
                 .unwrap_or_else(|_| "http://127.0.0.1:11435".to_string()),
         }))
-        .to_json_string())
     }
 
     #[tool(
@@ -435,12 +425,11 @@ visibility:
             })
             .collect();
 
-        span.ok(McpToolOutput::new(serde_json::json!({
+        span.ok_json(serde_json::json!({
             "persona": self.persona,
             "total_turns": total_turns,
             "showing": history.len() / 2,
             "history": turns_json,
         }))
-        .to_json_string())
     }
 }

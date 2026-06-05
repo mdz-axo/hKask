@@ -1,5 +1,6 @@
 //! Agent registration and bot listing command handlers
 
+use crate::block_on;
 use crate::cli::BotAction;
 use crate::commands::config::{init_registry, registry_yaml_path};
 use crate::errors::AgentError;
@@ -129,9 +130,10 @@ pub fn run_bot(rt: &tokio::runtime::Runtime, action: BotAction) {
 
     match action {
         BotAction::List { kind } => {
-            let agents = super::helpers::or_exit(
-                rt.block_on(commands::bot_list(kind.as_deref())),
-                "Failed to list agents",
+            let agents = block_on!(
+                rt,
+                commands::bot_list(kind.as_deref()),
+                "Failed to list agents"
             );
             if agents.is_empty() {
                 println!("No agents registered.");
@@ -154,9 +156,10 @@ pub fn run_bot(rt: &tokio::runtime::Runtime, action: BotAction) {
             }
         }
         BotAction::Status { name } => {
-            let agent = super::helpers::or_exit(
-                rt.block_on(commands::bot_status(&name)),
-                "Failed to get agent status",
+            let agent = block_on!(
+                rt,
+                commands::bot_status(&name),
+                "Failed to get agent status"
             );
             let def = &agent.definition;
             println!("Agent: {}", def.name);
@@ -209,9 +212,10 @@ pub fn run_agent(rt: &tokio::runtime::Runtime, action: crate::cli::AgentAction) 
                 .split(',')
                 .map(|s| s.trim().to_string())
                 .collect();
-            let receipt = super::helpers::or_exit(
-                rt.block_on(commands::agent_register(&webid, &agent_type, caps)),
-                "Registration failed",
+            let receipt = block_on!(
+                rt,
+                commands::agent_register(&webid, &agent_type, caps),
+                "Registration failed"
             );
             println!("Agent registered:");
             println!("  WebID: {}", receipt.webid);
@@ -219,17 +223,11 @@ pub fn run_agent(rt: &tokio::runtime::Runtime, action: crate::cli::AgentAction) 
             println!("  Registered at: {}", receipt.registered_at);
         }
         crate::cli::AgentAction::Unregister { name } => {
-            super::helpers::or_exit(
-                rt.block_on(commands::agent_unregister(&name)),
-                "Unregister failed",
-            );
+            block_on!(rt, commands::agent_unregister(&name), "Unregister failed");
             println!("Agent unregistered: {}", name);
         }
         crate::cli::AgentAction::List => {
-            let agents = super::helpers::or_exit(
-                rt.block_on(commands::bot_list(None)),
-                "Failed to list agents",
-            );
+            let agents = block_on!(rt, commands::bot_list(None), "Failed to list agents");
             if agents.is_empty() {
                 println!("No agents registered.");
             } else {
@@ -246,9 +244,10 @@ pub fn run_agent(rt: &tokio::runtime::Runtime, action: crate::cli::AgentAction) 
             }
         }
         crate::cli::AgentAction::Capabilities { name } => {
-            let agent = super::helpers::or_exit(
-                rt.block_on(commands::bot_status(&name)),
-                "Failed to get capabilities",
+            let agent = block_on!(
+                rt,
+                commands::bot_status(&name),
+                "Failed to get capabilities"
             );
             println!("Capabilities for {}:", agent.definition.name);
             for cap in &agent.definition.capabilities {

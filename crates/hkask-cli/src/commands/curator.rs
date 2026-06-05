@@ -1,5 +1,6 @@
 //! Curator governance command handlers — escalations, metacognition
 
+use crate::block_on;
 use crate::cli::CuratorAction;
 use hkask_agents::EscalationEntry;
 use std::sync::Arc;
@@ -84,9 +85,10 @@ pub fn run_curator(
             crate::repl::run(registry, runtime, None, "Curator", None, handle.clone());
         }
         CuratorAction::Escalations => {
-            let escalations = super::helpers::or_exit(
-                rt.block_on(commands::curator_escalations()),
-                "Failed to list escalations",
+            let escalations = block_on!(
+                rt,
+                commands::curator_escalations(),
+                "Failed to list escalations"
             );
             if escalations.is_empty() {
                 println!("No pending escalations.");
@@ -111,25 +113,28 @@ pub fn run_curator(
             }
         }
         CuratorAction::Resolve { id } => {
-            super::helpers::or_exit(
-                rt.block_on(commands::curator_resolve(&id)),
-                "Failed to resolve escalation",
+            block_on!(
+                rt,
+                commands::curator_resolve(&id),
+                "Failed to resolve escalation"
             );
             println!("Escalation {} resolved.", id);
         }
         CuratorAction::Dismiss { id } => {
-            super::helpers::or_exit(
-                rt.block_on(commands::curator_dismiss(&id)),
-                "Failed to dismiss escalation",
+            block_on!(
+                rt,
+                commands::curator_dismiss(&id),
+                "Failed to dismiss escalation"
             );
             println!("Escalation {} dismissed.", id);
         }
         CuratorAction::Metacognition => {
             println!(
                 "{}",
-                super::helpers::or_exit(
-                    rt.block_on(commands::curator_metacognition()),
-                    "Metacognition cycle failed",
+                block_on!(
+                    rt,
+                    commands::curator_metacognition(),
+                    "Metacognition cycle failed"
                 )
             );
         }

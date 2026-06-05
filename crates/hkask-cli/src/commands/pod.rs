@@ -1,5 +1,6 @@
 //! Pod management command handlers
 
+use crate::block_on;
 use crate::cli::PodAction;
 use hkask_agents::pod::{AgentPersona, PodID, PodManager, PodManagerBuilder, PodStatus};
 use hkask_types::CapabilityChecker;
@@ -94,9 +95,10 @@ pub fn run_pod(rt: &tokio::runtime::Runtime, action: crate::cli::PodAction) {
             persona,
             name,
         } => {
-            let pod_id = super::helpers::or_exit(
-                rt.block_on(commands::create_pod(&template, &persona, name.as_deref())),
-                "Failed to create pod",
+            let pod_id = block_on!(
+                rt,
+                commands::create_pod(&template, &persona, name.as_deref()),
+                "Failed to create pod"
             );
             println!("Created agent pod: {}", pod_id);
             println!("Template: {}", template);
@@ -106,23 +108,26 @@ pub fn run_pod(rt: &tokio::runtime::Runtime, action: crate::cli::PodAction) {
             }
         }
         PodAction::Activate { pod_id } => {
-            super::helpers::or_exit(
-                rt.block_on(commands::activate_pod(&pod_id)),
-                "Failed to activate pod",
+            block_on!(
+                rt,
+                commands::activate_pod(&pod_id),
+                "Failed to activate pod"
             );
             println!("Activated agent pod: {}", pod_id);
         }
         PodAction::Deactivate { pod_id } => {
-            super::helpers::or_exit(
-                rt.block_on(commands::deactivate_pod(&pod_id)),
-                "Failed to deactivate pod",
+            block_on!(
+                rt,
+                commands::deactivate_pod(&pod_id),
+                "Failed to deactivate pod"
             );
             println!("Deactivated agent pod: {}", pod_id);
         }
         PodAction::Status { pod_id, verbose } => {
-            let status = super::helpers::or_exit(
-                rt.block_on(commands::get_pod_status(&pod_id)),
-                "Failed to get pod status",
+            let status = block_on!(
+                rt,
+                commands::get_pod_status(&pod_id),
+                "Failed to get pod status"
             );
             println!("Agent pod status: {}", pod_id);
             println!("  State: {}", status.state);

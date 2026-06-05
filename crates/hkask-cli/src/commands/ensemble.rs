@@ -4,6 +4,7 @@
 //! manager and improv client. Also handles standing session bootstrap via
 //! hkask-ensemble registry manifests.
 
+use crate::block_on;
 use crate::cli::EnsembleAction;
 use hkask_cns::{CircuitBreaker, CyberneticsLoop};
 use hkask_ensemble::{
@@ -435,42 +436,35 @@ pub fn run_ensemble(rt: &tokio::runtime::Runtime, action: crate::cli::EnsembleAc
         EnsembleAction::ChatCreate { session } => {
             println!(
                 "{}",
-                super::helpers::or_exit(
-                    rt.block_on(commands::ensemble_chat_create(session.clone())),
-                    "Chat create failed",
+                block_on!(
+                    rt,
+                    commands::ensemble_chat_create(session.clone()),
+                    "Chat create failed"
                 )
             );
         }
         EnsembleAction::ChatRegister { session, bot, role } => {
             println!(
                 "{}",
-                super::helpers::or_exit(
-                    rt.block_on(commands::ensemble_chat_register(
-                        session.clone(),
-                        bot.clone(),
-                        role.clone(),
-                    )),
-                    "Chat register failed",
+                block_on!(
+                    rt,
+                    commands::ensemble_chat_register(session.clone(), bot.clone(), role.clone(),),
+                    "Chat register failed"
                 )
             );
         }
         EnsembleAction::ChatSend { session, message } => {
             println!(
                 "{}",
-                super::helpers::or_exit(
-                    rt.block_on(commands::ensemble_chat_send(
-                        session.clone(),
-                        message.clone(),
-                    )),
-                    "Chat send failed",
+                block_on!(
+                    rt,
+                    commands::ensemble_chat_send(session.clone(), message.clone(),),
+                    "Chat send failed"
                 )
             );
         }
         EnsembleAction::ChatList => {
-            let sessions = super::helpers::or_exit(
-                rt.block_on(commands::ensemble_chat_list()),
-                "Chat list failed",
-            );
+            let sessions = block_on!(rt, commands::ensemble_chat_list(), "Chat list failed");
             println!("Active chat sessions:");
             for s in sessions {
                 println!("  - {}", s);
@@ -479,18 +473,20 @@ pub fn run_ensemble(rt: &tokio::runtime::Runtime, action: crate::cli::EnsembleAc
         EnsembleAction::DeliberationCreate { session } => {
             println!(
                 "{}",
-                super::helpers::or_exit(
-                    rt.block_on(commands::ensemble_deliberation_create(session.clone())),
-                    "Deliberation create failed",
+                block_on!(
+                    rt,
+                    commands::ensemble_deliberation_create(session.clone()),
+                    "Deliberation create failed"
                 )
             );
         }
         EnsembleAction::DeliberationStart { session } => {
             println!(
                 "{}",
-                super::helpers::or_exit(
-                    rt.block_on(commands::ensemble_deliberation_start(session.clone())),
-                    "Deliberation start failed",
+                block_on!(
+                    rt,
+                    commands::ensemble_deliberation_start(session.clone()),
+                    "Deliberation start failed"
                 )
             );
         }
@@ -502,30 +498,33 @@ pub fn run_ensemble(rt: &tokio::runtime::Runtime, action: crate::cli::EnsembleAc
         } => {
             println!(
                 "{}",
-                super::helpers::or_exit(
-                    rt.block_on(commands::ensemble_deliberation_record(
+                block_on!(
+                    rt,
+                    commands::ensemble_deliberation_record(
                         session.clone(),
                         agent.clone(),
                         content.clone(),
                         confidence,
-                    )),
-                    "Deliberation record failed",
+                    ),
+                    "Deliberation record failed"
                 )
             );
         }
         EnsembleAction::DeliberationSynthesize { session } => {
             println!(
                 "Synthesized response:\n{}",
-                super::helpers::or_exit(
-                    rt.block_on(commands::ensemble_deliberation_synthesize(session.clone())),
-                    "Deliberation synthesize failed",
+                block_on!(
+                    rt,
+                    commands::ensemble_deliberation_synthesize(session.clone()),
+                    "Deliberation synthesize failed"
                 )
             );
         }
         EnsembleAction::DeliberationList => {
-            let sessions = super::helpers::or_exit(
-                rt.block_on(commands::ensemble_deliberation_list()),
-                "Deliberation list failed",
+            let sessions = block_on!(
+                rt,
+                commands::ensemble_deliberation_list(),
+                "Deliberation list failed"
             );
             println!("Active deliberation sessions:");
             for s in sessions {

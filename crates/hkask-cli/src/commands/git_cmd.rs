@@ -2,6 +2,7 @@
 //!
 //! Implements the CLI display logic for registry git archival operations.
 
+use crate::block_on;
 use crate::cli::GitAction;
 use crate::commands;
 
@@ -34,8 +35,9 @@ pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
             };
             println!(
                 "{}",
-                super::helpers::or_exit(
-                    rt.block_on(commands::archive_registry_to_git(
+                block_on!(
+                    rt,
+                    commands::archive_registry_to_git(
                         &runtime,
                         &checker,
                         &owner,
@@ -43,8 +45,8 @@ pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
                         &branch,
                         &path,
                         &content_str,
-                    )),
-                    "Archive failed",
+                    ),
+                    "Archive failed"
                 )
             );
         }
@@ -56,20 +58,20 @@ pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
         } => {
             println!(
                 "{}",
-                super::helpers::or_exit(
-                    rt.block_on(commands::restore_registry_from_git(
+                block_on!(
+                    rt,
+                    commands::restore_registry_from_git(
                         &runtime, &checker, &owner, &repo, &r#ref, &target,
-                    )),
-                    "Restore failed",
+                    ),
+                    "Restore failed"
                 )
             );
         }
         GitAction::List { owner, repo } => {
-            let commits = super::helpers::or_exit(
-                rt.block_on(commands::list_registry_archives(
-                    &runtime, &checker, &owner, &repo,
-                )),
-                "List failed",
+            let commits = block_on!(
+                rt,
+                commands::list_registry_archives(&runtime, &checker, &owner, &repo,),
+                "List failed"
             );
             println!("Archived versions for {}/{}:", owner, repo);
             for (i, sha) in commits.iter().enumerate() {
@@ -83,11 +85,10 @@ pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
         } => {
             println!(
                 "{}",
-                super::helpers::or_exit(
-                    rt.block_on(commands::create_registry_snapshot(
-                        &runtime, &checker, &owner, &repo, &message,
-                    )),
-                    "Snapshot failed",
+                block_on!(
+                    rt,
+                    commands::create_registry_snapshot(&runtime, &checker, &owner, &repo, &message,),
+                    "Snapshot failed"
                 )
             );
         }

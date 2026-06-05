@@ -586,6 +586,46 @@ impl Registry {
             "Route input to best-fit specification template",
             "registry/templates/spec/selector.j2",
         ),
+        // ── Skill Bundler templates (FlowDef — skill composition) ────
+        (
+            "skill-bundler/compose-bundle",
+            TemplateType::FlowDef,
+            "Compose Skill Bundle",
+            &[
+                "compose",
+                "decompose",
+                "reconcile",
+                "curate",
+                "sequence",
+                "evaluate",
+                "calibrate",
+            ],
+            "Analyze a set of skills and produce a FlowDef bundle manifest with conflicts, complementarities, and cascade steps",
+            "registry/templates/skill-bundler/compose-bundle.j2",
+        ),
+        (
+            "skill-bundler/apply-bundle",
+            TemplateType::FlowDef,
+            "Apply Skill Bundle",
+            &[
+                "sequence",
+                "curate",
+                "orient",
+                "reconcile",
+                "evaluate",
+                "calibrate",
+            ],
+            "Apply an existing bundle to a session interaction following cascade order and conflict resolutions",
+            "registry/templates/skill-bundler/apply-bundle.j2",
+        ),
+        (
+            "skill-bundler/evolve-bundle",
+            TemplateType::FlowDef,
+            "Evolve Skill Bundle",
+            &["compose", "reconcile", "calibrate", "cultivate", "evaluate"],
+            "Re-compose a bundle when skills have evolved, preserving unchanged configuration and updating what has changed",
+            "registry/templates/skill-bundler/evolve-bundle.j2",
+        ),
     ];
 
     /// Bootstrap registry with core templates aligned to hKask domains.

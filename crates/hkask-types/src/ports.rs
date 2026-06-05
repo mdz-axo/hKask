@@ -356,6 +356,29 @@ impl Skill {
         self.content_hash = Some(hash);
         self
     }
+
+    /// Compute and set the content hash from the skill's manifest data.
+    /// Uses SHA-256 of the skill's key fields (id, domain, word_act, flow_def, know_act, cascade_order).
+    pub fn compute_content_hash(&mut self) {
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        hasher.update(self.id.as_bytes());
+        hasher.update(self.domain.as_str().as_bytes());
+        if let Some(ref wa) = self.word_act {
+            hasher.update(wa.as_bytes());
+        }
+        if let Some(ref fd) = self.flow_def {
+            hasher.update(fd.as_bytes());
+        }
+        if let Some(ref ka) = self.know_act {
+            hasher.update(ka.as_bytes());
+        }
+        for tmpl in &self.cascade_order {
+            hasher.update(tmpl.as_bytes());
+        }
+        let result = hasher.finalize();
+        self.content_hash = Some(hex::encode(result));
+    }
 }
 
 /// Error type for registry index operations
