@@ -64,7 +64,6 @@ steps:
     tool: semantic_purge
     arguments:
       prefix: "style:${corpus_config.author}:"
-      dim: "${corpus_config.embedding.dim}"
     gas_cap: 1000
     timeout_seconds: 30
     output_schema:
@@ -107,10 +106,8 @@ steps:
               content_length: { type: integer }
 
   # Step 3: Clean and chunk downloaded texts into passages
-  # Strips Gutenberg headers/footers, splits on paragraph boundaries,
-  # and produces passages within min_words/max_words bounds.
-  # (Chunking is performed by the CLI orchestration layer, which reads
-  # the corpus.yaml chunking config and applies text processing.)
+  # Uses hkask-mcp-semantic's semantic_chunk tool with configurable
+  # min_words/max_words and optional Gutenberg header stripping.
   - ordinal: 3
     action: execute
     description: >
@@ -120,12 +117,22 @@ steps:
     renderer: null
     template_ref: null
     model_tier: null
-    mcp: null
+    mcp: hkask-mcp-semantic
+    tool: semantic_chunk
+    arguments:
+      text: "${item.content}"
+      entity_ref_prefix: "style:${corpus_config.author}:${item.slug}"
+      min_words: "${corpus_config.chunking.min_words}"
+      max_words: "${corpus_config.chunking.max_words}"
+      sentence_boundary: "${corpus_config.chunking.sentence_boundary}"
+      strip_gutenberg: true
+    loop_over: "${step2.downloaded_works}"
     gas_cap: 2000
     timeout_seconds: 30
     output_schema:
       type: object
       properties:
+        total_passages: { type: integer }
         passages:
           type: array
           items:
@@ -133,7 +140,6 @@ steps:
             properties:
               entity_ref: { type: string }
               text: { type: string }
-        total_passages: { type: integer }
 
   # Step 4: Embed passages in batches via Okapi
   - ordinal: 4
@@ -194,6 +200,8 @@ steps:
       exclude_prefix: "style:${corpus_config.author}:rule:"
       exclude_ref: "style:${corpus_config.author}:centroid"
       dim: "${corpus_config.embedding.dim}"
+      store_as: "${corpus_config.centroid_entity_ref}"
+      model: "${corpus_config.embedding.model}"
     gas_cap: 1000
     timeout_seconds: 30
     output_schema:
@@ -203,6 +211,8 @@ steps:
           type: array
           items: { type: number }
         dimensions: { type: integer }
+        passage_count: { type: integer }
+        stored: { type: boolean }
 
   # Step 7: Validate centroid distance threshold
   - ordinal: 7
@@ -275,6 +285,10 @@ ocap:
       action: centroid
       template_id: style-corpus-embed
       gas_budget: 1000
+    - resource: embedding
+      action: chunk
+      template_id: style-corpus-embed
+      gas_budget: 2000
     - resource: embedding
       action: purge
       template_id: style-corpus-embed

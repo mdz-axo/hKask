@@ -1,6 +1,6 @@
-//! hKask MCP Semantic — Semantic memory store, recall, and similarity search
+//! hKask MCP Semantic — Semantic memory store, recall, similarity search, and text chunking
 //!
-//! 8 tools:
+//! 9 tools:
 //! - `semantic_ping` — Liveness and storage info
 //! - `semantic_store` — Store a shared semantic triple (no perspective)
 //! - `semantic_recall` — Recall triples by entity (public, any agent can read)
@@ -8,6 +8,7 @@
 //! - `semantic_search` — KNN similarity search over embeddings
 //! - `semantic_centroid` — Compute mean embedding vector for a prefix-filtered set
 //! - `semantic_purge` — Delete embeddings matching an entity_ref prefix
+//! - `semantic_chunk` — Chunk text into passages for embedding
 //! - `semantic_count` — Triple and embedding counts
 //!
 //! **Consolidation NOT exposed:** The Episodic → Semantic consolidation bridge
@@ -57,12 +58,23 @@ pub struct CentroidRequest {
     pub exclude_prefix: String,
     pub exclude_ref: String,
     pub dim: usize,
+    pub store_as: Option<String>,
+    pub model: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct PurgeRequest {
     pub prefix: String,
-    pub dim: usize,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ChunkTextRequest {
+    pub text: String,
+    pub entity_ref_prefix: String,
+    pub min_words: Option<usize>,
+    pub max_words: Option<usize>,
+    pub sentence_boundary: Option<String>,
+    pub strip_gutenberg: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -239,6 +251,8 @@ impl SemanticServer {
             exclude_prefix,
             exclude_ref,
             dim,
+            store_as,
+            model,
         }): Parameters<CentroidRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("semantic_centroid", &self.webid);
@@ -254,14 +268,20 @@ impl SemanticServer {
             );
         }
 
-        match self
-            .memory
-            .compute_centroid(&prefix, &exclude_prefix, &exclude_ref, dim)
-        {
-            Ok(centroid) => span.ok_json(json!({
-                "centroid": centroid,
-                "dimensions": centroid.len(),
+        match self.memory.compute_centroid(
+            &prefix,
+            &exclude_prefix,
+            &exclude_ref,
+            dim,
+            store_as.as_deref(),
+            model.as_deref(),
+        ) {
+            Ok(result) => span.ok_json(json!({
+                "centroid": result.centroid,
+                "dimensions": result.centroid.len(),
                 "prefix": prefix,
+                "passage_count": result.passage_count,
+                "stored": result.stored,
             })),
             Err(e) => {
                 span.internal_error(json!({"error": format!("Failed to compute centroid: {}", e)}))
@@ -272,20 +292,13 @@ impl SemanticServer {
     #[tool(description = "Delete all embeddings whose entity_ref starts with a prefix")]
     async fn semantic_purge(
         &self,
-        Parameters(PurgeRequest { prefix, dim }): Parameters<PurgeRequest>,
+        Parameters(PurgeRequest { prefix }): Parameters<PurgeRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("semantic_purge", &self.webid);
 
         validate_field!(span, "prefix", &prefix, 256);
 
-        if dim == 0 {
-            return span.error(
-                McpErrorKind::InvalidArgument,
-                McpToolError::invalid_argument("dim must be positive").to_json_string(),
-            );
-        }
-
-        match self.memory.purge_by_prefix(&prefix, dim) {
+        match self.memory.purge_by_prefix(&prefix) {
             Ok(count) => span.ok_json(json!({
                 "purged": count,
                 "prefix": prefix,
@@ -294,6 +307,78 @@ impl SemanticServer {
                 span.internal_error(json!({"error": format!("Failed to purge embeddings: {}", e)}))
             }
         }
+    }
+
+    #[tool(
+        description = "Chunk text into passages for embedding, with optional Gutenberg header stripping"
+    )]
+    async fn semantic_chunk(
+        &self,
+        Parameters(ChunkTextRequest {
+            text,
+            entity_ref_prefix,
+            min_words,
+            max_words,
+            sentence_boundary,
+            strip_gutenberg,
+        }): Parameters<ChunkTextRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("semantic_chunk", &self.webid);
+
+        if text.is_empty() {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument("text must not be empty").to_json_string(),
+            );
+        }
+
+        if entity_ref_prefix.is_empty() {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument("entity_ref_prefix must not be empty")
+                    .to_json_string(),
+            );
+        }
+
+        validate_field!(span, "entity_ref_prefix", &entity_ref_prefix, 256);
+
+        let min_w = min_words.unwrap_or(50);
+        let max_w = max_words.unwrap_or(200);
+        let boundary = sentence_boundary.unwrap_or_else(|| ".!? ".to_string());
+
+        let processed = if strip_gutenberg.unwrap_or(false) {
+            hkask_memory::SemanticMemory::strip_gutenberg_headers(&text)
+        } else {
+            text.clone()
+        };
+
+        let passages = hkask_memory::SemanticMemory::chunk_text(
+            &processed,
+            &entity_ref_prefix,
+            min_w,
+            max_w,
+            &boundary,
+        );
+
+        let total_passages = passages.len();
+        let serialized: Vec<serde_json::Value> = passages
+            .into_iter()
+            .map(|(entity_ref, passage_text)| {
+                json!({
+                    "entity_ref": entity_ref,
+                    "text": passage_text,
+                })
+            })
+            .collect();
+
+        span.ok_json(json!({
+            "total_passages": total_passages,
+            "passages": serialized,
+            "min_words": min_w,
+            "max_words": max_w,
+            "sentence_boundary": boundary,
+            "stripped_gutenberg": strip_gutenberg.unwrap_or(false),
+        }))
     }
 
     #[tool(description = "Triple and embedding counts for semantic memory")]

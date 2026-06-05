@@ -3,8 +3,7 @@
 //! When Curation directs consolidation, episodic triples are:
 //! 1. Selected via `EpisodicMemory::consolidation_candidates()` (oldest, lowest-confidence)
 //! 2. Stripped of perspective (privacy boundary removal)
-//! 3. Seeded into semantic memory with confidence = 0.5 (Bayesian seeding baseline)
-//! 4. Retracted from episodic memory (confidence halved, not deleted)
+//! 3. Seeded into semantic memory with inherited confidence from the episodic source
 //!
 //! This is a ONE-WAY operation: Episodic → Semantic. No reverse flow.
 //! Authority: Curation directs, Cybernetics regulates (budget enforcement).
@@ -42,7 +41,6 @@ pub(crate) enum ConsolidationError {
 #[derive(Debug, Clone)]
 pub(crate) struct ConsolidationResult {
     pub consolidated_count: usize,
-    pub retracted_count: usize,
     pub failed_count: usize,
 }
 
@@ -55,9 +53,9 @@ impl ConsolidationBridge {
     ///
     /// For each candidate:
     /// 1. Strip perspective (set to `None`) — removes privacy boundary
-    /// 2. Set confidence to 0.5 (Bayesian seeding baseline)
+    /// 2. Inherit confidence from the episodic source — the triple carries
+    ///    its proven confidence into shared memory
     /// 3. Store in semantic memory
-    /// 4. Retract from episodic memory (confidence halved, not deleted)
     pub(crate) fn consolidate(
         &self,
         perspective: WebID,
@@ -80,11 +78,10 @@ impl ConsolidationBridge {
         );
 
         let mut consolidated_count = 0usize;
-        let mut retracted_count = 0usize;
         let mut failed_count = 0usize;
 
         for triple in &candidates {
-            // 1. Strip perspective, set confidence to Bayesian seeding baseline
+            // 1. Strip perspective, inherit confidence from episodic source
             let semantic_triple = Triple {
                 id: hkask_storage::TripleID::new(),
                 entity: triple.entity.clone(),
@@ -92,7 +89,7 @@ impl ConsolidationBridge {
                 value: triple.value.clone(),
                 valid_from: triple.valid_from,
                 valid_to: triple.valid_to,
-                confidence: 0.5,
+                confidence: triple.confidence,
                 perspective: None,
                 visibility: hkask_types::Visibility::Shared,
                 owner_webid: triple.owner_webid,
@@ -106,9 +103,8 @@ impl ConsolidationBridge {
                         target: "cns.consolidation",
                         entity = %triple.entity,
                         attribute = %triple.attribute,
-                        original_confidence = triple.confidence,
-                        seeded_confidence = 0.5,
-                        "Triple seeded into semantic memory"
+                        inherited_confidence = triple.confidence,
+                        "Triple consolidated into semantic memory"
                     );
                 }
                 Err(e) => {
@@ -123,47 +119,18 @@ impl ConsolidationBridge {
                     continue;
                 }
             }
-
-            // 3. Retract from episodic memory (confidence halved, not deleted)
-            match self
-                .episodic
-                .retract_triple(&triple.entity, &triple.attribute, 0.5, perspective)
-            {
-                Ok(_new_confidence) => {
-                    retracted_count += 1;
-                    tracing::debug!(
-                        target: "cns.consolidation",
-                        entity = %triple.entity,
-                        attribute = %triple.attribute,
-                        retraction = 0.5,
-                        "Episodic triple retracted (confidence halved)"
-                    );
-                }
-                Err(e) => {
-                    failed_count += 1;
-                    tracing::warn!(
-                        target: "cns.consolidation",
-                        entity = %triple.entity,
-                        attribute = %triple.attribute,
-                        error = %e,
-                        "Failed to retract episodic triple"
-                    );
-                }
-            }
         }
 
         tracing::info!(
             target: "cns.consolidation",
             perspective = %perspective,
             consolidated_count,
-            retracted_count,
             failed_count,
             "Consolidation complete"
         );
 
         Ok(ConsolidationResult {
             consolidated_count,
-            retracted_count,
             failed_count,
         })
     }
@@ -187,7 +154,6 @@ impl ConsolidationPort for ConsolidationBridge {
             .map_err(|e| e.to_string())?;
         Ok(ConsolidationOutcome {
             consolidated_count: result.consolidated_count,
-            retracted_count: result.retracted_count,
             failed_count: result.failed_count,
         })
     }

@@ -18,7 +18,7 @@ use tracing::info;
 
 /// Tool information metadata
 #[derive(Debug, Clone)]
-pub(crate) struct ToolInfo {
+pub struct ToolInfo {
     /// Tool name
     pub name: String,
     /// Tool description
@@ -223,6 +223,40 @@ impl McpRuntime {
         peer.call_tool(params).await
     }
 
+    /// Invoke a tool by name, looking up the server automatically.
+    ///
+    /// This is the highest-level convenience method: finds the server that
+    /// owns the tool, calls it through the live connection, and parses
+    /// the result into a `Value`. Returns `None` if the tool is not found
+    /// or the server is not connected.
+    pub async fn invoke_tool(
+        &self,
+        tool_name: &str,
+        arguments: serde_json::Map<String, Value>,
+    ) -> Option<Result<Value, String>> {
+        let server_id = self.get_tool_info(tool_name).await?.server_id;
+
+        let result = match self.call_tool(&server_id, tool_name, arguments).await {
+            Ok(r) => r,
+            Err(e) => return Some(Err(e.to_string())),
+        };
+
+        if result.is_error.unwrap_or(false) {
+            let msg = result
+                .content
+                .iter()
+                .filter_map(|c| match &**c {
+                    rmcp::model::RawContent::Text(t) => Some(t.text.as_str()),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
+            return Some(Err(msg));
+        }
+
+        Some(Ok(crate::raw_tool_port::parse_call_result(&result)))
+    }
+
     /// Shut down a specific managed server process.
     pub async fn shutdown_server(&self, server_id: &str) {
         if let Some(cancel) = self.cancellation_tokens.write().await.remove(server_id) {
@@ -259,7 +293,7 @@ impl McpRuntime {
     }
 
     /// Get tool information with metadata
-    pub(crate) async fn get_tool_info(&self, tool_name: &str) -> Option<ToolInfo> {
+    pub async fn get_tool_info(&self, tool_name: &str) -> Option<ToolInfo> {
         let tool_registry = self.tool_registry.read().await;
         let server_id = tool_registry.get(tool_name)?;
 

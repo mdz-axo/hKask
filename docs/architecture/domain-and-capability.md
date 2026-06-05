@@ -477,7 +477,7 @@ The Episodic→Semantic consolidation bridge is the **one-way gate** from privat
 
 ### 10.1 One-Way Invariant
 
-Consolidation is strictly one-directional: Episodic (Loop 2a) → Semantic (Loop 2b). No reverse flow exists or may be implemented. Once a triple enters semantic memory, it can only be retracted (confidence reduced), never moved back to episodic.
+Consolidation is strictly one-directional: Episodic (Loop 2a) → Semantic (Loop 2b). No reverse flow exists or may be implemented. Once a triple enters semantic memory, it can only be deleted (budget enforcement), never moved back to episodic.
 
 ### 10.2 Trigger
 
@@ -513,9 +513,8 @@ For each candidate triple:
 | Step | Operation | Effect |
 |------|-----------|--------|
 | 1 | **Select** | `consolidation_candidates(perspective, limit)` — lowest confidence first, then oldest by `valid_from` |
-| 2 | **Strip & seed** | `perspective: None`, `confidence: 0.5` (Bayesian seeding), new `TripleID`, `visibility: Shared` |
+| 2 | **Strip & inherit** | `perspective: None`, `confidence: inherited from episodic source`, new `TripleID`, `visibility: Shared` |
 | 3 | **Store semantic** | `SemanticMemory::store_consolidated()` — bypasses visibility/perspective guards (the bridge handles these upstream) |
-| 4 | **Retract episodic** | `EpisodicMemory::retract_triple(confidence=0.5)` — confidence halved, triple persists (not deleted) |
 
 ### 10.6 Privacy Boundary Crossing
 
@@ -528,22 +527,20 @@ The `perspective` field is the privacy boundary:
 
 Setting `perspective: None` removes the WebID association. This is the **minimum** privacy transformation. For GDPR-style "right to be forgotten" compliance, the architecture supports:
 
-- `SemanticMemory::retract_triple()` — reduces confidence of a semantic triple (already `pub(crate)`)
-- Retraction is not deletion — the triple persists with reduced confidence
-- Full deletion requires a separate data lifecycle policy (not yet implemented)
+- `SemanticMemory::delete_triple()` — removes a semantic triple outright (budget enforcement)
+- Deletion is honest and keeps the store clean
+- Full GDPR erasure requires a separate data lifecycle policy (not yet implemented)
 
-### 10.7 Retraction Policy
+### 10.7 Budget Enforcement
 
-- **Episodic retraction**: Confidence halved via `bayesian::retract(original, 0.5)`. Triple persists with reduced confidence.
-- **Semantic retraction**: Same Bayesian formula. Used for budget enforcement (pruning lowest-confidence triples when storage limits exceeded).
-- **Neither retraction deletes the triple.** This is intentional — Bayesian confidence decay preserves audit trails while reducing influence on retrieval.
+- **Semantic budget**: When triple count exceeds the storage budget, lowest-confidence semantic triples are **deleted** outright via `SemanticMemory::delete_triple()`. Low-confidence triples that exceed the budget are removed entirely — this keeps the store clean rather than leaving zombie triples with halved confidence.
+- **Episodic budget**: When episodic storage exceeds budget, the `EpisodicLoop` fires the consolidation bridge to promote lowest-confidence triples to semantic memory, freeing storage.
 
 ### 10.8 Failure Semantics
 
 | Failure | Effect |
 |---------|--------|
 | Semantic store fails | Triple stays in episodic (no harm). `failed_count` incremented. |
-| Episodic retraction fails | Semantic triple is already stored (no rollback). `failed_count` incremented. |
 
 Consolidation is **not transactional** — partial consolidation is acceptable because the one-way invariant is preserved either way.
 

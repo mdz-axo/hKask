@@ -33,6 +33,7 @@ members = [
     "mcp-servers/hkask-mcp-episodic",
     "mcp-servers/hkask-mcp-semantic",
     "mcp-servers/hkask-mcp-replicant",
+    "mcp-servers/hkask-mcp-doc-knowledge",
 ]
 
 [workspace.package]

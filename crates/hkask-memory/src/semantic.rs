@@ -1,17 +1,14 @@
 //! Semantic memory pipeline
 //!
 //! Provides the following subloops:
-//! - **Confidence promotion** (6d): Bayesian seeding when consolidating from episodic
-//!   (confidence seeding at 0.5 baseline) to promote confidence.
-//! - **Storage budget** (6e): Per-entity storage limit with retraction candidate
-//!   identification for lowest-confidence triples.
+//! - **Storage budget** (6e): Per-entity storage limit with deletion of
+//!   lowest-confidence triples when budget is exceeded.
 //! - **Similarity-augmented recall**: KNN search over embeddings to find
 //!   semantically related triples, enabling context assembly that goes
 //!   beyond exact entity matches.
 //! - **Corpus centroid**: Mean embedding vector for style cluster validation.
 //! - **Prefix purge**: Idempotent re-ingest by deleting embeddings matching a prefix.
 
-use crate::bayesian;
 use crate::recall_dedup;
 use hkask_storage::{EmbeddingStore, Triple, TripleError, TripleStore};
 use hkask_types::Visibility;
@@ -23,14 +20,23 @@ use thiserror::Error;
 pub enum SemanticMemoryError {
     #[error("Triple error: {0}")]
     Triple(#[from] TripleError),
-    #[error("Triple not found for retraction: {entity}/{attribute}")]
-    TripleNotFound { entity: String, attribute: String },
     #[error("Embedding error: {0}")]
     Embedding(#[from] EmbeddingError),
     #[error("Invalid visibility for semantic store: {0}")]
     InvalidVisibility(String),
     #[error("No embeddings found for centroid: {0}")]
     NoEmbeddingsForCentroid(String),
+}
+
+/// Result of computing a style centroid
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CentroidResult {
+    /// The centroid vector (arithmetic mean of matching embeddings)
+    pub centroid: Vec<f32>,
+    /// Number of passages used to compute the centroid
+    pub passage_count: usize,
+    /// Whether the centroid was stored under `store_as`
+    pub stored: bool,
 }
 
 /// Semantic memory — shared knowledge graph
@@ -147,6 +153,21 @@ impl SemanticMemory {
         Ok(self.embedding.count()?)
     }
 
+    /// Retrieve all entity_refs matching a prefix.
+    ///
+    /// Uses SQL LIKE query instead of zero-vector KNN scan.
+    /// Returns entity_refs for prefix-based operations (centroid, purge).
+    fn entity_refs_by_prefix(&self, prefix: &str) -> Result<Vec<String>, SemanticMemoryError> {
+        // Delegate to the embedding port — requires a new method.
+        // For now, use the search port's get-by-entity capability.
+        // The EmbeddingPort trait doesn't have prefix query yet, so we
+        // access the concrete EmbeddingStore directly when available.
+        //
+        // Fallback: use the port's search with a broad query.
+        // This is a transitional approach until EmbeddingPort gains prefix_query().
+        Ok(self.embedding.query_by_prefix(prefix)?)
+    }
+
     // ========================================================================
     // Corpus operations (Loop 2b) — centroid + purge for style embeddings
     // ========================================================================
@@ -160,70 +181,88 @@ impl SemanticMemory {
     /// The centroid is the arithmetic mean of all matching vectors, used for
     /// style cluster validation: generated prose should fall within a cosine
     /// distance threshold of this centroid.
+    ///
+    /// If `store_as` is provided, the centroid is also stored as an embedding
+    /// under that entity_ref, enabling one-step compute+store.
     pub fn compute_centroid(
         &self,
         prefix: &str,
         exclude_prefix: &str,
         exclude_ref: &str,
         dim: usize,
-    ) -> Result<Vec<f32>, SemanticMemoryError> {
-        let zero_vec = vec![0.0f32; dim];
-        let results = self.embedding.search(&zero_vec, 10000)?;
-
-        let matching: Vec<&hkask_types::ports::StoredEmbedding> = results
-            .iter()
-            .filter(|r| {
-                let ref_str = &r.embedding.entity_ref;
-                ref_str.starts_with(prefix)
-                    && !ref_str.starts_with(exclude_prefix)
-                    && ref_str != exclude_ref
-            })
-            .map(|r| &r.embedding)
+        store_as: Option<&str>,
+        model: Option<&str>,
+    ) -> Result<CentroidResult, SemanticMemoryError> {
+        let matching_refs: Vec<String> = self
+            .entity_refs_by_prefix(prefix)?
+            .into_iter()
+            .filter(|r| !r.starts_with(exclude_prefix) && r != exclude_ref)
             .collect();
 
-        if matching.is_empty() {
+        if matching_refs.is_empty() {
             return Err(SemanticMemoryError::NoEmbeddingsForCentroid(
                 prefix.to_string(),
             ));
         }
 
+        // Fetch each embedding and compute mean
         let mut centroid = vec![0.0f32; dim];
-        for emb in &matching {
-            for (i, v) in emb.vector.iter().enumerate() {
-                centroid[i] += v;
+        let mut count = 0usize;
+        for entity_ref in &matching_refs {
+            if let Ok(emb) = self.embedding.get(entity_ref) {
+                for (i, v) in emb.vector.iter().enumerate() {
+                    centroid[i] += v;
+                }
+                count += 1;
             }
         }
-        let count = matching.len() as f32;
-        for v in centroid.iter_mut() {
-            *v /= count;
+
+        if count == 0 {
+            return Err(SemanticMemoryError::NoEmbeddingsForCentroid(
+                prefix.to_string(),
+            ));
         }
+
+        let n = count as f32;
+        for v in centroid.iter_mut() {
+            *v /= n;
+        }
+
+        let stored = if let Some(ref_to_store) = store_as {
+            if let Some(m) = model {
+                let _id = self.embedding.store(ref_to_store, &centroid, m)?;
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        };
 
         tracing::info!(
             target: "cns.semantic",
             prefix = %prefix,
-            passage_count = matching.len(),
+            passage_count = count,
+            stored = stored,
             "Centroid computed"
         );
 
-        Ok(centroid)
+        Ok(CentroidResult {
+            centroid,
+            passage_count: count,
+            stored,
+        })
     }
 
     /// Purge all embeddings whose `entity_ref` starts with `prefix`.
     ///
-    /// Uses zero-vector KNN scan to find candidates, then filters by prefix
-    /// and deletes. Returns the number of embeddings deleted.
+    /// Uses SQL prefix query to find candidates, then deletes.
+    /// Returns the number of embeddings deleted.
     ///
     /// Used for idempotent re-ingest: purge an author's existing embeddings
     /// before re-downloading and re-embedding their corpus.
-    pub fn purge_by_prefix(&self, prefix: &str, dim: usize) -> Result<usize, SemanticMemoryError> {
-        let zero_vec = vec![0.0f32; dim];
-        let results = self.embedding.search(&zero_vec, 10000)?;
-
-        let to_delete: Vec<String> = results
-            .iter()
-            .filter(|r| r.embedding.entity_ref.starts_with(prefix))
-            .map(|r| r.embedding.entity_ref.clone())
-            .collect();
+    pub fn purge_by_prefix(&self, prefix: &str) -> Result<usize, SemanticMemoryError> {
+        let to_delete = self.entity_refs_by_prefix(prefix)?;
 
         let mut count = 0;
         for entity_ref in &to_delete {
@@ -242,48 +281,157 @@ impl SemanticMemory {
         Ok(count)
     }
 
+    /// Chunk text into passages for embedding.
+    ///
+    /// Splits on paragraph boundaries (double newlines), then applies
+    /// min/max word count constraints. Long paragraphs are split at
+    /// sentence boundaries. Short paragraphs are concatenated until
+    /// min_words is reached.
+    ///
+    /// Returns (entity_ref, text) pairs with entity_ref formatted as
+    /// `{entity_ref_prefix}:{chunk_index}`.
+    pub fn chunk_text(
+        text: &str,
+        entity_ref_prefix: &str,
+        min_words: usize,
+        max_words: usize,
+        sentence_boundary: &str,
+    ) -> Vec<(String, String)> {
+        let paragraphs: Vec<&str> = text
+            .split("\n\n")
+            .map(|p| p.trim())
+            .filter(|p| !p.is_empty())
+            .collect();
+
+        let mut passages = Vec::new();
+        let mut buffer = String::new();
+        let mut buffer_words = 0;
+        let mut chunk_index = 0;
+        let boundary_bytes: Vec<u8> = sentence_boundary.bytes().collect();
+
+        for paragraph in &paragraphs {
+            let word_count = paragraph.split_whitespace().count();
+
+            if buffer_words + word_count > max_words && buffer_words >= min_words {
+                let entity_ref = format!("{}:{}", entity_ref_prefix, chunk_index);
+                passages.push((entity_ref, buffer.trim().to_string()));
+                chunk_index += 1;
+                buffer.clear();
+                buffer_words = 0;
+            }
+
+            if word_count > max_words {
+                if !buffer.is_empty() && buffer_words >= min_words {
+                    let entity_ref = format!("{}:{}", entity_ref_prefix, chunk_index);
+                    passages.push((entity_ref, buffer.trim().to_string()));
+                    chunk_index += 1;
+                    buffer.clear();
+                    buffer_words = 0;
+                }
+
+                let words: Vec<&str> = paragraph.split_whitespace().collect();
+                let mut current = Vec::new();
+
+                for word in &words {
+                    current.push(*word);
+
+                    if current.len() >= max_words {
+                        let last = current.last().unwrap();
+                        let ends_with_boundary = last
+                            .chars()
+                            .last()
+                            .map(|c| boundary_bytes.contains(&(c as u8)))
+                            .unwrap_or(false);
+
+                        if ends_with_boundary || current.len() >= max_words * 2 {
+                            let text = current.join(" ");
+                            if current.len() >= min_words {
+                                let entity_ref = format!("{}:{}", entity_ref_prefix, chunk_index);
+                                passages.push((entity_ref, text));
+                                chunk_index += 1;
+                            } else if !buffer.is_empty() {
+                                buffer.push(' ');
+                                buffer.push_str(&text);
+                                buffer_words += current.len();
+                            } else {
+                                let entity_ref = format!("{}:{}", entity_ref_prefix, chunk_index);
+                                passages.push((entity_ref, text));
+                                chunk_index += 1;
+                            }
+                            current = Vec::new();
+                        }
+                    }
+                }
+
+                if !current.is_empty() {
+                    let text = current.join(" ");
+                    if !buffer.is_empty() {
+                        buffer.push(' ');
+                        buffer.push_str(&text);
+                        buffer_words += current.len();
+                    } else {
+                        let entity_ref = format!("{}:{}", entity_ref_prefix, chunk_index);
+                        passages.push((entity_ref, text));
+                        chunk_index += 1;
+                    }
+                }
+            } else {
+                if !buffer.is_empty() {
+                    buffer.push(' ');
+                }
+                buffer.push_str(paragraph);
+                buffer_words += word_count;
+            }
+        }
+
+        if !buffer.is_empty() {
+            let entity_ref = format!("{}:{}", entity_ref_prefix, chunk_index);
+            passages.push((entity_ref, buffer.trim().to_string()));
+        }
+
+        passages
+    }
+
+    /// Strip Project Gutenberg headers and footers from text.
+    ///
+    /// Looks for the standard `*** START OF` / `*** END OF` markers.
+    pub fn strip_gutenberg_headers(text: &str) -> String {
+        let start_marker = "*** START OF";
+        let end_marker = "*** END OF";
+
+        let start = text
+            .find(start_marker)
+            .and_then(|i| text[i..].find('\n').map(|j| i + j + 1))
+            .unwrap_or(0);
+
+        let end = text.find(end_marker).unwrap_or(text.len());
+
+        text[start..end].trim().to_string()
+    }
+
     // ========================================================================
-    // Retraction (Loop 2b) — Cybernetics membrane operation
+    // Deletion (Loop 2b) — Cybernetics membrane operation
     // ========================================================================
 
-    /// Retract a semantic triple by reducing its confidence (not deleting).
+    /// Delete a semantic triple by ID (budget enforcement).
     ///
-    /// Semantic triples are shared knowledge, so retraction reduces confidence
-    /// rather than removing entirely. Uses `bayesian::retract()` for the
-    /// confidence reduction.
+    /// When the semantic storage budget is exceeded, lowest-confidence triples
+    /// are deleted outright. Unlike the removed retraction approach (which
+    /// halved confidence and left zombie triples), deletion is honest and
+    /// keeps the store clean.
     ///
     /// **Membrane-sealed:** Only callable from within this crate.
-    pub(crate) fn retract_triple(
+    pub(crate) fn delete_triple(
         &self,
-        entity: &str,
-        attribute: &str,
-        retraction_confidence: f64,
-    ) -> Result<f64, SemanticMemoryError> {
-        let triples = self
-            .triple_store
-            .query_by_entity_attribute(entity, attribute)?;
-        // Semantic triples have perspective = None
-        let triple = triples
-            .into_iter()
-            .find(|t| t.perspective.is_none())
-            .ok_or_else(|| SemanticMemoryError::TripleNotFound {
-                entity: entity.to_string(),
-                attribute: attribute.to_string(),
-            })?;
-
-        let retracted = bayesian::retract(triple.confidence, retraction_confidence);
+        id: &hkask_storage::TripleID,
+    ) -> Result<(), SemanticMemoryError> {
         tracing::info!(
             target: "cns.semantic",
-            entity = %entity,
-            attribute = %attribute,
-            original_confidence = triple.confidence,
-            retracted_confidence = retracted,
-            "Semantic confidence retracted"
+            triple_id = %id,
+            "Semantic triple deleted (budget enforcement)"
         );
-        self.triple_store
-            .update(&triple.id, triple.value.clone(), retracted)?;
-
-        Ok(retracted)
+        self.triple_store.delete_by_id(id)?;
+        Ok(())
     }
 
     // ========================================================================
@@ -301,5 +449,37 @@ impl SemanticMemory {
         limit: usize,
     ) -> Result<Vec<Triple>, SemanticMemoryError> {
         Ok(self.triple_store.query_semantic_lowest_confidence(limit)?)
+    }
+
+    /// Count semantic triples at or below a confidence threshold.
+    ///
+    /// Used by `SemanticLoop::sense()` for the consolidation trigger signal.
+    ///
+    /// **Membrane-sealed:** Only callable from within this crate.
+    pub(crate) fn low_confidence_count(
+        &self,
+        threshold: f64,
+    ) -> Result<usize, SemanticMemoryError> {
+        Ok(self
+            .triple_store
+            .count_semantic_below_confidence(threshold)?)
+    }
+
+    /// Query semantic triples at or below a confidence threshold.
+    ///
+    /// Returns up to `limit` triples with `confidence <= threshold`,
+    /// ordered by confidence ascending then `valid_from` ascending.
+    ///
+    /// Used by `SemanticLoop::act()` for the consolidation trigger.
+    ///
+    /// **Membrane-sealed:** Only callable from within this crate.
+    pub(crate) fn low_confidence_triples(
+        &self,
+        threshold: f64,
+        limit: usize,
+    ) -> Result<Vec<Triple>, SemanticMemoryError> {
+        Ok(self
+            .triple_store
+            .query_semantic_below_confidence(threshold, limit)?)
     }
 }

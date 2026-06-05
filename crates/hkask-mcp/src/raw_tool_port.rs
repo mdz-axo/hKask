@@ -127,19 +127,19 @@ fn extract_text_content(result: &rmcp::model::CallToolResult) -> String {
 /// (structured tool responses like web_extract return JSON strings).
 /// Falls back to a plain JSON string if parsing fails.
 /// For multiple items, wraps them in a JSON array.
-fn parse_call_result(result: &rmcp::model::CallToolResult) -> Value {
+pub fn parse_call_result(result: &rmcp::model::CallToolResult) -> Value {
     if result.content.is_empty() {
         return Value::Null;
     }
 
-    if result.content.len() == 1 {
-        if let RawContent::Text(text_content) = &*result.content[0] {
-            // Structured tool responses often return JSON as text
-            if let Ok(v) = serde_json::from_str::<Value>(&text_content.text) {
-                return v;
-            }
-            return Value::String(text_content.text.clone());
+    if result.content.len() == 1
+        && let RawContent::Text(text_content) = &*result.content[0]
+    {
+        // Structured tool responses often return JSON as text
+        if let Ok(v) = serde_json::from_str::<Value>(&text_content.text) {
+            return v;
         }
+        return Value::String(text_content.text.clone());
     }
 
     // Multiple content items — wrap in array

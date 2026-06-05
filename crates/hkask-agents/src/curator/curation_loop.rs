@@ -476,7 +476,6 @@ impl HkaskLoop for CurationLoop {
                                         tracing::info!(
                                             target: "curation.loop",
                                             consolidated = outcome.consolidated_count,
-                                            retracted = outcome.retracted_count,
                                             failed = outcome.failed_count,
                                             "Consolidation bridge fired for escalated system"
                                         );

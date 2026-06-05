@@ -20,16 +20,15 @@ use hkask_types::ports::ConsolidationPort;
 /// usage exceeds 80% of budget, it produces `Throttle` actions targeting
 /// itself. When usage exceeds 100%, it escalates to the Curation loop.
 ///
-/// In `act()`, when budget is exceeded, the loop prunes consolidation
-/// candidates (lowest-confidence, oldest triples) to bring usage back
-/// within budget. This replaces `EpisodicMemory::check_budget()` as the
-/// authority for budget enforcement.
+/// In `act()`, when budget is exceeded, the loop fires the consolidation
+/// bridge to promote episodic triples to semantic memory, bringing
+/// usage back within budget.
 pub struct EpisodicLoop {
     memory: Arc<EpisodicMemory>,
     perspective: WebID,
     storage_budget: usize,
     /// Consolidation bridge for promoting episodic triples to semantic memory
-    /// when budget pressure triggers pruning.
+    /// when budget pressure requires it.
     consolidation: Option<Arc<dyn ConsolidationPort>>,
     /// OCAP token proving consolidation authority (issued by Curator/Cybernetics).
     consolidation_token: Option<ConsolidationToken>,
@@ -52,7 +51,7 @@ impl EpisodicLoop {
 
     /// Create an Episodic Loop with a consolidation bridge.
     ///
-    /// When budget pressure triggers pruning, the consolidation bridge fires
+    /// When budget pressure requires it, the consolidation bridge fires
     /// to promote episodic triples into semantic memory. The token proves
     /// Curator/Cybernetics authority for the one-way bridge.
     pub fn with_consolidation(
@@ -111,7 +110,7 @@ impl HkaskLoop for EpisodicLoop {
     /// Compute: produce regulatory actions based on storage usage thresholds.
     ///
     /// - >80% of budget → `Throttle` self (reduce ingestion rate)
-    /// - >100% of budget → `Escalate` to Curation AND `Calibrate` self (prune triples)
+    /// - >100% of budget → `Escalate` to Curation AND `Calibrate` self (consolidate triples)
     async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
         let mut actions = Vec::new();
 
@@ -122,13 +121,13 @@ impl HkaskLoop for EpisodicLoop {
                 let ratio = dev.signal.value / dev.signal.set_point;
 
                 if ratio > 1.0 {
-                    // Budget exceeded — prune consolidation candidates
+                    // Budget exceeded — consolidate to free space
                     let overage = (dev.signal.value - dev.signal.set_point) as usize;
                     actions.push(LoopAction::new(
                         LoopId::Episodic,
                         ActionType::Calibrate,
                         serde_json::json!({
-                            "reason": "episodic_budget_exceeded_prune",
+                            "reason": "episodic_budget_exceeded_consolidate",
                             "usage": dev.signal.value,
                             "budget": dev.signal.set_point,
                             "overage": overage,
@@ -163,110 +162,64 @@ impl HkaskLoop for EpisodicLoop {
         actions
     }
 
-    /// Act: enforce budget regulation.
+    /// Act: enforce budget regulation via consolidation.
     ///
-    /// - `Calibrate` with reason `episodic_budget_exceeded_prune`: prune
-    ///   consolidation candidates (lowest-confidence, oldest triples) to
-    ///   bring storage back within budget.
+    /// - `Calibrate` with reason `episodic_budget_exceeded_consolidate`: fire
+    ///   the consolidation bridge to promote lowest-confidence, oldest triples
+    ///   from episodic to semantic memory, freeing storage.
     /// - `Throttle`: log warning (no direct enforcement — ingestion rate
     ///   limiting is handled by the caller checking storage usage).
     /// - `Escalate`: logged (Curation loop handles escalation).
-    ///
-    /// This replaces `EpisodicMemory::check_budget()` as the authority
-    /// for budget enforcement. Domain code should query
-    /// `storage_usage()` instead of calling `check_budget()`.
     async fn act(&self, actions: &[LoopAction]) {
         for action in actions {
             match action.action_type {
                 ActionType::Calibrate => {
                     let reason = action.parameters.get("reason").and_then(|v| v.as_str());
-                    if reason == Some("episodic_budget_exceeded_prune") {
+                    if reason == Some("episodic_budget_exceeded_consolidate") {
                         let overage = action
                             .parameters
                             .get("overage")
                             .and_then(|v| v.as_u64())
                             .unwrap_or(0) as usize;
 
-                        // Prune lowest-confidence, oldest triples
-                        match self
-                            .memory
-                            .consolidation_candidates(self.perspective, overage)
+                        // Fire consolidation bridge: promote lowest-confidence,
+                        // oldest episodic triples to semantic memory
+                        if let (Some(consolidation), Some(token)) =
+                            (&self.consolidation, &self.consolidation_token)
                         {
-                            Ok(candidates) if !candidates.is_empty() => {
-                                tracing::warn!(
-                                    target: "cns.episodic",
-                                    perspective = %self.perspective,
-                                    candidates = candidates.len(),
-                                    overage = overage,
-                                    "Pruning consolidation candidates to enforce budget"
-                                );
-                                // Retract each candidate via bayesian::retract
-                                for triple in &candidates {
-                                    let perspective =
-                                        triple.perspective.unwrap_or(self.perspective);
-                                    if let Err(e) = self.memory.retract_triple(
-                                        &triple.entity,
-                                        &triple.attribute,
-                                        0.5, // retraction confidence: halve the confidence
-                                        perspective,
-                                    ) {
-                                        tracing::debug!(
-                                            target: "cns.episodic",
-                                            entity = %triple.entity,
-                                            attribute = %triple.attribute,
-                                            error = %e,
-                                            "Failed to retract consolidation candidate"
-                                        );
-                                    }
+                            match consolidation.consolidate(token, &self.perspective, overage) {
+                                Ok(outcome) if outcome.consolidated_count > 0 => {
+                                    tracing::info!(
+                                        target: "cns.episodic",
+                                        perspective = %self.perspective,
+                                        consolidated = outcome.consolidated_count,
+                                        failed = outcome.failed_count,
+                                        "Consolidation bridge fired for episodic budget enforcement"
+                                    );
                                 }
-
-                                // Fire consolidation bridge: promote remaining
-                                // high-confidence episodic triples to semantic
-                                // memory now that budget pressure has forced
-                                // pruning.
-                                if let (Some(consolidation), Some(token)) =
-                                    (&self.consolidation, &self.consolidation_token)
-                                {
-                                    match consolidation.consolidate(
-                                        token,
-                                        &self.perspective,
-                                        overage,
-                                    ) {
-                                        Ok(outcome) if outcome.consolidated_count > 0 => {
-                                            tracing::info!(
-                                                target: "cns.episodic",
-                                                perspective = %self.perspective,
-                                                consolidated = outcome.consolidated_count,
-                                                retracted = outcome.retracted_count,
-                                                failed = outcome.failed_count,
-                                                "Consolidation bridge fired after episodic budget pruning"
-                                            );
-                                        }
-                                        Ok(_) => {}
-                                        Err(e) => {
-                                            tracing::warn!(
-                                                target: "cns.episodic",
-                                                perspective = %self.perspective,
-                                                error = %e,
-                                                "Consolidation bridge failed after pruning"
-                                            );
-                                        }
-                                    }
+                                Ok(_) => {
+                                    tracing::debug!(
+                                        target: "cns.episodic",
+                                        perspective = %self.perspective,
+                                        "Consolidation fired but no triples consolidated"
+                                    );
+                                }
+                                Err(e) => {
+                                    tracing::warn!(
+                                        target: "cns.episodic",
+                                        perspective = %self.perspective,
+                                        error = %e,
+                                        "Consolidation bridge failed during budget enforcement"
+                                    );
                                 }
                             }
-                            Ok(_) => {
-                                tracing::debug!(
-                                    target: "cns.episodic",
-                                    "No consolidation candidates found for pruning"
-                                );
-                            }
-                            Err(e) => {
-                                tracing::error!(
-                                    target: "cns.episodic",
-                                    error = %e,
-                                    "Failed to query consolidation candidates"
-                                );
-                            }
+                        } else {
+                            tracing::warn!(
+                                target: "cns.episodic",
+                                perspective = %self.perspective,
+                                overage = overage,
+                                "Episodic budget exceeded but no consolidation bridge available"
+                            );
                         }
                     } else {
                         tracing::info!(

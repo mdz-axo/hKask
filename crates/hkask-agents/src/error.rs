@@ -13,6 +13,15 @@ pub enum McpError {
 
     #[error("Capability denied: {0}")]
     CapabilityDenied(String),
+
+    #[error("Tool not found: {0}")]
+    ToolNotFound(String),
+
+    #[error("Tool invocation failed: {0}")]
+    InvocationFailed(String),
+
+    #[error("No MCP runtime wired: {0}")]
+    NoRuntime(String),
 }
 
 /// Git CAS errors

@@ -9,10 +9,9 @@
 //! **Sovereignty:** All operations use the calling agent's `WebID` as the
 //! `perspective`. An agent cannot read another agent's episodic memory.
 //!
-//! **Gap:** `episodic_retract` is not exposed in v1. `retract_triple()` is
-//! `pub(crate)` in `hkask-memory` — membrane-sealed. Retraction requires
-//! routing through `EpisodicLoop::act()`, which is not available in the MCP
-//! server context.
+//! **Consolidation:** Episodic budget enforcement routes through the
+//! `ConsolidationBridge`, not through direct MCP calls. The bridge is
+//! membrane-sealed in `hkask-memory` and invoked by `EpisodicLoop::act()`.
 
 use hkask_mcp::server::ToolSpanGuard;
 use hkask_mcp::validate_field;

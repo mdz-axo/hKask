@@ -527,7 +527,6 @@ use crate::capability::tokens::ConsolidationToken;
 #[derive(Debug, Clone)]
 pub struct ConsolidationOutcome {
     pub consolidated_count: usize,
-    pub retracted_count: usize,
     pub failed_count: usize,
 }
 
@@ -741,6 +740,13 @@ pub trait EmbeddingPort: Send + Sync {
 
     /// Delete an embedding by entity reference.
     fn delete(&self, entity_ref: &str) -> Result<(), EmbeddingError>;
+
+    /// Query all entity_refs matching a prefix.
+    ///
+    /// Returns entity_refs whose value starts with `prefix`.
+    /// Used for prefix-based purge and centroid operations
+    /// without needing a zero-vector KNN scan.
+    fn query_by_prefix(&self, prefix: &str) -> Result<Vec<String>, EmbeddingError>;
 
     /// Count total embeddings stored.
     fn count(&self) -> Result<usize, EmbeddingError>;

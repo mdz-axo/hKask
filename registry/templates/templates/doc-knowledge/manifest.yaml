@@ -1,5 +1,5 @@
 # Doc-Knowledge MCP Server Manifest
-# Replaces: mcp-servers/hkask-mcp-doc-knowledge
+# Server: mcp-servers/hkask-mcp-doc-knowledge
 # Purpose: Document parsing, chunking, QA generation
 
 server:
@@ -8,72 +8,63 @@ server:
   description: Document knowledge extraction and QA generation
 
 tools:
-  - name: doc_knowledge_parse
-    description: Parse document into IR with multi-tier chunking
-    template: doc-knowledge/parse.j2
+  - name: doc_knowledge_ping
+    description: Liveness check and semantic memory availability
+    inputs: []
+
+  - name: doc_knowledge_chunk
+    description: Chunk text at configurable token granularity (1 token ≈ 1.33 words)
     inputs:
-      - path: string
+      - text: string (required)
+      - entity_ref_prefix: string (required)
+      - max_tokens: integer (default: 512)
+      - overlap_tokens: integer (default: 64)
+      - strip_gutenberg: boolean (default: false)
+
+  - name: doc_knowledge_detect_format
+    description: Detect document format from path/extension
+    inputs:
+      - path: string (required)
+
+  - name: doc_knowledge_extract_markdown
+    description: Extract text and image references from markdown
+    inputs:
+      - content: string (required)
+      - label: string (required)
+
+  - name: doc_knowledge_extract_html
+    description: Extract text from HTML content (strips tags)
+    inputs:
+      - content: string (required)
+      - label: string (required)
+
+  - name: doc_knowledge_parse
+    description: Parse document into IR with multi-tier chunking (coarse/medium/fine)
+    inputs:
+      - path: string (required)
       - coarse_max_tokens: integer (default: 2048)
       - medium_max_tokens: integer (default: 512)
       - fine_max_tokens: integer (default: 128)
 
-  - name: doc_knowledge_chunk
-    description: Chunk text at specified granularity
-    template: doc-knowledge/chunk.j2
-    inputs:
-      - text: string
-      - max_tokens: integer (default: 512)
-      - overlap_tokens: integer (default: 64)
-
-  - name: doc_knowledge_detect_format
-    description: Detect document format from path
-    template: doc-knowledge/detect_format.j2
-    inputs:
-      - path: string
-
-  - name: doc_knowledge_extract_markdown
-    description: Extract text and image references from markdown
-    template: doc-knowledge/extract_markdown.j2
-    inputs:
-      - content: string
-      - label: string
-
-  - name: doc_knowledge_extract_html
-    description: Extract text from HTML content
-    template: doc-knowledge/extract_html.j2
-    inputs:
-      - content: string
-      - label: string
-
   - name: doc_knowledge_generate_qa
-    description: Generate QA pairs from text chunk
-    template: doc-knowledge/generate_qa.j2
+    description: Generate QA pairs from text chunk (returns structured prompt for routing through hkask-mcp-inference)
     inputs:
-      - text: string
-      - chunk_id: string
-      - strategy: enum[default, selective, full-cube]
-      - bloom_levels: array[string]
-      - model_id: string
+      - text: string (required)
+      - chunk_id: string (required)
+      - strategy: string (default: "default")
+      - bloom_levels: array[string] (default: ["factual", "conceptual"])
 
   - name: doc_knowledge_store_qa
-    description: Store QA items with provenance
-    template: doc-knowledge/store_qa.j2
+    description: Store QA items with provenance (requires semantic memory credentials)
     inputs:
-      - qa_items: array[object]
-      - source_document: string
+      - qa_items: array[object] (required, each with question, answer, bloom_level)
+      - source_document: string (required)
 
 supported_formats:
   - markdown (.md, .markdown)
   - html (.html, .htm)
+  - plain text (.txt)
 
-bloom_levels:
-  - factual: recall facts, definitions, named entities
-  - conceptual: explain concept relationships
-  - procedural: apply or compute something
-  - comparative: contrast concepts or methods
-  - synthesis: connect to broader themes
-
-perspective_cube:
-  domain: [work, research_study]
-  level: [student, expert]
-  voice: [literary, scientific, businesslike]
+credentials:
+  - HKASK_SEMANTIC_DB (optional): Path to semantic database for QA storage
+  - HKASK_DB_PASSPHRASE (optional): Passphrase for semantic database

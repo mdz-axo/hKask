@@ -1095,6 +1095,7 @@ dependencies = [
  "hex",
  "hkask-cns",
  "hkask-keystore",
+ "hkask-mcp",
  "hkask-memory",
  "hkask-storage",
  "hkask-types",
@@ -1266,6 +1267,23 @@ dependencies = [
 
 [[package]]
 name = "hkask-mcp-condenser"
+version = "0.22.0"
+dependencies = [
+ "anyhow",
+ "hkask-mcp",
+ "hkask-memory",
+ "hkask-storage",
+ "hkask-types",
+ "rmcp",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "hkask-mcp-doc-knowledge"
 version = "0.22.0"
 dependencies = [
  "anyhow",
@@ -1580,6 +1598,7 @@ dependencies = [
  "chrono",
  "hkask-storage",
  "hkask-types",
+ "serde",
  "serde_json",
  "thiserror",
  "tracing",

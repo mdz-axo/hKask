@@ -2,8 +2,9 @@
 //!
 //! Wraps `SemanticMemory` and provides loop-level observability for
 //! triple count and consolidation signals. When the triple count exceeds
-//! the storage budget, the loop prunes low-confidence triples via
-//! `bayesian::retract()` — mirroring `EpisodicLoop::act()`.
+//! the storage budget, the loop deletes lowest-confidence triples —
+//! removing them entirely rather than leaving zombie triples with
+//! halved confidence.
 
 use std::sync::Arc;
 
@@ -19,7 +20,7 @@ const DEFAULT_TRIPLE_COUNT_SET_POINT: usize = 10_000;
 ///
 /// Wraps `SemanticMemory` and reads triple count. When count exceeds the
 /// set-point, it produces `Calibrate` actions and enforces budget by
-/// retracting lowest-confidence triples.
+/// deleting lowest-confidence triples outright.
 pub struct SemanticLoop {
     memory: Arc<SemanticMemory>,
     storage_budget: usize,
@@ -50,12 +51,6 @@ impl HkaskLoop for SemanticLoop {
     ///
     /// Produces signals for:
     /// - `triple_count` — current count vs storage budget
-    ///
-    /// **Extensible:** `SemanticMemory::embedding_count()` is available but not
-    /// yet sensed. Adding an `embedding_count` signal would enable regulation
-    /// of embedding index growth (e.g., throttling embedding storage when
-    /// index size exceeds a set-point), similar to how `EpisodicLoop` senses
-    /// both `storage_usage` and `decay_rate`.
     async fn sense(&self) -> Vec<Signal> {
         let count = self.memory.triple_count().unwrap_or(0);
 
@@ -67,7 +62,7 @@ impl HkaskLoop for SemanticLoop {
         )]
     }
 
-    /// Compute: if triple count exceeds set-point, suggest consolidation.
+    /// Compute: if triple count exceeds set-point, suggest calibration.
     async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
         let mut actions = Vec::new();
 
@@ -92,12 +87,13 @@ impl HkaskLoop for SemanticLoop {
         actions
     }
 
-    /// Act: enforce budget regulation.
+    /// Act: enforce budget regulation by deleting lowest-confidence triples.
     ///
-    /// - `Calibrate` with reason `semantic_triple_count_exceeded`: retract
+    /// - `Calibrate` with reason `semantic_triple_count_exceeded`: delete
     ///   lowest-confidence semantic triples to bring count back within budget.
-    ///   Semantic retraction reduces confidence via `bayesian::retract()`
-    ///   rather than deleting, since shared knowledge should not be removed.
+    ///   Low-confidence triples that exceed the budget are removed entirely —
+    ///   this is honest and keeps the store clean, unlike the previous retraction
+    ///   approach which left zombie triples with halved confidence.
     /// - Other actions: logged at info level.
     async fn act(&self, actions: &[LoopAction]) {
         for action in actions {
@@ -111,27 +107,24 @@ impl HkaskLoop for SemanticLoop {
                             .and_then(|v| v.as_u64())
                             .unwrap_or(0) as usize;
 
-                        // Prune lowest-confidence semantic triples
+                        // Delete lowest-confidence semantic triples
                         match self.memory.lowest_confidence_triples(overage) {
                             Ok(candidates) if !candidates.is_empty() => {
                                 tracing::warn!(
                                     target: "cns.semantic",
                                     candidates = candidates.len(),
                                     overage = overage,
-                                    "Retracting lowest-confidence semantic triples to enforce budget"
+                                    "Deleting lowest-confidence semantic triples to enforce budget"
                                 );
                                 for triple in &candidates {
-                                    if let Err(e) = self.memory.retract_triple(
-                                        &triple.entity,
-                                        &triple.attribute,
-                                        0.5, // retraction confidence: halve the confidence
-                                    ) {
+                                    if let Err(e) = self.memory.delete_triple(&triple.id) {
                                         tracing::debug!(
                                             target: "cns.semantic",
+                                            triple_id = %triple.id,
                                             entity = %triple.entity,
                                             attribute = %triple.attribute,
                                             error = %e,
-                                            "Failed to retract semantic triple"
+                                            "Failed to delete semantic triple"
                                         );
                                     }
                                 }
@@ -139,7 +132,7 @@ impl HkaskLoop for SemanticLoop {
                             Ok(_) => {
                                 tracing::debug!(
                                     target: "cns.semantic",
-                                    "No low-confidence semantic triples found for retraction"
+                                    "No low-confidence semantic triples found for deletion"
                                 );
                             }
                             Err(e) => {

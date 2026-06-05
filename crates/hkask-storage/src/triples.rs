@@ -382,6 +382,73 @@ impl TripleStore {
         Ok(triples)
     }
 
+    /// Count semantic triples with confidence at or below a threshold.
+    ///
+    /// Used by `SemanticMemory::low_confidence_count()` for the consolidation
+    /// trigger: triples at or below the threshold are candidates for review
+    /// and deletion.
+    pub fn count_semantic_below_confidence(&self, threshold: f64) -> Result<usize, TripleError> {
+        let conn = self.lock_conn()?;
+        let count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM triples WHERE perspective IS NULL AND valid_to IS NULL AND confidence <= ?1",
+            rusqlite::params![threshold],
+            |row| row.get(0),
+        )?;
+        Ok(count as usize)
+    }
+
+    /// Query semantic triples with confidence at or below a threshold,
+    /// ordered by confidence ascending then valid_from ascending, limited to `limit`.
+    ///
+    /// Used by `SemanticMemory::low_confidence_triples()` for the consolidation
+    /// trigger.
+    pub fn query_semantic_below_confidence(
+        &self,
+        threshold: f64,
+        limit: usize,
+    ) -> Result<Vec<Triple>, TripleError> {
+        let conn = self.lock_conn()?;
+        let mut stmt = conn.prepare(
+            "SELECT id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid
+             FROM triples
+             WHERE perspective IS NULL AND valid_to IS NULL AND confidence <= ?1
+             ORDER BY confidence ASC, valid_from ASC
+             LIMIT ?2",
+        )?;
+
+        let triples = stmt
+            .query_map(rusqlite::params![threshold, limit as i64], |row| {
+                let id_str: String = row.get(0)?;
+                let entity: String = row.get(1)?;
+                let attribute: String = row.get(2)?;
+                let value_str: String = row.get(3)?;
+                let valid_from_str: String = row.get(4)?;
+                let valid_to_str: Option<String> = row.get(5)?;
+                let confidence: f64 = row.get(6)?;
+                let perspective_str: Option<String> = row.get(7)?;
+                let visibility_str: String = row.get(8)?;
+                let owner_webid_str: String = row.get(9)?;
+
+                Ok(TripleRow {
+                    id: id_str,
+                    entity,
+                    attribute,
+                    value: value_str,
+                    valid_from: valid_from_str,
+                    valid_to: valid_to_str,
+                    confidence,
+                    perspective: perspective_str,
+                    visibility: visibility_str,
+                    owner_webid: owner_webid_str,
+                })
+            })?
+            .filter_map(|r| r.ok())
+            .filter_map(|row| Self::row_to_triple(row).ok())
+            .collect();
+
+        Ok(triples)
+    }
+
     /// Count semantic triples (perspective IS NULL, valid_to IS NULL).
     pub fn count_semantic(&self) -> Result<usize, TripleError> {
         let conn = self.lock_conn()?;
@@ -391,6 +458,19 @@ impl TripleStore {
             |row| row.get(0),
         )?;
         Ok(count as usize)
+    }
+
+    /// Delete a triple by ID.
+    ///
+    /// Used by `SemanticMemory::delete_triple()` for budget enforcement.
+    /// Unlike update (which sets `valid_to`), this removes the row entirely.
+    pub fn delete_by_id(&self, id: &TripleID) -> Result<(), TripleError> {
+        let conn = self.lock_conn()?;
+        conn.execute(
+            "DELETE FROM triples WHERE id = ?1",
+            rusqlite::params![id.0.to_string()],
+        )?;
+        Ok(())
     }
 
     fn row_to_triple(row: TripleRow) -> Result<Triple, TripleError> {

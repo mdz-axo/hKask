@@ -1,25 +1,24 @@
 //! Style corpus embedding command — thin CLI orchestrator
-//!
+//
 //! Reads a corpus config YAML and orchestrates the embedding pipeline
-//! through existing MCP tools:
-//!   - hkask-mcp-web/web_extract      — download texts
-//!   - hkask-mcp-semantic/semantic_purge — idempotent re-ingest
-//!   - hkask-mcp-semantic/semantic_embed — store passage vectors
-//!   - hkask-mcp-semantic/semantic_centroid — compute style centroid
-//!
+//! through SemanticMemory methods (which are the same code that MCP tools
+//! semantic_purge, semantic_chunk, semantic_embed, semantic_centroid call):
+//!   - SemanticMemory::purge_by_prefix   — idempotent re-ingest (→ semantic_purge)
+//!   - SemanticMemory::chunk_text         — passage chunking (→ semantic_chunk)
+//!   - SemanticMemory::store_embedding    — store vectors (→ semantic_embed)
+//!   - SemanticMemory::compute_centroid    — style centroid (→ semantic_centroid)
+//
 //! Manifest: registry/manifests/style-corpus-embed.yaml
 //! Skill:    registry/registries/skills/style-corpus-embed.yaml
-//!
-//! The chunking logic (Gutenberg header stripping, paragraph splitting,
-//! min/max word bounds) is kept here as a local text-processing step —
-//! it has no MCP tool equivalent yet and is pure data transformation.
 
 use crate::cli::EmbedCorpusAction;
-use hkask_storage::{Database, EmbeddingStore};
+use hkask_memory::SemanticMemory;
+use hkask_storage::{Database, EmbeddingStore, TripleStore};
 use hkask_templates::{OkapiConfig, OkapiEmbedding};
-use hkask_types::ports::{EmbeddingGenerationPort, EmbeddingPort};
+use hkask_types::ports::EmbeddingGenerationPort;
 use serde::Deserialize;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 #[derive(Debug, Deserialize)]
 struct CorpusConfig {
@@ -126,16 +125,23 @@ fn run_embed(
         config.embedding.model
     );
 
-    // ── Step 2: Open database + purge (semantic_purge) ─────────────────────
+    // ── Step 2: Open database + purge (→ semantic_purge) ──────────────────
     let db = Database::open(&db_path.to_string_lossy(), &passphrase).unwrap_or_else(|e| {
         eprintln!("Failed to open database {}: {}", db_path.display(), e);
         std::process::exit(1);
     });
     let conn = db.conn_arc();
+    let triple_store = TripleStore::new(Arc::clone(&conn));
     let embedding_store = EmbeddingStore::with_dim(conn, config.embedding.dim);
+    let semantic = SemanticMemory::new(triple_store, embedding_store);
 
     let author_prefix = format!("style:{}:", config.author);
-    let purged = purge_author_embeddings(&embedding_store, &author_prefix, config.embedding.dim);
+    let purged = semantic
+        .purge_by_prefix(&author_prefix)
+        .unwrap_or_else(|e| {
+            eprintln!("Failed to purge embeddings: {}", e);
+            std::process::exit(1);
+        });
     if purged > 0 {
         eprintln!(
             "Purged {} existing embeddings for {} (idempotent re-run)",
@@ -186,12 +192,12 @@ fn run_embed(
             text
         };
 
-        // ── Step 4: Chunk text (local text processing) ────────────────────
-        let cleaned = strip_gutenberg_headers(&text);
-        let chunks = chunk_text(
+        // ── Step 4: Chunk text (→ semantic_chunk) ───────────────────────
+        let cleaned = SemanticMemory::strip_gutenberg_headers(&text);
+        let entity_ref_prefix = format!("style:{}:{}", config.author, work.slug);
+        let chunks = SemanticMemory::chunk_text(
             &cleaned,
-            &config.author,
-            &work.slug,
+            &entity_ref_prefix,
             config.chunking.min_words,
             config.chunking.max_words,
             &config.chunking.sentence_boundary,
@@ -234,9 +240,9 @@ fn run_embed(
             });
 
         for ((entity_ref, _text), vector) in chunk.iter().zip(vectors.iter()) {
-            // ── Step 7: Store embedding (semantic_embed) ──────────────────
-            embedding_store
-                .store(entity_ref, vector, &config.embedding.model)
+            // ── Step 7: Store embedding (→ semantic_embed) ──────────────
+            semantic
+                .store_embedding(entity_ref, vector, &config.embedding.model)
                 .unwrap_or_else(|e| {
                     eprintln!("Failed to store embedding {}: {}", entity_ref, e);
                     std::process::exit(1);
@@ -250,28 +256,29 @@ fn run_embed(
         );
     }
 
-    // ── Step 8: Compute and store centroid (semantic_centroid) ────────────
+    // ── Step 8: Compute and store centroid (→ semantic_centroid) ─────────
     eprintln!("Computing style centroid...");
-    let centroid = compute_centroid(&embedding_store, &config.author, config.embedding.dim)
+    let rule_prefix = format!("style:{}:rule:", config.author);
+    let centroid_ref = config.centroid_entity_ref.clone();
+    let result = semantic
+        .compute_centroid(
+            &author_prefix,
+            &rule_prefix,
+            &centroid_ref,
+            config.embedding.dim,
+            Some(&centroid_ref),
+            Some(&config.embedding.model),
+        )
         .unwrap_or_else(|e| {
             eprintln!("Failed to compute centroid: {}", e);
             std::process::exit(1);
         });
-    embedding_store
-        .store(
-            &config.centroid_entity_ref,
-            &centroid,
-            &config.embedding.model,
-        )
-        .unwrap_or_else(|e| {
-            eprintln!(
-                "Failed to store centroid {}: {}",
-                config.centroid_entity_ref, e
-            );
-            std::process::exit(1);
-        });
 
-    eprintln!("Done. Centroid stored as: {}", config.centroid_entity_ref);
+    eprintln!("Done. Centroid stored as: {}", centroid_ref);
+    eprintln!(
+        "Centroid computed from {} prose passages (stored: {})",
+        result.passage_count, result.stored
+    );
     eprintln!("Total passages embedded: {}", all_passages.len());
     eprintln!(
         "Validation config: centroid_distance_max={}, exemplar_count={}..{}",
@@ -313,222 +320,18 @@ async fn download_text(url: &str) -> Result<String, String> {
 }
 
 // ========================================================================
-// Text processing — local chunking (no MCP equivalent yet)
-// ========================================================================
-
-fn strip_gutenberg_headers(text: &str) -> String {
-    let start_marker = "*** START OF";
-    let end_marker = "*** END OF";
-
-    let start = text
-        .find(start_marker)
-        .and_then(|i| text[i..].find('\n').map(|j| i + j + 1))
-        .unwrap_or(0);
-
-    let end = text.find(end_marker).unwrap_or(text.len());
-
-    text[start..end].trim().to_string()
-}
-
-fn chunk_text(
-    text: &str,
-    author: &str,
-    work_slug: &str,
-    min_words: usize,
-    max_words: usize,
-    sentence_boundary: &str,
-) -> Vec<(String, String)> {
-    let paragraphs: Vec<&str> = text
-        .split("\n\n")
-        .map(|p| p.trim())
-        .filter(|p| !p.is_empty())
-        .collect();
-
-    let mut passages = Vec::new();
-    let mut buffer = String::new();
-    let mut buffer_words = 0;
-    let mut chunk_index = 0;
-
-    for paragraph in &paragraphs {
-        let word_count = paragraph.split_whitespace().count();
-
-        if buffer_words + word_count > max_words && buffer_words >= min_words {
-            // Flush buffer as a passage
-            let entity_ref = format!("style:{}:{}:{}", author, work_slug, chunk_index);
-            passages.push((entity_ref, buffer.trim().to_string()));
-            chunk_index += 1;
-            buffer.clear();
-            buffer_words = 0;
-        }
-
-        if word_count > max_words {
-            // Split long paragraph at sentence boundaries
-            if !buffer.is_empty() && buffer_words >= min_words {
-                let entity_ref = format!("style:{}:{}:{}", author, work_slug, chunk_index);
-                passages.push((entity_ref, buffer.trim().to_string()));
-                chunk_index += 1;
-                buffer.clear();
-                buffer_words = 0;
-            }
-
-            let sentences = split_at_sentence_boundaries(paragraph, max_words, sentence_boundary);
-            for sentence_group in sentences {
-                let sg_words = sentence_group.split_whitespace().count();
-                if sg_words >= min_words {
-                    let entity_ref = format!("style:{}:{}:{}", author, work_slug, chunk_index);
-                    passages.push((entity_ref, sentence_group));
-                    chunk_index += 1;
-                } else if !buffer.is_empty() {
-                    buffer.push(' ');
-                    buffer.push_str(&sentence_group);
-                    buffer_words += sg_words;
-                } else {
-                    // Below min_words with empty buffer — emit anyway
-                    let entity_ref = format!("style:{}:{}:{}", author, work_slug, chunk_index);
-                    passages.push((entity_ref, sentence_group));
-                    chunk_index += 1;
-                }
-            }
-        } else {
-            if !buffer.is_empty() {
-                buffer.push(' ');
-            }
-            buffer.push_str(paragraph);
-            buffer_words += word_count;
-        }
-    }
-
-    // Flush remaining buffer
-    if !buffer.is_empty() {
-        let entity_ref = format!("style:{}:{}:{}", author, work_slug, chunk_index);
-        passages.push((entity_ref, buffer.trim().to_string()));
-    }
-
-    passages
-}
-
-fn split_at_sentence_boundaries(text: &str, max_words: usize, boundary_chars: &str) -> Vec<String> {
-    let boundary_bytes: Vec<u8> = boundary_chars.bytes().collect();
-    let words: Vec<&str> = text.split_whitespace().collect();
-
-    if words.len() <= max_words {
-        return vec![text.to_string()];
-    }
-
-    let mut groups = Vec::new();
-    let mut current = Vec::new();
-
-    for word in &words {
-        current.push(*word);
-
-        if current.len() >= max_words {
-            let last = current.last().unwrap();
-            let ends_with_boundary = last
-                .chars()
-                .last()
-                .map(|c| boundary_bytes.contains(&(c as u8)))
-                .unwrap_or(false);
-
-            if ends_with_boundary || current.len() >= max_words * 2 {
-                groups.push(current.join(" "));
-                current = Vec::new();
-            }
-        }
-    }
-
-    if !current.is_empty() {
-        groups.push(current.join(" "));
-    }
-
-    groups
-}
-
-// ========================================================================
-// Embedding store operations — now also available via MCP tools
-// ========================================================================
-// These functions are kept as direct store calls for the CLI path.
-// The MCP equivalents are:
-//   purge_author_embeddings → semantic_purge
-//   compute_centroid         → semantic_centroid
-
-fn purge_author_embeddings(store: &EmbeddingStore, author_prefix: &str, dim: usize) -> usize {
-    let zero_vec = vec![0.0f32; dim];
-    let results = match store.search(&zero_vec, 10000) {
-        Ok(r) => r,
-        Err(_) => return 0,
-    };
-
-    let to_delete: Vec<String> = results
-        .iter()
-        .filter(|r| r.embedding.entity_ref.starts_with(author_prefix))
-        .map(|r| r.embedding.entity_ref.clone())
-        .collect();
-
-    let mut count = 0;
-    for entity_ref in &to_delete {
-        if store.delete(entity_ref).is_ok() {
-            count += 1;
-        }
-    }
-    count
-}
-
-fn compute_centroid(store: &EmbeddingStore, author: &str, dim: usize) -> Result<Vec<f32>, String> {
-    let zero_vec = vec![0.0f32; dim];
-    let results = store
-        .search(&zero_vec, 10000)
-        .map_err(|e| format!("Search failed: {}", e))?;
-
-    let author_prefix = format!("style:{}:", author);
-    let rule_prefix = format!("style:{}:rule:", author);
-    let centroid_ref = format!("style:{}:centroid", author);
-
-    let matching: Vec<&hkask_types::ports::StoredEmbedding> = results
-        .iter()
-        .filter(|r| {
-            let ref_str = &r.embedding.entity_ref;
-            ref_str.starts_with(&author_prefix)
-                && !ref_str.starts_with(&rule_prefix)
-                && ref_str != &centroid_ref
-        })
-        .map(|r| &r.embedding)
-        .collect();
-
-    if matching.is_empty() {
-        return Err(format!("No prose embeddings found for author: {}", author));
-    }
-
-    eprintln!(
-        "  Centroid computed from {} prose passages (excluded rules)",
-        matching.len()
-    );
-
-    let mut centroid = vec![0.0f32; dim];
-    for emb in &matching {
-        for (i, v) in emb.vector.iter().enumerate() {
-            centroid[i] += v;
-        }
-    }
-    let count = matching.len() as f32;
-    for v in centroid.iter_mut() {
-        *v /= count;
-    }
-
-    Ok(centroid)
-}
-
-// ========================================================================
 // Tests
 // ========================================================================
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{USER_AGENT, ValidationConfig};
+    use hkask_memory::SemanticMemory;
 
     #[test]
     fn strip_gutenberg_headers_basic() {
         let text = "Header\n*** START OF THIS PROJECT GUTENBERG EBOOK ***\nContent here.\n*** END OF THIS PROJECT GUTENBERG EBOOK ***\nFooter";
-        let cleaned = strip_gutenberg_headers(text);
+        let cleaned = SemanticMemory::strip_gutenberg_headers(text);
         assert!(cleaned.contains("Content here."));
         assert!(!cleaned.contains("Header"));
         assert!(!cleaned.contains("Footer"));
@@ -537,41 +340,34 @@ mod tests {
     #[test]
     fn strip_gutenberg_headers_no_markers() {
         let text = "Just some text without markers.";
-        let cleaned = strip_gutenberg_headers(text);
+        let cleaned = SemanticMemory::strip_gutenberg_headers(text);
         assert_eq!(cleaned, text);
     }
 
     #[test]
     fn chunk_text_preserves_short_paragraphs() {
         let text = "Short one.\n\nShort two.\n\nShort three.";
-        let chunks = chunk_text(text, "test", "work", 2, 200, ".!? ");
+        let chunks = SemanticMemory::chunk_text(text, "style:test:work", 2, 200, ".!? ");
         assert!(!chunks.is_empty());
     }
 
     #[test]
     fn chunk_text_splits_long_paragraphs() {
-        let long = (0..300)
+        let long = (0..500)
             .map(|i| format!("word{}", i))
             .collect::<Vec<_>>()
             .join(" ");
         let text = format!("Intro.\n\n{}", long);
-        let chunks = chunk_text(&text, "test", "work", 5, 200, ".!? ");
+        let chunks = SemanticMemory::chunk_text(&text, "style:test:work", 5, 200, ".!? ");
         assert!(chunks.len() > 1);
     }
 
     #[test]
     fn chunk_text_emits_below_min_words() {
         let text = "One.";
-        let chunks = chunk_text(text, "test", "work", 50, 200, ".!? ");
+        let chunks = SemanticMemory::chunk_text(text, "style:test:work", 50, 200, ".!? ");
         assert_eq!(chunks.len(), 1);
         assert_eq!(chunks[0].0, "style:test:work:0");
-    }
-
-    #[test]
-    fn split_at_sentence_boundaries_basic() {
-        let text = "First sentence. Second sentence. Third sentence. Fourth sentence.";
-        let groups = split_at_sentence_boundaries(text, 3, ".!? ");
-        assert!(!groups.is_empty());
     }
 
     #[test]

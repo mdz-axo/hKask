@@ -258,7 +258,7 @@ Every capability invocation emits a `NuEvent` with typed `Span` (`event.rs:92-10
 | `cns.sovereignty.*` | `Sovereignty` | User sovereignty enforcement |
 | `cns.goal.*` | `Goal` | Goal lifecycle operations |
 | `cns.spec.*` | `Spec` | DDMVSS specification operations |
-| `cns.memory.*` | (Pattern A) | Memory pipeline: encode, budget, decay, retract |
+| `cns.memory.*` | (Pattern A) | Memory pipeline: encode, budget, decay, delete |
 
 **Event structure:** `NuEvent` (`event.rs:27`) — id, timestamp, observer_webid, span, phase (Observe/Regulate/Outcome), observation, regulation, outcome, recursion_depth, parent_event, visibility.
 

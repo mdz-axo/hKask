@@ -334,11 +334,11 @@ pub fn run(
     let mcp_runtime = McpRuntime::new();
 
     // Register built-in MCP servers so /tools and /invoke work at startup.
-    // These are metadata registrations — actual MCP server processes connect
-    // via transport when invoked.
-    let tool_count = rt_handle.block_on(builtin_servers::register_builtin_servers(&mcp_runtime));
-    if tool_count > 0 {
-        tracing::info!(target: "hkask.repl", tools = tool_count, "Built-in MCP servers registered");
+    // Each server is spawned as a child process, tools are discovered
+    // dynamically via MCP handshake — no static metadata needed.
+    let server_count = rt_handle.block_on(builtin_servers::start_builtin_servers(&mcp_runtime));
+    if server_count > 0 {
+        tracing::info!(target: "hkask.repl", servers = server_count, "MCP servers started");
     }
 
     let raw_tool_port: Arc<dyn ToolPort> = Arc::new(RawMcpToolPort::new(mcp_runtime.clone()));

@@ -318,6 +318,34 @@ impl EmbeddingPort for EmbeddingStore {
 
         Ok(count as usize)
     }
+
+    /// Query all entity_refs matching a prefix.
+    ///
+    /// Uses SQL LIKE with the prefix + '%' pattern.
+    /// Efficient when the `idx_embeddings_entity_ref` index exists.
+    fn query_by_prefix(&self, prefix: &str) -> Result<Vec<String>, EmbeddingError> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| EmbeddingError::Storage(format!("connection lock poisoned: {e}")))?;
+
+        let pattern = format!("{}%", prefix);
+        let mut stmt = conn
+            .prepare("SELECT entity_ref FROM embeddings WHERE entity_ref LIKE ?1")
+            .map_err(|e| EmbeddingError::Storage(e.to_string()))?;
+
+        let rows = stmt
+            .query_map(rusqlite::params![pattern], |row| row.get(0))
+            .map_err(|e| EmbeddingError::Storage(e.to_string()))?;
+
+        let mut refs = Vec::new();
+        for row in rows {
+            let entity_ref: String = row.map_err(|e| EmbeddingError::Storage(e.to_string()))?;
+            refs.push(entity_ref);
+        }
+
+        Ok(refs)
+    }
 }
 
 #[cfg(test)]
@@ -475,5 +503,43 @@ mod tests {
                 "Roundtrip mismatch at index {i}: {a} vs {b}"
             );
         }
+    }
+
+    #[test]
+    fn query_by_prefix_finds_matching_refs() {
+        let store = test_store();
+
+        store
+            .store(
+                "style:hemingway:sun-also-rises:0",
+                &test_vector(0.0),
+                "test",
+            )
+            .unwrap();
+        store
+            .store(
+                "style:hemingway:sun-also-rises:1",
+                &test_vector(0.1),
+                "test",
+            )
+            .unwrap();
+        store
+            .store("style:hemingway:farewell:0", &test_vector(0.2), "test")
+            .unwrap();
+        store
+            .store("style:faulkner:sound:0", &test_vector(0.3), "test")
+            .unwrap();
+
+        let hemingway = store.query_by_prefix("style:hemingway:").unwrap();
+        assert_eq!(hemingway.len(), 3);
+
+        let sun = store.query_by_prefix("style:hemingway:sun").unwrap();
+        assert_eq!(sun.len(), 2);
+
+        let faulkner = store.query_by_prefix("style:faulkner:").unwrap();
+        assert_eq!(faulkner.len(), 1);
+
+        let none = store.query_by_prefix("style:fitzgerald:").unwrap();
+        assert!(none.is_empty());
     }
 }

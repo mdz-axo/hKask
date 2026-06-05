@@ -451,11 +451,7 @@ erDiagram
     }
 
     BayesianOps {
-        fn combine
-        fn retract
-        fn join
         fn decay
-        fn weighted_average
     }
 ```
 
