@@ -738,176 +738,204 @@ pub fn run(
                             );
                         }
 
-                    // ── HHH evaluation gate ──────────────────────────────────────
-                    // When HHH mode is active, evaluate the final response through
-                    // the gate model. If it fails, loop with correction prompts.
-                    if state.hhh_mode == HhhMode::Active {
-                        if let Some(ref gate_port) = state.gate_inference_port {
-                            println!("  \x1b[2m[HHH] Evaluating response for HHH compliance...\x1b[0m");
-
-                            let mut hhh_iteration: u32 = 0;
-                            let max_iterations = state.hhh_config.max_iterations;
-                            let mut current_response = final_response.clone();
-
-                            loop {
-                                // Gas check for gate evaluation
-                                let gate_heuristic: u64 = 500;
-                                let gate_can_proceed = rt.block_on(async {
-                                    state
-                                        .cybernetics_loop
-                                        .read()
-                                        .await
-                                        .can_proceed(&state.agent_webid, gate_heuristic)
-                                        .await
-                                });
-                                if !gate_can_proceed {
-                                    println!("  \x1b[33m\u{26a0} HHH gate skipped: gas budget exhausted\x1b[0m");
-                                    break;
-                                }
-
-                                // Reserve gas for gate evaluation
-                                let _gate_reserved = rt.block_on(async {
-                                    state
-                                        .cybernetics_loop
-                                        .read()
-                                        .await
-                                        .reserve_gas(&state.agent_webid, gate_heuristic)
-                                        .await
-                                });
-                                state.inference_loop.consume_gas(gate_heuristic);
-
-                                // Evaluate through the gate
-                                let evaluation = rt.block_on(hhh_gate::hhh_evaluate(
-                                    input,
-                                    &current_response,
-                                    gate_port,
-                                ));
-
-                                // Settle gate gas
-                                let _gate_settled = rt.block_on(async {
-                                    state
-                                        .cybernetics_loop
-                                        .read()
-                                        .await
-                                        .settle_gas(&state.agent_webid, gate_heuristic, gate_heuristic)
-                                        .await
-                                });
-                                state.inference_loop.replenish_gas(gate_heuristic);
-
-                                if evaluation.overall_pass {
-                                    println!("  \x1b[32m[HHH] \u{2713} Passed (iteration {})\x1b[0m", hhh_iteration + 1);
-                                    final_response = current_response;
-                                    break;
-                                }
-
-                                if hhh_iteration >= max_iterations {
-                                    // Max iterations reached — deliver with uncertainty marker
-                                    final_response = format!(
-                                        "{}\n\n\u{26a0}\u{fe0f} This response may not fully meet HHH standards.",
-                                        current_response
-                                    );
-                                    println!("  \x1b[33m[HHH] Max iterations reached, delivering with uncertainty marker\x1b[0m");
-                                    tracing::warn!(
-                                        target: "cns.hhh.gate",
-                                        iterations = hhh_iteration,
-                                        "HHH gate exhausted — delivering with uncertainty marker"
-                                    );
-                                    break;
-                                }
-
-                                // Gate failed — print diagnostic and prepare correction
-                                let failures = evaluation.failures.join(", ");
+                        // ── HHH evaluation gate ──────────────────────────────────────
+                        // When HHH mode is active, evaluate the final response through
+                        // the gate model. If it fails, loop with correction prompts.
+                        if state.hhh_mode == HhhMode::Active {
+                            if let Some(ref gate_port) = state.gate_inference_port {
                                 println!(
-                                    "  \x1b[31m[HHH] \u{2717} Failed: {}\x1b[0m",
-                                    failures
-                                );
-                                println!(
-                                    "  \x1b[33m[HHH] Correcting (iteration {})...\x1b[0m",
-                                    hhh_iteration + 2
+                                    "  \x1b[2m[HHH] Evaluating response for HHH compliance...\x1b[0m"
                                 );
 
-                                let correction_input = hhh_gate::hhh_correction_prompt(
-                                    input,
-                                    &current_response,
-                                    &evaluation,
-                                );
+                                let mut hhh_iteration: u32 = 0;
+                                let max_iterations = state.hhh_config.max_iterations;
+                                let mut current_response = final_response.clone();
 
-                                // Gas check for correction inference
-                                let correction_can_proceed = rt.block_on(async {
-                                    state
-                                        .cybernetics_loop
-                                        .read()
-                                        .await
-                                        .can_proceed(&state.agent_webid, heuristic_cost)
-                                        .await
-                                });
-                                if !correction_can_proceed {
-                                    final_response = format!(
-                                        "{}\n\n\u{26a0}\u{fe0f} HHH correction skipped: gas budget exhausted",
-                                        current_response
+                                loop {
+                                    // Gas check for gate evaluation
+                                    let gate_heuristic: u64 = 500;
+                                    let gate_can_proceed = rt.block_on(async {
+                                        state
+                                            .cybernetics_loop
+                                            .read()
+                                            .await
+                                            .can_proceed(&state.agent_webid, gate_heuristic)
+                                            .await
+                                    });
+                                    if !gate_can_proceed {
+                                        println!(
+                                            "  \x1b[33m\u{26a0} HHH gate skipped: gas budget exhausted\x1b[0m"
+                                        );
+                                        tracing::warn!(
+                                            target: "cns.hhh.gas_exhausted",
+                                            "HHH gate evaluation skipped — gas budget exhausted"
+                                        );
+                                        break;
+                                    }
+
+                                    // Reserve gas for gate evaluation
+                                    let _gate_reserved = rt.block_on(async {
+                                        state
+                                            .cybernetics_loop
+                                            .read()
+                                            .await
+                                            .reserve_gas(&state.agent_webid, gate_heuristic)
+                                            .await
+                                    });
+                                    state.inference_loop.consume_gas(gate_heuristic);
+
+                                    // Evaluate through the gate
+                                    let evaluation = rt.block_on(hhh_gate::hhh_evaluate(
+                                        input,
+                                        &current_response,
+                                        gate_port,
+                                    ));
+
+                                    // Settle gate gas
+                                    let _gate_settled = rt.block_on(async {
+                                        state
+                                            .cybernetics_loop
+                                            .read()
+                                            .await
+                                            .settle_gas(
+                                                &state.agent_webid,
+                                                gate_heuristic,
+                                                gate_heuristic,
+                                            )
+                                            .await
+                                    });
+                                    state.inference_loop.replenish_gas(gate_heuristic);
+
+                                    if evaluation.overall_pass {
+                                        println!(
+                                            "  \x1b[32m[HHH] \u{2713} Passed (iteration {})\x1b[0m",
+                                            hhh_iteration + 1
+                                        );
+                                        final_response = current_response;
+                                        break;
+                                    }
+
+                                    if hhh_iteration >= max_iterations {
+                                        // Max iterations reached — deliver with uncertainty marker
+                                        final_response = format!(
+                                            "{}\n\n\u{26a0}\u{fe0f} This response may not fully meet HHH standards.",
+                                            current_response
+                                        );
+                                        println!(
+                                            "  \x1b[33m[HHH] Max iterations reached, delivering with uncertainty marker\x1b[0m"
+                                        );
+                                        tracing::warn!(
+                                            target: "cns.hhh.gate",
+                                            iterations = hhh_iteration,
+                                            "HHH gate exhausted — delivering with uncertainty marker"
+                                        );
+                                        break;
+                                    }
+
+                                    // Gate failed — print diagnostic and prepare correction
+                                    let failures = evaluation.failures.join(", ");
+                                    println!(
+                                        "  \x1b[31m[HHH] \u{2717} Failed: {}\x1b[0m",
+                                        failures
                                     );
-                                    println!("  \x1b[33m\u{26a0} HHH correction skipped: gas budget exhausted\x1b[0m");
-                                    break;
+                                    println!(
+                                        "  \x1b[33m[HHH] Correcting (iteration {})...\x1b[0m",
+                                        hhh_iteration + 2
+                                    );
+
+                                    let correction_input = hhh_gate::hhh_correction_prompt(
+                                        input,
+                                        &current_response,
+                                        &evaluation,
+                                    );
+
+                                    // Gas check for correction inference
+                                    let correction_can_proceed = rt.block_on(async {
+                                        state
+                                            .cybernetics_loop
+                                            .read()
+                                            .await
+                                            .can_proceed(&state.agent_webid, heuristic_cost)
+                                            .await
+                                    });
+                                    if !correction_can_proceed {
+                                        final_response = format!(
+                                            "{}\n\n\u{26a0}\u{fe0f} HHH correction skipped: gas budget exhausted",
+                                            current_response
+                                        );
+                                        println!(
+                                            "  \x1b[33m\u{26a0} HHH correction skipped: gas budget exhausted\x1b[0m"
+                                        );
+                                        tracing::warn!(
+                                            target: "cns.hhh.gas_exhausted",
+                                            "HHH correction skipped — gas budget exhausted"
+                                        );
+                                        break;
+                                    }
+
+                                    // Reserve gas for correction inference
+                                    let _correction_reserved = rt.block_on(async {
+                                        state
+                                            .cybernetics_loop
+                                            .read()
+                                            .await
+                                            .reserve_gas(&state.agent_webid, heuristic_cost)
+                                            .await
+                                    });
+                                    state.inference_loop.consume_gas(heuristic_cost);
+
+                                    let correction_suffix = hhh_gate::hhh_augment_system_prompt("");
+                                    let correction_response =
+                                        rt.block_on(crate::commands::chat_with_agent(
+                                            &correction_input,
+                                            Some(&state.current_agent),
+                                            Some(&state.current_model),
+                                            Some(state.inference_port.clone()),
+                                            state.resolved_secrets.as_ref(),
+                                            Some(state.episodic_storage.clone()),
+                                            Some(state.semantic_storage.clone()),
+                                            Some(state.agent_webid),
+                                            Some(&correction_suffix),
+                                        ));
+
+                                    // Settle correction gas
+                                    let correction_cost = correction_response
+                                        .usage
+                                        .as_ref()
+                                        .map(|u| u.gas_cost())
+                                        .unwrap_or(heuristic_cost);
+                                    let _correction_settled = rt.block_on(async {
+                                        state
+                                            .cybernetics_loop
+                                            .read()
+                                            .await
+                                            .settle_gas(
+                                                &state.agent_webid,
+                                                heuristic_cost,
+                                                correction_cost,
+                                            )
+                                            .await
+                                    });
+                                    if correction_cost > heuristic_cost {
+                                        state
+                                            .inference_loop
+                                            .consume_gas(correction_cost - heuristic_cost);
+                                    } else if correction_cost < heuristic_cost {
+                                        state
+                                            .inference_loop
+                                            .replenish_gas(heuristic_cost - correction_cost);
+                                    }
+
+                                    current_response = correction_response.text;
+                                    hhh_iteration += 1;
                                 }
-
-                                // Reserve gas for correction inference
-                                let _correction_reserved = rt.block_on(async {
-                                    state
-                                        .cybernetics_loop
-                                        .read()
-                                        .await
-                                        .reserve_gas(&state.agent_webid, heuristic_cost)
-                                        .await
-                                });
-                                state.inference_loop.consume_gas(heuristic_cost);
-
-                                let correction_suffix = hhh_gate::hhh_augment_system_prompt("");
-                                let correction_response = rt.block_on(
-                                    crate::commands::chat_with_agent(
-                                        &correction_input,
-                                        Some(&state.current_agent),
-                                        Some(&state.current_model),
-                                        Some(state.inference_port.clone()),
-                                        state.resolved_secrets.as_ref(),
-                                        Some(state.episodic_storage.clone()),
-                                        Some(state.semantic_storage.clone()),
-                                        Some(state.agent_webid),
-                                        Some(&correction_suffix),
-                                    )
+                            } else {
+                                println!(
+                                    "  \x1b[33m\u{26a0} HHH mode active but gate model unavailable\x1b[0m"
                                 );
-
-                                // Settle correction gas
-                                let correction_cost = correction_response
-                                    .usage
-                                    .as_ref()
-                                    .map(|u| u.gas_cost())
-                                    .unwrap_or(heuristic_cost);
-                                let _correction_settled = rt.block_on(async {
-                                    state
-                                        .cybernetics_loop
-                                        .read()
-                                        .await
-                                        .settle_gas(&state.agent_webid, heuristic_cost, correction_cost)
-                                        .await
-                                });
-                                if correction_cost > heuristic_cost {
-                                    state
-                                        .inference_loop
-                                        .consume_gas(correction_cost - heuristic_cost);
-                                } else if correction_cost < heuristic_cost {
-                                    state
-                                        .inference_loop
-                                        .replenish_gas(heuristic_cost - correction_cost);
-                                }
-
-                                current_response = correction_response.text;
-                                hhh_iteration += 1;
                             }
-                        } else {
-                            println!("  \x1b[33m\u{26a0} HHH mode active but gate model unavailable\x1b[0m");
                         }
-                    }
-                    // End of tool-augmented followup block
+                        // End of tool-augmented followup block
                     }
 
                     // Show token usage (7g)

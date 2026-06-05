@@ -669,6 +669,55 @@ pub enum EmbedCorpusAction {
     },
 }
 
+/// Skill bundle management actions
+#[derive(Subcommand)]
+pub enum BundleAction {
+    /// Compose a new skill bundle from specified skills
+    Compose {
+        /// Skill IDs to bundle
+        #[arg(num_args = 1..)]
+        skills: Vec<String>,
+
+        /// Bundle name
+        #[arg(short, long)]
+        name: Option<String>,
+
+        /// Visibility (private or shared)
+        #[arg(short, long, default_value = "private")]
+        visibility: String,
+    },
+
+    /// Apply an existing bundle to the current session
+    Apply {
+        /// Bundle ID to apply
+        #[arg()]
+        bundle_id: String,
+    },
+
+    /// List all bundles
+    List,
+
+    /// Show details of a specific bundle
+    Show {
+        /// Bundle ID
+        #[arg()]
+        bundle_id: String,
+    },
+
+    /// Evolve a bundle (re-compose when skills have changed)
+    Evolve {
+        /// Bundle ID to evolve
+        #[arg()]
+        bundle_id: String,
+    },
+
+    /// List available skills for bundling
+    Skills,
+
+    /// Deactivate the current bundle
+    Off,
+}
+
 /// Goal actions — minimal multi-agent coordination substrate.
 ///
 /// Goal operations are available to anyone with DB access — no token ceremony.

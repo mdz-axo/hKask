@@ -146,6 +146,12 @@ pub enum Commands {
         action: KeystoreAction,
     },
 
+    /// Skill bundle management (compose, apply, evolve)
+    Bundle {
+        #[command(subcommand)]
+        action: BundleAction,
+    },
+
     /// Style corpus embedding (download, chunk, embed, store)
     EmbedCorpus {
         #[command(subcommand)]

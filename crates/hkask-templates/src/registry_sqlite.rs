@@ -550,7 +550,7 @@ impl BundleRegistryIndex for SqliteRegistry {
                     params![
                         bundle.id,
                         skill.id,
-                        skill.polarity.map(|p| p.as_str()),
+                        Some(skill.polarity.as_str()),
                         skill.manifest_ref,
                         skill.content_hash,
                         position as i64,
@@ -616,6 +616,7 @@ impl BundleRegistryIndex for SqliteRegistry {
 
 /// Owned-skill retrieval methods specific to SQLite (no lifetime borrowing)
 impl SqliteRegistry {
+    #[allow(clippy::too_many_arguments)]
     fn row_to_skill(
         &self,
         id: String,

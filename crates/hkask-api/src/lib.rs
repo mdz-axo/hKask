@@ -622,6 +622,7 @@ pub fn create_router(state: ApiState) -> Result<OpenApiRouter, String> {
         .merge(routes::ensemble_router().into())
         .merge(routes::soap_infer_router().into())
         .merge(routes::acp_router().into())
+        .merge(routes::bundles_router().into())
         .merge(routes::spec_router().into())
         .merge(routes::curator_router().into())
         .merge(routes::episodic_router().into())

@@ -2,6 +2,7 @@
 
 mod acp;
 mod bots;
+mod bundles;
 mod chat;
 mod cns;
 mod curator;
@@ -20,6 +21,7 @@ mod templates;
 // Re-export router functions
 pub use acp::acp_router;
 pub use bots::bots_router;
+pub use bundles::bundles_router;
 pub use chat::chat_router;
 pub use cns::cns_router;
 pub use curator::curator_router;
@@ -37,6 +39,10 @@ pub use templates::templates_router;
 
 // Re-export domain-local types that may be used externally
 pub use acp::{AcpAgentResponse, AcpRegisterRequest, AcpRegisterResponse, AgentListResponse};
+pub use bundles::{
+    ApplyBundleResponse, BundleListResponse, BundleSummary, ComposeBundleRequest,
+    ComposeBundleResponse, DeactivateBundleResponse, EvolveBundleResponse,
+};
 pub use chat::{ChatRequest, ChatResponse};
 pub use cns::{CnsHealthResponse, CnsVarietyResponse, VarietyCounterResponse};
 pub use curator::{

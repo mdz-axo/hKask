@@ -72,6 +72,8 @@ fn main() {
 
         Commands::Keystore { action } => commands::keystore::run(action),
 
+        Commands::Bundle { action } => commands::bundle::run_bundle(action),
+
         Commands::EmbedCorpus { action } => commands::embed_corpus::run(&rt, action),
 
         Commands::Models => commands::models::run(&rt),

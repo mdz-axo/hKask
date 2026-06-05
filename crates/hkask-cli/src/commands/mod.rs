@@ -4,6 +4,7 @@
 //! Each subcommand domain has its own module: agents, chat, curator, ensemble, etc.
 
 pub mod agent;
+pub mod bundle;
 pub mod chat;
 pub mod cns;
 pub mod config;
@@ -66,3 +67,6 @@ pub use chat::{ChatResponse, TokenUsage, chat_with_agent};
 
 // Re-exports from curator
 pub use curator::{curator_dismiss, curator_escalations, curator_metacognition, curator_resolve};
+
+// Re-exports from bundle
+pub use bundle::run_bundle;
