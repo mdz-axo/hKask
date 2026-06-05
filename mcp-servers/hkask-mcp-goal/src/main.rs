@@ -192,7 +192,9 @@ mod tests {
     use rmcp::handler::server::wrapper::Parameters;
 
     fn server() -> GoalServer {
-        let conn = Database::in_memory().expect("in-memory db").conn_arc();
+        let conn = hkask_storage::Database::in_memory()
+            .expect("in-memory db")
+            .conn_arc();
         let sink: Arc<dyn NuEventSink> = Arc::new(NuEventStore::new(Arc::clone(&conn)));
         GoalServer {
             repo: SqliteGoalRepository::new(conn).with_telemetry(sink),
