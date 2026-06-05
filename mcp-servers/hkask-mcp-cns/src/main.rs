@@ -9,7 +9,7 @@
 //! - `cns_health` — Get CNS health status
 
 use hkask_cns::{CnsRuntime, DEFAULT_THRESHOLD};
-use hkask_mcp::server::{McpToolOutput, ToolSpanGuard, validate_identifier};
+use hkask_mcp::server::{ToolSpanGuard, validate_identifier};
 use hkask_types::WebID;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
@@ -104,13 +104,12 @@ impl CnsServer {
 
         self.runtime.increment_variety(&span, &phase).await;
 
-        span_guard.ok(McpToolOutput::new(serde_json::json!({
+        span_guard.ok_json(serde_json::json!({
             "span": span,
             "observer": observer_webid,
             "phase": phase,
             "emitted": true,
         }))
-        .to_json_string())
     }
 
     #[tool(description = "Get variety count for a span pattern via real VarietyMonitor")]
@@ -128,12 +127,11 @@ impl CnsServer {
         let variety_count = self.runtime.variety_for_domain(&span_pattern).await;
         let deficit = variety_count > self.threshold.load(Ordering::Relaxed);
 
-        span.ok(McpToolOutput::new(serde_json::json!({
+        span.ok_json(serde_json::json!({
             "span_pattern": span_pattern,
             "variety_count": variety_count,
             "deficit": deficit,
         }))
-        .to_json_string())
     }
 
     #[tool(description = "Trigger a real algedonic alert via AlgedonicManager")]
@@ -157,21 +155,19 @@ impl CnsServer {
         let alert = self.runtime.check_variety(&span_pattern).await;
 
         match alert {
-            Some(a) => span.ok(McpToolOutput::new(serde_json::json!({
+            Some(a) => span.ok_json(serde_json::json!({
                 "alert_id": a.domain,
                 "span": span_pattern,
                 "severity": severity,
                 "deficit": a.deficit,
                 "triggered": true,
-            }))
-            .to_json_string()),
-            None => span.ok(McpToolOutput::new(serde_json::json!({
+            })),
+            None => span.ok_json(serde_json::json!({
                 "span": span_pattern,
                 "severity": severity,
                 "triggered": true,
                 "deficit": 0,
-            }))
-            .to_json_string()),
+            })),
         }
     }
 
@@ -196,13 +192,12 @@ impl CnsServer {
             .await;
         self.threshold.store(new_threshold, Ordering::Relaxed);
 
-        span.ok(McpToolOutput::new(serde_json::json!({
+        span.ok_json(serde_json::json!({
             "span": span_pattern,
             "old_threshold": old_threshold,
             "new_threshold": new_threshold,
             "calibrated": true,
         }))
-        .to_json_string())
     }
 
     #[tool(description = "List active algedonic alerts from real alert manager")]
@@ -228,11 +223,10 @@ impl CnsServer {
             })
             .collect();
 
-        span.ok(McpToolOutput::new(serde_json::json!({
+        span.ok_json(serde_json::json!({
             "alert_count": alerts.len(),
             "alerts": displayed,
         }))
-        .to_json_string())
     }
 
     #[tool(description = "Get real CNS health status")]
@@ -241,14 +235,13 @@ impl CnsServer {
 
         let health = self.runtime.health().await;
 
-        span.ok(McpToolOutput::new(serde_json::json!({
+        span.ok_json(serde_json::json!({
             "healthy": health.healthy,
             "active_alerts": health.critical_count + health.warning_count,
             "critical_count": health.critical_count,
             "warning_count": health.warning_count,
             "overall_deficit": health.overall_deficit,
         }))
-        .to_json_string())
     }
 }
 

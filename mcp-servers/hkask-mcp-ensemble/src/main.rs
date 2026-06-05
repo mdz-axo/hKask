@@ -88,23 +88,18 @@ impl EnsembleServer {
                 let mut sessions = self.sessions.write().await;
                 sessions.insert(session_id.clone(), Arc::new(RwLock::new(session)));
 
-                span.ok(McpToolOutput::new(serde_json::json!({
+                span.ok_json(serde_json::json!({
                     "session_id": session_id,
                     "description": status.description,
                     "participant_count": status.participant_count,
                     "message_count": status.message_count,
                     "bootstrapped": true,
                 }))
-                .to_json_string())
             }
-            Err(e) => span.error(
-                McpErrorKind::Internal,
-                McpToolOutput::new(serde_json::json!({
-                    "config_path": config_path,
-                    "error": e.to_string(),
-                }))
-                .to_json_string(),
-            ),
+            Err(e) => span.internal_error(serde_json::json!({
+                "config_path": config_path,
+                "error": e.to_string(),
+            })),
         }
     }
 
@@ -151,13 +146,12 @@ impl EnsembleServer {
                     .participant_descriptions
                     .insert(webid, description.clone());
 
-                span.ok(McpToolOutput::new(serde_json::json!({
+                span.ok_json(serde_json::json!({
                     "session_id": session_id,
                     "agent": agent,
                     "role": role,
                     "registered": true,
                 }))
-                .to_json_string())
             }
             None => span.error(
                 McpErrorKind::NotFound,
@@ -196,12 +190,11 @@ impl EnsembleServer {
                 let message = ChatMessage::new(webid, content.clone());
                 session.chat.add_message(message);
 
-                span.ok(McpToolOutput::new(serde_json::json!({
+                span.ok_json(serde_json::json!({
                     "session_id": session_id,
                     "from_agent": from_agent,
                     "sent": true,
                 }))
-                .to_json_string())
             }
             None => span.error(
                 McpErrorKind::NotFound,
@@ -231,7 +224,7 @@ impl EnsembleServer {
                 let session = session_lock.read().await;
                 let status = session.get_status();
 
-                span.ok(McpToolOutput::new(serde_json::json!({
+                span.ok_json(serde_json::json!({
                     "session_id": status.session_id,
                     "description": status.description,
                     "participant_count": status.participant_count,
@@ -243,7 +236,6 @@ impl EnsembleServer {
                         "description": p.description,
                     })).collect::<Vec<_>>(),
                 }))
-                .to_json_string())
             }
             None => span.error(
                 McpErrorKind::NotFound,
@@ -273,12 +265,11 @@ impl EnsembleServer {
         let sessions = self.sessions.read().await;
         match sessions.get(&session_id) {
             Some(_session_lock) => {
-                span.ok(McpToolOutput::new(serde_json::json!({
+                span.ok_json(serde_json::json!({
                     "session_id": session_id,
                     "status": "requires_inference_client",
                     "message": "Improv turns require an InferenceClient, which is available via the CLI/API path (kask chat). Use the ensemble API endpoint or kask chat to execute improvisation turns with inference wired.",
                 }))
-                .to_json_string())
             }
             None => span.error(
                 McpErrorKind::NotFound,

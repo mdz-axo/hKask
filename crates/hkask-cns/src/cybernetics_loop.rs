@@ -483,166 +483,15 @@ impl CyberneticsLoop {
                     target,
                     parameters,
                 } => {
-                    // Dampen repeated directives to prevent feedback oscillation
-                    if self
-                        .dampener
-                        .should_dampen_directive(directive_type, *target)
-                        .await
-                    {
-                        tracing::debug!(
-                            target: "cns.cybernetics",
-                            directive_type = directive_type,
-                            "Directive dampened (repeated within window)"
-                        );
-                    } else {
-                        match directive_type.as_str() {
-                            "calibrate_threshold" => {
-                                if let Some(domain) =
-                                    parameters.get("domain").and_then(|v| v.as_str())
-                                    && let Some(new_threshold) =
-                                        parameters.get("new_threshold").and_then(|v| v.as_u64())
-                                {
-                                    let cns = self.cns.read().await;
-                                    cns.calibrate_threshold(domain, new_threshold).await;
-                                    drop(cns);
-                                    tracing::info!(
-                                        target: "cns.cybernetics",
-                                        domain = domain,
-                                        new_threshold = new_threshold,
-                                        "Applied CalibrateThreshold directive from Curation"
-                                    );
-                                }
-                            }
-                            "override_gas_budget" => {
-                                // OverrideGasBudget: Curation can exceed set-point bounds.
-                                // This is the metacognitive override — stronger than AdjustGasBudget.
-                                if let Some(new_budget) =
-                                    parameters.get("new_budget").and_then(|v| v.as_u64())
-                                {
-                                    let mut budgets = self.gas_budgets.write().await;
-                                    if let Some(budget) = budgets.get_mut(target) {
-                                        // Override can set budget above or below set-points
-                                        budget.cap = new_budget;
-                                        budget.remaining = new_budget;
-                                        tracing::warn!(
-                                            target: "cns.cybernetics",
-                                            agent = %target,
-                                            new_budget = new_budget,
-                                            "Applied OverrideGasBudget directive from Curation (set-point override)"
-                                        );
-                                    } else {
-                                        budgets.insert(*target, GasBudget::new(new_budget));
-                                        tracing::warn!(
-                                            target: "cns.cybernetics",
-                                            agent = %target,
-                                            new_budget = new_budget,
-                                            "Registered new gas budget from OverrideGasBudget directive"
-                                        );
-                                    }
-                                }
-                            }
-                            "replenish_budget" => {
-                                // ReplenishBudget: Curation can inject gas into an agent's budget.
-                                // This is the gas refund mechanism governed by Curator authority.
-                                // When priority is provided, replenishment is scaled by that weight.
-                                if let Some(amount) =
-                                    parameters.get("amount").and_then(|v| v.as_u64())
-                                {
-                                    let priority =
-                                        parameters.get("priority").and_then(|v| v.as_f64());
-                                    let mut budgets = self.gas_budgets.write().await;
-                                    if let Some(budget) = budgets.get_mut(target) {
-                                        let replenished = if let Some(p) = priority {
-                                            budget.replenish_by_weighted(amount, p)
-                                        } else {
-                                            budget.replenish_by(amount);
-                                            amount.min(budget.cap - budget.remaining)
-                                        };
-                                        drop(budgets);
-                                        tracing::info!(
-                                            target: "cns.cybernetics",
-                                            agent = %target,
-                                            amount = amount,
-                                            priority = priority,
-                                            replenished = replenished,
-                                            "Replenished agent gas budget by directive"
-                                        );
-                                    }
-                                }
-                            }
-                            "update_capabilities" => {
-                                tracing::info!(
-                                    target: "cns.cybernetics",
-                                    agent = %target,
-                                    ?parameters,
-                                    "Applied UpdateCapabilities directive from Curation (capabilities updated)"
-                                );
-                            }
-                            "seek_more_evidence" => {
-                                tracing::info!(
-                                    target: "cns.cybernetics",
-                                    ?parameters,
-                                    "Applied SeekMoreEvidence directive from Curation (metacognition loop triggered)"
-                                );
-                            }
-                            "throttle" | "dampen" | "escalate" | "circuit_break" => {
-                                tracing::debug!(
-                                    target: "cns.cybernetics",
-                                    directive_type = directive_type,
-                                    "Received informational directive (already self-produced)"
-                                );
-                            }
-                            _ => {
-                                tracing::warn!(
-                                    target: "cns.cybernetics",
-                                    directive_type = directive_type,
-                                    "Unknown directive type in CyberneticsLoop inbox"
-                                );
-                            }
-                        }
-                        // Persist directive acknowledgment to NuEventStore for auditability.
-                        if let Some(ref sink) = self.event_sink {
-                            let ack = NuEvent::new(
-                                WebID::new(),
-                                Span::new(
-                                    SpanNamespace::new("cns.curation"),
-                                    "directive_acknowledged",
-                                ),
-                                Phase::Act,
-                                serde_json::json!({
-                                    "directive_type": directive_type,
-                                    "outcome": "applied",
-                                }),
-                                0,
-                            );
-                            if let Err(e) = sink.persist(&ack) {
-                                tracing::warn!(
-                                    target: "cns.cybernetics",
-                                    error = %e,
-                                    "Failed to persist directive acknowledgment"
-                                );
-                            }
-                        }
-                        tracing::info!(
-                            target: "cns.cybernetics",
-                            directive_type = directive_type,
-                            outcome = "applied",
-                            "Directive acknowledged (Curation→Cybernetics compliance)"
-                        );
-                    }
+                    self.handle_curation_directive(directive_type, *target, parameters)
+                        .await;
                 }
                 LoopPayload::AlgedonicAlert {
                     current,
                     threshold,
                     deficit,
                 } => {
-                    tracing::info!(
-                        target: "cns.cybernetics",
-                        current = current,
-                        threshold = threshold,
-                        deficit = deficit,
-                        "Received algedonic alert in CyberneticsLoop inbox"
-                    );
+                    self.handle_algedonic_alert(*current, *threshold, *deficit);
                 }
                 _ => {
                     tracing::debug!(
@@ -660,6 +509,213 @@ impl CyberneticsLoop {
                 "Processed inbox messages"
             );
         }
+    }
+
+    // ── Inbox message handlers ──────────────────────────────────────────
+
+    /// Handle a CurationDirective payload from the inbox.
+    ///
+    /// Dampens repeated directives, applies the directive, persists
+    /// an acknowledgment event, and logs compliance.
+    async fn handle_curation_directive(
+        &self,
+        directive_type: &str,
+        target: WebID,
+        parameters: &serde_json::Value,
+    ) {
+        // Dampen repeated directives to prevent feedback oscillation
+        if self
+            .dampener
+            .should_dampen_directive(directive_type, target)
+            .await
+        {
+            tracing::debug!(
+                target: "cns.cybernetics",
+                directive_type = directive_type,
+                "Directive dampened (repeated within window)"
+            );
+        } else {
+            self.apply_directive(directive_type, target, parameters).await;
+            self.persist_directive_acknowledgment(directive_type);
+            tracing::info!(
+                target: "cns.cybernetics",
+                directive_type = directive_type,
+                outcome = "applied",
+                "Directive acknowledged (Curation→Cybernetics compliance)"
+            );
+        }
+    }
+
+    /// Apply a directive based on its type string.
+    ///
+    /// Dispatches to the appropriate handler for known directive types,
+    /// logs informational directives that are self-produced, and warns on
+    /// unknown types.
+    async fn apply_directive(
+        &self,
+        directive_type: &str,
+        target: WebID,
+        parameters: &serde_json::Value,
+    ) {
+        match directive_type {
+            "calibrate_threshold" => {
+                self.apply_calibrate_threshold(parameters).await;
+            }
+            "override_gas_budget" => {
+                self.apply_override_gas_budget(target, parameters).await;
+            }
+            "replenish_budget" => {
+                self.apply_replenish_budget(target, parameters).await;
+            }
+            "update_capabilities" => {
+                tracing::info!(
+                    target: "cns.cybernetics",
+                    agent = %target,
+                    ?parameters,
+                    "Applied UpdateCapabilities directive from Curation (capabilities updated)"
+                );
+            }
+            "seek_more_evidence" => {
+                tracing::info!(
+                    target: "cns.cybernetics",
+                    ?parameters,
+                    "Applied SeekMoreEvidence directive from Curation (metacognition loop triggered)"
+                );
+            }
+            "throttle" | "dampen" | "escalate" | "circuit_break" => {
+                tracing::debug!(
+                    target: "cns.cybernetics",
+                    directive_type = directive_type,
+                    "Received informational directive (already self-produced)"
+                );
+            }
+            _ => {
+                tracing::warn!(
+                    target: "cns.cybernetics",
+                    directive_type = directive_type,
+                    "Unknown directive type in CyberneticsLoop inbox"
+                );
+            }
+        }
+    }
+
+    /// Apply a CalibrateThreshold directive from Curation.
+    async fn apply_calibrate_threshold(&self, parameters: &serde_json::Value) {
+        if let Some(domain) =
+            parameters.get("domain").and_then(|v| v.as_str())
+            && let Some(new_threshold) =
+                parameters.get("new_threshold").and_then(|v| v.as_u64())
+        {
+            let cns = self.cns.read().await;
+            cns.calibrate_threshold(domain, new_threshold).await;
+            drop(cns);
+            tracing::info!(
+                target: "cns.cybernetics",
+                domain = domain,
+                new_threshold = new_threshold,
+                "Applied CalibrateThreshold directive from Curation"
+            );
+        }
+    }
+
+    /// Apply an OverrideGasBudget directive from Curation.
+    ///
+    /// OverrideGasBudget: Curation can exceed set-point bounds.
+    /// This is the metacognitive override — stronger than AdjustGasBudget.
+    async fn apply_override_gas_budget(&self, target: WebID, parameters: &serde_json::Value) {
+        if let Some(new_budget) =
+            parameters.get("new_budget").and_then(|v| v.as_u64())
+        {
+            let mut budgets = self.gas_budgets.write().await;
+            if let Some(budget) = budgets.get_mut(&target) {
+                // Override can set budget above or below set-points
+                budget.cap = new_budget;
+                budget.remaining = new_budget;
+                tracing::warn!(
+                    target: "cns.cybernetics",
+                    agent = %target,
+                    new_budget = new_budget,
+                    "Applied OverrideGasBudget directive from Curation (set-point override)"
+                );
+            } else {
+                budgets.insert(target, GasBudget::new(new_budget));
+                tracing::warn!(
+                    target: "cns.cybernetics",
+                    agent = %target,
+                    new_budget = new_budget,
+                    "Registered new gas budget from OverrideGasBudget directive"
+                );
+            }
+        }
+    }
+
+    /// Apply a ReplenishBudget directive from Curation.
+    ///
+    /// ReplenishBudget: Curation can inject gas into an agent's budget.
+    /// This is the gas refund mechanism governed by Curator authority.
+    /// When priority is provided, replenishment is scaled by that weight.
+    async fn apply_replenish_budget(&self, target: WebID, parameters: &serde_json::Value) {
+        if let Some(amount) =
+            parameters.get("amount").and_then(|v| v.as_u64())
+        {
+            let priority =
+                parameters.get("priority").and_then(|v| v.as_f64());
+            let mut budgets = self.gas_budgets.write().await;
+            if let Some(budget) = budgets.get_mut(&target) {
+                let replenished = if let Some(p) = priority {
+                    budget.replenish_by_weighted(amount, p)
+                } else {
+                    budget.replenish_by(amount);
+                    amount.min(budget.cap - budget.remaining)
+                };
+                drop(budgets);
+                tracing::info!(
+                    target: "cns.cybernetics",
+                    agent = %target,
+                    amount = amount,
+                    priority = priority,
+                    replenished = replenished,
+                    "Replenished agent gas budget by directive"
+                );
+            }
+        }
+    }
+
+    /// Persist directive acknowledgment to NuEventStore for auditability.
+    fn persist_directive_acknowledgment(&self, directive_type: &str) {
+        if let Some(ref sink) = self.event_sink {
+            let ack = NuEvent::new(
+                WebID::new(),
+                Span::new(
+                    SpanNamespace::new("cns.curation"),
+                    "directive_acknowledged",
+                ),
+                Phase::Act,
+                serde_json::json!({
+                    "directive_type": directive_type,
+                    "outcome": "applied",
+                }),
+                0,
+            );
+            if let Err(e) = sink.persist(&ack) {
+                tracing::warn!(
+                    target: "cns.cybernetics",
+                    error = %e,
+                    "Failed to persist directive acknowledgment"
+                );
+            }
+        }
+    }
+
+    /// Handle an AlgedonicAlert payload from the inbox.
+    fn handle_algedonic_alert(&self, current: u64, threshold: u64, deficit: u64) {
+        tracing::info!(
+            target: "cns.cybernetics",
+            current = current,
+            threshold = threshold,
+            deficit = deficit,
+            "Received algedonic alert in CyberneticsLoop inbox"
+        );
     }
 }
 

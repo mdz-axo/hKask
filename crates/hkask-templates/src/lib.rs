@@ -17,6 +17,7 @@
 //! - Prevents convergence to homogeneous, predictable behavior
 
 pub mod adapters;
+pub mod bundle_evolver;
 pub mod embedding_port;
 pub mod inference_port;
 pub mod lexicon;
@@ -29,15 +30,16 @@ pub mod registry;
 pub mod registry_sqlite;
 pub mod response_contract;
 
+pub use bundle_evolver::{BundleEvolver, EvolutionContext, EvolvedSkillInfo, UnchangedSkillInfo};
 pub use embedding_port::OkapiEmbedding;
 pub use hkask_types::ports::BundleRegistryIndex;
 pub use hkask_types::ports::EmbeddingGenerationPort;
 pub use hkask_types::ports::InferencePort;
 pub use hkask_types::ports::Skill;
 pub use hkask_types::{
-    BundleComplementarity, BundleConflict, BundleManifest, BundleManifestStep, CascadePhase,
-    ComplementarityType, ConflictResolution, ConflictType, GasConfig, SkillPolarity,
-    ValidationResult,
+    BundleComplementarity, BundleConflict, BundleDependencyIndex, BundleManifest,
+    BundleManifestStep, BundleSkillChange, CascadePhase, ComplementarityType, CompositionError,
+    ConflictResolution, ConflictType, GasConfig, SkillPolarity, ValidationResult, VersionBump,
 };
 pub use inference_port::OkapiInference;
 pub use lexicon::{load_hlexicon_default, load_hlexicon_from_file, load_hlexicon_from_yaml};

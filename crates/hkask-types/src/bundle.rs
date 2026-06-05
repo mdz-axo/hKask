@@ -13,6 +13,48 @@ use crate::lexicon::TemplateType;
 use crate::visibility::Visibility;
 
 // =============================================================================
+// Composition Error Types
+// =============================================================================
+
+/// Errors that can occur during bundle composition.
+///
+/// These cover the full composition pipeline: YAML parsing, validation,
+/// and conflict resolution failures.
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum CompositionError {
+    /// The LLM output could not be parsed as valid YAML.
+    #[error("YAML parse error: {message}")]
+    YamlParse { message: String },
+
+    /// The parsed YAML is valid but doesn't conform to the bundle schema.
+    #[error("Schema validation failed: {details}")]
+    SchemaValidation { details: String },
+
+    /// The manifest has validation errors (P1/P6/P7 violations).
+    #[error("Manifest validation failed with {error_count} errors: {errors:?}")]
+    ValidationFailed {
+        error_count: usize,
+        errors: Vec<String>,
+    },
+
+    /// No skills were found for the requested skill IDs.
+    #[error("Skills not found: {missing_ids:?}")]
+    SkillsNotFound { missing_ids: Vec<String> },
+
+    /// An existing bundle already contains these skills (smart match hit).
+    #[error("Existing bundle '{bundle_id}' already contains these skills")]
+    ExistingBundle { bundle_id: String },
+
+    /// The composition exceeded the gas budget.
+    #[error("Composition gas budget exceeded: needed {needed}, cap {cap}")]
+    GasBudgetExceeded { needed: u32, cap: u32 },
+
+    /// The LLM produced output that couldn't be recovered after retry.
+    #[error("Composition failed after {attempts} attempts: {message}")]
+    RetryExhausted { attempts: u32, message: String },
+}
+
+// =============================================================================
 // Enums
 // =============================================================================
 
@@ -636,6 +678,158 @@ impl ValidationResult {
     pub fn has_warnings(&self) -> bool {
         !self.warnings.is_empty()
     }
+}
+
+// =============================================================================
+// CNS Span Namespaces
+// =============================================================================
+
+/// CNS span namespaces for bundle composition operations.
+/// These follow the hKask CNS naming convention: `cns.prompt.<operation>`.
+pub mod cns_spans {
+    /// Span namespace for bundle composition operations.
+    pub const COMPOSE: &str = "cns.prompt.skill-bundler.compose";
+    /// Span namespace for bundle application.
+    pub const APPLY: &str = "cns.prompt.skill-bundler.apply";
+    /// Span namespace for bundle evolution.
+    pub const EVOLVE: &str = "cns.prompt.skill-bundler.evolve";
+    /// Span namespace for bundle validation.
+    pub const VALIDATE: &str = "cns.prompt.skill-bundler.validate";
+}
+
+// =============================================================================
+// Bundle Versioning
+// =============================================================================
+
+/// Bundle versioning strategy.
+///
+/// hKask uses semantic versioning for bundles:
+/// - **Major**: Structural changes to the cascade (reordering phases, adding/removing steps)
+/// - **Minor**: New skill added/removed, conflict/complementarity changes
+/// - **Patch**: Instruction-only changes within skills, gas budget adjustments
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum VersionBump {
+    /// Structural cascade change (phase reorder, step add/remove)
+    Major,
+    /// Skill composition change (skill add/remove, conflict/complementarity update)
+    Minor,
+    /// Instruction-only change (prompt text, gas budget)
+    Patch,
+}
+
+impl VersionBump {
+    /// Apply the version bump to a semver string ("major.minor.patch").
+    /// Returns the new version string.
+    pub fn apply(&self, version: &str) -> String {
+        let parts: Vec<u32> = version.split('.').filter_map(|s| s.parse().ok()).collect();
+
+        let (mut major, mut minor, mut patch) = match parts.as_slice() {
+            [ma, mi, pa] => (*ma, *mi, *pa),
+            [ma, mi] => (*ma, *mi, 0),
+            [ma] => (*ma, 0, 0),
+            _ => (0, 0, 0),
+        };
+
+        match self {
+            VersionBump::Major => {
+                major += 1;
+                minor = 0;
+                patch = 0;
+            }
+            VersionBump::Minor => {
+                minor += 1;
+                patch = 0;
+            }
+            VersionBump::Patch => {
+                patch += 1;
+            }
+        }
+
+        format!("{}.{}.{}", major, minor, patch)
+    }
+}
+
+// =============================================================================
+// Bundle Dependency Tracking
+// =============================================================================
+
+/// Tracks which bundles depend on which skills.
+/// Used for evolution: when a skill changes, we know which bundles need updating.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BundleDependencyIndex {
+    /// Map from skill ID to the set of bundle IDs that depend on it.
+    /// When a skill's content_hash changes, these bundles need evolution.
+    skill_to_bundles: std::collections::HashMap<String, std::collections::HashSet<String>>,
+}
+
+impl BundleDependencyIndex {
+    /// Create a new empty dependency index.
+    pub fn new() -> Self {
+        Self {
+            skill_to_bundles: std::collections::HashMap::new(),
+        }
+    }
+
+    /// Register a bundle, recording its skill dependencies.
+    pub fn register_bundle(&mut self, bundle: &BundleManifest) {
+        for skill in &bundle.skills {
+            self.skill_to_bundles
+                .entry(skill.id.clone())
+                .or_default()
+                .insert(bundle.id.clone());
+        }
+    }
+
+    /// Remove a bundle from the index.
+    pub fn remove_bundle(&mut self, bundle: &BundleManifest) {
+        for skill in &bundle.skills {
+            if let Some(dep_set) = self.skill_to_bundles.get_mut(&skill.id) {
+                dep_set.remove(&bundle.id);
+                if dep_set.is_empty() {
+                    self.skill_to_bundles.remove(&skill.id);
+                }
+            }
+        }
+    }
+
+    /// Find all bundles that depend on a given skill.
+    pub fn bundles_dependent_on(&self, skill_id: &str) -> Vec<&str> {
+        self.skill_to_bundles
+            .get(skill_id)
+            .map(|set| set.iter().map(|s| s.as_str()).collect())
+            .unwrap_or_default()
+    }
+
+    /// Find all skills that have changed (by content hash) and return the
+    /// bundles that need evolution.
+    pub fn bundles_needing_evolution(&self, changed_skills: &[BundleSkillChange]) -> Vec<String> {
+        let mut bundles: std::collections::HashSet<&str> = std::collections::HashSet::new();
+        for change in changed_skills {
+            if let Some(dep_set) = self.skill_to_bundles.get(&change.skill_id) {
+                bundles.extend(dep_set.iter().map(|s| s.as_str()));
+            }
+        }
+        bundles.iter().map(|s| s.to_string()).collect()
+    }
+}
+
+impl Default for BundleDependencyIndex {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Represents a change to a skill's content.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BundleSkillChange {
+    /// The skill ID that changed.
+    pub skill_id: String,
+    /// The previous content hash.
+    pub previous_hash: String,
+    /// The current content hash.
+    pub current_hash: String,
+    /// Whether the polarity changed.
+    pub polarity_changed: bool,
 }
 
 #[cfg(test)]

@@ -251,32 +251,26 @@ impl KeystoreServer {
                     match self.keychain.store(&webid, &full_key) {
                         Ok(()) => {
                             self.save_vault().await;
-                            span.ok(McpToolOutput::new(json!({
+                            span.ok_json(json!({
                                 "key": key,
                                 "service": service.unwrap_or_else(|| "default".to_string()),
                                 "set": true,
                                 "encrypted": true,
                                 "persisted": true,
                             }))
-                            .to_json_string())
                         }
-                        Err(e) => span.error(
-                            McpErrorKind::Internal,
-                            McpToolError::internal(format!("keychain store failed: {}", e))
-                                .to_json_string(),
-                        ),
+                        Err(e) => span.internal_error(json!({
+                            "error": format!("keychain store failed: {}", e),
+                        })),
                     }
                 }
-                Err(e) => span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal(format!("encryption failed: {}", e)).to_json_string(),
-                ),
+                Err(e) => span.internal_error(json!({
+                    "error": format!("encryption failed: {}", e),
+                })),
             },
-            Err(e) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(format!("encryption service failed: {}", e))
-                    .to_json_string(),
-            ),
+            Err(e) => span.internal_error(json!({
+                "error": format!("encryption service failed: {}", e),
+            })),
         }
     }
 
@@ -314,25 +308,20 @@ impl KeystoreServer {
                     Ok(enc) => match enc.decrypt(&entry.encrypted) {
                         Ok(plaintext) => {
                             let value = String::from_utf8_lossy(&plaintext).to_string();
-                            span.ok(McpToolOutput::new(json!({
+                            span.ok_json(json!({
                                 "key": key,
                                 "value": value,
                                 "found": true,
                                 "decrypted": true,
                             }))
-                            .to_json_string())
                         }
-                        Err(e) => span.error(
-                            McpErrorKind::Internal,
-                            McpToolError::internal(format!("decryption failed: {}", e))
-                                .to_json_string(),
-                        ),
+                        Err(e) => span.internal_error(json!({
+                            "error": format!("decryption failed: {}", e),
+                        })),
                     },
-                    Err(e) => span.error(
-                        McpErrorKind::Internal,
-                        McpToolError::internal(format!("encryption service failed: {}", e))
-                            .to_json_string(),
-                    ),
+                    Err(e) => span.internal_error(json!({
+                        "error": format!("encryption service failed: {}", e),
+                    })),
                 }
             }
             None => span.error(
@@ -400,23 +389,19 @@ impl KeystoreServer {
                     drop(entries); // Release write lock before I/O
 
                     self.save_vault().await;
-                    span.ok(McpToolOutput::new(json!({
+                    span.ok_json(json!({
                         "key": key,
                         "rotated": true,
                         "re_encrypted": true,
                     }))
-                    .to_json_string())
                 }
-                Err(e) => span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal(format!("encryption failed: {}", e)).to_json_string(),
-                ),
+                Err(e) => span.internal_error(json!({
+                    "error": format!("encryption failed: {}", e),
+                })),
             },
-            Err(e) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(format!("encryption service failed: {}", e))
-                    .to_json_string(),
-            ),
+            Err(e) => span.internal_error(json!({
+                "error": format!("encryption service failed: {}", e),
+            })),
         }
     }
 
@@ -463,11 +448,10 @@ impl KeystoreServer {
             drop(entries); // Release write lock before I/O
             self.save_vault().await;
 
-            span.ok(McpToolOutput::new(json!({
+            span.ok_json(json!({
                 "key": key,
                 "deleted": true,
             }))
-            .to_json_string())
         } else {
             span.error(
                 McpErrorKind::NotFound,
@@ -483,11 +467,10 @@ impl KeystoreServer {
         let entries = self.entries.read().await;
         let keys: Vec<&String> = entries.keys().collect();
 
-        span.ok(McpToolOutput::new(json!({
+        span.ok_json(json!({
             "key_count": keys.len(),
             "keys": keys,
         }))
-        .to_json_string())
     }
 }
 

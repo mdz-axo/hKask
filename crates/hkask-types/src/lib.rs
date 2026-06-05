@@ -39,9 +39,10 @@ pub use agent_def::{
 };
 pub use audit::{AuditEntry, AuditLogPort, AuditOutcome};
 pub use bundle::{
-    BundleComplementarity, BundleConflict, BundleManifest, BundleManifestStep, CascadePhase,
-    ComplementarityType, ConflictResolution, ConflictType, GasConfig, SkillPolarity,
-    ValidationResult,
+    BundleComplementarity, BundleConflict, BundleDependencyIndex, BundleManifest,
+    BundleManifestStep, BundleSkill, BundleSkillChange, CascadePhase, ComplementarityType,
+    CompositionError, ConflictResolution, ConflictType, GasConfig, SkillPolarity, ValidationResult,
+    VersionBump,
 };
 pub use capability::tokens::ConsolidationToken;
 pub use capability::{

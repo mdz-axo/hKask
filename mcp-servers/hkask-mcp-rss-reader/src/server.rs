@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use base64::Engine;
-use hkask_mcp::server::{McpToolError, McpToolOutput, ToolSpanGuard, validate_tool_url};
+use hkask_mcp::server::{McpToolError, ToolSpanGuard, validate_tool_url};
 use hkask_storage::Database;
 use hkask_types::{McpErrorKind, WebID};
 use reqwest::Client;
@@ -271,15 +271,13 @@ impl RssServer {
         }).await;
 
         match result {
-            Ok(Ok(v)) => span.ok(McpToolOutput::new(v).to_json_string()),
-            Ok(Err(e)) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(e.to_string()).to_json_string(),
-            ),
-            Err(e) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
-            ),
+            Ok(Ok(v)) => span.ok_json(v),
+            Ok(Err(e)) => span.internal_error(serde_json::json!({
+                "error": e.to_string(),
+            })),
+            Err(e) => span.internal_error(serde_json::json!({
+                "error": format!("Task error: {}", e),
+            })),
         }
     }
 
@@ -632,15 +630,13 @@ impl RssServer {
         let result = spawn_db(db, move |conn| import_opml(conn, &opml_content)).await;
 
         match result {
-            Ok(Ok(v)) => span.ok(McpToolOutput::new(v).to_json_string()),
-            Ok(Err(e)) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(e.to_string()).to_json_string(),
-            ),
-            Err(e) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
-            ),
+            Ok(Ok(v)) => span.ok_json(v),
+            Ok(Err(e)) => span.internal_error(serde_json::json!({
+                "error": e.to_string(),
+            })),
+            Err(e) => span.internal_error(serde_json::json!({
+                "error": format!("Task error: {}", e),
+            })),
         }
     }
 
