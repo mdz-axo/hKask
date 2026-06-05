@@ -10,9 +10,11 @@
 //! - spec/graph/query — Query specification graph
 //! - spec/graph/validate — Validate collection coherence
 
-use hkask_mcp::server::{
-    McpToolError, ServerContext, ToolSpanGuard, run_stdio_server, validate_identifier,
-};
+mod types;
+
+use hkask_mcp::server::{McpToolError, ServerContext, ToolSpanGuard, run_stdio_server};
+use hkask_mcp::validate_field;
+
 use hkask_storage::spec_types::{
     DomainAnchor, GoalSpec, Spec, SpecCategory, SpecError, SpecId, SpecStore,
 };
@@ -22,155 +24,14 @@ use hkask_types::{
 };
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-
-// ── Response types ───────────────────────────────────────────
-
-#[derive(Debug, Serialize)]
-pub struct GoalCaptureResponse {
-    pub spec_id: String,
-    pub category: String,
-    pub domain_anchor: String,
-    pub status: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct GoalDecomposeResponse {
-    pub spec_id: String,
-    pub goal_index: usize,
-    pub sub_goals_added: usize,
-}
-
-#[derive(Debug, Serialize)]
-pub struct RequireBindResponse {
-    pub spec_id: String,
-    pub goal_index: usize,
-    pub capability: String,
-    pub authority: String,
-    pub enforced: bool,
-}
-
-#[derive(Debug, Serialize)]
-pub struct CurateEvaluateResponse {
-    pub spec_id: String,
-    pub decision: String,
-    pub rationale: String,
-    pub coherence_score: f64,
-}
-
-#[derive(Debug, Serialize)]
-pub struct CurateReconcileResponse {
-    pub resolution: String,
-    pub spec_ids: Vec<String>,
-    pub tension: String,
-    pub tensions: Vec<TensionReport>,
-    pub status: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct TensionReport {
-    pub spec_a: String,
-    pub spec_b: String,
-    pub overlapping_goals: Vec<String>,
-    pub jaccard_score: f64,
-}
-
-#[derive(Debug, Serialize)]
-pub struct CurateCultivateResponse {
-    pub coherence_score: f64,
-    pub threshold: f64,
-    pub above_threshold: bool,
-    pub spec_count: usize,
-    pub categories_covered: Vec<String>,
-    pub categories_missing: Vec<String>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct GraphNodeResponse {
-    pub id: String,
-    pub name: String,
-    pub category: String,
-    pub complete: bool,
-}
-
-#[derive(Debug, Serialize)]
-pub struct GraphQueryResponse {
-    pub count: usize,
-    pub specs: Vec<GraphNodeResponse>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct GraphValidateResponse {
-    pub valid: bool,
-    pub coherence_score: f64,
-    pub threshold: f64,
-    pub violations: Vec<String>,
-    pub suggestions: Vec<String>,
-    pub spec_count: usize,
-}
-
-// ── Request types ────────────────────────────────────────────
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GoalCaptureRequest {
-    pub description: String,
-    pub category: String,
-    pub domain_anchor: String,
-    pub criteria: Option<Vec<String>>,
-    pub capability_token: Option<String>,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GoalDecomposeRequest {
-    pub spec_id: String,
-    pub goal_index: usize,
-    pub sub_goals: Vec<String>,
-    pub capability_token: Option<String>,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct RequireBindRequest {
-    pub spec_id: String,
-    pub goal_index: usize,
-    pub capability: String,
-    pub authority: String,
-    pub capability_token: Option<String>,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct CurateEvaluateRequest {
-    pub spec_id: String,
-    pub rationale_hint: Option<String>,
-    pub capability_token: Option<String>,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct CurateReconcileRequest {
-    pub spec_ids: Vec<String>,
-    pub tension_description: String,
-    pub capability_token: Option<String>,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct CurateCultivateRequest {
-    pub coherence_threshold: Option<f64>,
-    pub capability_token: Option<String>,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GraphQueryRequest {
-    pub category: Option<String>,
-    pub domain_anchor: Option<String>,
-    pub capability_token: Option<String>,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct GraphValidateRequest {
-    pub coherence_threshold: Option<f64>,
-    pub capability_token: Option<String>,
-}
+use types::{
+    CurateCultivateRequest, CurateCultivateResponse, CurateEvaluateRequest, CurateEvaluateResponse,
+    CurateReconcileRequest, CurateReconcileResponse, GoalCaptureRequest, GoalCaptureResponse,
+    GoalDecomposeRequest, GoalDecomposeResponse, GraphNodeResponse, GraphQueryRequest,
+    GraphQueryResponse, GraphValidateRequest, GraphValidateResponse, RequireBindRequest,
+    RequireBindResponse, TensionReport,
+};
 
 // ── Server ───────────────────────────────────────────────────
 
@@ -310,9 +171,7 @@ impl SpecServer {
     ) -> String {
         let span = ToolSpanGuard::new("spec:goal_decompose", &self.webid);
 
-        if let Err(e) = validate_identifier("spec_id", &spec_id, 256) {
-            return span.error(e.kind, e.to_json_string());
-        }
+        validate_field!(span, "spec_id", &spec_id, 256);
 
         if let Err(e) = self.verify_capability(
             capability_token.as_deref(),
@@ -386,9 +245,7 @@ impl SpecServer {
     ) -> String {
         let span = ToolSpanGuard::new("spec:require_bind", &self.webid);
 
-        if let Err(e) = validate_identifier("spec_id", &spec_id, 256) {
-            return span.error(e.kind, e.to_json_string());
-        }
+        validate_field!(span, "spec_id", &spec_id, 256);
 
         if let Err(e) = self.verify_capability(
             capability_token.as_deref(),
@@ -453,9 +310,7 @@ impl SpecServer {
     ) -> String {
         let span = ToolSpanGuard::new("spec:curate_evaluate", &self.webid);
 
-        if let Err(e) = validate_identifier("spec_id", &spec_id, 256) {
-            return span.error(e.kind, e.to_json_string());
-        }
+        validate_field!(span, "spec_id", &spec_id, 256);
 
         if let Err(e) = self.verify_capability(
             capability_token.as_deref(),

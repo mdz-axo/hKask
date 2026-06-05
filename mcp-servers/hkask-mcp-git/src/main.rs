@@ -5,7 +5,8 @@
 
 use hkask_agents::adapters::git_cas::GitCasAdapter;
 use hkask_mcp::adapter_container::AdapterContainer;
-use hkask_mcp::server::{McpToolError, ToolSpanGuard, validate_identifier, validate_tool_url};
+use hkask_mcp::server::{McpToolError, ToolSpanGuard, validate_tool_url};
+use hkask_mcp::validate_field;
 use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -96,9 +97,7 @@ impl GitServer {
     ) -> String {
         let span = ToolSpanGuard::new("git:resolve", &self.webid);
 
-        if let Err(e) = validate_identifier("git_ref", &git_ref, 256) {
-            return span.error(e.kind, e.to_json_string());
-        }
+        validate_field!(span, "git_ref", &git_ref, 256);
 
         if let Ok(Some(adapter)) = self.adapter_container.get_git_cas() {
             match adapter.resolve_sha(&git_ref) {

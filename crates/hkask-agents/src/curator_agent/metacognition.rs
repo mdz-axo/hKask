@@ -416,6 +416,176 @@ impl MetacognitionLoop {
     pub async fn issue_directive(&self, directive: CuratorDirective) -> Option<TraceId> {
         self.context.issue_directive(directive).await
     }
+
+    // -----------------------------------------------------------------------
+    // Act helpers — extracted from HkaskLoop::act()
+    // -----------------------------------------------------------------------
+
+    /// Handle a Calibrate (throttle) action: issue threshold directive,
+    /// post escalation, and calibrate CNS threshold directly.
+    async fn act_on_throttle(&self, action: &LoopAction) {
+        let domain = action
+            .parameters
+            .get("domain")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let new_threshold = action
+            .parameters
+            .get("new_threshold")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(self.config.thresholds.variety_deficit);
+        let deficit = action
+            .parameters
+            .get("deficit")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+
+        if domain == "variety" {
+            // Issue CalibrateThreshold directive through dispatch (5.3)
+            let directive = CuratorDirective::CalibrateThreshold {
+                domain: "variety".to_string(),
+                new_threshold,
+            };
+            self.issue_directive(directive).await;
+
+            // Post escalation for variety deficit
+            let template_id = hkask_types::TemplateID::new();
+            let bot_id = BotID::new();
+            let error_context = format!(
+                "Total variety deficit ({}) exceeds threshold ({})",
+                deficit, self.config.thresholds.variety_deficit
+            );
+            if let Err(e) = self.context.escalation_queue().add(
+                template_id,
+                bot_id,
+                format!("Variety deficit: {}", deficit),
+                0.6,
+                0,
+                error_context,
+            ) {
+                warn!(
+                    target: "curator.metacognition",
+                    error = %e,
+                    "Failed to add variety deficit escalation"
+                );
+            }
+
+            // Calibrate CNS threshold directly (5.3 ADAPT subloop)
+            self.context
+                .cns()
+                .calibrate_threshold("variety", new_threshold)
+                .await;
+        }
+    }
+
+    /// Handle an Escalate action: route to the appropriate escalation
+    /// handler based on the metric (critical_alerts, bot_failures, or unknown).
+    async fn act_on_escalate(&self, action: &LoopAction) {
+        let metric = action
+            .parameters
+            .get("metric")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+
+        match metric {
+            "critical_alerts" => {
+                let count = action
+                    .parameters
+                    .get("count")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0) as usize;
+
+                warn!(
+                    target: "curator.metacognition",
+                    critical_alerts = count,
+                    threshold = self.config.thresholds.critical_alerts,
+                    "Critical alert count exceeds threshold"
+                );
+
+                let template_id = hkask_types::TemplateID::new();
+                let bot_id = BotID::new();
+                let error_context = format!(
+                    "Critical alert count ({}) exceeds threshold ({})",
+                    count, self.config.thresholds.critical_alerts
+                );
+
+                if let Err(e) = self.context.escalation_queue().add(
+                    template_id,
+                    bot_id,
+                    format!("System has {} critical alerts", count),
+                    0.3,
+                    0,
+                    error_context,
+                ) {
+                    warn!(
+                        target: "curator.metacognition",
+                        error = %e,
+                        "Failed to add critical alert escalation"
+                    );
+                }
+            }
+            "bot_failures" => {
+                let count = action
+                    .parameters
+                    .get("failed_count")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0) as usize;
+                let bot_names: Vec<String> = action
+                    .parameters
+                    .get("bot_names")
+                    .and_then(|v| v.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| v.as_str().map(String::from))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+
+                warn!(
+                    target: "curator.metacognition",
+                    failed_bots = count,
+                    threshold = self.config.thresholds.bot_failures,
+                    "Bot failure count exceeds threshold"
+                );
+
+                let template_id = hkask_types::TemplateID::new();
+                let bot_id = BotID::new();
+                let error_context =
+                    format!("{} bots in critical state: {}", count, bot_names.join(", "));
+
+                if let Err(e) = self.context.escalation_queue().add(
+                    template_id,
+                    bot_id,
+                    format!("{} bots require attention", count),
+                    0.4,
+                    0,
+                    error_context,
+                ) {
+                    warn!(
+                        target: "curator.metacognition",
+                        error = %e,
+                        "Failed to add bot failure escalation"
+                    );
+                }
+            }
+            _ => {
+                warn!(
+                    target: "curator.metacognition",
+                    metric = %metric,
+                    "Unknown escalation metric in MetacognitionLoop act()"
+                );
+            }
+        }
+    }
+
+    /// Log an unhandled action type (no-op).
+    fn act_on_no_action(&self, action: &LoopAction) {
+        info!(
+            target: "curator.metacognition",
+            action_type = ?action.action_type,
+            "Unhandled action type in MetacognitionLoop act()"
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -601,167 +771,9 @@ impl HkaskLoop for MetacognitionLoop {
     async fn act(&self, actions: &[LoopAction]) {
         for action in actions {
             match action.action_type {
-                ActionType::Calibrate => {
-                    let domain = action
-                        .parameters
-                        .get("domain")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("");
-                    let new_threshold = action
-                        .parameters
-                        .get("new_threshold")
-                        .and_then(|v| v.as_u64())
-                        .unwrap_or(self.config.thresholds.variety_deficit);
-                    let deficit = action
-                        .parameters
-                        .get("deficit")
-                        .and_then(|v| v.as_u64())
-                        .unwrap_or(0);
-
-                    if domain == "variety" {
-                        // Issue CalibrateThreshold directive through dispatch (5.3)
-                        let directive = CuratorDirective::CalibrateThreshold {
-                            domain: "variety".to_string(),
-                            new_threshold,
-                        };
-                        self.issue_directive(directive).await;
-
-                        // Post escalation for variety deficit
-                        let template_id = hkask_types::TemplateID::new();
-                        let bot_id = BotID::new();
-                        let error_context = format!(
-                            "Total variety deficit ({}) exceeds threshold ({})",
-                            deficit, self.config.thresholds.variety_deficit
-                        );
-                        if let Err(e) = self.context.escalation_queue().add(
-                            template_id,
-                            bot_id,
-                            format!("Variety deficit: {}", deficit),
-                            0.6,
-                            0,
-                            error_context,
-                        ) {
-                            warn!(
-                                target: "curator.metacognition",
-                                error = %e,
-                                "Failed to add variety deficit escalation"
-                            );
-                        }
-
-                        // Calibrate CNS threshold directly (5.3 ADAPT subloop)
-                        self.context
-                            .cns()
-                            .calibrate_threshold("variety", new_threshold)
-                            .await;
-                    }
-                }
-                ActionType::Escalate => {
-                    let metric = action
-                        .parameters
-                        .get("metric")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("");
-
-                    match metric {
-                        "critical_alerts" => {
-                            let count = action
-                                .parameters
-                                .get("count")
-                                .and_then(|v| v.as_u64())
-                                .unwrap_or(0) as usize;
-
-                            warn!(
-                                target: "curator.metacognition",
-                                critical_alerts = count,
-                                threshold = self.config.thresholds.critical_alerts,
-                                "Critical alert count exceeds threshold"
-                            );
-
-                            let template_id = hkask_types::TemplateID::new();
-                            let bot_id = BotID::new();
-                            let error_context = format!(
-                                "Critical alert count ({}) exceeds threshold ({})",
-                                count, self.config.thresholds.critical_alerts
-                            );
-
-                            if let Err(e) = self.context.escalation_queue().add(
-                                template_id,
-                                bot_id,
-                                format!("System has {} critical alerts", count),
-                                0.3,
-                                0,
-                                error_context,
-                            ) {
-                                warn!(
-                                    target: "curator.metacognition",
-                                    error = %e,
-                                    "Failed to add critical alert escalation"
-                                );
-                            }
-                        }
-                        "bot_failures" => {
-                            let count = action
-                                .parameters
-                                .get("failed_count")
-                                .and_then(|v| v.as_u64())
-                                .unwrap_or(0) as usize;
-                            let bot_names: Vec<String> = action
-                                .parameters
-                                .get("bot_names")
-                                .and_then(|v| v.as_array())
-                                .map(|arr| {
-                                    arr.iter()
-                                        .filter_map(|v| v.as_str().map(String::from))
-                                        .collect()
-                                })
-                                .unwrap_or_default();
-
-                            warn!(
-                                target: "curator.metacognition",
-                                failed_bots = count,
-                                threshold = self.config.thresholds.bot_failures,
-                                "Bot failure count exceeds threshold"
-                            );
-
-                            let template_id = hkask_types::TemplateID::new();
-                            let bot_id = BotID::new();
-                            let error_context = format!(
-                                "{} bots in critical state: {}",
-                                count,
-                                bot_names.join(", ")
-                            );
-
-                            if let Err(e) = self.context.escalation_queue().add(
-                                template_id,
-                                bot_id,
-                                format!("{} bots require attention", count),
-                                0.4,
-                                0,
-                                error_context,
-                            ) {
-                                warn!(
-                                    target: "curator.metacognition",
-                                    error = %e,
-                                    "Failed to add bot failure escalation"
-                                );
-                            }
-                        }
-                        _ => {
-                            warn!(
-                                target: "curator.metacognition",
-                                metric = %metric,
-                                "Unknown escalation metric in MetacognitionLoop act()"
-                            );
-                        }
-                    }
-                }
-                _ => {
-                    info!(
-                        target: "curator.metacognition",
-                        action_type = ?action.action_type,
-                        "Unhandled action type in MetacognitionLoop act()"
-                    );
-                }
+                ActionType::Calibrate => self.act_on_throttle(action).await,
+                ActionType::Escalate => self.act_on_escalate(action).await,
+                _ => self.act_on_no_action(action),
             }
         }
     }

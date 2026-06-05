@@ -12,7 +12,8 @@
 //! requires a `ConsolidationToken` issued by the Curation Loop. MCP servers
 //! cannot mint this token.
 
-use hkask_mcp::server::{McpToolError, ToolSpanGuard, validate_identifier};
+use hkask_mcp::server::{McpToolError, ToolSpanGuard};
+use hkask_mcp::validate_field;
 use hkask_memory::SemanticMemory;
 use hkask_storage::Triple;
 use hkask_types::{McpErrorKind, Visibility, WebID};
@@ -85,12 +86,8 @@ impl SemanticServer {
     ) -> String {
         let span = ToolSpanGuard::new("semantic_store", &self.webid);
 
-        if let Err(e) = validate_identifier("entity", &entity, 256) {
-            return span.error(e.kind, e.to_json_string());
-        }
-        if let Err(e) = validate_identifier("attribute", &attribute, 256) {
-            return span.error(e.kind, e.to_json_string());
-        }
+        validate_field!(span, "entity", &entity, 256);
+        validate_field!(span, "attribute", &attribute, 256);
 
         let triple = Triple::new(&entity, &attribute, value, self.webid)
             .with_visibility(Visibility::Shared)
@@ -115,9 +112,7 @@ impl SemanticServer {
     ) -> String {
         let span = ToolSpanGuard::new("semantic_recall", &self.webid);
 
-        if let Err(e) = validate_identifier("entity", &entity, 256) {
-            return span.error(e.kind, e.to_json_string());
-        }
+        validate_field!(span, "entity", &entity, 256);
 
         match self.memory.query_deduped(&entity) {
             Ok(triples) => {
@@ -155,9 +150,7 @@ impl SemanticServer {
     ) -> String {
         let span = ToolSpanGuard::new("semantic_embed", &self.webid);
 
-        if let Err(e) = validate_identifier("entity_ref", &entity_ref, 256) {
-            return span.error(e.kind, e.to_json_string());
-        }
+        validate_field!(span, "entity_ref", &entity_ref, 256);
         if vector.is_empty() {
             return span.error(
                 McpErrorKind::InvalidArgument,

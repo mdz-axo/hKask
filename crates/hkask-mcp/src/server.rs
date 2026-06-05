@@ -111,7 +111,7 @@ pub struct ServerContext {
     /// Resolved credential values, keyed by env var name.
     /// Only credentials declared in the `CredentialRequirement` list are present.
     /// Required credentials are guaranteed to be present; optional ones
-    /// may be absent (check with `ctx.credentials.get("KEY")).
+    /// may be absent (check with ctx.credentials.get("KEY")).
     pub credentials: HashMap<String, String>,
 
     /// Adapter container for shared adapters (GitCAS, etc.).
@@ -126,6 +126,30 @@ pub struct ServerContext {
     ///
     /// Use this for energy budget enforcement, OCAP gating, and CNS span attribution.
     pub webid: hkask_types::WebID,
+}
+
+impl ServerContext {
+    /// Open a database from credentials resolved in this context.
+    ///
+    /// Looks up `db_env_var` and `HKASK_DB_PASSPHRASE` from resolved credentials.
+    /// If `db_env_var` is absent, falls back to an in-memory database.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `HKASK_DB_PASSPHRASE` is absent when `db_env_var` is present,
+    /// or if the database fails to open.
+    pub fn open_database(&self, db_env_var: &str) -> anyhow::Result<hkask_storage::Database> {
+        use hkask_storage::open_database;
+        match self.credentials.get(db_env_var) {
+            Some(path) => {
+                let passphrase = self.credentials.get("HKASK_DB_PASSPHRASE").ok_or_else(|| {
+                    anyhow::anyhow!("{} set but HKASK_DB_PASSPHRASE missing", db_env_var)
+                })?;
+                Ok(open_database(path, passphrase)?)
+            }
+            None => Ok(hkask_storage::Database::in_memory()?),
+        }
+    }
 }
 
 // =============================================================================

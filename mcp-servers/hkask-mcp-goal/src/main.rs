@@ -8,7 +8,7 @@
 
 use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_mcp::validate_field;
-use hkask_storage::{Database, NuEventStore, SqliteGoalRepository};
+use hkask_storage::{NuEventStore, SqliteGoalRepository};
 use hkask_types::event::NuEventSink;
 use hkask_types::goal::GoalState;
 use hkask_types::id::{GoalID, WebID};
@@ -52,19 +52,8 @@ impl GoalServer {
     /// - `HKASK_GOAL_DB` (optional): path to the SQLite database, plus
     ///   `HKASK_DB_PASSPHRASE` for encryption. Absent → in-memory (ephemeral).
     pub fn new(ctx: hkask_mcp::ServerContext) -> anyhow::Result<Self> {
-        let conn = match ctx.credentials.get("HKASK_GOAL_DB") {
-            Some(path) => {
-                let passphrase = ctx.credentials.get("HKASK_DB_PASSPHRASE").ok_or_else(|| {
-                    anyhow::anyhow!("HKASK_GOAL_DB set but HKASK_DB_PASSPHRASE missing")
-                })?;
-                Database::open(path, passphrase)
-                    .map_err(|e| anyhow::anyhow!("Failed to open goal database: {e}"))?
-                    .conn_arc()
-            }
-            None => Database::in_memory()
-                .map_err(|e| anyhow::anyhow!("Failed to open in-memory database: {e}"))?
-                .conn_arc(),
-        };
+        let db = ctx.open_database("HKASK_GOAL_DB")?;
+        let conn = db.conn_arc();
 
         // Wire CNS denial telemetry over the same connection (ADR-029).
         let sink: Arc<dyn NuEventSink> = Arc::new(NuEventStore::new(Arc::clone(&conn)));

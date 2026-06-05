@@ -155,14 +155,7 @@ impl EpisodicServer {
 hkask_mcp::mcp_server_main!(
     "hkask-mcp-episodic",
     factory: |ctx: hkask_mcp::ServerContext| {
-        let db_path = ctx.credentials.get("HKASK_EPISODIC_DB")
-            .ok_or_else(|| anyhow::anyhow!("Missing HKASK_EPISODIC_DB"))?
-            .clone();
-        let passphrase = ctx.credentials.get("HKASK_DB_PASSPHRASE")
-            .ok_or_else(|| anyhow::anyhow!("Missing HKASK_DB_PASSPHRASE"))?
-            .clone();
-        let db = hkask_storage::Database::open(&db_path, &passphrase)
-            .map_err(|e| anyhow::anyhow!("Failed to open episodic database: {}", e))?;
+        let db = ctx.open_database("HKASK_EPISODIC_DB")?;
         let conn = db.conn_arc();
         let triple_store = hkask_storage::TripleStore::new(conn);
         let memory = hkask_memory::EpisodicMemory::new(triple_store);

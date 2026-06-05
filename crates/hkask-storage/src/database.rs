@@ -243,6 +243,21 @@ impl Database {
     }
 }
 
+/// Open a database from a path and passphrase, with in-memory fallback.
+///
+/// If `path` is `":memory:"`, opens an in-memory database (unencrypted).
+/// Otherwise, opens an encrypted database at the given path with the passphrase.
+///
+/// This is the canonical way to open a database from CLI/API code that
+/// resolves the path and passphrase from environment variables or keychain.
+pub fn open_database(path: &str, passphrase: &str) -> Result<Database, DatabaseError> {
+    if path == ":memory:" {
+        Database::in_memory()
+    } else {
+        Database::open(path, passphrase)
+    }
+}
+
 fn generate_salt() -> [u8; SQLCIPHER_SALT_SIZE] {
     use rand::Rng;
     rand::rng().random()

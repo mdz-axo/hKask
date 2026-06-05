@@ -41,7 +41,9 @@
 use hkask_agents::acp::AcpRuntime;
 use hkask_agents::pod::{AgentPersona, PodContext, PodManager, PodManagerBuilder};
 use hkask_agents::ports::AcpPort;
-use hkask_mcp::server::{ToolSpanGuard, validate_identifier};
+use hkask_mcp::server::ToolSpanGuard;
+use hkask_mcp::validate_field;
+use hkask_mcp::validate_identifier;
 use hkask_types::ports::InferencePort;
 use hkask_types::{CapabilityChecker, LLMParameters, WebID};
 use rmcp::handler::server::wrapper::Parameters;
@@ -216,16 +218,12 @@ impl ReplicantServer {
     ) -> String {
         let span = ToolSpanGuard::new("replicant:chat", &self.webid);
 
-        if let Err(e) = validate_identifier("message", &message, 8192) {
-            return span.error(e.kind, e.to_json_string());
-        }
+        validate_field!(span, "message", &message, 8192);
 
         let model = if model.is_empty() {
             self.default_model.clone()
         } else {
-            if let Err(e) = validate_identifier("model", &model, 128) {
-                return span.error(e.kind, e.to_json_string());
-            }
+            validate_field!(span, "model", &model, 128);
             model
         };
 

@@ -38,18 +38,12 @@ pub fn resolve_db_passphrase() -> Result<String, RegistryError> {
 
 pub(crate) fn open_registry_db() -> Result<Arc<std::sync::Mutex<rusqlite::Connection>>, CuratorError>
 {
-    use hkask_storage::Database;
-
     let db_path = registry_db_path();
     let passphrase =
         resolve_db_passphrase().map_err(|e| CuratorError::DatabaseError(e.to_string()))?;
 
-    let db = if db_path == ":memory:" {
-        Database::in_memory()
-    } else {
-        Database::open(&db_path, &passphrase)
-    }
-    .map_err(|e| CuratorError::DatabaseError(e.to_string()))?;
+    let db = hkask_storage::open_database(&db_path, &passphrase)
+        .map_err(|e| CuratorError::DatabaseError(e.to_string()))?;
 
     Ok(db.conn_arc())
 }
@@ -62,12 +56,8 @@ pub fn open_sovereignty_store()
 -> Result<hkask_storage::SovereigntyBoundaryStore, crate::errors::RegistryError> {
     let db_path = registry_db_path();
     let passphrase = resolve_db_passphrase()?;
-    let db = if db_path == ":memory:" {
-        hkask_storage::Database::in_memory()
-    } else {
-        hkask_storage::Database::open(&db_path, &passphrase)
-    }
-    .map_err(|e| crate::errors::RegistryError::DatabaseError(e.to_string()))?;
+    let db = hkask_storage::open_database(&db_path, &passphrase)
+        .map_err(|e| crate::errors::RegistryError::DatabaseError(e.to_string()))?;
     Ok(hkask_storage::SovereigntyBoundaryStore::new(db.conn_arc()))
 }
 
@@ -88,12 +78,8 @@ pub fn open_consent_store() -> Result<hkask_storage::ConsentStore, crate::errors
 pub fn open_spec_store() -> Result<hkask_storage::SqliteSpecStore, crate::errors::RegistryError> {
     let db_path = registry_db_path();
     let passphrase = resolve_db_passphrase()?;
-    let db = if db_path == ":memory:" {
-        hkask_storage::Database::in_memory()
-    } else {
-        hkask_storage::Database::open(&db_path, &passphrase)
-    }
-    .map_err(|e| crate::errors::RegistryError::DatabaseError(e.to_string()))?;
+    let db = hkask_storage::open_database(&db_path, &passphrase)
+        .map_err(|e| crate::errors::RegistryError::DatabaseError(e.to_string()))?;
     let store = hkask_storage::SqliteSpecStore::new(db.conn_arc());
     store
         .init_schema()
@@ -219,13 +205,8 @@ pub async fn init_registry_with_secrets(
 
     let db_path = registry_db_path();
 
-    let db = if db_path == ":memory:" {
-        hkask_storage::Database::in_memory()
-            .map_err(|e| RegistryError::DatabaseError(e.to_string()))?
-    } else {
-        hkask_storage::Database::open(&db_path, &secrets.db_passphrase)
-            .map_err(|e| RegistryError::DatabaseError(e.to_string()))?
-    };
+    let db = hkask_storage::open_database(&db_path, &secrets.db_passphrase)
+        .map_err(|e| RegistryError::DatabaseError(e.to_string()))?;
 
     let store = hkask_storage::AgentRegistryStore::new(db.conn_arc());
     store
