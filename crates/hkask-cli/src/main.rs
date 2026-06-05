@@ -26,6 +26,9 @@ fn main() {
         "Failed to initialize registry",
     );
 
+    // Shared MCP runtime for chat and curator commands.
+    // CLI commands that need MCP servers (mcp, models, web-search, serve)
+    // create their own runtimes with servers started via start_server().
     let runtime = McpRuntime::new();
 
     match cli.command {

@@ -166,7 +166,7 @@ impl ServerContext {
 ///
 /// ```rust,ignore
 /// async fn my_tool(&self, ...) -> String {
-///     let span = ToolSpanGuard::new("my:tool", &self.webid);
+///     let span = ToolSpanGuard::new("my_tool", &self.webid);
 ///     // ... tool logic ...
 ///     span.ok(McpToolOutput::new(json!({...})).to_json_string())
 /// }

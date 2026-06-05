@@ -105,7 +105,7 @@ impl FmpServer {
 impl FmpServer {
     #[tool(description = "Ping FMP API")]
     async fn fmp_ping(&self) -> String {
-        let span = ToolSpanGuard::new("fmp:ping", &self.webid);
+        let span = ToolSpanGuard::new("fmp_ping", &self.webid);
         match fmp_get(
             &self.client,
             "/profile",
@@ -134,7 +134,7 @@ impl FmpServer {
         &self,
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fmp:company_profile", &self.webid);
+        let span = ToolSpanGuard::new("fmp_company_profile", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
             return span.error(e.kind, e.to_json_string());
         }
@@ -156,7 +156,7 @@ impl FmpServer {
         &self,
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fmp:quote", &self.webid);
+        let span = ToolSpanGuard::new("fmp_quote", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
             return span.error(e.kind, e.to_json_string());
         }
@@ -178,7 +178,7 @@ impl FmpServer {
         &self,
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fmp:income_statement", &self.webid);
+        let span = ToolSpanGuard::new("fmp_income_statement", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
             return span.error(e.kind, e.to_json_string());
         }
@@ -201,7 +201,7 @@ impl FmpServer {
         &self,
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fmp:balance_sheet", &self.webid);
+        let span = ToolSpanGuard::new("fmp_balance_sheet", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
             return span.error(e.kind, e.to_json_string());
         }
@@ -224,7 +224,7 @@ impl FmpServer {
         &self,
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fmp:cash_flow_statement", &self.webid);
+        let span = ToolSpanGuard::new("fmp_cash_flow_statement", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
             return span.error(e.kind, e.to_json_string());
         }
@@ -247,7 +247,7 @@ impl FmpServer {
         &self,
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fmp:key_metrics", &self.webid);
+        let span = ToolSpanGuard::new("fmp_key_metrics", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
             return span.error(e.kind, e.to_json_string());
         }
@@ -270,7 +270,7 @@ impl FmpServer {
         &self,
         Parameters(HistoricalRequest { symbol, from, to }): Parameters<HistoricalRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fmp:historical_price", &self.webid);
+        let span = ToolSpanGuard::new("fmp_historical_price", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
             return span.error(e.kind, e.to_json_string());
         }
@@ -292,7 +292,7 @@ impl FmpServer {
         &self,
         Parameters(SearchRequest { query, limit }): Parameters<SearchRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fmp:search", &self.webid);
+        let span = ToolSpanGuard::new("fmp_search", &self.webid);
         if query.is_empty() {
             return span.error(
                 McpErrorKind::InvalidArgument,
@@ -318,7 +318,7 @@ impl FmpServer {
         &self,
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fmp:analyst_estimates", &self.webid);
+        let span = ToolSpanGuard::new("fmp_analyst_estimates", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
             return span.error(e.kind, e.to_json_string());
         }
@@ -340,7 +340,7 @@ impl FmpServer {
         &self,
         Parameters(SymbolRequest { symbol }): Parameters<SymbolRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fmp:dcf", &self.webid);
+        let span = ToolSpanGuard::new("fmp_dcf", &self.webid);
         if let Err(e) = validate_symbol(&symbol) {
             return span.error(e.kind, e.to_json_string());
         }

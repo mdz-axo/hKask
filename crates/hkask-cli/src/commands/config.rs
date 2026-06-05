@@ -145,12 +145,17 @@ pub fn create_disconnected_governed_dispatcher(
 /// Create an MCP dispatcher wired with GovernedTool and a capability token.
 /// Returns (McpDispatcher, token) for invoking tools.
 ///
-/// **Note:** This creates a *disconnected* CyberneticsLoop — it is not wired
-/// into any LoopSystem or REPL session. For REPL-connected tool dispatch,
-/// the GovernedTool is created in `repl::run()` using the session's shared
-/// CyberneticsLoop and dispatch channel. This function is suitable for
-/// standalone CLI subcommands (mcp, models, web-search) that need tool
-/// dispatch without a REPL session.
+/// **Note:** This creates a dispatcher with NO live MCP servers — the
+/// underlying `McpRuntime` is empty. All tool invocations will fail because
+/// no servers have been started via `McpRuntime::start_server()`. Use
+/// `create_mcp_dispatcher_with_servers()` for dispatchers that can actually
+/// invoke tools, or start servers manually on the runtime before creating
+/// the dispatcher.
+///
+/// This function also creates a *disconnected* CyberneticsLoop — it is not
+/// wired into any LoopSystem or REPL session. For REPL-connected tool
+/// dispatch, the GovernedTool is created in `repl::run()` using the
+/// session's shared CyberneticsLoop and dispatch channel.
 pub fn create_mcp_dispatcher()
 -> Result<(hkask_mcp::McpDispatcher, hkask_types::CapabilityToken), RegistryError> {
     let runtime = hkask_mcp::runtime::McpRuntime::new();

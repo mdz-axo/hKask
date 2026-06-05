@@ -35,7 +35,7 @@
 | `hkask-agents` | Pods, ACP, bot/replicant, Curation Loop, Curator Agent |
 | `hkask-ensemble` | Multi-agent chat |
 | `hkask-keystore` | OS keychain, AES-256-GCM, master key derivation (HKDF-SHA256) |
-| `hkask-mcp` | MCP runtime, dispatch |
+| `hkask-mcp` | MCP runtime, dispatch, dynamic tool discovery |
 | `hkask-cli` | CLI commands |
 | `hkask-api` | HTTP API (utoipa) |
 
@@ -135,7 +135,7 @@ For deeper understanding of system behavior:
 
 All interaction occurs through:
 1. **CLI** — `kask <subcommand>` (terminal-based)
-2. **MCP** — Machine-to-machine tool calls (15 servers)
+2. **MCP** — Machine-to-machine tool calls (19 servers)
 3. **API** — HTTP API with OpenAPI docs (programmatic)
 
 All monitoring occurs through:

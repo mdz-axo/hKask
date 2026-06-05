@@ -533,7 +533,8 @@ Setting `perspective: None` removes the WebID association. This is the **minimum
 
 ### 10.7 Budget Enforcement
 
-- **Semantic budget**: When triple count exceeds the storage budget, lowest-confidence semantic triples are **deleted** outright via `SemanticMemory::delete_triple()`. Low-confidence triples that exceed the budget are removed entirely — this keeps the store clean rather than leaving zombie triples with halved confidence.
+- **Semantic budget**: Storage budget is configurable per-loop instance (default 25,000 triples). When triple count exceeds the budget, lowest-confidence semantic triples are **deleted** outright via `SemanticMemory::delete_triple()`. Low-confidence triples that exceed the budget are removed entirely — this keeps the store clean rather than leaving zombie triples with halved confidence.
+- **Consolidation trigger**: When semantic triples have confidence at or below the low-confidence threshold (default 0.33 / 33%), the `SemanticLoop` fires a review and deletes them. These triples carry insufficient signal to justify their storage cost. The threshold is configurable per-loop instance, enabling per-user and per-agent customization.
 - **Episodic budget**: When episodic storage exceeds budget, the `EpisodicLoop` fires the consolidation bridge to promote lowest-confidence triples to semantic memory, freeing storage.
 
 ### 10.8 Failure Semantics

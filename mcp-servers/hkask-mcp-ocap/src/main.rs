@@ -92,7 +92,7 @@ impl OcapServer {
             capabilities,
         }): Parameters<DelegateRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("ocap:delegate", &self.webid);
+        let span = ToolSpanGuard::new("ocap_delegate", &self.webid);
 
         validate_field!(span, "issuer", &issuer, 256);
         validate_field!(span, "subject", &subject, 256);
@@ -144,7 +144,7 @@ impl OcapServer {
             capability,
         }): Parameters<VerifyRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("ocap:verify", &self.webid);
+        let span = ToolSpanGuard::new("ocap_verify", &self.webid);
 
         validate_field!(span, "token_id", &token_id, 256);
 
@@ -204,7 +204,7 @@ impl OcapServer {
         &self,
         Parameters(RevokeRequest { token_id }): Parameters<RevokeRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("ocap:revoke", &self.webid);
+        let span = ToolSpanGuard::new("ocap_revoke", &self.webid);
 
         validate_field!(span, "token_id", &token_id, 256);
 
@@ -230,7 +230,7 @@ impl OcapServer {
         &self,
         Parameters(EnumerateRequest { subject }): Parameters<EnumerateRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("ocap:enumerate", &self.webid);
+        let span = ToolSpanGuard::new("ocap_enumerate", &self.webid);
 
         validate_field!(span, "subject", &subject, 256);
 
@@ -262,7 +262,7 @@ impl OcapServer {
 
     #[tool(description = "List all capability tokens")]
     async fn ocap_list_tokens(&self) -> String {
-        let span = ToolSpanGuard::new("ocap:list_tokens", &self.webid);
+        let span = ToolSpanGuard::new("ocap_list_tokens", &self.webid);
 
         let tokens = self.tokens.read().await;
         let revoked = self.revoked.read().await;

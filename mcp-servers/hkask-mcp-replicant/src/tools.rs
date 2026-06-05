@@ -216,7 +216,7 @@ impl ReplicantServer {
         &self,
         Parameters(ChatRequest { message, model }): Parameters<ChatRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("replicant:chat", &self.webid);
+        let span = ToolSpanGuard::new("replicant_chat", &self.webid);
 
         validate_field!(span, "message", &message, 8192);
 
@@ -354,7 +354,7 @@ visibility:
         &self,
         Parameters(StatusRequest { persona }): Parameters<StatusRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("replicant:status", &self.webid);
+        let span = ToolSpanGuard::new("replicant_status", &self.webid);
 
         if !persona.is_empty()
             && let Err(e) = validate_identifier("persona", &persona, 128)
@@ -395,7 +395,7 @@ visibility:
         &self,
         Parameters(HistoryRequest { limit }): Parameters<HistoryRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("replicant:history", &self.webid);
+        let span = ToolSpanGuard::new("replicant_history", &self.webid);
 
         let session = self.session.read().await;
         let total_turns = session.turns.len() / 2; // Each conversation turn = user + assistant

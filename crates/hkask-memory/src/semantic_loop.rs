@@ -1,10 +1,13 @@
 //! Semantic Loop — knowledge → store → index → recall → dedup → combine → context (Loop 2b)
 //!
-//! Wraps `SemanticMemory` and provides loop-level observability for
-//! triple count and consolidation signals. When the triple count exceeds
-//! the storage budget, the loop deletes lowest-confidence triples —
-//! removing them entirely rather than leaving zombie triples with
-//! halved confidence.
+//! Wraps `SemanticMemory` and provides two regulatory triggers:
+//!
+//! 1. **Storage budget** — when triple count exceeds the configurable budget
+//!    (default 25,000), delete lowest-confidence triples to free space.
+//!
+//! 2. **Consolidation trigger** — review and delete semantic triples with
+//!    confidence at or below the low-confidence threshold (default 0.33).
+//!    These triples are too uncertain to be useful and should be pruned.
 
 use std::sync::Arc;
 
@@ -13,31 +16,78 @@ use hkask_types::loops::{
     ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopId, Signal,
 };
 
-/// Default set-point for semantic triple count.
-const DEFAULT_TRIPLE_COUNT_SET_POINT: usize = 10_000;
+/// Default storage budget for semantic triple count.
+pub const DEFAULT_SEMANTIC_STORAGE_BUDGET: usize = 25_000;
 
-/// Semantic Loop — monitors semantic triple count against set-point.
+/// Default low-confidence threshold for the consolidation trigger.
 ///
-/// Wraps `SemanticMemory` and reads triple count. When count exceeds the
-/// set-point, it produces `Calibrate` actions and enforces budget by
-/// deleting lowest-confidence triples outright.
+/// Semantic triples at or below this confidence (0.33 = 33%) are candidates
+/// for review and deletion. These triples carry insufficient signal to
+/// justify their storage cost.
+pub const DEFAULT_LOW_CONFIDENCE_THRESHOLD: f64 = 0.33;
+
+/// Semantic Loop — monitors semantic memory with two regulatory triggers.
+///
+/// Wraps `SemanticMemory` and reads:
+/// - `triple_count` — current count vs storage budget
+/// - `low_confidence_count` — triples at or below the confidence threshold
+///
+/// Both the storage budget and low-confidence threshold are configurable
+/// per-loop instance, enabling per-user and per-agent customization.
 pub struct SemanticLoop {
     memory: Arc<SemanticMemory>,
     storage_budget: usize,
+    low_confidence_threshold: f64,
 }
 
 impl SemanticLoop {
-    /// Create a new Semantic Loop wrapping a SemanticMemory.
+    /// Create a new Semantic Loop with default settings.
+    ///
+    /// Default storage budget: 25,000 triples.
+    /// Default low-confidence threshold: 0.33 (33%).
     pub fn new(memory: Arc<SemanticMemory>) -> Self {
         Self {
             memory,
-            storage_budget: DEFAULT_TRIPLE_COUNT_SET_POINT,
+            storage_budget: DEFAULT_SEMANTIC_STORAGE_BUDGET,
+            low_confidence_threshold: DEFAULT_LOW_CONFIDENCE_THRESHOLD,
+        }
+    }
+
+    /// Create a new Semantic Loop with a custom storage budget.
+    ///
+    /// Use this for per-user or per-agent budget customization.
+    pub fn with_budget(memory: Arc<SemanticMemory>, storage_budget: usize) -> Self {
+        Self {
+            memory,
+            storage_budget,
+            low_confidence_threshold: DEFAULT_LOW_CONFIDENCE_THRESHOLD,
+        }
+    }
+
+    /// Create a new Semantic Loop with custom storage budget and
+    /// low-confidence threshold.
+    ///
+    /// Use this for full per-user or per-agent customization.
+    pub fn with_budget_and_threshold(
+        memory: Arc<SemanticMemory>,
+        storage_budget: usize,
+        low_confidence_threshold: f64,
+    ) -> Self {
+        Self {
+            memory,
+            storage_budget,
+            low_confidence_threshold,
         }
     }
 
     /// Get the configured storage budget (set-point).
     pub fn storage_budget(&self) -> usize {
         self.storage_budget
+    }
+
+    /// Get the configured low-confidence threshold.
+    pub fn low_confidence_threshold(&self) -> f64 {
+        self.low_confidence_threshold
     }
 }
 
@@ -47,109 +97,197 @@ impl HkaskLoop for SemanticLoop {
         LoopId::Semantic
     }
 
-    /// Sense: read semantic triple count (and, in future, embedding count).
+    /// Sense: read semantic triple count and low-confidence count.
     ///
     /// Produces signals for:
     /// - `triple_count` — current count vs storage budget
+    /// - `low_confidence_count` — triples at or below confidence threshold
+    ///   (set-point = 0, any non-zero count is a deviation)
     async fn sense(&self) -> Vec<Signal> {
         let count = self.memory.triple_count().unwrap_or(0);
+        let low_count = self
+            .memory
+            .low_confidence_count(self.low_confidence_threshold)
+            .unwrap_or(0);
 
-        vec![Signal::new(
-            LoopId::Semantic,
-            "triple_count",
-            count as f64,
-            self.storage_budget as f64,
-        )]
+        vec![
+            Signal::new(
+                LoopId::Semantic,
+                "triple_count",
+                count as f64,
+                self.storage_budget as f64,
+            ),
+            Signal::new(
+                LoopId::Semantic,
+                "low_confidence_count",
+                low_count as f64,
+                0.0, // set-point = 0: any low-confidence triples are a deviation
+            ),
+        ]
     }
 
-    /// Compute: if triple count exceeds set-point, suggest calibration.
+    /// Compute: produce actions based on deviations.
+    ///
+    /// - `triple_count` above set-point → Calibrate (budget exceeded)
+    /// - `low_confidence_count` above 0 → Calibrate (consolidation trigger)
     async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
         let mut actions = Vec::new();
 
         for dev in deviations {
-            if dev.signal.metric == "triple_count"
-                && dev.direction == DeviationDirection::AboveSetPoint
-            {
-                let overage = (dev.signal.value - dev.signal.set_point) as usize;
-                actions.push(LoopAction::new(
-                    LoopId::Semantic,
-                    ActionType::Calibrate,
-                    serde_json::json!({
-                        "reason": "semantic_triple_count_exceeded",
-                        "count": dev.signal.value,
-                        "set_point": dev.signal.set_point,
-                        "overage": overage,
-                    }),
-                ));
+            match dev.signal.metric.as_str() {
+                "triple_count" if dev.direction == DeviationDirection::AboveSetPoint => {
+                    let overage = (dev.signal.value - dev.signal.set_point) as usize;
+                    actions.push(LoopAction::new(
+                        LoopId::Semantic,
+                        ActionType::Calibrate,
+                        serde_json::json!({
+                            "reason": "semantic_triple_count_exceeded",
+                            "count": dev.signal.value,
+                            "set_point": dev.signal.set_point,
+                            "overage": overage,
+                        }),
+                    ));
+                }
+                "low_confidence_count" if dev.direction == DeviationDirection::AboveSetPoint => {
+                    actions.push(LoopAction::new(
+                        LoopId::Semantic,
+                        ActionType::Calibrate,
+                        serde_json::json!({
+                            "reason": "semantic_low_confidence_review",
+                            "low_confidence_count": dev.signal.value,
+                            "threshold": self.low_confidence_threshold,
+                        }),
+                    ));
+                }
+                _ => {}
             }
         }
 
         actions
     }
 
-    /// Act: enforce budget regulation by deleting lowest-confidence triples.
+    /// Act: enforce regulation via deletion.
     ///
-    /// - `Calibrate` with reason `semantic_triple_count_exceeded`: delete
-    ///   lowest-confidence semantic triples to bring count back within budget.
-    ///   Low-confidence triples that exceed the budget are removed entirely —
-    ///   this is honest and keeps the store clean, unlike the previous retraction
-    ///   approach which left zombie triples with halved confidence.
-    /// - Other actions: logged at info level.
+    /// Two triggers:
+    ///
+    /// - `semantic_low_confidence_review`: delete all semantic triples at or
+    ///   below the low-confidence threshold (default 33%). These triples
+    ///   carry insufficient signal to justify their storage cost.
+    ///
+    /// - `semantic_triple_count_exceeded`: delete lowest-confidence semantic
+    ///   triples to bring count back within budget. Fires after the
+    ///   low-confidence review — if budget is still exceeded after clearing
+    ///   low-confidence entries, progressively delete the next-lowest.
     async fn act(&self, actions: &[LoopAction]) {
         for action in actions {
             match action.action_type {
                 ActionType::Calibrate => {
                     let reason = action.parameters.get("reason").and_then(|v| v.as_str());
-                    if reason == Some("semantic_triple_count_exceeded") {
-                        let overage = action
-                            .parameters
-                            .get("overage")
-                            .and_then(|v| v.as_u64())
-                            .unwrap_or(0) as usize;
+                    match reason {
+                        Some("semantic_low_confidence_review") => {
+                            let count = action
+                                .parameters
+                                .get("low_confidence_count")
+                                .and_then(|v| v.as_u64())
+                                .unwrap_or(0) as usize;
 
-                        // Delete lowest-confidence semantic triples
-                        match self.memory.lowest_confidence_triples(overage) {
-                            Ok(candidates) if !candidates.is_empty() => {
-                                tracing::warn!(
-                                    target: "cns.semantic",
-                                    candidates = candidates.len(),
-                                    overage = overage,
-                                    "Deleting lowest-confidence semantic triples to enforce budget"
-                                );
-                                for triple in &candidates {
-                                    if let Err(e) = self.memory.delete_triple(&triple.id) {
-                                        tracing::debug!(
-                                            target: "cns.semantic",
-                                            triple_id = %triple.id,
-                                            entity = %triple.entity,
-                                            attribute = %triple.attribute,
-                                            error = %e,
-                                            "Failed to delete semantic triple"
-                                        );
+                            if count == 0 {
+                                continue;
+                            }
+
+                            // Delete all semantic triples at or below the threshold
+                            match self
+                                .memory
+                                .low_confidence_triples(self.low_confidence_threshold, count)
+                            {
+                                Ok(candidates) if !candidates.is_empty() => {
+                                    tracing::warn!(
+                                        target: "cns.semantic",
+                                        candidates = candidates.len(),
+                                        threshold = self.low_confidence_threshold,
+                                        "Deleting low-confidence semantic triples (consolidation trigger)"
+                                    );
+                                    for triple in &candidates {
+                                        if let Err(e) = self.memory.delete_triple(&triple.id) {
+                                            tracing::debug!(
+                                                target: "cns.semantic",
+                                                triple_id = %triple.id,
+                                                entity = %triple.entity,
+                                                attribute = %triple.attribute,
+                                                confidence = triple.confidence,
+                                                error = %e,
+                                                "Failed to delete low-confidence semantic triple"
+                                            );
+                                        }
                                     }
                                 }
-                            }
-                            Ok(_) => {
-                                tracing::debug!(
-                                    target: "cns.semantic",
-                                    "No low-confidence semantic triples found for deletion"
-                                );
-                            }
-                            Err(e) => {
-                                tracing::error!(
-                                    target: "cns.semantic",
-                                    error = %e,
-                                    "Failed to query low-confidence semantic triples"
-                                );
+                                Ok(_) => {
+                                    tracing::debug!(
+                                        target: "cns.semantic",
+                                        "No low-confidence semantic triples found for deletion"
+                                    );
+                                }
+                                Err(e) => {
+                                    tracing::error!(
+                                        target: "cns.semantic",
+                                        error = %e,
+                                        "Failed to query low-confidence semantic triples"
+                                    );
+                                }
                             }
                         }
-                    } else {
-                        tracing::info!(
-                            target: "cns.semantic",
-                            action_type = ?action.action_type,
-                            target_loop = %action.target,
-                            "Semantic Loop calibration action"
-                        );
+                        Some("semantic_triple_count_exceeded") => {
+                            let overage = action
+                                .parameters
+                                .get("overage")
+                                .and_then(|v| v.as_u64())
+                                .unwrap_or(0) as usize;
+
+                            // Delete lowest-confidence triples to free budget
+                            match self.memory.lowest_confidence_triples(overage) {
+                                Ok(candidates) if !candidates.is_empty() => {
+                                    tracing::warn!(
+                                        target: "cns.semantic",
+                                        candidates = candidates.len(),
+                                        overage = overage,
+                                        "Deleting lowest-confidence semantic triples to enforce budget"
+                                    );
+                                    for triple in &candidates {
+                                        if let Err(e) = self.memory.delete_triple(&triple.id) {
+                                            tracing::debug!(
+                                                target: "cns.semantic",
+                                                triple_id = %triple.id,
+                                                entity = %triple.entity,
+                                                attribute = %triple.attribute,
+                                                error = %e,
+                                                "Failed to delete semantic triple"
+                                            );
+                                        }
+                                    }
+                                }
+                                Ok(_) => {
+                                    tracing::debug!(
+                                        target: "cns.semantic",
+                                        "No low-confidence semantic triples found for deletion"
+                                    );
+                                }
+                                Err(e) => {
+                                    tracing::error!(
+                                        target: "cns.semantic",
+                                        error = %e,
+                                        "Failed to query low-confidence semantic triples"
+                                    );
+                                }
+                            }
+                        }
+                        _ => {
+                            tracing::info!(
+                                target: "cns.semantic",
+                                action_type = ?action.action_type,
+                                target_loop = %action.target,
+                                "Semantic Loop calibration action"
+                            );
+                        }
                     }
                 }
                 _ => {

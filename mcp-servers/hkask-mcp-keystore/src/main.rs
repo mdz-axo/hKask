@@ -226,7 +226,7 @@ impl KeystoreServer {
             owner_webid,
         }): Parameters<SetRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("keystore:set", &self.webid);
+        let span = ToolSpanGuard::new("keystore_set", &self.webid);
 
         let full_key = Self::full_key(&service, &key);
         let owner = owner_webid.unwrap_or_else(|| "system".to_string());
@@ -285,7 +285,7 @@ impl KeystoreServer {
             caller_webid,
         }): Parameters<GetRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("keystore:get", &self.webid);
+        let span = ToolSpanGuard::new("keystore_get", &self.webid);
 
         let full_key = Self::full_key(&service, &key);
         let caller = caller_webid.unwrap_or_else(|| "anonymous".to_string());
@@ -345,7 +345,7 @@ impl KeystoreServer {
             caller_webid,
         }): Parameters<RotateRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("keystore:rotate", &self.webid);
+        let span = ToolSpanGuard::new("keystore_rotate", &self.webid);
 
         let full_key = Self::full_key(&service, &key);
         let caller = caller_webid.unwrap_or_else(|| "anonymous".to_string());
@@ -414,7 +414,7 @@ impl KeystoreServer {
             caller_webid,
         }): Parameters<DeleteRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("keystore:delete", &self.webid);
+        let span = ToolSpanGuard::new("keystore_delete", &self.webid);
 
         let full_key = Self::full_key(&service, &key);
         let caller = caller_webid.unwrap_or_else(|| "anonymous".to_string());
@@ -462,7 +462,7 @@ impl KeystoreServer {
 
     #[tool(description = "List all keys in the keystore")]
     async fn keystore_list(&self) -> String {
-        let span = ToolSpanGuard::new("keystore:list", &self.webid);
+        let span = ToolSpanGuard::new("keystore_list", &self.webid);
 
         let entries = self.entries.read().await;
         let keys: Vec<&String> = entries.keys().collect();

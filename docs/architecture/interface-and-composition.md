@@ -54,21 +54,15 @@ status: VERIFIED
 
 ### 1.1 MCP Server Surface
 
-**Protocol:** rmcp (Rust MCP) — JSON-RPC 2.0 over stdio, in-process, or HTTP transport
+**Protocol:** rmcp (Rust MCP) — JSON-RPC 2.0 over stdio transport
 
-**Runtime:** `McpRuntime` (`crates/hkask-mcp/src/runtime.rs:59`)
+**Runtime:** `McpRuntime` (`crates/hkask-mcp/src/runtime.rs`) — manages server lifecycle, tool discovery, and live `Peer<RoleClient>` connections.
 
-**Transport options:**
+**Server lifecycle:** `McpRuntime::start_server(server_id, command)` spawns a child process, performs the MCP handshake, discovers tools dynamically via `list_all_tools()`, and stores the live connection. `McpRuntime::shutdown_all()` terminates all managed processes.
 
-| Transport | Implementation | Use Case | Security |
-|-----------|---------------|----------|----------|
-| In-process | `InProcessMcpTransport` (`transport.rs:69`) | Co-located servers | No network |
-| Stdio | `McpTransport::Stdio` (not yet implemented) | Child process servers | Process isolation |
-| HTTP | `McpTransport::Http` (not yet implemented) | Remote servers | HTTPS + OCAP tokens |
+**Dynamic discovery:** Tool names and schemas are discovered at runtime from live server connections. MCP servers register tools using underscore format (e.g., `inference_generate`, `condenser_compress`). There is no static tool metadata — all composition roots (REPL, API, CLI) must call `start_server()` before tools are available.
 
-**Transport type:** `McpTransport` enum (`transport.rs:17`) replaces the former trait with concrete variants, eliminating dynamic dispatch.
-
-**Security:** `SecurityGateway` (`security.rs:51`) enforces OCAP before dispatch. `McpSupervisor` (`supervisor.rs:102`) manages health with configurable restart policies.
+**Security:** OCAP enforcement via `GovernedTool` membrane wrapping `RawMcpToolPort`. `McpDispatcher` routes all invocations through the membrane.
 
 ### 1.2 CLI Surface
 
@@ -136,9 +130,9 @@ status: VERIFIED
 | Query CNS | `cns_health()` | `kask cns health` | `GET /api/v1/cns/health` |
 | Capture goal | `spec/goal/capture` | `kask spec capture` | `POST /api/v1/specs` |
 | List templates | `registry_list(type)` | `kask template list` | `GET /api/v1/templates` |
-| Switch model | `inference:models` | `/model <name>` or `-m` flag | `POST /api/chat {model}` |
-| List models | `inference:models` | `/model <query>` | `GET /api/models` |
-| Search models | `inference:models(filter)` | `/model qwen` | `GET /api/models/search?q=...` |
+| Switch model | `inference_models` | `/model <name>` or `-m` flag | `POST /api/chat {model}` |
+| List models | `inference_models` | `/model <query>` | `GET /api/models` |
+| Search models | `inference_models(filter)` | `/model qwen` | `GET /api/models/search?q=...` |
 
 ---
 

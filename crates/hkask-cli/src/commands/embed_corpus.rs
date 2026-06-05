@@ -32,7 +32,6 @@ struct CorpusConfig {
     foundational_rules: Vec<FoundationalRule>,
     chunking: ChunkingConfig,
     centroid_entity_ref: String,
-    #[allow(dead_code)]
     validation: ValidationConfig,
 }
 

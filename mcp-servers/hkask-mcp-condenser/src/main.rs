@@ -121,7 +121,7 @@ impl CondenserServer {
 impl CondenserServer {
     #[tool(description = "Liveness and profile info")]
     async fn condenser_ping(&self) -> String {
-        let span = ToolSpanGuard::new("condenser:ping", &self.webid);
+        let span = ToolSpanGuard::new("condenser_ping", &self.webid);
         let engine = self.engine.lock().unwrap();
         span.ok_json(serde_json::json!({
             "status": "ok",
@@ -141,7 +141,7 @@ impl CondenserServer {
             category,
         }): Parameters<CompressRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("condenser:compress", &self.webid);
+        let span = ToolSpanGuard::new("condenser_compress", &self.webid);
         if output.is_empty() {
             return span.error(
                 McpErrorKind::InvalidArgument,
@@ -161,7 +161,7 @@ impl CondenserServer {
         &self,
         Parameters(SetProfileRequest { profile }): Parameters<SetProfileRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("condenser:set_profile", &self.webid);
+        let span = ToolSpanGuard::new("condenser_set_profile", &self.webid);
         let p = match profile.parse::<Profile>() {
             Ok(p) => p,
             Err(e) => return span.error(McpErrorKind::InvalidArgument, e.to_json_string()),
@@ -177,7 +177,7 @@ impl CondenserServer {
 
     #[tool(description = "Cumulative compression statistics")]
     async fn condenser_stats(&self) -> String {
-        let span = ToolSpanGuard::new("condenser:stats", &self.webid);
+        let span = ToolSpanGuard::new("condenser_stats", &self.webid);
         let engine = self.engine.lock().unwrap();
         span.ok_json(serde_json::to_value(engine.get_stats()).unwrap_or_default())
     }
@@ -187,7 +187,7 @@ impl CondenserServer {
         &self,
         Parameters(ClassifyRequest { tool_name }): Parameters<ClassifyRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("condenser:classify", &self.webid);
+        let span = ToolSpanGuard::new("condenser_classify", &self.webid);
         let category = classify_tool(&tool_name);
         let engine = self.engine.lock().unwrap();
         let algo = engine.registry.select(category);
@@ -207,7 +207,7 @@ impl CondenserServer {
             confidence,
         }): Parameters<PersistRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("condenser:persist", &self.webid);
+        let span = ToolSpanGuard::new("condenser_persist", &self.webid);
 
         let Some(episodic) = &self.episodic else {
             return span.error(

@@ -90,7 +90,7 @@ impl RegistryServer {
             template_type,
         }): Parameters<IndexRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("registry:index", &self.webid);
+        let span = ToolSpanGuard::new("registry_index", &self.webid);
 
         validate_field!(span, "root_path", &root_path, 512);
 
@@ -115,7 +115,7 @@ impl RegistryServer {
             limit,
         }): Parameters<DiscoverRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("registry:discover", &self.webid);
+        let span = ToolSpanGuard::new("registry_discover", &self.webid);
 
         let type_filter = Self::parse_template_type(&template_type);
         let limit = limit.unwrap_or(10) as usize;
@@ -160,7 +160,7 @@ impl RegistryServer {
         &self,
         Parameters(ValidateRequest { template_id }): Parameters<ValidateRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("registry:validate", &self.webid);
+        let span = ToolSpanGuard::new("registry_validate", &self.webid);
 
         validate_field!(span, "template_id", &template_id, 256);
 
@@ -193,7 +193,7 @@ impl RegistryServer {
         &self,
         Parameters(ReloadRequest { path }): Parameters<ReloadRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("registry:reload", &self.webid);
+        let span = ToolSpanGuard::new("registry_reload", &self.webid);
 
         validate_field!(span, "path", &path, 512);
 
@@ -214,7 +214,7 @@ impl RegistryServer {
             cascade_template_ids,
         }): Parameters<ComposeRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("registry:compose", &self.webid);
+        let span = ToolSpanGuard::new("registry_compose", &self.webid);
 
         validate_field!(span, "template_id", &root_template_id, 256);
 
@@ -243,7 +243,7 @@ impl RegistryServer {
         &self,
         Parameters(GetRequest { template_id }): Parameters<GetRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("registry:get", &self.webid);
+        let span = ToolSpanGuard::new("registry_get", &self.webid);
 
         validate_field!(span, "template_id", &template_id, 256);
 

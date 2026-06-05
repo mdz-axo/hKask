@@ -1,4 +1,9 @@
 //! MCP server and tool management routes
+//!
+//! These endpoints list and invoke MCP tools. Servers must be started
+//! (e.g., via the `API_SERVERS` table in `serve.rs`) for tools to be
+//! discoverable and invokable. If no servers are running, the listing
+//! endpoints return empty results and invocations will fail.
 
 use axum::{Extension, Json, extract::State, http::StatusCode, routing::Router};
 use serde::{Deserialize, Serialize};
@@ -31,6 +36,18 @@ async fn list_servers(State(state): State<ApiState>) -> Json<Vec<String>> {
 }
 
 /// List MCP tools
+///
+/// Returns all tools discovered from running MCP servers. If no servers
+/// are started, the list will be empty.
+#[utoipa::path(
+    get,
+    path = "/api/mcp/tools",
+    tag = "mcp",
+    responses(
+        (status = 200, description = "List of MCP tool names", body = Vec<String>),
+        (status = 500, description = "Internal server error"),
+    ),
+)]
 async fn list_tools(State(state): State<ApiState>) -> Json<Vec<String>> {
     let tools = state.mcp_runtime.discover_tools().await;
     Json(tools)
@@ -39,9 +56,7 @@ async fn list_tools(State(state): State<ApiState>) -> Json<Vec<String>> {
 /// MCP invoke request body
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct McpInvokeRequest {
-    /// MCP server name
-    pub server: String,
-    /// Tool name to invoke
+    /// Tool name to invoke (e.g., "inference_generate")
     pub tool: String,
     /// JSON input arguments (defaults to null)
     #[serde(default)]
@@ -51,7 +66,7 @@ pub struct McpInvokeRequest {
 /// MCP invoke response body
 #[derive(Debug, Serialize, ToSchema)]
 pub struct McpInvokeResponse {
-    /// MCP server name
+    /// MCP server that provided the tool
     pub server: String,
     /// Tool name that was invoked
     pub tool: String,
@@ -62,7 +77,8 @@ pub struct McpInvokeResponse {
 /// Invoke an MCP tool directly.
 ///
 /// Requires authentication via Bearer token. Dispatches the tool call
-/// through the MCP runtime with capability verification.
+/// through the MCP runtime with capability verification. The server
+/// that owns the tool is resolved automatically from the tool name.
 #[utoipa::path(
     post,
     path = "/api/mcp/invoke",
@@ -110,8 +126,16 @@ async fn mcp_invoke(
             )
         })?;
 
+    // Resolve server_id from the runtime's tool registry
+    let server_id = state
+        .mcp_runtime
+        .get_tool_info(&req.tool)
+        .await
+        .map(|t| t.server_id)
+        .unwrap_or_else(|| "unknown".to_string());
+
     Ok(Json(McpInvokeResponse {
-        server: req.server,
+        server: server_id,
         tool: req.tool,
         result,
     }))

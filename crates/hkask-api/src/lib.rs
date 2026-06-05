@@ -302,7 +302,7 @@ impl ApiState {
         let git_cas: Arc<dyn hkask_agents::ports::GitCASPort> = Arc::new(GitCasAdapter::from_path(
             PathBuf::from("/tmp/hkask-templates"),
         ));
-        let dispatcher_runtime = hkask_mcp::runtime::McpRuntime::new();
+        let dispatcher_runtime = mcp_runtime.clone();
 
         // Build the LoopSystem with shared dispatch and escalation queue
         let dispatch = Arc::new(MessageDispatch::new());

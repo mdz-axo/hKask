@@ -8,7 +8,7 @@ manifest:
   functional_role: flowdef
     Extract structured content from documents (PDF, DOCX, HTML, etc.).
     Supports custom extraction schemas and metadata capture.
-  version: 0.21.0
+  version: 0.22.0
   editor: curator-or-human-admin
   visibility: Shared
 
@@ -58,7 +58,7 @@ steps:
     renderer: null
     template_ref: null
     model_tier: null
-    mcp: hkask-cns
+    mcp: hkask-mcp-cns
     gas_cap: 500
     timeout_seconds: 5
     feedback:

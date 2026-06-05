@@ -1,8 +1,10 @@
 //! MCP runtime for hKask
 //!
 //! Manages MCP server connections, tool discovery, and lifecycle.
-//! Supports both static metadata registration and dynamic server
-//! startup with live rmcp client transport.
+//! Servers are spawned as child processes via `start_server()`, which
+//! performs the MCP handshake, discovers tools dynamically, and stores
+//! live `Peer<RoleClient>` connections. `shutdown_all()` terminates
+//! all managed processes.
 
 use rmcp::model::CallToolRequestParams;
 use rmcp::service::{Peer, RoleClient, ServiceExt};

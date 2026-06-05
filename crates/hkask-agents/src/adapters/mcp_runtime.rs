@@ -16,8 +16,7 @@ use std::sync::Arc;
 /// When wired with an `McpRuntime`, routes tool invocations through
 /// live MCP server connections (spawned via `McpRuntime::start_server()`).
 /// When no runtime is provided (e.g., in tests), returns an error on
-/// invocation — the old stub that returned `{"status": "invoked"}` has
-/// been removed to prevent silent failures.
+/// invocation.
 #[derive(Default, Clone)]
 pub struct McpRuntimeAdapter {
     /// Optional capability checker for HMAC verification

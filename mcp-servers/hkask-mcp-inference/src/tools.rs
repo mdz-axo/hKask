@@ -1,9 +1,9 @@
 //! MCP tools for Okapi-backed LLM inference
 //!
 //! Three tools exposed via MCP protocol:
-//! - `inference:generate` — Generate text via Okapi LLM (with failover)
-//! - `inference:metrics` — Get current inference metrics
-//! - `inference:models` — List available model tiers
+//! - `inference_generate` — Generate text via Okapi LLM (with failover)
+//! - `inference_metrics` — Get current inference metrics
+//! - `inference_models` — List available model tiers
 //!
 //! **Throttling is not handled here.** Per-agent rate limiting is a CNS concern
 //! (Loop 6 regulation) owned by `GovernedTool` energy budget accounting. The
@@ -137,7 +137,7 @@ impl InferenceServer {
             caller_id,
         }): Parameters<GenerateRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("inference:generate", &self.webid);
+        let span = ToolSpanGuard::new("inference_generate", &self.webid);
 
         // Validate identifiers
         validate_field!(span, "model", &model, 128);
@@ -234,7 +234,7 @@ impl InferenceServer {
         &self,
         Parameters(MetricsRequest { reset }): Parameters<MetricsRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("inference:metrics", &self.webid);
+        let span = ToolSpanGuard::new("inference_metrics", &self.webid);
 
         let load_or_swap = |counter: &AtomicU64| -> u64 {
             if reset {
@@ -262,7 +262,7 @@ impl InferenceServer {
         &self,
         Parameters(ModelsRequest { filter }): Parameters<ModelsRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("inference:models", &self.webid);
+        let span = ToolSpanGuard::new("inference_models", &self.webid);
 
         let models = self.active_models.read().await;
         let filtered: Vec<&String> = if filter.is_empty() {

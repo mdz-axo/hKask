@@ -119,7 +119,7 @@ impl SpecServer {
             capability_token,
         }): Parameters<GoalCaptureRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("spec:goal_capture", &self.webid);
+        let span = ToolSpanGuard::new("spec_goal_capture", &self.webid);
 
         if let Err(e) = self.verify_capability(
             capability_token.as_deref(),
@@ -169,7 +169,7 @@ impl SpecServer {
             capability_token,
         }): Parameters<GoalDecomposeRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("spec:goal_decompose", &self.webid);
+        let span = ToolSpanGuard::new("spec_goal_decompose", &self.webid);
 
         validate_field!(span, "spec_id", &spec_id, 256);
 
@@ -243,7 +243,7 @@ impl SpecServer {
             capability_token,
         }): Parameters<RequireBindRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("spec:require_bind", &self.webid);
+        let span = ToolSpanGuard::new("spec_require_bind", &self.webid);
 
         validate_field!(span, "spec_id", &spec_id, 256);
 
@@ -308,7 +308,7 @@ impl SpecServer {
             capability_token,
         }): Parameters<CurateEvaluateRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("spec:curate_evaluate", &self.webid);
+        let span = ToolSpanGuard::new("spec_curate_evaluate", &self.webid);
 
         validate_field!(span, "spec_id", &spec_id, 256);
 
@@ -371,7 +371,7 @@ impl SpecServer {
             capability_token,
         }): Parameters<CurateReconcileRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("spec:curate_reconcile", &self.webid);
+        let span = ToolSpanGuard::new("spec_curate_reconcile", &self.webid);
 
         if let Err(e) = self.verify_capability(
             capability_token.as_deref(),
@@ -471,7 +471,7 @@ impl SpecServer {
             capability_token,
         }): Parameters<CurateCultivateRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("spec:curate_cultivate", &self.webid);
+        let span = ToolSpanGuard::new("spec_curate_cultivate", &self.webid);
 
         if let Err(e) = self.verify_capability(
             capability_token.as_deref(),
@@ -527,7 +527,7 @@ impl SpecServer {
             capability_token,
         }): Parameters<GraphQueryRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("spec:graph_query", &self.webid);
+        let span = ToolSpanGuard::new("spec_graph_query", &self.webid);
 
         if let Err(e) =
             self.verify_capability(capability_token.as_deref(), "query", DelegationAction::Read)
@@ -587,7 +587,7 @@ impl SpecServer {
             capability_token,
         }): Parameters<GraphValidateRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("spec:graph_validate", &self.webid);
+        let span = ToolSpanGuard::new("spec_graph_validate", &self.webid);
 
         if let Err(e) = self.verify_capability(
             capability_token.as_deref(),

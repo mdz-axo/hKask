@@ -197,7 +197,7 @@ impl FalServer {
 impl FalServer {
     #[tool(description = "Ping Fal.ai API to verify connectivity and authentication")]
     async fn fal_ping(&self) -> String {
-        let span = ToolSpanGuard::new("fal:ping", &self.webid);
+        let span = ToolSpanGuard::new("fal_ping", &self.webid);
         let url = format!("{SYNC_BASE}/fal-ai/flux/schnell");
         match self
             .client
@@ -239,7 +239,7 @@ impl FalServer {
             num_images,
         }): Parameters<GenerateImageRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fal:generate_image", &self.webid);
+        let span = ToolSpanGuard::new("fal_generate_image", &self.webid);
         let body = serde_json::json!({
             "prompt": prompt,
             "image_size": image_size.unwrap_or_else(|| "1024x1024".to_string()),
@@ -260,7 +260,7 @@ impl FalServer {
             strength,
         }): Parameters<ImageToImageRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fal:image_to_image", &self.webid);
+        let span = ToolSpanGuard::new("fal_image_to_image", &self.webid);
         if let Err(e) = validate_tool_url(&image_url) {
             return span.error(e.kind, e.to_json_string());
         }
@@ -282,7 +282,7 @@ impl FalServer {
         &self,
         Parameters(UpscaleRequest { image_url, scale }): Parameters<UpscaleRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fal:upscale", &self.webid);
+        let span = ToolSpanGuard::new("fal_upscale", &self.webid);
         if let Err(e) = validate_tool_url(&image_url) {
             return span.error(e.kind, e.to_json_string());
         }
@@ -301,7 +301,7 @@ impl FalServer {
         &self,
         Parameters(GenerateVideoRequest { prompt, duration }): Parameters<GenerateVideoRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fal:generate_video", &self.webid);
+        let span = ToolSpanGuard::new("fal_generate_video", &self.webid);
         let mut body = serde_json::json!({
             "prompt": prompt,
         });
@@ -322,7 +322,7 @@ impl FalServer {
             duration_seconds,
         }): Parameters<GenerateMusicRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fal:generate_music", &self.webid);
+        let span = ToolSpanGuard::new("fal_generate_music", &self.webid);
         let mut body = serde_json::json!({
             "prompt": prompt,
         });
@@ -340,7 +340,7 @@ impl FalServer {
         &self,
         Parameters(WhisperRequest { audio_url }): Parameters<WhisperRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fal:whisper", &self.webid);
+        let span = ToolSpanGuard::new("fal_whisper", &self.webid);
         if let Err(e) = validate_tool_url(&audio_url) {
             return span.error(e.kind, e.to_json_string());
         }
@@ -358,7 +358,7 @@ impl FalServer {
         &self,
         Parameters(CaptionRequest { image_url }): Parameters<CaptionRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fal:caption", &self.webid);
+        let span = ToolSpanGuard::new("fal_caption", &self.webid);
         if let Err(e) = validate_tool_url(&image_url) {
             return span.error(e.kind, e.to_json_string());
         }
@@ -384,7 +384,7 @@ impl FalServer {
         &self,
         Parameters(Generate3dRequest { image_url }): Parameters<Generate3dRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("fal:generate_3d", &self.webid);
+        let span = ToolSpanGuard::new("fal_generate_3d", &self.webid);
         if let Err(e) = validate_tool_url(&image_url) {
             return span.error(e.kind, e.to_json_string());
         }

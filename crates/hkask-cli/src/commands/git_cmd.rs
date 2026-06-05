@@ -7,6 +7,8 @@ use crate::cli::GitAction;
 use crate::commands;
 
 pub fn run(rt: &tokio::runtime::Runtime, action: GitAction) {
+    // Note: The McpRuntime is unused by git_archival (which uses GitHub REST API directly).
+    // It is passed for API compatibility with the archival function signatures.
     let runtime = hkask_mcp::runtime::McpRuntime::new();
 
     // Resolve ACP secret and create CapabilityChecker for token minting (G9)

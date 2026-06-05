@@ -95,7 +95,7 @@ impl GitServer {
         &self,
         Parameters(ResolveRequest { git_ref }): Parameters<ResolveRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("git:resolve", &self.webid);
+        let span = ToolSpanGuard::new("git_resolve", &self.webid);
 
         validate_field!(span, "git_ref", &git_ref, 256);
 
@@ -121,7 +121,7 @@ impl GitServer {
         &self,
         Parameters(SnapshotRequest { message, branch }): Parameters<SnapshotRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("git:snapshot", &self.webid);
+        let span = ToolSpanGuard::new("git_snapshot", &self.webid);
         let branch_name = branch.unwrap_or_else(|| "main".to_string());
 
         if let Ok(Some(adapter)) = self.adapter_container.get_git_cas() {
@@ -151,7 +151,7 @@ impl GitServer {
             branch,
         }): Parameters<CloneRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("git:clone", &self.webid);
+        let span = ToolSpanGuard::new("git_clone", &self.webid);
         let branch_name = branch.unwrap_or_else(|| "main".to_string());
 
         if let Err(e) = validate_tool_url(&url) {
@@ -198,7 +198,7 @@ impl GitServer {
         &self,
         Parameters(DiffRequest { sha1, sha2, path }): Parameters<DiffRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("git:diff", &self.webid);
+        let span = ToolSpanGuard::new("git_diff", &self.webid);
         let path_filter = path.unwrap_or_else(|| "all".to_string());
 
         if let Err(e) = validate_path(&path_filter) {
@@ -242,7 +242,7 @@ impl GitServer {
 
     #[tool(description = "List files in a git path")]
     async fn git_list(&self, Parameters(ListRequest { path }): Parameters<ListRequest>) -> String {
-        let span = ToolSpanGuard::new("git:list", &self.webid);
+        let span = ToolSpanGuard::new("git_list", &self.webid);
         let p = path.unwrap_or_else(|| ".".to_string());
 
         if let Err(e) = validate_path(&p) {

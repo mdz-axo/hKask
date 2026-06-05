@@ -5,13 +5,16 @@
 pub fn run(rt: &tokio::runtime::Runtime) {
     use hkask_templates::McpPort;
 
-    let (dispatcher, token) =
-        crate::commands::config::create_mcp_dispatcher().unwrap_or_else(|e| {
-            eprintln!("Failed to create MCP dispatcher: {}", e);
-            std::process::exit(1);
-        });
+    let (dispatcher, token) = crate::commands::config::create_mcp_dispatcher_with_servers(
+        rt,
+        &[("inference", "hkask-mcp-inference")],
+    )
+    .unwrap_or_else(|e| {
+        eprintln!("Failed to create MCP dispatcher: {}", e);
+        std::process::exit(1);
+    });
 
-    match rt.block_on(dispatcher.invoke("inference:models", serde_json::json!({}), &token)) {
+    match rt.block_on(dispatcher.invoke("inference_models", serde_json::json!({}), &token)) {
         Ok(result) => {
             if let Some(tiers) = result.get("model_tiers").and_then(|t| t.as_array()) {
                 println!("\n=== Available Model Tiers ===");
@@ -39,7 +42,10 @@ pub fn run(rt: &tokio::runtime::Runtime) {
         }
         Err(e) => {
             eprintln!("Failed to list models: {}", e);
+            rt.block_on(dispatcher.shutdown_all());
             std::process::exit(1);
         }
     }
+
+    rt.block_on(dispatcher.shutdown_all());
 }

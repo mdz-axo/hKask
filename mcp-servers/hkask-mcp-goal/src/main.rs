@@ -84,7 +84,7 @@ impl GoalServer {
         &self,
         Parameters(CreateGoalRequest { text, visibility }): Parameters<CreateGoalRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("goal:create", &self.webid);
+        let span = ToolSpanGuard::new("goal_create", &self.webid);
 
         // Goal text is free-form prose (not an identifier): bound length and
         // reject empty, but allow arbitrary characters.
@@ -122,7 +122,7 @@ impl GoalServer {
         &self,
         Parameters(ListGoalsRequest { state }): Parameters<ListGoalsRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("goal:list", &self.webid);
+        let span = ToolSpanGuard::new("goal_list", &self.webid);
 
         let state_filter = match &state {
             Some(s) => match GoalState::parse_str(s) {
@@ -162,7 +162,7 @@ impl GoalServer {
         &self,
         Parameters(SetGoalStateRequest { goal_id, state }): Parameters<SetGoalStateRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("goal:set_state", &self.webid);
+        let span = ToolSpanGuard::new("goal_set_state", &self.webid);
 
         validate_field!(span, "goal_id", &goal_id, 128);
         let Some(new_state) = GoalState::parse_str(&state) else {

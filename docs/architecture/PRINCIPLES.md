@@ -66,9 +66,9 @@ status: VERIFIED
 
 ### 1.2 Essential Tools
 
-**Principle:** Eighteen MCP servers provide all external tooling — no direct HTTP calls from agents.[^mcp]
+**Principle:** Nineteen MCP servers provide all external tooling — no direct HTTP calls from agents.[^mcp]
 
-**Implementation (18 Total):**
+**Implementation (19 Total):**
 
 **Enabled (15):**
 - `hkask-mcp-inference` — Okapi LLM inference
@@ -229,7 +229,7 @@ graph TD
     
     subgraph Adapters[Adapters Layer]
         LLM_ADAPTER[LLM Adapter<br/>OkapiConnector]
-        MCP_ADAPTER[MCP Adapter<br/>DispatchRuntime]
+        MCP_ADAPTER[MCP Adapter<br/>McpRuntime]
         GIT_ADAPTER[Git Adapter<br/>ArtifactStore]
         KEY_ADAPTER[Key Adapter<br/>KeystoreService]
         WEB_ADAPTER[Web Adapter<br/>SearchConnector]
