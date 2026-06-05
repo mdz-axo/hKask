@@ -65,11 +65,11 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 - `hkask-mcp-inference` — Okapi-backed LLM inference
 - `hkask-mcp-condenser` — Context condensation (reranking and compression of the active conversation window)
 - `hkask-mcp-web` — Web search, scrape
-- `hkask-mcp-ocap` — Capability management
-- `hkask-mcp-keystore` — Keystore operations
+- `hkask-mcp-ocap` — Capability management (Cybernetics, L6)
+- `hkask-mcp-keystore` — Keystore operations (Cybernetics, L6)
 - `hkask-mcp-cns` — CNS operations
 - `hkask-mcp-git` — Git CAS
-- `hkask-mcp-registry` — Registry operations
+- `hkask-mcp-registry` — Registry operations (cross-loop bridge, L1↔L5)
 - `hkask-mcp-spec` — DDMVSS spec capture
 - `hkask-mcp-github` — GitHub integration
 - `hkask-mcp-fmp` — Financial data (FMP)

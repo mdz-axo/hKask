@@ -1,11 +1,12 @@
 //! hKask MCP Ensemble — Multi-agent coordination MCP server
 //!
-//! Starts an MCP server over stdio exposing 5 tools:
+//! Starts an MCP server over stdio exposing 6 tools:
 //! - `coordinate_session` — Create a standing session from a YAML config path
 //! - `register_participant` — Register a bot participant in a session
 //! - `send_message` — Send a message to a standing session
 //! - `get_status` — Get standing session status
-//! - `improv_turn` — Execute an improvisation turn in a session
+//! - `improv_turn` — Prepare an improvisation turn prompt for external inference
+//! - `agent_send_message` — Structure an A2A message for dispatch
 
 use hkask_ensemble::{
     ChatMessage, ChatParticipant, ParticipantRole, StandingSession, bootstrap_standing_session,
@@ -52,6 +53,18 @@ pub struct GetStatusRequest {
 pub struct ImprovTurnRequest {
     pub session_id: String,
     pub user_message: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct AgentSendMessageRequest {
+    /// Sender agent WebID
+    pub from_agent: String,
+    /// Recipient agent WebID (omit for broadcast)
+    pub to_agent: Option<String>,
+    /// Message type: TemplateDispatch, TemplateResponse, or MemoryArtifact
+    pub message_type: String,
+    /// Message content (JSON string for TemplateDispatch, plain text for others)
+    pub content: String,
 }
 
 pub struct EnsembleServer {
@@ -235,12 +248,12 @@ impl EnsembleServer {
         }
     }
 
-    #[tool(description = "Execute an improvisation turn in a session")]
+    #[tool(description = "Prepare an improvisation turn prompt for external inference")]
     async fn improv_turn(
         &self,
         Parameters(ImprovTurnRequest {
             session_id,
-            user_message: _user_message,
+            user_message,
         }): Parameters<ImprovTurnRequest>,
     ) -> String {
         let span = ToolSpanGuard::new("improv_turn", &self.webid);
@@ -249,11 +262,42 @@ impl EnsembleServer {
 
         let sessions = self.sessions.read().await;
         match sessions.get(&session_id) {
-            Some(_session_lock) => {
+            Some(session_lock) => {
+                let session = session_lock.read().await;
+                let status = session.get_status();
+
+                // Build the structured prompt that an external inference client
+                // can use. The caller should invoke `inference:generate`
+                // separately with this prompt.
+                let participants: Vec<serde_json::Value> = status
+                    .participants
+                    .iter()
+                    .map(|p| {
+                        serde_json::json!({
+                            "name": p.name,
+                            "role": p.role,
+                            "description": p.description,
+                        })
+                    })
+                    .collect();
+
+                let prompt = serde_json::json!({
+                    "system": format!(
+                        "You are participating in an ensemble session. \
+                        Respond in character based on your role. \
+                        Session: {}",
+                        status.description
+                    ),
+                    "participants": participants,
+                    "user_message": user_message,
+                    "instruction": "Respond as your assigned character. Stay in character.",
+                });
+
                 span.ok_json(serde_json::json!({
                     "session_id": session_id,
-                    "status": "requires_inference_client",
-                    "message": "Improv turns require an InferenceClient, which is available via the CLI/API path (kask chat). Use the ensemble API endpoint or kask chat to execute improvisation turns with inference wired.",
+                    "status": "inference_required",
+                    "prompt": prompt,
+                    "instruction": "Use inference:generate with the prompt above to complete this improv turn.",
                 }))
             }
             None => span.error(
@@ -265,6 +309,85 @@ impl EnsembleServer {
                 .to_json_string(),
             ),
         }
+    }
+
+    #[tool(description = "Structure an A2A message for dispatch between agents")]
+    async fn agent_send_message(
+        &self,
+        Parameters(AgentSendMessageRequest {
+            from_agent,
+            to_agent,
+            message_type,
+            content,
+        }): Parameters<AgentSendMessageRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("agent_send_message", &self.webid);
+
+        validate_field!(span, "from_agent", &from_agent, 128);
+
+        let from_webid = WebID::from_persona(from_agent.as_bytes());
+        let to_webid = to_agent
+            .as_deref()
+            .map(|s| WebID::from_persona(s.as_bytes()));
+
+        let correlation_id = format!("a2a-{}-{}", from_agent, chrono::Utc::now().timestamp());
+
+        // Structure the A2A message as JSON. The caller dispatches this
+        // via the CLI/API AcpPort. The MCP server cannot access AcpRuntime
+        // directly (it runs in a separate process).
+        let message = match message_type.as_str() {
+            "TemplateDispatch" => {
+                let input = serde_json::from_str(&content)
+                    .unwrap_or(serde_json::Value::String(content.clone()));
+                serde_json::json!({
+                    "message_type": "TemplateDispatch",
+                    "from": from_webid.to_string(),
+                    "to": to_webid.map(|w| w.to_string()),
+                    "template_id": content, // template_id is the primary dispatch key
+                    "input": input,
+                    "correlation_id": correlation_id,
+                })
+            }
+            "TemplateResponse" => {
+                let result = serde_json::from_str(&content)
+                    .unwrap_or(serde_json::Value::String(content.clone()));
+                serde_json::json!({
+                    "message_type": "TemplateResponse",
+                    "correlation_id": correlation_id,
+                    "result": result,
+                    "error": null,
+                })
+            }
+            "MemoryArtifact" => {
+                serde_json::json!({
+                    "message_type": "MemoryArtifact",
+                    "producer": from_webid.to_string(),
+                    "artifact_type": content.clone(),
+                    "artifact_id": correlation_id,
+                    "visibility": "Shared",
+                })
+            }
+            _ => {
+                return span.internal_error(serde_json::json!({
+                    "error": format!("Unknown message_type: {}. Must be TemplateDispatch, TemplateResponse, or MemoryArtifact", message_type),
+                }));
+            }
+        };
+
+        tracing::info!(
+            target: "ensemble.a2a",
+            from = %from_agent,
+            to = ?to_agent,
+            message_type = %message_type,
+            correlation_id = %correlation_id,
+            "A2A message structured for dispatch"
+        );
+
+        span.ok_json(serde_json::json!({
+            "correlation_id": correlation_id,
+            "message": message,
+            "dispatch_instruction": "Dispatch via CLI/API AcpPort. The MCP server cannot send A2A messages directly.",
+        }))
     }
 }
 

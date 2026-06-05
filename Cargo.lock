@@ -1304,6 +1304,7 @@ name = "hkask-mcp-ensemble"
 version = "0.22.0"
 dependencies = [
  "anyhow",
+ "chrono",
  "hkask-ensemble",
  "hkask-mcp",
  "hkask-types",

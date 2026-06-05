@@ -318,27 +318,27 @@ status: VERIFIED
 
 19 MCP servers provide the tool surface (allosteric regulation via `AllostericGate` in `hkask-cns::allosteric`), each gated through `SecurityGateway` (`crates/hkask-mcp/src/security.rs`):
 
-| MCP Server | Crate | LOC | Status | Domain |
-|-----------|-------|-----|--------|--------|
-| inference | `hkask-mcp-inference` | 391 | ✅ Complete | Okapi LLM |
-| condenser | `hkask-mcp-condenser` | 761 | ✅ Complete | Context condensation (reranking and compression of the active conversation window) |
-| web | `hkask-mcp-web` | 3,389 | ✅ Complete | Web search with SSRF protection |
-| ocap | `hkask-mcp-ocap` | 319 | ✅ Complete | Capability management |
-| keystore | `hkask-mcp-keystore` | 529 | ✅ Complete | OS keychain secret management |
-| cns | `hkask-mcp-cns` | 280 | ✅ Complete | Observability |
-| git | `hkask-mcp-git` | 412 | ✅ Complete | Git CAS operations |
-| registry | `hkask-mcp-registry` | 310 | ✅ Complete | Template registry |
-| spec | `hkask-mcp-spec` | 853 | ✅ Complete | DDMVSS spec tools (8 tools) |
-| goal | `hkask-mcp-goal` | ~235 | ✅ Complete | Goal coordination (OCAP-gated, CNS-observed) |
-| github | `hkask-mcp-github` | 459 | ✅ Complete | GitHub API integration |
-| fmp | `hkask-mcp-fmp` | 369 | ✅ Complete | Financial data (FMP) |
-| telnyx | `hkask-mcp-telnyx` | 244 | ✅ Complete | SMS/voice communications |
-| fal | `hkask-mcp-fal` | 434 | ✅ Complete | Media generation (FAL) |
-| rss-reader | `hkask-mcp-rss-reader` | 1,443 | ✅ Complete | RSS feed management |
-| ensemble | `hkask-mcp-ensemble` | 295 | ✅ Complete | Multi-agent chat coordination |
-| episodic | `hkask-mcp-episodic` | 190 | ✅ Complete | Episodic memory (private, perspective-bound) |
-| semantic | `hkask-mcp-semantic` | 290 | ✅ Complete | Semantic memory (public, shared) |
-| replicant | `hkask-mcp-replicant` | ~310 | ✅ Complete | Replicant chat (MCP bridge for external integrations) |
+| MCP Server | Crate | LOC | Status | Loop | Domain |
+|-----------|-------|-----|--------|------|--------|
+| inference | `hkask-mcp-inference` | 391 | ✅ Complete | L1 (Inference) | Okapi LLM |
+| condenser | `hkask-mcp-condenser` | 761 | ✅ Complete | L2 (Episodic) | Context condensation (reranking and compression of the active conversation window) |
+| web | `hkask-mcp-web` | 3,389 | ✅ Complete | L4 (Communication) | Web search with SSRF protection |
+| ocap | `hkask-mcp-ocap` | 319 | ✅ Complete | L6 (Cybernetics) | Capability management |
+| keystore | `hkask-mcp-keystore` | 529 | ✅ Complete | L6 (Cybernetics) | OS keychain secret management |
+| cns | `hkask-mcp-cns` | 280 | ✅ Complete | L6 (Cybernetics) | Observability |
+| git | `hkask-mcp-git` | 412 | ✅ Complete | L4 (Communication) | Git CAS operations |
+| registry | `hkask-mcp-registry` | 310 | ✅ Complete | L1↔L5 (bridge) | Template registry |
+| spec | `hkask-mcp-spec` | 853 | ✅ Complete | L5 (Curation) | DDMVSS spec tools (8 tools) |
+| goal | `hkask-mcp-goal` | ~235 | ✅ Complete | L5 (Curation) | Goal coordination (OCAP-gated, CNS-observed) |
+| github | `hkask-mcp-github` | 459 | ✅ Complete | L4 (Communication) | GitHub API integration |
+| fmp | `hkask-mcp-fmp` | 369 | ✅ Complete | L4 (Communication) | Financial data (FMP) |
+| telnyx | `hkask-mcp-telnyx` | 244 | ✅ Complete | L4 (Communication) | SMS/voice communications |
+| fal | `hkask-mcp-fal` | 434 | ✅ Complete | L4 (Communication) | Media generation (FAL) |
+| rss-reader | `hkask-mcp-rss-reader` | 1,443 | ✅ Complete | L2 (Episodic) | RSS feed management |
+| ensemble | `hkask-mcp-ensemble` | 295 | ✅ Complete | L4 (Communication) | Multi-agent chat coordination |
+| episodic | `hkask-mcp-episodic` | 190 | ✅ Complete | L2 (Episodic) | Episodic memory (private, perspective-bound) |
+| semantic | `hkask-mcp-semantic` | 290 | ✅ Complete | L2b (Semantic) | Semantic memory (public, shared) |
+| replicant | `hkask-mcp-replicant` | ~310 | ✅ Complete | L5 (Curation) | Replicant chat (MCP bridge for external integrations) |
 
 **Total:** 19 servers, 117+ tools, 0 stubs (P6 compliance). Allosteric regulation lives in `hkask-cns::allosteric` (`AllostericGate`, `AllostericGateConfig`, MWC state function).
 
@@ -586,7 +586,7 @@ This spec's content maps to the [6-loop authority model](loop-architecture.md) a
 |------------|------|-----------|
 | Agent taxonomy (Bot, Replicant) | Curation (Loop 5) | Agent enablement is a Curation concern — the Curator creates and manages pods |
 | Capability model (OCAP, DelegationToken) | Cybernetics (Loop 6) | Capability enforcement is regulatory — Cybernetics governs all capability gates |
-| MCP tool surface | Communication (Loop 4) + Inference (Loop 1) | Tool dispatch is Communication; LLM invocation is Inference |
+| MCP tool surface | Communication (Loop 4) + Inference (Loop 1) | Tool dispatch is Communication; LLM invocation is Inference. Per-server loop assignments: `hkask-mcp-ocap` → Cybernetics (L6), `hkask-mcp-keystore` → Cybernetics (L6), `hkask-mcp-registry` → L1↔L5 (bridge), `hkask-mcp-condenser` → Episodic (L2). See [loop-architecture.md §3.4](loop-architecture.md) for full mapping. |
 | hLexicon | Semantic Memory (Loop 2b) | Shared vocabulary is shared knowledge |
 | Bounded context | All loops | System boundaries contain all loops as cybernetic containers |
 

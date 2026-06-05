@@ -103,10 +103,7 @@ pub struct DocKnowledgeServer {
 
 impl DocKnowledgeServer {
     pub fn new(webid: WebID, semantic: Option<SemanticMemory>) -> Result<Self, anyhow::Error> {
-        Ok(Self {
-            webid,
-            semantic,
-        })
+        Ok(Self { webid, semantic })
     }
 
     fn has_semantic(&self) -> bool {
@@ -129,7 +126,9 @@ impl DocKnowledgeServer {
         }))
     }
 
-    #[tool(description = "Chunk text at configurable token granularity (delegates to SemanticMemory::chunk_text)")]
+    #[tool(
+        description = "Chunk text at configurable token granularity (delegates to SemanticMemory::chunk_text)"
+    )]
     async fn doc_knowledge_chunk(
         &self,
         Parameters(ChunkRequest {
@@ -468,7 +467,9 @@ impl DocKnowledgeServer {
         }))
     }
 
-    #[tool(description = "Generate QA prompt from text chunk (returns structured prompt for LLM; actual LLM call routed through hkask-mcp-inference)")]
+    #[tool(
+        description = "Generate QA prompt from text chunk (returns structured prompt for LLM; actual LLM call routed through hkask-mcp-inference)"
+    )]
     async fn doc_knowledge_generate_qa(
         &self,
         Parameters(GenerateQaRequest {
@@ -495,9 +496,8 @@ impl DocKnowledgeServer {
         }
 
         let strat = strategy.unwrap_or_else(|| "default".to_string());
-        let levels = bloom_levels.unwrap_or_else(|| {
-            vec!["factual".to_string(), "conceptual".to_string()]
-        });
+        let levels =
+            bloom_levels.unwrap_or_else(|| vec!["factual".to_string(), "conceptual".to_string()]);
 
         let levels_str = levels.join(", ");
         let prompt = format!(
@@ -533,7 +533,7 @@ impl DocKnowledgeServer {
             return span.error(
                 McpErrorKind::PermissionDenied,
                 McpToolError::permission_denied(
-                    "Semantic memory not available — set HKASK_SEMANTIC_DB and HKASK_DB_PASSPHRASE",
+                    "Semantic memory not available — set HKASK_MEMORY_DB and HKASK_DB_PASSPHRASE",
                 )
                 .to_json_string(),
             );
@@ -591,13 +591,13 @@ impl DocKnowledgeServer {
 hkask_mcp::mcp_server_main!(
     "hkask-mcp-doc-knowledge",
     factory: |ctx: hkask_mcp::ServerContext| {
-        let semantic = match ctx.credentials.get("HKASK_SEMANTIC_DB") {
+        let semantic = match ctx.credentials.get("HKASK_MEMORY_DB") {
             Some(path) => {
                 let passphrase = ctx.credentials.get("HKASK_DB_PASSPHRASE").ok_or_else(|| {
-                    anyhow::anyhow!("HKASK_SEMANTIC_DB set but HKASK_DB_PASSPHRASE missing")
+                    anyhow::anyhow!("HKASK_MEMORY_DB set but HKASK_DB_PASSPHRASE missing")
                 })?;
                 let db = hkask_storage::Database::open(path, passphrase)
-                    .map_err(|e| anyhow::anyhow!("Failed to open semantic database: {}", e))?;
+                    .map_err(|e| anyhow::anyhow!("Failed to open memory database: {}", e))?;
                 let conn = db.conn_arc();
                 let triple_store = hkask_storage::TripleStore::new(Arc::clone(&conn));
                 let embedding_store = hkask_storage::EmbeddingStore::new(conn);
@@ -609,12 +609,12 @@ hkask_mcp::mcp_server_main!(
     },
     credentials: vec![
         hkask_mcp::CredentialRequirement::optional(
-            "HKASK_SEMANTIC_DB",
-            "Path to semantic database for QA storage (in-memory if absent)",
+            "HKASK_MEMORY_DB",
+            "Path to per-agent memory database for QA storage (in-memory if absent)",
         ),
         hkask_mcp::CredentialRequirement::optional(
             "HKASK_DB_PASSPHRASE",
-            "Passphrase for the database (required if HKASK_SEMANTIC_DB is set)",
+            "Passphrase for the database (required if HKASK_MEMORY_DB is set)",
         ),
     ]
 );

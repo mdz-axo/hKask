@@ -115,20 +115,47 @@ impl InferenceLoop {
         &self.inference
     }
 
-    /// Get the current gas remaining value.
+    /// Get the current gas remaining value (read-only sense signal).
     pub fn gas_remaining(&self) -> u64 {
         self.gas_remaining.load(Ordering::Relaxed)
     }
 
-    /// Consume gas from this loop's budget. Returns the new remaining value.
-    pub fn consume_gas(&self, amount: u64) -> u64 {
-        use std::sync::atomic::Ordering;
+    /// Read-only accessor for the L1 domain metric.
+    ///
+    /// Returns `(remaining, cap)` — the loop's token budget state as a
+    /// sense signal. The L6 budget (CyberneticsLoop's GasBudget) is the
+    /// authoritative regulator; this counter is a read-only mirror.
+    pub fn token_usage(&self) -> (u64, u64) {
+        (self.gas_remaining.load(Ordering::Relaxed), self.gas_cap)
+    }
+
+    /// Consume gas from this loop's budget. Returns the old remaining value.
+    ///
+    /// `pub(crate)` — external callers should use `sync_gas_state()` to
+    /// mirror the authoritative L6 budget, not incrementally adjust this counter.
+    pub(crate) fn consume_gas(&self, amount: u64) -> u64 {
         self.gas_remaining.fetch_sub(amount, Ordering::Relaxed)
     }
 
-    /// Replenish gas in this loop's budget. Returns the new remaining value.
-    pub fn replenish_gas(&self, amount: u64) -> u64 {
+    /// Replenish gas in this loop's budget. Returns the old remaining value.
+    ///
+    /// `pub(crate)` — external callers should use `sync_gas_state()` to
+    /// mirror the authoritative L6 budget, not incrementally adjust this counter.
+    pub(crate) fn replenish_gas(&self, amount: u64) -> u64 {
         self.gas_remaining.fetch_add(amount, Ordering::Relaxed)
+    }
+
+    /// Sync this loop's gas counter from the authoritative L6 budget.
+    ///
+    /// Call after CyberneticsLoop gas operations (reserve, settle, replenish)
+    /// to keep the L1 sense signal (`inference_gas_remaining`) in sync with
+    /// the L6 regulatory budget. This is the ONLY way external code should
+    /// update InferenceLoop's gas counter.
+    pub fn sync_gas_state(&self, remaining: u64, _cap: u64) {
+        self.gas_remaining.store(remaining, Ordering::Relaxed);
+        // Note: gas_cap is not atomic; it's only set at construction time
+        // and should not change during a session. If sync provides a different
+        // cap, we accept it as the loop is sharing state with CyberneticsLoop.
     }
 
     /// Get the gas budget cap.

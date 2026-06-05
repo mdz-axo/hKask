@@ -1,6 +1,6 @@
 //! hKask MCP CNS — Cybernetic Nervous System monitoring and alerts
 //!
-//! Starts an MCP server over stdio exposing 8 tools:
+//! Starts an MCP server over stdio exposing 10 tools:
 //! - `cns_emit` — Emit a CNS observation event
 //! - `cns_variety` — Get variety count for a span pattern
 //! - `cns_alert` — Trigger a real algedonic alert
@@ -9,14 +9,13 @@
 //! - `cns_health` — Get CNS health status
 //! - `cns_kill_zone` — Check or update kill-zone state
 //! - `cns_replenish_budget` — Replenish an agent's gas budget
+//! - `cns_energy` — Get an agent's gas budget status
+//! - `cns_backpressure` — Emit a backpressure signal
 
-use hkask_cns::{CnsRuntime, CyberneticsLoop, DEFAULT_THRESHOLD};
+use hkask_cns::{CnsRuntime, DEFAULT_THRESHOLD};
 use hkask_mcp::server::ToolSpanGuard;
 use hkask_mcp::validate_field;
 use hkask_types::WebID;
-use hkask_types::event::SpanNamespace;
-use hkask_types::loops::LoopId;
-use hkask_types::ports::BackpressureSignal;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
 use schemars::JsonSchema;
@@ -54,9 +53,38 @@ pub struct ListAlertsRequest {
     pub limit: Option<u32>,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct KillZoneRequest {
+    /// Optional: update VC investment level (0.0 to 1.0)
+    pub vc_investment: Option<f32>,
+    /// Optional: mark acquisition attempt detected
+    pub acquisition_attempt: Option<bool>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ReplenishBudgetRequest {
+    /// Agent WebID to replenish
+    pub agent_id: String,
+    /// Amount of gas to add
+    pub amount: u64,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct EnergyRequest {
+    /// Agent WebID to check (optional — if omitted, uses the calling agent)
+    pub agent_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct BackpressureRequest {
+    /// Backpressure severity (0.0–1.0)
+    pub severity: f64,
+    /// Reason for the backpressure signal
+    pub reason: String,
+}
+
 pub struct CnsServer {
     runtime: Arc<CnsRuntime>,
-    cybernetics: Arc<tokio::sync::RwLock<CyberneticsLoop>>,
     threshold: AtomicU64,
     webid: WebID,
 }
@@ -67,18 +95,8 @@ impl CnsServer {
 
         let runtime = CnsRuntime::with_threshold(threshold);
 
-        // Create a dead dispatch channel — the CyberneticsLoop in the MCP
-        // server is standalone (no Communication Loop). It only needs enough
-        // wiring to support gas budget replenishment.
-        let (dispatch_tx, _dispatch_rx) = tokio::sync::mpsc::unbounded_channel();
-        let cybernetics = Arc::new(tokio::sync::RwLock::new(CyberneticsLoop::new(
-            Arc::new(tokio::sync::RwLock::new(runtime.clone())),
-            dispatch_tx,
-        )));
-
         Self {
             runtime: Arc::new(runtime),
-            cybernetics,
             threshold: AtomicU64::new(threshold),
             webid,
         }
@@ -246,6 +264,118 @@ impl CnsServer {
             "critical_count": health.critical_count,
             "warning_count": health.warning_count,
             "overall_deficit": health.overall_deficit,
+        }))
+    }
+
+    #[tool(description = "Check or update kill-zone state (VC investment, acquisition detection)")]
+    async fn cns_kill_zone(
+        &self,
+        Parameters(KillZoneRequest {
+            vc_investment,
+            acquisition_attempt,
+        }): Parameters<KillZoneRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("cns_kill_zone", &self.webid);
+
+        // If parameters provided, update and check
+        let triggered = if vc_investment.is_some() || acquisition_attempt.is_some() {
+            self.runtime
+                .check_kill_zone(
+                    vc_investment.unwrap_or(1.0),
+                    acquisition_attempt.unwrap_or(false),
+                )
+                .await
+        } else {
+            // Just read current state
+            let state = self.runtime.kill_zone_state().await;
+            state.kill_zone_active
+        };
+
+        let state = self.runtime.kill_zone_state().await;
+
+        span.ok_json(serde_json::json!({
+            "kill_zone_active": state.kill_zone_active,
+            "vc_investment": state.vc_investment,
+            "acquisition_attempt": state.acquisition_attempt,
+            "triggered": triggered,
+        }))
+    }
+
+    #[tool(description = "Replenish an agent's gas budget (Curator authority required)")]
+    async fn cns_replenish_budget(
+        &self,
+        Parameters(ReplenishBudgetRequest { agent_id, amount }): Parameters<ReplenishBudgetRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("cns_replenish_budget", &self.webid);
+
+        validate_field!(span, "agent_id", &agent_id, 128);
+
+        // The MCP server's calling WebID acts as the authority check.
+        // OCAP gating on the GovernedTool membrane ensures only authorized
+        // callers can invoke this tool.
+        let agent = WebID::from_string(&agent_id);
+
+        let remaining = self.runtime.replenish_agent_budget(&agent, amount).await;
+
+        span.ok_json(serde_json::json!({
+            "agent_id": agent_id,
+            "replenished": amount,
+            "remaining": remaining,
+        }))
+    }
+
+    #[tool(description = "Get an agent's gas budget status (energy level, usage, limits)")]
+    async fn cns_energy(
+        &self,
+        Parameters(EnergyRequest { agent_id }): Parameters<EnergyRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("cns_energy", &self.webid);
+
+        // Resolve agent: use provided agent_id or fall back to calling agent
+        let agent_str = agent_id.unwrap_or_else(|| self.webid.to_string());
+        validate_field!(span, "agent_id", &agent_str, 128);
+        let agent = WebID::from_string(&agent_str);
+
+        match self.runtime.agent_gas_status(&agent).await {
+            Some(status) => span.ok_json(serde_json::json!({
+                "agent_id": agent_str,
+                "cap": status.cap,
+                "remaining": status.remaining,
+                "reserved": status.reserved,
+                "available": status.available,
+                "usage_ratio": (status.usage_ratio * 100.0).round() / 100.0,
+                "hard_limit": status.hard_limit,
+                "alert_threshold": status.alert_threshold,
+            })),
+            None => span.ok_json(serde_json::json!({
+                "agent_id": agent_str,
+                "error": "No budget registered for agent",
+            })),
+        }
+    }
+
+    #[tool(description = "Emit a backpressure signal to throttle downstream loops")]
+    async fn cns_backpressure(
+        &self,
+        Parameters(BackpressureRequest { severity, reason }): Parameters<BackpressureRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("cns_backpressure", &self.webid);
+
+        validate_field!(span, "reason", &reason, 256);
+
+        let clamped = severity.clamp(0.0, 1.0);
+        let signal = hkask_types::ports::BackpressureSignal {
+            source: hkask_types::loops::LoopId::Cybernetics,
+            reason: reason.clone(),
+            severity: clamped,
+        };
+        self.runtime.emit_backpressure(signal.clone()).await;
+
+        span.ok_json(serde_json::json!({
+            "source": "Cybernetics",
+            "severity": clamped,
+            "reason": reason,
+            "emitted": true,
         }))
     }
 }

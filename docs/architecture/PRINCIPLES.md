@@ -74,11 +74,11 @@ status: VERIFIED
 - `hkask-mcp-inference` — Okapi LLM inference
 - `hkask-mcp-condenser` — Context condensation (reranking and compression of the active conversation window)
 - `hkask-mcp-web` — Search, scrape, extract
-- `hkask-mcp-ocap` — Capability management
-- `hkask-mcp-keystore` — OS keychain
+- `hkask-mcp-ocap` — Capability management (Cybernetics, L6)
+- `hkask-mcp-keystore` — OS keychain (Cybernetics, L6)
 - `hkask-mcp-cns` — CNS operations
 - `hkask-mcp-git` — Git CAS
-- `hkask-mcp-registry` — Registry operations
+- `hkask-mcp-registry` — Registry operations (cross-loop bridge, L1↔L5)
 - `hkask-mcp-spec` — DDMVSS spec capture
 - `hkask-mcp-goal` — Goal coordination
 - `hkask-mcp-github` — GitHub integration
@@ -168,7 +168,7 @@ The five anchors ground in the [six-loop authority model](loop-architecture.md):
 | Anchor | Loop(s) | Rationale |
 |--------|---------|-----------|
 | 1. Agent Enablement | Curation (Loop 5) | Bot/Replicant pods, ACP, persona — the Curator enables agents |
-| 2. Essential Tools | Inference (Loop 1) + Communication (Loop 4) | 19 MCP servers provide inference and dispatch; the tool surface spans both loops |
+| 2. Essential Tools | Inference (L1) + Communication (L4) + Cybernetics (L6) + Episodic (L2) | 19 MCP servers span multiple loops: inference (L1), dispatch (L4), OCAP/keystore enforcement (L6), condenser (L2), registry bridge (L1↔L5). See [loop-architecture.md §3.4](loop-architecture.md) for per-server assignments. |
 | 3. User Sovereignty | Cybernetics (Loop 6) | OCAP, SQLCipher, gating, kill-zone — all regulation is Cybernetics |
 | 4. CNS | Cybernetics (Loop 6) | Homeostatic self-regulation IS the Cybernetics loop |
 | 5. Composition | Semantic (Loop 2b) | Unified registry, hLexicon, cascade — shared knowledge composition |

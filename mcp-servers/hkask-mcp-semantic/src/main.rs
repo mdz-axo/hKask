@@ -10,16 +10,14 @@
 //! - `semantic_purge` — Delete embeddings matching an entity_ref prefix
 //! - `semantic_chunk` — Chunk text into passages for embedding
 //! - `semantic_count` — Triple and embedding counts
-//! - `semantic_consolidate` — Clean up low-confidence semantic triples
-//!
-//! **Consolidation NOT exposed:** The Episodic → Semantic consolidation bridge
-//! requires a `ConsolidationToken` issued by the Curation Loop. MCP servers
-//! cannot mint this token.
+//! - `semantic_consolidate` — Full consolidation: episodic→semantic promotion + semantic cleanup
 
 use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_mcp::validate_field;
-use hkask_memory::SemanticMemory;
+use hkask_memory::{ConsolidationBridge, ConsolidationService, EpisodicMemory, SemanticMemory};
 use hkask_storage::Triple;
+use hkask_types::loops::CuratorHandle;
+use hkask_types::ports::{ConsolidationPort, ConsolidationRequest};
 use hkask_types::{McpErrorKind, Visibility, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -89,13 +87,28 @@ pub struct ConsolidateRequest {
 }
 
 pub struct SemanticServer {
-    memory: SemanticMemory,
+    memory: Arc<SemanticMemory>,
+    /// Kept for ownership lifecycle — the bridge holds its own Arc<EpisodicMemory>,
+    /// but this field ensures the original Arc stays alive for the server's lifetime.
+    #[allow(dead_code)] // ownership guard for ConsolidationBridge's episodic Arc
+    episodic: Arc<EpisodicMemory>,
+    bridge: Arc<ConsolidationBridge>,
     webid: WebID,
 }
 
 impl SemanticServer {
-    pub fn new(memory: SemanticMemory, webid: WebID) -> Self {
-        Self { memory, webid }
+    pub fn new(
+        memory: Arc<SemanticMemory>,
+        episodic: Arc<EpisodicMemory>,
+        bridge: Arc<ConsolidationBridge>,
+        webid: WebID,
+    ) -> Self {
+        Self {
+            memory,
+            episodic,
+            bridge,
+            webid,
+        }
     }
 }
 
@@ -411,12 +424,12 @@ impl SemanticServer {
     }
 
     #[tool(
-        description = "Consolidate episodic→semantic and clean up low-confidence semantic triples"
+        description = "Full consolidation: episodic→semantic promotion + semantic cleanup (low-confidence deletion, max-triple enforcement)"
     )]
     async fn semantic_consolidate(
         &self,
         Parameters(ConsolidateRequest {
-            limit: _,
+            limit,
             confidence_floor,
             max_semantic_triples,
         }): Parameters<ConsolidateRequest>,
@@ -432,69 +445,45 @@ impl SemanticServer {
         // API endpoints are directly user-facing (no OCAP membrane), so they
         // need passphrase verification. This tool does not.
 
-        // The MCP semantic server only has SemanticMemory, not EpisodicMemory.
-        // Consolidation (episodic→semantic) requires both. The MCP server
-        // can only do the semantic cleanup portion (phases 2 and 3).
+        // Issue a ConsolidationToken via the system CuratorHandle.
+        // The MCP server is OCAP-gated, so the caller already has authority
+        // to invoke consolidation. The token proves this to ConsolidationPort.
+        let handle = CuratorHandle::system();
+        let token = handle.issue_consolidation_token();
 
-        // Phase 2: Delete semantic triples at or below confidence floor
-        let mut deleted_count = 0usize;
-        let consolidated_count = 0usize;
+        // Build ConsolidationService wrapping the bridge + semantic memory + token
+        let service = ConsolidationService::new(
+            Arc::clone(&self.bridge) as Arc<dyn ConsolidationPort>,
+            Arc::clone(&self.memory),
+            token,
+        );
 
-        if let Some(floor) = confidence_floor {
-            match self.memory.low_confidence_triples(floor, usize::MAX) {
-                Ok(candidates) if !candidates.is_empty() => {
-                    for triple in &candidates {
-                        if self.memory.delete_triple(&triple.id).is_ok() {
-                            deleted_count += 1;
-                        }
-                    }
-                }
-                Ok(_) => {}
-                Err(e) => {
-                    return span.internal_error(json!({
-                        "error": format!("Failed to query low-confidence triples: {}", e)
-                    }));
-                }
+        let perspective = handle.curator_id().clone();
+        let limit = limit.unwrap_or(100);
+
+        let request = ConsolidationRequest {
+            limit,
+            confidence_floor,
+            max_semantic_triples,
+        };
+
+        // ConsolidationPort::consolidate is sync — call it from this async context
+        let outcome = match service.consolidate(&perspective, request) {
+            Ok(outcome) => outcome,
+            Err(e) => {
+                return span.internal_error(json!({
+                    "error": format!("Consolidation failed: {}", e)
+                }));
             }
-        }
-
-        // Phase 3: Enforce max semantic triple count
-        if let Some(max) = max_semantic_triples {
-            match self.memory.triple_count() {
-                Ok(count) if count > max => {
-                    let overage = count - max;
-                    match self.memory.lowest_confidence_triples(overage) {
-                        Ok(candidates) if !candidates.is_empty() => {
-                            for triple in &candidates {
-                                if self.memory.delete_triple(&triple.id).is_ok() {
-                                    deleted_count += 1;
-                                }
-                            }
-                        }
-                        Ok(_) => {}
-                        Err(e) => {
-                            return span.internal_error(json!({
-                                "error": format!("Failed to query lowest-confidence triples: {}", e)
-                            }));
-                        }
-                    }
-                }
-                Ok(_) => {}
-                Err(e) => {
-                    return span.internal_error(json!({
-                        "error": format!("Failed to count semantic triples: {}", e)
-                    }));
-                }
-            }
-        }
+        };
 
         let final_count = self.memory.triple_count().unwrap_or(0);
 
         span.ok_json(json!({
-            "consolidated_count": consolidated_count,
-            "deleted_count": deleted_count,
+            "consolidated_count": outcome.consolidated_count,
+            "deleted_count": outcome.deleted_count,
+            "failed_count": outcome.failed_count,
             "semantic_triple_count": final_count,
-            "note": "Episodic→semantic consolidation requires the CLI or API. This tool only performs semantic cleanup.",
         }))
     }
 }
@@ -502,22 +491,31 @@ impl SemanticServer {
 hkask_mcp::mcp_server_main!(
     "hkask-mcp-semantic",
     factory: |ctx: hkask_mcp::ServerContext| {
-        let db_path = ctx.credentials.get("HKASK_SEMANTIC_DB")
-            .ok_or_else(|| anyhow::anyhow!("Missing HKASK_SEMANTIC_DB"))?
+        let db_path = ctx.credentials.get("HKASK_MEMORY_DB")
+            .ok_or_else(|| anyhow::anyhow!("Missing HKASK_MEMORY_DB"))?
             .clone();
         let passphrase = ctx.credentials.get("HKASK_DB_PASSPHRASE")
             .ok_or_else(|| anyhow::anyhow!("Missing HKASK_DB_PASSPHRASE"))?
             .clone();
         let db = hkask_storage::Database::open(&db_path, &passphrase)
-            .map_err(|e| anyhow::anyhow!("Failed to open semantic database: {}", e))?;
+            .map_err(|e| anyhow::anyhow!("Failed to open memory database: {}", e))?;
         let conn = db.conn_arc();
-        let triple_store = hkask_storage::TripleStore::new(Arc::clone(&conn));
+        // Episodic memory from the same per-agent DB
+        let ts_episodic = hkask_storage::TripleStore::new(Arc::clone(&conn));
+        let episodic = Arc::new(hkask_memory::EpisodicMemory::new(ts_episodic));
+        // Semantic memory from the same per-agent DB
+        let ts_semantic = hkask_storage::TripleStore::new(Arc::clone(&conn));
         let embedding_store = hkask_storage::EmbeddingStore::new(conn);
-        let memory = hkask_memory::SemanticMemory::new(triple_store, embedding_store);
-        Ok(SemanticServer::new(memory, ctx.webid))
+        let memory = Arc::new(hkask_memory::SemanticMemory::new(ts_semantic, embedding_store));
+        // Consolidation bridge from shared episodic + semantic
+        let bridge = Arc::new(hkask_memory::ConsolidationBridge::new(
+            Arc::clone(&episodic),
+            Arc::clone(&memory),
+        ));
+        Ok(SemanticServer::new(memory, episodic, bridge, ctx.webid))
     },
     credentials: vec![
-        hkask_mcp::CredentialRequirement::required("HKASK_SEMANTIC_DB", "Path to semantic database file"),
+        hkask_mcp::CredentialRequirement::required("HKASK_MEMORY_DB", "Path to per-agent memory database file (episodic + semantic)"),
         hkask_mcp::CredentialRequirement::required("HKASK_DB_PASSPHRASE", "SQLCipher encryption passphrase"),
     ]
 );

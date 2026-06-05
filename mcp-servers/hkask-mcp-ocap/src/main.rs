@@ -1,5 +1,8 @@
 //! hKask MCP OCAP — Capability-based access control and delegation
 //!
+//! Loop: Cybernetics (Loop 6) — OCAP enforcement is authority governance.
+//! Curation *uses* OCAP tokens; this server *enforces* the capability membrane.
+//!
 //! 5 tools:
 //! - `ocap:delegate` — Create a delegated capability token with HMAC signature
 //! - `ocap:verify` — Verify a capability token with cryptographic HMAC verification

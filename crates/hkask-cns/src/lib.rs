@@ -28,7 +28,7 @@ pub use allosteric::{
 pub use circuit_breaker::CircuitBreaker;
 pub use composite_gas_estimator::CompositeGasEstimator;
 pub use cybernetics_loop::{CyberneticsLoop, SetPoints, SetPointsConfig, load_set_points};
-pub use energy::{GasBudget, GasError};
+pub use energy::{AgentGasStatus, GasBudget, GasError};
 pub use governed_tool::{GasEstimator, GovernedTool};
 pub use runtime::CnsRuntime;
 

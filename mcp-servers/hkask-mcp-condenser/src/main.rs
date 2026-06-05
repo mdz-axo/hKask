@@ -1,5 +1,9 @@
 //! hKask MCP Condenser — Context condensation for tool outputs
 //!
+//! Loop: Episodic (Loop 2) — Confirmed. Context condensation operates on the active
+//! conversation window, which is episodic in nature. The condenser compresses and persists
+//! tool outputs within the episodic memory boundary.
+//!
 //! Provides compression algorithms (rtk_style, saliency_rank, flashrank) for reducing
 //! tool output size while preserving essential information. Phase 1 implements local
 //! CPU-only algorithms with no LLM dependency. Phase 2 (deferred) adds LLM-assisted

@@ -207,6 +207,19 @@ impl EpisodicMemory {
         self.storage_budget
     }
 
+    /// Count consolidation candidates for a perspective.
+    ///
+    /// Returns the number of episodic triples eligible for consolidation
+    /// (sorted by decayed confidence, oldest/lowest first). This is the
+    /// count-only version of `consolidation_candidates` — safe to expose
+    /// publicly because it doesn't return triple data.
+    pub fn consolidation_candidate_count(&self, perspective: &WebID) -> usize {
+        match self.consolidation_candidates(*perspective, usize::MAX) {
+            Ok(candidates) => candidates.len(),
+            Err(_) => 0,
+        }
+    }
+
     /// Get the configured decay rate.
     ///
     /// **Membrane-sealed:** Only callable from within this crate.

@@ -834,3 +834,42 @@ pub trait EmbeddingGenerationPort: Send + Sync {
     /// Get the embedding dimension for the current model.
     fn embedding_dim(&self) -> usize;
 }
+
+// =============================================================================
+// Agent Registration Port — Agent definition persistence membrane
+// =============================================================================
+
+use crate::AgentKind;
+use crate::RegisteredAgent;
+
+/// Agent registration port — hexagonal boundary for agent definition persistence
+///
+/// The registry is **shared substrate** (like hkask-storage itself): no single
+/// loop *owns* it. Each loop accesses it via capability-gated port traits:
+///
+/// - `InferencePort` → read templates (L1)
+/// - `CurationPort` → read/write skills and bundles (L5)
+/// - `AgentRegistrationPort` → read/write agent definitions (L5)
+///
+/// The MCP registry server is a **cross-loop bridge** serving both L1 and L5
+/// queries, routing each request through the appropriate port trait so that
+/// capability gates remain enforceable.
+///
+/// Implementations:
+/// - `AgentRegistryStore` — Production implementation via SQLite (in hkask-storage)
+pub trait AgentRegistrationPort: Send + Sync {
+    /// Register a new agent (or replace an existing one with the same name)
+    fn register_agent(&self, agent: RegisteredAgent) -> Result<(), RegistryError>;
+
+    /// Retrieve an agent by name
+    fn get_agent(&self, name: &str) -> Result<RegisteredAgent, RegistryError>;
+
+    /// List all registered agents
+    fn list_agents(&self) -> Result<Vec<RegisteredAgent>, RegistryError>;
+
+    /// List agents filtered by kind (Bot / Replicant)
+    fn list_agents_by_kind(&self, kind: AgentKind) -> Result<Vec<RegisteredAgent>, RegistryError>;
+
+    /// Remove an agent by name
+    fn remove_agent(&self, name: &str) -> Result<(), RegistryError>;
+}

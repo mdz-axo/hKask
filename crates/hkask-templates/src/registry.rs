@@ -17,6 +17,14 @@ use std::path::PathBuf;
 
 /// Unified template + skill registry
 ///
+/// Thin in-memory wrapper (read-through cache) around `SqliteRegistry`.
+/// Not a separate API surface — both `Registry` and `SqliteRegistry` implement
+/// the same three index traits (`RegistryIndex`, `SkillRegistryIndex`,
+/// `BundleRegistryIndex`). `Registry` loads from the filesystem on startup
+/// and caches entries in HashMaps; `SqliteRegistry` provides the persistent
+/// backing store. The two are always used in tandem: `Registry` for fast
+/// lookups, `SqliteRegistry` for durability.
+///
 /// Templates are stored as `RegistryEntry` (the canonical type from `hkask_types::ports`).
 /// Skills compose templates into coherent agent capabilities.
 /// Bundles compose multiple skills into orchestrated process flows.

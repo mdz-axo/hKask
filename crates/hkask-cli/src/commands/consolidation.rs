@@ -3,26 +3,46 @@
 use std::sync::Arc;
 
 use hkask_memory::{ConsolidationBridge, ConsolidationService, EpisodicMemory, SemanticMemory};
-use hkask_storage::{EmbeddingStore, TripleStore};
+use hkask_storage::{Database, EmbeddingStore, TripleStore};
 use hkask_types::WebID;
 use hkask_types::loops::CuratorHandle;
 use hkask_types::ports::{ConsolidationPort, ConsolidationRequest};
 
 pub fn run(
-    db: &hkask_storage::Database,
     agent: Option<&str>,
     limit: usize,
     confidence_floor: Option<f64>,
     max_semantic_triples: Option<usize>,
     passphrase: Option<&str>,
 ) {
+    // Resolve agent name — defaults to "curator" for the Curator agent
+    let agent_name = agent.unwrap_or("curator");
+
+    // Resolve the agent's per-agent memory DB path and passphrase.
+    // Consolidation operates on the agent's actual episodic and semantic
+    // triples, which live in hkask-memory-{agent}.db — not the registry DB.
+    let db_path = format!("hkask-memory-{}.db", agent_name);
+    let db_passphrase = match hkask_keystore::resolve_db_passphrase() {
+        Ok(pass) => String::from_utf8_lossy(&pass).to_string(),
+        Err(e) => {
+            eprintln!("Error: Could not resolve DB passphrase: {}", e);
+            std::process::exit(1);
+        }
+    };
+    let db = match Database::open(&db_path, &db_passphrase) {
+        Ok(db) => db,
+        Err(e) => {
+            eprintln!("Error: Failed to open agent memory DB ({}): {}", db_path, e);
+            std::process::exit(1);
+        }
+    };
     let conn = db.conn_arc();
 
-    // Build memory infrastructure
+    // Build memory infrastructure from the agent's DB
     let triple_store = TripleStore::new(Arc::clone(&conn));
     let episodic_memory = Arc::new(EpisodicMemory::new(triple_store));
     let triple_store2 = TripleStore::new(Arc::clone(&conn));
-    let embedding_store = EmbeddingStore::new(conn);
+    let embedding_store = EmbeddingStore::new(Arc::clone(&conn));
     let semantic_memory = Arc::new(SemanticMemory::new(triple_store2, embedding_store));
 
     // Build consolidation bridge + service
@@ -74,6 +94,7 @@ pub fn run(
     let semantic_count = service.semantic_triple_count();
     let low_conf = service.semantic_low_confidence_count(0.33);
     println!("Pre-consolidation state:");
+    println!("  Agent memory DB: {}", db_path);
     println!("  Consolidation candidates: {}", candidates);
     println!("  Semantic triple count: {}", semantic_count);
     println!("  Low-confidence triples (≤0.33): {}", low_conf);

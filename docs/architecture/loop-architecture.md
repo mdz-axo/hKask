@@ -259,6 +259,32 @@ Each loop exposes a **minimal interface** — a set of operations that other loo
 
 `hkask-storage` and `hkask-types` are **not owned by any loop** — they are shared substrate accessed via capability. No loop may access storage directly; all access is mediated by OCAP tokens that attenuate on each delegation. This prevents any loop from accumulating implicit authority over another loop's data.
 
+### 3.4 MCP Server-to-Loop Mapping
+
+MCP servers are operational units that reside within the loop architecture. Each server is assigned to its semantically correct loop based on the authority it enforces:
+
+| MCP Server | Loop | Rationale |
+|-----------|------|----------|
+| `hkask-mcp-inference` | L1 (Inference) | Okapi LLM inference — the Inference loop's core transform |
+| `hkask-mcp-condenser` | L2 (Episodic) | Context condensation operates on the active conversation window (episodic boundary) |
+| `hkask-mcp-episodic` | L2 (Episodic) | Episodic memory storage and retrieval |
+| `hkask-mcp-semantic` | L2b (Semantic) | Semantic (shared) memory storage and retrieval |
+| `hkask-mcp-web` | L4 (Communication) | External I/O dispatch — Communication routes web requests |
+| `hkask-mcp-git` | L4 (Communication) | Git CAS operations — Communication routes archival I/O |
+| `hkask-mcp-github` | L4 (Communication) | GitHub API — Communication routes external integrations |
+| `hkask-mcp-fmp` | L4 (Communication) | FMP financial data — Communication routes external integrations |
+| `hkask-mcp-telnyx` | L4 (Communication) | Telnyx SMS/voice — Communication routes external integrations |
+| `hkask-mcp-fal` | L4 (Communication) | FAL media generation — Communication routes external integrations |
+| `hkask-mcp-ensemble` | L4 (Communication) | Multi-agent chat coordination — Communication routes agent messages |
+| `hkask-mcp-rss-reader` | L2 (Episodic) | RSS feeds are consumed into episodic memory |
+| `hkask-mcp-registry` | L1↔L5 (bridge) | Cross-loop bridge: template discovery (Inference, L1) + skill/bundle composition (Curation, L5) |
+| `hkask-mcp-spec` | L5 (Curation) | DDMVSS spec capture — Curation governs specification authoring |
+| `hkask-mcp-goal` | L5 (Curation) | Goal coordination — Curation governs goal prioritization |
+| `hkask-mcp-replicant` | L5 (Curation) | Replicant chat — Curation manages agent persona |
+| `hkask-mcp-ocap` | L6 (Cybernetics) | OCAP enforcement is authority governance — Cybernetics regulates capability membranes |
+| `hkask-mcp-keystore` | L6 (Cybernetics) | Key management and encryption are sovereignty/authority concerns — Cybernetics regulates |
+| `hkask-mcp-cns` | L6 (Cybernetics) | CNS operations — Cybernetics IS the self-regulation loop |
+
 ---
 
 ## 4. Capability Membranes

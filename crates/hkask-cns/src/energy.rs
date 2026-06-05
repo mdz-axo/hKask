@@ -191,21 +191,48 @@ impl GasBudget {
     }
 
     /// Whether the usage ratio has crossed the alert threshold.
-    ///
-    /// Dead code: no production caller yet. Will be wired when Task 10
-    /// adds `cns_energy` MCP tool for agent-facing gas budget visibility.
-    #[allow(dead_code)]
     pub(crate) fn should_alert(&self) -> bool {
         self.usage_ratio() >= self.alert_threshold
     }
 
     /// Usage ratio: 0.0 = full budget, 1.0 = empty.
-    ///
-    /// Dead code: no production caller yet. Will be wired when Task 10
-    /// adds `cns_energy` MCP tool for agent-facing gas budget visibility.
-    #[allow(dead_code)]
     pub(crate) fn usage_ratio(&self) -> f64 {
         1.0 - (self.remaining as f64 / self.cap.max(1) as f64)
+    }
+}
+
+/// Read-only snapshot of an agent's gas budget status.
+///
+/// Returned by `CyberneticsLoop::agent_gas_status()` and `CnsRuntime::agent_gas_status()`
+/// for use by the `cns_energy` MCP tool and InferenceLoop gas sync.
+pub struct AgentGasStatus {
+    /// Maximum gas capacity.
+    pub cap: u64,
+    /// Currently available gas (total remaining, including reserved).
+    pub remaining: u64,
+    /// Gas reserved by in-flight operations.
+    pub reserved: u64,
+    /// Available gas = remaining - reserved.
+    pub available: u64,
+    /// Usage ratio: 0.0 = full budget, 1.0 = empty.
+    pub usage_ratio: f64,
+    /// Whether the agent will be hard-rejected on exhaustion.
+    pub hard_limit: bool,
+    /// The ratio at which alerts fire (0.0–1.0).
+    pub alert_threshold: f64,
+}
+
+impl From<&GasBudget> for AgentGasStatus {
+    fn from(budget: &GasBudget) -> Self {
+        Self {
+            cap: budget.cap,
+            remaining: budget.remaining,
+            reserved: budget.reserved,
+            available: budget.available(),
+            usage_ratio: budget.usage_ratio(),
+            hard_limit: budget.hard_limit,
+            alert_threshold: budget.alert_threshold,
+        }
     }
 }
 

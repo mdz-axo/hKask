@@ -1090,6 +1090,7 @@ erDiagram
     CONDENSER_SERVER {
         string id "hkask-mcp-condenser"
         string purpose "Context condensation (reranking and compression of the active conversation window)"
+        string loop "L2 (Episodic)"
     }
 
     WEB_SERVER {
@@ -1102,11 +1103,13 @@ erDiagram
     OCAP_SERVER {
         string id "hkask-mcp-ocap"
         string purpose "Capability management"
+        string loop "L6 (Cybernetics)"
     }
 
     KEYSTORE_SERVER {
         string id "hkask-mcp-keystore"
         string purpose "OS keychain operations"
+        string loop "L6 (Cybernetics)"
     }
 
     CNS_SERVER {
@@ -1122,6 +1125,7 @@ erDiagram
     REGISTRY_SERVER {
         string id "hkask-mcp-registry"
         string purpose "Registry operations"
+        string loop "L1↔L5 (bridge)"
     }
 
     SPEC_SERVER {

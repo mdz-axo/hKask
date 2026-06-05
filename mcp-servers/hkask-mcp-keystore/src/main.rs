@@ -1,5 +1,8 @@
 //! hKask MCP Keystore — Persistent encrypted key-value storage
 //!
+//! Loop: Cybernetics (Loop 6) — Key management and encryption are sovereignty/authority
+//! concerns. The keystore enforces the encryption boundary that Cybernetics regulates.
+//!
 //! 6 tools:
 //! - `keystore:set` — Set a key-value pair with AES-256-GCM encryption
 //! - `keystore:get` — Get a value (capability-gated: only owner pod can read)

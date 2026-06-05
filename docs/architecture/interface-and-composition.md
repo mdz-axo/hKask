@@ -345,7 +345,7 @@ This spec's content maps to the [6-loop authority model](loop-architecture.md) a
 |------------|------|-----------|
 | MCP/CLI/API equivalence | Communication (Loop 4) | All interface surfaces are Communication-layer dispatch |
 | Hexagonal ports | Cybernetics (Loop 6) | Ports are regulation membranes — Cybernetics defines ingress/egress boundaries |
-| Unified registry | Semantic Memory (Loop 2b) | Shared template/lexicon registry is shared knowledge |
+| Unified registry | L1↔L5 (bridge) | Cross-loop bridge: template discovery (Inference, L1) + skill/bundle composition (Curation, L5). The `hkask-mcp-registry` server bridges both loops. |
 | Template cascade | Inference (Loop 1) | Prompt rendering is an Inference concern |
 | Rendering pipeline | Inference (Loop 1) | LLM invocation is the Inference loop's core transform |
 

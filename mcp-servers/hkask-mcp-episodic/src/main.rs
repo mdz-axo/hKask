@@ -1,10 +1,11 @@
 //! hKask MCP Episodic — Episodic memory store and recall
 //!
-//! 4 tools:
+//! 5 tools:
 //! - `episodic_ping` — Liveness and storage info
 //! - `episodic_store` — Store an episodic triple (private, perspective-bound)
 //! - `episodic_recall` — Recall triples by entity (filtered by caller's WebID)
 //! - `episodic_budget` — Storage usage and budget info
+//! - `episodic_consolidate` — Check consolidation candidates and budget status
 //!
 //! **Sovereignty:** All operations use the calling agent's `WebID` as the
 //! `perspective`. An agent cannot read another agent's episodic memory.
@@ -38,6 +39,9 @@ pub struct RecallRequest {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct BudgetRequest {}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ConsolidateRequest {}
 
 pub struct EpisodicServer {
     memory: EpisodicMemory,
@@ -147,6 +151,39 @@ impl EpisodicServer {
             "used": usage,
             "budget": budget,
             "remaining": remaining,
+        }))
+    }
+
+    #[tool(description = "Check consolidation candidates for episodic→semantic bridge")]
+    async fn episodic_consolidate(
+        &self,
+        Parameters(_req): Parameters<ConsolidateRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("episodic_consolidate", &self.webid);
+
+        // The MCP episodic server only has EpisodicMemory, not SemanticMemory.
+        // Full consolidation (episodic→semantic) requires both stores and a
+        // ConsolidationToken, available via the CLI/API ConsolidationService.
+        // This tool identifies consolidation candidates and reports status.
+
+        let candidate_count = self.memory.consolidation_candidate_count(&self.webid);
+        let usage = match self.memory.storage_usage(&self.webid) {
+            Ok(u) => u,
+            Err(e) => {
+                return span.internal_error(
+                    json!({"error": format!("Failed to query storage usage: {}", e)}),
+                );
+            }
+        };
+        let budget = self.memory.storage_budget();
+        let over_budget = usage > budget;
+
+        span.ok_json(json!({
+            "consolidation_candidates": candidate_count,
+            "episodic_usage": usage,
+            "episodic_budget": budget,
+            "over_budget": over_budget,
+            "note": "Episodic→semantic consolidation requires the CLI or API (ConsolidationService). This tool only reports candidate status.",
         }))
     }
 }

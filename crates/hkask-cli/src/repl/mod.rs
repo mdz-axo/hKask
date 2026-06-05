@@ -99,9 +99,64 @@ pub(crate) struct ReplState {
     /// Gate inference port — a separate InferencePort for the HHH evaluation model.
     /// Created eagerly at REPL init. None if the gate model failed to initialize.
     pub(crate) gate_inference_port: Option<Arc<dyn InferencePort>>,
-    /// ConsolidationService for /consolidate command — built from the registry DB
-    /// during REPL init. None if the registry DB or memory infrastructure is unavailable.
+    /// ConsolidationService for /consolidate command — built from the same per-agent
+    /// memory DB as `episodic_storage` and `semantic_storage`. None if memory
+    /// infrastructure is unavailable.
     pub(crate) consolidation_service: Option<ConsolidationService>,
+}
+
+/// Build memory infrastructure from a Database: storage ports + ConsolidationService.
+///
+/// All components share the same underlying DB connection, so consolidation
+/// operates on the agent's actual episodic and semantic triples.
+fn build_memory_infra(
+    db: Database,
+) -> (
+    Arc<dyn EpisodicStoragePort>,
+    Arc<dyn SemanticStoragePort>,
+    ConsolidationService,
+) {
+    let conn = db.conn_arc();
+
+    // EpisodicMemory + SemanticMemory for ConsolidationService
+    let ts1 = TripleStore::new(Arc::clone(&conn));
+    let episodic_memory = Arc::new(EpisodicMemory::new(ts1));
+    let ts2 = TripleStore::new(Arc::clone(&conn));
+    let emb = EmbeddingStore::new(Arc::clone(&conn));
+    let semantic_memory = Arc::new(SemanticMemory::new(ts2, emb));
+
+    // ConsolidationService from the shared memories
+    let bridge = Arc::new(ConsolidationBridge::new(
+        Arc::clone(&episodic_memory),
+        Arc::clone(&semantic_memory),
+    ));
+    let handle = CuratorHandle::system();
+    let token = handle.issue_consolidation_token();
+    let service =
+        ConsolidationService::new(bridge as Arc<dyn ConsolidationPort>, semantic_memory, token);
+
+    // Storage ports — new EpisodicMemory/SemanticMemory from the same
+    // connection (same pattern as MemoryLoopAdapter::from_database)
+    let epi_adapter = Arc::new(MemoryLoopAdapter::new(
+        EpisodicMemory::new(TripleStore::new(Arc::clone(&conn))),
+        SemanticMemory::new(
+            TripleStore::new(Arc::clone(&conn)),
+            EmbeddingStore::new(Arc::clone(&conn)),
+        ),
+    ));
+    let sem_adapter = Arc::new(MemoryLoopAdapter::new(
+        EpisodicMemory::new(TripleStore::new(Arc::clone(&conn))),
+        SemanticMemory::new(
+            TripleStore::new(Arc::clone(&conn)),
+            EmbeddingStore::new(Arc::clone(&conn)),
+        ),
+    ));
+
+    (
+        epi_adapter as Arc<dyn EpisodicStoragePort>,
+        sem_adapter as Arc<dyn SemanticStoragePort>,
+        service,
+    )
 }
 
 pub fn run(
@@ -174,96 +229,44 @@ pub fn run(
         "replicant",
     );
 
-    // Initialize persistent memory storage (episodic + semantic) using
-    // encrypted SQLite. Falls back to in-memory if passphrase is unavailable.
-    // This is Task 6: the memory adapters persist across REPL sessions, bound
-    // to the agent's identity. Pod-mediated sessions would provide the same
-    // storage via PodContext, but this gives us session persistence now.
-    let (episodic_storage, semantic_storage): (
+    // ── Memory infrastructure (per-agent DB) ─────────────────────────────
+    // Build EpisodicMemory and SemanticMemory from the agent's per-agent DB
+    // (hkask-memory-{agent}.db). Both the storage ports (inference/recall)
+    // and the ConsolidationService (/consolidate) share the same underlying
+    // DB connection, so consolidation operates on the agent's actual memory.
+    //
+    // Previously the ConsolidationService was incorrectly built from the
+    // registry DB (hkask.db), which meant /consolidate operated on the wrong
+    // triples — the agent's working memory lives in the per-agent DB.
+    let (episodic_storage, semantic_storage, consolidation_service): (
         Arc<dyn EpisodicStoragePort>,
         Arc<dyn SemanticStoragePort>,
+        Option<ConsolidationService>,
     ) = match &onboarding_outcome.resolved_secrets {
         Some(secrets) => {
-            // Use the resolved DB passphrase for encrypted persistent storage
             let db_path = format!("hkask-memory-{}.db", onboarding_outcome.signed_in_agent);
-            match MemoryLoopAdapter::from_path(&db_path, &secrets.db_passphrase) {
-                Ok(adapter) => {
-                    let episodic: Arc<dyn EpisodicStoragePort> = Arc::new(adapter);
-                    // Create a second adapter from the same path for semantic storage
-                    // (they share the same underlying database)
-                    let sem_adapter =
-                        MemoryLoopAdapter::from_path(&db_path, &secrets.db_passphrase)
-                            .expect("DB opened once, should open again");
-                    let semantic: Arc<dyn SemanticStoragePort> = Arc::new(sem_adapter);
-                    (episodic, semantic)
+            match Database::open(&db_path, &secrets.db_passphrase) {
+                Ok(db) => {
+                    let (epi, sem, svc) = build_memory_infra(db);
+                    (epi, sem, Some(svc))
                 }
                 Err(e) => {
                     eprintln!(
                         "Warning: Persistent memory init failed ({}), falling back to in-memory",
                         e
                     );
-                    let epi_adapter = MemoryLoopAdapter::in_memory()
-                        .expect("In-memory storage should never fail");
-                    let sem_adapter = MemoryLoopAdapter::in_memory()
-                        .expect("In-memory storage should never fail");
-                    let episodic: Arc<dyn EpisodicStoragePort> = Arc::new(epi_adapter);
-                    let semantic: Arc<dyn SemanticStoragePort> = Arc::new(sem_adapter);
-                    (episodic, semantic)
+                    let db = Database::in_memory().expect("In-memory DB should never fail");
+                    let (epi, sem, svc) = build_memory_infra(db);
+                    (epi, sem, Some(svc))
                 }
             }
         }
         None => {
-            // No resolved secrets — use in-memory storage (ephemeral)
-            let epi_adapter =
-                MemoryLoopAdapter::in_memory().expect("In-memory storage should never fail");
-            let sem_adapter =
-                MemoryLoopAdapter::in_memory().expect("In-memory storage should never fail");
-            let episodic: Arc<dyn EpisodicStoragePort> = Arc::new(epi_adapter);
-            let semantic: Arc<dyn SemanticStoragePort> = Arc::new(sem_adapter);
-            (episodic, semantic)
+            let db = Database::in_memory().expect("In-memory DB should never fail");
+            let (epi, sem, svc) = build_memory_infra(db);
+            (epi, sem, Some(svc))
         }
     };
-
-    // ── ConsolidationService (for /consolidate command) ────────────────────
-    // Build from the main registry DB (where all agent triples are stored).
-    // Falls back to None if the registry DB or memory infrastructure is unavailable.
-    //
-    // NOTE: This opens a second, independent connection to the registry DB
-    // (hkask.db). The REPL's per-agent memory DB (hkask-memory-{agent}.db)
-    // is what `episodic_storage` and `semantic_storage` point to. The
-    // ConsolidationService operates on the registry DB's triples. If the
-    // per-agent memory DB and the registry DB diverge (e.g., agent stores
-    // triples in one but not the other), the `/consolidate` command will show
-    // counts from the registry DB while the agent's actual working memory is
-    // in the per-agent DB. This is a known architectural split — the registry
-    // DB is the authoritative triple store for consolidation, while per-agent
-    // DBs serve the inference path.
-    let consolidation_service: Option<ConsolidationService> = (|| {
-        let db_path = crate::commands::config::registry_db_path();
-        let db_passphrase = crate::commands::config::resolve_db_passphrase().ok()?;
-        let db = if db_path == ":memory:" {
-            Database::in_memory().ok()?
-        } else {
-            Database::open(&db_path, &db_passphrase).ok()?
-        };
-        let conn = db.conn_arc();
-        let triple_store = TripleStore::new(Arc::clone(&conn));
-        let episodic_memory = Arc::new(EpisodicMemory::new(triple_store));
-        let triple_store2 = TripleStore::new(Arc::clone(&conn));
-        let embedding_store = EmbeddingStore::new(conn);
-        let semantic_memory = Arc::new(SemanticMemory::new(triple_store2, embedding_store));
-        let bridge = Arc::new(ConsolidationBridge::new(
-            Arc::clone(&episodic_memory),
-            Arc::clone(&semantic_memory),
-        ));
-        let handle = CuratorHandle::system();
-        let token = handle.issue_consolidation_token();
-        Some(ConsolidationService::new(
-            bridge as Arc<dyn ConsolidationPort>,
-            semantic_memory,
-            token,
-        ))
-    })();
 
     // Initialize CNS runtime for variety sensing and algedonic alerts.
     // Default threshold of 100 means algedonic alerts fire when variety deficit
@@ -340,11 +343,9 @@ pub fn run(
     // cap=10000, replenish_rate=1000/turn (10% of cap), alert at 80% usage,
     // hard_limit=true (block operations when exhausted).
     //
-    // The InferenceLoop also tracks gas via its own AtomicU64 counter for
-    // its sense() signal (inference_gas_remaining). Both trackers are
-    // consumed in the REPL turn cycle — InferenceLoop's counter is the
-    // operational fast-path, CyberneticsLoop's GasBudget is the regulatory
-    // tracker with replenishment and homeostatic response.
+    // InferenceLoop's gas counter is a read-only mirror of this budget,
+    // synced via `sync_gas_state()` after each CyberneticsLoop operation.
+    // The L6 budget is the authoritative regulator; the L1 counter is a sense signal.
     rt_handle.block_on(async {
         cybernetics_loop
             .read()
@@ -601,8 +602,6 @@ pub fn run(
                             .reserve_gas(&state.agent_webid, heuristic_cost)
                             .await
                     });
-                    // Also consume from InferenceLoop's atomic counter (pre-inference estimate)
-                    state.inference_loop.consume_gas(heuristic_cost);
 
                     // ── HHH alignment: reframe input and augment system prompt ────
                     // When HHH mode is active, wrap the input in a reframe template
@@ -645,16 +644,18 @@ pub fn run(
                             .await
                     });
 
-                    // Adjust InferenceLoop's atomic counter for the difference
-                    // If actual > heuristic, consume more; if actual < heuristic, refund
-                    if actual_cost > heuristic_cost {
+                    // Sync InferenceLoop's sense signal from the authoritative L6 budget
+                    if let Some(status) = rt.block_on(async {
+                        state
+                            .cybernetics_loop
+                            .read()
+                            .await
+                            .agent_gas_status(&state.agent_webid)
+                            .await
+                    }) {
                         state
                             .inference_loop
-                            .consume_gas(actual_cost - heuristic_cost);
-                    } else if actual_cost < heuristic_cost {
-                        state
-                            .inference_loop
-                            .replenish_gas(heuristic_cost - actual_cost);
+                            .sync_gas_state(status.remaining, status.cap);
                     }
 
                     let response = chat_response.text;
@@ -714,7 +715,6 @@ pub fn run(
                                     .reserve_gas(&state.agent_webid, heuristic_cost)
                                     .await
                             });
-                            state.inference_loop.consume_gas(heuristic_cost);
 
                             let followup = rt.block_on(crate::commands::chat_with_agent(
                                 &followup_prompt,
@@ -742,14 +742,19 @@ pub fn run(
                                     .settle_gas(&state.agent_webid, heuristic_cost, followup_cost)
                                     .await
                             });
-                            if followup_cost > heuristic_cost {
+
+                            // Sync InferenceLoop's sense signal from the authoritative L6 budget
+                            if let Some(status) = rt.block_on(async {
+                                state
+                                    .cybernetics_loop
+                                    .read()
+                                    .await
+                                    .agent_gas_status(&state.agent_webid)
+                                    .await
+                            }) {
                                 state
                                     .inference_loop
-                                    .consume_gas(followup_cost - heuristic_cost);
-                            } else if followup_cost < heuristic_cost {
-                                state
-                                    .inference_loop
-                                    .replenish_gas(heuristic_cost - followup_cost);
+                                    .sync_gas_state(status.remaining, status.cap);
                             }
 
                             if let Some(ref usage) = followup.usage {
@@ -828,7 +833,6 @@ pub fn run(
                                             .reserve_gas(&state.agent_webid, gate_heuristic)
                                             .await
                                     });
-                                    state.inference_loop.consume_gas(gate_heuristic);
 
                                     // Evaluate through the gate
                                     let evaluation = rt.block_on(hhh_gate::hhh_evaluate(
@@ -850,7 +854,20 @@ pub fn run(
                                             )
                                             .await
                                     });
-                                    state.inference_loop.replenish_gas(gate_heuristic);
+
+                                    // Sync InferenceLoop's sense signal from L6 budget
+                                    if let Some(status) = rt.block_on(async {
+                                        state
+                                            .cybernetics_loop
+                                            .read()
+                                            .await
+                                            .agent_gas_status(&state.agent_webid)
+                                            .await
+                                    }) {
+                                        state
+                                            .inference_loop
+                                            .sync_gas_state(status.remaining, status.cap);
+                                    }
 
                                     if evaluation.overall_pass {
                                         println!(
@@ -928,7 +945,6 @@ pub fn run(
                                             .reserve_gas(&state.agent_webid, heuristic_cost)
                                             .await
                                     });
-                                    state.inference_loop.consume_gas(heuristic_cost);
 
                                     let correction_suffix = hhh_gate::hhh_augment_system_prompt("");
                                     let correction_response =
@@ -962,14 +978,19 @@ pub fn run(
                                             )
                                             .await
                                     });
-                                    if correction_cost > heuristic_cost {
+
+                                    // Sync InferenceLoop's sense signal from L6 budget
+                                    if let Some(status) = rt.block_on(async {
+                                        state
+                                            .cybernetics_loop
+                                            .read()
+                                            .await
+                                            .agent_gas_status(&state.agent_webid)
+                                            .await
+                                    }) {
                                         state
                                             .inference_loop
-                                            .consume_gas(correction_cost - heuristic_cost);
-                                    } else if correction_cost < heuristic_cost {
-                                        state
-                                            .inference_loop
-                                            .replenish_gas(heuristic_cost - correction_cost);
+                                            .sync_gas_state(status.remaining, status.cap);
                                     }
 
                                     current_response = correction_response.text;

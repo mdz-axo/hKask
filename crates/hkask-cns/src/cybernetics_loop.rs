@@ -28,7 +28,7 @@
 //! in `SetPoints` + regulation actions via `InferenceRegulation`.
 
 use crate::dampener::Dampener;
-use crate::energy::{GasBudget, GasError};
+use crate::energy::{AgentGasStatus, GasBudget, GasError};
 use crate::runtime::CnsRuntime;
 use hkask_types::WebID;
 use hkask_types::event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
@@ -36,6 +36,7 @@ use hkask_types::loops::{
     ActionType, Deviation, DeviationDirection, DispatchTarget, HkaskLoop, LoopAction, LoopId,
     LoopMessage, LoopPayload, Signal,
 };
+use hkask_types::ports::BackpressureSignal;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{RwLock, mpsc};
@@ -343,6 +344,15 @@ impl CyberneticsLoop {
             // No budget registered — allow by default (soft limit)
             true
         }
+    }
+
+    /// Get a read-only snapshot of an agent's gas budget status.
+    ///
+    /// Returns `None` if the agent has no registered budget.
+    /// Used by the InferenceLoop gas sync and the `cns_energy` MCP tool.
+    pub async fn agent_gas_status(&self, agent: &WebID) -> Option<AgentGasStatus> {
+        let budgets = self.gas_budgets.read().await;
+        budgets.get(agent).map(|b| AgentGasStatus::from(b))
     }
 
     /// Reserve gas for an in-flight operation (hold-settle pattern).
@@ -881,6 +891,30 @@ impl HkaskLoop for CyberneticsLoop {
     async fn act(&self, actions: &[LoopAction]) {
         // Replenish all gas budgets each regulation cycle
         self.replenish_all_budgets().await;
+
+        // Emit backpressure signals for gas budget depletion.
+        // When the Cybernetics Loop detects energy depletion (gas_budget_low),
+        // it signals subscribers so downstream loops can throttle consumption.
+        let has_energy_depletion = actions.iter().any(|a| {
+            a.parameters
+                .get("reason")
+                .and_then(|v| v.as_str())
+                .map_or(false, |r| r == "gas_budget_low")
+        });
+        if has_energy_depletion {
+            let cns = self.cns.read().await;
+            // Find the worst remaining ratio from the actions
+            let worst_ratio = actions
+                .iter()
+                .filter_map(|a| a.parameters.get("remaining_ratio").and_then(|v| v.as_f64()))
+                .fold(1.0, f64::min);
+            let signal = BackpressureSignal {
+                source: LoopId::Cybernetics,
+                reason: "gas_budget_depletion".to_string(),
+                severity: 1.0 - worst_ratio,
+            };
+            cns.emit_backpressure(signal).await;
+        }
 
         if actions.len() > self.max_iterations as usize {
             tracing::warn!(

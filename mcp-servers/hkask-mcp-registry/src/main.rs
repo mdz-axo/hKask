@@ -1,4 +1,8 @@
 //! hKask MCP Registry — Template registry with real registry operations
+//!
+//! Loop: Cross-loop bridge (L1↔L5) — The registry serves both Inference (template
+//! discovery for prompt rendering) and Curation (skill/bundle composition for agent
+//! enablement). Neither loop owns it exclusively.
 
 use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_mcp::validate_field;

@@ -2,7 +2,7 @@
 title: "ADR-031: Consolidation Authorization via Master Passphrase Derivation"
 audience: [architects, security engineers]
 last_updated: 2026-06-05
-version: "1.0.0"
+version: "1.1.0"
 status: "Active"
 domain: "Security"
 ddmvss_categories: [trust]
@@ -51,9 +51,9 @@ This is the same derivation chain used during onboarding to store the DB encrypt
 
 | Surface | Authorization | Rationale |
 |---------|--------------|-----------|
-| CLI | `--passphrase` flag, derives capability_key, compares | Direct user-facing, requires explicit consent |
+| CLI | `--passphrase` flag, derives capability_key, compares | Direct user-facing, requires explicit consent. Operates on the agent's per-agent memory DB (`hkask-memory-{agent}.db`) |
 | API | `passphrase` field in request body, derives capability_key, compares | Network-accessible, must authenticate caller |
-| Chat | No passphrase (single-user REPL, already authenticated) | Interactive session, Curator identity already established |
+| Chat | No passphrase (single-user REPL, already authenticated) | Interactive session, Curator identity already established. ConsolidationService shares the same per-agent DB as the storage ports |
 | MCP | None (OCAP GovernedTool membrane) | Tool invocations require capability tokens; redundant to add passphrase |
 
 ### Rate Limiting
@@ -83,7 +83,7 @@ The API endpoint enforces a coarse-grained rate limit (30-second minimum interva
 
 - Every API consolidation request pays ~100ms Argon2id cost (mitigated by rate limiting)
 - Chat `/consolidate` operates without passphrase (acceptable: single-user REPL)
-- The REPL ConsolidationService opens a second connection to the registry DB (documented architectural split)
+- CLI and Chat consolidation both operate on the agent's per-agent memory DB (not the registry DB), so consolidation affects the agent's actual working memory
 
 ## Compliance
 

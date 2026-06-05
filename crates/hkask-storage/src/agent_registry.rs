@@ -1,5 +1,6 @@
 //! AgentRegistryStore — Persistent storage for registered agents
 
+use hkask_types::ports::{AgentRegistrationPort, RegistryError};
 use hkask_types::{AgentDefinition, AgentKind, InfrastructureError, RegisteredAgent};
 use thiserror::Error;
 
@@ -159,5 +160,37 @@ impl AgentRegistryStore {
             return Err(AgentRegistryError::NotFound(name.to_string()));
         }
         Ok(())
+    }
+}
+
+impl AgentRegistrationPort for AgentRegistryStore {
+    fn register_agent(&self, agent: RegisteredAgent) -> Result<(), RegistryError> {
+        AgentRegistryStore::insert(self, &agent).map_err(|e| match e {
+            AgentRegistryError::NotFound(s) => RegistryError::NotFound(s),
+            other => RegistryError::Other(other.to_string()),
+        })
+    }
+
+    fn get_agent(&self, name: &str) -> Result<RegisteredAgent, RegistryError> {
+        AgentRegistryStore::get(self, name).map_err(|e| match e {
+            AgentRegistryError::NotFound(s) => RegistryError::NotFound(s),
+            other => RegistryError::Other(other.to_string()),
+        })
+    }
+
+    fn list_agents(&self) -> Result<Vec<RegisteredAgent>, RegistryError> {
+        AgentRegistryStore::list(self).map_err(|e| RegistryError::Other(e.to_string()))
+    }
+
+    fn list_agents_by_kind(&self, kind: AgentKind) -> Result<Vec<RegisteredAgent>, RegistryError> {
+        AgentRegistryStore::list_by_kind(self, kind)
+            .map_err(|e| RegistryError::Other(e.to_string()))
+    }
+
+    fn remove_agent(&self, name: &str) -> Result<(), RegistryError> {
+        AgentRegistryStore::remove(self, name).map_err(|e| match e {
+            AgentRegistryError::NotFound(s) => RegistryError::NotFound(s),
+            other => RegistryError::Other(other.to_string()),
+        })
     }
 }

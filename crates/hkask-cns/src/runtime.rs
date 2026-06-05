@@ -7,6 +7,7 @@
 use crate::algedonic::{
     AlgedonicManager, DEFAULT_EXPECTED_VARIETY, DEFAULT_THRESHOLD, RuntimeAlert, cns_health_check,
 };
+use crate::energy::{AgentGasStatus, GasBudget};
 use crate::kill_zone::KillZoneDetector;
 use crate::unified_tracker::UnifiedVarietyTracker;
 use crate::variety::VarietyTracker;
@@ -16,6 +17,7 @@ use hkask_types::cns::CnsHealth;
 use hkask_types::event::SpanNamespace;
 use hkask_types::ports::{BackpressureSignal, CnsObserver, DepletionSignal};
 use hkask_types::sovereignty::KillZoneConfig;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::RwLock as StdRwLock;
 use tokio::sync::RwLock;
@@ -26,6 +28,7 @@ struct CnsState {
     algedonic: Arc<StdRwLock<AlgedonicManager>>,
     tracker: UnifiedVarietyTracker,
     kill_zone: Arc<tokio::sync::Mutex<KillZoneDetector>>,
+    gas_budgets: Arc<tokio::sync::RwLock<HashMap<WebID, GasBudget>>>,
 }
 
 impl CnsState {
@@ -37,10 +40,12 @@ impl CnsState {
         let kill_zone = Arc::new(tokio::sync::Mutex::new(KillZoneDetector::new(
             hkask_types::sovereignty::KillZoneThresholds::default(),
         )));
+        let gas_budgets = Arc::new(tokio::sync::RwLock::new(HashMap::new()));
         Self {
             algedonic,
             tracker,
             kill_zone,
+            gas_budgets,
         }
     }
 }
@@ -265,6 +270,48 @@ impl CnsRuntime {
     }
 
     // ── Kill Zone ──
+
+    /// Register a gas budget for an agent.
+    ///
+    /// Called during agent pod creation so the CNS can track and replenish budgets.
+    pub async fn register_gas_budget(&self, agent: WebID, budget: GasBudget) {
+        let state = self.state.read().await;
+        let mut budgets = state.gas_budgets.write().await;
+        budgets.insert(agent, budget);
+    }
+
+    /// Replenish a specific agent's gas budget by a specific amount.
+    ///
+    /// Returns the new remaining gas after replenishment, or 0 if the agent
+    /// has no registered budget.
+    pub async fn replenish_agent_budget(&self, agent: &WebID, amount: u64) -> u64 {
+        let state = self.state.read().await;
+        let mut budgets = state.gas_budgets.write().await;
+        if let Some(budget) = budgets.get_mut(agent) {
+            budget.replenish_by(amount);
+            let remaining = budget.remaining;
+            tracing::info!(
+                target: "cns.runtime",
+                agent = %agent,
+                amount = amount,
+                remaining = remaining,
+                "Replenished agent gas budget via CNS runtime"
+            );
+            remaining
+        } else {
+            0
+        }
+    }
+
+    /// Get a read-only snapshot of an agent's gas budget status.
+    ///
+    /// Returns `None` if the agent has no registered budget.
+    /// Used by the `cns_energy` MCP tool.
+    pub async fn agent_gas_status(&self, agent: &WebID) -> Option<AgentGasStatus> {
+        let state = self.state.read().await;
+        let budgets = state.gas_budgets.read().await;
+        budgets.get(agent).map(AgentGasStatus::from)
+    }
 
     /// Get the current kill zone configuration/state.
     ///
