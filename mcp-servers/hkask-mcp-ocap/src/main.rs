@@ -7,7 +7,7 @@
 //! - `ocap:enumerate` — Enumerate capabilities for a subject
 //! - `ocap:list_tokens` — List all capability tokens
 
-use hkask_mcp::server::{McpToolError, ToolSpanGuard, validate_identifier};
+use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_types::{
     CapabilityChecker, CapabilitySpec, DelegationAction, DelegationResource, DelegationToken,
     McpErrorKind, WebID,
@@ -93,12 +93,8 @@ impl OcapServer {
     ) -> String {
         let span = ToolSpanGuard::new("ocap:delegate", &self.webid);
 
-        if let Err(e) = validate_identifier("issuer", &issuer, 256) {
-            return span.error(e.kind, e.to_json_string());
-        }
-        if let Err(e) = validate_identifier("subject", &subject, 256) {
-            return span.error(e.kind, e.to_json_string());
-        }
+        validate_field!(span, "issuer", &issuer, 256);
+        validate_field!(span, "subject", &subject, 256);
 
         let issuer_webid = WebID::from_string(&issuer);
         let subject_webid = WebID::from_string(&subject);
@@ -149,9 +145,7 @@ impl OcapServer {
     ) -> String {
         let span = ToolSpanGuard::new("ocap:verify", &self.webid);
 
-        if let Err(e) = validate_identifier("token_id", &token_id, 256) {
-            return span.error(e.kind, e.to_json_string());
-        }
+        validate_field!(span, "token_id", &token_id, 256);
 
         let tokens = self.tokens.read().await;
         let revoked = self.revoked.read().await;
@@ -211,9 +205,7 @@ impl OcapServer {
     ) -> String {
         let span = ToolSpanGuard::new("ocap:revoke", &self.webid);
 
-        if let Err(e) = validate_identifier("token_id", &token_id, 256) {
-            return span.error(e.kind, e.to_json_string());
-        }
+        validate_field!(span, "token_id", &token_id, 256);
 
         let mut revoked = self.revoked.write().await;
         let tokens = self.tokens.read().await;
@@ -239,9 +231,7 @@ impl OcapServer {
     ) -> String {
         let span = ToolSpanGuard::new("ocap:enumerate", &self.webid);
 
-        if let Err(e) = validate_identifier("subject", &subject, 256) {
-            return span.error(e.kind, e.to_json_string());
-        }
+        validate_field!(span, "subject", &subject, 256);
 
         let tokens = self.tokens.read().await;
         let revoked = self.revoked.read().await;

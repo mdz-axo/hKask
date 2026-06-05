@@ -12,7 +12,7 @@
 //! a separate process; placing throttling here would duplicate the canonical
 //! implementation and violate the authority DAG (Cybernetics governs Communication).
 
-use hkask_mcp::server::{McpToolError, ToolSpanGuard, validate_identifier};
+use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_templates::{InferencePort, OkapiConfig, OkapiInference};
 use hkask_types::{LLMParameters, McpErrorKind, WebID};
 use rmcp::handler::server::wrapper::Parameters;
@@ -139,12 +139,8 @@ impl InferenceServer {
         let span = ToolSpanGuard::new("inference:generate", &self.webid);
 
         // Validate identifiers
-        if let Err(e) = validate_identifier("model", &model, 128) {
-            return span.error(e.kind, e.to_json_string());
-        }
-        if let Err(e) = validate_identifier("caller_id", &caller_id, 128) {
-            return span.error(e.kind, e.to_json_string());
-        }
+        validate_field!(span, "model", &model, 128);
+        validate_field!(span, "caller_id", &caller_id, 128);
 
         self.metrics.total_requests.fetch_add(1, Ordering::Relaxed);
 

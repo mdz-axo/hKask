@@ -10,7 +10,7 @@
 use hkask_ensemble::{
     ChatMessage, ChatParticipant, ParticipantRole, StandingSession, bootstrap_standing_session,
 };
-use hkask_mcp::server::{McpToolOutput, ToolSpanGuard, validate_identifier};
+use hkask_mcp::server::{McpToolOutput, ToolSpanGuard};
 use hkask_types::McpErrorKind;
 use hkask_types::WebID;
 use rmcp::handler::server::wrapper::Parameters;
@@ -76,9 +76,7 @@ impl EnsembleServer {
     ) -> String {
         let span = ToolSpanGuard::new("coordinate_session", &self.webid);
 
-        if let Err(e) = validate_identifier("config_path", &config_path, 512) {
-            return span.error(e.kind, e.to_json_string());
-        }
+        validate_field!(span, "config_path", &config_path, 512);
 
         match bootstrap_standing_session(Path::new(&config_path)) {
             Ok(session) => {
@@ -115,15 +113,9 @@ impl EnsembleServer {
     ) -> String {
         let span = ToolSpanGuard::new("register_participant", &self.webid);
 
-        if let Err(e) = validate_identifier("session_id", &session_id, 256) {
-            return span.error(e.kind, e.to_json_string());
-        }
-        if let Err(e) = validate_identifier("agent", &agent, 128) {
-            return span.error(e.kind, e.to_json_string());
-        }
-        if let Err(e) = validate_identifier("role", &role, 64) {
-            return span.error(e.kind, e.to_json_string());
-        }
+        validate_field!(span, "session_id", &session_id, 256);
+        validate_field!(span, "agent", &agent, 128);
+        validate_field!(span, "role", &role, 64);
 
         let sessions = self.sessions.read().await;
         match sessions.get(&session_id) {
@@ -175,12 +167,8 @@ impl EnsembleServer {
     ) -> String {
         let span = ToolSpanGuard::new("send_message", &self.webid);
 
-        if let Err(e) = validate_identifier("session_id", &session_id, 256) {
-            return span.error(e.kind, e.to_json_string());
-        }
-        if let Err(e) = validate_identifier("from_agent", &from_agent, 128) {
-            return span.error(e.kind, e.to_json_string());
-        }
+        validate_field!(span, "session_id", &session_id, 256);
+        validate_field!(span, "from_agent", &from_agent, 128);
 
         let sessions = self.sessions.read().await;
         match sessions.get(&session_id) {
@@ -214,9 +202,7 @@ impl EnsembleServer {
     ) -> String {
         let span = ToolSpanGuard::new("get_status", &self.webid);
 
-        if let Err(e) = validate_identifier("session_id", &session_id, 256) {
-            return span.error(e.kind, e.to_json_string());
-        }
+        validate_field!(span, "session_id", &session_id, 256);
 
         let sessions = self.sessions.read().await;
         match sessions.get(&session_id) {
@@ -258,9 +244,7 @@ impl EnsembleServer {
     ) -> String {
         let span = ToolSpanGuard::new("improv_turn", &self.webid);
 
-        if let Err(e) = validate_identifier("session_id", &session_id, 256) {
-            return span.error(e.kind, e.to_json_string());
-        }
+        validate_field!(span, "session_id", &session_id, 256);
 
         let sessions = self.sessions.read().await;
         match sessions.get(&session_id) {

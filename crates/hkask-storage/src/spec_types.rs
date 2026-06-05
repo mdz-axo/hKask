@@ -349,8 +349,8 @@ pub enum SpecError {
     CapabilityDenied(String),
     #[error("Signature invalid")]
     InvalidSignature,
-    #[error("Storage error: {0}")]
-    Storage(String),
+    #[error(transparent)]
+    Infra(#[from] hkask_types::InfrastructureError),
     #[error("Depth limit exceeded: max 7")]
     DepthExceeded,
     #[error("Curation authority required")]
@@ -361,4 +361,12 @@ pub enum SpecError {
     CurationDepthExceeded,
     #[error("Spec drift exceeded threshold: {0}")]
     DriftExceeded(f64),
+}
+
+impl_from_rusqlite!(SpecError, Infra);
+
+impl From<serde_json::Error> for SpecError {
+    fn from(e: serde_json::Error) -> Self {
+        hkask_types::InfrastructureError::from(e).into()
+    }
 }

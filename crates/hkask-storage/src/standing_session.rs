@@ -9,9 +9,7 @@
 
 use hkask_types::InfrastructureError;
 use hkask_types::ports::{MessageRecord, SessionRecord, SessionStoreError, StandingSessionPort};
-use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -25,11 +23,7 @@ pub enum StandingSessionError {
     Sealed(String),
 }
 
-impl From<rusqlite::Error> for StandingSessionError {
-    fn from(e: rusqlite::Error) -> Self {
-        StandingSessionError::Infra(InfrastructureError::Database(e.to_string()))
-    }
-}
+impl_from_rusqlite!(StandingSessionError, Infra);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StoredSession {
@@ -55,23 +49,12 @@ pub struct StoredMessage {
     pub template_id: Option<String>,
 }
 
-#[derive(Clone)]
-pub struct StandingSessionStore {
-    conn: Arc<Mutex<Connection>>,
-}
+define_store!(StandingSessionStore);
 
 impl StandingSessionStore {
-    /// Create a new StandingSessionStore sharing an existing database connection.
-    pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
-        Self { conn }
-    }
-
     /// Initialize the standing session tables.
     pub fn initialize_schema(&self) -> Result<(), StandingSessionError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS standing_sessions (
                 session_id TEXT PRIMARY KEY,
@@ -95,10 +78,7 @@ impl StandingSessionStore {
     }
 
     pub fn save_session(&self, session: &StoredSession) -> Result<(), StandingSessionError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         conn.execute(
             "INSERT OR REPLACE INTO standing_sessions (session_id, config_yaml, created_at, last_active, key_version, sealed)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
@@ -115,10 +95,7 @@ impl StandingSessionStore {
     }
 
     pub fn get_session(&self, session_id: &str) -> Result<StoredSession, StandingSessionError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
             "SELECT session_id, config_yaml, created_at, last_active, key_version, sealed
              FROM standing_sessions WHERE session_id = ?1",
@@ -148,10 +125,7 @@ impl StandingSessionStore {
     }
 
     pub fn save_message(&self, message: &StoredMessage) -> Result<i64, StandingSessionError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
 
         // Check if the session is sealed before writing.
         let sealed: bool = conn
@@ -183,10 +157,7 @@ impl StandingSessionStore {
         &self,
         session_id: &str,
     ) -> Result<Vec<StoredMessage>, StandingSessionError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
             "SELECT id, session_id, from_webid, content, timestamp, template_id
              FROM session_messages WHERE session_id = ?1 ORDER BY id ASC",
@@ -218,10 +189,7 @@ impl StandingSessionStore {
     }
 
     pub fn update_last_active(&self, session_id: &str) -> Result<(), StandingSessionError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         let now = chrono::Utc::now().to_rfc3339();
         conn.execute(
             "UPDATE standing_sessions SET last_active = ?1 WHERE session_id = ?2",
@@ -233,10 +201,7 @@ impl StandingSessionStore {
     /// Get the current key version — the highest version across all sessions.
     /// Returns 1 for a fresh database.
     pub fn current_key_version(&self) -> Result<u32, StandingSessionError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         let version: i32 = conn
             .query_row(
                 "SELECT COALESCE(MAX(key_version), 1) FROM standing_sessions",

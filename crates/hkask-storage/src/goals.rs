@@ -38,11 +38,7 @@ pub enum GoalRepositoryError {
     QuarantineFailed(String),
 }
 
-impl From<rusqlite::Error> for GoalRepositoryError {
-    fn from(e: rusqlite::Error) -> Self {
-        GoalRepositoryError::Infra(InfrastructureError::Database(e.to_string()))
-    }
-}
+impl_from_rusqlite!(GoalRepositoryError, Infra);
 
 pub type Result<T> = std::result::Result<T, GoalRepositoryError>;
 
@@ -79,12 +75,21 @@ impl SqliteGoalRepository {
         self
     }
 
+    /// Acquire the mutex lock on the shared connection.
+    ///
+    /// Returns `InfrastructureError::LockPoisoned` if another thread
+    /// panicked while holding the lock.
+    fn lock_conn(
+        &self,
+    ) -> std::result::Result<std::sync::MutexGuard<'_, Connection>, InfrastructureError> {
+        self.conn
+            .lock()
+            .map_err(|_| InfrastructureError::LockPoisoned)
+    }
+
     /// Load a goal by ID for internal use (no authorization gate).
     fn load_goal(&self, goal_id: GoalID) -> Result<Goal> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth, display_name FROM goals WHERE id = ?1")?;
         let mut rows = stmt.query([goal_id.to_string()])?;
         match rows.next()? {
@@ -245,7 +250,7 @@ impl SqliteGoalRepository {
         // Persist created_at explicitly in RFC3339 so it round-trips through
         // the strict reader. The SQLite `datetime('now')` default produces a
         // non-RFC3339 string that the reader (correctly) rejects as corrupt.
-        self.conn.lock().map_err(|_| InfrastructureError::LockPoisoned)?.execute(
+        self.lock_conn()?.execute(
             "INSERT INTO goals (id, webid, text, state, visibility, depth, created_at, display_name) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             (goal.id.to_string(), goal.webid.to_string(), goal.text.clone(), goal.state.as_str(), goal.visibility.as_str(), goal.depth as i32, goal.created_at.to_rfc3339(), goal.display_name.clone()),
         )?;
@@ -255,10 +260,7 @@ impl SqliteGoalRepository {
 
     /// Get a goal by ID.
     pub fn get_goal(&self, goal_id: GoalID) -> Result<Option<Goal>> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth, display_name FROM goals WHERE id = ?1")?;
         let mut rows = stmt.query([goal_id.to_string()])?;
 
@@ -289,10 +291,7 @@ impl SqliteGoalRepository {
             None
         };
 
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         if let Some(completed) = completed_at {
             conn.execute(
                 "UPDATE goals SET state = ?1, completed_at = ?2 WHERE id = ?3",
@@ -312,10 +311,7 @@ impl SqliteGoalRepository {
     pub fn list_goals(&self, webid: &WebID, state_filter: Option<GoalState>) -> Result<Vec<Goal>> {
         let mut goals = Vec::new();
 
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         match state_filter {
             Some(state) => {
                 let mut stmt = conn.prepare("SELECT id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth, display_name FROM goals WHERE webid = ?1 AND state = ?2 ORDER BY created_at DESC")?;
@@ -349,7 +345,7 @@ impl SqliteGoalRepository {
         }
         let _goal = self.load_goal(goal_id)?;
 
-        self.conn.lock().map_err(|_| InfrastructureError::LockPoisoned)?.execute(
+        self.lock_conn()?.execute(
             "INSERT INTO goal_criteria (id, goal_id, type, description, satisfied) VALUES (?1, ?2, ?3, ?4, ?5)",
             (criterion.id, criterion.goal_id.to_string(), criterion.criterion_type, criterion.description, criterion.satisfied as i32),
         )?;
@@ -366,7 +362,7 @@ impl SqliteGoalRepository {
         }
         let _goal = self.load_goal(goal_id)?;
 
-        self.conn.lock().map_err(|_| InfrastructureError::LockPoisoned)?.execute(
+        self.lock_conn()?.execute(
             "INSERT INTO goal_artifacts (id, goal_id, artifact_ref, artifact_type, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
             (artifact.id, artifact.goal_id.to_string(), artifact.artifact_ref, artifact.artifact_type, artifact.created_at.to_rfc3339()),
         )?;
@@ -375,10 +371,7 @@ impl SqliteGoalRepository {
 
     /// Get criteria for a goal.
     pub fn get_criteria(&self, goal_id: GoalID) -> Result<Vec<GoalCriterion>> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT id, goal_id, type, description, satisfied FROM goal_criteria WHERE goal_id = ?1")?;
         let rows = stmt.query_map([goal_id.to_string()], |row| {
             Ok(GoalCriterion {
@@ -400,10 +393,7 @@ impl SqliteGoalRepository {
 
     /// Get artifacts for a goal.
     pub fn get_artifacts(&self, goal_id: GoalID) -> Result<Vec<GoalArtifact>> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT id, goal_id, artifact_ref, artifact_type, created_at FROM goal_artifacts WHERE goal_id = ?1")?;
         let rows = stmt.query_map([goal_id.to_string()], |row| {
             Ok(GoalArtifact {
@@ -449,7 +439,7 @@ impl SqliteGoalRepository {
 
         let subgoal = Goal::new(*webid, text, visibility).with_parent(parent_id, parent.depth);
 
-        self.conn.lock().map_err(|_| InfrastructureError::LockPoisoned)?.execute(
+        self.lock_conn()?.execute(
             "INSERT INTO goals (id, webid, text, state, visibility, parent_goal_id, depth, created_at, display_name) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
             (subgoal.id.to_string(), subgoal.webid.to_string(), subgoal.text.clone(), subgoal.state.as_str(), subgoal.visibility.as_str(), parent_id.to_string(), subgoal.depth as i32, subgoal.created_at.to_rfc3339(), subgoal.display_name.clone()),
         )?;
@@ -459,10 +449,7 @@ impl SqliteGoalRepository {
 
     /// Get subgoals of a parent goal.
     pub fn get_subgoals(&self, parent_id: GoalID) -> Result<Vec<Goal>> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         let mut stmt = conn.prepare("SELECT id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth, display_name FROM goals WHERE parent_goal_id = ?1 ORDER BY created_at ASC")?;
         let rows = stmt.query_map([parent_id.to_string()], Self::goal_from_row)?;
 
@@ -478,9 +465,7 @@ impl SqliteGoalRepository {
     pub fn delete_goal(&self, goal_id: GoalID) -> Result<()> {
         let _goal = self.load_goal(goal_id)?;
 
-        self.conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?
+        self.lock_conn()?
             .execute("DELETE FROM goals WHERE id = ?1", [goal_id.to_string()])?;
         Ok(())
     }
@@ -496,10 +481,7 @@ impl SqliteGoalRepository {
         let goal = self.load_goal(goal_id)?;
         let original_data = serde_json::to_string(&goal).unwrap_or_default();
 
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         conn.execute(
             "INSERT INTO quarantined_goals (id, original_data, quarantine_reason, quarantined_at, repair_attempts, repaired)
              VALUES (?1, ?2, ?3, ?4, 0, 0)",
@@ -531,10 +513,7 @@ impl SqliteGoalRepository {
     ) -> Result<bool> {
         // Read the quarantined record to inspect original_data.
         let quarantined = {
-            let conn = self
-                .conn
-                .lock()
-                .map_err(|_| InfrastructureError::LockPoisoned)?;
+            let conn = self.lock_conn()?;
             let mut stmt = conn.prepare(
                 "SELECT id, original_data, quarantine_reason, quarantined_at, repair_attempts, repaired FROM quarantined_goals WHERE id = ?1",
             )?;
@@ -557,10 +536,7 @@ impl SqliteGoalRepository {
         // Try to deserialize original_data back into a Goal.
         if quarantined.original_data.is_empty() {
             // Legacy data — no baseline to reconstruct from.
-            let conn = self
-                .conn
-                .lock()
-                .map_err(|_| InfrastructureError::LockPoisoned)?;
+            let conn = self.lock_conn()?;
             conn.execute(
                 "UPDATE quarantined_goals SET repair_attempts = repair_attempts + 1 WHERE id = ?1",
                 [goal_id.to_string()],
@@ -573,10 +549,7 @@ impl SqliteGoalRepository {
             Ok(g) => g,
             Err(_) => {
                 // Corrupt serialized data — cannot reconstruct.
-                let conn = self
-                    .conn
-                    .lock()
-                    .map_err(|_| InfrastructureError::LockPoisoned)?;
+                let conn = self.lock_conn()?;
                 conn.execute(
                     "UPDATE quarantined_goals SET repair_attempts = repair_attempts + 1 WHERE id = ?1",
                     [goal_id.to_string()],
@@ -587,10 +560,7 @@ impl SqliteGoalRepository {
         };
 
         // Re-insert the restored goal into the main goals table.
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         conn.execute(
             "INSERT INTO goals (id, webid, text, state, visibility, created_at, completed_at, parent_goal_id, depth, display_name)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
@@ -621,10 +591,7 @@ impl SqliteGoalRepository {
 
     /// List all quarantined goals, most recent first.
     pub fn list_quarantined_goals(&self) -> Result<Vec<QuarantinedGoal>> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
             "SELECT id, original_data, quarantine_reason, quarantined_at, repair_attempts, repaired FROM quarantined_goals ORDER BY quarantined_at DESC",
         )?;

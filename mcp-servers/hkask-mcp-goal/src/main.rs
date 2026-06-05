@@ -6,7 +6,7 @@
 //! denials are observed through the goal repository's CNS telemetry sink
 //! (ADR-029).
 
-use hkask_mcp::server::{McpToolError, ToolSpanGuard, validate_identifier};
+use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_storage::{Database, NuEventStore, SqliteGoalRepository};
 use hkask_types::event::NuEventSink;
 use hkask_types::goal::GoalState;
@@ -174,9 +174,7 @@ impl GoalServer {
     ) -> String {
         let span = ToolSpanGuard::new("goal:set_state", &self.webid);
 
-        if let Err(e) = validate_identifier("goal_id", &goal_id, 128) {
-            return span.error(e.kind, e.to_json_string());
-        }
+        validate_field!(span, "goal_id", &goal_id, 128);
         let Some(new_state) = GoalState::parse_str(&state) else {
             let err = McpToolError::invalid_argument(
                 "state must be pending | active | completed | blocked | abandoned",

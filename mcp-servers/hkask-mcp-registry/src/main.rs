@@ -1,6 +1,6 @@
 //! hKask MCP Registry — Template registry with real registry operations
 
-use hkask_mcp::server::{McpToolError, ToolSpanGuard, validate_identifier};
+use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_templates::{Registry, RegistryIndex, SqliteRegistry};
 use hkask_types::{TemplateType, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
@@ -91,9 +91,7 @@ impl RegistryServer {
     ) -> String {
         let span = ToolSpanGuard::new("registry:index", &self.webid);
 
-        if let Err(e) = validate_identifier("root_path", &root_path, 512) {
-            return span.error(e.kind, e.to_json_string());
-        }
+        validate_field!(span, "root_path", &root_path, 512);
 
         let type_filter = Self::parse_template_type(&template_type);
         let registry = self.registry.read().await;

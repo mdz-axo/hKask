@@ -9,7 +9,7 @@
 //! - `cns_health` — Get CNS health status
 
 use hkask_cns::{CnsRuntime, DEFAULT_THRESHOLD};
-use hkask_mcp::server::{ToolSpanGuard, validate_identifier};
+use hkask_mcp::server::ToolSpanGuard;
 use hkask_types::WebID;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
@@ -83,12 +83,8 @@ impl CnsServer {
         let span_guard = ToolSpanGuard::new("cns_emit", &self.webid);
 
         // Validate identifiers
-        if let Err(e) = validate_identifier("span", &span, 256) {
-            return span_guard.error(e.kind, e.to_json_string());
-        }
-        if let Err(e) = validate_identifier("observer_webid", &observer_webid, 128) {
-            return span_guard.error(e.kind, e.to_json_string());
-        }
+        validate_field!(span_guard, "span", &span, 256);
+        validate_field!(span_guard, "observer_webid", &observer_webid, 128);
 
         let observation_value = serde_json::from_str(&observation)
             .unwrap_or(serde_json::Value::String(observation.clone()));

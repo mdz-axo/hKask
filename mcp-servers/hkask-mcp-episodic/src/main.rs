@@ -14,7 +14,7 @@
 //! routing through `EpisodicLoop::act()`, which is not available in the MCP
 //! server context.
 
-use hkask_mcp::server::{ToolSpanGuard, validate_identifier};
+use hkask_mcp::server::ToolSpanGuard;
 use hkask_memory::EpisodicMemory;
 use hkask_storage::Triple;
 use hkask_types::{Visibility, WebID};
@@ -74,12 +74,8 @@ impl EpisodicServer {
     ) -> String {
         let span = ToolSpanGuard::new("episodic_store", &self.webid);
 
-        if let Err(e) = validate_identifier("entity", &entity, 256) {
-            return span.error(e.kind, e.to_json_string());
-        }
-        if let Err(e) = validate_identifier("attribute", &attribute, 256) {
-            return span.error(e.kind, e.to_json_string());
-        }
+        validate_field!(span, "entity", &entity, 256);
+        validate_field!(span, "attribute", &attribute, 256);
 
         let triple = Triple::new(&entity, &attribute, value, self.webid)
             .with_perspective(self.webid)
@@ -105,9 +101,7 @@ impl EpisodicServer {
     ) -> String {
         let span = ToolSpanGuard::new("episodic_recall", &self.webid);
 
-        if let Err(e) = validate_identifier("entity", &entity, 256) {
-            return span.error(e.kind, e.to_json_string());
-        }
+        validate_field!(span, "entity", &entity, 256);
 
         match self.memory.query_for_deduped(&entity, self.webid) {
             Ok(triples) => {

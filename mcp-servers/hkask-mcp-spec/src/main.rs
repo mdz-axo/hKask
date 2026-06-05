@@ -11,8 +11,7 @@
 //! - spec/graph/validate — Validate collection coherence
 
 use hkask_mcp::server::{
-    McpToolError, McpToolOutput, ServerContext, ToolSpanGuard, run_stdio_server,
-    validate_identifier,
+    McpToolError, ServerContext, ToolSpanGuard, run_stdio_server, validate_identifier,
 };
 use hkask_storage::spec_types::{
     DomainAnchor, GoalSpec, Spec, SpecCategory, SpecError, SpecId, SpecStore,
@@ -631,9 +630,8 @@ impl SpecServer {
         let all_specs: Vec<Spec> = match self.store.list_all() {
             Ok(specs) => specs,
             Err(e) => {
-                return span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal(format!("Failed to load specs: {}", e)).to_json_string(),
+                return span.internal_error(
+                    serde_json::json!({"error": format!("Failed to load specs: {}", e)}),
                 );
             }
         };
@@ -685,9 +683,8 @@ impl SpecServer {
         let all_specs: Vec<Spec> = match self.store.list_all() {
             Ok(specs) => specs,
             Err(e) => {
-                return span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal(format!("Failed to load specs: {}", e)).to_json_string(),
+                return span.internal_error(
+                    serde_json::json!({"error": format!("Failed to load specs: {}", e)}),
                 );
             }
         };
@@ -716,14 +713,13 @@ impl SpecServer {
             })
             .collect();
 
-        span.ok(McpToolOutput::new(
+        span.ok_json(
             serde_json::to_value(GraphQueryResponse {
                 count: nodes.len(),
                 specs: nodes,
             })
             .unwrap_or_default(),
         )
-        .to_json_string())
     }
 
     #[tool(
@@ -750,9 +746,8 @@ impl SpecServer {
         let all_specs: Vec<Spec> = match self.store.list_all() {
             Ok(specs) => specs,
             Err(e) => {
-                return span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal(format!("Failed to load specs: {}", e)).to_json_string(),
+                return span.internal_error(
+                    serde_json::json!({"error": format!("Failed to load specs: {}", e)}),
                 );
             }
         };
@@ -783,7 +778,7 @@ impl SpecServer {
             }
         }
 
-        span.ok(McpToolOutput::new(
+        span.ok_json(
             serde_json::to_value(GraphValidateResponse {
                 valid: violations.is_empty(),
                 coherence_score: coherence,
@@ -794,7 +789,6 @@ impl SpecServer {
             })
             .unwrap_or_default(),
         )
-        .to_json_string())
     }
 }
 
