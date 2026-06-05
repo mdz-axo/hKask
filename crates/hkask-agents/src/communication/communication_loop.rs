@@ -79,6 +79,42 @@ impl CommunicationLoop {
         let mut senders = self.worker_senders.write().await;
         senders.insert(worker_kind, sender);
     }
+
+    // ====================================================================
+    // Explicit 4-stage cycle: sense → compare → compute → act
+    // ====================================================================
+
+    /// **Sense stage** (sense → compare → compute → act):
+    /// Read queue depth via `dispatch.len()` and count registered loop
+    /// senders. Produces afferent signals for queue depth and registered
+    /// loop count.
+    pub async fn sense(&self) -> Vec<Signal> {
+        <Self as HkaskLoop>::sense(self).await
+    }
+
+    /// **Compare stage** (sense → compare → compute → act):
+    /// Check if queue depth exceeds the backpressure threshold (set-point
+    /// 100 messages). Detects deviations when queue depth is above the
+    /// healthy operating limit.
+    pub async fn compare(&self, signals: &[Signal]) -> Vec<Deviation> {
+        <Self as HkaskLoop>::compare(self, signals).await
+    }
+
+    /// **Compute stage** (sense → compare → compute → act):
+    /// Determine routing decision (deliver, reject, defer). Communication
+    /// is a dumb transport pipe — it does NOT produce regulatory actions.
+    /// Queue-depth signals flow upward to Cybernetics for regulation.
+    pub async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
+        <Self as HkaskLoop>::compute(self, deviations).await
+    }
+
+    /// **Act stage** (sense → compare → compute → act):
+    /// Deliver message or emit backpressure signal. Dequeues messages
+    /// from the dispatch and delivers them to target loop inboxes, up to
+    /// `max_deliveries_per_tick` per cycle.
+    pub async fn act(&self, actions: &[LoopAction]) {
+        <Self as HkaskLoop>::act(self, actions).await
+    }
 }
 
 #[async_trait::async_trait]

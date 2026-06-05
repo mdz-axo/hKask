@@ -588,33 +588,42 @@ impl DocKnowledgeServer {
 
 // ── Server entry point ───────────────────────────────────────────────────
 
-hkask_mcp::mcp_server_main!(
-    "hkask-mcp-doc-knowledge",
-    factory: |ctx: hkask_mcp::ServerContext| {
-        let semantic = match ctx.credentials.get("HKASK_MEMORY_DB") {
-            Some(path) => {
-                let passphrase = ctx.credentials.get("HKASK_DB_PASSPHRASE").ok_or_else(|| {
-                    anyhow::anyhow!("HKASK_MEMORY_DB set but HKASK_DB_PASSPHRASE missing")
-                })?;
-                let db = hkask_storage::Database::open(path, passphrase)
-                    .map_err(|e| anyhow::anyhow!("Failed to open memory database: {}", e))?;
-                let conn = db.conn_arc();
-                let triple_store = hkask_storage::TripleStore::new(Arc::clone(&conn));
-                let embedding_store = hkask_storage::EmbeddingStore::new(conn);
-                Some(hkask_memory::SemanticMemory::new(triple_store, embedding_store))
-            }
-            None => None,
-        };
-        DocKnowledgeServer::new(ctx.webid, semantic)
-    },
-    credentials: vec![
-        hkask_mcp::CredentialRequirement::optional(
-            "HKASK_MEMORY_DB",
-            "Path to per-agent memory database for QA storage (in-memory if absent)",
-        ),
-        hkask_mcp::CredentialRequirement::optional(
-            "HKASK_DB_PASSPHRASE",
-            "Passphrase for the database (required if HKASK_MEMORY_DB is set)",
-        ),
-    ]
-);
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    hkask_mcp::run_server(
+        "hkask-mcp-doc-knowledge",
+        env!("CARGO_PKG_VERSION"),
+        |ctx: hkask_mcp::ServerContext| {
+            let semantic = match ctx.credentials.get("HKASK_MEMORY_DB") {
+                Some(path) => {
+                    let passphrase =
+                        ctx.credentials.get("HKASK_DB_PASSPHRASE").ok_or_else(|| {
+                            anyhow::anyhow!("HKASK_MEMORY_DB set but HKASK_DB_PASSPHRASE missing")
+                        })?;
+                    let db = hkask_storage::Database::open(path, passphrase)
+                        .map_err(|e| anyhow::anyhow!("Failed to open memory database: {}", e))?;
+                    let conn = db.conn_arc();
+                    let triple_store = hkask_storage::TripleStore::new(Arc::clone(&conn));
+                    let embedding_store = hkask_storage::EmbeddingStore::new(conn);
+                    Some(hkask_memory::SemanticMemory::new(
+                        triple_store,
+                        embedding_store,
+                    ))
+                }
+                None => None,
+            };
+            DocKnowledgeServer::new(ctx.webid, semantic)
+        },
+        vec![
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_MEMORY_DB",
+                "Path to per-agent memory database for QA storage (in-memory if absent)",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_DB_PASSPHRASE",
+                "Passphrase for the database (required if HKASK_MEMORY_DB is set)",
+            ),
+        ],
+    )
+    .await
+}

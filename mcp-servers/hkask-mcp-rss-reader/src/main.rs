@@ -20,17 +20,22 @@ mod types;
 
 use server::RssServer;
 
-hkask_mcp::mcp_server_main!(
-    "hkask-mcp-rss-reader",
-    factory: |ctx: hkask_mcp::ServerContext| RssServer::new(ctx),
-    credentials: vec![
-        hkask_mcp::CredentialRequirement::optional(
-            "HKASK_RSS_DB",
-            "Path to the RSS reader SQLite database (in-memory if absent)",
-        ),
-        hkask_mcp::CredentialRequirement::optional(
-            "HKASK_DB_PASSPHRASE",
-            "Passphrase for SQLCipher encryption (required if HKASK_RSS_DB is set)",
-        ),
-    ]
-);
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    hkask_mcp::run_server(
+        "hkask-mcp-rss-reader",
+        env!("CARGO_PKG_VERSION"),
+        |ctx: hkask_mcp::ServerContext| RssServer::new(ctx),
+        vec![
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_RSS_DB",
+                "Path to the RSS reader SQLite database (in-memory if absent)",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_DB_PASSPHRASE",
+                "Passphrase for SQLCipher encryption (required if HKASK_RSS_DB is set)",
+            ),
+        ],
+    )
+    .await
+}

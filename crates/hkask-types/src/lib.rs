@@ -59,9 +59,11 @@ pub use cns::{CircuitState, CnsHealth};
 pub use curation::{CurationDecision, OCAPBoundary};
 pub use error::{GitError, HkaskError, InfrastructureError, McpErrorKind};
 pub use event::{NuEvent, NuEventSink};
-pub use goal::*;
-pub use id::*;
-pub use identity::*;
+pub use goal::{Goal, GoalArtifact, GoalCriterion, GoalState};
+pub use id::{BotID, EmbeddingID, EventID, GoalID, TemplateID, TripleID, WebID};
+pub use identity::{
+    HumanUser, RegistrationError, RegistrationRequest, ReplicantIdentity, UserID, UserSession,
+};
 pub use lexicon::{HLexicon, LexiconTerm, TemplateType};
 pub use loops::{
     ActionType, CuratorDirective, CuratorHandle, CyberneticsHandle, Deviation, DeviationDirection,
@@ -87,4 +89,4 @@ pub use template::{
     LLMParameters, TemplateCrate, TemplateFile, TemplateId, TemplateInvocation, TemplateOutcome,
 };
 pub use text::blake3_hash;
-pub use visibility::*;
+pub use visibility::Visibility;

@@ -32,6 +32,7 @@ use thiserror::Error;
 /// Design constraint (C5): every variant is a distinct recovery category —
 /// no catch-all, no `Other(String)`, no `Internal(String)`.
 #[derive(Debug, Error, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum InfrastructureError {
     #[error("database: {0}")]
     Database(String),
@@ -83,6 +84,7 @@ impl<T> From<PoisonError<T>> for InfrastructureError {
 /// - CNS observability bucketing by error class
 /// - OCAP policy decisions (distinguish `PermissionDenied` from `NotFound`)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum McpErrorKind {
     /// Internal server error (bug, unexpected state).
     Internal,
@@ -143,6 +145,7 @@ impl std::fmt::Display for McpErrorKind {
 /// prefer composing from `InfrastructureError` directly; `HkaskError` remains
 /// for code that needs a single flat type with domain-neutral categories.
 #[derive(Debug, Error, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum HkaskError {
     /// Infrastructure transport failure (Database, Serialization, etc.)
     #[error(transparent)]
@@ -212,6 +215,7 @@ impl HkaskError {
 
 /// Git CAS errors for content-addressable storage operations
 #[derive(Debug, Error, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum GitError {
     #[error("Crate not found: {0}")]
     CrateNotFound(String),

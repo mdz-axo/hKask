@@ -3,6 +3,7 @@
 use hkask_types::event::{Phase, Span, SpanNamespace};
 use hkask_types::id::{EventID, WebID};
 use hkask_types::{InfrastructureError, NuEvent, NuEventSink};
+use std::str::FromStr;
 use thiserror::Error;
 
 /// Per-domain decay constants for weighted replay.
@@ -239,9 +240,9 @@ fn row_to_nu_event(row: &rusqlite::Row<'_>) -> Result<NuEvent, rusqlite::Error> 
     let parent_event_str: Option<String> = row.get(10)?;
     let visibility: String = row.get(11)?;
 
-    let id = EventID(uuid::Uuid::parse_str(&id_str).map_err(|e| {
+    let id = EventID::from_str(&id_str).map_err(|e| {
         rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::new(e))
-    })?);
+    })?;
 
     let timestamp = chrono::DateTime::parse_from_rfc3339(&timestamp_str)
         .map_err(|e| {
@@ -249,9 +250,9 @@ fn row_to_nu_event(row: &rusqlite::Row<'_>) -> Result<NuEvent, rusqlite::Error> 
         })?
         .to_utc();
 
-    let observer_webid = WebID(uuid::Uuid::parse_str(&observer_webid_str).map_err(|e| {
+    let observer_webid = WebID::from_str(&observer_webid_str).map_err(|e| {
         rusqlite::Error::FromSqlConversionFailure(2, rusqlite::types::Type::Text, Box::new(e))
-    })?);
+    })?;
 
     // Reconstruct Span from stored category + path
     let namespace_str = format!("cns.{}", span_category);
@@ -401,7 +402,7 @@ mod tests {
         // Insert an old event (60 min ago) with variety category (cybernetics λ ≈ 0.00231)
         // Weight = exp(-0.00231 * 3600) ≈ exp(-8.316) ≈ 0.00024 < 0.001 threshold
         let mut old_event = NuEvent::new(
-            WebID(uuid::Uuid::new_v4()),
+            WebID::new(),
             Span::new(SpanNamespace::new("cns.variety"), "depleted"),
             Phase::Act,
             serde_json::json!({"variety_count": 0}),
@@ -412,7 +413,7 @@ mod tests {
 
         // Insert a recent event (just created) — weight close to 1.0, well above threshold
         let recent_event = NuEvent::new(
-            WebID(uuid::Uuid::new_v4()),
+            WebID::new(),
             Span::new(SpanNamespace::new("cns.variety"), "depleted"),
             Phase::Act,
             serde_json::json!({"variety_count": 42}),
@@ -451,7 +452,7 @@ mod tests {
         // Insert an event with timestamp 5 minutes ago
         // For variety (cybernetics λ ≈ 0.00231), weight = exp(-0.00231 * 300) ≈ 0.50
         let mut event = NuEvent::new(
-            WebID(uuid::Uuid::new_v4()),
+            WebID::new(),
             Span::new(SpanNamespace::new("cns.variety"), "test"),
             Phase::Act,
             serde_json::json!({"test": true}),

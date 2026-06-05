@@ -3,6 +3,7 @@
 use crate::errors::{CuratorError, RegistryError};
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::sync::Arc;
 
 pub fn registry_db_path() -> String {
@@ -271,7 +272,9 @@ pub async fn init_registry_with_secrets(
         let agents: Vec<hkask_agents::acp::AcpAgent> = registered_agents
             .iter()
             .map(|ra| hkask_agents::acp::AcpAgent {
-                webid: hkask_types::WebID::from_string(&ra.definition.name),
+                webid: hkask_types::WebID::from_str(&ra.definition.name).unwrap_or_else(|_| {
+                    hkask_types::WebID::from_persona(ra.definition.name.as_bytes())
+                }),
                 agent_type: ra.definition.agent_kind,
                 capabilities: ra.definition.capabilities.clone(),
                 registered_at: chrono::DateTime::parse_from_rfc3339(&ra.registered_at)

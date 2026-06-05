@@ -448,6 +448,44 @@ impl MetacognitionLoop {
             "Unhandled action type in MetacognitionLoop act()"
         );
     }
+
+    // ====================================================================
+    // Explicit 4-stage cycle: sense → compare → compute → act
+    // ====================================================================
+
+    /// **Sense stage** (sense → compare → compute → act):
+    /// Read CNS health, variety counters, critical alerts, and bot status
+    /// reports. Produces afferent signals for variety deficit, critical alert
+    /// count, and bot failure count. Builds and stores a HealthSnapshot for
+    /// use by compare/compute/act phases.
+    pub async fn sense(&self) -> Vec<Signal> {
+        <Self as HkaskLoop>::sense(self).await
+    }
+
+    /// **Compare stage** (sense → compare → compute → act):
+    /// Evaluate variety deficit vs threshold, critical alert count vs
+    /// threshold, and bot failure count vs threshold. Detects deviations
+    /// from set-points in the sensed signals.
+    pub async fn compare(&self, signals: &[Signal]) -> Vec<Deviation> {
+        <Self as HkaskLoop>::compare(self, signals).await
+    }
+
+    /// **Compute stage** (sense → compare → compute → act):
+    /// Map deviations to regulatory actions. Variety deficit above threshold
+    /// → Calibrate (threshold adjustment). Critical alerts above threshold
+    /// → Escalate (human review). Bot failures above threshold → Escalate
+    /// (bot attention).
+    pub async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
+        <Self as HkaskLoop>::compute(self, deviations).await
+    }
+
+    /// **Act stage** (sense → compare → compute → act):
+    /// Execute regulatory actions by issuing CuratorDirectives and posting
+    /// escalations. Calibrate → issue CalibrateThreshold directive. Escalate
+    /// → write escalation entries to the queue (individually or batched).
+    pub async fn act(&self, actions: &[LoopAction]) {
+        <Self as HkaskLoop>::act(self, actions).await
+    }
 }
 
 // ---------------------------------------------------------------------------

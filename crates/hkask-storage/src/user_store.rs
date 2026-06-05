@@ -11,6 +11,7 @@ use base64::Engine;
 use hkask_types::{HumanUser, InfrastructureError, ReplicantIdentity, UserID, UserSession};
 use rand::RngCore;
 use rusqlite::params;
+use std::str::FromStr;
 use thiserror::Error;
 use zeroize::Zeroizing;
 
@@ -150,7 +151,18 @@ impl UserStore {
             Ok(UserSession {
                 session_id: row.get(0)?,
                 replicant_name: row.get(1)?,
-                replicant_webid: hkask_types::WebID::from_string(&row.get::<_, String>(2)?),
+                replicant_webid: hkask_types::WebID::from_str(&row.get::<_, String>(2)?).map_err(
+                    |e| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            2,
+                            rusqlite::types::Type::Text,
+                            Box::new(std::io::Error::new(
+                                std::io::ErrorKind::InvalidData,
+                                format!("unparseable WebID: {e}"),
+                            )),
+                        )
+                    },
+                )?,
                 user_id: UserID(row.get::<_, String>(3)?.parse().map_err(|_| {
                     rusqlite::Error::FromSqlConversionFailure(
                         0,
@@ -184,7 +196,17 @@ impl UserStore {
                 Ok(UserSession {
                     session_id: row.get(0)?,
                     replicant_name: row.get(1)?,
-                    replicant_webid: hkask_types::WebID::from_string(&row.get::<_, String>(2)?),
+                    replicant_webid: hkask_types::WebID::from_str(&row.get::<_, String>(2)?)
+                        .map_err(|e| {
+                            rusqlite::Error::FromSqlConversionFailure(
+                                2,
+                                rusqlite::types::Type::Text,
+                                Box::new(std::io::Error::new(
+                                    std::io::ErrorKind::InvalidData,
+                                    format!("unparseable WebID: {e}"),
+                                )),
+                            )
+                        })?,
                     user_id: UserID(row.get::<_, String>(3)?.parse().map_err(|_| {
                         rusqlite::Error::FromSqlConversionFailure(
                             0,
@@ -227,7 +249,18 @@ impl UserStore {
                         )),
                     )
                 })?),
-                replicant_webid: hkask_types::WebID::from_string(&row.get::<_, String>(2)?),
+                replicant_webid: hkask_types::WebID::from_str(&row.get::<_, String>(2)?).map_err(
+                    |e| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            2,
+                            rusqlite::types::Type::Text,
+                            Box::new(std::io::Error::new(
+                                std::io::ErrorKind::InvalidData,
+                                format!("unparseable WebID: {e}"),
+                            )),
+                        )
+                    },
+                )?,
                 first_name_enc: row.get(3)?,
                 last_name_enc: row.get(4)?,
                 persona_yaml: row.get(5)?,
@@ -286,7 +319,17 @@ impl UserStore {
                             )),
                         )
                     })?),
-                    replicant_webid: hkask_types::WebID::from_string(&row.get::<_, String>(2)?),
+                    replicant_webid: hkask_types::WebID::from_str(&row.get::<_, String>(2)?)
+                        .map_err(|e| {
+                            rusqlite::Error::FromSqlConversionFailure(
+                                2,
+                                rusqlite::types::Type::Text,
+                                Box::new(std::io::Error::new(
+                                    std::io::ErrorKind::InvalidData,
+                                    format!("unparseable WebID: {e}"),
+                                )),
+                            )
+                        })?,
                     first_name_enc: row.get(3)?,
                     last_name_enc: row.get(4)?,
                     persona_yaml: row.get(5)?,

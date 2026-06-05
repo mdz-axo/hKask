@@ -6,6 +6,7 @@
 use chrono::{DateTime, Utc};
 use hkask_types::{InfrastructureError, TripleID, Visibility, WebID};
 use serde_json::Value;
+use std::str::FromStr;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -518,7 +519,8 @@ impl TripleStore {
     }
 
     fn row_to_triple(row: TripleRow) -> Result<Triple, TripleError> {
-        let id = TripleID(uuid::Uuid::parse_str(&row.id).unwrap_or_else(|_| uuid::Uuid::new_v4()));
+        let id = TripleID::from_str(&row.id)
+            .map_err(|e| InfrastructureError::Database(format!("unparseable triple ID: {e}")))?;
         let value: Value = serde_json::from_str(&row.value)?;
         let valid_from = DateTime::parse_from_rfc3339(&row.valid_from)
             .map(|dt| dt.with_timezone(&Utc))
@@ -527,13 +529,10 @@ impl TripleStore {
             .valid_to
             .and_then(|s| DateTime::parse_from_rfc3339(&s).ok())
             .map(|dt| dt.with_timezone(&Utc));
-        let perspective = row
-            .perspective
-            .and_then(|s| uuid::Uuid::parse_str(&s).ok())
-            .map(WebID);
+        let perspective = row.perspective.and_then(|s| s.parse().ok());
         let visibility = Visibility::parse_str(&row.visibility).unwrap_or_default();
-        let owner_webid =
-            WebID(uuid::Uuid::parse_str(&row.owner_webid).unwrap_or_else(|_| uuid::Uuid::new_v4()));
+        let owner_webid = WebID::from_str(&row.owner_webid)
+            .map_err(|e| InfrastructureError::Database(format!("unparseable owner WebID: {e}")))?;
 
         Ok(Triple {
             id,

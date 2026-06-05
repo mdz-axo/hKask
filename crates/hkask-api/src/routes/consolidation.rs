@@ -3,9 +3,13 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use axum::{Extension, Json, extract::State, http::StatusCode, response::IntoResponse};
+use hkask_memory::{ConsolidationBridge, ConsolidationService, EpisodicMemory, SemanticMemory};
+use hkask_storage::{Database, EmbeddingStore, TripleStore};
 use hkask_types::WebID;
-use hkask_types::ports::ConsolidationRequest;
+use hkask_types::loops::CuratorHandle;
+use hkask_types::ports::{ConsolidationPort, ConsolidationRequest};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use utoipa::ToSchema;
 
 use super::error_response;
@@ -101,7 +105,7 @@ pub fn consolidation_router() -> axum::Router<crate::ApiState> {
     ),
 )]
 async fn consolidate(
-    State(state): State<ApiState>,
+    State(_state): State<ApiState>,
     Extension(_auth): Extension<crate::middleware::auth::AuthContext>,
     Json(req): Json<ConsolidateRequest>,
 ) -> impl axum::response::IntoResponse {
@@ -112,8 +116,8 @@ async fn consolidate(
     }
 
     // Parse agent WebID
-    let webid = match uuid::Uuid::parse_str(&req.agent_webid) {
-        Ok(id) => WebID(id),
+    let webid = match req.agent_webid.parse::<WebID>() {
+        Ok(id) => id,
         Err(_) => {
             return (
                 StatusCode::BAD_REQUEST,
@@ -155,6 +159,51 @@ async fn consolidate(
             .into_response();
     }
 
+    // Resolve the agent's per-agent memory DB.
+    // Consolidation operates on the agent's actual episodic and semantic triples,
+    // which live in hkask-memory-{agent}.db — not the registry DB or in-memory DBs.
+    // Derive the agent name from the WebID for DB path resolution.
+    let agent_name = format!("agent-{}", webid);
+    let db_path = format!("hkask-memory-{}.db", agent_name);
+    let db_passphrase = expected;
+    let db = match Database::open(&db_path, &db_passphrase) {
+        Ok(db) => db,
+        Err(e) => {
+            tracing::error!(
+                target: "api.consolidation",
+                db_path = %db_path,
+                error = %e,
+                "Failed to open agent memory DB"
+            );
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(error_response(
+                    500,
+                    &format!("Failed to open agent memory DB: {}", e),
+                )),
+            )
+                .into_response();
+        }
+    };
+
+    // Build ConsolidationService from the agent's per-agent memory DB.
+    // Same pattern as CLI and REPL: EpisodicMemory + SemanticMemory from
+    // the same DB, ConsolidationBridge connecting them.
+    let conn = db.conn_arc();
+    let ts1 = TripleStore::new(Arc::clone(&conn));
+    let episodic_memory = Arc::new(EpisodicMemory::new(ts1));
+    let ts2 = TripleStore::new(Arc::clone(&conn));
+    let embedding_store = EmbeddingStore::new(Arc::clone(&conn));
+    let semantic_memory = Arc::new(SemanticMemory::new(ts2, embedding_store));
+    let bridge = Arc::new(ConsolidationBridge::new(
+        Arc::clone(&episodic_memory),
+        Arc::clone(&semantic_memory),
+    ));
+    let handle = CuratorHandle::system();
+    let token = handle.issue_consolidation_token();
+    let service =
+        ConsolidationService::new(bridge as Arc<dyn ConsolidationPort>, semantic_memory, token);
+
     // Build consolidation request
     let consolidation_request = ConsolidationRequest {
         limit: req.limit.unwrap_or(100),
@@ -163,7 +212,6 @@ async fn consolidate(
     };
 
     // Execute via ConsolidationService
-    let service = state.consolidation_service();
     match service.consolidate(&webid, consolidation_request) {
         Ok(outcome) => (
             StatusCode::OK,

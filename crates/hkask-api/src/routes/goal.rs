@@ -196,7 +196,9 @@ async fn set_goal_state(
     Path(id): Path<String>,
     Json(req): Json<SetGoalStateRequest>,
 ) -> Result<Json<GoalResponse>, (StatusCode, Json<ErrorResponse>)> {
-    let goal_id = GoalID::from_string(&id);
+    let goal_id = id
+        .parse::<GoalID>()
+        .map_err(|_| bad_request("Invalid goal ID"))?;
     let new_state = GoalState::parse_str(&req.state).ok_or_else(|| {
         bad_request("state must be pending | active | completed | blocked | abandoned")
     })?;

@@ -1,6 +1,7 @@
 use thiserror::Error;
 
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum KeystoreError {
     #[error("Platform keychain error: {0}")]
     Platform(String),

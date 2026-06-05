@@ -5,14 +5,17 @@
 //! - `episodic_store` — Store an episodic triple (private, perspective-bound)
 //! - `episodic_recall` — Recall triples by entity (filtered by caller's WebID)
 //! - `episodic_budget` — Storage usage and budget info
-//! - `episodic_consolidate` — Check consolidation candidates and budget status
+//! - `episodic_consolidate_status` — Check consolidation candidates and budget status
 //!
 //! **Sovereignty:** All operations use the calling agent's `WebID` as the
 //! `perspective`. An agent cannot read another agent's episodic memory.
 //!
-//! **Consolidation:** Episodic budget enforcement routes through the
-//! `ConsolidationBridge`, not through direct MCP calls. The bridge is
-//! membrane-sealed in `hkask-memory` and invoked by `EpisodicLoop::act()`.
+//! **Consolidation:** This server is read-only for consolidation status.
+//! Full consolidation (episodic→semantic promotion) requires both
+//! `EpisodicMemory` and `SemanticMemory`, available only through the CLI,
+//! API, or Chat ConsolidationService surfaces. This server connects to
+//! the per-agent memory DB (`HKASK_MEMORY_DB` / `hkask-memory-{agent}.db`)
+//! alongside the semantic MCP server — both access the same database.
 
 use hkask_mcp::server::ToolSpanGuard;
 use hkask_mcp::validate_field;
@@ -41,7 +44,7 @@ pub struct RecallRequest {
 pub struct BudgetRequest {}
 
 #[derive(Debug, Deserialize, JsonSchema)]
-pub struct ConsolidateRequest {}
+pub struct ConsolidateStatusRequest {}
 
 pub struct EpisodicServer {
     memory: EpisodicMemory,
@@ -154,16 +157,18 @@ impl EpisodicServer {
         }))
     }
 
-    #[tool(description = "Check consolidation candidates for episodic→semantic bridge")]
-    async fn episodic_consolidate(
+    #[tool(
+        description = "Check consolidation candidates and budget status for episodic→semantic promotion"
+    )]
+    async fn episodic_consolidate_status(
         &self,
-        Parameters(_req): Parameters<ConsolidateRequest>,
+        Parameters(_req): Parameters<ConsolidateStatusRequest>,
     ) -> String {
-        let span = ToolSpanGuard::new("episodic_consolidate", &self.webid);
+        let span = ToolSpanGuard::new("episodic_consolidate_status", &self.webid);
 
         // The MCP episodic server only has EpisodicMemory, not SemanticMemory.
-        // Full consolidation (episodic→semantic) requires both stores and a
-        // ConsolidationToken, available via the CLI/API ConsolidationService.
+        // Full consolidation (episodic→semantic) requires both stores, available
+        // via the CLI/API/Chat ConsolidationService surfaces.
         // This tool identifies consolidation candidates and reports status.
 
         let candidate_count = self.memory.consolidation_candidate_count(&self.webid);
@@ -183,22 +188,32 @@ impl EpisodicServer {
             "episodic_usage": usage,
             "episodic_budget": budget,
             "over_budget": over_budget,
-            "note": "Episodic→semantic consolidation requires the CLI or API (ConsolidationService). This tool only reports candidate status.",
         }))
     }
 }
 
-hkask_mcp::mcp_server_main!(
-    "hkask-mcp-episodic",
-    factory: |ctx: hkask_mcp::ServerContext| {
-        let db = ctx.open_database("HKASK_EPISODIC_DB")?;
-        let conn = db.conn_arc();
-        let triple_store = hkask_storage::TripleStore::new(conn);
-        let memory = hkask_memory::EpisodicMemory::new(triple_store);
-        Ok(EpisodicServer::new(memory, ctx.webid))
-    },
-    credentials: vec![
-        hkask_mcp::CredentialRequirement::required("HKASK_EPISODIC_DB", "Path to episodic database file"),
-        hkask_mcp::CredentialRequirement::required("HKASK_DB_PASSPHRASE", "SQLCipher encryption passphrase"),
-    ]
-);
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    hkask_mcp::run_server(
+        "hkask-mcp-episodic",
+        env!("CARGO_PKG_VERSION"),
+        |ctx: hkask_mcp::ServerContext| {
+            let db = ctx.open_database("HKASK_MEMORY_DB")?;
+            let conn = db.conn_arc();
+            let triple_store = hkask_storage::TripleStore::new(conn);
+            let memory = hkask_memory::EpisodicMemory::new(triple_store);
+            Ok(EpisodicServer::new(memory, ctx.webid))
+        },
+        vec![
+            hkask_mcp::CredentialRequirement::required(
+                "HKASK_MEMORY_DB",
+                "Path to per-agent memory database file (episodic + semantic)",
+            ),
+            hkask_mcp::CredentialRequirement::required(
+                "HKASK_DB_PASSPHRASE",
+                "SQLCipher encryption passphrase",
+            ),
+        ],
+    )
+    .await
+}

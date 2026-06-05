@@ -54,6 +54,7 @@ use hkask_types::McpErrorKind;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
+use std::str::FromStr;
 use std::time::Instant;
 
 /// A credential that an MCP server requires to function.
@@ -713,7 +714,7 @@ where
     // 3. Resolve calling agent identity (WebID)
     let webid = if let Ok(uuid_str) = std::env::var("HKASK_WEBID") {
         // Direct UUID — highest precedence
-        hkask_types::WebID::from_string(&uuid_str)
+        hkask_types::WebID::from_str(&uuid_str).unwrap_or_else(|_| hkask_types::WebID::new())
     } else if let Ok(persona) = std::env::var("HKASK_AGENT_PERSONA") {
         // Deterministic derivation from persona name
         hkask_types::WebID::from_persona(persona.as_bytes())

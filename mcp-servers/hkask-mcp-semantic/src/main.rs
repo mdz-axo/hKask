@@ -1,6 +1,6 @@
-//! hKask MCP Semantic — Semantic memory store, recall, similarity search, text chunking, and consolidation
+//! hKask MCP Semantic — Semantic memory store, recall, similarity search, and text chunking
 //!
-//! 10 tools:
+//! 9 tools:
 //! - `semantic_ping` — Liveness and storage info
 //! - `semantic_store` — Store a shared semantic triple (no perspective)
 //! - `semantic_recall` — Recall triples by entity (public, any agent can read)
@@ -10,14 +10,18 @@
 //! - `semantic_purge` — Delete embeddings matching an entity_ref prefix
 //! - `semantic_chunk` — Chunk text into passages for embedding
 //! - `semantic_count` — Triple and embedding counts
-//! - `semantic_consolidate` — Full consolidation: episodic→semantic promotion + semantic cleanup
+//!
+//! **Consolidation:** This server does not perform consolidation. Full
+//! consolidation (episodic→semantic promotion) requires both `EpisodicMemory`
+//! and `SemanticMemory`, available only through the CLI, API, or Chat
+//! ConsolidationService surfaces. This server connects to the per-agent
+//! memory DB (`HKASK_MEMORY_DB` / `hkask-memory-{agent}.db`) alongside the
+//! episodic MCP server — both access the same database.
 
 use hkask_mcp::server::{McpToolError, ToolSpanGuard};
 use hkask_mcp::validate_field;
-use hkask_memory::{ConsolidationBridge, ConsolidationService, EpisodicMemory, SemanticMemory};
+use hkask_memory::SemanticMemory;
 use hkask_storage::Triple;
-use hkask_types::loops::CuratorHandle;
-use hkask_types::ports::{ConsolidationPort, ConsolidationRequest};
 use hkask_types::{McpErrorKind, Visibility, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -79,36 +83,14 @@ pub struct ChunkTextRequest {
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct CountRequest {}
 
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct ConsolidateRequest {
-    pub limit: Option<usize>,
-    pub confidence_floor: Option<f64>,
-    pub max_semantic_triples: Option<usize>,
-}
-
 pub struct SemanticServer {
     memory: Arc<SemanticMemory>,
-    /// Kept for ownership lifecycle — the bridge holds its own Arc<EpisodicMemory>,
-    /// but this field ensures the original Arc stays alive for the server's lifetime.
-    #[allow(dead_code)] // ownership guard for ConsolidationBridge's episodic Arc
-    episodic: Arc<EpisodicMemory>,
-    bridge: Arc<ConsolidationBridge>,
     webid: WebID,
 }
 
 impl SemanticServer {
-    pub fn new(
-        memory: Arc<SemanticMemory>,
-        episodic: Arc<EpisodicMemory>,
-        bridge: Arc<ConsolidationBridge>,
-        webid: WebID,
-    ) -> Self {
-        Self {
-            memory,
-            episodic,
-            bridge,
-            webid,
-        }
+    pub fn new(memory: Arc<SemanticMemory>, webid: WebID) -> Self {
+        Self { memory, webid }
     }
 }
 
@@ -422,100 +404,34 @@ impl SemanticServer {
         };
         span.ok_json(json!({"triple_count": triple_count, "embedding_count": embedding_count}))
     }
-
-    #[tool(
-        description = "Full consolidation: episodic→semantic promotion + semantic cleanup (low-confidence deletion, max-triple enforcement)"
-    )]
-    async fn semantic_consolidate(
-        &self,
-        Parameters(ConsolidateRequest {
-            limit,
-            confidence_floor,
-            max_semantic_triples,
-        }): Parameters<ConsolidateRequest>,
-    ) -> String {
-        let span = ToolSpanGuard::new("semantic_consolidate", &self.webid);
-
-        // NOTE: This MCP tool does NOT verify a master passphrase.
-        // The MCP semantic server is always OCAP-gated — invocations require a
-        // valid capability token issued through the GovernedTool membrane
-        // (see hkask-mcp/src/dispatch.rs). Adding a passphrase check here
-        // would create a redundant authorization layer: OCAP already ensures
-        // that only token-bearing callers can invoke this tool. The CLI and
-        // API endpoints are directly user-facing (no OCAP membrane), so they
-        // need passphrase verification. This tool does not.
-
-        // Issue a ConsolidationToken via the system CuratorHandle.
-        // The MCP server is OCAP-gated, so the caller already has authority
-        // to invoke consolidation. The token proves this to ConsolidationPort.
-        let handle = CuratorHandle::system();
-        let token = handle.issue_consolidation_token();
-
-        // Build ConsolidationService wrapping the bridge + semantic memory + token
-        let service = ConsolidationService::new(
-            Arc::clone(&self.bridge) as Arc<dyn ConsolidationPort>,
-            Arc::clone(&self.memory),
-            token,
-        );
-
-        let perspective = handle.curator_id().clone();
-        let limit = limit.unwrap_or(100);
-
-        let request = ConsolidationRequest {
-            limit,
-            confidence_floor,
-            max_semantic_triples,
-        };
-
-        // ConsolidationPort::consolidate is sync — call it from this async context
-        let outcome = match service.consolidate(&perspective, request) {
-            Ok(outcome) => outcome,
-            Err(e) => {
-                return span.internal_error(json!({
-                    "error": format!("Consolidation failed: {}", e)
-                }));
-            }
-        };
-
-        let final_count = self.memory.triple_count().unwrap_or(0);
-
-        span.ok_json(json!({
-            "consolidated_count": outcome.consolidated_count,
-            "deleted_count": outcome.deleted_count,
-            "failed_count": outcome.failed_count,
-            "semantic_triple_count": final_count,
-        }))
-    }
 }
 
-hkask_mcp::mcp_server_main!(
-    "hkask-mcp-semantic",
-    factory: |ctx: hkask_mcp::ServerContext| {
-        let db_path = ctx.credentials.get("HKASK_MEMORY_DB")
-            .ok_or_else(|| anyhow::anyhow!("Missing HKASK_MEMORY_DB"))?
-            .clone();
-        let passphrase = ctx.credentials.get("HKASK_DB_PASSPHRASE")
-            .ok_or_else(|| anyhow::anyhow!("Missing HKASK_DB_PASSPHRASE"))?
-            .clone();
-        let db = hkask_storage::Database::open(&db_path, &passphrase)
-            .map_err(|e| anyhow::anyhow!("Failed to open memory database: {}", e))?;
-        let conn = db.conn_arc();
-        // Episodic memory from the same per-agent DB
-        let ts_episodic = hkask_storage::TripleStore::new(Arc::clone(&conn));
-        let episodic = Arc::new(hkask_memory::EpisodicMemory::new(ts_episodic));
-        // Semantic memory from the same per-agent DB
-        let ts_semantic = hkask_storage::TripleStore::new(Arc::clone(&conn));
-        let embedding_store = hkask_storage::EmbeddingStore::new(conn);
-        let memory = Arc::new(hkask_memory::SemanticMemory::new(ts_semantic, embedding_store));
-        // Consolidation bridge from shared episodic + semantic
-        let bridge = Arc::new(hkask_memory::ConsolidationBridge::new(
-            Arc::clone(&episodic),
-            Arc::clone(&memory),
-        ));
-        Ok(SemanticServer::new(memory, episodic, bridge, ctx.webid))
-    },
-    credentials: vec![
-        hkask_mcp::CredentialRequirement::required("HKASK_MEMORY_DB", "Path to per-agent memory database file (episodic + semantic)"),
-        hkask_mcp::CredentialRequirement::required("HKASK_DB_PASSPHRASE", "SQLCipher encryption passphrase"),
-    ]
-);
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    hkask_mcp::run_server(
+        "hkask-mcp-semantic",
+        env!("CARGO_PKG_VERSION"),
+        |ctx: hkask_mcp::ServerContext| {
+            let db = ctx.open_database("HKASK_MEMORY_DB")?;
+            let conn = db.conn_arc();
+            let triple_store = hkask_storage::TripleStore::new(Arc::clone(&conn));
+            let embedding_store = hkask_storage::EmbeddingStore::new(conn);
+            let memory = Arc::new(hkask_memory::SemanticMemory::new(
+                triple_store,
+                embedding_store,
+            ));
+            Ok(SemanticServer::new(memory, ctx.webid))
+        },
+        vec![
+            hkask_mcp::CredentialRequirement::required(
+                "HKASK_MEMORY_DB",
+                "Path to per-agent memory database file (episodic + semantic)",
+            ),
+            hkask_mcp::CredentialRequirement::required(
+                "HKASK_DB_PASSPHRASE",
+                "SQLCipher encryption passphrase",
+            ),
+        ],
+    )
+    .await
+}

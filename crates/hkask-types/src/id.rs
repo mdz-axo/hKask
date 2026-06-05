@@ -8,14 +8,12 @@ use uuid::Uuid;
 /// # Example
 /// ```ignore
 /// define_id_type!(BotID);
-/// define_id_type!(TemplateID, from_string);
 /// ```
 ///
 /// Doc comments can be placed before the invocation — they will be attached
 /// to the generated struct when using the `$(#[$meta:meta])*` capture.
 #[macro_export]
 macro_rules! define_id_type {
-    // Basic ID type with visibility + optional attributes
     ($(#[$meta:meta])* $vis:vis $name:ident) => {
         $(#[$meta])*
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -25,34 +23,20 @@ macro_rules! define_id_type {
             pub fn new() -> Self {
                 Self(::uuid::Uuid::new_v4())
             }
-        }
 
-        impl Default for $name {
-            fn default() -> Self {
-                Self::new()
+            pub fn from_uuid(uuid: ::uuid::Uuid) -> Self {
+                Self(uuid)
+            }
+
+            pub fn as_uuid(&self) -> ::uuid::Uuid {
+                self.0
             }
         }
 
-        impl std::fmt::Display for $name {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(f, "{}", self.0)
-            }
-        }
-    };
-
-    // ID type with visibility, from_string() method + optional attributes
-    ($(#[$meta:meta])* $vis:vis $name:ident, from_string) => {
-        $(#[$meta])*
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-        $vis struct $name(pub ::uuid::Uuid);
-
-        impl $name {
-            pub fn new() -> Self {
-                Self(::uuid::Uuid::new_v4())
-            }
-
-            pub fn from_string(s: &str) -> Self {
-                Self(::uuid::Uuid::parse_str(s).unwrap_or_else(|_| ::uuid::Uuid::new_v4()))
+        impl std::str::FromStr for $name {
+            type Err = uuid::Error;
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                ::uuid::Uuid::parse_str(s).map($name)
             }
         }
 
@@ -79,6 +63,14 @@ pub struct WebID(pub Uuid);
 impl WebID {
     pub fn new() -> Self {
         Self(Uuid::new_v4())
+    }
+
+    pub fn from_uuid(uuid: Uuid) -> Self {
+        Self(uuid)
+    }
+
+    pub fn as_uuid(&self) -> Uuid {
+        self.0
     }
 
     /// Derive WebID deterministically from persona using UUID v5
@@ -114,10 +106,6 @@ impl WebID {
         Self(Uuid::new_v5(&base_namespace, &combined))
     }
 
-    pub fn from_string(s: &str) -> Self {
-        WebID(uuid::Uuid::parse_str(s).unwrap_or_else(|_| uuid::Uuid::new_v4()))
-    }
-
     /// Redacted display format — shows first 8 chars of UUID + "..."
     /// Use at INFO level and below to prevent full UUID leakage in logs.
     pub fn redacted_display(&self) -> String {
@@ -129,6 +117,13 @@ impl WebID {
     /// Use only at TRACE level with HKASK_TRACE_WEBIDS=1.
     pub fn full_display(&self) -> String {
         self.0.to_string()
+    }
+}
+
+impl std::str::FromStr for WebID {
+    type Err = uuid::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Uuid::parse_str(s).map(WebID)
     }
 }
 
@@ -144,7 +139,7 @@ impl std::fmt::Display for WebID {
     }
 }
 
-define_id_type!(pub TemplateID, from_string);
+define_id_type!(pub TemplateID);
 
 define_id_type!(pub BotID);
 
@@ -158,6 +153,6 @@ define_id_type!(pub TripleID);
 
 define_id_type!(pub EventID);
 
-define_id_type!(pub GoalID, from_string);
+define_id_type!(pub GoalID);
 
 define_id_type!(pub EmbeddingID);

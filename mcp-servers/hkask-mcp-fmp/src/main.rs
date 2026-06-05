@@ -358,11 +358,16 @@ impl FmpServer {
     }
 }
 
-hkask_mcp::mcp_server_main!(
-    "hkask-mcp-fmp",
-    FmpServer,
-    credentials: vec![hkask_mcp::CredentialRequirement::required(
-        "HKASK_FMP_API_KEY",
-        "Financial Modeling Prep API key",
-    )]
-);
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    hkask_mcp::run_server(
+        "hkask-mcp-fmp",
+        env!("CARGO_PKG_VERSION"),
+        |ctx: hkask_mcp::ServerContext| FmpServer::new(ctx.webid),
+        vec![hkask_mcp::CredentialRequirement::required(
+            "HKASK_FMP_API_KEY",
+            "Financial Modeling Prep API key",
+        )],
+    )
+    .await
+}

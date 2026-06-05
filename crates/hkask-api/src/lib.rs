@@ -133,10 +133,6 @@ pub struct ApiState {
     pub cns_runtime: Arc<CnsRuntime>,
     /// General-purpose inference port (shared across requests)
     pub inference_port: Option<Arc<dyn hkask_types::ports::InferencePort>>,
-    /// Consolidation bridge for episodic→semantic promotion
-    pub consolidation_bridge: Arc<ConsolidationBridge>,
-    /// Semantic memory for consolidation cleanup operations
-    pub semantic_memory_for_consolidation: Arc<SemanticMemory>,
 }
 
 /// Build the LoopSystem with all 6 loop.
@@ -156,8 +152,6 @@ fn build_loop_system(
     Arc<LoopSystem>,
     Arc<dyn EpisodicStoragePort>,
     Arc<tokio::sync::RwLock<CyberneticsLoop>>,
-    Arc<ConsolidationBridge>,
-    Arc<SemanticMemory>,
 ) {
     let loop_system = LoopSystem::new(Arc::clone(&dispatch));
 
@@ -260,8 +254,6 @@ fn build_loop_system(
         Arc::new(loop_system),
         episodic_storage,
         cybernetics_loop_rwlock,
-        consolidation_bridge,
-        semantic_memory,
     )
 }
 
@@ -337,13 +329,7 @@ impl ApiState {
         let cns_event_sink: Arc<dyn NuEventSink> =
             Arc::new(hkask_storage::NuEventStore::new(cns_event_conn));
 
-        let (
-            loop_system,
-            episodic_storage,
-            cybernetics_loop_rwlock,
-            consolidation_bridge,
-            semantic_memory_for_consolidation,
-        ) = build_loop_system(
+        let (loop_system, episodic_storage, cybernetics_loop_rwlock) = build_loop_system(
             Arc::clone(&escalation_queue),
             dispatch,
             inference_port,
@@ -437,8 +423,6 @@ impl ApiState {
             episodic_storage,
             cns_runtime: Arc::new(CnsRuntime::with_threshold(hkask_cns::DEFAULT_THRESHOLD)),
             inference_port,
-            consolidation_bridge,
-            semantic_memory_for_consolidation,
         }
     }
 
@@ -603,20 +587,6 @@ impl ApiState {
     pub fn shutdown_loops(&self) {
         tracing::info!(target: "hkask.api", "Shutting down loop system");
         self.loop_system.shutdown();
-    }
-
-    /// Create a ConsolidationService for user-triggered consolidation.
-    ///
-    /// Uses the system CuratorHandle to mint the required token.
-    pub fn consolidation_service(&self) -> hkask_memory::ConsolidationService {
-        let handle = hkask_types::loops::CuratorHandle::system();
-        let token = handle.issue_consolidation_token();
-        hkask_memory::ConsolidationService::new(
-            Arc::clone(&self.consolidation_bridge)
-                as Arc<dyn hkask_types::ports::ConsolidationPort>,
-            Arc::clone(&self.semantic_memory_for_consolidation),
-            token,
-        )
     }
 }
 

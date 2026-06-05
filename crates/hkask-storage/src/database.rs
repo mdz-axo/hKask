@@ -52,6 +52,7 @@ fn load_sqlite_vec() -> Result<(), DatabaseError> {
 pub(crate) const SQLCIPHER_SALT_SIZE: usize = 16;
 
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum DatabaseError {
     #[error("Database error: {0}")]
     Sqlite(#[from] rusqlite::Error),

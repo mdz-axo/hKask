@@ -389,7 +389,10 @@ pub fn run_replicant(action: crate::cli::ReplicantAction) {
         }
         ReplicantAction::List { user_id } => {
             if let Some(uid) = user_id {
-                let user_id = UserID::from_string(&uid);
+                let user_id = uid.parse::<UserID>().unwrap_or_else(|e| {
+                    eprintln!("Invalid user ID: {e}");
+                    std::process::exit(1)
+                });
                 super::helpers::or_exit(
                     list_replicants(&store, &user_id),
                     "Failed to list identities",

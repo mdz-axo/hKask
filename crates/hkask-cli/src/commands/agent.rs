@@ -4,6 +4,7 @@ use crate::block_on;
 use crate::cli::BotAction;
 use crate::commands::config::{init_registry, registry_yaml_path};
 use crate::errors::AgentError;
+use std::str::FromStr;
 use std::sync::Arc;
 
 pub struct AgentReceipt {
@@ -80,7 +81,8 @@ pub async fn agent_register(
         .await
         .map_err(|e| AgentError::CapabilityError(e.to_string()))?;
 
-    let webid = hkask_types::WebID::from_string(webid_str);
+    let webid = hkask_types::WebID::from_str(webid_str)
+        .map_err(|e| AgentError::RegistrationFailed(format!("Invalid WebID: {e}")))?;
 
     let agent_kind = hkask_types::AgentKind::parse(agent_type).ok_or_else(|| {
         AgentError::RegistrationFailed(format!(

@@ -255,31 +255,37 @@ impl CondenserServer {
     }
 }
 
-hkask_mcp::mcp_server_main!(
-    "hkask-mcp-condenser",
-    factory: |ctx: hkask_mcp::ServerContext| {
-        let episodic = match ctx.credentials.get("HKASK_DB_PATH") {
-            Some(path) => {
-                let passphrase = ctx.credentials.get("HKASK_DB_PASSPHRASE").ok_or_else(|| {
-                    anyhow::anyhow!("HKASK_DB_PATH set but HKASK_DB_PASSPHRASE missing")
-                })?;
-                let db = Database::open(path, passphrase)
-                    .map_err(|e| anyhow::anyhow!("Failed to open condenser database: {}", e))?;
-                let triple_store = hkask_storage::TripleStore::new(db.conn_arc());
-                Some(hkask_memory::EpisodicMemory::new(triple_store))
-            }
-            None => None,
-        };
-        CondenserServer::new(ctx.webid, episodic)
-    },
-    credentials: vec![
-        hkask_mcp::CredentialRequirement::optional(
-            "HKASK_DB_PATH",
-            "Path to the SQLite database for episodic persistence (in-memory if absent)",
-        ),
-        hkask_mcp::CredentialRequirement::optional(
-            "HKASK_DB_PASSPHRASE",
-            "Passphrase for the database (required if HKASK_DB_PATH is set)",
-        ),
-    ]
-);
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    hkask_mcp::run_server(
+        "hkask-mcp-condenser",
+        env!("CARGO_PKG_VERSION"),
+        |ctx: hkask_mcp::ServerContext| {
+            let episodic = match ctx.credentials.get("HKASK_DB_PATH") {
+                Some(path) => {
+                    let passphrase =
+                        ctx.credentials.get("HKASK_DB_PASSPHRASE").ok_or_else(|| {
+                            anyhow::anyhow!("HKASK_DB_PATH set but HKASK_DB_PASSPHRASE missing")
+                        })?;
+                    let db = Database::open(path, passphrase)
+                        .map_err(|e| anyhow::anyhow!("Failed to open condenser database: {}", e))?;
+                    let triple_store = hkask_storage::TripleStore::new(db.conn_arc());
+                    Some(hkask_memory::EpisodicMemory::new(triple_store))
+                }
+                None => None,
+            };
+            CondenserServer::new(ctx.webid, episodic)
+        },
+        vec![
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_DB_PATH",
+                "Path to the SQLite database for episodic persistence (in-memory if absent)",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_DB_PASSPHRASE",
+                "Passphrase for the database (required if HKASK_DB_PATH is set)",
+            ),
+        ],
+    )
+    .await
+}

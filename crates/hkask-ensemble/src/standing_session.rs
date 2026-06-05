@@ -262,7 +262,11 @@ impl StandingSession {
             let messages = store.get_messages(&self.session_id)?;
 
             for stored in messages {
-                let webid = WebID::from_string(&stored.from_webid);
+                let webid: WebID = stored.from_webid.parse().map_err(|e| {
+                    StandingSessionError::Storage(hkask_types::ports::SessionStoreError::Storage(
+                        format!("Invalid WebID in stored message: {e}"),
+                    ))
+                })?;
                 let mut msg = ChatMessage::new(webid, stored.content);
                 msg.timestamp = chrono::DateTime::parse_from_rfc3339(&stored.timestamp)
                     .map(|dt| dt.with_timezone(&chrono::Utc))

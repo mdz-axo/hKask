@@ -126,15 +126,15 @@ impl EscalationQueue {
 
         let rows = stmt.query_map([], |row| {
             let bot_uuid_str: String = row.get(2)?;
-            let bot_uuid = Uuid::parse_str(&bot_uuid_str).unwrap_or_else(|_| Uuid::new_v4());
+            let bot_id: BotID = bot_uuid_str.parse().unwrap_or_else(|_| BotID::new());
 
             Ok(EscalationEntry {
                 id: row.get(0)?,
-                template_id: TemplateID(
-                    uuid::Uuid::parse_str(&row.get::<_, String>(1)?)
-                        .unwrap_or_else(|_| uuid::Uuid::new_v4()),
-                ),
-                bot_id: BotID(bot_uuid),
+                template_id: row
+                    .get::<_, String>(1)?
+                    .parse()
+                    .unwrap_or_else(|_| TemplateID::new()),
+                bot_id,
                 output: row.get(3)?,
                 confidence: row.get(4)?,
                 retry_count: row.get(5)?,
@@ -177,7 +177,7 @@ impl EscalationQueue {
             };
 
             let bot_uuid_str: String = row.get(2)?;
-            let bot_uuid = Uuid::parse_str(&bot_uuid_str).unwrap_or_else(|_| Uuid::new_v4());
+            let bot_id: BotID = bot_uuid_str.parse().unwrap_or_else(|_| BotID::new());
 
             let resolved_at: Option<String> = row.get(9)?;
             let resolved_at = resolved_at.and_then(|s| {
@@ -188,11 +188,11 @@ impl EscalationQueue {
 
             Ok(Some(EscalationEntry {
                 id: row.get(0)?,
-                template_id: TemplateID(
-                    uuid::Uuid::parse_str(&row.get::<_, String>(1)?)
-                        .unwrap_or_else(|_| uuid::Uuid::new_v4()),
-                ),
-                bot_id: BotID(bot_uuid),
+                template_id: row
+                    .get::<_, String>(1)?
+                    .parse()
+                    .unwrap_or_else(|_| TemplateID::new()),
+                bot_id,
                 output: row.get(3)?,
                 confidence: row.get(4)?,
                 retry_count: row.get(5)?,

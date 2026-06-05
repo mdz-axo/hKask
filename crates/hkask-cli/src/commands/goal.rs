@@ -90,7 +90,9 @@ pub fn list(state: Option<&str>) -> Result<(), RegistryError> {
 /// `kask goal set-state <id> <state>`
 pub fn set_state(id: &str, state: &str) -> Result<(), RegistryError> {
     let (repo, _webid) = open_repository()?;
-    let goal_id = GoalID::from_string(id);
+    let goal_id = id
+        .parse::<GoalID>()
+        .map_err(|e| RegistryError::InitFailed(format!("Invalid goal ID: {e}")))?;
     let new_state = GoalState::parse_str(state).ok_or_else(|| {
         RegistryError::InitFailed(format!(
             "Invalid state '{state}' (expected pending | active | completed | blocked | abandoned)"

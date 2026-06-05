@@ -5,7 +5,7 @@ pub mod types;
 
 use hkask_mcp::server::{
     CredentialRequirement, McpToolError, McpToolOutput, ServerContext, ToolSpanGuard,
-    resolve_credential, run_stdio_server, validate_tool_url,
+    resolve_credential, validate_tool_url,
 };
 use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
@@ -544,7 +544,7 @@ async fn main() -> anyhow::Result<()> {
         ));
     }
 
-    run_stdio_server(
+    hkask_mcp::run_server(
         "hkask-mcp-web",
         SERVER_VERSION,
         |_ctx: ServerContext| {

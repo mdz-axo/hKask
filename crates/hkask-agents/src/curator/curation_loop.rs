@@ -187,6 +187,43 @@ impl CurationLoop {
             _ => None, // Proceed or Suppress — no directive needed
         }
     }
+
+    // ====================================================================
+    // Explicit 4-stage cycle: sense → compare → compute → act
+    // ====================================================================
+
+    /// **Sense stage** (sense → compare → compute → act):
+    /// Read NuEvent stream for curation-relevant events and read CurationPort
+    /// confidence values. Produces afferent signals for algedonic event count,
+    /// pending escalations, consolidation candidates, and goal state transitions.
+    pub async fn sense(&self) -> Vec<Signal> {
+        <Self as HkaskLoop>::sense(self).await
+    }
+
+    /// **Compare stage** (sense → compare → compute → act):
+    /// Evaluate confidence vs threshold via CurationConfidenceGate.
+    /// Detects deviations from set-points in sensed signals (algedonic count,
+    /// escalation count, consolidation candidates, goal stale/expired counts).
+    pub async fn compare(&self, signals: &[Signal]) -> Vec<Deviation> {
+        <Self as HkaskLoop>::compare(self, signals).await
+    }
+
+    /// **Compute stage** (sense → compare → compute → act):
+    /// Determine if a CuratorDirective is needed and which one. Produces
+    /// Escalate actions when algedonic events or pending escalations exceed
+    /// their set-points.
+    pub async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
+        <Self as HkaskLoop>::compute(self, deviations).await
+    }
+
+    /// **Act stage** (sense → compare → compute → act):
+    /// Issue the directive via MessageDispatch. Converts LoopActions to
+    /// CuratorDirectives and issues them through the dispatch with DAMPEN
+    /// filtering. Fires the consolidation bridge when budget pressure
+    /// requires it.
+    pub async fn act(&self, actions: &[LoopAction]) {
+        <Self as HkaskLoop>::act(self, actions).await
+    }
 }
 
 #[async_trait::async_trait]

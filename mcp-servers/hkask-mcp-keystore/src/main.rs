@@ -19,7 +19,6 @@ use hkask_keystore::Keychain;
 use hkask_keystore::encryption::EncryptionService;
 use hkask_mcp::server::{
     CredentialRequirement, McpToolError, McpToolOutput, ServerContext, ToolSpanGuard,
-    run_stdio_server,
 };
 use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
@@ -250,7 +249,7 @@ impl KeystoreServer {
                     );
                     drop(entries); // Release write lock before I/O
 
-                    let webid = WebID::from_string(&owner);
+                    let webid: WebID = owner.parse().unwrap_or_else(|_| WebID::new());
                     match self.keychain.store(&webid, &full_key) {
                         Ok(()) => {
                             self.save_vault().await;
@@ -444,7 +443,7 @@ impl KeystoreServer {
             }
         }
 
-        let webid = WebID::from_string(&caller);
+        let webid: WebID = caller.parse().unwrap_or_else(|_| WebID::new());
         let _ = self.keychain.delete(&webid);
 
         if entries.remove(&full_key).is_some() {
@@ -479,7 +478,7 @@ impl KeystoreServer {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    run_stdio_server(
+    hkask_mcp::run_server(
         "hkask-mcp-keystore",
         env!("CARGO_PKG_VERSION"),
         |ctx: ServerContext| {

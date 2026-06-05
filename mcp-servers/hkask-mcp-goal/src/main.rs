@@ -172,7 +172,7 @@ impl GoalServer {
             return span.error(err.kind, err.to_json_string());
         };
 
-        let gid = GoalID::from_string(&goal_id);
+        let gid: GoalID = goal_id.parse().unwrap_or_else(|_| GoalID::new());
         match self.repo.update_goal_state(gid, new_state) {
             Ok(()) => span.ok_json(json!({
                 "id": gid.to_string(),
@@ -266,17 +266,22 @@ mod tests {
     }
 }
 
-hkask_mcp::mcp_server_main!(
-    "hkask-mcp-goal",
-    factory: |ctx: hkask_mcp::ServerContext| { GoalServer::new(ctx) },
-    credentials: vec![
-        hkask_mcp::CredentialRequirement::optional(
-            "HKASK_GOAL_DB",
-            "Path to the goal SQLite database (in-memory if absent)",
-        ),
-        hkask_mcp::CredentialRequirement::optional(
-            "HKASK_DB_PASSPHRASE",
-            "Passphrase for the goal database (required if HKASK_GOAL_DB is set)",
-        ),
-    ]
-);
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    hkask_mcp::run_server(
+        "hkask-mcp-goal",
+        env!("CARGO_PKG_VERSION"),
+        |ctx: hkask_mcp::ServerContext| GoalServer::new(ctx),
+        vec![
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_GOAL_DB",
+                "Path to the goal SQLite database (in-memory if absent)",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "HKASK_DB_PASSPHRASE",
+                "Passphrase for the goal database (required if HKASK_GOAL_DB is set)",
+            ),
+        ],
+    )
+    .await
+}

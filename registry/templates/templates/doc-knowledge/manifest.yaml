@@ -66,5 +66,5 @@ supported_formats:
   - plain text (.txt)
 
 credentials:
-  - HKASK_SEMANTIC_DB (optional): Path to semantic database for QA storage
-  - HKASK_DB_PASSPHRASE (optional): Passphrase for semantic database
+  - HKASK_MEMORY_DB (optional): Path to per-agent memory database for QA storage
+  - HKASK_DB_PASSPHRASE (optional): Passphrase for the database (required if HKASK_MEMORY_DB is set)

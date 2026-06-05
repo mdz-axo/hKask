@@ -177,6 +177,43 @@ impl InferenceLoop {
     pub(crate) fn clear_model(&mut self) {
         self.current_model = None;
     }
+
+    // ====================================================================
+    // Explicit 4-stage cycle: sense → compare → compute → act
+    // ====================================================================
+
+    /// **Sense stage** (sense → compare → compute → act):
+    /// Read token budget remaining via `token_usage()`, check circuit breaker
+    /// state, and verify model availability. Produces afferent signals for
+    /// gas remaining ratio, circuit breaker state, and model availability.
+    pub async fn sense(&self) -> Vec<Signal> {
+        <Self as HkaskLoop>::sense(self).await
+    }
+
+    /// **Compare stage** (sense → compare → compute → act):
+    /// Check if remaining gas is below the set-point ratio (0.2), whether
+    /// the circuit breaker is open, or whether the model is unavailable.
+    /// Detects deviations from healthy operating set-points.
+    pub async fn compare(&self, signals: &[Signal]) -> Vec<Deviation> {
+        <Self as HkaskLoop>::compare(self, signals).await
+    }
+
+    /// **Compute stage** (sense → compare → compute → act):
+    /// Determine model selection / gas allocation based on deviations.
+    /// Circuit breaker open or inference unavailable → Throttle. Gas below
+    /// set-point → AdjustGasBudget (self-throttle). Model unavailable →
+    /// Calibrate (signal model selection needed).
+    pub async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
+        <Self as HkaskLoop>::compute(self, deviations).await
+    }
+
+    /// **Act stage** (sense → compare → compute → act):
+    /// Execute inference call if budget allows. Logs all regulatory actions
+    /// with structured spans. Gas self-throttle and model unavailability
+    /// are logged at warn level.
+    pub async fn act(&self, actions: &[LoopAction]) {
+        <Self as HkaskLoop>::act(self, actions).await
+    }
 }
 
 #[async_trait::async_trait]

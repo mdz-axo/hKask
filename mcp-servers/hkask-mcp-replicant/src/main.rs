@@ -32,13 +32,19 @@
 use hkask_mcp::server::ServerContext;
 use hkask_mcp_replicant::tools::ReplicantServer;
 
-hkask_mcp::mcp_server_main!(
-    "hkask-mcp-replicant",
-    factory: |ctx: ServerContext| {
-        let persona = std::env::var("HKASK_AGENT_PERSONA")
-            .unwrap_or_else(|_| "Curator".to_string());
-        let default_model = std::env::var("HKASK_DEFAULT_MODEL")
-            .unwrap_or_else(|_| "deepseek-v4-pro".to_string());
-        ReplicantServer::new(ctx.webid, &persona, &default_model)
-    }
-);
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    hkask_mcp::run_server(
+        "hkask-mcp-replicant",
+        env!("CARGO_PKG_VERSION"),
+        |ctx: ServerContext| {
+            let persona =
+                std::env::var("HKASK_AGENT_PERSONA").unwrap_or_else(|_| "Curator".to_string());
+            let default_model = std::env::var("HKASK_DEFAULT_MODEL")
+                .unwrap_or_else(|_| "deepseek-v4-pro".to_string());
+            ReplicantServer::new(ctx.webid, &persona, &default_model)
+        },
+        vec![],
+    )
+    .await
+}

@@ -87,12 +87,19 @@ impl TraceId {
         Self(uuid::Uuid::new_v4())
     }
 
-    pub fn from_string(s: &str) -> Self {
-        Self(uuid::Uuid::parse_str(s).unwrap_or_else(|_| uuid::Uuid::new_v4()))
-    }
-
     pub fn from_uuid(id: uuid::Uuid) -> Self {
         Self(id)
+    }
+
+    pub fn as_uuid(&self) -> uuid::Uuid {
+        self.0
+    }
+}
+
+impl std::str::FromStr for TraceId {
+    type Err = uuid::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        uuid::Uuid::parse_str(s).map(TraceId)
     }
 }
 

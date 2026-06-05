@@ -11,6 +11,7 @@ use hkask_types::goal::{Goal, GoalArtifact, GoalCriterion, GoalID, GoalState};
 use hkask_types::id::WebID;
 use hkask_types::visibility::Visibility;
 use rusqlite::Connection;
+use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
@@ -122,8 +123,10 @@ impl SqliteGoalRepository {
         let depth: i32 = row.get(8).map_err(|e| corrupt_to_repo_error(8, &e))?;
         let display_name: Option<String> = row.get(9).ok().unwrap_or(None);
 
-        let id = GoalID::from_string(&id_str);
-        let webid = WebID::from_string(&webid_str);
+        let id = GoalID::from_str(&id_str)
+            .map_err(|e| GoalRepositoryError::Corrupt(format!("unparseable goal ID: {e}")))?;
+        let webid = WebID::from_str(&webid_str)
+            .map_err(|e| GoalRepositoryError::Corrupt(format!("unparseable WebID: {e}")))?;
         let state = GoalState::parse_str(&state_str).ok_or_else(|| {
             GoalRepositoryError::Corrupt(format!("unparseable goal state: {state_str:?}"))
         })?;
@@ -145,7 +148,13 @@ impl SqliteGoalRepository {
             ),
             None => None,
         };
-        let parent_goal_id = parent_goal_id.map(|s| GoalID::from_string(&s));
+        let parent_goal_id = parent_goal_id
+            .map(|s| {
+                GoalID::from_str(&s).map_err(|e| {
+                    GoalRepositoryError::Corrupt(format!("unparseable parent goal ID: {e}"))
+                })
+            })
+            .transpose()?;
         let depth = u8::try_from(depth)
             .map_err(|_| GoalRepositoryError::Corrupt(format!("depth out of range: {depth}")))?;
 
@@ -175,8 +184,26 @@ impl SqliteGoalRepository {
         let depth: i32 = row.get(8)?;
         let display_name: Option<String> = row.get(9).unwrap_or(None);
 
-        let id = GoalID::from_string(&id_str);
-        let webid = WebID::from_string(&webid_str);
+        let id = GoalID::from_str(&id_str).map_err(|e| {
+            rusqlite::Error::FromSqlConversionFailure(
+                0,
+                rusqlite::types::Type::Text,
+                Box::new(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("unparseable goal ID: {e}"),
+                )),
+            )
+        })?;
+        let webid = WebID::from_str(&webid_str).map_err(|e| {
+            rusqlite::Error::FromSqlConversionFailure(
+                1,
+                rusqlite::types::Type::Text,
+                Box::new(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("unparseable WebID: {e}"),
+                )),
+            )
+        })?;
         // Persisted enum/timestamp columns are authority- and lifecycle-bearing.
         // Corruption must surface as an error, never be silently coerced to a
         // default (which could, e.g., reopen a terminal goal or downgrade
@@ -197,7 +224,9 @@ impl SqliteGoalRepository {
             ),
             None => None,
         };
-        let parent_goal_id = parent_goal_id.map(|s| GoalID::from_string(&s));
+        let parent_goal_id = parent_goal_id
+            .map(|s| GoalID::from_str(&s).map_err(|e| corrupt_column(7, &format!("{e}"))))
+            .transpose()?;
         let depth = u8::try_from(depth).map_err(|_| corrupt_column(8, &depth.to_string()))?;
 
         Ok(Goal {
@@ -376,7 +405,16 @@ impl SqliteGoalRepository {
         let rows = stmt.query_map([goal_id.to_string()], |row| {
             Ok(GoalCriterion {
                 id: row.get(0)?,
-                goal_id: GoalID::from_string(&row.get::<_, String>(1)?),
+                goal_id: GoalID::from_str(&row.get::<_, String>(1)?).map_err(|e| {
+                    rusqlite::Error::FromSqlConversionFailure(
+                        1,
+                        rusqlite::types::Type::Text,
+                        Box::new(std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
+                            format!("unparseable goal ID: {e}"),
+                        )),
+                    )
+                })?,
                 criterion_type: row.get(2)?,
                 description: row.get(3)?,
                 satisfied: row.get::<_, i32>(4)? != 0,
@@ -398,7 +436,16 @@ impl SqliteGoalRepository {
         let rows = stmt.query_map([goal_id.to_string()], |row| {
             Ok(GoalArtifact {
                 id: row.get(0)?,
-                goal_id: GoalID::from_string(&row.get::<_, String>(1)?),
+                goal_id: GoalID::from_str(&row.get::<_, String>(1)?).map_err(|e| {
+                    rusqlite::Error::FromSqlConversionFailure(
+                        1,
+                        rusqlite::types::Type::Text,
+                        Box::new(std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
+                            format!("unparseable goal ID: {e}"),
+                        )),
+                    )
+                })?,
                 artifact_ref: row.get(2)?,
                 artifact_type: row.get(3)?,
                 created_at: {
@@ -520,7 +567,16 @@ impl SqliteGoalRepository {
             let mut rows = stmt.query([goal_id.to_string()])?;
             match rows.next()? {
                 Some(row) => QuarantinedGoal {
-                    id: GoalID::from_string(&row.get::<_, String>(0)?),
+                    id: GoalID::from_str(&row.get::<_, String>(0)?).map_err(|e| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            0,
+                            rusqlite::types::Type::Text,
+                            Box::new(std::io::Error::new(
+                                std::io::ErrorKind::InvalidData,
+                                format!("unparseable goal ID: {e}"),
+                            )),
+                        )
+                    })?,
                     original_data: row.get::<_, String>(1)?,
                     quarantine_reason: row.get::<_, String>(2)?,
                     quarantined_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(3)?)
@@ -598,7 +654,16 @@ impl SqliteGoalRepository {
         let goals = stmt
             .query_map([], |row| {
                 Ok(QuarantinedGoal {
-                    id: GoalID::from_string(&row.get::<_, String>(0)?),
+                    id: GoalID::from_str(&row.get::<_, String>(0)?).map_err(|e| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            0,
+                            rusqlite::types::Type::Text,
+                            Box::new(std::io::Error::new(
+                                std::io::ErrorKind::InvalidData,
+                                format!("unparseable goal ID: {e}"),
+                            )),
+                        )
+                    })?,
                     original_data: row.get(1)?,
                     quarantine_reason: row.get(2)?,
                     quarantined_at: chrono::DateTime::parse_from_rfc3339(&row.get::<_, String>(3)?)

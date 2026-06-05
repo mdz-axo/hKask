@@ -398,11 +398,16 @@ impl FalServer {
     }
 }
 
-hkask_mcp::mcp_server_main!(
-    "hkask-mcp-fal",
-    FalServer,
-    credentials: vec![hkask_mcp::CredentialRequirement::required(
-        "HKASK_FAL_API_KEY",
-        "Fal.ai API key for AI image generation",
-    )]
-);
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    hkask_mcp::run_server(
+        "hkask-mcp-fal",
+        env!("CARGO_PKG_VERSION"),
+        |ctx: hkask_mcp::ServerContext| FalServer::new(ctx.webid),
+        vec![hkask_mcp::CredentialRequirement::required(
+            "HKASK_FAL_API_KEY",
+            "Fal.ai API key for AI image generation",
+        )],
+    )
+    .await
+}

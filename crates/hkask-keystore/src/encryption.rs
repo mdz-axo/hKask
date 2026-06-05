@@ -28,6 +28,7 @@ pub(crate) const ARGON2_TIME_COST: u32 = 3;
 pub(crate) const ARGON2_PARALLELISM: u32 = 4;
 
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum EncryptionError {
     #[error("Key derivation failed: {0}")]
     KeyDerivation(String),

@@ -12,7 +12,7 @@
 
 mod types;
 
-use hkask_mcp::server::{McpToolError, ServerContext, ToolSpanGuard, run_stdio_server};
+use hkask_mcp::server::{McpToolError, ServerContext, ToolSpanGuard};
 use hkask_mcp::validate_field;
 
 use hkask_storage::spec_types::{
@@ -649,7 +649,7 @@ impl SpecServer {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    run_stdio_server(
+    hkask_mcp::run_server(
         "hkask-mcp-spec",
         env!("CARGO_PKG_VERSION"),
         |ctx: ServerContext| {

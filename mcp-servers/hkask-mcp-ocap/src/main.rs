@@ -100,8 +100,8 @@ impl OcapServer {
         validate_field!(span, "issuer", &issuer, 256);
         validate_field!(span, "subject", &subject, 256);
 
-        let issuer_webid = WebID::from_string(&issuer);
-        let subject_webid = WebID::from_string(&subject);
+        let issuer_webid: WebID = issuer.parse().unwrap_or_else(|_| WebID::new());
+        let subject_webid: WebID = subject.parse().unwrap_or_else(|_| WebID::new());
 
         let (resource, resource_id, action) = match Self::parse_capability(&capabilities) {
             Ok(spec) => spec,
@@ -239,7 +239,7 @@ impl OcapServer {
 
         let tokens = self.tokens.read().await;
         let revoked = self.revoked.read().await;
-        let subject_webid = WebID::from_string(&subject);
+        let subject_webid: WebID = subject.parse().unwrap_or_else(|_| WebID::new());
 
         let matching: Vec<serde_json::Value> = tokens
             .values()
@@ -290,21 +290,26 @@ impl OcapServer {
     }
 }
 
-hkask_mcp::mcp_server_main!(
-    "hkask-mcp-ocap",
-    factory: |ctx: hkask_mcp::ServerContext| {
-        let secret = ctx
-            .credentials
-            .get("HKASK_OCAP_SECRET")
-            .ok_or_else(|| anyhow::anyhow!(
-                "Missing required credential HKASK_OCAP_SECRET. Set it via environment variable or keystore."
-            ))?
-            .as_bytes()
-            .to_vec();
-        Ok(OcapServer::new(secret, ctx.webid))
-    },
-    credentials: vec![hkask_mcp::CredentialRequirement::required(
-        "HKASK_OCAP_SECRET",
-        "OCAP signing secret for capability token HMAC",
-    )]
-);
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    hkask_mcp::run_server(
+        "hkask-mcp-ocap",
+        env!("CARGO_PKG_VERSION"),
+        |ctx: hkask_mcp::ServerContext| {
+            let secret = ctx
+                .credentials
+                .get("HKASK_OCAP_SECRET")
+                .ok_or_else(|| anyhow::anyhow!(
+                    "Missing required credential HKASK_OCAP_SECRET. Set it via environment variable or keystore."
+                ))?
+                .as_bytes()
+                .to_vec();
+            Ok(OcapServer::new(secret, ctx.webid))
+        },
+        vec![hkask_mcp::CredentialRequirement::required(
+            "HKASK_OCAP_SECRET",
+            "OCAP signing secret for capability token HMAC",
+        )],
+    )
+    .await
+}

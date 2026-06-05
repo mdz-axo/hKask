@@ -313,7 +313,7 @@ impl CnsServer {
         // The MCP server's calling WebID acts as the authority check.
         // OCAP gating on the GovernedTool membrane ensures only authorized
         // callers can invoke this tool.
-        let agent = WebID::from_string(&agent_id);
+        let agent: WebID = agent_id.parse().unwrap_or_else(|_| WebID::new());
 
         let remaining = self.runtime.replenish_agent_budget(&agent, amount).await;
 
@@ -334,7 +334,7 @@ impl CnsServer {
         // Resolve agent: use provided agent_id or fall back to calling agent
         let agent_str = agent_id.unwrap_or_else(|| self.webid.to_string());
         validate_field!(span, "agent_id", &agent_str, 128);
-        let agent = WebID::from_string(&agent_str);
+        let agent: WebID = agent_str.parse().unwrap_or_else(|_| self.webid);
 
         match self.runtime.agent_gas_status(&agent).await {
             Some(status) => span.ok_json(serde_json::json!({
@@ -380,17 +380,22 @@ impl CnsServer {
     }
 }
 
-hkask_mcp::mcp_server_main!(
-    "hkask-mcp-cns",
-    factory: |ctx: hkask_mcp::ServerContext| {
-        let threshold: Option<u64> = ctx
-            .credentials
-            .get("HKASK_CNS_THRESHOLD")
-            .and_then(|s| s.parse().ok());
-        Ok(CnsServer::new(threshold, ctx.webid))
-    },
-    credentials: vec![hkask_mcp::CredentialRequirement::optional(
-        "HKASK_CNS_THRESHOLD",
-        "CNS variety deficit threshold (default: 100)",
-    )]
-);
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    hkask_mcp::run_server(
+        "hkask-mcp-cns",
+        env!("CARGO_PKG_VERSION"),
+        |ctx: hkask_mcp::ServerContext| {
+            let threshold: Option<u64> = ctx
+                .credentials
+                .get("HKASK_CNS_THRESHOLD")
+                .and_then(|s| s.parse().ok());
+            Ok(CnsServer::new(threshold, ctx.webid))
+        },
+        vec![hkask_mcp::CredentialRequirement::optional(
+            "HKASK_CNS_THRESHOLD",
+            "CNS variety deficit threshold (default: 100)",
+        )],
+    )
+    .await
+}

@@ -391,4 +391,13 @@ impl EnsembleServer {
     }
 }
 
-hkask_mcp::mcp_server_main!("hkask-mcp-ensemble", EnsembleServer);
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    hkask_mcp::run_server(
+        "hkask-mcp-ensemble",
+        env!("CARGO_PKG_VERSION"),
+        |ctx: hkask_mcp::ServerContext| EnsembleServer::new(ctx.webid),
+        vec![],
+    )
+    .await
+}

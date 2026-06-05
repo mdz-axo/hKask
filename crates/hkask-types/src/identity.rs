@@ -6,7 +6,7 @@
 use crate::WebID;
 use serde::{Deserialize, Serialize};
 
-crate::id::define_id_type!(pub UserID, from_string);
+crate::id::define_id_type!(pub UserID);
 
 /// Loop: Cybernetics
 /// Human user — owns contact info (email, phone for recovery only)
