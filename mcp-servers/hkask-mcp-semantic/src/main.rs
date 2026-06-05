@@ -165,8 +165,9 @@ impl SemanticServer {
                 "model": model,
                 "dimensions": vector.len(),
             })),
-            Err(e) =>
-                span.internal_error(json!({"error": format!("Failed to store embedding: {}", e)})),
+            Err(e) => {
+                span.internal_error(json!({"error": format!("Failed to store embedding: {}", e)}))
+            }
         }
     }
 
@@ -206,15 +207,15 @@ impl SemanticServer {
                     "results": serialized,
                 }))
             }
-            Err(e) =>
-                span.internal_error(json!({"error": format!("Failed to search embeddings: {}", e)})),
+            Err(e) => {
+                span.internal_error(json!({"error": format!("Failed to search embeddings: {}", e)}))
+            }
         }
     }
 
-    #[tool(description = "Triple and embedding counts for semantic memory"])
-    async fn semantic_count(&self, Parameters(_count): Parameters<CountRequest>) -> String {
+    #[tool(description = "Triple and embedding counts for semantic memory")]
+    async fn semantic_count(&self, Parameters(_req): Parameters<CountRequest>) -> String {
         let span = ToolSpanGuard::new("semantic_count", &self.webid);
-
         let triple_count = match self.memory.triple_count() {
             Ok(c) => c,
             Err(e) => {
@@ -225,16 +226,11 @@ impl SemanticServer {
         let embedding_count = match self.memory.embedding_count() {
             Ok(c) => c,
             Err(e) => {
-                return span.internal_error(
-                    json!({"error": format!("Failed to count embeddings: {}", e)}),
-                );
+                return span
+                    .internal_error(json!({"error": format!("Failed to count embeddings: {}", e)}));
             }
         };
-
-        span.ok_json(json!({
-            "triple_count": triple_count,
-            "embedding_count": embedding_count,
-        }))
+        span.ok_json(json!({"triple_count": triple_count, "embedding_count": embedding_count}))
     }
 }
 

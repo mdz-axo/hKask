@@ -196,7 +196,7 @@ impl FmpServer {
         }
     }
 
-    #[tool(description = "Get balance sheet"])
+    #[tool(description = "Get balance sheet")]
     async fn fmp_balance_sheet(
         &self,
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
