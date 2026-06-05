@@ -102,7 +102,7 @@ impl EscalationQueue {
             params![
                 id,
                 template_id.to_string(),
-                bot_id.0.to_string(),
+                bot_id.as_uuid().to_string(),
                 output,
                 confidence,
                 retry_count,

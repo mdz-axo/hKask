@@ -1,63 +1,166 @@
 //! ID types for hKask entities
 
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+use std::fmt::Debug;
+use std::marker::PhantomData;
 
-/// Macro to define UUID-based ID types with common functionality
-///
-/// # Example
-/// ```ignore
-/// define_id_type!(BotID);
-/// ```
-///
-/// Doc comments can be placed before the invocation — they will be attached
-/// to the generated struct when using the `$(#[$meta:meta])*` capture.
-#[macro_export]
-macro_rules! define_id_type {
-    ($(#[$meta:meta])* $vis:vis $name:ident) => {
-        $(#[$meta])*
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-        $vis struct $name(pub ::uuid::Uuid);
-
-        impl $name {
-            pub fn new() -> Self {
-                Self(::uuid::Uuid::new_v4())
-            }
-
-            pub fn from_uuid(uuid: ::uuid::Uuid) -> Self {
-                Self(uuid)
-            }
-
-            pub fn as_uuid(&self) -> ::uuid::Uuid {
-                self.0
-            }
-        }
-
-        impl std::str::FromStr for $name {
-            type Err = uuid::Error;
-            fn from_str(s: &str) -> Result<Self, Self::Err> {
-                ::uuid::Uuid::parse_str(s).map($name)
-            }
-        }
-
-        impl Default for $name {
-            fn default() -> Self {
-                Self::new()
-            }
-        }
-
-        impl std::fmt::Display for $name {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(f, "{}", self.0)
-            }
-        }
-    };
+mod private {
+    pub trait Sealed {}
 }
 
-pub use crate::define_id_type;
+/// Marker trait for ID kind — enables type-safe ID types via phantom generics.
+/// The `Sealed` supertrait prevents external implementations.
+pub trait IdKind: private::Sealed + 'static {}
+
+/// Generic UUID-based identifier with phantom type parameter.
+///
+/// `Id<BotKind>` and `Id<TemplateKind>` are different types — you can't
+/// accidentally pass a `BotID` where a `TemplateID` is expected. All common
+/// functionality (construction, parsing, display, hashing) lives here once.
+pub struct Id<T: IdKind> {
+    uuid: Uuid,
+    _marker: PhantomData<T>,
+}
+
+// ── Manual trait impls (avoid derived bounds on phantom type parameter T) ──
+
+impl<T: IdKind> Clone for Id<T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T: IdKind> Copy for Id<T> {}
+
+impl<T: IdKind> Debug for Id<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("Id").field(&self.uuid).finish()
+    }
+}
+
+impl<T: IdKind> PartialEq for Id<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.uuid == other.uuid
+    }
+}
+
+impl<T: IdKind> Eq for Id<T> {}
+
+impl<T: IdKind> Hash for Id<T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.uuid.hash(state);
+    }
+}
+
+impl<T: IdKind> serde::Serialize for Id<T> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self.uuid.serialize(serializer)
+    }
+}
+
+impl<'de, T: IdKind> serde::Deserialize<'de> for Id<T> {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        Uuid::deserialize(deserializer).map(Id::from_uuid)
+    }
+}
+
+// ── Core methods ────────────────────────────────────────────────────────────
+
+impl<T: IdKind> Id<T> {
+    pub fn new() -> Self {
+        Self {
+            uuid: Uuid::new_v4(),
+            _marker: PhantomData,
+        }
+    }
+
+    pub fn from_uuid(uuid: Uuid) -> Self {
+        Self {
+            uuid,
+            _marker: PhantomData,
+        }
+    }
+
+    pub fn as_uuid(&self) -> Uuid {
+        self.uuid
+    }
+}
+
+impl<T: IdKind> std::str::FromStr for Id<T> {
+    type Err = uuid::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Uuid::parse_str(s).map(Self::from_uuid)
+    }
+}
+
+impl<T: IdKind> Default for Id<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T: IdKind> std::fmt::Display for Id<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.uuid)
+    }
+}
+
+// ── Kind markers ──────────────────────────────────────────────────────────
+
+pub enum TemplateKind {}
+impl private::Sealed for TemplateKind {}
+impl IdKind for TemplateKind {}
+
+pub enum BotKind {}
+impl private::Sealed for BotKind {}
+impl IdKind for BotKind {}
+
+pub enum TripleKind {}
+impl private::Sealed for TripleKind {}
+impl IdKind for TripleKind {}
+
+pub enum EventKind {}
+impl private::Sealed for EventKind {}
+impl IdKind for EventKind {}
+
+pub enum GoalKind {}
+impl private::Sealed for GoalKind {}
+impl IdKind for GoalKind {}
+
+pub enum EmbeddingKind {}
+impl private::Sealed for EmbeddingKind {}
+impl IdKind for EmbeddingKind {}
+
+pub enum UserKind {}
+impl private::Sealed for UserKind {}
+impl IdKind for UserKind {}
+
+pub(crate) enum SovereigntyKind {}
+impl private::Sealed for SovereigntyKind {}
+impl IdKind for SovereigntyKind {}
+
+pub enum PodKind {}
+impl private::Sealed for PodKind {}
+impl IdKind for PodKind {}
+
+// ── Type aliases ──────────────────────────────────────────────────────────
+
+pub type TemplateID = Id<TemplateKind>;
+pub type BotID = Id<BotKind>;
+pub type TripleID = Id<TripleKind>;
+pub type EventID = Id<EventKind>;
+pub type GoalID = Id<GoalKind>;
+pub type EmbeddingID = Id<EmbeddingKind>;
+pub type UserID = Id<UserKind>;
+pub(crate) type SovereigntyId = Id<SovereigntyKind>;
+pub type PodID = Id<PodKind>;
+
+// ── WebID — kept as a separate struct (extra methods) ─────────────────────
+
+use std::hash::Hash;
+use uuid::Uuid;
 
 /// WebID — Unique identifier for agents (bots and replicants)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct WebID(pub Uuid);
 
 impl WebID {
@@ -139,20 +242,8 @@ impl std::fmt::Display for WebID {
     }
 }
 
-define_id_type!(pub TemplateID);
-
-define_id_type!(pub BotID);
-
 impl From<BotID> for WebID {
     fn from(bot_id: BotID) -> Self {
-        WebID(bot_id.0)
+        WebID(bot_id.as_uuid())
     }
 }
-
-define_id_type!(pub TripleID);
-
-define_id_type!(pub EventID);
-
-define_id_type!(pub GoalID);
-
-define_id_type!(pub EmbeddingID);

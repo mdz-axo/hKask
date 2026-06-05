@@ -1186,6 +1186,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "hkask-types",
+ "parking_lot",
  "serde",
  "serde_json",
  "serde_yaml",

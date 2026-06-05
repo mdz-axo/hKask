@@ -94,7 +94,7 @@ impl AgentRegistryStore {
              FROM agent_registry ORDER BY name",
         )?;
 
-        let agents = stmt
+        let mapped: Vec<_> = stmt
             .query_map([], |row| {
                 let definition_json: String = row.get(0)?;
                 let token_hash: String = row.get(1)?;
@@ -102,17 +102,31 @@ impl AgentRegistryStore {
                 let source_yaml: String = row.get(3)?;
                 Ok((definition_json, token_hash, registered_at, source_yaml))
             })?
-            .filter_map(|r| r.ok())
-            .filter_map(|(def_json, token_hash, registered_at, source_yaml)| {
-                let definition: AgentDefinition = serde_json::from_str(&def_json).ok()?;
-                Some(RegisteredAgent {
-                    definition,
-                    token_hash,
-                    registered_at,
-                    source_yaml,
-                })
-            })
             .collect();
+
+        let mut agents = Vec::with_capacity(mapped.len());
+        for row_result in mapped {
+            match row_result {
+                Ok((def_json, token_hash, registered_at, source_yaml)) => {
+                    match serde_json::from_str::<AgentDefinition>(&def_json) {
+                        Ok(definition) => agents.push(RegisteredAgent {
+                            definition,
+                            token_hash,
+                            registered_at,
+                            source_yaml,
+                        }),
+                        Err(e) => tracing::warn!(
+                            target: "hkask.storage",
+                            error = %e,
+                            "Skipping agent with unparseable definition JSON"
+                        ),
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(target: "hkask.storage", error = %e, "Skipping unreadable database row")
+                }
+            }
+        }
 
         Ok(agents)
     }
@@ -127,7 +141,7 @@ impl AgentRegistryStore {
              FROM agent_registry WHERE agent_kind = ?1 ORDER BY name",
         )?;
 
-        let agents = stmt
+        let mapped: Vec<_> = stmt
             .query_map(rusqlite::params![kind.as_str()], |row| {
                 let definition_json: String = row.get(0)?;
                 let token_hash: String = row.get(1)?;
@@ -135,17 +149,31 @@ impl AgentRegistryStore {
                 let source_yaml: String = row.get(3)?;
                 Ok((definition_json, token_hash, registered_at, source_yaml))
             })?
-            .filter_map(|r| r.ok())
-            .filter_map(|(def_json, token_hash, registered_at, source_yaml)| {
-                let definition: AgentDefinition = serde_json::from_str(&def_json).ok()?;
-                Some(RegisteredAgent {
-                    definition,
-                    token_hash,
-                    registered_at,
-                    source_yaml,
-                })
-            })
             .collect();
+
+        let mut agents = Vec::with_capacity(mapped.len());
+        for row_result in mapped {
+            match row_result {
+                Ok((def_json, token_hash, registered_at, source_yaml)) => {
+                    match serde_json::from_str::<AgentDefinition>(&def_json) {
+                        Ok(definition) => agents.push(RegisteredAgent {
+                            definition,
+                            token_hash,
+                            registered_at,
+                            source_yaml,
+                        }),
+                        Err(e) => tracing::warn!(
+                            target: "hkask.storage",
+                            error = %e,
+                            "Skipping agent with unparseable definition JSON"
+                        ),
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(target: "hkask.storage", error = %e, "Skipping unreadable database row")
+                }
+            }
+        }
 
         Ok(agents)
     }

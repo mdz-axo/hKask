@@ -74,61 +74,11 @@ pub struct Database {
 }
 
 impl Database {
-    /// Open database with passphrase for encryption
-    pub fn open(path: &str, passphrase: &str) -> Result<Self, DatabaseError> {
-        load_sqlite_vec()?;
-        if passphrase.is_empty() {
-            return Err(DatabaseError::KeyDerivation(
-                "Passphrase cannot be empty".to_string(),
-            ));
-        }
-        if passphrase.len() < 8 {
-            return Err(DatabaseError::KeyDerivation(
-                "Passphrase must be at least 8 characters".to_string(),
-            ));
-        }
-
-        let salt_path = format!("{}.salt", path);
-        let salt = if let Ok(salt_bytes) = std::fs::read(&salt_path) {
-            if salt_bytes.len() != SQLCIPHER_SALT_SIZE {
-                return Err(DatabaseError::SqlCipher(
-                    "Invalid salt file size".to_string(),
-                ));
-            }
-            let mut salt = [0u8; SQLCIPHER_SALT_SIZE];
-            salt.copy_from_slice(&salt_bytes);
-            salt
-        } else {
-            let salt = generate_salt();
-            std::fs::write(&salt_path, salt)
-                .map_err(|e| DatabaseError::SqlCipher(format!("Failed to write salt: {}", e)))?;
-            salt
-        };
-
-        let conn = Connection::open(path)?;
-        Self::configure_encryption(&conn, passphrase, &salt)?;
-        Self::initialize_schema(&conn)?;
-
-        Ok(Self {
-            conn: Arc::new(Mutex::new(conn)),
-        })
-    }
-
-    /// Open database with passphrase and custom schema extensions
-    ///
-    /// After initializing the core schema, executes the provided DDL string.
-    /// This allows MCP servers and other consumers to add custom tables
-    /// (e.g., FTS5 virtual tables, domain-specific indexes) while
-    /// inheriting the core encrypted storage infrastructure.
-    ///
-    /// # Arguments
-    /// * `path` — Path to the SQLite database file
-    /// * `passphrase` — Passphrase for SQLCipher encryption
-    /// * `extensions` — Additional DDL to execute after core schema init
-    pub fn open_with_extensions(
+    /// Open database with passphrase for encryption, optional schema extensions.
+    fn open_impl(
         path: &str,
         passphrase: &str,
-        extensions: &str,
+        extensions: Option<&str>,
     ) -> Result<Self, DatabaseError> {
         load_sqlite_vec()?;
         if passphrase.is_empty() {
@@ -162,8 +112,47 @@ impl Database {
         let conn = Connection::open(path)?;
         Self::configure_encryption(&conn, passphrase, &salt)?;
         Self::initialize_schema(&conn)?;
-        conn.execute_batch(extensions)?;
+        if let Some(ext) = extensions {
+            conn.execute_batch(ext)?;
+        }
 
+        Ok(Self {
+            conn: Arc::new(Mutex::new(conn)),
+        })
+    }
+
+    /// Open database with passphrase for encryption
+    pub fn open(path: &str, passphrase: &str) -> Result<Self, DatabaseError> {
+        Self::open_impl(path, passphrase, None)
+    }
+
+    /// Open database with passphrase and custom schema extensions
+    ///
+    /// After initializing the core schema, executes the provided DDL string.
+    /// This allows MCP servers and other consumers to add custom tables
+    /// (e.g., FTS5 virtual tables, domain-specific indexes) while
+    /// inheriting the core encrypted storage infrastructure.
+    ///
+    /// # Arguments
+    /// * `path` — Path to the SQLite database file
+    /// * `passphrase` — Passphrase for SQLCipher encryption
+    /// * `extensions` — Additional DDL to execute after core schema init
+    pub fn open_with_extensions(
+        path: &str,
+        passphrase: &str,
+        extensions: &str,
+    ) -> Result<Self, DatabaseError> {
+        Self::open_impl(path, passphrase, Some(extensions))
+    }
+
+    /// Open in-memory database (unencrypted, for testing)
+    fn in_memory_impl(extensions: Option<&str>) -> Result<Self, DatabaseError> {
+        load_sqlite_vec()?;
+        let conn = Connection::open_in_memory()?;
+        Self::initialize_schema(&conn)?;
+        if let Some(ext) = extensions {
+            conn.execute_batch(ext)?;
+        }
         Ok(Self {
             conn: Arc::new(Mutex::new(conn)),
         })
@@ -171,12 +160,7 @@ impl Database {
 
     /// Open in-memory database (unencrypted, for testing)
     pub fn in_memory() -> Result<Self, DatabaseError> {
-        load_sqlite_vec()?;
-        let conn = Connection::open_in_memory()?;
-        Self::initialize_schema(&conn)?;
-        Ok(Self {
-            conn: Arc::new(Mutex::new(conn)),
-        })
+        Self::in_memory_impl(None)
     }
 
     /// Open in-memory database with custom schema extensions (unencrypted, for testing)
@@ -189,13 +173,7 @@ impl Database {
     /// # Arguments
     /// * `extensions` — Additional DDL to execute after core schema init
     pub fn in_memory_with_extensions(extensions: &str) -> Result<Self, DatabaseError> {
-        load_sqlite_vec()?;
-        let conn = Connection::open_in_memory()?;
-        Self::initialize_schema(&conn)?;
-        conn.execute_batch(extensions)?;
-        Ok(Self {
-            conn: Arc::new(Mutex::new(conn)),
-        })
+        Self::in_memory_impl(Some(extensions))
     }
 
     fn configure_encryption(
@@ -211,32 +189,9 @@ impl Database {
     }
 
     fn initialize_schema(conn: &Connection) -> Result<(), DatabaseError> {
+        let schema = include_str!("sql/schema.sql");
         let dim = embedding_dim();
-        conn.execute_batch(
-            &format!(
-            "CREATE TABLE IF NOT EXISTS triples (id TEXT PRIMARY KEY, entity TEXT NOT NULL, attribute TEXT NOT NULL, value TEXT NOT NULL, valid_from TEXT NOT NULL, valid_to TEXT, transaction_at TEXT DEFAULT (datetime('now')), confidence REAL NOT NULL DEFAULT 1.0, perspective TEXT, visibility TEXT NOT NULL DEFAULT 'private', owner_webid TEXT NOT NULL);
-            CREATE TABLE IF NOT EXISTS embeddings (id TEXT PRIMARY KEY, entity_ref TEXT NOT NULL, vector BLOB NOT NULL, dimensions INTEGER NOT NULL, model TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));
-                        CREATE INDEX IF NOT EXISTS idx_embeddings_entity_ref ON embeddings(entity_ref);
-                        CREATE VIRTUAL TABLE IF NOT EXISTS vec_embeddings USING vec0(id TEXT PRIMARY KEY, embedding float[{dim}]);
-            CREATE TABLE IF NOT EXISTS nu_events (id TEXT PRIMARY KEY, timestamp TEXT NOT NULL, observer_webid TEXT NOT NULL, span_category TEXT NOT NULL, span_path TEXT NOT NULL, phase TEXT NOT NULL, observation TEXT NOT NULL, regulation TEXT, outcome TEXT, recursion_depth INTEGER NOT NULL, parent_event TEXT, visibility TEXT NOT NULL DEFAULT 'private');
-                        CREATE INDEX IF NOT EXISTS idx_nu_events_timestamp_category ON nu_events(timestamp, span_category);
-                        CREATE INDEX IF NOT EXISTS idx_nu_events_category_phase ON nu_events(span_category, phase);
-                        CREATE TABLE IF NOT EXISTS audit_log (id TEXT PRIMARY KEY, timestamp TEXT NOT NULL, actor_webid TEXT NOT NULL, action TEXT NOT NULL, resource TEXT NOT NULL, outcome TEXT NOT NULL, details TEXT, ip_address TEXT, created_at TEXT DEFAULT (datetime('now')));
-            CREATE INDEX IF NOT EXISTS idx_audit_log_timestamp ON audit_log(timestamp);
-            CREATE INDEX IF NOT EXISTS idx_audit_log_actor ON audit_log(actor_webid);
-            CREATE TABLE IF NOT EXISTS cns_variety_checkpoint (domain TEXT PRIMARY KEY, variety_count INTEGER NOT NULL, last_updated TEXT NOT NULL, threshold INTEGER NOT NULL DEFAULT 10);
-            CREATE TABLE IF NOT EXISTS cns_alerts (id TEXT PRIMARY KEY, timestamp TEXT NOT NULL, alert_type TEXT NOT NULL, severity TEXT NOT NULL, domain TEXT, message TEXT NOT NULL, resolved INTEGER NOT NULL DEFAULT 0, resolved_at TEXT);
-            CREATE TABLE IF NOT EXISTS agent_registry (name TEXT PRIMARY KEY, agent_kind TEXT NOT NULL, definition_json TEXT NOT NULL, token_hash TEXT NOT NULL, registered_at TEXT NOT NULL, source_yaml TEXT NOT NULL);
-            CREATE INDEX IF NOT EXISTS idx_agent_registry_kind ON agent_registry(agent_kind);
-            CREATE TABLE IF NOT EXISTS goals (id TEXT PRIMARY KEY, webid TEXT NOT NULL, text TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending', visibility TEXT NOT NULL DEFAULT 'private', created_at TEXT DEFAULT (datetime('now')), completed_at TEXT, parent_goal_id TEXT, depth INTEGER NOT NULL DEFAULT 0, display_name TEXT);
-            CREATE TABLE IF NOT EXISTS goal_criteria (id TEXT PRIMARY KEY, goal_id TEXT REFERENCES goals(id), type TEXT NOT NULL, description TEXT NOT NULL, satisfied INTEGER NOT NULL DEFAULT 0);
-            CREATE TABLE IF NOT EXISTS goal_artifacts (id TEXT PRIMARY KEY, goal_id TEXT REFERENCES goals(id), artifact_ref TEXT NOT NULL, artifact_type TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));
-            CREATE TABLE IF NOT EXISTS consent_records (id TEXT PRIMARY KEY, webid TEXT NOT NULL, granted_categories TEXT NOT NULL, granted_at INTEGER NOT NULL, revoked_at INTEGER, active INTEGER NOT NULL DEFAULT 1);
-            CREATE INDEX IF NOT EXISTS idx_consent_webid ON consent_records(webid);
-            CREATE INDEX IF NOT EXISTS idx_consent_active ON consent_records(active);
-            CREATE TABLE IF NOT EXISTS quarantined_goals (id TEXT PRIMARY KEY, original_data TEXT NOT NULL DEFAULT '', quarantine_reason TEXT NOT NULL, quarantined_at TEXT NOT NULL, repair_attempts INTEGER NOT NULL DEFAULT 0, repaired INTEGER NOT NULL DEFAULT 0);
-                        CREATE TABLE IF NOT EXISTS loop_cursors (key TEXT PRIMARY KEY, value INTEGER NOT NULL, updated_at TEXT NOT NULL);")
-        )?;
+        conn.execute_batch(&schema.replace("$DIM", &dim.to_string()))?;
         Ok(())
     }
 

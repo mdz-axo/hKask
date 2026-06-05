@@ -651,7 +651,7 @@ impl SqliteGoalRepository {
         let mut stmt = conn.prepare(
             "SELECT id, original_data, quarantine_reason, quarantined_at, repair_attempts, repaired FROM quarantined_goals ORDER BY quarantined_at DESC",
         )?;
-        let goals = stmt
+        let mapped: Vec<_> = stmt
             .query_map([], |row| {
                 Ok(QuarantinedGoal {
                     id: GoalID::from_str(&row.get::<_, String>(0)?).map_err(|e| {
@@ -673,8 +673,18 @@ impl SqliteGoalRepository {
                     repaired: row.get::<_, i32>(5)? != 0,
                 })
             })?
-            .filter_map(|r| r.ok())
             .collect();
+
+        let mut goals = Vec::with_capacity(mapped.len());
+        for row_result in mapped {
+            match row_result {
+                Ok(goal) => goals.push(goal),
+                Err(e) => {
+                    tracing::warn!(target: "hkask.storage", error = %e, "Skipping unreadable database row")
+                }
+            }
+        }
+
         Ok(goals)
     }
 }

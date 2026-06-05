@@ -126,7 +126,7 @@ impl NuEventStore {
             "INSERT INTO nu_events (id, timestamp, observer_webid, span_category, span_path, phase, observation, regulation, outcome, recursion_depth, parent_event, visibility)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
             rusqlite::params![
-                event.id.0.to_string(),
+                event.id.as_uuid().to_string(),
                 event.timestamp.to_rfc3339(),
                 event.observer_webid.0.to_string(),
                 span_category,
@@ -136,7 +136,7 @@ impl NuEventStore {
                 event.regulation.as_ref().and_then(|v| serde_json::to_string(v).ok()),
                 event.outcome.as_ref().and_then(|v| serde_json::to_string(v).ok()),
                 event.recursion_depth,
-                event.parent_event.map(|p| p.0.to_string()),
+                event.parent_event.map(|p| p.as_uuid().to_string()),
                 event.visibility,
             ],
         )?;
@@ -215,11 +215,20 @@ impl NuEventStore {
         let param_refs: Vec<&dyn rusqlite::types::ToSql> =
             param_values.iter().map(|p| p.as_ref()).collect();
 
-        let events = stmt
+        let mapped: Vec<Result<NuEvent, rusqlite::Error>> = stmt
             .query_map(param_refs.as_slice(), row_to_nu_event)
             .map_err(NuEventError::from)?
-            .filter_map(|r| r.ok())
             .collect();
+
+        let mut events = Vec::with_capacity(mapped.len());
+        for row_result in mapped {
+            match row_result {
+                Ok(event) => events.push(event),
+                Err(e) => {
+                    tracing::warn!(target: "hkask.storage", error = %e, "Skipping unreadable database row")
+                }
+            }
+        }
 
         Ok(events)
     }
@@ -283,7 +292,7 @@ fn row_to_nu_event(row: &rusqlite::Row<'_>) -> Result<NuEvent, rusqlite::Error> 
     let parent_event = parent_event_str
         .as_deref()
         .and_then(|s| uuid::Uuid::parse_str(s).ok())
-        .map(EventID);
+        .map(EventID::from_uuid);
 
     Ok(NuEvent {
         id,

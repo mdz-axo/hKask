@@ -250,7 +250,7 @@ pub fn show_replicant(
     println!("  WebID: {}", identity.replicant_webid.redacted_display());
     println!(
         "  User ID: {}",
-        identity.user_id.0.to_string()[..8].to_string() + "..."
+        identity.user_id.as_uuid().to_string()[..8].to_string() + "..."
     );
     println!(
         "  Primary: {}",

@@ -11,21 +11,21 @@ use crate::energy::{AgentGasStatus, GasBudget};
 use crate::kill_zone::KillZoneDetector;
 use crate::unified_tracker::UnifiedVarietyTracker;
 use crate::variety::VarietyTracker;
-use hkask_types::InfrastructureError;
+
 use hkask_types::WebID;
 use hkask_types::cns::CnsHealth;
 use hkask_types::event::SpanNamespace;
 use hkask_types::ports::{BackpressureSignal, CnsObserver, DepletionSignal};
 use hkask_types::sovereignty::KillZoneConfig;
+use parking_lot::RwLock as ParkingRwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::sync::RwLock as StdRwLock;
 use tokio::sync::RwLock;
 use tracing::warn;
 
 /// CNS state shared between threads
 struct CnsState {
-    algedonic: Arc<StdRwLock<AlgedonicManager>>,
+    algedonic: Arc<ParkingRwLock<AlgedonicManager>>,
     tracker: UnifiedVarietyTracker,
     kill_zone: Arc<tokio::sync::Mutex<KillZoneDetector>>,
     gas_budgets: Arc<tokio::sync::RwLock<HashMap<WebID, GasBudget>>>,
@@ -33,7 +33,7 @@ struct CnsState {
 
 impl CnsState {
     fn new(threshold: u64) -> Self {
-        let algedonic = Arc::new(StdRwLock::new(
+        let algedonic = Arc::new(ParkingRwLock::new(
             AlgedonicManager::new(threshold, DEFAULT_EXPECTED_VARIETY).with_default_allosteric(),
         ));
         let tracker = UnifiedVarietyTracker::new();
@@ -69,51 +69,28 @@ impl CnsRuntime {
         }
     }
 
-    fn read_algedonic(
-        algedonic: &Arc<StdRwLock<AlgedonicManager>>,
-    ) -> Result<std::sync::RwLockReadGuard<'_, AlgedonicManager>, InfrastructureError> {
-        algedonic
-            .read()
-            .map_err(|_| InfrastructureError::LockPoisoned)
-    }
-
-    fn write_algedonic(
-        algedonic: &Arc<StdRwLock<AlgedonicManager>>,
-    ) -> Result<std::sync::RwLockWriteGuard<'_, AlgedonicManager>, InfrastructureError> {
-        algedonic
-            .write()
-            .map_err(|_| InfrastructureError::LockPoisoned)
-    }
-
     // ── Health & Alerts ──
 
     pub async fn health(&self) -> CnsHealth {
         let state = self.state.read().await;
-        match Self::read_algedonic(&state.algedonic) {
-            Ok(mgr) => cns_health_check(&mgr),
-            Err(_) => CnsHealth {
-                overall_deficit: 0,
-                critical_count: 1,
-                warning_count: 0,
-                healthy: false,
-            },
-        }
+        let mgr = state.algedonic.read();
+        cns_health_check(&mgr)
     }
 
     pub async fn alerts(&self) -> Vec<RuntimeAlert> {
         let state = self.state.read().await;
-        match Self::read_algedonic(&state.algedonic) {
-            Ok(mgr) => mgr.alerts().to_vec(),
-            Err(_) => Vec::new(),
-        }
+        state.algedonic.read().alerts().to_vec()
     }
 
     pub async fn critical_alerts(&self) -> Vec<RuntimeAlert> {
         let state = self.state.read().await;
-        match Self::read_algedonic(&state.algedonic) {
-            Ok(mgr) => mgr.critical_alerts().into_iter().cloned().collect(),
-            Err(_) => Vec::new(),
-        }
+        state
+            .algedonic
+            .read()
+            .critical_alerts()
+            .into_iter()
+            .cloned()
+            .collect()
     }
 
     // ── Variety ──
@@ -187,13 +164,9 @@ impl CnsRuntime {
         };
 
         let state = self.state.write().await;
-        let alert = match Self::write_algedonic(&state.algedonic) {
-            Ok(mut mgr) => mgr.check(&counter, domain).cloned(),
-            Err(e) => {
-                warn!("CNS lock poisoned during variety check: {}", e);
-                None
-            }
-        };
+        let mut mgr = state.algedonic.write();
+        let alert = mgr.check(&counter, domain).cloned();
+        drop(mgr);
         drop(state);
 
         // If alert is critical, emit depletion signals to subscribers
@@ -221,9 +194,10 @@ impl CnsRuntime {
 
     pub async fn calibrate_threshold(&self, domain: &str, new_threshold: u64) {
         let state = self.state.write().await;
-        if let Ok(mut algedonic) = Self::write_algedonic(&state.algedonic) {
-            algedonic.set_expected_variety(domain, new_threshold);
-        }
+        state
+            .algedonic
+            .write()
+            .set_expected_variety(domain, new_threshold);
     }
 
     // ── Bot Observation (CNS Observer) ──

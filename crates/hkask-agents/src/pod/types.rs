@@ -1,10 +1,8 @@
 //! Pod value types — PodLifecycleState, PodID, persona types, template types
 
+pub use hkask_types::PodID;
 use hkask_types::{CapabilitySpec, DelegationResource, WebID};
 use serde::{Deserialize, Serialize};
-
-// Import macro for PodID generation
-use hkask_types::define_id_type;
 
 pub use hkask_types::AgentKind;
 
@@ -55,8 +53,6 @@ impl std::fmt::Display for PodLifecycleState {
         }
     }
 }
-
-define_id_type!(pub PodID);
 
 /// Agent persona definition (from YAML)
 #[derive(Debug, Clone, Serialize, Deserialize)]

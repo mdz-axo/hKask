@@ -107,7 +107,7 @@ impl ConsolidationBridge {
                     if let Err(e) = self.episodic.expire_triple(&triple.id) {
                         tracing::warn!(
                             target: "cns.consolidation",
-                            triple_id = %triple.id.0,
+                            triple_id = %triple.id.as_uuid(),
                             error = %e,
                             "Failed to expire episodic triple after consolidation"
                         );

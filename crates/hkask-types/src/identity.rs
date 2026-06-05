@@ -4,9 +4,8 @@
 //! Human users, replicant identities, and sessions are verified at this boundary.
 
 use crate::WebID;
+use crate::id::UserID;
 use serde::{Deserialize, Serialize};
-
-crate::id::define_id_type!(pub UserID);
 
 /// Loop: Cybernetics
 /// Human user — owns contact info (email, phone for recovery only)

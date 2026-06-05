@@ -60,9 +60,11 @@ pub use curation::{CurationDecision, OCAPBoundary};
 pub use error::{GitError, HkaskError, InfrastructureError, McpErrorKind};
 pub use event::{NuEvent, NuEventSink};
 pub use goal::{Goal, GoalArtifact, GoalCriterion, GoalState};
-pub use id::{BotID, EmbeddingID, EventID, GoalID, TemplateID, TripleID, WebID};
+pub use id::{
+    BotID, EmbeddingID, EventID, GoalID, Id, IdKind, PodID, TemplateID, TripleID, UserID, WebID,
+};
 pub use identity::{
-    HumanUser, RegistrationError, RegistrationRequest, ReplicantIdentity, UserID, UserSession,
+    HumanUser, RegistrationError, RegistrationRequest, ReplicantIdentity, UserSession,
 };
 pub use lexicon::{HLexicon, LexiconTerm, TemplateType};
 pub use loops::{

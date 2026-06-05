@@ -100,7 +100,7 @@ pub fn run_curator(
                         "{:<20} {:<15} {:<10.2} {}",
                         &esc.id[..std::cmp::min(20, esc.id.len())],
                         esc.bot_id
-                            .0
+                            .as_uuid()
                             .to_string()
                             .split('-')
                             .next()

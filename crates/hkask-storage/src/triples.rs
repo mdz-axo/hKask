@@ -93,7 +93,7 @@ impl TripleStore {
             "INSERT INTO triples (id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             rusqlite::params![
-                triple.id.0.to_string(),
+                triple.id.as_uuid().to_string(),
                 triple.entity,
                 triple.attribute,
                 serde_json::to_string(&triple.value)?,
@@ -118,7 +118,7 @@ impl TripleStore {
              ORDER BY valid_from DESC",
         )?;
 
-        let triples = stmt
+        let mapped: Vec<Result<TripleRow, rusqlite::Error>> = stmt
             .query_map(rusqlite::params![entity], |row| {
                 let id_str: String = row.get(0)?;
                 let entity: String = row.get(1)?;
@@ -144,9 +144,22 @@ impl TripleStore {
                     owner_webid: owner_webid_str,
                 })
             })?
-            .filter_map(|r| r.ok())
-            .filter_map(|row| Self::row_to_triple(row).ok())
             .collect();
+
+        let mut triples = Vec::with_capacity(mapped.len());
+        for row_result in mapped {
+            match row_result {
+                Ok(row) => match Self::row_to_triple(row) {
+                    Ok(triple) => triples.push(triple),
+                    Err(e) => {
+                        tracing::warn!(target: "hkask.storage", error = %e, "Skipping malformed triple row")
+                    }
+                },
+                Err(e) => {
+                    tracing::warn!(target: "hkask.storage", error = %e, "Skipping unreadable database row")
+                }
+            }
+        }
 
         Ok(triples)
     }
@@ -165,7 +178,7 @@ impl TripleStore {
              ORDER BY valid_from DESC",
         )?;
 
-        let triples = stmt
+        let mapped: Vec<Result<TripleRow, rusqlite::Error>> = stmt
             .query_map(rusqlite::params![entity, attribute], |row| {
                 let id_str: String = row.get(0)?;
                 let entity: String = row.get(1)?;
@@ -191,9 +204,22 @@ impl TripleStore {
                     owner_webid: owner_webid_str,
                 })
             })?
-            .filter_map(|r| r.ok())
-            .filter_map(|row| Self::row_to_triple(row).ok())
             .collect();
+
+        let mut triples = Vec::with_capacity(mapped.len());
+        for row_result in mapped {
+            match row_result {
+                Ok(row) => match Self::row_to_triple(row) {
+                    Ok(triple) => triples.push(triple),
+                    Err(e) => {
+                        tracing::warn!(target: "hkask.storage", error = %e, "Skipping malformed triple row")
+                    }
+                },
+                Err(e) => {
+                    tracing::warn!(target: "hkask.storage", error = %e, "Skipping unreadable database row")
+                }
+            }
+        }
 
         Ok(triples)
     }
@@ -208,7 +234,7 @@ impl TripleStore {
              ORDER BY valid_from DESC",
         )?;
 
-        let triples = stmt
+        let mapped: Vec<Result<TripleRow, rusqlite::Error>> = stmt
             .query_map(rusqlite::params![perspective.0.to_string()], |row| {
                 let id_str: String = row.get(0)?;
                 let entity: String = row.get(1)?;
@@ -234,9 +260,22 @@ impl TripleStore {
                     owner_webid: owner_webid_str,
                 })
             })?
-            .filter_map(|r| r.ok())
-            .filter_map(|row| Self::row_to_triple(row).ok())
             .collect();
+
+        let mut triples = Vec::with_capacity(mapped.len());
+        for row_result in mapped {
+            match row_result {
+                Ok(row) => match Self::row_to_triple(row) {
+                    Ok(triple) => triples.push(triple),
+                    Err(e) => {
+                        tracing::warn!(target: "hkask.storage", error = %e, "Skipping malformed triple row")
+                    }
+                },
+                Err(e) => {
+                    tracing::warn!(target: "hkask.storage", error = %e, "Skipping unreadable database row")
+                }
+            }
+        }
 
         Ok(triples)
     }
@@ -253,7 +292,7 @@ impl TripleStore {
 
         conn.execute(
             "UPDATE triples SET valid_to = ?1 WHERE id = ?2 AND valid_to IS NULL",
-            rusqlite::params![now, id.0.to_string()],
+            rusqlite::params![now, id.as_uuid().to_string()],
         )?;
 
         let mut stmt = conn.prepare(
@@ -261,7 +300,7 @@ impl TripleStore {
              FROM triples WHERE id = ?1",
         )?;
 
-        let row = stmt.query_row(rusqlite::params![id.0.to_string()], |row| {
+        let row = stmt.query_row(rusqlite::params![id.as_uuid().to_string()], |row| {
             Ok((
                 row.get::<_, String>(0)?,
                 row.get::<_, String>(1)?,
@@ -276,7 +315,7 @@ impl TripleStore {
             "INSERT INTO triples (id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid)
              VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, ?7, ?8, ?9)",
             rusqlite::params![
-                new_id.0.to_string(),
+                new_id.as_uuid().to_string(),
                 row.0,
                 row.1,
                 serde_json::to_string(&new_value)?,
@@ -300,8 +339,8 @@ impl TripleStore {
              WHERE id = ?1 AND valid_to IS NULL",
         )?;
 
-        let result = stmt
-            .query_map(rusqlite::params![id.0.to_string()], |row| {
+        let mapped: Vec<Result<TripleRow, rusqlite::Error>> = stmt
+            .query_map(rusqlite::params![id.as_uuid().to_string()], |row| {
                 let id_str: String = row.get(0)?;
                 let entity: String = row.get(1)?;
                 let attribute: String = row.get(2)?;
@@ -326,9 +365,25 @@ impl TripleStore {
                     owner_webid: owner_webid_str,
                 })
             })?
-            .filter_map(|r| r.ok())
-            .filter_map(|row| Self::row_to_triple(row).ok())
-            .next();
+            .collect();
+
+        let mut result = None;
+        for row_result in mapped {
+            match row_result {
+                Ok(row) => match Self::row_to_triple(row) {
+                    Ok(triple) => {
+                        result = Some(triple);
+                        break;
+                    }
+                    Err(e) => {
+                        tracing::warn!(target: "hkask.storage", error = %e, "Skipping malformed triple row")
+                    }
+                },
+                Err(e) => {
+                    tracing::warn!(target: "hkask.storage", error = %e, "Skipping unreadable database row")
+                }
+            }
+        }
 
         Ok(result)
     }
@@ -350,7 +405,7 @@ impl TripleStore {
              LIMIT ?1",
         )?;
 
-        let triples = stmt
+        let mapped: Vec<Result<TripleRow, rusqlite::Error>> = stmt
             .query_map(rusqlite::params![limit as i64], |row| {
                 let id_str: String = row.get(0)?;
                 let entity: String = row.get(1)?;
@@ -376,9 +431,22 @@ impl TripleStore {
                     owner_webid: owner_webid_str,
                 })
             })?
-            .filter_map(|r| r.ok())
-            .filter_map(|row| Self::row_to_triple(row).ok())
             .collect();
+
+        let mut triples = Vec::with_capacity(mapped.len());
+        for row_result in mapped {
+            match row_result {
+                Ok(row) => match Self::row_to_triple(row) {
+                    Ok(triple) => triples.push(triple),
+                    Err(e) => {
+                        tracing::warn!(target: "hkask.storage", error = %e, "Skipping malformed triple row")
+                    }
+                },
+                Err(e) => {
+                    tracing::warn!(target: "hkask.storage", error = %e, "Skipping unreadable database row")
+                }
+            }
+        }
 
         Ok(triples)
     }
@@ -417,7 +485,7 @@ impl TripleStore {
              LIMIT ?2",
         )?;
 
-        let triples = stmt
+        let mapped: Vec<Result<TripleRow, rusqlite::Error>> = stmt
             .query_map(rusqlite::params![threshold, limit as i64], |row| {
                 let id_str: String = row.get(0)?;
                 let entity: String = row.get(1)?;
@@ -443,9 +511,22 @@ impl TripleStore {
                     owner_webid: owner_webid_str,
                 })
             })?
-            .filter_map(|r| r.ok())
-            .filter_map(|row| Self::row_to_triple(row).ok())
             .collect();
+
+        let mut triples = Vec::with_capacity(mapped.len());
+        for row_result in mapped {
+            match row_result {
+                Ok(row) => match Self::row_to_triple(row) {
+                    Ok(triple) => triples.push(triple),
+                    Err(e) => {
+                        tracing::warn!(target: "hkask.storage", error = %e, "Skipping malformed triple row")
+                    }
+                },
+                Err(e) => {
+                    tracing::warn!(target: "hkask.storage", error = %e, "Skipping unreadable database row")
+                }
+            }
+        }
 
         Ok(triples)
     }
@@ -500,7 +581,7 @@ impl TripleStore {
         let now = Utc::now().to_rfc3339();
         conn.execute(
             "UPDATE triples SET valid_to = ?1 WHERE id = ?2 AND valid_to IS NULL",
-            rusqlite::params![now, id.0.to_string()],
+            rusqlite::params![now, id.as_uuid().to_string()],
         )?;
         Ok(())
     }
@@ -513,7 +594,7 @@ impl TripleStore {
         let conn = self.lock_conn()?;
         conn.execute(
             "DELETE FROM triples WHERE id = ?1",
-            rusqlite::params![id.0.to_string()],
+            rusqlite::params![id.as_uuid().to_string()],
         )?;
         Ok(())
     }

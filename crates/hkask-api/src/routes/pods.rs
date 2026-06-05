@@ -125,7 +125,7 @@ async fn activate_pod(
         Ok(u) => u,
         Err(_) => return Err(StatusCode::BAD_REQUEST),
     };
-    let pod_id = PodID(uuid);
+    let pod_id = PodID::from_uuid(uuid);
 
     match state.pod_manager.activate_pod(&pod_id).await {
         Ok(_) => Ok(StatusCode::NO_CONTENT),
@@ -147,7 +147,7 @@ async fn deactivate_pod(
         Ok(u) => u,
         Err(_) => return Err(StatusCode::BAD_REQUEST),
     };
-    let pod_id = PodID(uuid);
+    let pod_id = PodID::from_uuid(uuid);
 
     match state.pod_manager.deactivate_pod(&pod_id).await {
         Ok(_) => Ok(StatusCode::NO_CONTENT),
@@ -166,7 +166,7 @@ async fn pod_status(
     use uuid::Uuid;
 
     let uuid = Uuid::parse_str(&id).map_err(|_| StatusCode::BAD_REQUEST)?;
-    let pod_id = PodID(uuid);
+    let pod_id = PodID::from_uuid(uuid);
 
     let status = state
         .pod_manager

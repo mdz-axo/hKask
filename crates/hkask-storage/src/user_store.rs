@@ -83,7 +83,7 @@ impl UserStore {
             "INSERT INTO human_users (user_id, email_enc, phone_enc, passphrase_hash, salt, master_salt, created_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             params![
-                user_id.0.to_string(),
+                user_id.as_uuid().to_string(),
                 email_enc,
                 phone_enc,
                 passphrase_hash,
@@ -102,7 +102,7 @@ impl UserStore {
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             params![
                 identity.replicant_name,
-                identity.user_id.0.to_string(),
+                identity.user_id.as_uuid().to_string(),
                 identity.replicant_webid.to_string(),
                 identity.first_name_enc,
                 identity.last_name_enc,
@@ -163,7 +163,7 @@ impl UserStore {
                         )
                     },
                 )?,
-                user_id: UserID(row.get::<_, String>(3)?.parse().map_err(|_| {
+                user_id: UserID::from_uuid(row.get::<_, String>(3)?.parse().map_err(|_| {
                     rusqlite::Error::FromSqlConversionFailure(
                         0,
                         rusqlite::types::Type::Text,
@@ -191,7 +191,7 @@ impl UserStore {
              FROM user_sessions WHERE replicant_name = ?1 ORDER BY last_active DESC",
         )?;
 
-        let sessions = stmt
+        let mapped: Vec<_> = stmt
             .query_map(params![replicant_name], |row| {
                 Ok(UserSession {
                     session_id: row.get(0)?,
@@ -207,7 +207,7 @@ impl UserStore {
                                 )),
                             )
                         })?,
-                    user_id: UserID(row.get::<_, String>(3)?.parse().map_err(|_| {
+                    user_id: UserID::from_uuid(row.get::<_, String>(3)?.parse().map_err(|_| {
                         rusqlite::Error::FromSqlConversionFailure(
                             0,
                             rusqlite::types::Type::Text,
@@ -222,8 +222,17 @@ impl UserStore {
                     last_active: row.get(6)?,
                 })
             })?
-            .filter_map(|r| r.ok())
             .collect();
+
+        let mut sessions = Vec::with_capacity(mapped.len());
+        for row_result in mapped {
+            match row_result {
+                Ok(session) => sessions.push(session),
+                Err(e) => {
+                    tracing::warn!(target: "hkask.storage", error = %e, "Skipping unreadable database row")
+                }
+            }
+        }
 
         Ok(sessions)
     }
@@ -239,7 +248,7 @@ impl UserStore {
         match stmt.query_row(params![replicant_name], |row| {
             Ok(ReplicantIdentity {
                 replicant_name: row.get(0)?,
-                user_id: UserID(row.get::<_, String>(1)?.parse().map_err(|_| {
+                user_id: UserID::from_uuid(row.get::<_, String>(1)?.parse().map_err(|_| {
                     rusqlite::Error::FromSqlConversionFailure(
                         0,
                         rusqlite::types::Type::Text,
@@ -282,7 +291,7 @@ impl UserStore {
              FROM human_users WHERE user_id = ?1",
         )?;
 
-        stmt.query_row(params![user_id.0.to_string()], |row| {
+        stmt.query_row(params![user_id.as_uuid().to_string()], |row| {
             Ok(HumanUser {
                 user_id: *user_id,
                 email_enc: row.get(1)?,
@@ -294,7 +303,7 @@ impl UserStore {
                 last_active: row.get(7)?,
             })
         })
-        .map_err(|_| UserStoreError::NotFound(user_id.0.to_string()))
+        .map_err(|_| UserStoreError::NotFound(user_id.as_uuid().to_string()))
     }
 
     pub fn list_replicants(&self, user_id: &UserID) -> UserResult<Vec<ReplicantIdentity>> {
@@ -305,11 +314,11 @@ impl UserStore {
              FROM replicant_identities WHERE user_id = ?1 ORDER BY is_primary DESC, created_at ASC",
         )?;
 
-        let replicants = stmt
-            .query_map(params![user_id.0.to_string()], |row| {
+        let mapped: Vec<_> = stmt
+            .query_map(params![user_id.as_uuid().to_string()], |row| {
                 Ok(ReplicantIdentity {
                     replicant_name: row.get(0)?,
-                    user_id: UserID(row.get::<_, String>(1)?.parse().map_err(|_| {
+                    user_id: UserID::from_uuid(row.get::<_, String>(1)?.parse().map_err(|_| {
                         rusqlite::Error::FromSqlConversionFailure(
                             0,
                             rusqlite::types::Type::Text,
@@ -338,8 +347,17 @@ impl UserStore {
                     last_login: row.get(8)?,
                 })
             })?
-            .filter_map(|r| r.ok())
             .collect();
+
+        let mut replicants = Vec::with_capacity(mapped.len());
+        for row_result in mapped {
+            match row_result {
+                Ok(replicant) => replicants.push(replicant),
+                Err(e) => {
+                    tracing::warn!(target: "hkask.storage", error = %e, "Skipping unreadable database row")
+                }
+            }
+        }
 
         Ok(replicants)
     }
@@ -359,7 +377,7 @@ impl UserStore {
                 session_id,
                 identity.replicant_name,
                 identity.replicant_webid.to_string(),
-                identity.user_id.0.to_string(),
+                identity.user_id.as_uuid().to_string(),
                 session_key_salt,
                 expires_at,
                 now

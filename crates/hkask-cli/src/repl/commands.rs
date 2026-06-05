@@ -360,7 +360,12 @@ pub(super) fn handle_slash_command(
                                 println!(
                                     "  {:<20} {:<15} {:<10.2} {}",
                                     &esc.id[..std::cmp::min(20, esc.id.len())],
-                                    esc.bot_id.0.to_string().split('-').next().unwrap_or("?"),
+                                    esc.bot_id
+                                        .as_uuid()
+                                        .to_string()
+                                        .split('-')
+                                        .next()
+                                        .unwrap_or("?"),
                                     esc.confidence,
                                     &esc.error_context
                                         [..std::cmp::min(40, esc.error_context.len())],

@@ -12,7 +12,7 @@ pub async fn get_pod_status(pod_id: &str) -> Result<PodStatus, String> {
     let uuid = Uuid::parse_str(pod_id).map_err(|e| format!("Invalid pod ID: {}", e))?;
     let manager = PodManager::new_mock();
     manager
-        .get_pod_status(&PodID(uuid))
+        .get_pod_status(&PodID::from_uuid(uuid))
         .await
         .map_err(|e| e.to_string())
 }
@@ -66,7 +66,7 @@ pub async fn activate_pod(pod_id: &str) -> Result<(), String> {
     let uuid = Uuid::parse_str(pod_id).map_err(|e| format!("Invalid pod ID: {}", e))?;
     let manager = PodManager::new_mock();
     manager
-        .activate_pod(&PodID(uuid))
+        .activate_pod(&PodID::from_uuid(uuid))
         .await
         .map_err(|e| e.to_string())?;
 
@@ -78,7 +78,7 @@ pub async fn deactivate_pod(pod_id: &str) -> Result<(), String> {
     let uuid = Uuid::parse_str(pod_id).map_err(|e| format!("Invalid pod ID: {}", e))?;
     let manager = PodManager::new_mock();
     let _ = manager
-        .deactivate_pod(&PodID(uuid))
+        .deactivate_pod(&PodID::from_uuid(uuid))
         .await
         .map_err(|e| e.to_string());
 

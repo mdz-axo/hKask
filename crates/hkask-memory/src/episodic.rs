@@ -196,7 +196,7 @@ impl EpisodicMemory {
         self.triple_store.close_by_id(id)?;
         tracing::debug!(
             target: "cns.episodic",
-            triple_id = %id.0,
+            triple_id = %id.as_uuid(),
             "Episodic triple expired (consolidated to semantic memory)"
         );
         Ok(())

@@ -5,6 +5,7 @@
 //! - Acquisition resistance mechanisms
 //! - Kill-zone detection for VC investment patterns
 
+use crate::id::SovereigntyId;
 use crate::visibility::Visibility;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -93,8 +94,6 @@ impl DataCategory {
         }
     }
 }
-
-crate::id::define_id_type!(pub(crate) SovereigntyId);
 
 /// Acquisition resistance — binary: resistant or not.
 ///
