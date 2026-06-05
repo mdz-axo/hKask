@@ -152,6 +152,12 @@ pub enum Commands {
         action: BundleAction,
     },
 
+    /// Style composition — generate prose with exemplar retrieval
+    Compose {
+        #[command(subcommand)]
+        action: ComposeAction,
+    },
+
     /// Style corpus embedding (download, chunk, embed, store)
     EmbedCorpus {
         #[command(subcommand)]

@@ -18,11 +18,9 @@ use hkask_types::ports::{ConsolidationPort, ConsolidationRequest};
 ///
 /// Wraps `EpisodicMemory` and reads storage usage per perspective. When
 /// usage exceeds 80% of budget, it produces `Throttle` actions targeting
-/// itself. When usage exceeds 100%, it escalates to the Curation loop.
-///
-/// In `act()`, when budget is exceeded, the loop fires the consolidation
-/// bridge to promote episodic triples to semantic memory, bringing
-/// usage back within budget.
+/// itself. When usage exceeds 100%, it escalates to the Curation loop
+/// and consolidates lowest-confidence episodic triples to semantic memory
+/// to free storage.
 pub struct EpisodicLoop {
     memory: Arc<EpisodicMemory>,
     perspective: WebID,

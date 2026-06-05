@@ -6,7 +6,7 @@
 //! - 2a.1 Experience Encoding (FILTER) — filter and classify incoming experience
 //! - 2a.2 Temporal Attention (ADAPT) — weight by recency: e^(-λ × time_since_storage)
 //! - 2a.3 Confidence Decay (RECONCILE) — confidence decreases over time
-//! - 2a.4 Confidence Retraction (RECONCILE) — reduce confidence without deleting
+//! - 2a.4 Episodic Storage Budget (GUARD) — per-agent storage limit, consolidation
 //!
 //! Cybernetics regulation: storage budget adjustment
 //!

@@ -7,6 +7,7 @@ pub mod agent;
 pub mod bundle;
 pub mod chat;
 pub mod cns;
+pub mod compose;
 pub mod config;
 pub mod consolidation;
 pub mod curator;

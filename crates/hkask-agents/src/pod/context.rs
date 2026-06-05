@@ -178,9 +178,6 @@ impl PodContext {
     /// Experience classifications and their default confidences:
     /// - `Success` → 0.9
     /// - `Failure` → 0.3
-    /// - `Observation` → 0.7
-    /// - `Inference` → 0.5
-    /// - `Instruction` → 0.8
     pub fn store_episodic_experience(
         &self,
         entity: &str,
@@ -195,8 +192,8 @@ impl PodContext {
             DelegationAction::Write,
         )?;
 
-        let _confidence =
-            confidence_override.unwrap_or_else(|| classification.default_confidence());
+        // Confidence resolution happens in MemoryLoopAdapter::store_episodic_classified:
+        //   confidence_override.unwrap_or_else(|| classification.default_confidence())
 
         self.episodic_storage
             .store_episodic_classified(

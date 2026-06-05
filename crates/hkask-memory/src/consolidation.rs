@@ -1,9 +1,10 @@
 //! Consolidation Bridge — Episodic → Semantic (one-way, Curation-directed)
 //!
 //! When Curation directs consolidation, episodic triples are:
-//! 1. Selected via `EpisodicMemory::consolidation_candidates()` (oldest, lowest-confidence)
+//! 1. Selected via `EpisodicMemory::consolidation_candidates()` (oldest, lowest effective confidence)
 //! 2. Stripped of perspective (privacy boundary removal)
 //! 3. Seeded into semantic memory with inherited confidence from the episodic source
+//! 4. Expired in episodic memory (valid_to set, soft-deleted) to free storage budget
 //!
 //! This is a ONE-WAY operation: Episodic → Semantic. No reverse flow.
 //! Authority: Curation directs, Cybernetics regulates (budget enforcement).
@@ -79,6 +80,7 @@ impl ConsolidationBridge {
         );
 
         let mut consolidated_count = 0usize;
+        let mut expired_count = 0usize;
         let mut failed_count = 0usize;
 
         for triple in &candidates {
@@ -100,12 +102,25 @@ impl ConsolidationBridge {
             match self.semantic.store_consolidated(semantic_triple) {
                 Ok(()) => {
                     consolidated_count += 1;
+
+                    // 3. Expire the episodic source triple (soft-delete via valid_to)
+                    if let Err(e) = self.episodic.expire_triple(&triple.id) {
+                        tracing::warn!(
+                            target: "cns.consolidation",
+                            triple_id = %triple.id.0,
+                            error = %e,
+                            "Failed to expire episodic triple after consolidation"
+                        );
+                    } else {
+                        expired_count += 1;
+                    }
+
                     tracing::debug!(
                         target: "cns.consolidation",
                         entity = %triple.entity,
                         attribute = %triple.attribute,
                         inherited_confidence = triple.confidence,
-                        "Triple consolidated into semantic memory"
+                        "Triple consolidated into semantic memory, episodic source expired"
                     );
                 }
                 Err(e) => {
@@ -126,13 +141,14 @@ impl ConsolidationBridge {
             target: "cns.consolidation",
             perspective = %perspective,
             consolidated_count,
+            expired_count,
             failed_count,
-            "Consolidation complete"
+            "Consolidation complete (episodic sources expired)"
         );
 
         Ok(ConsolidationResult {
             consolidated_count,
-            deleted_count: 0, // bridge doesn't handle semantic cleanup
+            deleted_count: expired_count,
             failed_count,
         })
     }
@@ -164,15 +180,14 @@ impl ConsolidationPort for ConsolidationBridge {
         .map_err(|e| e.to_string())?;
         Ok(ConsolidationOutcome {
             consolidated_count: result.consolidated_count,
-            deleted_count: 0, // bridge doesn't handle semantic cleanup
+            deleted_count: result.deleted_count, // episodic triples expired after consolidation
             failed_count: result.failed_count,
         })
     }
 
     fn consolidation_candidate_count(&self, perspective: &WebID) -> usize {
-        self.episodic
-            .consolidation_candidates(*perspective, usize::MAX)
-            .map(|v| v.len())
-            .unwrap_or(0)
+        // Use storage_usage (COUNT query) instead of loading all candidates
+        // into memory just to count them.
+        self.episodic.storage_usage(perspective).unwrap_or(0)
     }
 }

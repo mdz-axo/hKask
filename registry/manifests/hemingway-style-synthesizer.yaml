@@ -1,6 +1,6 @@
 # File: registry/manifests/hemingway-style-synthesizer.yaml
 # Hemingway Style Synthesizer Process Manifest
-# ℏKask v0.21.0 - A Minimal Viable Container for Agents
+# ℏKask v0.22.0 - A Minimal Viable Container for Agents
 
 manifest:
   id: hemingway-style-synthesizer
@@ -24,6 +24,21 @@ gas:
   alert_threshold: 0.8
   hard_limit: true
 
+# Inputs (from user prompt and embedding pipeline)
+inputs:
+  - name: prompt
+    type: string
+    description: "The user's text prompt to generate prose about"
+    required: true
+  - name: db_path
+    type: string
+    description: "Path to hKask semantic database (for exemplar retrieval and centroid validation)"
+    required: true
+  - name: okapi_url
+    type: string
+    description: "Okapi embedding API base URL (default: http://localhost:8080)"
+    required: false
+
 # Process Steps
 steps:
   # Step 0: Retrieve exemplar passages from style embedding corpus
@@ -33,9 +48,9 @@ steps:
     action: retrieve
     description: >
       Retrieve exemplar passages from Hemingway style embedding corpus.
-      Embed the prompt using qwen3-embedding:0.6b, then KNN search
-      against the style:hemingway corpus in sqlite-vec.
-      Select k_min..k_max passages within distance_threshold.
+      1. Embed the prompt using qwen3-embedding:0.6b via hkask-mcp-inference
+      2. KNN search against style:hemingway prefix via semantic_search
+      3. Select k_min..k_max passages within distance_threshold
     renderer: null
     template_ref: null
     model_tier: null
@@ -43,32 +58,41 @@ steps:
     gas_cap: 500
     timeout_seconds: 10
     output_schema:
-      exemplar_passages:
-        type: array
-        description: "Retrieved Hemingway passages for few-shot context"
-      centroid_entity_ref:
-        type: string
-        description: "Entity ref for the style centroid in sqlite-vec"
-      centroid_distance_threshold:
-        type: float
-        description: "Max cosine distance from centroid for validation"
+      type: object
+      properties:
+        exemplar_passages:
+          type: array
+          description: "Retrieved Hemingway passages for few-shot context"
+        centroid_entity_ref:
+          type: string
+          description: "Entity ref for the style centroid in sqlite-vec"
+        centroid_distance_threshold:
+          type: float
+          description: "Max cosine distance from centroid for validation"
 
-  # Step 1: Select style parameters
+  # Step 1: Select style parameters from cognition config
   - ordinal: 1
     action: select
     description: >
-      Select Hemingway style parameters.
-      Choose coordinated clause target, narrative voice, and thematic elements.
+      Select Hemingway style parameters from the cognition config.
+      Coordinated clause target, narrative voice, and thematic elements
+      are defined in registry/registries/cognition/hemingway-style-synthesizer.yaml.
     renderer: null
     template_ref: null
     model_tier: null
-    mcp: hkask-mcp-storage
-    gas_cap: 500
-    timeout_seconds: 10
+    mcp: null
+    gas_cap: 100
+    timeout_seconds: 5
     output_schema:
-      coordinated_clause_target: float
-      voice: string
-      themes: array
+      type: object
+      properties:
+        coordinated_clause_target:
+          type: object
+          properties:
+            min: { type: float }
+            max: { type: float }
+        voice: { type: string }
+        themes: { type: array }
 
   # Step 2: Populate template with inputs + exemplars
   - ordinal: 2
@@ -91,9 +115,11 @@ steps:
     action: validate
     description: >
       Validate output meets Hemingway style checks.
-      Verify coordinated clause percentage, syllable count, sentence length.
-      Embed the generated prose and compare against the Hemingway style centroid.
-      Reject if centroid distance exceeds hard limit.
+      1. Embed the generated prose via hkask-mcp-inference
+      2. Retrieve centroid vector via semantic_recall (entity: style:hemingway:centroid)
+      3. Compute cosine distance between prose vector and centroid
+      4. Reject if centroid distance exceeds hard limit (0.25)
+      5. Check coordinated clause ratio, syllable count, sentence length
     renderer: null
     template_ref: null
     model_tier: null
@@ -109,9 +135,11 @@ steps:
       - iceberg_compliance
       - centroid_distance
     output_schema:
-      validated: boolean
-      error_reason: string|null
-      centroid_distance: float
+      type: object
+      properties:
+        validated: { type: boolean }
+        error_reason: { type: string }
+        centroid_distance: { type: float }
 
   # Step 4: Emit CNS span for variety tracking
   - ordinal: 4

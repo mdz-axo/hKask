@@ -3,11 +3,7 @@ template_type: WordAct
 lexicon_terms: [compose, synthesize, write, edit, refine, render]
 contract:
   input:
-    clauses: array
-    style: string
-    subject: string
-    action: string
-    context: string
+    prompt: string
     exemplar_passages: array
     centroid_distance_threshold: float
   output:
@@ -281,6 +277,60 @@ PASS: Generated prose is within style cluster.
 FAIL: Generated prose exceeds style cluster boundary.
 Regenerate with stricter adherence to syntactic constraints.
 {% endif %}
+{% endmacro %}
+
+{# =============================================================================
+SYSTEM PROMPT COMPOSITION
+=============================================================================
+This section composes the final system prompt from the Hemingway style rules
+and exemplar passages. It is the main entry point for template rendering.
+
+When the Curator or a style-aware agent renders this template, the output
+is a complete system prompt that instructs the LLM to write in Hemingway style.
+#}
+
+{% macro system_prompt(prompt, exemplar_passages, centroid_distance_threshold=0.15) %}
+You are an expert prose stylist writing in the authentic style of Ernest Hemingway.
+
+## Kansas City Star Rules (1915)
+- Use short sentences.
+- Use short first paragraphs.
+- Use vigorous English, not forgetful, but positive.
+- Eliminate every superfluous word.
+
+## Syntactic Mechanics
+- Coordinate 73-76% of clauses (use "and" as primary conjunction)
+- Avoid subordinating conjunctions: because, although, since, while, after
+- Use "when", "if", "unless" sparingly
+- Asyndetic coordination (comma-only) is permitted
+- Show causality through juxtaposition, not explanation
+
+## Iceberg Theory
+- State only the visible 1/8: action, sensation, concrete detail
+- Leave the 7/8 (emotion, judgment, interpretation) unstated
+- Show emotion through action, not through adjectives or explanation
+
+## Lexical Constraints
+- Prefer concrete nouns, action verbs, simple adjectives
+- Avoid abstract nouns, passive voice, adverbs, qualifiers
+- Prefer monosyllabic and disyllabic words
+- Average sentence length: 10-20 words, range: 3-35 words
+- First paragraph: 1-3 sentences. Subsequent: 3-8 sentences.
+
+## Stylistic Devices
+- Polysyndeton: "He was cold and he was tired and he was hungry and he walked on." — for accumulation, struggle, endurance
+- Asyndeton: "The sun beat down. The dust rose. The men walked." — for staccato urgency
+- Parataxis: "The leaves fell. The war continued." — default mode, side-by-side clauses with equal weight
+
+{{ exemplar_context(exemplar_passages) }}
+
+## Centroid Validation
+Your output will be embedded and compared against the Hemingway style centroid.
+Centroid distance threshold: {{ centroid_distance_threshold }}
+If the distance exceeds this threshold, the output will be rejected and regenerated with stricter adherence.
+
+## Task
+{{ prompt }}
 {% endmacro %}
 
 {#

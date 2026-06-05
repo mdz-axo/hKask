@@ -460,6 +460,36 @@ impl TripleStore {
         Ok(count as usize)
     }
 
+    /// Count triples for a given perspective (episodic, valid_to IS NULL).
+    ///
+    /// Used by `EpisodicMemory::storage_usage()` for budget enforcement
+    /// without loading all triples into memory.
+    pub fn count_by_perspective(&self, perspective: &WebID) -> Result<usize, TripleError> {
+        let conn = self.lock_conn()?;
+        let count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM triples WHERE perspective = ?1 AND valid_to IS NULL",
+            rusqlite::params![perspective.0.to_string()],
+            |row| row.get(0),
+        )?;
+        Ok(count as usize)
+    }
+
+    /// Close a triple by setting its `valid_to` timestamp (soft-delete).
+    ///
+    /// Used by consolidation to mark episodic triples as expired after
+    /// they have been promoted to semantic memory. The triple remains in
+    /// the store for audit but is excluded from all current queries
+    /// (which filter on `valid_to IS NULL`).
+    pub fn close_by_id(&self, id: &TripleID) -> Result<(), TripleError> {
+        let conn = self.lock_conn()?;
+        let now = Utc::now().to_rfc3339();
+        conn.execute(
+            "UPDATE triples SET valid_to = ?1 WHERE id = ?2 AND valid_to IS NULL",
+            rusqlite::params![now, id.0.to_string()],
+        )?;
+        Ok(())
+    }
+
     /// Delete a triple by ID.
     ///
     /// Used by `SemanticMemory::delete_triple()` for budget enforcement.

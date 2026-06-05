@@ -69,9 +69,6 @@ pub trait EpisodicStoragePort: Send + Sync {
     ///
     /// - `Success` → 0.9
     /// - `Failure` → 0.3
-    /// - `Observation` → 0.7
-    /// - `Inference` → 0.5
-    /// - `Instruction` → 0.8
     ///
     /// # Requires
     /// - `producer_webid` must match the agent storing the triple

@@ -4,8 +4,8 @@
 //! - 2a.1 Experience Encoding (FILTER) — filter and classify incoming experience
 //! - 2a.2 Temporal Attention (ADAPT) — weight by recency: weight = e^(-λ × time_since_storage)
 //! - 2a.3 Confidence Decay (RECONCILE) — confidence decreases over time via Bayesian decay
-//! - 2a.5 Episodic Storage Budget (GUARD) — per-agent storage limit, mark oldest for consolidation
-//! - 2a.6 Episodic Context Assembly (FILTER+ADAPT) — temporal-ordered, recency-weighted, budget-constrained
+//! - 2a.4 Episodic Storage Budget (GUARD) — per-agent storage limit, mark oldest for consolidation
+//! - 2a.5 Episodic Context Assembly (FILTER+ADAPT) — temporal-ordered, recency-weighted, budget-constrained
 
 use crate::bayesian;
 use crate::recall_dedup;
@@ -21,11 +21,13 @@ pub enum EpisodicMemoryError {
     Triple(#[from] TripleError),
     #[error("Invalid visibility for episodic store: {0}")]
     InvalidVisibility(String),
+    #[error("Episodic memory requires a perspective (agent WebID)")]
+    MissingPerspective,
 }
 
 /// Default decay rate for episodic memory confidence.
 ///
-/// Derived from a 30-day half-life: λ = ln(2) / (30 × 86400) ≈ 2.674 × 10⁻⁷.
+/// Derived from a 3-month (90-day) half-life: λ = ln(2) / (90 × 86400) ≈ 8.913 × 10⁻⁸.
 /// Time units are seconds (matching `valid_from` timestamps).
 pub(crate) const DEFAULT_DECAY_RATE: f64 = crate::bayesian::DEFAULT_DECAY_RATE;
 
@@ -42,8 +44,8 @@ pub(crate) const DEFAULT_EPISODIC_BUDGET: usize = 10_000;
 /// - **Confidence decay** (2a.3): Decays confidence based on time since
 ///   storage using `bayesian::decay()`. Applied at recall time, not persisted.
 /// - **Temporal attention** (2a.2): Weights recalled triples by recency.
-/// - **Storage budget** (2a.5): Per-agent storage limit with consolidation
-///   candidate identification.
+/// - **Storage budget** (2a.4): Per-agent storage limit with consolidation
+///   candidate identification (uses decayed confidence for prioritization).
 pub struct EpisodicMemory {
     triple_store: TripleStore,
     /// Decay rate for confidence (λ in e^(-λt)). Default derived from 30-day half-life.
@@ -74,9 +76,7 @@ impl EpisodicMemory {
             ));
         }
         if triple.perspective.is_none() {
-            return Err(EpisodicMemoryError::InvalidVisibility(
-                "Episodic memory requires a perspective (agent WebID)".to_string(),
-            ));
+            return Err(EpisodicMemoryError::MissingPerspective);
         }
         self.triple_store.insert(&triple)?;
         Ok(())
@@ -137,13 +137,19 @@ impl EpisodicMemory {
     // ========================================================================
 
     /// Get the current storage usage for a perspective (number of triples).
+    ///
+    /// Uses a COUNT query instead of loading all triples into memory.
     pub fn storage_usage(&self, perspective: &WebID) -> Result<usize, EpisodicMemoryError> {
-        let count = self.triple_store.query_by_perspective(perspective)?.len();
+        let count = self.triple_store.count_by_perspective(perspective)?;
         Ok(count)
     }
 
-    /// Identify triples eligible for consolidation (oldest, lowest-confidence)
-    /// when budget is exceeded (2a.5).
+    /// Identify triples eligible for consolidation (oldest, lowest effective confidence)
+    /// when budget is exceeded (2a.4).
+    ///
+    /// Uses recall-time decayed confidence (not stored confidence) so that
+    /// old triples with high stored confidence but low effective confidence
+    /// are correctly prioritized for consolidation.
     ///
     /// **Membrane-sealed:** Only callable from within this crate.
     pub(crate) fn consolidation_candidates(
@@ -152,17 +158,48 @@ impl EpisodicMemory {
         limit: usize,
     ) -> Result<Vec<Triple>, EpisodicMemoryError> {
         let mut triples = self.triple_store.query_by_perspective(&perspective)?;
+        let now = Utc::now();
 
-        // Sort by confidence ascending, then by valid_from ascending (oldest first)
+        // Sort by decayed confidence ascending, then by valid_from ascending (oldest first)
         triples.sort_by(|a, b| {
-            a.confidence
-                .partial_cmp(&b.confidence)
+            let a_effective = bayesian::decay(
+                a.confidence,
+                self.decay_rate,
+                (now - a.valid_from).num_seconds() as f64,
+            );
+            let b_effective = bayesian::decay(
+                b.confidence,
+                self.decay_rate,
+                (now - b.valid_from).num_seconds() as f64,
+            );
+            a_effective
+                .partial_cmp(&b_effective)
                 .unwrap_or(std::cmp::Ordering::Equal)
                 .then_with(|| a.valid_from.cmp(&b.valid_from))
         });
 
         triples.truncate(limit);
         Ok(triples)
+    }
+
+    /// Expire a triple by setting its `valid_to` timestamp (soft-delete).
+    ///
+    /// Used by consolidation to mark episodic triples as expired after
+    /// they have been promoted to semantic memory. The triple remains in
+    /// the store for audit but is excluded from all current queries.
+    ///
+    /// **Membrane-sealed:** Only callable from within this crate.
+    pub(crate) fn expire_triple(
+        &self,
+        id: &hkask_storage::TripleID,
+    ) -> Result<(), EpisodicMemoryError> {
+        self.triple_store.close_by_id(id)?;
+        tracing::debug!(
+            target: "cns.episodic",
+            triple_id = %id.0,
+            "Episodic triple expired (consolidated to semantic memory)"
+        );
+        Ok(())
     }
 
     /// Get the configured storage budget.

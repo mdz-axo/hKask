@@ -26,6 +26,10 @@ pub enum SemanticMemoryError {
     InvalidVisibility(String),
     #[error("No embeddings found for centroid: {0}")]
     NoEmbeddingsForCentroid(String),
+    #[error(
+        "Semantic memory requires no perspective (use consolidation bridge for episodic→semantic promotion)"
+    )]
+    HasPerspective,
 }
 
 /// Result of computing a style centroid
@@ -95,9 +99,7 @@ impl SemanticMemory {
             )));
         }
         if triple.perspective.is_some() {
-            return Err(SemanticMemoryError::InvalidVisibility(
-                "Semantic memory requires no perspective (use consolidation bridge for episodic→semantic promotion)".to_string()
-            ));
+            return Err(SemanticMemoryError::HasPerspective);
         }
         self.triple_store.insert(&triple)?;
         Ok(())

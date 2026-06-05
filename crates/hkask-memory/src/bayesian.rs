@@ -6,9 +6,6 @@
 //! **Cybernetics regulation note:** `decay` is an involuntary dampening
 //! function owned by the Cybernetics loop. It is invoked from
 //! `EpisodicMemory` at recall time for time-based confidence decay.
-//!
-//! The loop membrane is the authority; domain code calls this function only
-//! for recall-time presentation (decay).
 
 /// Default half-life for episodic confidence decay (3 months in seconds).
 ///

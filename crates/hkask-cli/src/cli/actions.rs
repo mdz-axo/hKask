@@ -646,6 +646,37 @@ pub enum SpecAction {
     },
 }
 
+/// Style composition — generate prose with exemplar retrieval and centroid validation
+#[derive(Subcommand)]
+pub enum ComposeAction {
+    /// Generate prose using style corpus embeddings for exemplar retrieval
+    Run {
+        /// The prompt to generate prose about
+        #[arg(short, long)]
+        prompt: String,
+
+        /// Path to cognition config YAML (e.g., registry/registries/cognition/hemingway-style-synthesizer.yaml)
+        #[arg(short, long)]
+        cognition: PathBuf,
+
+        /// Path to hKask semantic database
+        #[arg(short, long)]
+        db: PathBuf,
+
+        /// Database passphrase
+        #[arg(long, env = "HKASK_DB_PASSPHRASE")]
+        passphrase: String,
+
+        /// Okapi base URL (default: http://127.0.0.1:11435)
+        #[arg(long)]
+        okapi_url: Option<String>,
+
+        /// Skip centroid distance validation
+        #[arg(long)]
+        no_validate: bool,
+    },
+}
+
 /// Style corpus embedding — download, chunk, embed, store
 #[derive(Subcommand)]
 pub enum EmbedCorpusAction {
