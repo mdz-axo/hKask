@@ -5,9 +5,7 @@
 
 use chrono::{DateTime, Utc};
 use hkask_types::{InfrastructureError, TripleID, Visibility, WebID};
-use rusqlite::Connection;
 use serde_json::Value;
-use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -18,11 +16,7 @@ pub enum TripleError {
     NotFound,
 }
 
-impl From<rusqlite::Error> for TripleError {
-    fn from(e: rusqlite::Error) -> Self {
-        TripleError::Infra(InfrastructureError::Database(e.to_string()))
-    }
-}
+impl_from_rusqlite!(TripleError, Infra);
 
 impl From<serde_json::Error> for TripleError {
     fn from(e: serde_json::Error) -> Self {
@@ -88,22 +82,12 @@ impl Triple {
     }
 }
 
-/// Triple store for bitemporal RDF-like triples
-pub struct TripleStore {
-    conn: Arc<Mutex<Connection>>,
-}
+define_store!(TripleStore);
 
 impl TripleStore {
-    pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
-        Self { conn }
-    }
-
     /// Insert a triple
     pub fn insert(&self, triple: &Triple) -> Result<(), TripleError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         conn.execute(
             "INSERT INTO triples (id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
@@ -125,10 +109,7 @@ impl TripleStore {
 
     /// Query triples by entity
     pub fn query_by_entity(&self, entity: &str) -> Result<Vec<Triple>, TripleError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
             "SELECT id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid
              FROM triples
@@ -175,10 +156,7 @@ impl TripleStore {
         entity: &str,
         attribute: &str,
     ) -> Result<Vec<Triple>, TripleError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
             "SELECT id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid
              FROM triples
@@ -221,10 +199,7 @@ impl TripleStore {
 
     /// Query all triples for a perspective (episodic memories)
     pub fn query_by_perspective(&self, perspective: &WebID) -> Result<Vec<Triple>, TripleError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
             "SELECT id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid
              FROM triples
@@ -272,10 +247,7 @@ impl TripleStore {
         new_value: Value,
         new_confidence: f64,
     ) -> Result<(), TripleError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         let now = Utc::now().to_rfc3339();
 
         conn.execute(
@@ -320,10 +292,7 @@ impl TripleStore {
 
     /// Get a single triple by ID (must be current: valid_to IS NULL)
     pub fn get_by_id(&self, id: &TripleID) -> Result<Option<Triple>, TripleError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
             "SELECT id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid
              FROM triples
@@ -371,10 +340,7 @@ impl TripleStore {
         &self,
         limit: usize,
     ) -> Result<Vec<Triple>, TripleError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
             "SELECT id, entity, attribute, value, valid_from, valid_to, confidence, perspective, visibility, owner_webid
              FROM triples
@@ -418,10 +384,7 @@ impl TripleStore {
 
     /// Count semantic triples (perspective IS NULL, valid_to IS NULL).
     pub fn count_semantic(&self) -> Result<usize, TripleError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         let count: i64 = conn.query_row(
             "SELECT COUNT(*) FROM triples WHERE perspective IS NULL AND valid_to IS NULL",
             [],

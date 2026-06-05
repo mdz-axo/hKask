@@ -4,10 +4,9 @@
 //! user sovereignty (Principle 1.3) in the headless system.
 
 use hkask_types::InfrastructureError;
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
 /// Consent store errors
@@ -20,15 +19,11 @@ pub enum ConsentStoreError {
     NotFound(String),
 }
 
-impl From<rusqlite::Error> for ConsentStoreError {
-    fn from(e: rusqlite::Error) -> Self {
-        ConsentStoreError::Infra(InfrastructureError::Database(e.to_string()))
-    }
-}
+impl_from_rusqlite!(ConsentStoreError, Infra);
 
 impl From<serde_json::Error> for ConsentStoreError {
     fn from(e: serde_json::Error) -> Self {
-        ConsentStoreError::Infra(InfrastructureError::Database(e.to_string()))
+        ConsentStoreError::Infra(InfrastructureError::from(e))
     }
 }
 
@@ -43,29 +38,12 @@ pub struct StoredConsentRecord {
     pub active: bool,
 }
 
-/// SQLite-backed consent store
-#[derive(Clone)]
-pub struct ConsentStore {
-    conn: Arc<Mutex<Connection>>,
-}
+define_store!(ConsentStore);
 
 impl ConsentStore {
-    /// Create a new consent store backed by the given connection
-    pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
-        Self { conn }
-    }
-
-    /// Get a clone of the inner connection Arc for direct SQL access
-    pub fn conn_arc(&self) -> Arc<Mutex<Connection>> {
-        Arc::clone(&self.conn)
-    }
-
     /// Initialize the consent_records table
     pub fn initialize_schema(&self) -> Result<(), ConsentStoreError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS consent_records (
                 id TEXT PRIMARY KEY,
@@ -84,10 +62,7 @@ impl ConsentStore {
 
     /// Store (upsert) a consent record for a WebID
     pub fn store(&self, record: &StoredConsentRecord) -> Result<(), ConsentStoreError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         let categories_json = serde_json::to_string(&record.granted_categories)?;
         let active_int = if record.active { 1 } else { 0 };
 
@@ -114,10 +89,7 @@ impl ConsentStore {
 
     /// Get the active consent record for a WebID
     pub fn get(&self, webid: &str) -> Result<Option<StoredConsentRecord>, ConsentStoreError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
 
         let mut stmt = conn.prepare(
             "SELECT id, webid, granted_categories, granted_at, revoked_at, active
@@ -152,10 +124,7 @@ impl ConsentStore {
 
     /// Delete consent record for a WebID
     pub fn delete(&self, webid: &str) -> Result<(), ConsentStoreError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         conn.execute(
             "DELETE FROM consent_records WHERE webid = ?1",
             params![webid],

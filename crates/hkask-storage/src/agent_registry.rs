@@ -1,8 +1,6 @@
 //! AgentRegistryStore — Persistent storage for registered agents
 
 use hkask_types::{AgentDefinition, AgentKind, InfrastructureError, RegisteredAgent};
-use rusqlite::Connection;
-use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -16,11 +14,7 @@ pub enum AgentRegistryError {
     AlreadyRegistered(String),
 }
 
-impl From<rusqlite::Error> for AgentRegistryError {
-    fn from(e: rusqlite::Error) -> Self {
-        AgentRegistryError::Infra(InfrastructureError::Database(e.to_string()))
-    }
-}
+impl_from_rusqlite!(AgentRegistryError, Infra);
 
 impl From<serde_json::Error> for AgentRegistryError {
     fn from(e: serde_json::Error) -> Self {
@@ -28,21 +22,11 @@ impl From<serde_json::Error> for AgentRegistryError {
     }
 }
 
-#[derive(Clone)]
-pub struct AgentRegistryStore {
-    conn: Arc<Mutex<Connection>>,
-}
+define_store!(AgentRegistryStore);
 
 impl AgentRegistryStore {
-    pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
-        Self { conn }
-    }
-
     pub fn initialize_schema(&self) -> Result<(), AgentRegistryError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS agent_registry (
                 name TEXT PRIMARY KEY,
@@ -58,10 +42,7 @@ impl AgentRegistryStore {
     }
 
     pub fn insert(&self, agent: &RegisteredAgent) -> Result<(), AgentRegistryError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         let definition_json = serde_json::to_string(&agent.definition)?;
 
         conn.execute(
@@ -80,10 +61,7 @@ impl AgentRegistryStore {
     }
 
     pub fn get(&self, name: &str) -> Result<RegisteredAgent, AgentRegistryError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
             "SELECT definition_json, token_hash, registered_at, source_yaml
              FROM agent_registry WHERE name = ?1",
@@ -109,10 +87,7 @@ impl AgentRegistryStore {
     }
 
     pub fn list(&self) -> Result<Vec<RegisteredAgent>, AgentRegistryError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
             "SELECT definition_json, token_hash, registered_at, source_yaml
              FROM agent_registry ORDER BY name",
@@ -145,10 +120,7 @@ impl AgentRegistryStore {
         &self,
         kind: AgentKind,
     ) -> Result<Vec<RegisteredAgent>, AgentRegistryError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
             "SELECT definition_json, token_hash, registered_at, source_yaml
              FROM agent_registry WHERE agent_kind = ?1 ORDER BY name",
@@ -178,10 +150,7 @@ impl AgentRegistryStore {
     }
 
     pub fn remove(&self, name: &str) -> Result<(), AgentRegistryError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         let deleted = conn.execute(
             "DELETE FROM agent_registry WHERE name = ?1",
             rusqlite::params![name],

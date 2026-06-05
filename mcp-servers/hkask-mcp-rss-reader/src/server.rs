@@ -296,20 +296,17 @@ impl RssServer {
         .await;
 
         match result {
-            Ok(Ok(removed)) => span.ok(McpToolOutput::new(serde_json::json!({
+            Ok(Ok(removed)) => span.ok_json(serde_json::json!({
                 "stream_id": stream_id,
                 "unsubscribed": removed > 0,
                 "removed": removed,
-            }))
-            .to_json_string()),
-            Ok(Err(e)) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(e.to_string()).to_json_string(),
-            ),
-            Err(e) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
-            ),
+            })),
+            Ok(Err(e)) => span.internal_error(serde_json::json!({
+                "error": e.to_string(),
+            })),
+            Err(e) => span.internal_error(serde_json::json!({
+                "error": format!("Task error: {}", e),
+            })),
         }
     }
 
@@ -323,19 +320,16 @@ impl RssServer {
         let result = spawn_db(db, move |conn| list_subscriptions(conn, folder.as_deref())).await;
 
         match result {
-            Ok(Ok(subs)) => span.ok(McpToolOutput::new(serde_json::json!({
+            Ok(Ok(subs)) => span.ok_json(serde_json::json!({
                 "count": subs.len(),
                 "subscriptions": subs,
-            }))
-            .to_json_string()),
-            Ok(Err(e)) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(e.to_string()).to_json_string(),
-            ),
-            Err(e) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
-            ),
+            })),
+            Ok(Err(e)) => span.internal_error(serde_json::json!({
+                "error": e.to_string(),
+            })),
+            Err(e) => span.internal_error(serde_json::json!({
+                "error": format!("Task error: {}", e),
+            })),
         }
     }
 
@@ -376,10 +370,9 @@ impl RssServer {
                 );
             }
             Err(e) => {
-                return span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
-                );
+                return span.internal_error(serde_json::json!({
+                    "error": format!("Task error: {}", e),
+                }));
             }
         };
 
@@ -401,13 +394,12 @@ impl RssServer {
         };
 
         if fetch_result.status == 304 {
-            return span.ok(McpToolOutput::new(serde_json::json!({
+            return span.ok_json(serde_json::json!({
                 "stream_id": stream_id,
                 "new_entries": 0,
                 "fetched": true,
                 "not_modified": true,
-            }))
-            .to_json_string());
+            }));
         }
 
         let db2 = self.db.clone();
@@ -424,20 +416,17 @@ impl RssServer {
         .await;
 
         match result {
-            Ok(Ok(new_count)) => span.ok(McpToolOutput::new(serde_json::json!({
+            Ok(Ok(new_count)) => span.ok_json(serde_json::json!({
                 "stream_id": sid2,
                 "new_entries": new_count,
                 "fetched": true,
-            }))
-            .to_json_string()),
-            Ok(Err(e)) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(e.to_string()).to_json_string(),
-            ),
-            Err(e) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
-            ),
+            })),
+            Ok(Err(e)) => span.internal_error(serde_json::json!({
+                "error": e.to_string(),
+            })),
+            Err(e) => span.internal_error(serde_json::json!({
+                "error": format!("Task error: {}", e),
+            })),
         }
     }
 
@@ -497,22 +486,19 @@ impl RssServer {
                 } else {
                     None
                 };
-                span.ok(McpToolOutput::new(serde_json::json!({
+                span.ok_json(serde_json::json!({
                     "stream_id": stream_id,
                     "entries": entries,
                     "count": entries.len(),
                     "continuation_token": next_token,
                 }))
-                .to_json_string())
             }
-            Ok(Err(e)) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(e.to_string()).to_json_string(),
-            ),
-            Err(e) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
-            ),
+            Ok(Err(e)) => span.internal_error(serde_json::json!({
+                "error": e.to_string(),
+            })),
+            Err(e) => span.internal_error(serde_json::json!({
+                "error": format!("Task error: {}", e),
+            })),
         }
     }
 
@@ -527,19 +513,16 @@ impl RssServer {
         let result = spawn_db(db, move |conn| mark_stream_read(conn, &sid)).await;
 
         match result {
-            Ok(Ok(marked)) => span.ok(McpToolOutput::new(serde_json::json!({
+            Ok(Ok(marked)) => span.ok_json(serde_json::json!({
                 "stream_id": stream_id,
                 "marked_read": marked,
-            }))
-            .to_json_string()),
-            Ok(Err(e)) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(e.to_string()).to_json_string(),
-            ),
-            Err(e) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
-            ),
+            })),
+            Ok(Err(e)) => span.internal_error(serde_json::json!({
+                "error": e.to_string(),
+            })),
+            Err(e) => span.internal_error(serde_json::json!({
+                "error": format!("Task error: {}", e),
+            })),
         }
     }
 
@@ -554,19 +537,16 @@ impl RssServer {
         let result = spawn_db(db, move |conn| count_entries(conn, &sid, true)).await;
 
         match result {
-            Ok(Ok(count)) => span.ok(McpToolOutput::new(serde_json::json!({
+            Ok(Ok(count)) => span.ok_json(serde_json::json!({
                 "stream_id": stream_id,
                 "unread_count": count,
-            }))
-            .to_json_string()),
-            Ok(Err(e)) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(e.to_string()).to_json_string(),
-            ),
-            Err(e) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
-            ),
+            })),
+            Ok(Err(e)) => span.internal_error(serde_json::json!({
+                "error": e.to_string(),
+            })),
+            Err(e) => span.internal_error(serde_json::json!({
+                "error": format!("Task error: {}", e),
+            })),
         }
     }
 
@@ -582,20 +562,17 @@ impl RssServer {
         let result = spawn_db(db, move |conn| search_entries(conn, &q, limit)).await;
 
         match result {
-            Ok(Ok(results)) => span.ok(McpToolOutput::new(serde_json::json!({
+            Ok(Ok(results)) => span.ok_json(serde_json::json!({
                 "query": query,
                 "results": results,
                 "count": results.len(),
-            }))
-            .to_json_string()),
-            Ok(Err(e)) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(e.to_string()).to_json_string(),
-            ),
-            Err(e) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
-            ),
+            })),
+            Ok(Err(e)) => span.internal_error(serde_json::json!({
+                "error": e.to_string(),
+            })),
+            Err(e) => span.internal_error(serde_json::json!({
+                "error": format!("Task error: {}", e),
+            })),
         }
     }
 
@@ -606,17 +583,13 @@ impl RssServer {
         let result = spawn_db(db, export_opml).await;
 
         match result {
-            Ok(Ok(opml)) => {
-                span.ok(McpToolOutput::new(serde_json::json!({"opml": opml})).to_json_string())
-            }
-            Ok(Err(e)) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(e.to_string()).to_json_string(),
-            ),
-            Err(e) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
-            ),
+            Ok(Ok(opml)) => span.ok_json(serde_json::json!({"opml": opml})),
+            Ok(Err(e)) => span.internal_error(serde_json::json!({
+                "error": e.to_string(),
+            })),
+            Err(e) => span.internal_error(serde_json::json!({
+                "error": format!("Task error: {}", e),
+            })),
         }
     }
 
@@ -650,12 +623,11 @@ impl RssServer {
             return span.error(e.kind, e.to_json_string());
         }
         match discover_feeds(&self.client, &url).await {
-            Ok(feeds) => span.ok(McpToolOutput::new(serde_json::json!({
+            Ok(feeds) => span.ok_json(serde_json::json!({
                 "url": url,
                 "feeds": feeds,
                 "count": feeds.len(),
-            }))
-            .to_json_string()),
+            })),
             Err(e) => span.error(
                 McpErrorKind::Unavailable,
                 McpToolError::unavailable(e.to_string()).to_json_string(),
@@ -672,15 +644,13 @@ impl RssServer {
         let result = spawn_db(db, move |conn| edit_tags(conn, &req)).await;
 
         match result {
-            Ok(Ok(v)) => span.ok(McpToolOutput::new(v).to_json_string()),
-            Ok(Err(e)) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(e.to_string()).to_json_string(),
-            ),
-            Err(e) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(format!("Task error: {}", e)).to_json_string(),
-            ),
+            Ok(Ok(v)) => span.ok_json(v),
+            Ok(Err(e)) => span.internal_error(serde_json::json!({
+                "error": e.to_string(),
+            })),
+            Err(e) => span.internal_error(serde_json::json!({
+                "error": format!("Task error: {}", e),
+            })),
         }
     }
 }

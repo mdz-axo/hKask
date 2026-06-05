@@ -1,5 +1,8 @@
 //! hKask Storage — SQLite + SQLCipher storage backend
 
+#[macro_use]
+mod store_macros;
+
 pub mod agent_registry;
 pub mod consent_store;
 pub mod database;

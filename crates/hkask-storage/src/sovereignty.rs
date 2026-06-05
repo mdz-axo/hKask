@@ -8,9 +8,8 @@
 //! - Kill-zone detector thresholds
 
 use hkask_types::InfrastructureError;
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
 /// Sovereignty boundary store errors
@@ -23,11 +22,7 @@ pub enum SovereigntyStoreError {
     UuidParse(String),
 }
 
-impl From<rusqlite::Error> for SovereigntyStoreError {
-    fn from(e: rusqlite::Error) -> Self {
-        SovereigntyStoreError::Infra(InfrastructureError::Database(e.to_string()))
-    }
-}
+impl_from_rusqlite!(SovereigntyStoreError, Infra);
 
 impl From<serde_json::Error> for SovereigntyStoreError {
     fn from(e: serde_json::Error) -> Self {
@@ -49,24 +44,12 @@ pub struct SovereigntyBoundaryEntry {
     pub updated_at: i64,
 }
 
-/// Sovereignty Boundary Store
-#[derive(Clone)]
-pub struct SovereigntyBoundaryStore {
-    conn: Arc<Mutex<Connection>>,
-}
+define_store!(SovereigntyBoundaryStore);
 
 impl SovereigntyBoundaryStore {
-    /// Create new store with a shared encrypted connection
-    pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
-        Self { conn }
-    }
-
     /// Initialize the database schema
     pub fn initialize_schema(&self) -> Result<(), SovereigntyStoreError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         conn.execute_batch(
             "
             CREATE TABLE IF NOT EXISTS sovereignty_boundaries (
@@ -89,10 +72,7 @@ impl SovereigntyBoundaryStore {
 
     /// Store sovereignty boundary for a WebID
     pub fn store(&self, entry: &SovereigntyBoundaryEntry) -> Result<(), SovereigntyStoreError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         let sovereign_json = serde_json::to_string(&entry.sovereign_categories)?;
         let shared_json = serde_json::to_string(&entry.shared_categories)?;
         let public_json = serde_json::to_string(&entry.public_categories)?;
@@ -131,10 +111,7 @@ impl SovereigntyBoundaryStore {
         &self,
         webid: &str,
     ) -> Result<Option<SovereigntyBoundaryEntry>, SovereigntyStoreError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
             "SELECT id, webid, sovereign_categories, shared_categories, public_categories,
                     resistance, kill_zone_threshold, created_at, updated_at
@@ -179,10 +156,7 @@ impl SovereigntyBoundaryStore {
 
     /// Delete sovereignty boundary for a WebID
     pub fn delete(&self, webid: &str) -> Result<(), SovereigntyStoreError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         conn.execute(
             "DELETE FROM sovereignty_boundaries WHERE webid = ?1",
             params![webid],

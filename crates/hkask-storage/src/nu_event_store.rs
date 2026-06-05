@@ -3,8 +3,7 @@
 use hkask_types::event::{Phase, Span, SpanNamespace};
 use hkask_types::id::{EventID, WebID};
 use hkask_types::{InfrastructureError, NuEvent, NuEventSink};
-use rusqlite::Connection;
-use std::sync::{Arc, Mutex};
+
 use thiserror::Error;
 
 /// Per-domain decay constants for weighted replay.
@@ -51,11 +50,7 @@ pub enum NuEventError {
     Infra(#[from] InfrastructureError),
 }
 
-impl From<rusqlite::Error> for NuEventError {
-    fn from(e: rusqlite::Error) -> Self {
-        NuEventError::Infra(InfrastructureError::Database(e.to_string()))
-    }
-}
+impl_from_rusqlite!(NuEventError, Infra);
 
 impl From<serde_json::Error> for NuEventError {
     fn from(e: serde_json::Error) -> Self {
@@ -70,15 +65,9 @@ impl From<serde_json::Error> for NuEventError {
 /// kill-zone threats, and agent pod failures.
 const ALGEDONIC_SPAN_CATEGORIES: &[&str] = &["energy", "variety", "killzone", "agent_pod"];
 
-pub struct NuEventStore {
-    conn: Arc<Mutex<Connection>>,
-}
+define_store!(NuEventStore);
 
 impl NuEventStore {
-    pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
-        Self { conn }
-    }
-
     /// Replay events with exponentially decaying weights.
     ///
     /// Events are weighted by `exp(-λ · Δt)` where Δt is the time elapsed
@@ -130,10 +119,7 @@ impl NuEventStore {
     }
 
     pub(crate) fn insert(&self, event: &NuEvent) -> Result<(), NuEventError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         let (span_category, span_path) = span_to_columns(&event.span);
 
         conn.execute(
@@ -171,10 +157,7 @@ impl NuEventStore {
         since: chrono::DateTime<chrono::Utc>,
         limit: u64,
     ) -> Result<Vec<NuEvent>, NuEventError> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
 
         let since_str = since.to_rfc3339();
 
