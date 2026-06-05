@@ -10,6 +10,7 @@
 
 use hkask_cns::{CnsRuntime, DEFAULT_THRESHOLD};
 use hkask_mcp::server::ToolSpanGuard;
+use hkask_mcp::validate_field;
 use hkask_types::WebID;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
@@ -116,9 +117,7 @@ impl CnsServer {
         let span = ToolSpanGuard::new("cns_variety", &self.webid);
 
         // Validate identifiers
-        if let Err(e) = validate_identifier("span_pattern", &span_pattern, 256) {
-            return span.error(e.kind, e.to_json_string());
-        }
+        validate_field!(span, "span_pattern", &span_pattern, 256);
 
         let variety_count = self.runtime.variety_for_domain(&span_pattern).await;
         let deficit = variety_count > self.threshold.load(Ordering::Relaxed);
@@ -141,12 +140,8 @@ impl CnsServer {
         let span = ToolSpanGuard::new("cns_alert", &self.webid);
 
         // Validate identifiers
-        if let Err(e) = validate_identifier("span_pattern", &span_pattern, 256) {
-            return span.error(e.kind, e.to_json_string());
-        }
-        if let Err(e) = validate_identifier("severity", &severity, 32) {
-            return span.error(e.kind, e.to_json_string());
-        }
+        validate_field!(span, "span_pattern", &span_pattern, 256);
+        validate_field!(span, "severity", &severity, 32);
 
         let alert = self.runtime.check_variety(&span_pattern).await;
 
@@ -178,9 +173,7 @@ impl CnsServer {
         let span = ToolSpanGuard::new("cns_calibrate", &self.webid);
 
         // Validate identifiers
-        if let Err(e) = validate_identifier("span_pattern", &span_pattern, 256) {
-            return span.error(e.kind, e.to_json_string());
-        }
+        validate_field!(span, "span_pattern", &span_pattern, 256);
 
         let old_threshold = self.threshold.load(Ordering::Relaxed);
         self.runtime

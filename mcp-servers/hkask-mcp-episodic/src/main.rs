@@ -15,6 +15,7 @@
 //! server context.
 
 use hkask_mcp::server::ToolSpanGuard;
+use hkask_mcp::validate_field;
 use hkask_memory::EpisodicMemory;
 use hkask_storage::Triple;
 use hkask_types::{Visibility, WebID};

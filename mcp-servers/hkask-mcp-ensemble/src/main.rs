@@ -11,6 +11,7 @@ use hkask_ensemble::{
     ChatMessage, ChatParticipant, ParticipantRole, StandingSession, bootstrap_standing_session,
 };
 use hkask_mcp::server::{McpToolOutput, ToolSpanGuard};
+use hkask_mcp::validate_field;
 use hkask_types::McpErrorKind;
 use hkask_types::WebID;
 use rmcp::handler::server::wrapper::Parameters;

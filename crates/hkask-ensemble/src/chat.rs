@@ -11,7 +11,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::RwLock;
 use tracing::info;
 
 use crate::improv::{ImprovError, ImprovMode, ImprovSessionConfig, ImprovTurn, improv_turn};
@@ -893,44 +892,5 @@ mod tests {
         chat.add_message(ChatMessage::new(curator_id(), "allowed".into()));
         assert_eq!(chat.get_history().len(), 1);
         assert_eq!(mock.acquire_calls.load(Ordering::Relaxed), 100);
-    }
-
-    // ── SessionManager tests ───────────────────────────────────────
-
-    #[tokio::test]
-    async fn session_manager_create_and_get_chat() {
-        let mgr = SessionManager::new(curator_id());
-        let chat = mgr.create_chat("s1").await;
-        let retrieved = mgr.get_chat("s1").await;
-        assert!(retrieved.is_some());
-        assert!(Arc::ptr_eq(&chat, &retrieved.unwrap()));
-    }
-
-    #[tokio::test]
-    async fn session_manager_delete_chat() {
-        let mgr = SessionManager::new(curator_id());
-        mgr.create_chat("s1").await;
-        assert!(mgr.delete_chat("s1").await);
-        assert!(mgr.get_chat("s1").await.is_none());
-    }
-
-    #[tokio::test]
-    async fn session_manager_clone_shared_shares_state() {
-        let mgr = SessionManager::new(curator_id());
-        let mgr2 = mgr.clone_shared();
-        mgr.create_chat("shared").await;
-        assert!(mgr2.get_chat("shared").await.is_some());
-    }
-
-    #[tokio::test]
-    async fn session_manager_gas_governance_wired_into_chat() {
-        let mock = Arc::new(MockGasGovernance::new(false));
-        let mgr = SessionManager::new(curator_id()).with_gas_governance(mock);
-        let chat = mgr.create_chat("gov").await;
-        // Governance blocks → message rejected
-        chat.write()
-            .await
-            .add_message(ChatMessage::new(curator_id(), "blocked".into()));
-        assert_eq!(chat.read().await.get_history().len(), 0);
     }
 }

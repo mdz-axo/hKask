@@ -142,10 +142,10 @@ mod tests {
     use super::*;
     use crate::chat::{ChatMessage, GasBudgetConfig};
     use hkask_types::WebID;
-    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     fn curator_id() -> WebID {
-        WebID::new("curator_test")
+        WebID::from_persona(b"curator")
     }
 
     struct MockGasGovernance {
@@ -163,12 +163,11 @@ mod tests {
     }
 
     impl GasGovernancePort for MockGasGovernance {
-        fn can_proceed(&self, _used: u32, _cap: u32) -> bool {
+        fn can_proceed(&self, _gas: u64) -> bool {
             self.can_proceed_result
         }
-        fn acquire(&self, _cost: u32) -> bool {
+        fn acquire(&self, _gas: u64) {
             self.acquire_calls.fetch_add(1, Ordering::SeqCst);
-            self.can_proceed_result
         }
     }
 

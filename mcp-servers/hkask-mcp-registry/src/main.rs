@@ -1,6 +1,7 @@
 //! hKask MCP Registry — Template registry with real registry operations
 
 use hkask_mcp::server::{McpToolError, ToolSpanGuard};
+use hkask_mcp::validate_field;
 use hkask_templates::{Registry, RegistryIndex, SqliteRegistry};
 use hkask_types::{TemplateType, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
@@ -161,9 +162,7 @@ impl RegistryServer {
     ) -> String {
         let span = ToolSpanGuard::new("registry:validate", &self.webid);
 
-        if let Err(e) = validate_identifier("template_id", &template_id, 256) {
-            return span.error(e.kind, e.to_json_string());
-        }
+        validate_field!(span, "template_id", &template_id, 256);
 
         let registry = self.registry.read().await;
 
@@ -196,9 +195,7 @@ impl RegistryServer {
     ) -> String {
         let span = ToolSpanGuard::new("registry:reload", &self.webid);
 
-        if let Err(e) = validate_identifier("path", &path, 512) {
-            return span.error(e.kind, e.to_json_string());
-        }
+        validate_field!(span, "path", &path, 512);
 
         let mut registry = self.registry.write().await;
         registry.reload();
@@ -219,9 +216,7 @@ impl RegistryServer {
     ) -> String {
         let span = ToolSpanGuard::new("registry:compose", &self.webid);
 
-        if let Err(e) = validate_identifier("template_id", &root_template_id, 256) {
-            return span.error(e.kind, e.to_json_string());
-        }
+        validate_field!(span, "template_id", &root_template_id, 256);
 
         let registry = self.registry.read().await;
 
@@ -250,9 +245,7 @@ impl RegistryServer {
     ) -> String {
         let span = ToolSpanGuard::new("registry:get", &self.webid);
 
-        if let Err(e) = validate_identifier("template_id", &template_id, 256) {
-            return span.error(e.kind, e.to_json_string());
-        }
+        validate_field!(span, "template_id", &template_id, 256);
 
         let registry = self.registry.read().await;
 

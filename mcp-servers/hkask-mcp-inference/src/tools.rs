@@ -13,6 +13,7 @@
 //! implementation and violate the authority DAG (Cybernetics governs Communication).
 
 use hkask_mcp::server::{McpToolError, ToolSpanGuard};
+use hkask_mcp::validate_field;
 use hkask_templates::{InferencePort, OkapiConfig, OkapiInference};
 use hkask_types::{LLMParameters, McpErrorKind, WebID};
 use rmcp::handler::server::wrapper::Parameters;

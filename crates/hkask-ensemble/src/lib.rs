@@ -10,19 +10,21 @@ pub mod confidence_router;
 pub mod deliberation;
 pub mod improv;
 pub mod ports;
+pub mod session;
 pub mod standing_session;
 
 // Re-export commonly used types
 pub use adapters::{CircuitBreakerInferenceAdapter, InferencePortAdapter};
 pub use chat::{
     ChatMessage, ChatParticipant, DegradationLevel, EnsembleChat, EnsembleError, GasBudgetConfig,
-    ParticipantRole, SessionManager,
+    ParticipantRole,
 };
 pub use chat_dedup::{ChatDedup, dedup_messages, message_hash};
 pub use confidence_router::{ConfidenceConfig, check_and_escalate, compute_confidence};
 pub use deliberation::{AgentResponse, DeliberationSession};
 pub use improv::{ImprovError, ImprovMode, ImprovSessionConfig, ImprovTurn};
 pub use ports::{GasGovernancePort, GenerateOptions, GenerateRequest};
+pub use session::SessionManager;
 pub use standing_session::{
     GasSection, StandingSession, StandingSessionConfig, StandingSessionError,
     StandingSessionStatus, bootstrap_standing_session, bootstrap_standing_session_with_store,

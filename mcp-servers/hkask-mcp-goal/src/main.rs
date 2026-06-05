@@ -7,6 +7,7 @@
 //! (ADR-029).
 
 use hkask_mcp::server::{McpToolError, ToolSpanGuard};
+use hkask_mcp::validate_field;
 use hkask_storage::{Database, NuEventStore, SqliteGoalRepository};
 use hkask_types::event::NuEventSink;
 use hkask_types::goal::GoalState;

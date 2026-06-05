@@ -8,6 +8,7 @@
 //! - `ocap:list_tokens` — List all capability tokens
 
 use hkask_mcp::server::{McpToolError, ToolSpanGuard};
+use hkask_mcp::validate_field;
 use hkask_types::{
     CapabilityChecker, CapabilitySpec, DelegationAction, DelegationResource, DelegationToken,
     McpErrorKind, WebID,
