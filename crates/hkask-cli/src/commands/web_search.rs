@@ -5,14 +5,17 @@
 pub fn run(rt: &tokio::runtime::Runtime, query: String, max_results: usize) {
     use hkask_templates::McpPort;
 
-    let (dispatcher, token) =
-        crate::commands::config::create_mcp_dispatcher().unwrap_or_else(|e| {
-            eprintln!("Failed to create MCP dispatcher: {}", e);
-            std::process::exit(1);
-        });
+    let (dispatcher, token) = crate::commands::config::create_mcp_dispatcher_with_servers(
+        rt,
+        &[("web", "hkask-mcp-web")],
+    )
+    .unwrap_or_else(|e| {
+        eprintln!("Failed to create MCP dispatcher: {}", e);
+        std::process::exit(1);
+    });
 
     match rt.block_on(dispatcher.invoke(
-        "web:search",
+        "web_search",
         serde_json::json!({"query": query, "max_results": max_results}),
         &token,
     )) {
@@ -48,4 +51,6 @@ pub fn run(rt: &tokio::runtime::Runtime, query: String, max_results: usize) {
             std::process::exit(1);
         }
     }
+
+    rt.block_on(dispatcher.shutdown_all());
 }

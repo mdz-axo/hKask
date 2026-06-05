@@ -219,7 +219,7 @@ impl McpRuntime {
             .await
             .ok_or_else(|| rmcp::service::ServiceError::TransportClosed)?;
 
-        let params = CallToolRequestParams::new(tool).with_arguments(arguments);
+        let params = CallToolRequestParams::new(tool.to_string()).with_arguments(arguments);
         peer.call_tool(params).await
     }
 

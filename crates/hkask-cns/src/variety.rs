@@ -94,7 +94,8 @@ impl VarietyMonitor {
     }
 
     /// Get total variety deficit across all domains
-    pub fn total_deficit(&self, expected_per_domain: u64) -> u64 {
+    #[allow(dead_code)] // Available for composition roots; not yet consumed externally
+    pub(crate) fn total_deficit(&self, expected_per_domain: u64) -> u64 {
         self.counters
             .values()
             .map(|c| c.deficit(expected_per_domain))

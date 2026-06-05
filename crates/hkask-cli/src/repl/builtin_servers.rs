@@ -340,6 +340,36 @@ pub async fn register_builtin_servers(runtime: &McpRuntime) -> usize {
                 input_schema: serde_json::json!({ "type": "object" }),
                 server_id: "hkask-mcp-semantic".into(),
             },
+            McpTool {
+                name: "semantic_centroid".into(),
+                description:
+                    "Compute mean embedding vector (centroid) for embeddings matching a prefix."
+                        .into(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "prefix": { "type": "string" },
+                        "exclude_prefix": { "type": "string" },
+                        "exclude_ref": { "type": "string" },
+                        "dim": { "type": "integer" }
+                    },
+                    "required": ["prefix", "exclude_prefix", "exclude_ref", "dim"]
+                }),
+                server_id: "hkask-mcp-semantic".into(),
+            },
+            McpTool {
+                name: "semantic_purge".into(),
+                description: "Delete all embeddings whose entity_ref starts with a prefix.".into(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "prefix": { "type": "string" },
+                        "dim": { "type": "integer" }
+                    },
+                    "required": ["prefix", "dim"]
+                }),
+                server_id: "hkask-mcp-semantic".into(),
+            },
         ],
     };
     total_tools += semantic.tools.len();

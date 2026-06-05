@@ -78,6 +78,14 @@ impl McpDispatcher {
     pub async fn list_tools(&self) -> Vec<String> {
         self.runtime.discover_tools().await
     }
+
+    /// Shut down all managed MCP server processes.
+    ///
+    /// Call this when the dispatcher is no longer needed to clean up
+    /// child processes spawned via `McpRuntime::start_server()`.
+    pub async fn shutdown_all(&self) {
+        self.runtime.shutdown_all().await;
+    }
 }
 
 #[async_trait::async_trait]

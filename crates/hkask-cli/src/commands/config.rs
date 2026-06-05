@@ -162,6 +162,49 @@ pub fn create_mcp_dispatcher()
     Ok((dispatcher, token))
 }
 
+/// Create an MCP dispatcher wired with GovernedTool, a capability token,
+/// and the specified MCP servers started as child processes.
+///
+/// Each `(server_id, command)` pair is passed to `McpRuntime::start_server()`
+/// which spawns the server binary, discovers tools, and registers them.
+/// If any server fails to start, logs a warning and continues.
+///
+/// Returns `(McpDispatcher, token)` for invoking tools.
+pub fn create_mcp_dispatcher_with_servers(
+    rt: &tokio::runtime::Runtime,
+    servers: &[(&str, &str)],
+) -> Result<(hkask_mcp::McpDispatcher, hkask_types::CapabilityToken), RegistryError> {
+    let runtime = hkask_mcp::runtime::McpRuntime::new();
+
+    // Start each MCP server as a child process
+    for (server_id, command) in servers {
+        match rt.block_on(runtime.start_server(server_id, command)) {
+            Ok(()) => {
+                tracing::info!(
+                    target: "hkask.cli",
+                    server_id = %server_id,
+                    "MCP server started"
+                );
+            }
+            Err(e) => {
+                tracing::warn!(
+                    target: "hkask.cli",
+                    server_id = %server_id,
+                    error = %e,
+                    "Failed to start MCP server"
+                );
+            }
+        }
+    }
+
+    let mcp_secret = resolve_mcp_secret()?;
+    let (dispatcher, _) = create_disconnected_governed_dispatcher(runtime, mcp_secret.as_bytes());
+    let from = hkask_types::WebID::new();
+    let to = hkask_types::WebID::new();
+    let token = dispatcher.issue_capability("tools".to_string(), from, to);
+    Ok((dispatcher, token))
+}
+
 // ── Pre-resolved Secrets ────────────────────────────────────────────────────
 
 /// Pre-resolved secrets for onboarding, passed explicitly instead of

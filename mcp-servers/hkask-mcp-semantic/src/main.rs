@@ -1,11 +1,13 @@
 //! hKask MCP Semantic — Semantic memory store, recall, and similarity search
 //!
-//! 6 tools:
+//! 8 tools:
 //! - `semantic_ping` — Liveness and storage info
 //! - `semantic_store` — Store a shared semantic triple (no perspective)
 //! - `semantic_recall` — Recall triples by entity (public, any agent can read)
 //! - `semantic_embed` — Store an embedding vector for similarity search
 //! - `semantic_search` — KNN similarity search over embeddings
+//! - `semantic_centroid` — Compute mean embedding vector for a prefix-filtered set
+//! - `semantic_purge` — Delete embeddings matching an entity_ref prefix
 //! - `semantic_count` — Triple and embedding counts
 //!
 //! **Consolidation NOT exposed:** The Episodic → Semantic consolidation bridge
@@ -47,6 +49,20 @@ pub struct EmbedRequest {
 pub struct SearchRequest {
     pub query_vector: Vec<f32>,
     pub limit: Option<usize>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct CentroidRequest {
+    pub prefix: String,
+    pub exclude_prefix: String,
+    pub exclude_ref: String,
+    pub dim: usize,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct PurgeRequest {
+    pub prefix: String,
+    pub dim: usize,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -213,6 +229,73 @@ impl SemanticServer {
         }
     }
 
+    #[tool(
+        description = "Compute mean embedding vector (centroid) for embeddings matching a prefix"
+    )]
+    async fn semantic_centroid(
+        &self,
+        Parameters(CentroidRequest {
+            prefix,
+            exclude_prefix,
+            exclude_ref,
+            dim,
+        }): Parameters<CentroidRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("semantic_centroid", &self.webid);
+
+        validate_field!(span, "prefix", &prefix, 256);
+        validate_field!(span, "exclude_prefix", &exclude_prefix, 256);
+        validate_field!(span, "exclude_ref", &exclude_ref, 256);
+
+        if dim == 0 {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument("dim must be positive").to_json_string(),
+            );
+        }
+
+        match self
+            .memory
+            .compute_centroid(&prefix, &exclude_prefix, &exclude_ref, dim)
+        {
+            Ok(centroid) => span.ok_json(json!({
+                "centroid": centroid,
+                "dimensions": centroid.len(),
+                "prefix": prefix,
+            })),
+            Err(e) => {
+                span.internal_error(json!({"error": format!("Failed to compute centroid: {}", e)}))
+            }
+        }
+    }
+
+    #[tool(description = "Delete all embeddings whose entity_ref starts with a prefix")]
+    async fn semantic_purge(
+        &self,
+        Parameters(PurgeRequest { prefix, dim }): Parameters<PurgeRequest>,
+    ) -> String {
+        let span = ToolSpanGuard::new("semantic_purge", &self.webid);
+
+        validate_field!(span, "prefix", &prefix, 256);
+
+        if dim == 0 {
+            return span.error(
+                McpErrorKind::InvalidArgument,
+                McpToolError::invalid_argument("dim must be positive").to_json_string(),
+            );
+        }
+
+        match self.memory.purge_by_prefix(&prefix, dim) {
+            Ok(count) => span.ok_json(json!({
+                "purged": count,
+                "prefix": prefix,
+            })),
+            Err(e) => {
+                span.internal_error(json!({"error": format!("Failed to purge embeddings: {}", e)}))
+            }
+        }
+    }
+
     #[tool(description = "Triple and embedding counts for semantic memory")]
     async fn semantic_count(&self, Parameters(_req): Parameters<CountRequest>) -> String {
         let span = ToolSpanGuard::new("semantic_count", &self.webid);
@@ -226,8 +309,9 @@ impl SemanticServer {
         let embedding_count = match self.memory.embedding_count() {
             Ok(c) => c,
             Err(e) => {
-                return span
-                    .internal_error(json!({"error": format!("Failed to count embeddings: {}", e)}));
+                return span.internal_error(
+                    json!({"error": format!("Failed to count embeddings: {}", e)}),
+                );
             }
         };
         span.ok_json(json!({"triple_count": triple_count, "embedding_count": embedding_count}))

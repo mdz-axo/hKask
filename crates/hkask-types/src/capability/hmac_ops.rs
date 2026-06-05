@@ -50,8 +50,7 @@ impl HmacBuilder {
 ///
 /// Convenience wrapper around [`HmacBuilder`] for the common case where
 /// all fields are known upfront.
-#[allow(dead_code)]
-pub fn compute_hmac(secret: &[u8], fields: &[&[u8]]) -> [u8; 32] {
+pub(crate) fn compute_hmac(secret: &[u8], fields: &[&[u8]]) -> [u8; 32] {
     let mut builder = HmacBuilder::new(secret);
     for field in fields {
         builder.update(field);
@@ -70,8 +69,7 @@ pub fn encode_signature(hmac_bytes: &[u8]) -> String {
 /// Decode a hex-encoded signature string back to raw bytes.
 ///
 /// Inverse of [`encode_signature`].
-#[allow(dead_code)]
-pub fn decode_signature(encoded: &str) -> Result<Vec<u8>, String> {
+pub(crate) fn decode_signature(encoded: &str) -> Result<Vec<u8>, String> {
     hex::decode(encoded).map_err(|e| e.to_string())
 }
 

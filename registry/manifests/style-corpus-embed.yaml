@@ -1,0 +1,314 @@
+# Style Corpus Embed Pipeline Manifest
+# ℏKask v0.22.0 — A Minimal Viable Container for Agents
+#
+# Declarative pipeline for constructing a style embedding corpus:
+# download texts → clean → chunk → embed → store → centroid → validate → CNS
+#
+# Composed from existing MCP tools:
+#   hkask-mcp-web/web_extract      — download texts (Step 1)
+#   hkask-mcp-semantic/semantic_purge — idempotent re-ingest (Step 2)
+#   hkask-mcp-semantic/semantic_embed — store passage vectors (Step 5)
+#   hkask-mcp-semantic/semantic_centroid — compute style centroid (Step 6)
+#   hkask-mcp-cns                  — variety feedback (Step 7)
+#
+# Input: corpus.yaml (e.g., registry/styles/hemingway/corpus.yaml)
+
+manifest:
+  id: style-corpus-embed
+  name: Style Corpus Embed Pipeline
+  functional_role: flowdef
+  description: >
+    Declarative pipeline for constructing a style embedding corpus.
+    Reads a corpus.yaml specification, downloads public domain texts via web_extract,
+    chunks them into passages, embeds via Okapi, stores in sqlite-vec,
+    computes a style centroid, and emits CNS feedback.
+    Idempotent: purges existing author embeddings before re-ingest.
+  version: 0.22.0
+  editor: curator
+  visibility: Shared
+
+# Energy Budget Configuration
+gas:
+  cap: 50000
+  cost_per_token: 0.25
+  alert_threshold: 0.8
+  hard_limit: true
+
+# Inputs (from corpus.yaml)
+inputs:
+  - name: corpus_config
+    type: string
+    description: "Path to corpus config YAML (e.g., registry/styles/hemingway/corpus.yaml)"
+    required: true
+  - name: db_path
+    type: string
+    description: "Path to hKask semantic database"
+    required: true
+  - name: okapi_url
+    type: string
+    description: "Okapi embedding API base URL (default: http://localhost:8080)"
+    required: false
+
+# Process Steps
+steps:
+  # Step 1: Purge existing embeddings for idempotent re-ingest
+  - ordinal: 1
+    action: execute
+    description: >
+      Purge existing embeddings for this author to ensure idempotent re-ingest.
+      Deletes all embeddings whose entity_ref starts with the author prefix.
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: hkask-mcp-semantic
+    tool: semantic_purge
+    arguments:
+      prefix: "style:${corpus_config.author}:"
+      dim: "${corpus_config.embedding.dim}"
+    gas_cap: 1000
+    timeout_seconds: 30
+    output_schema:
+      type: object
+      properties:
+        purged:
+          type: integer
+          description: "Number of embeddings purged"
+
+  # Step 2: Download each work via web_extract
+  # Uses hkask-mcp-web's RawFetchProvider with proper User-Agent,
+  # rate limiting, and caching — all handled by the MCP server.
+  - ordinal: 2
+    action: execute
+    description: >
+      Download each work from its URL via hkask-mcp-web's web_extract.
+      Rate limiting and caching are handled by the MCP server.
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: hkask-mcp-web
+    tool: web_extract
+    loop_over: "${corpus_config.works}"
+    arguments:
+      url: "${item.url}"
+      format: "markdown"
+      main_content_only: true
+    gas_cap: 8000
+    timeout_seconds: 120
+    output_schema:
+      type: object
+      properties:
+        downloaded_works:
+          type: array
+          items:
+            type: object
+            properties:
+              slug: { type: string }
+              content: { type: string }
+              content_length: { type: integer }
+
+  # Step 3: Clean and chunk downloaded texts into passages
+  # Strips Gutenberg headers/footers, splits on paragraph boundaries,
+  # and produces passages within min_words/max_words bounds.
+  # (Chunking is performed by the CLI orchestration layer, which reads
+  # the corpus.yaml chunking config and applies text processing.)
+  - ordinal: 3
+    action: execute
+    description: >
+      Clean and chunk downloaded texts into passages.
+      Strip Gutenberg headers/footers, split on paragraph boundaries,
+      produce passages within min_words/max_words bounds.
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: null
+    gas_cap: 2000
+    timeout_seconds: 30
+    output_schema:
+      type: object
+      properties:
+        passages:
+          type: array
+          items:
+            type: object
+            properties:
+              entity_ref: { type: string }
+              text: { type: string }
+        total_passages: { type: integer }
+
+  # Step 4: Embed passages in batches via Okapi
+  - ordinal: 4
+    action: execute
+    description: >
+      Embed passage texts in batches via Okapi's embed_sentences API.
+      Uses the model and batch_size from corpus.yaml.
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: hkask-mcp-inference
+    gas_cap: 20000
+    timeout_seconds: 300
+    output_schema:
+      type: object
+      properties:
+        embedded_passages:
+          type: integer
+          description: "Number of passages successfully embedded"
+
+  # Step 5: Store each passage embedding in sqlite-vec
+  - ordinal: 5
+    action: execute
+    description: >
+      Store each passage embedding vector in sqlite-vec via semantic_embed.
+      Indexed by entity_ref for KNN retrieval.
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: hkask-mcp-semantic
+    tool: semantic_embed
+    loop_over: "${step4.embedded_passages}"
+    arguments:
+      entity_ref: "${item.entity_ref}"
+      vector: "${item.vector}"
+      model: "${corpus_config.embedding.model}"
+    gas_cap: 5000
+    timeout_seconds: 120
+    output_schema:
+      type: object
+      properties:
+        stored_count: { type: integer }
+
+  # Step 6: Compute and store style centroid
+  - ordinal: 6
+    action: execute
+    description: >
+      Compute the style centroid (mean embedding vector) for this author.
+      Excludes foundational rules and the centroid itself.
+      Store the centroid vector for style validation during generation.
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: hkask-mcp-semantic
+    tool: semantic_centroid
+    arguments:
+      prefix: "style:${corpus_config.author}:"
+      exclude_prefix: "style:${corpus_config.author}:rule:"
+      exclude_ref: "style:${corpus_config.author}:centroid"
+      dim: "${corpus_config.embedding.dim}"
+    gas_cap: 1000
+    timeout_seconds: 30
+    output_schema:
+      type: object
+      properties:
+        centroid:
+          type: array
+          items: { type: number }
+        dimensions: { type: integer }
+
+  # Step 7: Validate centroid distance threshold
+  - ordinal: 7
+    action: validate
+    description: >
+      Validate that the centroid was computed successfully and the
+      corpus meets minimum quality thresholds.
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: hkask-mcp-semantic
+    gas_cap: 500
+    timeout_seconds: 10
+    validation_rules:
+      - centroid_computed
+      - exemplar_count_within_bounds
+    output_schema:
+      type: object
+      properties:
+        validated: { type: boolean }
+        centroid_distance_max: { type: number }
+        exemplar_count: { type: integer }
+        error_reason: { type: string }
+
+  # Step 8: Emit CNS feedback for variety tracking
+  - ordinal: 8
+    action: feedback
+    description: >
+      Emit CNS feedback for corpus embedding variety tracking.
+      Record total passages embedded, centroid computed, and
+      validation outcome.
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: hkask-mcp-cns
+    gas_cap: 500
+    timeout_seconds: 5
+    feedback:
+      variety_delta: integer
+      passages_embedded: integer
+      centroid_computed: boolean
+      validation_passed: boolean
+    output_schema:
+      type: object
+      properties:
+        variety_counter: { type: integer }
+        cns_event_id: { type: string }
+
+# Error Handling
+error_handling:
+  on_gas_exceeded: abort
+  on_timeout: retry
+  max_retries: 2
+  retry_backoff_seconds: 2
+  on_validation_failure: abort
+  on_download_failure: skip_and_continue
+
+# OCAP Configuration
+ocap:
+  required_capabilities:
+    - resource: web
+      action: extract
+      template_id: style-corpus-embed
+      gas_budget: 8000
+    - resource: embedding
+      action: store
+      template_id: style-corpus-embed
+      gas_budget: 5000
+    - resource: embedding
+      action: centroid
+      template_id: style-corpus-embed
+      gas_budget: 1000
+    - resource: embedding
+      action: purge
+      template_id: style-corpus-embed
+      gas_budget: 1000
+    - resource: inference
+      action: embed
+      template_id: style-corpus-embed
+      gas_budget: 20000
+    - resource: cns
+      action: emit
+      template_id: style-corpus-embed
+      gas_budget: 500
+  delegation_chain_required: true
+  signature_algorithm: ed25519
+  capability_expiry_seconds: 3600
+  template_scoped: true
+
+# CNS Monitoring
+cns:
+  emit_spans: true
+  span_namespace: cns.prompt.style-corpus-embed
+  variety_monitoring: true
+  algedonic_threshold: 100
+  escalation_target: Curator
+  variety_counters:
+    - passages_embedded
+    - centroid_computed
+    - validation_outcome
+
+# Audit Trail
+audit:
+  enabled: true
+  log_level: info
+  include_input: true
+  include_output: true
+  include_gas_cost: true
+  include_cns_events: true

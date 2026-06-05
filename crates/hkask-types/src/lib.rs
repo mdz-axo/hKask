@@ -40,20 +40,18 @@ pub use agent_def::{
 pub use audit::{AuditEntry, AuditLogPort, AuditOutcome};
 pub use bundle::{
     BundleComplementarity, BundleConflict, BundleDependencyIndex, BundleManifest,
-    BundleManifestStep, BundleSkill, BundleSkillChange, CascadePhase, ComplementarityType,
-    CompositionError, ConflictResolution, ConflictType, GasConfig, SkillPolarity, ValidationResult,
-    VersionBump,
+    BundleManifestStep, BundleSkillChange, CascadePhase, ComplementarityType, CompositionError,
+    ConflictResolution, ConflictType, GasConfig, SkillPolarity, ValidationResult, VersionBump,
 };
-pub use capability::tokens::{ConsolidationToken, IssuerVerification};
+pub use capability::tokens::ConsolidationToken;
 pub use capability::{
-    AgentDelegation, CapabilityAction, CapabilityChecker, CapabilityParseError, CapabilityResource,
-    CapabilitySpec, CapabilityToken, DelegationAction, DelegationResource, DelegationToken,
-    DelegationTokenBuilder, SYSTEM_MAX_ATTENUATION, SYSTEM_MAX_RECURSION,
+    CapabilityAction, CapabilityChecker, CapabilityResource, CapabilitySpec, CapabilityToken,
+    DelegationAction, DelegationResource, DelegationToken, DelegationTokenBuilder,
+    SYSTEM_MAX_ATTENUATION, SYSTEM_MAX_RECURSION,
 };
-pub use cns::{CircuitState, CnsHealth, RetryConfig};
-pub use curation::{CurationDecision, CurationThresholdConfig, OCAPBoundary};
+pub use cns::{CircuitState, CnsHealth};
 pub use error::{GitError, HkaskError, InfrastructureError, McpErrorKind};
-pub use event::{NuEvent, NuEventSink, Phase, Span, SpanNamespace};
+pub use event::{NuEvent, NuEventSink};
 pub use goal::*;
 pub use id::*;
 pub use identity::*;
@@ -76,8 +74,7 @@ pub use r7::{R7BotIdentity, default_r7_bots};
 pub use secret::{SecretRef, derivation_contexts};
 pub use soap_config::InferenceConfig;
 pub use sovereignty::{
-    DataCategory, KillZoneConfig, KillZoneState, KillZoneThresholds, SovereigntyCheckResult,
-    SovereigntyOperation, SovereigntyPort, UserSovereigntyState,
+    DataCategory, KillZoneConfig, SovereigntyCheckResult, SovereigntyPort, UserSovereigntyState,
 };
 pub use template::{
     LLMParameters, TemplateCrate, TemplateFile, TemplateId, TemplateInvocation, TemplateOutcome,

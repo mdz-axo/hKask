@@ -246,10 +246,9 @@ pub(crate) struct Caveat {
 
 // OCAP infrastructure: caveat methods are part of the capability security model
 // but not yet consumed by runtime enforcement. Retain for OCAP completeness.
-#[allow(dead_code)]
 impl Caveat {
     /// Create a new caveat
-    pub fn new(caveat_id: impl Into<String>, data: impl Into<String>) -> Self {
+    pub(crate) fn new(caveat_id: impl Into<String>, data: impl Into<String>) -> Self {
         Self {
             caveat_id: caveat_id.into(),
             data: data.into(),
@@ -257,22 +256,22 @@ impl Caveat {
     }
 
     /// Create an expiration caveat
-    pub fn expiration(unix_timestamp: i64) -> Self {
+    pub(crate) fn expiration(unix_timestamp: i64) -> Self {
         Self::new("expiration", unix_timestamp.to_string())
     }
 
     /// Create an operation caveat
-    pub fn operation(operation: impl Into<String>) -> Self {
+    pub(crate) fn operation(operation: impl Into<String>) -> Self {
         Self::new("operation", operation)
     }
 
     /// Create a template caveat
-    pub fn template(template_id: impl Into<String>) -> Self {
+    pub(crate) fn template(template_id: impl Into<String>) -> Self {
         Self::new("template", template_id)
     }
 
     /// Create a visibility caveat
-    pub fn visibility(visibility: impl Into<String>) -> Self {
+    pub(crate) fn visibility(visibility: impl Into<String>) -> Self {
         Self::new("visibility", visibility)
     }
 }
@@ -655,7 +654,6 @@ impl DelegationToken {
     /// # Returns
     /// A new `DelegationToken` with the caveat added and re-signed
     // OCAP infrastructure: caveat attenuation awaits runtime enforcement
-    #[allow(dead_code)]
     pub(crate) fn add_caveat(&self, caveat: Caveat, secret: &[u8]) -> Self {
         let mut new_token = self.clone();
         new_token.caveats.push(caveat);
@@ -694,7 +692,6 @@ impl DelegationToken {
 
     /// Access all caveats on this token
     // OCAP infrastructure: caveat access awaits runtime enforcement
-    #[allow(dead_code)]
     pub(crate) fn caveats(&self) -> &[Caveat] {
         &self.caveats
     }

@@ -164,6 +164,11 @@ ocap:
       template_id: hemingway-style-synthesizer
       gas_budget: 500
       description: "Embed prompts and generated prose for centroid validation"
+    - resource: embedding
+      action: centroid
+      template_id: hemingway-style-synthesizer
+      gas_budget: 500
+      description: "Compute style centroid for validation distance check"
     - resource: cns
       action: emit
       template_id: hemingway-style-synthesizer

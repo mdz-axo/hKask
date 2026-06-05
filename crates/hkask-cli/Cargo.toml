@@ -42,5 +42,4 @@ anyhow.workspace = true
 dirs = "6"
 rpassword = "7"
 reqwest = { workspace = true }
-rmcp = { workspace = true, features = ["client", "transport-child-process"] }
 base64 = { workspace = true }

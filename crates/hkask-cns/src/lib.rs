@@ -27,7 +27,7 @@ pub use composite_gas_estimator::CompositeGasEstimator;
 pub use cybernetics_loop::{CyberneticsLoop, SetPoints, SetPointsConfig, load_set_points};
 pub use energy::{GasBudget, GasError};
 pub use governed_tool::{GasEstimator, GovernedTool};
-pub use prompt_decomposition::{PromptAnalysis, SentenceDecomposition, decompose_prompt};
+pub use prompt_decomposition::decompose_prompt;
 pub use runtime::CnsRuntime;
 
 // Re-export types moved to hkask-types for backward compatibility

@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# style-corpus-embed — Style corpus embedding pipeline skill
+#
+# Composes the style-corpus-embed FlowDef manifest as a reusable skill.
+# Orchestration: download texts → clean → chunk → embed → store → centroid → validate → CNS
+
+manifest:
+  id: skill/style-corpus-embed
+  name: style-corpus-embed
+  description: "Construct a style embedding corpus from public domain texts. Downloads, chunks, embeds, and stores passages with centroid validation."
+  template_type: FlowDef
+  lexicon_terms: [embed, chunk, corpus, centroid, validate, purge]
+
+steps:
+  - ordinal: 1
+    action: execute
+    description: "Invoke the style-corpus-embed pipeline manifest"
+    renderer: null
+    template_ref: null
+    model_tier: null
+    mcp: hkask-mcp-semantic
+    gas_cap: 50000
+    timeout_seconds: 600
+    output_schema:
+      passages_embedded: integer
+      centroid_stored: boolean
+      validation_passed: boolean
+
+# Consumed by
+consumers:
+  - hemingway-style-synthesizer
+
+# References
+references:
+  - manifests/style-corpus-embed.yaml
+  - styles/hemingway/corpus.yaml

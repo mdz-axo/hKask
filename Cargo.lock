@@ -1164,7 +1164,6 @@ dependencies = [
  "minijinja",
  "rand 0.9.4",
  "reqwest",
- "rmcp",
  "rpassword",
  "rusqlite",
  "rustyline",

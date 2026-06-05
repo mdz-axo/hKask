@@ -18,7 +18,7 @@ pub mod server;
 pub(crate) use adapter_container::AdapterContainer;
 pub use dispatch::McpDispatcher;
 pub use raw_tool_port::RawMcpToolPort;
-pub use runtime::{McpRuntime, McpServer, McpTool};
+pub use runtime::{McpRuntime, McpServer, McpTool, ServerStartError};
 pub use server::{
     CredentialRequirement, ServerContext, api_get, api_put, resolve_credential, run_stdio_server,
     validate_identifier,

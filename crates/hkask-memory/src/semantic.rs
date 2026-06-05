@@ -8,6 +8,8 @@
 //! - **Similarity-augmented recall**: KNN search over embeddings to find
 //!   semantically related triples, enabling context assembly that goes
 //!   beyond exact entity matches.
+//! - **Corpus centroid**: Mean embedding vector for style cluster validation.
+//! - **Prefix purge**: Idempotent re-ingest by deleting embeddings matching a prefix.
 
 use crate::bayesian;
 use crate::recall_dedup;
@@ -27,6 +29,8 @@ pub enum SemanticMemoryError {
     Embedding(#[from] EmbeddingError),
     #[error("Invalid visibility for semantic store: {0}")]
     InvalidVisibility(String),
+    #[error("No embeddings found for centroid: {0}")]
+    NoEmbeddingsForCentroid(String),
 }
 
 /// Semantic memory — shared knowledge graph
@@ -141,6 +145,101 @@ impl SemanticMemory {
     /// Count stored embeddings.
     pub fn embedding_count(&self) -> Result<usize, SemanticMemoryError> {
         Ok(self.embedding.count()?)
+    }
+
+    // ========================================================================
+    // Corpus operations (Loop 2b) — centroid + purge for style embeddings
+    // ========================================================================
+
+    /// Compute the centroid (mean embedding vector) for embeddings matching a prefix.
+    ///
+    /// Only includes embeddings whose `entity_ref` starts with `prefix` but does NOT
+    /// start with `exclude_prefix` and does NOT equal `exclude_ref`. This filters out
+    /// meta-entries (style rules, centroids) that are not prose exemplars.
+    ///
+    /// The centroid is the arithmetic mean of all matching vectors, used for
+    /// style cluster validation: generated prose should fall within a cosine
+    /// distance threshold of this centroid.
+    pub fn compute_centroid(
+        &self,
+        prefix: &str,
+        exclude_prefix: &str,
+        exclude_ref: &str,
+        dim: usize,
+    ) -> Result<Vec<f32>, SemanticMemoryError> {
+        let zero_vec = vec![0.0f32; dim];
+        let results = self.embedding.search(&zero_vec, 10000)?;
+
+        let matching: Vec<&hkask_types::ports::StoredEmbedding> = results
+            .iter()
+            .filter(|r| {
+                let ref_str = &r.embedding.entity_ref;
+                ref_str.starts_with(prefix)
+                    && !ref_str.starts_with(exclude_prefix)
+                    && ref_str != exclude_ref
+            })
+            .map(|r| &r.embedding)
+            .collect();
+
+        if matching.is_empty() {
+            return Err(SemanticMemoryError::NoEmbeddingsForCentroid(
+                prefix.to_string(),
+            ));
+        }
+
+        let mut centroid = vec![0.0f32; dim];
+        for emb in &matching {
+            for (i, v) in emb.vector.iter().enumerate() {
+                centroid[i] += v;
+            }
+        }
+        let count = matching.len() as f32;
+        for v in centroid.iter_mut() {
+            *v /= count;
+        }
+
+        tracing::info!(
+            target: "cns.semantic",
+            prefix = %prefix,
+            passage_count = matching.len(),
+            "Centroid computed"
+        );
+
+        Ok(centroid)
+    }
+
+    /// Purge all embeddings whose `entity_ref` starts with `prefix`.
+    ///
+    /// Uses zero-vector KNN scan to find candidates, then filters by prefix
+    /// and deletes. Returns the number of embeddings deleted.
+    ///
+    /// Used for idempotent re-ingest: purge an author's existing embeddings
+    /// before re-downloading and re-embedding their corpus.
+    pub fn purge_by_prefix(&self, prefix: &str, dim: usize) -> Result<usize, SemanticMemoryError> {
+        let zero_vec = vec![0.0f32; dim];
+        let results = self.embedding.search(&zero_vec, 10000)?;
+
+        let to_delete: Vec<String> = results
+            .iter()
+            .filter(|r| r.embedding.entity_ref.starts_with(prefix))
+            .map(|r| r.embedding.entity_ref.clone())
+            .collect();
+
+        let mut count = 0;
+        for entity_ref in &to_delete {
+            if self.embedding.delete(entity_ref).is_ok() {
+                count += 1;
+            }
+        }
+
+        tracing::info!(
+            target: "cns.semantic",
+            prefix = %prefix,
+            purged = count,
+            "Purged embeddings by prefix"
+        );
+
+        Ok(count)
     }
 
     // ========================================================================
