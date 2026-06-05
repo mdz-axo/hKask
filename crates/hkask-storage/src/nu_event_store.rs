@@ -3,7 +3,6 @@
 use hkask_types::event::{Phase, Span, SpanNamespace};
 use hkask_types::id::{EventID, WebID};
 use hkask_types::{InfrastructureError, NuEvent, NuEventSink};
-
 use thiserror::Error;
 
 /// Per-domain decay constants for weighted replay.

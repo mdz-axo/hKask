@@ -1,6 +1,6 @@
 //! hKask MCP Registry — Template registry with real registry operations
 
-use hkask_mcp::server::{McpToolError, McpToolOutput, ToolSpanGuard, validate_identifier};
+use hkask_mcp::server::{McpToolError, ToolSpanGuard, validate_identifier};
 use hkask_templates::{Registry, RegistryIndex, SqliteRegistry};
 use hkask_types::{TemplateType, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
@@ -99,13 +99,12 @@ impl RegistryServer {
         let registry = self.registry.read().await;
         let entries = registry.list(type_filter);
 
-        span.ok(McpToolOutput::new(json!({
+        span.ok_json(json!({
             "root": root_path,
             "template_type": template_type.unwrap_or_else(|| "all".to_string()),
             "templates_found": entries.len(),
             "indexed": true,
         }))
-        .to_json_string())
     }
 
     #[tool(description = "Discover templates by type and domain via real registry search")]
@@ -149,13 +148,12 @@ impl RegistryServer {
             })
             .collect();
 
-        span.ok(McpToolOutput::new(json!({
+        span.ok_json(json!({
             "template_type": template_type.unwrap_or_else(|| "all".to_string()),
             "domain": domain_hint.unwrap_or_else(|| "any".to_string()),
             "limit": limit,
             "templates": truncated,
         }))
-        .to_json_string())
     }
 
     #[tool(description = "Validate a template via real registry lookup")]
@@ -178,14 +176,13 @@ impl RegistryServer {
         }
 
         match registry.get(&template_id) {
-            Some(entry) => span.ok(McpToolOutput::new(json!({
+            Some(entry) => span.ok_json(json!({
                 "template_id": template_id,
                 "valid": errors.is_empty(),
                 "errors": errors,
                 "template_type": entry.template_type.as_str(),
                 "description": entry.description,
-            }))
-            .to_json_string()),
+            })),
             None => {
                 errors.push(format!("Template '{}' not found in registry", template_id));
                 let err = McpToolError::not_found(errors.join("; "));
@@ -207,12 +204,11 @@ impl RegistryServer {
 
         let mut registry = self.registry.write().await;
         registry.reload();
-        span.ok(McpToolOutput::new(json!({
+        span.ok_json(json!({
             "path": path,
             "reloaded": true,
             "templates_loaded": registry.count(),
         }))
-        .to_json_string())
     }
 
     #[tool(description = "Compose templates with cascade")]
@@ -241,13 +237,12 @@ impl RegistryServer {
             })
             .collect();
 
-        span.ok(McpToolOutput::new(json!({
+        span.ok_json(json!({
             "root": root_template_id,
             "root_found": root_found,
             "cascade": cascade_results,
             "composed": root_found,
         }))
-        .to_json_string())
     }
 
     #[tool(description = "Get a template by ID via real registry lookup")]
@@ -266,7 +261,7 @@ impl RegistryServer {
         match registry.get(&template_id) {
             Some(entry) => {
                 let re = entry;
-                span.ok(McpToolOutput::new(json!({
+                span.ok_json(json!({
                     "template_id": re.id,
                     "template_type": re.template_type.as_str(),
                     "name": re.name,
@@ -274,7 +269,6 @@ impl RegistryServer {
                     "source_path": re.source_path,
                     "lexicon_terms": re.lexicon_terms,
                 }))
-                .to_json_string())
             }
             None => {
                 let err = McpToolError::not_found(format!(

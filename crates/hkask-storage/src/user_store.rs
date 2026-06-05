@@ -10,8 +10,7 @@ use argon2::{PasswordHasher, PasswordVerifier, password_hash::PasswordHash};
 use base64::Engine;
 use hkask_types::{HumanUser, InfrastructureError, ReplicantIdentity, UserID, UserSession};
 use rand::RngCore;
-use rusqlite::{Connection, params};
-use std::sync::{Arc, Mutex};
+use rusqlite::params;
 use thiserror::Error;
 use zeroize::Zeroizing;
 
@@ -36,29 +35,15 @@ pub enum UserStoreError {
     PasswordHash(String),
 }
 
-impl From<rusqlite::Error> for UserStoreError {
-    fn from(e: rusqlite::Error) -> Self {
-        UserStoreError::Infra(InfrastructureError::Database(e.to_string()))
-    }
-}
+impl_from_rusqlite!(UserStoreError, Infra);
 
 pub type Result<T> = std::result::Result<T, UserStoreError>;
 
-#[derive(Clone)]
-pub struct UserStore {
-    conn: Arc<Mutex<Connection>>,
-}
+define_store!(UserStore);
 
 impl UserStore {
-    pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
-        Self { conn }
-    }
-
     pub fn initialize_schema(&self) -> Result<()> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         conn.execute_batch(include_str!("sql/users.sql"))?;
         Ok(())
     }
@@ -90,10 +75,7 @@ impl UserStore {
         let first_name_enc = Self::encrypt_pii(first_name.as_bytes(), &pii_key)?;
         let last_name_enc = Self::encrypt_pii(last_name.as_bytes(), &pii_key)?;
 
-        let mut conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let mut conn = self.lock_conn()?;
         let tx = conn.transaction()?;
 
         tx.execute(
@@ -149,10 +131,7 @@ impl UserStore {
     }
 
     pub fn logout(&self, session_id: &str) -> Result<()> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         conn.execute(
             "DELETE FROM user_sessions WHERE session_id = ?1",
             params![session_id],
@@ -161,10 +140,7 @@ impl UserStore {
     }
 
     pub fn get_session(&self, session_id: &str) -> Result<Option<UserSession>> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
             "SELECT session_id, replicant_name, replicant_webid, user_id, session_key_salt, expires_at, last_active
              FROM user_sessions WHERE session_id = ?1",
@@ -197,10 +173,7 @@ impl UserStore {
     }
 
     pub fn list_sessions(&self, replicant_name: &str) -> Result<Vec<UserSession>> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
             "SELECT session_id, replicant_name, replicant_webid, user_id, session_key_salt, expires_at, last_active
              FROM user_sessions WHERE replicant_name = ?1 ORDER BY last_active DESC",
@@ -234,10 +207,7 @@ impl UserStore {
     }
 
     pub fn get_replicant(&self, replicant_name: &str) -> Result<Option<ReplicantIdentity>> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
             "SELECT replicant_name, user_id, replicant_webid, first_name_enc, last_name_enc,
                     persona_yaml, is_primary, created_at, last_login
@@ -273,10 +243,7 @@ impl UserStore {
     }
 
     pub fn get_user(&self, user_id: &UserID) -> Result<HumanUser> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
             "SELECT user_id, email_enc, phone_enc, passphrase_hash, salt, master_salt, created_at, last_active
              FROM human_users WHERE user_id = ?1",
@@ -298,10 +265,7 @@ impl UserStore {
     }
 
     pub fn list_replicants(&self, user_id: &UserID) -> Result<Vec<ReplicantIdentity>> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
             "SELECT replicant_name, user_id, replicant_webid, first_name_enc, last_name_enc,
                     persona_yaml, is_primary, created_at, last_login
@@ -343,10 +307,7 @@ impl UserStore {
         let now = chrono::Utc::now().timestamp();
         let expires_at = now + 86400 * 7;
 
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         conn.execute(
             "INSERT INTO user_sessions
              (session_id, replicant_name, replicant_webid, user_id, session_key_salt, expires_at, last_active)
@@ -374,10 +335,7 @@ impl UserStore {
     }
 
     fn update_last_login(&self, replicant_name: &str) -> Result<()> {
-        let conn = self
-            .conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)?;
+        let conn = self.lock_conn()?;
         conn.execute(
             "UPDATE replicant_identities SET last_login = ?1 WHERE replicant_name = ?2",
             params![chrono::Utc::now().timestamp(), replicant_name],

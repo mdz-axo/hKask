@@ -5,9 +5,7 @@
 
 use hkask_agents::adapters::git_cas::GitCasAdapter;
 use hkask_mcp::adapter_container::AdapterContainer;
-use hkask_mcp::server::{
-    McpToolError, McpToolOutput, ToolSpanGuard, validate_identifier, validate_tool_url,
-};
+use hkask_mcp::server::{McpToolError, ToolSpanGuard, validate_identifier, validate_tool_url};
 use hkask_types::{McpErrorKind, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -104,16 +102,12 @@ impl GitServer {
 
         if let Ok(Some(adapter)) = self.adapter_container.get_git_cas() {
             match adapter.resolve_sha(&git_ref) {
-                Ok(sha) => span.ok(McpToolOutput::new(json!({
+                Ok(sha) => span.ok_json(json!({
                     "ref": git_ref,
                     "sha": sha,
                     "resolved": true,
-                }))
-                .to_json_string()),
-                Err(e) => span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal(e.to_string()).to_json_string(),
-                ),
+                })),
+                Err(e) => span.internal_error(json!({"error": e.to_string()})),
             }
         } else {
             span.error(
@@ -133,17 +127,13 @@ impl GitServer {
 
         if let Ok(Some(adapter)) = self.adapter_container.get_git_cas() {
             match adapter.commit(&message) {
-                Ok(sha) => span.ok(McpToolOutput::new(json!({
+                Ok(sha) => span.ok_json(json!({
                     "sha": sha,
                     "message": message,
                     "branch": branch_name,
                     "committed": true,
-                }))
-                .to_json_string()),
-                Err(e) => span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal(e.to_string()).to_json_string(),
-                ),
+                })),
+                Err(e) => span.internal_error(json!({"error": e.to_string()})),
             }
         } else {
             span.error(
@@ -181,19 +171,15 @@ impl GitServer {
                 .output();
 
             match output {
-                Ok(out) if out.status.success() => span.ok(McpToolOutput::new(json!({
+                Ok(out) if out.status.success() => span.ok_json(json!({
                     "url": url,
                     "path": target_path,
                     "branch": branch_name,
                     "cloned": true,
-                }))
-                .to_json_string()),
+                })),
                 Ok(out) => {
                     let stderr = String::from_utf8_lossy(&out.stderr);
-                    span.error(
-                        McpErrorKind::Internal,
-                        McpToolError::internal(stderr.trim()).to_json_string(),
-                    )
+                    span.internal_error(json!({"error": stderr.trim()}))
                 }
                 Err(e) => span.error(
                     McpErrorKind::Unavailable,
@@ -235,13 +221,12 @@ impl GitServer {
             match output {
                 Ok(out) => {
                     let diff = String::from_utf8_lossy(&out.stdout);
-                    span.ok(McpToolOutput::new(json!({
+                    span.ok_json(json!({
                         "sha1": sha1,
                         "sha2": sha2,
                         "path": path_filter,
                         "diff": diff,
                     }))
-                    .to_json_string())
                 }
                 Err(e) => span.error(
                     McpErrorKind::Unavailable,
@@ -275,18 +260,14 @@ impl GitServer {
                 Ok(out) if out.status.success() => {
                     let listing = String::from_utf8_lossy(&out.stdout);
                     let files: Vec<&str> = listing.lines().collect();
-                    span.ok(McpToolOutput::new(json!({
+                    span.ok_json(json!({
                         "path": p,
                         "files": files,
                     }))
-                    .to_json_string())
                 }
                 Ok(out) => {
                     let stderr = String::from_utf8_lossy(&out.stderr);
-                    span.error(
-                        McpErrorKind::Internal,
-                        McpToolError::internal(stderr.trim()).to_json_string(),
-                    )
+                    span.internal_error(json!({"error": stderr.trim()}))
                 }
                 Err(e) => span.error(
                     McpErrorKind::Unavailable,

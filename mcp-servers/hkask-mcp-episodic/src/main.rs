@@ -14,10 +14,10 @@
 //! routing through `EpisodicLoop::act()`, which is not available in the MCP
 //! server context.
 
-use hkask_mcp::server::{McpToolError, McpToolOutput, ToolSpanGuard, validate_identifier};
+use hkask_mcp::server::{ToolSpanGuard, validate_identifier};
 use hkask_memory::EpisodicMemory;
 use hkask_storage::Triple;
-use hkask_types::{McpErrorKind, Visibility, WebID};
+use hkask_types::{Visibility, WebID};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -55,12 +55,11 @@ impl EpisodicServer {
     #[tool(description = "Liveness and storage info for episodic memory")]
     async fn episodic_ping(&self) -> String {
         let span = ToolSpanGuard::new("episodic_ping", &self.webid);
-        span.ok(McpToolOutput::new(json!({
+        span.ok_json(json!({
             "status": "ok",
             "server": "hkask-mcp-episodic",
             "perspective": self.webid.to_string(),
         }))
-        .to_json_string())
     }
 
     #[tool(description = "Store an episodic triple (private, perspective-bound)")]
@@ -88,16 +87,13 @@ impl EpisodicServer {
             .with_visibility(Visibility::Private);
 
         match self.memory.store(triple) {
-            Ok(()) => span.ok(McpToolOutput::new(json!({
+            Ok(()) => span.ok_json(json!({
                 "stored": true,
                 "entity": entity,
                 "attribute": attribute,
-            }))
-            .to_json_string()),
-            Err(e) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(format!("Failed to store episodic triple: {}", e))
-                    .to_json_string(),
+            })),
+            Err(e) => span.internal_error(
+                json!({"error": format!("Failed to store episodic triple: {}", e)}),
             ),
         }
     }
@@ -127,16 +123,13 @@ impl EpisodicServer {
                         })
                     })
                     .collect();
-                span.ok(McpToolOutput::new(json!({
+                span.ok_json(json!({
                     "count": serialized.len(),
                     "triples": serialized,
                 }))
-                .to_json_string())
             }
-            Err(e) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(format!("Failed to recall episodic triples: {}", e))
-                    .to_json_string(),
+            Err(e) => span.internal_error(
+                json!({"error": format!("Failed to recall episodic triples: {}", e)}),
             ),
         }
     }
@@ -148,22 +141,19 @@ impl EpisodicServer {
         let usage = match self.memory.storage_usage(&self.webid) {
             Ok(u) => u,
             Err(e) => {
-                return span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal(format!("Failed to query storage usage: {}", e))
-                        .to_json_string(),
+                return span.internal_error(
+                    json!({"error": format!("Failed to query storage usage: {}", e)}),
                 );
             }
         };
         let budget = self.memory.storage_budget();
         let remaining = budget.saturating_sub(usage);
 
-        span.ok(McpToolOutput::new(json!({
+        span.ok_json(json!({
             "used": usage,
             "budget": budget,
             "remaining": remaining,
         }))
-        .to_json_string())
     }
 }
 

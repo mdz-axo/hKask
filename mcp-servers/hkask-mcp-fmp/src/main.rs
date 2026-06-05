@@ -114,11 +114,10 @@ impl FmpServer {
         )
         .await
         {
-            Ok(_) => span.ok(McpToolOutput::new(serde_json::json!({
+            Ok(_) => span.ok_json(serde_json::json!({
                 "status": "ok",
                 "message": "FMP API is reachable"
-            }))
-            .to_json_string()),
+            })),
             Err(e) => span.error(
                 e.kind,
                 McpToolOutput::new(serde_json::json!({
@@ -147,7 +146,7 @@ impl FmpServer {
         )
         .await
         {
-            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Ok(v) => span.ok_json(v),
             Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
@@ -169,7 +168,7 @@ impl FmpServer {
         )
         .await
         {
-            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Ok(v) => span.ok_json(v),
             Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
@@ -192,12 +191,12 @@ impl FmpServer {
         )
         .await
         {
-            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Ok(v) => span.ok_json(v),
             Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
 
-    #[tool(description = "Get balance sheet")]
+    #[tool(description = "Get balance sheet"])
     async fn fmp_balance_sheet(
         &self,
         Parameters(SymbolLimitRequest { symbol, limit }): Parameters<SymbolLimitRequest>,
@@ -215,7 +214,7 @@ impl FmpServer {
         )
         .await
         {
-            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Ok(v) => span.ok_json(v),
             Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
@@ -238,7 +237,7 @@ impl FmpServer {
         )
         .await
         {
-            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Ok(v) => span.ok_json(v),
             Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
@@ -261,7 +260,7 @@ impl FmpServer {
         )
         .await
         {
-            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Ok(v) => span.ok_json(v),
             Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
@@ -283,7 +282,7 @@ impl FmpServer {
         )
         .await
         {
-            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Ok(v) => span.ok_json(v),
             Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
@@ -309,7 +308,7 @@ impl FmpServer {
         )
         .await
         {
-            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Ok(v) => span.ok_json(v),
             Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
@@ -353,7 +352,7 @@ impl FmpServer {
         )
         .await
         {
-            Ok(v) => span.ok(McpToolOutput::new(v).to_json_string()),
+            Ok(v) => span.ok_json(v),
             Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }

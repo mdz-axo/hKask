@@ -6,7 +6,7 @@
 //! denials are observed through the goal repository's CNS telemetry sink
 //! (ADR-029).
 
-use hkask_mcp::server::{McpToolError, McpToolOutput, ToolSpanGuard, validate_identifier};
+use hkask_mcp::server::{McpToolError, ToolSpanGuard, validate_identifier};
 use hkask_storage::{Database, NuEventStore, SqliteGoalRepository};
 use hkask_types::event::NuEventSink;
 use hkask_types::goal::GoalState;
@@ -114,13 +114,12 @@ impl GoalServer {
         };
 
         match self.repo.create_goal(&self.webid, &text, vis) {
-            Ok(goal) => span.ok(McpToolOutput::new(json!({
+            Ok(goal) => span.ok_json(json!({
                 "id": goal.id.to_string(),
                 "text": goal.text,
                 "state": goal.state.as_str(),
                 "visibility": goal.visibility.as_str(),
-            }))
-            .to_json_string()),
+            })),
             Err(e) => {
                 let err = Self::repo_error(e);
                 span.error(err.kind, err.to_json_string())
@@ -159,7 +158,7 @@ impl GoalServer {
                         })
                     })
                     .collect();
-                span.ok(McpToolOutput::new(json!({ "goals": items })).to_json_string())
+                span.ok_json(json!({ "goals": items }))
             }
             Err(e) => {
                 let err = Self::repo_error(e);
@@ -187,11 +186,10 @@ impl GoalServer {
 
         let gid = GoalID::from_string(&goal_id);
         match self.repo.update_goal_state(gid, new_state) {
-            Ok(()) => span.ok(McpToolOutput::new(json!({
+            Ok(()) => span.ok_json(json!({
                 "id": gid.to_string(),
                 "state": new_state.as_str(),
-            }))
-            .to_json_string()),
+            })),
             Err(e) => {
                 let err = Self::repo_error(e);
                 span.error(err.kind, err.to_json_string())

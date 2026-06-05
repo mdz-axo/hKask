@@ -4,7 +4,7 @@
 //! Phase 9: Git archival via GitHub MCP tool calls.
 
 use hkask_mcp::server::{
-    CredentialRequirement, McpToolError, McpToolOutput, ServerContext, ToolSpanGuard, api_get,
+    CredentialRequirement, McpToolError, ServerContext, ToolSpanGuard, api_get,
     api_post, classify_http_error, resolve_credential, run_stdio_server, validate_identifier,
 };
 use hkask_types::{McpErrorKind, WebID};
@@ -179,7 +179,7 @@ impl GithubServer {
         }
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}");
         match api_get(&self.client, "GitHub", &url).await {
-            Ok(v) => span.ok(McpToolOutput::new(extract_repo_summary(&v)).to_json_string()),
+            Ok(v) => span.ok_json(extract_repo_summary(&v)),
             Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
@@ -206,11 +206,8 @@ impl GithubServer {
                             .collect()
                     })
                     .unwrap_or_default();
-                span.ok(
-                    McpToolOutput::new(
-                        serde_json::json!({ "owner": owner, "repo": repo, "state": state, "issues": issues }),
-                    )
-                    .to_json_string(),
+                span.ok_json(
+                    serde_json::json!({ "owner": owner, "repo": repo, "state": state, "issues": issues }),
                 )
             }
             Err(e) => span.error(e.kind, e.to_json_string()),
@@ -241,7 +238,7 @@ impl GithubServer {
                             .collect()
                     })
                     .unwrap_or_default();
-                span.ok(McpToolOutput::new(serde_json::json!({
+                span.ok_json(serde_json::json!({
                     "owner": owner, "repo": repo,
                     "number": v["number"], "title": v["title"], "state": v["state"],
                     "body": v["body"], "labels": labels, "user": v["user"]["login"],
@@ -249,7 +246,6 @@ impl GithubServer {
                     "comments": v["comments"], "created_at": v["created_at"],
                     "updated_at": v["updated_at"], "html_url": v["html_url"],
                 }))
-                .to_json_string())
             }
             Err(e) => span.error(e.kind, e.to_json_string()),
         }
@@ -289,12 +285,11 @@ impl GithubServer {
             );
         }
         match api_post(&self.client, "GitHub", &url, &payload).await {
-            Ok(v) => span.ok(McpToolOutput::new(serde_json::json!({
+            Ok(v) => span.ok_json(serde_json::json!({
                 "owner": owner, "repo": repo,
                 "number": v["number"], "title": v["title"],
                 "state": v["state"], "html_url": v["html_url"], "created": true,
-            }))
-            .to_json_string()),
+            })),
             Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
@@ -322,11 +317,10 @@ impl GithubServer {
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/issues/{issue_number}/comments");
         let payload = serde_json::json!({ "body": body });
         match api_post(&self.client, "GitHub", &url, &payload).await {
-            Ok(v) => span.ok(McpToolOutput::new(serde_json::json!({
+            Ok(v) => span.ok_json(serde_json::json!({
                 "owner": owner, "repo": repo, "issue": issue_number,
                 "comment_id": v["id"], "html_url": v["html_url"], "created": true,
-            }))
-            .to_json_string()),
+            })),
             Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
@@ -348,10 +342,9 @@ impl GithubServer {
                     .as_array()
                     .map(|arr| arr.iter().map(extract_pr_summary).collect())
                     .unwrap_or_default();
-                span.ok(McpToolOutput::new(
+                span.ok_json(
                     serde_json::json!({ "owner": owner, "repo": repo, "state": state, "prs": prs }),
                 )
-                .to_json_string())
             }
             Err(e) => span.error(e.kind, e.to_json_string()),
         }
@@ -372,7 +365,7 @@ impl GithubServer {
         }
         let url = format!("{GITHUB_API_BASE}/repos/{owner}/{repo}/pulls/{pr_number}");
         match api_get(&self.client, "GitHub", &url).await {
-            Ok(v) => span.ok(McpToolOutput::new(serde_json::json!({
+            Ok(v) => span.ok_json(serde_json::json!({
                 "owner": owner, "repo": repo,
                 "number": v["number"], "title": v["title"], "state": v["state"],
                 "body": v["body"], "user": v["user"]["login"],
@@ -383,8 +376,7 @@ impl GithubServer {
                 "changed_files": v["changed_files"],
                 "created_at": v["created_at"], "updated_at": v["updated_at"],
                 "html_url": v["html_url"],
-            }))
-            .to_json_string()),
+            })),
             Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
@@ -423,17 +415,12 @@ impl GithubServer {
                             .as_array()
                             .map(|arr| arr.iter().map(extract_repo_summary).collect())
                             .unwrap_or_default();
-                        span.ok(McpToolOutput::new(serde_json::json!({
+                        span.ok_json(serde_json::json!({
                             "query": query, "limit": limit,
                             "total_count": v["total_count"], "results": results,
                         }))
-                        .to_json_string())
                     }
-                    Err(e) => span.error(
-                        McpErrorKind::Internal,
-                        McpToolError::internal(format!("Failed to parse response: {e}"))
-                            .to_json_string(),
-                    ),
+                    Err(e) => span.internal_error(serde_json::json!({"error": format!("Failed to parse response: {e}")})),,
                 }
             }
             Err(e) => span.error(

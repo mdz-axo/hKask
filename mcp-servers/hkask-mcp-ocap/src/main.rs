@@ -7,7 +7,7 @@
 //! - `ocap:enumerate` — Enumerate capabilities for a subject
 //! - `ocap:list_tokens` — List all capability tokens
 
-use hkask_mcp::server::{McpToolError, McpToolOutput, ToolSpanGuard, validate_identifier};
+use hkask_mcp::server::{McpToolError, ToolSpanGuard, validate_identifier};
 use hkask_types::{
     CapabilityChecker, CapabilitySpec, DelegationAction, DelegationResource, DelegationToken,
     McpErrorKind, WebID,
@@ -130,14 +130,13 @@ impl OcapServer {
         let mut tokens = self.tokens.write().await;
         tokens.insert(token_id.clone(), token);
 
-        span.ok(McpToolOutput::new(json!({
+        span.ok_json(json!({
             "id": token_id,
             "issuer": issuer_str,
             "subject": holder,
             "capabilities": capabilities,
             "signature_valid": sig_valid,
         }))
-        .to_json_string())
     }
 
     #[tool(description = "Verify a capability token with real cryptographic HMAC verification")]
@@ -189,7 +188,7 @@ impl OcapServer {
                 let matches_cap = token.is_valid_for(resource, &resource_id, action);
 
                 let valid = sig_valid && not_expired && matches_cap;
-                span.ok(McpToolOutput::new(json!({
+                span.ok_json(json!({
                     "token_id": token_id,
                     "valid": valid,
                     "capability": capability,
@@ -197,7 +196,6 @@ impl OcapServer {
                     "not_expired": not_expired,
                     "matches_capability": matches_cap,
                 }))
-                .to_json_string())
             }
             None => span.error(
                 McpErrorKind::NotFound,
@@ -222,11 +220,10 @@ impl OcapServer {
 
         if tokens.contains_key(&token_id) || revoked.contains(&token_id) {
             revoked.insert(token_id.clone());
-            span.ok(McpToolOutput::new(json!({
+            span.ok_json(json!({
                 "token_id": token_id,
                 "revoked": true,
             }))
-            .to_json_string())
         } else {
             span.error(
                 McpErrorKind::NotFound,
@@ -265,12 +262,11 @@ impl OcapServer {
             })
             .collect();
 
-        span.ok(McpToolOutput::new(json!({
+        span.ok_json(json!({
             "subject": subject,
             "token_count": matching.len(),
             "tokens": matching,
         }))
-        .to_json_string())
     }
 
     #[tool(description = "List all capability tokens")]
@@ -293,11 +289,10 @@ impl OcapServer {
             })
             .collect();
 
-        span.ok(McpToolOutput::new(json!({
+        span.ok_json(json!({
             "token_count": token_list.len(),
             "tokens": token_list,
         }))
-        .to_json_string())
     }
 }
 

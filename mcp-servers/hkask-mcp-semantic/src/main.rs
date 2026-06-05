@@ -12,7 +12,7 @@
 //! requires a `ConsolidationToken` issued by the Curation Loop. MCP servers
 //! cannot mint this token.
 
-use hkask_mcp::server::{McpToolError, McpToolOutput, ToolSpanGuard, validate_identifier};
+use hkask_mcp::server::{McpToolError, ToolSpanGuard, validate_identifier};
 use hkask_memory::SemanticMemory;
 use hkask_storage::Triple;
 use hkask_types::{McpErrorKind, Visibility, WebID};
@@ -67,11 +67,10 @@ impl SemanticServer {
     #[tool(description = "Liveness and storage info for semantic memory")]
     async fn semantic_ping(&self) -> String {
         let span = ToolSpanGuard::new("semantic_ping", &self.webid);
-        span.ok(McpToolOutput::new(json!({
+        span.ok_json(json!({
             "status": "ok",
             "server": "hkask-mcp-semantic",
         }))
-        .to_json_string())
     }
 
     #[tool(description = "Store a shared semantic triple (no perspective)")]
@@ -98,16 +97,13 @@ impl SemanticServer {
             .with_confidence(confidence.unwrap_or(1.0));
 
         match self.memory.store(triple) {
-            Ok(()) => span.ok(McpToolOutput::new(json!({
+            Ok(()) => span.ok_json(json!({
                 "stored": true,
                 "entity": entity,
                 "attribute": attribute,
-            }))
-            .to_json_string()),
-            Err(e) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(format!("Failed to store semantic triple: {}", e))
-                    .to_json_string(),
+            })),
+            Err(e) => span.internal_error(
+                json!({"error": format!("Failed to store semantic triple: {}", e)}),
             ),
         }
     }
@@ -137,16 +133,13 @@ impl SemanticServer {
                         })
                     })
                     .collect();
-                span.ok(McpToolOutput::new(json!({
+                span.ok_json(json!({
                     "count": serialized.len(),
                     "triples": serialized,
                 }))
-                .to_json_string())
             }
-            Err(e) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(format!("Failed to recall semantic triples: {}", e))
-                    .to_json_string(),
+            Err(e) => span.internal_error(
+                json!({"error": format!("Failed to recall semantic triples: {}", e)}),
             ),
         }
     }
@@ -173,18 +166,15 @@ impl SemanticServer {
         }
 
         match self.memory.store_embedding(&entity_ref, &vector, &model) {
-            Ok(_id) => span.ok(McpToolOutput::new(json!({
+            Ok(_id) => span.ok_json(json!({
                 "stored": true,
                 "entity_ref": entity_ref,
                 "model": model,
                 "dimensions": vector.len(),
-            }))
-            .to_json_string()),
-            Err(e) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(format!("Failed to store embedding: {}", e))
-                    .to_json_string(),
-            ),
+            })),
+            Err(e) => {
+                span.internal_error(json!({"error": format!("Failed to store embedding: {}", e)}))
+            }
         }
     }
 
@@ -219,17 +209,14 @@ impl SemanticServer {
                         })
                     })
                     .collect();
-                span.ok(McpToolOutput::new(json!({
+                span.ok_json(json!({
                     "count": serialized.len(),
                     "results": serialized,
                 }))
-                .to_json_string())
             }
-            Err(e) => span.error(
-                McpErrorKind::Internal,
-                McpToolError::internal(format!("Failed to search embeddings: {}", e))
-                    .to_json_string(),
-            ),
+            Err(e) => {
+                span.internal_error(json!({"error": format!("Failed to search embeddings: {}", e)}))
+            }
         }
     }
 
@@ -240,29 +227,23 @@ impl SemanticServer {
         let triple_count = match self.memory.triple_count() {
             Ok(c) => c,
             Err(e) => {
-                return span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal(format!("Failed to count triples: {}", e))
-                        .to_json_string(),
-                );
+                return span
+                    .internal_error(json!({"error": format!("Failed to count triples: {}", e)}));
             }
         };
         let embedding_count = match self.memory.embedding_count() {
             Ok(c) => c,
             Err(e) => {
-                return span.error(
-                    McpErrorKind::Internal,
-                    McpToolError::internal(format!("Failed to count embeddings: {}", e))
-                        .to_json_string(),
+                return span.internal_error(
+                    json!({"error": format!("Failed to count embeddings: {}", e)}),
                 );
             }
         };
 
-        span.ok(McpToolOutput::new(json!({
+        span.ok_json(json!({
             "triple_count": triple_count,
             "embedding_count": embedding_count,
         }))
-        .to_json_string())
     }
 }
 

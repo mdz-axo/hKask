@@ -12,7 +12,7 @@
 //! a separate process; placing throttling here would duplicate the canonical
 //! implementation and violate the authority DAG (Cybernetics governs Communication).
 
-use hkask_mcp::server::{McpToolError, McpToolOutput, ToolSpanGuard, validate_identifier};
+use hkask_mcp::server::{McpToolError, ToolSpanGuard, validate_identifier};
 use hkask_templates::{InferencePort, OkapiConfig, OkapiInference};
 use hkask_types::{LLMParameters, McpErrorKind, WebID};
 use rmcp::handler::server::wrapper::Parameters;
@@ -218,7 +218,7 @@ impl InferenceServer {
             models.push(result.model.clone());
         }
 
-        span.ok(McpToolOutput::new(serde_json::json!({
+        span.ok_json(serde_json::json!({
             "text": result.text,
             "model": result.model,
             "usage": {
@@ -228,7 +228,6 @@ impl InferenceServer {
             },
             "finish_reason": result.finish_reason,
         }))
-        .to_json_string())
     }
 
     #[tool(
@@ -252,14 +251,13 @@ impl InferenceServer {
         let total_tokens = load_or_swap(&self.metrics.total_tokens_generated);
         let total_errors = load_or_swap(&self.metrics.total_errors);
         let total_failovers = load_or_swap(&self.metrics.total_failovers);
-        span.ok(McpToolOutput::new(serde_json::json!({
+        span.ok_json(serde_json::json!({
             "total_requests": total_requests,
             "total_tokens_generated": total_tokens,
             "total_errors": total_errors,
             "total_failovers": total_failovers,
             "reset": reset,
         }))
-        .to_json_string())
     }
 
     #[tool(description = "List available model tiers and their configurations.")]
@@ -296,10 +294,9 @@ impl InferenceServer {
             })
             .collect();
 
-        span.ok(McpToolOutput::new(serde_json::json!({
+        span.ok_json(serde_json::json!({
             "models": model_entries,
             "count": model_entries.len(),
         }))
-        .to_json_string())
     }
 }

@@ -1,8 +1,6 @@
 //! hKask MCP Telnyx — Telnyx API v2 integration (SMS, voice, WhatsApp)
 
-use hkask_mcp::server::{
-    McpToolOutput, ToolSpanGuard, api_get, api_post, resolve_credential, validate_tool_url,
-};
+use hkask_mcp::server::{ToolSpanGuard, api_get, api_post, resolve_credential, validate_tool_url};
 use hkask_types::WebID;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -74,12 +72,11 @@ impl TelnyxServer {
         let span = ToolSpanGuard::new("telnyx_ping", &self.webid);
         let url = format!("{BASE_URL}/phone_numbers?page_size=1");
         match api_get(&self.client, "Telnyx", &url).await {
-            Ok(body) => span.ok(McpToolOutput::new(serde_json::json!({
+            Ok(body) => span.ok_json(serde_json::json!({
                 "status": "ok",
                 "message": "Telnyx API is reachable",
                 "data": body,
-            }))
-            .to_json_string()),
+            })),
             Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
@@ -89,7 +86,7 @@ impl TelnyxServer {
         let span = ToolSpanGuard::new("telnyx_list_numbers", &self.webid);
         let url = format!("{BASE_URL}/phone_numbers");
         match api_get(&self.client, "Telnyx", &url).await {
-            Ok(body) => span.ok(McpToolOutput::new(body).to_json_string()),
+            Ok(body) => span.ok_json(body),
             Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
@@ -109,7 +106,7 @@ impl TelnyxServer {
             "messaging_profile_id": messaging_profile_id,
         });
         match api_post(&self.client, "Telnyx", &url, &payload).await {
-            Ok(resp_body) => span.ok(McpToolOutput::new(resp_body).to_json_string()),
+            Ok(resp_body) => span.ok_json(resp_body),
             Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
@@ -127,7 +124,7 @@ impl TelnyxServer {
             "text": text,
         });
         match api_post(&self.client, "Telnyx", &url, &payload).await {
-            Ok(resp_body) => span.ok(McpToolOutput::new(resp_body).to_json_string()),
+            Ok(resp_body) => span.ok_json(resp_body),
             Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
@@ -152,7 +149,7 @@ impl TelnyxServer {
             "webhook_url": webhook_url,
         });
         match api_post(&self.client, "Telnyx", &url, &payload).await {
-            Ok(resp_body) => span.ok(McpToolOutput::new(resp_body).to_json_string()),
+            Ok(resp_body) => span.ok_json(resp_body),
             Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
@@ -179,7 +176,7 @@ impl TelnyxServer {
             },
         });
         match api_post(&self.client, "Telnyx", &url, &payload).await {
-            Ok(resp_body) => span.ok(McpToolOutput::new(resp_body).to_json_string()),
+            Ok(resp_body) => span.ok_json(resp_body),
             Err(e) => span.error(e.kind, e.to_json_string()),
         }
     }
@@ -217,12 +214,11 @@ impl TelnyxServer {
         } else {
             all_voices.as_array().unwrap().iter().collect()
         };
-        span.ok(McpToolOutput::new(serde_json::json!({
+        span.ok_json(serde_json::json!({
             "voices": voices,
             "total": voices.len(),
             "source": "static catalog (Telnyx Call Control API docs)",
         }))
-        .to_json_string())
     }
 }
 
