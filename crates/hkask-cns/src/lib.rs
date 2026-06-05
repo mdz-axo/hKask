@@ -21,13 +21,15 @@ pub(crate) mod unified_tracker; // Loop 6 — variety tracking
 pub(crate) mod variety; // Loop 6 subloop 6.3
 
 pub use algedonic::{DEFAULT_THRESHOLD, RuntimeAlert};
-pub use allosteric::{AllostericGate, AllostericGateConfig, mwc_state_function};
+pub use allosteric::{
+    AllostericError, AllostericGate, AllostericGateConfig, BernoulliDistribution,
+    mwc_state_function,
+};
 pub use circuit_breaker::CircuitBreaker;
 pub use composite_gas_estimator::CompositeGasEstimator;
 pub use cybernetics_loop::{CyberneticsLoop, SetPoints, SetPointsConfig, load_set_points};
 pub use energy::{GasBudget, GasError};
 pub use governed_tool::{GasEstimator, GovernedTool};
-pub use prompt_decomposition::decompose_prompt;
 pub use runtime::CnsRuntime;
 
 // Re-export types moved to hkask-types for backward compatibility

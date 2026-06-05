@@ -5,7 +5,7 @@
 //! uncertainty through the regulation pipeline.
 
 use crate::allosteric::distribution::BernoulliDistribution;
-use crate::allosteric::mwc::{mwc_sensitivity, mwc_state_function};
+use crate::allosteric::mwc::mwc_state_function;
 use std::time::Duration;
 
 /// Configuration for an `AllostericGate`.
@@ -170,15 +170,6 @@ impl AllostericGate {
     pub fn decide_at(&mut self, dt: Duration) -> BernoulliDistribution {
         let r_bar = self.r_bar_at(dt);
         BernoulliDistribution::from_r_bar(r_bar)
-    }
-
-    /// Compute the sensitivity of this gate to its input α.
-    ///
-    /// High sensitivity means small changes in α produce large changes in R̄.
-    /// This is used by the "ask what would increase confidence" behavior
-    /// to identify which evidence channel to verify.
-    pub fn input_sensitivity(&self) -> f64 {
-        mwc_sensitivity(self.effective_l(), self.c, self.n as u32, self.alpha)
     }
 
     /// Set the input signal (α) from a normalized deficit/deviation value.

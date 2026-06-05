@@ -140,4 +140,14 @@ impl MCPRuntimePort for McpRuntimeAdapter {
             ))),
         }
     }
+
+    fn resolve_tool_server(&self, tool_name: &str) -> Option<String> {
+        let (runtime, handle) = (&self.mcp_runtime, &self.handle);
+        match (runtime, handle) {
+            (Some(r), Some(h)) => h
+                .block_on(r.get_tool_info(tool_name))
+                .map(|info| info.server_id),
+            _ => None,
+        }
+    }
 }

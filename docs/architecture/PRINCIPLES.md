@@ -70,7 +70,7 @@ status: VERIFIED
 
 **Implementation (19 Total):**
 
-**Enabled (15):**
+**Enabled (19):**
 - `hkask-mcp-inference` — Okapi LLM inference
 - `hkask-mcp-condenser` — Context condensation (reranking and compression of the active conversation window)
 - `hkask-mcp-web` — Search, scrape, extract
@@ -86,6 +86,10 @@ status: VERIFIED
 - `hkask-mcp-telnyx` — Telnyx integration
 - `hkask-mcp-fal` — FAL integration
 - `hkask-mcp-rss-reader` — RSS feeds
+- `hkask-mcp-ensemble` — Multi-agent chat coordination
+- `hkask-mcp-episodic` — Episodic memory (private, perspective-bound)
+- `hkask-mcp-semantic` — Semantic memory (public, shared)
+- `hkask-mcp-replicant` — Replicant chat (MCP bridge for external integrations)
 
 **Converted to Templates (per AGENTS.md):**
 - `hkask-mcp-spandrel` → Graph analysis templates
@@ -133,7 +137,7 @@ status: VERIFIED
 
 **Implementation:**
 - `hkask-cli` — Terminal-based REPL and subcommands
-- `hkask-mcp-*` — Machine-to-machine tool calls (15 servers)
+- `hkask-mcp-*` — Machine-to-machine tool calls (19 servers)
 - `hkask-api` — HTTP API with auto-generated OpenAPI docs
 
 **Constraints:**

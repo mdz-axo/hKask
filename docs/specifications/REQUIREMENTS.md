@@ -151,7 +151,7 @@ Curation: Merge | Revise | Defer | Discard
 - **Criteria:**
   - [x] CLI binary `kask` with 14 subcommand groups
   - [x] HTTP API with 11 route groups
-  [x] MCP with 15 servers
+  - [x] MCP with 19 servers
   - [x] All route through `hkask-agents` domain core
 - **Implementation:** `hkask-cli::main`, `hkask-api::lib::create_router`, `hkask-mcp::runtime`
 - **Status:** Implemented

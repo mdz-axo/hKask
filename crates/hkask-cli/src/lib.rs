@@ -3,6 +3,7 @@
 pub mod bootstrap;
 pub mod cli;
 pub mod commands;
+pub mod curation_config;
 pub mod errors;
 pub mod git_archival;
 pub mod onboarding;

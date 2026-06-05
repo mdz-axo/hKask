@@ -16,4 +16,14 @@ pub trait MCPRuntimePort: Send + Sync {
         input: serde_json::Value,
         token: &DelegationToken,
     ) -> Result<serde_json::Value, crate::error::McpError>;
+
+    /// Resolve the server ID for a tool.
+    ///
+    /// Returns the server ID (e.g., "inference", "cns") that owns the tool,
+    /// or `None` if the tool is not found or the runtime doesn't support resolution.
+    /// Used by `PodContext::invoke_tool` to route through `GovernedTool` with
+    /// accurate gas estimation and CNS observability.
+    fn resolve_tool_server(&self, _tool_name: &str) -> Option<String> {
+        None
+    }
 }

@@ -84,7 +84,11 @@ impl GasBudget {
     /// Set the priority weight for replenishment scaling (0.0–1.0).
     ///
     /// Values outside [0.0, 1.0] are clamped.
-    pub fn with_priority(mut self, priority: f64) -> Self {
+    ///
+    /// Dead code: no production caller yet. Retained for Task 7 (multi-agent
+    /// energy competition) which will need priority-weighted budget allocation.
+    #[allow(dead_code)]
+    pub(crate) fn with_priority(mut self, priority: f64) -> Self {
         self.priority = priority.clamp(0.0, 1.0);
         self
     }
@@ -187,12 +191,20 @@ impl GasBudget {
     }
 
     /// Whether the usage ratio has crossed the alert threshold.
-    pub fn should_alert(&self) -> bool {
+    ///
+    /// Dead code: no production caller yet. Will be wired when Task 10
+    /// adds `cns_energy` MCP tool for agent-facing gas budget visibility.
+    #[allow(dead_code)]
+    pub(crate) fn should_alert(&self) -> bool {
         self.usage_ratio() >= self.alert_threshold
     }
 
     /// Usage ratio: 0.0 = full budget, 1.0 = empty.
-    pub fn usage_ratio(&self) -> f64 {
+    ///
+    /// Dead code: no production caller yet. Will be wired when Task 10
+    /// adds `cns_energy` MCP tool for agent-facing gas budget visibility.
+    #[allow(dead_code)]
+    pub(crate) fn usage_ratio(&self) -> f64 {
         1.0 - (self.remaining as f64 / self.cap.max(1) as f64)
     }
 }

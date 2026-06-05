@@ -10,19 +10,19 @@
 //! - TemplateMatch { c: f64 } — Template relevance score
 //! - ValidationResult { c: f64 } — Schema/validation pass result
 //!
-//! Originally in `hkask_cns::allosteric` — relocated to `hkask_agents::curator`
-//! because these are Curation (Loop 5) types. The dependency on Cybernetics
-//! (Loop 6) primitives (`AllostericGate`, `BernoulliDistribution`) is correct
-//! and preserved via `hkask_cns` imports.
+//! Originally in `hkask_cns::allosteric` — the allosteric primitives have been
+//! relocated to `hkask_types::allosteric` (the substrate crate) because they are
+//! cross-loop primitives shared by L5 and L6. The dependency is now a substrate
+//! import, not an L5→L6 authority inversion.
 
-// ARCHITECTURE: Curation → Cybernetics direct import is permissible per authority DAG.
-// Curation (Loop 5) governs Cybernetics (Loop 6), so importing Cybernetics primitives
-// is a downward dependency — the governor using the governed's math. The coupling is
-// deep (sensitivity analysis reads gate.c, gate.n directly), so a port trait would
-// just rename the struct without meaningful decoupling. Revisit when a second
-// implementation of allosteric gating exists.
-use hkask_cns::allosteric::gate::{AllostericGate, AllostericGateConfig};
-use hkask_cns::allosteric::mwc::mwc_state_function;
+// ARCHITECTURE: Allosteric primitives now live in hkask-types (substrate),
+// eliminating the L5→L6 authority inversion. CurationConfidenceGate imports
+// from the substrate crate directly. The coupling is deep (sensitivity analysis
+// reads gate.c, gate.n directly), so a port trait would just rename the struct
+// without meaningful decoupling. Revisit when a second implementation of
+// allosteric gating exists.
+use hkask_types::allosteric::gate::{AllostericGate, AllostericGateConfig};
+use hkask_types::allosteric::mwc::mwc_state_function;
 use std::time::Duration;
 
 /// Evidence port for the curation confidence gate.

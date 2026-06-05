@@ -44,7 +44,12 @@ impl McpDispatcher {
     /// The dispatcher will have no GovernedTool membrane — any invocation
     /// attempt will return an error. Use `with_governed_tool()` for a
     /// working dispatcher.
-    pub fn new(runtime: McpRuntime, secret: &[u8]) -> Self {
+    ///
+    /// Dead code: no production caller. Retained as a footgun reminder —
+    /// `with_governed_tool()` is the only safe constructor. Will be removed
+    /// when Task 4 (V4) gates or deletes this path.
+    #[allow(dead_code)]
+    pub(crate) fn new(runtime: McpRuntime, secret: &[u8]) -> Self {
         Self {
             runtime,
             governor: Arc::new(McpGovernor::new(secret)),

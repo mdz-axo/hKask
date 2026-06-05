@@ -11,7 +11,7 @@
 #[derive(Debug, Clone, Copy)]
 pub struct BernoulliDistribution {
     /// Probability of the R-state (proceed) outcome, clamped to [0, 1].
-    r_bar: f64,
+    pub r_bar: f64,
 }
 
 impl BernoulliDistribution {

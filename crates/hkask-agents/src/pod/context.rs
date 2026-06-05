@@ -12,7 +12,7 @@
 
 use hkask_types::{
     CapabilityChecker, DelegationAction, DelegationResource, DelegationToken,
-    ExperienceClassification, InferencePort, WebID,
+    ExperienceClassification, InferencePort, ToolPort, WebID,
 };
 use std::sync::Arc;
 
@@ -36,6 +36,11 @@ pub struct PodContext {
     /// Semantic memory storage — shared, public knowledge (OCAP: DelegationToken)
     semantic_storage: Arc<dyn SemanticStoragePort>,
     mcp_runtime: Arc<dyn MCPRuntimePort>,
+    /// GovernedTool membrane — routes tool invocations through CNS governance
+    /// (gas budget, variety tracking, event spans). When present, `invoke_tool`
+    /// routes through this membrane instead of the raw `mcp_runtime`, ensuring
+    /// pod-initiated calls are subject to Cybernetics governance.
+    governed_tool: Option<Arc<dyn ToolPort>>,
     /// Cryptographic capability checker for OCAP verification.
     /// When set, `require_capability()` verifies HMAC signatures.
     /// When absent, falls back to structural `is_valid_for()` check (insecure).
@@ -63,6 +68,7 @@ impl PodContext {
             episodic_storage: Arc::clone(&manager.episodic_storage),
             semantic_storage: Arc::clone(&manager.semantic_storage),
             mcp_runtime: Arc::clone(&manager.mcp_runtime),
+            governed_tool: manager.governed_tool.clone(),
             capability_checker: manager.capability_checker.clone(),
         })
     }
@@ -278,6 +284,12 @@ impl PodContext {
     // Tool invocation and CNS span emission
     // ========================================================================
 
+    /// Invoke an MCP tool by name.
+    ///
+    /// When a `GovernedTool` membrane is configured, routes through it to get
+    /// CNS governance (gas budget enforcement, variety tracking, algedonic spans).
+    /// When no membrane is present, falls back to the raw `mcp_runtime` path
+    /// which performs OCAP verification but bypasses CNS observability.
     pub fn invoke_tool(
         &self,
         tool_name: &str,
@@ -288,8 +300,24 @@ impl PodContext {
             tool_name,
             DelegationAction::Execute,
         )?;
-        self.mcp_runtime
-            .invoke_tool(tool_name, input, &self.capability_token)
-            .map_err(|e| AgentPodError::ToolError(e.to_string()))
+
+        if let Some(ref governed) = self.governed_tool {
+            // Route through GovernedTool membrane (CNS governance: gas, variety, spans)
+            let server = self
+                .mcp_runtime
+                .resolve_tool_server(tool_name)
+                .unwrap_or_else(|| "pod".to_string());
+
+            let rt = tokio::runtime::Handle::current();
+            match rt.block_on(governed.invoke(&server, tool_name, input, &self.capability_token)) {
+                Ok(value) => Ok(value),
+                Err(e) => Err(AgentPodError::ToolError(e.to_string())),
+            }
+        } else {
+            // Fallback: raw mcp_runtime path (OCAP verification but no CNS governance)
+            self.mcp_runtime
+                .invoke_tool(tool_name, input, &self.capability_token)
+                .map_err(|e| AgentPodError::ToolError(e.to_string()))
+        }
     }
 }

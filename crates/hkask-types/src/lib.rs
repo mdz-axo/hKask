@@ -13,6 +13,7 @@
 //! - Goal types (minimal coordination substrate for multi-agent collaboration)
 
 pub mod agent_def;
+pub mod allosteric;
 pub mod audit;
 pub mod bundle;
 pub mod capability;
@@ -36,6 +37,10 @@ pub mod visibility;
 
 pub use agent_def::{
     AgentDefinition, AgentKind, Charter, PersonaConstraints, RegisteredAgent, Responsibility, Right,
+};
+pub use allosteric::{
+    AllostericError, AllostericGate, AllostericGateConfig, BernoulliDistribution,
+    mwc_state_function,
 };
 pub use audit::{AuditEntry, AuditLogPort, AuditOutcome};
 pub use bundle::{

@@ -50,7 +50,7 @@ ddmvss_categories: [interface, composition, capability, observability, curation,
 
 **Decision:** Document MCP servers as a catalog with common pattern description and per-crate README for implemented servers. A unified catalog exists at `docs/status/mcp-server-audit.md`. Individual README files live in each `mcp-servers/hkask-mcp-*/README.md`.
 
-**Rationale:** Each MCP server having its own specification entry in REQUIREMENTS.md (Option 1) creates 18 × ~2KB = ~36KB of spec overhead — disproportionate. Option 2 keeps the catalog as a single source of truth with per-crate detail for the specific tool surface.
+**Rationale:** Each MCP server having its own specification entry in REQUIREMENTS.md (Option 1) creates 19 × ~2KB = ~38KB of spec overhead — disproportionate. Option 2 keeps the catalog as a single source of truth with per-crate detail for the specific tool surface.
 
 ---
 

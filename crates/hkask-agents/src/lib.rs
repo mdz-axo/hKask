@@ -26,6 +26,7 @@ pub mod inference_loop; // Loop 1 (domain logic; governance applied externally v
 pub mod loop_system;
 pub mod pod; // Loop 5 (agent pod lifecycle is Curation)
 pub mod ports;
+pub mod prompt_analysis; // Loop 1 (inference variety sensing — relocated from hkask-cns)
 pub mod registry_loader;
 pub mod sovereignty; // Loop 6 (sovereignty enforcement)
 
@@ -44,5 +45,6 @@ pub use inference_loop::InferenceLoop;
 pub use loop_system::{CyberneticsLoopHandle, LoopSystem};
 pub use pod::{AgentPersona, PodID, PodManager, PodStatus};
 pub use ports::{AcpPort, EpisodicStoragePort, GitCASPort, SemanticStoragePort};
+pub use prompt_analysis::{PromptAnalysis, SentenceDecomposition, decompose_prompt};
 pub use registry_loader::AgentRegistryLoader;
 pub(crate) use sovereignty::SovereigntyChecker;

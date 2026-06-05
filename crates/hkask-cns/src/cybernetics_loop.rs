@@ -77,22 +77,8 @@ pub struct SetPoints {
 /// Loaded from YAML via `HKASK_CNS_CONFIG` (same pattern as `SetPointsConfig`).
 ///
 /// Type definition lives in `hkask_types::curation`; YAML loading methods
-/// remain here because `hkask-types` does not depend on `serde_yaml`.
+/// relocated to `hkask_cli::curation_config` (I/O is not Cybernetics).
 pub use hkask_types::curation::CurationThresholdConfig;
-
-/// Load curation thresholds from a YAML string.
-pub fn curation_threshold_from_yaml(
-    yaml: &str,
-) -> Result<CurationThresholdConfig, serde_yaml::Error> {
-    serde_yaml::from_str(yaml)
-}
-
-/// Load curation thresholds from a YAML file.
-pub fn curation_threshold_from_file(path: &str) -> Result<CurationThresholdConfig, std::io::Error> {
-    let contents = std::fs::read_to_string(path)?;
-    curation_threshold_from_yaml(&contents)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
-}
 
 /// YAML-configurable set-points. Fields are Optional so partial configs work.
 /// Missing fields fall back to the `SetPoints::default()` values.
@@ -162,9 +148,22 @@ pub fn load_set_points() -> SetPoints {
 ///
 /// If `HKASK_CNS_CONFIG` is set, reads the YAML file at that path.
 /// If unset or the file doesn't exist, returns default thresholds.
+///
+/// NOTE: The canonical loader is now `hkask_cli::curation_config::load_curation_thresholds`.
+/// This wrapper is retained for backward compatibility within the CNS crate.
 pub fn load_curation_thresholds() -> CurationThresholdConfig {
+    // Helper: parse YAML string into CurationThresholdConfig
+    let from_yaml = |yaml: &str| -> Result<CurationThresholdConfig, serde_yaml::Error> {
+        serde_yaml::from_str(yaml)
+    };
+    // Helper: read file and parse
+    let from_file = |path: &str| -> Result<CurationThresholdConfig, std::io::Error> {
+        let contents = std::fs::read_to_string(path)?;
+        from_yaml(&contents).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+    };
+
     match std::env::var("HKASK_CNS_CONFIG") {
-        Ok(path) => match curation_threshold_from_file(&path) {
+        Ok(path) => match from_file(&path) {
             Ok(config) => {
                 tracing::info!(
                     target: "cns.config",
@@ -1474,11 +1473,14 @@ mod tests {
     // =========================================================================
     // CurationThresholdConfig tests
     // =========================================================================
+    // YAML loader tests relocated to hkask-cli::curation_config.
+    // These tests verify CurationThresholdConfig still deserializes correctly
+    // (the struct lives in hkask_types::curation).
 
     #[test]
     fn curation_threshold_config_from_yaml() {
         let yaml = "coherence_threshold: 0.85\ndrift_threshold: 0.3\n";
-        let config = curation_threshold_from_yaml(yaml).unwrap();
+        let config: CurationThresholdConfig = serde_yaml::from_str(yaml).unwrap();
         assert_eq!(config.coherence_threshold, 0.85);
         assert_eq!(config.drift_threshold, 0.3);
     }
@@ -1486,7 +1488,7 @@ mod tests {
     #[test]
     fn curation_threshold_config_partial_yaml_uses_defaults() {
         let yaml = "coherence_threshold: 0.9\n";
-        let config = curation_threshold_from_yaml(yaml).unwrap();
+        let config: CurationThresholdConfig = serde_yaml::from_str(yaml).unwrap();
         assert_eq!(config.coherence_threshold, 0.9);
         assert_eq!(config.drift_threshold, 0.5); // default
     }
@@ -1494,7 +1496,7 @@ mod tests {
     #[test]
     fn curation_threshold_config_empty_yaml_uses_defaults() {
         let yaml = "{}\n";
-        let config = curation_threshold_from_yaml(yaml).unwrap();
+        let config: CurationThresholdConfig = serde_yaml::from_str(yaml).unwrap();
         assert_eq!(config.coherence_threshold, 0.7); // default
         assert_eq!(config.drift_threshold, 0.5); // default
     }

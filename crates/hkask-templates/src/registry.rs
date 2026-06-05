@@ -28,7 +28,6 @@ pub struct Registry {
     /// Optional hLexicon for validating lexicon_terms during registration.
     /// When set, `register()` logs warnings for terms not in the canonical vocabulary.
     hlexicon: Option<HLexicon>,
-    cache_valid: bool,
 }
 
 impl Registry {
@@ -38,7 +37,6 @@ impl Registry {
             skills: HashMap::new(),
             bundles: HashMap::new(),
             hlexicon: None,
-            cache_valid: true,
         }
     }
 
@@ -55,13 +53,7 @@ impl Registry {
 
     /// Invalidate the registry cache (for hot-reload)
     pub fn invalidate_cache(&mut self) {
-        self.cache_valid = false;
         self.templates.clear();
-    }
-
-    /// Check if cache is valid
-    pub fn is_cache_valid(&self) -> bool {
-        self.cache_valid
     }
 
     /// Reload registry from bootstrap (simulates reload from disk)
@@ -69,7 +61,6 @@ impl Registry {
         self.invalidate_cache();
         let fresh = Self::bootstrap();
         self.templates = fresh.templates;
-        self.cache_valid = true;
     }
 
     /// Get the templates directory path
@@ -89,16 +80,6 @@ impl Registry {
                     .filter(|p| p.exists())
                     .unwrap_or_else(|| PathBuf::from("registry/templates"))
             })
-    }
-
-    /// Get full path to a template file
-    ///
-    /// Maps `domain/name` to `registry/templates/<domain>/<name>.<ext>`
-    /// where `<ext>` is determined by the template type.
-    pub fn get_template_path(template_id: &str, template_type: TemplateType) -> PathBuf {
-        let base_path = Self::get_templates_path();
-        let ext = template_type.file_extension();
-        base_path.join(format!("{}.{}", template_id, ext))
     }
 
     /// Validate that a template path is safe (no path traversal)
@@ -159,44 +140,6 @@ impl Registry {
         Ok(())
     }
 
-    /// List templates as tool descriptors, filtered by agent capabilities.
-    /// Implements the RDF visibility rule: visible_to(agent, tool) iff
-    /// ∃c: possesses(agent, c) ∧ enables(c, tool).
-    /// Emits a `cns.tool.discovery` span for algedonic monitoring.
-    pub fn list_tools(&self, capabilities: &[String]) -> Vec<RegistryEntry> {
-        let visible: Vec<RegistryEntry> = self
-            .templates
-            .values()
-            .filter(|e| {
-                e.required_capabilities.is_empty()
-                    || e.required_capabilities
-                        .iter()
-                        .all(|c| capabilities.contains(c))
-            })
-            .cloned()
-            .collect();
-
-        // Emit CNS span for algedonic monitoring
-        tracing::info!(
-            target: "cns.tool.discovery",
-            template_count_visible = visible.len(),
-            template_count_total = self.templates.len(),
-            capability_set = ?capabilities,
-            "Registry tool discovery"
-        );
-
-        visible
-    }
-
-    /// Describe a single template or manifest by ID.
-    pub fn describe(&self, id: &str) -> Result<RegistryEntry> {
-        Self::validate_template_path(id)?;
-        self.templates
-            .get(id)
-            .cloned()
-            .ok_or_else(|| TemplateError::NotFound(format!("Template '{}' not found", id)))
-    }
-
     /// Register a template entry, validating against the hLexicon if set.
     ///
     /// Logs warnings for lexicon terms not in the canonical vocabulary
@@ -228,23 +171,11 @@ impl Registry {
         self.templates.get(id)
     }
 
-    pub fn get_mut(&mut self, id: &str) -> Option<&mut RegistryEntry> {
-        self.templates.get_mut(id)
-    }
-
-    pub fn by_type(&self, template_type: TemplateType) -> Vec<&RegistryEntry> {
+    pub(crate) fn by_type(&self, template_type: TemplateType) -> Vec<&RegistryEntry> {
         self.templates
             .values()
             .filter(|t| t.template_type == template_type)
             .collect()
-    }
-
-    pub fn exists(&self, id: &str) -> bool {
-        self.templates.contains_key(id)
-    }
-
-    pub fn ids(&self) -> Vec<&str> {
-        self.templates.keys().map(|s| s.as_str()).collect()
     }
 
     pub fn count(&self) -> usize {
@@ -325,19 +256,6 @@ impl Registry {
                 b.skills.iter().map(|s| s.id.as_str()).collect();
             bundle_skills == target
         })
-    }
-
-    /// Find bundles that contain any of the given skills (partial/similar match).
-    pub fn find_bundles_containing_skills(
-        &self,
-        skill_ids: &[String],
-    ) -> Vec<&hkask_types::BundleManifest> {
-        let target: std::collections::HashSet<&str> =
-            skill_ids.iter().map(|s| s.as_str()).collect();
-        self.bundles
-            .values()
-            .filter(|b| b.skills.iter().any(|s| target.contains(s.id.as_str())))
-            .collect()
     }
 
     /// Data-driven template definitions for [`bootstrap()`].
@@ -654,16 +572,6 @@ impl Registry {
 
         registry
     }
-
-    /// One-time migration helper: infer nested path from flat-file convention.
-    /// `registry/templates/knowact_calibrate.j2` -> `registry/templates/knowact/calibrate.j2`
-    pub fn migrate_flat_to_nested(flat_path: &str) -> Option<String> {
-        let stripped = flat_path
-            .strip_prefix("registry/templates/")?
-            .strip_suffix(".j2")?;
-        let (domain, name) = stripped.split_once('_')?;
-        Some(format!("registry/templates/{}/{}.j2", domain, name))
-    }
 }
 
 impl Default for Registry {
@@ -928,24 +836,6 @@ mod tests {
             Some(TemplateType::FlowDef)
         );
         assert_eq!(TemplateType::parse_str("unknown"), None);
-    }
-
-    #[test]
-    fn migrate_flat_to_nested() {
-        assert_eq!(
-            Registry::migrate_flat_to_nested("registry/templates/knowact_calibrate.j2"),
-            Some("registry/templates/knowact/calibrate.j2".to_string())
-        );
-        assert_eq!(
-            Registry::migrate_flat_to_nested("registry/templates/wordact_selector.j2"),
-            Some("registry/templates/wordact/selector.j2".to_string())
-        );
-        assert_eq!(
-            Registry::migrate_flat_to_nested("registry/templates/flowdef_dispatch.j2"),
-            Some("registry/templates/flowdef/dispatch.j2".to_string())
-        );
-        // Non-matching paths return None
-        assert_eq!(Registry::migrate_flat_to_nested("no_prefix.j2"), None);
     }
 
     #[test]

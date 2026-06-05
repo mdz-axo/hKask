@@ -254,6 +254,9 @@ impl CnsRuntime {
     }
 
     /// Emit a backpressure signal to all subscribers.
+    ///
+    /// Called by the Cybernetics Loop when gas budget depletion
+    /// reaches critical levels, signaling downstream loops to throttle.
     pub async fn emit_backpressure(&self, signal: BackpressureSignal) {
         let subscribers = self.subscribers.read().await;
         for observer in subscribers.iter() {
@@ -264,6 +267,8 @@ impl CnsRuntime {
     // ── Kill Zone ──
 
     /// Get the current kill zone configuration/state.
+    ///
+    /// Exposed via the CNS MCP server's `cns_kill_zone` tool.
     pub async fn kill_zone_state(&self) -> KillZoneConfig {
         let state = self.state.read().await;
         state.kill_zone.lock().await.state().clone()
@@ -272,6 +277,8 @@ impl CnsRuntime {
     /// Update VC investment and check if kill zone is triggered.
     ///
     /// Returns `true` if the kill zone alert should be fired.
+    ///
+    /// Exposed via the CNS MCP server's `cns_kill_zone` tool.
     pub async fn check_kill_zone(&self, vc_investment: f32, acquisition_attempt: bool) -> bool {
         let state = self.state.read().await;
         let mut detector = state.kill_zone.lock().await;

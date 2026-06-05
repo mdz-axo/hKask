@@ -1,6 +1,6 @@
 //! PodManager, PodStatus, PodManagerBuilder — Pod lifecycle management
 
-use hkask_types::{CapabilityChecker, InferencePort, NuEventSink};
+use hkask_types::{CapabilityChecker, InferencePort, NuEventSink, ToolPort};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -39,6 +39,10 @@ pub struct PodManager {
     /// When set, `PodContext::require_capability()` verifies HMAC signatures.
     /// When absent, falls back to structural `is_valid_for()` check (insecure).
     pub(crate) capability_checker: Option<Arc<CapabilityChecker>>,
+    /// GovernedTool membrane for pod tool invocations.
+    /// When set, PodContext routes tool calls through CNS governance
+    /// (gas budget, variety tracking, event spans).
+    pub(crate) governed_tool: Option<Arc<dyn ToolPort>>,
     /// NuEvent sink for pod lifecycle observability.
     /// When set, pod lifecycle transitions emit NuEvents through CNS.
     nu_event_sink: Option<Arc<dyn NuEventSink>>,
@@ -74,6 +78,7 @@ impl PodManager {
             semantic_storage,
             inference_port: None,
             capability_checker: None,
+            governed_tool: None,
             nu_event_sink: None,
         }
     }
@@ -87,6 +92,16 @@ impl PodManager {
     /// Set the NuEvent sink for pod lifecycle observability
     pub fn with_nu_event_sink(mut self, sink: Arc<dyn NuEventSink>) -> Self {
         self.nu_event_sink = Some(sink);
+        self
+    }
+
+    /// Set the GovernedTool membrane for pod tool invocations.
+    ///
+    /// When set, `PodContext::invoke_tool` routes through the membrane,
+    /// gaining CNS governance: gas budget enforcement, variety tracking,
+    /// and algedonic event spans.
+    pub fn with_governed_tool(mut self, tool: Arc<dyn ToolPort>) -> Self {
+        self.governed_tool = Some(tool);
         self
     }
 
@@ -108,6 +123,7 @@ impl PodManager {
             semantic_storage,
             inference_port: Some(inference_port),
             capability_checker: None,
+            governed_tool: None,
             nu_event_sink: None,
         }
     }
@@ -139,6 +155,7 @@ impl PodManager {
             semantic_storage,
             inference_port: None,
             capability_checker,
+            governed_tool: None,
             nu_event_sink: None,
         }
     }
@@ -167,6 +184,7 @@ pub struct PodManagerBuilder {
     semantic_storage: Option<Arc<dyn SemanticStoragePort>>,
     inference_port: Option<Arc<dyn InferencePort>>,
     capability_checker: Option<Arc<CapabilityChecker>>,
+    governed_tool: Option<Arc<dyn ToolPort>>,
     nu_event_sink: Option<Arc<dyn NuEventSink>>,
 }
 
@@ -180,6 +198,7 @@ impl PodManagerBuilder {
             semantic_storage: None,
             inference_port: None,
             capability_checker: None,
+            governed_tool: None,
             nu_event_sink: None,
         }
     }
@@ -225,6 +244,16 @@ impl PodManagerBuilder {
     /// ACP secret automatically.
     pub fn capability_checker(mut self, checker: CapabilityChecker) -> Self {
         self.capability_checker = Some(Arc::new(checker));
+        self
+    }
+
+    /// Set the GovernedTool membrane for pod tool invocations.
+    ///
+    /// When set, `PodContext::invoke_tool` routes through the membrane,
+    /// gaining CNS governance: gas budget enforcement, variety tracking,
+    /// and algedonic event spans. Without it, pods bypass CNS observability.
+    pub fn governed_tool(mut self, tool: Arc<dyn ToolPort>) -> Self {
+        self.governed_tool = Some(tool);
         self
     }
 
@@ -295,6 +324,7 @@ impl PodManagerBuilder {
             semantic_storage,
         );
         manager.inference_port = self.inference_port;
+        manager.governed_tool = self.governed_tool;
         manager.nu_event_sink = self.nu_event_sink;
         manager.capability_checker = self
             .capability_checker

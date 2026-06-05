@@ -6,6 +6,13 @@
 //! Split from `McpDispatcher` to enforce the authority DAG:
 //! Cybernetics governs Communication. The governor holds the capability
 //! checker and revoked token set; the dispatcher holds the transport runtime.
+//!
+//! **Architectural note (V3):** This struct lives in `hkask-mcp` (Communication)
+//! but performs Cybernetics concerns. The correct location is `hkask-cns`
+//! or a shared governance module. Moving it requires refactoring crate
+//! dependencies — `McpDispatcher` would need to take a `Box<dyn CapabilityGovernor>`
+//! trait object instead of owning `McpGovernor` directly. This is deferred
+//! until a second governor implementation exists that justifies the trait split.
 
 use hkask_types::{CapabilityChecker, DelegationToken, WebID};
 use std::sync::Arc;

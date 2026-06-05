@@ -1,17 +1,22 @@
 //! hKask MCP CNS — Cybernetic Nervous System monitoring and alerts
 //!
-//! Starts an MCP server over stdio exposing 6 tools:
+//! Starts an MCP server over stdio exposing 8 tools:
 //! - `cns_emit` — Emit a CNS observation event
 //! - `cns_variety` — Get variety count for a span pattern
 //! - `cns_alert` — Trigger a real algedonic alert
 //! - `cns_calibrate` — Calibrate a span threshold
 //! - `cns_list_alerts` — List active algedonic alerts
 //! - `cns_health` — Get CNS health status
+//! - `cns_kill_zone` — Check or update kill-zone state
+//! - `cns_replenish_budget` — Replenish an agent's gas budget
 
-use hkask_cns::{CnsRuntime, DEFAULT_THRESHOLD};
+use hkask_cns::{CnsRuntime, CyberneticsLoop, DEFAULT_THRESHOLD};
 use hkask_mcp::server::ToolSpanGuard;
 use hkask_mcp::validate_field;
 use hkask_types::WebID;
+use hkask_types::event::SpanNamespace;
+use hkask_types::loops::LoopId;
+use hkask_types::ports::BackpressureSignal;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
 use schemars::JsonSchema;
@@ -51,6 +56,7 @@ pub struct ListAlertsRequest {
 
 pub struct CnsServer {
     runtime: Arc<CnsRuntime>,
+    cybernetics: Arc<tokio::sync::RwLock<CyberneticsLoop>>,
     threshold: AtomicU64,
     webid: WebID,
 }
@@ -61,8 +67,18 @@ impl CnsServer {
 
         let runtime = CnsRuntime::with_threshold(threshold);
 
+        // Create a dead dispatch channel — the CyberneticsLoop in the MCP
+        // server is standalone (no Communication Loop). It only needs enough
+        // wiring to support gas budget replenishment.
+        let (dispatch_tx, _dispatch_rx) = tokio::sync::mpsc::unbounded_channel();
+        let cybernetics = Arc::new(tokio::sync::RwLock::new(CyberneticsLoop::new(
+            Arc::new(tokio::sync::RwLock::new(runtime.clone())),
+            dispatch_tx,
+        )));
+
         Self {
             runtime: Arc::new(runtime),
+            cybernetics,
             threshold: AtomicU64::new(threshold),
             webid,
         }

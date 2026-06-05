@@ -1013,7 +1013,7 @@ pub fn run(
 
                     // CNS variety sensing: decompose the prompt and increment
                     // variety counters for depth, structure, and topic domains.
-                    let analysis = hkask_cns::decompose_prompt(input);
+                    let analysis = hkask_agents::decompose_prompt(input);
                     {
                         let cns_guard = rt.block_on(state.cns.read());
                         // Prompt depth bucket (shallow/medium/deep)
