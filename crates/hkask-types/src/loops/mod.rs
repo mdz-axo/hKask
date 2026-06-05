@@ -36,9 +36,7 @@ pub use cybernetics::CyberneticsHandle;
 pub use dispatch::{
     DispatchTarget, LoopMessage, LoopPayload, MessagePriority, TraceId, WorkerKind,
 };
-pub use episodic::{
-    EpisodicBudgetExceeded, EpisodicReadHandle, EpisodicWriteHandle, ExperienceClassification,
-};
+pub use episodic::ExperienceClassification;
 
 pub use self::Loop as HkaskLoop;
 

@@ -12,9 +12,10 @@
 //!
 //! Episodic memory is PRIVATE to the agent. Only the owning agent can
 //! store or read their own episodic triples.
-
-use crate::id::WebID;
-use crate::sovereignty::DataCategory;
+//!
+//! OCAP enforcement is via `DelegationToken` + `CapabilityChecker` (HMAC-signed
+//! tokens verified at the port membrane). Budget enforcement is via
+//! `EpisodicLoop` (cybernetic sense→compute→act cycle with SQL COUNT queries).
 
 // =============================================================================
 // Experience Classification (Loop 2a.1)
@@ -44,114 +45,4 @@ impl std::fmt::Display for ExperienceClassification {
             ExperienceClassification::Failure => write!(f, "failure"),
         }
     }
-}
-
-// =============================================================================
-// EpisodicReadHandle — Loop 2a read access
-// =============================================================================
-
-/// Episodic memory read handle. Bound to a single WebID.
-/// Can only read triples owned by that agent.
-pub struct EpisodicReadHandle {
-    owner: WebID,
-    query_budget: u32,
-}
-
-impl EpisodicReadHandle {
-    #[cfg(test)]
-    pub fn new_test() -> Self {
-        Self {
-            owner: WebID::new(),
-            query_budget: 100,
-        }
-    }
-
-    pub fn new(owner: WebID, query_budget: u32) -> Self {
-        Self {
-            owner,
-            query_budget,
-        }
-    }
-
-    pub fn owner(&self) -> &WebID {
-        &self.owner
-    }
-
-    pub fn query_budget(&self) -> u32 {
-        self.query_budget
-    }
-
-    pub fn can_access(&self, category: &DataCategory) -> bool {
-        matches!(category, DataCategory::EpisodicMemory)
-    }
-}
-
-// =============================================================================
-// EpisodicWriteHandle — Loop 2a write access
-// =============================================================================
-
-/// Episodic memory write handle. Bound to a single WebID.
-/// Can only store triples owned by that agent.
-pub struct EpisodicWriteHandle {
-    owner: WebID,
-    storage_budget: u32,
-    storage_used: u32,
-}
-
-impl EpisodicWriteHandle {
-    #[cfg(test)]
-    pub fn new_test() -> Self {
-        Self {
-            owner: WebID::new(),
-            storage_budget: 10000,
-            storage_used: 0,
-        }
-    }
-
-    pub fn new(owner: WebID, storage_budget: u32, storage_used: u32) -> Self {
-        Self {
-            owner,
-            storage_budget,
-            storage_used,
-        }
-    }
-
-    pub fn owner(&self) -> &WebID {
-        &self.owner
-    }
-
-    pub fn storage_budget(&self) -> u32 {
-        self.storage_budget
-    }
-
-    pub fn storage_used(&self) -> u32 {
-        self.storage_used
-    }
-
-    pub fn within_budget(&self, additional: u32) -> bool {
-        self.storage_used + additional <= self.storage_budget
-    }
-
-    pub fn record_stored(&mut self, count: u32) -> Result<(), EpisodicBudgetExceeded> {
-        if !self.within_budget(count) {
-            return Err(EpisodicBudgetExceeded {
-                agent: self.owner,
-                requested: self.storage_used + count,
-                budget: self.storage_budget,
-            });
-        }
-        self.storage_used += count;
-        Ok(())
-    }
-}
-
-/// Error returned when episodic storage budget is exceeded.
-#[derive(Debug, Clone, thiserror::Error)]
-#[error(
-    "episodic storage budget exceeded for agent {agent}: requested {requested}, budget {budget}"
-)]
-pub struct EpisodicBudgetExceeded {
-    pub agent: WebID,
-    pub requested: u32,
-    pub budget: u32,
 }

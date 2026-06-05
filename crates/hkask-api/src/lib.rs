@@ -127,8 +127,8 @@ pub struct ApiState {
     pub goal_repo: Arc<hkask_storage::SqliteGoalRepository>,
     /// Loop system for 6-loop regulation (Cybernetics, Episodic, Semantic, Curation)
     pub loop_system: Arc<LoopSystem>,
-    /// Episodic memory for first-person experience storage and recall
-    pub episodic_memory: Arc<EpisodicMemory>,
+    /// Episodic memory storage — private, agent-scoped (via port trait)
+    pub episodic_storage: Arc<dyn EpisodicStoragePort>,
     /// CNS runtime for real-time variety and health data
     pub cns_runtime: Arc<CnsRuntime>,
     /// General-purpose inference port (shared across requests)
@@ -154,7 +154,7 @@ fn build_loop_system(
     event_sink: Option<Arc<dyn NuEventSink>>,
 ) -> (
     Arc<LoopSystem>,
-    Arc<EpisodicMemory>,
+    Arc<dyn EpisodicStoragePort>,
     Arc<tokio::sync::RwLock<CyberneticsLoop>>,
     Arc<ConsolidationBridge>,
     Arc<SemanticMemory>,
@@ -203,8 +203,6 @@ fn build_loop_system(
     let storage_budget = episodic_memory.storage_budget();
     let episodic_loop =
         EpisodicLoop::new(Arc::clone(&episodic_memory), system_webid, storage_budget);
-    // API-facing episodic memory backed by the same connection
-    let episodic_memory_api = Arc::new(EpisodicMemory::new(TripleStore::new(conn)));
     rt.block_on(async {
         loop_system.register_loop(Arc::new(episodic_loop)).await;
     });
@@ -213,12 +211,23 @@ fn build_loop_system(
     let db2 = Database::in_memory().expect("in-memory db");
     let conn2 = db2.conn_arc();
     let triple_store2 = TripleStore::new(Arc::clone(&conn2));
-    let embedding_store = EmbeddingStore::new(conn2);
+    let embedding_store = EmbeddingStore::new(Arc::clone(&conn2));
     let semantic_memory = Arc::new(SemanticMemory::new(triple_store2, embedding_store));
     let semantic_loop = SemanticLoop::new(Arc::clone(&semantic_memory));
     rt.block_on(async {
         loop_system.register_loop(Arc::new(semantic_loop)).await;
     });
+
+    // API-facing memory adapter — shares the same DB connections as the loops
+    // so budget reads see API writes immediately.
+    let memory_adapter = Arc::new(MemoryLoopAdapter::new(
+        EpisodicMemory::new(TripleStore::new(conn)),
+        SemanticMemory::new(
+            TripleStore::new(Arc::clone(&conn2)),
+            EmbeddingStore::new(conn2),
+        ),
+    ));
+    let episodic_storage: Arc<dyn EpisodicStoragePort> = memory_adapter.clone();
 
     // Curation Loop (via CuratorAgent)
     let curator_handle = CuratorHandle::system();
@@ -249,7 +258,7 @@ fn build_loop_system(
     drop(rt);
     (
         Arc::new(loop_system),
-        episodic_memory_api,
+        episodic_storage,
         cybernetics_loop_rwlock,
         consolidation_bridge,
         semantic_memory,
@@ -330,7 +339,7 @@ impl ApiState {
 
         let (
             loop_system,
-            episodic_memory,
+            episodic_storage,
             cybernetics_loop_rwlock,
             consolidation_bridge,
             semantic_memory_for_consolidation,
@@ -425,7 +434,7 @@ impl ApiState {
             session_manager,
             goal_repo,
             loop_system,
-            episodic_memory,
+            episodic_storage,
             cns_runtime: Arc::new(CnsRuntime::with_threshold(hkask_cns::DEFAULT_THRESHOLD)),
             inference_port,
             consolidation_bridge,

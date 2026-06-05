@@ -1,11 +1,11 @@
 //! Episodic Memory API routes.
 //!
-//! HTTP surface for episodic memory operations, exposing the `EpisodicMemory`
-//! pub methods: `store`, `query_for_deduped`, `storage_usage`, `storage_budget`.
+//! HTTP surface for episodic memory operations, routed through
+//! `EpisodicStoragePort` for OCAP discipline. All requests carry a
+//! `DelegationToken` via the HTTP auth middleware (`AuthContext`).
 
 use axum::extract::Extension;
 use axum::{Json, extract::Query, extract::State, http::StatusCode, routing::Router};
-use hkask_storage::Triple;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -92,20 +92,10 @@ fn error_response(
     )
 }
 
-fn triple_to_response(t: &Triple) -> EpisodeResponse {
-    EpisodeResponse {
-        id: t.id.to_string(),
-        entity: t.entity.clone(),
-        attribute: t.attribute.clone(),
-        value: t.value.clone(),
-        confidence: t.confidence,
-        perspective: t.perspective.map(|p| p.to_string()),
-        visibility: t.visibility.as_str().to_string(),
-        valid_from: t.valid_from.to_rfc3339(),
-    }
-}
-
 /// Store an episodic triple for the authenticated caller.
+///
+/// Routes through `EpisodicStoragePort` with OCAP discipline:
+/// the `DelegationToken` from HTTP auth is verified at the membrane.
 #[utoipa::path(
     post,
     path = "/api/episodic/store",
@@ -132,25 +122,39 @@ async fn store_episode(
     }
 
     let confidence = req.confidence.unwrap_or(1.0);
-    let triple = Triple::new(&req.entity, &req.attribute, req.value, auth.webid)
-        .with_visibility(hkask_types::Visibility::Private)
-        .with_perspective(auth.webid)
-        .with_confidence(confidence);
-
-    state.episodic_memory.store(triple).map_err(|e| {
-        error_response(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "EPISODIC_STORE_ERROR",
-            &e.to_string(),
+    state
+        .episodic_storage
+        .store_episodic(
+            auth.webid,
+            &req.entity,
+            &req.attribute,
+            req.value,
+            confidence,
+            &auth.token,
         )
-    })?;
+        .map_err(|e| {
+            // Map OCAP denial to 403, storage errors to 500
+            if e.to_string().contains("denied") || e.to_string().contains("read-only") {
+                error_response(
+                    StatusCode::FORBIDDEN,
+                    "EPISODIC_CAPABILITY_DENIED",
+                    &e.to_string(),
+                )
+            } else {
+                error_response(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "EPISODIC_STORE_ERROR",
+                    &e.to_string(),
+                )
+            }
+        })?;
 
     tracing::debug!(
         target: "cns.memory.episodic",
         entity = %req.entity,
         attribute = %req.attribute,
         confidence = confidence,
-        "Episodic triple stored via API"
+        "Episodic triple stored via API (through port membrane)"
     );
 
     Ok(Json(StoreEpisodeResponse {
@@ -161,6 +165,7 @@ async fn store_episode(
 
 /// Query episodic memories for the authenticated caller by entity.
 ///
+/// Routes through `EpisodicStoragePort` with OCAP discipline.
 /// Applies confidence decay, temporal attention weighting, and deduplication
 /// (subloops 2a.2–2a.4) before returning results.
 #[utoipa::path(
@@ -190,20 +195,63 @@ async fn query_episodes(
         ));
     }
 
-    let triples = state
-        .episodic_memory
-        .query_for_deduped(&params.entity, auth.webid)
+    let results = state
+        .episodic_storage
+        .recall_episodic(&params.entity, &auth.webid, &auth.token)
         .map_err(|e| {
-            error_response(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "EPISODIC_QUERY_ERROR",
-                &e.to_string(),
-            )
+            if e.to_string().contains("denied") {
+                error_response(
+                    StatusCode::FORBIDDEN,
+                    "EPISODIC_CAPABILITY_DENIED",
+                    &e.to_string(),
+                )
+            } else {
+                error_response(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "EPISODIC_QUERY_ERROR",
+                    &e.to_string(),
+                )
+            }
         })?;
 
-    Ok(Json(QueryEpisodesResponse {
-        episodes: triples.iter().map(triple_to_response).collect(),
-    }))
+    let episodes: Vec<EpisodeResponse> = results
+        .into_iter()
+        .map(|v| EpisodeResponse {
+            id: v
+                .get("id")
+                .and_then(|i| i.as_str())
+                .unwrap_or_default()
+                .to_string(),
+            entity: v
+                .get("entity")
+                .and_then(|e| e.as_str())
+                .unwrap_or_default()
+                .to_string(),
+            attribute: v
+                .get("attribute")
+                .and_then(|a| a.as_str())
+                .unwrap_or_default()
+                .to_string(),
+            value: v.get("value").cloned().unwrap_or(serde_json::Value::Null),
+            confidence: v.get("confidence").and_then(|c| c.as_f64()).unwrap_or(0.0),
+            perspective: v
+                .get("perspective")
+                .and_then(|p| p.as_str())
+                .map(|s| s.to_string()),
+            visibility: v
+                .get("visibility")
+                .and_then(|v| v.as_str())
+                .unwrap_or("private")
+                .to_string(),
+            valid_from: v
+                .get("valid_from")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_string(),
+        })
+        .collect();
+
+    Ok(Json(QueryEpisodesResponse { episodes }))
 }
 
 /// Get episodic storage usage for the authenticated caller.
@@ -222,8 +270,8 @@ async fn storage_usage(
     Extension(auth): Extension<AuthContext>,
 ) -> Result<Json<EpisodicUsageResponse>, (StatusCode, Json<ErrorResponse>)> {
     let count = state
-        .episodic_memory
-        .storage_usage(&auth.webid)
+        .episodic_storage
+        .episodic_storage_usage(&auth.webid)
         .map_err(|e| {
             error_response(
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -231,7 +279,7 @@ async fn storage_usage(
                 &e.to_string(),
             )
         })?;
-    let budget = state.episodic_memory.storage_budget();
+    let budget = state.episodic_storage.episodic_storage_budget();
 
     Ok(Json(EpisodicUsageResponse { count, budget }))
 }

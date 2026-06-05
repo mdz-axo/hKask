@@ -551,14 +551,14 @@ Users can trigger consolidation manually via CLI, chat, API, or MCP. The operati
 | 2 | **Confidence floor** | `confidence_floor` — delete semantic triples at or below this confidence (optional, overrides default 0.33) |
 | 3 | **Max triples** | `max_semantic_triples` — enforce a hard cap on semantic triple count (optional) |
 
-**Authorization**: When consolidating a specific agent's memory, the caller must provide the agent's database passphrase for verification. This prevents unauthorized consolidation of another agent's data.
+**Authorization**: When consolidating a specific agent's memory, the caller must provide their **master passphrase** for verification. The passphrase is verified by deriving `capability_key` via `derive_all_internal_secrets(master_passphrase)` and comparing it against the resolved DB passphrase — matching the same derivation chain used during onboarding (`onboarding.rs` → `store_secrets_in_keychain` → `capability_key` stored as `hkask-db-passphrase`). This prevents unauthorized consolidation of another agent's data while ensuring the verification uses the same identity-proving secret that governs database access.
 
 **Surfaces**:
 
 | Surface | Command | Full consolidation | Semantic cleanup only |
 |--------|---------|--------------------|-----------------------|
 | CLI | `kask consolidate --agent X --passphrase P --limit N --floor F --max M` | ✓ | ✓ |
-| Chat | `/consolidate [LIMIT] [--floor F] [--max M]` | Delegates to CLI | ✓ |
+| Chat | `/consolidate [run] [LIMIT] [--floor F] [--max M]` | ✓ (via ReplState ConsolidationService) | ✓ |
 | API | `POST /api/consolidate` | ✓ | ✓ |
 | MCP | `semantic_consolidate` | ✗ (no episodic access) | ✓ |
 

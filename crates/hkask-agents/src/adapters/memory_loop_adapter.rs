@@ -148,6 +148,10 @@ impl EpisodicStoragePort for MemoryLoopAdapter {
         Ok(count)
     }
 
+    fn episodic_storage_budget(&self) -> usize {
+        self.episodic.storage_budget()
+    }
+
     fn store_episodic_classified(
         &self,
         producer_webid: WebID,

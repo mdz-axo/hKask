@@ -20,9 +20,8 @@ use hkask_types::{DelegationToken, ExperienceClassification, WebID};
 ///
 /// Episodic memory is private to the owning agent. Only the agent whose
 /// WebID matches the `perspective` field can store or read their own
-/// episodic triples. This enforces the OCAP boundary:
-/// `EpisodicReadHandle` can only read own-perspective triples.
-/// `EpisodicWriteHandle` can only write own-perspective triples.
+/// episodic triples. OCAP enforcement is via `DelegationToken` +
+/// `CapabilityChecker` (HMAC-signed tokens verified at the membrane).
 pub trait EpisodicStoragePort: Send + Sync {
     /// Store an episodic triple (private, agent-scoped).
     ///
@@ -55,11 +54,16 @@ pub trait EpisodicStoragePort: Send + Sync {
     /// Check episodic storage budget for an agent.
     ///
     /// Returns the number of triples currently stored for the given perspective.
-    /// Used by Loop 2a.5 (Storage Budget) to enforce per-agent limits.
+    /// Used by Loop 2a.4 (Storage Budget) to enforce per-agent limits.
     fn episodic_storage_usage(
         &self,
         perspective: &WebID,
     ) -> Result<usize, crate::error::MemoryError>;
+
+    /// Get the configured per-agent storage budget (max triples).
+    ///
+    /// Used by the API usage endpoint and budget status reporting.
+    fn episodic_storage_budget(&self) -> usize;
 
     /// Store an episodic triple with experience classification (Loop 2a.1).
     ///

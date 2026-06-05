@@ -1,5 +1,7 @@
 //! Consolidation API — user-triggered episodic→semantic consolidation + semantic cleanup
 
+use std::sync::atomic::{AtomicU64, Ordering};
+
 use axum::{Extension, Json, extract::State};
 use hkask_types::WebID;
 use hkask_types::ports::ConsolidationRequest;
@@ -9,6 +11,40 @@ use utoipa::ToSchema;
 use super::error_response;
 use crate::ApiState;
 
+/// Minimum seconds between consolidation requests to the API.
+///
+/// Each request runs Argon2id key derivation (~100ms CPU) for passphrase
+/// verification. Without rate limiting, a tight loop of requests becomes
+/// a CPU denial-of-service vector. 30s is appropriate for an admin operation
+/// that runs at most a few times per session.
+const CONSOLIDATION_MIN_INTERVAL_SECS: u64 = 30;
+
+/// Coarse-grained rate limiter for the consolidation endpoint.
+///
+/// Uses a single `AtomicU64` timestamp (seconds since `Instant::now()` is not
+/// available across threads, so we use `SystemTime` epoch seconds). This is
+/// intentionally simple — one global gate, not per-user. For a single-user
+/// headless system, this is sufficient.
+static LAST_CONSOLIDATION_EPOCH_SECS: AtomicU64 = AtomicU64::new(0);
+
+fn check_rate_limit() -> Result<(), axum::Json<serde_json::Value>> {
+    let now_secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let prev = LAST_CONSOLIDATION_EPOCH_SECS.load(Ordering::Relaxed);
+    if prev != 0 && now_secs.saturating_sub(prev) < CONSOLIDATION_MIN_INTERVAL_SECS {
+        let remaining = CONSOLIDATION_MIN_INTERVAL_SECS - now_secs.saturating_sub(prev);
+        Err(axum::Json(error_response(
+            429,
+            &format!("Rate limited: try again in {}s", remaining),
+        )))
+    } else {
+        LAST_CONSOLIDATION_EPOCH_SECS.store(now_secs, Ordering::Relaxed);
+        Ok(())
+    }
+}
+
 // =============================================================================
 // Request / Response types
 // =============================================================================
@@ -17,7 +53,8 @@ use crate::ApiState;
 pub struct ConsolidateRequest {
     /// Agent WebID whose episodic memory to consolidate
     pub agent_webid: String,
-    /// Database passphrase for the agent (required for authorization)
+    /// Master passphrase for authorization (derived via HKDF-SHA256 to produce
+    /// the capability_key used as the DB passphrase, matching onboarding flow)
     pub passphrase: String,
     /// Maximum episodic triples to consolidate (default: 100)
     #[schema(default = 100)]
@@ -56,6 +93,7 @@ pub fn consolidation_router() -> axum::Router<crate::ApiState> {
     responses(
         (status = 200, description = "Consolidation complete", body = ConsolidateResponse),
         (status = 401, description = "Unauthorized — invalid passphrase"),
+        (status = 429, description = "Rate limited — try again later"),
         (status = 500, description = "Internal server error"),
     ),
 )]
@@ -64,6 +102,12 @@ async fn consolidate(
     Extension(_auth): Extension<crate::middleware::auth::AuthContext>,
     Json(req): Json<ConsolidateRequest>,
 ) -> axum::Json<serde_json::Value> {
+    // Rate-limit: Argon2id derivation is ~100ms CPU per request.
+    // Prevent CPU DoS by enforcing a minimum interval between calls.
+    if let Err(rate_limit_response) = check_rate_limit() {
+        return rate_limit_response;
+    }
+
     // Parse agent WebID
     let webid = match uuid::Uuid::parse_str(&req.agent_webid) {
         Ok(id) => WebID(id),
@@ -75,18 +119,19 @@ async fn consolidate(
         }
     };
 
-    // Verify passphrase
-    // The passphrase must match the database passphrase used to encrypt the
-    // agent's data. We verify by attempting to open the database with it.
-    // For the API, we verify against the configured system passphrase.
-    let db_passphrase = match std::env::var("HKASK_DB_PASSPHRASE") {
-        Ok(p) => p,
+    // Verify passphrase using the master-passphrase → capability_key derivation chain.
+    // This matches onboarding: derive_all_internal_secrets(master_passphrase) produces
+    // a capability_key that is stored in the keychain as "hkask-db-passphrase" and used
+    // as the DB encryption key. We verify the user-supplied master passphrase by
+    // deriving the capability_key and comparing it against the resolved DB passphrase.
+    let expected = match hkask_keystore::resolve_db_passphrase() {
+        Ok(db_pass) => String::from_utf8_lossy(&db_pass).to_string(),
         Err(_) => {
             return axum::Json(error_response(500, "Server passphrase not configured"));
         }
     };
-
-    if req.passphrase != db_passphrase {
+    let secrets = hkask_keystore::master_key::derive_all_internal_secrets(&req.passphrase);
+    if secrets.capability_key != expected {
         tracing::warn!(
             target: "api.consolidation",
             agent_webid = %req.agent_webid,
@@ -105,12 +150,14 @@ async fn consolidate(
     // Execute via ConsolidationService
     let service = state.consolidation_service();
     match service.consolidate(&webid, consolidation_request) {
-        Ok(outcome) => axum::Json(serde_json::json!({
-            "status": "ok",
-            "consolidated_count": outcome.consolidated_count,
-            "deleted_count": outcome.deleted_count,
-            "failed_count": outcome.failed_count,
-        })),
+        Ok(outcome) => axum::Json(
+            serde_json::to_value(ConsolidateResponse {
+                consolidated_count: outcome.consolidated_count,
+                deleted_count: outcome.deleted_count,
+                failed_count: outcome.failed_count,
+            })
+            .expect("ConsolidateResponse serialization cannot fail: all fields are usize"),
+        ),
         Err(e) => axum::Json(error_response(500, &e)),
     }
 }

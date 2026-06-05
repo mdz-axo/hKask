@@ -29,9 +29,9 @@ pub struct PodManager {
     git_cas: Arc<dyn GitCASPort>,
     acp_runtime: Arc<dyn crate::ports::AcpPort + Send + Sync>,
     pub(crate) mcp_runtime: Arc<dyn MCPRuntimePort>,
-    /// Episodic memory storage — private, agent-scoped (OCAP: EpisodicReadHandle/EpisodicWriteHandle)
+    /// Episodic memory storage — private, agent-scoped (OCAP: DelegationToken)
     pub(crate) episodic_storage: Arc<dyn EpisodicStoragePort>,
-    /// Semantic memory storage — shared, public knowledge (OCAP: SemanticReadHandle/SemanticWriteHandle)
+    /// Semantic memory storage — shared, public knowledge (OCAP: DelegationToken)
     pub(crate) semantic_storage: Arc<dyn SemanticStoragePort>,
 
     pub(crate) inference_port: Option<Arc<dyn InferencePort>>,

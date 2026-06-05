@@ -246,6 +246,7 @@ pub(crate) struct Caveat {
 
 // OCAP infrastructure: caveat methods are part of the capability security model
 // but not yet consumed by runtime enforcement. Retain for OCAP completeness.
+#[allow(dead_code)]
 impl Caveat {
     /// Create a new caveat
     pub(crate) fn new(caveat_id: impl Into<String>, data: impl Into<String>) -> Self {
@@ -654,6 +655,7 @@ impl DelegationToken {
     /// # Returns
     /// A new `DelegationToken` with the caveat added and re-signed
     // OCAP infrastructure: caveat attenuation awaits runtime enforcement
+    #[allow(dead_code)]
     pub(crate) fn add_caveat(&self, caveat: Caveat, secret: &[u8]) -> Self {
         let mut new_token = self.clone();
         new_token.caveats.push(caveat);
@@ -692,6 +694,7 @@ impl DelegationToken {
 
     /// Access all caveats on this token
     // OCAP infrastructure: caveat access awaits runtime enforcement
+    #[allow(dead_code)]
     pub(crate) fn caveats(&self) -> &[Caveat] {
         &self.caveats
     }

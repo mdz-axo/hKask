@@ -423,6 +423,15 @@ impl SemanticServer {
     ) -> String {
         let span = ToolSpanGuard::new("semantic_consolidate", &self.webid);
 
+        // NOTE: This MCP tool does NOT verify a master passphrase.
+        // The MCP semantic server is always OCAP-gated — invocations require a
+        // valid capability token issued through the GovernedTool membrane
+        // (see hkask-mcp/src/dispatch.rs). Adding a passphrase check here
+        // would create a redundant authorization layer: OCAP already ensures
+        // that only token-bearing callers can invoke this tool. The CLI and
+        // API endpoints are directly user-facing (no OCAP membrane), so they
+        // need passphrase verification. This tool does not.
+
         // The MCP semantic server only has SemanticMemory, not EpisodicMemory.
         // Consolidation (episodic→semantic) requires both. The MCP server
         // can only do the semantic cleanup portion (phases 2 and 3).

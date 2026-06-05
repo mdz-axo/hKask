@@ -187,7 +187,8 @@ pub enum Commands {
         #[arg(long)]
         max_semantic_triples: Option<usize>,
 
-        /// Database passphrase for authorization (required for agent-scoped consolidation)
+        /// Master passphrase for authorization (derived via HKDF-SHA256 to produce
+        /// the capability_key used as the DB passphrase, matching onboarding flow)
         #[arg(long)]
         passphrase: Option<String>,
     },

@@ -60,8 +60,8 @@ pub use identity::*;
 pub use lexicon::{HLexicon, LexiconTerm, TemplateType};
 pub use loops::{
     ActionType, CuratorDirective, CuratorHandle, CyberneticsHandle, Deviation, DeviationDirection,
-    DispatchTarget, EpisodicReadHandle, EpisodicWriteHandle, ExperienceClassification, HkaskLoop,
-    LoopAction, LoopId, LoopMessage, LoopPayload, MessagePriority, Signal, WorkerKind,
+    DispatchTarget, ExperienceClassification, HkaskLoop, LoopAction, LoopId, LoopMessage,
+    LoopPayload, MessagePriority, Signal, WorkerKind,
 };
 pub use ports::{
     BackpressureSignal, BundleRegistryIndex, CircuitBreakerPort, CnsObserver, CnsPort,

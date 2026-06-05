@@ -460,6 +460,20 @@ impl TripleStore {
         Ok(count as usize)
     }
 
+    /// Count semantic triples for a given entity (perspective IS NULL, valid_to IS NULL).
+    ///
+    /// Used by `SemanticMemory::triple_count_for_entity()` to count only
+    /// shared/semantic triples, excluding episodic (perspective IS NOT NULL).
+    pub fn count_semantic_by_entity(&self, entity: &str) -> Result<usize, TripleError> {
+        let conn = self.lock_conn()?;
+        let count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM triples WHERE entity = ?1 AND perspective IS NULL AND valid_to IS NULL",
+            rusqlite::params![entity],
+            |row| row.get(0),
+        )?;
+        Ok(count as usize)
+    }
+
     /// Count triples for a given perspective (episodic, valid_to IS NULL).
     ///
     /// Used by `EpisodicMemory::storage_usage()` for budget enforcement

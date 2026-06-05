@@ -73,6 +73,9 @@ Detailed lookup tables and diagrams in `reference/`:
 | [`ADR-026-bitemporal-triple-schema.md`](ADR-026-bitemporal-triple-schema.md) | Bitemporal triple schema with valid-time × transaction-time (retroactive) |
 | [`ADR-027-argon2-hkdf-master-key.md`](ADR-027-argon2-hkdf-master-key.md) | Argon2id + HKDF-SHA256 master key derivation (retroactive) |
 | [`ADR-028-acp-protocol-design.md`](ADR-028-acp-protocol-design.md) | ACP protocol design — JSON-RPC 2.0 over stdio (retroactive) |
+| [`ADR-029-goal-capability-primitive.md`](ADR-029-goal-capability-primitive.md) | Goal capability primitive (retroactive) |
+| [`ADR-030-skill-bundler.md`](ADR-030-skill-bundler.md) | Skill bundler — meta-skill composition |
+| [`ADR-031-consolidation-authorization.md`](ADR-031-consolidation-authorization.md) | Consolidation authorization via master passphrase derivation |
 
 ---
 
@@ -117,6 +120,9 @@ docs/architecture/
 ├── ADR-026-bitemporal-triple-schema.md    # Decision record
 ├── ADR-027-argon2-hkdf-master-key.md      # Decision record
 ├── ADR-028-acp-protocol-design.md         # Decision record
+├── ADR-029-goal-capability-primitive.md    # Decision record
+├── ADR-030-skill-bundler.md                # Decision record
+├── ADR-031-consolidation-authorization.md  # Decision record
 └── reference/
     ├── hKask-erd.md                       # Diagram artifact
     ├── registry-erd.md                    # Diagram artifact

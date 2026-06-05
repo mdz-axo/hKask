@@ -29,13 +29,14 @@ use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_cns::{CnsRuntime, CompositeGasEstimator, CyberneticsLoop, GasBudget, GovernedTool};
 use hkask_mcp::raw_tool_port::RawMcpToolPort;
 use hkask_mcp::runtime::McpRuntime;
-use hkask_storage::Database;
+use hkask_memory::{ConsolidationBridge, ConsolidationService, EpisodicMemory, SemanticMemory};
+use hkask_storage::{Database, EmbeddingStore, TripleStore};
 use hkask_templates::{OkapiConfig, OkapiInference, SqliteRegistry};
 use hkask_types::CuratorHandle;
 use hkask_types::WebID;
 use hkask_types::event::NuEventSink;
 use hkask_types::loops::LoopPayload;
-use hkask_types::ports::{InferencePort, ToolPort};
+use hkask_types::ports::{ConsolidationPort, InferencePort, ToolPort};
 use rustyline::error::ReadlineError;
 use rustyline::{CompletionType, Config as ReadlineConfig, Editor};
 use std::sync::Arc;
@@ -98,6 +99,9 @@ pub(crate) struct ReplState {
     /// Gate inference port — a separate InferencePort for the HHH evaluation model.
     /// Created eagerly at REPL init. None if the gate model failed to initialize.
     pub(crate) gate_inference_port: Option<Arc<dyn InferencePort>>,
+    /// ConsolidationService for /consolidate command — built from the registry DB
+    /// during REPL init. None if the registry DB or memory infrastructure is unavailable.
+    pub(crate) consolidation_service: Option<ConsolidationService>,
 }
 
 pub fn run(
@@ -219,6 +223,47 @@ pub fn run(
             (episodic, semantic)
         }
     };
+
+    // ── ConsolidationService (for /consolidate command) ────────────────────
+    // Build from the main registry DB (where all agent triples are stored).
+    // Falls back to None if the registry DB or memory infrastructure is unavailable.
+    //
+    // NOTE: This opens a second, independent connection to the registry DB
+    // (hkask.db). The REPL's per-agent memory DB (hkask-memory-{agent}.db)
+    // is what `episodic_storage` and `semantic_storage` point to. The
+    // ConsolidationService operates on the registry DB's triples. If the
+    // per-agent memory DB and the registry DB diverge (e.g., agent stores
+    // triples in one but not the other), the `/consolidate` command will show
+    // counts from the registry DB while the agent's actual working memory is
+    // in the per-agent DB. This is a known architectural split — the registry
+    // DB is the authoritative triple store for consolidation, while per-agent
+    // DBs serve the inference path.
+    let consolidation_service: Option<ConsolidationService> = (|| {
+        let db_path = crate::commands::config::registry_db_path();
+        let db_passphrase = crate::commands::config::resolve_db_passphrase().ok()?;
+        let db = if db_path == ":memory:" {
+            Database::in_memory().ok()?
+        } else {
+            Database::open(&db_path, &db_passphrase).ok()?
+        };
+        let conn = db.conn_arc();
+        let triple_store = TripleStore::new(Arc::clone(&conn));
+        let episodic_memory = Arc::new(EpisodicMemory::new(triple_store));
+        let triple_store2 = TripleStore::new(Arc::clone(&conn));
+        let embedding_store = EmbeddingStore::new(conn);
+        let semantic_memory = Arc::new(SemanticMemory::new(triple_store2, embedding_store));
+        let bridge = Arc::new(ConsolidationBridge::new(
+            Arc::clone(&episodic_memory),
+            Arc::clone(&semantic_memory),
+        ));
+        let handle = CuratorHandle::system();
+        let token = handle.issue_consolidation_token();
+        Some(ConsolidationService::new(
+            bridge as Arc<dyn ConsolidationPort>,
+            semantic_memory,
+            token,
+        ))
+    })();
 
     // Initialize CNS runtime for variety sensing and algedonic alerts.
     // Default threshold of 100 means algedonic alerts fire when variety deficit
@@ -376,6 +421,7 @@ pub fn run(
         hhh_mode: HhhMode::Inactive,
         hhh_config: HhhConfig::default(),
         gate_inference_port,
+        consolidation_service,
     };
 
     let helper = KaskHelper::new();

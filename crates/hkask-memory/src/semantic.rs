@@ -115,8 +115,7 @@ impl SemanticMemory {
     }
 
     pub fn triple_count_for_entity(&self, entity: &str) -> Result<usize, SemanticMemoryError> {
-        let triples = self.triple_store.query_by_entity(entity)?;
-        Ok(triples.len())
+        Ok(self.triple_store.count_semantic_by_entity(entity)?)
     }
 
     // ========================================================================
@@ -414,6 +413,19 @@ impl SemanticMemory {
     // ========================================================================
     // Deletion (Loop 2b) — Cybernetics membrane operation
     // ========================================================================
+
+    // Note: The following four methods (delete_triple, lowest_confidence_triples,
+    // low_confidence_count, low_confidence_triples) are `pub` rather than
+    // `pub(crate)` because they are needed by:
+    //   1. `ConsolidationService` (in this crate) for user-triggered cleanup
+    //   2. `hkask-mcp-semantic` MCP server (external crate) for the
+    //      `semantic_consolidate` tool
+    //
+    // This is safe because these are data operations, not authority operations.
+    // Semantic triples are shared/public knowledge (visibility: Shared,
+    // perspective: None) — deleting or querying them doesn't bypass the OCAP
+    // membrane. The ConsolidationToken and GovernedTool membrane control who
+    // can *trigger* the operations; these methods just execute them.
 
     /// Delete a semantic triple by ID (budget enforcement / consolidation cleanup).
     ///

@@ -31,9 +31,9 @@ pub struct PodContext {
     pub webid: WebID,
     pub capability_token: DelegationToken,
     inference_port: Option<Arc<dyn InferencePort>>,
-    /// Episodic memory storage — private, agent-scoped (OCAP: EpisodicReadHandle/EpisodicWriteHandle)
+    /// Episodic memory storage — private, agent-scoped (OCAP: DelegationToken)
     episodic_storage: Arc<dyn EpisodicStoragePort>,
-    /// Semantic memory storage — shared, public knowledge (OCAP: SemanticReadHandle/SemanticWriteHandle)
+    /// Semantic memory storage — shared, public knowledge (OCAP: DelegationToken)
     semantic_storage: Arc<dyn SemanticStoragePort>,
     mcp_runtime: Arc<dyn MCPRuntimePort>,
     /// Cryptographic capability checker for OCAP verification.
@@ -157,7 +157,7 @@ impl PodContext {
     /// Check episodic storage usage for this agent's perspective.
     ///
     /// Returns the number of episodic triples currently stored.
-    /// Used by Loop 2a.5 (Storage Budget) to enforce per-agent limits.
+    /// Used by Loop 2a.4 (Storage Budget) to enforce per-agent limits.
     pub fn episodic_storage_usage(&self) -> Result<usize, AgentPodError> {
         self.require_capability(
             DelegationResource::Registry,
@@ -167,6 +167,11 @@ impl PodContext {
         self.episodic_storage
             .episodic_storage_usage(&self.webid)
             .map_err(|e| AgentPodError::MemoryError(e.to_string()))
+    }
+
+    /// Get the per-agent storage budget (max episodic triples).
+    pub fn episodic_storage_budget(&self) -> usize {
+        self.episodic_storage.episodic_storage_budget()
     }
 
     /// Store an episodic experience with classification (Loop 2a.1).

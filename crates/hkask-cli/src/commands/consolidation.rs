@@ -41,12 +41,25 @@ pub fn run(
         None => handle.curator_id().clone(),
     };
 
-    // Passphrase verification (if agent is specified)
+    // Passphrase verification using the master-passphrase → capability_key derivation chain.
+    // This matches onboarding: derive_all_internal_secrets(master_passphrase) produces
+    // a capability_key that is stored in the keychain as "hkask-db-passphrase" and used
+    // as the DB encryption key. We verify the user-supplied master passphrase by
+    // deriving the capability_key and comparing it against the resolved DB passphrase.
     if agent.is_some() {
         if let Some(provided) = passphrase {
-            let db_passphrase =
-                std::env::var("HKASK_DB_PASSPHRASE").expect("HKASK_DB_PASSPHRASE not set");
-            if provided != db_passphrase {
+            let expected = match hkask_keystore::resolve_db_passphrase() {
+                Ok(db_pass) => String::from_utf8_lossy(&db_pass).to_string(),
+                Err(_) => {
+                    eprintln!(
+                        "Error: Could not resolve database passphrase from keychain or environment"
+                    );
+                    std::process::exit(1);
+                }
+            };
+            // Derive capability_key from the provided master passphrase
+            let secrets = hkask_keystore::master_key::derive_all_internal_secrets(provided);
+            if secrets.capability_key != expected {
                 eprintln!("Error: Passphrase verification failed");
                 std::process::exit(1);
             }
@@ -59,9 +72,11 @@ pub fn run(
     // Report pre-consolidation state
     let candidates = service.consolidation_candidate_count(&perspective);
     let semantic_count = service.semantic_triple_count();
+    let low_conf = service.semantic_low_confidence_count(0.33);
     println!("Pre-consolidation state:");
     println!("  Consolidation candidates: {}", candidates);
     println!("  Semantic triple count: {}", semantic_count);
+    println!("  Low-confidence triples (≤0.33): {}", low_conf);
 
     // Execute consolidation
     let request = ConsolidationRequest {

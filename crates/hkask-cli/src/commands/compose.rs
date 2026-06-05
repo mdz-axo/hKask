@@ -14,8 +14,9 @@
 use crate::cli::ComposeAction;
 use hkask_memory::SemanticMemory;
 use hkask_storage::{Database, EmbeddingStore, TripleStore};
-use hkask_templates::{OkapiConfig, OkapiEmbedding};
-use hkask_types::ports::{EmbeddingGenerationPort, EmbeddingPort, LLMParameters};
+use hkask_templates::{OkapiConfig, OkapiEmbedding, OkapiInference};
+use hkask_types::LLMParameters;
+use hkask_types::ports::{EmbeddingGenerationPort, EmbeddingPort, InferencePort};
 use serde::Deserialize;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -23,7 +24,6 @@ use std::sync::Arc;
 #[derive(Debug, Deserialize)]
 struct CognitionConfig {
     embedding: EmbeddingSection,
-    #[allow(dead_code)]
     validation: ValidationSection,
 }
 
@@ -57,7 +57,6 @@ fn default_distance_threshold() -> f64 {
 
 #[derive(Debug, Deserialize)]
 struct ValidationSection {
-    #[allow(dead_code)]
     centroid_distance_max: f64,
 }
 
@@ -199,6 +198,13 @@ fn run_compose(
              The style corpus may not be embedded yet. Run `kask embed-corpus` first.",
             config.embedding.retrieval.distance_threshold
         );
+    } else if exemplar_passages.len() < config.embedding.retrieval.k_min {
+        eprintln!(
+            "Warning: Only {} exemplar passages found (k_min={}). \
+             Consider widening the distance threshold or embedding more corpus texts.",
+            exemplar_passages.len(),
+            config.embedding.retrieval.k_min
+        );
     }
 
     // ── Step 5: Compose the system prompt with exemplars ────────────────────
@@ -269,14 +275,23 @@ fn run_compose(
     eprintln!("System prompt composed ({} chars)", system_prompt.len());
 
     // ── Step 6: Send to inference (→ hkask-mcp-inference) ──────────────────
-    let inference = OkapiInference::with_model(&config.embedding.model, OkapiConfig::local_dev())
-        .unwrap_or_else(|e| {
-            eprintln!("Failed to create inference client: {}", e);
-            std::process::exit(1);
-        });
+    // Use a generation model (not the embedding model) for prose generation.
+    // Default to the same model family; override via OKAPI_MODEL env if needed.
+    let gen_model = std::env::var("OKAPI_MODEL").unwrap_or_else(|_| config.embedding.model.clone());
+    let inference_config = match okapi_url {
+        Some(ref url) => OkapiConfig {
+            base_url: url.clone(),
+            ..OkapiConfig::default()
+        },
+        None => OkapiConfig::local_dev(),
+    };
+    let inference = OkapiInference::new(&gen_model, inference_config).unwrap_or_else(|e| {
+        eprintln!("Failed to create inference client: {}", e);
+        std::process::exit(1);
+    });
 
-    eprintln!("Generating prose...");
-    let params = hkask_types::ports::LLMParameters {
+    eprintln!("Generating prose with model '{}'...", gen_model);
+    let params = LLMParameters {
         temperature: 0.7,
         top_p: 0.9,
         top_k: 40,
