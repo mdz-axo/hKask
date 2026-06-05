@@ -3,6 +3,7 @@
 //! Goals are transient coordination substrates.
 //! Long-term retention lives in agent memory (episodic/semantic).
 
+use crate::Store;
 use chrono::Utc;
 use hkask_types::InfrastructureError;
 use hkask_types::event::NuEventSink;
@@ -60,6 +61,20 @@ pub struct SqliteGoalRepository {
     telemetry: Option<Arc<dyn NuEventSink>>,
 }
 
+impl Store for SqliteGoalRepository {
+    fn conn_arc(&self) -> Arc<Mutex<Connection>> {
+        Arc::clone(&self.conn)
+    }
+
+    fn lock_conn(
+        &self,
+    ) -> std::result::Result<std::sync::MutexGuard<'_, Connection>, InfrastructureError> {
+        self.conn
+            .lock()
+            .map_err(|_| InfrastructureError::LockPoisoned)
+    }
+}
+
 impl SqliteGoalRepository {
     /// Create a new goal repository over the given SQLite connection.
     pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
@@ -74,18 +89,6 @@ impl SqliteGoalRepository {
     pub fn with_telemetry(mut self, sink: Arc<dyn NuEventSink>) -> Self {
         self.telemetry = Some(sink);
         self
-    }
-
-    /// Acquire the mutex lock on the shared connection.
-    ///
-    /// Returns `InfrastructureError::LockPoisoned` if another thread
-    /// panicked while holding the lock.
-    fn lock_conn(
-        &self,
-    ) -> std::result::Result<std::sync::MutexGuard<'_, Connection>, InfrastructureError> {
-        self.conn
-            .lock()
-            .map_err(|_| InfrastructureError::LockPoisoned)
     }
 
     /// Load a goal by ID for internal use (no authorization gate).

@@ -7,6 +7,7 @@
 //! - Acquisition resistance settings
 //! - Kill-zone detector thresholds
 
+use crate::Store;
 use hkask_types::InfrastructureError;
 use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};

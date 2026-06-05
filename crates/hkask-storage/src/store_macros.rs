@@ -1,16 +1,40 @@
-//! Declarative macros for store boilerplate elimination
+//! Store trait and declarative macros for store boilerplate elimination
 //!
-//! `define_store!` generates the standard `new()`, `conn_arc()`, and `lock_conn()`
-//! methods shared by every store struct. `impl_from_rusqlite!` generates the
-//! canonical `From<rusqlite::Error>` → `XxxError::Infra(Database)` impl.
+//! `Store` provides the shared `conn_arc()` and `lock_conn()` methods
+//! over `Arc<Mutex<Connection>>`. Every store struct implements this trait.
+//! `define_store!` generates the struct + `Store` impl for each store.
+//! `impl_from_rusqlite!` generates the canonical `From<rusqlite::Error>` impl.
+
+use hkask_types::InfrastructureError;
+use std::sync::{Arc, Mutex, MutexGuard};
+
+/// Shared trait for all SQLite-backed stores.
+///
+/// Provides the standard `conn_arc()` and `lock_conn()` methods over
+/// `Arc<Mutex<Connection>>`. Every store struct implements this trait.
+///
+/// `lock_conn()` is a required method (not a default) because the
+/// `MutexGuard` borrows from the `Mutex` inside the `Arc`, and the
+/// borrow checker cannot verify safety through a default-body call
+/// to `conn_arc()` — the temporary `Arc` would be dropped while the
+/// guard still references the `Mutex`.
+pub trait Store {
+    /// Get a clone of the inner connection Arc for direct SQL access.
+    fn conn_arc(&self) -> Arc<Mutex<rusqlite::Connection>>;
+
+    /// Acquire the mutex lock on the shared connection.
+    ///
+    /// Returns `InfrastructureError::LockPoisoned` if another thread
+    /// panicked while holding the lock.
+    fn lock_conn(&self) -> Result<MutexGuard<'_, rusqlite::Connection>, InfrastructureError>;
+}
 
 /// Define a store struct with the standard `Arc<Mutex<Connection>>` pattern.
 ///
 /// Generates:
 /// - `pub struct $name { conn: Arc<Mutex<Connection>> }`
 /// - `pub fn new(conn: Arc<Mutex<Connection>>) -> Self`
-/// - `pub fn conn_arc(&self) -> Arc<Mutex<Connection>>`
-/// - `fn lock_conn(&self) -> Result<MutexGuard<'_, Connection>, InfrastructureError>`
+/// - `impl Store for $name` (provides `conn_arc()` and `lock_conn()`)
 ///
 /// # Example
 /// ```ignore
@@ -21,9 +45,6 @@
 macro_rules! define_store {
     ($name:ident) => {
         /// SQLite-backed store sharing an encrypted connection.
-        ///
-        /// Uses `Arc<Mutex<Connection>>` for thread-safe access to the
-        /// underlying SQLCipher-encrypted database.
         #[derive(Clone)]
         pub struct $name {
             conn: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,
@@ -34,16 +55,13 @@ macro_rules! define_store {
             pub fn new(conn: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>) -> Self {
                 Self { conn }
             }
+        }
 
-            /// Get a clone of the inner connection Arc for direct SQL access.
-            pub fn conn_arc(&self) -> std::sync::Arc<std::sync::Mutex<rusqlite::Connection>> {
+        impl $crate::Store for $name {
+            fn conn_arc(&self) -> std::sync::Arc<std::sync::Mutex<rusqlite::Connection>> {
                 std::sync::Arc::clone(&self.conn)
             }
 
-            /// Acquire the mutex lock on the shared connection.
-            ///
-            /// Returns `InfrastructureError::LockPoisoned` if another thread
-            /// panicked while holding the lock.
             fn lock_conn(
                 &self,
             ) -> Result<

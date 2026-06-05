@@ -11,6 +11,7 @@ use crate::lexicon::TemplateType;
 use crate::template::LLMParameters;
 use crate::template::TemplateCrate;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 // =============================================================================
 // Circuit Breaker Port — Cybernetics membrane
@@ -183,6 +184,7 @@ pub struct InferenceResult {
 ///
 /// Implementations:
 /// - `OkapiInference` — Production implementation (in hkask-templates)
+/// - `Arc<dyn InferencePort>` — Delegating wrapper (backward compat for InferenceLoop default type param)
 #[async_trait::async_trait]
 pub trait InferencePort: Send + Sync {
     /// Generate text with parameters
@@ -216,6 +218,43 @@ pub trait InferencePort: Send + Sync {
         let futures: Vec<_> = (0..n).map(|_| self.generate(prompt, parameters)).collect();
         let results = join_all(futures).await;
         results.into_iter().collect()
+    }
+}
+
+/// Blanket impl for `Arc<dyn InferencePort>` — enables `InferenceLoop<Arc<dyn InferencePort>>`
+/// as the default type parameter, preserving backward compatibility.
+///
+/// The vtable dispatch here is only at the construction boundary;
+/// the hot path inside InferenceLoop uses static dispatch when a
+/// concrete type (e.g. OkapiInference, GovernedTool) is provided.
+#[async_trait::async_trait]
+impl InferencePort for Arc<dyn InferencePort> {
+    async fn generate(
+        &self,
+        prompt: &str,
+        parameters: &LLMParameters,
+    ) -> Result<InferenceResult, InferenceError> {
+        (**self).generate(prompt, parameters).await
+    }
+
+    async fn generate_with_model(
+        &self,
+        prompt: &str,
+        parameters: &LLMParameters,
+        model_override: Option<&str>,
+    ) -> Result<InferenceResult, InferenceError> {
+        (**self)
+            .generate_with_model(prompt, parameters, model_override)
+            .await
+    }
+
+    async fn generate_n(
+        &self,
+        prompt: &str,
+        parameters: &LLMParameters,
+        n: usize,
+    ) -> Result<Vec<InferenceResult>, InferenceError> {
+        (**self).generate_n(prompt, parameters, n).await
     }
 }
 

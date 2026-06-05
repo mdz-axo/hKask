@@ -9,7 +9,7 @@
 //! Consent records are persisted via `ConsentStore` (SQLite-backed),
 //! so they survive restarts — enforcing user sovereignty (Principle 1.3).
 
-use hkask_storage::{ConsentStore, StoredConsentRecord};
+use hkask_storage::{ConsentStore, Store, StoredConsentRecord};
 use hkask_types::DataCategory;
 use std::collections::HashSet;
 use std::sync::{Arc, RwLock};

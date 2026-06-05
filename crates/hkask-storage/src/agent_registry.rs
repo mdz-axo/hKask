@@ -1,5 +1,5 @@
 //! AgentRegistryStore — Persistent storage for registered agents
-
+use crate::Store;
 use hkask_types::ports::{AgentRegistrationPort, RegistryError};
 use hkask_types::{AgentDefinition, AgentKind, InfrastructureError, RegisteredAgent};
 use thiserror::Error;

@@ -6,6 +6,7 @@
 //! - Passphrase-based authentication using Argon2id
 //! - Session management
 
+use crate::Store;
 use argon2::{PasswordHasher, PasswordVerifier, password_hash::PasswordHash};
 use base64::Engine;
 use hkask_types::{HumanUser, InfrastructureError, ReplicantIdentity, UserID, UserSession};

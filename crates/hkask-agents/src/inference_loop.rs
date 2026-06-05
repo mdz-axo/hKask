@@ -28,8 +28,8 @@ const GAS_SET_POINT: f64 = 0.2;
 /// `Throttle`/`AdjustGasBudget` actions targeting itself (self-throttle).
 /// When the model is unavailable, it produces `Calibrate` to signal that
 /// model selection is needed.
-pub struct InferenceLoop {
-    inference: Arc<dyn InferencePort>,
+pub struct InferenceLoop<I: InferencePort = Arc<dyn InferencePort>> {
+    inference: I,
     circuit_breaker: Option<Arc<dyn CircuitBreakerPort>>,
     /// Gas remaining in this loop's own budget (simple atomic counter,
     /// updated by external callers after each inference call).
@@ -40,9 +40,9 @@ pub struct InferenceLoop {
     current_model: Option<String>,
 }
 
-impl InferenceLoop {
+impl<I: InferencePort + 'static> InferenceLoop<I> {
     /// Create a new Inference Loop wrapping an inference port.
-    pub fn new(inference: Arc<dyn InferencePort>) -> Self {
+    pub fn new(inference: I) -> Self {
         Self {
             inference,
             circuit_breaker: None,
@@ -54,35 +54,7 @@ impl InferenceLoop {
 
     /// Create an Inference Loop with a circuit breaker.
     pub(crate) fn with_circuit_breaker(
-        inference: Arc<dyn InferencePort>,
-        circuit_breaker: Arc<dyn CircuitBreakerPort>,
-    ) -> Self {
-        Self {
-            inference,
-            circuit_breaker: Some(circuit_breaker),
-            gas_remaining: Arc::new(AtomicU64::new(0)),
-            gas_cap: 0,
-            current_model: None,
-        }
-    }
-
-    /// Create an Inference Loop with a pre-governed inference port.
-    ///
-    /// Use this when the caller has already applied governance (e.g., via
-    /// `GovernedTool` with `InferenceGasEstimator`) to the inference port.
-    pub(crate) fn with_governed_port(inference: Arc<dyn InferencePort>) -> Self {
-        Self {
-            inference,
-            circuit_breaker: None,
-            gas_remaining: Arc::new(AtomicU64::new(0)),
-            gas_cap: 0,
-            current_model: None,
-        }
-    }
-
-    /// Create an Inference Loop with a pre-governed port and circuit breaker.
-    pub(crate) fn with_governed_port_and_circuit_breaker(
-        inference: Arc<dyn InferencePort>,
+        inference: I,
         circuit_breaker: Arc<dyn CircuitBreakerPort>,
     ) -> Self {
         Self {
@@ -111,7 +83,7 @@ impl InferenceLoop {
     }
 
     /// Access the underlying inference port.
-    pub(crate) fn inference(&self) -> &Arc<dyn InferencePort> {
+    pub(crate) fn inference(&self) -> &I {
         &self.inference
     }
 
@@ -217,7 +189,7 @@ impl InferenceLoop {
 }
 
 #[async_trait::async_trait]
-impl HkaskLoop for InferenceLoop {
+impl<I: InferencePort + 'static> HkaskLoop for InferenceLoop<I> {
     fn id(&self) -> LoopId {
         LoopId::Inference
     }

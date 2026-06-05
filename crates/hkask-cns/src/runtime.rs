@@ -73,24 +73,31 @@ impl CnsRuntime {
 
     pub async fn health(&self) -> CnsHealth {
         let state = self.state.read().await;
-        let mgr = state.algedonic.read();
-        cns_health_check(&mgr)
+        let health = {
+            let mgr = state.algedonic.read();
+            cns_health_check(&mgr)
+        };
+        health
     }
 
     pub async fn alerts(&self) -> Vec<RuntimeAlert> {
         let state = self.state.read().await;
-        state.algedonic.read().alerts().to_vec()
+        let alerts = state.algedonic.read().alerts().to_vec();
+        alerts
     }
 
     pub async fn critical_alerts(&self) -> Vec<RuntimeAlert> {
         let state = self.state.read().await;
-        state
-            .algedonic
-            .read()
-            .critical_alerts()
-            .into_iter()
-            .cloned()
-            .collect()
+        let alerts = {
+            state
+                .algedonic
+                .read()
+                .critical_alerts()
+                .into_iter()
+                .cloned()
+                .collect()
+        };
+        alerts
     }
 
     // ── Variety ──
@@ -128,24 +135,44 @@ impl CnsRuntime {
             let mut state = self.state.write().await;
             state.tracker.increment_variety(domain, state_name);
         }
-        self.check_variety(domain).await;
+        let alert = self.check_variety(domain).await;
 
         // Notify subscribers interested in this domain's span namespace
+        // Extract interest mask before the await loop to avoid holding
+        // parking_lot guards across .await points
         if let Some(span_ns) = SpanNamespace::parse(domain) {
+            let event = hkask_types::event::NuEvent::new(
+                WebID::default(),
+                hkask_types::event::Span::new(span_ns.clone(), "variety_incremented"),
+                hkask_types::event::Phase::Act,
+                serde_json::json!({"domain": domain, "state": state_name}),
+                0,
+            );
             let subscribers = self.subscribers.read().await;
             for observer in subscribers.iter() {
                 if observer.interest_mask().iter().any(|ns| ns == &span_ns) {
-                    // on_event requires a NuEvent; we create a minimal one
-                    // from the domain/state change. The observer decides what
-                    // to do with it.
-                    let event = hkask_types::event::NuEvent::new(
-                        WebID::default(),
-                        hkask_types::event::Span::new(span_ns.clone(), "variety_incremented"),
-                        hkask_types::event::Phase::Act,
-                        serde_json::json!({"domain": domain, "state": state_name}),
-                        0,
-                    );
                     observer.on_event(&event).await;
+                }
+            }
+            drop(subscribers);
+
+            // If alert is critical, emit depletion signals
+            if let Some(ref a) = alert {
+                if a.severity == crate::algedonic::AlertSeverity::Critical {
+                    let signal = DepletionSignal {
+                        agent: WebID::default(),
+                        remaining: a.threshold.saturating_sub(a.deficit),
+                        cap: a.threshold,
+                        usage_ratio: if a.threshold > 0 {
+                            a.deficit as f64 / a.threshold as f64
+                        } else {
+                            1.0
+                        },
+                    };
+                    let subscribers = self.subscribers.read().await;
+                    for observer in subscribers.iter() {
+                        observer.on_depletion(&signal).await;
+                    }
                 }
             }
         }
@@ -163,13 +190,15 @@ impl CnsRuntime {
                 .unwrap_or_else(VarietyTracker::new)
         };
 
-        let state = self.state.write().await;
-        let mut mgr = state.algedonic.write();
-        let alert = mgr.check(&counter, domain).cloned();
-        drop(mgr);
-        drop(state);
+        let alert = {
+            let state = self.state.write().await;
+            let mut mgr = state.algedonic.write();
+            mgr.check(&counter, domain).cloned()
+        };
 
-        // If alert is critical, emit depletion signals to subscribers
+        // Depletion signals are now emitted from increment_variety after
+        // it receives the alert from check_variety. Kept here for direct
+        // callers that don't go through increment_variety.
         if let Some(ref alert) = alert
             && alert.severity == crate::algedonic::AlertSeverity::Critical
         {
@@ -194,10 +223,13 @@ impl CnsRuntime {
 
     pub async fn calibrate_threshold(&self, domain: &str, new_threshold: u64) {
         let state = self.state.write().await;
-        state
-            .algedonic
-            .write()
-            .set_expected_variety(domain, new_threshold);
+        {
+            state
+                .algedonic
+                .write()
+                .set_expected_variety(domain, new_threshold);
+        }
+        drop(state);
     }
 
     // ── Bot Observation (CNS Observer) ──

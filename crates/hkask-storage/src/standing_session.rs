@@ -7,6 +7,7 @@
 //!   they are archival, consistent with the architecture's forward-only
 //!   migration policy (no automatic re-encryption).
 
+use crate::Store;
 use hkask_types::InfrastructureError;
 use hkask_types::ports::{MessageRecord, SessionRecord, SessionStoreError, StandingSessionPort};
 use serde::{Deserialize, Serialize};

@@ -3,6 +3,7 @@
 //! Persists consent records so they survive restarts, enforcing
 //! user sovereignty (Principle 1.3) in the headless system.
 
+use crate::Store;
 use hkask_types::InfrastructureError;
 use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};

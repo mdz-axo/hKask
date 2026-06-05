@@ -3,6 +3,9 @@
 #[macro_use]
 mod store_macros;
 
+pub use store_macros::Store;
+
+
 pub mod agent_registry;
 pub mod consent_store;
 pub mod database;

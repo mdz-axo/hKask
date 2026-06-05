@@ -1,6 +1,7 @@
 //! SpecStore — SQLite-backed specification storage
 
 use crate::spec_types::{Spec, SpecCategory, SpecError, SpecId, SpecStore};
+use crate::Store;
 
 define_store!(SqliteSpecStore);
 

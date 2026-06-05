@@ -11,6 +11,8 @@
 //! **Spec Reference:** Architecture v0.21.0 §2.3, sqlite-vec integration
 
 use hkask_types::ports::{EmbeddingError, EmbeddingPort, SimilarityResult, StoredEmbedding};
+use crate::Store;
+use hkask_types::InfrastructureError;
 use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 
@@ -26,6 +28,18 @@ const DEFAULT_DIM: usize = 384;
 pub struct EmbeddingStore {
     conn: Arc<Mutex<Connection>>,
     dim: usize,
+}
+
+impl Store for EmbeddingStore {
+    fn conn_arc(&self) -> Arc<Mutex<Connection>> {
+        Arc::clone(&self.conn)
+    }
+
+    fn lock_conn(&self) -> std::result::Result<std::sync::MutexGuard<'_, Connection>, InfrastructureError> {
+        self.conn
+            .lock()
+            .map_err(|_| InfrastructureError::LockPoisoned)
+    }
 }
 
 impl EmbeddingStore {
