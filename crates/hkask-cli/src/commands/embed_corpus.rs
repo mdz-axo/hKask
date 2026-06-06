@@ -15,7 +15,7 @@ use crate::cli::EmbedCorpusAction;
 use hkask_memory::SemanticMemory;
 use hkask_storage::{Database, EmbeddingStore, TripleStore};
 use hkask_templates::{OkapiConfig, OkapiEmbedding};
-use hkask_types::ports::EmbeddingGenerationPort;
+
 use serde::Deserialize;
 use std::path::PathBuf;
 use std::sync::Arc;

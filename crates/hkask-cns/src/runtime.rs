@@ -339,20 +339,6 @@ impl Default for CnsRuntime {
     }
 }
 
-impl hkask_types::ports::CnsPort for CnsRuntime {
-    async fn health(&self) -> CnsHealth {
-        CnsRuntime::health(self).await
-    }
-
-    async fn variety(&self) -> Vec<(String, u64)> {
-        CnsRuntime::variety(self).await
-    }
-
-    async fn increment_variety(&self, domain: &str, state_name: &str) {
-        CnsRuntime::increment_variety(self, domain, state_name).await
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

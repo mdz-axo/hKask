@@ -22,7 +22,6 @@ pub mod registry_sqlite;
 
 pub use embedding_port::OkapiEmbedding;
 pub use hkask_types::ports::BundleRegistryIndex;
-pub use hkask_types::ports::EmbeddingGenerationPort;
 pub use hkask_types::ports::InferencePort;
 pub use hkask_types::ports::Skill;
 pub use hkask_types::{

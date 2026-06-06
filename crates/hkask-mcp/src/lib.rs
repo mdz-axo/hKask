@@ -9,6 +9,7 @@
 
 pub mod adapter_container;
 pub mod dispatch; // Loop 1 (inference tool dispatch)
+pub mod git_cas;
 pub(crate) mod governor; // Loop 6 (capability governance)
 pub mod raw_tool_port; // Ungoverned tool executor (inner port for GovernedTool)
 pub mod runtime;
@@ -17,6 +18,7 @@ pub mod server;
 
 pub(crate) use adapter_container::AdapterContainer;
 pub use dispatch::McpDispatcher;
+pub use git_cas::GitCasAdapter;
 pub use hkask_types::ports::ToolInfo;
 pub use raw_tool_port::RawMcpToolPort;
 pub use runtime::{McpRuntime, McpServer, McpTool, ServerStartError};

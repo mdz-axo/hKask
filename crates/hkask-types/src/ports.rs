@@ -4,12 +4,10 @@
 //! rather than concrete implementations. Per the Authority DAG,
 //! domain crates depend on these port traits (not on each other).
 
-use crate::cns::{CircuitState, CnsHealth};
-use crate::error::GitError;
+use crate::cns::CircuitState;
 use crate::id::WebID;
 use crate::lexicon::TemplateType;
 use crate::template::LLMParameters;
-use crate::template::TemplateCrate;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -22,26 +20,6 @@ pub trait CircuitBreakerPort: Send + Sync {
     fn record_success(&self);
     fn record_failure(&self);
     fn state(&self) -> CircuitState;
-}
-
-/// CNS observability boundary.
-///
-/// Allows crates to observe and increment CNS state without depending on hkask-cns.
-/// Impl: `CnsRuntime` (in hkask-cns)
-#[allow(async_fn_in_trait)]
-
-/// Git content-addressable store for template crates.
-/// Impl: `GitCasAdapter` (in hkask-agents)
-pub trait GitCASPort: Send + Sync {
-    /// Load a template crate from the content-addressable store
-    fn load_template_crate(&self, crate_name: &str) -> Result<TemplateCrate, GitError>;
-
-    /// Resolve the current SHA for a crate
-    fn resolve_sha(&self, crate_name: &str) -> Result<String, GitError>;
-
-    /// Create a snapshot (commit) of all staged changes in the repository.
-    /// Returns the SHA of the new commit, or the current HEAD SHA if nothing to commit.
-    fn commit(&self, message: &str) -> Result<String, GitError>;
 }
 
 /// Inference error types
@@ -436,20 +414,6 @@ pub struct MessageRecord {
     pub template_id: Option<String>,
 }
 
-/// Standing session persistence. Moved to hkask-types for Authority DAG.
-/// Impl: `StandingSessionStore` (hkask-storage)
-pub trait StandingSessionPort: Send + Sync {
-    fn save_session(&self, session: &SessionRecord) -> Result<(), SessionStoreError>;
-
-    fn get_session(&self, session_id: &str) -> Result<SessionRecord, SessionStoreError>;
-
-    fn save_message(&self, message: &MessageRecord) -> Result<i64, SessionStoreError>;
-
-    fn get_messages(&self, session_id: &str) -> Result<Vec<MessageRecord>, SessionStoreError>;
-
-    fn update_last_active(&self, session_id: &str) -> Result<(), SessionStoreError>;
-}
-
 use crate::capability::tokens::ConsolidationToken;
 
 /// Parameters for consolidation. All fields except `limit` optional.
@@ -632,7 +596,3 @@ pub enum EmbeddingGenerationError {
     #[error("Dimension mismatch: expected {expected}, got {actual}")]
     DimensionMismatch { expected: usize, actual: usize },
 }
-
-/// Generates embedding vectors from text via Okapi API.
-/// Distinct from `EmbeddingPort` (storage/KNN search).
-/// Impl: `OkapiEmbedding` (hkask-templates)

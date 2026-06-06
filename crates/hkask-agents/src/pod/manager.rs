@@ -12,10 +12,10 @@ use tracing::info;
 
 use super::types::{AgentKind, AgentPersona, PodID, PodLifecycleState};
 use super::{AgentPod, AgentPodError, AgentPodResult};
-use crate::adapters::git_cas::GitCasAdapter;
 use crate::adapters::mcp_runtime::McpRuntimeAdapter;
 use crate::adapters::memory_loop_adapter::MemoryLoopAdapter;
-use crate::ports::{EpisodicStoragePort, GitCASPort, MCPRuntimePort, SemanticStoragePort};
+use crate::ports::{EpisodicStoragePort, MCPRuntimePort, SemanticStoragePort};
+use hkask_mcp::GitCasAdapter;
 
 /// Pod Manager — Manages collection of agent pods
 ///
@@ -28,7 +28,7 @@ use crate::ports::{EpisodicStoragePort, GitCASPort, MCPRuntimePort, SemanticStor
 /// - Inference access via InferencePort
 pub struct PodManager {
     pub(crate) pods: Arc<RwLock<HashMap<PodID, AgentPod>>>,
-    git_cas: Arc<dyn GitCASPort>,
+    git_cas: Arc<GitCasAdapter>,
     acp_runtime: Arc<dyn crate::ports::AcpPort + Send + Sync>,
     pub(crate) mcp_runtime: Arc<dyn MCPRuntimePort>,
     /// Episodic memory storage — private, agent-scoped (OCAP: DelegationToken)
@@ -65,7 +65,7 @@ pub struct PodStatus {
 impl PodManager {
     /// Create a new pod manager with trait-object adapters
     pub fn new(
-        git_cas: Arc<dyn GitCASPort>,
+        git_cas: Arc<GitCasAdapter>,
         acp_runtime: Arc<dyn crate::ports::AcpPort + Send + Sync>,
         mcp_runtime: Arc<dyn MCPRuntimePort>,
         episodic_storage: Arc<dyn EpisodicStoragePort>,
@@ -109,7 +109,7 @@ impl PodManager {
 
     /// Create a new pod manager with inference port
     pub fn with_inference(
-        git_cas: Arc<dyn GitCASPort>,
+        git_cas: Arc<GitCasAdapter>,
         acp_runtime: Arc<dyn crate::ports::AcpPort + Send + Sync>,
         mcp_runtime: Arc<dyn MCPRuntimePort>,
         episodic_storage: Arc<dyn EpisodicStoragePort>,
@@ -169,7 +169,7 @@ impl PodManager {
 ///
 /// ```rust,no_run
 /// use hkask_agents::pod::PodManagerBuilder;
-/// use hkask_agents::adapters::git_cas::GitCasAdapter;
+/// use hkask_mcp::GitCasAdapter;
 /// use std::path::PathBuf;
 /// use std::sync::Arc;
 ///
@@ -179,7 +179,7 @@ impl PodManager {
 ///     .build();
 /// ```
 pub struct PodManagerBuilder {
-    git_cas: Option<Arc<dyn GitCASPort>>,
+    git_cas: Option<Arc<GitCasAdapter>>,
     acp_runtime: Option<Arc<dyn crate::ports::AcpPort + Send + Sync>>,
     mcp_runtime: Option<Arc<dyn MCPRuntimePort>>,
     episodic_storage: Option<Arc<dyn EpisodicStoragePort>>,
@@ -205,7 +205,7 @@ impl PodManagerBuilder {
         }
     }
 
-    pub fn git_cas(mut self, adapter: Arc<dyn GitCASPort>) -> Self {
+    pub fn git_cas(mut self, adapter: Arc<GitCasAdapter>) -> Self {
         self.git_cas = Some(adapter);
         self
     }

@@ -15,6 +15,7 @@ rmcp = { workspace = true, features = ["server", "macros", "transport-io", "clie
 tokio-util.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+serde_yaml.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true

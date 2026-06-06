@@ -5,7 +5,7 @@
 
 use crate::okapi_config::OkapiConfig;
 use hkask_types::cns::RetryConfig;
-use hkask_types::ports::{EmbeddingGenerationError, EmbeddingGenerationPort};
+use hkask_types::ports::EmbeddingGenerationError;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::{info, warn};
@@ -165,10 +165,10 @@ impl OkapiEmbedding {
 
         Err(last_error.expect("retry loop always records the last error"))
     }
-}
 
-impl EmbeddingGenerationPort for OkapiEmbedding {
-    async fn embed_sentences(
+    /// Generate embedding vectors for multiple sentences.
+    /// One vector per input sentence, same order. Dimension set by model.
+    pub async fn embed_sentences(
         &self,
         sentences: &[&str],
     ) -> Result<Vec<Vec<f32>>, EmbeddingGenerationError> {
@@ -201,7 +201,19 @@ impl EmbeddingGenerationPort for OkapiEmbedding {
         Ok(result)
     }
 
-    fn embedding_dim(&self) -> usize {
+    /// Convenience wrapper around `embed_sentences`.
+    pub async fn embed_sentence(
+        &self,
+        sentence: &str,
+    ) -> Result<Vec<f32>, EmbeddingGenerationError> {
+        let results = self.embed_sentences(&[sentence]).await?;
+        results
+            .into_iter()
+            .next()
+            .ok_or(EmbeddingGenerationError::EmptyResponse)
+    }
+
+    pub fn embedding_dim(&self) -> usize {
         self.dim
     }
 }

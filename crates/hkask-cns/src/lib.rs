@@ -31,5 +31,5 @@ pub use runtime::CnsRuntime;
 
 // Re-export types moved to hkask-types for backward compatibility
 pub use hkask_types::cns::{CircuitState, CnsHealth};
-pub use hkask_types::ports::{CircuitBreakerPort, CnsPort};
+pub use hkask_types::ports::CircuitBreakerPort;
 // KillZoneDetector: pub(crate) — only consumed via CnsRuntime methods

@@ -15,12 +15,10 @@ pub mod standing_session;
 
 pub use acp::AcpPort;
 pub use audit_log::{AuditEntry, AuditLogPort, AuditOutcome};
-pub use git_cas::GitCASPort;
+pub use git_cas::GitCasAdapter;
 pub use mcp_runtime::MCPRuntimePort;
 pub use memory_storage::{EpisodicStoragePort, SemanticStoragePort};
 
 pub use registry_source::RegistrySourcePort;
 pub use sovereignty::{SovereigntyCheckResult, SovereigntyOperation};
-pub use standing_session::{
-    MessageRecord, SessionRecord, StandingSessionPort, StandingSessionPortError,
-};
+pub use standing_session::{MessageRecord, SessionRecord, StandingSessionPortError};

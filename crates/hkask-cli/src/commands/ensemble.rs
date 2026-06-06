@@ -16,7 +16,7 @@ use hkask_templates::OkapiConfig;
 use hkask_templates::OkapiInference;
 use hkask_types::WebID;
 use hkask_types::event::NuEventSink;
-use hkask_types::ports::{CircuitBreakerPort, InferencePort, StandingSessionPort};
+use hkask_types::ports::{CircuitBreakerPort, InferencePort};
 use std::sync::{
     Arc,
     atomic::{AtomicU64, Ordering},
@@ -146,7 +146,7 @@ pub fn get_improv_client(
 }
 
 /// Open a StandingSessionStore from environment config, or in-memory as fallback.
-fn open_standing_session_store() -> Arc<dyn StandingSessionPort> {
+fn open_standing_session_store() -> Arc<hkask_storage::StandingSessionStore> {
     let conn = match std::env::var("HKASK_DB_PATH")
         .ok()
         .zip(std::env::var("HKASK_DB_PASSPHRASE").ok())
@@ -164,7 +164,6 @@ fn open_standing_session_store() -> Arc<dyn StandingSessionPort> {
         .expect("standing session schema init");
     Arc::new(store)
 }
-
 
 /// Create chat session
 pub async fn ensemble_chat_create(session: String) -> Result<String, String> {
@@ -230,7 +229,6 @@ pub async fn ensemble_chat_list() -> Result<Vec<String>, String> {
     };
     Ok(sessions)
 }
-
 
 pub async fn ensemble_improv_turn(
     session_id: &str,
@@ -332,7 +330,6 @@ pub async fn ensemble_participants(
     Ok(result)
 }
 
-
 pub async fn ensemble_deliberation_create(session: String) -> Result<String, String> {
     let manager = get_session_manager();
     manager.read().await.create_deliberation(&session).await;
@@ -395,7 +392,6 @@ pub async fn ensemble_deliberation_list() -> Result<Vec<String>, String> {
     };
     Ok(sessions)
 }
-
 
 /// Bootstrap the standing ensemble session from a YAML manifest.
 pub fn ensemble_standing_start(

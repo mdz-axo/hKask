@@ -26,7 +26,7 @@
 //! ```rust,no_run
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! use hkask_agents::pod::{AgentPod, AgentPersona, PodLifecycleState};
-//! use hkask_agents::adapters::git_cas::GitCasAdapter;
+//! use hkask_mcp::GitCasAdapter;
 //! use hkask_agents::acp::AcpRuntime;
 //! use hkask_agents::adapters::mcp_runtime::McpRuntimeAdapter;
 //! use hkask_types::WebID;
@@ -68,13 +68,12 @@ use tracing::info;
 use zeroize::Zeroizing;
 
 use crate::SovereigntyChecker;
-use crate::ports::GitCASPort;
+use hkask_mcp::GitCasAdapter;
 
 pub use context::PodContext;
 pub use manager::{PodManager, PodManagerBuilder, PodStatus};
 
 pub use types::{AgentKind, AgentPersona, PodID, PodLifecycleState, TemplateCrate, TemplateFile};
-
 
 /// Agent Pod — Runtime container for ACP agents
 pub struct AgentPod {
@@ -151,7 +150,7 @@ impl AgentPod {
     pub fn new(
         crate_name: &str,
         persona: &AgentPersona,
-        git: &dyn GitCASPort,
+        git: &GitCasAdapter,
     ) -> AgentPodResult<Self> {
         let template_crate = git
             .load_template_crate(crate_name)
@@ -376,7 +375,6 @@ impl AgentPod {
         Ok(true)
     }
 }
-
 
 fn current_timestamp() -> Result<i64, AgentPodError> {
     use std::time::{SystemTime, UNIX_EPOCH};

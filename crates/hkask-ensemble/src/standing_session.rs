@@ -6,7 +6,7 @@
 use crate::chat::{ChatMessage, ChatParticipant, EnsembleChat, GasBudgetConfig, ParticipantRole};
 use hkask_types::NuEventSink;
 use hkask_types::event::{NuEvent, Phase, Span, SpanNamespace};
-use hkask_types::ports::{MessageRecord, SessionRecord, StandingSessionPort};
+use hkask_types::ports::{MessageRecord, SessionRecord};
 use hkask_types::{R7BotIdentity, WebID, default_r7_bots};
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -110,7 +110,7 @@ pub struct StandingSession {
     pub chat: EnsembleChat,
     pub participant_names: HashMap<WebID, String>,
     pub participant_descriptions: HashMap<WebID, String>,
-    store: Option<Arc<dyn StandingSessionPort>>,
+    store: Option<Arc<hkask_storage::StandingSessionStore>>,
     event_sink: Option<Arc<dyn NuEventSink>>,
 }
 
@@ -188,7 +188,7 @@ impl StandingSession {
         }
     }
 
-    pub fn with_store(mut self, store: Arc<dyn StandingSessionPort>) -> Self {
+    pub fn with_store(mut self, store: Arc<hkask_storage::StandingSessionStore>) -> Self {
         self.store = Some(store);
         self
     }
@@ -393,7 +393,7 @@ pub fn bootstrap_standing_session(path: &Path) -> Result<StandingSession, Standi
 
 pub fn bootstrap_standing_session_with_store(
     path: &Path,
-    store: Arc<dyn StandingSessionPort>,
+    store: Arc<hkask_storage::StandingSessionStore>,
 ) -> Result<StandingSession, StandingSessionError> {
     let config = load_standing_session_config(path)?;
     let config_yaml = std::fs::read_to_string(path)?;

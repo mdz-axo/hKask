@@ -9,7 +9,7 @@
 
 use crate::Store;
 use hkask_types::InfrastructureError;
-use hkask_types::ports::{MessageRecord, SessionRecord, SessionStoreError, StandingSessionPort};
+use hkask_types::ports::{MessageRecord, SessionRecord, SessionStoreError};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -78,7 +78,7 @@ impl StandingSessionStore {
         Ok(())
     }
 
-    pub fn save_session(&self, session: &StoredSession) -> Result<(), StandingSessionError> {
+    pub fn save_stored_session(&self, session: &StoredSession) -> Result<(), StandingSessionError> {
         let conn = self.lock_conn()?;
         conn.execute(
             "INSERT OR REPLACE INTO standing_sessions (session_id, config_yaml, created_at, last_active, key_version, sealed)
@@ -95,7 +95,10 @@ impl StandingSessionStore {
         Ok(())
     }
 
-    pub fn get_session(&self, session_id: &str) -> Result<StoredSession, StandingSessionError> {
+    pub fn get_stored_session(
+        &self,
+        session_id: &str,
+    ) -> Result<StoredSession, StandingSessionError> {
         let conn = self.lock_conn()?;
         let mut stmt = conn.prepare(
             "SELECT session_id, config_yaml, created_at, last_active, key_version, sealed
@@ -125,7 +128,10 @@ impl StandingSessionStore {
         })
     }
 
-    pub fn save_message(&self, message: &StoredMessage) -> Result<i64, StandingSessionError> {
+    pub fn save_stored_message(
+        &self,
+        message: &StoredMessage,
+    ) -> Result<i64, StandingSessionError> {
         let conn = self.lock_conn()?;
 
         // Check if the session is sealed before writing.
@@ -154,7 +160,7 @@ impl StandingSessionStore {
         Ok(conn.last_insert_rowid())
     }
 
-    pub fn get_messages(
+    pub fn get_stored_messages(
         &self,
         session_id: &str,
     ) -> Result<Vec<StoredMessage>, StandingSessionError> {
@@ -197,7 +203,7 @@ impl StandingSessionStore {
         Ok(messages)
     }
 
-    pub fn update_last_active(&self, session_id: &str) -> Result<(), StandingSessionError> {
+    pub fn update_stored_last_active(&self, session_id: &str) -> Result<(), StandingSessionError> {
         let conn = self.lock_conn()?;
         let now = chrono::Utc::now().to_rfc3339();
         conn.execute(
@@ -222,10 +228,10 @@ impl StandingSessionStore {
     }
 }
 
-// StandingSessionPort adapter — hexagonal boundary implementation
+// Public API methods (SessionRecord/MessageRecord types)
 
-impl StandingSessionPort for StandingSessionStore {
-    fn save_session(&self, session: &SessionRecord) -> Result<(), SessionStoreError> {
+impl StandingSessionStore {
+    pub fn save_session(&self, session: &SessionRecord) -> Result<(), SessionStoreError> {
         let stored = StoredSession {
             session_id: session.session_id.clone(),
             config_yaml: session.config_yaml.clone(),
@@ -234,15 +240,15 @@ impl StandingSessionPort for StandingSessionStore {
             key_version: 1, // default for port-level saves
             sealed: false,
         };
-        StandingSessionStore::save_session(self, &stored).map_err(|e| match e {
+        self.save_stored_session(&stored).map_err(|e| match e {
             StandingSessionError::NotFound(s) => SessionStoreError::NotFound(s),
             StandingSessionError::Sealed(s) => SessionStoreError::Sealed(s),
             StandingSessionError::Infra(ie) => SessionStoreError::Storage(ie.to_string()),
         })
     }
 
-    fn get_session(&self, session_id: &str) -> Result<SessionRecord, SessionStoreError> {
-        let stored = StandingSessionStore::get_session(self, session_id).map_err(|e| match e {
+    pub fn get_session(&self, session_id: &str) -> Result<SessionRecord, SessionStoreError> {
+        let stored = self.get_stored_session(session_id).map_err(|e| match e {
             StandingSessionError::NotFound(s) => SessionStoreError::NotFound(s),
             StandingSessionError::Sealed(s) => SessionStoreError::Sealed(s),
             StandingSessionError::Infra(ie) => SessionStoreError::Storage(ie.to_string()),
@@ -255,7 +261,7 @@ impl StandingSessionPort for StandingSessionStore {
         })
     }
 
-    fn save_message(&self, message: &MessageRecord) -> Result<i64, SessionStoreError> {
+    pub fn save_message(&self, message: &MessageRecord) -> Result<i64, SessionStoreError> {
         let stored = StoredMessage {
             id: message.id,
             session_id: message.session_id.clone(),
@@ -264,15 +270,15 @@ impl StandingSessionPort for StandingSessionStore {
             timestamp: message.timestamp.clone(),
             template_id: message.template_id.clone(),
         };
-        StandingSessionStore::save_message(self, &stored).map_err(|e| match e {
+        self.save_stored_message(&stored).map_err(|e| match e {
             StandingSessionError::NotFound(s) => SessionStoreError::NotFound(s),
             StandingSessionError::Sealed(s) => SessionStoreError::Sealed(s),
             StandingSessionError::Infra(ie) => SessionStoreError::Storage(ie.to_string()),
         })
     }
 
-    fn get_messages(&self, session_id: &str) -> Result<Vec<MessageRecord>, SessionStoreError> {
-        let stored = StandingSessionStore::get_messages(self, session_id).map_err(|e| match e {
+    pub fn get_messages(&self, session_id: &str) -> Result<Vec<MessageRecord>, SessionStoreError> {
+        let stored = self.get_stored_messages(session_id).map_err(|e| match e {
             StandingSessionError::NotFound(s) => SessionStoreError::NotFound(s),
             StandingSessionError::Sealed(s) => SessionStoreError::Sealed(s),
             StandingSessionError::Infra(ie) => SessionStoreError::Storage(ie.to_string()),
@@ -290,11 +296,12 @@ impl StandingSessionPort for StandingSessionStore {
             .collect())
     }
 
-    fn update_last_active(&self, session_id: &str) -> Result<(), SessionStoreError> {
-        StandingSessionStore::update_last_active(self, session_id).map_err(|e| match e {
-            StandingSessionError::NotFound(s) => SessionStoreError::NotFound(s),
-            StandingSessionError::Sealed(s) => SessionStoreError::Sealed(s),
-            StandingSessionError::Infra(ie) => SessionStoreError::Storage(ie.to_string()),
-        })
+    pub fn update_last_active(&self, session_id: &str) -> Result<(), SessionStoreError> {
+        self.update_stored_last_active(session_id)
+            .map_err(|e| match e {
+                StandingSessionError::NotFound(s) => SessionStoreError::NotFound(s),
+                StandingSessionError::Sealed(s) => SessionStoreError::Sealed(s),
+                StandingSessionError::Infra(ie) => SessionStoreError::Storage(ie.to_string()),
+            })
     }
 }

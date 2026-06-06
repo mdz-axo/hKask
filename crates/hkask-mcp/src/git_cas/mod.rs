@@ -1,7 +1,6 @@
 //! Git CAS Adapter
 //!
-//! Concrete implementation of GitCASPort using gix crate.
-//!
+//! Concrete implementation for template crate loading and Git operations.
 //! Also provides `load_template_crate_or_synthesize` which bridges the
 //! filesystem crate system and the hkask-templates::Registry. When a
 //! crate directory exists on disk, it's loaded normally. When absent,
@@ -10,7 +9,7 @@
 //! for templates registered in the registry but lacking a dedicated
 //! crate directory.
 
-use hkask_types::{GitCASPort, GitError, TemplateCrate, TemplateFile};
+use hkask_types::{GitError, TemplateCrate, TemplateFile};
 use std::path::{Component, Path};
 
 /// Git CAS Adapter — Concrete implementation for template crate loading
@@ -160,10 +159,9 @@ impl GitCasAdapter {
             hlexicon_terms: Vec::new(),
         })
     }
-}
 
-impl GitCASPort for GitCasAdapter {
-    fn load_template_crate(&self, crate_name: &str) -> Result<TemplateCrate, GitError> {
+    /// Load a template crate from the content-addressable store
+    pub fn load_template_crate(&self, crate_name: &str) -> Result<TemplateCrate, GitError> {
         let crate_path = Path::new(crate_name);
 
         self.validate_path(crate_path)?;
@@ -233,7 +231,8 @@ impl GitCASPort for GitCasAdapter {
         })
     }
 
-    fn resolve_sha(&self, _crate_name: &str) -> Result<String, GitError> {
+    /// Resolve the current SHA for a crate
+    pub fn resolve_sha(&self, _crate_name: &str) -> Result<String, GitError> {
         use std::process::Command;
 
         let output = Command::new("git")
@@ -254,7 +253,9 @@ impl GitCASPort for GitCasAdapter {
         }
     }
 
-    fn commit(&self, message: &str) -> Result<String, GitError> {
+    /// Create a snapshot (commit) of all staged changes in the repository.
+    /// Returns the SHA of the new commit, or the current HEAD SHA if nothing to commit.
+    pub fn commit(&self, message: &str) -> Result<String, GitError> {
         use std::process::Command;
 
         let add_output = Command::new("git")

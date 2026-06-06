@@ -7,7 +7,6 @@ description = "Git CAS operations, versioning, and artifact management MCP serve
 
 [dependencies]
 hkask-types = { path = "../../crates/hkask-types" }
-hkask-agents = { path = "../../crates/hkask-agents" }
 hkask-mcp = { path = "../../crates/hkask-mcp" }
 rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
 tokio.workspace = true

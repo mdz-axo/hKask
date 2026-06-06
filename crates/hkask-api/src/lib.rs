@@ -32,7 +32,6 @@
 
 use hkask_agents::CyberneticsLoopHandle;
 use hkask_agents::acp::AcpRuntime;
-use hkask_agents::adapters::git_cas::GitCasAdapter;
 use hkask_agents::adapters::mcp_runtime::McpRuntimeAdapter;
 use hkask_agents::adapters::memory_loop_adapter::MemoryLoopAdapter;
 use hkask_agents::communication::dispatch::MessageDispatch;
@@ -110,7 +109,7 @@ pub struct ApiState {
     /// Escalation queue for Curator escalations
     pub escalation_queue: Arc<EscalationQueue>,
     /// Git CAS adapter for template archival
-    pub git_cas: Arc<dyn hkask_agents::ports::GitCASPort>,
+    pub git_cas: Arc<hkask_mcp::GitCasAdapter>,
     /// Standing ensemble sessions (keyed by session ID)
     pub standing_sessions: Arc<
         tokio::sync::RwLock<
@@ -118,7 +117,7 @@ pub struct ApiState {
         >,
     >,
     /// Standing session storage port (persistent or in-memory)
-    pub standing_session_store: Option<Arc<dyn hkask_types::ports::StandingSessionPort>>,
+    pub standing_session_store: Option<Arc<hkask_storage::StandingSessionStore>>,
     /// Ensemble session manager for chat/deliberation
     pub session_manager: Arc<tokio::sync::RwLock<hkask_ensemble::SessionManager>>,
     /// Goal repository for the goal coordination substrate. Mirrors the CLI
@@ -316,7 +315,7 @@ impl ApiState {
         };
         let escalation_queue =
             Arc::new(EscalationQueue::new(escalation_conn).expect("escalation queue init"));
-        let git_cas: Arc<dyn hkask_agents::ports::GitCASPort> = Arc::new(GitCasAdapter::from_path(
+        let git_cas: Arc<hkask_mcp::GitCasAdapter> = Arc::new(hkask_mcp::GitCasAdapter::from_path(
             PathBuf::from("/tmp/hkask-templates"),
         ));
         let dispatcher_runtime = mcp_runtime.clone();
@@ -396,7 +395,7 @@ impl ApiState {
         standing_session_store
             .initialize_schema()
             .expect("standing session schema init");
-        let standing_session_store: Option<Arc<dyn hkask_types::ports::StandingSessionPort>> =
+        let standing_session_store: Option<Arc<hkask_storage::StandingSessionStore>> =
             Some(Arc::new(standing_session_store));
 
         // Ensemble session manager
@@ -448,7 +447,7 @@ impl ApiState {
         system_webid: WebID,
         db_config: Option<&DbConfig>,
     ) -> Self {
-        let git_cas = GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-templates"));
+        let git_cas = hkask_mcp::GitCasAdapter::from_path(PathBuf::from("/tmp/hkask-templates"));
         let acp_runtime = Arc::new(AcpRuntime::new(acp_secret));
         let acp_port: Arc<dyn hkask_agents::ports::AcpPort> = acp_runtime.clone();
         let mcp_runtime_adapter = McpRuntimeAdapter::new().with_runtime(

@@ -1,6 +1,6 @@
 //! Git CAS Port — Hexagonal boundary for template crate loading
 //!
-//! The canonical `GitCASPort` trait definition lives in `hkask_types::ports`.
-//! This module re-exports it for backward compatibility.
+//! `GitCasAdapter` lives in hkask-mcp (no circular dep).
+//! This module re-exports it for convenience.
 
-pub use hkask_types::GitCASPort;
+pub use hkask_mcp::GitCasAdapter;
